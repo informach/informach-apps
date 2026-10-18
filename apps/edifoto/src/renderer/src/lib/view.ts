@@ -21,6 +21,7 @@ export function fitView(): void {
   const zoom = Math.min(1, (size.w - pad * 2) / doc.width, (size.h - pad * 2 - 60) / doc.height);
   const z = Math.max(0.01, zoom);
   useUi.setState({
+    fitMode: true,
     view: {
       zoom: z,
       panX: (size.w - doc.width * z) / 2,
@@ -35,7 +36,7 @@ export function zoomTo(zoom: number, sx = size.w / 2, sy = size.h / 2): void {
   const z = Math.min(32, Math.max(0.01, zoom));
   const dx = (sx - v.panX) / v.zoom;
   const dy = (sy - v.panY) / v.zoom;
-  useUi.setState({ view: { zoom: z, panX: sx - dx * z, panY: sy - dy * z } });
+  useUi.setState({ fitMode: false, view: { zoom: z, panX: sx - dx * z, panY: sy - dy * z } });
 }
 
 export function zoomStep(dir: 1 | -1, sx?: number, sy?: number): void {
@@ -49,7 +50,7 @@ export function zoomStep(dir: 1 | -1, sx?: number, sy?: number): void {
 
 export function panBy(dx: number, dy: number): void {
   const v = useUi.getState().view;
-  useUi.setState({ view: { ...v, panX: v.panX + dx, panY: v.panY + dy } });
+  useUi.setState({ fitMode: false, view: { ...v, panX: v.panX + dx, panY: v.panY + dy } });
 }
 
 /** Screen (CSS px relative to the viewport) → document pixels. */

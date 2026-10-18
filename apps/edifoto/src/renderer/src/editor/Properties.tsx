@@ -9,6 +9,7 @@ import {
   type TextLayer,
   type VectorLayer,
 } from "@shared/doc";
+import { IMAGE_STYLES } from "@shared/styles";
 import {
   AlignCenter,
   AlignLeft,
@@ -25,15 +26,19 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { attempt } from "@/lib/actions";
+import { readImageFile } from "@/lib/files";
+import { alignLayer, replaceImageSlot } from "@/lib/layout";
 import {
   editLayer,
   invertMask,
   removeMask,
   requireDoc,
   setMaskEnabled,
+  setMaskLinked,
   setTransform,
   shapeMask,
 } from "@/lib/ops";
+import { applyStyle } from "@/lib/styles";
 import { useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
 import { ColorSwatch, NumberField, Slider, Toggle } from "@/ui/controls";
@@ -42,6 +47,7 @@ import { VectorProperties } from "./VectorControls";
 
 function AdjustProps({ layer }: { layer: AdjustLayer }): ReactNode {
   const a = layer.adjust;
+  const advanced = useUi((s) => s.advanced);
   const set = (p: Partial<Adjust>): void => {
     attempt(() => editLayer(layer.id, { adjust: p }));
   };
@@ -68,34 +74,65 @@ function AdjustProps({ layer }: { layer: AdjustLayer }): ReactNode {
   const avg = (v: number[]): number => Math.round((v[0] + v[1] + v[2]) / 3);
   return (
     <>
-      <div className="section">
-        <span className="label">Curvas de luminosidade</span>
-        {["Pretos", "Sombras", "Meios-tons", "Realces", "Brancos"].map((label, i) => (
+      {layer.role === "style" && (
+        <div className="section">
+          <span className="label">Estilo</span>
+          <select
+            aria-label="Estilo da imagem"
+            className="field"
+            value={layer.preset ?? "natural"}
+            onChange={(event) => {
+              const style = IMAGE_STYLES.find((item) => item.id === event.target.value);
+              if (style) attempt(() => applyStyle(style.id, layer.opacity * 100));
+            }}
+          >
+            {IMAGE_STYLES.map((style) => (
+              <option key={style.id} value={style.id}>
+                {style.name}
+              </option>
+            ))}
+          </select>
           <Slider
-            key={label}
-            label={label}
+            label="Intensidade"
+            value={Math.round(layer.opacity * 100)}
             min={0}
             max={100}
-            value={Math.round((a.curves ?? [0, 0.25, 0.5, 0.75, 1])[i] * 100)}
-            reset={i * 25}
             unit="%"
-            onChange={(v) =>
-              set({
-                curves: (a.curves ?? [0, 0.25, 0.5, 0.75, 1]).map((n, j) =>
-                  j === i ? v / 100 : n,
-                ) as [number, number, number, number, number],
-              })
-            }
+            onChange={(value) => attempt(() => applyStyle(layer.preset ?? "natural", value))}
           />
-        ))}
-        <button
-          type="button"
-          className="btn"
-          onClick={() => set({ curves: [0, 0.25, 0.5, 0.75, 1] })}
-        >
-          Zerar curva
-        </button>
-      </div>
+          <p className="hint">O estilo fica em uma camada editável e pode ser removido.</p>
+        </div>
+      )}
+      {advanced && (
+        <div className="section">
+          <span className="label">Curvas de luminosidade</span>
+          {["Pretos", "Sombras", "Meios-tons", "Realces", "Brancos"].map((label, i) => (
+            <Slider
+              key={label}
+              label={label}
+              min={0}
+              max={100}
+              value={Math.round((a.curves ?? [0, 0.25, 0.5, 0.75, 1])[i] * 100)}
+              reset={i * 25}
+              unit="%"
+              onChange={(v) =>
+                set({
+                  curves: (a.curves ?? [0, 0.25, 0.5, 0.75, 1]).map((n, j) =>
+                    j === i ? v / 100 : n,
+                  ) as [number, number, number, number, number],
+                })
+              }
+            />
+          ))}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => set({ curves: [0, 0.25, 0.5, 0.75, 1] })}
+          >
+            Zerar curva
+          </button>
+        </div>
+      )}
       <div className="section">
         <div className="section-head">
           <span className="label">Luz</span>
@@ -127,41 +164,43 @@ function AdjustProps({ layer }: { layer: AdjustLayer }): ReactNode {
           Inverter cores <Toggle on={a.invert} onChange={(v) => set({ invert: v })} />
         </div>
       </div>
-      <div className="section">
-        <span className="label">Níveis</span>
-        <Slider
-          label="Ponto preto"
-          value={avg(lv.black)}
-          min={0}
-          max={254}
-          reset={0}
-          onChange={(v) => set({ levels: { ...lv, black: [v, v, v] } })}
-        />
-        <Slider
-          label="Ponto branco"
-          value={avg(lv.white)}
-          min={1}
-          max={255}
-          reset={255}
-          onChange={(v) => set({ levels: { ...lv, white: [v, v, v] } })}
-        />
-        <Slider
-          label="Meios-tons (gama)"
-          value={lv.gamma}
-          min={0.2}
-          max={3}
-          step={0.01}
-          digits={2}
-          reset={1}
-          onChange={(v) => set({ levels: { ...lv, gamma: v } })}
-        />
-        {(new Set(lv.black).size > 1 || new Set(lv.white).size > 1) && (
-          <span className="hint">
-            Por canal: preto R{lv.black[0]} G{lv.black[1]} B{lv.black[2]} · branco R{lv.white[0]} G
-            {lv.white[1]} B{lv.white[2]}
-          </span>
-        )}
-      </div>
+      {advanced && (
+        <div className="section">
+          <span className="label">Níveis</span>
+          <Slider
+            label="Ponto preto"
+            value={avg(lv.black)}
+            min={0}
+            max={254}
+            reset={0}
+            onChange={(v) => set({ levels: { ...lv, black: [v, v, v] } })}
+          />
+          <Slider
+            label="Ponto branco"
+            value={avg(lv.white)}
+            min={1}
+            max={255}
+            reset={255}
+            onChange={(v) => set({ levels: { ...lv, white: [v, v, v] } })}
+          />
+          <Slider
+            label="Meios-tons (gama)"
+            value={lv.gamma}
+            min={0.2}
+            max={3}
+            step={0.01}
+            digits={2}
+            reset={1}
+            onChange={(v) => set({ levels: { ...lv, gamma: v } })}
+          />
+          {(new Set(lv.black).size > 1 || new Set(lv.white).size > 1) && (
+            <span className="hint">
+              Por canal: preto R{lv.black[0]} G{lv.black[1]} B{lv.black[2]} · branco R{lv.white[0]}{" "}
+              G{lv.white[1]} B{lv.white[2]}
+            </span>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -239,6 +278,13 @@ function TextProps({ layer }: { layer: TextLayer }): ReactNode {
         unit=" px"
         onChange={(size) => edit({ size })}
       />
+      <NumberField
+        label="Largura do texto"
+        value={t.maxWidth ?? 0}
+        min={0}
+        max={8192}
+        onChange={(width) => edit({ maxWidth: width >= 20 ? width : undefined })}
+      />
       <Slider
         label="Entrelinha"
         value={t.lineHeight}
@@ -273,11 +319,54 @@ function PlacementProps({ layer }: { layer: RasterLayer | TextLayer | VectorLaye
     const f = cover
       ? Math.max(doc.width / layer.width, doc.height / layer.height)
       : Math.min(doc.width / layer.width, doc.height / layer.height);
-    set({ x: doc.width / 2, y: doc.height / 2, scale: f, rotation: 0 });
+    set({ x: doc.width / 2, y: doc.height / 2, scale: f, rotation: 0, basis: undefined });
   };
   return (
     <div className="section">
       <span className="label">Posição</span>
+      <div className="alignment-grid">
+        {(
+          [
+            ["left", "Esquerda"],
+            ["center", "Centro"],
+            ["right", "Direita"],
+            ["top", "Topo"],
+            ["middle", "Meio"],
+            ["bottom", "Base"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className="btn"
+            onClick={() => attempt(() => alignLayer(layer.id, id))}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {layer.role === "image-placeholder" && (
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() =>
+            attempt(async () => {
+              const state = useDoc.getState();
+              const paths = await window.api.pickImages(false);
+              if (!paths[0]) return;
+              const canvas = await readImageFile(paths[0]);
+              if (
+                useDoc.getState().doc?.id !== state.doc?.id ||
+                useDoc.getState().stateId !== state.stateId
+              )
+                throw new Error("A edição mudou. Escolha a imagem novamente.");
+              replaceImageSlot(layer.id, canvas);
+            })
+          }
+        >
+          Escolher imagem…
+        </button>
+      )}
       <div className="grid2">
         <NumberField label="Centro X" value={t.x} onChange={(x) => set({ x })} />
         <NumberField label="Centro Y" value={t.y} onChange={(y) => set({ y })} />
@@ -461,6 +550,15 @@ function MaskProps({ layer }: { layer: Layer }): ReactNode {
           onChange={(v) => attempt(() => setMaskEnabled(layer.id, v))}
         />
       </div>
+      {"transform" in layer && (
+        <div className="toggle-row">
+          Acompanha a imagem{" "}
+          <Toggle
+            on={!!layer.mask.reference}
+            onChange={(linked) => attempt(() => setMaskLinked(layer.id, linked))}
+          />
+        </div>
+      )}
       <div className="row">
         <div className="seg">
           <button

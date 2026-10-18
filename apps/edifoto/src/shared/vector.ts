@@ -1,4 +1,5 @@
 import type { Anchor, Point, Transform, VectorStyle } from "./doc.ts";
+import { apply, inverse, localPlacement } from "./placement.ts";
 
 export const SHAPE_LABELS = {
   rectangle: "Retângulo",
@@ -50,20 +51,10 @@ export function shapePath(v: VectorStyle): string {
 }
 
 export function localToDoc(p: Point, t: Transform, width: number, height: number): Point {
-  const x = (p.x - width / 2) * t.scale * (t.flipX ? -1 : 1);
-  const y = (p.y - height / 2) * t.scale * (t.flipY ? -1 : 1);
-  const r = (t.rotation * Math.PI) / 180;
-  return { x: t.x + x * Math.cos(r) - y * Math.sin(r), y: t.y + x * Math.sin(r) + y * Math.cos(r) };
+  return apply(localPlacement(t, width, height), p);
 }
-
 export function docToLocal(p: Point, t: Transform, width: number, height: number): Point {
-  const r = (-t.rotation * Math.PI) / 180,
-    x = p.x - t.x,
-    y = p.y - t.y;
-  return {
-    x: ((x * Math.cos(r) - y * Math.sin(r)) / t.scale) * (t.flipX ? -1 : 1) + width / 2,
-    y: ((x * Math.sin(r) + y * Math.cos(r)) / t.scale) * (t.flipY ? -1 : 1) + height / 2,
-  };
+  return apply(inverse(localPlacement(t, width, height)), p);
 }
 
 export function dragRect(

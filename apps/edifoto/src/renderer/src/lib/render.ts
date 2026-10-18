@@ -26,12 +26,23 @@ function frame(): void {
   if (!doc) return;
   const ui = useUi.getState();
   const c = compositor();
-  if (needComposite || !last || c.compositeCount !== lastCount) {
-    last = c.composite(doc, { modeOverride: ui.previewMode ?? undefined, before: ui.beforeAfter });
-    lastCount = c.compositeCount;
-    needComposite = false;
+  try {
+    if (needComposite || !last || c.compositeCount !== lastCount) {
+      last = c.composite(doc, {
+        modeOverride: ui.previewMode ?? undefined,
+        before: ui.beforeAfter,
+      });
+      lastCount = c.compositeCount;
+      needComposite = false;
+    }
+    c.display(last, doc, ui.view);
+  } catch (error) {
+    needComposite = true;
+    ui.toast(
+      error instanceof Error ? error.message : "Não foi possível atualizar a visualização.",
+      "error",
+    );
   }
-  c.display(last, doc, ui.view);
 }
 
 export function startRenderLoop(): () => void {

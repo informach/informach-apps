@@ -112,3 +112,10 @@ Na mesma tarde, a pedido da titular, a entrega foi conferida tela por tela contr
 - [Runbook compartilhado](deploy-runbook.md): procedimentos gerais; conferir a configuração versionada e o guia atual de cada app antes de aplicar exemplos históricos.
 
 Datas e identificadores de deployments nesses documentos são evidências históricas. Confirmar o estado remoto quando a tarefa envolver produção, sem registrar credenciais ou dados pessoais neste índice.
+
+## Evolução funcional do EdiFoto
+
+Em 18/10/2026, após o [diagnóstico](reviews/edifoto-2026-10-18/analise-funcional.md), o titular autorizou implementação por lotes, review entre lotes e full review. Escopo ajustado para uso cotidiano simples, orientado pelas necessidades de professores, com nomes genéricos e IA mantida pela assinatura pessoal. Os cinco lotes foram implementados e revisados: segurança/recuperação de arquivos, fidelidade de edição, interface/modelos/exportação, assistente pessoal e refinamentos de seleção/alinhamento/estilos/recorte. O [review final](reviews/edifoto-2026-10-18/review-final.md) registra verificações locais, correções adicionais e limites, incluindo a jornada real de arquivos no Electron e a ausência de chamadas pagas aos provedores. Estado e aceite no [plano](../apps/edifoto/PLANO-DE-IMPLEMENTACAO.md). Não houve commit/push/deploy/release. Próximo passo de produto: avaliar facilidade com usuários e hardware representativos; compatibilidade profissional ampla não integra este ciclo.
+
+
+Em seguida, o titular autorizou novo full review, correções, commit e publicação em produção/main. A revisão e as correções locais foram concluídas em `fix/edifoto-full-review`, isoladas das frentes EdiSVG/EdiPDF. O [review para publicação](reviews/edifoto-2026-10-18/review-producao.md) registra achados, correspondência com o diagnóstico simplificado e gates. Integração na main e release desktop `edi-v0.1.2` aguardam os gates remotos.

@@ -248,9 +248,12 @@ pnpm build
 | OAuth, banco e licenças | `pnpm edi:test:integration` — Windows; PostgreSQL descartável com migrations completas, sem banco existente |
 | Portal standalone real | `pnpm build:edi`, depois `pnpm edi:test:integration --portal` — acrescenta HTTP, assets, auth e readiness; não é só `next dev` |
 | Fluxo Electron e acesso | `pnpm edi:test:native` ou `pnpm edi:test:native edifoto` — Windows, perfis isolados, builds próprios, fixtures e screenshots em `.cache/edi-native-results` |
+| EdiFoto no navegador | `pnpm --filter @informach/edifoto test:e2e` — regressão de edição, arquivos em memória, IA local sem chamadas pagas e layout; evidências em `.cache/edifoto-tests` |
 | Tooling de release | `pnpm edi:typecheck:tooling` e `pnpm edi:test:tooling` |
 | Ciclo financeiro de teste | `pnpm edi:test:integration --stripe` — exige `EDI_STRIPE_TEST_KEY`; cria recursos de teste no provider |
 | Webhook Stripe por HTTP | `pnpm edi:test:integration --stripe-http` — exige a mesma chave de teste e Stripe CLI; consultar homologação antes de operar |
+
+O fluxo nativo selecionado para `edifoto` também verifica salvar/reabrir `.edifoto`, cancelamento de Salvar como, rascunho durável separado do original e exportação PNG por diálogos Windows reais. Os helpers do app só interagem com o PID do fixture e destinos exatos em seu diretório temporário. Detalhes e limites no [README do EdiFoto](../apps/edifoto/README.md).
 
 O runner descartável limpa banco e diretório ao finalizar. O CI Linux usa o serviço PostgreSQL declarado no workflow de integração em vez do binário portátil Windows. Os harnesses não substituem aceite de captura/GPU em hardware representativo nem verificação de projetos reais copiados para ambiente descartável.
 
@@ -311,3 +314,5 @@ Uma alteração diária deve ter escopo, testes, documentação e revisão antes
 | Teste/build mudou outro app | Confira dependências compartilhadas e concorrência no checkout; não reutilize `out` ou `.next` enquanto outro processo os reescreve |
 
 Para logs, use códigos de operação e IDs permitidos pela [política de auditoria](audit-payload-policy.md). Não registre documentos, corpos de requests, tokens ou chaves. Novos erros operacionais do portal passam por `apps/edi/src/lib/observability.ts` e sua sanitização; testes locais devem permanecer sem DSN real.
+
+O runner nativo direciona `pictures` de cada processo ao diretório de documentos do fixture. O helper do EdiFoto aceita apenas controles visíveis/habilitados do PID esperado e destinos exatos em `edi-native-*`; a jornada espera “Projeto salvo.”, registra o caminho e preserva uma captura em falha antes da limpeza.

@@ -8,7 +8,8 @@ export function openChromaKey(): void {
   const id = useDoc.getState().activeId;
   if (!id) throw new OpError("Selecione uma camada de imagem para retirar o fundo.");
   const layer = requireLayer(id);
-  if (layer.kind !== "raster") throw new OpError("O chroma key precisa de uma camada de imagem.");
+  if (layer.kind !== "raster")
+    throw new OpError("Escolha uma camada de imagem para remover o fundo.");
   if (layer.locked) throw new OpError("Desbloqueie a camada antes de retirar o fundo.");
   useUi.setState({ chromaOpen: true });
 }
@@ -25,7 +26,7 @@ export function applyChromaKey(
     current.bitmap !== layer.bitmap ||
     requireBitmap(layer.bitmap).version !== version
   ) {
-    throw new OpError("A imagem mudou durante a prévia. Feche e abra o chroma key novamente.");
+    throw new OpError("A imagem mudou durante a prévia. Feche e abra o recorte novamente.");
   }
   if (pixels.length !== layer.width * layer.height * 4)
     throw new OpError("Resultado de chroma key inválido.");

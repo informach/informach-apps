@@ -1,12 +1,12 @@
 import { showModalOnMount } from "@informach/edi-desktop/renderer";
 import { Download, Link2, X } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { attempt } from "@/lib/actions";
-import { type ExportSpec, exportTo } from "@/lib/files";
+import { type ExportSpec, exportTo, renderExport } from "@/lib/files";
 import { resizeImage } from "@/lib/ops";
 import { useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
-import { Slider } from "@/ui/controls";
+import { NumberField, Slider } from "@/ui/controls";
 
 const SCALES = [
   { label: "100%", value: 1 },
@@ -17,22 +17,68 @@ const SCALES = [
 
 export function ExportDialog(): ReactNode {
   const doc = useDoc((s) => s.doc);
-  const [spec, setSpec] = useState<ExportSpec>({ format: "jpeg", quality: 90, scale: 1 });
+  const [spec, setSpec] = useState<ExportSpec>(() => useUi.getState().exportPreference);
   const [busy, setBusy] = useState(false);
+  const cancelled = useRef(false),
+    workspaceId = useRef(useDoc.getState().initialStateId);
+  useEffect(() => {
+    cancelled.current = false;
+    return () => {
+      cancelled.current = true;
+    };
+  }, []);
+  const [preview, setPreview] = useState("");
+  const [previewError, setPreviewError] = useState("");
+  useEffect(() => {
+    if (!doc) return;
+    let active = true,
+      url: string | undefined;
+    setPreviewError("");
+    void renderExport({
+      ...spec,
+      scale: Math.min(spec.scale, 512 / Math.max(doc.width, doc.height)),
+    })
+      .then((bytes) => {
+        if (!active) return;
+        url = URL.createObjectURL(
+          new Blob([new Uint8Array(bytes)], { type: `image/${spec.format}` }),
+        );
+        setPreview(url);
+      })
+      .catch((error: unknown) => {
+        if (active) setPreviewError(error instanceof Error ? error.message : "Falha na prévia.");
+      });
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [doc, spec]);
   if (!doc) return null;
   const close = (): void => {
+    cancelled.current = true;
     useUi.setState({ exportOpen: false });
   };
   const w = Math.round(doc.width * spec.scale);
   const h = Math.round(doc.height * spec.scale);
   const go = (): void => {
     attempt(async () => {
-      const ext = spec.format === "jpeg" ? "jpg" : spec.format;
-      const path = await window.api.pickSavePath(`${doc.name}.${ext}`, spec.format);
-      if (!path) return;
+      if (busy) return;
       setBusy(true);
       try {
-        const out = await exportTo(path, spec);
+        const ext = spec.format === "jpeg" ? "jpg" : spec.format;
+        const path = await window.api.pickSavePath(`${doc.name}.${ext}`, spec.format);
+        if (!path) return;
+        if (
+          cancelled.current ||
+          useDoc.getState().doc?.id !== doc.id ||
+          useDoc.getState().initialStateId !== workspaceId.current
+        )
+          throw new Error("A imagem mudou. Abra a exportação novamente.");
+        const out = await exportTo(path, spec, () => {
+          if (cancelled.current || useDoc.getState().initialStateId !== workspaceId.current)
+            throw new Error("Exportação cancelada.");
+        });
+        useUi.setState({ exportPreference: spec });
         close();
         useUi.getState().toast(`Exportado: ${out.split(/[\\/]/).pop()}`, "ok", {
           label: "Mostrar na pasta",
@@ -68,11 +114,17 @@ export function ExportDialog(): ReactNode {
           <Download size={16} className="accent" />
           <strong>Exportar imagem</strong>
           <span className="spacer" />
-          <button type="button" className="icon-btn" onClick={close}>
+          <button type="button" className="icon-btn" aria-label="Fechar" onClick={close}>
             <X size={15} />
           </button>
         </div>
         <div className="modal-body">
+          {preview && (
+            <div className="export-preview">
+              <img src={preview} alt="Prévia da exportação" />
+            </div>
+          )}
+          {previewError && <p role="alert">{previewError}</p>}
           <div className="seg" style={{ alignSelf: "flex-start" }}>
             {(["jpeg", "png", "webp"] as const).map((f) => (
               <button
@@ -124,6 +176,18 @@ export function ExportDialog(): ReactNode {
               {w} × {h}
             </span>
           </div>
+          <NumberField
+            label="Largura final"
+            value={w}
+            min={1}
+            max={8192}
+            suffix="px"
+            onChange={(value) => setSpec({ ...spec, scale: value / doc.width })}
+          />
+          <p className="hint">
+            O projeto continua editável. A prévia acima é reduzida; o arquivo usa o tamanho
+            escolhido.
+          </p>
         </div>
         <div className="modal-foot">
           <span className="spacer" />
@@ -195,7 +259,7 @@ export function ResizeDialog(): ReactNode {
         <div className="modal-head">
           <strong>Tamanho da imagem</strong>
           <span className="spacer" />
-          <button type="button" className="icon-btn" onClick={close}>
+          <button type="button" className="icon-btn" aria-label="Fechar" onClick={close}>
             <X size={15} />
           </button>
         </div>

@@ -1,5 +1,7 @@
 import { type BlendMode, blendIndex } from "@shared/blendModes";
 import type { Adjust, Doc, Gradient, Layer, Transform } from "@shared/doc";
+import { validateDimensions } from "@shared/documentFormat";
+import { inverse, localPlacement, maskPlacement } from "@shared/placement";
 import { getBitmap } from "./bitmaps";
 import { CLEAR_FS, DISPLAY_FS, FULLSCREEN_VS, LAYER_FS } from "./shaders";
 import { renderText } from "./text";
@@ -19,7 +21,7 @@ export interface RenderOptions {
   only?: string;
   /** Temporarily show one layer with another blend mode (hover previews, contact sheets). */
   modeOverride?: { layerId: string; mode: BlendMode };
-  /** "Antes": only the bottom layer. */
+  /** Opening-state composite, kept independently of editable layers. */
   before?: boolean;
 }
 
@@ -69,9 +71,19 @@ export class Compositor {
   /** Called after an offscreen render (export, preview) overwrote the on-screen result. */
   onOffscreenRender: (() => void) | null = null;
   maxTexture: number;
+  private originalImage: HTMLCanvasElement | null = null;
+  rememberOriginal(doc: Doc): void {
+    this.originalImage = this.renderToCanvas(doc, {
+      scale: Math.min(1, 1600 / Math.max(doc.width, doc.height)),
+    });
+  }
+  clearOriginal(): void {
+    this.originalImage = null;
+  }
+  private contextLost = false;
 
-  constructor() {
-    this.canvas = document.createElement("canvas");
+  constructor(canvas?: HTMLCanvasElement, observe = true) {
+    this.canvas = canvas ?? document.createElement("canvas");
     this.canvas.className = "gl-canvas";
     const gl = this.canvas.getContext("webgl2", {
       alpha: false,
@@ -111,6 +123,31 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
       gl.UNSIGNED_BYTE,
       new Uint8Array([255, 255, 255, 255]),
     );
+    if (observe) {
+      this.canvas.addEventListener("webglcontextlost", (event) => {
+        event.preventDefault();
+        this.contextLost = true;
+        window.dispatchEvent(new Event("edifoto:graphics-lost"));
+      });
+      this.canvas.addEventListener("webglcontextrestored", () => {
+        const rebuilt = new Compositor(this.canvas, false);
+        this.gl = rebuilt.gl;
+        this.floatTargets = rebuilt.floatTargets;
+        this.layerProg = rebuilt.layerProg;
+        this.clearProg = rebuilt.clearProg;
+        this.displayProg = rebuilt.displayProg;
+        this.copyProg = rebuilt.copyProg;
+        this.uniforms = rebuilt.uniforms;
+        this.textures = rebuilt.textures;
+        this.targets = rebuilt.targets;
+        this.white = rebuilt.white;
+        this.maxTexture = rebuilt.maxTexture;
+        this.contextLost = false;
+        this.frame = 0;
+        this.compositeCount++;
+        this.onOffscreenRender?.();
+      });
+    }
   }
 
   private program(fs: string): WebGLProgram {
@@ -141,6 +178,7 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
   }
 
   private target(w: number, h: number): Target {
+    validateDimensions(w, h, this.maxTexture);
     const key = `${w}x${h}`;
     const hit = this.targets.get(key);
     if (hit) return hit;
@@ -158,6 +196,13 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
       const fb = gl.createFramebuffer()!;
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        gl.deleteFramebuffer(fb);
+        gl.deleteTexture(tex);
+        throw new Error(
+          "Não há memória gráfica suficiente para esta imagem. Salve o projeto e use dimensões menores.",
+        );
+      }
       return [tex, fb];
     };
     const a = make();
@@ -192,12 +237,28 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     const gl = this.gl;
     let e = this.textures.get(key);
     const sizeChanged = !e || e.w !== canvas.width || e.h !== canvas.height;
+    if (e) {
+      this.textures.delete(key);
+      this.textures.set(key, e);
+    }
     if (e && !sizeChanged && e.version === version) {
       e.used = this.frame;
       return e.tex;
     }
     if (!e || sizeChanged) {
-      if (e) gl.deleteTexture(e.tex);
+      if (e) {
+        gl.deleteTexture(e.tex);
+        this.textures.delete(key);
+      }
+      // Keep the most recently requested source and mask; older textures can be re-uploaded.
+      let pixels = canvas.width * canvas.height;
+      for (const entry of this.textures.values()) pixels += entry.w * entry.h;
+      for (const [id, entry] of this.textures) {
+        if (pixels <= 64_000_000) break;
+        pixels -= entry.w * entry.h;
+        gl.deleteTexture(entry.tex);
+        this.textures.delete(id);
+      }
       const tex = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
@@ -225,6 +286,13 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
       e.used = this.frame;
     }
     gl.generateMipmap(gl.TEXTURE_2D);
+    if (gl.getError() !== gl.NO_ERROR) {
+      gl.deleteTexture(e.tex);
+      this.textures.delete(key);
+      throw new Error(
+        "Não foi possível preparar a imagem na GPU. Salve o projeto e tente dimensões menores.",
+      );
+    }
     return e.tex;
   }
 
@@ -253,6 +321,10 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
 
   /** Composites the document and returns the target holding the result. */
   composite(doc: Doc, opts: RenderOptions = {}): Target {
+    if (this.contextLost)
+      throw new Error(
+        "A placa gráfica interrompeu a visualização. Seu trabalho continua disponível para salvar.",
+      );
     const gl = this.gl;
     this.frame++;
     this.compositeCount++;
@@ -263,6 +335,27 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     gl.disable(gl.BLEND);
     this.draw(this.clearProg, t.fb[0], w, h);
     t.cur = 0;
+    if (opts.before && this.originalImage) {
+      const source = this.originalImage;
+      const image = document.createElement("canvas");
+      image.width = w;
+      image.height = h;
+      const ctx = image.getContext("2d");
+      if (!ctx) throw new Error("Não foi possível comparar a imagem.");
+      const fit = Math.min(w / source.width, h / source.height);
+      ctx.drawImage(
+        source,
+        (w - source.width * fit) / 2,
+        (h - source.height * fit) / 2,
+        source.width * fit,
+        source.height * fit,
+      );
+      const tex = this.texture("original-preview", image, this.frame);
+      gl.useProgram(this.copyProg);
+      this.bindTex(this.copyProg, "uImage", 0, tex);
+      this.draw(this.copyProg, t.fb[0], w, h);
+      return t;
+    }
 
     let layers = doc.layers.filter((l) => l.visible);
     if (opts.only) layers = doc.layers.filter((l) => l.id === opts.only);
@@ -271,6 +364,9 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     const p = this.layerProg;
     for (const layer of layers) {
       if (layer.opacity * layer.fill <= 0 && !opts.only) continue;
+      // Upload the mask before binding the source: uploads bind a texture on the active unit.
+      const maskTex =
+        layer.mask?.enabled && !opts.only ? this.bitmapTexture(layer.mask.bitmap) : null;
       if (!this.setupLayer(layer, doc)) continue;
       const mode =
         opts.modeOverride?.layerId === layer.id ? opts.modeOverride.mode : layer.blendMode;
@@ -279,9 +375,23 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
       gl.uniform2f(this.u(p, "uDoc"), doc.width, doc.height);
       gl.uniform1i(this.u(p, "uMode"), opts.only ? 0 : blendIndex(mode));
       gl.uniform1f(this.u(p, "uAlpha"), opts.only ? 1 : layer.opacity * layer.fill);
-      const maskTex =
-        layer.mask?.enabled && !opts.only ? this.bitmapTexture(layer.mask.bitmap) : null;
       gl.uniform1i(this.u(p, "uHasMask"), maskTex ? 1 : 0);
+      const [ma, mb, mc, md, mx, my] = maskPlacement(layer);
+      gl.uniformMatrix3fv(
+        this.u(p, "uToMask"),
+        false,
+        new Float32Array([
+          ma / doc.width,
+          mb / doc.height,
+          0,
+          mc / doc.width,
+          md / doc.height,
+          0,
+          mx / doc.width,
+          my / doc.height,
+          1,
+        ]),
+      );
       this.bindTex(p, "uMask", 2, maskTex ?? this.white);
       this.bindTex(p, "uBackdrop", 0, t.tex[t.cur]);
       this.draw(p, t.fb[1 - t.cur], w, h);
@@ -377,17 +487,25 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     gl.uniform1i(this.u(p, "uStops"), stops.length);
     gl.uniform4fv(this.u(p, "uStopColor"), colors);
     gl.uniform1fv(this.u(p, "uStopPos"), pos);
-    const cx = g.cx * doc.width;
-    const cy = g.cy * doc.height;
+    const width = g.space?.width ?? doc.width,
+      height = g.space?.height ?? doc.height;
+    const [a, b, c, d, x, y] = g.space?.toLocal ?? [1, 0, 0, 1, 0, 0];
+    gl.uniformMatrix3fv(
+      this.u(p, "uToGradient"),
+      false,
+      new Float32Array([a, b, 0, c, d, 0, x, y, 1]),
+    );
+    const cx = g.cx * width;
+    const cy = g.cy * height;
     if (g.type === "radial") {
       gl.uniform1i(this.u(p, "uKind"), 3);
       gl.uniform2f(this.u(p, "uG0"), cx, cy);
-      gl.uniform2f(this.u(p, "uG1"), (g.scale * Math.hypot(doc.width, doc.height)) / 2, 0);
+      gl.uniform2f(this.u(p, "uG1"), (g.scale * Math.hypot(width, height)) / 2, 0);
     } else {
       const a = (g.angle * Math.PI) / 180;
       const dx = Math.cos(a);
       const dy = Math.sin(a);
-      const len = ((Math.abs(doc.width * dx) + Math.abs(doc.height * dy)) * g.scale) / 2;
+      const len = ((Math.abs(width * dx) + Math.abs(height * dy)) * g.scale) / 2;
       gl.uniform1i(this.u(p, "uKind"), 2);
       gl.uniform2f(this.u(p, "uG0"), cx - dx * len, cy - dy * len);
       gl.uniform2f(this.u(p, "uG1"), cx + dx * len, cy + dy * len);
@@ -522,19 +640,8 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
 
 /** Maps document pixels to the layer's texture coordinates (inverse of its placement). */
 export function toLayerMatrix(t: Transform, w: number, h: number): Float32Array {
-  const r = (t.rotation * Math.PI) / 180;
-  const cos = Math.cos(r);
-  const sin = Math.sin(r);
-  const fx = t.flipX ? -1 : 1;
-  const fy = t.flipY ? -1 : 1;
-  const s = t.scale || 1;
-  const a = (fx * cos) / (s * w);
-  const b = (fx * sin) / (s * w);
-  const d = (-fy * sin) / (s * h);
-  const e = (fy * cos) / (s * h);
-  const c = 0.5 - a * t.x - b * t.y;
-  const f = 0.5 - d * t.x - e * t.y;
-  return new Float32Array([a, d, 0, b, e, 0, c, f, 1]);
+  const [a, b, c, d, x, y] = inverse(localPlacement(t, w, h));
+  return new Float32Array([a / w, b / h, 0, c / w, d / h, 0, x / w, y / h, 1]);
 }
 
 let instance: Compositor | null = null;

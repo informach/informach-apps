@@ -1,35 +1,45 @@
 import type { Doc } from "@shared/doc";
+import {
+  decodeArchive,
+  encodeArchive,
+  referencedBitmaps,
+  validateDimensions,
+  validateDocument,
+} from "@shared/documentFormat";
 import type { SaveKind } from "@shared/types";
-import { adoptCanvas, clearBitmaps, getBitmap } from "@/engine/bitmaps";
+import { getBitmap, withBitmapReplacement } from "@/engine/bitmaps";
 import { compositor } from "@/engine/compositor";
-import { useDoc } from "@/state/doc";
+import { collectDocumentBitmaps, useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
 import { docFromImage, placeImage } from "./ops";
+import { isPainting } from "./paint";
 
 /**
  * Files: images in and out, the .edifoto document format and the clipboard.
  *
- * .edifoto layout: "EDIFOTO1" + uint32 JSON length + JSON ({ doc, bitmaps: { id: [offset, length] } })
+ * .edifoto layout: "EDIFOTO2" (legado: "EDIFOTO1") + uint32 JSON length + JSON ({ doc, bitmaps: { id: [offset, length] } })
  * followed by the PNG of every bitmap the document uses.
  */
 
-const MAGIC = "EDIFOTO1";
+function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const context = canvas.getContext("2d");
+  if (!context)
+    throw new Error("Não foi possível preparar a imagem. Salve seu trabalho e tente novamente.");
+  return context;
+}
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|avif)$/i;
 
 const baseName = (p: string): string =>
-  p
-    .split(/[\\/]/)
-    .pop()!
-    .replace(/\.[^.]+$/, "");
+  p.slice(Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")) + 1).replace(/\.[^.]+$/, "");
 const mimeOf = (p: string): string => {
-  const ext = p.split(".").pop()!.toLowerCase();
+  const ext = p.slice(p.lastIndexOf(".") + 1).toLowerCase();
   return ext === "jpg" ? "image/jpeg" : `image/${ext}`;
 };
 
 export const isImagePath = (p: string): boolean => IMAGE_EXT.test(p);
 export const isDocPath = (p: string): boolean => /\.edifoto$/i.test(p);
 
-/** Decodes image bytes (EXIF rotation applied) into a canvas, shrinking anything the GPU can't hold. */
+/** Decodes image bytes (EXIF rotation applied) into a canvas, rejecting dimensions beyond the editor/GPU limits. */
 export async function decodeImage(
   bytes: Uint8Array | Blob,
   mime = "image/png",
@@ -37,16 +47,17 @@ export async function decodeImage(
   const blob = bytes instanceof Blob ? bytes : new Blob([bytes as BlobPart], { type: mime });
   const bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
   const max = compositor().maxTexture;
-  const fit = Math.min(1, max / bmp.width, max / bmp.height);
+  try {
+    validateDimensions(bmp.width, bmp.height, max);
+  } catch (error) {
+    bmp.close();
+    throw error;
+  }
   const c = document.createElement("canvas");
-  c.width = Math.round(bmp.width * fit);
-  c.height = Math.round(bmp.height * fit);
-  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+  c.width = bmp.width;
+  c.height = bmp.height;
+  context2d(c).drawImage(bmp, 0, 0, c.width, c.height);
   bmp.close();
-  if (fit < 1)
-    useUi
-      .getState()
-      .toast(`Imagem reduzida para ${c.width}×${c.height} (limite da placa de vídeo).`);
   return c;
 }
 
@@ -70,18 +81,34 @@ function remember(path: string): void {
 }
 
 /** Opens an image or .edifoto file as the current document. */
-export async function openPath(path: string): Promise<void> {
+export async function openPath(path: string, check: () => void = () => {}): Promise<void> {
+  if (isPainting()) throw new Error("Termine o traço antes de abrir outra imagem.");
+  const previous = useDoc.getState();
+  const assertUnchanged = (): void => {
+    const current = useDoc.getState();
+    if (
+      current.doc?.id !== previous.doc?.id ||
+      current.stateId !== previous.stateId ||
+      current.revision !== previous.revision
+    )
+      throw new Error(
+        "A edição mudou durante a abertura. Tente abrir novamente; seu trabalho foi preservado.",
+      );
+  };
   if (isDocPath(path)) {
     const { doc, bitmaps } = await parseDocument(await window.api.readFile(path));
-    clearBitmaps();
-    for (const [id, canvas] of bitmaps) adoptCanvas(canvas, id);
-    useDoc.getState().load(doc, { filePath: path });
+    assertUnchanged();
+    check();
+    withBitmapReplacement(bitmaps, () => useDoc.getState().load(doc, { filePath: path }));
   } else {
     const canvas = await readImageFile(path);
-    clearBitmaps();
-    useDoc.getState().load(docFromImage(canvas, canvas.width, canvas.height, baseName(path)), {
-      sourcePath: path,
-    });
+    assertUnchanged();
+    check();
+    withBitmapReplacement(new Map(), () =>
+      useDoc.getState().load(docFromImage(canvas, canvas.width, canvas.height, baseName(path)), {
+        sourcePath: path,
+      }),
+    );
   }
   useUi.setState((s) => ({
     fitRequest: s.fitRequest + 1,
@@ -98,9 +125,23 @@ export async function openPath(path: string): Promise<void> {
 
 /** Adds image files as layers of the open document. */
 export async function placePaths(paths: string[]): Promise<string[]> {
+  const previous = useDoc.getState();
+  if (!previous.doc) throw new Error("Abra ou crie uma imagem primeiro.");
+  const images: { path: string; canvas: HTMLCanvasElement }[] = [];
+  for (const path of paths) {
+    if (!isImagePath(path))
+      throw new Error(
+        "Para inserir como camada, escolha uma imagem PNG, JPEG, WebP, GIF, BMP ou AVIF.",
+      );
+    images.push({ path, canvas: await readImageFile(path) });
+  }
+  if (
+    useDoc.getState().doc?.id !== previous.doc.id ||
+    useDoc.getState().initialStateId !== previous.initialStateId
+  )
+    throw new Error("A imagem aberta mudou. Insira os arquivos novamente.");
   const ids: string[] = [];
-  for (const p of paths) {
-    const c = await readImageFile(p);
+  for (const { path: p, canvas: c } of images) {
     ids.push(placeImage(c, c.width, c.height, baseName(p)));
   }
   return ids;
@@ -117,95 +158,131 @@ const canvasToBytes = (
     c.toBlob(
       (b) => {
         if (!b) return reject(new Error("Falha ao gerar a imagem."));
-        void b.arrayBuffer().then((a) => resolve(new Uint8Array(a)));
+        void b.arrayBuffer().then((a) => resolve(new Uint8Array(a)), reject);
       },
       type,
       quality,
     ),
   );
 
-function usedBitmaps(doc: Doc): string[] {
-  const ids = new Set<string>();
-  for (const l of doc.layers) {
-    if (l.kind === "raster") ids.add(l.bitmap);
-    if (l.mask) ids.add(l.mask.bitmap);
+/** Snapshot every mutable canvas synchronously before the first async encoder. */
+export function documentSnapshot(doc: Doc): { doc: Doc; canvases: Map<string, HTMLCanvasElement> } {
+  if (isPainting()) throw new Error("Termine o traço antes de salvar ou trocar de imagem.");
+  const model = validateDocument(structuredClone(doc));
+  const canvases = new Map<string, HTMLCanvasElement>();
+  for (const id of referencedBitmaps(model)) {
+    const bitmap = getBitmap(id);
+    if (!bitmap)
+      throw new Error("Uma imagem ou máscara está ausente. O arquivo anterior foi preservado.");
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.canvas.width;
+    canvas.height = bitmap.canvas.height;
+    context2d(canvas).drawImage(bitmap.canvas, 0, 0);
+    canvases.set(id, canvas);
   }
-  return [...ids];
+  return { doc: model, canvases };
 }
-
+export async function encodeSnapshot(
+  snapshot: ReturnType<typeof documentSnapshot>,
+): Promise<Uint8Array> {
+  const bitmaps = new Map<string, Uint8Array>();
+  for (const [id, canvas] of snapshot.canvases) bitmaps.set(id, await canvasToBytes(canvas));
+  return encodeArchive(snapshot.doc, bitmaps);
+}
 export async function serializeDocument(doc: Doc): Promise<Uint8Array> {
-  const blobs: Uint8Array[] = [];
-  const index: Record<string, [number, number]> = {};
-  let offset = 0;
-  for (const id of usedBitmaps(doc)) {
-    const b = getBitmap(id);
-    if (!b) continue;
-    const bytes = await canvasToBytes(b.canvas);
-    index[id] = [offset, bytes.length];
-    blobs.push(bytes);
-    offset += bytes.length;
-  }
-  const json = new TextEncoder().encode(
-    JSON.stringify({ format: "edifoto", version: 1, doc, bitmaps: index }),
-  );
-  const out = new Uint8Array(8 + 4 + json.length + offset);
-  out.set(new TextEncoder().encode(MAGIC), 0);
-  new DataView(out.buffer).setUint32(8, json.length, true);
-  out.set(json, 12);
-  let at = 12 + json.length;
-  for (const b of blobs) {
-    out.set(b, at);
-    at += b.length;
-  }
-  return out;
+  return encodeSnapshot(documentSnapshot(doc));
 }
-
 export async function parseDocument(
   bytes: Uint8Array,
 ): Promise<{ doc: Doc; bitmaps: Map<string, HTMLCanvasElement> }> {
-  if (new TextDecoder().decode(bytes.subarray(0, 8)) !== MAGIC)
-    throw new Error("Este arquivo não é um documento do EdiFoto.");
-  const len = new DataView(bytes.buffer, bytes.byteOffset).getUint32(8, true);
-  const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(12, 12 + len))) as {
-    doc: Doc;
-    bitmaps: Record<string, [number, number]>;
-  };
-  const base = 12 + len;
+  const archive = decodeArchive(bytes);
+  validateDimensions(archive.doc.width, archive.doc.height, compositor().maxTexture);
   const bitmaps = new Map<string, HTMLCanvasElement>();
-  for (const [id, [off, size]] of Object.entries(meta.bitmaps)) {
-    const blob = new Blob([bytes.subarray(base + off, base + off + size) as BlobPart], {
-      type: "image/png",
-    });
-    const bmp = await createImageBitmap(blob);
-    const c = document.createElement("canvas");
-    c.width = bmp.width;
-    c.height = bmp.height;
-    c.getContext("2d")!.drawImage(bmp, 0, 0);
-    bmp.close();
-    bitmaps.set(id, c);
+  const dimensions = new Map<string, [number, number]>();
+  for (const layer of archive.doc.layers) {
+    if (layer.kind === "raster") dimensions.set(layer.bitmap, [layer.width, layer.height]);
+    if (layer.mask) dimensions.set(layer.mask.bitmap, [archive.doc.width, archive.doc.height]);
   }
-  return { doc: meta.doc, bitmaps };
+  for (const [id, chunk] of archive.bitmaps) {
+    // Inspect PNG dimensions before allocating/decompressing the image.
+    if (
+      chunk.length < 33 ||
+      ![137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => chunk[i] === byte) ||
+      new TextDecoder().decode(chunk.subarray(12, 16)) !== "IHDR"
+    )
+      throw new Error("O projeto contém uma imagem inválida.");
+    const view = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    const width = view.getUint32(16),
+      height = view.getUint32(20),
+      expected = dimensions.get(id);
+    validateDimensions(width, height, compositor().maxTexture);
+    if (view.getUint32(8) !== 13 || !expected || width !== expected[0] || height !== expected[1])
+      throw new Error("As dimensões de uma imagem não correspondem ao projeto.");
+    const bmp = await createImageBitmap(new Blob([new Uint8Array(chunk)], { type: "image/png" }));
+    try {
+      validateDimensions(bmp.width, bmp.height, compositor().maxTexture);
+      const canvas = document.createElement("canvas");
+      canvas.width = bmp.width;
+      canvas.height = bmp.height;
+      context2d(canvas).drawImage(bmp, 0, 0);
+      bitmaps.set(id, canvas);
+    } finally {
+      bmp.close();
+    }
+  }
+  for (const layer of archive.doc.layers) {
+    if (layer.kind === "raster") {
+      const c = bitmaps.get(layer.bitmap);
+      if (!c || c.width !== layer.width || c.height !== layer.height)
+        throw new Error("As dimensões de uma imagem não correspondem ao projeto.");
+    }
+    if (layer.mask) {
+      const c = bitmaps.get(layer.mask.bitmap);
+      if (!c || c.width !== archive.doc.width || c.height !== archive.doc.height)
+        throw new Error("As dimensões de uma máscara não correspondem ao projeto.");
+    }
+  }
+  return { doc: archive.doc, bitmaps };
 }
-
+let saveQueue: Promise<void> = Promise.resolve();
 export async function saveDocument(saveAs = false): Promise<boolean> {
   const s = useDoc.getState();
   if (!s.doc) return false;
   let path = saveAs ? null : s.filePath;
   if (!path) path = await window.api.pickSavePath(`${s.doc.name}.edifoto`, "doc");
   if (!path) return false;
+  if (
+    useDoc.getState().doc?.id !== s.doc.id ||
+    useDoc.getState().initialStateId !== s.initialStateId
+  )
+    throw new Error("A imagem mudou enquanto o diálogo estava aberto. Salve novamente.");
   await writeDocument(path);
   return true;
 }
 
 export async function writeDocument(path: string): Promise<void> {
-  const doc = useDoc.getState().doc;
-  if (!doc) throw new Error("Nenhuma imagem aberta.");
-  const ui = useUi.getState();
-  ui.toast("Salvando…");
-  await window.api.writeFile(path, await serializeDocument(doc));
-  useDoc.getState().markSaved(path);
-  remember(path);
-  ui.toast("Documento salvo.", "ok");
+  const state = useDoc.getState();
+  if (!state.doc) throw new Error("Nenhuma imagem aberta.");
+  const snapshot = documentSnapshot(state.doc),
+    docId = state.doc.id,
+    stateId = state.stateId,
+    workspaceId = state.initialStateId;
+  const operation = async (): Promise<void> => {
+    useUi.getState().toast("Salvando…");
+    await window.api.writeFile(path, await encodeSnapshot(snapshot));
+    useDoc.getState().markSaved(path, docId, stateId, workspaceId);
+    if (useDoc.getState().initialStateId === workspaceId && useDoc.getState().stateId === stateId)
+      remember(path);
+    else await window.api.addRecent({ path, name: snapshot.doc.name, openedAt: Date.now() });
+    useUi.getState().toast("Projeto salvo.", "ok");
+    collectDocumentBitmaps();
+  };
+  const pending = saveQueue.then(operation, operation);
+  saveQueue = pending.then(
+    () => {},
+    () => {},
+  );
+  return pending;
 }
 
 /* ----- Export ----- */
@@ -219,12 +296,17 @@ export interface ExportSpec {
 export async function renderExport(spec: ExportSpec): Promise<Uint8Array> {
   const doc = useDoc.getState().doc;
   if (!doc) throw new Error("Nenhuma imagem aberta.");
+  validateDimensions(
+    Math.round(doc.width * spec.scale),
+    Math.round(doc.height * spec.scale),
+    compositor().maxTexture,
+  );
   let c = compositor().renderToCanvas(doc, { scale: spec.scale });
   if (spec.format === "jpeg") {
     const flat = document.createElement("canvas");
     flat.width = c.width;
     flat.height = c.height;
-    const ctx = flat.getContext("2d")!;
+    const ctx = context2d(flat);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.drawImage(c, 0, 0);
@@ -240,10 +322,22 @@ export async function renderExport(spec: ExportSpec): Promise<Uint8Array> {
   return bytes;
 }
 
-export async function exportTo(path: string, spec: ExportSpec): Promise<string> {
+export async function exportTo(
+  path: string,
+  spec: ExportSpec,
+  check: () => void = () => {},
+): Promise<string> {
   const ext = spec.format === "jpeg" ? "jpg" : spec.format;
-  const out = path.replace(/\.[^.\\/]+$/, "") + `.${ext}`;
-  await window.api.writeFile(out, await renderExport(spec));
+  const extension = path.match(/\.([^.\\/]+)$/)?.[1]?.toLowerCase();
+  const compatible = extension === ext || (spec.format === "jpeg" && extension === "jpeg");
+  if (extension && !compatible)
+    throw new Error(
+      "A extensão do arquivo não corresponde ao formato. Escolha o formato e o destino novamente.",
+    );
+  const out = extension ? path : `${path}.${ext}`;
+  const bytes = await renderExport(spec);
+  check();
+  await window.api.writeFile(out, bytes);
   return out;
 }
 
@@ -263,11 +357,18 @@ export async function copyComposite(): Promise<void> {
 export async function pasteImage(e: ClipboardEvent): Promise<boolean> {
   const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith("image/"));
   if (!file) return false;
+  const previous = useDoc.getState();
   const c = await decodeImage(file);
+  if (
+    useDoc.getState().initialStateId !== previous.initialStateId ||
+    useDoc.getState().doc?.id !== previous.doc?.id
+  )
+    throw new Error("A imagem mudou durante a colagem. Cole novamente.");
   if (useDoc.getState().doc) placeImage(c, c.width, c.height, "Colado");
   else {
-    clearBitmaps();
-    useDoc.getState().load(docFromImage(c, c.width, c.height, "Imagem colada"));
+    withBitmapReplacement(new Map(), () =>
+      useDoc.getState().load(docFromImage(c, c.width, c.height, "Imagem colada")),
+    );
     useUi.setState((s) => ({ fitRequest: s.fitRequest + 1 }));
   }
   return true;

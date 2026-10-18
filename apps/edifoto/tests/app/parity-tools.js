@@ -142,7 +142,7 @@
   E.useUi.setState({ assistantOpen: true });
   await wait(100);
   const undo = () =>
-    [...document.querySelectorAll(".msg button")].find((b) => b.textContent === "Desfazer tudo");
+    [...document.querySelectorAll(".msg button")].find((b) => b.textContent === "Desfazer edição");
   assert(undo() && !undo().disabled, "assistant exposes undo for its latest turn");
   E.ops.setLayerProps(id, { opacity: 0.8 });
   await wait(70);

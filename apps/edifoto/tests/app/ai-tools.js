@@ -12,7 +12,14 @@
   await E.files.openPath(
     "C:/Users/julio/Desktop/CRIECOMHELENAEJULIO/APPS/EDIFOTO/tests/fixtures/praia.jpg",
   );
-  const call = (name, input) => E.runAiTool({ id: "x", name, input, source: "assistant" });
+  const call = (name, input) =>
+    E.runAiTool({
+      id: "x",
+      name,
+      input,
+      source: "assistant",
+      documentId: E.useDoc.getState().doc?.id,
+    });
   let r = await call("add_layer", {
     kind: "gradient",
     name: "Pôr do sol",

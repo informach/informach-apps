@@ -7,6 +7,8 @@ import type { BlendMode } from "./blendModes.ts";
 
 /** Placement of content inside the document. x/y is the content's CENTER, in document pixels. */
 export interface Transform {
+  /** Document resizing basis, applied before the editable rotation/scale. */
+  basis?: [number, number, number, number];
   x: number;
   y: number;
   scale: number;
@@ -20,9 +22,12 @@ export interface Mask {
   /** Document-sized grayscale bitmap: white shows the layer, black hides it. */
   bitmap: string;
   enabled: boolean;
+  /** Absent on legacy masks: fixed in document space. New masks follow content. */
+  reference?: Transform;
 }
 
 interface LayerBase {
+  role?: "style" | "image-placeholder";
   id: string;
   name: string;
   visible: boolean;
@@ -30,7 +35,7 @@ interface LayerBase {
   blendMode: BlendMode;
   /** 0..1 */
   opacity: number;
-  /** 0..1, multiplies opacity (kept separate like Photoshop's "Preenchimento"). */
+  /** 0..1, an additional intensity multiplier for opacity. */
   fill: number;
   mask?: Mask;
 }
@@ -83,6 +88,12 @@ export function identifyGradientStops(doc: Doc): Doc {
 }
 
 export interface Gradient {
+  /** Original pixel frame and document-to-frame mapping, preserving transformed gradients. */
+  space?: {
+    width: number;
+    height: number;
+    toLocal: [number, number, number, number, number, number];
+  };
   type: "linear" | "radial";
   /** Degrees; 90 = top to bottom. Linear only. */
   angle: number;
@@ -100,6 +111,8 @@ export interface GradientLayer extends LayerBase {
 }
 
 export interface TextStyle {
+  /** Optional area width with automatic wrapping, in local image pixels. */
+  maxWidth?: number;
   content: string;
   font: string;
   size: number;
@@ -139,6 +152,7 @@ export interface Adjust {
 }
 
 export interface AdjustLayer extends LayerBase {
+  preset?: "natural" | "warm" | "cool" | "mono";
   kind: "adjust";
   adjust: Adjust;
 }

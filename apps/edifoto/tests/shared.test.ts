@@ -33,7 +33,7 @@ test("Shift +/- cycles and wraps around", () => {
   assert.equal(cycleBlend("luminosity", 1), "normal");
 });
 
-test("every AI tool has a valid JSON schema for the Claude API", () => {
+test("every AI tool has a valid JSON schema for personal MCP clients", () => {
   for (const name of AI_TOOL_NAMES) {
     const s = toolJsonSchema(name);
     assert.equal(s.type, "object", name);

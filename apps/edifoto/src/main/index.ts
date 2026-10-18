@@ -5,6 +5,8 @@ import { extname, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { app, BrowserWindow, dialog, shell } from "electron";
+import { z } from "zod";
+import { personalAiChanges } from "../shared/personalAi.ts";
 import type {
   AiClientId,
   AiSettingsChanges,
@@ -13,27 +15,18 @@ import type {
   RecentDoc,
   SaveKind,
 } from "../shared/types.ts";
-import { callTool } from "./aiBridge.ts";
+import { callTool, cancelToolRun } from "./aiBridge.ts";
 import {
   clientStatus,
   connectClient,
   DEFAULT_MCP_PORT,
-  DEFAULT_MODEL,
-  decryptKey,
-  encryptKey,
   mcpUrl,
   readStored,
   writeStored,
 } from "./aiSettings.ts";
-import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
-import {
-  inAppRunActive,
-  resetEngineSession,
-  runClaudeCode,
-  runCodex,
-  stopEngineRun,
-} from "./engines.ts";
+import { resetEngineSession, runClaudeCode, runCodex, stopEngineRun } from "./engines.ts";
 import { startMcpServer } from "./mcpServer.ts";
+import { saveProjectFile } from "./projectFiles.ts";
 
 // Lets automated checks run against a throwaway profile instead of the user's real settings.
 app.setPath("userData", join(app.getPath("appData"), "edifoto"));
@@ -45,6 +38,7 @@ const desktop = createEdiDesktop({
   recoveryChannels: [
     "app:info",
     "app:dirty",
+    "app:closeSaved",
     "dialog:save",
     "fs:write",
     "recent:list",
@@ -95,6 +89,9 @@ function createWindow(): void {
       devTools: !app.isPackaged,
     },
   });
+  win.webContents.on("did-start-navigation", () => {
+    for (const id of assistantRuns.keys()) stopAssistantRun(id);
+  });
   win.once("ready-to-show", () => {
     if (!app.isPackaged && process.env.EDIFOTO_SNAPSHOT) win?.showInactive();
     else win?.maximize();
@@ -113,16 +110,19 @@ function createWindow(): void {
     if (!dirty || (!app.isPackaged && process.env.EDIFOTO_SNAPSHOT)) return;
     const choice = dialog.showMessageBoxSync(win!, {
       type: "question",
-      buttons: ["Sair sem salvar", "Cancelar"],
-      defaultId: 1,
-      cancelId: 1,
+      buttons: ["Salvar e sair", "Sair sem salvar", "Cancelar"],
+      defaultId: 0,
+      cancelId: 2,
       title: "EdiFoto",
       message: "Há alterações não salvas.",
       detail: "Se sair agora, as mudanças desde o último salvamento serão perdidas.",
     });
-    if (choice !== 0) e.preventDefault();
+    e.preventDefault();
+    if (choice === 1) win?.webContents.send("app:discardBeforeClose");
+    if (choice === 0) win?.webContents.send("app:saveBeforeClose");
   });
   win.on("closed", () => {
+    for (const id of assistantRuns.keys()) stopAssistantRun(id);
     win = null;
   });
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL)
@@ -176,6 +176,10 @@ const SAVE_FILTERS: Record<SaveKind, Electron.FileFilter> = {
 };
 
 function registerIpc(): void {
+  ipcMain.handle("app:closeSaved", () => {
+    if (dirty) throw new Error("Há alterações não salvas.");
+    win?.close();
+  });
   ipcMain.handle("app:info", () => ({ version: app.getVersion() }));
   ipcMain.handle("dialog:images", async (_e, multi: boolean) => {
     const r = await dialog.showOpenDialog(win!, {
@@ -206,7 +210,9 @@ function registerIpc(): void {
     return r.canceled || !r.filePath ? null : r.filePath;
   });
   ipcMain.handle("fs:read", async (_e, path: string) => new Uint8Array(await readFile(path)));
-  ipcMain.handle("fs:write", (_e, path: string, bytes: Uint8Array) => atomicWrite(path, bytes));
+  ipcMain.handle("fs:write", (_e, path: string, bytes: Uint8Array) =>
+    /\.edifoto$/i.test(path) ? saveProjectFile(path, bytes) : atomicWrite(path, bytes),
+  );
   ipcMain.handle("recent:list", () => readRecent());
   ipcMain.handle("recent:add", async (_e, doc: RecentDoc) => {
     const list = (await readRecent()).filter(
@@ -231,7 +237,31 @@ let mcp: { server: Server | null; port: number; error?: string } = {
   port: DEFAULT_MCP_PORT,
 };
 
-async function applyMcp(): Promise<void> {
+const assistantRuns = new Map<
+  string,
+  {
+    conversationId: string;
+    documentId: string;
+    workspaceId: number;
+    stopped: boolean;
+    job: ReturnType<typeof desktop.jobs.begin>;
+  }
+>();
+function stopAssistantRun(runId: string): void {
+  const run = assistantRuns.get(runId);
+  if (!run) return;
+  run.stopped = true;
+  cancelToolRun(runId);
+  stopEngineRun(run.conversationId);
+}
+
+let mcpQueue: Promise<void> = Promise.resolve();
+function applyMcp(): Promise<void> {
+  const pending = mcpQueue.then(synchronizeMcp);
+  mcpQueue = pending.catch(() => {});
+  return pending;
+}
+async function synchronizeMcp(): Promise<void> {
   const stored = await readStored();
   const enabled = stored.mcpEnabled ?? true;
   const port =
@@ -243,9 +273,18 @@ async function applyMcp(): Promise<void> {
   }
   if (enabled && !mcp.server) {
     try {
-      const server = await startMcpServer(port, (name, input) =>
-        callTool(win, name, input, inAppRunActive() ? "assistant" : "mcp"),
-      );
+      const server = await startMcpServer(port, (name, input, runId) => {
+        if (!runId) return callTool(win, name, input, "mcp");
+        const run = assistantRuns.get(runId);
+        if (!run || run.stopped)
+          return Promise.resolve({ ok: false, text: "Este pedido já foi encerrado." });
+        run.job.check();
+        return callTool(win, name, input, "assistant", {
+          runId,
+          documentId: run.documentId,
+          workspaceId: run.workspaceId,
+        });
+      });
       mcp = { server, port };
     } catch (err) {
       mcp = {
@@ -262,13 +301,9 @@ async function applyMcp(): Promise<void> {
 
 async function aiView(): Promise<AiSettingsView> {
   const stored = await readStored();
-  const key = decryptKey(stored.apiKeyEnc);
   return {
-    engine: stored.engine ?? (key ? "api" : "claude-code"),
+    engine: stored.engine ?? "claude-code",
     claudeModel: stored.claudeModel ?? "default",
-    hasApiKey: !!key,
-    apiKeyHint: key ? `…${key.slice(-4)}` : undefined,
-    model: stored.model ?? DEFAULT_MODEL,
     mcpEnabled: stored.mcpEnabled ?? true,
     mcpPort: mcp.port,
     mcpUrl: mcpUrl(mcp.port),
@@ -279,50 +314,76 @@ async function aiView(): Promise<AiSettingsView> {
   };
 }
 
+let settingsQueue: Promise<unknown> = Promise.resolve();
 function registerAiIpc(): void {
   ipcMain.handle("ai:settings", () => aiView());
-  ipcMain.handle("ai:saveSettings", async (_e, changes: AiSettingsChanges) => {
-    const stored = await readStored();
-    if (changes.apiKey === null) delete stored.apiKeyEnc;
-    else if (changes.apiKey) stored.apiKeyEnc = encryptKey(changes.apiKey.trim());
-    if (changes.model) stored.model = changes.model;
-    if (changes.mcpEnabled !== undefined) stored.mcpEnabled = changes.mcpEnabled;
-    if (changes.engine) stored.engine = changes.engine;
-    if (changes.claudeModel) stored.claudeModel = changes.claudeModel;
-    if (changes.confirmDeletes !== undefined) stored.confirmDeletes = changes.confirmDeletes;
-    if (changes.allowFileWrites !== undefined) stored.allowFileWrites = changes.allowFileWrites;
-    await writeStored(stored);
-    await applyMcp();
-    return aiView();
+  ipcMain.handle("ai:saveSettings", (_e, changes: AiSettingsChanges) => {
+    const valid = personalAiChanges.parse(changes);
+    const pending = settingsQueue.then(async () => {
+      const stored = await readStored();
+      await writeStored({ ...stored, ...valid });
+      await applyMcp();
+      return aiView();
+    });
+    settingsQueue = pending.catch(() => {});
+    return pending;
   });
-  ipcMain.handle("ai:testKey", () => testKey());
   ipcMain.handle("ai:clients", () => clientStatus(mcp.port));
-  ipcMain.handle("ai:connect", (_e, id: AiClientId) => connectClient(id, mcp.port));
-  ipcMain.handle("assistant:send", async (_e, conversationId: string, text: string) => {
-    const view = await aiView();
-    const emit = (ev: AssistantEvent): void => {
-      if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, ev);
-    };
-    if (view.engine === "api") return sendMessage(win, conversationId, text);
-    if (!view.mcpRunning) {
-      emit({
-        type: "error",
-        message:
-          "A conexão do EdiFoto com a IA está desligada. Ligue em Configurações › Inteligência artificial.",
-      });
-      emit({ type: "done" });
-      return;
-    }
-    if (view.engine === "claude-code")
-      return runClaudeCode(conversationId, text, mcp.port, view.claudeModel, emit);
-    return runCodex(conversationId, text, mcp.port, emit);
-  });
-  ipcMain.handle("assistant:stop", (_e, conversationId: string) => {
-    if (!stopEngineRun(conversationId)) stopConversation(conversationId);
-  });
+  ipcMain.handle("ai:connect", (_e, id: AiClientId) =>
+    connectClient(z.enum(["claude-code", "codex"]).parse(id), mcp.port),
+  );
+  ipcMain.handle(
+    "assistant:send",
+    async (
+      _e,
+      conversationId: string,
+      text: string,
+      documentId: string,
+      runId: string,
+      workspaceId: number,
+    ) => {
+      z.object({
+        conversationId: z.string().min(1).max(100),
+        text: z.string().min(1).max(30000),
+        documentId: z.string().min(1).max(100),
+        runId: z.string().min(1).max(100),
+        workspaceId: z.number().int().positive(),
+      }).parse({ conversationId, text, documentId, runId, workspaceId });
+      if (assistantRuns.size) throw new Error("Aguarde o pedido anterior terminar.");
+      const job = desktop.jobs.begin({ preserveForMs: 0, stop: () => stopAssistantRun(runId) });
+      const run = { conversationId, documentId, workspaceId, stopped: false, job };
+      assistantRuns.set(runId, run);
+      const emit = (event: AssistantEvent): void => {
+        if (win && !win.isDestroyed() && (!run.stopped || event.type === "done"))
+          win.webContents.send("assistant:event", runId, event);
+      };
+      const check = (): void => {
+        job.check();
+        if (run.stopped) throw new Error("Pedido interrompido.");
+      };
+      try {
+        const view = await aiView();
+        check();
+        if (!view.mcpRunning)
+          throw new Error("Ligue a conexão em Configurações › Inteligência artificial.");
+        if (view.engine === "claude-code")
+          await runClaudeCode(conversationId, text, mcp.port, view.claudeModel, emit, runId, check);
+        else await runCodex(conversationId, text, mcp.port, emit, runId, check);
+      } catch (error) {
+        emit({ type: "error", message: error instanceof Error ? error.message : String(error) });
+      } finally {
+        cancelToolRun(runId);
+        assistantRuns.delete(runId);
+        job.finish();
+        emit({ type: "done" });
+      }
+    },
+  );
+  ipcMain.handle("assistant:stop", (_e, runId: string) => stopAssistantRun(runId));
   ipcMain.handle("assistant:reset", (_e, conversationId: string) => {
+    for (const [id, run] of assistantRuns)
+      if (run.conversationId === conversationId) stopAssistantRun(id);
     resetEngineSession(conversationId);
-    resetConversation(conversationId);
   });
 }
 

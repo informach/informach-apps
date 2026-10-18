@@ -1,4 +1,5 @@
 import type { TextStyle } from "@shared/doc";
+import { validateDimensions } from "@shared/documentFormat";
 
 /**
  * Text layers are drawn with the 2D canvas into a tight image, then placed like any image layer.
@@ -34,6 +35,7 @@ const keyOf = (t: TextStyle): string =>
     t.align,
     t.lineHeight,
     t.letterSpacing,
+    t.maxWidth,
   ]);
 
 function ensureFont(t: TextStyle): void {
@@ -55,15 +57,42 @@ export function renderText(t: TextStyle): TextImage {
   const measure = document.createElement("canvas").getContext("2d")!;
   measure.font = fontString(t);
   measure.letterSpacing = `${t.letterSpacing}px`;
-  const lines = t.content.split("\n");
+  const lines: string[] = [];
+  for (const paragraph of t.content.split("\n")) {
+    if (!t.maxWidth) {
+      lines.push(paragraph);
+      continue;
+    }
+    let line = "";
+    for (const word of paragraph.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && measure.measureText(next).width > t.maxWidth) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+      // Long unbroken strings wrap by grapheme instead of clipping silently.
+      if (measure.measureText(line).width > t.maxWidth) {
+        let part = "";
+        for (const char of Array.from(line)) {
+          if (part && measure.measureText(part + char).width > t.maxWidth) {
+            lines.push(part);
+            part = char;
+          } else part += char;
+        }
+        line = part;
+      }
+    }
+    lines.push(line);
+  }
   const widths = lines.map((l) => measure.measureText(l || " ").width);
   const lineH = t.size * t.lineHeight;
   const pad = Math.ceil(t.size * 0.25);
-  const w = Math.ceil(Math.max(1, ...widths)) + pad * 2;
+  const w = Math.ceil(Math.max(1, t.maxWidth ?? 0, ...widths)) + pad * 2;
   const h = Math.ceil(lineH * lines.length) + pad * 2;
+  validateDimensions(w, h);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.min(w, 16000);
-  canvas.height = Math.min(h, 16000);
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d")!;
   ctx.font = fontString(t);
   ctx.letterSpacing = `${t.letterSpacing}px`;
@@ -75,7 +104,9 @@ export function renderText(t: TextStyle): TextImage {
     ctx.fillText(line, x, pad + lineH * i + lineH / 2);
   });
   const img = { canvas, key, version: version++ };
-  if (cache.size > 200) cache.clear();
+  let cachedPixels = w * h;
+  for (const entry of cache.values()) cachedPixels += entry.canvas.width * entry.canvas.height;
+  if (cache.size > 100 || cachedPixels > 32_000_000) cache.clear();
   cache.set(key, img);
   return img;
 }
