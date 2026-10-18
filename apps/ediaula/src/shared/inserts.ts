@@ -1,8 +1,9 @@
 import type { TimelineWord } from "./cleanup.ts";
+import { AVATAR_FADE, defaultTransformFor, placementTransform } from "./compose.ts";
 import type { ScriptSection, SpeechItem } from "./script.ts";
 import { type Alignment, alignSection } from "./scriptAlign.ts";
-import { clipEnd, newId, splitClip } from "./timeline.ts";
-import type { Clip, Transcript } from "./types.ts";
+import { clipEnd, newId, newTrackName, sourceEnd, splitClip } from "./timeline.ts";
+import type { Asset, Clip, Project, Track, Transcript } from "./types.ts";
 
 /**
  * Avatar inserts from the script (F1P1-D01…): the avatar's line is found in a transcribed media
@@ -65,7 +66,8 @@ export interface InsertPlan {
 
 /**
  * Where the avatar line `item` of `section` goes, given the current alignment: right after the
- * previous narration line ends, needing `lineSeconds` plus padding before the next line starts.
+ * line before it ends (the narration, or an avatar line already placed), needing `lineSeconds`
+ * plus padding before the next line starts.
  */
 export function planInsert(
   section: ScriptSection,
@@ -77,10 +79,9 @@ export function planInsert(
   const placed = alignment.lines.filter(
     (l) => l.start !== undefined && l.matched / Math.max(1, l.total) >= 0.5,
   );
-  const before = [...placed]
-    .reverse()
-    .find((l) => l.item < idx && !(section.items[l.item] as SpeechItem).avatar);
-  const after = placed.find((l) => l.item > idx && !(section.items[l.item] as SpeechItem).avatar);
+  // Any line already on the timeline counts, an avatar's too: two avatars in a row do not overlap.
+  const before = [...placed].reverse().find((l) => l.item < idx);
+  const after = placed.find((l) => l.item > idx);
   if (!before && !after)
     return {
       error:
@@ -91,13 +92,17 @@ export function planInsert(
     const at = Math.max(0, after!.start! - duration);
     return { at, duration, gap: Math.max(0, duration - after!.start!), cut: 0 };
   }
-  const prevEnd = before.end!;
+  // After another avatar, its clip (and its fade) ends a pad after its last word.
+  const prevEnd =
+    (before.end ?? 0) + ((section.items[before.item] as SpeechItem).avatar ? INSERT_PAD : 0);
   const nextStart = after?.start ?? Infinity;
   const pause = nextStart - prevEnd;
-  const gap = Math.max(0, duration - pause);
-  // Open the timeline in the middle of the existing pause, never inside a word.
-  const cut = gap > 0 ? prevEnd + Math.min(0.15, pause / 2) : prevEnd;
-  return { at: gap > 0 ? cut : prevEnd, duration, gap, cut };
+  if (duration <= pause) return { at: prevEnd, duration, gap: 0, cut: prevEnd };
+  // Open the timeline in the middle of the existing pause, never inside a word; the clip starts
+  // there, so the gap also covers the bit of pause before it.
+  const lead = Math.min(0.15, Math.max(0, pause / 2));
+  const cut = prevEnd + lead;
+  return { at: cut, duration, gap: duration - pause + lead, cut };
 }
 
 /**
@@ -151,4 +156,182 @@ export function insertClip(
     volume: 1,
     ...(insertId ? { insertId } : {}),
   };
+}
+
+/** An avatar line found in a media and planned on the current alignment. */
+export interface InsertEntry {
+  item: SpeechItem;
+  src: InsertSource;
+  plan: InsertPlan;
+}
+
+/**
+ * Plans several avatar lines on one alignment of the recording as it is now. Two lines that
+ * would land in the same pause are not planned together: the later one comes back as an error.
+ */
+export function planInserts(
+  section: ScriptSection,
+  alignment: Alignment,
+  found: { item: SpeechItem; src: InsertSource }[],
+): { entries: InsertEntry[]; errors: { item: SpeechItem; error: string }[] } {
+  const entries: InsertEntry[] = [];
+  const errors: { item: SpeechItem; error: string }[] = [];
+  for (const { item, src } of found) {
+    const plan = planInsert(section, alignment, item, src.end - src.start);
+    if ("error" in plan) errors.push({ item, error: plan.error });
+    else entries.push({ item, src, plan });
+  }
+  entries.sort((a, b) => a.plan.at - b.plan.at);
+  const out: InsertEntry[] = [];
+  for (const e of entries) {
+    const prev = out[out.length - 1];
+    if (prev && e.plan.at < prev.plan.at + prev.plan.duration - 1e-3)
+      errors.push({
+        item: e.item,
+        error: `cairia no mesmo lugar que ${prev.item.insertId ?? `"${prev.item.text}"`}; encaixe uma de cada vez.`,
+      });
+    else out.push(e);
+  }
+  return { entries: out, errors };
+}
+
+/** Clips on locked tracks that opening the timeline for `plan` would leave out of sync. */
+export const lockedAfter = (clips: Clip[], plan: InsertPlan, locked: Set<string>): Clip[] =>
+  plan.gap > 0 ? clips.filter((c) => locked.has(c.trackId) && clipEnd(c) > plan.cut + 1e-6) : [];
+
+/** A still frame's key: the media and the second of it the screen holds on while a gap is open. */
+export const stillKey = (left: Pick<Clip, "assetId" | "in" | "duration" | "speed">): string =>
+  `${left.assetId}@${sourceEnd(left).toFixed(3)}`;
+
+export interface InsertLayout {
+  clips: Clip[];
+  tracks: Track[];
+  /** Still frames put in to hold the screen while a gap is open. */
+  assets: Asset[];
+  placed: { entry: InsertEntry; clip: Clip }[];
+  /** Screen video clips split to open a gap for an entry: each wants a still frame (stillKey). */
+  splits: { entry: InsertEntry; left: Clip }[];
+}
+
+/**
+ * Lays out planned inserts in one go, from the end of the lesson to the start: opening the
+ * timeline for a later line never moves the place of an earlier one, and each earlier gap then
+ * carries everything after it (inserts already placed too) along. Each split screen video gets
+ * the still frame `stills` holds for it (by stillKey); without one the gap shows what is below.
+ * Every avatar goes on a free video track above everything on screen while it plays (a new one
+ * on top if there is none), beside the content, with a short dissolve. Plans that would move a
+ * locked track (lockedAfter) are not to be passed in.
+ */
+export function layoutInserts(
+  project: Project,
+  entries: InsertEntry[],
+  targets: Set<string>,
+  locked: Set<string>,
+  stills: ReadonlyMap<string, Asset> = new Map(),
+): InsertLayout {
+  const assetById = new Map(project.assets.map((a) => [a.id, a]));
+  let clips = project.clips;
+  let tracks = project.tracks;
+  const assets: Asset[] = [];
+  const placed: InsertLayout["placed"] = [];
+  const splits: InsertLayout["splits"] = [];
+  const latestFirst = [...entries].sort((a, b) => b.plan.cut - a.plan.cut || b.plan.at - a.plan.at);
+  for (const entry of latestFirst) {
+    const { plan, src, item } = entry;
+    if (plan.gap > 0) {
+      const opened = openGap(clips, plan.cut, plan.gap, targets, locked);
+      clips = opened.clips;
+      for (const left of opened.split) {
+        const a = assetById.get(left.assetId);
+        const track = tracks.find((t) => t.id === left.trackId);
+        if (a?.kind !== "video" || a.key || track?.kind !== "video") continue;
+        splits.push({ entry, left });
+        const still = stills.get(stillKey(left));
+        if (!still) continue;
+        if (!assets.includes(still)) assets.push(still);
+        clips = [
+          ...clips,
+          {
+            id: newId("c"),
+            assetId: still.id,
+            trackId: left.trackId,
+            start: plan.cut,
+            in: 0,
+            duration: plan.gap,
+            volume: 1,
+            ...(left.transform ? { transform: left.transform } : {}),
+          },
+        ];
+      }
+    }
+    const end = plan.at + plan.duration;
+    const during = clips.filter((c) => c.start < end - 1e-3 && clipEnd(c) > plan.at + 1e-3);
+    const busyTracks = new Set(during.map((c) => c.trackId));
+    const highestBusy = tracks.findIndex((t) => t.kind === "video" && busyTracks.has(t.id));
+    let track = tracks
+      .slice(0, highestBusy < 0 ? tracks.length : highestBusy)
+      .find((t) => t.kind === "video" && !t.locked);
+    if (!track) {
+      track = {
+        id: newId("t"),
+        kind: "video",
+        name: newTrackName(tracks),
+        muted: false,
+        hidden: false,
+        locked: false,
+      } satisfies Track;
+      tracks = [track, ...tracks];
+    }
+    const clip = insertClip(src, track.id, plan, item.insertId);
+    const asset = assetById.get(src.assetId);
+    // Another avatar already standing on the right (the narrator) pushes this one to the left.
+    const rightTaken = during.some(
+      (c) => c.transform && c.transform.x > 0.5 && c.transform.scale < 1.5,
+    );
+    const transform = !asset
+      ? undefined
+      : asset.height > asset.width || asset.screen
+        ? placementTransform(rightTaken ? "left" : "right")
+        : defaultTransformFor(asset, project.settings);
+    Object.assign(
+      clip,
+      { fadeIn: AVATAR_FADE, fadeOut: AVATAR_FADE },
+      transform ? { transform } : {},
+    );
+    clips = [...clips, clip];
+    placed.push({ entry, clip });
+  }
+  // Earlier gaps moved the clips placed before them: each is reported where it ended up.
+  const final = new Map(clips.map((c) => [c.id, c]));
+  return {
+    clips,
+    tracks,
+    assets,
+    placed: placed.reverse().map((p) => ({ entry: p.entry, clip: final.get(p.clip.id) ?? p.clip })),
+    splits,
+  };
+}
+
+/**
+ * Words of another voice the avatar would talk over once its line is placed: what is heard
+ * while the avatar speaks (the narration, another avatar already placed), after the timeline
+ * opened for it. The script rule is that the avatar enters, speaks and leaves without
+ * overlapping anyone.
+ */
+export function voiceOverlaps(
+  words: TimelineWord[],
+  entries: InsertEntry[],
+): { entry: InsertEntry; words: TimelineWord[] }[] {
+  const out: { entry: InsertEntry; words: TimelineWord[] }[] = [];
+  for (const entry of entries) {
+    const { plan } = entry;
+    const from = plan.at + INSERT_PAD;
+    const to = plan.at + plan.duration - INSERT_PAD;
+    const shift = (t: number): number => (plan.gap > 0 && t >= plan.cut - 1e-6 ? t + plan.gap : t);
+    const over = words.filter(
+      (w) => !w.silent && shift(w.start) < to - 0.02 && shift(w.end) > from + 0.02,
+    );
+    if (over.length) out.push({ entry, words: over });
+  }
+  return out;
 }

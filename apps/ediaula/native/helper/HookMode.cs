@@ -19,6 +19,8 @@ namespace EdiAula.Helper
         Wheel,
         HorizontalWheel,
         Key,
+        /// <summary>Something was typed: the moment only.</summary>
+        Typing,
         Shape,
         Pause,
         Resume,
@@ -74,6 +76,8 @@ namespace EdiAula.Helper
         private static bool readyWritten;
 
         private static bool keys;
+        private static bool typing;
+        private static readonly TypingGate typingGate = new TypingGate();
         private static uint uiPid;
         private static ulong testTag;
         private static uint hookThreadId;
@@ -97,6 +101,7 @@ namespace EdiAula.Helper
         public static int Run(Options options)
         {
             keys = options.Keys;
+            typing = options.Typing;
             uiPid = options.UiPid;
             testTag = options.TestTag;
             keysPaused = options.Paused;
@@ -204,7 +209,7 @@ namespace EdiAula.Helper
             IntPtr module = NativeMethods.GetModuleHandle(null);
             mouseHook = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, mouseProc, module, 0);
             if (mouseHook == IntPtr.Zero) return "SetWindowsHookEx(WH_MOUSE_LL) falhou: " + Marshal.GetLastWin32Error();
-            if (!keys) return null;
+            if (!keys && !typing) return null;
             keyHook = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, keyProc, module, 0);
             if (keyHook == IntPtr.Zero) return "SetWindowsHookEx(WH_KEYBOARD_LL) falhou: " + Marshal.GetLastWin32Error();
             return null;
@@ -299,15 +304,30 @@ namespace EdiAula.Helper
                         bool altGr = (rightAlt || (ctrl && alt)) && LayoutHasAltGr(layout);
                         // Only Ctrl+Alt can turn a key into a character here; ask the layout then.
                         bool printable = ctrl && alt && Printable(vk, (int)data->ScanCode, layout);
-                        if (KeyRule.ShouldLog(vk, mods, extended, rightAlt, altGr, printable) &&
+                        bool injected = (data->Flags & 0x10) != 0; // LLKHF_INJECTED
+                        if (keys && KeyRule.ShouldLog(vk, mods, extended, rightAlt, altGr, printable) &&
                             !blockedKeys.Contains(vk | (mods << 16)) && !ForegroundIsRecorder())
                         {
                             RawEvent e = new RawEvent();
                             e.Kind = EventKind.Key;
                             e.T = Program.Now();
                             e.Data = vk | (mods << 16);
-                            e.Injected = (data->Flags & 0x10) != 0; // LLKHF_INJECTED
+                            e.Injected = injected;
                             Enqueue(ref e);
+                        }
+                        else if (typing && KeyRule.IsTyping(vk, mods, extended, rightAlt, altGr, printable) &&
+                            !ForegroundIsRecorder())
+                        {
+                            // Only the moment, at most one every half second: never the key.
+                            double now = Program.Now();
+                            if (typingGate.Allow(now))
+                            {
+                                RawEvent e = new RawEvent();
+                                e.Kind = EventKind.Typing;
+                                e.T = now;
+                                e.Injected = injected;
+                                Enqueue(ref e);
+                            }
                         }
                     }
                 }
@@ -521,6 +541,11 @@ namespace EdiAula.Helper
                 case EventKind.Up: b.Append("{\"e\":\"u\""); break;
                 case EventKind.Wheel:
                 case EventKind.HorizontalWheel: b.Append("{\"e\":\"w\""); break;
+                case EventKind.Typing:
+                    b.Append("{\"e\":\"ty\",\"t\":").Append(Json.Time(e.T));
+                    if (e.Injected) b.Append(",\"inj\":true");
+                    b.Append('}');
+                    return b.ToString();
                 case EventKind.Key:
                     int vk = e.Data & 0xFFFF, mods = e.Data >> 16;
                     b.Append("{\"e\":\"k\",\"t\":").Append(Json.Time(e.T)).Append(",\"vk\":").Append(vk);
@@ -606,7 +631,7 @@ namespace EdiAula.Helper
                             e.Showing = showing;
                             Enqueue(ref e);
                         }
-                        if (keys && KeyboardHookSilent(now) && now - lastKeysRepair > 2 * frequency)
+                        if ((keys || typing) && KeyboardHookSilent(now) && now - lastKeysRepair > 2 * frequency)
                         {
                             // Typing reached Windows but neither hook saw it: the keyboard hook was removed.
                             lastKeysRepair = now;

@@ -7,8 +7,8 @@ import { type JournalReplay, momentInTake, rangesInTake } from "./recordingJourn
  * cursor.json: the pointer of a screen recording, in seconds of the video and pixels of the
  * recorded frame, so it follows the video through cuts, crops and zooms. Version 2 adds the
  * cursor images the helper saved, the paused stretches, where the pointer was over the
- * recorder's own controls and where the helper was not watching. Version 1 files are read as
- * version 2 (normalizeCursorData).
+ * recorder's own controls, where the helper was not watching and when something was typed (only
+ * the moments, never what). Version 1 files are read as version 2 (normalizeCursorData).
  */
 
 /** A cursor shape: one of the standard ones drawn by the editor, or a saved image. */
@@ -42,6 +42,11 @@ export interface CursorData {
   markers: { t: number; kind: MarkerKind }[];
   /** Shortcut and navigation keys pressed: [t, label] (e.g. "Ctrl+C", "→"). */
   keys: [number, string][];
+  /**
+   * When something was typed: moments only, at most one every half second, never which key or
+   * how many (the helper's "ty" event). Absent in older files.
+   */
+  typing: number[];
   /** Recorded while paused: cut on import. */
   pauses: [number, number][];
   /** The pointer was over the recorder's controls (not in the video): it stays where it was. */
@@ -142,6 +147,11 @@ export function normalizeCursorData(raw: unknown): CursorData {
             Array.isArray(k) && typeof k[0] === "number" && typeof k[1] === "string",
         )
       : [],
+    typing: Array.isArray(data.typing)
+      ? (data.typing as unknown[]).filter(
+          (t): t is number => typeof t === "number" && Number.isFinite(t),
+        )
+      : [],
     pauses: version === 2 ? ranges(data.pauses) : [],
     hidden: version === 2 ? ranges(data.hidden) : [],
     gaps: version === 2 ? ranges(data.gaps) : [],
@@ -212,6 +222,7 @@ export function buildCursorData(
     wheel: [],
     markers: [],
     keys: [],
+    typing: [],
     pauses: [],
     hidden: [],
     gaps: [],
@@ -250,6 +261,11 @@ export function buildCursorData(
         data.moves.push([round(t), last.x, last.y, shape]);
         last = { x: last.x, y: last.y, shape };
       }
+      continue;
+    }
+    if (e.e === "ty") {
+      const t = toVideoTime(segments, e.t);
+      if (t >= 0) data.typing.push(round(t));
       continue;
     }
     if (e.e !== "m" && e.e !== "d" && e.e !== "u" && e.e !== "w" && e.e !== "k") continue;
@@ -316,6 +332,7 @@ export function cursorDataForPart(data: CursorData, at: number, duration: number
     clicks: shift(data.clicks),
     wheel: shift(data.wheel),
     keys: shift(data.keys),
+    typing: data.typing.filter(inside).map((t) => round(t - at)),
     markers: data.markers.filter((m) => inside(m.t)).map((m) => ({ ...m, t: round(m.t - at) })),
     pauses: clip(data.pauses),
     hidden: clip(data.hidden),

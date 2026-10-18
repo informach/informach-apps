@@ -26,6 +26,10 @@ export const ASSET_RUNTIME_FIELDS = [
   "markers",
   "recording",
   "voiceTakes",
+  "origin",
+  // Where the screen stands still, learned in the background.
+  "motion",
+  "motionStatus",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];

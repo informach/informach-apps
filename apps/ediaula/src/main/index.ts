@@ -66,6 +66,7 @@ import {
   probe,
   proxy,
   run,
+  screenMotion,
   stillFrame,
   thumbnail,
   waveform,
@@ -577,6 +578,29 @@ function registerIpc(): void {
     thumbnail(path, kind, duration),
   );
   ipcMain.handle("media:waveform", (_e, path: string) => waveform(path));
+  ipcMain.handle("media:motion", (_e, ...raw: unknown[]) => {
+    const [jobId, path, input, duration] = z
+      .tuple([
+        z.string().min(1).max(200),
+        z.string().min(1).max(32768),
+        z.string().min(1).max(32768),
+        z
+          .number()
+          .positive()
+          .max(7 * 86400),
+      ])
+      .parse(raw);
+    return processingJob(jobId, "motion", (signal) =>
+      screenMotion(
+        jobId,
+        path,
+        input,
+        duration,
+        (ratio) => sendProgress({ id: jobId, ratio }),
+        signal,
+      ),
+    );
+  });
   ipcMain.handle(
     "media:proxy",
     (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
@@ -641,7 +665,18 @@ function registerIpc(): void {
   ipcMain.handle("glossary:set", (_e, course: unknown, terms: unknown) =>
     setGlossary(
       z.string().max(1024).parse(course),
-      z.array(z.string().max(200)).max(1000).parse(terms),
+      z
+        .array(
+          z.union([
+            z.string().max(200),
+            z.object({
+              term: z.string().max(200),
+              aliases: z.array(z.string().max(200)).max(20).optional(),
+            }),
+          ]),
+        )
+        .max(1000)
+        .parse(terms),
     ),
   );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
@@ -669,6 +704,7 @@ function registerIpc(): void {
         "transcript",
         "cursor",
         "keyed",
+        "motion",
       ].map((field) => [asset, field]);
       // The treated voice (shared/voiceChain.ts) is played and exported in place of the path.
       const treated: unknown = Reflect.get(asset, "treated");

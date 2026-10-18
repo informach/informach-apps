@@ -36,6 +36,8 @@ export interface ProposalItem {
   anchors: SourceSpan[];
   /** Transcript words the item covers ("asset:index"). */
   wordKeys?: string[];
+  /** The cleanup suggestion it comes from (Issue.id): left out, it is kept from then on. */
+  issueId?: string;
   /** The person can leave an item out before applying. */
   status: ProposalItemStatus;
 }
@@ -347,7 +349,7 @@ export function buildItems(
   project: Project,
   range: [number, number],
   prefer: Set<string> | undefined,
-  base: { reason: string; text?: string; near?: number; wordKeys?: string[] },
+  base: { reason: string; text?: string; near?: number; wordKeys?: string[]; issueId?: string },
   newId: () => string,
 ): ProposalItem[] {
   const anchors = toSource(project, range, prefer);
@@ -365,6 +367,7 @@ export function buildItems(
         ...(base.text !== undefined ? { text: base.text } : {}),
         ...(base.near !== undefined ? { near: base.near } : {}),
         ...(keys ? { wordKeys: keys } : {}),
+        ...(base.issueId ? { issueId: base.issueId } : {}),
       },
     ];
   }
@@ -379,6 +382,7 @@ export function buildItems(
       reason: base.reason,
       anchors: part,
       status: "pending",
+      ...(base.issueId ? { issueId: base.issueId } : {}),
     });
   }
   return out;

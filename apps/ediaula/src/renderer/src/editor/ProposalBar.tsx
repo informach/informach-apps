@@ -16,7 +16,7 @@ const fmt = (s: number): string =>
 
 /** Who made a proposal, for the selector when there are several. */
 const author = (by: string | undefined): string =>
-  by === "assistente"
+  by === "assistente" || by?.startsWith("assistente:")
     ? "chat do Assistente"
     : by === "gravacao"
       ? "gravação"
@@ -24,9 +24,11 @@ const author = (by: string | undefined): string =>
         ? "roteiro"
         : by === "voz"
           ? "limpeza da voz"
-          : by?.startsWith("cliente:")
-            ? "app de IA conectado"
-            : "IA";
+          : by === "limpeza"
+            ? "limpeza automática"
+            : by?.startsWith("cliente:")
+              ? "app de IA conectado"
+              : "IA";
 
 /**
  * Cuts suggested by the AI, waiting for one-click approval. Kept in the project until then. Each
@@ -64,8 +66,9 @@ export function ProposalBar(): ReactNode {
           <strong>{proposal.title}</strong>
         )}
         <span className="muted">
-          A IA propõe {cut.length} corte{cut.length === 1 ? "" : "s"} · −
-          {saved.toFixed(1).replace(".", ",")} s
+          {proposal.by === "limpeza" || proposal.by === "voz" ? "A limpeza propõe" : "A IA propõe"}{" "}
+          {cut.length} corte
+          {cut.length === 1 ? "" : "s"} · −{saved.toFixed(1).replace(".", ",")} s
           {lost
             ? ` · ${lost} não encontrado${lost === 1 ? "" : "s"}, fica${lost === 1 ? "" : "m"} de fora`
             : ""}

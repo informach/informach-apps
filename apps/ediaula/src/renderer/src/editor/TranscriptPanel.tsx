@@ -28,14 +28,16 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { bytes, duration, timecode } from "@/lib/format";
+import { blindNotes, proposeCleanup } from "@/lib/proposals";
 import {
   cleanError,
-  cutRanges,
   cutRangesInteractive,
   runEngineInstall,
   runModelInstall,
+  setCleanup,
   speechCandidates,
   type TextModel,
+  toggleKept,
   transcribeAssets,
   useCleanup,
   useEngine,
@@ -92,7 +94,7 @@ export function TranscriptPanel(): ReactNode {
 
   return (
     <div className="transcript">
-      <CleanupBar model={model} />
+      <CleanupBar model={model} loading={model.loading} />
       <details className="transcript-glossary">
         <summary>Glossário do curso</summary>
         <GlossaryField hint="Corrige os nomes no texto na hora, sem transcrever de novo. Vale para todas as aulas do curso e também orienta a IA." />
@@ -395,9 +397,9 @@ const KIND_META = {
   repeat: { label: "repetições", color: "var(--blue)" },
 } as const;
 
-function CleanupBar({ model }: { model: TextModel }): ReactNode {
+function CleanupBar({ model, loading }: { model: TextModel; loading: boolean }): ReactNode {
   const project = useProject((s) => s.project)!;
-  const { kinds, minSilence, set } = useCleanup();
+  const { kinds, minSilence } = model.choices;
   const counts = { filler: 0, silence: 0, repeat: 0 };
   for (const i of model.active) counts[i.kind]++;
   const labels = trackLabels(project.tracks);
@@ -405,14 +407,18 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
   const spared = project.tracks.filter(
     (t) => !targets.has(t.id) && project.clips.some((c) => c.trackId === t.id),
   );
+  const notes = blindNotes(project, model.blind);
+  const [busy, setBusy] = useState(false);
 
-  const cutAll = (): void => {
-    const n = model.active.length;
-    cutRanges(model.active.map((i) => [i.start, i.end]));
-    useCleanup.getState().set({ kept: new Set() });
-    useApp
-      .getState()
-      .toast(`${n} cortes aplicados (${duration(model.saved)} a menos). Ctrl+Z desfaz.`, "success");
+  // Everything goes through the proposal bar, item by item, like the Assistente's button.
+  const propose = (): void => {
+    setBusy(true);
+    void proposeCleanup()
+      .then((r) => useApp.getState().toast(r.message.split("\n")[0], r.ok ? "info" : "error"))
+      .catch((err: unknown) =>
+        useApp.getState().toast(`Não consegui propor a limpeza: ${cleanError(err)}`, "error"),
+      )
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -429,7 +435,7 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
             type="button"
             key={k}
             className={`cleanup-card ${kinds[k] ? "" : "is-off"}`}
-            onClick={() => set({ kinds: { ...kinds, [k]: !kinds[k] } })}
+            onClick={() => setCleanup({ kinds: { ...kinds, [k]: !kinds[k] } })}
             title={kinds[k] ? "Clique para não cortar" : "Clique para incluir"}
           >
             <span className="row-6">
@@ -445,7 +451,7 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         <select
           className="select select-sm"
           value={minSilence}
-          onChange={(e) => set({ minSilence: Number(e.target.value) })}
+          onChange={(e) => setCleanup({ minSilence: Number(e.target.value) })}
         >
           {[0.5, 0.75, 1, 1.5, 2, 3].map((v) => (
             <option key={v} value={v}>
@@ -458,11 +464,35 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         variant="primary"
         icon={Scissors}
         className="w-full"
-        disabled={!model.active.length}
-        onClick={cutAll}
+        disabled={loading || busy || !model.active.length}
+        onClick={propose}
       >
-        Cortar tudo na timeline
+        {loading ? "Lendo o cursor, a tela e o som…" : "Propor a limpeza"}
       </Button>
+      <div className="cleanup-targets muted">
+        <Shield size={12} />
+        <span>
+          Só encurta pausa em que ninguém fala e a tela fica parada: imagem que muda, ponteiro que
+          se mexe, clique, arrasto, rolagem, atalho e digitação seguram a pausa. Depois de uma
+          pergunta, ou onde o roteiro pede para esperar, a pausa fica com 2,5 s.
+        </span>
+      </div>
+      {model.elsewhere > 0 && (
+        <div className="cleanup-targets muted">
+          <Info size={12} />
+          <span>
+            {model.elsewhere === 1
+              ? "1 sugestão já está na proposta da limpeza da voz."
+              : `${model.elsewhere} sugestões já estão na proposta da limpeza da voz.`}
+          </span>
+        </div>
+      )}
+      {notes.map((note) => (
+        <div key={note} className="cleanup-targets muted">
+          <Info size={12} />
+          <span>{note}</span>
+        </div>
+      ))}
       <div className="cleanup-targets muted">
         <ShieldCheck size={12} />
         <span>
@@ -544,7 +574,8 @@ function TranscriptText({
   transcripts: Map<string, Transcript>;
 }): ReactNode {
   const fps = useProject((s) => s.project?.settings.fps ?? 30);
-  const { kept, toggleKept, keepPause } = useCleanup();
+  const { keepPause } = model.choices;
+  const kept = model.keptIds;
   const textCut = useApp((s) => s.textCut);
   const [selection, setSelection] = useState<{
     words: TextModel["words"];
@@ -601,10 +632,10 @@ function TranscriptText({
     return map;
   }, [project, words]);
 
-  // Word key -> issue, and word index -> silence issue that follows it.
+  // Word key -> issue, and word index -> silence issues that follow it.
   const { wordIssue, silenceAfter } = useMemo(() => {
     const wordIssue = new Map<string, Issue>();
-    const silenceAfter = new Map<number, Issue>();
+    const silenceAfter = new Map<number, Issue[]>();
     for (const i of issues) {
       if (i.kind === "silence") {
         let lo = 0;
@@ -617,7 +648,7 @@ function TranscriptText({
             lo = mid + 1;
           } else hi = mid - 1;
         }
-        silenceAfter.set(at, i);
+        silenceAfter.set(at, [...(silenceAfter.get(at) ?? []), i]);
       } else for (const k of i.words) wordIssue.set(k, i);
     }
     return { wordIssue, silenceAfter };
@@ -715,7 +746,7 @@ function TranscriptText({
               <div className="para-text">
                 {para.map((w) => {
                   const i = index.get(w.key)!;
-                  const silence = silenceAfter.get(i);
+                  const pauses = silenceAfter.get(i) ?? [];
                   const issue = wordIssue.get(w.key);
                   return (
                     <span key={w.key}>
@@ -772,7 +803,7 @@ function TranscriptText({
                           onContextMenu={(e) => {
                             if (!issue) return;
                             e.preventDefault();
-                            toggleKept(issue.id);
+                            toggleKept(issue);
                           }}
                           title={wordTitle(
                             w,
@@ -786,21 +817,24 @@ function TranscriptText({
                             : w.text}
                         </button>
                       )}{" "}
-                      {silence && (
+                      {pauses.map((silence) => (
                         <button
                           type="button"
+                          key={silence.id}
                           className={`pause-pill ${activeIds.has(silence.id) ? "" : "is-kept"}`}
-                          onClick={() => toggleKept(silence.id)}
+                          onClick={() => toggleKept(silence)}
                           title={
                             activeIds.has(silence.id)
                               ? "Silêncio será encurtado. Clique para manter."
-                              : "Mantido. Clique para encurtar."
+                              : kept.has(silence.id)
+                                ? "Mantido. Clique para encurtar."
+                                : "Fora da limpeza (tipo desligado ou trecho protegido)."
                           }
                         >
                           <Pause size={9} />
                           {(silence.end - silence.start + keepPause).toFixed(1).replace(".", ",")}s
                         </button>
-                      )}
+                      ))}
                     </span>
                   );
                 })}

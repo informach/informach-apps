@@ -37,6 +37,8 @@ const api: EdiAulaApi = {
   probe: (path) => ipcRenderer.invoke("media:probe", path),
   thumbnail: (path, kind, duration) => ipcRenderer.invoke("media:thumb", path, kind, duration),
   waveform: (path) => ipcRenderer.invoke("media:waveform", path),
+  motion: (jobId, path, input, duration) =>
+    ipcRenderer.invoke("media:motion", jobId, path, input, duration),
   proxy: (jobId, path, duration, cfrFps) =>
     ipcRenderer.invoke("media:proxy", jobId, path, duration, cfrFps),
   cursorSprite: {

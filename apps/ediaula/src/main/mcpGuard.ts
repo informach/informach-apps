@@ -1,5 +1,5 @@
 import type { McpGrant } from "@informach/edi-desktop/access";
-import { AI_TOOLS, type AiToolName, describeCall, toolPermission } from "../shared/aiTools.ts";
+import { AI_TOOLS, type AiToolName, callPermission, describeCall } from "../shared/aiTools.ts";
 import type { AiApprovalChoice, AiToolCall } from "../shared/types.ts";
 
 /**
@@ -84,7 +84,7 @@ export async function guarded(
   deps: GuardDeps,
 ): Promise<ToolOutcome> {
   const now = deps.now?.() ?? Date.now();
-  const permission = toolPermission(name);
+  const permission = callPermission(name, args);
   const source: CallMeta["source"] = grant.client === PANEL_CLIENT ? "assistant" : "mcp";
   let projectId = grant.projectId;
   if (!grant.scopes.includes(permission)) {

@@ -18,18 +18,28 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { proposeCleanup } from "@/lib/proposals";
 import { useApp } from "@/state/app";
 import { type ChatItem, useAssistant } from "@/state/assistant";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
 
-const QUICK: { icon: LucideIcon; label: string; prompt: string }[] = [
+/**
+ * Quick starts: a request for the assistant, or (`local`) something the editor does by itself,
+ * without the AI and without cost.
+ */
+type Quick = { icon: LucideIcon; label: string } & (
+  | { prompt: string; local?: undefined }
+  | { local: () => Promise<{ ok: boolean; message: string }>; prompt?: undefined }
+);
+const LOCAL_HINT = "Feito no computador, sem a IA e sem custo";
+const QUICK: Quick[] = [
   {
     icon: Wand2,
     label: "Limpar a aula",
-    prompt:
-      "Limpe a aula: remova vícios de fala, frases repetidas, inícios falsos e trechos que eu refiz (mantendo a melhor versão) e encurte silêncios longos. Depois me diga o que cortou e quanto tempo economizou.",
+    // The cleanup is a proposal reviewed item by item in the proposal bar, made on the computer.
+    local: () => proposeCleanup(),
   },
   {
     icon: Scissors,
@@ -96,6 +106,21 @@ export function AssistantPanel(): ReactNode {
     setDraft("");
     void send(conversationId, t);
   };
+  const runQuick = (q: Quick): void => {
+    if (q.prompt !== undefined) submit(q.prompt);
+    else
+      void q
+        .local()
+        .then((r) => useApp.getState().toast(r.message, r.ok ? "info" : "error"))
+        .catch((err: unknown) =>
+          useApp
+            .getState()
+            .toast(
+              `Não consegui fazer isso agora: ${err instanceof Error ? err.message : String(err)}`,
+              "error",
+            ),
+        );
+  };
 
   return (
     <div className="assistant">
@@ -115,7 +140,8 @@ export function AssistantPanel(): ReactNode {
                   type="button"
                   key={q.label}
                   className="quick"
-                  onClick={() => submit(q.prompt)}
+                  title={q.local ? LOCAL_HINT : undefined}
+                  onClick={() => runQuick(q)}
                 >
                   <q.icon size={14} />
                   {q.label}
@@ -144,7 +170,8 @@ export function AssistantPanel(): ReactNode {
                 type="button"
                 key={q.label}
                 className="quick quick-sm"
-                onClick={() => submit(q.prompt)}
+                title={q.local ? LOCAL_HINT : undefined}
+                onClick={() => runQuick(q)}
               >
                 <q.icon size={12} />
                 {q.label}

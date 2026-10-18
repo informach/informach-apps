@@ -8,7 +8,14 @@ import { constants, setPriority as osSetPriority } from "node:os";
  * at once; the segment export uses the same slots and the same waiting.
  */
 
-export type WorkKind = "proxy" | "keying" | "transcription" | "export" | "segment" | "voice";
+export type WorkKind =
+  | "proxy"
+  | "keying"
+  | "transcription"
+  | "export"
+  | "segment"
+  | "voice"
+  | "motion";
 
 export interface SchedulerState {
   recording: boolean;
@@ -40,6 +47,8 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   segment: 2,
   // The voice treatment and the trip to HeyGen: one at a time.
   voice: 1,
+  // Where a screen recording stands still, for the cleanup.
+  motion: 1,
 };
 
 export class Scheduler {
@@ -53,6 +62,7 @@ export class Scheduler {
     export: 0,
     segment: 0,
     voice: 0,
+    motion: 0,
   };
   private readonly wakers = new Set<() => void>();
   private readonly listeners = new Set<(state: SchedulerState) => void>();

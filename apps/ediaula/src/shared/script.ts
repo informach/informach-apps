@@ -33,14 +33,28 @@ export type ScriptItem =
       /** Spoken by an avatar rendered separately (HeyGen), so it is inserted over the lesson. */
       avatar: boolean;
       text: string;
-      /** Insert id from the direction right before it (F1P1-D01). */
+      /** Insert id from a direction before it (F1P1-D01): avatar lines only. */
       insertId?: string;
     }
-  | { kind: "screen"; text: string; insertId?: string }
+  | {
+      kind: "screen";
+      text: string;
+      /** The first insert id the direction names. */
+      insertId?: string;
+      /** Every insert id it names, in order, when there are several. */
+      insertIds?: string[];
+    }
   | { kind: "bridge"; text: string }
   | { kind: "note"; label: string; text: string };
 
-const INSERT_ID = /^\*\*([A-Z]\d+P\d+-[A-Z]\d+)\*\*\s*[·:-]?\s*/;
+/** "**F1P1-D01** ·" opening a direction (left out of its text). */
+const LEADING_ID = /^\*\*([A-Z]\d+P\d+-[A-Z]\d+)\*\*\s*[·:-]?\s*/;
+/** Insert ids anywhere in a direction, bold or not. */
+const INSERT_IDS = /\b[A-Z]\d+P\d+-[A-Z]\d+\b/g;
+/** Insert ids in bold ("**F1P1-D01**"): the ones a direction that opens with one announces. */
+const BOLD_IDS = /\*\*([A-Z]\d+P\d+-[A-Z]\d+)\*\*/g;
+/** "**Professora:**" or "**Debinha (avatar):**" alone on a line. */
+const SPEAKER = /^\*\*([^*:]+?)(?:\s*\(([^)]*)\))?:\*\*$/;
 const plain = (s: string): string => s.replace(/\*\*/g, "").replace(/`/g, "").trim();
 const unquote = (s: string): string =>
   s
@@ -67,7 +81,17 @@ export function parseScript(md: string): ScriptDoc {
   let section: ScriptSection | null = null;
   let speaker: { name: string; avatar: boolean } | null = null;
   let quote: string[] = [];
-  let pendingInsert: string | undefined;
+  // Insert ids of the directions so far, each waiting for the next avatar line.
+  let pendingInserts: string[] = [];
+  // Ids already announced in the section: naming one again ("a mesma entrada de F1P1-D01") is a
+  // reference back, not a new insert.
+  let announced = new Set<string>();
+  // A speaker marked "(avatar)" once is the avatar in every block.
+  const avatars = new Set<string>();
+  for (const raw of lines) {
+    const m = SPEAKER.exec(raw.trim());
+    if (m && /avatar/i.test(m[2] ?? "")) avatars.add(m[1].trim().toLowerCase());
+  }
 
   const flushQuote = (): void => {
     if (!speaker || !quote.length) {
@@ -81,14 +105,14 @@ export function parseScript(md: string): ScriptDoc {
       .map((p) => unquote(p.replace(/\n/g, " ")))
       .filter(Boolean);
     for (const text of paragraphs) {
+      const insertId = speaker.avatar ? pendingInserts.shift() : undefined;
       section?.items.push({
         kind: "speech",
         speaker: speaker.name,
         avatar: speaker.avatar,
         text,
-        ...(pendingInsert ? { insertId: pendingInsert } : {}),
+        ...(insertId ? { insertId } : {}),
       });
-      pendingInsert = undefined;
     }
     quote = [];
   };
@@ -118,7 +142,8 @@ export function parseScript(md: string): ScriptDoc {
       };
       doc.sections.push(section);
       speaker = null;
-      pendingInsert = undefined;
+      pendingInserts = [];
+      announced = new Set();
       continue;
     }
     m = /^###\s+(.+)$/.exec(line);
@@ -131,9 +156,10 @@ export function parseScript(md: string): ScriptDoc {
       continue;
     }
     // "**Professora:**" alone on a line opens a speaker block for the quotes that follow.
-    m = /^\*\*([^*:]+?)(?:\s*\(([^)]*)\))?:\*\*$/.exec(line);
+    m = SPEAKER.exec(line);
     if (m && section) {
-      speaker = { name: m[1].trim(), avatar: /avatar/i.test(m[2] ?? "") };
+      const name = m[1].trim();
+      speaker = { name, avatar: /avatar/i.test(m[2] ?? "") || avatars.has(name.toLowerCase()) };
       continue;
     }
     m = /^\*\*([^*]+?):\*\*\s*(.*)$/.exec(line);
@@ -149,12 +175,19 @@ export function parseScript(md: string): ScriptDoc {
         section.targetText = plain(text);
         section.target = parseTarget(text);
       } else if (/^na tela/i.test(label)) {
-        const id = INSERT_ID.exec(text);
-        if (id) pendingInsert = id[1];
+        const lead = LEADING_ID.exec(text);
+        // A direction opening with a bold id announces its bold ids; otherwise any id it names.
+        const named = lead
+          ? [...text.matchAll(BOLD_IDS)].map((x) => x[1])
+          : [...text.matchAll(INSERT_IDS)].map((x) => x[0]);
+        const ids = [...new Set(named)].filter((id) => !announced.has(id));
+        for (const id of ids) announced.add(id);
+        pendingInserts.push(...ids);
         section.items.push({
           kind: "screen",
-          text: plain(id ? text.slice(id[0].length) : text),
-          ...(id ? { insertId: id[1] } : {}),
+          text: plain(lead ? text.slice(lead[0].length) : text),
+          ...(ids.length ? { insertId: ids[0] } : {}),
+          ...(ids.length > 1 ? { insertIds: ids } : {}),
         });
       } else if (/n[ãa]o gravar/i.test(label)) {
         section.items.push({ kind: "bridge", text: plain(text) });

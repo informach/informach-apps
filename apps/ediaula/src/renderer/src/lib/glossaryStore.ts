@@ -1,4 +1,11 @@
-import { foldText, GLOSSARY_LIMIT, normalizeGlossary, scriptTerms } from "@shared/glossary";
+import {
+  foldText,
+  GLOSSARY_LIMIT,
+  type GlossaryTerm,
+  normalizeGlossary,
+  scriptTerms,
+  termText,
+} from "@shared/glossary";
 import { parseScript } from "@shared/script";
 import type { Project } from "@shared/types";
 import { useEffect, useMemo } from "react";
@@ -12,16 +19,16 @@ import { create } from "zustand";
 
 const courseKey = (course: string | undefined): string => (course ?? "").trim().toLowerCase();
 
-export const useGlossaries = create<{ byCourse: Record<string, string[]> }>(() => ({
+export const useGlossaries = create<{ byCourse: Record<string, GlossaryTerm[]> }>(() => ({
   byCourse: {},
 }));
 
-const loading = new Map<string, Promise<string[]>>();
+const loading = new Map<string, Promise<GlossaryTerm[]>>();
 /** Saves on their way: a reader waits for them, so a transcription started right away sees them. */
-const saving = new Map<string, Promise<string[]>>();
+const saving = new Map<string, Promise<GlossaryTerm[]>>();
 
 /** The glossary of a course, read once and then kept up to date by saveGlossary(). */
-export function courseGlossary(course = ""): Promise<string[]> {
+export function courseGlossary(course = ""): Promise<GlossaryTerm[]> {
   const key = courseKey(course);
   const writing = saving.get(key);
   if (writing)
@@ -49,7 +56,7 @@ export function courseGlossary(course = ""): Promise<string[]> {
  * Saves a course glossary; every open transcript is corrected again with it. More than
  * GLOSSARY_LIMIT terms is refused (nothing is saved), never cut silently.
  */
-export function saveGlossary(course: string, wanted: string[]): Promise<string[]> {
+export function saveGlossary(course: string, wanted: GlossaryTerm[]): Promise<GlossaryTerm[]> {
   const terms = normalizeGlossary(wanted);
   if (terms.length > GLOSSARY_LIMIT)
     return Promise.reject(
@@ -87,7 +94,7 @@ export function saveGlossary(course: string, wanted: string[]): Promise<string[]
  */
 export async function addToGlossary(course: string, term: string): Promise<void> {
   const current = await courseGlossary(course);
-  if (current.some((t) => foldText(t) === foldText(term))) return;
+  if (current.some((t) => foldText(termText(t)) === foldText(term))) return;
   if (current.length >= GLOSSARY_LIMIT)
     throw new Error(
       `O glossário do curso já tem ${GLOSSARY_LIMIT} termos. Tire algum em Transcrição › Glossário do curso para incluir "${term}".`,
@@ -103,20 +110,23 @@ const termsOfScript = (text: string | undefined): string[] => {
 };
 
 /** Glossary first (the course's own spelling wins), then the names of the script. */
-export function correctionTerms(glossary: string[], scriptText: string | undefined): string[] {
-  const seen = new Set(glossary.map(foldText));
+export function correctionTerms(
+  glossary: GlossaryTerm[],
+  scriptText: string | undefined,
+): GlossaryTerm[] {
+  const seen = new Set(glossary.map((t) => foldText(termText(t))));
   return [...glossary, ...termsOfScript(scriptText).filter((t) => !seen.has(foldText(t)))];
 }
 
 /** The correction terms of a project, for code that reads its transcripts once. */
-export async function projectCorrectionTerms(p: Project): Promise<string[]> {
+export async function projectCorrectionTerms(p: Project): Promise<GlossaryTerm[]> {
   return correctionTerms(await courseGlossary(p.course ?? ""), p.script?.text);
 }
 
-const NONE: string[] = [];
+const NONE: GlossaryTerm[] = [];
 
 /** The saved glossary of a course (empty until read). */
-export function useCourseGlossary(course: string): string[] {
+export function useCourseGlossary(course: string): GlossaryTerm[] {
   const glossary = useGlossaries((s) => s.byCourse[courseKey(course)]);
   useEffect(() => {
     courseGlossary(course).catch((err: unknown) =>
@@ -127,7 +137,7 @@ export function useCourseGlossary(course: string): string[] {
 }
 
 /** The correction terms of the open project, updated when its glossary or script changes. */
-export function useCorrectionTerms(project: Project | null): string[] {
+export function useCorrectionTerms(project: Project | null): GlossaryTerm[] {
   const glossary = useCourseGlossary(project?.course ?? "");
   const scriptText = project?.script?.text;
   return useMemo(() => correctionTerms(glossary, scriptText), [glossary, scriptText]);

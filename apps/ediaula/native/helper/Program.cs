@@ -87,6 +87,8 @@ namespace EdiAula.Helper
     {
         public string Mode;
         public bool Keys;
+        /// <summary>Moments of typing, never the keys (KeyRule.IsTyping, TypingGate).</summary>
+        public bool Typing;
         public bool Caret;
         /// <summary>Hook mode starts paused, before the first recorded segment.</summary>
         public bool Paused;
@@ -110,6 +112,7 @@ namespace EdiAula.Helper
                 switch (args[i])
                 {
                     case "--keys": o.Keys = true; break;
+                    case "--typing": o.Typing = true; break;
                     case "--caret": o.Caret = true; break;
                     case "--paused": o.Paused = true; break;
                     case "--journal": o.Journal = Value(args, ++i); break;

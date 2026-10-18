@@ -92,6 +92,8 @@ export const journalLineSchema = z.discriminatedUnion("k", [
     file: fileName,
     offset: z.number(),
     origin: qpc.optional(),
+    /** The narration is the voice taken from a video (the presenter's render). */
+    video: z.literal(true).optional(),
   }),
   z.object({ k: z.literal("stop"), qpc }),
   z.object({ k: z.literal("finalized"), qpc }),
@@ -122,7 +124,7 @@ export interface JournalReplay {
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
   over: { qpc: number; at: number }[];
-  narration: { file: string; offset: number; origin?: number } | null;
+  narration: { file: string; offset: number; origin?: number; video?: true } | null;
   stop: number | null;
   finalized: boolean;
   imported: boolean;
@@ -213,6 +215,7 @@ export function replayJournal(text: string): JournalReplay {
           file: line.file,
           offset: line.offset,
           ...(line.origin !== undefined ? { origin: line.origin } : {}),
+          ...(line.video ? { video: true as const } : {}),
         };
         break;
       case "stop":

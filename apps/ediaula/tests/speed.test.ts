@@ -10,7 +10,7 @@ import {
   timelineAt,
   trimClip,
 } from "../src/shared/timeline.ts";
-import type { Asset, Clip, Project } from "../src/shared/types.ts";
+import type { Asset, Clip, Project, Transcript } from "../src/shared/types.ts";
 
 const clip = (o: Partial<Clip> = {}): Clip => ({
   id: "c",
@@ -82,10 +82,30 @@ test("split and trim honour the speed", () => {
 });
 
 test("transcript words land where the sped-up clip shows them", () => {
-  const p = { clips: [clip({ speed: 2 })] } as unknown as Project;
-  const tr = new Map([
-    ["v", { words: [{ text: "oi", start: 8, end: 9, p: 1 }], silences: [] }],
-  ]) as never;
+  const p: Project = {
+    version: 1,
+    id: "p",
+    name: "T",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [video],
+    tracks: [{ id: "t", kind: "video", name: "F1", muted: false, hidden: false, locked: false }],
+    clips: [clip({ speed: 2 })],
+  };
+  const tr = new Map<string, Transcript>([
+    [
+      "v",
+      {
+        version: 1,
+        model: "m",
+        language: "pt",
+        duration: 60,
+        words: [{ text: "oi", start: 8, end: 9, p: 1 }],
+        silences: [],
+      },
+    ],
+  ]);
   const [w] = timelineWords(p, tr);
   assert.equal(w.start, 12);
   assert.equal(w.end, 12.5);

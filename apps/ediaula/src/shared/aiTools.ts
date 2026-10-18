@@ -64,7 +64,7 @@ export const AI_TOOLS = {
     title: "Sugestões de limpeza",
     permission: "read",
     description:
-      "Lists what the automatic cleanup would remove: filler words (né, tipo, ahn...), repeated phrases and long silences, each with timeline times and the words involved. Read-only.",
+      "Lists what the automatic cleanup would remove: filler words (né, tipo, ahn...), repeated phrases and long silences, each with timeline times and the words involved, and which of them the person chose to keep in the Transcrição panel (those are never cut). A pause is only shortened where nobody is heard and the screen stands still; the answer also says what the cleanup cannot see (recordings without cursor data, screens still being analyzed, media that is not heard). Read-only.",
     input: z.object({
       min_silence: z
         .number()
@@ -75,15 +75,28 @@ export const AI_TOOLS = {
     }),
   },
   apply_cleanup: {
-    title: "Aplicar limpeza automática",
+    title: "Limpeza automática",
     permission: "write",
     description:
-      "Applies the automatic cleanup to the timeline (cuts in sync on video and speech tracks, keeps music). Choose which kinds to include. Undoable.",
+      'The automatic cleanup of the whole lesson, with the person\'s choices from the Transcrição panel (what they kept is never cut). mode "propose" (default) shows every cut as a proposal the person reviews item by item and applies; mode "apply" cuts right away (in sync on video and speech tracks, keeps music; undoable) and is only for when the person explicitly asked to apply without reviewing. Kinds left out here stay out for this call only.',
     input: z.object({
-      fillers: z.boolean().optional().describe("Remove filler words. Default true."),
-      repeats: z.boolean().optional().describe("Remove repeated phrases. Default true."),
-      silences: z.boolean().optional().describe("Shorten long silences. Default true."),
+      fillers: z
+        .boolean()
+        .optional()
+        .describe("Include filler words. Default: the panel's choice."),
+      repeats: z
+        .boolean()
+        .optional()
+        .describe("Include repeated phrases. Default: the panel's choice."),
+      silences: z
+        .boolean()
+        .optional()
+        .describe("Shorten long silences. Default: the panel's choice."),
       min_silence: z.number().min(0.3).max(10).optional(),
+      mode: z
+        .enum(["propose", "apply"])
+        .optional()
+        .describe('"propose" (default) or "apply" when the person asked to cut without reviewing'),
     }),
   },
   cut_text: {
@@ -199,14 +212,23 @@ export const AI_TOOLS = {
     title: "Encaixar inserção do avatar",
     permission: "write",
     description:
-      "Places an avatar line from the script (by insert id, e.g. F1P4-D01) over the lesson: finds the line in a transcribed media (the HeyGen render), puts it right after the narration line before it, opens the timeline with the screen held still if the recorded pause is too short, and places the avatar beside the content with a short dissolve. Undoable.",
+      "Places an avatar line from the script (by insert id, e.g. F1P4-D01) over the lesson: finds the line in a transcribed media (the presenter's render), puts it right after the line before it, opens the timeline with the screen held still if the recorded pause is too short, and places the avatar beside the content with a short dissolve. Warns when the avatar would talk over another voice, another avatar included. Undoable.",
     input: z.object({ insert_id: z.string().min(3) }),
+  },
+  place_inserts: {
+    title: "Encaixar várias inserções do avatar",
+    permission: "write",
+    description:
+      'Places several avatar lines at once, as place_insert does for one: insert_ids lists them, or "all" for every avatar line of the section not on the timeline yet. All are planned on the same alignment and applied from the end of the lesson to the start, as one undo step; lines that cannot be placed (not found, a locked track in the way, two in the same pause) are reported and the rest are placed.',
+    input: z.object({
+      insert_ids: z.union([z.literal("all"), z.array(z.string().min(3)).min(1)]),
+    }),
   },
   propose_off_script: {
     title: "Propor cortes fora do roteiro",
     permission: "propose",
     description:
-      "Shows everything said outside the script (false starts, retakes, comments) as a cut proposal for the user to approve in one click.",
+      "Shows everything said outside the script (false starts, earlier takes of a line, comments) as a cut proposal for the user to approve. Only whole blocks between pauses or punctuation are proposed, a few words slipped into a line (a paraphrase) never are. Refused until the section is confirmed (get_script says so) and when more than 35% of what was said falls outside the script.",
     input: z.object({}),
   },
   set_clip_layout: {
@@ -558,6 +580,16 @@ export const TOOL_PERMISSIONS = [
 
 export const toolPermission = (name: AiToolName): ToolPermission => AI_TOOLS[name].permission;
 
+/**
+ * What one call needs: the tool's permission, except that apply_cleanup in its default mode only
+ * shows a proposal (it needs "propose"); cutting right away (mode "apply") is a write.
+ */
+export function callPermission(name: AiToolName, input: unknown): ToolPermission {
+  if (name !== "apply_cleanup") return toolPermission(name);
+  const parsed = AI_TOOLS.apply_cleanup.input.safeParse(input ?? {});
+  return parsed.success && (parsed.data.mode ?? "propose") === "propose" ? "propose" : "write";
+}
+
 export const isAiToolName = (name: string): name is AiToolName => Object.hasOwn(AI_TOOLS, name);
 
 /** Whether `scopes` cover a tool; a write never rides on read or propose. */
@@ -620,7 +652,8 @@ How editing works:
 - Text-based editing: read the transcript with get_transcript, then remove speech with cut_text (quote the exact words) or cut_ranges. Cuts are applied to video and speech tracks together so they stay in sync; music beds keep playing and are trimmed at the end. Locked tracks are never touched.
 - After every cut the timeline shifts left, so re-read the transcript before computing new time ranges. cut_ranges needs the project revision you read; a stale revision is refused.
 - Protected passages (listed in get_overview) can never be cut; if a requested cut hits one, tell the user and let them decide.
-- Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through propose_cuts so the user approves the set in one click.
+- Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through a proposal the user reviews: propose_cuts, propose_off_script, or apply_cleanup in its default "propose" mode. Use apply_cleanup with mode "apply" only when the person explicitly asks to cut without reviewing.
+- The automatic cleanup (find_cleanup, apply_cleanup) follows the person's choices in the Transcrição panel: what they marked to keep, or left out of an earlier cleanup proposal, is never cut. It only shortens a pause where nobody is heard on any track (the avatar placed in a pause of the narration is speech, and so is every word whisper heard, however soft) and the screen stands still: the picture changing, the pointer moving (even slowly), clicks, drags, scrolling, shortcuts and typing all hold the pause, and a screen recording whose picture was not analyzed yet is not cut at all. The steps of a guided recording are protected too once its guided-run.json is there. After a question, or where the script says to pause or wait, the pause keeps 2.5 s. Hesitations and repeats are looked for in the teacher's own words only, never in an avatar's lines or the computer's sound; the same words said again after a demonstration, far apart or across the end of a sentence are not a repeat, and emphasis or counting ("muito, muito", "vamos lá, vamos lá", "um, dois, três") stays. Tell the person about the blind spots the tools report.
 - The course glossary (get_overview) lists names and terms that must be spelled exactly as given.
 - Every edit is undoable: the undo tool takes back your own latest edits (never the person's), and the person has Ctrl+Z. The project autosaves.
 - If there is no transcript yet, call transcribe first. get_transcript returns 10 minutes at a time: follow next_from, or start with summary=true to find the part you need.
@@ -635,8 +668,10 @@ Good editing judgement for lessons:
 
 Recording scripts (roteiros): when get_overview says a script is attached, read it with get_script before editing.
 - Only the quoted speaker lines are narration. "Na tela" directions describe what the screen shows and are never narration; "Zappy na página (não gravar)" texts are platform texts and must never be spoken or inserted.
-- What was said outside the script is usually a false start or a retake: offer propose_off_script (the last take of a repeated passage is the one kept).
-- Avatar lines (Debinha, Dedé… marked "avatar") come from a separate HeyGen render; place them with place_insert by insert id. The avatar enters, speaks and leaves before the teacher's answer and next gesture, never over another voice, and must not cover controls, blocks, readouts or results; if it would, move it with set_clip_layout (left, corner-right…).
+- The alignment reads spoken Portuguese: "pra" and "pro" are "para" and "para o", "tá" is "está", numbers match written or spoken ("x 208" and "xis duzentos e oito"), hyphenated words match joined or apart, and names close in sound to a glossary term match it.
+- The section of the recording is picked automatically; when the match is weak, get_script says it is not confirmed: ask the person to confirm it in the Roteiro tab before proposing cuts.
+- What was said outside the script is usually a false start or an earlier take of a line: offer propose_off_script (the last take of a repeated passage is the one kept).
+- Avatar lines (Debinha, Dedé… marked "avatar") come from a separate render of the presenter; place them with place_insert by insert id, or all at once with place_inserts. The avatar enters, speaks and leaves before the teacher's answer and next gesture, never over another voice, and must not cover controls, blocks, readouts or results; if it would, move it with set_clip_layout (left, corner-right…).
 - Compare the edit with the section's target duration and report it; never speed up gestures to fit.
 
 Screen recordings made in EdiAula have no pointer in the video: it is drawn by the editor from the saved mouse data (set_cursor) and can get automatic zooms on the clicks (auto_zoom). For Blockly demos, zooms on block drags help children follow; avoid zooming while the teacher explains the whole screen.

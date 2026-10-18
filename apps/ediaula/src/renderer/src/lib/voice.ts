@@ -196,7 +196,12 @@ export async function proposeVoiceCleanup(by = "voz"): Promise<string> {
   return showProposal(
     p,
     `Limpeza da voz: ${parts.join(", ")}`,
-    items.map((i) => ({ start: i.start, end: i.end, reason: i.reason })),
+    items.map((i) => ({
+      start: i.start,
+      end: i.end,
+      reason: i.reason,
+      ...(i.issueId ? { issueId: i.issueId } : {}),
+    })),
     revision,
     by,
   );
@@ -463,6 +468,8 @@ export async function importHeygenVideos(useSound: boolean): Promise<void> {
     return;
   }
   const assets = await importMedia(videos);
+  // The presenter's video: acted, so the cleanup never cleans it of hesitations.
+  for (const asset of assets) useProject.getState().patchAsset(asset.id, { origin: "presenter" });
   let placed = 0;
   let stale = false;
   for (const asset of assets) {

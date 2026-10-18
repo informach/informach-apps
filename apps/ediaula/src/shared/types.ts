@@ -8,6 +8,7 @@ import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
+import type { GlossaryTerm } from "./glossary.ts";
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
 import type { Palette } from "./palettes.ts";
@@ -92,6 +93,12 @@ export interface Asset {
   treatStatus?: "pending" | "ready" | "error";
   /** A "Só voz" recording: the stretch of each take, by teleprompter line, in source seconds. */
   voiceTakes?: VoiceTake[];
+  /** Where the picture of a screen recording stands still (a motion file, main/ffmpeg.ts screenMotion). */
+  motion?: string;
+  motionStatus?: "pending" | "ready" | "error";
+  /** From a presenter (an avatar or a person): the video placed by the voice, or a guided
+   *  narration taken from such a video. */
+  origin?: "presenter";
 }
 
 /**
@@ -303,8 +310,13 @@ export interface Project {
   palette?: string;
   /** Use the palette's fonts too (titles and text) instead of the default typeface. */
   paletteFonts?: boolean;
-  /** Recording script pasted by the user and the section this video corresponds to. */
-  script?: { text: string; section?: number };
+  /**
+   * Recording script pasted by the user and the section this video corresponds to; `confirmed`
+   * once the person said the section is the right one (shared/scriptAlign.ts, rankSections).
+   */
+  script?: { text: string; section?: number; confirmed?: boolean };
+  /** The choices made in the cleanup panel: what to keep and how (the AI follows them too). */
+  cleanup?: CleanupSettings;
   /** Active editing time, to measure how long each lesson really takes. */
   stats?: { editSeconds: number };
   /** AI proposals waiting for the person, anchored in the media (shared/anchors.ts). */
@@ -317,6 +329,20 @@ export interface Project {
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
   tracks: Track[];
   clips: Clip[];
+}
+
+/** The person's choices for the automatic cleanup of a lesson (src/renderer/src/lib/cleanupPlan.ts). */
+export interface CleanupSettings {
+  /** Suggestions the person chose to keep (Issue.id: anchored in the media, stable across cuts). */
+  kept: string[];
+  /** Silences at least this long are shortened (seconds). */
+  minSilence?: number;
+  /** Pause left in place of a removed silence (seconds). */
+  keepPause?: number;
+  /** A kind set to false is left out of the cleanup. */
+  kinds?: { filler?: boolean; silence?: boolean; repeat?: boolean };
+  /** Phrases repeated on purpose ("muito, muito"); absent: shared/cleanup.ts DEFAULT_INTENTIONAL. */
+  intentional?: string[];
 }
 
 export interface PublishInfo {
@@ -557,6 +583,8 @@ export interface EdiAulaApi {
   probe(path: string): Promise<ProbeResult>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
+  /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */
+  motion(jobId: string, path: string, input: string, duration: number): Promise<string>;
   proxy(jobId: string, path: string, duration: number, cfrFps?: number): Promise<string>;
   /** Pointer sprite videos for the export, drawn in the renderer and encoded in the main process. */
   cursorSprite: {
@@ -735,8 +763,8 @@ export interface EdiAulaApi {
     language: string,
     glossary: string[],
   ): Promise<string>;
-  getGlossary(course: string): Promise<string[]>;
-  setGlossary(course: string, terms: string[]): Promise<void>;
+  getGlossary(course: string): Promise<GlossaryTerm[]>;
+  setGlossary(course: string, terms: GlossaryTerm[]): Promise<void>;
   openRestrictedClaude(): Promise<{ ok: boolean; message: string }>;
   aiSettings(): Promise<AiSettingsView>;
   saveAiSettings(changes: {
