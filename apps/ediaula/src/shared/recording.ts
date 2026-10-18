@@ -1,4 +1,7 @@
-/** Screen recording made by EdiAula: sources, options, and the cursor data saved beside the video. */
+import type { CameraChoice } from "./camera.ts";
+import type { CaptureQuality } from "./encoderChoice.ts";
+
+/** Screen recording made by EdiAula: sources, options, and what a finished take hands over. */
 
 export interface CaptureMonitor {
   /** Order reported by Windows. */
@@ -23,40 +26,65 @@ export interface CaptureSources {
 }
 
 export interface RecordOptions {
-  monitor: number;
+  /** Monitor to record; absent for a take without the screen (voice only). */
+  monitor?: number;
   /** Part of the monitor to record, physical pixels relative to its top-left; absent = whole monitor. */
   region?: { x: number; y: number; width: number; height: number };
   microphone?: string;
   camera?: string;
+  /** Webcam input mode (shared/camera.ts); absent = the device's default. */
+  cameraMode?: CameraChoice;
+  /** Milliseconds between a webcam frame being taken and FFmpeg receiving it. */
+  cameraLatency?: number;
   /** Log shortcut and navigation keys to show them on screen (never plain typing). */
   keys?: boolean;
   fps: number;
+  quality?: CaptureQuality;
+  /** The recorder window sends the computer's sound in chunks (recorder:systemChunk). */
+  systemAudio?: boolean;
 }
 
 export type MarkerKind = "marker" | "retake";
 
-/** Frame rate of screen recordings. */
+/** Default frame rate of screen recordings. */
 export const RECORDING_FPS = 30;
 
-/**
- * Global shortcuts of the recorder. The cursor helper leaves them out of the keys shown on
- * screen; `mods` uses the helper's flags (1 Ctrl, 2 Alt, 4 Shift, 8 Win).
- */
-export const RECORDER_HOTKEYS = [
-  { accelerator: "F8", name: "guided-target", vk: 0x77, mods: 0 },
-  { accelerator: "F9", name: "toggle", vk: 0x78, mods: 0 },
-  { accelerator: "F10", name: "stop", vk: 0x79, mods: 0 },
-  { accelerator: "CommandOrControl+M", name: "marker", vk: 0x4d, mods: 1 },
-  { accelerator: "CommandOrControl+R", name: "retake", vk: 0x52, mods: 1 },
+/** What a recording session is doing (main/recording/session.ts). */
+export const RECORDER_PHASES = [
+  "prepared",
+  "recording",
+  "paused",
+  "failed",
+  "stopping",
+  "finalized",
 ] as const;
+export type RecorderPhase = (typeof RECORDER_PHASES)[number];
 
-/** State pushed from the main process to the recorder window. */
-export interface RecorderState {
-  phase: "setup" | "countdown" | "recording" | "paused" | "saving";
-  /** Seconds recorded so far (excluding pauses). */
-  elapsed: number;
-  markers: number;
-  error?: string;
+/** Each source is its own process: one failing leaves the others recording. */
+export const CAPTURE_SOURCES = ["screen", "mic", "camera", "system", "cursor"] as const;
+export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
+
+/** State pushed from the main process to the recorder and to the editor window. */
+export interface RecorderStatus {
+  /** null: no session (the recorder is being set up or was closed). */
+  phase: RecorderPhase | null;
+  /** Sources whose process stopped: the take is paused until they reopen. */
+  failed: CaptureSource[];
+  /** A long pause closed the screen part; resuming opens a new one. */
+  reopening: boolean;
+  /** Editor window only: background work and the next export wait for the take. */
+  holdBackground?: boolean;
+}
+
+/** Something the teacher has to know right away, with what can be done about it. */
+export interface RecorderEvent {
+  source: CaptureSource | "disk" | "machine";
+  level: "error" | "warning" | "info";
+  message: string;
+  /** "resume" reopens what failed and goes on; "stop" saves what was recorded. */
+  actions: ("resume" | "stop")[];
+  /** The recorder window has to stop and save now (the disk is full). */
+  request?: "stop";
 }
 
 export const CURSOR_SHAPES = [
@@ -76,26 +104,6 @@ export const CURSOR_SHAPES = [
   "hidden",
 ] as const;
 export type CursorShape = (typeof CURSOR_SHAPES)[number];
-
-/**
- * Cursor movements and clicks of a recording, in seconds of the video and pixels of the video
- * frame (so they follow the video through cuts, crops and zooms).
- */
-export interface CursorData {
-  version: 1;
-  width: number;
-  height: number;
-  /** [t, x, y, shape index into CURSOR_SHAPES] */
-  moves: [number, number, number, number][];
-  /** [t, x, y, button (0 left, 1 right, 2 middle), seconds held] */
-  clicks: [number, number, number, number, number][];
-  /** [t, x, y, wheel delta] */
-  wheel: [number, number, number, number][];
-  /** F9/Ctrl+M markers and Ctrl+R retakes, video seconds. */
-  markers: { t: number; kind: MarkerKind }[];
-  /** Shortcut and navigation keys pressed: [t, label] (e.g. "Ctrl+C", "→"). */
-  keys?: [number, string][];
-}
 
 const KEY_NAMES: Record<number, string> = {
   8: "⌫",
@@ -162,26 +170,71 @@ export function keyPills(keys: [number, string][]): KeyPill[] {
   return out.map(({ start, end, label }) => ({ start, end, label }));
 }
 
+/**
+ * A piece of a file placed on the recording's own clock: `at` seconds of the take, from `in`
+ * seconds of the file, for `duration` seconds.
+ */
+export interface RecordingPiece {
+  path: string;
+  at: number;
+  in: number;
+  duration: number;
+}
+
+/**
+ * A finished take (gravacao.json). Every time is in seconds of the take's own clock, which is
+ * the screen video's (or the microphone's in a take without the screen); pauses stay in the
+ * files and become cuts when the take is imported.
+ */
 export interface RecordingResult {
+  version: 2;
+  dir: string;
+  /** The screen video, joined; absent in a take without the screen or when kept in parts. */
+  screen?: string;
+  /** cursor.json of `screen`. */
+  cursor?: string;
+  /** Screen parts left as recorded (fragmented MP4) because the disk had no room to join them;
+   *  each has its own cursor data in its own seconds. */
+  screenParts?: (RecordingPiece & { cursor: string })[];
+  /** The microphone, already lined up with the take: second 0 is the take's second 0. */
+  microphone?: string;
+  /** The computer's sound, lined up the same way. */
+  systemAudio?: string;
+  /** Webcam files as recorded, placed on the take's clock. */
+  cameraParts?: RecordingPiece[];
+  /** The guided recording's narration, and where it starts in seconds of the take without the
+   *  pauses (the time the recorder counted). */
   narration?: string;
   narrationOffset?: number;
-  dir: string;
-  screen: string;
-  camera?: string;
-  /** Sound of the computer (loopback), and where it starts relative to the screen video (seconds). */
-  systemAudio?: string;
-  systemOffset?: number;
-  cursor: string;
   duration: number;
+  /** Stretches of the take recorded while paused (or after a failure): cut on import. */
+  pauses: [number, number][];
   markers: { t: number; kind: MarkerKind }[];
+  /** Teleprompter line shown from each moment. */
+  lines?: { t: number; index: number }[];
   /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
   cursorIssues?: string[];
   /** The chosen encoder could not start and another one recorded. */
   encoderIssues?: string[];
+  /** Other things that went wrong and were worked around (a source that stopped, a full disk). */
+  warnings?: string[];
+}
+
+/** A take the app did not finish (the app or the computer went down), found at startup. */
+export interface OrphanTake {
+  dir: string;
+  name: string;
+  /** Date.now() when the take was prepared. */
+  startedAt: number;
+  /** Bytes of media in the folder. */
+  size: number;
+  /** About how many seconds were recorded. */
+  seconds: number;
+  sources: ("screen" | "mic" | "camera" | "system")[];
 }
 
 /**
- * Ranges (source seconds) to cut for each Ctrl+R "redo the last passage": from the middle of the
+ * Ranges (source seconds) to cut for each Ctrl+Shift+R "redo the last passage": from the middle of the
  * pause before the flubbed passage to the middle of the pause after the key press, where the
  * teacher starts again. `peaks` is the audio envelope (0..1) at `pps` values per second.
  */

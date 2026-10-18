@@ -1,15 +1,20 @@
 import { squareCrop, type Transform } from "@shared/compose";
 import { type RecordingResult, retakeCuts } from "@shared/recording";
+import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
 import { speechItems } from "@shared/script";
-import { clipEnd, newId, timelineAt, trackEnd } from "@shared/timeline";
-import type { Asset, Clip } from "@shared/types";
+import { clipEnd, timelineAt } from "@shared/timeline";
+import type { Asset } from "@shared/types";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
 import { activePalette } from "./palettes";
 import { showProposal } from "./proposals";
+import { recordingImported } from "./recordingHooks";
 import { scriptDoc } from "./script";
+
+/** The take's folder name, which identifies it (Asset.recording.id). */
+const basename = (dir: string): string => dir.split(/[\\/]/).filter(Boolean).at(-1) ?? dir;
 
 /** Opens the recorder over the screen, with the project's script as teleprompter. */
 export async function openRecorder(): Promise<void> {
@@ -43,7 +48,7 @@ const stamp = (): string =>
     })
     .replace(",", "");
 
-/** A finished recording goes into the open project (or a new one), screen and camera in sync. */
+/** A finished take goes into the open project (or a new one), every source cut at its pauses. */
 export async function importRecording(r: RecordingResult): Promise<void> {
   const { toast, set } = useApp.getState();
   if (!useProject.getState().project) {
@@ -55,139 +60,124 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     useProject.getState().load(path, project);
   }
   set({ screen: "editor" });
-  const assets = await importMedia([
-    r.screen,
-    ...(r.camera ? [r.camera] : []),
-    ...(r.systemAudio ? [r.systemAudio] : []),
-    ...(r.narration ? [r.narration] : []),
-  ]);
-  const system = assets.find((a) => a.path === r.systemAudio);
-  const narration = assets.find((a) => a.path === r.narration);
-  const screen = assets.find((a) => a.path === r.screen);
-  if (!screen) return;
+  const screens = r.screen
+    ? [{ path: r.screen, at: 0, duration: r.duration, cursor: r.cursor }]
+    : (r.screenParts ?? []);
+  const cameraFiles = [...new Set((r.cameraParts ?? []).map((p) => p.path))];
+  const assets = await importMedia(
+    [
+      ...screens.map((s) => s.path),
+      ...cameraFiles,
+      r.microphone,
+      r.systemAudio,
+      r.narration,
+    ].filter((path): path is string => !!path),
+  );
+  const byPath = (path: string | undefined): Asset | undefined =>
+    path ? assets.find((a) => a.path.toLowerCase() === path.toLowerCase()) : undefined;
   const when = stamp();
-  useProject
-    .getState()
-    .patchAsset(screen.id, { cursor: r.cursor, markers: r.markers, name: `Tela ${when}` });
-  if (r.camera && assets[1])
-    useProject.getState().patchAsset(assets[1].id, { name: `Câmera ${when}` });
-  if (system) useProject.getState().patchAsset(system.id, { name: `Áudio do PC ${when}` });
-  const camera = assets.find((a) => a.path === r.camera);
-
-  let placed: Clip | undefined;
-  useProject.getState().commit((p) => {
-    const videoTracks = p.tracks.filter((t) => t.kind === "video" && !t.locked);
-    const main = videoTracks[videoTracks.length - 1];
-    if (!main) return p;
-    const start = Math.max(
-      trackEnd(p.clips, main.id),
-      ...(camera ? [trackEnd(p.clips, videoTracks[0].id)] : []),
-    );
-    placed = {
-      id: newId("c"),
-      assetId: screen.id,
-      trackId: main.id,
-      start,
-      in: 0,
-      duration: screen.duration,
-      volume: 1,
-    };
-    const clips = [...p.clips, placed];
-    if (camera && videoTracks.length > 1)
-      clips.push({
-        id: newId("c"),
-        assetId: camera.id,
-        trackId: videoTracks[0].id,
-        start,
-        in: 0,
-        duration: Math.min(camera.duration, screen.duration),
-        volume: 0,
-        transform: cameraTransform(camera),
-      });
-    // The computer's sound on its own track, lined up with the screen (it may start a little later or earlier).
-    let tracks = p.tracks;
-    if (narration && (r.narrationOffset ?? 0) < screen.duration) {
-      const track = {
-        id: newId("t"),
-        kind: "audio" as const,
-        name: "Narração guiada",
-        muted: false,
-        hidden: false,
-        locked: false,
-      };
-      tracks = [...tracks, track];
-      const offset = Math.max(0, r.narrationOffset ?? 0);
-      clips.push({
-        id: newId("c"),
-        assetId: narration.id,
-        trackId: track.id,
-        start: start + offset,
-        in: 0,
-        duration: Math.min(narration.duration, screen.duration - offset),
-        volume: 1,
-      });
-    }
-    if (system) {
-      let track = tracks.find((t) => t.kind === "audio" && t.name === "Áudio do PC");
-      if (!track) {
-        track = {
-          id: newId("t"),
-          kind: "audio",
-          name: "Áudio do PC",
-          muted: false,
-          hidden: false,
-          locked: false,
-        };
-        tracks = [...tracks, track];
-      }
-      const offset = r.systemOffset ?? 0;
-      const skip = Math.max(0, -offset);
-      clips.push({
-        id: newId("c"),
-        assetId: system.id,
-        trackId: track.id,
-        start: start + Math.max(0, offset),
-        in: skip,
-        duration: Math.max(
-          0.1,
-          Math.min(system.duration - skip, screen.duration - Math.max(0, offset)),
-        ),
-        volume: 0.8,
-      });
-    }
-    return { ...p, tracks, clips };
+  const { patchAsset } = useProject.getState();
+  screens.forEach((s, i) => {
+    const asset = byPath(s.path);
+    if (!asset) return;
+    // Each part keeps the markers of its own stretch, in its own seconds.
+    const markers = r.markers
+      .filter((m) => m.t >= s.at && m.t <= s.at + s.duration)
+      .map((m) => ({ ...m, t: Math.round((m.t - s.at) * 1000) / 1000 }));
+    patchAsset(asset.id, {
+      ...(s.cursor ? { cursor: s.cursor } : {}),
+      markers,
+      name: screens.length > 1 ? `Tela ${when} · parte ${i + 1}` : `Tela ${when}`,
+    });
   });
+  for (const path of cameraFiles) {
+    const asset = byPath(path);
+    if (asset) patchAsset(asset.id, { name: `Câmera ${when}` });
+  }
+  const mic = byPath(r.microphone);
+  if (mic) patchAsset(mic.id, { name: `Voz ${when}` });
+  const system = byPath(r.systemAudio);
+  if (system) patchAsset(system.id, { name: `Áudio do PC ${when}` });
+
+  let layout: RecordingLayout | undefined;
+  useProject.getState().commit((p) => {
+    const current = p.assets.filter((a) => assets.some((b) => b.id === a.id));
+    layout = layoutRecording(p, current, r, undefined, { cameraTransform });
+    return { ...p, tracks: layout.tracks, clips: layout.clips };
+  });
+  if (!layout) return;
+  const take = basename(r.dir);
+  for (const { assetId, role } of layout.roles)
+    patchAsset(assetId, { recording: { id: take, role } });
+  const roleIds = (role: string): string[] =>
+    layout?.roles.filter((x) => x.role === role).map((x) => x.assetId) ?? [];
+
   const markers = r.markers.filter((m) => m.kind === "marker").length;
+  const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));
   toast(
-    `Gravação de ${Math.round(r.duration)} s adicionada${camera ? " com a câmera" : ""}${markers ? ` · ${markers} marcador(es)` : ""}.`,
+    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? " com a câmera" : ""}${markers ? ` · ${markers} marcador(es)` : ""}.`,
     "success",
   );
-  if (placed && r.markers.some((m) => m.kind === "retake"))
-    void proposeRetakes(screen.id, placed.id);
+  const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];
+  if (notes.length) toast(`Avisos da gravação: ${notes.join(" ")}`, "info");
+  const done = layout;
+  if (mic && r.markers.some((m) => m.kind === "retake"))
+    void proposeRetakes(mic.id, done, r.markers);
+  const failures = await recordingImported({
+    result: r,
+    layout: done,
+    assets: {
+      screen: roleIds("screen"),
+      camera: roleIds("camera"),
+      ...(mic ? { mic: mic.id } : {}),
+      ...(system ? { system: system.id } : {}),
+      ...(roleIds("narration")[0] ? { narration: roleIds("narration")[0] } : {}),
+    },
+  });
+  for (const error of failures)
+    toast(`Depois da gravação: ${error instanceof Error ? error.message : String(error)}`, "error");
 }
 
-/** Ctrl+R presses become a cut proposal once the audio envelope of the recording is ready. */
-async function proposeRetakes(assetId: string, clipId: string): Promise<void> {
+/**
+ * Ctrl+Shift+R presses become a cut proposal once the voice's audio envelope is ready: each kept
+ * stretch of the take gets the cuts of the presses inside it.
+ */
+async function proposeRetakes(
+  voiceId: string,
+  layout: RecordingLayout,
+  markers: RecordingResult["markers"],
+): Promise<void> {
   let asset: Asset | undefined;
   for (let i = 0; i < 120; i++) {
-    asset = useProject.getState().project?.assets.find((a) => a.id === assetId);
+    asset = useProject.getState().project?.assets.find((a) => a.id === voiceId);
     if (asset?.waveform) break;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   const p = useProject.getState().project;
-  const clip = p?.clips.find((c) => c.id === clipId);
-  if (!p || !asset?.waveform || !clip) return;
+  if (!p || !asset?.waveform) return;
   // The cut times are read from this state of the project; showProposal refuses them if it changed.
   const revision = useProject.getState().revision;
   const wave = await loadWaveform(asset.waveform);
-  const cuts = retakeCuts(asset.markers ?? [], wave.peaks, wave.peaksPerSecond)
-    .map(([a, b]) => [timelineAt(clip, a), timelineAt(clip, b)] as [number, number])
-    .filter(([a, b]) => a >= clip.start && b <= clipEnd(clip));
+  const cuts: [number, number][] = [];
+  for (const piece of layout.pieces) {
+    const clip = piece.voice && p.clips.find((c) => c.id === piece.voice?.id);
+    if (!clip) continue;
+    // The voice starts at the take's second 0: take seconds are its own seconds.
+    const presses = markers.filter((m) => m.t >= piece.from && m.t <= piece.to);
+    for (const [a, b] of retakeCuts(presses, wave.peaks, wave.peaksPerSecond)) {
+      const range: [number, number] = [timelineAt(clip, a), timelineAt(clip, b)];
+      if (range[0] >= clip.start && range[1] <= clipEnd(clip)) cuts.push(range);
+    }
+  }
   if (!cuts.length) return;
   const msg = await showProposal(
     p,
-    "Trechos para refazer (Ctrl+R)",
-    cuts.map(([start, end]) => ({ start, end, reason: "marcado com Ctrl+R durante a gravação" })),
+    "Trechos para refazer (Ctrl+Shift+R)",
+    cuts.map(([start, end]) => ({
+      start,
+      end,
+      reason: "marcado com Ctrl+Shift+R durante a gravação",
+    })),
     revision,
     "gravacao",
   );

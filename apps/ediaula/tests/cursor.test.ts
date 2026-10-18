@@ -15,11 +15,13 @@ import {
   ripplesAt,
   spritePositions,
 } from "../src/shared/cursor.ts";
-import { type CursorData, retakeCuts } from "../src/shared/recording.ts";
+import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.ts";
+import { retakeCuts } from "../src/shared/recording.ts";
 import { sourceAt } from "../src/shared/timeline.ts";
 import { autoZooms, type Zoom, zoomAt, zoomExprs } from "../src/shared/zoom.ts";
 
-const data: CursorData = {
+// A version 1 file, as older recordings wrote it: the editor reads it as version 2.
+const data: CursorData = normalizeCursorData({
   version: 1,
   width: 1920,
   height: 1080,
@@ -36,7 +38,7 @@ const data: CursorData = {
   ],
   wheel: [],
   markers: [],
-};
+});
 
 test("manual cursor path reaches its anchors, interpolates smoothly and preserves original movement outside", () => {
   const path = [
@@ -328,7 +330,7 @@ test("the export expression gives the same view as the preview", () => {
   }
 });
 
-test("Ctrl+R cuts from the pause before the flubbed passage to the pause after the key press", () => {
+test("Ctrl+Shift+R cuts from the pause before the flubbed passage to the pause after the key press", () => {
   // 100 values per second: speech 0–2 s, pause 2–2.6 s, flubbed passage 2.6–5 s (key at 5.2), pause 5–6 s, new take.
   const peaks = Array.from({ length: 900 }, (_, i) =>
     (i >= 200 && i < 260) || (i >= 500 && i < 600) ? 0.01 : 0.5,

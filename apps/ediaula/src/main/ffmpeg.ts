@@ -7,6 +7,7 @@ import { basename, extname, join } from "node:path";
 import { app } from "electron";
 import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
 import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
+import { scheduler } from "./scheduler.ts";
 
 function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
   // Release binaries and their complete corresponding source are signed together
@@ -43,7 +44,11 @@ export function run(bin: string, args: string[], opts: RunOptions = {}): Promise
     const withProgress = !!opts.onProgress && bin === FFMPEG;
     const fullArgs = withProgress ? ["-progress", "pipe:2", "-nostats", ...args] : args;
     const child = spawn(bin, fullArgs, { windowsHide: true, signal: opts.signal });
-    if (opts.jobId) running.set(opts.jobId, child);
+    if (opts.jobId) {
+      running.set(opts.jobId, child);
+      // Background work (proxies, exports): low priority while a take is recording.
+      scheduler.track(child);
+    }
     let stdout = "";
     let stderr = "";
     let failure: Error | undefined;

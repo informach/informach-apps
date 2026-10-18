@@ -12,9 +12,10 @@ import { loadTranscript } from "@/lib/transcripts";
 import { useApp } from "./app";
 import { useProject } from "./project";
 
-export const useExportQueue = create<{ items: ExportItem[]; open: boolean }>(() => ({
+export const useExportQueue = create<{ items: ExportItem[]; open: boolean; held: boolean }>(() => ({
   items: [],
   open: false,
+  held: false,
 }));
 
 /** Some export is waiting or running: closing the window has to wait for the queue. */
@@ -107,6 +108,16 @@ export const exportQueue = new ExportQueue(
   },
   (items) => useExportQueue.setState({ items }),
 );
+
+/** While a take records, the next export waits for it (unless the recorder says otherwise). */
+export function listenRecorderState(): () => void {
+  const apply = (held: boolean): void => {
+    exportQueue.hold(held);
+    useExportQueue.setState({ held });
+  };
+  void window.api.recorder.status().then((s) => apply(!!s.holdBackground));
+  return window.api.recorder.onState((s) => apply(!!s.holdBackground));
+}
 
 export function retryExport(item: ExportItem): void {
   exportQueue.add({

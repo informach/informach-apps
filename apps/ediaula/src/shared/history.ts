@@ -21,6 +21,7 @@ export const ASSET_RUNTIME_FIELDS = [
   // Written once by the recorder when a recording comes in.
   "cursor",
   "markers",
+  "recording",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];

@@ -11,6 +11,15 @@ import type {
   JobProgress,
 } from "../shared/types.ts";
 
+/** Subscribes `cb` to a channel the main process pushes; returns the unsubscribe. */
+function listen<T>(channel: string, cb: (value: T) => void): () => void {
+  const fn = (_e: unknown, value: T): void => {
+    cb(value);
+  };
+  ipcRenderer.on(channel, fn);
+  return () => ipcRenderer.removeListener(channel, fn);
+}
+
 const api: EdiAulaApi = {
   saveEditingTemplate: (name, content) =>
     ipcRenderer.invoke("editing-template:save", name, content),
@@ -52,14 +61,27 @@ const api: EdiAulaApi = {
     encoder: (monitor) => ipcRenderer.invoke("recorder:encoder", monitor),
     prepare: (opts) => ipcRenderer.invoke("recorder:prepare", opts),
     start: () => ipcRenderer.invoke("recorder:start"),
-    systemAudio: (bytes, startedAt) => ipcRenderer.invoke("recorder:systemAudio", bytes, startedAt),
+    systemChunk: (bytes, startedAt, endedAt) =>
+      ipcRenderer.invoke("recorder:systemChunk", bytes, startedAt, endedAt),
     pause: () => ipcRenderer.invoke("recorder:pause"),
     resume: () => ipcRenderer.invoke("recorder:resume"),
     mark: (kind) => ipcRenderer.invoke("recorder:mark", kind),
     elapsed: () => ipcRenderer.invoke("recorder:elapsed"),
     interactive: (on) => ipcRenderer.invoke("recorder:interactive", on),
+    uiRects: (rects) => ipcRenderer.invoke("recorder:uiRects", rects),
+    teleprompterLine: (index) => ipcRenderer.invoke("recorder:teleprompterLine", index),
+    monitorMic: (device) => ipcRenderer.invoke("recorder:monitorMic", device),
+    cameraModes: (device) => ipcRenderer.invoke("recorder:cameraModes", device),
+    settings: () => ipcRenderer.invoke("recorder:settings"),
+    saveSettings: (settings) => ipcRenderer.invoke("recorder:saveSettings", settings),
+    hotkeys: () => ipcRenderer.invoke("recorder:hotkeys"),
+    status: () => ipcRenderer.invoke("recorder:status"),
     cancel: () => ipcRenderer.invoke("recorder:cancel"),
+    discard: () => ipcRenderer.invoke("recorder:discard"),
     stop: () => ipcRenderer.invoke("recorder:stop"),
+    orphans: () => ipcRenderer.invoke("recorder:orphans"),
+    recoverOrphan: (dir) => ipcRenderer.invoke("recorder:recoverOrphan", dir),
+    discardOrphan: (dir) => ipcRenderer.invoke("recorder:discardOrphan", dir),
     debugCapture: (path) => ipcRenderer.invoke("recorder:debugCapture", path),
     onHotkey: (cb) => {
       const fn = (_e: unknown, name: string): void => {
@@ -68,13 +90,13 @@ const api: EdiAulaApi = {
       ipcRenderer.on("recorder:hotkey", fn);
       return () => ipcRenderer.removeListener("recorder:hotkey", fn);
     },
-    onDone: (cb) => {
-      const fn = (_e: unknown, r: Parameters<typeof cb>[0]): void => {
-        cb(r);
-      };
-      ipcRenderer.on("recorder:done", fn);
-      return () => ipcRenderer.removeListener("recorder:done", fn);
-    },
+    onDone: (cb) => listen("recorder:done", cb),
+    onStatus: (cb) => listen("recorder:status", cb),
+    onEvent: (cb) => listen("recorder:event", cb),
+    onHealth: (cb) => listen("recorder:health", cb),
+    onLevel: (cb) => listen("recorder:level", cb),
+    onHotkeys: (cb) => listen("recorder:hotkeys", cb),
+    onState: (cb) => listen("recorder:state", cb),
   },
   saveGenerated: (bytes, ext) => ipcRenderer.invoke("media:saveGenerated", bytes, ext),
   saveNarration: (bytes) => ipcRenderer.invoke("media:saveNarration", bytes),

@@ -8,6 +8,7 @@ import type { Worker } from "node:worker_threads";
 import { type ChromaKey, detectScreen, keyId, keySize } from "../shared/chroma.ts";
 import { cacheDir, FFMPEG } from "./ffmpeg.ts";
 import createKeyWorker from "./keyWorker?nodeWorker";
+import { scheduler } from "./scheduler.ts";
 
 const SCALE = "flags=lanczos+accurate_rnd+full_chroma_int";
 
@@ -136,6 +137,7 @@ export function renderKeyed(
       ],
       { windowsHide: true },
     );
+    scheduler.track(dec);
     // A keyframe every second keeps scrubbing in the preview responsive.
     const enc = spawn(
       FFMPEG,
@@ -177,6 +179,7 @@ export function renderKeyed(
       ],
       { windowsHide: true },
     );
+    scheduler.track(enc);
 
     let finished = false;
     let decoded = false;

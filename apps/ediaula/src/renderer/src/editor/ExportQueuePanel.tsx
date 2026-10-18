@@ -15,7 +15,7 @@ const labels = {
 };
 
 export function ExportQueuePanel(): ReactNode {
-  const { items, open } = useExportQueue();
+  const { items, open, held } = useExportQueue();
   const jobs = useApp((s) => s.jobs);
   const pending = items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state));
   useEffect(() => {
@@ -68,11 +68,16 @@ export function ExportQueuePanel(): ReactNode {
                   <div className="row-10">
                     <strong className="spacer">{item.project.name}</strong>
                     <span>
-                      {labels[item.state]}
+                      {held && item.state === "waiting" ? "Em espera" : labels[item.state]}
                       {item.state === "exporting" ? ` · ${Math.round(ratio * 100)}%` : ""}
                     </span>
                   </div>
                   <p className="muted path mono">{item.spec.outPath}</p>
+                  {held && item.state === "waiting" && (
+                    <p className="muted">
+                      Exportação em espera: começa quando a gravação terminar.
+                    </p>
+                  )}
                   {running && (
                     <>
                       <Progress ratio={item.state === "exporting" ? ratio : 0} />

@@ -30,6 +30,13 @@
   font-size: 17px;
   font-weight: 700;
 }
+.orphan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;

@@ -313,8 +313,10 @@ export function closeCommonGaps(
 }
 
 /**
- * Tracks that text-based cuts apply to: every unlocked video track and every unlocked audio
- * track carrying speech. Music beds keep playing under the edit instead of being chopped.
+ * Tracks that text-based cuts apply to: every unlocked video track, every unlocked audio track
+ * carrying speech, and the microphone and computer sound of a recording (they belong to the
+ * screen video even before being transcribed). Music beds keep playing under the edit instead
+ * of being chopped.
  */
 export function cutTargets(project: Project): Set<string> {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -325,7 +327,17 @@ export function cutTargets(project: Project): Set<string> {
       .filter((c) => c.trackId === t.id)
       .map((c) => assets.get(c.assetId));
     if (t.music) continue;
-    if (t.kind === "video" || onTrack.some((a) => a && (a.kind !== "audio" || a.transcript)))
+    if (
+      t.kind === "video" ||
+      onTrack.some(
+        (a) =>
+          a &&
+          (a.kind !== "audio" ||
+            a.transcript ||
+            a.recording?.role === "mic" ||
+            a.recording?.role === "system"),
+      )
+    )
       out.add(t.id);
   }
   return out;

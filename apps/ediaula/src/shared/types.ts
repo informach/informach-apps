@@ -1,19 +1,35 @@
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
+import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
+import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
 import type { Palette } from "./palettes.ts";
-import type { CaptureSources, MarkerKind, RecordingResult, RecordOptions } from "./recording.ts";
+import type { RecorderSettings } from "./recorderSettings.ts";
+import type {
+  CaptureSources,
+  MarkerKind,
+  OrphanTake,
+  RecorderEvent,
+  RecorderStatus,
+  RecordingResult,
+  RecordOptions,
+} from "./recording.ts";
+import type { MicLevel, RecorderHealth } from "./recordingHealth.ts";
 import type { Transition } from "./transitions.ts";
 import type { Zoom } from "./zoom.ts";
 import type { ZoomLayer } from "./zoomLayer.ts";
 
 export type AssetKind = "video" | "audio" | "image";
+
+/** What a file of an EdiAula recording is: the cuts of the take apply to all of them alike. */
+export const RECORDING_ROLES = ["screen", "mic", "camera", "system", "narration"] as const;
+export type RecordingRole = (typeof RECORDING_ROLES)[number];
 export type ProxyStatus = "none" | "pending" | "ready" | "error";
 
 export interface Asset {
@@ -48,8 +64,10 @@ export interface Asset {
   cursorMissing?: boolean;
   /** How the recorded pointer is drawn; absent = defaults. */
   cursorFx?: CursorFx;
-  /** Markers set while recording (Ctrl+M) and passages to redo (Ctrl+R), source seconds. */
+  /** Markers set while recording (Ctrl+Shift+M) and passages to redo (Ctrl+Shift+R), source seconds. */
   markers?: { t: number; kind: MarkerKind }[];
+  /** The take this file belongs to (its folder) and which of its sources it is. */
+  recording?: { id: string; role: RecordingRole };
   /** Solid screen color detected at import (avatar recorded on blue or green), '#RRGGBB'. */
   screen?: string;
   /** Zooms on this media (automatic from clicks, or by hand), in its own seconds: every clip
@@ -466,23 +484,50 @@ export interface EdiAulaApi {
     /** Tests the encoders on this monitor once (seconds) and names the one that will record. */
     encoder(monitor: number): Promise<string>;
     prepare(
-      opts: RecordOptions & { regionDip?: { x: number; y: number; width: number; height: number } },
+      opts: Omit<RecordOptions, "region"> & {
+        regionDip?: { x: number; y: number; width: number; height: number };
+      },
     ): Promise<void>;
     start(): Promise<void>;
-    /** Hands over the computer's sound recorded in the recorder window (before stop). */
-    systemAudio(bytes: Uint8Array, startedAt: number): Promise<void>;
+    /** A chunk of the computer's sound; the first one says when it started, the last when it ended. */
+    systemChunk(bytes: Uint8Array, startedAt?: number, endedAt?: number): Promise<void>;
     pause(): Promise<void>;
+    /** Goes on after a pause, reopening what stopped. */
     resume(): Promise<void>;
     mark(kind: MarkerKind): Promise<void>;
     elapsed(): Promise<number>;
     /** false = clicks go through to the apps underneath. */
     interactive(on: boolean): Promise<void>;
+    /** The recorder's own controls, window pixels: the pointer over them is not part of the video. */
+    uiRects(rects: { x: number; y: number; width: number; height: number }[]): Promise<void>;
+    teleprompterLine(index: number): Promise<void>;
+    /** Level meter of a microphone while setting up (null stops it); readings come by onLevel. */
+    monitorMic(device: string | null): Promise<void>;
+    cameraModes(device: string): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }>;
+    settings(): Promise<RecorderSettings>;
+    saveSettings(settings: RecorderSettings): Promise<RecorderSettings>;
+    hotkeys(): Promise<HotkeyReport[]>;
+    status(): Promise<RecorderStatus>;
     cancel(): Promise<void>;
+    /** Throws the take away (Recycle Bin) and stays in the recorder. */
+    discard(): Promise<void>;
     stop(): Promise<RecordingResult>;
+    /** Takes the app did not finish, and what to do with them. */
+    orphans(): Promise<OrphanTake[]>;
+    recoverOrphan(dir: string): Promise<RecordingResult>;
+    discardOrphan(dir: string): Promise<void>;
     /** Automated checks only: saves a picture of the recorder window. */
     debugCapture(path: string): Promise<void>;
     onHotkey(cb: (name: string) => void): () => void;
     onDone(cb: (r: RecordingResult) => void): () => void;
+    /** Recorder window: the take's status, events, health and shortcuts. */
+    onStatus(cb: (s: RecorderStatus) => void): () => void;
+    onEvent(cb: (e: RecorderEvent) => void): () => void;
+    onHealth(cb: (h: RecorderHealth) => void): () => void;
+    onLevel(cb: (l: MicLevel) => void): () => void;
+    onHotkeys(cb: (r: HotkeyReport[]) => void): () => void;
+    /** Editor window: a take started or ended (the export queue waits during it). */
+    onState(cb: (s: RecorderStatus) => void): () => void;
   };
   /** Saves a picture made in the editor (annotation) in the cache; returns its path. */
   saveGenerated(bytes: Uint8Array, ext: string): Promise<string>;

@@ -9,6 +9,7 @@ import { app } from "electron";
 import type { EngineStatus, WhisperModelInfo, WhisperVariant } from "../shared/types.ts";
 import { makeTranscript, parseSilences } from "../shared/whisperParse.ts";
 import { cacheDir, detectEncoder, FFMPEG, run } from "./ffmpeg.ts";
+import { scheduler } from "./scheduler.ts";
 
 /** Pinned whisper.cpp release; the CUDA 12 build ships its own cuBLAS, so no CUDA install is needed. */
 const RELEASE = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454";
@@ -249,6 +250,7 @@ export async function transcribe(
       ["-i", wav, "-af", "silencedetect=noise=-35dB:d=0.35", "-f", "null", "-"],
       { windowsHide: true, signal },
     );
+    scheduler.track(child);
     let err = "";
     child.stderr.on("data", (d: Buffer) => (err += d.toString()));
     child.on("error", reject);
@@ -305,6 +307,7 @@ export async function transcribe(
           ),
     );
     runningWhisper.set(jobId, child);
+    scheduler.track(child);
   }).finally(() => runningWhisper.delete(jobId));
 
   const json = JSON.parse(await readFile(`${base}.json`, "utf8"));

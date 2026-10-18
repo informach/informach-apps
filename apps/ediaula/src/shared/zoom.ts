@@ -1,4 +1,4 @@
-import type { CursorData } from "./recording.ts";
+import type { CursorData } from "./cursorData.ts";
 
 /**
  * Zooms on a clip ("zoom automático" from clicks, or added by hand). Times are seconds of the

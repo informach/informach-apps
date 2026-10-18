@@ -1416,7 +1416,7 @@ const ClipView = memo(function ClipView({
   );
 });
 
-/** Zooms and recording markers (Ctrl+M, Ctrl+R) of the clips, in timeline seconds. */
+/** Zooms and recording markers (Ctrl+Shift+M, Ctrl+Shift+R) of the clips, in timeline seconds. */
 function recordingMarks(
   project: Project,
 ): { kind: "zoom" | "marker" | "retake"; start: number; end: number; label: string }[] {
@@ -1443,7 +1443,7 @@ function recordingMarks(
           kind: m.kind,
           start: toT(m.t),
           end: toT(m.t),
-          label: m.kind === "retake" ? "Refazer (Ctrl+R)" : "Marcador (Ctrl+M)",
+          label: m.kind === "retake" ? "Refazer (Ctrl+Shift+R)" : "Marcador (Ctrl+Shift+M)",
         });
   }
   return out;
