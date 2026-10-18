@@ -1,5 +1,6 @@
 import {
   buildItems,
+  type CutCategory,
   canApply,
   locateItem,
   type Proposal,
@@ -29,6 +30,7 @@ import {
   cleanupPlan,
   keepRejected,
 } from "./cleanupPlan";
+import { reviewResolved } from "./review";
 import {
   cutRanges,
   loadCleanupInputs,
@@ -44,6 +46,7 @@ interface RawItem {
   reason: string;
   /** The cleanup suggestion it comes from: left out of the proposal, it is kept from then on. */
   issueId?: string;
+  category?: CutCategory;
 }
 
 const fmt = (s: number): string => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -93,7 +96,10 @@ export async function showProposal(
   const problems: string[] = [];
   for (const r of raw) {
     let range: [number, number];
-    let base: Parameters<typeof buildItems>[3] = { reason: r.reason };
+    let base: Parameters<typeof buildItems>[3] = {
+      reason: r.reason,
+      ...(r.category ? { category: r.category } : {}),
+    };
     let prefer = targets;
     if (r.text) {
       const idx = quoteIndexes(words, r.text, r.near);
@@ -106,7 +112,7 @@ export async function showProposal(
       const clips = new Set(quoted.map((w) => w.clipId));
       prefer = new Set(project.clips.filter((c) => clips.has(c.id)).map((c) => c.trackId));
       base = {
-        reason: r.reason,
+        ...base,
         text: r.text,
         near: r.near,
         wordKeys: quoted.map((w) => w.key),
@@ -223,6 +229,19 @@ function storeProposal(
 }
 
 /**
+ * Keeps items already anchored as a proposal of `by` (the cuts of "Preparar aula"). Returns why it
+ * was refused, or which earlier proposal of the same author it replaced.
+ */
+export function proposeItems(
+  project: Project,
+  title: string,
+  items: ProposalItem[],
+  by: string,
+): { refused: string } | { replaced?: string } {
+  return storeProposal(project, title, items, by);
+}
+
+/**
  * The automatic cleanup as a proposal (cleanupPlan, with the choices kept in the project): each
  * hesitation, repeat and pause is an item the person can leave out before applying, and nothing
  * is cut until they apply it. Made on the computer, without the AI. `overrides` are the AI's
@@ -315,7 +334,26 @@ export function useProposalView(): {
 }
 
 export function discardProposal(id: string): void {
+  const gone = useProject.getState().project?.proposals?.find((p) => p.id === id);
   useProject.getState().setProposals((list) => list.filter((p) => p.id !== id));
+  if (gone) reviewResolved({ what: "proposal", author: gone.by, outcome: "discarded" });
+}
+
+/** Leaves out (or brings back) every item of a category of the proposal. */
+export function setProposalCategory(
+  proposalId: string,
+  category: CutCategory,
+  status: ProposalItem["status"],
+): void {
+  useProject
+    .getState()
+    .setProposals((list) =>
+      list.map((p) =>
+        p.id === proposalId
+          ? { ...p, items: p.items.map((i) => (i.category === category ? { ...i, status } : i)) }
+          : p,
+      ),
+    );
 }
 
 /** Leaves an item out of the proposal (or brings it back) before applying. */
@@ -384,9 +422,10 @@ export async function applyProposal(): Promise<void> {
     );
     return;
   }
-  discardProposal(proposal.id);
+  useProject.getState().setProposals((list) => list.filter((p) => p.id !== proposal.id));
+  reviewResolved({ what: "proposal", author: proposal.by, outcome: "applied" });
   toast(
-    `${ranges.length} corte(s) aplicados${dropped ? `; ${dropped} trecho(s) não foram encontrados de novo e ficaram de fora` : ""}. Ctrl+Z desfaz tudo de uma vez.`,
+    `${ranges.length === 1 ? "1 corte aplicado" : `${ranges.length} cortes aplicados`}${dropped ? `; ${dropped === 1 ? "1 trecho não foi encontrado de novo e ficou" : `${dropped} trechos não foram encontrados de novo e ficaram`} de fora` : ""}. Ctrl+Z desfaz tudo de uma vez.`,
     dropped ? "info" : "success",
   );
 }

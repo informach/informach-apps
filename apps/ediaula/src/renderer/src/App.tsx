@@ -5,6 +5,8 @@ import { ExportQueuePanel } from "./editor/ExportQueuePanel";
 import { SaveFailedDialog } from "./editor/SaveFailedDialog";
 import { OrphanRecordings } from "./home/OrphanRecordings";
 import { reportAiContext, runAiTool } from "./lib/aiTools";
+import { watchCourseOffer } from "./lib/courseTemplate";
+import { listenPrepare } from "./lib/prepare";
 import { loadRecorderKeys } from "./lib/recorderKeys";
 import { listenRecordings } from "./lib/recording";
 import { SettingsModal } from "./settings/SettingsModal";
@@ -52,7 +54,11 @@ export function App(): ReactNode {
     const stopTools = window.api.handleAiTools((call) => runAiTool(call));
     const stopApprovals = listenAiApprovals();
     const stopContext = reportAiContext();
+    const stopPrepare = listenPrepare();
+    const stopOffer = watchCourseOffer();
     return () => {
+      stopPrepare();
+      stopOffer();
       stopJobs();
       stopRecorder();
       stopKeys();

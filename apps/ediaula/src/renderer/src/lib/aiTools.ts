@@ -1,5 +1,11 @@
 import { folderOf } from "@shared/aiPaths";
-import { AI_TOOLS, type AiToolName, isAiToolName, PANEL_FORBIDDEN } from "@shared/aiTools";
+import {
+  AI_TOOLS,
+  type AiToolName,
+  isAiToolName,
+  PANEL_FORBIDDEN,
+  writesDraft,
+} from "@shared/aiTools";
 import { ANNOTATION_PRESETS, type Annotation, defaultOutline } from "@shared/annotation";
 import { DEFAULT_KEY } from "@shared/chroma";
 import {
@@ -18,9 +24,12 @@ import {
   SHADOW_PRESETS,
   type Shadow,
 } from "@shared/compose";
+import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { buildEditingTemplate } from "@shared/editingTemplate";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
+import { PREPARE_LABEL, PREPARE_STEPS, resumeStep } from "@shared/prepare";
+import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
 import { pendingSpeech } from "@shared/speechSources";
 import { templateById } from "@shared/templates";
@@ -34,13 +43,24 @@ import { applyAutoZoom, setCursorFx } from "@/editor/RecordingProps";
 import { applySpeed, hasSpeed, speedLabel } from "@/lib/speed";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { type AiEntry, type Commit, runAsAi, settleEdits, useProject } from "@/state/project";
+import {
+  type AiEntry,
+  type Commit,
+  draftCommit,
+  runAsAi,
+  settleEdits,
+  shownProject,
+  useProject,
+} from "@/state/project";
 import { actions } from "./actions";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
+import { applyTemplateParts, courseTemplate } from "./courseTemplate";
 import { importMedia } from "./importMedia";
 import { keyIsCurrent } from "./keying";
 import { allPalettes, applyPalette, usePalettes } from "./palettes";
+import { checkLesson, measureLoudness } from "./preflight";
+import { runPrepare } from "./prepare";
 import { blindNotes, proposeCleanup, showProposal } from "./proposals";
 import { currentView, placeInserts, proposeOffScript, scriptDoc } from "./script";
 import { addTemplate, TemplateBlockedError } from "./templates";
@@ -148,6 +168,8 @@ interface ToolContext {
   call: AiToolCall;
   /** Every change of the call goes through here: recorded as the AI's, in its project only. */
   commit: Commit;
+  /** The call writes a draft for the person to review (its commit goes there). */
+  draft: boolean;
 }
 
 type Handler = (input: never, ctx: ToolContext) => Promise<string>;
@@ -270,7 +292,13 @@ const handlers: {
     } catch {
       warning = " A transcrição não pôde ser carregada; o modelo foi gerado sem âncoras de fala.";
     }
-    const content = buildEditingTemplate(p, words, notes);
+    // The script's "Na tela" directions of this lesson become the template's annotation rules.
+    const view = words.length ? await currentView(p) : null;
+    const directions =
+      view?.confirmed && view.words.length
+        ? screenDirections(view.section, view.alignment, { words: view.words })
+        : [];
+    const content = buildEditingTemplate(p, words, notes, { directions });
     const path = await window.api.saveEditingTemplate(`${p.name} - modelo de edição.md`, content);
     return path
       ? `Modelo de edição salvo em ${path}.${warning} No próximo projeto, use read_editing_template para ler e adaptar esse modelo.`
@@ -642,9 +670,9 @@ const handlers: {
     return r.message;
   },
 
-  async place_inserts({ insert_ids }, { commit }) {
+  async place_inserts({ insert_ids }, { commit, draft }) {
     requireProject();
-    const r = await placeInserts(insert_ids, commit);
+    const r = await placeInserts(insert_ids, commit, draft ? shownProject : undefined);
     if (!r.ok) throw new ToolError(r.message);
     return r.message;
   },
@@ -935,6 +963,107 @@ const handlers: {
     return `Cartela de ${where === "start" ? "abertura (a aula andou 4 s para frente)" : "encerramento"} criada [${id}].`;
   },
 
+  async add_annotations({ items }, { commit }) {
+    const p = requireProject();
+    const ids: string[] = [];
+    const problems: string[] = [];
+    for (const it of items) {
+      let start: number;
+      try {
+        start = await timeFor(p, it.near_text, it.at);
+      } catch (err) {
+        problems.push(err instanceof Error ? err.message : String(err));
+        continue;
+      }
+      const base = ANNOTATION_PRESETS.find((x) => x.kind === it.kind)?.spec;
+      const id = await addAnnotation(
+        it.kind,
+        {
+          ...(it.text !== undefined ? { text: it.text } : {}),
+          ...(it.subtitle !== undefined ? { subtitle: it.subtitle } : {}),
+          ...(it.color ? { color: it.color.toUpperCase() } : {}),
+          ...(it.fill ? { fill: it.fill.toUpperCase() } : {}),
+          ...(it.shape ? { shape: it.shape } : {}),
+          ...(it.tail ? { tail: it.tail } : {}),
+          ...(it.font ? { fontFamily: it.font } : {}),
+          ...(base && !it.text && base.text ? { text: base.text } : {}),
+        },
+        { at: start, duration: it.duration, x: it.x, y: it.y },
+        commit,
+      );
+      if (id) ids.push(`[${id}] ${t(start)}`);
+      else problems.push(`não foi possível adicionar ${it.kind} em ${t(start)}`);
+    }
+    if (!ids.length) throw new ToolError(problems.join("\n") || "Nenhuma anotação foi adicionada.");
+    return [
+      `${ids.length === 1 ? "1 anotação" : `${ids.length} anotações`}: ${ids.join(", ")}.`,
+      ...problems,
+    ].join("\n");
+  },
+
+  async apply_editing_template({ source }, { commit }) {
+    const p = requireProject();
+    let template: CourseTemplate | null = null;
+    if ((source ?? "course") === "course") {
+      template = await courseTemplate(p.course);
+      if (!template)
+        throw new ToolError(
+          p.course
+            ? `O curso ${p.course} ainda não tem modelo salvo. Peça para a pessoa abrir uma aula pronta do curso e usar Arquivo › Salvar como modelo do curso, ou use source "file".`
+            : 'Esta aula não tem curso, e o modelo é guardado por curso. Use source "file" para ler um modelo .md.',
+        );
+    } else {
+      const file = await window.api.readEditingTemplate();
+      if (!file) return "Leitura cancelada pelo usuário.";
+      template = parseCourseTemplate(file.content);
+      if (!template)
+        throw new ToolError(
+          "Este modelo é da versão 1 (só a lista de clipes) e não tem o bloco do modelo do curso. Leia com read_editing_template e adapte à mão, ou salve de novo o modelo a partir da aula pronta.",
+        );
+    }
+    const done = await applyTemplateParts(
+      template,
+      ["look", "zoom", "annotations", "captions", "cards"],
+      commit,
+    );
+    return done.length
+      ? `Modelo do curso como rascunho: ${done.join(", ")}.`
+      : "A aula já segue o modelo do curso: nada mudou.";
+  },
+
+  async prepare_lesson() {
+    requireProject();
+    useApp.getState().set({ sideTab: "prepare" });
+    const message = await runPrepare();
+    const p = requireProject();
+    const state = p.prepare;
+    const lines = PREPARE_STEPS.map((step, i) => {
+      const d = state?.decisions[step];
+      const note = state?.notes?.[step];
+      return `${i + 1}. ${PREPARE_LABEL[step]}: ${d === "done" ? "feita" : d === "skipped" ? "pulada" : step === resumeStep(state) ? "esperando" : "a fazer"}${note ? ` (${note})` : ""}`;
+    });
+    return [
+      message,
+      ...lines,
+      "A pessoa aprova cada etapa na barra de revisão; chame de novo depois disso.",
+    ].join("\n");
+  },
+
+  async check_before_export({ measure_volume }) {
+    const p = requireProject();
+    const loudness = measure_volume ? await measureLoudness(p) : undefined;
+    const findings = await checkLesson(p, loudness !== undefined ? { loudness } : {});
+    if (!findings.length) return "Nada a corrigir antes de exportar.";
+    const label = { error: "PROBLEMA", warn: "aviso", info: "info" } as const;
+    return [
+      `${findings.length === 1 ? "1 ponto" : `${findings.length} pontos`} para olhar antes de exportar${measure_volume ? "" : " (o volume não foi medido: passe measure_volume)"}:`,
+      ...findings.map(
+        (f) =>
+          `- [${label[f.severity]}]${f.at !== undefined ? ` ${t(f.at)}` : ""} ${f.message}${f.fix ? ` Correção na tela: ${f.fix.label}.` : ""}`,
+      ),
+    ].join("\n");
+  },
+
   async add_zoom({ near_text, at, duration, scale, x, y, ease, zoom_in, zoom_out }, { commit }) {
     const p = requireProject();
     const start = await timeFor(p, near_text, at);
@@ -1181,11 +1310,44 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
       : {}),
     ...(call.client ? { client: call.client } : {}),
   };
+  const draft = writesDraft(name, parsed.data);
   const run = (commit: Commit): Promise<string> =>
-    (handlers[name] as Handler)(parsed.data as never, { entry, call, commit });
+    (handlers[name] as Handler)(parsed.data as never, { entry, call, commit, draft });
   try {
     // A read never changes the project: its commit refuses anything.
     if (tool.permission === "read") return { ok: true, text: await run(() => false) };
+    // A broad edit goes into a draft the person reviews; nothing reaches the lesson or its history.
+    if (draft) {
+      // One draft per assistant: the calls of a request build it together.
+      const into = draftCommit(
+        call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`,
+        call.source === "assistant"
+          ? "Mudanças propostas pelo Assistente"
+          : "Mudanças propostas pela IA conectada",
+        call.projectId,
+      );
+      let refused = false;
+      const text = await run((fn) => {
+        const ok = into(fn);
+        if (!ok) refused = true;
+        return ok;
+      });
+      if (refused) {
+        const waiting = useProject.getState().draft;
+        return {
+          ok: false,
+          text: waiting
+            ? `Há um rascunho esperando a revisão da pessoa ("${waiting.title}"). Nada foi feito: peça para ela aplicar ou descartar esse rascunho primeiro.`
+            : "A pessoa trocou de aula enquanto a ferramenta rodava: nada foi feito.",
+        };
+      }
+      if (source === "mcp")
+        useApp.getState().toast(`IA conectada: rascunho de ${tool.title}`, "info");
+      return {
+        ok: true,
+        text: `${text}\nFicou como rascunho: a pessoa vê na prévia, revisa item por item na barra acima da timeline e aplica. Não aplique você mesmo.`,
+      };
+    }
     const { value, refused } = await runAsAi(entry, run);
     if (refused)
       return {

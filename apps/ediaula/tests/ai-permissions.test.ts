@@ -12,6 +12,7 @@ import {
   scopesAllow,
   TOOL_PERMISSIONS,
   toolPermission,
+  writesDraft,
 } from "../src/shared/aiTools.ts";
 
 test("every tool says what it needs: read, propose or write", () => {
@@ -56,6 +57,30 @@ test("apply_cleanup only proposes by default: a propose grant is enough; cutting
   assert.equal(callPermission("apply_cleanup", { mode: "cut" }), "write");
   assert.equal(callPermission("cut_text", { quotes: [{ text: "oi" }] }), "write");
   assert.equal(callPermission("find_cleanup", {}), "read");
+});
+
+test("broad edits only write a draft by default; changing the lesson at once is a write", () => {
+  const inputs = {
+    add_annotations: { items: [{ kind: "label", text: "Play", at: 2 }] },
+    auto_zoom: {},
+    place_inserts: { insert_ids: "all" },
+    set_palette: { palette: "Sistema Zero" },
+  } as const;
+  for (const [name, input] of Object.entries(inputs) as [keyof typeof inputs, object][]) {
+    assert.equal(toolPermission(name), "write", name);
+    assert.equal(callPermission(name, input), "propose", name);
+    assert.ok(writesDraft(name, input), name);
+    assert.equal(callPermission(name, { ...input, mode: "apply" }), "write", name);
+    assert.ok(!writesDraft(name, { ...input, mode: "apply" }), name);
+  }
+  // A call it cannot read is the stricter one.
+  assert.equal(callPermission("add_annotations", {}), "write");
+  // The course template only ever makes a draft; the check only reads.
+  assert.equal(callPermission("apply_editing_template", { source: "course" }), "propose");
+  assert.ok(writesDraft("apply_editing_template", {}));
+  assert.equal(toolPermission("check_before_export"), "read");
+  assert.equal(toolPermission("prepare_lesson"), "write");
+  assert.ok(!writesDraft("add_annotation", { kind: "arrow" }));
 });
 
 test("a client connected to read and propose must ask before every write", () => {

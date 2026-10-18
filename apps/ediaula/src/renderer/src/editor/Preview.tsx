@@ -57,7 +57,7 @@ import { mediaUrl, playbackPath } from "@/lib/media";
 import { listenPath, useVoiceListen } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { assetMap, useProject } from "@/state/project";
+import { assetMap, useProject, useShownProject } from "@/state/project";
 import { PreviewMedia } from "@/ui/PreviewMedia";
 import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
@@ -128,7 +128,8 @@ function glitchMask(e: number, slot: number): string {
 }
 
 export function Preview(): ReactNode {
-  const raw = useProject((s) => s.project);
+  // A draft waiting for review is what the preview shows.
+  const raw = useShownProject();
   const captionCues = useCues(raw);
   const textCues = useMemo(
     () =>
@@ -775,7 +776,8 @@ function Transport({ fps, onFullscreen }: { fps: number; onFullscreen: () => voi
   const time = usePlayback((s) => s.time);
   const playing = usePlayback((s) => s.playing);
   const rate = usePlayback((s) => s.rate);
-  const total = useProject((s) => (s.project ? projectDuration(s.project) : 0));
+  const shown = useShownProject();
+  const total = shown ? projectDuration(shown) : 0;
   return (
     <div className="transport">
       <div className="tc">

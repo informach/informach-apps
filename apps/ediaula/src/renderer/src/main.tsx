@@ -11,6 +11,7 @@ import "./styles/transcript.css";
 import "./styles/ai.css";
 import "./styles/visual.css";
 import "./styles/script.css";
+import "./styles/review.css";
 import "./styles/recorder.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

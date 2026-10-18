@@ -7,12 +7,15 @@ import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
+import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { GlossaryTerm } from "./glossary.ts";
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
 import type { Palette } from "./palettes.ts";
+import type { Loudness } from "./preflight.ts";
+import type { PrepareState } from "./prepare.ts";
 import type { RecorderSettings } from "./recorderSettings.ts";
 import type {
   CaptureSources,
@@ -333,6 +336,10 @@ export interface Project {
   voiceMasters?: VoiceMaster[];
   /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */
   audio?: { ducking?: Partial<Ducking> };
+  /** "Preparar aula": the step waiting and what was decided in each (shared/prepare.ts). */
+  prepare?: PrepareState;
+  /** Seams the person approved in "Revisar cortes" (shared/seams.ts ids, anchored in the media). */
+  reviewedSeams?: string[];
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -584,6 +591,12 @@ export interface AiToolCall {
 export interface EdiAulaApi {
   saveEditingTemplate(name: string, content: string): Promise<string | null>;
   readEditingTemplate(): Promise<{ path: string; content: string } | null>;
+  /** The course's template (userData/cursos/<curso>/modelo.json), or null. */
+  getCourseTemplate(course: string): Promise<CourseTemplate | null>;
+  /** Keeps the course's template for its next lessons; returns where it was saved. */
+  saveCourseTemplate(course: string, template: CourseTemplate): Promise<string>;
+  /** The lesson's mixed sound measured (LUFS and true peak), the project as JSON text. */
+  measureLoudness(jobId: string, projectJson: string): Promise<Loudness | null>;
   appInfo(): Promise<AppInfo>;
   /** The user's own palettes (the built-in ones are not stored). */
   listPalettes(): Promise<Palette[]>;

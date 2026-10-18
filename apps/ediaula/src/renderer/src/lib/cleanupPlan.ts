@@ -286,6 +286,7 @@ export function cleanupItems(
       {
         reason: issueReason(issue, plan.words, plan.choices.keepPause),
         issueId: issue.id,
+        category: issue.kind,
         ...(issue.words.length
           ? {
               wordKeys: issue.words,

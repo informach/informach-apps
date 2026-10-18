@@ -17,10 +17,18 @@ const cache = new Map<string, Promise<CursorData>>();
 export function loadCursorData(path: string): Promise<CursorData> {
   let p = cache.get(path);
   if (!p) {
-    p = fetch(mediaUrl(path)).then(async (r) => {
-      if (!r.ok) throw new Error("Não consegui ler os dados do cursor.");
-      return normalizeCursorData(await r.json());
-    });
+    // A file that is gone (moved, not reconnected yet) is not requested at all: the request
+    // would only fail, and the library already shows "Cursor sumiu".
+    p = window.api
+      .exists([path])
+      .then(([there]) => {
+        if (!there) throw new Error("Os dados do cursor não estão mais onde estavam.");
+        return fetch(mediaUrl(path));
+      })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Não consegui ler os dados do cursor.");
+        return normalizeCursorData(await r.json());
+      });
     // A file that could not be read is read again next time (it may have been reconnected).
     p.catch(() => cache.delete(path));
     cache.set(path, p);

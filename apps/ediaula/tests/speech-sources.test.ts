@@ -115,3 +115,26 @@ test("silent clips and the voice extracted from a HeyGen MP4 are transcribed onc
   const muted = project([voice], [on("voz", "a1")], [track("a1", "audio", true)]);
   assert.deepEqual(pendingSpeech(muted), []);
 });
+
+test("a voice heard only under the presenter's own sound is not transcribed again", () => {
+  const voice = media("voz", "C:/aulas/voz.wav", "audio");
+  const presenter = media("apresentador", "C:/aulas/apresentador.mp4", "video", {
+    origin: "presenter",
+  });
+  // The voice plays muted under the presenter's sound (Clip.mutedFor, older lessons too).
+  const muted = project(
+    [voice, presenter],
+    [{ ...on("voz", "a1"), mutedFor: "heygen" }, on("apresentador", "v2")],
+    tracks,
+  );
+  assert.deepEqual(
+    pendingSpeech(muted).map((a) => a.id),
+    ["apresentador"],
+  );
+  // The presenter placed without its sound: only the voice is transcribed.
+  const quiet = project([voice, presenter], [on("voz", "a1"), on("apresentador", "v2", 0)], tracks);
+  assert.deepEqual(
+    pendingSpeech(quiet).map((a) => a.id),
+    ["voz"],
+  );
+});

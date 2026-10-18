@@ -784,6 +784,77 @@ try {
     await capture(side, "roteiro-colado-painel", "Painel Roteiro (recorte)");
   });
 
+  await step("Preparar aula e rascunhos", async () => {
+    // A take came in: the editor offers "Preparar aula" above the timeline.
+    const offer = editor.getByRole("region", { name: "Preparar aula" });
+    if (await offer.isVisible())
+      await capture(offer, "preparar-oferta", 'Faixa "Preparar aula" depois da gravação importada');
+    else notes.push('A faixa "Preparar aula" não apareceu depois da gravação importada.');
+    await editor
+      .locator("header.topbar")
+      .getByRole("button", { name: "Preparar aula", exact: true })
+      .click();
+    const panel = side.locator(".prepare");
+    await panel.waitFor();
+    // The test profile has no transcription engine: step 1 waits for it, and is skipped.
+    await panel.getByText(/Instale o motor de transcrição/).waitFor({ timeout: 60_000 });
+    await capture(editor, "preparar-inicio", "Preparar aula: as dez etapas, a primeira esperando");
+    await capture(side, "preparar-painel", "Painel Preparar aula com a etapa de transcrição");
+    await panel.getByRole("button", { name: "Pular", exact: true }).click();
+    // Step 2: without a transcript the section is chosen by hand.
+    await panel.getByRole("button", { name: /^Confirmar a seção/ }).click();
+    // Step 3 is skipped (the voice went to the presenter's video before); zoom makes a draft.
+    const draft = editor.getByRole("region", { name: "Rascunho para revisar" });
+    await draft.waitFor({ timeout: 120_000 });
+    await panel
+      .getByText(/já foi limpa antes de gerar o vídeo do apresentador/)
+      .waitFor({ timeout: 10_000 });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      editor,
+      "preparar-rascunho-zoom",
+      "Rascunho do zoom automático na prévia, na timeline e na barra de revisão",
+    );
+    await capture(
+      draft,
+      "preparar-rascunho-zoom-barra",
+      "Barra de revisão com os itens do rascunho",
+    );
+    await panel.locator(".prepare-step").nth(2).scrollIntoViewIfNeeded();
+    await capture(
+      side,
+      "preparar-cortes-pulados",
+      "Etapa de cortes pulada: a voz já foi limpa antes do vídeo do apresentador",
+    );
+    await draft.getByRole("button", { name: "Aplicar", exact: true }).click();
+    // Annotations and captions need the transcript; the cards make the next draft.
+    await draft.getByText(/Cartelas de abertura e encerramento/).waitFor({ timeout: 120_000 });
+    await settle(editor);
+    await capture(
+      editor,
+      "preparar-rascunho-cartelas",
+      "Rascunho das cartelas de abertura e encerramento",
+    );
+    await draft.getByRole("button", { name: "Descartar", exact: true }).click();
+    await draft.waitFor({ state: "detached", timeout: 30_000 });
+    // Step 10: the check before exporting, with the volume measured.
+    await panel
+      .getByText(/para olhar antes de exportar|Nada a corrigir antes de exportar/)
+      .first()
+      .waitFor({ timeout: 300_000 });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      editor,
+      "preparar-verificacao",
+      "Preparar aula concluído, com a verificação antes de exportar",
+    );
+    await panel.locator(".prepare-step").last().scrollIntoViewIfNeeded();
+    await capture(side, "preparar-verificacao-painel", "Etapas decididas e a lista da verificação");
+    await savedSoon(editor);
+  });
+
   await step("Exportar e fila de exportação", async () => {
     await editor
       .locator("header.topbar")
@@ -791,8 +862,17 @@ try {
       .click();
     const dialog = editor.getByRole("dialog", { name: "Exportar aula" });
     await dialog.waitFor();
+    const check = dialog.locator(".export-check");
+    await check.getByText("Conferindo a aula…").waitFor({ state: "detached", timeout: 60_000 });
     await capture(editor, "exportar", "Diálogo Exportar aula");
     await capture(dialog.locator(".modal"), "exportar-dialogo", "Diálogo Exportar aula (recorte)");
+    await check.getByRole("button", { name: "Medir o volume" }).click();
+    await check.getByRole("button", { name: "Medir de novo" }).waitFor({ timeout: 300_000 });
+    await capture(
+      check,
+      "exportar-verificacao",
+      "Verificação antes de exportar, com o volume medido",
+    );
     await mkdir(join(harness.root, "exportacoes"), { recursive: true });
     await answerDialog(first, "save", join(harness.root, "exportacoes", "aula visual.mp4"));
     await dialog.getByRole("button", { name: /^Adicionar/ }).click();

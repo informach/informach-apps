@@ -120,7 +120,9 @@ Duas formas, configuradas em **Configurações › Inteligência artificial** (�
 
 As duas usam as mesmas ferramentas (`src/shared/aiTools.ts`): visão geral, ler transcrição, sugestões e
 limpeza automática (proposta por padrão), cortar frases ou trechos, propor cortes, desfazer, mover o cursor, salvar título/descrição/capítulos/resumo,
-transcrever, importar mídia e abrir/criar projetos. Toda edição entra no histórico (Ctrl+Z).
+transcrever, importar mídia, abrir/criar projetos, preparar a aula (`prepare_lesson`), aplicar o modelo do curso
+(`apply_editing_template`), várias anotações de uma vez (`add_annotations`) e a verificação antes de exportar
+(`check_before_export`). Toda edição entra no histórico (Ctrl+Z).
 
 **Modelos (chave da API):** Claude Opus 5.5 (padrão e recomendado), Claude Sonnet 5.5 e Claude Haiku 5.5 (econômico).
 Quem tinha escolhido o Claude Opus 5 continua nele, com um aviso de que o Opus 5.5 é mais novo e mais barato; o
@@ -193,7 +195,9 @@ EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a p
   20 minutos responde à IA, mas a próxima só começa quando ela termina.
 - Cada pedido fica preso à aula aberta quando começou: se você abrir outra aula, as chamadas seguintes são recusadas,
   e o chat do app não abre nem cria projetos.
-- Edições amplas viram **propostas**: aparecem destacadas na timeline e você aplica ou descarta. A proposta fica salva
+- Edições amplas que mudam a imagem (anotações em lote, zooms, inserções, paleta, modelo do curso) viram
+  **rascunho** por padrão (veja Preparar aula, revisão e verificação).
+- Cortes amplos viram **propostas**: aparecem destacadas na timeline e você aplica ou descarta. A proposta fica salva
   na aula (até 2.000 itens; um trecho que passa por centenas de clipes vira vários itens), sobrevive a fechar e abrir,
   só se aplica na aula em que foi feita e cada item pode ser deixado de fora. Os itens ficam ancorados no tempo da
   mídia: um corte antes deles não os desloca e, se o trecho mudar, eles são procurados pelas palavras e, por último,
@@ -213,6 +217,85 @@ EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a p
 **Outros:** vídeos com taxa de quadros variável ganham cópia de trabalho com taxa fixa; cópias de
 segurança automáticas em `Projetos/.backups`; tempo de edição medido por aula; exportação com
 .srt, .vtt e miniatura .jpg.
+
+## Preparar aula, revisão e verificação
+
+**Preparar aula** leva a gravação até uma edição pronta para revisar, em dez etapas, sempre na
+mesma ordem. Abre pelo botão **Preparar aula** no topo do editor, pela faixa que aparece quando uma
+gravação entra na aula ou pela IA (`prepare_lesson`). O painel **Preparar aula** abre na barra lateral e
+mostra as etapas, o que cada uma fez e o que está esperando você.
+
+1. **Transcrever** cada fonte que se ouve na aula, uma vez só: a voz que toca muda por baixo do som
+   do apresentador e o vídeo do apresentador sem som não são transcritos de novo.
+2. **Confirmar a seção do roteiro** que esta gravação é. Quando a gravação deixa claro, a etapa passa
+   sozinha; senão, escolha a seção na lista.
+3. **Cortes:** vícios, repetições, pausas longas e o que foi dito fora do roteiro numa proposta só,
+   separada por categoria. Na barra de revisão dá para deixar uma categoria inteira de fora.
+   Se a voz já foi limpa antes de gerar o vídeo do apresentador (a voz foi exportada para ele, ou o
+   vídeo dele foi encaixado pela voz), esta etapa fica de fora e o painel diz por quê: cortar de
+   novo picotaria o vídeo do apresentador junto.
+4. **Inserções** do apresentador do roteiro, todas de uma vez.
+5. **Modelo do curso:** paleta, posição do apresentador, cursor, música e escolhas da limpeza.
+6. **Zoom automático** nos cliques das gravações de tela do EdiAula.
+7. **Anotações do Na tela:** cada "Na tela" do roteiro vira uma anotação no começo da fala seguinte.
+   O lugar vem do clique da gravação naquele momento; se não houver, da regra do modelo do curso; se
+   não, de um canto que não cobre o apresentador.
+8. **Legenda** gravada no vídeo, no estilo do curso.
+9. **Cartelas** de abertura e de encerramento.
+10. **Verificação antes de exportar** (abaixo).
+
+Cada etapa vira uma proposta (os cortes) ou um rascunho (o resto). Aplicar conclui a etapa e a
+próxima começa sozinha; descartar pula. **Pular** e **Refazer** valem para qualquer etapa. Onde a
+preparação parou fica salvo na aula, então fechar e abrir de novo continua dali.
+
+**Rascunho.** O que muda a aula de forma ampla (várias anotações, zooms, inserções, paleta, modelo do
+curso) primeiro vira um rascunho: a prévia já mostra como fica, os clipes que mudam aparecem
+tracejados na timeline e a barra de revisão lista cada mudança em português ("3 clipes a partir de
+0:10 andaram 2,0 s para a direita", "Balão "Olha aqui!" em 0:04"). Cada item tem **Deixar de fora** e
+**Incluir**; deixar um item de fora leva junto o que depende dele (o balão de uma faixa nova sai com
+a faixa) e avisa. **Aplicar** grava tudo num Ctrl+Z só. Se você mexeu na aula num ponto que o
+rascunho também muda, o item aparece como "a aula mudou aqui" e o Aplicar espera você deixá-lo de
+fora. O rascunho fica só na memória: não vai para o arquivo da aula nem para a exportação. As
+ferramentas da IA `add_annotations`, `auto_zoom`, `place_inserts`, `set_palette` e
+`apply_editing_template` escrevem no rascunho por padrão; com `mode: "apply"` (só quando você pede)
+mudam a aula na hora. Um rascunho espera por vez.
+
+**Barra de revisão.** Junta o rascunho, as propostas de corte e a revisão dos cortes. Em cada corte
+proposto, **Ouvir pulando o corte** toca 1,5 s antes e 1,5 s depois como se o trecho já tivesse saído.
+
+**Revisar cortes** (Editar › Revisar cortes) passa por cada emenda da aula, isto é, cada ponto onde
+dois pedaços da mesma gravação se encontram com um trecho tirado entre eles, e toca 1,5 s antes e
+1,5 s depois. **Enter** aprova (a emenda fica marcada na aula e não volta na próxima revisão),
+**Backspace** restaura o trecho (a timeline abre ali nas faixas que os cortes atingem e o pedaço da
+esquerda volta a tocar até o da direita), **→** pula e **R** ouve de novo. Restaurar é um Ctrl+Z.
+
+**Verificação antes de exportar.** Aparece no diálogo Exportar, na última etapa do Preparar aula e na
+IA (`check_before_export`). Confere, pensando em crianças de 9 a 14 anos:
+- silêncio de mais de 1,5 s no começo ou no fim;
+- volume: **Medir o volume** mixa o som como a exportação e mede LUFS e pico (fora de −20 a −9 LUFS,
+  ou pico acima de −1 dBTP, a correção é ligar a normalização);
+- duração fora do alvo do roteiro, falas do roteiro que não estão na aula ou estão pela metade, e o
+  texto do Zappy na página falado no vídeo (a correção propõe o corte);
+- duas vozes ao mesmo tempo por mais de 0,3 s;
+- legenda fora da área segura de 90% do quadro, menor que 5% da altura ou acima de 15 caracteres
+  por segundo;
+- letra de anotação menor que 4,5% da altura (a correção aumenta a letra);
+- mídia ou dados do cursor ausentes (a correção reconecta);
+- capítulos do YouTube que não valem: o primeiro precisa estar em 0:00, são pelo menos 3 e cada um
+  com 10 s ou mais;
+- tela preta na imagem e pedaços com menos de 3 quadros.
+
+Cada aviso tem **Ir até** e, quando dá, a correção num clique.
+
+**Modelo do curso (versão 2).** Numa aula pronta, **Arquivo › Salvar como modelo do curso** guarda
+como o curso é editado em `cursos/<curso>/modelo.json`, dentro da pasta de dados do EdiAula: paleta e
+fontes, legenda, cartelas, posição e entrada do apresentador, remoção de fundo, cursor, zoom, música
+(marcada como música, abaixando quando alguém fala, no volume da aula), escolhas da limpeza, quantas
+anotações por minuto, os estilos delas e regras do tipo "quando o Na tela falar do botão Play,
+destaque ali". Ao abrir outra aula do mesmo curso, o EdiAula oferece aplicar o modelo como rascunho.
+O modelo de edição em Markdown (`export_editing_template`) leva o mesmo bloco JSON e agora diz o papel
+certo de cada mídia (camada de zoom, quadro parado da tela, música de fundo, apresentador, voz). Um
+arquivo da versão 1 continua valendo como referência em texto, só não tem o que aplicar.
 
 ## Voz, HeyGen e tela: o caminho de uma aula
 

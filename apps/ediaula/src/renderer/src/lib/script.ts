@@ -158,20 +158,22 @@ const labelOf = (item: SpeechItem): string => item.insertId ?? `"${item.text}"`;
  *
  * The placement is planned on the project as it is, with waits for the transcripts and the
  * still frames. If the project changed in the meantime, it is planned once more on the new one;
- * if it changed again, nothing is placed (an edit made meanwhile is never overwritten).
+ * if it changed again, nothing is placed (an edit made meanwhile is never overwritten). `basis`
+ * is the project planned on: the open one, or the one a draft shows (state/project.ts).
  */
 export async function placeInserts(
   target: string | SpeechItem | string[] | "all",
   commit: Commit = personCommit,
+  basis: () => Project | null = () => useProject.getState().project,
 ): Promise<{ ok: boolean; message: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const p = useProject.getState().project;
+    const p = basis();
     if (!p) return { ok: false, message: "Nenhum projeto aberto." };
     const revision = useProject.getState().revision;
     const planned = await planPlacement(p, target);
     if (!planned.ok) return planned;
     const now = useProject.getState();
-    if (now.revision !== revision || now.project !== p) continue;
+    if (now.revision !== revision || basis() !== p) continue;
     if (!commit(planned.apply))
       return { ok: false, message: "A aula aberta mudou; nada foi encaixado." };
     return { ok: true, message: planned.message };
@@ -373,6 +375,7 @@ export async function proposeOffScript(by = "roteiro"): Promise<string> {
     runs.map((r) => ({
       start: r.start,
       end: r.end,
+      category: r.retakeOf !== undefined ? ("retake" as const) : ("off-script" as const),
       reason:
         r.retakeOf !== undefined
           ? `${r.end <= (alignment.lines[r.retakeOf].start ?? Number.POSITIVE_INFINITY) ? "tomada anterior" : "outra tomada"} da linha ${r.retakeOf + 1}: "${short(r.text)}"`

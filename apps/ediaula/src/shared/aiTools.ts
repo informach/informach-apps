@@ -18,6 +18,27 @@ const STYLE_FIELDS = {
   shadow: z.enum(["none", "default", "soft", "strong", "long", "glow"]).optional(),
 };
 
+/** Broad edits write a draft the person reviews item by item (default) or change the lesson at once. */
+const MODE = z
+  .enum(["propose", "apply"])
+  .optional()
+  .describe(
+    '"propose" (default): a draft the person reviews item by item and applies; "apply" only when the person asked to change the lesson right away',
+  );
+
+const ANNOTATION_KINDS = [
+  "arrow",
+  "line",
+  "balloon",
+  "note",
+  "label",
+  "title",
+  "highlight",
+  "panel",
+  "step",
+  "lowerthird",
+] as const;
+
 export const AI_TOOLS = {
   export_editing_template: {
     title: "Salvar modelo de edição em Markdown",
@@ -36,8 +57,36 @@ export const AI_TOOLS = {
     title: "Ler modelo de edição Markdown",
     permission: "read",
     description:
-      "Opens a file picker for the user to select a .md editing model and returns its contents. Read it before adapting a previous editing style to the current project. Does not apply edits automatically.",
+      "Opens a file picker for the user to select a .md editing model and returns its contents. Read it before adapting a previous editing style to the current project. Does not apply edits automatically. A model of version 2 carries the course template as a JSON block: apply it with apply_editing_template.",
     input: z.object({}),
+  },
+  apply_editing_template: {
+    title: "Aplicar o modelo do curso",
+    permission: "propose",
+    description:
+      'Applies a course template (version 2) to the open lesson as a draft the person reviews item by item: palette and fonts, where the presenter stands, cursor style, background music marked and at its volume, cleanup choices, automatic zoom on clicks, annotations for the script\'s "Na tela" directions by the template\'s rules, captions and opening/closing cards. source "course" (default) uses the template saved for the lesson\'s course (Arquivo › Salvar como modelo do curso); "file" asks the person to pick an editing model .md. Never changes the lesson by itself: the person applies the draft. A model of version 1 (only a list of clips) has no template: read it with read_editing_template and adapt by hand.',
+    input: z.object({
+      source: z.enum(["course", "file"]).optional(),
+    }),
+  },
+  prepare_lesson: {
+    title: "Preparar aula",
+    permission: "write",
+    description:
+      'Runs "Preparar aula" on the open lesson, from the step that is waiting: 1 transcribe every audible source once, 2 confirm the script section, 3 cuts (cleanup and off-script in one proposal by category; skipped when the voice was already cleaned before making the presenter\'s video), 4 presenter inserts, 5 course template, 6 automatic zoom, 7 annotations from "Na tela", 8 captions, 9 opening and closing cards, 10 check before export. Each step is a proposal or a draft the person approves in the review bar; the tool stops at the first one waiting and says what it is. Call it again after the person approved or discarded it.',
+    input: z.object({}),
+  },
+  check_before_export: {
+    title: "Verificação antes de exportar",
+    permission: "read",
+    description:
+      "Checks the open lesson before exporting, for children of 9 to 14: silence over 1.5 s at the start or end, volume (LUFS and true peak, measured when measure_volume is true), duration against the script's target, script lines not recorded or partial, the Zappy bridge spoken, two voices at once over 0.3 s, captions outside the 90% safe area, smaller than 5% or over 15 characters per second, annotation letters under 4.5% of the frame height, missing media or cursor data, invalid YouTube chapters, black gaps and pieces under 3 frames. Each finding has its time and, when the editor can do it, the fix the person can click in the export dialog. Read-only.",
+    input: z.object({
+      measure_volume: z
+        .boolean()
+        .optional()
+        .describe("Also measure the mixed sound (takes a few seconds per minute of lesson)"),
+    }),
   },
   get_overview: {
     title: "Visão geral do projeto",
@@ -219,9 +268,10 @@ export const AI_TOOLS = {
     title: "Encaixar várias inserções do avatar",
     permission: "write",
     description:
-      'Places several avatar lines at once, as place_insert does for one: insert_ids lists them, or "all" for every avatar line of the section not on the timeline yet. All are planned on the same alignment and applied from the end of the lesson to the start, as one undo step; lines that cannot be placed (not found, a locked track in the way, two in the same pause) are reported and the rest are placed.',
+      'Places several avatar lines at once, as place_insert does for one: insert_ids lists them, or "all" for every avatar line of the section not on the timeline yet. All are planned on the same alignment and applied from the end of the lesson to the start, as one undo step; lines that cannot be placed (not found, a locked track in the way, two in the same pause) are reported and the rest are placed. By default it is a draft the person reviews and applies as one undo step.',
     input: z.object({
       insert_ids: z.union([z.literal("all"), z.array(z.string().min(3)).min(1)]),
+      mode: MODE,
     }),
   },
   propose_off_script: {
@@ -269,11 +319,12 @@ export const AI_TOOLS = {
     title: "Zoom automático",
     permission: "write",
     description:
-      "For screen recordings made in EdiAula (they keep the clicks): adds smooth zooms where the teacher clicks, panning between nearby clicks and following drags (e.g. dragging a Blockly block). Replaces earlier automatic zooms of the clip; manual zooms stay. scale 1.2–3 (default 1.8). Use clip_ids from get_overview, or omit to zoom every recording on the timeline. remove=true takes all zooms out. Undoable.",
+      "For screen recordings made in EdiAula (they keep the clicks): adds smooth zooms where the teacher clicks, panning between nearby clicks and following drags (e.g. dragging a Blockly block). Replaces earlier automatic zooms of the clip; manual zooms stay. scale 1.2–3 (default 1.8). Use clip_ids from get_overview, or omit to zoom every recording on the timeline. remove=true takes all zooms out. By default it is a draft the person reviews and applies. Undoable.",
     input: z.object({
       clip_ids: z.array(z.string()).optional(),
       scale: z.number().min(1.2).max(3).optional(),
       remove: z.boolean().optional(),
+      mode: MODE,
     }),
   },
   set_cursor: {
@@ -340,6 +391,51 @@ export const AI_TOOLS = {
         .optional(),
     }),
   },
+  add_annotations: {
+    title: "Várias anotações de uma vez",
+    permission: "write",
+    description:
+      "Adds several annotations at once (up to 40), each as add_annotation takes it: kind, text, subtitle, near_text or at, duration, x and y, color, fill, shape, tail and font. By default they are a draft the person reviews item by item and applies as one undo step; use add_annotation for a single one the person asked for.",
+    input: z.object({
+      items: z
+        .array(
+          z.object({
+            kind: z.enum(ANNOTATION_KINDS),
+            text: z.string().optional(),
+            subtitle: z.string().optional(),
+            near_text: z.string().optional(),
+            at: z.number().min(0).optional(),
+            duration: z.number().min(0.5).max(30).optional(),
+            x: z.number().min(0).max(1).optional(),
+            y: z.number().min(0).max(1).optional(),
+            color: z
+              .string()
+              .regex(/^#[0-9a-fA-F]{6}$/)
+              .optional(),
+            fill: z
+              .string()
+              .regex(/^#[0-9a-fA-F]{6}$/)
+              .optional(),
+            shape: z.enum(["rounded", "rect", "ellipse", "triangle"]).optional(),
+            tail: z
+              .enum([
+                "none",
+                "bottom-left",
+                "bottom-right",
+                "top-left",
+                "top-right",
+                "left",
+                "right",
+              ])
+              .optional(),
+            font: z.string().min(2).optional(),
+          }),
+        )
+        .min(1)
+        .max(40),
+      mode: MODE,
+    }),
+  },
   add_zoom: {
     title: "Camada de zoom",
     permission: "write",
@@ -361,11 +457,12 @@ export const AI_TOOLS = {
     title: "Paleta de cores",
     permission: "write",
     description:
-      'Chooses the color palette of the lesson by name or id: "EdiAula", "Sistema Zero" (the brand of the Sistema Zero courses: dark #121A30, ink #0F1A33, XP yellow #FFC02E, blue #1B5CF3, success #0B7A54, alert #D92D34, creative #6D3BF5) or one the user created. New annotations, templates and cards take its colors. fonts=true also uses the theme fonts (Sistema Zero: Baloo 2 for titles, Nunito for text, captions included) and keeps switching them with the theme; fonts=false goes back to the default typeface; omit to leave fonts as they are. Fonts picked by hand stay. recolor (default true) also moves everything already in the lesson to the same roles in the new palette (annotations redrawn, borders, shadows, karaoke color). Undoable.',
+      'Chooses the color palette of the lesson by name or id: "EdiAula", "Sistema Zero" (the brand of the Sistema Zero courses: dark #121A30, ink #0F1A33, XP yellow #FFC02E, blue #1B5CF3, success #0B7A54, alert #D92D34, creative #6D3BF5) or one the user created. New annotations, templates and cards take its colors. fonts=true also uses the theme fonts (Sistema Zero: Baloo 2 for titles, Nunito for text, captions included) and keeps switching them with the theme; fonts=false goes back to the default typeface; omit to leave fonts as they are. Fonts picked by hand stay. recolor (default true) also moves everything already in the lesson to the same roles in the new palette (annotations redrawn, borders, shadows, karaoke color). By default it is a draft the person reviews and applies. Undoable.',
     input: z.object({
       palette: z.string().min(2),
       recolor: z.boolean().optional(),
       fonts: z.boolean().optional(),
+      mode: MODE,
     }),
   },
   set_style: {
@@ -581,13 +678,36 @@ export const TOOL_PERMISSIONS = [
 export const toolPermission = (name: AiToolName): ToolPermission => AI_TOOLS[name].permission;
 
 /**
- * What one call needs: the tool's permission, except that apply_cleanup in its default mode only
- * shows a proposal (it needs "propose"); cutting right away (mode "apply") is a write.
+ * Broad edits that write a draft by default (mode "propose") instead of the lesson: the person
+ * reviews it item by item in the review bar and applies it as one undo step.
+ */
+export const DRAFT_TOOLS: ReadonlySet<AiToolName> = new Set<AiToolName>([
+  "add_annotations",
+  "auto_zoom",
+  "place_inserts",
+  "set_palette",
+]);
+
+/** The mode a call asks for: "propose" unless it says "apply"; unreadable input counts as "apply". */
+function modeOf(name: AiToolName, input: unknown): "propose" | "apply" {
+  const parsed = AI_TOOLS[name].input.safeParse(input ?? {});
+  if (!parsed.success) return "apply";
+  const mode: unknown = Reflect.get(parsed.data, "mode");
+  return mode === "apply" ? "apply" : "propose";
+}
+
+/** Whether a call writes a draft for review instead of changing the lesson. */
+export const writesDraft = (name: AiToolName, input: unknown): boolean =>
+  name === "apply_editing_template" || (DRAFT_TOOLS.has(name) && modeOf(name, input) === "propose");
+
+/**
+ * What one call needs: the tool's permission, except that apply_cleanup and the draft tools in
+ * their default mode only propose (they need "propose"); changing the lesson right away (mode
+ * "apply") is a write.
  */
 export function callPermission(name: AiToolName, input: unknown): ToolPermission {
-  if (name !== "apply_cleanup") return toolPermission(name);
-  const parsed = AI_TOOLS.apply_cleanup.input.safeParse(input ?? {});
-  return parsed.success && (parsed.data.mode ?? "propose") === "propose" ? "propose" : "write";
+  if (name !== "apply_cleanup" && !DRAFT_TOOLS.has(name)) return toolPermission(name);
+  return modeOf(name, input) === "propose" ? "propose" : "write";
 }
 
 export const isAiToolName = (name: string): name is AiToolName => Object.hasOwn(AI_TOOLS, name);
@@ -653,6 +773,8 @@ How editing works:
 - After every cut the timeline shifts left, so re-read the transcript before computing new time ranges. cut_ranges needs the project revision you read; a stale revision is refused.
 - Protected passages (listed in get_overview) can never be cut; if a requested cut hits one, tell the user and let them decide.
 - Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through a proposal the user reviews: propose_cuts, propose_off_script, or apply_cleanup in its default "propose" mode. Use apply_cleanup with mode "apply" only when the person explicitly asks to cut without reviewing.
+- Broad visual edits (add_annotations, auto_zoom, place_inserts, set_palette and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits.
+- prepare_lesson runs "Preparar aula" step by step (each step waits for the person's approval); check_before_export lists what to fix before exporting, with the time of each finding.
 - The automatic cleanup (find_cleanup, apply_cleanup) follows the person's choices in the Transcrição panel: what they marked to keep, or left out of an earlier cleanup proposal, is never cut. It only shortens a pause where nobody is heard on any track (the avatar placed in a pause of the narration is speech, and so is every word whisper heard, however soft) and the screen stands still: the picture changing, the pointer moving (even slowly), clicks, drags, scrolling, shortcuts and typing all hold the pause, and a screen recording whose picture was not analyzed yet is not cut at all. The steps of a guided recording are protected too once its guided-run.json is there. After a question, or where the script says to pause or wait, the pause keeps 2.5 s. Hesitations and repeats are looked for in the teacher's own words only, never in an avatar's lines or the computer's sound; the same words said again after a demonstration, far apart or across the end of a sentence are not a repeat, and emphasis or counting ("muito, muito", "vamos lá, vamos lá", "um, dois, três") stays. Tell the person about the blind spots the tools report.
 - The course glossary (get_overview) lists names and terms that must be spelled exactly as given.
 - Every edit is undoable: the undo tool takes back your own latest edits (never the person's), and the person has Ctrl+Z. The project autosaves.

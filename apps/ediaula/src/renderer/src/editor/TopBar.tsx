@@ -1,10 +1,13 @@
-import { CircleDot, FolderOpen, GraduationCap, Settings, Upload } from "lucide-react";
+import { CircleDot, FolderOpen, GraduationCap, Settings, Upload, Wand2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
+import { saveCourseTemplateFromLesson } from "@/lib/courseTemplate";
+import { openPrepare } from "@/lib/prepare";
 import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
+import { startSeamReview } from "@/lib/review";
 import { zoomToFit } from "@/lib/timelineView";
 import { exportForHeygen, importHeygenVideos } from "@/lib/voice";
 import { useApp } from "@/state/app";
@@ -88,6 +91,12 @@ export function TopBar(): ReactNode {
                 onSelect: () => void openRecorder({ mode: "over" }),
               },
               { separator: true, label: "" },
+              {
+                label: "Salvar como modelo do curso",
+                disabled: !project?.course,
+                onSelect: () => void saveCourseTemplateFromLesson(),
+              },
+              { separator: true, label: "" },
               { label: "Voltar ao início", onSelect: () => void actions.goHome() },
             ]}
           />
@@ -151,6 +160,11 @@ export function TopBar(): ReactNode {
                 onSelect: () => actions.deleteSelection(true),
               },
               { label: "Fechar todas as lacunas", onSelect: actions.closeGaps },
+              {
+                label: "Revisar cortes",
+                disabled: !project?.clips.length,
+                onSelect: startSeamReview,
+              },
               { separator: true, label: "" },
               {
                 label: "Selecionar tudo",
@@ -224,6 +238,15 @@ export function TopBar(): ReactNode {
           label="Configurações de IA"
           onClick={() => set({ settingsOpen: true })}
         />
+        <Button
+          variant="secondary"
+          icon={Wand2}
+          onClick={openPrepare}
+          disabled={!project?.clips.length}
+          title="Transcrever, cortar, encaixar, dar zoom, anotar, legendar e verificar, etapa por etapa"
+        >
+          Preparar aula
+        </Button>
         <Button
           variant="secondary"
           icon={CircleDot}
