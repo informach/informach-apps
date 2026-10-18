@@ -619,7 +619,8 @@ export function listenPrepare(): () => void {
   const stopImport = onRecordingImported((take) => {
     // A voice alone becomes the presenter's video first: "Preparar aula" comes after it.
     if (take.result.mode === "voice") usePrepare.setState({ offer: "voice" });
-    else if (take.assets.screen.length) offerPrepare();
+    // "Voz e câmera" brought the presenter's video along with the voice.
+    else if (take.result.mode === "voicecam" || take.assets.screen.length) offerPrepare();
   });
   const stopPresenter = onPresenterPlaced(offerPrepare);
   const stopProject = useProject.subscribe((s, prev) => {

@@ -278,6 +278,19 @@ export function defaultTransformFor(
   return undefined;
 }
 
+/**
+ * Where the presenter's video sits: a portrait video, or one on a solid screen, beside the
+ * content (or the whole frame of a portrait lesson); anything else fills the frame.
+ */
+export function presenterTransform(
+  asset: Pick<Asset, "width" | "height" | "screen">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): Transform | undefined {
+  return asset.height > asset.width || asset.screen
+    ? placementTransform(frame.width > frame.height ? "right" : "full")
+    : defaultTransformFor(asset, frame);
+}
+
 /** Default fade for avatar inserts: a short dissolve in and out. */
 export const AVATAR_FADE = 0.3;
 

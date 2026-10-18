@@ -1,3 +1,4 @@
+import { explainSaveError, saveErrorDetail, saveErrorShort } from "@shared/saveError";
 import { CircleDot, FolderOpen, GraduationCap, Settings, Upload, Wand2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
@@ -10,7 +11,7 @@ import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { startSeamReview } from "@/lib/review";
 import { zoomToFit } from "@/lib/timelineView";
-import { exportForHeygen, importHeygenVideos } from "@/lib/voice";
+import { exportVoiceFiles, importPresenterVideos } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { useExportQueue } from "@/state/exportQueue";
 import { useProject } from "@/state/project";
@@ -97,14 +98,14 @@ export function TopBar(): ReactNode {
                 },
                 { separator: true, label: "" },
                 {
-                  label: "Exportar voz para o HeyGen",
+                  label: "Exportar a voz (para o vídeo do apresentador)",
                   disabled: !project,
-                  onSelect: () => void exportForHeygen("lesson"),
+                  onSelect: () => void exportVoiceFiles("lesson"),
                 },
                 {
-                  label: "Importar vídeo do HeyGen…",
+                  label: "Importar vídeo do apresentador…",
                   disabled: !project,
-                  onSelect: () => void importHeygenVideos(false),
+                  onSelect: () => void importPresenterVideos(false),
                 },
                 {
                   label: "Gravar a tela sobre a narração…",
@@ -242,7 +243,10 @@ export function TopBar(): ReactNode {
             {project?.course ? `${project.course} / ` : ""}
             {project?.name}
           </span>
-          <span className={`save-pill save-${saveError ? "error" : saveState}`} title={saveError}>
+          <span
+            className={`save-pill save-${saveError ? "error" : saveState}`}
+            title={saveError && saveErrorDetail(saveError)}
+          >
             <span className="dot" />
             {saveError && saveState === "saving"
               ? "Tentando salvar…"
@@ -251,8 +255,11 @@ export function TopBar(): ReactNode {
           {saveError && (
             // Stays until a save succeeds: the work since the last save exists only in memory.
             <span className="save-alert" role="alert">
-              <span className="save-alert-text" title={saveError}>
-                {saveError}
+              <span
+                className="save-alert-text"
+                title={`${explainSaveError(saveError)}\n\n${saveErrorDetail(saveError)}`}
+              >
+                {saveErrorShort(saveError)}
               </span>
               <Button
                 size="sm"

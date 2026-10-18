@@ -230,7 +230,7 @@ test("a turn that never ended leaves nothing open", () => {
   assert.equal(closeTurn(t2, t1), t2, "ending an old turn leaves the new one open");
 });
 
-test("undo does not unsend the voice files that went to HeyGen", () => {
+test("undo does not unsend the exported voice files", () => {
   const sent: VoiceMaster = {
     id: "m1",
     hash: "h",
@@ -238,7 +238,7 @@ test("undo does not unsend the voice files that went to HeyGen", () => {
     scope: "lesson",
     pieces: [
       {
-        file: "C:/aulas/Para o HeyGen/a.wav",
+        file: "C:/aulas/Voz exportada/a.wav",
         label: "aula inteira",
         start: 0,
         end: 9,

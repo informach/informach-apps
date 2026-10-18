@@ -6,8 +6,8 @@ import type { Clip, Project, Transcript, VoiceTake } from "./types.ts";
 import { voiceClips } from "./voiceMaster.ts";
 
 /**
- * The cleanup of the voice before it goes to HeyGen, as one proposal (lib/voice.ts shows it
- * with shared/anchors.ts; applying it is one Ctrl+Z):
+ * The cleanup of the voice before it is exported for the presenter, as one proposal (lib/voice.ts
+ * shows it with shared/anchors.ts; applying it is one Ctrl+Z):
  *
  * - takes of the same script line said more than once: the last complete take stays (by the
  *   recording's takes, `Asset.voiceTakes`, and the transcript against the script);

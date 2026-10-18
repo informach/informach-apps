@@ -17,20 +17,20 @@ import {
 import { pass } from "./voiceTreat.ts";
 
 /**
- * The trip to HeyGen and back, in the main process: the voice pieces written as WAV files next
- * to the project (a folder per export, so an export never overwrites what went before), and the
- * MP4s that come back found in them by their sound (shared/audioSync.ts). Kept apart from
- * Electron so the end-to-end test runs it with a plain FFmpeg.
+ * The voice's trip to the presenter's video and back, in the main process: the voice pieces written
+ * as WAV files next to the project (a folder per export, so an export never overwrites what went
+ * before), and the MP4s that come back found in them by their sound (shared/audioSync.ts). Kept
+ * apart from Electron so the end-to-end test runs it with a plain FFmpeg.
  */
 
-export const HEYGEN_FOLDER = "Para o HeyGen";
+export const VOICE_EXPORT_FOLDER = "Voz exportada";
 
 export interface ExportRequest {
   ffmpeg: string;
   project: Project;
   pieces: readonly PieceSpec[];
   scope: VoiceMaster["scope"];
-  /** The "Para o HeyGen" folder beside the project: each export gets a folder inside it. */
+  /** The "Voz exportada" folder beside the project: each export gets a folder inside it. */
   dir: string;
   /** When the export is made (the folder's name). */
   now?: Date;
@@ -202,7 +202,7 @@ export type Ranker = (pieces: Float32Array[], clip: Float32Array) => Promise<Pie
 
 const inThread: Ranker = async (pieces, clip) => rankPieces(pieces, clip);
 
-/** Which exported pieces a HeyGen video may have been made from, and where it sits in each. */
+/** Which exported pieces a presenter video may have been made from, and where it sits in each. */
 export async function locateVideo(
   ffmpeg: string,
   video: string,

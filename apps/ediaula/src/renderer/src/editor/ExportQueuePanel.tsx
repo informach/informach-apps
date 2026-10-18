@@ -209,7 +209,11 @@ export function ExportQueuePanel(): ReactNode {
           </div>
           <div className="export-foot">
             <span className="muted spacer">
-              Mantenha o EdiAula aberto ou minimizado até terminar.
+              {pending.length
+                ? "Mantenha o EdiAula aberto ou minimizado até terminar."
+                : items.length
+                  ? "Nada mais na fila."
+                  : ""}
             </span>
             <Button variant="primary" onClick={close}>
               Continuar editando

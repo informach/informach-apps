@@ -30,7 +30,7 @@ export type ScriptItem =
   | {
       kind: "speech";
       speaker: string;
-      /** Spoken by an avatar rendered separately (HeyGen), so it is inserted over the lesson. */
+      /** Spoken by an avatar rendered separately (the presenter's video), so it is inserted over the lesson. */
       avatar: boolean;
       text: string;
       /** Insert id from a direction before it (F1P1-D01): avatar lines only. */

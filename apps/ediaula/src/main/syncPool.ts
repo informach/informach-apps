@@ -2,9 +2,9 @@ import type { PieceMatch } from "../shared/audioSync.ts";
 import createSyncWorker from "./syncWorker?nodeWorker";
 
 /**
- * The correlation of a HeyGen video against the exported voice runs in a worker thread: a long
+ * The correlation of a presenter video against the exported voice runs in a worker thread: a long
  * lesson takes seconds of FFT, and the main process keeps answering the windows meanwhile. The
- * signals live in shared memory (main/heygen.ts decodeMono), so nothing is copied.
+ * signals live in shared memory (main/presenterVideo.ts decodeMono), so nothing is copied.
  */
 export function rankInWorker(pieces: Float32Array[], clip: Float32Array): Promise<PieceMatch[]> {
   const worker = createSyncWorker({});

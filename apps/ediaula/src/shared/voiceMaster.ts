@@ -14,22 +14,33 @@ import type {
 import { treatedPath } from "./voiceChain.ts";
 
 /**
- * The lesson's voice as it goes to HeyGen and comes back. The voice tracks ("Voz", or those with
- * the microphone of a recording) are rendered, treated and cut as they are on the timeline, into
- * WAV files of 48 kHz, 16 bits, mono: the whole lesson, one per script section, or one per avatar
- * insert. Each file keeps a source map (which media and which of its seconds each stretch of the
- * file holds), so a HeyGen MP4 made from it lands where that voice is on the timeline now, even
- * after cuts made later.
+ * The lesson's voice as it is exported to make the presenter's video (with an avatar tool or
+ * recorded by hand) and comes back. The voice tracks ("Voz", or those with the microphone of a
+ * recording) are rendered, treated and cut as they are on the timeline, into WAV files of 48 kHz,
+ * 16 bits, mono: the whole lesson, one per script section, or one per avatar insert. Each file
+ * keeps a source map (which media and which of its seconds each stretch of the file holds), so a
+ * presenter's video made from it lands where that voice is on the timeline now, even after cuts
+ * made later.
  */
 
 /**
+ * The default longest piece ("Dividir a voz em partes de até N min", 5 min). It comes from
  * HeyGen's limits for an uploaded audio: WAV or MP3; the upload of an asset takes up to 32 MB in
  * a standard request (developers.heygen.com, "Upload Asset", read on 18/10/2026; avatar audio
  * itself may last up to 10 minutes). At 48 kHz, 16 bits, mono a WAV takes 96 kB a second, so
- * five minutes (28.8 MB) per file stays under the upload limit.
+ * five minutes (28.8 MB) per file stays under the upload limit. Other avatar tools have limits of
+ * their own: the person chooses (1 to 60 min, Project.voiceExport.pieceMinutes).
  */
-export const HEYGEN_MAX_SECONDS = 300;
-export const HEYGEN_FORMAT = { rate: 48000, channels: 1, bits: 16 } as const;
+export const DEFAULT_PIECE_SECONDS = 300;
+export const PIECE_MINUTES = { min: 1, max: 60, default: 5 } as const;
+
+/** The longest piece of an export, in seconds, from the lesson's choice. */
+export const pieceSeconds = (project: { voiceExport?: { pieceMinutes?: number } }): number =>
+  project.voiceExport?.pieceMinutes !== undefined
+    ? Math.min(PIECE_MINUTES.max, Math.max(PIECE_MINUTES.min, project.voiceExport.pieceMinutes)) *
+      60
+    : DEFAULT_PIECE_SECONDS;
+export const VOICE_EXPORT_FORMAT = { rate: 48000, channels: 1, bits: 16 } as const;
 
 /** Most voice masters kept in a project (the newest stay). */
 export const VOICE_MASTER_LIMIT = 20;
@@ -57,8 +68,8 @@ export function voiceTracks(project: VoiceProject): Track[] {
 }
 
 /**
- * The voice's clips, in order. Their volume and a mute for HeyGen's sound (`mutedFor`) do not
- * take them out: the voice is still what the avatar says.
+ * The voice's clips, in order. Their volume and a mute for the presenter's sound (`mutedFor`) do
+ * not take them out: the voice is still what the avatar says.
  */
 export function voiceClips(project: VoiceProject): Clip[] {
   const tracks = new Set(voiceTracks(project).map((t) => t.id));
@@ -87,7 +98,7 @@ interface Content extends VoiceSegment {
 
 /**
  * The voice over [start, end] as stretches of media: pieces of a clip split without anything
- * removed in between (as muting a stretch for HeyGen's sound does) are one stretch.
+ * removed in between (as muting a stretch for the presenter's sound does) are one stretch.
  */
 function voiceContent(project: VoiceProject, start: number, end: number): Content[] {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -147,13 +158,16 @@ export function voiceSpan(project: VoiceProject): [number, number] | null {
 }
 
 /**
- * Where a "Só voz" take goes on the timeline: after the voice already there (0 in a new lesson),
- * so a second take never lands over the first. Undefined for other takes.
+ * Where a "Só voz" or "Voz e câmera" take goes on the timeline: after the voice already there (0
+ * in a new lesson), so a second take never lands over the first. Undefined for other takes.
  */
 export const voiceTakeStart = (
   project: VoiceProject,
   result: { mode?: string },
-): number | undefined => (result.mode === "voice" ? (voiceSpan(project)?.[1] ?? 0) : undefined);
+): number | undefined =>
+  result.mode === "voice" || result.mode === "voicecam"
+    ? (voiceSpan(project)?.[1] ?? 0)
+    : undefined;
 
 export interface PieceSpec {
   label: string;
@@ -168,7 +182,7 @@ export interface PieceSpec {
 export function splitLong(
   pieces: readonly PieceSpec[],
   quiet: readonly [number, number][],
-  max = HEYGEN_MAX_SECONDS,
+  max = DEFAULT_PIECE_SECONDS,
 ): PieceSpec[] {
   const out: PieceSpec[] = [];
   for (const p of pieces) {
@@ -218,15 +232,20 @@ export function voiceGaps(project: VoiceProject): [number, number][] {
   return gaps;
 }
 
-/** The whole lesson as one piece (split when longer than HeyGen takes). */
+/** The whole lesson as one piece (split when longer than `max` seconds). */
 export function lessonPieces(
   project: VoiceProject,
   label: string,
   quiet: readonly [number, number][] = [],
+  max = DEFAULT_PIECE_SECONDS,
 ): PieceSpec[] {
   const span = voiceSpan(project);
   if (!span) return [];
-  return splitLong([{ label, start: span[0], end: span[1] }], [...voiceGaps(project), ...quiet]);
+  return splitLong(
+    [{ label, start: span[0], end: span[1] }],
+    [...voiceGaps(project), ...quiet],
+    max,
+  );
 }
 
 /** Margin kept around a line when a piece is cut from the voice. */
@@ -238,6 +257,7 @@ export function sectionPieces(
   doc: ScriptDoc,
   words: readonly TimelineWord[],
   quiet: readonly [number, number][] = [],
+  max = DEFAULT_PIECE_SECONDS,
 ): PieceSpec[] {
   const voice = new Set(voiceClips(project).map((c) => c.id));
   const heard = words.filter((w) => voice.has(w.clipId));
@@ -262,7 +282,7 @@ export function sectionPieces(
       pieces[i - 1].end = mid;
       pieces[i].start = mid;
     }
-  return splitLong(pieces, [...voiceGaps(project), ...quiet]);
+  return splitLong(pieces, [...voiceGaps(project), ...quiet], max);
 }
 
 /**
@@ -368,7 +388,7 @@ export function voiceSegments(project: VoiceProject, start: number, end: number)
   return voiceContent(project, start, end).map(({ assetId: _asset, ...s }) => s);
 }
 
-/** An FFmpeg run that writes the voice of [start, end] to `out` as HeyGen takes it. */
+/** An FFmpeg run that writes the voice of [start, end] to `out` as avatar tools take it. */
 export interface RenderPlan {
   args: string[];
   /** The media files read (the renderer must be allowed to read each). */
@@ -382,7 +402,7 @@ export function renderSegments(
   start: number,
   end: number,
   out: string,
-  rate: number = HEYGEN_FORMAT.rate,
+  rate: number = VOICE_EXPORT_FORMAT.rate,
 ): RenderPlan {
   const duration = Math.max(0.05, end - start);
   const args: string[] = ["-y", "-v", "error"];
@@ -429,7 +449,7 @@ export const renderPlan = (
   start: number,
   end: number,
   out: string,
-  rate: number = HEYGEN_FORMAT.rate,
+  rate: number = VOICE_EXPORT_FORMAT.rate,
 ): RenderPlan => renderSegments(voiceSegments(project, start, end), start, end, out, rate);
 
 /** File name of a piece, "Aula 3 (F1P1-D01).wav", without characters Windows refuses. */
@@ -491,8 +511,8 @@ export const pieceMediaExist = (
 ): boolean =>
   piece.sourceMap.every((s) => project.assets.some((a) => a.id === s.assetId && !a.missing));
 
-/** A clip of the HeyGen video: where it goes and which of its seconds it plays. */
-export interface HeygenPlacement {
+/** A clip of the presenter's video: where it goes and which of its seconds it plays. */
+export interface PresenterPlacement {
   start: number;
   in: number;
   duration: number;
@@ -504,21 +524,21 @@ export interface HeygenPlacement {
 export const AVATAR_BRIDGE = 1.5;
 
 /**
- * The HeyGen video over the timeline: `offset` is the piece's second at the video's 0 and
+ * The presenter's video over the timeline: `offset` is the piece's second at the video's 0 and
  * `scale` piece seconds per video second (audioSync). Every stretch of the piece's source map
  * that is still on the timeline gets the part of the video made from it, so cuts made before
  * or after the export are followed. A short gap between two stretches (a pause between clips
  * of the voice) is bridged by letting the earlier stretch run on, so the avatar does not blink
  * away.
  */
-export function heygenPlacements(
+export function presenterPlacements(
   project: VoiceProject,
   piece: Pick<VoiceMasterPiece, "sourceMap">,
   offset: number,
   scale: number,
   videoDuration: number,
-): HeygenPlacement[] {
-  const out: HeygenPlacement[] = [];
+): PresenterPlacement[] {
+  const out: PresenterPlacement[] = [];
   const clips = voiceClips(project);
   for (const seg of piece.sourceMap) {
     // The stretch of the video made from this segment of the piece.
@@ -547,7 +567,7 @@ export function heygenPlacements(
     }
   }
   out.sort((x, y) => x.start - y.start);
-  const joined: HeygenPlacement[] = [];
+  const joined: PresenterPlacement[] = [];
   for (const p of out) {
     const last = joined.at(-1);
     if (!last) {
@@ -575,6 +595,6 @@ export function heygenPlacements(
   return joined;
 }
 
-/** The voice changed since it went to HeyGen (a cut, a new take, another treatment). */
+/** The voice changed since it was exported (a cut, a new take, another treatment). */
 export const masterIsStale = (project: VoiceProject, master: Pick<VoiceMaster, "hash">): boolean =>
   voiceHash(project) !== master.hash;

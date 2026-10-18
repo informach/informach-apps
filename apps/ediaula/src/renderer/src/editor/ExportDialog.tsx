@@ -292,8 +292,9 @@ export function ExportDialog(): ReactNode {
             {!isAudio && <span className="section-label">VÍDEO</span>}
             {!isAudio && !relayout && (
               <div className="grid-2">
-                <Field label="Resolução">
+                <Field label="Resolução" htmlFor="export-resolution">
                   <select
+                    id="export-resolution"
                     className="select"
                     value={short}
                     onChange={(e) => setShort(Number(e.target.value))}

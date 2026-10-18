@@ -1,5 +1,6 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { AVATAR_FADE, MOTIONS, type Motion } from "@shared/compose";
+import { agree, plural } from "@shared/plural";
 import { type LessonTemplate, TEMPLATES } from "@shared/templates";
 import { adjacency, newId, projectDuration } from "@shared/timeline";
 import {
@@ -379,7 +380,7 @@ export function TransitionsPanel(): ReactNode {
       .getState()
       .toast(
         kind
-          ? `Transição em ${ids.size} corte(s). Ctrl+Z desfaz.`
+          ? `Transição em ${plural(ids.size, "corte", "cortes")}. Ctrl+Z desfaz.`
           : "Transições removidas de todos os cortes. Ctrl+Z desfaz.",
         "success",
       );
@@ -431,7 +432,7 @@ export function TransitionsPanel(): ReactNode {
           Clique num corte (◆) na timeline e escolha a transição, ou arraste uma transição até o
           corte.{" "}
           {cuts.length
-            ? `Esta aula tem ${cuts.length} corte(s)${withTr ? `, ${withTr} com transição` : ""}.`
+            ? `Esta aula tem ${plural(cuts.length, "corte", "cortes")}${withTr ? `, ${withTr} com transição` : ""}.`
             : "Ainda não há cenas coladas."}
         </p>
       )}
@@ -468,7 +469,8 @@ export function TransitionsPanel(): ReactNode {
       <div className="props-section all-cuts">
         <h3>Todos os cortes</h3>
         <p className="props-hint muted">
-          Cuidado: vale para os {cuts.length} corte(s) da aula de uma vez.
+          Cuidado: vale para {cuts.length === 1 ? "o corte" : `os ${cuts.length} cortes`} da aula de
+          uma vez.
         </p>
         <Slider
           label="Duração"
@@ -502,7 +504,7 @@ export function MotionsPanel(): ReactNode {
   const selected = project.clips.filter((c) => selection.includes(c.id) && video.has(c.trackId));
   const targets = selected.length ? selected : project.clips.filter((c) => c.annotation);
   const label = selected.length
-    ? `${selected.length} clipe(s) selecionado(s)`
+    ? plural(selected.length, "clipe selecionado", "clipes selecionados")
     : `todas as anotações (${targets.length})`;
   const first = targets[0];
   const apply = (which: "enter" | "exit", m: Motion | null): void => {
@@ -676,7 +678,7 @@ export function AudioPanel(): ReactNode {
             <div key={t.id} className="audio-track-row">
               <span>
                 <strong>{t.name}</strong>
-                <small className="muted"> · {n} clipe(s)</small>
+                <small className="muted"> · {plural(n, "clipe", "clipes")}</small>
               </span>
               <div className="audio-flag" title="Abaixa automaticamente quando alguém fala">
                 <small className="muted">Música</small>
@@ -707,8 +709,8 @@ export function AudioPanel(): ReactNode {
         <p className="props-hint muted">
           Tira chiado, ventilador e zumbido constante{" "}
           {selected.length
-            ? `dos ${selected.length} clipe(s) selecionado(s)`
-            : `de todas as falas (${voices.length} clipe(s))`}
+            ? `${agree(selected.length, "do", "dos")} ${plural(selected.length, "clipe selecionado", "clipes selecionados")}`
+            : `de todas as falas (${plural(voices.length, "clipe", "clipes")})`}
           . Aplicado na exportação.
         </p>
       </div>

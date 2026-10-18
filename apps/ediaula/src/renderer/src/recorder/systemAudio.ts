@@ -1,5 +1,8 @@
+import { excludesOwnAudio, SYSTEM_AUDIO_CONSTRAINTS } from "@shared/systemAudio";
+
 /**
- * The computer's sound (Windows loopback through Chromium), sent to the main process one second
+ * The computer's sound (Windows loopback through Chromium, without the app's own sound:
+ * shared/systemAudio.ts), sent to the main process one second
  * at a time so nothing waits in this window's memory: a crash keeps what was already sent. It
  * never pauses; the take's pauses are cut on import like the other sources. The first chunk says
  * when it started and the last when it ended, so its drift can be measured.
@@ -11,6 +14,8 @@ export class SystemAudio {
   private first = true;
   private chain: Promise<void> = Promise.resolve();
   private readonly onError: (message: string) => void;
+  /** The track leaves EdiAula's own sound out (false on a Windows without process loopback). */
+  excludesApp = false;
 
   private constructor(stream: MediaStream, onError: (message: string) => void) {
     this.stream = stream;
@@ -31,10 +36,15 @@ export class SystemAudio {
   }
 
   static async start(onError: (message: string) => void): Promise<SystemAudio> {
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: SYSTEM_AUDIO_CONSTRAINTS,
+    });
     for (const t of stream.getVideoTracks()) t.stop();
-    if (!stream.getAudioTracks().length) throw new Error("sem trilha de áudio");
+    const [track] = stream.getAudioTracks();
+    if (!track) throw new Error("sem trilha de áudio");
     const audio = new SystemAudio(stream, onError);
+    audio.excludesApp = excludesOwnAudio(track.getSettings());
     await new Promise<void>((resolve) => {
       audio.rec.onstart = () => {
         audio.startedAt = Date.now();

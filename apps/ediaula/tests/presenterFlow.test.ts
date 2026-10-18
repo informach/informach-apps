@@ -7,10 +7,10 @@ import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { exportVoice, HEYGEN_FOLDER, locateVideo } from "../src/main/heygen.ts";
+import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "../src/main/presenterVideo.ts";
 import { treatVoice } from "../src/main/voiceTreat.ts";
 import { LOW_CONFIDENCE } from "../src/shared/audioSync.ts";
-import { masterCandidates, planHeygenVideo } from "../src/shared/heygenImport.ts";
+import { masterCandidates, planPresenterVideo } from "../src/shared/presenterImport.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 import { lessonPieces, withMaster } from "../src/shared/voiceMaster.ts";
 import { lessonVoice, readWav, writeWav } from "./helpers/voice.ts";
@@ -19,7 +19,7 @@ import { lessonVoice, readWav, writeWav } from "./helpers/voice.ts";
  * The whole trip with synthetic files, the way the editor runs it: a 65 s voice, treated and
  * exported for HeyGen; a "HeyGen" MP4 made of a color video and that voice 0.7 s late, encoded to
  * H.264 and AAC; the voice cut from 5 to 15 s after the export; then the video compared with the
- * files sent (masterCandidates + locateVideo) and placed by the plan (planHeygenVideo), which has
+ * files sent (masterCandidates + locateVideo) and placed by the plan (planPresenterVideo), which has
  * to follow the cut within one frame.
  */
 
@@ -27,10 +27,10 @@ const run = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 const MODEL = join(here, "..", "resources", "rnnoise", "sh.rnnn");
-const tmp = mkdtempSync(join(tmpdir(), "ediaula-heygen-"));
+const tmp = mkdtempSync(join(tmpdir(), "ediaula-presenter-"));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 
-test("o MP4 do HeyGen segue um corte feito depois da exportação, dentro de um quadro", {
+test("o vídeo do apresentador segue um corte feito depois da exportação, dentro de um quadro", {
   timeout: 240000,
 }, async (t) => {
   const R = 48000;
@@ -87,18 +87,18 @@ test("o MP4 do HeyGen segue um corte feito depois da exportação, dentro de um 
     project,
     pieces: lessonPieces(project, "aula inteira"),
     scope: "lesson",
-    dir: join(tmp, HEYGEN_FOLDER),
+    dir: join(tmp, VOICE_EXPORT_FOLDER),
   });
   assert.equal(master.pieces.length, 1);
   const wav = master.pieces[0].file;
   assert.ok(existsSync(wav));
-  assert.equal(dirname(dirname(wav)), join(tmp, HEYGEN_FOLDER), "uma pasta por exportação");
+  assert.equal(dirname(dirname(wav)), join(tmp, VOICE_EXPORT_FOLDER), "uma pasta por exportação");
   const exported = readWav(wav);
   assert.equal(exported.rate, 48000);
   assert.ok(Math.abs(exported.samples.length / 48000 - 65) < 0.01, "65 s de voz");
 
   // "HeyGen": a color video, the voice 0.7 s late, H.264 + AAC at 25 fps.
-  const mp4 = join(tmp, "heygen.mp4");
+  const mp4 = join(tmp, "apresentador.mp4");
   await run(FFMPEG, [
     "-y",
     "-v",
@@ -137,13 +137,13 @@ test("o MP4 do HeyGen segue um corte feito depois da exportação, dentro de um 
     voiceMasters: withMaster([], master),
   };
   const candidates = masterCandidates(later, new Set([wav]));
-  assert.equal(candidates.length, 1, "o arquivo enviado ao HeyGen, não a voz de agora");
+  assert.equal(candidates.length, 1, "o arquivo exportado, não a voz de agora");
   const located = await locateVideo(
     FFMPEG,
     mp4,
     candidates.map((c) => c.piece.file),
   );
-  const plan = planHeygenVideo(later, candidates, located.ranked, located.duration);
+  const plan = planPresenterVideo(later, candidates, located.ranked, located.duration);
   assert.ok(plan);
   const { offset, confidence, scale } = plan.match.result;
   t.diagnostic(

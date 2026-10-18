@@ -184,6 +184,7 @@
 }
 .lib-missing {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -192,11 +193,26 @@
   color: var(--amber);
   font-size: 11.5px;
 }
-.badge-button {
+.lib-missing .spacer {
+  min-width: 0;
+}
+/* The button gets a line of its own: the panel is narrow. */
+.lib-missing .btn {
+  flex: 1 1 100%;
+  justify-content: center;
+  min-width: 0;
+  white-space: normal;
+}
+.badge.badge-button {
   position: relative;
   z-index: 2;
   border: 0;
   cursor: pointer;
+  /* "Arquivo sumiu · Reconectar…" wraps inside the thumbnail instead of being cut. */
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.3;
 }
 .media-grid {
   flex: 1;
@@ -247,6 +263,7 @@
   position: absolute;
   top: 6px;
   left: 6px;
+  right: 6px;
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
@@ -551,11 +568,15 @@
   align-items: center;
   justify-content: space-between;
 }
+/* Timecode and the right-hand chips share the room left by the controls equally, so the
+   controls stay centred and nothing spills over the side panel in a narrow window. */
 .tc {
+  flex: 1 1 0;
   display: flex;
   align-items: baseline;
   gap: 6px;
-  min-width: 220px;
+  min-width: 0;
+  white-space: nowrap;
 }
 .tc-now {
   color: var(--accent);
@@ -595,7 +616,8 @@
   color: var(--bg);
 }
 .transport > .row-6 {
-  min-width: 220px;
+  flex: 1 1 0;
+  min-width: 0;
   justify-content: flex-end;
 }
 

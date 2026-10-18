@@ -289,15 +289,36 @@ export function Modal({
   );
 }
 
+/**
+ * A labelled control. With `htmlFor` (the id of the one control inside) the label names that
+ * control and the hint describes it (`${htmlFor}-hint`, for aria-describedby); without it the
+ * children are a group (buttons, a static value) named by a legend.
+ */
 export function Field({
   label,
   children,
   hint,
+  htmlFor,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  htmlFor?: string;
 }): ReactNode {
+  if (htmlFor)
+    return (
+      <div className="field">
+        <label className="field-label" htmlFor={htmlFor}>
+          {label}
+        </label>
+        {children}
+        {hint && (
+          <span className="field-hint" id={`${htmlFor}-hint`}>
+            {hint}
+          </span>
+        )}
+      </div>
+    );
   return (
     <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
       <legend className="field-label">{label}</legend>

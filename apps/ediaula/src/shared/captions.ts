@@ -81,9 +81,9 @@ export const cueLayout = (p: {
 const SAME_WORD = 0.15;
 
 /**
- * The words captions are made of, and the speech the music steps aside for: only what is heard
- * (a clip on a track that is not muted nor music, with volume above 0, of media with sound), and
- * each word once when two sources say it together (the muted HeyGen MP4 and the voice extracted
+ * The words captions are made of, and the speech the music steps aside for: only what is heard (a
+ * clip on a track that is not muted nor music, with volume above 0, of media with sound), and each
+ * word once when two sources say it together (the muted presenter's video and the voice extracted
  * from it, both transcribed). Export, preview and ducking all read these.
  */
 export function captionWords(

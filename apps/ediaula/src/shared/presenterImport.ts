@@ -1,24 +1,24 @@
 import { choosePiece, LOW_CONFIDENCE, type PieceMatch } from "./audioSync.ts";
 import type { Project, VoiceMaster, VoiceMasterPiece } from "./types.ts";
 import {
-  type HeygenPlacement,
-  heygenPlacements,
   masterIsStale,
   masterPieces,
+  type PresenterPlacement,
   pieceMediaExist,
+  presenterPlacements,
 } from "./voiceMaster.ts";
 
 /**
- * How a HeyGen MP4 that comes back is placed (lib/voice.ts runs it with main/heygen.ts finding
- * the sound): it is compared with every voice file sent to HeyGen and still on disk, and goes
- * where the winning file's source map says that voice is on the timeline now, which follows
- * every cut made before or after the export. The voice as it is now is only used when no file
- * sent is left (or the media they were made from are gone). A voice edited after the export is
- * only mentioned; a doubtful match is never placed without the person checking it.
+ * How a presenter's video that comes back is placed (lib/voice.ts runs it with
+ * main/presenterVideo.ts finding the sound): it is compared with every voice file exported and
+ * still on disk, and goes where the winning file's source map says that voice is on the timeline
+ * now, which follows every cut made before or after the export. The voice as it is now is only used
+ * when no file sent is left (or the media they were made from are gone). A voice edited after the
+ * export is only mentioned; a doubtful match is never placed without the person checking it.
  */
 
 /** A voice file the video may have been made from. */
-export interface HeygenCandidate {
+export interface PresenterCandidate {
   piece: Pick<VoiceMasterPiece, "file" | "label" | "sourceMap">;
   /** The export it came from; absent for the voice as it is now. */
   master?: VoiceMaster;
@@ -28,17 +28,17 @@ export interface HeygenCandidate {
 export function masterCandidates(
   project: Pick<Project, "assets" | "voiceMasters">,
   existing: ReadonlySet<string>,
-): HeygenCandidate[] {
+): PresenterCandidate[] {
   return masterPieces(project.voiceMasters ?? [])
     .filter(({ piece }) => existing.has(piece.file) && pieceMediaExist(project, piece))
     .map(({ master, piece }) => ({ master, piece }));
 }
 
-export interface HeygenPlan {
-  candidate: HeygenCandidate;
+export interface PresenterPlan {
+  candidate: PresenterCandidate;
   match: PieceMatch;
-  placements: HeygenPlacement[];
-  /** The voice changed since that file went to HeyGen (the placement follows it anyway). */
+  placements: PresenterPlacement[];
+  /** The voice changed since that file was exported (the placement follows it anyway). */
   stale: boolean;
   /** Another file fits about as well and would put the video elsewhere. */
   ambiguous: boolean;
@@ -47,7 +47,7 @@ export interface HeygenPlan {
 }
 
 /** Two placements land the video at the same place (within a frame). */
-const samePlace = (a: HeygenPlacement[], b: HeygenPlacement[]): boolean =>
+const samePlace = (a: PresenterPlacement[], b: PresenterPlacement[]): boolean =>
   a.length === b.length &&
   a.every(
     (p, i) =>
@@ -59,15 +59,17 @@ const samePlace = (a: HeygenPlacement[], b: HeygenPlacement[]): boolean =>
  * Two files that are the same voice (exported twice) put the video at the same place: that is
  * not a doubt. Null when nothing was compared.
  */
-export function planHeygenVideo(
+export function planPresenterVideo(
   project: Pick<Project, "tracks" | "clips" | "assets">,
-  candidates: readonly HeygenCandidate[],
+  candidates: readonly PresenterCandidate[],
   ranked: readonly PieceMatch[],
   duration: number,
-): HeygenPlan | null {
-  const placed = (m: PieceMatch): HeygenPlacement[] => {
+): PresenterPlan | null {
+  const placed = (m: PieceMatch): PresenterPlacement[] => {
     const c = candidates[m.piece];
-    return c ? heygenPlacements(project, c.piece, m.result.offset, m.result.scale, duration) : [];
+    return c
+      ? presenterPlacements(project, c.piece, m.result.offset, m.result.scale, duration)
+      : [];
   };
   const chosen = choosePiece(ranked, (a, b) => samePlace(placed(a), placed(b)));
   if (!chosen) return null;

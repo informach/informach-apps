@@ -6,6 +6,7 @@ import {
   ROLES,
   type Role,
 } from "@shared/palettes";
+import { plural } from "@shared/plural";
 import { Copy, Palette as PaletteIcon, Plus, Trash2, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import {
@@ -57,7 +58,7 @@ export function PaletteSection(): ReactNode {
       .getState()
       .toast(
         on
-          ? `Fontes do tema ${active.name} em uso${n ? ` (${n} anotação(ões) atualizada(s))` : ""}.`
+          ? `Fontes do tema ${active.name} em uso${n ? ` (${plural(n, "anotação atualizada", "anotações atualizadas")})` : ""}.`
           : "De volta à fonte padrão do EdiAula (fontes escolhidas à mão ficaram).",
         "success",
       );
@@ -69,7 +70,7 @@ export function PaletteSection(): ReactNode {
     useApp
       .getState()
       .toast(
-        `Aula recolorida com a paleta ${active.name}${n ? ` (${n} anotação(ões) redesenhada(s))` : ""}. Ctrl+Z desfaz.`,
+        `Aula recolorida com a paleta ${active.name}${n ? ` (${plural(n, "anotação redesenhada", "anotações redesenhadas")})` : ""}. Ctrl+Z desfaz.`,
         "success",
       );
   };
@@ -99,7 +100,7 @@ export function PaletteSection(): ReactNode {
           <span
             key={c.hex}
             style={{ background: c.hex }}
-            title={`${c.name} · ${c.hex}${c.note ? ` — ${c.note}` : ""}`}
+            title={`${c.name} · ${c.hex}${c.note ? `: ${c.note}` : ""}`}
           />
         ))}
       </div>
@@ -394,7 +395,8 @@ export function PaletteDialog({ onClose }: { onClose: () => void }): ReactNode {
                   />
                   {paste.trim() && (
                     <Button size="sm" onClick={addPasted}>
-                      Adicionar {parseColorList(paste).length} cor(es) coladas
+                      Adicionar{" "}
+                      {plural(parseColorList(paste).length, "cor colada", "cores coladas")}
                     </Button>
                   )}
                 </>

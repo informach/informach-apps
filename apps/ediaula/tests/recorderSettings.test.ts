@@ -85,3 +85,10 @@ test("recorder.json is written whole, read back, and a damaged one gives the def
   await writeFile(join(root, "recorder.json"), "{ half a file");
   assert.deepEqual(await readRecorderSettings(), DEFAULT_RECORDER_SETTINGS);
 });
+
+test("the recorder opens again in the voice mode chosen last, Voz e câmera included", () => {
+  assert.equal(parseRecorderSettings({ recordMode: "voicecam" }).recordMode, "voicecam");
+  assert.equal(parseRecorderSettings({ recordMode: "voice" }).recordMode, "voice");
+  // "Tela sobre a narração" comes from the editor, never by itself.
+  assert.equal(parseRecorderSettings({ recordMode: "over" }).recordMode, "screen");
+});

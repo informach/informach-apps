@@ -93,6 +93,13 @@ export function spawn(bin, args, options) {
     const tone = globalThis.ediBreakMic ? 'missing_edi_mic_source' : 'sine=frequency=440:sample_rate=48000';
     args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', tone, ...args.slice(mic + 1)];
   }
+  // A webcam: a test pattern in real time instead of the DirectShow device.
+  const camera = args.findIndex(value => value.startsWith('video='));
+  if (camera >= 0) {
+    kind = 'camera';
+    const dshow = args.lastIndexOf('dshow', camera);
+    args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', 'testsrc2=size=320x240:rate=30', ...args.slice(camera + 1)];
+  }
   const child = nativeSpawn(bin, args, options);
   if (kind) (globalThis.ediCaptures ??= []).push({ kind, child });
   return child;
@@ -835,6 +842,71 @@ test("a voice-only take keeps the microphone as PCM, with its lines, its redo an
   }
 });
 
+test("a voice and camera take records the presenter beside the voice, both on the take's clock", async () => {
+  await recorder.prepare(
+    { fps: 30, microphone: "Fake Mic", camera: "Fake Cam", mode: "voicecam", follow: false },
+    [],
+  );
+  await recorder.start();
+  recorder.teleprompterLine(0);
+  await wait(1200);
+  recorder.teleprompterLine(1);
+  await wait(1200);
+  const saved = await recorder.stop();
+  assert.equal(saved.mode, "voicecam");
+  assert.equal(saved.screen, undefined);
+  assert.match(saved.microphone ?? "", /voz\.wav$/, "the voice kept as PCM, as in Só voz");
+  const [part] = saved.cameraParts ?? [];
+  assert.ok(part, "the camera recorded in a process of its own");
+  const camera = await probe(part.path);
+  assert.equal(camera.hasVideo, true);
+  // Opened with the voice, on the same clock.
+  assert.ok(part.at >= 0 && part.at < 0.6, `camera from ${part.at} s`);
+  assert.ok(
+    Math.abs(part.at + part.duration - saved.duration) < 0.6,
+    `camera to ${part.at + part.duration} s, take ${saved.duration} s`,
+  );
+  assert.deepEqual(
+    voiceTakes(saved).map((t) => t.line),
+    [0, 1],
+  );
+  // Imported: the voice on "Voz" from the take's second 0, the camera on "Apresentador" from
+  // where it started, muted.
+  const asset = (id: string, path: string, kind: Asset["kind"], duration: number): Asset => ({
+    id,
+    name: id,
+    path,
+    kind,
+    duration,
+    width: 320,
+    height: 240,
+    fps: 30,
+    hasVideo: kind === "video",
+    hasAudio: kind === "audio",
+    size: 1,
+    proxyStatus: "none",
+  });
+  const voice = asset(
+    "voz",
+    saved.microphone ?? "",
+    "audio",
+    (await probe(saved.microphone ?? "")).duration,
+  );
+  const cam = asset("cam", part.path, "video", camera.duration);
+  const layout = layoutRecording({ tracks: [], clips: [] }, [voice, cam], saved, 0);
+  const presenter = layout.tracks.find((t) => t.name === "Apresentador");
+  const voiceTrack = layout.tracks.find((t) => t.name === "Voz");
+  const camClip = layout.placed.find((c) => c.trackId === presenter?.id);
+  const voiceClip = layout.placed.find((c) => c.trackId === voiceTrack?.id);
+  assert.ok(camClip && voiceClip);
+  assert.equal(voiceClip.start, 0);
+  assert.equal(camClip.volume, 0);
+  assert.ok(
+    Math.abs(camClip.start - part.at) < 1e-3,
+    "the camera keeps its place against the voice",
+  );
+});
+
 test("a voice take cut short by a crash is recovered from its Matroska part", async () => {
   const dir = join(recorder.recordingsDir(), "2026-10-18 10-00-00-voz");
   await mkdir(dir, { recursive: true });
@@ -886,4 +958,58 @@ test("a voice take cut short by a crash is recovered from its Matroska part", as
   const info = await probe(result.microphone ?? "");
   assert.ok(info.duration > 1.5, `recovered ${info.duration} s`);
   assert.deepEqual(result.lines, [{ t: 0.1, index: 2 }]);
+});
+
+test("a voice and camera take cut short by a crash comes back with the voice and the presenter", async () => {
+  const dir = join(recorder.recordingsDir(), "2026-10-18 10-30-00-voz-e-camera");
+  await mkdir(dir, { recursive: true });
+  const first = qpc();
+  const capture = spawn(
+    FFMPEG,
+    [
+      ...["-y", "-v", "error", "-re", "-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000"],
+      ...["-re", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "20"],
+      ...["-map", "0:a", ...VOICE_MATROSKA, join(dir, "voz-0.mkv")],
+      ...["-map", "1:v", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"],
+      ...FRAGMENTED_MP4,
+      join(dir, "camera-0.mp4"),
+    ],
+    { windowsHide: true },
+  );
+  await wait(3000);
+  capture.kill("SIGKILL");
+  await new Promise((resolve) => capture.once("close", resolve));
+  const journal = [
+    {
+      k: "begin",
+      v: 1,
+      at: Date.now(),
+      qpc: first - 500,
+      fps: 30,
+      monitor: null,
+      region: null,
+      encoder: null,
+      sources: {
+        screen: false,
+        microphone: "Fake Mic",
+        camera: "Fake Cam",
+        system: false,
+        keys: false,
+      },
+      mode: "voicecam",
+    },
+    { k: "first", src: "mic", part: 0, qpc: first, file: "voz-0.mkv" },
+    { k: "first", src: "camera", part: 0, qpc: first, file: "camera-0.mp4" },
+  ];
+  await writeFile(join(dir, JOURNAL_FILE), `${journal.map((l) => JSON.stringify(l)).join("\n")}\n`);
+  const found = (await recorder.orphans()).find((o) => o.dir === dir);
+  assert.ok(
+    found?.sources.includes("mic") && found.sources.includes("camera"),
+    String(found?.sources),
+  );
+  const result = await recorder.recoverOrphan(dir);
+  assert.equal(result.mode, "voicecam");
+  assert.match(result.microphone ?? "", /voz\.wav$/);
+  assert.equal(result.cameraParts?.length, 1);
+  assert.equal(result.cameraParts?.[0].at, 0);
 });

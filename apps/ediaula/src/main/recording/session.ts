@@ -15,15 +15,16 @@ import {
   fallbackChain,
 } from "../../shared/encoderChoice.ts";
 import type { HookEvent } from "../../shared/helperProtocol.ts";
-import type {
-  CaptureMonitor,
-  CaptureSource,
-  MarkerKind,
-  RecorderEvent,
-  RecorderPhase,
-  RecorderStatus,
-  RecordingResult,
-  RecordOptions,
+import {
+  type CaptureMonitor,
+  type CaptureSource,
+  isVoiceMode,
+  type MarkerKind,
+  type RecorderEvent,
+  type RecorderPhase,
+  type RecorderStatus,
+  type RecordingResult,
+  type RecordOptions,
 } from "../../shared/recording.ts";
 import type { RecorderHealth } from "../../shared/recordingHealth.ts";
 import type { MediaSource } from "../../shared/recordingJournal.ts";
@@ -512,7 +513,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
 
   private nextFile(src: MediaSource): { part: number; file: string } {
     const part = this.parts[src]++;
-    const [name, ext] = src === "mic" && this.opts.mode === "voice" ? VOICE_FILE : FILE[src];
+    const [name, ext] = src === "mic" && isVoiceMode(this.opts.mode) ? VOICE_FILE : FILE[src];
     return { part, file: `${name}-${part}.${ext}` };
   }
 
@@ -623,7 +624,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private async openMic(): Promise<CaptureProcess> {
     const device = this.opts.microphone;
     if (!device) throw new Error("Nenhum microfone escolhido.");
-    const voice = this.opts.mode === "voice";
+    const voice = isVoiceMode(this.opts.mode);
     const follow = voice && !!this.opts.follow;
     const proc = this.spawn(
       "mic",

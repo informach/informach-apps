@@ -7,12 +7,12 @@ import { z } from "zod";
 import type { VoiceSegment } from "../shared/voiceMaster.ts";
 import { NARRATION_CACHE_BYTES, pruneCache, touch } from "./cachePrune.ts";
 import { FFMPEG } from "./ffmpeg.ts";
-import { renderVoice } from "./heygen.ts";
+import { renderVoice } from "./presenterVideo.ts";
 
 /**
  * The lesson's voice rendered to one file in the cache (userData/cache/narracao), named by what
  * it holds: the narration the screen is recorded over, and the current voice an edited lesson's
- * HeyGen video is matched against. Every media file read must be one the editor may read.
+ * presenter video is matched against. Every media file read must be one the editor may read.
  */
 
 const time = z

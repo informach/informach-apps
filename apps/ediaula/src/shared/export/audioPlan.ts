@@ -152,7 +152,7 @@ export function buildAudioPlan(
       asset.kind === "image" ||
       clip.volume <= 0 ||
       clip.zoomLayer ||
-      // A voice clip under HeyGen's own sound stays silent (it is there for the voice map).
+      // A voice clip under the presenter's own sound stays silent (it is there for the voice map).
       clip.mutedFor
     )
       continue;

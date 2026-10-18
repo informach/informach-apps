@@ -95,7 +95,6 @@ import {
 import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { withReadGrant } from "./handOut.ts";
-import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { getLearning, recordLearning } from "./learning.ts";
 import { measureLoudness } from "./loudness.ts";
@@ -103,6 +102,7 @@ import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import { cancelOneShot, runOneShot } from "./oneShot.ts";
+import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
 import {
   createProject,
   duplicateProject,
@@ -271,7 +271,17 @@ const CORS = { "Access-Control-Allow-Origin": "*" };
 
 async function serveMedia(request: Request): Promise<Response> {
   const path = decodeURIComponent(new URL(request.url).pathname.slice(1));
-  await desktopFiles.assertRead(path);
+  // A file that went missing is a 404 (the library offers to reconnect it), not a failed
+  // request; a file the editor was never given stays refused.
+  try {
+    await desktopFiles.assertRead(path);
+  } catch (error) {
+    const missing = error instanceof Error && "code" in error && error.code === "ENOENT";
+    return new Response(missing ? "not found" : "forbidden", {
+      status: missing ? 404 : 403,
+      headers: CORS,
+    });
+  }
   if (!existsSync(path)) return new Response("not found", { status: 404, headers: CORS });
   const size = statSync(path).size;
   const type = MIME[extname(path).toLowerCase()] ?? "application/octet-stream";
@@ -881,8 +891,8 @@ function registerIpc(): void {
 
   ipcMain.handle(
     "project:create",
-    (_e, name: string, course: string | undefined, settings: ProjectSettings) =>
-      createProject(name, course, settings),
+    (_e, name: string, course: string | undefined, settings: ProjectSettings, fileName: unknown) =>
+      createProject(name, course, settings, z.string().min(1).max(200).optional().parse(fileName)),
   );
   ipcMain.handle("project:save", (_e, path: string, text: unknown) =>
     saveProject(path, projectJson(text)),
@@ -923,7 +933,8 @@ function registerIpc(): void {
         references.push(value);
       }
     }
-    // The voice files exported for HeyGen are read again to place the MP4s that come back.
+    // The voice files exported for the presenter's video are read again to place the MP4s that come
+    // back.
     const masters: unknown = Reflect.get(project, "voiceMasters");
     for (const master of Array.isArray(masters) ? masters.slice(0, 50) : []) {
       const pieces: unknown =
@@ -1190,9 +1201,9 @@ const secondsSchema = z
   .max(7 * 86400);
 
 /**
- * The voice: its treatment (shared/voiceChain.ts), the trip to HeyGen (main/heygen.ts) and the
- * voice rendered as one file (main/voiceFiles.ts). Each runs as background work: it waits for a
- * take that is recording, like proxies and transcriptions.
+ * The voice: its treatment (shared/voiceChain.ts), the trip to the presenter's video
+ * (main/presenterVideo.ts) and the voice rendered as one file (main/voiceFiles.ts). Each runs as
+ * background work: it waits for a take that is recording, like proxies and transcriptions.
  */
 function registerVoiceIpc(): void {
   const model = (): string | null => {
@@ -1225,7 +1236,7 @@ function registerVoiceIpc(): void {
     "voice:render",
     (_e, rawJob: unknown, segments: unknown, start: unknown, end: unknown) =>
       processingJob(jobIdSchema.parse(rawJob), "voice", (signal) =>
-        // The file is compared with a HeyGen video next (heygen:locate checks reads).
+        // The file is compared with a presenter video next (presenter:locate checks reads).
         withReadGrant(renderVoiceCached, desktopFiles.grantRead)(
           segments,
           secondsSchema.parse(start),
@@ -1235,7 +1246,7 @@ function registerVoiceIpc(): void {
       ),
   );
   ipcMain.handle(
-    "heygen:export",
+    "voice:exportPieces",
     async (
       _e,
       rawJob: unknown,
@@ -1269,7 +1280,7 @@ function registerVoiceIpc(): void {
           project,
           pieces,
           scope,
-          dir: join(dirname(projectPath), HEYGEN_FOLDER),
+          dir: join(dirname(projectPath), VOICE_EXPORT_FOLDER),
           assertRead: desktopFiles.assertRead,
           signal,
           onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
@@ -1279,18 +1290,18 @@ function registerVoiceIpc(): void {
       return master;
     },
   );
-  ipcMain.handle("heygen:pick", async () => {
+  ipcMain.handle("presenter:pick", async () => {
     const r = await openDialog({
-      title: "Importar vídeos do HeyGen",
+      title: "Importar vídeo do apresentador",
       properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Vídeo do HeyGen", extensions: ["mp4", "mov", "m4v", "webm"] }],
+      filters: [{ name: "Vídeo do apresentador", extensions: ["mp4", "mov", "m4v", "webm"] }],
     });
     if (r.canceled) return [];
     for (const path of r.filePaths) await desktopFiles.grantRead(path);
     return r.filePaths;
   });
   ipcMain.handle(
-    "heygen:locate",
+    "presenter:locate",
     async (_e, rawJob: unknown, rawVideo: unknown, rawMasters: unknown) => {
       const jobId = jobIdSchema.parse(rawJob);
       const video = await desktopFiles.assertRead(z.string().min(1).max(32768).parse(rawVideo));

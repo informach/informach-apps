@@ -30,6 +30,7 @@ import { buildEditingTemplate } from "@shared/editingTemplate";
 import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
+import { plural } from "@shared/plural";
 import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
@@ -163,7 +164,7 @@ export function resolveQuote(
   if (!found.length)
     return {
       ok: false,
-      error: `NÃO ENCONTRADO: "${text}" — confira o texto exato com get_transcript.`,
+      error: `NÃO ENCONTRADO: "${text}". Confira o texto exato com get_transcript.`,
     };
   if (found.length > 1 && near === undefined)
     return {
@@ -352,7 +353,7 @@ const handlers: {
     const assets = new Map(p.assets.map((a) => [a.id, a]));
     const zoomCount = (c: Clip): string => {
       const n = zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c)).length;
-      return n ? ` ${n} zoom(s)` : "";
+      return n ? ` ${plural(n, "zoom", "zooms")}` : "";
     };
     const lines = [
       `Projeto: ${p.name}${p.course ? ` · curso: ${p.course}` : ""}`,
@@ -527,7 +528,7 @@ const handlers: {
       throw new ToolError("Nenhum intervalo válido (end precisa ser maior que start).");
     const d0 = before();
     cutOrFail(valid, commit);
-    return `${valid.length} trecho(s) cortado(s). ${savedSince(d0)}`;
+    return `${plural(valid.length, "trecho cortado", "trechos cortados")}. ${savedSince(d0)}`;
   },
 
   async propose_cuts({ title, items, revision }, { call }) {
@@ -564,7 +565,8 @@ const handlers: {
         ? e.conversation === entry.conversation
         : !!entry.client && e.client === entry.client;
     const done = useProject.getState().undoAi(mine, steps ?? 1);
-    if (done) return `${done} edição(ões) sua(s) desfeita(s). Duração agora: ${t(before())}.`;
+    if (done)
+      return `${plural(done, "edição sua desfeita", "edições suas desfeitas")}. Duração agora: ${t(before())}.`;
     const top = useProject.getState().pastMeta.at(-1);
     if (!top) return "Não há nada para desfazer.";
     throw new ToolError(
@@ -822,7 +824,7 @@ const handlers: {
     requireProject();
     const assets = await importMedia(paths);
     if (add_to_timeline !== false) actions.appendAssets(assets, commit);
-    return `${assets.length} de ${paths.length} arquivo(s) importado(s)${add_to_timeline !== false ? " e colocados no fim da timeline" : ""}. Duração: ${t(before())}.`;
+    return `${assets.length} de ${plural(paths.length, "arquivo importado", "arquivos importados")}${add_to_timeline !== false ? " e colocados no fim da timeline" : ""}. Duração: ${t(before())}.`;
   },
 
   async get_script() {
@@ -834,7 +836,7 @@ const handlers: {
     const lineNumber = new Map(alignment.lines.map((l, i) => [l.item, i + 1]));
     const out = [
       `${doc.title} · ${sectionLabel(section)}${section.videoId ? ` (vídeo ${section.videoId})` : ""}`,
-      `Duração alvo: ${section.targetText ?? "—"} · edição atual ${t(projectDuration(p))}`,
+      `Duração alvo: ${section.targetText ?? "não definida"} · edição atual ${t(projectDuration(p))}`,
       view.words.length
         ? `Narração encontrada na gravação: ${Math.round(alignment.coverage * 100)}%`
         : "Narração ainda não transcrita: não dá para alinhar.",
@@ -928,7 +930,7 @@ const handlers: {
         };
       }),
     }));
-    return `${clip_ids.length} clipe(s) ajustado(s).`;
+    return `${plural(clip_ids.length, "clipe ajustado", "clipes ajustados")}.`;
   },
 
   async set_background_removal(
@@ -997,7 +999,7 @@ const handlers: {
           return zooms ? { ...rest, zooms } : rest;
         }),
       }));
-      return `Zooms removidos de ${clips.length} clipe(s).`;
+      return `Zooms removidos de ${plural(clips.length, "clipe", "clipes")}.`;
     }
     let total = 0;
     const skipped: string[] = [];
@@ -1009,7 +1011,7 @@ const handlers: {
       }
       total += await applyAutoZoom(c, a, scale, commit);
     }
-    return `${total} zoom(s) automático(s) em ${clips.length - skipped.length} clipe(s).${skipped.length ? ` Sem dados de clique: ${skipped.join(", ")}.` : ""}`;
+    return `${plural(total, "zoom automático", "zooms automáticos")} em ${plural(clips.length - skipped.length, "clipe", "clipes")}.${skipped.length ? ` Sem dados de clique: ${skipped.join(", ")}.` : ""}`;
   },
 
   async set_cursor({ media, size, smooth, clicks, halo, hide_idle, hidden }, { commit }) {
@@ -1129,7 +1131,7 @@ const handlers: {
         return n;
       }),
     }));
-    return `Animação ajustada em ${ids.size} clipe(s).`;
+    return `Animação ajustada em ${plural(ids.size, "clipe", "clipes")}.`;
   },
 
   async set_transition({ clip_ids, kind, duration, colors }, { commit }) {
@@ -1162,7 +1164,7 @@ const handlers: {
       ),
     }));
     const skipped = clip_ids.length - ok.length;
-    return `Transição ${kind === "none" ? "removida" : "aplicada"} em ${ok.length} corte(s).${skipped ? ` ${skipped} clipe(s) sem cena colada antes foram ignorados.` : ""}`;
+    return `Transição ${kind === "none" ? "removida" : "aplicada"} em ${plural(ok.length, "corte", "cortes")}.${skipped ? ` ${plural(skipped, "clipe sem cena colada antes foi ignorado", "clipes sem cena colada antes foram ignorados")}.` : ""}`;
   },
 
   async add_card({ where, title, kicker, subtitle }, { commit }) {
@@ -1325,7 +1327,7 @@ const handlers: {
         `Paleta "${palette}" não existe. Disponíveis: ${list.map((p) => p.name).join(", ")}.`,
       );
     const n = await applyPalette(found.id, { recolor: recolor ?? true, fonts }, commit);
-    return `Paleta ${found.name} nesta aula${(recolor ?? true) ? ` (${n} anotação(ões) redesenhada(s))` : ""}${fonts ? `, com as fontes do tema (${[found.fonts?.heading, found.fonts?.body].filter(Boolean).join(" e ") || "padrão"})` : fonts === false ? ", com a fonte padrão" : ""}.`;
+    return `Paleta ${found.name} nesta aula${(recolor ?? true) ? ` (${plural(n, "anotação redesenhada", "anotações redesenhadas")})` : ""}${fonts ? `, com as fontes do tema (${[found.fonts?.heading, found.fonts?.body].filter(Boolean).join(" e ") || "padrão"})` : fonts === false ? ", com a fonte padrão" : ""}.`;
   },
 
   async set_style(
@@ -1368,7 +1370,7 @@ const handlers: {
       }
     }
     if (!done.length) throw new ToolError("Nada mudou: vídeos e imagens só aceitam shadow.");
-    return `Estilo aplicado em ${done.length} clipe(s).`;
+    return `Estilo aplicado em ${plural(done.length, "clipe", "clipes")}.`;
   },
 
   async add_template({ template, fields, near_text, at, quiz_item }, { commit }) {
@@ -1422,7 +1424,9 @@ const handlers: {
       );
       const ids = clip_ids ?? voice.map((c) => c.id);
       setDenoise(ids, denoise, commit);
-      done.push(`redução de ruído ${denoise ? "ligada" : "desligada"} em ${ids.length} clipe(s)`);
+      done.push(
+        `redução de ruído ${denoise ? "ligada" : "desligada"} em ${plural(ids.length, "clipe", "clipes")}`,
+      );
     }
     if (!done.length)
       throw new ToolError("Nada para fazer: passe add_music_path, music_tracks ou denoise.");
@@ -1442,7 +1446,7 @@ const handlers: {
       throw new ToolError(
         "Esses clipes não têm velocidade (imagens, anotações e camadas de zoom) ou estão em faixas travadas.",
       );
-    return `Velocidade ${speedLabel(speed)} em ${n} clipe(s)${still.length ? `; ${still.length} sem velocidade ficaram como estavam` : ""}.`;
+    return `Velocidade ${speedLabel(speed)} em ${plural(n, "clipe", "clipes")}${still.length ? `; ${still.length} sem velocidade ficaram como estavam` : ""}.`;
   },
 
   async set_captions({ burn, look, position, size, font }, { commit }) {
@@ -1483,7 +1487,7 @@ const handlers: {
       ),
     }));
     return kfs.length
-      ? `${kfs.length} posição(ões) marcada(s); o clipe desliza entre elas.`
+      ? `${plural(kfs.length, "posição marcada", "posições marcadas")}; o clipe desliza entre elas.`
       : "Movimento removido.";
   },
 

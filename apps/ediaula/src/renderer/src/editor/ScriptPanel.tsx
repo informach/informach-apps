@@ -69,7 +69,7 @@ export function ScriptPanel(): ReactNode {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
-        <div className="row-6">
+        <div className="row-6 script-empty-actions">
           <Button
             variant="secondary"
             icon={ClipboardPaste}
@@ -166,12 +166,16 @@ export function ScriptPanel(): ReactNode {
               className={`script-target ${durTone}`}
               title={`Narração estimada: ${fmtDuration(narration)} a ${doc.wordsPerMinute ?? 137} palavras/min`}
             >
-              Alvo {section.targetText?.replace(/\.$/, "") ?? `${target[0]}–${target[1]} s`} · agora{" "}
-              {fmtDuration(total)}
+              Alvo{" "}
+              {section.targetText
+                ?.replace(/\.$/, "")
+                .replace(/\bsegundos?\b/i, "s")
+                .replace(/\bminutos?\b/i, "min") ?? `${target[0]} a ${target[1]} s`}{" "}
+              · agora {fmtDuration(total)}
               {durTone === "is-under" ? " · curto" : durTone === "is-over" ? " · longo" : " ✓"}
             </span>
           )}
-          {section.videoId && <span className="mono muted">{section.videoId}</span>}
+          {section.videoId && <span className="mono muted script-video">{section.videoId}</span>}
         </div>
         {transcribed && !confirmed && (
           <div className="script-confirm" role="status">

@@ -2,7 +2,7 @@ import { focusOnMount } from "@informach/edi-desktop/renderer";
 import type { CourseTemplate } from "@shared/courseTemplate";
 import type { ProjectSettings } from "@shared/types";
 import { FolderPlus } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { courseTemplate } from "@/lib/courseTemplate";
 import { Button, Field, Modal, Toggle } from "@/ui";
 
@@ -110,6 +110,7 @@ export function NewProjectModal({
       ? own
       : (FORMATS.find((f) => f.id === format) ?? FORMATS[0]).settings;
   const hint = FORMATS.find((f) => f.id === format)?.hint;
+  const id = useId();
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -139,8 +140,9 @@ export function NewProjectModal({
           <FolderPlus size={18} color="var(--accent)" />
           <h2 className="modal-title">Novo projeto</h2>
         </div>
-        <Field label="Nome da aula">
+        <Field label="Nome da aula" htmlFor={`${id}-name`}>
           <input
+            id={`${id}-name`}
             className="input"
             ref={focusOnMount}
             value={name}
@@ -148,8 +150,14 @@ export function NewProjectModal({
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Field label="Curso (opcional)" hint="Usado para agrupar as aulas na tela inicial.">
+        <Field
+          label="Curso (opcional)"
+          hint="Usado para agrupar as aulas na tela inicial."
+          htmlFor={`${id}-course`}
+        >
           <input
+            id={`${id}-course`}
+            aria-describedby={`${id}-course-hint`}
             className="input"
             list="courses"
             value={course}
@@ -179,8 +187,14 @@ export function NewProjectModal({
             </span>
           </div>
         )}
-        <Field label="Formato do vídeo" hint={hint}>
-          <select className="select" value={format} onChange={(e) => setFormat(e.target.value)}>
+        <Field label="Formato do vídeo" hint={hint} htmlFor={`${id}-format`}>
+          <select
+            id={`${id}-format`}
+            aria-describedby={hint ? `${id}-format-hint` : undefined}
+            className="select"
+            value={format}
+            onChange={(e) => setFormat(e.target.value)}
+          >
             {own && (
               <option value="template">
                 {own.width} × {own.height} · {own.fps} fps (do modelo do curso)

@@ -19,6 +19,7 @@ import {
   voiceAlreadyCleaned,
   voiceLinkedMedia,
 } from "../src/shared/prepare.ts";
+import { normalizeProject } from "../src/shared/project-normalize.ts";
 import { projectSchema } from "../src/shared/project-schema.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
@@ -69,6 +70,16 @@ test("only the waiting step can be decided, and each decision moves on to the ne
   assert.ok(prepareFinished(state));
   assert.equal(nextStep(state), null);
   assert.equal(resumeStep(state), null);
+});
+
+test('a lesson saved with mutedFor "heygen" opens with "presenter"', () => {
+  const stored = JSON.parse(
+    JSON.stringify(project({ clips: [clip("c", "voz", "a1", { mutedFor: "presenter" })] })),
+  );
+  stored.clips[0].mutedFor = "heygen";
+  const opened = normalizeProject(projectSchema.parse(stored));
+  assert.equal(opened.clips[0].mutedFor, "presenter");
+  assert.ok(voiceAlreadyCleaned(opened));
 });
 
 test("the state is kept in the project and the pipeline goes on where it stopped", () => {
@@ -184,7 +195,7 @@ test("the cuts are skipped when the voice was cleaned before making the presente
   assert.ok(!voiceAlreadyCleaned(voiceFlow({ clips: [] })));
   // The older marker of the presenter's own sound, and a voice recorded alone, say the same.
   assert.ok(
-    voiceAlreadyCleaned(project({ clips: [clip("c", "voz", "a1", { mutedFor: "heygen" })] })),
+    voiceAlreadyCleaned(project({ clips: [clip("c", "voz", "a1", { mutedFor: "presenter" })] })),
   );
   const alone = media("so-voz", { voiceTakes: [] });
   assert.ok(voiceAlreadyCleaned(project({ assets: [alone], clips: [clip("c", "so-voz", "a1")] })));

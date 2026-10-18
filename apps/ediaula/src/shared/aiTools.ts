@@ -591,7 +591,7 @@ export const AI_TOOLS = {
     title: "Transição entre cenas",
     permission: "write",
     description:
-      "Sets the transition INTO each given clip from the clip that ends where it starts on the same track: dissolve (cross-fade), black (fade through black), wipe-right / wipe-left / wipe-down / wipe-up (a line sweeps across), circle-open / circle-close, clock (a hand sweeps around), slide (the scene leaves to the left), zoom, page (turns like a book page), fold (peels off like a sheet of paper), glitch (digital glitch at the cut), color transitions in the lesson palette or in `colors` — colorwipe (spinning bands), colorbars (falling bars), colorcircles (growing rings), colorpanels (diagonal panels), colorsplit (halves crossing) — or none (hard cut). Use for scene changes, not for the many small cuts of a cleanup. Undoable.",
+      "Sets the transition INTO each given clip from the clip that ends where it starts on the same track: dissolve (cross-fade), black (fade through black), wipe-right / wipe-left / wipe-down / wipe-up (a line sweeps across), circle-open / circle-close, clock (a hand sweeps around), slide (the scene leaves to the left), zoom, page (turns like a book page), fold (peels off like a sheet of paper), glitch (digital glitch at the cut), color transitions in the lesson palette or in `colors` (colorwipe: spinning bands, colorbars: falling bars, colorcircles: growing rings, colorpanels: diagonal panels, colorsplit: halves crossing), or none (hard cut). Use for scene changes, not for the many small cuts of a cleanup. Undoable.",
     input: z.object({
       clip_ids: z.array(z.string()).min(1),
       kind: z.enum([

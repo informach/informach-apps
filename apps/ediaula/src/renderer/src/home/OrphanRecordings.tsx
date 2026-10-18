@@ -108,8 +108,12 @@ export function OrphanRecordings(): ReactNode {
           </h2>
           <p className="muted">
             {interrupted
-              ? "Algumas gravações não chegaram ao fim. O vídeo, o som e o cursor ficaram na pasta: dá para recuperar e importar no projeto."
-              : "Estas gravações terminaram, mas não chegaram a entrar num projeto. Dá para importar agora."}
+              ? plural
+                ? "Algumas gravações não chegaram ao fim. O vídeo, o som e o cursor ficaram na pasta: dá para recuperar e importar no projeto."
+                : "Esta gravação não chegou ao fim. O vídeo, o som e o cursor ficaram na pasta: dá para recuperar e importar no projeto."
+              : plural
+                ? "Estas gravações terminaram, mas não chegaram a entrar num projeto. Dá para importar agora."
+                : "Esta gravação terminou, mas não chegou a entrar num projeto. Dá para importar agora."}
           </p>
         </div>
       </div>

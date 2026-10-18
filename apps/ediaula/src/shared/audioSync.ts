@@ -1,6 +1,6 @@
 /**
- * Where a clip of sound sits inside a longer recording (the HeyGen MP4 inside the voice exported
- * for it), by cross-correlation computed with an FFT, without dependencies:
+ * Where a clip of sound sits inside a longer recording (the presenter's video inside the voice
+ * exported for it), by cross-correlation computed with an FFT, without dependencies:
  *
  * 1. Coarse: the energy envelopes at 100 Hz, normalized over the stretch they overlap, give the
  *    lag to the nearest 10 ms anywhere inside the master (a whole lesson or one piece).

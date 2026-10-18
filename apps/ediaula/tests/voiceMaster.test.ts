@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { PieceMatch } from "../src/shared/audioSync.ts";
 import { applyCuts } from "../src/shared/cleanup.ts";
-import { masterCandidates, planHeygenVideo } from "../src/shared/heygenImport.ts";
+import { masterCandidates, planPresenterVideo } from "../src/shared/presenterImport.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
 import { layoutRecording } from "../src/shared/recordingImport.ts";
 import { parseScript } from "../src/shared/script.ts";
@@ -10,14 +10,16 @@ import type { Asset, Clip, Project, Track, VoiceMaster } from "../src/shared/typ
 import { VOICE_CHAIN_VERSION } from "../src/shared/voiceChain.ts";
 import {
   AVATAR_BRIDGE,
+  DEFAULT_PIECE_SECONDS,
   exportFolderName,
-  HEYGEN_MAX_SECONDS,
-  heygenPlacements,
   insertLines,
   insertPieces,
+  lessonPieces,
   masterIsStale,
   pieceFileName,
+  pieceSeconds,
   pieceToTimeline,
+  presenterPlacements,
   renderPlan,
   repeatedLabels,
   sourceMapFor,
@@ -86,19 +88,19 @@ test("o mapa do pedaço leva o tempo do arquivo exportado ao tempo da timeline d
   assert.equal(pieceToTimeline(after, { sourceMap: map }, 10), null);
 });
 
-test("o vídeo do HeyGen segue os cortes: cada pedaço da voz recebe o vídeo feito dele", () => {
+test("o vídeo do apresentador segue os cortes: cada pedaço da voz recebe o vídeo feito dele", () => {
   const before = base([voice("a", 0, 0, 20), voice("b", 20, 35, 45)]);
   const piece = { sourceMap: sourceMapFor(before, 0, 65) };
   // The MP4 starts 0.7 s before the voice (offset -0.7) and runs at the same pace.
-  const whole = heygenPlacements(before, piece, -0.7, 1, 65.7);
+  const whole = presenterPlacements(before, piece, -0.7, 1, 65.7);
   assert.deepEqual(whole, [{ start: 0, in: 0.7, duration: 65, speed: 1 }]);
   const after = { ...before, clips: applyCuts(before.clips, [[5, 15]], new Set(["ta"])) };
-  assert.deepEqual(heygenPlacements(after, piece, -0.7, 1, 65.7), [
+  assert.deepEqual(presenterPlacements(after, piece, -0.7, 1, 65.7), [
     { start: 0, in: 0.7, duration: 5, speed: 1 },
     { start: 5, in: 15.7, duration: 50, speed: 1 },
   ]);
   // A render 0.1% slower: the clip plays it a little faster to keep the mouth on the voice.
-  const slow = heygenPlacements(before, piece, 0, 1 / 1.001, 65 * 1.001);
+  const slow = presenterPlacements(before, piece, 0, 1 / 1.001, 65 * 1.001);
   assert.equal(slow.length, 1);
   assert.ok(Math.abs(slow[0].speed - 1.001) < 1e-6);
 });
@@ -133,13 +135,14 @@ test("a voz exportada sai tratada, cortada e em mono 48 kHz 16 bits; o hash muda
   );
 });
 
-test("calar a voz para o som do HeyGen não muda a voz nem a tira do mapa", () => {
+test("calar a voz para o som do vídeo importado não muda a voz nem a tira do mapa", () => {
   const p = base([voice("a", 0, 0, 30)]);
   const h = voiceHash(p);
-  // Split at 10 and 20 s with the middle silent for HeyGen's sound, as "Usar o som do HeyGen" does.
+  // Split at 10 and 20 s with the middle silent for the presenter's sound, as "Usar o som do vídeo
+  // importado" does.
   const muted = base([
     voice("a1", 0, 0, 10),
-    { ...voice("a2", 10, 10, 10), mutedFor: "heygen" },
+    { ...voice("a2", 10, 10, 10), mutedFor: "presenter" },
     voice("a3", 20, 20, 10),
   ]);
   assert.equal(voiceHash(muted), h, "sem aviso falso de voz mudou");
@@ -151,14 +154,14 @@ test("o avatar não some numa pausa curta entre clipes da voz", () => {
   // Two clips with 1 s of nothing between them: the avatar runs on over it.
   const p = base([voice("a", 0, 0, 10), voice("b", 11, 10, 10)]);
   const piece = { sourceMap: sourceMapFor(p, 0, 21) };
-  const placed = heygenPlacements(p, piece, 0, 1, 21);
+  const placed = presenterPlacements(p, piece, 0, 1, 21);
   assert.deepEqual(placed, [
     { start: 0, in: 0, duration: 11, speed: 1 },
     { start: 11, in: 11, duration: 10, speed: 1 },
   ]);
   // A pause longer than the bridge stays a gap.
   const far = base([voice("a", 0, 0, 10), voice("b", 13, 10, 10)]);
-  const gap = heygenPlacements(far, { sourceMap: sourceMapFor(far, 0, 23) }, 0, 1, 23);
+  const gap = presenterPlacements(far, { sourceMap: sourceMapFor(far, 0, 23) }, 0, 1, 23);
   assert.equal(gap[0].duration, 10);
   assert.ok(AVATAR_BRIDGE < 3);
 });
@@ -227,9 +230,9 @@ test("a inserção do avatar em dois parágrafos sai inteira", () => {
   assert.deepEqual(insertPieces(p, section, []), [{ label: "F1P1-D01", start: 0, end: 6 }]);
 });
 
-test("um trecho maior que o HeyGen aceita é dividido numa pausa", () => {
-  assert.equal(HEYGEN_MAX_SECONDS, 300, "28,8 MB em WAV 48 kHz 16 bits mono, abaixo dos 32 MB");
-  const long = { label: "Aula", start: 0, end: HEYGEN_MAX_SECONDS + 200 };
+test("um trecho maior que o limite escolhido é dividido numa pausa (5 min por padrão)", () => {
+  assert.equal(DEFAULT_PIECE_SECONDS, 300, "28,8 MB em WAV 48 kHz 16 bits mono, abaixo dos 32 MB");
+  const long = { label: "Aula", start: 0, end: DEFAULT_PIECE_SECONDS + 200 };
   const parts = splitLong([long], [[250, 252]]);
   assert.deepEqual(
     parts.map((p) => [p.label, p.start, p.end]),
@@ -238,7 +241,20 @@ test("um trecho maior que o HeyGen aceita é dividido numa pausa", () => {
       ["Aula, parte 2", 251, 500],
     ],
   );
-  assert.ok(parts.every((p) => p.end - p.start <= HEYGEN_MAX_SECONDS));
+  assert.ok(parts.every((p) => p.end - p.start <= DEFAULT_PIECE_SECONDS));
+  // The lesson chooses another length (an avatar tool with a smaller limit): 2 min.
+  assert.equal(pieceSeconds({}), 300);
+  assert.equal(pieceSeconds({ voiceExport: { pieceMinutes: 2 } }), 120);
+  assert.equal(pieceSeconds({ voiceExport: { pieceMinutes: 999 } }), 3600, "at most 60 min");
+  const p = base([voice("a", 0, 0, 120), voice("b", 200, 0, 120)]);
+  const pieces = lessonPieces(
+    p,
+    "aula inteira",
+    [],
+    pieceSeconds({ voiceExport: { pieceMinutes: 2 } }),
+  );
+  assert.ok(pieces.length >= 3, JSON.stringify(pieces));
+  assert.ok(pieces.every((x) => x.end - x.start <= 120 + 1e-6));
 });
 
 test("a mesma voz exportada duas vezes não deixa o encaixe em dúvida; dois lugares diferentes, sim", () => {
@@ -270,14 +286,14 @@ test("a mesma voz exportada duas vezes não deixa o encaixe em dúvida; dois lug
     piece,
     result: { offset: 0, confidence, scale: 1, peak: 1, second: 0, fine: 0.9 },
   });
-  const twice = planHeygenVideo(withAll, all, [match(1, 0.9), match(2, 0.9)], 20);
+  const twice = planPresenterVideo(withAll, all, [match(1, 0.9), match(2, 0.9)], 20);
   assert.equal(twice?.ambiguous, false);
   assert.equal(twice?.doubtful, false);
   assert.equal(twice?.candidate.master?.id, "m2");
-  const elsewhere = planHeygenVideo(withAll, all, [match(1, 0.9), match(0, 0.85)], 20);
+  const elsewhere = planPresenterVideo(withAll, all, [match(1, 0.9), match(0, 0.85)], 20);
   assert.equal(elsewhere?.ambiguous, true);
   assert.equal(elsewhere?.doubtful, true);
-  const low = planHeygenVideo(withAll, all, [match(0, 0.3)], 20);
+  const low = planPresenterVideo(withAll, all, [match(0, 0.3)], 20);
   assert.equal(low?.doubtful, true);
   assert.equal(low?.stale, false);
 });

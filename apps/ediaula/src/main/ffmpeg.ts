@@ -251,7 +251,7 @@ export async function prepareGuidedNarration(path: string): Promise<string> {
   const info = await probe(path);
   if (!info.hasAudio)
     throw new Error(
-      "O arquivo selecionado não tem faixa de áudio. Exporte o MP4 do HeyGen com a voz incluída.",
+      "O arquivo selecionado não tem faixa de áudio. Exporte o vídeo do apresentador com a voz incluída.",
     );
   if (!info.hasVideo) return path;
   const out = join(cacheDir(path), `${basename(path, extname(path))}-voz.wav`);

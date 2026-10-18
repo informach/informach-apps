@@ -16,7 +16,7 @@ import {
   synthesizeCursor,
 } from "../../shared/guidedCursor.ts";
 import { type HookEvent, parseHookLine } from "../../shared/helperProtocol.ts";
-import type { RecordingPiece, RecordingResult } from "../../shared/recording.ts";
+import { isVoiceMode, type RecordingPiece, type RecordingResult } from "../../shared/recording.ts";
 import {
   JOURNAL_FILE,
   type JournalPart,
@@ -126,8 +126,9 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
 
   // Microphone and the computer's sound, on the take's clock, when the disk has room to write
   // them again; otherwise they stay in parts, placed like the camera.
-  // A "Só voz" take keeps its voice as recorded: 16-bit PCM, mono, 48 kHz (voz.wav).
-  const voice = replay.begin.mode === "voice";
+  // A "Só voz" or "Voz e câmera" take keeps its voice as recorded: 16-bit PCM, mono, 48 kHz
+  // (voz.wav); the camera of "Voz e câmera" is placed below like any camera.
+  const voice = isVoiceMode(replay.begin.mode);
   let microphone: string | undefined;
   let microphoneParts: RecordingPiece[] | undefined;
   if (parts.mic.length) {
@@ -293,7 +294,9 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),
     ...(lines.length ? { lines } : {}),
-    ...(voice ? { mode: "voice" as const } : {}),
+    ...(voice
+      ? { mode: replay.begin.mode === "voicecam" ? ("voicecam" as const) : ("voice" as const) }
+      : {}),
     ...(over ? { mode: "over" as const, over } : {}),
     ...(input.cursorIssues?.length ? { cursorIssues: [...input.cursorIssues] } : {}),
     ...(input.encoderIssues?.length ? { encoderIssues: [...input.encoderIssues] } : {}),
