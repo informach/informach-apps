@@ -13,21 +13,22 @@ export const TOOLS = Object.freeze(
       label: "Osso",
       icon: "bone",
       group: "rig",
-      unavailable: "A criação de ossos depende do motor de rig, ainda não implementado.",
+      shortcut: "B",
+      scene: true,
     },
     {
       id: "mesh",
       label: "Malha",
       icon: "grid-2x2",
       group: "rig",
-      unavailable: "A edição de malha e seus pesos ainda não está implementada.",
+      scene: true,
     },
     {
       id: "constraints",
       label: "Restrições",
       icon: "link-2",
       group: "rig",
-      unavailable: "As restrições IK dependem do motor de rig, ainda não implementado.",
+      scene: true,
     },
     { id: "hand", label: "Mão", icon: "hand", shortcut: "H", group: "navigation" },
     { id: "zoom", label: "Zoom", icon: "zoom-in", shortcut: "Z", group: "navigation" },
@@ -48,6 +49,11 @@ export function activateTool(state, id) {
   const reason = toolAvailability(tool, state);
   if (reason) return { ok: false, reason };
   state.tool = id;
+  if (state.scene && (id === "bone" || id === "mesh")) {
+    state.bones = true;
+    state.clean = false;
+    state.rigFocus = { ...state.rigFocus, artboardId: state.activeArtboardId, open: true };
+  }
   state.playing = false;
   if (state.scene) state.view = "design";
   return { ok: true };

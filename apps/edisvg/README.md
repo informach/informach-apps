@@ -1,24 +1,110 @@
 # EdiSVG Desktop
 
-Aplicativo Electron baseado em `edisvg.pen`, com a separação do Ediaula: `main`, `preload`, `renderer` e `shared`. A interface existente foi reaproveitada em JavaScript nativo; não foi reescrita em React.
+Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e `shared`. O canvas e os painéis existentes permanecem em JavaScript; interfaces novas, como o painel de pranchetas, usam React/TypeScript integrado sem reescrita visual integral.
+
+## Recursos em evolução
+
+### Joysticks 2D — incremento 5.23
+
+Rig v4/projeto v22/blueprint v11 vinculam um pad 2D a um alvo raiz. Eixos X/Y solicitados, envelope local quadrado/circular, canais e bindings compartilham o avaliador de IK/skin. O painel React permite arraste com prévia sem histórico, campos e teclado; cancelar restaura a cena, soltar confirma uma transação. Arquivos anteriores mantêm migração/backup e versões antigas recusam a capability nova. App/núcleo, 82 E2E, Next de produção, comparação independente Lottie e jornada Electron/ASAR passaram; veja o [review 5.23](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md) para os limites exatos. O [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) separa o entregue das pendências de lotes 5–6. Não é paridade Rive nem compatibilidade `.riv`.
+
+### Gradientes relativos — incremento 5.22 revisado no perfil publicado
+
+Preenchimentos lineares objectBoundingBox usam limites reais da geometria por quadro após morph/skin, com o mesmo avaliador e registrador amostrado. Bounds degenerados desativam apenas o fill; stroke sólido permanece. Perfil requer fonte path cúbica explícita; linhas/primitivas precisam de conversão autorável com prévia/consentimento. Move-only composto, radial relativo e demais perfis sem prova continuam recusados. Unidades/tipos/build, regressão completa, Next e Electron passaram no perfil documentado. [Contrato e evidências 5.22](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie-bounding-box.md). O perfil seguinte é o 5.23 acima.
+
+### Gradientes Lottie — incremento 5.21 revisado no perfil publicado
+
+Perfil inicial 5.21 revisado para preenchimentos userSpaceOnUse/pad, RGB/alpha, transformações próprias e hierarquia local. ObjectBoundingBox, repeat/reflect, paradas mais precisas que porcentagens inteiras e stroke em gradiente são recusados. Composição viewBox/alpha e limites estruturais corrigidos; corpus independente, UI/consentimento/download, regressão completa, Next e Electron passaram no perfil documentado. [Contrato e evidências 5.21](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie-gradientes.md). Extensão relativa revisada no 5.22 acima.
+
+### Timeline unificada — incremento 5.20 revisado no perfil publicado
+
+Projeção tipada, timeline virtual e comandos mistos distinguem motion/rig e pranchetas sem proibir IDs históricos válidos. Operador de tempo compartilhado mantém limites/colisões/IDs/hold; locks e falha parcial não publicam alterações. Editor React de curvas preserva draft/teclado/cancelamento e unidades reais. Scroll/foco e agrupamento de chaves densas foram corrigidos; app/núcleo, regressão completa, Next e Electron passaram no perfil documentado. [Contrato, evidências e limites 5.20](../../docs/reviews/edisvg-2026-10-17/review-lote-5-timeline-rig.md).
+
+### Ciclo de animações e rig — incremento 5.19 revisado no perfil publicado
+
+Duplicar um clip conserva seus canais de rig, eventos e vínculos de áudio com IDs novos, sem reconfigurar máquinas/componentes que usam a origem. Excluir remove apenas as dependências pertencentes ao clip, preserva assets/controladores e recusa referências externas/locks. A confirmação permite cancelar. Gates do app/núcleo, 73 E2E, Next produção e Electron completo passaram no perfil publicado, incluindo Cancel/Confirm e histórico exato. Tipos do tooling têm bloqueio concorrente registrado no review. [Contrato e progresso 5.19](../../docs/reviews/edisvg-2026-10-17/review-lote-5-ciclo-animacoes-rig.md).
+
+### Proteção da entrada SVG — incremento 5.18 revisado no perfil publicado
+
+Soltar arquivos sobre campos ou diálogos cancela a ação padrão sem importar; seletores de arquivo habilitados preservam sua seleção nativa. Editabilidade herdada/plaintext-only e fieldsets desabilitados são tratados. Abrir a revisão não aplica o SVG: cancelar preserva o projeto e confirmar cria uma edição reversível. Gates do app/núcleo, tipos/build, 71 E2E, Next produção e Electron passaram no perfil publicado; cursor físico do Explorer não homologado. [Contrato, evidências e limites 5.18](../../docs/reviews/edisvg-2026-10-17/review-lote-5-entrada-svg.md).
+
+### Duplicação de rig — incremento 5.17 revisado no perfil publicado
+
+Duplicar objeto/grupo agora copia trim/morph/solo e seus canais, bindings/listeners e máscaras de camadas. Ossos/skin/restrições exigem um subtree fechado contendo as referências: matrizes de bind são conservadas, não recapturadas automaticamente. Solo exige copiar o grupo inteiro, sem deslocar índices dos canais antigos. Inputs e dados da mesma prancheta continuam compartilhados; use componentes para estado independente. Tipos do app/núcleo, testes unitários, regressão completa de navegador, UI/histórico/reabertura, teclado, ZIP React, Next produção e Electron passaram no perfil documentado. Writers de recursos antigos preservam Rig v3; bloqueios transversais concorrentes estão no review. [Contrato e progresso 5.17](../../docs/reviews/edisvg-2026-10-17/review-lote-5-duplicacao-rig.md).
+
+### Recorte animável — incremento 5.16 revisado no perfil publicado
+
+Selecione um path e abra Restrições para configurar início/fim (%), offset (graus), tolerância de comprimento local e modos por contorno/caminho inteiro. O avaliador aplica o recorte após morph/skin, sem modificar a fonte salva; parâmetros usam os relógios/blends/bindings existentes. O código emite projeto v21/Rig v3/blueprint v10 e preserva a leitura/migração/backup dos formatos anteriores. Arcos nativos exigem conversão explícita com confirmação de aparência. HTML/React usam o runtime real; SVG/SMIL animado e Lottie recusam trim, sem descartá-lo. No marco 5.16, a duplicação parcial era recusada; o 5.17 acima permite deformadores locais/subrigs fechados, mantendo recusa de referências incompletas. Núcleo, transações, UI, players, regressão completa de navegador/Next e Electron passaram; o review do perfil foi fechado. Demais recursos dos lotes 5/6 e full review continuam pendentes. [Contrato e progresso 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md).
+
+### Tracejados Lottie e composição — incremento 5.15 revisado
+
+O emissor aceita listas numéricas locais limitadas, repetição de listas ímpares e padrão zero contínuo, com recusa por densidade inicial ou introduzida por deformação. Composições com contorno agora preservam espaços locais de pintura/grupos/transformação global, corrigindo bordas sob transparência; composições somente de preenchimento mantêm seu perfil afim-baked. O antigo caso de curva fechada 5.14 passou após essa correção estrutural. Uma combinação de compensação anisotrópica ainda tem diferença de precisão do consumidor explicitamente verificada, sem aumentar tolerância dos outros perfis. 192 testes do app/99 núcleo, 61 E2E, Next produção e Electron passaram no perfil documentado. [Contrato, diagnóstico e gates 5.15](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie-tracejados.md).
+
+### Conversão cúbica e precisão Lottie — incremento 5.14 revisado
+
+O painel de vértices oferece conversão explícita para Bézier cúbica, com miniaturas de geometria, confirmação e uma edição reversível. Não muda o arquivo até salvar, não converte durante exportação e recusa dependências incompatíveis. Arcos usam a aproximação já declarada do editor. A comparação ampliada identificou uma limitação do consumidor Lottie float32: até curvas C sob matriz conforme podem apresentar diferenças nas bordas em quadros amostrados. O novo contrato exige consentimento independente de precisão, além da amostragem; não promete identidade universal de pixels. Gates integrados e Electron passaram no perfil documentado; os limites permanecem explícitos. [Provas, achados e limites 5.14](../../docs/reviews/edisvg-2026-10-17/review-lote-5-conversao-vetorial.md).
+
+### Contornos Lottie — incremento 5.13 revisado no perfil inicial
+
+O compilador mantém geometria e transformação juntas para contornos de paths Bézier cúbicos explícitos, preservando largura local, cap/join, alpha e composição. Inspeção verifica todas as amostras, inclusive anisotropia tardia, com orçamento/cancelamento compartilhados. Renderer independente, UI/download, regressão completa, Next e Electron Save/Cancel passaram. Linhas/primitivas com contorno, tracejados e matrizes não conformes permanecem recusados; não são convertidos silenciosamente. Cores RGB legadas normalizam alpha no parser comum, conforme o navegador de referência. Não representa suporte integral a contornos/Rive/RN. [Achados, limites, gates e pendências 5.13](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie-contornos.md).
+
+### Importação clip/mask — incremento 5.12 revisado no perfil inicial
+
+O marco 5.12 introduziu projeto v20/blueprint v9 para permitir primitivas nativas como fontes de recorte/máscara, sem convertê-las silenciosamente em path com rasterização diferente. Pixels estáticos/animados, adversariais, UI/arrastes/duplicação/recuperação, HTML offline, ZIP React, regressão completa, Next e Electron passaram. Arquivos v1–v19 mantêm migração/backup; blueprints v1–v8 mantêm seus contratos. O perfil de importação é local, de uma geometria por definição, userSpaceOnUse e máscara alpha explícita com região absoluta inicialmente não restritiva para a silhueta. Depois de importar, a máscara segue as regras de silhueta do editor, não um recorte regional animável do SVG original. Não é cobertura integral de SVG. [Contrato, achados, gates e pendência de auditoria global 5.12](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-efeitos.md).
+
+### Exportação Lottie — incremento 5.11 revisado no perfil inicial
+
+O diálogo oferece Lottie JSON real por animação selecionada, com relatório no Worker, consentimentos explícitos, amostragem limitada e cancelamento. Perfil inicial de grupos/formas com preenchimento sólido; contornos, gradientes, texto/imagens, recortes/componentes/layout são recusados, não descartados. O endpoint inclusivo de once requer um quadro de retenção adicional; loop/ping-pong dependem da política de repetição do consumidor. Não é arquivo de projeto, runtime interativo ou `.riv`. Comparação independente no renderer SVG light 5.13.0, download, Save/Cancel nativo e regressão navegador/Next passaram; isso não homologa outros renderizadores Lottie ou React Native. [Contrato, evidências e pendências 5.11](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie.md).
+
+### Importação semântica SVG — incremento 5.10 revisado
+
+Nomes e descrições simples (`title`/`desc`, `aria-label`, referências locais `aria-labelledby`/`aria-describedby`) passam ao modelo editável dentro do perfil publicado. Group/img e elementos decorativos são preservados; controles sem ações, idiomas ainda não modelados, markup rico, IDs ambíguos e referências não suportadas são recusados. Descrição sem nome e metadados fora da conversão recebem aviso e ficam na fonte original; títulos convertidos não recriam o tooltip SVG. O texto visível não incorpora title/desc. Semântica isolada pode ser conferida em Testar. [Gates e limites 5.10](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-semantica.md).
+
+### Semântica acessível — incremento 5.9 revisado
+
+O inspetor permite marcar elementos como decorativos, grupos, imagens ou botões com nome/descrição próprios. O marco 5.9 introduziu projeto v19/blueprint v8; o código v21/v10 em desenvolvimento preserva essa semântica. Botões precisam de listener de ativação; elementos decorativos/imagens não podem esconder controles descendentes, inclusive em componentes. Configurações incompletas podem ser salvas; Testar/export interativo recusa contradições antes de assumir o SVG. Export estático não anuncia botões inativos. [Perfil e gates 5.9](../../docs/reviews/edisvg-2026-10-17/review-lote-5-semantica.md). Não representa acessibilidade integral ou homologação por leitor de tela/dispositivo.
+
+### Cobertura e fontes alternativas — incremento 5.8 revisado
+
+O painel de texto permite ordenar até sete fontes incorporadas alternativas e mostra diagnóstico de cobertura cmap por grupo de caracteres. Novos testes/exports portáteis exigem cobertura na cadeia; você pode continuar editando e salvando o projeto para corrigir o texto/fontes. No marco 5.8 o formato passou a projeto v18/blueprint v7, com backup de migração e contratos históricos preservados. Cobertura não comprova shaping/ligaturas nem substituição do Rive. [Review e gates do 5.8](../../docs/reviews/edisvg-2026-10-17/review-lote-5-tipografia.md).
+
+### Desenho portátil — incremento 5.7 revisado
+
+Canvas, Testar, HTML interativo e React usam a descrição gráfica compartilhada de `edi-motion`. No marco 5.7, o compilador passou a emitir blueprint v6 com dados visuais tipados e catálogo raiz só dos recursos usados; o projeto permaneceu v17. O HTML constrói o desenho a partir desses dados validados, sem repetir os bytes das fontes/imagens no markup. O novo loader libera seus recursos e restaura o SVG original ao encerrar. Blueprints anteriores v1–v5 permanecem aceitos pelo loader histórico. [Review, verificações e pendências](../../docs/reviews/edisvg-2026-10-17/review-lote-5-visual-portatil.md). Não equivale a homologação de React Native ou conclusão do lote 5.
+
+### Recortes e máscaras alpha — incremento 5.6
+
+O inspetor associa recorte e máscara a outro caminho da mesma prancheta, com regra não zero/par-ímpar e intensidade alpha. A fonte acompanha transformações e geometria deformada, mesmo oculta. Máscara de silhueta usa sua própria opacidade TRS; não representa pintura/luminância nem opacidade dos pais. Canvas, Testar, HTML interativo e React compartilham o cálculo; cada player possui definições mutáveis isoladas. Projeto canônico v17 aceita v1–v16 pelo migrador/backup existente; blueprint v5 mantém v1–v4. O exportador antigo de clips recusa este perfil; importação de defs clip/mask continua pendente. [Perfil e revisão 5.6](../../docs/reviews/edisvg-2026-10-17/review-lote-5-recortes.md).
+
+### Gradientes — incremento 5.5
+
+O inspetor permite gradientes lineares/radiais em preenchimento/contorno de formas, textos e grupos: 2–32 paradas, alpha, coordenadas, spread e matriz local. Estilos, herança, reparenting e overrides preservam o contrato; aplicar cor sólida troca o canal correspondente. SVG/HTML/React usam definições deduplicadas por conteúdo. A importação SVG preserva gradientes/templates locais dentro do perfil publicado e recusa referências externas/defs não suportados. [Perfil, review e evidências](../../docs/reviews/edisvg-2026-10-17/review-lote-5-gradientes.md). Múltiplas pinturas/efeitos adicionais continuam no lote 5; recortes e máscaras alpha seguem o perfil 5.6 acima.
+
+### Nine-slice visual — incremento 5.4
+
+Selecione uma imagem para editar dimensões e ativar **Preservar bordas com nine-slice**. Informe as quatro bordas em pixels da origem; centro/faixas esticam e cantos conservam tamanho quando possível. Layout responsivo usa as mesmas células em Testar/HTML/React. No marco 5.4, o formato passou a v16/blueprint v4; o formato atual v21/v10 em desenvolvimento mantém essa extensão e o backup existente. A imagem permanece deduplicada, e pintura vetorial não é oferecida como edição de raster. Perfil, filtragem e limites no [review 5.4](../../docs/reviews/edisvg-2026-10-17/review-lote-5-imagens-slice.md). Ainda não encerra lotes 5–6/full review.
+
+### Áudio por eventos — incremento 5.3
+
+Na aba Recursos, importe WAV PCM16 e associe a um evento existente da timeline, com volume e alternativa textual. A prévia Testar e as exportações HTML interativo/React começam sem som, oferecem ativação/volume e mostram alternativas também desativadas. API/ref inclui `enableAudio`, `disableAudio`, `setAudioVolume`, `inspectAudio`, `onAudioCue` e `onAudioStateChange`; a API do player também oferece `destroyAsync`. Há um mixer por cena, 32 vozes e cache por hash. São efeitos pontuais, não trilha sonora contínua. SVG/HTML de timeline exigem confirmação explícita pela perda. Contratos, evidências e limitações no [review 5.3](../../docs/reviews/edisvg-2026-10-17/review-lote-5-audio.md). Restante do lote 5, lote 6 e full review permanecem em execução.
 
 ## Executar e distribuir
 
-Requer Node.js 22+ e Windows x64 para o pacote portátil atual.
+Requer Node.js 24.15.0, pnpm 9.15.0 e o workspace da raiz. O alvo homologado da suíte é Windows x64.
 
 ```sh
-npm install
-npm run dev
+pnpm install --frozen-lockfile
+pnpm --filter @informach/edisvg dev
 ```
 
-No PowerShell, use `npm.cmd` se scripts estiverem bloqueados. `npm run dev` abre o Electron; `npm run build` compila; `npm start` abre a compilação. Em produção não há servidor web.
+Execute a instalação na raiz. `dev` abre o Electron; `build` compila main/preload/renderer e `start` abre a compilação. Login e licença vêm do SDK compartilhado; use o [guia de desenvolvimento Edi](../../docs/desenvolvimento-edi.md) para preparar um ambiente local, sem credenciais de produção.
 
 ```sh
-npm run package
-npm run shortcut
+pnpm --filter @informach/edisvg build
+pnpm --filter @informach/edisvg start
 ```
 
-O executável atual é `release/EdiSVG-0.5.3-win32-x64/EdiSVG.exe`. Os pacotes ficam em pastas por versão para permitir uma nova entrega sem sobrescrever uma instalação aberta. Distribua **a pasta inteira**, com DLLs, resources e licenças. O atalho `EdiSVG.lnk` é atualizado na raiz do projeto; cópias antigas desse atalho fora do projeto precisam ser substituídas. O pacote é portátil, sem instalador ou assinatura digital.
+Distribuição comercial usa o pipeline comum da suíte, NSIS e GitHub Releases público `informach/edi-releases`. Manifestos e inventários têm assinatura Ed25519 própria; isso não é Authenticode. Os scripts legados de pacote portátil não substituem esse pipeline. Builds locais não publicam nem atualizam os clientes. Consulte o [padrão desktop](../../docs/arquitetura-desktop.md).
 
 ## Estrutura
 
@@ -35,38 +121,54 @@ O executável atual é `release/EdiSVG-0.5.3-win32-x64/EdiSVG.exe`. Os pacotes f
 
 Claude recebe apenas ferramentas MCP do EdiSVG. Codex roda em diretório separado com sandbox `read-only` e sem configuração global. Isso não é isolamento completo de leitura do computador. Ambos recebem instruções para atuar nas ferramentas do editor, sem flags de bypass de permissões.
 
-Para um agente externo, mantenha o EdiSVG aberto e registre o servidor no cliente desejado:
+Use o botão de conexão do assistente para registrar o MCP no cliente escolhido; essa ação explícita configura a autenticação limitada à ferramenta. Não copie tokens para prompts, projetos ou logs. MCP escuta apenas em `127.0.0.1:47322`, exige token e licença, recusa Origin de navegador e valida parâmetros. Estar no mesmo computador não autoriza acesso. A porta é diferente da usada pelo EdiAula.
 
-```sh
-claude mcp add --transport http edisvg http://127.0.0.1:47322/mcp
-codex mcp add edisvg --url http://127.0.0.1:47322/mcp
-```
-
-O editor não altera configurações globais automaticamente. MCP escuta apenas em `127.0.0.1:47322`, recusa Origin de navegador e valida parâmetros. A porta é diferente da usada pelo Ediaula. Programas locais podem acessar o servidor enquanto o editor está aberto.
-
-Ferramentas: `get_overview`, `set_transform`, `set_animation`, `rename_project`, `seek_frame`, `add_keyframe`, `undo`, `redo`. O histórico é compartilhado entre edições manuais e da IA: desfazer atua na última edição do projeto, independentemente de quem a fez. A integração usa CLIs, não chamadas diretas às APIs pagas. Login, conectividade e limites da conta afetam as respostas.
+Ferramentas: `get_overview`, `get_objects`, `get_object`, `get_attribute`, `get_animation`, `get_track`, `edit_document`, `select_clip`, `select_artboard`, `get_component`, `get_component_value`, `set_transform`, `set_animation`, `rename_project`, `seek_frame`, `add_keyframe`, `undo`, `redo`. `edit_document` usa a mesma transação da interface, exigindo projeto, sessão e revisão recém-inspecionados; leituras grandes têm paginação explícita. O histórico é compartilhado entre edições manuais e da IA: desfazer atua na última edição do projeto, independentemente de quem a fez. A integração usa CLIs, não chamadas diretas às APIs pagas. Login, conectividade e limites da conta afetam as respostas.
 
 ## Projetos e escopo
 
+Fontes TTF/OTF de face única exigem consentimento explícito de incorporação, fontAssetId tipado, carga efetiva e preservação de avisos nas exportações ([perfil 5.2](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes.md)). WOFF2/coleções não são aceitos. O [perfil 5.8](../../docs/reviews/edisvg-2026-10-17/review-lote-5-tipografia.md) acrescentou cobertura por cluster e fallback incorporado verificável; carga da fonte e cobertura são validações diferentes. Shaping avançado, texto em caminho e conversão em contornos ainda não estão homologados. Áudio por eventos consta no perfil 5.3 acima.
+
+Na aba Recursos, importe PNG estático, WAV PCM16 limitado ou TTF/OTF do perfil descrito acima; renomeie/exclua recursos, insira imagens ou aplique fontes ao texto. Conteúdo idêntico compartilha identidade e bytes; excluir recurso ainda usado é recusado. Normalização de PNG fora do perfil requer consentimento por perda de metadados/perfil de cor e não altera o original. SVG/HTML/React levam imagens e fontes offline uma vez por conteúdo. WAV PCM16 é reproduzido por eventos no perfil 5.3 descrito acima; formatos adicionais e áudio contínuo não estão certificados.
+
+Estado em 18/10: projeto v22 com `artboards[{id,name,scene}]`, `defaultArtboardId` e catálogo raiz `assets`; blueprint emitido v11/Rig v4 para joystick. Não existe `project.scene` na persistência: `state.scene` é apenas a referência de workspace para a prancheta aberta. Use `artboardScene` na leitura do documento e `bindActiveArtboard`/`replaceActiveScene` no canvas. Arquivos v1–v21 preservam migração/validação e backup exato no primeiro salvamento. Preferências ficam separadas em `edisvg-workspace`, nunca no histórico do conteúdo. O [review 5.23](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md) registra os gates do perfil atual; o [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) documenta o que falta nos lotes 5–6. Não confundir o formato vigente com os marcos históricos abaixo.
+
+**Artboards** cria, dimensiona, renomeia, duplica, define a prancheta inicial e exclui com confirmação/Undo. HTML e SVG usam a prancheta aberta; JSON conserva o projeto inteiro. Na hierarquia, Shift/Ctrl/Meta + clique seleciona várias camadas; **Agrupar**, **Desagrupar** e **Grupo pai** usam comandos atômicos, conservando IDs/trilhas e o espaço das transformações. Reorganização que alteraria transparência composta ou atravessaria grupos animados é recusada explicitamente, não aproximada.
+
 **Arquivo** abre/salva projetos `.edisvg` com diálogos nativos. Ctrl+O abre, Ctrl+S salva no arquivo atual (ou pede um destino no primeiro salvamento) e Ctrl+Shift+S abre Salvar como. O título mostra o nome do arquivo e um ponto quando há alterações pendentes. Abrir outro projeto ou fechar a janela oferece Salvar, Descartar e Cancelar. Cancelar o diálogo de salvamento também cancela o fechamento/substituição. Falhas de gravação mantêm o documento pendente; a escrita usa um temporário no mesmo diretório, sincroniza seu conteúdo e só então substitui o destino. As exportações HTML, SVG e JSON continuam usando Salvar como.
 
-O `.pen` é a referência de design e permanece intacto; não é o formato de projeto do aplicativo. O editor inclui timeline, reprodução, zoom, propriedades globais, estados e exportação. A cópia local guarda nome, transformações, animação selecionada, marcadores dessa animação, modos de reprodução e inputs. Arquivos antigos continuam aceitos. O histórico em memória guarda até 100 edições; abrir outro projeto limpa esse histórico. Ctrl+Z desfaz, Ctrl+Shift+Z ou Ctrl+Y refaz. Dentro de campos de texto, os atalhos continuam editando o texto.
+O `.pen` é a referência de design e permanece intacto; não é o formato de projeto do aplicativo. Projetos v22 preservam identidade, pranchetas, animações por objeto, recursos e Rig v4, além dos presets legados. Arquivos v1–v21 são migrados em memória; no primeiro salvamento sobre o original, o app cria antes uma cópia byte a byte `.v<versão>.<uuid>.bak` no mesmo diretório. Falha de backup impede a substituição. Para restaurar, copie esse backup para outro nome `.edisvg` e abra-o; não substitua o original sem conferir ambas as versões. Alteração externa bloqueia o salvamento comum e orienta Salvar como. Versões/campos futuros são recusados sem remoção silenciosa. O histórico guarda até 100 edições e 32 MB, contando metadados dos checkpoints e corpos únicos de recursos referenciados (não um teto exato da memória do processo); abrir outro projeto limpa o histórico. Ctrl+Z desfaz, Ctrl+Shift+Z ou Ctrl+Y refaz. Navegação/seleção não é edição; desfazer mantém o contexto da timeline quando possível.
 
-Ainda faltam desenho vetorial, deformação de malha, IK, edição individual de camadas/transições e blend facial. Chaves são marcadores sem interpolação independente. A curva é uma visualização. Exportações usam movimentos predefinidos; React, Lottie e runtime externo não estão implementados.
+Desenho vetorial, caneta Bézier, edição de vértices e propriedades por objeto funcionam. Em **Nova animação**, defina nome, FPS e duração; selecione um objeto, grave a pose e use Autochave para editar transformações em outros quadros. A timeline apresenta trilhas reais de x/y/rotação/escala/opacidade/pivô/skew. Shift/Ctrl seleciona várias chaves; **Mover / copiar** aplica deslocamento e escala temporal de uma vez. Zoom temporal virtualiza linhas/glifos; chaves próximas indicam agrupamento e podem ser separadas ampliando o zoom. Onion skin e área de trabalho são contexto de prévia, não alteram o export. Arraste uma chave para reposicioná-la ou use **Editar chave** (também Enter) para quadro, valor e interpolação linear/degrau/Bézier; a prévia gráfica usa o avaliador real, com alças Bézier arrastáveis/teclado e elástico oscilatório. No canvas, alças de escala/rotação, pivô local, espelhamento, alinhamento/distribuição, posição global e grade são operações reais e reversíveis. Escape, cancelamento de ponteiro, perda de foco e descarte da interface cancelam o arraste sem modificar o projeto. Colisões não substituem outras chaves. **Duplicar** conserva conteúdo com IDs novos. Os presets globais continuam separados como legado: seus marcadores não guardam poses. O [motor tipado](../../packages/edi-motion/README.md) é compartilhado pelo editor e pelo HTML offline; SVG é amostrado no FPS do documento (60 Hz para presets), com diagnóstico e limite de recursos. Interação fixa pertence somente à demonstração.
+
+O [review de vetores/importação/workspace](../../docs/reviews/edisvg-2026-10-17/review-lote-2-vetores.md) registra o núcleo de autoria. O [review de layouts/dados/React](../../docs/reviews/edisvg-2026-10-17/review-lote-3-layout-dados.md) registra layout responsivo local, modelos/listas/links, ZIP React e prova Next.js. O catálogo seguro de assets e os perfis vetoriais de rig/morph/solo/skin/joystick já estão integrados nos reviews 4 e 5. Tipografia/SVG avançados, malha raster, scripts, colaboração, formatos adicionais e React Native continuam pendentes no [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md).
+
+A recuperação nativa fica em `userData/recovery-v1.json`, fora da instalação, com formato versionado, validação e escrita atômica. Ao iniciar, o app oferece recuperar ou descartar o rascunho antes de substituí-lo. Recuperar cria uma cópia sem associação ao arquivo original. Um marcador de limpeza impede recuperar novamente um autosave antigo após salvar/descartar. Cópia inválida ou erro de leitura bloqueia a edição e preserva os bytes. A cópia anterior do navegador é migrada apenas se ainda não houver registro nativo. No modo navegador, a recuperação usa a cópia local e confirmação explícita.
+
+## Rig e deformação em execução
+
+Perfil vetorial implementado e revisado nos [reviews 4.2](../../docs/reviews/edisvg-2026-10-17/review-lote-4-canais-deformacao.md) e [4 integrado](../../docs/reviews/edisvg-2026-10-17/review-lote-4-integrado.md): Design edita a referência; Animar/Testar usam FK/IK limitado, distância/cópia/caminho, skin de âncoras/alças, morph e solo. Canais/bindings compartilham clocks, blends e interrupções com TRS. Rig v1/v2 permanecem aceitos; v3 acrescenta trim no [perfil 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md), v4 acrescenta o [joystick 2D limitado 5.23](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md), sem rebaixar a versão nas edições. A [duplicação 5.17](../../docs/reviews/edisvg-2026-10-17/review-lote-5-duplicacao-rig.md) conserva subrigs fechados e matrizes de bind. O projeto atual é v22; malha raster/triangulação permanece pendente. A timeline mista 5.20 foi revisada no perfil publicado, sem concluir o lote 5.
 
 ## Verificação
 
+Para reutilizar uma prancheta, abra **Artboards → Reutilizar outra prancheta como componente** na prancheta de destino. O inspector configura tamanho/encaixe/clip e overrides; **Adicionar ao rascunho** não grava o documento, **Aplicar instância** grava tudo como uma edição. Instâncias sem lógica/layout próprio mantêm o perfil de pose-base ou animação sincronizada à fase externa. Componentes com lógica/layout têm sessões independentes por instância, uma única coordenação temporal da cena, inputs iniciais locais e máquina inicial configurável. Offset não se aplica a esse perfil; referências incompatíveis são recusadas. O painel Testar expõe componentes, modelos e listas sem modificar o projeto. HTML/SVG animados com componentes exigem uma animação por objeto selecionada. Referências cíclicas, exclusão de origens em uso e excesso de custo expandido são recusados atomicamente.
+
 ```sh
-npm run check
-npm test
-npm run build
+pnpm --filter @informach/edisvg check
+pnpm --filter @informach/edisvg typecheck
+pnpm --filter @informach/edisvg test
+pnpm --filter @informach/edisvg build
+pnpm --filter @informach/edisvg test:e2e
+pnpm edi:test:native edisvg
 ```
 
-Os testes cobrem animação, estados, exportações, validação, argumentos/eventos dos clientes e MCP real via HTTP. `--smoke-test`, com `EDISVG_USER_DATA` apontando para uma pasta de teste, verifica preload, painel e edição/desfazer na janela Electron sem consumir créditos de IA.
+Os testes cobrem geometria, animação predefinida, exportações, arquivos reais, recuperação, validação e MCP HTTP. `check` verifica sintaxe, não tipos. `typecheck` verifica TypeScript novo e dependências; JavaScript legado ainda não possui `checkJs` integral. E2E exige Chromium do Playwright (`pnpm --filter @informach/edisvg exec playwright install chromium`) ou o canal instalado `EDISVG_TEST_BROWSER_CHANNEL=msedge`/`chrome`; usa perfis descartáveis, renderer compilado, download real e execução do HTML produzido. Não usa arquivos pessoais, conta real ou IA paga. O harness nativo cobre licença/expiração/IPC e preservação; não deve ser confundido com homologação completa de autoria ou de todos os diálogos.
 
-Nesta máquina a rede bloqueou o npm. As dependências foram copiadas do Ediaula, sem modificá-lo, por `scripts/copy-local-dependencies.mjs`. Esse script serve apenas para recuperação local; instalações normais usam `npm install`.
+Não copie `node_modules` entre apps; dependências e lockfile são geridos pelo workspace pnpm.
 
 ## Plano de construção
+
+O estado atual dos lotes aprovados em 17/10 está no [plano de implementação](PLANO-DE-IMPLEMENTACAO.md#execução-autorizada-em-17102026). A análise e os 90 requisitos anteriores continuam preservados. As seções abaixo são histórico de incrementos anteriores à evolução atual; números de testes, versões, pendências e instruções históricas não substituem o estado acima nem os gates do plano.
 
 As entregas seguem dependências técnicas. Cada incremento deve ter testes relevantes, build e pacote atualizados. Não marcar uma etapa como concluída apenas porque a tela existe. IA deve chamar as mesmas operações usadas pela interface e respeitar o histórico do projeto.
 

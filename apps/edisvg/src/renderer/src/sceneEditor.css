@@ -1,6 +1,32 @@
 .scene-padding {
   padding: 16px;
 }
+.rig-panel {
+  padding: 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.rig-panel summary {
+  cursor: pointer;
+}
+.rig-panel fieldset {
+  min-width: 0;
+  margin: 8px 0;
+}
+.rig-panel form {
+  display: grid;
+  gap: 6px;
+}
+.rig-panel select,
+.rig-panel input {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rig-panel select,
+.rig-panel input[type="number"] {
+  width: 100%;
+}
 .scene-artboard {
   max-height: 80%;
   background: #fff;
@@ -29,8 +55,15 @@
 .property input:disabled {
   opacity: 0.5;
 }
-.scene-artboard svg {
+.scene-artwork > svg {
   overflow: visible;
+}
+.selection-marquee {
+  fill: color-mix(in srgb, var(--mint) 12%, transparent);
+  stroke: var(--mint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .scene-tools {
@@ -55,6 +88,35 @@
 .scene-field input {
   width: 100%;
   padding: 8px;
+}
+.scene-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+}
+.artboard-list {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+}
+.artboard-list button {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  text-align: left;
+}
+.artboard-list small {
+  color: var(--muted);
+}
+[data-instance-inspector] fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+[data-instance-inspector] legend {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 8px 0;
 }
 .scene-field + h3 {
   margin-top: 24px;
@@ -130,4 +192,266 @@
 }
 .canvas-hint {
   pointer-events: none;
+}
+.timeline-header {
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.timeline-header > * {
+  flex-shrink: 0;
+}
+.virtual-timeline-body {
+  display: block;
+  padding-right: 0;
+  min-height: 0;
+}
+.virtual-timeline {
+  position: relative;
+  min-height: 100%;
+}
+.virtual-track-row {
+  position: absolute;
+  left: 0;
+  display: flex;
+  width: 100%;
+}
+.virtual-track-row .track-label {
+  position: sticky;
+  left: 0;
+  flex-shrink: 0;
+  z-index: 3;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.virtual-ruler {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 24px;
+  z-index: 4;
+  background: var(--panel);
+}
+.virtual-ruler .ruler-label {
+  position: sticky;
+  left: 0;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.virtual-timeline .track {
+  flex-shrink: 0;
+}
+.virtual-timeline .keyframe {
+  width: 20px;
+  padding: 0;
+  height: 24px;
+  line-height: 24px;
+}
+.curve-graph [data-curve-handle] {
+  fill: var(--violet, #9b7bff);
+  stroke: var(--text);
+  stroke-width: 1;
+  cursor: move;
+  touch-action: none;
+}
+.curve-graph [data-curve-handle]:focus-visible {
+  outline: 1px solid var(--mint);
+}
+.curve-preview-surface {
+  position: relative;
+}
+.curve-preview-surface > svg {
+  display: block;
+}
+.curve-preview-surface .curve-native-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--text);
+  border-radius: 50%;
+  background: var(--violet, #9b7bff);
+  transform: translate(-50%, -50%);
+}
+.selection-handle {
+  fill: var(--panel);
+  stroke: var(--mint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  cursor: nwse-resize;
+}
+.selection-handle[data-transform-handle="rotate"] {
+  fill: var(--violet, #9b7bff);
+  cursor: grab;
+}
+.onion-skin {
+  opacity: 0.18;
+  pointer-events: none;
+}
+.onion-skin.previous {
+  filter: sepia(1) saturate(3) hue-rotate(110deg);
+}
+.onion-skin.next {
+  filter: sepia(1) saturate(3) hue-rotate(220deg);
+}
+.work-range-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+.work-range-label input {
+  width: 58px;
+  font-size: 10px;
+}
+.workspace-grid-line {
+  stroke: var(--muted);
+  stroke-opacity: 0.22;
+  stroke-width: 1;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.import-report {
+  padding-left: 18px;
+  max-height: 260px;
+  overflow: auto;
+}
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0;
+}
+.color-palette button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--muted);
+}
+.scene-field textarea,
+[data-semantics-panel] textarea,
+[data-text-panel] textarea {
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 7px;
+}
+.import-report li {
+  padding: 7px 0;
+  overflow-wrap: anywhere;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 75px;
+}
+.import-report li p {
+  margin: 4px 0;
+  color: var(--muted);
+}
+.workspace {
+  position: relative;
+  min-width: 0;
+}
+.panel-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  left: 0;
+  grid-row: 1 / 2;
+  transform: translateX(-3px);
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.panel-resizer[data-panel-resize="left"] {
+  grid-column: 3 / 4;
+}
+.panel-resizer[data-panel-resize="right"] {
+  grid-column: 4 / 5;
+}
+@media (max-width: 900px) {
+  .panel-resizer[data-panel-resize="right"] {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .panel-resizer {
+    display: none;
+  }
+}
+.panel-resizer:hover,
+.panel-resizer:focus-visible {
+  background: #4fe3c144;
+}
+.command-results {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 45vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.command-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: left;
+  padding: 10px;
+  white-space: normal;
+}
+.command-results button > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+dialog .help-content {
+  overscroll-behavior: contain;
+}
+.command-results kbd {
+  white-space: nowrap;
+  color: var(--muted);
+  font: inherit;
+  align-self: center;
+}
+
+.key-dialog-form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(92dvh - 2px);
+}
+.key-dialog-form > .dialog-heading,
+.key-dialog-form > .dialog-footer {
+  flex-shrink: 0;
+}
+.key-dialog-form > .help-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.key-dialog-form .property-grid[hidden] {
+  display: none;
+}
+.key-curve-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.key-curve-tools > .scene-field {
+  flex-basis: 100%;
+  margin: 0;
+}
+.key-curve-tools > button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  font-size: 11px;
+}
+.key-curve-tools > [role="status"] {
+  margin: 0;
 }

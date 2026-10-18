@@ -1,0 +1,1 @@
+export { isXmlText } from "../xmlText";
