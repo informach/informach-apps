@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { segmentOptions } from "../src/main/export/renderSegments.ts";
 import { applyCuts } from "../src/shared/cleanup.ts";
+import { buildAudioPlan } from "../src/shared/export/audioPlan.ts";
 import { canonical, windowSignature } from "../src/shared/export/fingerprint.ts";
 import { exportProject, frameRate } from "../src/shared/export/frames.ts";
 import type { FxProvider } from "../src/shared/export/fx.ts";
@@ -212,4 +213,27 @@ test("cutting 2 seconds at minute 10 keeps at least 90% of the signatures after 
   const early = planSegments(derived, s).filter((w) => w.from + w.frames <= 590 * 30);
   for (const w of early)
     assert.ok(before.has(canonical(windowSignature(derived, w, s, r, options).key)));
+});
+
+test("what the cleanup keeps (still screens, presenter, choices) does not change the export", () => {
+  const { project, cursors } = lesson();
+  const s = spec(cursors);
+  const derived = exportProject(project, r);
+  const windows = planSegments(derived, s);
+  const plans = (p: Project): string[] => {
+    const d = exportProject(p, r);
+    return windows.map((w) => buildVideoWindowPlan(d, s, r, w).filter);
+  };
+  const analysed: Project = {
+    ...project,
+    cleanup: { kept: ["filler:1"], minSilence: 0.8, kinds: { repeat: false } },
+    assets: project.assets.map((a) =>
+      a.kind === "video"
+        ? { ...a, motion: `${a.path}.motion.json`, motionStatus: "ready", origin: "presenter" }
+        : a,
+    ),
+  };
+  assert.deepEqual(signatures(analysed, s), signatures(project, s));
+  assert.deepEqual(plans(analysed), plans(project));
+  assert.equal(buildAudioPlan(analysed, s).filter, buildAudioPlan(project, s).filter);
 });
