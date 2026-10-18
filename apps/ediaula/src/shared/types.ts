@@ -2,6 +2,7 @@ import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
 import type { PieceMatch } from "./audioSync.ts";
+import type { Ducking } from "./audio.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
@@ -27,6 +28,7 @@ import type { MicLevel, RecorderHealth } from "./recordingHealth.ts";
 import type { Transition } from "./transitions.ts";
 import type { VoicePreset } from "./voiceChain.ts";
 import type { VoiceSegment } from "./voiceMaster.ts";
+import type { TextCue } from "./webvtt.ts";
 import type { Zoom } from "./zoom.ts";
 import type { ZoomLayer } from "./zoomLayer.ts";
 
@@ -99,6 +101,9 @@ export interface Asset {
   /** From a presenter (an avatar or a person): the video placed by the voice, or a guided
    *  narration taken from such a video. */
   origin?: "presenter";
+  /** The picture has its own transparency (WebM with alpha, ProRes 4444, PNG): it is decoded
+   *  keeping it, and previewed from the original or a VP9 proxy with alpha. */
+  alpha?: boolean;
 }
 
 /**
@@ -243,6 +248,8 @@ export interface Track {
   music?: boolean;
   /** Height on the timeline in pixels (dragged by the bottom edge of its header); absent = default. */
   height?: number;
+  /** A music track that stays at its level while someone speaks (default: it steps aside). */
+  duck?: boolean;
 }
 
 export interface Clip {
@@ -324,6 +331,8 @@ export interface Project {
   /** The voices exported for HeyGen (Arquivo › Exportar voz para o HeyGen), oldest first and at
    *  most VOICE_MASTER_LIMIT: an MP4 that comes back is matched against all of them. */
   voiceMasters?: VoiceMaster[];
+  /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */
+  audio?: { ducking?: Partial<Ducking> };
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -375,6 +384,12 @@ export interface ProbeResult {
   size: number;
   videoCodec?: string;
   vfr?: boolean;
+  /** The picture carries transparency (WebM alpha_mode, or a pixel format with alpha). */
+  alpha?: boolean;
+  /** FFprobe's color_space, color_range and pix_fmt of the picture, when it says. */
+  colorSpace?: string;
+  colorRange?: string;
+  pixFmt?: string;
 }
 
 /** A missing media looked for in a folder (main/relink.ts). */
@@ -407,19 +422,26 @@ export interface RelinkSearch {
 export const ENCODERS = ["nvenc", "amf", "mf", "x264"] as const;
 export type Encoder = (typeof ENCODERS)[number];
 
+/** Constant quality by resolution (CRF or CQ); the bitrate becomes its ceiling. */
+export const EXPORT_QUALITIES = ["draft", "standard", "high", "max"] as const;
+export type ExportQuality = (typeof EXPORT_QUALITIES)[number];
+
 export interface ExportSpec {
   outPath: string;
   width: number;
   height: number;
   fps: number;
-  /** kbit/s */
+  /** kbit/s: the target, or the ceiling with `quality`. 0 only for audio. */
   videoBitrate: number;
+  quality?: ExportQuality;
   normalizeLoudness: boolean;
+  /** Loudness target (LUFS) and how it is reached; default −14, measured first then applied. */
+  loudness?: { target: number; mode: "two-pass" | "one-pass" };
   encoder: Encoder;
   /** Moments someone speaks (from the transcript), for lowering the music; default: the voice clips. */
   speech?: [number, number][];
-  /** SRT captions written next to the video when present (a .vtt copy is written too). */
-  captions?: string;
+  /** Caption cues: the main process writes them as .srt and .vtt next to the video. */
+  captionCues?: TextCue[];
   /** Also save a JPEG thumbnail next to the video. */
   thumbnail?: boolean;
   /** Captions drawn into the picture: ASS subtitle text (see shared/captions.ts). */
@@ -445,10 +467,16 @@ export interface CursorSprite {
   positions: Int32Array;
 }
 
+/** Where an export is: getting media ready, rendering segments, mixing the sound, putting it together. */
+export type ExportPhase = "preparing" | "segments" | "audio" | "assembling";
+
 export interface JobProgress {
   id: string;
   ratio: number;
   message?: string;
+  phase?: ExportPhase;
+  /** Segments finished, of them reused from the cache, and in all. */
+  segments?: { done: number; cached: number; total: number };
 }
 
 export interface AppInfo {
@@ -585,7 +613,14 @@ export interface EdiAulaApi {
   waveform(path: string): Promise<string>;
   /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */
   motion(jobId: string, path: string, input: string, duration: number): Promise<string>;
-  proxy(jobId: string, path: string, duration: number, cfrFps?: number): Promise<string>;
+  /** Working copy for the preview: H.264, or VP9 keeping the transparency of `alpha` media. */
+  proxy(
+    jobId: string,
+    path: string,
+    duration: number,
+    cfrFps?: number,
+    alpha?: boolean,
+  ): Promise<string>;
   /** Pointer sprite videos for the export, drawn in the renderer and encoded in the main process. */
   cursorSprite: {
     cached(path: string, id: string): Promise<string | null>;
@@ -747,6 +782,13 @@ export interface EdiAulaApi {
   /** The project as JSON text, like saveProject; the cursor positions stay typed arrays. */
   startExport(jobId: string, projectJson: string, spec: ExportSpec): Promise<void>;
   cancelJob(jobId: string): Promise<void>;
+  /** Removes the reusable export segments; resolves with the bytes freed. */
+  clearExportCache(): Promise<number>;
+  /** The pending exports kept between sessions (JSON text of the queue items, or null). */
+  exportQueue: {
+    load(): Promise<string | null>;
+    save(itemsJson: string): Promise<void>;
+  };
   showInFolder(path: string): Promise<void>;
   onProgress(cb: (p: JobProgress) => void): () => void;
   pathForFile(file: File): string;

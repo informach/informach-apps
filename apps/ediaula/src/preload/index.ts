@@ -39,8 +39,8 @@ const api: EdiAulaApi = {
   waveform: (path) => ipcRenderer.invoke("media:waveform", path),
   motion: (jobId, path, input, duration) =>
     ipcRenderer.invoke("media:motion", jobId, path, input, duration),
-  proxy: (jobId, path, duration, cfrFps) =>
-    ipcRenderer.invoke("media:proxy", jobId, path, duration, cfrFps),
+  proxy: (jobId, path, duration, cfrFps, alpha) =>
+    ipcRenderer.invoke("media:proxy", jobId, path, duration, cfrFps, alpha),
   cursorSprite: {
     cached: (path, id) => ipcRenderer.invoke("cursor:cached", path, id),
     begin: (jobId, path, id, size, fps) =>
@@ -135,6 +135,11 @@ const api: EdiAulaApi = {
   startExport: (jobId, projectJson, spec) =>
     ipcRenderer.invoke("export:start", jobId, projectJson, spec),
   cancelJob: (jobId) => ipcRenderer.invoke("job:cancel", jobId),
+  clearExportCache: () => ipcRenderer.invoke("exportCache:clear"),
+  exportQueue: {
+    load: () => ipcRenderer.invoke("exportQueue:load"),
+    save: (itemsJson) => ipcRenderer.invoke("exportQueue:save", itemsJson),
+  },
   showInFolder: (path) => ipcRenderer.invoke("shell:showItem", path),
   onProgress: (cb) => {
     const listener = (_e: unknown, p: JobProgress): void => {

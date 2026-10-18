@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
+import { availableParallelism } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { createClientGrant, listGrants, revokeGrant } from "@informach/edi-desktop/access";
@@ -58,11 +59,21 @@ import {
   stopAllEngineRuns,
   stopEngineRun,
 } from "./engines.ts";
+import {
+  loadQueue,
+  type QueueAccess,
+  rememberExportFolder,
+  removeOrphanOutputs,
+  saveQueue,
+} from "./export/exportQueueStore.ts";
+import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
   cancel,
   detectEncoder,
   FFMPEG,
+  mediaFacts,
+  nextExportEncoder,
   probe,
   proxy,
   run,
@@ -70,9 +81,8 @@ import {
   stillFrame,
   thumbnail,
   waveform,
-  writeFilterScript,
 } from "./ffmpeg.ts";
-import { filterScriptOption } from "./ffmpeg-arguments.ts";
+import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
@@ -274,7 +284,29 @@ async function serveMedia(request: Request): Promise<Response> {
 }
 
 let win: BrowserWindow | null = null;
-const exportJobs = new Map<string, { cancelled: boolean }>();
+const exportJobs = new Map<string, { cancelled: boolean; cancellation: AbortController }>();
+
+/** Segments and sounds of past exports, reused while they still show the same thing. */
+let segments: SegmentCache | null = null;
+const segmentCache = (): SegmentCache =>
+  (segments ??= new SegmentCache(join(app.getPath("userData"), "cache", "segments")));
+const exportQueueFile = (): string => join(app.getPath("userData"), "export-queue.json");
+const exportFoldersFile = (): string => join(app.getPath("userData"), "export-folders.json");
+const queueAccess: QueueAccess = {
+  canRead: desktopFiles.canRead,
+  canWrite: desktopFiles.canWrite,
+  grantRead: desktopFiles.grantRead,
+  grantWrite: desktopFiles.grantWrite,
+};
+
+/**
+ * When the app opens: the oldest cached segments go past the size limit, and the staging folders
+ * an interrupted export left beside its destination are removed.
+ */
+async function cleanExportLeftovers(): Promise<void> {
+  await segmentCache().prune();
+  await removeOrphanOutputs(exportFoldersFile());
+}
 /** Jobs waiting for a slot or for the take to end, so job:cancel reaches them too. */
 const waitingJobs = new Map<string, AbortController>();
 
@@ -603,9 +635,17 @@ function registerIpc(): void {
   });
   ipcMain.handle(
     "media:proxy",
-    (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
+    (_e, jobId: string, path: string, duration: number, cfrFps?: number, alpha?: unknown) =>
       processingJob(jobId, "proxy", (signal) =>
-        proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps, signal),
+        proxy(
+          jobId,
+          path,
+          duration,
+          (ratio) => sendProgress({ id: jobId, ratio }),
+          cfrFps,
+          signal,
+          alpha === true,
+        ),
       ),
   );
   ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
@@ -757,8 +797,8 @@ function registerIpc(): void {
   ipcMain.handle("export:start", async (_e, jobId: unknown, project: unknown, spec: unknown) => {
     if (typeof jobId !== "string" || !jobId.length || jobId.length > 200 || exportJobs.has(jobId))
       throw new Error("Identificador de exportação inválido ou já em uso.");
-    const state = { cancelled: false };
     const cancellation = new AbortController();
+    const state = { cancelled: false, cancellation };
     const job = desktopJobs.begin({ stop: () => cancellation.abort() });
     exportJobs.set(jobId, state);
     const check = (): void => {
@@ -767,19 +807,30 @@ function registerIpc(): void {
     };
     try {
       await exportLesson(projectJson(project), spec, {
+        rememberFolder: (folder) => rememberExportFolder(exportFoldersFile(), folder),
         assertRead: desktopFiles.assertRead,
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,
         fontsDirectory: FONTS_DIR,
         filterScriptOption: await filterScriptOption(FFMPEG),
-        writeFilterScript,
+        ffmpegVersion: await ffmpegVersion(FFMPEG),
+        cacheDirectory: join(app.getPath("userData"), "cache"),
+        workDirectory: join(app.getPath("userData"), "work"),
+        cache: segmentCache(),
+        probe: mediaFacts,
+        slot: (work, signal) => scheduler.run("segment", work, signal),
+        cores: availableParallelism(),
+        nextEncoder: nextExportEncoder,
         check,
-        run: (args, duration) =>
+        signal: cancellation.signal,
+        progress: (p) => sendProgress({ id: jobId, ...p }),
+        run: (args, options = {}) =>
           run(FFMPEG, args, {
-            jobId,
-            signal: cancellation.signal,
-            duration,
-            onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+            jobId: options.key ? `${jobId}:${options.key}` : jobId,
+            signal: options.signal ?? cancellation.signal,
+            duration: options.duration,
+            onProgress: options.onProgress,
+            capture: options.capture,
           }),
       });
       sendProgress({ id: jobId, ratio: 1 });
@@ -790,9 +841,22 @@ function registerIpc(): void {
   });
   ipcMain.handle("job:cancel", (_e, jobId: string) => {
     const exporting = exportJobs.get(jobId);
-    if (exporting) exporting.cancelled = true;
+    if (exporting) {
+      exporting.cancelled = true;
+      exporting.cancellation.abort(new Error("Cancelado"));
+    }
     waitingJobs.get(jobId)?.abort(new Error("Cancelado"));
     if (!cancelDownload(jobId) && !cancelWhisper(jobId) && !cancelKey(jobId)) cancel(jobId);
+  });
+  ipcMain.handle("exportCache:clear", async () => {
+    if (exportJobs.size)
+      throw new Error("Espere as exportações em andamento terminarem para limpar o cache.");
+    return segmentCache().clear();
+  });
+  ipcMain.handle("exportQueue:load", () => loadQueue(exportQueueFile(), queueAccess));
+  ipcMain.handle("exportQueue:save", (_e, text: unknown) => {
+    if (typeof text !== "string") throw new Error("Fila de exportação inválida.");
+    return saveQueue(exportQueueFile(), text, queueAccess);
   });
 
   ipcMain.handle("whisper:status", () => engineStatus());
@@ -1192,6 +1256,9 @@ app
     void detectEncoder();
     removeStaleDownloads().catch((err: unknown) =>
       console.warn("[whisper] could not clean old unfinished downloads:", err),
+    );
+    void cleanExportLeftovers().catch((error: unknown) =>
+      console.warn(`[ediaula] limpeza das exportações anteriores falhou: ${String(error)}`),
     );
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

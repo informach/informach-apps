@@ -162,20 +162,25 @@ test("export reads keyed avatars from the transparent video and their sound from
     encoder: "x264",
   });
   const keyed = plan.inputArgs.indexOf("C:/cache/key.webm");
-  assert.deepEqual(plan.inputArgs.slice(keyed - 7, keyed), [
-    "-c:v",
-    "libvpx-vp9",
-    "-ss",
-    "1",
-    "-t",
-    "3",
-    "-i",
-  ]);
+  const read = plan.inputArgs.slice(keyed - 7, keyed);
+  assert.deepEqual(
+    [read[0], read[1], read[2], read[4], read[6]],
+    ["-c:v", "libvpx-vp9", "-ss", "-t", "-i"],
+  );
+  // Read from a source frame before the clip's in-point to the end of its three seconds.
+  const seek = Number(read[3]);
+  assert.ok(seek < 1 && seek > 1 - 1 / avatar.fps - 0.02, `seek ${read[3]}`);
+  assert.ok(Math.abs(seek + Number(read[5]) - 4) < 0.01, `length ${read[5]}`);
   assert.ok(plan.inputArgs.includes("C:/m/avatar.mp4"));
-  assert.ok(plan.filter.includes("[0:v]fps=30,setpts=PTS-STARTPTS[src0]"));
+  assert.match(plan.filter, /\[0:v\]setpts=PTS[-+][\d.]+\/TB,fps=30:start_time=0\[src0\]/);
+  // The cut-out avatar keeps its alpha: BT.601 (as the app wrote it) to the composite's BT.709.
   assert.match(
     plan.filter,
-    /\[src0\]scale=\d+:\d+,setsar=1,format=rgba,setpts=PTS\+2\/TB,fade=t=in:st=2:d=0\.3:alpha=1,fade=t=out:st=4\.7:d=0\.3:alpha=1/,
+    /\[src0\]scale=\d+:\d+:in_color_matrix=bt601:in_range=tv:out_color_matrix=bt709:out_range=tv:flags=bicubic\+accurate_rnd\+full_chroma_int,setsar=1,format=yuva420p\[p0\]/,
+  );
+  assert.match(
+    plan.filter,
+    /\[p0\]setpts=PTS\+2\/TB,fade=t=in:st=2:d=0\.3:alpha=1,fade=t=out:st=4\.7:d=0\.3:alpha=1/,
   );
   assert.match(plan.filter, /\[1:a\]aresample/);
 });

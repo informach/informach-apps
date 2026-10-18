@@ -1,4 +1,4 @@
-import { constants, setPriority as osSetPriority } from "node:os";
+import { availableParallelism, constants, setPriority as osSetPriority } from "node:os";
 
 /**
  * Background work and the recorder. While a take runs, new work waits (unless the teacher turned
@@ -44,7 +44,8 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   keying: 1,
   transcription: 1,
   export: 1,
-  segment: 2,
+  // Two hardware encoder sessions, or up to three x264 processes (a quarter of the cores each).
+  segment: Math.max(2, Math.min(3, Math.floor(availableParallelism() / 4))),
   // The voice treatment and the trip to HeyGen: one at a time.
   voice: 1,
   // Where a screen recording stands still, for the cleanup.

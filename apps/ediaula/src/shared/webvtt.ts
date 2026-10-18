@@ -19,15 +19,33 @@ export function clipCues(cues: readonly TextCue[], clip?: Clip): TextCue[] {
       end: sourceAt(clip, Math.min(clipEnd(clip), cue.end)),
     }));
 }
-/** Emit genuine available text, never empty files or invented captions. */
-export function webVtt(cues: readonly TextCue[]): string | null {
-  const valid = cues.filter(
+const usable = (cues: readonly TextCue[]): TextCue[] =>
+  cues.filter(
     (cue) =>
       Number.isFinite(cue.start) &&
       Number.isFinite(cue.end) &&
       cue.end > cue.start &&
       cue.text.trim(),
   );
+
+/** The same cues as SubRip (numbered, milliseconds after a comma); null when none has text. */
+export function subRip(cues: readonly TextCue[]): string | null {
+  const valid = usable(cues).sort((a, b) => a.start - b.start);
+  if (!valid.length) return null;
+  return valid
+    .map(
+      (cue, i) =>
+        `${i + 1}\n${stamp(cue.start).replace(".", ",")} --> ${stamp(cue.end).replace(".", ",")}\n${cue.text
+          .trim()
+          .replace(/\r/g, "")
+          .replace(/\n{2,}/g, "\n")}\n`,
+    )
+    .join("\n");
+}
+
+/** Emit genuine available text, never empty files or invented captions. */
+export function webVtt(cues: readonly TextCue[]): string | null {
+  const valid = usable(cues);
   if (!valid.length) return null;
   return `WEBVTT\n\n${[...valid]
     .sort((a, b) => a.start - b.start)

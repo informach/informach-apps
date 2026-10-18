@@ -1,13 +1,17 @@
-import { speechSpans } from "@shared/audio";
-import { timelineWords } from "@shared/cleanup";
+import { duckingOf, speechSpans } from "@shared/audio";
+import { captionWords } from "@shared/captions";
 import type { Project } from "@shared/types";
 import { useEffect, useState } from "react";
 import { loadProjectTranscripts } from "./transcripts";
 
-/** Moments someone speaks on the timeline, from the transcripts (whole clips when there is none). */
+/**
+ * Moments someone speaks on the timeline: the words heard (the same ones the captions use, each
+ * once), whole clips when there is no transcript; with the project's ramp and hold.
+ */
 export async function projectSpeech(p: Project): Promise<[number, number][]> {
   const transcripts = await loadProjectTranscripts(p);
-  return speechSpans(p, timelineWords(p, transcripts), new Set(transcripts.keys()));
+  const { ramp, hold } = duckingOf(p);
+  return speechSpans(p, captionWords(p, transcripts), new Set(transcripts.keys()), ramp, hold);
 }
 
 /** Speech spans, only computed when the project has a music track. */

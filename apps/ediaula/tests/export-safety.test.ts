@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -9,10 +8,12 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import { createFileAuthority } from "@informach/edi-desktop/files";
 import { createDesktopJobs, JOB_PRESERVATION_MS } from "@informach/edi-desktop/jobs";
+import type { RunOptions } from "../src/main/export/renderSegments.ts";
 import { exportLesson } from "../src/main/export-lesson.ts";
-import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
+import { ffmpegVersion, filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
 import type { ExportSpec, Project } from "../src/shared/types.ts";
+import { subRip } from "../src/shared/webvtt.ts";
 
 const project: Project = {
   version: 1,
@@ -25,8 +26,20 @@ const project: Project = {
   tracks: [],
   clips: [],
 };
+const cues = [{ start: 0, end: 1, text: "Olá & <tchau>" }];
+
+/** A fake FFmpeg: writes "new output" to the file a command writes, like FFmpeg would. */
+async function fakeRun(args: string[], _options?: RunOptions): Promise<string> {
+  const path = args.at(-1);
+  if (!path) throw new Error("Missing native output");
+  if (path !== "-") await writeFile(path, "new output");
+  return "";
+}
+
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "ediaula-export-safety-"));
+  // The cache and the private work folders live away from the destination, as in the app.
+  const side = await mkdtemp(join(tmpdir(), "ediaula-export-side-"));
   const primary = join(root, "lesson.mp4");
   const authority = createFileAuthority(["ediaula"]);
   const spec: ExportSpec = {
@@ -37,7 +50,7 @@ async function fixture() {
     videoBitrate: 100,
     normalizeLoudness: false,
     encoder: "x264",
-    captions: "1\n00:00:00,000 --> 00:00:01,000\nOlá\n",
+    captionCues: cues,
     thumbnail: true,
   };
   for (const extension of ["mp4", "srt", "vtt", "jpg"])
@@ -49,17 +62,11 @@ async function fixture() {
       authority.assertRelatedExport(primary, path),
     fontsDirectory: root,
     filterScriptOption: "-/filter_complex" as const,
+    ffmpegVersion: "ffmpeg version test",
+    cacheDirectory: join(side, "cache"),
+    workDirectory: join(side, "work"),
     check: () => {},
-    async writeFilterScript(content: string) {
-      const path = join(root, `${randomUUID()}.filter`);
-      await writeFile(path, content);
-      return path;
-    },
-    async run(args: string[]) {
-      const path = args.at(-1);
-      if (!path) throw new Error("Missing native output");
-      await writeFile(path, "new output");
-    },
+    run: fakeRun,
   };
   async function unchanged() {
     for (const extension of ["mp4", "srt", "vtt", "jpg"])
@@ -71,7 +78,15 @@ async function fixture() {
       "lesson.vtt",
     ]);
   }
-  return { root, primary, authority, spec, deps, unchanged };
+  /** The private work folder of every export is gone once it ends, well or not. */
+  async function workClean() {
+    assert.deepEqual(await readdir(join(side, "work")), []);
+  }
+  const cleanup = async () => {
+    await rm(root, { recursive: true });
+    await rm(side, { recursive: true });
+  };
+  return { root, primary, authority, spec, deps, unchanged, workClean, cleanup };
 }
 test("export rejects an unselected destination without modifying existing bytes", async () => {
   const f = await fixture();
@@ -79,7 +94,7 @@ test("export rejects an unselected destination without modifying existing bytes"
     await assert.rejects(() => exportLesson(project, f.spec, f.deps), /destino/);
     await f.unchanged();
   } finally {
-    await rm(f.root, { recursive: true });
+    await f.cleanup();
   }
 });
 test("failed render or thumbnail and cancelled export preserve every previous output", async () => {
@@ -95,29 +110,35 @@ test("failed render or thumbnail and cancelled export preserve every previous ou
             check: () => {
               if (cancelled) throw new Error("Cancelled");
             },
-            async run(args) {
-              await f.deps.run(args);
+            async run(args, options) {
+              await fakeRun(args, options);
               if (stage === "render" || (stage === "thumbnail" && args.at(-1)?.endsWith(".jpg")))
                 throw new Error("Native processing failed");
               if (stage === "cancel") cancelled = true;
+              return "";
             },
           }),
         /Native processing failed|Cancelled/,
       );
       await f.unchanged();
+      await f.workClean();
     } finally {
-      await rm(f.root, { recursive: true });
+      await f.cleanup();
     }
   }
 });
-test("successful export commits all outputs and leaves no staging/filter files", async () => {
+test("successful export commits all outputs and leaves no staging, filter or work files", async () => {
   const f = await fixture();
   try {
     await f.authority.grantWrite(f.primary);
     await exportLesson(project, f.spec, f.deps);
     assert.equal(await readFile(f.primary, "utf8"), "new output");
-    assert.equal(await readFile(join(f.root, "lesson.srt"), "utf8"), f.spec.captions);
-    assert.match(await readFile(join(f.root, "lesson.vtt"), "utf8"), /^WEBVTT/);
+    // The main process writes both caption files from the cues.
+    assert.equal(await readFile(join(f.root, "lesson.srt"), "utf8"), subRip(cues));
+    assert.equal(
+      await readFile(join(f.root, "lesson.vtt"), "utf8"),
+      "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nOlá &amp; &lt;tchau&gt;\n",
+    );
     assert.equal(await readFile(join(f.root, "lesson.jpg"), "utf8"), "new output");
     assert.deepEqual((await readdir(f.root)).sort(), [
       "lesson.jpg",
@@ -125,8 +146,77 @@ test("successful export commits all outputs and leaves no staging/filter files",
       "lesson.srt",
       "lesson.vtt",
     ]);
+    await f.workClean();
   } finally {
-    await rm(f.root, { recursive: true });
+    await f.cleanup();
+  }
+});
+
+test("an encoder that cannot open falls back along the chain and the x264 export is published", async () => {
+  const f = await fixture();
+  try {
+    await f.authority.grantWrite(f.primary);
+    const encoders: string[] = [];
+    const messages: string[] = [];
+    await exportLesson(
+      project,
+      { ...f.spec, encoder: "nvenc" },
+      {
+        ...f.deps,
+        progress: (p) => p.message && messages.push(p.message),
+        async run(args, options) {
+          const codec = args[args.indexOf("-c:v") + 1];
+          if (args.includes("-frames:v") && args.includes("-an")) encoders.push(codec);
+          if (["h264_nvenc", "h264_amf", "h264_mf"].includes(codec))
+            throw new Error(
+              `[${codec} @ 0x1] OpenEncodeSessionEx failed: out of memory (10)\nError while opening encoder`,
+            );
+          return fakeRun(args, options);
+        },
+      },
+    );
+    assert.deepEqual(encoders, ["h264_nvenc", "h264_amf", "h264_mf", "libx264"]);
+    assert.equal(await readFile(f.primary, "utf8"), "new output");
+    assert.ok(
+      messages.some((m) => /Continuando com x264/.test(m)),
+      messages.join("\n"),
+    );
+    await f.workClean();
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("a filter error fails the export without changing the encoder", async () => {
+  const f = await fixture();
+  try {
+    await f.authority.grantWrite(f.primary);
+    const encoders: string[] = [];
+    await assert.rejects(
+      () =>
+        exportLesson(
+          project,
+          { ...f.spec, encoder: "nvenc" },
+          {
+            ...f.deps,
+            async run(args, options) {
+              if (args.includes("-frames:v") && args.includes("-an")) {
+                encoders.push(args[args.indexOf("-c:v") + 1]);
+                throw new Error(
+                  "[Parsed_perspective_3 @ 0x1] Undefined constant\nError initializing filter 'perspective'\nError while opening encoder",
+                );
+              }
+              return fakeRun(args, options);
+            },
+          },
+        ),
+      /Error initializing filter/,
+    );
+    assert.deepEqual(encoders, ["h264_nvenc"]);
+    await f.unchanged();
+    await f.workClean();
+  } finally {
+    await f.cleanup();
   }
 });
 
@@ -153,11 +243,12 @@ test("license preservation deadline interrupts export without replacing any prev
         exportLesson(project, f.spec, {
           ...f.deps,
           check: () => job.check(),
-          async run(args) {
-            await f.deps.run(args);
+          async run(args, options) {
+            await fakeRun(args, options);
             licensed = false;
             jobs.setAccess(false);
             time += JOB_PRESERVATION_MS;
+            return "";
           },
         }),
       /preservation_expired/,
@@ -166,7 +257,7 @@ test("license preservation deadline interrupts export without replacing any prev
     await f.unchanged();
   } finally {
     job.finish();
-    await rm(f.root, { recursive: true });
+    await f.cleanup();
   }
 });
 test("export refuses an input file that was not selected", async () => {
@@ -201,8 +292,9 @@ test("export refuses an input file that was not selected", async () => {
     await assert.rejects(() => exportLesson(document, f.spec, f.deps), /Selecione/);
     assert.equal(await readFile(source, "utf8"), "source");
     assert.equal(await readFile(f.primary, "utf8"), "previous");
+    await f.workClean();
   } finally {
-    await rm(f.root, { recursive: true });
+    await f.cleanup();
   }
 });
 test("project validation preserves extension data, validates nested fields and rejects native paths in export options", () => {
@@ -312,7 +404,11 @@ test("real FFmpeg export accepts selected inputs and commits video, captions and
     await exportLesson(document, f.spec, {
       ...f.deps,
       filterScriptOption: await filterScriptOption(ffmpeg),
-      run: (args) => execute(ffmpeg, args, { windowsHide: true }),
+      ffmpegVersion: await ffmpegVersion(ffmpeg),
+      async run(args, options) {
+        const out = await execute(ffmpeg, args, { windowsHide: true });
+        return options?.capture === "stderr" ? out.stderr : out.stdout;
+      },
     });
     const probe = await execute(
       ffprobe,
@@ -320,8 +416,9 @@ test("real FFmpeg export accepts selected inputs and commits video, captions and
       { windowsHide: true },
     );
     assert.match(probe.stdout, /"codec_type": "video"/);
+    assert.match(probe.stdout, /"codec_type": "audio"/);
     assert.match(probe.stdout, /"width": 128/);
-    assert.equal(await readFile(join(f.root, "lesson.srt"), "utf8"), f.spec.captions);
+    assert.equal(await readFile(join(f.root, "lesson.srt"), "utf8"), subRip(cues));
     assert.match(await readFile(join(f.root, "lesson.vtt"), "utf8"), /^WEBVTT/);
     assert.deepEqual(
       (await readFile(join(f.root, "lesson.jpg"))).subarray(0, 2),
@@ -332,7 +429,8 @@ test("real FFmpeg export accepts selected inputs and commits video, captions and
         (name) => !name.startsWith(".edi-output-") && !name.endsWith(".filter"),
       ),
     );
+    await f.workClean();
   } finally {
-    await rm(f.root, { recursive: true });
+    await f.cleanup();
   }
 });

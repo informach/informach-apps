@@ -221,12 +221,23 @@ export function zoomAffine(
   return { s, tx, ty };
 }
 
-/** ffmpeg perspective filter zooming a W × H composite as the layer says, frame by frame. */
-export function zoomLayerFilter(c: LayerClip, fps: number, from: View = NORMAL): string {
-  const e = layerViewExprs(c, from, `(in/${fps})`);
+/**
+ * The time of the frame being filtered, for filters without `t` (perspective): their `in` counts
+ * frames from 1, and the stream's first frame is frame `first` of the timeline (an export
+ * segment starts mid-lesson).
+ */
+export const frameClock = (fps: number, first = 0): string =>
+  `((in${first - 1 < 0 ? "" : "+"}${first - 1})/${fps})`;
+
+/**
+ * ffmpeg perspective filter zooming a W × H composite as the layer says, frame by frame, on a
+ * stream whose first frame is timeline frame `first`.
+ */
+export function zoomLayerFilter(c: LayerClip, fps: number, from: View = NORMAL, first = 0): string {
+  const e = layerViewExprs(c, from, frameClock(fps, first));
   const x0 = `(${e.cx}-0.5/${e.scale})*W`;
   const y0 = `(${e.cy}-0.5/${e.scale})*H`;
   const w = `W/${e.scale}`;
   const h = `H/${e.scale}`;
-  return `perspective=x0='${x0}':y0='${y0}':x1='${x0}+${w}':y1='${y0}':x2='${x0}':y2='${y0}+${h}':x3='${x0}+${w}':y3='${y0}+${h}':eval=frame:interpolation=linear:enable='between(t,${n(c.start)},${n(c.start + c.duration)})'`;
+  return `perspective=x0='${x0}':y0='${y0}':x1='${x0}+${w}':y1='${y0}':x2='${x0}':y2='${y0}+${h}':x3='${x0}+${w}':y3='${y0}+${h}':eval=frame:interpolation=linear:enable='between(t,${n(c.start - 0.5 / fps)},${n(c.start + c.duration - 0.5 / fps)})'`;
 }

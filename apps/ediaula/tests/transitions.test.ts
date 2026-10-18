@@ -115,7 +115,7 @@ test("export: halfway through a dissolve both scenes are mixed, and the sound of
     normalizeLoudness: false,
     encoder: "x264",
   });
-  assert.match(plan.filter, /atrim=0:2,/, "audio of A trimmed to the real cut");
+  assert.match(plan.filter, /atrim=start=0:end=2,asetpts/, "audio of A trimmed to the real cut");
   const script = join(dir, "f.txt");
   writeFileSync(script, plan.filter);
   execFileSync(FFMPEG, [

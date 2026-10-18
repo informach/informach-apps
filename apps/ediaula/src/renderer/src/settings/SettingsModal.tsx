@@ -18,6 +18,7 @@ import {
   Check,
   CircleAlert,
   Copy,
+  HardDrive,
   KeyRound,
   Loader,
   Plug,
@@ -27,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { bytes } from "@/lib/format";
 import { useApp } from "@/state/app";
 import { Button, IconButton, Modal, Toggle } from "@/ui";
 
@@ -532,10 +534,59 @@ export function SettingsModal(): ReactNode {
           )}
         </section>
 
+        <ExportCacheSection />
+
         {note && (
           <p className={`settings-note ${note.tone === "ok" ? "is-ok" : "is-err"}`}>{note.text}</p>
         )}
       </div>
     </Modal>
+  );
+}
+
+/** The reusable export segments: they make the next export of a lesson fast, and take disk. */
+function ExportCacheSection(): ReactNode {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const clear = async (): Promise<void> => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const freed = await window.api.clearExportCache();
+      setResult({
+        tone: "ok",
+        text: freed ? `${bytes(freed)} liberados.` : "O cache já estava vazio.",
+      });
+    } catch (error) {
+      setResult({ tone: "err", text: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="settings-section">
+      <div className="settings-title">
+        <HardDrive size={16} className="accent" />
+        <div className="spacer">
+          <strong>Cache de exportação</strong>
+          <p className="muted">
+            Os trechos já exportados ficam guardados (até 15 GB) e são reaproveitados quando a aula
+            é exportada de novo: só o que mudou é refeito. Limpar libera o espaço; a próxima
+            exportação refaz tudo.
+          </p>
+        </div>
+      </div>
+      <div className="row-10">
+        <Button variant="secondary" disabled={busy} onClick={() => void clear()}>
+          {busy ? <Loader size={12} className="spin" /> : null}
+          Limpar cache de exportação
+        </Button>
+        {result && (
+          <span className={`settings-note ${result.tone === "ok" ? "is-ok" : "is-err"}`}>
+            {result.text}
+          </span>
+        )}
+      </div>
+    </section>
   );
 }

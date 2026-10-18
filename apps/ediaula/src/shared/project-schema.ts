@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
-import { ENCODERS, type ExportSpec, type Project, RECORDING_ROLES } from "./types.ts";
+import {
+  ENCODERS,
+  EXPORT_QUALITIES,
+  type ExportSpec,
+  type Project,
+  RECORDING_ROLES,
+} from "./types.ts";
 import { VOICE_PRESETS } from "./voiceChain.ts";
 import { VOICE_MASTER_LIMIT } from "./voiceMaster.ts";
 
@@ -204,6 +210,7 @@ const asset = z.looseObject({
     )
     .max(20000)
     .optional(),
+  alpha: z.boolean().optional(),
 });
 const voiceMaster = z.looseObject({
   id,
@@ -242,6 +249,7 @@ const track = z.looseObject({
   locked: z.boolean(),
   music: z.boolean().optional(),
   height: number.positive().optional(),
+  duck: z.boolean().optional(),
 });
 const transform = z.looseObject({
   x: number,
@@ -442,6 +450,17 @@ export const projectSchema = z
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),
     voiceMasters: z.array(voiceMaster).max(VOICE_MASTER_LIMIT).optional(),
+    audio: z
+      .looseObject({
+        ducking: z
+          .looseObject({
+            depth: z.number().min(0).max(1).optional(),
+            ramp: z.number().min(0).max(10).optional(),
+            hold: z.number().min(0).max(60).optional(),
+          })
+          .optional(),
+      })
+      .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),
@@ -455,39 +474,54 @@ export const projectSchema = z
     "Duplicate project identifiers",
   ) satisfies z.ZodType<Project>;
 
-/** Renderer may not supply native filter-script or font-directory paths. */
-export const exportSpecSchema = z.strictObject({
-  outPath: path.min(1),
-  width: z.int().min(2).max(16384),
-  height: z.int().min(2).max(16384),
-  fps: z.number().positive().max(240),
-  videoBitrate: z.number().positive().max(1000000),
-  normalizeLoudness: z.boolean(),
-  encoder: z.enum(ENCODERS),
-  speech: z
-    .array(z.tuple([time, time]))
-    .max(20000)
-    .optional(),
-  captions: text.optional(),
-  thumbnail: z.boolean().optional(),
-  burnAss: text.optional(),
-  audioOnly: z.boolean().optional(),
-  vertical: z.enum(["blur", "crop"]).optional(),
-  cursors: z
-    .record(
-      id,
-      z.strictObject({
-        sprite: path.min(1),
-        size: z.number().positive().max(16384),
-        fps: z.number().positive().max(240),
-        // Two coordinates per source frame of the whole recording: one IPC value, any length.
-        positions: z
-          .instanceof(Int32Array)
-          .refine(
-            (values) => values.length % 2 === 0 && values.length <= 4_000_000,
-            "Invalid cursor positions",
-          ),
-      }),
-    )
-    .optional(),
-}) satisfies z.ZodType<ExportSpec>;
+/**
+ * Renderer may not supply native filter-script or font-directory paths. A video needs a bitrate;
+ * only the podcast (sound only) goes without one.
+ */
+export const exportSpecSchema = z
+  .strictObject({
+    outPath: path.min(1),
+    width: z.int().min(2).max(16384),
+    height: z.int().min(2).max(16384),
+    fps: z.number().positive().max(240),
+    videoBitrate: z.number().min(0).max(1000000),
+    quality: z.enum(EXPORT_QUALITIES).optional(),
+    normalizeLoudness: z.boolean(),
+    loudness: z
+      .strictObject({ target: z.number().min(-40).max(-5), mode: z.enum(["two-pass", "one-pass"]) })
+      .optional(),
+    encoder: z.enum(ENCODERS),
+    speech: z
+      .array(z.tuple([time, time]))
+      .max(20000)
+      .optional(),
+    captionCues: z
+      .array(z.strictObject({ start: time, end: time, text: z.string().max(4000) }))
+      .max(50000)
+      .optional(),
+    thumbnail: z.boolean().optional(),
+    burnAss: text.optional(),
+    audioOnly: z.boolean().optional(),
+    vertical: z.enum(["blur", "crop"]).optional(),
+    cursors: z
+      .record(
+        id,
+        z.strictObject({
+          sprite: path.min(1),
+          size: z.number().positive().max(16384),
+          fps: z.number().positive().max(240),
+          // Two coordinates per source frame of the whole recording: one IPC value, any length.
+          positions: z
+            .instanceof(Int32Array)
+            .refine(
+              (values) => values.length % 2 === 0 && values.length <= 4_000_000,
+              "Invalid cursor positions",
+            ),
+        }),
+      )
+      .optional(),
+  })
+  .refine((spec) => spec.videoBitrate > 0 || spec.audioOnly === true, {
+    message: "Video exports need a bitrate",
+    path: ["videoBitrate"],
+  }) satisfies z.ZodType<ExportSpec>;

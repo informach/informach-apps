@@ -9,6 +9,10 @@ export interface Job {
   id: string;
   label: string;
   ratio: number;
+  /** Exports: where it is, how many segments are done (and reused), what is happening. */
+  phase?: JobProgress["phase"];
+  segments?: JobProgress["segments"];
+  message?: string;
 }
 
 export interface CleanupMark {
@@ -109,7 +113,18 @@ export function listenToJobs(): () => void {
   return window.api.onProgress((p: JobProgress) => {
     const job = useApp.getState().jobs[p.id];
     if (job)
-      useApp.setState({ jobs: { ...useApp.getState().jobs, [p.id]: { ...job, ratio: p.ratio } } });
+      useApp.setState({
+        jobs: {
+          ...useApp.getState().jobs,
+          [p.id]: {
+            ...job,
+            ratio: p.ratio,
+            phase: p.phase ?? job.phase,
+            segments: p.segments ?? job.segments,
+            message: p.message ?? (p.phase && p.phase !== job.phase ? undefined : job.message),
+          },
+        },
+      });
   });
 }
 

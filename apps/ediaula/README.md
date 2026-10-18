@@ -4,7 +4,7 @@ Editor de vídeo para aulas: a simplicidade do Camtasia com a timeline do Premie
 
 **Modelo de edição em Markdown:** peça ao assistente “Gere um arquivo MD com o modelo de edição desta aula para replicar em outro projeto”. Ele usa `export_editing_template` e abre a janela para salvar um `.md` com faixas, mídias de referência, estilos, balões, movimentos, áudio, legendas e falas de referência quando houver transcrição. No projeto seguinte, peça “Leia meu modelo de edição e proponha a adaptação para esta aula”; `read_editing_template` permite escolher o arquivo. O modelo não inclui mídias nem caminhos locais e seus tempos precisam ser adaptados à nova aula.
 
-**Fila de exportação:** em Exportar, escolha o destino e clique em **Adicionar à fila**. Cada item guarda uma cópia do projeto e das configurações, incluindo o caminho editado do cursor. Clique em **Continuar editando** para abrir outra aula enquanto a fila processa um arquivo por vez. Acompanhe, cancele ou tente novamente pelo botão **Exportações** ou pelo menu **Arquivo → Fila de exportação**. A fila desta versão é da sessão: mantenha o EdiAula aberto ou minimizado; o fechamento normal é bloqueado enquanto há itens pendentes. Os arquivos originais precisam continuar disponíveis.
+**Fila de exportação:** em Exportar, escolha o destino e clique em **Adicionar à fila**. Cada item guarda uma cópia do projeto e das configurações, incluindo o caminho editado do cursor. Clique em **Continuar editando** para abrir outra aula enquanto a fila processa um arquivo por vez. Acompanhe, cancele ou tente novamente pelo botão **Exportações** ou pelo menu **Arquivo → Fila de exportação**; **Tentar com a edição atual** refaz com o projeto aberto agora, em vez da cópia guardada. O fechamento normal é bloqueado enquanto há itens pendentes, mas a fila fica gravada: se o EdiAula fechar no meio, ao abrir de novo ele oferece **Retomar** ou **Descartar**, e retomar só refaz os trechos que faltavam. Os arquivos originais precisam continuar disponíveis.
 
 Na timeline, **Shift + arrasto da linha verde** desloca juntos os clipes que começam naquele ponto ou à direita, em todas as faixas destravadas. As distâncias entre eles são preservadas; clipes que atravessam o ponto ficam no lugar. Ao arrastar para a esquerda, o deslocamento para antes de sobrepor os clipes anteriores. **Esc** cancela o arrasto e **Ctrl + Z** desfaz o movimento aplicado.
 O design de referência está em `ediaula.pen`.
@@ -49,6 +49,22 @@ assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm ed
 - Preview sincronizado com J/K/L, quadro a quadro e tela cheia
 - Desfazer/refazer de tudo
 - Exportação MP4 H.264 pela GPU (NVENC, AMF ou Media Foundation) ou pela CPU (x264), com normalização −14 LUFS
+
+## Exportação
+
+- **Por trechos:** a imagem é renderizada em trechos de 4 a 20 s, com bordas nos cortes da faixa principal, dois ou três ao mesmo tempo (duas sessões de NVENC, AMF ou Media Foundation; até três processos x264, cada um com uma parte dos núcleos). Durante uma gravação os trechos esperam, como os outros trabalhos pesados. Cada comando do FFmpeg leva só os clipes do seu trecho, então aulas longas e muito cortadas não passam do limite da linha de comando do Windows (`src/shared/export/`, `src/main/export/`).
+- **Trechos reaproveitados:** cada trecho fica guardado em `cache/segments` com a assinatura do que ele mostra (clipes, efeitos, legenda gravada, cursor, codificador, versão do FFmpeg e o tamanho e a data de cada arquivo). Exportar de novo só refaz os trechos que mudaram: cortar 2 s no minuto 10 de uma aula de 25 min reaproveita mais de 90% dos trechos depois do corte. A fila mostra, por exemplo, "40 de 52 trechos prontos, 34 reaproveitados". O cache vai até 15 GB (os mais antigos saem primeiro) e **Configurações › Limpar cache de exportação** apaga tudo.
+- **Som numa passada:** o som da aula inteira é misturado de uma vez em PCM, ao mesmo tempo que a imagem, e codificado em AAC só no final, então nenhuma emenda de trecho estala. Cada corte que não continua a mesma gravação ganha um fade de 8 ms; o fade de entrada e de saída do clipe vale também para o som; quem sai numa transição termina com um fade de até 0,25 s; a música que vai até o fim da aula termina com fade de 1,5 s.
+- **Volume:** com a normalização ligada, as vozes (avatar, microfone, narração) são niveladas entre si com um ganho fixo medido uma vez por arquivo; depois a mistura é medida e a montagem aplica −14 LUFS com ganho linear (duas passadas). Se a medição falhar, cai para uma passada.
+- **Música abaixando:** profundidade, rampa e pausa vêm do projeto (`audio.ducking`), e uma faixa de música pode ficar fora (`duck: false`); a prévia usa as mesmas contas.
+- **Cor:** a composição é BT.709 em faixa limitada e o arquivo sai marcado assim, então navegador e YouTube mostram as cores da aula (o verde-limão #C8F031 volta como 200, 240, 49). Fontes sem marcação são lidas como BT.709; gravações e câmeras marcadas BT.601 são convertidas.
+- **Efeitos fixos desenhados uma vez:** cantos arredondados, círculo, borda e sombra viram imagens em `cache/fx`, feitas uma vez por tamanho e estilo; o avatar recortado com sombra calcula a sombra a cada quadro em 1/4 da resolução.
+- **Transparência:** vídeos que já têm alfa (WebM VP8/VP9, ProRes 4444, PNG) mantêm a transparência na exportação e na prévia, que usa o original ou um proxy VP9 com alfa, nunca H.264.
+- **Plano B do codificador:** se o NVENC (ou o AMF, ou o Media Foundation) falhar ao abrir a sessão, a exportação continua com o próximo da cadeia, até o x264, e avisa na fila; o que falhou fica de fora até o app fechar. Erro de filtro ou de arquivo não troca de codificador.
+- **Qualidade:** Rascunho, Padrão, Alta e Máxima usam qualidade constante pela resolução (CRF no x264, CQ com AQ e lookahead no NVENC); o valor em Mbps é o teto.
+- **Montagem:** os trechos são juntados sem recodificar, com o título e os capítulos de `publish` no MP4, `+faststart` e a miniatura; a barra só chega a 100% depois disso. As legendas `.srt` e `.vtt` saem dos mesmos cues da legenda gravada (no máximo duas linhas de 42 caracteres, sem sobreposição), só com as falas ouvidas e cada palavra uma vez, mesmo quando o MP4 do HeyGen e a voz extraída dele estão transcritos.
+- **Vertical e podcast:** a resolução é escolhida pelo lado menor, então um projeto vertical sai em 1080 × 1920; o layout vertical (fundo desfocado ou corte) fica para projetos horizontais. **Só áudio (podcast)** sai em MP3.
+- **Limpeza:** ao abrir, o app apaga as pastas `.edi-output-*` que uma exportação interrompida deixou ao lado do destino; as que guardam cópias de segurança ficam.
 
 ## Salvamento e mídias ausentes
 
@@ -506,7 +522,8 @@ HeyGen é usado pelo site dele, como sempre.
 - **Sombra projetada** em qualquer clipe (Propriedades › Sombra projetada): nenhuma, suave, forte, longa ou
   brilho, com distância, direção, desfoque, intensidade e cor. Em vídeos, imagens e no avatar ela segue a forma
   (cantos arredondados, círculo, recorte do avatar): a prévia usa `drop-shadow` e a exportação uma cópia
-  borrada do alfa (`shadowGraph` em `shared/exportPlan.ts`), com o mesmo desfoque. Nas anotações ela é
+  borrada da forma, desenhada uma vez (`shared/export/fx.ts`), ou do alfa a cada quadro no avatar recortado e
+  nas imagens transparentes, com o mesmo desfoque. Nas anotações ela é
   desenhada na própria imagem.
 - **Contorno** de anotações: Sem contorno · Sólido · Tracejado · Pontilhado, com cor e espessura. O sólido fica
   por fora da forma; traços e pontos ficam sobre a borda.

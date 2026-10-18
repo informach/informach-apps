@@ -12,7 +12,7 @@ import "./state/assistant";
 import { registerEdiRecovery } from "@informach/edi-desktop/renderer";
 import { Home } from "./home/Home";
 import { listenToJobs, useApp } from "./state/app";
-import { listenRecorderState } from "./state/exportQueue";
+import { listenRecorderState, loadUnfinishedExports } from "./state/exportQueue";
 import { settleEdits, useProject } from "./state/project";
 
 export function App(): ReactNode {
@@ -32,6 +32,14 @@ export function App(): ReactNode {
     void window.api.appInfo().then((info) => useApp.getState().set({ info }));
     const stopJobs = listenToJobs();
     const stopRecorder = listenRecorderState();
+    void loadUnfinishedExports().catch((error: unknown) =>
+      useApp
+        .getState()
+        .toast(
+          `As exportações da última vez não puderam ser lidas: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        ),
+    );
     // Shortcut labels follow the recorder's settings, which change in the recorder window.
     const refreshKeys = (): void =>
       void loadRecorderKeys().catch((error: unknown) =>

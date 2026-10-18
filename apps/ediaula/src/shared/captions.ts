@@ -1,4 +1,5 @@
-import type { TimelineWord } from "./cleanup.ts";
+import { strip, type TimelineWord, timelineWords } from "./cleanup.ts";
+import type { Project, Transcript } from "./types.ts";
 
 /**
  * Captions drawn into the video ("legenda gravada"), built from the edited timeline words.
@@ -75,6 +76,51 @@ export const cueLayout = (p: {
   captionBreaks?: string[];
   cueStyles?: CueStyleEntry[];
 }): CueLayout => ({ breaks: p.captionBreaks, styles: p.cueStyles });
+
+/** Two transcribed copies of the same word start closer than this. */
+const SAME_WORD = 0.15;
+
+/**
+ * The words captions are made of, and the speech the music steps aside for: only what is heard
+ * (a clip on a track that is not muted nor music, with volume above 0, of media with sound), and
+ * each word once when two sources say it together (the muted HeyGen MP4 and the voice extracted
+ * from it, both transcribed). Export, preview and ducking all read these.
+ */
+export function captionWords(
+  project: Project,
+  transcripts: Map<string, Transcript>,
+): TimelineWord[] {
+  const tracks = new Map(project.tracks.map((t) => [t.id, t]));
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const audible = new Set(
+    project.clips
+      .filter((c) => {
+        const track = tracks.get(c.trackId);
+        const asset = assets.get(c.assetId);
+        return (
+          !!track &&
+          !!asset &&
+          !track.muted &&
+          !track.music &&
+          c.volume > 0 &&
+          !c.mutedFor &&
+          asset.hasAudio &&
+          asset.kind !== "image"
+        );
+      })
+      .map((c) => c.id),
+  );
+  const out: TimelineWord[] = [];
+  for (const w of timelineWords(project, transcripts)) {
+    if (!audible.has(w.clipId)) continue;
+    const text = strip(w.text);
+    let twin = false;
+    for (let i = out.length - 1; i >= 0 && w.start - out[i].start < SAME_WORD; i--)
+      if (out[i].clipId !== w.clipId && strip(out[i].text) === text) twin = true;
+    if (!twin) out.push(w);
+  }
+  return out;
+}
 
 const endsSentence = (w: string): boolean => /[.!?…]["”)]?$/.test(w);
 

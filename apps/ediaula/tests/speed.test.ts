@@ -140,15 +140,13 @@ test("export reads duration × speed of the source and retimes picture and sound
     encoder: "nvenc",
   });
   const i = plan.inputArgs.indexOf("C:/m/tela.mp4");
-  assert.deepEqual(plan.inputArgs.slice(i - 5, i + 1), [
-    "-ss",
-    "4",
-    "-t",
-    "12",
-    "-i",
-    "C:/m/tela.mp4",
-  ]);
-  assert.match(plan.filter, /setpts=\(PTS-STARTPTS\)\/2,fps=30/);
+  const read = plan.inputArgs.slice(i - 5, i + 1);
+  assert.deepEqual([read[0], read[2], read[4]], ["-ss", "-t", "-i"]);
+  // From a source frame before the in-point (4 s) to the end of the 12 s it covers at 2×.
+  const seek = Number(read[1]);
+  assert.ok(seek < 4 && seek > 4 - 1 / 30 - 0.01, `seek ${read[1]}`);
+  assert.ok(Math.abs(seek + Number(read[3]) - 16) < 0.01, `length ${read[3]}`);
+  assert.match(plan.filter, /setpts=\(PTS-[\d.]+\/TB\)\/2,fps=30:start_time=0/);
   assert.match(plan.filter, /atempo=2,volume=1/);
   assert.equal(plan.duration, 6);
 });
