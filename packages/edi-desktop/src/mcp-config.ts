@@ -157,8 +157,9 @@ async function configuredAuthorization(config: ClientConfig): Promise<string | n
  * The client gets a token of its own that can read and propose; writes ask for approval in the
  * tool. A client already configured with a valid token of its own is left as it is: a client
  * that is open (Claude Code) may write its old copy of the file back, so the token only changes
- * on an explicit Reconectar (`rotate`) or after a revocation. Connecting also ends the token of
- * an earlier version. Returns whether the configuration was written.
+ * on an explicit Reconectar (`rotate`) or after a revocation. The token ends 30 days after its
+ * last use (access.ts CLIENT_GRANT_TTL_MS); the client then shows as not connected. Connecting
+ * also ends the token of an earlier version. Returns whether the configuration was written.
  */
 export async function configureMcpClient(config: ClientConfig): Promise<boolean> {
   const name = z.enum(["ediaula", "edifoto", "edisvg"]).parse(config.name);

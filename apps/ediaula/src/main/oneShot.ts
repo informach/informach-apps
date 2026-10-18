@@ -133,7 +133,7 @@ export async function runOneShot(
       const out = await spawnText(
         launch,
         claudeOneShotArgs({ model: stored.claudeModel, effort: "low" }),
-        engineEnv(process.env, { minimal: false, launch: launch.env }),
+        engineEnv(process.env, { minimal: false, launch: launch.env, claude: true }),
         prompt,
         cancel.signal,
       );

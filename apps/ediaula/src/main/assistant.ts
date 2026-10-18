@@ -5,15 +5,14 @@ import {
   AI_TOOL_NAMES,
   AI_TOOLS,
   EDITOR_GUIDE,
-  isAiToolName,
   PANEL_FORBIDDEN,
   toolJsonSchema,
 } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
-import { callTool, type ToolOutcome } from "./aiBridge.ts";
+import { callTool } from "./aiBridge.ts";
 import { decryptKey, readStored, storedEffort } from "./aiSettings.ts";
 import { withRecap } from "./conversations.ts";
-import { frameLabel, labelImage, pruneImages } from "./historyImages.ts";
+import { runToolRound, STOPPED } from "./toolRound.ts";
 
 const SYSTEM = `${EDITOR_GUIDE}
 
@@ -46,11 +45,6 @@ export function stopConversation(id: string): void {
   running.get(id)?.abort();
 }
 
-const short = (text: string): string => {
-  const line = text.split("\n").find((l) => l.trim()) ?? "";
-  return line.length > 140 ? `${line.slice(0, 137)}…` : line;
-};
-
 /** Plain-language messages for the API errors a user can act on. */
 function describeError(err: unknown): string {
   if (err instanceof Anthropic.AuthenticationError)
@@ -64,27 +58,6 @@ function describeError(err: unknown): string {
     return "Sem conexão com a API da Anthropic. Verifique a internet.";
   if (err instanceof Anthropic.APIError) return `Erro da API (${err.status}): ${err.message}`;
   return (err as Error)?.message ?? String(err);
-}
-
-/** A tool's answer for the API: its text, then the pictures it carries (get_frame). */
-function resultContent(
-  r: ToolOutcome,
-  input: unknown,
-): Anthropic.Beta.BetaToolResultBlockParam["content"] {
-  if (!r.images?.length) return r.text;
-  // Once old, the picture turns into a line saying which frame it was (historyImages.ts).
-  const time: unknown = input && typeof input === "object" ? Reflect.get(input, "time") : undefined;
-  const label = typeof time === "number" ? frameLabel(time) : "[quadro]";
-  return [
-    { type: "text", text: r.text },
-    ...r.images.map(
-      (image): Anthropic.Beta.BetaImageBlockParam =>
-        labelImage(
-          { type: "image", source: { type: "base64", media_type: image.mime, data: image.data } },
-          label,
-        ),
-    ),
-  ];
 }
 
 /**
@@ -200,51 +173,14 @@ export async function sendMessage(
         throw new Error("A resposta ficou longa demais e foi cortada. Peça algo menor.");
 
       messages.push({ role: "assistant", content: message.content });
-      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
-      for (const use of toolUses) {
-        const known = isAiToolName(use.name) ? use.name : null;
-        const title = known ? AI_TOOLS[known].title : use.name;
-        emit({ type: "tool", id: use.id, name: use.name, title, status: "running" });
-        // Streamed inputs are not validated by the API, so check them before touching the project.
-        const parsed = known ? AI_TOOLS[known].input.safeParse(use.input) : undefined;
-        if (!parsed?.success) {
-          results.push({
-            type: "tool_result",
-            tool_use_id: use.id,
-            is_error: true,
-            content: JSON.stringify({ INVALID_JSON: JSON.stringify(use.input) }),
-          });
-          emit({
-            type: "tool",
-            id: use.id,
-            name: use.name,
-            title,
-            status: "error",
-            summary: "parâmetros inválidos",
-          });
-          continue;
-        }
-        const r = await callTool(win, use.name, parsed.data, {
-          source: "assistant",
-          projectId: conversationId,
-        });
-        results.push({
-          type: "tool_result",
-          tool_use_id: use.id,
-          content: resultContent(r, parsed.data),
-          is_error: !r.ok,
-        });
-        emit({
-          type: "tool",
-          id: use.id,
-          name: use.name,
-          title,
-          status: r.ok ? "done" : "error",
-          summary: short(r.text),
-        });
-      }
+      const results = await runToolRound(toolUses, {
+        signal: abort.signal,
+        emit,
+        call: (name, input, allowed) =>
+          callTool(win, name, input, { source: "assistant", projectId: conversationId }, allowed),
+      });
       messages.push({ role: "user", content: results });
-      pruneImages(messages);
+      if (abort.signal.aborted) break;
     }
     closeDanglingTools(messages, "O limite de rodadas de ferramentas deste pedido acabou.");
     report();
@@ -254,9 +190,7 @@ export async function sendMessage(
     // Leave the history valid for the next turn by adding to it, never removing from it.
     closeDanglingTools(
       messages,
-      abort.signal.aborted
-        ? "Interrompido pela pessoa."
-        : "A execução foi interrompida por um erro.",
+      abort.signal.aborted ? STOPPED : "A execução foi interrompida por um erro.",
     );
     report();
     emit({ type: "done" });

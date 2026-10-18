@@ -124,7 +124,11 @@ transcrever, importar mídia, abrir/criar projetos, preparar a aula (`prepare_le
 (`apply_editing_template`), várias anotações de uma vez (`add_annotations`), a verificação antes de exportar
 (`check_before_export`), ver o quadro (`get_frame`), traduzir as legendas (`translate_captions`), o quiz
 (`generate_quiz`), a miniatura (`set_thumbnail`) e a exportação (`export_video` e `get_export_status`). Toda edição
-entra no histórico (Ctrl+Z).
+entra no histórico (Ctrl+Z). As ferramentas por clipe mudam o grupo inteiro, como a tela faz, deixam como estão os
+clipes de faixas travadas (e dizem quais) e conferem todos os ids antes de mudar qualquer coisa: um id errado e nada
+muda, e cada chamada é um passo só do histórico. Enquanto um rascunho que muda a estrutura da aula espera revisão,
+cortes, cartelas, inserções diretas e mudanças de velocidade da IA são recusados, como na interface. Uma chamada
+vale para a aula aberta quando ela chegou: se a pessoa abrir outra aula no meio, nada é gravado na nova.
 
 **A IA vê o quadro (`get_frame`).** A ferramenta devolve uma imagem da aula no tempo pedido, com um JSON do que está
 desenhado por cima (anotações, imagens, apresentador e camadas de zoom, cada um com a caixa em frações do quadro) e de
@@ -135,7 +139,9 @@ legenda gravada. `region` recorta uma parte (frações do quadro) e `max_width` 
 passa de 1568 px. No MCP a imagem vai como bloco de imagem, e na chave da API ela entra no resultado da ferramenta. A
 IA usa para conferir onde uma seta, um balão ou um zoom caem e se nada cobre os controles que a criança precisa ver.
 Com um rascunho do mesmo assistente esperando revisão, o quadro mostra a aula como o rascunho a deixa. Na chave da API,
-só as 4 imagens mais recentes ficam no histórico; as anteriores viram uma linha "[quadro de m:ss]". O canal é
+o histórico nunca é reescrito no EdiAula (nos modelos 5.5, mudar um turno já enviado invalida o raciocínio que vem
+depois e a API recusa o pedido): quando a conversa passa de 80 mil tokens, a própria API limpa os resultados de
+ferramenta mais antigos, imagens incluídas, e guarda os 6 mais recentes (`clear_tool_uses`, ao lado da compactação). O canal é
 `export:frame(jobId, projeto em JSON, spec, segundo, geometria)` e devolve os bytes do PNG.
 
 **Painel do Assistente.** Cada ferramenta em andamento mostra a etapa em que está (por exemplo "Lote 2 de 3
@@ -156,12 +162,15 @@ texto aparece aos poucos; senão, aparece inteiro no fim, como antes.
 **Modelos (chave da API):** Claude Opus 5.5 (padrão e recomendado), Claude Sonnet 5.5 e Claude Haiku 5.5 (econômico).
 Quem tinha escolhido o Claude Opus 5 continua nele, com um aviso de que o Opus 5.5 é mais novo e mais barato; o
 Claude Haiku 4.5 passa sozinho para o Haiku 5.5. Cada pedido vai com raciocínio adaptativo e com o **esforço**
-escolhido em Configurações (Alto por padrão; também vale para o Claude Code). Conversas longas são compactadas pela
-própria API, e quando um filtro de segurança recusa um pedido o Opus e o Sonnet tentam de novo num modelo
+escolhido em Configurações (Alto por padrão; também vale para o Claude Code). Resultados de ferramenta antigos são
+limpos e conversas longas são compactadas pela própria API, e quando um filtro de segurança recusa um pedido o Opus e o Sonnet tentam de novo num modelo
 alternativo (o Haiku 5.5 não tem essa opção). O histórico da conversa só cresce: uma falha vira um resultado de erro,
-nunca uma mensagem apagada. O painel mostra os tokens e o custo de cada pedido e o total da conversa: na chave da API
+nunca uma mensagem apagada. Depois de **Parar**, as ferramentas que faltavam naquela resposta não rodam: cada uma
+responde "Interrompido pela pessoa.", e uma que ainda esperava na fila do editor também é recusada. O painel mostra os tokens e o custo de cada pedido e o total da conversa: na chave da API
 é o preço da Anthropic (`src/shared/aiModels.ts`); no Claude Code aparece o equivalente na API, porque a
-assinatura não cobra por pedido; no Codex aparecem só os tokens.
+assinatura não cobra por pedido; no Codex aparecem só os tokens. Se a variável `ANTHROPIC_API_KEY` existir no
+computador, o Claude Code em modo `-p` usa essa chave em vez da assinatura: o EdiAula mantém a variável (pode ser o
+jeito de a pessoa entrar), mostra "Cobrado na API da Anthropic" no painel e o custo deixa de ser estimado.
 `get_transcript` devolve 10 minutos por vez (com `next_from` para continuar) ou um resumo de uma linha por parágrafo.
 
 **Conexões e permissões:** cada token é uma permissão, guardada só como hash num arquivo protegido de cada
@@ -170,7 +179,9 @@ recebe nada que uma ferramenta mais antiga recusaria). O **Conectar** dá ao Cla
 pode **ler** a aula e **propor** cortes; para **alterar** a aula, cada pedido abre no EdiAula a janela "A IA quer
 alterar a aula", com todos os parâmetros do pedido e **Permitir uma vez**, **Permitir por 15 min neste projeto** e
 **Negar** (Negar vem selecionado, os botões de permitir só funcionam depois de um instante e, sem resposta em 60 s, o
-pedido é negado). Abrir ou criar projeto e importar mídia sempre perguntam, mesmo dentro dos 15 minutos. Um app que só
+pedido é negado). Abrir ou criar projeto e importar mídia sempre perguntam, mesmo dentro dos 15 minutos e mesmo na
+janela do Claude Code só com o EdiAula (que pode alterar a aula sem perguntar); só o chat do próprio Assistente não
+pergunta, porque o pedido foi feito ali dentro e ele não abre nem cria aulas. Um app que só
 lê e propõe nunca apaga a proposta de outro: a nova fica junto, e a barra de propostas deixa escolher qual ver.
 O **Conectar** não troca o token de um app que já está conectado (o Claude Code aberto regrava a configuração antiga);
 **Reconectar** troca, e depois é preciso fechar e abrir o app. O token de uma versão anterior continua funcionando por
@@ -179,7 +190,10 @@ O **Conectar** não troca o token de um app que já está conectado (o Claude Co
 o EdiAula não apaga arquivos desses programas, então apague essas cópias se quiser. O chat do Assistente usa, a cada
 pedido, um token de 30 minutos (renovado enquanto o pedido roda) que só existe na memória, vai ao programa por
 variável de ambiente (nunca na linha de comando nem em arquivo) e é revogado quando o pedido termina ou quando você
-aperta Parar. A lista **Conexões com acesso** mostra quem pode falar com o EdiAula e tem **Revogar**; sair da conta Edi
+aperta Parar; uma chamada que chega depois disso, ou que esperava na fila, é recusada sem rodar. Os tokens do
+**Conectar** e da configuração manual deixam de valer depois de 30 dias sem uso (cada uso renova o prazo; os de
+versões anteriores sem prazo ganham o mesmo a partir do último uso), e o app volta a aparecer como desconectado. A
+lista **Conexões com acesso** mostra quem pode falar com o EdiAula, até quando vale e tem **Revogar**; sair da conta Edi
 neste computador revoga todas as conexões de todas as ferramentas, encerra os pedidos em andamento e fecha as janelas
 do Claude Code só com o EdiAula.
 
@@ -191,11 +205,15 @@ token que lê e propõe e preenche os trechos prontos, que já levam o cabeçalh
 - Claude Desktop: `npx -y mcp-remote@0.15.1 <url> --header "Authorization:${EDIAULA_AUTH}"`, com o token em
   `env.EDIAULA_AUTH` (o `mcp-remote` tem versão fixa, para nunca mudar sozinho).
 
-O token aparece uma vez só; guarde como uma senha e revogue quando não usar mais. O servidor só aceita conexões deste
+O token aparece uma vez só e fica gravado, como texto, no arquivo de configuração do app onde ele for colado: trate
+esse arquivo como uma senha. **Gerar outro token** revoga o anterior. O servidor só aceita conexões deste
 computador e recusa pedidos vindos de páginas web.
 
 **O que cada motor alcança:** o Claude Code roda sem nenhuma ferramenta própria (arquivos, terminal, internet), só com
-as do EdiAula. O Codex roda sem a configuração pessoal (`--ignore-user-config`), em modo só leitura, com busca na
+as do EdiAula, sem os conectores da conta do claude.ai (`ENABLE_CLAUDEAI_MCP_SERVERS=false`) e só com as configurações
+pessoais (`--setting-sources user`, onde ficam o login e o modelo; as configurações e regras de projeto da pasta em
+que ele roda ficam de fora). Isso vale para o chat, para as respostas avulsas (tradução, quiz) e para a janela do
+Claude Code só com o EdiAula. O Codex roda sem a configuração pessoal (`--ignore-user-config`), em modo só leitura, com busca na
 internet desligada e com as funções da própria lista do Codex instalado (`codex features list`) que vão além do editor
 também desligadas (terminal, agentes, navegador, imagens, extensões). O EdiAula só deixa passar mensagens, raciocínio,
 lista de tarefas e chamadas ao servidor do próprio EdiAula: qualquer outra coisa (um comando, uma mudança de arquivo,
@@ -393,7 +411,9 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   entre palavras quando cabe) e pedida de novo até duas vezes com o motivo. A tradução fica na aula
   (`captionTranslations`), legenda por legenda, presa à primeira palavra e ao texto dela: se a aula mudar depois, só as
   legendas que mudaram ficam desatualizadas, o cartão e a exportação avisam, e o arquivo daquele idioma só sai quando
-  todas estão em dia.
+  todas estão em dia. Traduzir de novo manda ao motor só as desatualizadas. Se um lote falha ou a tradução é
+  parada no meio, os lotes já traduzidos ficam guardados e a próxima vez continua das que faltam. A fonte da legenda
+  gravada não aceita quebra de linha, vírgula, chaves nem barra invertida (elas mexeriam no arquivo `.ass`).
 - **Exportar:** além do `.srt`, `.vtt` e `.jpg`, a exportação grava `<aula>.<idioma>.srt` e `.vtt` de cada tradução em
   dia e `<aula>.plataforma.json` (opção **Pacote para a plataforma**), ao lado do vídeo. O pacote leva o código do
   vídeo, título, descrição, resumo, os capítulos só quando valem (começam em 0:00, são pelo menos 3, em ordem e cada um
@@ -1250,7 +1270,11 @@ mexe no mouse real.
   acompanham a mídia que marcam em toda alteração (cortes da transcrição, excluir intervalo, aparar com
   Shift, inserir com Ctrl, estender quadro, rascunhos aplicados e a IA): um corte antes deles os puxa
   para a esquerda e um marcador dentro de um trecho cortado vai para onde o corte ficou. Os capítulos
-  marcados entram no MP4 (FFMETADATA) e substituem os de `publish.chapters` quando existem. O ímã
+  marcados entram no MP4 (FFMETADATA) e substituem os de `publish.chapters` quando existem, e a mesma lista
+  (`chaptersOf`) vai para o `.plataforma.json`, para a verificação antes de exportar, para o cartão Publicação e
+  plataforma e para o `get_overview`. Com marcadores-capítulo na aula, `save_publish_info` recusa os capítulos da IA
+  sem salvar nada e pede para ajustar os marcadores. Os capítulos de `publish.chapters` e o momento da miniatura
+  acompanham os cortes do mesmo jeito que os marcadores (`src/shared/settle.ts`). O ímã
   encaixa nos marcadores. A lista fica em Propriedades com nada selecionado.
 - **Andar pela fala:** **Alt+←/→** vai à palavra anterior ou à próxima (começo e fim de cada uma) e
   **Alt+Shift+←/→** de frase em frase e de silêncio em silêncio (Ctrl+Alt+setas gira a tela em alguns

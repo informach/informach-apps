@@ -305,6 +305,10 @@ export function chaptersOf(
   return list.sort((a, b) => a.time - b.time);
 }
 
+/** Whether the chapters of the lesson come from its markers (chaptersOf). */
+export const hasChapterMarkers = (p: Pick<Project, "markers">): boolean =>
+  (p.markers ?? []).some((m) => m.chapter && m.label.trim());
+
 /** publish.chapters from the chapter markers (unchanged when no marker is a chapter). */
 export function withMarkerChapters<T extends Pick<Project, "markers" | "publish">>(p: T): T {
   if (!(p.markers ?? []).some((m) => m.chapter)) return p;

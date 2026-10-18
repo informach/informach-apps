@@ -14,6 +14,7 @@ import {
   actionName,
   CODEX_DISABLED_FEATURES,
   claudeArgs,
+  claudeBilledOnApi,
   claudeMcpConfig,
   codexArgs,
   codexGuard,
@@ -217,11 +218,19 @@ async function claudeAttempt(
     systemPrompt: `${EDITOR_GUIDE}\n\n${PANEL_PROMPT}`,
   });
   let failed = false;
+  const env = engineEnv(process.env, {
+    minimal: false,
+    token: token.token,
+    launch: ready.launch.env,
+    claude: true,
+  });
+  // With ANTHROPIC_API_KEY set, the turn is charged on the API, not on the subscription.
+  const onApi = claudeBilledOnApi(env);
   await startRun({
     conversationId,
     launch: ready.launch,
     args,
-    env: engineEnv(process.env, { minimal: false, token: token.token, launch: ready.launch.env }),
+    env,
     cwd: workspace(),
     prompt,
     emit,
@@ -233,6 +242,12 @@ async function claudeAttempt(
           if (ev.subtype === "init") {
             if (typeof ev.session_id === "string")
               keepSession("claude", conversationId, ev.session_id);
+            if (onApi)
+              emit({
+                type: "quota",
+                level: "warn",
+                text: "Cobrado na API da Anthropic: o Claude Code usa a chave ANTHROPIC_API_KEY deste computador, não a assinatura",
+              });
             const servers =
               (ev.mcp_servers as { name: string; status: string }[] | undefined) ?? [];
             if (servers.some((s) => s.name === "ediaula" && s.status !== "connected"))
@@ -338,7 +353,8 @@ async function claudeAttempt(
                 (usage.cache_creation_input_tokens ?? 0) +
                 (usage.cache_read_input_tokens ?? 0),
               ...(typeof ev.total_cost_usd === "number" ? { usd: ev.total_cost_usd } : {}),
-              estimated: true,
+              // On the API the cost is real; on the subscription it is what the API would charge.
+              estimated: !onApi,
             });
           if (ev.is_error) {
             failed = true;

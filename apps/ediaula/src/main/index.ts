@@ -5,7 +5,13 @@ import type { Server } from "node:http";
 import { availableParallelism } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
-import { createClientGrant, listGrants, revokeGrant } from "@informach/edi-desktop/access";
+import {
+  createClientGrant,
+  isGrantLive,
+  listGrants,
+  revokeClientGrants,
+  revokeGrant,
+} from "@informach/edi-desktop/access";
 import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
@@ -18,7 +24,8 @@ import {
   shell,
 } from "electron";
 import { z } from "zod";
-import { EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
+import { resolveModel } from "../shared/aiModels.ts";
+import { settingsChangesSchema } from "../shared/aiSettings.ts";
 import type { ChromaKey } from "../shared/chroma.ts";
 import { readCourseTemplate } from "../shared/courseTemplate.ts";
 import type { FontFamily } from "../shared/fonts.ts";
@@ -29,7 +36,6 @@ import type {
   AiGrantView,
   AiSettingsView,
   AssetKind,
-  AssistantEngine,
   AssistantEvent,
   JobProgress,
   ProjectSettings,
@@ -1538,8 +1544,9 @@ async function applyMcp(): Promise<void> {
   if (enabled && !mcp.server) {
     try {
       const server = await startMcpServer(port, {
-        call: (name, input, meta) => callTool(win, name, input, meta),
+        call: (name, input, meta, allowed) => callTool(win, name, input, meta, allowed),
         approve: (request) => requestApproval(win, request),
+        live: isGrantLive,
       });
       mcp = { server, port };
     } catch (err) {
@@ -1638,39 +1645,25 @@ const conversationIdSchema = z.string().min(1).max(200);
 
 function registerAiIpc(): void {
   ipcMain.handle("ai:settings", () => aiView());
-  ipcMain.handle(
-    "ai:saveSettings",
-    async (
-      _e,
-      changes: {
-        apiKey?: string | null;
-        model?: string;
-        mcpEnabled?: boolean;
-        engine?: AssistantEngine;
-        claudeModel?: string;
-        effort?: Effort;
-        codexConfirmed?: boolean;
-      },
-    ) => {
-      const stored = await readStored();
-      if (changes.apiKey === null) delete stored.apiKeyEnc;
-      else if (changes.apiKey) stored.apiKeyEnc = encryptKey(changes.apiKey.trim());
-      if (changes.model) stored.model = changes.model;
-      if (changes.mcpEnabled !== undefined) stored.mcpEnabled = changes.mcpEnabled;
-      if (changes.engine) stored.engine = changes.engine;
-      if (changes.claudeModel) stored.claudeModel = changes.claudeModel;
-      if (changes.effort && EFFORTS.some((e) => e.id === changes.effort))
-        stored.effort = changes.effort;
-      if (changes.codexConfirmed !== undefined) {
-        if (changes.codexConfirmed && stored.codexRestricted)
-          stored.codexConfirmed = stored.codexRestricted.version;
-        else delete stored.codexConfirmed;
-      }
-      await writeStored(stored);
-      await applyMcp();
-      return aiView();
-    },
-  );
+  ipcMain.handle("ai:saveSettings", async (_e, raw: unknown) => {
+    const changes = settingsChangesSchema.parse(raw);
+    const stored = await readStored();
+    if (changes.apiKey === null) delete stored.apiKeyEnc;
+    else if (changes.apiKey) stored.apiKeyEnc = encryptKey(changes.apiKey);
+    if (changes.model) stored.model = changes.model;
+    if (changes.mcpEnabled !== undefined) stored.mcpEnabled = changes.mcpEnabled;
+    if (changes.engine) stored.engine = changes.engine;
+    if (changes.claudeModel) stored.claudeModel = changes.claudeModel;
+    if (changes.effort) stored.effort = changes.effort;
+    if (changes.codexConfirmed !== undefined) {
+      if (changes.codexConfirmed && stored.codexRestricted)
+        stored.codexConfirmed = stored.codexRestricted.version;
+      else delete stored.codexConfirmed;
+    }
+    await writeStored(stored);
+    await applyMcp();
+    return aiView();
+  });
   ipcMain.handle("ai:codexSelfTest", async () => {
     await checkCodex();
     return aiView();
@@ -1682,7 +1675,12 @@ function registerAiIpc(): void {
     await revokeGrant(z.string().min(1).max(100).parse(rawId));
   });
   ipcMain.handle("ai:manualToken", async () => {
-    const { token } = await createClientGrant({ client: "manual", scopes: ["read", "propose"] });
+    const { token, grant } = await createClientGrant({
+      client: "manual",
+      scopes: ["read", "propose"],
+    });
+    // A new manual token replaces the one made before: only one stays usable.
+    await revokeClientGrants("manual", grant.id);
     return { token, url: mcpUrl(mcp.port) };
   });
   ipcMain.handle("ai:context", (_e, raw: unknown) => {

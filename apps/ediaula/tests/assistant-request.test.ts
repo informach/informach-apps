@@ -47,14 +47,21 @@ test("every request sends adaptive thinking and the effort, high by default", ()
 
 test("long conversations are compacted; the fallback model only where the API offers it", () => {
   const opus = buildRequest("claude-opus-5-5", "high");
-  assert.deepEqual(opus.context_management, { edits: [{ type: "compact_20260112" }] });
-  assert.deepEqual(opus.betas.sort(), ["compact-2026-01-12", "server-side-fallback-2026-07-01"]);
+  assert.deepEqual(
+    opus.context_management?.edits.map((e) => e.type),
+    ["clear_tool_uses_20250919", "compact_20260112"],
+  );
+  assert.deepEqual(opus.betas.sort(), [
+    "compact-2026-01-12",
+    "context-management-2025-06-27",
+    "server-side-fallback-2026-07-01",
+  ]);
   assert.equal(opus.fallbacks, "default");
   assert.equal(buildRequest("claude-sonnet-5-5", "low").fallbacks, "default");
   // Haiku 5.5 has no server-side fallback: the parameter is not sent at all.
   const haiku = buildRequest("claude-haiku-5-5", "medium");
   assert.equal(haiku.fallbacks, undefined);
-  assert.deepEqual(haiku.betas, ["compact-2026-01-12"]);
+  assert.deepEqual(haiku.betas, ["context-management-2025-06-27", "compact-2026-01-12"]);
   assert.ok(haiku.context_management);
   // A model this version does not know gets neither beta.
   const unknown = buildRequest("claude-futuro", "high");

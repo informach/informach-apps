@@ -1,4 +1,5 @@
 import { folderOf } from "@shared/aiPaths";
+import { clipTargets, lockedNote } from "@shared/aiTargets";
 import {
   AI_TOOLS,
   type AiToolName,
@@ -35,6 +36,7 @@ import { buildEditingTemplate } from "@shared/editingTemplate";
 import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
+import { chaptersOf, hasChapterMarkers } from "@shared/markers";
 import { plural } from "@shared/plural";
 import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
@@ -61,6 +63,7 @@ import {
   runAsAi,
   settleEdits,
   shownProject,
+  structuralDraft,
   useProject,
   writesIntoDraft,
 } from "@/state/project";
@@ -158,6 +161,60 @@ function cutOrFail(ranges: [number, number][], commit: Commit): void {
     );
   if (!r.ok) throw new ToolError("Nada foi cortado: a aula aberta mudou.");
 }
+
+/**
+ * The clips a per-clip tool edits (shared/aiTargets.ts): every id checked first, the groups
+ * taken along as the editor does, the clips on locked tracks left out. Refused when an id does
+ * not exist or nothing is left to edit.
+ */
+function editableClips(
+  p: Project,
+  ids: readonly string[],
+  options: { groups?: boolean } = {},
+): { ids: string[]; note: string } {
+  const r = clipTargets(p, ids, options);
+  if (r.missing.length)
+    throw new ToolError(
+      `Clipes não encontrados: ${r.missing.join(", ")}. Nada foi feito. Use os ids de get_overview.`,
+    );
+  if (!r.ids.length)
+    throw new ToolError(
+      `Nada foi feito: ${r.locked.length === 1 ? "o clipe está numa faixa travada" : "os clipes estão em faixas travadas"} (${r.locked.join(", ")}). Peça para a pessoa destravar a faixa se for para mudar.`,
+    );
+  return { ids: r.ids, note: lockedNote(r.locked) };
+}
+
+/**
+ * Edits that change the lesson right away wait, as in the editor, while a draft that changes its
+ * structure waits for review (state/project.ts structuralDraft): what is on screen is not where
+ * the clips of the lesson are.
+ */
+function requireNoStructuralDraft(): void {
+  if (!structuralDraft()) return;
+  const title = useProject.getState().draft?.title ?? "rascunho";
+  throw new ToolError(
+    `Há um rascunho que muda a estrutura da aula esperando a revisão da pessoa ("${title}"). Nada foi feito: peça para ela aplicar ou descartar o rascunho antes.`,
+  );
+}
+
+/**
+ * One commit for a whole call: the changes the call makes through `commit` wait and go in
+ * together at `flush`, so a call that fails half way changes nothing and leaves one undo step.
+ */
+function batched(commit: Commit): { commit: Commit; flush: () => boolean } {
+  const changes: ((p: Project) => Project)[] = [];
+  const queue: Commit = (fn) => {
+    changes.push(fn);
+    return true;
+  };
+  return {
+    commit: writesIntoDraft(commit) ? onDraftView(queue) : queue,
+    flush: () => !changes.length || commit((p) => changes.reduce((q, fn) => fn(q), p)),
+  };
+}
+
+const samePath = (a: string, b: string): boolean =>
+  a.replaceAll("/", "\\").toLowerCase() === b.replaceAll("/", "\\").toLowerCase();
 
 /** Resolves a quoted passage to word indexes, picking the occurrence closest to `near`. */
 export function resolveQuote(
@@ -368,7 +425,7 @@ const handlers: {
     if (track && !p.tracks.some((tr) => tr.id === track))
       throw new ToolError(`Faixa ${track} não existe. Use os ids de get_overview.`);
     const describe = (c: Clip): string =>
-      `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${zoomCount(c)}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}`;
+      `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.groupId ? ` grupo ${c.groupId}` : ""}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${zoomCount(c)}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}`;
     for (const tr of p.tracks) {
       if (track && tr.id !== track) continue;
       const clips = p.clips.filter((c) => c.trackId === tr.id).sort((a, b) => a.start - b.start);
@@ -389,9 +446,16 @@ const handlers: {
       lines.push(
         `- ${a.name} (${a.kind}${a.duration ? `, ${t(a.duration)}` : ""})${a.transcriptStatus === "ready" ? " · transcrita" : a.transcriptStatus === "pending" ? " · transcrevendo" : ""}${a.missing ? " · ARQUIVO NÃO ENCONTRADO" : ""}${a.cursor ? " · gravação do EdiAula (cursor e cliques salvos)" : ""}${a.key ? ` · ${a.key.mode === "person" ? "fundo removido pela IA local, a pessoa recortada" : `avatar, fundo ${a.key.color} removido`}${keyIsCurrent(a) ? "" : " (processando)"}` : a.screen ? ` · fundo liso ${a.screen} (remoção desligada)` : ""}`,
       );
-    if (p.publish?.title || p.publish?.chapters?.length)
+    // The chapters as the MP4, the platform package and the check before export have them.
+    const chapters = chaptersOf(p);
+    if (p.publish?.title || chapters.length)
       lines.push(
-        `Publicação salva: título "${p.publish.title ?? ""}", ${p.publish.chapters?.length ?? 0} capítulos.`,
+        `Publicação salva: título "${p.publish?.title ?? ""}", ${plural(chapters.length, "capítulo", "capítulos")}${chapters.length ? ` (${hasChapterMarkers(p) ? "dos marcadores-capítulo da timeline" : "salvos com save_publish_info"}): ${chapters.map((c) => `${t(c.time)} ${c.title}`).join("; ")}` : ""}.`,
+      );
+    if (p.publish?.thumbnail) lines.push(`Miniatura: o quadro de ${t(p.publish.thumbnail.time)}.`);
+    if (p.clips.some((c) => c.groupId))
+      lines.push(
+        "Clipes com o mesmo grupo andam juntos: uma ferramenta por clipe muda o grupo todo, como na tela.",
       );
     const prot = timelineProtected(p);
     if (prot.length)
@@ -482,9 +546,11 @@ const handlers: {
       if (!r.ok) throw new ToolError(r.message);
       return `${r.message}\nA pessoa vai aplicar ou descartar na tela, item por item; não aplique você mesmo.`;
     }
+    requireNoStructuralDraft();
     const { project: p, plan } = await freshCleanup(overrides);
     const notes = blindNotes(p, plan.blind).map((n) => `Atenção: ${n}`);
     if (!plan.active.length) return ["Nada para cortar com essas opções.", ...notes].join("\n");
+    requireNoStructuralDraft();
     const d0 = before();
     cutOrFail(
       plan.active.map((i) => [i.start, i.end]),
@@ -500,6 +566,7 @@ const handlers: {
 
   async cut_text({ quotes }, { commit }) {
     const p = requireProject();
+    requireNoStructuralDraft();
     const { words } = await wordsOf(p);
     const ranges: [number, number][] = [];
     const report: string[] = [];
@@ -514,6 +581,8 @@ const handlers: {
       report.push(`ok: "${q.text}" (${t(words[a].start)})`);
     }
     if (!ranges.length) throw new ToolError(report.join("\n"));
+    // A draft may have come while the transcript loaded.
+    requireNoStructuralDraft();
     const d0 = before();
     cutOrFail(mergeRanges(ranges), commit);
     return `${report.join("\n")}\n${savedSince(d0)}`;
@@ -521,6 +590,7 @@ const handlers: {
 
   async cut_ranges({ ranges, revision }, { commit }) {
     requireProject();
+    requireNoStructuralDraft();
     const current = useProject.getState().revision;
     if (revision !== current)
       throw new ToolError(
@@ -589,7 +659,19 @@ const handlers: {
   },
 
   async save_publish_info(input, { commit }) {
-    requireProject();
+    const p = requireProject();
+    // One list of chapters: the markers marked as chapters win (shared/markers.ts chaptersOf),
+    // so chapters sent here would never reach the MP4 nor the package. Nothing is saved then.
+    if (input.chapters && hasChapterMarkers(p))
+      throw new ToolError(
+        `Nada foi salvo: os capítulos desta aula vêm dos marcadores-capítulo da timeline (${chaptersOf(
+          p,
+        )
+          .map((c) => `${t(c.time)} ${c.title}`)
+          .join(
+            "; ",
+          )}), e são eles que vão para o MP4 e para o pacote. Mande de novo sem chapters, e peça para a pessoa ajustar os marcadores (tecla M, "É capítulo") se quiser outros capítulos.`,
+      );
     const chapters = input.chapters
       ? [...input.chapters].sort((a, b) => a.time - b.time)
       : undefined;
@@ -669,7 +751,7 @@ const handlers: {
       signal,
       progress: (done, total) => progress(`Lote ${done} de ${total} traduzido`, done / total),
     });
-    return `${r.count} legendas traduzidas para "${lang}" e guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, traduza de novo as que mudaram.`;
+    return `${r.translated ? `${plural(r.translated, "legenda traduzida", "legendas traduzidas")} agora para "${lang}"` : `As legendas em "${lang}" já estavam em dia`}; ${r.count} no total guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, chame de novo: só as que mudaram são traduzidas.`;
   },
 
   async export_video({ preset, formats, range }, { progress, signal }) {
@@ -881,6 +963,7 @@ const handlers: {
 
   async place_insert({ insert_id }, { commit }) {
     requireProject();
+    requireNoStructuralDraft();
     const r = await placeInserts(insert_id, commit);
     if (!r.ok) throw new ToolError(r.message);
     return r.message;
@@ -903,12 +986,8 @@ const handlers: {
     { commit },
   ) {
     const p = requireProject();
-    const missing = clip_ids.filter((id) => !p.clips.some((c) => c.id === id));
-    if (missing.length)
-      throw new ToolError(
-        `Clipes não encontrados: ${missing.join(", ")}. Use os ids de get_overview.`,
-      );
-    const ids = new Set(clip_ids);
+    const target = editableClips(p, clip_ids);
+    const ids = new Set(target.ids);
     commit((q) => ({
       ...q,
       clips: q.clips.map((c) => {
@@ -935,7 +1014,7 @@ const handlers: {
         };
       }),
     }));
-    return `${plural(clip_ids.length, "clipe ajustado", "clipes ajustados")}.`;
+    return `${plural(ids.size, "clipe ajustado", "clipes ajustados")}.${target.note}`;
   },
 
   async set_background_removal(
@@ -983,8 +1062,12 @@ const handlers: {
   async auto_zoom({ clip_ids, scale, remove }, { commit }) {
     const p = requireProject();
     const assets = new Map(p.assets.map((a) => [a.id, a]));
+    const target = clip_ids ? editableClips(p, clip_ids) : null;
+    const lockedTracks = new Set(p.tracks.filter((tr) => tr.locked).map((tr) => tr.id));
     const clips = p.clips.filter((c) =>
-      clip_ids ? clip_ids.includes(c.id) : !!assets.get(c.assetId)?.cursor,
+      target
+        ? target.ids.includes(c.id)
+        : !!assets.get(c.assetId)?.cursor && !lockedTracks.has(c.trackId),
     );
     if (!clips.length)
       throw new ToolError(
@@ -1007,7 +1090,7 @@ const handlers: {
           return zooms ? { ...rest, zooms } : rest;
         }),
       }));
-      return `Zooms removidos de ${plural(clips.length, "clipe", "clipes")}.`;
+      return `Zooms removidos de ${plural(clips.length, "clipe", "clipes")}.${target?.note ?? ""}`;
     }
     let total = 0;
     const skipped: string[] = [];
@@ -1019,7 +1102,7 @@ const handlers: {
       }
       total += await applyAutoZoom(c, a, scale, commit);
     }
-    return `${plural(total, "zoom automático", "zooms automáticos")} em ${plural(clips.length - skipped.length, "clipe", "clipes")}.${skipped.length ? ` Sem dados de clique: ${skipped.join(", ")}.` : ""}`;
+    return `${plural(total, "zoom automático", "zooms automáticos")} em ${plural(clips.length - skipped.length, "clipe", "clipes")}.${skipped.length ? ` Sem dados de clique: ${skipped.join(", ")}.` : ""}${target?.note ?? ""}`;
   },
 
   async set_cursor({ media, size, smooth, clicks, halo, hide_idle, hidden }, { commit }) {
@@ -1122,9 +1205,8 @@ const handlers: {
 
   async set_motion({ clip_ids, enter, exit, enter_seconds, exit_seconds }, { commit }) {
     const p = requireProject();
-    const ids = new Set(clip_ids);
-    if (!p.clips.some((c) => ids.has(c.id)))
-      throw new ToolError("Clipes não encontrados. Use os ids de get_overview.");
+    const target = editableClips(p, clip_ids);
+    const ids = new Set(target.ids);
     commit((q) => ({
       ...q,
       clips: q.clips.map((c) => {
@@ -1139,12 +1221,13 @@ const handlers: {
         return n;
       }),
     }));
-    return `Animação ajustada em ${plural(ids.size, "clipe", "clipes")}.`;
+    return `Animação ajustada em ${plural(ids.size, "clipe", "clipes")}.${target.note}`;
   },
 
   async set_transition({ clip_ids, kind, duration, colors }, { commit }) {
     const p = requireProject();
-    const ok = clip_ids.filter((id) => {
+    const target = editableClips(p, clip_ids);
+    const ok = target.ids.filter((id) => {
       const c = p.clips.find((x) => x.id === id);
       return c && previousClip(p.clips, c);
     });
@@ -1171,12 +1254,13 @@ const handlers: {
           : c,
       ),
     }));
-    const skipped = clip_ids.length - ok.length;
-    return `Transição ${kind === "none" ? "removida" : "aplicada"} em ${plural(ok.length, "corte", "cortes")}.${skipped ? ` ${plural(skipped, "clipe sem cena colada antes foi ignorado", "clipes sem cena colada antes foram ignorados")}.` : ""}`;
+    const skipped = target.ids.length - ok.length;
+    return `Transição ${kind === "none" ? "removida" : "aplicada"} em ${plural(ok.length, "corte", "cortes")}.${skipped ? ` ${plural(skipped, "clipe sem cena colada antes foi ignorado", "clipes sem cena colada antes foram ignorados")}.` : ""}${target.note}`;
   },
 
   async add_card({ where, title, kicker, subtitle }, { commit }) {
     requireProject();
+    requireNoStructuralDraft();
     const id = await addCard(where, { text: title, kicker, subtitle }, commit);
     if (!id) throw new ToolError("Não foi possível criar a cartela.");
     return `Cartela de ${where === "start" ? "abertura (a aula andou 4 s para frente)" : "encerramento"} criada [${id}].`;
@@ -1343,10 +1427,12 @@ const handlers: {
     { commit },
   ) {
     const p = requireProject();
+    const target = editableClips(p, clip_ids);
+    const batch = batched(commit);
     const done: string[] = [];
-    for (const id of clip_ids) {
+    for (const id of target.ids) {
       const clip = p.clips.find((c) => c.id === id);
-      if (!clip) throw new ToolError(`Clipe ${id} não encontrado. Use os ids de get_overview.`);
+      if (!clip) continue;
       // A drawing from the recording keeps the look it was drawn with (as in clipProps.ts): it
       // is left out, and the rest of the list goes on.
       if (clip.annotation && isDrawingKind(clip.annotation.kind)) continue;
@@ -1361,12 +1447,12 @@ const handlers: {
             outline_style,
             shadow,
           }),
-          commit,
+          batch.commit,
         );
         done.push(id);
       } else if (shadow) {
         const s = shadowNamed(shadow);
-        commit((q) => ({
+        batch.commit((q) => ({
           ...q,
           clips: q.clips.map((c) =>
             c.id === id
@@ -1384,7 +1470,8 @@ const handlers: {
       throw new ToolError(
         "Nada mudou: vídeos e imagens só aceitam shadow, e o desenho da gravação mantém o estilo com que foi feito.",
       );
-    return `Estilo aplicado em ${plural(done.length, "clipe", "clipes")}.`;
+    if (!batch.flush()) throw new ToolError("Nada mudou: a aula aberta mudou.");
+    return `Estilo aplicado em ${plural(done.length, "clipe", "clipes")}.${target.note}`;
   },
 
   async add_template({ template, fields, near_text, at, quiz_item }, { commit }) {
@@ -1418,49 +1505,75 @@ const handlers: {
 
   async set_audio({ add_music_path, music_tracks, denoise, clip_ids }, { commit }) {
     const p = requireProject();
+    if (add_music_path === undefined && !music_tracks?.length && denoise === undefined)
+      throw new ToolError("Nada para fazer: passe add_music_path, music_tracks ou denoise.");
+    // Every id is checked before anything changes, and the call is one undo step.
+    const unknownTracks = (music_tracks ?? [])
+      .map((m) => m.track_id)
+      .filter((id) => !p.tracks.some((tr) => tr.id === id));
+    if (unknownTracks.length)
+      throw new ToolError(
+        `Faixas não encontradas: ${unknownTracks.join(", ")}. Nada foi feito. Use os ids de get_overview.`,
+      );
+    const lockedTracks = (music_tracks ?? [])
+      .map((m) => m.track_id)
+      .filter((id) => p.tracks.find((tr) => tr.id === id)?.locked);
+    if (lockedTracks.length)
+      throw new ToolError(
+        `Nada foi feito: ${lockedTracks.length === 1 ? "a faixa" : "as faixas"} ${lockedTracks.join(", ")} ${lockedTracks.length === 1 ? "está travada" : "estão travadas"}. Peça para a pessoa destravar se for para mudar.`,
+      );
+    const voiceTarget = denoise !== undefined && clip_ids ? editableClips(p, clip_ids) : null;
+    const batch = batched(commit);
     const done: string[] = [];
     if (add_music_path) {
-      if (!(await addMusic(add_music_path, commit)))
-        throw new ToolError("Não consegui usar esse arquivo como música.");
-      done.push("música adicionada na faixa “Música” (abaixa quando alguém fala)");
+      // The same file already playing on a music track is not added a second time.
+      const music = new Set(p.tracks.filter((tr) => tr.music).map((tr) => tr.id));
+      const playing = p.assets.some(
+        (a) =>
+          samePath(a.path, add_music_path) &&
+          p.clips.some((c) => c.assetId === a.id && music.has(c.trackId)),
+      );
+      if (playing) done.push("essa música já está na faixa de música; nada foi repetido");
+      else {
+        if (!(await addMusic(add_music_path, batch.commit)))
+          throw new ToolError("Não consegui usar esse arquivo como música. Nada foi feito.");
+        done.push("música adicionada na faixa “Música” (abaixa quando alguém fala)");
+      }
     }
     for (const m of music_tracks ?? []) {
-      if (!p.tracks.some((t) => t.id === m.track_id))
-        throw new ToolError(`Faixa ${m.track_id} não existe. Use os ids de get_overview.`);
-      setTrackMusic(m.track_id, m.music, commit);
+      setTrackMusic(m.track_id, m.music, batch.commit);
       done.push(`faixa ${m.track_id} ${m.music ? "marcada" : "desmarcada"} como música`);
     }
     if (denoise !== undefined) {
-      const q = useProject.getState().project!;
-      const music = new Set(q.tracks.filter((t) => t.music).map((t) => t.id));
-      const voice = q.clips.filter(
-        (c) => !music.has(c.trackId) && q.assets.find((a) => a.id === c.assetId)?.hasAudio,
+      const music = new Set(p.tracks.filter((tr) => tr.music).map((tr) => tr.id));
+      const locked = new Set(p.tracks.filter((tr) => tr.locked).map((tr) => tr.id));
+      const voice = p.clips.filter(
+        (c) =>
+          !music.has(c.trackId) &&
+          !locked.has(c.trackId) &&
+          p.assets.find((a) => a.id === c.assetId)?.hasAudio,
       );
-      const ids = clip_ids ?? voice.map((c) => c.id);
-      setDenoise(ids, denoise, commit);
+      const ids = voiceTarget?.ids ?? voice.map((c) => c.id);
+      setDenoise(ids, denoise, batch.commit);
       done.push(
-        `redução de ruído ${denoise ? "ligada" : "desligada"} em ${plural(ids.length, "clipe", "clipes")}`,
+        `redução de ruído ${denoise ? "ligada" : "desligada"} em ${plural(ids.length, "clipe", "clipes")}${voiceTarget?.note ?? ""}`,
       );
     }
-    if (!done.length)
-      throw new ToolError("Nada para fazer: passe add_music_path, music_tracks ou denoise.");
+    if (!batch.flush()) throw new ToolError("Nada foi feito: a aula aberta mudou.");
     return `${done.join("; ")}.`;
   },
 
   async set_speed({ clip_ids, speed, ripple }, { commit }) {
     const p = requireProject();
-    const missing = clip_ids.filter((id) => !p.clips.some((c) => c.id === id));
-    if (missing.length)
-      throw new ToolError(
-        `Clipes não encontrados: ${missing.join(", ")}. Use os ids de get_overview.`,
-      );
-    const still = p.clips.filter((c) => clip_ids.includes(c.id) && !hasSpeed(p, c));
-    const n = applySpeed(clip_ids, speed, ripple ?? true, commit);
+    requireNoStructuralDraft();
+    const target = editableClips(p, clip_ids);
+    const still = p.clips.filter((c) => target.ids.includes(c.id) && !hasSpeed(p, c));
+    const n = applySpeed(target.ids, speed, ripple ?? true, commit);
     if (!n)
       throw new ToolError(
         "Esses clipes não têm velocidade (imagens, anotações e camadas de zoom) ou estão em faixas travadas.",
       );
-    return `Velocidade ${speedLabel(speed)} em ${plural(n, "clipe", "clipes")}${still.length ? `; ${still.length} sem velocidade ficaram como estavam` : ""}.`;
+    return `Velocidade ${speedLabel(speed)} em ${plural(n, "clipe", "clipes")}${still.length ? `; ${still.length} sem velocidade ficaram como estavam` : ""}.${target.note}`;
   },
 
   async set_captions({ burn, look, position, size, font }, { commit }) {
@@ -1484,25 +1597,30 @@ const handlers: {
 
   async move_clip({ clip_id, keyframes }, { commit }) {
     const p = requireProject();
-    const clip = p.clips.find((c) => c.id === clip_id);
-    if (!clip) throw new ToolError("Clipe não encontrado. Use os ids de get_overview.");
-    const kfs = keyframes
-      .map((k) => ({
-        t: Math.max(0, Math.min(clip.duration, k.at - clip.start)),
-        x: k.x,
-        y: k.y,
-        scale: k.scale,
-      }))
-      .sort((a, b) => a.t - b.t);
+    const target = editableClips(p, [clip_id]);
+    const ids = new Set(target.ids);
+    // Each clip of the group gets the same moments of the timeline, counted from its own start.
+    const framesOf = (clip: Clip) =>
+      keyframes
+        .map((k) => ({
+          t: Math.max(0, Math.min(clip.duration, k.at - clip.start)),
+          x: k.x,
+          y: k.y,
+          scale: k.scale,
+        }))
+        .sort((a, b) => a.t - b.t);
     commit((q) => ({
       ...q,
-      clips: q.clips.map((c) =>
-        c.id === clip_id ? { ...c, keyframes: kfs.length ? kfs : undefined } : c,
-      ),
+      clips: q.clips.map((c) => {
+        if (!ids.has(c.id)) return c;
+        const kfs = framesOf(c);
+        return { ...c, keyframes: kfs.length ? kfs : undefined };
+      }),
     }));
-    return kfs.length
-      ? `${plural(kfs.length, "posição marcada", "posições marcadas")}; o clipe desliza entre elas.`
-      : "Movimento removido.";
+    const moved = ids.size > 1 ? ` em ${plural(ids.size, "clipe", "clipes")} do grupo` : "";
+    return keyframes.length
+      ? `${plural(keyframes.length, "posição marcada", "posições marcadas")}${moved}; o clipe desliza entre elas.${target.note}`
+      : `Movimento removido${moved}.${target.note}`;
   },
 
   async list_projects() {
@@ -1558,10 +1676,13 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
       text: "No chat do EdiAula, abrir ou criar projetos é com a pessoa: peça para ela abrir a aula.",
     };
   const turn = state.aiTurn;
+  // The lesson the call is for, fixed now: the call's own, else the one open when it came in. A
+  // lesson opened while the call awaits something is never written by it.
+  const projectId = call.projectId ?? state.project?.id;
   const entry: AiEntry = {
     origin: "ai",
     key: `ai:${call.id}`,
-    ...(call.projectId ? { projectId: call.projectId } : {}),
+    ...(projectId ? { projectId } : {}),
     ...(source === "assistant" && call.projectId
       ? {
           conversation: call.projectId,
@@ -1612,7 +1733,7 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
         call.source === "assistant"
           ? "Mudanças propostas pelo Assistente"
           : "Mudanças propostas pela IA conectada",
-        call.projectId,
+        projectId,
       );
       let refused = false;
       const value = await run(

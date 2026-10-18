@@ -5,8 +5,12 @@ import type { AiApprovalChoice, AiToolCall, ToolImage } from "../shared/types.ts
 /**
  * What a local MCP request may do with its grant (packages/edi-desktop/src/access.ts). Reads
  * and proposals run when the grant covers them; a write without the write scope asks the person
- * first, unless a 15-minute approval for the open project is running. Calls of the chat's own
- * runs count as the assistant's and are tied to their project.
+ * first, unless a 15-minute approval for the open project is running. The tools of ALWAYS_ASK
+ * ask every time, even with the write scope (the restricted Claude Code window), except in the
+ * chat's own runs: the person asked there, inside EdiAula, and those runs cannot open or create
+ * a lesson (PANEL_FORBIDDEN). Calls of the chat's own runs count as the assistant's and are tied
+ * to their project. A call whose grant ended while it waited (Parar, the end of the turn, a
+ * revocation) never runs.
  */
 
 export interface ToolOutcome {
@@ -25,7 +29,10 @@ export const PANEL_CLIENT = "painel";
 export const CHECK_CLIENT = "codex-check";
 /** How long "Permitir por 15 min neste projeto" lasts. */
 export const PROJECT_APPROVAL_MS = 15 * 60_000;
-/** Always asked, even during a 15-minute approval: they change the open lesson or bring files in. */
+/**
+ * Always asked, even during a 15-minute approval or with the write scope: they change the open
+ * lesson or bring files in. The chat's own runs are the exception (see above).
+ */
 export const ALWAYS_ASK = new Set<AiToolName>(["open_project", "create_project", "import_media"]);
 
 export interface ApprovalAnswer {
@@ -45,15 +52,29 @@ export interface ApprovalQuestion {
 
 export interface GuardDeps {
   approve(question: ApprovalQuestion): Promise<ApprovalAnswer>;
-  call(name: AiToolName, args: unknown, meta: CallMeta): Promise<ToolOutcome>;
+  /** `allowed` is asked again right before the call reaches the editor (aiBridge.callTool). */
+  call(
+    name: AiToolName,
+    args: unknown,
+    meta: CallMeta,
+    allowed: () => boolean,
+  ): Promise<ToolOutcome>;
+  /** Whether the grant still works (not revoked nor expired); every grant does when absent. */
+  live?: (grantId: string) => boolean;
   now?: () => number;
 }
+
+const ENDED: ToolOutcome = {
+  ok: false,
+  text: "Este acesso terminou (a pessoa parou o pedido, o turno acabou ou a conexão foi revogada). Nada foi feito; não tente de novo.",
+};
 
 /** Names shown in the approval dialog for the clients EdiAula connects itself. */
 const CLIENT_NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
   manual: "Um app de IA configurado à mão",
+  "claude-restrito": "Claude Code só com o EdiAula",
   legacy: "Um app de IA conectado antes desta versão",
 };
 
@@ -85,11 +106,14 @@ export async function guarded(
   args: unknown,
   deps: GuardDeps,
 ): Promise<ToolOutcome> {
+  const live = (): boolean => deps.live?.(grant.id) ?? true;
+  if (!live()) return ENDED;
   const now = deps.now?.() ?? Date.now();
   const permission = callPermission(name, args);
   const source: CallMeta["source"] = grant.client === PANEL_CLIENT ? "assistant" : "mcp";
   let projectId = grant.projectId;
-  if (!grant.scopes.includes(permission)) {
+  const alwaysAsk = ALWAYS_ASK.has(name) && grant.client !== PANEL_CLIENT;
+  if (!grant.scopes.includes(permission) || alwaysAsk) {
     // Only writes are worth asking about; the self-check never asks.
     if (permission !== "write" || grant.client === CHECK_CLIENT)
       return { ok: false, text: "Este acesso não permite essa ferramenta." };
@@ -108,10 +132,17 @@ export async function guarded(
           ok: false,
           text: "A pessoa não autorizou esta alteração (ou não respondeu a tempo). Não tente de novo: diga o que queria fazer e peça para ela aprovar ou fazer no EdiAula.",
         };
+      // The person may answer after the run was stopped: the call is not made then.
+      if (!live()) return ENDED;
       if (answer.choice === "project" && !ALWAYS_ASK.has(name))
         approveForProject(grant.id, answer.projectId, now);
       projectId = answer.projectId;
     }
   }
-  return deps.call(name, args, { source, ...(projectId ? { projectId } : {}), client: grant.id });
+  return deps.call(
+    name,
+    args,
+    { source, ...(projectId ? { projectId } : {}), client: grant.id },
+    live,
+  );
 }

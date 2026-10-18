@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAPTION_FONT_NAME } from "./captions.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { EXPORT_FORMATS, EXPORT_PRESET_IDS } from "./exportPresets.ts";
 import { MAX_IMAGE_SIDE } from "./frameGrab.ts";
@@ -246,7 +247,7 @@ export const AI_TOOLS = {
     title: "Salvar dados de publicação",
     permission: "write",
     description:
-      "Saves publishing texts for the lesson: title, description, YouTube chapters (timeline seconds + title; the first must be at 0) and a short summary. They are shown to the user with copy buttons and go into the platform package of the export. video_id is the platform's id of the video (the script's, like F1P1-V01, is used when not given). Only the fields given are changed.",
+      "Saves publishing texts for the lesson: title, description, YouTube chapters (timeline seconds + title; the first must be at 0) and a short summary. They are shown to the user with copy buttons and go into the platform package of the export. video_id is the platform's id of the video (the script's, like F1P1-V01, is used when not given). Only the fields given are changed. When the lesson has chapter markers (get_overview says so), they are the chapters of the MP4 and of the package: chapters is refused then, and nothing is saved. Saved chapters and the thumbnail follow later cuts like markers.",
     input: z.object({
       title: z.string().optional(),
       description: z.string().optional(),
@@ -682,7 +683,7 @@ export const AI_TOOLS = {
       look: z.enum(["karaoke", "outline", "box"]).optional(),
       position: z.enum(["bottom", "middle", "top"]).optional(),
       size: z.number().min(3).max(9).optional(),
-      font: z.string().min(2).optional(),
+      font: z.string().min(2).max(100).regex(CAPTION_FONT_NAME).optional(),
     }),
   },
   move_clip: {
@@ -838,7 +839,8 @@ How editing works:
 - After every cut the timeline shifts left, so re-read the transcript before computing new time ranges. cut_ranges needs the project revision you read; a stale revision is refused.
 - Protected passages (listed in get_overview) can never be cut; if a requested cut hits one, tell the user and let them decide.
 - Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through a proposal the user reviews: propose_cuts, propose_off_script, or apply_cleanup in its default "propose" mode. Use apply_cleanup with mode "apply" only when the person explicitly asks to cut without reviewing.
-- Broad visual edits (add_annotations, auto_zoom, place_inserts, set_palette and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits.
+- Broad visual edits (add_annotations, auto_zoom, place_inserts, set_palette and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits. While a draft that changes the structure of the lesson (clips split, moved, removed) waits for review, cuts, cards, inserts placed right away and speed changes are refused, as in the editor: ask the person to apply or discard it first.
+- Clips in a group (get_overview shows "grupo") move and change together: a tool given one clip of a group changes the whole group, as the editor does. Clips on locked tracks are left as they are, and the answer names them. Every clip id of a call is checked before anything changes: one wrong id and nothing is done.
 - prepare_lesson runs "Preparar aula" step by step (each step waits for the person's approval); check_before_export lists what to fix before exporting, with the time of each finding.
 - The automatic cleanup (find_cleanup, apply_cleanup) follows the person's choices in the Transcrição panel: what they marked to keep, or left out of an earlier cleanup proposal, is never cut. It only shortens a pause where nobody is heard on any track (the avatar placed in a pause of the narration is speech, and so is every word whisper heard, however soft) and the screen stands still: the picture changing, the pointer moving (even slowly), clicks, drags, scrolling, shortcuts and typing all hold the pause, and a screen recording whose picture was not analyzed yet is not cut at all. The steps of a guided recording are protected too once its guided-run.json is there. After a question, or where the script says to pause or wait, the pause keeps 2.5 s. Hesitations and repeats are looked for in the teacher's own words only, never in an avatar's lines or the computer's sound; the same words said again after a demonstration, far apart or across the end of a sentence are not a repeat, and emphasis or counting ("muito, muito", "vamos lá, vamos lá", "um, dois, três") stays. Tell the person about the blind spots the tools report.
 - The course glossary (get_overview) lists names and terms that must be spelled exactly as given.
@@ -867,7 +869,7 @@ Annotations and memes: use add_annotation (arrows, balloons, notes, labels, titl
 
 Avatars: media recorded on a blue or green screen get their background removed automatically on import (see get_overview). Adjust with set_background_removal only if the user complains (holes in blue clothes → raise protect_clothes; blue rim on hair → raise despill or choke).
 
-Publishing: write titles, descriptions and chapters in Brazilian Portuguese, from the transcript of the current edit, and save them with save_publish_info. YouTube chapters need the first at 0:00, at least 3 chapters, each 10 s or longer.
+Publishing: write titles, descriptions and chapters in Brazilian Portuguese, from the transcript of the current edit, and save them with save_publish_info. YouTube chapters need the first at 0:00, at least 3 chapters, each 10 s or longer. When the lesson has chapter markers (get_overview lists where its chapters come from), those are the chapters: do not send chapters, ask the person to adjust the markers.
 
 Seeing the lesson: get_frame shows you a frame (the screen recording with its pointer, or composited=true for the lesson as exported) and the boxes of what is drawn over it. Look before placing an arrow, a balloon or a zoom, and look again after, to check it points at the right thing and covers no control, block, readout or result.
 
