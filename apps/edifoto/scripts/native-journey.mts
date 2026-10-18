@@ -9,6 +9,52 @@ import { windowsPowerShellEnvironment } from "../../../packages/edi-desktop/src/
 import { decodeArchive } from "../src/shared/documentFormat.ts";
 
 const execute = promisify(execFile);
+async function inspectRecovery(editor: Page, stage: string): Promise<void> {
+  const record = await editor.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("edifoto-recovery", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<unknown>((resolve, reject) => {
+        const request = database.transaction("drafts").objectStore("drafts").get("latest");
+        request.onsuccess = () => {
+          const record = request.result;
+          resolve(
+            record && { ...record, bytes: record.bytes ? Array.from(record.bytes) : undefined },
+          );
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } finally {
+      database.close();
+    }
+  });
+  const snapshot = z
+    .object({
+      capturedAt: z.number().optional(),
+      savedAt: z.number().optional(),
+      discarded: z.boolean().optional(),
+      bytes: z.array(z.number().int().min(0).max(255)).optional(),
+    })
+    .parse(record);
+  const doc = snapshot.bytes ? decodeArchive(Uint8Array.from(snapshot.bytes)).doc : undefined;
+  console.log(
+    "Native recovery snapshot:",
+    JSON.stringify({
+      stage,
+      capturedAt: snapshot.capturedAt,
+      savedAt: snapshot.savedAt,
+      discarded: snapshot.discarded,
+      docId: doc?.id,
+      text: doc?.layers
+        .filter((layer) => layer.kind === "text")
+        .map((layer) => ({ id: layer.id, content: layer.text.content })),
+      visibleText: await editor.locator(".rpanel textarea").allTextContents(),
+    }),
+  );
+}
 export async function verifyFotoNativeJourney(
   editor: Page,
   application: ElectronApplication,
@@ -139,11 +185,14 @@ export async function verifyFotoNativeJourney(
     null,
     { timeout: 15000 },
   );
+  await inspectRecovery(editor, "before reload");
   console.log("EdiFoto native: restore durable draft and export");
   await editor.reload();
+  await inspectRecovery(editor, "after reload");
   await editor.getByRole("button", { name: "Recuperar trabalho", exact: true }).click();
   await editor.locator(".viewport").waitFor();
   await editor.getByRole("button", { name: "Propriedades", exact: true }).click();
+  await inspectRecovery(editor, "after restore");
   await editor.waitForFunction((expected) => {
     const input = document.querySelector(".rpanel textarea");
     return input instanceof HTMLTextAreaElement && input.value === expected;
