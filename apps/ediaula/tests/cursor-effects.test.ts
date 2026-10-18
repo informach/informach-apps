@@ -312,7 +312,7 @@ test("the cursor effects are saved with the project and reach the export's pictu
   assert.match(plan.filter, /geq=lum='lum\(X,Y\)'/);
   // The magnifier only while it is on, in seconds of the clip (it shows source 2 to 8): source
   // 0 to 3 is clip -2 to 1, and source 5 to 10 is clip 3 to 8.
-  assert.match(plan.filter, /enable='between\(t,-2,1\)\+between\(t,3,8\)'/);
+  assert.match(plan.filter, /enable='\(between\(t,-2,1\)\+between\(t,3,8\)\)'/);
   assert.match(plan.filter, /scale=3840:2160/);
   assert.ok(plan.inputArgs.includes("C:/cache/spot.png"));
   // The click sound plays with the clip, at its own level, even though the screen is silent.

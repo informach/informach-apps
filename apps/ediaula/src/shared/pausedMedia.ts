@@ -1,3 +1,4 @@
+import { sumExpr } from "./exprSum.ts";
 import type { RecordingPiece, RecordingResult } from "./recording.ts";
 import type { Transcript } from "./types.ts";
 
@@ -71,9 +72,8 @@ export function pausedInMedia(
 
 /** FFmpeg's `enable` expression for the ranges (seconds of the file). */
 export function enableExpression(ranges: readonly (readonly [number, number])[]): string {
-  return mergeSpans(ranges)
-    .map(([a, b]) => `between(t,${round(a)},${round(b)})`)
-    .join("+");
+  const spans = mergeSpans(ranges).map(([a, b]) => `between(t,${round(a)},${round(b)})`);
+  return spans.length ? sumExpr(spans) : "";
 }
 
 /**

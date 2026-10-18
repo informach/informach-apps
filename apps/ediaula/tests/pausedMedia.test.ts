@@ -56,7 +56,7 @@ test("each file of a take knows the seconds it recorded during the pauses", () =
       [1, 2],
       [1.5, 3],
     ]),
-    "between(t,1,3)+between(t,8,9)",
+    "(between(t,1,3)+between(t,8,9))",
   );
 });
 

@@ -14,6 +14,7 @@ import {
   levelFilter,
   limiterFor,
   linearFits,
+  linearGain,
   measureFilter,
   type NoiseReduction,
   parseFilterList,
@@ -30,7 +31,7 @@ import { pruneCache, touch, VOICE_CACHE_BYTES } from "./cachePrune.ts";
  * 48 kHz WAV under `cacheRoot/voz/<hash of the source's bytes>/`, named by the preset, the hash
  * of what the chain covers and the chain's version. Asking again for the same source and preset
  * gives the same file without running FFmpeg. Three passes: the level (and the quietest stretch,
- * for the FFT denoiser), the chain with loudnorm measuring, and the linear loudnorm.
+ * for the FFT denoiser), the chain with loudnorm measuring, and one linear gain to the target.
  */
 
 export interface TreatOptions {
@@ -55,9 +56,9 @@ export interface TreatResult {
   version: number;
   /** Which noise reduction ran. */
   noise: NoiseReduction["kind"];
-  /** loudnorm's last word: "linear" when one gain did it. */
+  /** "linear": one gain took the voice to the target (linearGain). */
   normalization?: string;
-  /** Integrated loudness loudnorm expects at the output. */
+  /** Integrated loudness expected at the output: the measured one plus that gain. */
   loudness?: number;
   /** The file was already in the cache. */
   cached: boolean;
@@ -306,7 +307,7 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
       );
 
     // 3. One linear gain to the target loudness.
-    const third = await pass(
+    await pass(
       o.ffmpeg,
       [
         "-hide_banner",
@@ -331,15 +332,14 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
     o.signal?.throwIfAborted();
     await rename(partial, out);
     await pruneCache(join(o.cacheRoot, "voz"), o.cacheBytes ?? VOICE_CACHE_BYTES, out);
-    const final = /"input_i"/.test(third.stderr) ? parseLoudnorm(third.stderr) : null;
+    const gain = linearGain(measured);
     o.onProgress?.(1);
     return {
       path: out,
       preset: o.preset,
       version: VOICE_CHAIN_VERSION,
       noise: nr.kind,
-      ...(final?.normalization_type ? { normalization: final.normalization_type } : {}),
-      ...(final?.output_i !== undefined ? { loudness: final.output_i } : {}),
+      ...(gain !== null ? { normalization: "linear", loudness: measured.input_i + gain } : {}),
       cached: false,
     };
   } finally {

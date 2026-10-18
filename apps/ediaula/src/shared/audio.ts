@@ -1,3 +1,4 @@
+import { sumExpr } from "./exprSum.ts";
 import { clipEnd } from "./timeline.ts";
 import type { Project, Track } from "./types.ts";
 
@@ -139,5 +140,5 @@ export function duckExpr(
   const terms = spans.map(
     ([a, b]) => `clip((t-${n(a - ramp)})/${n(ramp)},0,1)*clip((${n(b + ramp)}-t)/${n(ramp)},0,1)`,
   );
-  return `1-${n(1 - depth)}*min(1,${terms.join("+")})`;
+  return `1-${n(1 - depth)}*min(1,${sumExpr(terms)})`;
 }

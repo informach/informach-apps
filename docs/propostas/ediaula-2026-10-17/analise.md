@@ -495,6 +495,7 @@ Em 18/10/2026 a verificação final da branch integrada (`6e55f459` e a document
 - **`pnpm edi:test:visual`:** só roda localmente (não há workflow). Passou nas branches dos lotes antes da integração (159 capturas no Lote 10 e 132 no Lote 13, zero erros), mas não sobre a branch integrada com as correções da revisão geral. Rodar sobre a `main` publicada, olhar as capturas que mudaram (gravador, pílula com a confirmação de descarte, quadro no editor, região seguindo a gravação, cor) e corrigir o que falhar.
 - **`pnpm edi:test:native`:** roda no workflow `edi-native` do PR e da `main` e no `edi-release` de cada app; localmente ficou sem rodar sobre a branch integrada. Rodar também `pnpm --filter @informach/ediaula test` com `EDIAULA_NATIVE_INPUT_TESTS=1` (entrada real do auxiliar, inclusive soltar o botão no fim do modo de entrada, mudado no lote 15) e com `EDIAULA_SOUND_TESTS=1` (áudio do PC sem o som do app).
 - Os dois esperam 2000 MB livres. Feche outros programas pesados antes.
+- **Segmentação da webcam no CI:** no runner Windows do GitHub, que não tem GPU, o wasm do MediaPipe aborta (`Aborted()`) no teste `personKey`, que passa nesta máquina. O teste fica pulado no CI (`process.env.CI`). Reproduzir numa máquina ou VM sem GPU antes de depender do recurso: se abortar lá, o fundo removido por IA precisa de um aviso claro ou de outro caminho nesses computadores.
 
 ### Teste manual
 

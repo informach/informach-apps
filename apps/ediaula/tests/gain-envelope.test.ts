@@ -102,7 +102,7 @@ test("the audio plan applies the envelope per piece and the highlighted track's 
     ],
   };
   const plan = buildAudioPlan(p, {});
-  assert.match(plan.filter, /volume='if\(lte\(0-12\*\(clip\(\(t\+0\),1,2\)-1\)/);
+  assert.match(plan.filter, /volume='if\(lte\(\(0\+\(-12\*\(clip\(\(t\+0\),1,2\)-1\)/);
   // The voice lane steps aside while the highlighted one plays; the highlighted one does not.
   const spans = spotlightSpans(p, 0.35, 0.8);
   assert.deepEqual(spans, [[8, 11]]);
@@ -115,18 +115,18 @@ test("the audio plan applies the envelope per piece and the highlighted track's 
   assert.match(stems.filter, /\[svoice\]/);
 });
 
-test("a long envelope is a flat sum of ramps, and a piece gets only its stretch", () => {
+test("a long envelope is a balanced sum of ramps, and a piece gets only its stretch", () => {
   const many = Array.from({ length: 500 }, (_, i) => ({ t: i * 0.25, db: i % 3 ? -6 : 0 }));
   many.push({ t: 50, db: -60 }, { t: 50, db: -3 });
   const expr = gainExpr(many, "T");
-  // No nesting that grows with the points (FFmpeg refuses deep expressions).
+  // Nesting grows with the logarithm of the points (FFmpeg 9 refuses about 100 levels).
   let depth = 0;
   let deepest = 0;
   for (const ch of expr) {
     if (ch === "(") deepest = Math.max(deepest, ++depth);
     else if (ch === ")") depth--;
   }
-  assert.ok(deepest < 8, `nesting ${deepest}`);
+  assert.ok(deepest < 24, `nesting ${deepest}`);
   const f = exprFn(expr);
   for (let t = -1; t <= 130; t += 0.37)
     assert.ok(Math.abs(f(t) - gainAt(many, t)) < 1e-6, `at ${t.toFixed(2)} s`);

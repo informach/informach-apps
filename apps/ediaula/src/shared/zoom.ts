@@ -1,4 +1,5 @@
 import type { CursorData } from "./cursorData.ts";
+import { sumExpr } from "./exprSum.ts";
 
 /**
  * Zooms on a clip ("zoom automático" from clicks, or added by hand). Times are seconds of the
@@ -136,10 +137,10 @@ export function sliceByTime<T extends { t: number }>(
 
 /**
  * A smooth curve through points (smoothstep between each pair, flat before the first and after
- * the last) as a flat sum: the first value plus each step's change times its smoothstep, which
- * is 0 before the step and 1 after it. FFmpeg refuses deeply nested expressions; this one grows
- * flat with the points. The changes are taken between the rounded values, so the sum lands
- * exactly on each of them.
+ * the last) as a sum: the first value plus each step's change times its smoothstep, which is 0
+ * before the step and 1 after it. FFmpeg refuses deeply nested expressions; this one is summed
+ * as a balanced tree (sumExpr), so its depth grows with the logarithm of the points. The changes
+ * are taken between the rounded values, so the sum lands exactly on each of them.
  */
 export function smoothSteps(
   points: readonly { t: number; v: number }[],
@@ -148,7 +149,7 @@ export function smoothSteps(
 ): string {
   if (!points.length) return "0";
   const vals = points.map((p) => Number(round(p.v)));
-  let expr = round(vals[0]);
+  const terms = [round(vals[0])];
   for (let i = 1; i < points.length; i++) {
     const rise = Number(round(vals[i] - vals[i - 1]));
     if (rise === 0) continue;
@@ -156,9 +157,11 @@ export function smoothSteps(
     const span = Math.max(1e-3, points[i].t - a);
     const from = round(a);
     const shifted = from.startsWith("-") ? `${t}+${from.slice(1)}` : `${t}-${from}`;
-    expr += `${rise < 0 ? "-" : "+"}${round(Math.abs(rise))}*${sm(`(${shifted})/${round(span)}`)}`;
+    terms.push(
+      `${rise < 0 ? "-" : ""}${round(Math.abs(rise))}*${sm(`(${shifted})/${round(span)}`)}`,
+    );
   }
-  return expr;
+  return sumExpr(terms);
 }
 
 function focusExpr(z: Zoom, t: string, axis: "x" | "y", range?: readonly [number, number]): string {
@@ -177,9 +180,9 @@ export function zoomExprs(
   range?: readonly [number, number],
 ): { scale: string; cx: string; cy: string } {
   const terms = zooms.map((z) => ({ w: envelopeExpr(z, t), z }));
-  const scale = `(1${terms.map(({ w, z }) => `+${num(z.scale - 1)}*${w}`).join("")})`;
+  const scale = `(${sumExpr(["1", ...terms.map(({ w, z }) => `${num(z.scale - 1)}*${w}`)])})`;
   const center = (axis: "x" | "y"): string => {
-    const raw = `(0.5${terms.map(({ w, z }) => `+(${focusExpr(z, t, axis, range)}-0.5)*${w}`).join("")})`;
+    const raw = `(${sumExpr(["0.5", ...terms.map(({ w, z }) => `(${focusExpr(z, t, axis, range)}-0.5)*${w}`)])})`;
     return `clip(${raw},0.5/${scale},1-0.5/${scale})`;
   };
   return { scale, cx: center("x"), cy: center("y") };

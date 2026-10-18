@@ -1,3 +1,4 @@
+import { sumExpr } from "./exprSum.ts";
 import type { Clip } from "./types.ts";
 
 /**
@@ -67,7 +68,7 @@ export function gainExpr(points: readonly GainPoint[] | undefined, x: string): s
         : `${n(rise / span)}*(clip(${x},${n(a.t)},${n(b.t)})-${n(a.t)})`,
     );
   }
-  const db = terms.join("+").replaceAll("+-", "-");
+  const db = sumExpr(terms);
   if (terms.length === 1) return n(dbToGain(list[0].db));
   return `if(lte(${db},${GAIN_MIN_DB}),0,pow(10,(${db})/20))`;
 }

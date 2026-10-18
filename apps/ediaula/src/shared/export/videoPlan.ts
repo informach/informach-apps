@@ -10,6 +10,7 @@ import {
   shadowReach,
 } from "../compose.ts";
 import { cursorOverlayExpressions } from "../cursor-expressions.ts";
+import { sumExpr } from "../exprSum.ts";
 import { keyframeExprs } from "../keyframes.ts";
 import {
   type ClipColor,
@@ -689,11 +690,12 @@ export function buildVideoWindowPlan(
       const cx = `(${xy.x})+${center}`;
       const cy = `(${xy.y})+${center}`;
       /** The stretches of an effect this piece shows, as an enable on the clip's clock. */
-      const during = (on: [number, number][]): string =>
-        on
+      const during = (on: [number, number][]): string => {
+        const spans = on
           .filter(([a, b]) => b > piece.S - 1 / fps && a < piece.E)
-          .map(([a, b]) => `between(t,${us((a - clip.in) / speed)},${us((b - clip.in) / speed)})`)
-          .join("+");
+          .map(([a, b]) => `between(t,${us((a - clip.in) / speed)},${us((b - clip.in) / speed)})`);
+        return spans.length ? sumExpr(spans) : "";
+      };
       const lens = cursor.magnifier;
       const magnified = lens ? during(lens.on) : "";
       // The magnifier enlarges the recording itself, and goes over the spotlight (as in the
@@ -743,12 +745,11 @@ export function buildVideoWindowPlan(
         `(${us(clip.in)}+${frameClock(fps, k0)}${speed === 1 ? "" : `*${n(speed)}`})`,
         [piece.S - 1 / fps, piece.E],
       );
-      const on = zooms
-        .map(
-          (z) =>
-            `between(t,${us((z.start - clip.in) / speed - half)},${us((z.end - clip.in) / speed)})`,
-        )
-        .join("+");
+      const onSpans = zooms.map(
+        (z) =>
+          `between(t,${us((z.start - clip.in) / speed - half)},${us((z.end - clip.in) / speed)})`,
+      );
+      const on = onSpans.length ? sumExpr(onSpans) : "";
       const x0 = `(${e.cx}-0.5/${e.scale})*W`;
       const y0 = `(${e.cy}-0.5/${e.scale})*H`;
       const w = `W/${e.scale}`;

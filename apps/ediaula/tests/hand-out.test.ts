@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -23,7 +23,8 @@ test("a transcript made now is readable by the editor as soon as its path comes 
     const bare = await fakeTranscribe("a", "pt");
     await assert.rejects(files.assertRead(bare), /Selecione/);
     const handed = await withReadGrant(fakeTranscribe, files.grantRead)("b", "pt");
-    assert.equal(await files.assertRead(handed), handed);
+    // The grant answers with the real path (a runner may hand out the short 8.3 temp name).
+    assert.equal(await files.assertRead(handed), await realpath(handed));
     // Arguments go through as they are.
     assert.match(handed, /transcript-b-pt\.json$/);
   } finally {

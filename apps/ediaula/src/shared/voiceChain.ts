@@ -11,7 +11,9 @@ import type { Asset } from "./types.ts";
  *    in the pauses, a de-esser and a soft compressor, with a limiter that only catches stray
  *    peaks;
  * 4. loudness in two passes: `loudnorm=print_format=json` measures what the chain gives, then
- *    `linear=true` applies one gain to -16 LUFS integrated with -1 dBTP true peak.
+ *    one gain (`volume`) takes it to -16 LUFS integrated, held under -1 dBTP true peak. The gain
+ *    is the app's own sum, not loudnorm's `linear=true`, which falls back to its dynamic mode by
+ *    criteria of its own (it did on a CI runner) and lifts the pauses and the noise in them.
  *
  * The result is a mono 48 kHz WAV cached per source (main), used by the preview and the export
  * alike (`treatedPath`).
@@ -27,7 +29,7 @@ export const VOICE_PRESET_LABELS: Record<VoicePreset, string> = {
 };
 
 /** Bumped whenever a chain changes what it writes: older cached files are not used again. */
-export const VOICE_CHAIN_VERSION = 1;
+export const VOICE_CHAIN_VERSION = 2;
 
 /** Loudness targets: integrated LUFS, true peak dBTP; a wide LRA keeps the gain linear. */
 export const VOICE_LOUDNESS = { I: -16, TP: -1, LRA: 20 } as const;
@@ -249,19 +251,20 @@ export function limiterFor(m: LoudnormStats): string {
   return `alimiter=limit=${n(lin(ceiling), 5)}:level=false:latency=true`;
 }
 
-/** The second loudnorm pass: one linear gain from the measured values. */
+/**
+ * The one gain (dB) from the measured values to the target loudness, held so the true peak stays
+ * 0.1 dB under the target's; null for pure silence (-inf cannot be lifted).
+ */
+export function linearGain(m: LoudnormStats): number | null {
+  if (!Number.isFinite(m.input_i) || !Number.isFinite(m.input_tp)) return null;
+  const { I, TP } = VOICE_LOUDNESS;
+  return Math.min(I - m.input_i, TP - 0.1 - m.input_tp);
+}
+
+/** The last pass: one linear gain from the measured values (linearGain), then 48 kHz. */
 export function applyFilter(m: LoudnormStats): string {
-  // -inf (pure silence) cannot be passed back; the chain then only resamples.
-  const finite = [m.input_i, m.input_tp, m.input_lra, m.input_thresh, m.target_offset].every(
-    Number.isFinite,
-  );
-  if (!finite) return "aresample=48000";
-  const { I, TP, LRA } = VOICE_LOUDNESS;
-  return (
-    `loudnorm=I=${I}:TP=${TP}:LRA=${LRA}:measured_I=${m.input_i}:measured_TP=${m.input_tp}` +
-    `:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}` +
-    ":linear=true:print_format=json,aresample=48000"
-  );
+  const gain = linearGain(m);
+  return gain === null ? "aresample=48000" : `volume=${n(gain, 2)}dB,aresample=48000`;
 }
 
 /** What the cache key covers besides the source: the preset, the noise method and the version. */
