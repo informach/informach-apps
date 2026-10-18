@@ -103,8 +103,9 @@ export function planInsert(
 /**
  * Opens `gap` seconds at time `t` on `tracks`: clips crossing `t` are split and everything after
  * moves right. Clips on other tracks only move if they start after `t` (a music bed underneath
- * keeps playing). Clips on `locked` tracks never move nor split; the ones crossing `t` come back
- * in `blocked`, since opening the timeline there would pull the rest out of sync with them.
+ * keeps playing). Clips on `locked` tracks never move nor split; every one still playing after
+ * `t` comes back in `blocked`, since opening the timeline there would pull the rest out of sync
+ * with it (callers do not apply the result then).
  * Returns the clips and the ids of clips that were split (left parts).
  */
 export function openGap(
@@ -119,7 +120,7 @@ export function openGap(
   const blocked: Clip[] = [];
   for (const c of clips) {
     if (locked.has(c.trackId)) {
-      if (c.start < t - 1e-6 && clipEnd(c) > t + 1e-6) blocked.push(c);
+      if (clipEnd(c) > t + 1e-6) blocked.push(c);
       out.push(c);
     } else if (c.start >= t - 1e-6) out.push({ ...c, start: c.start + gap });
     else if (tracks.has(c.trackId) && clipEnd(c) > t + 1e-6) {

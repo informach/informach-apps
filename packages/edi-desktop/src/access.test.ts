@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   authorizeLocalMcp,
+  clearAccess,
   configureDesktopAccess,
   createClientGrant,
   grantAllows,
@@ -148,5 +149,22 @@ describe("local MCP grants", () => {
     const redacted = redactMcpCredentials(text);
     expect(redacted).not.toContain(run.token);
     expect(redacted).not.toContain("z".repeat(40));
+  });
+
+  it("signing out ends every token, run tokens included; a long run can extend its own", async () => {
+    vi.useFakeTimers();
+    setup();
+    const run = mintRunToken({ scopes: ["read", "write"], ttlMs: 60_000 });
+    vi.advanceTimersByTime(50_000);
+    run.extend(60_000);
+    vi.advanceTimersByTime(30_000);
+    expect(authorizeLocalMcp(request(`Bearer ${run.token}`))).not.toBeNull();
+    const { token } = await createClientGrant({ client: "codex", scopes: ["read"] });
+    clearAccess();
+    expect(authorizeLocalMcp(request(`Bearer ${run.token}`))).toBeNull();
+    expect(authorizeLocalMcp(request(`Bearer ${token}`))).toBeNull();
+    // A revoked run cannot be brought back by extending it.
+    run.extend(60_000);
+    expect(authorizeLocalMcp(request(`Bearer ${run.token}`))).toBeNull();
   });
 });

@@ -134,7 +134,7 @@ const api: EdiAulaApi = {
     ipcRenderer.invoke("ai:approval-answer", id, choice, projectId),
   setAiContext: (context) => ipcRenderer.invoke("ai:context", context),
   aiClients: () => ipcRenderer.invoke("ai:clients"),
-  connectAiClient: (id) => ipcRenderer.invoke("ai:connect", id),
+  connectAiClient: (id, rotate) => ipcRenderer.invoke("ai:connect", id, rotate ?? false),
   assistantSend: (conversationId, text) =>
     ipcRenderer.invoke("assistant:send", conversationId, text),
   assistantStop: (conversationId) => ipcRenderer.invoke("assistant:stop", conversationId),

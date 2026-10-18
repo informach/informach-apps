@@ -8,7 +8,13 @@ import { app, safeStorage } from "electron";
 import { z } from "zod";
 import { DEFAULT_EFFORT, EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
 import type { AiClientId, AiClientStatus } from "../shared/types.ts";
-import { type Launch, LaunchError, resolveLaunch, type ScriptRuntime } from "./engineArgs.ts";
+import {
+  engineEnv,
+  type Launch,
+  LaunchError,
+  resolveLaunch,
+  type ScriptRuntime,
+} from "./engineArgs.ts";
 
 export const DEFAULT_MCP_PORT = 47321;
 export const MCP_NAME = "ediaula";
@@ -122,8 +128,8 @@ async function run(
   } catch (error) {
     return { code: 1, out: error instanceof Error ? error.message : String(error) };
   }
-  const env = { ...process.env, ...launch.env };
-  if (!launch.env.ELECTRON_RUN_AS_NODE) delete env.ELECTRON_RUN_AS_NODE;
+  // The same environment as a run, without EdiAula's own variables.
+  const env = engineEnv(process.env, { minimal: false, launch: launch.env });
   return exec(launch.command, [...launch.args, ...args], env, timeout);
 }
 
@@ -198,12 +204,16 @@ export async function clientStatus(port = DEFAULT_MCP_PORT): Promise<AiClientSta
   );
 }
 
-/** Registers EdiAula's MCP server in the user's Claude Code or Codex configuration. */
+/**
+ * Registers EdiAula's MCP server in the user's Claude Code or Codex configuration. A client
+ * already connected keeps its token unless `rotate` (Reconectar) is asked.
+ */
 export async function connectClient(
   id: AiClientId,
   port: number,
+  rotate = false,
 ): Promise<{ ok: boolean; message: string }> {
   if (!(await locateClient(id)))
     return { ok: false, message: "Cliente oficial não encontrado neste computador." };
-  return connectMcpClient({ client: id, home: homedir(), name: MCP_NAME, port });
+  return connectMcpClient({ client: id, home: homedir(), name: MCP_NAME, port, rotate });
 }

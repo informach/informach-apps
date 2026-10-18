@@ -3,7 +3,7 @@ import { lstat, readlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { app, type BrowserWindow, dialog } from "electron";
-import { classifyPath, insideAny, type PathVerdict } from "../shared/aiPaths.ts";
+import { classifyPath, insideAny, type PathVerdict, usableRoots } from "../shared/aiPaths.ts";
 
 /**
  * Checks a path an AI sent before anything opens it (shared/aiPaths.ts has the rules). Links
@@ -24,6 +24,9 @@ export function setAiPathContext(next: {
 }): void {
   context = next;
 }
+
+/** A question about a file outside the usual folders is refused after this. */
+const QUESTION_TIMEOUT_MS = 60_000;
 
 /** Files outside the usual folders the person allowed in this session. */
 const allowed = new Set<string>();
@@ -77,21 +80,33 @@ export async function checkAiPath(win: BrowserWindow | null, path: string): Prom
   }
   const resolved = classifyPath(real);
   if (!resolved.ok) return refuse(`o arquivo fica fora deste computador (${resolved.reason})`);
-  // Folders on another computer never count (and are not touched to find out).
-  const roots = [
-    ...(context.projectPath ? [dirname(context.projectPath)] : []),
-    ...usualFolders(),
-    ...context.mediaFolders,
-  ].filter((root) => classifyPath(root).ok);
-  const realRoots = await Promise.all(roots.map((root) => realNative(root).catch(() => root)));
+  // Folders on another computer never count (and are not touched to find out), nor a whole
+  // drive or the profile folder itself.
+  const home = app.getPath("home");
+  const roots = usableRoots(
+    [
+      ...(context.projectPath ? [dirname(context.projectPath)] : []),
+      ...usualFolders(),
+      ...context.mediaFolders,
+    ],
+    home,
+  );
+  const realRoots = usableRoots(
+    await Promise.all(roots.map((root) => realNative(root).catch(() => root))),
+    home,
+  );
   if (
     insideAny(resolved.path, [...roots, ...realRoots]) ||
     allowed.has(resolved.path.toLowerCase())
   )
     return resolved;
+  // The question closes by itself, as a refusal, when nobody answers.
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), QUESTION_TIMEOUT_MS);
   const answer =
     win && !win.isDestroyed()
       ? await dialog.showMessageBox(win, {
+          signal: deadline.signal,
           type: "question",
           buttons: ["Permitir", "Recusar"],
           defaultId: 1,
@@ -101,6 +116,7 @@ export async function checkAiPath(win: BrowserWindow | null, path: string): Prom
           detail: `${resolved.path}\n\nPermita só se você reconhece este arquivo.`,
         })
       : { response: 1 };
+  clearTimeout(timer);
   if (answer.response !== 0) return refuse("a pessoa não permitiu usar esse arquivo");
   allowed.add(resolved.path.toLowerCase());
   return resolved;

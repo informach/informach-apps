@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { classifyPath, insideAny } from "../src/shared/aiPaths.ts";
+import { classifyPath, folderOf, insideAny, usableRoots } from "../src/shared/aiPaths.ts";
 
 const refused = (path: string): boolean => !classifyPath(path).ok;
 
@@ -62,4 +62,32 @@ test("a path counts as inside a folder only when it really is", () => {
   assert.ok(!insideAny("C:\\Users\\ana\\Documents-falsa\\x.mp4", roots));
   assert.ok(!insideAny("C:\\Users\\ana\\Documents\\..\\Desktop\\x.mp4", roots));
   assert.ok(!insideAny("\\\\host\\Documents\\x.mp4", ["\\\\host\\Documents"]));
+});
+
+test("the folder of a media file is found with either kind of slash", () => {
+  assert.equal(folderOf("C:\\Aulas\\semana 1\\fala.wav"), "C:\\Aulas\\semana 1");
+  assert.equal(folderOf("C:/Aulas/semana 1/fala.wav"), "C:\\Aulas\\semana 1");
+  assert.equal(folderOf("D:\\fala.wav"), "D:\\");
+  assert.equal(folderOf("\\\\host\\share\\fala.wav"), null);
+});
+
+test("a whole drive or the profile folder itself is never a folder the AI may use freely", () => {
+  const home = "C:\\Users\\ana";
+  const roots = usableRoots(
+    [
+      "C:\\",
+      "D:",
+      home,
+      "c:\\users\\ANA\\",
+      "C:\\Users\\ana\\Documents",
+      "C:\\Users\\ana\\Videos\\Aulas",
+      "\\\\host\\share",
+    ],
+    home,
+  );
+  assert.deepEqual(roots, ["C:\\Users\\ana\\Documents", "C:\\Users\\ana\\Videos\\Aulas"]);
+  // A media at the root of a drive, or right in the profile folder, does not open them up.
+  assert.ok(!insideAny("C:\\Windows\\x.png", roots));
+  assert.ok(!insideAny("C:\\Users\\ana\\AppData\\Roaming\\x.mp4", roots));
+  assert.ok(insideAny("C:\\Users\\ana\\Videos\\Aulas\\x.mp4", roots));
 });

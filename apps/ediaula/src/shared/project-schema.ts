@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROPOSAL_ITEM_LIMIT } from "./anchors.ts";
+import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
 import { ENCODERS, type ExportSpec, type Project } from "./types.ts";
 
 const number = z.number().min(-1e9).max(1e9);
@@ -273,6 +273,7 @@ const proposal = z.looseObject({
   title: text,
   revision: z.int().nonnegative(),
   createdAt: z.number().nonnegative(),
+  by: z.string().min(1).max(200).optional(),
   items: z
     .array(
       z.looseObject({
@@ -282,13 +283,22 @@ const proposal = z.looseObject({
         reason: text,
         text: text.optional(),
         near: number.optional(),
-        anchors: z.array(sourceSpan).max(256),
-        wordKeys: z.array(z.string().max(300)).max(5000).optional(),
+        anchors: z.array(sourceSpan).min(1).max(MAX_ANCHORS),
+        wordKeys: z.array(z.string().max(300)).max(MAX_WORD_KEYS).optional(),
         status: z.enum(["pending", "rejected"]),
       }),
     )
     .max(PROPOSAL_ITEM_LIMIT),
 });
+
+/** The pending proposals of a project, checked before they are kept (proposals.ts). */
+export const proposalListSchema = z
+  .array(proposal)
+  .max(PROPOSAL_LIMIT)
+  .refine(
+    (list) => list.reduce((n, p) => n + p.items.length, 0) <= PROPOSAL_ITEM_LIMIT,
+    "Too many proposal items",
+  );
 
 /** Preserve extension fields of the versioned format; all fields used by the editor are validated. */
 export const projectSchema = z
@@ -330,14 +340,7 @@ export const projectSchema = z
     script: z.looseObject({ text, section: z.int().nonnegative().optional() }).optional(),
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
-    proposals: z
-      .array(proposal)
-      .max(20)
-      .refine(
-        (list) => list.reduce((n, p) => n + p.items.length, 0) <= PROPOSAL_ITEM_LIMIT,
-        "Too many proposal items",
-      )
-      .optional(),
+    proposals: proposalListSchema.optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

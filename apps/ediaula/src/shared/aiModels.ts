@@ -183,7 +183,10 @@ export function usageCost(model: string, usage: UsageLike): { tokens: number; us
   return usd === undefined ? { tokens } : { tokens, usd };
 }
 
-/** "12,3 mil tokens · US$ 0,04" (with "cerca de" when the client only estimates the cost). */
+/**
+ * "12,3 mil tokens · US$ 0,04". With `estimated` (Claude Code on the person's subscription) the
+ * value is what the same use would cost on the API: the subscription does not charge per request.
+ */
 export function usageLabel(usage: { tokens: number; usd?: number; estimated?: boolean }): string {
   const tokens =
     usage.tokens >= 1_000_000
@@ -194,5 +197,7 @@ export function usageLabel(usage: { tokens: number; usd?: number; estimated?: bo
   if (usage.usd === undefined) return tokens;
   const usd =
     usage.usd < 0.01 ? "menos de US$ 0,01" : `US$ ${usage.usd.toFixed(2).replace(".", ",")}`;
-  return `${tokens} · ${usage.estimated && usage.usd >= 0.01 ? `cerca de ${usd}` : usd}`;
+  return usage.estimated
+    ? `${tokens} · equivalente a ${usd} na API (a assinatura não cobra por pedido)`
+    : `${tokens} · ${usd}`;
 }

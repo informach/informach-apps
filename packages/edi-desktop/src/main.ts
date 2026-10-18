@@ -18,12 +18,13 @@ import {
 import type { NsisUpdater } from "electron-updater";
 import { lock, unlockSync } from "proper-lockfile";
 import { z } from "zod";
-import { configureDesktopAccess, hashMcpToken, type McpGrantStore, replaceGrants } from "./access";
+import { clearAccess, configureDesktopAccess, replaceGrants } from "./access";
 import { desktopConfigSchema, recoveryResultSchema } from "./contracts";
 import { createDesktopController } from "./controller";
 import { electronInstallationFileSystem } from "./electron-installation-filesystem";
 import { createFileAuthority, validateIpcValues } from "./files";
 import { gateHtml } from "./gate-html";
+import { createGrantFile, migrateLegacyToken, removeAllGrantFiles } from "./grants";
 import { verifyInstalledApplication } from "./installation-integrity";
 import { desktopJobs } from "./jobs";
 import { createReleaseAcceptance } from "./release-policy";
@@ -91,6 +92,8 @@ export function createEdiDesktop(options: {
   recoveryChannels?: readonly string[];
   onRecovery?: () => void;
   getRecoveryWindow?: () => BrowserWindow | null | undefined;
+  /** The computer was signed out: stop AI runs and close windows that held MCP tokens. */
+  onSignedOut?: () => void;
 }) {
   const config = desktopConfigSchema.parse(JSON.parse(process.env.EDI_DESKTOP_CONFIG ?? "{}"));
   fileAuthority = createFileAuthority(
@@ -114,6 +117,9 @@ export function createEdiDesktop(options: {
   let quitVerified = false;
   let releaseStartup: (() => void) | undefined;
   let reloadGrants: (() => Promise<void>) | undefined;
+  /** No session on this computer any more: every MCP token goes, and the tool stops its AI runs. */
+  let signOut: (() => Promise<void>) | undefined;
+  let signedOut = false;
   const recoveryRequests = new Map<
     string,
     { senderId: number; complete: (saved: boolean) => void }
@@ -127,6 +133,11 @@ export function createEdiDesktop(options: {
   const safeReloadGrants = () => {
     reloadGrants?.().catch((error: unknown) => {
       logFailure("mcp_grants_reload_failed", error);
+    });
+  };
+  const safeSignOut = () => {
+    signOut?.().catch((error: unknown) => {
+      logFailure("mcp_grants_sign_out_failed", error);
     });
   };
   const safeRefresh = () => {
@@ -395,61 +406,37 @@ export function createEdiDesktop(options: {
         channel: config.updateChannel,
       });
       const appId = options.appId;
-      const grants = await vault.use(async (data) => {
-        // The single permanent token of earlier versions keeps working for the clients already
-        // configured with it, but only to read and propose; writing asks for approval.
-        const legacy = data.mcpTokens[appId];
-        const list = data.mcpGrants[appId] ?? [];
-        if (legacy) {
-          const tokenHash = hashMcpToken(legacy);
-          if (!list.some((grant) => grant.tokenHash === tokenHash))
-            list.push({
-              id: randomUUID(),
-              client: "legacy",
-              tokenHash,
-              scopes: ["read", "propose"],
-              createdAt: Date.now(),
-            });
-          delete data.mcpTokens[appId];
-        }
-        const now = Date.now();
-        const live = list.filter((grant) => grant.expiresAt === undefined || grant.expiresAt > now);
-        data.mcpGrants[appId] = live;
-        return live.map((grant) => ({ ...grant }));
+      const grantFile = createGrantFile({
+        directory,
+        appId,
+        seal: (value) => safeStorage.encryptString(value),
+        unseal: (value) => safeStorage.decryptString(value),
       });
-      const grantStore: McpGrantStore = {
-        add: (grant) =>
+      // The single permanent token of earlier versions keeps working for the clients already
+      // configured with it for 30 days, but only to read and propose; writing asks for approval.
+      await migrateLegacyToken({
+        appId,
+        grants: grantFile,
+        readToken: () => vault.use(async (data) => data.mcpTokens[appId]),
+        removeToken: () =>
           vault.use(async (data) => {
-            const list = data.mcpGrants[appId] ?? [];
-            if (list.length >= 100)
-              throw new Error("Há conexões demais com a IA. Revogue alguma antes de criar outra.");
-            data.mcpGrants[appId] = [...list, grant];
+            delete data.mcpTokens[appId];
           }),
-        remove: (ids) =>
-          vault.use(async (data) => {
-            data.mcpGrants[appId] = (data.mcpGrants[appId] ?? []).filter(
-              (grant) => !ids.includes(grant.id),
-            );
-          }),
-        touch: (id, at) =>
-          vault.use(async (data) => {
-            const grant = data.mcpGrants[appId]?.find((item) => item.id === id);
-            if (grant) grant.lastUsedAt = at;
-          }),
-      };
+      });
       // A token of this process only, for tools whose own engines use localMcpHeaders().
       configureDesktopAccess({
         token: randomBytes(32).toString("hex"),
         assertAccess: () => requireController().assertAccess(),
-        grants,
-        store: grantStore,
+        grants: await grantFile.load(),
+        store: grantFile.store,
       });
       reloadGrants = async () => {
-        replaceGrants(
-          await vault.use(async (data) =>
-            (data.mcpGrants[appId] ?? []).map((grant) => ({ ...grant })),
-          ),
-        );
+        replaceGrants(await grantFile.load());
+      };
+      signOut = async () => {
+        clearAccess();
+        await removeAllGrantFiles(directory);
+        options.onSignedOut?.();
       };
       controller = createDesktopController({
         ...config,
@@ -459,6 +446,11 @@ export function createEdiDesktop(options: {
         openExternal: (url) => shell.openExternal(url),
         changed: (status) => {
           desktopJobs.setAccess(status.state === "licensed");
+          // Signed out here or in another tool of the suite: no AI client keeps any access.
+          if (status.cause === "signed_out" && !signedOut) {
+            signedOut = true;
+            safeSignOut();
+          } else if (status.cause !== "signed_out") signedOut = false;
           for (const window of BrowserWindow.getAllWindows())
             window.webContents.send("edi:status-changed", status);
           if (expiryTimer) clearTimeout(expiryTimer);
@@ -498,7 +490,7 @@ export function createEdiDesktop(options: {
         "edi:connect": () => requireController().connect(),
         "edi:logout": async () => {
           await requireController().logout();
-          await reloadGrants?.();
+          await signOut?.();
         },
         "edi:refresh": () => requireController().refresh(),
         "edi:account": () => shell.openExternal(`${new URL(config.portalUrl).origin}/conta`),

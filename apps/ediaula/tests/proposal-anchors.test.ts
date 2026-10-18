@@ -1,18 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildItems,
   canApply,
   fromWordKeys,
   locateItem,
+  MAX_ANCHORS,
   PROPOSAL_ITEM_LIMIT,
   type Proposal,
   type ProposalItem,
   toSource,
   toTimeline,
+  withProposal,
 } from "../src/shared/anchors.ts";
 import { applyCuts, type TimelineWord } from "../src/shared/cleanup.ts";
 import { restoreSnapshot } from "../src/shared/history.ts";
-import { projectSchema } from "../src/shared/project-schema.ts";
+import { projectSchema, proposalListSchema } from "../src/shared/project-schema.ts";
 import type { Asset, Clip, Project } from "../src/shared/types.ts";
 
 const recording: Asset = {
@@ -108,7 +111,7 @@ const ms = (range: [number, number] | null): number[] | null =>
 const words = (list: [string, string, number][]): TimelineWord[] =>
   list.map(([key, text, start]) => ({ key, clipId: "c1", text, start, end: start + 0.4, p: 1 }));
 
-test("word keys find the words again, then the quoted text", () => {
+test("word keys find the words again, only in the item's own media", () => {
   const p = project([clip("c1", 0, 0, 60)]);
   const spoken = words([
     ["rec:1", "clique", 10],
@@ -117,20 +120,25 @@ test("word keys find the words again, then the quoted text", () => {
   ]);
   assert.deepEqual(ms(fromWordKeys(spoken, ["rec:1", "rec:2"])), [9.94, 10.96]);
   assert.equal(fromWordKeys(spoken, ["rec:2", "rec:1"]), null, "words out of order");
-  // Anchors no longer valid: keys, then text.
+  assert.equal(
+    fromWordKeys(spoken, ["rec:1", "rec:2"], new Set(), new Set(["outra"])),
+    null,
+    "keys of another media",
+  );
+  // Anchors no longer valid (the stretch is outside every clip): keys.
   const lost: ProposalItem = {
     id: "i",
     start: 10,
     end: 11,
     reason: "x",
-    anchors: [{ clipId: "gone", assetId: "other", start: 0, end: 1 }],
+    anchors: [{ clipId: "gone", assetId: "rec", start: 100, end: 101 }],
     wordKeys: ["rec:1", "rec:2"],
     text: "clique aqui",
     status: "pending",
   };
   assert.deepEqual(ms(locateItem(p, lost, spoken)), [9.94, 10.96]);
-  assert.deepEqual(ms(locateItem(p, { ...lost, wordKeys: ["rec:9"] }, spoken)), [9.94, 10.96]);
-  assert.equal(locateItem(p, { ...lost, wordKeys: ["rec:9"], text: "outra" }, spoken), null);
+  // Keys gone too: the text only counts near where the anchors were, so here it is not found.
+  assert.equal(locateItem(p, { ...lost, wordKeys: ["rec:9"] }, spoken), null);
   // The same key twice (a copied take): only the copy in the item's own clips counts.
   const twice = [
     ...spoken,
@@ -138,6 +146,108 @@ test("word keys find the words again, then the quoted text", () => {
   ].sort((a, b) => a.start - b.start);
   assert.equal(fromWordKeys(twice, ["rec:1"]), null);
   assert.deepEqual(ms(fromWordKeys(twice, ["rec:1"], new Set(["c9"]))), [39.94, 40.46]);
+});
+
+test("the quoted text is found again only where it was, never in the other take", () => {
+  // Take 1 at source 10 s, take 2 (the same words, said again) at source 30 s.
+  const item: ProposalItem = {
+    id: "i",
+    start: 9.94,
+    end: 11.46,
+    reason: "repetição",
+    anchors: [
+      {
+        clipId: "c1",
+        assetId: "rec",
+        trackId: "v1",
+        start: 9.94,
+        end: 11.46,
+        at: 9.94,
+        until: 11.46,
+      },
+    ],
+    wordKeys: ["rec:1", "rec:2", "rec:3"],
+    text: "clique aqui agora",
+    status: "pending",
+  };
+  const take = (clipId: string, at: number, first: number): TimelineWord[] =>
+    words([
+      [`rec:${first}`, "clique", at],
+      [`rec:${first + 1}`, "aqui", at + 0.5],
+      [`rec:${first + 2}`, "agora", at + 1],
+    ]).map((w) => ({ ...w, clipId }));
+  // Take 1 trimmed a little: its head now starts at 10.0 s, the words are all still there
+  // (with new keys, after the transcript was redone): found by the text, near the anchors.
+  const trimmed = project([clip("c1", 0, 10, 20), clip("c2", 20, 30, 10)]);
+  const redone = [...take("c1", 0, 101), ...take("c2", 20, 201)];
+  assert.ok(locateItem(trimmed, item, redone));
+  // Take 1 trimmed past its first word: the text only exists whole in take 2, which is another
+  // passage. The item is left out instead of cutting take 2.
+  const cutHead = project([clip("c1", 0, 10.3, 20), clip("c2", 20, 30, 10)]);
+  const after = [
+    ...take("c1", 0, 101)
+      .slice(1)
+      .map((w) => ({ ...w, start: w.start - 0.3, end: w.end - 0.3 })),
+    ...take("c2", 20, 201),
+  ];
+  assert.equal(locateItem(cutHead, item, after), null);
+});
+
+test("a stretch over hundreds of clips becomes several items that always fit in the save", () => {
+  // 300 pieces of the recording side by side on the timeline, each from a different moment.
+  const many = project(Array.from({ length: 300 }, (_, i) => clip(`k${i}`, i * 0.1, i * 0.2, 0.1)));
+  const items = buildItems(
+    many,
+    [0, 30],
+    undefined,
+    { reason: "longo" },
+    (() => {
+      let n = 0;
+      return () => `it${n++}`;
+    })(),
+  );
+  assert.equal(items.length, 2);
+  assert.ok(items.every((i) => i.anchors.length <= MAX_ANCHORS));
+  assert.deepEqual(
+    items.map((i) => i.anchors.length),
+    [MAX_ANCHORS, 300 - MAX_ANCHORS],
+  );
+  const proposal: Proposal = {
+    id: "p",
+    projectId: "p",
+    title: "t",
+    revision: 1,
+    createdAt: 1,
+    items,
+  };
+  assert.ok(proposalListSchema.safeParse([proposal]).success);
+  for (const i of items) assert.ok(locateItem(many, i), "each piece is placed again");
+  // A clip split with nothing removed is one stretch, placed across both pieces.
+  const split = project([clip("a", 0, 0, 5), clip("b", 5, 5, 5)]);
+  const one = buildItems(split, [3, 7], undefined, { reason: "x" }, () => "one")[0];
+  assert.equal(one.anchors.length, 1);
+  assert.deepEqual(locateItem(split, one), [3, 7]);
+});
+
+test("a proposal replaces only an earlier one of the same author", () => {
+  const p = project([clip("c1", 0, 0, 60)]);
+  const make = (id: string, by: string): Proposal => ({
+    id,
+    projectId: "p",
+    title: id,
+    revision: 1,
+    createdAt: 1,
+    by,
+    items: [item(p, [1, 2])],
+  });
+  let list = withProposal([], make("chat-1", "assistente"));
+  list = withProposal(list, make("app-1", "cliente:g1"));
+  list = withProposal(list, make("chat-2", "assistente"));
+  assert.deepEqual(
+    list.map((x) => x.id),
+    ["app-1", "chat-2"],
+    "the app connected from outside does not wipe the chat's proposal, nor the other way round",
+  );
 });
 
 test("a proposal of another project is refused", () => {

@@ -1,13 +1,42 @@
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { type ChildProcess, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { mintRunToken } from "@informach/edi-desktop/access";
 import { app } from "electron";
 import { clientLaunch, locateClient, mcpUrl } from "./aiSettings.ts";
-import { claudeMcpConfig, engineEnv, type Launch } from "./engineArgs.ts";
+import { claudeMcpConfig, engineEnv, type Launch, MCP_TOKEN_ENV } from "./engineArgs.ts";
+import { killTree } from "./processTree.ts";
 
 /** The terminal stays usable for a working day; its token goes away when the window closes. */
 const WINDOW_TTL_MS = 12 * 3600_000;
+
+const folder = (): string => join(app.getPath("userData"), "claude-restrito");
+
+/** Windows open now, so signing out can close them (their token is revoked with them). */
+const windows = new Map<ChildProcess, () => void>();
+
+/**
+ * Earlier versions wrote the permanent token into this folder's mcp.json (and a .cmd that opened
+ * it). The file is written again with only the name of the token's variable, and the .cmd goes.
+ */
+export function migrateRestrictedConfig(port: number): void {
+  const dir = folder();
+  const config = join(dir, "mcp.json");
+  if (existsSync(config) && !readFileSync(config, "utf8").includes(`\${${MCP_TOKEN_ENV}}`))
+    writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
+  rmSync(join(dir, "abrir-claude.cmd"), { force: true });
+}
+
+/** Signed out of the computer: every restricted window closes and its token goes. */
+export function closeRestrictedWindows(): void {
+  for (const [child, revoke] of windows) {
+    revoke();
+    void killTree(child.pid).then((ended) => {
+      if (!ended) child.kill();
+    });
+  }
+  windows.clear();
+}
 
 /**
  * Opens the user's own Claude Code in a window of its own that can only use EdiAula's editing
@@ -26,7 +55,7 @@ export async function openRestrictedClaude(
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
-  const dir = join(app.getPath("userData"), "claude-restrito");
+  const dir = folder();
   mkdirSync(dir, { recursive: true });
   const config = join(dir, "mcp.json");
   writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
@@ -58,9 +87,14 @@ export async function openRestrictedClaude(
         env: engineEnv(process.env, { minimal: false, token: token.token, launch: launch.env }),
       },
     );
-    child.on("exit", token.revoke);
+    windows.set(child, token.revoke);
+    child.on("exit", () => {
+      token.revoke();
+      windows.delete(child);
+    });
     child.on("error", (err) => {
       token.revoke();
+      windows.delete(child);
       console.error(`[ediaula] restricted_claude_failed: ${err.name}`);
     });
   } catch (err) {

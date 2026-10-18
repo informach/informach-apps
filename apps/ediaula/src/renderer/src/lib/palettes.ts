@@ -17,7 +17,7 @@ import {
 } from "@shared/palettes";
 import type { Project } from "@shared/types";
 import { create } from "zustand";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
 
 interface PaletteStore {
@@ -107,6 +107,7 @@ export function recolorCount(p: Project): number {
 export async function applyPalette(
   id: string,
   opts: { recolor?: boolean; fonts?: boolean } = {},
+  commit: Commit = personCommit,
 ): Promise<number> {
   const p = useProject.getState().project;
   if (!p) return 0;
@@ -137,7 +138,7 @@ export async function applyPalette(
       spec,
     });
   }
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const assetOf = new Map(q.assets.map((a) => [a.id, a]));
     const assets = new Map(q.assets.map((a) => [a.id, a]));
     const clips = q.clips.map((c) => {

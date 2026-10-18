@@ -46,8 +46,13 @@ interface ProjectStore {
 
   load(path: string, project: Project): void;
   close(): void;
-  /** Undoable change. */
-  commit(fn: (p: Project) => Project): void;
+  /** Undoable change made by the person. Returns whether it was made. */
+  commit(fn: (p: Project) => Project): boolean;
+  /**
+   * Undoable change made by an AI tool call, recorded under `entry`. Refused (false) when
+   * `entry.projectId` is not the open project.
+   */
+  commitAs(entry: AiEntry, fn: (p: Project) => Project): boolean;
   /**
    * Change that should not enter the undo history (e.g. a thumbnail finishing). Undo and redo
    * keep the media fields listed in ASSET_RUNTIME_FIELDS (shared/history.ts) as they are now.
@@ -95,44 +100,11 @@ const nextRevision = (): number => ++revisionCounter;
 /** The person's manual group (beginGroup/endGroup) in progress. */
 let manualGroup: { key: string; depth: number } | null = null;
 
-/** The AI tool call running now (runAsAi): its commits are recorded as the AI's. */
-let aiCall: (HistoryEntry & { projectId?: string }) | null = null;
-/** Commits an AI call tried to make on another project than its own (refused). */
-let refusedAiCommits = 0;
+/** History entry of an AI tool call, with the project it may change. */
+export type AiEntry = HistoryEntry & { origin: "ai"; projectId?: string };
 
-/** Events of the person's own hands: a commit made while one is dispatched is theirs. */
-const USER_INPUT = new Set([
-  "pointerdown",
-  "pointerup",
-  "pointermove",
-  "mousedown",
-  "mouseup",
-  "click",
-  "dblclick",
-  "contextmenu",
-  "keydown",
-  "keyup",
-  "input",
-  "change",
-  "focusout",
-  "blur",
-  "drop",
-  "dragend",
-  "wheel",
-  "submit",
-]);
-
-function userInputNow(): boolean {
-  const event = typeof window === "undefined" ? undefined : window.event;
-  return !!event && event.isTrusted && USER_INPUT.has(event.type);
-}
-
-/** Who the commit being made now belongs to. */
-function originNow(): (HistoryEntry & { projectId?: string }) | null {
-  if (manualGroup) return { origin: "user", key: manualGroup.key };
-  if (aiCall && !userInputNow()) return aiCall;
-  return null;
-}
+/** A way to commit: the person's (`personCommit`) or an AI call's (handed to tool handlers). */
+export type Commit = (fn: (p: Project) => Project) => boolean;
 
 const historyOf = (s: ProjectStore): History => ({
   past: s.past,
@@ -152,223 +124,241 @@ const emptyState = {
   aiTurn: null,
 };
 
-export const useProject = create<ProjectStore>((set, get) => ({
-  project: null,
-  path: null,
-  ...emptyState,
-  revision: 0,
-
-  load: (path, project) => {
-    clearTimeout(timer);
-    // Another project: no proposal, view or AI turn of the previous one carries over.
-    set({ path, project, ...emptyState, revision: nextRevision() });
-  },
-  close: () => {
-    clearTimeout(timer);
-    set({ project: null, path: null, ...emptyState, revision: nextRevision() });
-  },
-
-  commit: (fn) => {
+export const useProject = create<ProjectStore>((set, get) => {
+  /** Applies a change and records its undo step under `entry`. */
+  const record = (entry: HistoryEntry, fn: (p: Project) => Project): boolean => {
     const state = get();
     const { project } = state;
-    if (!project) return;
-    const origin = originNow();
-    // An AI call never writes into a project other than the one it was made for.
-    if (origin?.origin === "ai" && origin.projectId && origin.projectId !== project.id) {
-      refusedAiCommits++;
-      return;
-    }
+    if (!project) return false;
     const next = { ...fn(project), updatedAt: Date.now() };
     const ids = new Set(next.clips.map((c) => c.id));
-    const { projectId: _project, ...entry } = origin ?? { origin: "user" as const };
     set({
       project: next,
       ...pushCommit(historyOf(state), project, entry, HISTORY_LIMIT),
       selection: state.selection.filter((id) => ids.has(id)),
       revision: nextRevision(),
     });
-  },
+    return true;
+  };
+  return {
+    project: null,
+    path: null,
+    ...emptyState,
+    revision: 0,
 
-  patch: (fn) => {
-    const { project } = get();
-    if (!project) return;
-    set({ project: fn(project) });
-  },
+    load: (path, project) => {
+      clearTimeout(timer);
+      // Another project: no proposal, view or AI turn of the previous one carries over.
+      set({ path, project, ...emptyState, revision: nextRevision() });
+    },
+    close: () => {
+      clearTimeout(timer);
+      set({ project: null, path: null, ...emptyState, revision: nextRevision() });
+    },
 
-  patchAsset: (id, changes) =>
-    get().patch((p) => ({
-      ...p,
-      assets: p.assets.map((a) => (a.id === id ? { ...a, ...changes } : a)),
-    })),
+    commit: (fn) =>
+      record(manualGroup ? { origin: "user", key: manualGroup.key } : { origin: "user" }, fn),
+    commitAs: (entry, fn) => {
+      // An AI call never writes into a project other than the one it was made for.
+      if (entry.projectId && get().project?.id !== entry.projectId) return false;
+      const { projectId: _project, ...history } = entry;
+      return record(history, fn);
+    },
 
-  relinkAsset: (id, changes) => {
-    const { project, past, future } = get();
-    const old = project?.assets.find((a) => a.id === id);
-    if (!project || !old) return;
-    const relink = (p: Project): Project => relinkIn(p, old, changes);
-    set({ project: relink(project), past: past.map(relink), future: future.map(relink) });
-  },
+    patch: (fn) => {
+      const { project } = get();
+      if (!project) return;
+      set({ project: fn(project) });
+    },
 
-  undo: () => {
-    const state = get();
-    if (!state.project) return;
-    const done = undoSteps(historyOf(state), state.project, undoSpan(historyOf(state)), Date.now());
-    if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
-  },
-  redo: () => {
-    const state = get();
-    if (!state.project) return;
-    const done = redoSteps(historyOf(state), state.project, redoSpan(historyOf(state)), Date.now());
-    if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
-  },
-  undoAi: (mine, steps) => {
-    const state = get();
-    if (!state.project) return 0;
-    const n = aiUndoCount(historyOf(state), mine, steps);
-    const done = undoSteps(historyOf(state), state.project, n, Date.now());
-    if (!done) return 0;
-    set({ project: done.project, ...done.history, revision: nextRevision() });
-    return n;
-  },
+    patchAsset: (id, changes) =>
+      get().patch((p) => ({
+        ...p,
+        assets: p.assets.map((a) => (a.id === id ? { ...a, ...changes } : a)),
+      })),
 
-  setProposals: (fn) => {
-    const { project } = get();
-    if (!project) return;
-    const list = fn(project.proposals ?? []);
-    const next: Project = { ...project };
-    if (list.length) next.proposals = list;
-    else delete next.proposals;
-    set({ project: next });
-  },
+    relinkAsset: (id, changes) => {
+      const { project, past, future } = get();
+      const old = project?.assets.find((a) => a.id === id);
+      if (!project || !old) return;
+      const relink = (p: Project): Project => relinkIn(p, old, changes);
+      set({ project: relink(project), past: past.map(relink), future: future.map(relink) });
+    },
 
-  beginGroup: () => {
-    manualGroup = manualGroup
-      ? { ...manualGroup, depth: manualGroup.depth + 1 }
-      : { key: `group:${newId("g")}`, depth: 1 };
-  },
-  endGroup: () => {
-    if (!manualGroup) return;
-    manualGroup = manualGroup.depth > 1 ? { ...manualGroup, depth: manualGroup.depth - 1 } : null;
-  },
+    undo: () => {
+      const state = get();
+      if (!state.project) return;
+      const done = undoSteps(
+        historyOf(state),
+        state.project,
+        undoSpan(historyOf(state)),
+        Date.now(),
+      );
+      if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
+    },
+    redo: () => {
+      const state = get();
+      if (!state.project) return;
+      const done = redoSteps(
+        historyOf(state),
+        state.project,
+        redoSpan(historyOf(state)),
+        Date.now(),
+      );
+      if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
+    },
+    undoAi: (mine, steps) => {
+      const state = get();
+      if (!state.project) return 0;
+      const n = aiUndoCount(historyOf(state), mine, steps);
+      const done = undoSteps(historyOf(state), state.project, n, Date.now());
+      if (!done) return 0;
+      set({ project: done.project, ...done.history, revision: nextRevision() });
+      return n;
+    },
 
-  beginAiTurn: (projectId) => {
-    if (get().project?.id !== projectId) return null;
-    const turn: AiTurn = { id: newId("turn"), projectId };
-    set({ aiTurn: turn });
-    return turn;
-  },
-  endAiTurn: (turn) => {
-    const open = get().aiTurn;
-    const next = closeTurn(open, turn);
-    if (next !== open) set({ aiTurn: next });
-  },
+    setProposals: (fn) => {
+      const { project } = get();
+      if (!project) return;
+      const list = fn(project.proposals ?? []);
+      const next: Project = { ...project };
+      if (list.length) next.proposals = list;
+      else delete next.proposals;
+      set({ project: next });
+    },
 
-  select: (ids) => {
-    set({ selection: ids });
-    // The last selection made is the one Delete acts on: picking clips drops selected words.
-    if (ids.length && useApp.getState().textCut) useApp.getState().set({ textCut: null });
-  },
+    beginGroup: () => {
+      manualGroup = manualGroup
+        ? { ...manualGroup, depth: manualGroup.depth + 1 }
+        : { key: `group:${newId("g")}`, depth: 1 };
+    },
+    endGroup: () => {
+      if (!manualGroup) return;
+      manualGroup = manualGroup.depth > 1 ? { ...manualGroup, depth: manualGroup.depth - 1 } : null;
+    },
 
-  saveNow: () => {
-    clearTimeout(timer);
-    const run = async (): Promise<boolean> => {
-      const { project, path } = get();
-      if (!project || !path) return true;
-      if (project === lastSaved) {
-        if (get().saveState !== "saved" || get().saveError)
-          set({ saveState: "saved", saveError: undefined });
-        return true;
-      }
-      set({ saveState: "saving" });
+    beginAiTurn: (projectId) => {
+      if (get().project?.id !== projectId) return null;
+      const turn: AiTurn = { id: newId("turn"), projectId };
+      set({ aiTurn: turn });
+      return turn;
+    },
+    endAiTurn: (turn) => {
+      const open = get().aiTurn;
+      const next = closeTurn(open, turn);
+      if (next !== open) set({ aiTurn: next });
+    },
+
+    select: (ids) => {
+      set({ selection: ids });
+      // The last selection made is the one Delete acts on: picking clips drops selected words.
+      if (ids.length && useApp.getState().textCut) useApp.getState().set({ textCut: null });
+    },
+
+    saveNow: () => {
+      clearTimeout(timer);
+      const run = async (): Promise<boolean> => {
+        const { project, path } = get();
+        if (!project || !path) return true;
+        if (project === lastSaved) {
+          if (get().saveState !== "saved" || get().saveError)
+            set({ saveState: "saved", saveError: undefined });
+          return true;
+        }
+        set({ saveState: "saving" });
+        try {
+          await window.api.saveProject(path, JSON.stringify(project));
+          if (get().path !== path) return true;
+          lastSaved = project;
+          set(
+            get().project === project
+              ? { saveState: "saved", saveError: undefined }
+              : { saveState: "pending", saveError: undefined },
+          );
+          return true;
+        } catch (err) {
+          if (get().path === path) set({ saveState: "error", saveError: message(err) });
+          return false;
+        }
+      };
+      // `run` never rejects, so the chain always moves on to the next save.
+      const next = (inFlight ?? Promise.resolve(true)).then(run);
+      inFlight = next;
+      void next.then(() => {
+        if (inFlight === next) inFlight = null;
+      });
+      return next;
+    },
+
+    flush: () => get().saveNow(),
+
+    saveCopyAs: async () => {
+      const { project } = get();
+      if (!project) return false;
+      const { toast } = useApp.getState();
+      let target: string | null;
       try {
-        await window.api.saveProject(path, JSON.stringify(project));
-        if (get().path !== path) return true;
-        lastSaved = project;
-        set(
-          get().project === project
-            ? { saveState: "saved", saveError: undefined }
-            : { saveState: "pending", saveError: undefined },
-        );
-        return true;
+        target = await window.api.pickProjectCopyPath(`${project.name} (cópia)`);
       } catch (err) {
-        if (get().path === path) set({ saveState: "error", saveError: message(err) });
+        toast(`Não foi possível escolher onde salvar a cópia: ${message(err)}`, "error");
         return false;
       }
-    };
-    // `run` never rejects, so the chain always moves on to the next save.
-    const next = (inFlight ?? Promise.resolve(true)).then(run);
-    inFlight = next;
-    void next.then(() => {
-      if (inFlight === next) inFlight = null;
-    });
-    return next;
-  },
+      if (!target) return false;
+      // The copy is a lesson of its own: named after its file and with its own id, so the recent
+      // list and the export marks tell it apart from the original.
+      const file = fileName(target);
+      const identity = {
+        id: newId("p"),
+        name: file.toLowerCase().endsWith(".ediaula") ? file.slice(0, -".ediaula".length) : file,
+      };
+      const copy: Project = {
+        ...project,
+        ...identity,
+        ...(project.proposals
+          ? {
+              proposals: project.proposals.map((proposal) => ({
+                ...proposal,
+                projectId: identity.id,
+              })),
+            }
+          : {}),
+      };
+      try {
+        await window.api.saveProject(target, JSON.stringify(copy));
+      } catch (err) {
+        set({ saveState: "error", saveError: message(err) });
+        return false;
+      }
+      // The original location is the one failing: autosave goes on in the copy.
+      clearTimeout(timer);
+      // Pending proposals belong to the lesson, which now goes on under the copy's id.
+      const rename = (p: Project): Project => ({
+        ...p,
+        ...identity,
+        ...(p.proposals
+          ? { proposals: p.proposals.map((proposal) => ({ ...proposal, projectId: identity.id })) }
+          : {}),
+      });
+      const { project: now, past, future } = get();
+      const current = now === project;
+      set({
+        path: target,
+        project: current ? copy : now && rename(now),
+        past: past.map(rename),
+        future: future.map(rename),
+        saveState: current ? "saved" : "pending",
+        saveError: undefined,
+      });
+      lastSaved = current ? copy : null;
+      if (!current) void get().saveNow();
+      toast(`Cópia salva em ${target}. A edição continua nela.`, "success");
+      return true;
+    },
+  };
+});
 
-  flush: () => get().saveNow(),
-
-  saveCopyAs: async () => {
-    const { project } = get();
-    if (!project) return false;
-    const { toast } = useApp.getState();
-    let target: string | null;
-    try {
-      target = await window.api.pickProjectCopyPath(`${project.name} (cópia)`);
-    } catch (err) {
-      toast(`Não foi possível escolher onde salvar a cópia: ${message(err)}`, "error");
-      return false;
-    }
-    if (!target) return false;
-    // The copy is a lesson of its own: named after its file and with its own id, so the recent
-    // list and the export marks tell it apart from the original.
-    const file = fileName(target);
-    const identity = {
-      id: newId("p"),
-      name: file.toLowerCase().endsWith(".ediaula") ? file.slice(0, -".ediaula".length) : file,
-    };
-    const copy: Project = {
-      ...project,
-      ...identity,
-      ...(project.proposals
-        ? {
-            proposals: project.proposals.map((proposal) => ({
-              ...proposal,
-              projectId: identity.id,
-            })),
-          }
-        : {}),
-    };
-    try {
-      await window.api.saveProject(target, JSON.stringify(copy));
-    } catch (err) {
-      set({ saveState: "error", saveError: message(err) });
-      return false;
-    }
-    // The original location is the one failing: autosave goes on in the copy.
-    clearTimeout(timer);
-    // Pending proposals belong to the lesson, which now goes on under the copy's id.
-    const rename = (p: Project): Project => ({
-      ...p,
-      ...identity,
-      ...(p.proposals
-        ? { proposals: p.proposals.map((proposal) => ({ ...proposal, projectId: identity.id })) }
-        : {}),
-    });
-    const { project: now, past, future } = get();
-    const current = now === project;
-    set({
-      path: target,
-      project: current ? copy : now && rename(now),
-      past: past.map(rename),
-      future: future.map(rename),
-      saveState: current ? "saved" : "pending",
-      saveError: undefined,
-    });
-    lastSaved = current ? copy : null;
-    if (!current) void get().saveNow();
-    toast(`Cópia salva em ${target}. A edição continua nela.`, "success");
-    return true;
-  },
-}));
+/** The person's commit, for helpers that also serve AI tools (which pass their own). */
+export const personCommit: Commit = (fn) => useProject.getState().commit(fn);
 
 /**
  * Edits still on their way into the project (an annotation being redrawn) and text typed in a
@@ -422,23 +412,23 @@ useProject.subscribe((s, prev) => {
 });
 
 /**
- * Runs an AI tool call: what it commits outside the person's own input is recorded as the AI's
- * (`entry`) and only into `entry.projectId`. Returns the result and whether a commit was refused
- * because another project was open by then.
+ * Runs an AI tool call with its own commit: everything it changes through that function is
+ * recorded under `entry` and only in `entry.projectId`. What the person does meanwhile goes
+ * through the plain commit and is always theirs. Returns the result and whether a commit was
+ * refused because another project was open by then.
  */
 export async function runAsAi<T>(
-  entry: HistoryEntry & { projectId?: string },
-  fn: () => Promise<T>,
+  entry: AiEntry,
+  fn: (commit: Commit) => Promise<T>,
 ): Promise<{ value: T; refused: boolean }> {
-  const before = aiCall;
-  const refusedBefore = refusedAiCommits;
-  aiCall = entry;
-  try {
-    const value = await fn();
-    return { value, refused: refusedAiCommits > refusedBefore };
-  } finally {
-    aiCall = before;
-  }
+  let refused = false;
+  const commit: Commit = (change) => {
+    const done = useProject.getState().commitAs(entry, change);
+    if (!done) refused = true;
+    return done;
+  };
+  const value = await fn(commit);
+  return { value, refused };
 }
 
 export const assetMap = (p: Project | null): Map<string, Asset> =>

@@ -189,6 +189,7 @@ async function proposeRetakes(assetId: string, clipId: string): Promise<void> {
     "Trechos para refazer (Ctrl+R)",
     cuts.map(([start, end]) => ({ start, end, reason: "marcado com Ctrl+R durante a gravação" })),
     revision,
+    "gravacao",
   );
   useApp.getState().toast(msg.split("\n")[0], "info");
 }

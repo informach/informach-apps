@@ -48,6 +48,11 @@ export interface Proposal {
   /** Project revision it was made at (informative). */
   revision: number;
   createdAt: number;
+  /**
+   * Who made it ("assistente", "gravacao", "cliente:<grant>"). A new proposal replaces only an
+   * earlier one of the same author, never someone else's.
+   */
+  by?: string;
   items: ProposalItem[];
 }
 
@@ -56,6 +61,12 @@ export type StoredProposal = Proposal;
 
 /** Items kept per project, so the project always fits in one save. */
 export const PROPOSAL_ITEM_LIMIT = 2000;
+/** Pending proposals kept per project. */
+export const PROPOSAL_LIMIT = 20;
+/** Media stretches per item; a longer one is split into several items. */
+export const MAX_ANCHORS = 256;
+/** Word keys per item; a longer quote keeps only its anchors and its text. */
+export const MAX_WORD_KEYS = 5000;
 
 /** Source-time tolerance when checking that a clip still holds a stretch. */
 const EPS = 1e-3;
@@ -63,16 +74,26 @@ const EPS = 1e-3;
 const SAME = 0.02;
 /** A gap between the pieces of an item that did not exist before is more than this. */
 const GAP = 0.05;
+/** The quoted text only counts this close (in the media's own seconds) to where it was. */
+const TEXT_NEAR = 1.5;
 
 const timed = (c: Clip, assets: Map<string, Asset>): boolean => {
   const kind = assets.get(c.assetId)?.kind;
   return (kind === "video" || kind === "audio") && !c.annotation && !c.zoomLayer;
 };
 
+/** Pieces of the same media that still follow each other, in the media and on the timeline. */
+const continues = (prev: Clip, next: Clip): boolean =>
+  next.assetId === prev.assetId &&
+  next.trackId === prev.trackId &&
+  Math.abs(next.in - sourceEnd(prev)) <= EPS &&
+  Math.abs(next.start - clipEnd(prev)) <= SAME;
+
 /**
  * The stretches of media under the timeline range [s, e], on one track: the one that covers
  * most of the range among `prefer` (the tracks cuts apply to, or the track the quoted words
- * are on), transcribed media first, then the lowest in the stack (the main recording).
+ * are on), transcribed media first, then the lowest in the stack (the main recording). Pieces
+ * of a clip split without removing anything become one stretch.
  */
 export function toSource(
   project: Project,
@@ -107,12 +128,17 @@ export function toSource(
       best = { track, cover, spoken, rank };
   }
   if (!best) return [];
-  return (byTrack.get(best.track) ?? [])
-    .sort((a, b) => a.start - b.start)
-    .map((c) => {
-      const from = Math.max(s, c.start);
-      const to = Math.min(e, clipEnd(c));
-      return {
+  const spans: SourceSpan[] = [];
+  let prev: Clip | null = null;
+  for (const c of (byTrack.get(best.track) ?? []).sort((a, b) => a.start - b.start)) {
+    const from = Math.max(s, c.start);
+    const to = Math.min(e, clipEnd(c));
+    const last = spans[spans.length - 1];
+    if (last && prev && continues(prev, c)) {
+      last.end = sourceAt(c, to);
+      last.until = to;
+    } else
+      spans.push({
         clipId: c.id,
         assetId: c.assetId,
         trackId: c.trackId,
@@ -120,16 +146,40 @@ export function toSource(
         end: sourceAt(c, to),
         at: from,
         until: to,
-      };
-    });
+      });
+    prev = c;
+  }
+  return spans;
 }
 
-const covers = (c: Clip, span: SourceSpan): boolean =>
-  c.assetId === span.assetId && c.in <= span.start + EPS && sourceEnd(c) >= span.end - EPS;
+interface Chain {
+  first: Clip;
+  last: Clip;
+}
 
-const place = (c: Clip, span: SourceSpan): [number, number] => [
-  Math.max(c.start, timelineAt(c, span.start)),
-  Math.min(clipEnd(c), timelineAt(c, span.end)),
+/**
+ * The clips of a stretch's media that hold it end to end: one clip, or pieces that still follow
+ * each other (a clip split with nothing removed in between).
+ */
+function chains(project: Project, span: SourceSpan): Chain[] {
+  const clips = project.clips.filter((c) => c.assetId === span.assetId);
+  const out: Chain[] = [];
+  for (const first of clips) {
+    if (!(first.in <= span.start + EPS && sourceEnd(first) > span.start + EPS)) continue;
+    let last = first;
+    for (let guard = 0; sourceEnd(last) < span.end - EPS && guard < clips.length; guard++) {
+      const next = clips.find((n) => continues(last, n));
+      if (!next) break;
+      last = next;
+    }
+    if (sourceEnd(last) >= span.end - EPS) out.push({ first, last });
+  }
+  return out;
+}
+
+const place = (chain: Chain, span: SourceSpan): [number, number] => [
+  Math.max(chain.first.start, timelineAt(chain.first, span.start)),
+  Math.min(clipEnd(chain.last), timelineAt(chain.last, span.end)),
 ];
 
 /**
@@ -160,10 +210,10 @@ function joined(spans: SourceSpan[], ranges: [number, number][]): [number, numbe
 }
 
 /**
- * Where the anchored stretches are on the timeline now. Each stretch is looked for in its own
- * clip first; when that clip was cut or replaced, in a copy of the media that holds every
- * stretch, then in a copy that holds it alone, on the same track first. Null when no clip holds
- * them any more, or when copies of the take at different places leave the choice open.
+ * Where the anchored stretches are on the timeline now. Each stretch is looked for through its
+ * own clip first (and the pieces that follow it, if it was split); when that clip no longer
+ * holds it, through another copy of the media, on the same track first. Null when no clip holds
+ * a stretch any more, or when copies of the take at different places leave the choice open.
  */
 export function toTimeline(
   project: Project,
@@ -171,49 +221,18 @@ export function toTimeline(
   hint?: number,
 ): [number, number] | null {
   if (!spans.length) return null;
-  const byId = new Map(project.clips.map((c) => [c.id, c]));
-  const own = spans.map((span) => {
-    const c = byId.get(span.clipId);
-    return c && covers(c, span) ? place(c, span) : null;
-  });
-  if (own.every((r) => r)) return joined(spans, own as [number, number][]);
-
-  const onTrack = (clips: Clip[], span: SourceSpan): Clip[] => {
-    const same = clips.filter((c) => c.trackId === span.trackId);
-    return same.length ? same : clips;
-  };
-  // One copy of the media holding every stretch.
-  if (new Set(spans.map((span) => span.assetId)).size === 1) {
-    const copies = onTrack(
-      project.clips.filter((c) => spans.every((span) => covers(c, span))),
-      spans[0],
-    );
-    const ranges = copies
-      .map((c) =>
-        joined(
-          spans,
-          spans.map((span) => place(c, span)),
-        ),
-      )
-      .filter((r): r is [number, number] => !!r);
-    const found = onePlace(ranges, hint);
-    if (found) return found;
-  }
-
-  // Each stretch in a copy of its own (the pieces of a clip cut in two).
   const pieces: [number, number][] = [];
-  for (const [i, span] of spans.entries()) {
-    const known = own[i];
-    if (known) {
-      pieces.push(known);
+  for (const span of spans) {
+    const all = chains(project, span);
+    if (!all.length) return null;
+    const own = all.filter((chain) => chain.first.id === span.clipId);
+    if (own.length === 1) {
+      pieces.push(place(own[0], span));
       continue;
     }
-    const copies = onTrack(
-      project.clips.filter((c) => covers(c, span)),
-      span,
-    );
+    const same = all.filter((chain) => chain.first.trackId === span.trackId);
     const found = onePlace(
-      copies.map((c) => place(c, span)),
+      (same.length ? same : all).map((chain) => place(chain, span)),
       span.at ?? hint,
     );
     if (!found) return null;
@@ -222,27 +241,27 @@ export function toTimeline(
   return joined(spans, pieces);
 }
 
+const keyAsset = (key: string): string => key.slice(0, key.lastIndexOf(":"));
+
 /**
- * The timeline range of the words with these keys, in order and next to each other. A take
- * copied twice holds the same keys twice: the copy in the item's own clips wins, otherwise
- * the choice is left open (null).
+ * The timeline range of the words with these keys, in order and next to each other. The keys
+ * must belong to the item's media (`assets`). A take copied twice holds the same keys twice:
+ * the copy in the item's own clips wins, otherwise the choice is left open (null).
  */
 export function fromWordKeys(
   words: TimelineWord[],
   keys: string[],
   ownClips: Set<string> = new Set(),
+  assets: Set<string> = new Set(),
 ): [number, number] | null {
   if (!keys.length) return null;
+  if (assets.size && !keys.every((key) => assets.has(keyAsset(key)))) return null;
   const runs: number[] = [];
   words.forEach((w, i) => {
     if (w.key === keys[0] && keys.every((k, j) => words[i + j]?.key === k)) runs.push(i);
   });
-  const pick =
-    runs.length === 1
-      ? runs[0]
-      : runs.filter((i) => ownClips.has(words[i].clipId)).length === 1
-        ? runs.find((i) => ownClips.has(words[i].clipId))
-        : undefined;
+  const own = runs.filter((i) => ownClips.has(words[i].clipId));
+  const pick = runs.length === 1 ? runs[0] : own.length === 1 ? own[0] : undefined;
   return pick === undefined ? null : wordsRange(words, pick, pick + keys.length - 1);
 }
 
@@ -272,8 +291,32 @@ export function locateQuote(
 }
 
 /**
- * Where an item is now: by its anchors in the media, then by its word keys, then by its text.
- * Without `words` (nothing loaded yet) only the anchors are tried.
+ * The quoted text found again, but only where the item was: in the same media and within
+ * TEXT_NEAR seconds of its anchors, even when the text occurs once. The same words in another
+ * take are another passage, never this one.
+ */
+function quoteNearAnchors(
+  project: Project,
+  words: TimelineWord[],
+  item: ProposalItem,
+): [number, number] | null {
+  if (!item.text || !item.anchors.length) return null;
+  const clips = new Map(project.clips.map((c) => [c.id, c]));
+  const near = findQuote(words, item.text).filter(([a]) => {
+    const clip = clips.get(words[a].clipId);
+    if (!clip) return false;
+    const at = sourceAt(clip, words[a].start);
+    return item.anchors.some(
+      (anchor) => anchor.assetId === clip.assetId && Math.abs(at - anchor.start) <= TEXT_NEAR,
+    );
+  });
+  return near.length === 1 ? wordsRange(words, near[0][0], near[0][1]) : null;
+}
+
+/**
+ * Where an item is now: by its anchors in the media, then by its word keys, then by its text
+ * near the anchors. Without `words` (nothing loaded yet) only the anchors are tried. Null when
+ * the item cannot be found any more: it is left out, never guessed.
  */
 export function locateItem(
   project: Project,
@@ -284,10 +327,61 @@ export function locateItem(
   if (anchored) return anchored;
   if (!words) return null;
   if (item.wordKeys?.length) {
-    const byKeys = fromWordKeys(words, item.wordKeys, new Set(item.anchors.map((a) => a.clipId)));
+    const byKeys = fromWordKeys(
+      words,
+      item.wordKeys,
+      new Set(item.anchors.map((a) => a.clipId)),
+      new Set(item.anchors.map((a) => a.assetId)),
+    );
     if (byKeys) return byKeys;
   }
-  return item.text ? locateQuote(words, item.text, item.near) : null;
+  return quoteNearAnchors(project, words, item);
+}
+
+/**
+ * The items for one suggested cut, anchored in the media. A range over more than MAX_ANCHORS
+ * stretches is split into several items (time only); a quote with more than MAX_WORD_KEYS words
+ * keeps only its anchors and text. Empty when there is no video or audio under the range.
+ */
+export function buildItems(
+  project: Project,
+  range: [number, number],
+  prefer: Set<string> | undefined,
+  base: { reason: string; text?: string; near?: number; wordKeys?: string[] },
+  newId: () => string,
+): ProposalItem[] {
+  const anchors = toSource(project, range, prefer);
+  if (!anchors.length) return [];
+  if (anchors.length <= MAX_ANCHORS) {
+    const keys = base.wordKeys && base.wordKeys.length <= MAX_WORD_KEYS ? base.wordKeys : undefined;
+    return [
+      {
+        id: newId(),
+        start: range[0],
+        end: range[1],
+        reason: base.reason,
+        anchors,
+        status: "pending",
+        ...(base.text !== undefined ? { text: base.text } : {}),
+        ...(base.near !== undefined ? { near: base.near } : {}),
+        ...(keys ? { wordKeys: keys } : {}),
+      },
+    ];
+  }
+  const out: ProposalItem[] = [];
+  for (let i = 0; i < anchors.length; i += MAX_ANCHORS) {
+    const part = anchors.slice(i, i + MAX_ANCHORS);
+    const lastPart = i + MAX_ANCHORS >= anchors.length;
+    out.push({
+      id: newId(),
+      start: i === 0 ? range[0] : (part[0].at ?? range[0]),
+      end: lastPart ? range[1] : (part[part.length - 1].until ?? range[1]),
+      reason: base.reason,
+      anchors: part,
+      status: "pending",
+    });
+  }
+  return out;
 }
 
 /** A proposal applies only to the project it was made for, and only with something left in it. */
@@ -300,3 +394,16 @@ export const canApply = (proposal: Proposal | null | undefined, project: Project
 /** The proposal waiting for the person in a project (the latest one). */
 export const activeProposal = (project: Project | null): Proposal | null =>
   project?.proposals?.length ? project.proposals[project.proposals.length - 1] : null;
+
+/**
+ * The pending proposals after `next` arrives: it replaces an earlier one of the same author and
+ * keeps the others, the oldest dropped first to stay within PROPOSAL_LIMIT and
+ * PROPOSAL_ITEM_LIMIT.
+ */
+export function withProposal(list: readonly Proposal[], next: Proposal): Proposal[] {
+  const out = [...list.filter((p) => p.by !== next.by), next];
+  const total = (ps: Proposal[]): number => ps.reduce((n, p) => n + p.items.length, 0);
+  while (out.length > 1 && (out.length > PROPOSAL_LIMIT || total(out) > PROPOSAL_ITEM_LIMIT))
+    out.shift();
+  return out;
+}

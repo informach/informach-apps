@@ -58,3 +58,30 @@ export function insideAny(path: string, roots: readonly string[]): boolean {
     return key === base || key.startsWith(`${base}\\`);
   });
 }
+
+/** The folder of a file path, with either kind of slash ("C:\a\b.mp4" and "C:/a/b.mp4" give "C:\a"). */
+export function folderOf(path: string): string | null {
+  const verdict = classifyPath(path);
+  if (!verdict.ok) return null;
+  const cut = verdict.path.lastIndexOf("\\");
+  return cut > 2 ? verdict.path.slice(0, cut) : verdict.path.slice(0, 3);
+}
+
+/**
+ * Folders an AI may use without asking: never a drive root nor the profile folder itself (they
+ * would let in the whole disk or every file of the account), even when a media sits right there.
+ */
+export function usableRoots(roots: readonly string[], home: string): string[] {
+  const homeKey = classifyPath(home);
+  const out = new Set<string>();
+  for (const root of roots) {
+    const verdict = classifyPath(root);
+    if (!verdict.ok) continue;
+    const key = verdict.path.replace(/\\+$/, "");
+    if (/^[A-Z]:$/i.test(key)) continue;
+    if (homeKey.ok && key.toLowerCase() === homeKey.path.replace(/\\+$/, "").toLowerCase())
+      continue;
+    out.add(key);
+  }
+  return [...out];
+}

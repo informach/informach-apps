@@ -108,10 +108,11 @@ export function SettingsModal(): ReactNode {
     setView(await window.api.saveAiSettings(changes));
   };
 
-  const connect = async (id: AiClientId): Promise<void> => {
+  /** Conectar keeps a working token; Reconectar (`rotate`) replaces it. */
+  const connect = async (id: AiClientId, rotate = false): Promise<void> => {
     setBusy(id);
     setNote(null);
-    const r = await window.api.connectAiClient(id);
+    const r = await window.api.connectAiClient(id, rotate);
     setNote({ tone: r.ok ? "ok" : "err", text: r.message });
     setBusy(null);
     refreshClients();
@@ -353,7 +354,12 @@ export function SettingsModal(): ReactNode {
                   size="sm"
                   variant={c.connected ? "secondary" : "primary"}
                   disabled={!c.installed || !view?.mcpEnabled || busy !== null}
-                  onClick={() => void connect(c.id)}
+                  title={
+                    c.connected
+                      ? "Troca o acesso deste app. Depois, feche e abra o app para ele usar o novo."
+                      : undefined
+                  }
+                  onClick={() => void connect(c.id, c.connected)}
                 >
                   {busy === c.id ? <Loader size={12} className="spin" /> : null}
                   {c.connected ? "Reconectar" : "Conectar"}

@@ -65,6 +65,6 @@ test("the panel shows tokens and cost in Brazilian Portuguese", () => {
   assert.equal(usageLabel({ tokens: 800, usd: 0.001 }), "800 tokens · menos de US$ 0,01");
   assert.equal(
     usageLabel({ tokens: 30_000, usd: 0.12, estimated: true }),
-    "30,0 mil tokens · cerca de US$ 0,12",
+    "30,0 mil tokens · equivalente a US$ 0,12 na API (a assinatura não cobra por pedido)",
   );
 });

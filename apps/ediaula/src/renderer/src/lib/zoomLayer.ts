@@ -2,7 +2,7 @@ import { newId, newTrackName, placeClips } from "@shared/timeline";
 import type { Asset, Clip, Track } from "@shared/types";
 import { DEFAULT_ZOOM_LAYER, editLayer, type ZoomLayer } from "@shared/zoomLayer";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 
 let blank: Promise<string> | null = null;
 
@@ -30,6 +30,7 @@ function blankPicture(): Promise<string> {
  */
 export async function addZoomLayer(
   opts: { at?: number; duration?: number; zoom?: Partial<ZoomLayer>; trackId?: string } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const p = useProject.getState().project;
   if (!p) return null;
@@ -51,7 +52,7 @@ export async function addZoomLayer(
   };
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const existing = opts.trackId ? q.tracks.find((t) => t.id === opts.trackId) : undefined;
     const track: Track = existing ?? {
       id: newId("t"),

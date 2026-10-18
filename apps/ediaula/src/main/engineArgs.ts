@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { dirname, extname, join, normalize } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, normalize, relative } from "node:path";
 
 /**
  * How EdiAula starts the person's Claude Code and Codex. Never through a shell: a message the
@@ -27,26 +27,37 @@ export interface ScriptRuntime {
   env: Record<string, string>;
 }
 
+/** Node flags a shim may pass to the runtime: only ones that silence warnings. */
+const SAFE_NODE_FLAGS = new Set(["--no-warnings", "--no-deprecation"]);
+
+/** `target` resolved inside `dir`, or null when it would leave it (`..`, another drive). */
+function inside(dir: string, target: string): string | null {
+  const full = normalize(join(dir, target));
+  const rel = relative(dir, full);
+  return !rel || rel.startsWith("..") || isAbsolute(rel) ? null : full;
+}
+
 /**
  * The target of an npm `.cmd` shim: the executable or script it runs, with the Node flags the
- * shim passes. Null when the file is not a shim this code recognises.
+ * shim passes. Null when the file is not a shim this code recognises, or points outside its
+ * own folder.
  */
 export function parseCmdShim(
   text: string,
   dir: string,
 ): { target: string; kind: "exe" | "script"; flags: string[] } | null {
   const pattern = /"%~?dp0%?\\([^"%]+?\.(?:exe|cjs|mjs|js))"/gi;
-  let found: { target: string; index: number; length: number } | null = null;
+  let found: { target: string; index: number } | null = null;
   for (const match of text.matchAll(pattern)) {
     // The shim tests for a node.exe next to itself first; that is the runtime, not the program.
     if (/^node\.exe$/i.test(match[1])) continue;
-    found = { target: match[1], index: match.index ?? 0, length: match[0].length };
+    found = { target: match[1], index: match.index ?? 0 };
   }
   if (!found) return null;
-  const target = normalize(join(dir, found.target));
-  if (!target.toLowerCase().startsWith(normalize(dir).toLowerCase())) return null;
+  const target = inside(dir, found.target);
+  if (!target) return null;
   const kind = /\.exe$/i.test(found.target) ? "exe" : "script";
-  // Node flags between the runtime ("%_prog%") and the script, e.g. --no-warnings=DEP0040.
+  // Node flags between the runtime ("%_prog%") and the script.
   const line = text.slice(text.lastIndexOf("\n", found.index) + 1, found.index);
   const prog = line.lastIndexOf('"%_prog%"');
   const flags =
@@ -55,40 +66,98 @@ export function parseCmdShim(
           .slice(prog + '"%_prog%"'.length)
           .trim()
           .split(/\s+/)
-          .filter((flag) => /^--[\w.-]+(=[\w.,:-]+)?$/.test(flag))
+          .filter((flag) => SAFE_NODE_FLAGS.has(flag))
       : [];
   return { target, kind, flags };
 }
 
 /**
- * How to start `bin` without a shell. An `.exe` runs directly. An npm `.cmd` shim is read to
- * find what it runs: an executable runs directly, a script runs on `runtime` (a node.exe next
- * to the shim, when there is one). Anything else is refused with a message the person can act on.
+ * The script a bun launcher runs: bun installs `<name>.exe` next to `<name>.bunx`, a UTF-16
+ * text with the script's path relative to bun's folder. Null when it is not one.
+ */
+export function parseBunx(bytes: Buffer, binDir: string): string | null {
+  const text = bytes.toString("utf16le");
+  const end = text.indexOf('"');
+  const path = end > 0 ? text.slice(0, end) : "";
+  return /^[\w@.\\/ -]+\.(?:cjs|mjs|js)$/.test(path) ? inside(dirname(binDir), path) : null;
+}
+
+const CODEX_TRIPLE: Record<string, string> = {
+  x64: "x86_64-pc-windows-msvc",
+  arm64: "aarch64-pc-windows-msvc",
+};
+
+/**
+ * The native codex.exe behind the npm package's `bin/codex.js`, which only starts it as a
+ * child. Running it directly keeps the real program as EdiAula's own child.
+ */
+export function nativeCodexFor(script: string, arch = process.arch): string | null {
+  if (!/[\\/]@openai[\\/]codex[\\/]bin[\\/]codex\.js$/i.test(script)) return null;
+  const pkg = dirname(dirname(script));
+  const triple = CODEX_TRIPLE[arch];
+  if (!triple) return null;
+  const platformPkg = `codex-win32-${arch}`;
+  const roots = [
+    join(pkg, "node_modules", "@openai", platformPkg),
+    join(dirname(pkg), platformPkg),
+    pkg,
+  ];
+  for (const root of roots)
+    for (const rel of [
+      ["bin", "codex.exe"],
+      ["codex", "codex.exe"],
+    ]) {
+      const exe = join(root, "vendor", triple, ...rel);
+      if (existsSync(exe)) return exe;
+    }
+  return null;
+}
+
+/**
+ * How to start `bin` without a shell. An `.exe` runs directly, unless it is a bun launcher
+ * (a `.bunx` next to it). An npm `.cmd` shim is read to find what it runs. A script runs on
+ * `runtime` (a node.exe next to the shim, when there is one), except Codex's launcher script,
+ * replaced by the native program it would start. Anything else is refused with a message the
+ * person can act on.
  */
 export async function resolveLaunch(
   bin: string,
   runtime: (shimDir: string) => Promise<ScriptRuntime>,
 ): Promise<Launch> {
   const ext = extname(bin).toLowerCase();
-  if (ext === ".exe") return { command: bin, args: [], env: {} };
-  if (ext !== ".cmd" && ext !== ".bat")
+  let script: string | null = null;
+  let flags: string[] = [];
+  if (ext === ".exe") {
+    const bunx = join(dirname(bin), `${basename(bin, extname(bin))}.bunx`);
+    if (!existsSync(bunx)) return { command: bin, args: [], env: {} };
+    script = parseBunx(await readFile(bunx), dirname(bin));
+    if (!script || !existsSync(script))
+      throw new LaunchError(
+        `${bin} é um atalho do bun que o EdiAula não reconhece, então ele não é aberto por segurança. Reinstale o programa oficial.`,
+      );
+  } else if (ext === ".cmd" || ext === ".bat") {
+    let text: string;
+    try {
+      text = await readFile(bin, "utf8");
+    } catch {
+      throw new LaunchError(`Não consegui ler ${bin}. Reinstale o programa oficial.`);
+    }
+    const shim = parseCmdShim(text, dirname(bin));
+    if (!shim || !existsSync(shim.target))
+      throw new LaunchError(
+        `${bin} não é um atalho do npm que o EdiAula reconheça, então ele não é aberto por segurança. Reinstale o programa oficial com o instalador dele ou com "npm install -g".`,
+      );
+    if (shim.kind === "exe") return { command: shim.target, args: [], env: {} };
+    script = shim.target;
+    flags = shim.flags;
+  } else
     throw new LaunchError(
       `Não sei iniciar ${bin} com segurança. Reinstale o programa oficial (ele instala um .exe ou um atalho do npm).`,
     );
-  let text: string;
-  try {
-    text = await readFile(bin, "utf8");
-  } catch {
-    throw new LaunchError(`Não consegui ler ${bin}. Reinstale o programa oficial.`);
-  }
-  const shim = parseCmdShim(text, dirname(bin));
-  if (!shim || !existsSync(shim.target))
-    throw new LaunchError(
-      `${bin} não é um atalho do npm que o EdiAula reconheça, então ele não é aberto por segurança. Reinstale o programa oficial com o instalador dele ou com "npm install -g".`,
-    );
-  if (shim.kind === "exe") return { command: shim.target, args: [], env: {} };
+  const native = nativeCodexFor(script);
+  if (native) return { command: native, args: [], env: {} };
   const js = await runtime(dirname(bin));
-  return { command: js.command, args: [...shim.flags, shim.target], env: js.env };
+  return { command: js.command, args: [...flags, script], env: js.env };
 }
 
 /** Claude Code without any built-in tool, only EdiAula's, with the message on standard input. */
@@ -136,8 +205,27 @@ export const claudeMcpConfig = (url: string): string =>
   });
 
 /**
- * Codex features that reach beyond the editor's tools. They are turned off (through -c, which
- * ignores names an older version does not know) and codexGuard stops a run that uses one anyway.
+ * Codex features that reach beyond the editor's tools, by name. The installed version's own list
+ * (`codex features list`) is matched against this, so features added later with such names are
+ * turned off too; the fixed list below is used when the list cannot be read.
+ */
+const RISKY_FEATURE =
+  /shell|exec|code_mode|repl|multi_agent|collab|agent_message_board|send_message|send_async|apps|plugin|hook|browser|computer|image_generation|view_image|skill|tool_suggest|search_tool|web_search|memories|workspace_dependencies|worktree|in_app_|realtime|remote_control|remote_plugin|automation|sleep_tool|request_permissions|request_rule|artifact|fanout|subagent|external_agent|mcp_apps|undo/;
+
+/** Names of the installed Codex's features that must be off (from `codex features list`). */
+export function riskyCodexFeatures(list: string): string[] {
+  const names = list
+    .split(/\r?\n/)
+    .map((line) => /^([a-z0-9_.]+)\s/.exec(line.trim())?.[1])
+    .filter((name): name is string => !!name);
+  return [
+    ...new Set([...names.filter((name) => RISKY_FEATURE.test(name)), ...CODEX_DISABLED_FEATURES]),
+  ];
+}
+
+/**
+ * Turned off when the installed version's list cannot be read. Each goes through -c, which
+ * ignores names a version does not know; codexGuard stops a run that acts outside anyway.
  */
 export const CODEX_DISABLED_FEATURES = [
   "shell_tool",
@@ -154,10 +242,21 @@ export const CODEX_DISABLED_FEATURES = [
   "skill_search",
   "skill_mcp_dependency_install",
   "tool_suggest",
+  "multi_agent_v2",
+  "js_repl",
 ] as const;
 
-/** Codex in a read-only sandbox, without the person's config, with the message on standard input. */
-export function codexArgs(options: { thread?: string; url: string; workspace: string }): string[] {
+/**
+ * Codex in a read-only sandbox, without the person's config, with the message on standard input.
+ * The options go before `resume`, as Codex's own SDK passes them (they apply to the resumed
+ * session too).
+ */
+export function codexArgs(options: {
+  thread?: string;
+  url: string;
+  workspace: string;
+  disabledFeatures?: readonly string[];
+}): string[] {
   return [
     "exec",
     "--json",
@@ -175,7 +274,10 @@ export function codexArgs(options: { thread?: string; url: string; workspace: st
     `mcp_servers.ediaula.bearer_token_env_var=${JSON.stringify(MCP_TOKEN_ENV)}`,
     "-c",
     'web_search="disabled"',
-    ...CODEX_DISABLED_FEATURES.flatMap((feature) => ["-c", `features.${feature}=false`]),
+    ...(options.disabledFeatures ?? CODEX_DISABLED_FEATURES).flatMap((feature) => [
+      "-c",
+      `features.${feature}=false`,
+    ]),
     ...(options.thread ? ["resume", options.thread, "-"] : ["-"]),
   ];
 }
@@ -239,23 +341,74 @@ export function engineEnv(
   return env;
 }
 
-/** Item types in Codex's JSON stream that act outside the editor's tools. */
-const CODEX_FORBIDDEN = new Set([
-  "command_execution",
-  "file_change",
-  "web_search",
-  "local_shell_call",
-  "patch_apply",
-  "computer_use",
-  "browser_use",
-]);
+/** Item types in Codex's JSON stream that stay inside the conversation. */
+const CODEX_ALLOWED = new Set(["agent_message", "reasoning", "todo_list", "error"]);
 
 /**
- * What a Codex event did outside the editor's tools (running a command, changing a file,
- * searching the web), or null. The run is stopped as soon as one appears.
+ * What a Codex event did outside the editor's tools, or null. Only messages, reasoning, the
+ * to-do list, errors and calls to EdiAula's own MCP server are allowed; anything else (a
+ * command, a file change, a web search, another MCP server, a sub-agent) stops the run.
  */
 export function codexGuard(event: Record<string, unknown>): string | null {
   if (typeof event.type !== "string" || !event.type.startsWith("item.")) return null;
-  const item = event.item as { type?: unknown } | undefined;
-  return typeof item?.type === "string" && CODEX_FORBIDDEN.has(item.type) ? item.type : null;
+  const item = event.item as { type?: unknown; server?: unknown } | undefined;
+  const type = typeof item?.type === "string" ? item.type : "desconhecido";
+  if (CODEX_ALLOWED.has(type)) return null;
+  if (type === "mcp_tool_call" && item?.server === "ediaula") return null;
+  return type === "mcp_tool_call" ? `mcp_tool_call:${String(item?.server ?? "")}` : type;
+}
+
+/** What codexGuard stopped, in words for the person. */
+const FORBIDDEN_ACTION: Record<string, string> = {
+  command_execution: "rodar um comando no computador",
+  file_change: "mudar um arquivo",
+  web_search: "pesquisar na internet",
+  collab_tool_call: "chamar outro agente",
+};
+
+export const actionName = (forbidden: string): string =>
+  forbidden.startsWith("mcp_tool_call:")
+    ? `usar outro servidor de ferramentas (${forbidden.slice("mcp_tool_call:".length) || "sem nome"})`
+    : (FORBIDDEN_ACTION[forbidden] ?? `agir fora do editor (${forbidden})`);
+
+/** What one self-check run showed, from Codex's JSON events (pure, for tests). */
+export interface SelfCheckEvidence {
+  violation: string | null;
+  leaked: boolean;
+  completed: boolean;
+  /** Codex called a tool of EdiAula's server: it did follow the request with its tools. */
+  editorTool: boolean;
+}
+
+/**
+ * The verdict of a self-check. It only passes with positive evidence: the turn ran to the end,
+ * Codex called the editor's tool as asked, and nothing outside the editor happened nor did the
+ * code of the file show up. A model that only answered "não consigo" without trying proves
+ * nothing, and the result is not recorded (`conclusive` false).
+ */
+export function selfCheckVerdict(e: SelfCheckEvidence): {
+  ok: boolean;
+  conclusive: boolean;
+  detail: string;
+} {
+  if (e.violation)
+    return { ok: false, conclusive: true, detail: `O Codex tentou ${actionName(e.violation)}.` };
+  if (e.leaked)
+    return {
+      ok: false,
+      conclusive: true,
+      detail: "O Codex conseguiu ler um arquivo do computador.",
+    };
+  if (!e.completed) return { ok: false, conclusive: false, detail: "A conferência não terminou." };
+  if (!e.editorTool)
+    return {
+      ok: false,
+      conclusive: false,
+      detail: "O Codex não chamou a ferramenta do editor, então a conferência não vale.",
+    };
+  return {
+    ok: true,
+    conclusive: true,
+    detail: "O Codex usou a ferramenta do editor e não conseguiu ler o arquivo do computador.",
+  };
 }

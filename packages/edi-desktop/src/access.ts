@@ -76,9 +76,16 @@ export function configureDesktopAccess(config: {
   };
 }
 
-/** The vault changed elsewhere (another tool, a logout): its grants replace the cached ones. */
+/** The grant file changed elsewhere (a logout): its grants replace the cached ones. */
 export function replaceGrants(grants: readonly McpGrant[]): void {
   state().durable = new Map(grants.map((grant) => [grant.id, { ...grant }]));
+}
+
+/** Signed out: no token of this process works any more, run tokens included. */
+export function clearAccess(): void {
+  if (!current) return;
+  current.durable.clear();
+  current.runs.clear();
 }
 
 export function assertDesktopAccess(): void {
@@ -168,7 +175,7 @@ export function mintRunToken(options: {
   ttlMs: number;
   projectId?: string;
   client?: string;
-}): { token: string; grant: McpGrant; revoke: () => void } {
+}): { token: string; grant: McpGrant; revoke: () => void; extend: (ms: number) => void } {
   const s = state();
   const token = newToken();
   const now = Date.now();
@@ -187,6 +194,10 @@ export function mintRunToken(options: {
     grant,
     revoke: () => {
       s.runs.delete(grant.id);
+    },
+    extend: (ms: number) => {
+      // A run still going keeps its token; a revoked one stays revoked.
+      if (s.runs.has(grant.id)) grant.expiresAt = Math.max(grant.expiresAt ?? 0, Date.now() + ms);
     },
   };
 }

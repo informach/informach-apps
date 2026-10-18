@@ -360,6 +360,8 @@ export interface AiApprovalRequest {
   tool: string;
   title: string;
   summary: string;
+  /** Every argument of the call, as sent (shown with scrolling). */
+  details: string;
   /** Milliseconds since the epoch when the request is denied without an answer. */
   expiresAt: number;
 }
@@ -567,7 +569,8 @@ export interface EdiAulaApi {
   setAiContext(context: { projectPath: string | null; mediaFolders: string[] }): Promise<void>;
   testApiKey(): Promise<{ ok: boolean; message: string }>;
   aiClients(): Promise<AiClientStatus[]>;
-  connectAiClient(id: AiClientId): Promise<{ ok: boolean; message: string }>;
+  /** Connects a client; `rotate` (Reconectar) replaces a token that still works. */
+  connectAiClient(id: AiClientId, rotate?: boolean): Promise<{ ok: boolean; message: string }>;
   assistantSend(conversationId: string, text: string): Promise<void>;
   assistantStop(conversationId: string): Promise<void>;
   assistantReset(conversationId: string): Promise<void>;

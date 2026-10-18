@@ -12,7 +12,7 @@ import { type Alignment, alignSection, bestSection } from "@shared/scriptAlign";
 import { clipEnd, newId, newTrackName, sourceEnd } from "@shared/timeline";
 import type { Asset, Clip, Project, Track, Transcript } from "@shared/types";
 import { useMemo } from "react";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { showProposal } from "./proposals";
 import { loadProjectTranscripts } from "./transcripts";
 
@@ -100,6 +100,7 @@ const clock = (s: number): string =>
  */
 export async function placeInsert(
   target: string | SpeechItem,
+  commit: Commit = personCommit,
 ): Promise<{ ok: boolean; message: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const p = useProject.getState().project;
@@ -109,7 +110,8 @@ export async function placeInsert(
     if (!planned.ok) return planned;
     const now = useProject.getState();
     if (now.revision !== revision || now.project !== p) continue;
-    now.commit(planned.apply);
+    if (!commit(planned.apply))
+      return { ok: false, message: "A aula aberta mudou; a inserção não foi colocada." };
     return { ok: true, message: planned.message };
   }
   return {
@@ -264,7 +266,7 @@ async function planPlacement(p: Project, target: string | SpeechItem): Promise<P
 }
 
 /** Shows everything said outside the script (false starts, retakes, comments) as a cut proposal. */
-export async function proposeOffScript(): Promise<string> {
+export async function proposeOffScript(by = "roteiro"): Promise<string> {
   const p = useProject.getState().project;
   if (!p) return "Nenhum projeto aberto.";
   // The times come from this state of the project: a change meanwhile makes them stale.
@@ -282,5 +284,6 @@ export async function proposeOffScript(): Promise<string> {
       reason: `fora do roteiro: "${r.text.length > 70 ? `${r.text.slice(0, 70)}…` : r.text}"`,
     })),
     revision,
+    by,
   );
 }

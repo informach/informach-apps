@@ -50,11 +50,11 @@ import {
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
-  CHECK_CLIENT,
   codexSelfTest,
   resetEngineSession,
   runClaudeCode,
   runCodex,
+  stopAllEngineRuns,
   stopEngineRun,
 } from "./engines.ts";
 import { exportLesson } from "./export-lesson.ts";
@@ -73,6 +73,7 @@ import {
 import { filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
+import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import {
@@ -93,7 +94,11 @@ import {
   relinkPickSchema,
   relinkRequestSchema,
 } from "./relink.ts";
-import { openRestrictedClaude } from "./restricted.ts";
+import {
+  closeRestrictedWindows,
+  migrateRestrictedConfig,
+  openRestrictedClaude,
+} from "./restricted.ts";
 import {
   cancelDownload,
   cancelWhisper,
@@ -110,6 +115,11 @@ const desktop = createEdiDesktop({
   preloadPath: join(__dirname, "../preload/edi-gate.cjs"),
   rendererRoot: join(__dirname, "../renderer"),
   getRecoveryWindow: () => win,
+  // Signed out: the chat's runs and the restricted Claude Code windows end with their tokens.
+  onSignedOut: () => {
+    stopAllEngineRuns();
+    closeRestrictedWindows();
+  },
   recoveryChannels: [
     "app:info",
     "project:save",
@@ -866,7 +876,10 @@ function registerAiIpc(): void {
   });
   ipcMain.handle("ai:testKey", () => testKey());
   ipcMain.handle("ai:clients", () => clientStatus(mcp.port));
-  ipcMain.handle("ai:connect", (_e, id: AiClientId) => connectClient(id, mcp.port));
+  ipcMain.handle("ai:connect", (_e, rawId: unknown, rawRotate: unknown) => {
+    const id = z.enum(["claude-code", "codex"]).parse(rawId) satisfies AiClientId;
+    return connectClient(id, mcp.port, z.boolean().optional().parse(rawRotate) ?? false);
+  });
   ipcMain.handle("ai:openRestrictedClaude", () => openRestrictedClaude(mcp.port));
   ipcMain.handle("assistant:send", async (_e, rawConversation: unknown, rawText: unknown) => {
     const conversationId = conversationIdSchema.parse(rawConversation);
@@ -928,6 +941,8 @@ app
     registerCursorSprites();
     createWindow();
     void applyMcp();
+    // A file of an earlier version may still hold the old permanent token.
+    migrateRestrictedConfig(mcp.port);
     void detectEncoder();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

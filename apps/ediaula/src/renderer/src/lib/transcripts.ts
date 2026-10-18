@@ -15,7 +15,7 @@ import type { Asset, EngineStatus, Project, Transcript } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { mediaUrl } from "./media";
 
 const cache = new Map<string, Promise<Transcript>>();
@@ -130,6 +130,7 @@ export function useTextModel(
 }
 
 export interface CutResult {
+  /** The cut was made (false when protection blocks it or the commit was refused). */
   ok: boolean;
   /** Protected passages the cut would have touched (nothing is cut when there are any). */
   conflicts: { range: [number, number]; label: string }[];
@@ -139,16 +140,16 @@ export interface CutResult {
  * Cuts timeline ranges on every speech/video track, keeping them in sync. Refuses the whole
  * cut when any range touches a protected passage: removing it must be an explicit decision.
  */
-export function cutRanges(ranges: [number, number][]): CutResult {
-  const { commit, project } = useProject.getState();
+export function cutRanges(ranges: [number, number][], commit: Commit = personCommit): CutResult {
+  const { project } = useProject.getState();
   if (!project || !ranges.length) return { ok: false, conflicts: [] };
   const conflicts = protectedConflicts(project, ranges);
   if (conflicts.length) return { ok: false, conflicts };
   const targets = cutTargets(project);
   // Locked tracks are never touched, not even trimmed at the end.
   const locked = new Set(project.tracks.filter((t) => t.locked).map((t) => t.id));
-  commit((p) => ({ ...p, clips: applyCuts(p.clips, ranges, targets, locked) }));
-  return { ok: true, conflicts: [] };
+  const ok = commit((p) => ({ ...p, clips: applyCuts(p.clips, ranges, targets, locked) }));
+  return { ok, conflicts: [] };
 }
 
 /** Cuts with a toast when protection blocks it, for direct user actions. */

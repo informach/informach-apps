@@ -11,7 +11,7 @@ import {
 import { newId, projectDuration } from "@shared/timeline";
 import type { Asset, Clip, Project } from "@shared/types";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { naturalTransform, OVERSAMPLE, overlayTrack, renderAnnotation } from "./annotations";
 import { activePalette } from "./palettes";
 import { scriptDoc } from "./script";
@@ -44,10 +44,14 @@ export function templateStart(t: LessonTemplate, p: Project): number {
  * Inserts a template as one annotation clip per layer, stacked on the tracks above the lesson,
  * in one undo step. Full-screen templates push the lesson forward. Returns the clip ids.
  */
+/** A full-screen template that would leave a locked track out of sync is not inserted. */
+export class TemplateBlockedError extends Error {}
+
 export async function addTemplate(
   id: string,
   values: Record<string, string> = {},
   at?: number,
+  commit: Commit = personCommit,
 ): Promise<string[]> {
   const t = templateById(id);
   const p = useProject.getState().project;
@@ -70,8 +74,22 @@ export async function addTemplate(
     t.flowY,
   );
   const start = Math.max(0, at ?? templateStart(t, p));
+  if (t.fullscreen) {
+    // A full-screen template pushes the lesson forward; a locked track would stay behind.
+    const now = useProject.getState().project ?? p;
+    const locked = new Set(now.tracks.filter((tr) => tr.locked).map((tr) => tr.id));
+    const blocked = openGap(now.clips, start, t.duration, new Set(), locked).blocked;
+    if (blocked.length) {
+      const names = [
+        ...new Set(blocked.map((c) => now.tracks.find((tr) => tr.id === c.trackId)?.name)),
+      ].filter(Boolean);
+      throw new TemplateBlockedError(
+        `${t.label} empurra a aula ${t.duration} s para frente, mas a faixa travada ${names.join(", ")} não anda junto e ficaria fora de sincronia. Destrave a faixa e insira de novo.`,
+      );
+    }
+  }
   const ids: string[] = [];
-  useProject.getState().commit((q) => {
+  commit((q) => {
     let next: Project = q;
     if (t.fullscreen) {
       // Locked tracks stay exactly where they are, as with every other edit.
