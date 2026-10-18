@@ -140,9 +140,12 @@ function mountedClipIds(project: Project, t: number): string {
 /** Avatars play their transparent version once it exists; everything else the proxy or original. */
 const visualPath = (a: Asset): string => (a.key && a.keyed ? a.keyed : playbackPath(a));
 
-/** Every track can hold pictures (like Camtasia): what is visual is decided by the media itself. */
-const isVisual = (_project: Project, _c: Clip, a: Asset | undefined): boolean =>
-  !!a && a.kind !== "audio";
+/**
+ * Every track can hold pictures (like Camtasia): what is visual is decided by the media itself,
+ * except the sound taken out of a video (Clip.soundOnly), whose picture its video draws.
+ */
+const isVisual = (_project: Project, c: Clip, a: Asset | undefined): boolean =>
+  !!a && a.kind !== "audio" && !c.soundOnly;
 
 /**
  * The transparent avatar video has no sound: its voice plays from the original file, on the
@@ -570,7 +573,7 @@ export function Preview(): ReactNode {
         const c = clips.get(id);
         const asset = c && assets.get(c.assetId);
         if (!c || !asset || !revealing(c)) continue;
-        const state = revealStateAt(c, revealTimes.get(id) ?? [], t);
+        const state = revealStateAt(project.clips, c, revealTimes.get(id) ?? [], t);
         const want = state ? JSON.stringify(state) : "";
         if (img.dataset.reveal === want) continue;
         img.dataset.reveal = want;
@@ -1146,10 +1149,21 @@ export function Preview(): ReactNode {
                           return el instanceof HTMLVideoElement ? el : undefined;
                         }}
                         playClick={(volume) => {
-                          // Heard when its track is, as the export mixes it.
+                          // Heard when its track is heard and seen, and stepping aside for
+                          // another highlighted track, as the export mixes it (audioPlan.ts).
                           const track = project?.tracks.find((t) => t.id === c.trackId);
-                          if (track && heard(track, useApp.getState().solo))
-                            poolRef.current?.click(volume);
+                          if (!track || track.hidden || !heard(track, useApp.getState().solo))
+                            return;
+                          const aside =
+                            spotlit.current.length && !track.spotlight
+                              ? duckGain(
+                                  spotlit.current,
+                                  usePlayback.getState().time,
+                                  ducking.current.depth,
+                                  ducking.current.ramp,
+                                )
+                              : 1;
+                          poolRef.current?.click(volume * aside);
                         }}
                       />
                     )}

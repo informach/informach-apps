@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { crc32 } from "node:zlib";
-import { inspectPackage, unpackProject } from "../src/main/package.ts";
+import { inspectPackage, packProject, unpackProject } from "../src/main/package.ts";
 import { readZipDirectory, writeZip, zipDirectory, zipTail } from "../src/main/zip.ts";
 import { PACKAGE_PROJECT, packPlan } from "../src/shared/projectPackage.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
@@ -318,4 +325,36 @@ test("packing carries the exported voices and the guided narration, or leaves ou
     ["media/voz-vm1-1.wav"],
   );
   assert.equal(plan.project.guided?.plans[0].audio?.path, "media/narracao-g1.wav");
+});
+
+test("the cursor images a recording saved go in the package and come back beside its cursor data", {
+  skip: !windows,
+}, async () => {
+  const take = join(dir, "take");
+  mkdirSync(join(take, "cursors"), { recursive: true });
+  writeFileSync(join(take, "tela.mp4"), "video");
+  const cursor = join(take, "cursor.json");
+  writeFileSync(
+    cursor,
+    JSON.stringify({ version: 2, shapes: [{ id: "s", image: "cursors/0123456789abcdef.png" }] }),
+  );
+  writeFileSync(join(take, "cursors", "0123456789abcdef.png"), "png");
+  writeFileSync(join(take, "cursors", "fedcba9876543210.png"), "png 2");
+  // Only what the recorder names that way travels.
+  writeFileSync(join(take, "cursors", "outro.txt"), "x");
+  const project = lesson({}, { path: join(take, "tela.mp4"), cursor });
+  const zip = join(dir, "com-cursor.zip");
+  const done = await packProject(project, zip, async (path) => path);
+  assert.equal(done.files, 4);
+  const into = join(dir, "cursor-volta");
+  const { folder, project: opened } = await unpackProject(zip, into);
+  const data = opened.assets[0].cursor;
+  assert.ok(data);
+  const images = join(data, "..", "cursors");
+  assert.deepEqual(readdirSync(images).sort(), ["0123456789abcdef.png", "fedcba9876543210.png"]);
+  assert.equal(readFileSync(join(images, "0123456789abcdef.png"), "utf8"), "png");
+  assert.ok(images.startsWith(join(folder, "media")));
+  // Anything else in that folder is still refused.
+  const odd = pack(lesson(), [{ name: "media/cursors/outro.txt", data: Buffer.from("x") }]);
+  await assert.rejects(inspectPackage(odd, join(dir, "cursor-outro")), /fora da pasta/);
 });

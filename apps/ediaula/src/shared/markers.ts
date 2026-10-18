@@ -211,10 +211,28 @@ function placeOf(
 const nearest = (values: number[], hint: number): number =>
   values.reduce((best, v) => (Math.abs(v - hint) < Math.abs(best - hint) ? v : best), values[0]);
 
+/**
+ * A media replaced by another (shared/replaceAsset.ts): the markers on its clips go to the same
+ * moment of the new file, through `map` (old source seconds to new ones).
+ */
+export interface Replaced {
+  from: string;
+  to: string;
+  map: (s: number) => number;
+}
+
 /** What follow() needs of the lesson after the edit: its clips by id and by media. */
 interface After {
   byId: ReadonlyMap<string, Clip>;
   pools: Pools;
+  replaced?: Replaced;
+}
+
+/** Where source second `s` of a clip before the edit is after it (in the new file, if replaced). */
+function placeAfter(after: After, c: Clip, s: number, hint: number): number | null {
+  const r = after.replaced;
+  if (r && c.assetId === r.from) return placeOf(after.pools, r.to, c.trackId, r.map(s), hint);
+  return placeOf(after.pools, c.assetId, c.trackId, s, hint);
 }
 
 /**
@@ -225,32 +243,32 @@ function follow(m: Marker, index: ClockIndex, after: After): number {
   const on = under(index, m.t);
   if (on) {
     if (after.byId.get(on.id) === on) return m.t;
-    const t = placeOf(after.pools, on.assetId, on.trackId, sourceAt(on, m.t), m.t);
+    const t = placeAfter(after, on, sourceAt(on, m.t), m.t);
     return t === null ? m.t : t;
   }
   // Between clips: it keeps its distance from the end of the clip before it.
   const prev = endingBefore(index, m.t);
   if (!prev || after.byId.get(prev.id) === prev) return m.t;
-  const end = placeOf(
-    after.pools,
-    prev.assetId,
-    prev.trackId,
-    sourceEnd(prev) - EPS,
-    clipEnd(prev),
-  );
+  const end = placeAfter(after, prev, sourceEnd(prev) - EPS, clipEnd(prev));
   return end === null ? m.t : end + (m.t - clipEnd(prev));
 }
 
 /**
  * The markers of `after` (a lesson changed from `before`) put back on the moments of the media
- * they marked. Same array when no marker moves.
+ * they marked (in the new file, when the edit replaced one). Same array when no marker moves.
  */
-export function followMarkers(before: Lesson, after: Lesson, markers: readonly Marker[]): Marker[] {
+export function followMarkers(
+  before: Lesson,
+  after: Lesson,
+  markers: readonly Marker[],
+  replaced?: Replaced,
+): Marker[] {
   if (!markers.length || before.clips === after.clips) return markers as Marker[];
   const index = indexClocks(clockClips(before));
   const lesson: After = {
     byId: new Map(after.clips.map((c) => [c.id, c])),
     pools: new Pools(after.clips),
+    ...(replaced ? { replaced } : {}),
   };
   let changed = false;
   const out = markers.map((m) => {

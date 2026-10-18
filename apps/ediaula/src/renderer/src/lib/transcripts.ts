@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
-import { type Commit, personCommit, useProject } from "@/state/project";
+import { type Commit, personCommit, useProject, waitForDraft } from "@/state/project";
 import {
   type CleanupInputs,
   type CleanupPlan,
@@ -332,6 +332,7 @@ export function cutRanges(
 
 /** Cuts with a toast when protection blocks it, for direct user actions. */
 export function cutRangesInteractive(ranges: [number, number][]): boolean {
+  if (waitForDraft("cortar o trecho")) return false;
   const r = cutRanges(ranges);
   if (!r.ok && r.conflicts.length)
     useApp

@@ -2,6 +2,7 @@ import { cutTargets } from "./cleanup.ts";
 import { clipEnd, clipSpeed, sourceEnd } from "./clipTime.ts";
 import type { CursorPoint } from "./cursor.ts";
 import { pruneGroups } from "./groups.ts";
+import { followMarkers } from "./markers.ts";
 import { rippleTrim } from "./ripple.ts";
 import { MIN_CLIP } from "./timeline.ts";
 import type { Asset, Clip, Project, Word } from "./types.ts";
@@ -346,12 +347,13 @@ export function replaceAsset(
     warnings.push(
       "Uma faixa travada tem clipes depois dos trechos trocados e não acompanhou: confira a sincronia nela.",
     );
-  return {
-    project: { ...project, clips: pruneGroups(project.clips) },
-    remapped,
-    dropped,
-    warnings,
-  };
+  const done: Project = { ...project, clips: pruneGroups(project.clips) };
+  // The lesson's markers go along with the ripple: on the same moment of the new file.
+  if (p.markers?.length) {
+    const markers = followMarkers(p, done, p.markers, { from: oldId, to: asset.id, map: f });
+    if (markers !== p.markers) done.markers = markers;
+  }
+  return { project: done, remapped, dropped, warnings };
 }
 
 /** Why a file cannot take the place without transcripts, or null when it can. */

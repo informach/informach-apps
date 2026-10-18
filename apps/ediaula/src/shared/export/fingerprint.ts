@@ -1,4 +1,5 @@
 import { cursorFrame } from "../cursor-expressions.ts";
+import { followSpans } from "../regionFollow.ts";
 import { clipSpeed } from "../timeline.ts";
 import { cutFxWindow, type DerivedProject } from "../transitions.ts";
 import type { ExportSpec } from "../types.ts";
@@ -15,7 +16,7 @@ import { clipFrames, composeSize, drawOrder, keyedPath, type VideoWindow } from 
  */
 
 /** Bumped whenever the export draws the same project differently. */
-export const PLAN_VERSION = 2;
+export const PLAN_VERSION = 3;
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -106,7 +107,12 @@ export function windowSignature(
     const frames = clipFrames(c, r, win);
     const asset = assets.get(c.assetId);
     // Sound has no part in the picture (the music running under every segment least of all).
-    if (!frames || !asset || (asset.kind === "audio" && !c.zoomLayer && !c.regionFx)) continue;
+    if (
+      !frames ||
+      !asset ||
+      ((asset.kind === "audio" || c.soundOnly) && !c.zoomLayer && !c.regionFx)
+    )
+      continue;
     if (!used.has(asset.id)) {
       const cutOut = keyedPath(asset);
       const keyed = !!cutOut;
@@ -124,6 +130,8 @@ export function windowSignature(
           fps: asset.fps,
           duration: asset.duration,
           alpha: asset.alpha,
+          // A picture the editor draws is never followed by a region (shared/regionFollow.ts).
+          generated: asset.generated,
           path,
           keyed,
           sprite: sprite
@@ -149,6 +157,17 @@ export function windowSignature(
       }
     }
     const reads = c.in + (frames.k0 / fps) * speed;
+    // What a following region is on in this segment: the recording clip under it at each moment.
+    const follow = c.regionFx?.follow
+      ? followSpans(project, c)
+          .filter((s) => s.end > t0 && s.start < t1)
+          .map((s) => ({
+            asset: s.clip.assetId,
+            track: s.clip.trackId,
+            from: Math.max(s.start, t0) - t0,
+            to: Math.min(s.end, t1) - t0,
+          }))
+      : undefined;
     clips.push(
       normalize({
         media: used.get(asset.id),
@@ -156,6 +175,8 @@ export function windowSignature(
         in: c.in,
         duration: c.duration,
         speed: c.speed,
+        // Where the cut of the source ends (the frame held after it, shared/export/videoPlan.ts).
+        sourceStop: c.sourceStop,
         frames: [frames.k0, frames.k1],
         transform: c.transform,
         fadeIn: c.fadeIn,
@@ -165,6 +186,7 @@ export function windowSignature(
         keyframes: c.keyframes,
         zoomLayer: c.zoomLayer,
         regionFx: c.regionFx,
+        follow,
         color: c.color,
         entry: c.zoomLayer ? entryView(project, c) : undefined,
         tail: c.tail,

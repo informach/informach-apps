@@ -594,11 +594,13 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       });
   }
 
-  // Black gaps in the main picture and pieces too short to see.
+  // Black gaps in the main picture and pieces too short to see. With a background (a color, a
+  // gradient or a picture under everything) a gap shows it, not black.
   const pictures = project.clips.filter((c) => {
     const t = tracks.get(c.trackId);
     const a = assets.get(c.assetId);
-    if (!t || t.hidden || !a || c.zoomLayer || (c.transform?.opacity ?? 1) <= 0) return false;
+    if (!t || t.hidden || !a || c.zoomLayer || c.soundOnly || (c.transform?.opacity ?? 1) <= 0)
+      return false;
     if (c.annotation) return c.annotation.kind === "card";
     return a.kind === "image" || (a.kind === "video" && a.hasVideo);
   });
@@ -612,7 +614,7 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
     reach = Math.max(reach, b);
   }
   if (covered.length && duration - reach >= 1 / fps - 1e-6) gaps.push([reach, duration]);
-  for (const [a, b] of gaps) {
+  for (const [a, b] of project.background ? [] : gaps) {
     const spoken = (ctx.speech ?? []).some(([s, e]) => s < b - 0.05 && e > a + 0.05);
     out.push({
       severity: "warn",

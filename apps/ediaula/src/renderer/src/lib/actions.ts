@@ -69,7 +69,7 @@ export const actions = {
 
   deleteSelection(ripple: boolean): void {
     const { project, selection, commit } = useProject.getState();
-    if (!project || !selection.length) return;
+    if (!project || !selection.length || waitForDraft("excluir clipes")) return;
     const locked = lockedTracks(project);
     // Only what is selected: a click on a grouped clip already selects the whole group, and
     // Alt + click picks one clip of it alone.
@@ -181,7 +181,7 @@ export const actions = {
    */
   closeGaps(): void {
     const { project, commit } = useProject.getState();
-    if (!project) return;
+    if (!project || waitForDraft("fechar as lacunas")) return;
     const targets = new Set(project.tracks.filter((t) => !t.locked && !t.music).map((t) => t.id));
     commit((p) => ({ ...p, clips: closeCommonGaps(p, targets, lockedTracks(p)) }));
   },
@@ -190,6 +190,7 @@ export const actions = {
   closeTrackGaps(trackId: string): void {
     const { project, commit } = useProject.getState();
     if (!project || project.tracks.find((t) => t.id === trackId)?.locked) return;
+    if (waitForDraft("fechar as lacunas da faixa")) return;
     commit((p) => ({ ...p, clips: closeGaps(p.clips, trackId) }));
   },
 
@@ -367,6 +368,7 @@ export const actions = {
   },
 
   removeTrack(id: string): void {
+    if (waitForDraft("remover a faixa")) return;
     useProject.getState().commit((p) => ({
       ...p,
       tracks: p.tracks.filter((t) => t.id !== id),
@@ -375,6 +377,7 @@ export const actions = {
   },
 
   removeAsset(id: string): void {
+    if (waitForDraft("remover a mídia")) return;
     useProject.getState().commit((p) => ({
       ...p,
       assets: p.assets.filter((a) => a.id !== id),

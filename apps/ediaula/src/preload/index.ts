@@ -215,7 +215,7 @@ const api: EdiAulaApi = {
   clearExportCache: () => ipcRenderer.invoke("exportCache:clear"),
   exportQueue: {
     load: () => ipcRenderer.invoke("exportQueue:load"),
-    save: (itemsJson) => ipcRenderer.invoke("exportQueue:save", itemsJson),
+    save: (items) => ipcRenderer.invoke("exportQueue:save", items),
   },
   showInFolder: (path) => ipcRenderer.invoke("shell:showItem", path),
   onProgress: (cb) => {

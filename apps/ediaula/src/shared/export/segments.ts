@@ -36,7 +36,14 @@ export function mainTrack(project: DerivedProject): string | undefined {
   for (const t of project.tracks) if (t.kind === "video" && !t.hidden) shown.set(t.id, 0);
   for (const c of project.clips) {
     const asset = assets.get(c.assetId);
-    if (c.zoomLayer || c.regionFx || !asset || asset.kind === "audio" || !shown.has(c.trackId))
+    if (
+      c.zoomLayer ||
+      c.regionFx ||
+      c.soundOnly ||
+      !asset ||
+      asset.kind === "audio" ||
+      !shown.has(c.trackId)
+    )
       continue;
     shown.set(c.trackId, (shown.get(c.trackId) ?? 0) + c.duration);
   }

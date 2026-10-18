@@ -15,6 +15,7 @@ import {
   undoSteps,
 } from "@shared/history";
 import { applyItems, type DiffItem, type DraftOp, draftWrite } from "@shared/projectDiff";
+import { nearSaveLimit, PROJECT_LIMIT_BYTES, utf8Bytes } from "@shared/projectSize";
 import { fileName } from "@shared/relink";
 import { settle } from "@shared/settle";
 import { newId } from "@shared/timeline";
@@ -392,7 +393,9 @@ export const useProject = create<ProjectStore>((set, get) => {
         }
         set({ saveState: "saving" });
         try {
-          await window.api.saveProject(path, JSON.stringify(project));
+          const text = JSON.stringify(project);
+          warnNearLimit(project, text);
+          await window.api.saveProject(path, text);
           if (get().path !== path) return true;
           lastSaved = project;
           set(
@@ -548,6 +551,22 @@ export function structuralDraft(
     s.draft.projectId === s.project.id &&
     s.draft.items.some((i) => i.kind === "structure" && i.status === "pending")
   );
+}
+
+/** Lessons already told this session that their file is getting close to its limit. */
+const warnedNearLimit = new Set<string>();
+
+/** Once per lesson: the file is past most of the 32 MB the editor reads (shared/projectSize.ts). */
+function warnNearLimit(project: Project, text: string): void {
+  if (warnedNearLimit.has(project.id) || !nearSaveLimit(text)) return;
+  warnedNearLimit.add(project.id);
+  const mb = (bytes: number): string => (bytes / 1024 ** 2).toFixed(0);
+  useApp
+    .getState()
+    .toast(
+      `O arquivo desta aula está com ${mb(utf8Bytes(text))} MB e o limite é ${mb(PROJECT_LIMIT_BYTES)} MB. O que mais ocupa são os desenhos feitos na tela durante a gravação: apague os que não usa ou divida a aula em duas antes que ela pare de salvar.`,
+      "info",
+    );
 }
 
 /** Tells the person why an action waits for the draft; true when it has to wait. */

@@ -479,6 +479,9 @@ test("black gaps in the picture and pieces shorter than 3 frames", () => {
   assert.match(black?.message ?? "", /Tela preta por 1,0 s em 0:10/);
   assert.deepEqual(black?.fix, { label: "Fechar a lacuna", action: "cut", ranges: [[10, 11]] });
   assert.equal(has(gap, { speech }, "black-gap")?.fix, undefined);
+  // With a background the gap shows it: nothing is black, nothing to close.
+  const background = { ...gap, background: { kind: "color" as const, color: "#203040" } };
+  assert.equal(has(background, { speech: [[0.5, 9]] }, "black-gap"), undefined);
   const tiny: Clip = {
     id: "t",
     assetId: "tela",

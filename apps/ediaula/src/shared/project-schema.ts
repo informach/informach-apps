@@ -449,6 +449,7 @@ const clip = z.looseObject({
     (value) => (value === "heygen" ? "presenter" : value),
     z.literal("presenter").optional(),
   ),
+  soundOnly: z.boolean().optional(),
   groupId: id.optional(),
   regionFx: z
     .looseObject({

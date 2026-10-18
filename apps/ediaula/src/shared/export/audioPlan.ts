@@ -146,14 +146,16 @@ export function buildAudioPlan(
 
   // Lanes: the clips of a track one after the other (a clip overlapping the lane's last one, which
   // the timeline does not make, starts another lane of the same track).
-  const lanes: { trackId: string; sounds: Sound[] }[] = [];
+  /** A lane of a track, or of a recording's clicks beside it (`owner` is the track either way). */
+  type Lane = { trackId: string; owner: string; sounds: Sound[] };
+  const lanes: Lane[] = [];
   const clips = [...project.clips].sort(
     (a, b) => (order.get(a.trackId) ?? 0) - (order.get(b.trackId) ?? 0) || a.start - b.start,
   );
-  const lane = (trackId: string, from: number): { trackId: string; sounds: Sound[] } => {
+  const lane = (trackId: string, from: number, owner = trackId): Lane => {
     let found = lanes.find((l) => l.trackId === trackId && (l.sounds.at(-1)?.to ?? 0) <= from);
     if (!found) {
-      found = { trackId, sounds: [] };
+      found = { trackId, owner, sounds: [] };
       lanes.push(found);
     }
     return found;
@@ -161,14 +163,24 @@ export function buildAudioPlan(
   for (const clip of clips) {
     const track = tracks.get(clip.trackId);
     const asset = assets.get(clip.assetId);
-    // The click sound of a screen recording (cursor effects) plays with each of its clips, as
-    // its own sound would, in a lane of its own beside the track.
+    // The click sound of a screen recording (cursor effects) plays with each clip that shows its
+    // pointer, as the preview plays it (Preview.tsx CursorLayer): in a lane of its own beside
+    // the track, heard when the track is and seen (a hidden track shows no pointer), never from
+    // the sound taken out of the video (soundOnly), so a take clicks once.
     const clicks = asset?.cursor ? spec.cursors?.[asset.id]?.clicks : undefined;
-    if (asset && clicks && track && !track.muted && !clip.zoomLayer) {
+    if (
+      asset &&
+      clicks &&
+      track &&
+      !track.muted &&
+      !track.hidden &&
+      !clip.zoomLayer &&
+      !clip.soundOnly
+    ) {
       const from = at(clip.start);
       const to = at(clipEnd(clip));
       if (to > from)
-        lane(`${clip.trackId}:clicks`, from).sounds.push({
+        lane(`${clip.trackId}:clicks`, from, clip.trackId).sounds.push({
           clip,
           asset,
           path: clicks,
@@ -213,7 +225,7 @@ export function buildAudioPlan(
     lane(clip.trackId, from).sounds.push(sound);
   }
   for (const lane of lanes) {
-    const music = !!tracks.get(lane.trackId)?.music;
+    const music = !!tracks.get(lane.owner)?.music;
     lane.sounds.forEach((s, i) => {
       const prev = lane.sounds[i - 1];
       const next = lane.sounds[i + 1];
@@ -304,13 +316,13 @@ export function buildAudioPlan(
     const name = `lane${li}`;
     // "Destacar faixa": the other tracks step aside while a highlighted one sounds.
     const aside =
-      spotlit && !tracks.get(lane.trackId)?.spotlight ? `,volume='${spotlit}':eval=frame` : "";
+      spotlit && !tracks.get(lane.owner)?.spotlight ? `,volume='${spotlit}':eval=frame` : "";
     graph.push(
       parts.length === 1
         ? `[${parts[0]}]anull${aside}[${name}]`
         : `${parts.map((p) => `[${p}]`).join("")}concat=n=${parts.length}:v=0:a=1${aside}[${name}]`,
     );
-    laneLabels.push({ trackId: lane.trackId, label: name });
+    laneLabels.push({ trackId: lane.owner, label: name });
   }
 
   const mixOf = (labels: string[], out: string): void => {

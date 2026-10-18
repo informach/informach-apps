@@ -53,6 +53,17 @@ const spec = (outPath: string): ExportSpec => ({
   normalizeLoudness: true,
   encoder: "x264",
 });
+/** The items the list on disk names, in order (each in a file of its own). */
+async function savedItems(file: string): Promise<{ id: string; state: string }[]> {
+  const index = JSON.parse(await readFile(file, "utf8")) as { version: number; items: string[] };
+  assert.equal(index.version, 2);
+  const dir = file.replace(/\.json$/, "");
+  return Promise.all(
+    index.items.map(async (name) => JSON.parse(await readFile(join(dir, name), "utf8"))),
+  );
+}
+const texts = (items: unknown[]): string[] => items.map((i) => JSON.stringify(i));
+
 const access = (files: ReturnType<typeof createFileAuthority>): QueueAccess => ({
   canRead: (p) => files.canRead(p),
   canWrite: (p) => files.canWrite(p),
@@ -82,7 +93,7 @@ test("the queue kept between sessions holds only exports to chosen files, and al
     });
     await saveQueue(
       file,
-      JSON.stringify([
+      texts([
         item("ok", chosen, "exporting"),
         item("never-chosen", other, "waiting"),
         item("finished", chosen, "done"),
@@ -91,7 +102,7 @@ test("the queue kept between sessions holds only exports to chosen files, and al
       ]),
       access(before),
     );
-    const saved = JSON.parse(await readFile(file, "utf8")) as { id: string; state: string }[];
+    const saved = await savedItems(file);
     assert.deepEqual(
       saved.map((i) => [i.id, i.state]),
       [["ok", "waiting"]],
@@ -99,27 +110,33 @@ test("the queue kept between sessions holds only exports to chosen files, and al
     // A new session: nothing is allowed until the queue is read back.
     const after = createFileAuthority(["ediaula"]);
     await assert.rejects(() => after.assertWrite(chosen, false));
-    const text = await loadQueue(file, access(after));
-    assert.ok(text);
-    assert.equal(JSON.parse(text).length, 1);
+    const loaded = await loadQueue(file, access(after));
+    assert.ok(loaded);
+    assert.equal(loaded.length, 1);
+    assert.equal(JSON.parse(loaded[0]).id, "ok");
     assert.ok(await after.assertWrite(chosen, false));
     assert.ok(await after.assertRead(media));
     // Two saves at once: one after the other, the last one stays, no temporary file is left.
     await Promise.all([
-      saveQueue(file, JSON.stringify([item("first", chosen, "waiting")]), access(after)),
-      saveQueue(file, JSON.stringify([item("second", chosen, "waiting")]), access(after)),
+      saveQueue(file, texts([item("first", chosen, "waiting")]), access(after)),
+      saveQueue(file, texts([item("second", chosen, "waiting")]), access(after)),
     ]);
     assert.deepEqual(
-      (JSON.parse(await readFile(file, "utf8")) as { id: string }[]).map((i) => i.id),
+      (await savedItems(file)).map((i) => i.id),
       ["second"],
     );
+    // The item that left the queue left its file; no temporary file is left.
+    assert.equal((await readdir(join(dir, "export-queue"))).length, 1);
     assert.deepEqual(
-      (await readdir(dir)).filter((n) => n.includes("partial")),
+      [...(await readdir(dir)), ...(await readdir(join(dir, "export-queue")))].filter((n) =>
+        n.includes("partial"),
+      ),
       [],
     );
-    // Nothing pending removes the file.
-    await saveQueue(file, "[]", access(after));
+    // Nothing pending removes the list and the items.
+    await saveQueue(file, [], access(after));
     assert.equal(await loadQueue(file, access(after)), null);
+    assert.ok(!(await readdir(dir)).includes("export-queue"));
     // Damaged or of another version: not resumed, not kept.
     await writeFile(file, JSON.stringify([{ id: "x" }]));
     assert.equal(await loadQueue(file, access(after)), null);
@@ -154,9 +171,10 @@ test("an item that cannot be resumed comes back with the reason, and nothing of 
       ]),
     );
     const files = createFileAuthority(["ediaula"]);
-    const text = await loadQueue(file, access(files));
-    assert.ok(text);
-    const items = JSON.parse(text) as SavedItem[];
+    // A queue kept in one file, as versions before kept it, is read too.
+    const loaded = await loadQueue(file, access(files));
+    assert.ok(loaded);
+    const items = loaded.map((text): SavedItem => JSON.parse(text));
     assert.deepEqual(
       items.map((i) => [i.id, !!i.blocked]),
       [

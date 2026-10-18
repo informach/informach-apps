@@ -116,25 +116,70 @@ function envelopeExpr(z: Zoom, t: string): string {
   return `if(between(${t},${num(z.start)},${num(z.end)}),min(${sm(`(${t}-${num(z.start)})/${num(e)}`)},${sm(`(${num(z.end)}-${t})/${num(e)}`)}),0)`;
 }
 
-function focusExpr(z: Zoom, t: string, axis: "x" | "y"): string {
-  const f = z.focus;
-  if (!f.length) return "0.5";
-  let expr = num(f[f.length - 1][axis]);
-  for (let i = f.length - 1; i >= 1; i--) {
-    const a = f[i - 1];
-    const b = f[i];
-    const k = sm(`(${t}-${num(a.t)})/${num(Math.max(1e-3, b.t - a.t))}`);
-    expr = `if(lt(${t},${num(b.t)}),${num(a[axis])}+(${num(b[axis] - a[axis])})*${k},${expr})`;
-  }
-  return `if(lte(${t},${num(f[0].t)}),${num(f[0][axis])},${expr})`;
+/**
+ * The points of `list` (sorted by `t`) that shape a curve between `from` and `to`: those inside
+ * and the nearest one on each side, so a stretch of a long curve gets a short expression with the
+ * same values over it (as gain.ts gainSlice does for the volume).
+ */
+export function sliceByTime<T extends { t: number }>(
+  list: readonly T[],
+  range?: readonly [number, number],
+): T[] {
+  if (!range) return [...list];
+  const [from, to] = range;
+  const first = list.findIndex((p) => p.t >= from);
+  const lo = first < 0 ? list.length - 1 : Math.max(0, first - 1);
+  let hi = list.findIndex((p) => p.t > to);
+  hi = hi < 0 ? list.length - 1 : hi;
+  return list.slice(Math.max(0, lo), hi + 1);
 }
 
-/** ffmpeg expressions for the view at source time `t` (an expression), matching zoomAt(). */
-export function zoomExprs(zooms: Zoom[], t: string): { scale: string; cx: string; cy: string } {
+/**
+ * A smooth curve through points (smoothstep between each pair, flat before the first and after
+ * the last) as a flat sum: the first value plus each step's change times its smoothstep, which
+ * is 0 before the step and 1 after it. FFmpeg refuses deeply nested expressions; this one grows
+ * flat with the points. The changes are taken between the rounded values, so the sum lands
+ * exactly on each of them.
+ */
+export function smoothSteps(
+  points: readonly { t: number; v: number }[],
+  t: string,
+  round: (v: number) => string,
+): string {
+  if (!points.length) return "0";
+  const vals = points.map((p) => Number(round(p.v)));
+  let expr = round(vals[0]);
+  for (let i = 1; i < points.length; i++) {
+    const rise = Number(round(vals[i] - vals[i - 1]));
+    if (rise === 0) continue;
+    const a = points[i - 1].t;
+    const span = Math.max(1e-3, points[i].t - a);
+    const from = round(a);
+    const shifted = from.startsWith("-") ? `${t}+${from.slice(1)}` : `${t}-${from}`;
+    expr += `${rise < 0 ? "-" : "+"}${round(Math.abs(rise))}*${sm(`(${shifted})/${round(span)}`)}`;
+  }
+  return expr;
+}
+
+function focusExpr(z: Zoom, t: string, axis: "x" | "y", range?: readonly [number, number]): string {
+  if (!z.focus.length) return "0.5";
+  const points = sliceByTime(z.focus, range).map((f) => ({ t: f.t, v: f[axis] }));
+  return `(${smoothSteps(points, t, num)})`;
+}
+
+/**
+ * ffmpeg expressions for the view at source time `t` (an expression), matching zoomAt(). With
+ * `range` (source seconds), only the focus points that shape the view over it are written.
+ */
+export function zoomExprs(
+  zooms: Zoom[],
+  t: string,
+  range?: readonly [number, number],
+): { scale: string; cx: string; cy: string } {
   const terms = zooms.map((z) => ({ w: envelopeExpr(z, t), z }));
   const scale = `(1${terms.map(({ w, z }) => `+${num(z.scale - 1)}*${w}`).join("")})`;
   const center = (axis: "x" | "y"): string => {
-    const raw = `(0.5${terms.map(({ w, z }) => `+(${focusExpr(z, t, axis)}-0.5)*${w}`).join("")})`;
+    const raw = `(0.5${terms.map(({ w, z }) => `+(${focusExpr(z, t, axis, range)}-0.5)*${w}`).join("")})`;
     return `clip(${raw},0.5/${scale},1-0.5/${scale})`;
   };
   return { scale, cx: center("x"), cy: center("y") };

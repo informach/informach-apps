@@ -177,7 +177,20 @@ export async function renderSegments(job: SegmentJob): Promise<string[]> {
   job.signal.addEventListener("abort", onAbort, { once: true });
   const options = segmentOptions(job);
   let failure: unknown;
-  const todo = files.flatMap((f, i) => (f ? [] : [i]));
+  // Windows that show the very same thing (a vignette used twice, the same still background
+  // over a long narration) share one file: each key is rendered once, by its first window, and
+  // the others take that file when it is ready.
+  const copies = new Map<number, number[]>();
+  const first = new Map<string, number>();
+  const todo: number[] = [];
+  files.forEach((file, i) => {
+    if (file) return;
+    const owner = first.get(keys[i]);
+    if (owner === undefined) {
+      first.set(keys[i], i);
+      todo.push(i);
+    } else copies.set(owner, [...(copies.get(owner) ?? []), i]);
+  });
   let next = 0;
 
   const renderOne = async (i: number): Promise<void> => {
@@ -232,6 +245,13 @@ export async function renderSegments(job: SegmentJob): Promise<string[]> {
     partial.delete(i);
     ready += win.frames;
     done++;
+    // The same file for every window with this key, each read held (pinned) on its own.
+    for (const j of copies.get(i) ?? []) {
+      files[j] = await job.cache.get(keys[j], "mp4");
+      if (!files[j]) throw new Error("Missing export segment");
+      ready += job.windows[j].frames;
+      done++;
+    }
     report();
   };
 

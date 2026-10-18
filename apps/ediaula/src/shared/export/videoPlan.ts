@@ -21,7 +21,13 @@ import {
   spotlightDarkness,
   spotlightRadius,
 } from "../look.ts";
-import { followTarget, regionInSource, regionStrength, sourcePixels } from "../regionFollow.ts";
+import {
+  type FollowSpan,
+  followSpans,
+  regionInSource,
+  regionStrength,
+  sourcePixels,
+} from "../regionFollow.ts";
 import { clipEnd, clipSpeed, sourceEnd, sourceLength } from "../timeline.ts";
 import {
   type CutFx,
@@ -102,9 +108,10 @@ const even = (v: number): number => Math.max(2, Math.round(v / 2) * 2);
 const TO_YUV = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p";
 
 /**
- * eq's curve (vf_eq.c create_lut, gamma 1) as a lutyuv: the light is v' = c (v - 1/2) + 1/2 + b
- * on the 0..255 scale, and the color is pushed away from gray by the saturation. lutyuv also
- * takes pictures with transparency, which eq would turn opaque.
+ * The color correction (shared/look.ts) as a lutyuv on the composite's BT.709 limited range,
+ * the same numbers as the preview's matrix (look.ts colorSvg): the light v' = c (v - 1/2) + 1/2 + b
+ * with v the luma from black (16) to white (235), and the color pushed away from gray (128) by
+ * the saturation. lutyuv also takes pictures with transparency, which eq would turn opaque.
  */
 export function eqLut(c: ClipColor): string {
   const k = c.contrast ?? 1;
@@ -112,7 +119,7 @@ export function eqLut(c: ClipColor): string {
   const s = c.saturation ?? 1;
   const r = (v: number): string => (Math.round(v * 10000) / 10000).toString();
   const chroma = `clip(128+(val-128)*${r(s)},0,255)`;
-  return `lutyuv=y='clip(255*(${r(k)}*(val/255-0.5)+0.5+${r(b)}),0,255)':u='${chroma}':v='${chroma}'`;
+  return `lutyuv=y='clip(16+219*(${r(k)}*((val-16)/219-0.5)+0.5+${r(b)}),0,255)':u='${chroma}':v='${chroma}'`;
 }
 
 /** Size the lesson is composed at (a vertical export fits it into the tall frame afterwards). */
@@ -311,7 +318,8 @@ export function buildVideoWindowPlan(
       drawn.push({ clip, layer: true });
       continue;
     }
-    if (asset.kind === "audio") continue;
+    // Sound only, or the sound taken out of a video (its picture is the video clip's).
+    if (asset.kind === "audio" || clip.soundOnly) continue;
     const lay = clipLayout(clip, asset, { width: W, height: H });
     if (Math.round(lay.visible.w) < 2 || Math.round(lay.visible.h) < 2) continue;
     const cutOut = keyedPath(asset);
@@ -474,14 +482,16 @@ export function buildVideoWindowPlan(
   let pending: { v: string[]; shadow: string[] } = { v: [], shadow: [] };
 
   const hiddenTrack = (id: string): boolean => !!project.tracks.find((tr) => tr.id === id)?.hidden;
-  /** Region clips that follow a recording, by its media and track. */
-  const followers = new Map<string, Clip[]>();
+  /**
+   * Region clips that follow a recording, by the recording clip they are on and when (the
+   * clip on screen under them at each moment, shared/regionFollow.ts followSpans).
+   */
+  const followers = new Map<string, { region: Clip; span: FollowSpan }[]>();
   for (const c of project.clips) {
-    if (!c.regionFx?.follow) continue;
-    const target = followTarget(project, c);
-    if (!target) continue;
-    const key = `${target.assetId}|${target.trackId}`;
-    followers.set(key, [...(followers.get(key) ?? []), c]);
+    if (!c.regionFx?.follow || hiddenTrack(c.trackId)) continue;
+    if (c.start >= T1 || clipEnd(c) <= T0) continue;
+    for (const span of followSpans(project, c))
+      followers.set(span.clip.id, [...(followers.get(span.clip.id) ?? []), { region: c, span }]);
   }
 
   /**
@@ -497,9 +507,7 @@ export function buildVideoWindowPlan(
     k0: number,
     k1: number,
   ): string => {
-    const list = (followers.get(`${asset.id}|${clip.trackId}`) ?? []).filter(
-      (c) => c.start < clipEnd(clip) && clipEnd(c) > clip.start && !hiddenTrack(c.trackId),
-    );
+    const list = followers.get(clip.id) ?? [];
     let src = input;
     const sw = asset.width || W;
     const sh = asset.height || H;
@@ -507,13 +515,13 @@ export function buildVideoWindowPlan(
     const lay = clipLayout(clip, asset, frame);
     // Frame pixels per source pixel: the region's sizes are in frame pixels.
     const k = lay.full.w / sw;
-    for (const [i, c] of list.entries()) {
+    for (const [i, { region: c, span }] of list.entries()) {
       const fxr = c.regionFx;
       if (!fxr) continue;
       const box = sourcePixels(regionInSource(fxr, clip, asset, frame), sw, sh);
       if (!box) continue;
       const id = `${L}f${i}`;
-      const on = `enable='between(t,${us(c.start - clip.start - half)},${us(clipEnd(c) - clip.start - half)})'`;
+      const on = `enable='between(t,${us(span.start - clip.start - half)},${us(span.end - clip.start - half)})'`;
       const feather = (fxr.feather * H) / 1080 / k;
       const { radius, block } = regionStrength(fxr, H, box, k);
       if (fxr.kind === "spotlight") {
@@ -733,6 +741,7 @@ export function buildVideoWindowPlan(
       const e = zoomExprs(
         zooms,
         `(${us(clip.in)}+${frameClock(fps, k0)}${speed === 1 ? "" : `*${n(speed)}`})`,
+        [piece.S - 1 / fps, piece.E],
       );
       const on = zooms
         .map(
@@ -861,7 +870,7 @@ export function buildVideoWindowPlan(
         ? `${vw}:${vh}`
         : null;
     graph.push(`[${src}]${crop}${convert(screenSize, !rgba)},setsar=1,format=${fmt}[${pic}]`);
-    // Color: eq's own curve on the light and the color (lutyuv keeps the transparency, which
+    // Color: the light and the color on the limited range (lutyuv keeps the transparency, which
     // eq would drop), then the temperature on red, green and blue.
     if (hasColor(clip.color)) {
       const { eq, temperature } = colorFilters(clip.color);
@@ -1051,7 +1060,8 @@ export function buildVideoWindowPlan(
           asset,
           { width: W, height: H },
         );
-        const e = keyframeExprs(kfs, `(t-${n(clip.start)})`);
+        // Only the keyframes that move it over this window (clip seconds).
+        const e = keyframeExprs(kfs, `(t-${n(clip.start)})`, [(k0 - 1) / fps, (k1 + 1) / fps]);
         sw = `${n(one.visible.w)}*(${e.scale})`;
         shh = `${n(one.visible.h)}*(${e.scale})`;
         cx = `(${e.x})*${W}+${n(one.visible.x + one.visible.w / 2 - W / 2)}*(${e.scale})`;
