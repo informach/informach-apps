@@ -1,5 +1,6 @@
 import type { CutCategory, ProposalItem } from "@shared/anchors";
 import { mergeRanges } from "@shared/cleanup";
+import { isPrepareAuthor } from "@shared/prepare";
 import {
   Check,
   ChevronDown,
@@ -54,7 +55,7 @@ export const authorLabel = (by: string | undefined): string =>
           ? "limpeza da voz"
           : by === "limpeza"
             ? "limpeza automática"
-            : by === "preparar"
+            : isPrepareAuthor(by)
               ? "Preparar aula"
               : by === "modelo"
                 ? "modelo do curso"
@@ -325,7 +326,7 @@ function ProposalReview(): ReactNode {
           <strong>{proposal.title}</strong>
         )}
         <span className="muted">
-          {proposal.by === "limpeza" || proposal.by === "voz" || proposal.by === "preparar"
+          {proposal.by === "limpeza" || proposal.by === "voz" || isPrepareAuthor(proposal.by)
             ? "A limpeza propõe"
             : "A IA propõe"}{" "}
           {cut.length} corte

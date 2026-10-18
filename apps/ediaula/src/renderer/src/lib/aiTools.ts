@@ -45,8 +45,10 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import {
   type AiEntry,
+  basisOf,
   type Commit,
   draftCommit,
+  onDraftView,
   runAsAi,
   settleEdits,
   shownProject,
@@ -103,6 +105,12 @@ function requireProject(): Project {
 
 /** The open project has to be on disk before the assistant switches to another one. */
 async function saveBeforeLeaving(): Promise<void> {
+  // A draft waiting for review exists only in memory: the person applies or discards it first.
+  const { draft, project } = useProject.getState();
+  if (draft && project && draft.projectId === project.id)
+    throw new ToolError(
+      `Há um rascunho esperando a revisão da pessoa ("${draft.title}"). Peça para ela aplicar ou descartar antes de trocar de projeto.`,
+    );
   await settleEdits();
   if (!(await useProject.getState().flush()))
     throw new ToolError(
@@ -964,7 +972,9 @@ const handlers: {
   },
 
   async add_annotations({ items }, { commit }) {
-    const p = requireProject();
+    // In a draft, "near_text" is found where the draft has the words (a card or an insert of
+    // the draft moves them).
+    const p = basisOf(commit) ?? requireProject();
     const ids: string[] = [];
     const problems: string[] = [];
     for (const it of items) {
@@ -1050,9 +1060,11 @@ const handlers: {
   },
 
   async check_before_export({ measure_volume }) {
+    requireProject();
+    const loudness = measure_volume ? await measureLoudness() : null;
+    // The list is about the lesson as it is now (the volume counts only if it was measured on it).
     const p = requireProject();
-    const loudness = measure_volume ? await measureLoudness(p) : undefined;
-    const findings = await checkLesson(p, loudness !== undefined ? { loudness } : {});
+    const { findings } = await checkLesson(p, useProject.getState().revision, { loudness });
     if (!findings.length) return "Nada a corrigir antes de exportar.";
     const label = { error: "PROBLEMA", warn: "aviso", info: "info" } as const;
     return [
@@ -1327,11 +1339,13 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
         call.projectId,
       );
       let refused = false;
-      const text = await run((fn) => {
-        const ok = into(fn);
-        if (!ok) refused = true;
-        return ok;
-      });
+      const text = await run(
+        onDraftView((fn) => {
+          const ok = into(fn);
+          if (!ok) refused = true;
+          return ok;
+        }),
+      );
       if (refused) {
         const waiting = useProject.getState().draft;
         return {

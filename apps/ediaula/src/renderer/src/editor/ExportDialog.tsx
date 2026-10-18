@@ -1,5 +1,4 @@
 import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
-import type { Finding, Loudness } from "@shared/preflight";
 import { newId, projectDuration } from "@shared/timeline";
 import type { ExportQuality, ExportSpec } from "@shared/types";
 import {
@@ -19,7 +18,12 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { bytes, duration } from "@/lib/format";
-import { checkLesson, measureLoudness } from "@/lib/preflight";
+import {
+  checkLesson,
+  type LessonCheck,
+  type MeasuredLoudness,
+  measureLoudness,
+} from "@/lib/preflight";
 import { needsRelink, reconnectMissing } from "@/lib/relink";
 import { cleanError } from "@/lib/transcripts";
 import { useApp } from "@/state/app";
@@ -135,17 +139,20 @@ export function ExportDialog(): ReactNode {
 
   useEffect(() => playback.pause(), []);
 
-  // The check before exporting, run again whenever the lesson or the volume choice changes.
-  const [findings, setFindings] = useState<Finding[] | null>(null);
-  const [loudness, setLoudness] = useState<Loudness | null | undefined>(undefined);
+  // The check before exporting, made again whenever the lesson or a choice here changes. A
+  // volume measured on another revision of the lesson no longer counts.
+  const revision = useProject((s) => s.revision);
+  const [check, setCheck] = useState<LessonCheck | null>(null);
+  const [loudness, setLoudness] = useState<MeasuredLoudness | null>(null);
+  const measured = loudness && loudness.revision === revision ? loudness : null;
   const [measuring, setMeasuring] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    checkLesson(project, { normalize, ...(loudness !== undefined ? { loudness } : {}) }).then(
+    checkLesson(project, revision, { normalize, srt: captions, loudness: measured }).then(
       (list) => {
         if (!alive) return;
-        setFindings(list);
+        setCheck(list);
         setCheckError(null);
       },
       (err: unknown) => {
@@ -155,11 +162,11 @@ export function ExportDialog(): ReactNode {
     return () => {
       alive = false;
     };
-  }, [project, normalize, loudness]);
+  }, [project, revision, normalize, captions, measured]);
   const measure = async (): Promise<void> => {
     setMeasuring(true);
     try {
-      setLoudness(await measureLoudness(project));
+      setLoudness(await measureLoudness());
     } catch (err) {
       setCheckError(`O volume não pôde ser medido: ${cleanError(err)}`);
     } finally {
@@ -395,11 +402,7 @@ export function ExportDialog(): ReactNode {
                   onClick={() => void measure()}
                   title="Mede o volume e o pico do som da aula como a exportação vai mixar"
                 >
-                  {measuring
-                    ? "Medindo o volume…"
-                    : loudness === undefined
-                      ? "Medir o volume"
-                      : "Medir de novo"}
+                  {measuring ? "Medindo o volume…" : measured ? "Medir de novo" : "Medir o volume"}
                 </Button>
               </div>
               {draftWaiting && (
@@ -410,8 +413,8 @@ export function ExportDialog(): ReactNode {
               )}
               {checkError ? (
                 <p className="muted">{checkError}</p>
-              ) : findings ? (
-                <PreflightList findings={findings} normalize={() => setNormalize(true)} />
+              ) : check ? (
+                <PreflightList check={check} normalize={() => setNormalize(true)} />
               ) : (
                 <p className="muted">Conferindo a aula…</p>
               )}

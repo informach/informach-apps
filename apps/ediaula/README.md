@@ -222,8 +222,10 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 
 **Preparar aula** leva a gravação até uma edição pronta para revisar, em dez etapas, sempre na
 mesma ordem. Abre pelo botão **Preparar aula** no topo do editor, pela faixa que aparece quando uma
-gravação entra na aula ou pela IA (`prepare_lesson`). O painel **Preparar aula** abre na barra lateral e
-mostra as etapas, o que cada uma fez e o que está esperando você.
+gravação de tela ou o vídeo do apresentador entra na aula ou pela IA (`prepare_lesson`). Depois de uma
+gravação **Só voz**, a faixa lembra o caminho da voz (escolher as tomadas, limpar e exportar para
+gerar o vídeo do apresentador) e o Preparar aula fica para quando o vídeo voltar. O painel **Preparar
+aula** abre na barra lateral e mostra as etapas, o que cada uma fez e o que está esperando você.
 
 1. **Transcrever** cada fonte que se ouve na aula, uma vez só: a voz que toca muda por baixo do som
    do apresentador e o vídeo do apresentador sem som não são transcritos de novo.
@@ -231,32 +233,48 @@ mostra as etapas, o que cada uma fez e o que está esperando você.
    sozinha; senão, escolha a seção na lista.
 3. **Cortes:** vícios, repetições, pausas longas e o que foi dito fora do roteiro numa proposta só,
    separada por categoria. Na barra de revisão dá para deixar uma categoria inteira de fora.
-   Se a voz já foi limpa antes de gerar o vídeo do apresentador (a voz foi exportada para ele, ou o
-   vídeo dele foi encaixado pela voz), esta etapa fica de fora e o painel diz por quê: cortar de
-   novo picotaria o vídeo do apresentador junto.
-4. **Inserções** do apresentador do roteiro, todas de uma vez.
+   Se toda voz que se ouve passou pelo caminho da voz (gravada em Só voz, exportada para gerar o
+   vídeo do apresentador, ou o vídeo dele encaixado por ela), esta etapa fica de fora e o painel diz
+   por quê: cortar de novo picotaria o vídeo do apresentador junto. Numa aula mista, com o microfone
+   gravado junto com a tela, a etapa continua para essa voz, e nenhum corte cai onde o vídeo do
+   apresentador toca.
+4. **Inserções** do apresentador do roteiro, todas de uma vez. Se a aula mudou enquanto as
+   inserções eram planejadas, nada é colocado e a etapa espera um **Tentar de novo**.
 5. **Modelo do curso:** paleta, posição do apresentador, cursor, música e escolhas da limpeza.
 6. **Zoom automático** nos cliques das gravações de tela do EdiAula.
 7. **Anotações do Na tela:** cada "Na tela" do roteiro vira uma anotação no começo da fala seguinte.
-   O lugar vem do clique da gravação naquele momento; se não houver, da regra do modelo do curso; se
-   não, de um canto que não cobre o apresentador.
+   O lugar vem do clique da gravação naquele momento, onde ele aparece na tela com o zoom da
+   gravação; se não houver, da regra do modelo do curso; se não, de um canto que não cobre o
+   apresentador (com o apresentador na tela inteira, um canto de baixo). A anotação fica sempre dentro
+   da área segura de 90% do quadro, e um "Na tela" que já tem anotação na aula não ganha outra.
 8. **Legenda** gravada no vídeo, no estilo do curso.
 9. **Cartelas** de abertura e de encerramento.
-10. **Verificação antes de exportar** (abaixo).
+10. **Verificação antes de exportar** (abaixo). O volume é medido uma vez, nesta etapa; a lista é
+    refeita sozinha a cada mudança na aula, sem medir de novo (o Refazer mede).
 
 Cada etapa vira uma proposta (os cortes) ou um rascunho (o resto). Aplicar conclui a etapa e a
-próxima começa sozinha; descartar pula. **Pular** e **Refazer** valem para qualquer etapa. Onde a
-preparação parou fica salvo na aula, então fechar e abrir de novo continua dali.
+próxima começa sozinha; descartar pula. Cada rascunho e proposta sabe a etapa que o fez, então
+resolver um só decide essa etapa. **Pular** e **Refazer** valem para qualquer etapa; o Refazer
+descarta o que o Preparar aula deixou esperando revisão. Onde a preparação parou fica salvo na aula,
+então fechar e abrir de novo continua dali.
 
 **Rascunho.** O que muda a aula de forma ampla (várias anotações, zooms, inserções, paleta, modelo do
 curso) primeiro vira um rascunho: a prévia já mostra como fica, os clipes que mudam aparecem
-tracejados na timeline e a barra de revisão lista cada mudança em português ("3 clipes a partir de
-0:10 andaram 2,0 s para a direita", "Balão "Olha aqui!" em 0:04"). Cada item tem **Deixar de fora** e
-**Incluir**; deixar um item de fora leva junto o que depende dele (o balão de uma faixa nova sai com
-a faixa) e avisa. **Aplicar** grava tudo num Ctrl+Z só. Se você mexeu na aula num ponto que o
+tracejados na timeline e a barra de revisão lista cada mudança em português ("Inserção F1P1-D01 em
+2:00, abre 4,0 s", "Cartela de abertura em 0:00: a aula anda 4,0 s", "Balão "Olha aqui!" em 0:04").
+O que muda a estrutura da aula (clipes divididos, aparados, movidos ou removidos, com os clipes que
+a mesma edição criou) é um item só: metade dele deixaria buracos ou clipes um sobre o outro. O que foi
+posto depois dele no tempo depende dele. Cada item tem **Deixar de fora** e **Incluir**; deixar um
+item de fora leva junto o que depende dele (o balão de uma faixa nova sai com a faixa) e avisa, e
+incluir traz junto o que ele precisa. A lista é refeita a cada edição escrita no rascunho, então cada
+item diz a mudança final. **Aplicar** grava tudo num Ctrl+Z só. Se você mexeu na aula num ponto que o
 rascunho também muda, o item aparece como "a aula mudou aqui" e o Aplicar espera você deixá-lo de
-fora. O rascunho fica só na memória: não vai para o arquivo da aula nem para a exportação. As
-ferramentas da IA `add_annotations`, `auto_zoom`, `place_inserts`, `set_palette` e
+fora. Enquanto um rascunho muda a estrutura, a lâmina, mover e aparar clipes, colocar mídia, ouvir
+os cortes e Revisar cortes esperam: aplique ou descarte antes. O rascunho fica só na memória: não vai
+para o arquivo da aula nem para a exportação, e por isso fechar a aula, ir para o início ou abrir
+outra pergunta se é para aplicar, descartar ou cancelar (a IA não troca de aula com um rascunho
+esperando). Uma anotação, cartela ou paleta posta no rascunho é feita sobre o que o rascunho mostra.
+As ferramentas da IA `add_annotations`, `auto_zoom`, `place_inserts`, `set_palette` e
 `apply_editing_template` escrevem no rascunho por padrão; com `mode: "apply"` (só quando você pede)
 mudam a aula na hora. Um rascunho espera por vez.
 
@@ -268,18 +286,31 @@ dois pedaços da mesma gravação se encontram com um trecho tirado entre eles, 
 1,5 s depois. **Enter** aprova (a emenda fica marcada na aula e não volta na próxima revisão),
 **Backspace** restaura o trecho (a timeline abre ali nas faixas que os cortes atingem e o pedaço da
 esquerda volta a tocar até o da direita), **→** pula e **R** ouve de novo. Restaurar é um Ctrl+Z.
+Só contam as faixas que os cortes atingem (não as anotações, a música ou um efeito sonoro). Cada
+emenda é procurada de novo antes de agir, pelos segundos da mídia: depois de um Ctrl+Z ou de outra
+edição, ela é achada onde está, e uma que sumiu é pulada com aviso. Uma emenda onde o vídeo do
+apresentador toca por cima não é restaurada (dividiria o vídeo ao meio): aprove ou ajuste à mão. A
+revisão termina quando outra aula abre ou o editor sai da tela.
 
 **Verificação antes de exportar.** Aparece no diálogo Exportar, na última etapa do Preparar aula e na
-IA (`check_before_export`). Confere, pensando em crianças de 9 a 14 anos:
-- silêncio de mais de 1,5 s no começo ou no fim;
-- volume: **Medir o volume** mixa o som como a exportação e mede LUFS e pico (fora de −20 a −9 LUFS,
-  ou pico acima de −1 dBTP, a correção é ligar a normalização);
+IA (`check_before_export`). Cada lista vale para a aula como estava quando foi feita: depois de
+qualquer mudança ela é refeita, e uma correção nunca age com os tempos de antes. Confere, pensando
+em crianças de 9 a 14 anos:
+- silêncio de mais de 1,5 s no começo ou no fim (embaixo de uma cartela, o silêncio é de propósito);
+- volume: **Medir o volume** mixa o som como a exportação, com a voz tratada (espera o tratamento
+  terminar) e a música abaixando quando alguém fala, e mede LUFS e pico (fora de −20 a −9 LUFS, ou
+  pico acima de −1 dBTP, a correção é ligar a normalização). A medida vale só para a aula como
+  estava; mudou, meça de novo;
 - duração fora do alvo do roteiro, falas do roteiro que não estão na aula ou estão pela metade, e o
-  texto do Zappy na página falado no vídeo (a correção propõe o corte);
+  texto do Zappy na página falado no vídeo: com 6 palavras ou mais dele em ordem (e pelo menos 60%
+  dele) é um problema e a correção propõe o corte; com menos, só um lembrete para conferir;
 - duas vozes ao mesmo tempo por mais de 0,3 s;
-- legenda fora da área segura de 90% do quadro, menor que 5% da altura ou acima de 15 caracteres
-  por segundo;
-- letra de anotação menor que 4,5% da altura (a correção aumenta a letra);
+- legenda fora da área segura de 90% do quadro ou menor que 5% da altura; e, quando a legenda é
+  gravada no vídeo ou o .srt sai junto, um trecho inteiro de 10 s acima de 17 caracteres por
+  segundo (contando o tempo que cada legenda fica na tela; o aviso mostra o pior trecho);
+- letra de anotação menor que 3,3% da altura (36 px em 1080p) é aviso, menor que 2,6% é problema,
+  medida no tamanho em que a anotação fica parada (a correção aumenta a letra). Balões, notas e
+  rótulos novos já nascem com 36 px;
 - mídia ou dados do cursor ausentes (a correção reconecta);
 - capítulos do YouTube que não valem: o primeiro precisa estar em 0:00, são pelo menos 3 e cada um
   com 10 s ou mais;
@@ -292,7 +323,12 @@ como o curso é editado em `cursos/<curso>/modelo.json`, dentro da pasta de dado
 fontes, legenda, cartelas, posição e entrada do apresentador, remoção de fundo, cursor, zoom, música
 (marcada como música, abaixando quando alguém fala, no volume da aula), escolhas da limpeza, quantas
 anotações por minuto, os estilos delas e regras do tipo "quando o Na tela falar do botão Play,
-destaque ali". Ao abrir outra aula do mesmo curso, o EdiAula oferece aplicar o modelo como rascunho.
+destaque ali". O apresentador da aula e as inserções do roteiro guardam cada um a sua posição, e uma
+inserção nunca é posta em cima do apresentador que está na tela ao mesmo tempo (um modelo antigo, de
+uma posição só, vale para o apresentador, e para as inserções só numa aula sem ele). Ao abrir outra
+aula do mesmo curso, o EdiAula oferece aplicar o modelo como rascunho; a resposta (aplicar ou agora
+não) fica guardada na aula para aquele curso, e o modelo aplicado marca no Preparar aula as etapas que
+ele já fez.
 O modelo de edição em Markdown (`export_editing_template`) leva o mesmo bloco JSON e agora diz o papel
 certo de cada mídia (camada de zoom, quadro parado da tela, música de fundo, apresentador, voz). Um
 arquivo da versão 1 continua valendo como referência em texto, só não tem o que aplicar.

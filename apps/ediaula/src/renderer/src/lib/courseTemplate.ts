@@ -7,10 +7,13 @@ import {
   presenterClips,
   templateLook,
 } from "@shared/courseTemplate";
+import type { PrepareStep } from "@shared/prepare";
 import {
   type AvoidBox,
   capPerMinute,
   type DirectionAnnotation,
+  type PointTarget,
+  pointOnFrame,
   screenDirections,
 } from "@shared/screenDirections";
 import { clipEnd, sourceEnd, timelineAt } from "@shared/timeline";
@@ -21,7 +24,7 @@ import { setCaptions } from "@/editor/CaptionSettings";
 import { loadCursorData } from "@/editor/CursorLayer";
 import { applyAutoZoom } from "@/editor/RecordingProps";
 import { useApp } from "@/state/app";
-import { type Commit, shownProject, useProject } from "@/state/project";
+import { basisOf, type Commit, draftCommit, useProject } from "@/state/project";
 import { addAnnotation, addCard } from "./annotations";
 import { applyPalette } from "./palettes";
 import { currentView } from "./script";
@@ -47,22 +50,26 @@ export function courseTemplate(course: string | undefined): Promise<CourseTempla
   return p;
 }
 
-/** Where the recording pointed: clicks of the screen recordings, timeline seconds and frame fractions. */
-async function clickTargets(p: Project): Promise<{ t: number; x: number; y: number }[]> {
-  const out: { t: number; x: number; y: number }[] = [];
+/** Where the recording pointed: clicks of the screen recordings, in timeline seconds. */
+async function clickTargets(p: Project): Promise<PointTarget[]> {
+  const out: PointTarget[] = [];
   for (const a of p.assets) {
     if (!a.cursor || a.cursorMissing) continue;
     const clips = p.clips.filter((c) => c.assetId === a.id && !c.annotation);
     if (!clips.length) continue;
     const data = await loadCursorData(a.cursor);
     for (const c of clips) {
-      const lay = clipLayout(c, a, p.settings);
       for (const [t, x, y] of data.clicks) {
         if (t < c.in || t >= sourceEnd(c)) continue;
+        const u = x / data.width;
+        const v = y / data.height;
+        const at = timelineAt(c, t);
+        const [fx, fy] = pointOnFrame(c, a, p.settings, u, v, at);
         out.push({
-          t: timelineAt(c, t),
-          x: (lay.full.x + (x / data.width) * lay.full.w) / p.settings.width,
-          y: (lay.full.y + (y / data.height) * lay.full.h) / p.settings.height,
+          t: at,
+          x: fx,
+          y: fy,
+          seenAt: (when) => pointOnFrame(c, a, p.settings, u, v, when),
         });
       }
     }
@@ -104,12 +111,16 @@ export async function directionAnnotations(
       list: [],
       problem: `Confirme na aba Roteiro que esta gravação é da seção ${view.section.number}.`,
     };
+  // A direction already annotated (by an earlier run, or by the course template) is not again.
+  const done = new Set(
+    p.clips.flatMap((c) => (c.annotation?.direction ? [c.annotation.direction] : [])),
+  );
   const list = screenDirections(view.section, view.alignment, {
     words: view.words,
     targets: await clickTargets(p),
     rules: directionRules(template),
     avoid: presenterBoxes(p),
-  });
+  }).filter((d) => !done.has(d.id));
   return { list: capPerMinute(list, template?.annotations?.maxPerMinute ?? 0) };
 }
 
@@ -132,6 +143,7 @@ export async function addDirectionAnnotations(
         ...d.style,
         ...(d.kind === "highlight" ? { boxWidth: 260, boxHeight: 150 } : {}),
         text: d.text ?? ANNOTATION_PRESETS.find((x) => x.kind === d.kind)?.spec.text ?? "",
+        direction: d.id,
       },
       { at: d.at, duration: d.duration, x: d.x, y: d.y },
       commit,
@@ -151,7 +163,8 @@ export async function applyTemplateParts(
   commit: Commit,
 ): Promise<string[]> {
   const done: string[] = [];
-  const p = shownProject();
+  // Every part is worked out on what `commit` writes on: the draft as it grows, part by part.
+  const p = basisOf(commit);
   if (!p) return done;
   if (parts.includes("look")) {
     if (
@@ -174,7 +187,7 @@ export async function applyTemplateParts(
       template.zoom?.scale ??
       DEFAULT_AUTO_ZOOM.scale;
     let n = 0;
-    const now = shownProject() ?? p;
+    const now = basisOf(commit) ?? p;
     for (const c of now.clips) {
       const a = now.assets.find((x) => x.id === c.assetId);
       if (a?.cursor && !a.cursorMissing && !c.annotation)
@@ -187,12 +200,12 @@ export async function applyTemplateParts(
     done.push("legenda do curso");
   }
   if (parts.includes("annotations")) {
-    const { list } = await directionAnnotations(shownProject() ?? p, template);
+    const { list } = await directionAnnotations(basisOf(commit) ?? p, template);
     const n = await addDirectionAnnotations(list, template, commit);
     if (n) done.push(n === 1 ? "1 anotação do Na tela" : `${n} anotações do Na tela`);
   }
   if (parts.includes("cards") && template.cards) {
-    const now = shownProject() ?? p;
+    const now = basisOf(commit) ?? p;
     const cards = now.clips.filter((c) => c.annotation?.kind === "card");
     const end = now.clips.reduce((m, c) => Math.max(m, clipEnd(c)), 0);
     if (template.cards.opening && !cards.some((c) => c.start <= 0.1)) {
@@ -242,28 +255,41 @@ export async function saveCourseTemplateFromLesson(): Promise<void> {
 export const useCourseOffer = create<{
   projectId: string | null;
   template: CourseTemplate | null;
-  dismissed: string[];
-}>(() => ({ projectId: null, template: null, dismissed: [] }));
+}>(() => ({ projectId: null, template: null }));
+
+/** The author of the draft the course template makes from its offer. */
+export const TEMPLATE_AUTHOR = "modelo";
+
+/** The steps of "Preparar aula" the template's draft covers, once it is applied. */
+export const TEMPLATE_STEPS: readonly PrepareStep[] = [
+  "template",
+  "zoom",
+  "annotations",
+  "captions",
+  "cards",
+];
 
 /**
  * When a lesson of a course with a saved template opens, or a new one gets its first clips, the
  * template is offered, unless the lesson already went through that step of "Preparar aula" or
- * the person said not now.
+ * the person already answered the offer for this course (Project.templateOffer, kept with the
+ * lesson).
  */
 export function watchCourseOffer(): () => void {
   let last: string | null = null;
   return useProject.subscribe((s) => {
     const p = s.project;
-    const key = p ? `${p.id}:${p.clips.length > 0}` : null;
+    const key = p ? `${p.id}:${p.course ?? ""}:${p.clips.length > 0}` : null;
     if (!p || key === last) return;
     const sameLesson = last?.startsWith(`${p.id}:`);
     last = key;
     if (!sameLesson) useCourseOffer.setState({ projectId: null, template: null });
     if (!p.course || !p.clips.length || p.prepare?.decisions.template) return;
-    if (useCourseOffer.getState().dismissed.includes(p.id)) return;
+    if (p.templateOffer?.course === p.course) return;
     void courseTemplate(p.course).then(
       (template) => {
-        if (template && useProject.getState().project?.id === p.id)
+        const now = useProject.getState().project;
+        if (template && now?.id === p.id && now.templateOffer?.course !== now.course)
           useCourseOffer.setState({ projectId: p.id, template });
       },
       (err: unknown) =>
@@ -272,11 +298,50 @@ export function watchCourseOffer(): () => void {
   });
 }
 
-export function dismissCourseOffer(): void {
-  const { projectId, dismissed } = useCourseOffer.getState();
-  useCourseOffer.setState({
-    projectId: null,
-    template: null,
-    dismissed: projectId ? [...dismissed, projectId] : dismissed,
-  });
+/** Keeps the answer to the offer with the lesson (outside the undo history, like the review). */
+function answerOffer(answer: "applied" | "declined"): void {
+  const { projectId } = useCourseOffer.getState();
+  useCourseOffer.setState({ projectId: null, template: null });
+  useProject
+    .getState()
+    .patch((q) =>
+      q.id === projectId && q.course ? { ...q, templateOffer: { course: q.course, answer } } : q,
+    );
+}
+
+/** "Agora não": the template is not offered again for this lesson and course. */
+export const dismissCourseOffer = (): void => answerOffer("declined");
+
+/**
+ * "Aplicar como rascunho": every part of the template as one draft. Applying it in the review
+ * bar marks the steps of "Preparar aula" it covered (lib/prepare.ts), so they are not done twice.
+ */
+export async function acceptCourseOffer(): Promise<void> {
+  const { toast } = useApp.getState();
+  const { projectId, template } = useCourseOffer.getState();
+  const waiting = useProject.getState().draft;
+  if (!template || !projectId) return;
+  if (waiting && waiting.projectId === projectId) {
+    toast(
+      `Há um rascunho esperando revisão ("${waiting.title}"). Aplique ou descarte antes.`,
+      "error",
+    );
+    return;
+  }
+  answerOffer("applied");
+  try {
+    const done = await applyTemplateParts(
+      template,
+      ["look", "zoom", "annotations", "captions", "cards"],
+      draftCommit(TEMPLATE_AUTHOR, "Modelo do curso", projectId),
+    );
+    toast(
+      done.length && useProject.getState().draft?.author === TEMPLATE_AUTHOR
+        ? `Rascunho do modelo do curso pronto: ${done.join(", ")}. Revise na barra acima da timeline.`
+        : "A aula já segue o modelo do curso.",
+      "info",
+    );
+  } catch (err) {
+    toast(`O modelo do curso não pôde ser aplicado: ${cleanError(err)}`, "error");
+  }
 }

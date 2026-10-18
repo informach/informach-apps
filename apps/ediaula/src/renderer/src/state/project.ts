@@ -13,7 +13,7 @@ import {
   undoSpan,
   undoSteps,
 } from "@shared/history";
-import { applyItems, type DiffItem, diffProjects } from "@shared/projectDiff";
+import { applyItems, type DiffItem, type DraftOp, draftWrite } from "@shared/projectDiff";
 import { fileName } from "@shared/relink";
 import { newId } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
@@ -35,12 +35,14 @@ export type SaveState = "saved" | "pending" | "saving" | "error";
 export interface Draft {
   id: string;
   projectId: string;
-  /** Who made it ("preparar", "modelo", "assistente:<tool>", "cliente:<grant>:<tool>"). */
+  /** Who made it ("preparar:<etapa>", "modelo", "assistente", "cliente:<grant>"). */
   author: string;
   title: string;
   /** The project when the draft began. */
   base: Project;
   items: DiffItem[];
+  /** The edits written into it that changed the structure (shared/projectDiff.ts DraftOp). */
+  ops: DraftOp[];
 }
 
 interface ProjectStore {
@@ -289,13 +291,12 @@ export const useProject = create<ProjectStore>((set, get) => {
       if (!project) return false;
       const own = draft && draft.projectId === project.id ? draft : null;
       if (own && own.author !== author) return false;
-      const view = own ? applyItems(project, own.items).project : project;
-      const items = diffProjects(view, fn(view));
-      if (!items.length) return true;
+      const next = draftWrite(own, project, fn);
+      if (!next) return true;
       set({
         draft: own
-          ? { ...own, title, items: [...own.items, ...items] }
-          : { id: newId("draft"), projectId: project.id, author, title, base: project, items },
+          ? { ...own, title, ...next }
+          : { id: newId("draft"), projectId: project.id, author, title, ...next },
       });
       return true;
     },
@@ -465,13 +466,43 @@ export async function settleEdits(): Promise<void> {
 
 /** True while some change is not on disk yet (or is being written, typed or redrawn). */
 export const hasUnsavedWork = (): boolean => {
-  const { project } = useProject.getState();
+  const { project, draft } = useProject.getState();
   return (
     drafts.size > 0 ||
     pendingEdits.size > 0 ||
+    // A draft waiting for review lives only in memory.
+    (!!project && !!draft && draft.projectId === project.id) ||
     (!!project && (project !== lastSaved || inFlight !== null))
   );
 };
+
+/**
+ * Whether a draft waiting for review changes the structure of the lesson (clips split, trimmed,
+ * moved or removed): until it is applied or discarded, what is on screen is not where the clips
+ * of the lesson are, so editing the clips by hand and reviewing cuts wait for it.
+ */
+export function structuralDraft(
+  s: Pick<ProjectStore, "project" | "draft"> = useProject.getState(),
+): boolean {
+  return (
+    !!s.project &&
+    !!s.draft &&
+    s.draft.projectId === s.project.id &&
+    s.draft.items.some((i) => i.kind === "structure" && i.status === "pending")
+  );
+}
+
+/** Tells the person why an action waits for the draft; true when it has to wait. */
+export function waitForDraft(action: string): boolean {
+  if (!structuralDraft()) return false;
+  useApp
+    .getState()
+    .toast(
+      `Há um rascunho que muda a estrutura da aula esperando revisão: aplique ou descarte antes de ${action}.`,
+      "info",
+    );
+  return true;
+}
 
 // Autosave shortly after every change. A failure stays on screen until a save succeeds.
 useProject.subscribe((s, prev) => {
@@ -543,9 +574,25 @@ export function useShownProject(): Project | null {
  * changes goes into the draft of `author`, in the project `projectId` only.
  */
 export function draftCommit(author: string, title: string, projectId?: string): Commit {
-  return (fn) => {
+  return onDraftView((fn) => {
     const { project } = useProject.getState();
     if (!project || (projectId && project.id !== projectId)) return false;
     return useProject.getState().writeDraft(author, title, fn);
-  };
+  });
 }
+
+/** Commits that write into a draft: what they add is worked out on the draft as shown. */
+const draftCommits = new WeakSet<Commit>();
+
+/** Marks `commit` as writing into the draft (draftCommit, or a commit wrapping one). */
+export function onDraftView(commit: Commit): Commit {
+  draftCommits.add(commit);
+  return commit;
+}
+
+/**
+ * The project a commit's changes are worked out on: the draft as shown for a commit into the
+ * draft (an annotation added after the draft's palette takes its colors), else the lesson.
+ */
+export const basisOf = (commit: Commit): Project | null =>
+  draftCommits.has(commit) ? shownProject() : useProject.getState().project;

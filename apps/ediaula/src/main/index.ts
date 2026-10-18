@@ -84,6 +84,7 @@ import {
   stillFrame,
   thumbnail,
   waveform,
+  writeFilterScript,
 } from "./ffmpeg.ts";
 import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
@@ -766,26 +767,45 @@ function registerIpc(): void {
   ipcMain.handle("course-template:save", (_e, course: unknown, template: unknown) =>
     saveCourseTemplate(z.string().max(1024).parse(course), template),
   );
-  ipcMain.handle("media:loudness", async (_e, rawJob: unknown, text: unknown) => {
-    const jobId = jobIdSchema.parse(rawJob);
-    const project = projectJson(text);
-    const option = await filterScriptOption(FFMPEG);
-    return processingJob(jobId, "segment", (signal) =>
-      measureLoudness(project, {
-        assertRead: desktopFiles.assertRead,
-        writeFilterScript,
-        filterScriptOption: option,
-        run: (args, duration, onStderr) =>
-          run(FFMPEG, args, {
-            jobId,
-            signal,
-            duration,
-            onStderr,
-            onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
-          }),
-      }),
-    );
-  });
+  ipcMain.handle(
+    "media:loudness",
+    async (_e, rawJob: unknown, text: unknown, rawSpeech: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const project = projectJson(text);
+      const speech = z
+        .array(
+          z.tuple([
+            z
+              .number()
+              .min(0)
+              .max(7 * 86400),
+            z
+              .number()
+              .min(0)
+              .max(7 * 86400),
+          ]),
+        )
+        .max(20000)
+        .optional()
+        .parse(rawSpeech ?? undefined);
+      const option = await filterScriptOption(FFMPEG);
+      return processingJob(jobId, "segment", (signal) =>
+        measureLoudness(project, speech, {
+          assertRead: desktopFiles.assertRead,
+          writeFilterScript: (filter) => writeFilterScript(filter),
+          filterScriptOption: option,
+          run: (args, duration, onStderr) =>
+            run(FFMPEG, args, {
+              jobId,
+              signal,
+              duration,
+              onStderr,
+              onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+            }),
+        }),
+      );
+    },
+  );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
 
   ipcMain.handle(

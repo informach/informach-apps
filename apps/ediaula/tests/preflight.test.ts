@@ -6,9 +6,11 @@ import {
   chapterProblems,
   type Finding,
   type FindingKind,
+  PREFLIGHT,
   type PreflightContext,
   parseLoudness,
   preflight,
+  worstReading,
 } from "../src/shared/preflight.ts";
 import { parseScript } from "../src/shared/script.ts";
 import type { Alignment } from "../src/shared/scriptAlign.ts";
@@ -101,7 +103,7 @@ test("silence over 1.5 s at the start or at the end", () => {
   assert.ok(!has(lesson(), { speech: [[1.4, 29.5]] }, "silence-start"));
   const end = has(lesson(), { speech: [[0.5, 27]] }, "silence-end");
   assert.match(end?.message ?? "", /termina com 3,0 s sem som/);
-  // Music playing to the end is not silence; an opening card has no fix to cut it.
+  // Music playing to the end is not silence; quiet under an opening card is on purpose.
   const music: Clip = {
     id: "m",
     assetId: "musica",
@@ -122,7 +124,9 @@ test("silence over 1.5 s at the start or at the end", () => {
     volume: 1,
     annotation: { kind: "card", text: "Abertura", color: "#121A30" },
   };
-  assert.equal(has(lesson([card]), { speech: [[3, 29.5]] }, "silence-start")?.fix, undefined);
+  assert.ok(!has(lesson([card]), { speech: [[3, 29.5]] }, "silence-start"));
+  // A card shorter than the quiet leaves the rest of it silent.
+  assert.ok(has(lesson([{ ...card, duration: 1 }]), { speech: [[3, 29.5]] }, "silence-start"));
 });
 
 test("volume: soft, loud or peaking is a warning, unless the export normalizes it", () => {
@@ -231,6 +235,16 @@ test("the Zappy bridge spoken in the video is an error with a proposal to cut it
   assert.ok(
     !has(lesson(), { speech, section, alignment: aligned(8), words: passing }, "bridge-spoken"),
   );
+  // Four words of it in order (less than 60% of it): only a note to check, with no cut.
+  const some = "clique no botão verde".split(" ").map((w, i) => word(w, 10 + i * 0.5));
+  const note = has(
+    lesson(),
+    { speech, section, alignment: aligned(8), words: [...said, ...some] },
+    "bridge-spoken",
+  );
+  assert.equal(note?.severity, "info");
+  assert.equal(note?.fix, undefined);
+  assert.equal(PREFLIGHT.bridgeWords, 6);
 });
 
 test("two voices at once for more than 0.3 s", () => {
@@ -285,13 +299,52 @@ test("captions out of the 90% safe area, smaller than 5% or too fast to read", (
   const small = has(lesson([], { captions: { ...burned, size: 4 } }), { speech }, "caption-small");
   assert.deepEqual(small?.fix, { label: "Aumentar para 5%", action: "caption-size", size: 5.2 });
   assert.ok(!has(lesson([], { captions: burned }), { speech }, "caption-small"));
-  const fast = buildCues(cueWords("vamos aprender programação com blocos hoje", 1, 0.1));
-  assert.match(has(lesson(), { speech, cues: fast }, "caption-fast")?.message ?? "", /9 a 14 anos/);
-  const slow = buildCues(cueWords("vamos aprender", 1, 0.8));
-  assert.ok(!has(lesson(), { speech, cues: slow }, "caption-fast"));
 });
 
-test("annotation letters under 4.5% of the frame height, with the size that fixes them", () => {
+/** `n` words of `text` (repeated) said every `per` seconds from second 1. */
+const spoken = (text: string, n: number, per: number): TimelineWord[] => {
+  const list = text.split(" ");
+  return Array.from({ length: n }, (_, i) =>
+    word(list[i % list.length], 1 + i * per, { key: `voz:${i}` }),
+  );
+};
+
+test("captions too fast to read: a whole 10 s stretch over 17 characters per second", () => {
+  const fast = buildCues(spoken("programação computacional", 60, 0.2));
+  const withBurned = lesson([], { captions: burned });
+  const f = has(withBurned, { speech, cues: fast }, "caption-fast");
+  assert.equal(f?.severity, "warn");
+  assert.match(f?.message ?? "", /Entre 0:01 e 0:11 a legenda pede \d+ caracteres por segundo/);
+  assert.match(f?.message ?? "", /9 a 14 anos/);
+  assert.ok(!/Corte palavras/.test(f?.message ?? ""));
+  // Captions nobody reads (not burned, no .srt) are not checked; the .srt alone is.
+  assert.ok(!has(lesson(), { speech, cues: fast }, "caption-fast"));
+  assert.ok(has(lesson(), { speech, cues: fast, srt: true }, "caption-fast"));
+  // One fast line in a calm stretch is not a fast stretch.
+  const burst = buildCues([
+    ...spoken("vamos aprender programação com blocos hoje", 6, 0.1),
+    ...spoken("e agora vamos testar", 4, 2).map((w) => ({
+      ...w,
+      key: `${w.key}b`,
+      start: w.start + 2,
+      end: w.end + 2,
+    })),
+  ]);
+  assert.ok(!has(withBurned, { speech, cues: burst }, "caption-fast"));
+});
+
+test("speech at a normal rate (155 words a minute) reads well", () => {
+  const phrase =
+    "vamos jogar o jogo pronto e depois criar uma fase nova com blocos para o farol acender";
+  const words = spoken(phrase, 80, 60 / 155);
+  const cues = buildCues(words);
+  const reading = worstReading(cues);
+  assert.ok(reading);
+  assert.ok(reading.cps <= PREFLIGHT.captionCps, `${reading.cps} cps`);
+  assert.ok(!has(lesson([], { captions: burned }), { speech, cues }, "caption-fast"));
+});
+
+test("annotation letters under 3.3% of the frame height, with the size that fixes them", () => {
   const balloon = (scale: number, fontSize?: number): Clip => ({
     id: "b",
     assetId: "balao",
@@ -314,17 +367,31 @@ test("annotation letters under 4.5% of the frame height, with the size that fixe
       opacity: 1,
     },
   });
-  const small = has(lesson([balloon(1)]), { speech }, "annotation-small");
-  assert.match(small?.message ?? "", /2,8% da altura/);
+  // The default letters (36 px in 1080p) are big enough.
+  assert.ok(!has(lesson([balloon(1)]), { speech }, "annotation-small"));
+  const small = has(lesson([balloon(1, 32)]), { speech }, "annotation-small");
+  assert.equal(small?.severity, "warn");
+  assert.match(small?.message ?? "", /3,0% da altura; o mínimo é 3,3%/);
   assert.deepEqual(small?.fix, {
     label: "Aumentar a letra",
     action: "annotation-size",
     clipId: "b",
-    fontSize: 49,
+    fontSize: 36,
   });
-  assert.ok(!has(lesson([balloon(1, 49)]), { speech }, "annotation-small"));
+  // Much smaller is a problem.
+  assert.equal(has(lesson([balloon(1, 26)]), { speech }, "annotation-small")?.severity, "error");
+  assert.ok(!has(lesson([balloon(1, 36)]), { speech }, "annotation-small"));
   // Made bigger on screen, the same letters are big enough.
-  assert.ok(!has(lesson([balloon(1.7)]), { speech }, "annotation-small"));
+  assert.ok(!has(lesson([balloon(1.3, 32)]), { speech }, "annotation-small"));
+  // Measured at rest: a movement passing through a smaller size on its way does not count.
+  const moving: Clip = {
+    ...balloon(1),
+    keyframes: [
+      { t: 0, x: 0.5, y: 0.5, scale: 0.05 },
+      { t: 1, x: 0.5, y: 0.5, scale: 0.2 },
+    ],
+  };
+  assert.ok(!has(lesson([moving]), { speech }, "annotation-small"));
 });
 
 test("missing media and missing cursor data", () => {

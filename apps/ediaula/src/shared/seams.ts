@@ -1,3 +1,4 @@
+import { avatarMedia, cutTargets } from "./cleanup.ts";
 import { openGap } from "./inserts.ts";
 import { piece } from "./pieces.ts";
 import { CUT_TOUCH, clipEnd, clipSpeed, sourceEnd, sourceLength } from "./timeline.ts";
@@ -31,6 +32,11 @@ export interface Seam {
   /** Timeline seconds a restore brings back (0 when the right piece goes back in the source). */
   removed: number;
   ids: string[];
+  /**
+   * A presenter's clip plays across the seam (a video placed by the voice, a script insert):
+   * restoring would split it, so the stretch is not brought back here.
+   */
+  presenter?: boolean;
 }
 
 /** Seconds played before and after a seam while reviewing it. */
@@ -48,14 +54,18 @@ const seamId = (assetId: string, from: number, to: number): string =>
 
 /**
  * Every seam of the project, in timeline order: neighbouring pieces of the same media on a track
- * whose source jumps by more than a frame. Seams at the same moment on several tracks are one.
+ * the cuts apply to (`targets`, cleanup.ts cutTargets) whose source jumps by more than a frame.
+ * Seams at the same moment on several tracks are one.
  */
-export function deriveSeams(project: Project): Seam[] {
+export function deriveSeams(
+  project: Project,
+  targets: ReadonlySet<string> = cutTargets(project),
+): Seam[] {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const frame = 1 / (project.settings.fps || 30);
   const byTrack = new Map<string, Clip[]>();
   for (const c of project.clips) {
-    if (!timed(c, assets)) continue;
+    if (!timed(c, assets) || !targets.has(c.trackId)) continue;
     const list = byTrack.get(c.trackId);
     if (list) list.push(c);
     else byTrack.set(c.trackId, [c]);
@@ -98,6 +108,37 @@ export function deriveSeams(project: Project): Seam[] {
   return out;
 }
 
+/** Whether a presenter's clip plays across `at` (it would be split by opening the timeline). */
+function presenterAcross(project: Project, at: number): boolean {
+  const presenters = avatarMedia(project);
+  return project.clips.some(
+    (c) =>
+      (c.insertId || presenters.has(c.assetId)) &&
+      !c.annotation &&
+      c.start < at - CUT_TOUCH &&
+      clipEnd(c) > at + CUT_TOUCH,
+  );
+}
+
+/** The seams of the project with what a restore would split marked (Seam.presenter). */
+export function reviewSeams(project: Project, targets?: ReadonlySet<string>): Seam[] {
+  return deriveSeams(project, targets).map((s) =>
+    presenterAcross(project, s.at) ? { ...s, presenter: true } : s,
+  );
+}
+
+/**
+ * The seam `ids` points at, as it is in the project now (its place may have moved with other
+ * edits, an undo may have brought it back somewhere else); null when it is not there any more.
+ */
+export function findSeam(
+  project: Project,
+  ids: readonly string[],
+  targets?: ReadonlySet<string>,
+): Seam | null {
+  return reviewSeams(project, targets).find((s) => s.ids.some((id) => ids.includes(id))) ?? null;
+}
+
 /** Whether the person approved this seam already. */
 export const isReviewed = (project: Pick<Project, "reviewedSeams">, seam: Seam): boolean => {
   const list = project.reviewedSeams;
@@ -125,6 +166,11 @@ export function restoreSeam(
 ): { clips: Clip[] } | { refused: string } {
   if (seam.removed <= 0)
     return { refused: "Aqui o corte não tirou nada da gravação: não há trecho para restaurar." };
+  if (seam.presenter || presenterAcross(project, seam.at))
+    return {
+      refused:
+        "O apresentador fala por cima deste corte: o vídeo dele foi feito sobre a voz já limpa, e trazer o trecho de volta o dividiria ao meio. Aprove o corte ou ajuste o apresentador à mão.",
+    };
   const opened = openGap(project.clips, seam.at, seam.removed, new Set(targets), new Set(locked));
   if (opened.blocked.length)
     return {

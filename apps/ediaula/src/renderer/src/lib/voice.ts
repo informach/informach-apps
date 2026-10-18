@@ -29,6 +29,7 @@ import { type Commit, personCommit, useProject } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
 import { showProposal } from "./proposals";
+import { presenterPlaced } from "./recordingHooks";
 import { scriptDoc } from "./script";
 import { cleanError, loadProjectTranscripts } from "./transcripts";
 
@@ -549,6 +550,7 @@ export async function importHeygenVideos(useSound: boolean): Promise<void> {
       "info",
     );
   else if (placed) playback.seek(voiceSpan(start)?.[0] ?? 0);
+  if (placed) presenterPlaced();
 }
 
 /** The person checked a doubtful match and keeps it. */
@@ -570,8 +572,9 @@ export function acceptGuess(id: string): void {
     useApp.getState().toast("Este palpite não cai mais na voz da timeline.", "error");
     return;
   }
-  useProject.getState().commit(() => next);
+  const ok = useProject.getState().commit(() => next);
   dropGuess(id);
+  if (ok) presenterPlaced();
 }
 
 export function dropGuess(id: string): void {

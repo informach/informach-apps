@@ -124,27 +124,125 @@ export function reopen(state: PrepareState | undefined, step: PrepareStep): Prep
 export const prepareFinished = (state: PrepareState | undefined): boolean =>
   !!state && nextStep(state) === null;
 
+/** Every draft and proposal of "Preparar aula" is by "preparar:<step>", the step that made it. */
+export const PREPARE_AUTHOR = "preparar";
+
+export const prepareAuthor = (step: PrepareStep): string => `${PREPARE_AUTHOR}:${step}`;
+
+/** Whether a draft or proposal comes from "Preparar aula" ("preparar" alone: older lessons). */
+export const isPrepareAuthor = (by: string | undefined): boolean =>
+  by === PREPARE_AUTHOR || !!by?.startsWith(`${PREPARE_AUTHOR}:`);
+
+/** The step that made a draft or proposal of "Preparar aula"; null for one of an older lesson. */
+export function authorStep(by: string | undefined): PrepareStep | null {
+  if (!by?.startsWith(`${PREPARE_AUTHOR}:`)) return null;
+  const step = by.slice(PREPARE_AUTHOR.length + 1);
+  return PREPARE_STEPS.find((s) => s === step) ?? null;
+}
+
 /**
- * Whether the voice of the lesson was already cleaned in the voice flow, before the presenter's
- * video was made from it: the voice was exported for it (Project.voiceMasters), a presenter's
- * video placed by the voice is on the timeline (Asset.origin), or the voice plays muted under the
- * presenter's own sound (Clip.mutedFor, of older lessons too). The presenter's video was made on
- * that clean voice: cutting the voice again would chop the presenter's video along with it.
+ * What resolving a draft or proposal of "Preparar aula" in the review bar decides: the step that
+ * made it, applied is done and discarded is skipped, only while that step is the one waiting
+ * (one made before a "Refazer" decides nothing). One of an older lesson, of no step, decides the
+ * step waiting. `state` comes back as it was when nothing is decided.
  */
-export function voiceAlreadyCleaned(
+export function resolveReview(
+  state: PrepareState | undefined,
+  by: string | undefined,
+  outcome: "applied" | "discarded",
+  note?: string,
+): PrepareState | undefined {
+  if (!isPrepareAuthor(by)) return state;
+  const step = resumeStep(state);
+  if (!step || (authorStep(by) ?? step) !== step) return state;
+  return decide(
+    state,
+    step,
+    outcome === "applied" ? "done" : "skipped",
+    outcome === "applied" ? note : "Descartada na revisão.",
+  );
+}
+
+/** Marks steps done out of turn (the course template applied from its offer covers several). */
+export function markDone(
+  state: PrepareState | undefined,
+  steps: readonly PrepareStep[],
+  note: string,
+): PrepareState {
+  const current = state ?? startPrepare();
+  const decisions = { ...current.decisions };
+  const notes = { ...current.notes };
+  for (const s of steps)
+    if (!decisions[s]) {
+      decisions[s] = "done";
+      notes[s] = note;
+    }
+  const step = PREPARE_STEPS.find((s) => !decisions[s]) ?? current.step;
+  return { step, decisions, notes };
+}
+
+/**
+ * The media of the voice flow: a voice recorded alone with its takes (Asset.voiceTakes), the
+ * voice exported to make the presenter's video (Project.voiceMasters), the presenter's video
+ * placed by it (Asset.origin) and a voice playing muted under the presenter's own sound
+ * (Clip.mutedFor, of older lessons too). That voice is cleaned in the voice flow, before the
+ * presenter's video is made from it.
+ */
+export function voiceLinkedMedia(
   project: Pick<Project, "voiceMasters" | "assets" | "clips">,
-): boolean {
-  if (project.voiceMasters?.length) return true;
+): Set<string> {
+  const out = new Set<string>();
+  for (const m of project.voiceMasters ?? [])
+    for (const piece of m.pieces) for (const seg of piece.sourceMap) out.add(seg.assetId);
+  for (const a of project.assets) if (a.origin === "presenter" || a.voiceTakes) out.add(a.id);
+  for (const c of project.clips) if (c.mutedFor) out.add(c.assetId);
+  return out;
+}
+
+/** Whether a voice of the voice flow is heard in the lesson (voiceLinkedMedia). */
+export const voiceAlreadyCleaned = (
+  project: Pick<Project, "voiceMasters" | "assets" | "clips">,
+): boolean => {
+  const used = new Set(project.clips.map((c) => c.assetId));
+  return [...voiceLinkedMedia(project)].some((id) => used.has(id));
+};
+
+/** Whether the presenter's video made from the voice is in the lesson. */
+export const presenterInLesson = (project: Pick<Project, "assets" | "clips">): boolean => {
   const used = new Set(project.clips.map((c) => c.assetId));
   return (
     project.clips.some((c) => !!c.mutedFor) ||
     project.assets.some((a) => a.origin === "presenter" && a.kind === "video" && used.has(a.id))
   );
+};
+
+/**
+ * Voices heard in the lesson that are not part of the voice flow: a microphone recorded live
+ * with the screen, a narration recorded over it. Their hesitations and pauses are still cut.
+ */
+export function liveVoices(
+  project: Pick<Project, "voiceMasters" | "assets" | "clips" | "tracks">,
+): Set<string> {
+  const linked = voiceLinkedMedia(project);
+  const tracks = new Map(project.tracks.map((t) => [t.id, t]));
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const out = new Set<string>();
+  for (const c of project.clips) {
+    const t = tracks.get(c.trackId);
+    const a = assets.get(c.assetId);
+    if (!t || !a || t.muted || t.music || c.volume <= 0 || c.mutedFor || c.annotation) continue;
+    if (!a.hasAudio || a.kind === "image" || linked.has(a.id) || a.generated) continue;
+    // The computer's sound, and the sound track of a screen or camera video, are not a voice.
+    const role = a.recording?.role;
+    if (role === "system" || role === "screen" || role === "camera" || a.cursor) continue;
+    out.add(a.id);
+  }
+  return out;
 }
 
 /** Why a step does not apply to this lesson, known without reading any file; null when it does. */
 export function skipReason(
-  project: Pick<Project, "voiceMasters" | "script" | "assets" | "clips">,
+  project: Pick<Project, "voiceMasters" | "script" | "assets" | "clips" | "tracks">,
   step: PrepareStep,
 ): string | null {
   const used = new Set(project.clips.map((c) => c.assetId));
@@ -152,9 +250,11 @@ export function skipReason(
     case "section":
       return project.script?.text ? null : "A aula não tem roteiro colado.";
     case "cuts":
-      return voiceAlreadyCleaned(project)
-        ? "A voz já foi limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela. Cortar a voz de novo picotaria o vídeo do apresentador junto, então esta etapa fica de fora. Para um corte pontual, use a aba Transcrição ou Revisar cortes."
-        : null;
+      // Only when every voice heard went through the voice flow: a live microphone is still cut.
+      if (!voiceAlreadyCleaned(project) || liveVoices(project).size) return null;
+      return presenterInLesson(project)
+        ? "A voz já foi limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela. Cortar a voz de novo picotaria o vídeo do apresentador junto, então esta etapa fica de fora."
+        : "A voz é limpa na seção Voz do painel Áudio, antes de gerar o vídeo do apresentador: cortar aqui deixaria a voz diferente da que vai virar o vídeo, então esta etapa fica de fora.";
     case "inserts":
     case "annotations":
       return project.script?.text ? null : "A aula não tem roteiro colado.";

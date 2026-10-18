@@ -8,10 +8,13 @@ import type { Asset, Clip, Project, Track } from "./types.ts";
  * What an AI edit (or a step of "Preparar aula") would change, as items the person reads and
  * accepts or rejects one by one before anything reaches the project (the draft, state/project.ts).
  * Each item holds the field changes of one or a few entities (clip, track, media, project), so it
- * can be applied to the project as it is now or left out on its own.
+ * can be applied to the project as it is now or left out on its own. What changes the structure
+ * of the lesson (clips split, trimmed, moved or removed, with the clips made in the same edit) is
+ * one item: taking part of it would leave the tracks out of step or overlapping.
  */
 
 export type DiffKind =
+  | "structure"
   | "clip-created"
   | "clip-removed"
   | "clip-moved"
@@ -97,6 +100,7 @@ const NOT_EDITS = new Set([
   "voiceMasters",
   "prepare",
   "reviewedSeams",
+  "templateOffer",
   "version",
   "id",
 ]);
@@ -113,6 +117,7 @@ const SETTING_LABEL: Record<string, string> = {
   settings: "Formato da aula",
   name: "Nome da aula",
   course: "Curso",
+  audio: "Abaixamento da música",
 };
 
 const CLIP_GROUPS: { kind: DiffKind; fields: string[] }[] = [
@@ -200,12 +205,8 @@ function clipName(c: Clip, assets: Map<string, Asset>): string {
   return assets.get(c.assetId)?.name ?? "clipe";
 }
 
-/**
- * The readable changes from `a` to `b`: clips created, removed, moved or trimmed, annotations
- * created or changed, zooms, transitions, the palette, tracks, media and lesson settings. Clips
- * that only moved by the same amount are one item; the media a new clip shows comes with it.
- */
-export function diffProjects(a: Project, b: Project): DiffItem[] {
+/** The changes from `a` to `b`, one item per entity and kind of change (diffProjects groups them). */
+function rawDiff(a: Project, b: Project): DiffItem[] {
   const out: DiffItem[] = [];
   const assetsA = new Map(a.assets.map((x) => [x.id, x]));
   const assetsB = new Map(b.assets.map((x) => [x.id, x]));
@@ -484,9 +485,169 @@ export function diffProjects(a: Project, b: Project): DiffItem[] {
         ]),
       );
 
-  const rank = (i: DiffItem): number =>
-    i.kind === "palette" || i.kind === "setting" ? -2 : i.kind === "track" ? -1 : (i.at ?? 1e9);
-  return out.sort((x, y) => rank(x) - rank(y));
+  return out;
+}
+
+const rank = (i: DiffItem): number =>
+  i.kind === "palette" || i.kind === "setting"
+    ? -3
+    : i.kind === "structure"
+      ? -2
+      : i.kind === "track"
+        ? -1
+        : (i.at ?? 1e9);
+
+/** Kinds that change the structure of the lesson: where clips are, how long, which exist. */
+const STRUCTURAL = new Set<DiffKind>(["clip-moved", "clip-trimmed", "clip-removed"]);
+/** The key every item placed after a change of structure needs (its times assume it). */
+export const STRUCTURE_KEY = "structure";
+
+/**
+ * One edit written into a draft that changed the structure: what to call it and the clips it
+ * made (an insert and its held frame, an opening card), which belong to it.
+ */
+export interface DraftOp {
+  label: string;
+  created: string[];
+}
+
+/**
+ * The readable changes from `a` to `b`: clips created or changed, annotations, zooms,
+ * transitions, the palette, tracks, media and lesson settings. Every change of structure is one
+ * item ("structure"), together with the clips made by the edits that changed it (`ops`, or
+ * without them the new clips that are not annotations or zoom layers) and the tracks they stand
+ * on; what is placed at or after it in time needs it, since its times assume the new structure.
+ */
+export function diffProjects(a: Project, b: Project, ops: readonly DraftOp[] = []): DiffItem[] {
+  const raw = rawDiff(a, b);
+  const structural = raw.filter((i) => STRUCTURAL.has(i.kind));
+  if (!structural.length && !ops.length) return raw.sort((x, y) => rank(x) - rank(y));
+  const made = new Set(ops.flatMap((o) => o.created));
+  const part = (i: DiffItem): boolean =>
+    STRUCTURAL.has(i.kind) ||
+    (ops.length
+      ? i.clips.some((c) => made.has(c)) &&
+        (i.kind === "clip-created" || i.kind === "annotation-created" || i.kind === "zoom")
+      : i.kind === "clip-created");
+  const group = raw.filter(part);
+  if (!group.length) return raw.sort((x, y) => rank(x) - rank(y));
+  // The tracks made for the clips of the group come with it.
+  const needed = new Set(group.flatMap((i) => i.needs));
+  const tracks = raw.filter(
+    (i) =>
+      i.kind === "track" &&
+      i.patches.every((p) => p.before === null) &&
+      i.keys.some((k) => needed.has(k)),
+  );
+  const members = [...tracks, ...group];
+  const patches = members.flatMap((i) => i.patches);
+  const provided = new Set(members.flatMap((i) => i.keys));
+  const clips = [...new Set(group.flatMap((i) => i.clips))];
+  const at = Math.min(...group.map((i) => i.at ?? 0));
+  const moved = group.filter((i) => i.kind === "clip-moved").length;
+  const trimmed = group.filter((i) => i.kind === "clip-trimmed").length;
+  const label = ops.length
+    ? ops.map((o) => o.label).join("; ")
+    : `Mudança de estrutura a partir de ${clock(at)}: ${[
+        moved ? plural(moved, "grupo de clipes movido", "grupos de clipes movidos") : "",
+        trimmed ? plural(trimmed, "clipe aparado", "clipes aparados") : "",
+        group.length - moved - trimmed
+          ? plural(
+              group.length - moved - trimmed,
+              "clipe novo ou removido",
+              "clipes novos ou removidos",
+            )
+          : "",
+      ]
+        .filter(Boolean)
+        .join(", ")}`;
+  const structure: DiffItem = {
+    ...item("structure", label, patches, {
+      at,
+      clips,
+      needs: [...needed].filter((k) => !provided.has(k)),
+    }),
+  };
+  structure.keys = [...structure.keys, STRUCTURE_KEY];
+  const rest = raw
+    .filter((i) => !members.includes(i))
+    .map((i) =>
+      // A clip placed at or after the change (an annotation, a zoom layer) was timed on it.
+      i.at !== undefined &&
+      i.at >= at - 1e-6 &&
+      i.patches.some((q) => q.entity === "clip" && q.before === null)
+        ? { ...i, needs: [...i.needs, STRUCTURE_KEY] }
+        : i,
+    );
+  return [structure, ...rest].sort((x, y) => rank(x) - rank(y));
+}
+
+/** How a change of structure written by one edit reads in the review bar. */
+function describeOp(step: readonly DiffItem[], next: Project): DraftOp {
+  const clipsB = new Map(next.clips.map((c) => [c.id, c]));
+  const names = new Map(next.assets.map((x) => [x.id, x]));
+  const created = step
+    .filter(
+      (i) => i.kind === "clip-created" || i.kind === "annotation-created" || i.kind === "zoom",
+    )
+    .flatMap((i) => i.clips)
+    .filter((id) => clipsB.has(id));
+  let shift = 0;
+  for (const i of step)
+    for (const p of i.patches)
+      if (p.entity === "clip" && p.before && p.after && p.fields?.includes("start")) {
+        const d = Number(p.after.start) - Number(p.before.start);
+        if (Math.abs(d) > Math.abs(shift)) shift = d;
+      }
+  const made = created.map((id) => clipsB.get(id)).filter((c): c is Clip => !!c);
+  const inserts = made.filter((c) => c.insertId);
+  const card = made.find((c) => c.annotation?.kind === "card" && c.start < 0.1);
+  const at = Math.min(...made.map((c) => c.start), ...step.map((i) => i.at ?? Infinity));
+  const opens = shift > 0 ? `, abre ${secs(shift)}` : shift < 0 ? `, fecha ${secs(shift)}` : "";
+  const label = card
+    ? `Cartela de abertura em 0:00${shift > 0 ? `: a aula anda ${secs(shift)}` : ""}`
+    : inserts.length === 1
+      ? `Inserção ${inserts[0].insertId} em ${clock(inserts[0].start)}${opens}`
+      : inserts.length > 1
+        ? `${inserts.length} inserções a partir de ${clock(Math.min(...inserts.map((c) => c.start)))}${opens}`
+        : made.length
+          ? `${clipName(made[0], names)} em ${clock(made[0].start)}${opens}`
+          : `Mudança de estrutura em ${clock(Number.isFinite(at) ? at : 0)}${opens}`;
+  return { label, created };
+}
+
+/** A draft as kept in the editor (state/project.ts): where it began, its items and its edits. */
+export interface DraftState {
+  base: Project;
+  items: DiffItem[];
+  ops: DraftOp[];
+}
+
+/**
+ * Writes one edit into a draft: `fn` changes the lesson as the draft shows it (on `project`, the
+ * lesson as it is now), what it changed is laid over the draft's own view from `base`, and the
+ * items are worked out again from `base` to that view as a whole, so each item reads as the
+ * final change it is and leaving one out never takes another with it by accident. Items the
+ * person left out are not part of the view, so an edit made after it is not either. Null when the
+ * edit changed nothing.
+ */
+export function draftWrite(
+  state: DraftState | null,
+  project: Project,
+  fn: (p: Project) => Project,
+): DraftState | null {
+  const base = state?.base ?? project;
+  const items = state?.items ?? [];
+  const view = state ? applyItems(project, items).project : project;
+  const next = fn(view);
+  const step = rawDiff(view, next);
+  if (!step.length) return null;
+  const ops = [...(state?.ops ?? [])];
+  if (step.some((i) => STRUCTURAL.has(i.kind))) ops.push(describeOp(step, next));
+  // The edit as it changes the draft's own view (the lesson may have moved on meanwhile).
+  const own = state ? applyItems(base, items).project : base;
+  const final = applyItems(own, step).project;
+  return { base, items: diffProjects(base, final, ops), ops };
 }
 
 /** The working copy of a project while patches are applied (maps, rebuilt once at the end). */
@@ -621,10 +782,60 @@ function done(w: Work): Project {
   return out;
 }
 
+/** Whether what an item needs is there: a track or media of the lesson, or an item applied. */
+function present(w: Work, applied: ReadonlySet<string>, key: string): boolean {
+  if (applied.has(key)) return true;
+  const [entity, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+  if (entity === "track") return w.tracks.some((t) => t.id === id);
+  if (entity === "asset") return w.assets.has(id);
+  if (entity === "clip") return w.clips.has(id);
+  return false;
+}
+
+/** Clips that overlap on one track by more than a millisecond, as "a|b" pairs. */
+function overlaps(w: Work, ids: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  const byTrack = new Map<string, Clip[]>();
+  for (const c of w.clips.values()) {
+    const list = byTrack.get(c.trackId);
+    if (list) list.push(c);
+    else byTrack.set(c.trackId, [c]);
+  }
+  for (const id of ids) {
+    const c = w.clips.get(id);
+    if (!c) continue;
+    for (const o of byTrack.get(c.trackId) ?? []) {
+      if (o.id === c.id) continue;
+      if (Math.min(c.start + c.duration, o.start + o.duration) - Math.max(c.start, o.start) > 1e-3)
+        out.add(c.id < o.id ? `${c.id}|${o.id}` : `${o.id}|${c.id}`);
+    }
+  }
+  return out;
+}
+
+/** What `write` changes in a working copy, to put back when an item does not fit as a whole. */
+function snapshot(w: Work): () => void {
+  const fields = new Map(w.fields);
+  const tracks = [...w.tracks];
+  const assets = new Map(w.assets);
+  const clips = new Map(w.clips);
+  const clipOrder = [...w.clipOrder];
+  const assetOrder = [...w.assetOrder];
+  return () => {
+    w.fields = fields;
+    w.tracks = tracks;
+    w.assets = assets;
+    w.clips = clips;
+    w.clipOrder = clipOrder;
+    w.assetOrder = assetOrder;
+  };
+}
+
 /**
- * `project` with the pending items applied, in order. An item that no longer fits (the project
- * changed there since the draft was made, or an item it depends on was left out) is skipped
- * whole and listed in `conflicts`.
+ * `project` with the pending items applied, in order. An item that no longer fits is skipped
+ * whole and listed in `conflicts`: the project changed there since the draft was made, what it
+ * needs (a track, a media, the change of structure its times assume) is not there, or it would
+ * leave two clips overlapping on a track.
  */
 export function applyItems(
   project: Project,
@@ -632,14 +843,24 @@ export function applyItems(
 ): { project: Project; conflicts: string[] } {
   const w = work(project);
   const conflicts: string[] = [];
+  const applied = new Set<string>();
   let changed = false;
   for (const i of items) {
     if (i.status !== "pending") continue;
-    if (!i.patches.every((p) => fits(w, p))) {
+    if (!i.needs.every((k) => present(w, applied, k)) || !i.patches.every((p) => fits(w, p))) {
       conflicts.push(i.id);
       continue;
     }
+    const touched = new Set(i.patches.filter((p) => p.entity === "clip").map((p) => p.id));
+    const before = overlaps(w, touched);
+    const restore = snapshot(w);
     for (const p of i.patches) write(w, p);
+    if ([...overlaps(w, touched)].some((pair) => !before.has(pair))) {
+      restore();
+      conflicts.push(i.id);
+      continue;
+    }
+    for (const k of i.keys) applied.add(k);
     changed = true;
   }
   // Nothing applied: the same project, so what depends on it is not computed again.
@@ -689,9 +910,22 @@ export function revertItem(
   };
 }
 
-/** Brings an item back into the draft (what it depends on stays as the person left it). */
-export const includeItem = (items: readonly DiffItem[], id: string): DiffItem[] =>
-  items.map((i) => (i.id === id ? { ...i, status: "pending" as const } : i));
+/**
+ * Brings an item back into the draft, with the items that provide what it needs (the track it
+ * stands on, the change of structure its time assumes), so it never comes back alone.
+ */
+export function includeItem(items: readonly DiffItem[], id: string): DiffItem[] {
+  const back = new Set<string>();
+  const queue = items.filter((i) => i.id === id);
+  for (let x = queue.shift(); x; x = queue.shift()) {
+    if (back.has(x.id)) continue;
+    back.add(x.id);
+    for (const need of x.needs)
+      for (const other of items)
+        if (other.keys.includes(need) && !back.has(other.id)) queue.push(other);
+  }
+  return items.map((i) => (back.has(i.id) ? { ...i, status: "pending" as const } : i));
+}
 
 /** Clips the pending items change, for the timeline highlight. */
 export const draftClips = (items: readonly DiffItem[]): Set<string> =>

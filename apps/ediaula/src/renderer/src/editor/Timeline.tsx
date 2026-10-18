@@ -70,7 +70,13 @@ import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { assetMap, useProject, useShownProject } from "@/state/project";
+import {
+  assetMap,
+  structuralDraft,
+  useProject,
+  useShownProject,
+  waitForDraft,
+} from "@/state/project";
 import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
 import { ASSET_MIME } from "./Library";
@@ -262,11 +268,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const startY = e.clientY;
     let started = false;
     let result: Clip[] | null = null;
+    const blocked = structuralDraft();
 
     listen(
       (ev) => {
         const dx = ev.clientX - startX;
         if (!started && Math.hypot(dx, ev.clientY - startY) < 4) return;
+        if (blocked) {
+          if (!started) waitForDraft("mover clipes");
+          started = true;
+          return;
+        }
         started = true;
         let dt = Math.max(dx / zoom, -minStart);
         let snap: number | undefined;
@@ -302,16 +314,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setPreview(null);
-        // Only clips of the lesson move: a clip a draft would create stays in the draft.
-        const known = new Set(useProject.getState().project?.clips.map((c) => c.id));
-        const moved = result?.filter((c) => known.has(c.id));
-        if (moved?.length)
+        // The lesson's own clips move, with only their place changed: what a draft would change
+        // in them (or a clip it would create) stays in the draft.
+        const own = new Map(useProject.getState().project?.clips.map((c) => [c.id, c]));
+        const moved = (result ?? []).flatMap((c) => {
+          const real = own.get(c.id);
+          return real ? [{ ...real, start: c.start, trackId: c.trackId }] : [];
+        });
+        if (moved.length)
           useProject.getState().commit((p) => ({ ...p, clips: placeClips(p.clips, moved) }));
       },
     );
   };
 
   const beginTrim = (clip: Clip, edge: "start" | "end"): void => {
+    if (waitForDraft("aparar clipes")) return;
     const asset = assets.get(clip.assetId);
     const neighbours = project.clips.filter((c) => c.trackId === clip.trackId && c.id !== clip.id);
     // Trims stop at the neighbouring clips instead of overwriting them.
@@ -325,6 +342,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     );
     const cands = snapCandidates(new Set([clip.id]));
     let result: Clip | null = null;
+    let edgeAt: number | null = null;
     listen(
       (ev) => {
         let t = xToTime(ev.clientX);
@@ -335,16 +353,28 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           if (s.snapped) snap = s.time;
         }
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
+        edgeAt = t;
         result = trimClip(clip, edge, t, asset);
         setPreview({ clips: new Map([[clip.id, result]]), snap });
       },
       () => {
         setPreview(null);
-        const trimmed = result;
-        if (trimmed)
+        const at = edgeAt;
+        const real = useProject.getState().project?.clips.some((c) => c.id === clip.id);
+        if (result && at !== null && real)
+          // Trimmed from the lesson's own clip, so nothing a draft changed in it comes along.
           useProject.getState().commit((p) => ({
             ...p,
-            clips: p.clips.map((c) => (c.id === trimmed.id ? trimmed : c)),
+            clips: p.clips.map((c) =>
+              c.id === clip.id
+                ? trimClip(
+                    c,
+                    edge,
+                    at,
+                    p.assets.find((a) => a.id === c.assetId),
+                  )
+                : c,
+            ),
           }));
       },
     );

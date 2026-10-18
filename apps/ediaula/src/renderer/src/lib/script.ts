@@ -157,29 +157,36 @@ const labelOf = (item: SpeechItem): string => item.insertId ?? `"${item.text}"`;
  * user (or the AI), with what could not be placed and why.
  *
  * The placement is planned on the project as it is, with waits for the transcripts and the
- * still frames. If the project changed in the meantime, it is planned once more on the new one;
- * if it changed again, nothing is placed (an edit made meanwhile is never overwritten). `basis`
- * is the project planned on: the open one, or the one a draft shows (state/project.ts).
+ * still frames. If the lesson was edited in the meantime (its revision, or the draft planned on),
+ * it is planned once more on the new one; if it changed again, nothing is placed (an edit made
+ * meanwhile is never overwritten) and `transient` says trying again later can work. What is not
+ * an edit (a proxy finishing, the autosave) does not count. `basis` is the project planned on:
+ * the open one, or the one a draft shows (state/project.ts).
  */
 export async function placeInserts(
   target: string | SpeechItem | string[] | "all",
   commit: Commit = personCommit,
   basis: () => Project | null = () => useProject.getState().project,
-): Promise<{ ok: boolean; message: string }> {
+): Promise<{ ok: boolean; message: string; transient?: boolean }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const p = basis();
-    if (!p) return { ok: false, message: "Nenhum projeto aberto." };
-    const revision = useProject.getState().revision;
+    const before = useProject.getState();
+    if (!p || !before.project) return { ok: false, message: "Nenhum projeto aberto." };
+    const { revision, draft } = before;
+    const lesson = before.project.id;
     const planned = await planPlacement(p, target);
     if (!planned.ok) return planned;
     const now = useProject.getState();
-    if (now.revision !== revision || basis() !== p) continue;
+    if (now.project?.id !== lesson)
+      return { ok: false, message: "A aula aberta mudou; nada foi encaixado." };
+    if (now.revision !== revision || now.draft !== draft) continue;
     if (!commit(planned.apply))
       return { ok: false, message: "A aula aberta mudou; nada foi encaixado." };
     return { ok: true, message: planned.message };
   }
   return {
     ok: false,
+    transient: true,
     message: "O projeto mudou enquanto a inserção era preparada. Nada foi colocado; tente de novo.",
   };
 }
@@ -188,7 +195,7 @@ export async function placeInserts(
 export const placeInsert = (
   target: string | SpeechItem,
   commit: Commit = personCommit,
-): Promise<{ ok: boolean; message: string }> => placeInserts(target, commit);
+): Promise<{ ok: boolean; message: string; transient?: boolean }> => placeInserts(target, commit);
 
 /** Avatar lines of the section that placeInserts("all") would place. */
 export const pendingInserts = (p: Project, section: ScriptSection): SpeechItem[] =>
@@ -252,6 +259,7 @@ async function planPlacement(
     };
 
   const found: { item: SpeechItem; src: InsertSource }[] = [];
+  const unheard: SpeechItem[] = [];
   for (const item of wanted) {
     const label = labelOf(item);
     if (item.insertId && insertedClip(p, item.insertId)) {
@@ -265,13 +273,20 @@ async function planPlacement(
     }
     const src = findLine(item.text, transcripts);
     if (!src) {
-      problems.push(
-        `Não achei a fala de ${label} ("${item.text}") em nenhuma mídia transcrita. Importe e transcreva o vídeo do avatar.`,
-      );
+      unheard.push(item);
       continue;
     }
     found.push({ item, src });
   }
+  // Lines found in no transcribed media: one line for all of them.
+  if (unheard.length === 1)
+    problems.push(
+      `Não achei a fala de ${labelOf(unheard[0])} ("${unheard[0].text}") em nenhuma mídia transcrita. Importe e transcreva o vídeo do avatar.`,
+    );
+  else if (unheard.length > 1)
+    problems.push(
+      `Não achei ${unheard.length} falas (${unheard.map(labelOf).join(", ")}) em nenhuma mídia transcrita. Importe e transcreva o vídeo do apresentador.`,
+    );
   const { entries, errors } = planInserts(section, alignment, found);
   for (const e of errors) problems.push(`${labelOf(e.item)}: ${e.error}`);
 

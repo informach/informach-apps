@@ -1,7 +1,6 @@
-import type { Finding } from "@shared/preflight";
 import { AlertTriangle, CircleCheck, Info, OctagonAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { goToFinding, runFix } from "@/lib/preflight";
+import { checkIsCurrent, goToFinding, type LessonCheck, runFix } from "@/lib/preflight";
 import { Button } from "@/ui";
 
 const clock = (s: number): string =>
@@ -11,18 +10,21 @@ const ICON = { error: OctagonAlert, warn: AlertTriangle, info: Info } as const;
 
 /**
  * The findings of the check before exporting, each with "Ir até" and its fix. Used by the export
- * dialog and by the last step of "Preparar aula". `onFixed` runs after a fix, to check again.
+ * dialog and by the last step of "Preparar aula". A fix only acts on the revision of the lesson
+ * the list was made on; `onFixed` runs after a fix (or a refused one), to check again.
  */
 export function PreflightList({
-  findings,
+  check,
   onFixed,
   normalize,
 }: {
-  findings: Finding[];
+  check: LessonCheck;
   onFixed?: () => void;
   normalize?: () => void;
 }): ReactNode {
   const [busy, setBusy] = useState<number | null>(null);
+  const { findings } = check;
+  const stale = !checkIsCurrent(check);
   if (!findings.length)
     return (
       <p className="preflight-ok">
@@ -48,12 +50,13 @@ export function PreflightList({
             {f.fix && (f.fix.action !== "normalize" || normalize) && (
               <Button
                 size="sm"
-                disabled={busy !== null}
+                disabled={busy !== null || stale}
+                title={stale ? "A aula mudou: a lista está sendo conferida de novo" : undefined}
                 onClick={() => {
                   setBusy(i);
-                  void runFix(f, { normalize }).then((done) => {
+                  void runFix(f, check, { normalize }).then(() => {
                     setBusy(null);
-                    if (done) onFixed?.();
+                    onFixed?.();
                   });
                 }}
               >

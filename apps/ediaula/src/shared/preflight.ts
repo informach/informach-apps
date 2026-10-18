@@ -1,3 +1,4 @@
+import { ANNOTATION_TEXT } from "./annotation.ts";
 import type { Cue } from "./captions.ts";
 import { DEFAULT_CAPTION_STYLE } from "./captions.ts";
 import { strip, type TimelineWord } from "./cleanup.ts";
@@ -66,8 +67,10 @@ export interface PreflightContext {
   words?: readonly TimelineWord[];
   /** Where anyone is heard (cleanup.ts speechIntervals). */
   speech?: readonly (readonly [number, number])[];
-  /** Caption cues of the edit (captions.ts buildCues). */
+  /** Caption cues of the edit (captions.ts buildCues, from captionWords). */
   cues?: readonly Cue[];
+  /** The .srt goes out with the export: its reading speed counts even without burned captions. */
+  srt?: boolean;
   section?: ScriptSection;
   alignment?: Alignment;
   /** Measured by the main process (main/loudness.ts); undefined while not measured. */
@@ -84,12 +87,21 @@ export const PREFLIGHT = {
   overlap: 0.3,
   /** Captions inside the central 90% of the frame. */
   safeArea: 0.9,
-  /** Smallest annotation letters, as a share of the frame height. */
-  annotationText: 0.045,
+  /** Annotation letters smaller than this share of the frame height are hard to read (36 px in
+   *  1080p), and smaller than `annotationTiny` they are a problem. */
+  annotationText: 0.033,
+  annotationTiny: 0.026,
   /** Smallest burned captions, % of the frame height. */
   captionSize: 5,
-  /** Most characters per second a caption may ask a child to read. */
-  captionCps: 15,
+  /** Most characters per second a caption may ask a child to read, over a whole stretch. */
+  captionCps: 17,
+  /** Seconds the reading speed is averaged over, and the longest a cue counts on screen after
+   *  its last word. */
+  captionWindow: 10,
+  captionLinger: 0.7,
+  /** The Zappy bridge counts as spoken with this share of its words in order, and this many. */
+  bridgeShare: 0.6,
+  bridgeWords: 6,
   /** Chapters: at least this many, each this long. */
   chapters: 3,
   chapterSeconds: 10,
@@ -127,9 +139,8 @@ export function annotationFont(
   switch (a.kind) {
     case "balloon":
     case "note":
-      return a.text?.trim() ? { size: a.fontSize ?? 30, fixed: false } : null;
     case "label":
-      return a.text?.trim() ? { size: a.fontSize ?? 28, fixed: false } : null;
+      return a.text?.trim() ? { size: a.fontSize ?? ANNOTATION_TEXT, fixed: false } : null;
     case "title":
       return a.text?.trim() ? { size: a.fontSize ?? 72, fixed: false } : null;
     case "card":
@@ -142,15 +153,14 @@ export function annotationFont(
   }
 }
 
-/** Letters of an annotation on screen, as a share of the frame height. */
+/**
+ * Letters of an annotation on screen, as a share of the frame height, at its resting size (its
+ * transform: a keyframed movement passes through other sizes on its way).
+ */
 function textShare(c: Clip, asset: Asset, project: Project, size: number): number {
   if (!asset.width || !asset.height) return size / 1080;
-  const scale = Math.min(
-    c.transform?.scale ?? 1,
-    ...(c.keyframes?.length ? c.keyframes.map((k) => k.scale) : []),
-  );
   const shown = clipLayout(
-    { transform: { x: 0.5, y: 0.5, opacity: 1, ...c.transform, scale } },
+    { transform: { x: 0.5, y: 0.5, scale: 1, opacity: 1, ...c.transform } },
     asset,
     project.settings,
   );
@@ -170,22 +180,72 @@ function voiceSpans(words: readonly TimelineWord[]): [number, number][] {
   return out;
 }
 
-/** The longest run of `words` (from `from`) that says `bridge` word for word, 4 words or more. */
-function spokenRun(
+/**
+ * Where the bridge was said: the stretch of `words` that says most of its words in order (within
+ * a window one and a half times its length), with how many it said. Null under 4 words in order.
+ */
+function spokenBridge(
   words: readonly TimelineWord[],
   said: readonly string[],
   bridge: readonly string[],
-): [number, number] | null {
-  const need = Math.min(4, bridge.length);
-  if (need < 3) return null;
+): { range: [number, number]; matched: number } | null {
+  if (bridge.length < 3) return null;
+  const window = Math.ceil(bridge.length * 1.5);
+  let best: { range: [number, number]; matched: number } | null = null;
   for (let i = 0; i < said.length; i++) {
-    for (let j = 0; j < bridge.length; j++) {
-      let n = 0;
-      while (i + n < said.length && j + n < bridge.length && said[i + n] === bridge[j + n]) n++;
-      if (n >= need) return [words[i].start, words[i + n - 1].end];
+    if (!bridge.includes(said[i])) continue;
+    // Bridge words found in order from i, each after the one before.
+    let j = bridge.indexOf(said[i]);
+    let matched = 1;
+    let last = i;
+    for (let k = i + 1; k < Math.min(said.length, i + window) && j < bridge.length - 1; k++) {
+      const next = bridge.indexOf(said[k], j + 1);
+      if (next < 0) continue;
+      j = next;
+      matched++;
+      last = k;
     }
+    if (!best || matched > best.matched)
+      best = { range: [words[i].start, words[last].end], matched };
   }
-  return null;
+  return best && best.matched >= Math.min(4, bridge.length) ? best : null;
+}
+
+/** Characters of a cue as read (its lines joined). */
+const cueChars = (c: Cue): number =>
+  c.lines.map((l) => l.map((w) => w.text).join(" ")).join(" ").length;
+
+/**
+ * The stretch of `windowSeconds` where the captions ask the most of the reader: characters over
+ * the time they stay on screen (until the next caption, at most `linger` after the last word).
+ */
+export function worstReading(
+  cues: readonly Cue[],
+  windowSeconds: number = PREFLIGHT.captionWindow,
+  linger: number = PREFLIGHT.captionLinger,
+): { start: number; end: number; cps: number } | null {
+  const shown = cues.map((c, i) => {
+    const last = c.lines.flat().at(-1)?.end ?? c.end;
+    const until = Math.min(cues[i + 1]?.start ?? Number.POSITIVE_INFINITY, last + linger);
+    return { start: c.start, screen: Math.max(0.1, until - c.start), chars: cueChars(c) };
+  });
+  const end = shown.length ? shown[shown.length - 1].start + shown[shown.length - 1].screen : 0;
+  if (end - (shown[0]?.start ?? 0) < windowSeconds) return null;
+  let worst: { start: number; end: number; cps: number } | null = null;
+  for (const [i, first] of shown.entries()) {
+    if (first.start + windowSeconds > end) break;
+    let chars = 0;
+    let screen = 0;
+    for (const s of shown.slice(i)) {
+      if (s.start >= first.start + windowSeconds) break;
+      chars += s.chars;
+      screen += s.screen;
+    }
+    const cps = chars / Math.max(1, screen);
+    if (!worst || cps > worst.cps)
+      worst = { start: first.start, end: first.start + windowSeconds, cps };
+  }
+  return worst;
 }
 
 /** Chapters as YouTube takes them: first at 0:00, at least 3, each 10 s or longer. */
@@ -265,29 +325,26 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
   if (ctx.speech && sound.length) {
     const first = Math.min(...sound.map((s) => s[0]));
     const last = Math.max(...sound.map((s) => s[1]));
+    // A card on screen is the opening or the closing: quiet under it is on purpose.
     const covered = (a: number, b: number): boolean =>
-      project.clips.some((c) => c.annotation?.kind === "card" && c.start < b && clipEnd(c) > a);
-    if (first > PREFLIGHT.edgeSilence)
+      project.clips.some(
+        (c) => c.annotation?.kind === "card" && c.start <= a + 0.05 && clipEnd(c) >= b - 0.05,
+      );
+    if (first > PREFLIGHT.edgeSilence && !covered(0, first))
       out.push({
         severity: "warn",
         kind: "silence-start",
         at: 0,
         message: `A aula começa com ${secs(first)} sem som.`,
-        ...(covered(0, first)
-          ? {}
-          : { fix: { label: "Cortar o silêncio", action: "cut", ranges: [[0, first - 0.5]] } }),
+        fix: { label: "Cortar o silêncio", action: "cut", ranges: [[0, first - 0.5]] },
       });
-    if (duration - last > PREFLIGHT.edgeSilence)
+    if (duration - last > PREFLIGHT.edgeSilence && !covered(last, duration))
       out.push({
         severity: "warn",
         kind: "silence-end",
         at: last,
         message: `A aula termina com ${secs(duration - last)} sem som.`,
-        ...(covered(last, duration)
-          ? {}
-          : {
-              fix: { label: "Cortar o silêncio", action: "cut", ranges: [[last + 0.5, duration]] },
-            }),
+        fix: { label: "Cortar o silêncio", action: "cut", ranges: [[last + 0.5, duration]] },
       });
   }
 
@@ -359,20 +416,32 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
     for (const it of section.items) {
       if (it.kind !== "bridge") continue;
       const bridge = it.text.split(/\s+/).map(strip).filter(Boolean);
-      const run = spokenRun(heard, said, bridge);
-      if (run)
-        out.push({
-          severity: "error",
-          kind: "bridge-spoken",
-          at: run[0],
-          message: `O texto do Zappy na página foi falado em ${clock(run[0])}; ele é só da plataforma e não entra no vídeo.`,
-          fix: {
-            label: "Propor o corte",
-            action: "propose-cut",
-            ranges: [run],
-            reason: "texto do Zappy na página, não se grava",
-          },
-        });
+      const found = spokenBridge(heard, said, bridge);
+      if (!found) continue;
+      const spoken =
+        found.matched >= PREFLIGHT.bridgeWords &&
+        found.matched >= PREFLIGHT.bridgeShare * bridge.length;
+      out.push(
+        spoken
+          ? {
+              severity: "error",
+              kind: "bridge-spoken",
+              at: found.range[0],
+              message: `O texto do Zappy na página foi falado em ${clock(found.range[0])}; ele é só da plataforma e não entra no vídeo.`,
+              fix: {
+                label: "Propor o corte",
+                action: "propose-cut",
+                ranges: [found.range],
+                reason: "texto do Zappy na página, não se grava",
+              },
+            }
+          : {
+              severity: "info",
+              kind: "bridge-spoken",
+              at: found.range[0],
+              message: `Algumas palavras do texto do Zappy na página aparecem em ${clock(found.range[0])}. Confira se não foi o texto da plataforma lido no vídeo.`,
+            },
+      );
     }
   }
 
@@ -445,21 +514,15 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       });
     }
   }
-  if (cues.length) {
-    const fast = cues
-      .map((c) => {
-        const chars = c.lines.map((l) => l.map((w) => w.text).join(" ")).join(" ").length;
-        return { c, cps: chars / Math.max(0.1, c.end - c.start) };
-      })
-      .filter((x) => x.cps > PREFLIGHT.captionCps);
-    if (fast.length)
-      out.push({
-        severity: "warn",
-        kind: "caption-fast",
-        at: fast[0].c.start,
-        message: `${fast.length === 1 ? "Uma legenda passa" : `${fast.length} legendas passam`} de ${PREFLIGHT.captionCps} caracteres por segundo (a primeira em ${clock(fast[0].c.start)}, com ${Math.round(fast[0].cps)}). O público tem de 9 a 14 anos: corte palavras ou deixe a fala respirar.`,
-      });
-  }
+  // Reading speed: only for captions someone reads (burned in, or the .srt that goes out).
+  const reading = cues.length && (burned || ctx.srt) ? worstReading(cues) : null;
+  if (reading && reading.cps > PREFLIGHT.captionCps)
+    out.push({
+      severity: "warn",
+      kind: "caption-fast",
+      at: reading.start,
+      message: `Entre ${clock(reading.start)} e ${clock(reading.end)} a legenda pede ${Math.round(reading.cps)} caracteres por segundo, acima de ${PREFLIGHT.captionCps}. O público tem de 9 a 14 anos: deixe a fala respirar nesse trecho.`,
+    });
 
   // Annotation letters.
   for (const c of project.clips) {
@@ -471,7 +534,7 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
     if (share >= PREFLIGHT.annotationText - 1e-4) continue;
     const need = Math.ceil((font.size * PREFLIGHT.annotationText) / share);
     out.push({
-      severity: "warn",
+      severity: share < PREFLIGHT.annotationTiny - 1e-4 ? "error" : "warn",
       kind: "annotation-small",
       at: c.start,
       message: `Letra pequena em ${clock(c.start)} (${dec(share * 100)}% da altura; o mínimo é ${dec(PREFLIGHT.annotationText * 100)}%): "${(c.annotation.text ?? "").replace(/\s+/g, " ").slice(0, 40)}".`,

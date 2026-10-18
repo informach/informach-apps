@@ -27,7 +27,8 @@ const api: EdiAulaApi = {
   getCourseTemplate: (course) => ipcRenderer.invoke("course-template:get", course),
   saveCourseTemplate: (course, template) =>
     ipcRenderer.invoke("course-template:save", course, template),
-  measureLoudness: (jobId, projectJson) => ipcRenderer.invoke("media:loudness", jobId, projectJson),
+  measureLoudness: (jobId, projectJson, speech) =>
+    ipcRenderer.invoke("media:loudness", jobId, projectJson, speech),
   appInfo: () => ipcRenderer.invoke("app:info"),
   listPalettes: () => ipcRenderer.invoke("palettes:list"),
   savePalettes: (list) => ipcRenderer.invoke("palettes:save", list),

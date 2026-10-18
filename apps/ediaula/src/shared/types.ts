@@ -340,6 +340,9 @@ export interface Project {
   prepare?: PrepareState;
   /** Seams the person approved in "Revisar cortes" (shared/seams.ts ids, anchored in the media). */
   reviewedSeams?: string[];
+  /** The course template offered when the lesson opened: what the person answered, so it is
+   *  not offered again for the same course. */
+  templateOffer?: { course: string; answer: "applied" | "declined" };
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -595,8 +598,15 @@ export interface EdiAulaApi {
   getCourseTemplate(course: string): Promise<CourseTemplate | null>;
   /** Keeps the course's template for its next lessons; returns where it was saved. */
   saveCourseTemplate(course: string, template: CourseTemplate): Promise<string>;
-  /** The lesson's mixed sound measured (LUFS and true peak), the project as JSON text. */
-  measureLoudness(jobId: string, projectJson: string): Promise<Loudness | null>;
+  /**
+   * The lesson's mixed sound measured as the export mixes it (LUFS and true peak), the project as
+   * JSON text; `speech` is when someone speaks, for the music to step aside (as in the export).
+   */
+  measureLoudness(
+    jobId: string,
+    projectJson: string,
+    speech?: [number, number][],
+  ): Promise<Loudness | null>;
   appInfo(): Promise<AppInfo>;
   /** The user's own palettes (the built-in ones are not stored). */
   listPalettes(): Promise<Palette[]>;

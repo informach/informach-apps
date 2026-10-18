@@ -2,8 +2,8 @@ import type { RecordingResult } from "@shared/recording";
 import type { RecordingLayout } from "@shared/recordingImport";
 
 /**
- * What happens after a take lands in the project. "Preparar aula" (transcribe, align with the
- * script, propose the cleanup) will hang off this; for now only the retake proposals do.
+ * What happens after a take lands in the project, or the presenter's video is placed: the offer
+ * of "Preparar aula" (lib/prepare.ts) hangs off these.
  */
 
 export interface RecordingImported {
@@ -33,4 +33,17 @@ export async function recordingImported(take: RecordingImported): Promise<unknow
     }
   }
   return failures;
+}
+
+const placedListeners = new Set<() => void>();
+
+/** Called after the presenter's video is placed in the lesson; returns the unsubscribe. */
+export function onPresenterPlaced(cb: () => void): () => void {
+  placedListeners.add(cb);
+  return () => placedListeners.delete(cb);
+}
+
+/** Tells every listener that the presenter's video came into the lesson. */
+export function presenterPlaced(): void {
+  for (const cb of placedListeners) cb();
 }

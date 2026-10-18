@@ -3,7 +3,7 @@ import type { AnnotationKind } from "./annotation.ts";
 import type { CaptionStyle } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import { avatarMedia } from "./cleanup.ts";
-import type { Motion, Transform } from "./compose.ts";
+import { clipLayout, type Motion, type Transform } from "./compose.ts";
 import { DEFAULT_CURSOR_FX } from "./cursor.ts";
 import type { DirectionAnnotation, DirectionRule } from "./screenDirections.ts";
 import { clipEnd, projectDuration } from "./timeline.ts";
@@ -35,6 +35,8 @@ export interface Rule {
     insertId?: string;
     /** A speaker of the script ("Debinha"), or "avatar" for every presenter. */
     speaker?: string;
+    /** Which presenter a layout is for (PresenterRole); absent in templates saved before. */
+    role?: PresenterRole;
     event?: "click" | "opening" | "closing";
   };
   do: {
@@ -118,6 +120,7 @@ const rule = z.looseObject({
     screenText: z.string().max(200).optional(),
     insertId: z.string().max(200).optional(),
     speaker: z.string().max(200).optional(),
+    role: z.enum(["main", "insert"]).optional(),
     event: z.enum(["click", "opening", "closing"]).optional(),
   }),
   do: z.looseObject({
@@ -287,6 +290,14 @@ export function courseFolderName(course: string): string {
 export const isMusicTrack = (track: Track): boolean =>
   !!track.music || (track.kind === "audio" && /m[uú]sica/i.test(track.name));
 
+/**
+ * Who a presenter clip is: the lesson's own presenter (the presenter's video of the whole lesson,
+ * a person with the background removed) or an insert of the script (a character's line).
+ */
+export type PresenterRole = "main" | "insert";
+export const presenterRole = (c: Pick<Clip, "insertId">): PresenterRole =>
+  c.insertId ? "insert" : "main";
+
 /** Clips of a presenter (an avatar or a person): script inserts and presenter media. */
 export function presenterClips(project: Project): Clip[] {
   const avatar = avatarMedia(project);
@@ -364,16 +375,24 @@ export function courseTemplateFrom(
   const musicTracks = new Set(project.tracks.filter(isMusicTrack).map((t) => t.id));
   const musicClips = project.clips.filter((c) => musicTracks.has(c.trackId));
   const fx = recordings.find((a) => a.cursorFx)?.cursorFx;
-  const transform = mostCommon(
-    presenters
-      .filter((c) => c.transform)
-      .map((c) => ({
-        x: round(c.transform?.x ?? 0.5),
-        y: round(c.transform?.y ?? 0.5),
-        scale: round(c.transform?.scale ?? 1),
-      })),
-  );
-  const fades = mostCommon(presenters.map((c) => [c.fadeIn ?? 0, c.fadeOut ?? 0]));
+  // Each presenter keeps its own place: the lesson's presenter and the inserts do not share one.
+  const placeOf = (role: PresenterRole) => {
+    const clips = presenters.filter((c) => presenterRole(c) === role);
+    const transform = mostCommon(
+      clips
+        .filter((c) => c.transform)
+        .map((c) => ({
+          x: round(c.transform?.x ?? 0.5),
+          y: round(c.transform?.y ?? 0.5),
+          scale: round(c.transform?.scale ?? 1),
+        })),
+    );
+    const fades = mostCommon(clips.map((c) => [c.fadeIn ?? 0, c.fadeOut ?? 0]));
+    return transform ? { transform, fades } : null;
+  };
+  const places = { main: placeOf("main"), insert: placeOf("insert") };
+  const transform = (places.main ?? places.insert)?.transform;
+  const fades = (places.main ?? places.insert)?.fades;
   const key = presenters.map((c) => assets.get(c.assetId)?.key).find(Boolean);
   const closing = cards.find((c) => Math.abs(clipEnd(c) - duration) < 0.2);
   const presets = new Map<string, AnnotationStyle>();
@@ -384,16 +403,19 @@ export function courseTemplateFrom(
   const rules: Rule[] = [];
   if (autoScales.length)
     rules.push({ when: { event: "click" }, do: { zoom: { scale: round(autoScales[0], 2) } } });
-  if (transform)
+  for (const role of ["main", "insert"] as const) {
+    const place = places[role];
+    if (!place) continue;
     rules.push({
-      when: { speaker: "avatar" },
+      when: { speaker: "avatar", role },
       do: {
         layout: {
-          ...transform,
-          ...(fades ? { fadeIn: fades[0], fadeOut: fades[1] } : {}),
+          ...place.transform,
+          ...(place.fades ? { fadeIn: place.fades[0], fadeOut: place.fades[1] } : {}),
         },
       },
     });
+  }
   for (const d of opts.directions ?? []) {
     const shown = annotations.find((c) => Math.abs(c.start - d.at) <= 1.5);
     const style = shown && styleOf(shown);
@@ -482,11 +504,25 @@ export const directionRules = (t: CourseTemplate | null | undefined): DirectionR
       : [],
   );
 
-/** Where the template puts the presenter: its layout rule, else the avatar block. */
+type Layout = { x: number; y: number; scale: number; fadeIn?: number; fadeOut?: number };
+
+/**
+ * Where the template puts a presenter of `role`: its own layout rule. A template saved before the
+ * roles has one layout for every presenter (its rule, else the avatar block): it goes on the
+ * lesson's own presenter, and on the inserts only when the lesson has none (`lessonHasMain`),
+ * since both in the same place would cover each other.
+ */
 export function presenterLayout(
   t: CourseTemplate,
-): { x: number; y: number; scale: number; fadeIn?: number; fadeOut?: number } | null {
-  const rule = t.rules?.find((r) => r.when.speaker === "avatar" && r.do.layout)?.do.layout;
+  role: PresenterRole = "main",
+  lessonHasMain = role === "main",
+): Layout | null {
+  const rules = (t.rules ?? []).filter((r) => r.when.speaker === "avatar" && r.do.layout);
+  const own = rules.find((r) => r.when.role === role)?.do.layout;
+  if (own) return own;
+  if (rules.some((r) => r.when.role)) return null;
+  if (role === "insert" && lessonHasMain) return null;
+  const rule = rules[0]?.do.layout;
   if (rule) return rule;
   const tr = t.avatar?.transform;
   return tr
@@ -504,19 +540,56 @@ export function presenterLayout(
  * choices. The palette and the captions are applied apart (the palette redraws annotations).
  */
 export function templateLook(project: Project, t: CourseTemplate): Project {
-  const layout = presenterLayout(t);
-  const presenters = new Set(presenterClips(project).map((c) => c.id));
+  const presenterList = presenterClips(project);
+  const hasMain = presenterList.some((c) => presenterRole(c) === "main");
+  const layouts = {
+    main: presenterLayout(t, "main", hasMain),
+    insert: presenterLayout(t, "insert", hasMain),
+  };
+  const placed = (c: Clip, layout: Layout): Clip => {
+    const base = c.transform ?? { x: 0.5, y: 0.5, scale: 1, opacity: 1 };
+    return {
+      ...c,
+      transform: { ...base, x: layout.x, y: layout.y, scale: layout.scale },
+      ...(layout.fadeIn !== undefined ? { fadeIn: layout.fadeIn || undefined } : {}),
+      ...(layout.fadeOut !== undefined ? { fadeOut: layout.fadeOut || undefined } : {}),
+    };
+  };
+  const moved = new Map<string, Clip>();
+  for (const c of presenterList) {
+    const layout = layouts[presenterRole(c)];
+    if (layout) moved.set(c.id, placed(c, layout));
+  }
+  // An insert never lands over the lesson's presenter on screen at the same time: it stays put.
+  const assetOf = new Map(project.assets.map((a) => [a.id, a]));
+  const box = (c: Clip) => {
+    const a = assetOf.get(c.assetId);
+    return a?.width && a.height ? clipLayout(c, a, project.settings).visible : null;
+  };
+  const mains = presenterList.filter((c) => presenterRole(c) === "main");
+  for (const c of presenterList) {
+    const next = moved.get(c.id);
+    if (!next || presenterRole(c) !== "insert") continue;
+    const b = box(next);
+    const covers = mains.some((m) => {
+      const o = box(moved.get(m.id) ?? m);
+      return (
+        !!b &&
+        !!o &&
+        m.start < clipEnd(c) &&
+        clipEnd(m) > c.start &&
+        b.x < o.x + o.w &&
+        b.x + b.w > o.x &&
+        b.y < o.y + o.h &&
+        b.y + b.h > o.y
+      );
+    });
+    if (covers) moved.delete(c.id);
+  }
   const music = new Set(project.tracks.filter(isMusicTrack).map((tr) => tr.id));
   const clips = project.clips.map((c) => {
-    if (layout && presenters.has(c.id)) {
-      const base = c.transform ?? { x: 0.5, y: 0.5, scale: 1, opacity: 1 };
-      return {
-        ...c,
-        transform: { ...base, x: layout.x, y: layout.y, scale: layout.scale },
-        ...(layout.fadeIn !== undefined ? { fadeIn: layout.fadeIn || undefined } : {}),
-        ...(layout.fadeOut !== undefined ? { fadeOut: layout.fadeOut || undefined } : {}),
-      };
-    }
+    const next = moved.get(c.id);
+    if (next) return next;
     if (t.music && music.has(c.trackId) && c.volume !== t.music.volume)
       return { ...c, volume: t.music.volume };
     return c;

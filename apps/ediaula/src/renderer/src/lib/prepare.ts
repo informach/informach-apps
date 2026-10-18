@@ -1,37 +1,45 @@
 import { buildItems, type ProposalItem } from "@shared/anchors";
 import { DEFAULT_CAPTION_STYLE } from "@shared/captions";
 import { cutTargets, mergeRanges, protectedConflicts } from "@shared/cleanup";
-import type { Finding, Loudness } from "@shared/preflight";
 import {
+  authorStep,
   decide,
+  isPrepareAuthor,
+  markDone,
   PREPARE_LABEL,
   PREPARE_STEPS,
   type PrepareDecision,
   type PrepareState,
   type PrepareStep,
+  prepareAuthor,
+  prepareFinished,
   reopen,
+  resolveReview,
   resumeStep,
   skipReason,
   startPrepare,
+  voiceLinkedMedia,
 } from "@shared/prepare";
 import { OFF_SCRIPT_LIMIT, offScriptShare } from "@shared/scriptAlign";
 import { pendingSpeech } from "@shared/speechSources";
-import { newId } from "@shared/timeline";
+import { clipEnd, newId } from "@shared/timeline";
 import type { Project } from "@shared/types";
 import { create } from "zustand";
 import { setCaptions } from "@/editor/CaptionSettings";
 import { useApp } from "@/state/app";
-import { draftCommit, shownProject, useProject } from "@/state/project";
+import { basisOf, type Commit, draftCommit, shownProject, useProject } from "@/state/project";
 import { cleanupItems, cleanupPlan } from "./cleanupPlan";
 import {
   addDirectionAnnotations,
   applyTemplateParts,
   courseTemplate,
   directionAnnotations,
+  TEMPLATE_AUTHOR,
+  TEMPLATE_STEPS,
 } from "./courseTemplate";
-import { checkLesson, measureLoudness } from "./preflight";
+import { checkLesson, type LessonCheck, type MeasuredLoudness, measureLoudness } from "./preflight";
 import { proposeItems } from "./proposals";
-import { onRecordingImported } from "./recordingHooks";
+import { onPresenterPlaced, onRecordingImported } from "./recordingHooks";
 import { onReviewResolved } from "./review";
 import { currentView, pendingInserts, placeInserts } from "./script";
 import {
@@ -45,21 +53,27 @@ import {
 
 /**
  * "Preparar aula" in the editor: runs the steps of shared/prepare.ts one after the other. Each
- * step makes a proposal (the cuts) or a draft (everything else) of the author "preparar" and waits
- * for the person to apply or discard it in the review bar; then the next step runs by itself.
- * Steps that do not apply are skipped with the reason. Where the pipeline stands is kept in the
- * project (Project.prepare), so it resumes after closing the lesson.
+ * step makes a proposal (the cuts) or a draft (everything else) and waits for the person to apply
+ * or discard it in the review bar; then the next step runs by itself. Each draft and proposal is
+ * by "preparar:<step>", so resolving it only ever decides the step that made it. Steps that do
+ * not apply are skipped with the reason. Where the pipeline stands is kept in the project
+ * (Project.prepare), so it resumes after closing the lesson.
  */
-
-export const PREPARE_AUTHOR = "preparar";
 
 /** What a step's run ended in. */
 type Outcome =
   | { kind: "decided"; decision: PrepareDecision; note: string }
   /** A proposal or a draft is waiting for the person. */
   | { kind: "waiting"; what: "proposal" | "draft"; note: string }
-  /** Something the person has to do first (install the engine, confirm the section). */
+  /** Something the person has to do first (install the engine, confirm the section), or a
+   *  change in the lesson meanwhile: trying again can work. */
   | { kind: "blocked"; note: string };
+
+/**
+ * The banner after something came into the lesson: "prepare" offers "Preparar aula" (a screen
+ * recording, the presenter's video); "voice" says what comes after a voice recorded alone.
+ */
+export type PrepareOfferKind = "prepare" | "voice";
 
 interface PrepareUi {
   /** The step running right now. */
@@ -68,18 +82,20 @@ interface PrepareUi {
   waiting: { step: PrepareStep; what: "proposal" | "draft" } | null;
   /** The last word of the waiting step (why it stopped, what it proposed). */
   message: string | null;
-  /** The banner offering "Preparar aula" after a take came in. */
-  offer: boolean;
-  /** The last check before exporting the pipeline ran. */
-  findings: Finding[] | null;
+  offer: PrepareOfferKind | null;
+  /** The last check before exporting the pipeline ran, tied to its revision of the lesson. */
+  check: LessonCheck | null;
+  /** The volume measured in that check (it counts only on the revision it was measured on). */
+  loudness: MeasuredLoudness | null;
 }
 
 export const usePrepare = create<PrepareUi>(() => ({
   running: null,
   waiting: null,
   message: null,
-  offer: false,
-  findings: null,
+  offer: null,
+  check: null,
+  loudness: null,
 }));
 
 const stateOf = (p: Project | null): PrepareState | undefined => p?.prepare;
@@ -89,19 +105,33 @@ function keep(state: PrepareState): void {
   useProject.getState().patch((p) => ({ ...p, prepare: state }));
 }
 
-const commit = (step: PrepareStep) =>
+const commit = (step: PrepareStep): Commit =>
   draftCommit(
-    PREPARE_AUTHOR,
+    prepareAuthor(step),
     `Preparar aula: ${PREPARE_LABEL[step]}`,
     useProject.getState().project?.id,
   );
 
-/** The draft or proposal of "Preparar aula" that is waiting, if any. */
-function pendingReview(p: Project): "proposal" | "draft" | null {
+/** The draft or proposal of "Preparar aula" that is waiting, if any, and which step made it. */
+function pendingReview(
+  p: Project,
+): { what: "proposal" | "draft"; step: PrepareStep | null } | null {
   const { draft } = useProject.getState();
-  if (draft && draft.projectId === p.id && draft.author === PREPARE_AUTHOR) return "draft";
-  if (p.proposals?.some((x) => x.by === PREPARE_AUTHOR)) return "proposal";
-  return null;
+  if (draft && draft.projectId === p.id && isPrepareAuthor(draft.author))
+    return { what: "draft", step: authorStep(draft.author) };
+  const proposal = p.proposals?.find((x) => isPrepareAuthor(x.by));
+  return proposal ? { what: "proposal", step: authorStep(proposal.by) } : null;
+}
+
+/** Discards what "Preparar aula" left waiting: of one step (and older ones of no step), or all. */
+function discardPending(only?: PrepareStep): void {
+  const { draft, project, discardDraft, setProposals } = useProject.getState();
+  if (!project) return;
+  const mine = (by: string | undefined): boolean =>
+    isPrepareAuthor(by) && (!only || authorStep(by) === only || authorStep(by) === null);
+  if (draft && draft.projectId === project.id && mine(draft.author)) discardDraft();
+  if (project.proposals?.some((x) => mine(x.by)))
+    setProposals((list) => list.filter((x) => !mine(x.by)));
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
@@ -109,7 +139,9 @@ const plural = (n: number, one: string, many: string): string => `${n} ${n === 1
 /**
  * The cuts of the lesson in one proposal, by category: hesitations, repeats and pauses of the
  * automatic cleanup, and what was said outside the script when the section is settled. A cleanup
- * cut inside a block said outside the script is left to the block.
+ * cut inside a block said outside the script is left to the block. No cut falls where the
+ * presenter's video placed by the voice plays: that voice was cleaned before the video was made,
+ * and cutting there would cut the video too.
  */
 async function proposeCuts(): Promise<Outcome> {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -162,16 +194,28 @@ async function proposeCuts(): Promise<Outcome> {
     const blocks = mergeRanges(off.map((i): [number, number] => [i.start, i.end]));
     const inside = (i: ProposalItem): boolean =>
       blocks.some(([a, b]) => i.start >= a - 0.05 && i.end <= b + 0.05);
-    const items = [...cleanup.filter((i) => !inside(i)), ...off]
-      .filter((i) => !protectedConflicts(p, [[i.start, i.end]]).length)
-      .sort((a, b) => a.start - b.start);
+    const linked = voiceLinkedMedia(p);
+    const presenterSpans = p.clips
+      .filter((c) => linked.has(c.assetId) && !c.annotation)
+      .map((c): [number, number] => [c.start, clipEnd(c)]);
+    const overPresenter = (i: ProposalItem): boolean =>
+      presenterSpans.some(([a, b]) => i.start < b - 0.01 && i.end > a + 0.01);
+    const candidates = [...cleanup.filter((i) => !inside(i)), ...off].filter(
+      (i) => !protectedConflicts(p, [[i.start, i.end]]).length,
+    );
+    const kept = candidates.filter((i) => !overPresenter(i));
+    if (kept.length < candidates.length)
+      notes.push(
+        `${plural(candidates.length - kept.length, "corte ficou", "cortes ficaram")} de fora por cair no vídeo do apresentador, encaixado pela voz já limpa.`,
+      );
+    const items = kept.sort((a, b) => a.start - b.start);
     if (!items.length)
       return {
         kind: "decided",
         decision: "done",
         note: ["Nada para cortar com as escolhas desta aula.", ...notes].join(" "),
       };
-    const stored = proposeItems(p, "Cortes da aula", items, PREPARE_AUTHOR);
+    const stored = proposeItems(p, "Cortes da aula", items, prepareAuthor("cuts"));
     if ("refused" in stored) return { kind: "blocked", note: stored.refused };
     const count = (c: string): number => items.filter((i) => i.category === c).length;
     const parts = [
@@ -198,14 +242,14 @@ async function proposeCuts(): Promise<Outcome> {
   };
 }
 
-/** Whether `fn` left a draft of "Preparar aula" waiting. */
-const drafted = (): boolean => {
+/** Whether a draft of `step` is waiting. */
+const drafted = (step: PrepareStep): boolean => {
   const { draft, project } = useProject.getState();
-  return !!draft && draft.author === PREPARE_AUTHOR && draft.projectId === project?.id;
+  return !!draft && draft.author === prepareAuthor(step) && draft.projectId === project?.id;
 };
 
-const draftOr = (note: string, none: string): Outcome =>
-  drafted()
+const draftOr = (step: PrepareStep, note: string, none: string): Outcome =>
+  drafted(step)
     ? { kind: "waiting", what: "draft", note }
     : { kind: "decided", decision: "done", note: none };
 
@@ -219,15 +263,25 @@ const DRAFT_STEPS = new Set<PrepareStep>([
   "cards",
 ]);
 
+/** The note of a finished check: how many problems and warnings it left. */
+function checkNote(check: LessonCheck): string {
+  const errors = check.findings.filter((f) => f.severity === "error").length;
+  const warnings = check.findings.filter((f) => f.severity === "warn").length;
+  if (!errors && !warnings) return "Nada a corrigir antes de exportar.";
+  if (!warnings) return `${plural(errors, "problema", "problemas")} para olhar antes de exportar.`;
+  return `${errors ? `${plural(errors, "problema", "problemas")} e ` : ""}${plural(warnings, "aviso", "avisos")} para olhar antes de exportar.`;
+}
+
 async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
   const reason = skipReason(p, step);
   if (reason) return { kind: "decided", decision: "skipped", note: reason };
   const other = useProject.getState().draft;
-  if (DRAFT_STEPS.has(step) && other && other.projectId === p.id && other.author !== PREPARE_AUTHOR)
+  if (DRAFT_STEPS.has(step) && other && other.projectId === p.id && !isPrepareAuthor(other.author))
     return {
       kind: "blocked",
       note: `Há um rascunho de outra ferramenta esperando revisão ("${other.title}"). Aplique ou descarte esse rascunho e continue.`,
     };
+  const into = commit(step);
   switch (step) {
     case "transcribe": {
       const busy = new Set(Object.keys(useTranscribing.getState()));
@@ -280,7 +334,7 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
       };
     }
     case "cuts":
-      if (pendingReview(p) === "proposal")
+      if (pendingReview(p)?.what === "proposal")
         return {
           kind: "waiting",
           what: "proposal",
@@ -297,9 +351,17 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
           decision: "done",
           note: "Nenhuma fala do apresentador para encaixar.",
         };
-      const r = await placeInserts("all", commit(step), shownProject);
+      if (!view.words.length)
+        return {
+          kind: "decided",
+          decision: "skipped",
+          note: "Sem transcrição não dá para saber onde cada fala do apresentador entra.",
+        };
+      const r = await placeInserts("all", into, shownProject);
+      // The lesson changed while the inserts were planned: nothing was placed, try again.
+      if (!r.ok && r.transient) return { kind: "blocked", note: r.message };
       if (!r.ok) return { kind: "decided", decision: "skipped", note: r.message };
-      return draftOr(r.message, "As falas do apresentador já estavam no lugar.");
+      return draftOr(step, r.message, "As falas do apresentador já estavam no lugar.");
     }
     case "template": {
       const t = await courseTemplate(p.course);
@@ -311,8 +373,12 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
             ? `O curso ${p.course} ainda não tem modelo salvo. Numa aula pronta, use Arquivo › Salvar como modelo do curso.`
             : "A aula não tem curso, e o modelo é guardado por curso.",
         };
-      const done = await applyTemplateParts(t, ["look"], commit(step));
-      return draftOr(`Modelo do curso: ${done.join(", ")}.`, "A aula já segue o modelo do curso.");
+      const done = await applyTemplateParts(t, ["look"], into);
+      return draftOr(
+        step,
+        `Modelo do curso: ${done.join(", ")}.`,
+        "A aula já segue o modelo do curso.",
+      );
     }
     case "zoom": {
       const t = await courseTemplate(p.course);
@@ -325,22 +391,23 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
       const done = await applyTemplateParts(
         t ?? { version: 2, format: p.settings },
         ["zoom"],
-        commit(step),
+        into,
       );
-      return draftOr(`Zoom automático: ${done.join(", ")}.`, "Nenhum clique para dar zoom.");
+      return draftOr(step, `Zoom automático: ${done.join(", ")}.`, "Nenhum clique para dar zoom.");
     }
     case "annotations": {
       const t = await courseTemplate(p.course);
-      const { list, problem } = await directionAnnotations(shownProject() ?? p, t);
+      const { list, problem } = await directionAnnotations(basisOf(into) ?? p, t);
       if (problem) return { kind: "decided", decision: "skipped", note: problem };
       if (!list.length)
         return {
           kind: "decided",
           decision: "done",
-          note: 'Nenhum "Na tela" do roteiro para anotar.',
+          note: 'Nenhum "Na tela" do roteiro para anotar além dos que já estão na aula.',
         };
-      const n = await addDirectionAnnotations(list, t, commit(step));
+      const n = await addDirectionAnnotations(list, t, into);
       return draftOr(
+        step,
         `${plural(n, 'anotação do "Na tela"', 'anotações do "Na tela"')}, no começo da fala seguinte.`,
         'Nenhum "Na tela" do roteiro para anotar.',
       );
@@ -356,8 +423,9 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
           note: "O modelo do curso não grava a legenda no vídeo; o arquivo .srt sai junto na exportação.",
         };
       const style = t?.captions ?? { ...DEFAULT_CAPTION_STYLE, ...p.captions, burn: true };
-      setCaptions(style, commit(step));
+      setCaptions(style, into);
       return draftOr(
+        step,
         `Legenda gravada no vídeo${t?.captions ? ", no estilo do curso" : ""}.`,
         "A legenda já estava como o curso pede.",
       );
@@ -372,32 +440,25 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
           cards: t?.cards ?? { opening: true, closing: true },
         },
         ["cards"],
-        commit(step),
+        into,
       );
-      return draftOr(`Cartelas: ${done.join(" e ")}.`, "A aula já tem as cartelas.");
+      return draftOr(step, `Cartelas: ${done.join(" e ")}.`, "A aula já tem as cartelas.");
     }
     case "check": {
-      let loudness: Loudness | null = null;
+      // The volume is measured once here, as the export mixes it; the list is made again on
+      // every change after (recheckPrepare) without measuring again.
+      let loudness: MeasuredLoudness | null = null;
       try {
-        loudness = await measureLoudness(p);
+        loudness = await measureLoudness();
       } catch (err) {
         useApp.getState().toast(`O volume não pôde ser medido: ${cleanError(err)}`, "error");
       }
-      const findings = await checkLesson(useProject.getState().project ?? p, {
-        loudness,
-        normalize: true,
-      });
-      usePrepare.setState({ findings });
-      const errors = findings.filter((f) => f.severity === "error").length;
-      const warnings = findings.filter((f) => f.severity === "warn").length;
-      return {
-        kind: "decided",
-        decision: "done",
-        note:
-          errors || warnings
-            ? `${errors ? `${plural(errors, "problema", "problemas")} e ` : ""}${plural(warnings, "aviso", "avisos")} para olhar antes de exportar.`
-            : "Nada a corrigir antes de exportar.",
-      };
+      const { project, revision } = useProject.getState();
+      if (!project || project.id !== p.id)
+        return { kind: "blocked", note: "A aula aberta mudou; a verificação parou." };
+      const check = await checkLesson(project, revision, { loudness, normalize: true });
+      usePrepare.setState({ check, loudness });
+      return { kind: "decided", decision: "done", note: checkNote(check) };
     }
   }
 }
@@ -420,11 +481,14 @@ export async function runPrepare(): Promise<string> {
     if (usePrepare.getState().running) return "Uma etapa já está rodando.";
     const review = pendingReview(p);
     if (review) {
+      // What is waiting may be of another step (an older lesson): it is resolved first, and
+      // resolving it decides only the step that made it.
+      const of = review.step ?? step;
       usePrepare.setState({
-        waiting: { step, what: review },
-        message: `Revise ${review === "draft" ? "o rascunho" : "a proposta"} na barra de revisão.`,
+        waiting: { step: of, what: review.what },
+        message: `Revise ${review.what === "draft" ? "o rascunho" : "a proposta"} na barra de revisão.`,
       });
-      return `Etapa ${PREPARE_STEPS.indexOf(step) + 1} (${PREPARE_LABEL[step]}) esperando a revisão.`;
+      return `Etapa ${PREPARE_STEPS.indexOf(of) + 1} (${PREPARE_LABEL[of]}) esperando a revisão.`;
     }
     usePrepare.setState({ running: step, waiting: null, message: null });
     let outcome: Outcome;
@@ -450,9 +514,27 @@ export async function runPrepare(): Promise<string> {
   return "A preparação parou.";
 }
 
+/**
+ * The check of the last step made again on the lesson as it is now, after a change; the volume
+ * measured before counts no more (lib/preflight.ts) and is measured again with "Refazer".
+ */
+export async function recheckPrepare(): Promise<void> {
+  const { check, loudness } = usePrepare.getState();
+  const { project, revision } = useProject.getState();
+  if (!check || !project || project.id !== check.projectId || revision === check.revision) return;
+  try {
+    const next = await checkLesson(project, revision, { loudness, normalize: true });
+    const now = useProject.getState();
+    if (now.project?.id === next.projectId && now.revision === next.revision)
+      usePrepare.setState({ check: next });
+  } catch (err) {
+    useApp.getState().toast(`A verificação não pôde ser refeita: ${cleanError(err)}`, "error");
+  }
+}
+
 /** Opens the "Preparar aula" panel and runs (or resumes) the pipeline. */
 export function openPrepare(): void {
-  usePrepare.setState({ offer: false });
+  usePrepare.setState({ offer: null });
   useApp.getState().set({ sideTab: "prepare" });
   void runPrepare();
 }
@@ -462,25 +544,22 @@ export function skipPrepareStep(): void {
   const p = useProject.getState().project;
   const step = resumeStep(stateOf(p));
   if (!p || !step) return;
-  const review = pendingReview(p);
-  if (review === "draft") useProject.getState().discardDraft();
-  if (review === "proposal")
-    useProject.getState().setProposals((list) => list.filter((x) => x.by !== PREPARE_AUTHOR));
+  discardPending(step);
   keep(decide(stateOf(p), step, "skipped", "Pulada."));
   usePrepare.setState({ waiting: null, message: null });
   void runPrepare();
 }
 
-/** Opens a decided step again (and every step after it). */
+/**
+ * Opens a decided step again (and every step after it). What "Preparar aula" left waiting is
+ * discarded: it was made for the steps as they were.
+ */
 export function redoPrepareStep(step: PrepareStep): void {
   const p = useProject.getState().project;
   if (!p) return;
+  discardPending();
   keep(reopen(stateOf(p), step));
-  usePrepare.setState({
-    waiting: null,
-    message: null,
-    findings: step === "check" ? null : usePrepare.getState().findings,
-  });
+  usePrepare.setState({ waiting: null, message: null, check: null });
   void runPrepare();
 }
 
@@ -495,48 +574,61 @@ export function confirmPrepareSection(index: number): void {
   void runPrepare();
 }
 
+/** Offers "Preparar aula" unless the lesson already went through every step. */
+function offerPrepare(): void {
+  const p = useProject.getState().project;
+  if (p && !prepareFinished(stateOf(p))) usePrepare.setState({ offer: "prepare" });
+}
+
 /**
  * Wires the pipeline: a draft or proposal of "Preparar aula" resolved in the review bar decides
- * its step (applied is done, discarded is skipped) and the next step runs; a take that comes in
- * offers "Preparar aula". Returns the unsubscribe.
+ * the step that made it (applied is done, discarded is skipped) and the next step runs; the
+ * course template's draft applied marks the steps it covered. A screen recording or the
+ * presenter's video coming in offers "Preparar aula"; a voice recorded alone says to make the
+ * presenter's video from it first. Returns the unsubscribe.
  */
 export function listenPrepare(): () => void {
   const stopReview = onReviewResolved((r) => {
-    if (r.author !== PREPARE_AUTHOR) return;
-    const { waiting } = usePrepare.getState();
     const p = useProject.getState().project;
-    const step = resumeStep(stateOf(p));
-    if (!p || !step || (waiting && waiting.step !== step)) return;
-    keep(
-      decide(
-        stateOf(p),
-        step,
-        r.outcome === "applied" ? "done" : "skipped",
-        r.outcome === "applied"
-          ? (usePrepare.getState().message ?? undefined)
-          : "Descartada na revisão.",
-      ),
+    if (!p) return;
+    if (r.author === TEMPLATE_AUTHOR) {
+      if (r.outcome === "applied")
+        keep(markDone(stateOf(p), TEMPLATE_STEPS, "Feita pelo modelo do curso."));
+      return;
+    }
+    if (!isPrepareAuthor(r.author)) return;
+    const before = stateOf(p);
+    const next = resolveReview(
+      before,
+      r.author,
+      r.outcome,
+      usePrepare.getState().message ?? undefined,
     );
+    if (next && next !== before) keep(next);
     usePrepare.setState({ waiting: null, message: null });
     void runPrepare();
   });
-  const stopImport = onRecordingImported(() => {
-    const p = useProject.getState().project;
-    if (p && !stateOf(p)) usePrepare.setState({ offer: true });
+  const stopImport = onRecordingImported((take) => {
+    // A voice alone becomes the presenter's video first: "Preparar aula" comes after it.
+    if (take.result.mode === "voice") usePrepare.setState({ offer: "voice" });
+    else if (take.assets.screen.length) offerPrepare();
   });
+  const stopPresenter = onPresenterPlaced(offerPrepare);
   const stopProject = useProject.subscribe((s, prev) => {
     if (s.project?.id !== prev.project?.id)
       usePrepare.setState({
         running: null,
         waiting: null,
         message: null,
-        offer: false,
-        findings: null,
+        offer: null,
+        check: null,
+        loudness: null,
       });
   });
   return () => {
     stopReview();
     stopImport();
+    stopPresenter();
     stopProject();
   };
 }

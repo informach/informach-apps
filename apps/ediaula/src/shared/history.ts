@@ -80,6 +80,8 @@ export function restoreSnapshot(snapshot: Project, current: Project, now: number
   else delete out.prepare;
   if (current.reviewedSeams) out.reviewedSeams = current.reviewedSeams;
   else delete out.reviewedSeams;
+  if (current.templateOffer) out.templateOffer = current.templateOffer;
+  else delete out.templateOffer;
   return out;
 }
 

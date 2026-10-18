@@ -7,6 +7,7 @@ import {
 } from "@shared/prepare";
 import { sectionLabel } from "@shared/script";
 import {
+  AudioLines,
   Check,
   CircleDashed,
   ListChecks,
@@ -18,11 +19,12 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { applyTemplateParts, dismissCourseOffer, useCourseOffer } from "@/lib/courseTemplate";
+import { type ReactNode, useEffect } from "react";
+import { acceptCourseOffer, dismissCourseOffer, useCourseOffer } from "@/lib/courseTemplate";
 import {
   confirmPrepareSection,
   openPrepare,
+  recheckPrepare,
   redoPrepareStep,
   runPrepare,
   skipPrepareStep,
@@ -31,7 +33,7 @@ import {
 import { scriptDoc, useScriptView } from "@/lib/script";
 import { useTranscripts } from "@/lib/transcripts";
 import { useApp } from "@/state/app";
-import { draftCommit, useProject } from "@/state/project";
+import { useProject } from "@/state/project";
 import { Button, IconButton } from "@/ui";
 import { PreflightList } from "./PreflightList";
 
@@ -41,7 +43,12 @@ import { PreflightList } from "./PreflightList";
  */
 export function PreparePanel(): ReactNode {
   const project = useProject((s) => s.project);
-  const { running, waiting, message, findings } = usePrepare();
+  const revision = useProject((s) => s.revision);
+  const { running, waiting, message, check } = usePrepare();
+  // The check is made again on every change of the lesson, so a fix never acts on old times.
+  useEffect(() => {
+    if (check && check.revision !== revision) void recheckPrepare();
+  }, [check, revision]);
   if (!project) return null;
   const state = project.prepare;
   const current = state ? resumeStep(state) : null;
@@ -152,8 +159,8 @@ export function PreparePanel(): ReactNode {
                 ) : (
                   note && <p className="muted prepare-note">{note}</p>
                 )}
-                {step === "check" && findings && s === "done" && (
-                  <PreflightList findings={findings} onFixed={() => redoPrepareStep("check")} />
+                {step === "check" && check && s === "done" && (
+                  <PreflightList check={check} onFixed={() => void recheckPrepare()} />
                 )}
               </div>
             </li>
@@ -193,8 +200,9 @@ function SectionChoice(): ReactNode {
 }
 
 /**
- * Above the review bar: "Preparar aula" offered after a take came in, and the course template
- * offered when a lesson of a course with a saved template opens.
+ * Above the review bar: "Preparar aula" offered after a screen recording or the presenter's
+ * video came in, what comes after a voice recorded alone, and the course template offered when a
+ * lesson of a course with a saved template opens.
  */
 export function PrepareOffer(): ReactNode {
   const offer = usePrepare((s) => s.offer);
@@ -204,12 +212,41 @@ export function PrepareOffer(): ReactNode {
   if (!offer && !showCourse) return null;
   return (
     <>
-      {offer && (
+      {offer === "voice" && (
+        <section className="prepare-offer" aria-label="Depois da voz">
+          <AudioLines size={15} className="accent" />
+          <span className="spacer">
+            <strong>A voz entrou na aula.</strong> Escolha as tomadas, limpe a voz e exporte para
+            gerar o vídeo do apresentador. Quando o vídeo voltar e for encaixado, o Preparar aula
+            cuida do resto.
+          </span>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={AudioLines}
+            onClick={() => {
+              usePrepare.setState({ offer: null });
+              useApp.getState().set({ leftPanel: "audio" });
+            }}
+          >
+            Abrir Áudio
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={X}
+            onClick={() => usePrepare.setState({ offer: null })}
+          >
+            Agora não
+          </Button>
+        </section>
+      )}
+      {offer === "prepare" && (
         <section className="prepare-offer" aria-label="Preparar aula">
           <ListChecks size={15} className="accent" />
           <span className="spacer">
-            <strong>A gravação entrou na aula.</strong> Quer preparar agora? Transcrição, cortes,
-            inserções, zoom, anotações, legenda e cartelas, cada um para você aprovar.
+            <strong>Quer preparar a aula agora?</strong> Transcrição, cortes, inserções, zoom,
+            anotações, legenda e cartelas, cada um para você aprovar.
           </span>
           <Button size="sm" variant="primary" icon={Wand2} onClick={openPrepare}>
             Preparar aula
@@ -218,7 +255,7 @@ export function PrepareOffer(): ReactNode {
             size="sm"
             variant="ghost"
             icon={X}
-            onClick={() => usePrepare.setState({ offer: false })}
+            onClick={() => usePrepare.setState({ offer: null })}
           >
             Agora não
           </Button>
@@ -231,39 +268,7 @@ export function PrepareOffer(): ReactNode {
             <strong>Este curso tem um modelo salvo.</strong> Aplicar paleta, legenda, cartelas,
             posição do apresentador, cursor, zoom, música e anotações como rascunho?
           </span>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => {
-              const template = course.template;
-              const waiting = useProject.getState().draft;
-              if (waiting && waiting.projectId === projectId) {
-                useApp
-                  .getState()
-                  .toast(
-                    `Há um rascunho esperando revisão ("${waiting.title}"). Aplique ou descarte antes.`,
-                    "error",
-                  );
-                return;
-              }
-              dismissCourseOffer();
-              if (!template) return;
-              void applyTemplateParts(
-                template,
-                ["look", "zoom", "annotations", "captions", "cards"],
-                draftCommit("modelo", "Modelo do curso", projectId),
-              ).then((done) =>
-                useApp
-                  .getState()
-                  .toast(
-                    done.length && useProject.getState().draft?.author === "modelo"
-                      ? `Rascunho do modelo do curso pronto: ${done.join(", ")}. Revise na barra acima da timeline.`
-                      : "A aula já segue o modelo do curso.",
-                    "info",
-                  ),
-              );
-            }}
-          >
+          <Button size="sm" variant="primary" onClick={() => void acceptCourseOffer()}>
             Aplicar como rascunho
           </Button>
           <Button size="sm" variant="ghost" icon={X} onClick={dismissCourseOffer}>

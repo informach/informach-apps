@@ -2,13 +2,14 @@ import { type ReactNode, useEffect } from "react";
 import { ApprovalDialog, listenAiApprovals } from "./editor/ApprovalDialog";
 import { Editor } from "./editor/Editor";
 import { ExportQueuePanel } from "./editor/ExportQueuePanel";
-import { SaveFailedDialog } from "./editor/SaveFailedDialog";
+import { DraftLeaveDialog, SaveFailedDialog } from "./editor/SaveFailedDialog";
 import { OrphanRecordings } from "./home/OrphanRecordings";
 import { reportAiContext, runAiTool } from "./lib/aiTools";
 import { watchCourseOffer } from "./lib/courseTemplate";
 import { listenPrepare } from "./lib/prepare";
 import { loadRecorderKeys } from "./lib/recorderKeys";
 import { listenRecordings } from "./lib/recording";
+import { listenSeamReview } from "./lib/review";
 import { SettingsModal } from "./settings/SettingsModal";
 import "./state/assistant";
 import { registerEdiRecovery } from "@informach/edi-desktop/renderer";
@@ -56,7 +57,9 @@ export function App(): ReactNode {
     const stopContext = reportAiContext();
     const stopPrepare = listenPrepare();
     const stopOffer = watchCourseOffer();
+    const stopSeams = listenSeamReview();
     return () => {
+      stopSeams();
       stopPrepare();
       stopOffer();
       stopJobs();
@@ -74,6 +77,7 @@ export function App(): ReactNode {
       {settingsOpen && <SettingsModal />}
       <ExportQueuePanel />
       <SaveFailedDialog />
+      <DraftLeaveDialog />
       <ApprovalDialog />
       <OrphanRecordings />
       <div className="toasts" aria-live="polite">

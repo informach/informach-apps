@@ -885,6 +885,133 @@ try {
     await queue.waitFor({ state: "detached" });
   });
 
+  await step("Revisar cortes", async () => {
+    const clips = editor.locator("fieldset.clip");
+    const playheadX = async (): Promise<number> => {
+      const box = await editor.locator(".timeline-wrap .playhead").boundingBox();
+      assert.ok(box, "Sem o indicador de reprodução na timeline");
+      return box.x + box.width / 2;
+    };
+    /** A cut by hand on every track: split at both ends, delete the stretch, close the gap. */
+    const cutByHand = async (from: number, to: number): Promise<void> => {
+      await editor.keyboard.press("Escape");
+      await seek(editor, from);
+      const x0 = await playheadX();
+      await editor.keyboard.press("s");
+      await seek(editor, to);
+      const x1 = await playheadX();
+      await editor.keyboard.press("s");
+      await settle(editor);
+      const inside = await clips.evaluateAll(
+        (list, [a, b]) =>
+          list.flatMap((clip, i) => {
+            const r = clip.getBoundingClientRect();
+            return Math.abs(r.left - a) < 4 && Math.abs(r.right - b) < 4 ? [i] : [];
+          }),
+        [x0, x1],
+      );
+      assert.ok(inside.length, `Nenhum pedaço entre ${from} s e ${to} s depois de dividir`);
+      for (const [n, i] of inside.entries())
+        await clips.nth(i).click({ modifiers: n ? ["Control"] : [] });
+      await editor.keyboard.press("Delete");
+      await editor
+        .locator("header.topbar")
+        .getByRole("button", { name: "Editar", exact: true })
+        .click();
+      await editor.getByRole("menuitem", { name: "Fechar todas as lacunas" }).click();
+      await settle(editor);
+    };
+    // Two cuts where the presenter is not on screen (it plays from 5 s to 15 s, and from 3 s on
+    // after the first cut).
+    await cutByHand(1, 3);
+    await cutByHand(14, 15);
+    await editor.keyboard.press("Escape");
+    await editor
+      .locator("header.topbar")
+      .getByRole("button", { name: "Editar", exact: true })
+      .click();
+    await editor.getByRole("menuitem", { name: "Revisar cortes" }).click();
+    const bar = editor.getByRole("region", { name: "Revisar cortes" });
+    await bar
+      .getByText(/0 de 2 aprovados · corte em 0:01, tirou 2,0 s/)
+      .waitFor({ timeout: 30_000 });
+    await settle(editor);
+    await capture(
+      editor,
+      "revisar-cortes",
+      "Revisar cortes: o primeiro corte, com as emendas marcadas",
+    );
+    await capture(bar, "revisar-cortes-barra", "Barra de Revisar cortes no primeiro corte");
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "revisar-cortes-timeline",
+      "Timeline com as emendas marcadas durante a revisão",
+    );
+    // Enter approves the first; the second is brought back with Backspace.
+    await editor.keyboard.press("Enter");
+    await bar
+      .getByText(/1 de 2 aprovados · corte em 0:14, tirou 1,0 s/)
+      .waitFor({ timeout: 30_000 });
+    await capture(bar, "revisar-cortes-segundo", "O primeiro aprovado, o segundo esperando");
+    await editor.keyboard.press("Backspace");
+    await bar.getByText(/nenhum corte pendente/).waitFor({ timeout: 30_000 });
+    await settle(editor);
+    await capture(editor, "revisar-cortes-restaurado", "Trecho restaurado e revisão concluída");
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "revisar-cortes-restaurado-timeline",
+      "Timeline depois de restaurar o segundo corte",
+    );
+    await bar.getByRole("button", { name: "Sair", exact: true }).click();
+    await bar.waitFor({ state: "detached", timeout: 10_000 });
+    await savedSoon(editor);
+  });
+
+  await step("Template e anotações com a letra de 36 px", async () => {
+    // Templates and new annotations start at 36 px in 1080p (the check warns under 3,3%): how
+    // they look with it.
+    await seek(editor, 4);
+    await editor.locator("nav.rail").getByRole("button", { name: "Templates" }).click();
+    const question = left.locator(".tpl-card", { hasText: "Pergunta" });
+    await question.locator(".tpl-head").click();
+    await question
+      .getByLabel("Alternativas (uma por linha)")
+      .fill(["Repetir 3 vezes", "Se o farol estiver apagado", "Acender o farol"].join("\n"));
+    const insert = question.getByRole("button", { name: "Inserir", exact: true });
+    await insert.click();
+    await insert.waitFor({ timeout: 60_000 });
+    await settle(editor);
+    await seek(editor, 7);
+    await withoutToasts(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "template-pergunta",
+      "Template Pergunta com as alternativas, letra de 36 px",
+    );
+    await seek(editor, 12);
+    await editor.locator("nav.rail").getByRole("button", { name: "Anotações" }).click();
+    await left.getByRole("button", { name: /^Balão/ }).click();
+    await settle(editor);
+    await seek(editor, 15);
+    await left.getByRole("button", { name: /^Nota/ }).click();
+    await settle(editor);
+    await editor.keyboard.press("Escape");
+    await seek(editor, 13);
+    await withoutToasts(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "anotacao-balao-36",
+      "Balão novo, com a letra de 36 px",
+    );
+    await seek(editor, 16);
+    await capture(
+      editor.locator("section.preview"),
+      "anotacao-nota-36",
+      "Nota nova, com a letra de 36 px",
+    );
+    await savedSoon(editor);
+  });
+
   await step("Configurações e IA", async () => {
     await editor.getByRole("button", { name: "Configurações de IA" }).click();
     const dialog = editor.getByRole("dialog", { name: "Configurações" });

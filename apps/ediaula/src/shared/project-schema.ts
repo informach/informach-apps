@@ -115,6 +115,7 @@ const annotation = z.looseObject({
   boxHeight: number.optional(),
   kicker: text.optional(),
   subtitle: text.optional(),
+  direction: text.optional(),
   layout: z.enum(["left", "center"]).optional(),
   fontFamily: text.optional(),
   outline: z
@@ -478,6 +479,9 @@ export const projectSchema = z
       })
       .optional(),
     reviewedSeams: z.array(z.string().min(1).max(300)).max(REVIEWED_LIMIT).optional(),
+    templateOffer: z
+      .looseObject({ course: z.string().max(200), answer: z.enum(["applied", "declined"]) })
+      .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

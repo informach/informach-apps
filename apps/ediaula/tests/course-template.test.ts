@@ -159,7 +159,9 @@ test("a finished lesson becomes a course template of rules, not of clips", () =>
   assert.equal(t.annotations?.presets[0].fontSize, 44);
   assert.ok((t.annotations?.maxPerMinute ?? 0) >= 1);
   assert.deepEqual(t.rules?.find((r) => r.when.event === "click")?.do.zoom, { scale: 1.8 });
-  assert.deepEqual(presenterLayout(t), {
+  // The lesson has only the inserts: their place is the inserts' own, not the presenter's.
+  assert.equal(presenterLayout(t), null);
+  assert.deepEqual(presenterLayout(t, "insert"), {
     x: 0.84,
     y: 0.545,
     scale: 0.92,
@@ -242,4 +244,78 @@ test("each course keeps its template in a folder named after it, safe on Windows
   assert.equal(courseFolderName("CON"), "_CON");
   assert.equal(courseFolderName("Farol. "), "Farol");
   assert.ok(courseFolderName("x".repeat(400)).length <= 120);
+});
+
+test("the lesson's presenter and the inserts keep their own places, never on top of each other", () => {
+  const presenter = media("apresentador", { name: "Apresentador", origin: "presenter" });
+  const both: Project = {
+    ...lesson,
+    assets: [...lesson.assets, presenter],
+    tracks: [
+      { id: "t0", kind: "video", name: "Apresentador", muted: false, hidden: false, locked: false },
+      ...lesson.tracks,
+    ],
+    clips: [
+      ...lesson.clips,
+      {
+        id: "pv",
+        assetId: "apresentador",
+        trackId: "t0",
+        start: 4,
+        in: 0,
+        duration: 50,
+        volume: 0,
+        transform: { x: 0.2, y: 0.75, scale: 0.4, opacity: 1 },
+      },
+    ],
+  };
+  const t = courseTemplateFrom(both);
+  assert.deepEqual(presenterLayout(t, "main"), {
+    x: 0.2,
+    y: 0.75,
+    scale: 0.4,
+    fadeIn: 0,
+    fadeOut: 0,
+  });
+  assert.equal(presenterLayout(t, "insert")?.x, 0.84);
+  const centered = { x: 0.5, y: 0.5, scale: 1, opacity: 1 };
+  const fresh: Project = {
+    ...both,
+    clips: both.clips.map((c) =>
+      c.id === "pv" || c.id === "av" ? { ...c, transform: centered } : c,
+    ),
+  };
+  const looked = templateLook(fresh, t);
+  assert.equal(looked.clips.find((c) => c.id === "pv")?.transform?.x, 0.2);
+  assert.equal(looked.clips.find((c) => c.id === "av")?.transform?.x, 0.84);
+  // A template saved before the roles has one place: it goes on the lesson's presenter, and on
+  // the inserts only in a lesson without one.
+  const old: CourseTemplate = {
+    version: 2,
+    format: lesson.settings,
+    rules: [{ when: { speaker: "avatar" }, do: { layout: { x: 0.8, y: 0.7, scale: 0.5 } } }],
+  };
+  const oldLook = templateLook(fresh, old);
+  assert.equal(oldLook.clips.find((c) => c.id === "pv")?.transform?.x, 0.8);
+  assert.deepEqual(oldLook.clips.find((c) => c.id === "av")?.transform, centered);
+  const onlyInserts = templateLook(
+    { ...fresh, clips: fresh.clips.filter((c) => c.id !== "pv") },
+    old,
+  );
+  assert.equal(onlyInserts.clips.find((c) => c.id === "av")?.transform?.x, 0.8);
+  // An insert's place that would cover the presenter on screen keeps the insert where it was.
+  const same: CourseTemplate = {
+    ...old,
+    rules: [
+      { when: { speaker: "avatar", role: "main" }, do: { layout: { x: 0.8, y: 0.7, scale: 0.5 } } },
+      {
+        when: { speaker: "avatar", role: "insert" },
+        do: { layout: { x: 0.8, y: 0.7, scale: 0.5 } },
+      },
+    ],
+  };
+  const kept = templateLook(fresh, same);
+  assert.equal(kept.clips.find((c) => c.id === "pv")?.transform?.x, 0.8);
+  assert.deepEqual(kept.clips.find((c) => c.id === "av")?.transform, centered);
+  assert.ok(readCourseTemplate(same));
 });

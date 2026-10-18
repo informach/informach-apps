@@ -2,16 +2,17 @@ import { cutTargets } from "@shared/cleanup";
 import { type DiffItem, includeItem, revertItem } from "@shared/projectDiff";
 import {
   approveSeam,
-  deriveSeams,
+  findSeam,
   isReviewed,
   restoreSeam,
+  reviewSeams,
   SEAM_CONTEXT,
   type Seam,
 } from "@shared/seams";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { structuralDraft, useProject, waitForDraft } from "@/state/project";
 
 /**
  * What the review bar does: the draft (accept or reject each item, apply as one undo step), the
@@ -103,8 +104,13 @@ export function listenDraftItem(item: Pick<DiffItem, "at">): void {
   playback.playSpan(Math.max(0, item.at - SEAM_CONTEXT), item.at + 3);
 }
 
-/** Plays 1.5 s before and after a cut as if it were made: the cut stretch is jumped over. */
+/**
+ * Plays 1.5 s before and after a cut as if it were made: the cut stretch is jumped over. The
+ * times are the lesson's: while a draft changes its structure (the preview plays the draft), it
+ * waits for the draft.
+ */
 export function listenSkipping(place: [number, number]): void {
+  if (waitForDraft("ouvir os cortes")) return;
   playback.playSpan(Math.max(0, place[0] - SEAM_CONTEXT), place[1] + SEAM_CONTEXT, [place]);
 }
 
@@ -112,7 +118,7 @@ export function listenSkipping(place: [number, number]): void {
 
 interface SeamReview {
   active: boolean;
-  /** The seam being heard, among the ones still to approve. */
+  /** The seam being heard, among the ones still to approve (as it was when it was shown). */
   seam: Seam | null;
   /** How many seams the lesson has and how many are approved. */
   total: number;
@@ -129,7 +135,7 @@ export const useSeamReview = create<SeamReview>(() => ({
 function counts(): { open: Seam[]; total: number; reviewed: number } {
   const p = useProject.getState().project;
   if (!p) return { open: [], total: 0, reviewed: 0 };
-  const all = deriveSeams(p);
+  const all = reviewSeams(p);
   const open = all.filter((s) => !isReviewed(p, s));
   return { open, total: all.length, reviewed: all.length - open.length };
 }
@@ -158,8 +164,24 @@ function goTo(after: number): void {
   }
 }
 
+/**
+ * The seam on screen as it is in the lesson now: an edit, an undo or a restore elsewhere may
+ * have moved it or taken it away. Gone, the review moves on to the next one and says so.
+ */
+function currentSeam(): Seam | null {
+  const { seam } = useSeamReview.getState();
+  const p = useProject.getState().project;
+  if (!seam || !p) return null;
+  const now = findSeam(p, seam.ids);
+  if (now) return now;
+  useApp.getState().toast("Este corte não existe mais na aula; seguindo para o próximo.", "info");
+  goTo(seam.at - 1e-3);
+  return null;
+}
+
 /** Starts "Revisar cortes" from the first seam still to approve. */
 export function startSeamReview(): void {
+  if (waitForDraft("revisar os cortes")) return;
   const { open, total } = counts();
   if (!total) {
     useApp.getState().toast("Esta aula ainda não tem cortes para revisar.", "info");
@@ -173,24 +195,25 @@ export function startSeamReview(): void {
 }
 
 export function stopSeamReview(): void {
+  if (!useSeamReview.getState().active) return;
   playback.pause();
   useSeamReview.setState({ active: false, seam: null });
 }
 
 export function replaySeam(): void {
-  const { seam } = useSeamReview.getState();
+  const seam = currentSeam();
   if (seam) hear(seam);
 }
 
 /** Leaves the seam for later and goes to the next one. */
 export function skipSeam(): void {
-  const { seam } = useSeamReview.getState();
-  goTo(seam?.at ?? -1);
+  const seam = currentSeam();
+  if (seam) goTo(seam.at);
 }
 
 /** Enter: the cut is good. Kept with the lesson (outside the undo history). */
 export function approveSeamNow(): void {
-  const { seam } = useSeamReview.getState();
+  const seam = currentSeam();
   if (!seam) return;
   useProject.getState().patch((p) => approveSeam(p, seam));
   goTo(seam.at);
@@ -198,7 +221,8 @@ export function approveSeamNow(): void {
 
 /** Backspace: the cut took too much. The stretch comes back (one undo step). */
 export function restoreSeamNow(): void {
-  const { seam } = useSeamReview.getState();
+  if (waitForDraft("restaurar um trecho")) return;
+  const seam = currentSeam();
   const p = useProject.getState().project;
   if (!seam || !p) return;
   const locked = new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -216,4 +240,24 @@ export function restoreSeamNow(): void {
       "success",
     );
   goTo(seam.at + seam.removed);
+}
+
+/**
+ * The review ends when another lesson opens (or none) and when the editor leaves the screen;
+ * a draft that changes the structure ends it too (the preview no longer plays the lesson's
+ * times). Returns the unsubscribe.
+ */
+export function listenSeamReview(): () => void {
+  const stopProject = useProject.subscribe((s, prev) => {
+    if (s.project?.id !== prev.project?.id) stopSeamReview();
+    else if (s.draft !== prev.draft && useSeamReview.getState().active && structuralDraft(s))
+      stopSeamReview();
+  });
+  const stopScreen = useApp.subscribe((s, prev) => {
+    if (s.screen !== prev.screen && s.screen !== "editor") stopSeamReview();
+  });
+  return () => {
+    stopProject();
+    stopScreen();
+  };
 }

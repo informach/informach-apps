@@ -5,8 +5,10 @@ import { projectSchema } from "../src/shared/project-schema.ts";
 import {
   approveSeam,
   deriveSeams,
+  findSeam,
   isReviewed,
   restoreSeam,
+  reviewSeams,
   SEAM_CONTEXT,
 } from "../src/shared/seams.ts";
 import { clipEnd, sourceEnd, splitAt } from "../src/shared/timeline.ts";
@@ -34,7 +36,12 @@ const take = (): Project => ({
   createdAt: 0,
   updatedAt: 0,
   settings: { width: 1920, height: 1080, fps: 30 },
-  assets: [media("tela", "video"), media("voz", "audio"), media("musica", "audio")],
+  // The microphone of the take: a track the cuts apply to (cleanup.ts cutTargets).
+  assets: [
+    media("tela", "video"),
+    { ...media("voz", "audio"), recording: { id: "take", role: "mic" } },
+    media("musica", "audio"),
+  ],
   tracks: [
     { id: "v1", kind: "video", name: "Tela", muted: false, hidden: false, locked: false },
     { id: "a1", kind: "audio", name: "Voz", muted: false, hidden: false, locked: false },
@@ -166,4 +173,129 @@ test("the cut ripple keeps the other clips in step when a seam is restored", () 
   const r = restoreSeam(withExtra, seam, targets);
   assert.ok("clips" in r);
   assert.equal(r.clips.find((c) => c.id === "x")?.start, 54);
+});
+
+/** Each track's clips in order, as "start-end in" (to see gaps and overlaps). */
+const lane = (p: Pick<Project, "clips">, trackId: string): string[] =>
+  p.clips
+    .filter((c) => c.trackId === trackId)
+    .sort((a, b) => a.start - b.start)
+    .map((c) => `${c.start.toFixed(2)}-${clipEnd(c).toFixed(2)} in ${c.in.toFixed(2)}`);
+
+test("after a restore and Ctrl+Z, the next seam is found again as it is in the lesson", () => {
+  const p = cut(take(), [
+    [10, 14],
+    [30, 34],
+  ]);
+  const seams = deriveSeams(p);
+  assert.deepEqual(
+    seams.map((x) => x.at),
+    [10, 26],
+  );
+  const r = restoreSeam(p, seams[0], targets);
+  assert.ok("clips" in r);
+  // The bar moves on to the next seam of the restored lesson (4 s later than before).
+  const next = deriveSeams({ ...p, clips: r.clips }).find((x) => x.at > 14);
+  assert.equal(next?.at, 30);
+  // Ctrl+Z puts the lesson back: the seam the bar holds is looked up again by its media seconds.
+  assert.ok(next);
+  const now = findSeam(p, next.ids);
+  assert.equal(now?.at, 26);
+  assert.ok(now);
+  const again = restoreSeam(p, now, targets);
+  assert.ok("clips" in again);
+  for (const t of ["v1", "a1"])
+    assert.deepEqual(lane({ clips: again.clips }, t), [
+      "0.00-10.00 in 0.00",
+      "10.00-30.00 in 14.00",
+      "30.00-56.00 in 34.00",
+    ]);
+  // A seam that is gone is not found.
+  assert.equal(findSeam(take(), next.ids), null);
+});
+
+test("only the tracks the cuts apply to have seams; annotations and other sounds do not", () => {
+  const p = cut(take(), [[10, 14]]);
+  const withOthers: Project = {
+    ...p,
+    assets: [
+      ...p.assets,
+      media("efeito", "audio"),
+      {
+        ...media("nota", "image"),
+        kind: "image",
+        generated: "annotation",
+        width: 400,
+        height: 200,
+      },
+    ],
+    tracks: [
+      ...p.tracks,
+      { id: "fx", kind: "audio", name: "Efeitos", muted: false, hidden: false, locked: false },
+      { id: "o1", kind: "video", name: "Anotações", muted: false, hidden: false, locked: false },
+    ],
+    clips: [
+      ...p.clips,
+      // A sound effect cut by hand: not a track the cuts apply to.
+      { id: "e1", assetId: "efeito", trackId: "fx", start: 0, in: 0, duration: 5, volume: 1 },
+      { id: "e2", assetId: "efeito", trackId: "fx", start: 5, in: 20, duration: 5, volume: 1 },
+      // An annotation split in two.
+      {
+        id: "n1",
+        assetId: "nota",
+        trackId: "o1",
+        start: 2,
+        in: 0,
+        duration: 2,
+        volume: 1,
+        annotation: { kind: "note", text: "Oi", color: "#12140A" },
+      },
+      {
+        id: "n2",
+        assetId: "nota",
+        trackId: "o1",
+        start: 4,
+        in: 3,
+        duration: 2,
+        volume: 1,
+        annotation: { kind: "note", text: "Oi", color: "#12140A" },
+      },
+    ],
+  };
+  const seams = deriveSeams(withOthers);
+  assert.equal(seams.length, 1);
+  assert.deepEqual(seams[0].parts.map((x) => x.trackId).sort(), ["a1", "v1"]);
+  // Restoring it opens the timeline on the cut tracks only: the effect stays where it was.
+  const r = restoreSeam(withOthers, seams[0], targets);
+  assert.ok("clips" in r);
+  assert.deepEqual(lane({ clips: r.clips }, "fx"), ["0.00-5.00 in 0.00", "5.00-10.00 in 20.00"]);
+});
+
+test("a seam the presenter's video plays across is approved, not restored", () => {
+  const p = cut(take(), [[10, 14]]);
+  const withPresenter: Project = {
+    ...p,
+    assets: [...p.assets, { ...media("apresentador", "video"), origin: "presenter" }],
+    tracks: [
+      { id: "v2", kind: "video", name: "Apresentador", muted: false, hidden: false, locked: false },
+      ...p.tracks,
+    ],
+    clips: [
+      ...p.clips,
+      {
+        id: "pv",
+        assetId: "apresentador",
+        trackId: "v2",
+        start: 5,
+        in: 0,
+        duration: 20,
+        volume: 0,
+      },
+    ],
+  };
+  const [seam] = reviewSeams(withPresenter, targets);
+  assert.equal(seam.presenter, true);
+  const r = restoreSeam(withPresenter, seam, targets);
+  assert.ok("refused" in r && /apresentador/.test(r.refused));
+  assert.ok(!/—/.test("refused" in r ? r.refused : ""));
 });
