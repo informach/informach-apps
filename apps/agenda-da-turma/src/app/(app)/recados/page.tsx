@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
+import { todayLocalIso } from "@/features/dashboard/date";
+import { shortDayLabel } from "@/features/dashboard/day-labels";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { DiscardDraftButton } from "@/features/notices/components/discard-draft-button";
 import { listNoticeOriginals, listReadyNotices } from "@/features/notices/repository";
@@ -36,29 +38,31 @@ export default async function NoticesPage({
         <div className="max-w-xl space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Recados guardados</h1>
           <p className="text-sm text-muted-foreground">
-            As mensagens, anexos e fotos que viraram atividades. Cada atividade também abre o recado
-            que a originou.
+            As mensagens, fotos e anexos que viraram atividades. A foto e o anexo ficam 30 dias; as
+            atividades ficam.
           </p>
         </div>
       </header>
       {drafts.length ? (
         <section className="space-y-3 rounded-xl border border-primary/30 p-4">
-          <h2 className="font-semibold">Falta conferir antes de salvar</h2>
+          <h2 className="font-semibold">
+            {drafts.length === 1
+              ? "Um recado ficou sem conferir"
+              : `${drafts.length} recados ficaram sem conferir`}
+          </h2>
           {drafts.map((draft) => (
             <div key={draft.id} className="flex items-center gap-2">
               <Link
                 className="flex min-h-11 min-w-0 flex-1 items-center text-sm text-primary-ink underline"
                 href={`/recados/novo?retomar=${draft.id}`}
               >
-                Retomar importação de {SOURCE_LABELS[draft.source]}, de{" "}
-                {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                Continuar: {SOURCE_LABELS[draft.source]},{" "}
+                {shortDayLabel(todayLocalIso(draft.createdAt))}
               </Link>
               <DiscardDraftButton noticeId={draft.id} label={SOURCE_LABELS[draft.source]} />
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">
-            Retomar o resultado salvo não consome outro crédito.
-          </p>
+          <p className="text-xs text-muted-foreground">Continuar não gasta outra leitura.</p>
         </section>
       ) : null}
       {profiles.length > 1 ? (
@@ -90,18 +94,17 @@ export default async function NoticesPage({
               <h2 className="font-semibold">{SOURCE_LABELS[row.source]}</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Importado em{" "}
-              {row.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+              Chegou em {shortDayLabel(todayLocalIso(row.createdAt))}
             </p>
             <p className="line-clamp-3 break-words text-sm">
-              {row.preview || row.attachmentName || "Original importado"}
+              {row.preview || row.attachmentName || "Recado com anexo"}
             </p>
             <div className="mt-auto flex flex-wrap gap-x-5 gap-y-2 text-sm">
               <Link
                 href={`/recados/${row.id}`}
                 className="inline-flex min-h-11 items-center text-primary-ink underline"
               >
-                Consultar original
+                Ver o recado
               </Link>
               <Link
                 href={`/atividades?recado=${row.id}&situacao=all`}

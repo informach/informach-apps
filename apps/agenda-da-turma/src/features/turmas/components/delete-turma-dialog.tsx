@@ -48,7 +48,7 @@ export function DeleteTurmaDialog({ open, onOpenChange, turmaId, schoolName }: P
           toast.error("Só quem criou a turma pode apagar.");
         } else if (result.error.code === "HAS_OTHER_MEMBERS") {
           toast.error("Outras famílias estão usando essa turma.", {
-            description: "Peça pra elas saírem antes de apagar, ou crie outra.",
+            description: "Peça para elas saírem antes de apagar, ou crie outra turma.",
           });
         } else if (result.error.code === "HAS_ACTIVITIES") {
           toast.error("Turma já tem atividades cadastradas.", {

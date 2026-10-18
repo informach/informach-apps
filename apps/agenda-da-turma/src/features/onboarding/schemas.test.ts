@@ -14,7 +14,6 @@ describe("onboarding schemas", () => {
         name: "Maria",
         email: "  MARIA@Example.COM ",
         password: "12345678",
-        confirmPassword: "12345678",
       }).email,
     ).toBe("maria@example.com");
 
@@ -46,7 +45,6 @@ describe("onboarding schemas", () => {
       name: "a".repeat(121),
       email: "maria@example.com",
       password: "12345678",
-      confirmPassword: "12345678",
     });
     expect(result.success).toBe(false);
   });

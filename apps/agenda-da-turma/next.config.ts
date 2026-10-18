@@ -85,6 +85,27 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  /**
+   * Endereços antigos, que links salvos e e-mails de lembrete ainda usam.
+   * Redirecionar aqui responde 307 antes de renderizar: feito na página, o
+   * layout já ia para o navegador no endereço antigo e o rodapé marcava uma
+   * aba no servidor e outra na hidratação. Temporário (307) de propósito: o
+   * navegador guarda um 308 para sempre, e o produto ainda está em movimento.
+   * A busca (`?perfil=`) segue junto.
+   */
+  async redirects() {
+    return [
+      { source: "/recados/acoes/:id", destination: "/atividades/:id", permanent: false },
+      {
+        source: "/atividades/:id/historico",
+        destination: "/atividades/:id?historico=1#historico",
+        permanent: false,
+      },
+      // Só `/perfis`: `/perfis/[id]/extras` continua sendo uma tela.
+      { source: "/perfis", destination: "/familia", permanent: false },
+      { source: "/turmas", destination: "/familia/turmas", permanent: false },
+    ];
+  },
 };
 
 const hasSentrySourceMapConfig = Boolean(

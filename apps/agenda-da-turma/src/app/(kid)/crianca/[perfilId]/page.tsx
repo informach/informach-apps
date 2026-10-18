@@ -16,5 +16,12 @@ export default async function KidModePage({ params }: { params: Promise<{ perfil
   // pertence.
   if (!snapshot) notFound();
 
-  return <KidModeScreen profile={snapshot.profile} todo={snapshot.todo} />;
+  return (
+    <KidModeScreen
+      profile={snapshot.profile}
+      todayIso={snapshot.todayIso}
+      todo={snapshot.todo}
+      ahead={snapshot.ahead}
+    />
+  );
 }

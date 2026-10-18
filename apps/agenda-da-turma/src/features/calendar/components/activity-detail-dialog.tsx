@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
+import { ActivitySheet } from "@/features/unified-activities/components/activity-list";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
 
@@ -41,11 +42,14 @@ export function ActivityDetailDialog({
             <DialogHeader>
               <DialogTitle>{item.title}</DialogTitle>
               <DialogDescription>
-                Atividade de {item.profileName}. Abra o título para ver a fonte, editar e conferir o
-                histórico.
+                De {item.profileName}. Toque no título para ver tudo, de onde veio e o histórico.
               </DialogDescription>
             </DialogHeader>
-            <UnifiedActivityCard entry={{ key: item.id, item }} currentUserId={currentUserId} />
+            <ActivitySheet>
+              <li>
+                <UnifiedActivityCard entry={{ key: item.id, item }} currentUserId={currentUserId} />
+              </li>
+            </ActivitySheet>
           </>
         ) : null}
       </DialogContent>

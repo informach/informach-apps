@@ -20,7 +20,7 @@ export function DiscardDraftButton({ noticeId, label }: { noticeId: string; labe
         size="icon"
         variant="ghost"
         className="size-11 shrink-0 text-muted-foreground hover:text-destructive"
-        aria-label={`Descartar importação de ${label}`}
+        aria-label={`Descartar o recado de ${label}`}
         onClick={() => setOpen(true)}
       >
         <Trash2 className="size-4" aria-hidden />

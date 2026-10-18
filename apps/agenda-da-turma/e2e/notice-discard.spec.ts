@@ -87,9 +87,8 @@ test("discarding a draft persists: trash in the review, and discard from the das
       data: { email, password: "NoticeDiscard!Synthetic2026" },
     });
     expect(login.ok()).toBe(true);
-    await page.goto("/choose-plan");
-    await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+    await page.goto("/dashboard");
     const [child] = await db
       .insert(agendaStudentProfiles)
       .values({ userId: id, name: "Criança navegador" })
@@ -99,42 +98,39 @@ test("discarding a draft persists: trash in the review, and discard from the das
     // A lixeira da revisão chega ao servidor: recarregar não traz a ação de volta.
     const draft = await seedDraft(id, profileId, ["Fazer páginas 20 e 21", "Levar tesoura"]);
     await page.goto(`/recados/novo?retomar=${draft.id}`);
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Remover atividade 1", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("textbox", { name: "Atividade", exact: true })).toHaveValue(
-      "Levar tesoura",
-    );
+    const tirar = (n: number) =>
+      page.getByRole("button", { name: `Tirar a atividade ${n}`, exact: true });
+    await expect(tirar(2)).toBeVisible();
+    await tirar(1).click();
+    await expect(tirar(2)).toHaveCount(0);
+    // A atividade lida aparece numa linha curta: o título, sem o formulário aberto.
+    await expect(page.getByText("Levar tesoura", { exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Atividade 1", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("textbox", { name: "Atividade", exact: true })).toHaveValue(
-      "Levar tesoura",
-    );
+    await expect(tirar(1)).toBeVisible();
+    await expect(tirar(2)).toHaveCount(0);
+    await expect(page.getByText("Levar tesoura", { exact: true })).toBeVisible();
     expect(await statusOf(draft.id)).toBe("ready");
 
     // Remover a última descarta o recado e devolve o formulário de importação.
-    await page.getByRole("button", { name: "Remover atividade 1", exact: true }).click();
+    await page.getByRole("button", { name: "Tirar a atividade 1", exact: true }).click();
     await expect(page.getByText("Recado descartado.")).toBeVisible();
     await expect(page).toHaveURL(/\/recados\/novo$/);
     await expect(
-      page.getByRole("combobox", { name: "Para qual criança?", exact: true }),
+      page.getByRole("heading", { name: "Recado para Criança navegador", exact: true }),
     ).toBeVisible();
     expect(await statusOf(draft.id)).toBe("discarded");
     await page.goto("/dashboard");
-    await expect(page.getByText("Falta conferir antes de salvar")).toHaveCount(0);
+    await expect(page.getByText(/ficou sem conferir|ficaram sem conferir/)).toHaveCount(0);
 
     // Descartar a última atividade lida não pode levar junto o que a pessoa
     // escreveu à mão nesta tela.
     const withManual = await seedDraft(id, profileId, ["Estudar para a prova"]);
     await page.goto(`/recados/novo?retomar=${withManual.id}`);
-    await page.getByRole("button", { name: "Adicionar atividade", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toBeVisible();
-    await page
-      .getByRole("textbox", { name: "Atividade", exact: true })
-      .nth(1)
-      .fill("Comprar cartolina");
-    await page.getByRole("button", { name: "Remover atividade 1", exact: true }).click();
+    await page.getByRole("button", { name: "Escrever mais uma", exact: true }).click();
+    await expect(tirar(2)).toBeVisible();
+    // A atividade lida fica fechada; a nova, escrita aqui, abre o formulário.
+    await page.getByRole("textbox", { name: "Atividade", exact: true }).fill("Comprar cartolina");
+    await page.getByRole("button", { name: "Tirar a atividade 1", exact: true }).click();
     await expect(page.getByText("Recado descartado.")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Atividade", exact: true })).toHaveValue(
       "Comprar cartolina",
@@ -143,25 +139,25 @@ test("discarding a draft persists: trash in the review, and discard from the das
     // E um `?retomar=` vencido abre a importação com um aviso, nunca um erro.
     await page.reload();
     await expect(
-      page.getByText("Aquele rascunho não está mais aguardando revisão", { exact: false }),
+      page.getByText("Aquele recado não está mais esperando conferência", { exact: false }),
     ).toBeVisible();
     await expect(
-      page.getByRole("combobox", { name: "Para qual criança?", exact: true }),
+      page.getByRole("heading", { name: "Recado para Criança navegador", exact: true }),
     ).toBeVisible();
 
     // O card do dashboard tem saída própria.
     const second = await seedDraft(id, profileId, ["Trazer autorização"]);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Falta conferir antes de salvar", exact: true }),
+      page.getByRole("heading", { name: /ficou sem conferir|ficaram sem conferir/ }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "Descartar importação de Microsoft Teams", exact: true })
+      .getByRole("button", { name: "Descartar o recado de Microsoft Teams", exact: true })
       .click();
     await page.getByRole("button", { name: "Descartar", exact: true }).click();
     await expect(page.getByText("Recado descartado.")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Falta conferir antes de salvar", exact: true }),
+      page.getByRole("heading", { name: /ficou sem conferir|ficaram sem conferir/ }),
     ).toHaveCount(0);
     expect(await statusOf(second.id)).toBe("discarded");
   } finally {

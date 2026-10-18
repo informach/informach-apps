@@ -3,6 +3,7 @@ import "server-only";
 import { and, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaActivities,
+  agendaActivityRevisions,
   agendaNotices,
   agendaProfileSubjects,
   agendaSchools,
@@ -66,6 +67,19 @@ const taskSelect = {
   recurrence: agendaTasks.recurrence,
   reminderAt: agendaTasks.reminderAt,
   version: agendaTasks.version,
+  /**
+   * O CONTEÚDO mudou depois de salvo: título, data, matéria, quem cuida.
+   *
+   * A versão não serve para isso: concluir e reabrir também sobem a versão, e
+   * "Mudou depois de salva" aparecia numa atividade que só foi marcada e
+   * desmarcada. Uma revisão em que a situação ficou igual é uma edição.
+   */
+  editedAfterSave: sql<boolean>`EXISTS (
+    SELECT 1 FROM ${agendaActivityRevisions}
+    WHERE ${agendaActivityRevisions.taskId} = ${agendaTasks.id}
+      AND (${agendaActivityRevisions.previous} ->> 'status')
+        IS NOT DISTINCT FROM (${agendaActivityRevisions.current} ->> 'status')
+  )`,
   createdAt: agendaTasks.createdAt,
   subjectId: agendaTasks.subjectId,
   profileSubjectId: agendaTasks.profileSubjectId,
@@ -130,34 +144,4 @@ export async function listTasksInDateRange(
       activeProfileSubjectCondition,
     ),
   );
-}
-
-/**
- * Tarefas pendentes de um bucket, para a exportação em PDF — a única consumidora
- * hoje. O job de lembretes migrou para `listNoticeActions`.
- */
-export async function listTasksByBucket(
-  userId: string,
-  bucket: "overdue" | "today" | "week",
-  options: { profileFilter: string | null; limit: number; todayIso: string; weekEndIso: string },
-) {
-  const due = agendaTasks.dueAt;
-  const range =
-    bucket === "overdue"
-      ? sql`${due} < ${options.todayIso}::date`
-      : bucket === "today"
-        ? sql`${due} = ${options.todayIso}::date`
-        : sql`${due} > ${options.todayIso}::date AND ${due} <= ${options.weekEndIso}::date`;
-  return selectTasks()
-    .where(
-      and(
-        accessibleProfileCondition(userId),
-        eq(agendaTasks.status, "pending"),
-        range,
-        options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
-        activeProfileSubjectCondition,
-      ),
-    )
-    .orderBy(agendaTasks.dueAt, agendaTasks.createdAt)
-    .limit(options.limit);
 }

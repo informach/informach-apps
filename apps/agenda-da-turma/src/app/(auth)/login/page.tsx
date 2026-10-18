@@ -13,13 +13,19 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const nextPath = safeInternalPath(params.next, "/dashboard");
+  const requested = paramValue(params.next);
+  const nextPath = safeInternalPath(requested, "/dashboard");
   const defaultEmail = safeEmailHint(paramValue(params.email));
   const user = await getCurrentUserServer();
 
   if (user) redirect(nextPath);
 
-  return <LoginForm nextPath={nextPath} defaultEmail={defaultEmail} />;
+  // "Criar conta" só leva o destino que veio na URL (um convite, a oferta do
+  // Pro). O padrão de quem entra é Hoje, e mandá-lo ao cadastro faria a conta
+  // nova pular a criança e o primeiro recado (ver `afterVerification`).
+  const signupHref = requested ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup";
+
+  return <LoginForm nextPath={nextPath} signupHref={signupHref} defaultEmail={defaultEmail} />;
 }
 
 function paramValue(value: string | string[] | undefined): string | undefined {

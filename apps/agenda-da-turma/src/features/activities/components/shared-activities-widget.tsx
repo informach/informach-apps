@@ -1,72 +1,101 @@
 "use client";
 
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
 import { toast } from "@informach/ui/components/sonner";
-import { Check, Loader2, X } from "lucide-react";
+import { cn } from "@informach/ui/lib/utils";
+import { Check, Loader2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { getSubjectIconClassByIndex } from "@/features/subjects/utils";
+import { DueChip } from "@/features/unified-activities/components/due-chip";
+import { describeDue } from "@/features/unified-activities/due";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { acceptAllSharedActivitiesAction, respondSharedActivityAction } from "../actions";
 import type { PendingSharedActivity } from "../types";
-import {
-  formatTurmaShort,
-  getActivityTypeIcon,
-  getActivityTypeLabel,
-  getDueBadgeLabel,
-  getDueBadgeVariant,
-  getDueUrgency,
-} from "../utils";
+import { formatTurmaShort, getActivityTypeIcon, getActivityTypeLabel } from "../utils";
 
 type Props = {
   items: PendingSharedActivity[];
 };
 
+const DOT_CLASS: Record<number, string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+};
+
+/**
+ * O que outra família da turma mandou, esperando um sim.
+ *
+ * Era um cartão em degradê com selo de tipo e selo de prazo pintados, no fim
+ * de Hoje, sempre aberto. Virou a linha tracejada do canvas ("2 atividades
+ * da turma do 3º B esperando você"), que abre as mesmas linhas da agenda: o
+ * título, a matéria pelo ponto da cor, quem mandou e, à direita, quando é.
+ */
 export function SharedActivitiesWidget({ items }: Props) {
   if (items.length === 0) return null;
+  const turmas = new Set(items.map((item) => turmaLabel(item)));
+  const count = items.length === 1 ? "Uma atividade" : `${items.length} atividades`;
 
   return (
-    <Card className="border-secondary/40 bg-gradient-to-br from-secondary/10 via-secondary/5 to-chart-3/10">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          {items.length === 1
-            ? "1 atividade compartilhada"
-            : `${items.length} atividades compartilhadas`}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Outras famílias da turma cadastraram essas atividades. Aceite pra adicionar aos seus
-          perfis ativos na turma, ou rejeite se não se aplica.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {items.length > 1 ? <AcceptAllSharedActivities count={items.length} /> : null}
+    <details className="group overflow-hidden rounded-[18px] border-[1.5px] border-dashed border-primary/45 bg-primary/5">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3.5 lg:px-[18px] lg:py-4 [&::-webkit-details-marker]:hidden">
+        <Users className="size-[22px] shrink-0 text-primary-ink lg:hidden" aria-hidden />
+        <span className="min-w-0 flex-1 text-[15px] leading-[1.4]">
+          {turmas.size === 1 ? (
+            <>
+              <strong>{count} da turma</strong> do {[...turmas][0]} esperando você
+            </>
+          ) : (
+            <>
+              <strong>{count} das turmas</strong> esperando você
+            </>
+          )}
+        </span>
+        <span className="shrink-0 text-sm font-bold text-primary-ink group-open:hidden">Ver</span>
+        <span className="hidden shrink-0 text-sm font-bold text-primary-ink group-open:inline">
+          Fechar
+        </span>
+      </summary>
+      <ul>
+        <li className="border-t border-foreground/15 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+          Outra família da turma mandou. Aceitar põe na agenda das suas crianças dessa turma.
+        </li>
+        {items.length > 1 ? (
+          <li>
+            <AcceptAllSharedActivities count={items.length} />
+          </li>
+        ) : null}
         {items.map((item) => (
-          <SharedActivityItem key={item.activityId} item={item} />
+          <li key={item.activityId}>
+            <SharedActivityItem item={item} />
+          </li>
         ))}
-      </CardContent>
-    </Card>
+      </ul>
+    </details>
   );
+}
+
+/** "3º B", como a turma aparece no canvas. */
+function turmaLabel(item: Pick<PendingSharedActivity, "grade" | "classLetter">) {
+  return `${item.grade.replace(/[^0-9]/g, "")}º ${item.classLetter}`;
 }
 
 /**
  * Uma turma ativa manda várias atividades de uma vez, e responder uma a uma é
- * o atrito que faz a família deixar a seção para depois — e depois é quando o
+ * o atrito que faz a família deixar a seção para depois, e depois é quando o
  * prazo já passou. O botão por item continua, para quem quer escolher.
  */
 function AcceptAllSharedActivities({ count }: { count: number }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-background p-3">
-      <p className="text-sm text-muted-foreground">
-        Todas são da turma das suas crianças. Você pode aceitar de uma vez.
-      </p>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-foreground/15 px-4 py-3 sm:px-5">
+      <p className="text-sm text-muted-foreground">Todas são da turma das suas crianças.</p>
       <Button
         type="button"
-        size="sm"
-        className="min-h-11 shrink-0"
+        className="min-h-11 shrink-0 rounded-xl font-bold"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
@@ -107,6 +136,8 @@ function SharedActivityItem({ item }: { item: PendingSharedActivity }) {
   const [pendingValue, setPendingValue] = useState<boolean | null>(null);
   const [pending, startTransition] = useTransition();
   const TypeIcon = getActivityTypeIcon(item.type);
+  // Atividade compartilhada pendente não tem situação própria: o chip sai só da data.
+  const due = describeDue({ dueAt: item.dueAt, time: null, status: "pending" });
 
   const handleRespond = (accepted: boolean) => {
     setPendingValue(accepted);
@@ -128,7 +159,7 @@ function SharedActivityItem({ item }: { item: PendingSharedActivity }) {
         } else if (result.error.code === "NOT_SHARED") {
           toast.error("Essa atividade não é compartilhada.");
         } else if (result.error.code === "NOT_A_MEMBER") {
-          toast.error("Você precisa estar na turma pra responder.");
+          toast.error("Você precisa estar na turma para responder.");
         } else if (result.error.code === "DUE_DATE_PASSED") {
           toast.error("O prazo dessa atividade já passou.", {
             description: "Atividades vencidas não podem mais ser aceitas.",
@@ -139,75 +170,69 @@ function SharedActivityItem({ item }: { item: PendingSharedActivity }) {
         router.refresh();
         return;
       }
-      toast.success(accepted ? "Atividade aceita" : "Atividade rejeitada");
+      toast.success(accepted ? "Atividade aceita" : "Pronto, ela não entra na sua agenda.");
       router.refresh();
     });
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-background p-3 sm:flex-row sm:items-start">
-      <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-full ${getSubjectIconClassByIndex(item.subjectColorIndex)}`}
-      >
-        <TypeIcon className="size-5" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="break-words text-sm font-semibold">
-          <Badge variant="secondary" className="mr-2 align-middle">
-            {getActivityTypeLabel(item.type)}
-          </Badge>
-          {item.title}
+    <div className="border-t border-foreground/15 px-4 py-3 sm:px-5">
+      <div className="flex items-start gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-foreground/15">
+          <TypeIcon className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="break-words text-[15px] font-bold leading-snug">{item.title}</p>
+          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+            <span
+              aria-hidden
+              className={cn(
+                "size-2 shrink-0 rounded-full",
+                DOT_CLASS[item.subjectColorIndex] ?? "bg-foreground/70",
+              )}
+            />
+            <span>{item.subjectName}</span>
+            <span aria-hidden>·</span>
+            <span>{getActivityTypeLabel(item.type)}</span>
+            <span aria-hidden>·</span>
+            <span>{formatTurmaShort(item.grade, item.classLetter, item.year)}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Mandada por {item.createdByUserName ?? "outra família"}
+          </p>
+          {item.description ? (
+            <p className="whitespace-pre-wrap break-words text-sm text-foreground/80">
+              {item.description}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {(() => {
-            // Atividade compartilhada pendente nunca tem status — usa "pending"
-            // pra calcular urgência baseada só na data de entrega.
-            const urgency = getDueUrgency(item.dueAt, "pending");
-            return (
-              <Badge variant={getDueBadgeVariant(urgency)}>
-                {getDueBadgeLabel(item.dueAt, urgency)}
-              </Badge>
-            );
-          })()}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {item.subjectName} · {formatTurmaShort(item.grade, item.classLetter, item.year)}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Compartilhada por {item.createdByUserName ?? "outro responsável"}
-        </p>
-        {item.description ? (
-          <p className="text-xs text-foreground/80 whitespace-pre-wrap">{item.description}</p>
-        ) : null}
+        <DueChip due={due} />
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="mt-2 flex flex-wrap gap-2 pl-14">
         <Button
           type="button"
-          variant="default"
-          size="sm"
+          className="min-h-11 rounded-xl font-bold"
           onClick={() => handleRespond(true)}
           disabled={pending}
         >
           {pending && pendingValue === true ? (
-            <Loader2 className="mr-1 size-3.5 animate-spin" aria-hidden />
+            <Loader2 className="mr-1 size-4 animate-spin" aria-hidden />
           ) : (
-            <Check className="mr-1 size-3.5" aria-hidden />
+            <Check className="mr-1 size-4" aria-hidden />
           )}
           Aceitar
         </Button>
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          className="min-h-11 rounded-xl"
           onClick={() => handleRespond(false)}
           disabled={pending}
         >
           {pending && pendingValue === false ? (
-            <Loader2 className="mr-1 size-3.5 animate-spin" aria-hidden />
-          ) : (
-            <X className="mr-1 size-3.5" aria-hidden />
-          )}
-          Rejeitar
+            <Loader2 className="mr-1 size-4 animate-spin" aria-hidden />
+          ) : null}
+          Não é para nós
         </Button>
       </div>
     </div>

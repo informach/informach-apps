@@ -3,17 +3,14 @@ import { addDaysIso } from "@/features/dashboard/date";
 import { dueWindowRange, dueWindowSchema } from "./overview-types";
 
 /**
- * A janela de prazo existe para que os contadores da rotina possam LEVAR à
- * lista. Os limites abaixo replicam os `COUNT(*) FILTER` de
- * `getRoutineCounters` — se um dos dois mudar sem o outro, um contador passa a
- * abrir uma lista que discorda dele, que é pior do que um contador que não
- * abre nada.
+ * As janelas de prazo do filtro da lista. "Semana" termina no mesmo sétimo dia
+ * do bucket da semana em Hoje (`listRoutineIndex`): a lista recortada e a
+ * rotina falam do mesmo intervalo.
  */
 describe("dueWindowRange", () => {
   const today = "2026-05-11";
 
   it("atrasadas termina na véspera e não tem início", () => {
-    // `getRoutineCounters`: status = 'pending' AND due_at < today
     expect(dueWindowRange("atrasadas", today, addDaysIso)).toEqual({
       from: null,
       to: "2026-05-10",
@@ -22,7 +19,6 @@ describe("dueWindowRange", () => {
   });
 
   it("hoje é o próprio dia, dos dois lados", () => {
-    // `getRoutineCounters`: status = 'pending' AND due_at = today
     expect(dueWindowRange("hoje", today, addDaysIso)).toEqual({
       from: today,
       to: today,
@@ -31,7 +27,7 @@ describe("dueWindowRange", () => {
   });
 
   it("semana vai de amanhã ao sétimo dia", () => {
-    // `getRoutineCounters`: due_at BETWEEN tomorrow AND today + 7
+    // O mesmo limite de `listRoutineIndex`: due_at <= today + 7.
     expect(dueWindowRange("semana", today, addDaysIso)).toEqual({
       from: "2026-05-12",
       to: "2026-05-18",
@@ -40,9 +36,9 @@ describe("dueWindowRange", () => {
   });
 
   it("recentes cobre os sete dias até hoje, medidos pela CONCLUSÃO", () => {
-    // `getRoutineCounters`: done AND completed_at (no fuso do app) BETWEEN
-    // today - 7 AND today. É a única janela que não olha o prazo: concluir hoje
-    // uma tarefa vencida há três semanas precisa entrar na conta.
+    // done AND completed_at (no fuso do app) BETWEEN today - 7 AND today. É a
+    // única janela que não olha o prazo: concluir hoje uma tarefa vencida há
+    // três semanas precisa entrar na conta.
     expect(dueWindowRange("recentes", today, addDaysIso)).toEqual({
       from: "2026-05-04",
       to: today,

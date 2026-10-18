@@ -174,7 +174,8 @@ export async function getTodaySubjectsForProfile(
 /**
  * O horário de amanhã. Existe para que a data de amanhã seja calculada num
  * lugar só: a rotina e o slot do topo da página pedem o mesmo dia, e dois
- * `addDaysIso` soltos podiam divergir na virada da meia-noite.
+ * `addDaysIso` soltos podiam divergir na virada da meia-noite. Quem chama
+ * duas vezes na mesma página usa `schedule-cache.ts`.
  */
 export async function getTomorrowSubjectsForProfiles(
   userId: string,

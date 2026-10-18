@@ -1,6 +1,7 @@
 import { AlreadySubscribedError, InvalidProductError } from "@informach/billing";
 import type { BillingCycle } from "@/features/billing/plans-content";
 import { billing } from "@/features/billing/service";
+import { proOfferHref } from "@/features/onboarding/signup-flow";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -29,7 +30,9 @@ export async function startProCheckout(input: {
       actorId: input.userId,
       productId,
       successUrl: `${env.NEXT_PUBLIC_APP_URL}/dashboard?welcome=1`,
-      cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/choose-plan?cycle=${input.cycle === "annual" ? "anual" : "mensal"}`,
+      // Quem desiste no meio do pagamento volta para a oferta no mesmo ciclo,
+      // e não para uma escolha de plano que abria no mensal.
+      cancelUrl: `${env.NEXT_PUBLIC_APP_URL}${proOfferHref(input.cycle)}`,
     });
     return { ok: true, value: { url: result.url } };
   } catch (error) {

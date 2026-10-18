@@ -1,38 +1,48 @@
-import { cn } from "@informach/ui/lib/utils";
-import { Sun } from "lucide-react";
-import Link from "next/link";
-import { type ReactNode, Suspense } from "react";
+import { Suspense } from "react";
+import { MobileTopBar } from "@/components/app-shell/app-header";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
 import { RoutineSection, RoutineSkeleton } from "@/features/dashboard/components/routine-section";
+import { TodayHeader } from "@/features/dashboard/components/today-header";
 import {
+  loadTodaySchedule,
   TodayScheduleSection,
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
-import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
-import { isEveningInApp } from "@/features/dashboard/date";
+import { isEveningInApp, todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
+import { TodayViewedBeacon } from "@/features/metrics/components/today-viewed-beacon";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { FirstStepsSection } from "@/features/onboarding/components/first-steps-section";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
+import { ChildFilter, FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
-import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Rotina da família",
+  title: "Hoje",
 };
 
 type Props = {
   searchParams: Promise<{ perfil?: string }>;
 };
 
+/**
+ * Hoje, a página do dia.
+ *
+ * A ordem responde primeiro "o que é para hoje?": a data, a frase de resumo e
+ * "Para hoje". Os primeiros passos sobem para o topo enquanto faltarem (antes
+ * ficavam no fim, abaixo de quatro zeros e de "Tudo certo por aqui!"); à noite
+ * a mochila de amanhã vira o primeiro bloco. O botão de PDF foi para a Semana,
+ * como "Imprimir a semana", e o convite do horário do resumo virou uma linha no
+ * fim, só para quem já tem rotina.
+ */
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
+  const todayIso = todayLocalIso();
 
   const [profiles, isPro, notificationPrefs, familyEntitlements] = await Promise.all([
     listStudentProfilesForUser(user.id),
@@ -43,108 +53,59 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   /*
    * O convite a combinar um horário aparece enquanto nenhum canal estiver
-   * ligado. `readNotificationPreferences` devolve os padrões quando a linha não
-   * existe, então "nunca combinou" e "combinou desligar os dois" são
-   * indistinguíveis daqui — quem desligou de propósito vê o card de novo numa
-   * sessão nova, e o "Agora não" o cala até lá. Distinguir os dois casos
-   * exigiria uma coluna só para registrar uma recusa que talvez seja só adiar.
+   * ligado, e só para a família que tem direito (o `enabled` do entitlement da
+   * FAMÍLIA: o segundo adulto convidado tem direito porque o titular paga).
+   * Sem esta condição o botão falhava com `PRO_REQUIRED` a cada sessão.
    */
   const shouldAskForCommitment =
     profiles.length > 0 &&
-    // Gravar as preferências é Pro. Sem esta condição o card perguntava o
-    // horário a toda conta gratuita e o botão falhava com `PRO_REQUIRED` — um
-    // beco sem saída que voltava a cada sessão. `enabled` do entitlement da
-    // FAMÍLIA, e não `isPro` de quem olha: o segundo adulto convidado tem
-    // `isPro=false` para si e ainda assim tem direito, porque o titular paga.
     familyEntitlements.enabled &&
     !notificationPrefs.emailEnabled &&
     !notificationPrefs.pushEnabled;
 
-  const greeting = user.name ?? "responsável";
   // Depois das 18h em São Paulo a pergunta da casa muda, e a página se reordena
-  // com ela: a mochila de amanhã vira o primeiro bloco e sai do bucket, para
-  // não virar a segunda lista da mesma coisa.
+  // com ela: a mochila de amanhã vira o primeiro bloco e sai de "Amanhã".
   const evening = isEveningInApp();
 
-  // Valida ?perfil= contra os perfis do user (defensivo: id inválido cai pra
-  // "Todas"). O filtro é único na página e vale para o horário do dia, para os
-  // buckets da rotina e para os destinos dos atalhos.
+  // Valida ?perfil= contra as crianças da conta: id inválido cai em "Todas". O
+  // filtro é único na página e vale para as aulas, as listas e os destinos.
   const profileFilter =
     params.perfil && profiles.some((p) => p.id === params.perfil) ? params.perfil : null;
+  // Começa agora, sem esperar: ver `loadTodaySchedule`. O `catch` vazio só
+  // evita o aviso de rejeição não tratada; quem espera a promessa ainda recebe
+  // o erro e o mostra no seu próprio limite.
+  // À noite a tela não mostra o horário de hoje (como na prancha da noite),
+  // então nem consulta.
+  const schoolData = evening ? null : loadTodaySchedule(user.id, profileFilter);
+  schoolData?.catch(() => {});
 
-  // Streaming RSC: as queries acima decidem qual sub-árvore renderiza; o resto
-  // entra por Suspense conforme resolve. Horário e rotina são boundaries
-  // separadas para que o horário do dia — o primeiro olhar da manhã — apareça
-  // sem esperar a lista de atividades.
-  return (
-    <Shell
-      greeting={greeting}
-      headerAction={<ExportPdfButton isPro={isPro} profileFilter={profileFilter} />}
-    >
-      {profiles.length > 1 ? (
-        <nav aria-label="Filtrar rotina por criança" className="flex flex-wrap gap-2 text-sm">
-          <Link
-            className={cn(
-              "min-h-11 rounded-full border px-4 py-2",
-              !profileFilter ? "border-primary/30 bg-primary/10 font-semibold" : "hover:bg-muted",
-            )}
-            aria-current={!profileFilter ? "page" : undefined}
-            href="/dashboard"
-          >
-            Todas
-          </Link>
-          {profiles.map((p, index) => (
-            <Link
-              key={p.id}
-              href={`/dashboard?perfil=${p.id}`}
-              aria-current={profileFilter === p.id ? "page" : undefined}
-              className={cn(
-                "min-h-11 rounded-full border px-4 py-2 transition-colors",
-                profileFilter === p.id
-                  ? `${getSubjectTintedClassByIndex((index % 5) + 1)} font-semibold`
-                  : "hover:bg-muted",
-              )}
-            >
-              {p.name}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
-      <Suspense fallback={null}>
-        <WelcomeFlash isPro={isPro} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <PendingDraftsSection userId={user.id} />
-      </Suspense>
-      {shouldAskForCommitment ? (
-        <CommitmentWidget
-          dismissedKey={`agenda:commitment-dismissed:${user.id}`}
-          current={notificationPrefs}
-        />
-      ) : null}
-      {evening ? (
-        // `fallback={null}` como as outras seções opcionais desta página: a
-        // mochila não existe no sábado à noite nem sem horário cadastrado, e um
-        // esqueleto de 112px piscando e sumindo empurraria a página inteira.
-        <Suspense fallback={null}>
-          <TomorrowBackpackSection userId={user.id} profileFilter={profileFilter} />
-        </Suspense>
-      ) : null}
-      <Suspense fallback={<TodayScheduleSkeleton />}>
-        <TodayScheduleSection userId={user.id} profileFilter={profileFilter} />
-      </Suspense>
-      <Suspense fallback={<RoutineSkeleton />}>
-        <RoutineSection userId={user.id} profileFilter={profileFilter} showBackpack={!evening} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <SharedActivitiesSection userId={user.id} />
-      </Suspense>
-      {/*
-        Um caminho, não três cards soltos. Criança, turma, horário e primeiro
-        recado eram widgets independentes que apareciam e sumiam sozinhos, sem
-        dizer quantos passos faltavam. A seção some sozinha quando tudo está
-        feito, e pode ser dispensada antes disso.
-      */}
+  const pillsHref = (profileId: string | null) =>
+    profileId ? `/dashboard?perfil=${profileId}` : "/dashboard";
+  // No celular as pílulas levam o avatar e ficam abaixo da frase; no
+  // computador vão ao lado da data, só com o nome, como nas duas pranchas.
+  const pills = <ChildFilter profiles={profiles} current={profileFilter} hrefFor={pillsHref} />;
+  const header = (
+    <TodayHeader
+      todayIso={todayIso}
+      userName={user.name}
+      evening={evening}
+      filter={
+        evening ? (
+          <FilteredByChild
+            profiles={profiles}
+            current={profileFilter}
+            clearHref={pillsHref(null)}
+          />
+        ) : (
+          <ChildFilter plain profiles={profiles} current={profileFilter} hrefFor={pillsHref} />
+        )
+      }
+    />
+  );
+  // O que é do estado da conta, e não do dia: os primeiros passos, o recado
+  // que ficou sem conferir, as boas-vindas do Pro.
+  const notices = (
+    <>
       <Suspense fallback={null}>
         <FirstStepsSection
           userId={user.id}
@@ -154,34 +115,69 @@ export default async function DashboardPage({ searchParams }: Props) {
           ownsAnyProfile={profiles.some((p) => p.userId === user.id)}
         />
       </Suspense>
-    </Shell>
+      <Suspense fallback={null}>
+        <WelcomeFlash isPro={isPro} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PendingDraftsSection userId={user.id} />
+      </Suspense>
+    </>
   );
-}
+  const shared = (
+    <Suspense fallback={null}>
+      <SharedActivitiesSection userId={user.id} />
+    </Suspense>
+  );
 
-function Shell({
-  greeting,
-  headerAction,
-  children,
-}: {
-  greeting: string;
-  headerAction?: ReactNode;
-  children: ReactNode;
-}) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-7 px-4 py-8 pb-28 md:px-8">
-      <header className="flex flex-wrap items-start gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-chart-4/15 text-chart-4-ink">
-          <Sun className="size-7" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Rotina da família</h1>
-          <p className="break-words text-sm text-muted-foreground">
-            Olá, {greeting}! Vamos organizar o dia e fazer juntos?
-          </p>
+    <main className="mx-auto w-full max-w-[1180px] px-4 pb-28 lg:px-5 lg:pb-16 lg:pt-7">
+      <MobileTopBar />
+      <TodayViewedBeacon todayIso={todayIso} userId={user.id} />
+      {/* Sem criança ainda, a rotina diria "nada para hoje" e mostraria uma
+          semana vazia: a conta nova pareceria resolvida. Ficam só os primeiros
+          passos, que é o que falta de verdade. */}
+      {profiles.length === 0 ? (
+        <div className="space-y-4 pt-2">
+          {header}
+          {notices}
         </div>
-        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
-      </header>
-      {children}
+      ) : (
+        <div className="pt-2 lg:pt-0">
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                {header}
+                <RoutineSkeleton />
+              </div>
+            }
+          >
+            <RoutineSection
+              userId={user.id}
+              profileFilter={profileFilter}
+              evening={evening}
+              header={header}
+              pills={evening ? null : pills}
+              notices={notices}
+              school={
+                schoolData ? (
+                  <Suspense fallback={<TodayScheduleSkeleton />}>
+                    <TodayScheduleSection data={schoolData} />
+                  </Suspense>
+                ) : null
+              }
+              shared={shared}
+              commitment={
+                shouldAskForCommitment ? (
+                  <CommitmentWidget
+                    dismissedKey={`agenda:commitment-dismissed:${user.id}`}
+                    current={notificationPrefs}
+                  />
+                ) : null
+              }
+            />
+          </Suspense>
+        </div>
+      )}
     </main>
   );
 }

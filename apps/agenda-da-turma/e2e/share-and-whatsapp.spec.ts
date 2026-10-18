@@ -46,9 +46,8 @@ test("bringing a recado in without copying: WhatsApp export and the share fallba
       data: { email, password: "ShareWhats!Synthetic2026" },
     });
     expect(login.ok()).toBe(true);
-    await page.goto("/choose-plan");
-    await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+    await page.goto("/dashboard");
     await db.insert(agendaStudentProfiles).values({ userId: id, name: "Criança navegador" });
 
     // A conversa exportada vira uma lista para escolher — e só o escolhido

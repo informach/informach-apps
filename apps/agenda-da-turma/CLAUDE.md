@@ -14,17 +14,24 @@ Fluxo de atividades e originais (12/09/2026): **Atividades** é a lista única d
 
 Um card, um detalhe (14/09/2026): `features/unified-activities/view.ts` é o único adaptador entre o banco e a tela. `toActivityView` traduz a tarefa num `ActivityView`, e tudo depois dele lê um formato só — antes havia três cards, cada um com o seu jeito de mostrar prazo, o seu destino ao toque no título (ou nenhum) e o seu tratamento de erro, decididos por uma origem que a família não vê. A forma que ficou é a de melhor toque: alvo de 44 px, `<article>`, título sempre abrindo a atividade, prazo em badge **mesmo sem prazo** (`getViewDueBadge`) e menu de ações para quem pode editar.
 
-**`/atividades/[id]` é o detalhe de qualquer atividade.** A página busca a tarefa aplicando o acesso por criança e a entrega a um renderizador só. `/recados/acoes/[id]` e `/atividades/[id]/historico` viraram `redirect` — o histórico é uma seção do detalhe, não uma página. **Não recriar card ou detalhe por fonte**: a assimetria entre eles foi exatamente o que fez a mesma lista se comportar de três jeitos.
+**`/atividades/[id]` é o detalhe de qualquer atividade.** A página busca a tarefa aplicando o acesso por criança e a entrega a um renderizador só. `/recados/acoes/[id]` e `/atividades/[id]/historico` viraram redirecionamento 307 em `next.config.ts` (`redirects()`, antes de renderizar): o histórico é uma seção do detalhe, não uma página. **Não recriar card ou detalhe por fonte**: a assimetria entre eles foi exatamente o que fez a mesma lista se comportar de três jeitos.
 
-Navegação (14/09/2026): o rodapé tem **quatro destinos e uma ação** — `Hoje` · `Atividades` · `+` · `Calendário` · `Família` (`components/app-shell/bottom-nav.tsx`). O `+` não navega: abre a folha Adicionar, no centro porque é a ação mais frequente. A criança filtrada (`?perfil=`) viaja com a navegação, o que tornou dispensável o card de atalhos do dashboard (`DashboardNavButtons`, removido) — ele repetia três destinos que já estavam no rodapé.
+Navegação (14/09/2026, a aba Semana em outubro): o rodapé tem **quatro destinos e uma ação**: `Hoje` · `Atividades` · `+` · `Semana` · `Família` (`components/app-shell/bottom-nav.tsx`). A aba Semana mora em `/calendario`, de propósito: o endereço é o que os e-mails, as notificações e os links guardados já usam. O `+` não navega: abre a folha Adicionar, no centro porque é a ação mais frequente. A criança filtrada (`?perfil=`) viaja com a navegação, o que tornou dispensável o card de atalhos do dashboard (`DashboardNavButtons`, removido): ele repetia três destinos que já estavam no rodapé.
 
-**A vez da criança (15/09/2026): `/crianca/[perfilId]`**, no grupo de rotas `(kid)`, **fora** de `(app)`. Sem cabeçalho, sem menu do avatar e sem rodapé: tudo ali é endereçado ao responsável e fica a um toque de uma criança com o telefone na mão. Uma atividade por vez, botão "Feito!" de 64 px, e **sem prazo em vermelho** — vencido vira "é para hoje", sem data vira "ainda sem data marcada". `getKidModeSnapshot` **reusa `getRoutineSnapshot`** e fica com o bucket `attention`: é a MESMA projeção que o responsável vê em "Para cuidar hoje". **Não criar consulta própria** — pai e filha discordarem sobre o que falta hoje é a pior forma da segunda lista que este app deixou de ter; há teste de integração comparando chave a chave. Sair exige segurar o dedo: quebra-molas contra o toque distraído, **não tranca**. Entradas: o cartão de cada criança em "Hoje na escola" e um botão à vista em Família › Crianças.
+**A vez da criança (15/09/2026, refeita em outubro): `/crianca/[perfilId]`**, no grupo de rotas `(kid)`, **fora** de `(app)`. Sem cabeçalho, sem menu do avatar e sem rodapé: tudo ali é endereçado ao responsável e fica a um toque de uma criança com o telefone na mão. "Oi, Clara!", uma atividade por vez, botão "Feito!" de 76 px, e **sem prazo em vermelho**: o que passou vira "É para hoje", sem data vira "Ainda sem data marcada" (`kidDueLabel`).
+
+- **A lista vai até a próxima aula** (decisão de 17/10/2026): quem estuda de manhã faz em casa o que é para amanhã, e numa sexta o que é para segunda. `getKidModeSnapshot` **reusa `getRoutineSnapshot`** e recorta os três buckets com `splitKidTurn` (`features/kid-mode/turn.ts`, puro e testado): `todo` é o "Para hoje" do responsável mais o que vence até `nextSchoolDayIso`, e `ahead` é o resto da semana, oferecido no fim como "Quer adiantar?". O rótulo diz "É para amanhã" ou "É para segunda". **Não criar consulta própria**: pai e filha discordarem sobre o que falta é a pior forma da segunda lista que este app deixou de ter, e o teste de integração compara chave a chave com os buckets da rotina.
+- **Feito não tira a atividade da tela**: ela fica marcada, com "Desfazer", até a criança tocar em "Próxima" (ou "Terminar"). O dedo de uma criança erra, e uma atividade que some no toque errado não tinha como voltar. A tela manda a maior versão entre a que a última gravação devolveu e a que o servidor trouxe, e depois de um conflito é o estado do servidor que decide se a atividade está feita.
+- **As listas são da sessão**: congeladas na chegada. O refresh (o de um conflito, ou o do `OfflineQueueFlusher` quando a fila sobe) traz só o que está pendente, e lido direto das props o que a criança acabou de fazer sumia da tela junto com o "Desfazer". "Próxima" nasce no lugar de "Feito!" e espera um instante antes de aceitar toque, para o segundo toque de um duplo toque não pular o "Desfazer". O "Quer adiantar?" vai até hoje mais seis, a mesma janela de "A semana" em Hoje.
+- Sair exige segurar o dedo ("Segure para devolver"): quebra-molas contra o toque distraído, **não tranca**. Entradas: o cartão de cada criança em "Hoje na escola" e "A vez de Clara" na folha da criança, em Família.
 
 **`/offline`** é pública e estática, servida pelo service worker quando a navegação falha (§9). Não toca banco nem sessão — depender de sessão seria mais uma navegação a falhar justamente quando a rede caiu.
 
 **Marcar como feito não precisa de rede (24/09/2026).** Concluir e reabrir passam por uma rota idempotente e, quando ela não responde, a decisão fica guardada no aparelho e sobe sozinha depois — com o card dizendo, enquanto isso, que ainda não subiu. Só concluir e reabrir: editar, cancelar e importar continuam exigindo conexão. O contrato inteiro está em §9, "A fila de escrita".
 
-**Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram `redirect` temporário (307, não 308: um produto em movimento não grava a decisão no navegador de quem usa) para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair — **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
+**Família › Crianças é uma folha por criança** (outubro de 2026): o avatar, a idade, a turma e a escola, "A vez de Clara" à vista, e as duas coisas que mais mudam a rotina dela, "Horário da turma" (ou "Vincular a turma") e "Atividades extras"; Editar, Excluir e Gerenciar turmas ficam no menu. Embaixo, "Adicionar criança (2 de 3)", "Quem cuida junto" (quem está vendo, o segundo adulto e as crianças que ele vê, ou o convite esperando resposta, com "Mudar" para Adultos) e uma linha por turma em que alguma criança da casa está, com "Convidar" (o mesmo link de `/turmas/entrar?codigo=`, em `features/turmas/share-invite.ts`). O adulto convidado vê só as folhas das crianças que acompanha, com "Ver as atividades": o horário, as extras, os adultos e o código da turma são da conta de quem matriculou (ver "Turma é do titular, de propósito").
+
+**Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram redirecionamento temporário em `next.config.ts` (307, não 308: um produto em movimento não grava a decisão no navegador de quem usa) para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair: **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
 
 **Turma é do titular, de propósito.** Crianças, atividades, rotina e calendário são escopados por criança acessível (`accessibleProfileCondition`); **turmas e matérias são escopadas por conta** (`listTurmasForUser`, `userHasMemberInTurma`). Não é descuido: a turma é espaço compartilhado com outras famílias e o `TurmaCard` mostra o **código**, que é credencial — quem o tem vincula qualquer criança àquela sala. Quem consentiu em ter a filha cuidada não consentiu com isso. O segundo adulto já usa matéria onde importa: `listSubjectOptionsByProfile` é por criança, então ele escolhe a matéria na atividade e recebe a sugestão de prazo pela próxima aula. Por isso Família › Turmas mostra a ele o porquê, e não "nenhuma turma" com botões que recusam. Se um dia abrir: **tirar o código do card de quem não é criador primeiro**, depois trocar o escopo das duas consultas — e só então `/api/ai/subjects/*` e `/api/ai/transcribe` passam a precisar de `ownerId`, resolvido pela turma (nunca por `resolveTrialOwner`, que desempata globalmente entre famílias).
 
@@ -125,7 +132,7 @@ Para adicionar nova feature de IA:
 3. Criar service em `src/features/ai/` envolvendo a chamada em `runBillableAiCall` (ou `withCredits` se multi-stage).
 4. Adicionar route handler em `src/app/api/ai/...` com `withAiRouteGuards` (cobre OpenRouter key + auth + rate-limit + Pro gate).
 5. Garantir que rate-limit em `lib/rate-limit.ts` cobre — hoje `AI_INVOKE_PER_HOUR: 60` cobre todas as features de IA da Agenda.
-6. UI: se a feature faz parte da entrada de atividades, ela entra na folha Adicionar e usa `freeTrial` no guard, sem selo "Pro" no botão. O padrão `disabled={!isPro}` + `Badge` "Pro" (como no `ExportPdfButton`) fica para features que são mesmo exclusivas do Pro.
+6. UI: se a feature faz parte da entrada de atividades, ela entra na folha Adicionar e usa `freeTrial` no guard, sem selo "Pro" no botão. Feature exclusiva do Pro mostra o selo "Pro" e **não fica desligada**: o toque leva a `/upgrade` (como o `ExportPdfButton`, "Imprimir a semana"). Botão cinza sem saída é beco. O direito vem do plano da FAMÍLIA (`getFamilyEntitlements(...).enabled`), não de `getIsProForUser` de quem toca: o segundo adulto de uma casa Pro tem direito.
 
 ---
 
@@ -135,16 +142,16 @@ Para adicionar nova feature de IA:
 apps/agenda-da-turma/
 ├── src/
 │   ├── app/                       # Next 16 app router
-│   │   ├── (auth)/                # /login, /signup, /choose-plan (passo 3 onboarding)
+│   │   ├── (auth)/                # /login, /signup (quatro passos); /choose-plan só redireciona para /upgrade
 │   │   ├── (app)/                 # autenticadas
 │   │   │   ├── dashboard/         # "Hoje": horário do dia, rotina, rascunhos a conferir
 │   │   │   ├── atividades/        # lista + `[id]` (detalhe único) + `nova` (formulário único)
-│   │   │   ├── calendario/        # vistas mês/semana/dia + vista rápida
+│   │   │   ├── calendario/        # a aba Semana: a semana (padrão) e o mês, com a vista rápida do mês
 │   │   │   ├── recados/           # originais guardados + `novo` (captura) + redirects antigos
 │   │   │   ├── familia/           # crianças, turmas, adultos e ajustes
 │   │   │   ├── perfis/, turmas/   # redirect 307 para Família + telas profundas (extras, matérias)
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
-│   │   │   └── upgrade/           # PlanCards sem stepper, só Pro (Free → Pro)
+│   │   │   └── upgrade/           # UpgradeOffer: o Pro na hora certa, com o motivo de quem chegou
 │   │   ├── api/                   # webhooks/jobs + as poucas rotas do app
 │   │   │   ├── auth/[...all]/     # Better Auth handler
 │   │   │   ├── webhooks/{stripe,sendgrid}/
@@ -164,17 +171,17 @@ apps/agenda-da-turma/
 │   │   ├── account/               # exportação e exclusão (LGPD)
 │   │   ├── activities/            # folha Adicionar, lista, aceite de compartilhadas e o fato publicado na turma
 │   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils, _shared (withAiRouteGuards)
-│   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
-│   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, vista rápida, range/grid
+│   │   ├── billing/               # upgrade-offer, plan-card, credit-balance-card, credit-packs, history, plans-content (preços e franquias do catálogo)
+│   │   ├── calendar/              # a aba Semana: semana em linhas por dia, mês em grade, blips, vista rápida, range/grid
 │   │   ├── calendar-feed/         # token do feed ICS (hash em repouso, girável)
-│   │   ├── dashboard/             # horário do dia (em lote), KPIs, buckets, progresso, helpers de data com TZ São Paulo
+│   │   ├── dashboard/             # Hoje: horário do dia (em lote), folhas, faixa da semana, semana para imprimir, datas com TZ São Paulo
 │   │   ├── family/                # acesso por criança, segundo adulto, convites e ajustes da casa
-│   │   ├── kid-mode/              # a vez da criança: uma atividade por vez, "Feito!" de 64 px
+│   │   ├── kid-mode/              # a vez da criança: até a próxima aula, uma por vez, "Feito!" com "Desfazer"
 │   │   ├── metrics/               # eventos de produto (enum estrito) + contrato da landing
 │   │   ├── notices/               # recado, leitura, rascunho e o CRUD de toda atividade (dívida de nome, ver §6)
 │   │   ├── notifications/         # resumo diário, resumo de domingo, lembretes, push e retenção
 │   │   ├── offline-queue/         # a fila de conclusões que esperam a rede (§9)
-│   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
+│   │   ├── onboarding/            # signup-form (quatro passos), signup-flow (para onde vai depois do código), login-form
 │   │   ├── profile-subjects/      # matérias extracurriculares + o predicado de matéria pausada (§6)
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
 │   │   ├── study-plan/            # plano de estudo determinístico para prova e trabalho
@@ -184,8 +191,8 @@ apps/agenda-da-turma/
 │   │   └── unified-activities/    # a projeção única: card, detalhe, carga do dia, toggle otimista
 │   ├── components/
 │   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
-│   │   ├── app-shell/             # AppHeader + UserMenu (avatar com Meus perfis / Minhas turmas / billing / sair)
-│   │   └── site-header.tsx        # header /login + /signup (logo + ModeToggle); evolui pra dashboard depois
+│   │   ├── app-shell/             # DesktopHeader e MobileTopBar, BottomNav, DesktopNav, UserMenu (conta e aparência)
+│   │   └── icons/canvas-icons.tsx # os ícones do canvas que o Lucide instalado redesenhou
 │   ├── lib/
 │   │   ├── env.ts                 # Zod-validated envs
 │   │   ├── auth.ts                # createAuth({ email: { verification: "otp", signIn: { magicLink: false }, forgetPassword: "otp" } })
@@ -224,13 +231,30 @@ Notificação `auth.signup-attempt-on-existing` está wired e dispara para **tod
 - LGPD: `accountDeletion.onBeforeDelete` chama `billing.cancelBillingForSubject` (cancela assinaturas; saldos e linhas históricas ficam por retenção fiscal).
 - Webhook handlers transacionais (`billing.payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e dunning (`billing.payment-failed` via cron) usam `appName: APPS.agendaDaTurma.name` ("Agenda da Turma") nos templates.
 
-### Onboarding em 3 passos
+### Cadastro em quatro passos, plano fora dele (outubro de 2026)
 
-1. **Cadastro** — name + email + password → `/signup`.
-2. **Verificação** — OTP 6 dígitos → reenviar com cooldown de 60s.
-3. **Plano** — `/choose-plan`, free vs Pro mensal/anual; Free vai pra `/dashboard?welcome=...`, Pro abre Stripe Checkout.
+A escolha de plano saiu do cadastro: **o grátis vale por padrão e o Pro aparece quando faz falta**. Antes o cadastro terminava em `/choose-plan`, antes de a pessoa ver a Agenda fazer qualquer coisa, e o Pro anual escolhido na página de vendas se perdia ali (o `/signup` só lia `next` e a escolha abria no mensal).
 
-Stepper (`features/onboarding/components/onboarding-stepper.tsx`) usa `currentStep: 1 | 2 | 3`. Após OTP verify, `signup-form.tsx` redireciona pra `/choose-plan` por default (override possível via prop `verifiedRedirectTo`).
+O desenho é o do canvas ("O começo"): sem cabeçalho e sem cartão, o símbolo no canto (o link para a página inicial) e as barras das etapas ao lado; o texto "Passo 2 de 4: Código" é o nome da figura para o leitor de tela. Título de 34 px, campos de 52 px e o botão no pé. O `(auth)/layout.tsx` é só o fundo do app; o login usa o mesmo canto com o símbolo.
+
+1. **Conta**: nome, e-mail e uma senha só, com "Mostrar" dentro do campo.
+2. **Código**: OTP de 6 números, reenviar depois de 60 s.
+3. **Criança**: só o nome (`createStudentProfileAction`, e a escolha fica lembrada neste aparelho para a folha "O que chegou?").
+4. **Primeiro recado**: os três caminhos. "Tirar uma foto" abre a câmera (ou a galeria) ali mesmo e a tela do recado já chega com a foto (`photo-handoff.ts`); mensagem e falar vão para `/recados/novo?modo=…&perfil=…`. Ou "Ir para Hoje sem recado".
+
+Para onde vai depois do código é uma regra pura e testada, `afterVerification` em `features/onboarding/signup-flow.ts`:
+
+- o convite de outro adulto (`?next=/familia/convite…`) vai direto ao destino e não cadastra criança;
+- `?plan=pro&cycle=` (ou `?next=/upgrade?cycle=`, o Pro que chegou pelo login) abre o pagamento **na confirmação do código**, no ciclo escolhido; se o pagamento não abrir, a pessoa tenta de novo ou segue no grátis, e o passo a passo passa a ser o da criança;
+- **qualquer outro `next` não pula a criança.** O proxy põe `?next=` em toda rota protegida, inclusive Hoje e o início do aplicativo instalado, e com a regra antiga a conta nova ficava sem criança. Esse destino vem depois dela (o convite de uma turma, por exemplo); `/dashboard` e nenhum destino terminam no primeiro recado. O "Criar conta" do login só repassa o `next` que veio na URL.
+
+O passo a passo no topo (`OnboardingStepper`) mostra só as etapas do caminho da pessoa ("Passo 2 de 4: Código"). O passo da criança tem "Fazer isso depois", e todo `next` passa por `safeInternalPath` (`lib/url.ts`), que recusa barra invertida e caractere de controle: o navegador transforma os dois em `//outro-site` na hora de navegar.
+
+**O ciclo não se perde em nenhum caminho de quem já tem conta.** `proOfferHref(cycle)` é o endereço da oferta (`/upgrade?cycle=anual|mensal`) e é usado por: `/signup` com sessão e `?plan=pro` (quem recarrega depois do código), o "Entrar" do cadastro de quem escolheu o Pro, a volta de um pagamento cancelado (`cancelUrl` em `features/onboarding/service.ts`), a sessão que vence na própria oferta e `/choose-plan`, que virou uma rota (`route.ts`) que só redireciona para lá, com 307, e continua existindo para links antigos.
+
+**O Pro na hora certa** (`/upgrade`, `UpgradeOffer`, como a prancha "Plano": o "X" para sair, o cartão do Pro com borda azul, o ciclo num seletor de duas partes, quatro linhas do Pro (`PRO_OFFER_FEATURES`) e o grátis numa frase; sem rodapé, como a tela do recado): a página abre respondendo ao motivo de quem chegou (`?motivo=imprimir|crianca|adulto|lembretes`; sem motivo conhecido ela olha a franquia: "Os recados de teste acabaram.", que é o caso do fim da franquia na folha Adicionar). Cada porta do Pro manda o seu motivo: "Imprimir a semana", a segunda criança, o convite de outro adulto e os lembretes. O titular que já assina vai para `/settings/billing`; o adulto convidado de uma casa Pro, sem criança própria, lê que tudo do Pro já vale para ele. Quem cuida junto numa casa Pro e cadastrou os próprios filhos no grátis vê a oferta: esta página é a única porta do pagamento fora do cadastro. **Não repor o "Seja Pro" no cabeçalho**: ele saiu justamente porque anunciava o Pro em todas as telas do grátis.
+
+Os números do plano (franquia, leituras por mês, crianças, adultos, atividades em aberto, o ditado que conta como dois, o menor pacote e "pague 10 meses, use 12") saem de `features/billing/plans-content.ts`, derivados do catálogo e dos limites do app, e a mensagem de franquia esgotada (`features/notices/messages.ts`) lê os mesmos. Número de plano escrito à mão na interface fica velho na primeira mudança de catálogo.
 
 ---
 
@@ -399,7 +423,7 @@ Schema (`packages/db/src/schema/agenda.ts`):
 
 **RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
 - **Compartilhar exige Pro**: no Free, criar força `visibility = 'individual'`.
-- **Na importação, a caixa nasce marcada** quando há matéria da turma, prazo **da escola** (`school`/`relative`) e Pro (`draftFromExtractedAction`, opção `defaultShare`). Prazo calculado pelo horário (`schedule`) **não** vai para a turma: é planejamento desta casa, e publicá-lo espalharia uma data inventada. Origem `notebook` nunca compartilha por padrão — é a letra de uma criança, não o enunciado da escola —, e por isso o caminho "Foto ou arquivo" (`?modo=foto`) passou a **nascer com a origem `notebook`** em vez de `teams`.
+- **Na importação, a turma é uma pergunta depois de salvar** (o canvas, outubro de 2026): a revisão não marca a caixa (`defaultShare: false`), e o "Pronto" pergunta "Mandar para a turma do 3º B?" quando o que acabou de entrar pode ir: matéria da turma, prazo **da escola** (`school`/`relative`) e Pro. "Mandar para a turma" chama `shareSavedWithTurmaAction`, que passa cada atividade pela mesma gravação da edição (`updateNoticeAction` com `shareWithTurma`), e é ela que recusa o que não pode ir. Prazo calculado pelo horário (`schedule`) **não** vai para a turma: é planejamento desta casa. O caminho "Foto" (`?modo=foto`) **nasce com a origem `notebook`** em vez de `teams`. `draftFromExtractedAction` continua aceitando `defaultShare` para quem quiser o comportamento antigo.
 - **Receber compartilhada é benefício do Free** (ver §1): as listas usam `accessibleProfileCondition(userId)`, que autoriza por criança (titular ou adulto convidado com acesso), e a atividade só chega ao perfil quando a família aceita. `listPendingSharedActivitiesForUser` continua exigindo participação efetiva na turma, então nada vaza entre turmas.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
 
@@ -421,10 +445,9 @@ O predicado único é `activeProfileSubjectCondition`
 (`features/profile-subjects/visibility.ts`), com a variante
 `activeProfileSubjectConditionFor(alias)` para o SQL cru.
 
-**Compõem o predicado, hoje oito:** `activityIndexCte` (KPIs, buckets e
-`/atividades`), `getDashboardCounters` e `listProfileSummaries` (exportação em
-PDF e progresso), `countPendingActivities` (o limite do plano gratuito),
-`listTasksInDateRange` (calendário), `listTasksByBucket` (listas do PDF),
+**Compõem o predicado, hoje cinco:** `activityIndexCte` (buckets de Hoje,
+`countDoneToday` e `/atividades`), `countPendingActivities` (o limite do plano
+gratuito), `listTasksInDateRange` (calendário e a semana para imprimir),
 `listNoticeActions` (resumo diário, resumo de domingo e feed de calendário) e
 `findLoadUntilExam` (a carga que decide quais dias o plano de estudo evita).
 
@@ -499,19 +522,18 @@ Helpers:
 - `addDaysIso(iso, days)` — **pure string math**, server-TZ-neutro. Use pra qualquer "hoje ± N": `addDaysIso(todayLocalIso(), 7)`.
 - `toLocalIso`, `parseLocalIso`, `addDaysLocalIso` — server-TZ-neutros (operam sobre Dates sintéticos meio-dia local). **Não passe `new Date()` direto** pra eles — só use com Dates vindos de `parseLocalIso`. Pra "hoje + N" use sempre `addDaysIso(todayLocalIso(), N)`.
 
-### Calendário (`/calendario`)
+### Semana (`/calendario`, outubro de 2026)
 
-3 vistas (mês/semana/dia), URL como fonte da verdade (`?view=`, `?date=YYYY-MM-DD`, `?perfil=<id>`). Domingo é o primeiro dia da semana (default BR — Google Calendar/iOS).
+A aba se chama Semana e abre na semana; o mês fica a um toque (`?view=month`). A URL é a fonte da verdade (`?view=`, `?date=YYYY-MM-DD`, `?perfil=<id>`). **A semana começa na segunda** (`WEEK_STARTS_ON` em `features/calendar/date.ts`), como a página da agenda que vai na mochila, e isso vale para a semana, para a grade do mês e para a semana impressa. Era domingo, e a semana da escola ficava partida.
 
-- **Mês**: grid manual 7×6 com blips coloridos pela matéria (`chart-N/15` + `chart-N/40` borda) e sinais de status sobrepostos: borda esquerda destructive (atrasada), ring chart-4 (hoje/amanhã), opacidade+strike (concluída). Até 3 blips por dia, resto em Popover "+N mais". Clicar célula vazia → `ActivityFormDialog` com `defaultDueAt` pré-preenchido. Linhas clarinhas via `divide-x divide-y divide-border/60` no grid.
-- **Semana**: 7 colunas (desktop) / linhas (mobile) com lista de blips por dia.
-- **Dia**: lista vertical reusando `ActivityCard` em modo completo.
+- **Semana** (`WeekView`): uma linha por dia, de segunda a domingo, com o dia da semana e o número à esquerda e o que vence nele à direita. Hoje vem marcado, o dia cheio avisa ("dia cheio", pela mesma `summarizeDayLoad` do resumo de domingo e da faixa de Hoje) e o dia vazio tem o seu "+" ("Adicionar para sábado, 24"), que leva ao formulário único com a data e a criança. A atividade é uma linha que abre a leitura (`/atividades/[id]`): ponto da matéria, título e hora, e "Matéria · Criança · na próxima aula · local · cerca de 30 min". Marcar como feito é em Hoje e em Atividades, no card de sempre. O que está em aberto sem data fica numa linha recolhida em cima ("Sem data marcada · 2"), e sai da rotina de Hoje (`getRoutineSnapshot`), como na semana impressa. No pé, "Lista de todas as atividades" e "Imprimir a semana".
+- **Mês**: a grade 7×6 com os blips a partir de `md`, e a agenda vertical no telefone (`MonthAgenda`); tocar num blip abre a vista rápida (o mesmo card). Estado apagado do blip é cor, nunca opacidade.
+- **A vista do dia saiu**: a semana já mostra cada dia inteiro. `?view=day` (links guardados) cai na semana daquele dia, e a faixa da semana de Hoje leva ao dia dentro da semana (`#dia-AAAA-MM-DD`, `weekDayAnchor`).
+- Sem pílulas de criança na Semana, como no canvas: a criança escolhida em Hoje viaja pela navegação (`?perfil=`). O seletor "Todos os perfis" e os botões "Nova atividade" e "Adicionar de um recado" saíram da barra: um botão por destino, e o + do rodapé é a porta de entrada.
 
-Data layer: `features/calendar/repository.ts` (`listActivitiesInDateRange(userId, { fromIso, toIso, profileFilter, isPro })`) reutiliza `activityListSelect`. Service `getCalendarSnapshot` checa Pro (`billing.hasProSubscription`) e calcula o range visível via `rangeForView` em `features/calendar/date.ts` (mês cobre os 42 dias visíveis, inclui spillover).
+Data layer: `getCalendarSnapshot` (`features/calendar/service.ts`) lê `listTasksInDateRange` no range de `rangeForView` (o mês cobre os 42 dias visíveis) e, na semana, as sem data da rotina.
 
-**Modal de detalhe** (`features/calendar/components/activity-detail-dialog.tsx`): dedicada (não reuso do `ActivityCard`). Hierarquia visual diferente (título grande, badges de tipo/urgência/perfil, descrição em prose). Edit/Delete abrem `ActivityFormDialog`/`DeleteActivityDialog` como sub-dialogs — Radix lida com aninhamento.
-
-**Por que grid manual em vez do `<Calendar>` (react-day-picker) do `@informach/ui`**: RDP v9 renderiza `<button>` por dia, e aninhar blips clicáveis cria nested interactives (problema de a11y). Além disso RDP só faz mês — semana/dia já seriam custom de qualquer jeito.
+**Por que grid manual em vez do `<Calendar>` (react-day-picker) do `@informach/ui`**: RDP v9 renderiza `<button>` por dia, e aninhar blips clicáveis cria nested interactives (problema de a11y). Além disso RDP só faz mês.
 
 ### Reference data: estados, cidades, escolas
 
@@ -528,34 +550,40 @@ Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra
 
 Endpoints `/api/data/{states,cities,schools}` (auth-gated via `proxy.ts`) servem essas tabelas pros comboboxes (`AsyncCombobox` com debounce 200ms + ILIKE+unaccent server-side).
 
-### Dashboard ("Rotina da família")
+### Hoje (a página do dia, outubro de 2026)
 
-Ordem de `app/(app)/dashboard/page.tsx`, tudo visível sem clique:
+**As telas seguem as pranchas do canvas** (`docs/propostas/agenda-pagina-do-dia-2026-10-17/`), por pedido da Helena em 17/10/2026: "visualmente tem que ficar igual ao canvas". A única diferença aceita é o comportamento da vez da criança (decisão posterior); o resto que ficou diferente está listado, com o motivo, no registro de implementação. O casco: no celular, o topo (símbolo e conta, `MobileTopBar`) só existe em Hoje, e o rodapé tem os quatro destinos e o "+" elevado de 58 px; no computador, a barra de 68 px (`DesktopHeader`) com o nome, os destinos sublinhados, "Adicionar" e a conta, sem rodapé. A conta (`UserMenu`) tem a aparência (clara, escura, como no aparelho). Trazer um recado (`/recados/novo`) e assinar o Pro (`/upgrade`) ocupam a tela inteira, sem rodapé (`data-immersive`).
 
-1. Cabeçalho, com `ExportPdfButton` à direita.
-2. Filtro de criança — **um só na página**. O mesmo `?perfil=` vale para o horário, para os buckets e para os destinos.
-3. `PendingDraftsSection` — "Falta conferir antes de salvar", com a lixeira que descarta de verdade.
-4. `CommitmentWidget` — o convite a ligar lembretes, dispensável, só quando faz sentido.
-5. `TomorrowBackpackSection` — à noite, e só à noite, a mochila de amanhã sobe para o topo.
-6. **`TodayScheduleSection`** — "Hoje na escola": as matérias de hoje de **cada** criança, com o badge "Reveza com X" do revezamento quinzenal e os itens de "levar sempre". Cada card leva a `/turmas/{id}/materias`.
-7. **`RoutineSection`** — KPIs + os três buckets (cuidar hoje / preparar amanhã / próximos sete dias, este com o aviso de dia cheio) + progresso por estudante. A mochila aparece aqui de dia, quando não está no topo.
-8. `SharedActivitiesSection` — atividades compartilhadas a aceitar, com **"Aceitar todas"** (teto de `ACCEPT_ALL_BATCH` por toque; cada item passa pelo mesmo `respondSharedActivity`, e o que sobra volta no botão).
-9. **`FirstStepsSection`** — a trilha do começo (criança → turma → horário → primeiro recado), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). Substituiu `NoStudentsWidget`, `ProfilesWithoutTurmaWidget` e `NoSubjectsWidget`, que apareciam e sumiam sozinhos sem dizer quantos passos faltavam. **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta, e quem entrou por código ficava com um passo que nunca fechava e um botão que não levava a lugar nenhum. O critério é a matéria **com dias de aula**, porque é isso que sugere prazo e monta a mochila.
+Ordem de `app/(app)/dashboard/page.tsx`. A primeira tela responde "o que é para hoje?"; configuração e convites vêm depois, ou em uma linha.
 
-**`DashboardNavButtons` não existe mais** (ver §1): a criança filtrada viaja com a navegação do rodapé, e os três atalhos repetiam destinos que já estavam lá. Não repor.
+1. `TodayHeader`: saudação pela hora e a data ("Segunda, 19").
+2. Filtro de criança em pílulas, **um só na página**. O mesmo `?perfil=` vale para a escola, para as folhas e para os destinos.
+3. **`FirstStepsSection`** no topo enquanto faltar passo (criança → primeiro recado → turma → horário), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta. Sem criança nenhuma, a rotina nem aparece: "nada para hoje" numa conta vazia faria a conta nova parecer resolvida.
+4. `WelcomeFlash` e `PendingDraftsSection` ("Um recado ficou sem conferir").
+5. **À noite** (`isEveningInApp`, a partir das 18h), `RoutineView` troca a página pela prancha da noite: "A mochila de amanhã", com uma linha por criança que tem aula, material ou qualquer atividade amanhã (os cards de amanhã moram nessa linha, e o "levar sempre" de cada aula embaixo), "Ainda de hoje", o dia fechado e "Ver a semana" quando há dia cheio. Sem "Hoje na escola" e sem o convite do resumo, e a página nem consulta o horário. Com `?perfil=`, uma linha "Só de Clara · Ver todas" diz que a tela está filtrada (`FilteredByChild`, também na Semana).
+6. **`RoutineSection`**: a frase de resumo (`routineSummary`), **"Para hoje"** (atrasadas, de hoje e sem data, ou o "Dia fechado"), **"Hoje na escola"** (`TodayScheduleSection`, uma linha por criança, as aulas como pílulas que abrem o "levar sempre", e "A vez de {nome}"), **"Amanhã, {dia}"** com a mochila dentro de dia, e **"A semana"** (`WeekStrip` de sete dias a partir de hoje, aviso de dia cheio e a lista do resto da semana recolhida). No telefone é uma coluna nessa ordem; no computador são duas (o que fazer à esquerda; escola e semana à direita), com `display: contents` e `order` nas colunas. A consulta da escola começa na página (`loadTodaySchedule`) para não esperar a rotina.
+7. `CommitmentWidget`: uma linha no fim ("Quer o resumo do dia por e-mail? Escolha a hora."), só para quem já tem rotina e ainda não ligou canal nenhum.
+8. `SharedActivitiesSection`: uma linha recolhida ("2 atividades da turma do 3º ano B esperando você"), que abre as linhas com **"Aceitar todas"** (teto de `ACCEPT_ALL_BATCH` por toque; cada item passa pelo mesmo `respondSharedActivity`).
 
-**Uma lista só.** Buckets e KPIs saem de `getRoutineSnapshot`
+**Saíram e não voltam:** os quatro números do topo (repetiam as listas logo abaixo), o progresso por criança (porcentagens lado a lado são comparação entre irmãos), o rodapé jurídico (o aviso de que Feito não avisa a escola aparece no primeiro Feito) e o botão de PDF (foi para a Semana como "Imprimir a semana"). **`DashboardNavButtons` também não existe mais** (ver §1).
+
+**Uma lista só.** Os buckets e o `doneToday` saem de `getRoutineSnapshot`
 (`features/unified-activities/service.ts`), que reusa a MESMA projeção SQL
 da lista de `/atividades` (`activityIndexCte`) e a mesma hidratação em segundo
-passo. Por isso os contadores nunca discordam do que
-está listado logo abaixo. Não reintroduzir uma segunda lista no dashboard:
-foi daí que veio a duplicação corrigida em setembro de 2026.
+passo. A vez da criança lê a mesma função. Não reintroduzir uma segunda lista
+no dashboard: foi daí que veio a duplicação corrigida em setembro de 2026.
 
-`getDashboardSnapshot` continua existindo, mas **não** alimenta o dashboard — só a exportação em PDF. O resumo por e-mail (`features/notifications/delivery.ts`) lê `listNoticeActions`, que desde a convergência já é a lista inteira.
+**"Imprimir a semana"** (`ExportPdfButton` no pé da Semana, `exportWeekPdfDataAction`, `getWeekPrintout`) monta a semana que está na tela: um bloco por dia, e no fim "Passou do prazo" e "Sem data". Sai das mesmas consultas das telas (`listTasksInDateRange` e `getRoutineSnapshot`). Sem números de resumo e sem tabela por criança.
 
-`UnifiedActivityCard` recebe `ActivityOverviewItem` (a tarefa com o contexto que a consulta já traz) e é o único card do app: lista, rotina, vista do dia e vista rápida do calendário usam ele, e a conclusão passa pelo mesmo `useCardToggle`.
+O card mostra "Mudou depois de salva" pelo `editedAfterSave` da consulta (existe revisão em que a situação ficou igual), e não por `version > 1`: concluir e reabrir também sobem a versão. A gravação de situação devolve a versão nova (`ok({ id, version })`, também no recibo da fila offline), e `useCardToggle` guarda a mais nova que conhece: é isso que deixa o "Desfazer" do aviso funcionar logo depois do Feito.
 
-UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na aba Família.
+O detalhe `/atividades/[id]` abre para **ler** (`ActivityRead`, como a prancha): "← Hoje", "Editar" e o "⋮" de mais ações (cancelar, com confirmação, `ActivityMoreMenu`); a criança e a turma, o tipo na cor dele, o título; o quando com de onde veio a data ("A escola disse. Está no recado … enviado em 15/10."); matéria, quem cuida, lembrete ("Quarta, 21, às 19h") e "Cerca de 30 minutos"; **"Dividir o estudo"** já com a proposta (`proposeStudyPlan`, a mesma conta da gravação: "Três sessões de 30 minutos nos dias mais livres até a véspera", os dias em pílulas, "Colocar na rotina" e "Outro jeito"); **"De onde veio"** (`ActivitySource`: o canal, quem mandou, o trecho e até quando a foto fica guardada); o histórico numa linha; e "Feito" fixo no pé. Hoje fica aceso no rodapé, porque a volta é para Hoje. Editar é `?editar=1` (o mesmo `EditNoticeAction`, com o histórico aberto embaixo); `?historico=1#historico` abre o histórico na leitura.
+
+`UnifiedActivityCard` recebe `ActivityOverviewItem` (a tarefa com o contexto que a consulta já traz) e é o único card do app: lista, rotina e vista rápida do mês usam ele (na Semana, a atividade é uma linha que abre a leitura), e a conclusão passa pelo mesmo `useCardToggle`. **O card não tem menu de três pontos**: editar e cancelar moram no detalhe, a um toque, como no canvas.
+
+A folha "O que chegou?" (`AddSheet`) é uma folha de baixo com alça de arrastar (o `Drawer` do vaul, e não a folha do Radix, para a alça ser de verdade): "Para" e as crianças numa linha, um caminho por linha com o ícone num quadrado na cor dele, e no pé "58 de 70 leituras sobrando este mês". "Foto" abre a câmera ali mesmo.
+
+UserMenu (avatar) tem assinatura, conta, aparência e sair. Crianças e turmas vivem na aba Família.
 
 ### O que a Agenda planeja sozinha (24/09/2026)
 
@@ -563,7 +591,7 @@ Três coisas que a rotina sabia e não dizia. Nenhuma delas usa IA — todas sã
 
 - **Carga do dia** (`features/unified-activities/load.ts`): `summarizeDayLoad` marca um dia como "cheio" com três entregas OU noventa minutos estimados. Uma fonte só para três consumidores — o bucket "o resto da semana", o resumo de domingo e o plano de estudo —, porque três contagens diferentes de "dia cheio" seriam três respostas para a mesma pergunta.
 - **Plano de estudo** (`features/study-plan/`): opt-in, no detalhe de `exam`/`project` com prazo futuro. `planStudySessions` reparte N sessões entre hoje e a véspera, pelos dias mais livres, determinístico. As sessões são `type: "study"` com `dateOrigin: "family"` — a escola marcou uma data só, a prova. `studyForTaskId` liga cada sessão à prova; cancelar a prova cancela as sessões **pendentes** (o que já foi estudado continua feito), e replanejar substitui. **Toda decisão antes de qualquer escrita**: um `return` de dentro de uma transação Drizzle commita, então checar o limite do gratuito depois de cancelar o plano anterior apagaria o plano e devolveria erro. **A leitura de recado não produz `study`**, e isso agora é schema e não promessa: `NOTICE_EXTRACTION_TYPES` tira o tipo da geração estruturada, guardado por um `Record<ActivityType, boolean>` que quebra o typecheck quando um tipo novo entra em `ACTIVITY_TYPES` sem decisão. Foi assim que `study` passou a ser aceito sem ninguém notar — ele nasceu no vocabulário compartilhado e a leitura o herdou de graça. O estreitamento é só na geração: `extractedActionSchema` continua aceitando os oito, porque é ele que abre rascunho guardado e alimenta o formulário, e o formulário precisa editar a sessão de estudo que já existe.
-- **Resumo de domingo** (`features/notifications/weekly.ts`): dia e hora escolhidos em Ajustes, fora do silêncio, uma vez por semana (`messageKey = weekly:<data do envio>`, o dia local em que o resumo saiu — não a segunda-feira da semana). Sai da MESMA `listNoticeActions` do resumo diário e tem o mesmo teto de 20 linhas. Não tem evento de produto próprio: quem conta envio é `agenda.notification_deliveries`.
+- **Resumo de domingo** (`features/notifications/weekly.ts`): dia e hora escolhidos em Ajustes, fora do silêncio, uma vez por semana (`messageKey = weekly:<data do envio>`, o dia local em que o resumo saiu, e não a segunda-feira da semana). Sai da MESMA `listNoticeActions` do resumo diário e tem o mesmo teto de 20 linhas. Não tem evento de produto próprio: quem conta envio é `agenda.notification_deliveries`. **A semana do resumo são os dias de aula que vêm** (`weeklyWindow`): de segunda a quinta, de hoje até sexta; de sexta a domingo, a segunda a sexta seguinte; o fim de semana entra só quando tem alguma coisa ("De 19 a 23 de outubro: quinta está cheia"). O e-mail é o da prancha "Resumo da semana" (`weekly-email.ts`, puro e testado): o dia cheio e os dias mais livres antes dele para começar a estudar, "Ficou para trás", um dia por linha com a mochila daquele dia (o mesmo `buildBackpack` da noite de Hoje), "sem data", "Abrir a semana na Agenda" e o rodapé com "Mudar dia e hora". É HTML de e-mail, em tabelas, com as cores da paleta escritas por extenso; o símbolo vai como imagem (`/web-app-manifest-192x192.png`), porque cliente de e-mail não carrega SVG.
 
 **"Levar sempre"** (`agenda.subject_kits`, `features/subject-kits/`) é o que vai na mochila toda vez que a matéria tem aula — tênis, flauta, apostila. Não é atividade: não tem prazo, não se conclui e não entra em contagem nenhuma. A chave é `(criança, matéria)`, porque a matéria é compartilhada entre famílias e duas irmãs na mesma turma levam coisas diferentes. Aparece em "Hoje na escola" (onde se edita) e na mochila de amanhã — **nos dois lugares em que a mochila aparece**, de dia dentro do bucket e à noite no topo, senão a mesma tela mostraria conteúdo diferente conforme a hora.
 
@@ -609,7 +637,7 @@ Tokens definidos em `src/app/globals.css` (light + dark):
 
 **Regras pros componentes:**
 1. **Sempre token, nunca literal.** Proibido `bg-blue-500`, `text-emerald-600`, `#fff`, `oklch(...)` em código da agenda. Use `bg-primary`, `bg-chart-2`, `border-chart-2/40`.
-2. **Preenchimento usa a cor; glifo usa a TINTA.** `chart-N` e `primary` nasceram para fundo, borda e blip. Como cor de **texto** sobre `background` elas reprovam em contraste — medido a partir dos próprios tokens: `text-chart-2` dá 2,43:1, `text-chart-4` dá 2,69:1 e `text-primary` dá 4,29:1, contra o mínimo AA de 4,5:1 para texto e 3:1 para ícone. Para texto e ícone use `text-chart-N-ink` / `text-primary-ink`, derivadas por `color-mix` contra o `--foreground` (bloco TINTAS em `app/globals.css`). **Nunca `bg-*-ink` nem `border-*-ink`** — tinta é glifo. Ao mexer nos valores de `chart-N`, refazer a medição.
+2. **Preenchimento usa a cor; glifo usa a TINTA.** `chart-N` e `primary` nasceram para fundo, borda e blip. Como cor de **texto** sobre `background` elas reprovam em contraste, medido a partir dos próprios tokens: `text-chart-2` dá 2,43:1, `text-chart-4` dá 2,69:1 e `text-primary` dá 4,29:1, contra o mínimo AA de 4,5:1 para texto e 3:1 para ícone. Para texto e ícone use `text-chart-N-ink` / `text-primary-ink` / `text-destructive-ink`, derivadas por `color-mix` contra o `--foreground` (bloco TINTAS em `app/globals.css`). `destructive-ink` entrou em outubro de 2026 para o "Passou" do chip de prazo e os erros em linha: `text-destructive` sobre `background` não chegava a 4,5:1, a tinta dá 7,02:1 no claro e 8,83:1 no escuro. **Nunca `bg-*-ink` nem `border-*-ink`**, tinta é glifo. Ao mexer nos valores de `chart-N`, refazer a medição.
 3. **Nunca `opacity` para apagar um bloco com texto tintado.** A opacidade cai sobre a subárvore e leva a tinta calibrada de volta para ~2,3:1. Estado apagado se faz pela cor (`muted`).
 4. **Combinar tokens pra variações ricas.** O design caprichado vem de **misturar** tokens próximos (ex: `from-primary/10 ... to-chart-1/10` no widget de onboarding; `from-secondary/10 ... to-chart-3/10` no widget de turma). Uma cor sozinha fica raso — paleta ganha vida quando tokens irmãos compõem gradients/borders/icons.
 5. **Avatar de perfil** consome `chart-1..5` via hash do nome (`getAvatarColorIndex` em `features/students/utils.ts`), e a montagem é única em `features/students/components/student-avatar.tsx` — pastilha (`bg-chart-N/25` + `border-chart-N/50`) com `text-foreground`, em três tamanhos declarados. Havia duas montagens com cores de texto diferentes, cada uma reprovando no tema oposto.
@@ -695,7 +723,7 @@ Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo
 
 `public/sw.js` faz **quatro** coisas, e o que ele não faz é tão importante quanto:
 
-1. **Push** — `push` mostra a notificação (URL restrita a `/dashboard` e `/recados`) e `notificationclick` abre a janela, só na própria origem. Opt-in, dependente de VAPID.
+1. **Push**: `push` mostra a notificação com o título e o texto que vieram na mensagem (até 160 caracteres; contagens e dias, nunca nome de criança nem de atividade, que a política promete fora da tela bloqueada) e `notificationclick` abre a janela, só na própria origem e só em `/dashboard`, `/recados`, `/atividades` e `/calendario`. Opt-in, dependente de VAPID.
 2. **Receber compartilhamento** — o POST do `share_target` em `/recados/compartilhar` é interceptado, guardado no IndexedDB e a navegação segue para a revisão (ver §1). É a única exceção à regra de que o worker só trata `GET`.
 3. **Leitura offline do esqueleto** — pré-cacheia `/offline`, o manifesto e o ícone; serve `/_next/static/*` por cache-first (nomes com hash, imutáveis); e, quando uma navegação falha, devolve `/offline` em vez da tela do navegador.
 4. **Avisar que a rede voltou** — `sync` com a marca `agenda-flush` manda um recado às janelas abertas. **Ele não envia nada**: enviar daqui obrigaria a repetir no worker a sessão, a chave de idempotência e a leitura da resposta, e duas cópias dessa decisão é o tipo de divergência que faz uma conclusão sumir. Sem janela aberta, a fila espera o app abrir.
@@ -815,7 +843,16 @@ custo volta a cair no timeout do primeiro teste que a tocar.
 - Métricas aceitam somente metadados definidos no schema. Não registrar recado, anexo, nome de criança ou tokens privados. `pilot:report` usa consulta somente de leitura e eventos de fatura para pagamentos.
 - Corpus de IA é opt-in (`test:ai-eval`) e usa provedor real; exemplos fictícios não provam precisão em recados reais. Integração e navegador exigem banco local e fixtures sintéticas.
 
-## Página inicial e aquisição (setembro de 2026)
+## Página inicial e aquisição (setembro de 2026, refeita em outubro)
+
+**A página do dia (outubro de 2026).** A landing segue a prancha "Página de vendas" do canvas, nas medidas dela (`components/marketing/landing-ui.tsx`: largura de 1200 px com 40 de margem, seções de 112 px, título de seção de 34 a 56 px, o fundo da página alternando com faixas claras e a faixa escura da turma), com o cartaz de provas escrito à mão (a fonte Caveat, carregada só no layout da landing) e os celulares de exemplo desenhados em tamanho real e reduzidos. No celular, como na prancha, o cabeçalho é o símbolo e "Entrar", e o botão de começar flutua no pé. O registro: o canvas da proposta (`docs/propostas/agenda-pagina-do-dia-2026-10-17/`): o recado que chega virando a página do dia, "Como funciona" em três passos, a demonstração com o cartaz de provas, a página do dia, a turma que recebe junto, a vez da criança, por que dá para confiar, "Quem faz", planos, perguntas e o fechamento, com a barra fixa do botão no celular. `LANDING_VARIANT` passou a `pagina-do-dia-v1`, e o contrato ainda aceita `family-routine-v1` de uma aba aberta antes do deploy; `sticky` e o cenário `cartaz` entraram no contrato (o tipo do `landing_context` mudou, a coluna continua a mesma jsonb).
+
+- **"Quem faz" usa a foto e o texto publicados no site da Informach** (`apps/informach-site/src/components/marketing/founders.tsx`), por decisão da Helena em 17/10/2026, adaptados só no que a página pede e sem nenhum fato novo. A foto é uma cópia em `public/helena-julio.webp`, servida por este app. **Não escrever história dos fundadores que não esteja no site.** O contato vem de `@informach/config/contact` (`INFORMACH_CONTACT`), como nos outros apps, e nenhuma página pública mostra e-mail.
+- `sales.module.css` ficou com a base herdada (o fundo `app-ground`), as perguntas e o botão flutuante do celular. As regras por elemento fora de camada venciam qualquer utilitário do Tailwind e saíram; as seções usam as peças de `landing-ui.tsx`, em Tailwind e com os tokens do app. Ao juntar uma peça com uma classe que muda a mesma propriedade, use `cn()` (o `tailwind-merge`): concatenar por texto deixa as duas classes e a ordem do CSS decide.
+- A demonstração conta as datas a partir de hoje no fuso de São Paulo (a página é renderizada a cada pedido) e mostra o que foi salvo dia a dia, até o último dia do recado.
+- `opengraph-image.tsx` é a figura do link no grupo da turma, e o `metadataBase` do layout raiz faz os endereços dela e do canônico saírem absolutos.
+
+O registro de setembro, que continua valendo onde a página de outubro não mudou:
 
 - A home está em `src/app/(marketing)/page.tsx`. A implementação da proposta está documentada em `docs/propostas/agenda-vendas-2026-09-12/IMPLEMENTACAO.md`.
 - `components/marketing/sales.module.css` usa a fonte Jakarta e os tokens existentes, com estilos restritos ao layout público. O app autenticado mantém seu layout.

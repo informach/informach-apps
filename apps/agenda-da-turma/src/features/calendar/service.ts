@@ -1,16 +1,18 @@
 import "server-only";
 
-import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
+import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { listTasksInDateRange } from "@/features/unified-activities/task-repository";
 import { rangeForView } from "./date";
 import type { CalendarSnapshot, CalendarView } from "./types";
 
 /**
- * Snapshot do calendário para uma vista.
+ * O que a aba Semana mostra para uma vista.
  *
- * Eram três consultas em paralelo, uma por tabela, mais um conversor para um
- * formato comum. Com a tabela única é uma consulta: o range visível sai de
- * `rangeForView`, e o acesso por criança já vem embutido na busca.
+ * Uma consulta para os dias na tela: o range sai de `rangeForView`, e o acesso
+ * por criança já vem embutido na busca. Na semana vêm também as atividades em
+ * aberto sem data, que nenhum dia pode mostrar; elas saem da rotina de Hoje
+ * (`getRoutineSnapshot`), como na semana para imprimir, para a Semana nunca
+ * discordar de Hoje sobre o que está sem data.
  */
 export async function getCalendarSnapshot(
   userId: string,
@@ -21,20 +23,22 @@ export async function getCalendarSnapshot(
   },
 ): Promise<CalendarSnapshot> {
   const { fromIso, toIso } = rangeForView(options.anchorIso, options.view);
-  const tasks = await listTasksInDateRange(userId, {
-    fromIso,
-    toIso,
-    profileFilter: options.profileFilter,
+  const [tasks, routine] = await Promise.all([
+    listTasksInDateRange(userId, { fromIso, toIso, profileFilter: options.profileFilter }),
+    options.view === "week"
+      ? getRoutineSnapshot(userId, { profileFilter: options.profileFilter })
+      : null,
+  ]);
+
+  const items = [...tasks].sort((a, b) => {
+    const dueA = a.dueAt ?? "";
+    const dueB = b.dueAt ?? "";
+    if (dueA !== dueB) return dueA.localeCompare(dueB);
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
+  const undated = routine
+    ? routine.buckets.attention.flatMap((entry) => (entry.item.dueAt ? [] : [entry.item]))
+    : [];
 
-  const items: ActivityOverviewItem[] = tasks
-    .map((item) => ({ key: item.id, item }))
-    .sort((a, b) => {
-      const dueA = a.item.dueAt ?? "";
-      const dueB = b.item.dueAt ?? "";
-      if (dueA !== dueB) return dueA.localeCompare(dueB);
-      return a.item.createdAt.getTime() - b.item.createdAt.getTime();
-    });
-
-  return { items, fromIso, toIso };
+  return { items, undated, fromIso, toIso };
 }

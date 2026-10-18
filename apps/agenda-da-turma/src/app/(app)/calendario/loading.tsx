@@ -1,49 +1,31 @@
-import { Card, CardContent } from "@informach/ui/components/card";
 import { Skeleton } from "@informach/ui/components/skeleton";
 
-// Slots estáveis para o grid 7×6 do mês (42 dias visíveis). Strings em vez de
-// index satisfaz o Biome noArrayIndexKey.
-const MONTH_GRID_SLOTS = Array.from({ length: 42 }, (_, i) => `slot-${i}`);
+const DAY_SLOTS = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
 
-/**
- * Mirrors `calendario/page.tsx`: header + view-switcher + month grid (6 rows × 7 dias).
- */
+/** O mesmo desenho da Semana: título e vista, o período entre as setas e um dia por linha. */
 export default function CalendarioLoading() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="space-y-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-96" />
-      </header>
-
-      {/* Top bar: view tabs + navigation + filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-16 rounded-md" />
-          <Skeleton className="h-9 w-16 rounded-md" />
-          <Skeleton className="h-9 w-12 rounded-md" />
-        </div>
-        <div className="flex items-center gap-2">
-          <Skeleton className="size-9 rounded-md" />
-          <Skeleton className="h-9 w-32 rounded-md" />
-          <Skeleton className="size-9 rounded-md" />
-        </div>
-        <Skeleton className="h-9 w-44 rounded-md" />
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-28 pt-5 md:px-8 md:pt-8">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-9 w-36" />
+        <Skeleton className="h-12 w-40 rounded-xl" />
       </div>
-
-      {/* Month grid: 6 weeks × 7 days. Each day cell aspect square */}
-      <Card className="border-border/60">
-        <CardContent className="p-2 sm:p-4">
-          <div className="grid grid-cols-7 gap-px">
-            {MONTH_GRID_SLOTS.map((slot) => (
-              <Skeleton
-                key={slot}
-                className="aspect-square w-full min-h-[60px] rounded-md sm:min-h-[80px]"
-              />
-            ))}
+      <div className="flex items-center gap-2">
+        <Skeleton className="size-11 rounded-xl" />
+        <Skeleton className="mx-auto h-5 w-44" />
+        <Skeleton className="size-11 rounded-xl" />
+      </div>
+      <div className="overflow-hidden rounded-[20px] border border-foreground/15">
+        {DAY_SLOTS.map((slot) => (
+          <div
+            key={slot}
+            className="grid grid-cols-[62px_1fr] gap-2.5 border-t border-foreground/15 px-4 py-3.5 first:border-t-0"
+          >
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-full" />
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     </main>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
-import { buildMonthGrid, formatMonthLabel, WEEKDAY_SHORT_LABELS_SUNDAY_FIRST } from "../date";
+import { buildMonthGrid, formatMonthLabel, WEEKDAY_HEADERS } from "../date";
 import { DayCell } from "./day-cell";
 import { MonthAgenda } from "./month-agenda";
 
@@ -14,7 +14,7 @@ type Props = {
   onCreateWithoutDay: () => void;
 };
 
-// Vista mensal: grid 7×6 (42 dias) com domingo na primeira coluna. Header
+// Vista mensal: grid 7×6 (42 dias) com segunda na primeira coluna. Header
 // fixo de weekdays no topo. Agrupa os itens do snapshot por `dueAt` numa
 // passada O(n) via Map.
 export function MonthView({
@@ -71,7 +71,7 @@ export function MonthView({
       >
         {/* Header de weekdays */}
         <div className="grid grid-cols-7 divide-x divide-muted-foreground/20 border-b border-muted-foreground/20 bg-muted/40">
-          {WEEKDAY_SHORT_LABELS_SUNDAY_FIRST.map((label) => (
+          {WEEKDAY_HEADERS.map((label) => (
             <div
               key={label}
               className="px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground"

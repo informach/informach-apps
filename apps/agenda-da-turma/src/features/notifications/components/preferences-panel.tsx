@@ -57,7 +57,7 @@ export function NotificationPreferencesPanel({
       !publicKey
     ) {
       setMessage(
-        "Notificações não estão disponíveis neste navegador. No iPhone/iPad, adicione o app à Tela de Início e abra por esse ícone.",
+        "Este navegador não mostra notificações. No iPhone e no iPad, adicione a Agenda à Tela de Início e abra pelo ícone.",
       );
       return;
     }
@@ -65,7 +65,7 @@ export function NotificationPreferencesPanel({
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       setMessage(
-        "Permissão não concedida. Você pode alterar isso nas configurações do navegador e usar e-mail enquanto isso.",
+        "O navegador não deu permissão. Dá para mudar nas configurações dele e, enquanto isso, receber por e-mail.",
       );
       return;
     }
@@ -91,7 +91,7 @@ export function NotificationPreferencesPanel({
       if (!result.ok) {
         setMessage(
           result.error.code === "DEVICE_ALREADY_LINKED"
-            ? "Este navegador está vinculado a outra conta. Desative a inscrição antiga nas configurações do navegador e tente novamente."
+            ? "Este navegador já recebe avisos de outra conta. Desligue lá nas configurações do navegador e tente de novo."
             : noticeErrorMessage(result.error.code),
         );
         return;
@@ -223,7 +223,7 @@ export function NotificationPreferencesPanel({
         ) : null}
       </div>
       <div className="space-y-3 border-t pt-4">
-        <h3 className="font-medium">Ao importar um recado</h3>
+        <h3 className="font-medium">Quando a Agenda lê um recado</h3>
         <label className="flex min-h-11 items-start gap-3 text-sm">
           <input
             type="checkbox"
@@ -267,8 +267,8 @@ export function NotificationPreferencesPanel({
       {!enabled ? (
         <p className="text-sm text-muted-foreground">
           Resumos e lembretes fazem parte da assinatura da família.{" "}
-          <Link href="/upgrade" className="text-primary-ink underline">
-            Ver plano
+          <Link href="/upgrade?motivo=lembretes" className="text-primary-ink underline">
+            Ver o Pro
           </Link>
         </p>
       ) : null}

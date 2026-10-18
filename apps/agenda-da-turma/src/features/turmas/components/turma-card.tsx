@@ -28,6 +28,7 @@ import { useState, useTransition } from "react";
 import type { StudentProfile } from "@/features/students/types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { joinTurmaByCodeAction, leaveTurmaAction, setActiveTurmaAction } from "../actions";
+import { shareTurmaInvite } from "../share-invite";
 import type { TurmaForUser } from "../types";
 import { formatTurmaShort } from "../utils";
 import { DeleteTurmaDialog } from "./delete-turma-dialog";
@@ -67,31 +68,8 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
     }
   };
 
-  /**
-   * O convite como link. O código já é a credencial — quem o tem vincula
-   * qualquer criança à turma —, então o link não abre nada novo; só tira o
-   * erro de digitação do caminho de quem recebe no grupo da turma.
-   */
-  const shareInvite = async () => {
-    const url = `${window.location.origin}/turmas/entrar?codigo=${turma.code}`;
-    const text = `Entre na turma ${formatTurmaShort(turma)} na Agenda da Turma: ${url}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Convite da turma", text, url });
-        return;
-      } catch (error) {
-        // Fechar a folha de compartilhamento é uma decisão, não uma falha:
-        // copiar o link assim mesmo faria o oposto do que a pessoa pediu.
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link de convite copiado");
-    } catch {
-      toast.error("Não foi possível copiar o link");
-    }
-  };
+  // O mesmo convite de Família › Crianças (ver `share-invite.ts`).
+  const shareInvite = () => shareTurmaInvite({ code: turma.code, label: formatTurmaShort(turma) });
 
   const handleSetActive = (profileId: string) => {
     startTransition(async () => {

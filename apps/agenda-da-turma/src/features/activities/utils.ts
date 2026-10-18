@@ -60,67 +60,6 @@ export function getDueUrgency(
   return "upcoming";
 }
 
-// Variant do Badge que comunica a urgência:
-// - overdue → destructive (vermelho, atenção urgente)
-// - due_soon → warning (âmbar, ta na hora)
-// - upcoming → default (azul/primário no agenda, "tá tudo bem")
-// - done → muted (cinza sólido, mesma forma de badge mas de-emphasized)
-const URGENCY_BADGE_VARIANT: Record<DueUrgency, "destructive" | "warning" | "default" | "muted"> = {
-  overdue: "destructive",
-  due_soon: "warning",
-  upcoming: "default",
-  done: "muted",
-};
-
-export function getDueBadgeVariant(
-  urgency: DueUrgency,
-): "destructive" | "warning" | "default" | "muted" {
-  return URGENCY_BADGE_VARIANT[urgency];
-}
-
-// "YYYY-MM-DD" → "DD/MM" se ano corrente, "DD/MM/AAAA" caso contrário.
-// Esconde o ano quando óbvio (atividades quase sempre são do ano atual);
-// mostra explícito quando atravessa anos pra evitar ambiguidade.
-function formatBadgeDate(dueAt: string, now: Date): string {
-  const [year, month, day] = dueAt.split("-");
-  if (!year || !month || !day) return dueAt;
-  // Ano corrente em São Paulo, pelo mesmo caminho do resto: em 31/12 às 22h
-  // BRT o servidor em UTC já está no ano seguinte e passaria a carimbar o ano
-  // em toda data.
-  if (year === todayLocalIso(now).slice(0, 4)) return `${day}/${month}`;
-  return `${day}/${month}/${year}`;
-}
-
-// Rótulo do badge de urgência:
-// - overdue: "Atrasada · DD/MM"
-// - due_soon hoje: "Hoje · DD/MM"
-// - due_soon amanhã: "Amanhã · DD/MM"
-// - upcoming/done: "DD/MM" (ano só se diferente do atual)
-export function getDueBadgeLabel(dueAt: string, urgency: DueUrgency, now = new Date()): string {
-  const short = formatBadgeDate(dueAt, now);
-  if (urgency === "overdue") return `Atrasada · ${short}`;
-  if (urgency === "due_soon") {
-    return dueAt === todayLocalIso(now) ? `Hoje · ${short}` : `Amanhã · ${short}`;
-  }
-  return short;
-}
-
-const FULL_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-
-// "YYYY-MM-DD" → "DD/MM/AAAA". Mantido pra exibições onde queremos data
-// completa sempre (atualmente sem uso ativo na UI — o badge de urgência
-// substituiu a maior parte dos casos).
-export function formatActivityDueAt(dueAt: string): string {
-  // Interpreta como meio-dia UTC pra evitar shift de TZ que jogaria a data
-  // pro dia anterior em fusos negativos.
-  const date = new Date(`${dueAt}T12:00:00Z`);
-  return FULL_DATE_FORMATTER.format(date);
-}
-
 // Formata "5º ano A · 2025" pra exibição compacta.
 export function formatTurmaShort(grade: string, classLetter: string, year: number): string {
   // grade é "1ano".."9ano" no schema; extrai o número.

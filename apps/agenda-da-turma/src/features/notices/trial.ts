@@ -8,7 +8,7 @@ import {
   agendaTasks,
 } from "@informach/db/schema";
 import { cache } from "react";
-import { getIsProForUser } from "@/features/billing/server-cache";
+import { getBillingBalanceForUser, getIsProForUser } from "@/features/billing/server-cache";
 import {
   accessibleProfileCondition,
   findAccessibleProfile,
@@ -228,9 +228,12 @@ export const getAddEntitlement = cache(async (userId: string): Promise<AddEntitl
    * e crescente com o histórico. Se pesar, o caminho é memorizar o número: ele
    * quase não muda depois que a franquia acabou.
    */
-  const organizedFromNotices =
-    !isPro && trialLeft === 0 ? await countActivitiesFromNotices(userId) : 0;
-  return { isPro, trialLeft, organizedFromNotices };
+  const [organizedFromNotices, readsLeft] = await Promise.all([
+    !isPro && trialLeft === 0 ? countActivitiesFromNotices(userId) : 0,
+    // O saldo do TITULAR, que é quem paga a leitura (ver `parse-service.ts`).
+    isPro ? getBillingBalanceForUser(ownerId).then((balance) => balance.available) : null,
+  ]);
+  return { isPro, trialLeft, organizedFromNotices, readsLeft, isBillingOwner: ownerId === userId };
 });
 
 export type { AddEntitlement };

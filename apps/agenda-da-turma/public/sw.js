@@ -254,15 +254,25 @@ self.addEventListener("push", (event) => {
   } catch {
     /* A visible generic notification still reaches the user. */
   }
+  // Só caminhos do próprio app que um aviso abre: Hoje, um recado, uma
+  // atividade e a semana. Qualquer outra coisa abre Hoje.
   const url =
-    typeof message.url === "string" && /^\/(dashboard|recados)(\/|$)/.test(message.url)
+    typeof message.url === "string" &&
+    /^\/(dashboard|recados|atividades|calendario)(\/|\?|$)/.test(message.url)
       ? message.url
       : "/dashboard";
+  // O texto vem do servidor já sem nome de criança nem conteúdo escolar (a
+  // tela bloqueada é pública; ver `features/notifications/digest.ts`). O teto
+  // de tamanho é defesa: um corpo inesperado não vira um parágrafo na tela.
+  const body =
+    typeof message.body === "string" && message.body.trim()
+      ? message.body.trim().slice(0, 160)
+      : "Abra a Agenda da Turma para conferir as atividades.";
   event.waitUntil(
     self.registration.showNotification(
       typeof message.title === "string" ? message.title : "Agenda da Turma",
       {
-        body: "Abra a Agenda da Turma para conferir as providências.",
+        body,
         icon: "/web-app-manifest-192x192.png",
         tag: typeof message.tag === "string" ? message.tag : "agenda-routine",
         data: { url },

@@ -20,6 +20,7 @@ export function EditNoticeAction({
   isPro,
   canceled,
   shareLocked = false,
+  fromNotice = false,
 }: {
   id: string;
   version: number;
@@ -31,6 +32,8 @@ export function EditNoticeAction({
   isPro: boolean;
   canceled: boolean;
   shareLocked?: boolean;
+  /** Veio de um recado lido: muda o texto de quando não há data. */
+  fromNotice?: boolean;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initialValue);
@@ -50,6 +53,7 @@ export function EditNoticeAction({
           adults={adults}
           isPro={isPro}
           shareLocked={shareLocked}
+          fromNotice={fromNotice}
           lockProfile
         />
       </fieldset>

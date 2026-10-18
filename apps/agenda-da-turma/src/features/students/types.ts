@@ -1,3 +1,5 @@
+import type { TurmaGrade } from "@/features/turmas/limits";
+
 export type StudentProfile = {
   id: string;
   userId: string;
@@ -10,7 +12,8 @@ export type StudentProfile = {
 
 export type StudentProfileActiveTurma = {
   id: string;
-  grade: string;
+  /** A série como a coluna guarda ("3ano"), para `formatTurmaShort` dizer "3º ano". */
+  grade: TurmaGrade;
   classLetter: string;
   schoolName: string;
 };

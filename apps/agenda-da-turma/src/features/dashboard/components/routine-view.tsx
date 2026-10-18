@@ -1,361 +1,466 @@
 "use client";
 
 import { cn } from "@informach/ui/lib/utils";
-import {
-  Backpack,
-  CalendarDays,
-  CircleCheck,
-  Flame,
-  type LucideIcon,
-  Sun,
-  Timer,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { type ReactNode, useEffect, useState } from "react";
+import { BackpackIcon } from "@/components/icons/canvas-icons";
 import { DayClosedIllustration } from "@/components/illustrations";
-import {
-  getSubjectIconClassByIndex,
-  getSubjectTintedClassByIndex,
-} from "@/features/subjects/utils";
+import { upcomingWeekAnchorIso } from "@/features/calendar/date";
+import { StudentAvatar } from "@/features/students/components/student-avatar";
+import { ActivitySheet, SHEET_LINK } from "@/features/unified-activities/components/activity-list";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
-import { formatBucketEstimate } from "@/features/unified-activities/estimate";
-import { formatDayLoad, summarizeDayLoad } from "@/features/unified-activities/load";
-import {
-  type ActivityOverviewItem,
-  overviewDueAt,
-} from "@/features/unified-activities/overview-types";
+import { summarizeDayLoad } from "@/features/unified-activities/load";
+import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
 import type { RoutineBucketKey, RoutineBuckets } from "@/features/unified-activities/routine-types";
-import { applyRoutineStatusChange } from "../routine-optimistic";
+import { addDaysIso } from "../date";
+import { weekdayLong } from "../day-labels";
+import {
+  backpackLine,
+  backpackSentence,
+  buildBackpack,
+  fullDayCount,
+  fullDayDetail,
+  weekRows,
+} from "../page-of-day";
+import { describeThing, eveningSentence, joinWords, routineSummary } from "../routine-summary";
 import type { TodaySubjectsView } from "../today-subjects-service";
-import type { DashboardCounters } from "../types";
-import { KpiCards } from "./kpi-cards";
-import { TomorrowBackpack } from "./tomorrow-backpack";
-
-type BucketSpec = {
-  key: RoutineBucketKey;
-  title: string;
-  description: string;
-  empty: string;
-  Icon: LucideIcon;
-  color: number;
-};
-
-const WEEKDAY_SHORT = [
-  "Domingo",
-  "Segunda",
-  "Terça",
-  "Quarta",
-  "Quinta",
-  "Sexta",
-  "Sábado",
-] as const;
-/** "Terça (30/09)" a partir de "YYYY-MM-DD", sem criar Date com offset. */
-function weekdayLabel(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  if (!year || !month || !day) return iso;
-  const weekday = WEEKDAY_SHORT[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? "";
-  return `${weekday} (${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")})`;
-}
-
-const BUCKETS: BucketSpec[] = [
-  {
-    key: "attention",
-    title: "Para cuidar hoje",
-    description: "Atividades de hoje, prazos que passaram e datas a confirmar.",
-    empty:
-      "Tudo certo por aqui! Nenhuma atividade de hoje ou data a confirmar entre os itens cadastrados.",
-    Icon: Sun,
-    color: 4,
-  },
-  {
-    key: "tomorrow",
-    title: "Preparar para amanhã",
-    description: "Uma olhada na mochila, nas tarefas e nos combinados do próximo dia.",
-    empty:
-      "Amanhã está livre na agenda por enquanto. Vale conferir se chegou alguma atividade nova.",
-    Icon: Backpack,
-    color: 1,
-  },
-  {
-    key: "week",
-    title: "O resto da semana",
-    description: "Tempo para se organizar, estudar e pedir uma ajudinha.",
-    empty: "Nenhuma atividade cadastrada para os próximos dias. Espaço para o que vem por aí!",
-    Icon: CalendarDays,
-    color: 3,
-  },
-];
+import { WeekStrip, type WeekStripDay } from "./week-strip";
 
 type Props = {
   todayIso: string;
   buckets: RoutineBuckets;
-  initialCounters: DashboardCounters;
-  /**
-   * Matérias de amanhã por criança. Vazio quando a mochila já subiu para o topo
-   * da página — à noite ela é o assunto, e repeti-la aqui seria a segunda lista
-   * que esta tela passou a não ter.
-   */
+  /** Matérias de amanhã por criança. */
   tomorrowSchedule: TodaySubjectsView[];
   /** Itens de "levar sempre", por `${profileId}:${subjectId}`. */
   tomorrowKits: Record<string, string[]>;
-  /** Quantas a família concluiu hoje — o que distingue fechar de nunca ter tido. */
+  /** Depois das 18h a página vira a mochila de amanhã. */
+  evening: boolean;
   doneToday: number;
   /** Dias seguidos em que a casa cuidou de alguma coisa. Nunca por criança. */
   streakDays: number;
-  /**
-   * Se hoje já entrava na conta quando o servidor respondeu.
-   *
-   * Sem isto a sequência nascia defasada em 1 justamente no fecho otimista: a
-   * página carregou antes da primeira conclusão do dia, então a contagem
-   * começou em ontem — e o selo aparecia dizendo N quando a verdade já era
-   * N+1, até o `router.refresh()` chegar.
-   */
   streakCountsToday: boolean;
   currentUserId: string;
-  /** A criança filtrada viaja para a lista junto com o recorte dos KPIs. */
   profileFilter: string | null;
+  /** A saudação e a data (`TodayHeader`), com as pílulas ao lado no computador. */
+  header: ReactNode;
+  /** As pílulas de criança no celular, logo depois da frase de resumo. */
+  pills: ReactNode;
+  /** Primeiros passos, recado sem conferir e o aviso de boas-vindas. */
+  notices: ReactNode;
+  /** "Hoje na escola", que carrega à parte (Suspense). */
+  school: ReactNode;
+  /** Atividades da turma esperando aceite. */
+  shared: ReactNode;
+  /** O convite do resumo, só depois que a família já tem rotina. */
+  commitment?: ReactNode;
 };
 
+const ORDINALS = [
+  "",
+  "primeiro",
+  "segundo",
+  "terceiro",
+  "quarto",
+  "quinto",
+  "sexto",
+  "sétimo",
+  "oitavo",
+  "nono",
+  "décimo",
+];
+
 /**
- * A rotina da família: KPIs e os três buckets, ambos vindos da mesma consulta
- * que alimenta a lista de `/atividades`. Um card só, um jeito só de concluir —
- * antes a mesma atividade aparecia aqui num formato e, logo abaixo, num bloco
- * recolhido, em outro.
+ * Hoje: a página do dia, como nas pranchas do canvas.
+ *
+ * De dia, no celular: a frase de resumo, as pílulas de criança, "Para hoje",
+ * "Hoje na escola", "Amanhã" com a mochila e "A semana" na faixa de sete dias.
+ * No computador, duas colunas: o que fazer à esquerda (com a data por extenso e
+ * as pílulas ao lado), a semana em lista, a escola e a turma à direita. À
+ * noite, a pergunta da casa muda e a página também: "A mochila de amanhã" como
+ * título, uma folha por criança com o que vai nela, "Ainda de hoje" e o fecho
+ * do dia.
+ *
+ * Os três buckets continuam vindo de `getRoutineSnapshot`, a mesma projeção da
+ * lista de Atividades e da vez da criança: nada aqui é consulta própria.
  */
-export function RoutineView({
-  todayIso,
-  buckets,
-  initialCounters,
-  tomorrowSchedule,
-  tomorrowKits,
-  currentUserId,
-  profileFilter,
-  doneToday: initialDoneToday,
-  streakDays,
-  streakCountsToday,
-}: Props) {
-  const [counters, setCounters] = useState(initialCounters);
+export function RoutineView(props: Props) {
+  const {
+    todayIso,
+    buckets,
+    tomorrowSchedule,
+    tomorrowKits,
+    evening,
+    currentUserId,
+    profileFilter,
+    doneToday: initialDoneToday,
+    streakDays,
+    streakCountsToday,
+  } = props;
   const [doneToday, setDoneToday] = useState(initialDoneToday);
   /**
-   * O que saiu da tela antes de o servidor responder.
-   *
-   * `UnifiedActivityCard` se esconde sozinho quando conclui (`return null`),
-   * mas o array continua vindo do servidor — sem rastrear aqui, a pastilha do
-   * cabeçalho continuava dizendo "1 atividade" sobre um grid vazio, e o fecho
-   * do dia só aparecia quando o `router.refresh()` voltasse.
+   * O que saiu da tela antes de o servidor responder. O card some sozinho
+   * quando conclui, mas o array continua vindo do servidor: sem rastrear aqui,
+   * a contagem e a frase de resumo continuariam contando o que já foi feito.
    */
   const [hiddenKeys, setHiddenKeys] = useState<ReadonlySet<string>>(new Set());
-  /**
-   * Zera o escondido quando o servidor manda uma lista nova.
-   *
-   * Ajuste durante o render, e não `useEffect`: o efeito só rodaria depois de
-   * um render com a lista nova e o conjunto velho, e nesse quadro um item que
-   * voltou a ficar pendente apareceria escondido. `buckets` só muda de
-   * identidade quando a resposta do servidor troca.
-   */
+  // Zera o escondido quando o servidor manda uma lista nova (ajuste durante o
+  // render: o efeito mostraria um quadro com a lista nova e o conjunto velho).
   const [seenBuckets, setSeenBuckets] = useState(buckets);
   if (seenBuckets !== buckets) {
     setSeenBuckets(buckets);
     setHiddenKeys(new Set());
   }
-
-  // O servidor é a verdade: depois do `router.refresh()` disparado pelo card,
-  // os contadores reais chegam e substituem o ajuste otimista.
-  useEffect(() => setCounters(initialCounters), [initialCounters]);
   useEffect(() => setDoneToday(initialDoneToday), [initialDoneToday]);
 
-  /**
-   * Os dias cheios da semana, de TODOS os buckets.
-   *
-   * Antes a contagem via só o bucket "o resto da semana", então hoje e amanhã
-   * eram estruturalmente zero: numa sexta-feira o painel não avisava que o
-   * sábado tinha três entregas. Mesma janela do resumo de domingo
-   * (`LOAD_WINDOW_DAYS`), para as duas telas não darem respostas diferentes
-   * sobre o mesmo dia.
-   */
-  const heavyDays = summarizeDayLoad(
-    [...buckets.attention, ...buckets.tomorrow, ...buckets.week].map((entry) => ({
+  const visible = (key: RoutineBucketKey) =>
+    buckets[key].filter((entry) => !hiddenKeys.has(entry.key));
+  const attention = visible("attention");
+  const tomorrow = visible("tomorrow");
+  const week = visible("week");
+  const late = attention.filter((entry) => entry.item.dueAt && entry.item.dueAt < todayIso).length;
+
+  const onStatusSuccess =
+    (key: string) => (_entry: unknown, _previous: "pending" | "done", next: "pending" | "done") => {
+      setHiddenKeys((current) => {
+        const nextSet = new Set(current);
+        if (next === "done") nextSet.add(key);
+        else nextSet.delete(key);
+        return nextSet;
+      });
+      // Concluir conta pelo DIA da conclusão, não pelo prazo.
+      setDoneToday((current) => Math.max(0, current + (next === "done" ? 1 : -1)));
+    };
+  const card = (entry: ActivityOverviewItem, chip = true, profile = true) => (
+    <li key={entry.key}>
+      <UnifiedActivityCard
+        entry={entry}
+        currentUserId={currentUserId}
+        optimisticHideWhenDone
+        hideChip={!chip}
+        hideProfile={!profile}
+        onStatusSuccess={onStatusSuccess(entry.key)}
+      />
+    </li>
+  );
+
+  // A semana a partir de hoje, de TODOS os buckets: a mesma janela do resumo
+  // de domingo (`LOAD_WINDOW_DAYS`), para as duas não discordarem sobre um dia.
+  const all = [...attention, ...tomorrow, ...week];
+  const things = all.map((entry) => ({
+    profileId: entry.item.profileId,
+    profileName: entry.item.profileName,
+    type: entry.item.type,
+    title: entry.item.title,
+    subjectName: entry.item.subjectName,
+    dueAt: entry.item.dueAt,
+    time: entry.item.time,
+    estimatedMinutes: entry.item.estimatedMinutes,
+  }));
+  const load = summarizeDayLoad(
+    all.map((entry) => ({
       dueAt: entry.item.dueAt,
       estimatedMinutes: entry.item.estimatedMinutes,
       status: entry.item.status,
       type: entry.item.type,
     })),
     { fromIso: todayIso },
-  ).filter((day) => day.level === "cheio");
+  );
+  const days: WeekStripDay[] = load.map((day) => ({
+    iso: day.iso,
+    full: day.level === "cheio",
+    dots: all
+      .filter((entry) => entry.item.dueAt === day.iso)
+      .map((entry) => ({ key: entry.key, color: entry.item.subjectColorIndex })),
+  }));
+  const firstFull = load.find((day) => day.level === "cheio" && day.iso > todayIso);
+  const fullThings = firstFull ? things.filter((thing) => thing.dueAt === firstFull.iso) : [];
+  const prepareOnFullDay = firstFull
+    ? all.find(
+        (entry) =>
+          entry.item.dueAt === firstFull.iso &&
+          (entry.item.type === "exam" || entry.item.type === "project"),
+      )
+    : undefined;
+  const tomorrowIso = addDaysIso(todayIso, 1);
+  const tomorrowThings = things.filter((thing) => thing.dueAt === tomorrowIso);
+  const backpack = buildBackpack({
+    schedule: tomorrowSchedule,
+    kits: tomorrowKits,
+    tomorrow: tomorrowThings,
+  });
+  const extrasTomorrow = tomorrowSchedule.flatMap((view) =>
+    view.subjects
+      .filter((subject) => subject.source === "extra")
+      .map((subject) => subject.name.toLowerCase()),
+  );
+  const weekHref = `/calendario?date=${upcomingWeekAnchorIso(todayIso)}${profileFilter ? `&perfil=${profileFilter}` : ""}`;
+  const fullDayName = firstFull ? weekdayLong(firstFull.iso) : "";
+  const fullDayPhrase = firstFull
+    ? `${fullDayName} está ${isWeekend(firstFull.iso) ? "cheio" : "cheia"}`
+    : "";
+  const streak = streakCountsToday || doneToday === 0 ? streakDays : streakDays + 1;
+
+  if (evening)
+    return (
+      <div className="space-y-3">
+        {props.header}
+        <p className="text-base leading-[1.45] text-foreground/85">
+          {eveningSentence({
+            tomorrowLabel: `${weekdayLong(tomorrowIso)}, ${Number(tomorrowIso.slice(8))}`,
+            openToday: attention.length,
+          })}
+        </p>
+        <div className="empty:hidden">{props.notices}</div>
+        {backpack.length ? (
+          <section
+            aria-label="O que vai na mochila"
+            className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
+          >
+            <ul>
+              {backpack.map((child, index) => (
+                <li key={child.profileId}>
+                  <div
+                    className={cn(
+                      "flex min-h-[60px] items-center gap-3 px-3.5 py-3",
+                      index > 0 && "border-t border-foreground/15 pt-4",
+                    )}
+                  >
+                    <StudentAvatar name={child.profileName} size="sheet" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[17px] font-bold">{child.profileName}</p>
+                      {child.subjects.length ? (
+                        <p className="text-[13px] font-medium text-muted-foreground">
+                          {joinWords(child.subjects)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <ul>
+                    {tomorrow
+                      .filter((entry) => entry.item.profileId === child.profileId)
+                      .map((entry) => card(entry, false, false))}
+                  </ul>
+                  {child.kits.map((kit) => (
+                    <div
+                      key={kit.subject}
+                      className="flex items-start gap-3 border-t border-foreground/15 px-3.5 py-3"
+                    >
+                      <span className="flex w-11 shrink-0 justify-center pt-0.5">
+                        <BackpackIcon className="size-[22px]" />
+                      </span>
+                      <p className="min-w-0 text-[15px] leading-normal">
+                        <b>Levar sempre na aula de {kit.subject.toLowerCase()}</b>
+                        <br />
+                        {joinWords(kit.items).replace(/^./, (c) => c.toUpperCase())}
+                      </p>
+                    </div>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {attention.length ? (
+          <ActivitySheet
+            title="Ainda de hoje"
+            labelledBy="routine-still-today"
+            aside={String(attention.length)}
+          >
+            {attention.map((entry) => card(entry))}
+          </ActivitySheet>
+        ) : null}
+        {doneToday > 0 ? <DayClosed doneToday={doneToday} streakDays={streak} /> : null}
+        {firstFull ? (
+          <Link
+            href={weekHref}
+            className="flex min-h-[52px] items-center justify-between gap-3 rounded-[18px] border border-foreground/15 px-4 py-3.5 text-[15px] hover:bg-muted/60"
+          >
+            <span>
+              <b className="text-chart-4-ink">{fullDayPhrase}</b> · {fullDayCount(fullThings)}
+            </span>
+            <span className="shrink-0 font-bold text-primary-ink">Ver a semana</span>
+          </Link>
+        ) : null}
+        <div className="empty:hidden">{props.shared}</div>
+      </div>
+    );
 
   return (
-    <div className="space-y-8">
-      <KpiCards counters={counters} profileFilter={profileFilter} />
-      {BUCKETS.map(({ key, title, description, empty, Icon, color }) => {
-        const entries = buckets[key].filter((entry) => !hiddenKeys.has(entry.key));
-        // "3 atividades · ~45 min" responde a pergunta das sete da noite. O
-        // rótulo diz quantas foram estimadas quando nem todas foram — senão o
-        // número viraria promessa falsa.
-        const estimate = formatBucketEstimate(entries.map((e) => e.item.estimatedMinutes));
-        const fullDays = key === "week" ? heavyDays : [];
-        return (
-          <section key={key} className="space-y-4">
-            <div className="flex items-start gap-3">
-              <span
-                className={cn(
-                  "flex size-11 shrink-0 items-center justify-center rounded-2xl",
-                  getSubjectIconClassByIndex(color),
-                )}
-              >
-                <Icon className="size-6" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-                  {entries.length > 0 ? (
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums",
-                        getSubjectTintedClassByIndex(color),
-                      )}
-                    >
-                      {entries.length} {entries.length === 1 ? "atividade" : "atividades"}
-                    </span>
-                  ) : null}
-                  {estimate ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                      <Timer className="size-3.5 shrink-0" aria-hidden />
-                      {estimate}
-                    </span>
-                  ) : null}
+    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <div className="order-1">{props.header}</div>
+        <p className="order-2 -mt-1 text-base leading-[1.45] text-foreground/85 lg:mt-0 lg:text-[17px]">
+          {routineSummary({
+            forToday: attention.length,
+            late,
+            tomorrow: [...tomorrowThings.map(describeThing), ...extrasTomorrow],
+            doneToday,
+          })}
+        </p>
+        <div className="order-3 pt-1 empty:hidden lg:hidden">{props.pills}</div>
+        <div className="order-4 empty:hidden">{props.notices}</div>
+        <div className="order-5 empty:hidden">
+          {attention.length > 0 ? (
+            <ActivitySheet
+              title="Para hoje"
+              labelledBy="routine-today"
+              aside={`${attention.length} em aberto`}
+            >
+              {attention.map((entry) => card(entry))}
+            </ActivitySheet>
+          ) : doneToday > 0 ? (
+            <DayClosed doneToday={doneToday} streakDays={streak} />
+          ) : null}
+        </div>
+        <ActivitySheet
+          title={`Amanhã, ${weekdayLong(tomorrowIso).toLowerCase()}`}
+          labelledBy="routine-tomorrow"
+          aside={
+            tomorrow.length > 0 ? (
+              <>
+                <span className="lg:hidden">{tomorrow.length}</span>
+                <span className="hidden lg:inline">
+                  {backpack.some((child) => child.items.length)
+                    ? `${tomorrow.length} e a mochila`
+                    : tomorrow.length}
+                </span>
+              </>
+            ) : undefined
+          }
+          className="order-7"
+        >
+          {tomorrow.map((entry) => card(entry))}
+          {backpack.some((child) => child.items.length) ? (
+            <li className="border-t border-foreground/15">
+              <div className="flex items-start gap-3 px-3.5 py-3.5 lg:hidden">
+                <span className="flex w-[30px] shrink-0 justify-center pt-0.5">
+                  <BackpackIcon className="size-[22px]" />
+                </span>
+                <div className="min-w-0 text-[15px] leading-normal">
+                  <p className="font-bold">Na mochila de amanhã</p>
+                  {backpack
+                    .filter((child) => child.items.length)
+                    .map((child) => (
+                      <p key={child.profileId}>{backpackLine(child)}</p>
+                    ))}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                {/* O semáforo da semana: saber na sexta que a terça tem três
-                    entregas é o que permite adiantar no fim de semana. Saber na
-                    terça de manhã não serve para nada. */}
-                {key === "week" && fullDays.length ? (
-                  <p className="mt-1 text-sm font-medium text-chart-4-ink">
-                    {fullDays.length === 1
-                      ? `${weekdayLabel(fullDays[0]?.iso ?? "")} está cheia: ${formatDayLoad(
-                          fullDays[0] ?? {
-                            iso: "",
-                            deliveries: 0,
-                            study: 0,
-                            minutes: 0,
-                            level: "leve",
-                          },
-                        )}.`
-                      : `Dias mais puxados: ${fullDays
-                          .map((day) => `${weekdayLabel(day.iso)} (${formatDayLoad(day)})`)
-                          .join(", ")}.`}
-                  </p>
+              </div>
+              <p className="hidden min-h-[60px] items-center gap-3.5 py-2.5 pl-6 pr-5 text-[15px] lg:flex">
+                <BackpackIcon pocket={false} className="size-5 shrink-0" />
+                <span>
+                  <b>Na mochila:</b> {backpackSentence(backpack)}
+                </span>
+              </p>
+            </li>
+          ) : null}
+          {tomorrow.length === 0 &&
+          !backpack.some((child) => child.items.length || child.subjects.length) ? (
+            <li className="border-t border-foreground/15 px-4 py-3 text-sm text-muted-foreground">
+              Amanhã está livre por enquanto.
+            </li>
+          ) : null}
+        </ActivitySheet>
+      </div>
+
+      <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <div className="order-6 empty:hidden lg:order-2">{props.school}</div>
+        <section
+          aria-labelledby="routine-week"
+          className="order-8 overflow-hidden rounded-[20px] border border-foreground/15 bg-background lg:order-1"
+        >
+          <div className="flex items-baseline justify-between gap-3 px-[18px] pb-2.5 pt-4 lg:px-5">
+            <h2
+              id="routine-week"
+              className="text-[21px] font-extrabold leading-[normal] tracking-[-0.02em] lg:text-xl"
+            >
+              A semana
+            </h2>
+            <Link href={weekHref} className={SHEET_LINK}>
+              <span className="lg:hidden">Ver tudo</span>
+              <span className="hidden lg:inline">Abrir</span>
+            </Link>
+          </div>
+          <div className="space-y-3.5 px-3 pb-4 lg:hidden">
+            <WeekStrip days={days} todayIso={todayIso} profileFilter={profileFilter} />
+            {firstFull ? (
+              <div className="mx-1 space-y-1.5 rounded-[14px] bg-chart-4/10 px-3.5 py-3 text-[15px] leading-[1.45]">
+                <p>
+                  <b className="text-chart-4-ink">{fullDayPhrase}:</b> {fullDayDetail(fullThings)}.
+                </p>
+                {prepareOnFullDay ? (
+                  <Link
+                    href={`/atividades/${prepareOnFullDay.item.id}#plano-de-estudo`}
+                    className={SHEET_LINK}
+                  >
+                    Dividir o estudo nos dias livres
+                  </Link>
                 ) : null}
               </div>
-            </div>
-            {key === "tomorrow" ? (
-              <TomorrowBackpack schedule={tomorrowSchedule} kits={tomorrowKits} />
             ) : null}
-            {entries.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {entries.map((entry) => (
-                  <UnifiedActivityCard
-                    key={entry.key}
-                    entry={entry}
-                    currentUserId={currentUserId}
-                    optimisticHideWhenDone
-                    onStatusSuccess={(changed: ActivityOverviewItem, previous, next) => {
-                      setCounters((current) =>
-                        applyRoutineStatusChange(
-                          current,
-                          todayIso,
-                          overviewDueAt(changed),
-                          previous,
-                          next,
-                        ),
-                      );
-                      // Concluir conta pelo DIA da conclusão, não pelo prazo:
-                      // uma atividade sem prazo cuidada hoje fecha o dia
-                      // igual. Sem isto, marcar a última pendência não trazia
-                      // o fecho até o servidor responder.
-                      setDoneToday((current) => Math.max(0, current + (next === "done" ? 1 : -1)));
-                    }}
-                  />
-                ))}
-              </div>
-            ) : key === "attention" && doneToday > 0 ? (
-              <DayClosed
-                doneToday={doneToday}
-                tomorrowCount={
-                  buckets.tomorrow.filter((entry) => !hiddenKeys.has(entry.key)).length
-                }
-                streakDays={streakCountsToday || doneToday === 0 ? streakDays : streakDays + 1}
-              />
-            ) : (
-              // Vazio não é objeto: deixou de ser cartão com borda e fundo
-              // para não competir em peso com os cartões que têm conteúdo.
-              <p className="flex items-center gap-2.5 px-1 py-2 text-sm text-muted-foreground">
-                <CircleCheck className="size-4 shrink-0 text-chart-2-ink" aria-hidden />
-                {empty}
-              </p>
-            )}
-          </section>
-        );
-      })}
-      <p className="text-xs text-muted-foreground">
-        “Feito em casa” registra a organização da família. Entregas e autorizações à escola
-        continuam no canal oficial. As listas consideram os itens cadastrados; novos recados e
-        retificações precisam ser importados.
-      </p>
+          </div>
+          <ul className="hidden lg:block">
+            {weekRows({
+              todayIso,
+              days: days.map((day) => ({ iso: day.iso, full: day.full })),
+              things: things.filter((thing) => thing.dueAt && thing.dueAt > todayIso),
+              openToday: attention.length,
+              lateToday: late,
+            }).map((row) => (
+              <li
+                key={row.iso}
+                className={cn(
+                  "grid grid-cols-[70px_1fr] gap-2.5 border-t border-foreground/15 px-5 py-3 text-sm leading-[normal]",
+                  row.today ? "bg-primary/6" : row.full && "bg-chart-4/9",
+                )}
+              >
+                <b className={cn(row.today ? "text-primary-ink" : row.full && "text-chart-4-ink")}>
+                  {row.label}
+                </b>
+                <span>
+                  {row.lead ? <b>{row.lead} </b> : null}
+                  {row.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div className="order-9 empty:hidden lg:order-3">{props.shared}</div>
+        <div className="order-10 empty:hidden lg:order-4">{props.commitment}</div>
+      </div>
     </div>
   );
 }
 
+/** Sábado e domingo são "cheio"; os outros dias são "-feira", e ficam "cheia". */
+function isWeekend(iso: string) {
+  const weekday = weekdayLong(iso).toLowerCase();
+  return weekday === "sábado" || weekday === "domingo";
+}
+
 /**
- * O fecho do dia.
- *
- * Concluída a última pendência de hoje, esta seção mostrava "Tudo certo por
- * aqui!" — exatamente a mesma caixa que aparece para quem nunca cadastrou nada.
- * O esforço da família não era reconhecido em lugar nenhum, e o app abria com
- * trabalho e terminava com trabalho.
- *
- * Só aparece quando houve o que cuidar: `doneToday > 0` é o que separa "o dia
- * fechou" de "o dia nunca teve nada". Sem pontos e sem comparação entre
- * crianças — o reconhecimento é da casa.
+ * O fecho do dia, como na prancha da noite: o desenho pequeno, o que a casa
+ * cuidou hoje e a sequência dela. Sem pontos e sem comparação entre crianças:
+ * o reconhecimento é da casa, e a sequência aparece a partir de dois dias.
  */
-function DayClosed({
-  doneToday,
-  tomorrowCount,
-  streakDays,
-}: {
-  doneToday: number;
-  tomorrowCount: number;
-  streakDays: number;
-}) {
+function DayClosed({ doneToday, streakDays }: { doneToday: number; streakDays: number }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-chart-2/30 bg-card p-6 text-center shadow-solid">
-      <DayClosedIllustration className="max-w-[150px]" />
-      <div className="space-y-1">
-        <p className="text-xl font-bold tracking-tight">Dia fechado</p>
-        {/* `doneToday` é sempre ≥ 1 aqui: o cartão só renderiza sob essa
-            condição — é ela que separa "o dia fechou" de "nunca houve nada". */}
-        <p className="text-sm text-muted-foreground">
+    <section className="flex items-center gap-4 rounded-[20px] border border-foreground/15 bg-background p-[18px]">
+      <DayClosedIllustration className="w-[72px] shrink-0" />
+      <p className="min-w-0 text-[15px] leading-[1.45]">
+        <b>
           {doneToday === 1
-            ? "Uma atividade cuidada hoje. Nada mais pendente para o dia."
-            : `${doneToday} atividades cuidadas hoje. Nada mais pendente para o dia.`}
-        </p>
-      </div>
-      {/*
-        A sequência é da FAMÍLIA. Aparece a partir de dois dias, porque "1 dia
-        seguido" não é sequência — e nunca por criança: um número por filho
-        viraria placar entre irmãos dentro de casa.
-      */}
-      {streakDays >= 2 ? (
-        <p className="inline-flex items-center gap-2 rounded-full border border-chart-4/40 bg-chart-4/15 px-3 py-1 text-sm font-semibold">
-          <Flame className="size-4 shrink-0 text-chart-4-ink" aria-hidden />
-          Vocês cuidaram da rotina {streakDays} dias seguidos
-        </p>
-      ) : null}
-      <p className="text-sm font-medium">
-        {tomorrowCount === 0
-          ? "Amanhã está livre por enquanto."
-          : tomorrowCount === 1
-            ? "Amanhã tem 1 atividade. Ela está logo abaixo."
-            : `Amanhã tem ${tomorrowCount} atividades. Elas estão logo abaixo.`}
+            ? "Hoje vocês cuidaram de 1 coisa."
+            : `Hoje vocês cuidaram de ${doneToday} coisas.`}
+        </b>
+        {streakDays >= 2 ? (
+          <>
+            <br />
+            {streakDays <= 10
+              ? `É o ${ORDINALS[streakDays]} dia seguido da casa em dia.`
+              : `São ${streakDays} dias seguidos da casa em dia.`}
+          </>
+        ) : null}
       </p>
-    </div>
+    </section>
   );
 }

@@ -20,8 +20,7 @@ import { agendaProfileSubjects, agendaTasks } from "@informach/db/schema";
  *
  * **Regra:** toda consulta sobre `agenda.tasks` que produza número, lista ou
  * mensagem sobre o que a família AINDA TEM A FAZER compõe este predicado. São
- * OITO hoje — `activityIndexCte`, `getDashboardCounters`, `listProfileSummaries`,
- * `countPendingActivities`, `listTasksInDateRange`, `listTasksByBucket`,
+ * CINCO hoje: `activityIndexCte`, `countPendingActivities`, `listTasksInDateRange`,
  * `listNoticeActions` e `findLoadUntilExam`. Aplicar em algumas e não em outras é
  * pior que não aplicar: foi assim que o limite do plano gratuito passou a contar
  * o que a tela escondia, e foi assim que a carga do plano de estudo quase

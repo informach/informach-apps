@@ -13,13 +13,13 @@ import { DismissFirstStepsButton } from "./dismiss-first-steps-button";
 /**
  * A trilha do começo, no lugar de três cards soltos.
  *
- * Antes havia um widget por pendência — criança, turma, matérias — cada um
+ * Antes havia um widget por pendência (criança, turma, matérias), cada um
  * aparecendo e sumindo sozinho, sem dizer quantos passos faltavam nem por que
  * aquele importava. Junto, vira um caminho com fim à vista.
  *
  * Some sozinha quando os quatro passos estão feitos, e antes disso pode ser
  * dispensada: quem já sabe o que quer não precisa de trilha. A dispensa é a
- * primeira consulta e corta as outras — na maioria das sessões esta seção não
+ * primeira consulta e corta as outras: na maioria das sessões esta seção não
  * aparece, e não deve custar cinco consultas para decidir isso.
  */
 export async function FirstStepsSection({
@@ -36,7 +36,7 @@ export async function FirstStepsSection({
    * O segundo adulto **não** pode fazer os dois primeiros passos: cadastrar
    * criança e vincular turma são do titular, e turma é escopada por conta. Ele
    * via "1 de 4 prontos" com um botão que levava a uma tela onde não havia o
-   * que criar — uma trilha que nunca fechava. Também sai do caminho para quem é
+   * que criar: uma trilha que nunca fechava. Também sai do caminho para quem é
    * titular de uma casa e convidado de outra, pelo mesmo motivo.
    */
   ownsAnyProfile: boolean;
@@ -61,27 +61,25 @@ export async function FirstStepsSection({
   return (
     <section
       aria-labelledby="first-steps-title"
-      className="rounded-3xl border border-secondary/30 bg-gradient-to-br from-secondary/10 via-secondary/5 to-chart-3/10 p-5 sm:p-6"
+      className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
     >
-      <div className="flex items-start gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-chart-3-ink">
-          <Compass className="size-6" aria-hidden />
-        </span>
+      <div className="flex items-start gap-3 px-4 pb-3 pt-4 sm:px-5">
+        <Compass className="mt-1 size-6 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
-          <h2 id="first-steps-title" className="text-lg font-semibold">
+          <h2 id="first-steps-title" className="text-xl font-extrabold tracking-tight">
             Primeiros passos
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {progress.done} de {progress.total} prontos. Cada passo deixa a rotina mais automática.
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {progress.done} de {progress.total} prontos. Cada passo deixa a Agenda mais esperta.
           </p>
         </div>
         <DismissFirstStepsButton />
       </div>
-      <ol className="mt-5 flex flex-col gap-2">
+      <ol>
         {steps.map((step) => (
           <li
             key={step.id}
-            className="flex flex-wrap items-center gap-3 rounded-xl border bg-background p-3"
+            className="flex flex-wrap items-center gap-3 border-t border-foreground/15 px-4 py-3 sm:px-5"
           >
             <span
               aria-hidden
@@ -94,20 +92,23 @@ export async function FirstStepsSection({
               {step.done ? <Check className="size-4" /> : null}
             </span>
             <div className="min-w-0 flex-1">
-              <p className={step.done ? "text-sm text-muted-foreground" : "text-sm font-semibold"}>
+              <p
+                className={
+                  step.done ? "text-sm text-muted-foreground" : "text-[15px] font-bold leading-snug"
+                }
+              >
                 {step.title}
                 {step.done ? <span className="sr-only"> (concluído)</span> : null}
               </p>
               {!step.done && step.id === next?.id ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">{step.description}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
               ) : null}
             </div>
             {!step.done ? (
               <Button
                 asChild
-                size="sm"
                 variant={step.id === next?.id ? "default" : "outline"}
-                className="min-h-11 shrink-0"
+                className="min-h-11 shrink-0 rounded-xl font-bold"
               >
                 <Link href={step.href}>{step.cta}</Link>
               </Button>

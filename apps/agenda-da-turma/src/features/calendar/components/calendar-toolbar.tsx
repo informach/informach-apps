@@ -1,138 +1,111 @@
-"use client";
-
-import { Button } from "@informach/ui/components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@informach/ui/components/select";
-import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { AddSheet } from "@/features/activities/components/add-sheet";
-import type { AddEntitlement } from "@/features/notices/entitlement";
-import {
-  endOfWeekIso,
-  formatDayLabel,
-  formatMonthLabel,
-  formatWeekRangeLabel,
-  startOfWeekIso,
-} from "../date";
+import { cn } from "@informach/ui/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { endOfWeekIso, formatMonthLabel, formatWeekRangeLabel, startOfWeekIso } from "../date";
 import type { CalendarView } from "../types";
-
-type Profile = { id: string; name: string };
 
 type Props = {
   view: CalendarView;
   anchorIso: string;
-  profileFilter: string | null;
-  profiles: Profile[];
-  /** True se o user tem alguma turma vinculada — gate de qualquer criação. */
-  /** Plano e franquia do titular, para a folha Adicionar. */
-  addEntitlement: AddEntitlement;
-  onViewChange: (view: CalendarView) => void;
-  onProfileChange: (profileId: string | null) => void;
-  onPrev: () => void;
-  onNext: () => void;
-  onToday: () => void;
-  onCreate: () => void;
+  todayIso: string;
+  /** Os endereços de cada controle, com a criança e a data da tela. */
+  hrefs: {
+    week: string;
+    month: string;
+    prev: string;
+    next: string;
+    today: string;
+  };
 };
 
-// Toolbar do calendário. Estado externo (URL) — esses callbacks só
-// constroem hrefs no parent. Layout: prev/today/next à esquerda, label
-// central, tabs+select+CTA à direita. Em mobile vira flex-wrap.
-export function CalendarToolbar({
-  view,
-  anchorIso,
-  profileFilter,
-  profiles,
-  addEntitlement,
-  onViewChange,
-  onProfileChange,
-  onPrev,
-  onNext,
-  onToday,
-  onCreate,
-}: Props) {
-  const label =
-    view === "month"
-      ? formatMonthLabel(anchorIso)
-      : view === "week"
-        ? formatWeekRangeLabel(startOfWeekIso(anchorIso), endOfWeekIso(anchorIso))
-        : formatDayLabel(anchorIso);
+const navButton =
+  "flex size-11 shrink-0 items-center justify-center rounded-xl border border-foreground/15 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/**
+ * Semana ou mês, e o período na tela entre as duas setas.
+ *
+ * Tudo aqui é link, e não botão com `router.replace`: navega antes de a página
+ * hidratar (um toque cedo não se perde) e o endereço já leva a criança e a
+ * data. Saíram daqui o filtro de criança (a criança escolhida em Hoje viaja
+ * pela navegação, `?perfil=`; o canvas não tem pílulas aqui), "Nova atividade"
+ * e "Adicionar de um recado": um botão por destino, e o + do rodapé é a porta
+ * de entrada. Na semana, cada dia vazio tem o seu "+".
+ */
+export function CalendarToolbar({ view, anchorIso, todayIso, hrefs }: Props) {
+  const isWeek = view === "week";
+  const from = isWeek ? startOfWeekIso(anchorIso) : `${anchorIso.slice(0, 7)}-01`;
+  const label = isWeek
+    ? formatWeekRangeLabel(from, endOfWeekIso(anchorIso), todayIso)
+    : formatMonthLabel(anchorIso);
+  const showsToday = isWeek
+    ? from <= todayIso && todayIso <= endOfWeekIso(anchorIso)
+    : anchorIso.slice(0, 7) === todayIso.slice(0, 7);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3">
-      {/* Linha 1 (desktop): navegação à esquerda, label central (flex-1),
-          tabs Mês/Semana/Dia à direita. Em mobile vira flex-wrap natural. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={onPrev} aria-label="Período anterior">
-            <ChevronLeft className="size-4" aria-hidden />
-          </Button>
-          <Button variant="outline" size="sm" onClick={onToday}>
-            Hoje
-          </Button>
-          <Button variant="outline" size="icon" onClick={onNext} aria-label="Próximo período">
-            <ChevronRight className="size-4" aria-hidden />
-          </Button>
-        </div>
-
-        <h2 className="flex-1 truncate text-base font-semibold tracking-tight md:text-lg">
+    <div className="space-y-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[34px] font-extrabold leading-tight tracking-[-0.04em]">Semana</h1>
+        <nav aria-label="Como ver" className="flex w-fit gap-1 rounded-xl bg-card p-1">
+          {(
+            [
+              { value: "week", label: "Semana", href: hrefs.week },
+              { value: "month", label: "Mês", href: hrefs.month },
+            ] as const
+          ).map((option) => (
+            <Link
+              key={option.value}
+              href={option.href}
+              replace
+              scroll={false}
+              aria-current={view === option.value ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-9 relative after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] items-center rounded-[9px] px-3.5 text-sm font-bold",
+                view === option.value
+                  ? "bg-background text-foreground"
+                  : "text-foreground/75 hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+      <div className="flex items-center gap-2">
+        <Link
+          href={hrefs.prev}
+          replace
+          scroll={false}
+          aria-label={isWeek ? "Semana anterior" : "Mês anterior"}
+          className={navButton}
+        >
+          <ChevronLeft className="size-5" aria-hidden />
+        </Link>
+        <h2
+          className="min-w-0 flex-1 truncate text-center text-[17px] font-bold"
+          aria-live="polite"
+        >
           {label}
         </h2>
-
-        <Tabs value={view} onValueChange={(v) => onViewChange(v as CalendarView)}>
-          <TabsList>
-            <TabsTrigger value="month">Mês</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="day">Dia</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Link
+          href={hrefs.next}
+          replace
+          scroll={false}
+          aria-label={isWeek ? "Próxima semana" : "Próximo mês"}
+          className={navButton}
+        >
+          <ChevronRight className="size-5" aria-hidden />
+        </Link>
       </div>
-
-      {/* Linha 2 (desktop): filtro de perfil estreito à esquerda, grupo de
-          botões de criação encostado na direita via `md:ml-auto`. Em mobile
-          os itens fluem com flex-wrap. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {profiles.length >= 2 ? (
-          <Select
-            value={profileFilter ?? "all"}
-            onValueChange={(v) => onProfileChange(v === "all" ? null : v)}
-          >
-            <SelectTrigger
-              className="min-w-[10rem] md:min-w-0 md:w-36"
-              aria-label="Filtrar por perfil"
-            >
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os perfis</SelectItem>
-              {profiles.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <Button onClick={onCreate} size="sm">
-            <Plus className="mr-1 size-4" aria-hidden />
-            Nova atividade
-          </Button>
-          <AddSheet
-            profileId={profileFilter}
-            entitlement={addEntitlement}
-            label="Adicionar de um recado"
-            icon="sparkles"
-            variant="outline"
-            size="sm"
-          />
-        </div>
-      </div>
+      {showsToday ? null : (
+        <Link
+          href={hrefs.today}
+          replace
+          scroll={false}
+          className="mx-auto flex min-h-11 w-fit items-center px-3 text-sm font-bold text-primary-ink"
+        >
+          {isWeek ? "Voltar para esta semana" : "Voltar para este mês"}
+        </Link>
+      )}
     </div>
   );
 }

@@ -4,12 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { CalendarPlus, Plus } from "lucide-react";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
-import {
-  formatDayLabel,
-  parseLocalIso,
-  todayLocalIso,
-  WEEKDAY_SHORT_LABELS_SUNDAY_FIRST,
-} from "../date";
+import { formatDayLabel, parseLocalIso, todayLocalIso, WEEKDAY_SHORT_BY_DAY } from "../date";
 import { ActivityBlip } from "./activity-blip";
 
 type Props = {
@@ -62,10 +57,8 @@ export function MonthAgenda({
           </p>
         </div>
         {/*
-          Nome distinto do "Nova atividade" da barra de cima — os dois ficam
-          visíveis ao mesmo tempo no celular quando o mês está vazio — e SEM
-          data: prefixar hoje enquanto a pessoa navega por dezembro entregava o
-          formulário com o dia errado.
+          SEM data: prefixar hoje enquanto a pessoa navega por dezembro
+          entregava o formulário com o dia errado.
         */}
         <Button variant="outline" onClick={onCreateWithoutDay}>
           <Plus className="size-4" aria-hidden />
@@ -95,7 +88,7 @@ export function MonthAgenda({
                   {String(date.getDate()).padStart(2, "0")}
                 </span>
                 <span className="truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  {WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[date.getDay()]}
+                  {WEEKDAY_SHORT_BY_DAY[date.getDay()]}
                 </span>
                 {isToday ? (
                   <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
