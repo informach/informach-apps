@@ -39,6 +39,7 @@ function fixture(
     leases: {},
     lastTrustedTime: 0,
     mcpTokens: {},
+    mcpGrants: {},
     boundUserId: "user",
     updateFloors: {},
   };
@@ -324,6 +325,26 @@ describe("native subscription authorization", () => {
     f.controller.assertAccess();
     f.advance(-120000);
     expect(() => f.controller.assertAccess()).toThrow("edi_clock_rollback");
+  });
+  it("signing out removes every local AI connection with the session", async () => {
+    const f = fixture();
+    await f.controller.refresh();
+    f.data.mcpGrants = {
+      ediaula: [
+        {
+          id: randomUUID(),
+          client: "claude-code",
+          tokenHash: "b".repeat(64),
+          scopes: ["read", "propose"],
+          createdAt: 1,
+        },
+      ],
+    };
+    f.data.mcpTokens = { edifoto: "c".repeat(64) };
+    await f.controller.logout();
+    expect(f.data.session).toBeNull();
+    expect(f.data.mcpGrants).toEqual({});
+    expect(f.data.mcpTokens).toEqual({});
   });
   it("observes shared logout without another network request", async () => {
     const f = fixture();

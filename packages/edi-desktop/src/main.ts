@@ -18,7 +18,7 @@ import {
 import type { NsisUpdater } from "electron-updater";
 import { lock, unlockSync } from "proper-lockfile";
 import { z } from "zod";
-import { configureDesktopAccess } from "./access";
+import { configureDesktopAccess, hashMcpToken, type McpGrantStore, replaceGrants } from "./access";
 import { desktopConfigSchema, recoveryResultSchema } from "./contracts";
 import { createDesktopController } from "./controller";
 import { electronInstallationFileSystem } from "./electron-installation-filesystem";
@@ -113,6 +113,7 @@ export function createEdiDesktop(options: {
   let verifyingQuit = false;
   let quitVerified = false;
   let releaseStartup: (() => void) | undefined;
+  let reloadGrants: (() => Promise<void>) | undefined;
   const recoveryRequests = new Map<
     string,
     { senderId: number; complete: (saved: boolean) => void }
@@ -122,6 +123,11 @@ export function createEdiDesktop(options: {
     console.error(
       `[edi:${options.appId}] ${operation}: ${error instanceof Error ? error.name : "unknown"}`,
     );
+  };
+  const safeReloadGrants = () => {
+    reloadGrants?.().catch((error: unknown) => {
+      logFailure("mcp_grants_reload_failed", error);
+    });
   };
   const safeRefresh = () => {
     desktopJobs.checkDeadlines();
@@ -388,13 +394,63 @@ export function createEdiDesktop(options: {
         currentVersion: app.getVersion(),
         channel: config.updateChannel,
       });
-      const token = await vault.use(async (data) => {
-        data.mcpTokens[options.appId] ??= randomBytes(32).toString("hex");
-        const value = data.mcpTokens[options.appId];
-        if (!value) throw new Error("Local MCP token missing");
-        return value;
+      const appId = options.appId;
+      const grants = await vault.use(async (data) => {
+        // The single permanent token of earlier versions keeps working for the clients already
+        // configured with it, but only to read and propose; writing asks for approval.
+        const legacy = data.mcpTokens[appId];
+        const list = data.mcpGrants[appId] ?? [];
+        if (legacy) {
+          const tokenHash = hashMcpToken(legacy);
+          if (!list.some((grant) => grant.tokenHash === tokenHash))
+            list.push({
+              id: randomUUID(),
+              client: "legacy",
+              tokenHash,
+              scopes: ["read", "propose"],
+              createdAt: Date.now(),
+            });
+          delete data.mcpTokens[appId];
+        }
+        const now = Date.now();
+        const live = list.filter((grant) => grant.expiresAt === undefined || grant.expiresAt > now);
+        data.mcpGrants[appId] = live;
+        return live.map((grant) => ({ ...grant }));
       });
-      configureDesktopAccess({ token, assertAccess: () => requireController().assertAccess() });
+      const grantStore: McpGrantStore = {
+        add: (grant) =>
+          vault.use(async (data) => {
+            const list = data.mcpGrants[appId] ?? [];
+            if (list.length >= 100)
+              throw new Error("Há conexões demais com a IA. Revogue alguma antes de criar outra.");
+            data.mcpGrants[appId] = [...list, grant];
+          }),
+        remove: (ids) =>
+          vault.use(async (data) => {
+            data.mcpGrants[appId] = (data.mcpGrants[appId] ?? []).filter(
+              (grant) => !ids.includes(grant.id),
+            );
+          }),
+        touch: (id, at) =>
+          vault.use(async (data) => {
+            const grant = data.mcpGrants[appId]?.find((item) => item.id === id);
+            if (grant) grant.lastUsedAt = at;
+          }),
+      };
+      // A token of this process only, for tools whose own engines use localMcpHeaders().
+      configureDesktopAccess({
+        token: randomBytes(32).toString("hex"),
+        assertAccess: () => requireController().assertAccess(),
+        grants,
+        store: grantStore,
+      });
+      reloadGrants = async () => {
+        replaceGrants(
+          await vault.use(async (data) =>
+            (data.mcpGrants[appId] ?? []).map((grant) => ({ ...grant })),
+          ),
+        );
+      };
       controller = createDesktopController({
         ...config,
         appId: options.appId,
@@ -440,7 +496,10 @@ export function createEdiDesktop(options: {
       const operations = {
         "edi:status": () => requireController().status(),
         "edi:connect": () => requireController().connect(),
-        "edi:logout": () => requireController().logout(),
+        "edi:logout": async () => {
+          await requireController().logout();
+          await reloadGrants?.();
+        },
         "edi:refresh": () => requireController().refresh(),
         "edi:account": () => shell.openExternal(`${new URL(config.portalUrl).origin}/conta`),
         "edi:update": () => updater?.checkForUpdates(),
@@ -531,10 +590,12 @@ export function createEdiDesktop(options: {
       }
       await controller.refresh();
       unsubscribeVault = watch(directory, { persistent: false }, (_kind, name) => {
-        if (name === "session.v1.bin")
-          controller?.synchronize().catch((error: unknown) => {
-            logFailure("session_sync_failed", error);
-          });
+        if (name !== "session.v1.bin") return;
+        controller?.synchronize().catch((error: unknown) => {
+          logFailure("session_sync_failed", error);
+        });
+        // A logout or a revocation in another tool reaches this one's MCP grants too.
+        safeReloadGrants();
       });
       timer = setInterval(() => {
         safeRefresh();

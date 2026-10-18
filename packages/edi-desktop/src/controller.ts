@@ -565,6 +565,9 @@ export function createDesktopController(
         }
         data.session = null;
         data.leases = {};
+        // Signing out of this computer also disconnects every AI client of every tool.
+        data.mcpGrants = {};
+        data.mcpTokens = {};
       });
       emit({
         state: "restricted",
