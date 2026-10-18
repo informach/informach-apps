@@ -106,12 +106,12 @@ export function windowSignature(
     const frames = clipFrames(c, r, win);
     const asset = assets.get(c.assetId);
     // Sound has no part in the picture (the music running under every segment least of all).
-    if (!frames || !asset || (asset.kind === "audio" && !c.zoomLayer)) continue;
+    if (!frames || !asset || (asset.kind === "audio" && !c.zoomLayer && !c.regionFx)) continue;
     if (!used.has(asset.id)) {
       const cutOut = keyedPath(asset);
       const keyed = !!cutOut;
       const path = cutOut ?? asset.path;
-      if (asset.kind !== "audio" && !c.zoomLayer) files.add(path);
+      if (asset.kind !== "audio" && !c.zoomLayer && !c.regionFx) files.add(path);
       const sprite = asset.cursor ? spec.cursors?.[asset.id] : undefined;
       if (sprite) files.add(sprite.sprite);
       used.set(asset.id, media.length);
@@ -155,6 +155,8 @@ export function windowSignature(
         exit: c.exit,
         keyframes: c.keyframes,
         zoomLayer: c.zoomLayer,
+        regionFx: c.regionFx,
+        color: c.color,
         entry: c.zoomLayer ? entryView(project, c) : undefined,
         tail: c.tail,
         tailFx: c.tailFx,
@@ -171,6 +173,10 @@ export function windowSignature(
     })
     .map((fx) => normalize({ ...fx, at: fx.at - t0 }));
   const captions = spec.burnAss ? assWindow(spec.burnAss, t0, t1) : undefined;
+  // The background: a color or a gradient decides by itself; an image by its file too.
+  const bg = project.background;
+  const bgAsset = bg?.kind === "image" ? assets.get(bg.assetId) : undefined;
+  if (bgAsset) files.add(bgAsset.path);
   return {
     key: normalize({
       plan: PLAN_VERSION,
@@ -184,6 +190,7 @@ export function windowSignature(
       clips,
       cutFx,
       captions,
+      background: bg?.kind === "image" ? { image: bgAsset?.path } : bg,
     }),
     files: [...files],
     // The fonts decide only where captions show.

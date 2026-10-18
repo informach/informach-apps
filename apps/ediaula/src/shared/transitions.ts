@@ -275,8 +275,8 @@ const sm = (x: string): string => `(clip(${x},0,1)*clip(${x},0,1)*(3-2*clip(${x}
 
 /**
  * An ffmpeg expression (numbers, + - * /, T, PI, clip, min, max, abs, sin, cos, hypot, floor,
- * gt, gte, lt, lte, between, if) as a JavaScript function of T: the preview evaluates exactly what
- * the export evaluates.
+ * pow, gt, gte, lt, lte, between, if) as a JavaScript function of T: the preview evaluates
+ * exactly what the export evaluates.
  */
 const fnCache = new Map<string, (T: number) => number>();
 
@@ -289,6 +289,7 @@ const FUNCS: Record<string, (...a: number[]) => number> = {
   cos: Math.cos,
   hypot: Math.hypot,
   floor: Math.floor,
+  pow: Math.pow,
   mod: (a, b) => a - b * Math.floor(a / b),
   gt: (a, b) => +(a > b),
   gte: (a, b) => +(a >= b),

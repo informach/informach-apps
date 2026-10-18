@@ -13,6 +13,7 @@ import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { FrameGeometry } from "./frameGrab.ts";
+import type { GainPoint } from "./gain.ts";
 import type { GlossaryTerm } from "./glossary.ts";
 import type {
   BrokenStep,
@@ -27,6 +28,8 @@ import type {
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
 import type { Learning, LearningEvent } from "./learning.ts";
+import type { Background, ClipColor, RegionFx } from "./look.ts";
+import type { Marker } from "./markers.ts";
 import type { Palette } from "./palettes.ts";
 import type { PlatformInput, QuizItem } from "./platformPackage.ts";
 import type { Loudness } from "./preflight.ts";
@@ -295,6 +298,10 @@ export interface Track {
   height?: number;
   /** A music track that stays at its level while someone speaks (default: it steps aside). */
   duck?: boolean;
+  /** Magnetic (shared/magnetic.ts): its clips always sit back to back from 0:00. */
+  magnetic?: boolean;
+  /** "Destacar faixa": while it sounds, the other tracks step aside (the ducking of the music). */
+  spotlight?: boolean;
 }
 
 export interface Clip {
@@ -333,6 +340,14 @@ export interface Clip {
   /** Silent while the presenter's video plays its own sound over it ("Usar o som do vídeo
    *  importado"): the clip is still the lesson's voice, with its volume. */
   mutedFor?: "presenter";
+  /** Group (shared/groups.ts): clips of one group are picked, moved, trimmed and copied together. */
+  groupId?: string;
+  /** Blur, pixelate or spotlight over a part of what the tracks below show (shared/look.ts). */
+  regionFx?: RegionFx;
+  /** Volume envelope in dB at moments of the clip (shared/gain.ts). */
+  gain?: GainPoint[];
+  /** Brightness, contrast, saturation and temperature (shared/look.ts). */
+  color?: ClipColor;
 }
 
 export interface ProjectSettings {
@@ -403,6 +418,10 @@ export interface Project {
   };
   /** The captions translated by the AI, one per language (shared/captionTranslate.ts). */
   captionTranslations?: CaptionTranslation[];
+  /** Markers and chapters on the timeline (shared/markers.ts). */
+  markers?: Marker[];
+  /** What shows where no clip covers the frame (default black). */
+  background?: Background;
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -550,6 +569,22 @@ export interface ExportSpec {
   platform?: PlatformInput;
   /** Timeline second of the thumbnail (default: 30% of the lesson). */
   thumbnailAt?: number;
+  /** Only this stretch of the lesson (timeline seconds); the files start at its beginning. */
+  range?: { from: number; to: number };
+  /** Also the voice and the music as WAV files, picked one by one (dialog:stems). */
+  stems?: { voice: string; music: string };
+  /** Annotations drawn word by word or stroke by stroke, by clip id (shared/reveal.ts). */
+  reveals?: Record<string, RevealSprite>;
+}
+
+/** The transparent video of an animated annotation, drawn in the renderer, one per clip. */
+export interface RevealSprite {
+  sprite: string;
+  fps: number;
+  width: number;
+  height: number;
+  /** Seconds into the clip when it is all there: from then on the export shows its picture. */
+  until?: number;
 }
 
 export interface CursorSprite {
@@ -765,7 +800,15 @@ export interface EdiAulaApi {
   /** Pointer sprite videos for the export, drawn in the renderer and encoded in the main process. */
   cursorSprite: {
     cached(path: string, id: string): Promise<string | null>;
-    begin(jobId: string, path: string, id: string, size: number, fps: number): Promise<void>;
+    /** `height` for a sprite that is not square (an animated annotation). */
+    begin(
+      jobId: string,
+      path: string,
+      id: string,
+      size: number,
+      fps: number,
+      height?: number,
+    ): Promise<void>;
     frames(jobId: string, frames: Uint8Array, counts: number[]): Promise<void>;
     end(jobId: string): Promise<string>;
     cancel(jobId: string): Promise<void>;
@@ -971,6 +1014,33 @@ export interface EdiAulaApi {
   /** The template of a course (how its new lessons start), or null. */
   /** The project as JSON text, like saveProject; the cursor positions stay typed arrays. */
   startExport(jobId: string, projectJson: string, spec: ExportSpec): Promise<void>;
+  /** Where to save the current frame (.png); the chosen path becomes writable. */
+  pickFramePath(defaultName: string): Promise<string | null>;
+  /**
+   * The frame at timeline second `t` as a PNG at spec.outPath, drawn by the export's plan as a
+   * window of one frame (main/export/frame.ts renderFramePng, the path of export:frame).
+   */
+  exportFramePng(jobId: string, projectJson: string, t: number, spec: ExportSpec): Promise<string>;
+  /**
+   * Where the voice and the music go (Exportar › Voz e música separadas): a folder picked by
+   * the person, and only the two WAV files named after the video become writable there (a file
+   * already there is replaced only when the person says so). null when called off.
+   */
+  pickStems(videoName: string): Promise<{ voice: string; music: string } | null>;
+  /** Packs the lesson and its media into a ZIP picked by the person; null when called off. */
+  packProject(
+    jobId: string,
+    projectJson: string,
+    defaultName: string,
+  ): Promise<{ path: string; files: number; bytes: number; droppedVoices: number } | null>;
+  /**
+   * Opens a packed lesson picked by the person: checks every entry, asks before extracting,
+   * and returns the lesson's file (null when called off, with nothing written).
+   */
+  openPackage(): Promise<string | null>;
+  /** The library shared by every lesson, its media readable (shared/library.ts). */
+  listLibrary(): Promise<import("./library.ts").Library>;
+  saveLibrary(library: import("./library.ts").Library): Promise<void>;
   cancelJob(jobId: string): Promise<void>;
   /** Removes the reusable export segments; resolves with the bytes freed. */
   clearExportCache(): Promise<number>;

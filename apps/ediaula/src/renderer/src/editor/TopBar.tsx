@@ -5,6 +5,7 @@ import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { saveCourseTemplateFromLesson } from "@/lib/courseTemplate";
+import { exportCurrentFrame, openPackagedLesson, packLesson } from "@/lib/exportExtras";
 import { openPrepare } from "@/lib/prepare";
 import { duplicateLesson } from "@/lib/projectFiles";
 import { useRecorderKey } from "@/lib/recorderKeys";
@@ -96,6 +97,18 @@ export function TopBar(): ReactNode {
                   label: "Fila de exportação…",
                   onSelect: () => useExportQueue.setState({ open: true }),
                 },
+                {
+                  label: "Exportar o quadro atual (PNG)…",
+                  disabled: !project?.clips.length,
+                  onSelect: () => void exportCurrentFrame(),
+                },
+                { separator: true, label: "" },
+                {
+                  label: "Empacotar a aula com as mídias…",
+                  disabled: !project,
+                  onSelect: () => void packLesson(),
+                },
+                { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
                 { separator: true, label: "" },
                 {
                   label: "Exportar a voz (para o vídeo do apresentador)",
@@ -231,7 +244,13 @@ export function TopBar(): ReactNode {
                 { label: "Zoom com o mouse", shortcut: "Ctrl+roda" },
                 { label: "Aparar empurrando o resto", shortcut: "Shift+borda" },
                 { label: "Inserir empurrando o resto", shortcut: "Ctrl ao soltar" },
-                { label: "Camada de baixo na prévia", shortcut: "Alt+clique" },
+                { label: "Camada de baixo na prévia", shortcut: "Alt+clique na prévia" },
+                { label: "Agrupar / desagrupar", shortcut: "Ctrl+G  Ctrl+Shift+G" },
+                { label: "Só um clipe do grupo", shortcut: "Alt+clique na timeline" },
+                { label: "Marcador no cursor", shortcut: "M" },
+                { label: "Próximo / anterior marcador", shortcut: "Shift+M  Alt+M" },
+                { label: "Palavra anterior / próxima", shortcut: "Alt+← →" },
+                { label: "Frase ou silêncio", shortcut: "Alt+Shift+← →" },
               ]}
             />
           </nav>

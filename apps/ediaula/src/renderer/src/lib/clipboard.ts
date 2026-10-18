@@ -11,7 +11,9 @@ let copied: { clips: Clip[]; assets: Asset[] } | null = null;
 export function copySelection(): number {
   const { project, selection } = useProject.getState();
   if (!project || !selection.length) return 0;
-  const clips = project.clips.filter((c) => selection.includes(c.id));
+  // Only what is selected (a click on a grouped clip already selects its group).
+  const picked = new Set(selection);
+  const clips = project.clips.filter((c) => picked.has(c.id));
   if (!clips.length) return 0;
   const used = new Set(clips.map((c) => c.assetId));
   copied = {

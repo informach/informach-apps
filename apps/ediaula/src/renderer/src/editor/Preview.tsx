@@ -1,4 +1,4 @@
-import { DUCKING, duckGain, duckingOf, ducks } from "@shared/audio";
+import { DUCKING, duckGain, duckingOf, ducks, spotlightSpans } from "@shared/audio";
 import {
   animAt,
   BORDER_WIDTH,
@@ -11,8 +11,20 @@ import {
   shadowOffset,
   type Transform,
 } from "@shared/compose";
+import { gainAt } from "@shared/gain";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
+import {
+  backgroundCss,
+  boxBlurSigma,
+  colorSvg,
+  DEVICE_COLORS,
+  deviceGeometry,
+  hasColor,
+  type RegionFx,
+  spotlightDarkness,
+} from "@shared/look";
 import { driftCorrection } from "@shared/playbackSync";
+import { regionRectAt, regionStrength } from "@shared/regionFollow";
 import { clipEnd, clipSpeed, projectDuration, sourceAt, sourceEnd } from "@shared/timeline";
 import {
   type DerivedClip,
@@ -29,6 +41,7 @@ import {
   withTransitions,
 } from "@shared/transitions";
 import type { Asset, Clip, Project } from "@shared/types";
+import { clipCues } from "@shared/webvtt";
 import { zoomAt, zoomsIn } from "@shared/zoom";
 import { zoomAffine, zoomsOver } from "@shared/zoomLayer";
 import {
@@ -59,16 +72,19 @@ import {
 import { useSpeechSpans } from "@/lib/audio";
 import { timecode } from "@/lib/format";
 import { mediaUrl, playbackPath } from "@/lib/media";
+import { clipRevealTimes, revealing, revealPicture, revealStateAt } from "@/lib/reveal";
 import { listenPath, useVoiceListen } from "@/lib/voice";
 import { heard, useApp } from "@/state/app";
 import { liveTransform, useLiveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
 import { assetMap, useProject, useShownProject } from "@/state/project";
-import { PreviewMedia } from "@/ui/PreviewMedia";
 import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
 import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
+import { MediaPool } from "./mediaPool";
+import { buildLanes, type LanePlan, type PoolClip, pictureTarget, planLane } from "./previewPool";
+import { RegionTarget } from "./RegionTarget";
 import { ZoomTarget } from "./ZoomTarget";
 
 /** Clips are mounted a little before they start so the decoder is warm when they appear. */
@@ -168,9 +184,13 @@ function glitchMask(e: number, slot: number): string {
   return url;
 }
 
+/** Bumped whenever the captions change, so each element's track is made again. */
+let captionsVersion = 0;
+
 export function Preview(): ReactNode {
   // A draft waiting for review is what the preview shows.
   const raw = useShownProject();
+  // The words heard, for the captions track of each media element (clipCues, source seconds).
   const captionCues = useCues(raw);
   const textCues = useMemo(
     () =>
@@ -181,13 +201,24 @@ export function Preview(): ReactNode {
       })),
     [captionCues],
   );
+  const cuesVersion = useMemo(() => {
+    captionsVersion += 1;
+    return `${captionsVersion}:${textCues.length}`;
+  }, [textCues]);
   // Drawn through the same transition model as the export (dissolve tails, fades).
   const project = useMemo(() => (raw ? withTransitions(raw) : null), [raw]);
   const selection = useProject((s) => s.selection);
   // A/B of the audio panel: the original voice instead of the treated one.
   const original = useVoiceListen((s) => s.original);
   const [mountKey, setMountKey] = useState("");
-  const media = useRef(new Map<string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement>());
+  /** The media element serving each clip now (its picture or sound; `<id>#voice` its voice). */
+  const served = useRef(new Map<string, HTMLMediaElement>());
+  /** Where each video clip's element goes (its layer), and the pictures of still clips. */
+  const hosts = useRef(new Map<string, HTMLDivElement>());
+  const images = useRef(new Map<string, HTMLImageElement>());
+  const regions = useRef(new Map<string, HTMLDivElement>());
+  const parkingRef = useRef<HTMLDivElement>(null);
+  const poolRef = useRef<MediaPool | null>(null);
   const layers = useRef(new Map<string, HTMLDivElement>());
   const contents = useRef(new Map<string, HTMLDivElement>());
   const flaps = useRef(new Map<string, HTMLSpanElement>());
@@ -262,6 +293,64 @@ export function Preview(): ReactNode {
     update();
     return usePlayback.subscribe(update);
   }, [project]);
+
+  /**
+   * The lanes of the pool (previewPool.ts): each file of each track in each role (picture, voice
+   * of a cut-out or treated video, sound) with its pieces in order.
+   */
+  const lanes = useMemo(() => {
+    const info = new Map<
+      string,
+      { kind: "video" | "audio"; path: string; role: "p" | "v" | "s" }
+    >();
+    const entries: { lane: string; clip: PoolClip }[] = [];
+    if (!project) return { lanes: new Map<string, PoolClip[]>(), info };
+    const assets = assetMap(project);
+    for (const c of project.clips) {
+      const a = assets.get(c.assetId);
+      if (!a || a.missing || c.zoomLayer || c.regionFx || a.kind === "image") continue;
+      const clip: PoolClip = {
+        id: c.id,
+        start: c.start,
+        end: clipEnd(c),
+        in: c.in,
+        speed: clipSpeed(c),
+      };
+      const add = (role: "p" | "v" | "s", kind: "video" | "audio", path: string): void => {
+        const lane = `${role}|${c.trackId}|${path}`;
+        info.set(lane, { kind, path, role });
+        entries.push({ lane, clip });
+      };
+      if (a.kind === "video") {
+        add("p", "video", visualPath(a));
+        if (needsVoice(a, original)) add("v", "audio", soundPath(a, original));
+      } else add("s", "audio", soundPath(a, original));
+    }
+    return { lanes: buildLanes(entries), info };
+  }, [project, original]);
+  // A highlighted track ("Destacar faixa") makes the others step aside (same as the export).
+  const spotlit = useRef<[number, number][]>([]);
+  spotlit.current = useMemo(
+    () => (raw ? spotlightSpans(raw, ducking.current.ramp, ducking.current.hold) : []),
+    [raw],
+  );
+  // When the words of annotations that come in word by word appear.
+  const [revealTimes, setRevealTimes] = useState(new Map<string, number[]>());
+  useEffect(() => {
+    let alive = true;
+    if (!raw) return;
+    const clips = raw.clips.filter((c) => revealing(c) && c.annotation?.reveal === "words");
+    if (!clips.length) {
+      setRevealTimes(new Map());
+      return;
+    }
+    void Promise.all(clips.map(async (c) => [c.id, await clipRevealTimes(raw, c)] as const)).then(
+      (list) => alive && setRevealTimes(new Map(list)),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [raw]);
 
   // While a zoom layer is selected the preview shows the frame without it (its box is drawn instead).
   const editingZoom =
@@ -377,7 +466,7 @@ export function Preview(): ReactNode {
         // Zoom: the same view the export computes, from the source time on screen.
         const zooms = zoomsOf.get(id);
         if (content && zooms?.length) {
-          const el = media.current.get(id);
+          const el = served.current.get(id);
           const src = el instanceof HTMLVideoElement && active ? el.currentTime : sourceAt(c, t);
           const v = zoomAt(zooms, src);
           content.style.transform = `translate(${(0.5 - v.cx * v.scale) * 100}%, ${(0.5 - v.cy * v.scale) * 100}%) scale(${v.scale})`;
@@ -407,54 +496,157 @@ export function Preview(): ReactNode {
           layer.style.transform = `translate(${X}px, ${Y}px) scale(${A.s * m.scale})${spin(rotationOf(liveTransform(c, live)))}`;
         }
       }
-      for (const [id, el] of media.current) {
-        const voice = id.endsWith(VOICE);
-        const c = clips.get(voice ? id.slice(0, -VOICE.length) : id);
-        const asset = c && assets.get(c.assetId);
+      // Region effects show while their clip lasts; zoom layers above them magnify them with
+      // the rest of the picture, and a region that follows the recording goes with its zooms.
+      for (const [id, el] of regions.current) {
+        const c = clips.get(id);
         const track = c && tracks.get(c.trackId);
-        if (!c || !asset || !track || el instanceof HTMLImageElement) continue;
-        const active = t >= c.start && t < clipEnd(c);
-        const tail = (c as DerivedClip).tail;
-        // A dissolve tail is picture only: the sound stops at the real cut. A cut-out avatar's
-        // picture is silent; its voice element plays the sound instead.
-        el.muted =
-          !heard(track, solo) ||
-          !!c.mutedFor ||
-          !asset.hasAudio ||
-          (!!tail && t >= clipEnd(c) - tail) ||
-          (!voice && el instanceof HTMLVideoElement && needsVoice(asset, original));
-        el.volume = Math.min(
-          1,
-          Math.max(
-            0,
-            c.volume *
-              (ducks(track)
-                ? duckGain(speech.current, t, ducking.current.depth, ducking.current.ramp)
-                : 1),
-          ),
-        );
-        const local = sourceAt(c, t);
-        // The clip's own speed multiplies the playback rate (the browser keeps the pitch, like
-        // atempo), also at half and a quarter of the speed with K held.
-        const r = rate * clipSpeed(c);
-        if (!el.preservesPitch) el.preservesPitch = true;
-        if (active && playing && rate > 0) {
-          if (el.paused) {
-            if (el.playbackRate !== r) el.playbackRate = r;
-            el.currentTime = local;
-            void el.play().catch(() => undefined);
-          } else {
-            // Picture and the cut-out avatar's voice follow the clock the same way (shared/playbackSync.ts).
-            const fix = driftCorrection(el.currentTime, local, r, frame, el.playbackRate !== r);
-            if (fix.seek) el.currentTime = local;
-            if (el.playbackRate !== fix.rate) el.playbackRate = fix.rate;
+        const fx = c?.regionFx;
+        const stage = stageRef.current;
+        let on = !!c && !!track && !track.hidden && t >= c.start && t < clipEnd(c);
+        if (c && fx && stage && on) {
+          const k = stage.clientWidth / project.settings.width;
+          if (fx.follow) {
+            const f = regionRectAt(project, c, t);
+            if (f)
+              applyRegionLook(el, fx, {
+                box: {
+                  left: f.rect.x * k,
+                  top: f.rect.y * k,
+                  width: f.rect.w * k,
+                  height: f.rect.h * k,
+                },
+                radius: f.radius * f.scale * k,
+                block: f.block * f.scale * k,
+                feather: f.feather * f.scale * k,
+              });
+            else on = false;
           }
-        } else {
-          if (!el.paused) el.pause();
-          const target = active ? local : c.in;
-          if (!el.seeking && Math.abs(el.currentTime - target) > frame / 2) el.currentTime = target;
+          const views = zoomsOver(project, order.get(c.trackId) ?? 0, t, editingZoom ?? undefined);
+          if (views.length) {
+            const A = zoomAffine(views, stage.clientWidth, stage.clientHeight);
+            const target =
+              fx.kind === "spotlight" && el.firstElementChild instanceof HTMLElement
+                ? el.firstElementChild
+                : el;
+            const L = target.offsetLeft;
+            const T = target.offsetTop;
+            el.style.transformOrigin = "0 0";
+            el.style.transform =
+              target === el
+                ? `translate(${(A.s - 1) * L + A.tx}px, ${(A.s - 1) * T + A.ty}px) scale(${A.s})`
+                : `translate(${A.tx}px, ${A.ty}px) scale(${A.s})`;
+          } else el.style.transform = "";
         }
+        el.style.visibility = on ? "visible" : "hidden";
       }
+      // Annotations that come in: the picture of the state at this moment.
+      for (const [id, img] of images.current) {
+        const c = clips.get(id);
+        const asset = c && assets.get(c.assetId);
+        if (!c || !asset || !revealing(c)) continue;
+        const state = revealStateAt(c, revealTimes.get(id) ?? [], t);
+        const want = state ? JSON.stringify(state) : "";
+        if (img.dataset.reveal === want) continue;
+        img.dataset.reveal = want;
+        if (!state) img.src = mediaUrl(asset.path);
+        else
+          void revealPicture(project, c, state).then((url) => {
+            if (img.dataset.reveal === want && url) img.src = url;
+          });
+      }
+      const pool = poolRef.current;
+      if (!pool) return;
+      // Sound and voices first: the picture of a cut-out avatar follows its voice.
+      const laneOrder = [...lanes.lanes.keys()].sort(
+        (a, b) => +a.startsWith("p|") - +b.startsWith("p|"),
+      );
+      const plans = new Map<string, LanePlan>();
+      for (const key of laneOrder)
+        plans.set(key, planLane(lanes.lanes.get(key) ?? [], t, PRELOAD_AHEAD));
+      served.current.clear();
+      const used = new Set<HTMLMediaElement>();
+      for (const key of laneOrder) {
+        const info = lanes.info.get(key);
+        const plan = plans.get(key);
+        if (!info || !plan) continue;
+        plan.forEach((slotPlan, index) => {
+          if (!slotPlan) return;
+          const c = clips.get(slotPlan.clipId);
+          const asset = c && assets.get(c.assetId);
+          const track = c && tracks.get(c.trackId);
+          if (!c || !asset || !track) return;
+          const slot = index === 0 ? 0 : 1;
+          const el = pool.element(key, slot, info.kind, mediaUrl(info.path), "stage-media");
+          used.add(el);
+          if (info.role === "p") pool.host(el, hosts.current.get(c.id));
+          served.current.set(info.role === "v" ? c.id + VOICE : c.id, el);
+          // The piece's words as the element's captions (the voice's for a cut-out avatar).
+          if (info.role !== "p" || !needsVoice(asset, original))
+            pool.captions(
+              el,
+              `${c.id}:${c.in}:${c.duration}:${cuesVersion}`,
+              clipCues(textCues, c),
+            );
+          const tail = (c as DerivedClip).tail;
+          // A dissolve tail is picture only: the sound stops at the real cut. A cut-out
+          // avatar's picture is silent; its voice element plays the sound instead.
+          const muted =
+            !heard(track, solo) ||
+            !!c.mutedFor ||
+            !asset.hasAudio ||
+            (!!tail && t >= clipEnd(c) - tail) ||
+            (info.role === "p" && needsVoice(asset, original));
+          el.muted = muted;
+          // The clip's volume (above 100% too), its envelope, the music stepping aside for the
+          // voice and the tracks stepping aside for a highlighted one: one gain node.
+          const music = ducks(track)
+            ? duckGain(speech.current, t, ducking.current.depth, ducking.current.ramp)
+            : 1;
+          const aside =
+            spotlit.current.length && !track.spotlight
+              ? duckGain(spotlit.current, t, ducking.current.depth, ducking.current.ramp)
+              : 1;
+          pool.setGain(el, muted ? 0 : c.volume * music * aside * gainAt(c.gain, t - c.start));
+          // The clip's own speed multiplies the playback rate (the browser keeps the pitch, like
+          // atempo), also at half and a quarter of the speed with K held.
+          const r = rate * clipSpeed(c);
+          if (slotPlan.play && playing && rate > 0) {
+            pool.wake();
+            const voice = info.role === "p" ? served.current.get(c.id + VOICE) : undefined;
+            const target = pictureTarget(
+              slotPlan.time,
+              voice
+                ? {
+                    // Where the voice is heard now: its position less the sound's buffering.
+                    time: voice.currentTime - pool.latency() * clipSpeed(c),
+                    playing: !voice.paused,
+                    seeking: voice.seeking,
+                  }
+                : null,
+            );
+            if (el.paused) {
+              if (el.playbackRate !== r) el.playbackRate = r;
+              if (Math.abs(el.currentTime - target) > frame / 2) el.currentTime = target;
+              void el.play().catch(() => undefined);
+            } else {
+              // Picture and voice follow their clock the same way (shared/playbackSync.ts).
+              const fix = driftCorrection(el.currentTime, target, r, frame, el.playbackRate !== r);
+              if (fix.seek) {
+                el.currentTime = target;
+                pool.seeks++;
+              }
+              if (el.playbackRate !== fix.rate) el.playbackRate = fix.rate;
+            }
+          } else {
+            if (!el.paused) el.pause();
+            // The element waiting for the next piece stands at its first frame.
+            if (!el.seeking && Math.abs(el.currentTime - slotPlan.time) > frame / 2)
+              el.currentTime = slotPlan.time;
+          }
+        });
+      }
+      for (const el of pool.all()) if (!used.has(el) && !el.paused) el.pause();
     };
     sync();
     const unsub = usePlayback.subscribe(sync);
@@ -463,32 +655,32 @@ export function Preview(): ReactNode {
     const unsubSolo = useApp.subscribe((s, prev) => {
       if (s.solo !== prev.solo) sync();
     });
-    const onSeeked = (): void => {
-      sync();
-    };
-    const els = [...media.current.values()].filter(
-      (e): e is HTMLMediaElement => !(e instanceof HTMLImageElement),
-    );
-    els.forEach((m) => {
-      m.addEventListener("seeked", onSeeked);
-    });
+    const pool = poolRef.current;
+    // An element that finished seeking is placed again right away (a paused preview too).
+    if (pool) pool.onSeeked = sync;
+    pool?.keepOnly(new Set(lanes.lanes.keys()));
     return () => {
       unsub();
       unsubLive();
       unsubSolo();
-      els.forEach((m) => {
-        m.removeEventListener("seeked", onSeeked);
-      });
+      if (pool) pool.onSeeked = null;
     };
-  }, [project, mountKey, editingZoom, original]);
+  }, [project, mountKey, editingZoom, original, lanes, revealTimes, textCues, cuesVersion]);
 
-  // Pause everything when leaving the editor.
-  useEffect(
-    () => () => {
-      for (const el of media.current.values()) if (!(el instanceof HTMLImageElement)) el.pause();
-    },
-    [],
-  );
+  // The pool of media elements lives as long as the preview; leaving the editor stops it all.
+  useLayoutEffect(() => {
+    const parking = parkingRef.current;
+    if (!parking) return;
+    const pool = new MediaPool(parking);
+    poolRef.current = pool;
+    // For the checks (and for whoever wants to see how smooth the preview is).
+    Reflect.set(window, "__ediaulaPreview", { stats: () => pool.stats() });
+    return () => {
+      Reflect.deleteProperty(window, "__ediaulaPreview");
+      poolRef.current = null;
+      pool.dispose();
+    };
+  }, []);
 
   const mountedIds = new Set(mountKey.split(",").filter(Boolean));
   const assets = assetMap(project);
@@ -665,12 +857,18 @@ export function Preview(): ReactNode {
     window.addEventListener("pointerup", onUp);
   };
 
-  const mediaRef =
-    (c: Clip, suffix = "") =>
-    (el: HTMLVideoElement | HTMLAudioElement | HTMLImageElement | null) => {
-      if (el) media.current.set(c.id + suffix, el);
-      else media.current.delete(c.id + suffix);
-    };
+  const hostRef = (c: Clip) => (el: HTMLDivElement | null) => {
+    if (el) hosts.current.set(c.id, el);
+    else hosts.current.delete(c.id);
+  };
+  const imageRef = (c: Clip) => (el: HTMLImageElement | null) => {
+    if (el) images.current.set(c.id, el);
+    else images.current.delete(c.id);
+  };
+  const regionRef = (c: Clip) => (el: HTMLDivElement | null) => {
+    if (el) regions.current.set(c.id, el);
+    else regions.current.delete(c.id);
+  };
   const flapRef = (c: Clip) => (el: HTMLSpanElement | null) => {
     if (el) flaps.current.set(c.id, el);
     else flaps.current.delete(c.id);
@@ -793,6 +991,16 @@ export function Preview(): ReactNode {
           style={{
             width: size.w,
             height: size.h,
+            background: backgroundCss(
+              project?.background,
+              project?.background?.kind === "image"
+                ? (() => {
+                    const bg = project.background;
+                    const a = assets.get(bg.assetId);
+                    return a && !a.missing ? mediaUrl(a.path) : undefined;
+                  })()
+                : undefined,
+            ),
             transform: view.x || view.y ? `translate(${view.x}px, ${view.y}px)` : undefined,
           }}
           onDoubleClick={() => void areaRef.current?.requestFullscreen()}
@@ -800,38 +1008,47 @@ export function Preview(): ReactNode {
             if (e.button === 0) useProject.getState().select([]);
           }}
         >
+          <ColorFilters clips={mounted} />
           {mounted.map((c) => {
             const a = assets.get(c.assetId);
             if (!a || a.missing || !project || c.zoomLayer) return null;
-            if (!isVisual(project, c, a))
+            if (c.regionFx)
               return (
-                <PreviewMedia
-                  kind="audio"
-                  clip={c}
-                  cues={textCues}
-                  key={c.id}
-                  mediaRef={mediaRef(c)}
-                  src={mediaUrl(soundPath(a, original))}
+                <RegionLayer
+                  // Remade when it starts or stops following: the loop places a following one.
+                  key={`${c.id}:${c.regionFx.follow ? "follow" : "still"}`}
+                  fx={c.regionFx}
+                  width={size.w}
+                  height={size.h}
+                  zIndex={(100 - (trackIndex.get(c.trackId) ?? 0)) * 2}
+                  elRef={regionRef(c)}
                 />
               );
+            // Sound plays from the pool's elements, which need no place on the stage.
+            if (!isVisual(project, c, a)) return null;
             const lay = clipLayout({ transform: transformOf(c) }, a, settings);
             const tf = transformOf(c);
+            const device = tf.device
+              ? deviceGeometry(tf.device, lay.visible.w, lay.visible.h)
+              : null;
+            const k = device ? device.screen.w / lay.visible.w : 1;
             const radius = maskRadius(tf, lay.visible.w, lay.visible.h, settings.height) * scale;
             const box = {
               left: lay.visible.x * scale,
               top: lay.visible.y * scale,
               width: lay.visible.w * scale,
               height: lay.visible.h * scale,
-              borderRadius: radius || undefined,
+              borderRadius: device ? undefined : radius || undefined,
               filter: tf.shadow
                 ? cssShadow(tf.shadow, (settings.height / 1080) * scale)
                 : undefined,
             };
+            // On a device, the picture goes on its screen, smaller by k.
             const inner = {
-              left: (lay.full.x - lay.visible.x) * scale,
-              top: (lay.full.y - lay.visible.y) * scale,
-              width: lay.full.w * scale,
-              height: lay.full.h * scale,
+              left: (lay.full.x - lay.visible.x) * scale * k,
+              top: (lay.full.y - lay.visible.y) * scale * k,
+              width: lay.full.w * scale * k,
+              height: lay.full.h * scale * k,
             };
             return (
               <div
@@ -848,17 +1065,33 @@ export function Preview(): ReactNode {
                 onPointerDown={(e) => startDrag(e, c, "move")}
               >
                 <div
-                  className="stage-flip"
-                  style={
-                    tf.flipH || tf.flipV
+                  className={`stage-flip ${device ? "on-device" : ""}`}
+                  style={{
+                    ...(tf.flipH || tf.flipV
                       ? { transform: `scale(${tf.flipH ? -1 : 1}, ${tf.flipV ? -1 : 1})` }
-                      : undefined
-                  }
+                      : {}),
+                    ...(device
+                      ? {
+                          left: device.screen.x * scale,
+                          top: device.screen.y * scale,
+                          width: device.screen.w * scale,
+                          height: device.screen.h * scale,
+                          borderRadius: device.screenRadius * scale,
+                        }
+                      : {}),
+                  }}
                 >
-                  <div ref={contentRef(c)} className="stage-content" style={inner}>
+                  <div
+                    ref={contentRef(c)}
+                    className="stage-content"
+                    style={{
+                      ...inner,
+                      ...(hasColor(c.color) ? { filter: `url(#cf-${c.id})` } : {}),
+                    }}
+                  >
                     {a.kind === "image" ? (
                       <img
-                        ref={mediaRef(c)}
+                        ref={imageRef(c)}
                         src={mediaUrl(a.path)}
                         className="stage-media"
                         style={{ opacity: tailEditing === c.id ? 0 : undefined }}
@@ -866,38 +1099,32 @@ export function Preview(): ReactNode {
                         draggable={false}
                       />
                     ) : (
-                      <PreviewMedia
-                        kind="video"
-                        clip={c}
-                        cues={textCues}
-                        mediaRef={mediaRef(c)}
-                        src={mediaUrl(visualPath(a))}
-                        className="stage-media"
-                      />
-                    )}
-                    {a.kind === "video" && needsVoice(a, original) && (
-                      <PreviewMedia
-                        kind="audio"
-                        clip={c}
-                        cues={textCues}
-                        mediaRef={mediaRef(c, VOICE)}
-                        src={mediaUrl(soundPath(a, original))}
-                      />
+                      <div ref={hostRef(c)} className="stage-media-host" />
                     )}
                     {a.cursor && (
                       <CursorLayer
                         asset={a}
                         width={inner.width}
                         height={inner.height}
-                        getVideo={() => media.current.get(c.id) as HTMLVideoElement | undefined}
+                        getVideo={() => {
+                          const el = served.current.get(c.id);
+                          return el instanceof HTMLVideoElement ? el : undefined;
+                        }}
                       />
                     )}
                   </div>
                 </div>
+                {device && tf.device && (
+                  <DeviceFrame
+                    device={tf.device}
+                    width={lay.visible.w * scale}
+                    height={lay.visible.h * scale}
+                  />
+                )}
                 {(c as DerivedClip).tailFx === "fold" && (
                   <span ref={flapRef(c)} className="paper-flap" />
                 )}
-                {tf.border && (
+                {tf.border && !device && (
                   <span
                     className="stage-ring"
                     style={{
@@ -929,10 +1156,12 @@ export function Preview(): ReactNode {
             </div>
           )}
           {selected?.zoomLayer && <ZoomTarget clip={selected} width={size.w} height={size.h} />}
+          {selected?.regionFx && <RegionTarget clip={selected} width={size.w} height={size.h} />}
           {selected &&
             selectedAsset &&
             project &&
             !selected.zoomLayer &&
+            !selected.regionFx &&
             isVisual(project, selected, selectedAsset) && (
               <Gizmo
                 dragging={draft?.id === selected.id}
@@ -944,6 +1173,7 @@ export function Preview(): ReactNode {
                 onDrag={startDrag}
               />
             )}
+          <div ref={parkingRef} className="stage-parking" aria-hidden="true" />
           {!project?.clips.length && (
             <div className="stage-empty">
               <strong>Nada na timeline ainda</strong>
@@ -1122,4 +1352,247 @@ function SafeAreas({ portrait }: { portrait: boolean }): ReactNode {
       )}
     </div>
   );
+}
+
+/**
+ * The color correction of the clips on screen as SVG filters (shared/look.ts colorSvg): the same
+ * saturation, contrast, brightness and temperature the export draws.
+ */
+function ColorFilters({ clips }: { clips: Clip[] }): ReactNode {
+  const colored = clips.filter((c) => hasColor(c.color));
+  if (!colored.length) return null;
+  return (
+    <svg className="stage-defs" width="0" height="0" aria-hidden="true">
+      <defs>
+        {colored.map((c) => {
+          const f = colorSvg(c.color ?? {});
+          return (
+            <filter key={c.id} id={`cf-${c.id}`} colorInterpolationFilters="sRGB">
+              <feColorMatrix
+                type="matrix"
+                values={f.matrix.map((v) => Number(v.toFixed(5))).join(" ")}
+              />
+              <feColorMatrix
+                type="matrix"
+                values={`${f.rgb[0]} 0 0 0 0 0 ${f.rgb[1]} 0 0 0 0 0 ${f.rgb[2]} 0 0 0 0 0 1 0`}
+              />
+            </filter>
+          );
+        })}
+      </defs>
+    </svg>
+  );
+}
+
+const deviceFrames = new Map<string, string>();
+
+/** The device around a picture, drawn with the same geometry as the export's frame. */
+function deviceFrameUrl(device: "laptop" | "phone", w: number, h: number): string {
+  const W = Math.max(2, Math.round(w));
+  const H = Math.max(2, Math.round(h));
+  const key = `${device}:${W}x${H}`;
+  let url = deviceFrames.get(key);
+  if (url) return url;
+  const g = deviceGeometry(device, W, H);
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext("2d");
+  if (!ctx) return "";
+  const box = (r: { x: number; y: number; w: number; h: number }, radius: number): Path2D => {
+    const p = new Path2D();
+    p.roundRect(r.x, r.y, r.w, r.h, Math.min(radius, r.w / 2, r.h / 2));
+    return p;
+  };
+  ctx.fillStyle = DEVICE_COLORS.body;
+  ctx.fill(box(g.body, g.bodyRadius));
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.fill(box(g.screen, g.screenRadius));
+  ctx.globalCompositeOperation = "source-over";
+  if (g.notch) {
+    ctx.fillStyle = DEVICE_COLORS.body;
+    ctx.fill(box(g.notch, g.notch.h / 2));
+  }
+  if (g.base) {
+    ctx.fillStyle = DEVICE_COLORS.base;
+    ctx.fill(box(g.base, g.base.h * 0.35));
+  }
+  if (g.groove) {
+    ctx.fillStyle = DEVICE_COLORS.groove;
+    ctx.fill(box(g.groove, g.groove.h / 2));
+  }
+  url = c.toDataURL("image/png");
+  if (deviceFrames.size > 60) deviceFrames.clear();
+  deviceFrames.set(key, url);
+  return url;
+}
+
+function DeviceFrame({
+  device,
+  width,
+  height,
+}: {
+  device: "laptop" | "phone";
+  width: number;
+  height: number;
+}): ReactNode {
+  return (
+    <img
+      className="stage-device"
+      src={deviceFrameUrl(device, width, height)}
+      alt=""
+      draggable={false}
+      style={{ width, height }}
+    />
+  );
+}
+
+/** A region's look on the stage, in stage pixels: the export's radius, block and soft edge. */
+interface RegionLook {
+  box: { left: number; top: number; width: number; height: number };
+  /** boxblur radius and pixel block, already clamped as the export clamps them. */
+  radius: number;
+  block: number;
+  feather: number;
+}
+
+/** The look of a region that stays on the frame, for a stage `width` × `height`. */
+function fixedLook(fx: RegionFx, width: number, height: number): RegionLook {
+  const box = {
+    left: fx.rect.x * width,
+    top: fx.rect.y * height,
+    width: fx.rect.w * width,
+    height: fx.rect.h * height,
+  };
+  const { radius, block } = regionStrength(fx, height, { w: box.width, h: box.height });
+  return { box, radius, block, feather: (fx.feather * height) / 1080 };
+}
+
+/** Backdrop filter and soft-edge mask of a blur or pixelate region. */
+function regionCss(fx: RegionFx, look: RegionLook): { filter: string; mask: string } {
+  // Soft edges: the effect fades out over the feather, as the export's mask.
+  const fade = look.feather > 0.5 ? look.feather : 0;
+  const mask = fade
+    ? `linear-gradient(to right, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent), linear-gradient(to bottom, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent)`
+    : "";
+  const filter =
+    fx.kind === "blur"
+      ? `blur(${boxBlurSigma(look.radius).toFixed(2)}px)`
+      : `url(#${pixelFilter(Math.round(look.block))})`;
+  return { filter, mask };
+}
+
+/** Places a region's element (or the clear box of a spotlight) for this frame. */
+function applyRegionLook(el: HTMLDivElement, fx: RegionFx, look: RegionLook): void {
+  const px = (v: number): string => `${v.toFixed(2)}px`;
+  const place = (target: HTMLElement): void => {
+    target.style.left = px(look.box.left);
+    target.style.top = px(look.box.top);
+    target.style.width = px(look.box.width);
+    target.style.height = px(look.box.height);
+  };
+  if (fx.kind === "spotlight") {
+    const box = el.firstElementChild;
+    if (!(box instanceof HTMLElement)) return;
+    place(box);
+    box.style.borderRadius = px(Math.min(look.box.width, look.box.height) * 0.12);
+    box.style.boxShadow = `0 0 ${px(look.feather * 2)} 9999px rgba(0, 0, 0, ${spotlightDarkness(fx)})`;
+    return;
+  }
+  place(el);
+  const css = regionCss(fx, look);
+  el.style.backdropFilter = css.filter;
+  el.style.maskImage = css.mask;
+  el.style.maskComposite = css.mask ? "intersect" : "";
+}
+
+/**
+ * A region effect over the preview (shared/look.ts): blur and pixelate through a backdrop
+ * filter of the layers below it, the spotlight as a dark frame around a clear box with a soft
+ * edge. It sits in the stack where its track is, like a zoom layer. A region that follows the
+ * recording is placed on every frame by the playback loop (applyRegionLook).
+ */
+function RegionLayer({
+  fx,
+  width,
+  height,
+  zIndex,
+  elRef,
+}: {
+  fx: RegionFx;
+  width: number;
+  height: number;
+  zIndex: number;
+  elRef: (el: HTMLDivElement | null) => void;
+}): ReactNode {
+  const look = fixedLook(fx, width, height);
+  if (fx.kind === "spotlight")
+    return (
+      <div
+        ref={elRef}
+        className="stage-region is-spotlight"
+        style={{ zIndex, visibility: "hidden" }}
+      >
+        <span
+          style={{
+            ...look.box,
+            borderRadius: Math.min(look.box.width, look.box.height) * 0.12,
+            boxShadow: `0 0 ${look.feather * 2}px 9999px rgba(0, 0, 0, ${spotlightDarkness(fx)})`,
+          }}
+        />
+      </div>
+    );
+  const css = regionCss(fx, look);
+  return (
+    <div
+      ref={elRef}
+      className={`stage-region is-${fx.kind}`}
+      style={{
+        ...look.box,
+        zIndex,
+        visibility: "hidden",
+        backdropFilter: css.filter,
+        maskImage: css.mask || undefined,
+        maskComposite: css.mask ? "intersect" : undefined,
+      }}
+    />
+  );
+}
+
+/**
+ * The classic SVG pixelation (one sample per block, grown back to the block's size) for a
+ * block of `size` pixels: made once per size in a hidden SVG of the page, so a region that
+ * follows a zoom gets a new size on any frame. Returns the filter's id.
+ */
+function pixelFilter(size: number): string {
+  const s = Math.max(2, Math.round(size));
+  const id = `px-${s}`;
+  if (document.getElementById(id)) return id;
+  const NS = "http://www.w3.org/2000/svg";
+  let defs: Element | null = document.getElementById("stage-pixel-filters");
+  if (!defs) {
+    const svg = document.createElementNS(NS, "svg");
+    svg.id = "stage-pixel-filters";
+    svg.setAttribute("class", "stage-defs");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.setAttribute("aria-hidden", "true");
+    document.body.append(svg);
+    defs = svg;
+  }
+  const node = (name: string, attrs: Record<string, string | number>): Element => {
+    const n = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+    return n;
+  };
+  const filter = node("filter", { id, x: 0, y: 0, width: "100%", height: "100%" });
+  filter.append(
+    node("feFlood", { x: s / 2, y: s / 2, height: 1, width: 1 }),
+    node("feComposite", { width: s, height: s }),
+    node("feTile", { result: "grid" }),
+    node("feComposite", { in: "SourceGraphic", in2: "grid", operator: "in" }),
+    node("feMorphology", { operator: "dilate", radius: s / 2 }),
+  );
+  defs.append(filter);
+  return id;
 }

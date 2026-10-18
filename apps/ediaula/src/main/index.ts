@@ -72,7 +72,7 @@ import {
   saveQueue,
 } from "./export/exportQueueStore.ts";
 import { fontResolver } from "./export/fonts.ts";
-import { mediaFrameArgs, renderFrame } from "./export/frame.ts";
+import { mediaFrameArgs, renderFrame, renderFramePng } from "./export/frame.ts";
 import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
@@ -97,11 +97,13 @@ import { getGlossary, setGlossary } from "./glossary.ts";
 import { withReadGrant } from "./handOut.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { getLearning, recordLearning } from "./learning.ts";
+import { libraryFile, listLibrary, saveLibrary } from "./library.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import { cancelOneShot, runOneShot } from "./oneShot.ts";
+import { inspectPackage, packProject, unpackProject } from "./package.ts";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
 import {
   createProject,
@@ -344,6 +346,14 @@ const queueAccess: QueueAccess = {
  * Only what is older than this run of the app, one folder at a time: a folder that cannot be
  * removed is logged and the rest goes on. Exports wait for it (export:start).
  */
+/** Lessons just taken out of a package this session, until they open (project:open). */
+const freshPackages = new Set<string>();
+
+const megabytes = (bytes: number): string =>
+  bytes >= 1024 ** 3
+    ? `${(bytes / 1024 ** 3).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`
+    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+
 async function cleanExportLeftovers(): Promise<void> {
   const options = {
     before: APP_STARTED,
@@ -468,6 +478,14 @@ const MEDIA_FILTERS = [
   { name: "Mídia", extensions: MEDIA_EXTENSIONS },
   { name: "Todos os arquivos", extensions: ["*"] },
 ];
+
+/** Only a file name the renderer suggests for a dialog: the folder is the person's choice. */
+const fileNameOnly = (value: unknown): string =>
+  [...(typeof value === "string" ? value : "")]
+    .filter((character) => character.charCodeAt(0) >= 32 && !'<>:"/\\|?*'.includes(character))
+    .join("")
+    .trim()
+    .slice(0, 120);
 
 /** Dialogs open over the editor window when it exists. */
 const saveDialog = (options: SaveDialogOptions) =>
@@ -945,18 +963,24 @@ function registerIpc(): void {
     for (const plan of project.guided?.plans ?? [])
       if (plan.audio) references.push(plan.audio.path);
     const linked = [...new Set(references)];
+    // A package just opened (and confirmed) points only inside its own folder: no second question.
+    const fresh = freshPackages.delete(path);
+    const own = `${dirname(path).toLowerCase()}\\`;
+    const allInside = linked.every((p) => p.toLowerCase().startsWith(own));
     if (linked.length) {
-      const answer = await dialog.showMessageBox(win!, {
-        type: "question",
-        title: "Arquivos vinculados ao projeto",
-        message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
-        detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
-        buttons: ["Permitir arquivos vinculados", "Cancelar"],
-        defaultId: 1,
-        cancelId: 1,
-      });
-      if (answer.response !== 0)
-        throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+      if (!(fresh && allInside)) {
+        const answer = await dialog.showMessageBox(win!, {
+          type: "question",
+          title: "Arquivos vinculados ao projeto",
+          message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
+          detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
+          buttons: ["Permitir arquivos vinculados", "Cancelar"],
+          defaultId: 1,
+          cancelId: 1,
+        });
+        if (answer.response !== 0)
+          throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+      }
       for (const linkedPath of linked) {
         try {
           await desktopFiles.grantRead(linkedPath);
@@ -1040,6 +1064,148 @@ function registerIpc(): void {
       exportJobs.delete(jobId);
     }
   });
+  // Exportar o quadro atual (PNG): the destination is picked here and becomes writable.
+  ipcMain.handle("dialog:framePng", async (_e, defaultName: unknown) => {
+    const name = fileNameOnly(defaultName);
+    const r = await saveDialog({
+      title: "Salvar o quadro atual",
+      defaultPath: join(app.getPath("pictures"), `${name || "Quadro"}.png`),
+      filters: [{ name: "Imagem PNG", extensions: ["png"] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    const path = extname(r.filePath).toLowerCase() === ".png" ? r.filePath : `${r.filePath}.png`;
+    await desktopFiles.grantWrite(path);
+    return path;
+  });
+  ipcMain.handle(
+    "export:framePng",
+    async (_e, rawJob: unknown, project: unknown, rawT: unknown, spec: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const t = z
+        .number()
+        .min(0)
+        .max(7 * 86400)
+        .parse(rawT);
+      const parsed = projectSchema.parse(projectJson(project));
+      const frameSpec = exportSpecSchema.parse(spec);
+      const out = await desktopFiles.assertWrite(frameSpec.outPath);
+      // Waits for its slot like an export segment (and for a take that is recording).
+      return processingJob(jobId, "segment", async (signal) =>
+        renderFramePng(parsed, frameSpec, t, out, {
+          assertRead: desktopFiles.assertRead,
+          run: (args) => run(FFMPEG, args, { jobId, signal }),
+          filterScriptOption: await filterScriptOption(FFMPEG),
+          cacheDirectory: join(app.getPath("userData"), "cache"),
+          workDirectory: exportWorkDir(),
+          fontsDirectory: FONTS_DIR,
+          probe: mediaFacts,
+        }),
+      );
+    },
+  );
+  // Voz e música separadas: a folder picked here, and only its two WAV files become writable.
+  ipcMain.handle("dialog:stems", async (_e, rawName: unknown) => {
+    const name = fileNameOnly(rawName) || "Aula";
+    const r = await openDialog({
+      title: "Pasta para a voz e a música separadas",
+      defaultPath: app.getPath("music"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    const folder = r.canceled ? undefined : r.filePaths[0];
+    if (!folder) return null;
+    const voice = join(folder, `${name} (voz).wav`);
+    const music = join(folder, `${name} (música).wav`);
+    const taken = [voice, music].filter((p) => existsSync(p));
+    if (taken.length) {
+      const answer = await (win
+        ? dialog.showMessageBox(win, {
+            type: "question",
+            title: "Substituir os arquivos?",
+            message: `Já existe ${taken.map((p) => basename(p)).join(" e ")} nesta pasta. Substituir?`,
+            buttons: ["Substituir", "Cancelar"],
+            defaultId: 1,
+            cancelId: 1,
+          })
+        : dialog.showMessageBox({
+            type: "question",
+            message: `Já existe ${taken.map((p) => basename(p)).join(" e ")} nesta pasta. Substituir?`,
+            buttons: ["Substituir", "Cancelar"],
+            defaultId: 1,
+            cancelId: 1,
+          }));
+      if (answer.response !== 0) return null;
+    }
+    await desktopFiles.grantWrite(voice);
+    await desktopFiles.grantWrite(music);
+    return { voice, music };
+  });
+  // Empacotar a aula: the lesson and its media in one ZIP picked here.
+  ipcMain.handle(
+    "project:pack",
+    async (_e, rawJob: unknown, project: unknown, defaultName: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const parsed = projectSchema.parse(projectJson(project));
+      const name = fileNameOnly(defaultName);
+      const r = await saveDialog({
+        title: "Empacotar a aula com as mídias",
+        defaultPath: join(app.getPath("documents"), `${name || "Aula"}.zip`),
+        filters: [{ name: "Pacote ZIP", extensions: ["zip"] }],
+      });
+      if (r.canceled || !r.filePath) return null;
+      const path = extname(r.filePath).toLowerCase() === ".zip" ? r.filePath : `${r.filePath}.zip`;
+      await desktopFiles.grantWrite(path);
+      const out = await desktopFiles.assertWrite(path);
+      const done = await processingJob(jobId, "segment", (signal) =>
+        packProject(
+          parsed,
+          out,
+          desktopFiles.assertRead,
+          (ratio) => sendProgress({ id: jobId, ratio }),
+          signal,
+        ),
+      );
+      return { path: out, ...done };
+    },
+  );
+  ipcMain.handle("project:openPackage", async () => {
+    const r = await openDialog({
+      title: "Abrir uma aula empacotada",
+      properties: ["openFile"],
+      filters: [{ name: "Pacote ZIP", extensions: ["zip"] }],
+    });
+    const zip = r.canceled ? undefined : r.filePaths[0];
+    if (!zip) return null;
+    // Every entry is checked before the question, and nothing is written until the answer.
+    const info = await inspectPackage(zip, projectsDir());
+    const question: Electron.MessageBoxOptions = {
+      type: "question",
+      title: "Abrir uma aula empacotada",
+      message: `Extrair ${info.files} ${info.files === 1 ? "arquivo" : "arquivos"} (${megabytes(info.bytes)}) e abrir a aula?`,
+      detail: `A aula fica em ${info.folder}.\n\nAbra somente pacotes de quem você confia.`,
+      buttons: ["Extrair e abrir", "Cancelar"],
+      defaultId: 0,
+      cancelId: 1,
+    };
+    const answer = await (win
+      ? dialog.showMessageBox(win, question)
+      : dialog.showMessageBox(question));
+    if (answer.response !== 0) return null;
+    const { folder, project } = await unpackProject(zip, projectsDir());
+    const path = join(folder, `${basename(folder)}.${PROJECT_EXT}`);
+    try {
+      await saveProject(path, project);
+      await desktopFiles.grantRead(path);
+    } catch (error) {
+      await rm(folder, { recursive: true, force: true });
+      throw error;
+    }
+    freshPackages.add(path);
+    return path;
+  });
+  const library = (): string => libraryFile(app.getPath("userData"));
+  const libraryAccess = { canRead: desktopFiles.canRead, grantRead: desktopFiles.grantRead };
+  ipcMain.handle("library:list", () => listLibrary(library(), libraryAccess));
+  ipcMain.handle("library:save", (_e, raw: unknown) => saveLibrary(library(), raw, libraryAccess));
   ipcMain.handle("job:cancel", (_e, jobId: string) => {
     const exporting = exportJobs.get(jobId);
     if (exporting) {

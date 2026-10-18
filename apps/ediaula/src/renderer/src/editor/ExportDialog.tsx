@@ -10,6 +10,7 @@ import { newId, projectDuration } from "@shared/timeline";
 import type { ExportSpec } from "@shared/types";
 import {
   AudioLines,
+  Camera,
   Captions,
   FileJson,
   Gauge,
@@ -19,6 +20,7 @@ import {
   Languages,
   type LucideIcon,
   MonitorPlay,
+  Scissors,
   Smartphone,
   Timer,
   Upload,
@@ -27,6 +29,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { hasPlatformData, translationState } from "@/lib/delivery";
+import { exportCurrentFrame } from "@/lib/exportExtras";
 import { bytes, duration } from "@/lib/format";
 import {
   checkLesson,
@@ -110,12 +113,21 @@ export function ExportDialog(): ReactNode {
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [vertical, setVertical] = useState<"blur" | "crop">("blur");
+  const interval = useApp((s) => s.interval);
+  const hasRange = !!interval && interval.end - interval.start > 0.1;
+  const [onlyRange, setOnlyRange] = useState(false);
+  const [stems, setStems] = useState(false);
   const isReels = preset === "reels";
   const isAudio = preset === "audio";
   // A lesson already vertical goes out in its own shape; the vertical layout is for wide ones.
   const relayout = isReels && !portrait;
 
-  const total = projectDuration(project);
+  const lesson = projectDuration(project);
+  const range =
+    onlyRange && interval && hasRange
+      ? { from: Math.max(0, interval.start), to: Math.min(lesson, interval.end) }
+      : undefined;
+  const total = range ? range.to - range.from : lesson;
   const ratio = project.settings.width / project.settings.height;
   const even = (v: number): number => Math.round(v / 2) * 2;
   const frameOf = (side: number): [number, number] =>
@@ -182,14 +194,21 @@ export function ExportDialog(): ReactNode {
   const start = async (): Promise<void> => {
     const safe = project.name.replace(/[<>:"/\\|?*]/g, "").trim() || "aula";
     const outPath = await window.api.pickExportPath(
-      `${safe}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
+      `${safe}${range ? " (trecho)" : ""}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
     );
     if (!outPath) return;
+    // The voice and the music go to a folder of their own (picked here).
+    const picked = stems
+      ? await window.api.pickStems(outPath.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, ""))
+      : null;
+    if (stems && !picked) return;
     const common = {
       outPath,
       fps: project.settings.fps,
       normalizeLoudness: normalize,
       encoder: info?.encoder ?? "x264",
+      ...(range ? { range } : {}),
+      ...(picked ? { stems: picked } : {}),
     };
     const spec: ExportSpec = isAudio
       ? { ...common, width, height, videoBitrate: 0, audioOnly: true }
@@ -388,6 +407,32 @@ export function ExportDialog(): ReactNode {
                 <Toggle on={captions} onChange={setCaptions} label="Gerar legenda" />
               </div>
             )}
+            <div className="loudness">
+              <Scissors size={15} className="accent" />
+              <div className="spacer">
+                <strong>Só o intervalo marcado</strong>
+                <p className="muted">
+                  {hasRange && interval
+                    ? `De ${duration(interval.start)} a ${duration(interval.end)}: as legendas e os capítulos começam no início do trecho.`
+                    : "Marque um intervalo na régua da timeline para exportar só ele."}
+                </p>
+              </div>
+              <Toggle
+                on={onlyRange && hasRange}
+                onChange={(v) => setOnlyRange(v && hasRange)}
+                label="Só o intervalo marcado"
+              />
+            </div>
+            <div className="loudness">
+              <AudioLines size={15} className="accent" />
+              <div className="spacer">
+                <strong>Voz e música separadas (WAV)</strong>
+                <p className="muted">
+                  Dois arquivos numa pasta que você escolhe, para mixar em outro programa.
+                </p>
+              </div>
+              <Toggle on={stems} onChange={setStems} label="Voz e música separadas" />
+            </div>
             {!isAudio && (
               <div className="loudness">
                 <Image size={15} className="accent" />
@@ -520,6 +565,17 @@ export function ExportDialog(): ReactNode {
               <Timer size={14} /> {duration(total)} de vídeo
             </span>
             <span className="spacer" />
+            {!isAudio && (
+              <Button
+                variant="ghost"
+                icon={Camera}
+                disabled={submitting || lesson <= 0}
+                title="Salva o quadro que está no cursor de reprodução, do tamanho da aula"
+                onClick={() => void exportCurrentFrame()}
+              >
+                Quadro atual (PNG)
+              </Button>
+            )}
             <Button variant="ghost" onClick={close}>
               Cancelar
             </Button>

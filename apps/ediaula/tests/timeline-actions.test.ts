@@ -206,3 +206,62 @@ test("a locked track keeps its place; the others move around it", () => {
     ["m", "v", "voz", "fixa"],
   );
 });
+
+test("one clip of a group picked alone (Alt + click) is the only one deleted or cut", async () => {
+  const grouped = lesson();
+  grouped.clips = grouped.clips.map((c) =>
+    c.id === "tela" || c.id === "fala" ? { ...c, groupId: "g" } : c,
+  );
+  useProject.getState().load("C:/aulas/a.ediaula", grouped);
+  useProject.getState().select(["fala"]);
+  actions.deleteSelection(false);
+  const left = useProject.getState().project?.clips.map((c) => c.id) ?? [];
+  assert.deepEqual(left.sort(), ["musica", "tela"]);
+  // Ctrl+X takes only the selection too.
+  useProject.getState().load("C:/aulas/a.ediaula", grouped);
+  useProject.getState().select(["tela"]);
+  const { copySelection, cutSelection } = await importClipboard();
+  assert.equal(copySelection(), 1);
+  cutSelection();
+  assert.deepEqual((useProject.getState().project?.clips.map((c) => c.id) ?? []).sort(), [
+    "fala",
+    "musica",
+  ]);
+});
+
+test("a track grouped with a locked one is not made magnetic, and the person is told why", () => {
+  const grouped = lesson();
+  grouped.clips = [
+    ...grouped.clips.map((c) => (c.id === "tela" ? { ...c, groupId: "g" } : c)),
+    { ...clip("logo", "fixa", "tela", 0, 60), groupId: "g" },
+  ];
+  useProject.getState().load("C:/aulas/a.ediaula", grouped);
+  const messages: string[] = [];
+  const toast = useApp.getState().toast;
+  useApp.setState({ toast: (m: string) => void messages.push(m) });
+  actions.toggleMagnetic("v");
+  useApp.setState({ toast });
+  assert.equal(
+    useProject.getState().project?.tracks.find((t) => t.id === "v")?.magnetic,
+    undefined,
+  );
+  assert.match(messages[0] ?? "", /travada fixa/);
+});
+
+async function importClipboard() {
+  const again = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.startsWith("@shared/"))
+        return { url: new URL(`shared/${specifier.slice(8)}.ts`, src).href, shortCircuit: true };
+      if (specifier.startsWith("@/"))
+        return {
+          url: new URL(`renderer/src/${specifier.slice(2)}.ts`, src).href,
+          shortCircuit: true,
+        };
+      return nextResolve(specifier, context);
+    },
+  });
+  const mod = await import("../src/renderer/src/lib/clipboard.ts");
+  again.deregister();
+  return mod;
+}

@@ -7,6 +7,9 @@ import {
   timelineSilences,
   timelineWords,
 } from "@shared/cleanup";
+import { trimGroup, withGroups } from "@shared/groups";
+import { magneticSlot } from "@shared/magnetic";
+import type { Marker } from "@shared/markers";
 import { draftClips } from "@shared/projectDiff";
 import { type RippleTrim, rippleTrim } from "@shared/ripple";
 import { deriveSeams, isReviewed } from "@shared/seams";
@@ -40,10 +43,13 @@ import {
   Film,
   FoldHorizontal,
   Headphones,
+  Highlighter,
   Image,
+  Link2,
   Lock,
   LockOpen,
   Magnet,
+  MapPin,
   Maximize2,
   MousePointer2,
   Music,
@@ -97,6 +103,7 @@ import {
 import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
 import { Filmstrip } from "./Filmstrip";
+import { addGainPoint, GainEnvelope } from "./GainEnvelope";
 import { ASSET_MIME } from "./Library";
 import { NarrationPanel } from "./NarrationPanel";
 import { Waveform } from "./Waveform";
@@ -296,9 +303,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       interval,
       words: heard ? timelineWords(heard, transcripts).filter((w) => !w.silent) : [],
       silences: heard ? timelineSilences(heard, transcripts) : [],
-      markers: recordingMarks(project)
-        .filter((m) => m.kind !== "zoom")
-        .map((m) => m.start),
+      markers: [
+        ...recordingMarks(project)
+          .filter((m) => m.kind !== "zoom")
+          .map((m) => m.start),
+        ...(project.markers ?? []).map((m) => m.t),
+      ],
     });
   }, [project, transcripts, interval]);
   /** The magnet for one gesture: the same index, without the edges of the clips dragged. */
@@ -398,7 +408,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           return real ? [{ ...real, start: c.start, trackId: c.trackId }] : [];
         });
         if (moved.length)
-          useProject.getState().commit((p) => ({ ...p, clips: placeClips(p.clips, moved) }));
+          useProject.getState().commit((p) => ({ ...p, clips: placeMoved(p, moved) }));
       },
     );
   };
@@ -408,7 +418,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
    * every track text cuts reach, follows the change (rippleTrim: shorter is a cut there, longer
    * opens room); without it the trim stops at the neighbouring clips instead of covering them.
    */
-  const beginTrim = (clip: Clip, edge: "start" | "end", ripple: boolean): void => {
+  const beginTrim = (clip: Clip, edge: "start" | "end", ripple: boolean, alone = false): void => {
     if (waitForDraft("aparar clipes")) return;
     const asset = assets.get(clip.assetId);
     const neighbours = project.clips.filter((c) => c.trackId === clip.trackId && c.id !== clip.id);
@@ -445,8 +455,24 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         }
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
         const trimmed = trimClip(clip, edge, t, asset);
-        result = project.clips.map((c) => (c.id === trimmed.id ? trimmed : c));
-        setPreview({ clips: new Map([[clip.id, trimmed]]), snap });
+        // The clips of its group with the same edge there follow (Alt trims this one alone).
+        result = alone
+          ? project.clips.map((c) => (c.id === trimmed.id ? trimmed : c))
+          : trimGroup(
+              project.clips,
+              clip,
+              trimmed,
+              edge,
+              trimClip,
+              assets,
+              1 / fps,
+              new Set(tracks.filter((t) => t.locked).map((t) => t.id)),
+            );
+        const before = new Map(project.clips.map((c) => [c.id, c]));
+        setPreview({
+          clips: new Map(result.filter((c) => before.get(c.id) !== c).map((c) => [c.id, c])),
+          snap,
+        });
       },
       () => {
         setPreview(null);
@@ -471,11 +497,13 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           useProject.getState().commit((p) => ({ ...p, clips: next }));
           return;
         }
-        const trimmed = next.find((x) => x.id === clip.id);
-        if (!ripple && trimmed && now.clips.some((c) => c.id === clip.id))
+        const changed = new Map(
+          next.filter((x) => project.clips.find((c) => c.id === x.id) !== x).map((x) => [x.id, x]),
+        );
+        if (!ripple && changed.has(clip.id) && now.clips.some((c) => c.id === clip.id))
           useProject.getState().commit((p) => ({
             ...p,
-            clips: p.clips.map((c) => (c.id === clip.id ? trimmed : c)),
+            clips: p.clips.map((c) => changed.get(c.id) ?? c),
           }));
       },
     );
@@ -508,17 +536,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       // Clicking a clip is the latest selection: Delete acts on it, not on words picked before.
       if (useApp.getState().textCut) useApp.getState().set({ textCut: null });
       let sel = selection;
+      // A clip of a group is picked with its whole group; Alt picks it alone (J and L cuts).
+      const picked = e.altKey ? [clip.id] : withGroups(project.clips, [clip.id]);
       // On an edge, Shift is the ripple trim, not a change of the selection.
       if (part === "body" && (e.ctrlKey || e.shiftKey)) {
-        sel = sel.includes(clip.id) ? sel.filter((id) => id !== clip.id) : [...sel, clip.id];
+        sel = sel.includes(clip.id)
+          ? sel.filter((id) => !picked.includes(id))
+          : [...new Set([...sel, ...picked])];
         select(sel);
         if (!sel.includes(clip.id)) return;
-      } else if (!sel.includes(clip.id)) {
-        sel = [clip.id];
+      } else if (!sel.includes(clip.id) || (e.altKey && sel.length > 1)) {
+        sel = picked;
         select(sel);
       }
       if (part === "body") beginMove(e, clip, sel);
-      else beginTrim(clip, part, e.shiftKey);
+      else beginTrim(clip, part, e.shiftKey, e.altKey);
     },
   );
 
@@ -927,6 +959,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
             }}
           >
             <Ruler zoom={zoom} left={view.left} width={view.width} onPointerDown={onRulerDown} />
+            <MarkerFlags
+              markers={project.markers ?? []}
+              zoom={zoom}
+              height={RULER_H + lanesHeight}
+              fps={fps}
+            />
             {tracks.map((t) => {
               const top = laneTops.get(t.id) ?? RULER_H;
               return (
@@ -1209,6 +1247,24 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                   trackMenu.trackId,
                   tracks.findIndex((t) => t.id === trackMenu.trackId) + 1,
                 ),
+            },
+            { separator: true, label: "" },
+            {
+              icon: Magnet,
+              label: tracks.find((t) => t.id === trackMenu.trackId)?.magnetic
+                ? "Desligar a faixa magnética"
+                : "Faixa magnética",
+              hint: "Os clipes desta faixa ficam sempre encostados, desde o começo da aula",
+              disabled: !!tracks.find((t) => t.id === trackMenu.trackId)?.locked,
+              onSelect: () => actions.toggleMagnetic(trackMenu.trackId),
+            },
+            {
+              icon: Highlighter,
+              label: tracks.find((t) => t.id === trackMenu.trackId)?.spotlight
+                ? "Parar de destacar a faixa"
+                : "Destacar faixa",
+              hint: "Enquanto esta faixa toca, as outras abaixam (como a música abaixa para a voz)",
+              onSelect: () => actions.toggleSpotlight(trackMenu.trackId),
             },
             { separator: true, label: "" },
             {
@@ -1722,6 +1778,7 @@ function Playhead({
 }
 
 const KIND_ICON = { video: Film, audio: Music, image: Image };
+const REGION_LABEL = { blur: "Desfoque", pixelate: "Pixelado", spotlight: "Holofote" };
 
 interface ClipProps {
   clip: Clip;
@@ -1774,11 +1831,17 @@ const ClipView = memo(function ClipView({
 
   return (
     <fieldset
-      className={`clip clip-${clip.zoomLayer ? "zoomfx" : kind} ${selected ? "is-selected" : ""} ${draft ? "is-draft" : ""} ${dragging ? "is-dragging" : ""} ${asset?.missing || !asset ? "is-missing" : ""} ${track.hidden ? "is-hidden" : ""} ${track.muted ? "is-muted" : ""}`}
+      className={`clip clip-${clip.zoomLayer || clip.regionFx ? "zoomfx" : kind} ${clip.groupId ? "is-grouped" : ""} ${selected ? "is-selected" : ""} ${draft ? "is-draft" : ""} ${dragging ? "is-dragging" : ""} ${asset?.missing || !asset ? "is-missing" : ""} ${track.hidden ? "is-hidden" : ""} ${track.muted ? "is-muted" : ""}`}
       aria-label={`Clipe ${name}`}
       style={{ left, width, top: top + 3, height: height - 6 }}
       onPointerDown={(e) => onPointerDown(e, clip, "body")}
       onContextMenu={(e) => onContextMenu(e, clip)}
+      onDoubleClick={(e) => {
+        // Two clicks on a selected clip with sound: a point of its volume envelope there.
+        if (!selected || !asset?.hasAudio || clip.zoomLayer || clip.regionFx) return;
+        e.stopPropagation();
+        addGainPoint(clip, (e.clientX - e.currentTarget.getBoundingClientRect().left) / zoom);
+      }}
       title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
     >
       {kind === "video" && asset?.filmstrip && stripReady ? (
@@ -1817,11 +1880,19 @@ const ClipView = memo(function ClipView({
           />
         </div>
       )}
+      {asset?.hasAudio && !clip.zoomLayer && (selected || !!clip.gain?.length) && (
+        <GainEnvelope clip={clip} zoom={zoom} height={height - 6} editable={selected} />
+      )}
       {width > 28 && (
         <div className="clip-label">
+          {clip.groupId && <Link2 size={11} aria-label="Em um grupo" />}
           <Icon size={11} />
           <span>
-            {clip.zoomLayer ? `Zoom ${clip.zoomLayer.scale.toFixed(1)}× · faixas abaixo` : name}
+            {clip.zoomLayer
+              ? `Zoom ${clip.zoomLayer.scale.toFixed(1)}× · faixas abaixo`
+              : clip.regionFx
+                ? `${REGION_LABEL[clip.regionFx.kind]} · faixas abaixo`
+                : name}
           </span>
           {clipSpeed(clip) !== 1 && (
             <span className="clip-speed mono">{speedLabel(clipSpeed(clip))}</span>
@@ -1836,6 +1907,124 @@ const ClipView = memo(function ClipView({
     </fieldset>
   );
 });
+
+/**
+ * Clips dragged to their new places: on a magnetic track they go in between the clips there
+ * (the commit packs the track again), anywhere else they cover what is under them.
+ */
+function placeMoved(p: Project, moved: Clip[]): Clip[] {
+  const magnetic = new Set(p.tracks.filter((t) => t.magnetic && !t.locked).map((t) => t.id));
+  const free = moved.filter((c) => !magnetic.has(c.trackId));
+  const packed = moved.filter((c) => magnetic.has(c.trackId));
+  let clips = free.length ? placeClips(p.clips, free) : p.clips;
+  for (const c of packed) {
+    const others = clips.filter((x) => x.id !== c.id);
+    clips = [...others, { ...c, start: Math.max(0, magneticSlot(others, c.trackId, c.start)) }];
+  }
+  return clips;
+}
+
+/**
+ * The lesson's markers over the ruler (M adds one at the playhead): click goes there, two clicks
+ * rename it, the right button sets it as a chapter or removes it. Chapters are drawn in lime.
+ */
+function MarkerFlags({
+  markers,
+  zoom,
+  height,
+  fps,
+}: {
+  markers: Marker[];
+  zoom: number;
+  height: number;
+  fps: number;
+}): ReactNode {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const current = menu && markers.find((m) => m.id === menu.id);
+  return (
+    <>
+      {markers.map((m) => (
+        <Fragment key={m.id}>
+          <div
+            className={`marker-line ${m.chapter ? "is-chapter" : ""}`}
+            style={{ left: m.t * zoom, height }}
+          />
+          <button
+            type="button"
+            className={`marker-flag ${m.chapter ? "is-chapter" : ""}`}
+            style={{ left: m.t * zoom }}
+            title={`${m.label} · ${timecode(m.t, fps)}${m.chapter ? " · capítulo" : ""}. Dois cliques renomeiam; botão direito para mais opções.`}
+            aria-label={`Marcador ${m.label}`}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              if (e.button === 0) {
+                playback.pause();
+                playback.seek(m.t);
+              }
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditing(m.id);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setMenu({ x: e.clientX, y: e.clientY, id: m.id });
+            }}
+          >
+            <MapPin size={10} />
+            {editing === m.id ? (
+              <input
+                className="marker-input"
+                ref={focusOnMount}
+                defaultValue={m.label}
+                aria-label="Nome do marcador"
+                onPointerDown={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  setEditing(null);
+                  const label = e.target.value.trim();
+                  if (label && label !== m.label) actions.updateMarker(m.id, { label });
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") {
+                    e.currentTarget.value = m.label;
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            ) : (
+              <span className="marker-label">{m.label}</span>
+            )}
+          </button>
+        </Fragment>
+      ))}
+      {menu && current && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            { label: "Renomear", onSelect: () => setEditing(current.id) },
+            {
+              label: current.chapter ? "Deixar de ser capítulo" : "Começar um capítulo aqui",
+              hint: "Os capítulos entram no MP4 exportado e na descrição para o YouTube",
+              onSelect: () => actions.updateMarker(current.id, { chapter: !current.chapter }),
+            },
+            { separator: true, label: "" },
+            {
+              icon: Trash2,
+              label: "Remover o marcador",
+              onSelect: () => actions.removeMarker(current.id),
+            },
+          ]}
+        />
+      )}
+    </>
+  );
+}
 
 /** Zooms and recording markers (marker and redo shortcuts) of the clips, in timeline seconds. */
 function recordingMarks(

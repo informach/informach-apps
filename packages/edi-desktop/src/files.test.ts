@@ -51,6 +51,10 @@ describe("selected-file capabilities", () => {
         "destino",
       );
       await expect(files.assertWrite(join(folder, "program.exe"), false)).rejects.toThrow();
+      // A packed lesson (EdiAula) is a ZIP picked in a save dialog.
+      const packed = join(root, "aula.zip");
+      await files.grantWrite(packed);
+      await expect(files.assertWrite(packed, false)).resolves.toBeTruthy();
       // canWrite answers the same question without throwing, and false when the folder is gone.
       await expect(files.canWrite(photo)).resolves.toBe(true);
       await expect(files.canWrite(join(folder, "output.mp4"))).resolves.toBe(true);

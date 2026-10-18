@@ -7,6 +7,7 @@ import { importMedia } from "@/lib/importMedia";
 import { confirmLeave } from "@/lib/leaveGuard";
 // Sound of J, K, L backwards, frame steps and scrubbing (it plugs into the playback clock).
 import "@/lib/scrub";
+import { speechStep } from "@/lib/speechNav";
 import { zoomBy, zoomToFit } from "@/lib/timelineView";
 import { cutRangesInteractive } from "@/lib/transcripts";
 import { setTransition } from "@/lib/transitions";
@@ -100,6 +101,13 @@ function handleKey(e: KeyboardEvent): void {
   };
 
   if (ctrl) {
+    // Ctrl+G groups the selected clips, Ctrl+Shift+G undoes their groups.
+    if (k === "g") {
+      done();
+      if (e.shiftKey) actions.ungroup();
+      else actions.group();
+      return;
+    }
     if (k === "z" && !e.shiftKey) {
       done();
       useProject.getState().undo();
@@ -193,11 +201,23 @@ function handleKey(e: KeyboardEvent): void {
       break;
     case "ArrowLeft":
       done();
-      playback.step(e.shiftKey ? -1 : -1 / fps);
+      // Alt: word by word (the start and the end of each one); Alt+Shift: by sentence and silence.
+      if (e.altKey) void speechStep(-1, e.shiftKey ? "sentence" : "word");
+      else playback.step(e.shiftKey ? -1 : -1 / fps);
       break;
     case "ArrowRight":
       done();
-      playback.step(e.shiftKey ? 1 : 1 / fps);
+      if (e.altKey) void speechStep(1, e.shiftKey ? "sentence" : "word");
+      else playback.step(e.shiftKey ? 1 : 1 / fps);
+      break;
+    case "m":
+    case "M":
+      // M: a marker at the playhead; Shift+M the next one, Alt+M the one before.
+      if (e.repeat) break;
+      done();
+      if (e.shiftKey) actions.stepMarker(1);
+      else if (e.altKey) actions.stepMarker(-1);
+      else actions.addMarker();
       break;
     case "Home":
       done();

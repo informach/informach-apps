@@ -78,6 +78,36 @@ export function speechSpans(
   return out;
 }
 
+/**
+ * When a highlighted track ("Destacar faixa") sounds: its audible clips, merged like the speech,
+ * so the other tracks step aside over the same envelope as the music does for the voice.
+ */
+export function spotlightSpans(
+  project: Pick<Project, "clips" | "tracks" | "assets">,
+  ramp = DUCKING.ramp,
+  hold = DUCKING.hold,
+): [number, number][] {
+  const lit = new Set(project.tracks.filter((t) => t.spotlight && !t.muted).map((t) => t.id));
+  if (!lit.size) return [];
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const raw: [number, number][] = [];
+  for (const c of project.clips) {
+    const asset = assets.get(c.assetId);
+    if (!lit.has(c.trackId) || !asset?.hasAudio || asset.kind === "image" || c.volume <= 0)
+      continue;
+    if (c.mutedFor) continue;
+    raw.push([c.start, clipEnd(c)]);
+  }
+  raw.sort((a, b) => a[0] - b[0]);
+  const out: [number, number][] = [];
+  for (const [a, b] of raw) {
+    const last = out[out.length - 1];
+    if (last && a - last[1] < 2 * ramp + hold) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
+
 /** How far down the music is at t: 0 = full volume, 1 = all the way to `depth`. */
 function duckAmount(spans: [number, number][], t: number, ramp: number): number {
   for (const [a, b] of spans) {

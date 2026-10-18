@@ -12,9 +12,11 @@ import type { Clip } from "@shared/types";
 import { MessageSquareText } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
+import { annotationStyle } from "@/lib/sharedLibrary";
 import { registerDraft } from "@/state/project";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
+import { FavoriteStyle, RevealRow } from "./LookSections";
 import { ShadowControls } from "./ShadowControls";
 import { Swatches } from "./Swatches";
 
@@ -162,9 +164,18 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
   return (
     <>
       <div className="props-section">
-        <h3>
-          <MessageSquareText size={13} /> {KIND_LABEL[a.kind]}
-        </h3>
+        <div className="props-head">
+          <h3>
+            <MessageSquareText size={13} /> {KIND_LABEL[a.kind]}
+          </h3>
+          <FavoriteStyle
+            target="annotation"
+            name={KIND_LABEL[a.kind]}
+            kind={a.kind}
+            value={() => annotationStyle(a)}
+          />
+        </div>
+        <RevealRow clip={clip} annotation={a} />
         {hasText &&
           (a.kind === "step" ? (
             <input

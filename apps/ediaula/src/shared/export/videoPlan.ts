@@ -11,6 +11,17 @@ import {
 } from "../compose.ts";
 import { cursorOverlayExpressions } from "../cursor-expressions.ts";
 import { keyframeExprs } from "../keyframes.ts";
+import {
+  type ClipColor,
+  colorFilters,
+  deviceGeometry,
+  hasColor,
+  type RegionFx,
+  regionPixels,
+  spotlightDarkness,
+  spotlightRadius,
+} from "../look.ts";
+import { followTarget, regionInSource, regionStrength, sourcePixels } from "../regionFollow.ts";
 import { clipEnd, clipSpeed, sourceEnd, sourceLength } from "../timeline.ts";
 import {
   type CutFx,
@@ -86,6 +97,23 @@ const n = (v: number): string => (Math.round(v * 1000) / 1000).toString();
 /** Source times keep microseconds, so frame times like 10.0333 do not drift. */
 const us = (v: number): string => (Math.round(v * 1e6) / 1e6).toString();
 const even = (v: number): number => Math.max(2, Math.round(v / 2) * 2);
+
+/** BT.709 limited range as the composite holds it, from RGB (a picture made by the app). */
+const TO_YUV = "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p";
+
+/**
+ * eq's curve (vf_eq.c create_lut, gamma 1) as a lutyuv: the light is v' = c (v - 1/2) + 1/2 + b
+ * on the 0..255 scale, and the color is pushed away from gray by the saturation. lutyuv also
+ * takes pictures with transparency, which eq would turn opaque.
+ */
+export function eqLut(c: ClipColor): string {
+  const k = c.contrast ?? 1;
+  const b = c.brightness ?? 0;
+  const s = c.saturation ?? 1;
+  const r = (v: number): string => (Math.round(v * 10000) / 10000).toString();
+  const chroma = `clip(128+(val-128)*${r(s)},0,255)`;
+  return `lutyuv=y='clip(255*(${r(k)}*(val/255-0.5)+0.5+${r(b)}),0,255)':u='${chroma}':v='${chroma}'`;
+}
 
 /** Size the lesson is composed at (a vertical export fits it into the tall frame afterwards). */
 export function composeSize(
@@ -279,7 +307,7 @@ export function buildVideoWindowPlan(
     if (!asset || !track || track.hidden) continue;
     const frames = clipFrames(clip, r, win);
     if (!frames) continue;
-    if (clip.zoomLayer) {
+    if (clip.zoomLayer || clip.regionFx) {
       drawn.push({ clip, layer: true });
       continue;
     }
@@ -402,16 +430,184 @@ export function buildVideoWindowPlan(
     );
   };
 
+  /** A picture made once (shared/export/fx.ts) as an input, or its graph when there is no PNG. */
+  const fxInput = (a: FxAsset, label: string, opts: string[] = []): string => {
+    const path = fx(a);
+    if (path) {
+      const input = addInput(path, opts, true);
+      return `${input}:v`;
+    }
+    const out = `fx${label}_${a.kind}`;
+    graph.push(fxGraph(a, rate, out, `fx${label}${a.kind}`));
+    return out;
+  };
+  /** A single picture repeated on the lesson's clock for the whole window. */
+  const held = `loop=loop=-1:size=1,trim=end_frame=${win.frames},settb=${r.den}/${r.num},setpts=N+${win.from}`;
+
   // ---- The canvas, on the lesson's clock from this window's first frame (time base one frame) ----
-  graph.push(
-    `color=c=black:s=${W}x${H}:r=${rate},trim=end_frame=${win.frames},format=yuv420p,setpts=PTS+${win.from}[base]`,
-  );
+  const bg = project.background;
+  const bgAsset = bg?.kind === "image" ? assets.get(bg.assetId) : undefined;
+  if (bg?.kind === "color")
+    graph.push(
+      `color=c=0x${bg.color.slice(1, 7)}:s=${W}x${H}:r=${rate},trim=end_frame=${win.frames},format=rgb24,${TO_YUV},setpts=PTS+${win.from}[base]`,
+    );
+  else if (bg?.kind === "gradient") {
+    const g = fxInput(
+      { kind: "gradient", w: W, h: H, from: bg.from, to: bg.to, angle: bg.angle },
+      "bg",
+      ["-framerate", rate],
+    );
+    graph.push(`[${g}]${held},${TO_YUV}[base]`);
+  } else if (bgAsset && bgAsset.kind === "image") {
+    const input = addInput(bgAsset.path, ["-framerate", rate], false);
+    const facts = media(bgAsset.path);
+    graph.push(
+      `[${input}:v]${held},scale=${W}:${H}:force_original_aspect_ratio=increase${facts?.matrix ? `:in_color_matrix=${facts.matrix}` : ""}${facts?.range ? `:in_range=${facts.range}` : ""}:out_color_matrix=bt709:out_range=tv:flags=bicubic+accurate_rnd+full_chroma_int,crop=${W}:${H},setsar=1,format=yuv420p[base]`,
+    );
+  } else
+    graph.push(
+      `color=c=black:s=${W}x${H}:r=${rate},trim=end_frame=${win.frames},format=yuv420p,setpts=PTS+${win.from}[base]`,
+    );
   let current = "base";
   let layer = 0;
   /** Layers of a joined run's pieces, waiting for its last piece. */
   let pending: { v: string[]; shadow: string[] } = { v: [], shadow: [] };
 
+  const hiddenTrack = (id: string): boolean => !!project.tracks.find((tr) => tr.id === id)?.hidden;
+  /** Region clips that follow a recording, by its media and track. */
+  const followers = new Map<string, Clip[]>();
+  for (const c of project.clips) {
+    if (!c.regionFx?.follow) continue;
+    const target = followTarget(project, c);
+    if (!target) continue;
+    const key = `${target.assetId}|${target.trackId}`;
+    followers.set(key, [...(followers.get(key) ?? []), c]);
+  }
+
+  /**
+   * The regions that follow `clip`'s recording, applied to its picture (source pixels, on the
+   * clip's own clock: t is seconds from the clip's start, frames k0 to k1 of it) while each
+   * region lasts. Returns the label of the picture with them.
+   */
+  const followRegions = (
+    clip: DerivedClip,
+    asset: Asset,
+    input: string,
+    L: number,
+    k0: number,
+    k1: number,
+  ): string => {
+    const list = (followers.get(`${asset.id}|${clip.trackId}`) ?? []).filter(
+      (c) => c.start < clipEnd(clip) && clipEnd(c) > clip.start && !hiddenTrack(c.trackId),
+    );
+    let src = input;
+    const sw = asset.width || W;
+    const sh = asset.height || H;
+    const frame = { width: W, height: H };
+    const lay = clipLayout(clip, asset, frame);
+    // Frame pixels per source pixel: the region's sizes are in frame pixels.
+    const k = lay.full.w / sw;
+    for (const [i, c] of list.entries()) {
+      const fxr = c.regionFx;
+      if (!fxr) continue;
+      const box = sourcePixels(regionInSource(fxr, clip, asset, frame), sw, sh);
+      if (!box) continue;
+      const id = `${L}f${i}`;
+      const on = `enable='between(t,${us(c.start - clip.start - half)},${us(clipEnd(c) - clip.start - half)})'`;
+      const feather = (fxr.feather * H) / 1080 / k;
+      const { radius, block } = regionStrength(fxr, H, box, k);
+      if (fxr.kind === "spotlight") {
+        const dark = fxInput(
+          {
+            kind: "spotlight",
+            w: sw,
+            h: sh,
+            x: box.x,
+            y: box.y,
+            rw: box.w,
+            rh: box.h,
+            radius: spotlightRadius(box),
+            feather,
+            darkness: spotlightDarkness(fxr),
+          },
+          `r${id}`,
+          ["-framerate", rate],
+        );
+        graph.push(
+          `[${dark}]loop=loop=-1:size=1,trim=end_frame=${k1 - k0},settb=${r.den}/${r.num},setpts=N+${k0},${TO_YUVA}[rs${id}]`,
+        );
+        graph.push(`[${src}][rs${id}]overlay=0:0:eof_action=pass:${on}[rf${id}]`);
+        src = `rf${id}`;
+        continue;
+      }
+      const inner =
+        fxr.kind === "blur"
+          ? `boxblur=luma_radius=${radius}:luma_power=2:chroma_radius=${Math.max(1, Math.floor(radius / 2))}:chroma_power=2`
+          : `scale=${Math.max(1, Math.round(box.w / block))}:${Math.max(1, Math.round(box.h / block))}:flags=area,scale=${box.w}:${box.h}:flags=neighbor`;
+      graph.push(`[${src}]split[ra${id}][rb${id}]`);
+      let patch = `rc${id}`;
+      graph.push(`[rb${id}]crop=${box.w}:${box.h}:${box.x}:${box.y},${inner},setsar=1[${patch}]`);
+      if (feather > 0.5) {
+        const mask = fxInput({ kind: "feather", w: box.w, h: box.h, feather }, `r${id}`);
+        graph.push(`[${patch}]format=yuva420p[rd${id}];[rd${id}][${mask}]alphamerge[re${id}]`);
+        patch = `re${id}`;
+      }
+      graph.push(`[ra${id}][${patch}]overlay=${box.x}:${box.y}:eof_action=pass:${on}[rf${id}]`);
+      src = `rf${id}`;
+    }
+    return src;
+  };
+
+  /** Blur, pixelate or spotlight over what is drawn so far, while the clip lasts. */
+  const region = (clip: DerivedClip, fxr: RegionFx, L: number): void => {
+    const box = regionPixels(fxr, W, H);
+    const on = `enable='between(t,${us(clip.start - half)},${us(clipEnd(clip) - half)})'`;
+    const feather = (fxr.feather * H) / 1080;
+    if (fxr.kind === "spotlight") {
+      const dark = fxInput(
+        {
+          kind: "spotlight",
+          w: W,
+          h: H,
+          x: box.x,
+          y: box.y,
+          rw: box.w,
+          rh: box.h,
+          radius: spotlightRadius(box),
+          feather,
+          darkness: spotlightDarkness(fxr),
+        },
+        `r${L}`,
+        ["-framerate", rate],
+      );
+      graph.push(`[${dark}]${TO_YUVA},${held}[rs${L}]`);
+      graph.push(`[${current}][rs${L}]overlay=0:0:eof_action=pass:${on}[rf${L}]`);
+      current = `rf${L}`;
+      return;
+    }
+    // The same radius and block the preview uses (shared/regionFollow.ts regionStrength).
+    const { radius: lr, block: b } = regionStrength(fxr, H, box);
+    const inner =
+      fxr.kind === "blur"
+        ? `boxblur=luma_radius=${lr}:luma_power=2:chroma_radius=${Math.max(1, Math.floor(lr / 2))}:chroma_power=2`
+        : `scale=${Math.max(1, Math.round(box.w / b))}:${Math.max(1, Math.round(box.h / b))}:flags=area,scale=${box.w}:${box.h}:flags=neighbor`;
+    graph.push(`[${current}]split[ra${L}][rb${L}]`);
+    let patch = `rc${L}`;
+    graph.push(`[rb${L}]crop=${box.w}:${box.h}:${box.x}:${box.y},${inner},setsar=1[${patch}]`);
+    if (feather > 0.5) {
+      const mask = fxInput({ kind: "feather", w: box.w, h: box.h, feather }, `r${L}`);
+      graph.push(`[${patch}]format=yuva420p[rd${L}];[rd${L}][${mask}]alphamerge[re${L}]`);
+      patch = `re${L}`;
+    }
+    graph.push(`[ra${L}][${patch}]overlay=${box.x}:${box.y}:eof_action=pass:${on}[rf${L}]`);
+    current = `rf${L}`;
+  };
+
   for (const { clip, piece, layer: isLayer } of drawn) {
+    if (isLayer && clip.regionFx) {
+      if (!clip.regionFx.follow) region(clip, clip.regionFx, layer++);
+      continue;
+    }
     if (isLayer) {
       graph.push(
         `[${current}]${zoomLayerFilter(clip, fps, entryView(project, clip), win.from)}[zl${layer}]`,
@@ -437,7 +633,9 @@ export function buildVideoWindowPlan(
     const facts = media(piece.path);
     const keyed = piece.internal;
     const image = asset.kind === "image";
-    const alphaContent = keyed || image || (facts?.alpha ?? asset.alpha ?? false);
+    const geo = t?.device ? deviceGeometry(t.device, vw, vh) : null;
+    // A device frame has its own outline: its shadow follows it, like a cut-out picture's.
+    const alphaContent = keyed || image || !!geo || (facts?.alpha ?? asset.alpha ?? false);
     // How the source is read into colour: keyed avatars were written by the app in BT.601;
     // stills say it themselves; videos without a tag are BT.709.
     const matrix = keyed ? "bt601" : image ? facts?.matrix : (facts?.matrix ?? "bt709");
@@ -483,6 +681,8 @@ export function buildVideoWindowPlan(
       );
       src = `cur${L}`;
     }
+    // Regions that follow this recording, drawn on its own picture before its zooms carry them.
+    if (!image) src = followRegions(clip, asset, src, L, piece.frames.k0, piece.frames.k1);
     // The recording's zooms over what this window reads, only while one is on.
     const zooms = image ? [] : zoomsIn(asset.zooms, piece.S - 1 / fps, piece.E);
     if (zooms.length) {
@@ -547,7 +747,9 @@ export function buildVideoWindowPlan(
       opacity === 1 &&
       !faded &&
       !moving &&
-      !rotation;
+      !rotation &&
+      !geo &&
+      !hasColor(clip.color);
     const out = `o${L}`;
 
     /**
@@ -599,38 +801,68 @@ export function buildVideoWindowPlan(
     }
 
     const fmt = rgba ? "rgba" : "yuva420p";
-    const fxInput = (a: FxAsset, opts: string[] = []): string => {
-      const path = fx(a);
-      if (path) {
-        const input = addInput(path, opts, true);
-        return `${input}:v`;
-      }
-      const label = `fx${L}_${a.kind}`;
-      graph.push(fxGraph(a, rate, label, `fx${L}${a.kind}`));
-      return label;
-    };
-    // Shape, border and shadow are pictures made once (shared/export/fx.ts).
-    const shaped = !!(t?.mask || t?.border);
-    const R = t?.mask ? maskRadius(t, vw, vh, H) : 0;
-    const border = t?.border;
+    // Shape, border and shadow are pictures made once (shared/export/fx.ts). A device frame
+    // takes the place of the shape and the border.
+    const shaped = !geo && !!(t?.mask || t?.border);
+    const R = t?.mask && !geo ? maskRadius(t, vw, vh, H) : 0;
+    const border = geo ? undefined : t?.border;
     const bw = border ? (BORDER_WIDTH * H) / 1080 : 0;
 
-    // 1. The picture at its visible size, in the working format.
-    const sized = shaped || shadow || !moving || !!rotation;
+    // 1. The picture at its visible size (on a device, its screen's), in the working format.
+    const sized = shaped || shadow || !moving || !!rotation || !!geo;
     let pic = `p${L}`;
-    graph.push(
-      `[${src}]${crop}${convert(sized ? `${vw}:${vh}` : null, !rgba)},setsar=1,format=${fmt}[${pic}]`,
-    );
+    const screenSize = geo
+      ? `${even(geo.screen.w)}:${even(geo.screen.h)}`
+      : sized
+        ? `${vw}:${vh}`
+        : null;
+    graph.push(`[${src}]${crop}${convert(screenSize, !rgba)},setsar=1,format=${fmt}[${pic}]`);
+    // Color: eq's own curve on the light and the color (lutyuv keeps the transparency, which
+    // eq would drop), then the temperature on red, green and blue.
+    if (hasColor(clip.color)) {
+      const { eq, temperature } = colorFilters(clip.color);
+      const chain: string[] = [];
+      if (eq) {
+        const lut = eqLut(clip.color);
+        chain.push(
+          rgba ? `${TO_YUVA},${lut},scale=in_color_matrix=bt709:in_range=tv,format=rgba` : lut,
+        );
+      }
+      if (temperature)
+        chain.push(
+          rgba
+            ? temperature
+            : `scale=in_color_matrix=bt709:in_range=tv,format=gbrap,${temperature},${TO_YUVA}`,
+        );
+      graph.push(`[${pic}]${chain.join(",")}[cl${L}]`);
+      pic = `cl${L}`;
+    }
+    // The device around the screen: the picture placed on it, the frame drawn over it.
+    if (geo && t?.device) {
+      const frame = fxInput({ kind: "device", device: t.device, w: vw, h: vh }, `${L}`, [
+        "-framerate",
+        rate,
+      ]);
+      const frameIn = rgba ? frame : `dv${L}`;
+      if (!rgba) graph.push(`[${frame}]${TO_YUVA}[dv${L}]`);
+      graph.push(
+        `[${frameIn}]loop=loop=-1:size=1,trim=end_frame=${k1 - k0},settb=${r.den}/${r.num},setpts=N+${k0}[dl${L}];[${pic}]pad=${vw}:${vh}:${Math.round(geo.screen.x)}:${Math.round(geo.screen.y)}:color=black@0[pd${L}];[pd${L}][dl${L}]overlay=0:0:format=auto:shortest=1[dvo${L}]`,
+      );
+      pic = `dvo${L}`;
+    }
     // 2. Border ring over the picture (the whole ring shows, as in the preview), then the shape.
     if (border) {
-      const ring = fxInput({ kind: "ring", w: vw, h: vh, radius: R, border: bw, color: border });
+      const ring = fxInput(
+        { kind: "ring", w: vw, h: vh, radius: R, border: bw, color: border },
+        `${L}`,
+      );
       const ringIn = rgba ? ring : `rg${L}`;
       if (!rgba) graph.push(`[${ring}]${TO_YUVA}[${ringIn}]`);
       graph.push(`[${pic}][${ringIn}]overlay=0:0:format=auto[rb${L}]`);
       pic = `rb${L}`;
     }
     if (R > 0) {
-      const mask = fxInput({ kind: "mask", w: vw, h: vh, radius: R });
+      const mask = fxInput({ kind: "mask", w: vw, h: vh, radius: R }, `${L}`);
       if (alphaContent) {
         graph.push(
           `[${pic}]split[ma${L}][mb${L}];[mb${L}]alphaextract[mc${L}];[mc${L}][${mask}]blend=all_mode=multiply[md${L}];[ma${L}][md${L}]alphamerge[ms${L}]`,
@@ -701,6 +933,7 @@ export function buildVideoWindowPlan(
             opacity: shadow.opacity * opacity,
             color: shadow.color.slice(0, 7),
           },
+          `${L}`,
           ["-framerate", rate],
         );
         const clock = combined ? k0 : frameAt(clip.start, r) + k0;

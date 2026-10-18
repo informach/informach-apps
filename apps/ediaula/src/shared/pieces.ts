@@ -1,4 +1,5 @@
 import { clipEnd, newId, sourceAt } from "./clipTime.ts";
+import { shiftGain } from "./gain.ts";
 import type { Clip } from "./types.ts";
 import { layerCurve, type ZoomLayer } from "./zoomLayer.ts";
 
@@ -56,7 +57,7 @@ function layerPiece(
 
 /** The stretch [from, to) of a clip, in timeline seconds, as a clip of its own. */
 export function piece(c: Clip, from: number, to: number, opts: PieceOptions = {}): Clip {
-  const { fadeIn, enter, transition, fadeOut, exit, keyframes, zoomLayer, ...rest } = c;
+  const { fadeIn, enter, transition, fadeOut, exit, keyframes, zoomLayer, gain, ...rest } = c;
   const head = opts.head ?? Math.abs(from - c.start) <= EPS;
   const tail = opts.tail ?? Math.abs(to - clipEnd(c)) <= EPS;
   const out: Clip = {
@@ -72,6 +73,8 @@ export function piece(c: Clip, from: number, to: number, opts: PieceOptions = {}
   // Keyframes are seconds from the clip's start: the same moments, on the piece's clock.
   if (keyframes?.length)
     out.keyframes = keyframes.map((k) => ({ ...k, t: k.t - (from - c.start) }));
+  // The volume envelope too, every point kept, so trimming back out brings it back.
+  if (gain?.length) out.gain = shiftGain(gain, from - c.start);
   if (zoomLayer) out.zoomLayer = layerPiece(c, zoomLayer, from, to, head, tail);
   return out;
 }

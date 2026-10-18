@@ -16,6 +16,7 @@ import {
 } from "@shared/history";
 import { applyItems, type DiffItem, type DraftOp, draftWrite } from "@shared/projectDiff";
 import { fileName } from "@shared/relink";
+import { settle } from "@shared/settle";
 import { newId } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
 import { useMemo } from "react";
@@ -193,7 +194,7 @@ export const useProject = create<ProjectStore>((set, get) => {
     const state = get();
     const { project } = state;
     if (!project) return false;
-    const next = { ...fn(project), updatedAt: Date.now() };
+    const next = settle(project, { ...fn(project), updatedAt: Date.now() });
     const ids = new Set(next.clips.map((c) => c.id));
     set({
       project: next,
@@ -609,10 +610,18 @@ export function draftView(s: Pick<ProjectStore, "project" | "draft"> = useProjec
   conflicts: string[];
 } {
   if (shown && shown.project === s.project && shown.draft === s.draft) return shown.view;
-  const view =
-    s.project && s.draft && s.draft.projectId === s.project.id
-      ? applyItems(s.project, s.draft.items)
-      : { project: s.project, conflicts: [] };
+  let view: { project: Project | null; conflicts: string[] } = {
+    project: s.project,
+    conflicts: [],
+  };
+  if (s.project && s.draft && s.draft.projectId === s.project.id) {
+    const applied = applyItems(s.project, s.draft.items);
+    // Shown as a commit would leave it: magnetic tracks packed, markers along with the media.
+    view = {
+      project: applied.project === s.project ? applied.project : settle(s.project, applied.project),
+      conflicts: applied.conflicts,
+    };
+  }
   shown = { project: s.project, draft: s.draft, view };
   return view;
 }

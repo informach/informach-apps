@@ -42,6 +42,8 @@ const outputAllowed = (spec: Pick<ExportSpec, "outPath" | "audioOnly">): boolean
 /** Media and generated files an item reads. */
 function pathsOf(item: Item): string[] {
   const used = new Set(item.project.clips.map((c) => c.assetId));
+  // The background picture is read like any media of the lesson.
+  if (item.project.background?.kind === "image") used.add(item.project.background.assetId);
   const paths = new Set<string>();
   for (const a of item.project.assets) {
     if (!used.has(a.id)) continue;
@@ -99,7 +101,11 @@ export async function saveQueue(file: string, text: string, access: QueueAccess)
       if (!PENDING.has(item.state) || !outputAllowed(item.spec)) continue;
       if (!(await access.canWrite(item.spec.outPath))) continue;
       const readable = await Promise.all(pathsOf(item).map((p) => access.canRead(p)));
-      if (readable.every(Boolean)) kept.push({ ...item, state: "waiting" });
+      if (!readable.every(Boolean)) continue;
+      // The folder picked for the stems is allowed only in this session: a resumed export
+      // makes the video and its files, and the stems are asked for again.
+      const { stems: _stems, ...spec } = item.spec;
+      kept.push({ ...item, spec, state: "waiting" });
     }
     if (!kept.length) await rm(file, { force: true });
     else await replaceFile(file, JSON.stringify(kept));

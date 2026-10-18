@@ -1,4 +1,5 @@
 import type { PublishInfo } from "../types.ts";
+import type { TextCue } from "../webvtt.ts";
 import { frameTime, type Rate } from "./frames.ts";
 
 /**
@@ -46,4 +47,34 @@ export function ffmetadata(publish: PublishInfo | undefined, duration: number): 
     );
   });
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * A stretch [from, to) of the lesson exported on its own: the chapters inside it, counted from
+ * its start, with the chapter it begins in moved to 0:00.
+ */
+export function chaptersInRange(
+  chapters: readonly { time: number; title: string }[],
+  from: number,
+  to: number,
+): { time: number; title: string }[] {
+  const sorted = [...chapters].sort((a, b) => a.time - b.time);
+  const before = sorted.filter((c) => c.time <= from + 1e-6).at(-1);
+  const inside = sorted.filter((c) => c.time > from + 1e-6 && c.time < to);
+  return [
+    ...(before ? [{ title: before.title, time: 0 }] : []),
+    ...inside.map((c) => ({ title: c.title, time: c.time - from })),
+  ];
+}
+
+/** Caption cues of the stretch [from, to), cut at its edges and counted from its start. */
+export function cuesInRange(cues: readonly TextCue[], from: number, to: number): TextCue[] {
+  return cues
+    .filter((c) => c.end > from && c.start < to)
+    .map((c) => ({
+      text: c.text,
+      start: Math.max(0, c.start - from),
+      end: Math.min(to, c.end) - from,
+    }))
+    .filter((c) => c.end > c.start);
 }

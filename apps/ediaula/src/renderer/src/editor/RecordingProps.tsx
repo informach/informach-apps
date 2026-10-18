@@ -11,6 +11,7 @@ import { type Commit, personCommit } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { Slider } from "./ClipVisual";
 import { cursorFxOf, loadCursorData } from "./CursorLayer";
+import { FavoriteStyle } from "./LookSections";
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -77,6 +78,14 @@ export function CursorSection({ asset }: { asset: Asset }): ReactNode {
             label="Mostrar teclas (atalhos e setas)"
             on={fx.keys !== false}
             onChange={(v) => set({ keys: v })}
+          />
+          <FavoriteStyle
+            target="cursor"
+            name="Cursor"
+            value={() => {
+              const { path: _path, pathEdits: _edits, ...look } = fx;
+              return look;
+            }}
           />
         </>
       )}

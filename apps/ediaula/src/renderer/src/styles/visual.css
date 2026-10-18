@@ -626,3 +626,7 @@
   flex-wrap: wrap;
   margin-top: 4px;
 }
+
+.props-section .region-zoom-note {
+  color: var(--amber);
+}

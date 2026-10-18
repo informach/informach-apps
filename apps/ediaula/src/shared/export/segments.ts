@@ -36,7 +36,8 @@ export function mainTrack(project: DerivedProject): string | undefined {
   for (const t of project.tracks) if (t.kind === "video" && !t.hidden) shown.set(t.id, 0);
   for (const c of project.clips) {
     const asset = assets.get(c.assetId);
-    if (c.zoomLayer || !asset || asset.kind === "audio" || !shown.has(c.trackId)) continue;
+    if (c.zoomLayer || c.regionFx || !asset || asset.kind === "audio" || !shown.has(c.trackId))
+      continue;
     shown.set(c.trackId, (shown.get(c.trackId) ?? 0) + c.duration);
   }
   let best: { id: string; seconds: number } | undefined;
@@ -67,7 +68,7 @@ export function planSegments(
   const track = mainTrack(project);
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const candidates = project.clips
-    .filter((c) => c.trackId === track && !c.zoomLayer)
+    .filter((c) => c.trackId === track && !c.zoomLayer && !c.regionFx)
     .map((c) => {
       const asset = assets.get(c.assetId);
       const rate = asset?.fps && asset.fps > 0 ? asset.fps : fps;

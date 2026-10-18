@@ -1,5 +1,15 @@
 import { closeCommonGaps, cutTargets } from "@shared/cleanup";
 import { type ReframeMode, reframeProject } from "@shared/compose";
+import {
+  detachAudio,
+  detachProblem,
+  groupClips,
+  isOneGroup,
+  ungroupClips,
+  withGroups,
+} from "@shared/groups";
+import { magneticBlockers, magneticSlot } from "@shared/magnetic";
+import { addMarker, type Marker, stepMarker } from "@shared/markers";
 import { insertClips } from "@shared/ripple";
 import {
   clipsFrom,
@@ -61,10 +71,11 @@ export const actions = {
     const { project, selection, commit } = useProject.getState();
     if (!project || !selection.length) return;
     const locked = lockedTracks(project);
+    // Only what is selected: a click on a grouped clip already selects the whole group, and
+    // Alt + click picks one clip of it alone.
+    const picked = new Set(selection);
     const ids = new Set(
-      project.clips
-        .filter((c) => selection.includes(c.id) && !locked.has(c.trackId))
-        .map((c) => c.id),
+      project.clips.filter((c) => picked.has(c.id) && !locked.has(c.trackId)).map((c) => c.id),
     );
     if (!ids.size) return;
     commit((p) => ({
@@ -72,6 +83,96 @@ export const actions = {
       clips: ripple ? rippleDelete(p.clips, ids) : p.clips.filter((c) => !ids.has(c.id)),
     }));
     useProject.getState().select([]);
+  },
+
+  /** Ctrl+G: the selected clips (and the groups they are in) become one group. */
+  group(): boolean {
+    const { project, selection, commit } = useProject.getState();
+    if (!project || waitForDraft("agrupar clipes")) return false;
+    const locked = lockedTracks(project);
+    const ids = project.clips
+      .filter((c) => selection.includes(c.id) && !locked.has(c.trackId))
+      .map((c) => c.id);
+    if (ids.length < 2 || isOneGroup(project.clips, ids)) {
+      useApp
+        .getState()
+        .toast(
+          ids.length < 2
+            ? "Selecione dois ou mais clipes para agrupar."
+            : "Esses clipes já estão no mesmo grupo.",
+          "info",
+        );
+      return false;
+    }
+    const done = commit((p) => ({ ...p, clips: groupClips(p.clips, ids) }));
+    if (done)
+      useProject.getState().select(withGroups(useProject.getState().project?.clips ?? [], ids));
+    return done;
+  },
+
+  /** Ctrl+Shift+G: the groups of the selected clips undone. */
+  ungroup(): boolean {
+    const { project, selection, commit } = useProject.getState();
+    if (!project || waitForDraft("desagrupar clipes")) return false;
+    if (!project.clips.some((c) => selection.includes(c.id) && c.groupId)) {
+      useApp.getState().toast("Nenhum dos clipes selecionados está num grupo.", "info");
+      return false;
+    }
+    return commit((p) => ({ ...p, clips: ungroupClips(p.clips, selection) }));
+  },
+
+  /** Separar áudio: the clip's sound on a track of its own, grouped with the video (J and L cuts). */
+  detachAudio(clipId: string): boolean {
+    const { project, commit } = useProject.getState();
+    if (!project || waitForDraft("separar o áudio")) return false;
+    const problem = detachProblem(project, clipId);
+    if (problem) {
+      useApp.getState().toast(problem, "info");
+      return false;
+    }
+    const done = commit((p) => {
+      const again = detachAudio(p, clipId);
+      return again ? { ...p, clips: again.clips, tracks: again.tracks } : p;
+    });
+    if (done)
+      useApp
+        .getState()
+        .toast(
+          "O som foi para uma faixa própria, no mesmo grupo do vídeo. Alt + clique seleciona só um deles para os cortes em J e L.",
+          "success",
+        );
+    return done;
+  },
+
+  /** M: a marker at the playhead, named after the others; one undo step. */
+  addMarker(): void {
+    const { project, commit } = useProject.getState();
+    if (!project) return;
+    const t = toFrame(usePlayback.getState().time, project.settings.fps);
+    commit((p) => ({ ...p, markers: addMarker(p.markers ?? [], t) }));
+  },
+
+  updateMarker(id: string, changes: Partial<Omit<Marker, "id">>): void {
+    useProject.getState().commit((p) => ({
+      ...p,
+      markers: (p.markers ?? []).map((m) => (m.id === id ? { ...m, ...changes } : m)),
+    }));
+  },
+
+  removeMarker(id: string): void {
+    useProject.getState().commit((p) => {
+      const markers = (p.markers ?? []).filter((m) => m.id !== id);
+      const next: Project = { ...p, markers };
+      if (!markers.length) delete next.markers;
+      return next;
+    });
+  },
+
+  /** Shift+M and Alt+M: to the next marker or the one before. */
+  stepMarker(dir: 1 | -1): void {
+    const { project } = useProject.getState();
+    const m = stepMarker(project?.markers ?? [], usePlayback.getState().time, dir);
+    if (m) playback.seek(m.t);
   },
 
   /**
@@ -131,7 +232,15 @@ export const actions = {
       if (insert && placed.length)
         return { ...p, clips: insertClips(p, cutTargets(p), placed, placed[0].start) };
       let clips = p.clips;
-      for (const clip of placed) clips = placeClips(clips, [clip]);
+      // On a magnetic track a clip goes in between the others (the commit packs the track).
+      const magnetic = new Set(p.tracks.filter((t) => t.magnetic && !t.locked).map((t) => t.id));
+      for (const clip of placed)
+        clips = magnetic.has(clip.trackId)
+          ? [
+              ...clips,
+              { ...clip, start: Math.max(0, magneticSlot(clips, clip.trackId, clip.start)) },
+            ]
+          : placeClips(clips, [clip]);
       return { ...p, clips };
     });
   },
@@ -218,6 +327,36 @@ export const actions = {
       // New video tracks go on top of the stack, new audio tracks at the bottom.
       return { ...p, tracks: kind === "video" ? [track, ...p.tracks] : [...p.tracks, track] };
     });
+  },
+
+  /** A magnetic track (its clips back to back from 0:00) or a free one again; one undo step. */
+  toggleMagnetic(id: string): void {
+    const { project, commit } = useProject.getState();
+    const track = project?.tracks.find((t) => t.id === id);
+    if (!track || track.locked || waitForDraft("mudar a faixa magnética")) return;
+    // Packing would pull a group apart when a member is on a locked track.
+    const blockers = track.magnetic || !project ? [] : magneticBlockers(project, id);
+    if (blockers.length) {
+      useApp
+        .getState()
+        .toast(
+          `Clipes desta faixa estão agrupados com clipes da faixa travada ${blockers.join(", ")}: destrave para a faixa ficar magnética sem separar o grupo.`,
+          "info",
+        );
+      return;
+    }
+    commit((p) => ({
+      ...p,
+      tracks: p.tracks.map((t) => (t.id === id ? { ...t, magnetic: !t.magnetic } : t)),
+    }));
+  },
+
+  /** "Destacar faixa": the other tracks step aside while it sounds; one undo step. */
+  toggleSpotlight(id: string): void {
+    useProject.getState().commit((p) => ({
+      ...p,
+      tracks: p.tracks.map((t) => (t.id === id ? { ...t, spotlight: !t.spotlight } : t)),
+    }));
   },
 
   updateTrack(id: string, changes: Partial<Track>): void {
