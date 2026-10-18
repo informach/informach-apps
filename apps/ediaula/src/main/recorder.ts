@@ -1,96 +1,42 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
 import { app } from "electron";
+import {
+  type CaptureSegment,
+  cursorDataFromEvents,
+  insideSegments,
+  mergeHookEvents,
+} from "../shared/cursorCapture.ts";
+import {
+  type CaptureEncoder,
+  type CaptureProfile,
+  captureEncoderLabel,
+  captureFilter,
+  captureVideoArgs,
+  fallbackChain,
+  softwarePixelFormat,
+} from "../shared/encoderChoice.ts";
+import { duplicationOutput, type HookEvent, parseHookLine } from "../shared/helperProtocol.ts";
 import {
   type CaptureMonitor,
   type CaptureSources,
-  CURSOR_SHAPES,
-  type CursorData,
-  keyLabel,
   type MarkerKind,
+  RECORDER_HOTKEYS,
   type RecordingResult,
   type RecordOptions,
 } from "../shared/recording.ts";
-import { detectEncoder, FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.ts";
-import { nativeResourcePath } from "./native-resources.ts";
+import { detectCaptureEncoder, reportCaptureFailure } from "./encoders.ts";
+import { FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.ts";
+import { HookClient, listDisplays, qpc } from "./nativeHelper.ts";
 
 /**
  * Screen recording: the monitor (or a region of it) through Desktop Duplication without the
- * mouse pointer, the microphone and optionally the webcam in the same ffmpeg process, plus a
- * helper that logs every mouse move and click on the same clock. Pausing closes a segment;
+ * mouse pointer, the microphone and optionally the webcam in the same ffmpeg process, plus the
+ * native helper logging every mouse move and click on the same clock. Pausing closes a segment;
  * stopping joins the segments and writes the cursor data in video time.
  */
-
-const qpc = (): number => Number(process.hrtime.bigint()) / 1e6;
-const hookScript = (): string => nativeResourcePath("cursor-hook.ps1");
-
-function spawnHook(list = false, keys = false): ChildProcessWithoutNullStreams {
-  return spawn(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      hookScript(),
-      ...(list ? ["-List"] : []),
-      ...(keys ? ["-Keys"] : []),
-    ],
-    { windowsHide: true, env: windowsPowerShellEnvironment() },
-  );
-}
-
-async function listMonitors(): Promise<Omit<CaptureMonitor, "output" | "label">[]> {
-  const child = spawnHook(true);
-  let out = "";
-  child.stdout.on("data", (d: Buffer) => (out += d.toString()));
-  await new Promise((r) => child.on("close", r));
-  return out
-    .split("\n")
-    .filter((l) => l.startsWith("MON "))
-    .map((l, index) => {
-      const [x, y, width, height, primary] = l.trim().split(" ").slice(1).map(Number);
-      return { index, x, y, width, height, primary: primary === 1 };
-    });
-}
-
-/** Size of each Desktop Duplication output, to know which one shows which monitor. */
-let outputs: { width: number; height: number }[] | null = null;
-async function duplicationOutputs(count: number): Promise<{ width: number; height: number }[]> {
-  if (outputs) return outputs;
-  const found: { width: number; height: number }[] = [];
-  for (let i = 0; i < count + 1; i++) {
-    const text = await new Promise<string>((resolve) => {
-      const c = spawn(
-        FFMPEG,
-        [
-          "-hide_banner",
-          "-f",
-          "lavfi",
-          "-i",
-          `ddagrab=output_idx=${i}:framerate=5`,
-          "-frames:v",
-          "1",
-          "-f",
-          "null",
-          "-",
-        ],
-        { windowsHide: true },
-      );
-      let err = "";
-      c.stderr.on("data", (d: Buffer) => (err += d.toString()));
-      c.on("close", () => resolve(err));
-    });
-    const m = /Stream #0:0.*?, (\d+)x(\d+)/.exec(text);
-    if (!m) break;
-    found.push({ width: Number(m[1]), height: Number(m[2]) });
-  }
-  outputs = found;
-  return found;
-}
 
 async function listDevices(): Promise<{ microphones: string[]; cameras: string[] }> {
   const text = await new Promise<string>((resolve) => {
@@ -111,32 +57,22 @@ async function listDevices(): Promise<{ microphones: string[]; cameras: string[]
 }
 
 export async function captureSources(): Promise<CaptureSources> {
-  const [mons, devices] = await Promise.all([listMonitors(), listDevices()]);
-  const outs = await duplicationOutputs(mons.length);
-  const used = new Set<number>();
-  const monitors = mons.map((m, i) => {
-    // Outputs and monitors usually come in the same order; match by size to be sure.
-    let output = outs.findIndex(
-      (o, j) => !used.has(j) && j === i && o.width === m.width && o.height === m.height,
-    );
-    if (output < 0)
-      output = outs.findIndex(
-        (o, j) => !used.has(j) && o.width === m.width && o.height === m.height,
-      );
-    if (output >= 0) used.add(output);
-    return {
-      ...m,
-      output,
-      label: `${m.primary ? "Tela principal" : `Tela ${i + 1}`} · ${m.width}×${m.height}`,
-    };
-  });
+  const [list, devices] = await Promise.all([listDisplays(), listDevices()]);
+  const monitors = list.monitors.map((m, i) => ({
+    index: m.index,
+    x: m.x,
+    y: m.y,
+    width: m.w,
+    height: m.h,
+    primary: m.primary,
+    // Matched by device name: Windows and DXGI may list the monitors in different orders.
+    output: duplicationOutput(list, m),
+    label: `${m.primary ? "Tela principal" : `Tela ${i + 1}`} · ${m.w}×${m.h}`,
+  }));
   return { monitors, ...devices };
 }
 
-interface Segment {
-  /** QPC ms of the first frame. */
-  start: number;
-  duration: number;
+interface Segment extends CaptureSegment {
   screen: string;
   camera?: string;
 }
@@ -150,8 +86,19 @@ interface Session {
   opts: RecordOptions;
   monitor: CaptureMonitor;
   dir: string;
-  hook: ChildProcessWithoutNullStreams;
-  events: string[];
+  hook: HookClient;
+  profile: CaptureProfile;
+  /** Settled while preparing; recording starts only after that. */
+  encoder?: CaptureEncoder;
+  /** Helper events (heartbeats aside); the complete journal is cursor.jsonl in `dir`. */
+  events: HookEvent[];
+  /**
+   * Restarts and failures of the cursor helper. They go out with the recording
+   * (RecordingResult.cursorIssues); a failure also warns the recorder window right away.
+   */
+  hookIssues: string[];
+  /** Encoder paths that failed to start and were replaced. */
+  encoderIssues: string[];
   segments: Segment[];
   current: {
     proc: ChildProcessWithoutNullStreams;
@@ -191,68 +138,100 @@ export function recordingsDir(): string {
   return dir;
 }
 
-/** Starts the mouse helper ahead of time (it takes a second to load). */
-export async function prepare(opts: RecordOptions, monitors: CaptureMonitor[]): Promise<void> {
+/**
+ * What the encoder is chosen for: the whole monitor (a region is never larger) at the recording's
+ * frame rate. The recorder window detects it in the background with the same profile.
+ */
+export const captureProfile = (monitor: CaptureMonitor, fps: number): CaptureProfile => ({
+  output: monitor.output,
+  width: monitor.width,
+  height: monitor.height,
+  fps,
+});
+
+/** The encoder this screen will be recorded with, detected once and then remembered. */
+export async function encoderFor(monitor: CaptureMonitor, fps: number): Promise<string> {
+  if (monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
+  return captureEncoderLabel(await detectCaptureEncoder(captureProfile(monitor, fps)));
+}
+
+export interface PrepareContext {
+  /** Windows of this process whose keys still show on screen (the guided lesson window). */
+  keyWindows?: string[];
+  /** The cursor helper stopped for good: the video goes on without the pointer. */
+  onCursorFailure?: (message: string) => void;
+}
+
+/** Starts the cursor helper and settles the encoder ahead of time. */
+export async function prepare(
+  opts: RecordOptions,
+  monitors: CaptureMonitor[],
+  context: PrepareContext = {},
+): Promise<void> {
   if (session) return;
   const monitor = monitors.find((m) => m.index === opts.monitor);
   if (!monitor || monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
   const dir = mkdtempSync(join(recordingsDir(), `${stamp()}-`));
-  const hook = spawnHook(false, !!opts.keys);
-  const events: string[] = [];
-  let buf = "";
-  const ready = new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("O capturador de cursor não iniciou.")),
-      8000,
-    );
-    const failed = (error: Error): void => {
-      clearTimeout(timeout);
-      reject(error);
-    };
-    hook.stdout.on("data", (d: Buffer) => {
-      buf += d.toString();
-      const lines = buf.split("\n");
-      buf = lines.pop()!;
-      for (const l of lines) {
-        if (l.startsWith("READY")) {
-          clearTimeout(timeout);
-          resolve();
-        } else if (/^[MDUWK] /.test(l)) events.push(l.trim());
-      }
-    });
-    hook.on("error", failed);
-    hook.once("close", () => failed(new Error("O capturador de cursor foi encerrado.")));
+  // Keys typed while the recorder itself is in front are not part of the lesson. Until the first
+  // segment starts, the helper keeps nothing but the cursor shape.
+  const hook = new HookClient({
+    keys: !!opts.keys,
+    journal: dir,
+    uiPid: process.pid,
+    paused: true,
   });
-  session = { opts, monitor, dir, hook, events, segments: [], current: null, markers: [] };
+  const events: HookEvent[] = [];
+  const hookIssues: string[] = [];
+  hook.on("event", (event) => {
+    if (event.e !== "hb" && event.e !== "ack") events.push(event);
+  });
+  hook.on("restart", ({ reason }) => hookIssues.push(reason));
+  hook.on("warning", (message) => hookIssues.push(message));
+  hook.on("failure", (error) => {
+    hookIssues.push(error.message);
+    context.onCursorFailure?.(error.message);
+  });
+  const s: Session = {
+    opts,
+    monitor,
+    dir,
+    hook,
+    profile: captureProfile(monitor, opts.fps),
+    events,
+    hookIssues,
+    encoderIssues: [],
+    segments: [],
+    current: null,
+    markers: [],
+  };
+  // Claimed before waiting, so a second prepare does not start another helper.
+  session = s;
   try {
-    await ready;
+    [, s.encoder] = await Promise.all([hook.start(), detectCaptureEncoder(s.profile)]);
   } catch (error) {
-    hook.kill();
-    session = null;
+    await hook.kill();
+    if (session === s) session = null;
     throw error;
   }
+  hook.send({
+    cmd: "keys",
+    block: RECORDER_HOTKEYS.map((k) => ({ vk: k.vk, m: k.mods })),
+    allow: context.keyWindows ?? [],
+  });
 }
 
 async function startSegment(s: Session): Promise<void> {
-  const { opts, monitor } = s;
+  const { opts, monitor, encoder } = s;
+  if (!encoder) throw new Error("Gravação não preparada.");
   const n = s.segments.length + (s.current ? 1 : 0);
-  const enc = await detectEncoder();
-  const video =
-    enc === "nvenc"
-      ? [
-          "-c:v",
-          "h264_nvenc",
-          "-preset",
-          "p4",
-          "-rc",
-          "vbr",
-          "-cq",
-          "18",
-          "-g",
-          String(opts.fps * 2),
-        ]
-      : ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", "-g", String(opts.fps * 2)];
   const r = opts.region;
+  const frame = {
+    fps: opts.fps,
+    width: r?.width ?? monitor.width,
+    height: r?.height ?? monitor.height,
+  };
+  const video = captureVideoArgs(encoder.codec, frame);
+  const screen = captureFilter(encoder);
   const grab = [
     `output_idx=${monitor.output}`,
     `framerate=${opts.fps}`,
@@ -301,7 +280,13 @@ async function startSegment(s: Session): Promise<void> {
     );
     camIn = input++;
   }
-  args.push("-map", "0:v", "-vf", "hwdownload,format=bgra", ...video, "-pix_fmt", "yuv420p");
+  args.push(
+    "-map",
+    "0:v",
+    ...(screen.filter ? ["-vf", screen.filter] : []),
+    ...video,
+    ...screen.output,
+  );
   if (micIn >= 0) args.push("-map", `${micIn}:a`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000");
   // Fragments remain readable if recording is interrupted before normal finalization.
   args.push("-movflags", "+frag_keyframe+empty_moov", seg.screen);
@@ -309,14 +294,16 @@ async function startSegment(s: Session): Promise<void> {
     args.push(
       "-map",
       `${camIn}:v`,
-      ...video,
+      ...captureVideoArgs(encoder.codec, { fps: 30, width: 1280, height: 720 }),
       "-pix_fmt",
-      "yuv420p",
+      softwarePixelFormat(encoder.codec),
       "-movflags",
       "+frag_keyframe+empty_moov",
       seg.camera!,
     );
 
+  // The helper keeps clicks and keys only inside segments.
+  s.hook.send({ cmd: "resume" });
   const proc = spawn(FFMPEG, args, { windowsHide: true });
   let err = "";
   let best = Infinity;
@@ -369,6 +356,51 @@ async function startSegment(s: Session): Promise<void> {
   await Promise.race([firstFrame, done]);
 }
 
+/**
+ * Starts a segment. On the first one, a path that fails before the first frame gives way to the
+ * next in the chain (the same encoder from system memory, then x264) and the cache learns it.
+ * Later segments keep the encoder of the first: the segments are joined without re-encoding.
+ */
+async function startCapture(s: Session): Promise<void> {
+  const chosen = s.encoder;
+  if (!chosen) throw new Error("Gravação não preparada.");
+  const chain = s.segments.length === 0 ? [chosen, ...fallbackChain(chosen)] : [chosen];
+  let first: unknown;
+  for (const candidate of chain) {
+    s.encoder = candidate;
+    try {
+      await startSegment(s);
+    } catch (error) {
+      first ??= error;
+      await discardFailedStart(s);
+      continue;
+    }
+    if (candidate !== chosen) {
+      s.encoderIssues.push(
+        `${captureEncoderLabel(chosen)} não abriu a gravação; foi usado ${captureEncoderLabel(candidate)}.`,
+      );
+      await reportCaptureFailure(s.profile, chosen).catch((error: unknown) =>
+        s.encoderIssues.push(`Não consegui registrar a falha do codificador: ${String(error)}`),
+      );
+    }
+    return;
+  }
+  s.encoder = chosen;
+  throw first;
+}
+
+/** Leaves no trace of a segment whose FFmpeg ended before the first frame. */
+async function discardFailedStart(s: Session): Promise<void> {
+  const cur = s.current;
+  s.current = null;
+  s.failure = undefined;
+  s.hook.send({ cmd: "pause" });
+  if (!cur) return;
+  await Promise.allSettled([cur.done]);
+  await rm(cur.seg.screen, { force: true });
+  if (cur.seg.camera) await rm(cur.seg.camera, { force: true });
+}
+
 async function closeSegment(s: Session): Promise<void> {
   await s.starting;
   if (s.closing) return s.closing;
@@ -377,6 +409,7 @@ async function closeSegment(s: Session): Promise<void> {
   s.closing = (async () => {
     cur.proc.stdin.write("q");
     await cur.done;
+    s.hook.send({ cmd: "pause" });
     cur.seg.duration = (await probe(cur.seg.screen)).duration;
     s.segments.push(cur.seg);
     s.current = null;
@@ -393,7 +426,7 @@ export async function start(): Promise<void> {
   if (!s || s.preserved) throw new Error("Gravação não preparada ou já preservada.");
   if (s.failure) throw s.failure;
   if (s.current || s.starting) throw new Error("Gravação já iniciada.");
-  s.starting = startSegment(s);
+  s.starting = startCapture(s);
   try {
     await s.starting;
   } finally {
@@ -415,7 +448,7 @@ export async function preserve(): Promise<void> {
   if (!s) return;
   s.preserved = true;
   await closeSegment(s);
-  s.hook.kill();
+  await s.hook.stop();
 }
 
 export function mark(kind: MarkerKind): void {
@@ -440,7 +473,8 @@ export async function cancel(): Promise<void> {
   }
   session = null;
   if (!s) return;
-  s.hook.kill();
+  // The helper must let go of the journal before the folder is removed.
+  await s.hook.kill();
   if (s.current) {
     s.current.proc.kill("SIGKILL");
     await s.current.done.catch(() => undefined);
@@ -448,14 +482,32 @@ export async function cancel(): Promise<void> {
   await rm(s.dir, { recursive: true, force: true }).catch(() => undefined);
 }
 
-/** Maps a QPC time to video seconds across segments; -1 when it fell in a pause. */
-function toVideoTime(segments: Segment[], t: number): number {
-  let offset = 0;
-  for (const g of segments) {
-    if (t >= g.start && t <= g.start + g.duration * 1000) return offset + (t - g.start) / 1000;
-    offset += g.duration;
+/** cursor.jsonl as parsed lines; a half-written last line from a killed helper is left out. */
+async function readJournal(dir: string): Promise<{ line: string; event: HookEvent }[]> {
+  let text: string;
+  try {
+    text = await readFile(join(dir, "cursor.jsonl"), "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw error;
   }
-  return -1;
+  return text.split("\n").flatMap((line) => {
+    const event = parseHookLine(line);
+    return event ? [{ line, event }] : [];
+  });
+}
+
+/** Keeps only what happened inside the recorded segments (and the cursor images). */
+async function pruneJournal(
+  dir: string,
+  journal: { line: string; event: HookEvent }[],
+  segments: CaptureSegment[],
+): Promise<void> {
+  if (!journal.length) return;
+  const path = join(dir, "cursor.jsonl");
+  const kept = journal.filter((entry) => insideSegments(entry.event, segments));
+  await writeFile(`${path}.partial`, kept.map((entry) => `${entry.line}\n`).join(""));
+  await rename(`${path}.partial`, path);
 }
 
 async function concat(files: string[], out: string): Promise<void> {
@@ -512,7 +564,7 @@ export async function stop(): Promise<RecordingResult> {
   try {
     return await finalizeRecording(s);
   } catch (error) {
-    s.hook.kill();
+    await s.hook.stop();
     session = null;
     throw new Error(
       `Não foi possível finalizar a gravação. Os arquivos foram mantidos em ${s.dir}.`,
@@ -524,7 +576,8 @@ export async function stop(): Promise<RecordingResult> {
 async function finalizeRecording(s: Session): Promise<RecordingResult> {
   await closeSegment(s);
   session = null;
-  s.hook.kill();
+  // Closing stdin lets the helper write its last events and the journal before it exits.
+  await s.hook.stop();
   if (!s.segments.length) throw new Error("Nada foi gravado.");
 
   const screen = join(s.dir, "tela.mp4");
@@ -541,61 +594,21 @@ async function finalizeRecording(s: Session): Promise<RecordingResult> {
     );
   }
 
-  // Cursor events in video time and video pixels.
+  // Cursor events in video time and video pixels. The journal covers what memory missed (lines
+  // of a helper replaced mid-recording, or dropped while the app was busy).
+  const journal = await readJournal(s.dir);
+  const events = mergeHookEvents(
+    s.events,
+    journal.map((entry) => entry.event),
+  );
   const r = s.opts.region ?? { x: 0, y: 0, width: s.monitor.width, height: s.monitor.height };
-  const ox = s.monitor.x + r.x;
-  const oy = s.monitor.y + r.y;
-  const data: CursorData = {
-    version: 1,
-    width: r.width,
-    height: r.height,
-    moves: [],
-    clicks: [],
-    wheel: [],
-    markers: [],
-  };
-  const downs = new Map<string, [number, number, number, number, number]>();
-  const round = (v: number): number => Math.round(v * 1000) / 1000;
-  for (const line of s.events) {
-    const [kind, ms, xs, ys, extra] = line.split(" ");
-    const t = toVideoTime(s.segments, Number(ms));
-    if (t < 0) continue;
-    const x = Number(xs) - ox;
-    const y = Number(ys) - oy;
-    if (kind === "M")
-      data.moves.push([
-        round(t),
-        x,
-        y,
-        Math.max(0, CURSOR_SHAPES.indexOf(extra as (typeof CURSOR_SHAPES)[number])),
-      ]);
-    else if (kind === "D") {
-      const click: [number, number, number, number, number] = [
-        round(t),
-        x,
-        y,
-        extra === "right" ? 1 : extra === "middle" ? 2 : 0,
-        0,
-      ];
-      data.clicks.push(click);
-      downs.set(extra, click);
-    } else if (kind === "U") {
-      const d = downs.get(extra);
-      if (d) d[4] = round(t - d[0]);
-      downs.delete(extra);
-    } else if (kind === "W") data.wheel.push([round(t), x, y, Number(extra)]);
-    else if (kind === "K") {
-      data.keys ??= [];
-      data.keys.push([round(t), keyLabel(Number(xs), ys)]);
-    }
-  }
-  for (const m of s.markers) {
-    const t = toVideoTime(s.segments, m.qpc);
-    data.markers.push({
-      t: round(t < 0 ? s.segments.reduce((a, g) => (g.start < m.qpc ? a + g.duration : a), 0) : t),
-      kind: m.kind,
-    });
-  }
+  const data = cursorDataFromEvents(
+    events,
+    s.segments,
+    { x: s.monitor.x + r.x, y: s.monitor.y + r.y, width: r.width, height: r.height },
+    s.markers,
+  );
+  await pruneJournal(s.dir, journal, s.segments);
   const cursor = join(s.dir, "cursor.json");
   await writeFile(cursor, JSON.stringify(data));
   return {
@@ -607,5 +620,7 @@ async function finalizeRecording(s: Session): Promise<RecordingResult> {
     duration: s.segments.reduce((a, g) => a + g.duration, 0),
     markers: data.markers,
     ...(s.system ? { systemAudio: s.system.path, systemOffset: s.system.offset } : {}),
+    ...(s.hookIssues.length ? { cursorIssues: [...s.hookIssues] } : {}),
+    ...(s.encoderIssues.length ? { encoderIssues: [...s.encoderIssues] } : {}),
   };
 }

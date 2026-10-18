@@ -1,3 +1,4 @@
+import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import type { ProjectSettings, RecentEntry } from "@shared/types";
 import {
   ArrowRight,
@@ -122,7 +123,10 @@ export function Home(): ReactNode {
         <div className="home-sys">
           <Cpu size={14} />
           <span>
-            Exportação: {info ? (info.encoder === "nvenc" ? "GPU (NVENC)" : "CPU (x264)") : "…"}
+            Exportação:{" "}
+            {info
+              ? `${isHardwareEncoder(info.encoder) ? "GPU" : "CPU"} (${encoderName(info.encoder)})`
+              : "…"}
             <br />
             <span className="muted">EdiAula {info?.version ?? ""}</span>
           </span>

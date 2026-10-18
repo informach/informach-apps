@@ -1,3 +1,4 @@
+import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import { newId, projectDuration } from "@shared/timeline";
 import type { ExportSpec } from "@shared/types";
 import {
@@ -253,8 +254,8 @@ export function ExportDialog(): ReactNode {
                 <Field label="Codificador">
                   <div className="static-field">
                     H.264 ·{" "}
-                    {info?.encoder === "nvenc" ? (
-                      <span className="accent">GPU NVENC</span>
+                    {info && isHardwareEncoder(info.encoder) ? (
+                      <span className="accent">GPU {encoderName(info.encoder)}</span>
                     ) : (
                       "CPU (x264)"
                     )}

@@ -23,6 +23,7 @@ RUN bash /input/recipe/build.sh x264
 RUN bash /input/recipe/build.sh libvpx
 RUN bash /input/recipe/build.sh dav1d
 RUN bash /input/recipe/build.sh nv-codec-headers
+RUN bash /input/recipe/build.sh amf
 RUN bash /input/recipe/build.sh ffmpeg
 RUN bash /input/recipe/build.sh package
 FROM scratch AS artifacts

@@ -1,10 +1,29 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
 import type { Configuration } from "electron-builder";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools";
 import { desktopAppIdSchema, releaseVersionSchema } from "../../packages/edi-contracts/src/index";
 import { desktopConfigSchema } from "../../packages/edi-desktop/src/contracts";
 import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
 import { writeThirdPartyNotices } from "./third-party-notices.mts";
+
+const ediAulaHelper = resolve("apps/ediaula/resources/native/ediaula-helper.exe");
+
+/** The app build compiles the helper; a stale or missing one must not reach an installer. */
+async function verifyEdiAulaHelper(version: string) {
+  if (!existsSync(ediAulaHelper))
+    throw new Error("EdiAula helper is missing; the app build compiles it on Windows");
+  const { stdout } = await promisify(execFile)(ediAulaHelper, ["--version"], {
+    windowsHide: true,
+    timeout: 30000,
+  });
+  if (stdout.trim() !== version)
+    throw new Error(
+      `EdiAula helper version ${stdout.trim()} does not match the release ${version}`,
+    );
+}
 export function installerConfiguration(rawId: unknown, rawVersion: unknown): Configuration {
   const appId = desktopAppIdSchema.parse(rawId);
   const version = releaseVersionSchema.parse(rawVersion);
@@ -42,9 +61,7 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       "package.json",
       "!**/*.map",
       "!**/tests/**",
-      ...(appId === "ediaula"
-        ? ["!resources/fonts/**", "!resources/cursor-hook.ps1", "!resources/guided-input.ps1"]
-        : []),
+      ...(appId === "ediaula" ? ["!resources/fonts/**", "!resources/native/**"] : []),
     ],
     asar: true,
     extraResources:
@@ -55,14 +72,19 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
               to: "native-media",
               filter: ["**/*"],
             },
-            ...["fonts", "cursor-hook.ps1", "guided-input.ps1"].map((name) => ({
-              from: resolve("apps/ediaula/resources", name),
-              to: name,
-            })),
+            { from: resolve("apps/ediaula/resources/fonts"), to: "fonts" },
+            // Subprocesses cannot run from inside the ASAR archive.
+            {
+              from: resolve("apps/ediaula/resources/native"),
+              to: "native",
+              filter: ["ediaula-helper.exe"],
+            },
           ]
         : [],
     beforePack: async () => {
-      if (appId === "ediaula") await verifyNativeMediaBundle();
+      if (appId !== "ediaula") return;
+      await verifyNativeMediaBundle();
+      await verifyEdiAulaHelper(version);
     },
     afterPack: async (context) => {
       await writeThirdPartyNotices(appId, resolve(context.appOutDir, "resources"));

@@ -6,12 +6,12 @@
   "main": "./out/main/index.js",
   "author": "Crie com Helena e Julio",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "node scripts/build-native-helper.mjs && electron-vite dev",
+    "build": "node scripts/build-native-helper.mjs && electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -b tsconfig.node.json tsconfig.web.json --force",
-    "test": "node --test \"tests/**/*.test.ts\"",
-    "shortcut": "electron-vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcuts.ps1"
+    "test": "node scripts/build-native-helper.mjs && node --test \"tests/**/*.test.ts\"",
+    "shortcut": "node scripts/build-native-helper.mjs && electron-vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcuts.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.134.0",

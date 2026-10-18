@@ -31,6 +31,8 @@ Os 34 TTFs de exportação do EdiAula têm copyrights, nomes reservados, versõe
 
 Fontes, `cursor-hook.ps1` e `guided-input.ps1` são recursos externos usados por FFmpeg/PowerShell. O empacotamento os coloca em `resources/`, fora do ASAR e sem cópia duplicada dentro dele; `nativeResourcePath` seleciona esse caminho quando instalado. Todos continuam no inventário assinado. A busca dos subprocessos dos cinco editores encontrou esses três caminhos no EdiAula; os demais caminhos de recursos identificados eram lidos pelo Electron ou apontavam para executáveis externos já fora do ASAR.
 
+> Nota de 17/10/2026 (Lote 3 do EdiAula, branch `ediaula/l3-nativo`): os dois scripts PowerShell foram substituídos pelo executável `ediaula-helper.exe`, compilado no build do app a partir de `apps/ediaula/native/helper`. O pacote passa a levar `resources/native/ediaula-helper.exe`, também fora do ASAR e no inventário assinado, e o `beforePack` confere sua versão. O parágrafo acima e as evidências abaixo descrevem o pacote homologado antes dessa troca; a homologação do pacote novo ainda precisa ser registrada aqui.
+
 ## FFmpeg e fontes correspondentes
 
 A inspeção Windows identificou FFmpeg 6.1.1 e FFprobe 4.0.2, ambos GPLv3, nos pacotes anteriores. O wrapper MIT de `ffprobe-static` não representava a licença do programa nativo. O FFprobe de desenvolvimento Windows foi alinhado ao mesmo fornecedor/versão do FFmpeg com `@derhuerst/ffprobe-static@5.3.0`. Os dois wrappers agora são dependências de desenvolvimento; o build instalado usa exclusivamente `resources/native-media/bin`, sem override por ambiente. O pacote `ffmpeg-static@5.3.0` fornece versões distintas por plataforma: no Linux do CI, o executável verificado foi 7.0.2; no Windows de desenvolvimento, 6.1.1.

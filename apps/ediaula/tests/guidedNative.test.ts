@@ -1,34 +1,41 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { once } from "node:events";
+import { existsSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
 import { z } from "zod";
+import { glideResultSchema } from "../src/shared/helperProtocol.ts";
+
+const executable = fileURLToPath(
+  new URL("../resources/native/ediaula-helper.exe", import.meta.url),
+);
+const skip =
+  process.platform !== "win32"
+    ? "Windows only"
+    : !existsSync(executable)
+      ? "helper not built (run the package test script)"
+      : false;
+/** Glides move the real pointer: only when asked (edi:media:test turns this on). */
+const skipInput =
+  skip ||
+  (process.env.EDIAULA_NATIVE_INPUT_TESTS === "1"
+    ? false
+    : "moves the real pointer; set EDIAULA_NATIVE_INPUT_TESTS=1");
 
 const replySchema = z.union([
   z.strictObject({ ready: z.literal(true) }),
   z.strictObject({
-    id: z.literal(1),
+    id: z.int(),
     ok: z.literal(true),
-    result: z.object({ x: z.number(), window: z.string() }),
+    result: z.unknown(),
   }),
-  z.strictObject({ id: z.literal(2), ok: z.literal(false), error: z.string() }),
+  z.strictObject({ id: z.int().nullable(), ok: z.literal(false), error: z.string() }),
 ]);
+type Reply = z.infer<typeof replySchema>;
 
 function startHelper(signal: AbortSignal) {
-  const child = spawn(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      fileURLToPath(new URL("../resources/guided-input.ps1", import.meta.url)),
-    ],
-    { windowsHide: true, env: windowsPowerShellEnvironment(), signal },
-  );
+  const child = spawn(executable, ["input"], { windowsHide: true, signal });
   const lines = createInterface({ input: child.stdout });
   let stderr = "";
   let processError: Error | undefined;
@@ -42,78 +49,145 @@ function startHelper(signal: AbortSignal) {
   const closed = new Promise<{ code: number | null; error: Error | undefined }>((resolve) => {
     child.once("close", (code) => resolve({ code, error: processError }));
   });
+  const replies: Reply[] = [];
+  const waiters: (() => void)[] = [];
+  lines.on("line", (line) => {
+    replies.push(replySchema.parse(JSON.parse(line)));
+    for (const wake of waiters.splice(0)) wake();
+  });
+  /** Resolves with the reply to `id`, or with the ready line when no id is given. */
+  const reply = async (id?: number | null): Promise<Reply> => {
+    for (;;) {
+      const found = replies.find((r) =>
+        id === undefined ? "ready" in r : "id" in r && r.id === id,
+      );
+      if (found) return found;
+      await new Promise<void>((resolve) => waiters.push(resolve));
+    }
+  };
+  const send = (command: Record<string, unknown>) =>
+    child.stdin.write(`${JSON.stringify(command)}\n`);
   return {
     child,
-    lines,
     closed,
-    describe: (phase: string) =>
-      `Guided helper phase=${phase}; pid=${child.pid}; exit=${child.exitCode}; stderr=${stderr || "<empty>"}`,
+    reply,
+    send,
+    describe: () =>
+      `Guided helper pid=${child.pid}; exit=${child.exitCode}; stderr=${stderr || "<empty>"}`,
   };
 }
 
 test("native helper replies to read-only target sampling and rejects unknown commands", {
-  skip: process.platform !== "win32",
+  skip,
   timeout: 20000,
 }, async (context) => {
   const helper = startHelper(context.signal);
-  let phase = "waiting for ready";
-  const diagnose = () => context.diagnostic(helper.describe(phase));
-  context.signal.addEventListener("abort", diagnose, { once: true });
   try {
-    const replies: z.infer<typeof replySchema>[] = [];
-    await new Promise<void>((resolve, reject) => {
-      helper.child.once("error", reject);
-      helper.child.stdin.once("error", reject);
-      helper.child.once("close", () => {
-        if (replies.length < 2) reject(new Error("Helper exited before replying"));
-      });
-      helper.lines.on("line", (line) => {
-        try {
-          const reply = replySchema.parse(JSON.parse(line));
-          if ("ready" in reply) {
-            phase = "waiting for sample and rejected-command replies";
-            helper.child.stdin.write(`${JSON.stringify({ id: 1, op: "sample" })}\n`);
-            helper.child.stdin.write(`${JSON.stringify({ id: 2, op: "not-an-action" })}\n`);
-          } else {
-            replies.push(reply);
-            phase = `received ${replies.length}/2 replies`;
-            if (replies.length === 2) resolve();
-          }
-        } catch (error) {
-          reject(error);
-        }
-      });
+    await helper.reply();
+    helper.send({ id: 1, op: "sample" });
+    helper.send({ id: 2, op: "not-an-action" });
+    helper.send({
+      id: 3,
+      op: "verify",
+      x: 1,
+      y: 1,
+      window: "1",
+      left: 0,
+      top: 0,
+      width: 1,
+      height: 1,
     });
-    assert.ok(replies[0] && "result" in replies[0]);
-    assert.equal(replies[0].id, 1);
-    assert.equal(replies[0].ok, true);
-    assert.equal(typeof replies[0].result.x, "number");
-    assert.equal(typeof replies[0].result.window, "string");
-    assert.ok(replies[1] && "error" in replies[1]);
-    assert.equal(replies[1].id, 2);
-    assert.equal(replies[1].ok, false);
-    phase = "waiting for normal EOF shutdown";
+    helper.child.stdin.write("not json\n");
+    const sample = await helper.reply(1);
+    assert.ok("result" in sample);
+    const target = z
+      .strictObject({
+        x: z.int(),
+        y: z.int(),
+        window: z.string().regex(/^\d+$/),
+        title: z.string(),
+        left: z.int(),
+        top: z.int(),
+        width: z.int(),
+        height: z.int(),
+      })
+      .parse(sample.result);
+    assert.equal(typeof target.x, "number");
+    assert.deepEqual(await helper.reply(2), { id: 2, ok: false, error: "Comando inválido." });
+    const moved = await helper.reply(3);
+    assert.ok("error" in moved && /mudou de janela/.test(moved.error));
+    assert.deepEqual(await helper.reply(null), { id: null, ok: false, error: "Comando inválido." });
   } catch (error) {
-    diagnose();
+    context.diagnostic(helper.describe());
     throw error;
   } finally {
-    // Normal completion closes stdin; node:test cancellation aborts the owned
-    // helper through spawn's signal. Both paths wait for the actual process exit.
     helper.child.stdin.end();
-    await helper.closed;
-    context.signal.removeEventListener("abort", diagnose);
+  }
+  assert.equal((await helper.closed).code, 0);
+});
+
+test("a glide answers when it ends and halt stops it where it is", {
+  skip: skipInput,
+  timeout: 20000,
+}, async (context) => {
+  const helper = startHelper(context.signal);
+  try {
+    await helper.reply();
+    helper.send({ id: 1, op: "sample" });
+    const here = await helper.reply(1);
+    assert.ok("result" in here);
+    const { x, y } = z.object({ x: z.int(), y: z.int() }).parse(here.result);
+    // A movement to where the pointer already is: the whole loop runs without moving it.
+    const from = { x, y };
+    const started = performance.now();
+    helper.send({ id: 2, op: "glide", x, y, from, duration: 0.3 });
+    const done = await helper.reply(2);
+    assert.ok("result" in done);
+    assert.deepEqual(glideResultSchema.parse(done.result), { x, y, at: 1 });
+    assert.ok(performance.now() - started >= 250, "takes the requested time");
+    helper.send({ id: 3, op: "glide", token: "g3", x, y, from, duration: 2, at: 0.25 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    helper.send({ id: 4, op: "halt", token: "g3" });
+    assert.deepEqual(await helper.reply(4), { id: 4, ok: true, result: { halted: true } });
+    const halted = await helper.reply(3);
+    assert.ok("result" in halted);
+    const result = glideResultSchema.parse(halted.result);
+    assert.equal(result.halted, true);
+    assert.ok(result.at > 0.25 && result.at < 1, `resumes from ${result.at}`);
+    helper.send({ id: 5, op: "glide", x, y, duration: 0 });
+    assert.deepEqual(await helper.reply(5), { id: 5, ok: false, error: "Movimento inválido." });
+    // A halt for a glide that already ended does not stop the next one.
+    helper.send({ id: 6, op: "halt", token: "g3" });
+    assert.deepEqual(await helper.reply(6), { id: 6, ok: true, result: { halted: false } });
+    helper.send({ id: 7, op: "glide", token: "g7", x, y, from, duration: 0.2 });
+    const next = await helper.reply(7);
+    assert.ok("result" in next);
+    assert.equal(glideResultSchema.parse(next.result).at, 1);
+    // A halt that arrives before its glide starts still applies, without moving the pointer.
+    helper.send({ id: 8, op: "glide", token: "g8-blocker", x, y, from, duration: 0.3 });
+    helper.send({ id: 9, op: "glide", token: "g9", x, y, from, duration: 1, at: 0.5 });
+    helper.send({ id: 10, op: "halt", token: "g9" });
+    assert.deepEqual(await helper.reply(10), { id: 10, ok: true, result: { halted: true } });
+    const early = await helper.reply(9);
+    assert.ok("result" in early);
+    assert.deepEqual(glideResultSchema.parse(early.result), { x, y, at: 0.5, halted: true });
+  } catch (error) {
+    context.diagnostic(helper.describe());
+    throw error;
+  } finally {
+    helper.child.stdin.end();
   }
   assert.equal((await helper.closed).code, 0);
 });
 
 test("aborting native helper startup waits for its process to exit", {
-  skip: process.platform !== "win32",
+  skip,
   timeout: 20000,
 }, async (context) => {
   const controller = new AbortController();
   const helper = startHelper(AbortSignal.any([context.signal, controller.signal]));
   try {
-    await once(helper.child, "spawn");
+    await new Promise((resolve) => helper.child.once("spawn", resolve));
     controller.abort();
     const result = await helper.closed;
     assert.equal(result.error?.name, "AbortError");

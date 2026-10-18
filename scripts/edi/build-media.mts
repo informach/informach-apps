@@ -68,9 +68,19 @@ const digest = recipeHash.digest("hex");
 // Export into an empty directory; a previous bundle must not contribute stale
 // binaries or notices to the inventory of this build.
 const staging = await mkdtemp(join(cache, "edi-media-output-"));
+// Compiler parallelism only changes build time, never the recipe or its output.
+const jobs = z.coerce.number().int().min(1).max(64).default(2).parse(process.env.JOBS);
 const child = spawn(
   "docker",
-  ["build", "--progress=plain", "--output", `type=local,dest=${staging}`, context],
+  [
+    "build",
+    "--progress=plain",
+    "--build-arg",
+    `BUILD_JOBS=${jobs}`,
+    "--output",
+    `type=local,dest=${staging}`,
+    context,
+  ],
   { windowsHide: true, stdio: "inherit" },
 );
 await new Promise<void>((resolve, reject) => {

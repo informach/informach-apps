@@ -30,6 +30,14 @@ Outros comandos:
 
 Se o `npm run dev` reclamar de "Electron uninstall", rode `node node_modules/electron/install.js`.
 
+`dev`, `build`, `test` e `shortcut` compilam antes o auxiliar nativo (`resources/native/ediaula-helper.exe`,
+fontes em `native/helper`) com o compilador C# do .NET Framework 4.x que vem no Windows; a variável `CSC` aponta
+outro `csc.exe`. A compilação só roda de novo quando mudam as fontes ou a versão. Fora do Windows o passo apenas avisa.
+Se o executável estiver em uso por um EdiAula aberto em desenvolvimento, o comando para e pede para fechá-lo.
+
+Os testes do auxiliar que geram cliques, rolagens e movimentos reais (retidos pelo próprio teste, mas ainda
+assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm edi:media:test` liga essa variável.
+
 ## Etapa 1 (pronta)
 
 - Tela inicial com projetos recentes, cursos e "continuar editando"
@@ -40,7 +48,7 @@ Se o `npm run dev` reclamar de "Electron uninstall", rode `node node_modules/ele
 - **Fechar lacunas** (barra da timeline ou Editar) só remove os trechos vazios em todas as faixas ao mesmo tempo, então balões, avatar, camadas de zoom e voz continuam sincronizados; a música segue tocando e termina com a aula, e faixas travadas ficam exatamente como estão. Para encostar os clipes de uma faixa só, clique com o botão direito no nome dela › **Fechar lacunas desta faixa** (começa no primeiro clipe da faixa, não em 0:00)
 - Preview sincronizado com J/K/L, quadro a quadro e tela cheia
 - Desfazer/refazer de tudo
-- Exportação MP4 H.264 pela GPU (NVENC) ou CPU, com normalização −14 LUFS
+- Exportação MP4 H.264 pela GPU (NVENC, AMF ou Media Foundation) ou pela CPU (x264), com normalização −14 LUFS
 
 ## Salvamento e mídias ausentes
 
@@ -133,9 +141,27 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
   Nada disso aparece na gravação (proteção de conteúdo do Windows).
 - Atalhos: **F9** inicia/pausa, **F10** para, **Ctrl+M** marcador, **Ctrl+R** refazer o último trecho
   (vira proposta de corte, da pausa antes do trecho errado até a pausa depois da marca).
-- A tela é gravada pela GPU (Desktop Duplication + NVENC) **sem o ponteiro**; um auxiliar
-  (`resources/cursor-hook.ps1`) registra movimentos, formato do cursor e cliques no mesmo relógio do vídeo.
-  Arquivos em `Documentos/EdiAula/Gravações/<data>/` (`tela.mp4`, `camera.mp4`, `cursor.json`).
+- A tela é gravada pela Desktop Duplication **sem o ponteiro**. Ao abrir o gravador, o EdiAula grava a própria
+  tela por três segundos com cada codificador, no tamanho do monitor e na taxa da gravação, nesta ordem: NVENC,
+  AMF e Media Foundation (que alcança o Quick Sync da Intel), primeiro com o quadro ainda na GPU e depois pela
+  memória, e por último o x264 pela CPU. Fica com o primeiro que acompanha a taxa; se nenhum acompanhar, com o
+  mais rápido que funcionou. O painel mostra "Testando o codificador nesta tela…" e depois o escolhido. A matriz
+  de cor é medida e marcada no vídeo. O resultado fica em `encoders.json`, no perfil do app, por tela, tamanho e
+  taxa; a chave inclui o FFmpeg, as placas e drivers e a versão do app. Codificador que não existe na máquina não
+  é testado de novo; escolha feita porque um melhor estava ocupado é refeita no dia seguinte.
+- Se o codificador escolhido não abrir a gravação, o EdiAula tenta o caminho seguinte (o mesmo pela memória,
+  depois o x264), registra a falha para não escolher aquele caminho de novo e avisa no resultado da gravação.
+- Um auxiliar nativo (`ediaula-helper.exe`) registra movimentos, formato do cursor, cliques e teclas no mesmo
+  relógio do vídeo, sem PowerShell. O gancho do mouse só copia o evento; quem escreve é outra linha de execução,
+  então o Windows não o desliga quando o app demora a ler. Se o gancho cair mesmo assim, o auxiliar o reinstala e
+  segue lendo a posição do ponteiro; se o auxiliar parar, o app o reinicia (até três vezes por minuto), e se ele
+  parar de vez a pílula da gravação mostra "sem cursor". O vídeo continua; os avisos vão junto com a gravação.
+  Os atalhos do gravador (F8, F9, F10, Ctrl+M e Ctrl+R) não entram nas teclas na tela.
+  Arquivos em `Documentos/EdiAula/Gravações/<data>/` (`tela.mp4`, `camera.mp4`, `cursor.json`). Durante a
+  gravação o auxiliar também grava `cursor.jsonl` e as imagens dos cursores em `cursors/`. Na preparação e nas
+  pausas ele guarda só o formato do cursor, sem cliques nem teclas. Ao parar, o `cursor.json` é montado com o que
+  chegou ao app e o que só ficou no `cursor.jsonl`, e o `cursor.jsonl` fica só com o que está dentro dos trechos
+  gravados.
 - **Cursor** (Propriedades): tamanho, suavizar, onda nos cliques, halo amarelo, esconder quando parado.
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
@@ -187,7 +213,9 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 - **Movimento por keyframes** (Propriedades › Movimento): marque posições em momentos diferentes; o clipe desliza
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
 - **Áudio do PC** na gravação (loopback do Windows pelo Chromium), numa faixa própria já alinhada.
-- **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Espaço aparecem num balão no canto.
+- **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Delete/F1 a F12 aparecem num balão no canto.
+  Espaço e Backspace sozinhos não aparecem, porque o auxiliar não tem como saber se o foco está num campo de
+  texto; AltGr e Alt com o teclado numérico também ficam de fora, porque escrevem caracteres.
   A digitação comum **nunca** é gravada.
 - **Modelos**: cartela centralizada, faixa de nome (lower third).
 - IA: `set_captions`, `move_clip`.
@@ -323,6 +351,7 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 - Ritmo didático inicial para aulas de **9 a 14 anos**, ajustável: movimento suave de **1,2 s**, chegada **0,5 s antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa, **Fala começa em (s)** indica o início da frase e **Ação em (s)** indica quando clicar. A chegada considera ambos: o cursor espera no botão enquanto a explicação começa. Uma preparação inicial permite antecipar o cursor mesmo na primeira fala. Etapas próximas demais são recusadas; ajuste o roteiro/áudio para caberem as pausas.
 - A importação de áudio sugere o começo da frase anterior ao comando, respeitando pontuação e pausas; revise essa sugestão na narração. Planos sem um início de fala separado usam o instante da ação como referência. A localização dos elementos começa antes do movimento; atrasos de localização ou saltos durante o trajeto interrompem a execução, sem acelerar para compensar. O modo Manual continua sem automação.
 - Ações: apontar, clique esquerdo/direito, clicar e digitar, e teclas de navegação. **F9** pausa/retoma; **F10** interrompe e salva. A execução pausa se perder o ritmo ou se o alvo estiver ausente, coberto, deslocado durante a aproximação ou em outra janela.
+- Cada movimento até o alvo é um só comando para o auxiliar nativo, que desenha a curva a 120 Hz no próprio relógio; uma pausa para o cursor onde ele está e a mesma curva continua na retomada. Se o auxiliar atrasar, o cursor para onde está em vez de saltar e a gravação pausa.
 - Com áudio importado, microfone e áudio do PC são desligados para evitar duplicação. Use fones para acompanhar. O arquivo de voz é copiado para a pasta da gravação e inserido numa faixa própria, alinhado ao vídeo e preservando o cursor editável. Sem áudio importado, grave a demonstração e use **Narrar intervalo** depois.
 - A conclusão das etapas encerra a gravação automaticamente. A correspondência de alvos e a sincronização final devem ser revisadas na aula real antes de publicar.
 

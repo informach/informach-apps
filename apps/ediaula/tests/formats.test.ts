@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
-import { buildExportPlan } from "../src/shared/exportPlan.ts";
-import type { ExportSpec, Project } from "../src/shared/types.ts";
+import { buildExportPlan, exportVideoArgs } from "../src/shared/exportPlan.ts";
+import { ENCODERS, type Encoder, type ExportSpec, type Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -308,3 +308,56 @@ test("circle mask with a border: transparent corners, picture inside, colored ri
   );
   assert.ok(ring[1] > 150 && ring[2] < 140, `lime ring at the top edge: ${ring}`);
 });
+
+/** Whether this FFmpeg build and this machine's GPU and driver can use the encoder at all. */
+function encodes(encoder: Encoder): boolean {
+  try {
+    execFileSync(
+      FFMPEG,
+      [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=s=256x256:d=0.2",
+        ...exportVideoArgs(encoder, 2000),
+        "-f",
+        "null",
+        "-",
+      ],
+      { stdio: "pipe" },
+    );
+    return true;
+  } catch {
+    return false; // missing from this build, or no such GPU here
+  }
+}
+
+for (const encoder of ENCODERS)
+  test(`exports a playable H.264 lesson with ${encoder} when this machine has it`, {
+    timeout: 60_000,
+    skip: !encodes(encoder) && `${encoder} is not available here`,
+  }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "ediaula-fmt-"));
+    const out = join(dir, `aula-${encoder}.mp4`);
+    render(
+      lesson(dir),
+      {
+        outPath: out,
+        width: 640,
+        height: 360,
+        fps: 30,
+        videoBitrate: 2000,
+        normalizeLoudness: false,
+        encoder,
+      },
+      dir,
+    );
+    const streams = probe(out).streams;
+    const video = streams.find((s) => s.codec_type === "video");
+    assert.ok(video);
+    assert.equal(video.codec_name, "h264");
+    assert.deepEqual([video.width, video.height], [640, 360]);
+    assert.ok(streams.some((s) => s.codec_type === "audio"));
+  });

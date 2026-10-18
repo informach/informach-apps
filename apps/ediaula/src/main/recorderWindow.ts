@@ -10,10 +10,22 @@ import {
   screen,
   session,
 } from "electron";
+import { z } from "zod";
 import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "../shared/guidedRecording.ts";
-import type { CaptureMonitor, MarkerKind, RecordOptions } from "../shared/recording.ts";
+import {
+  type CaptureMonitor,
+  type MarkerKind,
+  RECORDER_HOTKEYS,
+  RECORDING_FPS,
+  type RecordOptions,
+} from "../shared/recording.ts";
 import { prepareGuidedNarration, probe } from "./ffmpeg.ts";
-import { captureBrowserTarget, openGuidedBrowser, resolveBrowserTarget } from "./guidedBrowser.ts";
+import {
+  captureBrowserTarget,
+  guidedBrowserWindowIds,
+  openGuidedBrowser,
+  resolveBrowserTarget,
+} from "./guidedBrowser.ts";
 import { executeGuided, GuidedInput } from "./guidedRecording.ts";
 import * as rec from "./recorder.ts";
 
@@ -32,13 +44,7 @@ export interface RecorderContext {
 let overlay: BrowserWindow | null = null;
 let context: RecorderContext = { teleprompter: [] };
 let monitors: CaptureMonitor[] = [];
-const HOTKEYS: [string, string][] = [
-  ["F8", "guided-target"],
-  ["F9", "toggle"],
-  ["F10", "stop"],
-  ["CommandOrControl+M", "marker"],
-  ["CommandOrControl+R", "retake"],
-];
+const HOTKEYS = RECORDER_HOTKEYS.map((k): [string, string] => [k.accelerator, k.name]);
 
 const dipRect = (m: CaptureMonitor): Electron.Rectangle =>
   screen.screenToDipRect(null, { x: m.x, y: m.y, width: m.width, height: m.height });
@@ -300,6 +306,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const current = b ? monitors.find((m) => m.dip!.x === b.x && m.dip!.y === b.y) : undefined;
     return { ...s, monitors, current: current?.index ?? null };
   });
+  /** Tried in the background while the recorder is set up, not during the countdown. */
+  ipcMain.handle("recorder:encoder", async (_e, index: unknown) => {
+    const monitor = monitors.find((m) => m.index === z.int().nonnegative().parse(index));
+    if (!monitor) throw new Error("Tela não encontrada.");
+    return rec.encoderFor(monitor, RECORDING_FPS);
+  });
   ipcMain.handle("recorder:moveTo", (_e, index: number) => {
     const m = monitors.find((x) => x.index === index);
     if (m) place(m);
@@ -333,7 +345,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         )
           region = undefined;
       }
-      await rec.prepare({ ...opts, region }, monitors);
+      await rec.prepare({ ...opts, region }, monitors, {
+        // Keys typed in the lesson window still show on screen; it belongs to this process too.
+        keyWindows: guidedBrowserWindowIds(),
+        onCursorFailure: () => overlay?.webContents.send("recorder:hotkey", "cursor-lost"),
+      });
       captureBounds = {
         x: m.x + (region?.x ?? 0),
         y: m.y + (region?.y ?? 0),

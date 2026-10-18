@@ -1,3 +1,4 @@
+import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import { projectDuration } from "@shared/timeline";
 import { Cpu, Layers, Loader, Timer } from "lucide-react";
 import type { ReactNode } from "react";
@@ -17,7 +18,9 @@ export function StatusBar(): ReactNode {
     <footer className="statusbar">
       <span className="stat">
         <Cpu size={12} className="accent" />
-        {info ? (info.encoder === "nvenc" ? "GPU: NVENC" : "CPU: x264") : "Detectando…"}
+        {info
+          ? `${isHardwareEncoder(info.encoder) ? "GPU" : "CPU"}: ${encoderName(info.encoder)}`
+          : "Detectando…"}
       </span>
       <span className="stat">
         <Layers size={12} className="accent" />

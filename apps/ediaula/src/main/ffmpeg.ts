@@ -5,6 +5,7 @@ import { rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { app } from "electron";
+import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
 import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
 
 function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
@@ -262,29 +263,35 @@ export async function waveform(path: string): Promise<string> {
   return out;
 }
 
-let encoder: Encoder | null = null;
+let encoder: Promise<Encoder> | null = null;
 
-/** Detects whether NVENC actually works on this machine (being listed is not enough). */
-export async function detectEncoder(): Promise<Encoder> {
-  if (encoder) return encoder;
-  try {
-    await run(FFMPEG, [
-      "-v",
-      "error",
-      "-f",
-      "lavfi",
-      "-i",
-      "color=s=256x256:d=0.2",
-      "-c:v",
-      "h264_nvenc",
-      "-f",
-      "null",
-      "-",
-    ]);
-    encoder = "nvenc";
-  } catch {
-    encoder = "x264";
-  }
+/**
+ * The export and proxy encoder: the first of NVENC, AMF and Media Foundation hardware that
+ * actually encodes on this machine (being listed is not enough), otherwise x264.
+ */
+export function detectEncoder(): Promise<Encoder> {
+  encoder ??= (async () => {
+    for (const candidate of ["nvenc", "amf", "mf"] as const) {
+      try {
+        await run(FFMPEG, [
+          "-v",
+          "error",
+          "-f",
+          "lavfi",
+          "-i",
+          "color=s=256x256:d=0.2",
+          ...exportVideoArgs(candidate, 2000),
+          "-f",
+          "null",
+          "-",
+        ]);
+        return candidate;
+      } catch {
+        // This encoder is missing or refuses this GPU and driver; try the next one.
+      }
+    }
+    return "x264";
+  })();
   return encoder;
 }
 
@@ -300,11 +307,7 @@ export async function proxy(
   const out = join(cacheDir(path), "proxy.mp4");
   if (existsSync(out)) return out;
   const tmp = out.replace(".mp4", ".part.mp4");
-  const enc = await detectEncoder();
-  const video =
-    enc === "nvenc"
-      ? ["-c:v", "h264_nvenc", "-preset", "p2", "-cq", "28", "-g", "15"]
-      : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-g", "15"];
+  const video = proxyVideoArgs(await detectEncoder());
   // Variable frame rate sources get a constant-rate working copy so frame stepping is exact.
   const rate = cfrFps ? ["-fps_mode", "cfr", "-r", String(cfrFps)] : [];
   await run(
@@ -319,8 +322,6 @@ export async function proxy(
       "scale=-2:720",
       ...rate,
       ...video,
-      "-pix_fmt",
-      "yuv420p",
       "-c:a",
       "aac",
       "-b:a",

@@ -251,7 +251,9 @@ export interface RelinkSearch {
   canceled: boolean;
 }
 
-export type Encoder = "nvenc" | "x264";
+/** H.264 encoder for exports and proxies: NVIDIA, AMD, Media Foundation hardware, or the CPU. */
+export const ENCODERS = ["nvenc", "amf", "mf", "x264"] as const;
+export type Encoder = (typeof ENCODERS)[number];
 
 export interface ExportSpec {
   outPath: string;
@@ -423,6 +425,8 @@ export interface EdiAulaApi {
     }>;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
+    /** Tests the encoders on this monitor once (seconds) and names the one that will record. */
+    encoder(monitor: number): Promise<string>;
     prepare(
       opts: RecordOptions & { regionDip?: { x: number; y: number; width: number; height: number } },
     ): Promise<void>;

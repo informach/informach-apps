@@ -10,6 +10,7 @@ import {
   stepsFromWords,
 } from "../src/shared/guidedRecording.ts";
 import { executeGuided, type GuidedDriver } from "../src/shared/guidedRunner.ts";
+import type { GlideResult } from "../src/shared/helperProtocol.ts";
 
 const target: GuidedTarget = {
   x: 500,
@@ -86,15 +87,58 @@ test("smooth pointer is bounded, monotonic and slows down at both ends", () => {
   for (let i = 1; i <= 100; i++) assert.ok(smoothPointer(i / 100) >= smoothPointer((i - 1) / 100));
 });
 
+interface GlideCommand {
+  token: string;
+  x: number;
+  y: number;
+  from: { x: number; y: number };
+  duration: number;
+  at: number;
+}
+
+/**
+ * Fake helper on a simulated clock. A glide answers when its remaining time has passed, or at
+ * once with the fraction reached when halted, as the native input mode does.
+ */
 function simulation() {
   let time = 0;
   let paused = false;
-  const events: { at: number; op: string; x?: unknown; y?: unknown }[] = [];
+  const events: { at: number; op: string; x?: unknown; y?: unknown; glide?: GlideCommand }[] = [];
   const controller = new AbortController();
+  let gliding:
+    | { glide: GlideCommand; start: number; resolve: (value: GlideResult) => void }
+    | undefined;
+  const settle = () => {
+    if (!gliding || time < gliding.start + gliding.glide.duration * (1 - gliding.glide.at)) return;
+    const { glide, resolve } = gliding;
+    gliding = undefined;
+    events.push({ at: time, op: "arrive", x: glide.x, y: glide.y });
+    resolve({ x: glide.x, y: glide.y, at: 1 });
+  };
   const input: GuidedDriver = {
     async command<T>(c: Record<string, unknown>): Promise<T> {
-      events.push({ at: time, op: String(c.op), x: c.x, y: c.y });
-      return (c.op === "sample" ? { ...target, x: 0, y: 0 } : undefined) as T;
+      const glide = c.op === "glide" ? (c as unknown as GlideCommand) : undefined;
+      events.push({ at: time, op: String(c.op), x: c.x, y: c.y, glide });
+      if (c.op === "sample") return { ...target, x: 0, y: 0 } as T;
+      if (glide)
+        return new Promise<T>((resolve) => {
+          gliding = { glide, start: time, resolve: (value) => resolve(value as T) };
+          settle();
+        });
+      if (c.op === "halt") {
+        if (!gliding || c.token !== gliding.glide.token) return { halted: false } as T;
+        const { glide: g, start, resolve } = gliding;
+        gliding = undefined;
+        const at = g.at + (time - start) / g.duration;
+        resolve({
+          x: Math.round(g.from.x + (g.x - g.from.x) * smoothPointer(at)),
+          y: Math.round(g.from.y + (g.y - g.from.y) * smoothPointer(at)),
+          at,
+          halted: true,
+        });
+        return { halted: true } as T;
+      }
+      return undefined as T;
     },
   };
   return {
@@ -108,24 +152,53 @@ function simulation() {
     },
     advance: async (ms: number) => {
       if (!paused) time += ms / 1000;
+      settle();
     },
   };
 }
 
-test("runner moves smoothly, dwells before each click and preserves post-click observation", async () => {
+test("runner glides once per step, dwells before each click and preserves post-click observation", async () => {
   const s = simulation();
   await executeGuided(plan, s.input, s.time, s.paused, s.controller.signal, s.advance);
   const clicks = s.events.filter((e) => e.op === "click");
   assert.equal(clicks.length, 2);
-  for (const click of clicks) {
-    const moves = s.events.filter((e) => e.op === "move" && e.at < click.at);
-    const last = moves.at(-1)!;
-    assert.ok(moves.length > 20);
-    assert.equal(last.x, target.x);
-    assert.equal(last.y, target.y);
-    assert.ok(click.at - last.at >= plan.dwell - 0.001);
+  for (const [index, click] of clicks.entries()) {
+    const glides = s.events.filter((e) => e.op === "glide" && e.at < click.at);
+    assert.equal(glides.length, index + 1);
+    assert.deepEqual(glides.at(-1)?.glide, {
+      op: "glide",
+      token: `glide-${index + 1}`,
+      x: target.x,
+      y: target.y,
+      from: { x: 0, y: 0 },
+      duration: plan.move,
+      at: 0,
+    });
+    const arrival = s.events.filter((e) => e.op === "arrive" && e.at <= click.at).at(-1);
+    assert.ok(arrival);
+    assert.equal(arrival.x, target.x);
+    assert.equal(arrival.y, target.y);
+    assert.ok(click.at - arrival.at >= plan.dwell - 0.001);
   }
+  assert.equal(s.events.filter((e) => e.op === "move").length, 0);
   assert.ok(s.time() - clicks.at(-1)!.at >= plan.after - 0.001);
+});
+
+test("a pause halts the glide where it is and the same curve resumes afterwards", async () => {
+  const s = simulation();
+  let sleeps = 0;
+  await executeGuided(plan, s.input, s.time, s.paused, s.controller.signal, async (ms) => {
+    sleeps++;
+    if (sleeps === 50) s.setPaused(true);
+    if (sleeps === 60) s.setPaused(false);
+    await s.advance(ms);
+  });
+  const [initial, resumed] = s.events.filter((e) => e.op === "glide").map((e) => e.glide);
+  assert.equal(s.events.filter((e) => e.op === "halt").length, 1);
+  assert.ok(initial && resumed);
+  assert.ok(resumed.at > 0 && resumed.at < 1);
+  assert.deepEqual(resumed.from, initial.from);
+  assert.equal(s.events.filter((e) => e.op === "click").length, 2);
 });
 
 test("pause freezes execution; cancellation during movement prevents all later clicks", async () => {
@@ -139,7 +212,12 @@ test("pause freezes execution; cancellation during movement prevents all later c
         s.setPaused(true);
         pauseEvents = s.events.length;
       }
-      if (sleeps > 50 && sleeps < 65) assert.equal(s.events.length, pauseEvents);
+      // While paused the only command is the one that halts the running glide.
+      if (sleeps > 50 && sleeps < 65)
+        assert.deepEqual(
+          s.events.slice(pauseEvents).map((e) => e.op),
+          s.events.length > pauseEvents ? ["halt"] : [],
+        );
       if (sleeps === 65) {
         s.setPaused(false);
         s.controller.abort();
@@ -178,7 +256,7 @@ test("browser targets are resolved again and movement follows their current loca
     },
   );
   assert.equal(resolutions, 2);
-  assert.equal(s.events.filter((e) => e.op === "move").at(-1)?.x, 650);
+  assert.equal(s.events.filter((e) => e.op === "glide").at(-1)?.x, 650);
   assert.equal(s.events.filter((e) => e.op === "click").length, 1);
 });
 
@@ -210,7 +288,7 @@ test("separate phrase start anticipates speech while retaining the actual click 
   assert.equal(step.actAt, schedule.lead + 3);
   const s = simulation();
   await executeGuided(p, s.input, s.time, s.paused, s.controller.signal, s.advance);
-  const arrival = s.events.filter((e) => e.op === "move").at(-1)!;
+  const arrival = s.events.filter((e) => e.op === "arrive").at(-1)!;
   assert.ok(arrival.at <= step.speechAt - GUIDED_DEFAULTS.anticipation + 0.04);
   assert.ok(s.events.find((e) => e.op === "click")!.at >= step.actAt);
 });
@@ -249,23 +327,24 @@ test("slow browser lookup stops before movement instead of consuming the speech 
     }),
     /localização.*atrasou/,
   );
-  assert.equal(s.events.filter((e) => e.op === "move" || e.op === "click").length, 0);
+  assert.equal(s.events.filter((e) => e.op === "glide" || e.op === "click").length, 0);
 });
 
-test("a stall during movement stops without jumping to the target or clicking", async () => {
+test("a helper that falls behind during the glide stops without jumping to the target or clicking", async () => {
   const s = simulation();
-  let stalled = false;
+  const input: GuidedDriver = {
+    async command<T>(command: Record<string, unknown>): Promise<T> {
+      if (command.op !== "glide") return s.input.command<T>(command);
+      s.events.push({ at: s.time(), op: "glide" });
+      return { x: 120, y: 70, at: 0.3, late: 0.25 } as T;
+    },
+  };
   await assert.rejects(
-    executeGuided(plan, s.input, s.time, s.paused, s.controller.signal, async (ms) => {
-      if (!stalled && s.events.some((e) => e.op === "move")) {
-        stalled = true;
-        await s.advance(2000);
-      } else await s.advance(ms);
-    }),
+    executeGuided(plan, input, s.time, s.paused, s.controller.signal, s.advance),
     /salto do cursor/,
   );
-  assert.equal(s.events.filter((e) => e.op === "click").length, 0);
-  assert.notEqual(s.events.filter((e) => e.op === "move").at(-1)?.x, target.x);
+  assert.equal(s.events.filter((e) => e.op === "glide").length, 1);
+  assert.equal(s.events.filter((e) => e.op === "click" || e.op === "arrive").length, 0);
 });
 
 test("cancellation during key focus verification prevents the key from being sent", async () => {

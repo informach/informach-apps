@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildExportPlan } from "../src/shared/exportPlan.ts";
-import type { Project } from "../src/shared/types.ts";
+import { buildExportPlan, exportVideoArgs, proxyVideoArgs } from "../src/shared/exportPlan.ts";
+import { exportSpecSchema } from "../src/shared/project-schema.ts";
+import { ENCODERS, type Project } from "../src/shared/types.ts";
 
 const project = (): Project => ({
   version: 1,
@@ -117,4 +118,33 @@ test("silent projects get a null audio source and x264 when no GPU", () => {
   const plan = buildExportPlan(p, { ...spec, encoder: "x264" });
   assert.match(plan.filter, /anullsrc/);
   assert.ok(plan.outputArgs.includes("libx264"));
+});
+
+test("AMD and Media Foundation export at the same bitrate and peak as NVENC and x264", () => {
+  const codecs = { nvenc: "h264_nvenc", amf: "h264_amf", mf: "h264_mf", x264: "libx264" };
+  for (const encoder of ENCODERS) {
+    const plan = buildExportPlan(project(), { ...spec, encoder });
+    const args = plan.outputArgs;
+    const value = (name: string) => args[args.indexOf(name) + 1];
+    assert.equal(value("-c:v"), codecs[encoder]);
+    assert.equal(value("-b:v"), "8000k");
+    assert.equal(value("-maxrate"), "12000k");
+    assert.equal(value("-pix_fmt"), encoder === "mf" ? "nv12" : "yuv420p");
+    assert.ok(exportSpecSchema.safeParse({ ...spec, encoder }).success);
+  }
+  // Media Foundation takes High as a number, only on hardware.
+  const mf = exportVideoArgs("mf", 8000);
+  assert.equal(mf[mf.indexOf("-profile:v") + 1], "100");
+  assert.equal(mf[mf.indexOf("-hw_encoding") + 1], "1");
+  const amf = exportVideoArgs("amf", 8000);
+  assert.equal(amf[amf.indexOf("-profile:v") + 1], "high");
+  assert.equal(exportSpecSchema.safeParse({ ...spec, encoder: "qsv" }).success, false);
+});
+
+test("proxies use each encoder with a short GOP", () => {
+  for (const encoder of ENCODERS) {
+    const args = proxyVideoArgs(encoder);
+    assert.equal(args[args.indexOf("-g") + 1], "15");
+  }
+  assert.ok(proxyVideoArgs("mf").includes("-hw_encoding"));
 });
