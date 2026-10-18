@@ -27,13 +27,15 @@ using System;
 using System.Runtime.InteropServices;
 public static class EdiNativeFileControl {
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
-  public static extern IntPtr SetText(IntPtr window, uint message, IntPtr wparam, string text);
+  public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
   public static extern IntPtr Click(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
   [DllImport("user32.dll",CharSet=CharSet.Unicode)]
   public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string className,string title);
   [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="SendMessageW")]
   public static extern IntPtr ReadText(IntPtr window,uint message,IntPtr capacity,System.Text.StringBuilder text);
+  [DllImport("user32.dll", EntryPoint="GetWindowLongW")]
+  public static extern int WindowStyle(IntPtr window, int index);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
 }
@@ -95,7 +97,10 @@ while ([DateTime]::UtcNow -lt $deadline) {
         } elseif($file.Current.ClassName -ne 'Edit'){throw 'Unexpected filename control.'}
         [uint32]$editOwner=0;[void][EdiNativeFileControl]::GetWindowThreadProcessId($fileHandle,[ref]$editOwner)
         if($editOwner -ne $TestProcessId){throw 'Filename edit belongs to another process.'}
-        [void][EdiNativeFileControl]::SetText($fileHandle,0x000C,[IntPtr]::Zero,$selected)
+        Write-Output "Filename edit style: $([Convert]::ToString([EdiNativeFileControl]::WindowStyle($fileHandle,-16),16))"
+        # Use the edit operation, so the dialog receives change notifications on every Windows style.
+        [void][EdiNativeFileControl]::Click($fileHandle,0x00B1,[IntPtr]::Zero,[IntPtr](-1))
+        [void][EdiNativeFileControl]::EditText($fileHandle,0x00C2,[IntPtr]1,$selected)
         $readback=New-Object System.Text.StringBuilder 4096
         [void][EdiNativeFileControl]::ReadText($fileHandle,0x000D,[IntPtr]4096,$readback)
         if($readback.ToString() -ne $selected){throw 'Owned filename edit did not retain the exact disposable path.'}
