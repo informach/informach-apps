@@ -1,4 +1,5 @@
 import type { Annotation } from "./annotation.ts";
+import { clipEnd, clipSpeed } from "./clipTime.ts";
 import { piece } from "./pieces.ts";
 import type { Asset, Clip, Project, RevealSprite } from "./types.ts";
 
@@ -41,9 +42,43 @@ const plain = (w: string): string =>
     .toLowerCase();
 
 /**
- * When each word appears, seconds from the clip's start. Words of the annotation said while it
- * shows (in order, from `spoken`: timeline words) appear when they are said; the others come
- * WORD_STEP after the word before (the first at 0). Times only go forward.
+ * The annotation clip as it was before it was cut: where it starts on the timeline and how long
+ * it lasts, and how far into it `clip` starts (its in-point, in timeline seconds). The pieces of
+ * a cut keep their in-point and the same annotation on the same track, so the ones still there
+ * say how long the whole was. The reveal runs on this clock: a piece goes on from where the
+ * annotation was at its start instead of coming in again.
+ */
+export interface RevealSpan {
+  start: number;
+  duration: number;
+  /** Seconds into the whole where `clip` starts. */
+  offset: number;
+}
+
+export function revealSpan(
+  clips: readonly Pick<Clip, "trackId" | "start" | "in" | "duration" | "speed" | "annotation">[],
+  clip: Pick<Clip, "trackId" | "start" | "in" | "duration" | "speed" | "annotation">,
+): RevealSpan {
+  const origin = (c: typeof clip): number => c.start - Math.max(0, c.in) / clipSpeed(c);
+  const start = origin(clip);
+  const same = JSON.stringify(clip.annotation ?? null);
+  let end = clipEnd(clip);
+  for (const c of clips)
+    if (
+      c.trackId === clip.trackId &&
+      clipEnd(c) > end &&
+      Math.abs(origin(c) - start) < 1e-6 &&
+      JSON.stringify(c.annotation ?? null) === same
+    )
+      end = clipEnd(c);
+  return { start, duration: end - start, offset: clip.start - start };
+}
+
+/**
+ * When each word appears, seconds from the clip's start (for a piece of a cut clip, pass the
+ * whole one, revealSpan). Words of the annotation said while it shows (in order, from `spoken`:
+ * timeline words) appear when they are said; the others come WORD_STEP after the word before
+ * (the first at 0). Times only go forward.
  */
 export function revealTimes(
   a: Pick<Annotation, "kind" | "text" | "subtitle">,

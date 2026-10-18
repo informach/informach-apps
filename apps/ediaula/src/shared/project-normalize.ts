@@ -64,6 +64,36 @@ export function moveDrawingsToMedia(stored: StoredProject, p: Project): Project 
   return { ...p, clips, assets };
 }
 
+/**
+ * Lessons saved before the sound taken out of a video was marked (Clip.soundOnly): that clip is
+ * a clip of the video, on a sound track, in the group of the silent video it came from. It is
+ * marked now, so it plays only its sound and the picture is drawn once, by the video.
+ */
+export function markDetachedSound(p: Project): Project {
+  const sound = new Set(p.tracks.filter((t) => t.kind === "audio").map((t) => t.id));
+  const video = new Set(p.assets.filter((a) => a.kind === "video").map((a) => a.id));
+  // Groups with a silent clip of a video, by group and media.
+  const silent = new Set(
+    p.clips
+      .filter((c) => c.groupId && c.volume <= 0 && video.has(c.assetId) && !sound.has(c.trackId))
+      .map((c) => `${c.groupId}|${c.assetId}`),
+  );
+  if (!silent.size) return p;
+  let changed = false;
+  const clips = p.clips.map((c) => {
+    if (
+      c.soundOnly ||
+      !c.groupId ||
+      !sound.has(c.trackId) ||
+      !silent.has(`${c.groupId}|${c.assetId}`)
+    )
+      return c;
+    changed = true;
+    return { ...c, soundOnly: true };
+  });
+  return changed ? { ...p, clips } : p;
+}
+
 /** Everything a project read from disk goes through before the editor uses it. */
 export const normalizeProject = (stored: StoredProject): Project =>
-  moveDrawingsToMedia(stored, moveZoomsToMedia(stored));
+  markDetachedSound(moveDrawingsToMedia(stored, moveZoomsToMedia(stored)));

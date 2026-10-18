@@ -6,7 +6,8 @@ import type { Clip, Project } from "./types.ts";
  * back from 0:00, in the order of their starts, so removing, trimming or moving one never leaves
  * a hole. Every commit goes through applyMagnetic() (shared/settle.ts); a locked track stays as
  * it is. A clip that moves takes along, by the same amount, the clips of its group on the other
- * tracks (a video and the sound taken out of it stay together), except on locked tracks.
+ * tracks that play beside it (a video and the sound taken out of it stay together, each piece
+ * of a cut with its own), except on locked tracks.
  */
 
 const EPS = 1e-6;
@@ -49,20 +50,43 @@ export function applyMagnetic<T extends Pick<Project, "clips" | "tracks">>(p: T)
   for (const t of magnetic) {
     const moves = packMoves(clips, t.id);
     if (!moves.size) continue;
-    // The group of each clip that moves goes along on the other free tracks.
-    const byGroup = new Map<string, number>();
+    // The group's clips on this track, by group: each member elsewhere goes along with the one
+    // it plays beside (a video cut in two keeps each half of its sound under its own half).
+    const leaders = new Map<string, Clip[]>();
     for (const c of clips)
-      if (c.groupId && moves.has(c.id) && !byGroup.has(c.groupId))
-        byGroup.set(c.groupId, moves.get(c.id) ?? 0);
+      if (c.groupId && c.trackId === t.id)
+        leaders.set(c.groupId, [...(leaders.get(c.groupId) ?? []), c]);
     clips = clips.map((c) => {
       const own = moves.get(c.id);
       if (own !== undefined) return { ...c, start: c.start + own };
-      const along = c.groupId ? byGroup.get(c.groupId) : undefined;
-      if (along === undefined || fixed.has(c.trackId)) return c;
+      if (!c.groupId || c.trackId === t.id || fixed.has(c.trackId)) return c;
+      const beside = besideOf(leaders.get(c.groupId), c);
+      const along = beside ? moves.get(beside.id) : undefined;
+      if (along === undefined) return c;
       return { ...c, start: Math.max(0, c.start + along) };
     });
   }
   return clips === p.clips ? p : { ...p, clips };
+}
+
+/**
+ * Of a group's clips on the magnetic track, the one `c` plays beside: the one it overlaps most
+ * in time, or the nearest one when it overlaps none (a J or L cut past the edge).
+ */
+function besideOf(list: readonly Clip[] | undefined, c: Clip): Clip | undefined {
+  let best: Clip | undefined;
+  let bestOverlap = 0;
+  let bestGap = Number.POSITIVE_INFINITY;
+  for (const x of list ?? []) {
+    const overlap = Math.min(clipEnd(x), clipEnd(c)) - Math.max(x.start, c.start);
+    const gap = Math.max(0, -overlap);
+    if (overlap > bestOverlap + EPS || (bestOverlap <= EPS && overlap <= EPS && gap < bestGap)) {
+      best = x;
+      bestOverlap = Math.max(0, overlap);
+      bestGap = gap;
+    }
+  }
+  return best;
 }
 
 /**

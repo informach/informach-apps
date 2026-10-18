@@ -209,6 +209,7 @@ export function detachAudio(
     duration: c.duration,
     volume: c.volume,
     groupId,
+    soundOnly: true,
     ...(c.speed !== undefined ? { speed: c.speed } : {}),
     ...(c.denoise ? { denoise: true } : {}),
     ...(c.gain?.length ? { gain: c.gain } : {}),

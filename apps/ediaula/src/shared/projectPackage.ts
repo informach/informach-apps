@@ -4,7 +4,9 @@ import type { Asset, Project } from "./types.ts";
  * The lesson packed in one ZIP (Arquivo › Empacotar a aula): the project with its media, the
  * cursor data, the transcripts, the guided runs, the voices exported for the presenter's video
  * and the narrations of the guided plans, each under media/<name>; the paths in the packed
- * project point there. What the app makes again by itself (proxies, thumbnails, waveforms,
+ * project point there. The cursor images a recording saved beside its cursor data
+ * (cursors/<hash>.png, named by their content) go to media/cursors/, beside the packed cursor
+ * data, which names them the same way. What the app makes again by itself (proxies, thumbnails, waveforms,
  * filmstrips, the avatar cut out, the treated voice, the pictures of annotations and held
  * frames) stays out. Opening the package extracts it into a folder of its own and puts absolute
  * paths back before the lesson opens (main/package.ts); nothing in it may point elsewhere.
@@ -12,6 +14,10 @@ import type { Asset, Project } from "./types.ts";
 
 export const PACKAGE_PROJECT = "aula.ediaula";
 export const PACKAGE_MEDIA = "media/";
+/** The folder of the cursor images inside the package, beside the cursor data. */
+export const PACKAGE_CURSORS = `${PACKAGE_MEDIA}cursors/`;
+/** A cursor image as the recorder saves it: the hash of its pixels. */
+export const CURSOR_IMAGE = /^[0-9a-f]{16}\.png$/;
 
 /** Fields of a media pointing at files that travel in the package. */
 const CARRIED = ["path", "cursor", "transcript", "guidedRun"] as const;
@@ -80,9 +86,14 @@ const drawnName = (a: Asset): string =>
 /**
  * What goes into the package, and the project with the paths it will have inside. `exists`
  * says whether a file is there: an exported voice whose WAVs are gone stays out (the media
- * themselves must be there; main/package.ts asks to reconnect them).
+ * themselves must be there; main/package.ts asks to reconnect them). `cursorImages` lists the
+ * cursor images beside a cursor data file (their paths).
  */
-export function packPlan(p: Project, exists: (path: string) => boolean = () => true): PackPlan {
+export function packPlan(
+  p: Project,
+  exists: (path: string) => boolean = () => true,
+  cursorImages: (cursor: string) => string[] = () => [],
+): PackPlan {
   const files: { name: string; path: string }[] = [];
   const taken = new Set<string>();
   const store = (label: string, path: string): string => {
@@ -98,6 +109,7 @@ export function packPlan(p: Project, exists: (path: string) => boolean = () => t
     const label = SUFFIX[field] ? `${SUFFIX[field]}${extOf(own) || ".json"}` : own;
     return store(`${asset.id}-${label}`, path);
   };
+  const images = new Set<string>();
   const assets = p.assets.map((a) => {
     const out = withoutCaches(a);
     // Pictures the editor draws are drawn again from what the project says.
@@ -106,6 +118,14 @@ export function packPlan(p: Project, exists: (path: string) => boolean = () => t
       const value = a[field];
       if (typeof value === "string" && value) out[field] = place(a, field, value);
     }
+    // The pointer as the system drew it: one copy of each image, whichever take saved it.
+    if (a.cursor)
+      for (const path of cursorImages(a.cursor)) {
+        const name = baseOf(path);
+        if (!CURSOR_IMAGE.test(name) || images.has(name)) continue;
+        images.add(name);
+        files.push({ name: `${PACKAGE_CURSORS}${name}`, path });
+      }
     return out;
   });
   // The voices exported for the presenter's video travel too, to place the MP4s that come back.

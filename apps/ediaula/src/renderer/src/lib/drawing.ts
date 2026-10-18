@@ -20,6 +20,7 @@ import {
   groupWithScreens,
   shiftDrawing,
 } from "@shared/drawing";
+import { fitDrawing } from "@shared/projectSize";
 import type { RecordingResult } from "@shared/recording";
 import type { RecordingLayout } from "@shared/recordingImport";
 import { newId } from "@shared/timeline";
@@ -211,14 +212,25 @@ export async function placeTakeDrawing(
   const screenId = layout.roles.find((x) => x.role === "screen")?.assetId;
   const screen = before?.assets.find((a) => a.id === screenId);
   if (!before || !screen) return;
-  // The pointer goes over the boards when the screen is one file on the take's clock.
-  const own = shiftDrawing(
-    {
-      ...drawing,
-      ...(r.screen && screen.cursor ? { pointer: { assetId: screen.id, offset: 0 } } : {}),
-    },
-    -span[0],
+  // The pointer goes over the boards when the screen is one file on the take's clock. The
+  // lesson keeps a limited number of drawing points in all (shared/projectSize.ts).
+  const { drawing: own, thinned } = fitDrawing(
+    before,
+    shiftDrawing(
+      {
+        ...drawing,
+        ...(r.screen && screen.cursor ? { pointer: { assetId: screen.id, offset: 0 } } : {}),
+      },
+      -span[0],
+    ),
   );
+  if (thinned)
+    useApp
+      .getState()
+      .toast(
+        "A aula já tem muitos desenhos: os traços deste take foram simplificados para o arquivo continuar salvando.",
+        "info",
+      );
   const size = drawingVideoSize(screen.width, screen.height);
   const fps = Math.max(1, Math.round(screen.fps > 0 ? screen.fps : before.settings.fps));
   const duration = span[1] - span[0];

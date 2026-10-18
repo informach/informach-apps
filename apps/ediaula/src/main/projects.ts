@@ -15,6 +15,7 @@ import { app } from "electron";
 import { z } from "zod";
 import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema, projectSettingsSchema } from "../shared/project-schema.ts";
+import { PROJECT_LIMIT_BYTES } from "../shared/projectSize.ts";
 import { defaultTracks, newId, projectDuration } from "../shared/timeline.ts";
 import type { BackupEntry, Project, ProjectSettings, RecentEntry } from "../shared/types.ts";
 
@@ -143,7 +144,7 @@ function backup(path: string, force = false): void {
 }
 
 /** Largest project file the editor reads, and so the largest it writes. */
-const MAX_PROJECT_BYTES = 32 * 1024 ** 2;
+const MAX_PROJECT_BYTES = PROJECT_LIMIT_BYTES;
 const TOO_LARGE = "Projeto maior que 32 MB.";
 
 /**
@@ -169,7 +170,9 @@ async function remember(path: string, project: Project): Promise<void> {
 
 export async function saveProject(path: string, rawProject: unknown): Promise<void> {
   const project = projectSchema.parse(rawProject);
-  const content = JSON.stringify(project, null, 1);
+  // Compact: the drawings and the cursor paths are long lists of numbers, which indenting
+  // would put one per line (several times the size, against the 32 MB the editor reads).
+  const content = JSON.stringify(project);
   // Refused before touching the file: a project that could not be opened again is not saved.
   if (Buffer.byteLength(content) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
   try {

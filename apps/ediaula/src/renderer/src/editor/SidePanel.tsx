@@ -258,7 +258,7 @@ function Properties(): ReactNode {
         </div>
       )}
 
-      {asset && asset.kind !== "audio" && !clip.zoomLayer && !clip.regionFx && (
+      {asset && asset.kind !== "audio" && !clip.soundOnly && !clip.zoomLayer && !clip.regionFx && (
         <>
           {clip.annotation &&
             (isDrawingKind(clip.annotation.kind) ? (

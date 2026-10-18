@@ -361,6 +361,11 @@ export interface Clip {
   /** Silent while the presenter's video plays its own sound over it ("Usar o som do vídeo
    *  importado"): the clip is still the lesson's voice, with its volume. */
   mutedFor?: "presenter";
+  /**
+   * Only the sound of its media plays (Separar áudio: the sound taken out of a video): the
+   * picture is drawn by the video clip it came from, never by this one.
+   */
+  soundOnly?: boolean;
   /** Group (shared/groups.ts): clips of one group are picked, moved, trimmed and copied together. */
   groupId?: string;
   /** Blur, pixelate or spotlight over a part of what the tracks below show (shared/look.ts). */
@@ -1158,10 +1163,10 @@ export interface EdiAulaApi {
   cancelJob(jobId: string): Promise<void>;
   /** Removes the reusable export segments; resolves with the bytes freed. */
   clearExportCache(): Promise<number>;
-  /** The pending exports kept between sessions (JSON text of the queue items, or null). */
+  /** The pending exports kept between sessions (the JSON text of each queue item, or null). */
   exportQueue: {
-    load(): Promise<string | null>;
-    save(itemsJson: string): Promise<void>;
+    load(): Promise<string[] | null>;
+    save(items: string[]): Promise<void>;
   };
   showInFolder(path: string): Promise<void>;
   onProgress(cb: (p: JobProgress) => void): () => void;

@@ -103,10 +103,18 @@ export function fileSha256(path: string): Promise<string> {
   });
 }
 
-/** The second of the lesson the thumbnail shows: the one chosen, or 30% into it. */
-export const thumbnailSecond = (spec: Pick<ExportSpec, "thumbnailAt">, duration: number): number =>
+/**
+ * Second of the exported file the thumbnail is taken at: the lesson's second chosen
+ * (thumbnailAt) counted from where the file starts (`offset`, the start of a range) and kept
+ * inside it, or 30% in when none was chosen.
+ */
+export const thumbnailSecond = (
+  spec: Pick<ExportSpec, "thumbnailAt">,
+  duration: number,
+  offset = 0,
+): number =>
   spec.thumbnailAt !== undefined
-    ? Math.min(Math.max(0, duration - 0.05), Math.max(0, spec.thumbnailAt))
+    ? Math.min(Math.max(0, duration - 0.05), Math.max(0, spec.thumbnailAt - offset))
     : Math.max(0, duration * 0.3);
 
 const inside = (path: string, root: string): boolean => {
@@ -395,7 +403,7 @@ export async function renderLesson(
     );
     deps.check();
     const thumbnail = outputs.thumbnail;
-    const thumbAt = thumbnailSecond(spec, duration);
+    const thumbAt = thumbnailSecond(spec, duration, offset);
     if (thumbnail) {
       progress({ ratio: 0.98, phase: "assembling" });
       await slot(

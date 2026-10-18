@@ -3,7 +3,7 @@ import type { Asset, Clip } from "@shared/types";
 import { actions } from "@/lib/actions";
 import { useApp } from "@/state/app";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { useProject, waitForDraft } from "@/state/project";
 
 /** Clips copied with Ctrl+C (and their media), kept while the app is open, across projects. */
 let copied: { clips: Clip[]; assets: Asset[] } | null = null;
@@ -24,13 +24,15 @@ export function copySelection(): number {
 }
 
 export function cutSelection(): void {
+  // Nothing is taken while a draft that changes the structure waits (and nothing is copied).
+  if (waitForDraft("recortar clipes")) return;
   if (copySelection()) actions.deleteSelection(false);
 }
 
 /** Pastes at the playhead, without covering anything (see pasteClips); the pasted clips end up selected. One undo step. */
 export function paste(): void {
   const project = useProject.getState().project;
-  if (!project || !copied) return;
+  if (!project || !copied || waitForDraft("colar clipes")) return;
   const { clips: source, assets } = copied;
   const at = usePlayback.getState().time;
   let ids: string[] = [];

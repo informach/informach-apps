@@ -56,8 +56,9 @@ const saved = ({ id, project, spec, captions, extras, state }: ExportItem) => ({
 function persist(pending: ExportItem[]): void {
   // One that cannot be resumed is shown this time and not kept (main allows nothing of it).
   const all = [...pending, ...useExportQueue.getState().resumable.filter((i) => !i.blocked)];
+  // One text per item: a queue of long lessons is never one huge message.
   window.api.exportQueue
-    .save(JSON.stringify(all.map(saved)))
+    .save(all.map((item) => JSON.stringify(saved(item))))
     .catch((error: unknown) =>
       useApp
         .getState()
@@ -209,10 +210,9 @@ export function listenRecorderState(): () => void {
  * that cannot be resumed any more come with the reason (main/export/exportQueueStore.ts).
  */
 export async function loadUnfinishedExports(): Promise<void> {
-  const text = await window.api.exportQueue.load();
-  if (!text) return;
-  const items: ExportItem[] = JSON.parse(text);
-  if (!items.length) return;
+  const texts = await window.api.exportQueue.load();
+  if (!texts?.length) return;
+  const items = texts.map((text): ExportItem => JSON.parse(text));
   useExportQueue.setState({ resumable: items, open: true });
   const blocked = items.filter((i) => i.blocked).length;
   if (blocked)

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
@@ -6,9 +6,12 @@ import { exportSpecSchema, projectSchema } from "../../shared/project-schema.ts"
 import type { ExportSpec } from "../../shared/types.ts";
 
 /**
- * The export queue kept between sessions (userData/export-queue.json): the pending items, each
- * with its copy of the project, so they can be resumed when the app opens again (the segments
- * already rendered come from the cache). Only files the person had chosen are kept: the
+ * The export queue kept between sessions: the pending items, each with its copy of the project,
+ * so they can be resumed when the app opens again (the segments already rendered come from the
+ * cache). Each item is a file of its own (userData/export-queue/<hash>.json, named by its
+ * contents, so one already kept is not written again) and userData/export-queue.json lists them
+ * in order: the renderer sends and receives one text per item, and a queue of several long
+ * lessons never travels or is checked as one huge text. Only files the person had chosen are kept: the
  * destination selected in the save dialog (an .mp4, or an .mp3 for a podcast) and media that was
  * readable when the item was saved. They are allowed again when the queue is read back; an item
  * whose folder or media is gone comes back with the reason it cannot be resumed, and nothing of it
@@ -16,7 +19,15 @@ import type { ExportSpec } from "../../shared/types.ts";
  */
 
 const MAX_ITEMS = 50;
-const MAX_TEXT = 64 * 1024 * 1024;
+/** One item: its project (at most 32 MB, as a lesson file) and its settings. */
+const MAX_ITEM_TEXT = 48 * 1024 * 1024;
+const ITEM_FILE = /^[0-9a-f]{64}\.json$/;
+const indexSchema = z.object({
+  version: z.literal(2),
+  items: z.array(z.string().regex(ITEM_FILE)).max(MAX_ITEMS),
+});
+/** The folder of the item files, beside the list. */
+const itemsDir = (file: string): string => file.replace(/\.json$/i, "");
 
 const itemSchema = z.object({
   id: z.string().min(1).max(200),
@@ -91,10 +102,22 @@ async function replaceFile(file: string, text: string): Promise<void> {
   }
 }
 
-/** Keeps the pending items whose files the person chose; none left removes the file. */
-export async function saveQueue(file: string, text: string, access: QueueAccess): Promise<void> {
-  if (text.length > MAX_TEXT) throw new Error("A fila de exportação é grande demais para guardar.");
-  const items = queueSchema.parse(JSON.parse(text));
+/**
+ * Keeps the pending items (`texts`: one JSON text per item) whose files the person chose; none
+ * left removes the list and the item files.
+ */
+export async function saveQueue(
+  file: string,
+  texts: readonly string[],
+  access: QueueAccess,
+): Promise<void> {
+  if (texts.length > MAX_ITEMS)
+    throw new Error("A fila de exportação tem itens demais para guardar.");
+  const items = texts.map((text) => {
+    if (text.length > MAX_ITEM_TEXT)
+      throw new Error("Uma exportação da fila é grande demais para guardar.");
+    return itemSchema.parse(JSON.parse(text));
+  });
   await oneAtATime(file, async () => {
     const kept: Item[] = [];
     for (const item of items) {
@@ -107,9 +130,43 @@ export async function saveQueue(file: string, text: string, access: QueueAccess)
       const { stems: _stems, ...spec } = item.spec;
       kept.push({ ...item, spec, state: "waiting" });
     }
-    if (!kept.length) await rm(file, { force: true });
-    else await replaceFile(file, JSON.stringify(kept));
+    const dir = itemsDir(file);
+    if (!kept.length) {
+      await rm(file, { force: true });
+      await rm(dir, { recursive: true, force: true });
+      return;
+    }
+    await mkdir(dir, { recursive: true });
+    const names: string[] = [];
+    for (const item of kept) {
+      const text = JSON.stringify(item);
+      const name = `${createHash("sha256").update(text).digest("hex")}.json`;
+      // Written whole or not at all (replaceFile): one that is there is the same item.
+      if (!(await exists(join(dir, name)))) await replaceFile(join(dir, name), text);
+      names.push(name);
+    }
+    await replaceFile(file, JSON.stringify({ version: 2, items: names }));
+    // The items that left the queue.
+    for (const name of await readdir(dir))
+      if (!names.includes(name)) await rm(join(dir, name), { force: true });
   });
+}
+
+/** The items the list names, in order; one whose file is gone or damaged is left out. */
+async function readItems(file: string, names: readonly string[]): Promise<Item[]> {
+  const items: Item[] = [];
+  for (const name of names) {
+    let text: string;
+    try {
+      text = await readFile(join(itemsDir(file), name), "utf8");
+    } catch (error) {
+      if (isMissing(error)) continue;
+      throw error;
+    }
+    const item = itemSchema.safeParse(JSON.parse(text));
+    if (item.success) items.push(item.data);
+  }
+  return items;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -132,10 +189,11 @@ async function gone(item: Item): Promise<string | null> {
 }
 
 /**
- * The saved items (JSON text of SavedItem[]), with their files allowed again; null when there are
- * none. Items that cannot be resumed come back with `blocked` and nothing of them is allowed.
+ * The saved items (one JSON text of a SavedItem each), with their files allowed again; null when
+ * there are none. Items that cannot be resumed come back with `blocked` and nothing of them is
+ * allowed.
  */
-export async function loadQueue(file: string, access: QueueAccess): Promise<string | null> {
+export async function loadQueue(file: string, access: QueueAccess): Promise<string[] | null> {
   let text: string;
   try {
     text = await readFile(file, "utf8");
@@ -143,14 +201,25 @@ export async function loadQueue(file: string, access: QueueAccess): Promise<stri
     if (isMissing(error)) return null;
     throw error;
   }
-  const parsed = queueSchema.safeParse(JSON.parse(text));
-  if (!parsed.success) {
-    // Written by an older version or damaged: it cannot be resumed, so it is not kept.
-    await oneAtATime(file, () => rm(file, { force: true }));
+  const raw: unknown = JSON.parse(text);
+  // The list of item files, or the whole queue in one file as versions before kept it.
+  const index = indexSchema.safeParse(raw);
+  const whole = index.success ? null : queueSchema.safeParse(raw);
+  const saved = index.success
+    ? await readItems(file, index.data.items)
+    : whole?.success
+      ? whole.data
+      : null;
+  if (!saved) {
+    // Damaged or written by another version: it cannot be resumed, so it is not kept.
+    await oneAtATime(file, async () => {
+      await rm(file, { force: true });
+      await rm(itemsDir(file), { recursive: true, force: true });
+    });
     return null;
   }
   const items: SavedItem[] = [];
-  for (const item of parsed.data) {
+  for (const item of saved) {
     if (!outputAllowed(item.spec)) {
       items.push({ ...item, blocked: "O destino guardado não é um arquivo .mp4 nem .mp3." });
       continue;
@@ -164,7 +233,7 @@ export async function loadQueue(file: string, access: QueueAccess): Promise<stri
     for (const path of pathsOf(item)) await access.grantRead(path);
     items.push(item);
   }
-  return items.length ? JSON.stringify(items) : null;
+  return items.length ? items.map((item) => JSON.stringify(item)) : null;
 }
 
 const dirsSchema = z.array(z.string().max(32768)).max(40);

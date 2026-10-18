@@ -4,7 +4,7 @@ Editor de vídeo para aulas: a simplicidade do Camtasia com a timeline do Premie
 
 **Modelo de edição em Markdown:** peça ao assistente “Gere um arquivo MD com o modelo de edição desta aula para replicar em outro projeto”. Ele usa `export_editing_template` e abre a janela para salvar um `.md` com faixas, mídias de referência, estilos, balões, movimentos, áudio, legendas e falas de referência quando houver transcrição. No projeto seguinte, peça “Leia meu modelo de edição e proponha a adaptação para esta aula”; `read_editing_template` permite escolher o arquivo. O modelo não inclui mídias nem caminhos locais e seus tempos precisam ser adaptados à nova aula.
 
-**Fila de exportação:** em Exportar, escolha o destino e clique em **Adicionar à fila**. Cada item guarda uma cópia do projeto e das configurações, incluindo o caminho editado do cursor. Clique em **Continuar editando** para abrir outra aula enquanto a fila processa um arquivo por vez. Acompanhe, cancele ou tente novamente pelo botão **Exportações** ou pelo menu **Arquivo → Fila de exportação**; **Tentar com a edição atual** refaz com o projeto aberto agora, em vez da cópia guardada. O fechamento normal é bloqueado enquanto há itens pendentes, mas a fila fica gravada: se o EdiAula fechar no meio, ao abrir de novo ele oferece **Retomar** ou **Descartar**, e retomar só refaz os trechos que faltavam. Os arquivos originais precisam continuar disponíveis.
+**Fila de exportação:** em Exportar, escolha o destino e clique em **Adicionar à fila**. Cada item guarda uma cópia do projeto e das configurações, incluindo o caminho editado do cursor. Clique em **Continuar editando** para abrir outra aula enquanto a fila processa um arquivo por vez. Acompanhe, cancele ou tente novamente pelo botão **Exportações** ou pelo menu **Arquivo → Fila de exportação**; **Tentar com a edição atual** refaz com o projeto aberto agora, em vez da cópia guardada. O fechamento normal é bloqueado enquanto há itens pendentes, mas a fila fica gravada, cada item num arquivo próprio (`export-queue/`, com a lista em `export-queue.json`), então várias aulas longas na fila cabem: se o EdiAula fechar no meio, ao abrir de novo ele oferece **Retomar** ou **Descartar**, e retomar só refaz os trechos que faltavam. Os arquivos originais precisam continuar disponíveis.
 
 Na timeline, **Shift + arrasto da linha verde** desloca juntos os clipes que começam naquele ponto ou à direita, em todas as faixas destravadas. As distâncias entre eles são preservadas; clipes que atravessam o ponto ficam no lugar. Ao arrastar para a esquerda, o deslocamento para antes de sobrepor os clipes anteriores. **Esc** cancela o arrasto e **Ctrl + Z** desfaz o movimento aplicado.
 O design de referência está em `ediaula.pen`.
@@ -53,7 +53,7 @@ assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm ed
 ## Exportação
 
 - **Por trechos:** a imagem é renderizada em trechos de 4 a 20 s, com bordas nos cortes da faixa principal, dois ou três ao mesmo tempo (duas sessões de NVENC, AMF ou Media Foundation, divididas com os proxies; até três processos x264, cada um com uma parte dos núcleos). Durante uma gravação nada da exportação começa (trechos, medições, montagem), como os outros trabalhos pesados. Cada quadro de um trecho é o mesmo que uma passada única mostraria: o deslocamento no tempo é em quadros inteiros, a tela parada de uma gravação com taxa variável continua na tela e o último quadro de um arquivo mais curto que o clipe fica parado também no trecho seguinte (`tests/export-frames.integration.test.ts`). Pedaços seguidos da mesma gravação são lidos com um só decodificador e juntados numa camada, então a memória fica perto da de entradas separadas. Cada comando do FFmpeg leva só os clipes do seu trecho, então aulas longas e muito cortadas não passam do limite da linha de comando do Windows (`src/shared/export/`, `src/main/export/`).
-- **Trechos reaproveitados:** cada trecho fica guardado em `cache/segments` com a assinatura do que ele mostra (clipes, efeitos, legenda gravada e os arquivos das fontes dela, cursor, codificador, versão e configuração do FFmpeg e o tamanho e a data de cada arquivo). Exportar de novo só refaz os trechos que mudaram: cortar 2 s no minuto 10 de uma aula de 25 min reaproveita mais de 90% dos trechos depois do corte. A fila mostra, por exemplo, "40 de 52 trechos prontos, 34 reaproveitados". O cache vai até 15 GB, e nunca passa de um quarto do espaço que o disco deixa para ele (os mais antigos saem primeiro); cada arquivo vai para o disco antes de ganhar o nome, e um trecho cortado ou de tamanho diferente do anotado é refeito. **Configurações › Limpar cache de exportação** apaga tudo.
+- **Trechos reaproveitados:** cada trecho fica guardado em `cache/segments` com a assinatura do que ele mostra (clipes, efeitos, legenda gravada e os arquivos das fontes dela, cursor, codificador, versão e configuração do FFmpeg e o tamanho e a data de cada arquivo). Exportar de novo só refaz os trechos que mudaram: cortar 2 s no minuto 10 de uma aula de 25 min reaproveita mais de 90% dos trechos depois do corte. A fila mostra, por exemplo, "40 de 52 trechos prontos, 34 reaproveitados". Trechos que mostram exatamente a mesma coisa (uma vinheta usada duas vezes, o mesmo fundo durante uma narração longa) saem de uma renderização só e usam o mesmo arquivo. O cache vai até 15 GB, e nunca passa de um quarto do espaço que o disco deixa para ele (os mais antigos saem primeiro); cada arquivo vai para o disco antes de ganhar o nome, e um trecho cortado ou de tamanho diferente do anotado é refeito. **Configurações › Limpar cache de exportação** apaga tudo.
 - **Som numa passada:** o som da aula inteira é misturado de uma vez em PCM, ao mesmo tempo que a imagem, e codificado em AAC só no final, então nenhuma emenda de trecho estala. Cada corte que não continua a mesma gravação ganha um fade de 8 ms; o fade de entrada e de saída do clipe vale também para o som; quem sai numa transição termina com um fade de até 0,25 s; a música que vai até o fim da aula termina com fade de 1,5 s.
 - **Volume:** com a normalização ligada, as vozes (avatar, microfone, narração) são niveladas entre si com um ganho fixo medido uma vez por arquivo; depois a mistura é medida e a montagem aplica −14 LUFS com ganho linear (duas passadas). Se a medição falhar, cai para uma passada.
 - **Música abaixando:** profundidade, rampa e pausa vêm do projeto (`audio.ducking`), e uma faixa de música pode ficar fora (`duck: false`); a prévia usa as mesmas contas.
@@ -70,10 +70,10 @@ assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm ed
 ## Salvamento e mídias ausentes
 
 - Se o salvamento falhar, o aviso fica fixo na barra de cima até um salvamento dar certo, com **Tentar de novo** e **Salvar cópia…**. A cópia ganha o nome do arquivo escolhido e a edição continua nela. Voltar ao início, abrir ou criar outro projeto e fechar a janela (pelo X ou Alt+F4) esperam o texto que está sendo digitado, as anotações sendo redesenhadas e o salvamento, com o aviso "Salvando antes de fechar…" quando demora; se o salvamento falhar ou passar de 20 s, uma janela pergunta o que fazer: tentar de novo, salvar uma cópia, sair sem salvar ou cancelar. Com exportações na fila, a janela continua aberta e nada é descartado.
-- Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura; as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
+- Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura. O arquivo é gravado compacto e o teto vale sobre ele; perto de 80% do teto, o app avisa uma vez por aula, e os desenhos feitos na tela (o que mais ocupa) têm um teto de pontos para a aula inteira, além do teto de cada take (`src/shared/projectSize.ts`). Abrir e salvar só aceitam um `.ediaula` escolhido pela pessoa (diálogo, lista de recentes, aula criada, copiada ou tirada de um pacote pelo app; `src/main/lessonFile.ts`); as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
 - Os zooms pertencem à gravação, no tempo dela, como o cursor: cada clipe mostra os do seu trecho. Cortar, aparar e desfazer o aparo pela borda nunca perde nem duplica um zoom, e um zoom tirado fica fora. Projetos antigos, com os zooms copiados em cada pedaço, são convertidos ao abrir.
 - Cada pedaço de um clipe cortado (dividir, sobrescrever, aparar, estender quadro, cortes da transcrição) mostra exatamente o mesmo movimento e a mesma vista da camada de zoom do original (`src/shared/pieces.ts`): o pedaço guarda todas as posições do movimento, então aumentá-lo pela borda traz o movimento de volta, e a camada de zoom mantém o tempo da entrada e da saída mesmo num pedaço curto. Um corte no meio tira a entrada e a saída das bordas de dentro; cortar a cabeça ou o rabo de um clipe só move aquela borda, com a transição, o fade e a animação dela.
-- Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente) e o tempo de edição medido não voltam com o desfazer.
+- Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente, taxa de quadros e transparência do arquivo) e o tempo de edição medido não voltam com o desfazer.
 - **Arquivo sumiu · Reconectar…** (na biblioteca) ou **Reconectar…** no aviso da exportação: aponte o arquivo no novo lugar. Ele precisa ser a mesma mídia (mesmo tipo, duração com até 0,5 s de diferença e mesmo tamanho de quadro). Cortes, zooms, transcrição e caches continuam, e o `cursor.json` de uma gravação é reconectado junto quando está ao lado do vídeo. Os outros arquivos ausentes são procurados uma vez na mesma pasta; **Procurar em uma pasta…** procura todos numa pasta escolhida, pelo nome e pelo tamanho do arquivo, até três níveis abaixo, abrindo só arquivos de mídia e liberando só os que são a mesma mídia. **Cursor sumiu** pede só o arquivo de dados do cursor.
 - Imagens do próprio editor (anotações, a imagem vazia das camadas de zoom e os quadros de **Estender quadro**) são desenhadas de novo quando o arquivo some, sem precisar procurar: é o que acontece ao levar a aula para outro computador, onde o cache do app não está. O quadro estendido guarda de que mídia e de que segundo ele é (`asset.still`) e é tirado de novo da fonte, com o cursor e o zoom que ela mostra ali (`src/shared/relink.ts`, `redrawPlan`). Quadros estendidos feitos antes disso continuam como imagem comum e, se sumirem, pedem o arquivo como qualquer mídia.
 - A lixeira da biblioteca pede confirmação quando a mídia tem clipes na timeline.
@@ -1257,12 +1257,15 @@ mexe no mouse real.
   corrente.
 - **Separar áudio** (botão direito ou Propriedades › Volume ao longo do clipe): o som de um vídeo vai
   para um clipe próprio numa faixa de som livre (ou nova), no mesmo grupo, e o vídeo fica mudo. Com
-  Alt + arrasto da borda de um dos dois saem os cortes em J e em L.
+  Alt + arrasto da borda de um dos dois saem os cortes em J e em L. O clipe de som é só som
+  (`soundOnly`): a imagem e o clique do cursor saem só do vídeo, na prévia e na exportação. Aulas
+  salvas antes disso são reconhecidas ao abrir.
 - **Faixa magnética** (botão direito no nome da faixa): os clipes dela ficam sempre encostados desde
   0:00, na ordem em que estão. Cada alteração passa por `applyMagnetic()` (`src/shared/magnetic.ts`), e
   um clipe arrastado para cima de outro entra antes ou depois dele, sem cobrir nada. Uma faixa travada
-  não se mexe. Quando um clipe da faixa anda, os clipes do grupo dele nas outras faixas andam o mesmo
-  tanto (o som separado de um vídeo continua com ele); se algum deles está numa faixa travada, a faixa
+  não se mexe. Quando um clipe da faixa anda, os clipes do grupo dele nas outras faixas que tocam junto
+  com ele andam o mesmo tanto (o som separado de um vídeo continua com ele, e cada metade de um vídeo
+  cortado leva a sua metade do som); se algum deles está numa faixa travada, a faixa
   não vira magnética e o aviso diz qual faixa destravar.
 - **Marcadores e capítulos** (`src/shared/markers.ts`): **M** marca o ponto do cursor de reprodução,
   **Shift+M** vai ao próximo marcador e **Alt+M** ao anterior. Na régua, um clique leva ao marcador,
@@ -1301,7 +1304,8 @@ mexe no mouse real.
   `cache/fx`. Na prévia, o desfoque e o pixelado usam `backdrop-filter` e o holofote uma sombra com a
   mesma borda suave, com o mesmo raio e o mesmo limite da exportação (`regionStrength`), e uma camada
   de zoom acima da região a aproxima junto com o resto do quadro. **Seguir a gravação** prende o
-  retângulo à gravação embaixo (`src/shared/regionFollow.ts`): quando ela aproxima pelos zooms dela ou
+  retângulo à gravação que está embaixo em cada momento (`src/shared/regionFollow.ts`, `followSpans`):
+  uma webcam por cima nos primeiros segundos é seguida enquanto aparece, e a tela depois dela; quando ela aproxima pelos zooms dela ou
   por uma camada de zoom entre as duas, a região vai junto, quadro a quadro. A exportação aplica o
   efeito na própria imagem da gravação, antes dos zooms, e a prévia posiciona a região com
   `regionRectAt()`, pelas mesmas contas. Uma região parada com zoom embaixo ganha um aviso no painel.
@@ -1314,10 +1318,10 @@ mexe no mouse real.
   não estourar e a imagem do avatar recortado seguindo a voz já descontado o atraso do som. **Destacar faixa** (botão
   direito no nome) abaixa as outras faixas enquanto ela toca, com a mesma profundidade, rampa e pausa
   do abaixamento da música.
-- **Cor, moldura e fundo:** brilho, contraste, saturação e temperatura em Propriedades › Cor (a curva do
-  `eq` aplicada por `lutyuv`, que não perde a transparência, e `colortemperature`; na prévia, uma matriz
-  de cor SVG com as mesmas contas: contraste e brilho só na luz, pelos pesos BT.709, como o `eq` faz no
-  YUV). **Moldura de dispositivo** põe o clipe na tela de um notebook ou de um
+- **Cor, moldura e fundo:** brilho, contraste, saturação e temperatura em Propriedades › Cor (um `lutyuv`
+  na faixa limitada do BT.709, de 16 a 235, que não perde a transparência, e `colortemperature`; na
+  prévia, uma matriz de cor SVG com as mesmas contas: contraste e brilho só na luz, pelos pesos BT.709;
+  as duas dão a mesma cor, conferida com o FFmpeg). **Moldura de dispositivo** põe o clipe na tela de um notebook ou de um
   celular desenhados pelo próprio app (sem imagem de produto de terceiros, então não há licença a
   conferir), com a forma do clipe preservada; a moldura toma o lugar dos cantos arredondados e da borda.
   **Fundo da aula** (Propriedades com nada selecionado): cor, degradê ou uma imagem da biblioteca no
@@ -1329,7 +1333,9 @@ mexe no mouse real.
   estado com a mesma função (`renderAnnotation`); para exportar, a anotação vira um vídeo transparente
   feito no renderer pelo mesmo caminho do cursor, guardado em cache pelo que mostra
   (`src/renderer/src/lib/reveal.ts`, `src/shared/reveal.ts`). O vídeo cobre só a entrada: quando a
-  anotação está inteira, a exportação volta para a imagem nítida dela, como a prévia.
+  anotação está inteira, a exportação volta para a imagem nítida dela, como a prévia. Um pedaço de
+  uma anotação cortada continua de onde a anotação estava no corte (o relógio é o do clipe inteiro,
+  `revealSpan`), sem entrar de novo.
 - **Biblioteca de todas as aulas** (Mídia › Todas as aulas, em `userData/library.json`): o ícone de
   marcador num cartão guarda a mídia (vinheta, logo, música, cartela) para as próximas aulas, e
   **Favoritar estilo** guarda o visual de uma anotação, da legenda ou do cursor de uma gravação, que
@@ -1353,10 +1359,11 @@ mexe no mouse real.
   (`src/main/zip.ts`, ZIP64 quando um tamanho ou a quantidade de arquivos passa do limite clássico, CRC
   calculado com `zlib.crc32` enquanto o arquivo passa) com o projeto, as mídias, os dados do cursor, as
   transcrições, as execuções guiadas, as vozes exportadas para o vídeo do apresentador e as narrações
-  dos planos guiados em `media/`. Uma voz exportada cujos arquivos sumiram fica de fora, com aviso.
+  dos planos guiados em `media/`, e as imagens dos cursores em `media/cursors/`, ao lado dos dados do
+  cursor que as citam. Uma voz exportada cujos arquivos sumiram fica de fora, com aviso.
   Proxies, miniaturas, formas de onda, o avatar recortado e a voz tratada ficam de fora e são refeitos.
   **Abrir aula empacotada…** (Início ou Arquivo) lê primeiro o índice do pacote e recusa o que um pacote
-  de aula não tem: nome fora de `media/`, atalho, pasta, arquivo comprimido, nome repetido, mais de
+  de aula não tem: nome fora de `media/` (ou uma imagem de cursor fora do nome que o gravador dá), atalho, pasta, arquivo comprimido, nome repetido, mais de
   20 mil arquivos ou mais do que cabe no disco. Depois pergunta se pode extrair (cancelar não grava
   nada), extrai com o `tar.exe` do Windows numa pasta nova em `Projetos`, confere o que saiu contra o
   índice e reescreve os caminhos. Os caches que o pacote traz são apagados, as imagens do editor

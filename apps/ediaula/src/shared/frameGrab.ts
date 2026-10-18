@@ -197,7 +197,7 @@ export function frameFacts(project: Project, time: number): FrameFacts {
     .sort((a, b) => (order.get(a.trackId) ?? 0) - (order.get(b.trackId) ?? 0));
   for (const c of over) {
     const a = assets.get(c.assetId);
-    if (!a || a.kind === "audio") continue;
+    if (!a || a.kind === "audio" || c.soundOnly) continue;
     const kind = c.zoomLayer
       ? "zoom"
       : c.annotation

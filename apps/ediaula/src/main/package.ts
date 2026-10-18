@@ -1,12 +1,19 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, readdir, readFile, realpath, rm, stat, statfs } from "node:fs/promises";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { newId } from "../shared/clipTime.ts";
 import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema } from "../shared/project-schema.ts";
-import { PACKAGE_MEDIA, PACKAGE_PROJECT, packPlan, unpackPaths } from "../shared/projectPackage.ts";
+import {
+  CURSOR_IMAGE,
+  PACKAGE_CURSORS,
+  PACKAGE_MEDIA,
+  PACKAGE_PROJECT,
+  packPlan,
+  unpackPaths,
+} from "../shared/projectPackage.ts";
 import type { Project } from "../shared/types.ts";
 import { writeZip, type ZipDirectoryEntry, zipDirectory } from "./zip.ts";
 
@@ -20,6 +27,15 @@ import { writeZip, type ZipDirectoryEntry, zipDirectory } from "./zip.ts";
 const run = promisify(execFile);
 const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
 
+/** The cursor images beside a cursor data file (its cursors folder), as the recorder saved them. */
+export function cursorImagesOf(cursor: string): string[] {
+  const folder = join(dirname(cursor), "cursors");
+  if (!existsSync(folder)) return [];
+  return readdirSync(folder)
+    .filter((name) => CURSOR_IMAGE.test(name))
+    .map((name) => join(folder, name));
+}
+
 /** The archive with the project and its files; every file read is checked first. */
 export async function packProject(
   project: Project,
@@ -28,7 +44,7 @@ export async function packProject(
   onProgress?: (ratio: number) => void,
   signal?: AbortSignal,
 ): Promise<{ files: number; bytes: number; droppedVoices: number }> {
-  const plan = packPlan(project, existsSync);
+  const plan = packPlan(project, existsSync, cursorImagesOf);
   const files: { name: string; path: string }[] = [];
   const missing: string[] = [];
   for (const f of plan.files) {
@@ -42,7 +58,8 @@ export async function packProject(
     throw new Error(
       `Reconecte antes de empacotar: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? ` e mais ${missing.length - 5}` : ""}.`,
     );
-  const text = Buffer.from(JSON.stringify(projectSchema.parse(plan.project), null, 1), "utf8");
+  // Compact, as the lesson file is saved (main/projects.ts): opening reads at most 32 MB of it.
+  const text = Buffer.from(JSON.stringify(projectSchema.parse(plan.project)), "utf8");
   let bytes = text.length;
   for (const f of files) bytes += (await stat(f.path)).size;
   await writeZip(out, [{ name: PACKAGE_PROJECT, data: text }, ...files], {
@@ -98,13 +115,17 @@ const notInName = (c: string): boolean => c.charCodeAt(0) < 32 || '<>:"/\\|?*'.i
 /** Why an entry cannot come out of a lesson package, or null when it can. */
 function entryProblem(e: ZipDirectoryEntry): string | null {
   const media = e.name.startsWith(PACKAGE_MEDIA) ? e.name.slice(PACKAGE_MEDIA.length) : null;
+  // A cursor image goes in the one folder beside the cursor data, under the name it was saved with.
+  const cursorImage =
+    e.name.startsWith(PACKAGE_CURSORS) && CURSOR_IMAGE.test(e.name.slice(PACKAGE_CURSORS.length));
   const plainName =
-    media !== null &&
-    media.length > 0 &&
-    media.length <= 200 &&
-    ![...media].some(notInName) &&
-    !/^\.+$/.test(media) &&
-    !/[. ]$/.test(media);
+    cursorImage ||
+    (media !== null &&
+      media.length > 0 &&
+      media.length <= 200 &&
+      ![...media].some(notInName) &&
+      !/^\.+$/.test(media) &&
+      !/[. ]$/.test(media));
   if (e.name !== PACKAGE_PROJECT && !plainName) return "um nome fora da pasta da aula";
   if (!e.utf8 && /[^ -~]/.test(e.name)) return "um nome sem codificação";
   if (e.method !== 0 || e.compressedSize !== e.size) return "um arquivo comprimido";

@@ -1,5 +1,6 @@
 import { timelineWords } from "@shared/cleanup";
 import {
+  type RevealSpan,
   type RevealState,
   revealAt,
   revealDone,
@@ -7,6 +8,7 @@ import {
   revealHash,
   revealKey,
   revealKind,
+  revealSpan,
   revealTimes,
   revealWords,
 } from "@shared/reveal";
@@ -30,7 +32,10 @@ const BATCH = 24;
 export const revealing = (c: Clip): boolean =>
   !!c.annotation?.reveal && revealKind(c.annotation) === c.annotation.reveal;
 
-/** When each word of the clip's annotation comes in, from the words said while it shows. */
+/**
+ * When each word of the clip's annotation comes in, from the words said while it shows: seconds
+ * of the whole clip (a piece of a cut one goes on from where it was, shared/reveal.ts revealSpan).
+ */
 export async function clipRevealTimes(project: Project, clip: Clip): Promise<number[]> {
   const a = clip.annotation;
   if (a?.reveal !== "words") return [];
@@ -38,7 +43,7 @@ export async function clipRevealTimes(project: Project, clip: Clip): Promise<num
   const spoken = transcripts.size
     ? timelineWords(project, transcripts).filter((w) => !w.silent)
     : [];
-  return revealTimes(a, clip, spoken);
+  return revealTimes(a, revealSpan(project.clips, clip), spoken);
 }
 
 const pictures = new Map<string, Promise<string>>();
@@ -66,11 +71,20 @@ export function revealPicture(project: Project, clip: Clip, state: RevealState):
   return url;
 }
 
-/** The state shown at timeline second `t` of the clip, null when it is all there. */
-export function revealStateAt(clip: Clip, times: readonly number[], t: number): RevealState | null {
+/**
+ * The state shown at timeline second `t` of the clip, null when it is all there. `clips` are the
+ * lesson's: a piece of a cut clip shows the state the whole one has there.
+ */
+export function revealStateAt(
+  clips: readonly Clip[],
+  clip: Clip,
+  times: readonly number[],
+  t: number,
+): RevealState | null {
   const a = clip.annotation;
   if (!a) return null;
-  const s = revealAt(a, times, clip.duration, t - clip.start);
+  const span = revealSpan(clips, clip);
+  const s = revealAt(a, times, span.duration, span.offset + (t - clip.start));
   return revealDone(s, revealWords(a).length) ? null : s;
 }
 
@@ -106,13 +120,18 @@ export async function ensureRevealSprites(
     const times = await clipRevealTimes(project, clip);
     const w = Math.max(2, Math.round(asset.width / 2) * 2);
     const h = Math.max(2, Math.round(asset.height / 2) * 2);
-    // Only the frames while it comes in: then the export shows the sharp picture.
-    const until = revealEnd(a, times, clip.duration);
+    // A piece of a cut clip goes on from where the whole one is at its start.
+    const span = revealSpan(project.clips, clip);
+    // Only the frames while it comes in: then the export shows the sharp picture. A piece that
+    // starts once it is all there needs none.
+    const until = revealEnd(a, times, span.duration) - span.offset;
+    if (until <= 0) continue;
     const length = Math.min(clip.duration, until + 2 / fps);
-    const id = `rv_${revealHash(JSON.stringify({ a, times, fps, d: length, w, h }))}`;
+    const look = { a, times, fps, d: length, w, h, from: span.offset, whole: span.duration };
+    const id = `rv_${revealHash(JSON.stringify(look))}`;
     let sprite = await window.api.cursorSprite.cached(asset.path, id);
     if (!sprite)
-      sprite = await renderSprite(project, clip, times, length, asset.path, id, w, h, signal);
+      sprite = await renderSprite(project, clip, times, span, length, asset.path, id, w, h, signal);
     out[clip.id] = { sprite, fps, width: asset.width, height: asset.height, until };
   }
   return out;
@@ -122,6 +141,7 @@ async function renderSprite(
   project: Project,
   clip: Clip,
   times: number[],
+  span: RevealSpan,
   length: number,
   path: string,
   id: string,
@@ -153,7 +173,7 @@ async function renderSprite(
     };
     for (let i = 0; i < frames; i++) {
       signal?.throwIfAborted();
-      const state = revealAt(a, times, clip.duration, i / fps) ?? {};
+      const state = revealAt(a, times, span.duration, span.offset + i / fps) ?? {};
       const key = revealKey(state);
       if (key === last && counts.length) {
         counts[counts.length - 1]++;

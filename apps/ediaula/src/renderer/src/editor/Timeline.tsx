@@ -1826,7 +1826,9 @@ const ClipView = memo(function ClipView({
   if (left > viewLeft + viewWidth + 200 || left + width < viewLeft - 200) return null;
   const kind = asset?.kind ?? "video";
   const Icon = KIND_ICON[kind];
-  const showThumbs = kind !== "audio" && asset?.thumb;
+  // The sound taken out of a video shows its wave only, like any sound.
+  const sound = kind === "audio" || !!clip.soundOnly;
+  const showThumbs = !sound && asset?.thumb;
   const showWave = asset?.hasAudio && asset.waveform;
   const balloonText =
     clip.annotation?.kind === "balloon"
@@ -1849,7 +1851,7 @@ const ClipView = memo(function ClipView({
       }}
       title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
     >
-      {kind === "video" && asset?.filmstrip && stripReady ? (
+      {kind === "video" && !sound && asset?.filmstrip && stripReady ? (
         <Filmstrip
           strip={asset.filmstrip}
           sourceIn={clip.in}
@@ -1871,7 +1873,7 @@ const ClipView = memo(function ClipView({
         )
       )}
       {showWave && (
-        <div className={`clip-wave ${kind === "audio" ? "is-full" : ""}`}>
+        <div className={`clip-wave ${sound ? "is-full" : ""}`}>
           <Waveform
             path={asset.waveform!}
             sourceIn={clip.in}
@@ -1881,7 +1883,7 @@ const ClipView = memo(function ClipView({
             clipLeft={left}
             viewLeft={viewLeft}
             viewWidth={viewWidth}
-            color={kind === "audio" ? "#3FD3C2" : "#8FB0FF"}
+            color={sound ? "#3FD3C2" : "#8FB0FF"}
           />
         </div>
       )}

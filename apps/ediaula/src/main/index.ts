@@ -105,6 +105,7 @@ import { getGlossary, setGlossary } from "./glossary.ts";
 import { withReadGrant } from "./handOut.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { getLearning, recordLearning } from "./learning.ts";
+import { lessonFile } from "./lessonFile.ts";
 import { libraryFile, listLibrary, saveLibrary } from "./library.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
@@ -943,10 +944,12 @@ function registerIpc(): void {
     (_e, name: string, course: string | undefined, settings: ProjectSettings, fileName: unknown) =>
       createProject(name, course, settings, z.string().min(1).max(200).optional().parse(fileName)),
   );
-  ipcMain.handle("project:save", (_e, path: string, text: unknown) =>
-    saveProject(path, projectJson(text)),
+  // Only lesson files the person chose (src/main/lessonFile.ts).
+  ipcMain.handle("project:save", async (_e, rawPath: unknown, text: unknown) =>
+    saveProject(await lessonFile(rawPath, desktopFiles.assertWrite), projectJson(text)),
   );
-  ipcMain.handle("project:open", async (_e, path: string) => {
+  ipcMain.handle("project:open", async (_e, rawPath: unknown) => {
+    const path = await lessonFile(rawPath, desktopFiles.assertRead);
     const project = await openProject(path);
     if (!Array.isArray(project.assets) || project.assets.length > 5000)
       throw new Error("O projeto contém um catálogo de mídia inválido ou excessivamente grande.");
@@ -1276,10 +1279,10 @@ function registerIpc(): void {
     return segmentCache().clear();
   });
   ipcMain.handle("exportQueue:load", () => loadQueue(exportQueueFile(), queueAccess));
-  ipcMain.handle("exportQueue:save", (_e, text: unknown) => {
-    if (typeof text !== "string") throw new Error("Fila de exportação inválida.");
-    return saveQueue(exportQueueFile(), text, queueAccess);
-  });
+  // One text per item (main/export/exportQueueStore.ts).
+  ipcMain.handle("exportQueue:save", (_e, raw: unknown) =>
+    saveQueue(exportQueueFile(), z.array(z.string()).max(50).parse(raw), queueAccess),
+  );
 
   ipcMain.handle("whisper:status", () => engineStatus());
   ipcMain.handle("whisper:installEngine", (_e, rawId: unknown, rawVariant: unknown) => {

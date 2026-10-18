@@ -33,6 +33,11 @@ export const ASSET_RUNTIME_FIELDS = [
   "guidedRun",
   // The small pictures of the timeline.
   "filmstrip",
+  // What the file is, probed when it comes in or is recorded again (checkAlpha, Regravar): undoing
+  // an edit made after it keeps the file's own frame rate and transparency.
+  "alpha",
+  "fps",
+  "vfr",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];

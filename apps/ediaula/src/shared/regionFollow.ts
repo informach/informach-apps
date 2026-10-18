@@ -27,29 +27,99 @@ const recording = (c: Clip, asset: Asset | undefined): asset is Asset =>
   !asset.generated &&
   !c.annotation &&
   !c.zoomLayer &&
-  !c.regionFx;
+  !c.regionFx &&
+  !c.soundOnly;
 
-/**
- * The recording a region follows: the media and track of the first video clip under it (the
- * nearest track below that has one while the region lasts). Null when there is none.
- */
-export function followTarget(
-  p: Pick<Project, "clips" | "tracks" | "assets">,
-  region: Pick<Clip, "trackId" | "start" | "duration">,
-): { assetId: string; trackId: string } | null {
+type Region = Pick<Clip, "trackId" | "start" | "duration">;
+
+/** Recording clips that may be under the region: on a visible track below it, while it lasts. */
+function candidates(p: Pick<Project, "clips" | "tracks" | "assets">, region: Region): Clip[] {
   const order = new Map(p.tracks.map((t, i) => [t.id, i]));
   const own = order.get(region.trackId) ?? -1;
   const assets = new Map(p.assets.map((a) => [a.id, a]));
-  let best: Clip | undefined;
-  for (const c of p.clips) {
+  return p.clips.filter((c) => {
     const index = order.get(c.trackId) ?? -1;
-    if (index <= own || p.tracks[index]?.hidden) continue;
-    if (c.start >= clipEnd(region) || clipEnd(c) <= region.start) continue;
-    if (!recording(c, assets.get(c.assetId))) continue;
+    return (
+      index > own &&
+      !p.tracks[index]?.hidden &&
+      c.start < clipEnd(region) &&
+      clipEnd(c) > region.start &&
+      recording(c, assets.get(c.assetId))
+    );
+  });
+}
+
+/** Of `list`, the clip on screen at `t` on the nearest track (the earliest one on that track). */
+function topAt(list: readonly Clip[], order: ReadonlyMap<string, number>, t: number): Clip | null {
+  let best: Clip | null = null;
+  for (const c of list) {
+    if (t < c.start || t >= clipEnd(c)) continue;
+    const index = order.get(c.trackId) ?? -1;
     const bestIndex = best ? (order.get(best.trackId) ?? -1) : Number.POSITIVE_INFINITY;
     if (index < bestIndex || (index === bestIndex && best && c.start < best.start)) best = c;
   }
-  return best ? { assetId: best.assetId, trackId: best.trackId } : null;
+  return best;
+}
+
+/**
+ * The recording clip a region follows at timeline time `t`: the one on screen then on the
+ * nearest track below it. A webcam over the screen for a few seconds is followed while it is
+ * there, and the screen again once it is gone. Null when there is none.
+ */
+export function followClipAt(
+  p: Pick<Project, "clips" | "tracks" | "assets">,
+  region: Region,
+  t: number,
+): Clip | null {
+  if (t < region.start || t >= clipEnd(region)) return null;
+  const order = new Map(p.tracks.map((tr, i) => [tr.id, i]));
+  return topAt(candidates(p, region), order, t);
+}
+
+/** A stretch of the timeline where a region follows one recording clip. */
+export interface FollowSpan {
+  clip: Clip;
+  start: number;
+  end: number;
+}
+
+/**
+ * What a region follows over the time it lasts: each stretch with the recording clip it is on
+ * (followClipAt), in order. The preview and the export resolve it the same way.
+ */
+export function followSpans(
+  p: Pick<Project, "clips" | "tracks" | "assets">,
+  region: Region,
+): FollowSpan[] {
+  const list = candidates(p, region);
+  if (!list.length) return [];
+  const order = new Map(p.tracks.map((tr, i) => [tr.id, i]));
+  const from = region.start;
+  const to = clipEnd(region);
+  const cuts = [from, to];
+  for (const c of list) cuts.push(Math.max(from, c.start), Math.min(to, clipEnd(c)));
+  const times = [...new Set(cuts)].sort((a, b) => a - b);
+  const spans: FollowSpan[] = [];
+  for (let i = 1; i < times.length; i++) {
+    const a = times[i - 1];
+    const b = times[i];
+    if (b - a <= 1e-9) continue;
+    const clip = topAt(list, order, (a + b) / 2);
+    if (!clip) continue;
+    const last = spans.at(-1);
+    if (last && last.clip === clip && Math.abs(last.end - a) <= 1e-9) last.end = b;
+    else spans.push({ clip, start: a, end: b });
+  }
+  return spans;
+}
+
+/** The media and track a region follows first (null when nothing is under it to follow). */
+export function followTarget(
+  p: Pick<Project, "clips" | "tracks" | "assets">,
+  region: Region,
+): { assetId: string; trackId: string } | null {
+  const first = followSpans(p, region)[0];
+  return first ? { assetId: first.clip.assetId, trackId: first.clip.trackId } : null;
 }
 
 /** The region's rectangle in pixels of the recording's own picture (its source), at rest. */
@@ -150,16 +220,8 @@ export interface FollowedRect {
 export function regionRectAt(p: Lesson, region: Clip, t: number): FollowedRect | null {
   const fx = region.regionFx;
   if (!fx) return null;
-  const target = followTarget(p, region);
-  if (!target) return null;
-  const asset = p.assets.find((a) => a.id === target.assetId);
-  const clip = p.clips.find(
-    (c) =>
-      c.assetId === target.assetId &&
-      c.trackId === target.trackId &&
-      t >= c.start &&
-      t < clipEnd(c),
-  );
+  const clip = followClipAt(p, region, t);
+  const asset = clip && p.assets.find((a) => a.id === clip.assetId);
   if (!asset || !clip) return null;
   const W = p.settings.width;
   const H = p.settings.height;
@@ -208,28 +270,19 @@ export function regionRectAt(p: Lesson, region: Clip, t: number): FollowedRect |
  */
 export function zoomUnder(p: Lesson, region: Clip): boolean {
   if (region.regionFx?.follow) return false;
-  const target = followTarget(p, region);
-  if (!target) return false;
   const order = new Map(p.tracks.map((tr, i) => [tr.id, i]));
   const above = order.get(region.trackId) ?? -1;
-  const below = order.get(target.trackId) ?? 0;
-  const layer = p.clips.some((c) => {
-    const index = order.get(c.trackId) ?? -1;
+  return followSpans(p, region).some(({ clip: c, start, end }) => {
+    const below = order.get(c.trackId) ?? 0;
+    const layer = p.clips.some((z) => {
+      const index = order.get(z.trackId) ?? -1;
+      return !!z.zoomLayer && index > above && index < below && z.start < end && clipEnd(z) > start;
+    });
+    if (layer) return true;
+    const asset = p.assets.find((a) => a.id === c.assetId);
     return (
-      !!c.zoomLayer &&
-      index > above &&
-      index < below &&
-      c.start < clipEnd(region) &&
-      clipEnd(c) > region.start
+      !!asset?.zooms?.length &&
+      zoomsIn(asset.zooms, sourceAt(c, start), sourceAt(c, end)).length > 0
     );
-  });
-  if (layer) return true;
-  const asset = p.assets.find((a) => a.id === target.assetId);
-  if (!asset?.zooms?.length) return false;
-  return p.clips.some((c) => {
-    if (c.assetId !== target.assetId || c.trackId !== target.trackId) return false;
-    const from = Math.max(c.start, region.start);
-    const to = Math.min(clipEnd(c), clipEnd(region));
-    return to > from && zoomsIn(asset.zooms, sourceAt(c, from), sourceAt(c, to)).length > 0;
   });
 }
