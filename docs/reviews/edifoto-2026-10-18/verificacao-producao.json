@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-18",
+  "unitTests": 36,
+  "browserChecks": 174,
+  "browser": [
+    {
+      "suite": "default",
+      "status": "passed",
+      "errors": [],
+      "text": "{\n  \"vectors\": {\n    \"passed\": 12,\n    \"results\": [\n      \"vector renders in GPU composite\",\n      \"undo vector changes\",\n      \"redo vector changes\",\n      \"save/reopen retains vector properties\",\n      \"pointer drag creates shape layer\",\n      \"pen points and Bézier handles created with pointer\",\n      \"path to selection\",\n      \"selection to mask\",\n      \"assistant creates editable vectors\",\n      \"locked vectors cannot be edited\",\n      \"rotate document with vectors\",\n      \"all designed tools exposed\"\n    ]\n  },\n  \"raster\": {\n    \"passed\": 14,\n    \"results\": [\n      \"clone accepts source\",\n      \"clone copies source color\",\n      \"clone undo restores pixels\",\n      \"blur softens the edge\",\n      \"selection clips paint to selected region\",\n      \"wand selects connected background only\",\n      \"delete selection only removes selected pixels\",\n      \"background removal preserves colored foreground\",\n      \"curves change rendered pixels\",\n      \"exports png\",\n      \"exports jpeg\",\n      \"exports webp\",\n      \"side by side comparison renders two versions\",\n      \"comparison applies chosen mode\"\n    ]\n  },\n  \"parity\": {\n    \"passed\": 14,\n    \"results\": [\n      \"fill opacity renders independently\",\n      \"stroke stays opaque with translucent fill\",\n      \"fill opacity survives save and reopen\",\n      \"six shape buttons in contextual panel\",\n      \"eight transform handles with shape tool active\",\n      \"selected shape appearance in toolbar\",\n      \"toolbar edits selected vector\",\n      \"search filters layers\",\n      \"layer type filter\",\n      \"side handle changes width independently\",\n      \"Ctrl moves draft anchor without closing path\",\n      \"assistant exposes undo for its latest turn\",\n      \"assistant undo protects subsequent edits\",\n      \"assistant button undoes correct history entry\"\n    ]\n  },\n  \"selections\": {\n    \"passed\": 13,\n    \"results\": [\n      \"add preserves both selected regions\",\n      \"combination does not mutate previous bitmap\",\n      \"subtract removes only the overlapping region\",\n      \"intersection keeps only overlap\",\n      \"disjoint intersection remains an empty selection\",\n      \"add without an existing selection starts a selection\",\n      \"toolbar activates rectangular selection\",\n      \"Shift drag adds a rectangle without forcing square geometry\",\n      \"Alt drag subtracts without centering the rectangle\",\n      \"options control updates selection mode\",\n      \"lasso honors intersection mode\",\n      \"wand honors temporary subtraction mode\",\n      \"cancelled drag preserves existing selection\"\n    ]\n  },\n  \"newDocument\": {\n    \"passed\": 15,\n    \"results\": [\n      \"Arquivo contains Novo\",\n      \"Novo opens document dialog\",\n      \"cancel preserves current document\",\n      \"Ctrl+N opens dialog\",\n      \"dirty document asks before replacement\",\n      \"declining discard preserves document and form\",\n      \"creates requested name and dimensions\",\n      \"transparent document has editable raster layer\",\n      \"new document is unsaved with fresh history\",\n      \"transparent background renders transparent pixels\",\n      \"white background renders opaque white\",\n      \"invalid dimensions rejected: 0x100\",\n      \"invalid dimensions rejected: 1.5x100\",\n      \"invalid dimensions rejected: 8193x100\",\n      \"invalid dimensions rejected: 8192x8192\"\n    ]\n  }\n}"
+    },
+    {
+      "suite": "safety",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":16,\"results\":[\"cancelled replacement preserves document and history\",\"editing during save remains unsaved\",\"late save never assigns another document's path\",\"late save cannot reassign a reopened project's path even with the same document id\",\"undo to savepoint clears unsaved indicator\",\"slider merging cannot erase a savepoint\",\"unreferenced bitmaps are released beyond retained history\",\"durable backup stores a validated project\",\"recovery restores editable work detached from saved original\",\"discard stays final when a backup encoder is pending\",\"discard removes only local recovery copy\",\"JPEG export preserves selected .jpeg path\",\"explicit close without saving awaits recovery discard\",\"save before close finishes file write and recovery cleanup\",\"quick export cannot export a replacement document after the native picker\",\"PNG dimension mismatch is rejected before decompression without changing workspace\"]}"
+    },
+    {
+      "suite": "fidelity",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":33,\"results\":[\"linked mask moves with image\",\"unlink preserves current cutout\",\"unlinked mask stays in document space\",\"nonuniform resize keeps linked mask and content aligned\",\"format preserves resize basis and mask reference\",\"resize undo restores geometry\",\"resize redo restores geometry\",\"locked operation leaves document unchanged\",\"locked operation leaves document unchanged\",\"locked operation leaves document unchanged\",\"locked operation leaves document unchanged\",\"normal merge preserves composite pixels\",\"dependent merge is refused without visual changes\",\"GPU context restore rebuilds compositor without document loss\",\"bounded vector and GPU caches preserve rendering after texture eviction\",\"reopen displays saved pixels\",\"reopen invalidates GPU textures for reused bitmap IDs\",\"failed document preparation preserves model, history and bitmap registry\",\"unavailable pixel context cannot replace previous registry\",\"linear gradient crop preserves original colors outside its center\",\"linear gradient frame survives project roundtrip\",\"linear gradient preserves nonuniform scaling\",\"linear gradient follows whole-image rotation\",\"linear gradient follows whole-image flip\",\"linear 180 degree rotation preserves colors in one undo step\",\"linear rotation undo restores original colors\",\"radial gradient crop preserves original colors outside its center\",\"radial gradient frame survives project roundtrip\",\"radial gradient preserves nonuniform scaling\",\"radial gradient follows whole-image rotation\",\"radial gradient follows whole-image flip\",\"radial 180 degree rotation preserves colors in one undo step\",\"radial rotation undo restores original colors\"]}"
+    },
+    {
+      "suite": "workspace",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":8,\"results\":[\"four generic editable templates are available\",\"template creates unsaved editable text and shapes\",\"simple workspace starts with fewer visible tools\",\"advanced tools remain available\",\"before comparison preserves original opening state\",\"text is editable with automatic wrapping\",\"template edits survive project roundtrip\",\"export opens with a visual preview\"]}"
+    },
+    {
+      "suite": "assistant",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":24,\"results\":[\"compound failure rolls back lock and history\",\"manual edit stays separate between assistant edits\",\"assistant undo preserves intervening manual work\",\"confirmation cannot delete after manual editing\",\"stop cancels pending confirmation without deleting\",\"workspace identity rejects a reopened project with the same persistent id\",\"late tool cannot edit replacement document\",\"external mutation requires explicit document identity\",\"external mutation accepts matching document identity\",\"export permission remains enforced\",\"cancelled file decoding cannot insert a layer\",\"partial successful edit retains undo after client error\",\"switching documents clears conversation and ignores stale events\",\"settings offer personal clients without API billing\",\"inherited object keys are rejected as unknown tools\",\"active brush stroke prevents concurrent document mutation\",\"active brush stroke prevents concurrent document mutation\",\"active brush stroke prevents concurrent document mutation\",\"active brush stroke prevents concurrent document mutation\",\"active brush stroke prevents concurrent document mutation\",\"active brush stroke prevents concurrent document mutation\",\"assistant cannot mutate during a brush stroke\",\"stroke commits once after concurrency protection\",\"protected stroke remains fully undoable\"]}"
+    },
+    {
+      "suite": "refinements",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":15,\"results\":[\"alignment uses transformed bounds\",\"vertical centering handles rotation and nonuniform basis\",\"style changes reuse one adjustable layer after renaming\",\"style metadata survives project roundtrip\",\"template image slot accepts a photo\",\"slot cover clips image to its editable frame\",\"slot replacement is undoable\",\"selection feather softens only edges\",\"selection softness carries into mask\",\"brush starts on anisotropically scaled layer\",\"brush stays circular within raster sampling tolerance after anisotropic resize\",\"uniform background automatically selects suitable method\",\"white background preview applies with foreground preserved\",\"uniform cutout undo restores original\",\"assistant uses shared alignment operation\"]}"
+    },
+    {
+      "suite": "chroma",
+      "status": "passed",
+      "errors": [],
+      "text": "{\"passed\":10,\"results\":[\"dialog opens and worker completes\",\"preview preserves original resolution\",\"new document shortcut blocked while refining\",\"cancel preserves original pixels\",\"background becomes transparent\",\"subject remains opaque\",\"existing mask preserved\",\"undo restores original bitmap\",\"redo restores keyed bitmap\",\"project round trip preserves transparency\"]}"
+    }
+  ],
+  "monorepoCheck": "passed with existing warnings",
+  "monorepoTypecheck": "passed",
+  "monorepoTest": "passed",
+  "native": "passed",
+  "productionAuditVulnerabilities": 0,
+  "portalReadyStatus": 200,
+  "personalProviderCalls": 0,
+  "publication": "pending remote gates"
+}

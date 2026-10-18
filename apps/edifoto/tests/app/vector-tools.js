@@ -81,6 +81,7 @@ globalThis.__testRun = (async () => {
     id: "test-vector",
     name: "add_vector",
     source: "assistant",
+    documentId: E.useDoc.getState().doc.id,
     input: {
       vector: { shape: "ellipse", width: 80, height: 80, fillColor: "#56b8ec" },
       x: 470,
@@ -103,6 +104,8 @@ globalThis.__testRun = (async () => {
   E.useDoc.getState().undo();
   E.useUi.setState({ tool: "move", tab: "props", penPoints: [] });
   await wait(200);
+  document.querySelector('[aria-label="Mais ferramentas"]')?.click();
+  await wait(40);
   assert(document.querySelectorAll(".tool").length >= 15, "all designed tools exposed");
   return { passed: results.length, results };
 })();

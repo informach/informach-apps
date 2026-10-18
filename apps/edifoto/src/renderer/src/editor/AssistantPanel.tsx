@@ -4,7 +4,6 @@ import {
   ArrowUp,
   Blend,
   Check,
-  KeyRound,
   Loader,
   type LucideIcon,
   RotateCcw,
@@ -23,27 +22,26 @@ import { useUi } from "@/state/ui";
 const QUICK: { icon: LucideIcon; label: string; prompt: string }[] = [
   {
     icon: WandSparkles,
-    label: "Melhorar a foto",
-    prompt:
-      "Olhe a foto e melhore luz, contraste e cor de forma natural, com camadas de ajuste. Depois me diga em uma frase o que mudou.",
+    label: "Ajustar luz e cor",
+    prompt: "Confira a imagem e ajuste luz e cor de forma suave, em camadas editáveis.",
   },
   {
     icon: Blend,
-    label: "Sugerir modo de mesclagem",
+    label: "Organizar a composição",
     prompt:
-      "Compare os modos de mesclagem da camada ativa e aplique o que fica melhor. Me diga as duas melhores opções e por quê.",
+      "Confira a composição e sugira pequenos ajustes de posição e tamanho para melhorar a leitura. Preserve o conteúdo.",
   },
   {
     icon: SunMedium,
-    label: "Céu mais dramático",
+    label: "Suavizar o contraste",
     prompt:
-      "Deixe o céu mais dramático (mais contraste e cor) sem mexer no resto da foto, usando uma camada de ajuste com máscara em degradê.",
+      "Suavize o contraste da imagem com uma camada de ajuste editável e confira o resultado.",
   },
   {
     icon: Sparkles,
-    label: "Tom de cinema",
+    label: "Revisar o resultado",
     prompt:
-      "Aplique um tom de cinema sutil (sombras levemente frias, luzes quentes) usando camadas e modos de mesclagem que eu possa ajustar depois.",
+      "Olhe a prévia e diga se há texto cortado ou elementos difíceis de ler. Sugira uma melhoria simples antes de alterar.",
   },
 ];
 
@@ -142,7 +140,7 @@ function Message({ item }: { item: ChatItem }): ReactNode {
               if (s.doc?.id === item.documentId && s.past.at(-1)?.id === item.historyId) s.undo();
             }}
           >
-            Desfazer tudo
+            Desfazer edição
           </button>
         </div>
       )}
@@ -180,8 +178,8 @@ export function AssistantPanel(): ReactNode {
     setDraft("");
     void send(t);
   };
-  const needsKey = ai?.engine === "api" && !ai.hasApiKey;
-  const engineReady = ai && (ai.engine === "api" ? ai.hasApiKey : ai.mcpRunning);
+  const needsSetup = !ai?.mcpRunning;
+  const engineReady = ai?.mcpRunning;
 
   return (
     <div className="agent">
@@ -190,7 +188,13 @@ export function AssistantPanel(): ReactNode {
         Assistente
         <span className="spacer" />
         {items.length > 0 && (
-          <button type="button" className="icon-btn" title="Nova conversa" onClick={reset}>
+          <button
+            type="button"
+            className="icon-btn"
+            title="Nova conversa"
+            aria-label="Nova conversa"
+            onClick={reset}
+          >
             <RotateCcw size={14} />
           </button>
         )}
@@ -198,6 +202,7 @@ export function AssistantPanel(): ReactNode {
           type="button"
           className="icon-btn"
           title="Fechar"
+          aria-label="Fechar"
           onClick={() => useUi.setState({ assistantOpen: false })}
         >
           <X size={15} />
@@ -205,14 +210,11 @@ export function AssistantPanel(): ReactNode {
       </div>
 
       <div className="chat" ref={listRef}>
-        {needsKey ? (
+        {needsSetup && items.length === 0 ? (
           <div className="chat-empty">
-            <KeyRound size={22} className="accent" />
+            <Sparkles size={22} className="accent" />
             <strong>Falta configurar a IA</strong>
-            <span className="muted">
-              Escolha usar o Claude Code ou o Codex com a sua assinatura, ou cadastre uma chave da
-              API da Anthropic.
-            </span>
+            <span className="muted">Use o Claude Code ou o Codex com sua assinatura pessoal.</span>
             <button
               type="button"
               className="btn btn-primary"
@@ -226,7 +228,7 @@ export function AssistantPanel(): ReactNode {
           items.length === 0 && (
             <div className="chat-empty">
               <Sparkles size={22} className="accent" />
-              <strong>O que vamos fazer nesta foto?</strong>
+              <strong>O que vamos criar ou ajustar?</strong>
               <span className="muted">
                 Peça em português. O assistente olha a imagem, cria camadas, escolhe modos de
                 mesclagem e ajusta luz e cor. Tudo vira um passo no Histórico (Ctrl+Z desfaz).
@@ -237,6 +239,7 @@ export function AssistantPanel(): ReactNode {
                     type="button"
                     key={q.label}
                     className="quick"
+                    disabled={!engineReady || busy}
                     onClick={() => submit(q.prompt)}
                   >
                     <q.icon size={14} />
@@ -265,6 +268,7 @@ export function AssistantPanel(): ReactNode {
                 type="button"
                 key={q.label}
                 className="quick quick-sm"
+                disabled={!engineReady || busy}
                 onClick={() => submit(q.prompt)}
               >
                 <q.icon size={12} />
@@ -275,9 +279,10 @@ export function AssistantPanel(): ReactNode {
         )}
         <div className="composer-box">
           <textarea
+            aria-label="Pedido ao assistente"
             value={draft}
             rows={2}
-            placeholder='Ex.: "deixa a pele mais suave sem perder textura"'
+            placeholder='Ex.: "clareie a imagem e centralize o texto"'
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -287,7 +292,13 @@ export function AssistantPanel(): ReactNode {
             }}
           />
           {busy ? (
-            <button type="button" className="send stop" title="Parar" onClick={stop}>
+            <button
+              type="button"
+              className="send stop"
+              title="Parar"
+              aria-label="Parar"
+              onClick={stop}
+            >
               <Square size={12} fill="currentColor" />
             </button>
           ) : (
@@ -295,7 +306,8 @@ export function AssistantPanel(): ReactNode {
               type="button"
               className="send"
               title="Enviar (Enter)"
-              disabled={!draft.trim()}
+              aria-label="Enviar (Enter)"
+              disabled={!draft.trim() || !engineReady}
               onClick={() => submit(draft)}
             >
               <ArrowUp size={15} />
@@ -308,16 +320,13 @@ export function AssistantPanel(): ReactNode {
             className={quota && quota.level !== "ok" ? `quota-${quota.level}` : undefined}
             title={quota?.text}
           >
-            {ai
-              ? ai.engine === "api"
-                ? `${ai.model} · chave da API`
-                : ENGINE_LABEL[ai.engine]
-              : ""}
+            {ai ? ENGINE_LABEL[ai.engine] : ""}
             {quota && quota.level !== "ok" ? ` · ${quota.text}` : ""}
           </span>
           <button
             type="button"
             title="Trocar o motor da IA"
+            aria-label="Trocar o motor da IA"
             onClick={() => useUi.setState({ settingsOpen: true })}
           >
             <Settings size={11} />

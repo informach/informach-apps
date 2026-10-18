@@ -141,6 +141,7 @@ out vec4 outColor;
 uniform sampler2D uBackdrop;
 uniform sampler2D uSrc;
 uniform sampler2D uMask;
+uniform mat3 uToMask;
 uniform vec2 uTarget;
 uniform vec2 uDoc;
 uniform int uKind;
@@ -152,6 +153,7 @@ uniform vec4 uColor;
 uniform int uStops;
 uniform vec4 uStopColor[8];
 uniform float uStopPos[8];
+uniform mat3 uToGradient;
 uniform vec2 uG0;
 uniform vec2 uG1;
 ${BLEND_FUNCS}
@@ -175,7 +177,8 @@ void main() {
   vec2 uv = gl_FragCoord.xy / uTarget;
   vec2 p = uv * uDoc;
   vec4 cb = texelFetch(uBackdrop, ivec2(gl_FragCoord.xy), 0);
-  float m = uHasMask ? texture(uMask, uv).r : 1.0;
+  vec2 maskUv = (uToMask * vec3(p, 1.0)).xy;
+  float m = uHasMask ? ((maskUv.x < 0.0 || maskUv.y < 0.0 || maskUv.x > 1.0 || maskUv.y > 1.0) ? 0.0 : texture(uMask, maskUv).r) : 1.0;
 
   if (uKind == 4) {
     if (cb.a <= 0.0) { outColor = cb; return; }
@@ -186,6 +189,7 @@ void main() {
     return;
   }
 
+  vec2 gp = (uToGradient * vec3(p, 1.0)).xy;
   vec4 s;
   if (uKind == 0) {
     vec2 q = (uToLayer * vec3(p, 1.0)).xy;
@@ -194,9 +198,9 @@ void main() {
     s = uColor;
   } else if (uKind == 2) {
     vec2 d = uG1 - uG0;
-    s = gradientAt(dot(p - uG0, d) / max(dot(d, d), 1e-6));
+    s = gradientAt(dot(gp - uG0, d) / max(dot(d, d), 1e-6));
   } else {
-    s = gradientAt(length(p - uG0) / max(uG1.x, 1e-6));
+    s = gradientAt(length(gp - uG0) / max(uG1.x, 1e-6));
   }
 
   float as = s.a * uAlpha * m;

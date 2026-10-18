@@ -9,6 +9,7 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { _electron, type ElectronApplication, type Page } from "playwright";
 import { z } from "zod";
+import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
 import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
@@ -178,7 +179,10 @@ async function waitForStatus(page: Page, state: "licensed" | "restricted", reaso
 
 function raiseFailures(failures: unknown[], message: string) {
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, message);
+  if (failures.length > 1) {
+    for (const failure of failures) console.error(failure);
+    throw new AggregateError(failures, message);
+  }
 }
 async function verifyNativeDialog(page: Page, openerName: string, dialogName: string) {
   const opener = page.getByRole("button", { name: openerName }).first();
@@ -282,7 +286,11 @@ try {
       );
       await editor.screenshot({ path: join(results, `${id}-licensed.png`) });
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
-      if (id === "edifoto") await verifyNativeDialog(editor, "Novo…", "Novo documento");
+      if (id === "edifoto") {
+        await verifyNativeDialog(editor, "Novo…", "Novo documento");
+        await seedLease(application, 300);
+        await verifyFotoNativeJourney(editor, application, root, results);
+      }
       if (id === "ediaula") {
         const sentinel = join(userData, "documents", "unselected.mp4");
         await writeFile(sentinel, "preserve previous output");
@@ -453,7 +461,7 @@ try {
             () => ({}),
             (error: unknown) => ({ error }),
           );
-          if (id === "edisvg")
+          if (id === "edisvg" || id === "edifoto")
             await execute(
               "powershell.exe",
               [
@@ -461,7 +469,11 @@ try {
                 "-NoProfile",
                 "-NonInteractive",
                 "-File",
-                resolve("scripts/edi/respond-test-draft.ps1"),
+                resolve(
+                  id === "edifoto"
+                    ? "apps/edifoto/scripts/respond-native-close.ps1"
+                    : "scripts/edi/respond-test-draft.ps1",
+                ),
                 "-TestProcessId",
                 String(nativePid),
               ],

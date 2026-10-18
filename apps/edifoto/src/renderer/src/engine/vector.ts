@@ -1,4 +1,5 @@
 import type { Doc, VectorLayer } from "@shared/doc";
+import { localPlacement } from "@shared/placement";
 import { shapePath } from "@shared/vector";
 
 const cache = new Map<string, { key: string; canvas: HTMLCanvasElement; version: number }>();
@@ -14,10 +15,7 @@ export function drawVector(
     t = layer.transform,
     path = new Path2D(shapePath(v));
   ctx.save();
-  ctx.translate(t.x, t.y);
-  ctx.rotate((t.rotation * Math.PI) / 180);
-  ctx.scale(t.scale * (t.flipX ? -1 : 1), t.scale * (t.flipY ? -1 : 1));
-  ctx.translate(-v.width / 2, -v.height / 2);
+  ctx.transform(...localPlacement(t, v.width, v.height));
   if (silhouette || v.fillColor) {
     ctx.fillStyle = silhouette ? "#ffffff" : v.fillColor!;
     ctx.globalAlpha = silhouette ? 1 : (v.fillOpacity ?? 1);
@@ -54,7 +52,14 @@ export function renderVector(
   canvas.height = doc.height;
   drawVector(canvas.getContext("2d")!, layer);
   const result = { key, canvas, version: version++ };
+  cache.delete(layer.id);
+  let pixels = canvas.width * canvas.height;
+  for (const item of cache.values()) pixels += item.canvas.width * item.canvas.height;
+  for (const [id, item] of cache) {
+    if (pixels <= 32_000_000 && cache.size < 32) break;
+    pixels -= item.canvas.width * item.canvas.height;
+    cache.delete(id);
+  }
   cache.set(layer.id, result);
-  if (cache.size > 32) cache.delete(cache.keys().next().value!);
   return result;
 }

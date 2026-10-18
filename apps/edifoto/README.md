@@ -1,56 +1,55 @@
 # EdiFoto
 
-O projeto principal está em `APPS/EDIFOTO`: `edifoto.pen` contém o design, `src/` o aplicativo, `resources/` os ícones e `tests/` os testes e imagens de referência. Execute os comandos abaixo nesta pasta.
+Editor simples para criar imagens, combinar fotos, textos e formas, recortar e exportar. Professores orientam as decisões de facilidade de uso; nomes e funcionalidades atendem qualquer pessoa. A meta é substituir o Photoshop nas tarefas cotidianas escolhidas, sem reproduzir sua complexidade profissional.
 
-Consolidação em 16/10/2026: o código, os testes e os recursos de `Documents/EdiFoto` foram conferidos por SHA-256 e já eram idênticos aos desta pasta. Os documentos `IMPLEMENTACAO.md`, `LEVANTAMENTO-PEN.md`, `ENTREGA-0.2.0.md` e os registros de `entrega/` foram incorporados como histórico; não reaplique o patch antigo. O arquivo `.pen` não depende de arquivos em Documents. A cópia antiga em Documents ainda não foi excluída.
+Implementação e aceite em [PLANO-DE-IMPLEMENTACAO.md](PLANO-DE-IMPLEMENTACAO.md). O diagnóstico amplo e os reviews de cada lote estão em [docs/reviews/edifoto-2026-10-18](../../docs/reviews/edifoto-2026-10-18). `IMPLEMENTACAO.md`, `ENTREGA-0.2.0.md` e `LEVANTAMENTO-PEN.md` são históricos anteriores ao monorepo; seus antigos caminhos e comandos não definem o estado atual.
 
-Editor de fotos do dia a dia, no estilo do Photoshop, com foco em **modos de mesclagem** e com um **agente de IA** que edita junto com você.
+## Desenvolver e verificar
 
-Electron + React + TypeScript. A composição das camadas roda na GPU (WebGL2), com os 27 modos de mesclagem do Photoshop.
-
-## Usar
+Na raiz do monorepo, Node 24.15.0 e pnpm 9.15.0:
 
 ```sh
-npm install
-npm run dev        # desenvolvimento
-npm run shortcut   # compila e cria os atalhos "EdiFoto" na Área de Trabalho e no Menu Iniciar
+pnpm install --frozen-lockfile
+pnpm --filter @informach/edifoto dev
+pnpm --filter @informach/edifoto typecheck
+pnpm --filter @informach/edifoto test
+pnpm --filter @informach/edifoto test:e2e
+pnpm --filter @informach/edifoto build
+pnpm edi:test:native edifoto
 ```
 
-Depois de mudar o código, rode `npm run build` (ou `npm run shortcut`) para o atalho abrir a versão nova.
+O teste E2E usa Vite, Playwright e ponte de arquivos em memória, sem conta pessoal. Instale seu Chromium com `pnpm --filter @informach/edifoto exec playwright install chromium`; no Windows o runner aceita Edge instalado como alternativa ou `EDIFOTO_TEST_BROWSER_EXECUTABLE` para um executável específico. Evidências em `.cache/edifoto-tests`. A suite nativa Windows compila o app, usa perfil/licença descartáveis, testa diálogos reais de arquivo, recuperação, exportação, expiração e restrições do SDK. Evidências em `.cache/edi-native-results`. Nunca usar projetos pessoais para esses testes. [Guia Edi](../../docs/desenvolvimento-edi.md).
 
-## O que tem
+## Experiência e compatibilidade
 
-- Camadas de imagem, texto, cor sólida, gradiente e **ajuste** (exposição, brilho, contraste, realces, sombras, temperatura, tonalidade, vibração, saturação, matiz, níveis, P&B, inverter), não destrutivas.
-- **27 modos de mesclagem**, com prévia ao passar o mouse, miniaturas ao vivo dos mais usados e Shift + / Shift − para alternar. Opacidade e preenchimento.
-- Máscaras (pintar, degradê linear/radial, inverter), pincel e borracha com dureza, fluxo, opacidade e modo.
-- Mover, escalar e girar camadas; cortar com proporções; girar/espelhar e redimensionar a imagem; ajuste automático.
-- Histórico com desfazer por passo (inclusive pintura), documento `.edifoto` com todas as camadas, exportar PNG/JPEG/WebP, copiar/colar imagem.
+- Nove ferramentas na interface simples; **Mais ferramentas** revela controles adicionais. Mesclagem permanece disponível, recolhida por padrão.
+- Modelos genéricos, todos editáveis; o espaço de imagem do modelo **Imagem e texto** aceita uma foto em **Propriedades › Escolher imagem**. Projetos `.edifoto` salvos podem ser reabertos e usados como base.
+- Texto com quebra automática, alinhamento de imagens/textos/formas, ajustes rápidos reutilizáveis e estilos Natural/Quente/Frio/Preto e branco com intensidade.
+- Seleção retangular, laço e varinha; somar/subtrair/intersectar, expandir/recolher/suavizar e criar máscara. Pintura, borracha, carimbo, desfoque e formas vetoriais permanecem disponíveis.
+- Máscaras acompanham a imagem por padrão; podem ser desvinculadas. Transformações preservam rotação, espelhamento e escala desigual. Camadas bloqueadas impedem edição. Mesclar é permitido quando conserva a aparência; combinações dependentes da composição pedem copiar/exportar o resultado.
+- PNG/JPEG/WebP com prévia e tamanho final; JPEG usa fundo branco na transparência. Últimas preferências ficam na sessão. Entrada: PNG/JPEG/WebP/GIF/BMP/AVIF que o Chromium consegue decodificar; GIF/AVIF animados entram como imagem estática. Não há promessa de PSD, RAW, TIFF, HEIC, PDF, CMYK/ICC, HDR ou interoperabilidade profissional.
+- Composição WebGL2; documento limitado a 8192 px por lado e 32 milhões de pixels, até 250 camadas e 64 milhões de pixels únicos de imagens/máscaras. Histórico limitado por passos e memória; caches de texto/vetores/texturas também têm orçamento. O hardware pode impor limites menores, comunicados pelo app.
 
-## Chroma key para imagens
+## Arquivos e recuperação
 
-Selecione uma camada de imagem desbloqueada e clique em **Remover fundo** no dock, ou **Filtro › Chroma key — remover fundo…**. A ferramenta adapta o recorte do EdiAula para imagens, preservando a resolução e a transparência existentes. Use **Detectar cor** ou o **Conta-gotas**, ajuste a preservação do objeto, a transição, os reflexos de cor e o recolhimento da borda. Inspecione **Original**, **Resultado** ou **Máscara**, com zoom de 100% e fundos claro/escuro.
+Projetos novos usam `EDIFOTO2`, com validação de modelo, índices, dimensões e referências antes de substituir o trabalho aberto. Lê arquivos v1; ao sobrescrever um v1, o main conserva a primeira cópia `.v1.bak`. Aplicativos antigos não abrem v2. Salvamento usa snapshot, fila ordenada e escrita atômica pelo SDK; uma edição posterior continua indicada como não salva. Reabrir o mesmo projeto cria outra sessão de edição para rejeitar retornos atrasados.
 
-O processamento é local e roda em segundo plano. **Cancelar** não altera a imagem; **Aplicar recorte** cria um passo no histórico, mantém a máscara existente e permite desfazer/refazer. A prévia mostra a camada antes da máscara e da mesclagem. Exporte em PNG para conservar a transparência. Fundos verdes/azuis uniformes oferecem melhor separação; roupas com a mesma cor do fundo podem exigir retoques.
+Uma cópia local do trabalho não salvo é atualizada no IndexedDB após pausa breve (1,5 s). Ao reabrir, **Recuperar trabalho** restaura um documento editável separado do arquivo original. Não é backup externo nem garante o último traço em interrupção abrupta. Salvar e sair conclui a limpeza da cópia; sair sem salvar ou descartar a cópia remove a recuperação por decisão explícita. O arquivo original continua separado.
 
-Teste de integração: execute `node scripts/browser-check.mjs` e abra `http://127.0.0.1:5184/tests/browser/index.html?suite=chroma`. O teste usa uma imagem sintética e verifica prévia, cancelamento, aplicação, máscara, histórico e persistência.
+## Remover fundo por cor
 
-## Agente de IA
+Selecione uma imagem desbloqueada e use **Remover fundo**. O diálogo escolhe entre fundo uniforme de qualquer cor e verde/azul, com conta-gotas, tolerância, refinamento e prévia em fundo claro/escuro. O worker mantém a interface disponível; cancelar não altera o projeto. Aplicar conserva máscaras existentes e permite desfazer. A prévia mostra os pixels antes da máscara/mesclagem.
 
-Duas formas, as duas com a sua assinatura:
+É recorte local por cor, sem reconhecimento semântico de pessoas/objetos. Regiões parecidas ou fundos complexos podem exigir máscara manual. Exporte PNG/WebP para preservar transparência.
 
-1. **Agente externo (igual ao pen):** o EdiFoto abre um servidor MCP local em `http://127.0.0.1:47331/mcp`. Em *Editar › Inteligência artificial*, clique em **Conectar** no Claude Code ou no Codex (ou copie a configuração para o Claude Desktop). Você conversa lá e vê as edições acontecendo no EdiFoto.
-2. **Chat dentro do app** (botão *Assistente*): usa o seu Claude Code ou Codex instalados, rodando sem terminal, ou uma chave da API da Anthropic.
+## IA pela assinatura pessoal
 
-O agente enxerga a imagem (`get_preview`), compara modos de mesclagem numa folha de contato (`preview_blend_modes`), mede luz e cor (`analyze_image`) e edita com camadas, máscaras e ajustes. Cada pedido vira um passo no Histórico. Por padrão ele pede confirmação para apagar camadas e não pode salvar arquivos (dá para liberar nas configurações).
+O assistente usa exclusivamente Claude Code ou Codex oficial, instalado e autenticado com a assinatura pessoal. Não há chave de API, créditos Edi ou provedor pago do aplicativo. Login, modelos disponíveis, limites e política de dados pertencem ao cliente/provedor. O EdiFoto verifica o método de login, não extrai credenciais e inicia o processo sem interpretar o texto pelo shell. No Codex, exige login ChatGPT. [Referência oficial de autenticação](https://learn.chatgpt.com/docs/auth).
 
-## Verificações
+Em **Inteligência artificial**, escolha o cliente e use **Conectar**. A conexão MCP autenticada da suíte permanece local em `127.0.0.1:47331`; erros de porta aparecem na configuração. Clientes externos também podem usar as ferramentas após essa conexão. `get_document` fornece o identificador que chamadas externas devem repetir em `document_id` ao editar.
 
-```sh
-npm run typecheck
-npm test                                   # partes puras (modos, esquemas das ferramentas, documento)
-scripts/snapshot.sh out.png tests/app/blend-accuracy.js   # modos na GPU × fórmulas de referência
-scripts/snapshot.sh out.png tests/app/ai-tools.js         # ferramentas do agente de ponta a ponta
-scripts/snapshot.sh out.png tests/app/paint.js            # pincel e máscara
-```
+Ferramentas compartilham as operações locais do editor. Cada execução pertence a um documento e sessão; trocar/reabrir documento encerra a conversa. Confirmações, leituras e cancelamento são conferidos antes de aplicar. Falhas compostas revertem a ferramenta; edições anteriores bem-sucedidas permanecem no Histórico. Ações consecutivas da mesma execução podem formar um passo, mas edições manuais entre elas ficam separadas. Expiração da licença cancela o job pelo SDK. Exclusão pede confirmação por padrão; exportar pela IA exige permissão e destino autorizado. Não há geração de imagem, retoque semântico nem acesso indiscriminado a arquivos por essas ferramentas.
 
-`scripts/snapshot.sh` roda o app em modo de desenvolvimento com um perfil descartável (`.tmp/profile`), executa o script na janela, salva um print e fecha.
+## Revisão de publicação
+
+O [review de publicação](../../docs/reviews/edifoto-2026-10-18/review-producao.md) registra o escopo simplificado e a verificação. Reaberturas usam gerações de textura independentes; a troca de projeto prepara pixels e original antes de publicar o novo estado. Gradientes preservam seu referencial em cortes, giros e escala desigual. Durante um traço, termine a pintura antes de trocar ou editar outro elemento. No painel avançado, a intensidade da camada multiplica a opacidade; não reproduz a semântica profissional de preenchimento.

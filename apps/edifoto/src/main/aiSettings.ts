@@ -4,32 +4,22 @@ import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { connectMcpClient, isMcpClientConnected } from "@informach/edi-desktop/mcp-config";
-import { app, safeStorage } from "electron";
-import type { AiClientId, AiClientStatus, AssistantEngine } from "../shared/types.ts";
+import { app } from "electron";
+import type { AiClientId, AiClientStatus } from "../shared/types.ts";
 
+import { clientCommand, personalClientEnvironment } from "./clientProcess.ts";
 export const DEFAULT_MCP_PORT = 47331;
-export const DEFAULT_MODEL = "claude-opus-5";
 export const MCP_NAME = "edifoto";
 
-interface Stored {
-  /** API key encrypted with the OS keychain (DPAPI on Windows), base64. */
-  apiKeyEnc?: string;
-  model?: string;
-  /** Which AI powers the in-app chat. */
-  engine?: AssistantEngine;
-  /** Claude Code model alias ('default' keeps the user's own setting). */
-  claudeModel?: string;
-  mcpEnabled?: boolean;
-  mcpPort?: number;
-  confirmDeletes?: boolean;
-  allowFileWrites?: boolean;
-}
+import { personalAiPreferences } from "../shared/personalAi.ts";
+
+type Stored = ReturnType<typeof personalAiPreferences>;
 
 const file = (): string => join(app.getPath("userData"), "ai.json");
 
 export async function readStored(): Promise<Stored> {
   try {
-    return JSON.parse(await readFile(file(), "utf8")) as Stored;
+    return personalAiPreferences(JSON.parse(await readFile(file(), "utf8")));
   } catch {
     return {};
   }
@@ -39,32 +29,17 @@ export async function writeStored(s: Stored): Promise<void> {
   await writeFile(file(), JSON.stringify(s, null, 1));
 }
 
-export function encryptKey(key: string): string {
-  if (!safeStorage.isEncryptionAvailable())
-    throw new Error("O Windows não liberou a criptografia para guardar a chave.");
-  return safeStorage.encryptString(key).toString("base64");
-}
-
-export function decryptKey(enc?: string): string | null {
-  if (!enc) return null;
-  try {
-    return safeStorage.decryptString(Buffer.from(enc, "base64"));
-  } catch {
-    return null;
-  }
-}
-
 export const mcpUrl = (port: number): string => `http://127.0.0.1:${port}/mcp`;
 
 /* ----- Claude Code / Codex detection and one-click connection ----- */
 
 function run(bin: string, args: string[], timeout = 30000): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
-    // .cmd shims (npm installs) need a shell on Windows.
+    const invocation = clientCommand(bin, args);
     execFile(
-      bin,
-      args,
-      { timeout, windowsHide: true, shell: bin.endsWith(".cmd") },
+      invocation.command,
+      invocation.args,
+      { timeout, windowsHide: true, shell: false, env: personalClientEnvironment() },
       (err, stdout, stderr) => {
         const code = err
           ? typeof (err as NodeJS.ErrnoException).code === "number"
@@ -154,4 +129,31 @@ export async function connectClient(
   if (!(await locateClient(id)))
     return { ok: false, message: "Cliente oficial não encontrado neste computador." };
   return connectMcpClient({ client: id, home: homedir(), name: MCP_NAME, port });
+}
+
+export async function requirePersonalLogin(id: AiClientId, bin: string): Promise<void> {
+  const result = await run(
+    bin,
+    id === "codex" ? ["login", "status"] : ["auth", "status", "--json"],
+    15000,
+  );
+  let personal = false;
+  if (id === "codex") personal = result.code === 0 && /logged in using chatgpt/i.test(result.out);
+  else {
+    try {
+      const status: unknown = JSON.parse(result.out);
+      personal =
+        result.code === 0 &&
+        !!status &&
+        typeof status === "object" &&
+        "authMethod" in status &&
+        status.authMethod === "claude.ai";
+    } catch {
+      personal = false;
+    }
+  }
+  if (!personal)
+    throw new Error(
+      `Faça login no ${id === "codex" ? "Codex com sua conta ChatGPT" : "Claude Code com sua conta Claude"}. Este assistente usa somente assinatura pessoal.`,
+    );
 }

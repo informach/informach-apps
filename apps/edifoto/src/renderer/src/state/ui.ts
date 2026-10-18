@@ -68,6 +68,8 @@ export interface CropBox {
 }
 
 interface UiStore {
+  exportPreference: { format: "png" | "jpeg" | "webp"; quality: number; scale: number };
+  advanced: boolean;
   vector: VectorStyle;
   penPoints: Anchor[];
   penSelected: number | null;
@@ -81,6 +83,7 @@ interface UiStore {
   tool: Tool;
   /** Tool to return to after holding space (temporary hand). */
   springTool: Tool | null;
+  fitMode: boolean;
   view: { zoom: number; panX: number; panY: number };
   /** Bumped to ask the viewport to fit the image on screen. */
   fitRequest: number;
@@ -118,6 +121,8 @@ interface UiStore {
 let toastId = 1;
 
 export const useUi = create<UiStore>((set, get) => ({
+  exportPreference: { format: "png", quality: 90, scale: 1 },
+  advanced: false,
   chromaOpen: false,
   vector: structuredClone(DEFAULT_VECTOR),
   penPoints: [],
@@ -130,6 +135,7 @@ export const useUi = create<UiStore>((set, get) => ({
   tool: "move",
   selectionMode: "replace",
   springTool: null,
+  fitMode: true,
   view: { zoom: 1, panX: 0, panY: 0 },
   fitRequest: 0,
   brush: { size: 40, hardness: 70, opacity: 100, flow: 100, mode: "source-over" },

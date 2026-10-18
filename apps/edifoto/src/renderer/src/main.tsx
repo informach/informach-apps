@@ -3,6 +3,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./styles/base.css";
 import "./styles/editor.css";
 import "./styles/ai.css";
+import "./styles/simple.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -21,7 +22,9 @@ if (import.meta.env.DEV) {
     import("./lib/vector"),
     import("./lib/selection"),
     import("./lib/paint"),
-  ]).then(([d, u, o, f, ai, a, c, b, v, s, paint]) => {
+    import("./lib/layout"),
+    import("./lib/styles"),
+  ]).then(([d, u, o, f, ai, a, c, b, v, s, paint, layout, styles]) => {
     (window as unknown as Record<string, unknown>).__edifoto = {
       useDoc: d.useDoc,
       useUi: u.useUi,
@@ -34,6 +37,8 @@ if (import.meta.env.DEV) {
       vector: v,
       selection: s,
       paint,
+      layout,
+      styles,
     };
   });
 }

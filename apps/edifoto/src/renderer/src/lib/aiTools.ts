@@ -17,11 +17,12 @@ import {
 } from "@shared/doc";
 import type { AiToolCall, ToolOutcome } from "@shared/types";
 import { compositor } from "@/engine/compositor";
-import { useDoc } from "@/state/doc";
+import { executeAiTransaction, useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
 import { autoAdjust } from "./actions";
 import { analyzeDoc, describeStats } from "./analyze";
-import { exportTo, isDocPath, isImagePath, openPath, placePaths } from "./files";
+import { exportTo, isDocPath, isImagePath, openPath, readImageFile } from "./files";
+import { alignLayer } from "./layout";
 import {
   addLayer,
   addMask,
@@ -34,6 +35,7 @@ import {
   invertMask,
   OpError,
   parseAspect,
+  placeImage,
   removeMask,
   reorderLayer,
   requireDoc,
@@ -45,7 +47,15 @@ import {
   setTransform,
   shapeMask,
 } from "./ops";
-import { removeBackground, selectionMask, vectorSelection } from "./selection";
+import { assertNotPainting } from "./paint";
+import {
+  refineSelection,
+  removeBackground,
+  selectionMask,
+  selectPolygon,
+  vectorSelection,
+} from "./selection";
+import { applyStyle } from "./styles";
 import { addVector, editVector } from "./vector";
 
 /** Runs the AI tools against the open document. Same code for MCP clients and the in-app chat. */
@@ -87,7 +97,7 @@ function documentText(): string {
   const s = useDoc.getState();
   const doc = requireDoc();
   const lines = [
-    `Imagem "${doc.name}" · ${doc.width}×${doc.height} px · ${s.filePath ? `salva em ${s.filePath}` : s.sourcePath ? `aberta de ${s.sourcePath}` : "ainda não salva"}${s.dirty ? " · alterações não salvas" : ""}`,
+    `Documento [${doc.id}] · Imagem "${doc.name}" · ${doc.width}×${doc.height} px · ${s.filePath ? `salva em ${s.filePath}` : s.sourcePath ? `aberta de ${s.sourcePath}` : "ainda não salva"}${s.dirty ? " · alterações não salvas" : ""}`,
     `Camadas de cima para baixo (${doc.layers.length}):`,
   ];
   [...doc.layers].reverse().forEach((l, i) => {
@@ -156,6 +166,7 @@ function textPatch(t: TextInput): Partial<TextStyle> {
   if (t.italic !== undefined) p.italic = t.italic;
   if (t.color) p.color = t.color;
   if (t.align) p.align = t.align;
+  if (t.max_width !== undefined) p.maxWidth = t.max_width;
   if (t.line_height) p.lineHeight = t.line_height;
   if (t.letter_spacing !== undefined) p.letterSpacing = t.letter_spacing;
   return p;
@@ -180,13 +191,41 @@ const gradientPatch = (g: GradientInput) => ({
   stops: g.stops?.map((s) => ({ color: s.color, position: s.position, opacity: s.opacity ?? 1 })),
 });
 
-type Handler = (input: never) => Promise<ToolOutcome> | ToolOutcome;
+interface ToolContext {
+  check(): void;
+  mutate(run: () => ToolOutcome): ToolOutcome;
+}
+type Handler = (input: never, context: ToolContext) => Promise<ToolOutcome> | ToolOutcome;
 
 const HANDLERS: {
   [K in AiToolName]: (
     input: import("zod").infer<(typeof AI_TOOLS)[K]["input"]>,
+    context: ToolContext,
   ) => Promise<ToolOutcome> | ToolOutcome;
 } = {
+  align_layer: ({ layer_id, alignment, margin }) => {
+    alignLayer(layer_id, alignment, margin);
+    return done("Elemento alinhado.");
+  },
+  apply_style: ({ style, strength }) => done(`Estilo aplicado: ${applyStyle(style, strength)}.`),
+  select_region: ({ x, y, width, height, mode, feather }) => {
+    selectPolygon(
+      [
+        { x, y },
+        { x: x + width, y },
+        { x: x + width, y: y + height },
+        { x, y: y + height },
+      ],
+      mode,
+    );
+    if (feather) refineSelection(0, feather);
+    return done("Seleção criada.");
+  },
+  selection_mask: ({ layer_id, grow, feather }) => {
+    if (grow || feather) refineSelection(grow, feather);
+    selectionMask(layer_id);
+    return done("Máscara criada.");
+  },
   add_vector: ({ vector, x, y }) =>
     done(
       `Vetor criado: ${addVector(vector, { x: x ?? requireDoc().width / 2, y: y ?? requireDoc().height / 2 })}`,
@@ -206,7 +245,7 @@ const HANDLERS: {
     useDoc.getState().setActive(layer_id);
     if (tolerance !== undefined) useUi.setState({ tolerance });
     removeBackground();
-    return done("Máscara de fundo por cor criada.");
+    return done("Recorte por cor aplicado. A máscara existente foi preservada.");
   },
   compare_modes: ({ layer_id }) => {
     requireLayer(layer_id);
@@ -392,17 +431,8 @@ const HANDLERS: {
     return done(`Cópia criada: [${id}] "${requireLayer(id).name}".`);
   },
 
-  delete_layer: async ({ layer_id }) => {
+  delete_layer: ({ layer_id }) => {
     const l = requireLayer(layer_id);
-    const ui = useUi.getState();
-    if (ui.ai?.confirmDeletes ?? true) {
-      const ok = await ui.ask(
-        "O agente quer apagar uma camada",
-        `Apagar a camada "${l.name}"? Dá para desfazer com Ctrl+Z.`,
-        "Apagar",
-      );
-      if (!ok) return { ok: false, text: "O usuário não autorizou apagar essa camada." };
-    }
     deleteLayer(layer_id);
     return done(`Camada "${l.name}" apagada.`);
   },
@@ -453,33 +483,44 @@ const HANDLERS: {
     return done(`Novo tamanho: ${d.width}×${d.height}.`);
   },
 
-  place_image: async ({ path, name }) => {
+  place_image: async ({ path, name }, context) => {
     if (!isImagePath(path))
       throw new OpError("Formato não suportado. Use PNG, JPEG, WebP, GIF, BMP ou AVIF.");
-    const [id] = await placePaths([path]);
-    if (name) setLayerProps(id, { name });
-    return done(`Imagem inserida como camada [${id}] "${requireLayer(id).name}".`);
+    const canvas = await readImageFile(path);
+    return context.mutate(() => {
+      const id = placeImage(
+        canvas,
+        canvas.width,
+        canvas.height,
+        name ?? path.split(/[\\/]/).pop() ?? "Imagem",
+      );
+      return done(`Imagem inserida como camada [${id}].`);
+    });
   },
 
-  open_image: async ({ path }) => {
+  open_image: async ({ path }, context) => {
     if (!isImagePath(path) && !isDocPath(path)) throw new OpError("Formato não suportado.");
     const s = useDoc.getState();
     if (s.doc && s.dirty)
       throw new OpError(
         "A imagem aberta tem alterações não salvas. Peça ao usuário para salvar (Ctrl+S) ou descartar antes.",
       );
-    await openPath(path);
+    await openPath(path, context.check);
     const d = requireDoc();
     return done(`Aberta: "${d.name}" ${d.width}×${d.height}.`);
   },
 
-  export_image: async ({ path, format, quality, scale }) => {
+  export_image: async ({ path, format, quality, scale }, context) => {
     const ui = useUi.getState();
     if (!ui.ai?.allowFileWrites)
       throw new OpError(
         "O usuário não permitiu que o agente salve arquivos. Ele pode liberar em Configurações › Inteligência artificial, ou exportar pelo botão Exportar.",
       );
-    const out = await exportTo(path, { format, quality: quality ?? 90, scale: scale ?? 1 });
+    const out = await exportTo(
+      path,
+      { format, quality: quality ?? 90, scale: scale ?? 1 },
+      context.check,
+    );
     ui.toast(`O agente exportou ${out.split(/[\\/]/).pop()}`, "ok", {
       label: "Mostrar na pasta",
       run: () => void window.api.showInFolder(out),
@@ -499,28 +540,104 @@ const HANDLERS: {
   },
 };
 
-/** Entry point for tool calls coming from the main process. */
-export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
-  const name = call.name as AiToolName;
-  const tool = AI_TOOLS[name];
-  if (!tool) return { ok: false, text: `Ferramenta desconhecida: ${call.name}` };
-  const parsed = tool.input.safeParse(call.input ?? {});
-  if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
-  const external = call.source === "mcp";
-  if (external) useUi.setState({ externalAt: Date.now() });
-  const doc = useDoc.getState();
-  // Each external agent call is its own undo step, labeled so the user knows who did it.
-  const ownGroup = external && MUTATING_TOOLS.has(name) && !doc.group;
-  if (ownGroup) doc.beginGroup(`Agente: ${tool.title}`);
-  try {
-    if (name !== "open_image" && name !== "get_document" && !useDoc.getState().doc)
-      throw new OpError(
-        "Nenhuma imagem aberta no EdiFoto. Peça ao usuário para abrir uma, ou use open_image com o caminho do arquivo.",
-      );
-    return await (HANDLERS[name] as Handler)(parsed.data as never);
-  } catch (err) {
-    return { ok: false, text: err instanceof Error ? err.message : String(err) };
-  } finally {
-    if (ownGroup) useDoc.getState().endGroup();
-  }
+const pendingTools = new Map<string, AbortController>();
+let toolQueue: Promise<unknown> = Promise.resolve();
+export function cancelAiTool(id: string): void {
+  pendingTools.get(id)?.abort();
+}
+/** Serialize tools and bind each call to its document before any dialog or async work. */
+export function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
+  const controller = new AbortController();
+  pendingTools.set(call.id, controller);
+  const initial = useDoc.getState();
+  const execute = async (): Promise<ToolOutcome> => {
+    if (!Object.hasOwn(AI_TOOLS, call.name))
+      return { ok: false, text: `Ferramenta desconhecida: ${call.name}` };
+    const name = call.name as AiToolName,
+      tool = AI_TOOLS[name];
+    const parsed = tool.input.safeParse(call.input ?? {});
+    if (!parsed.success)
+      return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
+    const mutating = MUTATING_TOOLS.has(name) || name === "export_image";
+    const expected = call.documentId ?? parsed.data.document_id;
+    const check = (): void => {
+      if (controller.signal.aborted)
+        throw new OpError("Pedido interrompido; nenhuma nova alteração foi aplicada.");
+      assertNotPainting();
+      const current = useDoc.getState();
+      if (
+        (expected !== undefined && current.doc?.id !== expected) ||
+        current.doc?.id !== initial.doc?.id ||
+        (call.workspaceId !== undefined && call.workspaceId !== current.initialStateId) ||
+        current.stateId !== initial.stateId
+      )
+        throw new OpError(
+          "A imagem ou a edição mudou durante o pedido. Consulte get_document novamente.",
+        );
+      if (mutating && name !== "open_image" && !expected)
+        throw new OpError("Informe document_id obtido em get_document para editar a imagem.");
+    };
+    const context: ToolContext = {
+      check,
+      mutate: (run) => {
+        check();
+        return executeAiTransaction(
+          call.runId ? `ai:${call.runId}` : `ai:${call.id}`,
+          `${call.source === "mcp" ? "Agente" : "Assistente"}: ${tool.title}`,
+          run,
+        );
+      },
+    };
+    try {
+      check();
+      if (call.source === "mcp") useUi.setState({ externalAt: Date.now() });
+      if (name !== "open_image" && !initial.doc)
+        throw new OpError("Abra uma imagem antes de usar o assistente.");
+      if (
+        name === "delete_layer" &&
+        "layer_id" in parsed.data &&
+        (useUi.getState().ai?.confirmDeletes ?? true)
+      ) {
+        const layer = requireLayer(String(parsed.data.layer_id));
+        const answer = useUi
+          .getState()
+          .ask(
+            "Apagar camada?",
+            `O assistente quer apagar "${layer.name}". Você pode desfazer com Ctrl+Z.`,
+            "Apagar",
+          );
+        const confirmation = useUi.getState().confirm;
+        const cancel = (): void => {
+          if (useUi.getState().confirm === confirmation) {
+            confirmation?.resolve(false);
+            useUi.setState({ confirm: null });
+          }
+        };
+        controller.signal.addEventListener("abort", cancel, { once: true });
+        const ok = await answer;
+        controller.signal.removeEventListener("abort", cancel);
+        check();
+        if (!ok) return { ok: false, text: "O usuário não autorizou apagar a camada." };
+      }
+      const handler = HANDLERS[name] as Handler;
+      if (["place_image", "open_image", "export_image"].includes(name))
+        return await handler(parsed.data as never, context);
+      if (mutating && name !== "undo")
+        return context.mutate(() => {
+          const result = handler(parsed.data as never, context);
+          if (result instanceof Promise)
+            throw new Error(
+              "Uma edição assíncrona precisa preparar sua entrada antes de alterar o documento.",
+            );
+          if (!result.ok) throw new OpError(result.text);
+          return result;
+        });
+      return await handler(parsed.data as never, context);
+    } catch (error) {
+      return { ok: false, text: error instanceof Error ? error.message : String(error) };
+    }
+  };
+  const result = toolQueue.then(execute);
+  toolQueue = result.catch(() => {});
+  return result.finally(() => pendingTools.delete(call.id));
 }

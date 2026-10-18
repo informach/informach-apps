@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type Server } from "node:http";
+import { createServer, type Server } from "node:http";
 import { authorizeLocalMcp } from "@informach/edi-desktop/access";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -6,7 +6,9 @@ import { app } from "electron";
 import { AI_TOOL_NAMES, AI_TOOLS, EDITOR_GUIDE } from "../shared/aiTools.ts";
 import type { ToolOutcome } from "../shared/types.ts";
 
-type Call = (name: string, input: unknown) => Promise<ToolOutcome>;
+import { McpBodyError, readMcpBody } from "./mcpBody.ts";
+
+type Call = (name: string, input: unknown, runId?: string) => Promise<ToolOutcome>;
 
 const MCP_INSTRUCTIONS = `${EDITOR_GUIDE}
 
@@ -37,25 +39,6 @@ function buildServer(call: Call): McpServer {
   return server;
 }
 
-function readBody(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.setEncoding("utf8");
-    req.on("data", (c: string) => {
-      data += c;
-      if (data.length > 5_000_000) reject(new Error("body too large"));
-    });
-    req.on("end", () => {
-      try {
-        resolve(data ? JSON.parse(data) : undefined);
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
 /**
  * Local MCP endpoint (streamable HTTP, stateless) for Claude Code, Claude Desktop and Codex.
  * Bound to 127.0.0.1 only. Requests carrying an Origin header (web pages) or a foreign Host
@@ -72,13 +55,15 @@ export function startMcpServer(port: number, call: Call): Promise<Server> {
       res.writeHead(403).end("forbidden");
       return;
     }
-    if (!req.url?.startsWith("/mcp")) {
+    if (req.url?.split("?")[0] !== "/mcp") {
       res.writeHead(404).end("not found");
       return;
     }
     try {
-      const body = req.method === "POST" ? await readBody(req) : undefined;
-      const server = buildServer(call);
+      const body = req.method === "POST" ? await readMcpBody(req) : undefined;
+      const runId =
+        typeof req.headers["x-edi-run"] === "string" ? req.headers["x-edi-run"] : undefined;
+      const server = buildServer((name, input) => call(name, input, runId));
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,
@@ -90,11 +75,17 @@ export function startMcpServer(port: number, call: Call): Promise<Server> {
       await server.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
-      if (!res.headersSent) res.writeHead(500, { "Content-Type": "application/json" });
+      if (!res.headersSent)
+        res.writeHead(err instanceof McpBodyError ? err.status : 500, {
+          "Content-Type": "application/json",
+        });
       res.end(
         JSON.stringify({
           jsonrpc: "2.0",
-          error: { code: -32603, message: (err as Error).message },
+          error: {
+            code: -32603,
+            message: err instanceof Error ? err.message : "MCP request failed",
+          },
           id: null,
         }),
       );

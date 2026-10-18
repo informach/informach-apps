@@ -1,4 +1,5 @@
-import type { Doc, Layer, RasterLayer } from "@shared/doc";
+import type { Doc, Layer } from "@shared/doc";
+import { type Affine, apply, inverse, localPlacement, maskPlacement } from "@shared/placement";
 import { type Rect, requireBitmap, touchBitmap } from "@/engine/bitmaps";
 import { type Patch, useDoc } from "@/state/doc";
 import { type BrushSettings, useUi } from "@/state/ui";
@@ -17,6 +18,7 @@ interface Stroke {
   toBitmap: (x: number, y: number) => [number, number];
   /** Bitmap pixels per document pixel. */
   ratio: number;
+  mapping: Affine;
   selection: HTMLCanvasElement | null;
   retouch: null | { source: HTMLCanvasElement; dx: number; dy: number };
   snapshot: HTMLCanvasElement;
@@ -46,21 +48,28 @@ function scratchCanvas(key: string, w: number, h: number): HTMLCanvasElement {
   return c;
 }
 
-function makeStamp(radius: number, hardness: number, color: string): HTMLCanvasElement {
-  const size = Math.max(2, Math.ceil(radius * 2) + 2);
+function makeStamp(
+  radius: number,
+  hardness: number,
+  color: string,
+  mapping: Affine,
+): HTMLCanvasElement {
+  const width = Math.max(2, Math.ceil(radius * 2 * Math.hypot(mapping[0], mapping[2])) + 2);
+  const height = Math.max(2, Math.ceil(radius * 2 * Math.hypot(mapping[1], mapping[3])) + 2);
   const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
+  c.width = width;
+  c.height = height;
   const ctx = c.getContext("2d")!;
-  const r = size / 2;
-  const g = ctx.createRadialGradient(r, r, 0, r, r, radius);
+  ctx.translate(width / 2, height / 2);
+  ctx.transform(mapping[0], mapping[1], mapping[2], mapping[3], 0, 0);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
   const hard = Math.min(0.99, Math.max(0, hardness / 100));
   g.addColorStop(0, color);
   g.addColorStop(hard, color);
   g.addColorStop(1, color + "00");
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(r, r, radius, 0, Math.PI * 2);
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.fill();
   return c;
 }
@@ -92,7 +101,13 @@ function resolveTarget(
   layer: Layer,
   doc: Doc,
 ):
-  | { bitmap: string; target: "layer" | "mask"; toBitmap: Stroke["toBitmap"]; ratio: number }
+  | {
+      bitmap: string;
+      target: "layer" | "mask";
+      toBitmap: Stroke["toBitmap"];
+      ratio: number;
+      mapping: Affine;
+    }
   | string {
   const ui = useUi.getState();
   if (layer.locked) return `A camada "${layer.name}" está bloqueada.`;
@@ -110,36 +125,38 @@ function resolveTarget(
       useUi.getState().toast("Máscara criada: preto esconde, branco revela.");
     }
     const l = useDoc.getState().doc!.layers.find((x) => x.id === layer.id)!;
-    return { bitmap: l.mask!.bitmap, target: "mask", toBitmap: (x, y) => [x, y], ratio: 1 };
+    const mapping = maskPlacement(l);
+    return {
+      bitmap: l.mask!.bitmap,
+      mapping,
+      target: "mask",
+      toBitmap: (x, y) => {
+        const p = apply(mapping, { x, y });
+        return [p.x, p.y];
+      },
+      ratio: Math.sqrt(Math.abs(mapping[0] * mapping[3] - mapping[1] * mapping[2])),
+    };
   }
   if (layer.kind === "vector")
     return "Use uma máscara ou uma camada de pixels para pintar sobre o vetor.";
   if (layer.kind === "text")
     return "Texto não recebe pintura. Crie uma camada vazia (Ctrl+Shift+N) para pintar por cima.";
-  const r = layer as RasterLayer;
-  const t = r.transform;
-  const rad = (-t.rotation * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const s = t.scale || 1;
+  const mapping = inverse(localPlacement(layer.transform, layer.width, layer.height));
   void doc;
   return {
-    bitmap: r.bitmap,
+    bitmap: layer.bitmap,
+    mapping,
     target: "layer",
-    ratio: 1 / s,
+    ratio: Math.sqrt(Math.abs(mapping[0] * mapping[3] - mapping[1] * mapping[2])),
     toBitmap: (x, y) => {
-      const dx = x - t.x;
-      const dy = y - t.y;
-      let lx = (dx * cos - dy * sin) / s;
-      let ly = (dx * sin + dy * cos) / s;
-      if (t.flipX) lx = -lx;
-      if (t.flipY) ly = -ly;
-      return [lx + r.width / 2, ly + r.height / 2];
+      const p = apply(mapping, { x, y });
+      return [p.x, p.y];
     },
   };
 }
 
 export function beginStroke(x: number, y: number, erase: boolean): string | null {
+  if (stroke) return "Termine o traço atual antes de iniciar outro.";
   const { doc, activeId } = useDoc.getState();
   const layer = doc?.layers.find((l) => l.id === activeId);
   if (!doc || !layer) return "Selecione uma camada para pintar.";
@@ -159,7 +176,12 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
   const buffer = scratchCanvas("buf", W, H);
   const bctx = buffer.getContext("2d")!;
   bctx.clearRect(0, 0, W, H);
-  const radius = Math.max(0.5, (settings.size / 2) * t.ratio);
+  const worldRadius = Math.max(0.5, settings.size / 2);
+  const radius =
+    worldRadius *
+    Math.max(Math.hypot(t.mapping[0], t.mapping[2]), Math.hypot(t.mapping[1], t.mapping[3]));
+  if (radius > 4095)
+    return "O pincel é grande demais para esta escala. Aumente a camada ou reduza o pincel.";
   // On a mask the eraser paints white (reveals) and the brush paints the gray of the color.
   const color = t.target === "mask" ? (erase ? "#ffffff" : gray(ui.fg)) : erase ? "#000000" : ui.fg;
   let selection: HTMLCanvasElement | null = null;
@@ -169,12 +191,8 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
     sc.clearRect(0, 0, W, H);
     sc.save();
     if (t.target === "layer" && layer.kind === "raster") {
-      const tr = layer.transform;
-      sc.translate(W / 2, H / 2);
-      sc.scale((tr.flipX ? -1 : 1) / tr.scale, (tr.flipY ? -1 : 1) / tr.scale);
-      sc.rotate((-tr.rotation * Math.PI) / 180);
-      sc.translate(-tr.x, -tr.y);
-    }
+      sc.transform(...inverse(localPlacement(layer.transform, W, H)));
+    } else if (t.target === "mask") sc.transform(...maskPlacement(layer));
     sc.drawImage(requireBitmap(ui.selection).canvas, 0, 0);
     sc.restore();
   }
@@ -204,9 +222,9 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
     snapshot,
     buffer,
     bctx,
-    stamp: makeStamp(radius, settings.hardness, color),
+    stamp: makeStamp(worldRadius, settings.hardness, color, t.mapping),
     radius,
-    spacing: Math.max(0.5, radius * 0.12),
+    spacing: Math.max(0.5, worldRadius * 0.12),
     settings,
     erase: erase && t.target === "layer",
     last: t.toBitmap(x, y),
@@ -258,7 +276,10 @@ export function continueStroke(x: number, y: number): void {
   if (!s) return;
   const [tx, ty] = s.toBitmap(x, y);
   const [lx, ly] = s.last;
-  const dist = Math.hypot(tx - lx, ty - ly);
+  const m = inverse(s.mapping);
+  const dx = tx - lx,
+    dy = ty - ly;
+  const dist = Math.hypot(m[0] * dx + m[2] * dy, m[1] * dx + m[3] * dy);
   if (dist < s.spacing) return;
   const steps = Math.floor(dist / s.spacing);
   const area: Rect = {
@@ -328,3 +349,7 @@ export function endStroke(): void {
 }
 
 export const isPainting = (): boolean => stroke !== null;
+
+export function assertNotPainting(): void {
+  if (isPainting()) throw new Error("Termine o traço antes de iniciar outra edição.");
+}
