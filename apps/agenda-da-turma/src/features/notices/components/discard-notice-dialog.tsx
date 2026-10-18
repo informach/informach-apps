@@ -63,10 +63,10 @@ export function DiscardNoticeDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Descartar esta importação?</AlertDialogTitle>
+          <AlertDialogTitle>Descartar este recado?</AlertDialogTitle>
           <AlertDialogDescription>
-            O crédito (ou a importação de teste) já foi usado quando a leitura ficou pronta e não
-            volta. Se você enviar o mesmo recado de novo, a leitura é recuperada sem nova cobrança.
+            A leitura já foi usada quando a Agenda leu o recado, e não volta. Se você mandar o mesmo
+            recado de novo, o resultado volta sem gastar outra leitura.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

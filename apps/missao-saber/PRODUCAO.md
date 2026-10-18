@@ -9,7 +9,7 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Railway | Projeto `informach-apps`, ambiente `production` |
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
-| Cron do resumo semanal | Serviço `446b4a71-3a35-4be3-be99-743ac72688e3` (`cron-missao-saber-weekly-report`), criado em 26/09/2026 com a imagem `alpine/curl` de `railway-cron-weekly.json`, agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda). Para reaplicar comando e variáveis: `python apps/missao-saber/scripts/production.py configure-weekly-cron 446b4a71-3a35-4be3-be99-743ac72688e3` e deploy do serviço |
+| Cron do resumo semanal | Serviço `446b4a71-3a35-4be3-be99-743ac72688e3` (`cron-missao-saber-weekly-report`), criado em 26/09/2026, com build pelo `infrastructure/railway/missao-weekly-cron.Dockerfile` e agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda). Imagem, agenda e comando estão em `.railway/railway.ts`; para copiar de novo `CRON_SECRET`, `APP_ORIGIN` e as variáveis do Sentry do app para os dois crons: `python apps/missao-saber/scripts/production.py sync-cron-variables` e redeploy dos crons |
 | PostgreSQL | Compartilhado; o laboratório requer as migrações aditivas `0065`–`0067`; conferir o banco publicado com `production:verify-schema` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
@@ -20,7 +20,7 @@ O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missa
 
 ## Ordem de deploy com migração nova
 
-O migrator é um serviço à parte, ligado ao repositório com Watch Paths em `packages/db/**` e `packages/billing/src/seeds/**` (configurados no Dashboard, não no `migrator.toml`). As três aplicações só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` dispara juntos o migrator e os deploys de Missão Saber, Cozya e Agenda; os deployments antigos continuam servindo até os novos passarem no healthcheck. Por isso:
+O migrator é um serviço à parte, configurado em `.railway/railway.ts`, com Watch Paths em `packages/db/**`, nos seeds de billing, em `packages/ai-core/**`, em `escolas_inep.csv.gz` e nos manifests da raiz. Missão Saber, Cozya, Agenda da Turma, Suíte Edi e o Bastidores só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` dispara juntos o migrator e os deploys de Missão Saber, Cozya e Agenda; os deployments antigos continuam servindo até os novos passarem no healthcheck. Por isso:
 
 1. `git push` para `main`.
 2. Railway: conferir que o `migrator` ganhou um deployment no commit do push e esperar SUCCESS, com `[db:migrate] done.` no log. Se o push não disparou o migrator, usar Deploy Latest Commit; nunca Redeploy de um deployment antigo, que roda o commit antigo sem a migração nova. Uma falha depois da migração, no `db:seed:reference` (busca no IBGE), marca o deployment como FAILED com o banco já migrado: o log diz qual foi o caso.

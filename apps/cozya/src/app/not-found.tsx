@@ -7,11 +7,10 @@ export default function NotFound() {
       <div className="space-y-3">
         <p className="font-bold text-7xl text-brand-ink tracking-tight md:text-8xl">404</p>
         <h1 className="text-balance font-semibold text-2xl tracking-tight md:text-3xl">
-          Essa receita ainda não foi criada.
+          Esta página não está na cozinha.
         </h1>
         <p className="mx-auto max-w-md text-muted-foreground text-pretty">
-          O link que você seguiu pode estar quebrado ou a página pode ter sido movida. Que tal
-          voltar e tentar de novo?
+          O link pode estar quebrado ou a página mudou de lugar. Volte para o início ou para o Hoje.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -19,7 +18,7 @@ export default function NotFound() {
           <Link href="/">Voltar para o início</Link>
         </Button>
         <Button size="lg" variant="ghost" asChild>
-          <Link href="/dashboard">Ir para minhas receitas</Link>
+          <Link href="/hoje">Ir para Hoje</Link>
         </Button>
       </div>
     </main>

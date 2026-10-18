@@ -1,9 +1,10 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 
 const NAV_LINKS = [
   { href: "/#como-funciona", label: "Como funciona" },
-  { href: "/#recursos", label: "Suas receitas" },
+  { href: "/#mercado", label: "No mercado" },
   { href: "/#planos", label: "Planos" },
   { href: "/#perguntas", label: "Perguntas" },
 ] as const;
@@ -30,17 +31,17 @@ export function SiteFooter() {
               <CozyaLogo className="cozya-mark h-8 w-auto" />
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
-              Sua semana à mesa. Receitas, marmitas e compras organizadas para quem cozinha em casa.
+              Sua semana à mesa. Receitas, marmitas e lista do mercado para quem cozinha em casa.
             </p>
-            <p className="max-w-xs text-xs text-muted-foreground/80 leading-relaxed">
-              Informach — Núcleo de Aprendizagem Ltda
+            <p className="max-w-xs text-xs text-muted-foreground leading-relaxed">
+              Informach Núcleo de Aprendizagem Ltda
               <br />
               CNPJ 43.588.758/0001-03
             </p>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Produto</h3>
+            <h3 className="text-sm font-semibold text-foreground">Cozya</h3>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>
@@ -66,8 +67,18 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Legal</h3>
+            <h3 className="text-sm font-semibold text-foreground">Fale com a gente</h3>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <li>
+                <a
+                  href={INFORMACH_CONTACT.directMessageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
+                  Instagram @{INFORMACH_CONTACT.instagramHandle}
+                </a>
+              </li>
               {LEGAL_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="transition-colors hover:text-foreground">
@@ -81,7 +92,7 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border/60 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>
-            &copy; {year} Informach — Núcleo de Aprendizagem Ltda. Cozya é uma marca da Informach.
+            &copy; {year} Informach Núcleo de Aprendizagem Ltda. Cozya é uma marca da Informach.
           </p>
           <p>Feito para quem cozinha em casa.</p>
         </div>

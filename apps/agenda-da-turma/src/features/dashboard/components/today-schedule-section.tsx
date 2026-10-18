@@ -1,57 +1,57 @@
-import { Badge } from "@informach/ui/components/badge";
 import { Skeleton } from "@informach/ui/components/skeleton";
-import { cn } from "@informach/ui/lib/utils";
-import { CalendarClock, GraduationCap, Hand } from "lucide-react";
+import { Hand } from "lucide-react";
 import Link from "next/link";
+import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { SubjectKitDialog } from "@/features/subject-kits/components/subject-kit-dialog";
 import { listSubjectKits } from "@/features/subject-kits/service";
-import {
-  getSubjectIcon,
-  getSubjectIconClassByIndex,
-  getSubjectTintedClassByIndex,
-} from "@/features/subjects/utils";
+import { SHEET_LINK } from "@/features/unified-activities/components/activity-list";
 import { getTodaySubjectsForProfiles, type TodaySubjectsView } from "../today-subjects-service";
 
-const WEEKDAY_LONG = [
-  "Domingo",
-  "Segunda-feira",
-  "Terça-feira",
-  "Quarta-feira",
-  "Quinta-feira",
-  "Sexta-feira",
-  "Sábado",
-] as const;
-
-const MONTH_LONG = [
-  "janeiro",
-  "fevereiro",
-  "março",
-  "abril",
-  "maio",
-  "junho",
-  "julho",
-  "agosto",
-  "setembro",
-  "outubro",
-  "novembro",
-  "dezembro",
-] as const;
-
-// Formato "Quinta-feira, 14 de maio" a partir de "YYYY-MM-DD" como wall-clock.
-// Server-TZ-neutro: parseia componentes direto da string, sem criar Date com
-// offset de timezone (mesmo princípio do `parseLocalIso`).
-function formatDayLabel(iso: string): string {
-  const [yearStr, monthStr, dayStr] = iso.split("-");
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  if (!year || !month || !day) return iso;
-  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
-  const weekday = WEEKDAY_LONG[date.getDay()] ?? "";
-  const monthName = MONTH_LONG[month - 1] ?? "";
-  return `${weekday}, ${day} de ${monthName}`;
+/** As aulas de hoje em texto corrido; cada nome abre o "levar sempre" daquela aula. */
+function SubjectNames({ view, kits }: { view: TodaySubjectsView; kits: Record<string, string[]> }) {
+  if (view.subjects.length === 0)
+    return (
+      <>
+        {view.classDay === null
+          ? "Sem aula hoje. Bom descanso!"
+          : view.turmaId
+            ? "Nenhuma aula no horário de hoje."
+            : "Sem turma ainda."}
+      </>
+    );
+  return (
+    <>
+      {view.subjects.map((subject, index) => (
+        <span key={subject.id}>
+          {index > 0 ? ", " : null}
+          <SubjectKitDialog
+            variant="text"
+            note={
+              subject.source === "extra"
+                ? "fora da escola"
+                : subject.isAlternating
+                  ? subject.alternatingPairName
+                    ? `reveza com ${subject.alternatingPairName}`
+                    : "quinzenal"
+                  : null
+            }
+            profileId={view.profileId}
+            subjectId={subject.source === "turma" ? subject.id : null}
+            profileSubjectId={subject.source === "extra" ? subject.id : null}
+            subjectName={subject.name}
+            profileName={view.profileName}
+            items={kits[`${view.profileId}:${subject.id}`] ?? []}
+          />
+        </span>
+      ))}
+    </>
+  );
 }
 
+/**
+ * Uma criança por linha. No celular: o avatar, o nome, as aulas e "A vez de
+ * Clara" como botão. No computador, a tabela do canvas: nome, aulas e o link.
+ */
 function ProfileSchedule({
   view,
   kits,
@@ -59,154 +59,109 @@ function ProfileSchedule({
   view: TodaySubjectsView;
   kits: Record<string, string[]>;
 }) {
-  const isWeekend = view.classDay === null;
   return (
-    <article className="rounded-2xl border bg-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="min-w-0 break-words text-base font-semibold">{view.profileName}</h3>
-        {view.turmaId ? (
-          <Link
-            href={`/turmas/${view.turmaId}/materias`}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Ajustar horário
-          </Link>
-        ) : null}
+    <li className="border-t border-foreground/15">
+      <div className="flex min-h-16 items-center gap-3 py-2.5 pl-3.5 pr-3.5 lg:hidden">
+        <StudentAvatar name={view.profileName} size="line" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-bold">{view.profileName}</p>
+          <p className="text-[13px] font-medium text-muted-foreground">
+            <SubjectNames view={view} kits={kits} />
+          </p>
+        </div>
+        {/*
+          A porta da vez da criança onde o telefone costuma ser passado: a linha
+          da própria criança, na primeira tela da manhã.
+        */}
+        <Link
+          href={`/crianca/${view.profileId}`}
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3.5 text-sm font-bold hover:bg-muted"
+        >
+          <Hand className="size-[18px]" aria-hidden />A vez de {view.profileName}
+        </Link>
       </div>
-      {/*
-        A porta do modo criança onde o telefone costuma ser passado: o cartão da
-        própria criança, na primeira tela da manhã.
-      */}
-      <Link
-        href={`/crianca/${view.profileId}`}
-        className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-background/60 px-3 text-sm font-semibold transition-colors hover:bg-background"
-      >
-        <Hand className="size-4 shrink-0" aria-hidden />A vez de {view.profileName}
-      </Link>
-      {view.subjects.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          {isWeekend ? "Sem aulas hoje. Bom descanso!" : "Nenhuma aula cadastrada para hoje."}
-        </p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {view.subjects.map((subject) => {
-            const Icon = getSubjectIcon(subject.name);
-            return (
-              <li
-                key={subject.id}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2",
-                  getSubjectTintedClassByIndex(subject.colorIndex),
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-full",
-                    getSubjectIconClassByIndex(subject.colorIndex),
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{subject.name}</p>
-                  {subject.source === "turma" && subject.teacherName ? (
-                    <p className="truncate text-xs text-muted-foreground">
-                      Prof. {subject.teacherName}
-                    </p>
-                  ) : null}
-                </div>
-                <SubjectKitDialog
-                  profileId={view.profileId}
-                  subjectId={subject.source === "turma" ? subject.id : null}
-                  profileSubjectId={subject.source === "extra" ? subject.id : null}
-                  subjectName={subject.name}
-                  profileName={view.profileName}
-                  items={kits[`${view.profileId}:${subject.id}`] ?? []}
-                />
-                {subject.source === "extra" ? (
-                  <Badge variant="outline" className="shrink-0 text-xs">
-                    Extra
-                  </Badge>
-                ) : subject.isAlternating ? (
-                  <Badge variant="secondary" className="shrink-0 text-xs">
-                    {subject.alternatingPairName
-                      ? `Reveza com ${subject.alternatingPairName}`
-                      : "Quinzenal"}
-                  </Badge>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </article>
+      <div className="hidden grid-cols-[70px_1fr_auto] items-center gap-2.5 px-5 py-3 text-sm leading-[normal] lg:grid">
+        <b className="truncate">{view.profileName}</b>
+        <span className="min-w-0">
+          <SubjectNames view={view} kits={kits} />
+        </span>
+        <Link href={`/crianca/${view.profileId}`} className={SHEET_LINK}>
+          A vez de {view.profileName}
+        </Link>
+      </div>
+    </li>
   );
 }
 
+export type TodaySchedule = { views: TodaySubjectsView[]; kits: Record<string, string[]> };
+
 /**
- * "Hoje na escola" — o horário do dia de CADA criança, no topo do dashboard.
+ * As aulas de hoje e o "levar sempre" de cada uma.
  *
- * Antes o horário existia só para um perfil por vez e ficava dentro de um
- * bloco recolhido no rodapé da página; com mais de um filho era preciso
- * filtrar um de cada vez para saber o dia de cada um.
+ * A página chama isto ANTES de esperar a rotina e passa a promessa adiante:
+ * "Hoje na escola" mora dentro da rotina (entre "Para hoje" e "Amanhã"), e se
+ * a consulta só começasse quando a rotina terminasse, as aulas chegariam
+ * sempre depois das atividades.
  */
-export async function TodayScheduleSection({
-  userId,
-  profileFilter,
-}: {
-  userId: string;
-  profileFilter: string | null;
-}) {
+export async function loadTodaySchedule(
+  userId: string,
+  profileFilter: string | null,
+): Promise<TodaySchedule> {
   const views = await getTodaySubjectsForProfiles(userId, { profileFilter });
+  if (views.length === 0) return { views, kits: {} };
   const kits = Object.fromEntries(
     await listSubjectKits(
       userId,
       views.map((view) => view.profileId),
     ),
   );
-  if (views.length === 0) return null;
+  return { views, kits };
+}
 
-  const dayLabel = formatDayLabel(views[0]?.dateIso ?? "");
+/**
+ * "Hoje na escola": uma linha por criança, as aulas como pílulas com o ponto
+ * da cor da matéria. Cada pílula abre o "levar sempre" daquela aula, que
+ * continua sendo editado aqui. Antes eram cartões por criança com uma faixa
+ * colorida por matéria, e duas crianças com cinco aulas ocupavam uma tela.
+ */
+export async function TodayScheduleSection({ data }: { data: Promise<TodaySchedule> }) {
+  const { views, kits } = await data;
+  if (views.length === 0) return null;
+  // "Horário" leva à turma da primeira criança que tem uma; quem tem crianças
+  // em turmas diferentes chega às outras por Família.
+  const firstTurma = views.find((view) => view.turmaId)?.turmaId ?? null;
 
   return (
-    <section className="space-y-4" aria-labelledby="today-schedule-title">
-      <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
-          <GraduationCap className="size-6" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="today-schedule-title" className="text-xl font-semibold tracking-tight">
-            Hoje na escola
-          </h2>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-            {dayLabel}
-          </p>
-        </div>
+    <section
+      aria-labelledby="today-schedule-title"
+      className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
+    >
+      <div className="flex items-baseline justify-between gap-3 px-[18px] pb-2.5 pt-4 lg:px-5">
+        <h2
+          id="today-schedule-title"
+          className="text-[21px] font-extrabold leading-[normal] tracking-[-0.02em] lg:text-xl"
+        >
+          Hoje na escola
+        </h2>
+        {firstTurma ? (
+          <Link href={`/turmas/${firstTurma}/materias`} className={`${SHEET_LINK} lg:hidden`}>
+            Horário
+          </Link>
+        ) : null}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <ul>
         {views.map((view) => (
           <ProfileSchedule key={view.profileId} view={view} kits={kits} />
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
 
 export function TodayScheduleSkeleton() {
   return (
-    <div role="status" aria-label="Carregando o horário de hoje" className="space-y-4">
-      <div className="flex items-center gap-3" aria-hidden>
-        <Skeleton className="size-11 shrink-0 rounded-2xl" />
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-3 w-48" />
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2" aria-hidden>
-        <Skeleton className="h-40 rounded-2xl" />
-        <Skeleton className="h-40 rounded-2xl" />
-      </div>
+    <div role="status" aria-label="Carregando as aulas de hoje">
+      <Skeleton className="h-36 rounded-[20px]" aria-hidden />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
+import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
@@ -83,6 +84,11 @@ try {
     await mkdir(join(userData, "documents"), { recursive: true });
     await harness.build(id);
     const application = await harness.launch(id, { userData, suiteData });
+    // Native save dialogs must default to this fixture, never the runner/user's Pictures folder.
+    await application.evaluate(
+      ({ app }, pictures) => app.setPath("pictures", pictures),
+      join(userData, "documents"),
+    );
     const startup = observeNativeStartup(application, [root, resolve("."), tmpdir()]);
     let closed = false;
     application.once("close", () => {
@@ -90,6 +96,7 @@ try {
     });
     const failures: unknown[] = [];
     let startupFailed = false;
+    let diagnosticEditor: Page | undefined;
     try {
       assert.equal(await application.evaluate(() => process.execPath), electronPath);
       const first = await application.firstWindow().catch(async (error: unknown) => {
@@ -116,6 +123,7 @@ try {
       const editorResult = await editorReady;
       if (!("page" in editorResult)) throw editorResult.error;
       const editor = editorResult.page;
+      diagnosticEditor = editor;
       const pageErrors: string[] = [];
       editor.on("pageerror", (error) => pageErrors.push(error.message));
       await editor.waitForFunction(() => typeof window.ediSuite !== "undefined");
@@ -127,7 +135,11 @@ try {
       );
       await editor.screenshot({ path: join(results, `${id}-licensed.png`) });
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
-      if (id === "edifoto") await verifyNativeDialog(editor, "Novo…", "Novo documento");
+      if (id === "edifoto") {
+        await verifyNativeDialog(editor, "Novo…", "Novo documento");
+        await seedLease(application, 300);
+        await verifyFotoNativeJourney(editor, application, root, results);
+      }
       if (id === "ediaula") {
         const sentinel = join(userData, "documents", "unselected.mp4");
         await writeFile(sentinel, "preserve previous output");
@@ -291,6 +303,13 @@ try {
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
+      if (diagnosticEditor && !diagnosticEditor.isClosed()) {
+        try {
+          await diagnosticEditor.screenshot({ path: join(results, `${id}-failure.png`) });
+        } catch (screenshotError) {
+          failures.push(screenshotError);
+        }
+      }
     } finally {
       try {
         if (!closed) {
@@ -299,7 +318,7 @@ try {
             () => ({}),
             (error: unknown) => ({ error }),
           );
-          if (id === "edisvg")
+          if (id === "edisvg" || id === "edifoto")
             await execute(
               "powershell.exe",
               [
@@ -307,7 +326,11 @@ try {
                 "-NoProfile",
                 "-NonInteractive",
                 "-File",
-                resolve("scripts/edi/respond-test-draft.ps1"),
+                resolve(
+                  id === "edifoto"
+                    ? "apps/edifoto/scripts/respond-native-close.ps1"
+                    : "scripts/edi/respond-test-draft.ps1",
+                ),
                 "-TestProcessId",
                 String(nativePid),
               ],

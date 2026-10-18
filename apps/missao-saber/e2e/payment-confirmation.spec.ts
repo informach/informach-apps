@@ -14,7 +14,7 @@ test("confirmação de pagamento continua consultando após a primeira resposta 
   // compartilhar o limite real de cinco contas/hora com as outras jornadas.
   const headers = {
     origin: baseURL,
-    "x-forwarded-for": test.info().project.name === "mobile" ? "192.0.2.22" : "192.0.2.21",
+    "x-real-ip": test.info().project.name === "mobile" ? "192.0.2.22" : "192.0.2.21",
   };
   const signup = await page.request.post("/api/auth/sign-up/email", {
     headers,

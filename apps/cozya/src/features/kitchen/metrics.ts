@@ -9,7 +9,7 @@ export async function getKitchenMetrics() {
         SELECT user_id, MIN(occurred_at) AS started FROM cozya.product_events
         WHERE name = 'trial_started' AND occurred_at >= now() - interval '90 days' GROUP BY user_id
       ), saved AS (
-        SELECT c.*, (SELECT MIN(occurred_at) FROM cozya.product_events e WHERE e.user_id = c.user_id AND e.name = 'recipe_saved' AND e.occurred_at BETWEEN c.started AND c.started + interval '7 days') AS saved_at FROM cohort c
+        SELECT c.*, (SELECT MIN(occurred_at) FROM cozya.product_events e WHERE e.user_id = c.user_id AND e.name = 'recipe_saved' AND e.occurred_at <= c.started + interval '7 days') AS saved_at FROM cohort c
       ), planned AS (
         SELECT s.*, (SELECT MIN(occurred_at) FROM cozya.product_events e WHERE e.user_id = s.user_id AND e.name = 'plan_completed' AND e.occurred_at BETWEEN s.saved_at AND s.started + interval '7 days') AS planned_at FROM saved s
       ), shopped AS (
@@ -22,12 +22,17 @@ export async function getKitchenMetrics() {
       sql`WITH activity AS (
         SELECT date_trunc('week', occurred_at AT TIME ZONE 'America/Sao_Paulo')::date AS week, user_id,
           count(*) FILTER (WHERE name = 'cooking_completed') AS preparations,
-          bool_or(name = 'plan_completed') AS planned, bool_or(name = 'plan_repeated') AS repeated, bool_or(name = 'offer_seen') AS offer_seen
+          count(*) FILTER (WHERE name = 'today_viewed') AS today_days,
+          bool_or(name = 'plan_completed') AS planned, bool_or(name = 'plan_repeated') AS repeated, bool_or(name = 'offer_seen') AS offer_seen,
+          bool_or(name = 'list_shared') AS shared_list, bool_or(name = 'cooking_feedback') AS gave_feedback
         FROM cozya.product_events WHERE occurred_at >= now() - interval '90 days' GROUP BY 1, 2
       ) SELECT week, count(*) FILTER (WHERE preparations > 0)::int AS cooking_users,
         count(*) FILTER (WHERE preparations >= 3)::int AS households_with_three_preparations,
+        count(*) FILTER (WHERE today_days >= 3)::int AS households_opening_today_three_days,
         count(*) FILTER (WHERE planned)::int AS planning_users,
         count(*) FILTER (WHERE repeated)::int AS repeating_users,
+        count(*) FILTER (WHERE shared_list)::int AS list_sharers,
+        count(*) FILTER (WHERE gave_feedback)::int AS feedback_users,
         count(*) FILTER (WHERE offer_seen)::int AS offer_viewers
       FROM activity GROUP BY week ORDER BY week`,
     ),
@@ -47,7 +52,8 @@ export async function getKitchenMetrics() {
     billingEvents: Array.from(billing),
     notes: [
       "Custos ausentes são desconhecidos; totais reportados não representam margem líquida.",
-      "O funil usa ações ordenadas nos primeiros 7 dias após ativar o teste.",
+      "O funil conta a receita salva até 7 dias depois do início do teste (inclusive antes dele, porque o teste começa no primeiro planejamento) e as ações seguintes em ordem.",
+      "today_viewed é enviado pelo navegador uma vez por dia; prefetch de link não conta visita.",
       "Estes dados refletem este ambiente. Contas de teste não demonstram demanda ou receita real.",
     ],
   };

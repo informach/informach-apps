@@ -2,6 +2,7 @@ export const AUTH_SIGN_IN_PATH = "/login";
 export const AUTH_SIGN_UP_PATH = "/signup";
 
 export const AUTH_PROTECTED_PATHS = [
+  "/hoje",
   "/dashboard",
   "/semana",
   "/compras",

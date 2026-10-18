@@ -18,6 +18,17 @@ const api: EdiFotoApi = {
   showInFolder: (path) => ipcRenderer.invoke("shell:showItem", path),
   pathForFile: filePathForDrop,
   setDirty: (dirty) => ipcRenderer.send("app:dirty", dirty),
+  closeSaved: () => ipcRenderer.invoke("app:closeSaved"),
+  onDiscardBeforeClose: (cb) => {
+    const listener = (): void => cb();
+    ipcRenderer.on("app:discardBeforeClose", listener);
+    return () => ipcRenderer.removeListener("app:discardBeforeClose", listener);
+  },
+  onSaveBeforeClose: (cb) => {
+    const listener = (): void => cb();
+    ipcRenderer.on("app:saveBeforeClose", listener);
+    return () => ipcRenderer.removeListener("app:saveBeforeClose", listener);
+  },
   onOpenFiles: (cb) => {
     const fn = (_e: unknown, paths: string[]): void => {
       cb(paths);
@@ -28,11 +39,10 @@ const api: EdiFotoApi = {
 
   aiSettings: () => ipcRenderer.invoke("ai:settings"),
   saveAiSettings: (changes) => ipcRenderer.invoke("ai:saveSettings", changes),
-  testApiKey: () => ipcRenderer.invoke("ai:testKey"),
   aiClients: () => ipcRenderer.invoke("ai:clients"),
   connectAiClient: (id) => ipcRenderer.invoke("ai:connect", id),
-  assistantSend: (conversationId, text) =>
-    ipcRenderer.invoke("assistant:send", conversationId, text),
+  assistantSend: (conversationId, text, documentId, runId, workspaceId) =>
+    ipcRenderer.invoke("assistant:send", conversationId, text, documentId, runId, workspaceId),
   assistantStop: (conversationId) => ipcRenderer.invoke("assistant:stop", conversationId),
   assistantReset: (conversationId) => ipcRenderer.invoke("assistant:reset", conversationId),
   onAssistantEvent: (cb) => {
@@ -41,6 +51,11 @@ const api: EdiFotoApi = {
     };
     ipcRenderer.on("assistant:event", listener);
     return () => ipcRenderer.removeListener("assistant:event", listener);
+  },
+  onAiCancel: (cb) => {
+    const listener = (_e: unknown, id: string): void => cb(id);
+    ipcRenderer.on("ai:cancel", listener);
+    return () => ipcRenderer.removeListener("ai:cancel", listener);
   },
   handleAiTools: (runTool) => {
     const listener = async (_e: unknown, call: AiToolCall): Promise<void> => {

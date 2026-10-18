@@ -1,12 +1,11 @@
 import type { Layer, RasterLayer, TextLayer, Transform, VectorLayer } from "@shared/doc";
-import { docToLocal } from "@shared/vector";
+import { docToLocal, localToDoc } from "@shared/vector";
 import { Bot } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getBitmap } from "@/engine/bitmaps";
 import { compositor, toLayerMatrix } from "@/engine/compositor";
 import { renderText } from "@/engine/text";
-import { attempt } from "@/lib/actions";
-import { isDocPath, openPath, placePaths } from "@/lib/files";
+import { actions, attempt } from "@/lib/actions";
 import { addLayer, setTransform } from "@/lib/ops";
 import { beginStroke, continueStroke, endStroke } from "@/lib/paint";
 import { requestRender, startRenderLoop } from "@/lib/render";
@@ -15,7 +14,6 @@ import { fitView, panBy, setViewportSize, toDoc, toScreen, zoomStep, zoomTo } fr
 import { useDoc } from "@/state/doc";
 import { type CropBox, useUi } from "@/state/ui";
 import { useDrawingTools } from "./DrawingTools";
-import { QuickDock } from "./QuickDock";
 
 type Placed = RasterLayer | TextLayer | VectorLayer;
 
@@ -32,16 +30,15 @@ function contentSize(l: Placed): [number, number] {
 /** Corners (TL, TR, BR, BL) of a placed layer, in document pixels. */
 function corners(l: Placed): [number, number][] {
   const [w, h] = contentSize(l);
-  const t = l.transform;
-  const r = (t.rotation * Math.PI) / 180;
-  const cos = Math.cos(r);
-  const sin = Math.sin(r);
   return [
-    [-w / 2, -h / 2],
-    [w / 2, -h / 2],
-    [w / 2, h / 2],
-    [-w / 2, h / 2],
-  ].map(([x, y]) => [t.x + (x * cos - y * sin) * t.scale, t.y + (x * sin + y * cos) * t.scale]);
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ].map((p) => {
+    const q = localToDoc(p, l.transform, w, h);
+    return [q.x, q.y];
+  });
 }
 
 /** Topmost visible image/text layer with a visible pixel under the point. */
@@ -163,13 +160,15 @@ export function Viewport(): ReactNode {
     el.prepend(c.canvas);
     let last = { w: el.clientWidth, h: el.clientHeight };
     const ro = new ResizeObserver(() => {
-      // Opening/closing panels keeps the image where it was relative to the center.
-      if (last.w && last.h) panBy((el.clientWidth - last.w) / 2, (el.clientHeight - last.h) / 2);
+      const fitting = useUi.getState().fitMode;
+      if (!fitting && last.w && last.h)
+        panBy((el.clientWidth - last.w) / 2, (el.clientHeight - last.h) / 2);
       last = { w: el.clientWidth, h: el.clientHeight };
       const dpr = window.devicePixelRatio || 1;
       c.canvas.width = Math.max(1, Math.round(el.clientWidth * dpr));
       c.canvas.height = Math.max(1, Math.round(el.clientHeight * dpr));
       setViewportSize(el.clientWidth, el.clientHeight);
+      if (fitting) fitView();
       requestRender(false);
     });
     ro.observe(el);
@@ -418,8 +417,7 @@ export function Viewport(): ReactNode {
     setDropping(false);
     const paths = [...e.dataTransfer.files].map((f) => window.api.pathForFile(f)).filter(Boolean);
     if (!paths.length) return;
-    const docPath = paths.find(isDocPath);
-    attempt(() => (docPath ? openPath(docPath) : placePaths(paths)));
+    attempt(() => actions.receiveFiles(paths));
   };
 
   // Overlay geometry
@@ -623,14 +621,13 @@ export function Viewport(): ReactNode {
           )}
         </svg>
       </div>
-      {before && <div className="badge">Antes · só a camada de baixo</div>}
+      {before && <div className="badge">Antes · ao abrir</div>}
       {agentLive && (
         <div className="agent-badge">
           <Bot size={13} /> Agente externo editando…
         </div>
       )}
       {dropping && <div className="drop-hint">Solte para inserir como camada</div>}
-      {tool !== "crop" && <QuickDock />}
     </div>
   );
 }

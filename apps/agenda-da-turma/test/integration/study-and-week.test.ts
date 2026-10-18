@@ -222,8 +222,13 @@ describe("weekly digest", () => {
     await deliverRoutineNotifications(sundaySixPm);
     const outbox = emails.getOutbox();
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]?.subject).toBe("A semana que vem na sua casa");
-    expect(outbox[0]?.text).toContain("Prova de Ciências");
+    // A semana do resumo são os dias de aula que vêm, de segunda a sexta.
+    expect(outbox[0]?.subject).toBe("A semana de 5 a 9 de outubro");
+    // No meio da frase o título vai com minúscula: "Ciências: prova de Ciências".
+    expect(outbox[0]?.text).toContain("prova de Ciências");
+    // O e-mail desenhado da prancha, e não a lista solta de antes.
+    expect(outbox[0]?.html).toContain("Abrir a semana na Agenda");
+    expect(outbox[0]?.html).toContain("A semana de 5 a 9 de outubro");
 
     // Rodar de novo na mesma hora não manda outro.
     await deliverRoutineNotifications(sundaySixPm);

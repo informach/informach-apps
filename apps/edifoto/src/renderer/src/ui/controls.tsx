@@ -143,18 +143,22 @@ export function NumberField({
   onChange,
   digits = 0,
   suffix,
+  min = -Infinity,
+  max = Infinity,
 }: {
   label: string;
   value: number;
   onChange(v: number): void;
   digits?: number;
   suffix?: string;
+  min?: number;
+  max?: number;
 }): ReactNode {
   const [text, setText] = useState(value.toFixed(digits));
   useEffect(() => setText(value.toFixed(digits)), [value, digits]);
   const commit = (): void => {
     const n = parseFloat(text.replace(",", "."));
-    if (Number.isFinite(n) && n !== value) onChange(n);
+    if (Number.isFinite(n) && n !== value) onChange(Math.min(max, Math.max(min, n)));
     else setText(value.toFixed(digits));
   };
   return (

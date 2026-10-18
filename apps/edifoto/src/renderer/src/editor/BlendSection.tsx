@@ -26,12 +26,16 @@ function useModeThumbs(layerId: string | undefined, modes: BlendMode[]): Record<
       const doc = useDoc.getState().doc;
       if (!doc || !doc.layers.some((l) => l.id === layerId)) return;
       const scale = Math.min(1, THUMB / Math.max(doc.width, doc.height));
-      const out: Record<string, string> = {};
-      for (const mode of modes)
-        out[mode] = compositor()
-          .renderToCanvas(doc, { scale, modeOverride: { layerId, mode } })
-          .toDataURL("image/jpeg", 0.8);
-      setThumbs(out);
+      try {
+        const out: Record<string, string> = {};
+        for (const mode of modes)
+          out[mode] = compositor()
+            .renderToCanvas(doc, { scale, modeOverride: { layerId, mode } })
+            .toDataURL("image/jpeg", 0.8);
+        setThumbs(out);
+      } catch {
+        setThumbs({});
+      }
     };
     let timer: ReturnType<typeof setTimeout>;
     const schedule = (): void => {
@@ -172,7 +176,7 @@ export function BlendSection(): ReactNode {
         onChange={(v) => attempt(() => setLayerProps(layer.id, { opacity: v / 100 }))}
       />
       <Slider
-        label="Preenchimento"
+        label="Intensidade da camada"
         value={Math.round(layer.fill * 100)}
         min={0}
         max={100}
@@ -181,8 +185,8 @@ export function BlendSection(): ReactNode {
         onChange={(v) => attempt(() => setLayerProps(layer.id, { fill: v / 100 }))}
       />
       <div className="hint">
-        <Info size={12} />
-        Passe o mouse sobre um modo para ver na imagem antes de escolher.
+        <Info size={12} />A intensidade multiplica a opacidade. Passe o mouse sobre um modo para ver
+        antes de escolher.
       </div>
     </div>
   );

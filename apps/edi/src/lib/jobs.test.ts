@@ -14,6 +14,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("@informach/db", () => ({
   DatabaseLockBusyError: class extends Error {},
   withDatabaseLock: (_key: string, operation: () => Promise<unknown>) => deps.lock(operation),
+  // O registro em ops.job_runs é do banco; aqui a rotina roda sem ele.
+  recordJobRun: (_meta: unknown, run: () => Promise<unknown>) => run(),
 }));
 vi.mock("../features/billing/reconciliation", () => ({
   reconcileBilling: (...args: unknown[]) => deps.sweep(...args),

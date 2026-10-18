@@ -35,12 +35,9 @@ async function register(context: BrowserContext, baseURL: string, label: string)
   expect(verified.ok()).toBe(true);
   return { email, userId };
 }
+// O grátis vale por padrão: depois do código, a conta já está em Hoje.
 async function selectFree(page: Page) {
-  await page.goto("/choose-plan");
-  await Promise.all([
-    page.waitForURL(/\/dashboard$/),
-    page.getByRole("button", { name: "Começar grátis", exact: true }).click(),
-  ]);
+  await page.goto("/dashboard");
   await expect(page).toHaveURL(/dashboard/);
 }
 test.afterEach(async () => {
@@ -105,13 +102,15 @@ test("two adults, private child access, completion, revocation and confirmed del
   subscriptionId = subscription.id;
   await page.goto("/recados/novo");
   await page.getByLabel("Nome", { exact: true }).fill("Criança A fictícia");
-  await page.getByRole("button", { name: "Criar perfil", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Cadastrar manualmente" })).toBeEnabled();
-  await page.getByRole("button", { name: "Cadastrar manualmente" }).click();
+  await page.getByRole("button", { name: "Adicionar criança", exact: true }).click();
+  // Com a criança criada, a tela do recado segue para o recado; escrever à mão
+  // é o caminho "Escrever" da folha, o formulário de sempre.
+  await expect(page.getByRole("button", { name: "Ler o recado", exact: true })).toBeVisible();
+  await page.goto("/atividades/nova");
   await page.getByLabel("Atividade", { exact: true }).fill("Preparar mochila fictícia");
   await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("material");
-  await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
-  await expect(page).toHaveURL(/atividades/);
+  await page.getByRole("button", { name: "Salvar 1 material", exact: true }).click();
+  await expect(page).toHaveURL(/\/atividades\?perfil=/);
   await expect(
     page.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
   ).toBeVisible();
@@ -157,7 +156,7 @@ test("two adults, private child access, completion, revocation and confirmed del
     await expect(guestPage.getByText("Criança B restrita", { exact: true })).toHaveCount(0);
     await guestPage
       .getByRole("button", {
-        name: "Marcar como feito em casa: Preparar mochila fictícia",
+        name: "Marcar como feito: Preparar mochila fictícia",
         exact: true,
       })
       .click();

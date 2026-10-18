@@ -20,7 +20,7 @@ O código fica no repositório privado `informach/informach-apps`. Os aplicativo
 | --- | --- | --- |
 | `apps/agenda-da-turma` | Rotina escolar, titular, perfis de crianças e adultos convidados com permissões por criança; sem Better Auth organizations | Porta 3001 |
 | `apps/cozya` | Receitas, planejamento de refeições e compras; conta individual, sem organizations | Porta 3002 |
-| `apps/admin` | Scaffold administrativo, ainda sem integração completa de auth, billing e banco | Porta 3003 |
+| `apps/admin` | Bastidores, console da equipe: papéis owner e admin com duas etapas obrigatórias, leitura só por conexão read-only, auditoria de cada consulta e ação, sem impersonação e sem conteúdo das famílias | Porta 3003; guia em `apps/admin/CLAUDE.md` |
 | `apps/informach-site` | Site institucional, termos e privacidade; sem auth, billing, banco ou IA | Porta 3004 |
 | `apps/missao-saber` | Preparação para olimpíadas escolares, com assinatura e perfis familiares | Porta 3005 |
 | `apps/edi` | Portal, conta, cobrança, autenticação e licenças da suíte Edi; `edi.informach.com.br` no Railway | Porta 3006; estado comercial e distribuição no runbook |
@@ -76,7 +76,7 @@ Escolha verificações proporcionais à mudança. Testes de interface e banco us
 
 ## Deploy e segurança operacional
 
-- Cada web app tem sua configuração Railway versionada e usa a raiz do monorepo. O Edi e seu cron usam `.railway/railway.ts` (IaC, parcial `edi`); os demais mantêm suas configurações existentes. Revisar o plano do Railway antes de aplicar e rejeitar alterações em recursos fora da frente. Respeite `PORT`, a interface de rede e o start standalone adotado pelo app. Não alterar serviços existentes para adaptar um novo produto.
+- A configuração Railway de todos os serviços (apps, migrator, crons, Postgres, Redis e volumes) vive em `.railway/railway.ts`, IaC do projeto inteiro: recurso que sai do arquivo é apagado no próximo apply. Config as Code (`railway.toml`/`railway.json`) foi descontinuado e não deve voltar. Rodar `railway config plan` antes de qualquer `apply`, parar diante de destroy e rejeitar alterações em recursos fora da frente. Fluxo e gotchas em `docs/deploy-runbook.md`. Respeite `PORT`, a interface de rede e o start standalone adotado pelo app. Não alterar serviços existentes para adaptar um novo produto.
 - O migrator compartilhado é separado dos apps. `/api/ready` protege a promoção de um build cujo banco esteja atrás; `/api/health` identifica o processo/commit e não comprova prontidão do banco. Não remover essa barreira para passar um deploy.
 - Mudanças de schema passam pelo fluxo Drizzle e por revisão de compatibilidade. Não reescrever migrations aplicadas nem usar `db:push` em produção. `ai_mastra` pertence ao Mastra e fica fora do `schemaFilter` do Drizzle.
 - Segredos ficam no provedor ou em arquivos locais ignorados, nunca em documentação, histórico Git, logs, screenshots, renderer ou `NEXT_PUBLIC_*`. Documente nomes, finalidade e local de configuração, não valores.

@@ -1,385 +1,170 @@
 import { showModalOnMount } from "@informach/edi-desktop/renderer";
-import {
-  type AiClientStatus,
-  type AiSettingsChanges,
-  type AiSettingsView,
-  API_MODELS,
-  type AssistantEngine,
-} from "@shared/types";
-import {
-  Check,
-  Copy,
-  KeyRound,
-  Loader,
-  MessageSquare,
-  Monitor,
-  Plug,
-  ShieldCheck,
-  Sparkles,
-  SquareTerminal,
-  Terminal,
-  X,
-} from "lucide-react";
+import type { AiClientStatus, AiSettingsChanges, AiSettingsView } from "@shared/types";
+import { Check, Loader, Sparkles, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useUi } from "@/state/ui";
 import { Toggle } from "@/ui/controls";
 
 export function AiSettings(): ReactNode {
   const [view, setView] = useState<AiSettingsView | null>(null);
-  const [clients, setClients] = useState<AiClientStatus[] | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-  const [key, setKey] = useState("");
-  const [desktopGuide, setDesktopGuide] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-
+  const [clients, setClients] = useState<AiClientStatus[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
   useEffect(() => {
-    void window.api.aiSettings().then(setView);
-    void window.api.aiClients().then(setClients);
+    void Promise.all([window.api.aiSettings(), window.api.aiClients()])
+      .then(([v, c]) => {
+        setView(v);
+        setClients(c);
+      })
+      .catch((error) => setNote(String(error)));
   }, []);
-
   const close = (): void => {
     useUi.setState({ settingsOpen: false });
     void useUi.getState().refreshAi();
   };
   const save = async (changes: AiSettingsChanges): Promise<void> => {
+    setBusy(true);
     try {
-      const v = await window.api.saveAiSettings(changes);
-      setView(v);
-      useUi.setState({ ai: v });
-    } catch (err) {
-      setNote({ tone: "err", text: (err as Error).message });
+      const value = await window.api.saveAiSettings(changes);
+      setView(value);
+      useUi.setState({ ai: value });
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
     }
   };
-  const copy = (id: string, text: string): void => {
-    void navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
-  };
   const connect = async (id: AiClientStatus["id"]): Promise<void> => {
-    setBusy(id);
-    const r = await window.api.connectAiClient(id);
-    setNote({ tone: r.ok ? "ok" : "err", text: r.message });
-    setClients(await window.api.aiClients());
-    setBusy(null);
+    setBusy(true);
+    try {
+      const result = await window.api.connectAiClient(id);
+      setNote(result.message);
+      setClients(await window.api.aiClients());
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   };
-
-  const url = view?.mcpUrl ?? "";
-  const desktopSnippet = JSON.stringify(
-    { mcpServers: { edifoto: { command: "npx", args: ["-y", "mcp-remote", url] } } },
-    null,
-    2,
-  );
-  const engines: { id: AssistantEngine; name: string; desc: string }[] = [
-    {
-      id: "claude-code",
-      name: "Claude Code",
-      desc: "Sua assinatura Claude · roda no seu computador",
-    },
-    { id: "codex", name: "Codex", desc: "Sua assinatura ChatGPT · roda no seu computador" },
-    {
-      id: "api",
-      name: "Chave da API Anthropic",
-      desc: view?.hasApiKey
-        ? `Paga por uso · chave ${view.apiKeyHint}`
-        : "Paga por uso, direto na sua conta da Anthropic",
-    },
-  ];
-  const clientIcon = (id: string): ReactNode =>
-    id === "claude-code" ? <SquareTerminal size={16} /> : <Terminal size={16} />;
-
   return (
     <dialog
       ref={showModalOnMount}
       aria-label="Configurações de inteligência artificial"
-      onCancel={(event) => {
-        event.preventDefault();
+      className="backdrop"
+      onCancel={(e) => {
+        e.preventDefault();
         close();
       }}
-      style={{
-        margin: 0,
-        padding: 0,
-        border: 0,
-        maxWidth: "none",
-        maxHeight: "none",
-        width: "100vw",
-        height: "100vh",
-      }}
-      className="backdrop"
-      onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <div className="modal">
         <div className="modal-head">
-          <Sparkles size={18} className="accent" />
+          <Sparkles size={18} />
           <strong>Inteligência artificial</strong>
           <span className="spacer" />
-          <button type="button" className="icon-btn" onClick={close}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Fechar configurações"
+            onClick={close}
+          >
             <X size={15} />
           </button>
         </div>
         <div className="modal-body">
           <section className="ai-section">
-            <div className="ai-title">
-              <Plug size={16} />
-              <div>
-                <strong>Conectar um agente externo</strong>
-                <p className="muted">
-                  Use o Claude Code, o Claude Desktop ou o Codex com a sua própria assinatura. Você
-                  conversa lá e vê as edições acontecendo aqui, igual ao pen.
-                </p>
-              </div>
-            </div>
+            <strong>Use sua assinatura pessoal</strong>
+            <p className="muted">
+              Escolha Claude Code ou Codex, instalado e conectado ? sua conta neste computador. O
+              EdiFoto não vende créditos de IA nem pede chave de API. Os limites e a disponibilidade
+              seguem sua assinatura.
+            </p>
+            {(["claude-code", "codex"] as const).map((id) => {
+              const client = clients.find((c) => c.id === id);
+              return (
+                <div key={id}>
+                  <button
+                    type="button"
+                    className={`choice${view?.engine === id ? " is-active" : ""}`}
+                    disabled={busy || !view}
+                    onClick={() => void save({ engine: id })}
+                  >
+                    <span className="radio" />
+                    <div className="choice-text">
+                      <strong>{id === "codex" ? "Codex" : "Claude Code"}</strong>
+                      <span>
+                        {id === "codex" ? "Sua assinatura ChatGPT" : "Sua assinatura Claude"}
+                      </span>
+                    </div>
+                    {view?.engine === id && <Check size={15} />}
+                  </button>
+                  <div className="row">
+                    <span className="hint grow">
+                      {!client
+                        ? "Verificando instalação…"
+                        : !client.installed
+                          ? "Instale o cliente oficial e faça login com sua conta."
+                          : client.connected
+                            ? "Conexão configurada"
+                            : "Cliente encontrado"}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy || !client?.installed || !view?.mcpRunning}
+                      onClick={() => void connect(id)}
+                    >
+                      {busy && <Loader size={12} className="spin" />}
+                      {client?.connected ? "Reconectar" : "Conectar"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+          <section className="ai-section">
+            <strong>Controle das edições</strong>
+            <p className="muted">
+              Somente seus pedidos iniciam uma conversa. O assistente recebe a prévia e informações
+              da imagem quando solicita suas ferramentas. As alterações ficam no Histórico.
+            </p>
             <div className="toggle-row">
-              Permitir conexão de agentes (servidor MCP local)
+              Permitir conexão da IA
               <Toggle
                 on={view?.mcpEnabled ?? true}
                 onChange={(v) => void save({ mcpEnabled: v })}
               />
             </div>
-            {view && (
-              <div className={`mcp-status${view.mcpRunning ? " is-on" : ""}`}>
-                <span className="dot" />
-                {view.mcpRunning ? (
-                  <>
-                    Servidor MCP ativo em <code>{url}</code>
-                    <span className="spacer" />
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Copiar endereço"
-                      onClick={() => copy("url", url)}
-                    >
-                      {copied === "url" ? <Check size={13} /> : <Copy size={13} />}
-                    </button>
-                  </>
-                ) : (
-                  (view.mcpError ?? "Conexão desligada.")
-                )}
-              </div>
-            )}
-            {(
-              clients ?? [
-                { id: "claude-code", name: "Claude Code", installed: false, connected: false },
-                { id: "codex", name: "Codex", installed: false, connected: false },
-              ]
-            ).map((c) => (
-              <div key={c.id} className="choice">
-                {clientIcon(c.id)}
-                <div className="choice-text">
-                  <strong>{c.name}</strong>
-                  <span>
-                    {!clients
-                      ? "Procurando…"
-                      : !c.installed
-                        ? c.id === "codex"
-                          ? "Não encontrado. Instale com: npm install -g @openai/codex"
-                          : "Não encontrado. Instale em claude.com/code"
-                        : `${c.version ?? "instalado"} · ${c.id === "codex" ? "assinatura ChatGPT" : "assinatura Claude"}`}
-                  </span>
-                </div>
-                {c.connected ? (
-                  <span className="pill-ok">
-                    <Check size={11} /> Configurado
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={!c.installed || !view?.mcpRunning || busy !== null}
-                    onClick={() => void connect(c.id)}
-                  >
-                    {busy === c.id ? <Loader size={13} className="spin" /> : null} Conectar
-                  </button>
-                )}
-              </div>
-            ))}
-            <div className="choice">
-              <Monitor size={16} />
-              <div className="choice-text">
-                <strong>Claude Desktop</strong>
-                <span>
-                  Configurações › Desenvolvedor › Editar configuração (precisa do Node.js)
-                </span>
-              </div>
-              <button type="button" className="btn" onClick={() => setDesktopGuide(!desktopGuide)}>
-                <Plug size={13} /> Conectar
-              </button>
-            </div>
-            {desktopGuide && (
-              <div className="section">
-                <strong>Conectar o Claude Desktop</strong>
-                <ol>
-                  <li>
-                    Abra Configurações → Desenvolvedor → Editar configuração no Claude Desktop.
-                  </li>
-                  <li>
-                    Adicione a entrada edifoto em mcpServers, preservando os outros servidores.
-                  </li>
-                  <li>
-                    Salve, reinicie o Claude Desktop e peça para consultar o documento aberto.
-                  </li>
-                </ol>
-                <div className="snippet">
-                  <pre>{desktopSnippet}</pre>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => copy("desktop", desktopSnippet)}
-                  >
-                    {copied === "desktop" ? "Copiado" : "Copiar JSON"}
-                  </button>
-                </div>
-                <span className="hint">
-                  Mantenha o EdiFoto aberto. A execução de uma ferramenta aparece na barra de
-                  status.
-                </span>
-              </div>
-            )}
-            <details>
-              <summary>Configuração manual (JSON / TOML)</summary>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
-                {[
-                  desktopSnippet,
-                  `[mcp_servers.edifoto]\nurl = "${url}"`,
-                  `claude mcp add --transport http --scope user edifoto ${url}`,
-                  `codex mcp add edifoto --url ${url}`,
-                ].map((cmd) => (
-                  <div key={cmd} className="snippet">
-                    <pre>{cmd}</pre>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Copiar"
-                      onClick={() => copy(cmd, cmd)}
-                    >
-                      {copied === cmd ? <Check size={13} /> : <Copy size={13} />}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </details>
-          </section>
-
-          <section className="ai-section">
-            <div className="ai-title">
-              <MessageSquare size={16} />
-              <div>
-                <strong>Chat dentro do EdiFoto</strong>
-                <p className="muted">
-                  Escolha quem responde no painel Assistente. Nada é enviado sem você pedir.
-                </p>
-              </div>
-            </div>
-            {engines.map((e) => (
-              <button
-                type="button"
-                key={e.id}
-                className={`choice${view?.engine === e.id ? " is-active" : ""}`}
-                onClick={() => void save({ engine: e.id })}
-              >
-                <span className="radio" />
-                <div className="choice-text">
-                  <strong>{e.name}</strong>
-                  <span>{e.desc}</span>
-                </div>
-              </button>
-            ))}
-            {view?.engine === "api" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div className="row">
-                  <input
-                    className="field grow"
-                    type="password"
-                    placeholder={
-                      view.hasApiKey
-                        ? `Chave salva (${view.apiKeyHint}) — cole outra para trocar`
-                        : "Cole a chave da API (sk-ant-…)"
-                    }
-                    value={key}
-                    onChange={(e) => setKey(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={!key.trim()}
-                    onClick={async () => {
-                      await save({ apiKey: key });
-                      setKey("");
-                      setNote(
-                        await window.api
-                          .testApiKey()
-                          .then((r) => ({ tone: r.ok ? "ok" : "err", text: r.message })),
-                      );
-                    }}
-                  >
-                    <KeyRound size={13} /> Salvar
-                  </button>
-                  {view.hasApiKey && (
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={() => void save({ apiKey: null })}
-                    >
-                      Apagar
-                    </button>
-                  )}
-                </div>
-                <div className="row">
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    Modelo
-                  </span>
-                  <select
-                    className="field grow"
-                    value={view.model}
-                    onChange={(e) => void save({ model: e.target.value })}
-                  >
-                    {API_MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="ai-section">
-            <div className="ai-title">
-              <ShieldCheck size={16} />
-              <div>
-                <strong>O que o agente pode fazer</strong>
-                <p className="muted">
-                  Toda ação do agente entra no Histórico e pode ser desfeita com Ctrl+Z.
-                </p>
-              </div>
-            </div>
             <div className="toggle-row">
-              Pedir confirmação antes de apagar camadas
+              Confirmar antes de apagar camadas
               <Toggle
                 on={view?.confirmDeletes ?? true}
                 onChange={(v) => void save({ confirmDeletes: v })}
               />
             </div>
             <div className="toggle-row">
-              Permitir exportar e salvar arquivos
+              Permitir exportação solicitada à IA
               <Toggle
                 on={view?.allowFileWrites ?? false}
                 onChange={(v) => void save({ allowFileWrites: v })}
               />
             </div>
+            {view?.mcpError && <p role="alert">{view.mcpError}</p>}
+            <details>
+              <summary>Detalhes da conexão</summary>
+              <p className="muted">
+                {view?.mcpRunning ? "Conexão local ativa" : "Conexão local desligada"} ·{" "}
+                {view?.mcpUrl}. O botão Conectar configura a autenticação local no cliente
+                escolhido. A instalação e o login permanecem no cliente oficial.
+              </p>
+            </details>
           </section>
-
-          {note && <p className={`note ${note.tone === "ok" ? "is-ok" : "is-err"}`}>{note.text}</p>}
+          {note && (
+            <p className="note" role="status">
+              {note}
+            </p>
+          )}
         </div>
         <div className="modal-foot">
-          <span
-            className="muted"
-            style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <KeyRound size={12} /> Chaves ficam criptografadas neste computador.
-          </span>
           <span className="spacer" />
           <button type="button" className="btn btn-primary" onClick={close}>
             Concluído

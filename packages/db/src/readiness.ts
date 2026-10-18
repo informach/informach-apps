@@ -17,7 +17,7 @@ import journal from "./migrations/meta/_journal.json" with { type: "json" };
  *
  * A pergunta é deliberadamente "o banco está atrás deste build?", nunca "o
  * banco é exatamente este build". Rollback do app sem desfazer migração é
- * suportado de propósito (ver `infrastructure/railway/migrator.toml`): um build
+ * suportado de propósito (ver o serviço `migrator` em `.railway/railway.ts`): um build
  * antigo encontra o banco à frente, e isso continua sendo saudável.
  */
 

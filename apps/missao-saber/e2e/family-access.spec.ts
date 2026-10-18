@@ -14,8 +14,8 @@ import {
 async function parent(page: Page, baseURL: string | undefined) {
   if (!baseURL) throw new Error("Missing isolated URL");
   const client = createHash("sha256").update(test.info().testId).digest();
-  const headers = { origin: baseURL, "x-forwarded-for": `198.20.${client[0]}.${client[1]}` };
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": headers["x-forwarded-for"] });
+  const headers = { origin: baseURL, "x-real-ip": `198.20.${client[0]}.${client[1]}` };
+  await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
   const email = `family-${randomUUID()}@example.test`;
   const data = { email, password: "Missao-Teste-2026-Local!", name: "Responsável local" };
   expect((await page.request.post("/api/auth/sign-up/email", { headers, data })).ok()).toBe(true);
@@ -29,7 +29,7 @@ async function parent(page: Page, baseURL: string | undefined) {
   // Outro aparelho da mesma casa sai pelo mesmo endereço. Sem isto, todo
   // contexto extra caía no balde "unidentified" do limite de códigos de
   // conexão, compartilhado entre os testes da suíte inteira.
-  const device = { baseURL, extraHTTPHeaders: { "x-forwarded-for": headers["x-forwarded-for"] } };
+  const device = { baseURL, extraHTTPHeaders: { "x-real-ip": headers["x-real-ip"] } };
   return { email, userId: user.id, headers, device };
 }
 

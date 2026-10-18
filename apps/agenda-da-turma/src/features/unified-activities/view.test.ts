@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ActivityOverviewItem } from "./overview-types";
 import type { TaskRow } from "./task-repository";
-import { getViewDueBadge, toActivityView } from "./view";
+import { toActivityView } from "./view";
 
 const ME = "user-me";
 const OTHER = "user-other";
@@ -103,10 +103,10 @@ describe("toActivityView", () => {
     expect(toActivityView(schoolTask({ createdByUserId: OTHER }), ME).manage).toBeNull();
   });
 
-  it("mostra a turma quando a atividade foi publicada numa, e extracurricular quando não", () => {
+  it("mostra a turma quando a atividade foi publicada numa, e fora da escola quando não", () => {
     expect(toActivityView(schoolTask(), ME).contextLine).toBe("5º ano A · 2026");
     expect(toActivityView(task({ profileSubjectId: "ps-1" }), ME).contextLine).toBe(
-      "extracurricular",
+      "fora da escola",
     );
     expect(toActivityView(task(), ME).contextLine).toBeNull();
   });
@@ -119,31 +119,24 @@ describe("toActivityView", () => {
     expect(
       toActivityView(task({ noticeSource: "teams", dateOrigin: "school", dueAt: "2026-09-20" }), ME)
         .provenance,
-    ).toBe("Microsoft Teams · Informado no original");
+    ).toBe("Microsoft Teams · A escola disse");
   });
 });
 
-describe("getViewDueBadge", () => {
-  const now = new Date("2026-09-14T12:00:00-03:00");
-
-  it("mostra prazo a confirmar quando não há data", () => {
-    const badge = getViewDueBadge(toActivityView(task(), ME), now);
-    expect(badge).toEqual({ label: "Prazo a confirmar", variant: "muted" });
-  });
-
-  it("marca atraso", () => {
-    const view = toActivityView(schoolTask({ dueAt: "2026-09-01" }), ME);
-    expect(getViewDueBadge(view, now).variant).toBe("destructive");
-    expect(getViewDueBadge(view, now).label).toContain("Atrasada");
-  });
-
-  it("junta a hora ao prazo quando existe", () => {
+describe("o prazo na lista", () => {
+  // O chip de prazo saiu deste adaptador para `due.ts`, testado à parte. Aqui
+  // fica a garantia de que a vista entrega o que ele precisa.
+  it("entrega data, hora e situação sem traduzir", () => {
     const view = toActivityView(task({ dueAt: "2026-09-14", time: "08:00" }), ME);
-    expect(getViewDueBadge(view, now).label).toBe("Hoje · 14/09 às 08:00");
+    expect({ dueAt: view.dueAt, time: view.time, status: view.status }).toEqual({
+      dueAt: "2026-09-14",
+      time: "08:00",
+      status: "pending",
+    });
   });
 
-  it("não mostra urgência no que foi cancelado", () => {
-    const view = toActivityView(task({ status: "canceled", dueAt: "2026-09-01" }), ME);
-    expect(getViewDueBadge(view, now)).toEqual({ label: "Cancelada", variant: "muted" });
+  it("diz quem cuida pelo nome, sem rótulo", () => {
+    expect(toActivityView(task({ assignedName: "Leo" }), ME).assignedName).toBe("Leo");
+    expect(toActivityView(task(), ME).assignedName).toBeNull();
   });
 });

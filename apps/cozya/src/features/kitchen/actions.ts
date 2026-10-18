@@ -2,23 +2,33 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
+import { recipeInputSchema } from "@/features/recipes/schemas";
+import { createRecipe } from "@/features/recipes/service";
 import { action, err, ok } from "@/lib/action";
 import { requireUserServer } from "@/lib/auth";
 import { getKitchenAccess, startKitchenTrial } from "./access";
-import { weekStart } from "./dates";
+import { addDays, localDay, weekStart } from "./dates";
 import { recordProductEvent } from "./events";
+import { firstWeekDays } from "./first-week-days";
 import {
   addShoppingExtra,
   generateShoppingList,
+  getMealsBetween,
+  getRecipeChoices,
+  getRecipesByIds,
   getWeekMeals,
+  hasAnyMeal,
   removeMeal,
   removeShoppingExtra,
   repeatWeek,
+  saveCookingFeedback,
   saveMeal,
   setShoppingItemState,
   updateCookingSession,
+  withAccountLock,
 } from "./repository";
-import { cookingInputSchema, mealSchema, weekSchema } from "./schemas";
+import { cookingFeedbackSchema, cookingInputSchema, mealSchema, weekSchema } from "./schemas";
+import { STARTER_RECIPES } from "./starter-recipes";
 
 export const startTrialAction = action
   .input(z.object({}))
@@ -32,6 +42,27 @@ export const startTrialAction = action
     return ok(true);
   });
 
+/**
+ * Planning is the first useful gesture, so the first meal with a recipe opens the 14-day trial
+ * on its own when the account never had one. A meal without a recipe ("Sobras", "Comer fora")
+ * never spends it. The trial rules stay in `startKitchenTrial`: verified e-mail, once.
+ */
+async function ensurePlanning(userId: string, withRecipe: boolean) {
+  const access = await getKitchenAccess(userId);
+  if (access.canPlan) return { ok: true } as const;
+  if (access.isPro || access.profile?.trialStartedAt)
+    return { ok: false, code: "SUBSCRIPTION_REQUIRED" } as const;
+  if (!withRecipe) return { ok: true } as const;
+  const result = await startKitchenTrial(await requireUserServer());
+  return result.ok ? ({ ok: true } as const) : ({ ok: false, code: result.code } as const);
+}
+
+async function recordPlanProgress(userId: string, days: string[]) {
+  for (const week of new Set(days.map((day) => weekStart(day))))
+    if ((await getWeekMeals(userId, week)).length >= 3)
+      await recordProductEvent(userId, "plan_completed", week);
+}
+
 export const saveMealAction = action
   .input(mealSchema)
   .auth({ require: "user" })
@@ -39,15 +70,87 @@ export const saveMealAction = action
   .run(async ({ input, ctx }) => {
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
-    if (!(await getKitchenAccess(userId)).canPlan)
-      return err({ code: "SUBSCRIPTION_REQUIRED" } as const);
+    // Someone else's recipe is refused before it can open this account's trial.
+    if (input.recipeId && !(await getRecipesByIds(userId, [input.recipeId])).length)
+      return err({ code: "NOT_FOUND" } as const);
+    const access = await ensurePlanning(userId, !!input.recipeId);
+    if (!access.ok) return err({ code: access.code });
     if (!(await saveMeal(userId, input))) return err({ code: "NOT_FOUND" } as const);
-    const week = weekStart(input.day);
-    if ((await getWeekMeals(userId, week)).length >= 3)
-      await recordProductEvent(userId, "plan_completed", week);
+    await recordPlanProgress(userId, [input.day]);
     refresh();
     return ok(true);
   });
+
+/**
+ * First access: put the chosen recipes (own or starter drafts) on dinners that fit one shopping
+ * list, and answer the week to open next: step 2 is that week, step 3 its list.
+ */
+export const planFirstWeekAction = action
+  .input(
+    z
+      .object({
+        starters: z.array(z.number().int().min(0).max(20)).max(4),
+        recipeIds: z.array(z.string().uuid()).max(4),
+      })
+      .refine(
+        (input) => input.starters.length + input.recipeIds.length >= 1,
+        "Escolha ao menos uma receita",
+      )
+      .refine((input) => input.starters.length + input.recipeIds.length <= 4),
+  )
+  .auth({ require: "user" })
+  .rateLimit({ key: "meals-first-week", max: 10, window: "1h" })
+  .run(async ({ input, ctx }) => {
+    const userId = ctx.actor?.id;
+    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
+    return withAccountLock(userId, "first-week", () => planFirstWeek(userId, input));
+  });
+
+async function planFirstWeek(userId: string, input: { starters: number[]; recipeIds: string[] }) {
+  const today = localDay();
+  // A second tap or a retry finds the week already planned, leaves it as it is and opens it.
+  if (await hasAnyMeal(userId)) {
+    const [upcoming] = await getMealsBetween(userId, today, addDays(today, 14));
+    const start = upcoming?.day ?? today;
+    return ok({ planned: 0, start, week: weekStart(start) });
+  }
+  const access = await ensurePlanning(userId, true);
+  if (!access.ok) return err({ code: access.code });
+  const starters = [...new Set(input.starters)].flatMap((index) => {
+    const recipe = STARTER_RECIPES[index];
+    return recipe ? [recipe] : [];
+  });
+  const owned = await getRecipeChoices(userId);
+  // Only recipes of this household; foreign ids are ignored, never planned.
+  const recipes: { id: string }[] = owned.filter((recipe) => input.recipeIds.includes(recipe.id));
+  for (const starter of starters) {
+    // A retried request finds the copy it already saved instead of duplicating it.
+    const existing = owned.find((recipe) => recipe.name === starter.name);
+    if (existing) {
+      recipes.push(existing);
+      continue;
+    }
+    const created = await createRecipe(userId, recipeInputSchema.parse(starter));
+    if (!created.ok) return err({ code: created.error.code } as const);
+    recipes.push(created.value);
+  }
+  // The account has no meals yet: every day is free, and the dinners fit one shopping list.
+  const household = (await getKitchenAccess(userId)).profile?.householdSize ?? 2;
+  const days = firstWeekDays(today, recipes.length);
+  for (const [index, recipe] of recipes.entries())
+    await saveMeal(userId, {
+      day: days[index] ?? today,
+      slot: "dinner",
+      recipeId: recipe.id,
+      label: "",
+      servings: household,
+      lunchboxServings: 0,
+    });
+  await recordPlanProgress(userId, days);
+  refresh();
+  const start = days[0] ?? today;
+  return ok({ planned: recipes.length, start, week: weekStart(start) });
+}
 
 export const removeMealAction = action
   .input(z.object({ id: z.string().uuid() }))
@@ -123,6 +226,20 @@ export const cookingAction = action
         `${session.id}:${session.cookedAt.toISOString()}`,
       );
     return ok(session);
+  });
+
+export const cookingFeedbackAction = action
+  .input(cookingFeedbackSchema)
+  .auth({ require: "user" })
+  .rateLimit({ key: "cooking-feedback", max: 60, window: "1h" })
+  .run(async ({ input, ctx }) => {
+    const userId = ctx.actor?.id;
+    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
+    const session = await saveCookingFeedback(userId, input);
+    if (!session) return err({ code: "NOT_FOUND" } as const);
+    await recordProductEvent(userId, "cooking_feedback", `${session.id}:${localDay()}`);
+    refresh();
+    return ok(true);
   });
 
 export const addShoppingExtraAction = action

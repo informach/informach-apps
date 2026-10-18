@@ -6,8 +6,16 @@ export type DeliveryBlockReason =
   | { kind: "suppressed"; reason: string }
   | { kind: "unsubscribed"; userId: string; category: string };
 
+/**
+ * Categorias que chegam mesmo com descadastro: os e-mails de acesso (`auth.*`,
+ * sem eles não dá para entrar) e o aviso de queda do Bastidores, que é
+ * operacional. O resumo da semana do Bastidores e os demais obedecem.
+ * Supressão por bounce ou spam vale para todas.
+ */
+const OPERATIONAL_CATEGORIES: ReadonlySet<string> = new Set(["admin.alert"]);
+
 export function shouldRespectUnsubscribe(category: string): boolean {
-  return !category.startsWith("auth.");
+  return !category.startsWith("auth.") && !OPERATIONAL_CATEGORIES.has(category);
 }
 
 export function describeDeliveryBlockReason(block: DeliveryBlockReason): string {

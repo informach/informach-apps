@@ -1,4 +1,4 @@
-import { db } from "@informach/db";
+import { type Database, db } from "@informach/db";
 import { events as auditEvents } from "@informach/db/schema";
 import type { AuthAuditEvent, ObservabilityHooks } from "./observability";
 
@@ -72,7 +72,13 @@ export type AuditEventType =
   | "missao.study_connected"
   | "missao.study_code_issued"
   | "missao.study_revoked"
-  | "missao.consent_recorded";
+  | "missao.consent_recorded"
+  // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
+  | "admin.user_viewed"
+  | "admin.sessions_revoked"
+  | "admin.verification_resent"
+  | "admin.edi_device_disconnected"
+  | "admin.audit_exported";
 
 export type AuditPayload = Record<string, unknown>;
 
@@ -82,12 +88,20 @@ export function configureObservability(hooks: ObservabilityHooks | undefined): v
   observability = hooks;
 }
 
-export async function logAuditEvent(
+/** Quem grava o evento: o cliente do banco ou uma transação aberta por quem chama. */
+export type AuditWriter = Pick<Database, "insert">;
+
+/**
+ * Grava o evento e avisa a observabilidade. Devolve o erro de gravação, já
+ * reportado em `onAuditPersistenceFailure`, ou `null` quando gravou.
+ */
+async function writeAuditEvent(
   eventType: AuditEventType,
   actorId: string | null,
   payload: AuditPayload,
-  hooks: ObservabilityHooks | undefined = observability,
-): Promise<void> {
+  hooks: ObservabilityHooks | undefined,
+  writer: AuditWriter,
+): Promise<unknown> {
   const event: AuthAuditEvent = { eventType, actorId, payload };
   try {
     hooks?.onAuditEvent?.(event);
@@ -95,12 +109,13 @@ export async function logAuditEvent(
     // observability hooks must not break the audit pipeline
   }
   try {
-    await db.insert(auditEvents).values({
+    await writer.insert(auditEvents).values({
       id: crypto.randomUUID(),
       eventType,
       actorId,
       payload,
     });
+    return null;
   } catch (error) {
     try {
       hooks?.onAuditPersistenceFailure?.({
@@ -112,8 +127,52 @@ export async function logAuditEvent(
     } catch {
       // observability hooks must not break the audit pipeline
     }
-    // audit persistence must not break auth flows
+    return error ?? new Error("audit insert failed");
   }
+}
+
+/** Forma padrão: se a gravação falhar, o fluxo continua (o auth não cai junto com o banco de auditoria). */
+export async function logAuditEvent(
+  eventType: AuditEventType,
+  actorId: string | null,
+  payload: AuditPayload,
+  hooks: ObservabilityHooks | undefined = observability,
+): Promise<void> {
+  // audit persistence must not break auth flows
+  await writeAuditEvent(eventType, actorId, payload, hooks, db);
+}
+
+/** O evento não foi gravado; a falha já foi entregue a `onAuditPersistenceFailure`. */
+export class AuditPersistenceError extends Error {
+  readonly eventType: AuditEventType;
+  constructor(eventType: AuditEventType, cause: unknown) {
+    super(`@informach/auth: audit event ${eventType} was not recorded`, { cause });
+    this.name = "AuditPersistenceError";
+    this.eventType = eventType;
+  }
+}
+
+/**
+ * Forma estrita, opcional: para quem só pode mostrar um dado ou concluir uma
+ * ação com o rastro gravado (o Bastidores). Avisa a observabilidade como a
+ * forma padrão e, em vez de seguir, lança `AuditPersistenceError`. Com
+ * `writer` igual a uma transação, o evento entra junto com a mudança: se a
+ * gravação falhar, a transação inteira volta.
+ */
+export async function logAuditEventStrict(
+  eventType: AuditEventType,
+  actorId: string | null,
+  payload: AuditPayload,
+  options: { writer?: AuditWriter; hooks?: ObservabilityHooks } = {},
+): Promise<void> {
+  const failure = await writeAuditEvent(
+    eventType,
+    actorId,
+    payload,
+    options.hooks ?? observability,
+    options.writer ?? db,
+  );
+  if (failure) throw new AuditPersistenceError(eventType, failure);
 }
 
 function sanitizeAuditError(error: unknown): { name: string; message: string } {

@@ -19,10 +19,10 @@ Passo-a-passo reproduzível, baseado no deploy real do `@informach/cozya` (2026-
 | 2.x | SendGrid (domain, webhook, key, from) | Manual Dashboard | ♻ 1× por conta |
 | 3.1 | Railway project | Manual Dashboard ("Deploy from GitHub") | ♻ 1× por monorepo |
 | 3.2 | Postgres + Redis | Manual Dashboard (parte do project setup) | ♻ 1× por monorepo |
-| 3.3 | App service config | `apps/<app>/railway.toml` + 1 click Config Path | 🆕 per-app |
+| 3.3 | App service config | Bloco do serviço em `.railway/railway.ts` + `railway config plan/apply` | 🆕 per-app |
 | 4.1 | Postgres validation | **Railway MCP** (`list-deployments`, `list-variables`) | ♻ |
 | 4.2 | Redis IPv6 quirk | **Railway MCP** (set `?family=0`) | ♻ |
-| 4.3 | Migrator service | Manual Empty Service + Config Path | ♻ 1× por monorepo |
+| 4.3 | Migrator service | Bloco `migrator` em `.railway/railway.ts` | ♻ 1× por monorepo |
 | 5.x | Env vars (per-app service) | **Railway MCP** `set-variables` (batch) + manual secrets | 🆕 per-app |
 | 5.3 | Sentry project + DSN | **Sentry MCP** (`create_project`) | 🆕 per-app |
 | 5.3 | Sentry auth token | Manual Sentry UI (UI-only por segurança) | ♻ pode reusar org-scoped |
@@ -32,7 +32,7 @@ Passo-a-passo reproduzível, baseado no deploy real do `@informach/cozya` (2026-
 | 8 | First deploy | Auto via push | 🆕 per-app |
 | 9 | Migrations + seed | Migrator redeploy + verify | ♻ 1× por monorepo |
 | 10 | Stripe Webhook | Manual Dashboard (Stripe + Railway) | 🆕 per-app |
-| 11 | Cron services (9 total) | **Railway CLI** (`railway add --image`) + Manual Dashboard (cron schedule, start cmd) | ♻ ADD domain em APP_DOMAINS — não criar novos services |
+| 11 | Cron services | Blocos `perAppCron`/`globalCron` em `.railway/railway.ts` | ♻ app novo entra em `APP_DOMAINS`, sem serviço novo |
 
 ---
 
@@ -47,6 +47,53 @@ Antes do primeiro app:
 - [ ] Conta Sentry com 1 organization
 - [ ] Railway CLI instalado e autenticado: `npm i -g @railway/cli && railway login` (em terminal próprio com browser, não subprocess)
 - [ ] Repo conectado ao Railway via GitHub App authorization
+
+---
+
+## Infraestrutura como código (Railway IaC)
+
+Desde 17/10/2026 a configuração de todos os serviços do projeto `informach-apps` mora em [`.railway/railway.ts`](../.railway/railway.ts): apps, migrator, crons, Postgres, Redis e volumes. O Config as Code antigo (`railway.toml`/`railway.json`) foi descontinuado pelo Railway e deixa de ser lido em **01/12/2026**; serviços novos já não podem usá-lo. Os arquivos `apps/<app>/railway.toml`, `infrastructure/railway/migrator.toml` e os JSON de referência da Missão foram removidos.
+
+Regras do arquivo:
+
+- **É o projeto inteiro.** Não há `export const partial`. Recurso que sair do arquivo é apagado no próximo apply. Por isso todo apply passa antes por `railway config plan`, e qualquer linha de destroy é motivo para parar.
+- **Segredos nunca entram no arquivo.** Variáveis que já existem no Railway ficam como `preserve()`. Valores não secretos e referências (`Postgres.env.DATABASE_URL`) podem ser declarados.
+- **Valores padrão ficam de fora.** O Railway guarda reinício `ON_FAILURE` e sleep desligado como vazio; declarar esses valores cria diferença eterna no plano.
+- **Ordem conta.** Reordenar `watchPatterns` aparece como mudança e redeploya o serviço.
+- **Painel não é fonte de verdade.** Mudança feita no painel aparece como diferença no próximo plano e é desfeita pelo apply. Mudou no painel por urgência? Traga para o arquivo no mesmo dia.
+- **Construtor é Railpack** em todos os serviços com build (Nixpacks foi descontinuado). O cron semanal da Missão usa Dockerfile próprio.
+- **Config file path vazio.** Nenhum serviço aponta para arquivo de configuração; com o campo preenchido, o plano recusa o serviço.
+- **Imagens por digest.** Os crons sem build usam `alpine/curl` e `node:24-alpine` fixadas por digest, nas constantes `CURL_IMAGE` e `NODE_IMAGE` do arquivo. Para atualizar, conferir o digest novo com `docker buildx imagetools inspect <imagem>:<tag>`, trocar a constante e passar pelo plano.
+
+Comandos, a partir da raiz do repo (`railway link` no projeto `informach-apps`, ambiente `production`):
+
+```bash
+railway config plan            # só lê; mostra o que mudaria
+railway config plan --verbose  # cada campo, valor antigo e novo
+railway config apply           # roda um plano novo e pede confirmação
+```
+
+> **Gotcha Windows + Git Bash.** O SDK confere a versão do CLI executando `$_`, e o Git Bash preenche `$_` com o shim sem extensão, então o plano falha dizendo que o CLI é antigo. Rode pelo PowerShell: `$env:_ = "$env:APPDATA\npm\node_modules\@railway\cli\bin\railway.exe"; & $env:_ config plan`.
+
+> **Apply redeploya.** Cada serviço com mudança no plano ganha um deploy novo. Se houver deploys esperando aprovação (`NEEDS_APPROVAL`, commits de quem não é membro do workspace), alinhe o apply com a liberação desses commits.
+
+### Migração do Config as Code (feita em 17/10/2026)
+
+Feita sem redeploy, em produção, por volta de 15:40 UTC:
+
+1. `railway config partials release edi`: a parcial `edi`, primeiro passo da adoção, foi liberada (só metadado). O ambiente não tem mais parciais nomeadas.
+2. Em `@informach/cozya`, `@informach/agenda-da-turma`, `@informach/informach-site` e `migrator`, o Config file path foi esvaziado e os valores do arquivo foram gravados direto no serviço (construtor Railpack, build e start, healthcheck, reinício e watch paths). Gravar no serviço vale no próximo deploy e não dispara deploy.
+3. `railway config plan` do projeto inteiro respondeu "Your Railway configuration is already up to date." para tudo, menos o bloco do Bastidores, que entrou no lançamento dele (abaixo).
+
+A migração chegou à `main` com o PR #10 (`fb39612`), e os `railway.toml` saíram do repositório.
+
+### Lançamentos atrás de constantes
+
+O topo do arquivo tem duas constantes de lançamento: `ADMIN_LAUNCHED` (Bastidores, ver `apps/admin/PRODUCAO.md`) e `EDI_RECONCILE_ACTIVE` (imagem do `cron-edi-reconcile`, ver `apps/edi/PRODUCAO.md`). Cada uma ficou falsa até o seu passo chegar, e virá-la para `true` com o apply foi o lançamento. As duas estão ligadas desde 17/10/2026, a conciliação às 20:09 UTC e o Bastidores às 22:01 UTC, e o que está no ar é o arquivo com elas em `true`.
+
+Nenhuma delas é chave de desligar. Com `ADMIN_LAUNCHED` em `false`, o apply volta o serviço ao esqueleto de antes do lançamento: apaga as variáveis do Bastidores, o domínio `admin.informach.com.br` e os crons `cron-admin-watch` e `cron-admin-weekly`, e recriar tudo exige refazer os segredos e o domínio no painel. Com `EDI_RECONCILE_ACTIVE` em `false`, o apply tira a imagem do `cron-edi-reconcile`. Um lançamento novo pode usar o mesmo padrão, e nunca se apaga o bloco de um serviço para limpar o plano: num arquivo do projeto inteiro, isso apaga o serviço.
+
+A variável `RAILPACK_NODE_VERSION` (lida do `.nvmrc` pelo arquivo) foi criada no painel nos seis serviços com build na tarde da migração e está declarada.
 
 ---
 
@@ -145,7 +192,7 @@ Não há MCP do SendGrid. Tudo Dashboard:
 
 ## Fase 3 — Railway project + service do app
 
-**Atualização de 17/10/2026 — Edi:** o portal e seu cron são geridos pela parcial `edi` de `.railway/railway.ts`. A API do Railway rejeita a associação de um novo arquivo TOML nesse serviço; usar o [procedimento IaC do Edi](../apps/edi/PRODUCAO.md#serviço-railway). As instruções TOML abaixo registram a configuração dos serviços existentes e não autorizam migrá-los junto com o Edi. Conferir o plano e não aplicar exclusões ou mudanças de outros produtos.
+Toda a configuração de serviço desta fase vive em `.railway/railway.ts`. Ver [Infraestrutura como código](#infraestrutura-como-código-railway-iac).
 
 ### 3.1 Project (Manual Dashboard, 1× por monorepo)
 
@@ -157,33 +204,31 @@ Renomear o project no Dashboard depois (ele gera nomes aleatórios estilo `ideal
 
 Adicionar como database services no project. Railway gera senhas + URLs automaticamente. Vão ser referenciados via `${{Postgres.DATABASE_URL}}` e `${{Redis.REDIS_URL}}` (ver Fase 4 e 5).
 
-### 3.3 Service do app — config-as-code
+### 3.3 Service do app
 
-Cada app tem um `apps/<app>/railway.toml` versionado. Pattern do cozya:
+Cada app é um bloco `service("@informach/<app>", ...)` em `.railway/railway.ts`. Para Next.js com `output: "standalone"`, use o helper `standaloneNext("<app>")`: ele monta o build com `--prod=false` e a cópia de `public/` e `.next/static`, e o start com `HOSTNAME=0.0.0.0 node .../server.js`.
 
-```toml
-# apps/<app>/railway.toml
-[build]
-builder = "RAILPACK"
-# `--prod=false` força devDeps (turbo, biome, tsx) mesmo com NODE_ENV=production
-buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:<app>"
-
-[deploy]
-startCommand = "pnpm start:<app>"
-# `/api/ready`, não `/api/health`: o ready confere que o banco está pelo menos
-# tão novo quanto este build (Fase 4.3). O health não toca o banco de propósito
-# — ele responde qual commit está servindo, e precisa responder quando o deploy
-# falha.
-healthcheckPath = "/api/ready"
-healthcheckTimeout = 30
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+```ts
+const meuApp = service("@informach/<app>", {
+  source: main, // github(REPOSITORY, { branch: "main", checkSuites: false, rootDirectory: "/" })
+  build: {
+    builder: "RAILPACK",
+    buildCommand: standaloneNext("<app>").buildCommand,
+    watchPatterns: ["/apps/<app>/**", ...packages("auth", "db", "ui"), ...WORKSPACE_FILES],
+  },
+  start: standaloneNext("<app>").startCommand,
+  // /api/ready, não /api/health: o ready confere que o banco está pelo menos
+  // tão novo quanto este build (Fase 4.3). O health não toca o banco de propósito.
+  healthcheck: "/api/ready",
+  healthcheckTimeout: 30,
+  replicas: { [REGION]: 1 },
+  deploy: { restartPolicyMaxRetries: 3 },
+  domains: ["<app>.informach.com.br"],
+  env: { NODE_ENV: "production", DATABASE_URL: Postgres.env.DATABASE_URL, BETTER_AUTH_SECRET: preserve() },
+});
 ```
 
-**Manual no Dashboard, 1× por service** (CLI/MCP não setam isso):
-1. Settings → Source → Root Directory: `/` (raiz do monorepo — pnpm workspaces precisa)
-2. Settings → Source → **Config Path**: `apps/<app>/railway.toml`
-3. Settings → Networking: **NÃO** clicar Generate Domain (custom domain vem na Fase 6)
+Inclua o serviço em `resources` no fim do arquivo, rode o plano e aplique. Segredos são gravados à parte (Fase 5.3) e entram no arquivo como `preserve()`. No painel, só Networking sem Generate Domain (o domínio próprio vem na Fase 6).
 
 > **Gotcha**: cada app tem seu `start:<app>` no root `package.json` (ex.: `start:cozya`). Confirmar que existe antes do primeiro deploy.
 
@@ -217,25 +262,9 @@ REDIS_URL=${{Redis.REDIS_URL}}?family=0
 
 Service one-off que roda `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference` 1× e termina. `pnpm db:migrate` aplica Drizzle e inicializa o storage Mastra (`ai_mastra`) via `PostgresStore.init()`. `pnpm db:seed` popula `billing.credit_pricing`. `pnpm db:seed:reference` popula `agenda.{states, cities, schools}` (IBGE API + `escolas_inep.csv.gz` no repo root). Tudo idempotente — re-deploy quando schema/seed mudar.
 
-**Setup** (Dashboard manual + 1 var via MCP):
+O serviço é o bloco `migrator` de `.railway/railway.ts`: Railpack, build `pnpm install --frozen-lockfile --prod=false`, start `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference`, reinício `NEVER` e `DATABASE_URL` preservada. Os watch paths cobrem `packages/db`, os seeds de billing, `packages/ai-core` (storage do Mastra), `escolas_inep.csv.gz`, `package.json` e `pnpm-lock.yaml`, para rodar só quando schema, seed ou versão de dependência mudar.
 
-1. Dashboard → New → **Empty Service** → name: `migrator`
-2. Settings → Source → conectar ao repo
-3. Settings → Source → Root Directory: `/`
-4. Settings → Source → **Config Path**: `infrastructure/railway/migrator.toml`
-5. MCP `set-variables`: `DATABASE_URL=${{Postgres.DATABASE_URL}}` e `RAILPACK_NODE_VERSION=24.15.0`.
-6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/ai-core/src/mastra/**`, `packages/ai-core/scripts/**`, `packages/billing/src/seeds/**`, `escolas_inep.csv.gz` — assim só re-deploya quando schema/seed mudar, não a cada push.
-
-```toml
-# infrastructure/railway/migrator.toml
-[build]
-builder = "RAILPACK"
-buildCommand = "pnpm install --frozen-lockfile --prod=false"
-
-[deploy]
-startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
-restartPolicyType = "NEVER"
-```
+Para rodar de novo sem mudar nada: Dashboard, migrator, Deployments, Redeploy.
 
 > **Gotcha de ORDEM — coluna antes do código.** O migrator é um service
 > separado, com watch path próprio. Um push que toca `packages/db` **e** um app
@@ -278,9 +307,9 @@ restartPolicyType = "NEVER"
 > inverte e a migração precisa ser quebrada em duas releases. Ver
 > `packages/db/CLAUDE.md`.
 
-> **Runtime e dependências do migrator:** `tsx` é necessário para executar as migrations; a instalação usa `--prod=false` explicitamente. Em 17/10/2026, o Nixpacks legado resolveu Node 24.10 apesar do mínimo 24.15 do repositório. Use Railpack e `RAILPACK_NODE_VERSION=24.15.0`, e confira a versão efetivamente instalada no log. O [Railpack dá prioridade à variável](https://railpack.com/languages/node/#nodejs) sobre `engines.node` e `.nvmrc`; o mínimo do manifest sozinho não fixa uma versão exata. Se limpar o Config Path de um serviço legado durante a correção, transfira também build/start/restart para o serviço antes de redeployar, pois os campos podem existir apenas no arquivo antigo.
+> **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. O build usa `--prod=false` para instalar devDeps mesmo se alguém puser `NODE_ENV=production` no serviço.
 
-A mesma versão `RAILPACK_NODE_VERSION=24.15.0` é configurada por serviço nos apps web desta implantação. Os TOMLs legados de Cozya, Agenda e site também usam Railpack; Missão Saber e Edi já usavam esse builder. Isso corrige o driver/runtime sem adotar a IaC do projeto inteiro ainda em edição.
+> **Runtime**: em 17/10/2026 o Nixpacks legado resolveu Node 24.10 apesar do mínimo 24.15 do repositório. Todo serviço que builda o monorepo usa Railpack com `RAILPACK_NODE_VERSION`, que `.railway/railway.ts` lê do `.nvmrc`. Confira a versão efetivamente instalada no log do build.
 
 ---
 
@@ -376,8 +405,10 @@ Service `@informach/<app>` → Settings → Networking → Custom Domain → adi
 ### 6.2 DNS no Cloudflare
 
 1. DNS → Records → adicionar CNAME `<app>` → target dado pelo Railway
-2. **Proxy status**: 🌫️ **DNS only** (gray cloud) recomendado pra Railway. Proxy do CF gera double-TLS-termination que costuma quebrar com cert origin.
+2. **Proxy status**: todos os domínios da casa passam pelo proxy do Cloudflare (nuvem laranja): Cozya, Agenda, Missão Saber, Bastidores, Edi e o site, conferidos em 17/10/2026 pelo cabeçalho `Server: cloudflare` e `CF-RAY` de cada um. O certificado do Railway valida assim e os apps funcionam, inclusive o Bastidores. Um app novo segue o mesmo padrão. Se o certificado do Railway não validar durante a propagação, deixar o registro em DNS only até ele sair e depois voltar ao proxy.
 3. **Rules → Redirect Rules / Page Rules**: confirmar que **não há regra wildcard** capturando `*.informach.com.br/*` que redireciona pra outro domínio.
+
+> **IP de quem pede, atrás do proxy.** O caminho é visitante → Cloudflare → borda do Railway → app, e a borda do Railway reescreve `X-Forwarded-For` e `X-Real-IP` em todo pedido. Quem chega por IPv4 vem com o próprio endereço em `X-Real-IP` (a borda o tira do `CF-Connecting-IP` quando a conexão vem do Cloudflare); quem chega por IPv6 vem com `0.0.0.0`, e aí vale o `CF-Connecting-IP`. A regra mora em `packages/auth/src/client-ip.ts` e vale para o limite de tentativas do Better Auth, para o `.rateLimit` das server actions e para as rotas que contam por endereço. Até 18/10/2026 o Better Auth lia o `X-Forwarded-For`, não achava o endereço e dividia um contador só entre todo mundo (o aviso "Rate limiting could not determine a client IP" nos logs). Se esse aviso voltar, a borda mudou: conferir no log de pedidos HTTP do Railway (`srcIp`) o que ela registra. A origem do Railway só tem endereço IPv4 (sem registro AAAA), e é isso que torna seguro ler o `CF-Connecting-IP` quando o `X-Real-IP` vem `0.0.0.0`; se a origem ganhar IPv6, rever a regra.
 
 > **Gotcha real do cozya**: havia uma regra wildcard antiga redirecionando `*.informach.com.br` → `informachnucleodeaprendizagem.com`. Subdomain novo retornava 301 antes de chegar no Railway. **Smoke test obrigatório**: `curl -sSL https://<app>.informach.com.br/api/health` — se vier 301 ou cert mismatch, há regra interceptando.
 
@@ -476,26 +507,13 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 **Exceção Edi:** o desktop usa fatos financeiros e licenças assinadas, com reconciliação própria. `cron-edi-reconcile`, declarado em `.railway/railway.ts`, chama `POST /api/jobs/reconcile` a cada cinco minutos e é habilitado junto com a cobrança homologada. Não incluir o domínio Edi nos sete crons per-app por padrão. A limpeza global de autenticação, as suppressions e o webhook SendGrid compartilhados já abrangem as tabelas comuns. O retry genérico de e-mail exclui categorias `auth.*`; códigos OTP são reenviados pela pessoa, com os limites de autenticação. Ver [operação Edi](../apps/edi/PRODUCAO.md).
 
-### Setup inicial (1× por monorepo)
+Além deles: `cron-cozya-retention` (hora em hora), `cron-agenda-routine` (lembretes da Agenda, a cada 5 minutos, roda `apps/agenda-da-turma/scripts/run-routine-job.mjs` numa imagem `node:24-alpine` fixada por digest; os lembretes saem por e-mail e, para quem ligou no aparelho, por push, com o par `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` do serviço da Agenda, gravado em 18/10/2026), `cron-missao-saber-billing` e `cron-missao-saber-weekly-report`, `cron-edi-reconcile` e, com o lançamento do Bastidores, `cron-admin-watch` (vigia, a cada 5 minutos) e `cron-admin-weekly` (resumo da semana, segunda e terça às 11:00 UTC).
 
-Criar 9 image-based services via CLI:
-```bash
-railway add --service cron-perapp-billing-release-reservations --image alpine/curl:latest \
-  --variables "CRON_SECRET=<value>" \
-  --variables "APP_DOMAINS=cozya.informach.com.br"
-# ...repetir pra os outros 6 per-app
+**Toda rotina agendada deixa registro.** As rotas `/api/jobs/*` chamadas pelos crons passam o trabalho por `recordJobRun({ app, job }, fn)` de `@informach/db` (em `src/lib/job-runs.ts` de cada app). Cada execução vira uma linha em `ops.job_runs`, só com números e booleanos do resultado e o nome da classe de erro, e o Bastidores mostra em Operação a última execução, o resultado e as rotinas atrasadas. Rota nova de rotina precisa entrar nessa lista e na tabela de rotinas do Bastidores (`apps/admin/src/features/operations/routines.ts`).
 
-railway add --service cron-global-auth-cleanup --image alpine/curl:latest \
-  --variables "CRON_SECRET=<value>" \
-  --variables "APP_URL=cozya.informach.com.br"
-# ...repetir pra cron-global-email-suppression-sync
-```
+### Onde ficam
 
-**Manual Dashboard pra cada um dos 9**:
-- Settings → Deploy → **Cron Schedule** (cron expression UTC)
-- Settings → Deploy → **Start Command** (curl para o endpoint)
-- Settings → Deploy → **Restart Policy: Never**
-- NÃO setar healthcheck, NÃO Generate Domain
+Os crons de manutenção são serviços de imagem `alpine/curl` sem build, fixada por digest (`CURL_IMAGE`), declarados em `.railway/railway.ts` pelos helpers `perAppCron(nome, agenda, rota)` e `globalCron(nome, agenda, rota)`. Agenda, start command e reinício `NEVER` vêm do arquivo; `CRON_SECRET`, `APP_DOMAINS` e `APP_URL` são variáveis do Railway (`preserve()`). Crons de um app só (`cron-cozya-retention`, `cron-missao-saber-billing`, `cron-missao-saber-weekly-report`, `cron-edi-reconcile`) têm bloco próprio; o de cobrança da Missão lê `apps/missao-saber/scripts/maintenance-cron.sh`, e o da Agenda, `apps/agenda-da-turma/scripts/run-routine-job.mjs`. O texto do script entra no start command quando o plano é montado: mudar o script e dar push não muda o cron; só vale depois de `railway config plan` e `railway config apply`.
 
 **Tabela completa** (criticidade 🔴/🟡/🟢, escopo 🌐 global ou 🔁 per-app loop):
 
@@ -511,27 +529,25 @@ railway add --service cron-global-auth-cleanup --image alpine/curl:latest \
 | `cron-global-auth-cleanup` | `0 4 * * *` | `/api/jobs/auth-cleanup` | 🟢 | 🌐 |
 | `cron-global-email-suppression-sync` | `0 5 * * *` | `/api/jobs/email-suppression-sync` | 🟢 | 🌐 |
 
-**Start Command — global** (1 chamada):
+**Start Command, global** (1 chamada):
 ```sh
 sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/<endpoint>"'
 ```
 
-**Start Command — per-app loop** (defesa em profundidade — falha em 1 app não aborta os outros):
+**Start Command, per-app loop** (a falha em um app não impede a chamada aos outros, mas a execução sai com código 1 e o Railway a marca como falha):
 ```sh
-sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${d}/api/jobs/<endpoint>" || echo "Failed for ${d}, continuing"; done'
+sh -c 'failed=0; for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${d}/api/jobs/<endpoint>" || { echo "Failed for ${d}, continuing" >&2; failed=1; }; done; exit $failed'
 ```
+
+O loop anterior terminava com `|| echo ...` e saía com 0 mesmo quando um app falhava, então o Railway mostrava sucesso. O comando acima é o que o `perAppCron` declara desde 17/10/2026 (branch `fix/infra-review`) e passa a valer no Railway com o apply dessa mudança, junto com as imagens por digest.
 
 > **Gotcha shell expansion**: em services image-based (`alpine/curl`) o Start Command precisa chamar `sh -c` quando usa variáveis (`$CRON_SECRET`, `$APP_URL`, `$APP_DOMAINS`). Sem isso, o `curl` recebe literalmente `https://${APP_URL}/...` e falha com `curl: (3) URL rejected: Bad hostname`.
 
 > **Gotcha copy-paste**: tabs em markdown viram múltiplos espaços ao copiar pro Dashboard, e `Authorization: Bearer  $CRON_SECRET` (mais de 1 espaço) falha no `rejectUnauthorizedCron` (strict equality em `lib/cron.ts:4`). **Conferir 1 espaço entre `Bearer` e `$CRON_SECRET`** após colar.
 
-### Adicionar app novo (admin futuro)
+### Adicionar app novo
 
-Para apps que implementem os mesmos sete contratos, reutilizar os cron services existentes. Em cada cron aplicável:
-1. Settings → Variables → editar `APP_DOMAINS`
-2. Adicionar com space-separated: `APP_DOMAINS=cozya.informach.com.br agenda-da-turma.informach.com.br admin.informach.com.br`
-
-Cron schedule, start command, restart policy: **inalterados**. O loop `for d in $APP_DOMAINS` itera os domínios novos automaticamente.
+**Não criar novos cron services**. Em cada um dos 7 cron-perapp, edite a variável `APP_DOMAINS` (separada por espaço), acrescentando o domínio do app novo, por exemplo `APP_DOMAINS=cozya.informach.com.br agenda-da-turma.informach.com.br <app-novo>.informach.com.br`. Só entra quem tem as sete rotas `/api/jobs/*` desses crons; a Missão Saber e a Suíte Edi têm rotinas próprias e ficam de fora. A variável não aparece no plano porque está como `preserve()`; agenda, comando e reinício continuam no arquivo. O loop `for d in $APP_DOMAINS` itera os domínios novos automaticamente.
 
 Globais (`auth-cleanup`, `email-suppression-sync`): **nada a fazer**. `APP_URL=cozya.informach.com.br` continua válido — o endpoint opera em schemas compartilhados (`core.users`, `core.email_suppressions`) que cobrem todos os apps com 1 chamada.
 

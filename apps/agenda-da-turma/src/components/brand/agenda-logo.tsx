@@ -50,3 +50,47 @@ export function AgendaLogo({ className, "aria-label": ariaLabel, ...props }: Age
     </svg>
   );
 }
+
+/**
+ * Só o símbolo (o quadrado azul com o visto), como no canvas: no cabeçalho do
+ * celular e ao lado do nome na barra do computador. Mesmas cores fixas do
+ * logotipo, legíveis nos dois temas.
+ */
+export function AgendaSymbol({
+  className,
+  "aria-label": ariaLabel,
+  ...props
+}: SVGAttributes<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 256 258"
+      role="img"
+      aria-label={ariaLabel ?? "Agenda da Turma"}
+      className={cn("size-[30px] shrink-0", className)}
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <rect y="1" width="256" height="256" rx="32" fill="#006FFD" />
+      <path
+        d="M64 150.655C64 99.2924 105.638 57 157 57H176C184.837 57 192 64.1634 192 73V200H113C85.938 200 64 177.717 64 150.655Z"
+        fill="white"
+      />
+      <path
+        d="M148 57C84.5 57 69.3333 88.4863 64 100V92C64 72.67 79.67 57 99 57H148Z"
+        fill="white"
+      />
+      <path
+        d="M173.5 80.4999C173.5 110.5 177.317 142.5 158 161.344C137.245 181.59 107.106 181.276 92.8365 166.649C78.5674 152.021 83.7448 122.247 104.5 102C125.255 81.7533 150 78.4999 173.5 80.4999Z"
+        fill="#006FFD"
+      />
+      <path
+        d="M107 133L123.333 148L156 118"
+        stroke="white"
+        strokeWidth="16"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}

@@ -16,6 +16,15 @@ type ToggleResult = { ok: true; value: unknown } | { ok: false; error: { code: s
 type Args = {
   initialStatus: Status;
   /**
+   * A versão que o servidor mandou com a atividade.
+   *
+   * O hook guarda a versão mais nova que conhece e a entrega a `toggleAction`:
+   * concluir sobe a versão no servidor, e o "Desfazer" que vem logo depois, no
+   * mesmo card e antes de qualquer refresh, precisa mandar a nova. Com a versão
+   * da renderização ele esbarrava sempre em VERSION_CONFLICT.
+   */
+  version?: number;
+  /**
    * A atividade, para o card reencontrar a própria gravação na fila.
    *
    * Sem isto, fechar e reabrir o app ainda sem rede devolvia um card pendente
@@ -24,7 +33,7 @@ type Args = {
    */
   taskId?: string;
   optimisticHideWhenDone: boolean;
-  toggleAction: (next: Status) => Promise<ToggleResult>;
+  toggleAction: (next: Status, version: number | undefined) => Promise<ToggleResult>;
   onSuccess?: (previousStatus: Status, nextStatus: Status) => void;
   onError?: (error: { code: string }) => void;
   /** Tem que casar com a duration da transition do wrapper visual. */
@@ -62,6 +71,7 @@ type Args = {
  */
 export function useCardToggle({
   initialStatus,
+  version,
   taskId,
   optimisticHideWhenDone,
   toggleAction,
@@ -100,6 +110,16 @@ export function useCardToggle({
   useEffect(() => {
     onErrorRef.current = onError;
   });
+
+  // A versão e o estado mais novos que o card conhece, lidos na hora do toque.
+  // O "Desfazer" do aviso chama `handleToggle` de uma renderização anterior (às
+  // vezes de um card que já saiu da tela), e o que ela tem guardado é velho.
+  const versionRef = useRef(version);
+  const statusRef = useRef<Status>(initialStatus);
+  statusRef.current = optimisticStatus;
+  useEffect(() => {
+    versionRef.current = version;
+  }, [version]);
 
   // Sync quando o server retorna nova versão do item (refresh()/router push).
   // Reset cobre o caso em que o card "voltou" antes do timer de exit terminar.
@@ -158,11 +178,17 @@ export function useCardToggle({
   }, [taskId, queueOwner, initialStatus]);
 
   const handleToggle = (next: boolean) => {
-    const previousStatus = optimisticStatus;
+    const previousStatus = statusRef.current;
     const nextStatus: Status = next ? "done" : "pending";
     setFailedAttempt(null);
     setQueuedKey(null);
     setOptimisticStatus(nextStatus);
+    // Reabrir (inclusive pelo "Desfazer" do aviso) devolve a linha à lista: o
+    // item escondido ao concluir não pode continuar escondido estando pendente.
+    if (nextStatus === "pending") {
+      setOptimisticallyHidden(false);
+      setIsExiting(false);
+    }
 
     const willExit = optimisticHideWhenDone && nextStatus === "done";
     if (willExit) {
@@ -177,7 +203,7 @@ export function useCardToggle({
         ? new Promise<void>((resolve) => setTimeout(resolve, exitMs))
         : Promise.resolve();
       const [result] = await Promise.all([
-        catchActionResult(() => toggleAction(nextStatus)),
+        catchActionResult(() => toggleAction(nextStatus, versionRef.current)),
         exitPromise,
       ]);
 
@@ -201,6 +227,8 @@ export function useCardToggle({
         onSuccess?.(previousStatus, nextStatus);
         return;
       }
+      const saved = (result.value as { version?: unknown } | null)?.version;
+      if (typeof saved === "number") versionRef.current = saved;
       if (willExit) {
         setOptimisticallyHidden(true);
       }

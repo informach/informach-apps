@@ -11,57 +11,128 @@
 
 /* ============================================================
    APP OVERRIDES — Cozya
-   Identidade do brand book: Laranja Principal #FF7A3D + Navy
-   #173247. Cream/Surface/Border permanecem como o package
-   (escala de cinza compartilhada).
+   A mesma cozinha da página de vendas: papel creme, tinta marinho,
+   laranja só no que se toca (sempre com texto marinho por cima),
+   terracota para texto de destaque e foco, sálvia para "feito" e
+   pêssego para a marmita. O tema escuro é a cozinha à noite.
    ============================================================ */
 :root {
-  /* Laranja Principal #FF7A3D */
-  --primary: oklch(0.7212 0.1772 41.3);
-  --primary-foreground: oklch(0.2701 0.0432 248.6);
-  --cozya-accent-ink: oklch(0.49 0.14 41.3);
+  --radius: 1rem;
 
-  /* Navy #173247 */
-  --secondary: oklch(0.2701 0.0432 248.6);
-  --secondary-foreground: oklch(1 0 0);
+  --background: #fff8ee;
+  --foreground: #173247;
+  --card: #ffffff;
+  --card-foreground: #173247;
+  --popover: #ffffff;
+  --popover-foreground: #173247;
 
-  --ring: oklch(0.7212 0.1772 41.3);
+  /* Laranja Principal #FF7A3D: preenchimento. Texto em cima dele é marinho. */
+  --primary: #ff7a3d;
+  --primary-foreground: #173247;
+  --secondary: #173247;
+  --secondary-foreground: #fff8ee;
 
-  --chart-1: oklch(0.7212 0.1772 41.3); /* laranja */
-  --chart-2: oklch(0.2701 0.0432 248.6); /* navy */
-  --chart-3: oklch(0.82 0.105 50); /* peach */
-  --chart-4: oklch(0.45 0.08 245); /* navy claro */
-  --chart-5: oklch(0.7 0.015 50); /* warm gray */
+  --muted: #f3ece1;
+  --muted-foreground: #516471;
+  --accent: #f3ece1;
+  --accent-foreground: #173247;
+  --border: #e8dfd0;
+  --input: #d9cdbb;
+  /* Terracota: o laranja não tem contraste suficiente como anel de foco sobre o papel. */
+  --ring: #a44119;
 
-  --sidebar-primary: oklch(0.7212 0.1772 41.3);
-  --sidebar-primary-foreground: oklch(0.2701 0.0432 248.6);
-  --sidebar-ring: oklch(0.7212 0.1772 41.3);
+  --success: #486d50;
+  --success-foreground: #ffffff;
+
+  --cozya-accent-ink: #a44119;
+  /* Texto corrido de apoio: mais escuro que o cinza dos rótulos. */
+  --cozya-ink-soft: #2e4556;
+  --cozya-sage: #486d50;
+  --cozya-sage-soft: #e7ede3;
+  --cozya-sage-ink: #2f4a35;
+  --cozya-peach: #ffe7d1;
+  --cozya-peach-line: #f6cba6;
+  --cozya-peach-ink: #7a3412;
+
+  --chart-1: #ff7a3d;
+  --chart-2: #173247;
+  --chart-3: #ffe7d1;
+  --chart-4: #486d50;
+  --chart-5: #516471;
+
+  --sidebar: #fff8ee;
+  --sidebar-foreground: #173247;
+  --sidebar-primary: #ff7a3d;
+  --sidebar-primary-foreground: #173247;
+  --sidebar-accent: #f3ece1;
+  --sidebar-accent-foreground: #173247;
+  --sidebar-border: #e8dfd0;
+  --sidebar-ring: #a44119;
 }
 
 .dark {
-  --cozya-accent-ink: oklch(0.78 0.16 45);
-  --primary: oklch(0.7212 0.1772 41.3);
-  --primary-foreground: oklch(0.1591 0 0);
+  --background: #0f2231;
+  --foreground: #fff8ee;
+  --card: #172e40;
+  --card-foreground: #fff8ee;
+  --popover: #172e40;
+  --popover-foreground: #fff8ee;
 
-  /* Navy levantado pra ganhar contraste contra fundo escuro. */
-  --secondary: oklch(0.6 0.08 245);
-  --secondary-foreground: oklch(0.1591 0 0);
+  --primary: #ff7a3d;
+  --primary-foreground: #0f2231;
+  --secondary: #c9d3da;
+  --secondary-foreground: #0f2231;
 
-  --ring: oklch(0.7212 0.1772 41.3);
+  --muted: #1d364a;
+  --muted-foreground: #a9b6bf;
+  --accent: #1d364a;
+  --accent-foreground: #fff8ee;
+  --border: #23405a;
+  --input: #2c4c66;
+  --ring: #ffb48a;
 
-  --chart-1: oklch(0.78 0.16 45);
-  --chart-2: oklch(0.65 0.08 245);
-  --chart-3: oklch(0.85 0.1 50);
-  --chart-4: oklch(0.55 0.1 245);
-  --chart-5: oklch(0.7 0.015 50);
+  --success: #9cc3a5;
+  --success-foreground: #0f2231;
 
-  --sidebar-primary: oklch(0.7212 0.1772 41.3);
-  --sidebar-primary-foreground: oklch(0.1591 0 0);
-  --sidebar-ring: oklch(0.7212 0.1772 41.3);
+  --cozya-accent-ink: #ffb48a;
+  --cozya-ink-soft: #c9d3da;
+  --cozya-sage: #9cc3a5;
+  --cozya-sage-soft: #1f3a2d;
+  --cozya-sage-ink: #9cc3a5;
+  --cozya-peach: #4a2e1f;
+  --cozya-peach-line: #6b412a;
+  --cozya-peach-ink: #ffd3b0;
+
+  --chart-1: #ff7a3d;
+  --chart-2: #c9d3da;
+  --chart-3: #4a2e1f;
+  --chart-4: #9cc3a5;
+  --chart-5: #a9b6bf;
+
+  --sidebar: #0f2231;
+  --sidebar-foreground: #fff8ee;
+  --sidebar-primary: #ff7a3d;
+  --sidebar-primary-foreground: #0f2231;
+  --sidebar-accent: #1d364a;
+  --sidebar-accent-foreground: #fff8ee;
+  --sidebar-border: #23405a;
+  --sidebar-ring: #ffb48a;
 }
 
-@utility text-brand-ink {
-  color: var(--cozya-accent-ink);
+@theme inline {
+  --color-sage: var(--cozya-sage);
+  --color-sage-soft: var(--cozya-sage-soft);
+  --color-sage-ink: var(--cozya-sage-ink);
+  --color-peach: var(--cozya-peach);
+  --color-peach-line: var(--cozya-peach-line);
+  --color-peach-ink: var(--cozya-peach-ink);
+  --color-brand-ink: var(--cozya-accent-ink);
+  --color-ink-soft: var(--cozya-ink-soft);
+}
+
+/* Títulos grandes com ar entre as palavras: −0,03em, nunca menos. */
+@utility tracking-display {
+  letter-spacing: -0.03em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -76,14 +147,16 @@
 }
 
 @media print {
-  header:has(nav[aria-label="Navegação principal"]) {
+  header:has(nav[aria-label="Navegação principal"]),
+  nav[aria-label="Navegação principal"] {
     display: none;
   }
   main {
     max-width: none;
     padding: 0;
   }
-  button {
+  /* Controls stay off paper; a shopping list row is a button and is the content itself. */
+  button:not([data-print="keep"]) {
     display: none;
   }
 }

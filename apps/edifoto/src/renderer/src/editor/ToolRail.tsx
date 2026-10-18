@@ -1,6 +1,7 @@
 import {
   Crop,
   Droplet,
+  Ellipsis,
   Eraser,
   Hand,
   Lasso,
@@ -52,6 +53,18 @@ export function ToolRail(): ReactNode {
   const tool = useUi((s) => s.tool);
   const fg = useUi((s) => s.fg);
   const bg = useUi((s) => s.bg);
+  const advanced = useUi((s) => s.advanced);
+  const basicTools = new Set<Tool>([
+    "move",
+    "select",
+    "crop",
+    "brush",
+    "eraser",
+    "shape",
+    "text",
+    "hand",
+    "zoom",
+  ]);
   return (
     <div
       className="toolrail"
@@ -63,22 +76,34 @@ export function ToolRail(): ReactNode {
         {TOOLS.map((group, gi) => (
           <div key={group.map((tool) => tool.id).join(":")} className="tools">
             {gi > 0 && <div className="tool-sep" />}
-            {group.map((t) => (
-              <button
-                type="button"
-                key={t.id}
-                className={`tool${tool === t.id ? " is-on" : ""}`}
-                aria-label={t.label}
-                aria-pressed={tool === t.id}
-                aria-keyshortcuts={t.key}
-                title={`${t.label} (${t.key})`}
-                onClick={() => useUi.getState().setTool(t.id)}
-              >
-                <t.icon size={18} />
-              </button>
-            ))}
+            {group
+              .filter((t) => advanced || basicTools.has(t.id) || t.id === tool)
+              .map((t) => (
+                <button
+                  type="button"
+                  key={t.id}
+                  className={`tool${tool === t.id ? " is-on" : ""}`}
+                  aria-label={t.label}
+                  aria-pressed={tool === t.id}
+                  aria-keyshortcuts={t.key}
+                  title={`${t.label} (${t.key})`}
+                  onClick={() => useUi.getState().setTool(t.id)}
+                >
+                  <t.icon size={18} />
+                </button>
+              ))}
           </div>
         ))}
+        <button
+          type="button"
+          className={`tool${advanced ? " is-on" : ""}`}
+          aria-label={advanced ? "Menos ferramentas" : "Mais ferramentas"}
+          aria-pressed={advanced}
+          title={advanced ? "Voltar aos controles simples" : "Mostrar todas as ferramentas"}
+          onClick={() => useUi.setState({ advanced: !advanced })}
+        >
+          <Ellipsis size={18} />
+        </button>
       </div>
       <div
         className="swatches"

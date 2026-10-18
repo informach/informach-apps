@@ -6,6 +6,7 @@ import { useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
 
 export function StatusBar(): ReactNode {
+  const advanced = useUi((s) => s.advanced);
   const tool = useUi((s) => s.tool);
   const size = useDoc((s) => (s.doc ? `${s.doc.width} × ${s.doc.height} px` : ""));
   const active = useDoc((s) => s.doc?.layers.find((l) => l.id === s.activeId));
@@ -21,7 +22,7 @@ export function StatusBar(): ReactNode {
   return (
     <div className="statusbar">
       <span>{size}</span>
-      {size && <span>RGB · 8 bits</span>}
+      {advanced && size && <span>RGB · 8 bits</span>}
       <span className="muted">EdiFoto · 0.2.0</span>
       {active && (
         <span>
@@ -33,7 +34,7 @@ export function StatusBar(): ReactNode {
           {active.name} · {blendLabel(active.blendMode)} · {Math.round(active.opacity * 100)}%
         </span>
       )}
-      {ai && (
+      {advanced && ai && (
         <span
           className={`status-mcp${live ? " is-live" : ai.mcpRunning ? " is-ready" : ""}`}
           title={

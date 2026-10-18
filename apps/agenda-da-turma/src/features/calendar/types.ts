@@ -1,6 +1,8 @@
-import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 
-export type CalendarView = "month" | "week" | "day";
+// A Semana abre na semana; o mês fica a um toque. A vista do dia saiu: a
+// semana já mostra cada dia inteiro.
+export type CalendarView = "week" | "month";
 
 // Range carregado por uma vista do calendário. ISO inclusive em ambos os
 // lados; mesmo formato do `due_at` no Postgres.
@@ -9,10 +11,12 @@ export type CalendarRange = {
   toIso: string;
 };
 
-// Atividades com prazo no range. Uma forma só desde a convergência: blips e
-// detalhe deixaram de ramificar por origem.
+// Atividades com prazo no range e, na semana, as em aberto sem data. Uma
+// forma só desde a convergência: blips e detalhe deixaram de ramificar por
+// origem.
 export type CalendarSnapshot = {
-  items: ActivityOverviewItem[];
+  items: TaskRow[];
+  undated: TaskRow[];
 } & CalendarRange;
 
 // Célula renderizada na grid mensal — `inMonth=false` cobre os dias de spillover

@@ -218,8 +218,8 @@ export function SwitchPlanDialog({
               </>
             ) : (
               <>
-                Você vai passar para <strong>{targetProductName}</strong> no fim do período atual —
-                sem custo extra agora. Você continua aproveitando o anual até essa data.
+                Você vai passar para <strong>{targetProductName}</strong> no fim do período atual,
+                sem custo extra agora. Você continua com o anual até essa data.
               </>
             )}
           </DialogDescription>
@@ -251,7 +251,7 @@ export function SwitchPlanDialog({
           <div className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 p-4 text-sm">
             <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
             <span className="text-muted-foreground">
-              Atualizando seus dados — isso leva só alguns segundos.
+              Atualizando seus dados. Leva só alguns segundos.
             </span>
           </div>
         )}

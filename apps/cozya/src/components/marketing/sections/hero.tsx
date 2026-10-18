@@ -1,12 +1,7 @@
-import { ArrowDown, ArrowRight, Utensils } from "lucide-react";
 import Image from "next/image";
+import { CozyaMark } from "@/components/brand/cozya-logo";
+import { LunchboxIcon } from "@/components/brand/lunchbox-icon";
 import { TrialCta } from "../trial-cta";
-
-const MEALS = [
-  { day: "SEG", name: "Macarrão com tomate e grão-de-bico", servings: 4 },
-  { day: "TER", name: "Omelete de abobrinha", servings: 2 },
-  { day: "QUA", name: "Arroz com lentilha e cenoura", servings: 4 },
-];
 
 export function Hero() {
   return (
@@ -16,57 +11,43 @@ export function Hero() {
           <span className="landing-dot" /> Sua semana à mesa
         </p>
         <h1 id="hero-title">
-          Seu jantar resolvido antes de a fome chegar<span className="hero-period">.</span>
+          O que tem pra janta? <span className="hero-accent">Já está decidido.</span>
         </h1>
         <p className="hero-description">
-          Escolha suas receitas, planeje jantares e marmitas e leve a lista pronta ao mercado. O
-          Cozya organiza o caminho até a mesa.
+          Escolha as receitas da casa uma vez por semana. O Cozya ajusta as porções, monta a lista
+          do mercado e mostra o passo a passo na hora de cozinhar.
         </p>
         <TrialCta id="primeiro-convite" />
         <a className="landing-text-link hero-demo-link" href="#como-funciona">
-          <ArrowDown size={17} aria-hidden /> Explorar uma semana de exemplo
+          Ver uma semana de exemplo
         </a>
       </div>
       <div className="hero-scene">
         <div className="hero-photo">
           <Image
             src="/marketing/jantar.webp"
-            alt="Macarrão com tomate e grão-de-bico à mesa, com uma porção separada em uma marmita."
+            alt="Macarrão com tomate e grão-de-bico num prato de cerâmica, com uma porção separada numa marmita de vidro."
             fill
             sizes="(max-width: 767px) 100vw, (max-width: 1280px) 52vw, 650px"
             preload
           />
-          <span className="hero-photo-note">
-            <Utensils size={14} aria-hidden /> Comida de casa. Rotina mais leve.
-          </span>
         </div>
-        <div className="hero-plan">
-          <div className="hero-plan-header">
-            <div>
-              <span className="landing-mini-label">EXEMPLO DE USO</span>
-              <h2>Minha semana</h2>
-            </div>
-            <span className="hero-plan-badge">3 refeições</span>
+        <figure className="hero-phone" aria-label="Exemplo da tela Hoje do Cozya">
+          <div className="hero-phone-top">
+            <span>Terça, 20 de outubro</span>
+            <CozyaMark className="hero-phone-mark" />
           </div>
-          <ul>
-            {MEALS.map((meal) => (
-              <li key={meal.day}>
-                <span className="hero-plan-day">
-                  {meal.day}
-                  <small>Jantar</small>
-                </span>
-                <span className="hero-plan-recipe">{meal.name}</span>
-                <span className="hero-plan-portions">
-                  {meal.servings}
-                  <small>porções</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <a className="landing-button landing-button-navy" href="#como-funciona">
-            Explorar minha semana <ArrowRight size={17} aria-hidden />
-          </a>
-        </div>
+          <p className="hero-phone-label">Hoje tem</p>
+          <p className="hero-phone-title">Strogonoff de frango</p>
+          <p className="hero-phone-tags">
+            <span>3 na mesa</span>
+            <span className="tag-peach">
+              <LunchboxIcon width={13} height={13} />+ 1 marmita
+            </span>
+          </p>
+          <span className="hero-phone-button">Começar a cozinhar</span>
+          <figcaption>Amanhã: marmita no almoço, omelete no jantar</figcaption>
+        </figure>
       </div>
     </section>
   );

@@ -99,7 +99,7 @@ export async function submitTaskStatus(input: {
     // com a barra avisando para sempre sobre algo já resolvido.
     if (outcome.ok && input.userId) await forgetTaskWrites(input.userId, input.id);
     return outcome.ok
-      ? { ok: true, value: { id: input.id } }
+      ? { ok: true, value: { id: input.id, version: outcome.version } }
       : { ok: false, error: { code: outcome.code } };
   }
   if (outcome.kind === "invalid") return { ok: false, error: { code: outcome.code } };

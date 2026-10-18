@@ -8,12 +8,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./client-ip": "./src/client-ip.ts",
     "./server": "./src/server.ts",
     "./proxy": "./src/proxy.ts",
     "./server-actions": "./src/server-actions.ts",
     "./redis-rate-limit-storage": "./src/redis-rate-limit-storage.ts",
     "./maintenance": "./src/maintenance.ts",
-    "./desktop": "./src/desktop-oauth.ts"
+    "./desktop": "./src/desktop-oauth.ts",
+    "./sessions": "./src/sessions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

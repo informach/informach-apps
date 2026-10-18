@@ -1,13 +1,13 @@
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 import { SiteHeaderMobileNav } from "./site-header-mobile-nav";
 
 const NAV_LINKS = [
   { href: "/#como-funciona", label: "Como funciona" },
-  { href: "/#recursos", label: "Suas receitas" },
+  { href: "/#mercado", label: "No mercado" },
   { href: "/#planos", label: "Planos" },
+  { href: "/#perguntas", label: "Perguntas" },
 ] as const;
 
 export type SiteHeaderVariant = "marketing" | "auth";
@@ -39,8 +39,11 @@ export function SiteHeader({ variant = "marketing" }: SiteHeaderProps) {
           ))}
         </nav>
         <div className="landing-header-account">
-          <Link href="/login">
-            Entrar <ArrowUpRight size={17} aria-hidden />
+          <Link href="/login" className="landing-header-login">
+            Entrar
+          </Link>
+          <Link href="/signup" className="landing-button landing-button-primary landing-header-cta">
+            Começar grátis
           </Link>
           <div className="landing-mobile-menu">
             <SiteHeaderMobileNav links={NAV_LINKS} />

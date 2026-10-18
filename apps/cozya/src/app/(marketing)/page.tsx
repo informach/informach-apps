@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
 import { Faq } from "@/components/marketing/sections/faq";
 import { FinalCta } from "@/components/marketing/sections/final-cta";
+import { Founders } from "@/components/marketing/sections/founders";
 import { Hero } from "@/components/marketing/sections/hero";
 import { KitchenDemo } from "@/components/marketing/sections/kitchen-demo";
+import { Market } from "@/components/marketing/sections/market";
 import { MealPrep } from "@/components/marketing/sections/meal-prep";
 import { Pricing } from "@/components/marketing/sections/pricing";
 import { RecipeCollection } from "@/components/marketing/sections/recipe-collection";
 import { RepeatWeek } from "@/components/marketing/sections/repeat-week";
+import { WeekStory } from "@/components/marketing/sections/week-story";
+import { TRIAL_DAYS } from "@/features/kitchen/trial";
 import { env } from "@/lib/env";
 
-const TITLE = "Cozya — planeje refeições, marmitas e compras";
-const DESCRIPTION =
-  "Organize suas receitas, planeje jantares e marmitas e gere a lista de compras. Experimente 14 dias de planejamento, sem cartão.";
+const TITLE = "Cozya: os jantares da semana decididos, com a lista do mercado";
+const DESCRIPTION = `Escolha as receitas da semana, ajuste porções e marmitas e leve a lista do mercado somada. ${TRIAL_DAYS} dias grátis, sem cartão.`;
 const SOCIAL_IMAGE = {
   url: "/marketing/cozya-social.png",
   width: 1200,
   height: 630,
-  alt: "Cozya: sua semana à mesa. Receitas, marmitas e compras organizadas.",
+  alt: "Cozya: sua semana à mesa. Receitas, marmitas e lista do mercado organizadas.",
 };
 
 export const metadata: Metadata = {
@@ -45,11 +48,14 @@ export default function MarketingHome() {
   return (
     <>
       <Hero />
+      <WeekStory />
       <KitchenDemo />
-      <MealPrep />
       <RecipeCollection />
+      <MealPrep />
+      <Market />
       <RepeatWeek />
       <Pricing />
+      <Founders />
       <Faq />
       <FinalCta />
     </>

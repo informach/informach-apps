@@ -1,3 +1,5 @@
+import { isLocalIsoDate, shortDayLabel } from "@/features/dashboard/day-labels";
+
 /**
  * Histórico de alterações, um só para as fontes que versionam.
  *
@@ -17,30 +19,49 @@ function readable(value: unknown) {
   return typeof value === "string" ? value : "não informado";
 }
 
+/** A data como a família lê: "qui, 22", nunca a forma do banco. */
+function readableDay(value: unknown) {
+  return typeof value === "string" && isLocalIsoDate(value) ? shortDayLabel(value) : "sem data";
+}
+
 function readableStatus(value: unknown) {
-  if (value === "pending") return "Pendente";
-  if (value === "done") return "Feito em casa";
+  if (value === "pending") return "Em aberto";
+  if (value === "done") return "Feito";
   if (value === "canceled") return "Cancelada";
   return readable(value);
 }
 
-export function ActivityRevisionList({ revisions }: { revisions: ActivityRevision[] }) {
+const WHEN = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function ActivityRevisionList({
+  revisions,
+  heading = true,
+}: {
+  revisions: ActivityRevision[];
+  /** No detalhe de leitura o histórico mora num `<details>` que já tem título. */
+  heading?: boolean;
+}) {
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Histórico de alterações</h2>
+      {heading ? <h2 className="text-lg font-semibold">Histórico de alterações</h2> : null}
       {revisions.length ? (
         revisions.map((revision) => (
           <article key={revision.version} className="space-y-1 rounded-lg border p-4 text-sm">
             <p className="font-medium">
               Versão {revision.version} · {revision.actor ?? "Conta excluída"}
             </p>
-            <p className="text-muted-foreground">
-              {revision.createdAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-            </p>
+            <p className="text-muted-foreground">{WHEN.format(revision.createdAt)}</p>
             {revision.previous.dueAt !== revision.current.dueAt ? (
               <p>
-                Prazo mudou de {readable(revision.previous.dueAt)} para{" "}
-                {readable(revision.current.dueAt)}.
+                A data mudou de {readableDay(revision.previous.dueAt)} para{" "}
+                {readableDay(revision.current.dueAt)}.
               </p>
             ) : null}
             {revision.previous.title !== revision.current.title ? (
@@ -55,7 +76,7 @@ export function ActivityRevisionList({ revisions }: { revisions: ActivityRevisio
               </p>
             ) : null}
             {revision.current.canceledAt ? (
-              <p>Atividade cancelada. Não é mais uma pendência.</p>
+              <p>Atividade cancelada. Saiu da lista do que falta.</p>
             ) : null}
             <details>
               <summary className="cursor-pointer">Comparar detalhes</summary>

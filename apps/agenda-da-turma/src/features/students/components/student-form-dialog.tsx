@@ -92,8 +92,8 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
             return;
           }
           if (result.error.code === "NOT_FOUND") {
-            toast.error("Perfil não encontrado", {
-              description: "Pode ter sido removido em outra aba.",
+            toast.error("Não achamos essa criança", {
+              description: "Ela pode ter saído da Agenda em outra aba.",
             });
             onOpenChange(false);
             router.refresh();
@@ -104,7 +104,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
           });
           return;
         }
-        toast.success("Perfil atualizado");
+        toast.success("Dados atualizados");
         onOpenChange(false);
         router.refresh();
         return;
@@ -113,7 +113,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
       const result = await catchActionResult(() => createStudentProfileAction(values));
       if (!result.ok) {
         if (isActionRejected(result.error)) {
-          toast.error("Não foi possível criar o perfil.", {
+          toast.error("Não foi possível adicionar a criança.", {
             description: "Atualize a página e tente novamente.",
           });
           router.refresh();
@@ -121,23 +121,23 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
         }
         if (result.error.code === "PLAN_LIMIT_REACHED") {
           if (!result.error.isPro) {
-            toast.error("Limite do plano Free atingido", {
-              description: `Plano Free permite ${result.error.limit} perfil. Faça upgrade pro Pro para criar até ${proLimit}.`,
-              action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
+            toast.error("O plano grátis tem uma criança", {
+              description: `No Pro cabem até ${proLimit} crianças, cada uma com a sua turma e o seu horário.`,
+              action: { label: "Ver o Pro", onClick: () => router.push("/upgrade?motivo=crianca") },
             });
           } else {
-            toast.error("Limite de perfis atingido", {
-              description: `Você já tem ${result.error.current} de ${result.error.limit} perfis no plano Pro.`,
+            toast.error("Já são três crianças", {
+              description: `Você tem ${result.error.current} de ${result.error.limit} crianças, o máximo do Pro.`,
             });
           }
           return;
         }
-        toast.error("Não foi possível criar o perfil.", {
+        toast.error("Não foi possível adicionar a criança.", {
           description: "Tente novamente em instantes.",
         });
         return;
       }
-      toast.success("Perfil criado");
+      toast.success("Criança adicionada");
       form.reset(EMPTY_DEFAULTS);
       onOpenChange(false);
       router.refresh();
@@ -157,11 +157,11 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar perfil" : "Novo perfil de estudante"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar dados da criança" : "Adicionar criança"}</DialogTitle>
           <DialogDescription>
             {isEdit
               ? "Atualize o nome ou a data de nascimento."
-              : "Crie um perfil para organizar a rotina escolar de cada criança."}
+              : "Só o nome basta. Escola, turma e horário podem vir depois."}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,17 +173,17 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
               </span>
               <div className="space-y-1">
                 <p className="text-base font-semibold text-foreground">
-                  {isPro ? "Limite de perfis atingido" : "Você atingiu o limite do plano Free"}
+                  {isPro ? "Já são três crianças" : "O plano grátis tem uma criança"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {isPro
-                    ? `Plano Pro permite até ${proLimit} perfis.`
-                    : `Plano Free permite ${FREE_STUDENT_PROFILE_LIMIT} perfil. Faça upgrade pro Pro pra criar até ${proLimit}.`}
+                    ? `O Pro acompanha até ${proLimit} crianças.`
+                    : `No Pro cabem até ${proLimit} crianças, cada uma com a sua turma e o seu horário.`}
                 </p>
               </div>
               {isPro ? null : (
                 <Button asChild>
-                  <Link href="/upgrade">Ver planos Pro</Link>
+                  <Link href="/upgrade?motivo=crianca">Conhecer o Pro</Link>
                 </Button>
               )}
             </div>
@@ -235,7 +235,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
                 </Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
-                  {isEdit ? "Salvar alterações" : "Criar perfil"}
+                  {isEdit ? "Salvar" : "Adicionar criança"}
                 </Button>
               </DialogFooter>
             </form>

@@ -144,7 +144,7 @@ export function SubjectFormDialog({
           if (result.error.code === "SLOT_DAY_NOT_IN_CLASS_DAYS") {
             form.setError("alternatingSlots", {
               message:
-                "Um dos revezamentos está marcado pra um dia que não é dia de aula. Remova ou marque o dia em 'Dias de aula'.",
+                "Um revezamento está num dia sem aula. Tire o revezamento ou marque o dia em Dias de aula.",
             });
             return;
           }
@@ -205,7 +205,7 @@ export function SubjectFormDialog({
         if (result.error.code === "SLOT_DAY_NOT_IN_CLASS_DAYS") {
           form.setError("alternatingSlots", {
             message:
-              "Um dos revezamentos está marcado pra um dia que não é dia de aula. Remova ou marque o dia em 'Dias de aula'.",
+              "Um revezamento está num dia sem aula. Tire o revezamento ou marque o dia em Dias de aula.",
           });
           return;
         }

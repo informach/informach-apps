@@ -21,6 +21,8 @@ export interface ChatItem {
 
 interface AssistantStore {
   conversationId: string;
+  runId: string | null;
+  documentId: string | null;
   items: ChatItem[];
   busy: boolean;
   quota?: { level: "ok" | "warn" | "blocked"; text: string };
@@ -40,22 +42,30 @@ export const useAssistant = create<AssistantStore>((set, get) => {
       : [...items, { id: nextId++, role: "assistant", text: "", tools: [] }];
 
   window.api.onAssistantEvent((id: string, e: AssistantEvent) => {
-    if (id !== get().conversationId) return;
+    if (id !== get().runId) return;
     if (e.type === "done") {
       const ds = useDoc.getState(),
         entry = ds.past.at(-1);
-      const historyId = ds.group && entry?.key === ds.group.key ? entry?.id : undefined;
-      if (get().busy) ds.endGroup();
-      const items = [...get().items],
-        last = items.at(-1);
-      if (last?.role === "assistant")
-        items[items.length - 1] = {
-          ...last,
-          documentId: ds.doc?.id,
+      const historyId =
+        ds.doc?.id === get().documentId && entry?.key === `ai:${get().runId}`
+          ? entry.id
+          : undefined;
+      const items = [...get().items];
+      const lastUser = [...items].reverse().find((item) => item.role === "user");
+      const lastUserIndex = lastUser ? items.indexOf(lastUser) : -1;
+      const target = items
+        .slice(lastUserIndex + 1)
+        .reverse()
+        .find((item) => item.role === "assistant");
+      const index = target ? items.indexOf(target) : -1;
+      if (index >= 0)
+        items[index] = {
+          ...items[index],
+          documentId: get().documentId ?? undefined,
           historyId,
           layerId: ds.activeId ?? undefined,
         };
-      set({ busy: false, items });
+      set({ busy: false, items, runId: null });
       return;
     }
     if (e.type === "quota") return set({ quota: { level: e.level, text: e.text } });
@@ -90,32 +100,65 @@ export const useAssistant = create<AssistantStore>((set, get) => {
 
   return {
     conversationId: newConversation(),
+    runId: null,
+    documentId: null,
     items: [],
     busy: false,
     send: async (text) => {
-      // Everything the assistant changes in this turn becomes a single undo step.
-      useDoc
-        .getState()
-        .beginGroup(`Assistente: ${text.length > 40 ? `${text.slice(0, 40)}…` : text}`);
-      set({ busy: true, items: [...get().items, { id: nextId++, role: "user", text, tools: [] }] });
+      const documentId = useDoc.getState().doc?.id;
+      if (get().busy || !documentId || !text.trim()) return;
+      const runId = crypto.randomUUID();
+      if (get().documentId !== documentId)
+        set({ conversationId: newConversation(), items: [], documentId, quota: undefined });
+      set({
+        busy: true,
+        runId,
+        items: [...get().items, { id: nextId++, role: "user", text, tools: [] }],
+      });
       try {
-        await window.api.assistantSend(get().conversationId, text);
+        await window.api.assistantSend(
+          get().conversationId,
+          text,
+          documentId,
+          runId,
+          useDoc.getState().initialStateId,
+        );
       } catch (error) {
-        useDoc.getState().endGroup();
+        if (get().runId !== runId) return;
         set({
           busy: false,
+          runId: null,
           items: [
             ...get().items,
-            { id: nextId++, role: "error", text: (error as Error).message, tools: [] },
+            {
+              id: nextId++,
+              role: "error",
+              text: error instanceof Error ? error.message : String(error),
+              tools: [],
+            },
           ],
         });
       }
     },
-    stop: () => void window.api.assistantStop(get().conversationId),
+    stop: () => {
+      const id = get().runId;
+      if (id) void window.api.assistantStop(id);
+    },
     reset: () => {
-      if (get().busy) useDoc.getState().endGroup();
       void window.api.assistantReset(get().conversationId);
-      set({ conversationId: newConversation(), items: [], busy: false, quota: undefined });
+      set({
+        conversationId: newConversation(),
+        runId: null,
+        documentId: useDoc.getState().doc?.id ?? null,
+        items: [],
+        busy: false,
+        quota: undefined,
+      });
     },
   };
+});
+
+useDoc.subscribe((current, previous) => {
+  if (current.doc?.id !== previous.doc?.id || current.initialStateId !== previous.initialStateId)
+    useAssistant.getState().reset();
 });

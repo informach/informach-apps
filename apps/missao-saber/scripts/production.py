@@ -8,7 +8,6 @@ import os
 import subprocess
 import urllib.request
 import urllib.error
-import shlex
 from urllib.parse import urlparse
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -43,35 +42,26 @@ def set_variables(service, values):
     railway("mutation($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }", {"input": {"projectId": PROJECT, "environmentId": ENVIRONMENT, "serviceId": service, "variables": values, "skipDeploys": True}})
 
 
-def configure_service(service, values):
-    return railway("mutation($service: String!, $environment: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $service, environmentId: $environment, input: $input) }", {"service": service, "environment": ENVIRONMENT, "input": values})
+CRONS = {
+    "billing": "5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b",
+    "weekly-report": "446b4a71-3a35-4be3-be99-743ac72688e3",
+}
 
 
 if __name__ == "__main__":
     import sys
-    if sys.argv[1:] == ["configure-service"]:
-        configure_service(SERVICE, json.loads((ROOT / "apps/missao-saber/railway-service.json").read_text()))
-        print("Service configuration applied")
-    elif sys.argv[1:2] in (["configure-cron"], ["configure-weekly-cron"]):
-        weekly = sys.argv[1] == "configure-weekly-cron"
-        # O cron de manutenção já existe; o semanal é criado uma vez no painel
-        # (imagem alpine/curl) e recebe o ID aqui, para não misturar os dois.
-        if weekly and len(sys.argv) != 3:
-            raise SystemExit("Usage: production.py configure-weekly-cron <railway-service-id>")
-        cron = sys.argv[2] if weekly else "5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b"
+    # Imagem, agenda e comando dos serviços vivem em .railway/railway.ts (IaC).
+    # Aqui só copiamos para os crons os valores que vêm do serviço do app.
+    if sys.argv[1:] == ["sync-cron-variables"]:
         values = variables(SERVICE)
         dsn = urlparse(values["SENTRY_DSN"])
-        set_variables(cron, {
-            "CRON_SECRET": values["CRON_SECRET"],
-            "APP_ORIGIN": "https://" + DOMAIN,
-            "SENTRY_DSN": values["SENTRY_DSN"],
-            "SENTRY_ENVELOPE_URL": f"https://{dsn.hostname}/api{dsn.path}/envelope/",
-        })
-        config_name = "railway-cron-weekly.json" if weekly else "railway-cron.json"
-        script_name = "weekly-report-cron.sh" if weekly else "maintenance-cron.sh"
-        config = json.loads((ROOT / "apps/missao-saber" / config_name).read_text())
-        config["startCommand"] = "sh -c " + shlex.quote((ROOT / "apps/missao-saber/scripts" / script_name).read_text())
-        configure_service(cron, config)
-        print("Cron configuration applied; deploy the service to activate changes")
+        for cron in CRONS.values():
+            set_variables(cron, {
+                "CRON_SECRET": values["CRON_SECRET"],
+                "APP_ORIGIN": "https://" + DOMAIN,
+                "SENTRY_DSN": values["SENTRY_DSN"],
+                "SENTRY_ENVELOPE_URL": f"https://{dsn.hostname}/api{dsn.path}/envelope/",
+            })
+        print("Cron variables synced; redeploy each cron to activate them")
     else:
-        raise SystemExit("Choose configure-service, configure-cron or configure-weekly-cron <id>. No default mutations.")
+        raise SystemExit("Choose sync-cron-variables. Service settings live in .railway/railway.ts. No default mutations.")

@@ -12,7 +12,8 @@ export const metadata = { title: "Sem conexão" };
  * seria mais uma navegação a falhar justamente quando a rede caiu.
  *
  * Diz o que é verdade e nada além: o que já estava aberto continua legível, e
- * as mudanças esperam. Não promete fila de sincronização, porque não existe.
+ * concluir e reabrir esperam a rede na fila do aparelho (§9 do guia do app).
+ * Editar, cancelar e mandar recado novo continuam exigindo conexão.
  */
 export default function OfflinePage() {
   return (
@@ -21,8 +22,8 @@ export default function OfflinePage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-extrabold tracking-tight">Sem conexão agora</h1>
         <p className="text-pretty text-muted-foreground">
-          Não deu para carregar esta página. O que já estava aberto continua na tela, e o que você
-          mudar depois que a rede voltar é guardado normalmente.
+          Não deu para abrir esta página. O que já estava aberto continua na tela, e marcar como
+          feito funciona: a Agenda guarda e manda sozinha quando a rede voltar.
         </p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">

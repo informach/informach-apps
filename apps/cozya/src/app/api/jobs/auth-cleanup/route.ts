@@ -4,6 +4,7 @@ import {
   cleanupStaleRateLimit,
 } from "@informach/auth/maintenance";
 import { rejectUnauthorizedCron } from "@/lib/cron";
+import { recordJob } from "@/lib/job-runs";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -25,13 +26,15 @@ export async function POST(request: Request): Promise<Response> {
     return unauthorized;
   }
 
-  const [verifications, invitations, rateLimit] = await Promise.all([
-    cleanupExpiredVerifications(),
-    cleanupExpiredInvitations(),
-    cleanupStaleRateLimit(),
-  ]);
-
-  const result = { verifications, invitations, rateLimit };
+  const result = await recordJob("auth-cleanup", async () => {
+    const [verifications, invitations, rateLimit] = await Promise.all([
+      cleanupExpiredVerifications(),
+      cleanupExpiredInvitations(),
+      cleanupStaleRateLimit(),
+    ]);
+    return { verifications, invitations, rateLimit };
+  });
+  const { verifications, invitations, rateLimit } = result;
   if (verifications + invitations + rateLimit > 0) {
     logger.info(result, "auth.cron.cleanup");
   }

@@ -1,20 +1,19 @@
+import { IMAGE_TEMPLATES } from "@shared/templates";
 import type { RecentDoc } from "@shared/types";
 import { ClipboardPaste, FolderOpen, ImagePlus, Settings, Sparkles, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { clearBitmaps } from "@/engine/bitmaps";
 import { actions, attempt } from "@/lib/actions";
-import { openPath, pasteImage } from "@/lib/files";
-import { blankDoc } from "@/lib/ops";
-import { useDoc } from "@/state/doc";
+import { pasteImage } from "@/lib/files";
+import { discardRecovery, type RecoveryDraft, readRecovery, restoreRecovery } from "@/lib/recovery";
 import { useUi } from "@/state/ui";
 
 const PRESETS = [
-  { label: "Post quadrado", w: 1080, h: 1080 },
-  { label: "Post retrato", w: 1080, h: 1350 },
-  { label: "Stories / Reels", w: 1080, h: 1920 },
-  { label: "Thumbnail", w: 1280, h: 720 },
-  { label: "Full HD", w: 1920, h: 1080 },
-  { label: "A4 300 dpi", w: 2480, h: 3508 },
+  { label: "Quadrado", w: 1080, h: 1080 },
+  { label: "Retrato", w: 1080, h: 1350 },
+  { label: "Vertical", w: 1080, h: 1920 },
+  { label: "Paisagem", w: 1280, h: 720 },
+  { label: "Widescreen", w: 1920, h: 1080 },
+  { label: "Página A4", w: 1240, h: 1754 },
 ];
 
 const when = (t: number): string => {
@@ -25,20 +24,35 @@ const when = (t: number): string => {
 export function Home(): ReactNode {
   const [recent, setRecent] = useState<RecentDoc[]>([]);
   const [over, setOver] = useState(false);
+  const [draft, setDraft] = useState<RecoveryDraft>();
 
   useEffect(() => {
     void window.api.recentDocs().then(setRecent);
+    let active = true;
+    void readRecovery()
+      .then((value) => {
+        if (active) setDraft(value);
+      })
+      .catch((error: unknown) =>
+        useUi
+          .getState()
+          .toast(
+            error instanceof Error ? error.message : "Não foi possível ler a recuperação.",
+            "error",
+          ),
+      );
     const onPaste = (e: ClipboardEvent): void => {
       if (!useUi.getState().newDocumentOpen) attempt(() => pasteImage(e));
     };
     window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
+    return () => {
+      active = false;
+      window.removeEventListener("paste", onPaste);
+    };
   }, []);
 
   const newBlank = (w: number, h: number, label: string): void => {
-    clearBitmaps();
-    useDoc.getState().load(blankDoc(w, h, label, "#ffffff"));
-    useUi.setState((s) => ({ fitRequest: s.fitRequest + 1, tool: "brush" }));
+    attempt(() => actions.createDocument(label, w, h, "#ffffff"));
   };
 
   return (
@@ -70,12 +84,51 @@ export function Home(): ReactNode {
       </div>
       <div className="home-main">
         <div className="home-inner">
+          {draft && (
+            <div className="recovery-banner" role="status">
+              <div>
+                <strong>Continuar de onde parou</strong>
+                <p>
+                  {draft.name} · cópia local de {new Date(draft.savedAt).toLocaleString("pt-BR")}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => attempt(restoreRecovery)}
+              >
+                Recuperar trabalho
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  attempt(async () => {
+                    if (
+                      await useUi
+                        .getState()
+                        .ask(
+                          "Descartar cópia?",
+                          "Seu projeto salvo não será alterado.",
+                          "Descartar",
+                        )
+                    ) {
+                      await discardRecovery();
+                      setDraft(undefined);
+                    }
+                  })
+                }
+              >
+                Descartar cópia
+              </button>
+            </div>
+          )}
           <div className="home-hero">
             <div>
-              <h1>O que vamos editar hoje?</h1>
+              <h1>Uma ideia, uma imagem.</h1>
               <p>
-                Abra uma foto, arraste para cá ou cole com Ctrl+V. Camadas, modos de mesclagem e um
-                agente de IA que edita junto com você.
+                Comece com um modelo ou abra uma foto. Combine imagens, texto e formas, com ajuda
+                quando precisar.
               </p>
             </div>
             <button type="button" className="btn btn-primary" onClick={() => attempt(actions.open)}>
@@ -96,7 +149,7 @@ export function Home(): ReactNode {
               e.preventDefault();
               setOver(false);
               const f = e.dataTransfer.files[0];
-              if (f) attempt(() => openPath(window.api.pathForFile(f)));
+              if (f) attempt(() => actions.openPath(window.api.pathForFile(f)));
             }}
           >
             <ImagePlus size={30} />
@@ -111,8 +164,36 @@ export function Home(): ReactNode {
             </span>
           </button>
 
+          <section className="template-section" aria-label="Modelos">
+            <div className="section-head">
+              <strong>Modelos para começar</strong>
+              <span className="muted">Tudo pode ser editado</span>
+            </div>
+            <div className="template-grid">
+              {IMAGE_TEMPLATES.map((template) => (
+                <button
+                  type="button"
+                  className="template-card"
+                  key={template.id}
+                  onClick={() => attempt(() => actions.template(template.id))}
+                >
+                  <div className={`template-preview template-${template.id}`} aria-hidden="true">
+                    <span />
+                    <strong>
+                      Seu título
+                      <br />
+                      aqui
+                    </strong>
+                    <i />
+                  </div>
+                  <strong>{template.name}</strong>
+                  <span>{template.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <span className="label">Começar do zero</span>
+            <span className="label">Imagem em branco</span>
             <div className="presets">
               {PRESETS.map((p) => (
                 <button
@@ -140,7 +221,7 @@ export function Home(): ReactNode {
                       type="button"
                       className="card-open"
                       aria-label={`Abrir ${r.name}`}
-                      onClick={() => attempt(() => openPath(r.path))}
+                      onClick={() => attempt(() => actions.openPath(r.path))}
                     />
                     <div
                       className="thumb"

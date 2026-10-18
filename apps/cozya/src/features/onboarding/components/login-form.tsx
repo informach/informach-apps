@@ -74,9 +74,9 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
 
   const description =
     step.kind === "auth"
-      ? "Use sua senha ou entre com um código enviado por email."
+      ? "Use sua senha ou entre com um código enviado por e-mail."
       : step.kind === "reset-email"
-        ? "Enviaremos um código de verificação para seu email."
+        ? "Vamos enviar um código de verificação para o seu e-mail."
         : step.kind === "reset-otp"
           ? `Digite o código enviado para ${step.email}.`
           : `Enviamos um código de 6 dígitos para ${step.email}.`;
@@ -192,7 +192,7 @@ function PasswordStep({
 
     if (error) {
       toast.error("Não foi possível entrar.", {
-        description: error.message ?? "Verifique email e senha e tente novamente.",
+        description: error.message ?? "Confira e-mail e senha e tente de novo.",
       });
       return;
     }
@@ -208,7 +208,7 @@ function PasswordStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -294,7 +294,7 @@ function EmailOtpRequestStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -353,7 +353,7 @@ function ResetEmailStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"

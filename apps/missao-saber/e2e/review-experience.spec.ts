@@ -19,9 +19,9 @@ async function profile(page: Page, baseURL: string | undefined, nickname: string
   const client = createHash("sha256").update(test.info().testId).digest();
   const headers = {
     origin: baseURL,
-    "x-forwarded-for": `198.18.${client[0]}.${client[1]}`,
+    "x-real-ip": `198.18.${client[0]}.${client[1]}`,
   };
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": headers["x-forwarded-for"] });
+  await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
   const signup = await page.request.post("/api/auth/sign-up/email", {
     headers,
     data: { email, password, name: "Revisão da experiência" },
@@ -146,7 +146,7 @@ test("recuperação de senha informa o limite em vez de prometer um código", as
   if (!baseURL) throw new Error("Missing isolated app URL");
   const headers = {
     origin: baseURL,
-    "x-forwarded-for": test.info().project.name === "mobile" ? "192.0.2.34" : "192.0.2.33",
+    "x-real-ip": test.info().project.name === "mobile" ? "192.0.2.34" : "192.0.2.33",
   };
   await page.context().setExtraHTTPHeaders(headers);
   const email = `limit-${randomUUID()}@example.test`;

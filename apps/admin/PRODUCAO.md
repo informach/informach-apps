@@ -1,0 +1,53 @@
+# Bastidores em produção
+
+Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto `informach-apps`, ambiente `production`, em `https://admin.informach.com.br`. A configuração do serviço e dos dois crons (`cron-admin-watch`, a cada 5 minutos, e `cron-admin-weekly`, segunda e terça às 11:00 UTC, com envio único por semana) está em [`.railway/railway.ts`](../../.railway/railway.ts). Os dois crons usam a imagem `alpine/curl` fixada por digest, a mesma dos outros crons novos. Fluxo geral de IaC no [runbook](../../docs/deploy-runbook.md#infraestrutura-como-código-railway-iac).
+
+No ar desde 17/10/2026, 22:01 UTC, com `ADMIN_LAUNCHED` aplicado, as migrações `0072` e `0073` aplicadas pelo migrator no deploy de `fb39612` e a titular como primeiro owner. A primeira entrada real dela em produção (senha, código por e-mail e ativação das duas etapas) funcionou por volta das 22:10 UTC. A trava do último owner sob concorrência num Postgres real continua coberta só por teste unitário. `ADMIN_LAUNCHED` fica em `true`: virar para `false` e aplicar não desliga o Bastidores com segurança, apaga as variáveis, o domínio e os dois crons. Os passos abaixo ficam como registro e para reconstruir o serviço.
+
+## Primeira publicação, nesta ordem
+
+1. **Código e migrações na `main`.** O Bastidores depende das migrações `0072` (schema `ops`, com `job_runs` e `service_status`) e `0073` (colunas `failed_verification_count` e `locked_until` em `core.two_factors`, que o plugin de duas etapas do Better Auth 1.7 exige; sem elas a entrada quebra com "Drizzle schema mismatch"). As duas só acrescentam e são aplicadas pelo `migrator` no mesmo deploy; o `/api/ready` do admin segura o tráfego até o banco chegar lá.
+2. **Domínio.** O Railway não registra domínio próprio pela IaC. No painel: `@informach/admin`, Settings, Networking, Custom Domain, `admin.informach.com.br`. No Cloudflare, CNAME `admin` para o destino que o Railway mostrar, com o proxy ligado (nuvem laranja), como os outros domínios da casa: o Bastidores funciona assim desde o lançamento. Conferir depois com `curl -sSI https://admin.informach.com.br/api/health`, que responde com `Server: cloudflare`. O limite de tentativas da entrada conta por pessoa com o proxy ligado: o endereço sai do `X-Real-IP` que a borda do Railway escreve, como em todos os apps (ver o [runbook](../../docs/deploy-runbook.md#62-dns-no-cloudflare)).
+3. **Segredos próprios do serviço.** Nunca reaproveitar os de outro app: o segredo do Better Auth assina o cookie, e é ele que impede uma sessão de outro produto de valer aqui.
+
+   ```bash
+   railway variables --service "@informach/admin" --skip-deploys \
+     --set "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" \
+     --set "CRON_SECRET=$(openssl rand -base64 32)"
+   ```
+
+   No arquivo eles ficam como `preserve()`, e `preserve()` de variável ausente não cria nada. Por isso este passo vem antes do apply. Os crons do admin recebem o `CRON_SECRET` por referência.
+4. **Configuração.** No topo de `.railway/railway.ts`, virar `ADMIN_LAUNCHED` para `true` (antes do lançamento o arquivo espelhava o esqueleto antigo e o plano ficava zerado; desde 17/10/2026 a constante está em `true`). Depois `railway config plan --verbose`: as mudanças esperadas são o build standalone, o start, o healthcheck `/api/ready`, o domínio, as variáveis do admin e os dois crons novos, sem nenhum destroy. Então `railway config apply`, e o commit da constante virada vai para a `main` no mesmo dia.
+5. **Primeiro owner.** Dentro do Bastidores só um owner muda papéis, então o primeiro é gravado por script, uma vez, com a titular de acordo. O script não cria conta nem senha e se recusa a rodar se já houver owner:
+
+   ```bash
+   railway run --service Postgres -- sh -c 'DATABASE_URL="$DATABASE_PUBLIC_URL" pnpm --filter @informach/admin bootstrap-owner <email>'
+   ```
+
+   O script grava `user.role_changed` com `source: "bootstrap-owner"`. A pessoa precisa já ter conta em algum produto, com o e-mail confirmado, e não pode estar banida; o script recusa os dois casos. Na mesma transação ele encerra as sessões que a conta já tinha no Postgres (Bastidores e Suíte Edi no navegador) e os aparelhos confiados das duas etapas. Os demais (admin para o suporte, ou outro owner) são promovidos por esse owner na ficha de cada pessoa, em "Mudar papel", com motivo; a mudança também encerra as sessões da pessoa, e a casa nunca fica sem owner ativo.
+6. **Primeira entrada.** Em `admin.informach.com.br`, "Criar ou trocar a senha" manda um código para o e-mail (só sai para contas owner ou admin). Com a senha, a entrada leva à ativação das duas etapas: primeiro um código no e-mail da conta, que prova a caixa de e-mail (a senha é a mesma dos produtos e sozinha não basta), depois a senha, o QR no aplicativo autenticador, os códigos de recuperação guardados e o primeiro código. Ao terminar, as outras sessões da conta são encerradas. Sem duas etapas ativas, nenhuma tela abre, e toda entrada seguinte pede o código do aplicativo (lembrar o aparelho é recusado).
+
+## Conferência depois do deploy
+
+- `GET /api/health` devolve o commit; `GET /api/ready` responde 200.
+- Abrir uma ficha grava `admin.user_viewed` na Auditoria, com o nome de quem abriu. Uma ficha aberta por link de fora do Bastidores mostra antes "Abrir esta ficha?".
+- "Exportar CSV" baixa o arquivo pelo botão da tela; o mesmo endereço colado na barra volta para a Auditoria com a explicação.
+- Em Operação, a rotina "Vigia" aparece com execução nos últimos 5 minutos, e cada serviço mostra "desde" depois da primeira volta da vigia.
+- Os avisos de queda chegam às contas owner e a `ADMIN_ALERT_EMAILS`, quando definido, mesmo para quem se descadastrou; o resumo da semana vai só para as contas owner e obedece ao descadastro.
+
+## Opcional
+
+- **Mais gente nos avisos.** Além das contas owner, `ADMIN_ALERT_EMAILS` (separado por vírgula) recebe os avisos de queda (não o resumo da semana). Gravar no Railway e acrescentar `ADMIN_ALERT_EMAILS: preserve()` no bloco do admin, senão o plano propõe apagar a variável.
+
+- **Usuário de banco só de leitura.** Mesmo sem ele, a conexão das telas abre toda transação em modo só leitura (`default_transaction_read_only`). Com ele, nem um engano de configuração escreve. Criar no Postgres e gravar `READONLY_DATABASE_URL` (como `preserve()` no arquivo):
+
+  ```sql
+  CREATE ROLE bastidores_leitura LOGIN PASSWORD '<gerada>';
+  GRANT CONNECT ON DATABASE <banco, o valor de PGDATABASE> TO bastidores_leitura;
+  GRANT USAGE ON SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber TO bastidores_leitura;
+  GRANT SELECT ON ALL TABLES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber TO bastidores_leitura;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber GRANT SELECT ON TABLES TO bastidores_leitura;
+  ```
+
+  O `ALTER DEFAULT PRIVILEGES` vale para tabelas criadas pelo mesmo papel que roda as migrações.
+- **Sentry.** Projeto `admin` no Sentry e `SENTRY_DSN`. Para os links e a contagem de erros abertos por app em Operação: `SENTRY_ORG_SLUG` e `SENTRY_READ_TOKEN` (escopo `event:read`). Ao criar, acrescentar as três como `preserve()` no bloco do admin.

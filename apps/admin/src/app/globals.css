@@ -3,49 +3,128 @@
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 
-/* Fonte local via next/font toma precedência sobre o fallback do tema. */
+/* Fontes locais via next/font. */
 :root {
   --font-sans: var(--font-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jakarta), "Plus Jakarta Sans", ui-monospace, monospace;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 }
 
 /* ============================================================
-   APP OVERRIDES — Admin
-   Sobrescrever só cores de destaque: primary, secondary, ring,
-   chart-1..5, sidebar-primary, sidebar-ring, destructive.
-   NUNCA sobrescrever a escala de cinza: background, foreground,
-   card, popover, muted, accent, border, input, sidebar neutro.
-   Isso pertence ao package e é compartilhado entre os apps.
+   Bastidores (proposta aprovada em 17/10/2026): a sala de controle
+   de uma casa. Papel, marinho e o laranja da esfera, como o site.
+   Situação sempre com ícone e palavra, nunca só cor.
+   Contrastes conferidos para texto de 13px ou mais:
+   ink-soft #3D5266 e ink-muted #55687A sobre papel e branco >= 4,9:1;
+   botão de ação #B4501C com texto branco 5,1:1;
+   no menu marinho, #C9D4DF e #DCE4EC sobre #173247 >= 9:1.
    ============================================================ */
-/*
 :root {
-  --primary: oklch(...);
-  --primary-foreground: oklch(...);
-  --secondary: oklch(...);
-  --secondary-foreground: oklch(...);
-  --ring: oklch(...);
-  --chart-1: oklch(...);
-  --chart-2: oklch(...);
-  --chart-3: oklch(...);
-  --chart-4: oklch(...);
-  --chart-5: oklch(...);
-  --sidebar-primary: oklch(...);
-  --sidebar-primary-foreground: oklch(...);
-  --sidebar-ring: oklch(...);
+  --paper: #f8f5ef;
+  --sand: #f1ece3;
+  --sand-strong: #efe8dc;
+  --surface: #ffffff;
+  --ink: #173247;
+  --ink-soft: #3d5266;
+  --ink-muted: #55687a;
+  --line-warm: #e6dfd3;
+  --line-soft: #eee7db;
+  --field: #cfc6b6;
+
+  --night: #173247;
+  --night-raised: #1f3d55;
+  --night-active: #24435c;
+  --night-ink: #eef2f6;
+  --night-soft: #dce4ec;
+  --night-muted: #c9d4df;
+  --sphere: #e57a45;
+  --sphere-strong: #b4501c;
+  --sphere-ink: #8a4a23;
+  --sphere-light: #f0a979;
+  --sphere-wash: #fbefe6;
+
+  --ok: #1e6b45;
+  --ok-wash: #e3f2e9;
+  --warn: #8a5300;
+  --warn-wash: #fdf0d5;
+  --warn-row: #fdf7ea;
+  --bad: #a12a1f;
+  --bad-wash: #fbe4e1;
+  --bad-row: #fbf3f2;
+  --info: #23476b;
+  --info-wash: #e4edf7;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --primary: oklch(0.2701 0.0432 248.6);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: #b4501c;
+  --secondary-foreground: #ffffff;
+  --ring: #b4501c;
 }
-.dark {
-  --primary: oklch(...);
-  --primary-foreground: oklch(...);
-  --secondary: oklch(...);
-  --secondary-foreground: oklch(...);
-  --ring: oklch(...);
-  --chart-1: oklch(...);
-  --chart-2: oklch(...);
-  --chart-3: oklch(...);
-  --chart-4: oklch(...);
-  --chart-5: oklch(...);
-  --sidebar-primary: oklch(...);
-  --sidebar-primary-foreground: oklch(...);
-  --sidebar-ring: oklch(...);
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-sand-strong: var(--sand-strong);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-line-warm: var(--line-warm);
+  --color-line-soft: var(--line-soft);
+  --color-field: var(--field);
+  --color-night: var(--night);
+  --color-night-raised: var(--night-raised);
+  --color-night-active: var(--night-active);
+  --color-night-ink: var(--night-ink);
+  --color-night-soft: var(--night-soft);
+  --color-night-muted: var(--night-muted);
+  --color-sphere: var(--sphere);
+  --color-sphere-strong: var(--sphere-strong);
+  --color-sphere-ink: var(--sphere-ink);
+  --color-sphere-light: var(--sphere-light);
+  --color-sphere-wash: var(--sphere-wash);
+  --color-ok: var(--ok);
+  --color-ok-wash: var(--ok-wash);
+  --color-warn: var(--warn);
+  --color-warn-wash: var(--warn-wash);
+  --color-warn-row: var(--warn-row);
+  --color-bad: var(--bad);
+  --color-bad-wash: var(--bad-wash);
+  --color-bad-row: var(--bad-row);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
 }
-*/
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco sempre visível, no laranja de ação, também sobre o marinho. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2.5px solid var(--sphere-strong);
+  outline-offset: 2px;
+}
+.on-night :where(a, button, input, summary):focus-visible {
+  outline-color: var(--sphere-light);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
+  }
+}

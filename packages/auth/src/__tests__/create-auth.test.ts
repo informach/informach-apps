@@ -7,7 +7,9 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAuth } from "../index";
+import { AuditPersistenceError } from "../audit";
+import { LastOwnerError } from "../helpers";
+import { cappedSessionExpiry, createAuth } from "../index";
 
 vi.mock("better-auth", () => ({
   betterAuth: vi.fn(() => ({
@@ -56,6 +58,10 @@ vi.mock("@better-auth/passkey", () => ({
 
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn((field: unknown, value: unknown) => ({ field, value })),
+  ne: vi.fn((field: unknown, value: unknown) => ({ ne: { field, value } })),
+  and: vi.fn((...conditions: unknown[]) => ({ and: conditions })),
+  like: vi.fn((field: unknown, pattern: unknown) => ({ like: { field, pattern } })),
+  sql: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("?") })),
 }));
 
 const dbInsertChain = {
@@ -89,12 +95,109 @@ const dbSelectChain: {
   limit: vi.fn(async () => dbSelectChain.rows),
 };
 
+// Banco falso das mudanças de papel e banimento: transação com trava (como o
+// `pg_advisory_xact_lock`), volta atrás quando o callback falha e grava a
+// auditoria da transação só no fim.
+type FakeUser = { role: string; banned: boolean; banExpiresAt: Date | null };
+type FakeCondition =
+  | { field: string; value: string }
+  | { and: FakeCondition[] }
+  | { ne: { field: string; value: string } }
+  | Record<string, unknown>;
+const fakeDb = {
+  users: new Map<string, FakeUser>(),
+  audits: [] as Array<Record<string, unknown>>,
+  deletes: [] as Array<{ table: unknown; where: unknown }>,
+  failAuditInsert: false,
+  locks: 0,
+  lock: Promise.resolve() as Promise<void>,
+};
+
+function fakeBanActive(user: FakeUser) {
+  return user.banned && (!user.banExpiresAt || user.banExpiresAt.getTime() > Date.now());
+}
+
+function fakeSelect(fields: Record<string, unknown>, condition: FakeCondition) {
+  if ("total" in fields) {
+    const parts = "and" in condition ? (condition.and as FakeCondition[]) : [];
+    const excluded = parts.find((part): part is { ne: { field: string; value: string } } =>
+      Boolean(part && "ne" in part),
+    )?.ne.value;
+    const total = [...fakeDb.users].filter(
+      ([id, user]) => user.role === "owner" && id !== excluded && !fakeBanActive(user),
+    ).length;
+    return [{ total }];
+  }
+  const id = (condition as { value: string }).value;
+  const user = fakeDb.users.get(id);
+  return user ? [{ ...user }] : [];
+}
+
+async function runFakeTransaction<T>(work: (tx: unknown) => Promise<T>): Promise<T> {
+  let snapshot: Map<string, FakeUser> | null = null;
+  let release: (() => void) | null = null;
+  const audits: Array<Record<string, unknown>> = [];
+  const deletes: Array<{ table: unknown; where: unknown }> = [];
+  const tx = {
+    execute: async () => {
+      const previous = fakeDb.lock;
+      fakeDb.lock = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await previous;
+      fakeDb.locks += 1;
+      snapshot = new Map([...fakeDb.users].map(([id, user]) => [id, { ...user }]));
+    },
+    select: (fields: Record<string, unknown>) => ({
+      from: () => ({
+        where: (condition: FakeCondition) => {
+          const rows = Promise.resolve().then(() => fakeSelect(fields, condition));
+          return Object.assign(rows, { limit: () => rows });
+        },
+      }),
+    }),
+    update: () => ({
+      set: (values: Partial<FakeUser>) => ({
+        where: async (condition: { value: string }) => {
+          const user = fakeDb.users.get(condition.value);
+          if (user) Object.assign(user, values);
+        },
+      }),
+    }),
+    delete: (table: unknown) => ({
+      where: (condition: unknown) => {
+        deletes.push({ table, where: condition });
+        const done = Promise.resolve([] as Array<{ id: string }>);
+        return Object.assign(done, { returning: () => done });
+      },
+    }),
+    insert: () => ({
+      values: async (row: Record<string, unknown>) => {
+        if (fakeDb.failAuditInsert) throw new Error("audit database unavailable");
+        audits.push(row);
+      },
+    }),
+  };
+  try {
+    const result = await work(tx);
+    fakeDb.audits.push(...audits);
+    fakeDb.deletes.push(...deletes);
+    return result;
+  } catch (error) {
+    if (snapshot) fakeDb.users = snapshot;
+    throw error;
+  } finally {
+    (release as (() => void) | null)?.();
+  }
+}
+
 vi.mock("@informach/db", () => ({
   db: {
     insert: vi.fn(() => dbInsertChain),
     delete: vi.fn(() => dbDeleteChain),
     update: vi.fn(() => dbUpdateChain),
     select: vi.fn(() => dbSelectChain),
+    transaction: vi.fn((work: (tx: unknown) => Promise<unknown>) => runFakeTransaction(work)),
   },
 }));
 
@@ -102,7 +205,12 @@ vi.mock("@informach/db/schema", () => ({
   users: { __mock: "users", id: "users.id", role: "users.role" },
   sessions: { __mock: "sessions", userId: "sessions.user_id" },
   accounts: { __mock: "accounts" },
-  verifications: { __mock: "verifications" },
+  verifications: {
+    __mock: "verifications",
+    id: "verifications.id",
+    identifier: "verifications.identifier",
+    value: "verifications.value",
+  },
   rateLimit: { __mock: "rateLimit" },
   events: { __mock: "events" },
   organizations: { __mock: "organizations" },
@@ -158,6 +266,8 @@ type CapturedBetterAuthOptions = {
   trustedOrigins?: string[];
   session?: {
     cookieCache?: { enabled?: boolean; maxAge?: number };
+    expiresIn?: number;
+    updateAge?: number;
     additionalFields?: Record<string, AdditionalFieldSpec>;
   };
   user?: {
@@ -209,7 +319,7 @@ type CapturedBetterAuthOptions = {
     session?: {
       create?: {
         before?: (
-          session: { userId: string },
+          session: { userId: string; expiresAt?: Date },
           ctx?: unknown,
         ) => Promise<{ data: Record<string, unknown> } | false>;
         after?: (session: {
@@ -230,7 +340,10 @@ type CapturedBetterAuthOptions = {
     };
   };
   hooks?: { after?: { handler?: (ctx: unknown) => Promise<void> } };
-  advanced?: { database?: { generateId?: () => string } };
+  advanced?: {
+    database?: { generateId?: () => string };
+    ipAddress?: { ipAddressHeaders?: string[]; trustedProxies?: string[] };
+  };
 };
 
 function captureConfig(): CapturedBetterAuthOptions {
@@ -326,6 +439,14 @@ describe("createAuth — Better Auth wiring", () => {
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
+  it("reads the client IP from X-Real-IP, then CF-Connecting-IP, never X-Forwarded-For", () => {
+    createAuth(makeConfig());
+    expect(captureConfig().advanced?.ipAddress).toEqual({
+      ipAddressHeaders: ["x-real-ip", "cf-connecting-ip"],
+      trustedProxies: ["0.0.0.0/32"],
+    });
+  });
+
   it("requires email verification, revokes sessions on reset, and sends verification on signup", () => {
     createAuth(makeConfig());
     const cfg = captureConfig();
@@ -334,6 +455,12 @@ describe("createAuth — Better Auth wiring", () => {
     expect(cfg.emailAndPassword?.revokeSessionsOnPasswordReset).toBe(true);
     expect(cfg.emailVerification?.sendOnSignUp).toBe(true);
     expect(cfg.emailVerification?.autoSignInAfterVerification).toBe(true);
+  });
+
+  it("lets an app with mandatory second factor turn off sign-in after e-mail verification", () => {
+    createAuth({ ...makeConfig(), email: { autoSignInAfterVerification: false } });
+    const cfg = captureConfig();
+    expect(cfg.emailVerification?.autoSignInAfterVerification).toBe(false);
   });
 
   it("does NOT register a link-based sendVerificationEmail callback (OTP plugin owns verification)", () => {
@@ -553,6 +680,14 @@ describe("createAuth — session cookie cache", () => {
   it("allows an app to require immediate server validation", () => {
     createAuth({ ...makeConfig(), session: { cookieCache: { enabled: false } } });
     expect(captureConfig().session?.cookieCache?.enabled).toBe(false);
+  });
+  it("lets an app shorten the session lifetime and keeps the default otherwise", () => {
+    createAuth({ ...makeConfig(), session: { expiresIn: 43_200, updateAge: 3_600 } });
+    expect(captureConfig().session?.expiresIn).toBe(43_200);
+    expect(captureConfig().session?.updateAge).toBe(3_600);
+    vi.clearAllMocks();
+    createAuth(makeConfig());
+    expect(captureConfig().session?.expiresIn).toBeUndefined();
   });
   beforeEach(() => vi.clearAllMocks());
 
@@ -1013,6 +1148,7 @@ describe("createAuth — audit hooks", () => {
     expect(args.actorId).toBe("u1");
     expect((args.payload as Record<string, unknown>).sessionId).toBe("s1");
     expect((args.payload as Record<string, unknown>).ipAddress).toBe("1.2.3.4");
+    expect((args.payload as Record<string, unknown>).appName).toBe(makeConfig().appName);
   });
 
   it("databaseHooks.session.delete.after writes a session.revoked audit event", async () => {
@@ -1240,6 +1376,21 @@ describe("createAuth — audit hooks", () => {
     );
   });
 
+  it("hooks.after attributes a sign-in second factor to the session it just created", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    // No login, ainda não há sessão aberta: o dono é o da sessão que acabou de nascer.
+    await handler({
+      path: "/two-factor/verify-totp",
+      context: { session: null, newSession: { user: { id: "u7" } }, returned: { status: 200 } },
+      body: {},
+    });
+    expect(dbInsertChain.values.mock.calls.at(-1)?.[0]).toMatchObject({
+      eventType: "auth.two_factor_verified",
+      actorId: "u7",
+    });
+  });
+
   it("hooks.after for /two-factor/verify-backup-code logs auth.backup_code_used on success", async () => {
     createAuth(makeConfig());
     const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
@@ -1293,7 +1444,16 @@ describe("createAuth — additional user fields", () => {
 describe("createAuth — role/ban management helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbUpdateChain.rows = [{ id: "target1" }];
+    fakeDb.users = new Map([
+      ["owner-a", { role: "owner", banned: false, banExpiresAt: null }],
+      ["owner-b", { role: "owner", banned: false, banExpiresAt: null }],
+      ["target1", { role: "member", banned: false, banExpiresAt: null }],
+    ]);
+    fakeDb.audits = [];
+    fakeDb.deletes = [];
+    fakeDb.failAuditInsert = false;
+    fakeDb.locks = 0;
+    fakeDb.lock = Promise.resolve();
   });
 
   function mockCurrentSession(user: { id: string; role: string }) {
@@ -1303,30 +1463,122 @@ describe("createAuth — role/ban management helpers", () => {
     authInstance.api.getSession.mockResolvedValue({ user, session: { id: "s1" } });
   }
 
+  function lastAudit() {
+    return dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+  }
+
   it("does not rely on user.update database hooks for role/ban side effects", () => {
     createAuth(makeConfig());
     expect(captureConfig().databaseHooks?.user?.update).toBeUndefined();
   });
 
-  it("setUserRole updates the target, audits actor/target, and revokes cached role sessions", async () => {
+  it("setUserRole updates the target under the owner lock, audits previous and new role, and revokes cached role sessions", async () => {
     const result = createAuth({ ...makeConfig(), cacheRoleOnSession: true });
-    mockCurrentSession({ id: "actor1", role: "owner" });
+    mockCurrentSession({ id: "owner-a", role: "owner" });
 
-    await result.setUserRole(new Headers(), "target1", "admin");
+    await result.setUserRole(new Headers(), "target1", "admin", { reason: "Suporte novo" });
 
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({ role: "admin", updatedAt: expect.any(Date) }),
-    );
-    expect(dbUpdateChain.where).toHaveBeenCalledWith({ field: "users.id", value: "target1" });
-    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(args.eventType).toBe("user.role_changed");
-    expect(args.actorId).toBe("actor1");
-    expect((args.payload as Record<string, unknown>).targetId).toBe("target1");
-    expect((args.payload as Record<string, unknown>).newRole).toBe("admin");
-    expect(dbDeleteChain.where).toHaveBeenCalledWith({
-      field: "sessions.user_id",
-      value: "target1",
+    expect(fakeDb.locks).toBe(1);
+    expect(fakeDb.users.get("target1")?.role).toBe("admin");
+    expect(lastAudit()).toMatchObject({
+      eventType: "user.role_changed",
+      actorId: "owner-a",
+      payload: {
+        targetId: "target1",
+        previousRole: "member",
+        newRole: "admin",
+        reason: "Suporte novo",
+      },
     });
+    expect(fakeDb.deletes).toContainEqual({
+      table: expect.objectContaining({ __mock: "sessions" }),
+      where: { field: "sessions.user_id", value: "target1" },
+    });
+  });
+
+  it("setUserRole with revokeSessions ends Postgres sessions and trusted devices in the same transaction", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "owner-a", role: "owner" });
+
+    await result.setUserRole(new Headers(), "target1", "admin", { revokeSessions: true });
+
+    const tables = fakeDb.deletes.map((entry) => (entry.table as { __mock: string }).__mock);
+    expect(tables).toEqual(["sessions", "verifications"]);
+    expect(fakeDb.deletes[1]?.where).toEqual({
+      and: [
+        { field: "verifications.value", value: "target1" },
+        { like: { field: "verifications.identifier", pattern: "trust-device-%" } },
+      ],
+    });
+  });
+
+  it("setUserRole with strictAudit writes the event inside the transaction", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "owner-a", role: "owner" });
+    const outsideBefore = dbInsertChain.values.mock.calls.length;
+
+    await result.setUserRole(new Headers(), "target1", "admin", { strictAudit: true });
+
+    expect(fakeDb.audits).toHaveLength(1);
+    expect(fakeDb.audits[0]).toMatchObject({ eventType: "user.role_changed", actorId: "owner-a" });
+    expect(dbInsertChain.values.mock.calls.length).toBe(outsideBefore);
+  });
+
+  it("setUserRole with strictAudit changes nothing when the audit row cannot be written", async () => {
+    const onAuditPersistenceFailure = vi.fn();
+    const result = createAuth({ ...makeConfig(), observability: { onAuditPersistenceFailure } });
+    mockCurrentSession({ id: "owner-a", role: "owner" });
+    fakeDb.failAuditInsert = true;
+
+    await expect(
+      result.setUserRole(new Headers(), "target1", "admin", {
+        strictAudit: true,
+        revokeSessions: true,
+      }),
+    ).rejects.toBeInstanceOf(AuditPersistenceError);
+
+    expect(fakeDb.users.get("target1")?.role).toBe("member");
+    expect(fakeDb.deletes).toEqual([]);
+    expect(onAuditPersistenceFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "user.role_changed", actorId: "owner-a" }),
+    );
+  });
+
+  it("setUserRole refuses to demote the last active owner", async () => {
+    fakeDb.users.set("owner-b", { role: "owner", banned: true, banExpiresAt: null });
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "owner-b", role: "owner" });
+
+    await expect(result.setUserRole(new Headers(), "owner-a", "admin")).rejects.toBeInstanceOf(
+      LastOwnerError,
+    );
+    expect(fakeDb.users.get("owner-a")?.role).toBe("owner");
+    expect(dbInsertChain.values).not.toHaveBeenCalled();
+  });
+
+  it("setUserRole keeps one owner when two owners demote each other at the same time", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "owner-a", role: "owner" });
+
+    const outcomes = await Promise.allSettled([
+      result.setUserRole(new Headers(), "owner-b", "member"),
+      result.setUserRole(new Headers(), "owner-a", "member"),
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+    expect((rejected as PromiseRejectedResult).reason).toBeInstanceOf(LastOwnerError);
+    const owners = [...fakeDb.users.values()].filter((user) => user.role === "owner");
+    expect(owners).toHaveLength(1);
+  });
+
+  it("setUserRole lets an owner be demoted while another active owner remains", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "owner-a", role: "owner" });
+
+    await result.setUserRole(new Headers(), "owner-b", "admin");
+
+    expect(fakeDb.users.get("owner-b")?.role).toBe("admin");
   });
 
   it("setUserRole rejects callers without users.set_role permission", async () => {
@@ -1336,7 +1588,8 @@ describe("createAuth — role/ban management helpers", () => {
     await expect(result.setUserRole(new Headers(), "target1", "owner")).rejects.toThrow(
       /permission "users\.set_role" denied/,
     );
-    expect(dbUpdateChain.set).not.toHaveBeenCalled();
+    expect(fakeDb.locks).toBe(0);
+    expect(fakeDb.users.get("target1")?.role).toBe("member");
   });
 
   it("setUserBanState audits active bans and revokes the target sessions", async () => {
@@ -1349,22 +1602,15 @@ describe("createAuth — role/ban management helpers", () => {
       banReason: "spam",
     });
 
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        banned: true,
-        banReason: "spam",
-        banExpiresAt: null,
-        updatedAt: expect.any(Date),
-      }),
-    );
-    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(args.eventType).toBe("user.banned");
-    expect(args.actorId).toBe("actor1");
-    expect((args.payload as Record<string, unknown>).targetId).toBe("target1");
-    expect((args.payload as Record<string, unknown>).reason).toBe("spam");
-    expect(dbDeleteChain.where).toHaveBeenCalledWith({
-      field: "sessions.user_id",
-      value: "target1",
+    expect(fakeDb.users.get("target1")).toMatchObject({ banned: true, banExpiresAt: null });
+    expect(lastAudit()).toMatchObject({
+      eventType: "user.banned",
+      actorId: "actor1",
+      payload: { targetId: "target1", reason: "spam" },
+    });
+    expect(fakeDb.deletes).toContainEqual({
+      table: expect.objectContaining({ __mock: "sessions" }),
+      where: { field: "sessions.user_id", value: "target1" },
     });
   });
 
@@ -1378,37 +1624,214 @@ describe("createAuth — role/ban management helpers", () => {
       banExpiresAt: new Date(Date.now() - 60_000),
     });
 
-    expect(dbDeleteChain.where).not.toHaveBeenCalled();
+    expect(fakeDb.deletes).toEqual([]);
   });
 
-  it("setUserBanState clears ban metadata when unbanning", async () => {
+  it("setUserBanState clears ban metadata when unbanning and records the reason", async () => {
+    fakeDb.users.set("target1", { role: "member", banned: true, banExpiresAt: null });
     const result = createAuth(makeConfig());
     mockCurrentSession({ id: "actor1", role: "admin" });
 
-    await result.setUserBanState(new Headers(), { userId: "target1", banned: false });
+    await result.setUserBanState(new Headers(), {
+      userId: "target1",
+      banned: false,
+      reason: "Banimento feito por engano",
+    });
 
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        banned: false,
-        banReason: null,
-        banExpiresAt: null,
-        updatedAt: expect.any(Date),
-      }),
-    );
-    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(args.eventType).toBe("user.unbanned");
-    expect(args.actorId).toBe("actor1");
-    expect(dbDeleteChain.where).not.toHaveBeenCalled();
+    expect(fakeDb.users.get("target1")).toMatchObject({ banned: false, banExpiresAt: null });
+    expect(lastAudit()).toMatchObject({
+      eventType: "user.unbanned",
+      actorId: "actor1",
+      payload: { targetId: "target1", reason: "Banimento feito por engano" },
+    });
+    expect(fakeDb.deletes).toEqual([]);
+  });
+
+  it("setUserBanState refuses to ban the last active owner", async () => {
+    fakeDb.users.delete("owner-b");
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await expect(
+      result.setUserBanState(new Headers(), { userId: "owner-a", banned: true, banReason: "x" }),
+    ).rejects.toBeInstanceOf(LastOwnerError);
+    expect(fakeDb.users.get("owner-a")?.banned).toBe(false);
+  });
+
+  it("setUserBanState with strictAudit writes the event inside the transaction", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await result.setUserBanState(new Headers(), {
+      userId: "target1",
+      banned: true,
+      banReason: "spam",
+      strictAudit: true,
+    });
+
+    expect(fakeDb.audits).toEqual([
+      expect.objectContaining({ eventType: "user.banned", actorId: "actor1" }),
+    ]);
   });
 
   it("throws NotFoundError when the target user does not exist", async () => {
-    dbUpdateChain.rows = [];
     const result = createAuth(makeConfig());
-    mockCurrentSession({ id: "actor1", role: "owner" });
+    mockCurrentSession({ id: "owner-a", role: "owner" });
 
     await expect(result.setUserRole(new Headers(), "missing", "admin")).rejects.toThrow(
       /target user not found/,
     );
+  });
+});
+
+describe("createAuth: duas etapas ligadas encerram as outras sessões", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function afterHook(observability?: { onSecurityEvent?: Mock }) {
+    createAuth({ ...makeConfig(), observability });
+    return mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+  }
+
+  function adapterWith(tokens: string[]) {
+    return {
+      listSessions: vi.fn(async () => tokens.map((token) => ({ token }))),
+      deleteSessions: vi.fn(async () => undefined),
+      deleteUserSessions: vi.fn(async (_userId: string) => undefined),
+      updateUser: vi.fn(async (_userId: string, _data: Record<string, unknown>) => undefined),
+    };
+  }
+
+  function activation(adapter: ReturnType<typeof adapterWith>) {
+    return {
+      path: "/two-factor/verify-totp",
+      body: {},
+      context: {
+        session: { user: { id: "u1", twoFactorEnabled: false } },
+        newSession: { session: { token: "nova" }, user: { id: "u1", twoFactorEnabled: true } },
+        internalAdapter: adapter,
+      },
+    };
+  }
+
+  it("keeps only the session created by the activation", async () => {
+    const handler = afterHook();
+    const adapter = adapterWith(["antiga-1", "nova", "antiga-2"]);
+    await handler(activation(adapter));
+    expect(adapter.listSessions).toHaveBeenCalledWith("u1");
+    expect(adapter.deleteSessions).toHaveBeenCalledWith(["antiga-1", "antiga-2"]);
+    expect(dbInsertChain.values.mock.calls.at(-1)?.[0]).toMatchObject({
+      eventType: "auth.two_factor_verified",
+    });
+  });
+
+  it("does nothing on a sign-in second factor or when two-factor was already on", async () => {
+    const handler = afterHook();
+    const adapter = adapterWith(["outra", "nova"]);
+    await handler({
+      ...activation(adapter),
+      context: { ...activation(adapter).context, session: null },
+    });
+    await handler({
+      ...activation(adapter),
+      context: {
+        ...activation(adapter).context,
+        session: { user: { id: "u1", twoFactorEnabled: true } },
+      },
+    });
+    expect(adapter.deleteSessions).not.toHaveBeenCalled();
+  });
+
+  it("also applies when /two-factor/enable turns two-factor on directly", async () => {
+    const handler = afterHook();
+    const adapter = adapterWith(["antiga", "nova"]);
+    await handler({ ...activation(adapter), path: "/two-factor/enable" });
+    expect(adapter.deleteSessions).toHaveBeenCalledWith(["antiga"]);
+  });
+
+  it("fails closed: if the cleanup fails, every session of the account goes and the response is an error", async () => {
+    const onSecurityEvent = vi.fn();
+    const handler = afterHook({ onSecurityEvent });
+    const adapter = adapterWith([]);
+    adapter.listSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(handler(activation(adapter))).rejects.toMatchObject({
+      body: { code: "SESSION_CLEANUP_FAILED" },
+    });
+    // two_factor_enabled já está gravado: as sessões antigas, abertas só com a
+    // senha, não podem sobrar, então saem todas, não só a nova.
+    expect(adapter.deleteUserSessions).toHaveBeenCalledWith("u1");
+    expect(adapter.updateUser).not.toHaveBeenCalled();
+    expect(onSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "two_factor_session_cleanup_failed",
+        userId: "u1",
+        metadata: expect.objectContaining({ fallback: "all_sessions_revoked" }),
+      }),
+    );
+  });
+
+  it("also fails closed when deleting the old sessions fails: two-factor is turned back off", async () => {
+    const onSecurityEvent = vi.fn();
+    const handler = afterHook({ onSecurityEvent });
+    const adapter = adapterWith(["antiga", "nova"]);
+    adapter.deleteSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.deleteUserSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(handler(activation(adapter))).rejects.toMatchObject({
+      body: { code: "SESSION_CLEANUP_FAILED" },
+    });
+    expect(adapter.updateUser).toHaveBeenCalledWith("u1", { twoFactorEnabled: false });
+    expect(onSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ fallback: "two_factor_reverted" }),
+      }),
+    );
+  });
+
+  it("reports when nothing could close the account", async () => {
+    const onSecurityEvent = vi.fn();
+    const handler = afterHook({ onSecurityEvent });
+    const adapter = adapterWith([]);
+    adapter.listSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.deleteUserSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.updateUser.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(handler(activation(adapter))).rejects.toMatchObject({
+      body: { code: "SESSION_CLEANUP_FAILED" },
+    });
+    expect(onSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ fallback: "failed" }) }),
+    );
+  });
+});
+
+describe("createAuth: teto da sessão", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const now = Date.parse("2026-10-17T12:00:00Z");
+  const hours = (count: number) => count * 3_600_000;
+
+  it("caps a remember-me-false day at the configured lifetime", () => {
+    expect(cappedSessionExpiry(new Date(now + hours(24)), 12 * 3600, now)).toEqual({
+      expiresAt: new Date(now + hours(12)),
+    });
+  });
+
+  it("keeps an expiry that already fits and does nothing without a configured lifetime", () => {
+    expect(cappedSessionExpiry(new Date(now + hours(12)), 12 * 3600, now)).toEqual({});
+    expect(cappedSessionExpiry(new Date(now + hours(24)), undefined, now)).toEqual({});
+  });
+
+  it("session.create.before applies the ceiling to every new session", async () => {
+    createAuth({ ...makeConfig(), session: { expiresIn: 12 * 3600 } });
+    const beforeHook = captureConfig().databaseHooks?.session?.create?.before;
+    if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
+    const findOne = vi.fn().mockResolvedValue({ role: "owner" });
+    const dayLater = new Date(Date.now() + hours(24));
+    const result = await beforeHook(
+      { userId: "u1", expiresAt: dayLater },
+      { context: { adapter: { findOne } } },
+    );
+    if (result === false) throw new Error("session.create.before unexpectedly blocked session");
+    const expiresAt = result.data.expiresAt as Date;
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + hours(12));
+    expect(expiresAt.getTime()).toBeGreaterThan(Date.now() + hours(12) - 60_000);
   });
 });
 

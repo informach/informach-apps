@@ -14,29 +14,29 @@ export function StarterCollection({
 }) {
   const [selected, setSelected] = useState<RecipeFormValues | null>(null);
   return (
-    <section className="mx-auto max-w-3xl space-y-4 rounded-2xl border p-5">
+    <section className="space-y-4 rounded-3xl bg-muted p-5">
       <div>
-        <h2 className="text-xl font-semibold">Uma ideia para começar</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Receitas autorais para você revisar, ajustar e salvar sem gastar créditos. Esta coleção
-          ainda não foi testada em cozinha.
+        <h2 className="text-xl font-extrabold">Da coleção do Cozya</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Rascunhos autorais para conferir, ajustar e guardar sem gastar crédito. Ainda sem teste em
+          cozinha.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {STARTER_RECIPES.map((recipe) => (
           <div
             key={recipe.name}
-            className="flex flex-col items-start gap-3 rounded-xl bg-muted/40 p-4"
+            className="flex flex-col items-start gap-3 rounded-2xl bg-card p-4 ring-1 ring-border"
           >
-            <h3 className="font-medium">{recipe.name}</h3>
-            <p className="text-sm text-muted-foreground">{recipe.servings} porções sugeridas</p>
+            <h3 className="font-bold">{recipe.name}</h3>
+            <p className="text-sm text-muted-foreground">Rende {recipe.servings}</p>
             <Button
               variant="outline"
               className="mt-auto min-h-11"
               onClick={() => setSelected(recipe)}
-              aria-label={`Revisar ${recipe.name}`}
+              aria-label={`Conferir ${recipe.name}`}
             >
-              Revisar e salvar
+              Conferir e guardar
             </Button>
           </div>
         ))}
@@ -51,7 +51,7 @@ export function StarterCollection({
           defaultValues={selected}
           isPro={isPro}
           currentCount={currentCount}
-          title="Revise antes de guardar"
+          title="Confira antes de guardar"
           description="Confira ingredientes, medidas e preparo. Você pode adaptar o rascunho à sua rotina."
         />
       )}

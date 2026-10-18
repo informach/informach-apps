@@ -211,6 +211,54 @@ describe("dispatchEmail live mode", () => {
     expect(result.reason).toContain("unsubscribed");
   });
 
+  it("sends the Bastidores outage alert even when the person unsubscribed", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      selectQueue: [[], [{ userId: "user-1" }]],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({ category: "admin.alert", text: "Cozya fora do ar" }),
+    );
+
+    expect(result).toEqual({ ok: true, status: "sent", deliveryId: "fake-id" });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("still skips the Bastidores weekly summary after an unsubscribe", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      selectQueue: [[], [{ userId: "user-1" }]],
+      updateResult: [{ id: "fake-id" }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({ category: "admin.weekly-summary", text: "Resumo" }),
+    );
+
+    expect(send).not.toHaveBeenCalled();
+    if (result.ok) throw new Error("unreachable");
+    expect(result.status).toBe("skipped");
+    expect(result.reason).toContain("unsubscribed");
+  });
+
   it("calls send with the right payload, headers and customArgs on success", async () => {
     const { db } = createFakeDb({
       insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
@@ -323,6 +371,36 @@ describe("dispatchEmail live mode", () => {
         text: "OTP 123456",
       }),
     );
+  });
+
+  it("does not persist Bastidores bodies, which its own job rebuilds", async () => {
+    const { db, calls } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({
+        category: "admin.alert",
+        html: "<p>Cozya fora do ar</p>",
+        text: "Cozya fora do ar",
+      }),
+    );
+
+    const insertValues = calls
+      .find((call) => call.mode === "insert")
+      ?.chain.find((entry) => entry.method === "values")?.args[0] as Record<string, unknown>;
+    expect(insertValues.html).toBeNull();
+    expect(insertValues.text).toBeNull();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ text: "Cozya fora do ar" }));
   });
 
   it("persists non-auth email bodies so retry can rebuild the message", async () => {

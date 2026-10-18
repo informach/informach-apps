@@ -1,3 +1,4 @@
+import { clientIpFromHeaders } from "@informach/auth/client-ip";
 import { recordProductEvent } from "@/features/metrics/events";
 import { recordLandingEvent } from "@/features/metrics/landing-events";
 import { landingEventSchema } from "@/features/metrics/landing-schema";
@@ -13,7 +14,7 @@ import {
 export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(env.NEXT_PUBLIC_APP_URL).origin)
     return new Response(null, { status: 403 });
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIpFromHeaders(request.headers) ?? "unknown";
   try {
     const bytes = await readRequestBodyWithSizeLimit(request, 1024);
     if (bytes.byteLength === 0) {

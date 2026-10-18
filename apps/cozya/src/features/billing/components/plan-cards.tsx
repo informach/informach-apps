@@ -6,41 +6,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/componen
 import { toast } from "@informach/ui/components/sonner";
 import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { recordOfferSeenAction } from "@/features/kitchen/event-actions";
+import { TRIAL_DAYS } from "@/features/kitchen/trial";
 import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import {
+  ANNUAL_SAVINGS_PCT,
   type BillingCycle,
   FREE_FEATURES,
   type PlanFeature,
   PRICING,
   PRO_FEATURES,
+  PRO_MONTHLY_CREDITS,
 } from "../plans-content";
 
 export type PlanCardsProps = {
   initialCycle?: BillingCycle;
   /**
-   * Mostra o stepper "Conta → Verificação → Plano" do onboarding pós-signup.
+   * Mostra as etapas "Conta, Código, Plano" do cadastro de quem escolheu o Pro na página.
    * Default `true` mantém o uso histórico em /choose-plan; passe `false` em
    * /upgrade (usuário já está dentro do app).
    */
   showStepper?: boolean;
   /**
    * Mostra o card do plano Free. Default `true` para o onboarding. Passe
-   * `false` em /upgrade — usuário Free clicando "Seja Pro" não precisa
-   * reescolher Free; só faz sentido oferecer o upgrade.
+   * `false` em /upgrade: quem já está no app não precisa reescolher o Free.
    */
   showFreePlan?: boolean;
+  /** h2 when the page already has its own title, as in the end-of-trial summary. */
+  titleAs?: "h1" | "h2";
 };
 
 export function PlanCards({
   initialCycle = "monthly",
   showStepper = true,
   showFreePlan = true,
+  titleAs: Title = "h1",
 }: PlanCardsProps) {
   const router = useRouter();
   useEffect(() => {
@@ -108,11 +113,13 @@ export function PlanCards({
       {showStepper && <OnboardingStepper currentStep={3} />}
 
       <header className="space-y-3 text-center">
-        <h1 className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">
-          Escolha seu plano
-        </h1>
-        <p className="mx-auto max-w-md text-pretty text-sm text-muted-foreground md:text-base">
-          Comece grátis ou desbloqueie a IA com o Pro. Você pode mudar de plano a qualquer momento.
+        <Title className="text-balance text-[30px] font-extrabold tracking-display md:text-4xl">
+          {showFreePlan ? "Escolha como começar" : "Cozya Pro"}
+        </Title>
+        <p className="mx-auto max-w-md text-pretty text-[15px] text-muted-foreground md:text-base">
+          {showFreePlan
+            ? `Comece com ${TRIAL_DAYS} dias grátis ou assine o Pro agora. Dá para mudar quando quiser.`
+            : "A semana inteira: planejar, comprar e cozinhar. Cancele pela conta quando quiser."}
         </p>
       </header>
 
@@ -125,7 +132,7 @@ export function PlanCards({
             <TabsTrigger value="annual" className="px-5">
               {PRICING.annual.tabLabel}
               <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 text-[10px]">
-                -20%
+                economize {ANNUAL_SAVINGS_PCT}%
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -144,7 +151,7 @@ export function PlanCards({
                 <span className="text-sm text-muted-foreground">para sempre</span>
               </div>
               <CardTitle className="text-base font-normal text-muted-foreground">
-                Pra quem quer começar a organizar receitas sem custo.
+                Para começar sem pagar: {TRIAL_DAYS} dias de planejamento e, depois, o Free.
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col justify-between gap-6">
@@ -163,15 +170,8 @@ export function PlanCards({
           </Card>
         )}
 
-        <Card className="group relative flex flex-col border-2 border-primary/40 bg-card shadow-lg transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
-          />
-          <Badge className="absolute -top-3 left-6 gap-1">
-            <Sparkles className="size-3" aria-hidden />
-            Para sua semana
-          </Badge>
+        <Card className="group relative flex flex-col border-2 border-primary bg-card shadow-sm">
+          <Badge className="absolute -top-3 left-6">Para a semana inteira</Badge>
           <CardHeader className="space-y-3 pb-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-brand-ink">
               Cozya Pro
@@ -182,21 +182,21 @@ export function PlanCards({
             </div>
             <p className="text-xs text-muted-foreground">{proPlan.note}</p>
             <CardTitle className="text-base font-normal text-muted-foreground">
-              Pra quem quer usar a IA pra capturar receita de qualquer fonte.
+              Planejar, comprar e cozinhar, com {PRO_MONTHLY_CREDITS} créditos de IA por mês.
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col justify-between gap-6">
             <FeatureList features={PRO_FEATURES} />
             <Button size="lg" className="w-full" onClick={handlePro} disabled={anyPending}>
               {isProPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-              Assinar Pro
+              {cycle === "annual" ? "Assinar o Pro anual" : "Assinar o Pro mensal"}
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Sem cartão pra começar. Sem fidelidade pra continuar.
+        {showFreePlan ? "Sem cartão para começar. " : ""}Cancele pela conta quando quiser.
       </p>
     </div>
   );

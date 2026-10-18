@@ -21,7 +21,9 @@ export type AuthSecurityEventType =
   | "role_mismatch"
   | "banned_user_signin_attempt"
   | "two_factor_failed"
-  | "session_revoked";
+  | "session_revoked"
+  /** As duas etapas acabaram de ser ativadas e as outras sessões da conta não puderam ser encerradas. */
+  | "two_factor_session_cleanup_failed";
 
 export type AuthSecurityEvent = {
   type: AuthSecurityEventType;

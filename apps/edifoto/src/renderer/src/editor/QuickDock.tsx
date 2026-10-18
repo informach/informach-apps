@@ -2,6 +2,7 @@ import { Crop, type LucideIcon, Palette, RotateCw, Sun, Type, WandSparkles } fro
 import type { ReactNode } from "react";
 import { actions, addText, attempt, quickAdjust } from "@/lib/actions";
 import { openChromaKey } from "@/lib/chroma";
+import { applyStyle } from "@/lib/styles";
 import { useUi } from "@/state/ui";
 
 const ITEMS: {
@@ -35,8 +36,14 @@ const ITEMS: {
   {
     icon: WandSparkles,
     label: "Remover fundo",
-    title: "Chroma key com prévia, conta-gotas e refinamento de bordas",
+    title: "Fundo por cor com prévia e refinamento de bordas",
     run: openChromaKey,
+  },
+  {
+    icon: Palette,
+    label: "Estilos",
+    title: "Aplicar um estilo e ajustar a intensidade",
+    run: () => applyStyle("natural"),
   },
   { icon: Type, label: "Texto", title: "Adicionar texto (T)", run: addText },
 ];

@@ -35,7 +35,7 @@ globalThis.__chromaTestRun = (async () => {
   button("Remover fundo").click();
   await until(() => button("Aplicar recorte") && !button("Aplicar recorte").disabled);
   assert(
-    !!document.querySelector('[aria-label="Remover fundo com chroma key"]'),
+    !!document.querySelector('dialog[aria-label="Remover fundo"]'),
     "dialog opens and worker completes",
   );
   assert(

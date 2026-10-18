@@ -59,7 +59,7 @@ function PackCard({ pack }: { pack: Product }) {
           });
         } else if (result.error.code === "PACK_NOT_CONFIGURED") {
           toast("Pacote ainda não disponível.", {
-            description: "Estamos finalizando a configuração — tente em breve.",
+            description: "Estamos terminando a configuração. Tente de novo em breve.",
           });
         } else {
           toast.error("Não foi possível iniciar a compra.", {

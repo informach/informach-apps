@@ -66,7 +66,7 @@ export function FamilyPanel({ overview, isPro }: { overview: FamilyOverview; isP
       ) : null}
       {!overview.profiles.length ? (
         <p className="text-sm">
-          Crie o primeiro perfil em{" "}
+          Adicione a primeira criança em{" "}
           <Link href="/familia" className="text-primary-ink underline">
             Crianças
           </Link>
@@ -129,8 +129,8 @@ export function FamilyPanel({ overview, isPro }: { overview: FamilyOverview; isP
         <p className="text-sm text-muted-foreground">
           Após encerrar o plano, o acesso já compartilhado permanece. Novos convites e ampliações
           exigem o Pro.{" "}
-          <Link href="/upgrade" className="text-primary-ink underline">
-            Ver plano
+          <Link href="/upgrade?motivo=adulto" className="text-primary-ink underline">
+            Ver o Pro
           </Link>
         </p>
       ) : null}

@@ -160,8 +160,8 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
         <DialogHeader>
           <DialogTitle>Cadastrar matérias por imagem</DialogTitle>
           <DialogDescription>
-            Tire uma foto ou envie uma imagem com a lista de matérias (horário escolar impresso,
-            print de site, foto de caderno) e a IA organiza tudo pra você revisar antes de salvar.
+            Tire uma foto do horário da turma (impresso, print ou caderno). A Agenda separa as
+            matérias e os dias, e você confere antes de salvar.
           </DialogDescription>
         </DialogHeader>
 

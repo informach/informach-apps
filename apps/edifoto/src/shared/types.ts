@@ -12,26 +12,16 @@ export type SaveKind = "doc" | "png" | "jpeg" | "webp";
 
 /* ----- AI ----- */
 
-export const API_MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5 (mais capaz)" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5 (mais barato)" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (mais rápido)" },
-];
-
-export type AssistantEngine = "claude-code" | "codex" | "api";
+export type AssistantEngine = "claude-code" | "codex";
 
 export const ENGINE_LABEL: Record<AssistantEngine, string> = {
   "claude-code": "Claude Code · sua assinatura",
   codex: "Codex · sua assinatura ChatGPT",
-  api: "Chave da API Anthropic",
 };
 
 export interface AiSettingsView {
   engine: AssistantEngine;
   claudeModel: string;
-  hasApiKey: boolean;
-  apiKeyHint?: string;
-  model: string;
   mcpEnabled: boolean;
   mcpPort: number;
   mcpUrl: string;
@@ -44,8 +34,6 @@ export interface AiSettingsView {
 }
 
 export type AiSettingsChanges = Partial<{
-  apiKey: string | null;
-  model: string;
   mcpEnabled: boolean;
   engine: AssistantEngine;
   claudeModel: string;
@@ -83,6 +71,9 @@ export interface AiToolCall {
   input: unknown;
   /** 'assistant' = in-app chat; 'mcp' = an external client (Claude Code, Codex, Claude Desktop). */
   source: "assistant" | "mcp";
+  documentId?: string;
+  runId?: string;
+  workspaceId?: number;
 }
 
 export interface ToolOutcome {
@@ -107,17 +98,26 @@ export interface EdiFotoApi {
   showInFolder(path: string): Promise<void>;
   pathForFile(file: File): string;
   setDirty(dirty: boolean): void;
+  onSaveBeforeClose(cb: () => void): () => void;
+  onDiscardBeforeClose(cb: () => void): () => void;
+  closeSaved(): Promise<void>;
   /** Files passed on the command line or with "Abrir com". */
   onOpenFiles(cb: (paths: string[]) => void): () => void;
 
   aiSettings(): Promise<AiSettingsView>;
   saveAiSettings(changes: AiSettingsChanges): Promise<AiSettingsView>;
-  testApiKey(): Promise<{ ok: boolean; message: string }>;
   aiClients(): Promise<AiClientStatus[]>;
   connectAiClient(id: AiClientId): Promise<{ ok: boolean; message: string }>;
-  assistantSend(conversationId: string, text: string): Promise<void>;
+  assistantSend(
+    conversationId: string,
+    text: string,
+    documentId: string,
+    runId: string,
+    workspaceId: number,
+  ): Promise<void>;
   assistantStop(conversationId: string): Promise<void>;
   assistantReset(conversationId: string): Promise<void>;
   onAssistantEvent(cb: (conversationId: string, e: AssistantEvent) => void): () => void;
+  onAiCancel(cb: (id: string) => void): () => void;
   handleAiTools(run: (call: AiToolCall) => Promise<ToolOutcome>): () => void;
 }

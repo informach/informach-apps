@@ -1,4 +1,5 @@
 import { newId } from "@shared/doc";
+import { validateDimensions } from "@shared/documentFormat";
 
 /**
  * Pixel storage for raster layers and masks, outside the (plain JSON) document. Each bitmap is a
@@ -20,14 +21,29 @@ export interface Rect {
   h: number;
 }
 
-const store = new Map<string, Bitmap>();
+let store = new Map<string, Bitmap>();
+// A key reused by a reopened project must never reuse a GPU generation.
+let nextVersion = 1;
+const MAX_STORED_PIXELS = 96_000_000;
+function checkAllocation(w: number, h: number, replaced?: string): void {
+  validateDimensions(w, h);
+  let pixels = w * h;
+  for (const [id, bitmap] of store)
+    if (id !== replaced) pixels += bitmap.canvas.width * bitmap.canvas.height;
+  if (pixels > MAX_STORED_PIXELS)
+    throw new Error(
+      "Há muitas imagens grandes neste projeto. Salve e reabra para liberar o histórico antes de continuar.",
+    );
+}
 
 function make(w: number, h: number): Bitmap {
+  checkAllocation(w, h);
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(w));
   canvas.height = Math.max(1, Math.round(h));
-  const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
-  return { canvas, ctx, version: 1, dirty: "all" };
+  const ctx = canvas.getContext("2d", { willReadFrequently: false });
+  if (!ctx) throw new Error("Não foi possível preparar os pixels da imagem.");
+  return { canvas, ctx, version: nextVersion++, dirty: "all" };
 }
 
 export function createBitmap(w: number, h: number, fill?: string): string {
@@ -51,7 +67,10 @@ export function bitmapFrom(src: CanvasImageSource, w: number, h: number): string
 }
 
 export function adoptCanvas(canvas: HTMLCanvasElement, id = newId("b")): string {
-  store.set(id, { canvas, ctx: canvas.getContext("2d")!, version: 1, dirty: "all" });
+  checkAllocation(canvas.width, canvas.height, id);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Não foi possível preparar os pixels da imagem.");
+  store.set(id, { canvas, ctx, version: nextVersion++, dirty: "all" });
   return id;
 }
 
@@ -69,7 +88,7 @@ export function requireBitmap(id: string): Bitmap {
 export function touchBitmap(id: string, rect?: Rect): void {
   const b = store.get(id);
   if (!b) return;
-  b.version++;
+  b.version = nextVersion++;
   if (!rect || b.dirty === "all") {
     b.dirty = "all";
     return;
@@ -93,5 +112,33 @@ export function cloneBitmap(id: string): string {
 export function clearBitmaps(): void {
   store.clear();
 }
+export function collectBitmaps(live: ReadonlySet<string>): void {
+  for (const id of store.keys()) if (!live.has(id)) store.delete(id);
+}
 
 export const bitmapIds = (): string[] => [...store.keys()];
+
+/** Stage a complete registry before switching documents; failures preserve the previous workspace. */
+export function withBitmapReplacement<T>(
+  canvases: ReadonlyMap<string, HTMLCanvasElement>,
+  load: () => T,
+): T {
+  const replacement = new Map<string, Bitmap>();
+  let pixels = 0;
+  for (const [id, canvas] of canvases) {
+    validateDimensions(canvas.width, canvas.height);
+    pixels += canvas.width * canvas.height;
+    if (pixels > MAX_STORED_PIXELS) throw new Error("O projeto contém imagens grandes demais.");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Não foi possível preparar os pixels da imagem.");
+    replacement.set(id, { canvas, ctx, version: nextVersion++, dirty: "all" });
+  }
+  const previous = store;
+  store = replacement;
+  try {
+    return load();
+  } catch (error) {
+    store = previous;
+    throw error;
+  }
+}

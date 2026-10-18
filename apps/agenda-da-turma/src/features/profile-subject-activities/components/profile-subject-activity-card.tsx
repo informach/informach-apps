@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import { Checkbox } from "@informach/ui/components/checkbox";
@@ -16,13 +15,9 @@ import { cn } from "@informach/ui/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  getActivityTypeIcon,
-  getActivityTypeLabel,
-  getDueBadgeLabel,
-  getDueBadgeVariant,
-  getDueUrgency,
-} from "@/features/activities/utils";
+import { getActivityTypeIcon, getActivityTypeLabel } from "@/features/activities/utils";
+import { DueChip } from "@/features/unified-activities/components/due-chip";
+import { describeDue } from "@/features/unified-activities/due";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { setProfileSubjectActivityStatusAction } from "../actions";
 import type { ProfileSubjectActivity } from "../types";
@@ -44,9 +39,13 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
 
   const TypeIcon = getActivityTypeIcon(activity.type);
   const isDone = activity.status === "done";
-  // Prazo a confirmar é estado legítimo desde a convergência: a tarefa sem
-  // data continua na rotina em vez de receber uma data fictícia.
-  const urgency = getDueUrgency(activity.dueAt ?? "", isDone ? "done" : "pending");
+  // Sem data é estado legítimo desde a convergência: a tarefa sem data
+  // continua na rotina em vez de receber uma data fictícia.
+  const due = describeDue({
+    dueAt: activity.dueAt,
+    time: null,
+    status: isDone ? "done" : "pending",
+  });
 
   const handleToggle = (next: boolean) => {
     startTransition(async () => {
@@ -81,29 +80,35 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
             checked={isDone}
             onCheckedChange={(v) => handleToggle(v === true)}
             disabled={!hydrated || pending}
-            aria-label={`Marcar "${activity.title}" como ${isDone ? "pendente" : "concluída"}`}
+            aria-label={`${isDone ? "Reabrir" : "Marcar como feito"}: ${activity.title}`}
             className="mt-0.5"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className={cn("text-sm font-medium text-foreground", isDone && "line-through")}>
-                {activity.title}
-              </p>
-              <Badge variant="outline" className="shrink-0 text-xs">
-                <TypeIcon className="mr-1 size-3" aria-hidden />
-                {getActivityTypeLabel(activity.type)}
-              </Badge>
-              <Badge variant={getDueBadgeVariant(urgency)} className="shrink-0 text-xs">
-                {activity.dueAt ? getDueBadgeLabel(activity.dueAt, urgency) : "Prazo a confirmar"}
-              </Badge>
-            </div>
+            <p
+              className={cn(
+                "break-words text-[15px] font-bold text-foreground",
+                isDone && "line-through",
+              )}
+            >
+              {activity.title}
+            </p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <TypeIcon className="size-3.5" aria-hidden />
+              {getActivityTypeLabel(activity.type)}
+            </p>
             {activity.description ? (
               <p className="mt-1 text-sm text-muted-foreground">{activity.description}</p>
             ) : null}
           </div>
+          <DueChip due={due} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={`Ações para ${activity.title}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 shrink-0 rounded-full"
+                aria-label={`Ações para ${activity.title}`}
+              >
                 <MoreVertical className="size-4" aria-hidden />
               </Button>
             </DropdownMenuTrigger>

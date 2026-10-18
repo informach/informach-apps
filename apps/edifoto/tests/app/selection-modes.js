@@ -18,14 +18,14 @@ globalThis.__selectionTestRun = (async () => {
   try {
     E.useDoc.getState().load(E.ops.blankDoc(160, 100, "Selection modes", "#ffffff"));
     E.selection.selectPolygon(rectangle(10, 10, 50, 40));
-    const old = E.useUi.getState().selection;
+    const old = E.bitmaps.requireBitmap(E.useUi.getState().selection);
     E.selection.selectPolygon(rectangle(40, 10, 50, 40), "add");
     assert(
       alpha(20, 20) === 255 && alpha(80, 20) === 255 && alpha(100, 20) === 0,
       "add preserves both selected regions",
     );
     assert(
-      E.bitmaps.requireBitmap(old).ctx.getImageData(80, 20, 1, 1).data[3] === 0,
+      old.ctx.getImageData(80, 20, 1, 1).data[3] === 0,
       "combination does not mutate previous bitmap",
     );
     E.selection.selectPolygon(rectangle(40, 10, 50, 40), "subtract");

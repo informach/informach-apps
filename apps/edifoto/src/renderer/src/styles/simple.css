@@ -1,0 +1,248 @@
+/* Intent: quick image composition without design training. Keep the existing charcoal,
+   paper and orange identity, Inter text, border depth, and a four-pixel spacing scale. */
+.recovery-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.recovery-banner > div {
+  flex: 1;
+}
+.recovery-banner p {
+  margin: 4px 0 0;
+  color: var(--text-2);
+}
+.template-section {
+  display: grid;
+  gap: 12px;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.template-card:hover {
+  border-color: var(--accent);
+}
+.template-card > span {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.template-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--text-1);
+  color: var(--bg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.template-preview strong {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+  line-height: 1.1;
+}
+.template-preview > span {
+  width: 24px;
+  height: 4px;
+  background: var(--accent);
+}
+.template-preview i {
+  display: block;
+  width: 68%;
+  height: 4px;
+  background: var(--text-2);
+}
+.template-split {
+  padding-right: 44%;
+}
+.template-split::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 40%;
+  background: var(--line-2);
+  border-radius: 4px;
+}
+.template-square {
+  background: var(--accent);
+}
+.template-square > span {
+  background: var(--bg);
+}
+.template-page {
+  padding: 12px 24px;
+}
+.template-page strong {
+  font-size: 18px;
+}
+.quick-settings summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 12px;
+  padding: 8px 0;
+}
+.quick-settings details > .section {
+  padding: 12px 0 0;
+}
+.dock {
+  position: static;
+  transform: none;
+  left: auto;
+  bottom: auto;
+  align-self: center;
+  max-width: calc(100% - 24px);
+  margin: 8px 12px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  box-shadow: none;
+}
+.dock-btn {
+  padding: 8px;
+  flex-shrink: 0;
+}
+.toolrail {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.toolrail > .tools {
+  flex-shrink: 0;
+}
+.rpanel {
+  width: clamp(280px, 26vw, 340px);
+}
+.agent {
+  width: clamp(280px, 28vw, 360px);
+}
+.optionsbar {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.optionsbar > * {
+  flex-shrink: 0;
+}
+.topbar {
+  gap: 8px;
+}
+.topbar .doc-tab {
+  flex: 1;
+  max-width: 240px;
+}
+.statusbar {
+  overflow: hidden;
+  gap: 8px;
+}
+.statusbar > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.statusbar .zoom-ctl {
+  flex: none;
+}
+.export-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  background: repeating-conic-gradient(var(--panel-2) 0% 25%, var(--panel-3) 0% 50%) 0 / 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.export-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 1200px) {
+  .brand {
+    font-size: 0;
+    gap: 0;
+  }
+  .topbar-right .btn {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .menubar {
+    gap: 0;
+  }
+  .menu-btn {
+    padding: 0 6px;
+  }
+  .topbar .doc-tab {
+    max-width: 100px;
+  }
+  .template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dock .vsep {
+    display: none;
+  }
+}
+
+dialog.backdrop {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+.alignment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+dialog.backdrop {
+  overscroll-behavior: contain;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .toggle,
+  .toggle::after {
+    transition: none;
+  }
+}

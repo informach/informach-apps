@@ -83,7 +83,7 @@ export function AlternatingSlotsEditor({
   if (classDays.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        Marque os dias de aula acima primeiro pra configurar revezamento quinzenal.
+        Marque os dias de aula acima antes de configurar o revezamento quinzenal.
       </p>
     );
   }
@@ -91,7 +91,7 @@ export function AlternatingSlotsEditor({
   if (turmaSubjects.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        Cadastre outras matérias nesta turma primeiro pra configurar revezamento.
+        Cadastre as outras matérias da turma antes de configurar o revezamento.
       </p>
     );
   }

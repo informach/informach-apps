@@ -21,6 +21,22 @@ describe("safeInternalPath", () => {
     expect(safeInternalPath("//attacker.com/dashboard", "/dashboard")).toBe("/dashboard");
   });
 
+  it("rejeita o que o navegador transforma em `//host` na hora de navegar", () => {
+    const backslash = String.fromCharCode(0x5c);
+    const tab = String.fromCharCode(0x09);
+    const newline = String.fromCharCode(0x0a);
+    // Barra invertida vira barra, e tab e quebra de linha são descartados.
+    expect(safeInternalPath(`/${backslash}evil.com`, "/dashboard")).toBe("/dashboard");
+    expect(safeInternalPath(`/${backslash}/evil.com`, "/dashboard")).toBe("/dashboard");
+    expect(safeInternalPath(`/${tab}/evil.com`, "/dashboard")).toBe("/dashboard");
+    expect(safeInternalPath(`/${newline}/evil.com`, "/dashboard")).toBe("/dashboard");
+    // Caminho comum, com query, continua valendo.
+    expect(safeInternalPath("/upgrade?cycle=anual", "/dashboard")).toBe("/upgrade?cycle=anual");
+    expect(safeInternalPath("/familia/convite?token=abc", "/dashboard")).toBe(
+      "/familia/convite?token=abc",
+    );
+  });
+
   it("rejeita URL absoluta", () => {
     expect(safeInternalPath("https://attacker.com/", "/dashboard")).toBe("/dashboard");
     expect(safeInternalPath("http://attacker.com/", "/dashboard")).toBe("/dashboard");

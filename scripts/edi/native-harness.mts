@@ -247,5 +247,8 @@ export async function waitForStatus(page: Page, state: "licensed" | "restricted"
 
 export function raiseFailures(failures: unknown[], message: string) {
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, message);
+  if (failures.length > 1) {
+    for (const failure of failures) console.error(failure);
+    throw new AggregateError(failures, message);
+  }
 }

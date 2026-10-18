@@ -2,7 +2,7 @@ import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { SignupForm } from "@/features/onboarding/components/signup-form";
 
 export const metadata = {
-  title: "Criar conta — Cozya",
+  title: "Criar conta | Cozya",
 };
 
 export default async function SignupPage({
@@ -14,11 +14,9 @@ export default async function SignupPage({
   const plan = paramValue(params.plan);
   const cycle = parseCycleQueryParam(paramValue(params.cycle));
   const verifiedRedirectTo =
-    plan === "pro"
-      ? `/choose-plan?cycle=${cycle === "annual" ? "anual" : "mensal"}`
-      : "/dashboard?welcome=1";
+    plan === "pro" ? `/choose-plan?cycle=${cycle === "annual" ? "anual" : "mensal"}` : "/hoje";
 
-  return <SignupForm verifiedRedirectTo={verifiedRedirectTo} />;
+  return <SignupForm verifiedRedirectTo={verifiedRedirectTo} withPlan={plan === "pro"} />;
 }
 
 function paramValue(value: string | string[] | undefined): string | undefined {

@@ -35,20 +35,21 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-          Créditos disponíveis
+          Leituras de recado
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   className="cursor-help rounded-full text-muted-foreground/70 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Como os créditos funcionam"
+                  aria-label="Como as leituras funcionam"
                 >
                   <Info className="size-3.5" aria-hidden />
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                Cada vez que a IA é usada consome 1 crédito.
+                Cada recado que a Agenda lê usa uma leitura, mesmo que vire várias atividades.
+                Ditado usa duas.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -68,7 +69,7 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
           {extras > 0 ? (
             <span
               className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground tabular-nums"
-              title={`${formatNumber(extras)} créditos extras de pacotes não expiram com o ciclo`}
+              title={`${formatNumber(extras)} leituras de pacotes não vencem com o mês`}
             >
               +{formatNumber(extras)} de pacotes
             </span>
@@ -78,17 +79,17 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
           <Progress
             value={percent}
             className="h-2"
-            aria-label="Progresso dos créditos do mês (sem contar extras de pacotes)"
+            aria-label="Leituras do mês que ainda sobram (sem contar pacotes)"
           />
         ) : null}
         <p className="text-xs text-muted-foreground">
           {hasPlan
             ? extras > 0
-              ? `Barra mostra o ciclo mensal. Extras de pacotes não expiram${reserved > 0 ? ` · ${formatNumber(reserved)} reservados em chamadas em andamento` : ""}.`
+              ? `A barra mostra o mês. As leituras de pacotes não vencem${reserved > 0 ? `, e ${formatNumber(reserved)} estão em uso agora` : ""}.`
               : reserved > 0
-                ? `${formatNumber(reserved)} reservados em chamadas em andamento.`
-                : `Renova ao final do ciclo da sua assinatura.`
-            : "Assine o Pro para liberar créditos de IA."}
+                ? `${formatNumber(reserved)} em uso agora, numa leitura em andamento.`
+                : "Renova todo mês."
+            : "No Pro, a Agenda lê 70 recados por mês."}
         </p>
       </CardContent>
     </Card>

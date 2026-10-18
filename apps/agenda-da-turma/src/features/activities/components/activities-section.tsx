@@ -20,6 +20,7 @@ import {
   ACTIVITY_TYPES,
   activityTypeSchema,
 } from "@/features/unified-activities/activity-types";
+import { ActivitySheet } from "@/features/unified-activities/components/activity-list";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import {
   type ActivityOverviewItem,
@@ -93,6 +94,7 @@ export function ActivitiesSection({
           </Button>
           <AddSheet
             profileId={activeFilter?.id ?? null}
+            profiles={profiles}
             entitlement={addEntitlement}
             label="Adicionar de um recado"
             icon="sparkles"
@@ -271,11 +273,13 @@ export function ActivitiesSection({
         </Card>
       ) : (
         <>
-          <div className="flex flex-col gap-3">
+          <ActivitySheet>
             {items.map((entry) => (
-              <UnifiedActivityCard key={entry.key} entry={entry} currentUserId={currentUserId} />
+              <li key={entry.key}>
+                <UnifiedActivityCard entry={entry} currentUserId={currentUserId} />
+              </li>
             ))}
-          </div>
+          </ActivitySheet>
 
           {(hasNextPage || isPaginated) && (
             <footer className="flex items-center justify-between pt-2">
