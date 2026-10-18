@@ -425,6 +425,8 @@ export interface EdiAulaApi {
     }>;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
+    /** Tests the encoders on this monitor once (seconds) and names the one that will record. */
+    encoder(monitor: number): Promise<string>;
     prepare(
       opts: RecordOptions & { regionDip?: { x: number; y: number; width: number; height: number } },
     ): Promise<void>;

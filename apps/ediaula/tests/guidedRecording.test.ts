@@ -88,6 +88,7 @@ test("smooth pointer is bounded, monotonic and slows down at both ends", () => {
 });
 
 interface GlideCommand {
+  token: string;
   x: number;
   y: number;
   from: { x: number; y: number };
@@ -124,7 +125,8 @@ function simulation() {
           gliding = { glide, start: time, resolve: (value) => resolve(value as T) };
           settle();
         });
-      if (c.op === "halt" && gliding) {
+      if (c.op === "halt") {
+        if (!gliding || c.token !== gliding.glide.token) return { halted: false } as T;
         const { glide: g, start, resolve } = gliding;
         gliding = undefined;
         const at = g.at + (time - start) / g.duration;
@@ -134,6 +136,7 @@ function simulation() {
           at,
           halted: true,
         });
+        return { halted: true } as T;
       }
       return undefined as T;
     },
@@ -164,6 +167,7 @@ test("runner glides once per step, dwells before each click and preserves post-c
     assert.equal(glides.length, index + 1);
     assert.deepEqual(glides.at(-1)?.glide, {
       op: "glide",
+      token: `glide-${index + 1}`,
       x: target.x,
       y: target.y,
       from: { x: 0, y: 0 },

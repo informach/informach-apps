@@ -2,15 +2,22 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   CAPTURE_CODECS,
+  captureEncoderLabel,
   captureFilter,
   captureVideoArgs,
   chooseCaptureEncoder,
+  classifyProbeFailure,
   colorFromLuma,
   conversionsFor,
   type EncoderProbe,
-  MIN_CAPTURE_FPS,
-  parseSpeed,
+  fallbackChain,
+  measuredFps,
+  profileKey,
+  realtimeFps,
 } from "../src/shared/encoderChoice.ts";
+
+/** Recording at 1080p and 60 frames per second: keeping up means 57. */
+const MIN = realtimeFps(60);
 
 const probe = (
   codec: EncoderProbe["codec"],
@@ -27,60 +34,109 @@ test("hardware comes first in the order NVENC, AMF, Media Foundation, then x264"
     probe("h264_amf", "scale_d3d11", 150),
     probe("h264_nvenc", "cpu", 120),
   ];
-  assert.equal(chooseCaptureEncoder(all).codec, "h264_nvenc");
-  assert.equal(chooseCaptureEncoder(all.slice(0, 3)).codec, "h264_amf");
-  assert.equal(chooseCaptureEncoder(all.slice(0, 2)).codec, "h264_mf");
-  assert.equal(chooseCaptureEncoder(all.slice(0, 1)).codec, "libx264");
+  assert.equal(chooseCaptureEncoder(all, MIN).codec, "h264_nvenc");
+  assert.equal(chooseCaptureEncoder(all.slice(0, 3), MIN).codec, "h264_amf");
+  assert.equal(chooseCaptureEncoder(all.slice(0, 2), MIN).codec, "h264_mf");
+  assert.equal(chooseCaptureEncoder(all.slice(0, 1), MIN).codec, "libx264");
 });
 
 test("within one encoder, frames that stay on the GPU win over system memory", () => {
-  const choice = chooseCaptureEncoder([
-    probe("h264_amf", "cpu", 400),
-    probe("h264_amf", "encoder", 90),
-    probe("h264_amf", "scale_d3d11", 0, false),
-  ]);
+  const choice = chooseCaptureEncoder(
+    [
+      probe("h264_amf", "cpu", 400),
+      probe("h264_amf", "encoder", 90),
+      probe("h264_amf", "scale_d3d11", 0, false),
+    ],
+    MIN,
+  );
   assert.deepEqual(choice, {
     codec: "h264_amf",
     gpuInput: true,
     conversion: "encoder",
-    fps1080: 90,
+    fps: 90,
   });
   assert.deepEqual(conversionsFor("libx264"), ["cpu"]);
   assert.deepEqual(conversionsFor("h264_mf"), ["scale_d3d11", "encoder", "cpu"]);
 });
 
-test("an encoder that cannot keep up with 1080p60 is passed over, not trusted", () => {
-  const slowHardware = [
-    probe("h264_mf", "encoder", MIN_CAPTURE_FPS - 1),
-    probe("libx264", "cpu", 95),
-  ];
-  assert.equal(chooseCaptureEncoder(slowHardware).codec, "libx264");
+test("an encoder that cannot keep up with the recording is passed over, not trusted", () => {
+  assert.equal(MIN, 57);
+  const slowHardware = [probe("h264_mf", "encoder", 56.9), probe("libx264", "cpu", 60)];
+  assert.equal(chooseCaptureEncoder(slowHardware, MIN).codec, "libx264");
   // When nothing keeps up, the fastest one that works.
   const allSlow = [
     probe("h264_nvenc", "encoder", 0, false),
     probe("h264_mf", "cpu", 50),
     probe("libx264", "cpu", 35),
   ];
-  assert.deepEqual(chooseCaptureEncoder(allSlow), {
+  assert.deepEqual(chooseCaptureEncoder(allSlow, MIN), {
     codec: "h264_mf",
     gpuInput: false,
     conversion: "cpu",
-    fps1080: 50,
+    fps: 50,
   });
   assert.throws(
-    () => chooseCaptureEncoder([probe("libx264", "cpu", 0, false)]),
+    () => chooseCaptureEncoder([probe("libx264", "cpu", 0, false)], MIN),
     /Nenhum codificador/,
   );
 });
 
-test("speed comes from FFmpeg's last progress report", () => {
-  assert.equal(
-    parseSpeed(
-      "frame=   30 fps=0.0 q=28.0 size=N/A speed=1.02x\rframe=   60 fps=0.0 q=-1.0 Lsize=N/A speed=2.63x elapsed=0:00:00.36",
-    ),
-    2.63,
+test("the pace is measured after the first second, from FFmpeg's progress", () => {
+  const samples = [
+    { at: 0, frame: 0 },
+    { at: 300, frame: 2 },
+    { at: 1300, frame: 30 },
+    { at: 2300, frame: 60 },
+    { at: 3300, frame: 90 },
+  ];
+  // Starts at the first frame (300 ms), skips one second, counts 60 frames in 2 s.
+  assert.equal(measuredFps(samples), 30);
+  assert.equal(measuredFps([{ at: 0, frame: 0 }]), 0);
+  assert.equal(measuredFps(samples.slice(0, 3)), 0, "too little left after the first second");
+});
+
+test("FFmpeg's messages tell missing hardware from a busy one", () => {
+  for (const missing of [
+    "[vost#0:0] Unknown encoder 'h264_amf'",
+    "[AVFilterGraph @ 0] No such filter: 'scale_d3d11'",
+    "[h264_nvenc @ 0] Cannot load nvcuda.dll",
+    "[h264_nvenc @ 0] No capable devices found",
+    "[AVHWDeviceContext @ 0] DLL amfrt64.dll failed to open",
+    "[h264_mf @ 0] could not find any MFT for the given media type",
+    "[AVHWFramesContext @ 0] Could not create the texture (80070057)",
+  ])
+    assert.equal(classifyProbeFailure(missing), "absent", missing);
+  assert.equal(classifyProbeFailure("OpenEncodeSessionEx failed: out of memory (10)"), "busy");
+  assert.equal(classifyProbeFailure("Invalid data found when processing input"), "failed");
+  assert.equal(classifyProbeFailure("No such filter: 'missing_capture'"), "failed");
+});
+
+test("a recording that fails to start falls back to system memory, then to x264", () => {
+  assert.deepEqual(
+    fallbackChain({ codec: "h264_mf", conversion: "scale_d3d11" }).map((e) => [
+      e.codec,
+      e.conversion,
+      e.matrix,
+    ]),
+    [
+      ["h264_mf", "encoder", "unknown"],
+      ["h264_mf", "cpu", "bt601"],
+      ["libx264", "cpu", "bt601"],
+    ],
   );
-  assert.equal(parseSpeed("frame=    0 fps=0.0 speed=N/A"), undefined);
+  assert.deepEqual(
+    fallbackChain({ codec: "h264_nvenc", conversion: "cpu" }).map((e) => e.codec),
+    ["libx264"],
+  );
+  assert.deepEqual(fallbackChain({ codec: "libx264", conversion: "cpu" }), []);
+  for (const step of fallbackChain({ codec: "h264_amf", conversion: "encoder" }))
+    assert.equal(step.gpuInput, step.conversion !== "cpu");
+});
+
+test("profiles and labels", () => {
+  assert.equal(profileKey({ output: 1, width: 2560, height: 1080, fps: 30 }), "1:2560x1080@30");
+  assert.equal(captureEncoderLabel({ codec: "h264_mf" }), "GPU (Media Foundation)");
+  assert.equal(captureEncoderLabel({ codec: "libx264" }), "CPU (x264)");
 });
 
 test("the luma of pure red tells BT.709 from BT.601 and limited from full range", () => {

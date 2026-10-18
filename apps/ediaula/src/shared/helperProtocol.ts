@@ -39,6 +39,8 @@ export const hookEventSchema = z.discriminatedUnion("e", [
     re: z.int().nonnegative(),
     /** Lines waiting for this process to read stdout. */
     out: z.int().nonnegative(),
+    /** Lines waiting for the journal's disk thread. */
+    jq: z.int().nonnegative(),
   }),
   z.strictObject({
     e: z.literal("m"),
@@ -108,7 +110,20 @@ export const hookEventSchema = z.discriminatedUnion("e", [
     /** Pixels that invert the screen; drawn black in the PNG. */
     inv: z.int().nonnegative(),
   }),
-  z.strictObject({ e: z.literal("health"), t: time, hook: z.enum(["dead", "reinstalled"]) }),
+  /**
+   * "dead": the mouse hook stopped and the pointer is being polled; "reinstalled": it is back;
+   * "keys": typing went unseen and both hooks were installed again.
+   */
+  z.strictObject({
+    e: z.literal("health"),
+    t: time,
+    hook: z.enum(["dead", "reinstalled", "keys"]),
+  }),
+  /** Between segments only the cursor shape is kept; keys are dropped inside the hook. */
+  z.strictObject({ e: z.literal("pause"), t: time }),
+  z.strictObject({ e: z.literal("resume"), t: time }),
+  /** A window this helper raised above the others (on) or put back (off). */
+  z.strictObject({ e: z.literal("front"), t: time, hwnd, on: z.boolean() }),
   z.strictObject({
     e: z.literal("win"),
     t: time,
@@ -155,7 +170,10 @@ export type HookCommand =
   | { cmd: "keys"; block: { vk: number; m: number }[]; allow: string[] }
   | { cmd: "follow"; hwnd: string | null }
   | { cmd: "front"; hwnd: string; on: boolean }
-  | { cmd: "caret"; on: boolean };
+  | { cmd: "caret"; on: boolean }
+  /** Outside the recorded segments: no clicks, wheel or keys in the journal. */
+  | { cmd: "pause" }
+  | { cmd: "resume" };
 
 export const monitorSchema = z.strictObject({
   index: z.int().nonnegative(),
@@ -238,3 +256,6 @@ export const glideResultSchema = z.strictObject({
   halted: z.literal(true).optional(),
 });
 export type GlideResult = z.infer<typeof glideResultSchema>;
+
+/** Answer to halt: false when the named glide had already ended. */
+export const haltResultSchema = z.strictObject({ halted: z.boolean() });

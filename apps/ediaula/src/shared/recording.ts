@@ -35,6 +35,9 @@ export interface RecordOptions {
 
 export type MarkerKind = "marker" | "retake";
 
+/** Frame rate of screen recordings. */
+export const RECORDING_FPS = 30;
+
 /**
  * Global shortcuts of the recorder. The cursor helper leaves them out of the keys shown on
  * screen; `mods` uses the helper's flags (1 Ctrl, 2 Alt, 4 Shift, 8 Win).
@@ -171,6 +174,10 @@ export interface RecordingResult {
   cursor: string;
   duration: number;
   markers: { t: number; kind: MarkerKind }[];
+  /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
+  cursorIssues?: string[];
+  /** The chosen encoder could not start and another one recorded. */
+  encoderIssues?: string[];
 }
 
 /**

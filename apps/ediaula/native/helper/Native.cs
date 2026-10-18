@@ -147,6 +147,13 @@ namespace EdiAula.Helper
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal struct LASTINPUTINFO
+    {
+        public int Size;
+        public uint Time;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal struct GUITHREADINFO
     {
         public int Size;
@@ -348,6 +355,21 @@ namespace EdiAula.Helper
 
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vk);
+
+        [DllImport("user32.dll")]
+        public static extern short GetKeyState(int vk);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetKeyboardLayout(uint thread);
+
+        [DllImport("user32.dll")]
+        public static extern uint MapVirtualKeyEx(uint code, uint mapType, IntPtr layout);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int ToUnicodeEx(uint vk, uint scan, byte[] state, StringBuilder text, int size, uint flags, IntPtr layout);
+
+        [DllImport("user32.dll")]
+        public static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
 
         [DllImport("user32.dll")]
         public static extern int GetSystemMetrics(int index);

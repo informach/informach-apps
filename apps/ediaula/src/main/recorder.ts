@@ -1,16 +1,24 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { app } from "electron";
-import { type CaptureSegment, cursorDataFromEvents } from "../shared/cursorCapture.ts";
+import {
+  type CaptureSegment,
+  cursorDataFromEvents,
+  insideSegments,
+  mergeHookEvents,
+} from "../shared/cursorCapture.ts";
 import {
   type CaptureEncoder,
+  type CaptureProfile,
+  captureEncoderLabel,
   captureFilter,
   captureVideoArgs,
+  fallbackChain,
   softwarePixelFormat,
 } from "../shared/encoderChoice.ts";
-import { duplicationOutput, type HookEvent } from "../shared/helperProtocol.ts";
+import { duplicationOutput, type HookEvent, parseHookLine } from "../shared/helperProtocol.ts";
 import {
   type CaptureMonitor,
   type CaptureSources,
@@ -19,7 +27,7 @@ import {
   type RecordingResult,
   type RecordOptions,
 } from "../shared/recording.ts";
-import { detectCaptureEncoder } from "./encoders.ts";
+import { detectCaptureEncoder, reportCaptureFailure } from "./encoders.ts";
 import { FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.ts";
 import { HookClient, listDisplays, qpc } from "./nativeHelper.ts";
 
@@ -79,12 +87,18 @@ interface Session {
   monitor: CaptureMonitor;
   dir: string;
   hook: HookClient;
+  profile: CaptureProfile;
   /** Settled while preparing; recording starts only after that. */
   encoder?: CaptureEncoder;
   /** Helper events (heartbeats aside); the complete journal is cursor.jsonl in `dir`. */
   events: HookEvent[];
-  /** Restarts and failures of the cursor helper, for the recording health panel. */
+  /**
+   * Restarts and failures of the cursor helper. They go out with the recording
+   * (RecordingResult.cursorIssues); a failure also warns the recorder window right away.
+   */
   hookIssues: string[];
+  /** Encoder paths that failed to start and were replaced. */
+  encoderIssues: string[];
   segments: Segment[];
   current: {
     proc: ChildProcessWithoutNullStreams;
@@ -124,33 +138,68 @@ export function recordingsDir(): string {
   return dir;
 }
 
+/**
+ * What the encoder is chosen for: the whole monitor (a region is never larger) at the recording's
+ * frame rate. The recorder window detects it in the background with the same profile.
+ */
+export const captureProfile = (monitor: CaptureMonitor, fps: number): CaptureProfile => ({
+  output: monitor.output,
+  width: monitor.width,
+  height: monitor.height,
+  fps,
+});
+
+/** The encoder this screen will be recorded with, detected once and then remembered. */
+export async function encoderFor(monitor: CaptureMonitor, fps: number): Promise<string> {
+  if (monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
+  return captureEncoderLabel(await detectCaptureEncoder(captureProfile(monitor, fps)));
+}
+
+export interface PrepareContext {
+  /** Windows of this process whose keys still show on screen (the guided lesson window). */
+  keyWindows?: string[];
+  /** The cursor helper stopped for good: the video goes on without the pointer. */
+  onCursorFailure?: (message: string) => void;
+}
+
 /** Starts the cursor helper and settles the encoder ahead of time. */
 export async function prepare(
   opts: RecordOptions,
   monitors: CaptureMonitor[],
-  /** Windows of this process whose keys still show on screen (the guided lesson window). */
-  keyWindows: string[] = [],
+  context: PrepareContext = {},
 ): Promise<void> {
   if (session) return;
   const monitor = monitors.find((m) => m.index === opts.monitor);
   if (!monitor || monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
   const dir = mkdtempSync(join(recordingsDir(), `${stamp()}-`));
-  // Keys typed while the recorder itself is in front are not part of the lesson.
-  const hook = new HookClient({ keys: !!opts.keys, journal: dir, uiPid: process.pid });
+  // Keys typed while the recorder itself is in front are not part of the lesson. Until the first
+  // segment starts, the helper keeps nothing but the cursor shape.
+  const hook = new HookClient({
+    keys: !!opts.keys,
+    journal: dir,
+    uiPid: process.pid,
+    paused: true,
+  });
   const events: HookEvent[] = [];
   const hookIssues: string[] = [];
   hook.on("event", (event) => {
     if (event.e !== "hb" && event.e !== "ack") events.push(event);
   });
   hook.on("restart", ({ reason }) => hookIssues.push(reason));
-  hook.on("failure", (error) => hookIssues.push(error.message));
+  hook.on("warning", (message) => hookIssues.push(message));
+  hook.on("failure", (error) => {
+    hookIssues.push(error.message);
+    context.onCursorFailure?.(error.message);
+  });
   const s: Session = {
     opts,
     monitor,
     dir,
     hook,
+    profile: captureProfile(monitor, opts.fps),
     events,
     hookIssues,
+    encoderIssues: [],
     segments: [],
     current: null,
     markers: [],
@@ -158,7 +207,7 @@ export async function prepare(
   // Claimed before waiting, so a second prepare does not start another helper.
   session = s;
   try {
-    [, s.encoder] = await Promise.all([hook.start(), detectCaptureEncoder()]);
+    [, s.encoder] = await Promise.all([hook.start(), detectCaptureEncoder(s.profile)]);
   } catch (error) {
     await hook.kill();
     if (session === s) session = null;
@@ -167,7 +216,7 @@ export async function prepare(
   hook.send({
     cmd: "keys",
     block: RECORDER_HOTKEYS.map((k) => ({ vk: k.vk, m: k.mods })),
-    allow: keyWindows,
+    allow: context.keyWindows ?? [],
   });
 }
 
@@ -253,6 +302,8 @@ async function startSegment(s: Session): Promise<void> {
       seg.camera!,
     );
 
+  // The helper keeps clicks and keys only inside segments.
+  s.hook.send({ cmd: "resume" });
   const proc = spawn(FFMPEG, args, { windowsHide: true });
   let err = "";
   let best = Infinity;
@@ -305,6 +356,51 @@ async function startSegment(s: Session): Promise<void> {
   await Promise.race([firstFrame, done]);
 }
 
+/**
+ * Starts a segment. On the first one, a path that fails before the first frame gives way to the
+ * next in the chain (the same encoder from system memory, then x264) and the cache learns it.
+ * Later segments keep the encoder of the first: the segments are joined without re-encoding.
+ */
+async function startCapture(s: Session): Promise<void> {
+  const chosen = s.encoder;
+  if (!chosen) throw new Error("Gravação não preparada.");
+  const chain = s.segments.length === 0 ? [chosen, ...fallbackChain(chosen)] : [chosen];
+  let first: unknown;
+  for (const candidate of chain) {
+    s.encoder = candidate;
+    try {
+      await startSegment(s);
+    } catch (error) {
+      first ??= error;
+      await discardFailedStart(s);
+      continue;
+    }
+    if (candidate !== chosen) {
+      s.encoderIssues.push(
+        `${captureEncoderLabel(chosen)} não abriu a gravação; foi usado ${captureEncoderLabel(candidate)}.`,
+      );
+      await reportCaptureFailure(s.profile, chosen).catch((error: unknown) =>
+        s.encoderIssues.push(`Não consegui registrar a falha do codificador: ${String(error)}`),
+      );
+    }
+    return;
+  }
+  s.encoder = chosen;
+  throw first;
+}
+
+/** Leaves no trace of a segment whose FFmpeg ended before the first frame. */
+async function discardFailedStart(s: Session): Promise<void> {
+  const cur = s.current;
+  s.current = null;
+  s.failure = undefined;
+  s.hook.send({ cmd: "pause" });
+  if (!cur) return;
+  await Promise.allSettled([cur.done]);
+  await rm(cur.seg.screen, { force: true });
+  if (cur.seg.camera) await rm(cur.seg.camera, { force: true });
+}
+
 async function closeSegment(s: Session): Promise<void> {
   await s.starting;
   if (s.closing) return s.closing;
@@ -313,6 +409,7 @@ async function closeSegment(s: Session): Promise<void> {
   s.closing = (async () => {
     cur.proc.stdin.write("q");
     await cur.done;
+    s.hook.send({ cmd: "pause" });
     cur.seg.duration = (await probe(cur.seg.screen)).duration;
     s.segments.push(cur.seg);
     s.current = null;
@@ -329,7 +426,7 @@ export async function start(): Promise<void> {
   if (!s || s.preserved) throw new Error("Gravação não preparada ou já preservada.");
   if (s.failure) throw s.failure;
   if (s.current || s.starting) throw new Error("Gravação já iniciada.");
-  s.starting = startSegment(s);
+  s.starting = startCapture(s);
   try {
     await s.starting;
   } finally {
@@ -383,6 +480,34 @@ export async function cancel(): Promise<void> {
     await s.current.done.catch(() => undefined);
   }
   await rm(s.dir, { recursive: true, force: true }).catch(() => undefined);
+}
+
+/** cursor.jsonl as parsed lines; a half-written last line from a killed helper is left out. */
+async function readJournal(dir: string): Promise<{ line: string; event: HookEvent }[]> {
+  let text: string;
+  try {
+    text = await readFile(join(dir, "cursor.jsonl"), "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw error;
+  }
+  return text.split("\n").flatMap((line) => {
+    const event = parseHookLine(line);
+    return event ? [{ line, event }] : [];
+  });
+}
+
+/** Keeps only what happened inside the recorded segments (and the cursor images). */
+async function pruneJournal(
+  dir: string,
+  journal: { line: string; event: HookEvent }[],
+  segments: CaptureSegment[],
+): Promise<void> {
+  if (!journal.length) return;
+  const path = join(dir, "cursor.jsonl");
+  const kept = journal.filter((entry) => insideSegments(entry.event, segments));
+  await writeFile(`${path}.partial`, kept.map((entry) => `${entry.line}\n`).join(""));
+  await rename(`${path}.partial`, path);
 }
 
 async function concat(files: string[], out: string): Promise<void> {
@@ -469,14 +594,21 @@ async function finalizeRecording(s: Session): Promise<RecordingResult> {
     );
   }
 
-  // Cursor events in video time and video pixels.
+  // Cursor events in video time and video pixels. The journal covers what memory missed (lines
+  // of a helper replaced mid-recording, or dropped while the app was busy).
+  const journal = await readJournal(s.dir);
+  const events = mergeHookEvents(
+    s.events,
+    journal.map((entry) => entry.event),
+  );
   const r = s.opts.region ?? { x: 0, y: 0, width: s.monitor.width, height: s.monitor.height };
   const data = cursorDataFromEvents(
-    s.events,
+    events,
     s.segments,
     { x: s.monitor.x + r.x, y: s.monitor.y + r.y, width: r.width, height: r.height },
     s.markers,
   );
+  await pruneJournal(s.dir, journal, s.segments);
   const cursor = join(s.dir, "cursor.json");
   await writeFile(cursor, JSON.stringify(data));
   return {
@@ -488,5 +620,7 @@ async function finalizeRecording(s: Session): Promise<RecordingResult> {
     duration: s.segments.reduce((a, g) => a + g.duration, 0),
     markers: data.markers,
     ...(s.system ? { systemAudio: s.system.path, systemOffset: s.system.offset } : {}),
+    ...(s.hookIssues.length ? { cursorIssues: [...s.hookIssues] } : {}),
+    ...(s.encoderIssues.length ? { encoderIssues: [...s.encoderIssues] } : {}),
   };
 }

@@ -18,8 +18,9 @@ namespace EdiAula.Helper
     internal static class Caret
     {
         private static readonly object gate = new object();
-        private static Thread thread;
-        private static volatile bool running;
+        private static bool running;
+        // Each start gets a new generation; a thread from an earlier one ends at its next check.
+        private static volatile int generation;
 
         public static void Start()
         {
@@ -27,7 +28,8 @@ namespace EdiAula.Helper
             {
                 if (running) return;
                 running = true;
-                thread = new Thread(Loop);
+                int mine = ++generation;
+                Thread thread = new Thread(delegate() { Loop(mine); });
                 thread.Name = "caret";
                 thread.IsBackground = true;
                 thread.SetApartmentState(ApartmentState.MTA);
@@ -37,15 +39,19 @@ namespace EdiAula.Helper
 
         public static void Stop()
         {
-            running = false;
+            lock (gate)
+            {
+                running = false;
+                generation++;
+            }
         }
 
-        private static void Loop()
+        private static void Loop(int mine)
         {
             string last = null;
             try
             {
-                while (running)
+                while (generation == mine)
                 {
                     long start = Stopwatch.GetTimestamp();
                     int x, y, w, h;
@@ -66,7 +72,10 @@ namespace EdiAula.Helper
             catch (Exception error)
             {
                 // A failure here must not take the cursor capture down with it: report and stop.
-                running = false;
+                lock (gate)
+                {
+                    if (generation == mine) running = false;
+                }
                 HookMode.EnqueueLine(HookMode.ErrorLine("caret", error.GetType().Name + ": " + error.Message));
             }
         }

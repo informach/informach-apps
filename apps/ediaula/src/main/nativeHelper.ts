@@ -31,10 +31,29 @@ export function listDisplays(executable = helperPath()): Promise<DisplayList> {
       ["list"],
       { windowsHide: true, timeout: 10000, maxBuffer: 8 * 1024 ** 2 },
       (error, stdout) => {
-        if (error) reject(new Error("Não consegui listar as telas.", { cause: error }));
-        else resolve(listSchema.parse(JSON.parse(stdout)));
+        if (error) {
+          reject(new Error("Não consegui listar as telas.", { cause: error }));
+          return;
+        }
+        try {
+          resolve(listSchema.parse(JSON.parse(stdout)));
+        } catch (cause) {
+          reject(new Error("A lista de telas veio fora do formato esperado.", { cause }));
+        }
       },
     );
+  });
+}
+
+/** Resolves when the process has exited, or after `timeout` ms if it does not. */
+function exited(child: ChildProcessWithoutNullStreams, timeout: number): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeout);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
   });
 }
 
@@ -46,6 +65,8 @@ export interface HookOptions {
   /** Keys typed while this process owns the foreground window are not logged. */
   uiPid?: number;
   caret?: boolean;
+  /** Start outside a recorded segment: no clicks, wheel or keys until "resume". */
+  paused?: boolean;
   executable?: string;
   /** Automated tests only: events carrying this mark are recorded and withheld from other apps. */
   testTag?: number;
@@ -56,23 +77,34 @@ interface HookClientEvents {
   restart: [{ reason: string; count: number }];
   failure: [Error];
   protocolError: [string];
+  warning: [string];
 }
 
 const HEARTBEAT_TIMEOUT = 2000;
 const RESTART_WINDOW = 60000;
 const MAX_RESTARTS = 3;
-const CLOCK_TOLERANCE = 500;
+/**
+ * Startup and pipe latency stay far below this; only another clock (not QueryPerformanceCounter)
+ * would be off by more.
+ */
+const CLOCK_TOLERANCE = 5000;
+const EXIT_WAIT = 2000;
 
 /**
  * Runs the hook mode and keeps it alive: validates every line, restarts the helper (at most three
  * times a minute) when it exits or its heartbeat is late by more than 2 s, and sends the current
- * filters again after each start. A permanent failure is reported through "failure".
+ * filters again after each start. Lines of a helper being replaced still count until it closes.
+ * Windows a dead helper raised above the others are put back. A permanent failure is reported
+ * through "failure".
  */
 export class HookClient extends EventEmitter<HookClientEvents> {
   private child: ChildProcessWithoutNullStreams | undefined;
-  /** The helper being stopped: its last lines still count. */
-  private draining: ChildProcessWithoutNullStreams | undefined;
+  /** Helpers being stopped or replaced: their last lines still count. */
+  private readonly draining = new Set<ChildProcessWithoutNullStreams>();
+  /** Windows the helpers raised and have not put back yet. */
+  private readonly raised = new Set<string>();
   private alive = false;
+  private paused: boolean;
   private lastBeat = 0;
   private lastCheck = 0;
   private monitor: ReturnType<typeof setInterval> | undefined;
@@ -87,6 +119,7 @@ export class HookClient extends EventEmitter<HookClientEvents> {
   constructor(options: HookOptions = {}) {
     super();
     this.options = options;
+    this.paused = !!options.paused;
   }
 
   get restartCount(): number {
@@ -103,7 +136,13 @@ export class HookClient extends EventEmitter<HookClientEvents> {
 
   /** Sends a command now and again after any restart; "front" is kept per window. */
   send(command: HookCommand): void {
-    const key = command.cmd === "front" ? `front:${command.hwnd}` : command.cmd;
+    const key =
+      command.cmd === "front"
+        ? `front:${command.hwnd}`
+        : command.cmd === "pause" || command.cmd === "resume"
+          ? "segment"
+          : command.cmd;
+    if (command.cmd === "pause" || command.cmd === "resume") this.paused = command.cmd === "pause";
     if (command.cmd === "front" && !command.on) this.commands.delete(key);
     else this.commands.set(key, command);
     this.write(command);
@@ -116,13 +155,16 @@ export class HookClient extends EventEmitter<HookClientEvents> {
     const child = this.child;
     this.child = undefined;
     this.alive = false;
-    if (!child || child.exitCode !== null || child.signalCode !== null) return;
-    this.draining = child;
-    const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
-    child.stdin.end();
-    const timer = setTimeout(() => child.kill(), 5000);
-    await closed;
-    clearTimeout(timer);
+    if (child && child.exitCode === null && child.signalCode === null) {
+      this.draining.add(child);
+      const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
+      child.stdin.end();
+      const timer = setTimeout(() => child.kill(), 5000);
+      await closed;
+      clearTimeout(timer);
+    }
+    // A helper that had to be killed could not put its windows back.
+    await this.unfront();
   }
 
   /** Ends the helper without waiting for its last lines; resolves once the process is gone. */
@@ -132,14 +174,35 @@ export class HookClient extends EventEmitter<HookClientEvents> {
     this.alive = false;
     const child = this.child;
     this.child = undefined;
-    if (!child || child.exitCode !== null || child.signalCode !== null) return;
-    const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
-    child.kill();
-    await closed;
+    if (child && child.exitCode === null && child.signalCode === null) {
+      const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
+      child.kill();
+      await closed;
+    }
+    await this.unfront();
   }
 
   private write(command: HookCommand): void {
     if (this.child && this.alive) this.child.stdin.write(`${JSON.stringify(command)}\n`);
+  }
+
+  /** Puts back the windows a helper raised and can no longer restore itself. */
+  private async unfront(): Promise<void> {
+    if (!this.raised.size) return;
+    const windows = [...this.raised];
+    this.raised.clear();
+    await new Promise<void>((resolve) =>
+      execFile(
+        this.options.executable ?? helperPath(),
+        ["unfront", ...windows],
+        { windowsHide: true, timeout: 10000 },
+        (error) => {
+          if (error)
+            this.emit("warning", `Não consegui devolver janelas à ordem normal: ${error.message}`);
+          resolve();
+        },
+      ),
+    );
   }
 
   private launch(): Promise<HookReady> {
@@ -148,6 +211,7 @@ export class HookClient extends EventEmitter<HookClientEvents> {
       "hook",
       ...(o.keys ? ["--keys"] : []),
       ...(o.caret ? ["--caret"] : []),
+      ...(this.paused ? ["--paused"] : []),
       ...(o.journal ? ["--journal", o.journal] : []),
       ...(o.uiPid ? ["--ui-pid", String(o.uiPid)] : []),
       ...(o.testTag ? ["--test-tag", String(o.testTag)] : []),
@@ -181,6 +245,7 @@ export class HookClient extends EventEmitter<HookClientEvents> {
       };
       const timer = setTimeout(() => fail(new Error("O capturador de cursor não iniciou.")), 8000);
       lines.on("line", (line) => {
+        if (this.child !== child && !this.draining.has(child)) return;
         const event = parseHookLine(line);
         if (!event) {
           this.invalidLines++;
@@ -199,12 +264,17 @@ export class HookClient extends EventEmitter<HookClientEvents> {
           for (const command of this.commands.values()) this.write(command);
           resolve(event);
         } else if (event.e === "hb") this.lastBeat = qpc();
-        if (this.child === child || this.draining === child) this.emit("event", event);
+        else if (event.e === "front") {
+          if (event.on) this.raised.add(event.hwnd);
+          else this.raised.delete(event.hwnd);
+        }
+        this.emit("event", event);
       });
       child.once("error", (error) =>
         fail(new Error("O capturador de cursor não pôde ser aberto.", { cause: error })),
       );
       child.once("close", (code, signal) => {
+        this.draining.delete(child);
         const reason = `o capturador de cursor foi encerrado (${code ?? signal})${this.stderr ? `: ${this.stderr.trim()}` : ""}`;
         if (!started) fail(new Error(`O capturador de cursor não iniciou: ${reason}.`));
         else if (this.child === child) this.recover(reason);
@@ -227,18 +297,41 @@ export class HookClient extends EventEmitter<HookClientEvents> {
     const previous = this.child;
     this.child = undefined;
     this.alive = false;
-    previous?.kill();
     const now = qpc();
     this.restarts = this.restarts.filter((at) => now - at < RESTART_WINDOW);
     if (this.restarts.length >= MAX_RESTARTS) {
       this.failure = new Error(`O capturador de cursor parou: ${reason}.`);
       clearInterval(this.monitor);
       this.emit("failure", this.failure);
+      void this.retire(previous).then(() => this.unfront());
       return;
     }
     this.restarts.push(now);
     this.emit("restart", { reason, count: this.restarts.length });
-    this.launch().catch((error: Error) => this.recover(error.message));
+    void this.relaunch(previous);
+  }
+
+  /** Ends a helper being replaced, keeping its last lines until it closes. */
+  private async retire(previous: ChildProcessWithoutNullStreams | undefined): Promise<void> {
+    if (!previous) return;
+    this.draining.add(previous);
+    previous.kill();
+    await exited(previous, EXIT_WAIT);
+  }
+
+  /**
+   * The old process must be gone before the new one opens the same journal, and the windows it
+   * raised go back before the new one raises them again.
+   */
+  private async relaunch(previous: ChildProcessWithoutNullStreams | undefined): Promise<void> {
+    await this.retire(previous);
+    await this.unfront();
+    if (this.stopping || this.failure) return;
+    try {
+      await this.launch();
+    } catch (error) {
+      this.recover(error instanceof Error ? error.message : String(error));
+    }
   }
 }
 

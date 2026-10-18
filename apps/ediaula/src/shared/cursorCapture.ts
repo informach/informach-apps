@@ -25,6 +25,32 @@ export function toVideoTime(segments: CaptureSegment[], t: number): number {
 
 const BUTTONS: Record<string, number> = { left: 0, right: 1, middle: 2 };
 
+const timeOf = (e: HookEvent): number => ("t" in e ? e.t : Number.NEGATIVE_INFINITY);
+
+/**
+ * One stream from two copies of it (memory and the journal), in time order. Each event appears
+ * once; cursor images, which have no time, come first.
+ */
+export function mergeHookEvents(...copies: readonly (readonly HookEvent[])[]): HookEvent[] {
+  const seen = new Set<string>();
+  const merged: HookEvent[] = [];
+  for (const copy of copies)
+    for (const event of copy) {
+      const key = JSON.stringify(event);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(event);
+    }
+  return merged
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => timeOf(a.event) - timeOf(b.event) || a.index - b.index)
+    .map((entry) => entry.event);
+}
+
+/** What the journal keeps at the end: events inside the segments, and the cursor images. */
+export const insideSegments = (event: HookEvent, segments: CaptureSegment[]): boolean =>
+  "t" in event ? toVideoTime(segments, event.t) >= 0 : event.e === "img";
+
 export function cursorDataFromEvents(
   events: readonly HookEvent[],
   segments: CaptureSegment[],

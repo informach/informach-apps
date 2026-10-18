@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
@@ -48,6 +49,11 @@ namespace EdiAula.Helper
                 Console.Error.WriteLine("ediaula-helper: " + error.Message);
                 return Usage();
             }
+            catch (OverflowException error)
+            {
+                Console.Error.WriteLine("ediaula-helper: " + error.Message);
+                return Usage();
+            }
             switch (options.Mode)
             {
                 case "--version":
@@ -61,6 +67,10 @@ namespace EdiAula.Helper
                     return InputMode.Run(options);
                 case "selftest":
                     return SelfTest.Run(options);
+                case "keyrule":
+                    return KeyRule.Run();
+                case "unfront":
+                    return WindowWatch.Unfront(options.Rest);
                 default:
                     return Usage();
             }
@@ -68,7 +78,7 @@ namespace EdiAula.Helper
 
         private static int Usage()
         {
-            Console.Error.WriteLine("usage: ediaula-helper list | hook [--keys] [--caret] [--journal <dir>] [--ui-pid <pid>] | input | selftest [--out <dir>] | --version");
+            Console.Error.WriteLine("usage: ediaula-helper list | hook [--keys] [--caret] [--paused] [--journal <dir>] [--ui-pid <pid>] | input | unfront <hwnd>... | selftest [--out <dir>] | keyrule | --version");
             return 2;
         }
     }
@@ -78,6 +88,8 @@ namespace EdiAula.Helper
         public string Mode;
         public bool Keys;
         public bool Caret;
+        /// <summary>Hook mode starts paused, before the first recorded segment.</summary>
+        public bool Paused;
         public string Journal;
         public string Out;
         public uint UiPid;
@@ -86,6 +98,8 @@ namespace EdiAula.Helper
         /// records events carrying it but withholds them from other applications.
         /// </summary>
         public ulong TestTag;
+        /// <summary>Plain arguments after the mode (window handles for unfront).</summary>
+        public List<string> Rest = new List<string>();
 
         public static Options Parse(string[] args)
         {
@@ -97,11 +111,15 @@ namespace EdiAula.Helper
                 {
                     case "--keys": o.Keys = true; break;
                     case "--caret": o.Caret = true; break;
+                    case "--paused": o.Paused = true; break;
                     case "--journal": o.Journal = Value(args, ++i); break;
                     case "--out": o.Out = Value(args, ++i); break;
                     case "--ui-pid": o.UiPid = uint.Parse(Value(args, ++i), NumberStyles.None, CultureInfo.InvariantCulture); break;
                     case "--test-tag": o.TestTag = ulong.Parse(Value(args, ++i), NumberStyles.None, CultureInfo.InvariantCulture); break;
-                    default: throw new FormatException("opção desconhecida " + args[i]);
+                    default:
+                        if (args[i].StartsWith("--", StringComparison.Ordinal)) throw new FormatException("opção desconhecida " + args[i]);
+                        o.Rest.Add(args[i]);
+                        break;
                 }
             }
             return o;

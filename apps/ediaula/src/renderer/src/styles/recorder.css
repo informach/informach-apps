@@ -350,6 +350,12 @@ html.is-recorder #root {
   font: 600 15px var(--font-mono);
   min-width: 52px;
 }
+.rec-encoder {
+  font-size: 12px;
+  opacity: 0.8;
+  padding: 0 4px 6px;
+}
+
 .rec-paused {
   color: var(--amber);
   font-size: 12px;

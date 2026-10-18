@@ -1,5 +1,5 @@
 import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "./guidedRecording.ts";
-import type { GlideResult } from "./helperProtocol.ts";
+import { type GlideResult, glideResultSchema, haltResultSchema } from "./helperProtocol.ts";
 
 export interface GuidedDriver {
   command<T = void>(data: Record<string, unknown>): Promise<T>;
@@ -30,15 +30,19 @@ export async function executeGuided(
    * One glide per movement: the helper interpolates it on its own clock with smoothPointer's
    * curve, so a slow main process no longer makes the pointer stutter. A pause halts it where it
    * is and the same curve resumes afterwards; a helper that falls behind stops instead of jumping.
+   * Each glide has a token, so a halt that crosses the glide's own end cannot stop the next one.
    */
+  let glides = 0;
   const glide = async (from: { x: number; y: number }, to: GuidedTarget): Promise<void> => {
     let at = 0;
     for (;;) {
       await wait(0);
+      const token = `glide-${++glides}`;
       let done: { value: GlideResult } | { error: unknown } | undefined;
       void input
-        .command<GlideResult>({
+        .command<unknown>({
           op: "glide",
+          token,
           x: to.x,
           y: to.y,
           from: { x: from.x, y: from.y },
@@ -47,7 +51,7 @@ export async function executeGuided(
         })
         .then(
           (value) => {
-            done = { value };
+            done = { value: glideResultSchema.parse(value) };
           },
           (error: unknown) => {
             done = { error };
@@ -58,7 +62,8 @@ export async function executeGuided(
         await sleep(16);
         if (!done && !halted && (paused() || signal.aborted)) {
           halted = true;
-          await input.command({ op: "halt" });
+          // halted: false means the glide had already ended; its own answer says where.
+          haltResultSchema.parse(await input.command<unknown>({ op: "halt", token }));
         }
       }
       if ("error" in done) throw done.error;

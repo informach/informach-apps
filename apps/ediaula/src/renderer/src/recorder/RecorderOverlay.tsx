@@ -1,6 +1,6 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { GUIDED_DEFAULTS, type GuidedPlan, scheduleGuided } from "@shared/guidedRecording";
-import type { CaptureMonitor, CaptureSources } from "@shared/recording";
+import { type CaptureMonitor, type CaptureSources, RECORDING_FPS } from "@shared/recording";
 import {
   Bookmark,
   Eye,
@@ -99,6 +99,10 @@ export function RecorderOverlay(): ReactNode {
   const [markers, setMarkers] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The encoder tested for this monitor while the recording is set up. */
+  const [encoder, setEncoder] = useState<{ label?: string; error?: string } | null>(null);
+  /** The cursor helper stopped for good: the video goes on, the pointer does not. */
+  const [cursorLost, setCursorLost] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [prompterOn, setPrompterOn] = useState(true);
   const phaseRef = useRef(phase);
@@ -120,6 +124,21 @@ export function RecorderOverlay(): ReactNode {
       setMic(s.microphones[0] ?? "");
     });
   }, []);
+
+  // Encoders are tried on the real screen in the background, not during the countdown.
+  const monitorIndex = monitor?.index;
+  useEffect(() => {
+    if (monitorIndex === undefined) return;
+    let current = true;
+    setEncoder(null);
+    window.api.recorder.encoder(monitorIndex).then(
+      (label) => current && setEncoder({ label }),
+      (err: unknown) => current && setEncoder({ error: (err as Error).message }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [monitorIndex]);
 
   // The window resizes when moved to another monitor: start with the whole screen again.
   useEffect(() => {
@@ -213,7 +232,7 @@ export function RecorderOverlay(): ReactNode {
         microphone: guidedMode && guidedPlan.audio ? undefined : mic || undefined,
         camera: cam || undefined,
         keys: keysOn,
-        fps: 30,
+        fps: RECORDING_FPS,
       });
       await Promise.all([
         prep,
@@ -366,6 +385,10 @@ export function RecorderOverlay(): ReactNode {
           void stop();
           return;
         }
+        if (name === "cursor-lost") {
+          setCursorLost(true);
+          return;
+        }
         if (name.startsWith("guided-error:")) {
           guidedFailed.current = true;
           guidedAudio.current?.pause();
@@ -418,6 +441,13 @@ export function RecorderOverlay(): ReactNode {
       {phase === "setup" || phase === "countdown" ? (
         <div className="rec-dock">
           {error && <div className="rec-error">{error}</div>}
+          <div className="rec-encoder" aria-live="polite">
+            {!encoder
+              ? "Testando o codificador nesta tela…"
+              : encoder.label
+                ? `Gravação: ${encoder.label}`
+                : `Codificador indisponível: ${encoder.error}`}
+          </div>
           <div className="rec-mode">
             <label htmlFor="recording-mode">Modo de gravação </label>
             <select
@@ -581,6 +611,14 @@ export function RecorderOverlay(): ReactNode {
               <span className={`rec-live ${phase === "paused" ? "is-paused" : ""}`} />
               <span className="rec-time">{clock(elapsed)}</span>
               {phase === "paused" && <span className="rec-paused">pausado</span>}
+              {cursorLost && (
+                <span
+                  className="rec-paused"
+                  title="O cursor parou de ser registrado. O vídeo continua gravando."
+                >
+                  sem cursor
+                </span>
+              )}
               <button
                 type="button"
                 title="Pausar / continuar (F9)"

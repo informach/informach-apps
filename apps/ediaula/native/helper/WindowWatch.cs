@@ -58,9 +58,46 @@ namespace EdiAula.Helper
                     if (raised.ContainsKey(hwnd.ToInt64()) || (NativeMethods.ExtendedStyle(hwnd) & NativeMethods.WS_EX_TOPMOST) != 0) return;
                     SetTopmost(hwnd, NativeMethods.HWND_TOPMOST);
                     raised[hwnd.ToInt64()] = true;
+                    ReportFront(hwnd, true);
                 }
-                else if (raised.Remove(hwnd.ToInt64())) SetTopmost(hwnd, NativeMethods.HWND_NOTOPMOST);
+                else if (raised.Remove(hwnd.ToInt64()))
+                {
+                    SetTopmost(hwnd, NativeMethods.HWND_NOTOPMOST);
+                    ReportFront(hwnd, false);
+                }
             }
+        }
+
+        /// <summary>
+        /// Tells the app which windows this process raised, so it can put them back with the
+        /// unfront mode if this process dies before it can do it itself.
+        /// </summary>
+        private static void ReportFront(IntPtr hwnd, bool on)
+        {
+            StringBuilder b = new StringBuilder(64);
+            b.Append("{\"e\":\"front\",\"t\":").Append(Json.Time(Program.Now())).Append(",\"hwnd\":");
+            Json.Str(b, Json.HandleText(hwnd));
+            b.Append(",\"on\":").Append(Json.Bool(on)).Append('}');
+            HookMode.EnqueueLine(b.ToString());
+        }
+
+        /// <summary>The unfront mode: takes the windows a dead hook process raised out of the topmost band.</summary>
+        public static int Unfront(List<string> handles)
+        {
+            StringBuilder b = new StringBuilder(64);
+            b.Append("{\"e\":\"unfront\",\"hwnds\":[");
+            foreach (string text in handles)
+            {
+                long value;
+                if (!long.TryParse(text, out value)) continue;
+                IntPtr hwnd = new IntPtr(value);
+                if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_NOTOPMOST, 0, 0, 0, 0, Flags)) continue;
+                if (b[b.Length - 1] != '[') b.Append(',');
+                Json.Str(b, text);
+            }
+            b.Append("]}");
+            LineWriter.StandardOutput().Write(b.ToString(), true);
+            return 0;
         }
 
         public static void RestoreAll()
@@ -68,7 +105,11 @@ namespace EdiAula.Helper
             lock (gate)
             {
                 foreach (long hwnd in raised.Keys)
-                    if (NativeMethods.IsWindow(new IntPtr(hwnd))) NativeMethods.SetWindowPos(new IntPtr(hwnd), NativeMethods.HWND_NOTOPMOST, 0, 0, 0, 0, Flags);
+                {
+                    if (!NativeMethods.IsWindow(new IntPtr(hwnd))) continue;
+                    NativeMethods.SetWindowPos(new IntPtr(hwnd), NativeMethods.HWND_NOTOPMOST, 0, 0, 0, 0, Flags);
+                    ReportFront(new IntPtr(hwnd), false);
+                }
                 raised.Clear();
             }
         }

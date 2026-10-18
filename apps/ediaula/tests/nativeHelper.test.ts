@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,6 +20,15 @@ const skip =
     : !existsSync(executable)
       ? "helper not built (run the package test script)"
       : false;
+/**
+ * Cases that send real clicks and wheel turns (withheld from other apps by the test mark) run only
+ * when asked: on the Windows runner through edi:media:test, or with EDIAULA_NATIVE_INPUT_TESTS=1.
+ */
+const skipInput =
+  skip ||
+  (process.env.EDIAULA_NATIVE_INPUT_TESTS === "1"
+    ? false
+    : "sends real input; set EDIAULA_NATIVE_INPUT_TESTS=1");
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "electron")
@@ -143,7 +152,7 @@ test("hook: READY on the shared clock, heartbeats, journal on disk and exit when
 });
 
 test("a stalled reader blocks neither the hook nor the journal, and no click is lost", {
-  skip,
+  skip: skipInput,
   timeout: 60000,
 }, async () => {
   const dir = join(root, "stall");
@@ -272,6 +281,104 @@ test("HookClient restarts a helper that died, appends to the same journal and re
   const written = await journal(dir);
   assert.equal(written.filter((e) => e.e === "ready").length, 2);
   assert.equal(written.at(-1)?.e, "bye");
+});
+
+test("pause keeps only the shape, resume records where the pointer is", {
+  skip,
+  timeout: 20000,
+}, async () => {
+  const dir = join(root, "pause");
+  const hook = startHook(["--paused", "--journal", dir]);
+  await until(() => hook.events[0]?.e === "ready", 5000, "READY");
+  hook.child.stdin.write(`${JSON.stringify({ cmd: "resume" })}\n`);
+  await until(() => hook.events.some((e) => e.e === "ack"), 3000, "resume ack");
+  hook.child.stdin.write(`${JSON.stringify({ cmd: "pause" })}\n`);
+  await until(() => hook.events.filter((e) => e.e === "ack").length === 2, 3000, "pause ack");
+  hook.child.stdin.end();
+  assert.equal(await hook.closed, 0);
+  const kinds = hook.events.map((e) => e.e);
+  const resume = kinds.indexOf("resume");
+  assert.ok(resume > 0 && kinds.indexOf("pause") > resume);
+  // Resuming records the pointer at once, read by polling (after its shape, when that changed).
+  const here = hook.events.slice(resume + 1).find((e) => e.e === "m");
+  assert.ok(here?.e === "m" && here.src === "p", JSON.stringify(here));
+});
+
+test("a restarted helper appends to a journal that another one still holds, on a line of its own", {
+  skip,
+  timeout: 20000,
+}, async () => {
+  const dir = join(root, "shared-journal");
+  await mkdir(dir, { recursive: true });
+  // A killed helper may leave half a line behind.
+  await writeFile(join(dir, "cursor.jsonl"), '{"e":"hb","t":1');
+  const first = startHook(["--journal", dir]);
+  await until(() => first.events[0]?.e === "ready", 5000, "first READY");
+  const second = startHook(["--journal", dir]);
+  await until(() => second.events[0]?.e === "ready", 5000, "second READY while the first runs");
+  second.child.stdin.end();
+  first.child.stdin.end();
+  assert.equal(await second.closed, 0, second.stderr());
+  assert.equal(await first.closed, 0, first.stderr());
+  const lines = (await readFile(join(dir, "cursor.jsonl"), "utf8")).split("\n").filter(Boolean);
+  assert.equal(lines[0], '{"e":"hb","t":1');
+  for (const line of lines.slice(1)) assert.ok(parseHookLine(line), line);
+  assert.equal(lines.filter((line) => line.includes('"e":"ready"')).length, 2);
+});
+
+test("unfront skips windows that are gone and reports what it put back", { skip }, async () => {
+  const { stdout } = await promisify(execFile)(executable, ["unfront", "0", "not-a-window"], {
+    windowsHide: true,
+  });
+  assert.deepEqual(JSON.parse(stdout), { e: "unfront", hwnds: [] });
+});
+
+/** Cases for the privacy rule of the keys shown on screen: [case, shown]. */
+const KEY_CASES: [Record<string, unknown>, boolean][] = [
+  [{ vk: 0x43, mods: 1 }, true], // Ctrl+C
+  [{ vk: 0x46, mods: 2 }, true], // Alt+F (menu)
+  [{ vk: 0x44, mods: 8 }, true], // Win+D
+  [{ vk: 0x54, mods: 5 }, true], // Ctrl+Shift+T
+  [{ vk: 0x45, mods: 3, printable: true }, false], // Ctrl+Alt+E types € on many layouts
+  [{ vk: 0x51, mods: 3, rightAlt: true, altGrLayout: true }, false], // AltGr+Q types @
+  [{ vk: 0x51, mods: 3, rightAlt: true, altGrLayout: false }, true], // Ctrl+Alt+Q, no AltGr layout
+  [{ vk: 0x2e, mods: 3, extended: true }, true], // Ctrl+Alt+Del style shortcut, prints nothing
+  [{ vk: 0x61, mods: 2 }, false], // Alt+keypad 1: typing a character by its code
+  [{ vk: 0x23, mods: 2 }, false], // Alt+keypad End (Num Lock off), same
+  [{ vk: 0x23, mods: 2, extended: true }, true], // Alt+End from the navigation block
+  [{ vk: 0x61, mods: 1 }, true], // Ctrl+keypad 1
+  [{ vk: 0x20, mods: 0 }, false], // Space alone: could be a text field
+  [{ vk: 0x08, mods: 0 }, false], // Backspace alone
+  [{ vk: 0x20, mods: 4 }, false], // Shift+Space is typing too
+  [{ vk: 0x20, mods: 2 }, true], // Alt+Space opens the window menu
+  [{ vk: 0x0d, mods: 0 }, true], // Enter
+  [{ vk: 0x09, mods: 4 }, true], // Shift+Tab
+  [{ vk: 0x25, mods: 0 }, true], // Left arrow
+  [{ vk: 0x2e, mods: 0, extended: true }, true], // Delete
+  [{ vk: 0x70, mods: 0 }, true], // F1
+  [{ vk: 0x41, mods: 0 }, false], // a
+  [{ vk: 0x41, mods: 4 }, false], // A
+  [{ vk: 0xa2, mods: 1 }, false], // Ctrl alone
+];
+
+test("the key rule shows shortcuts and navigation and never typing", { skip }, async () => {
+  const child = spawn(executable, ["keyrule"], { windowsHide: true });
+  const answers: boolean[] = [];
+  let pending = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    pending += chunk;
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) answers.push(JSON.parse(line).log);
+  });
+  for (const [input] of KEY_CASES) child.stdin.write(`${JSON.stringify(input)}\n`);
+  child.stdin.end();
+  assert.equal(await new Promise((resolve) => child.once("close", resolve)), 0);
+  assert.deepEqual(
+    answers.map((shown, i) => [KEY_CASES[i][0], shown]),
+    KEY_CASES,
+  );
 });
 
 test("HookClient rejects a helper that never becomes ready", { skip, timeout: 20000 }, async () => {

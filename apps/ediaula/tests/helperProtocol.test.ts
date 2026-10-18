@@ -4,6 +4,7 @@ import {
   type DisplayList,
   duplicationOutput,
   glideResultSchema,
+  haltResultSchema,
   inputReplySchema,
   listSchema,
   parseHookLine,
@@ -12,7 +13,11 @@ import {
 test("every hook line the helper writes parses into its event", () => {
   const lines = [
     '{"e":"ready","t":1234.5,"pid":42,"v":"0.1.0","keys":true}',
-    '{"e":"hb","t":1500,"q":0,"drop":0,"hook":"ok","re":0,"out":3}',
+    '{"e":"hb","t":1500,"q":0,"drop":0,"hook":"ok","re":0,"out":3,"jq":1}',
+    '{"e":"pause","t":1500.5}',
+    '{"e":"resume","t":1500.75}',
+    '{"e":"front","t":1500.8,"hwnd":"6883070","on":true}',
+    '{"e":"health","t":1500.9,"hook":"keys"}',
     '{"e":"m","t":1501.25,"x":-1920,"y":40}',
     '{"e":"m","t":1502,"x":10,"y":40,"src":"p","ui":true,"inj":true}',
     '{"e":"d","t":1503,"x":10,"y":40,"b":"left"}',
@@ -53,7 +58,9 @@ test("lines outside the protocol are rejected instead of guessed", () => {
     '{"e":"img","id":"x","hash":"short","w":32,"h":32,"hx":0,"hy":0,"file":null,"std":null,"inv":0}',
     '{"e":"img","id":"x","hash":"0123456789abcdef","w":32,"h":32,"hx":0,"hy":0,"file":"../../evil.png","std":null,"inv":0}',
     '{"e":"win","t":1,"hwnd":"0x1F"}',
-    '{"e":"hb","t":1,"q":0,"drop":0,"hook":"maybe","re":0,"out":0}',
+    '{"e":"hb","t":1,"q":0,"drop":0,"hook":"maybe","re":0,"out":0,"jq":0}',
+    '{"e":"hb","t":1,"q":0,"drop":0,"hook":"ok","re":0,"out":0}',
+    '{"e":"front","t":1,"hwnd":"12","on":"yes"}',
     '{"e":"nope","t":1}',
     "[1,2,3]",
   ])
@@ -161,4 +168,6 @@ test("input replies and glide results follow the guided protocol", () => {
   assert.ok(glideResultSchema.safeParse({ x: 1, y: 2, at: 0.4, late: 0.25 }).success);
   assert.ok(glideResultSchema.safeParse({ x: 1, y: 2, at: 0.4, halted: true }).success);
   assert.equal(glideResultSchema.safeParse({ x: 1, y: 2, at: 1.2 }).success, false);
+  assert.deepEqual(haltResultSchema.parse({ halted: false }), { halted: false });
+  assert.equal(haltResultSchema.safeParse(null).success, false);
 });

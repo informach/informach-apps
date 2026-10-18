@@ -16,6 +16,12 @@ const skip =
     : !existsSync(executable)
       ? "helper not built (run the package test script)"
       : false;
+/** Glides move the real pointer: only when asked (edi:media:test turns this on). */
+const skipInput =
+  skip ||
+  (process.env.EDIAULA_NATIVE_INPUT_TESTS === "1"
+    ? false
+    : "moves the real pointer; set EDIAULA_NATIVE_INPUT_TESTS=1");
 
 const replySchema = z.union([
   z.strictObject({ ready: z.literal(true) }),
@@ -121,7 +127,7 @@ test("native helper replies to read-only target sampling and rejects unknown com
 });
 
 test("a glide answers when it ends and halt stops it where it is", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async (context) => {
   const helper = startHelper(context.signal);
@@ -139,9 +145,9 @@ test("a glide answers when it ends and halt stops it where it is", {
     assert.ok("result" in done);
     assert.deepEqual(glideResultSchema.parse(done.result), { x, y, at: 1 });
     assert.ok(performance.now() - started >= 250, "takes the requested time");
-    helper.send({ id: 3, op: "glide", x, y, from, duration: 2, at: 0.25 });
+    helper.send({ id: 3, op: "glide", token: "g3", x, y, from, duration: 2, at: 0.25 });
     await new Promise((resolve) => setTimeout(resolve, 300));
-    helper.send({ id: 4, op: "halt" });
+    helper.send({ id: 4, op: "halt", token: "g3" });
     assert.deepEqual(await helper.reply(4), { id: 4, ok: true, result: { halted: true } });
     const halted = await helper.reply(3);
     assert.ok("result" in halted);
@@ -150,6 +156,21 @@ test("a glide answers when it ends and halt stops it where it is", {
     assert.ok(result.at > 0.25 && result.at < 1, `resumes from ${result.at}`);
     helper.send({ id: 5, op: "glide", x, y, duration: 0 });
     assert.deepEqual(await helper.reply(5), { id: 5, ok: false, error: "Movimento inválido." });
+    // A halt for a glide that already ended does not stop the next one.
+    helper.send({ id: 6, op: "halt", token: "g3" });
+    assert.deepEqual(await helper.reply(6), { id: 6, ok: true, result: { halted: false } });
+    helper.send({ id: 7, op: "glide", token: "g7", x, y, from, duration: 0.2 });
+    const next = await helper.reply(7);
+    assert.ok("result" in next);
+    assert.equal(glideResultSchema.parse(next.result).at, 1);
+    // A halt that arrives before its glide starts still applies, without moving the pointer.
+    helper.send({ id: 8, op: "glide", token: "g8-blocker", x, y, from, duration: 0.3 });
+    helper.send({ id: 9, op: "glide", token: "g9", x, y, from, duration: 1, at: 0.5 });
+    helper.send({ id: 10, op: "halt", token: "g9" });
+    assert.deepEqual(await helper.reply(10), { id: 10, ok: true, result: { halted: true } });
+    const early = await helper.reply(9);
+    assert.ok("result" in early);
+    assert.deepEqual(glideResultSchema.parse(early.result), { x, y, at: 0.5, halted: true });
   } catch (error) {
     context.diagnostic(helper.describe());
     throw error;

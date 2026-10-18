@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { app } from "electron";
 import { z } from "zod";
@@ -10,43 +10,73 @@ import {
   type CaptureCodec,
   type CaptureConversion,
   type CaptureEncoder,
+  type CaptureProfile,
   COLOR_MATRICES,
   COLOR_RANGES,
   captureVideoArgs,
   chooseCaptureEncoder,
+  classifyProbeFailure,
   colorFromLuma,
   conversionsFor,
   type EncoderProbe,
-  MIN_CAPTURE_FPS,
-  parseSpeed,
+  measuredFps,
+  PROBE_FAILURES,
+  profileKey,
+  realtimeFps,
   softwarePixelFormat,
 } from "../shared/encoderChoice.ts";
 import { FFMPEG } from "./ffmpeg.ts";
+import { qpc } from "./nativeHelper.ts";
 
 /**
- * Finds the screen recording encoder by trying each candidate on this machine (being listed by
- * FFmpeg says nothing about the GPU and driver). The answer is cached in userData/encoders.json
- * for this FFmpeg build and these GPUs and drivers.
+ * Finds the screen recording encoder by recording the real screen with each candidate (being
+ * listed by FFmpeg says nothing about the GPU and driver). Results live in userData/encoders.json
+ * per screen, size and frame rate, under a key made of this FFmpeg build, the GPUs and drivers
+ * and the app version. Paths that do not exist here are never probed again under that key;
+ * a choice made because a better encoder was busy is checked again a day later; a path that
+ * failed in a real recording is left out until the key changes.
  */
 
-const CACHE_VERSION = 1;
-/**
- * A choice made after a better encoder failed is checked again a day later: that encoder may
- * only have been busy (NVENC limits concurrent sessions on GeForce cards).
- */
+const CACHE_VERSION = 2;
 const FALLBACK_RECHECK_MS = 24 * 60 * 60 * 1000;
-const FRAME_1080P60 = { fps: 60, width: 1920, height: 1080 };
-/** Test frames carry the same colour tags as Desktop Duplication's. */
+const PROBE_SECONDS = 3;
+/** Test frames for the colour measurement carry the same tags as Desktop Duplication's. */
 const LIKE_DESKTOP =
   "format=bgra,setparams=colorspace=gbr:range=pc:color_primaries=bt709:color_trc=iec61966-2-1";
 
-function ffmpeg(args: string[]): Promise<{ code: number | null; stdout: Buffer; stderr: string }> {
+const slot = (p: { codec: CaptureCodec; conversion: CaptureConversion }) =>
+  `${p.codec}|${p.conversion}`;
+
+interface Run {
+  code: number | null;
+  stdout: Buffer;
+  stderr: string;
+  /** Progress samples when the command reports them on stdout. */
+  samples: { at: number; frame: number }[];
+}
+
+function ffmpeg(args: string[], progress = false): Promise<Run> {
   return new Promise((resolve, reject) => {
     const child = spawn(FFMPEG, args, { windowsHide: true });
     const stdout: Buffer[] = [];
+    const samples: { at: number; frame: number }[] = [];
+    let pending = "";
     let stderr = "";
+    // A driver that hangs inside the encoder must not hang the recorder.
     const timer = setTimeout(() => child.kill(), 30000);
-    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+    child.stdout.on("data", (chunk: Buffer) => {
+      if (!progress) {
+        stdout.push(chunk);
+        return;
+      }
+      pending += chunk.toString();
+      const lines = pending.split("\n");
+      pending = lines.pop() ?? "";
+      for (const line of lines) {
+        const frame = /^frame=(\d+)/.exec(line.trim());
+        if (frame) samples.push({ at: qpc(), frame: Number(frame[1]) });
+      }
+    });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-16000);
     });
@@ -56,13 +86,66 @@ function ffmpeg(args: string[]): Promise<{ code: number | null; stdout: Buffer; 
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      resolve({ code, stdout: Buffer.concat(stdout), stderr });
+      resolve({ code, stdout: Buffer.concat(stdout), stderr, samples });
     });
   });
 }
 
-/** Input, filter and pixel format that bring a BGRA source to the encoder along one path. */
-function pathArgs(codec: CaptureCodec, conversion: CaptureConversion) {
+/** Desktop Duplication frames to the encoder along one path, as the recorder sends them. */
+function screenPath(codec: CaptureCodec, conversion: CaptureConversion): string[] {
+  if (conversion === "scale_d3d11") return ["-vf", "scale_d3d11=format=nv12"];
+  if (conversion === "encoder") return [];
+  return ["-vf", "hwdownload,format=bgra", "-pix_fmt", softwarePixelFormat(codec)];
+}
+
+/**
+ * Records the real screen for three seconds and measures the pace after the first one. The
+ * source costs nothing to produce, so the measure is the encoder's.
+ */
+async function probeEncoder(
+  profile: CaptureProfile,
+  codec: CaptureCodec,
+  conversion: CaptureConversion,
+): Promise<EncoderProbe> {
+  const result = await ffmpeg(
+    [
+      "-hide_banner",
+      "-nostdin",
+      "-v",
+      "error",
+      "-nostats",
+      "-stats_period",
+      "0.25",
+      "-progress",
+      "pipe:1",
+      "-f",
+      "lavfi",
+      "-i",
+      `ddagrab=output_idx=${profile.output}:framerate=${profile.fps}:draw_mouse=0`,
+      "-t",
+      String(PROBE_SECONDS),
+      ...screenPath(codec, conversion),
+      ...captureVideoArgs(codec, profile),
+      "-f",
+      "null",
+      "-",
+    ],
+    true,
+  );
+  const fps = measuredFps(result.samples);
+  const ok = result.code === 0 && fps > 0;
+  return {
+    codec,
+    conversion,
+    ok,
+    fps,
+    ...(ok ? {} : { failure: classifyProbeFailure(result.stderr) }),
+    ...(ok ? {} : { detail: result.stderr.trim().split("\n").at(-1) ?? "" }),
+  };
+}
+
+/** Input, filter and pixel format that bring a test frame to the encoder along one path. */
+function uploadPath(codec: CaptureCodec, conversion: CaptureConversion) {
   const gpu = conversion !== "cpu";
   return {
     device: gpu ? ["-init_hw_device", "d3d11va=d", "-filter_hw_device", "d"] : [],
@@ -76,45 +159,15 @@ function pathArgs(codec: CaptureCodec, conversion: CaptureConversion) {
   };
 }
 
-async function probeEncoder(
-  codec: CaptureCodec,
-  conversion: CaptureConversion,
-): Promise<EncoderProbe> {
-  const path = pathArgs(codec, conversion);
-  const result = await ffmpeg([
-    "-hide_banner",
-    "-nostdin",
-    "-v",
-    "error",
-    "-stats",
-    ...path.device,
-    "-f",
-    "lavfi",
-    "-i",
-    `testsrc2=s=1920x1080:r=60:d=1,${LIKE_DESKTOP}`,
-    "-vf",
-    path.filter,
-    ...path.pixelFormat,
-    ...captureVideoArgs(codec, FRAME_1080P60),
-    "-f",
-    "null",
-    "-",
-  ]);
-  const speed = parseSpeed(result.stderr);
-  return {
-    codec,
-    conversion,
-    ok: result.code === 0 && speed !== undefined,
-    fps: Math.round((speed ?? 0) * 600) / 10,
-  };
-}
-
 /** Encodes pure red along the chosen path and reads the luma back with the software decoder. */
-async function measureColor(encoder: Pick<CaptureEncoder, "codec" | "conversion">) {
+async function measureColor(
+  encoder: Pick<CaptureEncoder, "codec" | "conversion">,
+  profile: CaptureProfile,
+) {
   const dir = join(app.getPath("temp"), "ediaula");
   await mkdir(dir, { recursive: true });
   const file = join(dir, `encoder-color-${process.pid}-${Date.now()}.mp4`);
-  const path = pathArgs(encoder.codec, encoder.conversion);
+  const path = uploadPath(encoder.codec, encoder.conversion);
   try {
     const encoded = await ffmpeg([
       "-hide_banner",
@@ -126,11 +179,11 @@ async function measureColor(encoder: Pick<CaptureEncoder, "codec" | "conversion"
       "-f",
       "lavfi",
       "-i",
-      `color=c=red:s=1920x1080:r=60:d=0.2,${LIKE_DESKTOP}`,
+      `color=c=red:s=640x360:r=${profile.fps}:d=0.2,${LIKE_DESKTOP}`,
       "-vf",
       path.filter,
       ...path.pixelFormat,
-      ...captureVideoArgs(encoder.codec, FRAME_1080P60),
+      ...captureVideoArgs(encoder.codec, profile),
       file,
     ]);
     if (encoded.code !== 0) return colorFromLuma(Number.NaN);
@@ -172,87 +225,166 @@ const gpuInfoSchema = z.object({
     .optional(),
 });
 
-/** FFmpeg build plus every GPU and driver: a new driver may enable or break an encoder. */
+/**
+ * The FFmpeg build (version and configure line), every GPU and driver, and this app: any of them
+ * can enable or break an encoder.
+ */
 async function cacheKey(): Promise<string> {
+  const build = await ffmpeg(["-hide_banner", "-buildconf"]);
   const version = await ffmpeg(["-hide_banner", "-version"]);
   const gpus = gpuInfoSchema.parse(await app.getGPUInfo("basic")).gpuDevice ?? [];
   return createHash("sha256")
     .update(
       JSON.stringify({
         cache: CACHE_VERSION,
+        app: app.getVersion(),
         ffmpeg: version.stdout.toString().split("\n")[0],
+        build: createHash("sha256").update(build.stdout).digest("hex"),
         gpus: gpus.map((g) => [g.vendorId, g.deviceId, g.driverVendor, g.driverVersion]),
       }),
     )
     .digest("hex");
 }
 
-const cacheSchema = z.object({
-  key: z.string(),
-  checkedAt: z.number(),
-  fallback: z.boolean(),
-  encoder: z.strictObject({
-    codec: z.enum(CAPTURE_CODECS),
-    gpuInput: z.boolean(),
-    conversion: z.enum(CAPTURE_CONVERSIONS),
-    matrix: z.enum(COLOR_MATRICES),
-    range: z.enum(COLOR_RANGES),
-    fps1080: z.number().nonnegative(),
-  }),
+const encoderSchema = z.strictObject({
+  codec: z.enum(CAPTURE_CODECS),
+  gpuInput: z.boolean(),
+  conversion: z.enum(CAPTURE_CONVERSIONS),
+  matrix: z.enum(COLOR_MATRICES),
+  range: z.enum(COLOR_RANGES),
+  fps: z.number().nonnegative(),
 });
+const cacheSchema = z.object({
+  version: z.literal(CACHE_VERSION),
+  key: z.string(),
+  /** codec|conversion this build, GPU or driver does not have. */
+  absent: z.array(z.string()),
+  /** codec|conversion that passed the probe but failed to start a real recording. */
+  failures: z.array(z.string()),
+  profiles: z.record(
+    z.string(),
+    z.object({
+      encoder: encoderSchema,
+      checkedAt: z.number(),
+      /** A better encoder was only busy or failed: check again later. */
+      fallback: z.boolean(),
+      probes: z.array(
+        z.object({
+          codec: z.enum(CAPTURE_CODECS),
+          conversion: z.enum(CAPTURE_CONVERSIONS),
+          ok: z.boolean(),
+          fps: z.number(),
+          failure: z.enum(PROBE_FAILURES).optional(),
+          detail: z.string().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+type Cache = z.infer<typeof cacheSchema>;
 
-async function readCache(file: string): Promise<unknown> {
+const cacheFile = () => join(app.getPath("userData"), "encoders.json");
+
+async function readCache(key: string): Promise<Cache> {
+  const empty: Cache = { version: CACHE_VERSION, key, absent: [], failures: [], profiles: {} };
+  let text: string;
   try {
-    return JSON.parse(await readFile(file, "utf8"));
+    text = await readFile(cacheFile(), "utf8");
   } catch (error) {
-    // No cache yet, or a damaged one: detect again and rewrite it.
-    if (
-      error instanceof SyntaxError ||
-      (error instanceof Error && "code" in error && error.code === "ENOENT")
-    )
-      return undefined;
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return empty;
     throw error;
   }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return empty; // a damaged cache is detected again and rewritten
+  }
+  const cache = cacheSchema.safeParse(value);
+  return cache.success && cache.data.key === key ? cache.data : empty;
 }
 
-async function detect(): Promise<CaptureEncoder> {
+async function writeCache(cache: Cache): Promise<void> {
+  await mkdir(app.getPath("userData"), { recursive: true });
+  const partial = `${cacheFile()}.partial`;
+  await writeFile(partial, JSON.stringify(cache, null, 2));
+  await rename(partial, cacheFile());
+}
+
+const rank = (codec: CaptureCodec) => CAPTURE_CODECS.indexOf(codec);
+
+async function detect(profile: CaptureProfile): Promise<CaptureEncoder> {
   const key = await cacheKey();
-  const cacheFile = join(app.getPath("userData"), "encoders.json");
-  const cached = cacheSchema.safeParse(await readCache(cacheFile));
+  const cache = await readCache(key);
+  const known = cache.profiles[profileKey(profile)];
   if (
-    cached.success &&
-    cached.data.key === key &&
-    (!cached.data.fallback || Date.now() - cached.data.checkedAt < FALLBACK_RECHECK_MS)
+    known &&
+    !cache.failures.includes(slot(known.encoder)) &&
+    (!known.fallback || Date.now() - known.checkedAt < FALLBACK_RECHECK_MS)
   )
-    return cached.data.encoder;
+    return known.encoder;
+  const skip = new Set([...cache.absent, ...cache.failures]);
+  const minFps = realtimeFps(profile.fps);
   const probes: EncoderProbe[] = [];
   for (const codec of CAPTURE_CODECS) {
     // GPU input first; system memory only when the GPU path does not work at all.
     for (const conversion of conversionsFor(codec)) {
-      const probe = await probeEncoder(codec, conversion);
+      if (skip.has(slot({ codec, conversion }))) continue;
+      const probe = await probeEncoder(profile, codec, conversion);
       probes.push(probe);
+      if (probe.failure === "absent") cache.absent.push(slot(probe));
       if (probe.ok) break;
     }
-    if (probes.some((p) => p.codec === codec && p.ok && p.fps >= MIN_CAPTURE_FPS)) break;
+    if (probes.some((p) => p.codec === codec && p.ok && p.fps >= minFps)) break;
   }
-  const chosen = chooseCaptureEncoder(probes);
-  const encoder: CaptureEncoder = { ...chosen, ...(await measureColor(chosen)) };
-  const rank = (codec: CaptureCodec) => CAPTURE_CODECS.indexOf(codec);
-  const fallback = probes.some((p) => rank(p.codec) < rank(chosen.codec));
-  await mkdir(app.getPath("userData"), { recursive: true });
-  await writeFile(
-    cacheFile,
-    JSON.stringify({ key, checkedAt: Date.now(), fallback, encoder, probes }, null, 2),
-  );
+  let chosen: Omit<CaptureEncoder, "matrix" | "range">;
+  try {
+    chosen = chooseCaptureEncoder(probes, minFps);
+  } catch (error) {
+    // Usually the screen itself, not the encoders: say what FFmpeg said.
+    const detail = probes.at(-1)?.detail;
+    throw new Error(`Não consegui gravar esta tela${detail ? `: ${detail}` : "."}`, {
+      cause: error,
+    });
+  }
+  const encoder: CaptureEncoder = { ...chosen, ...(await measureColor(chosen, profile)) };
+  cache.profiles[profileKey(profile)] = {
+    encoder,
+    checkedAt: Date.now(),
+    fallback: probes.some((p) => rank(p.codec) < rank(chosen.codec) && p.failure !== "absent"),
+    probes,
+  };
+  await writeCache(cache);
   return encoder;
 }
 
-let detection: Promise<CaptureEncoder> | undefined;
+const detections = new Map<string, Promise<CaptureEncoder>>();
 
-export function detectCaptureEncoder(): Promise<CaptureEncoder> {
-  detection ??= detect().catch((error: unknown) => {
-    detection = undefined;
-    throw error;
-  });
+/** The encoder for this screen, size and frame rate; probes once and then answers from the cache. */
+export function detectCaptureEncoder(profile: CaptureProfile): Promise<CaptureEncoder> {
+  const id = profileKey(profile);
+  let detection = detections.get(id);
+  if (!detection) {
+    detection = detect(profile).catch((error: unknown) => {
+      detections.delete(id);
+      throw error;
+    });
+    detections.set(id, detection);
+  }
   return detection;
+}
+
+/**
+ * A path that passed the probe but could not start a real recording: left out of later choices
+ * under the same key, and this profile is detected again next time.
+ */
+export async function reportCaptureFailure(
+  profile: CaptureProfile,
+  encoder: Pick<CaptureEncoder, "codec" | "conversion">,
+): Promise<void> {
+  const cache = await readCache(await cacheKey());
+  if (!cache.failures.includes(slot(encoder))) cache.failures.push(slot(encoder));
+  delete cache.profiles[profileKey(profile)];
+  detections.delete(profileKey(profile));
+  await writeCache(cache);
 }

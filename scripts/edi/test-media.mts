@@ -54,7 +54,14 @@ if (!packageManager) throw new Error("Run media verification through pnpm");
 const child = spawn(process.execPath, [packageManager, "--filter", "@informach/ediaula", "test"], {
   windowsHide: true,
   stdio: "inherit",
-  env: { ...process.env, FFMPEG_BIN: ffmpeg, FFPROBE_BIN: ffprobe },
+  // The native helper's tests that send real clicks, wheel and pointer moves run here, on the
+  // Windows runner, and stay off on a developer's desktop unless asked for.
+  env: {
+    ...process.env,
+    FFMPEG_BIN: ffmpeg,
+    FFPROBE_BIN: ffprobe,
+    EDIAULA_NATIVE_INPUT_TESTS: "1",
+  },
 });
 await new Promise<void>((resolve, reject) => {
   child.once("error", reject);

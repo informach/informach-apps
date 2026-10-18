@@ -20,15 +20,20 @@ namespace EdiAula.Helper
     /// <summary>
     /// Input mode, the guided recording driver. Same protocol as the PowerShell helper it replaces:
     /// it prints {"ready":true}, reads {id, op, ...} per line and answers {id, ok, result|error}.
-    /// Commands run in order on one thread, except "halt", which stops a running glide at once.
+    /// Commands run in order on one thread, except "halt", which stops a glide at once. A glide
+    /// carries a token; "halt" names it, so a halt that arrives before its glide starts still
+    /// applies, and one that arrives after it ended answers halted: false.
     /// </summary>
     internal static class InputMode
     {
         private static readonly int InputSize = Marshal.SizeOf(typeof(INPUT));
         private static LineWriter output;
         private static UIntPtr tag;
-        private static volatile bool halt;
-        private static volatile bool gliding;
+        private static readonly object glides = new object();
+        // Tokens of glides waiting to run, of the one running, and of those asked to stop.
+        private static readonly HashSet<string> queuedGlides = new HashSet<string>();
+        private static readonly HashSet<string> haltedGlides = new HashSet<string>();
+        private static string activeGlide;
 
         public static int Run(Options options)
         {
@@ -41,6 +46,8 @@ namespace EdiAula.Helper
             });
             executor.Name = "input";
             executor.IsBackground = true;
+            // Glide steps keep a 120 Hz pace with 100 ms of slack: same priority as the hook thread.
+            executor.Priority = ThreadPriority.Highest;
             executor.Start();
             output.Write("{\"ready\":true}", true);
             JavaScriptSerializer parser = new JavaScriptSerializer();
@@ -73,19 +80,34 @@ namespace EdiAula.Helper
                     object id;
                     c.TryGetValue("id", out id);
                     object op;
-                    if (c.TryGetValue("op", out op) && "halt".Equals(op))
+                    c.TryGetValue("op", out op);
+                    object token;
+                    c.TryGetValue("token", out token);
+                    if ("halt".Equals(op))
                     {
-                        bool active = gliding;
-                        if (active) halt = true;
-                        Reply(id, true, "{\"halted\":" + Json.Bool(active) + "}");
+                        Reply(id, true, "{\"halted\":" + Json.Bool(Halt(token as string)) + "}");
                         continue;
                     }
+                    if ("glide".Equals(op) && token is string)
+                        lock (glides) queuedGlides.Add((string)token);
                     work.Add(new KeyValuePair<object, Dictionary<string, object>>(id, c));
                 }
             }
             work.CompleteAdding();
             executor.Join();
             return 0;
+        }
+
+        /// <summary>Marks the glide to stop; false when it already ended (or never existed).</summary>
+        private static bool Halt(string token)
+        {
+            lock (glides)
+            {
+                string target = token ?? activeGlide;
+                if (target == null || (target != activeGlide && !queuedGlides.Contains(target))) return false;
+                haltedGlides.Add(target);
+                return true;
+            }
         }
 
         private static void Execute(object id, Dictionary<string, object> c)
@@ -342,6 +364,28 @@ namespace EdiAula.Helper
         /// </summary>
         private static string Glide(Dictionary<string, object> c)
         {
+            string token = Json.Has(c, "token") ? Json.Text(c, "token") : "glide:" + Guid.NewGuid().ToString("N");
+            lock (glides)
+            {
+                queuedGlides.Remove(token);
+                activeGlide = token;
+            }
+            try
+            {
+                return Glide(c, token);
+            }
+            finally
+            {
+                lock (glides)
+                {
+                    activeGlide = null;
+                    haltedGlides.Remove(token);
+                }
+            }
+        }
+
+        private static string Glide(Dictionary<string, object> c, string token)
+        {
             int tx = Json.Int(c, "x"), ty = Json.Int(c, "y");
             double duration = Json.Number(c, "duration");
             double at = Json.Has(c, "at") ? Json.Number(c, "at") : 0;
@@ -355,10 +399,11 @@ namespace EdiAula.Helper
                 from.Y = Json.Int(f, "y");
             }
             else NativeMethods.GetCursorPos(out from);
+            // Halted before it started: report where the curve stands without moving.
+            if (Halted(token))
+                return GlideResult(Round(from.X + (tx - from.X) * Smooth(at)), Round(from.Y + (ty - from.Y) * Smooth(at)), at, 0, true);
             long frequency = Stopwatch.Frequency;
             double span = duration * (1 - at);
-            halt = false;
-            gliding = true;
             NativeMethods.timeBeginPeriod(1);
             try
             {
@@ -378,7 +423,7 @@ namespace EdiAula.Helper
                     y = Round(from.Y + (ty - from.Y) * p);
                     if (!MoveTo(x, y)) throw new HelperError("Não foi possível mover o cursor.");
                     if (u >= 1) return GlideResult(tx, ty, 1, 0, false);
-                    if (halt) return GlideResult(x, y, u, 0, true);
+                    if (Halted(token)) return GlideResult(x, y, u, 0, true);
                     long next = start + (long)((step + 1) * frequency / 120.0);
                     while (Stopwatch.GetTimestamp() < next - frequency / 500) Thread.Sleep(1);
                     while (Stopwatch.GetTimestamp() < next) Thread.SpinWait(50);
@@ -387,9 +432,12 @@ namespace EdiAula.Helper
             finally
             {
                 NativeMethods.timeEndPeriod(1);
-                gliding = false;
-                halt = false;
             }
+        }
+
+        private static bool Halted(string token)
+        {
+            lock (glides) return haltedGlides.Contains(token);
         }
 
         private static string GlideResult(int x, int y, double at, double late, bool halted)

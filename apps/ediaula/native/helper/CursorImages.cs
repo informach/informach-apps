@@ -98,12 +98,29 @@ namespace EdiAula.Helper
             string file = null;
             if (directory != null)
             {
-                file = "cursors/" + image.Hash + ".png";
                 string path = Path.Combine(directory, image.Hash + ".png");
-                if (!File.Exists(path))
+                try
                 {
-                    Directory.CreateDirectory(directory);
-                    WritePng(image, path);
+                    if (!File.Exists(path))
+                    {
+                        Directory.CreateDirectory(directory);
+                        WritePng(image, path);
+                    }
+                    file = "cursors/" + image.Hash + ".png";
+                }
+                catch (IOException error)
+                {
+                    // Without the picture the shape keeps its id and the event says file null.
+                    emit(HookMode.ErrorLine("cursor", error.Message));
+                }
+                catch (UnauthorizedAccessException error)
+                {
+                    emit(HookMode.ErrorLine("cursor", error.Message));
+                }
+                catch (System.Runtime.InteropServices.ExternalException error)
+                {
+                    // GDI+ reports its own failures (disk full while saving the PNG) this way.
+                    emit(HookMode.ErrorLine("cursor", error.Message));
                 }
             }
             StringBuilder b = new StringBuilder(160);

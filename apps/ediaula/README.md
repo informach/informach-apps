@@ -33,6 +33,10 @@ Se o `npm run dev` reclamar de "Electron uninstall", rode `node node_modules/ele
 `dev`, `build`, `test` e `shortcut` compilam antes o auxiliar nativo (`resources/native/ediaula-helper.exe`,
 fontes em `native/helper`) com o compilador C# do .NET Framework 4.x que vem no Windows; a variável `CSC` aponta
 outro `csc.exe`. A compilação só roda de novo quando mudam as fontes ou a versão. Fora do Windows o passo apenas avisa.
+Se o executável estiver em uso por um EdiAula aberto em desenvolvimento, o comando para e pede para fechá-lo.
+
+Os testes do auxiliar que geram cliques, rolagens e movimentos reais (retidos pelo próprio teste, mas ainda
+assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm edi:media:test` liga essa variável.
 
 ## Etapa 1 (pronta)
 
@@ -137,19 +141,27 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
   Nada disso aparece na gravação (proteção de conteúdo do Windows).
 - Atalhos: **F9** inicia/pausa, **F10** para, **Ctrl+M** marcador, **Ctrl+R** refazer o último trecho
   (vira proposta de corte, da pausa antes do trecho errado até a pausa depois da marca).
-- A tela é gravada pela Desktop Duplication **sem o ponteiro**. Na primeira gravação o EdiAula testa os
-  codificadores no próprio computador, nesta ordem: NVENC, AMF e Media Foundation (que alcança o Quick Sync da
-  Intel), primeiro com o quadro ainda na GPU e depois pela memória, e por último o x264 pela CPU. Fica com o
-  primeiro que dá conta de 1080p a 60 quadros por segundo; se nenhum der, com o mais rápido que funcionou.
-  A matriz de cor é medida e marcada no vídeo. O resultado fica em
-  `encoders.json`, no perfil do app, e é refeito quando mudam o FFmpeg, a placa ou o driver.
+- A tela é gravada pela Desktop Duplication **sem o ponteiro**. Ao abrir o gravador, o EdiAula grava a própria
+  tela por três segundos com cada codificador, no tamanho do monitor e na taxa da gravação, nesta ordem: NVENC,
+  AMF e Media Foundation (que alcança o Quick Sync da Intel), primeiro com o quadro ainda na GPU e depois pela
+  memória, e por último o x264 pela CPU. Fica com o primeiro que acompanha a taxa; se nenhum acompanhar, com o
+  mais rápido que funcionou. O painel mostra "Testando o codificador nesta tela…" e depois o escolhido. A matriz
+  de cor é medida e marcada no vídeo. O resultado fica em `encoders.json`, no perfil do app, por tela, tamanho e
+  taxa; a chave inclui o FFmpeg, as placas e drivers e a versão do app. Codificador que não existe na máquina não
+  é testado de novo; escolha feita porque um melhor estava ocupado é refeita no dia seguinte.
+- Se o codificador escolhido não abrir a gravação, o EdiAula tenta o caminho seguinte (o mesmo pela memória,
+  depois o x264), registra a falha para não escolher aquele caminho de novo e avisa no resultado da gravação.
 - Um auxiliar nativo (`ediaula-helper.exe`) registra movimentos, formato do cursor, cliques e teclas no mesmo
   relógio do vídeo, sem PowerShell. O gancho do mouse só copia o evento; quem escreve é outra linha de execução,
   então o Windows não o desliga quando o app demora a ler. Se o gancho cair mesmo assim, o auxiliar o reinstala e
-  segue lendo a posição do ponteiro; se o auxiliar parar, o app o reinicia (até três vezes por minuto).
+  segue lendo a posição do ponteiro; se o auxiliar parar, o app o reinicia (até três vezes por minuto), e se ele
+  parar de vez a pílula da gravação mostra "sem cursor". O vídeo continua; os avisos vão junto com a gravação.
   Os atalhos do gravador (F8, F9, F10, Ctrl+M e Ctrl+R) não entram nas teclas na tela.
   Arquivos em `Documentos/EdiAula/Gravações/<data>/` (`tela.mp4`, `camera.mp4`, `cursor.json`). Durante a
-  gravação o auxiliar também grava `cursor.jsonl`, com todos os eventos, e as imagens dos cursores em `cursors/`.
+  gravação o auxiliar também grava `cursor.jsonl` e as imagens dos cursores em `cursors/`. Na preparação e nas
+  pausas ele guarda só o formato do cursor, sem cliques nem teclas. Ao parar, o `cursor.json` é montado com o que
+  chegou ao app e o que só ficou no `cursor.jsonl`, e o `cursor.jsonl` fica só com o que está dentro dos trechos
+  gravados.
 - **Cursor** (Propriedades): tamanho, suavizar, onda nos cliques, halo amarelo, esconder quando parado.
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
@@ -201,7 +213,9 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 - **Movimento por keyframes** (Propriedades › Movimento): marque posições em momentos diferentes; o clipe desliza
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
 - **Áudio do PC** na gravação (loopback do Windows pelo Chromium), numa faixa própria já alinhada.
-- **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Espaço aparecem num balão no canto.
+- **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Delete/F1 a F12 aparecem num balão no canto.
+  Espaço e Backspace sozinhos não aparecem, porque o auxiliar não tem como saber se o foco está num campo de
+  texto; AltGr e Alt com o teclado numérico também ficam de fora, porque escrevem caracteres.
   A digitação comum **nunca** é gravada.
 - **Modelos**: cartela centralizada, faixa de nome (lower third).
 - IA: `set_captions`, `move_clip`.

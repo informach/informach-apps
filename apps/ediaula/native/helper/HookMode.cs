@@ -20,6 +20,8 @@ namespace EdiAula.Helper
         HorizontalWheel,
         Key,
         Shape,
+        Pause,
+        Resume,
     }
 
     /// <summary>What the hook callback copies; everything else happens on the writer thread.</summary>
@@ -42,9 +44,11 @@ namespace EdiAula.Helper
 
     /// <summary>
     /// Hook mode. The low-level hooks run on their own thread and only copy the event into a queue:
-    /// Windows silently removes a hook whose callback is slow (finding G2), so all formatting,
-    /// cursor capture and I/O happen on the writer thread, and a blocked stdout only blocks the
-    /// thread that writes it. A watchdog reinstalls the hook and polls the pointer if it dies.
+    /// Windows silently removes a hook whose callback is slow (finding G2), so formatting and cursor
+    /// capture happen on the writer thread, the journal has a thread of its own, and a blocked
+    /// stdout only blocks the thread that writes it. A watchdog reinstalls the hooks and polls the
+    /// pointer if they die. While paused (between recorded segments) nothing but the cursor shape
+    /// is kept, and keys are dropped inside the callback.
     /// </summary>
     internal static unsafe class HookMode
     {
@@ -61,10 +65,12 @@ namespace EdiAula.Helper
         private static long coalesced;
         private static long reinstalls;
         private static long lastMouseTicks;
+        private static long lastKeyTicks;
         private static object pendingMove;
         private static volatile bool hookDead;
         private static volatile bool stopping;
         private static volatile bool writerDone;
+        private static volatile bool keysPaused;
         private static bool readyWritten;
 
         private static bool keys;
@@ -81,10 +87,11 @@ namespace EdiAula.Helper
         private static volatile int[] excluded = new int[0];
         private static volatile HashSet<int> blockedKeys = new HashSet<int>();
         private static volatile HashSet<long> allowedWindows = new HashSet<long>();
+        // Only the hook thread touches this cache.
+        private static readonly Dictionary<IntPtr, bool> altGrLayouts = new Dictionary<IntPtr, bool>();
 
         private static StdoutPump stdout;
-        private static StreamWriter journal;
-        private static FileStream journalFile;
+        private static Journal journal;
         private static CursorCatalog catalog;
 
         public static int Run(Options options)
@@ -92,16 +99,15 @@ namespace EdiAula.Helper
             keys = options.Keys;
             uiPid = options.UiPid;
             testTag = options.TestTag;
-            if (options.Journal != null)
-            {
-                Directory.CreateDirectory(options.Journal);
-                journalFile = new FileStream(Path.Combine(options.Journal, "cursor.jsonl"), FileMode.Append, FileAccess.Write, FileShare.Read, 4096);
-                journal = new StreamWriter(journalFile, new UTF8Encoding(false), 65536);
-                journal.NewLine = "\n";
-            }
+            keysPaused = options.Paused;
             stdout = new StdoutPump();
+            if (options.Journal != null) journal = Journal.Open(options.Journal, stdout.Enqueue);
             catalog = new CursorCatalog(options.Journal, Emit);
-            Interlocked.Exchange(ref lastMouseTicks, Stopwatch.GetTimestamp());
+            long start = Stopwatch.GetTimestamp();
+            Interlocked.Exchange(ref lastMouseTicks, start);
+            Interlocked.Exchange(ref lastKeyTicks, start);
+            // Started before the first segment: nothing but the shape until "resume".
+            paused = options.Paused;
 
             Thread writer = Start(WriterLoop, "writer", ThreadPriority.AboveNormal);
             mouseProc = MouseCallback;
@@ -115,6 +121,7 @@ namespace EdiAula.Helper
                 writerDone = true;
                 wake.Set();
                 writer.Join(2000);
+                if (journal != null) journal.Finish(2000);
                 stdout.Finish(2000);
                 return 1;
             }
@@ -144,6 +151,7 @@ namespace EdiAula.Helper
             writerDone = true;
             wake.Set();
             writer.Join(10000);
+            if (journal != null) journal.Finish(10000);
             stdout.Finish(3000);
             return 0;
         }
@@ -274,20 +282,25 @@ namespace EdiAula.Helper
         private static IntPtr KeyCallback(int code, IntPtr wParam, IntPtr lParam)
         {
             uint message = (uint)wParam.ToInt64();
-            if (code >= 0 && (message == NativeMethods.WM_KEYDOWN || message == NativeMethods.WM_SYSKEYDOWN))
+            if (code >= 0)
             {
-                KBDLLHOOKSTRUCT* data = (KBDLLHOOKSTRUCT*)lParam;
-                int vk = (int)data->VkCode;
-                bool modifier = (vk >= 0x10 && vk <= 0x12) || (vk >= 0xA0 && vk <= 0xA5) || vk == 0x5B || vk == 0x5C;
-                if (!modifier)
+                Interlocked.Exchange(ref lastKeyTicks, Stopwatch.GetTimestamp());
+                if ((message == NativeMethods.WM_KEYDOWN || message == NativeMethods.WM_SYSKEYDOWN) && !keysPaused)
                 {
-                    bool ctrl = Pressed(0x11), alt = Pressed(0x12), shift = Pressed(0x10), win = Pressed(0x5B) || Pressed(0x5C);
-                    bool navigation = vk == 8 || vk == 9 || vk == 13 || vk == 27 || vk == 32 || (vk >= 33 && vk <= 40) || vk == 46 || (vk >= 112 && vk <= 123);
-                    // Never log plain typing: only shortcuts (with Ctrl/Alt/Win) and navigation keys.
-                    if (ctrl || alt || win || navigation)
+                    KBDLLHOOKSTRUCT* data = (KBDLLHOOKSTRUCT*)lParam;
+                    int vk = (int)data->VkCode;
+                    if (!KeyRule.IsModifier(vk))
                     {
-                        int mods = (ctrl ? 1 : 0) | (alt ? 2 : 0) | (shift ? 4 : 0) | (win ? 8 : 0);
-                        if (!blockedKeys.Contains(vk | (mods << 16)) && !ForegroundIsRecorder())
+                        bool ctrl = Pressed(0x11), alt = Pressed(0x12), win = Pressed(0x5B) || Pressed(0x5C);
+                        int mods = (ctrl ? KeyRule.Ctrl : 0) | (alt ? KeyRule.Alt : 0) | (Pressed(0x10) ? KeyRule.Shift : 0) | (win ? KeyRule.Win : 0);
+                        bool extended = (data->Flags & 0x01) != 0; // LLKHF_EXTENDED
+                        bool rightAlt = Pressed(0xA5);
+                        IntPtr layout = ForegroundLayout();
+                        bool altGr = (rightAlt || (ctrl && alt)) && LayoutHasAltGr(layout);
+                        // Only Ctrl+Alt can turn a key into a character here; ask the layout then.
+                        bool printable = ctrl && alt && Printable(vk, (int)data->ScanCode, layout);
+                        if (KeyRule.ShouldLog(vk, mods, extended, rightAlt, altGr, printable) &&
+                            !blockedKeys.Contains(vk | (mods << 16)) && !ForegroundIsRecorder())
                         {
                             RawEvent e = new RawEvent();
                             e.Kind = EventKind.Key;
@@ -300,6 +313,46 @@ namespace EdiAula.Helper
                 }
             }
             return NativeMethods.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
+        }
+
+        private static IntPtr ForegroundLayout()
+        {
+            uint pid;
+            return NativeMethods.GetKeyboardLayout(NativeMethods.GetWindowThreadProcessId(NativeMethods.GetForegroundWindow(), out pid));
+        }
+
+        /// <summary>The flag 4 keeps ToUnicodeEx from touching the dead-key state the user is typing with.</summary>
+        private static bool Printable(int vk, int scan, IntPtr layout)
+        {
+            byte[] state = new byte[256];
+            for (int key = 0; key < 256; key++)
+                if (Pressed(key)) state[key] = 0x80;
+            if ((NativeMethods.GetKeyState(0x14) & 1) != 0) state[0x14] |= 1; // Caps Lock
+            StringBuilder text = new StringBuilder(8);
+            int count = NativeMethods.ToUnicodeEx((uint)vk, (uint)scan, state, text, text.Capacity, 4, layout);
+            return count > 0 && text.Length > 0 && text[0] >= 0x20 && text[0] != 0x7F;
+        }
+
+        /// <summary>Whether Ctrl+Alt (AltGr) types characters with this layout; measured once per layout.</summary>
+        private static bool LayoutHasAltGr(IntPtr layout)
+        {
+            bool known;
+            if (altGrLayouts.TryGetValue(layout, out known)) return known;
+            byte[] state = new byte[256];
+            state[0x11] = state[0xA2] = state[0x12] = state[0xA5] = 0x80;
+            StringBuilder text = new StringBuilder(8);
+            bool found = false;
+            for (int vk = 0x30; vk <= 0xE2 && !found; vk++)
+            {
+                if (vk > 0x5A && vk < 0xBA) continue;
+                uint scan = NativeMethods.MapVirtualKeyEx((uint)vk, 0, layout);
+                if (scan == 0) continue;
+                text.Length = 0;
+                int count = NativeMethods.ToUnicodeEx((uint)vk, scan, state, text, text.Capacity, 4, layout);
+                found = count > 0 && text.Length > 0 && text[0] >= 0x20 && text[0] != 0x7F;
+            }
+            altGrLayouts[layout] = found;
+            return found;
         }
 
         private static bool ForegroundIsRecorder()
@@ -352,18 +405,16 @@ namespace EdiAula.Helper
         private static double lastMoveAt = double.MinValue;
         private static bool holding;
         private static RawEvent held;
+        private static bool paused;
 
         private static void WriterLoop()
         {
             long tick = frequency / 1000;
             long nextBeat = Stopwatch.GetTimestamp() + 500 * tick;
-            long nextFlush = Stopwatch.GetTimestamp() + 200 * tick;
-            long nextSync = Stopwatch.GetTimestamp() + 5000 * tick;
-            bool journalFailed = false;
             for (;;)
             {
                 long now = Stopwatch.GetTimestamp();
-                long due = Math.Min(nextBeat, nextFlush);
+                long due = nextBeat;
                 if (holding) due = Math.Min(due, (long)((held.T + MoveInterval) * frequency / 1000));
                 int timeout = (int)Math.Max(0, Math.Min(500, (due - now) / tick));
                 wake.WaitOne(timeout);
@@ -385,42 +436,12 @@ namespace EdiAula.Helper
                     nextBeat = now + 500 * tick;
                     Emit("{\"e\":\"hb\",\"t\":" + Json.Time(Program.Now()) + ",\"q\":" + Volatile.Read(ref queued) +
                         ",\"drop\":" + Interlocked.Read(ref coalesced) + ",\"hook\":\"" + (hookDead ? "dead" : "ok") +
-                        "\",\"re\":" + Interlocked.Read(ref reinstalls) + ",\"out\":" + stdout.Pending + "}");
+                        "\",\"re\":" + Interlocked.Read(ref reinstalls) + ",\"out\":" + stdout.Pending +
+                        ",\"jq\":" + (journal == null ? 0 : journal.Pending) + "}");
                 }
-                if (journal != null && !journalFailed && now >= nextFlush)
-                {
-                    nextFlush = now + 200 * tick;
-                    try
-                    {
-                        journal.Flush();
-                        if (now >= nextSync)
-                        {
-                            nextSync = now + 5000 * tick;
-                            journalFile.Flush(true);
-                        }
-                    }
-                    catch (IOException error)
-                    {
-                        journalFailed = true;
-                        stdout.Enqueue(ErrorLine("journal", error.Message));
-                    }
-                }
-                else if (journal == null || journalFailed) nextFlush = now + 200 * tick;
                 if (writerDone && Volatile.Read(ref queued) == 0 && Volatile.Read(ref pendingMove) == null) break;
             }
             if (holding) Release();
-            if (journal != null && !journalFailed)
-            {
-                try
-                {
-                    journal.Flush();
-                    journalFile.Flush(true);
-                }
-                catch (IOException error)
-                {
-                    stdout.Enqueue(ErrorLine("journal", error.Message));
-                }
-            }
         }
 
         private static void Process(RawEvent e)
@@ -436,6 +457,12 @@ namespace EdiAula.Helper
                         catalog.Prime();
                     }
                     return;
+                case EventKind.Pause:
+                case EventKind.Resume:
+                    Release();
+                    paused = e.Kind == EventKind.Pause;
+                    Emit("{\"e\":\"" + (paused ? "pause" : "resume") + "\",\"t\":" + Json.Time(e.T) + "}");
+                    return;
                 case EventKind.Move:
                 case EventKind.Shape:
                     string id = catalog.Resolve(e.Cursor, e.Showing);
@@ -449,7 +476,7 @@ namespace EdiAula.Helper
                         b.Append('}');
                         Emit(b.ToString());
                     }
-                    if (e.Kind == EventKind.Shape) return;
+                    if (e.Kind == EventKind.Shape || paused) return;
                     if (e.T - lastMoveAt < MoveInterval && !e.Polled)
                     {
                         held = e;
@@ -460,6 +487,8 @@ namespace EdiAula.Helper
                     EmitMove(e);
                     return;
                 default:
+                    // Between segments only the shape matters: clicks, wheel and keys stay out.
+                    if (paused) return;
                     Release();
                     Emit(Format(e));
                     return;
@@ -512,22 +541,9 @@ namespace EdiAula.Helper
             return b.ToString();
         }
 
-        private static bool journalBroken;
-
         private static void Emit(string line)
         {
-            if (journal != null && !journalBroken)
-            {
-                try
-                {
-                    journal.WriteLine(line);
-                }
-                catch (IOException error)
-                {
-                    journalBroken = true;
-                    stdout.Enqueue(ErrorLine("journal", error.Message));
-                }
-            }
+            if (journal != null) journal.Enqueue(line);
             stdout.Enqueue(line);
         }
 
@@ -550,7 +566,7 @@ namespace EdiAula.Helper
             NativeMethods.GetCursorPos(out last);
             IntPtr lastCursor = IntPtr.Zero;
             bool lastShowing = true;
-            long deadSince = 0, lastPost = 0;
+            long deadSince = 0, lastPost = 0, lastKeysRepair = 0;
             bool[] buttons = new bool[5];
             int[] buttonKeys = { 0x01, 0x02, 0x04, 0x05, 0x06 };
             while (!stopping)
@@ -578,15 +594,25 @@ namespace EdiAula.Helper
                         bool swapped = NativeMethods.GetSystemMetrics(NativeMethods.SM_SWAPBUTTON) != 0;
                         for (int i = 0; i < buttons.Length; i++) buttons[i] = Pressed(Physical(buttonKeys, i, swapped));
                     }
-                    else if (haveCursor && (info.Cursor != lastCursor || showing != lastShowing))
+                    else
                     {
-                        // Shape changes while the pointer rests (an app switching to the wait cursor).
-                        RawEvent e = new RawEvent();
-                        e.Kind = EventKind.Shape;
-                        e.T = Program.Now();
-                        e.Cursor = info.Cursor;
-                        e.Showing = showing;
-                        Enqueue(ref e);
+                        if (haveCursor && (info.Cursor != lastCursor || showing != lastShowing))
+                        {
+                            // Shape changes while the pointer rests (an app switching to the wait cursor).
+                            RawEvent e = new RawEvent();
+                            e.Kind = EventKind.Shape;
+                            e.T = Program.Now();
+                            e.Cursor = info.Cursor;
+                            e.Showing = showing;
+                            Enqueue(ref e);
+                        }
+                        if (keys && KeyboardHookSilent(now) && now - lastKeysRepair > 2 * frequency)
+                        {
+                            // Typing reached Windows but neither hook saw it: the keyboard hook was removed.
+                            lastKeysRepair = now;
+                            NativeMethods.PostThreadMessage(hookThreadId, WM_APP_REINSTALL, IntPtr.Zero, IntPtr.Zero);
+                            Health("keys");
+                        }
                     }
                 }
                 else if (lastHook > deadSince)
@@ -638,6 +664,20 @@ namespace EdiAula.Helper
                     lastShowing = showing;
                 }
             }
+        }
+
+        /// <summary>
+        /// Fresh input according to Windows (GetLastInputInfo) that no callback received for over a
+        /// second. The pointer check above covers the mouse hook; this one catches the keyboard hook.
+        /// </summary>
+        private static bool KeyboardHookSilent(long now)
+        {
+            LASTINPUTINFO info = new LASTINPUTINFO();
+            info.Size = Marshal.SizeOf(typeof(LASTINPUTINFO));
+            if (!NativeMethods.GetLastInputInfo(ref info)) return false;
+            uint inputAge = unchecked((uint)Environment.TickCount - info.Time);
+            long callback = Math.Max(Interlocked.Read(ref lastMouseTicks), Interlocked.Read(ref lastKeyTicks));
+            return inputAge < 500 && now - callback > frequency;
         }
 
         /// <summary>GetAsyncKeyState reads physical buttons; swapped buttons exchange left and right.</summary>
@@ -700,6 +740,10 @@ namespace EdiAula.Helper
                         blockedKeys = blocked;
                         allowedWindows = allowed;
                         break;
+                    case "pause":
+                    case "resume":
+                        SetPaused(name == "pause");
+                        break;
                     case "follow":
                         WindowWatch.Follow(Json.Has(c, "hwnd") ? Json.Handle(c, "hwnd") : IntPtr.Zero);
                         break;
@@ -732,11 +776,40 @@ namespace EdiAula.Helper
                 EnqueueLine(ErrorLine(name ?? "?", error.Message));
             }
         }
+
+        /// <summary>
+        /// Keys stop at the callback right away; the writer switches in queue order, so events from
+        /// before the command are still written. Resuming also records where the pointer is.
+        /// </summary>
+        private static void SetPaused(bool pause)
+        {
+            keysPaused = pause;
+            RawEvent e = new RawEvent();
+            e.Kind = pause ? EventKind.Pause : EventKind.Resume;
+            e.T = Program.Now();
+            Enqueue(ref e);
+            if (pause) return;
+            POINT p;
+            CURSORINFO info = new CURSORINFO();
+            info.Size = Marshal.SizeOf(typeof(CURSORINFO));
+            if (!NativeMethods.GetCursorPos(out p) || !NativeMethods.GetCursorInfo(ref info)) return;
+            RawEvent here = new RawEvent();
+            here.Kind = EventKind.Move;
+            here.T = Program.Now();
+            here.X = p.X;
+            here.Y = p.Y;
+            here.Cursor = info.Cursor;
+            here.Showing = (info.Flags & NativeMethods.CURSOR_SHOWING) != 0;
+            here.Polled = true;
+            here.Ui = Excluded(p.X, p.Y);
+            Enqueue(ref here);
+        }
     }
 
     /// <summary>The only thread that writes stdout; if the app stops reading, only this thread waits.</summary>
     internal sealed class StdoutPump
     {
+        private const int MaxLines = 1 << 20;
         private readonly ConcurrentQueue<string> lines = new ConcurrentQueue<string>();
         private readonly AutoResetEvent signal = new AutoResetEvent(false);
         private readonly LineWriter output = LineWriter.StandardOutput();
@@ -772,8 +845,6 @@ namespace EdiAula.Helper
             lines.Enqueue(line);
             signal.Set();
         }
-
-        private const int MaxLines = 1 << 20;
 
         public void Finish(int timeout)
         {

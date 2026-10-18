@@ -10,11 +10,13 @@ import {
   screen,
   session,
 } from "electron";
+import { z } from "zod";
 import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "../shared/guidedRecording.ts";
 import {
   type CaptureMonitor,
   type MarkerKind,
   RECORDER_HOTKEYS,
+  RECORDING_FPS,
   type RecordOptions,
 } from "../shared/recording.ts";
 import { prepareGuidedNarration, probe } from "./ffmpeg.ts";
@@ -304,6 +306,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const current = b ? monitors.find((m) => m.dip!.x === b.x && m.dip!.y === b.y) : undefined;
     return { ...s, monitors, current: current?.index ?? null };
   });
+  /** Tried in the background while the recorder is set up, not during the countdown. */
+  ipcMain.handle("recorder:encoder", async (_e, index: unknown) => {
+    const monitor = monitors.find((m) => m.index === z.int().nonnegative().parse(index));
+    if (!monitor) throw new Error("Tela não encontrada.");
+    return rec.encoderFor(monitor, RECORDING_FPS);
+  });
   ipcMain.handle("recorder:moveTo", (_e, index: number) => {
     const m = monitors.find((x) => x.index === index);
     if (m) place(m);
@@ -337,8 +345,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         )
           region = undefined;
       }
-      // Keys typed in the lesson window still show on screen; it belongs to this process too.
-      await rec.prepare({ ...opts, region }, monitors, guidedBrowserWindowIds());
+      await rec.prepare({ ...opts, region }, monitors, {
+        // Keys typed in the lesson window still show on screen; it belongs to this process too.
+        keyWindows: guidedBrowserWindowIds(),
+        onCursorFailure: () => overlay?.webContents.send("recorder:hotkey", "cursor-lost"),
+      });
       captureBounds = {
         x: m.x + (region?.x ?? 0),
         y: m.y + (region?.y ?? 0),

@@ -90,8 +90,8 @@ if (previous === digest && existsSync(output)) {
   process.exit(0);
 }
 
-const work = await mkdtemp(join(tmpdir(), "ediaula-helper-"));
-try {
+/** Compiles into a scratch folder; the answer is a message for the person when it fails. */
+async function compile(work) {
   const info = join(work, "AssemblyInfo.cs");
   const staged = join(work, "ediaula-helper.exe");
   await writeFile(info, assemblyInfo, "utf8");
@@ -108,16 +108,41 @@ try {
       done({ error, stdout }),
     ),
   );
-  if (compiled.error) {
-    // csc reports diagnostics on stdout.
-    console.error(String(compiled.stdout || compiled.error.message));
-    process.exitCode = 1;
-    throw new Error("ediaula-helper: compilation failed");
-  }
+  // csc reports diagnostics on stdout.
+  if (compiled.error)
+    return `ediaula-helper: compilation failed
+${String(compiled.stdout || compiled.error.message)}`;
   await mkdir(outputDir, { recursive: true });
-  await rename(staged, output);
-  await writeFile(stampFile, `${JSON.stringify({ version, sha256: digest }, null, 2)}\n`);
-  console.log(`ediaula-helper ${version}: compiled ${sources.length} sources`);
+  try {
+    await rename(staged, output);
+  } catch (error) {
+    // Windows keeps a running executable locked: an EdiAula in development may be using it.
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      ["EPERM", "EBUSY"].includes(error.code)
+    )
+      return `ediaula-helper: ${output} está em uso. Feche o EdiAula aberto em desenvolvimento (ou a gravação em andamento) e rode o comando de novo.`;
+    throw error;
+  }
+  await writeFile(
+    stampFile,
+    `${JSON.stringify({ version, sha256: digest }, null, 2)}
+`,
+  );
+  return undefined;
+}
+
+const work = await mkdtemp(join(tmpdir(), "ediaula-helper-"));
+let failure;
+try {
+  failure = await compile(work);
 } finally {
   await rm(work, { recursive: true, force: true });
 }
+if (failure) {
+  console.error(failure);
+  process.exit(1);
+}
+console.log(`ediaula-helper ${version}: compiled ${sources.length} sources`);

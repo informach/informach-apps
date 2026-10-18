@@ -43,6 +43,7 @@ const api: EdiAulaApi = {
     context: () => ipcRenderer.invoke("recorder:context"),
     sources: () => ipcRenderer.invoke("recorder:sources"),
     moveTo: (index) => ipcRenderer.invoke("recorder:moveTo", index),
+    encoder: (monitor) => ipcRenderer.invoke("recorder:encoder", monitor),
     prepare: (opts) => ipcRenderer.invoke("recorder:prepare", opts),
     start: () => ipcRenderer.invoke("recorder:start"),
     systemAudio: (bytes, startedAt) => ipcRenderer.invoke("recorder:systemAudio", bytes, startedAt),
