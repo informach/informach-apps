@@ -171,7 +171,9 @@ Um mapa tem a forma `{"id-da-chave":"PEM da chave pública"}`; as quebras de lin
 
 Ao encerrar, pare o listener e os processos locais. Gerencie/cancele somente as assinaturas de teste que você criou. Não use os IDs/chaves live nem o banco de produção para esse fluxo. O [registro Stripe](propostas/edi-suite-2026-10-16/producao-stripe.md) contém os contratos e as evidências dos testes existentes.
 
-Para verificar automaticamente os estados de acesso sem providers reais, use `pnpm edi:test:native`: o harness controla um servidor loopback, gera chaves efêmeras e licenças de fixture, verifica bloqueios e elimina seus perfis ao terminar. Ele não deixa uma sessão interativa permanente nem substitui a preparação descrita acima.
+Para verificar automaticamente os estados de acesso sem providers reais, use `pnpm edi:test:native`: o harness controla um servidor loopback, gera chaves efêmeras e licenças de fixture, verifica bloqueios e elimina seus perfis ao terminar. Ele não deixa uma sessão interativa permanente nem substitui a preparação descrita acima. O mesmo harness (`scripts/edi/native-harness.mts`) serve ao teste visual do EdiAula, `pnpm edi:test:visual`.
+
+O teste visual gera mídia sintética com o FFmpeg do pacote de mídia (`.cache/edi-native-media`, feito por `pnpm edi:media:build`) e com o sintetizador de voz do Windows, abre o EdiAula licenciado com perfil isolado e percorre editor, Voz, HeyGen, roteiro, exportação, configurações de IA, gravador nos três modos (sem gravar), falha de salvamento, gravação interrompida e reconexão de mídia. As capturas e o `relatorio.md` ficam em `.cache/edi-visual-results`. Os diálogos nativos de arquivo são respondidos pelo próprio teste no processo principal do Electron, sem porta de teste no app. Qualquer erro de página, de console ou de IPC de qualquer janela faz o teste falhar, exceto as mensagens listadas e justificadas em `KNOWN_HARMLESS`. O teste abre janelas de verdade, incluindo o gravador em tela cheia por alguns segundos, e espera 2000 MB livres antes do build e de cada abertura.
 
 ## 6. Onde implementar uma funcionalidade
 
@@ -250,6 +252,7 @@ pnpm build
 | OAuth, banco e licenças | `pnpm edi:test:integration` — Windows; PostgreSQL descartável com migrations completas, sem banco existente |
 | Portal standalone real | `pnpm build:edi`, depois `pnpm edi:test:integration --portal` — acrescenta HTTP, assets, auth e readiness; não é só `next dev` |
 | Fluxo Electron e acesso | `pnpm edi:test:native` ou `pnpm edi:test:native edifoto` — Windows, perfis isolados, builds próprios, fixtures e screenshots em `.cache/edi-native-results` |
+| Telas do EdiAula de ponta a ponta | `pnpm edi:test:visual`: Windows, pacote de mídia em `.cache/edi-native-media`, perfil isolado, capturas e relatório em `.cache/edi-visual-results` |
 | Tooling de release | `pnpm edi:typecheck:tooling` e `pnpm edi:test:tooling` |
 | Ciclo financeiro de teste | `pnpm edi:test:integration --stripe` — exige `EDI_STRIPE_TEST_KEY`; cria recursos de teste no provider |
 | Webhook Stripe por HTTP | `pnpm edi:test:integration --stripe-http` — exige a mesma chave de teste e Stripe CLI; consultar homologação antes de operar |
