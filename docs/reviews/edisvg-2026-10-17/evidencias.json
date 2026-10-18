@@ -1,0 +1,142 @@
+{
+  "commit": "189d998",
+  "generatedAt": "2026-10-18T00:19:45.697Z",
+  "environment": {
+    "node": "v24.15.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "browser": "Microsoft Edge 154.0.4258.53"
+  },
+  "scope": "Disposable Chromium renderer + original pure modules; not desktop dialogs or paid AI",
+  "model": {
+    "customAnimationRejected": true,
+    "negativeScaleRejected": true,
+    "nonFiniteSvgTransformAccepted": {
+      "transform": "matrix(1e999 0 0 1 0 0)"
+    },
+    "continuationAfterClose": "O segmento precisa iniciar com M.",
+    "poseAtMidpoint": {
+      "y": 0,
+      "rotation": 7,
+      "scale": 1
+    }
+  },
+  "browser": {
+    "initialNodes": 0,
+    "legacySmokeMascotExists": 0,
+    "drawnNode": {
+      "id": "node-421bde5d-a734-4202-9f8f-be97fefaedf7",
+      "name": "Retângulo",
+      "tag": "rect",
+      "attrs": {
+        "fill": "#4fe3c1",
+        "x": "540",
+        "y": "540",
+        "width": "216.7450611476952",
+        "height": "139.33611073780412"
+      },
+      "text": "",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "opacity": 100,
+        "sx": 1,
+        "sy": 1
+      },
+      "visible": true,
+      "locked": false,
+      "children": []
+    },
+    "objectTransform": {
+      "x": 42,
+      "y": 0,
+      "rotation": 0,
+      "opacity": 100,
+      "sx": 1,
+      "sy": 1
+    },
+    "autoKeyButtonSelected": true,
+    "keysAfterObjectTransform": [],
+    "objectUndoRedo": true,
+    "keysAfterAnimatedObjectTransform": [],
+    "undoAfterAnimationSelection": {
+      "animation": "Parado",
+      "x": 42,
+      "mode": "design"
+    },
+    "selectedPlayback": {
+      "animation": "Pular",
+      "mode": "loop"
+    },
+    "exportIgnoresSelectedLoop": true,
+    "markers": [1],
+    "markerDoesNotChangeExport": true,
+    "htmlStartsAtDifferentAnimation": true,
+    "testOwnArtworkMessage": "Estados editáveis para seus SVGs serão adicionados em uma próxima etapa.",
+    "exportDialogDescription": "Zezé · máquina Interação · 3 animações",
+    "xml": {
+      "simple": {
+        "accepted": true,
+        "objects": 1,
+        "rendered": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><g transform=\"translate(0 0) rotate(0) scale(1 1)\" opacity=\"1\"><rect width=\"50\" height=\"40\" fill=\"#123456\"></rect></g></svg>"
+      },
+      "gradient": {
+        "accepted": false,
+        "error": "Elemento ainda não suportado: defs. Use formas e cores sólidas."
+      },
+      "external": {
+        "accepted": false,
+        "error": "Elemento ainda não suportado: image. Use formas e cores sólidas."
+      },
+      "aspectRatio": {
+        "accepted": true,
+        "objects": 1,
+        "rendered": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\"><g transform=\"translate(0 0) rotate(0) scale(1 1)\" opacity=\"1\"><rect width=\"50\" height=\"40\"></rect></g></svg>"
+      }
+    },
+    "aspectRatioDropped": true,
+    "closedPathContinuationBrowserLength": 48.284271240234375,
+    "viewport1600": {
+      "width": 1600,
+      "documentWidth": 1600,
+      "workspaceWidth": 1600
+    },
+    "viewport980": {
+      "width": 980,
+      "documentWidth": 980,
+      "workspaceWidth": 980
+    },
+    "recovery": {
+      "nodesBeforeReload": 1,
+      "nodesAfterReload": 0
+    },
+    "errors": []
+  },
+  "modelBenchmarks": [
+    {
+      "nodes": 100,
+      "iterations": 20,
+      "medianMs": 1.13,
+      "p95Ms": 1.7,
+      "serializedBytes": 24859,
+      "note": "Node model path only; not GPU FPS or Rive comparison"
+    },
+    {
+      "nodes": 500,
+      "iterations": 20,
+      "medianMs": 7.93,
+      "p95Ms": 10.22,
+      "serializedBytes": 124299,
+      "note": "Node model path only; not GPU FPS or Rive comparison"
+    },
+    {
+      "nodes": 2000,
+      "iterations": 20,
+      "medianMs": 35.81,
+      "p95Ms": 44.77,
+      "serializedBytes": 499577,
+      "note": "Node model path only; not GPU FPS or Rive comparison"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# EdiSVG — revisão integral da evolução entregue
+
+Data: 18/10/2026. Escopo: implementação desta frente na branch `feat/edisvg-evolution`, do lote 0 ao incremento 5.23. Este é um review do que foi **efetivamente implementado** e testado; não é atestado de paridade integral com Rive, de compatibilidade `.riv` ou de superioridade de desempenho. Os reviews incrementais vinculados no [plano](../../../apps/edisvg/PLANO-DE-IMPLEMENTACAO.md) são a trilha técnica e preservam os limites de cada perfil.
+
+## Resultado e decisão de escopo
+
+Os lotes 0 e 1 e os perfis documentados dos lotes 2–4 passaram por reviews intermediários. O lote 5 avançou até 5.23: recursos gráficos, rig, lógica, ativos, fontes, áudio, semântica e exportação operam apenas nos perfis estritos registrados em seus reviews. O titular pediu concluir o incremento corrente, registrar o restante e publicar, **não** presumir que toda a proposta original já foi implementada. Portanto o aceite desta entrega é do código e dos perfis fechados, condicionado aos gates finais abaixo; lotes 5 restante e 6 ficam abertos.
+
+| Área revisada | Evidência/decisão | Limite remanescente |
+| --- | --- | --- |
+| Integridade do projeto | Parser versionado, recusa de capabilities sob cabeçalhos antigos, migração com backup exato, transações atômicas, histórico, locks e recuperação; 5.23 usa projeto v22/Rig v4/blueprint v11. | Falha de energia/hardware e acervo real ainda não foram homologados. |
+| Núcleo e reprodução | Editor/Testar, HTML interativo, SVG portátil/amostrado, React e Lottie admitido usam o mesmo avaliador; relógios, componentes e recursos têm posse e descarte explícitos. | Conversões amostradas não preservam comportamento contínuo, áudio, interação ou semântica por definição. |
+| Segurança e limites | Documentos e recursos externos são validados; perfis SVG recusam conteúdo ativo/ambíguo; IDs/refs, tamanho, profundidade, coordenadas e orçamento são limitados. MCP passa por sessão/revisão e transação; não há execução de scripts do projeto. | Ausência de achados conhecidos em auditoria de dependências não substitui pentest, fuzzing amplo nem homologação de todo SVG. |
+| Autoria e acessibilidade | Painéis React integrados à interface existente, comandos reversíveis, foco/teclado e prévias canceláveis; 5.23 inclui pad 2D acessível por teclado e dois campos numéricos reais. | Leitores de tela, alto contraste e dispositivos representativos ainda exigem testes com pessoas/hardware. |
+| Plataformas | Windows Electron/file/CSP e web/React/Next fazem parte da matriz testada. | React Native Android/iOS não tem adapter nativo nem homologação; WebView não será chamada de solução equivalente. |
+| Qualidade e manutenção | Tipos estritos no novo núcleo/UI, testes unitários, E2E, consumidor Next e jornada nativa; organização por contratos/domínio sem duplicar avaliador. | Renderer JavaScript legado não tem `checkJs` integral; warnings legados permanecem visíveis. |
+
+## Achados corrigidos nesta revisão final
+
+1. Um `pointerup` imediatamente após redimensionar podia preceder o evento `resize` e confirmar uma pose calculada no retângulo antigo. O gesto agora confere a assinatura da superfície e viewport também no próprio término, cancelando em caso de mudança. E2E cobre essa ordem.
+2. O fixture Next para joystick não podia inserir diretamente um alvo na cena sem passar pela transação real. O teste passou a criar o alvo pelo comando de documento, exercitando os mesmos contratos do editor; build, SSR e hidratação do consumidor produzido passaram.
+3. A jornada nativa relatou prévia sem alteração. O diagnóstico mostrou o ponto do pad parado em zero, sem erro do avaliador: fixtures de runtime anteriores deixavam hosts fixos com `z-index` alto sobre o inspetor, interceptando o ponteiro. Os players já haviam sido destruídos; a jornada agora remove os hosts depois da prova/screenshot de runtime e antes da autoria, mantendo o cleanup final de segurança. O seletor do alvo foi alinhado à arte efetiva e o gesto passou a emitir passos, como no E2E. A repetição completa passou.
+4. A automação nativa de Salvar percorria a árvore UI Automation de todo o desktop, inclusive processos protegidos; num dos runs o Windows recusou um token alheio. A primeira restrição a filhos diretos não encontrou o diálogo da fixture. O helper passou a enumerar apenas janelas Win32 `#32770` pertencentes ao PID validado e a consultar UI Automation somente pelo handle encontrado. A política de destinos temporários exatos e conferência dos controles/PID continuou bloqueante; a jornada completa passou com Save/Open, cancelamentos e exportações.
+
+## Gates e ressalvas de publicação
+
+Após a última alteração funcional do 5.23, passaram 136 testes do núcleo, 245 do app, 82 E2E reais, tipos do app/núcleo, build do editor, consumidor Next de produção com SSR/hidratação e comparação independente de pixels com Lottie SVG-light. `pnpm audit --prod --audit-level=moderate` e a auditoria de desenvolvimento não reportaram alertas conhecidos. Biome no escopo EdiSVG/edi-motion verificou 491 arquivos: zero erros, 14 warnings e 9 infos legados sem supressão. A jornada Electron/ASAR completa passou no run final: integridade, GUI, joystick, rig, recursos, Save/Open/recuperação, ZIP React, Lottie, licença e IPC com chaves/perfis efêmeros. O teste não instalou nem publicou produto. O typecheck transversal do checkout de trabalho contém erros em alterações paralelas não publicadas do EdiPDF; não confundir esse estado sujo com o commit EdiSVG ou com CI de uma árvore limpa.
+
+A tag `edi-v0.1.5` da suíte falhou **antes** de gerar instaladores: dois testes de voz EdiAula no runner Windows bloquearam o job de mídia. O PR #20 trata essa falha; sua validação remota deve passar e a correção entrar na `main` antes da próxima tag. O workflow da suíte exige ancestralidade da `main`, auditoria, check, tipos, testes, banco, upgrade, nativo e manifesto assinado antes de publicar. Uma tag sem release pública não conta como distribuição. A revisão e esta seção devem registrar o resultado real da nova versão, sem mover/reutilizar a tag falha.
+
+## Pendências explicitamente fora desta publicação
+
+**Lote 5:** malha/triangulação e deformação raster; suporte SVG avançado (símbolos, padrões, máscaras/pinturas/filtros não cobertos); draw order e trim em consumidores ainda recusados; tipografia com shaping complexo, bidi e textPath; exportadores PNG sequência/GIF/MP4/WebM; texto semântico dinâmico; scripting/procedural declarativo com política e orçamento; assets/fontes externos e perfis Lottie hoje recusados. Cada novo perfil precisa contrato de capacidade, preview/consentimento quando converter aparência, corpus independente, writer/migração, UI/MCP, rollback e gates de consumidores.
+
+**Lote 6:** adapter React Native real e testes em Android/iOS (incluindo fontes, áudio, imagens, gestos, lifecycle e desempenho em dispositivos); bibliotecas/compartilhamento/permissões, colaboração, migração de acervo real e guias de consumo. iOS requer ambiente Apple apropriado; não foi homologado neste Windows.
+
+**Objetivo de substituir Rive:** importar/exportar `.riv`, cobrir capacidades ainda ausentes, provar compatibilidade com corpus de projetos reais, medir fluxo de autoria e desempenho com benchmarks reproduzíveis e usuários representativos. O produto não deve anunciar paridade/superioridade até esses critérios passarem. A matriz web/React e React Native foi definida pelo titular, mas só a primeira parte está entregue.
+
+## Próximo aceite
+
+Integrar somente as alterações EdiSVG sobre a `main` remota atual, executar gates de árvore limpa e publicar a próxima tag pelo workflow existente **após** resolver o bloqueio de voz EdiAula. Conferir release pública, seis instaladores, hashes/manifesto assinado e atualização a partir da versão anterior. Registrar commit, tag, workflow e eventuais bloqueios aqui, sem tomar testes ou alterações de frentes paralelas como próprios.

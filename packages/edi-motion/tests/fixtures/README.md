@@ -1,0 +1,7 @@
+# Font fixture
+
+`NotoSans-Regular.ttf.gz.base64` packs the unmodified Noto Sans Regular font as gzip/Base64, for offline tests only. It is not imported by the production package exports. Original SHA-256: `b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5` (569208 bytes).
+
+Source: https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf . The exact original hash, not the moving branch, identifies this fixture. Copyright and full SIL Open Font License 1.1 are preserved in `Noto-OFL.txt`. Decode only in tests, with a bounded gzip output and a hash check. Do not substitute system/user fonts or require network access in tests.
+
+`NotoSansMath-Regular.ttf.gz.base64` packs the unmodified Noto Sans Math 3.000 for real supplementary-plane/fallback tests. Original SHA-256: `3f495fe933c06786e4d5f6d86b8ee70b6753a68ee3b9d87528726de0f6e2c47d` (1015396 bytes); upstream Git blob `7e505c9bad286732f4d6daf0165e6b6cbbe57079`, verified before packing. Source: https://raw.githubusercontent.com/google/fonts/main/ofl/notosansmath/NotoSansMath-Regular.ttf ; upstream release metadata points to notofonts/math NotoSansMath-v3.000. Full copyright/OFL 1.1 is in `NotoSansMath-OFL.txt`. The fixture is only for offline tests, not a bundled product font or a claim of universal math coverage. U+1D49C is present in this font and absent in the primary Noto Sans fixture.

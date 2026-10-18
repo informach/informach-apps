@@ -1,0 +1,200 @@
+.behavior-workbench {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.behavior-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 4px;
+}
+.behavior-layer small,
+.behavior-state small,
+.behavior-state span,
+.behavior-transition-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.behavior-input {
+  display: flex;
+  gap: 3px;
+  margin: 4px 0;
+}
+.behavior-input button:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.behavior-error {
+  padding: 0 12px;
+  margin: 3px 0;
+  color: #ffb5b5;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.behavior-graph-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 260px;
+  overscroll-behavior: contain;
+  background: radial-gradient(#ffffff0a 1px, transparent 1px) 0 0 / 20px 20px;
+}
+.behavior-graph {
+  position: relative;
+}
+.behavior-entry {
+  position: absolute;
+  left: 20px;
+  top: 15px;
+  color: var(--mint);
+  font-size: 11px;
+}
+.behavior-state {
+  position: absolute;
+  width: 170px;
+  min-height: 70px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  user-select: none;
+  touch-action: none;
+  overflow-wrap: anywhere;
+}
+.behavior-state[aria-pressed="true"],
+.behavior-layer[aria-pressed="true"],
+.behavior-transition-row[aria-pressed="true"] {
+  border-color: var(--purple);
+  background: #a58aff1c;
+}
+.behavior-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.behavior-edges path {
+  stroke: var(--purple);
+  fill: none;
+  stroke-width: 1;
+}
+.behavior-edges text {
+  font: 11px sans-serif;
+  fill: var(--purple);
+}
+.behavior-transitions {
+  max-height: 200px;
+  overflow: auto;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+  overscroll-behavior: contain;
+}
+.behavior-transition-row {
+  display: block;
+  margin: 4px 0;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
+}
+.behavior-blend-point {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+[data-behavior-inspector] textarea,
+[data-behavior-sidebar] textarea {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px;
+}
+[data-behavior-inspector] select[multiple] {
+  min-height: 80px;
+}
+[data-behavior-inspector] form,
+[data-behavior-sidebar] form {
+  margin: 10px 0;
+}
+.behavior-test-dialog {
+  width: min(1040px, calc(100vw - 40px));
+}
+.behavior-test-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  max-height: 75vh;
+  overflow: auto;
+  gap: 16px;
+  padding: 15px;
+  overscroll-behavior: contain;
+}
+.behavior-test-preview {
+  min-width: 0;
+  align-self: start;
+  background: white;
+}
+.behavior-test-preview > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.behavior-test-controls {
+  min-width: 0;
+}
+.behavior-test-controls textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  background: var(--panel);
+  color: var(--text);
+}
+.behavior-test-controls fieldset {
+  padding: 8px;
+}
+.behavior-test-input {
+  margin: 8px 0;
+}
+.behavior-event-log {
+  max-height: 150px;
+  overflow: auto;
+  font-size: 11px;
+  padding-left: 20px;
+}
+@media (max-width: 700px) {
+  .behavior-test-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.behavior-data-list {
+  padding: 0;
+  border: 0;
+}
+.behavior-data-row {
+  display: flex;
+  gap: 4px;
+  margin: 5px 0;
+}
+.behavior-data-row button:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.behavior-data-list [role="status"] {
+  font-size: 10px;
+  align-self: center;
+}

@@ -12,6 +12,14 @@ import {
 } from "../../shared/pathGeometry.js";
 import { editScene, flattenScene } from "../../shared/scene.js";
 
+function commitPath(state, callbacks, id, geometry) {
+  const path = serializePath(geometry);
+  if (callbacks.changeScene) callbacks.changeScene("path", path, id);
+  else {
+    editScene(state.scene, id, "path", path);
+    callbacks.commit();
+  }
+}
 function entryFor(state) {
   return flattenScene(state.scene).find((item) => item.node.id === state.selected);
 }
@@ -86,7 +94,7 @@ export function synchronizePathEditing(state) {
   }
 }
 export function startPathEditing(state, callbacks, id = state.selected) {
-  const { render, commit, notify } = callbacks;
+  const { render, notify } = callbacks;
   try {
     const entry = flattenScene(state.scene).find((item) => item.node.id === id);
     if (!entry || !PATH_TAGS.has(entry.node.tag))
@@ -95,11 +103,16 @@ export function startPathEditing(state, callbacks, id = state.selected) {
     if (!entry.visible) throw new Error("Mostre a forma e seus grupos para editar vértices.");
     const geometry = pathFromNode(entry.node);
     if (entry.node.tag !== "path") {
-      editScene(state.scene, id, "path", serializePath(geometry));
-      commit();
+      commitPath(state, callbacks, id, geometry);
     }
     state.selected = id;
-    state.pathEdit = { id, contour: 0, index: 0, mode: inferVertexMode(geometry[0].points[0]) };
+    state.pathEdit = {
+      id,
+      contour: 0,
+      index: 0,
+      mode: inferVertexMode(geometry[0].points[0]),
+      vertices: [{ contour: 0, index: 0 }],
+    };
     state.tool = "select";
     state.view = "design";
     state.playing = false;
@@ -118,14 +131,17 @@ export function pathInspector(state) {
     edit = state.pathEdit;
   edit.contour = Math.min(edit.contour, contours.length - 1);
   const contour = contours[edit.contour];
+  if (edit.vertices)
+    edit.vertices = edit.vertices.filter((ref) => contours[ref.contour]?.points[ref.index]);
   edit.index = Math.min(edit.index, contour.points.length - 1);
+  if (!edit.vertices?.length) edit.vertices = [{ contour: edit.contour, index: edit.index }];
   const p = contour.points[edit.index],
     disabled = entry.locked ? "disabled" : "";
-  return `<section class="path-properties"><div class="path-heading"><h3>EDITAR VÉRTICES</h3><button data-path-done>Concluir</button></div><label class="scene-field">Contorno<select data-path-contour>${contours.map((c, i) => `<option value="${i}" ${i === edit.contour ? "selected" : ""}>${i + 1} · ${c.closed ? "Fechado" : "Aberto"} · ${c.points.length} pontos</option>`).join("")}</select></label><div class="path-actions"><button data-path-op="close">${contour.closed ? "Abrir caminho" : "Fechar caminho"}</button><button data-path-op="reverse">Inverter direção</button></div><h3>VÉRTICE ${edit.index + 1} / ${contour.points.length}</h3><div class="property-grid">${["x", "y"].map((key) => `<label class="property">${key.toUpperCase()}<input aria-label="Vértice ${key.toUpperCase()}" data-vertex-coordinate="${key}" type="number" step="0.1" value="${Number(p[key].toFixed(4))}" ${disabled}></label>`).join("")}</div><h3>TIPO DE VÉRTICE</h3>${vertexModeBar(edit.mode, entry.locked)}<div class="path-actions"><button data-path-op="insert">Inserir ponto após</button><button data-path-op="delete">Excluir vértice</button></div><p class="micro">Arraste pontos e alças. Duplo clique no segmento insere um ponto. Alt solta a alça. Delete exclui o ponto; Esc sai ou cancela o arraste.</p></section>`;
+  return `<section class="path-properties"><div class="path-heading"><h3>EDITAR VÉRTICES</h3><button data-path-done>Concluir</button></div><label class="scene-field">Contorno<select data-path-contour>${contours.map((c, i) => `<option value="${i}" ${i === edit.contour ? "selected" : ""}>${i + 1} · ${c.closed ? "Fechado" : "Aberto"} · ${c.points.length} pontos</option>`).join("")}</select></label><div class="path-actions"><button data-path-op="close">${contour.closed ? "Abrir caminho" : "Fechar caminho"}</button><button data-path-op="reverse">Inverter direção</button></div><h3>VÉRTICE ${edit.index + 1} / ${contour.points.length}</h3><div class="property-grid">${["x", "y"].map((key) => `<label class="property">${key.toUpperCase()}<input aria-label="Vértice ${key.toUpperCase()}" data-vertex-coordinate="${key}" type="number" step="0.1" value="${Number(p[key].toFixed(4))}" ${disabled}></label>`).join("")}</div><h3>TIPO DE VÉRTICE</h3>${vertexModeBar(edit.mode, entry.locked)}<div class="path-actions"><button data-path-op="insert">Inserir ponto após</button><button data-path-op="delete">Excluir vértice</button></div><p class="micro">Arraste pontos e alças. Duplo clique no segmento insere um ponto. Alt solta a alça. Delete exclui a seleção; Esc sai ou cancela o arraste.</p></section><div data-path-actions></div>`;
 }
 
 export function bindPathInspector(state, callbacks) {
-  const { render, commit, notify } = callbacks;
+  const { render, notify } = callbacks;
   document
     .querySelector("[data-path-enter]")
     ?.addEventListener("click", () => startPathEditing(state, callbacks));
@@ -143,8 +159,7 @@ export function bindPathInspector(state, callbacks) {
         edit = state.pathEdit,
         contour = geometry[edit.contour];
       operation(contour, edit);
-      editScene(state.scene, edit.id, "path", serializePath(geometry));
-      commit();
+      commitPath(state, callbacks, edit.id, geometry);
       render();
     } catch (error) {
       notify(error.message);
@@ -156,6 +171,7 @@ export function bindPathInspector(state, callbacks) {
     selector.onchange = () => {
       state.pathEdit.contour = Number(selector.value);
       state.pathEdit.index = 0;
+      state.pathEdit.vertices = [{ contour: state.pathEdit.contour, index: 0 }];
       state.pathEdit.mode = inferVertexMode(
         pathFromNode(entryFor(state).node)[state.pathEdit.contour].points[0],
       );
@@ -200,10 +216,16 @@ export function bindPathInspector(state, callbacks) {
           case "reverse":
             reverseContour(contour);
             edit.index = contour.points.length - 1 - edit.index;
+            edit.vertices = edit.vertices.map((ref) =>
+              ref.contour === edit.contour
+                ? { ...ref, index: contour.points.length - 1 - ref.index }
+                : ref,
+            );
             break;
           case "delete":
             deleteVertex(contour, edit.index);
             edit.index = Math.min(edit.index, contour.points.length - 1);
+            edit.vertices = [{ contour: edit.contour, index: edit.index }];
             break;
           case "insert":
             edit.index = splitSegment(
@@ -212,6 +234,7 @@ export function bindPathInspector(state, callbacks) {
                 ? edit.index - 1
                 : edit.index,
             );
+            edit.vertices = [{ contour: edit.contour, index: edit.index }];
             break;
         }
       });
@@ -219,7 +242,7 @@ export function bindPathInspector(state, callbacks) {
 }
 
 export function bindPathCanvas(svg, state, callbacks) {
-  const { render, commit, notify } = callbacks;
+  const { render, notify } = callbacks;
   const entry = entryFor(state),
     wrapper = Array.from(svg.querySelectorAll("[data-object]")).find(
       (el) => el.dataset.object === state.selected,
@@ -257,6 +280,13 @@ export function bindPathCanvas(svg, state, callbacks) {
     const scale = Math.max(Math.hypot(m.root.a, m.root.b), 0.001),
       radius = 4 / scale;
     const position = (p) => new DOMPoint(p.x, p.y).matrixTransform(m.localToRoot);
+    const selected = new Set(
+      (
+        state.pathEdit.vertices ?? [
+          { contour: state.pathEdit.contour, index: state.pathEdit.index },
+        ]
+      ).map((ref) => `${ref.contour}:${ref.index}`),
+    );
     geometry.forEach((contour, ci) => {
       contour.points.forEach((p, pi) => {
         const center = position(p),
@@ -289,7 +319,7 @@ export function bindPathCanvas(svg, state, callbacks) {
           width: radius * 2,
           height: radius * 2,
           rx: 1 / scale,
-          class: `vertex-anchor${active ? " is-active" : ""}`,
+          class: `vertex-anchor${selected.has(`${ci}:${pi}`) ? " is-active" : ""}`,
           "data-vertex-contour": ci,
           "data-vertex-index": pi,
           "data-vertex-part": "anchor",
@@ -301,18 +331,20 @@ export function bindPathCanvas(svg, state, callbacks) {
     controller.abort();
     overlay.remove();
     shape.setAttribute("d", original);
+    callbacks.previewChanged?.();
     if (drag && svg.hasPointerCapture(drag.pointerId)) svg.releasePointerCapture(drag.pointerId);
     drag = null;
   }
   function finish(keep) {
     const pending = drag;
     drag = null;
+    if (keep && pending && !pending.moved && pending.part === "anchor")
+      state.pathEdit.vertices = [{ contour: state.pathEdit.contour, index: state.pathEdit.index }];
     if (pending && svg.hasPointerCapture(pending.pointerId))
       svg.releasePointerCapture(pending.pointerId);
     try {
       if (keep && pending?.moved) {
-        editScene(state.scene, entry.node.id, "path", serializePath(geometry));
-        commit();
+        commitPath(state, callbacks, entry.node.id, geometry);
       }
     } catch (error) {
       notify(error.message);
@@ -342,6 +374,21 @@ export function bindPathCanvas(svg, state, callbacks) {
         state.pathEdit.mode = inferVertexMode(base[ci].points[pi]);
       state.pathEdit.contour = ci;
       state.pathEdit.index = pi;
+      const ref = { contour: ci, index: pi },
+        selected = state.pathEdit.vertices ?? [{ contour: ci, index: pi }],
+        contains = selected.some((item) => item.contour === ci && item.index === pi);
+      if (
+        target.dataset.vertexPart === "anchor" &&
+        (event.shiftKey || event.ctrlKey || event.metaKey)
+      ) {
+        const refs = contains
+          ? selected.filter((item) => item.contour !== ci || item.index !== pi)
+          : [...selected, ref];
+        state.pathEdit.vertices = refs.length ? refs : [ref];
+        render();
+        return;
+      }
+      if (target.dataset.vertexPart === "anchor" && !contains) state.pathEdit.vertices = [ref];
       drag = {
         pointerId: event.pointerId,
         part: target.dataset.vertexPart,
@@ -365,12 +412,23 @@ export function bindPathCanvas(svg, state, callbacks) {
     const dx = end.x - drag.start.x,
       dy = end.y - drag.start.y;
     drag.moved = Math.hypot(event.clientX - drag.client.x, event.clientY - drag.client.y) > 2;
-    if (drag.part === "anchor") moveVertex(p, p.x + dx, p.y + dy);
-    else {
+    if (drag.part === "anchor") {
+      for (const ref of edit.vertices ?? [{ contour: edit.contour, index: edit.index }]) {
+        const point = geometry[ref.contour].points[ref.index];
+        moveVertex(point, point.x + dx, point.y + dy);
+      }
+    } else {
       const h = p[drag.part];
       moveHandle(p, drag.part, h.x + dx, h.y + dy, event.altKey ? "detached" : edit.mode);
     }
     shape.setAttribute("d", serializePath(geometry));
+    try {
+      callbacks.previewChanged?.();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Prévia do efeito recusada.");
+      finish(false);
+      return;
+    }
     draw();
   }
   svg.addEventListener("pointermove", move, { signal });
@@ -431,8 +489,7 @@ export function bindPathCanvas(svg, state, callbacks) {
         const draft = structuredClone(base);
         state.pathEdit.contour = nearest.ci;
         state.pathEdit.index = splitSegment(draft[nearest.ci], nearest.index, nearest.t);
-        editScene(state.scene, entry.node.id, "path", serializePath(draft));
-        commit();
+        commitPath(state, callbacks, entry.node.id, draft);
         render();
       } catch (error) {
         notify(error.message);
@@ -477,6 +534,29 @@ export function bindPathCanvas(svg, state, callbacks) {
         return;
       }
       try {
+        if (callbacks.changePath) {
+          const edit = state.pathEdit,
+            vertices = edit.vertices?.length
+              ? edit.vertices
+              : [{ contour: edit.contour, index: edit.index }],
+            step = event.shiftKey ? 10 : 1;
+          const deleting = event.key === "Delete" || event.key === "Backspace";
+          callbacks.changePath({
+            type: "path-edit",
+            targetId: edit.id,
+            vertices,
+            operation: deleting ? "delete" : "move",
+            ...(deleting
+              ? {}
+              : {
+                  dx: event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0,
+                  dy: event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0,
+                }),
+          });
+          if (deleting) startPathEditing(state, callbacks, edit.id);
+          else render();
+          return;
+        }
         const draft = structuredClone(base),
           edit = state.pathEdit,
           contour = draft[edit.contour];
@@ -492,8 +572,7 @@ export function bindPathCanvas(svg, state, callbacks) {
             p.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0),
           );
         }
-        editScene(state.scene, entry.node.id, "path", serializePath(draft));
-        commit();
+        commitPath(state, callbacks, entry.node.id, draft);
         render();
       } catch (error) {
         notify(error.message);

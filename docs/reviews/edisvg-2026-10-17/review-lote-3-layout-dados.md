@@ -1,0 +1,38 @@
+# Review incremental — lote 3: layouts e modelos compostos
+
+18/10/2026. Branch `feat/edisvg-evolution`, base inicial `e15de57`, atualizada para `88c1163` durante a execução. Em validação; não encerra os lotes 3–6 nem substitui o full review final solicitado.
+
+## Implementação
+
+- Documento v11, migrando 1–10. Layout v1 por prancheta, dados compostos opcionais em behavior v1; sem duplicar cena ou dados da sessão no documento.
+- Yoga 3.2.1 MIT local: flex, wrap, grade uniforme fixa/auto-fit, hug/fill/fixed/percent, min/max, padding/gaps/margens, RTL, proporção e âncoras absolutas. Grade mantém altura mínima dos filhos, recusando ciclos hug/fill, referências inválidas e composição excessiva. Nós/config nativos sempre liberados, inclusive falhas parciais.
+- Driver SVG/DOM externo à pose animada: mede geometria em lote, preserva basis/TRS, compõe slots locais, recorta conteúdo e recalcula com ResizeObserver/fontes. Canvas autoral usa unidades da prancheta, não o zoom; Testar/HTML usam viewport real.
+- Scroll com teclado/roda/arraste, inércia e retorno elástico analíticos, cancelamento e movimento reduzido. A inércia não disputa o ponteiro capturado; cancelamento restaura estado e libera captura. Destroy restaura DOM/viewBox/atributos, remove observers/listeners e grupos gerados.
+- Inicialização síncrona exige engine explícito para layout; async instancia WASM empacotado somente quando necessário e verifica AbortSignal antes de assumir o DOM. React e Testar cancelam montagem obsoleta. ESM/IIFE são módulos autocontidos, sem imports dinâmicos, downloads ou serviços externos.
+- CSP permite apenas `wasm-unsafe-eval`, não `unsafe-eval`. Entradas de validação do núcleo usam o modo jitless documentado do Zod; não alteram a configuração global do host. A revisão pegou uma tentativa de compilação dinâmica e autorreferência ESM gerada pelo bundler; ambas corrigidas pela origem, não por liberar scripts.
+- Modelos tipados (texto/número/booleano/cor/enum/modelo/lista), instâncias, IDs estáveis de itens e links input↔campo. DAG com profundidade máxima 8, até 100 modelos/100 instâncias/1000 campos agregados, 1000 itens por lista/4000 por instância, preflight estrutural/textual. Operações set/insert/remove/move atômicas; item vinculado não pode desaparecer silenciosamente.
+- Formulários estruturados de modelos, campos, instâncias, listas e links. Alterações de definição preservam valores retidos, acrescentam defaults e explicitam exclusão de valores; sem conversão de tipos implícita. Listas paginam dez itens; busca de caminhos mostra até 100 resultados e quantidade total. Navegação/expansão principal ficam no workspace.
+- Dados da sessão são imutáveis entre avanços: apenas relógios mutáveis são copiados por frame. API getData/editData/onDataChange/dataVersion; inputs controlados por link unidirecional são somente leitura. Instâncias/dados também aparecem na inspeção MCP paginada.
+- Cenas somente de layout/dados não exigem clip/máquina fictícios. Estado pose-base real também está disponível. Formatos que descartam lógica/layout/dados exigem consentimento, JSON conserva o documento inteiro.
+- Pacote React ZIP exportado pela UI: JSX com geometria constante, runtime ESM autocontido com React externo, declarações TypeScript portáteis, instruções e licenças. ZIP determinístico/sem compressão e limitado a 10 MB; nomes fixos, sem caminhos autorais. IPC binário aceita somente base64 canônico/perfil `.react.zip`, limita os bytes e continua exigindo diálogo nativo/acesso ativo antes de gravar atomicamente. Não extrai arquivos no main. Fontes/recursos portáteis continuam no lote 5.
+- Clip real selecionado em cena sem máquina é reproduzido sem fabricar estados/camadas; eventos de timeline usam layerId/stateId nulos nesse perfil. Máquina presente tem precedência explícita. React possui fit e dimensões próprias do SVG externo, sem CSS que altere viewports internos.
+- Inspeção MCP de layout (`get_layout`/`get_layout_value`) acompanha edição transacional. Medição de grupo sem fluxo próprio mantém TRS dos filhos; texto ocupa o box sem deformar glifos (não equivale a auto-wrap tipográfico).
+
+## Evidências parciais
+
+- 34 testes do núcleo passaram após integração de dados e melhoria do avanço; testes de tipos do editor/núcleo e build também passaram.
+- E2E real de layout com CSP restrita passou: redistribuição de grade, viewport não nulo, clipping, teclado/roda, reset, descarte e zero requisições de rede.
+- E2E de autoria de layout passou: ativar/editar/Undo/reload/Testar/exportar HTML sem fabricar animação. Estados e React StrictMode passaram novamente no mesmo incremento.
+- E2E de modelos de dados passou: criar modelo/campo/instância/link na UI, editar/Undo/Redo/reload, Testar e HTML independente com sincronização bidirecional e zero rede.
+- Jornada Electron com WASM/file-origin/CSP passou, incluindo arquivo, recuperação e licença. A repetição com Save/Cancel nativos do ZIP binário também passou, conservando o documento e o arquivo original; o helper permite apenas os dois nomes exatos de arquivos na pasta temporária do processo de teste. Nenhum instalador instalado/publicado.
+- Pacote React baixado pela UI foi aberto e compilado num consumidor separado: TypeScript estrito, equivalência estrutural bidirecional do handle, React StrictMode, fit, movimento do clip, texto multilinha/escapado e zero rede. Não substitui homologação Next.js/RN.
+- Prova Next.js 16.4.2 passou em app isolado: build de produção Turbopack padrão, pré-renderização, hidratação e controles reais, sem import do runtime do workspace, sem ssr:false/suppressHydrationWarning e sem rede externa. O ZIP inclui NextExample.tsx e o CI executa `test:next`. Usa dependências locais já instaladas; não configura nem altera o portal Edi.
+- Review do adapter corrigiu propriedade de DOM na troca de documento (subtree com chave, conforme padrão documentado do React) e atualização de machine/autoplay/políticas sem reiniciar dados/relógios. Regressão real em StrictMode confirmou pose-base textual ao remover bindings, descarte do handle anterior e continuidade de sessão ao alterar controles/políticas.
+- Após integrar `88c1163`, 125 testes do app, 12 E2E e typecheck transversal passaram, além dos 177 testes das áreas de auth alteradas no remoto. Novos ajustes de lifecycle/exemplo Next exigem a próxima rodada conjunta antes de fechar o lote.
+- Rodada posterior passou em 35 testes do núcleo e 123 do app antes dos novos testes de inspeção/migração de dados. 51 testes do SDK, 43 do tooling e typecheck transversal (23 tarefas + tooling) passaram. Check geral sem erros, mantendo 432 warnings/64 infos visíveis; audit de produção sem vulnerabilidades conhecidas. Rodada conjunta atual ainda em andamento.
+
+## Pendências do lote
+
+Remoto integrado por fast-forward `e15de57 → 88c1163` (PR #15: IP/auth atrás da borda e push da Agenda). Snapshot completo com arquivos novos preservado em stash e reaplicado; merge automático de `docs/estado-do-repositorio.md` manteve ambas as frentes. Sem mudança manual na infraestrutura/autenticação nem apply/deploy. Gates posteriores à integração serão registrados separadamente.
+
+O incremento [3.3](review-lote-3-componentes.md) implementa e revisa lógica/layout independentes de componentes e atualiza os gates posteriores. Ligações de recursos continuam dependentes do catálogo do lote 5. Nine-slice possui cálculo puro testado, ainda não é uma ferramenta visual de edição/renderização. A presença de um schema/helper não será contada como funcionalidade integral. Rigs, deformação, formatos avançados, React Native, colaboração/acervo e full review final continuam obrigatórios nos lotes seguintes.

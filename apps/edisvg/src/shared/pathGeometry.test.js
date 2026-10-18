@@ -7,6 +7,7 @@ import {
   moveHandle,
   moveVertex,
   parsePath,
+  pathDataFromNode,
   pathFromNode,
   pointOnSegment,
   reverseContour,
@@ -21,6 +22,48 @@ const close = (a, b, epsilon = 1e-5) => {
   assert.ok(Math.abs(a.x - b.x) < epsilon, `x: ${a.x} != ${b.x}`);
   assert.ok(Math.abs(a.y - b.y) < epsilon, `y: ${a.y} != ${b.y}`);
 };
+test("native primitive path syntax preserves arcs while editable geometry remains the same", () => {
+  for (const [tag, attrs] of [
+    ["circle", { cx: "40", cy: "50", r: "20" }],
+    ["ellipse", { cx: "40", cy: "50", rx: "20", ry: "10" }],
+    ["rect", { x: "10", y: "20", width: "40", height: "30", rx: "5" }],
+  ]) {
+    const node = {
+      id: "node-primitive",
+      name: "Forma",
+      tag,
+      attrs,
+      children: [],
+      text: "",
+      transform: identity(),
+      visible: true,
+      locked: false,
+    };
+    const d = pathDataFromNode(node);
+    assert.match(d, /A/);
+    assert.deepEqual(parsePath(d), pathFromNode(node));
+  }
+});
+test("a segment following closepath starts at the closed subpath's initial point", () => {
+  for (const command of ["L20 20", "l20 20", "C5 5 10 10 20 20", "A10 10 0 0 1 20 20"]) {
+    const parsed = parsePath(`M0 0L10 0Z${command}`);
+    assert.equal(parsed.length, 2);
+    assert.equal(parsed[0].closed, true);
+    assert.equal(parsed[1].closed, false);
+    close(parsed[1].points[0], { x: 0, y: 0 });
+    close(parsed[1].points.at(-1), { x: 20, y: 20 });
+    const reopened = parsePath(serializePath(parsed));
+    assert.equal(reopened.length, parsed.length);
+    parsed.forEach((contour, index) => {
+      contour.points.forEach((p, i) => {
+        const restored = reopened[index].points[i];
+        close(restored, p);
+        if (p.in) close(restored.in, p.in);
+        if (p.out) close(restored.out, p.out);
+      });
+    });
+  }
+});
 test("SVG parser handles implicit/relative commands, exponents, subpaths and smooth curves", () => {
   const model = parsePath(
     "m1e1 20 10 0 h10 v10 c0 10 10 10 10 0 s10 -10 10 0 q10 10 20 0 t20 0 z M100 100 l5 5",
@@ -125,7 +168,7 @@ test("inserting on a cubic preserves the curve using de Casteljau subdivision", 
 
 test("path conversion and edits preserve identity, style, parent transforms, save and history", () => {
   const p = newProject();
-  p.scene.nodes = [
+  p.artboards[0].scene.nodes = [
     {
       id: "node-parent",
       name: "Grupo",
@@ -153,30 +196,33 @@ test("path conversion and edits preserve identity, style, parent transforms, sav
     },
   ];
   const history = createHistory(p),
-    node = p.scene.nodes[0].children[0],
+    node = p.artboards[0].scene.nodes[0].children[0],
     geometry = pathFromNode(node);
-  editScene(p.scene, node.id, "path", serializePath(geometry));
+  editScene(p.artboards[0].scene, node.id, "path", serializePath(geometry));
   history.commit(p);
   moveVertex(geometry[0].points[0], -20, 10);
-  editScene(p.scene, node.id, "path", serializePath(geometry));
+  editScene(p.artboards[0].scene, node.id, "path", serializePath(geometry));
   history.commit(p);
   const reopened = parseProject(JSON.parse(JSON.stringify(p))),
-    edited = reopened.scene.nodes[0].children[0];
+    edited = reopened.artboards[0].scene.nodes[0].children[0];
   assert.equal(edited.id, node.id);
   assert.equal(edited.tag, "path");
   assert.equal(edited.attrs.transform, "scale(2)");
   assert.equal(edited.attrs.stroke, "#fff");
   assert.equal(edited.attrs.width, undefined);
-  assert.match(renderScene(reopened.scene), /translate\(20 30\) rotate\(25\)/);
+  assert.match(renderScene(reopened.artboards[0].scene), /translate\(20 30\) rotate\(25\)/);
   close(parsePath(edited.attrs.d)[0].points[0], { x: -20, y: 10 });
-  assert.equal(history.undo().scene.nodes[0].children[0].attrs.d, "M0 0 L80 0 L80 40 L0 40 Z");
-  assert.equal(history.undo().scene.nodes[0].children[0].tag, "rect");
-  assert.equal(history.redo().scene.nodes[0].children[0].tag, "path");
-  const before = JSON.stringify(p.scene);
-  assert.throws(() => editScene(p.scene, node.id, "path", "M0 0 C1"));
-  assert.equal(JSON.stringify(p.scene), before);
-  p.scene.nodes[0].locked = true;
-  assert.throws(() => editScene(p.scene, node.id, "path", "M0 0L1 1"));
+  assert.equal(
+    history.undo().artboards[0].scene.nodes[0].children[0].attrs.d,
+    "M0 0 L80 0 L80 40 L0 40 Z",
+  );
+  assert.equal(history.undo().artboards[0].scene.nodes[0].children[0].tag, "rect");
+  assert.equal(history.redo().artboards[0].scene.nodes[0].children[0].tag, "path");
+  const before = JSON.stringify(p.artboards[0].scene);
+  assert.throws(() => editScene(p.artboards[0].scene, node.id, "path", "M0 0 C1"));
+  assert.equal(JSON.stringify(p.artboards[0].scene), before);
+  p.artboards[0].scene.nodes[0].locked = true;
+  assert.throws(() => editScene(p.artboards[0].scene, node.id, "path", "M0 0L1 1"));
 });
 
 test("every path in the bundled mascot can be opened, serialized and reopened", () => {
