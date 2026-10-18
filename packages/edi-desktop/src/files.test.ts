@@ -51,6 +51,12 @@ describe("selected-file capabilities", () => {
         "destino",
       );
       await expect(files.assertWrite(join(folder, "program.exe"), false)).rejects.toThrow();
+      // canWrite answers the same question without throwing, and false when the folder is gone.
+      await expect(files.canWrite(photo)).resolves.toBe(true);
+      await expect(files.canWrite(join(folder, "output.mp4"))).resolves.toBe(true);
+      await expect(files.canWrite(unselected)).resolves.toBe(false);
+      await expect(files.canWrite(join(root, "gone", "x.mp4"))).resolves.toBe(false);
+      await expect(files.canWrite("relative.mp4")).rejects.toThrow();
       expect(await readFile(project, "utf8")).toBe("project");
     } finally {
       await rm(root, { recursive: true, force: true });

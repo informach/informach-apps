@@ -269,6 +269,20 @@ export function createFileAuthority(projectExtensions: readonly string[]) {
         );
       return normalized;
     },
+    /** Whether `path` was chosen as a destination (or lies in a chosen folder); false if its folder is gone. */
+    async canWrite(path: unknown): Promise<boolean> {
+      const input = pathSchema.parse(path);
+      try {
+        const normalized = await canonical(input, true);
+        return (
+          outputExtensions.has(extname(normalized).toLowerCase()) &&
+          (writes.has(key(normalized)) || inDirectory(normalized))
+        );
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
+        throw error;
+      }
+    },
     async assertRelatedExport(primary: string, path: string): Promise<string> {
       const selected = await this.assertWrite(primary, false);
       const related = await canonical(path, true);
