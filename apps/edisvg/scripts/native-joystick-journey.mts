@@ -65,9 +65,9 @@ export async function verifyNativeJoystick(
       value = committed.artboards.find((board) => board.id === boardId)?.rig?.joysticks?.[0];
     assert.ok(value && value.x > 0.5 && value.y > 0.15);
     assert.equal(await pad.evaluate((element) => element === document.activeElement), true);
-    await page.locator('[data-action="undo"]').click();
+    await page.keyboard.press("Control+z");
     assert.deepEqual(await snapshot(), base);
-    await page.locator('[data-action="redo"]').click();
+    await page.keyboard.press("Control+Shift+z");
     assert.deepEqual(await snapshot(), committed);
     await page.getByLabel("Joystick X", { exact: true }).fill("1");
     await page.getByLabel("Joystick Y", { exact: true }).fill("1");
@@ -84,7 +84,7 @@ export async function verifyNativeJoystick(
     );
   } finally {
     await page.keyboard.press("Escape");
-    for (let index = 0; index < edits; index++) await page.locator('[data-action="undo"]').click();
+    for (let index = 0; index < edits; index++) await page.keyboard.press("Control+z");
     await page.waitForFunction(
       (original) => localStorage.getItem("edisvg-project") === original,
       before,

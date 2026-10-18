@@ -136,7 +136,7 @@ export async function verifyNativeLottieExport(
   } finally {
     const dialog = page.locator("#export-dialog");
     if (await dialog.isVisible()) await dialog.locator("#close-export").click();
-    for (let step = 0; step < edits; step++) await page.locator('[data-action="undo"]').click();
+    for (let step = 0; step < edits; step++) await page.keyboard.press("Control+z");
     await page.waitForFunction(
       (expected) => localStorage.getItem("edisvg-project") === expected,
       before,

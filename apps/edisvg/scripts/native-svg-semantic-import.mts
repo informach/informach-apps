@@ -69,7 +69,7 @@ export async function verifyNativeSvgSemanticImport(
     const testing = page.getByRole("dialog", { name: "Testar interação", exact: true });
     if (await testing.count())
       await testing.getByRole("button", { name: "Fechar teste", exact: true }).click();
-    await page.locator('[data-action="undo"]').click();
+    await page.keyboard.press("Control+z");
     await page.waitForFunction(
       (expected) => localStorage.getItem("edisvg-project") === expected,
       before,

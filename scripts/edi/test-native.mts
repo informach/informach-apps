@@ -201,6 +201,8 @@ try {
           // This journey includes several real native dialogs. Its valid lease
           // covers the bounded journey; expiration is tested explicitly below.
           await seedLease(application, 300);
+          // Exercise the responsive native layout where the menu buttons are hidden.
+          await editor.setViewportSize({ width: 1100, height: 800 });
           await editor.locator(".scene-artwork>svg").waitFor();
           const workerAssets = (await readdir(resolve("apps/edisvg/out/renderer/assets"))).filter(
             (name) => /^documentWorker-.*\.js$/.test(name),
