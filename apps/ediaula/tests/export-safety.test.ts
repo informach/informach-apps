@@ -11,9 +11,31 @@ import { createDesktopJobs, JOB_PRESERVATION_MS } from "@informach/edi-desktop/j
 import type { RunOptions } from "../src/main/export/renderSegments.ts";
 import { exportLesson } from "../src/main/export-lesson.ts";
 import { ffmpegVersion, filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
+import { isEncoderFailure, nextAfterFailure } from "../src/shared/export/encoding.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
-import type { ExportSpec, Project } from "../src/shared/types.ts";
+import type { Encoder, ExportSpec, Project } from "../src/shared/types.ts";
 import { subRip } from "../src/shared/webvtt.ts";
+
+const requireJson = createRequire(import.meta.url);
+/** What FFmpeg 6.1.1 and 9.0.2 printed when these runs failed (recorded on Windows, RTX 3050). */
+const recorded: Record<
+  "6.1.1" | "9.0.2",
+  Record<
+    | "amfMissing"
+    | "nvencNoGpu"
+    | "nvencTooSmall"
+    | "mfUnsupported"
+    | "filterWithNvenc"
+    | "missingInputNvenc",
+    string
+  >
+> = requireJson("./fixtures/ffmpeg-encoder-errors.json");
+
+/** A failed FFmpeg run as main/ffmpeg.ts makes it: the last lines, and everything as detail. */
+const ffmpegFailure = (stderr: string): Error => {
+  const lines = stderr.split("\n");
+  return Object.assign(new Error(lines.slice(-6).join("\n")), { detail: lines.join("\n") });
+};
 
 const project: Project = {
   version: 1,
@@ -167,15 +189,27 @@ test("an encoder that cannot open falls back along the chain and the x264 export
         async run(args, options) {
           const codec = args[args.indexOf("-c:v") + 1];
           if (args.includes("-frames:v") && args.includes("-an")) encoders.push(codec);
-          if (["h264_nvenc", "h264_amf", "h264_mf"].includes(codec))
-            throw new Error(
-              `[${codec} @ 0x1] OpenEncodeSessionEx failed: out of memory (10)\nError while opening encoder`,
-            );
+          // What FFmpeg 9 says when each one cannot open on this computer.
+          const said = {
+            h264_nvenc: recorded["9.0.2"].nvencNoGpu,
+            h264_amf: recorded["9.0.2"].amfMissing,
+            h264_mf: recorded["9.0.2"].mfUnsupported,
+          }[codec];
+          if (said) throw ffmpegFailure(said);
           return fakeRun(args, options);
         },
       },
     );
-    assert.deepEqual(encoders, ["h264_nvenc", "h264_amf", "h264_mf", "libx264"]);
+    // Each hardware encoder gets its segment again on its own before the next one is tried.
+    assert.deepEqual(encoders, [
+      "h264_nvenc",
+      "h264_nvenc",
+      "h264_amf",
+      "h264_amf",
+      "h264_mf",
+      "h264_mf",
+      "libx264",
+    ]);
     assert.equal(await readFile(f.primary, "utf8"), "new output");
     assert.ok(
       messages.some((m) => /Continuando com x264/.test(m)),
@@ -185,6 +219,69 @@ test("an encoder that cannot open falls back along the chain and the x264 export
   } finally {
     await f.cleanup();
   }
+});
+
+test("an encoder that fails once is tried again on its own and kept", async () => {
+  const f = await fixture();
+  try {
+    await f.authority.grantWrite(f.primary);
+    const encoders: string[] = [];
+    const messages: string[] = [];
+    let failures = 0;
+    await exportLesson(
+      project,
+      { ...f.spec, encoder: "nvenc" },
+      {
+        ...f.deps,
+        progress: (p) => p.message && messages.push(p.message),
+        nextEncoder: () => {
+          throw new Error("the encoder should not change");
+        },
+        async run(args, options) {
+          if (args.includes("-frames:v") && args.includes("-an")) {
+            encoders.push(args[args.indexOf("-c:v") + 1]);
+            // Sessions taken for a moment (a proxy, the recording): the first try fails.
+            if (failures++ === 0) throw ffmpegFailure(recorded["6.1.1"].nvencNoGpu);
+          }
+          return fakeRun(args, options);
+        },
+      },
+    );
+    assert.deepEqual(encoders, ["h264_nvenc", "h264_nvenc"]);
+    assert.deepEqual(messages, []);
+    assert.equal(await readFile(f.primary, "utf8"), "new output");
+    await f.workClean();
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("FFmpeg 6 and 9: the encoder's own failures are told from filter and input errors", () => {
+  for (const [version, said] of Object.entries(recorded)) {
+    for (const name of ["amfMissing", "nvencNoGpu", "nvencTooSmall", "mfUnsupported"] as const) {
+      assert.ok(isEncoderFailure(said[name]), `${version} ${name}`);
+    }
+    for (const name of ["filterWithNvenc", "missingInputNvenc"] as const)
+      assert.ok(!isEncoderFailure(said[name]), `${version} ${name}`);
+  }
+});
+
+test("an encoder that still encodes a test picture is not left out for the session", async () => {
+  const banned = new Set<Encoder>();
+  // NVENC failed in the export but encodes the test picture; AMF is missing, MF works.
+  const works = new Set<Encoder>(["nvenc", "mf"]);
+  const probed: Encoder[] = [];
+  const encodes = async (e: Encoder): Promise<boolean> => {
+    probed.push(e);
+    return works.has(e);
+  };
+  assert.equal(await nextAfterFailure("nvenc", encodes, banned), "mf");
+  assert.deepEqual([...banned], []);
+  assert.deepEqual(probed, ["nvenc", "amf", "mf"]);
+  // Now it does not: it is left out, and the detector passes it over.
+  works.delete("nvenc");
+  assert.equal(await nextAfterFailure("nvenc", encodes, banned), "mf");
+  assert.deepEqual([...banned], ["nvenc"]);
 });
 
 test("a filter error fails the export without changing the encoder", async () => {
@@ -202,15 +299,14 @@ test("a filter error fails the export without changing the encoder", async () =>
             async run(args, options) {
               if (args.includes("-frames:v") && args.includes("-an")) {
                 encoders.push(args[args.indexOf("-c:v") + 1]);
-                throw new Error(
-                  "[Parsed_perspective_3 @ 0x1] Undefined constant\nError initializing filter 'perspective'\nError while opening encoder",
-                );
+                // FFmpeg 6 says "Error while filtering" whoever failed; here a filter did.
+                throw ffmpegFailure(recorded["6.1.1"].filterWithNvenc);
               }
               return fakeRun(args, options);
             },
           },
         ),
-      /Error initializing filter/,
+      /Error while filtering/,
     );
     assert.deepEqual(encoders, ["h264_nvenc"]);
     await f.unchanged();
@@ -348,6 +444,127 @@ test("project validation preserves extension data, validates nested fields and r
     false,
   );
 });
+test("segments whose H.264 parameter sets differ are joined by encoding the picture again", async () => {
+  const f = await fixture();
+  try {
+    const require = createRequire(import.meta.url);
+    const ffmpeg: unknown = require("ffmpeg-static");
+    if (typeof ffmpeg !== "string") throw new Error("Native FFmpeg tools missing");
+    const execute = promisify(execFile);
+    const source = join(f.root, "source.png");
+    await execute(
+      ffmpeg,
+      ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=128x128"].concat([
+        "-frames:v",
+        "1",
+        source,
+      ]),
+    );
+    await f.authority.grantRead(source);
+    await f.authority.grantWrite(f.primary);
+    const document: Project = {
+      ...project,
+      assets: [
+        {
+          id: "image",
+          name: "Selected image",
+          path: source,
+          kind: "image",
+          duration: 0,
+          width: 128,
+          height: 128,
+          fps: 0,
+          hasVideo: true,
+          hasAudio: false,
+          size: 1,
+          proxyStatus: "none",
+        },
+      ],
+      tracks: [
+        { id: "video", name: "Video", kind: "video", muted: false, hidden: false, locked: false },
+      ],
+      clips: [
+        {
+          id: "clip",
+          assetId: "image",
+          trackId: "video",
+          start: 0,
+          in: 0,
+          duration: 30,
+          volume: 1,
+        },
+      ],
+    };
+    let assembly: string[] = [];
+    const messages: string[] = [];
+    await exportLesson(
+      document,
+      { ...f.spec, thumbnail: false },
+      {
+        ...f.deps,
+        filterScriptOption: await filterScriptOption(ffmpeg),
+        ffmpegVersion: await ffmpegVersion(ffmpeg),
+        progress: (p) => p.message && messages.push(p.message),
+        async run(args, options) {
+          const segment = /^segment-(\d+)$/.exec(options?.key ?? "");
+          if (segment) {
+            // Each segment as if made by another build: a different number of reference frames.
+            const refs = Number(segment[1]) % 2 ? 1 : 3;
+            const frames = args[args.indexOf("-frames:v") + 1];
+            await execute(
+              ffmpeg,
+              ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=128x128:r=30"]
+                .concat([
+                  "-frames:v",
+                  frames,
+                  "-c:v",
+                  "libx264",
+                  "-preset",
+                  "ultrafast",
+                  "-x264-params",
+                ])
+                .concat([
+                  `ref=${refs}`,
+                  "-pix_fmt",
+                  "yuv420p",
+                  "-video_track_timescale",
+                  "30000",
+                  "-f",
+                  "mp4",
+                ])
+                .concat([args.at(-1) ?? ""]),
+            );
+            return "";
+          }
+          if (options?.key === "assemble") assembly = args;
+          const out = await execute(ffmpeg, args, { windowsHide: true });
+          return options?.capture === "stderr" ? out.stderr : out.stdout;
+        },
+      },
+    );
+    const codec = assembly[assembly.indexOf("-c:v") + 1];
+    assert.equal(codec, "libx264", assembly.join(" "));
+    assert.ok(
+      messages.some((m) => /refeito na montagem/.test(m)),
+      messages.join("\n"),
+    );
+    const frames = await execute(ffmpeg, [
+      "-v",
+      "error",
+      "-i",
+      f.primary,
+      "-map",
+      "0:v",
+      "-f",
+      "framemd5",
+      "-",
+    ]);
+    assert.equal(frames.stdout.split(/\r?\n/).filter((l) => l.startsWith("0,")).length, 900);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("real FFmpeg export accepts selected inputs and commits video, captions and thumbnail", async () => {
   const f = await fixture();
   try {

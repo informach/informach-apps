@@ -18,7 +18,8 @@ import type { Asset, ExportSpec, Project } from "../src/shared/types.ts";
 /**
  * The export by segments draws exactly what one pass over the whole lesson draws: rendered
  * losslessly, every frame is the same, including where a transition, a zoom layer and a
- * keyframed movement cross a segment border.
+ * keyframed movement cross a segment border. Comparing with one pass cannot see a mistake both
+ * make: which source frame each output frame shows is read back in export-frames.integration.
  */
 
 const require = createRequire(import.meta.url);
@@ -123,19 +124,6 @@ const frames = (path: string): string[] =>
     .filter((l) => l && !l.startsWith("#"))
     .map((l) => (l.split(",").at(-1) ?? "").trim());
 
-/** Average PSNR of two videos in dB (Infinity when they are identical). */
-function psnr(a: string, b: string): number {
-  const run = spawnSync(
-    FFMPEG,
-    ["-hide_banner", "-nostats", "-i", a, "-i", b, "-lavfi", "[0:v][1:v]psnr", "-f", "null", "-"],
-    { encoding: "utf8" },
-  );
-  if (run.status !== 0) throw new Error(run.stderr);
-  const average = /average:(inf|[\d.]+)/.exec(run.stderr)?.[1];
-  if (!average) throw new Error(`no PSNR in: ${run.stderr.slice(-500)}`);
-  return average === "inf" ? Number.POSITIVE_INFINITY : Number(average);
-}
-
 test("segments render the same frames as one pass where a transition, a zoom layer and keyframes cross the borders", {
   timeout: 180_000,
 }, () => {
@@ -218,7 +206,7 @@ test("segments render the same frames as one pass where a transition, a zoom lay
   assert.deepEqual(different, [], `frames that differ: ${different.slice(0, 20).join(", ")}`);
 });
 
-test("a source at another frame rate and speed, retimed by a stateful filter, stays within 50 dB", {
+test("a source at another frame rate and speed renders the same frames by segments", {
   timeout: 180_000,
 }, () => {
   const project: Project = {
@@ -255,9 +243,13 @@ test("a source at another frame rate and speed, retimed by a stateful filter, st
     ],
     "slow-parts",
   );
-  assert.equal(frames(parts).length, 150);
-  const db = psnr(whole, parts);
-  assert.ok(db >= 50, `PSNR ${db} dB`);
+  const a = frames(whole);
+  const b = frames(parts);
+  assert.equal(b.length, 150);
+  // Each window picks its source frames as the single pass does (the frame grid of the clip's
+  // clock does not depend on where a window starts).
+  const different = a.flatMap((h, i) => (h === b[i] ? [] : [i]));
+  assert.deepEqual(different, [], `frames that differ: ${different.slice(0, 20).join(", ")}`);
 });
 
 test("the app's export joins its segments with the exact frame count, the sound to the frame, title and chapters", {

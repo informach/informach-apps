@@ -194,6 +194,11 @@ export interface DerivedClip extends Clip {
   drawAfter?: boolean;
   /** How the tail goes away when it is not a plain dissolve or motion: a mask, a page turn or a paper fold. */
   tailFx?: TransitionKind;
+  /**
+   * Source second the picture stops at, as cut: kept when the export moves the clip onto the
+   * frame grid, so a clip made longer by it holds its last frame rather than show one cut away.
+   */
+  sourceStop?: number;
 }
 
 /** An effect over the whole frame, centered on a cut. */
@@ -750,8 +755,8 @@ export function shapeExpr(s: FxShape, XL: string, YL: string): string {
 }
 
 /** Glitch on the whole frame: strength (0..1) at time T, peaking at the cut. */
-export function glitchAmpExpr(fx: CutFx): string {
-  return `clip(1-abs(T-${n(fx.at)})/${n(fx.duration / 2)},0,1)`;
+export function glitchAmpExpr(fx: CutFx, sinceCut = `(T-${fx.at})`): string {
+  return `clip(1-abs(${sinceCut})/${fx.duration / 2},0,1)`;
 }
 
 /** Glitch block shift as a fraction of the width, for block row/col and time slot (30 per second). */

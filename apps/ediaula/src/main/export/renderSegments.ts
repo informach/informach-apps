@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { OUTPUT_COLOR_ARGS } from "../../shared/export/color.ts";
-import { segmentVideoArgs } from "../../shared/export/encoding.ts";
+import { isEncoderFailure, segmentVideoArgs } from "../../shared/export/encoding.ts";
 import { canonical, windowSignature } from "../../shared/export/fingerprint.ts";
 import { type Rate, rateValue, trackTimescale } from "../../shared/export/frames.ts";
 import {
@@ -20,8 +20,10 @@ import type { SegmentCache } from "./segmentCache.ts";
 /**
  * Renders the picture of a lesson segment by segment: each segment reused from the cache when one
  * with the same signature exists, the others rendered a few at a time in the scheduler's segment
- * slots (they wait while a take records). The first failure stops the rest and is thrown, so the
- * caller can tell an encoder that failed (and try the next one) from anything else.
+ * slots (they wait while a take records). A segment whose hardware encoder failed is rendered
+ * again on its own once the others are done (the sessions may only have been taken for a moment);
+ * any other failure, or that one again, stops the rest and is thrown, so the caller can tell an
+ * encoder that failed (and try the next one) from anything else.
  */
 
 export interface RunOptions {
@@ -36,8 +38,22 @@ export interface RunOptions {
 }
 export type RunFfmpeg = (args: string[], options?: RunOptions) => Promise<string>;
 
-/** Runs `work` in a scheduler slot (default: right away). */
-export type Slot = <T>(work: () => Promise<T>, signal: AbortSignal) => Promise<T>;
+/**
+ * Runs `work` in a scheduler slot (default: right away); `hardware` work also takes one of the
+ * graphics card's encoder sessions.
+ */
+export type Slot = <T>(
+  work: () => Promise<T>,
+  signal: AbortSignal,
+  hardware?: boolean,
+) => Promise<T>;
+
+/** The message and, for FFmpeg failures, the end of what it printed. */
+export const failureText = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error);
+  const detail: unknown = Reflect.get(error, "detail");
+  return typeof detail === "string" ? `${error.message}\n${detail}` : error.message;
+};
 
 export interface FilePrint {
   path: string;
@@ -83,6 +99,8 @@ export interface SegmentJob {
   media: MediaLookup;
   filterScriptOption: FilterScriptOption;
   ffmpegVersion: string;
+  /** The font files of these families (burned captions), whose contents are part of the key. */
+  fontFiles?: (families: readonly string[]) => Promise<string[]>;
   run: RunFfmpeg;
   slot: Slot;
   /** The plan's inputs, checked: project media must be selected, the app's files in its folders. */
@@ -120,10 +138,12 @@ export async function segmentKeys(job: SegmentJob): Promise<string[]> {
   return Promise.all(
     job.windows.map(async (win) => {
       const sig = windowSignature(job.project, win, job.spec, job.rate, options);
+      const fonts = sig.fonts.length && job.fontFiles ? await job.fontFiles(sig.fonts) : [];
       return sha256(
         canonical({
           key: sig.key,
           files: await filePrints(sig.files),
+          fonts: await filePrints(fonts),
           ffmpeg: job.ffmpegVersion,
         }),
       );
@@ -215,12 +235,20 @@ export async function renderSegments(job: SegmentJob): Promise<string[]> {
     report();
   };
 
+  const hardware = job.encoder !== "x264";
+  /** Segments whose hardware encoder failed, to render again on their own. */
+  const again: number[] = [];
   const worker = async (): Promise<void> => {
     while (!stop.signal.aborted && next < todo.length) {
       const i = todo[next++];
       try {
-        await job.slot(() => renderOne(i), stop.signal);
+        await job.slot(() => renderOne(i), stop.signal, hardware);
       } catch (error) {
+        if (hardware && !stop.signal.aborted && isEncoderFailure(failureText(error))) {
+          partial.delete(i);
+          again.push(i);
+          continue;
+        }
         // The first failure is the one to report; the others are its consequences.
         if (failure === undefined) failure = error;
         stop.abort(error);
@@ -231,16 +259,28 @@ export async function renderSegments(job: SegmentJob): Promise<string[]> {
     await Promise.all(
       Array.from({ length: Math.max(1, Math.min(job.concurrency, todo.length)) }, worker),
     );
+    // Alone now: nothing else of this export holds an encoder session.
+    for (const i of again) {
+      if (failure !== undefined || stop.signal.aborted) break;
+      try {
+        await job.slot(() => renderOne(i), stop.signal, hardware);
+      } catch (error) {
+        failure = error;
+      }
+    }
   } finally {
     job.signal.removeEventListener("abort", onAbort);
   }
-  if (failure !== undefined) {
+  try {
+    if (failure !== undefined) throw failure;
+    job.signal.throwIfAborted();
+    return files.map((f) => {
+      if (!f) throw new Error("Missing export segment");
+      return f;
+    });
+  } catch (error) {
+    // The segments read or made so far may be pruned again.
     job.cache.release(files.filter((f): f is string => !!f));
-    throw failure;
+    throw error;
   }
-  job.signal.throwIfAborted();
-  return files.map((f) => {
-    if (!f) throw new Error("Missing export segment");
-    return f;
-  });
 }

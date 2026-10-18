@@ -1,4 +1,4 @@
-import { clipEnd } from "../timeline.ts";
+import { clipEnd, sourceEnd } from "../timeline.ts";
 import { type DerivedClip, type DerivedProject, withTransitions } from "../transitions.ts";
 import type { Project } from "../types.ts";
 
@@ -61,7 +61,7 @@ export function exportProject(project: Project, r: Rate): DerivedProject {
     const start = snap(c.start);
     const end = snap(clipEnd(c));
     if (end <= start) continue;
-    const out: DerivedClip = { ...c, start, duration: end - start };
+    const out: DerivedClip = { ...c, start, duration: end - start, sourceStop: sourceEnd(c) };
     // A tail keeps at least one frame, so its progress never divides by zero.
     if (c.tail)
       out.tail = Math.min(end - start, Math.max(frameTime(1, r), end - snap(clipEnd(c) - c.tail)));

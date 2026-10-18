@@ -4,7 +4,7 @@ import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
-import { makeProxy } from "./importMedia";
+import { checkAlpha, makeProxy } from "./importMedia";
 import { ensureTreated } from "./voice";
 import { restoreBlankPicture } from "./zoomLayer";
 
@@ -27,8 +27,8 @@ const companionsOf = (a: Asset): string[] => (a.cursor ? [a.cursor] : []);
 const cursorMove = (a: Asset, companions: Record<string, string>): { cursor?: string } =>
   a.cursor && companions[a.cursor] ? { cursor: companions[a.cursor] } : {};
 
-/** Marks media whose files (or cursor data) disappeared, redraws missing pictures and resumes
- *  proxies interrupted by closing the app. */
+/** Marks media whose files (or cursor data) disappeared, redraws missing pictures, resumes
+ *  proxies interrupted by closing the app and looks for transparency not probed before. */
 export async function checkAssets(): Promise<void> {
   const project = useProject.getState().project;
   if (!project?.assets.length) return;
@@ -53,7 +53,9 @@ export async function checkAssets(): Promise<void> {
     const cursorMissing = at !== undefined && !exists[at];
     if (!!a.missing !== missing || !!a.cursorMissing !== cursorMissing)
       patchAsset(a.id, { missing, cursorMissing });
-    if (!missing && a.proxyStatus === "pending") void makeProxy(a);
+    // A video whose transparency was never probed gets its proxy after checkAlpha.
+    if (!missing && a.proxyStatus === "pending" && (a.kind !== "video" || a.alpha !== undefined))
+      void makeProxy(a);
     // A transcription interrupted by closing the app has to be started again.
     if (a.transcriptStatus === "pending") patchAsset(a.id, { transcriptStatus: undefined });
     // The treated voice is a cache: when it is gone (cleaned up, another computer) it is
@@ -64,6 +66,7 @@ export async function checkAssets(): Promise<void> {
     else if (a.treatStatus === "pending") patchAsset(a.id, { treatStatus: undefined });
   });
   void ensureTreated();
+  void checkAlpha();
   await redrawMissingPictures();
 }
 

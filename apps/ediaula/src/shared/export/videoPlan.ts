@@ -135,21 +135,24 @@ export function clipFrames(
 /** A glitch or a color transition drawn over the whole composite (W × H) while it lasts. */
 export function cutFxFilter(fx: CutFx, W: number, H: number): string {
   const [a, b] = cutFxWindow(fx);
-  const enable = `enable='between(t,${n(a)},${n(b)})'`;
+  // Times in full: the same cut a few frames later must give the very same pixels.
+  const enable = `enable='between(t,${a},${b})'`;
   if (fx.kind === "glitch") {
     // Blocks jump sideways, thin lines jitter, the colors split (chroma pushed both ways),
-    // scanlines darken, some rows flash inverted and grain covers it all; strongest at the cut.
-    // Everything is seeded by the time since the cut, so the glitch is the same wherever it is.
-    const since = `(T-${n(fx.at)})`;
+    // scanlines darken, some rows flash inverted and grain covers it; strongest at the cut and
+    // gone at the edges (strength 0 leaves the picture as it is, so the frames at the edges are
+    // the same whether the window takes them in or not). Everything is seeded by the time since
+    // the cut, so the glitch is the same wherever it is.
+    const since = `(T-${fx.at})`;
     const slot = `floor(${since}*30+0.137)`;
-    const amp = glitchAmpExpr(fx);
+    const amp = glitchAmpExpr(fx, since);
     const r2 = `sin(floor(Y/H*90)*91.7+${slot}*17.3)*43758.5453`;
     const jit = `gt((${r2}-floor(${r2})),0.93)*((${r2}-floor(${r2}))-0.965)*0.8*${amp}`;
     const off = `W*(${glitchShiftExpr(amp, since)}+${jit})`;
     const rf = `sin(${slot}*3.7+floor(Y/H*6)*1.3)*43758.5453`;
     const flash = `gt((${rf}-floor(${rf})),0.86)*gt(${amp},0.45)`;
     const rg = `sin(X*12.9898+Y*78.233+${slot}*37.719)*43758.5453`;
-    const grain = `(((${rg})-floor(${rg}))-0.5)*52`;
+    const grain = `(((${rg})-floor(${rg}))-0.5)*52*${amp}`;
     const at = (dx: string, dy: string): string =>
       `p(clip(X+${off}+${dx},0,W-1),clip(Y+${dy},0,H-1))`;
     const lum = `if(${flash},255-${at("0", "0")},${at("0", "0")})*(1-0.22*${amp}*mod(floor(Y/2),2))+${grain}`;
@@ -176,17 +179,29 @@ interface Piece {
   /** File read and the decoder that keeps its alpha. */
   path: string;
   decoder: string[];
-  /** Source seconds read, [a, b): from a source frame before the first one shown. */
-  a: number;
-  b: number;
-  /** Source second the window needs up to (the zooms over [a, e) apply). */
-  e: number;
-  /** Source seconds past the end of the file, held on its last frame. */
-  hold: number;
+  /**
+   * Seek point, source seconds. The input keeps the frames from the keyframe before it (no
+   * accurate seek), so the frame on screen at the window's first tick is read even when it is
+   * seconds older (a still screen in a variable frame rate recording). Never past the file's last
+   * frames, so a clip that holds the last frame still reads it.
+   */
+  at: number;
+  /** Source seconds the window shows, [S, E] (the zooms over them apply). */
+  S: number;
+  E: number;
+  /**
+   * Source seconds the clip may show, [from, until): from its in-point to the end of its cut
+   * (before the frame grid moved it) or of the file. The frames around are never read; the
+   * last one before `until` holds when the clip goes on.
+   */
+  from: number;
+  until: number;
+  /** A quarter of a frame, for times that land on a frame. */
+  tolerance: number;
   internal: boolean;
 }
 
-/** A source read once for one or more pieces in a row. */
+/** A source read once for one piece, or for a run of pieces joined into one stream. */
 interface Read {
   input: number;
   /** Seek point of the input, source seconds. */
@@ -196,12 +211,35 @@ interface Read {
 }
 
 /**
- * Pieces of the same file on the same track that follow each other on the timeline and in the
- * source (a recording cut by the cleanup) share one input: a single seek and decoder, split per
- * piece. A piece that goes back in the source, overlaps the previous one or comes after a long
- * gap opens its own.
+ * Pieces of the same file that follow each other on the track with the same look (a recording
+ * cut by the cleanup) are read with one seek and one decoder. Each piece takes its frames from
+ * the shared stream and the pieces are joined in order into one layer, so the decoder only runs
+ * ahead by what two pieces have in common: a piece may go back at most SHARE_BACK seconds in the
+ * source and skip at most SHARE_GAP. Anything else opens its own input.
  */
 const SHARE_GAP = 4;
+const SHARE_BACK = 0.25;
+
+/** A clip whose layer stays put and shows whole while it lasts, so its pieces can be joined. */
+const steady = (c: DerivedClip): boolean =>
+  !c.drawAfter && !c.tail && !c.keyframes?.length && !isMoving(c);
+
+/** Whether `p` continues the run that starts at `first` and ends at `last` in one stream. */
+function continues(first: Piece, last: Piece, p: Piece): boolean {
+  return (
+    p.asset.kind !== "image" &&
+    p.clip.trackId === last.clip.trackId &&
+    p.path === last.path &&
+    p.decoder.join(" ") === last.decoder.join(" ") &&
+    p.frames.start === last.frames.end &&
+    steady(last.clip) &&
+    steady(p.clip) &&
+    JSON.stringify(p.clip.transform ?? null) === JSON.stringify(last.clip.transform ?? null) &&
+    p.at >= first.at &&
+    p.S >= last.E - SHARE_BACK &&
+    p.S - last.E <= SHARE_GAP
+  );
+}
 
 export function buildVideoWindowPlan(
   project: DerivedProject,
@@ -264,16 +302,14 @@ export function buildVideoWindowPlan(
     const speed = clipSpeed(clip);
     const srcFps = asset.fps > 0 ? asset.fps : fps;
     const tolerance = 0.25 / Math.max(srcFps, fps);
-    // The frame on screen at the window's first tick can be a source frame from just before the
-    // moment it shows (the last one not after it): reading one source frame earlier lets the
-    // frame rate filter pick the very frame a single pass would.
-    const lead = 1 / srcFps + tolerance;
+    const length = sourceLength(asset);
     const S = clip.in + (frames.k0 / fps) * speed;
     const endsHere = frames.end <= win.from + win.frames;
     const E = endsHere
       ? sourceEnd(clip)
       : Math.min(sourceEnd(clip), clip.in + ((frames.k1 + 2) / fps) * speed);
-    const length = sourceLength(asset);
+    // The last frame of the file starts at least a frame and a half before its end.
+    const lastFrame = length - 1.5 / srcFps;
     drawn.push({
       clip,
       layer: false,
@@ -283,10 +319,12 @@ export function buildVideoWindowPlan(
         frames,
         path,
         decoder,
-        a: Math.max(0, S - lead),
-        b: Math.max(0, Math.min(E, length) - tolerance),
-        e: E,
-        hold: Math.max(0, E - length),
+        at: Math.max(0, Math.min(S - 1 / srcFps - tolerance, length - 2 / srcFps)),
+        S,
+        E,
+        from: Math.max(0, Math.min(clip.in, lastFrame)),
+        until: Math.min(clip.sourceStop ?? sourceEnd(clip), length),
+        tolerance,
         internal: keyed,
       },
     });
@@ -296,44 +334,35 @@ export function buildVideoWindowPlan(
   const reads = new Map<Piece, { read: Read; index: number }>();
   const sprites = new Map<Piece, { read: Read; index: number }>();
   const runs: Piece[][] = [];
-  const open = new Map<string, Piece[]>();
+  /** The run of each piece drawn as part of a longer one, and its place in it. */
+  const joined = new Map<Piece, { run: Piece[]; index: number }>();
+  let open: Piece[] | null = null;
   for (const { piece } of drawn) {
-    if (!piece || piece.asset.kind === "image") {
-      if (piece) runs.push([piece]);
+    // Only pieces drawn one right after the other join: nothing is drawn between them.
+    const last = open?.at(-1);
+    if (piece && open && last && continues(open[0], last, piece)) {
+      open.push(piece);
       continue;
     }
-    const key = `${piece.clip.trackId}|${piece.path}|${piece.decoder.join(" ")}`;
-    const run = open.get(key);
-    const last = run?.at(-1);
-    if (
-      run &&
-      last &&
-      !last.clip.drawAfter &&
-      !piece.clip.drawAfter &&
-      last.hold === 0 &&
-      piece.clip.start >= clipEnd(last.clip) - 1e-6 &&
-      piece.a >= last.a &&
-      piece.a - last.b <= SHARE_GAP
-    ) {
-      run.push(piece);
-      continue;
-    }
+    open = null;
+    if (!piece) continue;
     const fresh = [piece];
     runs.push(fresh);
-    open.set(key, fresh);
+    if (piece.asset.kind !== "image") open = fresh;
   }
   for (const run of runs) {
     const first = run[0];
-    const lastPiece = run[run.length - 1];
     if (first.asset.kind === "image") {
       // A still picture is decoded once and repeated, not read again for every frame.
       const input = addInput(first.path, ["-framerate", rate], false);
       reads.set(first, { read: { input, at: 0, labels: [`${input}:v`] }, index: 0 });
       continue;
     }
-    const at = first.a;
-    const length = lastPiece.b - at;
-    const open = ["-ss", us(at), "-t", us(Math.max(length, 1 / fps))];
+    if (run.length > 1) for (const [index, p] of run.entries()) joined.set(p, { run, index });
+    const at = first.at;
+    // No duration limit on the input: with the frames before the seek point kept, FFmpeg would
+    // count it from the keyframe. Each piece stops itself at the end of its cut.
+    const open = ["-noaccurate_seek", "-ss", us(at)];
     const add = (path: string, decoder: string[], internal: boolean, tag: string): Read => {
       const input = addInput(path, [...decoder, ...open], internal);
       const labels = run.length === 1 ? [`${input}:v`] : run.map((_, i) => `${tag}${input}_${i}`);
@@ -350,27 +379,36 @@ export function buildVideoWindowPlan(
     }
   }
 
-  /** A piece's frames on its clip's clock: clip-local seconds, from frame k0, at the export rate. */
+  /**
+   * A piece's frames on its clip's clock, exactly k1 - k0 of them from frame k0 (time base one
+   * frame). The source frames of the cut, [from, until), go to the frame grid as a single pass
+   * would put them; the stream then goes on with its last frame (a file shorter than its clip,
+   * the end of a cut), and the window takes its frames from k0, the first one standing in for
+   * any tick before the first frame of the cut.
+   */
   const timed = (p: Piece, source: { read: Read; index: number }): string => {
     const { read, index } = source;
     const speed = clipSpeed(p.clip);
-    const shared = read.labels.length > 1;
-    const trim = shared ? `trim=start=${us(p.a - read.at)}:end=${us(p.b - read.at)},` : "";
-    const hold =
-      p.hold > 0.01 ? `tpad=stop_mode=clone:stop_duration=${n(p.hold + 0.1 * speed)},` : "";
-    // Stream time p is source time read.at + p; the clip shows source time s at (s - in) / speed.
+    // Stream time PTS is source time read.at + PTS; the clip shows source time s at (s - in) / speed.
     const offset = read.at - p.clip.in;
     const shift = offset < 0 ? `-${us(-offset)}/TB` : `+${us(offset)}/TB`;
-    const pts = speed === 1 ? `setpts=PTS${shift}` : `setpts=(PTS${shift})/${n(speed)}`;
-    return `[${read.labels[index]}]${trim}${hold}${pts},fps=${rate}:start_time=${us(p.frames.k0 / fps)}`;
+    const pts = `setpts=round((PTS${shift})${speed === 1 ? "" : `/${us(speed)}`})`;
+    const clock = (s: number): string => us((s - p.clip.in - p.tolerance) / speed);
+    return (
+      `[${read.labels[index]}]${pts},trim=start=${clock(p.from)}:end=${clock(p.until)},` +
+      `fps=${rate},tpad=stop_mode=clone:stop=-1,fps=${rate}:start_time=${us(p.frames.k0 / fps)},` +
+      `trim=end_frame=${p.frames.k1 - p.frames.k0}`
+    );
   };
 
-  // ---- The canvas, on the lesson's clock from this window's first frame ----
+  // ---- The canvas, on the lesson's clock from this window's first frame (time base one frame) ----
   graph.push(
-    `color=c=black:s=${W}x${H}:r=${rate}:d=${us((win.frames + 0.5) / fps)},format=yuv420p,setpts=PTS+${win.from}*${r.den}/${r.num}/TB[base]`,
+    `color=c=black:s=${W}x${H}:r=${rate},trim=end_frame=${win.frames},format=yuv420p,setpts=PTS+${win.from}[base]`,
   );
   let current = "base";
   let layer = 0;
+  /** Layers of a joined run's pieces, waiting for its last piece. */
+  let pending: { v: string[]; shadow: string[] } = { v: [], shadow: [] };
 
   for (const { clip, piece, layer: isLayer } of drawn) {
     if (isLayer) {
@@ -390,8 +428,11 @@ export function buildVideoWindowPlan(
     const vh = Math.round(lay.visible.h);
     const speed = clipSpeed(clip);
     const { k0, k1 } = piece.frames;
+    // The clip's clock to the lesson's: a whole number of frames (a fraction would be cut off).
+    const toLesson = `setpts=PTS+${piece.frames.start}`;
     const end = clipEnd(clip);
     const t = clip.transform;
+    const run = joined.get(piece);
     const facts = media(piece.path);
     const keyed = piece.internal;
     const image = asset.kind === "image";
@@ -442,7 +483,7 @@ export function buildVideoWindowPlan(
       src = `cur${L}`;
     }
     // The recording's zooms over what this window reads, only while one is on.
-    const zooms = image ? [] : zoomsIn(asset.zooms, piece.a, piece.e);
+    const zooms = image ? [] : zoomsIn(asset.zooms, piece.S - 1 / fps, piece.E);
     if (zooms.length) {
       const e = zoomExprs(
         zooms,
@@ -471,8 +512,12 @@ export function buildVideoWindowPlan(
         : "";
     const motion = motionExprs(clip);
     const fades = motion.fades
-      .map((f) => `,fade=t=${f.kind}:st=${n(f.start)}:d=${n(f.duration)}:alpha=1`)
+      .map((f) => `,fade=t=${f.kind}:st=${us(f.start)}:d=${us(f.duration)}:alpha=1`)
       .join("");
+    // A joined run fades where its pieces do; a piece without fades then goes the same way.
+    const faded = run
+      ? run.run.some((p) => motionExprs(p.clip).fades.length > 0)
+      : motion.fades.length > 0;
     const enable = `enable='between(t,${us(clip.start - half)},${us(end - half)})'`;
     const kfs = clip.keyframes?.length ? clip.keyframes : undefined;
     const moving = isMoving(clip) || !!kfs;
@@ -496,19 +541,55 @@ export function buildVideoWindowPlan(
       !t?.border &&
       !shadow &&
       opacity === 1 &&
-      !fades &&
+      !faded &&
       !moving;
     const out = `o${L}`;
+
+    /**
+     * Draws the layer, and the shadow under it, over what is below. The pieces of a joined run
+     * wait for the last one and go on as one layer, each after the other.
+     */
+    const place = (v: string, sl: string | null, at: [number, number], sAt: [number, number]) => {
+      let on = enable;
+      let layerLabel = v;
+      let shadowLabel = sl;
+      if (run) {
+        pending.v.push(v);
+        if (sl) pending.shadow.push(sl);
+        if (run.index < run.run.length - 1) return;
+        const head = run.run[0];
+        const last = run.run[run.run.length - 1];
+        const first = head.frames.start + head.frames.k0;
+        const join = (labels: string[], name: string): string => {
+          const parts = labels.map((l, i) => `[${l}]setpts=PTS-STARTPTS[${name}_${i}]`);
+          graph.push(
+            `${parts.join(";")};${labels.map((_, i) => `[${name}_${i}]`).join("")}concat=n=${labels.length}:v=1:a=0,settb=${r.den}/${r.num},setpts=N+${first}[${name}]`,
+          );
+          return name;
+        };
+        layerLabel = join(pending.v, `jv${L}`);
+        shadowLabel = pending.shadow.length ? join(pending.shadow, `js${L}`) : null;
+        pending = { v: [], shadow: [] };
+        on = `enable='between(t,${us(head.clip.start - half)},${us(clipEnd(last.clip) - half)})'`;
+      }
+      if (shadowLabel) {
+        graph.push(
+          `[${current}][${shadowLabel}]overlay=x=${sAt[0]}:y=${sAt[1]}:eof_action=pass:${on}[os${L}]`,
+        );
+        current = `os${L}`;
+      }
+      graph.push(
+        `[${current}][${layerLabel}]overlay=x=${at[0]}:y=${at[1]}:eof_action=pass:${on}[${out}]`,
+      );
+      current = out;
+    };
 
     if (plain) {
       // Opaque and still: one scale converts it straight to the composite's BT.709.
       graph.push(
-        `[${src}]${crop}${convert(`${vw}:${vh}`, true)},setsar=1,format=yuv420p,setpts=PTS+${us(clip.start)}/TB[v${L}]`,
+        `[${src}]${crop}${convert(`${vw}:${vh}`, true)},setsar=1,format=yuv420p,${toLesson}[v${L}]`,
       );
-      graph.push(
-        `[${current}][v${L}]overlay=x=${Math.round(lay.visible.x)}:y=${Math.round(lay.visible.y)}:eof_action=pass:${enable}[${out}]`,
-      );
-      current = out;
+      place(`v${L}`, null, [Math.round(lay.visible.x), Math.round(lay.visible.y)], [0, 0]);
       continue;
     }
 
@@ -627,7 +708,7 @@ export function buildVideoWindowPlan(
         graph.push(`[${sh}][${pic}]overlay=${margin}:${margin}:format=auto:shortest=1[sh${L}]`);
         pic = `sh${L}`;
       } else if (alphaContent) {
-        graph.push(`[${sh}]setpts=PTS+${us(clip.start)}/TB${fades}[sl${L}]`);
+        graph.push(`[${sh}]${toLesson}${fades}[sl${L}]`);
         shadowLayer = `sl${L}`;
       } else {
         graph.push(`[${sh}]null${fades}[sl${L}]`);
@@ -639,19 +720,11 @@ export function buildVideoWindowPlan(
     const back = rgba ? `,${TO_YUVA}` : "";
     const m = combined ? margin : 0;
     if (!moving) {
-      graph.push(`[${pic}]setpts=PTS+${us(clip.start)}/TB${tailMask}${fades}${back}[v${L}]`);
+      graph.push(`[${pic}]${toLesson}${tailMask}${fades}${back}[v${L}]`);
       const pad = page ? 2 : 0;
       const x = Math.round(lay.visible.x);
       const y = Math.round(lay.visible.y);
-      if (shadowLayer) {
-        graph.push(
-          `[${current}][${shadowLayer}]overlay=x=${x - margin}:y=${y - margin}:eof_action=pass:${enable}[os${L}]`,
-        );
-        current = `os${L}`;
-      }
-      graph.push(
-        `[${current}][v${L}]overlay=x=${x - m - pad}:y=${y - m - pad}:eof_action=pass:${enable}[${out}]`,
-      );
+      place(`v${L}`, shadowLayer, [x - m - pad, y - m - pad], [x - margin, y - margin]);
     } else {
       // Pop / slide / grow and keyframed movement: size and position follow the same curves as
       // the preview, per frame, around the clip's center.
@@ -675,13 +748,13 @@ export function buildVideoWindowPlan(
       const size = (v0: string): string => `'max(2,trunc(${v0}*(${motion.scale})/2)*2)'`;
       const grow = margin ? (v: number): string => `*${n((v + 2 * margin) / v)}` : () => "";
       graph.push(
-        `[${pic}]setpts=PTS+${us(clip.start)}/TB,scale=w=${size(`(${sw})${grow(vw)}`)}:h=${size(`(${shh})${grow(vh)}`)}:eval=frame,setsar=1${tailMask}${fades}${back}[v${L}]`,
+        `[${pic}]${toLesson},scale=w=${size(`(${sw})${grow(vw)}`)}:h=${size(`(${shh})${grow(vh)}`)}:eval=frame,setsar=1${tailMask}${fades}${back}[v${L}]`,
       );
       graph.push(
         `[${current}][v${L}]overlay=x='${cx}+(${motion.dx})*${W}-overlay_w/2':y='${cy}+(${motion.dy})*${H}-overlay_h/2':eval=frame:eof_action=pass:${enable}[${out}]`,
       );
+      current = out;
     }
-    current = out;
   }
 
   for (const [i, effect] of (project.cutFx ?? []).entries()) {

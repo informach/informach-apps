@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 
 const execute = promisify(execFile);
@@ -30,7 +31,25 @@ export async function filterScriptOption(binary: string): Promise<FilterScriptOp
   return major >= 7 ? "-/filter_complex" : "-filter_complex_script";
 }
 
-/** The build that renders, part of every cached segment's key: another FFmpeg renders anew. */
-export async function ffmpegVersion(binary: string): Promise<string> {
-  return (await version(binary)).line;
+const builds = new Map<string, Promise<string>>();
+
+/**
+ * The build that renders, part of every cached segment's key: its version line and a hash of how
+ * it was configured (two builds of one version can differ in libraries), so another FFmpeg
+ * renders anew.
+ */
+export function ffmpegVersion(binary: string): Promise<string> {
+  let known = builds.get(binary);
+  if (!known) {
+    known = Promise.all([
+      version(binary),
+      execute(binary, ["-hide_banner", "-buildconf"], { windowsHide: true, timeout: 30000 }),
+    ]).then(
+      ([{ line }, { stdout }]) =>
+        `${line} (build ${createHash("sha256").update(stdout).digest("hex").slice(0, 16)})`,
+    );
+    known.catch(() => builds.delete(binary));
+    builds.set(binary, known);
+  }
+  return known;
 }

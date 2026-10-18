@@ -240,6 +240,24 @@ function proxyCodecArgs(encoder: Encoder): string[] {
 /** The order the export falls back through: hardware encoders, then the CPU. */
 export const ENCODER_CHAIN: readonly Encoder[] = ["nvenc", "amf", "mf", "x264"];
 
+/**
+ * The encoder to go on with after `failed` broke in an export (its segment failed again on its
+ * own). It is left out for the rest of the session (`banned`) only when it does not encode a test
+ * picture either: otherwise it was this export (sessions held for longer, a size it refuses), and
+ * the next exports, and the segments they already rendered with it, keep it.
+ */
+export async function nextAfterFailure(
+  failed: Encoder,
+  encodes: (candidate: Encoder) => Promise<boolean>,
+  banned: Set<Encoder>,
+): Promise<Encoder> {
+  if (!(await encodes(failed))) banned.add(failed);
+  for (const candidate of ENCODER_CHAIN.slice(ENCODER_CHAIN.indexOf(failed) + 1))
+    if (candidate === "x264" || (!banned.has(candidate) && (await encodes(candidate))))
+      return candidate;
+  return "x264";
+}
+
 /** The encoders to try after `encoder` fails, leaving out the ones that failed this session. */
 export function fallbackEncoders(encoder: Encoder, failed: ReadonlySet<Encoder>): Encoder[] {
   return ENCODER_CHAIN.slice(ENCODER_CHAIN.indexOf(encoder) + 1).filter(
@@ -248,18 +266,25 @@ export function fallbackEncoders(encoder: Encoder, failed: ReadonlySet<Encoder>)
 }
 
 /**
- * Whether FFmpeg failed in the encoder itself (sessions taken, driver, device), which another
- * encoder can get past. A filter or input error fails with any encoder, so it is not one, even
- * though FFmpeg then also says it could not open the encoder (it never got a frame).
+ * What a hardware encoder (or its driver) says in its own name when it fails: a line from the
+ * encoder's context (`[h264_nvenc @ …]`, `[AMF @ …]`) or the driver's own words.
+ */
+const ENCODER_SAID =
+  /^\[(?:h264|hevc|av1)_(?:nvenc|amf|mf|qsv) @|^\[AMF @|OpenEncodeSessionEx|No capable devices|InitializeEncoder|CUDA_ERROR|cuInit|cuCtxCreate|nvEncEncodePicture|amfrt64|AMF failed|\bMFT\b|MF_E_|Failed to (?:create|initialize) the encoder|EncodeFrame failed/im;
+
+/** A filter or an input that failed: any encoder would have failed the same way. */
+const NOT_THE_ENCODER =
+  /Error (?:initializing filters?|reinitializing filters|initializing complex filters|opening input)|Failed to inject frame|Invalid data found|No such file/i;
+
+/**
+ * Whether FFmpeg failed in the encoder itself (sessions taken, driver, device, a size it refuses),
+ * which another encoder can get past. The encoder's own words decide first: FFmpeg 6 ends every
+ * failure with "Error while filtering", whoever failed. Without them, a filter or input error is
+ * not one, even though FFmpeg then also says it could not open the encoder (it never got a frame).
+ * Checked against what FFmpeg 6.1 and 9.0 print (tests/fixtures/ffmpeg-encoder-errors.json).
  */
 export function isEncoderFailure(message: string): boolean {
-  if (
-    /Error (while filtering|initializing filters?|reinitializing filters|initializing complex filters)|Failed to inject frame|Invalid data found|Error opening input|No such file/i.test(
-      message,
-    )
-  )
-    return false;
-  return /OpenEncodeSessionEx|No capable devices|Error while opening encoder|CUDA_ERROR|cuInit|cuCtxCreate|nvEncEncodePicture|NvEncEncodePicture|AMF failed|AMFContext|amfrt64|\bMFT\b|Failed to (create|initialize) the encoder|InitializeEncoder|EncodeFrame failed/i.test(
-    message,
-  );
+  if (ENCODER_SAID.test(message)) return true;
+  if (NOT_THE_ENCODER.test(message)) return false;
+  return /Error while opening encoder/i.test(message);
 }

@@ -8,6 +8,8 @@ export interface ExportItem {
   captions: boolean;
   state: ExportState;
   message?: string;
+  /** Why an export left from the last session cannot be resumed (a file or folder that is gone). */
+  blocked?: string;
 }
 
 /** Serial exports own their snapshots; editing or closing a project cannot change a queued job. */

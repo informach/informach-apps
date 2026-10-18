@@ -9,6 +9,8 @@ import {
   type QueueAccess,
   rememberExportFolder,
   removeOrphanOutputs,
+  removeOrphanWork,
+  type SavedItem,
   saveQueue,
 } from "../src/main/export/exportQueueStore.ts";
 import { concatList, ffmetadata } from "../src/shared/export/assemble.ts";
@@ -65,9 +67,11 @@ test("the queue kept between sessions holds only exports to chosen files, and al
     await writeFile(media, "media");
     const chosen = join(dir, "aula.mp4");
     const other = join(dir, "outra.mp4");
+    const notVideo = join(dir, "aula.mov");
     const before = createFileAuthority(["ediaula"]);
     await before.grantRead(media);
     await before.grantWrite(chosen);
+    await before.grantWrite(notVideo);
     const file = join(dir, "export-queue.json");
     const item = (id: string, out: string, state: string) => ({
       id,
@@ -82,6 +86,8 @@ test("the queue kept between sessions holds only exports to chosen files, and al
         item("ok", chosen, "exporting"),
         item("never-chosen", other, "waiting"),
         item("finished", chosen, "done"),
+        // Only an .mp4 (or an .mp3 for a podcast) is an export's output.
+        item("not-a-video", notVideo, "waiting"),
       ]),
       access(before),
     );
@@ -98,6 +104,19 @@ test("the queue kept between sessions holds only exports to chosen files, and al
     assert.equal(JSON.parse(text).length, 1);
     assert.ok(await after.assertWrite(chosen, false));
     assert.ok(await after.assertRead(media));
+    // Two saves at once: one after the other, the last one stays, no temporary file is left.
+    await Promise.all([
+      saveQueue(file, JSON.stringify([item("first", chosen, "waiting")]), access(after)),
+      saveQueue(file, JSON.stringify([item("second", chosen, "waiting")]), access(after)),
+    ]);
+    assert.deepEqual(
+      (JSON.parse(await readFile(file, "utf8")) as { id: string }[]).map((i) => i.id),
+      ["second"],
+    );
+    assert.deepEqual(
+      (await readdir(dir)).filter((n) => n.includes("partial")),
+      [],
+    );
     // Nothing pending removes the file.
     await saveQueue(file, "[]", access(after));
     assert.equal(await loadQueue(file, access(after)), null);
@@ -105,6 +124,53 @@ test("the queue kept between sessions holds only exports to chosen files, and al
     await writeFile(file, JSON.stringify([{ id: "x" }]));
     assert.equal(await loadQueue(file, access(after)), null);
     assert.ok(!(await readdir(dir)).includes("export-queue.json"));
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("an item that cannot be resumed comes back with the reason, and nothing of it is allowed", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-queue-gone-"));
+  try {
+    const media = join(dir, "tela.mp4");
+    const kept = join(dir, "kept.mp4");
+    await writeFile(media, "media");
+    await writeFile(kept, "media");
+    const file = join(dir, "export-queue.json");
+    const item = (id: string, path: string, out: string) => ({
+      id,
+      project: lesson(path),
+      spec: spec(out),
+      captions: false,
+      state: "waiting",
+    });
+    await writeFile(
+      file,
+      JSON.stringify([
+        item("ok", kept, join(dir, "ok.mp4")),
+        item("media-gone", join(dir, "apagado.mp4"), join(dir, "a.mp4")),
+        item("folder-gone", kept, join(dir, "sumiu", "b.mp4")),
+        item("tampered", kept, join(dir, "c.exe")),
+      ]),
+    );
+    const files = createFileAuthority(["ediaula"]);
+    const text = await loadQueue(file, access(files));
+    assert.ok(text);
+    const items = JSON.parse(text) as SavedItem[];
+    assert.deepEqual(
+      items.map((i) => [i.id, !!i.blocked]),
+      [
+        ["ok", false],
+        ["media-gone", true],
+        ["folder-gone", true],
+        ["tampered", true],
+      ],
+    );
+    assert.match(items[1].blocked ?? "", /apagado\.mp4/);
+    assert.match(items[2].blocked ?? "", /pasta de destino/);
+    assert.ok(await files.assertWrite(join(dir, "ok.mp4"), false));
+    for (const out of ["a.mp4", "c.exe"])
+      await assert.rejects(() => files.assertWrite(join(dir, out), false));
   } finally {
     await rm(dir, { recursive: true });
   }
@@ -156,8 +222,45 @@ test("leftover staging folders beside past exports are removed, unless they hold
     await rememberExportFolder(list, join(dir, "gone"));
     await rememberExportFolder(list, folder);
     assert.deepEqual(JSON.parse(await readFile(list, "utf8")), [folder, join(dir, "gone")]);
-    assert.equal(await removeOrphanOutputs(list), 1);
-    assert.deepEqual((await readdir(folder)).sort(), [".edi-output-keep", "aula.mp4"]);
+    const started = Date.now() + 1;
+    await new Promise((r) => setTimeout(r, 20));
+    // An export that began after the app opened keeps its staging folder.
+    await mkdir(join(folder, ".edi-output-running"), { recursive: true });
+    const errors: string[] = [];
+    const options = { before: started, onError: (path: string) => errors.push(path) };
+    assert.equal(await removeOrphanOutputs(list, options), 1);
+    assert.deepEqual((await readdir(folder)).sort(), [
+      ".edi-output-keep",
+      ".edi-output-running",
+      "aula.mp4",
+    ]);
+    assert.deepEqual(errors, []);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("work folders of exports that did not end are removed, a running one stays", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-work-"));
+  try {
+    await mkdir(join(dir, "export-old", "x"), { recursive: true });
+    await writeFile(join(dir, "export-old", "x", "segment-0.txt"), "graph");
+    await writeFile(join(dir, "notes.txt"), "not ours");
+    const started = Date.now() + 1;
+    await new Promise((r) => setTimeout(r, 20));
+    await mkdir(join(dir, "export-running"));
+    const errors: string[] = [];
+    const removed = await removeOrphanWork(dir, {
+      before: started,
+      onError: (path) => errors.push(path),
+    });
+    assert.equal(removed, 1);
+    assert.deepEqual((await readdir(dir)).sort(), ["export-running", "notes.txt"]);
+    assert.deepEqual(errors, []);
+    assert.equal(
+      await removeOrphanWork(join(dir, "none"), { before: started, onError: () => {} }),
+      0,
+    );
   } finally {
     await rm(dir, { recursive: true });
   }

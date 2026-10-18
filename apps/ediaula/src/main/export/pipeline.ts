@@ -10,16 +10,24 @@ import { projectDuration } from "../../shared/timeline.ts";
 import type { Encoder, ExportSpec, JobProgress, Project } from "../../shared/types.ts";
 import { subRip, webVtt } from "../../shared/webvtt.ts";
 import type { FilterScriptOption } from "../ffmpeg-arguments.ts";
+import { fontResolver } from "./fonts.ts";
 import { FxAssets } from "./fxAssets.ts";
 import { renderAudio, type Sound, soundFilter } from "./renderAudio.ts";
-import { type RunFfmpeg, renderSegments, type Slot } from "./renderSegments.ts";
+import {
+  failureText,
+  type RunFfmpeg,
+  renderSegments,
+  type Slot,
+  segmentOptions,
+} from "./renderSegments.ts";
 import { SegmentCache } from "./segmentCache.ts";
 
 /**
  * One export, from the checked project and spec to the staged files: the picture by segments
  * (reused from the cache, the rest rendered in parallel, falling back to the next encoder when
  * one fails), the sound in one pass at the same time, then both joined without encoding the
- * picture again, with the title and chapters, the captions and the thumbnail.
+ * picture again, with the title and chapters, the captions and the thumbnail. Every FFmpeg run
+ * of it (probes, measurements and the assembly too) goes through the scheduler's slots.
  */
 
 export interface ExportDeps {
@@ -29,6 +37,11 @@ export interface ExportDeps {
   run: RunFfmpeg;
   filterScriptOption: FilterScriptOption;
   fontsDirectory: string;
+  /**
+   * The font files of these families, for the segments' keys (main/export/fonts.ts); by default
+   * the files of the fonts folder named after them.
+   */
+  fontFiles?: (families: readonly string[]) => Promise<string[]>;
   check: () => void;
   /** userData/cache: segments, sounds and effect pictures live under it. */
   cacheDirectory: string;
@@ -60,13 +73,6 @@ export interface ExportOutputs {
 const inside = (path: string, root: string): boolean => {
   const child = relative(resolve(root).toLowerCase(), resolve(path).toLowerCase());
   return child !== "" && !child.startsWith("..") && !isAbsolute(child);
-};
-
-/** The message and, for FFmpeg failures, the end of what it printed. */
-const failureText = (error: unknown): string => {
-  if (!(error instanceof Error)) return String(error);
-  const detail: unknown = Reflect.get(error, "detail");
-  return typeof detail === "string" ? `${error.message}\n${detail}` : error.message;
 };
 
 export async function renderLesson(
@@ -129,8 +135,11 @@ export async function renderLesson(
         pictures.add(a.path);
         if (a.keyed) pictures.add(a.keyed);
       }
+      const probe = deps.probe;
       for (const path of pictures) {
-        const known = await deps.probe(await checkFile(path));
+        const checked = await checkFile(path);
+        // Even a probe waits for its slot: nothing of an export starts while a take records.
+        const known = await slot(() => probe(checked), signal);
         if (known) facts.set(path, known);
       }
     }
@@ -140,6 +149,12 @@ export async function renderLesson(
       work,
       filterScriptOption: deps.filterScriptOption,
       ffmpegVersion: deps.ffmpegVersion,
+      fontFiles:
+        deps.fontFiles ??
+        fontResolver({
+          bundled: async () => ({ dir: deps.fontsDirectory, families: [] }),
+          system: [deps.fontsDirectory],
+        }),
       run,
       slot,
       check: deps.check,
@@ -167,6 +182,10 @@ export async function renderLesson(
 
     let assemble: string[];
     let duration: number;
+    /** What the assembly tells while it runs (when it encodes the picture again). */
+    let note: string | undefined;
+    /** The assembly encodes on the graphics card (it takes an encoder session). */
+    let onCard = false;
     if (spec.audioOnly) {
       progress({ ratio: 0.1, phase: "audio" });
       const sound = await audio;
@@ -191,13 +210,16 @@ export async function renderLesson(
       const windows = planSegments(derived, spec);
       const total = lessonFrames(derived, r);
       const cores = Math.max(1, deps.cores ?? 4);
-      // Encoders that failed to open in this export, left out of the fallback chain.
+      // Encoders that failed in this export (a segment failed again on its own), left out of the
+      // fallback chain. Whether one is left out for the whole session is the detector's call.
       const broken = new Set<Encoder>();
       let encoder = spec.encoder;
+      let threads: number | undefined;
       let files: string[] = [];
       for (;;) {
         const x264 = encoder === "x264";
         const concurrency = x264 ? Math.max(1, Math.min(3, Math.floor(cores / 4))) : 2;
+        threads = x264 ? Math.max(1, Math.floor(cores / concurrency)) : undefined;
         try {
           files = await renderSegments({
             ...job,
@@ -207,7 +229,7 @@ export async function renderLesson(
             windows,
             encoder,
             concurrency,
-            threads: x264 ? Math.max(1, Math.floor(cores / concurrency)) : undefined,
+            threads,
             fx: new FxAssets(join(deps.cacheDirectory, "fx"), run),
             media: (path) => facts.get(path),
             checkInputs: (plan: VideoPlan) => checkInputs(plan.inputArgs),
@@ -234,6 +256,22 @@ export async function renderLesson(
         }
       }
       read.push(...files);
+      // Segments joined by copying must carry the same H.264 parameter sets (one set per track):
+      // ones from another driver or build of the same encoder are joined by encoding the picture
+      // once more instead, with the same options.
+      const headers = new Set<string>();
+      for (const file of files) {
+        const header = await cache.header(file);
+        if (header) headers.add(header);
+      }
+      const video =
+        headers.size > 1
+          ? segmentOptions({ encoder, spec: { ...exportSpec, encoder }, rate: r, threads })
+          : ["-c:v", "copy"];
+      if (headers.size > 1) {
+        note = "Trechos de versões diferentes do codificador: o vídeo é refeito na montagem.";
+        onCard = encoder !== "x264";
+      }
       progress({ ratio: 0.9, phase: "audio" });
       const sound = await audio;
       duration = frameTime(total, r);
@@ -263,8 +301,7 @@ export async function renderLesson(
         "0:v:0",
         "-map",
         "1:a:0",
-        "-c:v",
-        "copy",
+        ...video,
         ...soundFilter(sound),
         "-c:a",
         "aac",
@@ -281,34 +318,47 @@ export async function renderLesson(
       ];
     }
     deps.check();
-    progress({ ratio: 0.92, phase: "assembling" });
-    await run(["-y", "-v", "error", "-nostdin", ...(await checkInputs(assemble))], {
-      key: "assemble",
-      duration,
-      onProgress: (ratio) => progress({ ratio: 0.92 + 0.06 * ratio, phase: "assembling" }),
-    });
+    const told = note ? { message: note } : {};
+    progress({ ratio: 0.92, phase: "assembling", ...told });
+    const assembleArgs = await checkInputs(assemble);
+    await slot(
+      () =>
+        run(["-y", "-v", "error", "-nostdin", ...assembleArgs], {
+          key: "assemble",
+          duration,
+          onProgress: (ratio) =>
+            progress({ ratio: 0.92 + 0.06 * ratio, phase: "assembling", ...told }),
+        }),
+      signal,
+      onCard,
+    );
     deps.check();
-    if (outputs.thumbnail) {
+    const thumbnail = outputs.thumbnail;
+    if (thumbnail) {
       progress({ ratio: 0.98, phase: "assembling" });
-      await run(
-        [
-          "-y",
-          "-v",
-          "error",
-          "-nostdin",
-          "-ss",
-          String(Math.max(0, duration * 0.3)),
-          "-i",
-          outputs.primary,
-          "-frames:v",
-          "1",
-          "-vf",
-          "scale=1280:-2",
-          "-q:v",
-          "3",
-          outputs.thumbnail,
-        ],
-        { key: "thumbnail" },
+      await slot(
+        () =>
+          run(
+            [
+              "-y",
+              "-v",
+              "error",
+              "-nostdin",
+              "-ss",
+              String(Math.max(0, duration * 0.3)),
+              "-i",
+              outputs.primary,
+              "-frames:v",
+              "1",
+              "-vf",
+              "scale=1280:-2",
+              "-q:v",
+              "3",
+              thumbnail,
+            ],
+            { key: "thumbnail" },
+          ),
+        signal,
       );
     }
     const cues = spec.captionCues ?? [];

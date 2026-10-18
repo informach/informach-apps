@@ -162,17 +162,20 @@ test("export reads keyed avatars from the transparent video and their sound from
     encoder: "x264",
   });
   const keyed = plan.inputArgs.indexOf("C:/cache/key.webm");
-  const read = plan.inputArgs.slice(keyed - 7, keyed);
+  const read = plan.inputArgs.slice(keyed - 6, keyed);
   assert.deepEqual(
-    [read[0], read[1], read[2], read[4], read[6]],
-    ["-c:v", "libvpx-vp9", "-ss", "-t", "-i"],
+    [read[0], read[1], read[2], read[3], read[5]],
+    ["-c:v", "libvpx-vp9", "-noaccurate_seek", "-ss", "-i"],
   );
-  // Read from a source frame before the clip's in-point to the end of its three seconds.
-  const seek = Number(read[3]);
-  assert.ok(seek < 1 && seek > 1 - 1 / avatar.fps - 0.02, `seek ${read[3]}`);
-  assert.ok(Math.abs(seek + Number(read[5]) - 4) < 0.01, `length ${read[5]}`);
+  // Read from a source frame before the clip's in-point; the picture stops at the end of its
+  // three seconds, exactly 90 frames.
+  const seek = Number(read[4]);
+  assert.ok(seek < 1 && seek > 1 - 1 / avatar.fps - 0.02, `seek ${read[4]}`);
   assert.ok(plan.inputArgs.includes("C:/m/avatar.mp4"));
-  assert.match(plan.filter, /\[0:v\]setpts=PTS[-+][\d.]+\/TB,fps=30:start_time=0\[src0\]/);
+  assert.match(
+    plan.filter,
+    /\[0:v\]setpts=round\(\(PTS[-+][\d.]+\/TB\)\),trim=start=-[\d.]+:end=2\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=90\[src0\]/,
+  );
   // The cut-out avatar keeps its alpha: BT.601 (as the app wrote it) to the composite's BT.709.
   assert.match(
     plan.filter,
@@ -180,7 +183,7 @@ test("export reads keyed avatars from the transparent video and their sound from
   );
   assert.match(
     plan.filter,
-    /\[p0\]setpts=PTS\+2\/TB,fade=t=in:st=2:d=0\.3:alpha=1,fade=t=out:st=4\.7:d=0\.3:alpha=1/,
+    /\[p0\]setpts=PTS\+60,fade=t=in:st=2:d=0\.3:alpha=1,fade=t=out:st=4\.7:d=0\.3:alpha=1/,
   );
   assert.match(plan.filter, /\[1:a\]aresample/);
 });

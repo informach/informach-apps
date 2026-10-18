@@ -81,12 +81,16 @@ test("inputs are trimmed at the source and ordered bottom layer first", () => {
   const plan = buildExportPlan(project(), spec);
   assert.equal(plan.duration, 25);
   const tela = plan.inputArgs.indexOf("C:/m/tela.mp4");
-  const read = plan.inputArgs.slice(tela - 5, tela + 1);
-  assert.deepEqual([read[0], read[2], read[4]], ["-ss", "-t", "-i"]);
-  // From a source frame before the in-point (10 s) to the end of its 20 s.
-  const seek = Number(read[1]);
-  assert.ok(seek < 10 && seek > 10 - 1 / 30 - 0.01, `seek ${read[1]}`);
-  assert.ok(Math.abs(seek + Number(read[3]) - 30) < 0.01, `length ${read[3]}`);
+  const read = plan.inputArgs.slice(tela - 4, tela + 1);
+  assert.deepEqual([read[0], read[1], read[3]], ["-noaccurate_seek", "-ss", "-i"]);
+  // From a source frame before the in-point (10 s); the picture stops at the end of its 20 s,
+  // exactly 600 frames.
+  const seek = Number(read[2]);
+  assert.ok(seek < 10 && seek > 10 - 1 / 30 - 0.01, `seek ${read[2]}`);
+  assert.match(
+    plan.filter,
+    /trim=start=-[\d.]+:end=19\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=600\[src0\]/,
+  );
   assert.ok(tela < plan.inputArgs.indexOf("C:/m/logo.png"), "lower layer is read first");
   assert.match(plan.filter, /loop=loop=-1:size=1/, "a still is decoded once and repeated");
   // V1 (index 0) is overlaid before V2 (index 1).

@@ -1,6 +1,6 @@
 import { DEFAULT_KEY } from "@shared/chroma";
 import { newId } from "@shared/timeline";
-import type { Asset } from "@shared/types";
+import type { Asset, ProbeResult } from "@shared/types";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { baseName } from "./format";
@@ -113,5 +113,36 @@ export async function makeProxy(asset: Asset): Promise<void> {
       .toast(`Falha ao gerar proxy de ${asset.name}: ${(err as Error).message}`, "error");
   } finally {
     endJob(jobId);
+  }
+}
+
+/**
+ * Transparency of videos added before the app looked for it: probed once when the project opens
+ * (checkAssets). A transparent video keeps it in the preview: an H.264 proxy made for it is made
+ * again in VP9 with alpha, or dropped when the original plays as it is.
+ */
+export async function checkAlpha(): Promise<void> {
+  const assets = useProject.getState().project?.assets ?? [];
+  for (const a of assets) {
+    if (a.kind !== "video" || a.alpha !== undefined || a.missing || a.generated) continue;
+    let info: ProbeResult;
+    try {
+      info = await window.api.probe(a.path);
+    } catch (err) {
+      console.warn("alpha probe failed", a.path, err);
+      continue;
+    }
+    const { patchAsset } = useProject.getState();
+    if (!info.alpha) {
+      patchAsset(a.id, { alpha: false });
+      if (a.proxyStatus === "pending") void makeProxy({ ...a, alpha: false });
+      continue;
+    }
+    const asset: Asset = { ...a, alpha: true };
+    patchAsset(a.id, { alpha: true });
+    const opaqueProxy = !!a.proxy && !a.proxy.toLowerCase().endsWith(".webm");
+    if (needsProxy(asset, info.videoCodec)) {
+      if (opaqueProxy || a.proxyStatus !== "ready") void makeProxy(asset);
+    } else if (opaqueProxy) patchAsset(a.id, { proxy: undefined, proxyStatus: "none" });
   }
 }

@@ -1,4 +1,10 @@
-import { buildAss, buildCues, captionWords, cueLayout, DEFAULT_CAPTION_STYLE } from "@shared/captions";
+import {
+  buildAss,
+  buildCues,
+  captionWords,
+  cueLayout,
+  DEFAULT_CAPTION_STYLE,
+} from "@shared/captions";
 import { keyId } from "@shared/chroma";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
 import { newId } from "@shared/timeline";
@@ -43,7 +49,8 @@ const saved = ({ id, project, spec, captions, state }: ExportItem) => ({
 
 /** Writes the pending exports (and the ones still offered to resume) for the next session. */
 function persist(pending: ExportItem[]): void {
-  const all = [...pending, ...useExportQueue.getState().resumable];
+  // One that cannot be resumed is shown this time and not kept (main allows nothing of it).
+  const all = [...pending, ...useExportQueue.getState().resumable.filter((i) => !i.blocked)];
   window.api.exportQueue
     .save(JSON.stringify(all.map(saved)))
     .catch((error: unknown) =>
@@ -174,25 +181,43 @@ export function listenRecorderState(): () => void {
   return window.api.recorder.onState((s) => apply(!!s.holdBackground));
 }
 
-/** The exports left unfinished last time, offered in the queue to resume or discard. */
+/**
+ * The exports left unfinished last time, offered in the queue to resume or discard; the ones
+ * that cannot be resumed any more come with the reason (main/export/exportQueueStore.ts).
+ */
 export async function loadUnfinishedExports(): Promise<void> {
   const text = await window.api.exportQueue.load();
   if (!text) return;
   const items: ExportItem[] = JSON.parse(text);
-  if (items.length) useExportQueue.setState({ resumable: items, open: true });
+  if (!items.length) return;
+  useExportQueue.setState({ resumable: items, open: true });
+  const blocked = items.filter((i) => i.blocked).length;
+  if (blocked)
+    useApp
+      .getState()
+      .toast(
+        blocked === 1
+          ? "Uma exportação da última vez não dá para retomar. Veja o motivo na fila."
+          : `${blocked} exportações da última vez não dão para retomar. Veja o motivo na fila.`,
+        "error",
+      );
 }
 
-/** Puts them back in the queue: the segments already rendered come from the cache. */
+/**
+ * Puts the ones that can run back in the queue: the segments already rendered come from the
+ * cache. The ones that cannot stay listed with their reason until they are discarded.
+ */
 export function resumeUnfinished(): void {
   const { resumable } = useExportQueue.getState();
-  useExportQueue.setState({ resumable: [] });
+  useExportQueue.setState({ resumable: resumable.filter((i) => i.blocked) });
   for (const item of resumable)
-    exportQueue.add({
-      id: item.id,
-      project: item.project,
-      spec: item.spec,
-      captions: item.captions,
-    });
+    if (!item.blocked)
+      exportQueue.add({
+        id: item.id,
+        project: item.project,
+        spec: item.spec,
+        captions: item.captions,
+      });
 }
 
 export function discardUnfinished(): void {
@@ -200,9 +225,11 @@ export function discardUnfinished(): void {
   persist(exportQueue.items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state)));
 }
 
-/** The lesson open now is the item's and was edited after it was queued. */
-export function editedSince(item: ExportItem): boolean {
-  const current = useProject.getState().project;
+/** The lesson open now (`current`) is the item's and was edited after it was queued. */
+export function editedSince(
+  item: ExportItem,
+  current: { id: string; updatedAt: number } | null | undefined = useProject.getState().project,
+): boolean {
   return (
     !!current && current.id === item.project.id && current.updatedAt !== item.project.updatedAt
   );

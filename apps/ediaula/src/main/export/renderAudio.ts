@@ -131,28 +131,32 @@ async function cachedLoudness(
   return value;
 }
 
-const measure = (job: AudioJob, path: string, extra: string[] = []): Promise<Loudness | null> =>
-  job
-    .run(
-      [
-        "-hide_banner",
-        "-nostdin",
-        "-nostats",
-        "-v",
-        "info",
-        "-i",
-        path,
-        "-vn",
-        "-af",
-        `loudnorm=I=${target(job.spec)}:TP=-1.5:LRA=11:print_format=json`,
-        ...extra,
-        "-f",
-        "null",
-        "-",
-      ],
-      { key: "loudness", capture: "stderr", signal: job.signal },
-    )
-    .then(parseLoudness);
+/** A loudness measurement, in a slot like every other run of the export. */
+const measure = (job: AudioJob, path: string): Promise<Loudness | null> =>
+  job.slot(
+    () =>
+      job
+        .run(
+          [
+            "-hide_banner",
+            "-nostdin",
+            "-nostats",
+            "-v",
+            "info",
+            "-i",
+            path,
+            "-vn",
+            "-af",
+            `loudnorm=I=${target(job.spec)}:TP=-1.5:LRA=11:print_format=json`,
+            "-f",
+            "null",
+            "-",
+          ],
+          { key: "loudness", capture: "stderr", signal: job.signal },
+        )
+        .then(parseLoudness),
+    job.signal,
+  );
 
 /** Fixed gains (dB) that bring every voice to the level of the main one. */
 async function levels(job: AudioJob): Promise<Record<string, number>> {
@@ -249,8 +253,14 @@ export async function renderAudio(job: AudioJob): Promise<Sound> {
   if (!job.spec.normalizeLoudness) return { wav, master: "", samples };
   if (job.spec.loudness?.mode === "one-pass") return { wav, master: onePass(job.spec), samples };
   const file = wav;
-  const m = await cachedLoudness(job.cache, sha256(`${key}:loudness:${target(job.spec)}`), () =>
-    measure(job, file),
-  );
-  return { wav, master: m ? secondPass(job.spec, m) : onePass(job.spec), samples };
+  try {
+    const m = await cachedLoudness(job.cache, sha256(`${key}:loudness:${target(job.spec)}`), () =>
+      measure(job, file),
+    );
+    return { wav, master: m ? secondPass(job.spec, m) : onePass(job.spec), samples };
+  } catch (error) {
+    // The export never gets the sound: it may be pruned again.
+    job.cache.release([file]);
+    throw error;
+  }
 }

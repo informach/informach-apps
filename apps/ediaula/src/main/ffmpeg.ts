@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { app } from "electron";
 import { sourceMatrix, sourceRange } from "../shared/export/color.ts";
-import { ENCODER_CHAIN } from "../shared/export/encoding.ts";
+import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
 import { hasAlpha, type MediaFacts } from "../shared/export/videoPlan.ts";
 import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
 import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
@@ -392,7 +392,7 @@ export async function screenMotion(
 }
 
 let encoder: Promise<Encoder> | null = null;
-/** Encoders that failed in a real export this session: the detector passes them over. */
+/** Encoders that failed in a real export and on a test picture: the detector passes them over. */
 const failedEncoders = new Set<Encoder>();
 
 async function encodes(candidate: Encoder): Promise<boolean> {
@@ -415,9 +415,9 @@ async function encodes(candidate: Encoder): Promise<boolean> {
   }
 }
 
-/** The first encoder of the chain after `after` that works now (x264 always does). */
-async function firstWorking(after = -1): Promise<Encoder> {
-  for (const candidate of ENCODER_CHAIN.slice(after + 1))
+/** The first encoder of the chain that works now (x264 always does). */
+async function firstWorking(): Promise<Encoder> {
+  for (const candidate of ENCODER_CHAIN)
     if (candidate === "x264" || (!failedEncoders.has(candidate) && (await encodes(candidate))))
       return candidate;
   return "x264";
@@ -433,13 +433,14 @@ export function detectEncoder(): Promise<Encoder> {
 }
 
 /**
- * An encoder failed in a real export (sessions taken by the recording, a driver error): it is
- * left out for the rest of the session, and the next one of the chain that encodes is returned.
+ * An encoder failed in a real export, its segment again on its own: the next one of the chain
+ * that encodes is returned. It is left out for the rest of the session only when it does not
+ * encode a test picture either (shared/export/encoding.ts).
  */
 export async function nextExportEncoder(failed: Encoder): Promise<Encoder> {
-  failedEncoders.add(failed);
-  encoder = null;
-  return firstWorking(ENCODER_CHAIN.indexOf(failed));
+  const next = await nextAfterFailure(failed, encodes, failedEncoders);
+  if (failedEncoders.has(failed)) encoder = null;
+  return next;
 }
 
 /** VP9 with alpha for the working copy of transparent media (the browser plays it). */

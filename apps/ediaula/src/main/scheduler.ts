@@ -5,7 +5,9 @@ import { availableParallelism, constants, setPriority as osSetPriority } from "n
  * that off) and processes already running drop to low priority, so proxies, background removal,
  * transcription, the voice treatment and exports do not take CPU, GPU and encoder sessions from the
  * capture. Each kind of work also has a number of slots, so ten imports do not start ten proxies
- * at once; the segment export uses the same slots and the same waiting.
+ * at once; the segment export uses the same slots and the same waiting. Work that encodes on the
+ * graphics card also takes an `encoder` slot, shared by proxies and export segments, so together
+ * they never open more hardware sessions than the card gives.
  */
 
 export type WorkKind =
@@ -15,7 +17,8 @@ export type WorkKind =
   | "export"
   | "segment"
   | "voice"
-  | "motion";
+  | "motion"
+  | "encoder";
 
 export interface SchedulerState {
   recording: boolean;
@@ -50,6 +53,8 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   voice: 1,
   // Where a screen recording stands still, for the cleanup.
   motion: 1,
+  // Hardware encoder sessions (NVENC, AMF, Media Foundation) open at once.
+  encoder: 2,
 };
 
 export class Scheduler {
@@ -64,6 +69,7 @@ export class Scheduler {
     segment: 0,
     voice: 0,
     motion: 0,
+    encoder: 0,
   };
   private readonly wakers = new Set<() => void>();
   private readonly listeners = new Set<(state: SchedulerState) => void>();
@@ -116,21 +122,27 @@ export class Scheduler {
   }
 
   /**
-   * Runs `work` when a slot of its kind is free and no take holds it back. A slot is never
-   * taken by two waiters: it is claimed in the same moment the condition is seen true.
+   * Runs `work` when a slot of its kind (of each of its kinds) is free and no take holds it back.
+   * A slot is never taken by two waiters: all of them are claimed in the same moment the
+   * condition is seen true.
    */
-  async run<T>(kind: WorkKind, work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  async run<T>(
+    kind: WorkKind | readonly WorkKind[],
+    work: () => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const kinds: readonly WorkKind[] = typeof kind === "string" ? [kind] : kind;
     await this.waitFor(
-      () => !this.holding && this.running[kind] < this.slots[kind],
+      () => !this.holding && kinds.every((k) => this.running[k] < this.slots[k]),
       () => {
-        this.running[kind]++;
+        for (const k of kinds) this.running[k]++;
       },
       signal,
     );
     try {
       return await work();
     } finally {
-      this.running[kind]--;
+      for (const k of kinds) this.running[k]--;
       this.wake();
     }
   }

@@ -64,8 +64,10 @@ import {
   type QueueAccess,
   rememberExportFolder,
   removeOrphanOutputs,
+  removeOrphanWork,
   saveQueue,
 } from "./export/exportQueueStore.ts";
+import { fontResolver } from "./export/fonts.ts";
 import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
@@ -193,6 +195,16 @@ const bundledFonts = async (): Promise<FontFamily[]> => {
     }
   return fonts;
 };
+/** The files burned captions are drawn with, for the segments' keys: the bundle's or Windows'. */
+const captionFonts = fontResolver({
+  bundled: async () => ({ dir: FONTS_DIR, families: await bundledFonts() }),
+  system: [
+    join(process.env.WINDIR ?? "C:\\Windows", "Fonts"),
+    ...(process.env.LOCALAPPDATA
+      ? [join(process.env.LOCALAPPDATA, "Microsoft", "Windows", "Fonts")]
+      : []),
+  ],
+});
 
 const MIME: Record<string, string> = {
   ".mp4": "video/mp4",
@@ -292,6 +304,9 @@ const segmentCache = (): SegmentCache =>
   (segments ??= new SegmentCache(join(app.getPath("userData"), "cache", "segments")));
 const exportQueueFile = (): string => join(app.getPath("userData"), "export-queue.json");
 const exportFoldersFile = (): string => join(app.getPath("userData"), "export-folders.json");
+const exportWorkDir = (): string => join(app.getPath("userData"), "work");
+/** When this run of the app began: what exports leave behind from before it is a leftover. */
+const APP_STARTED = Date.now();
 const queueAccess: QueueAccess = {
   canRead: desktopFiles.canRead,
   canWrite: desktopFiles.canWrite,
@@ -301,12 +316,29 @@ const queueAccess: QueueAccess = {
 
 /**
  * When the app opens: the oldest cached segments go past the size limit, and the staging folders
- * an interrupted export left beside its destination are removed.
+ * an interrupted export left beside its destination, and its private work folder, are removed.
+ * Only what is older than this run of the app, one folder at a time: a folder that cannot be
+ * removed is logged and the rest goes on. Exports wait for it (export:start).
  */
 async function cleanExportLeftovers(): Promise<void> {
-  await segmentCache().prune();
-  await removeOrphanOutputs(exportFoldersFile());
+  const options = {
+    before: APP_STARTED,
+    onError: (path: string, error: unknown) =>
+      console.warn(`[ediaula] não foi possível limpar ${path}: ${String(error)}`),
+  };
+  const steps: [string, () => Promise<unknown>][] = [
+    ["do cache de exportação", () => segmentCache().prune()],
+    ["das pastas de saída", () => removeOrphanOutputs(exportFoldersFile(), options)],
+    ["das pastas de trabalho", () => removeOrphanWork(exportWorkDir(), options)],
+  ];
+  for (const [what, step] of steps)
+    try {
+      await step();
+    } catch (error) {
+      console.warn(`[ediaula] limpeza ${what} falhou: ${String(error)}`);
+    }
 }
+let leftoversCleaned: Promise<void> = Promise.resolve();
 /** Jobs waiting for a slot or for the take to end, so job:cancel reaches them too. */
 const waitingJobs = new Map<string, AbortController>();
 
@@ -317,7 +349,7 @@ const waitingJobs = new Map<string, AbortController>();
  */
 async function processingJob<T>(
   jobId: string,
-  kind: WorkKind,
+  kind: WorkKind | readonly WorkKind[],
   action: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
   const cancellation = new AbortController();
@@ -635,17 +667,21 @@ function registerIpc(): void {
   });
   ipcMain.handle(
     "media:proxy",
-    (_e, jobId: string, path: string, duration: number, cfrFps?: number, alpha?: unknown) =>
-      processingJob(jobId, "proxy", (signal) =>
-        proxy(
-          jobId,
-          path,
-          duration,
-          (ratio) => sendProgress({ id: jobId, ratio }),
-          cfrFps,
-          signal,
-          alpha === true,
-        ),
+    async (_e, jobId: string, path: string, duration: number, cfrFps?: number, alpha?: unknown) =>
+      // A proxy on the graphics card takes one of its encoder sessions, as export segments do.
+      processingJob(
+        jobId,
+        alpha !== true && (await detectEncoder()) !== "x264" ? ["proxy", "encoder"] : "proxy",
+        (signal) =>
+          proxy(
+            jobId,
+            path,
+            duration,
+            (ratio) => sendProgress({ id: jobId, ratio }),
+            cfrFps,
+            signal,
+            alpha === true,
+          ),
       ),
   );
   ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
@@ -806,19 +842,23 @@ function registerIpc(): void {
       job.check();
     };
     try {
+      // The startup cleanup never runs under an export.
+      await leftoversCleaned;
       await exportLesson(projectJson(project), spec, {
         rememberFolder: (folder) => rememberExportFolder(exportFoldersFile(), folder),
         assertRead: desktopFiles.assertRead,
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,
         fontsDirectory: FONTS_DIR,
+        fontFiles: captionFonts,
         filterScriptOption: await filterScriptOption(FFMPEG),
         ffmpegVersion: await ffmpegVersion(FFMPEG),
         cacheDirectory: join(app.getPath("userData"), "cache"),
-        workDirectory: join(app.getPath("userData"), "work"),
+        workDirectory: exportWorkDir(),
         cache: segmentCache(),
         probe: mediaFacts,
-        slot: (work, signal) => scheduler.run("segment", work, signal),
+        slot: (work, signal, hardware) =>
+          scheduler.run(hardware ? ["segment", "encoder"] : "segment", work, signal),
         cores: availableParallelism(),
         nextEncoder: nextExportEncoder,
         check,
@@ -1257,9 +1297,7 @@ app
     removeStaleDownloads().catch((err: unknown) =>
       console.warn("[whisper] could not clean old unfinished downloads:", err),
     );
-    void cleanExportLeftovers().catch((error: unknown) =>
-      console.warn(`[ediaula] limpeza das exportações anteriores falhou: ${String(error)}`),
-    );
+    leftoversCleaned = cleanExportLeftovers();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

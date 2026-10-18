@@ -11,6 +11,7 @@ import {
   retryExport,
   useExportQueue,
 } from "@/state/exportQueue";
+import { useProject } from "@/state/project";
 import { Button, IconButton, Modal, Progress } from "@/ui";
 import "./exportQueue.css";
 
@@ -44,6 +45,11 @@ function detail(job: Job | undefined): string | undefined {
 export function ExportQueuePanel(): ReactNode {
   const { items, open, held, resumable } = useExportQueue();
   const jobs = useApp((s) => s.jobs);
+  // The lesson open now, to tell an item whose lesson was edited after it was queued.
+  const lessonId = useProject((s) => s.project?.id);
+  const lessonAt = useProject((s) => s.project?.updatedAt);
+  const lesson =
+    lessonId !== undefined && lessonAt !== undefined ? { id: lessonId, updatedAt: lessonAt } : null;
   const pending = items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state));
   useEffect(() => {
     const onClose = (e: BeforeUnloadEvent): void => {
@@ -103,14 +109,27 @@ export function ExportQueuePanel(): ReactNode {
                     ? "1 exportação não terminou da última vez"
                     : `${resumable.length} exportações não terminaram da última vez`}
                 </strong>
-                <p className="muted">
-                  {resumable.map((i) => i.project.name).join(", ")}. Ao retomar, os trechos que já
-                  ficaram prontos são reaproveitados.
-                </p>
+                {resumable.map((i) => (
+                  <p className="muted" key={i.id}>
+                    {i.project.name}
+                    {i.blocked
+                      ? `: não dá para retomar. ${i.blocked}`
+                      : editedSince(i, lesson)
+                        ? ": a aula foi editada depois de entrar na fila. Retomar exporta a versão da fila."
+                        : ""}
+                  </p>
+                ))}
+                {resumable.some((i) => !i.blocked) && (
+                  <p className="muted">
+                    Ao retomar, os trechos que já ficaram prontos são reaproveitados.
+                  </p>
+                )}
                 <div className="row-10">
-                  <Button size="sm" variant="primary" onClick={resumeUnfinished}>
-                    Retomar
-                  </Button>
+                  {resumable.some((i) => !i.blocked) && (
+                    <Button size="sm" variant="primary" onClick={resumeUnfinished}>
+                      Retomar
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={discardUnfinished}>
                     Descartar
                   </Button>
@@ -162,7 +181,7 @@ export function ExportQueuePanel(): ReactNode {
                         <Button size="sm" onClick={() => retry(item, false)}>
                           Tentar novamente
                         </Button>
-                        {editedSince(item) && (
+                        {editedSince(item, lesson) && (
                           <Button size="sm" onClick={() => retry(item, true)}>
                             Tentar com a edição atual
                           </Button>

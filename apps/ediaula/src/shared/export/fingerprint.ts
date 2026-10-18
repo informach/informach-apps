@@ -15,7 +15,7 @@ import { clipFrames, composeSize, drawOrder, keyedPath, type VideoWindow } from 
  */
 
 /** Bumped whenever the export draws the same project differently. */
-export const PLAN_VERSION = 1;
+export const PLAN_VERSION = 2;
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -41,6 +41,8 @@ export interface Signature {
   key: Json;
   /** Files whose contents decide them too. */
   files: string[];
+  /** Font families the burned captions of the segment are drawn with (their files decide too). */
+  fonts: string[];
 }
 
 const DIALOGUE =
@@ -48,8 +50,23 @@ const DIALOGUE =
 const assSeconds = (h: string, m: string, s: string, cs: string): number =>
   Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(cs) / 100;
 
+/** The font families an ASS file draws with: its styles' and the ones its events switch to. */
+export function assFonts(ass: string): string[] {
+  const fonts = new Set<string>();
+  for (const line of ass.split(/\r?\n/)) {
+    const style = /^Style:\s*[^,]*,([^,]+),/.exec(line);
+    if (style) fonts.add(style[1].trim());
+    for (const m of line.matchAll(/\\fn([^\\}]+)/g)) fonts.add(m[1].trim());
+  }
+  return [...fonts].filter(Boolean).sort();
+}
+
 /** The ASS file's styles and the events on screen in [t0, t1), timed from t0. */
-export function assWindow(ass: string, t0: number, t1: number): Json {
+export function assWindow(
+  ass: string,
+  t0: number,
+  t1: number,
+): { header: string[]; events: Json[] } {
   const header: string[] = [];
   const events: Json[] = [];
   for (const line of ass.split(/\r?\n/)) {
@@ -153,7 +170,7 @@ export function windowSignature(
       return b >= t0 && a <= t1;
     })
     .map((fx) => normalize({ ...fx, at: fx.at - t0 }));
-  if (spec.burnAss && spec.fontsDir) files.add(spec.fontsDir);
+  const captions = spec.burnAss ? assWindow(spec.burnAss, t0, t1) : undefined;
   return {
     key: normalize({
       plan: PLAN_VERSION,
@@ -166,8 +183,10 @@ export function windowSignature(
       media,
       clips,
       cutFx,
-      captions: spec.burnAss ? assWindow(spec.burnAss, t0, t1) : undefined,
+      captions,
     }),
     files: [...files],
+    // The fonts decide only where captions show.
+    fonts: spec.burnAss && captions?.events.length ? assFonts(spec.burnAss) : [],
   };
 }

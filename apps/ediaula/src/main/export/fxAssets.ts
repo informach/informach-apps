@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdir, rename, rm, stat } from "node:fs/promises";
+import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { type FxAsset, type FxProvider, fxGraph, fxKey } from "../../shared/export/fx.ts";
+import { flush, intact } from "./durable.ts";
 
 /**
  * The fixed effect pictures of the export (shape, ring, shadow), rendered once per key as a PNG
- * in userData/cache/fx and reused by every segment and every later export.
+ * in userData/cache/fx and reused by every segment and every later export. Each one is flushed
+ * to the disk before it gets its name, and one that is not whole is made again.
  */
 
 export type RunFfmpeg = (args: string[], options?: { key?: string }) => Promise<unknown>;
@@ -48,10 +50,7 @@ export class FxAssets {
   private async render(asset: FxAsset): Promise<string> {
     await mkdir(this.dir, { recursive: true });
     const path = fileOf(this.dir, asset);
-    try {
-      await stat(path);
-    } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    if (!(await whole(path))) {
       const part = path.replace(/\.png$/, ".part.png");
       try {
         await this.run(
@@ -70,6 +69,7 @@ export class FxAssets {
           ],
           { key: "fx" },
         );
+        await flush(part);
         await rename(part, path);
       } finally {
         await rm(part, { force: true });
@@ -77,6 +77,16 @@ export class FxAssets {
     }
     this.ready.set(fxKey(asset), path);
     return path;
+  }
+}
+
+/** Whether the picture is there and whole. */
+async function whole(path: string): Promise<boolean> {
+  try {
+    return await intact(path, "png");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
+    throw error;
   }
 }
 

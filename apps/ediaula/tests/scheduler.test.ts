@@ -54,6 +54,38 @@ test("each kind of work has its slots, and a slot is never given to two waiters"
   await rk;
 });
 
+test("hardware encoder sessions are shared by proxies and export segments", async () => {
+  const scheduler = new Scheduler({ slots: { proxy: 2, segment: 3, encoder: 2 } });
+  const log: string[] = [];
+  const proxy = work(log, "proxy");
+  const s1 = work(log, "s1");
+  const s2 = work(log, "s2");
+  const cpu = work(log, "x264");
+  const rp = scheduler.run(["proxy", "encoder"], proxy.run);
+  const r1 = scheduler.run(["segment", "encoder"], s1.run);
+  const r2 = scheduler.run(["segment", "encoder"], s2.run);
+  // A segment on the CPU needs no session.
+  const rc = scheduler.run("segment", cpu.run);
+  await tick();
+  assert.deepEqual(log, ["start proxy", "start s1", "start x264"]);
+  assert.deepEqual(scheduler.state().running, {
+    proxy: 1,
+    keying: 0,
+    transcription: 0,
+    export: 0,
+    segment: 2,
+    voice: 0,
+    encoder: 2,
+  });
+  proxy.release();
+  await rp;
+  await tick();
+  assert.ok(log.includes("start s2"), log.join(", "));
+  for (const w of [s1, s2, cpu]) w.release();
+  await Promise.all([r1, r2, rc]);
+  assert.equal(scheduler.state().running.encoder, 0);
+});
+
 test("a take holds new work back until it ends, unless the teacher turned that off", async () => {
   const scheduler = new Scheduler();
   const log: string[] = [];
