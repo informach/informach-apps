@@ -1,5 +1,7 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { timelineProtected } from "@shared/cleanup";
+import { draftClips } from "@shared/projectDiff";
+import { deriveSeams, isReviewed } from "@shared/seams";
 import {
   adjacency,
   clipEnd,
@@ -62,12 +64,19 @@ import { mediaUrl } from "@/lib/media";
 import { useProposalView } from "@/lib/proposals";
 import { recorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
+import { useSeamReview } from "@/lib/review";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { assetMap, useProject } from "@/state/project";
+import {
+  assetMap,
+  structuralDraft,
+  useProject,
+  useShownProject,
+  waitForDraft,
+} from "@/state/project";
 import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
 import { ASSET_MIME } from "./Library";
@@ -105,7 +114,8 @@ interface PreviewState {
 }
 
 export function Timeline(): ReactNode {
-  const project = useProject((s) => s.project);
+  // A draft waiting for review is shown on the timeline, its clips highlighted.
+  const project = useShownProject();
   if (!project) return null;
   return <TimelineInner project={project} />;
 }
@@ -118,6 +128,11 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   const snapping = useApp((s) => s.snapping);
   const cleanupMarks = useApp((s) => s.cleanupMarks);
   const proposal = useProposalView();
+  const draft = useProject((s) => s.draft);
+  const drafted = useMemo(() => (draft ? draftClips(draft.items) : new Set<string>()), [draft]);
+  const reviewing = useSeamReview((s) => s.active);
+  const currentSeam = useSeamReview((s) => s.seam);
+  const seams = useMemo(() => (reviewing ? deriveSeams(project) : []), [reviewing, project]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const headsRef = useRef<HTMLDivElement>(null);
   const cancelRipple = useRef<(() => void) | null>(null);
@@ -253,11 +268,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const startY = e.clientY;
     let started = false;
     let result: Clip[] | null = null;
+    const blocked = structuralDraft();
 
     listen(
       (ev) => {
         const dx = ev.clientX - startX;
         if (!started && Math.hypot(dx, ev.clientY - startY) < 4) return;
+        if (blocked) {
+          if (!started) waitForDraft("mover clipes");
+          started = true;
+          return;
+        }
         started = true;
         let dt = Math.max(dx / zoom, -minStart);
         let snap: number | undefined;
@@ -293,14 +314,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setPreview(null);
-        const moved = result;
-        if (moved)
+        // The lesson's own clips move, with only their place changed: what a draft would change
+        // in them (or a clip it would create) stays in the draft.
+        const own = new Map(useProject.getState().project?.clips.map((c) => [c.id, c]));
+        const moved = (result ?? []).flatMap((c) => {
+          const real = own.get(c.id);
+          return real ? [{ ...real, start: c.start, trackId: c.trackId }] : [];
+        });
+        if (moved.length)
           useProject.getState().commit((p) => ({ ...p, clips: placeClips(p.clips, moved) }));
       },
     );
   };
 
   const beginTrim = (clip: Clip, edge: "start" | "end"): void => {
+    if (waitForDraft("aparar clipes")) return;
     const asset = assets.get(clip.assetId);
     const neighbours = project.clips.filter((c) => c.trackId === clip.trackId && c.id !== clip.id);
     // Trims stop at the neighbouring clips instead of overwriting them.
@@ -314,6 +342,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     );
     const cands = snapCandidates(new Set([clip.id]));
     let result: Clip | null = null;
+    let edgeAt: number | null = null;
     listen(
       (ev) => {
         let t = xToTime(ev.clientX);
@@ -324,16 +353,28 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           if (s.snapped) snap = s.time;
         }
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
+        edgeAt = t;
         result = trimClip(clip, edge, t, asset);
         setPreview({ clips: new Map([[clip.id, result]]), snap });
       },
       () => {
         setPreview(null);
-        const trimmed = result;
-        if (trimmed)
+        const at = edgeAt;
+        const real = useProject.getState().project?.clips.some((c) => c.id === clip.id);
+        if (result && at !== null && real)
+          // Trimmed from the lesson's own clip, so nothing a draft changed in it comes along.
           useProject.getState().commit((p) => ({
             ...p,
-            clips: p.clips.map((c) => (c.id === trimmed.id ? trimmed : c)),
+            clips: p.clips.map((c) =>
+              c.id === clip.id
+                ? trimClip(
+                    c,
+                    edge,
+                    at,
+                    p.assets.find((a) => a.id === c.assetId),
+                  )
+                : c,
+            ),
           }));
       },
     );
@@ -425,6 +466,13 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         current.clips === project.clips &&
         current.tracks === tracks;
       if (!apply || !unchanged || Math.abs(result.delta) <= EPS) setInterval(previousInterval);
+      if (apply && current && current.clips !== project.clips && useProject.getState().draft)
+        useApp
+          .getState()
+          .toast(
+            "Há um rascunho esperando revisão: aplique ou descarte antes de arrastar a timeline inteira.",
+            "info",
+          );
       if (apply && unchanged && Math.abs(requested) > 0.05 && Math.abs(result.delta) <= EPS) {
         useApp
           .getState()
@@ -683,6 +731,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                       height={trackH(track)}
                       zoom={zoom}
                       selected={selectedSet.has(c.id)}
+                      draft={drafted.has(c.id)}
                       dragging={!!preview?.clips.has(c.id)}
                       viewLeft={view.left}
                       viewWidth={view.width}
@@ -706,6 +755,14 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                   }}
                 />
               ))}
+            {seams.map((s) => (
+              <div
+                key={`seam:${s.ids[0]}`}
+                className={`seam-mark${isReviewed(project, s) ? " is-reviewed" : ""}${currentSeam && Math.abs(currentSeam.at - s.at) < 0.02 ? " is-current" : ""}`}
+                style={{ left: s.at * zoom, top: RULER_H, height: lanesHeight }}
+                title={`Corte em ${timecode(s.at, project.settings.fps)}${isReviewed(project, s) ? ", aprovado" : ""}`}
+              />
+            ))}
             {proposal?.proposal.items.map((m, i) => {
               const place = proposal.places[i];
               return place && m.status === "pending" ? (
@@ -1349,6 +1406,8 @@ interface ClipProps {
   height: number;
   zoom: number;
   selected: boolean;
+  /** Changed by the draft waiting for review. */
+  draft?: boolean;
   dragging: boolean;
   viewLeft: number;
   viewWidth: number;
@@ -1364,6 +1423,7 @@ const ClipView = memo(function ClipView({
   height,
   zoom,
   selected,
+  draft,
   dragging,
   viewLeft,
   viewWidth,
@@ -1386,7 +1446,7 @@ const ClipView = memo(function ClipView({
 
   return (
     <fieldset
-      className={`clip clip-${clip.zoomLayer ? "zoomfx" : kind} ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""} ${asset?.missing || !asset ? "is-missing" : ""} ${track.hidden ? "is-hidden" : ""} ${track.muted ? "is-muted" : ""}`}
+      className={`clip clip-${clip.zoomLayer ? "zoomfx" : kind} ${selected ? "is-selected" : ""} ${draft ? "is-draft" : ""} ${dragging ? "is-dragging" : ""} ${asset?.missing || !asset ? "is-missing" : ""} ${track.hidden ? "is-hidden" : ""} ${track.muted ? "is-muted" : ""}`}
       aria-label={`Clipe ${name}`}
       style={{ left, width, top: top + 3, height: height - 6 }}
       onPointerDown={(e) => onPointerDown(e, clip, "body")}

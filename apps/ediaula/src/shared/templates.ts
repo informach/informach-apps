@@ -87,7 +87,7 @@ export const TEMPLATES: LessonTemplate[] = [
       ...(v.kicker
         ? [
             {
-              spec: { kind: "label", color: r.accent, text: v.kicker.toUpperCase(), fontSize: 30 },
+              spec: { kind: "label", color: r.accent, text: v.kicker.toUpperCase(), fontSize: 36 },
               at: 0.35,
               enter: "grow",
               exit: "fade",
@@ -179,7 +179,7 @@ export const TEMPLATES: LessonTemplate[] = [
     layers: (v, r) => [
       backdrop(r, 0.85),
       {
-        spec: { kind: "label", color: r.highlight, text: "PERGUNTA", fontSize: 28 },
+        spec: { kind: "label", color: r.highlight, text: "PERGUNTA", fontSize: 36 },
         at: 0.2,
         enter: "grow",
         exit: "fade",
@@ -208,7 +208,7 @@ export const TEMPLATES: LessonTemplate[] = [
               color: [r.accent, r.highlight, r.primary, r.creative][i],
               text: `${"ABCD"[i]})  ${o}`,
               width: 900,
-              fontSize: 34,
+              fontSize: 36,
             },
             at: 1 + i * 0.35,
             enter: "slide-up",
@@ -236,7 +236,7 @@ export const TEMPLATES: LessonTemplate[] = [
           kind: "label",
           color: r.alert,
           text: (v.tag || "Desafio").toUpperCase(),
-          fontSize: 34,
+          fontSize: 36,
         },
         at: 0,
         enter: "pop",
@@ -292,7 +292,7 @@ export const TEMPLATES: LessonTemplate[] = [
             color: r.light,
             text: `${i + 1}.  ${item}`,
             width: 1100,
-            fontSize: 34,
+            fontSize: 36,
           },
           at: 0.8 + i * 0.5,
           enter: "slide-right",
@@ -352,7 +352,7 @@ export const TEMPLATES: LessonTemplate[] = [
       ...(v.call
         ? [
             {
-              spec: { kind: "label", color: r.accent, text: v.call, fontSize: 30 },
+              spec: { kind: "label", color: r.accent, text: v.call, fontSize: 36 },
               at: 1.3,
               enter: "grow",
               exit: "fade",

@@ -784,6 +784,77 @@ try {
     await capture(side, "roteiro-colado-painel", "Painel Roteiro (recorte)");
   });
 
+  await step("Preparar aula e rascunhos", async () => {
+    // A take came in: the editor offers "Preparar aula" above the timeline.
+    const offer = editor.getByRole("region", { name: "Preparar aula" });
+    if (await offer.isVisible())
+      await capture(offer, "preparar-oferta", 'Faixa "Preparar aula" depois da gravação importada');
+    else notes.push('A faixa "Preparar aula" não apareceu depois da gravação importada.');
+    await editor
+      .locator("header.topbar")
+      .getByRole("button", { name: "Preparar aula", exact: true })
+      .click();
+    const panel = side.locator(".prepare");
+    await panel.waitFor();
+    // The test profile has no transcription engine: step 1 waits for it, and is skipped.
+    await panel.getByText(/Instale o motor de transcrição/).waitFor({ timeout: 60_000 });
+    await capture(editor, "preparar-inicio", "Preparar aula: as dez etapas, a primeira esperando");
+    await capture(side, "preparar-painel", "Painel Preparar aula com a etapa de transcrição");
+    await panel.getByRole("button", { name: "Pular", exact: true }).click();
+    // Step 2: without a transcript the section is chosen by hand.
+    await panel.getByRole("button", { name: /^Confirmar a seção/ }).click();
+    // Step 3 is skipped (the voice went to the presenter's video before); zoom makes a draft.
+    const draft = editor.getByRole("region", { name: "Rascunho para revisar" });
+    await draft.waitFor({ timeout: 120_000 });
+    await panel
+      .getByText(/já foi limpa antes de gerar o vídeo do apresentador/)
+      .waitFor({ timeout: 10_000 });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      editor,
+      "preparar-rascunho-zoom",
+      "Rascunho do zoom automático na prévia, na timeline e na barra de revisão",
+    );
+    await capture(
+      draft,
+      "preparar-rascunho-zoom-barra",
+      "Barra de revisão com os itens do rascunho",
+    );
+    await panel.locator(".prepare-step").nth(2).scrollIntoViewIfNeeded();
+    await capture(
+      side,
+      "preparar-cortes-pulados",
+      "Etapa de cortes pulada: a voz já foi limpa antes do vídeo do apresentador",
+    );
+    await draft.getByRole("button", { name: "Aplicar", exact: true }).click();
+    // Annotations and captions need the transcript; the cards make the next draft.
+    await draft.getByText(/Cartelas de abertura e encerramento/).waitFor({ timeout: 120_000 });
+    await settle(editor);
+    await capture(
+      editor,
+      "preparar-rascunho-cartelas",
+      "Rascunho das cartelas de abertura e encerramento",
+    );
+    await draft.getByRole("button", { name: "Descartar", exact: true }).click();
+    await draft.waitFor({ state: "detached", timeout: 30_000 });
+    // Step 10: the check before exporting, with the volume measured.
+    await panel
+      .getByText(/para olhar antes de exportar|Nada a corrigir antes de exportar/)
+      .first()
+      .waitFor({ timeout: 300_000 });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      editor,
+      "preparar-verificacao",
+      "Preparar aula concluído, com a verificação antes de exportar",
+    );
+    await panel.locator(".prepare-step").last().scrollIntoViewIfNeeded();
+    await capture(side, "preparar-verificacao-painel", "Etapas decididas e a lista da verificação");
+    await savedSoon(editor);
+  });
+
   await step("Exportar e fila de exportação", async () => {
     await editor
       .locator("header.topbar")
@@ -791,8 +862,17 @@ try {
       .click();
     const dialog = editor.getByRole("dialog", { name: "Exportar aula" });
     await dialog.waitFor();
+    const check = dialog.locator(".export-check");
+    await check.getByText("Conferindo a aula…").waitFor({ state: "detached", timeout: 60_000 });
     await capture(editor, "exportar", "Diálogo Exportar aula");
     await capture(dialog.locator(".modal"), "exportar-dialogo", "Diálogo Exportar aula (recorte)");
+    await check.getByRole("button", { name: "Medir o volume" }).click();
+    await check.getByRole("button", { name: "Medir de novo" }).waitFor({ timeout: 300_000 });
+    await capture(
+      check,
+      "exportar-verificacao",
+      "Verificação antes de exportar, com o volume medido",
+    );
     await mkdir(join(harness.root, "exportacoes"), { recursive: true });
     await answerDialog(first, "save", join(harness.root, "exportacoes", "aula visual.mp4"));
     await dialog.getByRole("button", { name: /^Adicionar/ }).click();
@@ -803,6 +883,133 @@ try {
     await capture(queue.locator(".modal"), "fila-concluida", "Fila de exportação concluída");
     await queue.getByRole("button", { name: "Fechar fila e continuar editando" }).click();
     await queue.waitFor({ state: "detached" });
+  });
+
+  await step("Revisar cortes", async () => {
+    const clips = editor.locator("fieldset.clip");
+    const playheadX = async (): Promise<number> => {
+      const box = await editor.locator(".timeline-wrap .playhead").boundingBox();
+      assert.ok(box, "Sem o indicador de reprodução na timeline");
+      return box.x + box.width / 2;
+    };
+    /** A cut by hand on every track: split at both ends, delete the stretch, close the gap. */
+    const cutByHand = async (from: number, to: number): Promise<void> => {
+      await editor.keyboard.press("Escape");
+      await seek(editor, from);
+      const x0 = await playheadX();
+      await editor.keyboard.press("s");
+      await seek(editor, to);
+      const x1 = await playheadX();
+      await editor.keyboard.press("s");
+      await settle(editor);
+      const inside = await clips.evaluateAll(
+        (list, [a, b]) =>
+          list.flatMap((clip, i) => {
+            const r = clip.getBoundingClientRect();
+            return Math.abs(r.left - a) < 4 && Math.abs(r.right - b) < 4 ? [i] : [];
+          }),
+        [x0, x1],
+      );
+      assert.ok(inside.length, `Nenhum pedaço entre ${from} s e ${to} s depois de dividir`);
+      for (const [n, i] of inside.entries())
+        await clips.nth(i).click({ modifiers: n ? ["Control"] : [] });
+      await editor.keyboard.press("Delete");
+      await editor
+        .locator("header.topbar")
+        .getByRole("button", { name: "Editar", exact: true })
+        .click();
+      await editor.getByRole("menuitem", { name: "Fechar todas as lacunas" }).click();
+      await settle(editor);
+    };
+    // Two cuts where the presenter is not on screen (it plays from 5 s to 15 s, and from 3 s on
+    // after the first cut).
+    await cutByHand(1, 3);
+    await cutByHand(14, 15);
+    await editor.keyboard.press("Escape");
+    await editor
+      .locator("header.topbar")
+      .getByRole("button", { name: "Editar", exact: true })
+      .click();
+    await editor.getByRole("menuitem", { name: "Revisar cortes" }).click();
+    const bar = editor.getByRole("region", { name: "Revisar cortes" });
+    await bar
+      .getByText(/0 de 2 aprovados · corte em 0:01, tirou 2,0 s/)
+      .waitFor({ timeout: 30_000 });
+    await settle(editor);
+    await capture(
+      editor,
+      "revisar-cortes",
+      "Revisar cortes: o primeiro corte, com as emendas marcadas",
+    );
+    await capture(bar, "revisar-cortes-barra", "Barra de Revisar cortes no primeiro corte");
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "revisar-cortes-timeline",
+      "Timeline com as emendas marcadas durante a revisão",
+    );
+    // Enter approves the first; the second is brought back with Backspace.
+    await editor.keyboard.press("Enter");
+    await bar
+      .getByText(/1 de 2 aprovados · corte em 0:14, tirou 1,0 s/)
+      .waitFor({ timeout: 30_000 });
+    await capture(bar, "revisar-cortes-segundo", "O primeiro aprovado, o segundo esperando");
+    await editor.keyboard.press("Backspace");
+    await bar.getByText(/nenhum corte pendente/).waitFor({ timeout: 30_000 });
+    await settle(editor);
+    await capture(editor, "revisar-cortes-restaurado", "Trecho restaurado e revisão concluída");
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "revisar-cortes-restaurado-timeline",
+      "Timeline depois de restaurar o segundo corte",
+    );
+    await bar.getByRole("button", { name: "Sair", exact: true }).click();
+    await bar.waitFor({ state: "detached", timeout: 10_000 });
+    await savedSoon(editor);
+  });
+
+  await step("Template e anotações com a letra de 36 px", async () => {
+    // Templates and new annotations start at 36 px in 1080p (the check warns under 3,3%): how
+    // they look with it.
+    await seek(editor, 4);
+    await editor.locator("nav.rail").getByRole("button", { name: "Templates" }).click();
+    const question = left.locator(".tpl-card", { hasText: "Pergunta" });
+    await question.locator(".tpl-head").click();
+    await question
+      .getByLabel("Alternativas (uma por linha)")
+      .fill(["Repetir 3 vezes", "Se o farol estiver apagado", "Acender o farol"].join("\n"));
+    const insert = question.getByRole("button", { name: "Inserir", exact: true });
+    await insert.click();
+    await insert.waitFor({ timeout: 60_000 });
+    await settle(editor);
+    await seek(editor, 7);
+    await withoutToasts(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "template-pergunta",
+      "Template Pergunta com as alternativas, letra de 36 px",
+    );
+    await seek(editor, 12);
+    await editor.locator("nav.rail").getByRole("button", { name: "Anotações" }).click();
+    await left.getByRole("button", { name: /^Balão/ }).click();
+    await settle(editor);
+    await seek(editor, 15);
+    await left.getByRole("button", { name: /^Nota/ }).click();
+    await settle(editor);
+    await editor.keyboard.press("Escape");
+    await seek(editor, 13);
+    await withoutToasts(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "anotacao-balao-36",
+      "Balão novo, com a letra de 36 px",
+    );
+    await seek(editor, 16);
+    await capture(
+      editor.locator("section.preview"),
+      "anotacao-nota-36",
+      "Nota nova, com a letra de 36 px",
+    );
+    await savedSoon(editor);
   });
 
   await step("Configurações e IA", async () => {

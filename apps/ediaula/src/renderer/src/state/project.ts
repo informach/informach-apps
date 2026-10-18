@@ -13,9 +13,11 @@ import {
   undoSpan,
   undoSteps,
 } from "@shared/history";
+import { applyItems, type DiffItem, type DraftOp, draftWrite } from "@shared/projectDiff";
 import { fileName } from "@shared/relink";
 import { newId } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
+import { useMemo } from "react";
 import { create } from "zustand";
 import { useApp } from "./app";
 
@@ -23,6 +25,25 @@ const HISTORY_LIMIT = 150;
 const AUTOSAVE_DELAY = 1200;
 
 export type SaveState = "saved" | "pending" | "saving" | "error";
+
+/**
+ * Changes an AI tool or a step of "Preparar aula" would make, waiting for the person: shown in
+ * the preview and highlighted on the timeline, accepted or rejected item by item in the review
+ * bar, and written into the project in one undo step only when applied (shared/projectDiff.ts).
+ * It lives in memory, never in the project file.
+ */
+export interface Draft {
+  id: string;
+  projectId: string;
+  /** Who made it ("preparar:<etapa>", "modelo", "assistente", "cliente:<grant>"). */
+  author: string;
+  title: string;
+  /** The project when the draft began. */
+  base: Project;
+  items: DiffItem[];
+  /** The edits written into it that changed the structure (shared/projectDiff.ts DraftOp). */
+  ops: DraftOp[];
+}
 
 interface ProjectStore {
   project: Project | null;
@@ -43,6 +64,8 @@ interface ProjectStore {
   revision: number;
   /** The turn of the chat inside EdiAula in progress, if any. */
   aiTurn: AiTurn | null;
+  /** The draft waiting for review, if any (one at a time). */
+  draft: Draft | null;
 
   load(path: string, project: Project): void;
   close(): void;
@@ -83,6 +106,19 @@ interface ProjectStore {
   beginAiTurn(projectId: string): AiTurn | null;
   /** Ends `turn`; ending it twice or after another began does nothing. */
   endAiTurn(turn: AiTurn | null): void;
+  /**
+   * Writes a change into the draft of `author` instead of the project: `fn` gets the project as
+   * the draft shows it. A draft of another author waiting for review refuses it (false).
+   */
+  writeDraft(author: string, title: string, fn: (p: Project) => Project): boolean;
+  /** The person accepted or rejected items of the draft. */
+  setDraftItems(items: DiffItem[]): void;
+  discardDraft(): void;
+  /**
+   * Writes the accepted items into the project as one undo step. Refused, with nothing changed,
+   * when the lesson changed under some of them since the draft was made.
+   */
+  applyDraft(): { ok: boolean; applied: number; conflicts: string[] };
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -122,6 +158,7 @@ const emptyState = {
   saveState: "saved" as SaveState,
   saveError: undefined,
   aiTurn: null,
+  draft: null,
 };
 
 export const useProject = create<ProjectStore>((set, get) => {
@@ -249,6 +286,37 @@ export const useProject = create<ProjectStore>((set, get) => {
       if (next !== open) set({ aiTurn: next });
     },
 
+    writeDraft: (author, title, fn) => {
+      const { project, draft } = get();
+      if (!project) return false;
+      const own = draft && draft.projectId === project.id ? draft : null;
+      if (own && own.author !== author) return false;
+      const next = draftWrite(own, project, fn);
+      if (!next) return true;
+      set({
+        draft: own
+          ? { ...own, title, ...next }
+          : { id: newId("draft"), projectId: project.id, author, title, ...next },
+      });
+      return true;
+    },
+    setDraftItems: (items) => {
+      const { draft } = get();
+      if (draft) set({ draft: { ...draft, items } });
+    },
+    discardDraft: () => set({ draft: null }),
+    applyDraft: () => {
+      const { project, draft } = get();
+      if (!project || !draft || draft.projectId !== project.id)
+        return { ok: false, applied: 0, conflicts: [] };
+      const pending = draft.items.filter((i) => i.status === "pending");
+      const { conflicts } = applyItems(project, pending);
+      if (conflicts.length) return { ok: false, applied: 0, conflicts };
+      const ok = !pending.length || get().commit((p) => applyItems(p, pending).project);
+      if (ok) set({ draft: null });
+      return { ok, applied: ok ? pending.length : 0, conflicts: [] };
+    },
+
     select: (ids) => {
       set({ selection: ids });
       // The last selection made is the one Delete acts on: picking clips drops selected words.
@@ -339,13 +407,18 @@ export const useProject = create<ProjectStore>((set, get) => {
           ? { proposals: p.proposals.map((proposal) => ({ ...proposal, projectId: identity.id })) }
           : {}),
       });
-      const { project: now, past, future } = get();
+      const { project: now, past, future, draft } = get();
       const current = now === project;
       set({
         path: target,
         project: current ? copy : now && rename(now),
         past: past.map(rename),
         future: future.map(rename),
+        // A draft waiting for review goes on in the copy too.
+        draft:
+          draft && draft.projectId === project.id
+            ? { ...draft, projectId: identity.id, base: rename(draft.base) }
+            : draft,
         saveState: current ? "saved" : "pending",
         saveError: undefined,
       });
@@ -393,13 +466,43 @@ export async function settleEdits(): Promise<void> {
 
 /** True while some change is not on disk yet (or is being written, typed or redrawn). */
 export const hasUnsavedWork = (): boolean => {
-  const { project } = useProject.getState();
+  const { project, draft } = useProject.getState();
   return (
     drafts.size > 0 ||
     pendingEdits.size > 0 ||
+    // A draft waiting for review lives only in memory.
+    (!!project && !!draft && draft.projectId === project.id) ||
     (!!project && (project !== lastSaved || inFlight !== null))
   );
 };
+
+/**
+ * Whether a draft waiting for review changes the structure of the lesson (clips split, trimmed,
+ * moved or removed): until it is applied or discarded, what is on screen is not where the clips
+ * of the lesson are, so editing the clips by hand and reviewing cuts wait for it.
+ */
+export function structuralDraft(
+  s: Pick<ProjectStore, "project" | "draft"> = useProject.getState(),
+): boolean {
+  return (
+    !!s.project &&
+    !!s.draft &&
+    s.draft.projectId === s.project.id &&
+    s.draft.items.some((i) => i.kind === "structure" && i.status === "pending")
+  );
+}
+
+/** Tells the person why an action waits for the draft; true when it has to wait. */
+export function waitForDraft(action: string): boolean {
+  if (!structuralDraft()) return false;
+  useApp
+    .getState()
+    .toast(
+      `Há um rascunho que muda a estrutura da aula esperando revisão: aplique ou descarte antes de ${action}.`,
+      "info",
+    );
+  return true;
+}
 
 // Autosave shortly after every change. A failure stays on screen until a save succeeds.
 useProject.subscribe((s, prev) => {
@@ -433,3 +536,63 @@ export async function runAsAi<T>(
 
 export const assetMap = (p: Project | null): Map<string, Asset> =>
   new Map((p?.assets ?? []).map((a) => [a.id, a]));
+
+let shown: {
+  project: Project | null;
+  draft: Draft | null;
+  view: { project: Project | null; conflicts: string[] };
+} | null = null;
+
+/**
+ * The project as the person sees it: with the draft's accepted items on top, and the items that
+ * no longer fit (the lesson changed there since). The same objects while nothing changes.
+ */
+export function draftView(s: Pick<ProjectStore, "project" | "draft"> = useProject.getState()): {
+  project: Project | null;
+  conflicts: string[];
+} {
+  if (shown && shown.project === s.project && shown.draft === s.draft) return shown.view;
+  const view =
+    s.project && s.draft && s.draft.projectId === s.project.id
+      ? applyItems(s.project, s.draft.items)
+      : { project: s.project, conflicts: [] };
+  shown = { project: s.project, draft: s.draft, view };
+  return view;
+}
+
+/** The project to show in the preview and on the timeline (draftView). */
+export const shownProject = (): Project | null => draftView().project;
+
+export function useShownProject(): Project | null {
+  const project = useProject((s) => s.project);
+  const draft = useProject((s) => s.draft);
+  return useMemo(() => draftView({ project, draft }).project, [project, draft]);
+}
+
+/**
+ * The commit an AI tool or a step of "Preparar aula" uses when it proposes: everything it
+ * changes goes into the draft of `author`, in the project `projectId` only.
+ */
+export function draftCommit(author: string, title: string, projectId?: string): Commit {
+  return onDraftView((fn) => {
+    const { project } = useProject.getState();
+    if (!project || (projectId && project.id !== projectId)) return false;
+    return useProject.getState().writeDraft(author, title, fn);
+  });
+}
+
+/** Commits that write into a draft: what they add is worked out on the draft as shown. */
+const draftCommits = new WeakSet<Commit>();
+
+/** Marks `commit` as writing into the draft (draftCommit, or a commit wrapping one). */
+export function onDraftView(commit: Commit): Commit {
+  draftCommits.add(commit);
+  return commit;
+}
+
+/**
+ * The project a commit's changes are worked out on: the draft as shown for a commit into the
+ * draft (an annotation added after the draft's palette takes its colors), else the lesson.
+ */
+export const basisOf = (commit: Commit): Project | null =>
+  draftCommits.has(commit) ? shownProject() : useProject.getState().project;

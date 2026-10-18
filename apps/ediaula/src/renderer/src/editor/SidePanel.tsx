@@ -20,6 +20,7 @@ import {
   TransitionSection,
 } from "./ClipVisual";
 import { PaletteSection } from "./PaletteEditor";
+import { PreparePanel } from "./PreparePanel";
 import { setDenoise } from "./RailPanels";
 import { CursorSection, ZoomSection } from "./RecordingProps";
 import { ScriptPanel } from "./ScriptPanel";
@@ -67,6 +68,8 @@ export function SidePanel(): ReactNode {
           <TranscriptPanel />
         ) : tab === "script" ? (
           <ScriptPanel />
+        ) : tab === "prepare" ? (
+          <PreparePanel />
         ) : tab === "assistant" ? (
           <AssistantPanel />
         ) : (

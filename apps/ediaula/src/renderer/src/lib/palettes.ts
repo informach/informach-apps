@@ -17,7 +17,7 @@ import {
 } from "@shared/palettes";
 import type { Project } from "@shared/types";
 import { create } from "zustand";
-import { type Commit, personCommit, useProject } from "@/state/project";
+import { basisOf, type Commit, personCommit, useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
 
 interface PaletteStore {
@@ -109,7 +109,8 @@ export async function applyPalette(
   opts: { recolor?: boolean; fonts?: boolean } = {},
   commit: Commit = personCommit,
 ): Promise<number> {
-  const p = useProject.getState().project;
+  // In a draft, the annotations the draft added are recolored too.
+  const p = basisOf(commit);
   if (!p) return 0;
   const to = paletteById(id);
   const useFonts = opts.fonts ?? !!p.paletteFonts;

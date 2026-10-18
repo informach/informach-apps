@@ -1,7 +1,52 @@
 import { create } from "zustand";
+import { useApp } from "@/state/app";
 import { settleEdits, useProject } from "@/state/project";
 
 export type LeaveChoice = "retry" | "copy" | "discard" | "cancel";
+
+/** What to do with a draft waiting for review when leaving the lesson. */
+export type DraftChoice = "apply" | "discard" | "cancel";
+
+/** The question about a draft waiting for review (DraftLeaveDialog), and how it is answered. */
+export const useDraftPrompt = create<{
+  title: string | null;
+  answer: ((choice: DraftChoice) => void) | null;
+}>(() => ({ title: null, answer: null }));
+
+const askDraft = (title: string): Promise<DraftChoice> =>
+  new Promise((resolve) => {
+    useDraftPrompt.setState({
+      title,
+      answer: (choice) => {
+        useDraftPrompt.setState({ title: null, answer: null });
+        resolve(choice);
+      },
+    });
+  });
+
+/**
+ * A draft waiting for review lives only in memory: leaving the lesson asks to apply it, discard
+ * it or stay. Resolves true when it is settled (applied or discarded).
+ */
+async function settleDraft(): Promise<boolean> {
+  const { draft, project } = useProject.getState();
+  if (!draft || !project || draft.projectId !== project.id) return true;
+  const choice = await askDraft(draft.title);
+  if (choice === "cancel") return false;
+  if (choice === "discard") {
+    useProject.getState().discardDraft();
+    return true;
+  }
+  const r = useProject.getState().applyDraft();
+  if (!r.ok)
+    useApp
+      .getState()
+      .toast(
+        "O rascunho não pôde ser aplicado: a aula mudou em pontos que ele também muda. Revise na barra acima da timeline.",
+        "error",
+      );
+  return r.ok;
+}
 
 /** The save-failed question on screen (SaveFailedDialog), and how it is answered. */
 export const useLeavePrompt = create<{
@@ -57,6 +102,7 @@ let pending: Promise<boolean> | null = null;
 export function confirmLeave(): Promise<boolean> {
   pending ??= (async () => {
     try {
+      if (!(await settleDraft())) return false;
       for (;;) {
         const saved = await saveEverything();
         if (saved === true) return true;
@@ -71,6 +117,7 @@ export function confirmLeave(): Promise<boolean> {
       }
     } finally {
       useLeavePrompt.setState({ error: null, busy: false, saving: false, answer: null });
+      useDraftPrompt.setState({ title: null, answer: null });
       pending = null;
     }
   })();

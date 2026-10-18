@@ -1,4 +1,5 @@
 import {
+  ANNOTATION_TEXT,
   type Annotation,
   defaultOutline,
   KIND_LABEL,
@@ -20,7 +21,6 @@ import { Swatches } from "./Swatches";
 const DEFAULT_FONT: Partial<Record<Annotation["kind"], number>> = {
   card: 96,
   title: 72,
-  label: 28,
 };
 
 const TAILS: [Tail, string][] = [
@@ -279,7 +279,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
         {hasText && a.kind !== "step" && a.kind !== "lowerthird" && (
           <Slider
             label="Letra"
-            value={a.fontSize ?? DEFAULT_FONT[a.kind] ?? 30}
+            value={a.fontSize ?? DEFAULT_FONT[a.kind] ?? ANNOTATION_TEXT}
             min={16}
             max={140}
             step={1}

@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
+import {
+  CUT_CATEGORIES,
+  MAX_ANCHORS,
+  MAX_WORD_KEYS,
+  PROPOSAL_ITEM_LIMIT,
+  PROPOSAL_LIMIT,
+} from "./anchors.ts";
+import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
+import { REVIEWED_LIMIT } from "./seams.ts";
 import {
   ENCODERS,
   EXPORT_QUALITIES,
@@ -107,6 +115,7 @@ const annotation = z.looseObject({
   boxHeight: number.optional(),
   kicker: text.optional(),
   subtitle: text.optional(),
+  direction: text.optional(),
   layout: z.enum(["left", "center"]).optional(),
   fontFamily: text.optional(),
   outline: z
@@ -360,6 +369,7 @@ const proposal = z.looseObject({
         anchors: z.array(sourceSpan).min(1).max(MAX_ANCHORS),
         wordKeys: z.array(z.string().max(300)).max(MAX_WORD_KEYS).optional(),
         issueId: z.string().min(1).max(300).optional(),
+        category: z.enum(CUT_CATEGORIES).optional(),
         status: z.enum(["pending", "rejected"]),
       }),
     )
@@ -460,6 +470,17 @@ export const projectSchema = z
           })
           .optional(),
       })
+      .optional(),
+    prepare: z
+      .looseObject({
+        step: z.enum(PREPARE_STEPS),
+        decisions: z.partialRecord(z.enum(PREPARE_STEPS), z.enum(PREPARE_DECISIONS)),
+        notes: z.partialRecord(z.enum(PREPARE_STEPS), z.string().max(2000)).optional(),
+      })
+      .optional(),
+    reviewedSeams: z.array(z.string().min(1).max(300)).max(REVIEWED_LIMIT).optional(),
+    templateOffer: z
+      .looseObject({ course: z.string().max(200), answer: z.enum(["applied", "declined"]) })
       .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),

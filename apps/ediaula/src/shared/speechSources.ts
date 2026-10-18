@@ -31,8 +31,8 @@ const stem = (path: string): string => fileOf(path).replace(/\.[^.]+$/, "");
 /**
  * Everything still to transcribe so the whole lesson can be read as text: every candidate that
  * is heard on the timeline and has no transcript, except
- * - media whose clips are all silent (volume 0 or a muted track: a camera duplicating the
- *   microphone, an avatar video played without its sound);
+ * - media whose clips are all silent (volume 0, a muted track or under the presenter's own sound:
+ *   a camera duplicating the microphone, an avatar video played without its sound);
  * - the voice extracted from a video ("<video>-voz.wav", made when a HeyGen MP4 is imported)
  *   and that video: the same speech is transcribed once, from the extracted voice, and not at
  *   all when either one already has a transcript.
@@ -40,8 +40,11 @@ const stem = (path: string): string => fileOf(path).replace(/\.[^.]+$/, "");
  */
 export function pendingSpeech(project: Project, busy: ReadonlySet<string> = new Set()): Asset[] {
   const muted = new Set(project.tracks.filter((t) => t.muted).map((t) => t.id));
+  // A voice silenced under the presenter's own sound (Clip.mutedFor) is not heard there.
   const heard = new Set(
-    project.clips.filter((c) => c.volume > 0 && !muted.has(c.trackId)).map((c) => c.assetId),
+    project.clips
+      .filter((c) => c.volume > 0 && !c.mutedFor && !muted.has(c.trackId))
+      .map((c) => c.assetId),
   );
   const candidates = speechCandidates(project).map((c) => c.asset);
   const done = (a: Asset): boolean => a.transcriptStatus === "ready" || busy.has(a.id);

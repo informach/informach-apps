@@ -1,6 +1,7 @@
 import {
   ANNOTATION_MOTION,
   ANNOTATION_PRESETS,
+  ANNOTATION_TEXT,
   type Annotation,
   type AnnotationKind,
   type BalloonGeometry,
@@ -25,7 +26,7 @@ import { inPalette } from "@shared/palettes";
 import { clipEnd, newId, newTrackName } from "@shared/timeline";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import { usePlayback } from "@/state/playback";
-import { type Commit, personCommit, trackEdit, useProject } from "@/state/project";
+import { basisOf, type Commit, personCommit, trackEdit, useProject } from "@/state/project";
 import { ensureFont } from "./fonts";
 import { importMedia } from "./importMedia";
 import { activePalette, projectFont } from "./palettes";
@@ -223,7 +224,7 @@ export async function renderAnnotation(
     case "balloon":
     case "note":
     case "label": {
-      const fs = a.fontSize ?? (a.kind === "label" ? 28 : 30);
+      const fs = a.fontSize ?? ANNOTATION_TEXT;
       ctx.font = font(fs);
       const maxW = (a.width ?? 420) * k;
       const lines = a.kind === "label" ? [a.text ?? ""] : wrap(ctx, a.text ?? "", maxW);
@@ -545,7 +546,7 @@ export async function addAnnotation(
   opts: AddOptions = {},
   commit: Commit = personCommit,
 ): Promise<string | null> {
-  const p = useProject.getState().project;
+  const p = basisOf(commit);
   if (!p) return null;
   const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
   // Presets are written in EdiAula's colors; they come in the project's palette.
@@ -733,7 +734,7 @@ export async function addCard(
   texts: { kicker?: string; text?: string; subtitle?: string; color?: string } = {},
   commit: Commit = personCommit,
 ): Promise<string | null> {
-  const p = useProject.getState().project;
+  const p = basisOf(commit);
   if (!p) return null;
   const doc = scriptDoc(p);
   const section = doc?.sections[p.script?.section ?? 0];

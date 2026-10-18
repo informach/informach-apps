@@ -1,0 +1,246 @@
+/* Review bar: drafts, cut proposals by category and "Revisar cortes" (ReviewBar.tsx) */
+.review-draft {
+  border-top-color: #9b7bff66;
+  background: #191628;
+}
+.review-seams {
+  border-top-color: #3fd3c266;
+  background: #11201f;
+}
+.review-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.review-warning {
+  margin: 0 12px 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #ffb54718;
+  color: var(--amber);
+  font-size: 12px;
+}
+.review-label {
+  max-width: 70%;
+}
+.proposal-item.is-stale .review-label {
+  color: var(--amber);
+}
+.review-group {
+  display: flex;
+  flex-direction: column;
+}
+.review-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 2px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.proposal-item .link svg {
+  vertical-align: -1px;
+}
+
+/* Timeline: clips a draft changes, and the seams while reviewing the cuts */
+.clip.is-draft {
+  outline: 2px dashed var(--violet);
+  outline-offset: -2px;
+  box-shadow:
+    0 0 0 1px #9b7bff55,
+    0 0 14px #9b7bff44;
+}
+.seam-mark {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: #3fd3c2aa;
+  pointer-events: none;
+  z-index: 20;
+}
+.seam-mark.is-reviewed {
+  background: #3fd3c233;
+}
+.seam-mark.is-current {
+  width: 4px;
+  margin-left: -2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px #c8f03199;
+}
+
+/* "Preparar aula": the side tab and the offers above the review bar (PreparePanel.tsx) */
+.prepare {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+.prepare-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.prepare-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.prepare-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+}
+.prepare-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prepare-step {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+}
+.prepare-step.is-current {
+  background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.prepare-step.is-todo {
+  opacity: 0.6;
+}
+.prepare-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--panel-3);
+  color: var(--text-2);
+}
+.prepare-step.is-done .prepare-mark {
+  background: #c8f03133;
+  color: var(--accent);
+}
+.prepare-step.is-skipped .prepare-mark {
+  color: var(--text-3);
+}
+.prepare-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prepare-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.prepare-redo {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11px;
+}
+.prepare-body p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.prepare-note {
+  color: var(--text-1);
+}
+.prepare-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.prepare-sections .select {
+  flex: 1;
+  min-width: 0;
+}
+.prepare-offer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid #c8f03144;
+  background: #161b10;
+  font-size: 12px;
+}
+
+/* Check before exporting (PreflightList.tsx) */
+.export-check {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.export-check-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.export-check > p {
+  margin: 0;
+  font-size: 12px;
+}
+.preflight-ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+}
+.preflight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.preflight-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+}
+.preflight-icon {
+  flex: none;
+}
+.preflight-item.is-error .preflight-icon {
+  color: var(--rec);
+}
+.preflight-item.is-warn .preflight-icon {
+  color: var(--amber);
+}
+.preflight-item.is-info .preflight-icon {
+  color: var(--text-2);
+}
+.preflight-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+.preflight-item .link {
+  flex: none;
+  white-space: nowrap;
+}

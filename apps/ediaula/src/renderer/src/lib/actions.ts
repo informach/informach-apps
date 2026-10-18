@@ -13,7 +13,7 @@ import {
 import type { Asset, Project, Track } from "@shared/types";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { type Commit, personCommit, useProject } from "@/state/project";
+import { type Commit, personCommit, useProject, waitForDraft } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { confirmLeave } from "./leaveGuard";
 import { checkAssets } from "./relink";
@@ -38,13 +38,14 @@ export function defaultTrackFor(p: Project, asset: Asset): Track | undefined {
 export const actions = {
   splitAtPlayhead(): void {
     const { project, selection, commit } = useProject.getState();
-    if (!project) return;
+    if (!project || waitForDraft("dividir clipes")) return;
     const t = usePlayback.getState().time;
     const ids = new Set(selection);
     commit((p) => ({ ...p, clips: splitAt(p.clips, t, ids, lockedTracks(p)) }));
   },
 
   splitClipAt(clipId: string, t: number): void {
+    if (waitForDraft("cortar com a lâmina")) return;
     useProject
       .getState()
       .commit((p) => ({ ...p, clips: splitAt(p.clips, t, new Set([clipId]), lockedTracks(p)) }));
@@ -104,7 +105,7 @@ export const actions = {
   /** Places assets one after another starting at `start` on `track` (or each asset's default track). */
   placeAssets(assets: Asset[], track: Track | undefined, start: number): void {
     const { commit, project } = useProject.getState();
-    if (!project || !assets.length) return;
+    if (!project || !assets.length || waitForDraft("colocar mídia na timeline")) return;
     commit((p) => {
       let clips = p.clips;
       let cursor = start;
@@ -170,8 +171,18 @@ export const actions = {
       playback.pause();
       usePlayback.setState({ time: 0 });
       useProject.getState().load(path, project);
+      // Files gone since the lesson was last open are marked before the editor shows it, so the
+      // preview never asks for one of them.
+      const failed = await checkAssets().then(
+        () => null,
+        (err: unknown) => err,
+      );
       set({ screen: "editor", exportOpen: false, tool: "select" });
-      void checkAssets();
+      if (failed)
+        toast(
+          `Não foi possível conferir as mídias da aula: ${failed instanceof Error ? failed.message : String(failed)}`,
+          "error",
+        );
     } catch (err) {
       toast(`Não foi possível abrir o projeto: ${(err as Error).message}`, "error");
     }

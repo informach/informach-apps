@@ -24,6 +24,10 @@ export interface SourceSpan {
 
 export type ProposalItemStatus = "pending" | "rejected";
 
+/** What kind of cut an item is, for grouping a proposal by category in the review bar. */
+export const CUT_CATEGORIES = ["filler", "repeat", "silence", "off-script", "retake"] as const;
+export type CutCategory = (typeof CUT_CATEGORIES)[number];
+
 export interface ProposalItem {
   id: string;
   /** Timeline range when the proposal was made: the last known place, used as a hint. */
@@ -38,6 +42,7 @@ export interface ProposalItem {
   wordKeys?: string[];
   /** The cleanup suggestion it comes from (Issue.id): left out, it is kept from then on. */
   issueId?: string;
+  category?: CutCategory;
   /** The person can leave an item out before applying. */
   status: ProposalItemStatus;
 }
@@ -349,7 +354,14 @@ export function buildItems(
   project: Project,
   range: [number, number],
   prefer: Set<string> | undefined,
-  base: { reason: string; text?: string; near?: number; wordKeys?: string[]; issueId?: string },
+  base: {
+    reason: string;
+    text?: string;
+    near?: number;
+    wordKeys?: string[];
+    issueId?: string;
+    category?: CutCategory;
+  },
   newId: () => string,
 ): ProposalItem[] {
   const anchors = toSource(project, range, prefer);
@@ -368,6 +380,7 @@ export function buildItems(
         ...(base.near !== undefined ? { near: base.near } : {}),
         ...(keys ? { wordKeys: keys } : {}),
         ...(base.issueId ? { issueId: base.issueId } : {}),
+        ...(base.category ? { category: base.category } : {}),
       },
     ];
   }
@@ -383,6 +396,7 @@ export function buildItems(
       anchors: part,
       status: "pending",
       ...(base.issueId ? { issueId: base.issueId } : {}),
+      ...(base.category ? { category: base.category } : {}),
     });
   }
   return out;

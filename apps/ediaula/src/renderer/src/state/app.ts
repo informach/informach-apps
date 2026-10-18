@@ -2,7 +2,7 @@ import type { AppInfo, JobProgress } from "@shared/types";
 import { create } from "zustand";
 
 export type Tool = "select" | "cut";
-export type SideTab = "transcript" | "script" | "assistant" | "properties";
+export type SideTab = "transcript" | "script" | "prepare" | "assistant" | "properties";
 export type LibraryFilter = "all" | "video" | "audio" | "image";
 
 export interface Job {

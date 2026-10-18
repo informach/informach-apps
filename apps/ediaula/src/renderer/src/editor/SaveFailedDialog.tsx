@@ -1,7 +1,43 @@
 import { AlertTriangle, Loader } from "lucide-react";
 import type { ReactNode } from "react";
-import { type LeaveChoice, useLeavePrompt } from "@/lib/leaveGuard";
+import {
+  type DraftChoice,
+  type LeaveChoice,
+  useDraftPrompt,
+  useLeavePrompt,
+} from "@/lib/leaveGuard";
 import { Button, Modal } from "@/ui";
+
+/** Asked by confirmLeave() when a draft is waiting for review: it would be lost on leaving. */
+export function DraftLeaveDialog(): ReactNode {
+  const { title, answer } = useDraftPrompt();
+  if (title === null) return null;
+  const choose = (choice: DraftChoice): void => answer?.(choice);
+  return (
+    <Modal label="Rascunho esperando revisão" width={560} onClose={() => choose("cancel")}>
+      <div className="export-head">
+        <AlertTriangle size={20} className="warn-icon" />
+        <div className="spacer">
+          <h2 className="modal-title">Há um rascunho esperando revisão</h2>
+          <p className="muted">
+            "{title}" ainda não entrou na aula. O rascunho fica só nesta sessão: ao sair, aplique
+            agora ou descarte.
+          </p>
+        </div>
+      </div>
+      <div className="export-foot">
+        <Button variant="ghost" onClick={() => choose("discard")}>
+          Descartar
+        </Button>
+        <span className="spacer" />
+        <Button onClick={() => choose("cancel")}>Cancelar</Button>
+        <Button variant="primary" onClick={() => choose("apply")}>
+          Aplicar e sair
+        </Button>
+      </div>
+    </Modal>
+  );
+}
 
 /** Asked by confirmLeave() when the project could not be saved before leaving it. */
 export function SaveFailedDialog(): ReactNode {

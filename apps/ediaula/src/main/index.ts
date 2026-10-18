@@ -50,6 +50,7 @@ import {
   writeStored,
 } from "./aiSettings.ts";
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
+import { getCourseTemplate, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
   codexSelfTest,
@@ -83,11 +84,13 @@ import {
   stillFrame,
   thumbnail,
   waveform,
+  writeFilterScript,
 } from "./ffmpeg.ts";
 import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
+import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
@@ -654,16 +657,19 @@ function registerIpc(): void {
           .max(7 * 86400),
       ])
       .parse(raw);
-    return processingJob(jobId, "motion", (signal) =>
-      screenMotion(
+    return processingJob(jobId, "motion", async (signal) => {
+      const motion = await screenMotion(
         jobId,
         path,
         input,
         duration,
         (ratio) => sendProgress({ id: jobId, ratio }),
         signal,
-      ),
-    );
+      );
+      // The cleanup and the check before exporting read it through media://.
+      await desktopFiles.grantRead(motion);
+      return motion;
+    });
   });
   ipcMain.handle(
     "media:proxy",
@@ -754,6 +760,51 @@ function registerIpc(): void {
         .max(1000)
         .parse(terms),
     ),
+  );
+  ipcMain.handle("course-template:get", (_e, course: unknown) =>
+    getCourseTemplate(z.string().max(1024).parse(course)),
+  );
+  ipcMain.handle("course-template:save", (_e, course: unknown, template: unknown) =>
+    saveCourseTemplate(z.string().max(1024).parse(course), template),
+  );
+  ipcMain.handle(
+    "media:loudness",
+    async (_e, rawJob: unknown, text: unknown, rawSpeech: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const project = projectJson(text);
+      const speech = z
+        .array(
+          z.tuple([
+            z
+              .number()
+              .min(0)
+              .max(7 * 86400),
+            z
+              .number()
+              .min(0)
+              .max(7 * 86400),
+          ]),
+        )
+        .max(20000)
+        .optional()
+        .parse(rawSpeech ?? undefined);
+      const option = await filterScriptOption(FFMPEG);
+      return processingJob(jobId, "segment", (signal) =>
+        measureLoudness(project, speech, {
+          assertRead: desktopFiles.assertRead,
+          writeFilterScript: (filter) => writeFilterScript(filter),
+          filterScriptOption: option,
+          run: (args, duration, onStderr) =>
+            run(FFMPEG, args, {
+              jobId,
+              signal,
+              duration,
+              onStderr,
+              onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+            }),
+        }),
+      );
+    },
   );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
 

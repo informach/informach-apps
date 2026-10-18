@@ -75,6 +75,13 @@ export function restoreSnapshot(snapshot: Project, current: Project, now: number
   // The files went to HeyGen: undoing an edit does not unsend them.
   if (current.voiceMasters) out.voiceMasters = current.voiceMasters;
   else delete out.voiceMasters;
+  // Where "Preparar aula" stands and the seams approved are the review, not edits.
+  if (current.prepare) out.prepare = current.prepare;
+  else delete out.prepare;
+  if (current.reviewedSeams) out.reviewedSeams = current.reviewedSeams;
+  else delete out.reviewedSeams;
+  if (current.templateOffer) out.templateOffer = current.templateOffer;
+  else delete out.templateOffer;
   return out;
 }
 

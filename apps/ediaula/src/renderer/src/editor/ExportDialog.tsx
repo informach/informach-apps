@@ -4,6 +4,7 @@ import type { ExportQuality, ExportSpec } from "@shared/types";
 import {
   AudioLines,
   Captions,
+  Gauge,
   GraduationCap,
   HardDrive,
   Image,
@@ -17,13 +18,21 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { bytes, duration } from "@/lib/format";
+import {
+  checkLesson,
+  type LessonCheck,
+  type MeasuredLoudness,
+  measureLoudness,
+} from "@/lib/preflight";
 import { needsRelink, reconnectMissing } from "@/lib/relink";
+import { cleanError } from "@/lib/transcripts";
 import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Field, IconButton, Modal, Toggle } from "@/ui";
 import { setCaptions as setCaptionStyle } from "./CaptionSettings";
+import { PreflightList } from "./PreflightList";
 
 interface Preset {
   id: string;
@@ -92,6 +101,7 @@ type Phase = { kind: "setup" } | { kind: "error"; message: string };
 
 export function ExportDialog(): ReactNode {
   const project = useProject((s) => s.project)!;
+  const draftWaiting = useProject((s) => !!s.draft && s.draft.projectId === s.project?.id);
   const info = useApp((s) => s.info);
   const close = (): void => {
     useApp.getState().set({ exportOpen: false });
@@ -128,6 +138,41 @@ export function ExportDialog(): ReactNode {
   const toFind = missing.filter(needsRelink).length;
 
   useEffect(() => playback.pause(), []);
+
+  // The check before exporting, made again whenever the lesson or a choice here changes. A
+  // volume measured on another revision of the lesson no longer counts.
+  const revision = useProject((s) => s.revision);
+  const [check, setCheck] = useState<LessonCheck | null>(null);
+  const [loudness, setLoudness] = useState<MeasuredLoudness | null>(null);
+  const measured = loudness && loudness.revision === revision ? loudness : null;
+  const [measuring, setMeasuring] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    checkLesson(project, revision, { normalize, srt: captions, loudness: measured }).then(
+      (list) => {
+        if (!alive) return;
+        setCheck(list);
+        setCheckError(null);
+      },
+      (err: unknown) => {
+        if (alive) setCheckError(cleanError(err));
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [project, revision, normalize, captions, measured]);
+  const measure = async (): Promise<void> => {
+    setMeasuring(true);
+    try {
+      setLoudness(await measureLoudness());
+    } catch (err) {
+      setCheckError(`O volume não pôde ser medido: ${cleanError(err)}`);
+    } finally {
+      setMeasuring(false);
+    }
+  };
 
   const choose = (p: Preset): void => {
     if (p.soon) return;
@@ -347,6 +392,33 @@ export function ExportDialog(): ReactNode {
                 <Toggle on={thumbnail} onChange={setThumbnail} label="Gerar miniatura" />
               </div>
             )}
+            <div className="export-check">
+              <div className="export-check-head">
+                <Gauge size={15} className="accent" />
+                <strong className="spacer">Verificação antes de exportar</strong>
+                <Button
+                  size="sm"
+                  disabled={measuring}
+                  onClick={() => void measure()}
+                  title="Mede o volume e o pico do som da aula como a exportação vai mixar"
+                >
+                  {measuring ? "Medindo o volume…" : measured ? "Medir de novo" : "Medir o volume"}
+                </Button>
+              </div>
+              {draftWaiting && (
+                <p className="muted">
+                  Há um rascunho esperando revisão na barra acima da timeline: ele só entra na
+                  exportação depois de aplicado.
+                </p>
+              )}
+              {checkError ? (
+                <p className="muted">{checkError}</p>
+              ) : check ? (
+                <PreflightList check={check} normalize={() => setNormalize(true)} />
+              ) : (
+                <p className="muted">Conferindo a aula…</p>
+              )}
+            </div>
             {missing.length > 0 && (
               <div className="export-warning">
                 <p>

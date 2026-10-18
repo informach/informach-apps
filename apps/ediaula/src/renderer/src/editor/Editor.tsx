@@ -18,8 +18,8 @@ import { ExportDialog } from "./ExportDialog";
 import { ExtendFrameDialog } from "./ExtendFrameDialog";
 import { Library } from "./Library";
 import { PastePropsDialog } from "./PastePropsDialog";
+import { PrepareOffer } from "./PreparePanel";
 import { Preview } from "./Preview";
-import { ProposalBar } from "./ProposalBar";
 import {
   AudioPanel,
   CaptionsPanel,
@@ -27,6 +27,7 @@ import {
   TemplatesPanel,
   TransitionsPanel,
 } from "./RailPanels";
+import { ReviewBar } from "./ReviewBar";
 import { SidePanel } from "./SidePanel";
 import { SpeedDialog } from "./SpeedDialog";
 import { StatusBar } from "./StatusBar";
@@ -311,7 +312,8 @@ export function Editor(): ReactNode {
         onPointerDown={startResize}
         title="Arraste para redimensionar a timeline"
       />
-      <ProposalBar />
+      <PrepareOffer />
+      <ReviewBar />
       <HeygenDialogs />
       <div className="timeline-wrap" style={{ height: timelineHeight }}>
         <Timeline />
