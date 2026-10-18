@@ -238,7 +238,7 @@ dialog.backdrop {
   overscroll-behavior: contain;
 }
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .spin {
     animation: none;
   }
   .toggle,
