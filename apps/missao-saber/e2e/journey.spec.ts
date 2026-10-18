@@ -42,7 +42,7 @@ async function criarPerfil(page: Page, apelido: string) {
 /** Cadastra um responsável, confirma o e-mail e cria o primeiro perfil (6º ano, OLITEF). */
 async function criarContaComPerfil(page: Page, apelido: string) {
   const client = createHash("sha256").update(test.info().testId).digest();
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": `198.22.${client[0]}.${client[1]}` });
+  await page.setExtraHTTPHeaders({ "x-real-ip": `198.22.${client[0]}.${client[1]}` });
   const email = `missao-${randomUUID()}@example.test`;
   await page.goto("/entrar");
   await page.getByRole("button", { name: "Criar conta", exact: true }).click();

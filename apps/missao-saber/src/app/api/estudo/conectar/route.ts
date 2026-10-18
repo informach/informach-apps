@@ -1,3 +1,4 @@
+import { clientIpFromHeaders } from "@informach/auth/client-ip";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { studyConnectionResponse, studyRequestBody } from "@/features/study-access/http";
@@ -9,10 +10,9 @@ export async function POST(request: Request) {
     const body = z
       .object({ code: z.string().max(30), next: z.string().max(2000).optional() })
       .parse(await studyRequestBody(request));
-    // The deployment proxy supplies the address. Unidentified requests share a
+    // Same address rule as the sign-in limit. Unidentified requests share a
     // bounded bucket; raw addresses are never stored in the database.
-    const address =
-      request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unidentified";
+    const address = clientIpFromHeaders(request.headers) ?? "unidentified";
     await consumeCodeAttempt(address);
     const access = await redeemStudyCode(body.code);
     return studyConnectionResponse(request, access, body.next);

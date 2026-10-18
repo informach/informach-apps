@@ -33,9 +33,7 @@ vi.mock("@informach/db/schema", () => ({
 }));
 
 vi.mock("next/headers", () => ({
-  headers: vi.fn(
-    async () => new Headers({ cookie: "session=abc", "x-forwarded-for": "203.0.113.10" }),
-  ),
+  headers: vi.fn(async () => new Headers({ cookie: "session=abc", "x-real-ip": "203.0.113.10" })),
 }));
 
 vi.mock("next/navigation", () => ({

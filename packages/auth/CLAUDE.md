@@ -153,6 +153,8 @@ Os dois rodam numa transação que começa com `pg_advisory_xact_lock` (chave `i
 
 Defaults globais Better Auth: `window: 60, max: 100`. Storage automático: `database` (tabela `core.rate_limit`) ou `secondary-storage` quando Redis fornecido. Override via `rateLimitRules: { ... }` na config.
 
+**O contador é por endereço, e o endereço sai de `client-ip.ts`.** `createAuth` passa `advanced.ipAddress: CLIENT_IP_ADDRESS`: lê `X-Real-IP` e, quando ele vem `0.0.0.0`, `CF-Connecting-IP`; o `X-Forwarded-For` não é lido. É o formato que a borda do Railway entrega atrás do Cloudflare (o motivo de cada parte está no comentário do arquivo e no [runbook](../../docs/deploy-runbook.md#62-dns-no-cloudflare)). O `.rateLimit` das server actions e as rotas dos apps que contam por endereço usam `clientIpFromHeaders` (`@informach/auth/client-ip`), a mesma regra: cada lugar com a sua leitura dava contadores diferentes para a mesma pessoa. Até 18/10/2026, o padrão do Better Auth (`X-Forwarded-For`) não resolvia o endereço e todo mundo dividia um contador só por rota. **Não acrescentar as faixas do Cloudflare como proxy confiável**: WARP e a Retransmissão Privada do iCloud saem por elas.
+
 ### 3.5 Audit log (tipado)
 
 `AuditEventType` (de `audit.ts`):
@@ -486,6 +488,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 |---|---|---|
 | `@informach/auth` | `createAuth`, tipos `Role`/`Permission`/`AuditEventType`, errors, `PERMISSIONS`, `roleHasPermission` | server/RSC/route-handlers |
 | `@informach/auth/client` | `createInformachAuthClient` (React) | client components |
+| `@informach/auth/client-ip` | `clientIpFromHeaders`, `CLIENT_IP_ADDRESS` (o endereço de quem pede, pela regra do limite de tentativas) | route handlers que contam por endereço |
 | `@informach/auth/server` | `createServerHelpers` (RSC) | RSC + server actions |
 | `@informach/auth/proxy` | `createAuthProxy` | `apps/<app>/src/proxy.ts` |
 | `@informach/auth/server-actions` | `createActionFactory`, `Result`, `ok`/`err`, `RateLimitStorage`, `postgresRateLimitStorage` | server actions |
@@ -514,6 +517,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | `proxy.test.ts` | Path matching, redirects sign-in/forbidden, role enforcement |
 | `server.test.ts` | RSC helpers + redirect flow |
 | `server-actions.test.ts` | Action builder: schema parse, auth, rate limit, audit, errors |
+| `client-ip.test.ts` | O endereço nos formatos que a borda do Railway entrega: IPv4, IPv6 com `0.0.0.0`, `CF-Connecting-IP` forjado por quem pula o Cloudflare, `X-Forwarded-For` ignorado |
 | `maintenance.test.ts` | Cleanup queries (mocks de drizzle) |
 
 Snapshots dos templates de email vivem em `@informach/emails/src/__tests__/templates.test.tsx` (foram movidos junto com a migração para React Email).

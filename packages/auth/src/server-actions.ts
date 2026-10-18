@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import type { AuditEventType } from "./audit";
 import { logAuditEvent } from "./audit";
+import { clientIpFromHeaders } from "./client-ip";
 import {
   ForbiddenError,
   type Helpers,
@@ -279,16 +280,7 @@ function actorIdOf(actor: unknown): string | null {
 }
 
 function clientIpOf(headers: Headers | null): string {
-  const forwardedFor = headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (forwardedFor) return forwardedFor;
-
-  const realIp = headers?.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const cloudflareIp = headers?.get("cf-connecting-ip")?.trim();
-  if (cloudflareIp) return cloudflareIp;
-
-  return "unknown";
+  return (headers && clientIpFromHeaders(headers)) ?? "unknown";
 }
 
 function resolveRateLimitKey(

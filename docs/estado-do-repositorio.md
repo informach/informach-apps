@@ -86,7 +86,11 @@ Branch `fix/infra-review`, a partir de `189d998`, sem push nem PR, e nada aplica
 
 Bastidores: o `next` da entrada não exporta a auditoria nem abre ficha sem clique; falha na limpeza das duas etapas encerra todas as sessões da conta (ou desfaz a ativação); banir e encerrar sessões dizem o que faltou e contam só sessões valendo; conciliação do Edi sem registro aparece como "nunca rodou"; aviso de queda preso em `unknown` é reenviado com chave nova; receita mensal e "em atraso" usam a mesma conta em todas as telas; o resumo diz "assinantes"; o preço de tabela na ficha só aparece para owner. Detalhes no [guia do Bastidores](../apps/admin/CLAUDE.md).
 
-Pendências registradas: `advanced.ipAddress.trustedProxies` no Better Auth, para o limite de tentativas identificar o IP atrás do proxy do Cloudflare (ver [runbook](deploy-runbook.md#62-dns-no-cloudflare)); o par VAPID da Agenda, se a titular quiser push em produção (a página de planos da Agenda lista "push compatível"); e os riscos novos do Bastidores no guia (e-mail na URL de busca, troca de plano em 24 horas, owner banido nos avisos).
+Pendências registradas: os riscos novos do Bastidores no guia (e-mail na URL de busca, troca de plano em 24 horas, owner banido nos avisos). O IP atrás do Cloudflare e o push da Agenda foram resolvidos em 18/10/2026 (seção abaixo).
+
+## Push da Agenda e o IP de cada pessoa (18/10/2026)
+
+Branch `fix/push-e-ip`, a pedido da titular. **Push da Agenda:** a página de planos prometia "push compatível" e o serviço não tinha o par VAPID, então a inscrição respondia `PUSH_UNAVAILABLE`. O par foi gerado e gravado no serviço, e as duas variáveis entraram como `preserve()` em `.railway/railway.ts` ([guia da Agenda](../apps/agenda-da-turma/CLAUDE.md), §9). **Limite de tentativas:** atrás do Cloudflare, o Better Auth lia o `X-Forwarded-For`, não achava o endereço e todo mundo dividia um contador só, em todos os apps. A regra nova (`packages/auth/src/client-ip.ts`) lê o `X-Real-IP` que a borda do Railway escreve e, para quem chega por IPv6 (que vem `0.0.0.0`), o `CF-Connecting-IP`; o `.rateLimit` das server actions, a rota de conectar aparelho da Missão Saber e a de eventos da Agenda passaram a usar a mesma regra ([runbook](deploy-runbook.md#62-dns-no-cloudflare)).
 
 ## Cozya, "Hoje tem"
 
