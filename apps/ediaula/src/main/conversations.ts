@@ -3,7 +3,15 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { app } from "electron";
 import { z } from "zod";
-import { CHAT_LIMIT, chatRecap, chatSchema, type SavedChat } from "../shared/assistantChat.ts";
+import {
+  CHAT_LIMIT,
+  chatRecap,
+  chatSchema,
+  fitChat,
+  maskChat,
+  type SavedChat,
+} from "../shared/assistantChat.ts";
+import { oneAtATime } from "./fileQueue.ts";
 import { renameWhenFree } from "./installCheck.ts";
 
 /**
@@ -51,11 +59,14 @@ export async function loadChat(id: string): Promise<SavedChat | null> {
   return parsed.success ? parsed.data : null;
 }
 
+/**
+ * Saves the panel's conversation: texts that look like secrets masked (an API key or a token
+ * pasted in the chat), and the oldest items dropped until it fits CHAT_LIMIT.
+ */
 export async function saveChat(id: string, raw: unknown): Promise<void> {
-  const chat = chatSchema.parse(raw);
-  const text = JSON.stringify(chat);
-  if (text.length > CHAT_LIMIT) throw new Error("Conversa grande demais para guardar.");
-  await writeAtomic(join(folder(id), "chat.json"), text);
+  const text = JSON.stringify(fitChat(maskChat(chatSchema.parse(raw)), CHAT_LIMIT));
+  const file = join(folder(id), "chat.json");
+  await oneAtATime(file, () => writeAtomic(file, text));
 }
 
 const engineSchema = z.object({
@@ -71,13 +82,23 @@ export async function loadEngineState(id: string): Promise<EngineState> {
 
 /** Saves what changed of the engine state (the other fields stay as they were). */
 export async function saveEngineState(id: string, change: EngineState): Promise<void> {
-  const now = await loadEngineState(id);
-  await writeAtomic(join(folder(id), "motor.json"), JSON.stringify({ ...now, ...change }));
+  const file = join(folder(id), "motor.json");
+  await oneAtATime(file, async () => {
+    const now = await loadEngineState(id);
+    await writeAtomic(file, JSON.stringify({ ...now, ...change }));
+  });
 }
 
-/** "Nova conversa": everything of it goes. */
+/**
+ * "Nova conversa": everything of it goes. EdiAula has no flow that deletes a lesson (only the
+ * recent list forgets one), so a lesson deleted outside the app leaves its folder here until
+ * "Nova conversa" is used on it.
+ */
 export async function forgetConversation(id: string): Promise<void> {
-  await rm(folder(id), { recursive: true, force: true });
+  const dir = folder(id);
+  await oneAtATime(join(dir, "chat.json"), () =>
+    oneAtATime(join(dir, "motor.json"), () => rm(dir, { recursive: true, force: true })),
+  );
 }
 
 /**

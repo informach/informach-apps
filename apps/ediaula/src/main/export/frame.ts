@@ -9,6 +9,11 @@ import type { FilterScriptOption } from "../ffmpeg-arguments.ts";
 import { collectingProvider, FxAssets } from "./fxAssets.ts";
 
 /**
+ * Channel `export:frame` (main/index.ts), for get_frame with `composited`:
+ * `(jobId, projectJson: string, spec: ExportSpec, time: number, geometry: FrameGeometry)` and
+ * it resolves with the PNG bytes (Uint8Array). It is not `export:framePng`, the PNG of a frame
+ * the editor itself asks for (another lot): the two take different arguments.
+ *
  * One frame of the lesson composed exactly as the export composes it (get_frame with
  * `composited`): the export plan of a window of one frame, with the effect pictures, the cursor
  * sprites and the burned captions the spec carries, cut to the region and scaled to the size the

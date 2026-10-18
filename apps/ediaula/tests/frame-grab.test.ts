@@ -160,7 +160,7 @@ test("frameFacts: where the screen sits, its zoom and the boxes drawn over it, t
   assert.ok((early.screen?.zoom?.scale ?? 1) > 1);
 });
 
-test("get_frame is a read; export_video always needs to change the lesson", () => {
+test("get_frame is a read and refuses images over 1568 px or regions outside the frame", () => {
   assert.equal(callPermission("get_frame", { time: 3 }), "read");
   assert.ok(
     AI_TOOLS.get_frame.input.safeParse({ time: 3, max_width: 1568, composited: true }).success,

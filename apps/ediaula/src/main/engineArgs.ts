@@ -489,3 +489,29 @@ export function codexOneShotArgs(options: {
     "-",
   ];
 }
+
+/**
+ * Holds what a resumed run says until the engine really answers (text, a tool, usage). A session
+ * kept from an earlier run of the app may be gone on the engine's side: then the run ends without
+ * answering, what it said (the error, its end) is dropped, and the caller starts over without
+ * the session (`went` false). Once it answers, everything held goes out in order.
+ */
+export function resumeGate<E extends { type: string }>(
+  emit: (e: E) => void,
+): { emit: (e: E) => void; went: () => boolean } {
+  let going = false;
+  const held: E[] = [];
+  return {
+    emit: (e) => {
+      if (going) return emit(e);
+      if (e.type === "text" || e.type === "tool" || e.type === "usage") {
+        going = true;
+        for (const h of held.splice(0)) emit(h);
+        emit(e);
+        return;
+      }
+      if (e.type !== "done") held.push(e);
+    },
+    went: () => going,
+  };
+}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { HistoryEntry } from "./history.ts";
 import { diffProjects } from "./projectDiff.ts";
 import type { Project } from "./types.ts";
 
@@ -85,6 +86,39 @@ export function turnChanges(before: Project, after: Project): TurnChange[] {
 }
 
 /**
+ * What a turn of the assistant changed and nothing else: only its own steps of the undo history
+ * (entries of `turn`), each run of them from the lesson before its first step to the lesson after
+ * its last one. Edits the person made in the middle of the turn are left out.
+ */
+export function turnChangesFrom(
+  history: { past: readonly Project[]; pastMeta: readonly HistoryEntry[] },
+  current: Project,
+  turn: string,
+): TurnChange[] {
+  const runs: [number, number][] = [];
+  history.pastMeta.forEach((e, i) => {
+    if (e.origin !== "ai" || e.turn !== turn) return;
+    const last = runs[runs.length - 1];
+    if (last && last[1] === i - 1) last[1] = i;
+    else runs.push([i, i]);
+  });
+  const out: TurnChange[] = [];
+  for (const [a, b] of runs) {
+    const after = history.past[b + 1] ?? current;
+    out.push(...turnChanges(history.past[a], after).filter((c) => c.kind !== "more"));
+  }
+  if (out.length <= TURN_CHANGES) return out;
+  return [
+    ...out.slice(0, TURN_CHANGES),
+    {
+      id: "more",
+      kind: "more",
+      label: `e mais ${out.length - TURN_CHANGES} ${out.length - TURN_CHANGES === 1 ? "mudança" : "mudanças"}`,
+    },
+  ];
+}
+
+/**
  * The conversation so far in a few lines, newest last, for the first message after the app
  * opened again (the engine does not remember it): what was asked and what was answered.
  */
@@ -107,4 +141,36 @@ export function chatRecap(items: readonly SavedChatItem[], max = 6000): string {
     out = next;
   }
   return out.trim();
+}
+
+/** Texts that look like a secret: Anthropic and OpenAI keys, bearer tokens, long opaque runs. */
+const SECRET =
+  /\b(?:sk-[A-Za-z0-9_-]{12,}|(?:Bearer|Authorization:?)\s+[A-Za-z0-9._~+/=-]{16,}|[A-Za-z0-9_-]{40,})\b/g;
+
+/** `text` with what looks like a key or a token replaced by a mark (nothing secret is kept). */
+export const maskSecrets = (text: string): string => text.replace(SECRET, "[segredo omitido]");
+
+/** The conversation with every text masked (maskSecrets). */
+export function maskChat(chat: SavedChat): SavedChat {
+  return {
+    ...chat,
+    items: chat.items.map((it) => ({
+      ...it,
+      text: maskSecrets(it.text),
+      tools: it.tools.map((t) => (t.summary ? { ...t, summary: maskSecrets(t.summary) } : t)),
+    })),
+  };
+}
+
+/** The newest items of the conversation that fit in `limit` characters of JSON. */
+export function fitChat(chat: SavedChat, limit = CHAT_LIMIT): SavedChat {
+  let items = chat.items;
+  let size = JSON.stringify({ ...chat, items }).length;
+  while (items.length && size > limit) {
+    // Drop about the share that is over, oldest first, at least one item.
+    const drop = Math.max(1, Math.ceil((items.length * (size - limit)) / size));
+    items = items.slice(drop);
+    size = JSON.stringify({ ...chat, items }).length;
+  }
+  return { ...chat, items };
 }

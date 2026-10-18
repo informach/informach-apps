@@ -1,16 +1,18 @@
 import {
   intervalLines,
+  NARRATION_EDGE,
   type NarrationLine,
   placeNarration,
   type TakeMark,
 } from "@shared/guidedNarration";
-import { findLine, INSERT_PAD } from "@shared/inserts";
+import { findLine } from "@shared/inserts";
 import { newId } from "@shared/timeline";
 import type { Asset, Clip, Project, Track, Transcript } from "@shared/types";
+import { useApp } from "@/state/app";
 import { draftCommit, useProject } from "@/state/project";
 import { clickTargets } from "./courseTemplate";
 import { currentView } from "./script";
-import { loadAssetTranscript, transcribeAssets, useCleanup } from "./transcripts";
+import { loadTranscript, useCleanup } from "./transcripts";
 
 /**
  * "Narrar intervalo" guided by the script (NarrationPanel): the lines of the stretch for the
@@ -76,24 +78,33 @@ export async function placeGuidedNarration(opts: {
   const { asset, projectId } = opts;
   if (useProject.getState().project?.id !== projectId)
     throw new Error("O projeto da narração foi fechado.");
-  useProject.getState().patch((p) => ({ ...p, assets: [...p.assets, asset] }));
-  // The sound envelope for the timeline and the cleanup, as for any narration.
-  void window.api.waveform(asset.path).then(
-    (waveform) => {
-      if (useProject.getState().project?.id === projectId)
-        useProject.getState().patchAsset(asset.id, { waveform });
-    },
-    (err: unknown) =>
-      console.warn("[ediaula] narration_waveform", err instanceof Error ? err.message : err),
-  );
+  // The take joins the lesson only with the draft: nothing of it is left in the library when the
+  // draft is discarded. Its envelope and its transcript are made before.
+  const { startJob, endJob } = useApp.getState();
+  let ready: Asset = asset;
+  try {
+    ready = { ...ready, waveform: await window.api.waveform(asset.path) };
+  } catch (err) {
+    console.warn("[ediaula] narration_waveform", err instanceof Error ? err.message : err);
+  }
   let transcript: Transcript | undefined;
   const status = await window.api.engineStatus();
   if (status.bin && status.model) {
-    await transcribeAssets([asset], useCleanup.getState().language);
-    const lesson = useProject.getState().project;
-    const now = lesson?.assets.find((a) => a.id === asset.id);
-    if (lesson && now?.transcriptStatus === "ready")
-      transcript = await loadAssetTranscript(lesson, now);
+    const jobId = newId("job");
+    startJob(jobId, "Transcrevendo a narração");
+    try {
+      const path = await window.api.transcribe(
+        jobId,
+        asset.path,
+        asset.duration,
+        useCleanup.getState().language,
+        [],
+      );
+      transcript = await loadTranscript(path);
+      ready = { ...ready, transcript: path, transcriptStatus: "ready" };
+    } finally {
+      endJob(jobId);
+    }
   }
   const placed = placeNarration({
     start: opts.start,
@@ -119,8 +130,8 @@ export async function placeGuidedNarration(opts: {
     locked: false,
   };
   const clips: Clip[] = placed.map((l) => {
-    const from = Math.max(0, l.src.start - INSERT_PAD / 2);
-    const to = Math.min(asset.duration, l.src.end + INSERT_PAD / 2);
+    const from = Math.max(0, l.src.start - NARRATION_EDGE);
+    const to = Math.min(asset.duration, l.src.end + NARRATION_EDGE);
     return {
       id: newId("c"),
       assetId: asset.id,
@@ -138,6 +149,7 @@ export async function placeGuidedNarration(opts: {
   )((q) => ({
     ...q,
     tracks: [...q.tracks, track],
+    assets: [...q.assets, ready],
     clips: [...q.clips, ...clips],
   }));
   if (!ok) throw new Error("Há outro rascunho esperando revisão: aplique ou descarte antes.");

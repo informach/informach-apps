@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { basename, dirname, extname } from "node:path";
 import { withStagedFiles } from "@informach/edi-desktop/files";
 import { PACKAGE_SUFFIX } from "../shared/platformPackage.ts";
@@ -21,6 +22,13 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
   // The staging folder goes beside the destination: the app looks there for leftovers of a crash.
   await deps.rememberFolder?.(dirname(primary));
   const base = primary.slice(0, -extname(primary).length);
+  // "aula.en.mp4" beside "aula.mp4" would write its captions over the English translation of
+  // that video (aula.en.srt): the name is refused.
+  const lang = /\.([a-z]{2,3}(?:-[a-z]{2,4})?)$/i.exec(base);
+  if (lang && !spec.audioOnly && existsSync(`${base.slice(0, -lang[0].length)}.mp4`))
+    throw new Error(
+      `O nome ${basename(primary)} se confunde com as legendas traduzidas (${lang[1]}) de ${basename(base.slice(0, -lang[0].length))}.mp4 nesta pasta. Escolha outro nome.`,
+    );
   // Caption files only when there is text to put in them.
   const cues = !!spec.captionCues && subRip(spec.captionCues) !== null;
   const captions = cues ? await deps.assertRelatedExport(primary, `${base}.srt`) : undefined;

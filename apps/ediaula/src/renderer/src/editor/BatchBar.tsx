@@ -54,12 +54,21 @@ export function BatchBar(): ReactNode {
           icon={Check}
           title="Põe esta aula na fila de exportação, como ela está agora"
           onClick={() =>
-            void approveOpenLesson().then((ok) => {
-              if (ok)
+            void approveOpenLesson().then(
+              (ok) => {
+                if (ok)
+                  useApp
+                    .getState()
+                    .toast(`${lesson.name} aprovada e na fila de exportação.`, "success");
+              },
+              (err: unknown) =>
                 useApp
                   .getState()
-                  .toast(`${lesson.name} aprovada e na fila de exportação.`, "success");
-            })
+                  .toast(
+                    `Não deu para pôr a aula na fila: ${err instanceof Error ? err.message : String(err)}`,
+                    "error",
+                  ),
+            )
           }
         >
           Aprovar e exportar

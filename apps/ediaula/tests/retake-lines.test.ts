@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
-import { intervalLines, placeNarration } from "../src/shared/guidedNarration.ts";
+import { applyCuts } from "../src/shared/cleanup.ts";
+import { intervalLines, NARRATION_EDGE, placeNarration } from "../src/shared/guidedNarration.ts";
 import { INSERT_PAD, layoutInserts, planInsert, planLineInsert } from "../src/shared/inserts.ts";
-import { LINE_MISSING, LINE_PARTIAL, retakeLines, takeOfLine } from "../src/shared/retake.ts";
+import {
+  LINE_MISSING,
+  LINE_PARTIAL,
+  retakeLines,
+  retakePlan,
+  takeOfLine,
+} from "../src/shared/retake.ts";
 import { parseScript, speechItems } from "../src/shared/script.ts";
 import { alignSection } from "../src/shared/scriptAlign.ts";
 import type { Asset, Project, Transcript } from "../src/shared/types.ts";
@@ -62,13 +69,8 @@ test("retakeLines: the teacher's lines missing or partly said, never the present
 
 test("planLineInsert places a line between the ones around it; skipped lines are not anchors", () => {
   const prevEnd = alignment.lines.find((l) => l.item === item(0))?.end ?? 0;
-  // Between line 1 (ends at about 3.2 s) and the partial line 3 (8 s): a 6 s line needs room.
-  const near = planLineInsert(section, alignment, item(1), 6);
-  assert.ok(!("error" in near));
-  assert.equal(near.duration, 6 + 2 * INSERT_PAD);
-  assert.ok(near.gap > 0, "the pause before line 3 is too short");
-  assert.ok(near.at > prevEnd && near.at < prevEnd + 0.2);
-  // Line 3 is being recorded again too: the line after it (15 s) is the anchor, and it fits.
+  // Line 3 is being recorded again too, so its incomplete take is no anchor: the line after it
+  // (15 s) is, and the missing line 2 fits after line 1 without opening the timeline.
   const skipping = planLineInsert(section, alignment, item(1), 6, new Set([item(2)]));
   assert.ok(!("error" in skipping));
   assert.deepEqual([skipping.gap, skipping.at], [0, prevEnd]);
@@ -80,6 +82,62 @@ test("planLineInsert places a line between the ones around it; skipped lines are
     planLineInsert(section, alignment, section.items.indexOf(avatar), 2),
   );
   assert.ok("error" in planLineInsert(section, alignSection(section, []), item(1), 2));
+});
+
+test("a partly said line is replaced in place: the old take goes, the new one starts there", () => {
+  const old = alignment.lines.find((l) => l.item === item(2));
+  assert.ok(old?.start !== undefined && old.end !== undefined);
+  const planned = retakePlan(section, alignment, item(2), 4);
+  assert.ok(!("error" in planned));
+  assert.deepEqual(planned.replace, [old.start, old.end]);
+  assert.equal(planned.plan.at, old.start);
+  assert.equal(planned.plan.cut, old.start);
+  assert.equal(planned.plan.gap, planned.plan.duration);
+  // A missing line is planned between its neighbours, as before.
+  const missing = retakePlan(section, alignment, item(1), 2, new Set([item(2)]));
+  assert.ok(!("error" in missing) && missing.replace === undefined);
+
+  // Laid out in one go: the old take is cut from every track and the new take sits in its place.
+  const project: Project = {
+    version: 1,
+    id: "p",
+    name: "Aula",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [
+      media("tela", { kind: "video", hasVideo: true, width: 1920, height: 1080, fps: 30 }),
+      media("voz"),
+      media("nova"),
+    ],
+    tracks: [
+      { id: "v1", kind: "video", name: "Tela", muted: false, hidden: false, locked: false },
+      { id: "a1", kind: "audio", name: "Voz", muted: false, hidden: false, locked: false },
+    ],
+    clips: [
+      { id: "s", assetId: "tela", trackId: "v1", start: 0, in: 0, duration: 20, volume: 1 },
+      { id: "v", assetId: "voz", trackId: "a1", start: 0, in: 0, duration: 20, volume: 1 },
+    ],
+  };
+  const replace = planned.replace;
+  assert.ok(replace);
+  const targets = new Set(["v1", "a1"]);
+  const cut = { ...project, clips: applyCuts(project.clips, [replace], targets) };
+  const layout = layoutInserts(
+    cut,
+    [{ item: lines[2], src: { assetId: "nova", start: 1, end: 5 }, plan: planned.plan }],
+    targets,
+    new Set(),
+    new Map(),
+    "a1",
+  );
+  const added = layout.placed[0].clip;
+  assert.equal(added.start, old.start);
+  const voice = layout.clips.filter((c) => c.assetId === "voz").sort((a, b) => a.start - b.start);
+  // Nothing of the old take plays any more, and the new take is not cut.
+  assert.ok(voice.every((c) => c.in + c.duration <= old.start + 1e-6 || c.in >= old.end - 1e-6));
+  assert.ok(Math.abs(voice[1].start - (old.start + added.duration)) < 1e-6);
+  assert.equal(added.duration, planned.plan.duration);
 });
 
 const media = (id: string, extra: Partial<Asset> = {}): Asset => ({
@@ -199,11 +257,17 @@ test("placeNarration: each line where it was said, moved to a nearby step, never
       [1, 20, false],
       // Said at 23 s, moved to the click at 23.8 s.
       [2, 23.8, true],
-      // Said at 26.5 s, but the line before ends at 27.3 s: it waits for it.
-      [3, 27.45, false],
+      // Said at 26.5 s, but the line before (and its clip's edges) ends later: it waits for it.
+      [3, 27.69, false],
     ],
   );
   assert.deepEqual(placed[1].src, { start: 3, end: 6.5 });
+  // Each line's clip, edges included, ends before the next one starts.
+  for (let i = 1; i < placed.length; i++) {
+    const prev = placed[i - 1];
+    const prevEnd = prev.at + (prev.src.end - prev.src.start) + NARRATION_EDGE;
+    assert.ok(prevEnd <= placed[i].at - NARRATION_EDGE + 1e-9, `${i}`);
+  }
   // With the take transcribed, a line is cut to its words.
   const found = placeNarration({
     start: 0,

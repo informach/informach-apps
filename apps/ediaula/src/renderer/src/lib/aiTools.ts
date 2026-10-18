@@ -602,8 +602,13 @@ const handlers: {
     return "Dados de publicação salvos no projeto. O usuário pode copiá-los no painel do Assistente, e eles vão no pacote da plataforma da exportação.";
   },
 
-  async get_frame({ time, region, max_width, composited }, { signal, progress }) {
-    const p = requireProject();
+  async get_frame({ time, region, max_width, composited }, { signal, progress, call }) {
+    const open = requireProject();
+    // With a draft of this same assistant waiting, the frame shows the lesson as the draft has
+    // it: the AI checks what it just proposed.
+    const { draft } = useProject.getState();
+    const mine = draft?.projectId === open.id && draft.author === draftAuthor(call);
+    const p = (mine && shownProject()) || open;
     const duration = projectDuration(p);
     if (time > duration + 0.05)
       throw new ToolError(`A aula tem ${t(duration)}; ${t(time)} fica depois do fim.`);
@@ -619,7 +624,7 @@ const handlers: {
       signal,
     );
     return {
-      text: `${r.note}\n${JSON.stringify(r.facts)}`,
+      text: `${r.note}${mine ? " Com o rascunho que você propôs, ainda não aplicado." : ""}\n${JSON.stringify(r.facts)}`,
       images: [r.image],
     };
   },
@@ -642,8 +647,9 @@ const handlers: {
       `Quiz salvo com ${quiz.length} ${quiz.length === 1 ? "pergunta" : "perguntas"} (cada uma conferida: 4 alternativas diferentes, uma certa e a fala de origem):`,
       ...quiz.map(
         (q, i) =>
-          `${i + 1}. ${q.question} (fala ${q.line}; certa: ${"ABCD"[q.correct]}) ${q.options.map((o, k) => `${"ABCD"[k]}) ${o}`).join(" ")}`,
+          `${i + 1}. ${q.question} (fala ${q.line}; certa: ${"ABCD"[q.correct]}${q.suspect ? "; SUSPEITA: a resposta não está nas palavras da fala" : ""}) ${q.options.map((o, k) => `${"ABCD"[k]}) ${o}`).join(" ")}`,
       ),
+      "A pessoa revisa cada pergunta no cartão Publicação e plataforma; só as revisadas vão para o pacote.",
       "Para pôr uma na aula: add_template com template question e quiz_item.",
     ].join("\n");
   },
@@ -666,14 +672,24 @@ const handlers: {
       throw new ToolError(
         "O trecho para exportar precisa ter mais de meio segundo (to depois de from).",
       );
+    // A stretch is not the lesson: its translations and the platform package would describe
+    // the whole lesson (chapters, quiz, captions of other times), so they do not go with it.
+    const whole = (formats ?? []).filter((f) => f === "translations" || f === "platform");
+    if (range && whole.length)
+      throw new ToolError(
+        `Um trecho sai sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
+      );
     const project = range ? rangeProject(p, range.from, range.to) : p;
     const wanted = new Set(
-      formats ?? [
-        "captions",
-        "thumbnail",
-        "translations",
-        ...(hasPlatformData(p) ? (["platform"] as const) : []),
-      ],
+      formats ??
+        (range
+          ? ["captions", "thumbnail"]
+          : [
+              "captions",
+              "thumbnail",
+              "translations",
+              ...(hasPlatformData(p) ? (["platform"] as const) : []),
+            ]),
     );
     const spec = presetSpec(preset, project.settings, {
       encoder: info?.encoder ?? "x264",
@@ -723,7 +739,7 @@ const handlers: {
       exportName(range ? `${p.name} (trecho)` : p.name, preset, vertical),
     );
     if (!result.ok) throw new ToolError(result.text);
-    return `Exportação na fila: id ${result.id}, destino escolhido pela pessoa (${result.outPath})${result.confirmed ? ", exportando apesar dos problemas, como a pessoa confirmou" : ""}. Acompanhe com get_export_status.`;
+    return `Exportação na fila: id ${result.id}, destino escolhido pela pessoa (${result.outPath})${result.confirmed ? ", exportando apesar dos problemas, como a pessoa confirmou" : ""}${range ? ". Um trecho sai sem legendas traduzidas nem pacote da plataforma" : ""}. Acompanhe com get_export_status.`;
   },
 
   async get_export_status({ id }) {
@@ -768,9 +784,13 @@ const handlers: {
       throw new ToolError(
         "O motor de transcrição ainda não foi instalado. Peça ao usuário para abrir a aba Transcrição no EdiAula e instalar (uma vez só).",
       );
-    // Cancelling the call stops the transcriptions it started.
+    // Cancelling the call stops the transcriptions it started, never one the person started.
     const stop = (): void => {
-      for (const job of Object.values(useTranscribing.getState())) void window.api.cancelJob(job);
+      const running = useTranscribing.getState();
+      for (const a of todo) {
+        const job = running[a.id];
+        if (job) void window.api.cancelJob(job);
+      }
     };
     signal.addEventListener("abort", stop, { once: true });
     const names = new Map(todo.map((a) => [a.id, a.name]));
@@ -1570,7 +1590,7 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
     if (draft) {
       // One draft per assistant: the calls of a request build it together.
       const into = draftCommit(
-        call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`,
+        draftAuthor(call),
         call.source === "assistant"
           ? "Mudanças propostas pelo Assistente"
           : "Mudanças propostas pela IA conectada",
@@ -1623,6 +1643,10 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
     endAiCall(call.id);
   }
 }
+
+/** Who a draft written by a call belongs to: the chat inside EdiAula, or the connected app. */
+const draftAuthor = (call: AiToolCall): string =>
+  call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`;
 
 /** The call was cancelled in the assistant panel. */
 class CancelledError extends Error {}

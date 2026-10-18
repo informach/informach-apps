@@ -3,7 +3,7 @@ import { jsonIn, type RunOneShot } from "./captionTranslate.ts";
 import type { PublishInfo } from "./types.ts";
 
 /**
- * What goes up to the Sistema Zero platform with the video, by hand: `<aula>.plataforma.json`
+ * What goes up to the course platform (the Sistema Zero one or any other) with the video, by hand: `<aula>.plataforma.json`
  * beside the exported MP4, with the video id of the script, the title, description and summary,
  * the chapters (only when they are valid), the quiz, the thumbnail, the caption files and the
  * SHA-256 of the video, so the person fills the platform's form from one file and the platform
@@ -67,6 +67,12 @@ export interface QuizItem {
   /** The line it was made from: its number and its words. */
   line: number;
   source: string;
+  /** The words of that line the right answer comes from, as the model quoted them. */
+  quote?: string;
+  /** The right answer shares no word with its line: the person should look at it closely. */
+  suspect?: boolean;
+  /** The person reviewed it; only reviewed questions go into the platform package. */
+  reviewed?: boolean;
 }
 
 /** A line the quiz can be made from (a script line in the lesson, or a paragraph said). */
@@ -85,7 +91,29 @@ const normal = (s: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-/** What is wrong with a question, or null: four distinct options, one right, a line that exists. */
+/** Words of 4 letters or more (articles, prepositions and the like say nothing about a match). */
+const contentWords = (s: string): string[] =>
+  normal(s)
+    .split(" ")
+    .filter((w) => w.length >= 4);
+
+/**
+ * Whether the right answer is not backed by its line: none of its words (4 letters or more) is
+ * in the line nor in the quoted excerpt. A short answer ("Sim", "3") is never suspect on this.
+ */
+export function suspectAnswer(
+  item: Pick<QuizItem, "options" | "correct" | "source" | "quote">,
+): boolean {
+  const answer = contentWords(item.options[item.correct] ?? "");
+  if (!answer.length) return false;
+  const said = new Set([...contentWords(item.source), ...contentWords(item.quote ?? "")]);
+  return !answer.some((w) => said.has(w) || [...said].some((s) => s.startsWith(w.slice(0, 5))));
+}
+
+/**
+ * What is wrong with a question, or null: four distinct options, one right, a line that exists,
+ * cited as it is, and the excerpt quoted from it really in it.
+ */
 export function quizProblem(item: QuizItem, lines: readonly QuizLine[]): string | null {
   if (!item.question.trim()) return "a pergunta está vazia";
   if (item.options.length !== 4) return `tem ${item.options.length} alternativas, e não 4`;
@@ -96,14 +124,20 @@ export function quizProblem(item: QuizItem, lines: readonly QuizLine[]): string 
   const line = lines.find((l) => l.n === item.line);
   if (!line) return `a fala ${item.line} não existe`;
   if (normal(line.text) !== normal(item.source)) return `não cita a fala ${item.line} como ela é`;
+  if (item.quote !== undefined) {
+    const quote = normal(item.quote);
+    if (!quote) return "não trouxe o trecho da fala em que a resposta está";
+    if (!` ${normal(line.text)} `.includes(` ${quote} `))
+      return `o trecho "${item.quote}" não está na fala ${item.line}`;
+  }
   return null;
 }
 
 export function quizPrompt(lines: readonly QuizLine[], count: number): string {
   return [
     `Write ${count} multiple-choice questions in Brazilian Portuguese to check what children aged 9 to 14 understood of this lesson.`,
-    'Each question comes from one line below: say which one in "line" (its number). Exactly 4 options, short and all different, only one right ("correct" is its index, 0 to 3); the wrong ones are plausible, never silly; nothing outside what the lesson says.',
-    'Answer with JSON only, no other text: {"questions":[{"question":"...","options":["...","...","...","..."],"correct":0,"line":1}]}',
+    'Each question comes from one line below: say which one in "line" (its number) and copy in "quote" the exact words of that line the right answer comes from. Exactly 4 options, short and all different, only one right ("correct" is its index, 0 to 3); the wrong ones are plausible, never silly; nothing outside what the lesson says.',
+    'Answer with JSON only, no other text: {"questions":[{"question":"...","options":["...","...","...","..."],"correct":0,"line":1,"quote":"..."}]}',
     "",
     ...lines.map((l) => `${l.n}. ${l.speaker ? `${l.speaker}: ` : ""}${l.text}`),
   ].join("\n");
@@ -116,13 +150,16 @@ const quizAnswer = z.object({
       options: z.array(z.string().max(200)),
       correct: z.int(),
       line: z.int(),
+      quote: z.string().max(1000),
     }),
   ),
 });
 
 /**
  * The quiz of the lesson from its lines, by the engine the person set up; the answer is checked
- * (quizProblem) and asked again once with the problems when a question does not pass.
+ * (quizProblem) and asked again once with the problems when a question does not pass. A right
+ * answer that shares no word with its line comes marked `suspect`. Nothing comes reviewed: the
+ * person reviews each question before it goes into the platform package.
  */
 export async function generateQuiz(
   lines: readonly QuizLine[],
@@ -154,7 +191,9 @@ export async function generateQuiz(
       correct: q.correct,
       line: q.line,
       source: lines.find((l) => l.n === q.line)?.text ?? "",
+      quote: q.quote.trim(),
     }));
+    for (const q of items) if (suspectAnswer(q)) q.suspect = true;
     const problems = items.flatMap((q, i) => {
       const p = quizProblem(q, lines);
       return p ? [`pergunta ${i + 1}: ${p}`] : [];
@@ -223,12 +262,15 @@ export function buildPlatformPackage(
 ): PlatformPackage {
   const chapters = input.chapters ?? [];
   const valid = validateChapters(chapters, facts.seconds);
-  const quiz = (input.quiz ?? []).map(({ question, options, correct, line }) => ({
-    question,
-    options,
-    correct,
-    line,
-  }));
+  // Only questions the person reviewed go up.
+  const quiz = (input.quiz ?? [])
+    .filter((q) => q.reviewed)
+    .map(({ question, options, correct, line }) => ({
+      question,
+      options,
+      correct,
+      line,
+    }));
   return {
     format: PACKAGE_FORMAT,
     version: PACKAGE_VERSION,

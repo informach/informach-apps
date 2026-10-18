@@ -1,4 +1,4 @@
-import { type SavedChat, type TurnChange, turnChanges } from "@shared/assistantChat";
+import { type SavedChat, type TurnChange, turnChangesFrom } from "@shared/assistantChat";
 import type { AssistantEvent } from "@shared/types";
 import { create } from "zustand";
 import { useApp } from "./app";
@@ -229,7 +229,6 @@ export const useAssistant = create<AssistantStore>((set, get) => {
     send: async (id, text) => {
       // Everything the assistant changes in this turn is undone by one Ctrl+Z, in this project only.
       const turn = useProject.getState().beginAiTurn(id);
-      const before = useProject.getState().project;
       update(id, (c) => ({
         ...c,
         busy: true,
@@ -253,17 +252,17 @@ export const useAssistant = create<AssistantStore>((set, get) => {
         }));
       } finally {
         useProject.getState().endAiTurn(turn);
-        // What the turn changed, on its answer: the lesson before it against the lesson now.
-        const after = useProject.getState().project;
-        if (before && after && before.id === id && after.id === id) {
-          const changes = turnChanges(before, after);
+        // What the turn changed, on its answer: only the steps of the history the turn made.
+        const state = useProject.getState();
+        if (turn && state.project?.id === id) {
+          const changes = turnChangesFrom(state, state.project, turn.id);
           if (changes.length)
             update(id, (c) => {
               const items = [...c.items];
               for (let i = items.length - 1; i >= 0; i--) {
                 if (items[i].role === "user") break;
                 if (items[i].role !== "assistant") continue;
-                items[i] = { ...items[i], changes, ...(turn ? { turn: turn.id } : {}) };
+                items[i] = { ...items[i], changes, turn: turn.id };
                 break;
               }
               return { ...c, items };

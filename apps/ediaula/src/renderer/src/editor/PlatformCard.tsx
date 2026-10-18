@@ -49,7 +49,7 @@ function CopyButton({ text }: { text: string }): ReactNode {
 }
 
 /**
- * The lesson's publishing texts and what goes up to the Sistema Zero platform by hand: the video
+ * The lesson's publishing texts and what goes up to the course platform by hand: the video
  * id, the chapters (and whether they are valid), the quiz, the thumbnail and the translated
  * captions. The export writes all of it in <aula>.plataforma.json beside the video.
  */
@@ -70,17 +70,29 @@ export function PlatformCard(): ReactNode {
     [],
   );
   const toast = useApp((s) => s.toast);
+  // The captions are worked out again only when the lesson changed (its revision), the card is
+  // open and the lesson has translations, a moment after the last edit.
+  const revision = useProject((s) => s.revision);
+  const translated = !!project?.captionTranslations?.length;
   useEffect(() => {
-    if (!project || !open) return;
+    if (!open || !translated || revision < 0) {
+      setTranslations([]);
+      return;
+    }
     let alive = true;
-    translationState(project).then(
-      (list) => alive && setTranslations(list),
-      () => alive && setTranslations([]),
-    );
+    const timer = setTimeout(() => {
+      const now = useProject.getState().project;
+      if (!now) return;
+      translationState(now).then(
+        (list) => alive && setTranslations(list),
+        () => alive && setTranslations([]),
+      );
+    }, 400);
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
-  }, [project, open]);
+  }, [revision, open, translated]);
   if (!project) return null;
   const input = platformInput(project);
   const duration = projectDuration(project);
@@ -99,7 +111,10 @@ export function PlatformCard(): ReactNode {
     setBusy("quiz");
     try {
       const items = await makeQuiz(5);
-      toast(`Quiz pronto: ${items.length} perguntas conferidas.`, "success");
+      toast(
+        `Quiz pronto: ${items.length} perguntas conferidas. Revise cada uma: só as revisadas vão para o pacote.`,
+        "success",
+      );
     } catch (err) {
       toast(`O quiz não ficou pronto: ${cleanError(err)}`, "error");
     } finally {
@@ -119,6 +134,16 @@ export function PlatformCard(): ReactNode {
     } finally {
       setBusy(null);
     }
+  };
+  /** The person reviewed a question (or took the review back): only reviewed ones go up. */
+  const review = (index: number, reviewed: boolean): void => {
+    useProject.getState().commit((p) => ({
+      ...p,
+      publish: {
+        ...p.publish,
+        quiz: (p.publish?.quiz ?? []).map((q, i) => (i === index ? { ...q, reviewed } : q)),
+      },
+    }));
   };
   const thumbnailHere = (): void => {
     const time = usePlayback.getState().time;
@@ -209,6 +234,12 @@ export function PlatformCard(): ReactNode {
                 {info.quiz.map((q, i) => (
                   <li key={`${q.line}:${q.question}`}>
                     <span>{q.question}</span>
+                    {q.suspect && (
+                      <span className="platform-warn">
+                        A resposta certa não aparece nas palavras da fala {q.line}: confira.
+                      </span>
+                    )}
+                    {q.quote && <span className="quiz-quote muted">“{q.quote}”</span>}
                     <span className="quiz-options">
                       {q.options.map((o, k) => (
                         <span key={o} className={k === q.correct ? "quiz-right" : undefined}>
@@ -218,6 +249,14 @@ export function PlatformCard(): ReactNode {
                     </span>
                     <span className="quiz-foot muted">
                       da fala {q.line}
+                      <label className="quiz-review">
+                        <input
+                          type="checkbox"
+                          checked={!!q.reviewed}
+                          onChange={(e) => review(i, e.target.checked)}
+                        />
+                        Revisada
+                      </label>
                       <button
                         type="button"
                         className="link"
@@ -233,7 +272,8 @@ export function PlatformCard(): ReactNode {
               </ol>
             ) : (
               <span className="muted small">
-                Quatro alternativas por pergunta, uma certa, sempre de uma fala da aula.
+                Quatro alternativas por pergunta, uma certa, sempre de uma fala da aula. Você revisa
+                cada uma antes de ela ir para o pacote.
               </span>
             )}
           </div>

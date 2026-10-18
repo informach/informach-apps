@@ -127,3 +127,45 @@ test("the panel's conversation is kept in a checked shape and recapped for a new
   assert.ok(short.length <= 1000);
   assert.match(short, /pedido 199/);
 });
+
+test("a kept conversation masks what looks like a key and keeps the newest items that fit", async () => {
+  const { fitChat, maskChat, maskSecrets } = await import("../src/shared/assistantChat.ts");
+  assert.equal(
+    maskSecrets(
+      "minha chave é sk-ant-api03-abcdefghijklmnop e o token Bearer abcdefghijklmnopqrstuvwxyz",
+    ),
+    "minha chave é [segredo omitido] e o token [segredo omitido]",
+  );
+  assert.equal(maskSecrets("corte a frase do intervalo"), "corte a frase do intervalo");
+  const items = Array.from({ length: 50 }, (_, i) => ({
+    id: i,
+    role: "user" as const,
+    text: `pedido ${i} ${"y".repeat(200)}`,
+    tools: [],
+  }));
+  const fit = fitChat({ version: 1, items }, 3000);
+  assert.ok(JSON.stringify(fit).length <= 3000);
+  assert.equal(fit.items.at(-1)?.id, 49);
+  const masked = maskChat({
+    version: 1,
+    items: [{ id: 1, role: "user", text: "sk-ant-api03-zzzzzzzzzzzzzzzz", tools: [] }],
+  });
+  assert.equal(masked.items[0].text, "[segredo omitido]");
+});
+
+test("what a turn changed leaves out the person's edits made in the middle of it", async () => {
+  const { turnChangesFrom } = await import("../src/shared/assistantChat.ts");
+  const ai = { origin: "ai" as const, turn: "t1" };
+  const person = { origin: "user" as const };
+  const s1: Project = { ...base, palette: "sistema-zero" };
+  const s2: Project = { ...s1, name: "Renomeada pela pessoa" };
+  const s3: Project = {
+    ...s2,
+    clips: [{ ...base.clips[0], transform: { x: 0.4, y: 0.5, scale: 0.8, opacity: 1 } }],
+  };
+  // base -(AI)-> s1 -(person)-> s2 -(AI)-> s3
+  const changes = turnChangesFrom({ past: [base, s1, s2], pastMeta: [ai, person, ai] }, s3, "t1");
+  assert.ok(changes.length >= 2);
+  assert.ok(!changes.some((c) => /Renomeada/.test(c.label)), JSON.stringify(changes));
+  assert.deepEqual(turnChangesFrom({ past: [base], pastMeta: [person] }, s1, "t1"), []);
+});

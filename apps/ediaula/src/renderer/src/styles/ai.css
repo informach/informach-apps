@@ -661,6 +661,16 @@
   color: var(--accent);
   font-weight: 600;
 }
+.quiz-quote {
+  display: block;
+  font-size: 11px;
+  font-style: italic;
+}
+.quiz-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .quiz-foot {
   display: flex;
   align-items: center;

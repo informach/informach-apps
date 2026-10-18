@@ -30,9 +30,15 @@ export function listenLearning(): () => void {
     const now = Date.now();
     const applied = r.outcome === "applied";
     const events = r.proposalItems
-      ? proposalLearning(r.proposalItems, applied, cleanupChoices(project.cleanup).keepPause, now)
+      ? proposalLearning(
+          r.proposalItems,
+          applied,
+          cleanupChoices(project.cleanup).keepPause,
+          now,
+          project.id,
+        )
       : r.draftItems
-        ? draftLearning(r.draftItems, applied, now)
+        ? draftLearning(r.draftItems, applied, now, project.id)
         : [];
     if (!events.length) return;
     known.delete(course);

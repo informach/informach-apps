@@ -88,6 +88,7 @@ test("translated captions and the platform package go beside the video, named af
             correct: 0,
             line: 1,
             source: "O farol acende.",
+            reviewed: true,
           },
         ],
         thumbnail: { time: 12.5, title: "Farol" },
@@ -145,6 +146,45 @@ test("translated captions and the platform package go beside the video, named af
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(side, { recursive: true, force: true });
+  }
+});
+
+test("a video named like a translation of another video in the folder is refused", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ediaula-platform-name-"));
+  try {
+    await writeFile(join(root, "aula.mp4"), "video");
+    const primary = join(root, "aula.en.mp4");
+    const authority = createFileAuthority(["ediaula"]);
+    await authority.grantWrite(primary);
+    await assert.rejects(
+      exportLesson(
+        lesson(join(root, "aula.mp4")),
+        {
+          outPath: primary,
+          width: 128,
+          height: 128,
+          fps: 30,
+          videoBitrate: 100,
+          normalizeLoudness: false,
+          encoder: "x264",
+        },
+        {
+          assertRead: (path) => authority.assertRead(path),
+          assertWrite: (path) => authority.assertWrite(path, false),
+          assertRelatedExport: (p, path) => authority.assertRelatedExport(p, path),
+          fontsDirectory: root,
+          filterScriptOption: "-/filter_complex",
+          ffmpegVersion: "x",
+          cacheDirectory: join(root, "cache"),
+          workDirectory: join(root, "work"),
+          check: () => {},
+          run: async () => "",
+        },
+      ),
+      /se confunde com as legendas traduzidas \(en\) de aula\.mp4/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

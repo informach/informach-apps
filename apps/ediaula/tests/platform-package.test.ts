@@ -7,6 +7,7 @@ import {
   type QuizItem,
   type QuizLine,
   quizProblem,
+  suspectAnswer,
   validateChapters,
 } from "../src/shared/platformPackage.ts";
 
@@ -69,9 +70,9 @@ test("generateQuiz keeps a checked answer and asks again once with the problems"
   const prompts: string[] = [];
   const answers = [
     // First: a question with a repeated option, wrapped in prose (refused).
-    `Aqui está: {"questions":[{"question":"O que o bloco repita faz?","options":["Anda","Anda","Para","Volta"],"correct":0,"line":2}]}`,
+    `Aqui está: {"questions":[{"question":"O que o bloco repita faz?","options":["Anda","Anda","Para","Volta"],"correct":0,"line":2,"quote":"repita dez vezes"}]}`,
     // Then a valid one, in a code block.
-    '```json\n{"questions":[{"question":"O que o bloco repita faz?","options":["Anda dez passos","Para o barco","Acende o farol","Apaga a luz"],"correct":0,"line":2}]}\n```',
+    '```json\n{"questions":[{"question":"O que o bloco repita faz?","options":["Anda dez passos","Para o barco","Acende o farol","Apaga a luz"],"correct":0,"line":2,"quote":"faz o barco andar dez passos"}]}\n```',
   ];
   const quiz = await generateQuiz(
     lines,
@@ -88,12 +89,28 @@ test("generateQuiz keeps a checked answer and asks again once with the problems"
   assert.equal(quiz[0].correct, 0);
 });
 
+test("the quoted excerpt must be in the line, and an answer its line does not back is suspect", () => {
+  assert.equal(quizProblem(question({ quote: "acende quando o barco" }), lines), null);
+  assert.match(
+    quizProblem(question({ quote: "o barco voa" }), lines) ?? "",
+    /o trecho "o barco voa" não está na fala 1/,
+  );
+  assert.match(quizProblem(question({ quote: "  " }), lines) ?? "", /não trouxe o trecho/);
+  assert.equal(suspectAnswer(question({ quote: "acende quando o barco chega perto" })), false);
+  assert.equal(
+    suspectAnswer(question({ options: ["Um dragão", "De manhã", "Quando chove", "Nunca"] })),
+    true,
+  );
+  // A short answer says nothing either way.
+  assert.equal(suspectAnswer(question({ options: ["Sim", "Não", "Talvez", "Nunca"] })), false);
+});
+
 test("generateQuiz gives up after two refused answers, with the reason", async () => {
   await assert.rejects(
     generateQuiz(
       lines,
       async () =>
-        '{"questions":[{"question":"?","options":["a","b","c","d"],"correct":7,"line":1}]}',
+        '{"questions":[{"question":"?","options":["a","b","c","d"],"correct":7,"line":1,"quote":"O farol acende"}]}',
     ),
     /não passou na conferência: pergunta 1: não diz qual alternativa é a certa/,
   );
@@ -117,7 +134,8 @@ test("buildPlatformPackage: valid chapters, quiz, thumbnail, captions and the vi
         { time: 15.4, title: "O jogo" },
         { time: 40, title: "Desafio" },
       ],
-      quiz: [question()],
+      // Only the question the person reviewed goes up.
+      quiz: [question({ reviewed: true }), question({ question: "Outra?" })],
       thumbnail: { time: 12, title: "Farol" },
     },
     {

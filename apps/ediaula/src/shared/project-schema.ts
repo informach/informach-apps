@@ -6,8 +6,8 @@ import {
   PROPOSAL_ITEM_LIMIT,
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
-import { guidedStoreSchema } from "./guidedPlan.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
+import { guidedStoreSchema } from "./guidedPlan.ts";
 import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
 import { REVIEWED_LIMIT } from "./seams.ts";
 import {
@@ -421,6 +421,9 @@ const quizItem = z.looseObject({
   correct: z.int().min(0).max(3),
   line: z.int().nonnegative(),
   source: z.string().max(4000),
+  quote: z.string().max(1000).optional(),
+  suspect: z.boolean().optional(),
+  reviewed: z.boolean().optional(),
 });
 
 /** What the platform package takes from the lesson (shared/platformPackage.ts PlatformInput). */

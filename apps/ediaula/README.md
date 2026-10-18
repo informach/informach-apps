@@ -134,16 +134,24 @@ como a exportação monta, pela janela de um quadro da exportação por trechos 
 legenda gravada. `region` recorta uma parte (frações do quadro) e `max_width` limita a largura; o lado maior nunca
 passa de 1568 px. No MCP a imagem vai como bloco de imagem, e na chave da API ela entra no resultado da ferramenta. A
 IA usa para conferir onde uma seta, um balão ou um zoom caem e se nada cobre os controles que a criança precisa ver.
+Com um rascunho do mesmo assistente esperando revisão, o quadro mostra a aula como o rascunho a deixa. Na chave da API,
+só as 4 imagens mais recentes ficam no histórico; as anteriores viram uma linha "[quadro de m:ss]". O canal é
+`export:frame(jobId, projeto em JSON, spec, segundo, geometria)` e devolve os bytes do PNG.
 
 **Painel do Assistente.** Cada ferramenta em andamento mostra a etapa em que está (por exemplo "Lote 2 de 3
 traduzido" ou a etapa do Preparar aula) e, quando dá, a porcentagem; **Cancelar** para só aquela ferramenta, e o resto
 do pedido continua (o que ela ainda não tinha gravado não é gravado depois). Embaixo de cada resposta aparecem os
 tokens e o custo do pedido, e o bloco **O que mudou** lista as mudanças da aula naquele pedido, com o mesmo texto da
 barra de revisão, **Ir até** em cada uma e **Desfazer este pedido** enquanto as edições dele são as últimas do
-histórico. A conversa fica guardada por aula em `conversas/<projeto>` na pasta de dados do EdiAula: ao abrir a aula de
-novo ela volta, o Claude Code e o Codex continuam a mesma sessão, e na chave da API a primeira mensagem leva um resumo
-do que foi conversado (as imagens do quadro não são guardadas). **Nova conversa** apaga tudo isso. Quando a versão do
-Codex manda a resposta enquanto escreve, o texto aparece aos poucos; senão, aparece inteiro no fim, como antes.
+histórico (só as edições da IA naquele pedido entram na lista; uma edição sua no meio fica de fora). A conversa fica
+guardada por aula em `conversas/<projeto>` na pasta de dados do EdiAula: ao abrir a aula de novo ela volta, o Claude
+Code e o Codex continuam a mesma sessão, e na chave da API a primeira mensagem leva um resumo do que foi conversado (as
+imagens do quadro não são guardadas). Se a sessão guardada não existir mais no Claude Code ou no Codex, o pedido
+recomeça sozinho numa sessão nova, com o resumo. O que tem cara de chave ou token (`sk-…`, `Bearer …`, sequências longas)
+é guardado como "[segredo omitido]", e as mensagens mais antigas saem quando a conversa passa de 4 MB. **Nova conversa**
+apaga tudo isso. O EdiAula não tem um jeito de apagar uma aula; quem apaga o arquivo do projeto por fora usa **Nova
+conversa** antes, se quiser tirar a conversa também. Quando a versão do Codex manda a resposta enquanto escreve, o
+texto aparece aos poucos; senão, aparece inteiro no fim, como antes.
 
 **Modelos (chave da API):** Claude Opus 5.5 (padrão e recomendado), Claude Sonnet 5.5 e Claude Haiku 5.5 (econômico).
 Quem tinha escolhido o Claude Opus 5 continua nele, com um aviso de que o Opus 5.5 é mais novo e mais barato; o
@@ -360,7 +368,7 @@ está neste computador, e diz o papel certo de cada mídia (camada de zoom, quad
 de fundo, apresentador, voz). Um arquivo da versão 1 continua valendo como referência em texto, só não
 tem o que aplicar.
 
-## Entrega para a plataforma do Sistema Zero, tradução e quiz
+## Entrega para a plataforma de cursos, tradução e quiz
 
 A publicação é manual: o EdiAula prepara os arquivos e você sobe na plataforma. No painel do Assistente, o cartão
 **Publicação e plataforma** junta o título, a descrição, os capítulos (com o aviso quando eles não valem), o resumo,
@@ -368,9 +376,12 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
 
 - **Quiz:** **Gerar quiz** (ou a IA, com `generate_quiz`) faz as perguntas a partir das falas da aula (as falas do
   roteiro que estão na aula, ou o que foi dito quando não há roteiro) pelo motor de IA configurado. Cada pergunta é
-  conferida antes de ser guardada: quatro alternativas diferentes, uma certa e a fala de origem citada como ela é; uma
-  resposta que não passa é pedida de novo uma vez. **Pôr na aula** coloca o template "Pergunta" com aquela pergunta
-  logo depois da fala dela (a IA faz o mesmo com `add_template` e `quiz_item`).
+  conferida antes de ser guardada: quatro alternativas diferentes, uma certa, a fala de origem citada como ela é e o
+  trecho dela de onde sai a resposta, que precisa estar na fala; uma resposta que não passa é pedida de novo uma vez.
+  Uma resposta certa sem nenhuma palavra da fala aparece marcada para conferir. Você marca **Revisada** em cada
+  pergunta, e só as revisadas vão para o pacote. **Pôr na aula** coloca o template "Pergunta" com aquela pergunta logo
+  depois da fala dela (a IA faz o mesmo com `add_template` e `quiz_item`). Se você abrir outra aula enquanto o quiz ou
+  a tradução são feitos, nada é guardado e o aviso diz isso.
 - **Miniatura:** **Usar o quadro atual** escolhe o quadro onde está o cursor, com o título da aula; a IA escolhe com
   `set_thumbnail` (quadro e título). O `.jpg` exportado é esse quadro; sem escolha, sai o de 30% da aula.
 - **Traduzir as legendas** (ou `translate_captions`): as legendas como a exportação faz o `.srt` vão ao motor de IA
@@ -384,12 +395,15 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   dia e `<aula>.plataforma.json` (opção **Pacote para a plataforma**), ao lado do vídeo. O pacote leva o código do
   vídeo, título, descrição, resumo, os capítulos só quando valem (começam em 0:00, são pelo menos 3, em ordem e cada um
   com 10 s ou mais; senão vão de fora, com o motivo), o quiz, a miniatura (arquivo, segundo e título), os arquivos de
-  legenda e o SHA-256 do vídeo exportado, para a plataforma conferir que o arquivo é o mesmo.
+  legenda e o SHA-256 do vídeo exportado, para a plataforma conferir que o arquivo é o mesmo. Um vídeo chamado como a
+  tradução de outro da mesma pasta (`aula.en.mp4` ao lado de `aula.mp4`) é recusado: as legendas dele cairiam por cima
+  de `aula.en.srt`.
 - **Exportação pela IA:** `export_video` (preset `youtube`, `hotmart`, `draft`, `reels` ou `audio`, `formats` e
   `range` opcionais) é uma ferramenta de escrita: um app conectado só para ler e propor pede a sua permissão. Antes,
   roda a verificação antes de exportar; com problemas, a janela "A IA quer exportar com problemas" pergunta, com
   **Não exportar** selecionado. O destino é sempre você quem escolhe, na janela de salvar; a IA nunca escolhe. A
-  exportação entra na fila e a IA acompanha com `get_export_status`.
+  exportação entra na fila e a IA acompanha com `get_export_status`. Com `range`, sai só o trecho, com legenda e
+  miniatura: as legendas traduzidas e o pacote da plataforma descrevem a aula inteira e são recusados num trecho.
 
 ## Regravar falas, narração pelo roteiro e lote por curso
 
@@ -397,24 +411,29 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   metade (menos de 40% e menos de 80% das palavras achadas) abrem o gravador em **Só voz** com o teleprompter só
   delas, uma por tomada. Na volta, a voz é tratada e transcrita, cada fala é achada na própria tomada e encaixada entre
   as falas em volta dela (`planLineInsert`, a mesma conta das inserções do apresentador), abrindo a timeline com a tela
-  parada quando a pausa é curta. Tudo vira um rascunho para revisar; a tomada incompleta de uma fala pela metade vira
-  uma proposta de corte.
+  parada quando a pausa é curta. Uma fala pela metade é trocada no lugar: a tomada incompleta sai e a nova começa onde
+  ela começava, no mesmo rascunho.
 - **Narrar intervalo** com roteiro: o painel mostra as falas daquele trecho (as que estão nele e as que faltam no
   lugar dele; numa gravação de tela sem voz, todas as falas da professora). Grave acompanhando a prévia e use
   **Próxima fala** a cada fala. Cada fala entra como rascunho numa faixa nova, onde você a disse enquanto a prévia
   tocava, ajustada para o clique da gravação ou o momento do "Na tela" mais perto (até 2,5 s), sem passar por cima da
-  fala anterior. Com o motor de transcrição instalado, cada fala é cortada nas palavras dela.
+  fala anterior (contando as bordas de cada clipe). Com o motor de transcrição instalado, cada fala é cortada nas
+  palavras dela. A gravação só entra na biblioteca junto com o rascunho: descartado o rascunho, nada fica solto.
 - **Dividir por seção** (aba Roteiro, com a gravação transcrita): uma gravação longa com várias seções do roteiro vira
   uma proposta de trechos, um por seção achada, com a divisa no meio da pausa entre elas. **Produzir todas** cria um
   projeto por seção com as mesmas mídias, a seção confirmada e o código do vídeo dela. A barra do lote, acima da
   timeline, é a fila de aprovação: abra cada aula, prepare, e **Aprovar e exportar** põe a aula como ela está na fila
-  de exportação, na pasta escolhida uma vez para o lote.
+  de exportação, na pasta escolhida uma vez para o lote. Dois nomes iguais ganham um número ("Aula (2).mp4"), e um
+  vídeo que já está na pasta só é gravado por cima se você confirmar.
 
 ## Aprender com a aula anterior
 
 O que você aceita e recusa nas propostas e nos rascunhos de uma aula de um curso fica em
-`cursos/<curso>/aprendizado.json`, na pasta de dados do EdiAula. Ao abrir a próxima aula do mesmo curso, o modelo do
-curso oferecido já vem ajustado (`learnedDefaults`), e a oferta diz o que mudou: a menor pausa cortada passa a ser a
+`cursos/<curso>/aprendizado.json`, na pasta de dados do EdiAula, com a aula em que foi decidido. Nada é aprendido de
+uma aula só: cada ajuste precisa de decisões de pelo menos 2 aulas, e as aulas mais recentes pesam mais (cada aula
+anterior vale 75% da seguinte). Descartar uma proposta inteira conta como uma decisão por tipo de corte, e não uma por
+item. Ao abrir a próxima aula do mesmo curso, o modelo do curso oferecido já vem ajustado (`learnedDefaults`), e a
+oferta diz o que mudou: a menor pausa cortada passa a ser a
 que melhor separa as pausas que você cortou das que manteve (com 6 decisões ou mais); um vício que você recusou cortar
 3 vezes ou mais (70% das vezes) deixa de ser cortado no curso; um tipo de corte recusado quase sempre (10 decisões,
 90%) sai da limpeza; o zoom automático, as cartelas e a anotação de um "Na tela" recusados toda vez saem do modelo; e

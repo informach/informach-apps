@@ -89,6 +89,8 @@ export interface PlacedLine {
 export const SNAP_SECONDS = 2.5;
 /** Room left between two lines placed one after the other. */
 const BREATH = 0.15;
+/** Each line's clip keeps this much of the take before and after its words. */
+export const NARRATION_EDGE = 0.12;
 
 /**
  * Where each line of the take goes. The stretch of a line is from its mark to the next one (or
@@ -118,7 +120,8 @@ export function placeNarration(opts: {
       .sort((a, b) => Math.abs(a - said) - Math.abs(b - said))[0];
     const at = Math.max(free, near ?? said);
     out.push({ item: m.item, src, at, snapped: near !== undefined && at === near });
-    free = at + (src.end - src.start) + BREATH;
+    // The next words wait for this line's clip, its edges included, and a breath.
+    free = at + (src.end - src.start) + 2 * NARRATION_EDGE + BREATH;
   });
   return out;
 }

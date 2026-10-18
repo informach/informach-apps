@@ -10,6 +10,7 @@ import {
   type LearningEvent,
   learnedDefaults,
   learnedMinSilence,
+  lessonWeights,
   proposalLearning,
 } from "../src/shared/learning.ts";
 import type { DiffItem } from "../src/shared/projectDiff.ts";
@@ -30,9 +31,10 @@ const template = (extra: Partial<CourseTemplate> = {}): CourseTemplate => ({
   ...extra,
 });
 
+/** Decisions spread over two lessons, one after the other. */
 const learning = (events: Omit<LearningEvent, "at">[]): Learning => ({
   version: 1,
-  events: events.map((e) => ({ ...e, at: 1 })),
+  events: events.map((e, i) => ({ lesson: i % 2 ? "aula-1" : "aula-2", ...e, at: i })),
 });
 
 test("learnedMinSilence: the shortest cut pause that best agrees with the decisions", () => {
@@ -180,5 +182,68 @@ test("draftLearning reads cards, annotations of directions and zooms of a draft"
     { kind: "card", accepted: true, at: 3 },
     { kind: "annotation", accepted: false, at: 3, direction: "Clique no botão Play" },
     { kind: "zoom", accepted: true, at: 3 },
+  ]);
+});
+
+test("one lesson alone teaches nothing, however many decisions it has", () => {
+  const events: Omit<LearningEvent, "at">[] = [
+    ...Array.from({ length: 12 }, () => ({
+      kind: "repeat" as const,
+      accepted: false,
+      lesson: "x",
+    })),
+    ...Array.from({ length: 5 }, () => ({ kind: "zoom" as const, accepted: false, lesson: "x" })),
+    ...Array.from({ length: 5 }, () => ({
+      kind: "filler" as const,
+      accepted: false,
+      word: "né",
+      lesson: "x",
+    })),
+  ];
+  assert.deepEqual(learnedDefaults(learning(events), template()).notes, []);
+});
+
+test("recent lessons weigh more: an old lesson's refusals give way to newer acceptances", () => {
+  const at = (lesson: string, i: number) => ({ lesson, at: i });
+  const l: Learning = {
+    version: 1,
+    events: [
+      // An old lesson where every zoom was refused...
+      ...Array.from({ length: 4 }, (_, i) => ({
+        kind: "zoom" as const,
+        accepted: false,
+        ...at("velha", i),
+      })),
+      // ...and the two lessons after it, where they were kept.
+      ...Array.from({ length: 2 }, (_, i) => ({
+        kind: "zoom" as const,
+        accepted: true,
+        ...at("meio", 10 + i),
+      })),
+      ...Array.from({ length: 2 }, (_, i) => ({
+        kind: "zoom" as const,
+        accepted: true,
+        ...at("nova", 20 + i),
+      })),
+    ],
+  };
+  assert.equal(learnedDefaults(l, template()).template.zoom?.auto, true);
+  const w = lessonWeights(l.events);
+  assert.equal(w.get("nova"), 1);
+  assert.ok((w.get("velha") ?? 1) < (w.get("meio") ?? 0));
+});
+
+test("a proposal thrown away whole is one decision per kind of cut, not one per item", () => {
+  const items = Array.from({ length: 30 }, (_, i) => ({
+    category: (i % 2 ? "silence" : "filler") as "silence" | "filler",
+    status: "pending" as const,
+    text: "né",
+    start: i,
+    end: i + 1,
+  }));
+  const events = proposalLearning(items, false, 0.4, 5, "aula-3");
+  assert.deepEqual(events, [
+    { kind: "filler", accepted: false, at: 5, lesson: "aula-3" },
+    { kind: "silence", accepted: false, at: 5, lesson: "aula-3" },
   ]);
 });

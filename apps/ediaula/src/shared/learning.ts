@@ -37,6 +37,8 @@ export interface LearningEvent {
   seconds?: number;
   /** An annotation of a "Na tela" direction: the direction's words. */
   direction?: string;
+  /** The lesson (project id) it was decided in: one atypical lesson never sets the course. */
+  lesson?: string;
 }
 
 export interface Learning {
@@ -58,6 +60,7 @@ export const learningSchema = z.object({
         word: z.string().max(60).optional(),
         seconds: z.number().min(0).max(600).optional(),
         direction: z.string().max(200).optional(),
+        lesson: z.string().max(200).optional(),
       }),
     )
     .max(LEARNING_LIMIT),
@@ -69,6 +72,11 @@ export const emptyLearning = (): Learning => ({ version: 1, events: [] });
 export function addLearning(learning: Learning, events: readonly LearningEvent[]): Learning {
   return { version: 1, events: [...learning.events, ...events].slice(-LEARNING_LIMIT) };
 }
+
+/** Nothing is learned from fewer lessons than this: one atypical lesson does not set the course. */
+export const MIN_LESSONS = 2;
+/** Each lesson before the newest counts this much less (recent decisions weigh more). */
+export const LESSON_DECAY = 0.75;
 
 /** Decisions on pauses before the shortest cut pause is learned. */
 const SILENCE_DECISIONS = 6;
@@ -90,7 +98,7 @@ const round = (v: number): number => Math.round(v * 100) / 100;
  * the one closest to `current`. Within 0.5 to 5 s.
  */
 export function learnedMinSilence(
-  decisions: readonly { seconds: number; accepted: boolean }[],
+  decisions: readonly { seconds: number; accepted: boolean; weight?: number }[],
   current: number,
 ): number {
   const candidates = [
@@ -103,10 +111,12 @@ export function learnedMinSilence(
   let best = current;
   let bestErrors = Number.POSITIVE_INFINITY;
   for (const t of candidates) {
-    const errors = decisions.filter((d) => d.seconds >= t !== d.accepted).length;
+    const errors = decisions
+      .filter((d) => d.seconds >= t !== d.accepted)
+      .reduce((n, d) => n + (d.weight ?? 1), 0);
     if (
-      errors < bestErrors ||
-      (errors === bestErrors && Math.abs(t - current) < Math.abs(best - current))
+      errors < bestErrors - 1e-9 ||
+      (Math.abs(errors - bestErrors) <= 1e-9 && Math.abs(t - current) < Math.abs(best - current))
     ) {
       best = t;
       bestErrors = errors;
@@ -115,10 +125,44 @@ export function learnedMinSilence(
   return best;
 }
 
-const tally = (events: readonly LearningEvent[]): { yes: number; no: number } => ({
-  yes: events.filter((e) => e.accepted).length,
-  no: events.filter((e) => !e.accepted).length,
-});
+const lessonOf = (e: LearningEvent): string => e.lesson ?? "";
+
+/**
+ * How much each lesson's decisions weigh: the lesson decided most recently 1, the one before it
+ * LESSON_DECAY, and so on.
+ */
+export function lessonWeights(events: readonly LearningEvent[]): Map<string, number> {
+  const last = new Map<string, number>();
+  for (const e of events) last.set(lessonOf(e), Math.max(last.get(lessonOf(e)) ?? 0, e.at));
+  const order = [...last.entries()].sort((a, b) => b[1] - a[1]);
+  return new Map(order.map(([lesson], i) => [lesson, LESSON_DECAY ** i]));
+}
+
+interface Tally {
+  /** Decisions, as many as there were. */
+  yes: number;
+  no: number;
+  /** Share of refusals, recent lessons weighing more. */
+  refused: number;
+  /** Lessons the decisions come from. */
+  lessons: number;
+}
+
+function tallyOf(events: readonly LearningEvent[], weights: ReadonlyMap<string, number>): Tally {
+  let wy = 0;
+  let wn = 0;
+  for (const e of events) {
+    const w = weights.get(lessonOf(e)) ?? 1;
+    if (e.accepted) wy += w;
+    else wn += w;
+  }
+  return {
+    yes: events.filter((e) => e.accepted).length,
+    no: events.filter((e) => !e.accepted).length,
+    refused: wy + wn > 0 ? wn / (wy + wn) : 0,
+    lessons: new Set(events.map(lessonOf)).size,
+  };
+}
 
 /**
  * The course template adjusted by what the person decided in earlier lessons, and in words what
@@ -134,12 +178,21 @@ export function learnedDefaults(
   const out: CourseTemplate = { ...template };
   const cleanup = { ...template.cleanup };
   const of = (kind: LearningKind): LearningEvent[] => events.filter((e) => e.kind === kind);
+  const weights = lessonWeights(events);
+  const tally = (list: readonly LearningEvent[]): Tally => tallyOf(list, weights);
 
   // The shortest pause cut.
-  const pauses = of("silence").flatMap((e) =>
-    e.seconds === undefined ? [] : [{ seconds: e.seconds, accepted: e.accepted }],
-  );
-  if (pauses.length >= SILENCE_DECISIONS && pauses.some((p) => !p.accepted)) {
+  const timed = of("silence").filter((e) => e.seconds !== undefined);
+  const pauses = timed.map((e) => ({
+    seconds: e.seconds ?? 0,
+    accepted: e.accepted,
+    weight: weights.get(lessonOf(e)) ?? 1,
+  }));
+  if (
+    pauses.length >= SILENCE_DECISIONS &&
+    tally(timed).lessons >= MIN_LESSONS &&
+    pauses.some((p) => !p.accepted)
+  ) {
     const current = cleanup.minSilence ?? DEFAULT_CLEANUP.minSilence;
     const learned = learnedMinSilence(pauses, current);
     if (Math.abs(learned - current) >= 0.05) {
@@ -160,9 +213,10 @@ export function learnedDefaults(
   }
   const keep = new Set(cleanup.notFillers ?? []);
   for (const [word, list] of words) {
-    const { yes, no } = tally(list);
-    if (no >= FILLER_REFUSALS && no / (yes + no) >= FILLER_SHARE) keep.add(word);
-    else if (yes >= FILLER_REFUSALS && yes / (yes + no) >= FILLER_SHARE) keep.delete(word);
+    const t = tally(list);
+    if (t.lessons < MIN_LESSONS) continue;
+    if (t.no >= FILLER_REFUSALS && t.refused >= FILLER_SHARE) keep.add(word);
+    else if (t.yes >= FILLER_REFUSALS && 1 - t.refused >= FILLER_SHARE) keep.delete(word);
   }
   const before = new Set(cleanup.notFillers ?? []);
   if (keep.size || before.size) {
@@ -174,8 +228,8 @@ export function learnedDefaults(
 
   // A kind of cut the person nearly always refuses.
   for (const kind of ["filler", "silence", "repeat"] as const) {
-    const { yes, no } = tally(of(kind));
-    if (yes + no >= KIND_DECISIONS && no / (yes + no) >= KIND_SHARE) {
+    const t = tally(of(kind));
+    if (t.yes + t.no >= KIND_DECISIONS && t.lessons >= MIN_LESSONS && t.refused >= KIND_SHARE) {
       if (cleanup.kinds?.[kind] === false) continue;
       cleanup.kinds = { ...cleanup.kinds, [kind]: false };
       notes.push(
@@ -190,7 +244,8 @@ export function learnedDefaults(
   if (
     template.zoom?.auto &&
     zoom.yes + zoom.no >= RULE_DECISIONS &&
-    zoom.no / (zoom.yes + zoom.no) >= RULE_SHARE
+    zoom.lessons >= MIN_LESSONS &&
+    zoom.refused >= RULE_SHARE
   ) {
     out.zoom = { ...template.zoom, auto: false };
     out.rules = (out.rules ?? template.rules ?? []).filter((r) => r.when.event !== "click");
@@ -203,6 +258,7 @@ export function learnedDefaults(
     template.cards &&
     (template.cards.opening || template.cards.closing) &&
     cards.yes + cards.no >= 2 &&
+    cards.lessons >= MIN_LESSONS &&
     cards.yes === 0
   ) {
     out.cards = { ...template.cards, opening: false, closing: false };
@@ -215,8 +271,8 @@ export function learnedDefaults(
   const dropped = rules.filter((r) => {
     if (!r.when.screenText || !r.do.annotation) return false;
     const mine = annotations.filter((e) => e.direction && ruleMatches(r, e.direction));
-    const { yes, no } = tally(mine);
-    return no >= 2 && yes === 0;
+    const t = tally(mine);
+    return t.no >= 2 && t.yes === 0 && t.lessons >= MIN_LESSONS;
   });
   if (dropped.length) {
     out.rules = rules.filter((r) => !dropped.includes(r));
@@ -227,7 +283,12 @@ export function learnedDefaults(
     );
   }
   const all = tally(annotations);
-  if (template.annotations && all.yes + all.no >= 6 && all.no / (all.yes + all.no) >= 0.6) {
+  if (
+    template.annotations &&
+    all.yes + all.no >= 6 &&
+    all.lessons >= MIN_LESSONS &&
+    all.refused >= 0.6
+  ) {
     const now = template.annotations.maxPerMinute;
     const fewer = now > 0 ? Math.max(1, Math.floor(now / 2)) : 2;
     if (fewer !== now) {
@@ -238,19 +299,28 @@ export function learnedDefaults(
   return { template: out, notes };
 }
 
-/** What a cut proposal resolved says (shared/anchors.ts items, with their category). */
+/**
+ * What a cut proposal resolved in `lesson` says. Applied, each item is a decision. Thrown away
+ * whole, it is one decision per kind of cleanup cut it had (not one per item: a whole proposal
+ * set aside says little about each pause or word in it), and nothing about the other cuts.
+ */
 export function proposalLearning(
   items: readonly Pick<ProposalItem, "category" | "status" | "text" | "start" | "end">[],
   applied: boolean,
   keepPause: number,
   now: number,
+  lesson?: string,
 ): LearningEvent[] {
+  const where = lesson ? { lesson } : {};
+  if (!applied) {
+    const kinds = new Set(items.flatMap((i) => (i.category ? [i.category] : [])));
+    return (["filler", "silence", "repeat"] as const)
+      .filter((k) => kinds.has(k))
+      .map((kind) => ({ kind, accepted: false, at: now, ...where }));
+  }
   return items.flatMap((i): LearningEvent[] => {
     if (!i.category) return [];
-    // A proposal thrown away whole says no to each of its cleanup cuts; to the others, nothing.
-    if (!applied && !["filler", "silence", "repeat"].includes(i.category)) return [];
-    const accepted = applied && i.status === "pending";
-    const base = { kind: i.category, accepted, at: now };
+    const base = { kind: i.category, accepted: i.status === "pending", at: now, ...where };
     if (i.category === "filler") {
       const word = strip(i.text ?? "");
       return word ? [{ ...base, word: word.slice(0, 60) }] : [base];
@@ -266,9 +336,11 @@ export function draftLearning(
   items: readonly Pick<DiffItem, "kind" | "status" | "patches">[],
   applied: boolean,
   now: number,
+  lesson?: string,
 ): LearningEvent[] {
   return items.flatMap((i): LearningEvent[] => {
     const accepted = applied && i.status === "pending";
+    const at = now;
     const made = i.patches.flatMap((p) =>
       p.entity === "clip" && p.after && !p.before ? [p.after] : [],
     );
@@ -276,7 +348,9 @@ export function draftLearning(
       const a: unknown = c.annotation;
       return a && typeof a === "object" ? Reflect.get(a, key) : undefined;
     };
-    if (made.some((c) => field(c, "kind") === "card")) return [{ kind: "card", accepted, at: now }];
+    const where = lesson ? { lesson } : {};
+    if (made.some((c) => field(c, "kind") === "card"))
+      return [{ kind: "card", accepted, at, ...where }];
     const direction = made
       .map((c) => field(c, "direction"))
       .find((d): d is string => typeof d === "string");
@@ -285,12 +359,13 @@ export function draftLearning(
         {
           kind: "annotation",
           accepted,
-          at: now,
+          at,
+          ...where,
           // The id is "<section>:<item>:<words>": the words are what the rules match.
           direction: direction.split(":").slice(2).join(":").slice(0, 200),
         },
       ];
-    if (i.kind === "zoom") return [{ kind: "zoom", accepted, at: now }];
+    if (i.kind === "zoom") return [{ kind: "zoom", accepted, at, ...where }];
     return [];
   });
 }

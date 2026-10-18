@@ -82,9 +82,18 @@ export function ExportDialog(): ReactNode {
   });
   const [translations, setTranslations] = useState(true);
   const [platform, setPlatform] = useState(() => hasPlatformData(project));
+  const revision = useProject((s) => s.revision);
+  // Worked out again when the lesson changes (its revision), only when it has translations.
+  const translated = !!project.captionTranslations?.length;
   useEffect(() => {
+    if (!translated || revision < 0) {
+      setReady({ current: [], stale: [] });
+      return;
+    }
     let alive = true;
-    void translationState(project).then(
+    const now = useProject.getState().project;
+    if (!now) return;
+    void translationState(now).then(
       (list) =>
         alive &&
         setReady({
@@ -96,7 +105,7 @@ export function ExportDialog(): ReactNode {
     return () => {
       alive = false;
     };
-  }, [project]);
+  }, [revision, translated]);
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [vertical, setVertical] = useState<"blur" | "crop">("blur");
@@ -122,7 +131,6 @@ export function ExportDialog(): ReactNode {
 
   // The check before exporting, made again whenever the lesson or a choice here changes. A
   // volume measured on another revision of the lesson no longer counts.
-  const revision = useProject((s) => s.revision);
   const [check, setCheck] = useState<LessonCheck | null>(null);
   const [loudness, setLoudness] = useState<MeasuredLoudness | null>(null);
   const measured = loudness && loudness.revision === revision ? loudness : null;
@@ -412,7 +420,8 @@ export function ExportDialog(): ReactNode {
                   <strong>Pacote para a plataforma</strong>
                   <p className="muted">
                     aula.plataforma.json com o código do vídeo, título, descrição, capítulos
-                    válidos, quiz, miniatura e legendas, para a subida manual no Sistema Zero.
+                    válidos, quiz, miniatura e legendas, para a subida manual na sua plataforma de
+                    cursos.
                   </p>
                 </div>
                 <Toggle on={platform} onChange={setPlatform} label="Gerar pacote da plataforma" />

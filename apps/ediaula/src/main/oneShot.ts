@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import Anthropic from "@anthropic-ai/sdk";
-import { buildRequest, resolveModel } from "../shared/aiModels.ts";
+import { resolveModel } from "../shared/aiModels.ts";
 import type { AssistantEngine } from "../shared/types.ts";
 import { clientLaunch, decryptKey, locateClient, readStored } from "./aiSettings.ts";
+import { apiOneShot } from "./apiOneShot.ts";
 import {
   claudeOneShotArgs,
   claudeOneShotResult,
@@ -125,16 +126,7 @@ export async function runOneShot(
           "Configure a chave da API da Anthropic em Configurações › Inteligência artificial.",
         );
       const { model } = resolveModel(stored.model);
-      const message = await new Anthropic({ apiKey }).beta.messages.create(
-        {
-          ...buildRequest(model, "low"),
-          max_tokens: 32000,
-          messages: [{ role: "user", content: prompt }],
-        },
-        { signal: cancel.signal },
-      );
-      if (message.stop_reason === "refusal") throw new Error("O Claude não pôde atender.");
-      return message.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
+      return await apiOneShot(new Anthropic({ apiKey }), model, prompt, cancel.signal);
     }
     if (engine === "claude-code") {
       const launch = await launchOf("claude-code");

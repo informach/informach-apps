@@ -20,6 +20,7 @@ import {
   engineEnv,
   type Launch,
   messageDelta,
+  resumeGate,
   riskyCodexFeatures,
   type SelfCheckEvidence,
   selfCheckVerdict,
@@ -62,6 +63,19 @@ async function sessionOf(engine: Engine, conversationId: string): Promise<string
   }
   if (kept) sessions.set(sessionKey(engine, conversationId), kept);
   return kept;
+}
+
+/** Forgets a session the engine no longer has, here and in motor.json. */
+async function forgetSession(engine: Engine, conversationId: string): Promise<void> {
+  sessions.delete(sessionKey(engine, conversationId));
+  try {
+    await saveEngineState(conversationId, { [engine]: undefined });
+  } catch (err) {
+    console.warn(
+      "[ediaula] engine_session_not_forgotten",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
 
 function keepSession(engine: Engine, conversationId: string, id: string): void {
@@ -172,7 +186,27 @@ export async function runClaudeCode(
 ): Promise<void> {
   const ready = await prepare("claude-code", emit);
   if (!ready) return;
-  const resume = await sessionOf("claude", conversationId);
+  const kept = await sessionOf("claude", conversationId);
+  if (kept) {
+    const gate = resumeGate(emit);
+    await claudeAttempt(conversationId, text, port, model, effort, gate.emit, ready, kept);
+    if (gate.went()) return;
+    // The session is gone on Claude Code's side: start over with the recap of the panel.
+    await forgetSession("claude", conversationId);
+  }
+  await claudeAttempt(conversationId, text, port, model, effort, emit, ready, undefined);
+}
+
+async function claudeAttempt(
+  conversationId: string,
+  text: string,
+  port: number,
+  model: string | undefined,
+  effort: string,
+  emit: Emit,
+  ready: { launch: Launch },
+  resume: string | undefined,
+): Promise<void> {
   const prompt = resume ? text : await withRecap(conversationId, text);
   const token = runToken(conversationId);
   const args = claudeArgs({
@@ -361,7 +395,25 @@ export async function runCodex(
 ): Promise<void> {
   const ready = await prepare("codex", emit);
   if (!ready) return;
-  const thread = await sessionOf("codex", conversationId);
+  const kept = await sessionOf("codex", conversationId);
+  if (kept) {
+    const gate = resumeGate(emit);
+    await codexAttempt(conversationId, text, port, gate.emit, ready, kept);
+    if (gate.went()) return;
+    // The thread is gone on Codex's side: start over with the guide and the recap.
+    await forgetSession("codex", conversationId);
+  }
+  await codexAttempt(conversationId, text, port, emit, ready, undefined);
+}
+
+async function codexAttempt(
+  conversationId: string,
+  text: string,
+  port: number,
+  emit: Emit,
+  ready: { launch: Launch },
+  thread: string | undefined,
+): Promise<void> {
   // Codex has no separate system prompt in exec mode: the guide goes with the first message.
   const prompt = thread
     ? text

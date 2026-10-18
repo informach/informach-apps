@@ -24,7 +24,7 @@ import { currentView, scriptDoc } from "./script";
 import { loadProjectTranscripts } from "./transcripts";
 
 /**
- * What goes to the Sistema Zero platform with the video, in the editor: the captions as the
+ * What goes to the course platform with the video, in the editor: the captions as the
  * export makes them (and their translations), the quiz made from the lesson's lines, the
  * thumbnail and the facts of the platform package (shared/platformPackage.ts). The AI engine is
  * the one the person set up (window.api.aiOneShot); every answer is checked before it is kept.
@@ -97,17 +97,16 @@ export async function translateLesson(
     },
   );
   const translation: CaptionTranslation = { lang, createdAt: Date.now(), cues: done };
-  const ok = (opts.commit ?? personCommit)((p) =>
-    p.id !== start.id
-      ? p
-      : {
-          ...p,
-          captionTranslations: [
-            ...(p.captionTranslations ?? []).filter((t) => t.lang !== lang),
-            translation,
-          ],
-        },
-  );
+  // Another lesson open by now: nothing is kept, and the caller is told.
+  if (useProject.getState().project?.id !== start.id)
+    throw new Error("A aula aberta mudou enquanto as legendas eram traduzidas: nada foi guardado.");
+  const ok = (opts.commit ?? personCommit)((p) => ({
+    ...p,
+    captionTranslations: [
+      ...(p.captionTranslations ?? []).filter((t) => t.lang !== lang),
+      translation,
+    ],
+  }));
   if (!ok) throw new Error("A aula aberta mudou enquanto as legendas eram traduzidas.");
   return { count: done.length, lang };
 }
@@ -173,9 +172,9 @@ export async function makeQuiz(
   if (!start) throw new Error("Nenhuma aula aberta.");
   const lines = await quizLines(start);
   const quiz = await generateQuiz(lines, oneShot("Fazendo o quiz da aula", opts.signal), count);
-  const ok = (opts.commit ?? personCommit)((p) =>
-    p.id !== start.id ? p : { ...p, publish: { ...p.publish, quiz } },
-  );
+  if (useProject.getState().project?.id !== start.id)
+    throw new Error("A aula aberta mudou enquanto o quiz era feito: nada foi guardado.");
+  const ok = (opts.commit ?? personCommit)((p) => ({ ...p, publish: { ...p.publish, quiz } }));
   if (!ok) throw new Error("A aula aberta mudou enquanto o quiz era feito.");
   return quiz;
 }

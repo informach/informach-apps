@@ -1028,6 +1028,9 @@ try {
     await editor.keyboard.press("Control+z");
     await editor.locator("section.preview .info-chip", { hasText: "1920×1080" }).waitFor();
     await settle(editor);
+    await savedSoon(editor);
+  });
+
   await step("Assistente, pacote da plataforma e tradução", async () => {
     // A turn of the assistant without any model: the test's main process answers assistant:send
     // with the events an engine sends, and calls a real tool of the editor (add_annotation) the
@@ -1108,28 +1111,33 @@ try {
       });
       ipcMain.removeHandler("ai:oneShot");
       ipcMain.handle("ai:oneShot", async (_event, _job: string, prompt: string) => {
-        if (/multiple-choice questions/.test(prompt))
+        if (/multiple-choice questions/.test(prompt)) {
+          // Each question quotes the first words of its line, as the prompt asks.
+          const lineOf = (n: number): string =>
+            (new RegExp(`^${n}\\. (?:[^:]+: )?(.+)$`, "m").exec(prompt)?.[1] ?? "").replace(
+              /[.,!?;:"“”]/g,
+              "",
+            );
+          const quote = (n: number): string => lineOf(n).split(/\s+/).slice(0, 4).join(" ");
           return JSON.stringify({
             questions: [
               {
-                question: "O que o barco precisa para chegar à costa?",
-                options: ["A luz do farol", "Um mapa novo", "Mais velocidade", "Uma ponte"],
+                question: "Como a aula começa?",
+                options: [quote(1), "Com um mapa novo", "Com mais velocidade", "Com uma ponte"],
                 correct: 0,
                 line: 1,
+                quote: quote(1),
               },
               {
-                question: "O que você faz antes de montar o seu jogo?",
-                options: [
-                  "Joga a versão pronta",
-                  "Desenha o barco",
-                  "Apaga o farol",
-                  "Muda as regras",
-                ],
+                question: "O que vem logo depois?",
+                options: [quote(2), "Desenhar o barco", "Apagar o farol", "Mudar as regras"],
                 correct: 0,
                 line: 2,
+                quote: quote(2),
               },
             ],
           });
+        }
         const data = JSON.parse(prompt.slice(prompt.lastIndexOf('{"cues"')).split("\n")[0]) as {
           cues: { i: number; text: string }[];
         };
@@ -1172,6 +1180,8 @@ try {
       await card.locator(".publish-head").click();
     await card.getByRole("button", { name: "Gerar quiz" }).click();
     await card.locator(".quiz-list li").nth(1).waitFor({ timeout: 60_000 });
+    // Only the reviewed question goes into the package.
+    await card.locator(".quiz-list li").first().getByLabel("Revisada").check();
     await seek(editor, 6);
     await card.getByRole("button", { name: "Usar o quadro atual" }).click();
     await card.getByText(/Quadro de/).waitFor();
@@ -1241,8 +1251,9 @@ try {
       .digest("hex");
     assert.equal(pack.video.sha256, hash, "o SHA-256 do pacote é o do vídeo exportado");
     assert.equal(pack.video.file, "aula visual.mp4");
+    assert.equal(pack.quiz.length, 1, "só a pergunta revisada vai para o pacote");
     notes.push(
-      `Pacote da plataforma: vídeo ${pack.videoId ?? "sem código"}, ${pack.quiz.length} perguntas, miniatura ${pack.thumbnail ? `${pack.thumbnail.file} em ${pack.thumbnail.time} s` : "ausente"}, ${pack.captions.length} conjuntos de legenda, SHA-256 conferido (${hash.slice(0, 12)}…).`,
+      `Pacote da plataforma: vídeo ${pack.videoId ?? "sem código"}, ${pack.quiz.length === 1 ? "1 pergunta revisada" : `${pack.quiz.length} perguntas revisadas`}, miniatura ${pack.thumbnail ? `${pack.thumbnail.file} em ${pack.thumbnail.time} s` : "ausente"}, ${pack.captions.length} conjuntos de legenda, SHA-256 conferido (${hash.slice(0, 12)}…).`,
     );
     await queue.getByRole("button", { name: "Fechar fila e continuar editando" }).click();
     await queue.waitFor({ state: "detached" });

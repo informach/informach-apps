@@ -8,6 +8,7 @@ import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
+import { askConfirm } from "./confirm";
 import { confirmLeave } from "./leaveGuard";
 
 /**
@@ -29,8 +30,9 @@ export interface BatchLesson {
   /** The lesson as it was last left (opening it again needs no new permission). */
   project: Project;
   state: BatchState;
-  /** Its export in the queue, once approved. */
+  /** Its export in the queue, once approved, and where the video goes. */
   exportId?: string;
+  outPath?: string;
 }
 
 export const useCourseBatch = create<{
@@ -110,22 +112,36 @@ export async function approveOpenLesson(): Promise<boolean> {
     useCourseBatch.setState({ folder });
   }
   const info = useApp.getState().info;
+  const outPath = await batchOutPath(folder, project.name, lesson.path);
+  if (!outPath) return false;
   const spec = {
     ...presetSpec("youtube", project.settings, { encoder: info?.encoder ?? "x264" }),
-    outPath: `${folder}\\${exportName(project.name, "youtube", false)}`,
+    outPath,
   };
   const id = newId("export");
-  exportQueue.add({
-    id,
-    project,
-    spec,
-    captions: true,
-    extras: { translations: true, platform: true },
-  });
+  try {
+    exportQueue.add({
+      id,
+      project,
+      spec,
+      captions: true,
+      extras: { translations: true, platform: true },
+    });
+  } catch (err) {
+    useApp
+      .getState()
+      .toast(
+        `A aula não entrou na fila: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
+    return false;
+  }
   useCourseBatch.setState({
     lessons: useCourseBatch
       .getState()
-      .lessons.map((l) => (l.path === lesson.path ? { ...l, state: "approved", exportId: id } : l)),
+      .lessons.map((l) =>
+        l.path === lesson.path ? { ...l, state: "approved", exportId: id, outPath } : l,
+      ),
   });
   useExportQueue.setState({ open: true });
   return true;
@@ -143,3 +159,40 @@ export function nextWaiting(): BatchLesson | undefined {
 
 export const clearBatch = (): void =>
   useCourseBatch.setState({ source: null, lessons: [], folder: null });
+
+/**
+ * Where a lesson of the batch is exported: its name in the batch's folder, numbered when another
+ * lesson of the batch or an export in the queue already uses it ("Aula (2).mp4"). A file already
+ * there is only written over when the person says so; null when they do not.
+ */
+async function batchOutPath(
+  folder: string,
+  name: string,
+  lessonPath: string,
+): Promise<string | null> {
+  const taken = new Set(
+    [
+      ...useCourseBatch
+        .getState()
+        .lessons.filter((l) => l.path !== lessonPath)
+        .flatMap((l) => (l.outPath ? [l.outPath] : [])),
+      ...useExportQueue
+        .getState()
+        .items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state))
+        .map((i) => i.spec.outPath),
+    ].map((p) => p.toLowerCase()),
+  );
+  const file = exportName(name, "youtube", false);
+  const stem = file.replace(/\.mp4$/i, "");
+  let outPath = `${folder}\\${file}`;
+  for (let n = 2; taken.has(outPath.toLowerCase()); n++) outPath = `${folder}\\${stem} (${n}).mp4`;
+  const [there] = await window.api.exists([outPath]);
+  if (!there) return outPath;
+  const yes = await askConfirm({
+    title: "O vídeo já existe nesta pasta",
+    message: `${outPath.split("\\").pop()} já está em ${folder}. Gravar por cima dele?`,
+    confirm: "Gravar por cima",
+    cancel: "Não exportar",
+  });
+  return yes ? outPath : null;
+}

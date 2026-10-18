@@ -1,13 +1,7 @@
-import { cutTargets, timelineWords } from "@shared/cleanup";
-import {
-  type InsertEntry,
-  layoutInserts,
-  lockedAfter,
-  planLineInsert,
-  stillKey,
-} from "@shared/inserts";
+import { applyCuts, cutTargets, protectedConflicts, timelineWords } from "@shared/cleanup";
+import { type InsertEntry, layoutInserts, lockedAfter, stillKey } from "@shared/inserts";
 import type { RecordingResult } from "@shared/recording";
-import { type RetakeLine, retakeLines, speechItemAt, takeOfLine } from "@shared/retake";
+import { type RetakeLine, retakeLines, retakePlan, speechItemAt, takeOfLine } from "@shared/retake";
 import type { ScriptSection } from "@shared/script";
 import { alignSection } from "@shared/scriptAlign";
 import { newId, sourceEnd } from "@shared/timeline";
@@ -18,7 +12,6 @@ import { useApp } from "@/state/app";
 import { draftCommit, useProject } from "@/state/project";
 import { projectCorrectionTerms } from "./glossaryStore";
 import { importMedia } from "./importMedia";
-import { showProposal } from "./proposals";
 import { openRecorder } from "./recording";
 import { currentView } from "./script";
 import {
@@ -157,17 +150,19 @@ async function placeRetake(
   const problems: string[] = [];
   const remaining = new Set(sources.map((s) => s.line.item));
   const stills = new Map<string, Asset>();
+  let replaced = 0;
   for (const { line, src } of [...sources].sort((a, b) => a.line.item - b.line.item)) {
     remaining.delete(line.item);
     const alignment = alignSection(section, timelineWords(working, transcripts), { glossary });
-    const plan = planLineInsert(section, alignment, line.item, src.end - src.start, remaining);
+    const planned = retakePlan(section, alignment, line.item, src.end - src.start, remaining);
     const item = speechItemAt(section, line.line);
-    if ("error" in plan || !item) {
+    if ("error" in planned || !item) {
       problems.push(
-        `Fala ${line.line + 1}: ${"error" in plan ? plan.error : "não está no roteiro"}`,
+        `Fala ${line.line + 1}: ${"error" in planned ? planned.error : "não está no roteiro"}`,
       );
       continue;
     }
+    const { plan, replace } = planned;
     const entry: InsertEntry = { item, src, plan };
     if (lockedAfter(working.clips, plan, locked).length) {
       problems.push(
@@ -175,7 +170,16 @@ async function placeRetake(
       );
       continue;
     }
+    if (replace && protectedConflicts(working, [replace]).length) {
+      problems.push(
+        `Fala ${line.line + 1}: a tomada antiga está num trecho protegido; tire a proteção e grave de novo.`,
+      );
+      continue;
+    }
     const targets = new Set([...cutTargets(working), track.id].filter((id) => !locked.has(id)));
+    // The incomplete take goes in the same draft: the new one takes its place.
+    if (replace)
+      working = { ...working, clips: applyCuts(working.clips, [replace], targets, locked) };
     // Still frames hold the screen while the timeline opens for the line.
     for (const { left } of layoutInserts(working, [entry], targets, locked, stills, track.id)
       .splits) {
@@ -204,8 +208,11 @@ async function placeRetake(
       assets: [...working.assets, ...layout.assets.filter((a) => !working.assets.includes(a))],
       clips: layout.clips,
     };
+    if (replace) replaced++;
     placed.push(
-      `fala ${line.line + 1} em ${clock(plan.at)}${plan.gap > 0 ? ` (abri ${plan.gap.toFixed(1)} s)` : ""}`,
+      replace
+        ? `fala ${line.line + 1} em ${clock(plan.at)}, no lugar da tomada incompleta`
+        : `fala ${line.line + 1} em ${clock(plan.at)}${plan.gap > 0 ? ` (abri ${plan.gap.toFixed(1)} s)` : ""}`,
     );
   }
   if (!placed.length) return problems.join("\n");
@@ -226,21 +233,13 @@ async function placeRetake(
   }));
   if (!ok)
     throw new Error("Há outro rascunho esperando revisão: aplique ou descarte e grave de novo.");
-  // The incomplete take of a partial line is still in the lesson: offered for cutting.
-  const partial = open.lines.filter(
-    (l) => l.state === "partial" && sources.some((s) => s.line === l),
-  );
-  const ranges = partial.flatMap((l) => {
-    const m = view.alignment.lines.find((x) => x.item === l.item);
-    return m?.start !== undefined && m.end !== undefined
-      ? [{ start: m.start, end: m.end, reason: `tomada incompleta da fala ${l.line + 1}` }]
-      : [];
-  });
-  if (ranges.length)
-    await showProposal(start, "Tomadas incompletas", ranges, revision, "regravacao");
   return [
     `Rascunho com ${placed.length === 1 ? "1 fala regravada" : `${placed.length} falas regravadas`}: ${placed.join(", ")}. Revise na barra acima da timeline.`,
-    ...(ranges.length ? ["As tomadas incompletas ficaram numa proposta de corte."] : []),
+    ...(replaced
+      ? [
+          `${replaced === 1 ? "A tomada incompleta saiu" : `As ${replaced} tomadas incompletas saíram`} no mesmo rascunho.`,
+        ]
+      : []),
     ...(unread.length
       ? [`Sem tomada: ${unread.map((l) => `fala ${l.line + 1}`).join(", ")}.`]
       : []),

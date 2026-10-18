@@ -1,4 +1,10 @@
-import { findLine, type InsertSource } from "./inserts.ts";
+import {
+  findLine,
+  INSERT_PAD,
+  type InsertPlan,
+  type InsertSource,
+  planLineInsert,
+} from "./inserts.ts";
 import { type ScriptSection, type SpeechItem, speechItems } from "./script.ts";
 import type { Alignment } from "./scriptAlign.ts";
 import type { Transcript, VoiceTake } from "./types.ts";
@@ -83,3 +89,29 @@ export function takeOfLine(
 /** The script item a teleprompter line is. */
 export const speechItemAt = (section: ScriptSection, line: number): SpeechItem | undefined =>
   speechItems(section)[line];
+
+/**
+ * Where a line recorded again goes. A line still partly in the lesson is replaced in place: its
+ * old take ([start, end] on the timeline) is cut and the new take starts where the old one did,
+ * the timeline opening for the whole of it. A line not in the lesson goes between the lines
+ * around it (planLineInsert); lines in `skip` (recorded again too, not placed yet) are not anchors.
+ */
+export function retakePlan(
+  section: ScriptSection,
+  alignment: Alignment,
+  item: number,
+  lineSeconds: number,
+  skip: ReadonlySet<number> = new Set(),
+): { plan: InsertPlan; replace?: [number, number] } | { error: string } {
+  const old = alignment.lines.find((l) => l.item === item);
+  const share = old ? old.matched / Math.max(1, old.total) : 0;
+  if (old && share >= LINE_MISSING && old.start !== undefined && old.end !== undefined) {
+    const duration = lineSeconds + 2 * INSERT_PAD;
+    return {
+      plan: { at: old.start, duration, gap: duration, cut: old.start },
+      replace: [old.start, old.end],
+    };
+  }
+  const plan = planLineInsert(section, alignment, item, lineSeconds, skip);
+  return "error" in plan ? plan : { plan };
+}

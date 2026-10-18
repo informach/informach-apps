@@ -52,8 +52,8 @@ import {
   writeStored,
 } from "./aiSettings.ts";
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
-import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
+import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
   codexSelfTest,
@@ -94,6 +94,7 @@ import {
 } from "./ffmpeg.ts";
 import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
+import { withReadGrant } from "./handOut.ts";
 import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { getLearning, recordLearning } from "./learning.ts";
@@ -1079,8 +1080,9 @@ function registerIpc(): void {
   );
   ipcMain.handle("whisper:transcribe", (_e, ...raw: unknown[]) => {
     const [jobId, path, duration, language, glossary] = transcribeSchema.parse(raw);
+    // The transcript is read by the editor (media://) right after, not only when the lesson opens.
     return processingJob(jobId, "transcription", (signal) =>
-      transcribe(
+      withReadGrant(transcribe, desktopFiles.grantRead)(
         jobId,
         path,
         duration,
@@ -1223,7 +1225,13 @@ function registerVoiceIpc(): void {
     "voice:render",
     (_e, rawJob: unknown, segments: unknown, start: unknown, end: unknown) =>
       processingJob(jobIdSchema.parse(rawJob), "voice", (signal) =>
-        renderVoiceCached(segments, secondsSchema.parse(start), secondsSchema.parse(end), signal),
+        // The file is compared with a HeyGen video next (heygen:locate checks reads).
+        withReadGrant(renderVoiceCached, desktopFiles.grantRead)(
+          segments,
+          secondsSchema.parse(start),
+          secondsSchema.parse(end),
+          signal,
+        ),
       ),
   );
   ipcMain.handle(
