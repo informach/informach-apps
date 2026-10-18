@@ -1,4 +1,4 @@
-import { correctWords, foldText, replaceCore } from "./glossary.ts";
+import { correctWords, foldText, type GlossaryTerm, replaceCore } from "./glossary.ts";
 import type { Transcript, Word, WordEdit } from "./types.ts";
 
 /**
@@ -103,7 +103,7 @@ export function applyWordEdits(
 export function transcriptView(
   raw: Transcript,
   edits: WordEdit[] | undefined,
-  terms: string[],
+  terms: readonly GlossaryTerm[],
 ): Transcript {
   const { words, edited, lost } = applyWordEdits(raw.words, edits);
   const view: Transcript = { ...raw, words: correctWords(words, terms, { keep: edited }) };

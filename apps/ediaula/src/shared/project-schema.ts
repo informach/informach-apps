@@ -412,7 +412,28 @@ export const projectSchema = z
       .optional(),
     palette: id.optional(),
     paletteFonts: z.boolean().optional(),
-    script: z.looseObject({ text, section: z.int().nonnegative().optional() }).optional(),
+    script: z
+      .looseObject({
+        text,
+        section: z.int().nonnegative().optional(),
+        confirmed: z.boolean().optional(),
+      })
+      .optional(),
+    cleanup: z
+      .looseObject({
+        kept: z.array(z.string().min(1).max(300)).max(20000),
+        minSilence: z.number().min(0.3).max(10).optional(),
+        keepPause: z.number().min(0).max(2).optional(),
+        kinds: z
+          .looseObject({
+            filler: z.boolean().optional(),
+            silence: z.boolean().optional(),
+            repeat: z.boolean().optional(),
+          })
+          .optional(),
+        intentional: z.array(z.string().min(1).max(200)).max(200).optional(),
+      })
+      .optional(),
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),

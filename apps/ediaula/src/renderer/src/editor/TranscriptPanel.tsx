@@ -34,8 +34,10 @@ import {
   cutRangesInteractive,
   runEngineInstall,
   runModelInstall,
+  setCleanup,
   speechCandidates,
   type TextModel,
+  toggleKept,
   transcribeAssets,
   useCleanup,
   useEngine,
@@ -92,7 +94,7 @@ export function TranscriptPanel(): ReactNode {
 
   return (
     <div className="transcript">
-      <CleanupBar model={model} />
+      <CleanupBar model={model} unseen={model.unseen} loading={model.loading} />
       <details className="transcript-glossary">
         <summary>Glossário do curso</summary>
         <GlossaryField hint="Corrige os nomes no texto na hora, sem transcrever de novo. Vale para todas as aulas do curso e também orienta a IA." />
@@ -395,9 +397,17 @@ const KIND_META = {
   repeat: { label: "repetições", color: "var(--blue)" },
 } as const;
 
-function CleanupBar({ model }: { model: TextModel }): ReactNode {
+function CleanupBar({
+  model,
+  unseen,
+  loading,
+}: {
+  model: TextModel;
+  unseen: readonly string[];
+  loading: boolean;
+}): ReactNode {
   const project = useProject((s) => s.project)!;
-  const { kinds, minSilence, set } = useCleanup();
+  const { kinds, minSilence } = model.choices;
   const counts = { filler: 0, silence: 0, repeat: 0 };
   for (const i of model.active) counts[i.kind]++;
   const labels = trackLabels(project.tracks);
@@ -405,11 +415,12 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
   const spared = project.tracks.filter(
     (t) => !targets.has(t.id) && project.clips.some((c) => c.trackId === t.id),
   );
+  const blind = project.assets.filter((a) => unseen.includes(a.id));
 
   const cutAll = (): void => {
     const n = model.active.length;
-    cutRanges(model.active.map((i) => [i.start, i.end]));
-    useCleanup.getState().set({ kept: new Set() });
+    // What was kept stays kept: its id is anchored in the media, so it is the same after the cut.
+    if (!cutRanges(model.active.map((i) => [i.start, i.end])).ok) return;
     useApp
       .getState()
       .toast(`${n} cortes aplicados (${duration(model.saved)} a menos). Ctrl+Z desfaz.`, "success");
@@ -429,7 +440,7 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
             type="button"
             key={k}
             className={`cleanup-card ${kinds[k] ? "" : "is-off"}`}
-            onClick={() => set({ kinds: { ...kinds, [k]: !kinds[k] } })}
+            onClick={() => setCleanup({ kinds: { ...kinds, [k]: !kinds[k] } })}
             title={kinds[k] ? "Clique para não cortar" : "Clique para incluir"}
           >
             <span className="row-6">
@@ -445,7 +456,7 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         <select
           className="select select-sm"
           value={minSilence}
-          onChange={(e) => set({ minSilence: Number(e.target.value) })}
+          onChange={(e) => setCleanup({ minSilence: Number(e.target.value) })}
         >
           {[0.5, 0.75, 1, 1.5, 2, 3].map((v) => (
             <option key={v} value={v}>
@@ -458,11 +469,29 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         variant="primary"
         icon={Scissors}
         className="w-full"
-        disabled={!model.active.length}
+        disabled={loading || !model.active.length}
         onClick={cutAll}
       >
-        Cortar tudo na timeline
+        {loading ? "Lendo o cursor e o som…" : "Cortar tudo na timeline"}
       </Button>
+      {model.activity.length > 0 && (
+        <div className="cleanup-targets muted">
+          <Shield size={12} />
+          <span>
+            Silêncio com clique, arrasto, rolagem ou digitação na tela não é cortado (
+            {model.activity.length} {model.activity.length === 1 ? "trecho" : "trechos"}).
+          </span>
+        </div>
+      )}
+      {blind.length > 0 && (
+        <div className="cleanup-targets muted">
+          <Info size={12} />
+          <span>
+            Não consegui ler os dados do cursor de {blind.map((a) => a.name).join(", ")}: ali os
+            silêncios são medidos só pelo som. Confira antes de cortar.
+          </span>
+        </div>
+      )}
       <div className="cleanup-targets muted">
         <ShieldCheck size={12} />
         <span>
@@ -544,7 +573,7 @@ function TranscriptText({
   transcripts: Map<string, Transcript>;
 }): ReactNode {
   const fps = useProject((s) => s.project?.settings.fps ?? 30);
-  const { kept, toggleKept, keepPause } = useCleanup();
+  const { kept, keepPause } = model.choices;
   const textCut = useApp((s) => s.textCut);
   const [selection, setSelection] = useState<{
     words: TextModel["words"];
@@ -601,10 +630,10 @@ function TranscriptText({
     return map;
   }, [project, words]);
 
-  // Word key -> issue, and word index -> silence issue that follows it.
+  // Word key -> issue, and word index -> silence issues that follow it.
   const { wordIssue, silenceAfter } = useMemo(() => {
     const wordIssue = new Map<string, Issue>();
-    const silenceAfter = new Map<number, Issue>();
+    const silenceAfter = new Map<number, Issue[]>();
     for (const i of issues) {
       if (i.kind === "silence") {
         let lo = 0;
@@ -617,7 +646,7 @@ function TranscriptText({
             lo = mid + 1;
           } else hi = mid - 1;
         }
-        silenceAfter.set(at, i);
+        silenceAfter.set(at, [...(silenceAfter.get(at) ?? []), i]);
       } else for (const k of i.words) wordIssue.set(k, i);
     }
     return { wordIssue, silenceAfter };
@@ -715,7 +744,7 @@ function TranscriptText({
               <div className="para-text">
                 {para.map((w) => {
                   const i = index.get(w.key)!;
-                  const silence = silenceAfter.get(i);
+                  const pauses = silenceAfter.get(i) ?? [];
                   const issue = wordIssue.get(w.key);
                   return (
                     <span key={w.key}>
@@ -786,21 +815,24 @@ function TranscriptText({
                             : w.text}
                         </button>
                       )}{" "}
-                      {silence && (
+                      {pauses.map((silence) => (
                         <button
                           type="button"
+                          key={silence.id}
                           className={`pause-pill ${activeIds.has(silence.id) ? "" : "is-kept"}`}
                           onClick={() => toggleKept(silence.id)}
                           title={
                             activeIds.has(silence.id)
                               ? "Silêncio será encurtado. Clique para manter."
-                              : "Mantido. Clique para encurtar."
+                              : kept.has(silence.id)
+                                ? "Mantido. Clique para encurtar."
+                                : "Fora da limpeza (tipo desligado ou trecho protegido)."
                           }
                         >
                           <Pause size={9} />
                           {(silence.end - silence.start + keepPause).toFixed(1).replace(".", ",")}s
                         </button>
-                      )}
+                      ))}
                     </span>
                   );
                 })}

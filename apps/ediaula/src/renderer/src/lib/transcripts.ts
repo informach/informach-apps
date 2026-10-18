@@ -1,25 +1,22 @@
 import {
-  analyze,
   applyCuts,
+  audibleClips,
   cutTargets,
-  type Issue,
-  type IssueKind,
-  mergeRanges,
   protectedConflicts,
-  type TimelineWord,
-  timelineSilences,
   timelineWords,
 } from "@shared/cleanup";
-import { promptTerms } from "@shared/glossary";
+import { type GlossaryTerm, promptTerms } from "@shared/glossary";
 import { newId } from "@shared/timeline";
-import type { Asset, EngineStatus, Project, Transcript } from "@shared/types";
+import type { Asset, CleanupSettings, EngineStatus, Project, Transcript } from "@shared/types";
 import { transcriptView } from "@shared/wordEdits";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
+import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { type Commit, personCommit, useProject } from "@/state/project";
+import { type CleanupInputs, type CleanupPlan, cleanupPlan } from "./cleanupPlan";
 import { projectCorrectionTerms, useCorrectionTerms } from "./glossaryStore";
-import { mediaUrl } from "./media";
+import { loadWaveform, mediaUrl } from "./media";
 
 const cache = new Map<string, Promise<Transcript>>();
 
@@ -43,8 +40,8 @@ const views = new WeakMap<
 >();
 
 /** A media's transcript as the editor reads it: hand corrections and glossary applied. */
-function readable(raw: Transcript, asset: Asset | undefined, terms: string[]): Transcript {
-  const key = terms.join("|");
+function readable(raw: Transcript, asset: Asset | undefined, terms: GlossaryTerm[]): Transcript {
+  const key = JSON.stringify(terms);
   const known = views.get(raw);
   if (known && known.edits === asset?.wordEdits && known.terms === key) return known.view;
   const view = transcriptView(raw, asset?.wordEdits, terms);
@@ -92,31 +89,30 @@ export function useTranscripts(project: Project | null): Map<string, Transcript>
   }, [raw, assets, terms]);
 }
 
-export interface CleanupState {
-  minSilence: number;
-  keepPause: number;
-  kinds: Record<IssueKind, boolean>;
-  /** Issues the user chose to keep. */
-  kept: Set<string>;
-  language: string;
+/** Transcription language, for this session (the cleanup choices live in the project). */
+export const useCleanup = create<{ language: string; set: (p: { language: string }) => void }>(
+  (set) => ({
+    language: "pt",
+    set: (p) => set(p),
+  }),
+);
+
+/** Most kept suggestions a lesson remembers; the oldest go first. */
+const KEPT_LIMIT = 20000;
+
+/** Changes the cleanup choices of the open lesson (one undo step). */
+export function setCleanup(changes: Partial<CleanupSettings>, commit: Commit = personCommit): void {
+  commit((p) => ({ ...p, cleanup: { kept: [], ...p.cleanup, ...changes } }));
 }
 
-export const useCleanup = create<
-  CleanupState & { set: (p: Partial<CleanupState>) => void; toggleKept: (id: string) => void }
->((set, get) => ({
-  minSilence: 1,
-  keepPause: 0.4,
-  kinds: { filler: true, silence: true, repeat: true },
-  kept: new Set(),
-  language: "pt",
-  set: (p) => set(p),
-  toggleKept: (id) => {
-    const kept = new Set(get().kept);
-    if (kept.has(id)) kept.delete(id);
-    else kept.add(id);
-    set({ kept });
-  },
-}));
+/** Keeps a suggestion out of the cleanup, or lets it be cut again. */
+export function toggleKept(id: string, commit: Commit = personCommit): void {
+  commit((p) => {
+    const kept = p.cleanup?.kept ?? [];
+    const next = kept.includes(id) ? kept.filter((k) => k !== id) : [...kept, id];
+    return { ...p, cleanup: { ...p.cleanup, kept: next.slice(-KEPT_LIMIT) } };
+  });
+}
 
 /** The corrected transcript of one transcribed asset of a project. */
 export async function loadAssetTranscript(p: Project, a: Asset): Promise<Transcript> {
@@ -134,37 +130,123 @@ export async function loadProjectTranscripts(p: Project): Promise<Map<string, Tr
   return new Map(loaded);
 }
 
-export interface TextModel {
-  words: TimelineWord[];
-  issues: Issue[];
-  /** Issues that will be cut (enabled kind and not kept). */
-  active: Issue[];
-  saved: number;
+/**
+ * The files the cleanup reads besides the transcripts, one per line ("kind\tasset\tpath"): the
+ * sound envelope ("e") of heard media with no transcript yet and the cursor data ("c") of the
+ * screen recordings on the timeline. File paths never hold tabs or line breaks.
+ */
+function cleanupFiles(p: Project, transcripts: ReadonlyMap<string, Transcript>): string {
+  const heard = new Set(audibleClips(p).map((c) => c.assetId));
+  const used = new Set(p.clips.map((c) => c.assetId));
+  return p.assets
+    .flatMap((a) => [
+      ...(heard.has(a.id) && !transcripts.has(a.id) && a.waveform
+        ? [`e\t${a.id}\t${a.waveform}`]
+        : []),
+      ...(used.has(a.id) && a.cursor && !a.cursorMissing ? [`c\t${a.id}\t${a.cursor}`] : []),
+    ])
+    .join("\n");
 }
 
-/** Timeline words plus detected issues, recomputed when the edit or the options change. */
+/**
+ * Reads the files cleanupFiles() names. A recording whose cursor data cannot be read is listed
+ * in `unseen` (its pauses are then judged by the sound alone).
+ */
+async function readCleanupFiles(
+  files: string,
+  transcripts: ReadonlyMap<string, Transcript>,
+): Promise<CleanupInputs> {
+  const envelopes = new Map<string, { peaksPerSecond: number; peaks: number[] }>();
+  const cursors = new Map<string, unknown>();
+  const unseen: string[] = [];
+  await Promise.all(
+    files
+      .split("\n")
+      .filter(Boolean)
+      .map(async (line) => {
+        const [kind, id, path] = line.split("\t");
+        if (kind === "e")
+          try {
+            envelopes.set(id, await loadWaveform(path));
+          } catch (err) {
+            // Without its envelope the whole clip counts as speech: nothing of it is cut as silence.
+            console.warn(`[cleanup] the sound envelope of ${id} could not be read:`, err);
+          }
+        else
+          try {
+            cursors.set(id, await loadCursorData(path));
+          } catch {
+            unseen.push(id);
+          }
+      }),
+  );
+  return { transcripts, envelopes, cursors, unseen };
+}
+
+/** What the cleanup reads besides the transcripts (cleanupPlan), for code that reads it once. */
+export const loadCleanupInputs = (
+  p: Project,
+  transcripts: ReadonlyMap<string, Transcript>,
+): Promise<CleanupInputs> => readCleanupFiles(cleanupFiles(p, transcripts), transcripts);
+
+/** The cleanup inputs of the open project, read again when the files it needs change. */
+function useCleanupInputs(
+  project: Project | null,
+  transcripts: Map<string, Transcript>,
+): CleanupInputs | null {
+  // The project changes on every edit; the files it needs only when media come or go.
+  const files = project ? cleanupFiles(project, transcripts) : null;
+  const [inputs, setInputs] = useState<CleanupInputs | null>(null);
+  useEffect(() => {
+    if (files === null) return setInputs(null);
+    let alive = true;
+    void readCleanupFiles(files, transcripts).then((loaded) => {
+      if (alive) setInputs(loaded);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [files, transcripts]);
+  return inputs?.transcripts === transcripts ? inputs : null;
+}
+
+export type TextModel = CleanupPlan;
+
+const EMPTY_MODEL: TextModel = {
+  words: [],
+  issues: [],
+  active: [],
+  saved: 0,
+  activity: [],
+  choices: {
+    minSilence: 1,
+    keepPause: 0.4,
+    kinds: { filler: true, silence: true, repeat: true },
+    kept: new Set(),
+  },
+};
+
+/**
+ * Timeline words plus detected issues (cleanupPlan), recomputed when the edit changes. Until the
+ * envelopes and cursor data are read (`loading`), nothing is offered for cutting: a pause could
+ * still turn out to be a silent demonstration.
+ */
 export function useTextModel(
   project: Project | null,
   transcripts: Map<string, Transcript>,
-): TextModel {
-  const { minSilence, keepPause, kinds, kept } = useCleanup();
+): TextModel & { unseen: readonly string[]; loading: boolean } {
+  const inputs = useCleanupInputs(project, transcripts);
   return useMemo(() => {
-    if (!project || transcripts.size === 0) return { words: [], issues: [], active: [], saved: 0 };
-    const words = timelineWords(project, transcripts);
-    const issues = analyze(words, timelineSilences(project, transcripts), {
-      minSilence,
-      keepPause,
-    });
-    // Protected passages are never offered for automatic cutting.
-    const active = issues.filter(
-      (i) =>
-        kinds[i.kind] && !kept.has(i.id) && !protectedConflicts(project, [[i.start, i.end]]).length,
-    );
-    // Repeats can contain pauses that are also flagged, so measure the merged ranges.
-    let saved = 0;
-    for (const [a, b] of mergeRanges(active.map((i) => [i.start, i.end]))) saved += b - a;
-    return { words, issues, active, saved };
-  }, [project, transcripts, minSilence, keepPause, kinds, kept]);
+    if (!project || transcripts.size === 0) return { ...EMPTY_MODEL, unseen: [], loading: false };
+    if (!inputs)
+      return {
+        ...EMPTY_MODEL,
+        words: timelineWords(project, transcripts),
+        unseen: [],
+        loading: true,
+      };
+    return { ...cleanupPlan(project, inputs), unseen: inputs.unseen ?? [], loading: false };
+  }, [project, transcripts, inputs]);
 }
 
 export interface CutResult {

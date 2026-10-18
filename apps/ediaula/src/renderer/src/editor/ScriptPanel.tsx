@@ -1,11 +1,14 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { type ScriptItem, type SpeechItem, sectionLabel, speechSeconds } from "@shared/script";
+import { CONFIRM_COVERAGE } from "@shared/scriptAlign";
 import { projectDuration } from "@shared/timeline";
 import {
   AlertTriangle,
   Check,
   ClipboardPaste,
   FileText,
+  HelpCircle,
+  Layers,
   Loader,
   Monitor,
   Scissors,
@@ -17,7 +20,9 @@ import { type ReactNode, useState } from "react";
 import { duration as fmtDuration } from "@/lib/format";
 import {
   insertedClip,
+  pendingInserts,
   placeInsert,
+  placeInserts,
   proposeOffScript,
   setScript,
   useScriptView,
@@ -27,6 +32,8 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
+
+const percent = (share: number): string => `${Math.round(share * 100)}%`;
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -82,7 +89,8 @@ export function ScriptPanel(): ReactNode {
       </div>
     );
 
-  const { doc, index, section, alignment } = view;
+  const { doc, index, section, alignment, rank, confirmed } = view;
+  const scriptText = project.script.text;
   const total = projectDuration(project);
   const target = section.target;
   const narration = speechSeconds(section, doc.wordsPerMinute ?? 137);
@@ -103,6 +111,20 @@ export function ScriptPanel(): ReactNode {
     setBusy(null);
     toast(r.message, r.ok ? "success" : "error");
   };
+  const waiting = pendingInserts(project, section);
+  const placeAll = async (): Promise<void> => {
+    setBusy("all");
+    const r = await placeInserts("all");
+    setBusy(null);
+    toast(r.message, r.ok ? "success" : "error");
+  };
+  // The best other section, to name it when the choice is close.
+  const runnerUp = rank
+    ? rank.scores.reduce(
+        (best, s, i) => (i !== index && (best < 0 || s > rank.scores[best]) ? i : best),
+        -1,
+      )
+    : -1;
 
   return (
     <div className="script">
@@ -111,11 +133,11 @@ export function ScriptPanel(): ReactNode {
         <select
           className="select"
           value={index}
-          onChange={(e) => setScript(project.script!.text, Number(e.target.value))}
+          onChange={(e) => setScript(scriptText, Number(e.target.value))}
           title={
             project.script.section === undefined
               ? "Escolhida automaticamente pela gravação"
-              : undefined
+              : "Escolhida por você"
           }
         >
           {doc.sections.map((s, i) => (
@@ -137,6 +159,26 @@ export function ScriptPanel(): ReactNode {
           )}
           {section.videoId && <span className="mono muted">{section.videoId}</span>}
         </div>
+        {transcribed && !confirmed && (
+          <div className="script-confirm" role="status">
+            <HelpCircle size={14} />
+            <span>
+              Esta gravação parece ser da {sectionLabel(section)},{" "}
+              {rank && rank.coverage >= CONFIRM_COVERAGE && runnerUp >= 0
+                ? `mas a ${sectionLabel(doc.sections[runnerUp])} combina quase o mesmo (${percent(rank.coverage)} e ${percent(rank.scores[runnerUp])} das palavras).`
+                : `mas só achei ${percent(rank?.coverage ?? 0)} das palavras dela.`}{" "}
+              É esta mesma? Se não for, escolha a seção certa na lista acima.
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Check}
+              onClick={() => setScript(scriptText, index)}
+            >
+              É esta
+            </Button>
+          </div>
+        )}
         {transcribed ? (
           <div className="script-coverage">
             <span>
@@ -147,6 +189,12 @@ export function ScriptPanel(): ReactNode {
                 size="sm"
                 variant="secondary"
                 icon={Scissors}
+                disabled={!confirmed}
+                title={
+                  confirmed
+                    ? "Propor o corte do que foi falado fora do roteiro"
+                    : "Confirme a seção antes de propor cortes"
+                }
                 onClick={async () => {
                   const msg = await proposeOffScript();
                   toast(msg.split("\n")[0], "info");
@@ -173,6 +221,23 @@ export function ScriptPanel(): ReactNode {
           </div>
         )}
       </div>
+
+      {transcribed && waiting.length > 1 && (
+        <div className="script-batch">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={busy === "all" ? Loader : Layers}
+            disabled={busy !== null}
+            onClick={() => void placeAll()}
+          >
+            Encaixar todas ({waiting.length})
+          </Button>
+          <span className="muted">
+            Coloca cada fala do avatar depois da fala anterior, de uma vez só. Ctrl+Z desfaz tudo.
+          </span>
+        </div>
+      )}
 
       <div className="script-items">
         {withRenderKeys(section.items, (item) => JSON.stringify(item)).map(

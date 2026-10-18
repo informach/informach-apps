@@ -1,3 +1,4 @@
+import { formatGlossary, parseGlossaryText } from "@shared/glossary";
 import { type ReactNode, useState } from "react";
 import { saveGlossary, useCourseGlossary } from "@/lib/glossaryStore";
 import { cleanError } from "@/lib/transcripts";
@@ -15,7 +16,7 @@ export function GlossaryField({ disabled, hint }: { disabled?: boolean; hint: st
   const [draft, setDraft] = useState<string | null>(null);
   const save = (): void => {
     if (draft === null) return;
-    saveGlossary(course, draft.split(/[,\n;]/))
+    saveGlossary(course, parseGlossaryText(draft))
       .then(() => setDraft(null))
       .catch((err: unknown) =>
         useApp.getState().toast(`Não foi possível salvar o glossário: ${cleanError(err)}`, "error"),
@@ -29,14 +30,15 @@ export function GlossaryField({ disabled, hint }: { disabled?: boolean; hint: st
       <textarea
         className="input glossary"
         rows={2}
-        value={draft ?? saved.join(", ")}
+        value={draft ?? formatGlossary(saved)}
         disabled={disabled}
-        placeholder="Nomes e termos que a transcrição deve acertar. Ex.: Debinha, Zappy, bloco Quando clicar"
+        placeholder="Nomes e termos que a transcrição deve acertar. Ex.: Debinha, Zappy (Zapi), bloco Quando clicar"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={save}
       />
       <span className="field-hint">
-        {hint} Até 60 termos. O glossário fica guardado por curso e não volta com Ctrl+Z.
+        {hint} Entre parênteses, como o nome costuma sair na transcrição. Até 60 termos. O glossário
+        fica guardado por curso e não volta com Ctrl+Z.
       </span>
     </label>
   );

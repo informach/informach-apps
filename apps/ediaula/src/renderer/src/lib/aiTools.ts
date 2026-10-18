@@ -3,14 +3,12 @@ import { AI_TOOLS, type AiToolName, isAiToolName, PANEL_FORBIDDEN } from "@share
 import { ANNOTATION_PRESETS, type Annotation, defaultOutline } from "@shared/annotation";
 import { DEFAULT_KEY } from "@shared/chroma";
 import {
-  analyze,
   findQuote,
   type IssueKind,
   mergeRanges,
   paragraphs,
   type TimelineWord,
   timelineProtected,
-  timelineSilences,
   timelineWords,
   wordsToSource,
 } from "@shared/cleanup";
@@ -21,6 +19,7 @@ import {
   type Shadow,
 } from "@shared/compose";
 import { buildEditingTemplate } from "@shared/editingTemplate";
+import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
 import { sectionLabel } from "@shared/script";
 import { pendingSpeech } from "@shared/speechSources";
@@ -38,15 +37,17 @@ import { playback, usePlayback } from "@/state/playback";
 import { type AiEntry, type Commit, runAsAi, settleEdits, useProject } from "@/state/project";
 import { actions } from "./actions";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
+import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
 import { importMedia } from "./importMedia";
 import { keyIsCurrent } from "./keying";
 import { allPalettes, applyPalette, usePalettes } from "./palettes";
-import { showProposal } from "./proposals";
-import { currentView, placeInsert, proposeOffScript, scriptDoc } from "./script";
+import { proposeCleanup, showProposal } from "./proposals";
+import { currentView, placeInserts, proposeOffScript, scriptDoc } from "./script";
 import { addTemplate, TemplateBlockedError } from "./templates";
 import {
   type CutResult,
   cutRanges,
+  loadCleanupInputs,
   loadProjectTranscripts,
   speechCandidates,
   transcribeAssets,
@@ -162,6 +163,23 @@ const OVERVIEW_HEAD = 25;
 const OVERVIEW_TAIL = 5;
 /** find_cleanup lists at most this many items. */
 const CLEANUP_LIST = 200;
+
+/**
+ * The cleanup of the open project (cleanupPlan, with the person's choices), read again once if
+ * the project changed while its transcripts, envelopes and cursor data were loading.
+ */
+async function freshCleanup(
+  overrides: CleanupOverrides,
+): Promise<{ project: Project; plan: ReturnType<typeof cleanupPlan> }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const project = requireProject();
+    const { transcripts } = await wordsOf(project);
+    const inputs = await loadCleanupInputs(project, transcripts);
+    if (useProject.getState().project === project)
+      return { project, plan: cleanupPlan(project, inputs, overrides) };
+  }
+  throw new ToolError("O projeto mudou enquanto eu preparava a limpeza. Tente de novo.");
+}
 
 /**
  * The transcript words of the open project, read again once if the project changed while
@@ -323,7 +341,10 @@ const handlers: {
         `Roteiro anexado: "${doc.title}" (${doc.sections.length} seções${p.script?.section !== undefined ? `, este vídeo: ${sectionLabel(doc.sections[p.script.section])}` : ""}). Leia com get_script.`,
       );
     const glossary = await window.api.getGlossary(p.course ?? "");
-    if (glossary.length) lines.push(`Glossário do curso: ${glossary.join(", ")}`);
+    if (glossary.length)
+      lines.push(
+        `Glossário do curso (entre parênteses, como o nome sai na transcrição): ${formatGlossary(glossary)}`,
+      );
     lines.push(revisionLine());
     return lines.join("\n");
   },
@@ -358,58 +379,53 @@ const handlers: {
   },
 
   async find_cleanup({ min_silence }) {
-    const p = requireProject();
-    const { transcripts, words } = await wordsOf(p);
-    const opts = {
-      minSilence: min_silence ?? useCleanup.getState().minSilence,
-      keepPause: useCleanup.getState().keepPause,
-    };
-    const issues = analyze(words, timelineSilences(p, transcripts), opts);
-    if (!issues.length) return "Nada para limpar automaticamente.";
-    const byKey = new Map(words.map((w) => [w.key, w.text]));
+    const { plan } = await freshCleanup({ minSilence: min_silence });
+    if (!plan.issues.length) return "Nada para limpar automaticamente.";
+    const byKey = new Map(plan.words.map((w) => [w.key, w.text]));
     const label: Record<IssueKind, string> = {
       filler: "vício",
       repeat: "repetição",
       silence: "silêncio",
     };
-    const listed = issues
+    const active = new Set(plan.active.map((i) => i.id));
+    const listed = plan.issues
       .slice(0, CLEANUP_LIST)
       .map(
         (i) =>
-          `[${t(i.start)}–${t(i.end)}] ${label[i.kind]}${i.words.length ? `: "${i.words.map((k) => byKey.get(k)).join(" ")}"` : ` de ${(i.end - i.start + opts.keepPause).toFixed(1)} s`}`,
+          `[${t(i.start)}–${t(i.end)}] ${label[i.kind]}${i.words.length ? `: "${i.words.map((k) => byKey.get(k)).join(" ")}"` : ` de ${(i.end - i.start + plan.choices.keepPause).toFixed(1)} s`}${active.has(i.id) ? "" : plan.choices.kept.has(i.id) ? " (a pessoa marcou para manter)" : " (fora da limpeza)"}`,
       )
       .join("\n");
-    return issues.length > CLEANUP_LIST
-      ? `${listed}\n… e mais ${issues.length - CLEANUP_LIST} itens (${issues.length} no total).`
-      : listed;
+    const head = `${plan.active.length} de ${plan.issues.length} sugestões entram na limpeza; as outras a pessoa marcou para manter, são de um tipo desligado ou estão protegidas. Silêncios com clique, arrasto, rolagem, teclas ou movimento na tela não são cortados (${plan.activity.length} trechos de atividade). ${revisionLine()}`;
+    return plan.issues.length > CLEANUP_LIST
+      ? `${head}\n${listed}\n… e mais ${plan.issues.length - CLEANUP_LIST} itens (${plan.issues.length} no total).`
+      : `${head}\n${listed}`;
   },
 
-  async apply_cleanup({ fillers, repeats, silences, min_silence }, { commit }) {
-    const p = requireProject();
-    const { transcripts, words } = await wordsOf(p);
-    const opts = {
-      minSilence: min_silence ?? useCleanup.getState().minSilence,
-      keepPause: useCleanup.getState().keepPause,
+  async apply_cleanup({ fillers, repeats, silences, min_silence, mode }, { commit, call }) {
+    requireProject();
+    const overrides: CleanupOverrides = {
+      ...(min_silence !== undefined ? { minSilence: min_silence } : {}),
+      kinds: {
+        ...(fillers !== undefined ? { filler: fillers } : {}),
+        ...(repeats !== undefined ? { repeat: repeats } : {}),
+        ...(silences !== undefined ? { silence: silences } : {}),
+      },
     };
-    const kinds: Record<IssueKind, boolean> = {
-      filler: fillers ?? true,
-      repeat: repeats ?? true,
-      silence: silences ?? true,
-    };
-    const prot = timelineProtected(p);
-    const chosen = analyze(words, timelineSilences(p, transcripts), opts).filter(
-      (i) =>
-        kinds[i.kind] &&
-        !prot.some((r) => Math.min(i.end, r.end) - Math.max(i.start, r.start) > 0.01),
-    );
-    if (!chosen.length) return "Nada para cortar com essas opções.";
+    if ((mode ?? "propose") === "propose") {
+      const r = await proposeCleanup(proposalAuthor(call), overrides);
+      if (!r.ok) throw new ToolError(r.message);
+      return `${r.message}\nA pessoa vai aplicar ou descartar na tela, item por item; não aplique você mesmo.`;
+    }
+    const { plan } = await freshCleanup(overrides);
+    if (!plan.active.length) return "Nada para cortar com essas opções.";
     const d0 = before();
     cutOrFail(
-      chosen.map((i) => [i.start, i.end]),
+      plan.active.map((i) => [i.start, i.end]),
       commit,
     );
-    const count = (k: IssueKind): number => chosen.filter((i) => i.kind === k).length;
-    return `Cortados: ${count("filler")} vícios, ${count("repeat")} repetições, ${count("silence")} silêncios. ${savedSince(d0)}`;
+    const count = (k: IssueKind): number => plan.active.filter((i) => i.kind === k).length;
+    const kept = plan.issues.filter((i) => plan.choices.kept.has(i.id)).length;
+    return `Cortados: ${count("filler")} vícios, ${count("repeat")} repetições, ${count("silence")} silêncios${kept ? `; ${kept} que a pessoa marcou para manter ficaram` : ""}. ${savedSince(d0)}`;
   },
 
   async cut_text({ quotes }, { commit }) {
@@ -567,16 +583,22 @@ const handlers: {
     if (!view)
       return "Nenhum roteiro anexado. O usuário pode colar o roteiro na aba Roteiro (ou no chat; nesse caso peça para colar na aba).";
     const { doc, section, alignment } = view;
+    const lineNumber = new Map(alignment.lines.map((l, i) => [l.item, i + 1]));
     const out = [
       `${doc.title} · ${sectionLabel(section)}${section.videoId ? ` (vídeo ${section.videoId})` : ""}`,
       `Duração alvo: ${section.targetText ?? "—"} · edição atual ${t(projectDuration(p))}`,
       view.words.length
         ? `Narração encontrada na gravação: ${Math.round(alignment.coverage * 100)}%`
         : "Narração ainda não transcrita: não dá para alinhar.",
+      ...(view.words.length && !view.confirmed
+        ? [
+            `Seção escolhida pela gravação e ainda não confirmada (${Math.round((view.rank?.coverage ?? 0) * 100)}% das palavras dela, ${Math.round((view.rank?.margin ?? 0) * 100)} pontos à frente da seguinte). Peça para a pessoa confirmar a seção na aba Roteiro; até lá propose_off_script recusa.`,
+          ]
+        : []),
       "",
       ...section.items.map((it, idx) => {
         if (it.kind === "screen")
-          return `NA TELA${it.insertId ? ` [${it.insertId}]` : ""} (não é locução): ${it.text}`;
+          return `NA TELA${it.insertId ? ` [${(it.insertIds ?? [it.insertId]).join(", ")}]` : ""} (não é locução): ${it.text}`;
         if (it.kind === "bridge") return `ZAPPY NA PÁGINA (não gravar, nunca narrar): ${it.text}`;
         if (it.kind === "note") return `${(it.label || "NOTA").toUpperCase()}: ${it.text}`;
         const l = alignment.lines.find((x) => x.item === idx);
@@ -586,11 +608,11 @@ const handlers: {
           : l?.start !== undefined && l.matched / Math.max(1, l.total) >= 0.4
             ? `${t(l.start)}–${t(l.end!)}, ${Math.round((l.matched / l.total) * 100)}% das palavras`
             : "não encontrada na gravação";
-        return `${it.speaker}${it.avatar ? " (avatar)" : ""}${it.insertId ? ` [${it.insertId}]` : ""} — ${where}: "${it.text}"`;
+        return `LINHA ${lineNumber.get(idx)} · ${it.speaker}${it.avatar ? " (avatar)" : ""}${it.insertId ? ` [${it.insertId}]` : ""} · ${where}: "${it.text}"`;
       }),
       "",
       alignment.offScript.length
-        ? `Falado fora do roteiro (${alignment.offScript.length}):\n${alignment.offScript.map((r) => `- ${t(r.start)}–${t(r.end)} "${r.text}"`).join("\n")}`
+        ? `Falado fora do roteiro (${alignment.offScript.length}):\n${alignment.offScript.map((r) => `- ${t(r.start)}–${t(r.end)}${r.retakeOf !== undefined ? ` (outra tomada da LINHA ${r.retakeOf + 1})` : ""} "${r.text}"`).join("\n")}`
         : "Nada falado fora do roteiro.",
       revisionLine(),
     ];
@@ -599,7 +621,14 @@ const handlers: {
 
   async place_insert({ insert_id }, { commit }) {
     requireProject();
-    const r = await placeInsert(insert_id, commit);
+    const r = await placeInserts(insert_id, commit);
+    if (!r.ok) throw new ToolError(r.message);
+    return r.message;
+  },
+
+  async place_inserts({ insert_ids }, { commit }) {
+    requireProject();
+    const r = await placeInserts(insert_ids, commit);
     if (!r.ok) throw new ToolError(r.message);
     return r.message;
   },

@@ -641,7 +641,18 @@ function registerIpc(): void {
   ipcMain.handle("glossary:set", (_e, course: unknown, terms: unknown) =>
     setGlossary(
       z.string().max(1024).parse(course),
-      z.array(z.string().max(200)).max(1000).parse(terms),
+      z
+        .array(
+          z.union([
+            z.string().max(200),
+            z.object({
+              term: z.string().max(200),
+              aliases: z.array(z.string().max(200)).max(20).optional(),
+            }),
+          ]),
+        )
+        .max(1000)
+        .parse(terms),
     ),
   );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));

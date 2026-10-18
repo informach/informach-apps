@@ -14,19 +14,97 @@ const UNSURE = 0.8;
 
 /** Terms a course glossary keeps. */
 export const GLOSSARY_LIMIT = 60;
+/** Other ways a term is heard ("Zapi" for "Zappy"), at most this many per term. */
+export const ALIAS_LIMIT = 10;
 
-/** A glossary as it is saved: trimmed, without empty or repeated terms (in its order). */
-export function normalizeGlossary(terms: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
+/**
+ * A glossary term: the way the course writes it, alone (older glossaries) or with the ways it is
+ * heard ("Zappy" heard as "Zapi").
+ */
+export type GlossaryTerm = string | { term: string; aliases?: string[] };
+
+const clean = (s: string): string => s.trim().replace(/\s+/g, " ");
+
+/** The term as the course writes it. */
+export const termText = (t: GlossaryTerm): string => clean(typeof t === "string" ? t : t.term);
+
+/** The ways a term is heard, besides the term itself. */
+export const termAliases = (t: GlossaryTerm): string[] =>
+  typeof t === "string" ? [] : (t.aliases ?? []).map(clean).filter(Boolean);
+
+/**
+ * A glossary as it is saved: trimmed, without empty or repeated terms (in its order). A term
+ * given twice keeps the aliases of both; a term without aliases stays a plain string, as older
+ * glossaries were written.
+ */
+export function normalizeGlossary(terms: readonly GlossaryTerm[]): GlossaryTerm[] {
+  const byKey = new Map<string, { term: string; aliases: string[] }>();
   for (const raw of terms) {
-    const term = raw.trim().replace(/\s+/g, " ");
+    const term = termText(raw);
     const k = foldText(term);
-    if (!k || seen.has(k)) continue;
-    seen.add(k);
-    out.push(term);
+    if (!k) continue;
+    const entry = byKey.get(k) ?? { term, aliases: [] };
+    byKey.set(k, entry);
+    for (const alias of termAliases(raw)) {
+      const a = foldText(alias);
+      if (!a || a === k || entry.aliases.some((x) => foldText(x) === a)) continue;
+      if (entry.aliases.length < ALIAS_LIMIT) entry.aliases.push(alias);
+    }
   }
-  return out;
+  return [...byKey.values()].map((e) => (e.aliases.length ? e : e.term));
+}
+
+/** Reads a stored glossary: strings and {term, aliases} entries; anything else is left out. */
+export function readGlossary(raw: unknown): GlossaryTerm[] {
+  if (!Array.isArray(raw)) return [];
+  const out: GlossaryTerm[] = [];
+  for (const item of raw) {
+    if (typeof item === "string") out.push(item);
+    else if (item && typeof item === "object" && typeof Reflect.get(item, "term") === "string") {
+      const aliases: unknown = Reflect.get(item, "aliases");
+      out.push({
+        term: Reflect.get(item, "term") as string,
+        aliases: Array.isArray(aliases)
+          ? aliases.filter((a): a is string => typeof a === "string")
+          : [],
+      });
+    }
+  }
+  return normalizeGlossary(out);
+}
+
+/** The glossary as the field shows it: "Zappy (Zapi, Zapy), Debinha". */
+export const formatGlossary = (terms: readonly GlossaryTerm[]): string =>
+  terms
+    .map((t) => {
+      const aliases = termAliases(t);
+      return aliases.length ? `${termText(t)} (${aliases.join(", ")})` : termText(t);
+    })
+    .join(", ");
+
+/**
+ * The glossary typed in the field: terms separated by commas, semicolons or lines, each with the
+ * ways it is heard in parentheses ("Zappy (Zapi, Zapy)").
+ */
+export function parseGlossaryText(text: string): GlossaryTerm[] {
+  const out: GlossaryTerm[] = [];
+  let depth = 0;
+  let cur = "";
+  const flush = (): void => {
+    const m = /^([^()]*)(?:\(([^)]*)\)?)?\s*$/.exec(cur.trim());
+    const term = clean(m ? m[1] : cur.replace(/[()]/g, ""));
+    const aliases = (m?.[2] ?? "").split(/[,;]/).map(clean).filter(Boolean);
+    if (term) out.push(aliases.length ? { term, aliases } : term);
+    cur = "";
+  };
+  for (const ch of text) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (depth === 0 && /[,;\n]/.test(ch)) flush();
+    else cur += ch;
+  }
+  flush();
+  return normalizeGlossary(out);
 }
 
 /** Lowercase, no accents, letters and digits only. */
@@ -63,27 +141,30 @@ interface Term {
 /** Up to 5 letters a term tolerates one edit, longer ones two; very short ones must match. */
 const allowedDistance = (letters: number): number => (letters <= 3 ? 0 : letters <= 5 ? 1 : 2);
 
-function compile(terms: string[]): Term[] {
+/** Each term, and each way it is heard written as the term ("Zapi" heard, "Zappy" written). */
+function compile(terms: readonly GlossaryTerm[]): Term[] {
   const seen = new Set<string>();
   const out: Term[] = [];
   for (const raw of terms) {
-    const text = raw.trim().replace(/\s+/g, " ");
-    const plain = foldText(text);
-    if (plain.length < 3 || seen.has(plain)) continue;
-    seen.add(plain);
-    out.push({
-      text,
-      plain,
-      key: soundKey(text),
-      words: text.split(" ").length,
-      maxDist: allowedDistance(plain.length),
-    });
+    const text = termText(raw);
+    for (const heard of [text, ...termAliases(raw)]) {
+      const plain = foldText(heard);
+      if (plain.length < 3 || seen.has(plain)) continue;
+      seen.add(plain);
+      out.push({
+        text,
+        plain,
+        key: soundKey(heard),
+        words: heard.split(" ").length,
+        maxDist: allowedDistance(plain.length),
+      });
+    }
   }
   return out;
 }
 
 /** Optimal string alignment distance, or `max + 1` as soon as it is clearly larger. */
-function distance(a: string, b: string, max: number): number {
+export function editDistance(a: string, b: string, max: number): number {
   if (Math.abs(a.length - b.length) > max) return max + 1;
   let prev2: number[] = [];
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -136,7 +217,7 @@ interface Match {
  */
 export function correctWords<W extends Word>(
   words: W[],
-  terms: string[],
+  terms: readonly GlossaryTerm[],
   opts: CorrectOptions = {},
 ): W[] {
   const list = compile(terms);
@@ -166,7 +247,7 @@ export function correctWords<W extends Word>(
         const exact = plain === term.plain;
         let dist = exact ? 0 : known[t].get(key);
         if (dist === undefined) {
-          dist = distance(key, term.key, term.maxDist);
+          dist = editDistance(key, term.key, term.maxDist);
           known[t].set(key, dist);
         }
         if (dist > term.maxDist) continue;
@@ -278,7 +359,12 @@ export function scriptTerms(doc: ScriptDoc | null): string[] {
  * The terms whisper's initial prompt should carry, most relevant first: those the script mentions
  * most, then the rest in the order the glossary lists them.
  */
-export function promptTerms(terms: string[], scriptText = "", max = 20): string[] {
+export function promptTerms(
+  glossary: readonly GlossaryTerm[],
+  scriptText = "",
+  max = 20,
+): string[] {
+  const terms = glossary.map(termText);
   const text = ` ${scriptText
     .toLowerCase()
     .normalize("NFD")

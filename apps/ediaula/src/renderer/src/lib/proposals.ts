@@ -22,7 +22,13 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
-import { cutRanges, loadProjectTranscripts, useTranscripts } from "./transcripts";
+import { type CleanupOverrides, cleanupItems, cleanupPlan } from "./cleanupPlan";
+import {
+  cutRanges,
+  loadCleanupInputs,
+  loadProjectTranscripts,
+  useTranscripts,
+} from "./transcripts";
 
 interface RawItem {
   text?: string;
@@ -122,28 +128,91 @@ export async function showProposal(
     );
   const ok = items.filter((i) => !blocked.includes(i)).sort((a, b) => a.start - b.start);
   if (!ok.length) return `Nenhum corte pôde ser proposto.\n${problems.join("\n")}`;
+  const refused = storeProposal(project, title, ok, by);
+  if (refused) return refused;
+  const saved = proposedSeconds(ok);
+  return [
+    `Proposta "${title}" mostrada ao usuário: ${ok.length} corte(s), −${saved.toFixed(1)} s. Ele vai aplicar ou descartar na tela; não aplique você mesmo.`,
+    ...problems,
+  ].join("\n");
+}
+
+const proposedSeconds = (items: ProposalItem[]): number => {
+  let saved = 0;
+  for (const [a, b] of mergeRanges(items.map((i) => [i.start, i.end]))) saved += b - a;
+  return saved;
+};
+
+/**
+ * Keeps a proposal in the project and shows it in the bar. Returns why it was not kept (too big
+ * to save with the lesson), or null.
+ */
+function storeProposal(
+  project: Project,
+  title: string,
+  items: ProposalItem[],
+  by: string,
+): string | null {
   const proposal: Proposal = {
     id: newId("prop"),
     projectId: project.id,
     title,
-    revision: current,
+    revision: useProject.getState().revision,
     createdAt: Date.now(),
     by,
-    items: ok,
+    items,
   };
   const list = withProposal(project.proposals ?? [], proposal);
   // What is kept must always reopen with the project: checked against its schema first.
   const valid = proposalListSchema.safeParse(list);
   if (!valid.success || !list.includes(proposal))
-    return `A proposta é grande demais para guardar na aula (${ok.length} itens). Proponha um trecho menor.`;
+    return `A proposta é grande demais para guardar na aula (${items.length} itens). Proponha um trecho menor.`;
   useProject.getState().setProposals(() => list);
   useProposalChoice.setState({ id: proposal.id });
-  let saved = 0;
-  for (const [a, b] of mergeRanges(ok.map((i) => [i.start, i.end]))) saved += b - a;
-  return [
-    `Proposta "${title}" mostrada ao usuário: ${ok.length} corte(s), −${saved.toFixed(1)} s. Ele vai aplicar ou descartar na tela; não aplique você mesmo.`,
-    ...problems,
-  ].join("\n");
+  return null;
+}
+
+/**
+ * The automatic cleanup as a proposal (cleanupPlan, with the choices kept in the project): each
+ * hesitation, repeat and pause is an item the person can leave out before applying, and nothing
+ * is cut until they apply it. Made on the computer, without the AI. `overrides` are the AI's
+ * options for this one call; what the person chose to keep stays kept.
+ */
+export async function proposeCleanup(
+  by = "limpeza",
+  overrides: CleanupOverrides = {},
+): Promise<{ ok: boolean; message: string }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const project = useProject.getState().project;
+    if (!project) return { ok: false, message: "Nenhum projeto aberto." };
+    const transcripts = await loadProjectTranscripts(project);
+    if (!transcripts.size)
+      return {
+        ok: false,
+        message:
+          "Esta aula ainda não tem transcrição. Transcreva na aba Transcrição antes de limpar.",
+      };
+    const inputs = await loadCleanupInputs(project, transcripts);
+    if (useProject.getState().project !== project) continue;
+    const plan = cleanupPlan(project, inputs, overrides);
+    if (!plan.active.length)
+      return { ok: true, message: "Nada para limpar com as escolhas desta aula." };
+    const items = cleanupItems(project, plan, () => newId("pi"));
+    const refused = storeProposal(project, "Limpeza da aula", items, by);
+    if (refused) return { ok: false, message: refused };
+    const count = (k: string): number => plan.active.filter((i) => i.kind === k).length;
+    const unseen = inputs.unseen?.length
+      ? ` Os dados do cursor de ${inputs.unseen.length} gravação(ões) não abriram: ali só o som decidiu os silêncios.`
+      : "";
+    return {
+      ok: true,
+      message: `Proposta de limpeza pronta: ${count("filler")} vício(s), ${count("repeat")} repetição(ões) e ${count("silence")} silêncio(s), −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.${unseen}`,
+    };
+  }
+  return {
+    ok: false,
+    message: "A aula mudou enquanto a limpeza era preparada. Nada foi proposto; tente de novo.",
+  };
 }
 
 /** The pending proposal shown in the bar (the latest, unless the person picked another). */
