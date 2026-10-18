@@ -19,6 +19,7 @@ overrides:
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
   pptxgenjs@4.0.1>image-size: 2.0.3
+  pptxgenjs@4.0.1>https: '-'
 
 importers:
 
@@ -5869,9 +5870,6 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
-
-  https@1.0.0:
-    resolution: {integrity: sha512-4EC57ddXrkaF0x83Oj8sM6SLQHAWXw90Skqu2M4AEWENZ3F02dFJE/GARA8igO79tcgYqGrD7ae4f5L3um2lgg==}
 
   human-signals@8.0.1:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
@@ -12388,8 +12386,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  https@1.0.0: {}
-
   human-signals@8.0.1: {}
 
   iconv-lite@0.4.24:
@@ -13560,7 +13556,6 @@ snapshots:
   pptxgenjs@4.0.1:
     dependencies:
       '@types/node': 22.20.5
-      https: 1.0.0
       image-size: 2.0.3
       jszip: 3.10.2
 

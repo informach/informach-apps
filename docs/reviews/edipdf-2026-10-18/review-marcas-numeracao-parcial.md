@@ -1,6 +1,6 @@
 # Review de marcas, cabeçalhos e numeração
 
-18/10/2026. Complemento M13 e perfil inicial de Bates (I21) implementados; testes/tipos e percurso funcional nativo aprovados. O aceite da rodada completa continua pendente da investigação da reabertura, sem antecipar conclusão.
+18/10/2026. Complemento M13 e perfil inicial de Bates (I21) aprovados em testes/tipos e na jornada nativa completa. A investigação de encerramento resultou na drenagem do cofre do SDK, conferida na jornada dos seis aplicativos e em três reaberturas adicionais. O [full review da entrega](full-review-entrega.md) registra os resultados finais e distingue esse aceite da publicação.
 
 Marcas d'água aceitam nove posições, margens, ajuste para caber, intervalo e exceções. Numeração aceita capa/exceções, contagem física ou somente das páginas aplicadas, dígitos mínimos, estilos decimal/romano/letras, texto livre e até seis posições de cabeçalho/rodapé. Os tokens `{n}`, `{total}`, `{count}`, `{page}` e `{pages}` distinguem sequência e páginas físicas. Um prefixo como `DOC-{n}` com quatro dígitos produz Bates local. Rótulos de navegação opcionais são gravados em `/PageLabels`, separadamente do índice físico, substituindo os anteriores com aviso.
 
@@ -18,4 +18,4 @@ A mesma rodada falhou depois, no fechamento do processo reaberto. A espera de fe
 
 A revisão visual também identificou duas melhorias em preparação: rolagem independente das opções para conservar a prévia visível e composição da rotação dos controles de formulário com a página. Esta última possui teste adicional de 64 combinações, mas ambos os ajustes ainda precisam passar na próxima rodada nativa, pois foram feitos depois do build da rodada atual.
 
-Pendências: aceite nativo deste complemento, corpus amplo e demais requisitos do mapa, recursos especializados restantes (I21), lote 5 e full review. Sem commit/push/deploy/publicação.
+Pendências: corpus amplo, recursos especializados restantes (I21) e funcionalidades adiadas no registro de [pendências pós-release](pendencias-pos-release.md). O full review local foi concluído; gates remotos, instaladores e publicação seguem o registro atual da entrega. Os relatos de falhas acima conservam o histórico da investigação.
