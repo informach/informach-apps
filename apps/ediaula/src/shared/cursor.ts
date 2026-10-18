@@ -1,4 +1,5 @@
-import { CURSOR_SHAPES, type CursorData, type CursorShape } from "./recording.ts";
+import { type CursorData, shapeName } from "./cursorData.ts";
+import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 
 /**
  * The pointer of an EdiAula screen recording is drawn by the editor (the video has none), so it
@@ -231,14 +232,16 @@ export function buildTrack(data: CursorData, fx: CursorFx, duration: number): Cu
   let vy = 0;
   let lastMove = -Infinity;
   let lastRaw: [number, number] = [px, py];
-  let curShape = moves[0]?.[3] ?? 0;
+  // Images of the take are drawn as the standard shape they resemble, for now.
+  const base = (index: number): number => CURSOR_SHAPES.indexOf(shapeName(data, index));
+  let curShape = base(moves[0]?.[3] ?? 0);
   for (let i = 0; i < n; i++) {
     const t = i * dt;
     while (j < moves.length && moves[j][0] <= t) {
       const m = moves[j];
       if (Math.abs(m[1] - lastRaw[0]) + Math.abs(m[2] - lastRaw[1]) > 1) lastMove = m[0];
       lastRaw = [m[1], m[2]];
-      curShape = m[3];
+      curShape = base(m[3]);
       j++;
     }
     shape[i] = curShape;

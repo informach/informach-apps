@@ -15,6 +15,7 @@ export class ExportQueue {
   items: ExportItem[] = [];
   private active: AbortController | null = null;
   private working = false;
+  private held = false;
   private run: (
     item: ExportItem,
     signal: AbortSignal,
@@ -57,6 +58,21 @@ export class ExportQueue {
     else if (item.state === "preparing" || item.state === "exporting") this.active?.abort();
   }
 
+  /**
+   * While a take records, the next export waits (the one already running goes on, at low
+   * priority); releasing the hold starts it.
+   */
+  hold(on: boolean): void {
+    if (this.held === on) return;
+    this.held = on;
+    this.emit();
+    if (!on) void this.pump();
+  }
+
+  get holding(): boolean {
+    return this.held;
+  }
+
   remove(id: string): void {
     this.items = this.items.filter(
       (i) => i.id !== id || ["preparing", "exporting"].includes(i.state),
@@ -78,7 +94,7 @@ export class ExportQueue {
     try {
       for (;;) {
         const item = this.items.find((i) => i.state === "waiting");
-        if (!item) break;
+        if (!item || this.held) break;
         const id = item.id;
         const controller = new AbortController();
         this.active = controller;

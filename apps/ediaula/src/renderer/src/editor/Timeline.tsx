@@ -60,6 +60,7 @@ import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
 import { mediaUrl } from "@/lib/media";
 import { useProposalView } from "@/lib/proposals";
+import { recorderKey } from "@/lib/recorderKeys";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
@@ -1416,7 +1417,7 @@ const ClipView = memo(function ClipView({
   );
 });
 
-/** Zooms and recording markers (Ctrl+M, Ctrl+R) of the clips, in timeline seconds. */
+/** Zooms and recording markers (marker and redo shortcuts) of the clips, in timeline seconds. */
 function recordingMarks(
   project: Project,
 ): { kind: "zoom" | "marker" | "retake"; start: number; end: number; label: string }[] {
@@ -1443,7 +1444,10 @@ function recordingMarks(
           kind: m.kind,
           start: toT(m.t),
           end: toT(m.t),
-          label: m.kind === "retake" ? "Refazer (Ctrl+R)" : "Marcador (Ctrl+M)",
+          label:
+            m.kind === "retake"
+              ? `Refazer (${recorderKey("retake")})`
+              : `Marcador (${recorderKey("marker")})`,
         });
   }
   return out;

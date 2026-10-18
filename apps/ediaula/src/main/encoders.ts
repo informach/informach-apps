@@ -13,6 +13,7 @@ import {
   type CaptureProfile,
   COLOR_MATRICES,
   COLOR_RANGES,
+  CPU_CONVERSION,
   captureVideoArgs,
   chooseCaptureEncoder,
   classifyProbeFailure,
@@ -23,7 +24,6 @@ import {
   PROBE_FAILURES,
   profileKey,
   realtimeFps,
-  softwarePixelFormat,
 } from "../shared/encoderChoice.ts";
 import { FFMPEG } from "./ffmpeg.ts";
 import { qpc } from "./nativeHelper.ts";
@@ -37,7 +37,7 @@ import { qpc } from "./nativeHelper.ts";
  * failed in a real recording is left out until the key changes.
  */
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 4;
 const FALLBACK_RECHECK_MS = 24 * 60 * 60 * 1000;
 const PROBE_SECONDS = 3;
 /** Test frames for the colour measurement carry the same tags as Desktop Duplication's. */
@@ -92,10 +92,10 @@ function ffmpeg(args: string[], progress = false): Promise<Run> {
 }
 
 /** Desktop Duplication frames to the encoder along one path, as the recorder sends them. */
-function screenPath(codec: CaptureCodec, conversion: CaptureConversion): string[] {
+function screenPath(conversion: CaptureConversion): string[] {
   if (conversion === "scale_d3d11") return ["-vf", "scale_d3d11=format=nv12"];
   if (conversion === "encoder") return [];
-  return ["-vf", "hwdownload,format=bgra", "-pix_fmt", softwarePixelFormat(codec)];
+  return ["-vf", CPU_CONVERSION];
 }
 
 /**
@@ -124,7 +124,7 @@ async function probeEncoder(
       `ddagrab=output_idx=${profile.output}:framerate=${profile.fps}:draw_mouse=0`,
       "-t",
       String(PROBE_SECONDS),
-      ...screenPath(codec, conversion),
+      ...screenPath(conversion),
       ...captureVideoArgs(codec, profile),
       "-f",
       "null",
@@ -144,8 +144,8 @@ async function probeEncoder(
   };
 }
 
-/** Input, filter and pixel format that bring a test frame to the encoder along one path. */
-function uploadPath(codec: CaptureCodec, conversion: CaptureConversion) {
+/** Input and filter that bring a test frame to the encoder along one path. */
+function uploadPath(conversion: CaptureConversion) {
   const gpu = conversion !== "cpu";
   return {
     device: gpu ? ["-init_hw_device", "d3d11va=d", "-filter_hw_device", "d"] : [],
@@ -154,8 +154,8 @@ function uploadPath(codec: CaptureCodec, conversion: CaptureConversion) {
         ? "hwupload,scale_d3d11=format=nv12"
         : conversion === "encoder"
           ? "hwupload"
-          : "null",
-    pixelFormat: gpu ? [] : ["-pix_fmt", softwarePixelFormat(codec)],
+          : // The recorder's CPU conversion without its download from the GPU.
+            CPU_CONVERSION.slice("hwdownload,".length),
   };
 }
 
@@ -167,7 +167,7 @@ async function measureColor(
   const dir = join(app.getPath("temp"), "ediaula");
   await mkdir(dir, { recursive: true });
   const file = join(dir, `encoder-color-${process.pid}-${Date.now()}.mp4`);
-  const path = uploadPath(encoder.codec, encoder.conversion);
+  const path = uploadPath(encoder.conversion);
   try {
     const encoded = await ffmpeg([
       "-hide_banner",
@@ -182,7 +182,6 @@ async function measureColor(
       `color=c=red:s=640x360:r=${profile.fps}:d=0.2,${LIKE_DESKTOP}`,
       "-vf",
       path.filter,
-      ...path.pixelFormat,
       ...captureVideoArgs(encoder.codec, profile),
       file,
     ]);

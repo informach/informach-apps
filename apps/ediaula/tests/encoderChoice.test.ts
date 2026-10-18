@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   CAPTURE_CODECS,
+  CPU_CONVERSION,
   captureEncoderLabel,
   captureFilter,
   captureVideoArgs,
@@ -120,8 +121,8 @@ test("a recording that fails to start falls back to system memory, then to x264"
     ]),
     [
       ["h264_mf", "encoder", "unknown"],
-      ["h264_mf", "cpu", "bt601"],
-      ["libx264", "cpu", "bt601"],
+      ["h264_mf", "cpu", "bt709"],
+      ["libx264", "cpu", "bt709"],
     ],
   );
   assert.deepEqual(
@@ -149,7 +150,7 @@ test("the luma of pure red tells BT.709 from BT.601 and limited from full range"
   assert.deepEqual(colorFromLuma(Number.NaN), { matrix: "unknown", range: "unknown" });
 });
 
-test("GPU paths re-tag the frames with the measured matrix; the CPU path converts with it", () => {
+test("GPU paths re-tag the frames with the measured matrix; the CPU path converts to BT.709", () => {
   assert.deepEqual(
     captureFilter({ codec: "h264_nvenc", conversion: "encoder", matrix: "bt601", range: "tv" }),
     { filter: "setparams=colorspace=smpte170m:range=tv", output: [] },
@@ -167,17 +168,15 @@ test("GPU paths re-tag the frames with the measured matrix; the CPU path convert
     }),
     { filter: null, output: [] },
   );
-  assert.deepEqual(
-    captureFilter({ codec: "libx264", conversion: "cpu", matrix: "bt601", range: "tv" }),
-    {
-      filter: "hwdownload,format=bgra",
-      output: ["-pix_fmt", "yuv420p", "-colorspace", "smpte170m", "-color_range", "tv"],
-    },
-  );
-  assert.deepEqual(
-    captureFilter({ codec: "h264_nvenc", conversion: "cpu", matrix: "unknown", range: "unknown" })
-      .output,
-    ["-pix_fmt", "nv12"],
+  // Whatever was cached for it, the CPU path writes BT.709 limited range and says so.
+  for (const matrix of ["bt601", "unknown"] as const)
+    assert.deepEqual(captureFilter({ codec: "libx264", conversion: "cpu", matrix, range: "tv" }), {
+      filter: CPU_CONVERSION,
+      output: ["-colorspace", "bt709", "-color_range", "tv"],
+    });
+  assert.equal(
+    CPU_CONVERSION,
+    "hwdownload,format=bgra,scale=out_color_matrix=bt709:out_range=tv,format=nv12",
   );
 });
 
@@ -200,5 +199,12 @@ test("Media Foundation records with a bitrate it can honour, High profile and ha
     const any = captureVideoArgs(codec, { fps: 60, width: 1280, height: 720 });
     assert.equal(any[any.indexOf("-c:v") + 1], codec);
     assert.equal(any[any.indexOf("-g") + 1], "120");
+    // No B-frames: a part cut short keeps every frame up to its last fragment.
+    assert.equal(any[any.indexOf("-bf") + 1], "0");
   }
+  // "Alta" spends more: a lower quantizer, or more bits for Media Foundation.
+  const high = captureVideoArgs("h264_nvenc", { fps: 30, width: 1920, height: 1080 }, "high");
+  assert.equal(high[high.indexOf("-cq") + 1], "15");
+  const mfHigh = captureVideoArgs("h264_mf", { fps: 30, width: 1920, height: 1080 }, "high");
+  assert.equal(mfHigh[mfHigh.indexOf("-b:v") + 1], "19907k");
 });

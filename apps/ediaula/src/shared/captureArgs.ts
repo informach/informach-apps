@@ -1,0 +1,201 @@
+import { type CameraChoice, cameraInputArgs } from "./camera.ts";
+import {
+  type CaptureEncoder,
+  type CaptureQuality,
+  captureFilter,
+  captureVideoArgs,
+  softwarePixelFormat,
+} from "./encoderChoice.ts";
+
+/**
+ * FFmpeg command lines of a recording, one process per source (main/recording/source.ts), so a
+ * microphone pulled out or a camera that stops does not end the screen. Every process reports
+ * its progress on stderr (frame, out_time_us, speed) and quits on "q" at stdin.
+ */
+
+export interface CaptureRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Sample rate and format of the level meter fed by the microphone process. */
+export const METER_RATE = 8000;
+
+/** dshow delivers sound in blocks of this many milliseconds. */
+export const MIC_BUFFER_MS = 50;
+
+const PROGRESS = ["-hide_banner", "-y", "-v", "error", "-nostats", "-stats_period", "0.1"];
+/** Progress goes to stderr: stdout carries the level meter's samples. */
+const REPORT = [...PROGRESS, "-progress", "pipe:2"];
+
+/**
+ * Fragmented MP4 in two-second fragments, each handed to the file as soon as it closes: a part
+ * cut short by a crash or a full disk is readable up to its last fragment.
+ */
+export const FRAGMENTED_MP4 = [
+  "-movflags",
+  "+frag_keyframe+empty_moov+default_base_moof",
+  "-frag_duration",
+  "2000000",
+  "-flush_packets",
+  "1",
+];
+
+/** The fragmented output of a source, as a list of FFmpeg output options. */
+const fragmented = (file: string): string[] => [...FRAGMENTED_MP4, "-f", "mp4", file];
+
+export interface ScreenCapture {
+  /** Desktop Duplication output (ddagrab's output_idx). */
+  output: number;
+  fps: number;
+  /** Whole monitor, physical pixels. */
+  size: { width: number; height: number };
+  region?: CaptureRect;
+  encoder: CaptureEncoder;
+  quality?: CaptureQuality;
+  file: string;
+}
+
+/**
+ * The screen without the pointer (the helper records it apart), on the GPU path the encoder
+ * detection chose or converted on the CPU to BT.709, tagged with the matrix really written.
+ */
+export function screenArgs(o: ScreenCapture): string[] {
+  const r = o.region;
+  const grab = [
+    `output_idx=${o.output}`,
+    `framerate=${o.fps}`,
+    "draw_mouse=0",
+    ...(r ? [`offset_x=${r.x}`, `offset_y=${r.y}`, `video_size=${r.width}x${r.height}`] : []),
+  ].join(":");
+  const frame = {
+    fps: o.fps,
+    width: r?.width ?? o.size.width,
+    height: r?.height ?? o.size.height,
+  };
+  const path = captureFilter(o.encoder);
+  return [
+    ...REPORT,
+    "-f",
+    "lavfi",
+    "-i",
+    `ddagrab=${grab}`,
+    "-map",
+    "0:v",
+    ...(path.filter ? ["-vf", path.filter] : []),
+    ...captureVideoArgs(o.encoder.codec, frame, o.quality),
+    ...path.output,
+    ...fragmented(o.file),
+  ];
+}
+
+/** dshow input of a microphone, stamped with the wall clock as each block arrives. */
+const microphoneInput = (device: string): string[] => [
+  "-f",
+  "dshow",
+  "-use_wallclock_as_timestamps",
+  "1",
+  "-audio_buffer_size",
+  String(MIC_BUFFER_MS),
+  "-i",
+  `audio=${device}`,
+];
+
+/** The meter's samples: 8 kHz mono 16-bit on stdout. */
+const METER_FORMAT = `aresample=${METER_RATE},aformat=sample_fmts=s16:channel_layouts=mono`;
+
+/**
+ * The microphone on its own: async resampling keeps it on the wall clock (no drift against the
+ * video over a long take), the recording goes to an M4A part and a copy at 8 kHz feeds the
+ * level meter through stdout.
+ */
+export function microphoneArgs(o: { device: string; file: string }): string[] {
+  return [
+    ...REPORT,
+    ...microphoneInput(o.device),
+    "-filter_complex",
+    `[0:a]aresample=async=1000:first_pts=0,asplit[rec][mon];[mon]${METER_FORMAT}[meter]`,
+    "-map",
+    "[rec]",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "256k",
+    "-ar",
+    "48000",
+    ...fragmented(o.file),
+    "-map",
+    "[meter]",
+    "-f",
+    "s16le",
+    "pipe:1",
+  ];
+}
+
+/** Only the level meter, while the recorder is being set up. */
+export function microphoneMeterArgs(device: string): string[] {
+  return [
+    "-hide_banner",
+    "-nostdin",
+    "-v",
+    "error",
+    ...microphoneInput(device),
+    "-af",
+    METER_FORMAT,
+    "-f",
+    "s16le",
+    "pipe:1",
+  ];
+}
+
+export interface CameraCapture {
+  device: string;
+  mode?: CameraChoice;
+  /** Frame rate written (the mode's when it is lower). */
+  fps: number;
+  encoder: Pick<CaptureEncoder, "codec">;
+  quality?: CaptureQuality;
+  file: string;
+}
+
+/** The webcam in its chosen mode, at a constant frame rate, with the screen's encoder. */
+export function cameraArgs(o: CameraCapture): string[] {
+  const fps = o.mode ? Math.min(o.fps, o.mode.fps) : o.fps;
+  const size = o.mode
+    ? { width: o.mode.width, height: o.mode.height }
+    : { width: 1280, height: 720 };
+  return [
+    ...REPORT,
+    "-f",
+    "dshow",
+    "-rtbufsize",
+    "512M",
+    ...(o.mode ? cameraInputArgs(o.mode) : []),
+    "-i",
+    `video=${o.device}`,
+    "-map",
+    "0:v",
+    "-fps_mode",
+    "cfr",
+    "-r",
+    String(fps),
+    ...captureVideoArgs(o.encoder.codec, { fps, ...size }, o.quality),
+    "-pix_fmt",
+    softwarePixelFormat(o.encoder.codec),
+    ...fragmented(o.file),
+  ];
+}
+
+/** Lists a dshow device's modes (parsed by shared/camera.ts parseDshowOptions). */
+export const cameraOptionsArgs = (device: string): string[] => [
+  "-hide_banner",
+  "-nostdin",
+  "-list_options",
+  "true",
+  "-f",
+  "dshow",
+  "-i",
+  `video=${device}`,
+];

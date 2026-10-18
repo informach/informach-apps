@@ -6,17 +6,23 @@ import {
   DEFAULT_CURSOR_FX,
   ripplesAt,
 } from "@shared/cursor";
-import type { CursorData } from "@shared/recording";
+import { type CursorData, normalizeCursorData } from "@shared/cursorData";
 import type { Asset } from "@shared/types";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { drawPointer, drawRipples } from "@/lib/cursorDraw";
 import { mediaUrl } from "@/lib/media";
 
 const cache = new Map<string, Promise<CursorData>>();
+/** A recording's cursor.json, whatever its version, as version 2 (shared/cursorData.ts). */
 export function loadCursorData(path: string): Promise<CursorData> {
   let p = cache.get(path);
   if (!p) {
-    p = fetch(mediaUrl(path)).then((r) => r.json() as Promise<CursorData>);
+    p = fetch(mediaUrl(path)).then(async (r) => {
+      if (!r.ok) throw new Error("Não consegui ler os dados do cursor.");
+      return normalizeCursorData(await r.json());
+    });
+    // A file that could not be read is read again next time (it may have been reconnected).
+    p.catch(() => cache.delete(path));
     cache.set(path, p);
   }
   return p;
@@ -27,7 +33,11 @@ export function useCursorData(path: string | undefined): CursorData | null {
   useEffect(() => {
     if (!path) return setData(null);
     let alive = true;
-    void loadCursorData(path).then((d) => alive && setData(d));
+    // Without readable data there is no pointer to draw (the library shows the file as missing).
+    void loadCursorData(path).then(
+      (d) => alive && setData(d),
+      () => alive && setData(null),
+    );
     return () => {
       alive = false;
     };

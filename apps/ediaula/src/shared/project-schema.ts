@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
-import { ENCODERS, type ExportSpec, type Project } from "./types.ts";
+import { ENCODERS, type ExportSpec, type Project, RECORDING_ROLES } from "./types.ts";
 
 const number = z.number().min(-1e9).max(1e9);
 const time = z
@@ -162,6 +162,7 @@ const asset = z.looseObject({
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
     .max(20000)
     .optional(),
+  recording: z.looseObject({ id: text, role: z.enum(RECORDING_ROLES) }).optional(),
   screen: color.optional(),
   key: chroma.optional(),
   keyed: path.optional(),

@@ -159,3 +159,31 @@ test("cursor positions stay a typed array from the queue to the main process", (
     false,
   );
 });
+
+test("while a take records, the next export waits; the one running goes on", async () => {
+  const seen: string[] = [];
+  const release: (() => void)[] = [];
+  const q = new ExportQueue(
+    async (i) => {
+      seen.push(i.id);
+      await new Promise<void>((resolve) => release.push(resolve));
+    },
+    () => {},
+  );
+  q.add(item("running"));
+  await tick();
+  q.hold(true);
+  q.add(item("next"));
+  release.shift()?.();
+  await tick();
+  await tick();
+  assert.deepEqual(seen, ["running"]);
+  assert.equal(q.items.find((i) => i.id === "next")?.state, "waiting");
+  assert.equal(q.holding, true);
+  q.hold(false);
+  await tick();
+  assert.deepEqual(seen, ["running", "next"]);
+  release.shift()?.();
+  await tick();
+  assert.equal(q.items.find((i) => i.id === "next")?.state, "done");
+});

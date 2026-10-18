@@ -10,7 +10,7 @@ import {
   normalizeCursorPath,
   recordedCursorPath,
 } from "@shared/cursor";
-import type { CursorData } from "@shared/recording";
+import type { CursorData } from "@shared/cursorData";
 import { clipSpeed, sourceAt, sourceEnd } from "@shared/timeline";
 import {
   type ReactNode,

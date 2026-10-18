@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  cursorDataFromEvents,
-  insideSegments,
-  mergeHookEvents,
-  toVideoTime,
-} from "../src/shared/cursorCapture.ts";
+import { insideSegments, mergeHookEvents, toVideoTime } from "../src/shared/cursorCapture.ts";
+import { buildCursorData } from "../src/shared/cursorData.ts";
 import type { HookEvent } from "../src/shared/helperProtocol.ts";
 import { CURSOR_SHAPES } from "../src/shared/recording.ts";
+
+/** The journal of a take paused between the two segments, with these markers. */
+const journal = (markers: { qpc: number; kind: "marker" | "retake" }[]) => ({
+  markers,
+  pauses: [] as [number, number][],
+  failures: [],
+});
 
 // Two segments: 0-2 s of video from QPC 10 000 ms, then a pause, then 2-3 s from QPC 20 000 ms.
 const segments = [
@@ -24,7 +27,7 @@ test("QPC times map across segments and pauses map to nothing", () => {
   assert.equal(toVideoTime(segments, 9000), -1);
 });
 
-test("helper events become the editor's cursor.json in video seconds and region pixels", () => {
+test("helper events become the editor's cursor.json (v2) in video seconds and region pixels", () => {
   const events: HookEvent[] = [
     { e: "ready", t: 9000, pid: 1, v: "0.1.0", keys: true },
     {
@@ -70,19 +73,25 @@ test("helper events become the editor's cursor.json in video seconds and region 
     { e: "c", t: 20400, id: "hidden" },
     { e: "health", t: 20500, hook: "dead" },
   ];
-  const data = cursorDataFromEvents(events, segments, region, [
-    { qpc: 10300, kind: "marker" },
-    { qpc: 15000, kind: "retake" },
-  ]);
-  assert.equal(data.version, 1);
+  const data = buildCursorData(
+    events,
+    journal([
+      { qpc: 10300, kind: "marker" },
+      { qpc: 15000, kind: "retake" },
+    ]),
+    segments,
+    region,
+  );
+  assert.equal(data.version, 2);
   assert.equal(data.width, 1280);
   assert.equal(data.height, 720);
   assert.deepEqual(data.moves, [
     [0.1, 100, 100, shape("arrow")],
     [0.6, 100, 100, shape("hand")],
     [0.7, 110, 110, shape("hand")],
-    [2.1, 110, 110, shape("other")],
-    [2.2, 200, 200, shape("other")],
+    // The app's own image comes after the standard shapes.
+    [2.1, 110, 110, CURSOR_SHAPES.length],
+    [2.2, 200, 200, CURSOR_SHAPES.length],
     [2.4, 200, 200, shape("hidden")],
   ]);
   assert.deepEqual(data.clicks, [
@@ -91,6 +100,16 @@ test("helper events become the editor's cursor.json in video seconds and region 
   ]);
   assert.deepEqual(data.wheel, [[0.8, 110, 110, -120]]);
   assert.deepEqual(data.keys, [[0.9, "Ctrl+C"]]);
+  // The standard hand keeps its saved image; the app's own cursor gets a shape of its own.
+  assert.equal(data.shapes[shape("hand")].image, "cursors/0123456789abcdef.png");
+  assert.deepEqual(data.shapes[CURSOR_SHAPES.length], {
+    id: "fedcba9876543210",
+    image: "cursors/fedcba9876543210.png",
+    w: 32,
+    h: 32,
+    hotX: 0,
+    hotY: 0,
+  });
   // A marker pressed during the pause lands where the video resumes.
   assert.deepEqual(data.markers, [
     { t: 0.3, kind: "marker" },
@@ -128,7 +147,12 @@ test("memory and journal merge into one stream without repeats, in time order", 
     { e: "d", t: 10200, x: 2, y: 2, b: "left" },
     { e: "m", t: 10300, x: 3, y: 3 },
   ]);
-  const data = cursorDataFromEvents(mergeHookEvents(memory, journal), segments, region, []);
+  const data = buildCursorData(
+    mergeHookEvents(memory, journal),
+    { markers: [], pauses: [], failures: [] },
+    segments,
+    region,
+  );
   assert.equal(data.clicks.length, 1);
 });
 

@@ -128,8 +128,8 @@ export function chooseCaptureEncoder(
 
 /**
  * The paths to try, in order, when the chosen one fails to start a real recording: the same
- * encoder from system memory, then x264. The CPU paths convert with swscale under the colour tags
- * they are given, so BT.601 limited holds for them; an encoder that converts by itself was not
+ * encoder from system memory, then x264. The CPU paths convert to BT.709 limited range with
+ * swscale (CPU_CONVERSION), so that holds for them; an encoder that converts by itself was not
  * measured on that path.
  */
 export function fallbackChain(
@@ -143,7 +143,7 @@ export function fallbackChain(
         codec: encoder.codec,
         conversion,
         gpuInput: conversion !== "cpu",
-        matrix: conversion === "cpu" ? "bt601" : "unknown",
+        matrix: conversion === "cpu" ? "bt709" : "unknown",
         range: conversion === "cpu" ? "tv" : "unknown",
         fps: 0,
       });
@@ -152,7 +152,7 @@ export function fallbackChain(
       codec: "libx264",
       conversion: "cpu",
       gpuInput: false,
-      matrix: "bt601",
+      matrix: "bt709",
       range: "tv",
       fps: 0,
     });
@@ -200,21 +200,48 @@ export function colorFromLuma(y: number): { matrix: ColorMatrix; range: ColorRan
   return { matrix: "unknown", range: "unknown" };
 }
 
+/** "high" spends about 60% more bits for very fine detail (code, small fonts at 4K). */
+export const CAPTURE_QUALITIES = ["standard", "high"] as const;
+export type CaptureQuality = (typeof CAPTURE_QUALITIES)[number];
+
 /**
  * Encoder options for the screen and camera of a recording. Bitrate-driven encoders get about
- * 0.2 bit per pixel and frame, enough for small text.
+ * 0.2 bit per pixel and frame, enough for small text. A keyframe every two seconds and no
+ * B-frames: a part cut short keeps everything up to its last fragment. Every encoder runs in
+ * its low-latency mode: the first sample of a part is estimated from when output comes out
+ * (main/recording/source.ts), so frames held inside the encoder would place the part late.
  */
 export function captureVideoArgs(
   codec: CaptureCodec,
   frame: { fps: number; width: number; height: number },
+  quality: CaptureQuality = "standard",
 ): string[] {
-  const gop = ["-g", String(frame.fps * 2)];
+  const gop = ["-g", String(frame.fps * 2), "-bf", "0"];
+  const high = quality === "high";
   const kbps = Math.round(
-    Math.min(80000, Math.max(4000, (frame.width * frame.height * frame.fps * 0.2) / 1000)),
+    Math.min(
+      high ? 120000 : 80000,
+      Math.max(4000, (frame.width * frame.height * frame.fps * (high ? 0.32 : 0.2)) / 1000),
+    ),
   );
+  const q = (standard: number): string => String(high ? standard - 3 : standard);
   switch (codec) {
     case "h264_nvenc":
-      return ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "18", ...gop];
+      return [
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "p4",
+        "-rc",
+        "vbr",
+        "-cq",
+        q(18),
+        "-delay",
+        "0",
+        "-zerolatency",
+        "1",
+        ...gop,
+      ];
     case "h264_amf":
       return [
         "-c:v",
@@ -226,9 +253,11 @@ export function captureVideoArgs(
         "-rc",
         "cqp",
         "-qp_i",
-        "18",
+        q(18),
         "-qp_p",
-        "20",
+        q(20),
+        "-latency",
+        "1",
         ...gop,
       ];
     case "h264_mf":
@@ -247,18 +276,39 @@ export function captureVideoArgs(
         `${Math.round(kbps * 1.5)}k`,
         "-profile:v",
         "100",
+        // The scenario Windows itself uses to send a screen: frames come out as they go in.
+        "-scenario",
+        "display_remoting",
         ...gop,
       ];
     case "libx264":
-      return ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", ...gop];
+      return [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-tune",
+        "zerolatency",
+        "-crf",
+        q(18),
+        ...gop,
+      ];
   }
 }
+
+/**
+ * The CPU path: the frame comes to system memory and swscale converts it to BT.709 limited range
+ * NV12 (x264 and the hardware encoders all take NV12), whatever its own default would be.
+ */
+export const CPU_CONVERSION =
+  "hwdownload,format=bgra,scale=out_color_matrix=bt709:out_range=tv,format=nv12";
 
 /**
  * Filter between ddagrab and the encoder, and the output options after it. Desktop Duplication
  * frames are tagged as RGB, and encoders that convert them on the GPU keep that tag although they
  * wrote YUV; setparams puts the measured matrix and range back. Measured on NVENC and Media
- * Foundation: the tag does not change their conversion, so the measurement still holds.
+ * Foundation: the tag does not change their conversion, so the measurement still holds. The CPU
+ * path always writes BT.709 limited range and is tagged so.
  */
 export function captureFilter(
   encoder: Pick<CaptureEncoder, "codec" | "conversion" | "matrix" | "range">,
@@ -273,10 +323,7 @@ export function captureFilter(
   if (encoder.conversion === "scale_d3d11")
     return { filter: ["scale_d3d11=format=nv12", tag].filter(Boolean).join(","), output: [] };
   if (encoder.conversion === "encoder") return { filter: tag, output: [] };
-  return {
-    filter: "hwdownload,format=bgra",
-    output: ["-pix_fmt", softwarePixelFormat(encoder.codec), ...colorTags(encoder)],
-  };
+  return { filter: CPU_CONVERSION, output: colorTags({ matrix: "bt709", range: "tv" }) };
 }
 
 /** Output options for the colour matrix and range, when swscale makes the conversion. */

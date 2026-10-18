@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
+import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { zoomToFit } from "@/lib/timelineView";
 import { useApp } from "@/state/app";
@@ -18,6 +19,8 @@ const SAVE_LABEL = {
 } as const;
 
 export function TopBar(): ReactNode {
+  const toggleKey = useRecorderKey("toggle");
+  const stopKey = useRecorderKey("stop");
   const project = useProject((s) => s.project);
   const saveState = useProject((s) => s.saveState);
   const saveError = useProject((s) => s.saveError);
@@ -208,7 +211,7 @@ export function TopBar(): ReactNode {
           variant="secondary"
           icon={CircleDot}
           onClick={() => void openRecorder()}
-          title="Gravar a tela com o cursor à parte (F9 inicia, F10 para)"
+          title={`Gravar a tela com o cursor à parte (${toggleKey} inicia, ${stopKey} para)`}
         >
           Gravar tela
         </Button>

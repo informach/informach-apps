@@ -160,9 +160,15 @@ async function relinkCursor(asset: Asset): Promise<void> {
   const { toast } = useApp.getState();
   const path = await window.api.relinkCursor(asset.cursor ?? "cursor.json");
   if (!path) return;
-  const data = await loadCursorData(path);
-  if (!Array.isArray(data?.moves) || !Array.isArray(data?.clicks)) {
-    toast("Esse arquivo não tem os dados de cursor de uma gravação do EdiAula.", "error");
+  try {
+    await loadCursorData(path);
+  } catch (error) {
+    toast(
+      error instanceof Error
+        ? error.message
+        : "Esse arquivo não tem os dados de cursor de uma gravação do EdiAula.",
+      "error",
+    );
     return;
   }
   useProject.getState().relinkAsset(asset.id, { cursor: path });

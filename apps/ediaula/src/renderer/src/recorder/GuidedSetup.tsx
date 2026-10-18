@@ -19,12 +19,15 @@ export function GuidedSetup({
   script,
   busy,
   onBusy,
+  keys,
 }: {
   plan: GuidedPlan;
   change: (p: GuidedPlan) => void;
   script: string;
   busy: boolean;
   onBusy: (busy: boolean) => void;
+  /** The recorder's shortcuts as configured: target, start and pause, stop. */
+  keys: { target: string; toggle: string; stop: string };
 }) {
   const [text, setText] = useState(script);
   const [picking, setPicking] = useState<string | null>(null);
@@ -108,7 +111,7 @@ export function GuidedSetup({
     <section className={`guided-setup ${picking ? "is-picking" : ""}`}>
       {picking ? (
         <div className="guided-pick">
-          Posicione o mouse no alvo e pressione <b>F8</b>. Não precisa clicar.{" "}
+          Posicione o mouse no alvo e pressione <b>{keys.target}</b>. Não precisa clicar.{" "}
           <button
             type="button"
             onMouseEnter={() => void window.api.recorder.interactive(true)}
@@ -128,8 +131,8 @@ export function GuidedSetup({
             resultado. Esse ritmo é aplicado a cada etapa ao gravar.
           </p>
           <p>
-            Revise cada ação e marque seus alvos. Mantenha a janela no mesmo lugar. F9 pausa; F10
-            interrompe e salva.
+            Revise cada ação e marque seus alvos. Mantenha a janela no mesmo lugar. {keys.toggle}{" "}
+            pausa; {keys.stop} interrompe e salva.
           </p>
           <fieldset disabled={busy || loading}>
             <div className="guided-actions">
@@ -153,8 +156,9 @@ export function GuidedSetup({
               </button>
             </div>
             <p>
-              Abra a aula, entre na plataforma e pressione F8 para voltar. Nessa janela, os alvos
-              são identificados pelos elementos da página. O login é feito diretamente por você.
+              Abra a aula, entre na plataforma e pressione {keys.target} para voltar. Nessa janela,
+              os alvos são identificados pelos elementos da página. O login é feito diretamente por
+              você.
             </p>
             <textarea
               aria-label="Roteiro da demonstração"
@@ -308,7 +312,7 @@ export function GuidedSetup({
                         : "Jogo/quadro: ponto relativo"
                       : s.target
                         ? `Posição: ${s.target.x}, ${s.target.y}`
-                        : "Marcar alvo (F8)"}
+                        : `Marcar alvo (${keys.target})`}
                   </button>
                   <button
                     type="button"

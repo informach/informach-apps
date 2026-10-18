@@ -208,10 +208,43 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 ## Gravação de tela, cursor e zoom
 
 - **Gravar tela** (Início, barra superior ou barra lateral): camada transparente sobre o monitor com região
-  ajustável, câmera (com prévia), microfone (com medidor) e **teleprompter** com as falas do roteiro do projeto.
-  Nada disso aparece na gravação (proteção de conteúdo do Windows).
-- Atalhos: **F9** inicia/pausa, **F10** para, **Ctrl+M** marcador, **Ctrl+R** refazer o último trecho
-  (vira proposta de corte, da pausa antes do trecho errado até a pausa depois da marca).
+  ajustável, câmera (com prévia e modo escolhido sozinho ou à mão), microfone (com medidor) e **teleprompter**
+  com as falas do roteiro do projeto. Nada disso aparece na gravação (proteção de conteúdo do Windows).
+- O gravador lembra as escolhas entre uma gravação e outra (`recorder.json`, no perfil do app): tela, região,
+  microfone, câmera e modo, áudio do PC, teclas, quadros por segundo (30 ou 60), qualidade, contagem, atalhos,
+  tamanho e ritmo do teleprompter e se os trabalhos de fundo esperam a gravação. Um microfone ou câmera que não
+  está mais ligado dá lugar ao padrão, sem apagar a escolha salva. **Opções do gravador** (engrenagem) muda as
+  que não estão na barra.
+- Atalhos (configuráveis): **F9** inicia e pausa, **F10** para, **F8** marca o alvo do modo guiado,
+  **Ctrl+Shift+M** marcador, **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte, da pausa antes do
+  trecho errado até a pausa depois da marca), **Ctrl+Shift+↓** e **Ctrl+Shift+↑** próxima fala e fala anterior do
+  teleprompter. Um passador de slides (Page Down e Page Up) também muda a fala, se ligado nas opções. Iniciar,
+  parar e o alvo valem enquanto o gravador está aberto; os outros só durante a gravação, então Ctrl+R e as setas
+  continuam funcionando nos outros programas. Atalho que outro programa já usa ou que repete outro aparece no
+  painel; sem iniciar e parar a gravação não começa.
+- **Pausa instantânea:** pausar não fecha nada. Tela, microfone e câmera continuam gravando; a pausa é anotada e
+  vira corte quando a gravação entra no projeto. Retomar é imediato e as primeiras palavras depois do F9 não se
+  perdem. Só uma pausa de mais de 5 min fecha a parte da tela e da câmera, para poupar disco; aí a retomada leva
+  cerca de 1 s e o gravador avisa. A gravação termina no instante do F10 (ou de **Parar**): o que vem depois,
+  enquanto os arquivos fecham, fica de fora. **Descartar** (lixeira na pílula) manda o take para a Lixeira e
+  volta ao começo sem fechar o gravador.
+- **Cada fonte é um processo:** tela, microfone e câmera gravam em FFmpeg separados, então a falha de um não
+  derruba os outros. Se a tela ou o microfone param (disco, dispositivo desligado, driver), a gravação pausa sozinha
+  e o aviso oferece **Retomar** (reabre a fonte numa parte nova) ou **Parar e salvar**. Retomar abre só o que
+  está parado; se uma das fontes não abrir, as que abriram fecham de novo e a gravação continua pausada, então
+  tentar outra vez nunca deixa duas gravações da mesma fonte. Se a câmera para, a gravação segue sem ela e
+  avisa. Microfone e câmera são abertos pelo nome único que o Windows dá ao dispositivo, então um nome com ":"
+  também funciona; a interface e as opções guardam o nome que aparece para você.
+- **Painel de saúde** na pílula, atualizado dez vezes por segundo: nível do microfone (do mesmo processo que
+  grava, então é o microfone certo), aviso de silêncio depois de 10 s abaixo de -55 dBFS, minutos de disco que
+  restam no ritmo da gravação, quadros perdidos quando houver, estado do cursor e o aviso mais importante ("a
+  máquina não acompanha" quando o codificador fica abaixo do tempo real por 5 s, pela velocidade dos últimos
+  instantes). Nos primeiros 12 s de cada parte o painel não conta quadros nem lentidão, e depois conta só o que
+  o codificador perdeu a partir dali, mais o que o FFmpeg duplicou ou descartou. O disco reserva o que a
+  finalização vai precisar (o som de novo, e a tela inteira se for juntar as partes): com menos de 10 min além
+  disso avisa; com menos de 300 MB pausa e fecha os arquivos, para o disco parar de encher; com menos de 100 MB
+  para e salva. O painel também avisa quando não vai sobrar espaço para juntar a tela. Na preparação, o medidor
+  abre o mesmo dispositivo que a gravação vai usar.
 - A tela é gravada pela Desktop Duplication **sem o ponteiro**. Ao abrir o gravador, o EdiAula grava a própria
   tela por três segundos com cada codificador, no tamanho do monitor e na taxa da gravação, nesta ordem: NVENC,
   AMF e Media Foundation (que alcança o Quick Sync da Intel), primeiro com o quadro ainda na GPU e depois pela
@@ -222,17 +255,53 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
   é testado de novo; escolha feita porque um melhor estava ocupado é refeita no dia seguinte.
 - Se o codificador escolhido não abrir a gravação, o EdiAula tenta o caminho seguinte (o mesmo pela memória,
   depois o x264), registra a falha para não escolher aquele caminho de novo e avisa no resultado da gravação.
+  Pela CPU a conversão é sempre BT.709 em faixa limitada, e o vídeo é marcado assim. Todos os codificadores
+  rodam no modo de baixa latência (NVENC sem atraso, AMF com latência baixa, Media Foundation no cenário de
+  transmissão de tela, x264 com `zerolatency`), porque o começo de cada parte é calculado pela saída do
+  codificador.
+- **Microfone com relógio de parede:** o som do microfone segue o relógio do Windows (`aresample` assíncrono),
+  sem deriva em relação ao vídeo numa aula longa. A câmera abre no melhor modo que ela oferece (MJPEG até 1080p na
+  taxa pedida, senão NV12 ou YUYV até 720p, senão o maior), e o atraso da imagem dela é ajustável nas opções. O
+  áudio do PC vai para o disco a cada segundo, nunca pausa, e é esticado de volta ao relógio quando deriva mais
+  de 0,1% e mais de 50 ms.
 - Um auxiliar nativo (`ediaula-helper.exe`) registra movimentos, formato do cursor, cliques e teclas no mesmo
   relógio do vídeo, sem PowerShell. O gancho do mouse só copia o evento; quem escreve é outra linha de execução,
   então o Windows não o desliga quando o app demora a ler. Se o gancho cair mesmo assim, o auxiliar o reinstala e
   segue lendo a posição do ponteiro; se o auxiliar parar, o app o reinicia (até três vezes por minuto), e se ele
   parar de vez a pílula da gravação mostra "sem cursor". O vídeo continua; os avisos vão junto com a gravação.
-  Os atalhos do gravador (F8, F9, F10, Ctrl+M e Ctrl+R) não entram nas teclas na tela.
-  Arquivos em `Documentos/EdiAula/Gravações/<data>/` (`tela.mp4`, `camera.mp4`, `cursor.json`). Durante a
-  gravação o auxiliar também grava `cursor.jsonl` e as imagens dos cursores em `cursors/`. Na preparação e nas
-  pausas ele guarda só o formato do cursor, sem cliques nem teclas. Ao parar, o `cursor.json` é montado com o que
-  chegou ao app e o que só ficou no `cursor.jsonl`, e o `cursor.jsonl` fica só com o que está dentro dos trechos
-  gravados.
+  Os atalhos do gravador, como estiverem configurados, não entram nas teclas na tela. O ponteiro sobre os
+  controles do gravador (pílula, teleprompter, avisos) não entra no vídeo: ele fica parado onde estava, e os
+  cliques ali não viram onda nem zoom automático.
+- **Arquivos** em `Documentos/EdiAula/Gravações/<data>/`. Durante a gravação, cada fonte grava em partes de MP4
+  fragmentado (`tela-0.mp4`, `microfone-0.m4a`, `camera-0.mp4`, `sistema.webm`), legíveis até o último fragmento
+  se algo cair; o auxiliar grava `cursor.jsonl` e as imagens dos cursores em `cursors/`; e o app grava
+  `sessao.jsonl`, o diário da sessão (começo, primeira amostra de cada parte, pausas, marcadores, falhas, falas do
+  teleprompter, parada), que vai ao disco nas pausas, marcadores, falhas e na parada e a cada 5 s. Ao parar, as
+  partes da tela viram `tela.mp4` comum (busca rápida) se houver espaço para a cópia; o microfone e o áudio do PC
+  são cortados no que cada parte da tela cobre, com silêncio onde faltar, e saem em `microfone.m4a` e
+  `sistema.m4a` começando no segundo 0 da tela; a câmera fica como foi gravada; o `cursor.json` (versão 2, com as
+  pausas, os trechos sobre os controles e as lacunas do auxiliar) e `gravacao.json` são escritos. Cada arquivo
+  novo é conferido pela duração e gravado no disco antes da linha `finalized`, e só então as partes copiadas
+  saem; uma parte que não sai (arquivo preso) vira aviso e o take não se perde. Sem espaço para alinhar o som,
+  o microfone e o áudio do PC ficam nas partes em que foram gravados, colocados pedaço a pedaço. O editor lê
+  `cursor.json` da versão 1 como versão 2.
+- **Gravação interrompida:** se o app ou o computador caírem durante uma gravação, ao abrir o EdiAula de novo
+  aparece "Gravação interrompida" com **Recuperar e importar** (confere cada parte, refaz o MP4 se o último
+  fragmento estiver quebrado e finaliza como se tivesse parado), **Mostrar pasta** e **Descartar** (Lixeira).
+  Uma gravação que terminou mas não chegou a entrar num projeto (o app fechou antes, ou a importação falhou)
+  também aparece, com **Importar**: o diário só marca o take como importado depois que todos os arquivos
+  entraram e o projeto foi salvo. Se a finalização falhar, o editor avisa na hora e abre a lista. Se só a janela
+  do gravador cair, o que foi gravado é salvo e entra no projeto. Gravações feitas antes do diário não aparecem
+  ali.
+- **Faixas separadas na importação:** a tela vai na faixa de vídeo principal (se ela estiver travada, numa faixa
+  "Tela" nova, depois de tudo o que a aula já tem), a câmera na faixa acima (uma faixa "Câmera" é criada se só
+  houver uma), o microfone na faixa "Voz", o áudio do PC na dele e a narração guiada na
+  dela; faixas existentes são reaproveitadas quando estão livres. As pausas viram cortes em todas ao mesmo tempo,
+  e os cortes da limpeza e as inserções do roteiro passam a levar junto o microfone e o áudio do PC, mesmo antes
+  da transcrição. Os trechos de Ctrl+Shift+R são propostos por pedaço, pelo som do microfone.
+- **Trabalhos de fundo esperam a gravação:** proxies, remoção de fundo e transcrição que começariam durante a
+  gravação esperam ela acabar, e a fila de exportação segura o próximo item ("Exportação em espera"); o que já
+  estava rodando continua com prioridade baixa. Dá para desligar nas opções do gravador.
 - **Cursor** (Propriedades): tamanho, suavizar, onda nos cliques, halo amarelo, esconder quando parado.
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
@@ -283,7 +352,8 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
   mostra igual; a exportação desenha com libass (`shared/captions.ts`). No vertical, linhas mais curtas e mais altas.
 - **Movimento por keyframes** (Propriedades › Movimento): marque posições em momentos diferentes; o clipe desliza
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
-- **Áudio do PC** na gravação (loopback do Windows pelo Chromium), numa faixa própria já alinhada.
+- **Áudio do PC** na gravação (loopback do Windows pelo Chromium), numa faixa própria já alinhada e cortada nas
+  mesmas pausas da tela.
 - **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Delete/F1 a F12 aparecem num balão no canto.
   Espaço e Backspace sozinhos não aparecem, porque o auxiliar não tem como saber se o foco está num campo de
   texto; AltGr e Alt com o teclado numérico também ficam de fora, porque escrevem caracteres.
@@ -428,7 +498,7 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 
 ## Estrutura
 
-Quando a licença deixa de autorizar o uso, novas tarefas ficam bloqueadas. A gravação e a execução guiada param imediatamente; o vídeo permanece em `Documentos/EdiAula/Gravações`, em pasta exclusiva por sessão. Segmentos usam MP4 fragmentado para permitir recuperação de uma interrupção. Uma falha de finalização informa a pasta preservada. Exportação, proxy, chroma e transcrição já iniciados têm até 30 minutos para concluir, sem reiniciar esse prazo; uma exportação interrompida não substitui os arquivos anteriores. Consulte [o registro de preservação](../../docs/propostas/edi-suite-2026-10-16/producao-jobs.md).
+Quando a licença deixa de autorizar o uso, novas tarefas ficam bloqueadas. A gravação e a execução guiada param imediatamente; o vídeo permanece em `Documentos/EdiAula/Gravações`, em pasta exclusiva por sessão. As partes usam MP4 fragmentado e o diário da sessão permite recuperar uma interrupção. Uma falha de finalização informa a pasta preservada. Exportação, proxy, chroma e transcrição já iniciados têm até 30 minutos para concluir, sem reiniciar esse prazo; uma exportação interrompida não substitui os arquivos anteriores. Consulte [o registro de preservação](../../docs/propostas/edi-suite-2026-10-16/producao-jobs.md).
 
 ```
 src/main       processo principal: FFmpeg, projetos, protocolo media://, IPC

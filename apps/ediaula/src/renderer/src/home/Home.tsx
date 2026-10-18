@@ -23,6 +23,7 @@ import { formatEditTime } from "@/lib/editTimer";
 import { duration, relativeTime } from "@/lib/format";
 import { confirmLeave } from "@/lib/leaveGuard";
 import { mediaUrl } from "@/lib/media";
+import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
@@ -44,6 +45,8 @@ const status = (r: RecentEntry): Status =>
       : { label: "Editando", tone: "var(--amber)" };
 
 export function Home(): ReactNode {
+  const toggleKey = useRecorderKey("toggle");
+  const stopKey = useRecorderKey("stop");
   const info = useApp((s) => s.info);
   const [recent, setRecent] = useState<RecentEntry[] | null>(null);
   const [query, setQuery] = useState("");
@@ -155,7 +158,7 @@ export function Home(): ReactNode {
             variant="secondary"
             icon={CircleDot}
             onClick={() => void openRecorder()}
-            title="Gravar a tela com o cursor à parte (F9 inicia, F10 para)"
+            title={`Gravar a tela com o cursor à parte (${toggleKey} inicia, ${stopKey} para)`}
           >
             Gravar tela
           </Button>

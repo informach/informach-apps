@@ -99,6 +99,7 @@ import {
   migrateRestrictedConfig,
   openRestrictedClaude,
 } from "./restricted.ts";
+import { scheduler, type WorkKind } from "./scheduler.ts";
 import {
   cancelDownload,
   cancelWhisper,
@@ -129,8 +130,12 @@ const desktop = createEdiDesktop({
     "assistant:reset",
     "ai:result",
     "recorder:stop",
+    "recorder:halt",
     "recorder:cancel",
-    "recorder:systemAudio",
+    "recorder:systemChunk",
+    "recorder:uiRects",
+    "recorder:teleprompterLine",
+    "recorder:status",
     "recorder:elapsed",
     "recorder:guidedCancel",
     "recorder:interactive",
@@ -243,15 +248,40 @@ async function serveMedia(request: Request): Promise<Response> {
 
 let win: BrowserWindow | null = null;
 const exportJobs = new Map<string, { cancelled: boolean }>();
-async function processingJob<T>(action: (signal: AbortSignal) => Promise<T>): Promise<T> {
+/** Jobs waiting for a slot or for the take to end, so job:cancel reaches them too. */
+const waitingJobs = new Map<string, AbortController>();
+
+/**
+ * Proxy, background removal and transcription: they wait for their slot and, while a take is
+ * recording, for the take to end (main/scheduler.ts); the license job starts only then, so
+ * waiting does not use up its preservation window.
+ */
+async function processingJob<T>(
+  jobId: string,
+  kind: WorkKind,
+  action: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
   const cancellation = new AbortController();
-  const job = desktopJobs.begin({ stop: () => cancellation.abort() });
+  waitingJobs.set(jobId, cancellation);
   try {
-    const result = await action(cancellation.signal);
-    job.check();
-    return result;
+    if (scheduler.state().holding)
+      sendProgress({ id: jobId, ratio: 0, message: "Em espera: gravação em andamento" });
+    return await scheduler.run(
+      kind,
+      async () => {
+        const job = desktopJobs.begin({ stop: () => cancellation.abort() });
+        try {
+          const result = await action(cancellation.signal);
+          job.check();
+          return result;
+        } finally {
+          job.finish();
+        }
+      },
+      cancellation.signal,
+    );
   } finally {
-    job.finish();
+    waitingJobs.delete(jobId);
   }
 }
 
@@ -524,7 +554,7 @@ function registerIpc(): void {
   ipcMain.handle(
     "media:proxy",
     (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
-      processingJob((signal) =>
+      processingJob(jobId, "proxy", (signal) =>
         proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps, signal),
       ),
   );
@@ -565,7 +595,7 @@ function registerIpc(): void {
       duration: number,
       key: ChromaKey,
     ) =>
-      processingJob((signal) =>
+      processingJob(jobId, "keying", (signal) =>
         renderKeyed(
           jobId,
           path,
@@ -671,6 +701,7 @@ function registerIpc(): void {
   ipcMain.handle("job:cancel", (_e, jobId: string) => {
     const exporting = exportJobs.get(jobId);
     if (exporting) exporting.cancelled = true;
+    waitingJobs.get(jobId)?.abort(new Error("Cancelado"));
     if (!cancelDownload(jobId) && !cancelWhisper(jobId) && !cancelKey(jobId)) cancel(jobId);
   });
 
@@ -685,7 +716,7 @@ function registerIpc(): void {
   ipcMain.handle(
     "whisper:transcribe",
     (_e, jobId: string, path: string, duration: number, language: string, glossary: string[]) =>
-      processingJob((signal) =>
+      processingJob(jobId, "transcription", (signal) =>
         transcribe(
           jobId,
           path,

@@ -1,7 +1,17 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
+import type { CameraChoice, CameraMode } from "@shared/camera";
 import { GUIDED_DEFAULTS, type GuidedPlan, scheduleGuided } from "@shared/guidedRecording";
-import { type CaptureMonitor, type CaptureSources, RECORDING_FPS } from "@shared/recording";
+import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
+import type { RecorderSettings } from "@shared/recorderSettings";
+import type {
+  CaptureMonitor,
+  CaptureSources,
+  RecorderEvent,
+  RecorderStatus,
+} from "@shared/recording";
+import type { MicLevel, RecorderHealth } from "@shared/recordingHealth";
 import {
+  AlertTriangle,
   Bookmark,
   Eye,
   EyeOff,
@@ -15,7 +25,9 @@ import {
   RotateCcw,
   ScanLine,
   ScrollText,
+  Settings2,
   Square,
+  Trash2,
   Video,
   Volume2,
   X,
@@ -30,6 +42,10 @@ import {
 } from "react";
 import { mediaUrl } from "@/lib/media";
 import { GuidedSetup } from "./GuidedSetup";
+import { HealthStrip, LevelBars } from "./HealthStrip";
+import { CameraModeSelect, RecorderOptions } from "./RecorderOptions";
+import { SystemAudio } from "./systemAudio";
+import { resendUiRects, useUiRect } from "./uiRects";
 
 type Phase = "setup" | "countdown" | "recording" | "paused" | "saving";
 interface Rect {
@@ -43,18 +59,64 @@ type Line = { speaker: string; text: string; avatar: boolean };
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-/** Lets clicks reach the recorder's own controls while everything else goes to the apps underneath. */
+const cleanError = (err: unknown): string =>
+  String((err as Error)?.message ?? err).replace(
+    /^Error invoking remote method '[^']+': (Error: )?/,
+    "",
+  );
+
+/** 16:9 in the middle of the window. */
+function centered169(): Rect {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const h = Math.min(H, (W * 9) / 16);
+  const w = (h * 16) / 9;
+  return {
+    x: Math.round((W - w) / 2),
+    y: Math.round((H - h) / 2),
+    width: Math.round(w),
+    height: Math.round(h),
+  };
+}
+const fullWindow = (): Rect => ({
+  x: 0,
+  y: 0,
+  width: window.innerWidth,
+  height: window.innerHeight,
+});
+
+/** The region the settings ask for, if it still fits this screen. */
+function regionFrom(settings: RecorderSettings): Rect {
+  const r = settings.region;
+  if (r.preset === "16:9") return centered169();
+  if (r.preset === "custom" && r.rect) {
+    const { x, y, width, height } = r.rect;
+    if (x + width <= window.innerWidth && y + height <= window.innerHeight)
+      return { x, y, width, height };
+  }
+  return fullWindow();
+}
+
+/**
+ * Lets clicks reach the recorder's own controls while everything else goes to the apps
+ * underneath, and tells the cursor helper where they are (the pointer over them is not part of
+ * the video).
+ */
 function Interactive({
   children,
   className,
   active,
+  id,
 }: {
   children: ReactNode;
   className?: string;
   active: boolean;
+  id: string;
 }): ReactNode {
+  const ref = useUiRect<HTMLFieldSetElement>(id);
   return (
     <fieldset
+      ref={ref}
       className={className}
       aria-label="Controles da gravação"
       onMouseEnter={() => active && void window.api.recorder.interactive(true)}
@@ -69,90 +131,185 @@ export function RecorderOverlay(): ReactNode {
   const [sources, setSources] = useState<(CaptureSources & { current: number | null }) | null>(
     null,
   );
+  const [settings, setSettings] = useState<RecorderSettings | null>(null);
   const [monitor, setMonitor] = useState<CaptureMonitor | null>(null);
-  const [region, setRegion] = useState<Rect>({
-    x: 0,
-    y: 0,
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const [region, setRegion] = useState<Rect>(fullWindow);
   const [mic, setMic] = useState<string>("");
   const [cam, setCam] = useState<string>("");
-  const [systemOn, setSystemOn] = useState(false);
-  const [keysOn, setKeysOn] = useState(false);
+  const [camModes, setCamModes] = useState<{
+    modes: CameraMode[];
+    choice: CameraChoice | null;
+  } | null>(null);
+  const [level, setLevel] = useState<MicLevel | null>(null);
   const [guidedMode, setGuidedMode] = useState(false);
   const [guidedPlan, setGuidedPlan] = useState<GuidedPlan>({ ...GUIDED_DEFAULTS, steps: [] });
   const [guidedBusy, setGuidedBusy] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const guidedFailed = useRef(false);
   const preservationRequested = useRef(false);
   const guidedAudio = useRef<HTMLAudioElement | null>(null);
   const guidedOffset = useRef<number | null>(null);
-  const system = useRef<{
-    rec: MediaRecorder;
-    chunks: Blob[];
-    startedAt: number;
-    stream: MediaStream;
-  } | null>(null);
+  const system = useRef<SystemAudio | null>(null);
   const [phase, setPhase] = useState<Phase>("setup");
   const [count, setCount] = useState(3);
-  const [elapsed, setElapsed] = useState(0);
   const [markers, setMarkers] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** A source stopped or the disk filled: what happened and what can be done. */
+  const [alert, setAlert] = useState<RecorderEvent | null>(null);
+  const [status, setStatus] = useState<RecorderStatus | null>(null);
+  const [health, setHealth] = useState<RecorderHealth | null>(null);
+  const [hotkeys, setHotkeys] = useState<HotkeyReport[]>([]);
   /** The encoder tested for this monitor while the recording is set up. */
   const [encoder, setEncoder] = useState<{ label?: string; error?: string } | null>(null);
-  /** The cursor helper stopped for good: the video goes on, the pointer does not. */
-  const [cursorLost, setCursorLost] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
-  const [prompterOn, setPrompterOn] = useState(true);
+  const [line, setLine] = useState(0);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
+  const change = useCallback((patch: Partial<RecorderSettings>) => {
+    setSettings((s) => (s ? { ...s, ...patch } : s));
+  }, []);
+
+  // Settings and sources: what was chosen last time comes back when the device is still there.
   useEffect(() => {
     document.documentElement.classList.add("is-recorder");
-    void window.api.recorder.context().then((c) => {
-      setLines(c.teleprompter);
-      setPrompterOn(c.teleprompter.length > 0);
-    });
-    void window.api.recorder.sources().then((s) => {
-      setSources(s);
-      const m =
-        s.monitors.find((x) => x.index === s.current) ??
-        s.monitors.find((x) => x.primary) ??
-        s.monitors[0];
-      setMonitor(m ?? null);
-      setMic(s.microphones[0] ?? "");
-    });
+    void window.api.recorder.context().then((c) => setLines(c.teleprompter));
+    void Promise.all([window.api.recorder.sources(), window.api.recorder.settings()]).then(
+      ([s, saved]) => {
+        setSources(s);
+        setSettings(saved);
+        const wanted = saved.monitor;
+        const remembered = wanted
+          ? s.monitors.find(
+              (m) =>
+                m.x === wanted.x &&
+                m.y === wanted.y &&
+                m.width === wanted.width &&
+                m.height === wanted.height,
+            )
+          : undefined;
+        const m =
+          remembered ??
+          s.monitors.find((x) => x.index === s.current) ??
+          s.monitors.find((x) => x.primary) ??
+          s.monitors[0];
+        setMonitor(m ?? null);
+        if (m && m.index !== s.current) void window.api.recorder.moveTo(m.index);
+        // "" was "Sem áudio" on purpose; a microphone that is gone gives way to the first one.
+        setMic(
+          saved.microphone === ""
+            ? ""
+            : saved.microphone && s.microphones.includes(saved.microphone)
+              ? saved.microphone
+              : (s.microphones[0] ?? ""),
+        );
+        setCam(saved.camera && s.cameras.includes(saved.camera) ? saved.camera : "");
+        setRegion(regionFrom(saved));
+      },
+    );
+    void window.api.recorder.hotkeys().then(setHotkeys);
   }, []);
+
+  // Saved half a second after the last change.
+  useEffect(() => {
+    if (!settings) return;
+    const id = setTimeout(() => {
+      void window.api.recorder
+        .saveSettings(settings)
+        .catch((err: unknown) => setError(`Não consegui salvar as opções: ${cleanError(err)}`));
+    }, 500);
+    return () => clearTimeout(id);
+  }, [settings]);
+
+  useEffect(() => {
+    const offs = [
+      window.api.recorder.onHotkeys(setHotkeys),
+      window.api.recorder.onHealth(setHealth),
+      window.api.recorder.onLevel(setLevel),
+      window.api.recorder.onStatus(setStatus),
+      window.api.recorder.onEvent((event) => {
+        if (event.request === "stop") preservationRequested.current = true;
+        if (event.actions.length || event.level === "error") setAlert(event);
+        else {
+          setFlash(event.message);
+          setTimeout(() => setFlash(null), 4000);
+        }
+      }),
+    ];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, []);
+
+  // The take paused by itself (a source stopped, the disk is full): the window follows.
+  useEffect(() => {
+    if (!status) return;
+    if (
+      (status.phase === "paused" || status.phase === "failed") &&
+      phaseRef.current === "recording"
+    ) {
+      guidedAudio.current?.pause();
+      phaseRef.current = "paused";
+      setPhase("paused");
+    }
+  }, [status]);
 
   // Encoders are tried on the real screen in the background, not during the countdown.
   const monitorIndex = monitor?.index;
+  const fps = settings?.fps;
   useEffect(() => {
-    if (monitorIndex === undefined) return;
+    if (monitorIndex === undefined || fps === undefined) return;
     let current = true;
     setEncoder(null);
-    window.api.recorder.encoder(monitorIndex).then(
+    window.api.recorder.encoder(monitorIndex, fps).then(
       (label) => current && setEncoder({ label }),
-      (err: unknown) => current && setEncoder({ error: (err as Error).message }),
+      (err: unknown) => current && setEncoder({ error: cleanError(err) }),
     );
     return () => {
       current = false;
     };
-  }, [monitorIndex]);
+  }, [monitorIndex, fps]);
 
-  // The window resizes when moved to another monitor: start with the whole screen again.
+  // The level meter listens to the very device the take will record.
+  useEffect(() => {
+    if (phase !== "setup") return;
+    setLevel(null);
+    void window.api.recorder.monitorMic(mic || null);
+    return () => {
+      void window.api.recorder.monitorMic(null);
+    };
+  }, [mic, phase]);
+
+  useEffect(() => {
+    setCamModes(null);
+    if (!cam) return;
+    let current = true;
+    window.api.recorder.cameraModes(cam).then(
+      (modes) => current && setCamModes(modes),
+      () => current && setCamModes({ modes: [], choice: null }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [cam]);
+
+  // The window resizes when moved to another monitor: the region the options ask for, if it
+  // fits there, else the whole screen.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   useEffect(() => {
     const onResize = (): void => {
-      setRegion({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
+      const s = settingsRef.current;
+      setRegion(s ? regionFrom(s) : fullWindow());
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // A new take only knows where the controls are once it is told.
   useEffect(() => {
-    if (phase !== "recording" && phase !== "paused") return;
-    const id = setInterval(() => void window.api.recorder.elapsed().then(setElapsed), 250);
-    return () => clearInterval(id);
+    if (phase === "recording") resendUiRects();
   }, [phase]);
 
   const showFlash = useCallback((text: string): void => {
@@ -160,50 +317,27 @@ export function RecorderOverlay(): ReactNode {
     setTimeout(() => setFlash(null), 1400);
   }, []);
 
-  /** The computer's sound (Windows loopback), recorded here and handed to the recorder at the end. */
-  const startSystemAudio = useCallback(async (): Promise<void> => {
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-    stream.getVideoTracks().forEach((t) => {
-      t.stop();
-    });
-    const audio = new MediaStream(stream.getAudioTracks());
-    if (!audio.getAudioTracks().length) throw new Error("sem trilha de áudio");
-    const rec = new MediaRecorder(audio, {
-      mimeType: "audio/webm;codecs=opus",
-      audioBitsPerSecond: 160_000,
-    });
-    const entry = { rec, chunks: [] as Blob[], startedAt: 0, stream };
-    rec.ondataavailable = (e) => e.data.size && entry.chunks.push(e.data);
-    await new Promise<void>((resolve) => {
-      rec.onstart = () => {
-        entry.startedAt = Date.now();
-        resolve();
-      };
-      rec.start(1000);
-    });
-    system.current = entry;
-  }, []);
+  const moveLine = useCallback(
+    (index: number) => {
+      const next = Math.max(0, Math.min(lines.length - 1, index));
+      setLine(next);
+      if (phaseRef.current === "recording" || phaseRef.current === "paused")
+        void window.api.recorder.teleprompterLine(next);
+    },
+    [lines.length],
+  );
 
   const finishSystemAudio = useCallback(async (): Promise<void> => {
     const s = system.current;
-    if (!s) return;
-    if (s.rec.state !== "inactive")
-      await new Promise<void>((resolve) => {
-        s.rec.onstop = () => resolve();
-        s.rec.stop();
-      });
-    s.stream.getTracks().forEach((t) => {
-      t.stop();
-    });
-    const bytes = new Uint8Array(await new Blob(s.chunks, { type: "audio/webm" }).arrayBuffer());
-    if (bytes.length) await window.api.recorder.systemAudio(bytes, s.startedAt);
     system.current = null;
+    await s?.finish();
   }, []);
 
   const begin = useCallback(async () => {
-    if (!monitor || phaseRef.current !== "setup" || guidedBusy) return;
+    if (!monitor || !settings || phaseRef.current !== "setup" || guidedBusy) return;
     preservationRequested.current = false;
     setError(null);
+    setAlert(null);
     if (guidedMode) {
       try {
         scheduleGuided(guidedPlan);
@@ -225,29 +359,37 @@ export function RecorderOverlay(): ReactNode {
           audio.load();
         });
       }
+      const narrated = guidedMode && !!guidedPlan.audio;
+      const systemOn = settings.systemAudio && !narrated;
       // The mouse helper loads during the countdown.
       const prep = window.api.recorder.prepare({
         monitor: monitor.index,
         regionDip: region,
-        microphone: guidedMode && guidedPlan.audio ? undefined : mic || undefined,
+        microphone: narrated ? undefined : mic || undefined,
         camera: cam || undefined,
-        keys: keysOn,
-        fps: RECORDING_FPS,
+        cameraMode: cam ? (settings.cameraMode ?? camModes?.choice ?? undefined) : undefined,
+        cameraLatency: settings.cameraLatency,
+        keys: settings.keys,
+        fps: settings.fps,
+        quality: settings.quality,
+        systemAudio: systemOn,
       });
       await Promise.all([
         prep,
         (async () => {
-          for (let i = 3; i > 0; i--) {
+          for (let i = settings.countdown; i > 0; i--) {
             setCount(i);
             await new Promise((r) => setTimeout(r, 1000));
           }
         })(),
       ]);
       await window.api.recorder.start();
-      if (!preservationRequested.current && systemOn && !(guidedMode && guidedPlan.audio))
-        await startSystemAudio().catch((e) =>
-          setError(`Áudio do PC indisponível: ${(e as Error).message}`),
-        );
+      setMarkers(0);
+      if (!preservationRequested.current && systemOn)
+        system.current = await SystemAudio.start(setError).catch((e) => {
+          setError(`Áudio do PC indisponível: ${(e as Error).message}`);
+          return null;
+        });
       if (preservationRequested.current) {
         phaseRef.current = "saving";
         setPhase("saving");
@@ -258,33 +400,31 @@ export function RecorderOverlay(): ReactNode {
       setPhase("recording");
       phaseRef.current = "recording";
       void window.api.recorder.interactive(false);
+      void window.api.recorder.teleprompterLine(line);
       if (guidedMode) {
         const timing = await window.api.recorder.guidedStart(guidedPlan);
         guidedOffset.current = timing.origin + timing.lead;
       }
     } catch (err) {
-      setError(
-        String((err as Error).message).replace(
-          /^Error invoking remote method '[^']+': (Error: )?/,
-          "",
-        ),
-      );
+      setError(cleanError(err));
       guidedAudio.current?.pause();
+      system.current?.cancel();
+      system.current = null;
       await window.api.recorder.reset().catch(() => undefined);
       phaseRef.current = "setup";
       setPhase("setup");
     }
   }, [
     monitor,
+    settings,
     region,
     mic,
     cam,
-    systemOn,
-    keysOn,
+    camModes,
     guidedMode,
     guidedPlan,
     guidedBusy,
-    startSystemAudio,
+    line,
     finishSystemAudio,
   ]);
 
@@ -327,19 +467,32 @@ export function RecorderOverlay(): ReactNode {
     [],
   );
 
+  const [resuming, setResuming] = useState(false);
   const togglePause = useCallback(async () => {
     if (guidedFailed.current) return;
     if (phaseRef.current === "recording") {
       guidedAudio.current?.pause();
       phaseRef.current = "paused";
       setPhase("paused");
-      system.current?.rec.pause();
       await window.api.recorder.pause();
     } else if (phaseRef.current === "paused") {
-      await window.api.recorder.resume();
-      system.current?.rec.resume();
-      setPhase("recording");
-      phaseRef.current = "recording";
+      // Instant, unless a source has to open again (after a failure or a long pause).
+      setResuming(true);
+      try {
+        await window.api.recorder.resume();
+        setAlert(null);
+        setPhase("recording");
+        phaseRef.current = "recording";
+      } catch (err) {
+        setAlert({
+          source: "screen",
+          level: "error",
+          message: cleanError(err),
+          actions: ["resume", "stop"],
+        });
+      } finally {
+        setResuming(false);
+      }
     }
   }, []);
 
@@ -347,19 +500,45 @@ export function RecorderOverlay(): ReactNode {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
     setPhase("saving");
     phaseRef.current = "saving";
+    setAlert(null);
     guidedAudio.current?.pause();
     guidedOffset.current = null;
     await window.api.recorder.guidedCancel();
     void window.api.recorder.interactive(true);
     try {
+      // The take ends at the key press, not after the computer's sound is wrapped up.
+      await window.api.recorder.halt();
       await finishSystemAudio();
       await window.api.recorder.stop();
     } catch (err) {
-      setError(String((err as Error).message));
+      setError(cleanError(err));
       phaseRef.current = "paused";
       setPhase("paused");
     }
   }, [finishSystemAudio]);
+
+  /** Throws this take away (Recycle Bin) and goes back to setting up. */
+  const discard = useCallback(async () => {
+    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    if (
+      !window.confirm("Descartar este take? Ele vai para a Lixeira e o gravador volta ao começo.")
+    )
+      return;
+    guidedAudio.current?.pause();
+    guidedOffset.current = null;
+    system.current?.cancel();
+    system.current = null;
+    await window.api.recorder.guidedCancel();
+    try {
+      await window.api.recorder.discard();
+    } catch (err) {
+      setError(cleanError(err));
+    }
+    setAlert(null);
+    setHealth(null);
+    setPhase("setup");
+    phaseRef.current = "setup";
+  }, []);
 
   const mark = useCallback(
     async (kind: "marker" | "retake") => {
@@ -385,10 +564,6 @@ export function RecorderOverlay(): ReactNode {
           void stop();
           return;
         }
-        if (name === "cursor-lost") {
-          setCursorLost(true);
-          return;
-        }
         if (name.startsWith("guided-error:")) {
           guidedFailed.current = true;
           guidedAudio.current?.pause();
@@ -401,13 +576,24 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "stop") void stop();
         else if (name === "marker") void mark("marker");
         else if (name === "retake") void mark("retake");
+        else if (name === "line-next") moveLine(line + 1);
+        else if (name === "line-prev") moveLine(line - 1);
       }),
-    [begin, togglePause, stop, mark],
+    [begin, togglePause, stop, mark, moveLine, line],
   );
+
+  // The disk filled up: the main process already stopped the capture; save what there is.
+  useEffect(() => {
+    if (alert?.request === "stop") void stop();
+  }, [alert, stop]);
 
   const recording = phase === "recording" || phase === "paused";
   const scale = monitor ? monitor.width / window.innerWidth : 1;
   const physical = { w: Math.round(region.width * scale), h: Math.round(region.height * scale) };
+  const keyOf = (action: keyof RecorderSettings["hotkeys"]): string =>
+    hotkeyLabel(settings?.hotkeys[action] ?? "");
+  const badKeys = hotkeys.filter((r) => !r.ok);
+  const prompterOn = !!settings?.teleprompter.on && lines.length > 0;
 
   return (
     <div className={`rec-root is-${phase}`}>
@@ -418,12 +604,36 @@ export function RecorderOverlay(): ReactNode {
           script={lines.map((l) => l.text).join("\n")}
           busy={phase !== "setup"}
           onBusy={setGuidedBusy}
+          keys={{ target: keyOf("guidedTarget"), toggle: keyOf("toggle"), stop: keyOf("stop") }}
         />
       )}
-      {error && recording && <div className="rec-flash">{error} · F10 para salvar e encerrar.</div>}
+      {error && recording && !alert && (
+        <div className="rec-flash">
+          {error} · {keyOf("stop")} para salvar e encerrar.
+        </div>
+      )}
+      {alert && recording && (
+        <Interactive className="rec-alert" active={recording} id="alert">
+          <AlertTriangle size={16} className="warn-icon" />
+          <span>{alert.message}</span>
+          {alert.actions.includes("resume") && (
+            <button type="button" disabled={resuming} onClick={() => void togglePause()}>
+              {resuming ? <Loader size={14} className="spin" /> : <Play size={14} />} Retomar
+            </button>
+          )}
+          {alert.actions.includes("stop") && (
+            <button type="button" className="rec-stop" onClick={() => void stop()}>
+              <Square size={12} fill="currentColor" /> Parar e salvar
+            </button>
+          )}
+        </Interactive>
+      )}
       <RegionFrame
         region={region}
-        onChange={setRegion}
+        onChange={(r) => {
+          setRegion(r);
+          change({ region: { preset: "custom", rect: r } });
+        }}
         editable={phase === "setup"}
         recording={recording}
         label={`${physical.w} × ${physical.h}`}
@@ -431,8 +641,18 @@ export function RecorderOverlay(): ReactNode {
 
       {cam && phase === "setup" && <CameraPreview device={cam} region={region} />}
 
-      {!guidedMode && prompterOn && lines.length > 0 && (
-        <Teleprompter lines={lines} live={recording} onHide={() => setPrompterOn(false)} />
+      {!guidedMode && prompterOn && settings && (
+        <Teleprompter
+          lines={lines}
+          live={recording}
+          current={line}
+          setCurrent={moveLine}
+          size={settings.teleprompter.size}
+          wordsPerMinute={settings.teleprompter.wordsPerMinute}
+          onSize={(size) => change({ teleprompter: { ...settings.teleprompter, size } })}
+          onHide={() => change({ teleprompter: { ...settings.teleprompter, on: false } })}
+          nextKey={keyOf("lineNext")}
+        />
       )}
 
       {phase === "countdown" && <div className="rec-countdown">{count}</div>}
@@ -440,7 +660,25 @@ export function RecorderOverlay(): ReactNode {
 
       {phase === "setup" || phase === "countdown" ? (
         <div className="rec-dock">
+          {optionsOpen && settings && (
+            <RecorderOptions
+              settings={settings}
+              change={change}
+              reports={hotkeys}
+              onClose={() => setOptionsOpen(false)}
+            />
+          )}
           {error && <div className="rec-error">{error}</div>}
+          {badKeys.length > 0 && (
+            <div className="rec-error">
+              {badKeys
+                .map(
+                  (r) =>
+                    `${hotkeyLabel(r.accelerator)} (${HOTKEY_LABELS[r.action].toLowerCase()}): ${r.reason ?? "não registrado."}`,
+                )
+                .join(" · ")}
+            </div>
+          )}
           <div className="rec-encoder" aria-live="polite">
             {!encoder
               ? "Testando o codificador nesta tela…"
@@ -465,12 +703,15 @@ export function RecorderOverlay(): ReactNode {
               type="button"
               className="rec-go"
               onClick={() => void begin()}
-              disabled={!monitor || phase !== "setup" || guidedBusy}
+              disabled={!monitor || !settings || phase !== "setup" || guidedBusy}
             >
               <span className="rec-dot" />
               <span>
                 <strong>Gravar</strong>
-                <small>F9 · contagem de 3 s</small>
+                <small>
+                  {keyOf("toggle")}
+                  {settings?.countdown ? ` · contagem de ${settings.countdown} s` : ""}
+                </small>
               </span>
             </button>
             <Source icon={MonitorUp} label="Tela">
@@ -480,6 +721,7 @@ export function RecorderOverlay(): ReactNode {
                   const m = sources?.monitors.find((x) => x.index === Number(e.target.value));
                   if (m) {
                     setMonitor(m);
+                    change({ monitor: { x: m.x, y: m.y, width: m.width, height: m.height } });
                     void window.api.recorder.moveTo(m.index);
                   }
                 }}
@@ -495,19 +737,9 @@ export function RecorderOverlay(): ReactNode {
               <select
                 value=""
                 onChange={(e) => {
-                  const W = window.innerWidth;
-                  const H = window.innerHeight;
-                  if (e.target.value === "full") setRegion({ x: 0, y: 0, width: W, height: H });
-                  else {
-                    const h = Math.min(H, (W * 9) / 16);
-                    const w = (h * 16) / 9;
-                    setRegion({
-                      x: Math.round((W - w) / 2),
-                      y: Math.round((H - h) / 2),
-                      width: Math.round(w),
-                      height: Math.round(h),
-                    });
-                  }
+                  const full = e.target.value === "full";
+                  setRegion(full ? fullWindow() : centered169());
+                  change({ region: { preset: full ? "full" : "16:9" } });
                 }}
               >
                 <option value="" disabled>
@@ -517,8 +749,27 @@ export function RecorderOverlay(): ReactNode {
                 <option value="169">16:9 no centro</option>
               </select>
             </Source>
-            <Source icon={Video} label="Câmera">
-              <select value={cam} onChange={(e) => setCam(e.target.value)}>
+            <Source
+              icon={Video}
+              label="Câmera"
+              extra={
+                cam && settings ? (
+                  <CameraModeSelect
+                    modes={camModes}
+                    value={settings.cameraMode}
+                    fps={30}
+                    onChange={(cameraMode) => change({ cameraMode })}
+                  />
+                ) : null
+              }
+            >
+              <select
+                value={cam}
+                onChange={(e) => {
+                  setCam(e.target.value);
+                  change({ camera: e.target.value || null, cameraMode: null });
+                }}
+              >
                 <option value="">Desligada</option>
                 {sources?.cameras.map((c) => (
                   <option key={c} value={c}>
@@ -530,9 +781,25 @@ export function RecorderOverlay(): ReactNode {
             <Source
               icon={Mic}
               label="Microfone"
-              extra={mic && phase === "setup" ? <LevelMeter device={mic} /> : null}
+              extra={
+                mic && phase === "setup" ? (
+                  level?.error ? (
+                    <small className="rec-opt-bad" title={level.error}>
+                      Não abriu
+                    </small>
+                  ) : (
+                    <LevelBars peak={level?.peak ?? 0} />
+                  )
+                ) : null
+              }
             >
-              <select value={mic} onChange={(e) => setMic(e.target.value)}>
+              <select
+                value={mic}
+                onChange={(e) => {
+                  setMic(e.target.value);
+                  change({ microphone: e.target.value || "" });
+                }}
+              >
                 <option value="">Sem áudio</option>
                 {sources?.microphones.map((m) => (
                   <option key={m} value={m}>
@@ -543,8 +810,8 @@ export function RecorderOverlay(): ReactNode {
             </Source>
             <Source icon={Volume2} label="Áudio do PC">
               <select
-                value={systemOn ? "on" : "off"}
-                onChange={(e) => setSystemOn(e.target.value === "on")}
+                value={settings?.systemAudio ? "on" : "off"}
+                onChange={(e) => change({ systemAudio: e.target.value === "on" })}
               >
                 <option value="off">Desligado</option>
                 <option value="on">Ligado (faixa separada)</option>
@@ -555,24 +822,36 @@ export function RecorderOverlay(): ReactNode {
             </Source>
             <Source icon={Keyboard} label="Teclas">
               <select
-                value={keysOn ? "on" : "off"}
-                onChange={(e) => setKeysOn(e.target.value === "on")}
+                value={settings?.keys ? "on" : "off"}
+                onChange={(e) => change({ keys: e.target.value === "on" })}
                 title="Mostra atalhos (Ctrl+…) e setas na tela. A digitação comum nunca é gravada."
               >
                 <option value="off">Desligado</option>
                 <option value="on">Atalhos e setas</option>
               </select>
             </Source>
-            {lines.length > 0 && (
+            {lines.length > 0 && settings && (
               <button
                 type="button"
                 className="rec-icon"
                 title={prompterOn ? "Esconder teleprompter" : "Mostrar teleprompter"}
-                onClick={() => setPrompterOn(!prompterOn)}
+                onClick={() =>
+                  change({
+                    teleprompter: { ...settings.teleprompter, on: !settings.teleprompter.on },
+                  })
+                }
               >
                 {prompterOn ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             )}
+            <button
+              type="button"
+              className="rec-icon"
+              title="Opções do gravador"
+              onClick={() => setOptionsOpen((o) => !o)}
+            >
+              <Settings2 size={16} />
+            </button>
             <button
               type="button"
               className="rec-icon"
@@ -584,24 +863,29 @@ export function RecorderOverlay(): ReactNode {
           </div>
           <div className="rec-keys">
             <span>
-              <kbd>F9</kbd> iniciar / pausar
+              <kbd>{keyOf("toggle")}</kbd> iniciar / pausar
             </span>
             <span>
-              <kbd>F10</kbd> parar
+              <kbd>{keyOf("stop")}</kbd> parar
             </span>
             <span>
-              <kbd>Ctrl+M</kbd> marcador
+              <kbd>{keyOf("marker")}</kbd> marcador
             </span>
             <span>
-              <kbd>Ctrl+R</kbd> refazer último trecho
+              <kbd>{keyOf("retake")}</kbd> refazer último trecho
             </span>
+            {lines.length > 0 && (
+              <span>
+                <kbd>{keyOf("lineNext")}</kbd> próxima fala
+              </span>
+            )}
             <span className="rec-note">
               Esta tela, o teleprompter e os controles não aparecem na gravação.
             </span>
           </div>
         </div>
       ) : (
-        <Interactive className="rec-pill" active={recording}>
+        <Interactive className="rec-pill" active={recording} id="pill">
           {phase === "saving" ? (
             <>
               <Loader size={15} className="spin" /> Salvando gravação…
@@ -609,38 +893,53 @@ export function RecorderOverlay(): ReactNode {
           ) : (
             <>
               <span className={`rec-live ${phase === "paused" ? "is-paused" : ""}`} />
-              <span className="rec-time">{clock(elapsed)}</span>
-              {phase === "paused" && <span className="rec-paused">pausado</span>}
-              {cursorLost && (
-                <span
-                  className="rec-paused"
-                  title="O cursor parou de ser registrado. O vídeo continua gravando."
-                >
-                  sem cursor
+              <span className="rec-time">{clock(health?.elapsed ?? 0)}</span>
+              {phase === "paused" && (
+                <span className="rec-paused">
+                  {resuming || status?.reopening
+                    ? "retomando…"
+                    : status?.phase === "failed"
+                      ? "parou"
+                      : status?.closed
+                        ? "pausado · arquivos fechados"
+                        : "pausado"}
                 </span>
               )}
+              <HealthStrip health={health} />
               <button
                 type="button"
-                title="Pausar / continuar (F9)"
+                title={`Pausar / continuar (${keyOf("toggle")})`}
+                disabled={resuming}
                 onClick={() => void togglePause()}
               >
                 {phase === "paused" ? <Play size={15} /> : <Pause size={15} />}
               </button>
-              <button type="button" title="Marcador (Ctrl+M)" onClick={() => void mark("marker")}>
+              <button
+                type="button"
+                title={`Marcador (${keyOf("marker")})`}
+                onClick={() => void mark("marker")}
+              >
                 <Bookmark size={15} />
                 {markers > 0 && <small>{markers}</small>}
               </button>
               <button
                 type="button"
-                title="Refazer o último trecho (Ctrl+R)"
+                title={`Refazer o último trecho (${keyOf("retake")})`}
                 onClick={() => void mark("retake")}
               >
                 <RotateCcw size={15} />
               </button>
               <button
                 type="button"
+                title="Descartar este take e recomeçar"
+                onClick={() => void discard()}
+              >
+                <Trash2 size={15} />
+              </button>
+              <button
+                type="button"
                 className="rec-stop"
-                title="Parar (F10)"
+                title={`Parar (${keyOf("stop")})`}
                 onClick={() => void stop()}
               >
                 <Square size={13} fill="currentColor" /> Parar
@@ -755,61 +1054,6 @@ function RegionFrame({
   );
 }
 
-/** Live microphone level, to check the right microphone before recording. */
-function LevelMeter({ device }: { device: string }): ReactNode {
-  const [level, setLevel] = useState(0);
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let raf = 0;
-    let ctx: AudioContext | null = null;
-    void (async () => {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const match = devices.find(
-        (d) =>
-          d.kind === "audioinput" &&
-          (d.label === device || device.includes(d.label) || d.label.includes(device)),
-      );
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: match ? { deviceId: { exact: match.deviceId } } : true,
-      });
-      ctx = new AudioContext();
-      const an = ctx.createAnalyser();
-      an.fftSize = 512;
-      ctx.createMediaStreamSource(stream).connect(an);
-      const buf = new Float32Array(an.fftSize);
-      const tick = (): void => {
-        an.getFloatTimeDomainData(buf);
-        let peak = 0;
-        for (const v of buf) peak = Math.max(peak, Math.abs(v));
-        setLevel((l) => Math.max(peak, l * 0.85));
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
-    })().catch(() => undefined);
-    return () => {
-      cancelAnimationFrame(raf);
-      stream?.getTracks().forEach((t) => {
-        t.stop();
-      });
-      void ctx?.close();
-    };
-  }, [device]);
-  const bars = 14;
-  const on = Math.round(Math.min(1, level * 1.6) * bars);
-  return (
-    <span className="rec-meter">
-      {Array.from({ length: bars }, (_, index) => ({ threshold: (index + 1) / bars, index })).map(
-        ({ threshold, index }) => (
-          <i
-            key={threshold}
-            className={index < on ? (index > bars * 0.8 ? "is-hot" : "is-on") : ""}
-          />
-        ),
-      )}
-    </span>
-  );
-}
-
 /** Webcam preview in the corner of the region (setup only: the recorder needs the camera free). */
 function CameraPreview({ device, region }: { device: string; region: Rect }): ReactNode {
   const ref = useRef<HTMLVideoElement>(null);
@@ -855,14 +1099,24 @@ function CameraPreview({ device, region }: { device: string; region: Rect }): Re
 function Teleprompter({
   lines,
   live,
+  current,
+  setCurrent,
+  size,
+  wordsPerMinute,
+  onSize,
   onHide,
+  nextKey,
 }: {
   lines: Line[];
   live: boolean;
+  current: number;
+  setCurrent: (index: number) => void;
+  size: number;
+  wordsPerMinute: number;
+  onSize: (size: number) => void;
   onHide: () => void;
+  nextKey: string;
 }): ReactNode {
-  const [size, setSize] = useState(22);
-  const [current, setCurrent] = useState(0);
   const [auto, setAuto] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -870,23 +1124,20 @@ function Teleprompter({
       ?.querySelector(`[data-line="${current}"]`)
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [current]);
-  // Auto-advance at the script's speaking rate (137 words per minute).
+  // Auto-advance at the speaking rate set in the options.
   useEffect(() => {
     if (!auto || !live) return;
     const words = lines[current]?.text.split(/\s+/).length ?? 0;
-    const id = setTimeout(
-      () => setCurrent((c) => Math.min(lines.length - 1, c + 1)),
-      (words / 137) * 60_000 + 600,
-    );
+    const id = setTimeout(() => setCurrent(current + 1), (words / wordsPerMinute) * 60_000 + 600);
     return () => clearTimeout(id);
-  }, [auto, live, current, lines]);
+  }, [auto, live, current, lines, wordsPerMinute, setCurrent]);
   return (
-    <Interactive className="tp" active={live}>
+    <Interactive className="tp" active={live} id="teleprompter">
       <div className="tp-head">
         <ScrollText size={16} className="accent" />
         <div className="tp-title">
           <strong>Roteiro · Teleprompter</strong>
-          <small>Só você vê: não entra na gravação</small>
+          <small>Só você vê: não entra na gravação · {nextKey} próxima fala</small>
         </div>
         <button type="button" className="rec-icon" title="Esconder" onClick={onHide}>
           <EyeOff size={15} />
@@ -918,27 +1169,19 @@ function Teleprompter({
       <div className="tp-foot">
         <label className="tp-auto">
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />{" "}
-          Avançar sozinho (137 pal./min)
+          Avançar sozinho ({wordsPerMinute} pal./min)
         </label>
         <span className="spacer" />
-        <button
-          type="button"
-          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-          title="Fala anterior"
-        >
+        <button type="button" onClick={() => setCurrent(current - 1)} title="Fala anterior">
           ↑
         </button>
-        <button
-          type="button"
-          onClick={() => setCurrent((c) => Math.min(lines.length - 1, c + 1))}
-          title="Próxima fala"
-        >
+        <button type="button" onClick={() => setCurrent(current + 1)} title="Próxima fala">
           ↓
         </button>
-        <button type="button" onClick={() => setSize((s) => Math.max(14, s - 2))}>
+        <button type="button" onClick={() => onSize(Math.max(14, size - 2))}>
           A−
         </button>
-        <button type="button" onClick={() => setSize((s) => Math.min(40, s + 2))}>
+        <button type="button" onClick={() => onSize(Math.min(40, size + 2))}>
           A+
         </button>
       </div>
