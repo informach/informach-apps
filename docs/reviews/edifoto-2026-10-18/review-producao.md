@@ -40,6 +40,8 @@ O escopo vigente é o [plano simplificado](../../../apps/edifoto/PLANO-DE-IMPLEM
 
 | R11 | Mudanças rápidas em campos distintos da configuração podiam sobrescrever a preferência anterior; inicialização/reconfiguração do MCP podiam concorrer. | Fila de atualização, gravação atômica e sincronização serial do servidor; jornada nativa verifica escolhas concorrentes via IPC real. |
 
+| R12 | No runner Windows, a jornada nativa terminou o diálogo mas não encontrou o arquivo esperado. O helper aceitava controles ocultos, e o título sozinho não comprovava conclusão da gravação. | Seleção somente de controles visíveis/habilitados, espera pelo evento visual de sucesso, registro do destino e captura em falha. Diálogos usam Pictures do perfil descartável. A jornada local completa passou novamente; validação remota segue obrigatória. |
+
 ## Verificação deste checkout
 
 - `pnpm install --frozen-lockfile`, Node 24.15.0/pnpm 9.15.0; sem atualização de dependências.

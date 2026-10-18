@@ -54,17 +54,20 @@ while ([DateTime]::UtcNow -lt $deadline) {
     $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')
     $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Edit')
     $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
-    $file=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)
+    $file=$null
+    foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
+      if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
+    }
     if (!$file) {
       $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1148')
       $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'ComboBox')
       $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
-      $file=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)
+      foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
+        if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
+      }
     }
-    if ($button -and $button.Current.IsEnabled -and $file) {
+    if ($button -and !$button.Current.IsOffscreen -and $button.Current.IsEnabled -and $file) {
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
-      $fileValue=$null
-      $hasValue=$file.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$fileValue)
       $buttonHandle=[IntPtr]$button.Current.NativeWindowHandle
       foreach($handle in @($fileHandle,$buttonHandle)) {
         [uint32]$controlOwner=0
@@ -100,4 +103,4 @@ while ([DateTime]::UtcNow -lt $deadline) {
   Start-Sleep -Milliseconds 100
 }
 if (!$completed) { throw 'The owned native file dialog did not appear or did not expose its filename control.' }
-Write-Output 'Responded to the owned native file dialog using UI Automation.'
+Write-Output "Responded to the owned native file dialog using UI Automation: $Action"

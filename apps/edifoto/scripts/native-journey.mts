@@ -83,7 +83,22 @@ export async function verifyFotoNativeJourney(
   const saving = respond("Save");
   await editor.keyboard.press("Control+s");
   await saving;
+  await editor.getByText("Projeto salvo.", { exact: true }).waitFor();
   await editor.waitForFunction(() => !document.title.startsWith("•"));
+  const recents: unknown = await editor.evaluate(async () => {
+    const bridge: unknown = Reflect.get(window, "api");
+    if (
+      !bridge ||
+      typeof bridge !== "object" ||
+      !("recentDocs" in bridge) ||
+      typeof bridge.recentDocs !== "function"
+    )
+      throw new Error("Missing recent files bridge");
+    const result: unknown = await Reflect.apply(bridge.recentDocs, bridge, []);
+    return result;
+  });
+  const recent = z.array(z.object({ path: z.string() })).parse(recents);
+  console.log("Native save destination:", JSON.stringify(recent.map((item) => item.path)));
   const bytes = await readFile(destination),
     doc = decodeArchive(bytes).doc;
   assert.equal(

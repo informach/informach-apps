@@ -314,3 +314,5 @@ Uma alteração diária deve ter escopo, testes, documentação e revisão antes
 | Teste/build mudou outro app | Confira dependências compartilhadas e concorrência no checkout; não reutilize `out` ou `.next` enquanto outro processo os reescreve |
 
 Para logs, use códigos de operação e IDs permitidos pela [política de auditoria](audit-payload-policy.md). Não registre documentos, corpos de requests, tokens ou chaves. Novos erros operacionais do portal passam por `apps/edi/src/lib/observability.ts` e sua sanitização; testes locais devem permanecer sem DSN real.
+
+O runner nativo direciona `pictures` de cada processo ao diretório de documentos do fixture. O helper do EdiFoto aceita apenas controles visíveis/habilitados do PID esperado e destinos exatos em `edi-native-*`; a jornada espera “Projeto salvo.”, registra o caminho e preserva uma captura em falha antes da limpeza.

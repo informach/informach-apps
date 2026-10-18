@@ -242,6 +242,11 @@ try {
         EDICAPTURA_TEST_PROFILE: userData,
       },
     });
+    // Native save dialogs must default to this fixture, never the runner/user's Pictures folder.
+    await application.evaluate(
+      ({ app }, pictures) => app.setPath("pictures", pictures),
+      join(userData, "documents"),
+    );
     const startup = observeNativeStartup(application, [root, resolve("."), tmpdir()]);
     let closed = false;
     application.once("close", () => {
@@ -249,6 +254,7 @@ try {
     });
     const failures: unknown[] = [];
     let startupFailed = false;
+    let diagnosticEditor: Page | undefined;
     try {
       assert.equal(await application.evaluate(() => process.execPath), electronPath);
       const first = await application.firstWindow().catch(async (error: unknown) => {
@@ -275,6 +281,7 @@ try {
       const editorResult = await editorReady;
       if (!("page" in editorResult)) throw editorResult.error;
       const editor = editorResult.page;
+      diagnosticEditor = editor;
       const pageErrors: string[] = [];
       editor.on("pageerror", (error) => pageErrors.push(error.message));
       await editor.waitForFunction(() => typeof window.ediSuite !== "undefined");
@@ -453,6 +460,13 @@ try {
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
+      if (diagnosticEditor && !diagnosticEditor.isClosed()) {
+        try {
+          await diagnosticEditor.screenshot({ path: join(results, `${id}-failure.png`) });
+        } catch (screenshotError) {
+          failures.push(screenshotError);
+        }
+      }
     } finally {
       try {
         if (!closed) {
