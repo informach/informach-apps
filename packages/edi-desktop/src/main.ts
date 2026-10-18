@@ -222,7 +222,14 @@ export function createEdiDesktop(options: {
     validToolSender(event);
     if (!recoveryChannels.has(channel)) requireController().assertAccess();
     if (
-      ["fs:write", "file:write", "project:save", "dialog:save", "library:save"].includes(channel) &&
+      [
+        "fs:write",
+        "file:write",
+        "file:write-copy",
+        "project:save",
+        "dialog:save",
+        "library:save",
+      ].includes(channel) &&
       controller?.status().state !== "licensed" &&
       ![...recoveryRequests.values()].some((request) => request.senderId === event.sender.id)
     )
@@ -245,7 +252,11 @@ export function createEdiDesktop(options: {
   beforeInvoke = async (channel, args) => {
     if (readAtFirst.has(channel)) args[0] = await files().assertRead(pathValue.parse(args[0]));
     if (readAtSecond.has(channel)) args[1] = await files().assertRead(pathValue.parse(args[1]));
-    if (["fs:write", "file:write", "file:write-unique", "project:save"].includes(channel)) {
+    if (
+      ["fs:write", "file:write", "file:write-copy", "file:write-unique", "project:save"].includes(
+        channel,
+      )
+    ) {
       args[0] = await files().assertWrite(
         pathValue.parse(args[0]),
         requireController().status().state !== "licensed",

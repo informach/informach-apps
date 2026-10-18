@@ -10,6 +10,7 @@ import {
   rotateAnnot,
   viewToPdf,
 } from "../src/shared/model.ts";
+import { takeEditableAnnotations } from "../src/shared/pdf-annotations.ts";
 
 async function samplePdf(
   labels: string[],
@@ -234,11 +235,16 @@ test("draws text annotations upright on rotated pages", async () => {
   content.meta = { title: "Teste", author: "EdiPDF" };
   const out = await buildPdf({ content, sources: { a }, primary: "a" });
   const [text] = await pageTexts(out);
-  for (const s of ["A1", "Olá, ação!", "Segunda linha", "CONFIDENCIAL", "Página 1 de 1"])
+  for (const s of ["A1", "CONFIDENCIAL", "Página 1 de 1"])
     assert.ok(text.includes(s), `missing "${s}" in "${text}"`);
   const doc = await PDFDocument.load(out);
   assert.equal(doc.getTitle(), "Teste");
-  assert.equal(doc.getPage(0).node.Annots()?.size(), 1);
+  assert.equal(doc.getPage(0).node.Annots()?.size(), content.annots.length);
+  const restored = takeEditableAnnotations(doc).get(0) ?? [];
+  assert.deepEqual(
+    restored.map((a) => ({ ...a, page: page.id })),
+    content.annots,
+  );
 });
 
 test("fills form fields and drops fields of deleted pages", async () => {

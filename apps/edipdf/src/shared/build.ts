@@ -1,7 +1,6 @@
 import {
   BlendMode,
   degrees,
-  EncryptedPDFError,
   LineCapStyle,
   PDFArray,
   PDFCheckBox,
@@ -12,6 +11,7 @@ import {
   PDFHexString,
   type PDFImage,
   PDFName,
+  PDFNumber,
   PDFOptionList,
   type PDFPage,
   PDFRadioGroup,
@@ -21,22 +21,48 @@ import {
   StandardFonts,
 } from "pdf-lib";
 import { pruneUnreachable } from "./compress.ts";
+import type { BuildInput } from "./document-build-format.ts";
+import { selectChoiceValues } from "./form-choice.ts";
+import { updateDirtyFormAppearances } from "./form-font.ts";
 import {
   type Annot,
-  BASELINE,
+  annotBounds,
   type Box,
+  baselineForText,
   type DocContent,
   type FontKey,
   LINE_HEIGHT,
   NOTE_SIZE,
-  pageLabel,
+  type ParagraphAnnot,
   parseColor,
   type Rotation,
   type TextAnnot,
   textLines,
-  toWinAnsi,
   viewToPdf,
 } from "./model.ts";
+import {
+  assertDecorationTextBudget,
+  compilePageNumbers,
+  decorationPageIds,
+  numberPosition,
+  watermarkPosition,
+  watermarkSchema,
+} from "./page-decorations.ts";
+import { reconcilePageReferences } from "./page-integrity.ts";
+import {
+  embedParagraphFont,
+  paragraphFontBytes,
+  paragraphRequiredText,
+  validateParagraphInk,
+} from "./paragraph-font.ts";
+import { layoutParagraph } from "./paragraph-layout.ts";
+import { takeEditableAnnotations, writeEditableAnnotation } from "./pdf-annotations.ts";
+import { attachDuplicateWidgets, registerCopiedForms } from "./pdf-forms.ts";
+import { livePdfPages } from "./pdf-pages.ts";
+import { validateRasterImage } from "./raster-image.ts";
+import { assertGlyphs, embedUnicodeFont, type UnicodeFonts } from "./unicode-fonts.ts";
+
+export type { BuildInput } from "./document-build-format.ts";
 
 /** Thrown when the base PDF is encrypted and pdf-lib cannot rewrite it. */
 export class ProtectedPdfError extends Error {
@@ -63,13 +89,13 @@ export function dataUrlToBytes(url: string): Uint8Array {
 const isPng = (bytes: Uint8Array): boolean => bytes[0] === 0x89 && bytes[1] === 0x50;
 
 export async function loadPdf(bytes: Uint8Array): Promise<PDFDocument> {
-  try {
-    return await PDFDocument.load(bytes, { updateMetadata: false });
-  } catch (err) {
-    if (err instanceof EncryptedPDFError || /encrypt/i.test(String(err)))
-      throw new ProtectedPdfError();
-    throw err;
-  }
+  const doc = await PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true });
+  if (doc.isEncrypted) throw new ProtectedPdfError();
+  if (doc.catalog.lookupMaybe(PDFName.of("AcroForm"), PDFDict)?.has(PDFName.of("XFA")))
+    throw new Error(
+      "Este PDF contém XFA. Converta o formulário para PDF estático antes de editar.",
+    );
+  return doc;
 }
 
 const FONT_NAMES: Record<FontKey, [StandardFonts, StandardFonts, StandardFonts, StandardFonts]> = {
@@ -97,8 +123,29 @@ class Painter {
   private fonts = new Map<string, Promise<PDFFont>>();
   private images = new Map<string, Promise<PDFImage>>();
   private doc: PDFDocument;
-  constructor(doc: PDFDocument) {
+  private unicode: UnicodeFonts | undefined;
+  constructor(doc: PDFDocument, unicode?: UnicodeFonts) {
     this.doc = doc;
+    this.unicode = unicode;
+  }
+
+  async textFont(key: FontKey, bold: boolean, italic: boolean, text: string): Promise<PDFFont> {
+    const standard = await this.font(key, bold, italic);
+    const charset = new Set(standard.getCharacterSet());
+    if ([...text].every((char) => /[\r\n\t]/.test(char) || charset.has(char.codePointAt(0) ?? 0)))
+      return standard;
+    const face = bold ? (italic ? "boldItalic" : "bold") : italic ? "italic" : "regular";
+    const bytes = this.unicode?.[face];
+    if (!bytes)
+      throw new Error("Este texto precisa das fontes Unicode locais, que não foram carregadas.");
+    assertGlyphs(bytes, text);
+    const cacheKey = `unicode:${face}`;
+    let font = this.fonts.get(cacheKey);
+    if (!font) {
+      font = embedUnicodeFont(this.doc, bytes, text);
+      this.fonts.set(cacheKey, font);
+    }
+    return font;
   }
 
   font(key: FontKey, bold = false, italic = false): Promise<PDFFont> {
@@ -121,6 +168,25 @@ class Painter {
     return img;
   }
 
+  async paragraphFont(a: ParagraphAnnot): Promise<PDFFont> {
+    if (!this.unicode) throw new Error("As fontes locais da caixa de texto estão indisponíveis.");
+    const key =
+      a.fontData?.data ??
+      `paragraph:${a.bold ? "bold" : "regular"}:${a.italic ? "italic" : "normal"}`;
+    let font = this.fonts.get(key);
+    const text = paragraphRequiredText(a);
+    if (!font) {
+      font = embedParagraphFont(this.doc, paragraphFontBytes(a, this.unicode), text);
+      this.fonts.set(key, font);
+    }
+    const embedded = await font,
+      supported = new Set(embedded.getCharacterSet());
+    for (const char of text)
+      if (!/[\r\n\t]/.test(char) && !supported.has(char.codePointAt(0) ?? 0))
+        throw new Error(`A fonte da caixa não contém o caractere “${char}”.`);
+    return embedded;
+  }
+
   async draw(page: PDFPage, r: Rotation, crop: Crop, a: Annot): Promise<void> {
     const P = (x: number, y: number) => viewToPdf(r, crop, x, y);
     const box = (b: Box) => {
@@ -135,6 +201,25 @@ class Painter {
     };
     const opacity = a.opacity ?? 1;
     switch (a.kind) {
+      case "paragraph": {
+        const font = await this.paragraphFont(a),
+          layout = layoutParagraph(a, font);
+        if (!this.unicode) throw new Error("As fontes da caixa estão indisponíveis.");
+        validateParagraphInk(a, layout, paragraphFontBytes(a, this.unicode));
+        for (const run of layout.runs) {
+          const [x, y] = P(a.x + run.x, a.y + run.baseline);
+          page.drawText(run.text, {
+            x,
+            y,
+            size: a.size,
+            font,
+            color: color(a.color),
+            opacity,
+            rotate: degrees(r),
+          });
+        }
+        return;
+      }
       case "text":
         return this.drawText(page, r, crop, a);
       case "rect":
@@ -186,6 +271,16 @@ class Painter {
         for (const path of a.paths) {
           const pts: [number, number][] = [];
           for (let i = 0; i < path.length; i += 2) pts.push(P(path[i], path[i + 1]));
+          if (pts.length === 1) {
+            page.drawCircle({
+              x: pts[0][0],
+              y: pts[0][1],
+              size: a.width / 2,
+              color: color(a.stroke),
+              opacity,
+            });
+            continue;
+          }
           // drawSvgPath flips y, so feed it negated PDF coordinates anchored at the origin.
           const d = smoothPath(pts.map(([x, y]) => [x, -y]));
           page.drawSvgPath(d, {
@@ -253,7 +348,7 @@ class Painter {
   }
 
   private async drawText(page: PDFPage, r: Rotation, crop: Crop, a: TextAnnot): Promise<void> {
-    const font = await this.font(a.font, a.bold, a.italic);
+    const font = await this.textFont(a.font, !!a.bold, !!a.italic, a.text);
     const lines = textLines(a.text);
     lines.forEach((line, i) => {
       if (!line) return;
@@ -261,9 +356,9 @@ class Painter {
         r,
         crop,
         a.x,
-        a.y + i * a.size * LINE_HEIGHT + BASELINE[a.font] * a.size,
+        a.y + i * a.size * LINE_HEIGHT + baselineForText(a.font, a.text) * a.size,
       );
-      page.drawText(toWinAnsi(line), {
+      page.drawText(line, {
         x,
         y,
         size: a.size,
@@ -283,18 +378,27 @@ class Painter {
     H: number,
     wm: NonNullable<DocContent["watermark"]>,
   ): Promise<void> {
-    const font = await this.font("helvetica", true);
-    const text = toWinAnsi(wm.text);
+    const text = wm.text;
+    const font = await this.textFont("helvetica", true, false, text);
     const tw = font.widthOfTextAtSize(text, wm.size);
-    const cap = wm.size * 0.7;
-    const t = (wm.angle * Math.PI) / 180;
-    const sx = W / 2 - (Math.cos(t) * tw) / 2 + (Math.sin(t) * cap) / 2;
-    const sy = H / 2 + (Math.sin(t) * tw) / 2 + (Math.cos(t) * cap) / 2;
-    const [x, y] = viewToPdf(r, crop, sx, sy);
+    const advanced =
+      wm.position !== undefined ||
+      wm.fit !== undefined ||
+      wm.marginX !== undefined ||
+      wm.marginY !== undefined;
+    const ascent = font.heightAtSize(wm.size, { descender: false });
+    const placed = watermarkPosition(
+      W,
+      H,
+      tw,
+      wm,
+      advanced ? { ascent, descent: Math.max(0, font.heightAtSize(wm.size) - ascent) } : undefined,
+    );
+    const [x, y] = viewToPdf(r, crop, placed.x, placed.y);
     page.drawText(text, {
       x,
       y,
-      size: wm.size,
+      size: placed.size,
       font,
       color: color(wm.color),
       opacity: wm.opacity,
@@ -311,14 +415,29 @@ class Painter {
     label: string,
     pn: NonNullable<DocContent["pageNumbers"]>,
   ): Promise<void> {
-    const font = await this.font("helvetica");
-    const text = toWinAnsi(label);
-    const { x: vx, y: vy } = pageNumberPos(
+    const text = label;
+    const font = await this.textFont("helvetica", false, false, text);
+    const advanced =
+      pn.scope !== undefined ||
+      pn.marginX !== undefined ||
+      pn.marginY !== undefined ||
+      pn.style !== undefined ||
+      pn.additional !== undefined;
+    const ascent = font.heightAtSize(pn.size, { descender: false });
+    if (
+      (pn.marginX !== undefined && pn.marginX * 2 >= W) ||
+      (pn.marginY !== undefined && pn.marginY * 2 >= H)
+    )
+      throw new Error("As margens não deixam área útil para cabeçalho/rodapé.");
+    const { x: vx, y: vy } = numberPosition(
       pn.position,
       W,
       H,
       font.widthOfTextAtSize(text, pn.size),
       pn.size,
+      pn.marginX,
+      pn.marginY,
+      advanced ? { ascent, descent: Math.max(0, font.heightAtSize(pn.size) - ascent) } : undefined,
     );
     const [x, y] = viewToPdf(r, crop, vx, vy);
     page.drawText(text, { x, y, size: pn.size, font, color: color(pn.color), rotate: degrees(r) });
@@ -326,22 +445,7 @@ class Painter {
 }
 
 /** Baseline-left position of a page number label in view space. */
-export function pageNumberPos(
-  pos: string,
-  W: number,
-  H: number,
-  textW: number,
-  size: number,
-): { x: number; y: number } {
-  const margin = 30;
-  const y = pos.startsWith("top") ? margin + size * 0.75 : H - margin + size * 0.25;
-  const x = pos.endsWith("left")
-    ? margin
-    : pos.endsWith("right")
-      ? W - margin - textW
-      : (W - textW) / 2;
-  return { x, y };
-}
+export { numberPosition as pageNumberPos } from "./page-decorations.ts";
 
 /** The two short strokes of an arrow head at (x2, y2). */
 export function arrowHead(
@@ -390,8 +494,7 @@ function fillForms(doc: PDFDocument, values: DocContent["forms"]): void {
         if (typeof value === "string" && value && field.getOptions().includes(value))
           field.select(value);
       } else if (field instanceof PDFDropdown || field instanceof PDFOptionList) {
-        if (typeof value === "string" && value) field.select(value);
-        else field.clear();
+        selectChoiceValues(doc, field, value);
       }
     } catch (err) {
       throw new Error(
@@ -401,41 +504,12 @@ function fillForms(doc: PDFDocument, values: DocContent["forms"]): void {
   }
 }
 
-/** Drops form fields whose widgets all sat on pages that were deleted. */
-function dropOrphanFields(doc: PDFDocument, removed: PDFPage[]): void {
-  if (!removed.length) return;
-  const gone = new Set<PDFDict>();
-  for (const page of removed) {
-    const annots = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
-    if (!annots) continue;
-    for (let i = 0; i < annots.size(); i++) {
-      const d = annots.lookup(i);
-      if (d instanceof PDFDict) gone.add(d);
-    }
-  }
-  if (!gone.size) return;
-  const form = doc.getForm();
-  for (const field of form.getFields()) {
-    const widgets = field.acroField.getWidgets();
-    if (widgets.length && widgets.every((w) => gone.has(w.dict))) {
-      try {
-        form.acroForm.removeField(field.acroField);
-      } catch {
-        // Nested field structures are left alone.
-      }
-    }
-  }
-}
-
-export interface BuildInput {
-  content: DocContent;
-  /** Source PDF bytes by source id. */
-  sources: Record<string, Uint8Array>;
-  /** Source whose file is used as the base, keeping its metadata, forms and outline. */
-  primary: string | null;
-}
-
-export async function buildPdf({ content, sources, primary }: BuildInput): Promise<Uint8Array> {
+export async function buildPdf({
+  content,
+  sources,
+  primary,
+  fonts,
+}: BuildInput): Promise<Uint8Array> {
   if (!content.pages.length) throw new Error("O documento precisa ter pelo menos uma página.");
   for (const page of content.pages) {
     if (page.blank) continue;
@@ -446,7 +520,16 @@ export async function buildPdf({ content, sources, primary }: BuildInput): Promi
   }
   const out =
     primary && sources[primary] ? await loadPdf(sources[primary]) : await PDFDocument.create();
-  if (primary && sources[primary]) fillForms(out, content.forms);
+  takeEditableAnnotations(out);
+  const primaryValues = Object.fromEntries(
+    Object.entries(content.forms).flatMap(([key, value]) => {
+      if (!key.includes("\u001f")) return [[key, value]];
+      return key.startsWith(`${primary}\u001f`)
+        ? [[key.slice(key.indexOf("\u001f") + 1), value]]
+        : [];
+    }),
+  );
+  if (primary && sources[primary]) fillForms(out, primaryValues);
 
   const original = primary && sources[primary] ? out.getPages() : [];
   if (content.pages.some((p) => !p.blank && p.src === primary && p.index >= original.length))
@@ -460,23 +543,37 @@ export async function buildPdf({ content, sources, primary }: BuildInput): Promi
   }
   // Copies must be taken while the original pages are still in the page tree.
   const dupQueue = dupIdx.length ? await out.copyPages(out, dupIdx) : [];
+  if (dupQueue.length && out.catalog.has(PDFName.of("AcroForm")))
+    attachDuplicateWidgets(out, dupQueue);
 
   const foreign = new Map<string, PDFPage[]>();
+  const foreignValues: DocContent["forms"] = {};
   for (const srcId of new Set(
     content.pages.filter((p) => p.src && p.src !== primary && !p.blank).map((p) => p.src),
   )) {
     const bytes = sources[srcId];
     if (!bytes) throw new Error("Fonte do PDF indisponível.");
     const srcDoc = await loadPdf(bytes);
+    takeEditableAnnotations(srcDoc);
     const idx = content.pages.filter((p) => p.src === srcId && !p.blank).map((p) => p.index);
-    foreign.set(srcId, await out.copyPages(srcDoc, idx));
+    const copied = await out.copyPages(srcDoc, idx);
+    const prefix = registerCopiedForms(out, copied, `Fonte ${foreign.size + 2}`);
+    for (const [key, value] of Object.entries(content.forms))
+      if (key.startsWith(`${srcId}\u001f`))
+        foreignValues[`${prefix}.${key.slice(key.indexOf("\u001f") + 1)}`] = value;
+    foreign.set(srcId, copied);
   }
 
   for (let i = original.length - 1; i >= 0; i--) out.removePage(i);
 
   const placed = new Set<number>();
-  const painter = new Painter(out);
-  const total = content.pages.length;
+  const painter = new Painter(out, fonts);
+  const numbering = compilePageNumbers(content.pages, content.pageNumbers);
+  const watermark = content.watermark ? watermarkSchema.parse(content.watermark) : null;
+  const watermarkPages = watermark
+    ? decorationPageIds(content.pages, watermark.scope)
+    : new Set<string>();
+  if (watermark) assertDecorationTextBudget([watermark.text], watermarkPages.size);
   const byPage = new Map<string, Annot[]>();
   for (const a of content.annots) byPage.set(a.page, [...(byPage.get(a.page) ?? []), a]);
 
@@ -488,40 +585,81 @@ export async function buildPdf({ content, sources, primary }: BuildInput): Promi
       if (!placed.has(ref.index)) {
         placed.add(ref.index);
         page = out.addPage(original[ref.index]);
-      } else page = out.addPage(dupQueue.shift()!);
+      } else {
+        const duplicate = dupQueue.shift();
+        if (!duplicate) throw new Error("A cópia da página não está disponível.");
+        page = out.addPage(duplicate);
+      }
     } else {
-      const queue = foreign.get(ref.src);
-      if (!queue?.length) throw new Error("Página indisponível no PDF de origem.");
-      page = out.addPage(queue.shift()!);
+      const imported = foreign.get(ref.src)?.shift();
+      if (!imported) throw new Error("Página indisponível no PDF de origem.");
+      page = out.addPage(imported);
     }
     const base = ((page.getRotation().angle % 360) + 360) % 360;
-    const r = ((base + ref.rotation) % 360) as Rotation;
+    const r = (base + ref.rotation) % 360;
+    if (r !== 0 && r !== 90 && r !== 180 && r !== 270)
+      throw new Error("A página contém uma rotação não ortogonal inválida.");
     page.setRotation(degrees(r));
     const cb = page.getCropBox();
     const crop = { x: cb.x, y: cb.y, w: cb.width, h: cb.height };
     const W = r % 180 === 0 ? crop.w : crop.h;
     const H = r % 180 === 0 ? crop.h : crop.w;
 
-    if (content.watermark?.text) await painter.watermark(page, r, crop, W, H, content.watermark);
-    for (const a of byPage.get(ref.id) ?? []) await painter.draw(page, r, crop, a);
-    if (content.pageNumbers) {
-      const pn = content.pageNumbers;
-      await painter.pageNumber(
+    if (watermark?.text && watermarkPages.has(ref.id))
+      await painter.watermark(page, r, crop, W, H, watermark);
+    for (const a of byPage.get(ref.id) ?? []) {
+      let textSize: { w: number; h: number } | undefined;
+      if (a.kind === "text") {
+        const font = await painter.textFont(a.font, !!a.bold, !!a.italic, a.text);
+        textSize = {
+          w: Math.max(
+            a.size,
+            ...textLines(a.text).map((line) => font.widthOfTextAtSize(line, a.size)),
+          ),
+          h: textLines(a.text).length * a.size * LINE_HEIGHT,
+        };
+      }
+      const bounds = annotBounds(a, textSize);
+      await writeEditableAnnotation(
+        out,
         page,
         r,
         crop,
-        W,
-        H,
-        pageLabel(n + pn.start, total + pn.start - 1, pn.format),
-        pn,
+        a,
+        {
+          x: bounds.x - 3,
+          y: bounds.y - 3,
+          w: Math.max(6, bounds.w + 6),
+          h: Math.max(6, bounds.h + 6),
+        },
+        (target) => painter.draw(target, r, crop, a),
       );
+    }
+    if (content.pageNumbers) {
+      const pn = content.pageNumbers;
+      for (const entry of numbering.get(ref.id)?.entries ?? [])
+        await painter.pageNumber(page, r, crop, W, H, entry.text, { ...pn, ...entry });
     }
   }
 
-  dropOrphanFields(
-    out,
-    original.filter((_, i) => !placed.has(i)),
-  );
+  reconcilePageReferences(out);
+  fillForms(out, foreignValues);
+  if (out.catalog.has(PDFName.of("AcroForm"))) {
+    await updateDirtyFormAppearances(out, fonts?.regular);
+  }
+
+  if (content.pageNumbers?.writePageLabels) {
+    const labels = PDFArray.withContext(out.context);
+    for (const [index, ref] of content.pages.entries()) {
+      labels.push(PDFNumber.of(index));
+      labels.push(
+        out.context.obj({
+          P: PDFHexString.fromText(numbering.get(ref.id)?.label ?? String(index + 1)),
+        }),
+      );
+    }
+    out.catalog.set(PDFName.of("PageLabels"), out.context.obj({ Nums: labels }));
+  }
 
   const m = content.meta;
   if (m.title !== undefined) out.setTitle(m.title);
@@ -543,18 +681,35 @@ export async function buildPdf({ content, sources, primary }: BuildInput): Promi
 }
 
 /** Joins whole PDFs, in order, into one new file. */
-export async function mergePdfs(files: Uint8Array[]): Promise<Uint8Array> {
+export async function mergePdfs(
+  files: Uint8Array[],
+  options: { maxPages?: number; progress?(index: number, total: number): void } = {},
+): Promise<Uint8Array> {
+  if (!files.length) throw new Error("Escolha pelo menos um arquivo para juntar.");
+  const maxPages = options.maxPages ?? 100000;
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100000)
+    throw new Error("Limite de páginas inválido para a junção.");
   const out = await PDFDocument.create();
-  for (const bytes of files) {
+  for (const [index, bytes] of files.entries()) {
+    options.progress?.(index, files.length);
     const src = await loadPdf(bytes);
-    for (const page of await out.copyPages(src, src.getPageIndices())) out.addPage(page);
+    const count = livePdfPages(src).length;
+    if (!count || out.getPageCount() + count > maxPages)
+      throw new Error(`A junção exige páginas válidas e aceita até ${maxPages} páginas.`);
+    const pages = await out.copyPages(src, src.getPageIndices());
+    registerCopiedForms(out, pages, `Fonte ${index + 1}`);
+    for (const page of pages) out.addPage(page);
   }
+  reconcilePageReferences(out);
   out.setProducer("EdiPDF");
+  await out.flush();
+  pruneUnreachable(out);
   return out.save({ useObjectStreams: true });
 }
 
 /** Wraps an image in a one-page PDF so it can be used like any other source. */
 export async function imageToPdf(bytes: Uint8Array): Promise<Uint8Array> {
+  validateRasterImage(bytes, isPng(bytes) ? "png" : "jpg");
   const doc = await PDFDocument.create();
   const img = isPng(bytes) ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
   // 96 dpi, capped so the longest side fits an A4 page.

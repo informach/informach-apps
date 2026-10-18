@@ -26,6 +26,8 @@ Entidades editáveis têm IDs persistentes no modelo, inclusive cores de paleta 
 
 Saídas de arquivos passam por capabilities e helpers de escrita compartilhados. Exports com sidecars usam staging/backups e revalidam os destinos antes de substituir. Caches produzidos no main podem conceder leitura do resultado validado; um cache key vindo do renderer nunca pode escolher um diretório. Estado que o próprio main guarda entre sessões pode voltar a liberar só o que ele conferiu ao gravar: a fila de exportação do EdiAula guarda apenas itens cujo destino e mídias estavam liberados (`desktopFiles.canWrite`/`canRead`) e os libera de novo ao ser lida (`grantWrite`/`grantRead`). Múltiplos arquivos não constituem uma transação contra queda de energia; preservar e comunicar a pasta de recuperação quando o rollback não puder terminar.
 
+O EdiPDF amplia os formatos documentais de saída do SDK para texto, dados, Office, OpenDocument, TIFF e arquivos de anexos. `supportsOutputExtension` centraliza essa lista; uma extensão aceita não concede acesso ao destino. `file:write-copy` passa pela mesma capability e proteção de recuperação de `file:write`. O app revalida identidade/cópia para preservar originais e publica lotes em diretório exclusivo. O corpus e os limites ficam no [full review do EdiPDF](reviews/edipdf-2026-10-18/full-review-entrega.md).
+
 A matriz abaixo registra candidatos estáveis consultados em 16/10/2026 nos registros oficiais. É uma referência para homologação, não uma declaração de versões já instaladas ou verificadas contra todos os consumidores do monorepo.
 
 | Componente | Versão candidata | Aplicação |

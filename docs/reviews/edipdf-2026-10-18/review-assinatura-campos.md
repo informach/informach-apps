@@ -1,0 +1,15 @@
+# Review de assinatura gráfica e campos rotacionados
+
+18/10/2026. Último complemento autorizado antes da publicação. Implementação e testes de domínio/tipos aprovados; a rodada nativa final está em execução.
+
+A assinatura conserva desenho vetorial, pontos, cores, rotação e a biblioteca local por opção explícita. Imagens agora passam por preparação imutável: remoção do branco pelo mínimo dos canais RGB, transparência com recuperação das cores, aparo automático e recorte manual nas quatro bordas. O limite de branco é ajustável; recorte sem área ou sem traços é recusado. A prévia mostra o PNG preparado, invalidado imediatamente quando os parâmetros mudam. Decodificação, dimensões, pixels e memória têm limites explícitos.
+
+A posição pode ser escolhida na prévia da revisão atual do PDF, por mouse ou setas, com largura em pontos. A geometria compartilhada ajusta assinatura e data para permanecerem na página, inclusive em páginas pequenas e imagens giradas. A revisão original é conferida antes e depois das operações assíncronas; se documento/página mudou, não há commit. Os controles ficam inertes durante a operação. A inserção é uma alteração no histórico; guardar na biblioteca exige consentimento separado. Não é assinatura com certificado.
+
+O gesto de desenho aceita um ponteiro primário por vez. Cancelamento, perda de captura/foco e desmontagem retiram os pixels e o traço parcial. Os listeners são liberados ao terminar. A primeira verificação nativa emitiu cancelamento no body e foi corrigida para o alvo que possui a captura, mantendo a exigência de canvas vazio após cancelar.
+
+A revisão nativa posterior encontrou um defeito real de layout: girar uma imagem larga fazia a prévia cobrir os controles anteriores. O espaço de apresentação passou a conter a caixa rotacionada; os testes continuam usando cliques normais, sem forçar eventos através da imagem. A nova rodada repete recorte real, conservação de amarelo/azul, rotação, posição, data, privacidade da biblioteca e cópia salva com campo/original intactos.
+
+Nos formulários, a caixa HTML agora compõe a rotação da página com a rotação própria `MK/R`, preserva o centro e utiliza a altura local do controle para calcular o tamanho da fonte. O alinhamento informado pelo PDF é respeitado. A matriz possui teste com 64 combinações de rotações, origem de CropBox deslocada e escala não unitária, confrontando a orientação da linha de base com o viewport independente do PDF.js. A jornada nativa `release-native-final.txt` aprovou o campo girado após salvar/reabrir; falhou depois na prévia da assinatura descrita acima. Cores, múltiplas aparências e corpus amplo permanecem nas pendências.
+
+Evidências locais: 275 testes aprovados (`release-tests-inert.txt`), tipos completos do monorepo e tooling (`release-types-final.txt`), revisão de qualidade sem erros (`release-check.txt`). A rodada `release-native-preview-fixed.txt` encerrará o aceite nativo desta correção. O [full review](full-review-entrega.md) registra o resultado final e a publicação.

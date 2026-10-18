@@ -48,8 +48,23 @@ const outputExtensions = new Set([
   ".svg",
   ".html",
   ".md",
+  ".csv",
+  ".tsv",
+  ".txt",
+  ".bin",
+  ".docx",
+  ".xlsx",
+  ".pptx",
+  ".odt",
+  ".ods",
+  ".odp",
+  ".rtf",
+  ".tif",
+  ".tiff",
   ".zip",
 ]);
+export const supportsOutputExtension = (path: string): boolean =>
+  outputExtensions.has(extname(path).toLowerCase());
 /** Flush beside the destination and replace only after the complete write succeeds. */
 const queuedWrites = new Map<string, Promise<void>>();
 export function atomicWrite(path: string, bytes: Uint8Array | string): Promise<void> {

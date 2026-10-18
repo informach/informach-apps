@@ -1,0 +1,27 @@
+{
+  "overlay": {
+    "text": ["ORIGINAL_CONFIDENCIAL NOVO_TEXTO"]
+  },
+  "unicode": {
+    "input": "Olá Ω 中文 ✓ 😀",
+    "saved": "Olá ? ?? ? ?",
+    "extracted": ["ORIGINAL_CONFIDENCIAL Olá ? ?? ? ?"]
+  },
+  "bookmark": {
+    "visible": 1,
+    "pageObjects": 2,
+    "secretStreams": 1
+  },
+  "sharedWidget": {
+    "visible": 1,
+    "pageObjects": 2,
+    "secretStreams": 1
+  },
+  "foreignForms": {
+    "fields": ["nome"],
+    "secondPageWidgets": 1
+  },
+  "directMergeForms": {
+    "fields": []
+  }
+}

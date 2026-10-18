@@ -1,5 +1,6 @@
 import { registerEdiRecovery } from "@informach/edi-desktop/renderer";
-import { translateAnnot, viewSize } from "@shared/model";
+import { viewSize } from "@shared/model";
+import { shortcutTool } from "@shared/preferences";
 import { CheckCircle2, Loader2, Upload, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DialogHost } from "./dialogs/Dialogs";
@@ -14,41 +15,41 @@ import {
   requestQuit,
   saveDoc,
 } from "./lib/actions";
+import {
+  annotationAction,
+  copyAnnotations,
+  pasteAnnotations,
+  selectedAnnotations,
+} from "./lib/annotations";
 import { finishDraft } from "./lib/editing";
 import { pageInfo } from "./lib/pdf";
+import { startRecoveryAutosave } from "./lib/recovery";
+import { restoreSession, startSessionAutosave } from "./lib/session";
+import { startSourceLifecycle } from "./lib/source-lifecycle";
+import { navigateHistory } from "./lib/workspace-view";
+import { loadPreferences, startPreferences, usePreferences } from "./state/preferences";
 import {
   activeDoc,
-  commit,
   type DocState,
   isDirty,
   patchDoc,
   redo,
-  removeAnnot,
   setTool,
-  type Tool,
+  toast,
   undo,
   useActiveDoc,
   useApp,
 } from "./state/store";
 import { Home } from "./ui/Home";
 import { MenuHost } from "./ui/Menu";
+import { PanelResize } from "./ui/PanelResize";
 import { PropsPanel } from "./ui/PropsPanel";
 import { Toolbar } from "./ui/Toolbar";
 import { TopBar } from "./ui/TopBar";
 import { Organize } from "./viewer/Organize";
 import { runSearch } from "./viewer/SearchBar";
 import { ThumbGrid } from "./viewer/ThumbGrid";
-import { MAX_ZOOM, MIN_ZOOM, Viewer } from "./viewer/Viewer";
-
-const TOOL_KEYS: Record<string, Tool> = {
-  v: "select",
-  h: "hand",
-  t: "text",
-  e: "edittext",
-  r: "highlight",
-  d: "ink",
-  c: "note",
-};
+import { MAX_ZOOM, MIN_ZOOM, scrollToPage, Viewer } from "./viewer/Viewer";
 
 const typing = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement &&
@@ -56,10 +57,15 @@ const typing = (t: EventTarget | null): boolean =>
 
 function onKey(e: KeyboardEvent): void {
   const s = useApp.getState();
-  if (s.dialog || s.busy) return;
+  if (s.dialog || s.passwordPrompt || s.busy) return;
   const doc = activeDoc(s);
   const mod = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
+  if (mod && k === "k") {
+    e.preventDefault();
+    useApp.setState({ dialog: { kind: "commands" } });
+    return;
+  }
   if (mod && k === "o") {
     void (e.preventDefault(), openDialog());
     return;
@@ -73,6 +79,11 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (!doc) return;
+  if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+    navigateHistory(doc.id, e.key === "ArrowLeft" ? "back" : "forward");
+    return;
+  }
   if (mod && k === "s") {
     e.preventDefault();
     finishDraft(doc.id);
@@ -108,6 +119,30 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (typing(e.target)) return;
+  if (mod && k === "c" && doc.selectedAnnot && !window.getSelection()?.toString()) {
+    e.preventDefault();
+    void copyAnnotations(doc);
+    return;
+  }
+  if (mod && k === "v") {
+    e.preventDefault();
+    void pasteAnnotations(doc);
+    return;
+  }
+  if (mod && k === "d" && doc.selectedAnnot) {
+    e.preventDefault();
+    annotationAction(doc.id, { kind: "duplicate", ids: selectedAnnotations(doc) });
+    return;
+  }
+  if ((e.key === "PageDown" || e.key === "PageUp") && doc.pageLayout === "single") {
+    e.preventDefault();
+    const next = Math.max(
+      0,
+      Math.min(doc.content.pages.length - 1, doc.currentPage + (e.key === "PageDown" ? 1 : -1)),
+    );
+    scrollToPage(doc.id, next);
+    return;
+  }
   if (mod && k === "z" && !e.shiftKey) {
     void (e.preventDefault(), undo(doc.id));
     return;
@@ -122,7 +157,8 @@ function onKey(e: KeyboardEvent): void {
   }
   if (e.key === "Delete" || e.key === "Backspace") {
     if (doc.selectedAnnot) {
-      void (e.preventDefault(), removeAnnot(doc.id, doc.selectedAnnot));
+      e.preventDefault();
+      annotationAction(doc.id, { kind: "delete", ids: selectedAnnotations(doc) });
       return;
     }
     if (doc.view === "organize" && doc.selection.length) {
@@ -159,14 +195,12 @@ function onKey(e: KeyboardEvent): void {
     const step = e.shiftKey ? 10 : 1;
     const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
     const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-    commit(doc.id, (c) => ({
-      ...c,
-      annots: c.annots.map((a) => (a.id === doc.selectedAnnot ? translateAnnot(a, dx, dy) : a)),
-    }));
+    annotationAction(doc.id, { kind: "move", ids: selectedAnnotations(doc), dx, dy });
     return;
   }
-  if (!mod && !e.altKey && TOOL_KEYS[k] && doc.view === "pages") {
-    setTool(TOOL_KEYS[k]);
+  const shortcut = shortcutTool(k, usePreferences.getState().value);
+  if (!mod && !e.altKey && !doc.reading && shortcut && doc.view === "pages") {
+    setTool(shortcut);
     return;
   }
 }
@@ -180,7 +214,13 @@ function StatusBar({ doc }: { doc: DocState }): React.ReactElement {
   return (
     <footer className="statusbar">
       <span className={dirty ? "status-dirty" : ""}>
-        {dirty ? "Alterações não salvas" : doc.path ? "Salvo" : "Documento novo"}
+        {doc.readOnly
+          ? `Leitura · ${doc.readOnlyReason ?? "Edição indisponível"}`
+          : dirty
+            ? "Alterações não salvas"
+            : doc.path
+              ? "Salvo"
+              : "Documento novo"}
       </span>
       <span>
         Página {doc.currentPage + 1} de {doc.content.pages.length}
@@ -202,7 +242,11 @@ function Toasts(): React.ReactElement {
   return (
     <div className="toasts">
       {toasts.map((t) => (
-        <div key={t.id} className={`toast ${t.tone ?? ""}`}>
+        <div
+          key={t.id}
+          className={`toast ${t.tone ?? ""}`}
+          role={t.tone === "error" ? "alert" : "status"}
+        >
           {t.tone === "ok" && <CheckCircle2 size={15} />}
           {t.tone === "error" && <XCircle size={15} />}
           <span>{t.text}</span>
@@ -242,7 +286,9 @@ function Workspace({ doc }: { doc: DocState }): React.ReactElement {
               <ThumbGrid doc={doc} layout="list" width={124} />
             </aside>
           )}
+          {sidebar && <PanelResize side="left" />}
           <Viewer key={doc.id} doc={doc} />
+          {panel && <PanelResize side="right" />}
           {panel && <PropsPanel doc={doc} />}
         </div>
       )}
@@ -255,12 +301,15 @@ export function App(): React.ReactElement {
   const doc = useActiveDoc();
   const busy = useApp((s) => s.busy);
   const [dropping, setDropping] = useState(false);
+  useEffect(startSourceLifecycle, []);
+  useEffect(startPreferences, []);
+  useEffect(startRecoveryAutosave, []);
   useEffect(
     () =>
       registerEdiRecovery(async () => {
+        for (const document of useApp.getState().docs) finishDraft(document.id);
         for (const document of useApp.getState().docs)
           if (isDirty(document)) {
-            finishDraft(document.id);
             if (!(await saveDoc(document.id))) throw new Error("Recovery save canceled");
           }
       }),
@@ -268,15 +317,56 @@ export function App(): React.ReactElement {
   );
 
   useEffect(() => {
-    void window.api.recent.list().then((recents) => useApp.setState({ recents }));
-    void window.api.signatures.list().then((signatures) => useApp.setState({ signatures }));
-    void window.api.takePendingFiles().then((paths) => {
-      if (paths.length) void openPaths(paths);
-    });
+    void window.api.recovery
+      .list()
+      .then((result) => {
+        useApp.setState({ recoveries: result.entries });
+        if (result.unreadable)
+          toast(
+            `${result.unreadable} cópia(s) de recuperação não puderam ser lidas e foram preservadas no disco.`,
+            { tone: "error", ms: 9000 },
+          );
+      })
+      .catch(() =>
+        toast("Não foi possível consultar as cópias de recuperação locais.", { tone: "error" }),
+      );
+    void window.api.recent
+      .list()
+      .then((recents) => useApp.setState({ recents }))
+      .catch((error) =>
+        toast(error instanceof Error ? error.message : "Recentes indisponíveis.", {
+          tone: "error",
+        }),
+      );
+    void window.api.signatures
+      .list()
+      .then((signatures) => useApp.setState({ signatures }))
+      .catch((error) =>
+        toast(error instanceof Error ? error.message : "Assinaturas salvas indisponíveis.", {
+          tone: "error",
+        }),
+      );
+    let disposed = false;
+    let offSession = () => {};
+    void (async () => {
+      await loadPreferences();
+      if (disposed) return;
+      await restoreSession();
+      if (disposed) return;
+      const paths = await window.api.takePendingFiles();
+      if (paths.length) await openPaths(paths);
+      if (!disposed) offSession = startSessionAutosave();
+    })().catch((error) =>
+      toast(error instanceof Error ? error.message : "Não foi possível abrir a sessão.", {
+        tone: "error",
+      }),
+    );
     const offOpen = window.api.onOpenFiles((paths) => void openPaths(paths));
     const offClose = window.api.onCloseRequest(() => void requestQuit());
     window.addEventListener("keydown", onKey);
     return () => {
+      disposed = true;
+      offSession();
       offOpen();
       offClose();
       window.removeEventListener("keydown", onKey);
@@ -308,14 +398,20 @@ export function App(): React.ReactElement {
       className="app"
       role="application"
       aria-label="Editor de PDF"
+      onCopy={(event) => {
+        if (doc?.readOnly && doc.canCopy === false) {
+          event.preventDefault();
+          toast("Este PDF restringe a cópia de conteúdo com a senha utilizada.", { tone: "error" });
+        }
+      }}
       onClickCapture={(e) => {
-        if (busy && useApp.getState().dialog?.kind !== "password") {
+        if (busy && !(e.target instanceof Element && e.target.closest("dialog"))) {
           e.preventDefault();
           e.stopPropagation();
         }
       }}
       onPointerDownCapture={(e) => {
-        if (busy && useApp.getState().dialog?.kind !== "password") {
+        if (busy && !(e.target instanceof Element && e.target.closest("dialog"))) {
           e.preventDefault();
           e.stopPropagation();
         }

@@ -86,7 +86,8 @@
       "react": "19.3.1",
       "react-dom": "19.3.1",
       "@types/react": "19.3.0",
-      "@types/react-dom": "19.3.0"
+      "@types/react-dom": "19.3.0",
+      "pptxgenjs@4.0.1>image-size": "2.0.3"
     }
   }
 }

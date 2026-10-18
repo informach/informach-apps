@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][int]$TestProcessId,[ValidateSet('Cancelar','Descartar')][string]$Choice='Descartar')
+param([Parameter(Mandatory=$true)][int]$TestProcessId,[ValidateSet('Cancelar','Descartar','Recuperar')][string]$Choice='Descartar')
 $ErrorActionPreference='Stop'
 $owned=Get-CimInstance Win32_Process -Filter "ProcessId=$TestProcessId"
 $fixture=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'fixtures/native-vault.cjs'))
@@ -46,5 +46,5 @@ if ($Choice -eq 'Descartar') {
   Write-Output 'Discarded the isolated test draft and confirmed graceful application exit.'
 } else {
   if (!$testProcess -or $testProcess.HasExited) { throw 'Canceling close did not preserve the test application.' }
-  Write-Output 'Canceled closing the isolated test draft; application remained open.'
+  Write-Output 'Responded to the isolated test draft; application remained open.'
 }

@@ -1,20 +1,22 @@
 import { focusOnMount, withRenderKeys } from "@informach/edi-desktop/renderer";
-import { pageNumberPos } from "@shared/build";
+import { pickAnnotationSelection } from "@shared/annotation-commands";
 import {
   type Annot,
   annotBounds,
   type Box,
   type NoteAnnot,
   type PageRef,
-  pageLabel,
+  type ParagraphAnnot,
   type TextAnnot,
   translateAnnot,
   uid,
   viewSize,
 } from "@shared/model";
+import { paragraphFontBytes } from "@shared/paragraph-font";
 import { Trash2, X } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { measureText } from "../lib/actions";
+import { annotationAction, selectedAnnotations } from "../lib/annotations";
 import {
   editExistingText,
   finishDraft,
@@ -22,6 +24,9 @@ import {
   startNewText,
   updateDraft,
 } from "../lib/editing";
+import { localFonts } from "../lib/fonts";
+import { isDocumentShortcut } from "../lib/keyboard";
+import { paragraphLayoutInWorker } from "../lib/paragraph-layout";
 import {
   joinRuns,
   pageInfo,
@@ -37,11 +42,14 @@ import {
   patchDoc,
   removeAnnot,
   type Tool,
+  toast,
   updateAnnot,
   useApp,
 } from "../state/store";
 import { AnnotHtml, AnnotSvg, isSvgKind, textStyle } from "./AnnotView";
+import { DecorationsLayer } from "./DecorationsLayer";
 import { FormLayer } from "./FormLayer";
+import { LinkLayer } from "./LinkLayer";
 
 const DRAW_TOOLS: Tool[] = [
   "text",
@@ -56,7 +64,19 @@ const DRAW_TOOLS: Tool[] = [
   "hand",
 ];
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
+const RESIZE_BUSY = "Conferindo caixa de texto… Esc cancela.";
 type Handle = (typeof HANDLES)[number];
+type SelectionHandle = Handle | "p1" | "p2";
+const HANDLE_LABELS: Record<Handle, string> = {
+  nw: "canto superior esquerdo",
+  n: "borda superior",
+  ne: "canto superior direito",
+  e: "borda direita",
+  se: "canto inferior direito",
+  s: "borda inferior",
+  sw: "canto inferior esquerdo",
+  w: "borda esquerda",
+};
 
 interface Props {
   doc: DocState;
@@ -117,10 +137,36 @@ export const PageView = memo(function PageView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<Annot | null>(null);
+  const dragCleanup = useRef<(() => void) | null>(null),
+    resizeController = useRef<AbortController | null>(null),
+    interactionOwner = useRef({ docId: doc.id, pageId: page.id, revision: doc.content });
+  const [validatingResize, setValidatingResize] = useState(false);
+  const [movePreview, setMovePreview] = useState<Annot[]>([]);
   const [creating, setCreating] = useState<Annot | null>(null);
+  const [pageErrors, setPageErrors] = useState<{ render?: string; text?: string }>({});
+  const [renderAttempt, setRenderAttempt] = useState(0);
+  const [limitedPreview, setLimitedPreview] = useState(false);
   const [runs, setRuns] = useState<TextItem[]>([]);
-  const forms = doc.hasForms && page.src === doc.primary;
+  const forms = doc.hasForms && !!page.src;
   const blankKey = page.blank ? `${page.blank.w}x${page.blank.h}` : "";
+
+  useLayoutEffect(() => {
+    const owner = { docId: doc.id, pageId: page.id, revision: doc.content };
+    interactionOwner.current = owner;
+    setPreview(null);
+    setMovePreview((previous) => (previous.length ? [] : previous));
+    setCreating(null);
+    setValidatingResize(false);
+    return () => {
+      if (interactionOwner.current !== owner) return;
+      dragCleanup.current?.();
+      dragCleanup.current = null;
+      resizeController.current?.abort();
+      if (resizeController.current && useApp.getState().busy === RESIZE_BUSY)
+        useApp.setState({ busy: null });
+      resizeController.current = null;
+    };
+  }, [doc.id, doc.content, page.id]);
 
   useLayoutEffect(() => {
     registerEl(page.id, elRef.current);
@@ -137,43 +183,70 @@ export const PageView = memo(function PageView({
       delete canvas.dataset.key;
       return;
     }
-    const key = `${page.src}:${page.index}:${page.rotation}:${blankKey}`;
+    const key = `${page.src}:${page.index}:${page.rotation}:${blankKey}:${renderAttempt}`;
     const delay = canvas.dataset.key === key ? 140 : 0;
     let job: ReturnType<typeof renderPage> | null = null;
+    let dead = false;
+    setPageErrors((errors) => ({ ...errors, render: undefined }));
     const t = setTimeout(() => {
       job = renderPage(page, canvas, scale, { forms });
       job.done
-        .then(() => (canvas.dataset.key = key))
-        .catch((err) => console.error("render failed", err));
+        .then(() => {
+          if (!dead) {
+            canvas.dataset.key = key;
+            setLimitedPreview(canvas.dataset.quality === "limited");
+          }
+        })
+        .catch((error) => {
+          if (!dead)
+            setPageErrors((errors) => ({
+              ...errors,
+              render: error instanceof Error ? error.message : "Falha ao desenhar a página.",
+            }));
+        });
     }, delay);
     return () => {
       clearTimeout(t);
+      dead = true;
       job?.cancel();
     };
-  }, [visible, page, blankKey, scale, forms]);
+  }, [visible, page, blankKey, scale, forms, renderAttempt]);
 
   // Selectable text.
   useEffect(() => {
     const el = textRef.current;
     if (!el) return;
+    const key = `${page.src}:${page.index}:${page.rotation}:${scale}:${renderAttempt}`;
+    if (visible && el.dataset.key === key && el.hasChildNodes()) return;
     el.replaceChildren();
+    delete el.dataset.key;
     if (!visible || page.blank) return;
     let cancel: (() => void) | null = null;
     let dead = false;
+    setPageErrors((errors) => ({ ...errors, text: undefined }));
     const t = setTimeout(() => {
       renderTextLayer(page, el, scale)
         .then((c) => {
           if (dead) c();
-          else cancel = c;
+          else {
+            cancel = c;
+            el.dataset.key = key;
+          }
         })
-        .catch(() => undefined);
+        .catch((error) => {
+          if (!dead)
+            setPageErrors((errors) => ({
+              ...errors,
+              text: error instanceof Error ? error.message : "Texto selecionável indisponível.",
+            }));
+        });
     }, 160);
     return () => {
       dead = true;
       clearTimeout(t);
       cancel?.();
     };
-  }, [visible, page, scale]);
+  }, [visible, page, scale, renderAttempt]);
 
   useEffect(() => {
     if (tool !== "edittext" || !visible || page.blank) {
@@ -194,17 +267,25 @@ export const PageView = memo(function PageView({
   const draft = doc.draft?.annot.page === page.id ? doc.draft : null;
   const shown = annots
     .filter((a) => !(draft?.existing && a.id === draft.annot.id))
-    .map((a) => (preview && preview.id === a.id ? preview : a));
+    .map(
+      (a) =>
+        movePreview.find((item) => item.id === a.id) ??
+        (preview && preview.id === a.id ? preview : a),
+    );
   if (creating) shown.push(creating);
 
   const selected =
-    tool === "select" && !draft ? shown.find((a) => a.id === doc.selectedAnnot) : undefined;
-  const hit = tool === "select";
+    tool === "select" && !draft && !doc.reading
+      ? shown.find((a) => a.id === doc.selectedAnnot)
+      : undefined;
+  const hit = tool === "select" && !doc.reading;
   const searchHits =
     doc.search?.results.map((r, i) => ({ ...r, i })).filter((r) => r.page === page.id) ?? [];
 
-  const toView = (e: { clientX: number; clientY: number }): { x: number; y: number } => {
-    const r = elRef.current!.getBoundingClientRect();
+  const toView = (e: { clientX: number; clientY: number }): { x: number; y: number } | null => {
+    const element = elRef.current;
+    if (!element) return null;
+    const r = element.getBoundingClientRect();
     return {
       x: clamp((e.clientX - r.left) / scale, 0, W),
       y: clamp((e.clientY - r.top) / scale, 0, H),
@@ -217,30 +298,160 @@ export const PageView = memo(function PageView({
     move: (p: { x: number; y: number }, ev: PointerEvent) => T | null,
     end: (last: T | null, moved: boolean) => void,
   ): void => {
+    dragCleanup.current?.();
+    setPreview(null);
+    setMovePreview([]);
+    setCreating(null);
     const start = toView(e);
+    if (!start) return;
+    const pointer = e.pointerId,
+      owner = interactionOwner.current;
     let last: T | null = null;
     let moved = false;
     const onMove = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointer) return;
       const p = toView(ev);
+      if (!p) {
+        cancel();
+        return;
+      }
       if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * scale < 3) return;
       moved = true;
       last = move(p, ev);
     };
-    const onUp = (): void => {
+    const cleanup = (): void => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("blur", cancel);
+      if (dragCleanup.current === cleanup) dragCleanup.current = null;
+    };
+    const cancel = (): void => {
+      cleanup();
+      setPreview(null);
+      setMovePreview([]);
+      setCreating(null);
+    };
+    const onCancel = (event: PointerEvent): void => {
+      if (event.pointerId === pointer) cancel();
+    };
+    const onUp = (event: PointerEvent): void => {
+      if (event.pointerId !== pointer) return;
+      cleanup();
+      const current = useApp.getState().docs.find((item) => item.id === doc.id);
+      if (
+        !current ||
+        interactionOwner.current !== owner ||
+        current.content !== owner.revision ||
+        current.readOnly ||
+        useApp.getState().activeId !== owner.docId
+      ) {
+        cancel();
+        return;
+      }
       end(last, moved);
     };
+    dragCleanup.current = cleanup;
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("blur", cancel);
   };
 
   const replaceAnnot = (a: Annot): void => {
     commit(doc.id, (c) => ({ ...c, annots: c.annots.map((x) => (x.id === a.id ? a : x)) }));
   };
 
+  const resizeParagraph = async (annotation: ParagraphAnnot): Promise<void> => {
+    if (useApp.getState().busy && !resizeController.current) return;
+    const controller = new AbortController(),
+      owner = interactionOwner.current;
+    resizeController.current?.abort();
+    resizeController.current = controller;
+    setPreview(annotation);
+    setValidatingResize(true);
+    useApp.setState({ busy: RESIZE_BUSY });
+    const onResizeEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        controller.abort();
+      }
+    };
+    window.addEventListener("keydown", onResizeEscape, true);
+    try {
+      if (
+        annotation.x < 0 ||
+        annotation.y < 0 ||
+        annotation.x + annotation.w > W + 0.01 ||
+        annotation.y + annotation.h > H + 0.01
+      )
+        throw new Error("A caixa de texto precisa permanecer dentro da página.");
+      const fonts = await localFonts();
+      controller.signal.throwIfAborted();
+      await paragraphLayoutInWorker(
+        annotation,
+        paragraphFontBytes(annotation, fonts),
+        controller.signal,
+      );
+      controller.signal.throwIfAborted();
+      const current = useApp.getState().docs.find((item) => item.id === doc.id),
+        original = current?.content.annots.find((item) => item.id === annotation.id);
+      if (
+        !current ||
+        interactionOwner.current !== owner ||
+        current.content !== owner.revision ||
+        !original ||
+        original.kind !== "paragraph" ||
+        original.locked ||
+        current.readOnly
+      )
+        throw new Error("A caixa mudou durante a composição. Ajuste novamente.");
+      replaceAnnot(annotation);
+    } catch (failure) {
+      if (!controller.signal.aborted)
+        toast(
+          failure instanceof Error ? failure.message : "Não foi possível redimensionar a caixa.",
+          { tone: "error" },
+        );
+    } finally {
+      window.removeEventListener("keydown", onResizeEscape, true);
+      if (resizeController.current === controller) {
+        resizeController.current = null;
+        setPreview(null);
+        setValidatingResize(false);
+        if (useApp.getState().busy === RESIZE_BUSY) useApp.setState({ busy: null });
+      }
+    }
+  };
+
   const beginMove = (e: React.PointerEvent, a: Annot): void => {
+    if (a.locked || doc.readOnly || validatingResize) return;
+    const selected = selectedAnnotations(
+      useApp.getState().docs.find((docState) => docState.id === doc.id) ?? doc,
+    );
+    if (selected.length > 1) {
+      const originals = doc.content.annots.filter((annot) => selected.includes(annot.id));
+      if (originals.some((annot) => annot.locked || annot.page !== page.id)) return;
+      const start = toView(e);
+      if (!start) return;
+      drag(
+        e,
+        (point) => {
+          const dx = point.x - start.x,
+            dy = point.y - start.y;
+          setMovePreview(originals.map((annot) => translateAnnot(annot, dx, dy)));
+          return { dx, dy };
+        },
+        (last, moved) => {
+          setMovePreview([]);
+          if (moved && last) annotationAction(doc.id, { kind: "move", ids: selected, ...last });
+        },
+      );
+      return;
+    }
     const start = toView(e);
+    if (!start) return;
     drag(
       e,
       (p) => {
@@ -255,9 +466,18 @@ export const PageView = memo(function PageView({
     );
   };
 
-  const beginHandle = (e: React.PointerEvent, a: Annot, h: string): void => {
+  const beginHandle = (e: React.PointerEvent, a: Annot, h: SelectionHandle): void => {
+    if (
+      a.locked ||
+      validatingResize ||
+      doc.readOnly ||
+      doc.reading ||
+      selectedAnnotations(doc).length > 1
+    )
+      return;
     e.stopPropagation();
     const start = toView(e);
+    if (!start) return;
     drag(
       e,
       (p, ev) => {
@@ -266,23 +486,49 @@ export const PageView = memo(function PageView({
         let next: Annot | null = null;
         if ((a.kind === "line" || a.kind === "arrow") && (h === "p1" || h === "p2"))
           next = h === "p1" ? { ...a, x1: p.x, y1: p.y } : { ...a, x2: p.x, y2: p.y };
-        else if (a.kind === "rect" || a.kind === "ellipse" || a.kind === "image")
+        else if (
+          (a.kind === "rect" ||
+            a.kind === "ellipse" ||
+            a.kind === "image" ||
+            a.kind === "paragraph") &&
+          h !== "p1" &&
+          h !== "p2"
+        )
           next = {
             ...a,
-            ...resizeBox(a, h as Handle, dx, dy, a.kind === "image" ? !ev.shiftKey : ev.shiftKey),
+            ...resizeBox(a, h, dx, dy, a.kind === "image" ? !ev.shiftKey : ev.shiftKey),
           };
         setPreview(next);
         return next;
       },
       (last, moved) => {
-        setPreview(null);
-        if (moved && last) replaceAnnot(last);
+        if (moved && last?.kind === "paragraph") void resizeParagraph(last);
+        else {
+          setPreview(null);
+          if (moved && last) replaceAnnot(last);
+        }
       },
     );
   };
 
+  const keyboardHandle = (event: React.KeyboardEvent, a: Annot, handle: Handle): void => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (a.locked || doc.readOnly || doc.reading || selectedAnnotations(doc).length > 1) return;
+    if (a.kind !== "rect" && a.kind !== "ellipse" && a.kind !== "image" && a.kind !== "paragraph")
+      return;
+    const step = event.shiftKey ? 10 : 1,
+      dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0,
+      dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0,
+      next = { ...a, ...resizeBox(a, handle, dx, dy, a.kind === "image") };
+    if (next.kind === "paragraph") void resizeParagraph(next);
+    else replaceAnnot(next);
+  };
+
   const beginCreate = (e: React.PointerEvent): void => {
     const start = toView(e);
+    if (!start) return;
     const s = style;
     const id = uid("a");
     const points = [start.x, start.y];
@@ -372,13 +618,23 @@ export const PageView = memo(function PageView({
   };
 
   const onLayerPointerDown = (e: React.PointerEvent): void => {
+    if (doc.reading) return;
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
     const annotEl = target.closest("[data-annot]") as HTMLElement | null;
     const annot = annotEl ? annots.find((a) => a.id === annotEl.dataset.annot) : undefined;
     if (tool === "select" && annot) {
       e.preventDefault();
-      patchDoc(doc.id, { selectedAnnot: annot.id, openNote: null });
+      const selection = pickAnnotationSelection(annots, annot.id, selectedAnnotations(doc), {
+        additive: e.shiftKey,
+        insideGroup: e.altKey,
+      });
+      patchDoc(doc.id, {
+        selectedAnnot: selection[0] ?? null,
+        selectedAnnots: selection,
+        openNote: null,
+      });
+      if (e.shiftKey) return;
       beginMove(e, annot);
       return;
     }
@@ -389,6 +645,7 @@ export const PageView = memo(function PageView({
     }
     if (target.closest(".text-draft, .note-pop, .edit-run")) return;
     const p = toView(e);
+    if (!p) return;
     switch (tool) {
       case "text":
         e.preventDefault();
@@ -422,10 +679,13 @@ export const PageView = memo(function PageView({
   };
 
   const onLayerDoubleClick = (e: React.MouseEvent): void => {
+    if (doc.reading) return;
     if (tool !== "select") return;
     const annotEl = (e.target as HTMLElement).closest("[data-annot]") as HTMLElement | null;
     const annot = annotEl ? annots.find((a) => a.id === annotEl.dataset.annot) : undefined;
     if (annot?.kind === "text") editExistingText(doc.id, annot);
+    if (annot?.kind === "paragraph" && !annot.locked && !doc.readOnly)
+      useApp.setState({ dialog: { kind: "paragraph", annotId: annot.id } });
     if (annot?.kind === "note") patchDoc(doc.id, { openNote: annot.id });
   };
 
@@ -436,14 +696,12 @@ export const PageView = memo(function PageView({
     patchDoc(doc.id, { selectedAnnot: null });
   };
 
-  const layerActive = DRAW_TOOLS.includes(tool) && tool !== "hand";
-  const svgAnnots = shown.filter(isSvgKind);
-  const sel = selected
-    ? annotBounds(selected, selected.kind === "text" ? measureText(selected) : undefined)
-    : null;
+  const layerActive = !doc.reading && DRAW_TOOLS.includes(tool) && tool !== "hand";
+  const sel =
+    selected && !selected.locked && selectedAnnotations(doc).length <= 1
+      ? annotBounds(selected, selected.kind === "text" ? measureText(selected) : undefined)
+      : null;
   const openNote = annots.find((a): a is NoteAnnot => a.id === doc.openNote && a.kind === "note");
-  const wm = doc.content.watermark;
-  const pn = doc.content.pageNumbers;
 
   return (
     <div
@@ -453,6 +711,21 @@ export const PageView = memo(function PageView({
       style={{ width: W * scale, height: H * scale, ["--total-scale-factor" as string]: scale }}
       onPointerDown={onPagePointerDown}
     >
+      {(pageErrors.render || pageErrors.text) && (
+        <div className="page-warning" role="alert">
+          {pageErrors.render || pageErrors.text}{" "}
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setRenderAttempt((attempt) => attempt + 1)}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      {limitedPreview && !pageErrors.render && (
+        <span className="page-resolution-note">Prévia com resolução reduzida neste zoom.</span>
+      )}
       <canvas
         ref={canvasRef}
         className="page-canvas"
@@ -462,35 +735,14 @@ export const PageView = memo(function PageView({
         ref={textRef}
         className={`textLayer${tool === "select" || tool === "highlight" || tool === "underline" || tool === "strike" ? "" : " inert"}`}
       />
+      {visible && (doc.reading || tool === "select" || tool === "hand") && (
+        <LinkLayer doc={doc} page={page} scale={scale} />
+      )}
       {visible && forms && <FormLayer doc={doc} page={page} scale={scale} />}
 
       {visible && (
         <div className="stamp-layer">
-          {wm?.text && (
-            <div
-              className="stamp-watermark"
-              style={{
-                left: (W / 2) * scale,
-                top: (H / 2) * scale,
-                fontSize: wm.size * scale,
-                color: wm.color,
-                opacity: wm.opacity,
-                transform: `translate(-50%, -50%) rotate(${-wm.angle}deg)`,
-              }}
-            >
-              {wm.text}
-            </div>
-          )}
-          {pn && (
-            <PageNumberPreview
-              pn={pn}
-              n={index + pn.start}
-              total={doc.content.pages.length + pn.start - 1}
-              W={W}
-              H={H}
-              scale={scale}
-            />
-          )}
+          <DecorationsLayer doc={doc} page={page} width={W} height={H} />
           {searchHits.map((r) =>
             withRenderKeys(r.rects, (rect) => JSON.stringify(rect)).map(({ key, value: b }) => (
               <div
@@ -508,22 +760,6 @@ export const PageView = memo(function PageView({
         </div>
       )}
 
-      {/* Highlights sit outside the annotation layer (its z-index isolates blending) so multiply mixes with the page. */}
-      <svg
-        className="annot-svg blend"
-        viewBox={`0 0 ${W} ${H}`}
-        width={W * scale}
-        height={H * scale}
-        onPointerDown={onLayerPointerDown}
-        onDoubleClick={onLayerDoubleClick}
-      >
-        <title>Destaques do documento</title>
-        {svgAnnots
-          .filter((a) => a.kind === "highlight")
-          .map((a) => (
-            <AnnotSvg key={a.id} a={a} hit={hit} />
-          ))}
-      </svg>
       <div
         className={`annot-layer tool-${tool}`}
         role="application"
@@ -532,6 +768,28 @@ export const PageView = memo(function PageView({
         onPointerDown={onLayerPointerDown}
         onDoubleClick={onLayerDoubleClick}
       >
+        {shown
+          .filter(
+            (annot) =>
+              selectedAnnotations(doc).includes(annot.id) &&
+              (selectedAnnotations(doc).length > 1 || annot.locked),
+          )
+          .map((annot) => {
+            const box = annotBounds(annot, annot.kind === "text" ? measureText(annot) : undefined);
+            return (
+              <div
+                key={`selection:${annot.id}`}
+                className="multi-selection-box"
+                style={{
+                  left: box.x * scale - 2,
+                  top: box.y * scale - 2,
+                  width: box.w * scale + 4,
+                  height: box.h * scale + 4,
+                  borderStyle: annot.locked ? "dashed" : "solid",
+                }}
+              />
+            );
+          })}
         {withRenderKeys(runs, (run) => JSON.stringify(run)).map(({ key, value: r }) => (
           <div
             key={key}
@@ -545,37 +803,44 @@ export const PageView = memo(function PageView({
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const canvas = canvasRef.current;
-              startEditRun(
-                doc.id,
-                page,
-                r,
-                canvas,
-                canvas && canvas.width ? canvas.width / W : scale * devicePixelRatio,
-              );
+              startEditRun(doc.id, page, r);
             }}
           />
         ))}
-        <svg className="annot-svg" viewBox={`0 0 ${W} ${H}`} width={W * scale} height={H * scale}>
-          <title>Anotações vetoriais</title>
-          {draft?.cover && <AnnotSvg a={draft.cover} />}
-          {svgAnnots
-            .filter((a) => a.kind !== "highlight")
-            .map((a) => (
-              <AnnotSvg key={a.id} a={a} hit={hit} />
-            ))}
-        </svg>
-        {shown
-          .filter((a) => !isSvgKind(a))
-          .map((a) => (
+        {draft?.cover && (
+          <svg className="annot-svg" viewBox={`0 0 ${W} ${H}`} width={W * scale} height={H * scale}>
+            <title>Cobertura do rascunho</title>
+            <AnnotSvg a={draft.cover} />
+          </svg>
+        )}
+        {shown.map((a, order) =>
+          isSvgKind(a) ? (
+            <svg
+              key={a.id}
+              className="annot-svg"
+              viewBox={`0 0 ${W} ${H}`}
+              width={W * scale}
+              height={H * scale}
+              style={{
+                zIndex: order + 3,
+                mixBlendMode: a.kind === "highlight" ? "multiply" : undefined,
+              }}
+            >
+              <title>Anotação {a.kind}</title>
+              <AnnotSvg a={a} hit={hit} />
+            </svg>
+          ) : (
             <AnnotHtml
               key={a.id}
               a={a}
               scale={scale}
+              zIndex={order + 3}
+              selectable={doc.reading || ["highlight", "underline", "strike"].includes(tool)}
               hit={hit || ((tool === "text" || tool === "edittext") && a.kind === "text")}
               onNoteClick={() => patchDoc(doc.id, { openNote: a.id })}
             />
-          ))}
+          ),
+        )}
         {draft && (
           <TextDraftEditor key={draft.annot.id} docId={doc.id} annot={draft.annot} scale={scale} />
         )}
@@ -585,6 +850,9 @@ export const PageView = memo(function PageView({
             box={sel}
             scale={scale}
             onHandle={(e, h) => beginHandle(e, selected, h)}
+            onKeyboardHandle={(event, handle) => keyboardHandle(event, selected, handle)}
+            disabled={doc.readOnly || selected.locked || selectedAnnotations(doc).length > 1}
+            busy={validatingResize}
           />
         )}
         {openNote && <NotePopover docId={doc.id} note={openNote} scale={scale} W={W} />}
@@ -593,52 +861,26 @@ export const PageView = memo(function PageView({
   );
 });
 
-function PageNumberPreview({
-  pn,
-  n,
-  total,
-  W,
-  H,
-  scale,
-}: {
-  pn: NonNullable<DocState["content"]["pageNumbers"]>;
-  n: number;
-  total: number;
-  W: number;
-  H: number;
-  scale: number;
-}): React.ReactElement {
-  const label = pageLabel(n, total, pn.format);
-  const w = measureText({ text: label, font: "helvetica", size: pn.size }).w;
-  const { x, y } = pageNumberPos(pn.position, W, H, w, pn.size);
-  return (
-    <div
-      className="stamp-number"
-      style={{
-        left: x * scale,
-        top: (y - pn.size * 0.9465) * scale,
-        fontSize: pn.size * scale,
-        color: pn.color,
-      }}
-    >
-      {label}
-    </div>
-  );
-}
-
 function SelectionBox({
   a,
   box,
   scale,
   onHandle,
+  onKeyboardHandle,
+  disabled,
+  busy,
 }: {
   a: Annot;
   box: Box;
   scale: number;
-  onHandle: (e: React.PointerEvent, h: string) => void;
+  onHandle: (e: React.PointerEvent, h: SelectionHandle) => void;
+  onKeyboardHandle: (e: React.KeyboardEvent, h: Handle) => void;
+  disabled?: boolean;
+  busy?: boolean;
 }): React.ReactElement {
   const pad = 3;
-  const resizable = a.kind === "rect" || a.kind === "ellipse" || a.kind === "image";
+  const resizable =
+    a.kind === "rect" || a.kind === "ellipse" || a.kind === "image" || a.kind === "paragraph";
   const isLine = a.kind === "line" || a.kind === "arrow";
   return (
     <>
@@ -658,12 +900,18 @@ function SelectionBox({
           const x = h.includes("w") ? box.x : h.includes("e") ? box.x + box.w : box.x + box.w / 2;
           const y = h.includes("n") ? box.y : h.includes("s") ? box.y + box.h : box.y + box.h / 2;
           return (
-            <div
+            <button
+              type="button"
               key={h}
+              aria-label={`Redimensionar: ${HANDLE_LABELS[h]}`}
+              title="Arraste ou use as setas. Shift ajusta 10 pontos."
+              disabled={disabled}
+              aria-busy={busy}
               data-handle={h}
               className={`sel-handle h-${h}`}
               style={{ left: x * scale, top: y * scale }}
               onPointerDown={(e) => onHandle(e, h)}
+              onKeyDown={(e) => onKeyboardHandle(e, h)}
             />
           );
         })}
@@ -671,6 +919,7 @@ function SelectionBox({
         (["p1", "p2"] as const).map((h) => (
           <div
             key={h}
+            hidden={disabled}
             data-handle={h}
             className="sel-handle h-point"
             style={{
@@ -728,8 +977,7 @@ function TextDraftEditor({
           e.preventDefault();
           finishDraft(docId);
         }
-        if (!(e.ctrlKey || e.metaKey) || !["s", "p", "w", "o"].includes(e.key.toLowerCase()))
-          e.stopPropagation();
+        if (!isDocumentShortcut(e)) e.stopPropagation();
       }}
     />
   );
@@ -749,6 +997,8 @@ function NotePopover({
   W: number;
 }): React.ReactElement {
   const [text, setText] = useState(note.text);
+  const readOnly =
+    useApp((state) => !!state.docs.find((doc) => doc.id === docId)?.readOnly) || note.locked;
   const close = (): void => {
     if (!text.trim()) removeAnnot(docId, note.id);
     else {
@@ -772,6 +1022,8 @@ function NotePopover({
               key={c}
               className={`swatch sm${c === note.color ? " on" : ""}`}
               style={{ background: c }}
+              aria-label={`Cor ${c}`}
+              disabled={readOnly}
               onClick={() => updateAnnot(docId, note.id, { color: c })}
             />
           ))}
@@ -780,6 +1032,7 @@ function NotePopover({
           type="button"
           className="icon-btn sm"
           title="Excluir comentário"
+          disabled={readOnly}
           onClick={() => removeAnnot(docId, note.id)}
         >
           <Trash2 size={13} />
@@ -791,14 +1044,16 @@ function NotePopover({
       <textarea
         ref={focusOnMount}
         value={text}
+        aria-label="Texto do comentário"
+        readOnly={readOnly}
+        onBlur={() => patchDoc(docId, { historyGroup: null })}
         placeholder="Escreva um comentário…"
         onChange={(e) => {
           setText(e.target.value);
-          updateAnnot(docId, note.id, { text: e.target.value });
+          updateAnnot(docId, note.id, { text: e.target.value }, `note:${note.id}`);
         }}
         onKeyDown={(e) => {
-          if (!(e.ctrlKey || e.metaKey) || !["s", "p", "w", "o"].includes(e.key.toLowerCase()))
-            e.stopPropagation();
+          if (!isDocumentShortcut(e)) e.stopPropagation();
           if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) close();
         }}
       />

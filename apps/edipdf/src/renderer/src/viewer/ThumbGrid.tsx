@@ -9,7 +9,7 @@ import {
   Scissors,
   Trash2,
 } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   A4,
   deletePages,
@@ -22,7 +22,8 @@ import {
   movePages,
   rotatePages,
 } from "../lib/actions";
-import { pageInfo, thumbnail } from "../lib/pdf";
+import { documentThumbnail } from "../lib/document-preview";
+import { pageInfo } from "../lib/pdf";
 import { type DocState, patchDoc, useApp } from "../state/store";
 import { type MenuItem, openMenu } from "../ui/Menu";
 import { scrollToPage } from "./Viewer";
@@ -30,20 +31,28 @@ import { scrollToPage } from "./Viewer";
 const PAGE_MIME = "application/x-edipdf-pages";
 
 const Thumb = memo(function Thumb({
+  doc,
   page,
   width,
   root,
 }: {
+  doc: DocState;
   page: PageRef;
   width: number;
   root: HTMLElement | null;
 }) {
+  const { id, name, content, primary, sourceIds, readOnly } = doc;
+  const document = useMemo(
+    () => ({ id, name, content, primary, sourceIds, readOnly }),
+    [id, name, content, primary, sourceIds, readOnly],
+  );
   const info = pageInfo(page);
   const { w, h } = viewSize(page, info);
   const height = Math.round((width * h) / w);
   const ref = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [seen, setSeen] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -57,14 +66,19 @@ const Thumb = memo(function Thumb({
   useEffect(() => {
     if (!seen) return;
     let live = true;
-    setSrc(null);
-    void thumbnail(page, width)
-      .then((url) => live && setSrc(url))
-      .catch(() => undefined);
+    setError("");
+    const timer = setTimeout(() => {
+      void documentThumbnail(document, page.id, width)
+        .then((url) => live && setSrc(url))
+        .catch((failure) => {
+          if (live) setError(failure instanceof Error ? failure.message : "Falha na miniatura.");
+        });
+    }, 180);
     return () => {
       live = false;
+      clearTimeout(timer);
     };
-  }, [seen, page, width]);
+  }, [seen, page, width, document]);
   return (
     <div
       ref={ref}
@@ -73,6 +87,11 @@ const Thumb = memo(function Thumb({
       data-rot={totalRotation(page, info)}
     >
       {src && <img src={src} alt="" draggable={false} />}
+      {error && (
+        <span className="thumb-error" role="status" title={error}>
+          Prévia indisponível
+        </span>
+      )}
     </div>
   );
 });
@@ -92,6 +111,16 @@ export function pageMenu(doc: DocState, ids: string[], at: number): MenuItem[] {
       run: () => rotatePages(doc.id, ids, -90),
     },
     { label: `Duplicar${many}`, icon: <Copy size={14} />, run: () => duplicatePages(doc.id, ids) },
+    {
+      label: "Mover antes da página anterior",
+      disabled: at === 0,
+      run: () => movePages(doc.id, ids, Math.max(0, at - 1)),
+    },
+    {
+      label: "Mover depois da próxima página",
+      disabled: at + 1 >= doc.content.pages.length,
+      run: () => movePages(doc.id, ids, Math.min(doc.content.pages.length, at + 2)),
+    },
     { separator: true },
     {
       label: "Inserir página em branco depois",
@@ -239,6 +268,17 @@ export function ThumbGrid({
               if (!isSel) patchDoc(doc.id, { selection: [p.id] });
               openMenu(e.clientX, e.clientY, pageMenu(doc, ids, i));
             }}
+            onKeyDown={(event) => {
+              if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                event.preventDefault();
+                const bounds = event.currentTarget.getBoundingClientRect();
+                openMenu(
+                  bounds.left,
+                  bounds.bottom,
+                  pageMenu(doc, isSel ? doc.selection : [p.id], i),
+                );
+              }
+            }}
             onDragStart={(e) => {
               dragIds.current = isSel
                 ? pages.filter((x) => selection.has(x.id)).map((x) => x.id)
@@ -258,7 +298,7 @@ export function ThumbGrid({
             }}
             onDrop={(e) => void drop(e, indexFor(e, i))}
           >
-            <Thumb page={p} width={width} root={root} />
+            <Thumb doc={doc} page={p} width={width} root={root} />
             <span className="thumb-label">{i + 1}</span>
           </button>
         );

@@ -4,6 +4,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
 import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
+import {
+  createPdfNativeFixture,
+  verifyPdfNativeJourney,
+  verifyPdfNativeRestart,
+} from "../../apps/edipdf/scripts/native-journey.mts";
+import { closePdfNativeFixture } from "../../apps/edipdf/scripts/native-process.mts";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
@@ -83,7 +89,14 @@ try {
     await mkdir(userData, { recursive: true });
     await mkdir(join(userData, "documents"), { recursive: true });
     await harness.build(id);
-    const application = await harness.launch(id, { userData, suiteData });
+    const pdfFixture =
+      id === "edipdf" ? await createPdfNativeFixture(join(userData, "documents")) : undefined;
+    const application = await harness.launch(
+      id,
+      { userData, suiteData },
+      {},
+      pdfFixture ? [pdfFixture] : [],
+    );
     // Native save dialogs must default to this fixture, never the runner/user's Pictures folder.
     await application.evaluate(
       ({ app }, pictures) => app.setPath("pictures", pictures),
@@ -134,6 +147,7 @@ try {
         true,
       );
       await editor.screenshot({ path: join(results, `${id}-licensed.png`) });
+      if (id === "edipdf") await verifyPdfNativeJourney(application, editor, seedLease);
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
       if (id === "edifoto") {
         await verifyNativeDialog(editor, "Novo…", "Novo documento");
@@ -300,6 +314,18 @@ try {
         assert.equal(editor.isClosed(), false, "Canceling close must preserve the existing draft");
         assert.ok(await editor.evaluate(() => localStorage.getItem("edisvg-project")));
       }
+      if (id === "edipdf" && pdfFixture)
+        await verifyPdfNativeRestart({
+          application,
+          editor,
+          applicationRoot: resolve("apps", id),
+          userData,
+          suiteData,
+          fixturePath: pdfFixture,
+          buildEnvironment: harness.buildEnvironment,
+          seedLease,
+          waitForStatus,
+        });
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
@@ -312,6 +338,8 @@ try {
       }
     } finally {
       try {
+        if (id === "edipdf" && !closed)
+          await closePdfNativeFixture(application, suiteData, diagnosticEditor);
         if (!closed) {
           const nativePid = await application.evaluate(() => process.pid);
           const closing = application.close().then(
