@@ -3,6 +3,7 @@ import { newId } from "@shared/timeline";
 import type { Asset, ProbeResult } from "@shared/types";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
+import { ensureFilmstrip } from "./filmstrip";
 import { baseName } from "./format";
 
 /** Sources above this height (or not H.264) get a 720p proxy for smooth playback. */
@@ -89,7 +90,13 @@ export async function enrich(asset: Asset, codec?: string): Promise<void> {
   } catch (err) {
     console.warn("enrich failed", asset.path, err);
   }
-  if (needsProxy(asset, codec)) void makeProxy(asset);
+  // The filmstrip decodes the proxy when there is one (a 4K original would be slow to read).
+  const strip = (): void => {
+    const now = useProject.getState().project?.assets.find((a) => a.id === asset.id);
+    if (now) void ensureFilmstrip(now);
+  };
+  if (needsProxy(asset, codec)) void makeProxy(asset).then(strip);
+  else strip();
 }
 
 export async function makeProxy(asset: Asset): Promise<void> {

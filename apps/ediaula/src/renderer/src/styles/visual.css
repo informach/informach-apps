@@ -30,6 +30,27 @@
   text-align: right;
   font-size: 11.5px;
 }
+/* A slider whose value can also be typed: the field takes the third column and a bit more. */
+.slider-row:has(.slider-input) {
+  grid-template-columns: 78px 1fr 84px;
+}
+.slider-input {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.slider-input .input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px;
+  font-size: 11.5px;
+  text-align: right;
+}
+.slider-input .muted {
+  flex: none;
+  width: 16px;
+  font-size: 11px;
+}
 .link-btn {
   display: inline-flex;
   align-items: center;

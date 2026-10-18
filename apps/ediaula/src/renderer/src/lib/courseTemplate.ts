@@ -4,7 +4,9 @@ import {
   type CourseTemplate,
   courseTemplateFrom,
   directionRules,
+  lessonCards,
   presenterClips,
+  startPending,
   templateLook,
 } from "@shared/courseTemplate";
 import type { PrepareStep } from "@shared/prepare";
@@ -204,15 +206,15 @@ export async function applyTemplateParts(
     const n = await addDirectionAnnotations(list, template, commit);
     if (n) done.push(n === 1 ? "1 anotação do Na tela" : `${n} anotações do Na tela`);
   }
-  if (parts.includes("cards") && template.cards) {
-    const now = basisOf(commit) ?? p;
-    const cards = now.clips.filter((c) => c.annotation?.kind === "card");
-    const end = now.clips.reduce((m, c) => Math.max(m, clipEnd(c)), 0);
-    if (template.cards.opening && !cards.some((c) => c.start <= 0.1)) {
+  // A lesson started from the template gets its cards with its first media (lib/courseStart.ts);
+  // cards already there, of either kind, are not made twice.
+  if (parts.includes("cards") && template.cards && !startPending(p)) {
+    const has = lessonCards(basisOf(commit) ?? p);
+    if (template.cards.opening && !has.opening) {
       await addCard("start", {}, commit);
       done.push("cartela de abertura");
     }
-    if (template.cards.closing && !cards.some((c) => Math.abs(clipEnd(c) - end) < 0.2)) {
+    if (template.cards.closing && !has.closing) {
       await addCard(
         "end",
         template.cards.closingText ? { text: template.cards.closingText } : {},
@@ -284,7 +286,8 @@ export function watchCourseOffer(): () => void {
     const sameLesson = last?.startsWith(`${p.id}:`);
     last = key;
     if (!sameLesson) useCourseOffer.setState({ projectId: null, template: null });
-    if (!p.course || !p.clips.length || p.prepare?.decisions.template) return;
+    // A lesson started from the template (Novo projeto) already has it.
+    if (!p.course || !p.clips.length || p.prepare?.decisions.template || startPending(p)) return;
     if (p.templateOffer?.course === p.course) return;
     void courseTemplate(p.course).then(
       (template) => {

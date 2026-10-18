@@ -34,7 +34,8 @@ export type FindingKind =
   | "cursor-missing"
   | "chapters"
   | "black-gap"
-  | "short-piece";
+  | "short-piece"
+  | "solo";
 
 export type Fix = { label: string } & (
   | { action: "cut"; ranges: [number, number][] }
@@ -44,6 +45,7 @@ export type Fix = { label: string } & (
   | { action: "normalize" }
   | { action: "annotation-size"; clipId: string; fontSize: number }
   | { action: "caption-size"; size: number }
+  | { action: "solo-off" }
 );
 
 export interface Finding {
@@ -77,6 +79,8 @@ export interface PreflightContext {
   loudness?: Loudness | null;
   /** The export brings the volume to −14 LUFS. */
   normalize?: boolean;
+  /** Tracks heard alone in the editor now (solo): the export does not follow it. */
+  solo?: readonly string[];
 }
 
 /** Thresholds of the checks. */
@@ -605,6 +609,19 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       fix: { label: "Tirar o pedaço", action: "cut", ranges: [[c.start, clipEnd(c)]] },
     });
   }
+
+  // Solo is only for listening in the editor: the export mixes every track that is not muted.
+  const alone = (ctx.solo ?? []).flatMap((id) => {
+    const t = tracks.get(id);
+    return t ? [t.name] : [];
+  });
+  if (alone.length)
+    out.push({
+      severity: "info",
+      kind: "solo",
+      message: `No editor, só ${alone.length > 1 ? `${alone.slice(0, -1).join(", ")} e ${alone.at(-1)} estão` : `${alone[0]} está`} tocando (solo). A exportação leva o som de todas as faixas que não estão mudas.`,
+      fix: { label: "Ouvir todas as faixas", action: "solo-off" },
+    });
 
   const order: Record<Severity, number> = { error: 0, warn: 1, info: 2 };
   return out.sort((a, b) => order[a.severity] - order[b.severity] || (a.at ?? -1) - (b.at ?? -1));

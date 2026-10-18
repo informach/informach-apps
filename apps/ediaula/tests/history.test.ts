@@ -105,6 +105,27 @@ test("relinking a media replaces the old path everywhere it is still used", () =
   assert.equal(relinkIn(redrawn, missing, { path: "x", size: 1 }), redrawn);
 });
 
+test("a picture drawn again for another format keeps its new size", () => {
+  // A balloon of a 1920 × 1080 lesson, drawn again after Mudar formato made it vertical.
+  const balloon: Asset = {
+    ...avatar,
+    id: "b",
+    kind: "image",
+    width: 600,
+    height: 300,
+    missing: true,
+  };
+  const out = relinkIn(project([balloon]), balloon, {
+    path: "C:/cache/b2.png",
+    size: 5,
+    width: 338,
+    height: 169,
+  });
+  assert.deepEqual([out.assets[0].width, out.assets[0].height], [338, 169]);
+  const kept = relinkIn(project([balloon]), balloon, { path: "C:/cache/b3.png", size: 5 });
+  assert.deepEqual([kept.assets[0].width, kept.assets[0].height], [600, 300]);
+});
+
 test("relinking a recording moves its cursor data too, in every snapshot that had it", () => {
   const recording: Asset = {
     ...avatar,

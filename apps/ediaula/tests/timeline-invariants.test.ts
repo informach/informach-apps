@@ -3,14 +3,18 @@ import { test } from "node:test";
 // The desktop SDK's own IPC structure check, the one every editor call goes through.
 import { validateIpcValues } from "../../../packages/edi-desktop/src/files.ts";
 import { applyCuts, closeCommonGaps, rippleDeleteRange } from "../src/shared/cleanup.ts";
+import { reframeProject } from "../src/shared/compose.ts";
 import { normalizeProject } from "../src/shared/project-normalize.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
+import { extendFrameAll, insertClips, rippleTrim } from "../src/shared/ripple.ts";
 import {
   clipEnd,
   extendFrame,
+  moveTrack,
   overwriteRange,
   placeClips,
   splitAt,
+  toFrame,
   trimClip,
 } from "../src/shared/timeline.ts";
 import type { Asset, Clip, ExportSpec, Project, Track } from "../src/shared/types.ts";
@@ -226,6 +230,71 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
     p = { ...p, clips: rippleDeleteRange(p.clips, start, start + 2, targets) };
   }
   valid(p, "ripple delete");
+
+  // Ripple trims of both edges (Shift + edge), on frames.
+  for (let i = 0; i < 20; i++) {
+    const pieces = p.clips.filter((c) => c.trackId === "v" && c.duration > 2);
+    const c = pieces[Math.floor(rnd() * pieces.length)];
+    const edge = rnd() < 0.5 ? "start" : "end";
+    const time = toFrame(edge === "start" ? c.start + 0.5 : clipEnd(c) - 0.5, 30);
+    p = { ...p, clips: rippleTrim(p, targets, c.id, edge, time).clips };
+  }
+  valid(p, "ripple trim");
+
+  // Inserting pushes the rest (Ctrl + drop).
+  for (let i = 0; i < 10; i++) {
+    const at = toFrame(rnd() * 1000, 30);
+    const card: Clip = {
+      id: `card${i}`,
+      assetId: "balloon",
+      trackId: "v",
+      start: at,
+      in: 0,
+      duration: 2,
+      volume: 0,
+    };
+    p = { ...p, clips: insertClips(p, targets, [card], at) };
+  }
+  valid(p, "insert");
+
+  // Extend frame on every track that cuts reach.
+  for (let i = 0; i < 6; i++) {
+    const pieces = p.clips.filter(
+      (c) => c.trackId === "v" && c.assetId === "screen" && c.duration > 2,
+    );
+    const c = pieces[Math.floor(rnd() * pieces.length)];
+    const still = `all${i}`;
+    p = {
+      ...p,
+      assets: [
+        ...p.assets,
+        asset(still, "image", { generated: "still", still: { assetId: "screen", t: 1 } }),
+      ],
+      clips: extendFrameAll(p, c.id, c.start + c.duration / 2, 1.5, still, targets).clips,
+    };
+  }
+  valid(p, "extend frame on every track");
+
+  // Tracks reordered, a picture turned and mirrored, and the lesson made vertical.
+  p = { ...p, tracks: moveTrack(moveTrack(p.tracks, "m", 0), "n", 4) };
+  p = {
+    ...p,
+    clips: p.clips.map((c) =>
+      c.id === "avatar-clip" || c.assetId === "balloon"
+        ? {
+            ...c,
+            transform: {
+              ...(c.transform ?? { x: 0.5, y: 0.5, scale: 1, opacity: 1 }),
+              rotation: -12.5,
+              flipH: true,
+            },
+          }
+        : c,
+    ),
+  };
+  valid(p, "tracks and orientation");
+  p = reframeProject(p, { width: 1080, height: 1920, fps: 30 }, "fit");
+  valid(p, "vertical format");
 
   p = { ...p, clips: closeCommonGaps(p, targets) };
   valid(p, "close gaps");

@@ -31,6 +31,8 @@ export const ASSET_RUNTIME_FIELDS = [
   "motion",
   "motionStatus",
   "guidedRun",
+  // The small pictures of the timeline.
+  "filmstrip",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];
@@ -227,14 +229,15 @@ export interface AiTurn {
 export const closeTurn = (open: AiTurn | null, turn: AiTurn | null): AiTurn | null =>
   open && turn && open.id === turn.id ? null : open;
 
-export type RelinkChanges = Partial<Pick<Asset, "path" | "size" | "cursor">>;
+/** A redrawn picture can come out another size (drawn for the lesson's format of now). */
+export type RelinkChanges = Partial<Pick<Asset, "path" | "size" | "cursor" | "width" | "height">>;
 
 /**
  * A media file (or the cursor data next to it) found again somewhere else: every snapshot that
  * still points at the old place gets the new one, so undoing never brings the broken link back.
  */
 export function relinkIn(p: Project, before: Asset, changes: RelinkChanges): Project {
-  const { path, size, cursor } = changes;
+  const { path, size, cursor, width, height } = changes;
   let changed = false;
   const assets = p.assets.map((a) => {
     if (a.id !== before.id) return a;
@@ -246,6 +249,10 @@ export function relinkIn(p: Project, before: Asset, changes: RelinkChanges): Pro
     if (movesPath) {
       next.path = path;
       if (size !== undefined) next.size = size;
+      if (width !== undefined && height !== undefined) {
+        next.width = width;
+        next.height = height;
+      }
       delete next.missing;
     }
     if (movesCursor) {

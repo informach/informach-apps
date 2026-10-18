@@ -12,6 +12,29 @@ const EPS = 1e-6;
 /** Clips closer than this count as touching (a cut between them). */
 export const CUT_TOUCH = 0.02;
 
+/**
+ * `t` on the lesson's frame grid: seeking, splitting, trimming and moving land on a frame, so a
+ * cut never falls between two frames of the export. A rate of 0 (unknown) leaves `t` as it is.
+ */
+export function toFrame(t: number, fps: number): number {
+  if (!Number.isFinite(t) || !(fps > 0)) return t;
+  const frame = Math.round(t * fps);
+  return frame <= 0 ? 0 : frame / fps;
+}
+
+/** Hours, minutes, seconds and frames (00:01:23:12), or anything parseDuration reads. */
+export function parseTimecode(text: string, fps: number): number | null {
+  const value = text.trim();
+  const tc = /^(\d+):(\d{1,2}):(\d{1,2}):(\d{1,3})$/.exec(value);
+  if (tc) {
+    const [h, m, s, f] = tc.slice(1).map(Number);
+    if (m >= 60 || s >= 60 || !(fps > 0) || f >= Math.ceil(fps)) return null;
+    return h * 3600 + m * 60 + s + f / fps;
+  }
+  if (/^0+(?:[.,]0*)?$/.test(value)) return 0;
+  return parseDuration(value);
+}
+
 /** Move the unlocked clips starting at/after the playhead as one block. */
 export function rippleMoveFrom(
   clips: Clip[],
@@ -285,6 +308,48 @@ export function trimClip(
   const maxEnd = timelineAt(c, srcLen);
   const end = Math.min(Math.max(time, c.start + MIN_CLIP), maxEnd);
   return piece(c, c.start, end, { tail: true });
+}
+
+/**
+ * Where a new picture track goes so it is drawn under the lesson's pictures: right after the
+ * last video track, wherever the tracks were moved to (sound may be above it); with no video
+ * track yet, before the first sound track.
+ */
+export function videoTrackSlot(tracks: readonly Track[]): number {
+  for (let i = tracks.length - 1; i >= 0; i--) if (tracks[i].kind === "video") return i + 1;
+  const firstAudio = tracks.findIndex((t) => t.kind === "audio");
+  return firstAudio < 0 ? tracks.length : firstAudio;
+}
+
+/**
+ * The track `id` moved to position `to` of the list (0 = top, in front of the others). Every
+ * track takes every kind of clip, so any order is valid; only the drawing order changes.
+ */
+export function moveTrack(tracks: Track[], id: string, to: number): Track[] {
+  const from = tracks.findIndex((t) => t.id === id);
+  // A locked track stays where it is (it still shifts when another one moves past it).
+  if (from < 0 || !Number.isFinite(to) || tracks[from].locked) return tracks;
+  const target = Math.max(0, Math.min(tracks.length - 1, Math.round(to)));
+  if (target === from) return tracks;
+  const rest = tracks.filter((t) => t.id !== id);
+  return [...rest.slice(0, target), tracks[from], ...rest.slice(target)];
+}
+
+/** Clips of `tracks` that show anywhere between timeline times `from` and `to` (marquee). */
+export function clipsInSpan(
+  clips: readonly Clip[],
+  trackIds: ReadonlySet<string>,
+  from: number,
+  to: number,
+): Clip[] {
+  const a = Math.min(from, to);
+  const b = Math.max(from, to);
+  return clips.filter((c) => trackIds.has(c.trackId) && c.start < b && clipEnd(c) > a);
+}
+
+/** Clips starting at `at` or after it, on one track or on all of them. */
+export function clipsFrom(clips: readonly Clip[], at: number, trackId?: string): Clip[] {
+  return clips.filter((c) => c.start >= at - EPS && (!trackId || c.trackId === trackId));
 }
 
 /**

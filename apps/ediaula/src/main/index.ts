@@ -20,6 +20,7 @@ import {
 import { z } from "zod";
 import { EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
 import type { ChromaKey } from "../shared/chroma.ts";
+import { readCourseTemplate } from "../shared/courseTemplate.ts";
 import type { FontFamily } from "../shared/fonts.ts";
 import { projectSchema } from "../shared/project-schema.ts";
 import type {
@@ -50,7 +51,7 @@ import {
   writeStored,
 } from "./aiSettings.ts";
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
-import { getCourseTemplate, saveCourseTemplate } from "./courseTemplates.ts";
+import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
   codexSelfTest,
@@ -72,9 +73,11 @@ import { fontResolver } from "./export/fonts.ts";
 import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
+  audioSnippet,
   cancel,
   detectEncoder,
   FFMPEG,
+  filmstrip,
   mediaFacts,
   nextExportEncoder,
   probe,
@@ -96,12 +99,16 @@ import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import {
   createProject,
+  duplicateProject,
+  listBackups,
   openProject,
   PROJECT_EXT,
   projectJson,
   projectsDir,
   recentProjects,
   removeRecent,
+  renameProject,
+  restoreBackup,
   saveProject,
 } from "./projects.ts";
 import { registerRecorder } from "./recorderWindow.ts";
@@ -692,6 +699,42 @@ function registerIpc(): void {
           ),
       ),
   );
+  // Sound under the playhead for J, K, L, frame steps and scrubbing: a few hundred ms of PCM.
+  ipcMain.handle("media:audioSnippet", async (_e, ...raw: unknown[]) => {
+    const [path, t, seconds, ticket] = z
+      .tuple([
+        z.string().min(1).max(32768),
+        z
+          .number()
+          .min(0)
+          .max(7 * 86400),
+        z.number().positive().max(4),
+        z.number().int().nonnegative().optional(),
+      ])
+      .parse(raw);
+    return audioSnippet(await desktopFiles.assertRead(path), t, seconds, ticket);
+  });
+  // Small pictures along a video for its clips on the timeline (sheets cached beside it).
+  ipcMain.handle("media:filmstrip", async (_e, ...raw: unknown[]) => {
+    const [jobId, path, input, duration] = z
+      .tuple([
+        jobIdSchema,
+        z.string().min(1).max(32768),
+        z.string().min(1).max(32768),
+        z
+          .number()
+          .positive()
+          .max(7 * 86400),
+      ])
+      .parse(raw);
+    const media = await desktopFiles.assertRead(path);
+    const decoded = await desktopFiles.assertRead(input);
+    const strip = await processingJob(jobId, "filmstrip", (signal) =>
+      filmstrip(jobId, media, decoded, duration, signal),
+    );
+    for (const sheet of strip.sheets ?? [strip.path]) await desktopFiles.grantRead(sheet);
+    return strip;
+  });
   ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
     const { createHash } = await import("node:crypto");
     const { mkdirSync } = await import("node:fs");
@@ -763,12 +806,32 @@ function registerIpc(): void {
         .parse(terms),
     ),
   );
-  ipcMain.handle("course-template:get", (_e, course: unknown) =>
-    getCourseTemplate(z.string().max(1024).parse(course)),
-  );
-  ipcMain.handle("course-template:save", (_e, course: unknown, template: unknown) =>
-    saveCourseTemplate(z.string().max(1024).parse(course), template),
-  );
+  // The course template (shared/courseTemplate.ts). Its music is opened only when it is a file
+  // on this computer, and only when the template is read to start a lesson.
+  ipcMain.handle("course-template:get", async (_e, course: unknown) => {
+    const template = await getCourseTemplate(z.string().max(1024).parse(course));
+    const music = template?.music?.file?.path;
+    if (!template?.music || !music) return template;
+    if (!localMusicPath(music)) {
+      const { file: _remote, ...rest } = template.music;
+      return { ...template, music: rest };
+    }
+    try {
+      await desktopFiles.grantRead(music);
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
+    return template;
+  });
+  ipcMain.handle("course-template:save", async (_e, course: unknown, raw: unknown) => {
+    const template = readCourseTemplate(raw);
+    if (!template) throw new Error("Modelo do curso inválido.");
+    // Only a file the lesson already reads: opening the template later grants it again.
+    const music = template.music?.file?.path;
+    if (music && !(await desktopFiles.canRead(music)))
+      throw new Error("A música desta aula não está liberada para o modelo.");
+    return saveCourseTemplate(z.string().max(1024).parse(course), template);
+  });
   ipcMain.handle(
     "media:loudness",
     async (_e, rawJob: unknown, text: unknown, rawSpeech: unknown) => {
@@ -836,9 +899,16 @@ function registerIpc(): void {
         "motion",
         "guidedRun",
       ].map((field) => [asset, field]);
-      // The treated voice (shared/voiceChain.ts) is played and exported in place of the path.
-      const treated: unknown = Reflect.get(asset, "treated");
-      if (treated && typeof treated === "object") fields.push([treated, "path"]);
+      // The treated voice (shared/voiceChain.ts) is played and exported in place of the path,
+      // and the filmstrip is drawn under the clips on the timeline.
+      for (const nested of ["treated", "filmstrip"]) {
+        const owner: unknown = Reflect.get(asset, nested);
+        if (owner && typeof owner === "object") fields.push([owner, "path"]);
+      }
+      // Every sheet of the filmstrip, not only the first.
+      const strip: unknown = Reflect.get(asset, "filmstrip");
+      const sheets: unknown = strip && typeof strip === "object" && Reflect.get(strip, "sheets");
+      if (Array.isArray(sheets)) for (const i of sheets.keys()) fields.push([sheets, String(i)]);
       for (const [owner, field] of fields) {
         const value: unknown = Reflect.get(owner, field);
         if (value === undefined || value === "") continue;
@@ -886,7 +956,28 @@ function registerIpc(): void {
   });
   ipcMain.handle("project:recent", () => recentProjects());
   ipcMain.handle("project:removeRecent", (_e, path: string) => removeRecent(path));
-
+  const projectPath = z.string().min(1).max(32768);
+  // Lessons already opened or listed (their files were granted): copied, renamed, restored.
+  ipcMain.handle("project:duplicate", async (_e, raw: unknown) => {
+    const copy = await duplicateProject(await desktopFiles.assertRead(projectPath.parse(raw)));
+    await desktopFiles.grantRead(copy.path);
+    return copy.path;
+  });
+  ipcMain.handle("project:rename", async (_e, rawPath: unknown, rawName: unknown) => {
+    const path = await desktopFiles.assertRead(projectPath.parse(rawPath));
+    const target = await renameProject(path, z.string().min(1).max(200).parse(rawName));
+    await desktopFiles.grantRead(target);
+    return target;
+  });
+  ipcMain.handle("project:backups", async (_e, raw: unknown) =>
+    listBackups(await desktopFiles.assertRead(projectPath.parse(raw))),
+  );
+  ipcMain.handle("project:restoreBackup", async (_e, rawPath: unknown, rawId: unknown) =>
+    restoreBackup(
+      await desktopFiles.assertRead(projectPath.parse(rawPath)),
+      z.string().min(1).max(64).parse(rawId),
+    ),
+  );
   ipcMain.handle("export:start", async (_e, jobId: unknown, project: unknown, spec: unknown) => {
     if (typeof jobId !== "string" || !jobId.length || jobId.length > 200 || exportJobs.has(jobId))
       throw new Error("Identificador de exportação inválido ou já em uso.");

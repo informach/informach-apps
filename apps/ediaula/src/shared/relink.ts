@@ -1,4 +1,38 @@
-import type { Asset, ProbeResult } from "./types.ts";
+import type { Annotation } from "./annotation.ts";
+import type { Asset, ProbeResult, Project } from "./types.ts";
+
+/**
+ * How a picture the editor made is drawn again when its file is gone (cleaned up, or a project
+ * brought from another computer, where the app's cache is not): an annotation from its clip, the
+ * blank picture of zoom layers, a held frame from its source media at the same second (with the
+ * pointer and the zoom it had). Null when it cannot be: nothing left to draw it from.
+ */
+export type Redraw =
+  | { how: "annotation"; annotation: Annotation }
+  | { how: "effect" }
+  | { how: "still"; source: Asset; t: number };
+
+export function redrawPlan(
+  project: Pick<Project, "assets" | "clips">,
+  asset: Pick<Asset, "id" | "generated" | "still">,
+): Redraw | null {
+  if (asset.generated === "annotation") {
+    const annotation = project.clips.find(
+      (c) => c.assetId === asset.id && c.annotation,
+    )?.annotation;
+    return annotation ? { how: "annotation", annotation } : null;
+  }
+  if (asset.generated === "effect") return { how: "effect" };
+  if (asset.generated === "still" && asset.still) {
+    const { assetId, t } = asset.still;
+    const source = project.assets.find((a) => a.id === assetId);
+    // The source has to be there itself (and, for a cut-out avatar, its transparent copy).
+    if (!source || source.missing || source.kind !== "video") return null;
+    if (source.key && (!source.keyed || source.keyStatus !== "ready")) return null;
+    return { how: "still", source, t };
+  }
+  return null;
+}
 
 /** Seconds a found file may differ in length from the missing one (containers round differently). */
 export const RELINK_DURATION_TOLERANCE = 0.5;

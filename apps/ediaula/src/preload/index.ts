@@ -137,6 +137,10 @@ const api: EdiAulaApi = {
   saveGenerated: (bytes, ext) => ipcRenderer.invoke("media:saveGenerated", bytes, ext),
   saveNarration: (bytes) => ipcRenderer.invoke("media:saveNarration", bytes),
   stillFrame: (path, t, alpha) => ipcRenderer.invoke("media:still", path, t, alpha),
+  audioSnippet: (path, t, seconds, ticket) =>
+    ipcRenderer.invoke("media:audioSnippet", path, t, seconds, ticket),
+  filmstrip: (jobId, path, input, duration) =>
+    ipcRenderer.invoke("media:filmstrip", jobId, path, input, duration),
   detectScreen: (path, duration, width, height) =>
     ipcRenderer.invoke("key:detect", path, duration, width, height),
   grabFrame: (path, t, width, height, maxSide) =>
@@ -150,6 +154,10 @@ const api: EdiAulaApi = {
   openProject: (path) => ipcRenderer.invoke("project:open", path),
   recentProjects: () => ipcRenderer.invoke("project:recent"),
   removeRecent: (path) => ipcRenderer.invoke("project:removeRecent", path),
+  duplicateProject: (path) => ipcRenderer.invoke("project:duplicate", path),
+  renameProject: (path, name) => ipcRenderer.invoke("project:rename", path, name),
+  projectBackups: (path) => ipcRenderer.invoke("project:backups", path),
+  restoreBackup: (path, id) => ipcRenderer.invoke("project:restoreBackup", path, id),
   startExport: (jobId, projectJson, spec) =>
     ipcRenderer.invoke("export:start", jobId, projectJson, spec),
   cancelJob: (jobId) => ipcRenderer.invoke("job:cancel", jobId),

@@ -56,6 +56,8 @@ interface AppStore {
   /** Clips receiving copied properties (the paste-properties dialog is open). */
   pastePropsClips: string[] | null;
   settingsOpen: boolean;
+  /** Mudar formato is open (the lesson's frame size). */
+  reframeOpen: boolean;
   jobs: Record<string, Job>;
   toasts: Toast[];
   /** Pending automatic cuts, drawn on the timeline while the transcript panel is open. */
@@ -64,6 +66,13 @@ interface AppStore {
   textCut: [number, number] | null;
   /** The cut selected on the timeline (id of the clip that starts there), for transitions. */
   junction: string | null;
+  /** The interval marked on the timeline ruler (narrate, record again, delete on every track). */
+  interval: { start: number; end: number } | null;
+  /**
+   * Tracks heard alone (solo): only for listening in the editor, never saved in the lesson and
+   * never in the export (the export dialog says so while one is on).
+   */
+  solo: string[];
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -87,11 +96,14 @@ export const useApp = create<AppStore>((set, get) => ({
   cursorClip: null,
   pastePropsClips: null,
   settingsOpen: false,
+  reframeOpen: false,
   jobs: {},
   toasts: [],
   cleanupMarks: [],
   textCut: null,
   junction: null,
+  interval: null,
+  solo: [],
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {
@@ -130,3 +142,7 @@ export function listenToJobs(): () => void {
 
 export const ZOOM_MIN = 2;
 export const ZOOM_MAX = 400;
+
+/** Whether a track is heard now: not muted, and the one in solo when some track is. */
+export const heard = (track: { id: string; muted: boolean }, solo: readonly string[]): boolean =>
+  !track.muted && (!solo.length || solo.includes(track.id));

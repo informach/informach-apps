@@ -1,19 +1,24 @@
 import { z } from "zod";
 import type { AnnotationKind } from "./annotation.ts";
+import type { Ducking } from "./audio.ts";
 import type { CaptionStyle } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import { avatarMedia } from "./cleanup.ts";
 import { clipLayout, type Motion, type Transform } from "./compose.ts";
 import { DEFAULT_CURSOR_FX } from "./cursor.ts";
+import { captionsSchema } from "./project-schema.ts";
 import type { DirectionAnnotation, DirectionRule } from "./screenDirections.ts";
-import { clipEnd, projectDuration } from "./timeline.ts";
+import { templateById } from "./templates.ts";
+import { clipEnd, newId, projectDuration } from "./timeline.ts";
 import type { Clip, Project, Track } from "./types.ts";
 
 /**
  * The course template, version 2: how a course's lessons look and are put together, as rules
  * instead of a list of clips. It comes out of a finished lesson (courseTemplateFrom), travels in
  * the editing model's Markdown as a JSON block and is kept per course in
- * userData/cursos/<curso>/modelo.json; "Preparar aula" applies it to a new lesson as drafts.
+ * userData/cursos/<curso>/modelo.json. It is used twice: Novo projeto starts a lesson of the
+ * course with its tracks, palette, captions, music and cards (startingLesson), and "Preparar aula"
+ * applies the rest to the recorded lesson as drafts.
  */
 
 export interface AnnotationStyle {
@@ -46,10 +51,24 @@ export interface Rule {
   };
 }
 
+/** A track of the lesson the template came from (muted and hidden are a moment's choice). */
+export interface TemplateTrack {
+  kind: Track["kind"];
+  name: string;
+  music?: boolean;
+  duck?: boolean;
+  height?: number;
+}
+
 export interface CourseTemplate {
   version: 2;
   course?: string;
+  /** When it was saved (ms since 1970). */
+  savedAt?: number;
+  /** The format of the lesson it came from: Novo projeto offers it, the person chooses. */
   format: { width: number; height: number; fps: number };
+  /** The tracks a new lesson of the course starts with. */
+  tracks?: TemplateTrack[];
   palette?: string;
   /** The palette's fonts (Project.paletteFonts). */
   fonts?: boolean;
@@ -63,7 +82,15 @@ export interface CourseTemplate {
   };
   cursor?: { size?: number; smooth?: number; clicks?: boolean; halo?: boolean; hideIdle?: boolean };
   zoom?: { auto: boolean; scale?: number };
-  music?: { volume: number; ducking: boolean };
+  music?: {
+    volume: number;
+    ducking: boolean;
+    /** The music bed itself, laid under a new lesson, on `tracks[track]`. */
+    file?: { path: string; name: string };
+    track?: number;
+    /** How the music goes down under speech (Project.audio.ducking). */
+    duck?: Partial<Ducking>;
+  };
   cleanup?: {
     minSilence?: number;
     keepPause?: number;
@@ -140,26 +167,38 @@ const rule = z.looseObject({
   }),
 });
 
+const ducking = z.looseObject({
+  depth: z.number().min(0).max(1).optional(),
+  ramp: z.number().min(0).max(10).optional(),
+  hold: z.number().min(0).max(60).optional(),
+});
+
 export const courseTemplateSchema = z.looseObject({
   version: z.literal(2),
   course: z.string().max(1024).optional(),
+  savedAt: num.nonnegative().optional(),
   format: z.looseObject({
     width: z.int().min(2).max(16384),
     height: z.int().min(2).max(16384),
     fps: num.positive().max(240),
   }),
+  tracks: z
+    .array(
+      z.looseObject({
+        kind: z.enum(["video", "audio"]),
+        name: z.string().min(1).max(200),
+        music: z.boolean().optional(),
+        duck: z.boolean().optional(),
+        height: num.positive().max(1000).optional(),
+      }),
+    )
+    .min(1)
+    .max(64)
+    .optional(),
   palette: z.string().max(200).optional(),
   fonts: z.boolean().optional(),
-  captions: z
-    .looseObject({
-      look: z.enum(["box", "outline", "karaoke"]),
-      position: z.enum(["bottom", "middle", "top"]),
-      size: num.positive().max(30),
-      font: z.string().max(200).optional(),
-      highlight: color.optional(),
-      burn: z.boolean(),
-    })
-    .optional(),
+  // The same values a lesson keeps: a lesson's captions always make a template.
+  captions: captionsSchema.optional(),
   cards: z
     .looseObject({
       opening: z.boolean(),
@@ -195,7 +234,17 @@ export const courseTemplateSchema = z.looseObject({
     })
     .optional(),
   zoom: z.looseObject({ auto: z.boolean(), scale: num.min(1).max(5).optional() }).optional(),
-  music: z.looseObject({ volume: num.min(0).max(4), ducking: z.boolean() }).optional(),
+  music: z
+    .looseObject({
+      volume: num.min(0).max(4),
+      ducking: z.boolean(),
+      file: z
+        .looseObject({ path: z.string().min(1).max(32768), name: z.string().max(1024) })
+        .optional(),
+      track: z.int().nonnegative().max(63).optional(),
+      duck: ducking.optional(),
+    })
+    .optional(),
   cleanup: z
     .looseObject({
       minSilence: num.min(0.3).max(10).optional(),
@@ -233,6 +282,19 @@ export function jsonBlock(value: unknown): string {
   return `${fence}json\n${json}\n${fence}`;
 }
 
+/**
+ * The template as it may leave this computer (an editing model goes to the AI and to other
+ * computers): without where its music is here, nor when it was saved.
+ */
+export function sharedTemplate(template: CourseTemplate): CourseTemplate {
+  const { savedAt: _when, ...shared } = template;
+  if (shared.music?.file) {
+    const { file: _local, track: _track, ...music } = shared.music;
+    shared.music = music;
+  }
+  return shared;
+}
+
 /** The course template's section of an editing model (buildEditingTemplate writes it). */
 export function courseTemplateMarkdown(template: CourseTemplate): string {
   return [
@@ -240,7 +302,7 @@ export function courseTemplateMarkdown(template: CourseTemplate): string {
     "",
     "O EdiAula lê este bloco para aplicar o modelo em outra aula do curso: paleta, legenda, cartelas, posição do apresentador, cursor, zoom, música, limpeza e as regras das anotações. Cada parte entra como rascunho para revisar.",
     "",
-    jsonBlock({ ediaula: COURSE_TEMPLATE_MARK, ...template }),
+    jsonBlock({ ediaula: COURSE_TEMPLATE_MARK, ...sharedTemplate(template) }),
     "",
   ].join("\n");
 }
@@ -285,6 +347,12 @@ export function courseFolderName(course: string): string {
   if (!clean || /^\.+$/.test(clean)) return "sem curso";
   return RESERVED.test(clean) ? `_${clean}` : clean;
 }
+
+/** Same course, however it was typed (spacing and capitals). */
+export const sameCourse = (a: string | undefined, b: string | undefined): boolean =>
+  !!a &&
+  !!b &&
+  a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
 
 /** Background music: marked as music, or an audio track named so (older lessons). */
 export const isMusicTrack = (track: Track): boolean =>
@@ -359,7 +427,7 @@ export function directionKey(text: string): string {
  */
 export function courseTemplateFrom(
   project: Project,
-  opts: { directions?: readonly DirectionAnnotation[] } = {},
+  opts: { directions?: readonly DirectionAnnotation[]; now?: number } = {},
 ): CourseTemplate {
   const duration = projectDuration(project);
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -395,6 +463,13 @@ export function courseTemplateFrom(
   const fades = (places.main ?? places.insert)?.fades;
   const key = presenters.map((c) => assets.get(c.assetId)?.key).find(Boolean);
   const closing = cards.find((c) => Math.abs(clipEnd(c) - duration) < 0.2);
+  const shownCards = lessonCards(project);
+  // The music bed: the first clip of the first music track, when its file is there.
+  const musicIndex = project.tracks.findIndex(isMusicTrack);
+  const bed = musicClips
+    .filter((c) => c.trackId === project.tracks[musicIndex]?.id)
+    .sort((a, b) => a.start - b.start)[0];
+  const bedAsset = bed && assets.get(bed.assetId);
   const presets = new Map<string, AnnotationStyle>();
   for (const c of annotations) {
     const s = styleOf(c);
@@ -430,13 +505,23 @@ export function courseTemplateFrom(
   return {
     version: 2,
     ...(project.course ? { course: project.course } : {}),
+    savedAt: opts.now ?? Date.now(),
     format: { ...project.settings },
+    tracks: project.tracks.map(
+      (t): TemplateTrack => ({
+        kind: t.kind,
+        name: t.name,
+        ...(t.music ? { music: true } : {}),
+        ...(t.duck !== undefined ? { duck: t.duck } : {}),
+        ...(t.height !== undefined ? { height: t.height } : {}),
+      }),
+    ),
     ...(project.palette ? { palette: project.palette } : {}),
     ...(project.paletteFonts ? { fonts: true } : {}),
     ...(project.captions ? { captions: { ...project.captions } } : {}),
     cards: {
-      opening: cards.some((c) => c.start <= 0.1),
-      closing: !!closing,
+      opening: shownCards.opening,
+      closing: shownCards.closing,
       ...(closing?.annotation?.text ? { closingText: closing.annotation.text } : {}),
     },
     ...(transform || key
@@ -467,11 +552,17 @@ export function courseTemplateFrom(
           },
         }
       : {}),
-    ...(musicClips.length
+    ...(musicClips.length || project.audio?.ducking
       ? {
           music: {
-            volume: round(musicClips.reduce((s, c) => s + c.volume, 0) / musicClips.length, 2),
+            volume: musicClips.length
+              ? round(musicClips.reduce((s, c) => s + c.volume, 0) / musicClips.length, 2)
+              : 1,
             ducking: true,
+            ...(bedAsset && !bedAsset.missing
+              ? { file: { path: bedAsset.path, name: bedAsset.name }, track: musicIndex }
+              : {}),
+            ...(project.audio?.ducking ? { duck: { ...project.audio.ducking } } : {}),
           },
         }
       : {}),
@@ -612,4 +703,170 @@ export function templateLook(project: Project, t: CourseTemplate): Project {
       ...(t.cleanup.kinds ? { kinds: { ...project.cleanup?.kinds, ...t.cleanup.kinds } } : {}),
     };
   return out;
+}
+
+/* ----- Cards and the start of a new lesson ----- */
+
+/**
+ * Whether the lesson has its opening and closing cards, in either form: a card annotation
+ * (lib/annotations.ts addCard) or the full-screen template of "Modelos" (lib/templates.ts,
+ * pictures named after the template), at the start and at the end of the lesson.
+ */
+export function lessonCards(p: Pick<Project, "clips" | "assets">): {
+  opening: boolean;
+  closing: boolean;
+} {
+  const end = projectDuration(p);
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  const named = (c: Clip, id: "opening" | "closing"): boolean => {
+    const label = templateById(id)?.label;
+    return !!label && !!assets.get(c.assetId)?.name.startsWith(`${label} · `);
+  };
+  const isCard = (c: Clip, id: "opening" | "closing"): boolean =>
+    c.annotation?.kind === "card" || named(c, id);
+  return {
+    opening: p.clips.some((c) => c.start <= 0.1 && isCard(c, "opening")),
+    closing: p.clips.some((c) => Math.abs(clipEnd(c) - end) < 0.2 && isCard(c, "closing")),
+  };
+}
+
+/** Media on the timeline that is the lesson itself (not the editor's pictures nor the music). */
+export function hasLessonMedia(p: Pick<Project, "clips" | "assets" | "pendingStart">): boolean {
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  const music = p.pendingStart?.music?.assetId;
+  return p.clips.some((c) => {
+    const a = assets.get(c.assetId);
+    return !!a && !a.generated && a.id !== music;
+  });
+}
+
+/**
+ * Whether the cards of the course template are still to come with the lesson's first media
+ * (startingLesson). Once media is there they came, or the person took them out with Ctrl+Z.
+ */
+export const startPending = (p: Pick<Project, "clips" | "assets" | "pendingStart">): boolean =>
+  !!p.pendingStart && !hasLessonMedia(p);
+
+/**
+ * A new, empty lesson started from the course template (Novo projeto): its tracks (new ids),
+ * palette, captions and ducking, and the cards still to come (pendingStart). The format stays the
+ * one the person chose. The music bed is placed after (it is imported media): the result says on
+ * which track. The template is not offered again on this lesson (templateOffer).
+ */
+export function startingLesson(
+  p: Project,
+  t: CourseTemplate,
+): { project: Project; musicTrack?: string } {
+  const tracks: Track[] = t.tracks?.length
+    ? t.tracks.map((tr) => ({
+        id: newId("t"),
+        kind: tr.kind,
+        name: tr.name,
+        muted: false,
+        hidden: false,
+        locked: false,
+        ...(tr.music ? { music: true } : {}),
+        ...(tr.duck !== undefined ? { duck: tr.duck } : {}),
+        ...(tr.height !== undefined ? { height: tr.height } : {}),
+      }))
+    : p.tracks;
+  const musicTrack =
+    t.music?.file && t.music.track !== undefined && t.tracks?.length
+      ? tracks[t.music.track]?.id
+      : undefined;
+  const cards = t.cards;
+  const next: Project = {
+    ...p,
+    tracks,
+    ...(t.palette ? { palette: t.palette } : {}),
+    ...(t.fonts ? { paletteFonts: true } : {}),
+    ...(t.captions ? { captions: { ...t.captions } } : {}),
+    ...(t.music?.duck ? { audio: { ...p.audio, ducking: { ...t.music.duck } } } : {}),
+    ...(cards?.opening || cards?.closing
+      ? {
+          pendingStart: {
+            ...(cards.opening ? { opening: true } : {}),
+            ...(cards.closing ? { closing: true } : {}),
+            ...(cards.closingText ? { closingText: cards.closingText } : {}),
+          },
+        }
+      : {}),
+    ...(p.course ? { templateOffer: { course: p.course, answer: "applied" as const } } : {}),
+  };
+  return { project: next, ...(musicTrack ? { musicTrack } : {}) };
+}
+
+/* ----- The first course templates (version 1, course-templates/<curso>.json) ----- */
+
+const legacySchema = z.looseObject({
+  version: z.literal(1),
+  course: z.string().min(1).max(1024),
+  savedAt: num.nonnegative(),
+  settings: courseTemplateSchema.shape.format,
+  palette: z.string().min(1).max(200).optional(),
+  paletteFonts: z.boolean().optional(),
+  captions: captionsSchema.optional(),
+  tracks: courseTemplateSchema.shape.tracks.unwrap(),
+  cards: z
+    .looseObject({ opening: z.boolean().optional(), closing: z.boolean().optional() })
+    .optional(),
+  audio: z
+    .looseObject({
+      ducking: ducking.optional(),
+      music: z
+        .looseObject({
+          path: z.string().min(1).max(32768),
+          name: z.string().max(1024),
+          volume: num.min(0).max(4),
+          track: z.int().nonnegative().max(63),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+/** The name of a version 1 template's file: the course in lower case, as it was kept. */
+export function legacyTemplateFile(course: string): string {
+  const safe = [...course.trim().toLowerCase()]
+    .filter((ch) => ch.charCodeAt(0) >= 32 && !'<>:"/\\|?*'.includes(ch))
+    .join("")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/, "")
+    .slice(0, 80);
+  return `${safe || "sem curso"}.json`;
+}
+
+/** A version 1 template as version 2 (null when it is not one). */
+export function migrateCourseSetup(raw: unknown): CourseTemplate | null {
+  const parsed = legacySchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const v1 = parsed.data;
+  const music = v1.audio?.music;
+  return {
+    version: 2,
+    course: v1.course,
+    savedAt: v1.savedAt,
+    format: { ...v1.settings },
+    tracks: v1.tracks.map((t) => ({
+      kind: t.kind,
+      name: t.name,
+      ...(t.music ? { music: true } : {}),
+      ...(t.duck !== undefined ? { duck: t.duck } : {}),
+      ...(t.height !== undefined ? { height: t.height } : {}),
+    })),
+    ...(v1.palette ? { palette: v1.palette } : {}),
+    ...(v1.paletteFonts ? { fonts: true } : {}),
+    ...(v1.captions ? { captions: { ...v1.captions } } : {}),
+    ...(v1.cards ? { cards: { opening: !!v1.cards.opening, closing: !!v1.cards.closing } } : {}),
+    ...(music || v1.audio?.ducking
+      ? {
+          music: {
+            volume: music?.volume ?? 1,
+            ducking: true,
+            ...(music ? { file: { path: music.path, name: music.name }, track: music.track } : {}),
+            ...(v1.audio?.ducking ? { duck: { ...v1.audio.ducking } } : {}),
+          },
+        }
+      : {}),
+  };
 }

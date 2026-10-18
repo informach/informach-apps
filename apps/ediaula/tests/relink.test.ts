@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { findCompanions, findRelinked, relinkRequestSchema } from "../src/main/relink.ts";
-import { fileName, relinkMismatch } from "../src/shared/relink.ts";
-import type { Asset, ProbeResult } from "../src/shared/types.ts";
+import { fileName, redrawPlan, relinkMismatch } from "../src/shared/relink.ts";
+import type { Asset, ProbeResult, Project } from "../src/shared/types.ts";
 
 const root = await mkdtemp(join(tmpdir(), "ediaula-relink-"));
 after(() => rm(root, { recursive: true }));
@@ -149,4 +149,98 @@ test("the cursor data follows the recording only from its own folder and only as
     "C:/velha/sumiu.json",
   ]);
   assert.deepEqual(found, { "C:/velha/cursor.json": join(dir, "cursor.json") });
+});
+
+const generatedLesson = (assets: Asset[]): Project => ({
+  version: 1,
+  id: "p1",
+  name: "Aula 3",
+  createdAt: 0,
+  updatedAt: 0,
+  settings: { width: 1080, height: 1920, fps: 30 },
+  assets,
+  tracks: [
+    { id: "a", kind: "video", name: "Anotações", muted: false, hidden: false, locked: false },
+  ],
+  clips: [],
+});
+const generated = (id: string, extra: Partial<Asset> = {}): Asset => ({
+  id,
+  name: id,
+  path: `C:/aulas/${id}`,
+  kind: "video",
+  duration: 120,
+  width: 1920,
+  height: 1080,
+  fps: 30,
+  hasVideo: true,
+  hasAudio: true,
+  size: 1,
+  proxyStatus: "none",
+  ...extra,
+});
+
+test("the editor's own pictures are drawn again from what made them", () => {
+  const project: Project = {
+    ...generatedLesson([]),
+    assets: [
+      generated("tela", { cursor: "C:/aulas/cursor.json" }),
+      generated("nota", { kind: "image", duration: 0, generated: "annotation" }),
+      generated("vazio", { kind: "image", duration: 0, generated: "effect" }),
+      generated("quadro", {
+        kind: "image",
+        duration: 0,
+        generated: "still",
+        still: { assetId: "tela", t: 12.5 },
+      }),
+      generated("perdido", {
+        kind: "image",
+        duration: 0,
+        generated: "still",
+        still: { assetId: "sumiu", t: 1 },
+      }),
+      generated("avatar", {
+        key: { color: "#00B140", threshold: 0.4, softness: 0.1, despill: 0.5, choke: 0 },
+      }),
+      generated("quadro-avatar", {
+        kind: "image",
+        duration: 0,
+        generated: "still",
+        still: { assetId: "avatar", t: 3 },
+      }),
+    ],
+    clips: [
+      {
+        id: "n",
+        assetId: "nota",
+        trackId: "a",
+        start: 0,
+        in: 0,
+        duration: 3,
+        volume: 1,
+        annotation: { kind: "balloon", text: "Oi", color: "#3D6BFF" },
+      },
+    ],
+  };
+  const asset = (id: string): Asset => {
+    const a = project.assets.find((x) => x.id === id);
+    assert.ok(a, id);
+    return a;
+  };
+  assert.equal(redrawPlan(project, asset("nota"))?.how, "annotation");
+  assert.deepEqual(redrawPlan(project, asset("vazio")), { how: "effect" });
+  const still = redrawPlan(project, asset("quadro"));
+  assert.ok(still?.how === "still" && still.source.id === "tela" && still.t === 12.5);
+  assert.equal(redrawPlan(project, asset("perdido")), null, "the source is gone");
+  assert.equal(
+    redrawPlan(project, asset("quadro-avatar")),
+    null,
+    "a cut-out avatar waits for its transparent copy",
+  );
+  assert.equal(redrawPlan(project, generated("solta", { generated: "annotation" })), null);
+  assert.equal(
+    redrawPlan(project, asset("tela")),
+    null,
+    "media of the lesson is reconnected, not drawn",
+  );
 });
