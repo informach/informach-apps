@@ -1,10 +1,13 @@
-import { clipSpeed, sourceEnd } from "./clipTime.ts";
+import { cutTargets } from "./cleanup.ts";
+import { clipEnd, clipSpeed, sourceEnd } from "./clipTime.ts";
+import type { CursorPoint } from "./cursor.ts";
 import { pruneGroups } from "./groups.ts";
+import { rippleTrim } from "./ripple.ts";
 import { MIN_CLIP } from "./timeline.ts";
 import type { Asset, Clip, Project, Word } from "./types.ts";
 
 /**
- * Substituir mídia: another file takes the place of a media (the HeyGen avatar made again, a
+ * Substituir mídia: another file takes the place of a media (the presenter's video made again, a
  * screen recorded again) and every clip of it keeps its edits: position, size, movement, fades,
  * transitions, background removal. When both files are transcribed, the words of the old one
  * are found in the new one and each clip plays the same words there (its in-point and length
@@ -114,7 +117,7 @@ export function timeMap(
 }
 
 /** Fields of a media that are edits of the person and stay with the new file. */
-const KEPT: (keyof Asset)[] = ["key", "voicePreset", "cursorFx", "screen", "origin", "recording"];
+const KEPT: (keyof Asset)[] = ["key", "voicePreset", "screen", "origin", "recording"];
 
 export interface Replacement {
   project: Project;
@@ -122,12 +125,18 @@ export interface Replacement {
   remapped: number;
   /** Clips whose words are not in the new file: they were left out. */
   dropped: number;
+  /** What did not come along, for the person (locked tracks in the way, the recorded pointer). */
+  warnings: string[];
 }
 
 /**
  * The project with `next` (a new media, with its own id) in the place of `oldId`: clips, zooms,
- * markers of the media, protected passages and held frames point to it, through `map` when the
- * timing changed. The old media leaves the library (Ctrl+Z brings it back with its clips).
+ * markers of the media, protected passages, held frames, the background, the voices exported
+ * and the pending proposals point to it, through `map` when the timing changed. A clip that
+ * now lasts longer or shorter pushes or pulls what comes after it on its track and on the tracks
+ * text cuts reach (a ripple trim, shared/ripple.ts), so nothing overlaps and no hole is left;
+ * locked tracks stay as they are (and are named in the warnings). The old media leaves the
+ * library (Ctrl+Z brings it back with its clips).
  */
 export function replaceAsset(
   p: Project,
@@ -136,11 +145,38 @@ export function replaceAsset(
   map: ((s: number) => number) | null,
 ): Replacement {
   const old = p.assets.find((a) => a.id === oldId);
-  if (!old) return { project: p, remapped: 0, dropped: 0 };
+  if (!old) return { project: p, remapped: 0, dropped: 0, warnings: [] };
+  const warnings: string[] = [];
   const length = next.kind === "image" || next.duration <= 0 ? Infinity : next.duration;
   const f = map ?? ((s: number) => s);
   const asset: Asset = { ...next };
   for (const key of KEPT) if (old[key] !== undefined) Object.assign(asset, { [key]: old[key] });
+  // The recorded pointer belongs to the old file's clock: a new file recorded in EdiAula brings
+  // its own; otherwise the old one comes along only when the timing did not change.
+  if (!next.cursor && old.cursor && !map) {
+    asset.cursor = old.cursor;
+    if (old.cursorMissing) asset.cursorMissing = true;
+  } else if (!next.cursor && old.cursor)
+    warnings.push("O cursor gravado não acompanha o arquivo novo, que fica sem ele.");
+  // How the pointer is drawn stays; the hand-drawn paths follow the new timing.
+  if (old.cursorFx && asset.cursor) {
+    const points = (list: CursorPoint[]): CursorPoint[] =>
+      list.map((pt) => ({ ...pt, t: f(pt.t) }));
+    asset.cursorFx = {
+      ...old.cursorFx,
+      ...(old.cursorFx.path ? { path: points(old.cursorFx.path) } : {}),
+      ...(old.cursorFx.pathEdits
+        ? {
+            pathEdits: old.cursorFx.pathEdits.map((e) => ({
+              ...e,
+              start: f(e.start),
+              end: f(e.end),
+              points: points(e.points),
+            })),
+          }
+        : {}),
+    };
+  }
   if (old.zooms?.length)
     asset.zooms = old.zooms
       .map((z) => ({
@@ -154,6 +190,8 @@ export function replaceAsset(
     asset.markers = old.markers.map((m) => ({ ...m, t: f(m.t) })).filter((m) => m.t < length);
   let remapped = 0;
   let dropped = 0;
+  /** The length each clip of the new media ends up with. */
+  const wanted = new Map<string, number>();
   const clips: Clip[] = [];
   for (const c of p.clips) {
     if (c.assetId !== oldId) {
@@ -169,30 +207,128 @@ export function replaceAsset(
     }
     const duration = map ? (to - from) / speed : Math.min(c.duration, (length - c.in) / speed);
     if (Math.abs(from - c.in) > 1e-6 || Math.abs(duration - c.duration) > 1e-6) remapped++;
-    clips.push({ ...c, assetId: asset.id, in: from, duration });
+    wanted.set(c.id, duration);
+    // In place first, with its old length (as far as the new media goes); the ripple below
+    // gives it the new one.
+    clips.push({
+      ...c,
+      assetId: asset.id,
+      in: from,
+      duration: Math.min(c.duration, (length - from) / speed),
+    });
   }
   const assets = p.assets
     .filter((a) => a.id !== oldId)
     .map((a) =>
       a.still?.assetId === oldId ? { ...a, still: { ...a.still, assetId: asset.id } } : a,
     );
+  let project: Project = {
+    ...p,
+    assets: [...assets, asset],
+    clips,
+    ...(p.protected
+      ? {
+          protected: p.protected.map((r) =>
+            r.assetId === oldId ? { ...r, assetId: asset.id, start: f(r.start), end: f(r.end) } : r,
+          ),
+        }
+      : {}),
+    ...(p.background?.kind === "image" && p.background.assetId === oldId
+      ? { background: { kind: "image" as const, assetId: asset.id } }
+      : {}),
+    ...(p.voiceMasters
+      ? {
+          voiceMasters: p.voiceMasters.map((m) => ({
+            ...m,
+            pieces: m.pieces.map((piece) => ({
+              ...piece,
+              sourceMap: piece.sourceMap.map((seg) =>
+                seg.assetId === oldId ? { ...seg, assetId: asset.id, in: f(seg.in) } : seg,
+              ),
+            })),
+          })),
+        }
+      : {}),
+    ...(p.proposals
+      ? {
+          proposals: p.proposals.map((proposal) => ({
+            ...proposal,
+            items: proposal.items.map((item) => {
+              if (!item.anchors.some((a) => a.assetId === oldId)) return item;
+              // Word keys name the old file's words: the anchors and the text find the item now.
+              const wordKeys = item.wordKeys?.filter((k) => !k.startsWith(`${oldId}:`));
+              return {
+                ...item,
+                anchors: item.anchors.map((a) =>
+                  a.assetId === oldId
+                    ? { ...a, assetId: asset.id, start: f(a.start), end: f(a.end) }
+                    : a,
+                ),
+                ...(item.wordKeys ? { wordKeys } : {}),
+              };
+            }),
+          })),
+        }
+      : {}),
+    ...(p.pendingStart?.music?.assetId === oldId
+      ? {
+          pendingStart: {
+            ...p.pendingStart,
+            music: { ...p.pendingStart.music, assetId: asset.id },
+          },
+        }
+      : {}),
+  };
+  // Each clip to its new length, the latest first, pushing or pulling what comes after it.
+  const targets = cutTargets(project);
+  const locked = new Set(project.tracks.filter((t) => t.locked).map((t) => t.id));
+  // Clips that sit together (a video and the sound taken out of it) change once, at one point:
+  // the first of them ripples, the others just take their new length.
+  const together = new Map<string, string[]>();
+  for (const c of [...project.clips].sort((a, b) => b.start - a.start)) {
+    const target = wanted.get(c.id);
+    if (target === undefined || Math.abs(target - c.duration) <= 1e-6) continue;
+    const key = [c.start, clipEnd(c), target].map((x) => Math.round(x * 1000)).join(":");
+    together.set(key, [...(together.get(key) ?? []), c.id]);
+  }
+  const lockedAfter = (end: number): boolean =>
+    project.tracks.some(
+      (t) =>
+        t.locked &&
+        !t.music &&
+        project.clips.some((x) => x.trackId === t.id && x.start >= end - 1e-6),
+    );
+  let blocked = false;
+  for (const ids of together.values()) {
+    const free = ids.filter(
+      (id) => !locked.has(project.clips.find((x) => x.id === id)?.trackId ?? ""),
+    );
+    if (free.length < ids.length) blocked = true;
+    const [leader, ...rest] = free;
+    const c = project.clips.find((x) => x.id === leader);
+    const target = wanted.get(leader ?? "");
+    if (!c || target === undefined) continue;
+    if (lockedAfter(clipEnd(c))) blocked = true;
+    const trimmed = rippleTrim(project, targets, c.id, "end", c.start + target);
+    if (!trimmed.unchanged) project = { ...project, clips: trimmed.clips };
+    const others = new Set(rest);
+    project = {
+      ...project,
+      clips: project.clips.map((x) => {
+        const length = wanted.get(x.id);
+        return others.has(x.id) && length !== undefined ? { ...x, duration: length } : x;
+      }),
+    };
+  }
+  if (blocked)
+    warnings.push(
+      "Uma faixa travada tem clipes depois dos trechos trocados e não acompanhou: confira a sincronia nela.",
+    );
   return {
-    project: {
-      ...p,
-      assets: [...assets, asset],
-      clips: pruneGroups(clips),
-      ...(p.protected
-        ? {
-            protected: p.protected.map((r) =>
-              r.assetId === oldId
-                ? { ...r, assetId: asset.id, start: f(r.start), end: f(r.end) }
-                : r,
-            ),
-          }
-        : {}),
-    },
+    project: { ...project, clips: pruneGroups(project.clips) },
     remapped,
     dropped,
+    warnings,
   };
 }
 

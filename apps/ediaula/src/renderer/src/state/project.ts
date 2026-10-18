@@ -610,10 +610,18 @@ export function draftView(s: Pick<ProjectStore, "project" | "draft"> = useProjec
   conflicts: string[];
 } {
   if (shown && shown.project === s.project && shown.draft === s.draft) return shown.view;
-  const view =
-    s.project && s.draft && s.draft.projectId === s.project.id
-      ? applyItems(s.project, s.draft.items)
-      : { project: s.project, conflicts: [] };
+  let view: { project: Project | null; conflicts: string[] } = {
+    project: s.project,
+    conflicts: [],
+  };
+  if (s.project && s.draft && s.draft.projectId === s.project.id) {
+    const applied = applyItems(s.project, s.draft.items);
+    // Shown as a commit would leave it: magnetic tracks packed, markers along with the media.
+    view = {
+      project: applied.project === s.project ? applied.project : settle(s.project, applied.project),
+      conflicts: applied.conflicts,
+    };
+  }
   shown = { project: s.project, draft: s.draft, view };
   return view;
 }

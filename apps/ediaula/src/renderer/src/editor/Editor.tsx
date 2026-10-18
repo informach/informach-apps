@@ -101,12 +101,6 @@ function handleKey(e: KeyboardEvent): void {
   };
 
   if (ctrl) {
-    // Ctrl+Alt+arrows: sentence by sentence and from silence to silence.
-    if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-      done();
-      void speechStep(e.key === "ArrowLeft" ? -1 : 1, "sentence");
-      return;
-    }
     // Ctrl+G groups the selected clips, Ctrl+Shift+G undoes their groups.
     if (k === "g") {
       done();
@@ -207,13 +201,13 @@ function handleKey(e: KeyboardEvent): void {
       break;
     case "ArrowLeft":
       done();
-      // Alt: word by word (the start and the end of each one).
-      if (e.altKey) void speechStep(-1, "word");
+      // Alt: word by word (the start and the end of each one); Alt+Shift: by sentence and silence.
+      if (e.altKey) void speechStep(-1, e.shiftKey ? "sentence" : "word");
       else playback.step(e.shiftKey ? -1 : -1 / fps);
       break;
     case "ArrowRight":
       done();
-      if (e.altKey) void speechStep(1, "word");
+      if (e.altKey) void speechStep(1, e.shiftKey ? "sentence" : "word");
       else playback.step(e.shiftKey ? 1 : 1 / fps);
       break;
     case "m":

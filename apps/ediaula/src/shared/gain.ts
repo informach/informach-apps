@@ -46,22 +46,44 @@ const n = (v: number): string => (Math.round(v * 1e6) / 1e6).toString();
 
 /**
  * The same envelope as an FFmpeg expression of `x` (clip seconds, e.g. "(t+1.5)"): the linear
- * factor, for volume='…':eval=frame. "1" without points.
+ * factor, for volume='…':eval=frame. "1" without points. The dB line is a sum of ramps (the
+ * first point's dB, plus each segment's slope over the part of it already played), so the
+ * expression grows flat with the points: FFmpeg refuses deeply nested ones.
  */
 export function gainExpr(points: readonly GainPoint[] | undefined, x: string): string {
   if (!points?.length) return "1";
   const list = sorted(points).map((p) => ({ t: p.t, db: clampDb(p.db) }));
-  // The dB line, piece by piece from the last one back, then 10^(dB/20).
-  let db = n(list[list.length - 1].db);
-  for (let i = list.length - 1; i >= 1; i--) {
+  const terms = [n(list[0].db)];
+  for (let i = 1; i < list.length; i++) {
     const a = list[i - 1];
     const b = list[i];
+    const rise = b.db - a.db;
+    if (Math.abs(rise) < 1e-9) continue;
     const span = b.t - a.t;
-    const line = span <= 0 ? n(b.db) : `${n(a.db)}+${n((b.db - a.db) / span)}*(${x}-${n(a.t)})`;
-    db = `if(lte(${x},${n(b.t)}),${line},${db})`;
+    // Two points at the same moment: a step, taken right after it (as gainDbAt does).
+    terms.push(
+      span <= 0
+        ? `${n(rise)}*gt(${x},${n(b.t)})`
+        : `${n(rise / span)}*(clip(${x},${n(a.t)},${n(b.t)})-${n(a.t)})`,
+    );
   }
-  db = `if(lte(${x},${n(list[0].t)}),${n(list[0].db)},${db})`;
+  const db = terms.join("+").replaceAll("+-", "-");
+  if (terms.length === 1) return n(dbToGain(list[0].db));
   return `if(lte(${db},${GAIN_MIN_DB}),0,pow(10,(${db})/20))`;
+}
+
+/**
+ * The points that shape the envelope between `from` and `to` (clip seconds): those inside and
+ * the nearest one on each side, so a piece of a long clip gets a short expression with the same
+ * curve over its stretch.
+ */
+export function gainSlice(points: readonly GainPoint[], from: number, to: number): GainPoint[] {
+  const list = sorted(points);
+  const first = list.findIndex((p) => p.t >= from);
+  const lo = first < 0 ? list.length - 1 : Math.max(0, first - 1);
+  let hi = list.findIndex((p) => p.t > to);
+  hi = hi < 0 ? list.length - 1 : hi;
+  return list.slice(lo, hi + 1);
 }
 
 /** The envelope of a piece of `c` that starts `shift` seconds into it (pieces.ts, speed). */

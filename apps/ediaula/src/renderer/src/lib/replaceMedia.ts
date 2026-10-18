@@ -75,19 +75,20 @@ export async function replaceMedia(assetId: string): Promise<boolean> {
       return false;
     }
   }
-  let result: ReturnType<typeof replaceAsset> | null = null;
+  const made: { result?: ReturnType<typeof replaceAsset> } = {};
   const done = useProject.getState().commit((p) => {
     if (!p.assets.some((a) => a.id === assetId)) return p;
-    result = replaceAsset(p, assetId, next, map);
-    return result.project;
+    made.result = replaceAsset(p, assetId, next, map);
+    return made.result.project;
   });
-  if (!done || !result) return false;
-  const { remapped, dropped } = result;
+  if (!done || !made.result) return false;
+  const { remapped, dropped, warnings } = made.result;
   const placed = useProject.getState().project?.assets.find((a) => a.id === next.id);
   if (placed) void enrich(placed);
   toast(
     `${old.name} foi trocada por ${next.name}: os clipes mantêm posição, movimento, transições e remoção de fundo${map ? `; ${remapped} ${remapped === 1 ? "clipe seguiu" : "clipes seguiram"} as falas` : ""}${dropped ? `; ${dropped} ${dropped === 1 ? "clipe ficou" : "clipes ficaram"} de fora, porque as falas não estão no arquivo novo` : ""}.`,
-    dropped ? "info" : "success",
+    dropped || warnings.length ? "info" : "success",
   );
+  for (const warning of warnings) toast(warning, "info");
   return true;
 }

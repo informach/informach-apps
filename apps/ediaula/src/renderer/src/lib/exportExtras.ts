@@ -75,6 +75,13 @@ export async function packLesson(): Promise<boolean> {
       `Aula empacotada com ${done.files} ${done.files === 1 ? "arquivo" : "arquivos"} (${bytes(done.bytes)}) em ${done.path}.`,
       "success",
     );
+    if (done.droppedVoices)
+      toast(
+        done.droppedVoices === 1
+          ? "Uma voz exportada para o vídeo do apresentador ficou fora do pacote, porque os arquivos dela não estão mais no computador."
+          : `${done.droppedVoices} vozes exportadas para o vídeo do apresentador ficaram fora do pacote, porque os arquivos delas não estão mais no computador.`,
+        "info",
+      );
     return true;
   } catch (err) {
     toast(`A aula não foi empacotada: ${cleanError(err)}`, "error");

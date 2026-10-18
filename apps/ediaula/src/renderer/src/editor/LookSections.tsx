@@ -13,6 +13,7 @@ import {
   type RegionKind,
 } from "@shared/look";
 import { chaptersOf } from "@shared/markers";
+import { followTarget, zoomUnder } from "@shared/regionFollow";
 import { revealKind } from "@shared/reveal";
 import { clipEnd } from "@shared/timeline";
 import type { Asset, Clip } from "@shared/types";
@@ -172,11 +173,14 @@ const REGION_LABEL: Record<RegionKind, string> = {
 
 /** A region effect: what it does, how strong, how soft the edge (the box is moved on the preview). */
 export function RegionSection({ clip, region: r }: { clip: Clip; region: RegionFx }): ReactNode {
+  const project = useProject((s) => s.project);
   const set = (changes: Partial<RegionFx>): void => {
     updateClip(clip.id, (x) =>
       x.regionFx ? { ...x, regionFx: { ...x.regionFx, ...changes } } : x,
     );
   };
+  const target = project ? followTarget(project, clip) : null;
+  const zoomed = !!project && zoomUnder(project, clip);
   return (
     <div className="props-section">
       <h3>
@@ -217,10 +221,26 @@ export function RegionSection({ clip, region: r }: { clip: Clip; region: RegionF
         format={(v) => `${Math.round(v)} px`}
         onCommit={(v) => set({ feather: v })}
       />
+      {(target || r.follow) && (
+        <div className="props-head">
+          <span className="field-label">Seguir a gravação</span>
+          <Toggle
+            on={!!r.follow}
+            label="Seguir a gravação"
+            onChange={(v) => set({ follow: v || undefined })}
+          />
+        </div>
+      )}
+      {zoomed && (
+        <p className="props-hint region-zoom-note" role="status">
+          A gravação embaixo tem zoom enquanto a região aparece, e a região fica parada no quadro.
+          Ligue Seguir a gravação para ela acompanhar o que esconde.
+        </p>
+      )}
       <p className="props-hint muted">
-        Arraste o retângulo na prévia para mover; arraste o canto para mudar o tamanho. Vale para
-        tudo o que está nas faixas abaixo, como esconder o nome e o e-mail de um aluno na
-        plataforma.
+        {r.follow
+          ? "O retângulo fica preso à gravação embaixo: quando ela aproxima, ele aproxima junto. Desenhe-o com a gravação sem zoom."
+          : "Arraste o retângulo na prévia para mover; arraste o canto para mudar o tamanho. Vale para tudo o que está nas faixas abaixo, como esconder o nome e o e-mail de um aluno na plataforma."}
       </p>
     </div>
   );

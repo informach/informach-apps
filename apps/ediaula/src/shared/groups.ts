@@ -74,10 +74,42 @@ export function regroupCopies(copies: Clip[]): Clip[] {
   });
 }
 
+/** Shortest clip a trim leaves (timeline.ts MIN_CLIP; not imported, timeline.ts imports this). */
+const MIN_CLIP = 1 / 30;
+
+/**
+ * Where the `edge` of `c` may go: not over the clips beside it on its track (other than the
+ * ones moving with it) and not past the ends of its media.
+ */
+function edgeRange(
+  c: Clip,
+  edge: "start" | "end",
+  clips: readonly Clip[],
+  moving: ReadonlySet<string>,
+  asset: Asset | undefined,
+): [number, number] {
+  const speed = c.speed ?? 1;
+  const length =
+    !asset || asset.kind === "image" || asset.duration <= 0
+      ? Number.POSITIVE_INFINITY
+      : asset.duration;
+  const others = clips.filter((x) => x.trackId === c.trackId && !moving.has(x.id));
+  if (edge === "end") {
+    const next = Math.min(
+      Number.POSITIVE_INFINITY,
+      ...others.filter((x) => x.start >= clipEnd(c) - EPS).map((x) => x.start),
+    );
+    return [c.start + MIN_CLIP, Math.min(next, c.start + (length - c.in) / speed)];
+  }
+  const prev = Math.max(0, ...others.filter((x) => clipEnd(x) <= c.start + EPS).map(clipEnd));
+  return [Math.max(prev, c.start - c.in / speed), clipEnd(c) - MIN_CLIP];
+}
+
 /**
  * A trim of one clip of a group carried to the others: every member whose same edge was at the
- * same moment moves that edge to the same new place (as far as its own media allows), so a
- * video and its sound, or a template's layers, keep ending together.
+ * same moment moves that edge to the same new place, so a video and its sound, or a template's
+ * layers, keep ending together. Members on locked tracks stay as they are, and the edge goes
+ * only as far as every member can go (no member covers its neighbours or runs out of media).
  */
 export function trimGroup(
   clips: Clip[],
@@ -87,16 +119,32 @@ export function trimGroup(
   trim: (c: Clip, edge: "start" | "end", time: number, asset: Asset | undefined) => Clip,
   assets: ReadonlyMap<string, Asset>,
   frame: number,
+  locked: ReadonlySet<string> = new Set(),
 ): Clip[] {
   if (!before.groupId) return clips.map((c) => (c.id === after.id ? after : c));
   const at = edge === "start" ? before.start : clipEnd(before);
-  const to = edge === "start" ? after.start : clipEnd(after);
+  const members = clips.filter(
+    (c) =>
+      c.id !== before.id &&
+      c.groupId === before.groupId &&
+      !locked.has(c.trackId) &&
+      Math.abs((edge === "start" ? c.start : clipEnd(c)) - at) <= frame / 2 + EPS,
+  );
+  const moving = new Set([before.id, ...members.map((c) => c.id)]);
+  let lo = Number.NEGATIVE_INFINITY;
+  let hi = Number.POSITIVE_INFINITY;
+  for (const c of [before, ...members]) {
+    const [a, b] = edgeRange(c, edge, clips, moving, assets.get(c.assetId));
+    lo = Math.max(lo, a);
+    hi = Math.min(hi, b);
+  }
+  const wanted = edge === "start" ? after.start : clipEnd(after);
+  const to = lo > hi ? at : Math.min(hi, Math.max(lo, wanted));
+  const ids = new Set(members.map((c) => c.id));
   return clips.map((c) => {
-    if (c.id === after.id) return after;
-    if (c.groupId !== before.groupId) return c;
-    const own = edge === "start" ? c.start : clipEnd(c);
-    if (Math.abs(own - at) > frame / 2 + EPS) return c;
-    return trim(c, edge, to, assets.get(c.assetId));
+    if (c.id === before.id)
+      return Math.abs(to - wanted) <= EPS ? after : trim(before, edge, to, assets.get(c.assetId));
+    return ids.has(c.id) ? trim(c, edge, to, assets.get(c.assetId)) : c;
   });
 }
 
@@ -106,15 +154,29 @@ export function trimGroup(
  * silent. Moving or trimming one edge of either alone makes the J and L cuts. Null when the
  * clip has no sound to take out or its track is locked.
  */
+/** Why the sound of a clip cannot be separated, or null when it can. */
+export function detachProblem(
+  p: Pick<Project, "clips" | "tracks" | "assets">,
+  clipId: string,
+): string | null {
+  const c = p.clips.find((x) => x.id === clipId);
+  const asset = c && p.assets.find((a) => a.id === c.assetId);
+  const own = c && p.tracks.find((t) => t.id === c.trackId);
+  if (!c || !asset || !own) return "Selecione um clipe de vídeo para separar o som.";
+  if (own.locked) return "A faixa deste clipe está travada: destrave para separar o som.";
+  if (asset.kind !== "video") return "Só um clipe de vídeo tem som para separar.";
+  if (!asset.hasAudio) return "Este vídeo não tem som.";
+  if (c.volume <= 0 || c.mutedFor)
+    return "Este clipe está mudo: o som já não toca nele, não há o que separar.";
+  return null;
+}
+
 export function detachAudio(
   p: Pick<Project, "clips" | "tracks" | "assets">,
   clipId: string,
 ): { clips: Clip[]; tracks: Track[]; audioId: string } | null {
   const c = p.clips.find((x) => x.id === clipId);
-  const asset = c && p.assets.find((a) => a.id === c.assetId);
-  const own = c && p.tracks.find((t) => t.id === c.trackId);
-  if (!c || !asset || !own || own.locked) return null;
-  if (asset.kind !== "video" || !asset.hasAudio || c.volume <= 0 || c.mutedFor) return null;
+  if (!c || detachProblem(p, clipId)) return null;
   const end = clipEnd(c);
   const free = (t: Track): boolean =>
     !t.locked &&

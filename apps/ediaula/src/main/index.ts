@@ -103,8 +103,8 @@ import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import { cancelOneShot, runOneShot } from "./oneShot.ts";
+import { inspectPackage, packProject, unpackProject } from "./package.ts";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
-import { packProject, unpackProject } from "./package.ts";
 import {
   createProject,
   duplicateProject,
@@ -346,6 +346,14 @@ const queueAccess: QueueAccess = {
  * Only what is older than this run of the app, one folder at a time: a folder that cannot be
  * removed is logged and the rest goes on. Exports wait for it (export:start).
  */
+/** Lessons just taken out of a package this session, until they open (project:open). */
+const freshPackages = new Set<string>();
+
+const megabytes = (bytes: number): string =>
+  bytes >= 1024 ** 3
+    ? `${(bytes / 1024 ** 3).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`
+    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+
 async function cleanExportLeftovers(): Promise<void> {
   const options = {
     before: APP_STARTED,
@@ -955,18 +963,24 @@ function registerIpc(): void {
     for (const plan of project.guided?.plans ?? [])
       if (plan.audio) references.push(plan.audio.path);
     const linked = [...new Set(references)];
+    // A package just opened (and confirmed) points only inside its own folder: no second question.
+    const fresh = freshPackages.delete(path);
+    const own = `${dirname(path).toLowerCase()}\\`;
+    const allInside = linked.every((p) => p.toLowerCase().startsWith(own));
     if (linked.length) {
-      const answer = await dialog.showMessageBox(win!, {
-        type: "question",
-        title: "Arquivos vinculados ao projeto",
-        message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
-        detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
-        buttons: ["Permitir arquivos vinculados", "Cancelar"],
-        defaultId: 1,
-        cancelId: 1,
-      });
-      if (answer.response !== 0)
-        throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+      if (!(fresh && allInside)) {
+        const answer = await dialog.showMessageBox(win!, {
+          type: "question",
+          title: "Arquivos vinculados ao projeto",
+          message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
+          detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
+          buttons: ["Permitir arquivos vinculados", "Cancelar"],
+          defaultId: 1,
+          cancelId: 1,
+        });
+        if (answer.response !== 0)
+          throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+      }
       for (const linkedPath of linked) {
         try {
           await desktopFiles.grantRead(linkedPath);
@@ -1161,10 +1175,31 @@ function registerIpc(): void {
     });
     const zip = r.canceled ? undefined : r.filePaths[0];
     if (!zip) return null;
+    // Every entry is checked before the question, and nothing is written until the answer.
+    const info = await inspectPackage(zip, projectsDir());
+    const question: Electron.MessageBoxOptions = {
+      type: "question",
+      title: "Abrir uma aula empacotada",
+      message: `Extrair ${info.files} ${info.files === 1 ? "arquivo" : "arquivos"} (${megabytes(info.bytes)}) e abrir a aula?`,
+      detail: `A aula fica em ${info.folder}.\n\nAbra somente pacotes de quem você confia.`,
+      buttons: ["Extrair e abrir", "Cancelar"],
+      defaultId: 0,
+      cancelId: 1,
+    };
+    const answer = await (win
+      ? dialog.showMessageBox(win, question)
+      : dialog.showMessageBox(question));
+    if (answer.response !== 0) return null;
     const { folder, project } = await unpackProject(zip, projectsDir());
     const path = join(folder, `${basename(folder)}.${PROJECT_EXT}`);
-    await saveProject(path, project);
-    await desktopFiles.grantRead(path);
+    try {
+      await saveProject(path, project);
+      await desktopFiles.grantRead(path);
+    } catch (error) {
+      await rm(folder, { recursive: true, force: true });
+      throw error;
+    }
+    freshPackages.add(path);
     return path;
   });
   const library = (): string => libraryFile(app.getPath("userData"));

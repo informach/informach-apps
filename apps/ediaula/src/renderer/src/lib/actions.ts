@@ -1,7 +1,14 @@
 import { closeCommonGaps, cutTargets } from "@shared/cleanup";
 import { type ReframeMode, reframeProject } from "@shared/compose";
-import { detachAudio, groupClips, isOneGroup, ungroupClips, withGroups } from "@shared/groups";
-import { magneticSlot } from "@shared/magnetic";
+import {
+  detachAudio,
+  detachProblem,
+  groupClips,
+  isOneGroup,
+  ungroupClips,
+  withGroups,
+} from "@shared/groups";
+import { magneticBlockers, magneticSlot } from "@shared/magnetic";
 import { addMarker, type Marker, stepMarker } from "@shared/markers";
 import { insertClips } from "@shared/ripple";
 import {
@@ -64,8 +71,9 @@ export const actions = {
     const { project, selection, commit } = useProject.getState();
     if (!project || !selection.length) return;
     const locked = lockedTracks(project);
-    // A clip of a group takes the whole group with it.
-    const picked = new Set(withGroups(project.clips, selection));
+    // Only what is selected: a click on a grouped clip already selects the whole group, and
+    // Alt + click picks one clip of it alone.
+    const picked = new Set(selection);
     const ids = new Set(
       project.clips.filter((c) => picked.has(c.id) && !locked.has(c.trackId)).map((c) => c.id),
     );
@@ -117,8 +125,9 @@ export const actions = {
   detachAudio(clipId: string): boolean {
     const { project, commit } = useProject.getState();
     if (!project || waitForDraft("separar o áudio")) return false;
-    if (!detachAudio(project, clipId)) {
-      useApp.getState().toast("Este clipe não tem som para separar.", "info");
+    const problem = detachProblem(project, clipId);
+    if (problem) {
+      useApp.getState().toast(problem, "info");
       return false;
     }
     const done = commit((p) => {
@@ -325,6 +334,17 @@ export const actions = {
     const { project, commit } = useProject.getState();
     const track = project?.tracks.find((t) => t.id === id);
     if (!track || track.locked || waitForDraft("mudar a faixa magnética")) return;
+    // Packing would pull a group apart when a member is on a locked track.
+    const blockers = track.magnetic || !project ? [] : magneticBlockers(project, id);
+    if (blockers.length) {
+      useApp
+        .getState()
+        .toast(
+          `Clipes desta faixa estão agrupados com clipes da faixa travada ${blockers.join(", ")}: destrave para a faixa ficar magnética sem separar o grupo.`,
+          "info",
+        );
+      return;
+    }
     commit((p) => ({
       ...p,
       tracks: p.tracks.map((t) => (t.id === id ? { ...t, magnetic: !t.magnetic } : t)),

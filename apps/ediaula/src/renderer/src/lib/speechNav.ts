@@ -7,7 +7,7 @@ import { useProject } from "@/state/project";
 import { loadProjectTranscripts } from "./transcripts";
 
 /**
- * Moving by speech (Alt+arrows: word by word; Ctrl+Alt+arrows: sentence by sentence and from
+ * Moving by speech (Alt+arrows: word by word; Alt+Shift+arrows: sentence by sentence and from
  * silence to silence), through the magnet's own index (shared/snap.ts): the words, sentences and
  * silences of what is heard, made once per state of the lesson.
  */

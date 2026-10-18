@@ -1,5 +1,5 @@
 import { duckExpr, duckingOf, ducks, speechSpans, spotlightSpans } from "../audio.ts";
-import { gainExpr } from "../gain.ts";
+import { gainExpr, gainSlice } from "../gain.ts";
 import { adjacency, clipEnd, clipSpeed, projectDuration, sourceEnd } from "../timeline.ts";
 import { isCutFx } from "../transitions.ts";
 import type { Asset, Clip, ExportSpec, Project } from "../types.ts";
@@ -262,7 +262,7 @@ export function buildAudioPlan(
       // The volume envelope, on the clip's own seconds (the piece starts `local` into the clip).
       const local = begin / RATE - s.clip.start;
       const envelope = s.clip.gain?.length
-        ? `volume='${gainExpr(s.clip.gain, `(t+${us(local)})`)}':eval=frame,`
+        ? `volume='${gainExpr(gainSlice(s.clip.gain, local, local + count / RATE), `(t+${us(local)})`)}':eval=frame,`
         : "";
       graph.push(
         `[${piece.label}]atrim=start=${us(s.in + skip - piece.seek)}:end=${us(s.out - piece.seek)},asetpts=PTS-STARTPTS,` +

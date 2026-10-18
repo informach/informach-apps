@@ -1131,8 +1131,10 @@ mexe no mouse real.
 - **Grupos** (`src/shared/groups.ts`): **Ctrl+G** agrupa os clipes selecionados e **Ctrl+Shift+G**
   desfaz o grupo (também no botão direito do clipe). Um clique num clipe do grupo seleciona o grupo
   inteiro; **Alt + clique** pega só aquele clipe. Mover, copiar, colar, recortar e excluir valem para o
-  grupo todo, e aparar a borda de um clipe leva junto a mesma borda dos outros clipes do grupo que
-  terminavam (ou começavam) no mesmo ponto (Alt apara só ele). Pedaços de um clipe dividido continuam no
+  que está selecionado: o grupo todo depois de um clique, só o clipe depois de Alt + clique. Aparar a
+  borda de um clipe leva junto a mesma borda dos outros clipes do grupo que terminavam (ou começavam)
+  no mesmo ponto (Alt apara só ele); os clipes do grupo em faixas travadas ficam como estão, e a borda
+  para onde o primeiro deles encontraria um vizinho ou o fim da mídia. Pedaços de um clipe dividido continuam no
   grupo, uma cópia colada vira um grupo novo e um grupo que ficou com um clipe só deixa de existir. As
   camadas de um template entram agrupadas. Clipes agrupados têm a borda de cima verde e o ícone de
   corrente.
@@ -1142,7 +1144,9 @@ mexe no mouse real.
 - **Faixa magnética** (botão direito no nome da faixa): os clipes dela ficam sempre encostados desde
   0:00, na ordem em que estão. Cada alteração passa por `applyMagnetic()` (`src/shared/magnetic.ts`), e
   um clipe arrastado para cima de outro entra antes ou depois dele, sem cobrir nada. Uma faixa travada
-  não se mexe.
+  não se mexe. Quando um clipe da faixa anda, os clipes do grupo dele nas outras faixas andam o mesmo
+  tanto (o som separado de um vídeo continua com ele); se algum deles está numa faixa travada, a faixa
+  não vira magnética e o aviso diz qual faixa destravar.
 - **Marcadores e capítulos** (`src/shared/markers.ts`): **M** marca o ponto do cursor de reprodução,
   **Shift+M** vai ao próximo marcador e **Alt+M** ao anterior. Na régua, um clique leva ao marcador,
   dois cliques renomeiam e o botão direito transforma em começo de capítulo ou remove. Os marcadores
@@ -1152,16 +1156,21 @@ mexe no mouse real.
   marcados entram no MP4 (FFMETADATA) e substituem os de `publish.chapters` quando existem. O ímã
   encaixa nos marcadores. A lista fica em Propriedades com nada selecionado.
 - **Andar pela fala:** **Alt+←/→** vai à palavra anterior ou à próxima (começo e fim de cada uma) e
-  **Ctrl+Alt+←/→** de frase em frase e de silêncio em silêncio, pelo mesmo índice do ímã
-  (`stepTo` e `sentenceStarts` em `src/shared/snap.ts`).
+  **Alt+Shift+←/→** de frase em frase e de silêncio em silêncio (Ctrl+Alt+setas gira a tela em alguns
+  drivers de vídeo), pelo mesmo índice do ímã (`stepTo` e `sentenceStarts` em `src/shared/snap.ts`).
 - **Substituir mídia** (ícone de troca no cartão da biblioteca): outro arquivo entra no lugar e cada
   clipe mantém posição, tamanho, movimento, entradas, transições, remoção de fundo e grupo
   (`src/shared/replaceAsset.ts`). Se a mídia atual tem transcrição, o arquivo novo é transcrito e as
   palavras dos dois são alinhadas (maior sequência comum): cada clipe passa a tocar as mesmas falas no
-  arquivo novo, com o ponto de entrada e a duração ajustados, que é o caso de um HeyGen gerado de novo.
-  Sem transcrição, só um arquivo da mesma duração (até 0,5 s de diferença) entra no lugar. Os zooms, os
-  marcadores da gravação e os trechos protegidos seguem o mesmo alinhamento. Ctrl+Z traz a mídia antiga
-  de volta com os clipes.
+  arquivo novo, com o ponto de entrada e a duração ajustados, que é o caso do vídeo do apresentador gerado de novo.
+  Sem transcrição, só um arquivo da mesma duração (até 0,5 s de diferença) entra no lugar. Quando a fala
+  ficou mais longa ou mais curta, cada clipe cresce ou encolhe como um aparo com Shift: o que vem depois
+  na faixa e nas faixas que os cortes de texto alcançam é empurrado ou puxado, sem sobreposição nem
+  buraco, e as faixas travadas ficam como estão (com um aviso). Os zooms, os marcadores da gravação, os
+  trechos protegidos, os caminhos desenhados do cursor, o fundo da aula, as vozes exportadas para o
+  vídeo do apresentador e as propostas pendentes seguem o mesmo alinhamento; o cursor gravado não
+  acompanha um arquivo com outro tempo e sai, com aviso. Ctrl+Z traz a mídia antiga de volta com os
+  clipes.
 - **Desfoque, pixelado e holofote de região** (painel Zoom › Esconder ou destacar uma região): um clipe
   sem imagem, como a camada de zoom, que vale para tudo o que está nas faixas abaixo dele enquanto dura.
   Com ele selecionado, o retângulo aparece na prévia para mover e redimensionar; força e borda suave
@@ -1169,17 +1178,25 @@ mexe no mouse real.
   exportação recorta só a região (`crop`, `boxblur` ou `scale` em blocos e `overlay`, com a borda
   suave numa máscara feita uma vez); o holofote é uma imagem do quadro inteiro feita uma vez em
   `cache/fx`. Na prévia, o desfoque e o pixelado usam `backdrop-filter` e o holofote uma sombra com a
-  mesma borda suave.
+  mesma borda suave, com o mesmo raio e o mesmo limite da exportação (`regionStrength`), e uma camada
+  de zoom acima da região a aproxima junto com o resto do quadro. **Seguir a gravação** prende o
+  retângulo à gravação embaixo (`src/shared/regionFollow.ts`): quando ela aproxima pelos zooms dela ou
+  por uma camada de zoom entre as duas, a região vai junto, quadro a quadro. A exportação aplica o
+  efeito na própria imagem da gravação, antes dos zooms, e a prévia posiciona a região com
+  `regionRectAt()`, pelas mesmas contas. Uma região parada com zoom embaixo ganha um aviso no painel.
 - **Volume ao longo do clipe** (`src/shared/gain.ts`): pontos em dB ligados por retas. No clipe
   selecionado, dois cliques criam um ponto na posição, o ponto é arrastado para mudar quando e quanto, e
   Alt + clique o remove; **Ponto no cursor** cria um pelo painel. A exportação aplica o mesmo envelope em
-  cada pedaço do som (`volume='…':eval=frame`) e a prévia passa pelo WebAudio, num nó de ganho por
-  elemento, o que também deixa o volume acima de 100% audível na prévia. **Destacar faixa** (botão
+  cada pedaço do som (`volume='…':eval=frame`, uma soma de rampas com só os pontos do trecho do pedaço,
+  então centenas de pontos cabem na expressão) e a prévia passa pelo WebAudio, num nó de ganho por
+  elemento, o que também deixa o volume acima de 100% audível na prévia, com um limitador na saída para
+  não estourar e a imagem do avatar recortado seguindo a voz já descontado o atraso do som. **Destacar faixa** (botão
   direito no nome) abaixa as outras faixas enquanto ela toca, com a mesma profundidade, rampa e pausa
   do abaixamento da música.
 - **Cor, moldura e fundo:** brilho, contraste, saturação e temperatura em Propriedades › Cor (a curva do
-  `eq` aplicada por `lutyuv`, que não perde a transparência, e `colortemperature`; na prévia, um filtro
-  SVG com as mesmas contas). **Moldura de dispositivo** põe o clipe na tela de um notebook ou de um
+  `eq` aplicada por `lutyuv`, que não perde a transparência, e `colortemperature`; na prévia, uma matriz
+  de cor SVG com as mesmas contas: contraste e brilho só na luz, pelos pesos BT.709, como o `eq` faz no
+  YUV). **Moldura de dispositivo** põe o clipe na tela de um notebook ou de um
   celular desenhados pelo próprio app (sem imagem de produto de terceiros, então não há licença a
   conferir), com a forma do clipe preservada; a moldura toma o lugar dos cantos arredondados e da borda.
   **Fundo da aula** (Propriedades com nada selecionado): cor, degradê ou uma imagem da biblioteca no
@@ -1190,7 +1207,8 @@ mexe no mouse real.
   entra no momento em que é dita; as outras entram uma depois da outra. Prévia e exportação desenham cada
   estado com a mesma função (`renderAnnotation`); para exportar, a anotação vira um vídeo transparente
   feito no renderer pelo mesmo caminho do cursor, guardado em cache pelo que mostra
-  (`src/renderer/src/lib/reveal.ts`, `src/shared/reveal.ts`).
+  (`src/renderer/src/lib/reveal.ts`, `src/shared/reveal.ts`). O vídeo cobre só a entrada: quando a
+  anotação está inteira, a exportação volta para a imagem nítida dela, como a prévia.
 - **Biblioteca de todas as aulas** (Mídia › Todas as aulas, em `userData/library.json`): o ícone de
   marcador num cartão guarda a mídia (vinheta, logo, música, cartela) para as próximas aulas, e
   **Favoritar estilo** guarda o visual de uma anotação, da legenda ou do cursor de uma gravação, que
@@ -1202,19 +1220,27 @@ mexe no mouse real.
   vira o primeiro). Os trechos do cache são os mesmos da aula inteira.
 - **Quadro atual em PNG** (Arquivo ou o botão no Exportar): o quadro do cursor de reprodução no tamanho
   da aula, desenhado pelo próprio plano da exportação como um trecho de um quadro (cursor, zooms,
-  efeitos e legenda gravada incluídos), com as cores BT.709 que um player mostra
-  (`src/main/export/framePng.ts`, canal `export:framePng`).
-- **Voz e música separadas (WAV):** no Exportar, dois arquivos numa pasta escolhida na hora (a pasta
-  fica liberada para escrita), a voz e a música já abaixada como na mistura, com o ganho fixo da
-  normalização quando ela é linear. Uma exportação retomada depois de fechar o app faz o vídeo e pede a
-  pasta de novo para os stems.
+  efeitos, legenda gravada e teclas na tela incluídos), com as cores BT.709 que um player mostra. É o
+  mesmo caminho de um quadro do canal `export:frame` (`src/main/export/frame.ts`), com a conversão para
+  PNG por cima, no canal `export:framePng`.
+- **Voz e música separadas (WAV):** no Exportar, dois arquivos numa pasta escolhida na hora,
+  `<vídeo> (voz).wav` e `<vídeo> (música).wav` (canal `dialog:stems`). Só esses dois ficam liberados
+  para escrita, e o app pergunta antes de substituir um que já existe. A voz e a música já abaixada
+  como na mistura, com o ganho fixo da normalização quando ela é linear. Uma exportação retomada depois
+  de fechar o app faz o vídeo e pede a pasta de novo para os stems.
 - **Aula empacotada:** Arquivo › **Empacotar a aula com as mídias…** grava um `.zip` sem compressão
   (`src/main/zip.ts`, ZIP64 quando um tamanho ou a quantidade de arquivos passa do limite clássico, CRC
   calculado com `zlib.crc32` enquanto o arquivo passa) com o projeto, as mídias, os dados do cursor, as
-  transcrições e as execuções guiadas em `media/<id>-<nome>`. Proxies, miniaturas, formas de onda, o
-  avatar recortado e a voz tratada ficam de fora e são refeitos. **Abrir aula empacotada…** (Início ou
-  Arquivo) extrai com o `tar.exe` do Windows numa pasta nova em `Projetos`, confere que nada saiu dela e
-  reescreve os caminhos antes de abrir.
+  transcrições, as execuções guiadas, as vozes exportadas para o vídeo do apresentador e as narrações
+  dos planos guiados em `media/`. Uma voz exportada cujos arquivos sumiram fica de fora, com aviso.
+  Proxies, miniaturas, formas de onda, o avatar recortado e a voz tratada ficam de fora e são refeitos.
+  **Abrir aula empacotada…** (Início ou Arquivo) lê primeiro o índice do pacote e recusa o que um pacote
+  de aula não tem: nome fora de `media/`, atalho, pasta, arquivo comprimido, nome repetido, mais de
+  20 mil arquivos ou mais do que cabe no disco. Depois pergunta se pode extrair (cancelar não grava
+  nada), extrai com o `tar.exe` do Windows numa pasta nova em `Projetos`, confere o que saiu contra o
+  índice e reescreve os caminhos. Os caches que o pacote traz são apagados, as imagens do editor
+  ganham lugar na pasta para serem redesenhadas, qualquer caminho que ainda aponte para fora de
+  `media/` recusa o pacote e a aula aberta ganha um id novo, por ser outra cópia.
 - **Prévia com um par de elementos por mídia** (`src/renderer/src/editor/previewPool.ts` e
   `mediaPool.ts`): cada arquivo de cada faixa toca por dois elementos de mídia, nunca um por pedaço. Os
   pedaços se revezam pela ordem (pares no elemento A, ímpares no B): enquanto um toca, o outro já espera

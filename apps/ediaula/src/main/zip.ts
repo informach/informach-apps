@@ -215,3 +215,164 @@ export async function writeZip(
   }
   await rename(part, out);
 }
+
+/** One entry of an archive's central directory, as readZipDirectory finds it. */
+export interface ZipDirectoryEntry {
+  name: string;
+  /** 0 = stored. */
+  method: number;
+  compressedSize: number;
+  size: number;
+  offset: number;
+  /** The upper byte of "version made by" (3 = Unix) and the external attributes. */
+  system: number;
+  attributes: number;
+  /** The name was not marked UTF-8 (bit 11): it may be in a code page. */
+  utf8: boolean;
+}
+
+/** Reads `length` bytes at `position` of an archive (a file, or bytes in a test). */
+export type ZipReader = (position: number, length: number) => Promise<Buffer>;
+
+const EOCD = 0x06054b50;
+const EOCD64 = 0x06064b50;
+const LOCATOR64 = 0x07064b50;
+const CENTRAL = 0x02014b50;
+/** End record (22) plus the longest comment (65535). */
+const TAIL = 22 + 0xffff;
+
+const u64 = (b: Buffer, at: number): number => {
+  const v = b.readBigUInt64LE(at);
+  if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Pacote com tamanho inválido.");
+  return Number(v);
+};
+
+/**
+ * The central directory of a ZIP of `size` bytes, ZIP64 included, without extracting anything:
+ * opening a package checks every name, size and kind of entry before tar.exe sees it.
+ * `limit` entries at most.
+ */
+export async function readZipDirectory(
+  read: ZipReader,
+  size: number,
+  limit: number,
+): Promise<ZipDirectoryEntry[]> {
+  const bad = (): Error => new Error("Este arquivo não é um ZIP válido.");
+  const tailAt = Math.max(0, size - TAIL);
+  const tail = await read(tailAt, size - tailAt);
+  let end = -1;
+  for (let i = tail.length - 22; i >= 0; i--)
+    if (tail.readUInt32LE(i) === EOCD && i + 22 + tail.readUInt16LE(i + 20) === tail.length) {
+      end = i;
+      break;
+    }
+  if (end < 0) throw bad();
+  let count = tail.readUInt16LE(end + 10);
+  let cdSize = tail.readUInt32LE(end + 12);
+  let cdOffset = tail.readUInt32LE(end + 16);
+  if (count === MAX16 || cdSize === MAX32 || cdOffset === MAX32) {
+    const locatorAt = tailAt + end - 20;
+    if (locatorAt < 0) throw bad();
+    const locator = await read(locatorAt, 20);
+    if (locator.readUInt32LE(0) !== LOCATOR64) throw bad();
+    const recordAt = u64(locator, 8);
+    if (recordAt + 56 > size) throw bad();
+    const record = await read(recordAt, 56);
+    if (record.readUInt32LE(0) !== EOCD64) throw bad();
+    count = u64(record, 32);
+    cdSize = u64(record, 40);
+    cdOffset = u64(record, 48);
+  }
+  if (count > limit) throw new Error(`O pacote tem ${count} arquivos, mais do que uma aula leva.`);
+  if (cdOffset + cdSize > size || cdSize > 64 * 1024 * 1024) throw bad();
+  const cd = await read(cdOffset, cdSize);
+  const out: ZipDirectoryEntry[] = [];
+  let at = 0;
+  for (let i = 0; i < count; i++) {
+    if (at + 46 > cd.length || cd.readUInt32LE(at) !== CENTRAL) throw bad();
+    const nameLength = cd.readUInt16LE(at + 28);
+    const extraLength = cd.readUInt16LE(at + 30);
+    const commentLength = cd.readUInt16LE(at + 32);
+    const next = at + 46 + nameLength + extraLength + commentLength;
+    if (next > cd.length) throw bad();
+    let compressedSize = cd.readUInt32LE(at + 20);
+    let entrySize = cd.readUInt32LE(at + 24);
+    let offset = cd.readUInt32LE(at + 42);
+    // The ZIP64 extra field holds, in this order, only the values whose classic field is full.
+    const extra = cd.subarray(at + 46 + nameLength, at + 46 + nameLength + extraLength);
+    for (let e = 0; e + 4 <= extra.length; ) {
+      const id = extra.readUInt16LE(e);
+      const length = extra.readUInt16LE(e + 2);
+      if (id === 0x0001) {
+        let v = e + 4;
+        const take = (): number => {
+          if (v + 8 > e + 4 + length) throw bad();
+          const value = u64(extra, v);
+          v += 8;
+          return value;
+        };
+        if (entrySize === MAX32) entrySize = take();
+        if (compressedSize === MAX32) compressedSize = take();
+        if (offset === MAX32) offset = take();
+      }
+      e += 4 + length;
+    }
+    const flags = cd.readUInt16LE(at + 8);
+    out.push({
+      name: cd.subarray(at + 46, at + 46 + nameLength).toString("utf8"),
+      method: cd.readUInt16LE(at + 10),
+      compressedSize,
+      size: entrySize,
+      offset,
+      system: cd.readUInt16LE(at + 4) >> 8,
+      attributes: cd.readUInt32LE(at + 38),
+      utf8: (flags & UTF8) !== 0,
+    });
+    at = next;
+  }
+  return out;
+}
+
+/** readZipDirectory of a file on disk. */
+export async function zipDirectory(path: string, limit: number): Promise<ZipDirectoryEntry[]> {
+  const file = await open(path, "r");
+  try {
+    const { size } = await file.stat();
+    return await readZipDirectory(
+      async (position, length) => {
+        const b = Buffer.alloc(length);
+        let off = 0;
+        while (off < length) {
+          const { bytesRead } = await file.read(b, off, length - off, position + off);
+          if (!bytesRead) throw new Error("Este arquivo não é um ZIP válido.");
+          off += bytesRead;
+        }
+        return b;
+      },
+      size,
+      limit,
+    );
+  } finally {
+    await file.close();
+  }
+}
+
+/** The central directory and end records of `entries` placed at `cdOffset` (tests of ZIP64). */
+export function zipTail(
+  entries: { name: string; size: number; offset: number; zip64?: boolean }[],
+  cdOffset: number,
+): Buffer {
+  const headers = entries.map((e) =>
+    centralHeader({
+      name: Buffer.from(e.name, "utf8"),
+      crc: 0,
+      size: e.size,
+      offset: e.offset,
+      time: 0,
+      date: 0,
+      zip64: e.zip64 ?? e.size >= MAX32,
+    }),
+  );
+  const cd = Buffer.concat(headers);
+  return Buffer.concat([cd, endRecords(entries.length, cd.length, cdOffset, false)]);
+}

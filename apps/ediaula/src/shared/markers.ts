@@ -23,12 +23,17 @@ const EPS = 1e-6;
 
 type Lesson = Pick<Project, "clips" | "tracks" | "assets">;
 
+interface Clock {
+  clip: Clip;
+  order: number;
+}
+
 /** Clips that keep a clock of their own media: sound or video, never a picture or an effect. */
-function clockClips(p: Lesson): { clip: Clip; order: number }[] {
+function clockClips(p: Lesson): Clock[] {
   const assets = new Map(p.assets.map((a) => [a.id, a]));
   const order = new Map(p.tracks.map((t, i) => [t.id, i]));
   const music = new Set(p.tracks.filter((t) => t.music).map((t) => t.id));
-  const out: { clip: Clip; order: number }[] = [];
+  const out: Clock[] = [];
   for (const c of p.clips) {
     const a = assets.get(c.assetId);
     if (
@@ -47,10 +52,37 @@ function clockClips(p: Lesson): { clip: Clip; order: number }[] {
   return out;
 }
 
+/**
+ * The clock clips by time, so each marker looks only at the clips near it: buckets of the
+ * timeline (each clip in the ones it spans, in project order) and the clips sorted by end.
+ */
+interface ClockIndex {
+  size: number;
+  buckets: Map<number, Clock[]>;
+  byEnd: Clock[];
+}
+
+function indexClocks(clocks: Clock[]): ClockIndex {
+  const last = clocks.reduce((m, x) => Math.max(m, clipEnd(x.clip)), 0);
+  const size = Math.max(1, last / 4096);
+  const buckets = new Map<number, Clock[]>();
+  for (const x of clocks) {
+    const to = Math.floor(clipEnd(x.clip) / size);
+    for (let b = Math.floor(x.clip.start / size); b <= to; b++) {
+      const list = buckets.get(b);
+      if (list) list.push(x);
+      else buckets.set(b, [x]);
+    }
+  }
+  // Sorted by end, project order among equal ends (Array.prototype.sort is stable).
+  const byEnd = [...clocks].sort((a, b) => clipEnd(a.clip) - clipEnd(b.clip));
+  return { size, buckets, byEnd };
+}
+
 /** The clip a marker at `t` is on: the one on the lowest track (the lesson's own picture or voice). */
-function under(clips: { clip: Clip; order: number }[], t: number): Clip | undefined {
-  let best: { clip: Clip; order: number } | undefined;
-  for (const x of clips)
+function under(index: ClockIndex, t: number): Clip | undefined {
+  let best: Clock | undefined;
+  for (const x of index.buckets.get(Math.floor((t + EPS) / index.size)) ?? [])
     if (x.clip.start <= t + EPS && clipEnd(x.clip) > t + EPS)
       if (
         !best ||
@@ -61,56 +93,151 @@ function under(clips: { clip: Clip; order: number }[], t: number): Clip | undefi
   return best?.clip;
 }
 
+/** The clip that ends last at or before `t` (the first of them in project order). */
+function endingBefore(index: ClockIndex, t: number): Clip | undefined {
+  const list = index.byEnd;
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (clipEnd(list[mid].clip) <= t + EPS) lo = mid + 1;
+    else hi = mid;
+  }
+  if (!lo) return undefined;
+  let i = lo - 1;
+  const end = clipEnd(list[i].clip);
+  while (i > 0 && clipEnd(list[i - 1].clip) === end) i--;
+  return list[i].clip;
+}
+
+/**
+ * Clips of one media (on one track, or on any) after the edit, ready for placeOf: by source
+ * time in buckets, sorted by in-point, and the ones that reach furthest into the media.
+ */
+interface Pool {
+  clips: Clip[];
+  size: number;
+  buckets: Map<number, Clip[]>;
+  byIn: Clip[];
+  furthest: Clip[];
+}
+
+function makePool(clips: Clip[]): Pool {
+  const reach = clips.reduce((m, c) => Math.max(m, sourceEnd(c)), 0);
+  const size = Math.max(1, reach / 4096);
+  const buckets = new Map<number, Clip[]>();
+  for (const c of clips) {
+    const to = Math.floor(sourceEnd(c) / size);
+    for (let k = Math.floor(c.in / size); k <= to; k++) {
+      const list = buckets.get(k);
+      if (list) list.push(c);
+      else buckets.set(k, [c]);
+    }
+  }
+  return {
+    clips,
+    size,
+    buckets,
+    byIn: [...clips].sort((x, y) => x.in - y.in),
+    furthest: clips.filter((c) => Math.abs(sourceEnd(c) - reach) <= EPS),
+  };
+}
+
+/** The clips after the edit, grouped by media and by media and track, made as needed. */
+class Pools {
+  private readonly byAsset = new Map<string, Clip[]>();
+  private readonly made = new Map<string, Pool | null>();
+  constructor(clips: readonly Clip[]) {
+    for (const c of clips) {
+      const list = this.byAsset.get(c.assetId);
+      if (list) list.push(c);
+      else this.byAsset.set(c.assetId, [c]);
+    }
+  }
+  /** The media's clips on `trackId`, or on every track when it has none there. */
+  get(assetId: string, trackId: string): Pool | null {
+    const key = `${assetId}\u0000${trackId}`;
+    const known = this.made.get(key);
+    if (known !== undefined) return known;
+    const same = this.byAsset.get(assetId) ?? [];
+    const own = same.filter((c) => c.trackId === trackId);
+    const pool = same.length ? makePool(own.length ? own : same) : null;
+    this.made.set(key, pool);
+    return pool;
+  }
+}
+
 /**
  * Where source second `s` of `assetId` is on the timeline after an edit, near `hint`: on a clip
  * of the same media (the same track first) that still shows it; when it was cut away, where
  * what came after it starts now (or where what came before it ends).
  */
 function placeOf(
-  after: Clip[],
+  pools: Pools,
   assetId: string,
   trackId: string,
   s: number,
   hint: number,
 ): number | null {
-  const same = after.filter((c) => c.assetId === assetId);
-  if (!same.length) return null;
-  const own = same.filter((c) => c.trackId === trackId);
-  const pool = own.length ? own : same;
-  const showing = pool.filter((c) => c.in <= s + EPS && sourceEnd(c) > s + EPS);
+  const pool = pools.get(assetId, trackId);
+  if (!pool) return null;
+  const showing = (pool.buckets.get(Math.floor((s + EPS) / pool.size)) ?? []).filter(
+    (c) => c.in <= s + EPS && sourceEnd(c) > s + EPS,
+  );
   if (showing.length)
     return nearest(
       showing.map((c) => timelineAt(c, s)),
       hint,
     );
-  const later = pool.filter((c) => c.in >= s - EPS);
-  if (later.length) {
-    const first = Math.min(...later.map((c) => c.in));
-    return nearest(
-      later.filter((c) => Math.abs(c.in - first) <= EPS).map((c) => c.start),
-      hint,
-    );
+  // The first in-point at or after s, and every clip that starts its media there.
+  const list = pool.byIn;
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].in < s - EPS) lo = mid + 1;
+    else hi = mid;
   }
-  const last = Math.max(...pool.map(sourceEnd));
-  return nearest(pool.filter((c) => Math.abs(sourceEnd(c) - last) <= EPS).map(clipEnd), hint);
+  if (lo < list.length) {
+    const first = list[lo].in;
+    const starts: number[] = [];
+    for (let i = lo; i < list.length && Math.abs(list[i].in - first) <= EPS; i++)
+      starts.push(list[i].start);
+    return nearest(starts, hint);
+  }
+  return nearest(pool.furthest.map(clipEnd), hint);
 }
 
 const nearest = (values: number[], hint: number): number =>
   values.reduce((best, v) => (Math.abs(v - hint) < Math.abs(best - hint) ? v : best), values[0]);
 
-/** One marker moved along with the lesson from `before` to `after`. */
-function follow(m: Marker, before: { clip: Clip; order: number }[], after: Clip[]): number {
-  const on = under(before, m.t);
+/** What follow() needs of the lesson after the edit: its clips by id and by media. */
+interface After {
+  byId: ReadonlyMap<string, Clip>;
+  pools: Pools;
+}
+
+/**
+ * One marker moved along with the lesson from `before` to `after`. A marker on a clip the edit
+ * left as it was (the same object) stays where it is, without looking further.
+ */
+function follow(m: Marker, index: ClockIndex, after: After): number {
+  const on = under(index, m.t);
   if (on) {
-    const t = placeOf(after, on.assetId, on.trackId, sourceAt(on, m.t), m.t);
+    if (after.byId.get(on.id) === on) return m.t;
+    const t = placeOf(after.pools, on.assetId, on.trackId, sourceAt(on, m.t), m.t);
     return t === null ? m.t : t;
   }
   // Between clips: it keeps its distance from the end of the clip before it.
-  let prev: Clip | undefined;
-  for (const { clip } of before)
-    if (clipEnd(clip) <= m.t + EPS && (!prev || clipEnd(clip) > clipEnd(prev))) prev = clip;
-  if (!prev) return m.t;
-  const end = placeOf(after, prev.assetId, prev.trackId, sourceEnd(prev) - EPS, clipEnd(prev));
+  const prev = endingBefore(index, m.t);
+  if (!prev || after.byId.get(prev.id) === prev) return m.t;
+  const end = placeOf(
+    after.pools,
+    prev.assetId,
+    prev.trackId,
+    sourceEnd(prev) - EPS,
+    clipEnd(prev),
+  );
   return end === null ? m.t : end + (m.t - clipEnd(prev));
 }
 
@@ -120,10 +247,14 @@ function follow(m: Marker, before: { clip: Clip; order: number }[], after: Clip[
  */
 export function followMarkers(before: Lesson, after: Lesson, markers: readonly Marker[]): Marker[] {
   if (!markers.length || before.clips === after.clips) return markers as Marker[];
-  const clocks = clockClips(before);
+  const index = indexClocks(clockClips(before));
+  const lesson: After = {
+    byId: new Map(after.clips.map((c) => [c.id, c])),
+    pools: new Pools(after.clips),
+  };
   let changed = false;
   const out = markers.map((m) => {
-    const t = Math.max(0, follow(m, clocks, after.clips));
+    const t = Math.max(0, follow(m, index, lesson));
     if (Math.abs(t - m.t) <= EPS) return m;
     changed = true;
     return { ...m, t };

@@ -1546,6 +1546,18 @@ try {
       "Desfoque de região na prévia, com o retângulo para mover",
     );
     await capture(side, "desfoque-regiao-propriedades", "Propriedades do efeito de região");
+    // Seguir a gravação: the rectangle sticks to the recording under it and its zooms.
+    const follow = side.getByRole("switch", { name: "Seguir a gravação" });
+    await follow.click();
+    await side.getByRole("switch", { name: "Seguir a gravação", checked: true }).waitFor();
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "desfoque-seguindo",
+      "Desfoque que segue a gravação embaixo dele",
+    );
+    await follow.click();
+    await side.getByRole("switch", { name: "Seguir a gravação", checked: false }).waitFor();
     await side.getByRole("button", { name: "Holofote", exact: true }).click();
     await settle(editor);
     await capture(

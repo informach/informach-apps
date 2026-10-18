@@ -3,6 +3,7 @@ import {
   type RevealState,
   revealAt,
   revealDone,
+  revealEnd,
   revealHash,
   revealKey,
   revealKind,
@@ -105,10 +106,14 @@ export async function ensureRevealSprites(
     const times = await clipRevealTimes(project, clip);
     const w = Math.max(2, Math.round(asset.width / 2) * 2);
     const h = Math.max(2, Math.round(asset.height / 2) * 2);
-    const id = `rv_${revealHash(JSON.stringify({ a, times, fps, d: clip.duration, w, h }))}`;
+    // Only the frames while it comes in: then the export shows the sharp picture.
+    const until = revealEnd(a, times, clip.duration);
+    const length = Math.min(clip.duration, until + 2 / fps);
+    const id = `rv_${revealHash(JSON.stringify({ a, times, fps, d: length, w, h }))}`;
     let sprite = await window.api.cursorSprite.cached(asset.path, id);
-    if (!sprite) sprite = await renderSprite(project, clip, times, asset.path, id, w, h, signal);
-    out[clip.id] = { sprite, fps, width: asset.width, height: asset.height };
+    if (!sprite)
+      sprite = await renderSprite(project, clip, times, length, asset.path, id, w, h, signal);
+    out[clip.id] = { sprite, fps, width: asset.width, height: asset.height, until };
   }
   return out;
 }
@@ -117,6 +122,7 @@ async function renderSprite(
   project: Project,
   clip: Clip,
   times: number[],
+  length: number,
   path: string,
   id: string,
   w: number,
@@ -134,7 +140,7 @@ async function renderSprite(
     const canvas = new OffscreenCanvas(w, h);
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("Canvas indisponível");
-    const frames = Math.max(1, Math.round(clip.duration * fps));
+    const frames = Math.max(1, Math.round(length * fps));
     const size = w * h * 4;
     let batch = new Uint8Array(BATCH * size);
     let counts: number[] = [];

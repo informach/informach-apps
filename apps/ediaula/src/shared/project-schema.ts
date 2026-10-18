@@ -389,6 +389,7 @@ const clip = z.looseObject({
       rect,
       feather: z.number().min(0).max(400),
       strength: z.number().min(0).max(1),
+      follow: z.boolean().optional(),
     })
     .optional(),
   gain: z
@@ -701,6 +702,7 @@ export const exportSpecSchema = z
           fps: z.number().positive().max(240),
           width: z.int().positive().max(16384),
           height: z.int().positive().max(16384),
+          until: z.number().min(0).max(86400).optional(),
         }),
       )
       .optional(),

@@ -13,8 +13,8 @@ import { fallbackEncoders, isEncoderFailure } from "../../shared/export/encoding
 import { exportProject, frameRate, frameTime, trackTimescale } from "../../shared/export/frames.ts";
 import { planSegments } from "../../shared/export/segments.ts";
 import type { MediaFacts, VideoPlan } from "../../shared/export/videoPlan.ts";
-import { buildPlatformPackage } from "../../shared/platformPackage.ts";
 import { chaptersOf } from "../../shared/markers.ts";
+import { buildPlatformPackage } from "../../shared/platformPackage.ts";
 import { withRevealSprites } from "../../shared/reveal.ts";
 import { projectDuration } from "../../shared/timeline.ts";
 import type { Encoder, ExportSpec, JobProgress, Project } from "../../shared/types.ts";

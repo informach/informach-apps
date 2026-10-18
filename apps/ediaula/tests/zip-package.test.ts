@@ -138,9 +138,13 @@ test("a lesson packed with its media opens on another folder with its paths ther
   assert.equal(a.proxyStatus, "none");
   // The packed project itself does not stay in the folder: the lesson is saved there by the app.
   assert.equal(existsSync(join(folder, PACKAGE_PROJECT)), false);
-  // The editor's own picture keeps its path (it is drawn again when missing).
-  assert.equal(opened.assets.find((x) => x.id === "n1")?.path, join(dir, "cache", "nota.png"));
-  // Opening again goes to a folder of its own.
+  // The editor's own picture gets a place in the folder, empty: it is drawn again there.
+  const drawn = opened.assets.find((x) => x.id === "n1")?.path ?? "";
+  assert.equal(drawn, join(folder, "media", "n1-desenho.png"));
+  assert.equal(existsSync(drawn), false);
+  // Opening again goes to a folder of its own, as another copy of the lesson.
   const second = await unpackProject(out, join(dir, "Projetos"));
   assert.notEqual(second.folder, folder);
+  assert.notEqual(opened.id, "p");
+  assert.notEqual(second.project.id, opened.id);
 });

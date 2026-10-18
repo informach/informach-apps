@@ -15,8 +15,7 @@ import { gainAt } from "@shared/gain";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
 import {
   backgroundCss,
-  blockSize,
-  blurRadius,
+  boxBlurSigma,
   colorSvg,
   DEVICE_COLORS,
   deviceGeometry,
@@ -25,6 +24,7 @@ import {
   spotlightDarkness,
 } from "@shared/look";
 import { driftCorrection } from "@shared/playbackSync";
+import { regionRectAt, regionStrength } from "@shared/regionFollow";
 import { clipEnd, clipSpeed, projectDuration, sourceAt, sourceEnd } from "@shared/timeline";
 import {
   type DerivedClip,
@@ -41,6 +41,7 @@ import {
   withTransitions,
 } from "@shared/transitions";
 import type { Asset, Clip, Project } from "@shared/types";
+import { clipCues } from "@shared/webvtt";
 import { zoomAt, zoomsIn } from "@shared/zoom";
 import { zoomAffine, zoomsOver } from "@shared/zoomLayer";
 import {
@@ -78,7 +79,7 @@ import { liveTransform, useLiveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
 import { assetMap, useProject, useShownProject } from "@/state/project";
 import { BalloonTailControl } from "./BalloonTailControl";
-import { CaptionOverlay, KeyOverlay } from "./CaptionOverlay";
+import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
 import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
 import { MediaPool } from "./mediaPool";
@@ -183,9 +184,27 @@ function glitchMask(e: number, slot: number): string {
   return url;
 }
 
+/** Bumped whenever the captions change, so each element's track is made again. */
+let captionsVersion = 0;
+
 export function Preview(): ReactNode {
   // A draft waiting for review is what the preview shows.
   const raw = useShownProject();
+  // The words heard, for the captions track of each media element (clipCues, source seconds).
+  const captionCues = useCues(raw);
+  const textCues = useMemo(
+    () =>
+      captionCues.map((cue) => ({
+        start: cue.start,
+        end: cue.end,
+        text: cue.lines.map((line) => line.map((word) => word.text).join(" ")).join("\n"),
+      })),
+    [captionCues],
+  );
+  const cuesVersion = useMemo(() => {
+    captionsVersion += 1;
+    return `${captionsVersion}:${textCues.length}`;
+  }, [textCues]);
   // Drawn through the same transition model as the export (dissolve tails, fades).
   const project = useMemo(() => (raw ? withTransitions(raw) : null), [raw]);
   const selection = useProject((s) => s.selection);
@@ -477,12 +496,49 @@ export function Preview(): ReactNode {
           layer.style.transform = `translate(${X}px, ${Y}px) scale(${A.s * m.scale})${spin(rotationOf(liveTransform(c, live)))}`;
         }
       }
-      // Region effects show while their clip lasts.
+      // Region effects show while their clip lasts; zoom layers above them magnify them with
+      // the rest of the picture, and a region that follows the recording goes with its zooms.
       for (const [id, el] of regions.current) {
         const c = clips.get(id);
         const track = c && tracks.get(c.trackId);
-        el.style.visibility =
-          c && track && !track.hidden && t >= c.start && t < clipEnd(c) ? "visible" : "hidden";
+        const fx = c?.regionFx;
+        const stage = stageRef.current;
+        let on = !!c && !!track && !track.hidden && t >= c.start && t < clipEnd(c);
+        if (c && fx && stage && on) {
+          const k = stage.clientWidth / project.settings.width;
+          if (fx.follow) {
+            const f = regionRectAt(project, c, t);
+            if (f)
+              applyRegionLook(el, fx, {
+                box: {
+                  left: f.rect.x * k,
+                  top: f.rect.y * k,
+                  width: f.rect.w * k,
+                  height: f.rect.h * k,
+                },
+                radius: f.radius * f.scale * k,
+                block: f.block * f.scale * k,
+                feather: f.feather * f.scale * k,
+              });
+            else on = false;
+          }
+          const views = zoomsOver(project, order.get(c.trackId) ?? 0, t, editingZoom ?? undefined);
+          if (views.length) {
+            const A = zoomAffine(views, stage.clientWidth, stage.clientHeight);
+            const target =
+              fx.kind === "spotlight" && el.firstElementChild instanceof HTMLElement
+                ? el.firstElementChild
+                : el;
+            const L = target.offsetLeft;
+            const T = target.offsetTop;
+            el.style.transformOrigin = "0 0";
+            el.style.transform =
+              target === el
+                ? `translate(${(A.s - 1) * L + A.tx}px, ${(A.s - 1) * T + A.ty}px) scale(${A.s})`
+                : `translate(${A.tx}px, ${A.ty}px) scale(${A.s})`;
+          } else el.style.transform = "";
+        }
+        el.style.visibility = on ? "visible" : "hidden";
       }
       // Annotations that come in: the picture of the state at this moment.
       for (const [id, img] of images.current) {
@@ -525,6 +581,13 @@ export function Preview(): ReactNode {
           used.add(el);
           if (info.role === "p") pool.host(el, hosts.current.get(c.id));
           served.current.set(info.role === "v" ? c.id + VOICE : c.id, el);
+          // The piece's words as the element's captions (the voice's for a cut-out avatar).
+          if (info.role !== "p" || !needsVoice(asset, original))
+            pool.captions(
+              el,
+              `${c.id}:${c.in}:${c.duration}:${cuesVersion}`,
+              clipCues(textCues, c),
+            );
           const tail = (c as DerivedClip).tail;
           // A dissolve tail is picture only: the sound stops at the real cut. A cut-out
           // avatar's picture is silent; its voice element plays the sound instead.
@@ -554,7 +617,12 @@ export function Preview(): ReactNode {
             const target = pictureTarget(
               slotPlan.time,
               voice
-                ? { time: voice.currentTime, playing: !voice.paused, seeking: voice.seeking }
+                ? {
+                    // Where the voice is heard now: its position less the sound's buffering.
+                    time: voice.currentTime - pool.latency() * clipSpeed(c),
+                    playing: !voice.paused,
+                    seeking: voice.seeking,
+                  }
                 : null,
             );
             if (el.paused) {
@@ -597,7 +665,7 @@ export function Preview(): ReactNode {
       unsubSolo();
       if (pool) pool.onSeeked = null;
     };
-  }, [project, mountKey, editingZoom, original, lanes, revealTimes]);
+  }, [project, mountKey, editingZoom, original, lanes, revealTimes, textCues, cuesVersion]);
 
   // The pool of media elements lives as long as the preview; leaving the editor stops it all.
   useLayoutEffect(() => {
@@ -947,7 +1015,8 @@ export function Preview(): ReactNode {
             if (c.regionFx)
               return (
                 <RegionLayer
-                  key={c.id}
+                  // Remade when it starts or stops following: the loop places a following one.
+                  key={`${c.id}:${c.regionFx.follow ? "follow" : "still"}`}
                   fx={c.regionFx}
                   width={size.w}
                   height={size.h}
@@ -1299,12 +1368,10 @@ function ColorFilters({ clips }: { clips: Clip[] }): ReactNode {
           const f = colorSvg(c.color ?? {});
           return (
             <filter key={c.id} id={`cf-${c.id}`} colorInterpolationFilters="sRGB">
-              <feColorMatrix type="saturate" values={String(f.saturate)} />
-              <feComponentTransfer>
-                <feFuncR type="linear" slope={f.slope} intercept={f.intercept} />
-                <feFuncG type="linear" slope={f.slope} intercept={f.intercept} />
-                <feFuncB type="linear" slope={f.slope} intercept={f.intercept} />
-              </feComponentTransfer>
+              <feColorMatrix
+                type="matrix"
+                values={f.matrix.map((v) => Number(v.toFixed(5))).join(" ")}
+              />
               <feColorMatrix
                 type="matrix"
                 values={`${f.rgb[0]} 0 0 0 0 0 ${f.rgb[1]} 0 0 0 0 0 ${f.rgb[2]} 0 0 0 0 0 1 0`}
@@ -1380,10 +1447,70 @@ function DeviceFrame({
   );
 }
 
+/** A region's look on the stage, in stage pixels: the export's radius, block and soft edge. */
+interface RegionLook {
+  box: { left: number; top: number; width: number; height: number };
+  /** boxblur radius and pixel block, already clamped as the export clamps them. */
+  radius: number;
+  block: number;
+  feather: number;
+}
+
+/** The look of a region that stays on the frame, for a stage `width` × `height`. */
+function fixedLook(fx: RegionFx, width: number, height: number): RegionLook {
+  const box = {
+    left: fx.rect.x * width,
+    top: fx.rect.y * height,
+    width: fx.rect.w * width,
+    height: fx.rect.h * height,
+  };
+  const { radius, block } = regionStrength(fx, height, { w: box.width, h: box.height });
+  return { box, radius, block, feather: (fx.feather * height) / 1080 };
+}
+
+/** Backdrop filter and soft-edge mask of a blur or pixelate region. */
+function regionCss(fx: RegionFx, look: RegionLook): { filter: string; mask: string } {
+  // Soft edges: the effect fades out over the feather, as the export's mask.
+  const fade = look.feather > 0.5 ? look.feather : 0;
+  const mask = fade
+    ? `linear-gradient(to right, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent), linear-gradient(to bottom, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent)`
+    : "";
+  const filter =
+    fx.kind === "blur"
+      ? `blur(${boxBlurSigma(look.radius).toFixed(2)}px)`
+      : `url(#${pixelFilter(Math.round(look.block))})`;
+  return { filter, mask };
+}
+
+/** Places a region's element (or the clear box of a spotlight) for this frame. */
+function applyRegionLook(el: HTMLDivElement, fx: RegionFx, look: RegionLook): void {
+  const px = (v: number): string => `${v.toFixed(2)}px`;
+  const place = (target: HTMLElement): void => {
+    target.style.left = px(look.box.left);
+    target.style.top = px(look.box.top);
+    target.style.width = px(look.box.width);
+    target.style.height = px(look.box.height);
+  };
+  if (fx.kind === "spotlight") {
+    const box = el.firstElementChild;
+    if (!(box instanceof HTMLElement)) return;
+    place(box);
+    box.style.borderRadius = px(Math.min(look.box.width, look.box.height) * 0.12);
+    box.style.boxShadow = `0 0 ${px(look.feather * 2)} 9999px rgba(0, 0, 0, ${spotlightDarkness(fx)})`;
+    return;
+  }
+  place(el);
+  const css = regionCss(fx, look);
+  el.style.backdropFilter = css.filter;
+  el.style.maskImage = css.mask;
+  el.style.maskComposite = css.mask ? "intersect" : "";
+}
+
 /**
  * A region effect over the preview (shared/look.ts): blur and pixelate through a backdrop
  * filter of the layers below it, the spotlight as a dark frame around a clear box with a soft
- * edge. It sits in the stack where its track is, like a zoom layer.
+ * edge. It sits in the stack where its track is, like a zoom layer. A region that follows the
+ * recording is placed on every frame by the playback loop (applyRegionLook).
  */
 function RegionLayer({
   fx,
@@ -1398,16 +1525,8 @@ function RegionLayer({
   zIndex: number;
   elRef: (el: HTMLDivElement | null) => void;
 }): ReactNode {
-  const k = height / 1080;
-  const box = {
-    left: fx.rect.x * width,
-    top: fx.rect.y * height,
-    width: fx.rect.w * width,
-    height: fx.rect.h * height,
-  };
-  const feather = fx.feather * k;
-  if (fx.kind === "spotlight") {
-    const radius = Math.min(box.width, box.height) * 0.12;
+  const look = fixedLook(fx, width, height);
+  if (fx.kind === "spotlight")
     return (
       <div
         ref={elRef}
@@ -1416,53 +1535,64 @@ function RegionLayer({
       >
         <span
           style={{
-            ...box,
-            borderRadius: radius,
-            boxShadow: `0 0 ${feather * 2}px 9999px rgba(0, 0, 0, ${spotlightDarkness(fx)})`,
+            ...look.box,
+            borderRadius: Math.min(look.box.width, look.box.height) * 0.12,
+            boxShadow: `0 0 ${look.feather * 2}px 9999px rgba(0, 0, 0, ${spotlightDarkness(fx)})`,
           }}
         />
       </div>
     );
-  }
-  // Soft edges: the effect fades out over the feather, as the export's mask.
-  const fade = feather > 0.5 ? feather : 0;
-  const mask = fade
-    ? `linear-gradient(to right, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent), linear-gradient(to bottom, transparent, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent)`
-    : undefined;
-  const filter =
-    fx.kind === "blur"
-      ? `blur(${(blurRadius(fx, height) * 0.8).toFixed(1)}px)`
-      : `url(#px-${Math.round(blockSize(fx, height))})`;
+  const css = regionCss(fx, look);
   return (
     <div
       ref={elRef}
       className={`stage-region is-${fx.kind}`}
       style={{
-        ...box,
+        ...look.box,
         zIndex,
         visibility: "hidden",
-        backdropFilter: filter,
-        maskImage: mask,
-        maskComposite: mask ? "intersect" : undefined,
+        backdropFilter: css.filter,
+        maskImage: css.mask || undefined,
+        maskComposite: css.mask ? "intersect" : undefined,
       }}
-    >
-      {fx.kind === "pixelate" && <PixelateFilter size={Math.round(blockSize(fx, height))} />}
-    </div>
+    />
   );
 }
 
-/** The classic SVG pixelation: one sample per block, grown back to the block's size. */
-function PixelateFilter({ size }: { size: number }): ReactNode {
-  const s = Math.max(2, size);
-  return (
-    <svg className="stage-defs" width="0" height="0" aria-hidden="true">
-      <filter id={`px-${s}`} x="0" y="0" width="100%" height="100%">
-        <feFlood x={s / 2} y={s / 2} height="1" width="1" />
-        <feComposite width={s} height={s} />
-        <feTile result="grid" />
-        <feComposite in="SourceGraphic" in2="grid" operator="in" />
-        <feMorphology operator="dilate" radius={s / 2} />
-      </filter>
-    </svg>
+/**
+ * The classic SVG pixelation (one sample per block, grown back to the block's size) for a
+ * block of `size` pixels: made once per size in a hidden SVG of the page, so a region that
+ * follows a zoom gets a new size on any frame. Returns the filter's id.
+ */
+function pixelFilter(size: number): string {
+  const s = Math.max(2, Math.round(size));
+  const id = `px-${s}`;
+  if (document.getElementById(id)) return id;
+  const NS = "http://www.w3.org/2000/svg";
+  let defs: Element | null = document.getElementById("stage-pixel-filters");
+  if (!defs) {
+    const svg = document.createElementNS(NS, "svg");
+    svg.id = "stage-pixel-filters";
+    svg.setAttribute("class", "stage-defs");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.setAttribute("aria-hidden", "true");
+    document.body.append(svg);
+    defs = svg;
+  }
+  const node = (name: string, attrs: Record<string, string | number>): Element => {
+    const n = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+    return n;
+  };
+  const filter = node("filter", { id, x: 0, y: 0, width: "100%", height: "100%" });
+  filter.append(
+    node("feFlood", { x: s / 2, y: s / 2, height: 1, width: 1 }),
+    node("feComposite", { width: s, height: s }),
+    node("feTile", { result: "grid" }),
+    node("feComposite", { in: "SourceGraphic", in2: "grid", operator: "in" }),
+    node("feMorphology", { operator: "dilate", radius: s / 2 }),
   );
+  defs.append(filter);
+  return id;
 }

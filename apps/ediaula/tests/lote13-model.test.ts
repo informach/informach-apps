@@ -8,7 +8,13 @@ import {
   spotlightAlpha,
 } from "../src/shared/look.ts";
 import { alignWords, lengthMismatch, replaceAsset, timeMap } from "../src/shared/replaceAsset.ts";
-import { revealAt, revealTimes, revealWords, withRevealSprites } from "../src/shared/reveal.ts";
+import {
+  revealAt,
+  revealEnd,
+  revealTimes,
+  revealWords,
+  withRevealSprites,
+} from "../src/shared/reveal.ts";
 import { buildSnapIndex, sentenceStarts, stepTo } from "../src/shared/snap.ts";
 import type { Asset, Clip, Project, Word } from "../src/shared/types.ts";
 
@@ -94,6 +100,26 @@ test("the export reads an animated annotation from its sprite", () => {
   assert.equal(played?.alpha, true);
   assert.equal(out.clips[0].in, 0);
   assert.equal(withRevealSprites(p, undefined), p);
+  // Once it is all there (the last word at 0.28 s), the sharp picture shows, as in the preview.
+  const twoWords = {
+    kind: "balloon" as const,
+    color: "#3D6BFF",
+    text: "Oi turma",
+    reveal: "words" as const,
+  };
+  assert.equal(revealEnd(twoWords, [0, 0.28], 4), 0.28);
+  const split = withRevealSprites(
+    { ...p, clips: [{ ...clip, fadeOut: 0.5, annotation: twoWords }] },
+    { c: { sprite: "C:/cache/rv.webm", fps: 30, width: 400, height: 200, until: 0.28 } },
+  );
+  assert.equal(split.clips.length, 2);
+  const [coming, whole] = split.clips;
+  assert.equal(coming.id, "c");
+  assert.ok(Math.abs(coming.duration - (0.28 + 1 / 30)) < 1e-9);
+  assert.equal(whole.assetId, "n");
+  assert.equal(whole.fadeOut, 0.5);
+  assert.equal(coming.fadeOut, undefined);
+  assert.ok(Math.abs(whole.start + whole.duration - 7) < 1e-9);
 });
 
 test("device frames keep the picture's shape; the frame and the region math", () => {

@@ -1,4 +1,5 @@
 import type { Annotation } from "./annotation.ts";
+import { piece } from "./pieces.ts";
 import type { Asset, Clip, Project, RevealSprite } from "./types.ts";
 
 /**
@@ -103,6 +104,26 @@ export function revealAt(
   return null;
 }
 
+/**
+ * Seconds into the clip when the annotation is all there (the stroke drawn, the last word in),
+ * or the clip's length when it never is.
+ */
+export function revealEnd(
+  a: Pick<Annotation, "kind" | "reveal" | "text" | "subtitle">,
+  times: readonly number[],
+  duration: number,
+): number {
+  if (a.reveal === "draw" && revealKind(a) === "draw")
+    return Math.min(duration, DRAW_SECONDS, Math.max(0.1, duration / 2));
+  if (a.reveal === "words" && revealKind(a) === "words") {
+    const count = revealWords(a).length;
+    if (!count) return 0;
+    if (times.length < count) return duration;
+    return Math.min(duration, Math.max(...times.slice(0, count)));
+  }
+  return 0;
+}
+
 /** A stable key of a state, for caching its picture. */
 export const revealKey = (s: RevealState): string =>
   s.draw !== undefined ? `d${s.draw}` : `w${s.words ?? 0}`;
@@ -124,8 +145,8 @@ export function revealHash(text: string): string {
 
 /**
  * The project as the export draws it with the animated annotations: each clip with a sprite
- * plays it as a transparent video (a media of its own, from its first frame) instead of the
- * still picture.
+ * plays it as a transparent video (a media of its own, from its first frame) while it comes in,
+ * and its own sharp picture from the moment it is all there (`until`), as the preview shows it.
  */
 export function withRevealSprites<T extends Pick<Project, "assets" | "clips">>(
   p: T,
@@ -134,11 +155,14 @@ export function withRevealSprites<T extends Pick<Project, "assets" | "clips">>(
   if (!reveals || !Object.keys(reveals).length) return p;
   const assets = new Map(p.assets.map((a) => [a.id, a]));
   const added: Asset[] = [];
-  const clips = p.clips.map((c) => {
+  const clips = p.clips.map((c): Clip[] => {
     const sprite = reveals[c.id];
     const asset = assets.get(c.assetId);
-    if (!sprite || !asset || !c.annotation) return c;
+    if (!sprite || !asset || !c.annotation) return [c];
     const id = `${asset.id}~reveal~${c.id}`;
+    // One frame of margin, so the picture takes over on a frame the sprite has drawn whole.
+    const until =
+      sprite.until === undefined ? c.duration : sprite.until + 1 / Math.max(1, sprite.fps);
     added.push({
       ...asset,
       id,
@@ -153,7 +177,12 @@ export function withRevealSprites<T extends Pick<Project, "assets" | "clips">>(
       alpha: true,
       proxyStatus: "none",
     });
-    return { ...c, assetId: id, in: 0 };
+    if (until >= c.duration - 1e-6) return [{ ...c, assetId: id, in: 0 }];
+    const at = c.start + until;
+    return [
+      { ...piece(c, c.start, at, { tail: false }), assetId: id, in: 0 },
+      { ...piece(c, at, c.start + c.duration, { head: false }), id: `${c.id}~whole` },
+    ];
   });
-  return added.length ? { ...p, assets: [...p.assets, ...added], clips } : p;
+  return added.length ? { ...p, assets: [...p.assets, ...added], clips: clips.flat() } : p;
 }

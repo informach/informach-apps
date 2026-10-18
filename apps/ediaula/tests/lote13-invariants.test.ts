@@ -144,7 +144,40 @@ function lesson(): Project {
   };
 }
 
+/**
+ * Groups whose members on every track start at the same moments (a video and the sound taken
+ * out of it): they must keep doing so through every edit. Filled as the groups are made.
+ */
+const aligned = new Set<string>();
+
+/** The starts of a group's members, per track, in order (frames, to compare them). */
+function startsByTrack(project: Project, groupId: string): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  for (const c of project.clips)
+    if (c.groupId === groupId)
+      out.set(c.trackId, [...(out.get(c.trackId) ?? []), Math.round(c.start * 30)]);
+  for (const list of out.values()) list.sort((a, b) => a - b);
+  return out;
+}
+
 function valid(project: Project, step: string): void {
+  // No two clips of a track cover the same moment.
+  const byTrack = new Map<string, Clip[]>();
+  for (const c of project.clips) byTrack.set(c.trackId, [...(byTrack.get(c.trackId) ?? []), c]);
+  for (const [trackId, list] of byTrack) {
+    const sorted = [...list].sort((a, b) => a.start - b.start);
+    for (let i = 1; i < sorted.length; i++)
+      assert.ok(
+        sorted[i].start >= sorted[i - 1].start + sorted[i - 1].duration - 1e-6,
+        `${step}: ${sorted[i - 1].id} and ${sorted[i].id} overlap on ${trackId}`,
+      );
+  }
+  // Groups in sync: the members on each track start where the others do.
+  for (const groupId of aligned) {
+    const lists = [...startsByTrack(project, groupId).values()];
+    for (const list of lists.slice(1))
+      assert.deepEqual(list, lists[0], `${step}: group ${groupId} out of sync`);
+  }
   const parsed = projectSchema.safeParse(project);
   assert.ok(parsed.success, `${step}: ${JSON.stringify(parsed.error?.issues.slice(0, 3))}`);
   validateIpcValues(["C:/aulas/longa.ediaula", JSON.stringify(project)]);
@@ -185,10 +218,14 @@ test("a 25-minute lesson with markers, groups, envelopes and effects stays valid
     .slice(0, 2)
     .map((c) => c.id);
   commit({ ...p, clips: groupClips(p.clips, pair) }, "group");
-  const avatar = p.clips.find((c) => c.trackId === "a" && c.duration > 30);
+  // A piece after the card inserted at 1:40, so the magnetic track moves it later.
+  const avatar = p.clips.find((c) => c.trackId === "a" && c.start > 120 && c.duration > 5);
   assert.ok(avatar);
   const detached = detachAudio(p, avatar.id);
   assert.ok(detached);
+  const pairId = detached.clips.find((c) => c.id === avatar.id)?.groupId;
+  assert.ok(pairId);
+  aligned.add(pairId);
   commit({ ...p, clips: detached.clips, tracks: detached.tracks }, "detach audio");
   const grouped = p.clips.filter((c) => c.groupId);
   const pasted = pasteClips(p.tracks, p.clips, grouped, 30);
@@ -225,10 +262,25 @@ test("a 25-minute lesson with markers, groups, envelopes and effects stays valid
     { ...p, clips: extendFrameAll(p, piece.id, piece.start + 1, 1.5, "held", targets).clips },
     "extend frame",
   );
+  // The avatar's track has a hole (the card inserted on the targets) and its clips are grouped
+  // with their sound on another track: packing it takes the sound along.
+  const sound = p.clips.find((c) => c.groupId === pairId && c.trackId !== "a");
+  assert.ok(sound);
+  const before = p.clips.filter((c) => c.trackId === "a").map((c) => c.start);
   commit(
-    { ...p, tracks: p.tracks.map((t) => (t.id === "n" ? { ...t, magnetic: true } : t)) },
+    {
+      ...p,
+      tracks: p.tracks.map((t) => (t.id === "n" || t.id === "a" ? { ...t, magnetic: true } : t)),
+    },
     "magnetic track",
   );
+  assert.notDeepEqual(
+    p.clips.filter((c) => c.trackId === "a").map((c) => c.start),
+    before,
+    "the magnetic track closed its hole",
+  );
+  const moved = p.clips.find((c) => c.id === sound.id);
+  assert.ok(moved && moved.start < sound.start - 1, "the separated sound moved with its video");
   const next = { ...asset("avatar2", "video"), duration: LESSON };
   commit(replaceAsset(p, "avatar", next, null).project, "replace media");
   assert.ok(p.clips.some((c) => c.assetId === "avatar2"));

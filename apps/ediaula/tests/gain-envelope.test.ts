@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { duckGain, spotlightSpans } from "../src/shared/audio.ts";
 import { buildAudioPlan } from "../src/shared/export/audioPlan.ts";
-import { gainAt, gainDbAt, gainExpr, upsertGain } from "../src/shared/gain.ts";
+import { gainAt, gainDbAt, gainExpr, gainSlice, upsertGain } from "../src/shared/gain.ts";
 import { piece } from "../src/shared/pieces.ts";
 import { setClipSpeed } from "../src/shared/timeline.ts";
 import { exprFn } from "../src/shared/transitions.ts";
@@ -102,7 +102,7 @@ test("the audio plan applies the envelope per piece and the highlighted track's 
     ],
   };
   const plan = buildAudioPlan(p, {});
-  assert.match(plan.filter, /volume='if\(lte\(if\(lte\(\(t\+0\),1\)/);
+  assert.match(plan.filter, /volume='if\(lte\(0-12\*\(clip\(\(t\+0\),1,2\)-1\)/);
   // The voice lane steps aside while the highlighted one plays; the highlighted one does not.
   const spans = spotlightSpans(p, 0.35, 0.8);
   assert.deepEqual(spans, [[8, 11]]);
@@ -113,4 +113,31 @@ test("the audio plan applies the envelope per piece and the highlighted track's 
   const stems = buildAudioPlan(p, {}, { stems: true });
   assert.deepEqual(stems.stems, { voice: "svoice", music: "smusic" });
   assert.match(stems.filter, /\[svoice\]/);
+});
+
+test("a long envelope is a flat sum of ramps, and a piece gets only its stretch", () => {
+  const many = Array.from({ length: 500 }, (_, i) => ({ t: i * 0.25, db: i % 3 ? -6 : 0 }));
+  many.push({ t: 50, db: -60 }, { t: 50, db: -3 });
+  const expr = gainExpr(many, "T");
+  // No nesting that grows with the points (FFmpeg refuses deep expressions).
+  let depth = 0;
+  let deepest = 0;
+  for (const ch of expr) {
+    if (ch === "(") deepest = Math.max(deepest, ++depth);
+    else if (ch === ")") depth--;
+  }
+  assert.ok(deepest < 8, `nesting ${deepest}`);
+  const f = exprFn(expr);
+  for (let t = -1; t <= 130; t += 0.37)
+    assert.ok(Math.abs(f(t) - gainAt(many, t)) < 1e-6, `at ${t.toFixed(2)} s`);
+  // A step at 50 s: before it the ramp, right after it the new level.
+  assert.ok(Math.abs(f(50.001) - gainAt(many, 50.001)) < 1e-6);
+  const slice = gainSlice(many, 30, 32);
+  assert.ok(slice.length <= 11, `${slice.length} points`);
+  const g = exprFn(gainExpr(slice, "T"));
+  for (let t = 30; t <= 32; t += 0.01)
+    assert.ok(Math.abs(g(t) - gainAt(many, t)) < 1e-6, `slice at ${t.toFixed(2)} s`);
+  // Past the last point, and before the first, the slice keeps the level.
+  assert.deepEqual(gainSlice(many, 200, 210), [many[499]]);
+  assert.equal(gainSlice(many, -5, -1)[0], many[0]);
 });

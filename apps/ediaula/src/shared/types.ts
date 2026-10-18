@@ -583,6 +583,8 @@ export interface RevealSprite {
   fps: number;
   width: number;
   height: number;
+  /** Seconds into the clip when it is all there: from then on the export shows its picture. */
+  until?: number;
 }
 
 export interface CursorSprite {
@@ -1016,7 +1018,7 @@ export interface EdiAulaApi {
   pickFramePath(defaultName: string): Promise<string | null>;
   /**
    * The frame at timeline second `t` as a PNG at spec.outPath, drawn by the export's plan as a
-   * window of one frame (main/export/framePng.ts).
+   * window of one frame (main/export/frame.ts renderFramePng, the path of export:frame).
    */
   exportFramePng(jobId: string, projectJson: string, t: number, spec: ExportSpec): Promise<string>;
   /**
@@ -1030,8 +1032,11 @@ export interface EdiAulaApi {
     jobId: string,
     projectJson: string,
     defaultName: string,
-  ): Promise<{ path: string; files: number; bytes: number } | null>;
-  /** Opens a packed lesson picked by the person: extracts it and returns the lesson's file. */
+  ): Promise<{ path: string; files: number; bytes: number; droppedVoices: number } | null>;
+  /**
+   * Opens a packed lesson picked by the person: checks every entry, asks before extracting,
+   * and returns the lesson's file (null when called off, with nothing written).
+   */
   openPackage(): Promise<string | null>;
   /** The library shared by every lesson, its media readable (shared/library.ts). */
   listLibrary(): Promise<import("./library.ts").Library>;

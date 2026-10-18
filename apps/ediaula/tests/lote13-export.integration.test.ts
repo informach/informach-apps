@@ -469,10 +469,176 @@ test("every new look renders: background, device, color, spotlight, pixelate and
   await d.assertWrite(out);
   const authority = createFileAuthority(["ediaula"]);
   await authority.grantWrite(later);
-  await exportFramePng(project, 4.5, { ...spec(later), reveals }, {
-    ...d,
-    assertWrite: (p) => authority.assertWrite(p, false),
-  });
+  await exportFramePng(
+    project,
+    4.5,
+    { ...spec(later), reveals },
+    {
+      ...d,
+      assertWrite: (p) => authority.assertWrite(p, false),
+    },
+  );
   assert.ok(existsSync(later));
+  await rm(side, { recursive: true, force: true });
+});
+
+test("the frame PNG carries the burned captions and the keys on screen (burnAss)", {
+  timeout: 120_000,
+}, async () => {
+  const side = join(dir, "ass");
+  const plain = join(dir, "sem-legenda.png");
+  const burned = join(dir, "com-legenda.png");
+  const d = await deps(side, async (a) => {
+    await a.grantWrite(plain);
+    await a.grantWrite(burned);
+  });
+  // A green box drawn by libass at the top left, as a burned caption would be.
+  const ass = [
+    "[Script Info]",
+    "ScriptType: v4.00+",
+    "PlayResX: 320",
+    "PlayResY: 180",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    "Style: Default,Arial,20,&H0000FF00,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    "Dialogue: 0,0:00:00.00,0:00:08.00,Default,,0,0,0,,{\\pos(0,0)\\p1}m 0 0 l 100 0 100 50 0 50{\\p0}",
+    "",
+  ].join("\n");
+  await exportFramePng(lesson(), 2, spec(plain), d);
+  await exportFramePng(lesson(), 2, { ...spec(burned), burnAss: ass }, d);
+  const box = pixel(burned, 50, 25);
+  assert.ok(box[1] > 200 && box[0] < 80 && box[2] < 80, `caption box ${box}`);
+  assert.notDeepEqual(pixel(plain, 50, 25), box);
+  // Outside the box both frames are the same frame.
+  assert.ok(psnr(plain, burned, "crop=160:90:160:90") > 40);
+  await rm(side, { recursive: true, force: true });
+});
+
+test("a volume envelope of 500 points exports and shapes the sound", {
+  timeout: 180_000,
+}, async () => {
+  const side = join(dir, "envelope");
+  const out = join(dir, "envelope.mp4");
+  const stems = join(dir, "envelope-stems");
+  await mkdir(stems);
+  const voicePath = join(stems, "envelope (voz).wav");
+  const musicPath = join(stems, "envelope (música).wav");
+  const d = await deps(side, async (a) => {
+    await a.grantWrite(out);
+    await a.grantWrite(voicePath);
+    await a.grantWrite(musicPath);
+  });
+  // 0 dB for the first four seconds, then −20 dB, each point a hair apart so none is skipped.
+  const gain = Array.from({ length: 500 }, (_, i) => {
+    const t = i * 0.016;
+    return { t, db: (t < 4 ? 0 : -20) + (i % 2 ? -0.01 : 0) };
+  });
+  const project = lesson();
+  project.clips = project.clips.map((c) => (c.id === "vo" ? { ...c, gain } : c));
+  await exportLesson(project, { ...spec(out), stems: { voice: voicePath, music: musicPath } }, d);
+  const level = (at: number): number => {
+    const r = spawnSync(
+      FFMPEG,
+      [
+        "-v",
+        "info",
+        "-ss",
+        String(at),
+        "-t",
+        "0.5",
+        "-i",
+        voicePath,
+        "-af",
+        "volumedetect",
+        "-f",
+        "null",
+        "-",
+      ],
+      { encoding: "utf8" },
+    );
+    return Number(/mean_volume: (-?[\d.]+) dB/.exec(r.stderr)?.[1]);
+  };
+  const drop = level(1) - level(6);
+  assert.ok(Math.abs(drop - 20) < 1, `envelope ${level(1)} and ${level(6)} dB`);
+  await rm(side, { recursive: true, force: true });
+});
+
+test("a region that follows the recording is blurred where the zoom took what it covers", {
+  timeout: 180_000,
+}, async () => {
+  const side = join(dir, "follow");
+  const plain = join(dir, "zoom-sem-regiao.png");
+  const followed = join(dir, "zoom-seguindo.png");
+  const still = join(dir, "zoom-parada.png");
+  const d = await deps(side, async (a) => {
+    for (const p of [plain, followed, still]) await a.grantWrite(p);
+  });
+  const base = lesson();
+  // The screen zooms 200% on its top left quarter from 1 s to 7 s.
+  const zoomed: Project = {
+    ...base,
+    assets: [
+      ...base.assets.map((a) =>
+        a.id === "tela"
+          ? {
+              ...a,
+              zooms: [
+                {
+                  id: "z",
+                  start: 1,
+                  end: 7,
+                  scale: 2,
+                  ease: 0.3,
+                  auto: true,
+                  focus: [{ t: 1, x: 0.25, y: 0.25 }],
+                },
+              ],
+            }
+          : a,
+      ),
+      { ...video("fx", join(dir, "nada.png")), kind: "image", generated: "effect" },
+    ],
+    tracks: [
+      { id: "r", kind: "video", name: "Efeito", muted: false, hidden: false, locked: false },
+      ...base.tracks,
+    ],
+  };
+  const withRegion = (follow: boolean): Project => ({
+    ...zoomed,
+    clips: [
+      ...zoomed.clips,
+      {
+        id: "rf",
+        assetId: "fx",
+        trackId: "r",
+        start: 0,
+        in: 0,
+        duration: 8,
+        volume: 0,
+        regionFx: {
+          kind: "blur",
+          rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+          feather: 0,
+          strength: 1,
+          ...(follow ? { follow: true } : {}),
+        },
+      },
+    ],
+  });
+  await exportFramePng(zoomed, 4, spec(plain), d);
+  await exportFramePng(withRegion(true), 4, spec(followed), d);
+  await exportFramePng(withRegion(false), 4, spec(still), d);
+  // Drawn at 32,18 to 96,54 on the screen at rest; at 200% on the top left quarter it shows at
+  // 64,36 to 192,108. The one that stays is blurred where it was drawn.
+  const followIn = psnr(plain, followed, "crop=120:64:68:40");
+  const followOut = psnr(plain, followed, "crop=100:60:210:115");
+  assert.ok(followIn < 30, `inside the followed region ${followIn} dB`);
+  assert.ok(followOut > 60, `outside it ${followOut} dB`);
+  const stillIn = psnr(plain, still, "crop=56:30:36:20");
+  const stillAtFollow = psnr(plain, still, "crop=80:50:104:52");
+  assert.ok(stillIn < 30, `where the still one was drawn ${stillIn} dB`);
+  assert.ok(stillAtFollow > 60, `the still one past its rectangle ${stillAtFollow} dB`);
   await rm(side, { recursive: true, force: true });
 });

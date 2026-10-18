@@ -244,13 +244,13 @@ export function TopBar(): ReactNode {
                 { label: "Zoom com o mouse", shortcut: "Ctrl+roda" },
                 { label: "Aparar empurrando o resto", shortcut: "Shift+borda" },
                 { label: "Inserir empurrando o resto", shortcut: "Ctrl ao soltar" },
-                { label: "Camada de baixo na prévia", shortcut: "Alt+clique" },
+                { label: "Camada de baixo na prévia", shortcut: "Alt+clique na prévia" },
                 { label: "Agrupar / desagrupar", shortcut: "Ctrl+G  Ctrl+Shift+G" },
-                { label: "Só um clipe do grupo", shortcut: "Alt+clique" },
+                { label: "Só um clipe do grupo", shortcut: "Alt+clique na timeline" },
                 { label: "Marcador no cursor", shortcut: "M" },
                 { label: "Próximo / anterior marcador", shortcut: "Shift+M  Alt+M" },
                 { label: "Palavra anterior / próxima", shortcut: "Alt+← →" },
-                { label: "Frase ou silêncio", shortcut: "Ctrl+Alt+← →" },
+                { label: "Frase ou silêncio", shortcut: "Alt+Shift+← →" },
               ]}
             />
           </nav>

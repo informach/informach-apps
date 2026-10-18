@@ -12,8 +12,6 @@ import {
 import { cursorOverlayExpressions } from "../cursor-expressions.ts";
 import { keyframeExprs } from "../keyframes.ts";
 import {
-  blockSize,
-  blurRadius,
   type ClipColor,
   colorFilters,
   deviceGeometry,
@@ -23,6 +21,7 @@ import {
   spotlightDarkness,
   spotlightRadius,
 } from "../look.ts";
+import { followTarget, regionInSource, regionStrength, sourcePixels } from "../regionFollow.ts";
 import { clipEnd, clipSpeed, sourceEnd, sourceLength } from "../timeline.ts";
 import {
   type CutFx,
@@ -474,6 +473,91 @@ export function buildVideoWindowPlan(
   /** Layers of a joined run's pieces, waiting for its last piece. */
   let pending: { v: string[]; shadow: string[] } = { v: [], shadow: [] };
 
+  const hiddenTrack = (id: string): boolean => !!project.tracks.find((tr) => tr.id === id)?.hidden;
+  /** Region clips that follow a recording, by its media and track. */
+  const followers = new Map<string, Clip[]>();
+  for (const c of project.clips) {
+    if (!c.regionFx?.follow) continue;
+    const target = followTarget(project, c);
+    if (!target) continue;
+    const key = `${target.assetId}|${target.trackId}`;
+    followers.set(key, [...(followers.get(key) ?? []), c]);
+  }
+
+  /**
+   * The regions that follow `clip`'s recording, applied to its picture (source pixels, on the
+   * clip's own clock: t is seconds from the clip's start, frames k0 to k1 of it) while each
+   * region lasts. Returns the label of the picture with them.
+   */
+  const followRegions = (
+    clip: DerivedClip,
+    asset: Asset,
+    input: string,
+    L: number,
+    k0: number,
+    k1: number,
+  ): string => {
+    const list = (followers.get(`${asset.id}|${clip.trackId}`) ?? []).filter(
+      (c) => c.start < clipEnd(clip) && clipEnd(c) > clip.start && !hiddenTrack(c.trackId),
+    );
+    let src = input;
+    const sw = asset.width || W;
+    const sh = asset.height || H;
+    const frame = { width: W, height: H };
+    const lay = clipLayout(clip, asset, frame);
+    // Frame pixels per source pixel: the region's sizes are in frame pixels.
+    const k = lay.full.w / sw;
+    for (const [i, c] of list.entries()) {
+      const fxr = c.regionFx;
+      if (!fxr) continue;
+      const box = sourcePixels(regionInSource(fxr, clip, asset, frame), sw, sh);
+      if (!box) continue;
+      const id = `${L}f${i}`;
+      const on = `enable='between(t,${us(c.start - clip.start - half)},${us(clipEnd(c) - clip.start - half)})'`;
+      const feather = (fxr.feather * H) / 1080 / k;
+      const { radius, block } = regionStrength(fxr, H, box, k);
+      if (fxr.kind === "spotlight") {
+        const dark = fxInput(
+          {
+            kind: "spotlight",
+            w: sw,
+            h: sh,
+            x: box.x,
+            y: box.y,
+            rw: box.w,
+            rh: box.h,
+            radius: spotlightRadius(box),
+            feather,
+            darkness: spotlightDarkness(fxr),
+          },
+          `r${id}`,
+          ["-framerate", rate],
+        );
+        graph.push(
+          `[${dark}]loop=loop=-1:size=1,trim=end_frame=${k1 - k0},settb=${r.den}/${r.num},setpts=N+${k0},${TO_YUVA}[rs${id}]`,
+        );
+        graph.push(`[${src}][rs${id}]overlay=0:0:eof_action=pass:${on}[rf${id}]`);
+        src = `rf${id}`;
+        continue;
+      }
+      const inner =
+        fxr.kind === "blur"
+          ? `boxblur=luma_radius=${radius}:luma_power=2:chroma_radius=${Math.max(1, Math.floor(radius / 2))}:chroma_power=2`
+          : `scale=${Math.max(1, Math.round(box.w / block))}:${Math.max(1, Math.round(box.h / block))}:flags=area,scale=${box.w}:${box.h}:flags=neighbor`;
+      graph.push(`[${src}]split[ra${id}][rb${id}]`);
+      let patch = `rc${id}`;
+      graph.push(`[rb${id}]crop=${box.w}:${box.h}:${box.x}:${box.y},${inner},setsar=1[${patch}]`);
+      if (feather > 0.5) {
+        const mask = fxInput({ kind: "feather", w: box.w, h: box.h, feather }, `r${id}`);
+        graph.push(`[${patch}]format=yuva420p[rd${id}];[rd${id}][${mask}]alphamerge[re${id}]`);
+        patch = `re${id}`;
+      }
+      graph.push(`[ra${id}][${patch}]overlay=${box.x}:${box.y}:eof_action=pass:${on}[rf${id}]`);
+      src = `rf${id}`;
+    }
+    return src;
+  };
+
   /** Blur, pixelate or spotlight over what is drawn so far, while the clip lasts. */
   const region = (clip: DerivedClip, fxr: RegionFx, L: number): void => {
     const box = regionPixels(fxr, W, H);
@@ -501,16 +585,12 @@ export function buildVideoWindowPlan(
       current = `rf${L}`;
       return;
     }
-    let inner: string;
-    if (fxr.kind === "blur") {
-      const most = Math.max(1, Math.floor(Math.min(box.w, box.h) / 2) - 1);
-      const lr = Math.min(blurRadius(fxr, H), most);
-      const cr = Math.max(1, Math.min(Math.floor(lr / 2), Math.floor(most / 2)));
-      inner = `boxblur=luma_radius=${lr}:luma_power=2:chroma_radius=${cr}:chroma_power=2`;
-    } else {
-      const b = blockSize(fxr, H);
-      inner = `scale=${Math.max(1, Math.round(box.w / b))}:${Math.max(1, Math.round(box.h / b))}:flags=area,scale=${box.w}:${box.h}:flags=neighbor`;
-    }
+    // The same radius and block the preview uses (shared/regionFollow.ts regionStrength).
+    const { radius: lr, block: b } = regionStrength(fxr, H, box);
+    const inner =
+      fxr.kind === "blur"
+        ? `boxblur=luma_radius=${lr}:luma_power=2:chroma_radius=${Math.max(1, Math.floor(lr / 2))}:chroma_power=2`
+        : `scale=${Math.max(1, Math.round(box.w / b))}:${Math.max(1, Math.round(box.h / b))}:flags=area,scale=${box.w}:${box.h}:flags=neighbor`;
     graph.push(`[${current}]split[ra${L}][rb${L}]`);
     let patch = `rc${L}`;
     graph.push(`[rb${L}]crop=${box.w}:${box.h}:${box.x}:${box.y},${inner},setsar=1[${patch}]`);
@@ -525,7 +605,7 @@ export function buildVideoWindowPlan(
 
   for (const { clip, piece, layer: isLayer } of drawn) {
     if (isLayer && clip.regionFx) {
-      region(clip, clip.regionFx, layer++);
+      if (!clip.regionFx.follow) region(clip, clip.regionFx, layer++);
       continue;
     }
     if (isLayer) {
@@ -601,6 +681,8 @@ export function buildVideoWindowPlan(
       );
       src = `cur${L}`;
     }
+    // Regions that follow this recording, drawn on its own picture before its zooms carry them.
+    if (!image) src = followRegions(clip, asset, src, L, piece.frames.k0, piece.frames.k1);
     // The recording's zooms over what this window reads, only while one is on.
     const zooms = image ? [] : zoomsIn(asset.zooms, piece.S - 1 / fps, piece.E);
     if (zooms.length) {

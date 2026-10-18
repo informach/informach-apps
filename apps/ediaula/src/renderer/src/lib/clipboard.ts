@@ -1,4 +1,3 @@
-import { withGroups } from "@shared/groups";
 import { pasteClips } from "@shared/timeline";
 import type { Asset, Clip } from "@shared/types";
 import { actions } from "@/lib/actions";
@@ -12,8 +11,8 @@ let copied: { clips: Clip[]; assets: Asset[] } | null = null;
 export function copySelection(): number {
   const { project, selection } = useProject.getState();
   if (!project || !selection.length) return 0;
-  // A clip of a group is copied with its whole group.
-  const picked = new Set(withGroups(project.clips, selection));
+  // Only what is selected (a click on a grouped clip already selects its group).
+  const picked = new Set(selection);
   const clips = project.clips.filter((c) => picked.has(c.id));
   if (!clips.length) return 0;
   const used = new Set(clips.map((c) => c.assetId));

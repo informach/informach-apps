@@ -458,7 +458,16 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         // The clips of its group with the same edge there follow (Alt trims this one alone).
         result = alone
           ? project.clips.map((c) => (c.id === trimmed.id ? trimmed : c))
-          : trimGroup(project.clips, clip, trimmed, edge, trimClip, assets, 1 / fps);
+          : trimGroup(
+              project.clips,
+              clip,
+              trimmed,
+              edge,
+              trimClip,
+              assets,
+              1 / fps,
+              new Set(tracks.filter((t) => t.locked).map((t) => t.id)),
+            );
         const before = new Map(project.clips.map((c) => [c.id, c]));
         setPreview({
           clips: new Map(result.filter((c) => before.get(c.id) !== c).map((c) => [c.id, c])),

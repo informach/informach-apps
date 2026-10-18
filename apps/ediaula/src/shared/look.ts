@@ -69,25 +69,32 @@ export function colorFilters(c: ClipColor): { eq: string | null; temperature: st
   };
 }
 
+/** Rec. 709 luma weights: the light of a pixel as the video's Y holds it. */
+export const LUMA = [0.2126, 0.7152, 0.0722] as const;
+
 /**
- * The same correction as an SVG filter for the preview: saturation (the Rec. 709 weights eq
- * keeps the light with), contrast around the middle gray and brightness added, then each channel
- * multiplied by the temperature's color, in that order (eq before colortemperature).
+ * The same correction as an SVG filter for the preview. eq works on the video's YUV: contrast
+ * and brightness change only Y (Y' = c·(Y − ½) + ½ + b) and saturation scales the color around
+ * it (C' = s·C). In RGB that is RGB' = s·RGB + (c − s)·Y + ½(1 − c) + b, one color matrix
+ * (`matrix`, the 20 values of feColorMatrix); then each channel multiplied by the temperature's
+ * color, in that order (eq before colortemperature).
  */
 export function colorSvg(c: ClipColor): {
-  saturate: number;
-  slope: number;
-  intercept: number;
+  matrix: number[];
   rgb: [number, number, number];
 } {
-  const slope = c.contrast ?? 1;
+  const s = c.saturation ?? 1;
+  const contrast = c.contrast ?? 1;
+  const offset = 0.5 * (1 - contrast) + (c.brightness ?? 0);
+  const matrix: number[] = [];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++)
+      matrix.push((row === col ? s : 0) + (contrast - s) * LUMA[col]);
+    matrix.push(0, offset);
+  }
+  matrix.push(0, 0, 0, 1, 0);
   const k = c.temperature ?? NEUTRAL_TEMPERATURE;
-  return {
-    saturate: c.saturation ?? 1,
-    slope,
-    intercept: 0.5 * (1 - slope) + (c.brightness ?? 0),
-    rgb: k === NEUTRAL_TEMPERATURE ? [1, 1, 1] : kelvinRgb(k),
-  };
+  return { matrix, rgb: k === NEUTRAL_TEMPERATURE ? [1, 1, 1] : kelvinRgb(k) };
 }
 
 // ---- Device frames ----
@@ -231,6 +238,11 @@ export interface RegionFx {
   feather: number;
   /** 0..1: how blurred, how coarse, or how dark around the spotlight. */
   strength: number;
+  /**
+   * Seguir a gravação: the rectangle sticks to the recording under it and goes with its zooms
+   * and the zoom layers between them (shared/regionFollow.ts). Off, it stays on the frame.
+   */
+  follow?: boolean;
 }
 
 export const DEFAULT_REGION: RegionFx = {
@@ -256,6 +268,12 @@ export function regionPixels(r: RegionFx, W: number, H: number): Rect {
 /** Blur radius (boxblur, two passes) in pixels of an H-tall frame. */
 export const blurRadius = (r: RegionFx, H: number): number =>
   Math.max(1, Math.round((2 + r.strength * 30) * (H / 1080)));
+
+/**
+ * The Gaussian blur that looks like boxblur at `radius` with two passes (luma_power=2): the
+ * spread of two boxes of 2r + 1 pixels, for the preview's CSS blur.
+ */
+export const boxBlurSigma = (radius: number): number => Math.sqrt((2 * radius * (radius + 1)) / 3);
 
 /** Side of a pixelated block, in pixels of an H-tall frame. */
 export const blockSize = (r: RegionFx, H: number): number =>

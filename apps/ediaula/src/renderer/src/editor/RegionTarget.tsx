@@ -58,7 +58,11 @@ export function RegionTarget({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       const round = (v: number): number => Math.round(v * 10000) / 10000;
-      setRect(clip.id, { x: round(last.x), y: round(last.y), w: round(last.w), h: round(last.h) });
+      const rect = { x: round(last.x), y: round(last.y), w: round(last.w), h: round(last.h) };
+      // A click without moving is no edit (and no step to undo).
+      const was = fx.rect;
+      if (rect.x !== was.x || rect.y !== was.y || rect.w !== was.w || rect.h !== was.h)
+        setRect(clip.id, rect);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
