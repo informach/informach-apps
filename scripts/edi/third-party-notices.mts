@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
@@ -41,6 +42,9 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
     sections.push(
       "FFmpeg and FFprobe are separately distributed native programs under GPLv3. Their licenses, complete corresponding source and rebuild instructions are installed in native-media/ beside this file; see native-media/README.md and native-media/Corresponding-Source.tar.xz.",
       "Bundled export fonts retain their SIL Open Font License 1.1. Their embedded copyright and reserved-name statements, original-file checksums and complete license text are installed in fonts/LICENSES.txt beside this file.",
+      // The glossary's Portuguese word list is bundled into the renderer, so its
+      // CC BY-SA attribution has to travel with the installer.
+      `\n--- Portuguese word list (glossary) ---\n${await readFile(fileURLToPath(new URL("../../apps/ediaula/src/shared/lexicon/LICENSE-pt-words.txt", import.meta.url)), "utf8")}`,
     );
   for (const dependency of packages) {
     sections.push(
