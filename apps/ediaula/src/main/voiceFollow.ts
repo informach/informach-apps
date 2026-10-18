@@ -7,6 +7,7 @@ import {
   FOLLOW_RATE,
   FollowWindow,
   type HeardWord,
+  isWhisperServer,
   lineDoneAt,
   serverWords,
   wavBytes,
@@ -269,17 +270,21 @@ export class VoiceFollower {
     let last = "";
     while (Date.now() < until && !this.stopped) {
       if (exit.message) throw new Error(exit.message);
-      // Refused until the server listens: tried again until it answers or the time is up.
+      // Refused until the server listens: tried again until it answers or the time is up. Only
+      // our own server counts: the one this process started, still running, answering as
+      // whisper.cpp (another program on the port would otherwise be sent the microphone).
       const answer = await fetch(`http://127.0.0.1:${port}/`, {
         signal: AbortSignal.timeout(1000),
       }).then(
-        () => true,
+        async (response) =>
+          response.ok && isWhisperServer(response.headers.get("server"), await response.text()),
         (error: unknown) => {
           last = error instanceof Error ? error.message : String(error);
           return false;
         },
       );
-      if (answer) return;
+      if (answer && this.server === child && child.exitCode === null) return;
+      if (answer === false && !last) last = "outro programa respondeu nesta porta";
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
     throw new Error(`whisper-server não respondeu em 30 s${last ? ` (${last})` : ""}`);

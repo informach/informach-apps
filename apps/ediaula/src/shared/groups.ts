@@ -1,4 +1,4 @@
-import { clipEnd, newId } from "./clipTime.ts";
+import { clipEnd, newId, sourceRoom } from "./clipTime.ts";
 import type { Asset, Clip, Project, Track } from "./types.ts";
 
 /**
@@ -89,10 +89,8 @@ function edgeRange(
   asset: Asset | undefined,
 ): [number, number] {
   const speed = c.speed ?? 1;
-  const length =
-    !asset || asset.kind === "image" || asset.duration <= 0
-      ? Number.POSITIVE_INFINITY
-      : asset.duration;
+  // The ends of the media, or a take's pause beside the clip.
+  const [first, length] = sourceRoom(c, asset);
   const others = clips.filter((x) => x.trackId === c.trackId && !moving.has(x.id));
   if (edge === "end") {
     const next = Math.min(
@@ -102,7 +100,7 @@ function edgeRange(
     return [c.start + MIN_CLIP, Math.min(next, c.start + (length - c.in) / speed)];
   }
   const prev = Math.max(0, ...others.filter((x) => clipEnd(x) <= c.start + EPS).map(clipEnd));
-  return [Math.max(prev, c.start - c.in / speed), clipEnd(c) - MIN_CLIP];
+  return [Math.max(prev, c.start - (c.in - first) / speed), clipEnd(c) - MIN_CLIP];
 }
 
 /**

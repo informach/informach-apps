@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -147,4 +148,98 @@ test("a lesson packed with its media opens on another folder with its paths ther
   assert.notEqual(second.folder, folder);
   assert.notEqual(opened.id, "p");
   assert.notEqual(second.project.id, opened.id);
+});
+
+test("a take's media goes in the package with its pauses black and silent, the words said there out", {
+  skip: !windows,
+  timeout: 60000,
+}, async () => {
+  const ffmpeg = createRequire(import.meta.url)("ffmpeg-static") as string;
+  const take = join(dir, "pausa");
+  await mkdir(take, { recursive: true });
+  const screen = join(take, "tela.mp4");
+  // Four seconds of a bright picture with a tone; the take was paused from 1 to 2.5 s.
+  execFileSync(ffmpeg, [
+    ...["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=white:s=160x90:r=30:d=4"],
+    ...["-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=4"],
+    ...["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", screen],
+  ]);
+  const transcript = join(take, "tela.transcript.json");
+  writeFileSync(
+    transcript,
+    JSON.stringify({
+      version: 1,
+      model: "m",
+      language: "pt",
+      duration: 4,
+      words: [
+        { text: "antes", start: 0.2, end: 0.6, p: 1 },
+        { text: "segredo", start: 1.4, end: 1.9, p: 1 },
+        { text: "depois", start: 3, end: 3.4, p: 1 },
+      ],
+      silences: [],
+    }),
+  );
+  const paused: [number, number][] = [[1, 2.5]];
+  const project: Project = {
+    version: 1,
+    id: "p",
+    name: "Aula",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 160, height: 90, fps: 30 },
+    assets: [
+      media("a1", screen, {
+        duration: 4,
+        transcript,
+        transcriptStatus: "ready",
+        recording: { id: "take", role: "screen", paused },
+      }),
+    ],
+    tracks: [{ id: "t", kind: "video", name: "t", muted: false, hidden: false, locked: false }],
+    clips: [{ id: "c", assetId: "a1", trackId: "t", start: 0, in: 0, duration: 1, volume: 1 }],
+  };
+  const out = join(dir, "Pausa.zip");
+  const progress: number[] = [];
+  await packProject(
+    project,
+    out,
+    async (p) => p,
+    (r) => progress.push(r),
+    undefined,
+    ffmpeg,
+  );
+  assert.ok(progress.every((r, i) => r >= (progress[i - 1] ?? 0) && r <= 1));
+  const { project: opened } = await unpackProject(out, join(dir, "Projetos-pausa"));
+  const a = opened.assets.find((x) => x.id === "a1");
+  assert.ok(a);
+  // The original stays as it was; the packed copy is as long, black and silent in the pause.
+  const level = (file: string, at: number): { luma: number; volume: number } => {
+    const frame = execFileSync(ffmpeg, [
+      ...["-v", "error", "-ss", String(at), "-i", file, "-frames:v", "1"],
+      ...["-vf", "format=gray,scale=1:1", "-f", "rawvideo", "-"],
+    ]);
+    const sound = execFileSync(ffmpeg, [
+      ...["-v", "error", "-ss", String(at), "-t", "0.2", "-i", file, "-vn"],
+      ...["-ac", "1", "-f", "s16le", "-"],
+    ]);
+    let peak = 0;
+    for (let i = 0; i + 1 < sound.length; i += 2)
+      peak = Math.max(peak, Math.abs(sound.readInt16LE(i)));
+    return { luma: frame[0], volume: peak };
+  };
+  const inPause = level(a.path, 1.6);
+  assert.ok(inPause.luma < 30, `luma ${inPause.luma}`);
+  assert.equal(inPause.volume, 0);
+  const outside = level(a.path, 3.2);
+  assert.ok(outside.luma > 200, `luma ${outside.luma}`);
+  assert.ok(outside.volume > 1000, `volume ${outside.volume}`);
+  assert.ok(level(screen, 1.6).luma > 200, "the take's own file is untouched");
+  const packed = JSON.parse(readFileSync(a.transcript ?? "", "utf8")) as {
+    words: { text: string }[];
+  };
+  assert.deepEqual(
+    packed.words.map((w) => w.text),
+    ["antes", "depois"],
+  );
 });

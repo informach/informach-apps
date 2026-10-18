@@ -53,10 +53,26 @@ html.is-recorder #root {
   position: absolute;
   width: 12px;
   height: 12px;
+  padding: 0;
   background: #fff;
   border: 2px solid var(--accent);
   border-radius: 3px;
   margin: -6px 0 0 -6px;
+}
+.rec-handle:focus-visible,
+.rec-region-move:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.rec-region-move {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: move;
 }
 .h-nw {
   left: 0;

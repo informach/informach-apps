@@ -11,6 +11,7 @@ import {
   planTiming,
 } from "@shared/guidedPlan";
 import { layoutOverNarration } from "@shared/overNarration";
+import { pausedInMedia } from "@shared/pausedMedia";
 import { plural } from "@shared/plural";
 import {
   isVoiceMode,
@@ -25,7 +26,7 @@ import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
 import { speechItems } from "@shared/script";
 import { alignSection } from "@shared/scriptAlign";
 import { sourceEnd, timelineAt } from "@shared/timeline";
-import type { Asset, Project } from "@shared/types";
+import type { Asset, Project, RecordingRole } from "@shared/types";
 import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
 import { voiceTakes } from "@shared/voiceTakes";
 import { autoZoomRecording } from "@/editor/RecordingProps";
@@ -263,7 +264,7 @@ async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
     proxyStatus: "none",
     vfr: info.vfr,
     fps: info.fps,
-    recording: { id: basename(r.dir), role: "screen" },
+    recording: withPauses({ id: basename(r.dir), role: "screen" }, r, r.screen),
   });
   const updated = useProject.getState().project?.assets.find((a) => a.id === asset.id);
   if (updated) void enrich(updated, info.videoCodec);
@@ -271,6 +272,19 @@ async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
   if (await useProject.getState().saveNow())
     await window.api.recorder.imported(r.dir).catch(() => undefined);
   return true;
+}
+
+/**
+ * A take's media with what it recorded during the pauses (shared/pausedMedia.ts): no trim may
+ * reach those seconds, and the lesson package blanks them.
+ */
+function withPauses(
+  recording: { id: string; role: RecordingRole },
+  r: RecordingResult,
+  path: string | undefined,
+): NonNullable<Asset["recording"]> {
+  const paused = path ? pausedInMedia(r, path) : [];
+  return paused.length ? { ...recording, paused } : recording;
 }
 
 /** Webcam in the bottom-right corner, in a circle with the course's lime border (as in the design). */
@@ -461,10 +475,10 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     // Nothing follows the earlier take: it is cut where this one starts, and this one goes there.
     const p = join?.clear ? applyResumeJoin(before, join) : before;
     const current = p.assets.filter((a) => assets.some((b) => b.id === a.id));
-    // A screen kept in parts (no room to join them) goes end to end from where the voice played;
+    // "Tela sobre a narração" goes where the voice heard is (whole or in parts, by its anchors);
     // a new voice take goes after the voice already there, on the same "Voz" track.
     layout =
-      r.mode === "over" && r.screen
+      r.mode === "over" && (r.screen || r.screenParts?.length)
         ? layoutOverNarration(p, current, r, { cameraTransform })
         : layoutRecording(
             p,
@@ -488,9 +502,10 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   });
   if (!layout) return;
   const take = basename(r.dir);
+  const pathOf = new Map(useProject.getState().project?.assets.map((a) => [a.id, a.path]) ?? []);
   for (const { assetId, role } of layout.roles)
     patchAsset(assetId, {
-      recording: { id: take, role },
+      recording: withPauses({ id: take, role }, r, pathOf.get(assetId)),
       // A narration taken from a presenter's video is the presenter's voice: never cleaned of
       // hesitations.
       ...(role === "narration" && r.narrationFromVideo ? { origin: "presenter" as const } : {}),
@@ -524,6 +539,13 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];
   if (notes.length) toast(`Avisos da gravação: ${notes.join(" ")}`, "info");
+  // The capture goes on through a pause (the resume is instant): those seconds stay in the take's
+  // files, never in the lesson, in a trim or in a package.
+  if (r.pauses.length)
+    toast(
+      `${plural(r.pauses.length, "pausa foi cortada", "pausas foram cortadas")} da aula. Os arquivos originais na pasta da gravação ainda guardam esses trechos: a aula, os aparos e o pacote da aula nunca os mostram. Se precisar compartilhar a pasta da gravação, use o pacote da aula.`,
+      "info",
+    );
   if (run && join?.clear)
     toast(
       `O take continua o anterior na etapa ${run.from + 1}: a narração segue sem salto.`,

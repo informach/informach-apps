@@ -1153,9 +1153,9 @@ test("the native route's computer sound goes in the journal and lines up with th
   }
 });
 
-test("a native capture of the computer's sound that stops is a warning: the take goes on", async () => {
+test("a native capture of the computer's sound that stops opens again at once: the take goes on", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ediaula-native-system-fails-"));
-  let fake: FakeLoopback | undefined;
+  const loopbacks: FakeLoopback[] = [];
   const session = new RecordingSession({
     opts: { fps: 30, microphone: "Fake Mic", systemAudio: true, systemAudioRoute: "native" },
     monitor: null,
@@ -1164,7 +1164,8 @@ test("a native capture of the computer's sound that stops is a warning: the take
     encoder: null,
     hook: null,
     loopback: (file) => {
-      fake = new FakeLoopback(file);
+      const fake = new FakeLoopback(file);
+      loopbacks.push(fake);
       return fake;
     },
   });
@@ -1173,14 +1174,22 @@ test("a native capture of the computer's sound that stops is a warning: the take
   try {
     await session.start();
     await wait(300);
-    fake?.emit("failure", new Error("o Windows recusou"));
+    loopbacks[0]?.emit("failure", new Error("o Windows recusou"));
     assert.equal(session.status().phase, "recording");
+    await wait(600);
     const saved = await session.stop();
     assert.ok(saved.microphone);
-    assert.match(
-      events.map((e) => e.message).join("\n"),
-      /O áudio do PC parou \(o Windows recusou\)/,
+    // A new part opened without waiting for a pause, placed by its own first sample.
+    assert.equal(loopbacks.length, 2);
+    const replay = replayJournal(await readFile(join(dir, JOURNAL_FILE), "utf8"));
+    assert.deepEqual(
+      replay.parts.system.map((p) => p.file),
+      ["sistema-0.wav", "sistema-1.wav"],
     );
+    assert.ok(saved.systemAudio, JSON.stringify(saved));
+    const messages = events.map((e) => e.message).join("\n");
+    assert.match(messages, /O áudio do PC parou \(o Windows recusou\)\. Estou abrindo/);
+    assert.match(messages, /O áudio do PC voltou a gravar/);
     assert.match(saved.warnings?.join("\n") ?? "", /O áudio do PC parou: o Windows recusou/);
   } finally {
     await rm(dir, { recursive: true, force: true });

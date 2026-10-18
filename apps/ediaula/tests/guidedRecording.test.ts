@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { executeGuided, type HelperCommands } from "../src/shared/guidedNative.ts";
+import { executeGuided, type HelperCommands, HelperDriver } from "../src/shared/guidedNative.ts";
+import { migratePlan } from "../src/shared/guidedPlan.ts";
 import {
   GUIDED_DEFAULTS,
   type GuidedPlan,
@@ -10,6 +11,7 @@ import {
   stepsFromScript,
   stepsFromWords,
 } from "../src/shared/guidedRecording.ts";
+import { runGuided, screenClock } from "../src/shared/guidedRunner.ts";
 import type { GlideResult } from "../src/shared/helperProtocol.ts";
 
 const target: GuidedTarget = {
@@ -368,4 +370,96 @@ test("cancellation during key focus verification prevents the key from being sen
     /interrompida/,
   );
   assert.equal(s.events.filter((e) => e.op === "key").length, 0);
+});
+
+test("a pause during a drag lets the button go and presses it again where the curve stopped", async () => {
+  const s = simulation();
+  const v2 = migratePlan({ ...plan, steps: [plan.steps[0]] });
+  const dragPlan = {
+    ...v2,
+    steps: [
+      {
+        ...v2.steps[0],
+        action: "drag" as const,
+        to: { point: { space: "screen" as const, x: 900, y: 700 } },
+      },
+    ],
+  };
+  const paused: { x: number; y: number }[] = [];
+  let sleeps = 0;
+  let pressedAt = -1;
+  const sleep = async (ms: number) => {
+    sleeps++;
+    // Pause once the drag glide (the second glide) is under way.
+    if (pressedAt < 0 && s.events.some((e) => e.op === "down")) pressedAt = sleeps;
+    if (pressedAt > 0 && sleeps === pressedAt + 5) s.setPaused(true);
+    if (pressedAt > 0 && sleeps === pressedAt + 20) s.setPaused(false);
+    await s.advance(ms);
+  };
+  const clock = screenClock(s.time, s.paused, s.controller.signal, sleep);
+  const driver = new HelperDriver({
+    input: s.input,
+    clock,
+    paused: s.paused,
+    signal: s.controller.signal,
+    sleep,
+    onDragPause: (p) => paused.push(p),
+  });
+  await runGuided(dragPlan, driver, clock, s.controller.signal);
+  const ops = s.events.map((e) => e.op).filter((op) => op !== "verify" && op !== "arrive");
+  assert.deepEqual(ops, [
+    "sample",
+    "glide",
+    "down",
+    "glide",
+    "halt",
+    "up",
+    "move",
+    "down",
+    "glide",
+    "up",
+  ]);
+  // While paused the button was up; on resume it went down where the curve stopped.
+  const move = s.events.find((e) => e.op === "move");
+  assert.equal(paused.length, 1);
+  assert.deepEqual([move?.x, move?.y], [paused[0].x, paused[0].y]);
+  const [, first, resumed] = s.events.filter((e) => e.op === "glide").map((e) => e.glide);
+  assert.ok(first && resumed && resumed.at > 0 && resumed.at < 1);
+  assert.deepEqual(resumed.from, first.from);
+});
+
+test("a drag stopped while paused leaves the button up", async () => {
+  const s = simulation();
+  const v2 = migratePlan({ ...plan, steps: [plan.steps[0]] });
+  const dragPlan = {
+    ...v2,
+    steps: [
+      {
+        ...v2.steps[0],
+        action: "drag" as const,
+        to: { point: { space: "screen" as const, x: 900, y: 700 } },
+      },
+    ],
+  };
+  let sleeps = 0;
+  let pressedAt = -1;
+  const sleep = async (ms: number) => {
+    sleeps++;
+    if (pressedAt < 0 && s.events.some((e) => e.op === "down")) pressedAt = sleeps;
+    if (pressedAt > 0 && sleeps === pressedAt + 5) s.setPaused(true);
+    if (pressedAt > 0 && sleeps === pressedAt + 20) s.controller.abort();
+    await s.advance(ms);
+  };
+  const clock = screenClock(s.time, s.paused, s.controller.signal, sleep);
+  const driver = new HelperDriver({
+    input: s.input,
+    clock,
+    paused: s.paused,
+    signal: s.controller.signal,
+    sleep,
+  });
+  await assert.rejects(runGuided(dragPlan, driver, clock, s.controller.signal), /interrompida/);
+  const buttons = s.events.filter((e) => e.op === "down" || e.op === "up").map((e) => e.op);
+  // Up at the pause, and never a second up when the runner lets go after the stop.
+  assert.deepEqual(buttons, ["down", "up"]);
 });

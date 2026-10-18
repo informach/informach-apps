@@ -1213,6 +1213,7 @@ function registerIpc(): void {
           desktopFiles.assertRead,
           (ratio) => sendProgress({ id: jobId, ratio }),
           signal,
+          FFMPEG,
         ),
       );
       return { path: out, ...done };

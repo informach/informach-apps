@@ -11,12 +11,24 @@ import { JOURNAL_FILE, type JournalLine } from "../../shared/recordingJournal.ts
  */
 
 const SYNC_EVERY_MS = 5000;
-/** Lines that go to the disk right away. */
-const DURABLE = new Set<JournalLine["k"]>([
+/**
+ * Lines that go to the disk right away: those a recovery cannot rebuild from the files. Where a
+ * source began and ended and when the take went on after a pause keep the sources aligned and
+ * the pauses out; the drawing mode says which clicks were the pen; the narration where a guided
+ * take's voice starts. The anchors of "Tela sobre a narração" (two a second) and the health
+ * notes wait for the next sync: a crash costs a few seconds of them, and placing the take falls
+ * back on the anchors before.
+ */
+export const DURABLE: ReadonlySet<JournalLine["k"]> = new Set<JournalLine["k"]>([
   "begin",
+  "first",
+  "end",
   "pause",
+  "resume",
   "marker",
   "fail",
+  "drawMode",
+  "narration",
   "stop",
   "finalized",
 ]);

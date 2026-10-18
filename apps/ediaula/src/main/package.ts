@@ -1,9 +1,21 @@
 import { execFile } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { mkdir, readdir, readFile, realpath, rm, stat, statfs } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  statfs,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { newId } from "../shared/clipTime.ts";
+import { blankPausesArgs, transcriptWithoutPauses } from "../shared/pausedMedia.ts";
 import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema } from "../shared/project-schema.ts";
 import {
@@ -11,10 +23,11 @@ import {
   PACKAGE_CURSORS,
   PACKAGE_MEDIA,
   PACKAGE_PROJECT,
+  type PackFile,
   packPlan,
   unpackPaths,
 } from "../shared/projectPackage.ts";
-import type { Project } from "../shared/types.ts";
+import type { Project, Transcript } from "../shared/types.ts";
 import { writeZip, type ZipDirectoryEntry, zipDirectory } from "./zip.ts";
 
 /**
@@ -36,37 +49,83 @@ export function cursorImagesOf(cursor: string): string[] {
     .map((name) => join(folder, name));
 }
 
-/** The archive with the project and its files; every file read is checked first. */
+/**
+ * A copy of a take's file without what it recorded during the pauses, in `dir`: the media with
+ * those seconds black and silent (FFmpeg, at the same times and length), the transcript without
+ * the words said there.
+ */
+async function blankCopy(
+  f: PackFile & { blank: NonNullable<PackFile["blank"]> },
+  source: string,
+  dir: string,
+  ffmpeg: string | undefined,
+  signal?: AbortSignal,
+): Promise<string> {
+  // Archive names are unique, so their base names never meet in the folder.
+  const copy = join(dir, basename(f.name));
+  if (f.blank.kind === "transcript") {
+    const transcript = JSON.parse(await readFile(source, "utf8")) as Transcript;
+    await writeFile(copy, JSON.stringify(transcriptWithoutPauses(transcript, f.blank.paused)));
+    return copy;
+  }
+  if (!ffmpeg) throw new Error("O FFmpeg não está disponível para apagar as pausas da gravação.");
+  await run(
+    ffmpeg,
+    blankPausesArgs(source, copy, f.blank.paused, { video: f.blank.video, audio: f.blank.audio }),
+    { windowsHide: true, maxBuffer: 16 * 1024 * 1024, ...(signal ? { signal } : {}) },
+  );
+  return copy;
+}
+
+/**
+ * The archive with the project and its files; every file read is checked first. A take's media
+ * recorded during its pauses goes with those seconds blanked (`ffmpeg` makes the copies, in a
+ * folder that goes away afterwards): what the teacher paused never leaves in a package.
+ */
 export async function packProject(
   project: Project,
   out: string,
   assertRead: (path: string) => Promise<string>,
   onProgress?: (ratio: number) => void,
   signal?: AbortSignal,
+  ffmpeg?: string,
 ): Promise<{ files: number; bytes: number; droppedVoices: number }> {
   const plan = packPlan(project, existsSync, cursorImagesOf);
-  const files: { name: string; path: string }[] = [];
-  const missing: string[] = [];
-  for (const f of plan.files) {
-    if (!existsSync(f.path)) {
-      missing.push(basename(f.path));
-      continue;
-    }
-    files.push({ name: f.name, path: await assertRead(f.path) });
-  }
+  const missing = plan.files.filter((f) => !existsSync(f.path)).map((f) => basename(f.path));
   if (missing.length)
     throw new Error(
       `Reconecte antes de empacotar: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? ` e mais ${missing.length - 5}` : ""}.`,
     );
-  // Compact, as the lesson file is saved (main/projects.ts): opening reads at most 32 MB of it.
-  const text = Buffer.from(JSON.stringify(projectSchema.parse(plan.project)), "utf8");
-  let bytes = text.length;
-  for (const f of files) bytes += (await stat(f.path)).size;
-  await writeZip(out, [{ name: PACKAGE_PROJECT, data: text }, ...files], {
-    signal,
-    onProgress: (done, total) => onProgress?.(total ? done / total : 1),
-  });
-  return { files: files.length, bytes, droppedVoices: plan.droppedVoices };
+  const blanks = plan.files.filter((f) => f.blank).length;
+  const scratch = blanks ? await mkdtemp(join(tmpdir(), "ediaula-pacote-")) : null;
+  try {
+    const stored: { name: string; path: string }[] = [];
+    let blanked = 0;
+    for (const f of plan.files) {
+      const source = await assertRead(f.path);
+      if (f.blank && scratch) {
+        signal?.throwIfAborted();
+        stored.push({
+          name: f.name,
+          path: await blankCopy({ ...f, blank: f.blank }, source, scratch, ffmpeg, signal),
+        });
+        // Blanking the pauses is the first half of the work; the archive is the second.
+        onProgress?.((++blanked / blanks) * 0.5);
+      } else stored.push({ name: f.name, path: source });
+    }
+    // Compact, as the lesson file is saved (main/projects.ts): opening reads at most 32 MB of it.
+    const text = Buffer.from(JSON.stringify(projectSchema.parse(plan.project)), "utf8");
+    let bytes = text.length;
+    for (const f of stored) bytes += (await stat(f.path)).size;
+    const head = blanks ? 0.5 : 0;
+    await writeZip(out, [{ name: PACKAGE_PROJECT, data: text }, ...stored], {
+      signal,
+      onProgress: (done, total) => onProgress?.(head + (1 - head) * (total ? done / total : 1)),
+    });
+    return { files: stored.length, bytes, droppedVoices: plan.droppedVoices };
+  } finally {
+    if (scratch) await rm(scratch, { recursive: true, force: true });
+  }
 }
 
 /** `<folder>/<name>`, or `<name> (2)` and so on when it is taken. */

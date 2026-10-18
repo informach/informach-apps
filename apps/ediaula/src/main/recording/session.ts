@@ -98,6 +98,8 @@ export const NATIVE_SYSTEM_FILE = nativeSystemFile(0);
  * computer's sound (which would go on writing the whole pause).
  */
 export const LONG_PAUSE_MS = 5 * 60 * 1000;
+/** Times a native capture of the computer's sound that fell is opened again in one take. */
+const MAX_LOOPBACK_REOPEN = 3;
 /** Most bytes of the computer's sound in one call. */
 export const MAX_SYSTEM_CHUNK = 8 * 1024 * 1024;
 /** The computer's sound counts as missing after this long without a chunk. */
@@ -161,6 +163,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private readonly makeLoopback: (file: string) => SystemLoopback;
   /** The long pause closed the native capture of the computer's sound: it reopens on resume. */
   private loopbackClosed = false;
+  /** Native captures of the computer's sound that failed and were reopened during the take. */
+  private loopbackReopened = 0;
   private readonly longPauseMs: number;
   private lastRects = "";
   /** When the teleprompter last moved (QPC ms): a line never starts before the one before it. */
@@ -432,13 +436,20 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       this.health?.stop();
       clearTimeout(this.longPause);
       this.phase = "stopping";
-      // The helpers must let go of the journal and the sound before the folder goes.
-      await this.hook?.kill();
-      await this.loopback?.kill();
-      await this.closeAll(true);
-      this.journal.close();
-      await remove(this.dir);
-      this.phase = "finalized";
+      try {
+        // The helpers must let go of the journal and the sound before the folder goes.
+        try {
+          await this.hook?.kill();
+          await this.loopback?.kill();
+          await this.closeAll(true);
+        } finally {
+          this.journal.close();
+        }
+        await remove(this.dir);
+      } finally {
+        // Whatever failed, the take is over: nothing records into it any more.
+        this.phase = "finalized";
+      }
     });
   }
 
@@ -851,21 +862,59 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     });
     client.on("end", (at) => this.journal.write({ k: "end", src: "system", part, qpc: at }));
     client.on("failure", (error) => {
-      if (this.phase === "recording" || this.phase === "paused" || this.phase === "failed")
-        this.systemFailed(error.message);
+      if (this.phase !== "recording" && this.phase !== "paused" && this.phase !== "failed") return;
+      if (this.loopback !== client) return;
+      this.loopback = null;
+      const again = this.loopbackReopened < MAX_LOOPBACK_REOPEN;
+      this.systemFailed(error.message, again);
+      if (again) void this.reopenLoopback();
     });
     await client.start();
     this.loopback = client;
   }
 
-  /** The computer's sound stopped (or never opened): the take goes on without it. */
-  private systemFailed(message: string): void {
+  /**
+   * A native capture of the computer's sound that fell during the take opens a new part at once,
+   * placed by its own first sample like the part after a long pause; during a pause it opens with
+   * the resume (the native capture writes the wall clock, the pause would be on disk).
+   */
+  private reopenLoopback(): Promise<void> {
+    return this.serial(async () => {
+      if (this.preserved || this.loopback) return;
+      if (this.phase === "paused" || this.phase === "failed") {
+        this.loopbackClosed = true;
+        return;
+      }
+      if (this.phase !== "recording") return;
+      this.loopbackReopened++;
+      try {
+        await this.openLoopback();
+      } catch (error) {
+        this.systemFailed(errorText(error));
+        return;
+      }
+      this.emitEvent({
+        source: "system",
+        level: "info",
+        message: "O áudio do PC voltou a gravar.",
+        actions: [],
+      });
+    });
+  }
+
+  /**
+   * The computer's sound stopped (or never opened): the take goes on without it, or with a new
+   * part when it is being opened again (`again`).
+   */
+  private systemFailed(message: string, again = false): void {
     this.journal.write({ k: "fail", src: "system", qpc: qpc(), message: message.slice(0, 4000) });
     this.warnings.push(`O áudio do PC parou: ${message}`);
     this.emitEvent({
       source: "system",
       level: "warning",
-      message: `O áudio do PC parou (${message}). A gravação segue sem ele.`,
+      message: again
+        ? `O áudio do PC parou (${message}). Estou abrindo a captura de novo.`
+        : `O áudio do PC parou (${message}). A gravação segue sem ele.`,
       actions: [],
     });
   }

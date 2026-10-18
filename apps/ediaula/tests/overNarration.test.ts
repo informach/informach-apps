@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cameraPresenterTransform } from "../src/shared/compose.ts";
+import { drawingPartClips } from "../src/shared/drawing.ts";
 import {
   clockOffset,
   layoutOverNarration,
@@ -90,7 +91,7 @@ const videoTrack = (id: string, name: string): Track => ({
   locked: false,
 });
 
-const screenAsset = (id: string, role?: "screen" | "camera"): Asset => ({
+const screenAsset = (id: string, role?: "screen" | "camera", take = "gravacao"): Asset => ({
   id,
   name: id,
   path: `C:/${id}.mp4`,
@@ -103,7 +104,7 @@ const screenAsset = (id: string, role?: "screen" | "camera"): Asset => ({
   hasAudio: false,
   size: 1,
   proxyStatus: "none",
-  ...(role ? { recording: { id: "gravacao", role } } : {}),
+  ...(role ? { recording: { id: take, role } } : {}),
 });
 
 const wholeClip = (id: string, assetId: string, trackId: string): Clip => ({
@@ -185,10 +186,10 @@ test("uma regravação parada antes do fim troca só o que gravou", () => {
 });
 
 test("a regravação troca a tela na faixa em que a tela está, não na principal", () => {
-  // The screen of the first take on a "Tela" track; the main track holds something else (a
-  // camera) that the redo must leave alone.
+  // The screen of the first take on a "Tela" track; the main track holds something else (the
+  // camera of another take) that the redo must leave alone.
   const old = screenAsset("antiga", "screen");
-  const camera = screenAsset("camera", "camera");
+  const camera = screenAsset("camera", "camera", "outra");
   const project: Pick<Project, "tracks" | "clips" | "assets"> = {
     tracks: [videoTrack("ts", "Tela"), videoTrack("tv", "F1")],
     clips: [wholeClip("old", "antiga", "ts"), wholeClip("cam", "camera", "tv")],
@@ -261,4 +262,157 @@ test("Voz e câmera e depois a tela sobre a narração: o apresentador no canto 
     "the presenter's track is above the screen's",
   );
   assert.ok(second.clips.some((c) => c.assetId === "cam" && c.transform?.scale === t.scale));
+});
+
+test("o desenho e o quadro de um take sobre a narração ficam sobre os clipes da tela", () => {
+  const screen = screenAsset("nova");
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [],
+    assets: [screen],
+  };
+  const layout = layoutOverNarration(project, [screen], redo(15));
+  assert.ok(layout.pieces.length > 0);
+  for (const piece of layout.pieces) {
+    assert.equal(piece.screen.length, 1);
+    assert.equal(piece.screen[0].assetId, "nova");
+    assert.ok(layout.placed.includes(piece.screen[0]));
+  }
+  // What lib/drawing.ts does with the layout: every part of the drawing has a screen under it.
+  const parts = drawingPartClips(
+    layout.pieces,
+    [layout.pieces[0].from, layout.pieces.at(-1)?.to ?? 0],
+    [{ from: 0, to: 4, kind: "drawing" }],
+    "desenho",
+    "",
+    () => "c",
+  );
+  assert.ok(parts.length > 0);
+  assert.ok(parts.every((p) => p.screen === layout.pieces[0].screen[0].id));
+});
+
+test("regravar a tela num intervalo tira dali o som do PC, a câmera e o desenho do take antigo", () => {
+  const audio = (id: string, role: "system" | "mic", take = "antigo"): Asset => ({
+    ...screenAsset(id),
+    path: `C:/${id}.m4a`,
+    kind: "audio",
+    hasVideo: false,
+    hasAudio: true,
+    recording: { id: take, role },
+  });
+  const old = screenAsset("tela-antiga", "screen", "antigo");
+  const camera = screenAsset("camera-antiga", "camera", "antigo");
+  const drawing: Asset = {
+    ...screenAsset("desenho-antigo"),
+    recording: { id: "antigo", role: "drawing" },
+  };
+  const system = audio("sistema-antigo", "system");
+  const mic = audio("microfone-antigo", "mic");
+  const voice = { ...audio("voz", "mic", "narracao") };
+  const other = screenAsset("camera-outra", "camera", "outro");
+  const audioTrack = (id: string, name: string): Track => ({
+    ...videoTrack(id, name),
+    kind: "audio",
+  });
+  const tracks = [
+    videoTrack("tc", "Câmera"),
+    videoTrack("td", "Desenho"),
+    videoTrack("tv", "Tela"),
+    videoTrack("to", "Outra"),
+    audioTrack("ta", "Áudio do PC"),
+    audioTrack("tm", "Microfone"),
+    audioTrack("tz", "Voz"),
+  ];
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks,
+    clips: [
+      wholeClip("c1", "tela-antiga", "tv"),
+      wholeClip("c2", "camera-antiga", "tc"),
+      wholeClip("c3", "desenho-antigo", "td"),
+      wholeClip("c4", "sistema-antigo", "ta"),
+      wholeClip("c5", "microfone-antigo", "tm"),
+      wholeClip("c6", "voz", "tz"),
+      wholeClip("c7", "camera-outra", "to"),
+    ],
+    assets: [old, camera, drawing, system, mic, voice, other],
+  };
+  const fresh = screenAsset("nova");
+  const layout = layoutOverNarration(project, [...project.assets, fresh], redo(15));
+  for (const [track, asset] of [
+    ["tc", "camera-antiga"],
+    ["td", "desenho-antigo"],
+    ["ta", "sistema-antigo"],
+    // Another voice covers the stretch: the old take's microphone goes with it.
+    ["tm", "microfone-antigo"],
+  ])
+    assert.deepEqual(
+      onTrack(layout.clips, track),
+      [
+        [asset, 0, 12],
+        [asset, 20, 20],
+      ],
+      track,
+    );
+  assert.deepEqual(onTrack(layout.clips, "tv"), [
+    ["tela-antiga", 0, 12],
+    ["nova", 12, 8],
+    ["tela-antiga", 20, 20],
+  ]);
+  // The lesson's voice and another take's camera stay.
+  assert.deepEqual(onTrack(layout.clips, "tz"), [["voz", 0, 40]]);
+  assert.deepEqual(onTrack(layout.clips, "to"), [["camera-outra", 0, 40]]);
+
+  // A screen take with its narration: its microphone is the voice heard, and it stays.
+  const alone = {
+    ...project,
+    clips: project.clips.filter((c) => c.id !== "c6"),
+    assets: project.assets.filter((a) => a.id !== "voz"),
+  };
+  const kept = layoutOverNarration(alone, [...alone.assets, fresh], redo(15));
+  assert.deepEqual(onTrack(kept.clips, "tm"), [["microfone-antigo", 0, 40]]);
+  assert.deepEqual(onTrack(kept.clips, "ta"), [
+    ["sistema-antigo", 0, 12],
+    ["sistema-antigo", 20, 20],
+  ]);
+});
+
+test("a tela em partes sobre a narração entra pelas âncoras, sem espaço entre elas", () => {
+  // The redo of 12 to 20 s kept in two parts (no room to join them): 0 to 6 s and 6 to 15 s.
+  const one = screenAsset("parte-1");
+  const two = screenAsset("parte-2");
+  const whole = redo(15);
+  const parts: RecordingResult = {
+    ...whole,
+    screen: undefined,
+    screenParts: [
+      { path: one.path, at: 0, in: 0, duration: 6, cursor: "C:/c1.json" },
+      { path: two.path, at: 6, in: 0, duration: 9, cursor: "C:/c2.json" },
+    ],
+  };
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [],
+    assets: [one, two],
+  };
+  const joined = layoutOverNarration(project, [screenAsset("nova")], whole);
+  const split = layoutOverNarration(project, [one, two], parts);
+  // Same places on the timeline as the joined screen, each part from its own second.
+  const at = (clips: readonly Clip[]) =>
+    clips.map((c) => [Math.round(c.start * 1000) / 1000, Math.round(c.duration * 1000) / 1000]);
+  const total = (clips: readonly Clip[]) => clips.reduce((s, c) => s + c.duration, 0);
+  assert.ok(Math.abs(total(split.placed) - total(joined.placed)) < 0.002);
+  assert.equal(at(split.placed)[0][0], at(joined.placed)[0][0]);
+  const first = split.placed.find((c) => c.assetId === "parte-1");
+  const second = split.placed.find((c) => c.assetId === "parte-2");
+  assert.ok(first && second && Math.abs(second.in) < 0.002, String(second?.in));
+  // The second part starts where the first ends: the take's second 6 at the voice's time.
+  assert.ok(Math.abs(second.start - (first.start + first.duration)) < 0.002);
+  assert.deepEqual(
+    split.roles.map((r) => [r.assetId, r.role]),
+    [
+      ["parte-1", "screen"],
+      ["parte-2", "screen"],
+    ],
+  );
+  assert.ok(split.pieces.every((p) => p.screen.length > 0));
 });

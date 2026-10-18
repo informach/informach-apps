@@ -1,7 +1,7 @@
 import { avatarMedia, cutTargets } from "./cleanup.ts";
 import { openGap } from "./inserts.ts";
 import { piece } from "./pieces.ts";
-import { CUT_TOUCH, clipEnd, clipSpeed, sourceEnd, sourceLength } from "./timeline.ts";
+import { CUT_TOUCH, clipEnd, clipSpeed, sourceEnd, sourceRoom } from "./timeline.ts";
 import type { Asset, Clip, Project } from "./types.ts";
 
 /**
@@ -199,7 +199,7 @@ export function restoreSeam(
       Math.abs(clipEnd(c) - end) > 0.05
     )
       return c;
-    const room = (sourceLength(assets.get(c.assetId)) - sourceEnd(c)) / clipSpeed(c);
+    const room = (sourceRoom(c, assets.get(c.assetId))[1] - sourceEnd(c)) / clipSpeed(c);
     return room > 0
       ? piece(c, c.start, clipEnd(c) + Math.min(seam.removed, room), { tail: true })
       : c;

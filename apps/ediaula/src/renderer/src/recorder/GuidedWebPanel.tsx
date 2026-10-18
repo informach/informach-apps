@@ -1,7 +1,7 @@
 import type { HoldReason } from "@shared/frameClock";
 import type { GuidedTakeStatus } from "@shared/guidedPlan";
 import { Loader, Pause, Play, Square, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -35,6 +35,8 @@ export function GuidedWebPanel({
   onDiscard: () => void;
 }): ReactNode {
   const phase = status?.phase ?? "opening";
+  /** Asked here, never in a dialog of the system over the recording. */
+  const [confirming, setConfirming] = useState(false);
   const running = phase === "recording" || phase === "holding" || phase === "paused";
   const heading =
     stopping || phase === "saving"
@@ -90,9 +92,31 @@ export function GuidedWebPanel({
         <button type="button" className="rec-stop" onClick={onStop} disabled={stopping}>
           <Square size={12} fill="currentColor" /> Parar e salvar ({keys.stop})
         </button>
-        <button type="button" onClick={onDiscard} disabled={stopping}>
-          <Trash2 size={14} /> Descartar
-        </button>
+        {confirming ? (
+          <>
+            <span role="alert">
+              Descartar este take? Ele vai para a Lixeira e o plano fica como está.
+            </span>
+            <button
+              type="button"
+              className="rec-stop"
+              disabled={stopping}
+              onClick={() => {
+                setConfirming(false);
+                onDiscard();
+              }}
+            >
+              <Trash2 size={14} /> Descartar
+            </button>
+            <button type="button" onClick={() => setConfirming(false)}>
+              Continuar
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirming(true)} disabled={stopping}>
+            <Trash2 size={14} /> Descartar
+          </button>
+        )}
       </div>
     </section>
   );

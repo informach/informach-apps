@@ -25,6 +25,19 @@ export type SystemAudioRoute = (typeof SYSTEM_AUDIO_ROUTES)[number];
 /** Windows 10 version 2004 (build 19041) brought process loopback. */
 export const PROCESS_LOOPBACK_BUILD = 19041;
 
+/**
+ * From this build on Windows leaves a window out of every capture (WDA_EXCLUDEFROMCAPTURE, what
+ * setContentProtection asks for). Before it the same call only blacks the window out, and the
+ * recorder's window covers the whole screen: the take would be black. The screen modes need it.
+ */
+export const CAPTURE_EXCLUSION_BUILD = 19041;
+
+/** Why the screen cannot be recorded on this Windows, or null. */
+export function screenCaptureProblem(platform: string, release: string): string | null {
+  if (platform !== "win32" || windowsBuild(release) >= CAPTURE_EXCLUSION_BUILD) return null;
+  return "Gravar a tela precisa do Windows 10 versão 2004 ou mais novo: nesta versão os controles do gravador cobririam a gravação de preto. Atualize o Windows, ou grave só a voz.";
+}
+
 /** The build number of a Windows release string ("10.0.22631"), 0 when it is not one. */
 export function windowsBuild(text: string): number {
   const parts = /^(\d+)\.(\d+)\.(\d+)/.exec(text);

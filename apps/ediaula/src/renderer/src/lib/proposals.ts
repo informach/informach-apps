@@ -122,7 +122,7 @@ export async function showProposal(
     } else if (r.start !== undefined && r.end !== undefined && r.end > r.start) {
       if (revision !== current) {
         problems.push(
-          `trecho ${fmt(r.start)}–${fmt(r.end)} ignorado: informe a revisão atual (${current})`,
+          `trecho de ${fmt(r.start)} a ${fmt(r.end)} ignorado: informe a revisão atual (${current})`,
         );
         continue;
       }
@@ -146,7 +146,7 @@ export async function showProposal(
   const blocked = items.filter((i) => protectedConflicts(project, [[i.start, i.end]]).length);
   for (const b of blocked)
     problems.push(
-      `protegido, fora da proposta: ${b.text ? `"${b.text}"` : `${fmt(b.start)}–${fmt(b.end)}`}`,
+      `protegido, fora da proposta: ${b.text ? `"${b.text}"` : `de ${fmt(b.start)} a ${fmt(b.end)}`}`,
     );
   const ok = items.filter((i) => !blocked.includes(i)).sort((a, b) => a.start - b.start);
   if (!ok.length) return `Nenhum corte pôde ser proposto.\n${problems.join("\n")}`;

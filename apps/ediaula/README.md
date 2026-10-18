@@ -577,7 +577,10 @@ marca: quem aparece no vídeo é o **apresentador**.
    - **Regravar a tela neste intervalo:** marque um intervalo na régua da timeline e use o botão
      ao lado de Narrar intervalo. A voz começa dois segundos antes, a gravação para sozinha no
      fim do intervalo e só aquele trecho da tela é trocado, na faixa em que a tela gravada está.
-     Se você parar antes do fim, só o que foi gravado é trocado.
+     Se você parar antes do fim, só o que foi gravado é trocado. A câmera, o áudio do PC e o desenho
+     do take antigo saem do mesmo trecho; o microfone dele sai também quando outra voz cobre o trecho
+     (quando ele é a própria voz da aula, ele fica). O desenho e o quadro do take novo entram sobre a
+     tela nova, e uma tela guardada em partes (sem espaço para juntar) entra pelas mesmas âncoras.
 7. **Editar e exportar** como sempre. A exportação usa a voz tratada; se algum tratamento ainda
    não terminou, ela trata antes de exportar.
 
@@ -631,10 +634,13 @@ marca: quem aparece no vídeo é o **apresentador**.
   que não estão na barra.
 - **Região** (barra do gravador): tela inteira, 1920 × 1080, 1280 × 720, 16:9 no centro, a resolução da aula ou
   personalizada. Largura e altura se digitam em pixels da tela (os de verdade, qualquer que seja a escala do Windows),
-  com a proporção travada ou não, e a região sempre tem medidas pares (`src/shared/region.ts`). **Janela…** lista as
+  com a proporção travada ou não, e a região sempre tem medidas pares (`src/shared/region.ts`). Pelo teclado, o ícone
+  da região a move e cada alça a redimensiona com as setas (1 px, ou 10 px com Shift). **Janela…** lista as
   janelas abertas (as do EdiAula ficam de fora) e encaixa a região na escolhida, cortada à tela dela. Durante a
   gravação, a pílula avisa se essa janela for minimizada, fechada ou sair da região; **Manter a janela à frente**
-  deixa ela por cima das outras enquanto grava, e ela volta ao normal ao parar ou descartar.
+  deixa ela por cima das outras enquanto grava, e ela volta ao normal ao parar ou descartar. Enquanto está por cima
+  ela fica anotada no perfil (`janelas-na-frente.json`): se o app e o auxiliar caírem juntos, a próxima abertura a
+  devolve ao normal (só se o computador não reiniciou no meio).
 - Atalhos (configuráveis): **F9** inicia e pausa, **F10** para, **F8** marca o alvo do modo guiado,
   **Ctrl+Shift+M** marcador, **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte; veja abaixo),
   **Ctrl+Shift+D** desenhar na tela, **Ctrl+Shift+↓** e **Ctrl+Shift+↑** próxima fala e fala anterior do
@@ -647,7 +653,21 @@ marca: quem aparece no vídeo é o **apresentador**.
   perdem. Só uma pausa de mais de 5 min fecha a parte da tela e da câmera, para poupar disco; aí a retomada leva
   cerca de 1 s e o gravador avisa. A gravação termina no instante do F10 (ou de **Parar**): o que vem depois,
   enquanto os arquivos fecham, fica de fora. **Descartar este take e recomeçar** (lixeira na pílula) pede
-  confirmação, manda o take para a Lixeira e volta ao começo sem fechar o gravador.
+  confirmação dentro da própria pílula (nunca numa janela do sistema, que entraria no vídeo), manda o take
+  para a Lixeira e volta ao começo sem fechar o gravador. Se a Lixeira recusar, a pasta é apagada; se nem
+  isso der, o aviso diz onde os arquivos ficaram, e o gravador volta ao começo do mesmo jeito.
+- **O que a pausa gravou não sai dos arquivos do take:** como a captura continua na pausa, os segundos
+  pausados ficam anotados em cada mídia do take (`asset.recording.paused`, `src/shared/pausedMedia.ts`).
+  Nenhum aparo, arrasto de borda em grupo nem fechamento de corte estica um clipe para dentro deles, e o
+  pacote da aula leva cada uma dessas mídias com os trechos pausados em preto e silêncio (refeitas pelo
+  FFmpeg, com a mesma duração e os mesmos tempos) e a transcrição sem as palavras ditas ali. Os arquivos
+  originais na pasta da gravação continuam com esse conteúdo, e o editor avisa ao importar. Apagar a pausa
+  nos próprios arquivos depois de finalizar ficou para depois: refazer a tela custa cerca de um terço da
+  duração do take (2 min de 1080p30 levaram 35 a 39 s nesta máquina, com NVENC ou x264), o que daria uns
+  20 min para uma aula de uma hora, além de mais uma perda de qualidade e o dobro de disco enquanto roda.
+- **Windows 10 versão 2004 ou mais novo para gravar a tela:** antes dela o Windows não deixa a janela do
+  gravador fora da captura (só a pinta de preto), e ela cobre a tela inteira. Nessas versões os modos de
+  tela recusam começar, com o aviso; Só voz segue funcionando.
 - **Desenho na tela:** durante a gravação, **Ctrl+Shift+D** (ou o lápis na pílula, nos modos Tela e Tela sobre a
   narração) liga o desenho sobre o gravador, com as cores da paleta da aula, três espessuras e **Apagar tudo**. O
   desenho não entra no vídeo: cada traço vai com o tempo dele para o diário da sessão e, na importação, vira um clipe
@@ -864,7 +884,9 @@ marca: quem aparece no vídeo é o **apresentador**.
   (lacunas viram silêncio), em partes no disco, e uma parte cortada por uma queda é recuperada como as outras. Precisa
   do Windows 10 versão 2004 ou mais novo; o app confere enquanto a resposta for não (uma falha passageira não tira
   essa captura pelo resto da execução) e guarda o sim. Se a captura nativa não abrir no começo, o gravador passa
-  para a reserva abaixo; se o auxiliar parar no meio, a gravação segue sem o áudio do PC e avisa. Numa pausa longa
+  para a reserva abaixo; se o auxiliar parar no meio, a gravação segue, o aviso aparece e a captura abre de novo na
+  hora, numa parte nova alinhada pela primeira amostra dela (até três vezes por take; numa pausa, abre com a
+  retomada). Numa pausa longa
   (mais de 5 minutos) a parte do áudio do PC fecha com a tela, e a retomada abre `sistema-1.wav`, para o arquivo não
   crescer com a pausa inteira.
 - **Reserva do áudio do PC:** num Windows sem esse modo, o áudio do PC vai pelo loopback do Windows no Chromium com

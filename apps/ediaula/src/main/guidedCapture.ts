@@ -643,10 +643,19 @@ export class GuidedTake {
       if (!recorded) throw new Error("Nada foi gravado.");
       this.phase = "saving";
       this.report();
-      return finalizeTake({ dir: this.dir, warnings: this.warnings });
+      // An encoder that had to be killed may have left its file unfinished: it is checked and
+      // repaired before it counts as empty.
+      return finalizeTake({
+        dir: this.dir,
+        warnings: this.warnings,
+        ...(this.forced ? { suspect: "all" as const } : {}),
+      });
     });
     return this.stopping;
   }
+
+  /** The encoder did not end by itself and was killed: its file is checked when finalizing. */
+  private forced = false;
 
   /** Ends everything without finalizing; the caller throws the folder away. */
   async cancel(): Promise<void> {
@@ -679,7 +688,10 @@ export class GuidedTake {
       const closed = new Promise<void>((resolve) => encoder.once("close", () => resolve()));
       if (keep) encoder.stdin.end();
       else encoder.kill();
-      const timer = setTimeout(() => encoder.kill(), 20000);
+      const timer = setTimeout(() => {
+        this.forced = true;
+        encoder.kill();
+      }, 20000);
       await closed;
       clearTimeout(timer);
     }

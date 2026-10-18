@@ -25,23 +25,36 @@ export function resendUiRects(): void {
   if (!scheduled) scheduled = requestAnimationFrame(flush);
 }
 
-/** Reports the element's rectangle while it is mounted and `active`. */
+const same = (a: DOMRect, b: DOMRect): boolean =>
+  Math.abs(a.left - b.left) < 0.5 &&
+  Math.abs(a.top - b.top) < 0.5 &&
+  Math.abs(a.width - b.width) < 0.5 &&
+  Math.abs(a.height - b.height) < 0.5;
+
+/**
+ * Reports the element's rectangle while it is mounted and `active`. It is looked at every frame,
+ * not only when it changes size: a control that only moves (the region dragged, the toolbar that
+ * follows it, a window resized) must not leave its old place marked and the new one unmarked.
+ * Only a rectangle that changed goes to the main process.
+ */
 export function useUiRect<T extends Element>(id: string, active = true) {
   const ref = useRef<T>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !active) return;
-    const measure = (): void => {
-      rects.set(id, el.getBoundingClientRect());
-      resendUiRects();
+    let frame = 0;
+    const watch = (): void => {
+      const now = el.getBoundingClientRect();
+      const before = rects.get(id);
+      if (!before || !same(before, now)) {
+        rects.set(id, now);
+        resendUiRects();
+      }
+      frame = requestAnimationFrame(watch);
     };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    window.addEventListener("resize", measure);
+    watch();
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(frame);
       rects.delete(id);
       resendUiRects();
     };

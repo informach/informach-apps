@@ -1,10 +1,11 @@
 import { clipEnd, newId } from "./clipTime.ts";
 import type { Transform } from "./compose.ts";
-import type { RecordingResult } from "./recording.ts";
+import type { RecordingPiece, RecordingResult } from "./recording.ts";
 import type { RecordingLayout } from "./recordingImport.ts";
 import { keptRanges } from "./recordingJournal.ts";
 import { overwriteRange, videoTrackSlot } from "./timeline.ts";
 import type { Asset, Clip, Project, RecordingRole, Track } from "./types.ts";
+import { voiceTracks } from "./voiceMaster.ts";
 
 /**
  * "Tela sobre a narração": the screen recorded while the lesson's voice plays in the
@@ -116,10 +117,58 @@ const newTrack = (kind: Track["kind"], name: string): Track => ({
 });
 
 /**
+ * What a redo over [start, end] clears besides the screen: the other sources of the takes whose
+ * screen it replaces (their camera, the computer's sound, the drawing), on unlocked tracks, so
+ * nothing of the old take plays under the new screen. A microphone of those takes goes too only
+ * when another voice covers the stretch: when it is the lesson's voice itself (a screen take with
+ * its narration), it is what the teacher heard in the headphones and it stays.
+ */
+function clearReplacedTakes(
+  project: Pick<Project, "tracks" | "clips" | "assets">,
+  clips: Clip[],
+  screenTrack: string,
+  start: number,
+  end: number,
+): Clip[] {
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const overlaps = (c: Clip): boolean => c.start < end - 1e-3 && clipEnd(c) > start + 1e-3;
+  const takes = new Set(
+    clips.flatMap((c) => {
+      const recording = assets.get(c.assetId)?.recording;
+      return c.trackId === screenTrack && recording?.role === "screen" && overlaps(c)
+        ? [recording.id]
+        : [];
+    }),
+  );
+  if (!takes.size) return clips;
+  const locked = new Set(project.tracks.filter((t) => t.locked).map((t) => t.id));
+  const voice = new Set(voiceTracks(project).map((t) => t.id));
+  const otherVoice = clips.some((c) => {
+    const recording = assets.get(c.assetId)?.recording;
+    return voice.has(c.trackId) && overlaps(c) && !(recording && takes.has(recording.id));
+  });
+  const goes = (c: Clip): boolean => {
+    const recording = assets.get(c.assetId)?.recording;
+    if (!recording || !takes.has(recording.id)) return false;
+    if (c.trackId === screenTrack || locked.has(c.trackId) || !overlaps(c)) return false;
+    if (recording.role === "mic") return otherVoice;
+    return (
+      recording.role === "camera" || recording.role === "system" || recording.role === "drawing"
+    );
+  };
+  let out = clips;
+  for (const trackId of new Set(clips.filter(goes).map((c) => c.trackId))) {
+    const stays = new Set(out.filter((c) => c.trackId === trackId && !goes(c)).map((c) => c.id));
+    out = overwriteRange(out, trackId, start, end, stays);
+  }
+  return out;
+}
+
+/**
  * The take on the timeline: its screen on the main video track (on a "Tela" track above it when
  * the main one is taken there and nothing is being replaced), the camera above, and the sound
  * (the computer's, a microphone if one was on) on tracks of their own, all at the voice's time.
- * A redo first clears the screen track over [from, to].
+ * A redo first clears the screen track over [from, to], with the old take's other sources there.
  */
 export function layoutOverNarration(
   project: Pick<Project, "tracks" | "clips" | "assets">,
@@ -134,7 +183,23 @@ export function layoutOverNarration(
   let clips = [...project.clips];
   const placed: Clip[] = [];
   const plan = result.over;
-  const screen = find(result.screen);
+  /**
+   * A file of the take on the take's clock: the whole file from second 0, or the parts it was
+   * kept in (no room to join them), each where it was recorded. Either way every stretch goes
+   * where the voice heard during it is, by the anchors.
+   */
+  const onTakeClock = (
+    whole: string | undefined,
+    parts: readonly RecordingPiece[] | undefined,
+  ): (RecordingPiece & { asset: Asset })[] => {
+    const one = find(whole);
+    if (one) return [{ path: one.path, at: 0, in: 0, duration: result.duration, asset: one }];
+    return (parts ?? []).flatMap((p) => {
+      const asset = find(p.path);
+      return asset ? [{ ...p, asset }] : [];
+    });
+  };
+  const screens = onTakeClock(result.screen, result.screenParts);
   const start = pieces[0]?.start ?? plan?.from ?? 0;
   const last = pieces.at(-1);
   const end = last ? last.start + (last.to - last.from) : start;
@@ -161,7 +226,10 @@ export function layoutOverNarration(
         ),
     );
     if (holder) main = holder;
-    if (main) clips = overwriteRange(clips, main.id, start, end);
+    if (main) {
+      clips = clearReplacedTakes(project, clips, main.id, start, end);
+      clips = overwriteRange(clips, main.id, start, end);
+    }
   } else if (main && !free(main)) {
     const named = tracks.find((t) => t.kind === "video" && t.name === "Tela" && free(t));
     if (named) main = named;
@@ -171,7 +239,7 @@ export function layoutOverNarration(
       main = track;
     }
   }
-  if (!main && screen) {
+  if (!main && screens.length) {
     main = newTrack("video", "Tela");
     tracks.splice(videoTrackSlot(tracks), 0, main);
   }
@@ -203,22 +271,38 @@ export function layoutOverNarration(
       tracks.splice(tracks.indexOf(main), 0, cameraTrack);
     }
   }
-  const system = find(result.systemAudio);
-  const mic = find(result.microphone);
-  const systemTrack = system ? audioTrack("Áudio do PC") : undefined;
-  const micTrack = mic ? audioTrack("Microfone") : undefined;
-
-  for (const p of pieces) {
-    const length = p.to - p.from;
-    if (main && screen)
-      add({
-        assetId: screen.id,
-        trackId: main.id,
-        start: p.start,
-        in: p.from,
-        duration: length,
-        volume: 1,
+  const systems = onTakeClock(result.systemAudio, result.systemParts);
+  const mics = onTakeClock(result.microphone, result.microphoneParts);
+  const systemTrack = systems.length ? audioTrack("Áudio do PC") : undefined;
+  const micTrack = mics.length ? audioTrack("Microfone") : undefined;
+  /** The stretch [from, to] of the take from each file on it, at the piece's place. */
+  const lay = (
+    p: OverPiece,
+    files: readonly (RecordingPiece & { asset: Asset })[],
+    track: Track,
+    extra: Pick<Clip, "volume"> & Partial<Pick<Clip, "transform">>,
+  ): Clip[] =>
+    files.flatMap((f) => {
+      // A file of unknown length (MediaRecorder's WebM) lasts as long as its piece.
+      const length = f.asset.duration > 0 ? f.asset.duration - f.in : f.duration;
+      const a = Math.max(p.from, f.at);
+      const b = Math.min(p.to, f.at + f.duration, f.at + length);
+      if (b - a < 1 / 30) return [];
+      const clip = add({
+        assetId: f.asset.id,
+        trackId: track.id,
+        start: p.start + (a - p.from),
+        in: f.in + (a - f.at),
+        duration: b - a,
+        ...extra,
       });
+      return clip ? [clip] : [];
+    });
+
+  // The screen clips of each piece: the drawing of the take goes over them (lib/drawing.ts).
+  const shown: Clip[][] = pieces.map(() => []);
+  for (const [i, p] of pieces.entries()) {
+    if (main) shown[i].push(...lay(p, screens, main, { volume: 1 }));
     if (cameraTrack)
       for (const c of cameras) {
         const a = Math.max(p.from, c.at);
@@ -240,35 +324,21 @@ export function layoutOverNarration(
           },
         });
       }
-    for (const [asset, track, volume] of [
-      [system, systemTrack, 0.8],
-      [mic, micTrack, 1],
-    ] as const)
-      if (asset && track) {
-        const b = Math.min(p.to, asset.duration);
-        if (b > p.from)
-          add({
-            assetId: asset.id,
-            trackId: track.id,
-            start: p.start,
-            in: p.from,
-            duration: b - p.from,
-            volume,
-          });
-      }
+    if (systemTrack) lay(p, systems, systemTrack, { volume: 0.8 });
+    if (micTrack) lay(p, mics, micTrack, { volume: 1 });
   }
 
   const roles: { assetId: string; role: RecordingRole }[] = [
-    ...(screen ? [{ assetId: screen.id, role: "screen" as const }] : []),
+    ...screens.map((f) => ({ assetId: f.asset.id, role: "screen" as const })),
     ...cameras.map((c) => ({ assetId: c.asset.id, role: "camera" as const })),
-    ...(mic ? [{ assetId: mic.id, role: "mic" as const }] : []),
-    ...(system ? [{ assetId: system.id, role: "system" as const }] : []),
+    ...mics.map((f) => ({ assetId: f.asset.id, role: "mic" as const })),
+    ...systems.map((f) => ({ assetId: f.asset.id, role: "system" as const })),
   ].filter((r, i, all) => all.findIndex((o) => o.assetId === r.assetId) === i);
   return {
     tracks,
     clips,
     placed,
-    pieces: pieces.map((p) => ({ from: p.from, to: p.to, start: p.start, screen: [] })),
+    pieces: pieces.map((p, i) => ({ from: p.from, to: p.to, start: p.start, screen: shown[i] })),
     roles,
     duration: pieces.reduce((sum, p) => sum + p.to - p.from, 0),
     at: start,
