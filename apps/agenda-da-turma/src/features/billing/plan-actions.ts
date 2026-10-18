@@ -67,7 +67,7 @@ export const switchToPlanAction = action
 
     const current = findProduct(subscription.productId);
     const target = findProduct(input.productId);
-    if (!target || target.kind !== "subscription") {
+    if (target?.kind !== "subscription") {
       return err({ code: "INVALID_PRODUCT" } as const);
     }
 
@@ -157,7 +157,7 @@ export const purchaseCreditPackAction = action
 
     const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
     const product = findProduct(input.productId);
-    if (!product || product.kind !== "credit_pack") {
+    if (product?.kind !== "credit_pack") {
       return err({ code: "INVALID_PRODUCT" } as const);
     }
     const priceId = product.stripePriceId[stripeMode];

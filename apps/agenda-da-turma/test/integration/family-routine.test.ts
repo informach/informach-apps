@@ -3,6 +3,7 @@ import { seedAgendaCreditPricing } from "@informach/billing/seeds";
 import { and, db, eq, inArray } from "@informach/db";
 import {
   agendaActivities,
+  agendaActivityRevisions,
   agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -41,6 +42,7 @@ import type { NoticeActionInput } from "@/features/notices/schemas";
 import {
   confirmNotice,
   setNoticeActionStatus,
+  shareSavedWithTurma,
   updateNoticeAction,
 } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
@@ -336,6 +338,108 @@ describe("private groups and shared activities", () => {
       title: "Prova remarcada",
     });
   });
+  it("a correção pelo recado leva a data nova à turma, e sem data tira da turma", async () => {
+    const correction = async (task: Task, dueAt: string | null) => {
+      const [n] = await db
+        .insert(agendaNotices)
+        .values({
+          ownerUserId: owner,
+          createdByUserId: owner,
+          captureProfileId: child,
+          source: "teams",
+          contentHash: randomUUID(),
+          status: "ready",
+          text: "Retificação fictícia da prova",
+        })
+        .returning();
+      if (!n) throw new Error("Notice missing");
+      // A captura manda a caixa da turma desmarcada: a pergunta vem no "Pronto".
+      return confirmNotice(owner, {
+        noticeId: n.id,
+        allowDuplicates: false,
+        actions: [
+          {
+            ...action(task.title),
+            type: "exam",
+            subjectId: subject,
+            dueAt,
+            dateOrigin: dueAt ? "school" : "unspecified",
+            shareWithTurma: false,
+          },
+        ],
+        resolutions: [{ index: 0, kind: "replace", actionId: task.id, version: task.version }],
+      });
+    };
+    const published = await sharedExam("Prova retificada");
+    value(await correction(published, "2026-09-29"));
+    const [kept] = await db.select().from(agendaTasks).where(eq(agendaTasks.id, published.id));
+    expect(kept?.sharedActivityId).toBe(published.sharedActivityId);
+    const [fact] = await db
+      .select()
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, published.sharedActivityId ?? ""));
+    expect(fact?.dueAt).toBe("2026-09-29");
+
+    // Sem data, a cópia não pode ficar ligada à turma com a data velha: como
+    // ninguém aceitou ainda, a atividade sai da turma.
+    if (!kept) throw new Error("Missing kept task");
+    value(await correction(kept, null));
+    const [unshared] = await db.select().from(agendaTasks).where(eq(agendaTasks.id, published.id));
+    expect(unshared?.sharedActivityId).toBeNull();
+    expect(
+      await db
+        .select()
+        .from(agendaActivities)
+        .where(eq(agendaActivities.id, published.sharedActivityId ?? "")),
+    ).toEqual([]);
+  });
+  it("manda para a turma depois de salvar só o que pode ir, e só para quem acessa a criança", async () => {
+    // O "Pronto" do recado pergunta "Mandar para a turma?" e manda os ids que
+    // acabaram de entrar; a gravação é a mesma da edição.
+    const saved = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          {
+            ...action("Prova para a turma"),
+            type: "exam",
+            subjectId: subject,
+            dateOrigin: "school",
+          },
+          action("Sem matéria da turma"),
+        ],
+      }),
+    );
+    expect(saved.indices).toEqual([0, 1]);
+    // Outra família não publica o que não acessa.
+    expect(value(await shareSavedWithTurma(other, { ids: saved.ids }))).toEqual({
+      shared: 0,
+      skipped: 2,
+    });
+    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+      shared: 1,
+      skipped: 1,
+    });
+    const [published] = await db
+      .select()
+      .from(agendaTasks)
+      .where(eq(agendaTasks.id, saved.ids[0] ?? ""));
+    expect(published?.sharedActivityId).toBeTruthy();
+    // Mandar para a turma não muda o conteúdo: sem revisão, o card não diz
+    // "Mudou depois de salva".
+    expect(
+      await db
+        .select()
+        .from(agendaActivityRevisions)
+        .where(eq(agendaActivityRevisions.taskId, saved.ids[0] ?? "")),
+    ).toEqual([]);
+    // Mandar de novo não publica duas vezes.
+    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+      shared: 0,
+      skipped: 2,
+    });
+  });
   it("publishes cancellation and revision to an existing private calendar link", async () => {
     await joinPrivateGroup(other, otherChild, value(await rotateGroupCode(owner, group)).code);
     const created = await sharedExam("Prova cancelada");
@@ -434,6 +538,28 @@ describe("family permissions and action lifecycle", () => {
       false,
     );
     expect((await getNoticeAction(owner, id))?.action.assignedToUserId).toBeNull();
+  });
+  it("só a edição do conteúdo conta como mudança depois de salva, e a versão nova volta", async () => {
+    // O card dizia "Mudou depois de salva" a partir de `version > 1`, e concluir
+    // e reabrir também sobem a versão. E o "Desfazer" precisa da versão nova
+    // na resposta, ou esbarra em conflito.
+    const created = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [action("Mudou ou não mudou")],
+      }),
+    );
+    const id = required(created.ids[0]);
+    const edited = async () =>
+      (await listTasksInDateRange(owner, range)).find((task) => task.id === id)?.editedAfterSave;
+    expect(await edited()).toBe(false);
+    const done = value(await setNoticeActionStatus(owner, { id, version: 1, status: "done" }));
+    expect(done).toMatchObject({ id, version: 2 });
+    value(await setNoticeActionStatus(owner, { id, version: 2, status: "pending" }));
+    expect(await edited()).toBe(false);
+    value(await updateNoticeAction(owner, { id, version: 3, action: action("Mudou de verdade") }));
+    expect(await edited()).toBe(true);
   });
   it("prevents replay duplication and hides mixed-child original documents from a scoped guest", async () => {
     const { token } = await invite();

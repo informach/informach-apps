@@ -27,6 +27,7 @@ import { countPendingActivities } from "@/features/activities/pending-limit";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import { respondSharedActivity } from "@/features/activities/service";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { nextSchoolDayIso } from "@/features/dashboard/day-labels";
 import { hasSecondAdultInFamily } from "@/features/family/access";
 import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
 import { getKidModeSnapshot } from "@/features/kid-mode/service";
@@ -475,8 +476,11 @@ describe("Review regressions", () => {
     };
     const listed = async () =>
       (await getActivityOverview(owner, options)).items.map((entry) => entry.item.id);
+    // Hoje não tem mais os números do topo: o que conta é a linha em "Para hoje".
     const routineToday = async () =>
-      (await getRoutineSnapshot(owner, { profileFilter: child })).counters.today;
+      (await getRoutineSnapshot(owner, { profileFilter: child })).buckets.attention.map(
+        (entry) => entry.item.id,
+      );
 
     const calendarIds = async () =>
       (
@@ -492,7 +496,7 @@ describe("Review regressions", () => {
     expect(await listed()).toContain(taskId);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);
-    const withActive = await routineToday();
+    expect(await routineToday()).toContain(taskId);
     const pendingWithActive = await countPendingActivities(db, owner);
 
     await db
@@ -502,7 +506,7 @@ describe("Review regressions", () => {
 
     // Pausada: some dos dois ao mesmo tempo — é essa simultaneidade que importa.
     expect(await listed()).not.toContain(taskId);
-    expect(await routineToday()).toBe(withActive - 1);
+    expect(await routineToday()).not.toContain(taskId);
 
     // O LIMITE do plano gratuito conta o mesmo que a tela mostra. Sem isto a
     // família lê 15 pendências e é recusada ao cadastrar a 16ª, sem causa visível.
@@ -519,7 +523,7 @@ describe("Review regressions", () => {
       .set({ status: "active", pausedAt: null })
       .where(eq(agendaProfileSubjects.id, extraId));
     expect(await listed()).toContain(taskId);
-    expect(await routineToday()).toBe(withActive);
+    expect(await routineToday()).toContain(taskId);
     expect(await countPendingActivities(db, owner)).toBe(pendingWithActive);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);
@@ -595,12 +599,25 @@ describe("Review regressions", () => {
      * página não tem nenhuma outra checagem para segurar isso.
      */
     const task = await schoolActivity(false, null, "Tarefa do modo criança");
+    // Uma para a próxima aula e outra para depois dela, ainda na semana: a
+    // primeira entra na vez da criança, a segunda fica para adiantar.
+    const nextClassIso = nextSchoolDayIso(todayLocalIso());
+    const dated = (title: string, dueAt: string) =>
+      confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [{ ...action(title), dueAt, dateOrigin: "school" }],
+      });
+    value(await dated("Para a próxima aula", nextClassIso));
+    value(await dated("Para adiantar", addDaysIso(nextClassIso, 1)));
 
     // O titular entra.
     const asOwner = await getKidModeSnapshot(owner, child);
     expect(asOwner).not.toBeNull();
     expect(asOwner?.profile.id).toBe(child);
     expect(asOwner?.todo.some((entry) => entry.item.id === task.id)).toBe(true);
+    expect(asOwner?.todo.some((entry) => entry.item.title === "Para a próxima aula")).toBe(true);
+    expect(asOwner?.ahead.map((entry) => entry.item.title)).toContain("Para adiantar");
 
     // O segundo adulto entra SOMENTE na criança que o convite nomeou.
     expect(await getKidModeSnapshot(guest, child)).not.toBeNull();
@@ -613,14 +630,26 @@ describe("Review regressions", () => {
     expect(await getKidModeSnapshot(owner, otherChild)).toBeNull();
     expect(await getKidModeSnapshot(owner, randomUUID())).toBeNull();
 
-    // Uma lista só: o que a criança vê é exatamente o bucket "para cuidar
-    // hoje" do responsável, pela mesma projeção. Se alguém criar uma consulta
-    // própria para o modo criança, pai e filha passam a discordar sobre o que
-    // falta hoje — e este teste é o que avisa.
+    // Uma lista só: o que a criança vê é um pedaço da rotina do responsável,
+    // pela mesma projeção: o "Para hoje" e o que vence até a próxima aula, e o
+    // resto da semana para adiantar. Se alguém criar uma consulta própria para
+    // o modo criança, pai e filha passam a discordar sobre o que falta, e este
+    // teste é o que avisa.
     const routine = await getRoutineSnapshot(owner, { profileFilter: child });
-    expect(asOwner?.todo.map((entry) => entry.key)).toEqual(
-      routine.buckets.attention.map((entry) => entry.key),
+    const nextClass = nextSchoolDayIso(routine.todayIso);
+    const later = [...routine.buckets.tomorrow, ...routine.buckets.week];
+    expect(asOwner?.todo.map((entry) => entry.key)).toEqual([
+      ...routine.buckets.attention.map((entry) => entry.key),
+      ...later.filter((entry) => (entry.item.dueAt ?? "") <= nextClass).map((entry) => entry.key),
+    ]);
+    const weekEnd = addDaysIso(routine.todayIso, 6);
+    expect(asOwner?.ahead.map((entry) => entry.key)).toEqual(
+      later
+        .filter((entry) => (entry.item.dueAt ?? "") > nextClass)
+        .filter((entry) => (entry.item.dueAt ?? "") <= weekEnd)
+        .map((entry) => entry.key),
     );
+    expect(asOwner?.nextSchoolDayIso).toBe(nextClass);
   });
 
   it("recorta a lista pela mesma janela que produziu cada contador da rotina", async () => {

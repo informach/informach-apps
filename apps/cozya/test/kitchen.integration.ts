@@ -36,6 +36,7 @@ import {
   setShoppingItemState,
   updateCookingSession,
 } from "@/features/kitchen/repository";
+import { getTodayData } from "@/features/kitchen/today";
 import {
   countRecipesByUser,
   insertRecipe,
@@ -222,6 +223,72 @@ describe("local PostgreSQL: household lifecycle", () => {
     // Later tests count this household's recipes; remove only the two created here.
     await db.delete(cozyaRecipes).where(inArray(cozyaRecipes.id, [seasoned.id, plain.id]));
   });
+  it("says everything is at home only for a recipe on an up-to-date list, and brings lunch lunchboxes to the next day", async () => {
+    const week = "2027-03-01";
+    // Wednesday, 18h in São Paulo: the dinner is the meal to cook.
+    const now = new Date("2027-03-03T21:00:00Z");
+    const recipe = (name: string, ingredients: string) =>
+      insertRecipe({ userId: first.id, ...recipeInput, name, ingredients, servings: 4 });
+    const soup = await recipe("Sopa de teste", "1 cebola picada\n2 batatas");
+    const stew = await recipe("Ensopado de teste", "2 cebolas\n500 g de carne");
+    const pie = await recipe("Torta de teste", "1 cebola\n3 ovos");
+    const plan = (day: string, slot: "lunch" | "dinner", id: string, servings = 4, lunchbox = 0) =>
+      saveMeal(first.id, {
+        day,
+        slot,
+        recipeId: id,
+        label: "",
+        servings,
+        lunchboxServings: lunchbox,
+      });
+    const markAll = async (state: "have" | "todo") => {
+      for (const item of (await getShoppingList(first.id, week))?.items ?? [])
+        await setShoppingItemState(first.id, item.id, state);
+    };
+    // Tuesday's lunch sets two lunchboxes aside; Wednesday's dinner is the stew.
+    await plan("2027-03-02", "lunch", soup.id, 6, 2);
+    await plan("2027-03-03", "dinner", stew.id);
+    await generateShoppingList(first.id, week);
+    // "1 cebola picada" and "2 cebolas" are one line on the list.
+    const onions = (await getShoppingList(first.id, week))?.items.filter((item) =>
+      item.name.startsWith("Cebola"),
+    );
+    expect(onions).toHaveLength(1);
+
+    let today = await getTodayData(first.id, now);
+    expect(today.next?.label).toBe("Ensopado de teste");
+    expect(today.nextOnList).toBe("missing");
+    // The lunchbox of Tuesday's lunch is Wednesday's lunch.
+    expect(today.todayMeals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "lunchbox",
+          slot: "lunch",
+          label: "Sopa de teste",
+          servings: 2,
+        }),
+      ]),
+    );
+    await markAll("have");
+    expect((await getTodayData(first.id, now)).nextOnList).toBe("complete");
+
+    // The pie replaces the stew after the list: its onion is on the list and checked, its eggs
+    // are not on the list at all. That is not "tudo em casa".
+    await plan("2027-03-03", "dinner", pie.id);
+    today = await getTodayData(first.id, now);
+    expect(today.next?.label).toBe("Torta de teste");
+    expect(today.nextOnList).toBe("not-on-list");
+    await generateShoppingList(first.id, week);
+    expect((await getTodayData(first.id, now)).nextOnList).toBe("missing");
+    await markAll("have");
+    expect((await getTodayData(first.id, now)).nextOnList).toBe("complete");
+
+    // Another meal of the week changes: the pie is checked, but the list is no longer current.
+    await plan("2027-03-02", "lunch", soup.id, 8, 2);
+    expect((await getTodayData(first.id, now)).nextOnList).toBe("stale");
+
+    await db.delete(cozyaRecipes).where(inArray(cozyaRecipes.id, [soup.id, stew.id, pie.id]));
+  });
   it("repeats a week without overwriting existing meals", async () => {
     await saveMeal(first.id, {
       day: "2027-02-08",
@@ -235,14 +302,29 @@ describe("local PostgreSQL: household lifecycle", () => {
     expect(await repeatWeek(first.id, "2027-02-08")).toBe(0);
     expect((await getWeekMeals(first.id, "2027-02-08"))[0]?.label).toBe("Jantar fora");
   });
-  it("summarizes what the household did since the trial started, for its own account only", async () => {
-    const since = new Date(Date.now() - 400 * 86400000);
-    const summary = await getTrialSummary(first.id, since);
+  it("summarizes only what the household did during the trial, for its own account only", async () => {
+    const day = 86400000;
+    // The meals of this file are planned for 2027; the window covers them.
+    const trial = { from: new Date(Date.now() - 400 * day), to: new Date(Date.now() + 400 * day) };
+    const summary = await getTrialSummary(first.id, trial);
     expect(summary.meals).toBeGreaterThan(0);
     expect(summary.recipes).toBeGreaterThan(0);
     expect(typeof summary.lists).toBe("number");
     expect(typeof summary.cooked).toBe("number");
-    expect((await getTrialSummary(second.id, since)).meals).toBe(0);
+    expect((await getTrialSummary(second.id, trial)).meals).toBe(0);
+    // A trial that ended tomorrow does not count the meals planned for 2027.
+    const ended = await getTrialSummary(first.id, {
+      from: trial.from,
+      to: new Date(Date.now() + day),
+    });
+    expect(ended.meals).toBe(0);
+    expect(ended.recipes).toBe(summary.recipes);
+    // Nor what was done after it: recipes saved today are outside a trial that ended last year.
+    const old = await getTrialSummary(first.id, {
+      from: trial.from,
+      to: new Date(trial.from.getTime() + 14 * day),
+    });
+    expect(old).toEqual({ meals: 0, lists: 0, recipes: 0, cooked: 0 });
   });
   it("removes only owned manual shopping extras and keeps the removal on regeneration", async () => {
     const list = await getShoppingList(first.id, mealWeek);

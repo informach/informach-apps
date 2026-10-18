@@ -67,7 +67,7 @@ export function expiredKeys(entries: readonly PendingWrite[], now = Date.now()):
 /** O que fazer com o que o servidor respondeu. */
 export type WriteOutcome =
   /** Resposta final do servidor, aceitando ou recusando. A entrada sai da fila. */
-  | { kind: "settled"; ok: true }
+  | { kind: "settled"; ok: true; version?: number }
   | { kind: "settled"; ok: false; code: string }
   /** Transporte: sessão, sinal, limite, falha nossa. A entrada FICA. */
   | { kind: "retry" }
@@ -97,7 +97,12 @@ export function classifyResponse(status: number, body: unknown): WriteOutcome {
   if (status !== 200) return { kind: "retry" };
   if (typeof body !== "object" || body === null) return { kind: "retry" };
   const receipt = body as { ok?: unknown; error?: { code?: unknown } };
-  if (receipt.ok === true) return { kind: "settled", ok: true };
+  if (receipt.ok === true) {
+    const version = (receipt as { value?: { version?: unknown } }).value?.version;
+    return typeof version === "number"
+      ? { kind: "settled", ok: true, version }
+      : { kind: "settled", ok: true };
+  }
   if (receipt.ok === false && typeof receipt.error?.code === "string")
     return { kind: "settled", ok: false, code: receipt.error.code };
   return { kind: "retry" };

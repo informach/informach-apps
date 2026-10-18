@@ -22,7 +22,7 @@ export default async function FamilySettingsPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 pb-28 sm:px-8">
       <FamilyHeader
         current="/familia/ajustes"
-        subtitle="Como você quer ser avisada da rotina, e onde os compromissos aparecem."
+        subtitle="Quando e como receber aviso, e onde a agenda aparece."
       />
       <NotificationPreferencesPanel
         initial={preferences}

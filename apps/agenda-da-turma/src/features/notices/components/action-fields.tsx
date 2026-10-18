@@ -11,7 +11,7 @@ import {
   activityTypeSchema,
 } from "@/features/unified-activities/activity-types";
 import { ESTIMATE_PRESETS, formatEstimate } from "@/features/unified-activities/estimate";
-import { DATE_ORIGIN_LABELS, type NoticeActionInput } from "../schemas";
+import { DATE_ORIGIN_LABELS, type NoticeActionInput, UNSPECIFIED_WITHOUT_NOTICE } from "../schemas";
 
 const selectStyle = "h-11 w-full rounded-md border border-input bg-background px-3 text-sm";
 const labelStyle = "grid gap-1.5 text-sm font-medium";
@@ -30,12 +30,13 @@ export function ActionFields({
   shareLocked = false,
   subjectHint = null,
   profileTurmas,
+  fromNotice = false,
 }: {
   value: NoticeActionInput;
   onChange: (value: NoticeActionInput) => void;
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
-  /** Matérias por criança — turma em que ela participa + extracurriculares. */
+  /** Matérias por criança: turma em que ela participa e extracurriculares. */
   subjectOptions: SubjectOptionsByProfile;
   prefix: string;
   lockProfile?: boolean;
@@ -49,7 +50,7 @@ export function ActionFields({
   /**
    * A matéria como a leitura do recado a reconheceu. Quando não casa com
    * nenhuma cadastrada da criança, a revisão diz isso em vez de deixar o
-   * campo mudo — a pessoa decide entre cadastrar a matéria ou seguir sem.
+   * campo mudo, e a pessoa decide entre cadastrar a matéria ou seguir sem.
    */
   subjectHint?: string | null;
   /**
@@ -58,10 +59,13 @@ export function ActionFields({
    * precisa vincular a turma antes. Ausente, o destino é a lista de turmas.
    */
   profileTurmas?: Record<string, string | null>;
+  /** A atividade veio de um recado lido: só então "o recado não deu data" é verdade. */
+  fromNotice?: boolean;
 }) {
   const subjectsForProfile = subjectOptions[value.profileId] ?? [];
   const activeTurmaId = profileTurmas?.[value.profileId] ?? null;
   const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
+  const selectedSubjectName = subjectsForProfile.find((s) => s.id === selectedSubject)?.name;
   const unmatchedHint =
     subjectHint && !selectedSubject && !findClosestSubject(subjectsForProfile, subjectHint)
       ? subjectHint
@@ -167,7 +171,7 @@ export function ActionFields({
           {subjectsForProfile.map((option) => (
             <option key={option.id} value={option.id}>
               {option.name}
-              {option.source === "extra" ? " (extra)" : ""}
+              {option.source === "extra" ? " (fora da escola)" : ""}
             </option>
           ))}
         </select>
@@ -250,7 +254,11 @@ export function ActionFields({
           }
         />
         <span id={`${prefix}-date-origin`} className="font-normal text-muted-foreground">
-          {DATE_ORIGIN_LABELS[value.dateOrigin]}
+          {value.dateOrigin === "unspecified" && !fromNotice
+            ? UNSPECIFIED_WITHOUT_NOTICE
+            : value.dateOrigin === "schedule" && selectedSubjectName
+              ? `Na próxima aula de ${selectedSubjectName}, pelo horário`
+              : DATE_ORIGIN_LABELS[value.dateOrigin]}
         </span>
       </label>
       <label className={labelStyle} htmlFor={`${prefix}-time`}>
@@ -267,8 +275,8 @@ export function ActionFields({
         <legend className="mb-1.5">Quanto tempo leva (opcional)</legend>
         {/*
           Presets, e não um campo livre: ninguém sabe dizer "37 minutos", e a
-          pergunta que isto responde é grosseira — "dá para fazer antes do
-          jantar?". Os buckets da rotina somam o que estiver preenchido e
+          pergunta que isto responde é grosseira ("dá para fazer antes do
+          jantar?"). Os buckets da rotina somam o que estiver preenchido e
           ignoram o resto, então estimar uma atividade de cinco já ajuda.
         */}
         <div className="flex flex-wrap gap-2">
@@ -320,12 +328,11 @@ export function ActionFields({
           onChange={(e) => change({ recurrence: e.target.value === "weekly" ? "weekly" : "none" })}
         >
           <option value="none">Não repetir</option>
-          <option value="weekly">Toda semana, após concluir</option>
+          <option value="weekly">Toda semana, depois de feita</option>
         </select>
         {!isPro ? (
           <span className="font-normal text-muted-foreground">
-            Repetição e lembretes ficam pausados no plano gratuito. Você pode continuar corrigindo a
-            atividade.
+            No grátis, repetir e lembrar ficam pausados. Dá para continuar corrigindo a atividade.
           </span>
         ) : null}
       </label>
@@ -361,14 +368,13 @@ export function ActionFields({
             </button>
           ) : null}
           {value.reminderAt && new Date(value.reminderAt).valueOf() < Date.now() ? (
-            <span className="font-normal text-amber-700 dark:text-amber-400">
+            <span className="font-normal text-chart-4-ink">
               Esse horário já passou. Escolha um horário futuro para receber o aviso.
             </span>
           ) : null}
           <span className="font-normal text-muted-foreground">
-            A sugestão é de 2 dias para materiais, provas e trabalhos; 1 dia para os demais, às 19h.
-            Você pode ajustar. Ative e-mail ou notificações em Família. Seus horários de silêncio
-            serão respeitados.
+            A sugestão é 2 dias antes para material, prova e trabalho, e 1 dia antes para o resto,
+            às 19h. O aviso chega como estiver ligado em Família, fora do horário de silêncio.
           </span>
         </label>
       ) : null}
@@ -384,7 +390,7 @@ export function ActionFields({
             <input
               type="checkbox"
               id={`${prefix}-share`}
-              aria-label="Compartilhar com a turma"
+              aria-label="Mandar para a turma"
               aria-describedby={`${prefix}-share-hint`}
               className="mt-1 size-4"
               checked={value.shareWithTurma}
@@ -392,12 +398,12 @@ export function ActionFields({
               onChange={(e) => change({ shareWithTurma: e.target.checked })}
             />
             <span className="grid gap-1">
-              Compartilhar com a turma
+              Mandar para a turma
               <span id={`${prefix}-share-hint`} className="font-normal text-muted-foreground">
                 {shareLocked
-                  ? "Publicada por outra família. Sua cópia é só sua; a da turma continua com quem publicou."
+                  ? "Veio de outra família da turma. A cópia daqui é só de vocês; a da turma continua com quem mandou."
                   : !isPro
-                    ? "Compartilhar faz parte do Pro. No gratuito a atividade fica só para a sua família."
+                    ? "Mandar para a turma faz parte do Pro. No grátis a atividade fica só com vocês."
                     : !value.dueAt
                       ? "Informe a data para as outras famílias saberem até quando."
                       : "As outras famílias da turma recebem esta atividade e decidem se aceitam."}
@@ -407,10 +413,12 @@ export function ActionFields({
         </div>
       ) : null}
       {value.sourceExcerpt ? (
-        <blockquote className="border-l-2 border-primary/30 pl-3 text-sm text-muted-foreground sm:col-span-2">
-          <span className="mb-1 block font-medium">Trecho do recado</span>
-          {value.sourceExcerpt}
-        </blockquote>
+        <figure className="space-y-1 text-sm sm:col-span-2">
+          <figcaption className="font-semibold">O que o recado diz</figcaption>
+          <blockquote className="break-words rounded-xl border border-foreground/15 bg-card px-3 py-2 text-[15px] leading-relaxed">
+            “{value.sourceExcerpt}”
+          </blockquote>
+        </figure>
       ) : null}
     </div>
   );

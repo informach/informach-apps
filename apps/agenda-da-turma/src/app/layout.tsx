@@ -4,12 +4,13 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
+import { env } from "@/lib/env";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -25,6 +26,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   // Cada página declara só o próprio nome; o sufixo da marca vem daqui.
+  // A base dos endereços absolutos: sem ela, a imagem de compartilhamento e o
+  // canônico da página de vendas saíam relativos, e o WhatsApp não mostrava
+  // figura nenhuma no link.
+  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: { default: "Agenda da Turma", template: "%s · Agenda da Turma" },
   description: "Organize tarefas, provas e recados dos seus filhos em um só lugar.",
   applicationName: "Agenda da Turma",
@@ -41,8 +46,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // into dynamic rendering too; a statically cached script cannot share it.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={jakarta.variable} suppressHydrationWarning>
+    // A variável da fonte mora no `<html>`: `--font-sans` é calculada no
+    // `:root` (globals.css), e com a variável só no `<body>` a declaração
+    // inteira caía. O app todo saía na fonte do sistema, e não em Plus Jakarta.
+    <html lang="pt-BR" className={jakarta.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />

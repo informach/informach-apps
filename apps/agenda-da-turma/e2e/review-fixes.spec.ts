@@ -23,6 +23,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, test } from "@playwright/test";
+import { waitForAppHydration, waitForHydration } from "./fixtures/hydration";
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing browser fixture");
@@ -72,9 +73,8 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       data: { email, password: "ReviewFixes!Synthetic2026" },
     });
     expect(login.ok()).toBe(true);
-    await page.goto("/choose-plan");
-    await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+    await page.goto("/dashboard");
 
     const [customer] = await db
       .insert(customers)
@@ -185,7 +185,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       for (const [label, route] of [
         ["Hoje", "/dashboard"],
         ["Atividades", "/atividades"],
-        ["Calendário", "/calendario"],
+        ["Semana", "/calendario"],
       ] as const) {
         await expect(mainNav.getByRole("link", { name: label, exact: true })).toHaveAttribute(
           "href",
@@ -201,18 +201,32 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       // espalhado por três telas.
       await expect(page.getByRole("button", { name: "Adicionar", exact: true })).toHaveCount(1);
       await page.getByRole("button", { name: "Adicionar", exact: true }).click();
-      const addSheet = page.getByRole("dialog", { name: "Adicionar" });
+      const addSheet = page.getByRole("dialog", { name: "O que chegou?" });
+      // A criança filtrada já vem escolhida no topo da folha.
+      await expect(
+        addSheet.getByRole("button", { name: "Criança A navegador", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      // "Foto" abre a câmera da própria folha, como no canvas; os outros três
+      // caminhos são links para a tela do recado ou para o formulário.
+      await expect(addSheet.getByLabel(/^Foto/)).toHaveAttribute("type", "file");
       for (const [label, route] of [
-        ["Foto ou arquivo", "/recados/novo?modo=foto"],
-        ["Colar mensagem", "/recados/novo?modo=colar"],
-        ["Falar", "/recados/novo?modo=falar"],
-        ["Escrever", "/atividades/nova"],
+        [/^Mensagem/, "/recados/novo?modo=colar"],
+        [/^Falar/, "/recados/novo?modo=falar"],
+        [/^Escrever/, "/atividades/nova"],
       ] as const) {
         await expect(addSheet.getByRole("link", { name: label })).toHaveAttribute(
           "href",
           `${route}${route.includes("?") ? "&" : "?"}perfil=${child.id}`,
         );
       }
+      // A folha sobe com animação: a foto espera ela parar.
+      await page.evaluate(() =>
+        Promise.all(document.getAnimations().map((animation) => animation.finished)),
+      );
+      await page.screenshot({
+        path: testInfo.outputPath("add-sheet-mobile.png"),
+        caret: "initial",
+      });
       await page.keyboard.press("Escape");
       await expect(addSheet).toBeHidden();
       // A folha some antes de o Radix devolver os eventos de ponteiro ao body.
@@ -262,10 +276,11 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         });
         await form.getByLabel("Atividade", { exact: true }).fill(`Cadastro direto: ${label}`);
         await form.getByLabel("Data (opcional)", { exact: true }).fill(date);
-        const share_ = form.getByLabel("Compartilhar com a turma");
+        const share_ = form.getByLabel("Mandar para a turma");
         await expect(share_).toBeVisible();
         if (share) await share_.check();
-        await form.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+        // O botão diz o tipo: "Salvar 1 tarefa", "Salvar 1 prova".
+        await form.getByRole("button", { name: /^Salvar 1 / }).click();
         // A lista, não o formulário: `/atividades/nova` também casa com
         // `/atividades`, e a asserção passaria antes de a gravação terminar.
         await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}$`));
@@ -300,10 +315,10 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await page.getByRole("option", { name: "Prova", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}&tipo=exam$`));
       await expect(
-        page.getByRole("button", { name: "Ações para Cadastro direto: Prova", exact: true }),
+        page.getByRole("link", { name: "Cadastro direto: Prova", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Ações para Cadastro direto: Trabalho", exact: true }),
+        page.getByRole("link", { name: "Cadastro direto: Trabalho", exact: true }),
       ).toHaveCount(0);
       await page.getByRole("combobox", { name: "Estudante", exact: true }).click();
       await page.getByRole("option", { name: "Criança B navegador", exact: true }).click();
@@ -319,18 +334,26 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await page.goto(`/atividades?perfil=${child.id}&tipo=invalid`);
       await expect(typeFilter).toContainText("Todos os tipos");
       await expect(
-        page.getByRole("button", { name: "Ações para Cadastro direto: Trabalho", exact: true }),
+        page.getByRole("link", { name: "Cadastro direto: Trabalho", exact: true }),
       ).toBeVisible();
-      // O calendário leva ao mesmo formulário, já com o dia tocado.
+      // A Semana leva ao mesmo formulário, já com o dia tocado e a criança:
+      // o "+" de um dia vazio da semana que vem.
       await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
-      await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
-      await expect(page).toHaveURL(`/atividades/nova?perfil=${child.id}`);
+      await page.getByRole("link", { name: "Próxima semana", exact: true }).click();
+      await expect(page).toHaveURL(/[?&]date=\d{4}-\d{2}-\d{2}/);
+      await page
+        .getByRole("link", { name: /^Adicionar para / })
+        .first()
+        .click();
+      await expect(page).toHaveURL(
+        new RegExp(`/atividades/nova\\?data=\\d{4}-\\d{2}-\\d{2}&perfil=${child.id}$`),
+      );
       // Tocar num dia leva ao mesmo formulário com a data já preenchida.
       // No celular a vista do mês é agenda vertical — a grade 7×6 fica para
       // `md` — então o alvo é o "+" do cartão de hoje, e não a célula. O nome
       // acessível traz a data por extenso, não o ISO, então a busca é pelo
       // prefixo dentro do cartão marcado como "Hoje".
-      await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
+      await page.goto(`/calendario?view=month&date=${date}&perfil=${child.id}`);
       const todayCard = page
         .getByRole("article")
         .filter({ has: page.getByText("Hoje", { exact: true }) })
@@ -379,15 +402,25 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     });
 
     // Editar é sempre o mesmo formulário, na mesma tela, seja qual for o
-    // caminho até ela — e a correção de quem publicou alcança a turma: a versão
+    // caminho até ela, e a correção de quem publicou alcança a turma: a versão
     // que sobe é a de `agenda.activities`, não só a da cópia de quem editou.
+    // O card não tem mais menu de três pontos: o título abre a leitura, e o
+    // formulário fica a um toque, em Editar.
     for (const version of [2, 3]) {
       await page.goto("/atividades");
-      await page
-        .getByRole("button", { name: `Ações para Atividade versão ${version - 1}`, exact: true })
-        .click();
-      await page.getByRole("menuitem", { name: "Editar", exact: true }).click();
-      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
+      const title = page.getByRole("link", {
+        name: `Atividade versão ${version - 1}`,
+        exact: true,
+      });
+      await waitForHydration(title);
+      await waitForAppHydration(page);
+      await title.click();
+      // A leitura também compila na primeira visita: o "Editar" só existe depois dela.
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+      await page.getByRole("link", { name: "Editar", exact: true }).click();
+      // A primeira visita ao detalhe compila a página no `next dev`, e isso não
+      // cabe nos 5 s de um `expect` local. O orçamento é desta espera, não do teste.
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}\?editar=1$/, { timeout: 30_000 });
       await page.getByLabel("Atividade", { exact: true }).fill(`Atividade versão ${version}`);
       await page.getByRole("button", { name: "Salvar alteração", exact: true }).click();
       // A gravação recarrega o formulário na versão nova, então a confirmação
@@ -404,17 +437,18 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         .toBe(version);
     }
     for (const version of [4, 5]) {
+      // Na Semana, a atividade é uma linha que abre a leitura.
       await page.goto(`/calendario?date=${date}`);
       await page
-        .getByRole("button", {
-          name: new RegExp(`tarefa de Matéria de revisão: Atividade versão ${version - 1}`),
-        })
-        .click();
-      await page
-        .getByRole("dialog")
-        .getByRole("link", { name: `Atividade versão ${version - 1}`, exact: true })
+        .getByRole("list", { name: "Os dias da semana" })
+        .getByRole("link", { name: new RegExp(`^Atividade versão ${version - 1}`) })
         .click();
       await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
+      await expect(
+        page.getByRole("heading", { name: `Atividade versão ${version - 1}`, level: 1 }),
+      ).toBeVisible();
+      await page.getByRole("link", { name: "Editar", exact: true }).click();
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}\?editar=1$/);
       await page.getByLabel("Atividade", { exact: true }).fill(`Atividade versão ${version}`);
       await page.getByRole("button", { name: "Salvar alteração", exact: true }).click();
       // A gravação recarrega o formulário na versão nova, então a confirmação
@@ -464,16 +498,14 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       .returning();
     const noticeId = required(notice).id;
     await page.goto(`/recados/novo?retomar=${noticeId}`);
+    // A data do recado em dia da semana, e não "13/09/2030".
     await expect(
-      page.getByText("Publicação identificada: 13/09/2030", { exact: true }),
+      page.getByText("O recado é de sexta, 13 de setembro de 2030.", { exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole("checkbox", {
-        name: "Confirmo que o original contém informações apenas das crianças marcadas abaixo.",
-      })
-      .check();
-    await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
-    await expect(page).toHaveURL(/atividades/);
+    await page.getByRole("checkbox", { name: /^O recado fala só de Criança A navegador/ }).check();
+    await page.getByRole("button", { name: "Salvar 1 autorização", exact: true }).click();
+    // Salvar termina num "Pronto", com o que entrou na semana, e não numa lista.
+    await expect(page.getByRole("heading", { name: /^Pronto\./ })).toBeVisible();
     expect(
       (await db.select().from(agendaNotices).where(eq(agendaNotices.id, noticeId)))[0]
         ?.sourceProfileIds,
@@ -481,9 +513,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
 
     // The actual parse endpoint replays this extraction; no AI provider call.
     await page.goto("/recados/novo");
-    await page
-      .getByRole("combobox", { name: "Para qual criança?", exact: true })
-      .selectOption(sibling.id);
+    await page.getByRole("button", { name: "Criança B navegador", exact: true }).click();
     await page.getByLabel("Cole a mensagem ou publicação").fill(text);
     const [replayedExtraction] = await Promise.all([
       page.waitForResponse(
@@ -491,12 +521,12 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
           new URL(response.url()).pathname === "/api/recados/parse" &&
           response.request().method() === "POST",
       ),
-      page.getByRole("button", { name: "Identificar atividades", exact: true }).click(),
+      page.getByRole("button", { name: "Ler o recado", exact: true }).click(),
     ]);
     expect(replayedExtraction.status()).toBe(200);
-    await expect(page.getByText(/Este recado já foi aplicado a/)).toBeVisible();
-    await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
-    await expect(page).toHaveURL(/atividades/);
+    await expect(page.getByText(/Este recado já foi lido para/)).toBeVisible();
+    await page.getByRole("button", { name: "Salvar 1 autorização", exact: true }).click();
+    await expect(page.getByRole("heading", { name: /^Pronto\./ })).toBeVisible();
     expect(
       await db.select().from(agendaTasks).where(eq(agendaTasks.noticeId, noticeId)),
     ).toHaveLength(2);
@@ -530,12 +560,12 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       })
       .returning();
     await page.goto(`/recados/novo?retomar=${required(correction).id}`);
-    await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+    await page.getByRole("button", { name: "Salvar 1 autorização", exact: true }).click();
     await expect(page.getByLabel("Correção da atividade 1")).toBeVisible();
     await page.getByLabel("Correção da atividade 1").selectOption(previous.id);
     await page.screenshot({ path: testInfo.outputPath("deadline-correction.png"), fullPage: true });
-    await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
-    await expect(page).toHaveURL(/atividades/);
+    await page.getByRole("button", { name: "Salvar 1 autorização", exact: true }).click();
+    await expect(page.getByRole("heading", { name: /^Pronto\./ })).toBeVisible();
     // A retificação versiona a atividade que já existia em vez de criar outra:
     // a criança continua com UMA tarefa vinda deste recado. As atividades da
     // escola vivem na mesma tabela desde a convergência, por isso a contagem
@@ -599,38 +629,44 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     const photoId = required(photoNotice).id;
     await page.goto(`/atividades?perfil=${child.id}`);
     await page.getByRole("button", { name: "Adicionar de um recado", exact: true }).click();
+    // "Foto" abre a câmera na própria folha, e a tela do recado já chega com a
+    // foto e a criança escolhida, como no canvas.
     await page
-      .getByRole("dialog", { name: "Adicionar" })
-      .getByRole("link", { name: "Foto ou arquivo" })
-      .click();
+      .getByRole("dialog", { name: "O que chegou?" })
+      .getByLabel(/^Foto/)
+      .setInputFiles({
+        name: "agenda-sintetica.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(photoBase64, "base64"),
+      });
     await expect(
-      page.getByRole("combobox", { name: "Para qual criança?", exact: true }),
-    ).toHaveValue(child.id);
-    await expect(page.locator("#notice-camera")).toHaveAttribute("capture", "environment");
-    await page.locator("#notice-camera").setInputFiles({
-      name: "agenda-sintetica.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(photoBase64, "base64"),
-    });
-    await expect(
-      page.getByRole("combobox", { name: "O que você vai importar?", exact: true }),
-    ).toHaveValue("notebook");
+      page.getByRole("heading", { name: "Foto para Criança A navegador", level: 1 }),
+    ).toBeVisible();
+    await expect(page.locator("#notice-source")).toHaveValue("notebook");
     await expect(page.getByRole("img", { name: "Foto selecionada para leitura" })).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("capture-photo.png"),
+      fullPage: true,
+      caret: "initial",
+    });
     await expect(
       page.getByLabel("Observação para acompanhar a foto (opcional)", { exact: true }),
     ).toHaveValue("");
+    // Observação, origem, data e link moram em "Mais opções".
+    await page.locator("summary", { hasText: "Mais opções" }).click();
     await page.getByLabel("Data da anotação (se conhecida)").fill("2030-09-14");
-    await page.getByRole("button", { name: "Identificar atividades", exact: true }).click();
+    await page.getByRole("button", { name: "Ler o recado", exact: true }).click();
     await expect(
       page.getByText("Confira a data da prova; a anotação está ilegível.", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Salvar 2 atividades", exact: true }).click();
-    await expect(page).toHaveURL(/atividades/);
+    await expect(page.getByRole("heading", { name: /^Pronto\./ })).toBeVisible();
+    await page.goto(`/atividades?perfil=${child.id}`);
     await expect(page.getByRole("link", { name: homework.title, exact: true })).toBeVisible();
     const examCard = page
       .getByRole("article")
       .filter({ has: page.getByRole("link", { name: exam.title, exact: true }) });
-    await expect(examCard.getByText("Prazo a confirmar", { exact: true })).toBeVisible();
+    await expect(examCard.getByText("Sem data", { exact: true })).toBeVisible();
     await page.goto("/recados");
     await expect(page.getByRole("button", { name: /Marcar como feito/ })).toHaveCount(0);
     await page.locator(`a[href="/recados/${photoId}"]`).click();
@@ -651,7 +687,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await expect(page).toHaveURL(new RegExp(`recado=${photoId}`));
     await expect(page.getByRole("article")).toHaveCount(2);
     await page
-      .getByRole("button", { name: `Marcar como feito em casa: ${homework.title}`, exact: true })
+      .getByRole("button", { name: `Marcar como feito: ${homework.title}`, exact: true })
       .click();
     await expect(
       page.getByRole("button", { name: `Reabrir: ${homework.title}`, exact: true }),
@@ -671,7 +707,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await expect(page).toHaveURL(/atividades\/nova/);
     await expect(page.getByLabel("Criança", { exact: true })).toHaveValue(sibling.id);
     await page.getByLabel("Atividade", { exact: true }).fill("Leitura planejada pela família");
-    await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+    await page.getByRole("button", { name: "Salvar 1 tarefa", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${sibling.id}$`));
     await expect(
       page.getByRole("link", { name: "Leitura planejada pela família", exact: true }),
@@ -700,9 +736,8 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       },
     ]);
     await page.goto("/dashboard");
-    await expect(
-      page.getByRole("heading", { name: "Para cuidar hoje", exact: true }),
-    ).toBeVisible();
+    // Das 18h à meia-noite o título vira "Ainda de hoje"; a atividade é o que importa.
+    await expect(page.getByRole("heading", { name: /^(Para hoje|Ainda de hoje)$/ })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Separar o material de arte", exact: true }),
     ).toBeVisible();

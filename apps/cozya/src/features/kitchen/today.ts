@@ -1,6 +1,7 @@
 import "server-only";
 import { addDays, localDay, weekdayName, weekdayShort, weekStart } from "./dates";
-import { parseIngredients, shoppingKeyFor } from "./ingredients";
+import { lunchboxesFor } from "./lunchbox";
+import { checkMealOnList, mealShoppingKeys } from "./meal-shopping";
 import {
   getCookingSessions,
   getMealsBetween,
@@ -12,9 +13,11 @@ import type { CookingSession, Meal } from "./types";
 type Recipe = Awaited<ReturnType<typeof getRecipesByIds>>[number];
 
 export type TodayMeal = {
+  /** The meal id, or the id of the meal the lunchbox came from. */
+  key: string;
   day: string;
   slot: "lunch" | "dinner";
-  /** A planned meal, or the lunchbox set aside at yesterday's dinner. */
+  /** A planned meal, or the lunchbox set aside at yesterday's lunch or dinner. */
   kind: "planned" | "lunchbox";
   label: string;
   recipeId: string | null;
@@ -66,6 +69,7 @@ function mealsOf(
     const cookedToday =
       !!session?.cookedAt && localDay(session.cookedAt) === today && day === today;
     return {
+      key: meal.id,
       day,
       slot: meal.slot,
       kind: "planned",
@@ -89,22 +93,23 @@ function mealsOf(
           : null,
     };
   };
-  const result = planned.map(toView);
-  const previousDinner = meals.find(
-    (meal) => meal.day === addDays(day, -1) && meal.slot === "dinner" && meal.lunchboxServings > 0,
-  );
-  if (previousDinner && !planned.some((meal) => meal.slot === "lunch"))
-    result.unshift({
-      ...toView(previousDinner),
+  // What yesterday's lunch and dinner set aside is today's lunch, next to any lunch planned.
+  const lunchboxes = lunchboxesFor(day, meals).map(
+    (source): TodayMeal => ({
+      ...toView(source),
+      key: `lunchbox:${source.id}`,
       day,
       slot: "lunch",
       kind: "lunchbox",
-      servings: previousDinner.lunchboxServings,
+      servings: source.lunchboxServings,
       lunchboxServings: 0,
       cookedToday: false,
       cookedTime: null,
-    });
-  return result.sort((a, b) => (a.slot === b.slot ? 0 : a.slot === "lunch" ? -1 : 1));
+    }),
+  );
+  return [...lunchboxes, ...planned.map(toView)].sort((a, b) =>
+    a.slot === b.slot ? 0 : a.slot === "lunch" ? -1 : 1,
+  );
 }
 
 export async function getTodayData(userId: string, now = new Date()) {
@@ -124,14 +129,14 @@ export async function getTodayData(userId: string, now = new Date()) {
   const todayMeals = mealsOf(today, meals, recipes, sessions, today);
   const tomorrowMeals = mealsOf(tomorrow, meals, recipes, sessions, today);
   const dinner = todayMeals.find((meal) => meal.slot === "dinner" && meal.kind === "planned");
-  const lunch = todayMeals.find((meal) => meal.slot === "lunch");
+  // Yesterday's lunchbox is already cooked: it shows under "Também hoje", never as the meal to cook.
+  const lunch = todayMeals.find((meal) => meal.slot === "lunch" && meal.kind === "planned");
   const evening = !!dinner?.cookedToday;
   const hero = evening
     ? null
-    : lunch && lunch.kind === "planned" && !lunch.cookedToday && hourInSaoPaulo(now) < 15
+    : lunch && !lunch.cookedToday && hourInSaoPaulo(now) < 15
       ? lunch
-      : // Yesterday's lunchbox is already cooked: it shows under "Também hoje", never as the meal to cook.
-        (dinner ?? (lunch && lunch.kind === "planned" && !lunch.cookedToday ? lunch : null));
+      : (dinner ?? (lunch && !lunch.cookedToday ? lunch : null));
 
   // After tonight's dinner is cooked, the page turns to tomorrow.
   const next = evening
@@ -139,23 +144,18 @@ export async function getTodayData(userId: string, now = new Date()) {
       tomorrowMeals.find((meal) => meal.kind === "planned") ??
       null)
     : hero;
-  // What that recipe needs that is still unchecked on this week's list.
-  const heroRecipe = recipes.find((recipe) => recipe.id === next?.recipeId);
-  const keys = new Set(
-    heroRecipe
-      ? parseIngredients(heroRecipe.ingredients).flatMap((item) => {
-          const key = shoppingKeyFor(item);
-          return key ? [key] : [];
-        })
-      : [],
-  );
-  // After Sunday's dinner, "next" is Monday: its ingredients are on next week's list.
-  const nextList =
-    next && weekStart(next.day) !== week
-      ? await getShoppingList(userId, weekStart(next.day))
-      : list;
-  const forNext = (nextList?.items ?? []).filter((item) => keys.has(item.key));
-  const missing = forNext.filter((item) => item.state === "todo");
+  // What the list of that meal's week says about it. After Sunday's dinner, "next" is Monday:
+  // its ingredients are on next week's list.
+  const nextWeek = next ? weekStart(next.day) : week;
+  const nextRecipe = recipes.find((recipe) => recipe.id === next?.recipeId);
+  const onList =
+    next && nextRecipe
+      ? checkMealOnList(
+          mealShoppingKeys(nextRecipe, next.servings),
+          nextWeek === week ? list : await getShoppingList(userId, nextWeek),
+        )
+      : null;
+  const missing = onList?.state === "missing" ? onList.items : [];
 
   const listItems = (list?.items ?? []).filter(
     (item) => item.category !== "despensa" || item.state === "todo",
@@ -211,10 +211,12 @@ export async function getTodayData(userId: string, now = new Date()) {
     hero,
     next,
     evening: evening ? dinner : null,
+    /** The week of the list that holds the next meal: next week's after Sunday's dinner. */
+    nextWeek,
+    /** "complete" only when that list is up to date, has the whole recipe and nothing to buy. */
+    nextOnList: onList?.state ?? null,
     missing: missing.map((item) => ({ id: item.id, name: item.name.toLocaleLowerCase("pt-BR") })),
     missingPhrase: listPhrase(missing.map((item) => item.name.toLocaleLowerCase("pt-BR"))),
-    /** The list has what the next meal needs and nothing of it is still to buy. */
-    allAtHome: forNext.length > 0 && missing.length === 0,
     weekDays,
     weekPhrase: [
       ...noRecipePhrases,

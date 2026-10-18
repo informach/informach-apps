@@ -1,4 +1,3 @@
-import { getDueBadgeLabel, getDueBadgeVariant, getDueUrgency } from "@/features/activities/utils";
 import { DATE_ORIGIN_LABELS, SOURCE_LABELS } from "@/features/notices/schemas";
 import type { ActivityType } from "./activity-types";
 import type { ActivityOverviewItem } from "./overview-types";
@@ -32,15 +31,17 @@ export type ActivityView = {
   location: string | null;
   subjectName: string | null;
   subjectColorIndex: number | null;
-  /** Segunda linha de contexto: turma e ano, ou "extracurricular". */
+  /** Segunda linha de contexto: turma e ano, ou "fora da escola". */
   contextLine: string | null;
   /** Procedência do prazo e origem do recado, quando dizem algo. */
   provenance: string | null;
   /** Quem ficou de cuidar, quando alguém ficou. */
-  assignment: string | null;
+  assignedName: string | null;
   shared: boolean;
   isExtra: boolean;
   version: number;
+  /** O conteúdo foi editado depois de salvo (concluir e reabrir não contam). */
+  editedAfterSave: boolean;
   detailHref: string;
   /** Ausente quando cancelada: não se alterna o que foi cancelado. */
   toggle: { id: string; version: number } | null;
@@ -64,7 +65,7 @@ export function toActivityView(entry: ActivityOverviewItem, currentUserId: strin
       ? formatTurmaContext(item.grade, item.classLetter, item.year)
       : null
     : item.profileSubjectId
-      ? "extracurricular"
+      ? "fora da escola"
       : null;
 
   // Procedência só aparece quando informa. Dizer "planejado pela família" numa
@@ -94,36 +95,15 @@ export function toActivityView(entry: ActivityOverviewItem, currentUserId: strin
     contextLine,
     provenance,
     // Só quando alguém ficou de cuidar. O convite a combinar mora no detalhe,
-    // e não repetido em cada card de quem cuida sozinha.
-    assignment: item.assignedName ? `Acompanhamento: ${item.assignedName}` : null,
+    // e não repetido em cada linha de quem cuida sozinha.
+    assignedName: item.assignedName,
     shared: item.visibility === "shared_with_turma",
     isExtra: item.profileSubjectId !== null,
     version: item.version,
+    editedAfterSave: item.editedAfterSave,
     detailHref: `/atividades/${item.id}`,
     toggle: canceled ? null : { id: item.id, version: item.version },
     sharedActivityId: item.sharedActivityId,
     manage: !canceled && item.createdByUserId === currentUserId ? { id: item.id } : null,
-  };
-}
-
-/**
- * Prazo em badge para qualquer atividade.
- *
- * Os helpers de urgência exigem data, e por isso a atividade vinda de recado
- * nunca pôde usá-los: mostrava o prazo como texto solto enquanto as outras
- * mostravam badge colorido. Aqui a ausência de prazo é um estado legítimo, e a
- * hora entra no mesmo rótulo quando existe.
- */
-export function getViewDueBadge(
-  view: ActivityView,
-  now = new Date(),
-): { label: string; variant: "destructive" | "warning" | "default" | "muted" } {
-  if (view.status === "canceled") return { label: "Cancelada", variant: "muted" };
-  if (!view.dueAt) return { label: "Prazo a confirmar", variant: "muted" };
-  const urgency = getDueUrgency(view.dueAt, view.status === "done" ? "done" : "pending", now);
-  const label = getDueBadgeLabel(view.dueAt, urgency, now);
-  return {
-    label: view.time ? `${label} às ${view.time}` : label,
-    variant: getDueBadgeVariant(urgency),
   };
 }

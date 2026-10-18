@@ -69,7 +69,8 @@ describe("fila offline", () => {
     const second = await writeTaskStatusOnce(owner, input);
     const third = await writeTaskStatusOnce(owner, input);
 
-    expect(first).toEqual({ ok: true, value: { id: row.id } });
+    // A versão nova volta no recibo: é com ela que o card desfaz em seguida.
+    expect(first).toEqual({ ok: true, value: { id: row.id, version: row.version + 1 } });
     // A repetição recebe exatamente a mesma resposta, e não um conflito de
     // versão por uma gravação que foi dela mesma.
     expect(second).toEqual(first);

@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { addDays, weekStart } from "./dates";
 import {
+  canonicalShoppingKey,
   consolidateShopping,
   formatAmount,
   parseIngredientLine,
   parseIngredients,
   scaleIngredient,
-  shoppingKeyFor,
   splitPreparation,
 } from "./ingredients";
+import { mealShoppingKeys } from "./meal-shopping";
+
+/** One planned meal of a recipe written as text, as the week sends it to the list. */
+const meal = (name: string, base: number, servings: number, text: string) => ({
+  recipeId: name,
+  name,
+  baseServings: base,
+  servings,
+  ingredients: parseIngredients(text),
+});
 
 describe("quantidades para cozinhar e comprar", () => {
   it("lê frações e vírgulas sem alterar o original", () => {
@@ -60,6 +70,11 @@ describe("quantidades para cozinhar e comprar", () => {
     expect(scale("2 colheres de sopa de manteiga", 4, 2)).toBe("1 colher de sopa de manteiga");
     expect(scale("500 g de carne moída", 4, 8)).toBe("1 kg de carne moída");
     expect(scale("1 1/2 xícaras de arroz", 2, 1)).toBe("0,75 xícara de arroz");
+    // The adjective follows the noun: "pão francês" is "pães franceses", never "pães francês".
+    expect(scale("1 pão francês", 2, 5)).toBe("2,5 pães franceses");
+    expect(scale("4 pães franceses", 4, 1)).toBe("1 pão francês");
+    expect(scale("1 brócolis", 2, 4)).toBe("2 brócolis");
+    expect(scale("2 brócolis", 4, 2)).toBe("1 brócolis");
   });
   it("mostra a quantidade de mercado com plural e quilos", () => {
     expect(formatAmount(1000, "g")).toBe("1 kg");
@@ -83,6 +98,23 @@ describe("quantidades para cozinhar e comprar", () => {
     // Products whose name carries an adjective stay as written.
     expect(splitPreparation("carne moída").base).toBe("carne moída");
     expect(splitPreparation("picanha").base).toBe("picanha");
+  });
+  it("não tira o ralado do que já se compra ralado", () => {
+    // Queijo ralado, farinha de rosca e coco ralado são outro produto, não o queijo, o pão e o coco.
+    expect(splitPreparation("queijo ralado").base).toBe("queijo ralado");
+    expect(splitPreparation("queijo parmesão ralado").base).toBe("queijo parmesão ralado");
+    expect(splitPreparation("pão ralado").base).toBe("pão ralado");
+    expect(splitPreparation("coco ralado").base).toBe("coco ralado");
+    // A cenoura e o gengibre se compram inteiros e se ralam em casa.
+    expect(splitPreparation("cenoura ralada")).toEqual({ base: "cenoura", preparation: "ralada" });
+    expect(splitPreparation("gengibre bem ralado").base).toBe("gengibre");
+    const lines = consolidateShopping([
+      meal("Bolo", 4, 4, "100 g de coco ralado\n50 g de queijo ralado\n1 xícara de pão ralado"),
+      meal("Salada", 4, 4, "1 coco\n200 g de queijo"),
+    ]);
+    expect(lines.map((line) => line.name).sort()).toEqual(
+      ["Coco", "Coco ralado", "Pão ralado", "Queijo", "Queijo ralado"].sort(),
+    );
   });
   it("mantém medidas com separador ambíguo para conferência, inclusive nas compras", () => {
     const original = "1.000 g de farinha";
@@ -150,13 +182,6 @@ describe("quantidades para cozinhar e comprar", () => {
     expect(lines.find((line) => line.name === "Peito de frango")?.amount).toBe("750 g");
   });
   it("monta a lista de uma semana real: um item por coisa e a despensa numa pergunta", () => {
-    const meal = (name: string, base: number, servings: number, text: string) => ({
-      recipeId: name,
-      name,
-      baseServings: base,
-      servings,
-      ingredients: parseIngredients(text),
-    });
     const lines = consolidateShopping([
       meal(
         "Frango assado com batatas",
@@ -220,16 +245,62 @@ describe("quantidades para cozinhar e comprar", () => {
     );
   });
   it("usa a mesma chave na receita e na lista", () => {
-    expect(shoppingKeyFor(parseIngredientLine("4 dentes de alho amassados"))).toBe("alho:dente");
-    expect(shoppingKeyFor(parseIngredientLine("1 kg de sobrecoxa de frango"))).toBe(
-      "sobrecoxa de frango:g",
-    );
-    expect(shoppingKeyFor(parseIngredientLine("sal a gosto"))).toBe("gosto:sal");
-    expect(shoppingKeyFor(parseIngredientLine("água para cozinhar o macarrão"))).toBeNull();
+    const keys = (text: string) =>
+      mealShoppingKeys({ id: "r", name: "Receita", servings: 4, ingredients: text }, 4);
+    expect(keys("4 dentes de alho amassados")).toEqual(["alho:dente"]);
+    expect(keys("1 kg de sobrecoxa de frango")).toEqual(["sobrecoxa de frango:g"]);
+    expect(keys("sal a gosto")).toEqual(["gosto:sal"]);
+    expect(keys("água para cozinhar o macarrão")).toEqual([]);
     // "Água ou caldo" is an ingredient choice, not the water that cooks the pasta.
-    expect(
-      shoppingKeyFor(parseIngredientLine("2 xícaras de água ou caldo de legumes")),
-    ).not.toBeNull();
+    expect(keys("2 xícaras de água ou caldo de legumes")).toHaveLength(1);
+  });
+  it("junta singular e plural numa linha só, como a página promete", () => {
+    const lines = consolidateShopping([
+      meal("Strogonoff", 4, 4, "1 cebola picada\n4 ovos\n1 pão francês\n1 limão"),
+      meal("Feijão", 4, 4, "2 cebolas\n1 ovo\n2 pães franceses\n2 limões\n2 grãos-de-bico"),
+      meal("Salada", 4, 4, "1 grão-de-bico\n1 tomate\n3 tomates pelados\n2 abobrinhas pequenas"),
+      meal("Omelete", 4, 4, "1 abobrinha pequena ralada\n1 tomate pelado"),
+    ]);
+    const amount = (name: string) =>
+      lines.filter((line) => line.name === name).map((l) => l.amount);
+    expect(amount("Cebola")).toEqual(["3"]);
+    expect(amount("Ovos")).toEqual(["5"]);
+    expect(amount("Pão francês")).toEqual(["3"]);
+    expect(amount("Limão")).toEqual(["3"]);
+    expect(amount("Grãos-de-bico")).toEqual(["3"]);
+    expect(amount("Tomates pelados")).toEqual(["4"]);
+    expect(amount("Abobrinhas pequenas")).toEqual(["3"]);
+    // Different things stay apart: a tomato is not a peeled tomato.
+    expect(amount("Tomate")).toEqual(["1"]);
+    expect(lines).toHaveLength(8);
+  });
+  it("acerta o plural das palavras que fogem da regra", () => {
+    const lines = consolidateShopping([
+      meal("A", 4, 4, "2 colheres de sopa de maionese\n1 brócolis\n1 alface\n1 maçã"),
+      meal("B", 4, 4, "1 colher de sopa de maionese\n2 brócolis\n2 alfaces\n2 maçãs"),
+    ]);
+    expect(lines.map((line) => [line.name, line.amount])).toEqual(
+      expect.arrayContaining([
+        ["Maionese", "3 colheres de sopa"],
+        ["Brócolis", "3"],
+        ["Alface", "3"],
+        ["Maçã", "3"],
+      ]),
+    );
+    expect(lines).toHaveLength(4);
+  });
+  it("lê a lista gravada antes da regra do singular sem pedir para atualizar", () => {
+    expect(canonicalShoppingKey("cebolas:un")).toBe("cebola:un");
+    expect(canonicalShoppingKey("ovos:un")).toBe("ovo:un");
+    expect(canonicalShoppingKey("paes franceses:un")).toBe(canonicalShoppingKey("pao frances:un"));
+    expect(canonicalShoppingKey("graos-de-bico cozido:g")).toBe("grao-de-bico cozido:g");
+    expect(canonicalShoppingKey("gosto:pimentas")).toBe("gosto:pimenta");
+    expect(canonicalShoppingKey("molho de tomates:g")).toBe("molho de tomates:g");
+    expect(canonicalShoppingKey("manual:abc")).toBe("manual:abc");
+    expect(canonicalShoppingKey("review:r:0:4")).toBe("review:r:0:4");
+    // Already in the current form, the key does not change again.
+    const [line] = consolidateShopping([meal("A", 4, 4, "2 cebolas")]);
+    expect(canonicalShoppingKey(line?.key ?? "")).toBe(line?.key);
   });
   it("calcula semanas na virada do ano e no domingo", () => {
     expect(weekStart("2027-01-03")).toBe("2026-12-28");

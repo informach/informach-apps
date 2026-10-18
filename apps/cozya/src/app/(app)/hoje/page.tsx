@@ -7,16 +7,11 @@ import { getKitchenAccess } from "@/features/kitchen/access";
 import { FirstWeek } from "@/features/kitchen/components/first-week";
 import { MissingForMeal } from "@/features/kitchen/components/missing-for-meal";
 import { TodayViewed } from "@/features/kitchen/components/today-viewed";
-import {
-  daysBetween,
-  localDay,
-  longDayLabel,
-  weekdayName,
-  weekStart,
-} from "@/features/kitchen/dates";
+import { localDay, longDayLabel, weekdayName } from "@/features/kitchen/dates";
 import { getRecipeChoices, hasAnyMeal } from "@/features/kitchen/repository";
 import { STARTER_RECIPES } from "@/features/kitchen/starter-recipes";
 import { getTodayData, type TodayMeal } from "@/features/kitchen/today";
+import { trialDaysLeft, trialEnded } from "@/features/kitchen/trial";
 import { recipePhoto } from "@/features/recipes/photos";
 import { requireUserServer } from "@/lib/auth";
 
@@ -52,7 +47,7 @@ function MealTags({ meal }: { meal: TodayMeal }) {
   );
 }
 
-/** A planned meal, or the lunchbox set aside at a dinner: "pronta hoje" seen from today. */
+/** A planned meal, or a lunchbox set aside at a lunch or a dinner: "pronta hoje" seen from today. */
 function MealRow({ meal, lunchboxTag }: { meal: TodayMeal; lunchboxTag: string }) {
   return (
     <li className="flex min-h-14 items-center gap-3 border-t border-border py-3">
@@ -111,15 +106,22 @@ export default async function TodayPage() {
   }
 
   const data = await getTodayData(user.id);
-  // Calendar days in São Paulo: on the last day the trial ends "hoje", not "amanhã".
-  const trialDaysLeft =
-    access.trialActive && access.trialEndsAt ? daysBetween(new Date(), access.trialEndsAt) : null;
-  const trialEnded = !access.isPro && !access.trialActive && !!access.profile?.trialStartedAt;
+  // Calendar days in São Paulo: on the last day the trial ends "hoje", not "amanhã". With the
+  // Pro, nothing of the trial shows, not even when it was bought during the trial.
+  const daysLeft = trialDaysLeft(access);
+  const ended = trialEnded(access);
   const hero = data.hero;
   const others = data.todayMeals.filter(
     (meal) => meal !== hero && meal !== data.evening && !(meal.slot === "dinner" && data.evening),
   );
   const next = data.next;
+  /** "o jantar de hoje", "o almoço de amanhã" */
+  const mealWhen = next
+    ? `o ${SLOT[next.slot].toLowerCase()} de ${data.evening ? "amanhã" : "hoje"}`
+    : "";
+  // Tomorrow's meals, but the one already shown as "Amanhã tem" after tonight's dinner.
+  const tomorrowIsNext = !!next && next.day === data.tomorrow;
+  const afterNext = data.tomorrowMeals.filter((meal) => meal !== next);
   const editHref = (meal: { day: string; slot: string }) =>
     `/semana?week=${data.week}&editar=${meal.day}:${meal.slot}`;
 
@@ -269,23 +271,40 @@ export default async function TodayPage() {
             )
           )}
 
-          {data.missing.length > 0 && next && (
+          {next && data.nextOnList === "missing" && (
             <MissingForMeal
-              when={`o ${SLOT[next.slot].toLowerCase()} de ${data.evening ? "amanhã" : "hoje"}`}
+              when={mealWhen}
               phrase={data.missingPhrase}
               items={data.missing}
-              week={data.week}
+              week={data.nextWeek}
             />
           )}
-          {data.allAtHome && next && (
+          {/* "Tudo em casa" only when the list is up to date and has the whole recipe. */}
+          {next && data.nextOnList === "complete" && (
             <p
               role="status"
               className="flex items-center gap-3 rounded-[18px] bg-sage-soft p-4 font-bold text-sage-ink"
             >
               <Check className="size-[22px] shrink-0" strokeWidth={2.6} aria-hidden />
-              Tudo em casa para o {SLOT[next.slot].toLowerCase()} de{" "}
-              {data.evening ? "amanhã" : "hoje"}.
+              Tudo em casa para {mealWhen}.
             </p>
+          )}
+          {next && (data.nextOnList === "not-on-list" || data.nextOnList === "stale") && (
+            <div role="status" className="space-y-1 rounded-[18px] bg-muted p-4">
+              <p className="font-bold">
+                {data.nextOnList === "not-on-list"
+                  ? `A lista do mercado ainda não tem tudo para ${mealWhen}.`
+                  : `A semana mudou depois que a lista foi montada. Confira as quantidades para ${mealWhen}.`}
+              </p>
+              {access.canPlan && (
+                <Link
+                  href={`/compras?week=${data.nextWeek}`}
+                  className="inline-flex min-h-11 items-center font-bold underline underline-offset-4"
+                >
+                  Atualizar a lista
+                </Link>
+              )}
+            </div>
           )}
 
           {others.length > 0 && (
@@ -298,7 +317,7 @@ export default async function TodayPage() {
               </h2>
               <ul>
                 {others.map((meal) => (
-                  <MealRow key={`${meal.slot}:${meal.kind}`} meal={meal} lunchboxTag="de ontem" />
+                  <MealRow key={meal.key} meal={meal} lunchboxTag="de ontem" />
                 ))}
               </ul>
             </section>
@@ -306,16 +325,11 @@ export default async function TodayPage() {
         </div>
 
         <aside className="space-y-8" aria-label="A semana">
-          {trialDaysLeft !== null && trialDaysLeft <= 3 && (
+          {daysLeft !== null && daysLeft <= 3 && (
             <div className="space-y-2 rounded-2xl bg-muted p-4">
               <p className="font-bold">
                 Seu teste termina{" "}
-                {trialDaysLeft <= 0
-                  ? "hoje"
-                  : trialDaysLeft === 1
-                    ? "amanhã"
-                    : `em ${trialDaysLeft} dias`}
-                .
+                {daysLeft <= 0 ? "hoje" : daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}.
               </p>
               <p className="text-sm text-muted-foreground">
                 Suas receitas e listas continuam. Para seguir planejando, veja o Pro.
@@ -328,7 +342,7 @@ export default async function TodayPage() {
               </Link>
             </div>
           )}
-          {trialEnded && (
+          {ended && (
             <div className="space-y-2 rounded-2xl bg-muted p-4">
               <p className="font-bold">Novas semanas ficam no Pro.</p>
               <p className="text-sm text-muted-foreground">
@@ -343,39 +357,36 @@ export default async function TodayPage() {
             </div>
           )}
 
-          <section aria-labelledby="amanha">
-            <h2
-              id="amanha"
-              className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-muted-foreground"
-            >
-              {data.evening ? "Depois" : `Amanhã, ${weekdayName(data.tomorrow)}`}
-            </h2>
-            {data.tomorrowMeals.length > 0 ? (
-              <ul>
-                {data.tomorrowMeals
-                  .filter((meal) => meal !== next)
-                  .map((meal) => (
-                    <MealRow
-                      key={`${meal.slot}:${meal.kind}`}
-                      meal={meal}
-                      lunchboxTag="pronta hoje"
-                    />
+          {/* At night tomorrow's meal is the title: "Depois" lists only what else tomorrow has. */}
+          {(afterNext.length > 0 || !tomorrowIsNext) && (
+            <section aria-labelledby="amanha">
+              <h2
+                id="amanha"
+                className="mb-1 text-xs font-extrabold uppercase tracking-[0.12em] text-muted-foreground"
+              >
+                {tomorrowIsNext ? "Depois" : `Amanhã, ${weekdayName(data.tomorrow)}`}
+              </h2>
+              {afterNext.length > 0 ? (
+                <ul>
+                  {afterNext.map((meal) => (
+                    <MealRow key={meal.key} meal={meal} lunchboxTag="pronta hoje" />
                   ))}
-              </ul>
-            ) : (
-              <p className="border-t border-border py-3 text-sm text-muted-foreground">
-                Nada planejado ainda.{" "}
-                {canEdit && (
-                  <Link
-                    href={`/semana?week=${data.week}&editar=${data.tomorrow}:dinner`}
-                    className="font-bold text-foreground underline underline-offset-4"
-                  >
-                    Planejar amanhã
-                  </Link>
-                )}
-              </p>
-            )}
-          </section>
+                </ul>
+              ) : (
+                <p className="border-t border-border py-3 text-sm text-muted-foreground">
+                  Nada planejado ainda.{" "}
+                  {canEdit && (
+                    <Link
+                      href={`/semana?week=${data.week}&editar=${data.tomorrow}:dinner`}
+                      className="font-bold text-foreground underline underline-offset-4"
+                    >
+                      Planejar amanhã
+                    </Link>
+                  )}
+                </p>
+              )}
+            </section>
+          )}
 
           <section aria-labelledby="semana-mini" className="space-y-3">
             <div className="flex items-baseline justify-between">
@@ -469,7 +480,7 @@ export default async function TodayPage() {
                     : data.list.todo === 0
                       ? "Tudo em casa"
                       : `${data.list.total - data.list.todo} de ${data.list.total} em casa${
-                          data.missing.length && next && weekStart(next.day) === data.week
+                          data.missing.length && data.nextWeek === data.week
                             ? ` · ${data.missing.length === 1 ? "falta" : "faltam"} ${data.missingPhrase}`
                             : ""
                         }`}

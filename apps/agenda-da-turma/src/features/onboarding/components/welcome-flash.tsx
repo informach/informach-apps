@@ -64,8 +64,8 @@ export function WelcomeFlash({ isPro }: { isPro: boolean }) {
       <Sparkles className="size-4" aria-hidden />
       <AlertTitle>Assinatura Pro ativa!</AlertTitle>
       <AlertDescription>
-        Tudo certo com o pagamento. Você já pode cadastrar até três crianças, dividir a rotina com
-        outro adulto e usar os créditos de IA do mês.
+        Tudo certo com o pagamento. Agora cabem até três crianças, um segundo adulto com login
+        próprio e 70 recados lidos por mês.
       </AlertDescription>
     </Alert>
   );

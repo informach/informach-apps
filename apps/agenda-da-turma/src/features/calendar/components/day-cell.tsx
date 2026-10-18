@@ -47,7 +47,7 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
         <span
           className={cn(
             "grid size-6 place-items-center text-xs font-medium tabular-nums",
-            !inMonth && "text-muted-foreground opacity-70",
+            !inMonth && "text-muted-foreground",
             isToday && "rounded-full bg-primary text-primary-foreground font-semibold",
           )}
         >

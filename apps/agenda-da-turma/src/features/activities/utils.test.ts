@@ -1,13 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ACTIVITY_TYPES } from "@/features/unified-activities/activity-types";
+import { describeDue } from "@/features/unified-activities/due";
 import {
-  formatActivityDueAt,
   formatTurmaShort,
   getActivityStatusLabel,
   getActivityTypeIcon,
   getActivityTypeLabel,
-  getDueBadgeLabel,
-  getDueBadgeVariant,
   getDueUrgency,
 } from "./utils";
 
@@ -16,7 +14,7 @@ describe("getActivityTypeLabel", () => {
   // o mesmo usado pelos cards de recado — antes "task" aparecia como "Tarefa"
   // aqui e "Para casa (tarefa)" lá.
   it("retorna rótulos em PT-BR pra cada tipo", () => {
-    expect(getActivityTypeLabel("task")).toBe("Para casa (tarefa)");
+    expect(getActivityTypeLabel("task")).toBe("Para casa");
     expect(getActivityTypeLabel("exam")).toBe("Prova");
     expect(getActivityTypeLabel("project")).toBe("Trabalho");
     expect(getActivityTypeLabel("reminder")).toBe("Lembrete");
@@ -78,46 +76,6 @@ describe("getDueUrgency", () => {
   });
 });
 
-describe("getDueBadgeVariant", () => {
-  it("mapeia urgência pro variant correto do Badge", () => {
-    expect(getDueBadgeVariant("overdue")).toBe("destructive");
-    expect(getDueBadgeVariant("due_soon")).toBe("warning");
-    expect(getDueBadgeVariant("upcoming")).toBe("default");
-    expect(getDueBadgeVariant("done")).toBe("muted");
-  });
-});
-
-describe("getDueBadgeLabel", () => {
-  const now = new Date("2026-05-11T15:00:00Z");
-
-  it('prefixa "Atrasada · " quando overdue', () => {
-    expect(getDueBadgeLabel("2026-05-10", "overdue", now)).toBe("Atrasada · 10/05");
-  });
-
-  it('prefixa "Hoje · " quando due_soon e data é hoje', () => {
-    expect(getDueBadgeLabel("2026-05-11", "due_soon", now)).toBe("Hoje · 11/05");
-  });
-
-  it('prefixa "Amanhã · " quando due_soon e data é amanhã', () => {
-    expect(getDueBadgeLabel("2026-05-12", "due_soon", now)).toBe("Amanhã · 12/05");
-  });
-
-  it("mostra só DD/MM quando upcoming no mesmo ano", () => {
-    expect(getDueBadgeLabel("2026-12-31", "upcoming", now)).toBe("31/12");
-  });
-
-  it("inclui o ano quando upcoming em ano diferente", () => {
-    expect(getDueBadgeLabel("2027-01-10", "upcoming", now)).toBe("10/01/2027");
-  });
-});
-
-describe("formatActivityDueAt", () => {
-  it('formata "YYYY-MM-DD" como "DD/MM/AAAA"', () => {
-    expect(formatActivityDueAt("2026-06-01")).toBe("01/06/2026");
-    expect(formatActivityDueAt("2026-12-31")).toBe("31/12/2026");
-  });
-});
-
 describe("formatTurmaShort", () => {
   it('extrai o número da série e formata "Nº ano L · YYYY"', () => {
     expect(formatTurmaShort("5ano", "A", 2025)).toBe("5º ano A · 2025");
@@ -129,7 +87,7 @@ describe("formatTurmaShort", () => {
  * Regressão do fuso no caminho SEM `now` explícito.
  *
  * Todos os testes acima passam uma data: era justamente por isso que o bug não
- * aparecia. Em produção ninguém passa — `getDueUrgency` e `getDueBadgeLabel`
+ * aparecia. Em produção ninguém passa: `getDueUrgency` e `describeDue`
  * caem no `new Date()` padrão, durante a renderização no servidor, e o Railway
  * roda em UTC. Entre 21h e a meia-noite de Brasília, um `todayLocalIso` que
  * lesse o fuso do processo já estaria no dia seguinte.
@@ -141,7 +99,7 @@ describe("prazo sem `now` explícito, às 23h30 de Brasília", () => {
 
   // O fuso do processo é fixado em UTC aqui, como no Railway. Sem isto o teste
   // passaria mesmo com o bug numa máquina em horário de Brasília, que é
-  // justamente onde ele é escrito — e o CI seria o primeiro a descobrir.
+  // justamente onde ele é escrito, e o CI seria o primeiro a descobrir.
   const originalTz = process.env.TZ;
   beforeAll(() => {
     process.env.TZ = "UTC";
@@ -172,12 +130,14 @@ describe("prazo sem `now` explícito, às 23h30 de Brasília", () => {
   it("não antecipa o prazo de amanhã para hoje", () => {
     freeze();
     expect(getDueUrgency("2026-05-11", "pending")).toBe("due_soon");
-    expect(getDueBadgeLabel("2026-05-11", "due_soon")).toBe("Amanhã · 11/05");
+    expect(describeDue({ dueAt: "2026-05-11", time: null, status: "pending" }).label).toBe(
+      "Amanhã",
+    );
   });
 
   it('rotula o prazo do próprio dia como "Hoje"', () => {
     freeze();
-    expect(getDueBadgeLabel("2026-05-10", "due_soon")).toBe("Hoje · 10/05");
+    expect(describeDue({ dueAt: "2026-05-10", time: null, status: "pending" }).label).toBe("Hoje");
   });
 
   it("só considera atrasado o que venceu antes do dia corrente em São Paulo", () => {
@@ -190,6 +150,9 @@ describe("prazo sem `now` explícito, às 23h30 de Brasília", () => {
     // já está em 2027 e passaria a carimbar o ano em toda data.
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2027-01-01T01:00:00Z"));
-    expect(getDueBadgeLabel("2026-12-31", "due_soon")).toBe("Hoje · 31/12");
+    expect(describeDue({ dueAt: "2026-12-31", time: null, status: "pending" }).label).toBe("Hoje");
+    expect(describeDue({ dueAt: "2026-12-30", time: null, status: "pending" }).label).toBe(
+      "Passou · qua, 30",
+    );
   });
 });

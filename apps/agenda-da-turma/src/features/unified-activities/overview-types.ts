@@ -14,15 +14,11 @@ export const OVERVIEW_STATUS_LABELS: Record<OverviewStatus, string> = {
 /**
  * Janela de prazo da lista.
  *
- * Existe para que os contadores da rotina possam LEVAR à lista. Eles somavam
- * "atrasadas", "hoje" e "próximos 7 dias" sobre a mesma projeção que a lista
- * usa, mas a lista não sabia recortar por prazo — então o número mais acionável
- * da tela não ia a lugar nenhum.
- *
- * Os limites abaixo replicam exatamente os `COUNT(*) FILTER` de
- * `getRoutineCounters`. Se um dos dois mudar, os dois mudam juntos: um
- * contador que discorda da lista que ele abre é pior do que um contador que
- * não abre nada.
+ * Nasceu para que os contadores do topo de Hoje levassem à lista; os
+ * contadores saíram (a faixa da semana mostra os sete dias) e o filtro ficou,
+ * porque recortar a lista por prazo continua útil. "Semana" termina no mesmo
+ * sétimo dia do bucket da semana em Hoje (`listRoutineIndex`): se um mudar, os
+ * dois mudam juntos.
  */
 export const dueWindowSchema = z.enum(["all", "atrasadas", "hoje", "semana", "recentes"]);
 export type DueWindow = z.infer<typeof dueWindowSchema>;
@@ -101,8 +97,7 @@ export function dueWindowRange(
       // "Concluídas (7d)" contava atividades cujo PRAZO caiu nos últimos sete
       // dias: concluir hoje uma tarefa vencida há três semanas não mexia no
       // número, e a lista que o card abre também não a mostrava. O rótulo
-      // prometia uma coisa e o filtro media outra. O contador equivalente em
-      // `getRoutineCounters` mudou junto — os dois precisam continuar iguais.
+      // prometia uma coisa e o filtro media outra.
       return { from: addDays(todayIso, -7), to: todayIso, column: "completed" };
     default:
       return { from: null, to: null, column: "due" };

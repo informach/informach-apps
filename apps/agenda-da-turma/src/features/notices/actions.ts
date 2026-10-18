@@ -6,6 +6,7 @@ import {
   confirmNoticeSchema,
   discardDraftActionSchema,
   discardNoticeSchema,
+  shareSavedWithTurmaSchema,
   statusNoticeActionSchema,
   updateNoticeActionSchema,
 } from "./schemas";
@@ -14,6 +15,7 @@ import {
   discardDraftAction,
   discardNotice,
   setNoticeActionStatus,
+  shareSavedWithTurma,
   updateNoticeAction,
 } from "./service";
 
@@ -40,6 +42,16 @@ export const confirmNoticeAction = action
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
     const result = await confirmNotice(ctx.actor.id, input);
+    if (result.ok) refreshRoutine();
+    return result;
+  });
+export const shareSavedWithTurmaAction = action
+  .input(shareSavedWithTurmaSchema)
+  .auth({ require: "user" })
+  .rateLimit({ key: "notice-share-saved", max: 30, window: "1h" })
+  .run(async ({ ctx, input }) => {
+    if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
+    const result = await shareSavedWithTurma(ctx.actor.id, input);
     if (result.ok) refreshRoutine();
     return result;
   });

@@ -54,6 +54,9 @@
   --chart-4-ink: color-mix(in oklch, var(--chart-4) 65%, var(--foreground));
   --chart-5-ink: color-mix(in oklch, var(--chart-5) 65%, var(--foreground));
   --primary-ink: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+  /* O vermelho de "passou do prazo" como texto: 7,02:1 sobre o fundo claro e
+     5,87:1 sobre a pastilha `bg-destructive/15`; no escuro, 8,83:1 e 7,48:1. */
+  --destructive-ink: color-mix(in oklch, var(--destructive) 65%, var(--foreground));
 
   /* Apoio da elevação e do fundo (ver blocos ELEVAÇÃO e TINTAS). */
   --line-solid: color-mix(in oklch, var(--foreground) 14%, transparent);
@@ -88,6 +91,7 @@
   --color-chart-4-ink: var(--chart-4-ink);
   --color-chart-5-ink: var(--chart-5-ink);
   --color-primary-ink: var(--primary-ink);
+  --color-destructive-ink: var(--destructive-ink);
 }
 
 .dark {

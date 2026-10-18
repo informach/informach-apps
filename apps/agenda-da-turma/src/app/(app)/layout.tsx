@@ -1,9 +1,9 @@
 import { type ReactNode, Suspense } from "react";
-import { AppHeader } from "@/components/app-shell/app-header";
+import { DesktopHeader } from "@/components/app-shell/app-header";
 import { BottomNav } from "@/components/app-shell/bottom-nav";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { ServiceWorkerRegistrar } from "@/components/app-shell/service-worker";
-import { getAddEntitlement } from "@/features/notices/trial";
+import { getShellData } from "@/components/app-shell/shell-data";
 import { OfflineQueueFlusher } from "@/features/offline-queue/components/offline-queue-flusher";
 import { QueueOwnerProvider } from "@/features/offline-queue/owner";
 import { redirectIfUnauthenticated } from "@/lib/auth";
@@ -22,9 +22,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-dvh flex-col bg-app-ground">
         <ServiceWorkerRegistrar />
         <OfflineQueueFlusher />
-        <AppHeader />
+        <DesktopHeader />
         <OfflineBanner />
-        <div className="flex-1 pb-20">{children}</div>
+        {/* As telas sem rodapé (`data-immersive`) não reservam a altura dele. */}
+        <div className="flex-1 pb-20 has-[[data-immersive]]:pb-0 lg:pb-0">{children}</div>
         {/*
         Fora do caminho crítico: a franquia custa uma consulta de billing e duas
         no banco, e sem o Suspense o shell inteiro esperava por elas antes de
@@ -39,5 +40,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 }
 
 async function BottomNavSlot({ userId }: { userId: string }) {
-  return <BottomNav entitlement={await getAddEntitlement(userId)} />;
+  // A lista de crianças sai ordenada por criação: é a ordem das pílulas, e a
+  // primeira é a criança escolhida quando nada mais diz.
+  const { entitlement, profiles } = await getShellData(userId);
+  return <BottomNav entitlement={entitlement} profiles={profiles} />;
 }

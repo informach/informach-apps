@@ -4,19 +4,22 @@ import {
   ANNUAL_SAVINGS,
   ANNUAL_SAVINGS_PCT,
   PRICING,
+  PRO_MONTHLY_CREDITS,
   WHOLE_PRICES,
 } from "@/features/billing/plans-content";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
+import { FREE_RECIPE_LIMIT } from "@/features/recipes/limits";
 
 const PRO = [
   "Semana com mesa e marmitas, quantas semanas quiser",
   "Lista do mercado somada, com despensa",
   "Modo cozinha e repetir a semana",
   "Receitas sem limite",
-  "50 créditos de IA por mês, também no anual. Cada receita trazida, encontrada ou adaptada usa 1.",
+  `${PRO_MONTHLY_CREDITS} créditos de IA por mês, também no anual. Cada receita trazida, encontrada ou adaptada usa 1.`,
 ];
 
 const FREE = [
-  "Até 15 receitas escritas do seu jeito",
+  `Até ${FREE_RECIPE_LIMIT} receitas escritas do seu jeito`,
   "Modo cozinha em todas as suas receitas",
   "As semanas e listas que você já montou",
   "Mandar receita pelo WhatsApp",
@@ -65,11 +68,14 @@ export function Pricing() {
         <ol className="pricing-steps">
           <li>
             <span>Na primeira semana</span>
-            <strong>14 dias para planejar</strong>
-            <p>Semana, lista, modo cozinha e 3 créditos de IA, com até 15 receitas. Sem cartão.</p>
+            <strong>{TRIAL_DAYS} dias para planejar</strong>
+            <p>
+              Semana, lista, modo cozinha e {TRIAL_CREDITS} créditos de IA, com até{" "}
+              {FREE_RECIPE_LIMIT} receitas. Sem cartão.
+            </p>
           </li>
           <li>
-            <span>Depois de 14 dias</span>
+            <span>Depois de {TRIAL_DAYS} dias</span>
             <strong>Sem assinar, vira Free</strong>
             <p>Suas receitas, o preparo e as listas ficam. Novas semanas e a IA ficam no Pro.</p>
           </li>

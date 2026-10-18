@@ -10,6 +10,15 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
+
+const INK_CLASS: Record<number, string> = {
+  1: "text-chart-1-ink",
+  2: "text-chart-2-ink",
+  3: "text-chart-3-ink",
+  4: "text-chart-4-ink",
+  5: "text-chart-5-ink",
+};
+
 import type { ActivityType } from "./activity-types";
 
 const ACTIVITY_PRESENTATION: Record<ActivityType, { icon: LucideIcon; color: number }> = {
@@ -28,5 +37,7 @@ export function getActivityPresentation(type: ActivityType) {
   return {
     icon,
     surface: getSubjectTintedClassByIndex(color),
+    /** O texto na cor do tipo, como o "PROVA" do detalhe. */
+    ink: INK_CLASS[color] ?? "text-muted-foreground",
   };
 }

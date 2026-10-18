@@ -40,6 +40,14 @@ describe("classifyResponse", () => {
     });
   });
 
+  it("carries the new version, so the same card can undo right away", () => {
+    expect(classifyResponse(200, { ok: true, value: { id: "t1", version: 4 } })).toEqual({
+      kind: "settled",
+      ok: true,
+      version: 4,
+    });
+  });
+
   it("keeps the write queued when the session expired", () => {
     // O redirecionamento para o login devolve HTML com 200. Tratar isso como
     // sucesso apagaria a conclusão sem ela ter chegado a lugar nenhum.

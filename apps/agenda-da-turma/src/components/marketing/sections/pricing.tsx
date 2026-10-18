@@ -1,103 +1,130 @@
 "use client";
+
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
+import { cn } from "@informach/ui/lib/utils";
+import { Minus } from "lucide-react";
 import { useState } from "react";
-import { ANNUAL_SAVINGS_PCT, type BillingCycle, PRICING } from "@/features/billing/plans-content";
-import styles from "../sales.module.css";
+import {
+  type BillingCycle,
+  FREE_FEATURES,
+  FREE_TRIAL_READS,
+  type PlanFeature,
+  PRICING,
+  PRO_FEATURES,
+  SMALLEST_PACK_PRICE,
+} from "@/features/billing/plans-content";
+import { EYEBROW, H2, SEC, SEC_LIGHT, SHEET, WRAP } from "../landing-ui";
 import { SalesCta } from "../sales-cta";
 
-const FREE_BENEFITS = [
-  "1 criança e até 20 pendências próprias",
-  "5 importações por conta verificada, concedidas uma vez",
-  "Rotina, calendário e histórico",
-  "Receba atividades compartilhadas pela turma",
-];
-const PRO_BENEFITS = [
-  "Até 3 crianças e 2 adultos com logins próprios",
-  "Providências sem o limite de 20 pendências",
-  "70 créditos/mês: 1 por recado de texto, foto ou PDF",
-  "Resumo por e-mail e lembretes configuráveis",
-  "Responsáveis por criança e repetição semanal",
-  "Compartilhamento com a turma e calendário pessoal",
-];
+const TRIAL_WORDS: Record<number, string> = { 3: "três", 4: "quatro", 5: "cinco", 6: "seis" };
+
+function Features({ items }: { items: PlanFeature[] }) {
+  return (
+    <ul className="flex flex-col gap-3 text-base leading-[1.45]">
+      {items.map((feature) => (
+        <li
+          key={feature.label}
+          className={cn("flex gap-2.5", !feature.included && "text-muted-foreground")}
+        >
+          {/* O traço do que não está incluído é desenhado, e não um caractere de
+              travessão: a página não leva travessão no texto. */}
+          {feature.included ? (
+            <b aria-hidden className="text-chart-2-ink">
+              ✓
+            </b>
+          ) : (
+            <Minus aria-hidden className="mt-[3px] size-4 shrink-0" strokeWidth={2.5} />
+          )}
+          <span>
+            {feature.label}
+            {feature.included ? null : <span className="sr-only"> (não incluído)</span>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Os dois planos, como na prancha: o ciclo num seletor no meio e os dois cartões lado a lado. */
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  // O seletor só troca o preço depois da hidratação: antes dela, num celular
+  // lento, o toque se perderia e a página continuaria no mensal sem dizer nada.
+  const hydrated = useHydrated();
   const price = PRICING[cycle];
   return (
-    <section
-      id="planos"
-      className={[styles.section, styles.pricingSection].join(" ")}
-      aria-labelledby="pricing-title"
-    >
-      <div className={styles.wrap}>
-        <div className={styles.pricingHead}>
-          <p className={styles.eyebrow}>Um primeiro recado. Uma rotina mais leve.</p>
-          <h2 id="pricing-title">
-            Comece com um recado.
-            <br />
-            Continue com a rotina.
+    <section id="planos" aria-labelledby="pricing-title" className={`${SEC} ${SEC_LIGHT}`}>
+      <div className={`${WRAP} flex flex-col items-center gap-10`}>
+        <div className="flex max-w-[720px] flex-col items-center gap-4 text-center">
+          <p className={EYEBROW}>Planos</p>
+          <h2 id="pricing-title" className={H2}>
+            Experimente com {TRIAL_WORDS[FREE_TRIAL_READS] ?? FREE_TRIAL_READS} recados. Fique se a
+            semana melhorar.
           </h2>
-          <p>
-            Experimente o resultado sem cartão. Escolha o Pro quando quiser acompanhar e dividir os
-            cuidados.
-          </p>
         </div>
-        <fieldset className={styles.cycle} aria-label="Ciclo de cobrança do Pro">
-          <button
-            type="button"
-            aria-pressed={cycle === "monthly"}
-            onClick={() => setCycle("monthly")}
-          >
-            Mensal
-          </button>
-          <button
-            type="button"
-            aria-pressed={cycle === "annual"}
-            onClick={() => setCycle("annual")}
-          >
-            Anual <span>economize ~{ANNUAL_SAVINGS_PCT}%</span>
-          </button>
+        <fieldset className="flex gap-1 rounded-[14px] bg-card p-1">
+          <legend className="sr-only">Ciclo de cobrança</legend>
+          {(["monthly", "annual"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={cycle === option}
+              disabled={!hydrated}
+              onClick={() => setCycle(option)}
+              className={cn(
+                "min-h-11 rounded-[11px] px-4 text-[15px] font-bold",
+                cycle === option
+                  ? "bg-background text-foreground shadow-[0_1px_0_var(--line-solid)]"
+                  : "text-foreground/75 hover:text-foreground",
+              )}
+            >
+              {PRICING[option].tabLabel}
+            </button>
+          ))}
         </fieldset>
-        <div className={styles.priceGrid}>
-          <div className={styles.priceCard}>
-            <h3 className={styles.planName}>Gratuito</h3>
-            <p className={styles.intro}>Para organizar os primeiros recados.</p>
-            <p className={styles.price}>R$ 0</p>
-            <p className={styles.billingNote}>Sem cartão. Comece no seu ritmo.</p>
-            <ul>
-              {FREE_BENEFITS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <SalesCta placement="pricing" secondary />
-            <p className={styles.fine}>As cinco importações não renovam todo mês.</p>
-          </div>
-          <div className={[styles.priceCard, styles.proCard].join(" ")}>
-            <h3 className={styles.planName}>
-              Pro <span className={[styles.pill, styles.blue].join(" ")}>PARA A FAMÍLIA</span>
-            </h3>
-            <p className={styles.intro}>Para acompanhar a rotina ao longo do mês.</p>
-            <div aria-live="polite" aria-atomic="true">
-              <p className={styles.price}>
-                {price.price}
-                <small>{price.period}</small>
+        <div className="grid w-full max-w-[960px] grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-5">
+          <article className={cn(SHEET, "flex flex-col gap-[18px] bg-app-ground p-8")}>
+            <div>
+              <h3 className="text-[22px] font-bold">Grátis</h3>
+              <p className="mt-1.5 text-base text-muted-foreground">
+                Para experimentar com uma criança.
               </p>
-              <p className={styles.billingNote}>{price.note}</p>
             </div>
-            <ul>
-              {PRO_BENEFITS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <SalesCta placement="pricing" cycle={cycle} />
-            <p className={styles.fine}>
-              Cancele a renovação quando quiser. Push depende de compatibilidade e permissão do
-              dispositivo.
+            <p className="text-[52px] font-extrabold leading-tight tracking-[-0.04em]">R$ 0</p>
+            <Features items={FREE_FEATURES} />
+            <SalesCta
+              placement="pricing"
+              secondary
+              label="Começar com um recado"
+              className="mt-auto"
+            />
+          </article>
+          <article className={cn(SHEET, "flex flex-col gap-[18px] border-2 border-primary p-8")}>
+            <div>
+              <h3 className="text-[22px] font-bold">Pro</h3>
+              <p className="mt-1.5 text-base text-muted-foreground">
+                Para a casa inteira acompanhar junto.
+              </p>
+            </div>
+            <div aria-live="polite" aria-atomic="true" className="flex flex-col gap-2.5">
+              <p className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[52px] font-extrabold leading-tight tracking-[-0.04em]">
+                  {price.price}
+                </span>
+                <span className="text-lg text-muted-foreground">{price.periodWords}</span>
+              </p>
+              <p className="-mt-2 text-[15px] text-foreground/80">{price.landingNote}</p>
+            </div>
+            <Features items={PRO_FEATURES} />
+            <SalesCta placement="pricing" cycle={cycle} className="mt-auto" />
+            <p className="text-sm leading-normal text-muted-foreground">
+              Cancele quando quiser. O que já está na Agenda continua lá para consultar.
+              {SMALLEST_PACK_PRICE
+                ? ` Se as leituras acabarem antes do fim do mês, dá para comprar mais a partir de ${SMALLEST_PACK_PRICE}.`
+                : ""}
             </p>
-          </div>
+          </article>
         </div>
-        <p className={styles.pricingUnder}>
-          Uma importação pode gerar várias atividades. Cadastro por voz usa 2 créditos. O Pro também
-          inclui exportação da agenda em PDF.
-        </p>
       </div>
     </section>
   );

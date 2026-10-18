@@ -84,15 +84,13 @@ export function TurmasSection({
             <GraduationCap className="size-6" aria-hidden />
           </span>
           <div className="space-y-1">
-            <p className="text-base font-semibold text-foreground">
-              Crie um perfil de estudante primeiro
-            </p>
+            <p className="text-base font-semibold text-foreground">Primeiro, a criança</p>
             <p className="text-sm text-muted-foreground">
-              Você precisa ter pelo menos um perfil de estudante para vincular a uma turma.
+              A turma é de cada criança. Adicione a criança e depois escolha a turma dela.
             </p>
           </div>
           <Button asChild>
-            <Link href="/familia">Criar perfil</Link>
+            <Link href="/familia">Adicionar criança</Link>
           </Button>
         </CardContent>
       </Card>
@@ -103,13 +101,13 @@ export function TurmasSection({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filtrar por estudante:</span>
+          <span className="text-sm text-muted-foreground">Mostrar de:</span>
           <Select value={activeFilter?.id ?? "all"} onValueChange={handleFilterChange}>
             <SelectTrigger className="w-auto min-w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todas as crianças</SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -141,7 +139,7 @@ export function TurmasSection({
               <p className="text-base font-semibold text-foreground">
                 {activeFilter
                   ? `${activeFilter.name} ainda não está em nenhuma turma`
-                  : "Nenhuma turma vinculada"}
+                  : "Nenhuma turma ainda"}
               </p>
               <p className="text-sm text-muted-foreground">
                 Crie uma nova turma ou entre em uma existente com o código compartilhado.

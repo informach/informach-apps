@@ -100,7 +100,7 @@ export function PlanCard({
           </div>
         ) : !hasSub ? (
           <Button asChild size="sm">
-            <Link href="/upgrade">Escolher Pro</Link>
+            <Link href="/upgrade">Ver o Pro</Link>
           </Button>
         ) : null}
       </CardContent>

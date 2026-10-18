@@ -11,8 +11,9 @@
 
 /**
  * O fuso do app, em um lugar só. Exportado porque o SQL também precisa dele —
- * `getRoutineCounters` converte `completed_at` (timestamptz) para o dia local
- * antes de comparar, e um literal solto lá seria a segunda fonte do mesmo fato.
+ * `countDoneToday` e `listFamilyCompletionDays` convertem `completed_at`
+ * (timestamptz) para o dia local antes de comparar, e um literal solto lá seria
+ * a segunda fonte do mesmo fato.
  */
 export const APP_TIME_ZONE = "America/Sao_Paulo";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

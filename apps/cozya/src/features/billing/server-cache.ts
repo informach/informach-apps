@@ -27,6 +27,11 @@ export const getIsProForUser = cache((userId: string) =>
   billing.hasProSubscription(userSubject(userId)),
 );
 
+/** Every subscription of the user in the Cozya, in any status: who already subscribed once. */
+export const getBillingSubscriptionHistoryForUser = cache((userId: string) =>
+  billing.listSubscriptions(userSubject(userId)),
+);
+
 export const getBillingCreditHistoryForUser = cache((userId: string, limit: number) =>
   billing.getCreditHistory(userSubject(userId), { limit }),
 );

@@ -16,8 +16,10 @@ import { useCardToggle } from "../hooks/use-card-toggle";
  *
  * Quando todo título de card passou a abrir a atividade, o detalhe virou um
  * destino sem a ação mais comum: dava para editar, cancelar e ler o histórico,
- * mas não para dizer que já foi feito — a pessoa tinha que voltar ao card. O
- * controle aqui é o mesmo do card, inclusive o alvo de 44 px e os rótulos.
+ * mas não para dizer que já foi feito: a pessoa tinha que voltar ao card. O
+ * controle aqui é o mesmo do card, e mora numa barra fixa no pé do detalhe,
+ * onde o polegar alcança. Na tela ele diz "Feito", como na prancha; o nome
+ * acessível continua "Marcar como feito", o mesmo do card.
  */
 export function ActivityCompletionButton({
   id,
@@ -35,10 +37,11 @@ export function ActivityCompletionButton({
 
   const { ready, isDone, pending, queued, handleToggle } = useCardToggle({
     initialStatus,
+    version,
     taskId: id,
     optimisticHideWhenDone: false,
-    toggleAction: (next) =>
-      submitTaskStatus({ id, version, status: next, title, userId: queueOwner }),
+    toggleAction: (next, latest) =>
+      submitTaskStatus({ id, version: latest ?? version, status: next, title, userId: queueOwner }),
     onSuccess: () => setError(""),
     onError: (actionError) =>
       setError(
@@ -50,31 +53,44 @@ export function ActivityCompletionButton({
 
   return (
     <div className="space-y-2">
+      {queued || error || isDone ? (
+        <div className="space-y-1 rounded-2xl border border-foreground/15 bg-background px-4 py-2.5 text-sm">
+          {queued ? <QueuedBadge className="font-normal" /> : null}
+          {error ? (
+            <p role="alert" className="text-destructive-ink">
+              {error}
+            </p>
+          ) : isDone ? (
+            <p className="text-muted-foreground">
+              Vale só para a sua casa: a escola não recebe aviso.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <Button
-        variant={isDone ? "secondary" : "outline"}
-        className={cn("min-h-11", isDone && "bg-chart-2/20 text-foreground hover:bg-chart-2/30")}
-        aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${title}`}
+        variant={isDone ? "outline" : "default"}
+        className={cn(
+          "h-14 w-full rounded-2xl text-[17px] font-extrabold",
+          isDone
+            ? "border-chart-2/50 bg-background text-foreground hover:bg-chart-2/10"
+            : "shadow-solid-primary",
+        )}
+        aria-label={`${isDone ? "Reabrir" : "Marcar como feito"}: ${title}`}
         disabled={!ready || pending}
         onClick={() => handleToggle(!isDone)}
       >
         {isDone ? (
           <>
-            <Check className="mr-2 size-4" aria-hidden />
-            Feito em casa
+            <Check className="mr-2 size-5 text-chart-2-ink" aria-hidden />
+            Feito. Toque para reabrir
           </>
         ) : (
           <>
-            <span className="mr-2 size-4 rounded-full border-2 border-foreground/60" />
-            Marcar como feito em casa
+            <Check className="mr-1 size-[22px]" strokeWidth={2.6} aria-hidden />
+            Feito
           </>
         )}
       </Button>
-      {queued ? <QueuedBadge className="font-normal" /> : null}
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

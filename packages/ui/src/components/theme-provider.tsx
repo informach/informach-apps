@@ -18,3 +18,10 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     </NextThemesProvider>
   );
 }
+
+/**
+ * O tema atual e a troca, para quem põe a escolha dentro de um menu próprio
+ * (a conta da Agenda). Reexportado daqui porque os apps não dependem de
+ * `next-themes` diretamente.
+ */
+export { useTheme } from "next-themes";

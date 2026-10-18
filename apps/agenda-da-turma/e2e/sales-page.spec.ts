@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test.setTimeout(120_000);
 
+const DAY = /(seg|ter|qua|qui|sex|sáb|dom), \d+/;
+
 test("demo keeps school deadlines intact, supports keyboard and emits bounded analytics", async ({
   page,
 }) => {
@@ -25,31 +27,63 @@ test("demo keeps school deadlines intact, supports keyboard and emits bounded an
     "não precisa morar na sua cabeça",
   );
   await expect.poll(() => events.filter((e) => e.event === "landing_view").length).toBe(1);
+
   const demo = page.locator("#demonstracao");
-  await expect(demo.getByRole("checkbox")).toHaveCount(3);
+  // O cartaz de provas abre a demonstração: uma atividade por matéria.
+  await expect(demo.getByText("A Agenda achou 4 atividades para a Clara")).toBeVisible();
+  await expect(demo.getByText(/Inglês não está nas matérias da Clara/)).toBeVisible();
+
+  // Passeio: a autorização tem a data da escola; o boné não tem data, e
+  // planejar para a véspera é uma decisão da família, dita como tal.
+  await demo.getByRole("button", { name: "Passeio", exact: true }).click();
+  await expect(demo.getByText("A Agenda achou 3 atividades para a Clara")).toBeVisible();
+  const bone = demo.locator("li").filter({ hasText: "Separar boné e garrafa" });
+  await expect(bone).toContainText("a confirmar");
+  await expect(bone).toContainText("o recado não diz quando");
   const plan = demo.getByRole("button", { name: "Planejar para a véspera" });
   await plan.focus();
   await page.keyboard.press("Enter");
-  await expect(demo.getByText("17/09 · Planejado pela família")).toBeVisible();
-  await expect(demo.getByText("16/09 · Informado pela escola")).toBeVisible();
-  await expect(demo.getByRole("button", { name: "Planejado para 17/09" })).toBeDisabled();
-  const checkbox = demo.getByRole("checkbox", { name: "Enviar autorização" });
-  await checkbox.focus();
+  await expect(plan).toHaveCount(0);
+  await expect(bone).toContainText(DAY);
+  await expect(bone).toContainText("planejado por vocês");
+  await expect(
+    demo.locator("li").filter({ hasText: "Enviar autorização do passeio" }),
+  ).toContainText("a escola disse");
+
+  // Tirar e Manter pelo teclado, e o botão de salvar acompanha a conta.
+  const remove = demo.getByRole("button", { name: "Tirar: Passeio ao museu" });
+  await remove.focus();
   await page.keyboard.press("Space");
-  await expect(demo.getByRole("status")).toContainText("Nada é enviado à escola");
-  await checkbox.uncheck();
-  await checkbox.check();
-  await demo.getByRole("button", { name: "Prova", exact: true }).click();
-  await expect(demo.getByRole("checkbox")).toHaveCount(2);
-  await expect(demo.getByText("Prazo a confirmar", { exact: true })).toBeVisible();
-  await demo.getByRole("button", { name: "Material", exact: true }).click();
-  await expect(demo.getByRole("checkbox")).toHaveCount(1);
-  await demo.getByRole("button", { name: "Passeio", exact: true }).click();
-  await expect(demo.getByRole("checkbox", { name: "Enviar autorização" })).not.toBeChecked();
-  await expect(demo.getByRole("button", { name: "Planejar para a véspera" })).toBeEnabled();
-  await expect.poll(() => events.filter((e) => e.action === "complete").length).toBe(1);
+  await expect(demo.getByRole("button", { name: "Manter: Passeio ao museu" })).toBeVisible();
+  await expect(demo.getByRole("button", { name: "Salvar 2 atividades" })).toBeVisible();
+  await demo.getByRole("button", { name: "Manter: Passeio ao museu" }).click();
+  await demo.getByRole("button", { name: "Salvar 3 atividades" }).click();
+  await expect(demo.getByText("Salvo na semana da Clara")).toBeVisible();
+  await expect(demo.getByText("Assim fica a semana.")).toBeVisible();
+  await expect(demo.getByText("Passeio ao museu", { exact: true })).toBeVisible();
+  await demo.getByRole("button", { name: "Recomeçar o teste" }).click();
+
+  // O cartaz vai além de sete dias: as quatro provas continuam no salvo, cada
+  // uma no seu dia. Era uma grade de sete dias e três delas sumiam.
+  await demo.getByRole("button", { name: "Cartaz de provas", exact: true }).click();
+  await demo.getByRole("button", { name: "Salvar 4 atividades" }).click();
+  for (const title of [
+    "Prova de Português",
+    "Prova de Matemática",
+    "Prova de Ciências",
+    "Prova de Inglês",
+  ])
+    await expect(demo.getByText(title, { exact: true })).toBeVisible();
+  await expect(demo.locator("li").filter({ hasText: "Prova de Inglês" })).toContainText(DAY);
+
+  await demo.getByRole("button", { name: "Recomeçar o teste" }).click();
+  await demo.getByRole("button", { name: "Lista de material", exact: true }).click();
+  await expect(demo.getByText("A Agenda achou 1 atividade para a Clara")).toBeVisible();
+
+  await expect.poll(() => events.filter((e) => e.action === "complete").length).toBe(2);
   expect(events.filter((e) => e.action === "plan")).toHaveLength(1);
   expect(events.filter((e) => e.event === "landing_view")).toHaveLength(1);
+  expect(events.every((e) => e.variant === "pagina-do-dia-v1")).toBe(true);
   expect(providerRequests).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -62,29 +96,43 @@ for (const selection of ["free", "monthly", "annual"] as const) {
       return route.fulfill({ status: 204 });
     });
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Mensal", exact: true })).toHaveAttribute(
+    const pricing = page.locator("#planos");
+    await expect(pricing.getByRole("button", { name: "Mensal", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await expect(page.locator("#planos")).toContainText("19,90");
+    // O seletor só habilita depois da hidratação: daí em diante o clique conta
+    // e o rastreador da página já está ouvindo os botões.
+    await expect(pricing.getByRole("button", { name: "Mensal", exact: true })).toBeEnabled();
+    await expect(pricing).toContainText("19,90");
     if (selection === "annual") {
-      await page.getByRole("button", { name: /Anual/ }).click();
-      await expect(page.locator("#planos")).toContainText("199,00");
-      await expect(page.locator("#planos")).toContainText("Cobrado anualmente");
-      await expect(page.locator("#planos")).toContainText("16,58");
-      await expect(page.locator("#planos")).toContainText("39,80");
+      await pricing.getByRole("button", { name: /^Anual/ }).click();
+      await expect(pricing).toContainText("199,00");
+      await expect(pricing).toContainText("pague 10 meses, use 12");
+      await expect(pricing).toContainText("16,58");
     }
     const cta =
       selection === "free"
         ? page.locator('[data-landing-placement="hero"]')
-        : page.getByRole("link", { name: "Escolher o Pro" });
+        : pricing.getByRole("link", { name: "Assinar o Pro" });
     await cta.click();
     await expect(page).toHaveURL(
       selection === "free"
         ? /\/signup$/
         : new RegExp(`/signup\\?plan=pro&cycle=${selection === "annual" ? "anual" : "mensal"}`),
     );
-    await expect(page.locator("main")).toBeVisible();
+    // O cadastro diz para onde vai: o Pro escolhido segue para o pagamento
+    // depois do código; o resto, para a criança e o primeiro recado.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      selection === "free"
+        ? "Vamos começar pelo recado que está te preocupando."
+        : "Crie a conta para assinar o Pro",
+    );
+    await expect(
+      page.getByRole("img", {
+        name: selection === "free" ? "Passo 1 de 4: Conta" : "Passo 1 de 3: Conta",
+      }),
+    ).toBeVisible();
     await expect.poll(() => events.filter((e) => e.event === "landing_cta").length).toBe(1);
     expect(events.find((e) => e.event === "landing_cta")).toMatchObject({
       firstCta: true,
@@ -94,7 +142,7 @@ for (const selection of ["free", "monthly", "annual"] as const) {
   });
 }
 
-test("responsive light and dark layouts, FAQ keyboard, and legal navigation", async ({
+test("responsive light and dark layouts, FAQ keyboard, contact and legal navigation", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -105,15 +153,48 @@ test("responsive light and dark layouts, FAQ keyboard, and legal navigation", as
   await page.route("**/api/product-event", (route) => route.fulfill({ status: 204 }));
   await page.goto("/");
   // Confirm hydration through a visible interaction before taking screenshots.
-  await page.getByRole("button", { name: "Material", exact: true }).click();
-  await expect(page.locator("#demonstracao").getByRole("checkbox")).toHaveCount(1);
-  await page.getByRole("button", { name: "Passeio", exact: true }).click();
-  await expect(page.locator("#demonstracao").getByRole("checkbox")).toHaveCount(3);
+  await page.getByRole("button", { name: "Lista de material", exact: true }).click();
+  await expect(page.getByText("A Agenda achou 1 atividade para a Clara")).toBeVisible();
+  await page.getByRole("button", { name: "Cartaz de provas", exact: true }).click();
+  await expect(page.getByText("A Agenda achou 4 atividades para a Clara")).toBeVisible();
+
+  // Nenhum e-mail de contato na página pública: o canal é o direct.
+  expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
+  await expect(
+    page.getByRole("link", { name: "Fale com a gente no direct do @criecomhelenaejulio" }),
+  ).toHaveAttribute("href", "https://ig.me/m/criecomhelenaejulio");
+  // "Quem faz" usa a foto e o texto do site da Informach, servidos daqui.
+  const who = page.locator("#quem-faz");
+  await expect(who.getByRole("heading", { level: 2 })).toHaveText(
+    "Uma família que faz tecnologia para outras famílias.",
+  );
+  await expect(
+    who.getByRole("img", { name: "Helena e Júlio sorrindo, lado a lado" }),
+  ).toBeVisible();
+  // A foto fica no fim da página e carrega quando chega perto da tela.
+  await who.getByRole("img").scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => who.getByRole("img").evaluate((img) => (img as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  expect(
+    await who.getByRole("img").evaluate((img) => (img as HTMLImageElement).naturalWidth),
+  ).toBeGreaterThan(0);
+  // Nenhum travessão no texto visível.
+  expect(await page.locator("body").innerText()).not.toMatch(
+    new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`),
+  );
+
   for (const theme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
-      await expect(page.getByRole("link", { name: "Entrar", exact: true })).toBeVisible();
+      // Um "Entrar" em toda largura, no canto da barra de cima.
+      await expect(
+        page
+          .getByRole("banner")
+          .getByRole("link", { name: "Entrar", exact: true })
+          .filter({ visible: true }),
+      ).toHaveCount(1);
       const dimensions = await page.evaluate(() => ({
         width: innerWidth,
         scroll: document.documentElement.scrollWidth,
@@ -126,12 +207,19 @@ test("responsive light and dark layouts, FAQ keyboard, and legal navigation", as
       });
     }
   }
-  const question = page.locator("summary").filter({ hasText: "Ela busca mensagens sozinha" });
+
+  // No celular, como no canvas, a barra de cima é o símbolo e "Entrar"; as
+  // seções ficam na barra do computador e no rodapé.
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "Seções" })).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "Seções" })).toBeVisible();
+
+  const question = page.locator("summary").filter({ hasText: "Marcar como feito avisa a escola?" });
   await question.focus();
   await page.keyboard.press("Enter");
-  await expect(
-    page.getByText("Não existe conexão automática com essas plataformas.", { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByText("Feito vale só para a sua casa.", { exact: false })).toBeVisible();
+
   await page.getByRole("link", { name: "Privacidade", exact: true }).click();
   await page.waitForURL(/\/privacidade$/);
   await expect(page).toHaveURL(/\/privacidade$/);
@@ -139,8 +227,7 @@ test("responsive light and dark layouts, FAQ keyboard, and legal navigation", as
     .getByRole("navigation", { name: "Navegação do rodapé" })
     .getByRole("link", { name: "Como funciona" })
     .click();
-  await page.waitForURL(/\/#demonstracao$/);
-  await expect(page).toHaveURL(/\/#demonstracao$/);
-  await expect(page.locator("#demo-title")).toBeInViewport();
+  await page.waitForURL(/\/#como-funciona$/);
+  await expect(page.locator("#how-title")).toBeInViewport();
   expect(errors).toEqual([]);
 });

@@ -1,7 +1,8 @@
 import "server-only";
-import { db } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import { agendaProductEvents } from "@informach/db/schema";
 import { z } from "zod";
+import { APP_TIME_ZONE } from "@/features/dashboard/date";
 import { logger } from "@/lib/logger";
 
 export const productEventSchema = z
@@ -37,6 +38,10 @@ export const productEventSchema = z
       // medida de que a fila serve para alguma coisa: `action_completed` conta
       // a conclusão, e não distingue a que subiu na hora da que esperou a rede.
       "offline_queue_flushed",
+      // A promessa da Agenda é "uma olhada por dia". Um registro por adulto por
+      // dia em que Hoje abriu, sem nada além do dia: é a única forma de saber
+      // se a promessa se cumpre, e abrir mais vezes não conta mais.
+      "today_viewed",
     ]),
     source: z.enum(["teams", "batista", "notebook", "whatsapp", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),
@@ -53,4 +58,35 @@ export async function recordProductEvent(
   } catch {
     logger.warn({ event: event.event }, "agenda.metrics.write_failed");
   }
+}
+
+/**
+ * Um `today_viewed` por adulto por dia de São Paulo, no máximo.
+ *
+ * O aparelho já evita repetir (`TodayViewedBeacon`); a conferência aqui cobre o
+ * segundo aparelho e a outra aba. Duas abas abrindo juntas passariam as duas
+ * pela consulta antes de qualquer uma gravar, então conferir e gravar
+ * acontecem sob uma trava por adulto. Devolve se gravou.
+ */
+export async function recordTodayViewedOnce(userId: string, todayIso: string) {
+  const event = productEventSchema.parse({ event: "today_viewed" });
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:today-viewed:${userId}`}))`,
+    );
+    const [already] = await tx
+      .select({ id: agendaProductEvents.id })
+      .from(agendaProductEvents)
+      .where(
+        and(
+          eq(agendaProductEvents.event, "today_viewed"),
+          eq(agendaProductEvents.userId, userId),
+          sql`(${agendaProductEvents.createdAt} AT TIME ZONE ${APP_TIME_ZONE})::date = ${todayIso}::date`,
+        ),
+      )
+      .limit(1);
+    if (already) return false;
+    await tx.insert(agendaProductEvents).values({ userId, ...event });
+    return true;
+  });
 }

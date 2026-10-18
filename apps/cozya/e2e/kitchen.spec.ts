@@ -117,19 +117,31 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
     JSON.stringify({ measuredAt: new Date().toISOString(), primaryButton: contrast }, null, 2),
   );
   await putOnDays.click();
-  // Step 2 of 3: the dinners are on the days; step 3: the shopping list.
-  await expect(page).toHaveURL(/\/semana\?primeira=1$/, COMPILE);
+  // Step 2 of 3: the dinners are on the days; step 3: the shopping list of that same week.
+  await expect(page).toHaveURL(/\/semana\?week=[\d-]+&primeira=1$/, COMPILE);
   await expect(page.getByText(/^Passo 2 de 3\./)).toBeVisible();
   await expect(page.getByText(/^Teste: 1[34] dias$/)).toBeVisible();
   await page.getByRole("button", { name: /^Montar a lista do mercado \d+ ite/ }).click();
   await expect(page).toHaveURL(/\/compras\?week=[\d-]+&primeira=1$/, COMPILE);
   await expect(page.getByText(/^Passo 3 de 3\./)).toBeVisible();
   await page.goto("/hoje");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    new RegExp(`^(${STARTERS.join("|")})$`),
-    COMPILE,
-  );
-  await expect(page.getByRole("link", { name: /^Começar a cozinhar/ })).toBeVisible();
+  // The three dinners fit one list: from today, or from Monday when today is Saturday or Sunday.
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+  }).format(new Date());
+  if (weekday === "Sat" || weekday === "Sun")
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hoje ainda não tem nada planejado.",
+      COMPILE,
+    );
+  else {
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      new RegExp(`^(${STARTERS.join("|")})$`),
+      COMPILE,
+    );
+    await expect(page.getByRole("link", { name: /^Começar a cozinhar/ })).toBeVisible();
+  }
 
   // A recipe of the house, written by hand, then edited.
   await page.goto("/receitas");

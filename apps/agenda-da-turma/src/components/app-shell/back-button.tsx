@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export function BackButton({ href, label }: { href: string; label: string }) {
   return (
-    <Button asChild variant="ghost" size="icon" className="-ml-2 size-9 shrink-0">
+    <Button asChild variant="ghost" size="icon" className="-ml-2.5 size-11 shrink-0">
       <Link href={href} aria-label={label}>
         <ArrowLeft className="size-5" aria-hidden />
       </Link>

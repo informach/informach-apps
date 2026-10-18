@@ -7,9 +7,7 @@ import { getIsProForUser } from "@/features/billing/server-cache";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
 import { recordProductEvent } from "./events";
-
-export const TRIAL_DAYS = 14;
-export const TRIAL_CREDITS = 3;
+import { TRIAL_CREDITS, TRIAL_DAYS } from "./trial";
 
 export const getKitchenAccess = cache(async (userId: string) => {
   const [isPro, profiles] = await Promise.all([

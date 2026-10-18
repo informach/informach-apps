@@ -33,11 +33,3 @@ export const dismissFirstStepsAction = action
     revalidatePath("/dashboard", "page");
     return ok({ dismissed: true } as const);
   });
-
-export const selectFreePlanAction = action
-  .input(z.object({}))
-  .auth({ require: "user" })
-  .rateLimit({ key: "onboarding-select-free", max: 10, window: "5m" })
-  .run(async () => {
-    return ok({ redirectTo: "/dashboard" } as const);
-  });

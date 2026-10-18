@@ -1,19 +1,27 @@
+import { dayMonthLabel, isLocalIsoDate } from "@/features/dashboard/day-labels";
 import type { getNoticeSource } from "../repository";
 import { SOURCE_LABELS } from "../schemas";
 
 // Callers must fetch with getNoticeSource, which authorizes the entire original.
 export function OriginalNotice({
   source,
+  title = "Documento original",
 }: {
   source: NonNullable<Awaited<ReturnType<typeof getNoticeSource>>>;
+  /** No detalhe da atividade a pergunta é "de onde veio"; na página do recado, o próprio documento. */
+  title?: string;
 }) {
   return (
-    <section className="space-y-3 rounded-xl border p-5">
-      <h2 className="text-lg font-semibold">Documento original · {SOURCE_LABELS[source.source]}</h2>
+    <section className="space-y-3 rounded-[20px] border border-foreground/15 bg-background p-4 sm:p-5">
+      <h2 className="text-lg font-extrabold tracking-tight">
+        {title} · {SOURCE_LABELS[source.source]}
+      </h2>
       {source.publishedAt ? (
         <p className="text-sm text-muted-foreground">
           {source.source === "notebook" ? "Anotado" : "Publicado"} em{" "}
-          {source.publishedAt.split("-").reverse().join("/")}
+          {isLocalIsoDate(source.publishedAt)
+            ? dayMonthLabel(source.publishedAt)
+            : source.publishedAt}
         </p>
       ) : null}
       {source.text ? (

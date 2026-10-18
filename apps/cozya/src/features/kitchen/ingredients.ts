@@ -199,19 +199,35 @@ const STOP_WORDS = new Set([
   "e",
 ]);
 
+/** Words that are the same in the singular and in the plural. */
+const INVARIABLE = new Set(["brócolis", "brocolis", "ananás", "ananas"]);
+
 function pluralizeWord(word: string): string {
+  if (INVARIABLE.has(word.toLowerCase())) return word;
+  // "pão francês", "pães franceses"
+  if (/ês$/i.test(word)) return word.replace(/ês$/i, "eses");
   if (/[sx]$/i.test(word)) return word;
   if (/^(?:p|m)ão$/i.test(word)) return word.replace(/ão$/i, "ães");
   if (/ão$/i.test(word)) return word.replace(/ão$/i, "ões");
   if (/[aeiouáéíóúâêôã]$/i.test(word)) return `${word}s`;
   if (/m$/i.test(word)) return `${word.slice(0, -1)}ns`;
   if (/[rz]$/i.test(word)) return `${word}es`;
+  if (/el$/i.test(word)) return `${word.slice(0, -2)}éis`;
+  if (/ol$/i.test(word)) return `${word.slice(0, -2)}óis`;
   if (/l$/i.test(word)) return `${word.slice(0, -1)}is`;
   return word;
 }
 
-function singularizeWord(word: string): string {
+/** `first` is the noun; the words after it are adjectives: "pães franceses". */
+function singularizeWord(word: string, first: boolean): string {
+  if (INVARIABLE.has(word.toLowerCase())) return word;
   if (/(?:ões|ães)$/i.test(word)) return word.replace(/(?:ões|ães)$/i, "ão");
+  // "francês" is already singular; "franceses" after a noun is its plural.
+  if (/ês$/i.test(word)) return word;
+  if (!first && /eses$/i.test(word)) return word.replace(/eses$/i, "ês");
+  if (/éis$/i.test(word)) return word.replace(/éis$/i, "el");
+  if (/óis$/i.test(word)) return word.replace(/óis$/i, "ol");
+  if (/ais$/i.test(word)) return word.replace(/ais$/i, "al");
   if (/ns$/i.test(word)) return `${word.slice(0, -2)}m`;
   if (/[rz]es$/i.test(word)) return word.slice(0, -2);
   if (/[aeiouáéíóúâêôã]s$/i.test(word)) return word.slice(0, -1);
@@ -223,13 +239,13 @@ function inflectHead(name: string, plural: boolean): string {
   let stopped = false;
   return name
     .split(" ")
-    .map((word) => {
+    .map((word, index) => {
       if (stopped || STOP_WORDS.has(word.toLowerCase()) || /\d/.test(word)) {
         stopped = true;
         return word;
       }
       const [head = word, ...tail] = word.split("-");
-      return [plural ? pluralizeWord(head) : singularizeWord(head), ...tail].join("-");
+      return [plural ? pluralizeWord(head) : singularizeWord(head, index === 0), ...tail].join("-");
     })
     .join(" ");
 }
@@ -252,6 +268,14 @@ export function scaleIngredient(
 
 const PREPARATION_WORD =
   /^(?:picad|picadinh|amassad|ralad|fatiad|desfiad|dessalgad|descascad|lavad|escorrid|triturad|derretid|peneirad|cortad|batid|morn|gelad)(?:o|a|os|as)$/;
+/** Grated cheese, breadcrumbs and grated coconut are bought grated: there "ralado" is the product. */
+const SOLD_GRATED = /\b(?:queijo|parmesao|mucarela|mussarela|pao|coco)\b/;
+
+function isPreparation(plain: readonly string[], index: number): boolean {
+  const word = plain[index] ?? "";
+  if (!PREPARATION_WORD.test(word)) return false;
+  return !(/^ralad/.test(word) && SOLD_GRATED.test(plain.slice(0, index).join(" ")));
+}
 const PREPARATION_PAIRS: Record<string, readonly string[]> = {
   em: [
     "cubos",
@@ -277,8 +301,8 @@ export function splitPreparation(name: string): { base: string; preparation: str
   const index = plain.findIndex(
     (word, i) =>
       i > 0 &&
-      (PREPARATION_WORD.test(word) ||
-        (word === "bem" && PREPARATION_WORD.test(plain[i + 1] ?? "")) ||
+      (isPreparation(plain, i) ||
+        (word === "bem" && isPreparation(plain, i + 1)) ||
         (PREPARATION_PAIRS[word]?.includes(plain[i + 1] ?? "") ?? false)),
   );
   if (index <= 0) return { base: name.trim(), preparation: "" };
@@ -365,14 +389,88 @@ type Group = {
   preparations: Set<string>;
 };
 
-/** Shopping key of one recipe line, shared by the list and the "missing for today" check. */
-export function shoppingKeyFor(item: CozyaIngredient): string | null {
-  const { base } = splitPreparation(item.name);
-  if (isCookingWater(base)) return null;
-  if (item.quantity === null)
-    return TO_TASTE.test(item.original) ? `gosto:${normalizeIngredientName(base)}` : null;
-  const unit = item.unit === "kg" ? "g" : item.unit === "l" ? "ml" : item.unit;
-  return `${normalizeIngredientName(base)}:${unit}`;
+/** Prepositions and articles of a normalized name, where the thing bought stops. */
+const KEY_STOP_WORDS = new Set([
+  "de",
+  "do",
+  "da",
+  "dos",
+  "das",
+  "em",
+  "com",
+  "sem",
+  "para",
+  "ao",
+  "a",
+  "e",
+]);
+
+/**
+ * One normalized word in the singular, for the key only. What matters is that both forms meet
+ * ("cebolas" and "cebola", "paes" and "pao", "franceses" and "frances"), not the spelling: the
+ * name on the list stays as the recipe writes it. `first` is the noun; adjectives follow it.
+ */
+function keyWord(word: string, first: boolean): string {
+  if (/(?:oes|aes)$/.test(word)) return `${word.slice(0, -3)}ao`;
+  // "pao frances" and "paes franceses": the adjective in "-es" meets its plural in "-eses".
+  if (!first && /eses$/.test(word)) return word.slice(0, -3);
+  if (/eis$/.test(word)) return `${word.slice(0, -3)}el`;
+  if (/ois$/.test(word)) return `${word.slice(0, -3)}ol`;
+  if (/ais$/.test(word)) return `${word.slice(0, -3)}al`;
+  if (/ns$/.test(word)) return `${word.slice(0, -2)}m`;
+  if (/[rz]es$/.test(word)) return word.slice(0, -2);
+  if (/[aeiou]s$/.test(word)) return word.slice(0, -1);
+  return word;
+}
+
+/** What is bought, in the singular: the noun phrase before the first preposition. */
+function keyName(normalized: string): string {
+  let stopped = false;
+  return normalized
+    .split(" ")
+    .map((word, index) => {
+      if (stopped || KEY_STOP_WORDS.has(word)) {
+        stopped = true;
+        return word;
+      }
+      // "graos-de-bico" is "grao-de-bico"; what follows the preposition stays.
+      let joined = false;
+      return word
+        .split("-")
+        .map((part, at) => {
+          if (joined || KEY_STOP_WORDS.has(part)) {
+            joined = true;
+            return part;
+          }
+          return keyWord(part, index === 0 && at === 0);
+        })
+        .join("-");
+    })
+    .join(" ");
+}
+
+/**
+ * The key of a list line, so "1 cebola picada" and "2 cebolas" are one line: what is bought,
+ * in the singular, and the unit it is counted in.
+ */
+function shoppingKey(base: string, unit: string): string {
+  return `${keyName(normalizeIngredientName(base))}:${unit}`;
+}
+
+function toTasteKey(base: string): string {
+  return `gosto:${keyName(normalizeIngredientName(base))}`;
+}
+
+/**
+ * A saved line's key under the current rules. Lines saved before the singular rule keep
+ * "cebolas:un": read through this, the list matches the week without asking for an update, and
+ * an update keeps what was already checked.
+ */
+export function canonicalShoppingKey(key: string): string {
+  if (key.startsWith("manual:") || key.startsWith("review:")) return key;
+  if (key.startsWith("gosto:")) return `gosto:${keyName(key.slice("gosto:".length))}`;
+  const at = key.lastIndexOf(":");
+  return at < 0 ? key : `${keyName(key.slice(0, at))}:${key.slice(at + 1)}`;
 }
 
 export function consolidateShopping(meals: PlannedIngredients[]): ShoppingLine[] {
@@ -384,7 +482,7 @@ export function consolidateShopping(meals: PlannedIngredients[]): ShoppingLine[]
       const pantry = isPantryStaple(base);
       if (item.quantity === null && TO_TASTE.test(item.original)) {
         // "Sal a gosto" in five recipes is one question, not five items to review.
-        const key = `gosto:${normalizeIngredientName(base)}`;
+        const key = toTasteKey(base);
         if (!groups.has(key))
           groups.set(key, {
             quantity: 0,
@@ -426,7 +524,7 @@ export function consolidateShopping(meals: PlannedIngredients[]): ShoppingLine[]
       const factor = item.unit === "kg" || item.unit === "l" ? 1000 : 1;
       const unit = item.unit === "kg" ? "g" : item.unit === "l" ? "ml" : item.unit;
       const quantity = (((item.quantity ?? 0) * meal.servings) / (meal.baseServings ?? 1)) * factor;
-      const key = `${normalizeIngredientName(base)}:${unit}`;
+      const key = shoppingKey(base, unit);
       const existing = groups.get(key);
       if (existing) {
         existing.quantity += quantity;

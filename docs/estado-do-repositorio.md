@@ -94,6 +94,8 @@ Em 17/10/2026 a titular aprovou a proposta em canvas para o Cozya e pediu para a
 
 Na mesma tarde, a pedido da titular, a entrega foi conferida tela por tela contra o canvas e ajustada para ficar igual às pranchas; a seção "Quem faz" entrou com a foto e o texto do site da Informach ([conferência](propostas/cozya-hoje-tem-2026-10-17/implementacao.md#conferência-contra-o-canvas)). A migração do Cozya foi regenerada como `0074_cozya_hoje_tem`, depois das duas do Bastidores (`0072_happy_patch` e `0073_warm_nemesis`). Pendências: a foto do prato enviada pela própria casa depende de armazenamento de arquivos, a decidir pela titular; mostrar as telas a cinco casas é passo de produto dela, não de implementação.
 
+À noite, já em produção, a titular pediu review completo, correção e deploy. Os sete achados médios e os baixos foram corrigidos na branch `fix/cozya-review`, sem migração: "tudo em casa" só com a receita inteira numa lista em dia, nada do teste para quem é Pro, foto do prato só quando é o prato, marmita do almoço no dia seguinte, primeira semana numa lista só, resumo do fim do teste só para quem acabou de sair dele e singular e plural numa linha da lista. O que mudou, a verificação e os riscos que ficaram para outra rodada estão no [registro do review](propostas/cozya-hoje-tem-2026-10-17/implementacao.md#review-de-1710-à-noite). Push, PR e deploy pendentes.
+
 ## Ambiente de desenvolvimento
 
 `.nvmrc` e os workflows usam Node `24.15.0`, alinhados ao requisito `>=24.15.0` do manifest. Usar pnpm `9.15.0`, fixado em `packageManager`.

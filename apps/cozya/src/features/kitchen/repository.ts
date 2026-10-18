@@ -9,7 +9,12 @@ import {
 } from "@informach/db/schema";
 import type { z } from "zod";
 import { addDays, localDay, weekStart } from "./dates";
-import { consolidateShopping, parseIngredients, type ShoppingLine } from "./ingredients";
+import {
+  canonicalShoppingKey,
+  consolidateShopping,
+  parseIngredients,
+  type ShoppingLine,
+} from "./ingredients";
 import type { cookingFeedbackSchema, cookingInputSchema, mealSchema } from "./schemas";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -214,7 +219,7 @@ export async function getShoppingList(userId: string, week: string) {
     .from(cozyaShoppingLists)
     .where(and(eq(cozyaShoppingLists.userId, userId), eq(cozyaShoppingLists.week, week)));
   if (!list) return null;
-  const [items, planned] = await Promise.all([
+  const [saved, planned] = await Promise.all([
     db
       .select()
       .from(cozyaShoppingItems)
@@ -222,6 +227,8 @@ export async function getShoppingList(userId: string, week: string) {
       .orderBy(asc(cozyaShoppingItems.category), asc(cozyaShoppingItems.name)),
     plannedShoppingLines(db, userId, week),
   ]);
+  // Read under today's key rules: a line saved as "cebolas:un" is the "cebola:un" of the week.
+  const items = saved.map((item) => ({ ...item, key: canonicalShoppingKey(item.key) }));
   const stored = items.filter((item) => !item.key.startsWith("manual:")).map(lineSignature);
   const expected = planned.map(lineSignature);
   // The week changed after the list was made: a meal, a portion or a recipe.
@@ -262,15 +269,20 @@ export async function generateShoppingList(userId: string, week: string) {
     if (lines.length)
       await tx.insert(cozyaShoppingItems).values(
         lines.map((line) => {
+          // A line saved under an older key rule ("cebolas:un") is the same line ("cebola:un").
           const old = previous.find(
             (item) =>
-              item.key === line.key && item.amount === line.amount && item.note === line.note,
+              canonicalShoppingKey(item.key) === line.key &&
+              item.amount === line.amount &&
+              item.note === line.note,
           );
           // Pantry basics start as "in the house"; the person taps only what is missing, and
           // what they said is missing stays missing when another recipe changes the amount.
           const missing =
             line.category === "despensa" &&
-            previous.some((item) => item.key === line.key && item.state === "todo");
+            previous.some(
+              (item) => canonicalShoppingKey(item.key) === line.key && item.state === "todo",
+            );
           const fresh = line.category === "despensa" && !missing ? "have" : "todo";
           return { ...line, listId: list.id, state: old?.state ?? fresh };
         }),
@@ -424,23 +436,28 @@ export async function saveCookingFeedback(
   return session ?? null;
 }
 
-/** What the household did since the trial began, for the "Sua semana continua aqui" page. */
-export async function getTrialSummary(userId: string, since: Date) {
-  const day = localDay(since);
+/**
+ * What the household did during the trial, for the "Sua semana continua aqui" page. Only the
+ * trial counts: meals of its days, and lists, recipes and preparations from its start to its end.
+ */
+export async function getTrialSummary(userId: string, trial: { from: Date; to: Date }) {
+  const firstDay = localDay(trial.from);
+  const lastDay = localDay(trial.to);
   // Raw SQL parameters go as text; postgres-js does not serialize Date here.
-  const at = since.toISOString();
+  const from = trial.from.toISOString();
+  const to = trial.to.toISOString();
   const [row] = await db.execute<{
     meals: number;
     lists: number;
     recipes: number;
     cooked: number;
   }>(sql`SELECT
-      (SELECT count(*)::int FROM ${cozyaMeals} WHERE ${cozyaMeals.userId} = ${userId} AND ${cozyaMeals.recipeId} IS NOT NULL AND ${cozyaMeals.day} >= ${day}) AS meals,
+      (SELECT count(*)::int FROM ${cozyaMeals} WHERE ${cozyaMeals.userId} = ${userId} AND ${cozyaMeals.recipeId} IS NOT NULL AND ${cozyaMeals.day} >= ${firstDay} AND ${cozyaMeals.day} <= ${lastDay}) AS meals,
       (SELECT count(DISTINCT ${cozyaShoppingLists.id})::int FROM ${cozyaShoppingLists} JOIN ${cozyaShoppingItems} ON ${cozyaShoppingItems.listId} = ${cozyaShoppingLists.id}
-        WHERE ${cozyaShoppingLists.userId} = ${userId} AND ${cozyaShoppingLists.generatedAt} >= ${at}::timestamptz
+        WHERE ${cozyaShoppingLists.userId} = ${userId} AND ${cozyaShoppingLists.generatedAt} >= ${from}::timestamptz AND ${cozyaShoppingLists.generatedAt} < ${to}::timestamptz
           AND (${cozyaShoppingItems.state} = 'bought' OR (${cozyaShoppingItems.state} = 'have' AND ${cozyaShoppingItems.category} <> 'despensa'))) AS lists,
-      (SELECT count(*)::int FROM ${cozyaRecipes} WHERE ${cozyaRecipes.userId} = ${userId} AND ${cozyaRecipes.createdAt} >= ${at}::timestamptz) AS recipes,
-      (SELECT count(*)::int FROM cozya.product_events WHERE user_id = ${userId} AND name = 'cooking_completed' AND occurred_at >= ${at}::timestamptz) AS cooked`);
+      (SELECT count(*)::int FROM ${cozyaRecipes} WHERE ${cozyaRecipes.userId} = ${userId} AND ${cozyaRecipes.createdAt} >= ${from}::timestamptz AND ${cozyaRecipes.createdAt} < ${to}::timestamptz) AS recipes,
+      (SELECT count(*)::int FROM cozya.product_events WHERE user_id = ${userId} AND name = 'cooking_completed' AND occurred_at >= ${from}::timestamptz AND occurred_at < ${to}::timestamptz) AS cooked`);
   return {
     meals: Number(row?.meals ?? 0),
     lists: Number(row?.lists ?? 0),
