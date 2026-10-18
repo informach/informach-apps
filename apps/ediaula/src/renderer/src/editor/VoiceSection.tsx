@@ -17,7 +17,8 @@ import {
   UserRound,
   Wand2,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
+import { leaveField, typedNumber } from "@/lib/fieldText";
 import { openRecorder } from "@/lib/recording";
 import {
   acceptGuess,
@@ -168,25 +169,15 @@ export function VoiceSection(): ReactNode {
             ))}
           </select>
         </label>
-        <label className="tpl-field voice-split">
-          <span className="field-label">Dividir a voz em partes de até</span>
+        <div className="tpl-field voice-split">
+          <span className="field-label" aria-hidden="true">
+            Dividir a voz em partes de até
+          </span>
           <span className="voice-split-row">
-            <input
-              className="input"
-              type="number"
-              min={PIECE_MINUTES.min}
-              max={PIECE_MINUTES.max}
-              step={1}
-              value={minutes}
-              aria-describedby="voice-split-hint"
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                if (Number.isFinite(value) && value > 0) setPieceMinutes(value);
-              }}
-            />
+            <PieceMinutesField minutes={minutes} />
             <span>min</span>
           </span>
-        </label>
+        </div>
         <p className="props-hint muted" id="voice-split-hint">
           Algumas ferramentas de avatar limitam o tamanho do arquivo.
         </p>
@@ -238,6 +229,47 @@ export function VoiceSection(): ReactNode {
         </Button>
       </div>
     </>
+  );
+}
+
+/**
+ * The longest piece of the exported voice: typed freely and kept in the lesson (one undo step)
+ * when the field is left or Enter is pressed; Esc puts the value back.
+ */
+function PieceMinutesField({ minutes }: { minutes: number }): ReactNode {
+  const [text, setText] = useState<string | null>(null);
+  // Esc blurs the field right after asking for the value back: the blur must see it at once.
+  const cancelled = useRef(false);
+  const shown = String(minutes);
+  const leave = (): void => {
+    const result = leaveField(text, shown, cancelled.current, typedNumber);
+    cancelled.current = false;
+    setText(null);
+    if (result.kind === "commit" && result.value > 0) setPieceMinutes(result.value);
+  };
+  return (
+    <input
+      className="input"
+      inputMode="numeric"
+      value={text ?? shown}
+      aria-label="Dividir a voz em partes de até (minutos)"
+      aria-describedby="voice-split-hint"
+      title={`De ${PIECE_MINUTES.min} a ${PIECE_MINUTES.max} minutos`}
+      onFocus={(e) => {
+        cancelled.current = false;
+        setText(shown);
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={leave}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          cancelled.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+    />
   );
 }
 

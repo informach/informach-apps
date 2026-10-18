@@ -618,9 +618,12 @@ export function listenPrepare(): () => void {
   });
   const stopImport = onRecordingImported((take) => {
     // A voice alone becomes the presenter's video first: "Preparar aula" comes after it.
-    if (take.result.mode === "voice") usePrepare.setState({ offer: "voice" });
-    // "Voz e câmera" brought the presenter's video along with the voice.
-    else if (take.result.mode === "voicecam" || take.assets.screen.length) offerPrepare();
+    // "Voz e câmera" brought the presenter's video along with the voice; without its camera
+    // (it failed from the start) it is a voice alone.
+    const filmed = take.result.mode === "voicecam" && take.assets.camera.length > 0;
+    if (take.result.mode === "voice" || (take.result.mode === "voicecam" && !filmed))
+      usePrepare.setState({ offer: "voice" });
+    else if (filmed || take.assets.screen.length) offerPrepare();
   });
   const stopPresenter = onPresenterPlaced(offerPrepare);
   const stopProject = useProject.subscribe((s, prev) => {

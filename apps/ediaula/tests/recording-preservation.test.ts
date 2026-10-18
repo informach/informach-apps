@@ -98,7 +98,8 @@ export function spawn(bin, args, options) {
   if (camera >= 0) {
     kind = 'camera';
     const dshow = args.lastIndexOf('dshow', camera);
-    args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', 'testsrc2=size=320x240:rate=30', ...args.slice(camera + 1)];
+    const pattern = globalThis.ediBreakCamera ? 'missing_edi_camera_source' : 'testsrc2=size=320x240:rate=30';
+    args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', pattern, ...args.slice(camera + 1)];
   }
   const child = nativeSpawn(bin, args, options);
   if (kind) (globalThis.ediCaptures ??= []).push({ kind, child });
@@ -131,7 +132,10 @@ after(async () => {
   }
 });
 
-type Capture = { kind: "screen" | "mic"; child: { kill: (signal?: string) => boolean } };
+type Capture = {
+  kind: "screen" | "mic" | "camera";
+  child: { kill: (signal?: string) => boolean };
+};
 const captures = (): Capture[] =>
   (globalThis as unknown as { ediCaptures?: Capture[] }).ediCaptures ?? [];
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -905,6 +909,56 @@ test("a voice and camera take records the presenter beside the voice, both on th
     Math.abs(camClip.start - part.at) < 1e-3,
     "the camera keeps its place against the voice",
   );
+});
+
+test('"Voz e câmera" refuses to start without its camera, as without its microphone', async () => {
+  Object.assign(globalThis, { ediBreakCamera: true });
+  try {
+    await recorder.prepare(
+      { fps: 30, microphone: "Fake Mic", camera: "Fake Cam", mode: "voicecam", follow: false },
+      [],
+    );
+    await assert.rejects(recorder.start(), /A câmera não abriu/);
+  } finally {
+    Object.assign(globalThis, { ediBreakCamera: false });
+    await recorder.cancel();
+  }
+  assert.equal(recorder.isRecording(), false);
+});
+
+test('"Voz e câmera": the camera stopping pauses the take with Retomar and Parar e salvar', async () => {
+  const events: RecorderEvent[] = [];
+  const unsubscribe = recorder.subscribe((m) => {
+    if (m.type === "event") events.push(m.event);
+  });
+  try {
+    await recorder.prepare(
+      { fps: 30, microphone: "Fake Mic", camera: "Fake Cam", mode: "voicecam", follow: false },
+      [],
+    );
+    await recorder.start();
+    // Past the first two-second fragment, so the part that dies holds something.
+    await wait(2600);
+    const camera = captures()
+      .filter((c) => c.kind === "camera")
+      .at(-1);
+    assert.ok(camera, "the camera's process");
+    camera.child.kill("SIGKILL");
+    for (let i = 0; i < 50 && !events.some((e) => e.source === "camera"); i++) await wait(100);
+    const stopped = events.find((e) => e.source === "camera");
+    assert.equal(stopped?.level, "error");
+    assert.deepEqual(stopped?.actions, ["resume", "stop"]);
+    assert.equal(recorder.status().phase, "failed");
+    // Resuming opens the camera again, and the take goes on with it.
+    await recorder.resume();
+    assert.equal(recorder.status().phase, "recording");
+    await wait(800);
+    const saved = await recorder.stop();
+    assert.equal(saved.mode, "voicecam");
+    assert.equal(saved.cameraParts?.length, 2, "a part before the failure and one after");
+  } finally {
+    unsubscribe();
+  }
 });
 
 test("a voice take cut short by a crash is recovered from its Matroska part", async () => {

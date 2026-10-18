@@ -341,7 +341,9 @@ em crianças de 9 a 14 anos:
 - letra de anotação menor que 3,3% da altura (36 px em 1080p) é aviso, menor que 2,6% é problema,
   medida no tamanho em que a anotação fica parada (a correção aumenta a letra). Balões, notas e
   rótulos novos já nascem com 36 px;
-- mídia ou dados do cursor ausentes (a correção reconecta);
+- mídia ausente (a correção reconecta; a aula não exporta sem ela) e dados do cursor ausentes (um aviso: "O
+  ponteiro não vai aparecer nestes trechos", com **Exportar sem o cursor**, que só no diálogo de exportação deixa
+  aquelas gravações saírem sem ponteiro e sem teclas; sem essa escolha a exportação recusa);
 - capítulos do YouTube que não valem: o primeiro precisa estar em 0:00, são pelo menos 3 e cada um
   com 10 s ou mais;
 - tela preta na imagem e pedaços com menos de 3 quadros.
@@ -476,9 +478,15 @@ marca: quem aparece no vídeo é o **apresentador**.
      locutores, próxima fala, refazer, medidor, teste de 5 s, acompanhamento pela voz, tratamento e
      tomadas por fala) e a câmera ligada ao mesmo tempo, num processo próprio como no modo Tela, no
      modo negociado da câmera e com a mesma medição de atraso. A câmera e a prévia dela ficam na
-     preparação. Ao parar, a voz entra na faixa **Voz** e o vídeo na faixa **Apresentador**, acima
-     da aula, mudo e alinhado à voz desde o primeiro quadro; o tratamento da voz vale para os dois.
-     A recuperação de gravação interrompida, o painel de saúde e o teleprompter funcionam igual.
+     preparação (a câmera deste modo é lembrada à parte da câmera do modo Tela, e a prévia mostra a
+     imagem como ela vai sair, sem espelhar). Sem a câmera a gravação não começa, e uma câmera que
+     cai no meio pausa a gravação com **Retomar** e **Parar e salvar**, como o microfone. Ao parar,
+     a voz entra na faixa **Voz** e o vídeo na faixa **Apresentador**, acima da aula, mudo e
+     alinhado à voz desde o primeiro quadro; o tratamento da voz vale para os dois. Numa aula
+     deitada a câmera (sem fundo removido) fica no canto, nunca em tela cheia, então a tela gravada
+     depois em Tela sobre a narração aparece em volta dela. O vídeo é marcado como apresentador, e
+     o Preparar aula corta a voz e o vídeo juntos (eles foram gravados juntos). A recuperação de
+     gravação interrompida, o painel de saúde e o teleprompter funcionam igual.
      Quem prefere gravar a câmera depois, ouvindo a própria voz, grava em qualquer programa e usa
      **Importar vídeo do apresentador**, que encaixa o vídeo pela voz.
 2. **Tratar a voz.** Painel **Áudio › Voz**: escolha o tratamento (**Voz da professora**,
@@ -536,7 +544,8 @@ marca: quem aparece no vídeo é o **apresentador**.
    da timeline enquanto a tela é gravada. O teleprompter mostra a voz em karaokê, com a palavra
    atual acesa, e as próximas instruções "Na tela" do roteiro. Microfone e áudio do PC começam
    desligados (a voz já existe); dá para ligar, e o áudio do PC não grava a voz que o gravador
-   toca, porque deixa de fora o som do próprio EdiAula. Pausar pausa as duas coisas: a pausa vira corte
+   toca, porque deixa de fora o som da janela do gravador (num Windows que não separa esse som, o áudio
+   do PC fica desligado, com aviso). Pausar pausa as duas coisas: a pausa vira corte
    na tela e a voz continua do mesmo ponto. O take entra na faixa da tela no tempo da voz: o
    gravador anota, a cada meio segundo, que segundo da voz estava sendo ouvido, já descontada a
    latência da saída de áudio.
@@ -744,13 +753,16 @@ marca: quem aparece no vídeo é o **apresentador**.
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
 - **Áudio do PC** na gravação (o som do sistema: música, efeitos de um jogo, o navegador), numa faixa própria
   já alinhada e cortada nas mesmas pausas da tela. É o loopback do Windows pelo Chromium com `restrictOwnAudio`
-  (`src/shared/systemAudio.ts`): o som do próprio EdiAula fica de fora (WASAPI process loopback excluindo a árvore
-  de processos do app), então a voz que o gravador toca no modo Tela sobre a narração ou a narração do modo guiado
-  não entra duplicada. O processamento de voz do Chromium (cancelamento de eco, supressão de ruído, ganho
-  automático) fica desligado nessa faixa. Num Windows sem process loopback (anterior ao Windows 10 2004), a
-  gravação avisa que o som do app pode entrar e segue com o loopback comum. Medido nesta máquina com Electron 44
-  (`tests/systemAudioExclusion.test.ts`, com `EDIAULA_SOUND_TESTS=1`): um tom tocado pelo app cai de -13 dB para
-  -83 dB na faixa, e o tom de outro programa fica em -30 dB.
+  (`src/shared/systemAudio.ts`): o som que a própria janela do gravador toca fica de fora, então a voz da aula no
+  modo Tela sobre a narração e a narração do modo guiado (as duas tocam no gravador) não entram duplicadas. O
+  Chromium deixa de fora só a janela que captura: o som de outra janela do EdiAula entra, por isso tudo o que o
+  gravador toca durante a gravação toca na janela dele. O processamento de voz do Chromium (cancelamento de eco,
+  supressão de ruído, ganho automático) fica desligado nessa faixa. A separação só conta quando a faixa abre o
+  `loopbackWithoutChrome`; num Windows sem process loopback (anterior ao Windows 10 2004), o áudio do PC fica
+  desligado, com aviso, nos modos em que o gravador toca uma voz (Tela sobre a narração e guiado com narração), e
+  nos outros segue com o loopback comum e um aviso. Medido nesta máquina com Electron 44
+  (`tests/systemAudioExclusion.test.ts`, com `EDIAULA_SOUND_TESTS=1`): um tom tocado pela janela que captura cai de
+  -13 dB para -83 dB na faixa, o tom de outro programa fica em -30 dB e o de outra janela do app fica em -13 dB.
 - **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Delete/F1 a F12 aparecem num balão no canto.
   Espaço e Backspace sozinhos não aparecem, porque o auxiliar não tem como saber se o foco está num campo de
   texto; AltGr e Alt com o teclado numérico também ficam de fora, porque escrevem caracteres.
@@ -1099,7 +1111,7 @@ marca: quem aparece no vídeo é o **apresentador**.
   **Fala começa em (s)** indica o início da frase e **Ação em (s)** quando agir. Etapas próximas demais são
   recusadas.
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
-  fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som do próprio EdiAula.
+  fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
   Sem narração, grave a demonstração e use **Narrar intervalo** depois. A conclusão das etapas encerra a gravação automaticamente.
 
 ### Teste de fumaça da gravação guiada

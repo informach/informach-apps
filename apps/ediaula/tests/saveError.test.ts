@@ -11,13 +11,15 @@ const ipc = (text: string): string => `Error invoking remote method 'project:sav
 
 test("a failed save is told in words by the kind of error, with the detail kept apart", () => {
   const cases: [string, ReturnType<typeof saveErrorKind>][] = [
-    [ipc("EPERM: operation not permitted, rename 'a.tmp' -> 'a.ediaula'"), "permission"],
-    [ipc("EACCES: permission denied, open 'C:aulasa.ediaula'"), "permission"],
-    [ipc("ENOSPC: no space left on device, write"), "full"],
+    // The atomic write's rename refused: another program holds the lesson's file.
+    [ipc("EPERM: operation not permitted, rename 'a.tmp' -> 'a.ediaula'"), "busy"],
     [ipc("EBUSY: resource busy or locked, rename 'a.tmp' -> 'a.ediaula'"), "busy"],
-    [ipc("ENOENT: no such file or directory, open 'E:aula.ediaula'"), "drive"],
-    [ipc("UNKNOWN: unknown error, open '\\servidoraulasa.ediaula'"), "drive"],
-    [ipc("Projeto inválido: clips.3.start"), "other"],
+    [ipc("EPERM: operation not permitted, open 'C:/aulas/.a.ediaula.tmp'"), "permission"],
+    [ipc("EACCES: permission denied, open 'C:/aulas/a.ediaula'"), "permission"],
+    [ipc("ENOSPC: no space left on device, write"), "full"],
+    [ipc("ENOENT: no such file or directory, open 'E:/aula.ediaula'"), "drive"],
+    [ipc("UNKNOWN: unknown error, open '//servidor/aulas/a.ediaula'"), "drive"],
+    [ipc("Unexpected token in JSON"), "other"],
   ];
   for (const [raw, kind] of cases) {
     assert.equal(saveErrorKind(raw), kind, raw);
@@ -29,4 +31,11 @@ test("a failed save is told in words by the kind of error, with the detail kept 
     saveErrorDetail(ipc("EPERM: operation not permitted, rename 'a' -> 'b'")),
     "EPERM: operation not permitted, rename 'a' -> 'b'",
   );
+});
+
+test("the app's own words, already in Portuguese, are shown as they are", () => {
+  const raw = ipc("O projeto passou do limite de 100 mil itens por chamada.");
+  assert.equal(saveErrorKind(raw), "message");
+  assert.equal(explainSaveError(raw), "O projeto passou do limite de 100 mil itens por chamada.");
+  assert.equal(saveErrorShort(raw), "O projeto passou do limite de 100 mil itens por chamada.");
 });

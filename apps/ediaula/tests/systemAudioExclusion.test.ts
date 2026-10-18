@@ -10,10 +10,17 @@ import { promisify } from "node:util";
 import { SYSTEM_AUDIO_CONSTRAINTS } from "../src/shared/systemAudio.ts";
 
 /**
- * The computer's sound leaves the app's own sound out (shared/systemAudio.ts). The app plays tone
- * A (1000 Hz) in its window, another process plays tone B (2500 Hz) on the default output, and
- * the computer's sound is captured the way the recorder captures it; the spectrum must have B and
- * not A. The same capture without the exclusion is the control: it must hear A, or the tone never
+ * What the computer's sound leaves out (shared/systemAudio.ts), measured by the spectrum. Tone A
+ * (1000 Hz) is played by the app and tone B (2500 Hz) by another process on the default output,
+ * and the computer's sound is captured the way the recorder captures it:
+ *
+ * - tone A in the capturing window itself (the recorder window plays the lesson's voice and the
+ *   guided narration, and captures the computer's sound): A is left out, B stays;
+ * - tone A in another window of the app: Chromium leaves out only the capturing window's own
+ *   sound, so A comes back. This is measured too, so the limit stays known (and a Chromium that
+ *   leaves out the whole app shows up here).
+ *
+ * The same capture without the exclusion is the control: it must hear A, or the tone never
  * reached the device and the test proves nothing.
  *
  * It plays sound on the real output device for a few seconds: only with EDIAULA_SOUND_TESTS=1, on
@@ -53,6 +60,7 @@ async function capture(
   dir: string,
   name: string,
   constraints: object,
+  toneWindow: "same" | "other",
 ): Promise<{ file: string; settings: Record<string, unknown> }> {
   const electron: unknown = createRequire(import.meta.url)("electron");
   assert.equal(typeof electron, "string");
@@ -66,6 +74,7 @@ async function capture(
       `--frequency-a=${A}`,
       `--constraints=${JSON.stringify(constraints)}`,
       `--seconds=${SECONDS}`,
+      `--tone-window=${toneWindow}`,
     ],
     { windowsHide: true, timeout: 60_000 },
   );
@@ -74,7 +83,9 @@ async function capture(
   return { file, settings: JSON.parse(line.slice("SETTINGS ".length)) };
 }
 
-test("o áudio do PC tem o som de outro programa e não o som do próprio app", { skip }, async () => {
+test("o áudio do PC tem o som de outro programa e não a voz que o gravador toca", {
+  skip,
+}, async () => {
   const dir = await mkdtemp(join(tmpdir(), "ediaula-system-audio-test-"));
   try {
     await run(
@@ -87,24 +98,37 @@ test("o áudio do PC tem o som de outro programa e não o som do próprio app", 
       { windowsHide: true },
     );
     const { echoCancellation, noiseSuppression, autoGainControl } = SYSTEM_AUDIO_CONSTRAINTS;
-    const control = await capture(dir, "controle", {
-      echoCancellation,
-      noiseSuppression,
-      autoGainControl,
-    });
-    const app = await capture(dir, "app", SYSTEM_AUDIO_CONSTRAINTS);
+    const control = await capture(
+      dir,
+      "controle",
+      { echoCancellation, noiseSuppression, autoGainControl },
+      "same",
+    );
+    const same = await capture(dir, "mesma-janela", SYSTEM_AUDIO_CONSTRAINTS, "same");
+    const other = await capture(dir, "outra-janela", SYSTEM_AUDIO_CONSTRAINTS, "other");
     const levels = {
       controlA: await band(control.file, A),
-      appA: await band(app.file, A),
-      appB: await band(app.file, B),
+      sameA: await band(same.file, A),
+      sameB: await band(same.file, B),
+      otherA: await band(other.file, A),
+      otherB: await band(other.file, B),
     };
-    console.log(`[áudio do PC] ${JSON.stringify({ ...levels, settings: app.settings })}`);
-    assert.equal(app.settings.restrictOwnAudio, true, JSON.stringify(app.settings));
+    console.log(`[áudio do PC] ${JSON.stringify({ ...levels, settings: same.settings })}`);
+    assert.equal(same.settings.restrictOwnAudio, true, JSON.stringify(same.settings));
+    assert.equal(same.settings.deviceId, "loopbackWithoutChrome", JSON.stringify(same.settings));
     assert.ok(levels.controlA > -50, `the app's tone did not reach the device: ${levels.controlA}`);
-    assert.ok(levels.appB > -50, `the other program's tone is missing: ${levels.appB} dB`);
+    // The voice the recorder window plays is left out; the other program's sound stays.
+    assert.ok(levels.sameB > -50, `the other program's tone is missing: ${levels.sameB} dB`);
     assert.ok(
-      levels.appA < -60 && levels.appA < levels.controlA - 30,
-      `the app's own tone came back: ${levels.appA} dB (control ${levels.controlA} dB)`,
+      levels.sameA < -60 && levels.sameA < levels.controlA - 30,
+      `the recorder window's own tone came back: ${levels.sameA} dB (control ${levels.controlA} dB)`,
+    );
+    // Another window of the app is not left out (the limit the recorder lives with: every sound
+    // it plays while recording plays in its own window).
+    assert.ok(levels.otherB > -50, `the other program's tone is missing: ${levels.otherB} dB`);
+    assert.ok(
+      levels.otherA > -50,
+      `Chromium now leaves out other windows of the app too (${levels.otherA} dB): the recorder may say "sem o som do EdiAula" again`,
     );
   } finally {
     await rm(dir, { recursive: true, force: true });

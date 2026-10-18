@@ -46,6 +46,9 @@ export const recorderSettingsSchema = z.object({
   camera: z.string().max(512).nullable().catch(null),
   /** null: chosen automatically for the camera (shared/camera.ts chooseCameraMode). */
   cameraMode: cameraMode.nullable().catch(null),
+  /** The presenter's camera of "Voz e câmera", kept apart from the camera of the screen modes. */
+  presenterCamera: z.string().max(512).nullable().catch(null),
+  presenterCameraMode: cameraMode.nullable().catch(null),
   /** Milliseconds the webcam's picture runs behind; moves the camera earlier on import. */
   cameraLatency: z.int().min(0).max(1000).catch(100),
   systemAudio: z.boolean().catch(false),

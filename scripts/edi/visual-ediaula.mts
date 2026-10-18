@@ -44,6 +44,25 @@ const scriptFixture = resolve("apps/ediaula/tests/fixtures/roteiro-farol-dia1.md
 const lessonFixture = resolve("apps/ediaula/tests/fixtures/guided-blockly.html");
 const LEASE_SECONDS = 1800;
 
+/**
+ * A seventh section with four speakers, after the fixture: the recorder's speaker chips at
+ * 1366 × 768 (the fixture's sections have two).
+ */
+const SPEAKERS_SECTION = [
+  "## Seção 7. Conversa com os amigos",
+  "### Vídeo `video-conversa` · Conversa com os amigos",
+  "**Duração alvo:** 30 a 40 segundos.",
+  "**Professora:**",
+  '> "Hoje três amigos vão ajudar a gente."',
+  "**Debinha (avatar):**",
+  '> "Eu cuido das setas."',
+  "**Dedé (avatar):**",
+  '> "E eu cuido do farol."',
+  "**Narrador:**",
+  '> "E assim começa a aventura."',
+  "",
+].join("\n");
+
 /** Spoken by the Windows synthesizer: the start of the first section of the script fixture. */
 const VOICE_TEXT =
   "Oi! Neste desafio, você vai programar o jogo A Chave do Farol. Antes de montar o seu, " +
@@ -164,6 +183,48 @@ async function capture(target: Page | Locator, name: string, title: string): Pro
  * The recorder window is transparent over whatever is on the screen: its PNG keeps the alpha and
  * is laid over a dark and a light desktop (FFmpeg), so contrast can be judged on both.
  */
+/**
+ * The camera preview of the recorder shows a picture: the video has a size, or one of its pixels
+ * is not black. A preview that stays empty (the device held, a stream lost) fails the step.
+ */
+async function cameraPreviewShows(overlay: Page, selector: string): Promise<void> {
+  const shows = await overlay.locator(selector).evaluate(
+    (video) =>
+      new Promise<{ width: number; lit: boolean }>((done) => {
+        if (!(video instanceof HTMLVideoElement)) return done({ width: 0, lit: false });
+        const look = () => {
+          const width = video.videoWidth;
+          let lit = false;
+          if (width) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 64;
+            canvas.height = 36;
+            const context = canvas.getContext("2d");
+            context?.drawImage(video, 0, 0, 64, 36);
+            const pixels = context?.getImageData(0, 0, 64, 36).data ?? new Uint8ClampedArray();
+            for (let i = 0; i < pixels.length && !lit; i += 4)
+              lit = (pixels[i] ?? 0) + (pixels[i + 1] ?? 0) + (pixels[i + 2] ?? 0) > 30;
+          }
+          return { width, lit };
+        };
+        const started = Date.now();
+        const wait = () => {
+          const seen = look();
+          if (
+            seen.lit ||
+            (seen.width > 0 && Date.now() - started > 3000) ||
+            Date.now() - started > 15_000
+          )
+            done(seen);
+          else setTimeout(wait, 200);
+        };
+        wait();
+      }),
+  );
+  assert.ok(shows.width > 0 || shows.lit, "A prévia da câmera ficou sem imagem.");
+  if (!shows.lit) notes.push("A prévia da câmera abriu, mas a imagem da câmera estava escura.");
+}
+
 async function captureOverlay(
   target: Page | Locator,
   name: string,
@@ -825,7 +886,9 @@ try {
     await side.locator(".tab", { hasText: "Roteiro" }).click();
     await side.locator(".script-empty").waitFor();
     await capture(side, "roteiro-vazio", "Painel Roteiro antes de colar");
-    await side.locator("textarea.script-paste").fill(await readFile(scriptFixture, "utf8"));
+    await side
+      .locator("textarea.script-paste")
+      .fill(`${await readFile(scriptFixture, "utf8")}\n${SPEAKERS_SECTION}`);
     await side.getByRole("button", { name: "Usar roteiro" }).click();
     await side.locator(".script").waitFor();
     await settle(editor);
@@ -857,7 +920,7 @@ try {
     const draft = editor.getByRole("region", { name: "Rascunho para revisar" });
     await draft.waitFor({ timeout: 120_000 });
     await panel
-      .getByText(/já foi limpa antes de gerar o vídeo do apresentador/)
+      .getByText(/foi exportada e limpa antes de gerar o vídeo do apresentador/)
       .waitFor({ timeout: 10_000 });
     await settle(editor);
     await withoutToasts(editor);
@@ -1147,7 +1210,9 @@ try {
             ],
           });
         }
-        const data = JSON.parse(prompt.slice(prompt.lastIndexOf('{"cues"')).split("\n")[0]) as {
+        const data = JSON.parse(
+          prompt.slice(prompt.lastIndexOf('{"cues"')).split("\n")[0] ?? "",
+        ) as {
           cues: { i: number; text: string }[];
         };
         return JSON.stringify({ cues: data.cues.map((c) => ({ i: c.i, text: `EN ${c.text}` })) });
@@ -1527,14 +1592,7 @@ try {
     ).find(Boolean);
     if (camera) {
       await cameraSelect.selectOption(camera);
-      await overlay.locator(".rec-cam.is-presenter video").evaluate(
-        (video) =>
-          new Promise<void>((done) => {
-            if (!(video instanceof HTMLVideoElement) || video.readyState >= 2) return done();
-            video.addEventListener("loadeddata", () => done(), { once: true });
-            setTimeout(done, 10_000);
-          }),
-      );
+      await cameraPreviewShows(overlay, ".rec-cam.is-presenter video");
       await captureOverlay(
         overlay,
         "gravador-voz-e-camera-previa",
@@ -1727,6 +1785,11 @@ try {
       await editor.keyboard.press("Escape");
       await dialog.waitFor({ state: "detached" });
 
+      // The section with four speakers goes to the recorder's teleprompter.
+      await side.locator(".tab", { hasText: "Roteiro" }).click();
+      const sections = side.locator(".script-head select");
+      const sectionBefore = await sections.inputValue();
+      await sections.selectOption({ label: "Seção 7 · Conversa com os amigos" });
       const opened = first.application.waitForEvent("window");
       await editor.locator("header.topbar").getByRole("button", { name: "Gravar tela" }).click();
       const overlay = await opened;
@@ -1763,7 +1826,27 @@ try {
               requestAnimationFrame(() => requestAnimationFrame(() => done())),
             ),
         );
+        // "Voz e câmera" with a camera of this machine chosen: the longest bar of the recorder.
+        const presenterCamera = overlay
+          .getByRole("group", { name: "Câmera", exact: true })
+          .locator("select")
+          .first();
+        const chosen =
+          mode === "voicecam"
+            ? (
+                await presenterCamera
+                  .locator("option")
+                  .evaluateAll((options) =>
+                    options.map((o) => (o instanceof HTMLOptionElement ? o.value : "")),
+                  )
+              ).find(Boolean)
+            : undefined;
+        if (chosen) {
+          await presenterCamera.selectOption(chosen);
+          await cameraPreviewShows(overlay, ".rec-cam.is-presenter video");
+        }
         await captureOverlay(overlay, name, title);
+        if (chosen) await presenterCamera.selectOption("");
         notes.push(
           ...(await overflow(overlay)).map((text) => `1366 × 768, gravador (${mode}): ${text}.`),
         );
@@ -1773,6 +1856,7 @@ try {
       await overlay.getByTitle("Fechar sem gravar").click();
       await closed;
       lastPage = editor;
+      await sections.selectOption(sectionBefore);
     } finally {
       await sizeWindows(false, null);
     }

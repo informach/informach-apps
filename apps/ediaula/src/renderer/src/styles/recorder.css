@@ -226,10 +226,10 @@ html.is-recorder #root {
 }
 .rec-src select {
   /* As wide as the choice shown (not the longest option), so "Desligada" leaves room for the
-     monitor and microphone names; a name that still does not fit ends in an ellipsis. */
+     monitor and microphone names. A name that still does not fit is cut (a select draws no
+     ellipsis): its full name is in the select's title. */
   field-sizing: content;
   max-width: 100%;
-  text-overflow: ellipsis;
   padding: 0;
   border: 0;
   background: transparent;
@@ -259,6 +259,13 @@ html.is-recorder #root {
   .rec-go {
     gap: 10px;
     padding-right: 12px;
+  }
+  /* "Gravar as falas de" is said by the chips themselves. */
+  .vp-speakers small {
+    display: none;
+  }
+  .rec-icon {
+    flex: none;
   }
 }
 .rec-meter {
@@ -416,6 +423,36 @@ html.is-recorder #root {
 }
 .rec-cam.is-presenter video {
   border-radius: 14px;
+  /* As the presenter will be seen in the lesson, not as a mirror. */
+  transform: none;
+}
+/* The preview did not open: why, and a way to try again (the overlay takes this click). */
+.rec-cam-problem {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: inherit;
+  background: rgba(21, 23, 28, 0.94);
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: auto;
+}
+.rec-cam-problem p {
+  margin: 0;
+}
+.rec-cam-problem button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 12px var(--font-ui);
+  cursor: pointer;
 }
 /* "Voz e câmera" before a camera is chosen: where the presenter will be seen. */
 .rec-cam.is-empty {
@@ -768,8 +805,12 @@ html.is-recorder #root {
 }
 .vp-speakers {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  /* Many speakers wrap to another line instead of running under the buttons beside them. */
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 4px 8px;
   margin: 0 0 0 8px;
   padding: 0;
   border: 0;

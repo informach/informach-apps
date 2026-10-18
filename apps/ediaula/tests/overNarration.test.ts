@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { cameraPresenterTransform } from "../src/shared/compose.ts";
 import {
   clockOffset,
   layoutOverNarration,
@@ -7,7 +8,9 @@ import {
   overPieces,
 } from "../src/shared/overNarration.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
+import { layoutRecording } from "../src/shared/recordingImport.ts";
 import { momentInTake } from "../src/shared/recordingJournal.ts";
+import { defaultTracks } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
 /**
@@ -198,4 +201,64 @@ test("a regravação troca a tela na faixa em que a tela está, não na principa
     ["antiga", 20, 20],
   ]);
   assert.deepEqual(onTrack(layout.clips, "tv"), [["camera", 0, 40]]);
+});
+
+test("Voz e câmera e depois a tela sobre a narração: o apresentador no canto e a tela visível embaixo", () => {
+  // The "Voz e câmera" take: a landscape camera without its background removed.
+  const voice: Asset = { ...screenAsset("voz"), kind: "audio", hasVideo: false, hasAudio: true };
+  const camera = screenAsset("cam");
+  const frame = { width: 1920, height: 1080 };
+  const take: RecordingResult = {
+    version: 2,
+    dir: "C:/vc",
+    microphone: "C:/voz.mp4",
+    cameraParts: [{ path: "C:/cam.mp4", at: 0, in: 0, duration: 30 }],
+    duration: 30,
+    pauses: [],
+    markers: [],
+    mode: "voicecam",
+  };
+  const first = layoutRecording({ tracks: defaultTracks(), clips: [] }, [voice, camera], take, 0, {
+    presenterTransform: (a) => cameraPresenterTransform(a, frame),
+  });
+  const presenterTrack = first.tracks.find((t) => t.name === "Apresentador");
+  const presenter = first.clips.find((c) => c.assetId === "cam");
+  assert.ok(presenterTrack && presenter?.transform);
+  const t = presenter.transform;
+  // In the corner, inside the frame: never over the whole lesson.
+  assert.ok(t.scale < 0.5, `scale ${t.scale}`);
+  assert.ok(t.x + t.scale / 2 <= 1 && t.y + t.scale / 2 <= 1, JSON.stringify(t));
+  assert.ok(t.x > 0.5 && t.y > 0.5, "on the lower right");
+
+  // Then the screen over that narration.
+  const segments = [{ start: FIRST_FRAME, duration: 20 }];
+  const journal = anchors(0, 1800, [], FIRST_FRAME + 20000);
+  const over: RecordingResult = {
+    version: 2,
+    dir: "C:/over",
+    screen: "C:/tela.mp4",
+    duration: 20,
+    pauses: [],
+    markers: [],
+    mode: "over",
+    over: {
+      from: 0,
+      anchors: journal.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })),
+    },
+  };
+  const screen = screenAsset("tela");
+  const second = layoutOverNarration(
+    { tracks: first.tracks, clips: first.clips, assets: [voice, camera] },
+    [voice, camera, screen],
+    over,
+  );
+  const screenClip = second.clips.find((c) => c.assetId === "tela");
+  assert.ok(screenClip, "the screen came in");
+  const order = second.tracks.map((tr) => tr.id);
+  // Tracks above come first: the presenter stays above the screen, which shows around it.
+  assert.ok(
+    order.indexOf(presenterTrack.id) < order.indexOf(screenClip.trackId),
+    "the presenter's track is above the screen's",
+  );
+  assert.ok(second.clips.some((c) => c.assetId === "cam" && c.transform?.scale === t.scale));
 });

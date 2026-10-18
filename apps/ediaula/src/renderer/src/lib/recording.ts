@@ -1,5 +1,5 @@
 import { timelineWords } from "@shared/cleanup";
-import { presenterTransform, squareCrop, type Transform } from "@shared/compose";
+import { cameraPresenterTransform, squareCrop, type Transform } from "@shared/compose";
 import { type GuidedRun, normalizeGuidedRun } from "@shared/guidedCursor";
 import { applyResumeJoin, type ResumeJoin, resumeJoin } from "@shared/guidedJoin";
 import {
@@ -408,7 +408,13 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   const presenter = r.mode === "voicecam";
   for (const path of cameraFiles) {
     const asset = byPath(path);
-    if (asset) patchAsset(asset.id, { name: `${presenter ? "Apresentador" : "Câmera"} ${when}` });
+    if (asset)
+      patchAsset(asset.id, {
+        name: `${presenter ? "Apresentador" : "Câmera"} ${when}`,
+        // The presenter, filmed with the voice: never cleaned of hesitations as a voice of its
+        // own, and recognized as the presenter by the cleanup and "Preparar aula".
+        ...(presenter ? { origin: "presenter" as const } : {}),
+      });
   }
   const mic = byPath(r.microphone);
   for (const path of micFiles) {
@@ -444,7 +450,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
             current,
             r,
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
-            { cameraTransform, presenterTransform: (a) => presenterTransform(a, p.settings) },
+            { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
           );
     return {
       ...p,

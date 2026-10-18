@@ -1,12 +1,16 @@
 import { excludesOwnAudio, SYSTEM_AUDIO_CONSTRAINTS } from "@shared/systemAudio";
 
+/** The answer of SystemAudio.excludesApp, once per window. */
+let probe: Promise<boolean> | null = null;
+
 /**
- * The computer's sound (Windows loopback through Chromium, without the app's own sound:
- * shared/systemAudio.ts), sent to the main process one second
- * at a time so nothing waits in this window's memory: a crash keeps what was already sent. It
- * never pauses; the take's pauses are cut on import like the other sources. The first chunk says
- * when it started and the last when it ended, so its drift can be measured.
+ * The computer's sound (Windows loopback through Chromium, without the sound this window plays:
+ * shared/systemAudio.ts), sent to the main process one second at a time so nothing waits in this
+ * window's memory: a crash keeps what was already sent. It never pauses; the take's pauses are
+ * cut on import like the other sources. The first chunk says when it started and the last when
+ * it ended, so its drift can be measured.
  */
+
 export class SystemAudio {
   private readonly rec: MediaRecorder;
   private readonly stream: MediaStream;
@@ -14,7 +18,7 @@ export class SystemAudio {
   private first = true;
   private chain: Promise<void> = Promise.resolve();
   private readonly onError: (message: string) => void;
-  /** The track leaves EdiAula's own sound out (false on a Windows without process loopback). */
+  /** The track leaves this window's own sound out (false on a Windows without process loopback). */
   excludesApp = false;
 
   private constructor(stream: MediaStream, onError: (message: string) => void) {
@@ -33,6 +37,26 @@ export class SystemAudio {
         this.first = false;
       });
     };
+  }
+
+  /**
+   * Whether this Windows leaves this window's own sound out of the computer's sound, asked once (a
+   * capture opened and closed at once). False when the capture cannot be opened at all.
+   */
+  static excludesApp(): Promise<boolean> {
+    probe ??= (async () => {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: SYSTEM_AUDIO_CONSTRAINTS,
+      });
+      try {
+        const [track] = stream.getAudioTracks();
+        return !!track && excludesOwnAudio(track.getSettings());
+      } finally {
+        for (const t of stream.getTracks()) t.stop();
+      }
+    })().catch(() => false);
+    return probe;
   }
 
   static async start(onError: (message: string) => void): Promise<SystemAudio> {

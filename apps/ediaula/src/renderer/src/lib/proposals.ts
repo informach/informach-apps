@@ -284,7 +284,7 @@ export async function proposeCleanup(
         `Proposta de limpeza pronta: ${plural(count("filler"), "vício", "vícios")}, ${plural(count("repeat"), "repetição", "repetições")} e ${plural(count("silence"), "silêncio", "silêncios")}, −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.`,
         ...(plan.elsewhere
           ? [
-              `${plural(plan.elsewhere, "sugestão já está", "sugestões já estão")} na proposta da limpeza da voz e ficaram de fora.`,
+              `${plural(plan.elsewhere, "sugestão já está na proposta da limpeza da voz e ficou de fora", "sugestões já estão na proposta da limpeza da voz e ficaram de fora")}.`,
             ]
           : []),
         ...notes,

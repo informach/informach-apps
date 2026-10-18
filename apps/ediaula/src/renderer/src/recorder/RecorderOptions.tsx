@@ -53,7 +53,7 @@ export function CameraModeSelect({
     <select
       value={value ? modeKey(value) : ""}
       onChange={(e) => onChange(offered.find((m) => modeKey(m) === e.target.value) ?? null)}
-      title="Modo da câmera"
+      title={`Modo da câmera: ${value ? cameraModeLabel(value) : modes?.choice ? `automático, ${cameraModeLabel(modes.choice)}` : "automático"}`}
     >
       <option value="">
         {modes?.choice ? `Automático · ${cameraModeLabel(modes.choice)}` : "Automático"}

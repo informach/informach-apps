@@ -182,20 +182,40 @@ export function markDone(
 }
 
 /**
+ * The media of "Voz e câmera" takes: the presenter filmed by the recorder (a camera of a take,
+ * Asset.origin "presenter") and every other source of that take (its voice). The voice and the
+ * video were recorded together, so cutting the voice cuts the video with it (cleanup.ts
+ * cutTargets): they are cut like any live recording, never kept out as the voice flow is.
+ */
+export function filmedTogether(project: Pick<Project, "assets">): Set<string> {
+  const takes = new Set(
+    project.assets.flatMap((a) =>
+      a.origin === "presenter" && a.recording?.role === "camera" ? [a.recording.id] : [],
+    ),
+  );
+  return new Set(
+    project.assets.filter((a) => a.recording && takes.has(a.recording.id)).map((a) => a.id),
+  );
+}
+
+/**
  * The media of the voice flow: a voice recorded alone with its takes (Asset.voiceTakes), the
  * voice exported to make the presenter's video (Project.voiceMasters), the presenter's video
  * placed by it (Asset.origin) and a voice playing muted under the presenter's own sound
  * (Clip.mutedFor, of older lessons too). That voice is cleaned in the voice flow, before the
- * presenter's video is made from it.
+ * presenter's video is made from it. A "Voz e câmera" take is not part of it unless its voice
+ * was exported (filmedTogether).
  */
 export function voiceLinkedMedia(
   project: Pick<Project, "voiceMasters" | "assets" | "clips">,
 ): Set<string> {
   const out = new Set<string>();
+  const together = filmedTogether(project);
+  for (const a of project.assets)
+    if ((a.origin === "presenter" || a.voiceTakes) && !together.has(a.id)) out.add(a.id);
+  for (const c of project.clips) if (c.mutedFor) out.add(c.assetId);
   for (const m of project.voiceMasters ?? [])
     for (const piece of m.pieces) for (const seg of piece.sourceMap) out.add(seg.assetId);
-  for (const a of project.assets) if (a.origin === "presenter" || a.voiceTakes) out.add(a.id);
-  for (const c of project.clips) if (c.mutedFor) out.add(c.assetId);
   return out;
 }
 
@@ -207,12 +227,19 @@ export const voiceAlreadyCleaned = (
   return [...voiceLinkedMedia(project)].some((id) => used.has(id));
 };
 
-/** Whether the presenter's video made from the voice is in the lesson. */
+/**
+ * Whether the presenter's video made from the exported voice is in the lesson (not the one
+ * filmed together with the voice by "Voz e câmera").
+ */
 export const presenterInLesson = (project: Pick<Project, "assets" | "clips">): boolean => {
   const used = new Set(project.clips.map((c) => c.assetId));
+  const together = filmedTogether(project);
   return (
     project.clips.some((c) => !!c.mutedFor) ||
-    project.assets.some((a) => a.origin === "presenter" && a.kind === "video" && used.has(a.id))
+    project.assets.some(
+      (a) =>
+        a.origin === "presenter" && a.kind === "video" && used.has(a.id) && !together.has(a.id),
+    )
   );
 };
 
@@ -250,10 +277,12 @@ export function skipReason(
     case "section":
       return project.script?.text ? null : "A aula não tem roteiro colado.";
     case "cuts":
-      // Only when every voice heard went through the voice flow: a live microphone is still cut.
+      // Only when every voice heard went through the voice flow (exported before the
+      // presenter's video was made from it): a live microphone, and a voice filmed together with
+      // the presenter ("Voz e câmera", cut together with the video), are still cut.
       if (!voiceAlreadyCleaned(project) || liveVoices(project).size) return null;
       return presenterInLesson(project)
-        ? "A voz já foi limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela. Cortar a voz de novo picotaria o vídeo do apresentador junto, então esta etapa fica de fora."
+        ? "A voz foi exportada e limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela. Cortar a voz de novo picotaria o vídeo do apresentador junto, então esta etapa fica de fora."
         : "A voz é limpa na seção Voz do painel Áudio, antes de gerar o vídeo do apresentador: cortar aqui deixaria a voz diferente da que vai virar o vídeo, então esta etapa fica de fora.";
     case "inserts":
     case "annotations":

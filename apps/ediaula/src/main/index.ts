@@ -271,16 +271,12 @@ const CORS = { "Access-Control-Allow-Origin": "*" };
 
 async function serveMedia(request: Request): Promise<Response> {
   const path = decodeURIComponent(new URL(request.url).pathname.slice(1));
-  // A file that went missing is a 404 (the library offers to reconnect it), not a failed
-  // request; a file the editor was never given stays refused.
+  // A file that went missing and one the editor was never given get the same 404 (not a failed
+  // request, and the answer does not tell whether a file exists).
   try {
     await desktopFiles.assertRead(path);
-  } catch (error) {
-    const missing = error instanceof Error && "code" in error && error.code === "ENOENT";
-    return new Response(missing ? "not found" : "forbidden", {
-      status: missing ? 404 : 403,
-      headers: CORS,
-    });
+  } catch {
+    return new Response("not found", { status: 404, headers: CORS });
   }
   if (!existsSync(path)) return new Response("not found", { status: 404, headers: CORS });
   const size = statSync(path).size;

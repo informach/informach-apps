@@ -7,6 +7,7 @@ import {
 } from "@shared/captions";
 import { keyId } from "@shared/chroma";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
+import { CURSOR_MISSING } from "@shared/preflight";
 import { newId } from "@shared/timeline";
 import { treatedPath } from "@shared/voiceChain";
 import type { TextCue } from "@shared/webvtt";
@@ -81,10 +82,12 @@ export const exportQueue = new ExportQueue(
       const missing = project.assets.filter((a) => used.has(a.id) && a.missing);
       if (missing.length)
         throw new Error(`Mídias ausentes: ${missing.map((a) => a.name).join(", ")}`);
+      // Exporting without the cursor is the person's explicit choice in the export dialog,
+      // which hands over the lesson without that cursor data (shared/preflight.ts).
       const noCursor = project.assets.filter((a) => used.has(a.id) && a.cursorMissing);
       if (noCursor.length)
         throw new Error(
-          `Dados do cursor ausentes: ${noCursor.map((a) => a.name).join(", ")}. Reconecte pela biblioteca.`,
+          `${noCursor.map((a) => a.name).join(", ")}: ${CURSOR_MISSING} Para exportar assim mesmo, use Exportar sem o cursor na verificação antes de exportar.`,
         );
       const transcribed = project.assets.filter(
         (a) => a.transcript && a.transcriptStatus === "ready",
