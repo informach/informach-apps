@@ -23,6 +23,7 @@ import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { configureObservability, logAuditEvent, logAuditEventStrict } from "./audit";
+import { CLIENT_IP_ADDRESS } from "./client-ip";
 import { type DesktopOAuthConfig, desktopOAuthPlugins, desktopOAuthSchema } from "./desktop-oauth";
 import {
   buildHelpers,
@@ -663,6 +664,8 @@ function createAuthInstance(config: CreateAuthConfig) {
       database: {
         generateId: () => crypto.randomUUID(),
       },
+      // Sem isto, todo mundo dividia o mesmo contador de tentativas (ver client-ip.ts).
+      ipAddress: CLIENT_IP_ADDRESS,
     },
     trustedOrigins: config.trustedOrigins,
     session: {

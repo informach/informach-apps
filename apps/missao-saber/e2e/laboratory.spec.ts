@@ -17,8 +17,8 @@ async function setup(page: Page, baseURL?: string) {
   const email = `lab-${randomUUID()}@example.test`;
   const password = "Laboratorio-Local-2026!";
   const client = createHash("sha256").update(test.info().testId).digest();
-  const headers = { origin: baseURL, "x-forwarded-for": `198.19.${client[0]}.${client[1]}` };
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": headers["x-forwarded-for"] });
+  const headers = { origin: baseURL, "x-real-ip": `198.19.${client[0]}.${client[1]}` };
+  await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
   const signup = await page.request.post("/api/auth/sign-up/email", {
     headers,
     data: { email, password, name: "Laboratório local" },

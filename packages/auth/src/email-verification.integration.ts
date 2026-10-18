@@ -34,7 +34,7 @@ describe("email verification recovery against the real auth handler", () => {
           headers: {
             "Content-Type": "application/json",
             Origin: baseUrl,
-            "X-Forwarded-For": "127.0.0.243",
+            "X-Real-IP": "127.0.0.243",
           },
           body: JSON.stringify(body),
         }),

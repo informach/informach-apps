@@ -269,6 +269,10 @@ export default defineRailway((ctx) => {
       STRIPE_MODE: preserve(),
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
+      // O par do push, gerado em 18/10/2026. Trocar invalida a inscrição de
+      // todo aparelho: só com um par novo inteiro e cada família reativando.
+      VAPID_PRIVATE_KEY: preserve(),
+      VAPID_PUBLIC_KEY: preserve(),
     },
   });
 
@@ -510,10 +514,8 @@ export default defineRailway((ctx) => {
   ];
 
   // Lembretes da rotina da Agenda. O script do app percorre as famílias em
-  // lotes, pelo cursor, até a última. Em produção só sai e-mail: o push depende
-  // de VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY, que o serviço da Agenda não tem
-  // (nem o bloco acima declara), então o app mostra a opção como indisponível.
-  // Para ligar, gravar o par no serviço e acrescentar os dois como preserve().
+  // lotes, pelo cursor, até a última. É o app que envia e-mail e push: o par
+  // VAPID mora no serviço da Agenda (bloco acima), não aqui.
   const agendaRoutine = service("cron-agenda-routine", {
     source: image(NODE_IMAGE),
     start: nodeScript("apps/agenda-da-turma/scripts/run-routine-job.mjs"),

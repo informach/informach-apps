@@ -340,7 +340,10 @@ type CapturedBetterAuthOptions = {
     };
   };
   hooks?: { after?: { handler?: (ctx: unknown) => Promise<void> } };
-  advanced?: { database?: { generateId?: () => string } };
+  advanced?: {
+    database?: { generateId?: () => string };
+    ipAddress?: { ipAddressHeaders?: string[]; trustedProxies?: string[] };
+  };
 };
 
 function captureConfig(): CapturedBetterAuthOptions {
@@ -434,6 +437,14 @@ describe("createAuth — Better Auth wiring", () => {
     const id = captureConfig().advanced?.database?.generateId?.();
     expect(id).toBeDefined();
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  });
+
+  it("reads the client IP from X-Real-IP, then CF-Connecting-IP, never X-Forwarded-For", () => {
+    createAuth(makeConfig());
+    expect(captureConfig().advanced?.ipAddress).toEqual({
+      ipAddressHeaders: ["x-real-ip", "cf-connecting-ip"],
+      trustedProxies: ["0.0.0.0/32"],
+    });
   });
 
   it("requires email verification, revokes sessions on reset, and sends verification on signup", () => {
