@@ -488,6 +488,14 @@ Os itens das listas de melhorias e do que faltava implementar recebem aqui o nú
 
 ## Pendências
 
+### Testes locais da verificação final (para a próxima sessão)
+
+Em 18/10/2026 a verificação final da branch integrada (`6e55f459` e a documentação depois dele) passou em `pnpm typecheck`, `pnpm check`, `pnpm exec turbo test`, no build das seis ferramentas Edi e em `pnpm edi:test:tooling`. Os dois testes que abrem o Electron foram interrompidos por falta de memória nesta máquina, e a titular decidiu publicar e rodá-los depois, numa máquina com mais memória:
+
+- **`pnpm edi:test:visual`:** só roda localmente (não há workflow). Passou nas branches dos lotes antes da integração (159 capturas no Lote 10 e 132 no Lote 13, zero erros), mas não sobre a branch integrada com as correções da revisão geral. Rodar sobre a `main` publicada, olhar as capturas que mudaram (gravador, pílula com a confirmação de descarte, quadro no editor, região seguindo a gravação, cor) e corrigir o que falhar.
+- **`pnpm edi:test:native`:** roda no workflow `edi-native` do PR e da `main` e no `edi-release` de cada app; localmente ficou sem rodar sobre a branch integrada. Rodar também `pnpm --filter @informach/ediaula test` com `EDIAULA_NATIVE_INPUT_TESTS=1` (entrada real do auxiliar, inclusive soltar o botão no fim do modo de entrada, mudado no lote 15) e com `EDIAULA_SOUND_TESTS=1` (áudio do PC sem o som do app).
+- Os dois esperam 2000 MB livres. Feche outros programas pesados antes.
+
 ### Teste manual
 
 - **Intel e AMD:** gravar e exportar por AMF, Media Foundation e QSV numa máquina de cada fabricante. Esta máquina só tem NVIDIA; o detector e o plano B foram testados só com NVENC e x264.
