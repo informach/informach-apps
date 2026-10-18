@@ -29,6 +29,7 @@ test("som e confirmação só ocorrem quando aumenta o número de fotos", async 
     }),
     onControl: (fn) => (update = fn),
     onControlError() {},
+    onRecordProgress() {},
     cancel() {},
     nextSegment: async (cut) => (manualCut = cut),
   };
@@ -36,6 +37,7 @@ test("som e confirmação só ocorrem quando aumenta o número de fotos", async 
     .readFileSync(path.join(__dirname, "../recording/control.js"), "utf8")
     .replace(/^import .*;\r?\n/gm, "");
   await vm.runInNewContext(`(async()=>{${source}})()`, {
+    RecordingClock: (await import("../recording/clock.mjs")).RecordingClock,
     window: { edi: api, ediSuite: { onRecovery() {} } },
     document: {
       getElementById: element,
@@ -44,6 +46,9 @@ test("som e confirmação só ocorrem quando aumenta o número de fotos", async 
     },
     hydrateIcons() {},
     setupRecording() {},
+    setupScrollControls() {
+      return { render() {} };
+    },
     setInterval() {},
     Audio: class {
       play() {

@@ -61,8 +61,12 @@ jobs:
         with:
           name: edi-native-media-windows-x64
           path: .cache/edi-native-media/windows-x64
-      - name: Verify native capabilities and all EdiAula regressions against these binaries
+      - name: Verify native capabilities and catalog consumer regressions against these binaries
         run: pnpm edi:media:test
+        # Acquisition is explicit on this disposable runner, never enabled by the test script.
+        env:
+          EDIAULA_NATIVE_INPUT_TESTS: "1"
+          EDIAULA_SOUND_TESTS: "1"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: edi-native-media-verification

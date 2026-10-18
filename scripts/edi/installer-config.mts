@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Configuration } from "electron-builder";
-import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools";
+import { EDI_DESKTOP_APPS, hasNativeMedia } from "../../packages/config/src/edi-tools";
 import { desktopAppIdSchema, releaseVersionSchema } from "../../packages/edi-contracts/src/index";
 import { desktopConfigSchema } from "../../packages/edi-desktop/src/contracts";
 import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
@@ -66,16 +66,14 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
         : []),
     ],
     asar: true,
-    extraResources:
-      appId === "ediaula"
+    extraResources: [
+      ...(hasNativeMedia(appId)
+        ? [{ from: nativeMediaDirectory, to: "native-media", filter: ["**/*"] }]
+        : []),
+      ...(appId === "ediaula"
         ? [
-            {
-              from: nativeMediaDirectory,
-              to: "native-media",
-              filter: ["**/*"],
-            },
             { from: resolve("apps/ediaula/resources/fonts"), to: "fonts" },
-            // FFmpeg (a subprocess) reads the noise-reduction model from disk, not from the ASAR.
+            // FFmpeg reads the model from disk, outside the ASAR.
             { from: resolve("apps/ediaula/resources/rnnoise"), to: "rnnoise" },
             // Subprocesses cannot run from inside the ASAR archive.
             {
@@ -84,11 +82,11 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
               filter: ["ediaula-helper.exe"],
             },
           ]
-        : [],
+        : []),
+    ],
     beforePack: async () => {
-      if (appId !== "ediaula") return;
-      await verifyNativeMediaBundle();
-      await verifyEdiAulaHelper(version);
+      if (hasNativeMedia(appId)) await verifyNativeMediaBundle();
+      if (appId === "ediaula") await verifyEdiAulaHelper(version);
     },
     afterPack: async (context) => {
       await writeThirdPartyNotices(appId, resolve(context.appOutDir, "resources"));

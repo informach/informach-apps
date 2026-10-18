@@ -25,10 +25,15 @@ function harness() {
   }
   let current = image(40),
     unblock,
-    fail = false;
+    fail = false,
+    saveWait,
+    releaseSave,
+    saveStarted,
+    encodedLength;
   const saved = [],
     messages = [];
   const electron = {
+    protocol: { registerSchemesAsPrivileged() {} },
     app: {
       getPath: () => "C:/edi-tests/app-data",
       setPath() {},
@@ -37,7 +42,13 @@ function harness() {
       on() {},
       whenReady: () => new Promise(() => {}),
     },
-    nativeImage: { createFromBitmap: (bitmap, size) => ({ toPNG: () => ({ bitmap, ...size }) }) },
+    nativeImage: {
+      createFromBitmap: (bitmap, size) => ({
+        toPNG: () => ({ bitmap, ...size, length: encodedLength ?? bitmap.length }),
+        getSize: () => size,
+        resize: () => ({ toDataURL: () => "data:image/png;base64,dGh1bWI=" }),
+      }),
+    },
   };
   const context = vm.createContext({
     require: (id) =>
@@ -79,6 +90,8 @@ function harness() {
     save: async (_meta, bytes) => {
       if (fail) throw Error("disk full");
       saved.push(bytes);
+      saveStarted?.();
+      if (saveWait) await saveWait;
       return { id: "saved" };
     },
     read: async () => ({ id: "saved" }),
@@ -89,7 +102,7 @@ function harness() {
     capture=initial;library=storage;getScreen=load;
     controller={isDestroyed:()=>false,destroy(){},hide(){},webContents:{send(){}}};
     monitorState=()=>({displays:[]});send=(name,data)=>{};
-    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,preserve:()=>preserveCapture(capture),state:()=>capture};`,
+    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,pause:pauseScroll,preserve:()=>preserveCapture(capture),state:()=>capture};`,
     context,
   );
   return {
@@ -97,6 +110,7 @@ function harness() {
     saved,
     messages,
     setFail: (value) => (fail = value),
+    setEncodedLength: (value) => (encodedLength = value),
     unrelated: () => {
       current = {
         getSize: () => ({ width, height }),
@@ -110,6 +124,15 @@ function harness() {
       unblock = () => {};
     },
     release: () => unblock(),
+    holdSave: () => {
+      saveWait = new Promise((resolve) => {
+        releaseSave = resolve;
+      });
+      return new Promise((resolve) => {
+        saveStarted = resolve;
+      });
+    },
+    releaseSave: () => releaseSave(),
     full,
     width,
     height,
@@ -127,6 +150,52 @@ test("captura automática espera estabilidade e salva imagem única com tamanho 
   assert.deepEqual(h.saved[0].bitmap, h.full.subarray(0, 140 * h.width * 4));
   assert.equal(h.api.state(), null);
 });
+test("publication budget rejects before library side effects and retains segments for recovery", async () => {
+  const h = harness();
+  await h.api.next(false);
+  const active = h.api.state();
+  h.setEncodedLength(50 * 1048576);
+  await assert.rejects(h.api.finish(null), /512 MiB/);
+  assert.equal(h.saved.length, 0);
+  assert.equal(h.api.state(), active);
+  assert.equal(active.segments.length, 2);
+  h.setEncodedLength(undefined);
+  await h.api.finish(null);
+  assert.equal(h.saved.length, 1);
+  assert.equal(h.saved[0].height, 140);
+});
+test("pause during acquisition rejects late segment while retaining the active session", async () => {
+  const h = harness();
+  h.hold();
+  const pending = h.api.next(false),
+    active = h.api.state();
+  h.api.pause();
+  h.release();
+  await pending;
+  assert.equal(h.api.state(), active);
+  assert.equal(active.segments.length, 1);
+  assert.equal(active.scroll.paused, true);
+  await h.api.finish(null);
+  assert.equal(h.saved[0].height, 100);
+});
+test("pause during disk publication never activates a late document and recovery reuses the saved entry", async () => {
+  const h = harness();
+  await h.api.next(false);
+  const started = h.holdSave(),
+    finishing = h.api.finish(null);
+  await started;
+  const active = h.api.state();
+  h.api.pause();
+  h.releaseSave();
+  await finishing;
+  assert.equal(h.api.state(), active);
+  assert.equal(active.segments.length, 2);
+  assert.equal(active.finishing, false);
+  assert.equal(h.saved.length, 1);
+  await h.api.finish(null);
+  assert.equal(h.saved.length, 1);
+  assert.equal(h.api.state(), null);
+});
 test("finalização espera trecho em andamento antes de unir", async () => {
   const h = harness();
   h.hold();
@@ -135,6 +204,23 @@ test("finalização espera trecho em andamento antes de unir", async () => {
   assert.equal(h.saved.length, 0);
   h.release();
   await Promise.all([next, finish]);
+  assert.equal(h.saved[0].height, 140);
+});
+test("mudança de monitor descarta foto pendente mas preserva trechos anteriores para retry", async () => {
+  const h = harness();
+  await h.api.next(false);
+  h.hold();
+  const pending = h.api.next(false);
+  h.api.state().interrupted = true;
+  h.setFail(true);
+  const finishing = assert.rejects(h.api.finish(null), /disk full/);
+  h.release();
+  await Promise.all([pending, finishing]);
+  assert.equal(h.api.state().segments.length, 2);
+  await h.api.next(false);
+  assert.equal(h.api.state().segments.length, 2);
+  h.setFail(false);
+  await h.api.finish(null);
   assert.equal(h.saved[0].height, 140);
 });
 test("cancelar durante captura descarta resposta tardia sem recriar sessão", async () => {

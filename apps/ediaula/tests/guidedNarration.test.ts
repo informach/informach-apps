@@ -15,7 +15,9 @@ test("HeyGen-style MP4 becomes audio-only narration with its timing and original
         return {
           url:
             "data:text/javascript," +
-            encodeURIComponent(`export const app = { getPath: () => ${JSON.stringify(dir)} };`),
+            encodeURIComponent(
+              `export const app = { getPath: () => ${JSON.stringify(dir)}, getAppPath: () => ${JSON.stringify(dir)} };`,
+            ),
           shortCircuit: true,
         };
       return nextResolve(specifier, context);

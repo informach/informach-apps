@@ -16,12 +16,12 @@ const skip =
     : !existsSync(executable)
       ? "helper not built (run the package test script)"
       : false;
-/** Glides move the real pointer: only when asked (edi:media:test turns this on). */
+/** Sampling and glides access the desktop: callers must explicitly opt in. */
 const skipInput =
   skip ||
   (process.env.EDIAULA_NATIVE_INPUT_TESTS === "1"
     ? false
-    : "moves the real pointer; set EDIAULA_NATIVE_INPUT_TESTS=1");
+    : "samples the desktop or moves the pointer; set EDIAULA_NATIVE_INPUT_TESTS=1");
 
 const replySchema = z.union([
   z.strictObject({ ready: z.literal(true) }),
@@ -78,7 +78,7 @@ function startHelper(signal: AbortSignal) {
 }
 
 test("native helper replies to read-only target sampling and rejects unknown commands", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async (context) => {
   const helper = startHelper(context.signal);

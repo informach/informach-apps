@@ -176,6 +176,7 @@ test("a IA local acha a pessoa num vídeo sintético e o arquivo sai com alfa", 
     const { stdout } = await run(
       String(electron),
       [
+        `--user-data-dir=${join(dir, "electron-profile")}`,
         join(here, "helpers", "person-key-harness.cjs"),
         `--frames=${framesFile}`,
         `--width=${m.width}`,

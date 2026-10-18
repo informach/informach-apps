@@ -1,5 +1,11 @@
 # EdiCaptura — plano de implementação
 
+## Diagnóstico posterior — 18/10/2026
+
+Decisão posterior do titular: [Captura enxuto com vídeo rápido](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/foco-na-suite.md). Preservar entregas atuais; vídeo avançado pertence ao EdiAula, trabalho geral de PDF ao EdiPDF. Requisitos futuros conflitantes abaixo e no diagnóstico original foram substituídos; não contar recursos encaminhados como implementados.
+
+A [análise de substituição do Snagit](../../docs/propostas/edi-suite-2026-10-16/analise-edicaptura-snagit.md) registra a base do diagnóstico. A implementação autorizada e seus gates atuais estão no [plano de execução](../../docs/superpowers/plans/2026-10-18-edicaptura-snagit.md) e no [registro de lotes](../../.compozy/tasks/edicaptura-snagit/_tasks.md); as etapas e limitações antigas abaixo são históricas. A [decisão de IA](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md) limita a assistência remota à assinatura do usuário no Claude Code ou Codex, seguindo o EdiAula. Testes sintéticos e integração licenciada não homologam todas as combinações físicas.
+
 ## Objetivo
 Aplicativo Electron para Windows baseado no protótipo edicaptura.pen: editor, seleção de região e barra flutuante de captura.
 

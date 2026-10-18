@@ -21,14 +21,14 @@ const skip =
       ? "helper not built (run the package test script)"
       : false;
 /**
- * Cases that send real clicks and wheel turns (withheld from other apps by the test mark) run only
- * when asked: on the Windows runner through edi:media:test, or with EDIAULA_NATIVE_INPUT_TESTS=1.
+ * Desktop enumeration, global hooks, window restoration and real input run only when the caller
+ * explicitly sets EDIAULA_NATIVE_INPUT_TESTS=1, including the disposable Windows workflow.
  */
 const skipInput =
   skip ||
   (process.env.EDIAULA_NATIVE_INPUT_TESTS === "1"
     ? false
-    : "sends real input; set EDIAULA_NATIVE_INPUT_TESTS=1");
+    : "accesses the desktop or global input; set EDIAULA_NATIVE_INPUT_TESTS=1");
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "electron")
@@ -105,7 +105,7 @@ test("the development app resolves the helper inside resources/native", { skip }
 });
 
 test("list reports monitors and the Desktop Duplication outputs that show them", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async () => {
   const list = await listDisplays(executable);
@@ -118,7 +118,7 @@ test("list reports monitors and the Desktop Duplication outputs that show them",
 });
 
 test("hook: READY on the shared clock, heartbeats, journal on disk and exit when stdin closes", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async () => {
   const dir = join(root, "ready");
@@ -257,7 +257,7 @@ test("selftest captures the hand, an alpha cursor and an inverting cursor with s
 });
 
 test("HookClient restarts a helper that died, appends to the same journal and resends filters", {
-  skip,
+  skip: skipInput,
   timeout: 30000,
 }, async () => {
   const dir = join(root, "restart");
@@ -287,7 +287,7 @@ test("HookClient restarts a helper that died, appends to the same journal and re
 });
 
 test("pause keeps only the shape, resume records where the pointer is", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async () => {
   const dir = join(root, "pause");
@@ -308,7 +308,7 @@ test("pause keeps only the shape, resume records where the pointer is", {
 });
 
 test("a restarted helper appends to a journal that another one still holds, on a line of its own", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async () => {
   const dir = join(root, "shared-journal");
@@ -453,7 +453,7 @@ test("HookClient rejects a helper that never becomes ready", { skip, timeout: 20
 });
 
 test("windows a run that went down left in front go back at the next start, once", {
-  skip,
+  skip: skipInput,
   timeout: 20000,
 }, async () => {
   const file = join(root, "janelas-na-frente.json");

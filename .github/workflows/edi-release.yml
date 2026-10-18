@@ -105,8 +105,12 @@ jobs:
       - name: Pin source provenance
         shell: pwsh
         run: '"EDI_SOURCE_COMMIT=$(git rev-parse HEAD)" >> $env:GITHUB_ENV'
+      - name: Read native-media capability from the suite catalog
+        id: native-media
+        shell: pwsh
+        run: node --input-type=module -e 'import { hasNativeMedia } from "./packages/config/src/edi-tools.ts"; console.log("enabled=" + hasNativeMedia(process.argv[1]));' '${{ matrix.app }}' >> $env:GITHUB_OUTPUT
       - name: Restore verified native media and corresponding source
-        if: matrix.app == 'ediaula'
+        if: steps.native-media.outputs.enabled == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: edi-native-media-windows-x64
@@ -118,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: edi-native-${{ matrix.app }}
-          path: .cache/edi-native-results/*.png
+          path: .cache/edi-native-results/**/*.png
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 7

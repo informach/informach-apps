@@ -1,30 +1,133 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import type { Page } from "playwright";
+import { basename, delimiter, dirname, isAbsolute, join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { _electron, type ElectronApplication, type Page } from "playwright";
+import { z } from "zod";
 import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
-import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
-import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
+import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
+import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
+import type { VaultData } from "../../packages/edi-desktop/src/vault";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
-import { observeNativeStartup } from "./native-diagnostics.mts";
+import { verifyLicensedCapture } from "./native-capture.mts";
 import {
-  createNativeHarness,
-  execute,
-  nativeTooling,
-  raiseFailures,
-  waitForStatus,
-} from "./native-harness.mts";
+  nativeStage,
+  observeNativeStartup,
+  trackNativeChild,
+  verifyNativeClose,
+} from "./native-diagnostics.mts";
 import { verifyNativeInstallationIntegrity } from "./native-installation.mts";
 
-const { packageManager, electronPath } = nativeTooling();
+declare const ediNativeFixture: {
+  readIdentity(): Promise<unknown>;
+  writeLease(fixture: {
+    session: NonNullable<VaultData["session"]>;
+    lease: string;
+    tools: string[];
+    time: number;
+  }): Promise<void>;
+};
+
+if (process.platform !== "win32") throw new Error("Native suite tests require Windows");
+const execute = promisify(execFile);
 const selected = process.argv.slice(2).map((id) => desktopAppIdSchema.parse(id));
 const applications = selected.length ? selected : EDI_DESKTOP_APPS.map((app) => app.id);
-const harness = await createNativeHarness("edi-native-", packageManager);
-const { root } = harness;
-const results = resolve(".cache/edi-native-results");
-await mkdir(results, { recursive: true });
-const seedLease = harness.seedLease;
+const packageManager = process.env.npm_execpath;
+if (!packageManager || !isAbsolute(packageManager) || basename(packageManager) !== "pnpm.cjs")
+  throw new Error("Run native tests through the pinned pnpm workspace script");
+const toolingRequire = createRequire(import.meta.url);
+const electronPath: unknown = toolingRequire("electron");
+if (typeof electronPath !== "string") throw new Error("Electron executable was not resolved");
+const root = await mkdtemp(join(tmpdir(), "edi-native-"));
+const resultsRoot = resolve(".cache/edi-native-results");
+await mkdir(resultsRoot, { recursive: true });
+const results = await mkdtemp(join(resultsRoot, "run-"));
+console.log(
+  JSON.stringify({ nativeResultsDirectory: `.cache/edi-native-results/${basename(results)}` }),
+);
+const signingKeys = generateKeyPairSync("ed25519");
+const publicKey = signingKeys.publicKey.export({ type: "spki", format: "pem" }).toString();
+const server = createServer((_request, response) => {
+  response.writeHead(503, { "Content-Type": "application/json" });
+  response.end(JSON.stringify({ error: "temporarily_unavailable" }));
+});
+await new Promise<void>((ready, reject) => {
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", ready);
+});
+const address = server.address();
+if (!address || typeof address === "string") throw new Error("Loopback fixture did not bind");
+const issuer = `http://127.0.0.1:${address.port}`;
+const baseEnvironment: Record<string, string> = {};
+for (const [name, value] of Object.entries(process.env))
+  if (
+    typeof value === "string" &&
+    !name.startsWith("EDI_") &&
+    !["NODE_OPTIONS", "ELECTRON_RUN_AS_NODE", "ELECTRON_RENDERER_URL"].includes(name)
+  )
+    baseEnvironment[name] = value;
+const buildEnvironment = {
+  ...baseEnvironment,
+  EDI_COMMERCIAL_BUILD: "false",
+  EDI_PORTAL_URL: issuer,
+  EDI_DESKTOP_CLIENT_ID: "ephemeral-native-test",
+  EDI_LICENSE_PUBLIC_KEYS: JSON.stringify({ "native-test": publicKey }),
+  EDI_UPDATE_PUBLIC_KEYS: "{}",
+};
+
+async function seedLease(application: ElectronApplication, ttl: number) {
+  const identity = z
+    .object({ deviceId: z.uuid(), keyThumbprint: z.string().regex(/^[a-f0-9]{64}$/) })
+    .parse(await application.evaluate(() => ediNativeFixture.readIdentity()));
+  const time = Date.now();
+  const now = Math.floor(time / 1000);
+  const activationId = randomUUID();
+  const sessionId = randomUUID();
+  const claims = leaseClaimsSchema.parse({
+    version: 1,
+    iss: issuer,
+    aud: "edi-desktop",
+    environment: "development",
+    sub: "native-fixture-account",
+    ...identity,
+    activationId,
+    revision: 0,
+    minimumClientVersion: "0.0.0",
+    tools: EDI_TOOLS.map((tool) => tool.id),
+    iat: now,
+    nbf: now,
+    exp: now + ttl,
+    paidThrough: now + 3600,
+    jti: randomUUID(),
+  });
+  const header = Buffer.from(
+    JSON.stringify({ alg: "EdDSA", typ: "edi-license+jwt", kid: "native-test" }),
+  ).toString("base64url");
+  const body = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const payload = `${header}.${body}`;
+  const lease = `${payload}.${sign(null, Buffer.from(payload), signingKeys.privateKey).toString("base64url")}`;
+  const session = {
+    userId: claims.sub,
+    activationId,
+    sessionId,
+    keyThumbprint: identity.keyThumbprint,
+    accessToken: "ephemeral-native-access",
+    refreshToken: "ephemeral-native-refresh",
+    accessExpiresAt: time + 300000,
+    sessionExpiresAt: new Date(time + 86400000).toISOString(),
+  };
+  await application.evaluate((_electron, fixture) => ediNativeFixture.writeLease(fixture), {
+    session,
+    lease,
+    tools: claims.tools,
+    time,
+  });
+}
 
 async function verifyDeniedBridge(page: Page, path: string[], args: unknown[] = []) {
   const result = await page.evaluate(
@@ -51,6 +154,46 @@ async function verifyDeniedBridge(page: Page, path: string[], args: unknown[] = 
   assert.match(result.error ?? "", /edi_access_restricted/);
 }
 
+async function waitForStatus(page: Page, state: "licensed" | "restricted", reason?: string) {
+  // waitForFunction polls synchronously; asynchronous IPC state is observed via
+  // the actual subscription and a snapshot, with a bounded failure deadline.
+  await page.evaluate(
+    (expected) =>
+      new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const complete = (error?: unknown) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          unsubscribe();
+          if (error) reject(error);
+          else resolve();
+        };
+        const matches = (status: Awaited<ReturnType<typeof window.ediSuite.status>>) => {
+          if (
+            status.state === expected.state &&
+            (!expected.reason || status.reason === expected.reason)
+          )
+            complete();
+        };
+        const timeout = window.setTimeout(
+          () => complete(new Error("Native status transition timed out")),
+          10000,
+        );
+        const unsubscribe = window.ediSuite.onStatus(matches);
+        window.ediSuite.status().then(matches, complete);
+      }),
+    { state, reason },
+  );
+}
+
+function raiseFailures(failures: unknown[], message: string) {
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1) {
+    for (const failure of failures) console.error(failure);
+    throw new AggregateError(failures, message);
+  }
+}
 async function verifyNativeDialog(page: Page, openerName: string, dialogName: string) {
   const opener = page.getByRole("button", { name: openerName }).first();
   await opener.focus();
@@ -74,20 +217,114 @@ async function verifyNativeDialog(page: Page, openerName: string, dialogName: st
   assert.equal(await opener.evaluate((element) => element === document.activeElement), true);
 }
 const runFailures: unknown[] = [];
+const knownChildren: ReturnType<typeof trackNativeChild>[] = [];
+const diagnosticPaths = [root, resolve("."), tmpdir()];
 try {
-  await verifyNativeInstallationIntegrity(root, electronPath);
+  await nativeStage("suite", "installation", diagnosticPaths, () =>
+    verifyNativeInstallationIntegrity(root, electronPath),
+  );
   for (const id of applications) {
     console.log(`Native verification: ${id}`);
+    const applicationRoot = resolve("apps", id);
     const userData = join(root, id, "user-data");
     const suiteData = join(root, id, "suite");
+    const home = join(root, id, "home");
+    const roaming = join(home, "AppData", "Roaming");
+    const local = join(home, "AppData", "Local");
     await mkdir(userData, { recursive: true });
     await mkdir(join(userData, "documents"), { recursive: true });
-    await harness.build(id);
-    const application = await harness.launch(id, { userData, suiteData });
-    // Native save dialogs must default to this fixture, never the runner/user's Pictures folder.
-    await application.evaluate(
-      ({ app }, pictures) => app.setPath("pictures", pictures),
-      join(userData, "documents"),
+    await mkdir(roaming, { recursive: true });
+    await mkdir(local, { recursive: true });
+    // MCP status reads client home files and detects executables before any Connect action.
+    // Keep the real client homes and PATH out of the launched app, including case aliases.
+    const appEnvironment = Object.fromEntries(
+      Object.entries(buildEnvironment).filter(
+        ([name]) =>
+          !["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PATH"].includes(name.toUpperCase()),
+      ),
+    );
+    const systemRoot = Object.entries(buildEnvironment).find(
+      ([name]) => name.toUpperCase() === "SYSTEMROOT",
+    )?.[1];
+    assert.ok(systemRoot && isAbsolute(systemRoot), "Missing absolute Windows system root");
+    const system32 = join(systemRoot, "System32");
+    await access(join(system32, "where.exe"));
+    const isolatedEnvironment = {
+      ...appEnvironment,
+      HOME: home,
+      USERPROFILE: home,
+      APPDATA: roaming,
+      LOCALAPPDATA: local,
+      PATH: [system32, join(system32, "WindowsPowerShell", "v1.0")].join(delimiter),
+    };
+    await execute(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        'import assert from "node:assert/strict"; import { homedir } from "node:os"; import { join } from "node:path"; import { spawnSync } from "node:child_process"; assert.equal(homedir(), process.argv[1]); for (const name of ["claude", "codex"]) assert.equal(spawnSync(join(process.argv[2], "where.exe"), [name], { windowsHide: true }).status, 1);',
+        home,
+        system32,
+      ],
+      { env: isolatedEnvironment, windowsHide: true, timeout: 30000 },
+    );
+    console.log(JSON.stringify({ nativeHomePreflight: true, app: id, realClientsAbsent: true }));
+    await nativeStage(id, "build", diagnosticPaths, async () => {
+      const build = execute(
+        process.execPath,
+        [packageManager, "--filter", `@informach/${id}`, "build"],
+        {
+          env: buildEnvironment,
+          windowsHide: true,
+          timeout: 600000,
+          maxBuffer: 2 * 1024 ** 2,
+        },
+      );
+      console.log(
+        JSON.stringify({
+          nativeStage: "build",
+          app: id,
+          childPid: build.child.pid,
+          childName: basename(process.execPath),
+        }),
+      );
+      await build;
+    });
+    await nativeStage(id, "manifest", diagnosticPaths, async () => {
+      const manifest = z
+        .object({ main: z.string().min(1) })
+        .parse(JSON.parse(await readFile(join(applicationRoot, "package.json"), "utf8")));
+      await access(join(applicationRoot, manifest.main));
+    });
+    const application = await nativeStage(id, "launch", diagnosticPaths, () =>
+      _electron.launch({
+        // The standard workspace launcher holds app readiness until Playwright is
+        // connected. executablePath is for custom apps and omits that loader.
+        args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), applicationRoot],
+        cwd: applicationRoot,
+        env: {
+          ...isolatedEnvironment,
+          EDI_SUITE_TEST_PROFILE: suiteData,
+          EDI_NATIVE_TEST: "true",
+          EDI_NATIVE_USER_DATA: userData,
+          EDIAULA_USER_DATA: userData,
+          EDIFOTO_USER_DATA: userData,
+          EDIPDF_USER_DATA: userData,
+          EDISVG_USER_DATA: userData,
+          EDICAPTURA_TEST_PROFILE: userData,
+        },
+      }),
+    );
+    const nativeChild = application.process();
+    const childLifetime = trackNativeChild(nativeChild);
+    knownChildren.push(childLifetime);
+    console.log(
+      JSON.stringify({
+        nativeStage: "launch",
+        app: id,
+        childPid: nativeChild.pid,
+        childName: basename(nativeChild.spawnfile),
+      }),
     );
     const startup = observeNativeStartup(application, [root, resolve("."), tmpdir()]);
     let closed = false;
@@ -98,8 +335,28 @@ try {
     let startupFailed = false;
     let diagnosticEditor: Page | undefined;
     try {
+      assert.equal(
+        await application.evaluate(() => process.getBuiltinModule("node:os").homedir()),
+        home,
+      );
+      // Post-launch setup shares the child's close lifecycle if it rejects.
+      // Native save dialogs must default to the fixture, never the user's Pictures folder.
+      await application.evaluate(
+        ({ app }, pictures) => app.setPath("pictures", pictures),
+        join(userData, "documents"),
+      );
+      console.log(
+        JSON.stringify({
+          nativeStage: "launch",
+          app: id,
+          runtimePid: await application.evaluate(() => process.pid),
+          runtimeName: basename(electronPath),
+        }),
+      );
       assert.equal(await application.evaluate(() => process.execPath), electronPath);
-      const first = await application.firstWindow().catch(async (error: unknown) => {
+      const first = await nativeStage(id, "first-window", diagnosticPaths, () =>
+        application.firstWindow(),
+      ).catch(async (error: unknown) => {
         startupFailed = true;
         console.error(
           `Native startup diagnostic (${id}):`,
@@ -119,7 +376,7 @@ try {
         (page) => ({ page }),
         (error: unknown) => ({ error }),
       );
-      await seedLease(application, 60);
+      await seedLease(application, id === "edicaptura" ? 600 : 60);
       const editorResult = await editorReady;
       if (!("page" in editorResult)) throw editorResult.error;
       const editor = editorResult.page;
@@ -134,6 +391,17 @@ try {
         true,
       );
       await editor.screenshot({ path: join(results, `${id}-licensed.png`) });
+      if (id === "edicaptura")
+        await nativeStage(id, "functional", diagnosticPaths, () =>
+          verifyLicensedCapture(
+            application,
+            editor,
+            userData,
+            startup.markStage,
+            baseEnvironment,
+            (child) => knownChildren.push(child),
+          ),
+        );
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
       if (id === "edifoto") {
         await verifyNativeDialog(editor, "Novo…", "Novo documento");
@@ -303,7 +571,8 @@ try {
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
-      if (diagnosticEditor && !diagnosticEditor.isClosed()) {
+      // Captura failures can revoke source authority: never inspect its page after STOP.
+      if (id !== "edicaptura" && diagnosticEditor && !diagnosticEditor.isClosed()) {
         try {
           await diagnosticEditor.screenshot({ path: join(results, `${id}-failure.png`) });
         } catch (screenshotError) {
@@ -341,22 +610,63 @@ try {
                 env: windowsPowerShellEnvironment(),
               },
             );
-          const result = await closing;
-          if ("error" in result) failures.push(result.error);
+          await nativeStage(id, "cleanup", [root], () =>
+            verifyNativeClose(
+              nativeChild,
+              childLifetime.completion,
+              closing.then((result) => {
+                if ("error" in result) throw result.error;
+              }),
+            ),
+          );
+        } else {
+          await nativeStage(id, "cleanup", [root], () =>
+            verifyNativeClose(nativeChild, childLifetime.completion, Promise.resolve()),
+          );
         }
       } catch (error) {
         failures.push(error);
       }
-      if (startupFailed)
+      if (startupFailed || failures.length || id === "edicaptura")
         console.error(`Native startup cleanup (${id}):`, JSON.stringify(await startup.snapshot()));
       startup.dispose();
+      console.log(
+        JSON.stringify({
+          nativeStage: "cleanup",
+          app: id,
+          closed,
+          exitCode: nativeChild.exitCode,
+          signal: nativeChild.signalCode,
+          failures: failures.length,
+        }),
+      );
     }
     raiseFailures(failures, `Native verification and cleanup failed: ${id}`);
   }
 } catch (error) {
   runFailures.push(error);
 } finally {
-  runFailures.push(...(await harness.dispose()));
+  try {
+    await new Promise<void>((done, reject) =>
+      server.close((error) => (error ? reject(error) : done())),
+    );
+  } catch (error) {
+    runFailures.push(error);
+  }
+  try {
+    assert.ok(
+      knownChildren.every((child) => child.isClosed()),
+      "Known native child remains alive; test root retained",
+    );
+    assert.equal(dirname(root), resolve(tmpdir()));
+    assert.ok(basename(root).startsWith("edi-native-"));
+    await rm(root, { recursive: true, force: true });
+    console.log(
+      JSON.stringify({ nativeCleanupComplete: true, resultCode: runFailures.length ? 1 : 0 }),
+    );
+  } catch (error) {
+    runFailures.push(error);
+  }
 }
 raiseFailures(runFailures, "Native verification and resource cleanup failed");
 console.log(

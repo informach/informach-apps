@@ -166,11 +166,13 @@ const helper = helperPath();
 const skipHelper =
   process.platform !== "win32"
     ? "Windows only"
-    : !existsSync(helper)
-      ? "helper not built (run the package test script)"
-      : (await processLoopbackAvailable(helper))
-        ? false
-        : "this Windows has no process loopback";
+    : process.env.EDIAULA_SOUND_TESTS !== "1"
+      ? "records system audio; set EDIAULA_SOUND_TESTS=1"
+      : !existsSync(helper)
+        ? "helper not built (run the package test script)"
+        : (await processLoopbackAvailable(helper))
+          ? false
+          : "this Windows has no process loopback";
 
 test("a failed probe of the native route is not kept for the rest of the run", {
   skip: skipHelper,

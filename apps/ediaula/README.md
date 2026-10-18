@@ -35,8 +35,12 @@ fontes em `native/helper`) com o compilador C# do .NET Framework 4.x que vem no 
 outro `csc.exe`. A compilação só roda de novo quando mudam as fontes ou a versão. Fora do Windows o passo apenas avisa.
 Se o executável estiver em uso por um EdiAula aberto em desenvolvimento, o comando para e pede para fechá-lo.
 
-Os testes do auxiliar que geram cliques, rolagens e movimentos reais (retidos pelo próprio teste, mas ainda
-assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm edi:media:test` liga essa variável.
+Os testes que enumeram ou amostram o desktop, instalam hooks globais, restauram janelas ou geram entrada
+real só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`. Probes WASAPI, gravação do áudio do sistema e reprodução
+no dispositivo real exigem `EDIAULA_SOUND_TESTS=1`. `pnpm edi:media:test` preserva as escolhas do chamador;
+o workflow de mídia declara ambas explicitamente no runner Windows descartável. Sem opt-in, os casos
+físicos aparecem como skips contados; protocolo, cursor sintético, keyrule e finalização PCM continuam
+ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de desktop.
 
 ## Etapa 1 (pronta)
 

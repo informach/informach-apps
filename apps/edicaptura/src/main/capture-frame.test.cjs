@@ -44,6 +44,7 @@ function harness() {
     }
   }
   const electron = {
+    protocol: { registerSchemesAsPrivileged() {} },
     BrowserWindow: Window,
     app: {
       getPath: () => "C:/edi-tests/app-data",

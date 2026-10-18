@@ -15,7 +15,7 @@ const hook = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "electron")
       return {
-        url: `data:text/javascript,${encodeURIComponent(`export const app = { getPath: () => ${JSON.stringify(dir)} };`)}`,
+        url: `data:text/javascript,${encodeURIComponent(`export const app = { getPath: () => ${JSON.stringify(dir)}, getAppPath: () => ${JSON.stringify(dir)} };`)}`,
         shortCircuit: true,
       };
     return nextResolve(specifier, context);

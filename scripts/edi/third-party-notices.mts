@@ -4,6 +4,7 @@ import { basename, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { hasNativeMedia } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
 
 const execute = promisify(execFile);
@@ -77,9 +78,12 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
     "Suíte Edi: third-party software notices",
     "These components retain their own licenses and copyright notices. Dependency names below include transitive runtime dependencies. Electron and Chromium notices are distributed alongside the application executable.",
   ];
-  if (appId === "ediaula")
+  if (hasNativeMedia(appId))
     sections.push(
       "FFmpeg and FFprobe are separately distributed native programs under GPLv3. Their licenses, complete corresponding source and rebuild instructions are installed in native-media/ beside this file; see native-media/README.md and native-media/Corresponding-Source.tar.xz.",
+    );
+  if (appId === "ediaula")
+    sections.push(
       "Bundled export fonts retain their SIL Open Font License 1.1. Their embedded copyright and reserved-name statements, original-file checksums and complete license text are installed in fonts/LICENSES.txt beside this file.",
       "The voice noise-reduction model rnnoise/sh.rnnn is somnolent-hogwash-2018-09-01 from https://github.com/GregorR/rnnoise-models (commit 3eee541a283fd3b8f81b85b1748e3b9ccbefa04d), unmodified. That repository ships no license file; its README states that, except for its tools/ directory and the README itself, none of the work is creative and none of it is subject to copyright. Provenance, the sha256 and the README text are installed in rnnoise/README.md beside this file. The code that runs the model is the arnndn filter of FFmpeg (libavfilter/af_arnndn.c, based on RNNoise by Jean-Marc Valin, Mozilla, the Xiph.Org Foundation and Gregor Richards), part of the FFmpeg 9.0.2 build in native-media/. Its BSD-style license header at FFmpeg tag n9.0.2 (https://github.com/FFmpeg/FFmpeg/blob/n9.0.2/libavfilter/af_arnndn.c) follows.",
       `\n--- FFmpeg arnndn filter (libavfilter/af_arnndn.c, FFmpeg n9.0.2) ---\n${arnndnLicenseHeader}`,
