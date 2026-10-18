@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { mintRunToken } from "@informach/edi-desktop/access";
 import { app } from "electron";
 import { clientLaunch, locateClient, mcpUrl } from "./aiSettings.ts";
-import { claudeMcpConfig, engineEnv, type Launch, MCP_TOKEN_ENV } from "./engineArgs.ts";
+import {
+  CLAUDE_SETTING_SOURCES,
+  claudeMcpConfig,
+  engineEnv,
+  type Launch,
+  MCP_TOKEN_ENV,
+} from "./engineArgs.ts";
 import { killTree } from "./processTree.ts";
 
 /** The terminal stays usable for a working day; its token goes away when the window closes. */
@@ -41,8 +47,10 @@ export function closeRestrictedWindows(): void {
 /**
  * Opens the user's own Claude Code in a window of its own that can only use EdiAula's editing
  * tools: no file access, no shell, no web. It runs in an empty folder with its own MCP config,
- * so it cannot touch the original media or the rest of the computer. The config file names the
- * token's environment variable; the token itself only exists in that process's environment.
+ * so it cannot touch the original media or the rest of the computer, without the connectors of
+ * the person's claude.ai account nor the settings of the folders around it. The config file
+ * names the token's environment variable; the token itself only exists in that process's
+ * environment.
  */
 export async function openRestrictedClaude(
   port: number,
@@ -72,6 +80,7 @@ export async function openRestrictedClaude(
         "--strict-mcp-config",
         "--mcp-config",
         config,
+        ...CLAUDE_SETTING_SOURCES,
         "--tools",
         "",
         "--allowedTools",
@@ -84,7 +93,12 @@ export async function openRestrictedClaude(
         windowsHide: false,
         shell: false,
         stdio: "ignore",
-        env: engineEnv(process.env, { minimal: false, token: token.token, launch: launch.env }),
+        env: engineEnv(process.env, {
+          minimal: false,
+          token: token.token,
+          launch: launch.env,
+          claude: true,
+        }),
       },
     );
     windows.set(child, token.revoke);

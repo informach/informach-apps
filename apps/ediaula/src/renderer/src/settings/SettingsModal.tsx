@@ -406,8 +406,9 @@ export function SettingsModal(): ReactNode {
             <div className="spacer">
               <strong>Conexões com acesso</strong>
               <p className="muted">
-                Quem pode falar com o EdiAula agora. Revogue o que você não usa mais; sair da conta
-                Edi neste computador revoga todas.
+                Quem pode falar com o EdiAula agora. Cada conexão deixa de valer depois de 30 dias
+                sem uso. Revogue o que você não usa mais; sair da conta Edi neste computador revoga
+                todas.
               </p>
             </div>
           </div>
@@ -436,8 +437,9 @@ export function SettingsModal(): ReactNode {
             <summary>Claude Desktop e configuração manual</summary>
             <p className="muted">
               Gere um token próprio para configurar à mão. Ele pode ler a aula e propor cortes; as
-              alterações pedem a sua permissão. Guarde-o como uma senha e revogue quando não usar
-              mais.
+              alterações pedem a sua permissão. O token fica gravado, como texto, no arquivo de
+              configuração do app de IA onde você colar: trate esse arquivo como uma senha. Gerar
+              outro token revoga o anterior, e ele deixa de valer depois de 30 dias sem uso.
             </p>
             <Button
               size="sm"
@@ -449,7 +451,7 @@ export function SettingsModal(): ReactNode {
             </Button>
             {manual && (
               <p className="muted small">
-                O token aparece só agora. Se perder, gere outro e revogue este na lista acima.
+                O token aparece só agora. Se perder, gere outro: este deixa de valer na hora.
               </p>
             )}
             {snippets.map((s) => (

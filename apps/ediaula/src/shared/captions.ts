@@ -26,6 +26,23 @@ export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
   size: 5.2,
 };
 export const CAPTION_FONT = "Segoe UI";
+
+/**
+ * A caption font name as it can go in a line of the .ass file: line breaks would start a line
+ * of their own (a style or an event), commas split the fields and braces and backslashes start
+ * override tags, so they become spaces. Empty falls back to CAPTION_FONT.
+ */
+export function assFontName(font: string | undefined): string {
+  const name = (font ?? "")
+    .replace(/[\r\n{}\\,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name || CAPTION_FONT;
+}
+
+/** A font name the AI tools and the project file accept for captions (assFontName). */
+export const CAPTION_FONT_NAME = /^[^\r\n{}\\,]+$/;
+
 export const CAPTION_HIGHLIGHT = "#C8F031";
 
 export const CAPTION_LOOKS: { id: CaptionLook; label: string }[] = [
@@ -268,7 +285,7 @@ export function buildAss(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Cap,${(style.font ?? CAPTION_FONT).replace(/,/g, " ")},${fs},${primary},${secondary},${box ? back : black},${back},-1,0,0,0,100,100,0,0,${box ? 3 : 1},${box ? Math.round(fs * 0.3) : outline},0,${align},${Math.round(width * 0.06)},${Math.round(width * 0.06)},${margin},1`,
+    `Style: Cap,${assFontName(style.font)},${fs},${primary},${secondary},${box ? back : black},${back},-1,0,0,0,100,100,0,0,${box ? 3 : 1},${box ? Math.round(fs * 0.3) : outline},0,${align},${Math.round(width * 0.06)},${Math.round(width * 0.06)},${margin},1`,
     `Style: Key,${CAPTION_FONT},${Math.round((KEY_STYLE.size / 100) * height)},${white},${white},${assColor("#12140A", 0x18)},${back},-1,0,0,0,100,100,0,0,3,${Math.round((KEY_STYLE.size / 100) * height * 0.35)},0,3,${Math.round(height * KEY_STYLE.margin)},${Math.round(height * KEY_STYLE.margin)},${Math.round(height * KEY_STYLE.margin)},1`,
     "",
     "[Events]",

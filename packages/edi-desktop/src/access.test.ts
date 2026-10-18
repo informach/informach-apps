@@ -2,12 +2,14 @@ import type { IncomingMessage } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   authorizeLocalMcp,
+  CLIENT_GRANT_TTL_MS,
   clearAccess,
   configureDesktopAccess,
   createClientGrant,
   grantAllows,
   grantForBearer,
   hashMcpToken,
+  isGrantLive,
   listGrants,
   localMcpHeaders,
   type McpGrant,
@@ -31,9 +33,11 @@ function memoryStore() {
     remove: async (ids) => {
       for (const id of ids) grants.delete(id);
     },
-    touch: async (id, at) => {
+    touch: async (id, at, expiresAt) => {
       const grant = grants.get(id);
-      if (grant) grant.lastUsedAt = at;
+      if (!grant) return;
+      grant.lastUsedAt = at;
+      if (expiresAt !== undefined) grant.expiresAt = expiresAt;
     },
   };
   return { grants, store };
@@ -130,7 +134,8 @@ describe("local MCP grants", () => {
           client: "legacy",
           tokenHash: hashMcpToken(legacy),
           scopes: ["read", "propose"],
-          createdAt: 1,
+          // Without an end of its own, it lasts 30 days from its last use (or creation).
+          createdAt: Date.now(),
         },
       ],
     });
@@ -166,5 +171,56 @@ describe("local MCP grants", () => {
     // A revoked run cannot be brought back by extending it.
     run.extend(60_000);
     expect(authorizeLocalMcp(request(`Bearer ${run.token}`))).toBeNull();
+  });
+
+  it("a client's grant ends 30 days after its last use, and each use renews it", async () => {
+    vi.useFakeTimers();
+    const memory = setup();
+    const { token, grant } = await createClientGrant({ client: "manual", scopes: ["read"] });
+    expect(grant.expiresAt).toBe(Date.now() + CLIENT_GRANT_TTL_MS);
+    vi.advanceTimersByTime(CLIENT_GRANT_TTL_MS - 60_000);
+    expect(authorizeLocalMcp(request(`Bearer ${token}`))).not.toBeNull();
+    // The use moved the end 30 days ahead, in memory and in the vault.
+    expect(memory.grants.get(grant.id)?.expiresAt).toBe(Date.now() + CLIENT_GRANT_TTL_MS);
+    vi.advanceTimersByTime(CLIENT_GRANT_TTL_MS - 60_000);
+    expect(isGrantLive(grant.id)).toBe(true);
+    vi.advanceTimersByTime(120_000);
+    expect(isGrantLive(grant.id)).toBe(false);
+    expect(authorizeLocalMcp(request(`Bearer ${token}`))).toBeNull();
+    expect(listGrants().some((g) => g.id === grant.id)).toBe(false);
+  });
+
+  it("a grant of an earlier version without an end gets one from its last use", () => {
+    vi.useFakeTimers();
+    const now = Date.now();
+    const old: McpGrant = {
+      id: "00000000-0000-4000-8000-000000000001",
+      client: "codex",
+      tokenHash: hashMcpToken("b".repeat(43)),
+      scopes: ["read"],
+      createdAt: now - 40 * 86400_000,
+      lastUsedAt: now - 10 * 86400_000,
+    };
+    setup({ grants: [old] });
+    expect(listGrants()[0]?.expiresAt).toBe(now + 20 * 86400_000);
+    expect(isGrantLive(old.id)).toBe(true);
+    const unused = { ...old, lastUsedAt: undefined };
+    setup({ grants: [unused] });
+    expect(isGrantLive(old.id)).toBe(false);
+  });
+
+  it("isGrantLive tells a call that waited whether its run was stopped or revoked", async () => {
+    setup();
+    const run = mintRunToken({ scopes: ["read"], ttlMs: 60_000 });
+    expect(isGrantLive(run.grant.id)).toBe(true);
+    run.revoke();
+    expect(isGrantLive(run.grant.id)).toBe(false);
+    const { grant } = await createClientGrant({ client: "codex", scopes: ["read"] });
+    expect(isGrantLive(grant.id)).toBe(true);
+    await revokeGrant(grant.id);
+    expect(isGrantLive(grant.id)).toBe(false);
+    expect(isGrantLive("app")).toBe(true);
+    clearAccess();
+    expect(isGrantLive(run.grant.id)).toBe(false);
   });
 });

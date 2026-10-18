@@ -3,6 +3,7 @@ import type { Cue } from "./captions.ts";
 import { DEFAULT_CAPTION_STYLE } from "./captions.ts";
 import { strip, type TimelineWord } from "./cleanup.ts";
 import { clipLayout } from "./compose.ts";
+import { chaptersOf, hasChapterMarkers } from "./markers.ts";
 import { LINE_MISSING, LINE_PARTIAL } from "./retake.ts";
 import { type ScriptSection, speechItems } from "./script.ts";
 import type { Alignment } from "./scriptAlign.ts";
@@ -578,17 +579,19 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
     });
   }
 
-  // Chapters for YouTube.
-  const chapters = project.publish?.chapters;
-  if (chapters?.length) {
+  // Chapters for YouTube, as the MP4 and the platform package have them (markers first).
+  const chapters = chaptersOf(project);
+  if (chapters.length) {
     const { problems, fixed } = chapterProblems(chapters, duration);
+    // The fix rewrites publish.chapters: chapters from the markers are fixed on the timeline.
+    const fromMarkers = hasChapterMarkers(project);
     if (problems.length)
       out.push({
         severity: "warn",
         kind: "chapters",
         at: 0,
-        message: `Os capítulos não valem no YouTube: ${problems.join("; ")}.`,
-        ...(fixed
+        message: `Os capítulos não valem no YouTube: ${problems.join("; ")}.${fromMarkers ? " Eles vêm dos marcadores-capítulo da timeline: ajuste os marcadores." : ""}`,
+        ...(fixed && !fromMarkers
           ? { fix: { label: "Corrigir os capítulos", action: "chapters", chapters: fixed } }
           : {}),
       });

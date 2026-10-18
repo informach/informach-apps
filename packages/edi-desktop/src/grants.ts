@@ -27,6 +27,7 @@ const grantSchema = z.looseObject({
   expiresAt: z.number().nonnegative().optional(),
   lastUsedAt: z.number().nonnegative().optional(),
   projectId: z.string().min(1).max(200).optional(),
+  renewMs: z.number().positive().optional(),
 });
 // Unknown fields are kept, so a newer version's file survives being written by this one.
 const fileSchema = z.looseObject({
@@ -105,10 +106,12 @@ export function createGrantFile(config: {
           const keep = grants.filter((grant) => !ids.includes(grant.id));
           grants.splice(0, grants.length, ...keep);
         }),
-      touch: (id, at) =>
+      touch: (id, at, expiresAt) =>
         use((grants) => {
           const grant = grants.find((item) => item.id === id);
-          if (grant) grant.lastUsedAt = at;
+          if (!grant) return;
+          grant.lastUsedAt = at;
+          if (expiresAt !== undefined) grant.expiresAt = expiresAt;
         }),
     },
   };

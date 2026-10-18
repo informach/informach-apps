@@ -160,6 +160,13 @@ export async function resolveLaunch(
   return { command: js.command, args: [...flags, script], env: js.env };
 }
 
+/**
+ * Settings Claude Code reads: only the person's own (~/.claude/settings.json, where its login
+ * and model choice live). The project and local settings, and the project rules, of the folder
+ * it runs in and of the folders above it are left out.
+ */
+export const CLAUDE_SETTING_SOURCES = ["--setting-sources", "user"] as const;
+
 /** Claude Code without any built-in tool, only EdiAula's, with the message on standard input. */
 export function claudeArgs(options: {
   resume?: string;
@@ -182,6 +189,7 @@ export function claudeArgs(options: {
     "--strict-mcp-config",
     "--mcp-config",
     options.mcpConfig,
+    ...CLAUDE_SETTING_SOURCES,
     "--allowedTools",
     "mcp__ediaula",
     "--append-system-prompt",
@@ -322,13 +330,26 @@ const CODEX_ENV = new Set(
 const PRIVATE_ENV = /^(ELECTRON_|EDI_|EDIAULA_|NODE_OPTIONS$)/i;
 
 /**
+ * Turns off the connectors of the person's claude.ai account (Gmail, Drive, Slack…) in a
+ * Claude Code run of EdiAula: only EdiAula's own server is there (--strict-mcp-config covers
+ * the configured servers, not these).
+ */
+export const CLAUDE_NO_CONNECTORS = { ENABLE_CLAUDEAI_MCP_SERVERS: "false" } as const;
+
+/**
  * The environment of an engine process. Codex gets only what it needs (`minimal`); Claude Code
- * keeps the person's variables (its own login may use them) without EdiAula's. Both get the run
- * token and what the launch needs (the script runtime).
+ * keeps the person's variables (its own login may use them) without EdiAula's, and without the
+ * claude.ai connectors (`claude`). Both get the run token and what the launch needs (the script
+ * runtime).
  */
 export function engineEnv(
   source: NodeJS.ProcessEnv,
-  options: { minimal: boolean; token?: string; launch?: Record<string, string> },
+  options: {
+    minimal: boolean;
+    token?: string;
+    launch?: Record<string, string>;
+    claude?: boolean;
+  },
 ): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(source)) {
@@ -337,9 +358,20 @@ export function engineEnv(
     env[name] = value;
   }
   Object.assign(env, options.launch ?? {});
+  if (options.claude) Object.assign(env, CLAUDE_NO_CONNECTORS);
   if (options.token) env[MCP_TOKEN_ENV] = options.token;
   return env;
 }
+
+/**
+ * Whether a Claude Code run with this environment is charged on the Anthropic API instead of
+ * the person's subscription: in print mode (-p) Claude Code always uses ANTHROPIC_API_KEY when
+ * it is set. The key stays (it may be how the person signs in); the panel says so by the cost.
+ */
+export const claudeBilledOnApi = (env: Readonly<Record<string, string>>): boolean =>
+  Object.entries(env).some(
+    ([name, value]) => name.toUpperCase() === "ANTHROPIC_API_KEY" && !!value,
+  );
 
 /** Item types in Codex's JSON stream that stay inside the conversation. */
 const CODEX_ALLOWED = new Set(["agent_message", "reasoning", "todo_list", "error"]);
@@ -443,6 +475,7 @@ export function claudeOneShotArgs(options: { model?: string; effort?: string }):
     "--strict-mcp-config",
     "--mcp-config",
     JSON.stringify({ mcpServers: {} }),
+    ...CLAUDE_SETTING_SOURCES,
     ...(options.model && options.model !== "default" ? ["--model", options.model] : []),
     ...(options.effort ? ["--effort", options.effort] : []),
   ];

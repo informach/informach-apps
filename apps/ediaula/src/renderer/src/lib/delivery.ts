@@ -1,12 +1,15 @@
 import { buildCues, captionWords, cueLayout } from "@shared/captions";
 import {
   type CaptionTranslation,
+  cuesToTranslate,
   type SourceCue,
   staleCues,
+  type TranslatedCue,
   translateCues,
   translatedCues,
 } from "@shared/captionTranslate";
 import { paragraphs, timelineWords } from "@shared/cleanup";
+import { chaptersOf } from "@shared/markers";
 import {
   generateQuiz,
   type PlatformInput,
@@ -71,8 +74,10 @@ function oneShot(label: string, signal?: AbortSignal): (prompt: string) => Promi
 
 /**
  * Translates the captions of the open lesson into `lang` and keeps the translation in it
- * (Project.captionTranslations), replacing an earlier one of the same language. Refused when the
- * lesson changed while translating (the captions translated are no longer the lesson's).
+ * (Project.captionTranslations), in place of an earlier one of the same language. Only the
+ * captions out of date in that earlier one go to the engine. When a batch fails or the person
+ * stops half way, the batches already translated are kept, so translating again goes on from
+ * there. Nothing is kept when another lesson was opened meanwhile.
  */
 export async function translateLesson(
   lang: string,
@@ -81,34 +86,59 @@ export async function translateLesson(
     signal?: AbortSignal;
     progress?: (done: number, total: number) => void;
   } = {},
-): Promise<{ count: number; lang: string }> {
+): Promise<{ count: number; lang: string; translated: number }> {
   const start = useProject.getState().project;
   if (!start) throw new Error("Nenhuma aula aberta.");
   const cues = await lessonCues(start);
   if (!cues.length)
     throw new Error("A aula ainda não tem legendas: transcreva a narração primeiro.");
-  const done = await translateCues(
-    cues,
-    lang,
-    oneShot(`Traduzindo as legendas (${lang})`, opts.signal),
-    {
-      signal: opts.signal,
-      onBatch: opts.progress,
-    },
-  );
-  const translation: CaptionTranslation = { lang, createdAt: Date.now(), cues: done };
-  // Another lesson open by now: nothing is kept, and the caller is told.
+  const known = start.captionTranslations?.find((t) => t.lang === lang);
+  const todo = cuesToTranslate(cues, known).length;
+  const commit = opts.commit ?? personCommit;
+  const keep = (list: TranslatedCue[]): boolean => {
+    // Another lesson open by now: nothing is kept.
+    if (useProject.getState().project?.id !== start.id) return false;
+    const translation: CaptionTranslation = { lang, createdAt: Date.now(), cues: list };
+    return commit((p) => ({
+      ...p,
+      captionTranslations: [
+        ...(p.captionTranslations ?? []).filter((t) => t.lang !== lang),
+        translation,
+      ],
+    }));
+  };
+  if (!todo) return { count: cues.length, lang, translated: 0 };
+  // What the batches done so far translated, with the captions that were already up to date.
+  let partial: TranslatedCue[] = [];
+  let done: TranslatedCue[];
+  try {
+    done = await translateCues(
+      cues,
+      lang,
+      oneShot(`Traduzindo as legendas (${lang})`, opts.signal),
+      {
+        signal: opts.signal,
+        known,
+        onBatch: opts.progress,
+        onTranslated: (list) => {
+          partial = list;
+        },
+      },
+    );
+  } catch (err) {
+    if (partial.length && keep(partial)) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `${message} As legendas traduzidas até aqui foram guardadas; traduzir de novo continua das que faltam.`,
+        { cause: err },
+      );
+    }
+    throw err;
+  }
   if (useProject.getState().project?.id !== start.id)
     throw new Error("A aula aberta mudou enquanto as legendas eram traduzidas: nada foi guardado.");
-  const ok = (opts.commit ?? personCommit)((p) => ({
-    ...p,
-    captionTranslations: [
-      ...(p.captionTranslations ?? []).filter((t) => t.lang !== lang),
-      translation,
-    ],
-  }));
-  if (!ok) throw new Error("A aula aberta mudou enquanto as legendas eram traduzidas.");
-  return { count: done.length, lang };
+  if (!keep(done)) throw new Error("A aula aberta mudou enquanto as legendas eram traduzidas.");
+  return { count: done.length, lang, translated: todo };
 }
 
 /** The translations of the lesson that are up to date, as the export writes them. */
@@ -199,6 +229,7 @@ export function platformInput(project: Project): PlatformInput {
   const doc = scriptDoc(project);
   const section = doc?.sections[project.script?.section ?? 0];
   const publish = project.publish ?? {};
+  const chapters = chaptersOf(project);
   const videoId = publish.videoId ?? section?.videoId;
   return {
     lesson: project.name,
@@ -211,7 +242,8 @@ export function platformInput(project: Project): PlatformInput {
         : {}),
     ...(publish.description ? { description: publish.description } : {}),
     ...(publish.summary ? { summary: publish.summary } : {}),
-    ...(publish.chapters?.length ? { chapters: publish.chapters } : {}),
+    // The same chapters as the MP4: the chapter markers, else publish.chapters.
+    ...(chapters.length ? { chapters } : {}),
     ...(publish.quiz?.length ? { quiz: publish.quiz } : {}),
     ...(publish.thumbnail ? { thumbnail: publish.thumbnail } : {}),
   };

@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { connectMcpClient, isMcpClientConnected } from "@informach/edi-desktop/mcp-config";
 import { app, safeStorage } from "electron";
-import { z } from "zod";
-import { DEFAULT_EFFORT, EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
+import { DEFAULT_EFFORT, type Effort, resolveModel } from "../shared/aiModels.ts";
+import { parseStoredSettings, type StoredSettings, trustedWhich } from "../shared/aiSettings.ts";
 import type { AiClientId, AiClientStatus } from "../shared/types.ts";
 import {
   engineEnv,
@@ -19,36 +20,26 @@ import {
 export const DEFAULT_MCP_PORT = 47321;
 export const MCP_NAME = "ediaula";
 
-const storedSchema = z.looseObject({
-  /** API key encrypted with the OS keychain (DPAPI on Windows), base64. */
-  apiKeyEnc: z.string().optional(),
-  model: z.string().max(100).optional(),
-  /** Which AI powers the in-app chat. */
-  engine: z.enum(["claude-code", "codex", "api"]).optional(),
-  /** Claude Code model alias ('default' keeps the user's own setting). */
-  claudeModel: z.string().max(100).optional(),
-  /** Reasoning effort for the API key and Claude Code. */
-  effort: z.enum(EFFORTS.map((e) => e.id) as [Effort, ...Effort[]]).optional(),
-  mcpEnabled: z.boolean().optional(),
-  mcpPort: z.int().min(1024).max(65535).optional(),
-  /** Result of the Codex self-check for that Codex version. */
-  codexRestricted: z.looseObject({ version: z.string().max(200), ok: z.boolean() }).optional(),
-  /** Codex version the person chose to use without the guarantee. */
-  codexConfirmed: z.string().max(200).optional(),
-});
-
-export type Stored = z.infer<typeof storedSchema>;
+export type Stored = StoredSettings;
 
 const file = (): string => join(app.getPath("userData"), "ai.json");
 
-/** The stored settings; a model that left the list is moved to its successor once. */
+/**
+ * The stored settings, field by field: one invalid field (an older version, a hand edit) drops
+ * only itself (shared/aiSettings.ts). A missing or unreadable file is no settings; a model that
+ * left the list is moved to its successor once.
+ */
 export async function readStored(): Promise<Stored> {
-  let stored: Stored;
+  let raw: unknown;
   try {
-    stored = storedSchema.parse(JSON.parse(await readFile(file(), "utf8")));
-  } catch {
+    raw = JSON.parse(await readFile(file(), "utf8"));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT")
+      console.warn("[ediaula] ai_settings_unreadable", err instanceof Error ? err.name : err);
     return {};
   }
+  const { settings: stored, dropped } = parseStoredSettings(raw);
+  if (dropped.length) console.warn("[ediaula] ai_settings_fields_dropped", dropped.join(","));
   const model = resolveModel(stored.model);
   if (model.migrated) {
     stored.model = model.model;
@@ -59,8 +50,17 @@ export async function readStored(): Promise<Stored> {
 
 export const storedEffort = (stored: Stored): Effort => stored.effort ?? DEFAULT_EFFORT;
 
+/** Written to a file beside it and then renamed over it: a crash never leaves half a file. */
 export async function writeStored(s: Stored): Promise<void> {
-  await writeFile(file(), JSON.stringify(s, null, 1));
+  const target = file();
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, JSON.stringify(s, null, 1), { flag: "wx" });
+    await rename(temporary, target);
+  } catch (err) {
+    await rm(temporary, { force: true });
+    throw err;
+  }
 }
 
 export function encryptKey(key: string): string {
@@ -87,9 +87,10 @@ function exec(
   args: string[],
   env: NodeJS.ProcessEnv,
   timeout: number,
+  cwd?: string,
 ): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
-    execFile(command, args, { timeout, windowsHide: true, env }, (err, stdout, stderr) => {
+    execFile(command, args, { timeout, windowsHide: true, env, cwd }, (err, stdout, stderr) => {
       const code = err
         ? typeof (err as NodeJS.ErrnoException).code === "number"
           ? Number((err as NodeJS.ErrnoException).code)
@@ -133,16 +134,23 @@ async function run(
   return exec(launch.command, [...launch.args, ...args], env, timeout);
 }
 
+/**
+ * A program on the PATH, found by Windows' own where.exe (by its full path, run from System32 so
+ * the folder EdiAula was opened from is not searched first). A hit in the current folder, the
+ * temporary folders or Downloads is not used: a program there was not installed.
+ */
 async function which(name: string): Promise<string | null> {
-  const r = await exec("where.exe", [name], process.env, 8000);
-  if (r.code === 0) {
-    const first = r.out
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .find((l) => /\.(exe|cmd)$/i.test(l));
-    if (first) return first;
-  }
-  return null;
+  const system = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? "C:\\Windows";
+  const system32 = join(system, "System32");
+  const r = await exec(join(system32, "where.exe"), [name], process.env, 8000, system32);
+  if (r.code !== 0) return null;
+  return trustedWhich(r.out, [
+    process.cwd(),
+    tmpdir(),
+    process.env.TEMP ?? "",
+    process.env.TMP ?? "",
+    join(homedir(), "Downloads"),
+  ]);
 }
 
 const CANDIDATES: Record<AiClientId, string[]> = {

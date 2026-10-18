@@ -2,10 +2,11 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import type { IncomingMessage } from "node:http";
 
 /**
- * Local MCP access. Every token is a grant: a hash at rest, the scopes it may use and, for the
- * short-lived ones, an expiry. Durable grants (a client connected with "Conectar", a token made
- * for manual configuration, the token of an older version) live in the encrypted vault; run
- * tokens for the application's own assistant exist only in memory and die with the run.
+ * Local MCP access. Every token is a grant: a hash at rest, the scopes it may use and an expiry.
+ * Durable grants (a client connected with "Conectar", a token made for manual configuration, the
+ * token of an older version) live in the encrypted vault and end CLIENT_GRANT_TTL_MS after their
+ * last use, so a client nobody uses any more stops working by itself; run tokens for the
+ * application's own assistant exist only in memory and die with the run.
  */
 
 export type McpScope = "read" | "propose" | "write";
@@ -22,6 +23,8 @@ export interface McpGrant {
   lastUsedAt?: number;
   /** Run tokens are tied to the project the run started in. */
   projectId?: string;
+  /** Each use moves `expiresAt` to this long after it (durable grants of clients). */
+  renewMs?: number;
 }
 
 /** A grant as shown to the person: never the hash. */
@@ -31,7 +34,8 @@ export type McpGrantView = Omit<McpGrant, "tokenHash"> & { temporary: boolean };
 export interface McpGrantStore {
   add(grant: McpGrant): Promise<void>;
   remove(ids: readonly string[]): Promise<void>;
-  touch(id: string, at: number): Promise<void>;
+  /** Records a use and, for a renewable grant, its new expiry. */
+  touch(id: string, at: number, expiresAt?: number): Promise<void>;
 }
 
 interface AccessState {
@@ -48,6 +52,21 @@ let current: AccessState | undefined;
 
 /** Last-use times are written to the vault at most this often per grant. */
 const TOUCH_INTERVAL_MS = 60_000;
+/** A durable grant of a client ends this long after it was last used (renewed by each use). */
+export const CLIENT_GRANT_TTL_MS = 30 * 86400_000;
+
+/**
+ * A durable grant as this version keeps it: one of an earlier version without an expiry ends
+ * CLIENT_GRANT_TTL_MS after its last use (or its creation), and renews like the new ones.
+ */
+function durable(grant: McpGrant): McpGrant {
+  if (grant.expiresAt !== undefined) return { ...grant };
+  return {
+    ...grant,
+    expiresAt: (grant.lastUsedAt ?? grant.createdAt) + CLIENT_GRANT_TTL_MS,
+    renewMs: CLIENT_GRANT_TTL_MS,
+  };
+}
 const BEARER = /^Bearer ([A-Za-z0-9_-]{32,256})$/;
 
 export const hashMcpToken = (token: string): string =>
@@ -69,7 +88,7 @@ export function configureDesktopAccess(config: {
   current = {
     assertAccess: config.assertAccess,
     appToken: config.token,
-    durable: new Map((config.grants ?? []).map((grant) => [grant.id, { ...grant }])),
+    durable: new Map((config.grants ?? []).map((grant) => [grant.id, durable(grant)])),
     runs: new Map(),
     store: config.store,
     persistedTouch: new Map(),
@@ -78,7 +97,7 @@ export function configureDesktopAccess(config: {
 
 /** The grant file changed elsewhere (a logout): its grants replace the cached ones. */
 export function replaceGrants(grants: readonly McpGrant[]): void {
-  state().durable = new Map(grants.map((grant) => [grant.id, { ...grant }]));
+  state().durable = new Map(grants.map((grant) => [grant.id, durable(grant)]));
 }
 
 /** Signed out: no token of this process works any more, run tokens included. */
@@ -135,14 +154,17 @@ export function grantForBearer(header: string): McpGrant | null {
 function touch(grant: McpGrant, now: number): void {
   const s = state();
   grant.lastUsedAt = now;
+  if (grant.renewMs && s.durable.has(grant.id)) grant.expiresAt = now + grant.renewMs;
   if (!s.store || !s.durable.has(grant.id)) return;
   if (now - (s.persistedTouch.get(grant.id) ?? 0) < TOUCH_INTERVAL_MS) return;
   s.persistedTouch.set(grant.id, now);
-  s.store.touch(grant.id, now).catch((error: unknown) => {
-    console.error(
-      `[edi] mcp_grant_touch_failed: ${error instanceof Error ? error.name : "unknown"}`,
-    );
-  });
+  s.store
+    .touch(grant.id, now, grant.renewMs ? grant.expiresAt : undefined)
+    .catch((error: unknown) => {
+      console.error(
+        `[edi] mcp_grant_touch_failed: ${error instanceof Error ? error.name : "unknown"}`,
+      );
+    });
 }
 
 /** The grant of a local MCP request, or null: no valid token, an expired one or no license. */
@@ -160,6 +182,18 @@ export function authorizeLocalMcp(request: IncomingMessage): McpGrant | null {
   }
   touch(grant, now);
   return grant;
+}
+
+/**
+ * Whether the grant `id` still works: not revoked, not expired, the session not signed out. A
+ * call accepted before Parar or a revocation asks this again before it runs.
+ */
+export function isGrantLive(id: string, now = Date.now()): boolean {
+  if (!current) return false;
+  if (id === "app") return !!current.appToken;
+  const run = current.runs.get(id)?.grant;
+  const grant = run ?? current.durable.get(id);
+  return !!grant && !expired(grant, now);
 }
 
 /** Whether a grant covers a tool that needs `permission`. */
@@ -202,7 +236,10 @@ export function mintRunToken(options: {
   };
 }
 
-/** A durable grant for a client the person connected. The token is returned once, never stored. */
+/**
+ * A durable grant for a client the person connected. The token is returned once, never stored.
+ * It ends `ttlMs` (CLIENT_GRANT_TTL_MS by default) after its last use.
+ */
 export async function createClientGrant(options: {
   client: string;
   scopes: readonly McpScope[];
@@ -211,13 +248,15 @@ export async function createClientGrant(options: {
   const s = state();
   const token = newToken();
   const now = Date.now();
+  const ttl = options.ttlMs ?? CLIENT_GRANT_TTL_MS;
   const grant: McpGrant = {
     id: randomUUID(),
     client: options.client,
     tokenHash: hashMcpToken(token),
     scopes: [...new Set(options.scopes)],
     createdAt: now,
-    ...(options.ttlMs ? { expiresAt: now + options.ttlMs } : {}),
+    expiresAt: now + ttl,
+    renewMs: ttl,
   };
   await s.store?.add(grant);
   s.durable.set(grant.id, grant);
@@ -256,7 +295,7 @@ export function listGrants(): McpGrantView[] {
   const s = state();
   const now = Date.now();
   const view = (grant: McpGrant, temporary: boolean): McpGrantView => {
-    const { tokenHash: _hash, ...rest } = grant;
+    const { tokenHash: _hash, renewMs: _renew, ...rest } = grant;
     return { ...rest, scopes: [...grant.scopes], temporary };
   };
   return [

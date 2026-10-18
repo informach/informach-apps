@@ -1,4 +1,5 @@
 import { languageLabel } from "@shared/captionTranslate";
+import { chaptersOf } from "@shared/markers";
 import { validateChapters } from "@shared/platformPackage";
 import { projectDuration } from "@shared/timeline";
 import {
@@ -96,7 +97,8 @@ export function PlatformCard(): ReactNode {
   if (!project) return null;
   const input = platformInput(project);
   const duration = projectDuration(project);
-  const chapters = info.chapters ?? [];
+  // The chapters that go out (the chapter markers, else the saved ones).
+  const chapters = chaptersOf(project);
   const valid = chapters.length ? validateChapters(chapters, duration) : null;
   const description = [
     info.description,

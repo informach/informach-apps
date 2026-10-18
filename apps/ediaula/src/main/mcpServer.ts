@@ -6,7 +6,7 @@ import { app } from "electron";
 import { AI_TOOL_NAMES, AI_TOOLS, EDITOR_GUIDE, PANEL_FORBIDDEN } from "../shared/aiTools.ts";
 import { type GuardDeps, guarded, PANEL_CLIENT } from "./mcpGuard.ts";
 
-export type McpDeps = Pick<GuardDeps, "approve" | "call">;
+export type McpDeps = Pick<GuardDeps, "approve" | "call" | "live">;
 
 const MCP_INSTRUCTIONS = `${EDITOR_GUIDE}
 

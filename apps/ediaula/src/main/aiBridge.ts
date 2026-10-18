@@ -23,6 +23,10 @@ export type { CallMeta, ToolOutcome } from "./mcpGuard.ts";
 /** After this, the caller gets an answer; the queue still waits for the editor to finish. */
 const TOOL_TIMEOUT_MS = 20 * 60 * 1000;
 
+/** The answer of a call whose run was stopped (Parar, end of the turn) or whose access went. */
+export const NOT_ALLOWED =
+  "Interrompido: o pedido foi parado pela pessoa ou o acesso desta conexão acabou antes desta ferramenta rodar. Nada foi feito.";
+
 const pending = new Map<string, (r: ToolOutcome | null) => void>();
 const queue = createToolQueue();
 
@@ -132,19 +136,23 @@ function send(
  * Runs an AI tool in the renderer, where the project lives, so every edit shows up live and
  * joins the normal undo history. Paths are checked first (a question to the person never holds
  * the other calls); then writes and proposals run one at a time, and reads run together but
- * wait for a write in progress (shared/toolQueue.ts).
+ * wait for a write in progress (shared/toolQueue.ts). `allowed` is asked once more when the call
+ * leaves the queue: a call of a run the person stopped, or whose access was revoked or ended
+ * meanwhile, never reaches the editor.
  */
 export async function callTool(
   win: BrowserWindow | null,
   name: string,
   input: unknown,
   meta: CallMeta,
+  allowed: () => boolean = () => true,
 ): Promise<ToolOutcome> {
   assertDesktopAccess();
   if (!win || win.isDestroyed()) return { ok: false, text: "A janela do EdiAula não está aberta." };
   if (!isAiToolName(name)) return { ok: false, text: `Ferramenta desconhecida: ${name}` };
   const parsed = AI_TOOLS[name].input.safeParse(input ?? {});
   if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
+  if (!allowed()) return { ok: false, text: NOT_ALLOWED };
   const checked = await checkPaths(win, name, parsed.data as Record<string, unknown>);
   if (!("input" in checked)) return checked;
   const window = win;
@@ -152,6 +160,10 @@ export async function callTool(
     void queue.run(callPermission(name, checked.input) === "read" ? "read" : "write", async () => {
       if (window.isDestroyed()) {
         answer({ ok: false, text: "A janela do EdiAula não está aberta." });
+        return;
+      }
+      if (!allowed()) {
+        answer({ ok: false, text: NOT_ALLOWED });
         return;
       }
       await send(window, { id: randomUUID(), name, input: checked.input, ...meta }, answer);

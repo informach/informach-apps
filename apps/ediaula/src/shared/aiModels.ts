@@ -25,6 +25,13 @@ export const ASSISTANT_MODELS = [
   { id: "claude-haiku-5-5", label: "Claude Haiku 5.5 (econômico)" },
 ] as const;
 
+/** Model aliases of Claude Code the settings offer; "default" keeps the person's own choice. */
+export const CLAUDE_CODE_MODELS = [
+  { id: "default", label: "O padrão da sua conta" },
+  { id: "opus", label: "Opus (mais capaz)" },
+  { id: "sonnet", label: "Sonnet (gasta menos da cota)" },
+] as const;
+
 /** Earlier models still served: whoever picked one keeps it, with a notice. */
 export const EARLIER_MODELS = [
   { id: "claude-opus-5", label: "Claude Opus 5 (versão anterior)" },
@@ -65,7 +72,7 @@ export function resolveModel(stored?: string): {
 
 /** Models where the API retries a declined request on a fallback model by itself. */
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
-/** Models with server-side compaction of long conversations. */
+/** Models with server-side context management: old tool results cleared, long talks compacted. */
 const COMPACTION_MODELS = new Set([
   "claude-opus-5-5",
   "claude-opus-5",
@@ -74,19 +81,35 @@ const COMPACTION_MODELS = new Set([
   "claude-haiku-5-5",
 ]);
 
+/**
+ * Older tool results are cleared on the server once the conversation is long (pictures of
+ * get_frame weigh the most). Never edited locally: on the 5.5 models a change to an earlier turn
+ * invalidates every thinking block after it, and the API refuses the request.
+ */
+export const CLEAR_TOOL_USES = {
+  type: "clear_tool_uses_20250919",
+  trigger: { type: "input_tokens", value: 80_000 },
+  keep: { type: "tool_uses", value: 6 },
+  // Clearing restarts the prompt cache: only worth it when it frees a good share of the prompt.
+  clear_at_least: { type: "input_tokens", value: 20_000 },
+} as const;
+
+type ContextEdit = typeof CLEAR_TOOL_USES | { type: "compact_20260112" };
+
 export interface AssistantRequest {
   model: string;
   thinking: { type: "adaptive" };
   output_config: { effort: Effort };
   betas: string[];
-  context_management?: { edits: { type: "compact_20260112" }[] };
+  context_management?: { edits: ContextEdit[] };
   fallbacks?: "default";
 }
 
 /**
  * The model-dependent part of every request: adaptive thinking, the effort always sent (the
- * API default differs between models), compaction of long conversations and, where the API
- * offers it, the fallback model when a safety classifier declines.
+ * API default differs between models), old tool results cleared and long conversations
+ * compacted on the server and, where the API offers it, the fallback model when a safety
+ * classifier declines.
  */
 export function buildRequest(model: string, effort: Effort): AssistantRequest {
   const request: AssistantRequest = {
@@ -96,8 +119,8 @@ export function buildRequest(model: string, effort: Effort): AssistantRequest {
     betas: [],
   };
   if (COMPACTION_MODELS.has(model)) {
-    request.betas.push("compact-2026-01-12");
-    request.context_management = { edits: [{ type: "compact_20260112" }] };
+    request.betas.push("context-management-2025-06-27", "compact-2026-01-12");
+    request.context_management = { edits: [CLEAR_TOOL_USES, { type: "compact_20260112" }] };
   }
   if (FALLBACK_MODELS.has(model)) {
     request.betas.push("server-side-fallback-2026-07-01");
