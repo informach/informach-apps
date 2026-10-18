@@ -116,6 +116,12 @@ Na mesma tarde, a pedido da titular, a entrega foi conferida tela por tela contr
 
 `.nvmrc` e os workflows usam Node `24.15.0`, alinhados ao requisito `>=24.15.0` do manifest. Usar pnpm `9.15.0`, fixado em `packageManager`.
 
+## Evolução funcional do EdiSVG
+
+O [incremento 5.23 — joysticks 2D](reviews/edisvg-2026-10-17/review-lote-5-joysticks.md) integra projeto v22/Rig v4/blueprint v11 ao núcleo, painel React, canais/bindings, cópia/dependências e consumidores web/Lottie nos limites declarados. Passaram 136 testes do núcleo, 245 do app, 82 E2E, tipos, build, Next de produção e jornada Electron/ASAR completa com perfis isolados. O [review integral](reviews/edisvg-2026-10-17/full-review-2026-10-18.md) registra o aceite e as pendências dos lotes 5–6; não há paridade integral com Rive, `.riv`, React Native ou benchmark de superioridade. O [plano](../apps/edisvg/PLANO-DE-IMPLEMENTACAO.md) e o [README](../apps/edisvg/README.md) descrevem formatos, testes e manutenção.
+
+O titular restringiu a entrega imediata a encerrar 5.23, documentar o restante, revisar e publicar código e instaladores. A tag `edi-v0.1.5` falhou antes de gerar instaladores no gate de áudio do EdiAula; não tratar testes locais ou commit como distribuição. Publicar nova tag somente após o workflow completo passar, preservando as alterações paralelas EdiFoto/EdiPDF/SDK. A matriz de consumo definida é web/React e React Native, mas só web/React está entregue; React Native requer adapter e homologação Android/iOS. A autoria inicial é Windows.
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.

@@ -2,7 +2,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { desktopConfigSchema } from "./contracts.ts";
 /** Public settings are substituted at build time, never read from the installed user's environment. */
-export function ediBuildOptions(options: { mainEntry?: string; preloadEntry?: string } = {}) {
+export function ediBuildOptions(
+  options: { mainEntry?: string; preloadEntry?: string; bundledPackages?: readonly string[] } = {},
+) {
   const commercial = process.env.EDI_COMMERCIAL_BUILD === "true";
   const config = desktopConfigSchema.parse({
     portalUrl: process.env.EDI_PORTAL_URL ?? "http://localhost:3006",
@@ -25,6 +27,7 @@ export function ediBuildOptions(options: { mainEntry?: string; preloadEntry?: st
             "@informach/edi-contracts",
             "@informach/edi-releases",
             "@informach/config",
+            ...(options.bundledPackages ?? []),
           ],
         },
         commonjsOptions: { include: [/node_modules/, /src[\\/]main/, /src[\\/]capture/] },

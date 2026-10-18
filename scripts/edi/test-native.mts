@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
+import { z } from "zod";
 import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
