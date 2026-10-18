@@ -38,6 +38,8 @@ O escopo vigente é o [plano simplificado](../../../apps/edifoto/PLANO-DE-IMPLEM
 | R09 | Falha de Blob.arrayBuffer não rejeitava encoder; falhas de recipe deixavam alocações órfãs. | Propagação de rejeição e coleta de bitmaps após falha. |
 | R10 | Mensagem residual “Voc?”; controles de ícone/campo do assistente sem rótulos explícitos e foco pouco visível em campos. | Texto corrigido, rótulos/foco e respeito a movimento reduzido. Revisão baseada nas [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md). |
 
+| R11 | Mudanças rápidas em campos distintos da configuração podiam sobrescrever a preferência anterior; inicialização/reconfiguração do MCP podiam concorrer. | Fila de atualização, gravação atômica e sincronização serial do servidor; jornada nativa verifica escolhas concorrentes via IPC real. |
+
 ## Verificação deste checkout
 
 - `pnpm install --frozen-lockfile`, Node 24.15.0/pnpm 9.15.0; sem atualização de dependências.

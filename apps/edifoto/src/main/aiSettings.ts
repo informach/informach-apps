@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { atomicWrite } from "@informach/edi-desktop/files";
 import { connectMcpClient, isMcpClientConnected } from "@informach/edi-desktop/mcp-config";
 import { app } from "electron";
 import type { AiClientId, AiClientStatus } from "../shared/types.ts";
@@ -26,7 +27,7 @@ export async function readStored(): Promise<Stored> {
 }
 
 export async function writeStored(s: Stored): Promise<void> {
-  await writeFile(file(), JSON.stringify(s, null, 1));
+  await atomicWrite(file(), new TextEncoder().encode(JSON.stringify(s, null, 1)));
 }
 
 export const mcpUrl = (port: number): string => `http://127.0.0.1:${port}/mcp`;

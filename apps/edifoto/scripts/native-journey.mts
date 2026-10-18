@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "playwright";
+import { z } from "zod";
 import { windowsPowerShellEnvironment } from "../../../packages/edi-desktop/src/windows-powershell.ts";
 import { decodeArchive } from "../src/shared/documentFormat.ts";
 
@@ -15,6 +16,37 @@ export async function verifyFotoNativeJourney(
   results: string,
 ): Promise<void> {
   editor.setDefaultTimeout(15000);
+  const preferences: unknown = await editor.evaluate(async () => {
+    const bridge: unknown = Reflect.get(window, "api");
+    if (
+      !bridge ||
+      typeof bridge !== "object" ||
+      !("saveAiSettings" in bridge) ||
+      !("aiSettings" in bridge)
+    )
+      throw new Error("Missing AI preferences bridge");
+    const save = bridge.saveAiSettings,
+      read = bridge.aiSettings;
+    if (typeof save !== "function" || typeof read !== "function")
+      throw new Error("Invalid preferences bridge");
+    try {
+      await Promise.all([
+        Reflect.apply(save, bridge, [{ confirmDeletes: false }]),
+        Reflect.apply(save, bridge, [{ allowFileWrites: true }]),
+      ]);
+      const result: unknown = await Reflect.apply(read, bridge, []);
+      return result;
+    } finally {
+      await Reflect.apply(save, bridge, [{ confirmDeletes: true, allowFileWrites: false }]);
+    }
+  });
+  const verified = z
+    .object({ confirmDeletes: z.boolean(), allowFileWrites: z.boolean() })
+    .parse(preferences);
+  assert.equal(verified.confirmDeletes, false);
+  assert.equal(verified.allowFileWrites, true);
+  console.log("Verified concurrent personal AI settings preserve independent choices");
+
   console.log("EdiFoto native: create, save and cancel");
   const pid = await application.evaluate(() => process.pid),
     destination = join(root, "edifoto-test-project.edifoto"),

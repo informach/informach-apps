@@ -255,7 +255,13 @@ function stopAssistantRun(runId: string): void {
   stopEngineRun(run.conversationId);
 }
 
-async function applyMcp(): Promise<void> {
+let mcpQueue: Promise<void> = Promise.resolve();
+function applyMcp(): Promise<void> {
+  const pending = mcpQueue.then(synchronizeMcp);
+  mcpQueue = pending.catch(() => {});
+  return pending;
+}
+async function synchronizeMcp(): Promise<void> {
   const stored = await readStored();
   const enabled = stored.mcpEnabled ?? true;
   const port =
@@ -308,14 +314,19 @@ async function aiView(): Promise<AiSettingsView> {
   };
 }
 
+let settingsQueue: Promise<unknown> = Promise.resolve();
 function registerAiIpc(): void {
   ipcMain.handle("ai:settings", () => aiView());
-  ipcMain.handle("ai:saveSettings", async (_e, changes: AiSettingsChanges) => {
-    const stored = await readStored();
+  ipcMain.handle("ai:saveSettings", (_e, changes: AiSettingsChanges) => {
     const valid = personalAiChanges.parse(changes);
-    await writeStored({ ...stored, ...valid });
-    await applyMcp();
-    return aiView();
+    const pending = settingsQueue.then(async () => {
+      const stored = await readStored();
+      await writeStored({ ...stored, ...valid });
+      await applyMcp();
+      return aiView();
+    });
+    settingsQueue = pending.catch(() => {});
+    return pending;
   });
   ipcMain.handle("ai:clients", () => clientStatus(mcp.port));
   ipcMain.handle("ai:connect", (_e, id: AiClientId) =>
