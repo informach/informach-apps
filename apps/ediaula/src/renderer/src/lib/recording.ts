@@ -10,6 +10,7 @@ import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
 import { activePalette } from "./palettes";
 import { showProposal } from "./proposals";
+import { recorderKey } from "./recorderKeys";
 import { recordingImported } from "./recordingHooks";
 import { scriptDoc } from "./script";
 
@@ -63,16 +64,20 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   const screens = r.screen
     ? [{ path: r.screen, at: 0, duration: r.duration, cursor: r.cursor }]
     : (r.screenParts ?? []);
-  const cameraFiles = [...new Set((r.cameraParts ?? []).map((p) => p.path))];
-  const assets = await importMedia(
-    [
-      ...screens.map((s) => s.path),
-      ...cameraFiles,
-      r.microphone,
-      r.systemAudio,
-      r.narration,
-    ].filter((path): path is string => !!path),
-  );
+  const files = (list: { path: string }[] | undefined): string[] => [
+    ...new Set((list ?? []).map((p) => p.path)),
+  ];
+  const cameraFiles = files(r.cameraParts);
+  const micFiles = r.microphone ? [r.microphone] : files(r.microphoneParts);
+  const systemFiles = r.systemAudio ? [r.systemAudio] : files(r.systemParts);
+  const wanted = [
+    ...screens.map((s) => s.path),
+    ...cameraFiles,
+    ...micFiles,
+    ...systemFiles,
+    ...(r.narration ? [r.narration] : []),
+  ];
+  const assets = await importMedia(wanted);
   const byPath = (path: string | undefined): Asset | undefined =>
     path ? assets.find((a) => a.path.toLowerCase() === path.toLowerCase()) : undefined;
   const when = stamp();
@@ -95,9 +100,15 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     if (asset) patchAsset(asset.id, { name: `Câmera ${when}` });
   }
   const mic = byPath(r.microphone);
-  if (mic) patchAsset(mic.id, { name: `Voz ${when}` });
+  for (const path of micFiles) {
+    const asset = byPath(path);
+    if (asset) patchAsset(asset.id, { name: `Voz ${when}` });
+  }
   const system = byPath(r.systemAudio);
-  if (system) patchAsset(system.id, { name: `Áudio do PC ${when}` });
+  for (const path of systemFiles) {
+    const asset = byPath(path);
+    if (asset) patchAsset(asset.id, { name: `Áudio do PC ${when}` });
+  }
 
   let layout: RecordingLayout | undefined;
   useProject.getState().commit((p) => {
@@ -136,10 +147,20 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   });
   for (const error of failures)
     toast(`Depois da gravação: ${error instanceof Error ? error.message : String(error)}`, "error");
+  // Only a take whose every file came in, in a project that was saved, is not offered again.
+  if (wanted.every((path) => byPath(path)) && (await useProject.getState().saveNow()))
+    await window.api.recorder
+      .imported(r.dir)
+      .catch((error: unknown) =>
+        toast(
+          `A gravação entrou no projeto, mas a pasta dela vai aparecer de novo ao abrir: ${(error as Error).message}`,
+          "info",
+        ),
+      );
 }
 
 /**
- * Ctrl+Shift+R presses become a cut proposal once the voice's audio envelope is ready: each kept
+ * Redo presses (Ctrl+Shift+R by default) become a cut proposal once the voice's audio envelope is ready: each kept
  * stretch of the take gets the cuts of the presses inside it.
  */
 async function proposeRetakes(
@@ -172,11 +193,11 @@ async function proposeRetakes(
   if (!cuts.length) return;
   const msg = await showProposal(
     p,
-    "Trechos para refazer (Ctrl+Shift+R)",
+    `Trechos para refazer (${recorderKey("retake")})`,
     cuts.map(([start, end]) => ({
       start,
       end,
-      reason: "marcado com Ctrl+Shift+R durante a gravação",
+      reason: `marcado com ${recorderKey("retake")} durante a gravação`,
     })),
     revision,
     "gravacao",

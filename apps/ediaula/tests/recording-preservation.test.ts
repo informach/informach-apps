@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { appendFileSync, existsSync, readdirSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
@@ -9,7 +10,10 @@ import { withStagedFiles } from "@informach/edi-desktop/files";
 import { createDesktopJobs, JOB_PRESERVATION_MS } from "@informach/edi-desktop/jobs";
 import { FRAGMENTED_MP4 } from "../src/shared/captureArgs.ts";
 import type { CaptureMonitor, RecorderEvent } from "../src/shared/recording.ts";
+import { layoutRecording } from "../src/shared/recordingImport.ts";
 import { JOURNAL_FILE, replayJournal } from "../src/shared/recordingJournal.ts";
+import { timelineAt } from "../src/shared/timeline.ts";
+import type { Asset } from "../src/shared/types.ts";
 
 const root = await mkdtemp(join(tmpdir(), "ediaula-recording-preservation-"));
 // Synthetic cursor helper: the hook protocol on the same clock, with heartbeats, until stdin ends.
@@ -85,7 +89,8 @@ export function spawn(bin, args, options) {
   if (mic >= 0) {
     kind = 'mic';
     const dshow = args.lastIndexOf('dshow', mic);
-    args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000', ...args.slice(mic + 1)];
+    const tone = globalThis.ediBreakMic ? 'missing_edi_mic_source' : 'sine=frequency=440:sample_rate=48000';
+    args = [...args.slice(0, dshow - 1), '-re', '-f', 'lavfi', '-i', tone, ...args.slice(mic + 1)];
   }
   const child = nativeSpawn(bin, args, options);
   if (kind) (globalThis.ediCaptures ??= []).push({ kind, child });
@@ -107,6 +112,8 @@ const hooks = registerHooks({
 const recorder = await import("../src/main/recorder.ts");
 const { FFMPEG, probe, run } = await import("../src/main/ffmpeg.ts");
 const { qpc } = await import("../src/main/nativeHelper.ts");
+const { RecordingSession } = await import("../src/main/recording/session.ts");
+const { finalizeTake } = await import("../src/main/recording/finalize.ts");
 hooks.deregister();
 after(async () => {
   try {
@@ -405,7 +412,9 @@ test("a take left behind by a crash is found, recovered with cursor data v2 and 
   assert.deepEqual(cursor.clicks, [[1, 10, 20, 0, 0.1]]);
   assert.deepEqual(result.markers, [{ t: 1.5, kind: "marker" }]);
   assert.match(result.warnings?.join(" ") ?? "", /interrompida/);
-  // Finalized: not offered again.
+  // Finalized now, but offered until the editor imports it; then not any more.
+  assert.equal((await recorder.orphans()).find((o) => o.dir === dir)?.finalized, true);
+  await recorder.markImported(dir);
   assert.equal(
     (await recorder.orphans()).some((o) => o.dir === dir),
     false,
@@ -440,6 +449,304 @@ test("discarding a take throws its folder away and leaves the recorder ready", a
   assert.deepEqual(thrown, [dir]);
   assert.equal(recorder.isRecording(), false);
   await assert.rejects(stat(dir));
+});
+
+const live = (kind: "screen" | "mic", from: number): number =>
+  captures()
+    .slice(from)
+    .filter(
+      (c) =>
+        c.kind === kind &&
+        (c.child as unknown as { exitCode: number | null; signalCode: string | null }).exitCode ===
+          null &&
+        (c.child as unknown as { signalCode: string | null }).signalCode === null,
+    ).length;
+const until = async (ok: () => boolean, ms = 5000): Promise<void> => {
+  for (let waited = 0; !ok() && waited < ms; waited += 50) await wait(50);
+};
+
+test("resuming after a partial failure never leaves two screens recording", async () => {
+  const before = captures().length;
+  await recorder.prepare({ monitor: 0, fps: 30, microphone: "Fake Mic" }, [monitor]);
+  await recorder.start();
+  await wait(2500);
+  for (const c of captures().slice(before)) c.child.kill("SIGKILL");
+  await until(() => recorder.status().failed.length === 2);
+  assert.deepEqual([...recorder.status().failed].sort(), ["mic", "screen"]);
+  // The screen opens, the microphone does not: the take stays paused, with no screen left over.
+  Object.assign(globalThis, { ediBreakMic: true });
+  try {
+    await assert.rejects(recorder.resume(), /retomar/);
+  } finally {
+    Object.assign(globalThis, { ediBreakMic: false });
+  }
+  await until(() => live("screen", before) === 0);
+  assert.equal(live("screen", before), 0);
+  assert.equal(recorder.status().phase, "failed");
+  // Trying again opens one of each.
+  await recorder.resume();
+  assert.equal(recorder.status().phase, "recording");
+  assert.equal(live("screen", before), 1);
+  assert.equal(live("mic", before), 1);
+  await wait(2500);
+  assert.equal(live("screen", before), 1);
+  const saved = await recorder.stop();
+  assert.ok(saved.screen && (await probe(saved.screen)).hasVideo);
+  assert.ok(saved.microphone);
+});
+
+test("the take recording now is never offered as interrupted", async () => {
+  await recorder.prepare({ monitor: 0, fps: 30 }, [monitor]);
+  await recorder.start();
+  await wait(500);
+  const dir = recorder.activeDir();
+  assert.ok(dir);
+  assert.equal(
+    (await recorder.orphans()).some((o) => o.dir === dir),
+    false,
+  );
+  await assert.rejects(recorder.recoverOrphan(dir), /não é uma gravação interrompida/);
+  await recorder.stop();
+});
+
+test("cancelling while the take is being prepared leaves nothing behind", async () => {
+  const folders = (): string[] => readdirSync(recorder.recordingsDir());
+  const before = folders();
+  const preparing = recorder.prepare({ monitor: 0, fps: 30 }, [monitor]);
+  assert.equal(recorder.isPreparing(), true);
+  await recorder.cancel();
+  await assert.rejects(preparing, /cancelada/);
+  assert.equal(recorder.isRecording(), false);
+  assert.equal(recorder.status().phase, null);
+  assert.deepEqual(folders(), before);
+  // A take prepared and never started gives way to the next one.
+  await recorder.prepare({ monitor: 0, fps: 30 }, [monitor]);
+  const first = recorder.activeDir();
+  await recorder.prepare({ monitor: 0, fps: 30, keys: true }, [monitor]);
+  assert.notEqual(recorder.activeDir(), first);
+  assert.equal(first && existsSync(first), false);
+  await recorder.cancel();
+  assert.deepEqual(folders(), before);
+});
+
+test("a journal that cannot be written does not stop the take, nor its stop", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-journal-fails-"));
+  let lines = 0;
+  const session = new RecordingSession({
+    opts: { fps: 30, microphone: "Fake Mic" },
+    monitor: null,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder: null,
+    hook: null,
+    // The first lines reach the file; from the first part's start on, the disk refuses.
+    journalWriter: {
+      write: (text) => {
+        if (++lines > 2) throw Object.assign(new Error("EIO: falha de escrita"), { code: "EIO" });
+        appendFileSync(join(dir, JOURNAL_FILE), text);
+      },
+      sync: () => undefined,
+      close: () => undefined,
+    },
+  });
+  const events: RecorderEvent[] = [];
+  session.on("event", (e) => events.push(e));
+  try {
+    await session.start();
+    await wait(1200);
+    const saved = await session.stop();
+    assert.ok(saved.microphone);
+    assert.match(saved.warnings?.join("\n") ?? "", /diário da gravação não pôde ser gravado/);
+    assert.equal(events.filter((e) => /diário/.test(e.message)).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a part that cannot be removed after `finalized` is only a warning: the take is kept", async () => {
+  const dir = join(recorder.recordingsDir(), "2026-10-18 09-00-00-busy");
+  await mkdir(dir, { recursive: true });
+  await run(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:sample_rate=48000:duration=2",
+    "-c:a",
+    "aac",
+    ...FRAGMENTED_MP4,
+    "-f",
+    "mp4",
+    join(dir, "microfone-0.m4a"),
+  ]);
+  const q = qpc();
+  const begin = {
+    k: "begin",
+    v: 1,
+    at: Date.now(),
+    qpc: q - 100,
+    fps: 30,
+    monitor: null,
+    region: null,
+    encoder: null,
+    sources: { screen: false, microphone: "Mic", camera: null, system: false, keys: false },
+  };
+  await writeFile(
+    join(dir, JOURNAL_FILE),
+    `${[
+      begin,
+      { k: "first", src: "mic", part: 0, qpc: q, file: "microfone-0.m4a" },
+      { k: "stop", qpc: q + 5000 },
+    ]
+      .map((l) => JSON.stringify(l))
+      .join("\n")}\n`,
+  );
+  const result = await finalizeTake({
+    dir,
+    remove: async () => {
+      throw Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" });
+    },
+  });
+  assert.ok(result.microphone);
+  assert.match(result.warnings?.join(" ") ?? "", /Não consegui apagar partes já copiadas.*EBUSY/);
+  assert.equal(existsSync(join(dir, "microfone-0.m4a")), true);
+  const replay = replayJournal(await readFile(join(dir, JOURNAL_FILE), "utf8"));
+  assert.equal(replay.finalized, true);
+  // Finished and never imported: offered again, to import as it is.
+  const offered = (await recorder.orphans()).find((o) => o.dir === dir);
+  assert.equal(offered?.finalized, true);
+  assert.equal((await recorder.recoverOrphan(dir)).microphone, result.microphone);
+  await recorder.markImported(dir);
+  assert.equal(
+    (await recorder.orphans()).some((o) => o.dir === dir),
+    false,
+  );
+});
+
+/** First moment (s) a decoded stream goes over `limit`: luma of 16×16 frames, or 8 kHz samples. */
+async function onset(path: string, kind: "video" | "audio"): Promise<number> {
+  const chunks: Buffer[] = [];
+  await run(
+    FFMPEG,
+    kind === "video"
+      ? ["-v", "error", "-i", path, "-vf", "scale=16:16,format=gray", "-f", "rawvideo", "-"]
+      : ["-v", "error", "-i", path, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"],
+    { onStdout: (chunk) => chunks.push(chunk) },
+  );
+  const data = Buffer.concat(chunks);
+  if (kind === "video") {
+    for (let f = 0; (f + 1) * 256 <= data.length; f++) {
+      let sum = 0;
+      for (let i = 0; i < 256; i++) sum += data[f * 256 + i];
+      if (sum / 256 > 128) return f / 30;
+    }
+  } else
+    for (let i = 0; i + 1 < data.length; i += 2)
+      if (Math.abs(data.readInt16LE(i)) > 3000) return i / 2 / 8000;
+  return Number.NaN;
+}
+
+test("a flash and a beep made at the same instant land on the same frame after import", async () => {
+  const dir = join(recorder.recordingsDir(), "2026-10-18 10-00-00-sync");
+  await mkdir(dir, { recursive: true });
+  // The screen turns white 2.0 s into its part; the microphone, which started 0.3 s later,
+  // beeps 1.7 s into its own: the same instant on the shared clock.
+  await run(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=black:s=320x240:r=30:d=3,drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='gte(t,2)'",
+    "-c:v",
+    "libx264",
+    "-g",
+    "30",
+    "-bf",
+    "0",
+    ...FRAGMENTED_MP4,
+    "-f",
+    "mp4",
+    join(dir, "tela-0.mp4"),
+  ]);
+  await run(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "aevalsrc='if(gte(t,1.7),0.5*sin(2*PI*1000*t),0)':s=48000:d=3",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "256k",
+    ...FRAGMENTED_MP4,
+    "-f",
+    "mp4",
+    join(dir, "microfone-0.m4a"),
+  ]);
+  const q = qpc();
+  const lines = [
+    {
+      k: "begin",
+      v: 1,
+      at: Date.now(),
+      qpc: q - 500,
+      fps: 30,
+      monitor: { x: 0, y: 0, width: 320, height: 240 },
+      region: null,
+      encoder: "CPU (x264)",
+      sources: { screen: true, microphone: "Mic", camera: null, system: false, keys: false },
+    },
+    { k: "first", src: "screen", part: 0, qpc: q, file: "tela-0.mp4" },
+    { k: "first", src: "mic", part: 0, qpc: q + 300, file: "microfone-0.m4a" },
+    // Paused from 0.5 s to 1.0 s of the take: the import cuts it from both.
+    { k: "pause", qpc: q + 500 },
+    { k: "resume", qpc: q + 1000 },
+    { k: "stop", qpc: q + 3000 },
+  ];
+  await writeFile(join(dir, JOURNAL_FILE), `${lines.map((l) => JSON.stringify(l)).join("\n")}\n`);
+  const result = await finalizeTake({ dir });
+  assert.ok(result.screen && result.microphone);
+  const flash = await onset(result.screen, "video");
+  const beep = await onset(result.microphone, "audio");
+  assert.ok(Math.abs(flash - 2) < 1 / 30 + 1e-6, `flash at ${flash} s`);
+  assert.ok(Math.abs(beep - flash) < 1 / 30, `beep at ${beep} s, flash at ${flash} s`);
+  // On the timeline, after the pause was cut.
+  const asset = (id: string, path: string, kind: Asset["kind"], duration: number): Asset => ({
+    id,
+    name: id,
+    path,
+    kind,
+    duration,
+    width: 320,
+    height: 240,
+    fps: 30,
+    hasVideo: kind === "video",
+    hasAudio: kind === "audio",
+    size: 1,
+    proxyStatus: "none",
+  });
+  const layout = layoutRecording(
+    { tracks: [], clips: [] },
+    [
+      asset("screen", result.screen, "video", (await probe(result.screen)).duration),
+      asset("mic", result.microphone, "audio", (await probe(result.microphone)).duration),
+    ],
+    result,
+  );
+  const clipAt = (assetId: string, src: number) =>
+    layout.placed.find((c) => c.assetId === assetId && src >= c.in && src < c.in + c.duration);
+  const screenClip = clipAt("screen", flash);
+  const voiceClip = clipAt("mic", beep);
+  assert.ok(screenClip && voiceClip);
+  const onTimeline = { flash: timelineAt(screenClip, flash), beep: timelineAt(voiceClip, beep) };
+  assert.ok(Math.abs(onTimeline.flash - 1.5) < 1 / 30 + 1e-6, `flash at ${onTimeline.flash}`);
+  assert.ok(Math.abs(onTimeline.beep - onTimeline.flash) < 1 / 30, JSON.stringify(onTimeline));
 });
 
 test("a hardware encoder that passed the probe but fails to record gives way to the next path", async (context) => {

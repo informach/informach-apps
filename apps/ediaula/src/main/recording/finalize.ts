@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { open, readFile, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { open, readFile, rename, rm, stat, statfs } from "node:fs/promises";
+import { basename, join } from "node:path";
 import {
   type CaptureSegment,
   insideSegments,
@@ -39,8 +39,10 @@ import { qpc } from "../nativeHelper.ts";
  * 3. The microphone and the computer's sound are cut to what each screen part covers, with
  *    silence where they have nothing, so their second 0 is the screen's.
  * 4. The camera is placed as recorded, without re-encoding.
- * 5. The cursor data (version 2) and gravacao.json are written, then `finalized` in the journal,
- *    and only then the parts that were copied are removed.
+ * 5. Every file written is checked against the length it should have and flushed to the disk;
+ *    the cursor data (version 2) and gravacao.json are written, then `finalized` in the journal,
+ *    and only then the parts that were copied are removed. From that line on nothing throws: a
+ *    part that cannot be removed only costs disk space, and the take is not lost over it.
  */
 
 export interface FinalizeInput {
@@ -52,12 +54,23 @@ export interface FinalizeInput {
   warnings?: readonly string[];
   /** Part files whose process did not end cleanly, or "all" after a crash. */
   suspect?: ReadonlySet<string> | "all";
+  /** Removes a part that is no longer needed (rm with retries; tests make it fail). */
+  remove?: (path: string) => Promise<void>;
 }
 
 /** Free space needed to join the parts, against their size. */
 const JOIN_ROOM = 1.1;
-/** The computer's sound is stretched back to the wall clock when it drifted more than this. */
-const DRIFT_LIMIT = 0.01;
+/**
+ * The computer's sound is stretched back to the wall clock when it drifted more than both of
+ * these: a relative drift (its clock against the wall) and an amount worth correcting.
+ */
+const DRIFT_RELATIVE = 0.001;
+const DRIFT_ABSOLUTE = 0.05;
+/** Seconds a file written here may differ from what it should hold before its parts are kept. */
+const LENGTH_TOLERANCE = 0.25;
+
+const removePart = (path: string): Promise<void> =>
+  rm(path, { force: true, maxRetries: 5, retryDelay: 200 });
 
 interface Measured extends JournalPart {
   path: string;
@@ -78,7 +91,8 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
   if (!segments.length) throw new Error("Nada foi gravado.");
   const offsets = segmentOffsets(segments);
   const duration = segments.reduce((sum, g) => sum + g.duration, 0);
-  const superseded: string[] = [];
+  /** Files written here, what they should hold, and the parts they replace once they do. */
+  const outputs: { path: string; expected: number; parts: string[]; label: string }[] = [];
 
   // Screen.
   let screen: string | undefined;
@@ -87,7 +101,13 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     const joined = await joinScreen(dir, parts.screen);
     if (joined.file) {
       screen = joined.file;
-      if (joined.copied) superseded.push(...parts.screen.map((p) => p.path));
+      if (joined.copied)
+        outputs.push({
+          path: joined.file,
+          expected: parts.screen.reduce((sum, p) => sum + p.duration, 0),
+          parts: parts.screen.map((p) => p.path),
+          label: "O vídeo da tela",
+        });
     } else {
       screenParts = parts.screen;
       warnings.push(
@@ -96,20 +116,36 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     }
   }
 
-  // Microphone and the computer's sound, on the take's clock.
+  // Microphone and the computer's sound, on the take's clock, when the disk has room to write
+  // them again; otherwise they stay in parts, placed like the camera.
   let microphone: string | undefined;
+  let microphoneParts: RecordingPiece[] | undefined;
   if (parts.mic.length) {
-    microphone = join(dir, "microfone.m4a");
-    await alignAudio(parts.mic, segments, microphone);
-    superseded.push(...parts.mic.map((p) => p.path));
+    if (await roomFor(dir, parts.mic)) {
+      microphone = join(dir, "microfone.m4a");
+      await alignAudio(parts.mic, segments, microphone);
+      outputs.push({
+        path: microphone,
+        expected: duration,
+        parts: parts.mic.map((p) => p.path),
+        label: "O som do microfone",
+      });
+    } else {
+      microphoneParts = placeParts(parts.mic, segments, offsets);
+      warnings.push(
+        "Faltou espaço para alinhar o microfone: ele ficou nas partes em que foi gravado.",
+      );
+    }
   }
   let systemAudio: string | undefined;
+  let systemParts: RecordingPiece[] | undefined;
   const system = parts.system[0];
   if (system) {
     const expected = system.end !== undefined ? (system.end - system.qpc) / 1000 : null;
     let tempo: number | undefined;
     let length = system.duration;
-    if (expected && expected > 1 && Math.abs(system.duration - expected) > DRIFT_LIMIT) {
+    const drift = expected ? Math.abs(system.duration - expected) : 0;
+    if (expected && expected > 1 && drift > DRIFT_ABSOLUTE && drift / expected > DRIFT_RELATIVE) {
       const ratio = system.duration / expected;
       if (ratio > 0.9 && ratio < 1.1) {
         tempo = ratio;
@@ -117,25 +153,23 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
       } else
         warnings.push("O áudio do PC tem uma duração que não confere; ele foi mantido sem ajuste.");
     }
-    systemAudio = join(dir, "sistema.m4a");
-    await alignAudio([{ ...system, duration: length }], segments, systemAudio, tempo);
-    superseded.push(system.path);
+    if (await roomFor(dir, [system])) {
+      systemAudio = join(dir, "sistema.m4a");
+      await alignAudio([{ ...system, duration: length }], segments, systemAudio, tempo);
+      outputs.push({
+        path: systemAudio,
+        expected: duration,
+        parts: [system.path],
+        label: "O áudio do PC",
+      });
+    } else {
+      systemParts = placeParts([system], segments, offsets);
+      warnings.push("Faltou espaço para alinhar o áudio do PC: ele ficou como foi gravado.");
+    }
   }
 
   // Camera files as recorded, placed on the take's clock.
-  const cameraParts: RecordingPiece[] = [];
-  for (const c of parts.camera)
-    segments.forEach((g, i) => {
-      const a = Math.max(c.qpc, g.start);
-      const b = Math.min(c.qpc + c.duration * 1000, g.start + g.duration * 1000);
-      if (b - a < 50) return;
-      cameraParts.push({
-        path: c.path,
-        at: round(offsets[i] + (a - g.start) / 1000),
-        in: round((a - c.qpc) / 1000),
-        duration: round((b - a) / 1000),
-      });
-    });
+  const cameraParts = placeParts(parts.camera, segments, offsets);
 
   // Cursor data.
   let cursor: string | undefined;
@@ -168,9 +202,34 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     await pruneHelperJournal(dir, journal, segments);
   }
 
+  // A file that does not hold what it should keeps its parts, and is flushed to the disk.
+  const superseded: string[] = [];
+  for (const output of outputs) {
+    const held = await probe(output.path).then(
+      (info) => info.duration,
+      () => Number.NaN,
+    );
+    if (Math.abs(held - output.expected) <= LENGTH_TOLERANCE) superseded.push(...output.parts);
+    else
+      warnings.push(
+        `${output.label} ficou com ${Number.isFinite(held) ? `${held.toFixed(2)} s` : "duração ilegível"} em vez de ${output.expected.toFixed(2)} s; as partes originais foram mantidas.`,
+      );
+    await syncFile(output.path);
+  }
+
   const narration =
     replay.narration && existsSync(join(dir, replay.narration.file))
-      ? { narration: join(dir, replay.narration.file), narrationOffset: replay.narration.offset }
+      ? {
+          narration: join(dir, replay.narration.file),
+          // The recorder counted from its first estimate of the first frame; the take starts
+          // at the final one.
+          narrationOffset: round(
+            replay.narration.offset +
+              (replay.narration.origin !== undefined
+                ? (replay.narration.origin - parts[reference][0].qpc) / 1000
+                : 0),
+          ),
+        }
       : {};
   const lines = replay.lines.map((l) => ({ t: momentInTake(segments, l.qpc), index: l.index }));
   const result: RecordingResult = {
@@ -189,7 +248,9 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
         }
       : {}),
     ...(microphone ? { microphone } : {}),
+    ...(microphoneParts?.length ? { microphoneParts } : {}),
     ...(systemAudio ? { systemAudio } : {}),
+    ...(systemParts?.length ? { systemParts } : {}),
     ...(cameraParts.length ? { cameraParts } : {}),
     ...narration,
     duration: round(duration),
@@ -198,21 +259,80 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     ...(lines.length ? { lines } : {}),
     ...(input.cursorIssues?.length ? { cursorIssues: [...input.cursorIssues] } : {}),
     ...(input.encoderIssues?.length ? { encoderIssues: [...input.encoderIssues] } : {}),
-    ...(warnings.length ? { warnings } : {}),
+    ...(warnings.length ? { warnings: [...warnings] } : {}),
   };
   await writeAtomic(join(dir, RESULT_FILE), JSON.stringify(result, null, 2));
   await appendDurable(join(dir, JOURNAL_FILE), JSON.stringify({ k: "finalized", qpc: qpc() }));
-  // Only now: until the line above, finalizing again needs every part.
-  for (const path of superseded) await rm(path, { force: true });
+  // Only now (until the line above, finalizing again needs every part), and nothing from here
+  // on may throw: the take is done.
+  const remove = input.remove ?? removePart;
+  const left: string[] = [];
+  for (const path of superseded)
+    try {
+      await remove(path);
+    } catch (error) {
+      left.push(`${basename(path)} (${error instanceof Error ? error.message : String(error)})`);
+    }
+  if (left.length)
+    result.warnings = [
+      ...(result.warnings ?? []),
+      `Não consegui apagar partes já copiadas, que seguem ocupando espaço na pasta: ${left.join(", ")}.`,
+    ];
   return result;
+}
+
+/** Parts placed on the take's clock as they are (the camera, or sound without room to redo it). */
+function placeParts(
+  parts: readonly Measured[],
+  segments: readonly CaptureSegment[],
+  offsets: readonly number[],
+): RecordingPiece[] {
+  const placed: RecordingPiece[] = [];
+  for (const c of parts)
+    segments.forEach((g, i) => {
+      const a = Math.max(c.qpc, g.start);
+      const b = Math.min(c.qpc + c.duration * 1000, g.start + g.duration * 1000);
+      if (b - a < 50) return;
+      placed.push({
+        path: c.path,
+        at: round(offsets[i] + (a - g.start) / 1000),
+        in: round((a - c.qpc) / 1000),
+        duration: round((b - a) / 1000),
+      });
+    });
+  return placed;
+}
+
+/** The disk has room to write these parts again (they shrink little when re-encoded). */
+async function roomFor(dir: string, parts: readonly Measured[]): Promise<boolean> {
+  let size = 0;
+  for (const p of parts) size += (await stat(p.path)).size;
+  return (await freeSpace(dir)) >= size * 1.1 + 5 * 1024 ** 2;
 }
 
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 
+/** Written whole, flushed to the disk and renamed into place. */
 async function writeAtomic(path: string, text: string): Promise<void> {
   const partial = `${path}.partial`;
-  await writeFile(partial, text);
+  const file = await open(partial, "w");
+  try {
+    await file.writeFile(text);
+    await file.sync();
+  } finally {
+    await file.close();
+  }
   await rename(partial, path);
+}
+
+/** Waits for a file's bytes to reach the disk. */
+async function syncFile(path: string): Promise<void> {
+  const file = await open(path, "r+");
+  try {
+    await file.sync();
+  } finally {
+    await file.close();
+  }
 }
 
 /** Appends one line and waits for it to reach the disk. */

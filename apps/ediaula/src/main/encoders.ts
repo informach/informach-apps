@@ -37,7 +37,7 @@ import { qpc } from "./nativeHelper.ts";
  * failed in a real recording is left out until the key changes.
  */
 
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const FALLBACK_RECHECK_MS = 24 * 60 * 60 * 1000;
 const PROBE_SECONDS = 3;
 /** Test frames for the colour measurement carry the same tags as Desktop Duplication's. */

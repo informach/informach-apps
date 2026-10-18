@@ -1,6 +1,6 @@
 import { clipEnd, newId } from "./clipTime.ts";
 import type { Transform } from "./compose.ts";
-import type { RecordingResult } from "./recording.ts";
+import type { RecordingPiece, RecordingResult } from "./recording.ts";
 import { keptRanges } from "./recordingJournal.ts";
 import type { Asset, Clip, Project, RecordingRole, Track } from "./types.ts";
 
@@ -83,12 +83,16 @@ export function layoutRecording(
     const asset = find(p.path);
     return asset ? [{ ...p, asset }] : [];
   });
-  const cameras = (result.cameraParts ?? []).flatMap((p) => {
-    const asset = find(p.path);
-    return asset ? [{ ...p, asset }] : [];
-  });
+  const withAssets = (list: readonly RecordingPiece[] | undefined) =>
+    (list ?? []).flatMap((p) => {
+      const asset = find(p.path);
+      return asset ? [{ ...p, asset }] : [];
+    });
+  const cameras = withAssets(result.cameraParts);
   const mic = find(result.microphone);
+  const micParts = mic ? [] : withAssets(result.microphoneParts);
   const system = find(result.systemAudio);
+  const systemParts = system ? [] : withAssets(result.systemParts);
   const narration = find(result.narration);
 
   let tracks = [...project.tracks];
@@ -97,17 +101,23 @@ export function layoutRecording(
   const kept = keptRanges(result.pauses, result.duration);
   const duration = kept.reduce((sum, [a, b]) => sum + (b - a), 0);
 
-  const videoTracks = (): Track[] => tracks.filter((t) => t.kind === "video" && !t.locked);
-  let main = videoTracks().at(-1);
-  if (!main && screens.length) {
-    // Video tracks come before the audio ones.
+  // The main track is the bottom video track. When it is locked (or missing) the screen gets a
+  // track of its own below the others, after everything the lesson already has: a track above
+  // would cover the lesson, and a locked one must not change.
+  let main = tracks.filter((t) => t.kind === "video").at(-1);
+  let start = at;
+  if ((!main || main.locked) && screens.length) {
     main = newTrack("video", "Tela");
     const firstAudio = tracks.findIndex((t) => t.kind === "audio");
     tracks.splice(firstAudio < 0 ? tracks.length : firstAudio, 0, main);
+    start ??= clips.reduce((last, c) => Math.max(last, clipEnd(c)), 0);
   }
+  if (main?.locked) main = undefined;
   const mainId = main?.id;
-  const start =
-    at ?? clips.reduce((last, c) => (c.trackId === mainId ? Math.max(last, clipEnd(c)) : last), 0);
+  start ??= clips.reduce(
+    (last, c) => (c.trackId === mainId ? Math.max(last, clipEnd(c)) : last),
+    0,
+  );
   const end = start + duration;
   const free = (track: Track): boolean =>
     !track.locked &&
@@ -130,8 +140,8 @@ export function layoutRecording(
     tracks = [...tracks, track];
     return track;
   };
-  const voiceTrack = mic ? audioTrack("Voz") : undefined;
-  const systemTrack = system ? audioTrack("Áudio do PC") : undefined;
+  const voiceTrack = mic || micParts.length ? audioTrack("Voz") : undefined;
+  const systemTrack = system || systemParts.length ? audioTrack("Áudio do PC") : undefined;
   const narrationTrack = narration ? audioTrack("Narração guiada") : undefined;
 
   const add = (clip: Omit<Clip, "id">): Clip | undefined => {
@@ -164,20 +174,34 @@ export function layoutRecording(
         });
         if (clip) piece.screen.push(clip);
       }
-    if (cameraTrack)
-      for (const c of cameras) {
+    /** Files placed on the take's clock as recorded (the camera, or sound kept in parts). */
+    const placeAll = (
+      list: readonly (RecordingPiece & { asset: Asset })[],
+      track: Track,
+      extra: (asset: Asset) => Pick<Clip, "volume" | "transform">,
+    ): void => {
+      for (const c of list) {
+        // A file without a known length (MediaRecorder's WebM) lasts as long as its piece.
+        const length = c.asset.duration > 0 ? c.asset.duration - c.in : c.duration;
         const a = Math.max(from, c.at);
-        const b = Math.min(to, c.at + c.duration, c.at + c.asset.duration - c.in);
+        const b = Math.min(to, c.at + c.duration, c.at + length);
         if (b - a < MIN) continue;
         add({
           assetId: c.asset.id,
-          trackId: cameraTrack.id,
+          trackId: track.id,
           ...place(a, b),
           in: c.in + (a - c.at),
-          volume: 0,
-          transform: options.cameraTransform?.(c.asset) ?? defaultCamera(),
+          ...extra(c.asset),
         });
       }
+    };
+    if (cameraTrack)
+      placeAll(cameras, cameraTrack, (asset) => ({
+        volume: 0,
+        transform: options.cameraTransform?.(asset) ?? defaultCamera(),
+      }));
+    if (voiceTrack) placeAll(micParts, voiceTrack, () => ({ volume: 1 }));
+    if (systemTrack) placeAll(systemParts, systemTrack, () => ({ volume: 0.8 }));
     // The microphone and the computer's sound start at the take's second 0.
     const sound = (asset: Asset, track: Track, volume: number): Clip | undefined => {
       const b = Math.min(to, asset.duration);
@@ -208,7 +232,9 @@ export function layoutRecording(
     ...screens.map((s) => ({ assetId: s.asset.id, role: "screen" as const })),
     ...cameras.map((c) => ({ assetId: c.asset.id, role: "camera" as const })),
     ...(mic ? [{ assetId: mic.id, role: "mic" as const }] : []),
+    ...micParts.map((c) => ({ assetId: c.asset.id, role: "mic" as const })),
     ...(system ? [{ assetId: system.id, role: "system" as const }] : []),
+    ...systemParts.map((c) => ({ assetId: c.asset.id, role: "system" as const })),
     ...(narration ? [{ assetId: narration.id, role: "narration" as const }] : []),
   ].filter((r, i, all) => all.findIndex((o) => o.assetId === r.assetId) === i);
 

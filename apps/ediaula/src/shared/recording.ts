@@ -70,7 +70,9 @@ export interface RecorderStatus {
   phase: RecorderPhase | null;
   /** Sources whose process stopped: the take is paused until they reopen. */
   failed: CaptureSource[];
-  /** A long pause closed the screen part; resuming opens a new one. */
+  /** The pause closed some sources (a long pause, a full disk); resuming opens new parts. */
+  closed: boolean;
+  /** Sources are opening again right now. */
   reopening: boolean;
   /** Editor window only: background work and the next export wait for the take. */
   holdBackground?: boolean;
@@ -198,8 +200,12 @@ export interface RecordingResult {
   screenParts?: (RecordingPiece & { cursor: string })[];
   /** The microphone, already lined up with the take: second 0 is the take's second 0. */
   microphone?: string;
-  /** The computer's sound, lined up the same way. */
+  /** The microphone as recorded, placed on the take's clock, when the disk had no room to line
+   *  it up. */
+  microphoneParts?: RecordingPiece[];
+  /** The computer's sound, lined up the same way (or in parts, likewise). */
   systemAudio?: string;
+  systemParts?: RecordingPiece[];
   /** Webcam files as recorded, placed on the take's clock. */
   cameraParts?: RecordingPiece[];
   /** The guided recording's narration, and where it starts in seconds of the take without the
@@ -220,7 +226,10 @@ export interface RecordingResult {
   warnings?: string[];
 }
 
-/** A take the app did not finish (the app or the computer went down), found at startup. */
+/**
+ * A take that never reached a project, found at startup: unfinished (the app or the computer
+ * went down, or finalizing failed), or finished and never imported.
+ */
 export interface OrphanTake {
   dir: string;
   name: string;
@@ -231,6 +240,8 @@ export interface OrphanTake {
   /** About how many seconds were recorded. */
   seconds: number;
   sources: ("screen" | "mic" | "camera" | "system")[];
+  /** Finished, only not imported: it opens as it is, with nothing to recover. */
+  finalized: boolean;
 }
 
 /**

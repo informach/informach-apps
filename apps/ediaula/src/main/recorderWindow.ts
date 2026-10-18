@@ -20,6 +20,7 @@ import {
   type HotkeyAction,
   type HotkeyReport,
   hotkeyConflicts,
+  hotkeyLabel,
   OPEN_HOTKEYS,
   parseAccelerator,
   REQUIRED_HOTKEYS,
@@ -123,9 +124,27 @@ function takeFiles(result: RecordingResult): string[] {
   return [...new Set(files)];
 }
 
-/** A finished take, readable by the editor. */
-export async function grantTake(result: RecordingResult): Promise<void> {
-  await desktopFiles.grantReadAll(takeFiles(result));
+/**
+ * A finished take, readable by the editor. A file that cannot be granted (it went missing)
+ * becomes a warning of the take: the rest still goes to the editor.
+ */
+export async function grantTake(result: RecordingResult): Promise<RecordingResult> {
+  const problems: string[] = [];
+  for (const path of takeFiles(result))
+    try {
+      await desktopFiles.grantRead(path);
+    } catch (error) {
+      problems.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  return problems.length
+    ? {
+        ...result,
+        warnings: [
+          ...(result.warnings ?? []),
+          `O editor não pôde abrir alguns arquivos da gravação: ${problems.join("; ")}.`,
+        ],
+      }
+    : result;
 }
 
 const dipRect = (m: CaptureMonitor): Electron.Rectangle =>
@@ -148,6 +167,47 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     guided = null;
   };
   const main = (): BrowserWindow | null => getMain();
+  /** Something the teacher has to know in the editor (a take that did not finish, a crash). */
+  const alertMain = (alert: { message: string; dir?: string; orphans?: boolean }): void => {
+    const w = main();
+    if (!w || w.isDestroyed()) return;
+    w.show();
+    w.webContents.send("recorder:alert", alert);
+  };
+  // The shortcuts shown anywhere (editor included) are the saved ones from the start.
+  const loadSettings = readRecorderSettings().then(
+    (loaded) => {
+      settings = loaded;
+    },
+    // Opening the recorder reads the file again and shows what went wrong.
+    (error: unknown) => console.error("[recorder] opções do gravador ilegíveis:", error),
+  );
+  /**
+   * Stops and hands the take to the editor, once per take whoever asks (the stop button, the
+   * window closing): one finalization and one recorder:done. When finalizing fails, the editor
+   * says so and offers the folder again.
+   */
+  let finishing: Promise<RecordingResult> | null = null;
+  const finishTake = (): Promise<RecordingResult> => {
+    if (finishing) return finishing;
+    const dir = rec.activeDir();
+    finishing = rec.stop().then(
+      async (result) => {
+        const granted = await grantTake(result);
+        main()?.webContents.send("recorder:done", granted);
+        return granted;
+      },
+      (error: unknown) => {
+        alertMain({
+          message: `A gravação não pôde ser finalizada: ${error instanceof Error ? error.message : String(error)}`,
+          ...(dir ? { dir } : {}),
+          orphans: true,
+        });
+        throw error;
+      },
+    );
+    return finishing;
+  };
 
   // ---- global shortcuts (shared/hotkeys.ts) ----
   /** Accelerators this module registered, by action. */
@@ -272,7 +332,9 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:open", async (_e, ctx: RecorderContext) => {
     context = ctx;
     if (overlay) return overlay.focus();
+    await loadSettings;
     settings = await readRecorderSettings();
+    finishing = null;
     const w = main();
     const display = w ? screen.getDisplayMatching(w.getBounds()) : screen.getPrimaryDisplay();
     overlay = new BrowserWindow({
@@ -312,24 +374,30 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       overlay = null;
       endGuided();
       // A take under way is saved (what the computer's sound already sent is on disk); one
-      // still in its countdown has nothing worth keeping.
-      if (rec.isRecording() && rec.status().phase !== "prepared")
-        void rec.stop().then(
-          async (result) => {
-            await grantTake(result);
-            main()?.webContents.send("recorder:done", result);
-          },
-          // The folder stays and is offered as an interrupted take next time.
-          (error: unknown) => console.error("[recorder] gravação não finalizada:", error),
-        );
-      else if (rec.isRecording()) void rec.cancel();
+      // still being prepared, or in its countdown, has nothing worth keeping.
+      if (rec.isPreparing() || rec.status().phase === "prepared") void rec.cancel();
+      else if (rec.isRecording())
+        // A failure has already reached the editor through finishTake.
+        finishTake().catch(() => undefined);
       close();
+    });
+    // The recorder's page died (not the app): what was recorded is kept, and the editor says so.
+    overlay.webContents.on("render-process-gone", (_e, details) => {
+      if (rec.isRecording() && rec.status().phase !== "prepared") void rec.preserve();
+      alertMain({
+        message: `A janela do gravador fechou de repente (${details.reason}). O que foi gravado está sendo salvo e entra no projeto.`,
+      });
+      const o = overlay;
+      if (o && !o.isDestroyed()) o.close();
     });
     registerHotkeys(OPEN_HOTKEYS);
     w?.hide();
   });
   ipcMain.handle("recorder:hotkeys", () => [...reports.values()]);
-  ipcMain.handle("recorder:settings", () => settings);
+  ipcMain.handle("recorder:settings", async () => {
+    await loadSettings;
+    return settings;
+  });
   ipcMain.handle("recorder:saveSettings", async (_e, value: unknown) => {
     const before = JSON.stringify([settings.hotkeys, settings.clicker]);
     settings = await writeRecorderSettings(value);
@@ -387,9 +455,14 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:orphans", () => rec.orphans());
   ipcMain.handle("recorder:recoverOrphan", async (_e, dir: unknown) => {
     const result = await rec.recoverOrphan(z.string().min(1).max(32768).parse(dir));
-    await grantTake(result);
-    return result;
+    return grantTake(result);
   });
+  /** The editor placed the take in a project: the journal says so and it is not offered again. */
+  ipcMain.handle("recorder:imported", (_e, dir: unknown) =>
+    rec.markImported(z.string().min(1).max(32768).parse(dir)),
+  );
+  /** F10 or "Parar": the take ends here; the computer's sound is then finished and sent. */
+  ipcMain.handle("recorder:halt", () => rec.preserve());
   ipcMain.handle("recorder:discardOrphan", async (_e, dir: unknown) => {
     const path = z.string().min(1).max(32768).parse(dir);
     if (!(await rec.isOrphan(path))) throw new Error("Essa pasta não é uma gravação interrompida.");
@@ -447,7 +520,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     browsing = true;
     overlay?.hide();
     try {
-      await openGuidedBrowser(url);
+      await openGuidedBrowser(url, hotkeyLabel(settings.hotkeys.guidedTarget));
     } catch (err) {
       browsing = false;
       overlay?.show();
@@ -558,10 +631,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     return { ...s, monitors, current: current?.index ?? null };
   });
   /** Tried in the background while the recorder is set up, not during the countdown. */
-  ipcMain.handle("recorder:encoder", async (_e, index: unknown) => {
+  ipcMain.handle("recorder:encoder", async (_e, index: unknown, fps: unknown) => {
     const monitor = monitors.find((m) => m.index === z.int().nonnegative().parse(index));
     if (!monitor) throw new Error("Tela não encontrada.");
-    return rec.encoderFor(monitor, settings.fps);
+    // The rate on screen now, not the one saved half a second from now.
+    return rec.encoderFor(monitor, z.union([z.literal(30), z.literal(60)]).parse(fps));
   });
   ipcMain.handle("recorder:moveTo", (_e, index: number) => {
     const m = monitors.find((x) => x.index === index);
@@ -672,14 +746,9 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:stop", async () => {
     endGuided();
     try {
-      const result = await rec.stop();
-      await grantTake(result);
+      return await finishTake();
+    } finally {
       close();
-      main()?.webContents.send("recorder:done", result);
-      return result;
-    } catch (err) {
-      close();
-      throw err;
     }
   });
 }

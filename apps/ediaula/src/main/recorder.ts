@@ -10,6 +10,7 @@ import {
   parseDshowOptions,
 } from "../shared/camera.ts";
 import { cameraOptionsArgs, METER_RATE, microphoneMeterArgs } from "../shared/captureArgs.ts";
+import { type DshowDevice, dshowName, parseDshowDevices } from "../shared/dshow.ts";
 import {
   type CaptureEncoder,
   type CaptureProfile,
@@ -31,6 +32,8 @@ import { detectCaptureEncoder, reportCaptureFailure } from "./encoders.ts";
 import { FFMPEG } from "./ffmpeg.ts";
 import { HookClient, listDisplays } from "./nativeHelper.ts";
 import {
+  isTake,
+  markTakeImported,
   isOrphan as orphanIn,
   recoverOrphan as recoverTake,
   scanOrphans,
@@ -52,11 +55,26 @@ export type RecorderMessage =
 const listeners = new Set<(message: RecorderMessage) => void>();
 let session: RecordingSession | null = null;
 let preparing: Promise<void> | null = null;
+/** Each prepare and each cancel moves this on; a prepare that finds it moved throws its take away. */
+let generation = 0;
+/** The stop of the last take, so asking twice gives one finalization and one answer. */
+let stopping: { session: RecordingSession; result: Promise<RecordingResult> } | null = null;
+/** DirectShow devices of the last listing, to open them by their alternative names. */
+let devices: { microphones: DshowDevice[]; cameras: DshowDevice[] } = {
+  microphones: [],
+  cameras: [],
+};
 
-const NO_SESSION: RecorderStatus = { phase: null, failed: [], reopening: false };
+const NO_SESSION: RecorderStatus = { phase: null, failed: [], closed: false, reopening: false };
 
+/** Every listener hears it; one that fails is reported and does not stop the take or the others. */
 function broadcast(message: RecorderMessage): void {
-  for (const listener of listeners) listener(message);
+  for (const listener of listeners)
+    try {
+      listener(message);
+    } catch (error) {
+      console.error(`[recorder] ${message.type} não entregue:`, error);
+    }
 }
 
 /** Status, events and health of every take from now on. */
@@ -66,26 +84,25 @@ export function subscribe(listener: (message: RecorderMessage) => void): () => v
 }
 
 export const isRecording = (): boolean => !!session;
+/** A take is being prepared (helper starting, encoder being tested). */
+export const isPreparing = (): boolean => !!preparing;
 export const status = (): RecorderStatus => session?.status() ?? NO_SESSION;
 /** Folder of the take being recorded, if any. */
 export const activeDir = (): string | undefined => session?.dir;
 
 async function listDevices(): Promise<{ microphones: string[]; cameras: string[] }> {
-  const text = await ffmpegListing([
-    "-hide_banner",
-    "-list_devices",
-    "true",
-    "-f",
-    "dshow",
-    "-i",
-    "dummy",
-  ]);
-  const microphones: string[] = [];
-  const cameras: string[] = [];
-  for (const m of text.matchAll(/"([^"]+)" \((audio|video)\)/g))
-    (m[2] === "audio" ? microphones : cameras).push(m[1]);
-  return { microphones, cameras };
+  devices = parseDshowDevices(
+    await ffmpegListing(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]),
+  );
+  return {
+    microphones: devices.microphones.map((d) => d.name),
+    cameras: devices.cameras.map((d) => d.name),
+  };
 }
+
+/** What FFmpeg opens for a device the teacher chose by its friendly name. */
+const deviceName = (kind: "audio" | "video", name: string): string =>
+  dshowName(kind === "audio" ? devices.microphones : devices.cameras, name);
 
 /** FFmpeg's listings go to stderr and end with an error exit; only the text matters. */
 function ffmpegListing(args: string[]): Promise<string> {
@@ -119,7 +136,9 @@ export async function cameraModes(
   device: string,
   fps = 30,
 ): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }> {
-  const modes = parseDshowOptions(await ffmpegListing(cameraOptionsArgs(device)));
+  const modes = parseDshowOptions(
+    await ffmpegListing(cameraOptionsArgs(deviceName("video", device))),
+  );
   return { modes, choice: chooseCameraMode(modes, fps) };
 }
 
@@ -163,7 +182,9 @@ let meter: ReturnType<typeof spawn> | null = null;
 export function monitorMic(device: string | null, onLevel: (level: MicLevel) => void): void {
   stopMicMonitor();
   if (!device || session) return;
-  const child = spawn(FFMPEG, microphoneMeterArgs(device), { windowsHide: true });
+  const child = spawn(FFMPEG, microphoneMeterArgs(deviceName("audio", device)), {
+    windowsHide: true,
+  });
   meter = child;
   const block = (METER_RATE * 2) / 10;
   let pending: Buffer[] = [];
@@ -204,13 +225,17 @@ export interface PrepareContext {
   keyFilter?: { vk: number; m: number }[];
 }
 
-/** Starts the cursor helper and settles the encoder ahead of time. */
+/**
+ * Starts the cursor helper and settles the encoder ahead of time. A take prepared earlier and
+ * never started gives way to this one; a take under way is not touched.
+ */
 export function prepare(
   opts: RecordOptions,
   monitors: CaptureMonitor[],
   context: PrepareContext = {},
 ): Promise<void> {
-  if (session) return Promise.resolve();
+  if (session && session.phase !== "prepared")
+    return Promise.reject(new Error("Uma gravação já está em andamento."));
   // Claimed before waiting, so a second prepare does not start another helper.
   preparing ??= prepareTake(opts, monitors, context).finally(() => {
     preparing = null;
@@ -223,6 +248,12 @@ async function prepareTake(
   monitors: CaptureMonitor[],
   context: PrepareContext,
 ): Promise<void> {
+  const old = session;
+  if (old) {
+    session = null;
+    await old.cancel();
+  }
+  const ticket = ++generation;
   stopMicMonitor();
   const monitor =
     opts.monitor === undefined ? null : (monitors.find((m) => m.index === opts.monitor) ?? null);
@@ -247,6 +278,12 @@ async function prepareTake(
     await rm(dir, { recursive: true, force: true });
     throw error;
   }
+  // Cancelled (or closed) while it was being prepared: nothing of it stays.
+  if (ticket !== generation) {
+    await hook?.kill();
+    await rm(dir, { recursive: true, force: true });
+    throw new Error("A preparação da gravação foi cancelada.");
+  }
   const s = new RecordingSession({
     opts,
     monitor,
@@ -254,6 +291,7 @@ async function prepareTake(
     ffmpeg: FFMPEG,
     encoder,
     hook,
+    deviceName,
     reportEncoderFailure: (failed) =>
       monitor ? reportCaptureFailure(captureProfile(monitor, opts.fps), failed) : Promise.resolve(),
   });
@@ -262,6 +300,7 @@ async function prepareTake(
   s.on("health", (health) => broadcast({ type: "health", health }));
   s.setKeyFilter(context.keyFilter ?? [], context.keyWindows ?? []);
   session = s;
+  stopping = null;
   broadcast({ type: "status", status: s.status() });
 }
 
@@ -322,18 +361,26 @@ export async function setGuidedNarration(path: string, delay: number): Promise<n
   return offset;
 }
 
-/** Ends the take without keeping it; a take preserved by the license is saved instead. */
+/**
+ * Ends the take without keeping it; a take preserved by the license is saved instead. A take
+ * still being prepared is called off: its preparation throws it away when it ends.
+ */
 export async function cancel(): Promise<void> {
+  generation++;
+  const pending = preparing;
+  // Its caller hears how it ended; here it only has to be over.
+  if (pending) await pending.then(noop, noop);
   const s = session;
-  if (!s) return;
-  if (s.isPreserved) {
+  if (s?.isPreserved) {
     await stop();
     return;
   }
   session = null;
-  await s.cancel();
+  if (s) await s.cancel();
   broadcast({ type: "status", status: NO_SESSION });
 }
+
+const noop = (): void => undefined;
 
 /** Throws the current take away (to the Recycle Bin through `trash`) and stays in the recorder. */
 export async function discard(trash: (dir: string) => Promise<void>): Promise<void> {
@@ -344,15 +391,20 @@ export async function discard(trash: (dir: string) => Promise<void>): Promise<vo
   broadcast({ type: "status", status: NO_SESSION });
 }
 
-export async function stop(): Promise<RecordingResult> {
+/** Stops and finalizes the take; asked again (or while it runs), the same answer comes back. */
+export function stop(): Promise<RecordingResult> {
   const s = session;
-  if (!s) throw new Error("Nenhuma gravação em andamento.");
-  try {
-    return await s.stop();
-  } finally {
+  if (!s) {
+    if (stopping) return stopping.result;
+    return Promise.reject(new Error("Nenhuma gravação em andamento."));
+  }
+  if (stopping?.session === s) return stopping.result;
+  const result = s.stop().finally(() => {
     if (session === s) session = null;
     broadcast({ type: "status", status: NO_SESSION });
-  }
+  });
+  stopping = { session: s, result };
+  return result;
 }
 
 // ---- takes the app did not finish -----------------------------------------------------------
@@ -365,4 +417,10 @@ export const isOrphan = (dir: string): Promise<boolean> =>
 export async function recoverOrphan(dir: string): Promise<RecordingResult> {
   if (!(await isOrphan(dir))) throw new Error("Essa pasta não é uma gravação interrompida.");
   return recoverTake(dir);
+}
+
+/** The editor placed the take in a project: it is not offered again. */
+export async function markImported(dir: string): Promise<void> {
+  if (!(await isTake(recordingsDir(), dir))) throw new Error("Essa pasta não é uma gravação.");
+  await markTakeImported(dir);
 }

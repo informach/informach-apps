@@ -34,7 +34,7 @@ test("a take replays from its journal, and a last line cut off by a crash is ski
       { k: "resume", qpc: 7000 },
       { k: "marker", qpc: 8000, kind: "retake" },
       { k: "line", qpc: 8100, index: 3 },
-      { k: "narration", file: "narracao.wav", offset: 1.5 },
+      { k: "narration", file: "narracao.wav", offset: 1.5, origin: 2000 },
     )}\n{"k":"pause","qp`,
   );
   assert.equal(replay.skipped, 1);
@@ -44,7 +44,8 @@ test("a take replays from its journal, and a last line cut off by a crash is ski
   assert.deepEqual(replay.pauses, [[5000, 7000]]);
   assert.deepEqual(replay.markers, [{ qpc: 8000, kind: "retake" }]);
   assert.deepEqual(replay.lines, [{ qpc: 8100, index: 3 }]);
-  assert.deepEqual(replay.narration, { file: "narracao.wav", offset: 1.5 });
+  assert.deepEqual(replay.narration, { file: "narracao.wav", offset: 1.5, origin: 2000 });
+  assert.equal(replay.imported, false);
   assert.equal(replay.finalized, false);
   assert.equal(replay.stop, null);
   assert.equal(replay.lastQpc, 8100);
@@ -54,11 +55,12 @@ test("a pause that never resumed runs to the end, and the stop cuts what came af
   const paused = replayJournal(text(begin, { k: "pause", qpc: 5000 }));
   assert.deepEqual(paused.pauses, [[5000, Number.POSITIVE_INFINITY]]);
   const stopped = replayJournal(
-    text(begin, { k: "stop", qpc: 9000 }, { k: "finalized", qpc: 9500 }),
+    text(begin, { k: "stop", qpc: 9000 }, { k: "finalized", qpc: 9500 }, { k: "imported", at: 1 }),
   );
   assert.deepEqual(stopped.pauses, [[9000, Number.POSITIVE_INFINITY]]);
   assert.equal(stopped.stop, 9000);
   assert.equal(stopped.finalized, true);
+  assert.equal(stopped.imported, true);
   // Stopped while paused: one cut from the pause on.
   const both = replayJournal(text(begin, { k: "pause", qpc: 5000 }, { k: "stop", qpc: 9000 }));
   assert.deepEqual(both.pauses, [[5000, Number.POSITIVE_INFINITY]]);

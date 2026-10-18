@@ -106,6 +106,53 @@ test("with one video track the camera gets a track of its own above it, and it s
   assert.equal(layout.clips.filter((c) => c.trackId === layout.tracks[index].id).length, 2);
 });
 
+test("a locked main track is left alone: the screen gets its own, after everything", () => {
+  const tracks = defaultTracks().map((t) => (t.name === "Faixa 3" ? { ...t, locked: true } : t));
+  const lesson: Clip = {
+    id: "music",
+    assetId: "voice",
+    trackId: tracks[3].id,
+    start: 0,
+    in: 0,
+    duration: 12,
+    volume: 1,
+  };
+  const layout = layoutRecording(project(tracks, [lesson]), assets, result);
+  const screenTrack = layout.tracks.find((t) => t.name === "Tela");
+  assert.ok(screenTrack, "a new track for the screen");
+  // Below the other video tracks, not on the one above the locked main.
+  const videos = layout.tracks.filter((t) => t.kind === "video");
+  assert.equal(videos.at(-1)?.id, screenTrack.id);
+  assert.equal(layout.at, 12);
+  assert.ok(layout.placed.every((c) => c.start >= 12));
+  const locked = tracks.find((t) => t.name === "Faixa 3");
+  assert.equal(layout.clips.filter((c) => c.trackId === locked?.id).length, 0);
+});
+
+test("sound kept in parts (no room to line it up) is placed piece by piece", () => {
+  const parts = [
+    asset("m0", "C:/take/microfone-0.m4a", "audio", 4),
+    asset("sys", "C:/take/sistema.webm", "audio", 0),
+  ];
+  const layout = layoutRecording(project(), [...assets, ...parts], {
+    ...result,
+    microphone: undefined,
+    systemAudio: undefined,
+    microphoneParts: [{ path: "C:/take/microfone-0.m4a", at: 0.2, in: 0, duration: 4 }],
+    systemParts: [{ path: "C:/take/sistema.webm", at: 0, in: 0.1, duration: 9.8 }],
+  });
+  const voice = layout.tracks.find((t) => t.name === "Voz");
+  const system = layout.tracks.find((t) => t.name === "Áudio do PC");
+  // The part ends at 4.2 s of the take, inside the pause: only the first stretch has it.
+  assert.deepEqual(on(layout.clips, voice), [["m0", 0.2, 0, 2.8]]);
+  // The WebM without a known length lasts as its piece says.
+  assert.deepEqual(on(layout.clips, system), [
+    ["sys", 0, 0.1, 3],
+    ["sys", 3, 5.1, 4.8],
+  ]);
+  assert.ok(layout.roles.some((r) => r.assetId === "m0" && r.role === "mic"));
+});
+
 test("the voice track is reused when free and a new one is made when it is not", () => {
   const first = layoutRecording(project(), assets, result);
   const voice = first.tracks.find((t) => t.name === "Voz");

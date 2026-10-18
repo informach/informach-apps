@@ -130,6 +130,7 @@ const desktop = createEdiDesktop({
     "assistant:reset",
     "ai:result",
     "recorder:stop",
+    "recorder:halt",
     "recorder:cancel",
     "recorder:systemChunk",
     "recorder:uiRects",

@@ -25,16 +25,17 @@ import type { HookClient } from "../nativeHelper.ts";
 import { qpc } from "../nativeHelper.ts";
 import { finalizeTake } from "./finalize.ts";
 import { HealthMonitor } from "./health.ts";
-import { SessionJournal } from "./journal.ts";
+import { type JournalWriter, SessionJournal } from "./journal.ts";
 import { CaptureProcess } from "./source.ts";
 
 /**
  * One take: prepared → recording ⇄ paused → stopping → finalized, or failed while a source that
  * matters (screen, microphone) is down. Each source is its own FFmpeg process. Pausing never
  * touches them: it is a line in the journal and a word to the cursor helper, so resuming is
- * instant and nothing is lost; the paused stretches are cut when the take is imported. Only a
- * pause longer than five minutes closes the screen and camera parts (to spare the disk), and
- * resuming then opens new ones.
+ * instant and nothing is lost; the paused stretches are cut when the take is imported. A pause
+ * longer than five minutes closes the screen and camera parts (to spare the disk), a disk about
+ * to fill closes every source, and resuming opens new parts for whatever should be recording and
+ * has no process running: never a second one beside a live one.
  */
 
 export interface SessionMessages {
@@ -54,6 +55,10 @@ export interface SessionSetup {
   hook: HookClient | null;
   /** A path that passed the probe could not start: the encoder cache learns it. */
   reportEncoderFailure?: (encoder: CaptureEncoder) => Promise<void>;
+  /** The name FFmpeg opens a DirectShow device by (its alternative name when it has one). */
+  deviceName?: (kind: "audio" | "video", name: string) => string;
+  /** Tests only: where the journal's lines go. */
+  journalWriter?: JournalWriter;
 }
 
 /** A pause longer than this closes the screen and camera parts. */
@@ -93,9 +98,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private readonly hook: HookClient | null;
   private readonly ffmpeg: string;
   private readonly reportEncoderFailure?: (encoder: CaptureEncoder) => Promise<void>;
+  private readonly deviceName: (kind: "audio" | "video", name: string) => string;
   private readonly procs: Partial<Record<MediaSource, CaptureProcess>> = {};
   private readonly parts: Record<MediaSource, number> = { screen: 0, mic: 0, camera: 0, system: 0 };
+  /** Sources whose process died: the take is paused until they open again. */
   private readonly failed = new Set<CaptureSource>();
+  /** Sources closed on purpose during a pause (a long one, or a full disk). */
+  private readonly closed = new Set<MediaSource>();
   /** Files of processes that did not end cleanly: checked before they are joined. */
   private readonly suspect = new Set<string>();
   private origin: number | null = null;
@@ -103,9 +112,9 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private pausedAt: number | null = null;
   private stoppedAt: number | null = null;
   private longPause: ReturnType<typeof setTimeout> | undefined;
-  private closedForPause = false;
   private reopening = false;
   private preserved = false;
+  private stopping: Promise<RecordingResult> | null = null;
   private health: HealthMonitor | null = null;
   private cursorState: RecorderHealth["cursor"];
   private cameraState: RecorderHealth["camera"];
@@ -123,7 +132,12 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.hook = setup.hook;
     this.ffmpeg = setup.ffmpeg;
     this.reportEncoderFailure = setup.reportEncoderFailure;
-    this.journal = new SessionJournal(setup.dir);
+    this.deviceName = setup.deviceName ?? ((_kind, name) => name);
+    this.journal = new SessionJournal(
+      setup.dir,
+      (error) => this.journalFailed(error),
+      setup.journalWriter,
+    );
     this.cursorState = setup.hook ? "ok" : "none";
     this.cameraState = setup.opts.camera ? "ok" : "none";
     const m = setup.monitor;
@@ -153,7 +167,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     return {
       phase: this.phase,
       failed: [...this.failed],
-      reopening: this.closedForPause || this.reopening,
+      closed: this.closed.size > 0,
+      reopening: this.reopening,
     };
   }
 
@@ -182,9 +197,9 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       if (this.phase !== "prepared") throw new Error("Gravação já iniciada.");
       this.hook?.send({ cmd: "resume" });
       const [screen, mic, camera] = await Promise.allSettled([
-        this.monitor ? this.openScreen(true) : Promise.resolve(),
-        this.opts.microphone ? this.openMic() : Promise.resolve(),
-        this.opts.camera ? this.openCamera() : Promise.resolve(),
+        this.monitor ? this.openScreen(true) : Promise.resolve(null),
+        this.opts.microphone ? this.openMic() : Promise.resolve(null),
+        this.opts.camera ? this.openCamera() : Promise.resolve(null),
       ]);
       const failure = [screen, mic].find((r) => r.status === "rejected");
       if (failure?.status === "rejected") {
@@ -206,47 +221,59 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   }
 
   pause(): Promise<void> {
-    return this.serial(async () => {
-      if (this.phase !== "recording") return;
-      const at = qpc();
-      this.journal.write({ k: "pause", qpc: at });
-      this.hook?.send({ cmd: "pause" });
-      this.beginPause(at);
-      this.phase = "paused";
-      this.emitStatus();
-    });
+    return this.serial(async () => this.pauseNow());
   }
 
+  /**
+   * Goes on after a pause. Whatever should be recording and has no process running (it failed,
+   * or the pause closed it) opens a new part; if one of them cannot open, the ones that did are
+   * closed again and the take stays paused, so trying again never leaves two of a source.
+   */
   resume(): Promise<void> {
     return this.serial(async () => {
       if (this.preserved) throw new Error("Gravação preservada: não dá para retomar.");
       if (this.phase !== "paused" && this.phase !== "failed") return;
-      const reopen: MediaSource[] = [];
-      if (this.failed.has("screen") || (this.closedForPause && this.monitor)) reopen.push("screen");
-      if (this.failed.has("mic")) reopen.push("mic");
-      const camera = this.closedForPause && this.cameraState === "ok" && !!this.opts.camera;
-      const long = this.closedForPause;
-      if (reopen.length || camera) {
+      const down = (src: MediaSource): boolean => !this.procs[src]?.running;
+      const open: ("screen" | "mic")[] = [];
+      if (this.monitor && down("screen")) open.push("screen");
+      if (this.opts.microphone && down("mic")) open.push("mic");
+      const camera =
+        !!this.opts.camera &&
+        this.cameraState === "ok" &&
+        down("camera") &&
+        this.closed.has("camera");
+      const long = this.closed.has("screen");
+      if (open.length || camera) {
         this.reopening = true;
         this.emitStatus();
-        try {
-          await Promise.all(
-            reopen.map((src) => (src === "screen" ? this.openScreen(false) : this.openMic())),
-          );
-        } catch (error) {
+        const results = await Promise.allSettled(
+          open.map((src) => (src === "screen" ? this.openScreen(false) : this.openMic())),
+        );
+        const opened = results.flatMap((r) =>
+          r.status === "fulfilled" && r.value ? [r.value] : [],
+        );
+        for (const proc of opened) {
+          this.failed.delete(proc.source);
+          this.closed.delete(proc.source);
+        }
+        const failure = results.find((r) => r.status === "rejected");
+        if (failure?.status === "rejected") {
+          // Still paused: what opened is closed again and opens with the next try.
+          await this.closeSources(opened.map((p) => p.source));
           this.reopening = false;
           this.emitStatus();
-          throw new Error(`Não consegui retomar: ${errorText(error)}`, { cause: error });
+          throw new Error(`Não consegui retomar: ${errorText(failure.reason)}`, {
+            cause: failure.reason,
+          });
         }
         if (camera)
-          await this.openCamera().catch((error: unknown) =>
-            this.cameraFailed(errorText(error), true),
+          await this.openCamera().then(
+            () => this.closed.delete("camera"),
+            (error: unknown) => this.cameraFailed(errorText(error), true),
           );
         this.reopening = false;
       }
-      this.failed.delete("screen");
-      this.failed.delete("mic");
-      this.closedForPause = false;
+      this.closed.clear();
       const at = qpc();
       this.journal.write({ k: "resume", qpc: at });
       this.hook?.send({ cmd: "resume" });
@@ -257,7 +284,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         this.emitEvent({
           source: "screen",
           level: "info",
-          message: "A pausa foi longa: a tela levou um instante para voltar a gravar.",
+          message: "A tela levou um instante para voltar: a pausa tinha fechado os arquivos.",
           actions: [],
         });
     });
@@ -272,8 +299,9 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     return this.serial(() => this.halt());
   }
 
+  /** Stops and finalizes; asking again gives the same answer. */
   stop(): Promise<RecordingResult> {
-    return this.serial(async () => {
+    this.stopping ??= this.serial(async () => {
       await this.halt();
       this.journal.close();
       try {
@@ -295,6 +323,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         );
       }
     });
+    return this.stopping;
   }
 
   /** Throws the take away (the folder is removed, or handed to `remove`). */
@@ -350,9 +379,17 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       this.journal.write({ k: "line", qpc: qpc(), index });
   }
 
-  /** The guided recording's narration: copied into the folder, starting `offset` seconds in. */
+  /**
+   * The guided recording's narration: copied into the folder, starting `offset` seconds in by
+   * the recorder's clock, which counts from the first-frame estimate it has now.
+   */
   setNarration(file: string, offset: number): void {
-    this.journal.write({ k: "narration", file, offset });
+    this.journal.write({
+      k: "narration",
+      file,
+      offset,
+      ...(this.origin !== null ? { origin: this.origin } : {}),
+    });
   }
 
   /** The helper's key filter (the recorder's shortcuts never show on screen). */
@@ -362,33 +399,58 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
 
   // ---- internals -------------------------------------------------------------------------
 
+  private pauseNow(): void {
+    if (this.phase !== "recording") return;
+    const at = qpc();
+    this.journal.write({ k: "pause", qpc: at });
+    this.hook?.send({ cmd: "pause" });
+    this.beginPause(at);
+    this.phase = "paused";
+    this.emitStatus();
+  }
+
   private async halt(): Promise<void> {
     if (this.preserved) return;
     this.preserved = true;
-    clearTimeout(this.longPause);
-    const at = qpc();
-    this.stoppedAt = at;
-    this.journal.write({ k: "stop", qpc: at });
-    this.hook?.send({ cmd: "pause" });
-    this.phase = "stopping";
-    this.health?.stop();
-    this.emitStatus();
-    await this.closeAll(false);
-    // Closing stdin lets the helper write its last events and the journal before it exits.
-    await this.hook?.stop();
+    try {
+      clearTimeout(this.longPause);
+      const at = qpc();
+      this.stoppedAt = at;
+      this.journal.write({ k: "stop", qpc: at });
+      this.hook?.send({ cmd: "pause" });
+      this.phase = "stopping";
+      this.health?.stop();
+      this.emitStatus();
+    } finally {
+      // Whatever happened above, the processes close and the helper writes its last lines.
+      await this.closeAll(false);
+      await this.hook?.stop();
+    }
   }
 
   private async closeAll(kill: boolean): Promise<void> {
-    const procs = Object.values(this.procs);
-    for (const src of Object.keys(this.procs) as MediaSource[]) delete this.procs[src];
+    await this.closeSources(Object.keys(this.procs) as MediaSource[], kill);
+  }
+
+  /** Ends these sources' processes; a part that had to be killed is checked before joining. */
+  private async closeSources(sources: readonly MediaSource[], kill = false): Promise<void> {
+    const procs = sources.flatMap((src) => {
+      const proc = this.procs[src];
+      delete this.procs[src];
+      return proc ? [proc] : [];
+    });
     await Promise.all(procs.map((p) => (kill ? p.kill() : p.stop())));
+    for (const p of procs) if (p.forced && !kill) this.suspect.add(p.file);
   }
 
   private beginPause(at: number): void {
     if (this.pausedAt !== null) return;
     this.pausedAt = at;
     clearTimeout(this.longPause);
-    this.longPause = setTimeout(() => void this.closeForLongPause(), LONG_PAUSE_MS);
+    this.longPause = setTimeout(
+      () => void this.closeWhilePaused(["screen", "camera"]),
+      LONG_PAUSE_MS,
+    );
   }
 
   private endPause(at: number): void {
@@ -398,15 +460,14 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.pausedAt = null;
   }
 
-  private closeForLongPause(): Promise<void> {
+  /** Closes sources while the take is paused (they reopen when it resumes). */
+  private closeWhilePaused(sources: readonly MediaSource[]): Promise<void> {
     return this.serial(async () => {
-      if ((this.phase !== "paused" && this.phase !== "failed") || this.closedForPause) return;
-      const video = [this.procs.screen, this.procs.camera].filter((p): p is CaptureProcess => !!p);
-      delete this.procs.screen;
-      delete this.procs.camera;
-      this.closedForPause = true;
+      if (this.phase !== "paused" && this.phase !== "failed") return;
+      const running = sources.filter((src) => this.procs[src]?.running);
+      for (const src of running) this.closed.add(src);
       this.emitStatus();
-      await Promise.all(video.map((p) => p.stop()));
+      await this.closeSources(running);
     });
   }
 
@@ -438,8 +499,18 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     await rm(join(this.dir, proc.file), { force: true });
   }
 
-  /** The process records from now on: its first sample and its end go to the journal. */
-  private adopt(proc: CaptureProcess): void {
+  /**
+   * The process records from now on: its first sample and its end go to the journal. A live
+   * process of the same source is never left recording beside it.
+   */
+  private async adopt(proc: CaptureProcess): Promise<CaptureProcess> {
+    const previous = this.procs[proc.source];
+    if (previous?.running && previous !== proc) {
+      this.warnings.push(
+        `${NAMES[proc.source]} tinha um processo ainda gravando; ele foi encerrado.`,
+      );
+      await this.closeSources([proc.source]);
+    }
     this.procs[proc.source] = proc;
     const write = (at: number): void =>
       this.journal.write({
@@ -456,6 +527,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       if (++improvements <= 50) write(at);
     });
     proc.on("exit", (info) => this.onExit(proc, info));
+    return proc;
   }
 
   /**
@@ -463,7 +535,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
    * before its first frame (the same encoder from system memory, then x264), and the cache
    * learns it; later parts keep that encoder, so the parts join without re-encoding.
    */
-  private async openScreen(chain: boolean): Promise<void> {
+  private async openScreen(chain: boolean): Promise<CaptureProcess> {
     const chosen = this.encoder;
     const monitor = this.monitor;
     if (!chosen || !monitor) throw new Error("Gravação não preparada.");
@@ -502,16 +574,19 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
           ),
         );
       }
-      this.adopt(proc);
-      return;
+      return this.adopt(proc);
     }
     throw first;
   }
 
-  private async openMic(): Promise<void> {
+  private async openMic(): Promise<CaptureProcess> {
     const device = this.opts.microphone;
-    if (!device) return;
-    const proc = this.spawn("mic", (file) => microphoneArgs({ device, file }), MIC_BUFFER_MS);
+    if (!device) throw new Error("Nenhum microfone escolhido.");
+    const proc = this.spawn(
+      "mic",
+      (file) => microphoneArgs({ device: this.deviceName("audio", device), file }),
+      MIC_BUFFER_MS,
+    );
     // Levels flow from the first block, before the first progress report.
     proc.on("data", (chunk) => this.health?.feedMic(chunk));
     try {
@@ -520,18 +595,18 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       await this.dropStart(proc);
       throw new Error(`O microfone não abriu: ${errorText(error)}`, { cause: error });
     }
-    this.adopt(proc);
+    return this.adopt(proc);
   }
 
-  private async openCamera(): Promise<void> {
+  private async openCamera(): Promise<CaptureProcess> {
     const device = this.opts.camera;
     const encoder = this.encoder;
-    if (!device) return;
+    if (!device) throw new Error("Nenhuma câmera escolhida.");
     const proc = this.spawn(
       "camera",
       (file) =>
         cameraArgs({
-          device,
+          device: this.deviceName("video", device),
           mode: this.opts.cameraMode,
           fps: this.opts.cameraMode?.fps ?? 30,
           encoder: encoder ?? { codec: "libx264" },
@@ -546,7 +621,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       await this.dropStart(proc);
       throw error;
     }
-    this.adopt(proc);
+    return this.adopt(proc);
   }
 
   private cameraFailed(message: string, journal: boolean): void {
@@ -559,6 +634,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       message: `A câmera parou (${message}). A gravação segue sem ela.`,
       actions: [],
     });
+  }
+
+  /** The journal could not be written: the take goes on, without crash recovery from here. */
+  private journalFailed(error: Error): void {
+    const message = `O diário da gravação não pôde ser gravado (${error.message}): se o app cair agora, a recuperação pode ficar incompleta.`;
+    this.warnings.push(message);
+    this.emitEvent({ source: "disk", level: "warning", message, actions: [] });
   }
 
   private onExit(proc: CaptureProcess, info: { expected: boolean; message: string }): void {
@@ -629,7 +711,14 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       screen: () => {
         const p = this.procs.screen;
         if (!p || p.first === null || !p.last) return null;
-        return { seconds: (p.last.at - p.first) / 1000, frame: p.last.frame, speed: p.last.speed };
+        return {
+          part: p.part,
+          seconds: (p.last.at - p.first) / 1000,
+          frame: p.last.frame,
+          dup: p.last.dup,
+          drop: p.last.drop,
+          speed: p.instantSpeed(),
+        };
       },
       hasMic: () => !!this.opts.microphone,
       cursor: () => this.cursorState,
@@ -642,6 +731,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       },
       extraWarnings: () => {
         const out: string[] = [];
+        if (this.journal.error) out.push("O diário da gravação não está sendo gravado.");
         if (this.cursorState === "lost") out.push("Sem cursor: o vídeo continua gravando.");
         if (this.cameraState === "failed") out.push("A câmera parou; a gravação segue sem ela.");
         if (
@@ -655,12 +745,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       },
       onDisk: (action) => {
         if (action === "pause") {
-          void this.pause();
+          // Paused and every file closed: the disk stops filling, and what was recorded stays.
+          void this.pause().then(() => this.closeWhilePaused(["screen", "camera", "mic"]));
           this.emitEvent({
             source: "disk",
             level: "error",
             message:
-              "O disco está quase cheio: a gravação foi pausada para não perder o que já foi gravado. Libere espaço e retome, ou pare e salve.",
+              "O disco está quase cheio: a gravação foi pausada e os arquivos foram fechados. O que já foi gravado está salvo. Libere espaço e retome, ou pare e salve.",
             actions: ["resume", "stop"],
           });
         } else if (action === "stop") {
@@ -668,7 +759,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
           this.emitEvent({
             source: "disk",
             level: "error",
-            message: "O disco está cheio: a gravação parou. Salvando o que foi gravado.",
+            message:
+              "O disco está cheio: a gravação parou, com o espaço que ainda resta para salvá-la.",
             actions: ["stop"],
             request: "stop",
           });

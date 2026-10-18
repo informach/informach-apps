@@ -207,7 +207,9 @@ export type CaptureQuality = (typeof CAPTURE_QUALITIES)[number];
 /**
  * Encoder options for the screen and camera of a recording. Bitrate-driven encoders get about
  * 0.2 bit per pixel and frame, enough for small text. A keyframe every two seconds and no
- * B-frames: a part cut short keeps everything up to its last fragment.
+ * B-frames: a part cut short keeps everything up to its last fragment. Every encoder runs in
+ * its low-latency mode: the first sample of a part is estimated from when output comes out
+ * (main/recording/source.ts), so frames held inside the encoder would place the part late.
  */
 export function captureVideoArgs(
   codec: CaptureCodec,
@@ -225,7 +227,21 @@ export function captureVideoArgs(
   const q = (standard: number): string => String(high ? standard - 3 : standard);
   switch (codec) {
     case "h264_nvenc":
-      return ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", q(18), ...gop];
+      return [
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "p4",
+        "-rc",
+        "vbr",
+        "-cq",
+        q(18),
+        "-delay",
+        "0",
+        "-zerolatency",
+        "1",
+        ...gop,
+      ];
     case "h264_amf":
       return [
         "-c:v",
@@ -240,6 +256,8 @@ export function captureVideoArgs(
         q(18),
         "-qp_p",
         q(20),
+        "-latency",
+        "1",
         ...gop,
       ];
     case "h264_mf":
@@ -258,10 +276,23 @@ export function captureVideoArgs(
         `${Math.round(kbps * 1.5)}k`,
         "-profile:v",
         "100",
+        // The scenario Windows itself uses to send a screen: frames come out as they go in.
+        "-scenario",
+        "display_remoting",
         ...gop,
       ];
     case "libx264":
-      return ["-c:v", "libx264", "-preset", "ultrafast", "-crf", q(18), ...gop];
+      return [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-tune",
+        "zerolatency",
+        "-crf",
+        q(18),
+        ...gop,
+      ];
   }
 }
 

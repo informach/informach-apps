@@ -52,14 +52,17 @@ export class SystemAudio {
     });
   }
 
-  /** Stops and sends what is left, with the moment it ended. */
+  /**
+   * Stops and sends what is left, with the moment it ended: taken when the stop is asked for,
+   * which is where the sound ends (the last chunk and "stop" come later, after encoding).
+   */
   async finish(): Promise<void> {
+    const endedAt = Date.now();
     if (this.rec.state !== "inactive")
       await new Promise<void>((resolve) => {
         this.rec.onstop = () => resolve();
         this.rec.stop();
       });
-    const endedAt = Date.now();
     this.release();
     this.queue(() =>
       window.api.recorder.systemChunk(

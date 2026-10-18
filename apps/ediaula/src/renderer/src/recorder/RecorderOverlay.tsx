@@ -262,7 +262,7 @@ export function RecorderOverlay(): ReactNode {
     if (monitorIndex === undefined || fps === undefined) return;
     let current = true;
     setEncoder(null);
-    window.api.recorder.encoder(monitorIndex).then(
+    window.api.recorder.encoder(monitorIndex, fps).then(
       (label) => current && setEncoder({ label }),
       (err: unknown) => current && setEncoder({ error: cleanError(err) }),
     );
@@ -506,6 +506,8 @@ export function RecorderOverlay(): ReactNode {
     await window.api.recorder.guidedCancel();
     void window.api.recorder.interactive(true);
     try {
+      // The take ends at the key press, not after the computer's sound is wrapped up.
+      await window.api.recorder.halt();
       await finishSystemAudio();
       await window.api.recorder.stop();
     } catch (err) {
@@ -602,6 +604,7 @@ export function RecorderOverlay(): ReactNode {
           script={lines.map((l) => l.text).join("\n")}
           busy={phase !== "setup"}
           onBusy={setGuidedBusy}
+          keys={{ target: keyOf("guidedTarget"), toggle: keyOf("toggle"), stop: keyOf("stop") }}
         />
       )}
       {error && recording && !alert && (
@@ -897,7 +900,9 @@ export function RecorderOverlay(): ReactNode {
                     ? "retomando…"
                     : status?.phase === "failed"
                       ? "parou"
-                      : "pausado"}
+                      : status?.closed
+                        ? "pausado · arquivos fechados"
+                        : "pausado"}
                 </span>
               )}
               <HealthStrip health={health} />

@@ -481,8 +481,9 @@ export interface EdiAulaApi {
     }>;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
-    /** Tests the encoders on this monitor once (seconds) and names the one that will record. */
-    encoder(monitor: number): Promise<string>;
+    /** Tests the encoders on this monitor at this rate once (seconds) and names the one that
+     *  will record. */
+    encoder(monitor: number, fps: 30 | 60): Promise<string>;
     prepare(
       opts: Omit<RecordOptions, "region"> & {
         regionDip?: { x: number; y: number; width: number; height: number };
@@ -492,6 +493,8 @@ export interface EdiAulaApi {
     /** A chunk of the computer's sound; the first one says when it started, the last when it ended. */
     systemChunk(bytes: Uint8Array, startedAt?: number, endedAt?: number): Promise<void>;
     pause(): Promise<void>;
+    /** The take ends here (F10); then the computer's sound is finished and stop() saves. */
+    halt(): Promise<void>;
     /** Goes on after a pause, reopening what stopped. */
     resume(): Promise<void>;
     mark(kind: MarkerKind): Promise<void>;
@@ -516,6 +519,8 @@ export interface EdiAulaApi {
     orphans(): Promise<OrphanTake[]>;
     recoverOrphan(dir: string): Promise<RecordingResult>;
     discardOrphan(dir: string): Promise<void>;
+    /** The take is in a project now: it is not offered again. */
+    imported(dir: string): Promise<void>;
     /** Automated checks only: saves a picture of the recorder window. */
     debugCapture(path: string): Promise<void>;
     onHotkey(cb: (name: string) => void): () => void;
@@ -528,6 +533,8 @@ export interface EdiAulaApi {
     onHotkeys(cb: (r: HotkeyReport[]) => void): () => void;
     /** Editor window: a take started or ended (the export queue waits during it). */
     onState(cb: (s: RecorderStatus) => void): () => void;
+    /** Editor window: a take did not finish, or the recorder window went down. */
+    onAlert(cb: (a: { message: string; dir?: string; orphans?: boolean }) => void): () => void;
   };
   /** Saves a picture made in the editor (annotation) in the cache; returns its path. */
   saveGenerated(bytes: Uint8Array, ext: string): Promise<string>;

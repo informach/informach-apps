@@ -1,30 +1,71 @@
 import { existsSync } from "node:fs";
-import { appendFile, readdir, readFile, stat } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { open, readdir, readFile, stat } from "node:fs/promises";
+import { basename, join, relative, resolve } from "node:path";
 import type { OrphanTake, RecordingResult } from "../../shared/recording.ts";
 import {
   JOURNAL_FILE,
   type JournalReplay,
+  keptRanges,
   MEDIA_SOURCES,
   type MediaSource,
+  RESULT_FILE,
   replayJournal,
 } from "../../shared/recordingJournal.ts";
 import { probe } from "../ffmpeg.ts";
 import { finalizeTake } from "./finalize.ts";
 
 /**
- * Takes the app did not finish: folders in the recordings folder whose journal never got to
- * `finalized` (the app or the computer went down, or finalizing failed). Older recordings,
- * made before the journal existed, have no sessao.jsonl and are never listed.
+ * Takes that never reached a project: folders in the recordings folder whose journal never got
+ * to `finalized` (the app or the computer went down, or finalizing failed), and finished takes
+ * the editor never imported (it closed first, or the import failed). Older recordings, made
+ * before the journal existed, have no sessao.jsonl and are never listed.
  */
 
 export type { OrphanTake };
+
+/** gravacao.json of a finished take, when it is there and reads as one. */
+async function finishedResult(dir: string): Promise<RecordingResult | null> {
+  let value: unknown;
+  try {
+    value = JSON.parse(await readFile(join(dir, RESULT_FILE), "utf8"));
+  } catch {
+    return null;
+  }
+  if (!value || typeof value !== "object") return null;
+  const result = value as Partial<RecordingResult>;
+  if (result.version !== 2 || typeof result.duration !== "number" || !Array.isArray(result.pauses))
+    return null;
+  // The folder is where it is now, whatever path it had when it was written.
+  return { ...(result as RecordingResult), dir };
+}
 
 async function inspect(dir: string): Promise<OrphanTake | null> {
   const journal = join(dir, JOURNAL_FILE);
   if (!existsSync(journal)) return null;
   const replay = replayJournal(await readFile(journal, "utf8"));
-  if (replay.finalized || !replay.begin) return null;
+  if (replay.imported || !replay.begin) return null;
+  if (replay.finalized) {
+    const result = await finishedResult(dir);
+    if (!result) return null;
+    let size = 0;
+    for (const entry of await readdir(dir, { withFileTypes: true }))
+      if (entry.isFile()) size += (await stat(join(dir, entry.name))).size;
+    const kept = keptRanges(result.pauses, result.duration).reduce((t, [a, b]) => t + b - a, 0);
+    return {
+      dir,
+      name: basename(dir),
+      startedAt: replay.begin.at,
+      size,
+      seconds: Math.round(kept),
+      sources: [
+        ...(result.screen || result.screenParts?.length ? ["screen" as const] : []),
+        ...(result.microphone || result.microphoneParts?.length ? ["mic" as const] : []),
+        ...(result.cameraParts?.length ? ["camera" as const] : []),
+        ...(result.systemAudio || result.systemParts?.length ? ["system" as const] : []),
+      ],
+      finalized: true,
+    };
+  }
   let size = 0;
   const sources: MediaSource[] = [];
   for (const src of MEDIA_SOURCES)
@@ -51,6 +92,7 @@ async function inspect(dir: string): Promise<OrphanTake | null> {
     size,
     seconds: Math.max(0, Math.round((replay.lastQpc - from - Math.max(0, paused)) / 1000)),
     sources,
+    finalized: false,
   };
 }
 
@@ -68,10 +110,40 @@ export async function scanOrphans(root: string, active?: string): Promise<Orphan
   return found.sort((a, b) => b.startedAt - a.startedAt);
 }
 
-/** The folder is an unfinished take under `root` (not the one recording now). */
+/** The folder is a take under `root` waiting to be imported (not the one recording now). */
 export async function isOrphan(root: string, dir: string, active?: string): Promise<boolean> {
   const takes = await scanOrphans(root, active);
   return takes.some((t) => resolve(t.dir) === resolve(dir));
+}
+
+/** The folder is a take of the recordings folder (it has a journal), directly inside it. */
+export async function isTake(root: string, dir: string): Promise<boolean> {
+  const inside = relative(resolve(root), resolve(dir));
+  return (
+    !!inside &&
+    !inside.startsWith("..") &&
+    !inside.includes("\\") &&
+    !inside.includes("/") &&
+    existsSync(join(dir, JOURNAL_FILE))
+  );
+}
+
+/** Appends a line to the journal and waits for it to reach the disk. */
+async function appendLine(path: string, line: object): Promise<void> {
+  // A half-written last line would swallow this one.
+  const text = await readFile(path, "utf8");
+  const file = await open(path, "a");
+  try {
+    await file.write(`${text.endsWith("\n") || !text ? "" : "\n"}${JSON.stringify(line)}\n`);
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+}
+
+/** The editor placed the take in a project: from now on it is not offered again. */
+export async function markTakeImported(dir: string): Promise<void> {
+  await appendLine(join(dir, JOURNAL_FILE), { k: "imported", at: Date.now() });
 }
 
 /**
@@ -107,15 +179,13 @@ async function lastKnown(dir: string, replay: JournalReplay): Promise<number> {
 export async function recoverOrphan(dir: string): Promise<RecordingResult> {
   const path = join(dir, JOURNAL_FILE);
   const replay = replayJournal(await readFile(path, "utf8"));
-  if (replay.stop === null) {
-    const stop = await lastKnown(dir, replay);
-    // A half-written last line would swallow this one.
-    const text = await readFile(path, "utf8");
-    await appendFile(
-      path,
-      `${text.endsWith("\n") || !text ? "" : "\n"}${JSON.stringify({ k: "stop", qpc: stop })}\n`,
-    );
+  // Finished but never imported: it only has to be handed over again.
+  if (replay.finalized) {
+    const result = await finishedResult(dir);
+    if (result) return result;
   }
+  if (replay.stop === null)
+    await appendLine(path, { k: "stop", qpc: await lastKnown(dir, replay) });
   return finalizeTake({
     dir,
     suspect: "all",

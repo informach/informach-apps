@@ -16,11 +16,17 @@ export interface CaptureProgress {
   frame: number;
   /** Seconds of output written. */
   outTime: number;
-  /** Encoding speed against real time; 0 until FFmpeg knows it. */
+  /** Encoding speed against real time since the start (FFmpeg's own); 0 until it knows. */
   speed: number;
+  /** Frames FFmpeg duplicated or dropped to keep the output's timing. */
+  dup: number;
+  drop: number;
   /** QPC milliseconds when this was reported. */
   at: number;
 }
+
+/** Window of the instantaneous speed. */
+const RATE_WINDOW_MS = 1500;
 
 interface CaptureEvents {
   /** The first-sample estimate improved (QPC milliseconds). */
@@ -57,6 +63,8 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
   last: CaptureProgress | null = null;
   /** Resolves when the process is gone, whatever the reason. */
   readonly done: Promise<void>;
+  /** It had to be killed: its file may end in a broken fragment. */
+  forced = false;
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly latency: number;
   private stopping = false;
@@ -64,6 +72,8 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
   private stderr = "";
   private pending = "";
   private block: Partial<CaptureProgress> = {};
+  /** Recent reports, for the speed of the last moments. */
+  private readonly recent: CaptureProgress[] = [];
 
   constructor(o: CaptureProcessOptions) {
     super();
@@ -76,8 +86,7 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
     this.child.stderr.on("data", (chunk: Buffer) => this.read(chunk.toString()));
     // A process that died fails its stdin before "close"; the close handler reports it.
     this.child.stdin.on("error", (error) => {
-      this.stderr = `${this.stderr}
-${error.message}`.slice(-8000);
+      this.stderr = `${this.stderr}\n${error.message}`.slice(-8000);
     });
     this.done = new Promise((resolve) => {
       let reported = false;
@@ -85,8 +94,12 @@ ${error.message}`.slice(-8000);
         if (reported) return;
         reported = true;
         this.ended = true;
-        this.emit("exit", { expected: this.stopping, message });
-        resolve();
+        // Whatever a listener does, whoever waits for the process is released.
+        try {
+          this.emit("exit", { expected: this.stopping, message });
+        } finally {
+          resolve();
+        }
       };
       this.child.once("error", (error) => end(error.message));
       this.child.once("close", (code, signal) =>
@@ -136,7 +149,10 @@ ${error.message}`.slice(-8000);
     if (this.ended) return;
     this.stopping = true;
     if (this.child.stdin.writable) this.child.stdin.write("q");
-    const timer = setTimeout(() => this.child.kill("SIGKILL"), timeout);
+    const timer = setTimeout(() => {
+      this.forced = true;
+      this.child.kill("SIGKILL");
+    }, timeout);
     await this.done;
     clearTimeout(timer);
   }
@@ -145,8 +161,20 @@ ${error.message}`.slice(-8000);
   async kill(): Promise<void> {
     if (this.ended) return;
     this.stopping = true;
+    this.forced = true;
     this.child.kill("SIGKILL");
     await this.done;
+  }
+
+  /**
+   * Output seconds per second over the last moments (FFmpeg's own speed averages the whole run
+   * and hides a recent slowdown); null until there are two reports far enough apart.
+   */
+  instantSpeed(): number | null {
+    const last = this.recent.at(-1);
+    const first = this.recent[0];
+    if (!last || !first || last.at - first.at < RATE_WINDOW_MS / 2) return null;
+    return ((last.outTime - first.outTime) * 1000) / (last.at - first.at);
   }
 
   /** The last lines FFmpeg wrote that are not progress. */
@@ -170,6 +198,8 @@ ${error.message}`.slice(-8000);
       if (key === "frame") this.block.frame = Number(value) || 0;
       else if (key === "out_time_us") this.block.outTime = Number(value) / 1e6 || 0;
       else if (key === "speed") this.block.speed = Number.parseFloat(value) || 0;
+      else if (key === "dup_frames") this.block.dup = Number(value) || 0;
+      else if (key === "drop_frames") this.block.drop = Number(value) || 0;
       else if (key === "progress") this.report();
     }
   }
@@ -180,10 +210,14 @@ ${error.message}`.slice(-8000);
       frame: this.block.frame ?? 0,
       outTime: this.block.outTime ?? 0,
       speed: this.block.speed ?? 0,
+      dup: this.block.dup ?? 0,
+      drop: this.block.drop ?? 0,
       at,
     };
     this.block = {};
     this.last = progress;
+    this.recent.push(progress);
+    while (this.recent.length > 2 && at - this.recent[0].at > RATE_WINDOW_MS) this.recent.shift();
     if (progress.outTime > 0) {
       // Delays only make this later, so the earliest one is the closest.
       const estimate = at - progress.outTime * 1000 - this.latency;

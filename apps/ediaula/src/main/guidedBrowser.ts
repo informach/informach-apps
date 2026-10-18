@@ -9,13 +9,14 @@ const webUrl = (value: string): string => {
   return url.href;
 };
 
-export async function openGuidedBrowser(url: string): Promise<void> {
+/** `backKey` is the guided target shortcut as configured ("F8" by default). */
+export async function openGuidedBrowser(url: string, backKey = "F8"): Promise<void> {
   const address = webUrl(url);
   if (!lesson || lesson.isDestroyed()) {
     lesson = new BrowserWindow({
       width: 1280,
       height: 800,
-      title: "EdiAula · Ambiente de aula · F8 volta ao gravador",
+      title: `EdiAula · Ambiente de aula · ${backKey} volta ao gravador`,
       webPreferences: {
         sandbox: true,
         contextIsolation: true,

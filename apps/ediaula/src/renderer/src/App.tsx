@@ -5,6 +5,7 @@ import { ExportQueuePanel } from "./editor/ExportQueuePanel";
 import { SaveFailedDialog } from "./editor/SaveFailedDialog";
 import { OrphanRecordings } from "./home/OrphanRecordings";
 import { reportAiContext, runAiTool } from "./lib/aiTools";
+import { loadRecorderKeys } from "./lib/recorderKeys";
 import { listenRecordings } from "./lib/recording";
 import { SettingsModal } from "./settings/SettingsModal";
 import "./state/assistant";
@@ -31,6 +32,13 @@ export function App(): ReactNode {
     void window.api.appInfo().then((info) => useApp.getState().set({ info }));
     const stopJobs = listenToJobs();
     const stopRecorder = listenRecorderState();
+    // Shortcut labels follow the recorder's settings, which change in the recorder window.
+    const refreshKeys = (): void =>
+      void loadRecorderKeys().catch((error: unknown) =>
+        console.warn("[recorder] atalhos do gravador:", error),
+      );
+    refreshKeys();
+    const stopKeys = window.api.recorder.onState(refreshKeys);
     listenRecordings();
     // AI tools (from Claude Code/Codex over MCP, or the in-app assistant) run here, on the live project.
     const stopTools = window.api.handleAiTools((call) => runAiTool(call));
@@ -39,6 +47,7 @@ export function App(): ReactNode {
     return () => {
       stopJobs();
       stopRecorder();
+      stopKeys();
       stopTools();
       stopApprovals();
       stopContext();

@@ -69,10 +69,20 @@ export const journalLineSchema = z.discriminatedUnion("k", [
   }),
   /** The teleprompter moved to this line. */
   z.object({ k: z.literal("line"), qpc, index: z.int().nonnegative() }),
-  /** The guided recording's narration (copied into the folder) and where it starts. */
-  z.object({ k: z.literal("narration"), file: fileName, offset: z.number() }),
+  /**
+   * The guided recording's narration (copied into the folder), where it starts in seconds of
+   * the recorder's clock, and the first-frame estimate that clock counted from then.
+   */
+  z.object({
+    k: z.literal("narration"),
+    file: fileName,
+    offset: z.number(),
+    origin: qpc.optional(),
+  }),
   z.object({ k: z.literal("stop"), qpc }),
   z.object({ k: z.literal("finalized"), qpc }),
+  /** The editor placed the take in a project (Date.now()); until then it is offered again. */
+  z.object({ k: z.literal("imported"), at: z.number() }),
 ]);
 export type JournalLine = z.infer<typeof journalLineSchema>;
 
@@ -97,9 +107,10 @@ export interface JournalReplay {
   markers: { qpc: number; kind: "marker" | "retake" }[];
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
-  narration: { file: string; offset: number } | null;
+  narration: { file: string; offset: number; origin?: number } | null;
   stop: number | null;
   finalized: boolean;
+  imported: boolean;
   /** Latest time any line mentions. */
   lastQpc: number;
   /** Lines that were not valid, such as a last line cut off by a crash. */
@@ -118,6 +129,7 @@ export function replayJournal(text: string): JournalReplay {
     narration: null,
     stop: null,
     finalized: false,
+    imported: false,
     lastQpc: 0,
     skipped: 0,
   };
@@ -178,7 +190,11 @@ export function replayJournal(text: string): JournalReplay {
         replay.lines.push({ qpc: line.qpc, index: line.index });
         break;
       case "narration":
-        replay.narration = { file: line.file, offset: line.offset };
+        replay.narration = {
+          file: line.file,
+          offset: line.offset,
+          ...(line.origin !== undefined ? { origin: line.origin } : {}),
+        };
         break;
       case "stop":
         replay.stop ??= line.qpc;
@@ -187,6 +203,9 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "finalized":
         replay.finalized = true;
+        break;
+      case "imported":
+        replay.imported = true;
         break;
       default:
         break;

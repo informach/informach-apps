@@ -1,6 +1,6 @@
 import type { OrphanTake } from "@shared/recording";
 import { AlertTriangle, FolderOpen, Loader, RotateCcw, Trash2 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { importRecording } from "@/lib/recording";
 import { useApp } from "@/state/app";
 import { Button, Modal } from "@/ui";
@@ -40,16 +40,29 @@ export function OrphanRecordings(): ReactNode {
   const [busy, setBusy] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
   const toast = useApp((s) => s.toast);
+  const look = useCallback(
+    (): Promise<void> =>
+      window.api.recorder.orphans().then(
+        (found) => {
+          setTakes(found);
+          setClosed(false);
+        },
+        (error: unknown) =>
+          toast(
+            `Não consegui procurar gravações interrompidas: ${(error as Error).message}`,
+            "error",
+          ),
+      ),
+    [toast],
+  );
   useEffect(() => {
-    void window.api.recorder
-      .orphans()
-      .then(setTakes, (error: unknown) =>
-        toast(
-          `Não consegui procurar gravações interrompidas: ${(error as Error).message}`,
-          "error",
-        ),
-      );
-  }, [toast]);
+    void look();
+    // A take that did not finish (or a recorder that went down) is said here and offered now.
+    return window.api.recorder.onAlert((alert) => {
+      toast(alert.message, alert.orphans ? "error" : "info");
+      if (alert.orphans) void look();
+    });
+  }, [look, toast]);
   if (!takes.length || closed) return null;
   const done = (dir: string): void => setTakes((all) => all.filter((t) => t.dir !== dir));
   const act = async (dir: string, work: () => Promise<void>): Promise<void> => {
@@ -78,17 +91,25 @@ export function OrphanRecordings(): ReactNode {
       done(take.dir);
     });
   const plural = takes.length > 1;
+  const interrupted = takes.some((t) => !t.finalized);
   return (
     <Modal label="Gravação interrompida" width={640} onClose={() => setClosed(true)}>
       <div className="export-head">
         <AlertTriangle size={20} className="warn-icon" />
         <div className="spacer">
           <h2 className="modal-title">
-            {plural ? "Gravações interrompidas" : "Gravação interrompida"}
+            {interrupted
+              ? plural
+                ? "Gravações interrompidas"
+                : "Gravação interrompida"
+              : plural
+                ? "Gravações que não entraram no projeto"
+                : "Gravação que não entrou no projeto"}
           </h2>
           <p className="muted">
-            O EdiAula fechou antes de terminar {plural ? "estas gravações" : "esta gravação"}. O
-            vídeo, o som e o cursor ficaram na pasta: dá para recuperar e importar no projeto.
+            {interrupted
+              ? "Algumas gravações não chegaram ao fim. O vídeo, o som e o cursor ficaram na pasta: dá para recuperar e importar no projeto."
+              : "Estas gravações terminaram, mas não chegaram a entrar num projeto. Dá para importar agora."}
           </p>
         </div>
       </div>
@@ -108,7 +129,7 @@ export function OrphanRecordings(): ReactNode {
                 disabled={busy !== null}
                 onClick={() => void recover(take)}
               >
-                Recuperar e importar
+                {take.finalized ? "Importar" : "Recuperar e importar"}
               </Button>
               <Button
                 size="sm"

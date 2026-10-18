@@ -58,12 +58,13 @@ const api: EdiAulaApi = {
     context: () => ipcRenderer.invoke("recorder:context"),
     sources: () => ipcRenderer.invoke("recorder:sources"),
     moveTo: (index) => ipcRenderer.invoke("recorder:moveTo", index),
-    encoder: (monitor) => ipcRenderer.invoke("recorder:encoder", monitor),
+    encoder: (monitor, fps) => ipcRenderer.invoke("recorder:encoder", monitor, fps),
     prepare: (opts) => ipcRenderer.invoke("recorder:prepare", opts),
     start: () => ipcRenderer.invoke("recorder:start"),
     systemChunk: (bytes, startedAt, endedAt) =>
       ipcRenderer.invoke("recorder:systemChunk", bytes, startedAt, endedAt),
     pause: () => ipcRenderer.invoke("recorder:pause"),
+    halt: () => ipcRenderer.invoke("recorder:halt"),
     resume: () => ipcRenderer.invoke("recorder:resume"),
     mark: (kind) => ipcRenderer.invoke("recorder:mark", kind),
     elapsed: () => ipcRenderer.invoke("recorder:elapsed"),
@@ -82,6 +83,7 @@ const api: EdiAulaApi = {
     orphans: () => ipcRenderer.invoke("recorder:orphans"),
     recoverOrphan: (dir) => ipcRenderer.invoke("recorder:recoverOrphan", dir),
     discardOrphan: (dir) => ipcRenderer.invoke("recorder:discardOrphan", dir),
+    imported: (dir) => ipcRenderer.invoke("recorder:imported", dir),
     debugCapture: (path) => ipcRenderer.invoke("recorder:debugCapture", path),
     onHotkey: (cb) => {
       const fn = (_e: unknown, name: string): void => {
@@ -97,6 +99,7 @@ const api: EdiAulaApi = {
     onLevel: (cb) => listen("recorder:level", cb),
     onHotkeys: (cb) => listen("recorder:hotkeys", cb),
     onState: (cb) => listen("recorder:state", cb),
+    onAlert: (cb) => listen("recorder:alert", cb),
   },
   saveGenerated: (bytes, ext) => ipcRenderer.invoke("media:saveGenerated", bytes, ext),
   saveNarration: (bytes) => ipcRenderer.invoke("media:saveNarration", bytes),
