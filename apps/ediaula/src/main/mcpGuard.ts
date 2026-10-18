@@ -1,6 +1,6 @@
 import type { McpGrant } from "@informach/edi-desktop/access";
 import { AI_TOOLS, type AiToolName, callPermission, describeCall } from "../shared/aiTools.ts";
-import type { AiApprovalChoice, AiToolCall } from "../shared/types.ts";
+import type { AiApprovalChoice, AiToolCall, ToolImage } from "../shared/types.ts";
 
 /**
  * What a local MCP request may do with its grant (packages/edi-desktop/src/access.ts). Reads
@@ -12,6 +12,8 @@ import type { AiApprovalChoice, AiToolCall } from "../shared/types.ts";
 export interface ToolOutcome {
   ok: boolean;
   text: string;
+  /** Pictures for the model (get_frame), after the text. */
+  images?: ToolImage[];
 }
 
 /** Who a call comes from and which project it is for (see AiToolCall). */

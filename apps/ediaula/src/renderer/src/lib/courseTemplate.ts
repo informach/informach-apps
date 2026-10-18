@@ -9,6 +9,7 @@ import {
   startPending,
   templateLook,
 } from "@shared/courseTemplate";
+import { type Learning, learnedDefaults } from "@shared/learning";
 import type { PrepareStep } from "@shared/prepare";
 import {
   type AvoidBox,
@@ -28,6 +29,7 @@ import { applyAutoZoom } from "@/editor/RecordingProps";
 import { useApp } from "@/state/app";
 import { basisOf, type Commit, draftCommit, useProject } from "@/state/project";
 import { addAnnotation, addCard } from "./annotations";
+import { courseLearning } from "./learning";
 import { applyPalette } from "./palettes";
 import { currentView } from "./script";
 import { cleanError } from "./transcripts";
@@ -41,8 +43,7 @@ import { cleanError } from "./transcripts";
 /** Each course's template, read once per session (null: the course has none). */
 const known = new Map<string, Promise<CourseTemplate | null>>();
 
-export function courseTemplate(course: string | undefined): Promise<CourseTemplate | null> {
-  if (!course?.trim()) return Promise.resolve(null);
+function savedTemplate(course: string): Promise<CourseTemplate | null> {
   let p = known.get(course);
   if (!p) {
     p = window.api.getCourseTemplate(course);
@@ -52,8 +53,33 @@ export function courseTemplate(course: string | undefined): Promise<CourseTempla
   return p;
 }
 
+/**
+ * The course's template as the next lesson gets it: the one saved, adjusted by what the person
+ * decided in the course's lessons so far (shared/learning.ts learnedDefaults).
+ */
+export async function courseTemplate(course: string | undefined): Promise<CourseTemplate | null> {
+  return (await learnedTemplate(course)).template;
+}
+
+/** The adjusted template and, in words, what the course's lessons changed in it. */
+async function learnedTemplate(
+  course: string | undefined,
+): Promise<{ template: CourseTemplate | null; notes: string[] }> {
+  if (!course?.trim()) return { template: null, notes: [] };
+  const template = await savedTemplate(course);
+  if (!template) return { template: null, notes: [] };
+  let learning: Learning | null = null;
+  try {
+    learning = await courseLearning(course);
+  } catch (err) {
+    // Without what was learned, the template as it was saved.
+    console.warn("[ediaula] learning_unreadable", err instanceof Error ? err.message : err);
+  }
+  return learnedDefaults(learning, template);
+}
+
 /** Where the recording pointed: clicks of the screen recordings, in timeline seconds. */
-async function clickTargets(p: Project): Promise<PointTarget[]> {
+export async function clickTargets(p: Project): Promise<PointTarget[]> {
   const out: PointTarget[] = [];
   for (const a of p.assets) {
     if (!a.cursor || a.cursorMissing) continue;
@@ -257,6 +283,8 @@ export async function saveCourseTemplateFromLesson(): Promise<void> {
 export const useCourseOffer = create<{
   projectId: string | null;
   template: CourseTemplate | null;
+  /** What the earlier lessons of the course changed in the template. */
+  notes?: string[];
 }>(() => ({ projectId: null, template: null }));
 
 /** The author of the draft the course template makes from its offer. */
@@ -289,11 +317,11 @@ export function watchCourseOffer(): () => void {
     // A lesson started from the template (Novo projeto) already has it.
     if (!p.course || !p.clips.length || p.prepare?.decisions.template || startPending(p)) return;
     if (p.templateOffer?.course === p.course) return;
-    void courseTemplate(p.course).then(
-      (template) => {
+    void learnedTemplate(p.course).then(
+      ({ template, notes }) => {
         const now = useProject.getState().project;
         if (template && now?.id === p.id && now.templateOffer?.course !== now.course)
-          useCourseOffer.setState({ projectId: p.id, template });
+          useCourseOffer.setState({ projectId: p.id, template, notes });
       },
       (err: unknown) =>
         useApp.getState().toast(`O modelo salvo do curso não abriu: ${cleanError(err)}`, "error"),

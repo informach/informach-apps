@@ -412,3 +412,80 @@ export function selfCheckVerdict(e: SelfCheckEvidence): {
     detail: "O Codex usou a ferramenta do editor e não conseguiu ler o arquivo do computador.",
   };
 }
+
+/**
+ * The part of an agent message not shown yet. Codex may send the text so far while it writes
+ * (item.updated) and the whole text when it is done (item.completed): each time only what follows
+ * what was already shown goes to the panel, and a text that changed earlier on (not a
+ * continuation) adds only what comes after the part both share.
+ */
+export function messageDelta(shown: Map<string, string>, id: string, text: string): string {
+  const before = shown.get(id) ?? "";
+  shown.set(id, text.length >= before.length ? text : before);
+  let same = 0;
+  while (same < before.length && same < text.length && before[same] === text[same]) same++;
+  return text.length > before.length ? text.slice(Math.max(same, before.length)) : "";
+}
+
+/**
+ * Claude Code for one answer with no tools at all (not even EdiAula's): a translation or a quiz
+ * the editor checks itself. The prompt goes on standard input; the answer comes as one JSON.
+ */
+export function claudeOneShotArgs(options: { model?: string; effort?: string }): string[] {
+  return [
+    "-p",
+    "--input-format",
+    "text",
+    "--output-format",
+    "json",
+    "--tools",
+    "",
+    "--strict-mcp-config",
+    "--mcp-config",
+    JSON.stringify({ mcpServers: {} }),
+    ...(options.model && options.model !== "default" ? ["--model", options.model] : []),
+    ...(options.effort ? ["--effort", options.effort] : []),
+  ];
+}
+
+/** The answer of a one-shot Claude Code run (its JSON result on standard output). */
+export function claudeOneShotResult(stdout: string): string {
+  const line = stdout
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("{"))
+    .at(-1);
+  if (!line) throw new Error("O Claude Code não devolveu resposta.");
+  const parsed: unknown = JSON.parse(line);
+  const result: unknown = parsed && typeof parsed === "object" ? Reflect.get(parsed, "result") : "";
+  const failed: unknown =
+    parsed && typeof parsed === "object" ? Reflect.get(parsed, "is_error") : true;
+  if (failed === true || typeof result !== "string")
+    throw new Error(`Claude Code: ${typeof result === "string" && result ? result : "falhou"}`);
+  return result;
+}
+
+/** Codex for one answer: read-only, without the person's config, without EdiAula's server. */
+export function codexOneShotArgs(options: {
+  workspace: string;
+  disabledFeatures?: readonly string[];
+}): string[] {
+  return [
+    "exec",
+    "--json",
+    "--skip-git-repo-check",
+    "--ignore-user-config",
+    "--ignore-rules",
+    "-s",
+    "read-only",
+    "-C",
+    options.workspace,
+    "-c",
+    'web_search="disabled"',
+    ...(options.disabledFeatures ?? CODEX_DISABLED_FEATURES).flatMap((feature) => [
+      "-c",
+      `features.${feature}=false`,
+    ]),
+    "-",
+  ];
+}

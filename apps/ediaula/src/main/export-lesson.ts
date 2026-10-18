@@ -1,5 +1,6 @@
-import { dirname, extname } from "node:path";
+import { basename, dirname, extname } from "node:path";
 import { withStagedFiles } from "@informach/edi-desktop/files";
+import { PACKAGE_SUFFIX } from "../shared/platformPackage.ts";
 import { exportSpecSchema, projectSchema } from "../shared/project-schema.ts";
 import { subRip } from "../shared/webvtt.ts";
 import { type ExportDeps, renderLesson } from "./export/pipeline.ts";
@@ -28,9 +29,29 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
     spec.thumbnail && !spec.audioOnly
       ? await deps.assertRelatedExport(primary, `${base}.jpg`)
       : undefined;
-  const destinations = [primary, captions, subtitles, thumbnail].filter(
-    (path) => path !== undefined,
-  );
+  // Translated captions beside the video: <aula>.<lang>.srt and .vtt (shared/captionTranslate.ts).
+  const translations: { lang: string; srt: string; vtt: string }[] = [];
+  for (const t of spec.translations ?? []) {
+    if (subRip(t.cues) === null) continue;
+    translations.push({
+      lang: t.lang,
+      srt: await deps.assertRelatedExport(primary, `${base}.${t.lang}.srt`),
+      vtt: await deps.assertRelatedExport(primary, `${base}.${t.lang}.vtt`),
+    });
+  }
+  // The package for the platform (shared/platformPackage.ts), only for a video.
+  const platform =
+    spec.platform && !spec.audioOnly
+      ? await deps.assertRelatedExport(primary, `${base}${PACKAGE_SUFFIX}`)
+      : undefined;
+  const destinations = [
+    primary,
+    captions,
+    subtitles,
+    thumbnail,
+    ...translations.flatMap((t) => [t.srt, t.vtt]),
+    platform,
+  ].filter((path) => path !== undefined);
   await withStagedFiles(
     destinations,
     async (staged) => {
@@ -47,6 +68,33 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
           captions: captions && output(captions),
           subtitles: subtitles && output(subtitles),
           thumbnail: thumbnail && output(thumbnail),
+          translations: translations.map((t) => ({
+            lang: t.lang,
+            srt: output(t.srt),
+            vtt: output(t.vtt),
+          })),
+          platform: platform && output(platform),
+          // The package names the files as they end up, not their staged copies.
+          names: {
+            video: basename(primary),
+            ...(thumbnail ? { thumbnail: basename(thumbnail) } : {}),
+            captions: [
+              ...(captions || subtitles
+                ? [
+                    {
+                      lang: "pt-BR",
+                      ...(captions ? { srt: basename(captions) } : {}),
+                      ...(subtitles ? { vtt: basename(subtitles) } : {}),
+                    },
+                  ]
+                : []),
+              ...translations.map((t) => ({
+                lang: t.lang,
+                srt: basename(t.srt),
+                vtt: basename(t.vtt),
+              })),
+            ],
+          },
         },
         deps,
       );
@@ -54,7 +102,13 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
     async () => {
       deps.check();
       await deps.assertWrite(primary);
-      for (const related of [captions, subtitles, thumbnail])
+      for (const related of [
+        captions,
+        subtitles,
+        thumbnail,
+        ...translations.flatMap((t) => [t.srt, t.vtt]),
+        platform,
+      ])
         if (related) await deps.assertRelatedExport(primary, related);
     },
   );

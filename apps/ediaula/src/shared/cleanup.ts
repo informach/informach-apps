@@ -54,6 +54,8 @@ export interface CleanupOptions {
   activity?: readonly { start: number; end: number }[];
   /** Phrases repeated on purpose, as said ("muito, muito"); DEFAULT_INTENTIONAL when absent. */
   intentional?: readonly string[];
+  /** Hesitations this course does not cut (learned from proposals the person rejected). */
+  notFillers?: readonly string[];
   /**
    * Timeline stretches where the script asks for a pause ("pausar para a pessoa testar"):
    * like a pause after a question, they keep THINK_PAUSE.
@@ -144,12 +146,15 @@ const ALWAYS_FILLER = new Set([
 const trailingPause = (text: string): boolean => /(,|…|\.\.\.)$/.test(text.trim());
 const statementEnd = (text: string): boolean => /[.!]["”')\]]*$/.test(text.trim());
 
-/** Whether words[i] is a hesitation; `words` are the words of one speaker, in order. */
-function isFiller(words: TimelineWord[], i: number): boolean {
+/**
+ * Whether words[i] is a hesitation; `words` are the words of one speaker, in order. Words in
+ * `skip` (stripped) are never one.
+ */
+function isFiller(words: TimelineWord[], i: number, skip: ReadonlySet<string>): boolean {
   const w = words[i];
   const raw = w.text.trim();
   const n = strip(raw);
-  if (!n) return false;
+  if (!n || skip.has(n)) return false;
   if (ALWAYS_FILLER.has(n)) return true;
   const prev = words[i - 1];
   const setOffBefore = !prev || /[,.!?…]$/.test(prev.text) || w.start - prev.end > 0.4;
@@ -560,6 +565,7 @@ export function analyze(
 ): Issue[] {
   const issues: Issue[] = [];
   const intentional = new Set((opts.intentional ?? DEFAULT_INTENTIONAL).map(phraseKey));
+  const notFillers = new Set((opts.notFillers ?? []).map(strip));
   const activity = mergeRanges(
     (opts.activity ?? []).map((a): [number, number] => [a.start, a.end]),
     0,
@@ -584,7 +590,7 @@ export function analyze(
 
   for (const [source, own] of bySource) {
     own.forEach((w, i) => {
-      if (!isFiller(own, i)) return;
+      if (!isFiller(own, i, notFillers)) return;
       // Up to the next word of anyone, so no other voice is clipped.
       const next = heard[(position.get(w) ?? -1) + 1];
       const end = Math.max(Math.min(next ? next.start : w.end, w.end + 0.3) - 0.03, w.end);

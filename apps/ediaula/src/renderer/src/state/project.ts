@@ -647,6 +647,9 @@ export function onDraftView(commit: Commit): Commit {
   return commit;
 }
 
+/** Whether `commit` writes into the draft (draftCommit, or a commit marked by onDraftView). */
+export const writesIntoDraft = (commit: Commit): boolean => draftCommits.has(commit);
+
 /**
  * The project a commit's changes are worked out on: the draft as shown for a commit into the
  * draft (an annotation added after the draft's palette takes its colors), else the lesson.

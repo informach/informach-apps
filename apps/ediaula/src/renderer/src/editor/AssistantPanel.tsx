@@ -1,10 +1,10 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { modelLabel, usageLabel } from "@shared/aiModels";
-import { type AiSettingsView, ENGINE_LABEL, type PublishInfo } from "@shared/types";
+import { type AiSettingsView, ENGINE_LABEL } from "@shared/types";
 import {
   ArrowUp,
   Check,
-  Copy,
+  CircleSlash,
   KeyRound,
   ListVideo,
   Loader,
@@ -14,16 +14,19 @@ import {
   Settings,
   Sparkles,
   Square,
+  Undo2,
   Wand2,
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { cancelAiCall, runningCall, useAiCalls } from "@/lib/aiActivity";
 import { proposeCleanup } from "@/lib/proposals";
 import { useApp } from "@/state/app";
-import { type ChatItem, useAssistant } from "@/state/assistant";
+import { type ChatItem, type ToolActivity, useAssistant } from "@/state/assistant";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
+import { PlatformCard } from "./PlatformCard";
 
 /**
  * Quick starts: a request for the assistant, or (`local`) something the editor does by itself,
@@ -66,7 +69,7 @@ export function AssistantPanel(): ReactNode {
   const [settings, setSettings] = useState<AiSettingsView | null>(null);
   const conversationId = project?.id ?? "none";
   const conv = useAssistant((s) => s.conversations[conversationId]);
-  const { send, stop, reset } = useAssistant();
+  const { send, stop, reset, load } = useAssistant();
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const items = conv?.items ?? [];
@@ -75,6 +78,10 @@ export function AssistantPanel(): ReactNode {
   useEffect(() => {
     void window.api.aiSettings().then(setSettings);
   }, []);
+  // The conversation kept for this lesson comes back when it opens.
+  useEffect(() => {
+    if (conversationId !== "none") void load(conversationId);
+  }, [conversationId, load]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -95,7 +102,7 @@ export function AssistantPanel(): ReactNode {
   if (settings && settings.engine === "api" && !settings.hasApiKey)
     return (
       <div className="chat">
-        {project.publish && <PublishCard info={project.publish} />}
+        <PlatformCard />
         <NoKey settings={settings} />
       </div>
     );
@@ -125,7 +132,7 @@ export function AssistantPanel(): ReactNode {
   return (
     <div className="assistant">
       <div className="chat" ref={listRef}>
-        {project.publish && <PublishCard info={project.publish} />}
+        <PlatformCard />
         {items.length === 0 && (
           <div className="chat-empty">
             <Sparkles size={22} className="accent" />
@@ -151,7 +158,7 @@ export function AssistantPanel(): ReactNode {
           </div>
         )}
         {items.map((it) => (
-          <Message key={it.id} item={it} />
+          <Message key={it.id} item={it} conversationId={conversationId} />
         ))}
         {busy && items[items.length - 1]?.role === "user" && (
           <div className="msg msg-assistant">
@@ -285,7 +292,129 @@ function Rich({ text }: { text: string }): ReactNode {
   );
 }
 
-function Message({ item }: { item: ChatItem }): ReactNode {
+const percent = (ratio: number): string => `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%`;
+
+const clock = (s: number): string =>
+  `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+/**
+ * One line of a tool: what it is, how it ended or, while it runs, what it is doing now (the step
+ * the editor reports) with how far it got, and the button that cancels it.
+ */
+function ToolLine({
+  tool,
+  conversationId,
+}: {
+  tool: ToolActivity;
+  conversationId: string;
+}): ReactNode {
+  const call = useAiCalls((s) =>
+    tool.status === "running" ? runningCall(s.calls, conversationId, tool.name) : undefined,
+  );
+  const step = call?.step ?? tool.progress?.step;
+  const ratio = call?.ratio ?? tool.progress?.ratio;
+  const running = tool.status === "running";
+  return (
+    <div className={`tool-line tool-${tool.status}`} title={tool.summary}>
+      <div className="tool-row">
+        {running ? (
+          <Loader size={11} className="spin" />
+        ) : tool.status === "done" ? (
+          <Check size={11} />
+        ) : (
+          <X size={11} />
+        )}
+        <span className="tool-title">{tool.title}</span>
+        {!running && tool.summary && <span className="tool-summary">{tool.summary}</span>}
+        {call && (
+          <button
+            type="button"
+            className="tool-cancel"
+            title="Cancelar esta ferramenta (o resto do pedido continua)"
+            onClick={() => cancelAiCall(call.id)}
+          >
+            <CircleSlash size={11} /> Cancelar
+          </button>
+        )}
+      </div>
+      {running && step && (
+        <div className="tool-progress">
+          <span className="tool-step">{step}</span>
+          {ratio !== undefined && (
+            <>
+              <span className="tool-bar" aria-hidden="true">
+                <span style={{ width: percent(ratio) }} />
+              </span>
+              <span className="mono">{percent(ratio)}</span>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What a turn changed in the lesson, each with "Ir até", and the button that undoes the turn. */
+function TurnChanges({
+  item,
+  conversationId,
+}: {
+  item: ChatItem;
+  conversationId: string;
+}): ReactNode {
+  const undoTurn = useAssistant((s) => s.undoTurn);
+  // The turn can be taken back while its edits are the last ones of the history.
+  const onTop = useProject((s) => {
+    const top = s.pastMeta[s.pastMeta.length - 1];
+    return !!item.turn && top?.turn === item.turn;
+  });
+  const [open, setOpen] = useState(true);
+  if (!item.changes?.length) return null;
+  return (
+    <div className="turn-changes">
+      <div className="turn-changes-head">
+        <button type="button" className="link" onClick={() => setOpen(!open)}>
+          <strong>O que mudou</strong> ({item.changes.filter((c) => c.kind !== "more").length})
+        </button>
+        <span className="spacer" />
+        {onTop && (
+          <button
+            type="button"
+            className="link"
+            title="Desfaz todas as edições deste pedido de uma vez"
+            onClick={() => undoTurn(conversationId, item.id)}
+          >
+            <Undo2 size={11} /> Desfazer este pedido
+          </button>
+        )}
+      </div>
+      {open && (
+        <ul>
+          {item.changes.map((c) => (
+            <li key={c.id}>
+              <span>{c.label}</span>
+              {c.at !== undefined && (
+                <button
+                  type="button"
+                  className="link"
+                  title="Leva o cursor a esse momento da aula"
+                  onClick={() => {
+                    playback.pause();
+                    playback.seek(c.at ?? 0);
+                  }}
+                >
+                  Ir até {clock(c.at)}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Message({ item, conversationId }: { item: ChatItem; conversationId: string }): ReactNode {
   if (item.role === "user") return <div className="msg msg-user">{item.text}</div>;
   if (item.role === "error") return <div className="msg msg-error">{item.text}</div>;
   return (
@@ -293,108 +422,15 @@ function Message({ item }: { item: ChatItem }): ReactNode {
       {item.tools.length > 0 && (
         <div className="tool-log">
           {item.tools.map((t) => (
-            <div key={t.id} className={`tool-line tool-${t.status}`} title={t.summary}>
-              {t.status === "running" ? (
-                <Loader size={11} className="spin" />
-              ) : t.status === "done" ? (
-                <Check size={11} />
-              ) : (
-                <X size={11} />
-              )}
-              <span className="tool-title">{t.title}</span>
-              {t.summary && <span className="tool-summary">{t.summary}</span>}
-            </div>
+            <ToolLine key={t.id} tool={t} conversationId={conversationId} />
           ))}
         </div>
       )}
       {item.text && <Rich text={item.text} />}
+      <TurnChanges item={item} conversationId={conversationId} />
       {item.usage && (
         <div className="msg-usage muted small" title="O que este pedido usou">
           {usageLabel(item.usage)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const fmt = (s: number): string => {
-  const total = Math.round(s);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const sec = String(total % 60).padStart(2, "0");
-  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
-};
-
-function CopyButton({ text }: { text: string }): ReactNode {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      className="icon-btn"
-      title="Copiar"
-      onClick={() => {
-        void navigator.clipboard.writeText(text);
-        setDone(true);
-        setTimeout(() => setDone(false), 1500);
-      }}
-    >
-      {done ? <Check size={13} /> : <Copy size={13} />}
-    </button>
-  );
-}
-
-function PublishCard({ info }: { info: PublishInfo }): ReactNode {
-  const [open, setOpen] = useState(true);
-  const chapters = info.chapters?.map((c) => `${fmt(c.time)} ${c.title}`).join("\n");
-  const description = [info.description, chapters && `Capítulos:\n${chapters}`]
-    .filter(Boolean)
-    .join("\n\n");
-  return (
-    <div className="publish">
-      <button type="button" className="publish-head" onClick={() => setOpen(!open)}>
-        <ListVideo size={14} className="accent" />
-        <strong>Publicação</strong>
-        <span className="spacer" />
-        <span className="muted">{open ? "ocultar" : "mostrar"}</span>
-      </button>
-      {open && (
-        <div className="publish-body">
-          {info.title && (
-            <div className="publish-field">
-              <span className="muted">Título</span>
-              <p>{info.title}</p>
-              <CopyButton text={info.title} />
-            </div>
-          )}
-          {description && (
-            <div className="publish-field">
-              <span className="muted">Descrição + capítulos</span>
-              <p className="pre">{description}</p>
-              <CopyButton text={description} />
-            </div>
-          )}
-          {info.chapters && info.chapters.length > 0 && (
-            <div className="chapters">
-              {info.chapters.map((c) => (
-                <button
-                  type="button"
-                  key={`${c.time}${c.title}`}
-                  className="chapter"
-                  onClick={() => playback.seek(c.time)}
-                >
-                  <span className="mono accent">{fmt(c.time)}</span>
-                  {c.title}
-                </button>
-              ))}
-            </div>
-          )}
-          {info.summary && (
-            <div className="publish-field">
-              <span className="muted">Resumo</span>
-              <p className="pre">{info.summary}</p>
-              <CopyButton text={info.summary} />
-            </div>
-          )}
         </div>
       )}
     </div>

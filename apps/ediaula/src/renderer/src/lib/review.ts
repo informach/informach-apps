@@ -1,3 +1,4 @@
+import type { ProposalItem } from "@shared/anchors";
 import { cutTargets } from "@shared/cleanup";
 import { type DiffItem, includeItem, revertItem } from "@shared/projectDiff";
 import {
@@ -28,6 +29,9 @@ export interface Resolution {
   what: "draft" | "proposal";
   author?: string;
   outcome: "applied" | "discarded";
+  /** Its items as the person left them (lib/learning.ts learns from them). */
+  proposalItems?: readonly ProposalItem[];
+  draftItems?: readonly DiffItem[];
 }
 
 const listeners = new Set<(r: Resolution) => void>();
@@ -88,14 +92,24 @@ export function applyDraftNow(): void {
     `${r.applied === 1 ? "1 mudança aplicada" : `${r.applied} mudanças aplicadas`}. Ctrl+Z desfaz tudo de uma vez.`,
     "success",
   );
-  reviewResolved({ what: "draft", author: draft.author, outcome: "applied" });
+  reviewResolved({
+    what: "draft",
+    author: draft.author,
+    outcome: "applied",
+    draftItems: draft.items,
+  });
 }
 
 export function discardDraftNow(): void {
   const { draft, discardDraft } = useProject.getState();
   if (!draft) return;
   discardDraft();
-  reviewResolved({ what: "draft", author: draft.author, outcome: "discarded" });
+  reviewResolved({
+    what: "draft",
+    author: draft.author,
+    outcome: "discarded",
+    draftItems: draft.items,
+  });
 }
 
 /** Plays a little before and after what a draft item changes. */

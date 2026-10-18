@@ -1028,6 +1028,173 @@ try {
     await editor.keyboard.press("Control+z");
     await editor.locator("section.preview .info-chip", { hasText: "1920×1080" }).waitFor();
     await settle(editor);
+  await step("Assistente, pacote da plataforma e tradução", async () => {
+    // A turn of the assistant without any model: the test's main process answers assistant:send
+    // with the events an engine sends, and calls a real tool of the editor (add_annotation) the
+    // way the in-app engines do, so progress, cost and "O que mudou" come from the real panel.
+    // ai:oneShot answers the quiz (and a translation) the same way: nothing reaches an AI.
+    await first.application.evaluate(({ ipcMain }) => {
+      const sim: {
+        results: Map<string, (r: { ok: boolean; text: string }) => void>;
+        go: (() => void) | null;
+      } = { results: new Map(), go: null };
+      Reflect.set(globalThis, "__ediVisualTurn", sim);
+      ipcMain.removeHandler("ai:result");
+      ipcMain.handle("ai:result", (_event, id: string, result: { ok: boolean; text: string }) => {
+        sim.results.get(id)?.(result);
+        sim.results.delete(id);
+      });
+      ipcMain.removeHandler("assistant:send");
+      ipcMain.handle("assistant:send", async (event, conversationId: string) => {
+        const send = (ev: unknown): void =>
+          event.sender.send("assistant:event", conversationId, ev);
+        send({ type: "text", delta: "Vou pôr um balão no farol e conferir a aula." });
+        send({
+          type: "tool",
+          id: "t1",
+          name: "mcp__ediaula__add_annotation",
+          title: "Adicionar anotação",
+          status: "running",
+        });
+        const id = crypto.randomUUID();
+        const result = await new Promise<{ ok: boolean; text: string }>((resolve) => {
+          sim.results.set(id, resolve);
+          event.sender.send("ai:call", {
+            id,
+            name: "add_annotation",
+            input: { kind: "balloon", text: "Olha o farol!", at: 3, duration: 4, x: 0.32, y: 0.3 },
+            source: "assistant",
+            projectId: conversationId,
+          });
+        });
+        send({
+          type: "tool",
+          id: "t1",
+          name: "",
+          title: "",
+          status: result.ok ? "done" : "error",
+          summary: result.text.split("\n")[0],
+        });
+        send({
+          type: "tool",
+          id: "t2",
+          name: "check_before_export",
+          title: "Verificação antes de exportar",
+          status: "running",
+        });
+        send({
+          type: "progress",
+          name: "check_before_export",
+          step: "Medindo o volume da aula",
+          ratio: 0.4,
+        });
+        await new Promise<void>((resolve) => {
+          sim.go = resolve;
+        });
+        send({
+          type: "tool",
+          id: "t2",
+          name: "",
+          title: "",
+          status: "done",
+          summary: "Nada a corrigir antes de exportar.",
+        });
+        send({
+          type: "text",
+          delta: "\n\nPus um balão em 0:03 apontando para o farol e conferi a aula.",
+        });
+        send({ type: "usage", tokens: 18450, usd: 0.0731 });
+        send({ type: "done" });
+      });
+      ipcMain.removeHandler("ai:oneShot");
+      ipcMain.handle("ai:oneShot", async (_event, _job: string, prompt: string) => {
+        if (/multiple-choice questions/.test(prompt))
+          return JSON.stringify({
+            questions: [
+              {
+                question: "O que o barco precisa para chegar à costa?",
+                options: ["A luz do farol", "Um mapa novo", "Mais velocidade", "Uma ponte"],
+                correct: 0,
+                line: 1,
+              },
+              {
+                question: "O que você faz antes de montar o seu jogo?",
+                options: [
+                  "Joga a versão pronta",
+                  "Desenha o barco",
+                  "Apaga o farol",
+                  "Muda as regras",
+                ],
+                correct: 0,
+                line: 2,
+              },
+            ],
+          });
+        const data = JSON.parse(prompt.slice(prompt.lastIndexOf('{"cues"')).split("\n")[0]) as {
+          cues: { i: number; text: string }[];
+        };
+        return JSON.stringify({ cues: data.cues.map((c) => ({ i: c.i, text: `EN ${c.text}` })) });
+      });
+    });
+
+    await side.locator(".tab", { hasText: "Assistente" }).click();
+    const panel = side.locator(".assistant");
+    await panel.waitFor();
+    await panel.locator(".composer-box textarea").fill("Ponha um balão no farol e confira a aula.");
+    await panel.locator(".composer-box textarea").press("Enter");
+    await panel.getByText("Medindo o volume da aula").waitFor({ timeout: 60_000 });
+    await settle(editor);
+    await capture(
+      side,
+      "assistente-progresso",
+      "Assistente: ferramenta em andamento, com a etapa e a porcentagem",
+    );
+    await first.application.evaluate(() => {
+      const sim: unknown = Reflect.get(globalThis, "__ediVisualTurn");
+      const go: unknown = sim && typeof sim === "object" ? Reflect.get(sim, "go") : null;
+      if (typeof go !== "function")
+        throw new Error("O turno simulado não chegou à ferramenta lenta");
+      go();
+    });
+    await panel.getByText("O que mudou").waitFor({ timeout: 60_000 });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      side,
+      "assistente-o-que-mudou",
+      'Assistente: custo do pedido e "O que mudou", com Ir até e Desfazer',
+    );
+    await capture(editor, "assistente-editor", "Editor com o balão que o pedido pôs na aula");
+
+    // The platform: the quiz made by the (simulated) engine, the thumbnail and the translations.
+    const card = panel.locator(".publish");
+    if (!(await card.getByText("Quiz", { exact: true }).isVisible()))
+      await card.locator(".publish-head").click();
+    await card.getByRole("button", { name: "Gerar quiz" }).click();
+    await card.locator(".quiz-list li").nth(1).waitFor({ timeout: 60_000 });
+    await seek(editor, 6);
+    await card.getByRole("button", { name: "Usar o quadro atual" }).click();
+    await card.getByText(/Quadro de/).waitFor();
+    await settle(editor);
+    await withoutToasts(editor);
+    // The card is taller than the panel: its top and its quiz and thumbnail, each in view.
+    await card.locator(".publish-head").scrollIntoViewIfNeeded();
+    await capture(
+      side,
+      "plataforma-cartao",
+      "Publicação e plataforma: código do vídeo, título e capítulos",
+    );
+    await card.locator(".quiz-list").scrollIntoViewIfNeeded();
+    await capture(side, "plataforma-quiz", "Quiz conferido, miniatura escolhida e traduções");
+    await card.getByRole("button", { name: "Traduzir…" }).click();
+    const translate = editor.getByRole("dialog", { name: "Traduzir as legendas" });
+    await translate.waitFor();
+    await translate
+      .getByText("Contando as legendas…")
+      .waitFor({ state: "detached", timeout: 30_000 });
+    await capture(translate.locator(".modal"), "traducao-dialogo", "Diálogo Traduzir as legendas");
+    await translate.getByRole("button", { name: "Cancelar" }).click();
+    await translate.waitFor({ state: "detached" });
     await savedSoon(editor);
   });
 
@@ -1057,6 +1224,26 @@ try {
     await capture(queue.locator(".modal"), "fila-exportando", "Fila de exportação em andamento");
     await queue.getByText("Concluído").waitFor({ timeout: 600_000 });
     await capture(queue.locator(".modal"), "fila-concluida", "Fila de exportação concluída");
+    // The package for the platform went beside the video, with the hash of the file written.
+    const exported = join(harness.root, "exportacoes");
+    const pack = JSON.parse(
+      await readFile(join(exported, "aula visual.plataforma.json"), "utf8"),
+    ) as {
+      videoId?: string;
+      quiz: unknown[];
+      thumbnail?: { file: string; time: number };
+      captions: unknown[];
+      video: { file: string; sha256: string };
+    };
+    const { createHash } = await import("node:crypto");
+    const hash = createHash("sha256")
+      .update(await readFile(join(exported, "aula visual.mp4")))
+      .digest("hex");
+    assert.equal(pack.video.sha256, hash, "o SHA-256 do pacote é o do vídeo exportado");
+    assert.equal(pack.video.file, "aula visual.mp4");
+    notes.push(
+      `Pacote da plataforma: vídeo ${pack.videoId ?? "sem código"}, ${pack.quiz.length} perguntas, miniatura ${pack.thumbnail ? `${pack.thumbnail.file} em ${pack.thumbnail.time} s` : "ausente"}, ${pack.captions.length} conjuntos de legenda, SHA-256 conferido (${hash.slice(0, 12)}…).`,
+    );
     await queue.getByRole("button", { name: "Fechar fila e continuar editando" }).click();
     await queue.waitFor({ state: "detached" });
   });

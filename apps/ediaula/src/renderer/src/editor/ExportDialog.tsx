@@ -1,13 +1,21 @@
 import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
+import {
+  EXPORT_PRESETS,
+  EXPORT_QUALITY,
+  type ExportPresetId,
+  qualityOf,
+} from "@shared/exportPresets";
 import { newId, projectDuration } from "@shared/timeline";
-import type { ExportQuality, ExportSpec } from "@shared/types";
+import type { ExportSpec } from "@shared/types";
 import {
   AudioLines,
   Captions,
+  FileJson,
   Gauge,
   GraduationCap,
   HardDrive,
   Image,
+  Languages,
   type LucideIcon,
   MonitorPlay,
   Smartphone,
@@ -17,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { hasPlatformData, translationState } from "@/lib/delivery";
 import { bytes, duration } from "@/lib/format";
 import {
   checkLesson,
@@ -34,68 +43,18 @@ import { Button, Field, IconButton, Modal, Toggle } from "@/ui";
 import { setCaptions as setCaptionStyle } from "./CaptionSettings";
 import { PreflightList } from "./PreflightList";
 
-interface Preset {
-  id: string;
-  icon: LucideIcon;
-  name: string;
-  desc: string;
-  height: number;
-  bitrate: number;
-  soon?: boolean;
-}
+type Preset = (typeof EXPORT_PRESETS)[number] & { icon: LucideIcon; soon?: boolean };
 
-const PRESETS: Preset[] = [
-  {
-    id: "youtube",
-    icon: MonitorPlay,
-    name: "YouTube",
-    desc: "1080p · alta qualidade",
-    height: 1080,
-    bitrate: 12000,
-  },
-  {
-    id: "hotmart",
-    icon: GraduationCap,
-    name: "Hotmart / área de membros",
-    desc: "1080p · arquivo menor",
-    height: 1080,
-    bitrate: 8000,
-  },
-  {
-    id: "draft",
-    icon: Zap,
-    name: "Rascunho para revisão",
-    desc: "720p · rápido e leve",
-    height: 720,
-    bitrate: 3500,
-  },
-  {
-    id: "reels",
-    icon: Smartphone,
-    name: "Reels / Shorts 9:16",
-    desc: "1080 × 1920 · vertical",
-    height: 1080,
-    bitrate: 10000,
-  },
-  {
-    id: "audio",
-    icon: AudioLines,
-    name: "Só áudio (podcast)",
-    desc: "MP3 · 192 kbps",
-    height: 1080,
-    bitrate: 0,
-  },
-];
-
-/** Constant quality for the resolution (CRF or CQ), never above the bitrate shown. */
-const QUALITY: [string, number, ExportQuality][] = [
-  ["Rascunho", 3500, "draft"],
-  ["Padrão", 8000, "standard"],
-  ["Alta", 12000, "high"],
-  ["Máxima", 20000, "max"],
-];
-const qualityOf = (kbps: number): ExportQuality | undefined =>
-  QUALITY.find(([, k]) => k === kbps)?.[2];
+const ICONS: Record<ExportPresetId, LucideIcon> = {
+  youtube: MonitorPlay,
+  hotmart: GraduationCap,
+  draft: Zap,
+  reels: Smartphone,
+  audio: AudioLines,
+};
+/** The presets of shared/exportPresets.ts (the AI's export_video uses the same ones). */
+const PRESETS: Preset[] = EXPORT_PRESETS.map((p) => ({ ...p, icon: ICONS[p.id] }));
+const QUALITY = EXPORT_QUALITY;
 
 type Phase = { kind: "setup" } | { kind: "error"; message: string };
 
@@ -116,6 +75,28 @@ export function ExportDialog(): ReactNode {
   const transcribed = project.assets.filter((a) => a.transcript && a.transcriptStatus === "ready");
   const [captions, setCaptions] = useState(true);
   const [thumbnail, setThumbnail] = useState(true);
+  // What goes to the platform beside the video: the translations up to date and the package.
+  const [ready, setReady] = useState<{ current: string[]; stale: string[] }>({
+    current: [],
+    stale: [],
+  });
+  const [translations, setTranslations] = useState(true);
+  const [platform, setPlatform] = useState(() => hasPlatformData(project));
+  useEffect(() => {
+    let alive = true;
+    void translationState(project).then(
+      (list) =>
+        alive &&
+        setReady({
+          current: list.filter((t) => !t.stale).map((t) => t.lang),
+          stale: list.filter((t) => t.stale).map((t) => t.lang),
+        }),
+      () => alive && setReady({ current: [], stale: [] }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [project]);
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [vertical, setVertical] = useState<"blur" | "crop">("blur");
@@ -213,7 +194,16 @@ export function ExportDialog(): ReactNode {
             quality: qualityOf(bitrate),
             thumbnail,
           };
-    exportQueue.add({ id: newId("export"), project, spec, captions });
+    exportQueue.add({
+      id: newId("export"),
+      project,
+      spec,
+      captions,
+      extras: {
+        translations: translations && ready.current.length > 0,
+        platform: platform && !isAudio,
+      },
+    });
     close();
     useExportQueue.setState({ open: true });
   };
@@ -386,10 +376,46 @@ export function ExportDialog(): ReactNode {
                 <div className="spacer">
                   <strong>Miniatura (.jpg)</strong>
                   <p className="muted">
-                    Um quadro de 1280 px salvo ao lado do vídeo, para a capa da aula.
+                    {project.publish?.thumbnail
+                      ? `O quadro escolhido (${duration(project.publish.thumbnail.time)}), em 1280 px, ao lado do vídeo.`
+                      : "Um quadro de 1280 px salvo ao lado do vídeo, para a capa da aula."}
                   </p>
                 </div>
                 <Toggle on={thumbnail} onChange={setThumbnail} label="Gerar miniatura" />
+              </div>
+            )}
+            {(ready.current.length > 0 || ready.stale.length > 0) && (
+              <div className="loudness">
+                <Languages size={15} className="accent" />
+                <div className="spacer">
+                  <strong>Legendas traduzidas</strong>
+                  <p className="muted">
+                    {ready.current.length
+                      ? `Em ${ready.current.join(", ")}, como aula.${ready.current[0]}.srt e .vtt.`
+                      : "Nenhuma em dia."}
+                    {ready.stale.length
+                      ? ` ${ready.stale.join(", ")} ${ready.stale.length === 1 ? "ficou" : "ficaram"} de fora: a aula mudou depois da tradução.`
+                      : ""}
+                  </p>
+                </div>
+                <Toggle
+                  on={translations && ready.current.length > 0}
+                  onChange={setTranslations}
+                  label="Exportar legendas traduzidas"
+                />
+              </div>
+            )}
+            {!isAudio && (
+              <div className="loudness">
+                <FileJson size={15} className="accent" />
+                <div className="spacer">
+                  <strong>Pacote para a plataforma</strong>
+                  <p className="muted">
+                    aula.plataforma.json com o código do vídeo, título, descrição, capítulos
+                    válidos, quiz, miniatura e legendas, para a subida manual no Sistema Zero.
+                  </p>
+                </div>
+                <Toggle on={platform} onChange={setPlatform} label="Gerar pacote da plataforma" />
               </div>
             )}
             <div className="export-check">

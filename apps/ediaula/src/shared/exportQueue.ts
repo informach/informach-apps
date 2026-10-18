@@ -6,6 +6,8 @@ export interface ExportItem {
   project: Project;
   spec: ExportSpec;
   captions: boolean;
+  /** Also the translated captions that are up to date, and the platform package. */
+  extras?: { translations?: boolean; platform?: boolean };
   state: ExportState;
   message?: string;
   /** Why an export left from the last session cannot be resumed (a file or folder that is gone). */
@@ -45,7 +47,7 @@ export class ExportQueue {
     this.persist = persist;
   }
 
-  add(item: Pick<ExportItem, "id" | "project" | "spec" | "captions">): void {
+  add(item: Pick<ExportItem, "id" | "project" | "spec" | "captions" | "extras">): void {
     const path = item.spec.outPath.replaceAll("\\", "/").toLowerCase();
     if (
       this.items.some(

@@ -95,6 +95,8 @@ export interface CourseTemplate {
     minSilence?: number;
     keepPause?: number;
     kinds?: { filler?: boolean; silence?: boolean; repeat?: boolean };
+    /** Hesitations the course keeps (learned: shared/learning.ts). */
+    notFillers?: string[];
   };
   annotations?: { maxPerMinute: number; presets: AnnotationStyle[] };
   rules?: Rule[];
@@ -256,6 +258,7 @@ export const courseTemplateSchema = z.looseObject({
           repeat: z.boolean().optional(),
         })
         .optional(),
+      notFillers: z.array(z.string().min(1).max(60)).max(200).optional(),
     })
     .optional(),
   annotations: z
@@ -576,6 +579,9 @@ export function courseTemplateFrom(
               ? { keepPause: project.cleanup.keepPause }
               : {}),
             ...(project.cleanup.kinds ? { kinds: { ...project.cleanup.kinds } } : {}),
+            ...(project.cleanup.notFillers?.length
+              ? { notFillers: [...project.cleanup.notFillers] }
+              : {}),
           },
         }
       : {}),
@@ -701,6 +707,7 @@ export function templateLook(project: Project, t: CourseTemplate): Project {
       ...(t.cleanup.minSilence !== undefined ? { minSilence: t.cleanup.minSilence } : {}),
       ...(t.cleanup.keepPause !== undefined ? { keepPause: t.cleanup.keepPause } : {}),
       ...(t.cleanup.kinds ? { kinds: { ...project.cleanup?.kinds, ...t.cleanup.kinds } } : {}),
+      ...(t.cleanup.notFillers?.length ? { notFillers: t.cleanup.notFillers } : {}),
     };
   return out;
 }

@@ -529,3 +529,266 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Tool progress, cancel and what a turn changed (AssistantPanel.tsx) */
+.tool-line:has(.tool-progress) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.tool-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 17px;
+  color: var(--text-2);
+}
+.tool-step {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tool-bar {
+  flex: 0 0 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-3);
+  overflow: hidden;
+}
+.tool-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.tool-cancel {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.tool-cancel:hover {
+  color: var(--text-1);
+  background: var(--panel-3);
+}
+.turn-changes {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 12px;
+}
+.turn-changes-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.turn-changes-head strong {
+  color: var(--text-1);
+}
+.turn-changes ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.turn-changes li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-2);
+}
+.turn-changes li > span {
+  flex: 1;
+  min-width: 0;
+}
+.turn-changes li .link {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Publishing and the platform (PlatformCard.tsx, TranslateDialog.tsx) */
+.platform-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.platform-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.platform-warn {
+  color: var(--amber);
+  font-size: 12px;
+}
+.quiz-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quiz-list li {
+  line-height: 1.45;
+}
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.quiz-options .quiz-right {
+  color: var(--accent);
+  font-weight: 600;
+}
+.quiz-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 11px;
+}
+.translation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.translation-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.translate-body,
+.split-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 24px;
+  font-size: 12.5px;
+}
+.translate-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Split a recording by section (CourseSplitDialog.tsx) and the batch bar (BatchBar.tsx) */
+.split-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.split-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.split-list li.is-off {
+  opacity: 0.5;
+}
+.split-list label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.split-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.batch-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-top: 1px solid #9b7bff55;
+  background: #17142a;
+  font-size: 12px;
+}
+.batch-steps {
+  display: flex;
+  gap: 4px;
+}
+.batch-step {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: 11px;
+}
+.batch-step.is-open {
+  border-color: var(--violet);
+  color: var(--text-1);
+}
+.batch-step.is-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A question to the person (ConfirmDialog.tsx) */
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  font-size: 13px;
+}
+.confirm-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.confirm-head .warn {
+  color: var(--amber);
+}
+.confirm-items {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

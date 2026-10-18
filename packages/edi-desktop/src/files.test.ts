@@ -62,6 +62,41 @@ describe("selected-file capabilities", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+  it("accepts only the captions, thumbnail and platform package of the exported video beside it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "edi-related-test-"));
+    try {
+      const video = join(root, "Aula 3.mp4");
+      const files = createFileAuthority(["ediaula"]);
+      await files.grantWrite(video);
+      for (const name of [
+        "Aula 3.srt",
+        "Aula 3.vtt",
+        "Aula 3.jpg",
+        "Aula 3.en.srt",
+        "Aula 3.es.vtt",
+        "Aula 3.pt-BR.srt",
+        "Aula 3.plataforma.json",
+      ])
+        await expect(files.assertRelatedExport(video, join(root, name))).resolves.toBeTruthy();
+      for (const name of [
+        "Aula 3.json",
+        "Aula 3.en.jpg",
+        "Aula 3.outra.json",
+        "Aula 3.english-long.srt",
+        "Outra aula.en.srt",
+        "Aula 3.exe",
+      ])
+        await expect(files.assertRelatedExport(video, join(root, name))).rejects.toThrow(
+          "não pertence",
+        );
+      await mkdir(join(root, "sub"));
+      await expect(
+        files.assertRelatedExport(video, join(root, "sub", "Aula 3.en.srt")),
+      ).rejects.toThrow("não pertence");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("validates bounded structured IPC data without accepting injected prototypes or nonfinite values", () => {
     expect(() =>
       validateIpcValues([{ path: "project", bytes: new Uint8Array(10), optional: undefined }]),

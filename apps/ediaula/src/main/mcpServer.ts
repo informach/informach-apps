@@ -28,9 +28,14 @@ function buildServer(grant: McpGrant, deps: McpDeps): McpServer {
       { title: tool.title, description: tool.description, inputSchema: tool.input },
       async (args: unknown) => {
         const r = await guarded(grant, name, args, deps);
-        return r.ok
-          ? { content: [{ type: "text" as const, text: r.text }], isError: false }
-          : denied(r.text);
+        if (!r.ok) return denied(r.text);
+        // get_frame answers with the picture after its text (an MCP image block).
+        const images = (r.images ?? []).map((image) => ({
+          type: "image" as const,
+          data: image.data,
+          mimeType: image.mime,
+        }));
+        return { content: [{ type: "text" as const, text: r.text }, ...images], isError: false };
       },
     );
   }

@@ -3,6 +3,7 @@ import type { Cue } from "./captions.ts";
 import { DEFAULT_CAPTION_STYLE } from "./captions.ts";
 import { strip, type TimelineWord } from "./cleanup.ts";
 import { clipLayout } from "./compose.ts";
+import { LINE_MISSING, LINE_PARTIAL } from "./retake.ts";
 import { type ScriptSection, speechItems } from "./script.ts";
 import type { Alignment } from "./scriptAlign.ts";
 import { clipEnd, projectDuration } from "./timeline.ts";
@@ -401,13 +402,13 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       const share = l ? l.matched / Math.max(1, l.total) : 0;
       const number = speech.indexOf(it) + 1;
       const quote = it.text.length > 70 ? `${it.text.slice(0, 70)}…` : it.text;
-      if (share < 0.4)
+      if (share < LINE_MISSING)
         out.push({
           severity: "warn",
           kind: "line-missing",
           message: `A fala ${number} do roteiro (${it.speaker}) não está na aula: "${quote}"`,
         });
-      else if (share < 0.8)
+      else if (share < LINE_PARTIAL)
         out.push({
           severity: "info",
           kind: "line-partial",
