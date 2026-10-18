@@ -40,14 +40,14 @@ O escopo vigente é o [plano simplificado](../../../apps/edifoto/PLANO-DE-IMPLEM
 
 | R11 | Mudanças rápidas em campos distintos da configuração podiam sobrescrever a preferência anterior; inicialização/reconfiguração do MCP podiam concorrer. | Fila de atualização, gravação atômica e sincronização serial do servidor; jornada nativa verifica escolhas concorrentes via IPC real. |
 
-| R12 | No runner Windows, a jornada nativa terminou o diálogo mas não encontrou o arquivo esperado. O helper aceitava controles ocultos, e o título sozinho não comprovava conclusão da gravação. | Seleção somente de controles visíveis/habilitados, espera pelo evento visual de sucesso, registro do destino e captura em falha. Diálogos usam Pictures do perfil descartável. A jornada local completa passou novamente. O segundo log remoto confirmou gravação no nome padrão; o helper agora prioriza o contêiner de nome de arquivo e registra os controles nativos, mantendo o destino exato como requisito. O texto nativo era atualizado sem mudar o nome efetivo no diálogo do runner; o helper passou a selecionar/substituir o texto pela operação de edição (`EM_REPLACESEL`), que participa das notificações do controle, em vez de `WM_SETTEXT`. A jornada local passou; validação remota segue obrigatória. |
+| R12 | O helper atualizava texto nativo sem notificar corretamente o diálogo no runner; o aplicativo salvava com o nome padrão. | A operação de edição `EM_REPLACESEL` substitui a seleção e notifica o controle. Foram mantidos PID/destino exatos, controles visíveis, confirmação de gravação, diagnóstico e Pictures isolado. Jornada completa aprovada localmente e no [Windows remoto](https://github.com/informach/informach-apps/actions/runs/39128608403). |
 
 ## Verificação deste checkout
 
 - `pnpm install --frozen-lockfile`, Node 24.15.0/pnpm 9.15.0; sem atualização de dependências.
 - `pnpm check`: sem erros; avisos existentes permanecem visíveis.
 - `pnpm typecheck` e `pnpm test`: passaram no monorepo, incluindo tooling Edi.
-- EdiFoto: **36 testes unitários e 174 verificações de navegador**, sem falhas/erros JavaScript. Verificações novas exercitam operações reais do editor/GPU; arquivos/provedores do harness são fixtures.
+- EdiFoto: **36 testes unitários e 177 verificações de navegador**, sem falhas/erros JavaScript. Verificações novas exercitam operações reais do editor/GPU; arquivos/provedores do harness são fixtures.
 - `pnpm edi:test:native edifoto`: passou no checkout isolado; recompila o aplicativo e exercita diálogos Windows de salvar/abrir/cancelar, recuperação, exportação PNG, integridade/GUI/licença offline/expiração/IPC.
 - `pnpm audit --prod --json`: zero vulnerabilidades reportadas.
 - Portal de produção: `/api/ready` respondeu 200 com migrations esperadas/aplicadas iguais. Ambiente GitHub `edi-release`, nomes de secrets/variáveis e política para `main`/`edi-v*` conferidos sem expor valores.
@@ -59,4 +59,22 @@ Sem chamada ao provedor pessoal, cobrança ou uso de conteúdo pessoal/produçã
 
 ## Publicação
 
-A integração na `main` e a release desktop `edi-v0.1.2` seguem os gates remotos. O EdiFoto não é serviço Railway; seus instaladores são publicados pelo workflow da suíte no repositório público de distribuição. Os demais apps são reconstruídos a partir de main pelo catálogo existente, sem incluir as frentes locais não revisadas. O resultado remoto será registrado após confirmação.
+O [PR #16](https://github.com/informach/informach-apps/pull/16) foi integrado em 18/10/2026, no commit `68f550c1d4576222ecf6d4e32a205bccaa56ab47`, após todos os gates do head revisado passarem. A árvore integrada é idêntica à revisada. A release desktop `edi-v0.1.2` está no [workflow de publicação](https://github.com/informach/informach-apps/actions/runs/39129941307). O EdiFoto não é serviço Railway; seus instaladores são publicados pelo workflow da suíte no repositório público de distribuição. Os demais apps são reconstruídos a partir de main pelo catálogo existente, sem incluir as frentes locais não revisadas. O resultado remoto será registrado após confirmação.
+
+## Gates remotos do PR
+
+[CI completa](https://github.com/informach/informach-apps/actions/runs/39128608402), [nativo das seis aplicações](https://github.com/informach/informach-apps/actions/runs/39128608403), [integração de banco](https://github.com/informach/informach-apps/actions/runs/39128608405) e [mídia/instalação/atualização de todas as aplicações](https://github.com/informach/informach-apps/actions/runs/39128608446) passaram no head `26b3efffeb0f7a2377228c6fb7224b1eb68649fb`. A CI inclui check, typecheck, testes, migrations, integrações, avaliações de preflight, E2E de EdiFoto/Cozya/Agenda/Missão e build integral.
+
+Tentativas anteriores do nativo remoto expuseram o problema de notificação do campo de nome; não foram consideradas aprovadas. A CI inicial também falhou ao compilar uma fonte Google na Agenda, antes do login de aquecimento. A falha não se repetiu nas execuções completas seguintes; nenhum teste foi desativado nem foram feitas alterações na Agenda. O status “success” do CodeRabbit corresponde a review automático ignorado pelo serviço, não a uma revisão independente realizada.
+
+Uma pasta temporária inativa do primeiro teste local (`edi-native-thp8XQ`) permaneceu no Temp: a revisão automática bloqueou a remoção por política. A ação não foi repetida por outro mecanismo. Isso não afetou os gates seguintes nem a preparação dos instaladores.
+
+Após o merge, passaram também a [CI da main](https://github.com/informach/informach-apps/actions/runs/39129926195), o [nativo da main](https://github.com/informach/informach-apps/actions/runs/39129926272) e a [integração de banco da main](https://github.com/informach/informach-apps/actions/runs/39129926323), todos sobre o commit integrado.
+
+## Correção após o bloqueio da candidata 0.1.2
+
+O [workflow da candidata 0.1.2](https://github.com/informach/informach-apps/actions/runs/39129941307) foi bloqueado no teste nativo de recuperação do EdiFoto antes de produzir/publicar o seu instalador. O texto recuperado era uma revisão anterior. A distribuição pública permaneceu na 0.1.1; a tag privada anterior foi preservada.
+
+Foi reproduzido independentemente um encoder de uma geração antiga terminando depois de uma cópia nova, usando duas instâncias reais do módulo de recuperação e o mesmo IndexedDB. A fila em memória só ordenava uma geração. A gravação agora compara o instante de captura e atualiza o registro na mesma transação IndexedDB; descarte grava uma marca sem pixels, impedindo recriação tardia. `pagehide` cancela o agendamento e encerra o gravador daquela página. Não houve nova versão de banco ou biblioteca. A verificação nativa espera a condição de texto restaurado, além da presença do viewport.
+
+Os três testes de regressão passaram junto das sete suítes (177 verificações, zero erros JavaScript); typecheck e 36 testes unitários passaram. A nova candidata é `edi-v0.1.3`, com a verificação nativa/remota e publicação ainda em andamento. A preparação do cache de mídia da main encontrou um timeout de conexão em um mirror SourceForge; foi repetida com os mesmos inputs e verificação de integridade, sem trocar o fornecedor ou relaxar hashes.

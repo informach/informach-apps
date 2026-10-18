@@ -25,4 +25,4 @@ Lotes 1 a 5 implementados e revisados ([lote 1](../../docs/reviews/edifoto-2026-
 
 ## Revisão para publicação
 
-O pedido posterior autorizou commit, main e produção. O [review para publicação](../../docs/reviews/edifoto-2026-10-18/review-producao.md) complementa o aceite anterior, corrige novos achados e explicita a correspondência com o diagnóstico. Gates locais passaram no checkout isolado; integração/release dependem dos gates remotos.
+O pedido posterior autorizou commit, main e produção. O [review para publicação](../../docs/reviews/edifoto-2026-10-18/review-producao.md) complementa o aceite anterior, corrige novos achados e explicita a correspondência com o diagnóstico. Gates locais e remotos do PR passaram; integração na main confirmada em `68f550c` pelo PR #16. O gate de recuperação bloqueou a candidata 0.1.2 antes de publicação. A corrida entre gerações foi corrigida e coberta por regressão; a candidata seguinte é 0.1.3, sem mover a tag anterior.
