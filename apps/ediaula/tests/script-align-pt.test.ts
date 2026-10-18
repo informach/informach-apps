@@ -13,6 +13,7 @@ import { compoundsOf, fuzzyEqual, tokenize } from "../src/shared/ptSpeech.ts";
 import { parseScript, speechItems } from "../src/shared/script.ts";
 import {
   alignSection,
+  didacticPauses,
   needsConfirmation,
   OFF_SCRIPT_LIMIT,
   offScriptShare,
@@ -147,14 +148,120 @@ test('"vinte e cinco", "x 208" and "Zapi" match the script as written', () => {
   assert.equal(corrected[1].text, "Zappy");
 });
 
-test("a line said twice: the earlier take is an off-script block named after the line", () => {
-  const false1 = speak("Esta é uma experiência pra gente entender,", 0);
-  const take = speak(lines3[0], after(false1, 1));
-  const a = alignSection(s3, [...false1, ...take]);
-  assert.equal(a.lines[0].matched, a.lines[0].total, "the last take is the one kept");
-  assert.equal(a.offScript.length, 1);
-  assert.equal(a.offScript[0].retakeOf, 0, "tomada anterior da linha 1");
-  assert.equal(a.offScript[0].keys.length, false1.length);
+/** The section said from `from` on, with line 0 said as `takes` first (in that order). */
+function withTakes(takes: string[]): { words: TimelineWord[]; starts: number[] } {
+  const words: TimelineWord[] = [];
+  const starts: number[] = [];
+  for (const text of [...takes, ...lines3.slice(1)]) {
+    const w = speak(text, words.length ? after(words, 1.5) : 0);
+    starts.push(w[0].start);
+    words.push(...w);
+  }
+  return { words, starts };
+}
+
+test("a line said twice, almost the same: the last take is kept, the earlier one is proposed", () => {
+  const w0 = lines3[0].split(/\s+/);
+  const twoOff = [...w0];
+  twoOff[3] = "da";
+  twoOff[7] = "ou";
+  const threeOff = [...w0];
+  threeOff[2] = "uma";
+  threeOff[5] = "para";
+  threeOff[9] = "do";
+  const hesitant = [...w0.slice(0, 4), "ahn,", ...w0.slice(4)].join(" ");
+  for (const [label, first, last] of [
+    ["identical", lines3[0], lines3[0]],
+    ["two words differ in the last take", lines3[0], twoOff.join(" ")],
+    ["three words differ in the last take", lines3[0], threeOff.join(" ")],
+    ["the first take hesitates", hesitant, lines3[0]],
+    ["the last take drops its last two words", lines3[0], w0.slice(0, -2).join(" ")],
+  ]) {
+    const { words, starts } = withTakes([first, last]);
+    const a = alignSection(s3, words);
+    assert.ok(a.lines[0].start === starts[1], `${label}: the last take is the line`);
+    assert.ok(
+      (a.lines[0].end ?? Number.POSITIVE_INFINITY) < starts[2],
+      `${label}: nothing of the next line in it`,
+    );
+    assert.equal(a.lines[1].start, starts[2], `${label}: the next line stays whole`);
+    const earlier = a.offScript.find((r) => r.start === starts[0]);
+    assert.ok(earlier, `${label}: the earlier take is proposed`);
+    assert.equal(earlier.retakeOf, 0, `${label}: as another take of line 1`);
+  }
+  // A last take that stops halfway is not the line: the complete one stays.
+  const half = w0.slice(0, Math.floor(w0.length / 2)).join(" ");
+  const { words, starts } = withTakes([lines3[0], half]);
+  const a = alignSection(s3, words);
+  assert.equal(a.lines[0].start, starts[0]);
+  assert.ok(a.offScript.some((r) => r.start === starts[1] && r.retakeOf === 0));
+});
+
+test("a number or a name said differently inside a line is listed, not let go", () => {
+  const wrong = lines3[3].replace("o x aumenta 3", "o x aumenta 4");
+  assert.notEqual(wrong, lines3[3]);
+  const words: TimelineWord[] = [];
+  for (const text of [lines3[0], lines3[1], lines3[2], wrong])
+    words.push(...speak(text, words.length ? after(words) : 0));
+  const a = alignSection(s3, words);
+  assert.deepEqual(
+    a.substitutions.map((x) => [x.line, x.said, x.written]),
+    [[3, "4", "3"]],
+  );
+  // Said as written, nothing is listed.
+  const right: TimelineWord[] = [];
+  for (const text of lines3.slice(0, 4))
+    right.push(...speak(text, right.length ? after(right) : 0));
+  assert.deepEqual(alignSection(s3, right).substitutions, []);
+});
+
+test("the script's pause directions become thinking time between their lines", () => {
+  const s4 = doc.sections[3];
+  const lines = speechItems(s4).filter((i) => !i.avatar);
+  const words: TimelineWord[] = [];
+  for (const item of lines) words.push(...speak(item.text, words.length ? after(words, 3) : 0));
+  const pauses = didacticPauses(s4, alignSection(s4, words));
+  // "Pausar para a pessoa testar" comes twice in section 4, each between two narration lines.
+  assert.ok(pauses.length >= 2);
+  for (const [a, b] of pauses) assert.ok(b - a >= 2.9 && b - a <= 3.1);
+});
+
+test('spoken Portuguese: "num" before a verb is "não", capitals alone are not an acronym', () => {
+  assert.equal(toks("eu num sei"), toks("eu não sei"));
+  assert.equal(toks("num jogo"), toks("em um jogo"));
+  assert.equal(toks("É O Zappy"), "e o zappy");
+  assert.equal(toks("A E I O U"), "aeiou");
+  // Only real words of a name match by sound: "da" of "Mapa da Aventura" does not.
+  const words = speak("Olha na tela", 0);
+  const one = parseScript(["## Seção 1. T", "**Professora:**", '> "Olha da tela"'].join("\n"))
+    .sections[0];
+  const line = alignSection(one, words, { glossary: ["Mapa da Aventura"] }).lines[0];
+  assert.equal(line.matched, 2, '"na" does not take the place of "da"');
+});
+
+test("insert ids named again later in the section do not move the next ones", () => {
+  const two = parseScript(
+    [
+      "## Seção 1. Teste",
+      "**Professora:**",
+      '> "Primeira fala."',
+      "**Na tela:** **F1P1-D01** · Debinha entra.",
+      "**Debinha (avatar):**",
+      '> "Oi, eu sou a Debinha."',
+      "**Na tela:** Debinha sai, com a mesma entrada de F1P1-D01.",
+      "**Professora:**",
+      '> "Segunda fala."',
+      "**Na tela:** **F1P1-D02** · Debinha entra de novo, como em F1P1-D01.",
+      "**Debinha (avatar):**",
+      '> "Agora sou eu de novo."',
+    ].join("\n"),
+  ).sections[0];
+  assert.deepEqual(
+    speechItems(two)
+      .filter((i) => i.avatar)
+      .map((i) => i.insertId),
+    ["F1P1-D01", "F1P1-D02"],
+  );
 });
 
 test("off the script only whole blocks are proposed, never the middle of a sentence", () => {

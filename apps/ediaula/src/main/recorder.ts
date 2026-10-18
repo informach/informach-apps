@@ -268,7 +268,14 @@ async function prepareTake(
   // Keys typed while the recorder itself is in front are not part of the lesson. Until the take
   // starts, the helper keeps nothing but the cursor shape.
   const hook = monitor
-    ? new HookClient({ keys: !!opts.keys, journal: dir, uiPid: process.pid, paused: true })
+    ? new HookClient({
+        keys: !!opts.keys,
+        // The moments something was typed (never what): the cleanup keeps a silent typing whole.
+        typing: true,
+        journal: dir,
+        uiPid: process.pid,
+        paused: true,
+      })
     : null;
   let encoder: CaptureEncoder | null = null;
   try {
@@ -362,14 +369,19 @@ export function setKeyFilter(block: { vk: number; m: number }[], allow: string[]
   session?.setKeyFilter(block, allow);
 }
 
-export async function setGuidedNarration(path: string, delay: number): Promise<number> {
+/** `fromVideo`: the narration is the voice taken from a video (the presenter's render). */
+export async function setGuidedNarration(
+  path: string,
+  delay: number,
+  fromVideo = false,
+): Promise<number> {
   const s = session;
   if (!s) throw new Error("Gravação não iniciada.");
   const file = `narracao${extname(path)}`;
   await copyFile(path, join(s.dir, file));
   if (session !== s) throw new Error("Gravação encerrada.");
   const offset = s.elapsed() + delay;
-  s.setNarration(file, offset);
+  s.setNarration(file, offset, fromVideo);
   return offset;
 }
 

@@ -108,7 +108,18 @@ export function AssistantPanel(): ReactNode {
   };
   const runQuick = (q: Quick): void => {
     if (q.prompt !== undefined) submit(q.prompt);
-    else void q.local().then((r) => useApp.getState().toast(r.message, r.ok ? "info" : "error"));
+    else
+      void q
+        .local()
+        .then((r) => useApp.getState().toast(r.message, r.ok ? "info" : "error"))
+        .catch((err: unknown) =>
+          useApp
+            .getState()
+            .toast(
+              `Não consegui fazer isso agora: ${err instanceof Error ? err.message : String(err)}`,
+              "error",
+            ),
+        );
   };
 
   return (

@@ -51,6 +51,17 @@ const CONTRACTIONS: Record<string, string[]> = {
   vamo: ["vamos"],
 };
 
+/** Verbs that "num" (the spoken "não") comes before: "num sei", "num dá", "num é". */
+const NEGATED = new Set(
+  (
+    "sei sabe sabia sabem vai vou vao foi fui tem tenho tinha da deu e era ta to tava quero quer " +
+    "queria consigo consegue consegui conseguiu pode posso podia preciso precisa faz fiz fez acho " +
+    "acredito entendi entendeu entendo lembro lembra gosto gosta vem venho vi viu importa adianta " +
+    "rola presta funciona funcionou aparece apareceu mexe deixa deixou anda andou sai saiu cabe " +
+    "liga ligou serve serviu precisava"
+  ).split(" "),
+);
+
 /** Contractions of an article or preposition (all their parts are function words). */
 const STOP_CONTRACTIONS = new Set([
   "pra",
@@ -204,7 +215,12 @@ function letterOf(p: Piece): { letter: string; strong: boolean } | null {
   const name = LETTER_NAMES[p.lower];
   if (name) return { letter: name, strong: true };
   if (p.lower.length === 1 && /^[a-z]$/.test(p.fold))
-    return p.capital || !"aeo".includes(p.fold) ? { letter: p.fold, strong: true } : null;
+    // "a", "e" and "o" are words: even capitalized ("É O Zappy") they only join a spelled run.
+    return !"aeo".includes(p.fold)
+      ? { letter: p.fold, strong: true }
+      : p.capital
+        ? { letter: p.fold, strong: false }
+        : null;
   const weak = WEAK_LETTER_NAMES[p.lower];
   return weak ? { letter: weak, strong: false } : null;
 }
@@ -275,12 +291,20 @@ function spellRuns(list: Piece[]): SpeechToken[] {
     const p = list[i];
     const name = LETTER_NAMES[p.lower];
     const stop = STOP_CONTRACTIONS.has(p.fold) || STOP.has(p.fold);
-    const parts = name ? [name] : p.fold === "%" ? ["%"] : (CONTRACTIONS[p.fold] ?? [p.fold]);
+    // "num sei" is "não sei": before a verb "num" is the spoken "não", not "em um".
+    const negation = p.fold === "num" && NEGATED.has(list[i + 1]?.fold ?? "");
+    const parts = name
+      ? [name]
+      : p.fold === "%"
+        ? ["%"]
+        : negation
+          ? ["nao"]
+          : (CONTRACTIONS[p.fold] ?? [p.fold]);
     for (const [k, tok] of parts.entries())
       out.push({
         tok,
         src: [p.src],
-        ...(stop && !name ? { stop } : {}),
+        ...(stop && !name && !negation ? { stop } : {}),
         ...(p.pause && k === parts.length - 1 ? { pause: true } : {}),
       });
     i++;

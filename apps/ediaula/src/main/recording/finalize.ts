@@ -223,6 +223,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     replay.narration && existsSync(join(dir, replay.narration.file))
       ? {
           narration: join(dir, replay.narration.file),
+          ...(replay.narration.video ? { narrationFromVideo: true } : {}),
           // The recorder counted from its first estimate of the first frame; the take starts
           // at the final one.
           narrationOffset: round(

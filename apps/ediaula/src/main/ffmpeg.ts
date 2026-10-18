@@ -35,6 +35,8 @@ export interface RunOptions {
   duration?: number;
   onProgress?: (ratio: number) => void;
   onStdout?: (chunk: Buffer) => void;
+  /** Every piece of stderr as it comes (the run keeps only its tail for the error message). */
+  onStderr?: (text: string) => void;
 }
 
 /** Runs ffmpeg/ffprobe, resolving with stdout text. Rejects with the tail of stderr on failure. */
@@ -58,6 +60,7 @@ export function run(bin: string, args: string[], opts: RunOptions = {}): Promise
     });
     child.stderr.on("data", (d: Buffer) => {
       const text = d.toString();
+      opts.onStderr?.(text);
       stderr = (stderr + text).slice(-8000);
       if (withProgress && opts.duration) {
         const m = /out_time_us=(\d+)/g;
@@ -265,6 +268,77 @@ export async function waveform(path: string): Promise<string> {
   for (const p of peaks) if (p > max) max = p;
   const norm = peaks.map((p) => Math.round((p / max) * 1000) / 1000);
   await writeFile(out, JSON.stringify({ peaksPerSecond: PEAKS_PER_SECOND, peaks: norm }));
+  return out;
+}
+
+/** Bump when the analysis changes so cached motion files are made again. */
+const MOTION_VERSION = 1;
+
+/**
+ * Where the picture of a screen recording stands still (FFmpeg freezedetect over 5 frames a
+ * second at 480 px: a change of more than -50 dB for half a second is movement), cached beside
+ * the media as motion.json ({version, frozen: [[from, to], …]} in seconds of the video). The
+ * cleanup only cuts a pause where the screen is frozen (shared/activity.ts). `input` is what is
+ * decoded: the proxy when it is ready, otherwise the media itself.
+ */
+export async function screenMotion(
+  jobId: string,
+  path: string,
+  input: string,
+  duration: number,
+  onProgress: (ratio: number) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const out = join(cacheDir(path), `motion-v${MOTION_VERSION}.json`);
+  if (existsSync(out)) return out;
+  const frozen: [number, number][] = [];
+  let from: number | null = null;
+  let pending = "";
+  const read = (line: string): void => {
+    const start = /freeze_start:\s*([\d.]+)/.exec(line);
+    if (start) from = Number(start[1]);
+    const end = /freeze_end:\s*([\d.]+)/.exec(line);
+    if (end && from !== null) {
+      frozen.push([from, Number(end[1])]);
+      from = null;
+    }
+  };
+  await run(
+    FFMPEG,
+    [
+      "-hide_banner",
+      "-nostdin",
+      "-threads",
+      "2",
+      "-i",
+      input,
+      "-map",
+      "0:v:0",
+      "-vf",
+      "fps=5,scale=480:-2,freezedetect=n=-50dB:d=0.5",
+      "-an",
+      "-f",
+      "null",
+      "-",
+    ],
+    {
+      jobId,
+      signal,
+      duration,
+      onProgress,
+      onStderr: (text) => {
+        const lines = (pending + text).split(/\r?\n/);
+        pending = lines.pop() ?? "";
+        for (const line of lines) read(line);
+      },
+    },
+  );
+  read(pending);
+  // Frozen to the end of the video.
+  if (from !== null) frozen.push([from, duration]);
+  const temp = `${out}.${process.pid}.tmp`;
+  await writeFile(temp, JSON.stringify({ version: MOTION_VERSION, frozen }));
+  await rename(temp, out);
   return out;
 }
 

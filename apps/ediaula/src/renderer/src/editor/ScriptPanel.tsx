@@ -1,6 +1,6 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { type ScriptItem, type SpeechItem, sectionLabel, speechSeconds } from "@shared/script";
-import { CONFIRM_COVERAGE } from "@shared/scriptAlign";
+import { CONFIRM_COVERAGE, type Substitution } from "@shared/scriptAlign";
 import { projectDuration } from "@shared/timeline";
 import {
   AlertTriangle,
@@ -228,7 +228,8 @@ export function ScriptPanel(): ReactNode {
             size="sm"
             variant="secondary"
             icon={busy === "all" ? Loader : Layers}
-            disabled={busy !== null}
+            disabled={busy !== null || !confirmed}
+            title={confirmed ? undefined : "Confirme a seção antes de encaixar todas"}
             onClick={() => void placeAll()}
           >
             Encaixar todas ({waiting.length})
@@ -246,6 +247,7 @@ export function ScriptPanel(): ReactNode {
               key={key}
               item={it}
               line={lineOf(idx)}
+              swaps={alignment.substitutions.filter((x) => alignment.lines[x.line]?.item === idx)}
               transcribed={transcribed}
               placed={
                 it.kind === "speech" && it.insertId ? insertedClip(project, it.insertId) : undefined
@@ -276,6 +278,7 @@ export function ScriptPanel(): ReactNode {
 function Item({
   item,
   line,
+  swaps,
   transcribed,
   placed,
   busy,
@@ -283,6 +286,8 @@ function Item({
 }: {
   item: ScriptItem;
   line?: { matched: number; total: number; start?: number; end?: number };
+  /** Numbers and names said differently from the script in this line. */
+  swaps: Substitution[];
   transcribed: boolean;
   placed?: { start: number };
   busy: string | null;
@@ -365,6 +370,12 @@ function Item({
         ) : null}
       </div>
       <p>{item.text}</p>
+      {swaps.map((x) => (
+        <p key={`${x.start}:${x.said}`} className="si-swap">
+          <AlertTriangle size={11} /> Disse "{x.said}" no lugar de "{x.written}" em {clock(x.start)}
+          . Confira se foi de propósito.
+        </p>
+      ))}
     </div>
   );
 }

@@ -61,7 +61,7 @@ function narration(aside?: string): { words: Word[]; end: number } {
   return { words, end: at };
 }
 
-/** The HeyGen render with the three Debinha lines, 6 s apart. */
+/** The presenter's render with the three Debinha lines, 6 s apart. */
 const render = (): Transcript => {
   const words = avatarLines.flatMap((item, k) => say(item.text, 1 + k * 6));
   return transcript(words, 20);
@@ -281,7 +281,8 @@ test("an avatar line that would cover another voice comes with a warning", () =>
   assert.deepEqual(voiceOverlaps(timelineWords(clean.project, clean.transcripts), plain), []);
 });
 
-test("two avatar lines in the same pause are not planned together", () => {
+/** A teacher line, two Debinha lines in a row, then the teacher again, 0.8 s apart. */
+function twoInARow() {
   const two = parseScript(
     [
       "## Seção 1. Teste",
@@ -299,12 +300,19 @@ test("two avatar lines in the same pause are not planned together", () => {
   const [a, d1, d2, b] = speechItems(two);
   const teacher = [...say(a.text, 0)];
   teacher.push(...say(b.text, teacher[teacher.length - 1].end + 0.8));
+  const end = teacher[teacher.length - 1].end + 1;
+  const { project } = lesson();
+  project.clips = project.clips.map((c) => ({ ...c, duration: end }));
   const transcripts = new Map([
-    ["voz", transcript(teacher, 60)],
+    ["voz", transcript(teacher, end)],
     ["deb", transcript([...say(d1.text, 1), ...say(d2.text, 6)], 20)],
   ]);
-  const words = teacher.map((w, k) => ({ ...w, key: `voz:${k}`, clipId: "ca", source: "voz" }));
-  const alignment = alignSection(two, words);
+  return { two, d1, d2, project, transcripts };
+}
+
+test("two avatar lines in the same pause are not planned together", () => {
+  const { two, d1, d2, project, transcripts } = twoInARow();
+  const alignment = alignSection(two, timelineWords(project, transcripts));
   const found = [d1, d2].map((item) => ({ item, src: source(item.text, transcripts) }));
   const { entries, errors } = planInserts(two, alignment, found);
   assert.deepEqual(
@@ -313,4 +321,64 @@ test("two avatar lines in the same pause are not planned together", () => {
   );
   assert.equal(errors.length, 1);
   assert.match(errors[0].error, /mesmo lugar que F1P9-D01/);
+});
+
+test("the second avatar line placed later goes after the first, never over it", () => {
+  const { two, d1, d2, transcripts } = twoInARow();
+  let { project } = twoInARow();
+  const placed: { start: number; end: number }[] = [];
+  for (const item of [d1, d2]) {
+    const words = timelineWords(project, transcripts);
+    const { entries, errors } = planInserts(two, alignSection(two, words), [
+      { item, src: source(item.text, transcripts) },
+    ]);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(voiceOverlaps(words, entries), [], `${item.insertId} talks over nobody`);
+    const layout = layoutInserts(project, entries, cutTargets(project), new Set());
+    project = { ...project, tracks: layout.tracks, clips: layout.clips };
+    for (const p of layout.placed) placed.push({ start: p.clip.start, end: clipEnd(p.clip) });
+  }
+  // Where the first one is now (it moved with the gap opened for the second, if before it).
+  const first = project.clips.find((c) => c.insertId === "F1P9-D01");
+  const second = project.clips.find((c) => c.insertId === "F1P9-D02");
+  assert.ok(first && second);
+  assert.ok(second.start >= clipEnd(first) - 1e-6, "the clips do not overlap, fades included");
+  // And the teacher's next line starts after the second one.
+  const after = timelineWords(project, transcripts).filter(
+    (w) => w.role === "teacher" && w.start > second.start,
+  );
+  assert.ok(after.length && after[0].start >= clipEnd(second) - INSERT_PAD - 1e-6);
+  assert.equal(placed.length, 2);
+});
+
+test("an avatar line planned over another avatar is reported", () => {
+  const { two, d1, d2, project, transcripts } = twoInARow();
+  const plan = planInserts(two, alignSection(two, timelineWords(project, transcripts)), [
+    { item: d2, src: source(d2.text, transcripts) },
+  ]).entries;
+  assert.equal(plan.length, 1);
+  // Meanwhile the first line was put by hand right where the second is planned.
+  const first = source(d1.text, transcripts);
+  const busy: Project = {
+    ...project,
+    clips: [
+      ...project.clips,
+      {
+        id: "manual",
+        assetId: "deb",
+        trackId: "v1",
+        start: plan[0].plan.at,
+        in: first.start - INSERT_PAD,
+        duration: first.end - first.start + 2 * INSERT_PAD,
+        volume: 1,
+        insertId: d1.insertId,
+      },
+    ],
+  };
+  const over = voiceOverlaps(timelineWords(busy, transcripts), plan);
+  assert.equal(over.length, 1);
+  assert.ok(
+    over[0].words.every((w) => w.role === "avatar"),
+    "another avatar, not the teacher",
+  );
 });

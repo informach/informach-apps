@@ -257,6 +257,8 @@ export interface RecordingResult {
    *  pauses (the time the recorder counted). */
   narration?: string;
   narrationOffset?: number;
+  /** The narration is the voice taken from a video: the presenter's voice. */
+  narrationFromVideo?: boolean;
   duration: number;
   /** Stretches of the take recorded while paused (or after a failure): cut on import. */
   pauses: [number, number][];

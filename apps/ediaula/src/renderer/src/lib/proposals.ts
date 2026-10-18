@@ -21,8 +21,14 @@ import type { Project } from "@shared/types";
 import { useMemo } from "react";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
-import { useProject } from "@/state/project";
-import { type CleanupOverrides, cleanupItems, cleanupPlan } from "./cleanupPlan";
+import { personCommit, useProject } from "@/state/project";
+import {
+  type BlindSpots,
+  type CleanupOverrides,
+  cleanupItems,
+  cleanupPlan,
+  keepRejected,
+} from "./cleanupPlan";
 import {
   cutRanges,
   loadCleanupInputs,
@@ -36,6 +42,8 @@ interface RawItem {
   start?: number;
   end?: number;
   reason: string;
+  /** The cleanup suggestion it comes from: left out of the proposal, it is kept from then on. */
+  issueId?: string;
 }
 
 const fmt = (s: number): string => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -97,7 +105,13 @@ export async function showProposal(
       const quoted = words.slice(idx[0], idx[1] + 1);
       const clips = new Set(quoted.map((w) => w.clipId));
       prefer = new Set(project.clips.filter((c) => clips.has(c.id)).map((c) => c.trackId));
-      base = { reason: r.reason, text: r.text, near: r.near, wordKeys: quoted.map((w) => w.key) };
+      base = {
+        reason: r.reason,
+        text: r.text,
+        near: r.near,
+        wordKeys: quoted.map((w) => w.key),
+        ...(r.issueId ? { issueId: r.issueId } : {}),
+      };
     } else if (r.start !== undefined && r.end !== undefined && r.end > r.start) {
       if (revision !== current) {
         problems.push(
@@ -106,6 +120,7 @@ export async function showProposal(
         continue;
       }
       range = [r.start, r.end];
+      if (r.issueId) base = { ...base, issueId: r.issueId };
     } else {
       problems.push(`item sem texto nem intervalo válido (${r.reason})`);
       continue;
@@ -128,13 +143,41 @@ export async function showProposal(
     );
   const ok = items.filter((i) => !blocked.includes(i)).sort((a, b) => a.start - b.start);
   if (!ok.length) return `Nenhum corte pôde ser proposto.\n${problems.join("\n")}`;
-  const refused = storeProposal(project, title, ok, by);
-  if (refused) return refused;
+  const stored = storeProposal(project, title, ok, by);
+  if ("refused" in stored) return stored.refused;
+  if (stored.replaced) problems.unshift(stored.replaced);
   const saved = proposedSeconds(ok);
   return [
     `Proposta "${title}" mostrada ao usuário: ${ok.length} corte(s), −${saved.toFixed(1)} s. Ele vai aplicar ou descartar na tela; não aplique você mesmo.`,
     ...problems,
   ].join("\n");
+}
+
+/**
+ * What the cleanup could not see, one line each, for the panel and the AI: recordings without
+ * cursor data, media that counts all as speech, transcripts nobody hears, screens still being
+ * analyzed.
+ */
+export function blindNotes(project: Project, blind: BlindSpots): string[] {
+  const names = (ids: readonly string[]): string =>
+    ids.map((id) => project.assets.find((a) => a.id === id)?.name ?? id).join(", ");
+  return [
+    blind.screenPending.length
+      ? `Ainda vendo onde a tela fica parada em ${names(blind.screenPending)}: até lá, nenhum silêncio dessa gravação é cortado.`
+      : "",
+    blind.unreadable.length
+      ? `Os dados do cursor de ${names(blind.unreadable)} não abriram: cliques, arrastos e digitação ali não são vistos.`
+      : "",
+    blind.noCursor.length
+      ? `Sem dados do cursor em ${names(blind.noCursor)}: cliques, arrastos e digitação ali não são vistos.`
+      : "",
+    blind.noEnvelope.length
+      ? `Sem transcrição nem forma de onda em ${names(blind.noEnvelope)}: tudo ali conta como fala e nada é cortado.`
+      : "",
+    blind.inaudible.length
+      ? `${names(blind.inaudible)} não se ouve na aula (faixa muda, volume zero ou sob o som do apresentador): fica fora da limpeza.`
+      : "",
+  ].filter(Boolean);
 }
 
 const proposedSeconds = (items: ProposalItem[]): number => {
@@ -145,14 +188,14 @@ const proposedSeconds = (items: ProposalItem[]): number => {
 
 /**
  * Keeps a proposal in the project and shows it in the bar. Returns why it was not kept (too big
- * to save with the lesson), or null.
+ * to save with the lesson), or which earlier proposal of the same author it replaced.
  */
 function storeProposal(
   project: Project,
   title: string,
   items: ProposalItem[],
   by: string,
-): string | null {
+): { refused: string } | { replaced?: string } {
   const proposal: Proposal = {
     id: newId("prop"),
     projectId: project.id,
@@ -166,10 +209,17 @@ function storeProposal(
   // What is kept must always reopen with the project: checked against its schema first.
   const valid = proposalListSchema.safeParse(list);
   if (!valid.success || !list.includes(proposal))
-    return `A proposta é grande demais para guardar na aula (${items.length} itens). Proponha um trecho menor.`;
+    return {
+      refused: `A proposta é grande demais para guardar na aula (${items.length} itens). Proponha um trecho menor.`,
+    };
+  const earlier = (project.proposals ?? []).find((p) => p.by === by);
   useProject.getState().setProposals(() => list);
   useProposalChoice.setState({ id: proposal.id });
-  return null;
+  return earlier
+    ? {
+        replaced: `Substituiu a proposta anterior "${earlier.title}", que ainda não tinha sido aplicada.`,
+      }
+    : {};
 }
 
 /**
@@ -196,17 +246,29 @@ export async function proposeCleanup(
     if (useProject.getState().project !== project) continue;
     const plan = cleanupPlan(project, inputs, overrides);
     if (!plan.active.length)
-      return { ok: true, message: "Nada para limpar com as escolhas desta aula." };
+      return {
+        ok: true,
+        message: [
+          "Nada para limpar com as escolhas desta aula.",
+          ...blindNotes(project, plan.blind),
+        ].join("\n"),
+      };
     const items = cleanupItems(project, plan, () => newId("pi"));
-    const refused = storeProposal(project, "Limpeza da aula", items, by);
-    if (refused) return { ok: false, message: refused };
+    const stored = storeProposal(project, "Limpeza da aula", items, by);
+    if ("refused" in stored) return { ok: false, message: stored.refused };
     const count = (k: string): number => plan.active.filter((i) => i.kind === k).length;
-    const unseen = inputs.unseen?.length
-      ? ` Os dados do cursor de ${inputs.unseen.length} gravação(ões) não abriram: ali só o som decidiu os silêncios.`
-      : "";
+    const notes = [stored.replaced, ...blindNotes(project, plan.blind)].filter(Boolean);
     return {
       ok: true,
-      message: `Proposta de limpeza pronta: ${count("filler")} vício(s), ${count("repeat")} repetição(ões) e ${count("silence")} silêncio(s), −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.${unseen}`,
+      message: [
+        `Proposta de limpeza pronta: ${count("filler")} vício(s), ${count("repeat")} repetição(ões) e ${count("silence")} silêncio(s), −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.`,
+        ...(plan.elsewhere
+          ? [
+              `${plan.elsewhere} sugestão(ões) já estão na proposta da limpeza da voz e ficaram de fora.`,
+            ]
+          : []),
+        ...notes,
+      ].join("\n"),
     };
   }
   return {
@@ -307,7 +369,10 @@ export async function applyProposal(): Promise<void> {
     toast("A aula mudou enquanto a proposta era aplicada. Tente de novo.", "error");
     return;
   }
-  const r = ranges.length ? cutRanges(ranges) : { ok: false, conflicts: [] };
+  // What the person left out of a cleanup proposal stays kept from now on, in the same undo step.
+  const r = ranges.length
+    ? cutRanges(ranges, personCommit, (p) => keepRejected(p, proposal.items))
+    : { ok: false, conflicts: [] };
   if (!r.ok) {
     toast(
       r.conflicts.length

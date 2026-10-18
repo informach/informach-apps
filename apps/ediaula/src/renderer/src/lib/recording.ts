@@ -20,6 +20,7 @@ import { usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
+import { requestMotion } from "./motion";
 import { activePalette } from "./palettes";
 import { showProposal } from "./proposals";
 import { recorderKey } from "./recorderKeys";
@@ -235,9 +236,17 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   if (!layout) return;
   const take = basename(r.dir);
   for (const { assetId, role } of layout.roles)
-    patchAsset(assetId, { recording: { id: take, role } });
+    patchAsset(assetId, {
+      recording: { id: take, role },
+      // A narration taken from a presenter's video is the presenter's voice: never cleaned of
+      // hesitations.
+      ...(role === "narration" && r.narrationFromVideo ? { origin: "presenter" as const } : {}),
+    });
   const roleIds = (role: string): string[] =>
     layout?.roles.filter((x) => x.role === role).map((x) => x.assetId) ?? [];
+  // Where the screen stands still, found in the background for the cleanup.
+  const now = useProject.getState().project;
+  if (now) requestMotion(now);
 
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));

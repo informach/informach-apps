@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
-import { activityRanges, normalizeGuidedRun, sourceActivity } from "../src/shared/activity.ts";
+import {
+  activityRanges,
+  normalizeGuidedRun,
+  type ScreenMotion,
+  sourceActivity,
+} from "../src/shared/activity.ts";
 import { DEFAULT_KEY } from "../src/shared/chroma.ts";
 import {
   analyze,
   applyCuts,
   audibleSilences,
+  avatarMedia,
   cutTargets,
   type Issue,
+  keptMatcher,
   speechIntervals,
+  THINK_PAUSE,
   type TimelineWord,
   timelineSilences,
   timelineWords,
@@ -26,7 +34,9 @@ const hooks = registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { cleanupItems, cleanupPlan } = await import("../src/renderer/src/lib/cleanupPlan.ts");
+const { cleanupItems, cleanupPlan, keepRejected } = await import(
+  "../src/renderer/src/lib/cleanupPlan.ts"
+);
 hooks.deregister();
 
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
@@ -134,38 +144,64 @@ const transcripts = new Map([
   ["deb", debinha],
 ]);
 
-/** Clicks every 1.5 s of the silent demonstration (20 to 30 s), one of them a drag. */
-const cursor = {
+/** Cursor data with only what a test gives (version 2). */
+const cursorWith = (fields: Record<string, unknown>) => ({
   version: 2,
   width: 1920,
   height: 1080,
   shapes: [],
-  moves: [
-    [21.5, 400, 300, 0],
-    [22, 405, 300, 0],
-    [22.6, 700, 320, 0],
-    [23, 900, 340, 0],
-  ],
-  clicks: [
-    [20.5, 400, 300, 0, 0.1],
-    [22, 405, 300, 0, 1.2],
-    [23.9, 900, 340, 0, 0.1],
-    [25.4, 950, 340, 0, 0.1],
-    [26.9, 950, 360, 0, 0.1],
-    [28.4, 960, 360, 0, 0.1],
-    [29.9, 960, 360, 0, 0.1],
-  ],
+  moves: [],
+  clicks: [],
   wheel: [],
   markers: [],
   keys: [],
+  typing: [],
   pauses: [],
   hidden: [],
   gaps: [],
+  ...fields,
+});
+
+/** The screen stands still everywhere but `moving` (seconds of the video). */
+const stillBut = (...moving: [number, number][]): ScreenMotion => {
+  const frozen: [number, number][] = [];
+  let at = 0;
+  for (const [a, b] of moving) {
+    if (a > at) frozen.push([at, a]);
+    at = b;
+  }
+  frozen.push([at, 120]);
+  return { frozen };
 };
+const still = stillBut();
 
 const overlaps = (i: { start: number; end: number }, a: number, b: number): boolean =>
   Math.min(i.end, b) - Math.max(i.start, a) > 0.01;
 const silencesOf = (issues: Issue[]): Issue[] => issues.filter((i) => i.kind === "silence");
+
+/** The pauses the cleanup would cut in [a, b], with the screen and cursor given. */
+function cutsIn(
+  p: Project,
+  trs: Map<string, Transcript>,
+  a: number,
+  b: number,
+  cursor: Record<string, unknown> = cursorWith({}),
+  motion: ScreenMotion | null = still,
+): Issue[] {
+  const activity = activityRanges(
+    p,
+    new Map([["tela", cursor]]),
+    new Map(),
+    new Map([["tela", motion]]),
+  );
+  return silencesOf(
+    analyze(timelineWords(p, trs), audibleSilences(p, { transcripts: trs }), {
+      minSilence: 1,
+      keepPause: 0.4,
+      activity,
+    }),
+  ).filter((i) => overlaps(i, a, b));
+}
 
 test("the avatar placed in a pause of the narration is speech, not a silence to cut", () => {
   const p = lesson();
@@ -179,21 +215,55 @@ test("the avatar placed in a pause of the narration is speech, not a silence to 
     old.some((i) => overlaps(i, from, to)),
     "the old analysis cut the avatar",
   );
-  const sources = { transcripts };
-  const heard = speechIntervals(p, sources);
+  const heard = speechIntervals(p, { transcripts });
   assert.ok(
     heard.some(([a, b]) => a <= from + 1e-6 && b >= to - 1e-6),
     "the avatar is heard",
   );
-  const now = silencesOf(analyze(words, audibleSilences(p, sources)));
-  assert.ok(!now.some((i) => overlaps(i, from - 0.2, to + 0.2)), "nothing cut under the avatar");
-  // What is left of the narration's pause around the avatar is too short to cut.
-  assert.ok(!now.some((i) => overlaps(i, 10, 14)));
+  assert.deepEqual(cutsIn(p, transcripts, from - 0.2, to + 0.2), [], "nothing cut under it");
+  assert.deepEqual(cutsIn(p, transcripts, 10, 14), [], "what is left of the pause is too short");
   // Muting the avatar track makes the pause a pause again.
   const muted = { ...p, tracks: p.tracks.map((t) => (t.id === "v2" ? { ...t, muted: true } : t)) };
-  assert.ok(
-    silencesOf(analyze(words, audibleSilences(muted, sources))).some((i) => overlaps(i, 11, 13)),
-  );
+  assert.ok(cutsIn(muted, transcripts, 11, 13).length);
+});
+
+test("a soft answer inside a silence of the detector is speech", () => {
+  // FFmpeg heard nothing from 1.5 to 7 s, but whisper heard the child say "Quatro!" at 4 s.
+  const tr: Transcript = {
+    version: 1,
+    model: "m",
+    language: "pt",
+    duration: 30,
+    silences: [
+      [1.5, 7],
+      [7.9, 30],
+    ],
+    words: [
+      ...phrase("Quanto é dois mais dois?", 0, 1.5).map(([text, start, end]) => ({
+        text,
+        start,
+        end,
+        p: 1,
+      })),
+      { text: "Quatro!", start: 4, end: 4.5, p: 0.6 },
+      { text: "Isso", start: 7, end: 7.4, p: 1 },
+      { text: "mesmo.", start: 7.45, end: 7.9, p: 1 },
+    ],
+  };
+  const p = lesson();
+  p.clips = p.clips.filter((c) => c.id !== "cd");
+  const trs = new Map([["voz", tr]]);
+  const cuts = cutsIn(p, trs, 0, 7.5);
+  assert.ok(!cuts.some((i) => overlaps(i, 3.9, 4.6)), "Quatro! is never cut");
+  // The pause after the question keeps thinking time; after the answer it may be shortened.
+  for (const i of cuts) assert.ok(i.start >= 4.5, `only after the answer (${i.start})`);
+  // The VAD's stretches count the same way.
+  const vad = {
+    ...tr,
+    words: tr.words.filter((w) => w.text !== "Quatro!"),
+    speech: [[3.9, 4.6]] as [number, number][],
+  };
+  assert.ok(!cutsIn(p, new Map([["voz", vad]]), 0, 7.5).some((i) => overlaps(i, 3.9, 4.6)));
 });
 
 test("media heard without a transcript is listened to by its envelope, or counts as speech", () => {
@@ -210,72 +280,55 @@ test("media heard without a transcript is listened to by its envelope, or counts
   assert.ok(!audibleSilences(p, { transcripts }).some((s) => overlaps(s, 40, 50)));
 });
 
-test("a silent demonstration with clicks stays whole", () => {
+test("a still screen is the only place a pause is cut: an animation after one click stays", () => {
   const p = lesson();
-  const words = timelineWords(p, transcripts);
-  const silences = audibleSilences(p, { transcripts });
-  const demo = silences.find((s) => s.start >= 19.9 && s.end <= 30.1);
-  assert.ok(demo, "the 10 s without speech is a pause");
-  const blind = silencesOf(analyze(words, silences));
-  assert.ok(
-    blind.some((i) => overlaps(i, 20, 30)),
-    "without the cursor it would be cut",
-  );
-  const activity = activityRanges(p, new Map([["tela", cursor]]));
-  assert.ok(
-    activity.some((a) => a.kind === "drag"),
-    "the press that moves is a drag",
-  );
-  const issues = analyze(words, silences, { minSilence: 1, keepPause: 0.4, activity });
-  assert.deepEqual(
-    silencesOf(issues).filter((i) => overlaps(i, 20, 30)),
-    [],
-    "the demonstration is not cut",
-  );
-  // A version 1 cursor file is read the same way.
-  const v1 = { version: 1, width: 1920, height: 1080, moves: cursor.moves, clicks: cursor.clicks };
-  assert.deepEqual(activityRanges(p, new Map([["tela", v1]])), activity);
-});
-
-test("only what is left of a pause around the activity, and long enough, is cut", () => {
-  const p = lesson();
-  const words = timelineWords(p, transcripts);
-  // One click in the middle of the 10 s pause: two still parts long enough to shorten.
-  const one = { ...cursor, clicks: [[25, 900, 340, 0, 0.1]], moves: [] };
-  const activity = activityRanges(p, new Map([["tela", one]]));
-  const cut = silencesOf(
-    analyze(words, audibleSilences(p, { transcripts }), {
+  // One click at 21 s, then the game animates for 4 s with nobody touching anything.
+  const oneClick = cursorWith({ clicks: [[21, 900, 340, 0, 0.1]] });
+  // Seeing only the cursor, the end of the animation looked like a pause.
+  const cursorOnly = silencesOf(
+    analyze(timelineWords(p, transcripts), audibleSilences(p, { transcripts }), {
       minSilence: 1,
       keepPause: 0.4,
-      activity,
+      activity: activityRanges(p, new Map([["tela", oneClick]])),
     }),
-  ).filter((i) => overlaps(i, 20, 30));
-  assert.equal(cut.length, 2);
-  for (const i of cut) assert.ok(!overlaps(i, 24.4, 25.9), "the click stays");
-  assert.notEqual(cut[0].id, cut[1].id);
+  ).filter((i) => overlaps(i, 22, 25));
+  assert.ok(cursorOnly.length, "the old activity cut the animation");
+  const animated = stillBut([21, 25]);
+  const cuts = cutsIn(p, transcripts, 20, 30, oneClick, animated);
+  assert.ok(!cuts.some((i) => overlaps(i, 20, 25.3)), "the click and the animation stay whole");
+  assert.equal(cuts.length, 1, "what is still after it is shortened");
+  // Until the screen is analyzed nothing of that recording is cut.
+  assert.deepEqual(cutsIn(p, transcripts, 0, 40, oneClick, null), []);
 });
 
-test("wheel, keys, wide moves and guided steps are activity too", () => {
-  const data = normalizeCursorData({
-    ...cursor,
-    clicks: [],
-    moves: [
-      [5, 100, 100, 0],
-      [5.5, 200, 100, 0],
-      [6, 500, 100, 0],
-      [50, 500, 100, 0],
-      [55, 520, 100, 0],
-    ],
-    wheel: [
-      [10, 0, 0, -120],
-      [10.3, 0, 0, -120],
-    ],
-    keys: [[12, "Ctrl+C"]],
+test("pointing slowly, typing, scrolling and shortcuts hold a pause", () => {
+  const p = lesson();
+  // 600 px in 6 s: slow, but the teacher is showing something.
+  const slow = cursorWith({
+    moves: Array.from({ length: 61 }, (_, i) => [21 + i * 0.1, 300 + i * 10, 400, 0]),
   });
+  assert.ok(!cutsIn(p, transcripts, 20, 30, slow).some((i) => overlaps(i, 21, 27)));
+  const typing = cursorWith({ typing: [22, 22.5, 23, 23.5, 24, 24.5, 25, 25.5, 26, 26.5, 27] });
+  assert.ok(!cutsIn(p, transcripts, 20, 30, typing).some((i) => overlaps(i, 22, 27)));
+  const data = normalizeCursorData(
+    cursorWith({
+      wheel: [
+        [10, 0, 0, -120],
+        [10.3, 0, 0, -120],
+      ],
+      keys: [[12, "Ctrl+C"]],
+      typing: [14, 14.5],
+      moves: [
+        [5, 100, 100, 0],
+        [5.5, 101, 100, 0],
+        [30, 500, 500, 0],
+      ],
+    }),
+  );
   const kinds = sourceActivity(data).map((a) => a.kind);
-  assert.deepEqual([...new Set(kinds)].sort(), ["keys", "move", "wheel"]);
-  // A slow drift across the screen is not a gesture.
-  assert.ok(!sourceActivity(data).some((a) => a.kind === "move" && a.start > 40));
+  assert.deepEqual([...new Set(kinds)].sort(), ["keys", "typing", "wheel"]);
+  // A one-pixel bump of the mouse is not a gesture; older files without typing still read.
+  assert.deepEqual(normalizeCursorData({ ...data, version: 1, typing: undefined }).typing, []);
   const run = normalizeGuidedRun({
     steps: [
       { moveAt: 1, endAt: 3 },
@@ -291,10 +344,20 @@ test("wheel, keys, wide moves and guided steps are activity too", () => {
     ],
     holds: [[7, 9]],
   });
-  const p = lesson();
   assert.ok(
     activityRanges(p, new Map(), new Map([["tela", run]])).every((a) => a.kind === "guided"),
   );
+});
+
+test("only what is left of a pause around the activity, and long enough, is cut", () => {
+  const p = lesson();
+  // One click in the middle of the 10 s pause: two still parts long enough to shorten.
+  const cut = cutsIn(p, transcripts, 20, 30, cursorWith({ clicks: [[25, 900, 340, 0, 0.1]] }));
+  assert.equal(cut.length, 2);
+  for (const i of cut) assert.ok(!overlaps(i, 24.4, 25.9), "the click stays");
+  // Each part has its own id, from its own seconds in the media.
+  assert.notEqual(cut[0].id, cut[1].id);
+  for (const i of cut) assert.match(i.id, /^s:voz:\d+\.\d{3}-\d+\.\d{3}$/);
 });
 
 /** Timeline words of one speaker (source). */
@@ -316,12 +379,12 @@ function words(
 }
 
 const repeats = (issues: Issue[]): Issue[] => issues.filter((i) => i.kind === "repeat");
+const opts = { minSilence: 1, keepPause: 0.4 };
 
 test('"Clique aqui. [5 s] Clique aqui." is a demonstration, not a repeat', () => {
-  const opts = { minSilence: 1, keepPause: 0.4 };
   const apart = words("voz", [
     ["Clique", 0, 0.4],
-    ["aqui.", 0.45, 0.8],
+    ["aqui,", 0.45, 0.8],
     ["Clique", 5.8, 6.2],
     ["aqui.", 6.25, 6.6],
   ]);
@@ -329,21 +392,62 @@ test('"Clique aqui. [5 s] Clique aqui." is a demonstration, not a repeat', () =>
   // Close together it is a restart...
   const close = words("voz", [
     ["Clique", 0, 0.4],
-    ["aqui.", 0.45, 0.8],
+    ["aqui,", 0.45, 0.8],
     ["Clique", 1.6, 2],
-    ["aqui.", 2.05, 2.4],
+    ["aqui", 2.05, 2.4],
+    ["no", 2.45, 2.6],
+    ["verde.", 2.65, 3],
   ]);
   assert.equal(repeats(analyze(close, [], opts)).length, 1);
   // ...unless something happened on screen between the takes.
-  const activity = [{ start: 0.9, end: 1.5 }];
-  assert.deepEqual(repeats(analyze(close, [], { ...opts, activity })), []);
-  // Emphasis said on purpose stays.
+  assert.deepEqual(
+    repeats(analyze(close, [], { ...opts, activity: [{ start: 0.9, end: 1.5 }] })),
+    [],
+  );
+});
+
+test("short repeats across a full stop, counting and phrases said twice on purpose stay", () => {
+  const sentence = words("voz", [
+    ["Clique", 0, 0.3],
+    ["no", 0.35, 0.45],
+    ["verde.", 0.5, 0.9],
+    ["Verde", 1.2, 1.5],
+    ["é", 1.55, 1.6],
+    ["a", 1.65, 1.7],
+    ["cor.", 1.75, 2],
+  ]);
+  assert.deepEqual(repeats(analyze(sentence, [], opts)), []);
+  const counting = words("voz", [
+    ["um,", 0, 0.3],
+    ["dois,", 0.4, 0.7],
+    ["três,", 0.8, 1.1],
+    ["um,", 1.3, 1.6],
+    ["dois,", 1.7, 2],
+    ["três!", 2.1, 2.4],
+  ]);
+  assert.deepEqual(repeats(analyze(counting, [], opts)), []);
+  const vamos = words("voz", [
+    ["Vamos", 0, 0.3],
+    ["lá,", 0.35, 0.6],
+    ["vamos", 0.8, 1.1],
+    ["lá!", 1.15, 1.4],
+  ]);
+  assert.deepEqual(repeats(analyze(vamos, [], opts)), []);
   const emphasis = words("voz", [
     ["muito,", 0, 0.3],
     ["muito", 0.35, 0.6],
     ["bom!", 0.65, 0.9],
   ]);
   assert.deepEqual(repeats(analyze(emphasis, [], opts)), []);
+  // A false start before a question mark is still a restart.
+  const restart = words("voz", [
+    ["quem", 0, 0.3],
+    ["está?", 0.35, 0.6],
+    ["Quem", 0.9, 1.2],
+    ["está", 1.25, 1.5],
+    ["aqui?", 1.55, 1.9],
+  ]);
+  assert.equal(repeats(analyze(restart, [], opts)).length, 1);
 });
 
 test("the teacher saying the avatar's line again is not a repeat, and the avatar is never cleaned", () => {
@@ -372,11 +476,61 @@ test("the teacher saying the avatar's line again is not a repeat, and the avatar
     ["ver.", 4.95, 5.2],
   ]);
   const all = [...deb, ...voz].sort((a, b) => a.start - b.start);
-  const issues = analyze(all, [], { minSilence: 1, keepPause: 0.4 });
-  assert.deepEqual(issues, [], "no repeat across speakers, no filler or repeat in the avatar");
+  assert.deepEqual(analyze(all, [], opts), [], "no repeat across speakers, nothing in the avatar");
 });
 
-test("a hesitation over another voice is not cut", () => {
+test("the computer's sound, a muted copy and a presenter are not cleaned as the teacher", () => {
+  const sys = words(
+    "sys",
+    [
+      ["Ah,", 2, 2.3],
+      ["olá", 2.4, 2.7],
+      ["crianças,", 2.8, 3.2],
+      ["crianças,", 3.3, 3.7],
+    ],
+    "other",
+  );
+  assert.deepEqual(analyze(sys, [], opts), []);
+  const voz = words("voz", [
+    ["Então,", 0, 0.4],
+    ["né,", 0.5, 0.8],
+    ["vamos", 1.2, 1.5],
+  ]);
+  const copy = words("cam", [
+    ["Então,", 0.01, 0.41],
+    ["né,", 0.51, 0.81],
+    ["vamos", 1.21, 1.51],
+  ]).map((w) => ({ ...w, silent: true }));
+  const issues = analyze(
+    [...voz, ...copy].sort((a, b) => a.start - b.start),
+    [],
+    opts,
+  );
+  assert.deepEqual(
+    issues.map((i) => i.id),
+    ["f:voz:1"],
+    "the muted copy neither adds a hesitation nor protects one",
+  );
+  // A voice clip silenced under the presenter's own sound is not heard (the value of today and
+  // whatever it is renamed to).
+  const under = lesson();
+  under.clips = under.clips.map((c) => (c.id === "ca" ? { ...c, mutedFor: "heygen" as const } : c));
+  assert.ok(
+    timelineWords(under, transcripts)
+      .filter((w) => w.source === "voz")
+      .every((w) => w.silent),
+  );
+  // A presenter's media and anything on a solid screen are not the teacher.
+  const p = lesson();
+  p.assets.push(
+    asset("hey", "video", { hasAudio: true, origin: "presenter" }),
+    asset("verde", "video", { hasAudio: true, screen: "#00ff00" }),
+    asset("narr", "audio", { origin: "presenter", recording: { id: "r", role: "narration" } }),
+  );
+  assert.deepEqual([...avatarMedia(p)].sort(), ["deb", "hey", "narr", "verde"]);
+});
+
+test("a hesitation over another voice or over a drag is not cut", () => {
   const voz = words("voz", [
     ["então,", 0, 0.4],
     ["ahn,", 0.5, 0.9],
@@ -385,14 +539,43 @@ test("a hesitation over another voice is not cut", () => {
   const deb = words("deb", [["Oi!", 0.6, 0.9]], "avatar");
   const all = [...voz, ...deb].sort((a, b) => a.start - b.start);
   assert.deepEqual(
-    analyze(all, [], { minSilence: 1, keepPause: 0.4 }).filter((i) => i.kind === "filler"),
+    analyze(all, [], opts).filter((i) => i.kind === "filler"),
     [],
   );
-  assert.equal(analyze(voz, [], { minSilence: 1, keepPause: 0.4 }).length, 1);
+  assert.equal(analyze(voz, [], opts).length, 1);
+  // "Arraste o bloco, né, até aqui": the "né" falls in the middle of the drag.
+  assert.deepEqual(analyze(voz, [], { ...opts, activity: [{ start: 0, end: 3 }] }), []);
 });
 
-/** A narration with a "né" and two long pauses (no avatar, no cursor). */
-function plain(): { project: Project; transcripts: Map<string, Transcript> } {
+test("a pause after a question, or where the script asks to wait, keeps thinking time", () => {
+  const voz = words("voz", [
+    ["Quanto", 0, 0.3],
+    ["dá?", 0.35, 0.7],
+    ["Oito.", 5.7, 6],
+    ["E", 10, 10.1],
+    ["agora", 10.15, 10.5],
+  ]);
+  const pauses: [number, number][] = [
+    [0.7, 5.7],
+    [6, 10],
+  ];
+  const issues = analyze(voz, pauses, opts);
+  const afterQuestion = issues.find((i) => overlaps(i, 0.7, 5.7));
+  assert.ok(afterQuestion);
+  assert.ok(Math.abs(afterQuestion.start - 0.7 - THINK_PAUSE / 2) < 1e-6, "2.5 s are left");
+  const plain = issues.find((i) => overlaps(i, 6, 10));
+  assert.ok(plain && Math.abs(plain.start - 6.2) < 1e-6, "elsewhere a short pause is left");
+  const scripted = analyze(voz, pauses, { ...opts, thinking: [[6, 10]] });
+  const kept = scripted.find((i) => overlaps(i, 6, 10));
+  assert.ok(kept && Math.abs(kept.start - 6 - THINK_PAUSE / 2) < 1e-6);
+});
+
+/** A narration with a "né" and two long pauses (the screen analyzed and still). */
+function plain(): {
+  project: Project;
+  transcripts: Map<string, Transcript>;
+  screens: Map<string, ScreenMotion>;
+} {
   const p = lesson();
   p.clips = p.clips.filter((c) => c.id !== "cd");
   const voz = said([
@@ -400,59 +583,142 @@ function plain(): { project: Project; transcripts: Map<string, Transcript> } {
     ...phrase("Primeiro o farol.", 9, 12),
     ...phrase("Depois a chave.", 16, 19),
   ]);
-  return { project: p, transcripts: new Map([["voz", voz]]) };
+  return { project: p, transcripts: new Map([["voz", voz]]), screens: new Map([["tela", still]]) };
 }
 
-test("what the person kept in the panel is kept by the AI too", () => {
-  const { project, transcripts: trs } = plain();
-  const first = cleanupPlan(project, { transcripts: trs });
+test("what the person kept, in the panel or by leaving it out of a proposal, the AI keeps too", () => {
+  const { project, transcripts: trs, screens } = plain();
+  const inputs = { transcripts: trs, screens };
+  const first = cleanupPlan(project, inputs);
   const filler = first.active.find((i) => i.kind === "filler");
   const pause = first.active.find((i) => i.kind === "silence");
   assert.ok(filler && pause);
-  const kept: Project = { ...project, cleanup: { kept: [filler.id, pause.id] } };
+  const kept: Project = { ...project, cleanup: { kept: [filler.id] } };
   // The panel, find_cleanup and apply_cleanup all read the plan with the AI's options on top.
   for (const overrides of [{}, { kinds: { filler: true, silence: true } }, { minSilence: 0.5 }]) {
-    const plan = cleanupPlan(kept, { transcripts: trs }, overrides);
-    assert.ok(
-      plan.issues.some((i) => i.id === filler.id),
-      "still found",
-    );
-    assert.ok(!plan.active.some((i) => i.id === filler.id || i.id === pause.id), "never cut");
+    const plan = cleanupPlan(kept, inputs, overrides);
+    assert.ok(plan.keptIds.has(filler.id), "still found, shown as kept");
+    assert.ok(!plan.active.some((i) => i.id === filler.id), "never cut");
   }
-  // "Limpar a aula" proposes the rest, item by item, anchored in the media.
+  // "Limpar a aula" proposes the rest item by item; the person leaves the pause out in the bar.
   let n = 0;
-  const items = cleanupItems(kept, cleanupPlan(kept, { transcripts: trs }), () => `pi${n++}`);
-  assert.ok(items.length > 0);
-  assert.ok(!items.some((i) => i.wordKeys?.includes(filler.words[0])));
-  assert.ok(items.every((i) => i.status === "pending" && i.anchors.length > 0));
-  // Kinds the person turned off stay off for the AI unless it asks for them in that call.
+  const items = cleanupItems(kept, cleanupPlan(kept, inputs), () => `pi${n++}`);
+  assert.ok(items.every((i) => i.issueId && i.status === "pending" && i.anchors.length > 0));
+  const reviewed = items.map((i) =>
+    i.issueId === pause.id ? { ...i, status: "rejected" as const } : i,
+  );
+  const applied = keepRejected(kept, reviewed);
+  assert.deepEqual(applied.cleanup?.kept, [filler.id, pause.id]);
+  assert.ok(!cleanupPlan(applied, inputs).active.some((i) => i.id === pause.id));
+  // Kinds the person turned off stay off; the AI never asks for shorter pauses than the panel.
   const off: Project = { ...project, cleanup: { kept: [], kinds: { silence: false } } };
-  assert.ok(!cleanupPlan(off, { transcripts: trs }).active.some((i) => i.kind === "silence"));
+  assert.ok(!cleanupPlan(off, inputs).active.some((i) => i.kind === "silence"));
+  const choosy: Project = { ...project, cleanup: { kept: [], minSilence: 3.5 } };
+  assert.equal(cleanupPlan(choosy, inputs, { minSilence: 0.5 }).choices.minSilence, 3.5);
 });
 
-test("a pause keeps its id after another cut", () => {
-  const { project, transcripts: trs } = plain();
-  const before = cleanupPlan(project, { transcripts: trs });
-  const pauses = before.issues.filter((i) => i.kind === "silence");
-  assert.ok(pauses.length >= 2);
-  assert.ok(
-    pauses.every((i) => /^s:voz:\d+\.\d{3}$/.test(i.id)),
-    "anchored in the media",
+test("a kept pause stays kept: after a cut that touches it, a gesture that splits it, a new transcript", () => {
+  const { project, transcripts: trs, screens } = plain();
+  const inputs = { transcripts: trs, screens };
+  const pause = cleanupPlan(project, inputs).issues.find(
+    (i) => i.kind === "silence" && overlaps(i, 12, 16),
   );
-  const filler = before.issues.find((i) => i.kind === "filler");
-  assert.ok(filler);
-  // Cut the hesitation (before both pauses): everything after it moves left.
-  const cut = {
-    ...project,
-    clips: applyCuts(project.clips, [[filler.start, filler.end]], cutTargets(project)),
-  };
-  const after = cleanupPlan(cut, { transcripts: trs }).issues.filter((i) => i.kind === "silence");
-  assert.deepEqual(
-    after.map((i) => i.id),
-    pauses.map((i) => i.id),
+  assert.ok(pause?.span);
+  const kept: Project = { ...project, cleanup: { kept: [pause.id] } };
+  const isKept = (p: Project, extra: Partial<typeof inputs> = {}) =>
+    cleanupPlan(p, { ...inputs, ...extra }).issues.filter(
+      (i) => i.kind === "silence" && overlaps(i, pause.span?.[0] ?? 0, pause.span?.[1] ?? 0),
+    );
+  // 1. A cut right up to the start of the pause trims it: still the same pause.
+  const [a] = pause.span;
+  const trimmed = { ...kept, clips: applyCuts(kept.clips, [[a - 0.5, a + 0.5]], cutTargets(kept)) };
+  const afterCut = cleanupPlan(trimmed, inputs).issues.filter(
+    (i) => i.kind === "silence" && overlaps(i, a - 0.5, a + 3),
   );
-  const shift = filler.end - filler.start;
-  after.forEach((i, k) => {
-    assert.ok(Math.abs(pauses[k].start - shift - i.start) < 1e-6, "same pause, moved left");
+  assert.ok(afterCut.length && afterCut.every((i) => keptMatcher(trimmed, [pause.id])(i)));
+  // 2. A click in the middle splits it in two: both halves stay kept.
+  const split = isKept(kept, {
+    cursors: new Map([["tela", cursorWith({ clicks: [[14, 10, 10, 0, 0.1]] })]]),
   });
+  assert.equal(split.length, 2);
+  assert.ok(split.every(keptMatcher(kept, [pause.id])));
+  // 3. The computer's sound transcribed later (silent there): the pause is still the kept one.
+  const more: Project = {
+    ...kept,
+    assets: [...kept.assets, asset("sys", "audio", { recording: { id: "r", role: "system" } })],
+    tracks: [
+      ...kept.tracks,
+      { id: "a2", kind: "audio", name: "PC", muted: false, hidden: false, locked: false },
+    ],
+    clips: [...kept.clips, clip("cs", "sys", "a2", 0, 40)],
+  };
+  const sys = said([...phrase("tchau pessoal", 2, 3), ...phrase("até logo", 20, 21)], 40);
+  const transcribed = new Map([...trs, ["sys", sys]]);
+  const later = cleanupPlan(more, { transcripts: transcribed, screens }).issues.filter(
+    (i) => i.kind === "silence" && overlaps(i, 12, 16),
+  );
+  assert.ok(later.length);
+  assert.ok(
+    later.every((i) => cleanupPlan(more, { transcripts: transcribed, screens }).keptIds.has(i.id)),
+  );
+});
+
+test("what the cleanup cannot see is listed, and the voice cleanup's items are not proposed twice", () => {
+  const { project, transcripts: trs } = plain();
+  project.assets.push(
+    asset("cam", "video", { hasAudio: true }),
+    asset("mudo", "audio", { transcript: "m.json" }),
+  );
+  project.tracks.push({
+    id: "a3",
+    kind: "audio",
+    name: "Mudo",
+    muted: true,
+    hidden: false,
+    locked: false,
+  });
+  project.clips.push(clip("cc", "cam", "v1", 40, 5), clip("cm", "mudo", "a3", 0, 10));
+  const inputs = {
+    transcripts: new Map([...trs, ["mudo", said([["oi", 1, 1.3]], 10)]]),
+    unseen: ["tela"],
+  };
+  const { blind } = cleanupPlan(project, inputs);
+  assert.deepEqual(blind.noCursor, ["cam"]);
+  assert.deepEqual(blind.unreadable, ["tela"]);
+  assert.deepEqual(blind.noEnvelope, ["cam"]);
+  assert.deepEqual(blind.inaudible, ["mudo"]);
+  assert.deepEqual(blind.screenPending, ["tela"], "not analyzed: none of its pauses are cut");
+  // A pending voice cleanup with the same hesitation: the general one leaves it out.
+  const { project: p2, transcripts: t2, screens } = plain();
+  const filler = cleanupPlan(p2, { transcripts: t2, screens }).active.find(
+    (i) => i.kind === "filler",
+  );
+  assert.ok(filler);
+  const withVoice: Project = {
+    ...p2,
+    proposals: [
+      {
+        id: "v",
+        projectId: p2.id,
+        title: "Limpeza da voz",
+        revision: 0,
+        createdAt: 0,
+        by: "voz",
+        items: [
+          {
+            id: "i",
+            start: filler.start,
+            end: filler.end,
+            reason: "vício",
+            anchors: [{ clipId: "ca", assetId: "voz", start: filler.start, end: filler.end }],
+            issueId: filler.id,
+            status: "pending",
+          },
+        ],
+      },
+    ],
+  };
+  const plan = cleanupPlan(withVoice, { transcripts: t2, screens });
+  assert.ok(!plan.active.some((i) => i.id === filler.id));
+  assert.equal(plan.elsewhere, 1);
 });

@@ -190,6 +190,9 @@ const asset = z.looseObject({
     .looseObject({ path, preset: z.enum(VOICE_PRESETS), version: z.int().nonnegative() })
     .optional(),
   treatStatus: z.enum(["pending", "ready", "error"]).optional(),
+  motion: path.optional(),
+  motionStatus: z.enum(["pending", "ready", "error"]).optional(),
+  origin: z.literal("presenter").optional(),
   voiceTakes: z
     .array(
       z.looseObject({
@@ -348,6 +351,7 @@ const proposal = z.looseObject({
         near: number.optional(),
         anchors: z.array(sourceSpan).min(1).max(MAX_ANCHORS),
         wordKeys: z.array(z.string().max(300)).max(MAX_WORD_KEYS).optional(),
+        issueId: z.string().min(1).max(300).optional(),
         status: z.enum(["pending", "rejected"]),
       }),
     )

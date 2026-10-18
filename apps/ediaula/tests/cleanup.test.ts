@@ -138,8 +138,15 @@ test("analysis finds the filler words, the repeated phrase and the long pauses",
     .flatMap((i) => i.words.map((k) => byKey.get(k)!.text));
   assert.deepEqual(repeats.sort(), ["Quem", "está", "está?", "participando,", "quem"].sort());
   const pauses = issues.filter((i) => i.kind === "silence");
-  assert.equal(pauses.length, 5, "pauses of one second or more");
-  for (const s of pauses) assert.ok(s.end > s.start);
+  // Five pauses of a second or more; the three right after a question ("Quem ficou de fora?")
+  // are thinking time and keep THINK_PAUSE, so only the two longer than that are shortened.
+  const said = (t: number): string =>
+    words.filter((w) => w.end <= t + 0.05).sort((a, b) => b.end - a.end)[0]?.text ?? "";
+  const long = timelineSilences(p, transcripts).filter(([s, e]) => e - s >= 1);
+  assert.equal(long.length, 5);
+  assert.equal(long.filter(([s]) => said(s).endsWith("?")).length, 3);
+  assert.equal(pauses.length, 2, "pauses of one second or more, not after a question");
+  for (const s of pauses) assert.ok(s.end > s.start && !said(s.span?.[0] ?? s.start).endsWith("?"));
 });
 
 test("removing the issues leaves the clean sentence, in sync on every speech track", () => {

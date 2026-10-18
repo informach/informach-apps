@@ -35,6 +35,22 @@ namespace EdiAula.Helper
             return vk == 9 || vk == 13 || vk == 27 || (vk >= 33 && vk <= 40) || vk == 46 || (vk >= 112 && vk <= 123);
         }
 
+        /// <summary>
+        /// A key that writes text (letters, digits, punctuation, space, Backspace), typed as text:
+        /// no shortcut, no Win, or a character made with AltGr or Alt and the numeric keypad. Only
+        /// the moment it happened is ever written (TypingGate), never which key.
+        /// </summary>
+        public static bool IsTyping(int vk, int mods, bool extended, bool rightAlt, bool altGrLayout, bool printable)
+        {
+            if (IsModifier(vk) || ShouldLog(vk, mods, extended, rightAlt, altGrLayout, printable)) return false;
+            bool ctrl = (mods & Ctrl) != 0, alt = (mods & Alt) != 0, win = (mods & Win) != 0;
+            if (win) return false;
+            bool character = (rightAlt && altGrLayout) || (ctrl && alt && printable) || (alt && !ctrl && IsNumpad(vk, extended));
+            if ((ctrl || alt) && !character) return false;
+            return vk == 0x08 || vk == 0x20 || (vk >= 0x30 && vk <= 0x39) || (vk >= 0x41 && vk <= 0x5A) ||
+                (vk >= 0x60 && vk <= 0x6F) || (vk >= 0xBA && vk <= 0xC0) || (vk >= 0xDB && vk <= 0xDF) || vk == 0xE2;
+        }
+
         public static bool IsModifier(int vk)
         {
             return (vk >= 0x10 && vk <= 0x12) || (vk >= 0xA0 && vk <= 0xA5) || vk == 0x5B || vk == 0x5C;
@@ -47,11 +63,15 @@ namespace EdiAula.Helper
             return !extended && ((vk >= 0x21 && vk <= 0x28) || vk == 0x2D || vk == 0x2E || vk == 0x0C);
         }
 
-        /// <summary>Test mode: one case per stdin line, one {"log":...} per stdout line.</summary>
+        /// <summary>
+        /// Test mode: one case per stdin line, one {"log":...,"typing":...} per stdout line. A case
+        /// with "t" (milliseconds) also goes through one TypingGate and answers "emit".
+        /// </summary>
         public static int Run()
         {
             LineWriter output = LineWriter.StandardOutput();
             JavaScriptSerializer parser = new JavaScriptSerializer();
+            TypingGate gate = new TypingGate();
             using (StreamReader input = LineWriter.StandardInput())
             {
                 string line;
@@ -59,12 +79,35 @@ namespace EdiAula.Helper
                 {
                     if (line.Trim().Length == 0) continue;
                     Dictionary<string, object> c = Json.Parse(parser, line);
-                    bool log = ShouldLog(Json.Int(c, "vk"), Json.Int(c, "mods"), Json.Flag(c, "extended"),
-                        Json.Flag(c, "rightAlt"), Json.Flag(c, "altGrLayout"), Json.Flag(c, "printable"));
-                    output.Write("{\"log\":" + Json.Bool(log) + "}", true);
+                    int vk = Json.Int(c, "vk"), mods = Json.Int(c, "mods");
+                    bool extended = Json.Flag(c, "extended"), rightAlt = Json.Flag(c, "rightAlt");
+                    bool altGr = Json.Flag(c, "altGrLayout"), printable = Json.Flag(c, "printable");
+                    bool log = ShouldLog(vk, mods, extended, rightAlt, altGr, printable);
+                    bool typing = IsTyping(vk, mods, extended, rightAlt, altGr, printable);
+                    string answer = "{\"log\":" + Json.Bool(log) + ",\"typing\":" + Json.Bool(typing);
+                    if (c.ContainsKey("t"))
+                        answer += ",\"emit\":" + Json.Bool(typing && gate.Allow(Convert.ToDouble(c["t"], System.Globalization.CultureInfo.InvariantCulture)));
+                    output.Write(answer + "}", true);
                 }
             }
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Typing becomes at most one moment every half second: enough for the editor to know a field
+    /// was being filled while nobody spoke, too coarse to tell how many keys or their rhythm.
+    /// </summary>
+    internal sealed class TypingGate
+    {
+        public const double GapMs = 500;
+        private double last = double.NegativeInfinity;
+
+        public bool Allow(double ms)
+        {
+            if (ms - last < GapMs) return false;
+            last = ms;
+            return true;
         }
     }
 }

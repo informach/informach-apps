@@ -60,6 +60,8 @@ function exited(child: ChildProcessWithoutNullStreams, timeout: number): Promise
 export interface HookOptions {
   /** Also log shortcut and navigation keys (never plain typing). */
   keys?: boolean;
+  /** Log the moments something is typed ("ty"): never the key, at most one every half second. */
+  typing?: boolean;
   /** Directory for cursor.jsonl and the cursor images; restarts append to the same file. */
   journal?: string;
   /** Keys typed while this process owns the foreground window are not logged. */
@@ -210,6 +212,7 @@ export class HookClient extends EventEmitter<HookClientEvents> {
     const args = [
       "hook",
       ...(o.keys ? ["--keys"] : []),
+      ...(o.typing ? ["--typing"] : []),
       ...(o.caret ? ["--caret"] : []),
       ...(this.paused ? ["--paused"] : []),
       ...(o.journal ? ["--journal", o.journal] : []),

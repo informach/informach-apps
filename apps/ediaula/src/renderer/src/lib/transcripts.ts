@@ -1,8 +1,12 @@
+import { normalizeScreenMotion, type ScreenMotion, screenRecordings } from "@shared/activity";
 import {
   applyCuts,
   audibleClips,
   cutTargets,
+  type Issue,
+  keptEntries,
   protectedConflicts,
+  type TimelineWord,
   timelineWords,
 } from "@shared/cleanup";
 import { type GlossaryTerm, promptTerms } from "@shared/glossary";
@@ -14,9 +18,16 @@ import { create } from "zustand";
 import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { type Commit, personCommit, useProject } from "@/state/project";
-import { type CleanupInputs, type CleanupPlan, cleanupPlan } from "./cleanupPlan";
+import {
+  type CleanupInputs,
+  type CleanupPlan,
+  cleanupChoices,
+  cleanupPlan,
+  KEPT_LIMIT,
+} from "./cleanupPlan";
 import { projectCorrectionTerms, useCorrectionTerms } from "./glossaryStore";
 import { loadWaveform, mediaUrl } from "./media";
+import { requestMotion } from "./motion";
 
 const cache = new Map<string, Promise<Transcript>>();
 
@@ -97,19 +108,21 @@ export const useCleanup = create<{ language: string; set: (p: { language: string
   }),
 );
 
-/** Most kept suggestions a lesson remembers; the oldest go first. */
-const KEPT_LIMIT = 20000;
-
 /** Changes the cleanup choices of the open lesson (one undo step). */
 export function setCleanup(changes: Partial<CleanupSettings>, commit: Commit = personCommit): void {
   commit((p) => ({ ...p, cleanup: { kept: [], ...p.cleanup, ...changes } }));
 }
 
-/** Keeps a suggestion out of the cleanup, or lets it be cut again. */
-export function toggleKept(id: string, commit: Commit = personCommit): void {
+/**
+ * Keeps a suggestion out of the cleanup, or lets it be cut again: a pause kept earlier may be
+ * stored under another id (trimmed by a cut, split by a gesture), so every entry that covers it
+ * goes (keptEntries).
+ */
+export function toggleKept(issue: Issue, commit: Commit = personCommit): void {
   commit((p) => {
     const kept = p.cleanup?.kept ?? [];
-    const next = kept.includes(id) ? kept.filter((k) => k !== id) : [...kept, id];
+    const covering = keptEntries(p, kept, issue);
+    const next = covering.length ? kept.filter((k) => !covering.includes(k)) : [...kept, issue.id];
     return { ...p, cleanup: { ...p.cleanup, kept: next.slice(-KEPT_LIMIT) } };
   });
 }
@@ -132,20 +145,29 @@ export async function loadProjectTranscripts(p: Project): Promise<Map<string, Tr
 
 /**
  * The files the cleanup reads besides the transcripts, one per line ("kind\tasset\tpath"): the
- * sound envelope ("e") of heard media with no transcript yet and the cursor data ("c") of the
- * screen recordings on the timeline. File paths never hold tabs or line breaks.
+ * sound envelope ("e") of heard media with no transcript yet, the cursor data ("c") and the
+ * motion analysis ("m") of the screen recordings on the timeline. File paths never hold tabs or
+ * line breaks.
  */
 function cleanupFiles(p: Project, transcripts: ReadonlyMap<string, Transcript>): string {
   const heard = new Set(audibleClips(p).map((c) => c.assetId));
   const used = new Set(p.clips.map((c) => c.assetId));
+  const screens = new Set(screenRecordings(p).map((a) => a.id));
   return p.assets
     .flatMap((a) => [
       ...(heard.has(a.id) && !transcripts.has(a.id) && a.waveform
         ? [`e\t${a.id}\t${a.waveform}`]
         : []),
       ...(used.has(a.id) && a.cursor && !a.cursorMissing ? [`c\t${a.id}\t${a.cursor}`] : []),
+      ...(screens.has(a.id) && a.motion ? [`m\t${a.id}\t${a.motion}`] : []),
     ])
     .join("\n");
+}
+
+async function loadMotion(path: string): Promise<ScreenMotion> {
+  const r = await fetch(mediaUrl(path));
+  if (!r.ok) throw new Error(`Análise da tela não encontrada (${r.status})`);
+  return normalizeScreenMotion(await r.json());
 }
 
 /**
@@ -158,6 +180,7 @@ async function readCleanupFiles(
 ): Promise<CleanupInputs> {
   const envelopes = new Map<string, { peaksPerSecond: number; peaks: number[] }>();
   const cursors = new Map<string, unknown>();
+  const screens = new Map<string, ScreenMotion | null>();
   const unseen: string[] = [];
   await Promise.all(
     files
@@ -172,6 +195,13 @@ async function readCleanupFiles(
             // Without its envelope the whole clip counts as speech: nothing of it is cut as silence.
             console.warn(`[cleanup] the sound envelope of ${id} could not be read:`, err);
           }
+        else if (kind === "m")
+          try {
+            screens.set(id, await loadMotion(path));
+          } catch (err) {
+            // Without it the recording counts as moving all the way: none of its pauses are cut.
+            console.warn(`[cleanup] the motion analysis of ${id} could not be read:`, err);
+          }
         else
           try {
             cursors.set(id, await loadCursorData(path));
@@ -180,14 +210,20 @@ async function readCleanupFiles(
           }
       }),
   );
-  return { transcripts, envelopes, cursors, unseen };
+  return { transcripts, envelopes, cursors, screens, unseen };
 }
 
-/** What the cleanup reads besides the transcripts (cleanupPlan), for code that reads it once. */
-export const loadCleanupInputs = (
+/**
+ * What the cleanup reads besides the transcripts (cleanupPlan), for code that reads it once. A
+ * screen recording not analyzed yet starts its analysis (lib/motion.ts).
+ */
+export function loadCleanupInputs(
   p: Project,
   transcripts: ReadonlyMap<string, Transcript>,
-): Promise<CleanupInputs> => readCleanupFiles(cleanupFiles(p, transcripts), transcripts);
+): Promise<CleanupInputs> {
+  requestMotion(p);
+  return readCleanupFiles(cleanupFiles(p, transcripts), transcripts);
+}
 
 /** The cleanup inputs of the open project, read again when the files it needs change. */
 function useCleanupInputs(
@@ -197,8 +233,11 @@ function useCleanupInputs(
   // The project changes on every edit; the files it needs only when media come or go.
   const files = project ? cleanupFiles(project, transcripts) : null;
   const [inputs, setInputs] = useState<CleanupInputs | null>(null);
+  const latest = useRef(project);
+  latest.current = project;
   useEffect(() => {
     if (files === null) return setInputs(null);
+    if (latest.current) requestMotion(latest.current);
     let alive = true;
     void readCleanupFiles(files, transcripts).then((loaded) => {
       if (alive) setInputs(loaded);
@@ -212,19 +251,18 @@ function useCleanupInputs(
 
 export type TextModel = CleanupPlan;
 
-const EMPTY_MODEL: TextModel = {
-  words: [],
+/** Nothing to cut yet, with the lesson's own choices shown. */
+const emptyModel = (project: Project | null, words: TimelineWord[] = []): TextModel => ({
+  words,
   issues: [],
   active: [],
+  keptIds: new Set(),
+  elsewhere: 0,
   saved: 0,
   activity: [],
-  choices: {
-    minSilence: 1,
-    keepPause: 0.4,
-    kinds: { filler: true, silence: true, repeat: true },
-    kept: new Set(),
-  },
-};
+  choices: cleanupChoices(project?.cleanup),
+  blind: { noCursor: [], unreadable: [], noEnvelope: [], inaudible: [], screenPending: [] },
+});
 
 /**
  * Timeline words plus detected issues (cleanupPlan), recomputed when the edit changes. Until the
@@ -237,11 +275,11 @@ export function useTextModel(
 ): TextModel & { unseen: readonly string[]; loading: boolean } {
   const inputs = useCleanupInputs(project, transcripts);
   return useMemo(() => {
-    if (!project || transcripts.size === 0) return { ...EMPTY_MODEL, unseen: [], loading: false };
+    if (!project || transcripts.size === 0)
+      return { ...emptyModel(project), unseen: [], loading: false };
     if (!inputs)
       return {
-        ...EMPTY_MODEL,
-        words: timelineWords(project, transcripts),
+        ...emptyModel(project, timelineWords(project, transcripts)),
         unseen: [],
         loading: true,
       };
@@ -260,7 +298,12 @@ export interface CutResult {
  * Cuts timeline ranges on every speech/video track, keeping them in sync. Refuses the whole
  * cut when any range touches a protected passage: removing it must be an explicit decision.
  */
-export function cutRanges(ranges: [number, number][], commit: Commit = personCommit): CutResult {
+export function cutRanges(
+  ranges: [number, number][],
+  commit: Commit = personCommit,
+  /** Something else to change in the same undo step (what was kept of a proposal). */
+  also: (p: Project) => Project = (p) => p,
+): CutResult {
   const { project } = useProject.getState();
   if (!project || !ranges.length) return { ok: false, conflicts: [] };
   const conflicts = protectedConflicts(project, ranges);
@@ -268,7 +311,7 @@ export function cutRanges(ranges: [number, number][], commit: Commit = personCom
   const targets = cutTargets(project);
   // Locked tracks are never touched, not even trimmed at the end.
   const locked = new Set(project.tracks.filter((t) => t.locked).map((t) => t.id));
-  const ok = commit((p) => ({ ...p, clips: applyCuts(p.clips, ranges, targets, locked) }));
+  const ok = commit((p) => also({ ...p, clips: applyCuts(p.clips, ranges, targets, locked) }));
   return { ok, conflicts: [] };
 }
 

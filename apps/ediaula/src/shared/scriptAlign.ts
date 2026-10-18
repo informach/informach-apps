@@ -35,15 +35,32 @@ export interface OffScript {
   retakeOf?: number;
 }
 
+/**
+ * A number or a name said differently from the script inside a line ("sobe 4" where the script
+ * says 3): not a paraphrase to let go, but something to check.
+ */
+export interface Substitution {
+  /** Index into Alignment.lines. */
+  line: number;
+  said: string;
+  written: string;
+  /** Timeline time of what was said. */
+  start: number;
+}
+
 export interface Alignment {
   lines: LineMatch[];
   offScript: OffScript[];
+  /** Numbers and names said differently from the script, inside matched lines. */
+  substitutions: Substitution[];
   /** Fraction of the script's tokens found in the recording. */
   coverage: number;
   /** The same, leaving articles and prepositions out (rankSections compares sections by it). */
   content: number;
   /** Words spoken on the timeline (with letters or digits). */
   spoken: number;
+  /** Of those, the ones no line of the section was aligned with. */
+  unaligned: number;
 }
 
 export interface AlignOptions {
@@ -63,9 +80,13 @@ export const PARAPHRASE_WORDS = 3;
 export const BLOCK_PAUSE = 0.3;
 /** A long pause splits two unrelated off-script passages. */
 const SPLIT_PAUSE = 1.5;
-/** Another cluster of a line belongs to its take with this many tokens, or two close by. */
-const CLUSTER_MIN = 3;
-const CLUSTER_NEAR = 8;
+/** Takes of a line are told apart at a pause this long, or at the end of a sentence. */
+const TAKE_PAUSE = 0.8;
+/** A take is at most this many times the words of its line (plus TAKE_SLACK): never two takes. */
+const TAKE_LENGTH = 1.3;
+const TAKE_SLACK = 3;
+/** The latest take with at least this share of the best take's score is the one kept. */
+const TAKE_SHARE = 0.8;
 /** A run is another take of a line when this share of its tokens are the line's, in order. */
 const RETAKE_SHARE = 0.6;
 /** Longest run (in tokens) compared against the lines for a retake. */
@@ -78,6 +99,11 @@ export const CONFIRM_MARGIN = 0.1;
 export const OFF_SCRIPT_LIMIT = 0.35;
 
 const hasText = (w: TimelineWord): boolean => strip(w.text).length > 0;
+/** Word k of `list` is written with a capital in the middle of a sentence: a name. */
+const isName = (list: readonly string[], k: number): boolean =>
+  k > 0 &&
+  /^["“(]?\p{Lu}/u.test(list[k]?.trim() ?? "") &&
+  !/[.!?…:]["”')\]]*$/.test(list[k - 1].trim());
 const punctuated = (text: string): boolean => /[,.;:!?…]["”')\]]*$/.test(text.trim());
 
 interface Glossary {
@@ -91,8 +117,10 @@ function glossaryIndex(list: readonly GlossaryTerm[] | undefined): Glossary {
   const terms = new Set<string>();
   const alias = new Map<string, string>();
   for (const t of list ?? []) {
-    const term = tokenize(termText(t)).map((x) => x.tok);
-    for (const tok of term) terms.add(tok);
+    const tokens = tokenize(termText(t));
+    // Only real words of a name by sound: "da" of "Mapa da Aventura" is not one.
+    for (const tok of tokens) if (tok.tok.length >= 4 && !tok.stop) terms.add(tok.tok);
+    const term = tokens.map((x) => x.tok);
     if (term.length !== 1) continue;
     for (const a of termAliases(t)) {
       const heard = tokenize(a).map((x) => x.tok);
@@ -125,7 +153,13 @@ interface Scores {
   cols: Int32Array;
 }
 
-function scorer(spoken: readonly string[], script: readonly string[], g: Glossary): Scores {
+/** Script tokens ready to be scored against any spoken token (rows are made once per token). */
+interface ScriptIndex {
+  cols: Int32Array;
+  row(spoken: string): Uint8Array;
+}
+
+function scriptIndex(script: readonly string[], g: Glossary): ScriptIndex {
   const scriptIds = new Map<string, number>();
   const cols = Int32Array.from(script, (t) => {
     let id = scriptIds.get(t);
@@ -146,23 +180,28 @@ function scorer(spoken: readonly string[], script: readonly string[], g: Glossar
     }
   });
   const known = new Map<string, Uint8Array>();
-  const rows = spoken.map((raw) => {
-    let row = known.get(raw);
-    if (!row) {
+  const row = (raw: string): Uint8Array => {
+    let found = known.get(raw);
+    if (!found) {
       const tok = g.alias.get(raw) ?? raw;
-      row = new Uint8Array(uniqueScript.length);
+      found = new Uint8Array(uniqueScript.length);
       if (!/\d|%/.test(tok))
         for (const d of deletions(phoneticKey(tok)))
           for (const candidate of near.get(d) ?? [])
-            if (!row[candidate] && fuzzyEqual(tok, uniqueScript[candidate], g.terms))
-              row[candidate] = 1;
+            if (!found[candidate] && fuzzyEqual(tok, uniqueScript[candidate], g.terms))
+              found[candidate] = 1;
       const exact = scriptIds.get(tok);
-      if (exact !== undefined) row[exact] = 2;
-      known.set(raw, row);
+      if (exact !== undefined) found[exact] = 2;
+      known.set(raw, found);
     }
-    return row;
-  });
-  return { rows, cols };
+    return found;
+  };
+  return { cols, row };
+}
+
+function scorer(spoken: readonly string[], script: readonly string[], g: Glossary): Scores {
+  const index = scriptIndex(script, g);
+  return { rows: spoken.map(index.row), cols: index.cols };
 }
 
 /**
@@ -252,6 +291,20 @@ function inOrder(run: readonly string[], line: readonly string[], g: Glossary): 
   return lcs(scorer(run, line, g)).length;
 }
 
+/** The best in-order match of `run` against a line: its pairs and its score (2 exact, 1 not). */
+function bestMatch(
+  run: readonly string[],
+  line: ScriptIndex,
+): { pairs: [number, number][]; score: number } {
+  const scores = { rows: run.map(line.row), cols: line.cols };
+  const pairs = lcs(scores);
+  let score = 0;
+  for (const [i, j] of pairs) score += scores.rows[i][scores.cols[j]];
+  return { pairs, score };
+}
+
+const isNumberToken = (tok: string): boolean => /\d/.test(tok);
+
 type Pair = [number, number];
 
 /**
@@ -335,11 +388,15 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
   const owner: number[] = [];
   const lines: LineMatch[] = [];
   const lineTokens: string[][] = [];
+  /** Each line's words as written (the src of its tokens points into them). */
+  const lineWords: string[][] = [];
   section.items.forEach((it, idx) => {
     if (it.kind !== "speech") return;
-    const t = tokenize(it.text, { compounds });
+    const written = it.text.split(/\s+/).filter(Boolean);
+    const t = tokenize(written, { compounds });
     lines.push({ item: idx, matched: 0, total: t.length });
     lineTokens.push(t.map((x) => x.tok));
+    lineWords.push(written);
     for (const tok of t) {
       script.push(tok);
       owner.push(lines.length - 1);
@@ -352,61 +409,137 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
       glossary,
     ),
   );
-  const firstWord = (c: Pair[]): number => tokens[c[0][0]].src[0];
-  const lastWord = (c: Pair[]): number => {
-    const src = tokens[c[c.length - 1][0]].src;
-    return src[src.length - 1];
-  };
+  // The first token of each word, to take the tokens of a stretch of words.
+  const firstToken = new Int32Array(words.length + 1).fill(tokens.length);
+  for (let t = tokens.length - 1; t >= 0; t--)
+    for (const wi of tokens[t].src) firstToken[wi] = Math.min(firstToken[wi], t);
+  for (let wi = words.length - 1; wi >= 0; wi--)
+    firstToken[wi] = Math.min(firstToken[wi], firstToken[wi + 1]);
+  const lastWordOf = (t: number): number => tokens[t].src[tokens[t].src.length - 1];
+  const spokenTexts = words.map((w) => w.text);
 
-  // Each line's matches in spoken order, grouped where at most PARAPHRASE_WORDS words fall
-  // between two of them; the largest group is the take, and sizable groups next to it join it.
+  // Where each line was matched by the alignment of the whole section: its words lie between
+  // the lines around it, and in there its takes are told apart.
   const byLine: Pair[][] = lines.map(() => []);
   for (const pair of pairs) byLine[owner[pair[1]]].push(pair);
+  const firstAt = byLine.map((list) => (list.length ? tokens[list[0][0]].src[0] : -1));
+  const lastAt = byLine.map((list) => (list.length ? lastWordOf(list[list.length - 1][0]) : -1));
   const used = new Uint8Array(words.length);
   const spans: Pair[] = [];
+  const substitutions: Substitution[] = [];
   let matchedAll = 0;
   let contentMatched = 0;
+  const lineStart: number[] = [];
+  {
+    let at = 0;
+    for (const lt of lineTokens) {
+      lineStart.push(at);
+      at += lt.length;
+    }
+  }
   byLine.forEach((list, li) => {
     if (!list.length) return;
-    const clusters: Pair[][] = [];
-    for (const pair of list) {
-      const cur = clusters[clusters.length - 1];
-      if (cur && tokens[pair[0]].src[0] - lastWord(cur) - 1 <= PARAPHRASE_WORDS) cur.push(pair);
-      else clusters.push([pair]);
-    }
-    let main = 0;
-    clusters.forEach((c, k) => {
-      if (c.length >= clusters[main].length) main = k;
-    });
-    const joins = (c: Pair[], gap: number): boolean =>
-      c.length >= CLUSTER_MIN || (c.length >= 2 && gap <= CLUSTER_NEAR);
-    let lo = main;
-    while (
-      lo > 0 &&
-      joins(clusters[lo - 1], firstWord(clusters[lo]) - lastWord(clusters[lo - 1]) - 1)
-    )
-      lo--;
-    let hi = main;
-    while (
-      hi < clusters.length - 1 &&
-      joins(clusters[hi + 1], firstWord(clusters[hi + 1]) - lastWord(clusters[hi]) - 1)
-    )
-      hi++;
-    const kept = clusters.slice(lo, hi + 1).flat();
     const line = lines[li];
+    if (scoreOnly) {
+      // Ranking sections only needs how much of each line was found.
+      line.matched = list.length;
+      matchedAll += list.length;
+      for (const [, si] of list) if (!script[si].stop) contentMatched++;
+      return;
+    }
+    const maxWords = Math.ceil(lineWords[li].length * TAKE_LENGTH) + TAKE_SLACK;
+    let lo = 0;
+    for (let k = li - 1; k >= 0; k--)
+      if (lastAt[k] >= 0) {
+        lo = lastAt[k] + 1;
+        break;
+      }
+    let hi = words.length - 1;
+    for (let k = li + 1; k < lines.length; k++)
+      if (firstAt[k] >= 0) {
+        hi = firstAt[k] - 1;
+        break;
+      }
+    // Earlier takes are said near the one the alignment found, never pages away.
+    lo = Math.max(lo, firstAt[li] - 3 * maxWords);
+    hi = Math.min(hi, lastAt[li] + 3 * maxWords);
+    // Blocks of speech in the line's stretch, split at long pauses and at sentence ends.
+    const blocks: Pair[] = [];
+    for (let wi = lo; wi <= hi; wi++) {
+      const cur = blocks[blocks.length - 1];
+      const breakBefore =
+        !cur ||
+        words[wi].start - words[wi - 1].end >= TAKE_PAUSE ||
+        /[.!?…]["”')\]]*$/.test(words[wi - 1].text.trim());
+      if (breakBefore) blocks.push([wi, wi]);
+      else cur[1] = wi;
+    }
+    const index = scriptIndex(lineTokens[li], glossary);
+    // Every run of whole blocks short enough to be one take, with its best match to the line.
+    const runs: { from: number; to: number; pairs: Pair[]; score: number }[] = [];
+    for (let a = 0; a < blocks.length; a++)
+      for (let b = a; b < blocks.length; b++) {
+        const from = blocks[a][0];
+        const to = blocks[b][1];
+        if (to - from + 1 > maxWords) break;
+        const t0 = firstToken[from];
+        const t1 = firstToken[to + 1];
+        if (t1 <= t0) continue;
+        const run = tokens.slice(t0, t1).map((t) => t.tok);
+        const m = bestMatch(run, index);
+        if (m.score)
+          runs.push({ from, to, score: m.score, pairs: m.pairs.map(([i, j]) => [i + t0, j]) });
+      }
+    if (!runs.length) return;
+    const top = Math.max(...runs.map((r) => r.score));
+    // The latest take that is nearly as good as the best one; then the fuller, then the shorter.
+    const take = runs
+      .filter((r) => r.score >= top * TAKE_SHARE)
+      .sort((x, y) => y.to - x.to || y.score - x.score || x.to - x.from - (y.to - y.from))[0];
+    let start = Number.POSITIVE_INFINITY;
     let end = Number.NEGATIVE_INFINITY;
-    for (const [ti, si] of kept) {
+    let first = Number.POSITIVE_INFINITY;
+    let last = -1;
+    for (const [ti, j] of take.pairs) {
       for (const wi of tokens[ti].src) {
         used[wi] = 1;
+        start = Math.min(start, words[wi].start);
         end = Math.max(end, words[wi].end);
+        first = Math.min(first, wi);
+        last = Math.max(last, wi);
       }
       line.matched++;
-      if (!script[si].stop) contentMatched++;
+      if (!script[lineStart[li] + j].stop) contentMatched++;
     }
     matchedAll += line.matched;
-    line.start = words[firstWord(clusters[lo])].start;
+    line.start = start;
     line.end = end;
-    spans.push([firstWord(clusters[lo]), lastWord(clusters[hi])]);
+    spans.push([first, last]);
+    // Between two matched words, a number or a name said where the script has another one.
+    for (let k = 1; k < take.pairs.length; k++) {
+      const [t0, j0] = take.pairs[k - 1];
+      const [t1, j1] = take.pairs[k];
+      const saidToks = tokens.slice(t0 + 1, t1);
+      const wrote = script.slice(lineStart[li] + j0 + 1, lineStart[li] + j1);
+      if (!saidToks.length || !wrote.length) continue;
+      const salient = (t: SpeechToken): boolean =>
+        (isNumberToken(t.tok) && !t.stop) || glossary.terms.has(t.tok);
+      const said = saidToks.filter((t) => salient(t) || isName(spokenTexts, t.src[0]));
+      const written = wrote.filter((t) => salient(t) || isName(lineWords[li], t.src[0]));
+      if (!said.length || !written.length) continue;
+      const saidText = [...new Set(saidToks.flatMap((t) => t.src))]
+        .map((wi) => words[wi].text)
+        .join(" ");
+      const writtenText = [...new Set(wrote.flatMap((t) => t.src))]
+        .map((wi) => lineWords[li][wi])
+        .join(" ");
+      substitutions.push({
+        line: li,
+        said: saidText.replace(/[^\p{L}\p{N}%+-]+$/u, ""),
+        written: writtenText.replace(/[^\p{L}\p{N}%+-]+$/u, ""),
+        start: words[saidToks[0].src[0]].start,
+      });
+    }
   });
 
   // A few words slipped into a matched line are a paraphrase: they stay.
@@ -433,9 +566,11 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
   return {
     lines,
     offScript,
+    substitutions,
     coverage: script.length ? matchedAll / script.length : 0,
     content: content ? contentMatched / content : 0,
     spoken: words.filter(hasText).length,
+    unaligned: words.filter((w, i) => !used[i] && hasText(w)).length,
   };
 }
 
@@ -490,6 +625,31 @@ export function bestSection(
   return rank.coverage > 0.15 ? rank.index : -1;
 }
 
-/** Share of the words spoken that fall outside the script. */
-export const offScriptShare = (a: Alignment): number =>
-  a.spoken ? a.offScript.reduce((n, r) => n + r.words, 0) / a.spoken : 0;
+/** Share of the words spoken that no line of the script was aligned with. */
+export const offScriptShare = (a: Alignment): number => (a.spoken ? a.unaligned / a.spoken : 0);
+
+/** A direction that asks to wait ("pausar para a pessoa testar", "aguardar a atualização"). */
+const WAIT_DIRECTION = /\b(pausa[rd]?|pause|aguard\w*|esper[ae]\w*)\b/i;
+
+/** Whether a section asks for pauses anywhere in its directions. */
+export const hasPauseDirections = (section: ScriptSection): boolean =>
+  section.items.some((it) => it.kind === "screen" && WAIT_DIRECTION.test(it.text));
+
+/**
+ * Where the script asks the recording to wait: between the line before such a direction and the
+ * line after it, as said on the timeline. The cleanup leaves a thinking pause there.
+ */
+export function didacticPauses(section: ScriptSection, alignment: Alignment): [number, number][] {
+  const found = alignment.lines.filter(
+    (l) => l.start !== undefined && l.end !== undefined && l.matched / Math.max(1, l.total) >= 0.5,
+  );
+  const out: [number, number][] = [];
+  section.items.forEach((it, idx) => {
+    if (it.kind !== "screen" || !WAIT_DIRECTION.test(it.text)) return;
+    const before = [...found].reverse().find((l) => l.item < idx);
+    const after = found.find((l) => l.item > idx);
+    if (before?.end !== undefined && after?.start !== undefined && after.start > before.end)
+      out.push([before.end, after.start]);
+  });
+  return out;
+}

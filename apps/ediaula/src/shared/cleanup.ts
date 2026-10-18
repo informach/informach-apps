@@ -2,9 +2,11 @@ import { clipEnd, overwriteRange, sourceAt, sourceEnd, timelineAt } from "./time
 import type { Asset, Clip, Project, Transcript } from "./types.ts";
 
 /**
- * Who speaks: the teacher (the narration and the microphone), an avatar (a render with the
- * background removed, its extracted voice or a script insert) or something else (the computer's
- * own sound, a music bed). The avatar's lines are acted: never cleaned as hesitations.
+ * Who speaks: the teacher (the narration and the microphone), the presenter (an avatar or a
+ * person in a video with the background removed or recorded on a solid screen, a presenter's
+ * video placed by the voice, a script insert) or something else (the computer's own sound, a music bed). Only the teacher's words
+ * are cleaned of hesitations and repeats: the avatar's lines are acted and the computer's sound
+ * is what it is.
  */
 export type SpeakerRole = "teacher" | "avatar" | "other";
 
@@ -21,6 +23,8 @@ export interface TimelineWord {
   source?: string;
   /** Absent counts as the teacher. */
   role?: SpeakerRole;
+  /** Not heard in the lesson (muted track, volume 0, under the presenter's own sound). */
+  silent?: boolean;
 }
 
 export type IssueKind = "filler" | "silence" | "repeat";
@@ -33,6 +37,8 @@ export interface Issue {
   end: number;
   /** Keys of the words involved (empty for silences). */
   words: string[];
+  /** Silences: the whole quiet stretch on the timeline (the cut leaves a pause inside it). */
+  span?: [number, number];
 }
 
 export interface CleanupOptions {
@@ -42,28 +48,53 @@ export interface CleanupOptions {
   keepPause: number;
   /**
    * Timeline stretches where something happens on screen (activity.ts): a pause is only cut
-   * around them, and the same words said before and after one are a demonstration.
+   * around them, a hesitation over one stays, and the same words said before and after one are
+   * a demonstration.
    */
   activity?: readonly { start: number; end: number }[];
   /** Phrases repeated on purpose, as said ("muito, muito"); DEFAULT_INTENTIONAL when absent. */
   intentional?: readonly string[];
+  /**
+   * Timeline stretches where the script asks for a pause ("pausar para a pessoa testar"):
+   * like a pause after a question, they keep THINK_PAUSE.
+   */
+  thinking?: readonly (readonly [number, number])[];
 }
 
 export const DEFAULT_CLEANUP: CleanupOptions = { minSilence: 1, keepPause: 0.4 };
 
-/** Repetitions that are emphasis, not a restart. */
+/** What a pause meant for thinking keeps: after a question, or where the script says to wait. */
+export const THINK_PAUSE = 2.5;
+
+/** Repetitions that are emphasis or a way of speaking, not a restart. */
 export const DEFAULT_INTENTIONAL: readonly string[] = [
   "muito, muito",
   "vamos, vamos",
+  "vamos lá, vamos lá",
   "não, não",
   "sim, sim",
   "isso, isso",
+  "isso aí, isso aí",
+  "é isso, é isso",
   "olha, olha",
+  "olha só, olha só",
   "pronto, pronto",
   "calma, calma",
   "bem, bem",
   "devagar, devagar",
+  "de novo, de novo",
+  "vai, vai",
+  "bora, bora",
+  "corre, corre",
+  "parabéns, parabéns",
+  "oi, oi",
+  "tchau, tchau",
 ];
+
+/** Counting is said again on purpose ("um, dois, três... um, dois, três"). */
+const COUNTING = new Set(
+  "zero um uma dois duas tres quatro cinco seis sete oito nove dez onze doze".split(" "),
+);
 
 /**
  * Most seconds between the end of a take and the start of the next for it to be a repeat: a
@@ -79,6 +110,8 @@ export interface Silence {
   start: number;
   end: number;
   id?: string;
+  /** The clip the pause is anchored in: each part of it gets its own id from its media seconds. */
+  ref?: Pick<Clip, "assetId" | "start" | "in" | "speed">;
 }
 
 export const strip = (s: string): string =>
@@ -109,6 +142,7 @@ const ALWAYS_FILLER = new Set([
 ]);
 
 const trailingPause = (text: string): boolean => /(,|…|\.\.\.)$/.test(text.trim());
+const statementEnd = (text: string): boolean => /[.!]["”')\]]*$/.test(text.trim());
 
 /** Whether words[i] is a hesitation; `words` are the words of one speaker, in order. */
 function isFiller(words: TimelineWord[], i: number): boolean {
@@ -126,22 +160,17 @@ function isFiller(words: TimelineWord[], i: number): boolean {
   return false;
 }
 
-const fileStem = (path: string): string =>
-  (path.split(/[\\/]/).pop() ?? "").toLowerCase().replace(/\.[^.]+$/, "");
-
 /**
- * Media of an avatar: a video with its background removed (key) and the voice extracted from one
- * ("<video>-voz.wav", made when a HeyGen MP4 is imported).
+ * Media of a presenter (an avatar or a person): a video with its background removed (key) or
+ * recorded on a solid screen (screen), and what Asset.origin says came from one (the video
+ * placed by the voice, the narration of a guided recording taken from such a video).
  */
 export function avatarMedia(project: Pick<Project, "assets">): Set<string> {
-  const keyed = project.assets.filter((a) => a.kind === "video" && a.key);
-  const out = new Set(keyed.map((a) => a.id));
-  const stems = new Set(keyed.map((a) => fileStem(a.path)));
-  for (const a of project.assets) {
-    const m = /^(.*)-voz$/.exec(fileStem(a.path));
-    if (a.kind === "audio" && m && stems.has(m[1])) out.add(a.id);
-  }
-  return out;
+  return new Set(
+    project.assets
+      .filter((a) => a.origin === "presenter" || (a.kind === "video" && (a.key || a.screen)))
+      .map((a) => a.id),
+  );
 }
 
 /** Who speaks in each clip, by clip id (SpeakerRole). */
@@ -171,12 +200,14 @@ export function timelineWords(
 ): TimelineWord[] {
   const out: TimelineWord[] = [];
   const roles = clipRoles(project);
+  const heard = new Set(audibleClips(project).map((c) => c.id));
   for (const c of project.clips) {
     const tr = transcripts.get(c.assetId);
     if (!tr) continue;
     const from = c.in;
     const to = sourceEnd(c);
     const role = roles.get(c.id) ?? "teacher";
+    const silent = !heard.has(c.id);
     tr.words.forEach((w, i) => {
       const mid = (w.start + w.end) / 2;
       if (mid < from || mid >= to) return;
@@ -190,6 +221,7 @@ export function timelineWords(
         p: w.p,
         source: c.assetId,
         role,
+        ...(silent ? { silent } : {}),
       });
     });
   }
@@ -207,11 +239,14 @@ export interface SpeechSources {
 export const QUIET_LEVEL = 0.01;
 /** Quiet for at least this long (seconds) is a pause in the envelope. */
 export const QUIET_MIN = 0.3;
+/** Around each transcribed word, this much is speech too (seconds). */
+export const WORD_MARGIN = 0.15;
 
 /**
  * Clips heard in the lesson: on an unmuted track that is not music, volume above 0, media with
- * sound. Sound on a track the cuts leave alone (a bed of music not marked as one) keeps playing
- * through a cut and is not listened to; a locked track is, since it plays on as it is.
+ * sound, not silenced under the presenter's own sound (Clip.mutedFor, whatever its value). Sound on a track the cuts leave
+ * alone (a bed of music not marked as one) keeps playing through a cut and is not listened to; a
+ * locked track is, since it plays on as it is.
  */
 export function audibleClips(project: Project): Clip[] {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -227,6 +262,7 @@ export function audibleClips(project: Project): Clip[] {
       !t.music &&
       (t.locked || targets.has(t.id)) &&
       c.volume > 0 &&
+      !c.mutedFor &&
       !c.annotation &&
       !c.zoomLayer &&
       sounds(assets.get(c.assetId))
@@ -258,6 +294,51 @@ function envelopeQuiet(env: {
   return out;
 }
 
+const transcriptQuiet = new WeakMap<Transcript, [number, number][]>();
+
+/** A word or a VAD stretch reaches this far into a silence (seconds) before it counts as inside. */
+const EDGE = 0.05;
+
+/**
+ * The silences of a transcript that are really quiet: whatever whisper heard inside a silence of
+ * the FFmpeg detector (a word, with a margin around it, or a stretch the VAD kept) is speech, so
+ * a child answering softly is never a pause. Words that only touch a silence's edges leave it as
+ * it is.
+ */
+function quietOf(tr: Transcript): [number, number][] {
+  const known = transcriptQuiet.get(tr);
+  if (known) return known;
+  // What was heard, and the stretch it keeps as speech (a word with its margin).
+  const heard: { at: [number, number]; keeps: [number, number] }[] = [
+    ...tr.words
+      .filter((w) => !w.dropped)
+      .map((w) => ({
+        at: [w.start, w.end] as [number, number],
+        keeps: [w.start - WORD_MARGIN, w.end + WORD_MARGIN] as [number, number],
+      })),
+    ...(tr.speech ?? []).map(([a, b]) => ({
+      at: [a, b] as [number, number],
+      keeps: [a, b] as [number, number],
+    })),
+  ];
+  const out = mergeRanges(tr.silences, 0).flatMap((s) => {
+    const inside = heard.filter(
+      ({ at: [a, b] }) => Math.min(b, s[1] - EDGE) - Math.max(a, s[0] + EDGE) > 0,
+    );
+    return inside.length
+      ? subtract(
+          s,
+          mergeRanges(
+            inside.map((h) => h.keeps),
+            0,
+          ),
+        )
+      : [s];
+  });
+  transcriptQuiet.set(tr, out);
+  return out;
+}
+
 /** [a, b] without the (sorted, apart) `holes`. */
 function subtract(
   range: readonly [number, number],
@@ -279,7 +360,7 @@ function subtract(
 function clipSpeech(c: Clip, sources: SpeechSources): [number, number][] {
   const tr = sources.transcripts.get(c.assetId);
   const env = tr ? undefined : sources.envelopes?.get(c.assetId);
-  const quiet = tr ? mergeRanges(tr.silences, 0) : env ? envelopeQuiet(env) : [];
+  const quiet = tr ? quietOf(tr) : env ? envelopeQuiet(env) : [];
   return subtract([c.in, sourceEnd(c)], quiet).map(([a, b]): [number, number] => [
     timelineAt(c, a),
     timelineAt(c, b),
@@ -288,8 +369,8 @@ function clipSpeech(c: Clip, sources: SpeechSources): [number, number][] {
 
 /**
  * Where anyone is heard: the speech of every audible clip (audibleClips), joined. With a
- * transcript the speech is what is not silence in it; without one, what is not quiet in the
- * media's envelope; without either, the whole clip.
+ * transcript the speech is what is not silence in it, plus every word it heard; without one,
+ * what is not quiet in the media's envelope; without either, the whole clip.
  */
 export function speechIntervals(project: Project, sources: SpeechSources): [number, number][] {
   return mergeRanges(
@@ -298,10 +379,46 @@ export function speechIntervals(project: Project, sources: SpeechSources): [numb
   );
 }
 
+const fixed = (v: number): string => v.toFixed(3);
+
+/** The id of a quiet stretch [a, b] seen through `ref`: "s:<asset>:<from>-<to>" in its seconds. */
+const silenceId = (ref: Pick<Clip, "assetId" | "start" | "in" | "speed">, a: number, b: number) =>
+  `s:${ref.assetId}:${fixed(sourceAt(ref, a))}-${fixed(sourceAt(ref, b))}`;
+
+/**
+ * The clip a pause starting at `a` is anchored in: the one with the last word heard before it
+ * (the same whatever else gets transcribed later), else the one with the first word after it,
+ * else the clip heard there (transcribed first, then audio, then the higher track).
+ */
+function pauseAnchor(
+  heardWords: readonly { start: number; end: number; clip: Clip }[],
+  clips: readonly Clip[],
+  rank: (c: Clip) => number,
+  a: number,
+): Clip | undefined {
+  let lo = 0;
+  let hi = heardWords.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (heardWords[mid].end <= a + 0.05) lo = mid + 1;
+    else hi = mid;
+  }
+  // heardWords is in order of end: the one before `lo` ended last before the pause.
+  const before = heardWords[lo - 1];
+  if (before) return before.clip;
+  const after = heardWords.find((w) => w.start >= a - 0.05);
+  if (after) return after.clip;
+  return clips
+    .filter((c) => c.start <= a + 1e-6 && clipEnd(c) > a + 1e-6)
+    .sort((x, y) => rank(x) - rank(y))[0];
+}
+
 /**
  * Pauses of the whole lesson: where something audible plays and nobody speaks in any of it. A
- * stretch with no sound at all (a title, a silent picture) is not a pause. Each pause gets an id
- * anchored in the media it starts in ("s:<asset>:<source seconds>"), the same after other cuts.
+ * stretch with no sound at all (a title, a silent picture) is not a pause. Each pause is
+ * anchored in the media of the last word said before it (pauseAnchor), so its id
+ * ("s:<asset>:<from>-<to>", media seconds) and what was kept of it follow the media through
+ * later cuts and transcriptions.
  */
 export function audibleSilences(project: Project, sources: SpeechSources): Silence[] {
   const clips = audibleClips(project);
@@ -319,21 +436,88 @@ export function audibleSilences(project: Project, sources: SpeechSources): Silen
     (sources.transcripts.has(c.assetId) ? 0 : 2) +
     (kind.get(c.assetId) === "audio" ? 0 : 1) +
     (order.get(c.trackId) ?? 0) / 1000;
+  const heardWords: { start: number; end: number; clip: Clip }[] = [];
+  for (const c of clips) {
+    const tr = sources.transcripts.get(c.assetId);
+    if (!tr) continue;
+    for (const w of tr.words) {
+      if (w.dropped || w.end <= c.in || w.start >= sourceEnd(c)) continue;
+      heardWords.push({ start: timelineAt(c, w.start), end: timelineAt(c, w.end), clip: c });
+    }
+  }
+  heardWords.sort((x, y) => x.end - y.end);
   const out: Silence[] = [];
   for (const range of heard)
     for (const [a, b] of subtract(range, speech)) {
       if (b - a < MIN_GAP) continue;
-      // The media the pause is heard in: transcribed first, then audio, then the higher track.
-      const ref = clips
-        .filter((c) => c.start <= a + 1e-6 && clipEnd(c) > a + 1e-6)
-        .sort((x, y) => rank(x) - rank(y))[0];
-      out.push({
-        start: a,
-        end: b,
-        ...(ref ? { id: `s:${ref.assetId}:${sourceAt(ref, a).toFixed(3)}` } : {}),
-      });
+      const ref = pauseAnchor(heardWords, clips, rank, a);
+      out.push({ start: a, end: b, ...(ref ? { id: silenceId(ref, a, b), ref } : {}) });
     }
   return out;
+}
+
+/**
+ * Anchored ids (as audibleSilences gives them) for pauses found another way (the voice
+ * cleanup), so what the person keeps of one there stays kept in the general cleanup.
+ */
+export function pauseIds(
+  project: Project,
+  sources: SpeechSources,
+): (a: number, b: number) => string | undefined {
+  const all = audibleSilences(project, sources);
+  return (a, b) => {
+    const found = all.find((s) => Math.min(b, s.end) - Math.max(a, s.start) > 0.01);
+    return found?.ref
+      ? silenceId(found.ref, Math.max(a, found.start), Math.min(b, found.end))
+      : undefined;
+  };
+}
+
+const PAUSE_ID = /^s:(.+):(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/;
+
+/** Whether the kept entry `entry` covers `issue`: the same id, or a pause overlapping it in the media. */
+function keptCovers(project: Pick<Project, "clips">, entry: string, issue: Issue): boolean {
+  if (entry === issue.id) return true;
+  if (issue.kind !== "silence") return false;
+  const m = PAUSE_ID.exec(entry);
+  if (!m) return false;
+  const [assetId, a, b] = [m[1], Number(m[2]), Number(m[3])];
+  const [x, y] = issue.span ?? [issue.start, issue.end];
+  // The same stretch of that media, through any of its clips (another source may have become
+  // the anchor since, or a cut may have trimmed the pause).
+  return project.clips.some((c) => {
+    if (c.assetId !== assetId) return false;
+    const from = Math.max(x, c.start);
+    const to = Math.min(y, clipEnd(c));
+    if (to - from <= 0.01) return false;
+    const s = sourceAt(c, from);
+    const e = sourceAt(c, to);
+    return Math.min(e, b) - Math.max(s, a) > 0.05;
+  });
+}
+
+/** The kept entries that cover an issue (the ones to remove to cut it again). */
+export function keptEntries(
+  project: Pick<Project, "clips">,
+  kept: readonly string[],
+  issue: Issue,
+): string[] {
+  return kept.filter((entry) => keptCovers(project, entry, issue));
+}
+
+/**
+ * Whether the person kept an issue: by its id, or a pause by where it is in the media (a kept
+ * pause stays kept when a cut trims it, a gesture splits it or another source is transcribed).
+ */
+export function keptMatcher(
+  project: Pick<Project, "clips">,
+  kept: readonly string[],
+): (issue: Issue) => boolean {
+  const ids = new Set(kept);
+  const pauses = kept.filter((entry) => PAUSE_ID.test(entry));
+  return (issue) =>
+    ids.has(issue.id) ||
+    (issue.kind === "silence" && pauses.some((entry) => keptCovers(project, entry, issue)));
 }
 
 /** Silences of transcribed sources, clipped to what is actually on the timeline. */
@@ -359,11 +543,15 @@ const phraseKey = (text: string): string => text.split(/\s+/).map(strip).filter(
 
 /**
  * Finds hesitations, repeated phrases and long pauses. Hesitations and repeats are looked for in
- * each speaker's own words (an avatar's never): the teacher saying the avatar's line again is a
- * conversation. A repeat needs the takes close together (repeatGap), nothing happening on screen
- * between them and no other voice under the cut, and is not one of the intentional phrases.
- * A pause is cut only where the screen is still too, and only what is left of it that is still
- * at least `minSilence` long.
+ * each teacher source's own words (never an avatar's or the computer's, never a media that is
+ * not heard): the teacher saying the avatar's line again is a conversation. A hesitation over
+ * something happening on screen stays. A repeat needs the takes close together (repeatGap), a
+ * short one within one sentence, nothing happening on screen between them and no other voice
+ * under the cut, and is not counting or one of the intentional phrases. A pause is cut only
+ * where the screen is still too, and only what is left of it that is still at least
+ * `minSilence` long; after a question, or where the script asks for one (`thinking`), it keeps
+ * THINK_PAUSE instead of `keepPause`. Each part of a pause split by activity gets its own id,
+ * from its own seconds in the media (Silence.ref).
  */
 export function analyze(
   words: TimelineWord[],
@@ -378,15 +566,16 @@ export function analyze(
   );
   const busy = (a: number, b: number): boolean =>
     activity.some(([s, e]) => Math.min(b, e) - Math.max(a, s) > 0.01);
+  const heard = words.filter((w) => !w.silent);
   // A cut over another source's word would take that voice with it.
   const otherVoice = (source: string, a: number, b: number): boolean =>
-    words.some(
+    heard.some(
       (w) => (w.source ?? "") !== source && Math.min(b, w.end) - Math.max(a, w.start) > 0.02,
     );
-  const position = new Map(words.map((w, i) => [w, i]));
+  const position = new Map(heard.map((w, i) => [w, i]));
   const bySource = new Map<string, TimelineWord[]>();
-  for (const w of words) {
-    if (w.role === "avatar") continue;
+  for (const w of heard) {
+    if ((w.role ?? "teacher") !== "teacher") continue;
     const source = w.source ?? "";
     const list = bySource.get(source);
     if (list) list.push(w);
@@ -397,9 +586,9 @@ export function analyze(
     own.forEach((w, i) => {
       if (!isFiller(own, i)) return;
       // Up to the next word of anyone, so no other voice is clipped.
-      const next = words[(position.get(w) ?? -1) + 1];
+      const next = heard[(position.get(w) ?? -1) + 1];
       const end = Math.max(Math.min(next ? next.start : w.end, w.end + 0.3) - 0.03, w.end);
-      if (otherVoice(source, w.start, end)) return;
+      if (busy(w.start, end) || otherVoice(source, w.start, end)) return;
       issues.push({ id: `f:${w.key}`, kind: "filler", start: w.start, end, words: [w.key] });
     });
 
@@ -423,6 +612,16 @@ export function analyze(
           const last = own[a[n - 1]];
           const again = own[b[0]];
           if (again.start - last.end > repeatGap(n)) continue;
+          // "...no verde. Verde é a cor": one or two words again after a full stop start another
+          // sentence. A question mark does not count: whisper writes one after a false start
+          // ("quem está? Quem está participando?").
+          if (n <= 2 && statementEnd(last.text)) continue;
+          if (
+            a.every(
+              (idx) => COUNTING.has(strip(own[idx].text)) || /^\d+$/.test(strip(own[idx].text)),
+            )
+          )
+            continue;
           const said = [...a, ...b].map((idx) => own[idx].text).join(" ");
           if (intentional.has(phraseKey(said))) continue;
           const start = first.start;
@@ -444,20 +643,43 @@ export function analyze(
     }
   }
 
-  const half = opts.keepPause / 2;
+  // The word heard last before a time (for the pause after a question).
+  const lastBefore = (t: number): TimelineWord | undefined => {
+    let lo = 0;
+    let hi = heard.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (heard[mid].start <= t + 0.05) lo = mid + 1;
+      else hi = mid;
+    }
+    let best: TimelineWord | undefined;
+    for (let i = lo - 1; i >= 0 && i >= lo - 20; i--)
+      if (heard[i].end <= t + 0.05 && (!best || heard[i].end > best.end)) best = heard[i];
+    return best;
+  };
+  const thinking = mergeRanges(
+    (opts.thinking ?? []).map(([a, b]): [number, number] => [a, b]),
+    0,
+  );
   for (const sil of silences) {
-    const [s, e, given] = "start" in sil ? [sil.start, sil.end, sil.id] : [sil[0], sil[1]];
+    const [s, e, given, ref] =
+      "start" in sil
+        ? [sil.start, sil.end, sil.id, sil.ref]
+        : [sil[0], sil[1], undefined, undefined];
     if (e - s < opts.minSilence) continue;
-    const id = given ?? `s:${s.toFixed(3)}`;
+    const question = /\?["”')\]]*$/.test(lastBefore(s)?.text.trim() ?? "");
     for (const [a, b] of subtract([s, e], activity)) {
-      if (b - a < opts.minSilence) continue;
+      const think = question || thinking.some(([x, y]) => Math.min(b, y) - Math.max(a, x) > 0.05);
+      const pause = think ? Math.max(THINK_PAUSE, opts.keepPause) : opts.keepPause;
+      if (b - a < opts.minSilence || b - a <= pause + 0.05) continue;
+      const half = pause / 2;
       issues.push({
-        // A pause split by a gesture: each part keeps its offset into the pause.
-        id: a === s ? id : `${id}+${(a - s).toFixed(3)}`,
+        id: ref ? silenceId(ref, a, b) : a === s && given ? given : `s:${fixed(a)}`,
         kind: "silence",
         start: a + half,
         end: b - half,
         words: [],
+        span: [a, b],
       });
     }
   }

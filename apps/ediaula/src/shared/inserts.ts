@@ -66,7 +66,8 @@ export interface InsertPlan {
 
 /**
  * Where the avatar line `item` of `section` goes, given the current alignment: right after the
- * previous narration line ends, needing `lineSeconds` plus padding before the next line starts.
+ * line before it ends (the narration, or an avatar line already placed), needing `lineSeconds`
+ * plus padding before the next line starts.
  */
 export function planInsert(
   section: ScriptSection,
@@ -78,10 +79,9 @@ export function planInsert(
   const placed = alignment.lines.filter(
     (l) => l.start !== undefined && l.matched / Math.max(1, l.total) >= 0.5,
   );
-  const before = [...placed]
-    .reverse()
-    .find((l) => l.item < idx && !(section.items[l.item] as SpeechItem).avatar);
-  const after = placed.find((l) => l.item > idx && !(section.items[l.item] as SpeechItem).avatar);
+  // Any line already on the timeline counts, an avatar's too: two avatars in a row do not overlap.
+  const before = [...placed].reverse().find((l) => l.item < idx);
+  const after = placed.find((l) => l.item > idx);
   if (!before && !after)
     return {
       error:
@@ -92,13 +92,17 @@ export function planInsert(
     const at = Math.max(0, after!.start! - duration);
     return { at, duration, gap: Math.max(0, duration - after!.start!), cut: 0 };
   }
-  const prevEnd = before.end!;
+  // After another avatar, its clip (and its fade) ends a pad after its last word.
+  const prevEnd =
+    (before.end ?? 0) + ((section.items[before.item] as SpeechItem).avatar ? INSERT_PAD : 0);
   const nextStart = after?.start ?? Infinity;
   const pause = nextStart - prevEnd;
-  const gap = Math.max(0, duration - pause);
-  // Open the timeline in the middle of the existing pause, never inside a word.
-  const cut = gap > 0 ? prevEnd + Math.min(0.15, pause / 2) : prevEnd;
-  return { at: gap > 0 ? cut : prevEnd, duration, gap, cut };
+  if (duration <= pause) return { at: prevEnd, duration, gap: 0, cut: prevEnd };
+  // Open the timeline in the middle of the existing pause, never inside a word; the clip starts
+  // there, so the gap also covers the bit of pause before it.
+  const lead = Math.min(0.15, Math.max(0, pause / 2));
+  const cut = prevEnd + lead;
+  return { at: cut, duration, gap: duration - pause + lead, cut };
 }
 
 /**
@@ -309,9 +313,10 @@ export function layoutInserts(
 }
 
 /**
- * Words of another voice the avatar would talk over once its line is placed: what is said
- * (other than by an avatar) while the avatar speaks, after the timeline opened for it. The
- * script rule is that the avatar enters, speaks and leaves without overlapping anyone.
+ * Words of another voice the avatar would talk over once its line is placed: what is heard
+ * while the avatar speaks (the narration, another avatar already placed), after the timeline
+ * opened for it. The script rule is that the avatar enters, speaks and leaves without
+ * overlapping anyone.
  */
 export function voiceOverlaps(
   words: TimelineWord[],
@@ -324,7 +329,7 @@ export function voiceOverlaps(
     const to = plan.at + plan.duration - INSERT_PAD;
     const shift = (t: number): number => (plan.gap > 0 && t >= plan.cut - 1e-6 ? t + plan.gap : t);
     const over = words.filter(
-      (w) => w.role !== "avatar" && shift(w.start) < to - 0.02 && shift(w.end) > from + 0.02,
+      (w) => !w.silent && shift(w.start) < to - 0.02 && shift(w.end) > from + 0.02,
     );
     if (over.length) out.push({ entry, words: over });
   }

@@ -41,7 +41,7 @@ import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
 import { importMedia } from "./importMedia";
 import { keyIsCurrent } from "./keying";
 import { allPalettes, applyPalette, usePalettes } from "./palettes";
-import { proposeCleanup, showProposal } from "./proposals";
+import { blindNotes, proposeCleanup, showProposal } from "./proposals";
 import { currentView, placeInserts, proposeOffScript, scriptDoc } from "./script";
 import { addTemplate, TemplateBlockedError } from "./templates";
 import {
@@ -152,9 +152,13 @@ interface ToolContext {
 
 type Handler = (input: never, ctx: ToolContext) => Promise<string>;
 
-/** Who a proposal comes from: the chat inside EdiAula, or an AI app connected from outside. */
-const proposalAuthor = (call: AiToolCall): string =>
-  call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`;
+/**
+ * Who a proposal comes from: the chat inside EdiAula or an AI app connected from outside, and
+ * the tool that made it. A new proposal replaces only an earlier one of the same author and
+ * tool: a cleanup does not wipe out the cuts proposed from the transcript a moment before.
+ */
+const proposalAuthor = (call: AiToolCall, tool: AiToolName): string =>
+  `${call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`}:${tool}`;
 
 /** A transcript window: at most this much timeline per call (the model follows next_from). */
 const TRANSCRIPT_WINDOW = 600;
@@ -379,7 +383,7 @@ const handlers: {
   },
 
   async find_cleanup({ min_silence }) {
-    const { plan } = await freshCleanup({ minSilence: min_silence });
+    const { project: p, plan } = await freshCleanup({ minSilence: min_silence });
     if (!plan.issues.length) return "Nada para limpar automaticamente.";
     const byKey = new Map(plan.words.map((w) => [w.key, w.text]));
     const label: Record<IssueKind, string> = {
@@ -392,10 +396,13 @@ const handlers: {
       .slice(0, CLEANUP_LIST)
       .map(
         (i) =>
-          `[${t(i.start)}–${t(i.end)}] ${label[i.kind]}${i.words.length ? `: "${i.words.map((k) => byKey.get(k)).join(" ")}"` : ` de ${(i.end - i.start + plan.choices.keepPause).toFixed(1)} s`}${active.has(i.id) ? "" : plan.choices.kept.has(i.id) ? " (a pessoa marcou para manter)" : " (fora da limpeza)"}`,
+          `[${t(i.start)}–${t(i.end)}] ${label[i.kind]}${i.words.length ? `: "${i.words.map((k) => byKey.get(k)).join(" ")}"` : ` de ${(i.end - i.start + plan.choices.keepPause).toFixed(1)} s`}${active.has(i.id) ? "" : plan.keptIds.has(i.id) ? " (a pessoa marcou para manter)" : " (fora da limpeza)"}`,
       )
       .join("\n");
-    const head = `${plan.active.length} de ${plan.issues.length} sugestões entram na limpeza; as outras a pessoa marcou para manter, são de um tipo desligado ou estão protegidas. Silêncios com clique, arrasto, rolagem, teclas ou movimento na tela não são cortados (${plan.activity.length} trechos de atividade). ${revisionLine()}`;
+    const head = [
+      `${plan.active.length} de ${plan.issues.length} sugestões entram na limpeza; as outras a pessoa marcou para manter, são de um tipo desligado, estão protegidas ou já estão na proposta da limpeza da voz. Só se encurta pausa em que ninguém fala e a tela fica parada (imagem que muda, ponteiro, clique, arrasto, rolagem, atalho e digitação seguram a pausa); depois de uma pergunta, ou onde o roteiro pede para esperar, a pausa fica com 2,5 s. ${revisionLine()}`,
+      ...blindNotes(p, plan.blind).map((n) => `Atenção: ${n}`),
+    ].join("\n");
     return plan.issues.length > CLEANUP_LIST
       ? `${head}\n${listed}\n… e mais ${plan.issues.length - CLEANUP_LIST} itens (${plan.issues.length} no total).`
       : `${head}\n${listed}`;
@@ -412,20 +419,24 @@ const handlers: {
       },
     };
     if ((mode ?? "propose") === "propose") {
-      const r = await proposeCleanup(proposalAuthor(call), overrides);
+      const r = await proposeCleanup(proposalAuthor(call, "apply_cleanup"), overrides);
       if (!r.ok) throw new ToolError(r.message);
       return `${r.message}\nA pessoa vai aplicar ou descartar na tela, item por item; não aplique você mesmo.`;
     }
-    const { plan } = await freshCleanup(overrides);
-    if (!plan.active.length) return "Nada para cortar com essas opções.";
+    const { project: p, plan } = await freshCleanup(overrides);
+    const notes = blindNotes(p, plan.blind).map((n) => `Atenção: ${n}`);
+    if (!plan.active.length) return ["Nada para cortar com essas opções.", ...notes].join("\n");
     const d0 = before();
     cutOrFail(
       plan.active.map((i) => [i.start, i.end]),
       commit,
     );
     const count = (k: IssueKind): number => plan.active.filter((i) => i.kind === k).length;
-    const kept = plan.issues.filter((i) => plan.choices.kept.has(i.id)).length;
-    return `Cortados: ${count("filler")} vícios, ${count("repeat")} repetições, ${count("silence")} silêncios${kept ? `; ${kept} que a pessoa marcou para manter ficaram` : ""}. ${savedSince(d0)}`;
+    const kept = plan.keptIds.size;
+    return [
+      `Cortados: ${count("filler")} vícios, ${count("repeat")} repetições, ${count("silence")} silêncios${kept ? `; ${kept} que a pessoa marcou para manter ficaram` : ""}. ${savedSince(d0)}`,
+      ...notes,
+    ].join("\n");
   },
 
   async cut_text({ quotes }, { commit }) {
@@ -468,7 +479,7 @@ const handlers: {
 
   async propose_cuts({ title, items, revision }, { call }) {
     const p = requireProject();
-    return showProposal(p, title, items, revision, proposalAuthor(call));
+    return showProposal(p, title, items, revision, proposalAuthor(call, "propose_cuts"));
   },
 
   async protect_text({ quotes, label }, { commit }) {
@@ -611,6 +622,11 @@ const handlers: {
         return `LINHA ${lineNumber.get(idx)} · ${it.speaker}${it.avatar ? " (avatar)" : ""}${it.insertId ? ` [${it.insertId}]` : ""} · ${where}: "${it.text}"`;
       }),
       "",
+      ...(alignment.substitutions.length
+        ? [
+            `Trocas dentro das falas (números e nomes ditos diferente do roteiro; confira com a pessoa):\n${alignment.substitutions.map((x) => `- ${t(x.start)} LINHA ${x.line + 1}: disse "${x.said}" no lugar de "${x.written}"`).join("\n")}`,
+          ]
+        : []),
       alignment.offScript.length
         ? `Falado fora do roteiro (${alignment.offScript.length}):\n${alignment.offScript.map((r) => `- ${t(r.start)}–${t(r.end)}${r.retakeOf !== undefined ? ` (outra tomada da LINHA ${r.retakeOf + 1})` : ""} "${r.text}"`).join("\n")}`
         : "Nada falado fora do roteiro.",
@@ -635,7 +651,7 @@ const handlers: {
 
   async propose_off_script(_input, { call }) {
     requireProject();
-    return proposeOffScript(proposalAuthor(call));
+    return proposeOffScript(proposalAuthor(call, "propose_off_script"));
   },
 
   async set_clip_layout(

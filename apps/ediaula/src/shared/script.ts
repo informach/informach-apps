@@ -51,6 +51,8 @@ export type ScriptItem =
 const LEADING_ID = /^\*\*([A-Z]\d+P\d+-[A-Z]\d+)\*\*\s*[·:-]?\s*/;
 /** Insert ids anywhere in a direction, bold or not. */
 const INSERT_IDS = /\b[A-Z]\d+P\d+-[A-Z]\d+\b/g;
+/** Insert ids in bold ("**F1P1-D01**"): the ones a direction that opens with one announces. */
+const BOLD_IDS = /\*\*([A-Z]\d+P\d+-[A-Z]\d+)\*\*/g;
 /** "**Professora:**" or "**Debinha (avatar):**" alone on a line. */
 const SPEAKER = /^\*\*([^*:]+?)(?:\s*\(([^)]*)\))?:\*\*$/;
 const plain = (s: string): string => s.replace(/\*\*/g, "").replace(/`/g, "").trim();
@@ -81,6 +83,9 @@ export function parseScript(md: string): ScriptDoc {
   let quote: string[] = [];
   // Insert ids of the directions so far, each waiting for the next avatar line.
   let pendingInserts: string[] = [];
+  // Ids already announced in the section: naming one again ("a mesma entrada de F1P1-D01") is a
+  // reference back, not a new insert.
+  let announced = new Set<string>();
   // A speaker marked "(avatar)" once is the avatar in every block.
   const avatars = new Set<string>();
   for (const raw of lines) {
@@ -138,6 +143,7 @@ export function parseScript(md: string): ScriptDoc {
       doc.sections.push(section);
       speaker = null;
       pendingInserts = [];
+      announced = new Set();
       continue;
     }
     m = /^###\s+(.+)$/.exec(line);
@@ -170,7 +176,12 @@ export function parseScript(md: string): ScriptDoc {
         section.target = parseTarget(text);
       } else if (/^na tela/i.test(label)) {
         const lead = LEADING_ID.exec(text);
-        const ids = [...text.matchAll(INSERT_IDS)].map((x) => x[0]);
+        // A direction opening with a bold id announces its bold ids; otherwise any id it names.
+        const named = lead
+          ? [...text.matchAll(BOLD_IDS)].map((x) => x[1])
+          : [...text.matchAll(INSERT_IDS)].map((x) => x[0]);
+        const ids = [...new Set(named)].filter((id) => !announced.has(id));
+        for (const id of ids) announced.add(id);
         pendingInserts.push(...ids);
         section.items.push({
           kind: "screen",

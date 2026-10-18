@@ -421,12 +421,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
    * The guided recording's narration: copied into the folder, starting `offset` seconds in by
    * the recorder's clock, which counts from the first-frame estimate it has now.
    */
-  setNarration(file: string, offset: number): void {
+  setNarration(file: string, offset: number, fromVideo = false): void {
     this.journal.write({
       k: "narration",
       file,
       offset,
       ...(this.origin !== null ? { origin: this.origin } : {}),
+      ...(fromVideo ? { video: true as const } : {}),
     });
   }
 

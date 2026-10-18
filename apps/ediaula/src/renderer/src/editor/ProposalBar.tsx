@@ -16,7 +16,7 @@ const fmt = (s: number): string =>
 
 /** Who made a proposal, for the selector when there are several. */
 const author = (by: string | undefined): string =>
-  by === "assistente"
+  by === "assistente" || by?.startsWith("assistente:")
     ? "chat do Assistente"
     : by === "gravacao"
       ? "gravação"

@@ -10,8 +10,8 @@ import {
   AI_TOOLS,
   type AiToolName,
   callPaths,
+  callPermission,
   isAiToolName,
-  toolPermission,
 } from "../shared/aiTools.ts";
 import { createToolQueue } from "../shared/toolQueue.ts";
 import type { AiToolCall } from "../shared/types.ts";
@@ -137,7 +137,7 @@ export async function callTool(
   if (!("input" in checked)) return checked;
   const window = win;
   return new Promise<ToolOutcome>((answer) => {
-    void queue.run(toolPermission(name) === "read" ? "read" : "write", async () => {
+    void queue.run(callPermission(name, checked.input) === "read" ? "read" : "write", async () => {
       if (window.isDestroyed()) {
         answer({ ok: false, text: "A janela do EdiAula não está aberta." });
         return;

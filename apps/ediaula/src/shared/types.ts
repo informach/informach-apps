@@ -93,6 +93,12 @@ export interface Asset {
   treatStatus?: "pending" | "ready" | "error";
   /** A "Só voz" recording: the stretch of each take, by teleprompter line, in source seconds. */
   voiceTakes?: VoiceTake[];
+  /** Where the picture of a screen recording stands still (a motion file, main/ffmpeg.ts screenMotion). */
+  motion?: string;
+  motionStatus?: "pending" | "ready" | "error";
+  /** From a presenter (an avatar or a person): the video placed by the voice, or a guided
+   *  narration taken from such a video. */
+  origin?: "presenter";
 }
 
 /**
@@ -577,6 +583,8 @@ export interface EdiAulaApi {
   probe(path: string): Promise<ProbeResult>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
+  /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */
+  motion(jobId: string, path: string, input: string, duration: number): Promise<string>;
   proxy(jobId: string, path: string, duration: number, cfrFps?: number): Promise<string>;
   /** Pointer sprite videos for the export, drawn in the renderer and encoded in the main process. */
   cursorSprite: {

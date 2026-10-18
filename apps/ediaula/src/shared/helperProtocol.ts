@@ -90,6 +90,11 @@ export const hookEventSchema = z.discriminatedUnion("e", [
     m: z.string().regex(/^[01]{4}$/),
     inj,
   }),
+  /**
+   * Something was typed (a key that writes text): the moment only, never which key, at most one
+   * every half second (native/helper/KeyRule.cs, TypingGate).
+   */
+  z.strictObject({ e: z.literal("ty"), t: time, inj }),
   /** Cursor shape changed: a standard name, "hidden", "other" or the id of an `img` event. */
   z.strictObject({ e: z.literal("c"), t: time, id: z.string().min(1).max(32) }),
   z.strictObject({

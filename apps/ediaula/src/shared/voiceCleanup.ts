@@ -1,4 +1,4 @@
-import { analyze, mergeRanges, timelineSilences, timelineWords } from "./cleanup.ts";
+import { analyze, mergeRanges, pauseIds, timelineSilences, timelineWords } from "./cleanup.ts";
 import type { SpeechItem } from "./script.ts";
 import { alignSection } from "./scriptAlign.ts";
 import { clipEnd, sourceEnd, timelineAt } from "./timeline.ts";
@@ -15,7 +15,9 @@ import { voiceClips } from "./voiceMaster.ts";
  * - filler words and long silences, leaving a natural pause.
  *
  * Only the voice track is looked at; the cut itself, like every proposal, keeps the other tracks
- * in sync. The general cleanup (shared/cleanup.ts) is not changed here.
+ * in sync. Hesitations and pauses carry the ids the general cleanup (shared/cleanup.ts) gives
+ * them: while this proposal waits the general one leaves them out, and what the person leaves
+ * out here stays kept there.
  */
 
 export interface VoiceCleanupOptions {
@@ -41,6 +43,8 @@ export interface VoiceCleanupItem {
   start: number;
   end: number;
   reason: string;
+  /** The general cleanup's id of the same hesitation or pause (Issue.id), when it has one. */
+  issueId?: string;
 }
 
 export interface VoiceCleanupInput {
@@ -199,6 +203,7 @@ export function voiceCleanup(input: VoiceCleanupInput): VoiceCleanupItem[] {
     keepPause: o.keepPause,
   }).filter((i) => i.kind !== "repeat");
   const byKey = new Map(words.map((w) => [w.key, w]));
+  const pauseId = pauseIds(project, { transcripts: input.transcripts });
   for (const issue of issues) {
     if (issue.end - issue.start < 0.05 || inside(issue.start, issue.end)) continue;
     // A silence at the very edges of the voice is left to the export's own trim.
@@ -213,10 +218,13 @@ export function voiceCleanup(input: VoiceCleanupInput): VoiceCleanupItem[] {
       .map((k) => byKey.get(k)?.text ?? "")
       .join(" ")
       .trim();
+    const issueId =
+      issue.kind === "filler" ? issue.id : pauseId(...(issue.span ?? [issue.start, issue.end]));
     items.push({
       kind: issue.kind === "filler" ? "filler" : "silence",
       start: round(issue.start),
       end: round(issue.end),
+      ...(issueId ? { issueId } : {}),
       reason:
         issue.kind === "filler"
           ? `vício de fala${text ? `: "${quote(text)}"` : ""}`

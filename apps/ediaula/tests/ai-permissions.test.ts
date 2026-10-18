@@ -5,6 +5,7 @@ import {
   AI_TOOL_NAMES,
   AI_TOOLS,
   callPaths,
+  callPermission,
   describeCall,
   PANEL_FORBIDDEN,
   PATH_FIELDS,
@@ -45,6 +46,16 @@ test("every tool says what it needs: read, propose or write", () => {
     "seek",
   ] as const)
     assert.equal(toolPermission(name), "read", name);
+});
+
+test("apply_cleanup only proposes by default: a propose grant is enough; cutting right away is a write", () => {
+  assert.equal(callPermission("apply_cleanup", {}), "propose");
+  assert.equal(callPermission("apply_cleanup", { mode: "propose", fillers: false }), "propose");
+  assert.equal(callPermission("apply_cleanup", { mode: "apply" }), "write");
+  // Anything it cannot read is treated as the stricter call.
+  assert.equal(callPermission("apply_cleanup", { mode: "cut" }), "write");
+  assert.equal(callPermission("cut_text", { quotes: [{ text: "oi" }] }), "write");
+  assert.equal(callPermission("find_cleanup", {}), "read");
 });
 
 test("a client connected to read and propose must ask before every write", () => {

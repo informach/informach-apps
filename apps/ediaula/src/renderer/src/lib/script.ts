@@ -201,7 +201,13 @@ async function planPlacement(
   const { section, alignment, transcripts } = view;
   const problems: string[] = [];
   const wanted: SpeechItem[] = [];
-  const ids =
+  const many = target === "all" || (Array.isArray(target) && target.length > 1);
+  if (many && !view.confirmed)
+    return {
+      ok: false,
+      message: `Antes de encaixar várias falas do avatar, confirme na aba Roteiro que esta gravação é da seção ${section.number}.`,
+    };
+  const asked =
     target === "all"
       ? null
       : typeof target === "string"
@@ -209,16 +215,24 @@ async function planPlacement(
         : Array.isArray(target)
           ? target
           : null;
+  // The same id asked twice is placed once.
+  const ids = asked ? [...new Set(asked.map((id) => id.toUpperCase()))] : null;
+  if (asked && ids && ids.length < asked.length)
+    problems.push(
+      asked.length - ids.length === 1
+        ? "Um id veio repetido no pedido: cada inserção é encaixada uma vez só."
+        : `${asked.length - ids.length} ids vieram repetidos no pedido: cada inserção é encaixada uma vez só.`,
+    );
   if (target === "all") wanted.push(...pendingInserts(p, section));
   else if (ids)
     for (const id of ids) {
-      const item = speechItems(section).find((i) => i.insertId?.toUpperCase() === id.toUpperCase());
+      const item = speechItems(section).find((i) => i.insertId?.toUpperCase() === id);
       if (item) {
         wanted.push(item);
         continue;
       }
       const other = view.doc.sections.findIndex((s) =>
-        speechItems(s).some((i) => i.insertId?.toUpperCase() === id.toUpperCase()),
+        speechItems(s).some((i) => i.insertId?.toUpperCase() === id),
       );
       problems.push(
         other >= 0
@@ -312,7 +326,7 @@ async function planPlacement(
   });
   for (const o of overlaps)
     lines.push(
-      `Atenção: ${labelOf(o.entry.item)} fica por cima de outra voz ("${o.words
+      `Atenção: ${labelOf(o.entry.item)} fica por cima ${o.words.some((w) => w.role === "avatar") ? "de outra fala do avatar" : "de outra voz"} ("${o.words
         .slice(0, 6)
         .map((w) => w.text)
         .join(" ")}"). Confira e mova o avatar ou corte essa fala.`,

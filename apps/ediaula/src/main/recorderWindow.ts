@@ -62,6 +62,8 @@ let overlay: BrowserWindow | null = null;
 let context: RecorderContext = { teleprompter: [] };
 let monitors: CaptureMonitor[] = [];
 let settings: RecorderSettings = DEFAULT_RECORDER_SETTINGS;
+/** Narrations picked for the guided mode that are the voice of a video (a presenter's render). */
+const narrationsFromVideo = new Set<string>();
 
 /** What each shortcut tells the recorder window. */
 const HOTKEY_NAMES: Record<HotkeyAction, string> = {
@@ -654,7 +656,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         ],
       });
       const path = result.canceled ? undefined : result.filePaths[0];
-      return path ? await prepareGuidedNarration(path) : null;
+      if (!path) return null;
+      const prepared = await prepareGuidedNarration(path);
+      // The voice of a video (the presenter's render): the take records where it came from.
+      if (prepared !== path) narrationsFromVideo.add(prepared);
+      return prepared;
     } finally {
       overlay?.setAlwaysOnTop(true, "screen-saver");
     }
@@ -708,7 +714,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
           throw new Error("O arquivo de narração mudou. Importe-o novamente.");
       }
       const origin = plan.audio
-        ? (await rec.setGuidedNarration(plan.audio.path, 1 + schedule.lead)) - schedule.lead
+        ? (await rec.setGuidedNarration(
+            plan.audio.path,
+            1 + schedule.lead,
+            narrationsFromVideo.has(plan.audio.path),
+          )) - schedule.lead
         : rec.elapsed() + 1;
       if (state.controller.signal.aborted || !rec.isRecording())
         throw new Error("Gravação interrompida.");

@@ -175,6 +175,11 @@
   font-size: 11px;
   color: var(--rec);
 }
+.si .si-swap {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--amber);
+}
 .si-screen {
   display: flex;
   gap: 7px;

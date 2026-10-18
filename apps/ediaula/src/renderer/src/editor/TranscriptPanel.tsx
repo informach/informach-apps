@@ -28,9 +28,9 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { bytes, duration, timecode } from "@/lib/format";
+import { blindNotes, proposeCleanup } from "@/lib/proposals";
 import {
   cleanError,
-  cutRanges,
   cutRangesInteractive,
   runEngineInstall,
   runModelInstall,
@@ -94,7 +94,7 @@ export function TranscriptPanel(): ReactNode {
 
   return (
     <div className="transcript">
-      <CleanupBar model={model} unseen={model.unseen} loading={model.loading} />
+      <CleanupBar model={model} loading={model.loading} />
       <details className="transcript-glossary">
         <summary>Glossário do curso</summary>
         <GlossaryField hint="Corrige os nomes no texto na hora, sem transcrever de novo. Vale para todas as aulas do curso e também orienta a IA." />
@@ -397,15 +397,7 @@ const KIND_META = {
   repeat: { label: "repetições", color: "var(--blue)" },
 } as const;
 
-function CleanupBar({
-  model,
-  unseen,
-  loading,
-}: {
-  model: TextModel;
-  unseen: readonly string[];
-  loading: boolean;
-}): ReactNode {
+function CleanupBar({ model, loading }: { model: TextModel; loading: boolean }): ReactNode {
   const project = useProject((s) => s.project)!;
   const { kinds, minSilence } = model.choices;
   const counts = { filler: 0, silence: 0, repeat: 0 };
@@ -415,15 +407,18 @@ function CleanupBar({
   const spared = project.tracks.filter(
     (t) => !targets.has(t.id) && project.clips.some((c) => c.trackId === t.id),
   );
-  const blind = project.assets.filter((a) => unseen.includes(a.id));
+  const notes = blindNotes(project, model.blind);
+  const [busy, setBusy] = useState(false);
 
-  const cutAll = (): void => {
-    const n = model.active.length;
-    // What was kept stays kept: its id is anchored in the media, so it is the same after the cut.
-    if (!cutRanges(model.active.map((i) => [i.start, i.end])).ok) return;
-    useApp
-      .getState()
-      .toast(`${n} cortes aplicados (${duration(model.saved)} a menos). Ctrl+Z desfaz.`, "success");
+  // Everything goes through the proposal bar, item by item, like the Assistente's button.
+  const propose = (): void => {
+    setBusy(true);
+    void proposeCleanup()
+      .then((r) => useApp.getState().toast(r.message.split("\n")[0], r.ok ? "info" : "error"))
+      .catch((err: unknown) =>
+        useApp.getState().toast(`Não consegui propor a limpeza: ${cleanError(err)}`, "error"),
+      )
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -469,29 +464,35 @@ function CleanupBar({
         variant="primary"
         icon={Scissors}
         className="w-full"
-        disabled={loading || !model.active.length}
-        onClick={cutAll}
+        disabled={loading || busy || !model.active.length}
+        onClick={propose}
       >
-        {loading ? "Lendo o cursor e o som…" : "Cortar tudo na timeline"}
+        {loading ? "Lendo o cursor, a tela e o som…" : "Propor a limpeza"}
       </Button>
-      {model.activity.length > 0 && (
-        <div className="cleanup-targets muted">
-          <Shield size={12} />
-          <span>
-            Silêncio com clique, arrasto, rolagem ou digitação na tela não é cortado (
-            {model.activity.length} {model.activity.length === 1 ? "trecho" : "trechos"}).
-          </span>
-        </div>
-      )}
-      {blind.length > 0 && (
+      <div className="cleanup-targets muted">
+        <Shield size={12} />
+        <span>
+          Só encurta pausa em que ninguém fala e a tela fica parada: imagem que muda, ponteiro que
+          se mexe, clique, arrasto, rolagem, atalho e digitação seguram a pausa. Depois de uma
+          pergunta, ou onde o roteiro pede para esperar, a pausa fica com 2,5 s.
+        </span>
+      </div>
+      {model.elsewhere > 0 && (
         <div className="cleanup-targets muted">
           <Info size={12} />
           <span>
-            Não consegui ler os dados do cursor de {blind.map((a) => a.name).join(", ")}: ali os
-            silêncios são medidos só pelo som. Confira antes de cortar.
+            {model.elsewhere === 1
+              ? "1 sugestão já está na proposta da limpeza da voz."
+              : `${model.elsewhere} sugestões já estão na proposta da limpeza da voz.`}
           </span>
         </div>
       )}
+      {notes.map((note) => (
+        <div key={note} className="cleanup-targets muted">
+          <Info size={12} />
+          <span>{note}</span>
+        </div>
+      ))}
       <div className="cleanup-targets muted">
         <ShieldCheck size={12} />
         <span>
@@ -573,7 +574,8 @@ function TranscriptText({
   transcripts: Map<string, Transcript>;
 }): ReactNode {
   const fps = useProject((s) => s.project?.settings.fps ?? 30);
-  const { kept, keepPause } = model.choices;
+  const { keepPause } = model.choices;
+  const kept = model.keptIds;
   const textCut = useApp((s) => s.textCut);
   const [selection, setSelection] = useState<{
     words: TextModel["words"];
@@ -801,7 +803,7 @@ function TranscriptText({
                           onContextMenu={(e) => {
                             if (!issue) return;
                             e.preventDefault();
-                            toggleKept(issue.id);
+                            toggleKept(issue);
                           }}
                           title={wordTitle(
                             w,
@@ -820,7 +822,7 @@ function TranscriptText({
                           type="button"
                           key={silence.id}
                           className={`pause-pill ${activeIds.has(silence.id) ? "" : "is-kept"}`}
-                          onClick={() => toggleKept(silence.id)}
+                          onClick={() => toggleKept(silence)}
                           title={
                             activeIds.has(silence.id)
                               ? "Silêncio será encurtado. Clique para manter."

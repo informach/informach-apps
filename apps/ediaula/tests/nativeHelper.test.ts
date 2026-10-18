@@ -381,6 +381,68 @@ test("the key rule shows shortcuts and navigation and never typing", { skip }, a
   );
 });
 
+/** Keys and whether they count as typing (only the moment is ever written). */
+const TYPING_CASES: [Record<string, unknown>, boolean][] = [
+  [{ vk: 0x41, mods: 0 }, true], // a
+  [{ vk: 0x41, mods: 4 }, true], // A
+  [{ vk: 0x31, mods: 0 }, true], // 1
+  [{ vk: 0x20, mods: 0 }, true], // Space
+  [{ vk: 0x08, mods: 0 }, true], // Backspace
+  [{ vk: 0xbe, mods: 0 }, true], // .
+  [{ vk: 0x51, mods: 3, rightAlt: true, altGrLayout: true }, true], // AltGr+Q types @
+  [{ vk: 0x61, mods: 2 }, true], // Alt+keypad 1 types by code
+  [{ vk: 0x43, mods: 1 }, false], // Ctrl+C is a shortcut, shown as a key instead
+  [{ vk: 0x25, mods: 0 }, false], // Left arrow
+  [{ vk: 0x70, mods: 0 }, false], // F1
+  [{ vk: 0x14, mods: 0 }, false], // Caps Lock writes nothing
+  [{ vk: 0x41, mods: 8 }, false], // Win+A
+  [{ vk: 0xa0, mods: 4 }, false], // Shift alone
+];
+
+/** Runs cases through the helper's key rule test mode. */
+async function keyRule(cases: Record<string, unknown>[]): Promise<Record<string, boolean>[]> {
+  const child = spawn(executable, ["keyrule"], { windowsHide: true });
+  const answers: Record<string, boolean>[] = [];
+  let pending = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    pending += chunk;
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) if (line.trim()) answers.push(JSON.parse(line));
+  });
+  for (const input of cases) child.stdin.write(`${JSON.stringify(input)}\n`);
+  child.stdin.end();
+  assert.equal(await new Promise((resolve) => child.once("close", resolve)), 0);
+  return answers;
+}
+
+test("typing is only a moment, at most one every half second, never the key", {
+  skip,
+}, async () => {
+  const answers = await keyRule(TYPING_CASES.map(([input]) => input));
+  assert.deepEqual(
+    answers.map((a, i) => [TYPING_CASES[i][0], a.typing]),
+    TYPING_CASES,
+  );
+  for (const a of answers) assert.ok(!(a.typing && a.log), "never both a key and typing");
+  // Ten letters in a second become two moments.
+  const burst = Array.from({ length: 10 }, (_, i) => ({
+    vk: 0x41 + i,
+    mods: 0,
+    t: 1000 + i * 100,
+  }));
+  const gated = await keyRule([
+    ...burst,
+    { vk: 0x43, mods: 1, t: 2100 },
+    { vk: 0x41, mods: 0, t: 2200 },
+  ]);
+  assert.deepEqual(
+    gated.map((a) => a.emit),
+    [true, false, false, false, false, true, false, false, false, false, false, true],
+  );
+});
+
 test("HookClient rejects a helper that never becomes ready", { skip, timeout: 20000 }, async () => {
   const client = new HookClient({ executable: join(root, "missing-helper.exe") });
   await assert.rejects(client.start(), /capturador de cursor/);
