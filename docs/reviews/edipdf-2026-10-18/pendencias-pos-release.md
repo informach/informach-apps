@@ -1,6 +1,6 @@
 # Pendências após a entrega do EdiPDF
 
-18/10/2026. O titular determinou concluir o lote em andamento, documentar o restante, fazer o full review e publicar. Este registro substitui a expectativa de implementar todo o diagnóstico antes desta publicação. A [matriz de requisitos](cobertura-requisitos.md) conserva o vínculo com cada item da análise original. Implementado, testado localmente e publicado são estados distintos.
+18/10/2026. O titular determinou concluir o lote em andamento, documentar o restante, fazer o full review e publicar. O lote foi entregue na suíte 0.2.0, com gates e conferência pública aprovados no [full review](full-review-entrega.md). Este registro substitui a expectativa de implementar todo o diagnóstico antes desta publicação. A [matriz de requisitos](cobertura-requisitos.md) conserva o vínculo com cada item da análise original. Implementado, testado localmente e publicado são estados distintos.
 
 ## Melhorias ainda necessárias
 
@@ -34,7 +34,8 @@
 
 - Digitalização WIA: adaptador, interface, checkpoints e enumeração estão implementados. A enumeração real encontrou zero scanners. Aquisição física, alimentador e duplex ainda precisam de dispositivo compatível.
 - Impressão: preparação vetorial/restrita, intervalos, livreto e retomada foram exercitados. Envio real ao driver, frente e verso e conferência em papel permanecem sem homologação.
-- Instalação/atualização: os gates Windows do workflow de release devem aprovar os seis instaladores e o ciclo A→B do commit publicado; um build de desenvolvimento não substitui esses gates.
+
+Instalação e atualização dos seis aplicativos passaram nos ciclos A→B e nos instaladores finais do workflow da 0.2.0. Manifesto assinado, hashes/tamanhos dos seis executáveis e links públicos foram conferidos, conforme o full review.
 
 ## Exclusões mantidas pelo titular
 

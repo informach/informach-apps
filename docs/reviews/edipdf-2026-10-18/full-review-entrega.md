@@ -1,6 +1,6 @@
 # Full review da entrega do EdiPDF
 
-18/10/2026. Full review local do escopo entregue concluído, com as correções registradas abaixo. A publicação continua condicionada aos gates remotos e à conferência dos instaladores. O escopo restante está em [pendências pós-release](pendencias-pos-release.md). Não há alegação de substituição integral do Acrobat ou conformidade PDF/A/PDF/UA.
+18/10/2026. Full review do escopo entregue concluído, com as correções registradas abaixo e todos os gates locais/remotos aprovados. O código foi integrado na main e a [suíte 0.2.0 foi publicada](https://github.com/informach/edi-releases/releases/tag/edi-v0.2.0). Manifesto assinado, seis instaladores públicos e links do portal foram conferidos. O escopo restante está em [pendências pós-release](pendencias-pos-release.md). Não há alegação de substituição integral do Acrobat ou conformidade PDF/A/PDF/UA.
 
 ## Integridade e segurança
 
@@ -27,7 +27,7 @@ Assinaturas gráficas não utilizam certificado. A prévia de posição mostra a
 - O primeiro gate remoto do [PR #21](https://github.com/informach/informach-apps/pull/21) reproduziu perda de posição ao retornar de Início. Um probe específico ampliou a reprodução para redimensionamento simultâneo à navegação: métricas antigas permitiam consumir o pedido de rolagem antes de ajustar o zoom ao viewport real. O leitor agora aguarda medidas reais/zoom correspondente e publica a posição efetiva após navegar; não usa largura inicial fictícia. `pnpm edi:test:pdf-view` aprovou quinze retornos exatos em 1100/1280/1500 pixels e o encerramento sem locks (`release-view-probe-measured.txt`).
 - A rodada nativa completa dos seis aplicativos passou (`release-native-all-sdk.txt`), incluindo gate/licença/expiração, cancelamento de fechamento no EdiFoto, todos os perfis do EdiPDF, retomada parcial de OCR, fechamento normal sem locks e três ciclos adicionais de saída forçada/reabertura. O probe de navegação foi repetido no código final e aprovou novamente os quinze ciclos e o encerramento (`release-view-probe-final.txt`). Os seis builds normais foram refeitos com execução forçada, sem reaproveitar os builds com chaves efêmeras (`release-build-normal-six.txt`).
 - Qualidade, tipos e testes gerais foram repetidos após SDK/navegação (`release-lint-navigation-sdk.txt`, `release-types-navigation-sdk.txt`, `release-tests-navigation-sdk.txt`): sem erros de qualidade/tipos/testes, com os avisos anteriores explícitos. Os testes do tooling continuam em 43; SDK em 69; EdiPDF em 275.
-- Pendentes neste registro: gates remotos, instalação/atualização e conferência dos sete assets publicados. O primeiro head do PR falhou na restauração de navegação, corrigida no head seguinte. O gate de mídia também reproduziu a falha de qualidade de voz do EdiAula já existente na candidata 0.1.5 e no PR #20; essa frente é acompanhada separadamente, sem reduzir o gate nesta alteração do EdiPDF. Nenhuma publicação foi declarada concluída.
+- Estado do primeiro registro, anterior ao fechamento: gates remotos, instalação/atualização e conferência dos sete assets estavam pendentes. O primeiro head do PR falhou na restauração de navegação, corrigida no head seguinte. O gate de mídia também reproduziu a falha de qualidade de voz do EdiAula já existente na candidata 0.1.5 e no PR #20; sua decisão upstream e os resultados posteriores estão registrados abaixo. A publicação não foi declarada concluída antecipadamente.
 
 ### Conferência do empacotamento
 
@@ -42,5 +42,30 @@ A recompilação de mídia não encontrou cache para o novo lockfile e reproduzi
 O gate de atualização encontrou `https@1.0.0`, declarado por PptxGenJS 4.0.1, sem código, README ou licença no tarball. O próprio PptxGenJS usa `import('node:https')`, que resolve o módulo nativo do Node. O override restrito `pptxgenjs@4.0.1>https: "-"` remove essa dependência desnecessária do grafo; a geração de avisos permanece obrigatória. Nenhuma versão foi atualizada. O lockfile mudou somente nesse vínculo/pacote.
 
 A conferência completa também encontrou `tr46@0.0.3` (OCR → node-fetch → whatwg-url): o pacote e a tag declaram MIT, mas não distribuem o texto. O autor forneceu o aviso na [correção da issue #4](https://github.com/jsdom/tr46/commit/3a6f29721e7063b9ffd421e461a54beae6170001). Esse texto original foi incorporado em `resources/licenses/TR46-MIT.txt` (SHA-256 `eeed1ca176eebad5c73870e233cfff03981fecd319c969475dfa3633036c336b`) e incluído nos avisos somente para essa versão/licença. Outras ausências continuam sendo erro. A geração real aprovou os 76 componentes e produziu 232345 bytes de avisos; os 275 testes e o build do EdiPDF passaram após a remoção de `https`. O teste de integração da geração mantém essa verificação no tooling: **44 testes aprovados**, com a repetição das 21 tarefas de testes e tipos (`release-tests-notices.txt`, `release-types-notices.txt`).
+
+## Fechamento dos gates e integração
+
+O head final `6b838d5fb5631e0b29c36ee1aaca9fa27298711f` passou por todos os gates. A repetição local final também passou: qualidade, tipos, testes gerais e 44 testes de tooling (`release-lint-main.txt`, `release-types-main.txt`, `release-tests-main.txt`); jornada completa do EdiPDF com o helper corrigido, retomada de OCR e três recuperações após saída forçada (`release-native-edit-notification.txt`). O build normal foi restaurado (`release-build-normal-final.txt`).
+
+| Gate remoto | Resultado e evidência |
+| --- | --- |
+| CI completo: qualidade, tipos, testes, migrations, integrações, E2E e builds | [Aprovado em 28m10](https://github.com/informach/informach-apps/actions/runs/39179732115/job/117831321196) |
+| Banco Edi | [Aprovado](https://github.com/informach/informach-apps/actions/runs/39179732092) |
+| Jornada nativa dos seis aplicativos | [Aprovada em 7m06](https://github.com/informach/informach-apps/actions/runs/39179732096) |
+| Compilação/verificação de mídia e seis ciclos reais de atualização A→B | [Aprovados](https://github.com/informach/informach-apps/actions/runs/39179732127); EdiPDF 7m50, EdiAula 7m16 |
+
+A primeira tentativa do CI consolidado mediu 12,5 ms no benchmark existente de ripple do EdiAula (meta de 10 ms). A repetição integral passou sem alteração de código ou limite; a falha foi preservada em `remote-ci-consolidated.txt`. Essa variação não foi escondida por mudança do teste. A receita de mídia verificada foi `44b70c37c45f48c6ece3958ceaad61105fce7e4783d2481c56541af376da3f0d`.
+
+Após a integração, o commit da main repetiu e aprovou [CI completo](https://github.com/informach/informach-apps/actions/runs/39182493294), [jornada nativa](https://github.com/informach/informach-apps/actions/runs/39182493268) e [banco](https://github.com/informach/informach-apps/actions/runs/39182493289). A revisão da própria tag aprovou novamente qualidade, tipos, testes, auditoria de produção, configuração protegida e prontidão do portal antes de gerar os instaladores.
+
+O [PR #21](https://github.com/informach/informach-apps/pull/21) foi integrado em `cee6e86faf21eef05161320978f5d22d660c9b5d`. A árvore foi comparada e é idêntica à do head aprovado. A tag inédita `edi-v0.2.0` aponta para esse commit. O [workflow de publicação](https://github.com/informach/informach-apps/actions/runs/39182516724) terminou aprovado: revisão/configuração protegida, banco, mídia, seis ciclos A→B, seis instaladores finais com jornada nativa, inventário assinado e instalação/desinstalação, e publicação do conjunto.
+
+## Conferência pública e conclusão
+
+A release imutável foi publicada em 19/10/2026 às 01:45:47 UTC (18/10 às 22:45:47 em Brasília). Às 01:47:26 UTC, a conferência independente validou a assinatura Ed25519 do manifesto com a chave pública protegida da suíte, o canal estável, a versão, o commit de origem, os seis IDs do catálogo e os sete assets. Os seis executáveis foram lidos dos URLs públicos, sem instalação local, conferindo tamanho, SHA-512 assinado e SHA-256 do GitHub. O [relatório verificável](release-0.2.0-verificacao.json) contém os tamanhos e hashes de cada arquivo; o instalador EdiPDF tem 178294609 bytes.
+
+O portal respondeu HTTP 200 em `/api/ready`, com migration aplicada/esperada `0074_cozya_hoje_tem`, e `/downloads` listou os seis links da 0.2.0. Não houve alteração de autenticação, cobrança ou infraestrutura nesta entrega. Alterações EdiSVG integradas posteriormente na main pertencem à frente seguinte; os binários 0.2.0 continuam vinculados ao commit `cee6e86f`.
+
+O lote atual, o full review e a publicação estão concluídos. Compatibilidade ampliada, funcionalidades adiadas e homologações de hardware continuam nos critérios das pendências. A atualização posterior deste registro confere fatos, caminhos, links e diff; não representa nova homologação de código. Uma pasta temporária do probe de arquivos foi preservada após a revisão automática rejeitar sua remoção recursiva.
 
 Nenhum documento pessoal foi utilizado; não houve acesso ao clipboard pessoal, digitalização de papel ou impressão física. As limitações de equipamento, compatibilidade e recursos adiados são explícitas na documentação de pendências.
