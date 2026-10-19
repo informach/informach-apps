@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
@@ -389,6 +389,15 @@ try {
             join(results, "edisvg-rig-runtime.png"),
           );
           const destination = join(root, "edisvg-test-project.edisvg");
+          const assertSameFile = async (actualPath: string) => {
+            // Windows dialogs expand 8.3 paths (RUNNER~1) to long names. Check
+            // the file identity, not the spelling of two aliases to one file.
+            const [actual, expected] = await Promise.all([stat(actualPath), stat(destination)]);
+            assert.ok(actual.isFile() && expected.isFile());
+            assert.ok(actual.ino > 0 && expected.ino > 0);
+            assert.equal(actual.dev, expected.dev);
+            assert.equal(actual.ino, expected.ino);
+          };
           const respond = (action: "Save" | "Open" | "Cancel", selectedPath = destination) =>
             execute(
               "powershell.exe",
@@ -426,7 +435,7 @@ try {
           await respond("Save");
           const saved = z.object({ saved: z.literal(true), path: z.string() }).parse(await saving);
           console.log("Verified native initial project save: edisvg");
-          assert.equal(saved.path, destination);
+          await assertSameFile(saved.path);
           const written = JSON.parse(await readFile(destination, "utf8"));
           assert.equal(written.name, "Sem título");
           const opening = invoke("projectOpen");
@@ -438,7 +447,7 @@ try {
             })
             .parse(await opening);
           assert.equal(opened.project.name, written.name);
-          assert.equal(opened.status.path, destination);
+          await assertSameFile(opened.status.path);
           assert.equal(opened.status.dirty, false);
           await editor.locator('[data-action="tool-shapes"]').click();
           const artboard = await editor.locator(".scene-artwork>svg").boundingBox();
