@@ -2,7 +2,11 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { _electron, type ElectronApplication, type Page } from "playwright";
-import { observeNativeStartup } from "../../../scripts/edi/native-diagnostics.mts";
+import {
+  observeNativeStartup,
+  trackNativeChild,
+  verifyNativeClose,
+} from "../../../scripts/edi/native-diagnostics.mts";
 import type { EdiPdfApi } from "../src/shared/types.ts";
 
 declare const window: Window & { api: EdiPdfApi };
@@ -90,6 +94,8 @@ export async function verifyForcedPdfRestarts(options: {
   for (let attempt = 1; attempt <= 3; attempt++) {
     await options.seedLease(application, 300);
     await options.waitForStatus(editor, "licensed");
+    const child = application.process();
+    const childLifetime = trackNativeChild(child);
     const closed = application.waitForEvent("close", { timeout: 10000 }).then(
       () => ({ ok: true as const }),
       (error: unknown) => ({ ok: false as const, error }),
@@ -114,6 +120,9 @@ export async function verifyForcedPdfRestarts(options: {
     }
     const request = await requested;
     if (!request.ok) throw request.error;
+    // The protocol's close event can precede the launcher process exit. Wait
+    // for the owned child before reusing the profile in another Electron launch.
+    await verifyNativeClose(child, childLifetime.completion, Promise.resolve());
     application = await _electron.launch({
       args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), options.applicationRoot],
       cwd: options.applicationRoot,

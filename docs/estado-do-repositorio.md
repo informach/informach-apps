@@ -142,6 +142,8 @@ O segundo verificador de mídia desse head também falhou, em outro teste interm
 
 O catálogo de mídia agora aponta o EdiAula para `test:media-native`: voz com FFmpeg empacotado e testes físicos de entrada/áudio com os opt-ins existentes. A CI geral continua executando os 944 testes do app; os dois verificadores Windows deixam de duplicar a suíte inteira. Script focado, tooling 64/64 e Biome passaram localmente sem aquisição física; o novo CI deve confirmar o contrato e a jornada nativa.
 
+O nativo do head `796f75e0` confirmou Captura/EdiFoto e levou o EdiPDF até OCR protegido, sessão restaurada e duas reinicializações abruptas; a terceira iniciou processo sem janela e reteve o fixture. O harness PDF agora aguarda a saída limpa do filho anterior antes de relançar no mesmo perfil. Tipos PDF, Biome e tooling passaram localmente; a próxima CI nativa deve validar essa correção. O produto PDF/OCR não foi alterado nesta frente.
+
 A [divisão de foco](propostas/edi-suite-2026-10-16/edicaptura-lotes/foco-na-suite.md) mantém Captura enxuto com vídeo rápido, edição avançada no EdiAula e trabalho geral de PDF no EdiPDF. IA opcional futura somente pela assinatura do próprio usuário no Claude Code/Codex, conforme a [decisão vigente](propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md), sem API paga/créditos Edi/fallback. Examinar também os consumidores atuais antes de extrair infraestrutura.
 
 ## Ambiente de desenvolvimento

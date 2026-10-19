@@ -343,6 +343,8 @@ Para o EdiAula, o catálogo seleciona `test:media-native` em `edi:media:test`: e
 
 O runner nativo direciona `pictures` de cada processo ao diretório de documentos do fixture. O helper do EdiFoto aceita apenas controles visíveis/habilitados do PID esperado e destinos exatos em `edi-native-*`; a jornada espera “Projeto salvo.”, registra o caminho e preserva uma captura em falha antes da limpeza. Antes de reabrir, exige o conteúdo exato da camada no rascunho validado e decodificado; a presença de um registro ou do viewport não comprova a revisão correta.
 
+Na jornada PDF, cada reinicialização abrupta espera tanto o fechamento do protocolo Playwright quanto a saída limpa do processo filho conhecido antes de relançar o Electron com o mesmo perfil descartável. Uma falha retém o fixture para diagnóstico; não apaga locks nem força o encerramento de processos externos.
+
 No EdiCaptura, uma falha interrompe a inspeção de pixels: o handler genérico não consulta nem captura sua página de diagnóstico, pois a origem ou as dimensões podem ter invalidado a autorização. A falha original continua sendo propagada e o encerramento dos filhos é verificado antes da limpeza. Os demais apps mantêm a captura de diagnóstico de suas páginas próprias.
 
 Cada execução nativa cria um diretório exclusivo `run-*` em `.cache/edi-native-results`, cujo nome é registrado no log, sem sobrescrever evidências anteriores. Os workflows de teste nativo e release coletam os PNGs recursivamente. A validação de posse dos diálogos Foto usa somente o PID vivo da fixture e seus caminhos esperados; não imprime a linha de comando do processo.
