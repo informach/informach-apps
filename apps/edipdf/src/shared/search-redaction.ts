@@ -1,7 +1,7 @@
+import { DEFAULT_SEARCH_OPTIONS, findTextMatches } from "@informach/edi-ocr/search";
 import { z } from "zod";
 import type { EngineOperation, PdfInspection, TextDocument } from "./engine-contracts.ts";
 import { type Box, viewToPdf } from "./model.ts";
-import { DEFAULT_SEARCH_OPTIONS, findTextMatches } from "./text-search.ts";
 
 export const redactionQuerySchema = z.object({
   text: z.string().trim().min(1).max(500),

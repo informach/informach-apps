@@ -3,7 +3,8 @@ import { ediBuildOptions } from "@informach/edi-desktop/build";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 
-const desktop = ediBuildOptions();
+// task-format (main) imports the OCR result schema: bundle the package source into main.
+const desktop = ediBuildOptions({ bundledPackages: ["@informach/edi-ocr"] });
 export default defineConfig({
   ...desktop,
   main: {

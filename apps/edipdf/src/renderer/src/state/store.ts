@@ -1,6 +1,6 @@
+import type { SearchOptions } from "@informach/edi-ocr/search";
 import type { Annot, Box, DocContent, FontKey, ShapeAnnot, TextAnnot } from "@shared/model";
 import type { PageLayout } from "@shared/page-layout";
-import type { SearchOptions } from "@shared/text-search";
 import type { RecentFile, SavedSignature } from "@shared/types";
 import { create } from "zustand";
 import { validateDocumentRevision } from "../../../shared/document-commands.ts";

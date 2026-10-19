@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { plainText } from "@informach/edi-ocr/search";
 import { windowsPowerShellEnvironment } from "../../../packages/edi-desktop/src/windows-powershell.ts";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
 import type { OfficeDocument } from "../src/shared/office-format.ts";
@@ -11,7 +12,6 @@ import { renderOfficePdf } from "../src/shared/office-render.ts";
 import { importRtf } from "../src/shared/office-rtf.ts";
 import { exportRtf } from "../src/shared/rtf-export.ts";
 import { rtfTokens } from "../src/shared/rtf-tokens.ts";
-import { plainText } from "../src/shared/text-search.ts";
 
 const ascii = (value: string) => new Uint8Array(Buffer.from(value, "ascii"));
 const text = (document: OfficeDocument) =>

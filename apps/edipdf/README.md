@@ -85,6 +85,7 @@ Depois de mudar o código, rode `pnpm --filter @informach/edipdf build` (ou `sho
 - Guarda o progresso ao concluir cada página; Ctrl+K → Tarefas permite retomar as páginas pendentes e revisar o texto. Retomadas usam a cópia protegida da tarefa e abrem o resultado em uma nova aba
 - Para preservação/retomada, o PDF de entrada deve ter até 64 MB e mil páginas, com até cem páginas por lote e 200 mil palavras; compacte uma cópia ou extraia um intervalo para documentos maiores
 - Limites e evidências no [review intermediário do lote 4](../../docs/reviews/edipdf-2026-10-18/review-lote-4-parcial.md); conversões, impressão e digitalização ainda estão em evolução
+- O motor vem de [`@informach/edi-ocr`](../../packages/edi-ocr/README.md): resultado, limites, worker, orientação/inclinação, busca, modelos e licenças. No app ficam a preparação da página, a fila (`src/renderer/src/lib/ocr-task.ts`), a revisão (`OcrDialog.tsx`), `ocrPageSchema` e a camada de texto (`addOcrLayer` em `src/shared/ocr.ts`). `scripts/copy-pdfjs.mjs` copia worker, núcleos, modelos conferidos e licenças para `src/renderer/public/ocr`
 
 **Conversões locais**
 - Ctrl+K → Converter arquivo para PDF: escolher DOCX/XLSX/RTF/TIFF/ODT/ODS, conferir avisos e todas as páginas da prévia, salvar cópia ou abrir como novo PDF sem alterar o Office original
@@ -148,11 +149,11 @@ selecionada · setas movem (Shift = 10 pt) · Esc volta para Selecionar.
 - `src/shared/document-format.ts`: schemas e recuperação v1; `document-commands.ts`: transações validadas.
 - `src/shared/local-engine.ts` e `engine-contracts.ts`: PDFium local para objetos, pixels e criptografia. `engine-worker.ts` executa o motor fora da interface e pode ser terminado no cancelamento. WASM e fontes são empacotados; não usam CDN no runtime.
 - `src/shared/pdf-sanitize.ts`, `pdf-structure.ts` e `page-geometry.ts`: sanitização, reconciliação de tags após exclusão e geometria de páginas/anotações. Árvores cíclicas ou inválidas são recusadas.
-- `resources/fonts/sources.json` registra origem e digest das fontes; `resources/licenses/` acompanha os recursos distribuídos. API e licença dos motores: [PDFium/EmbedPDF](https://www.embedpdf.com/docs/pdfium/introduction), [fontkit](https://github.com/Hopding/fontkit), [Noto](https://github.com/notofonts/noto-fonts).
+- `resources/fonts/sources.json` registra origem e digest das fontes; `resources/licenses/` acompanha os recursos distribuídos. Modelos e licenças do OCR ficam em `packages/edi-ocr/resources` e são copiados para `ocr/` no renderer; a busca vem de `@informach/edi-ocr/search`. API e licença dos motores: [PDFium/EmbedPDF](https://www.embedpdf.com/docs/pdfium/introduction), [fontkit](https://github.com/Hopding/fontkit), [Noto](https://github.com/notofonts/noto-fonts).
 - `src/shared/pdf-annotations.ts` e `pdf-forms.ts`: anotações interoperáveis, dados de edição e campos importados por fonte.
 - `src/main/recovery-store.ts`: cópias locais atômicas protegidas pelo Windows; `file-revisions.ts`: conflitos externos de gravação. Rascunhos são preservados; a recuperação abre outro destino. A janela anterior ao autosave (750 ms) não equivale a gravação já concluída.
 - `src/main/version-store.ts`, `validated-store.ts` e `signature-store.ts`: retenção, validação, reparo com backup e proteção local. Recuperação atual tem limite de 160 MB por trabalho; a cota configurável vale para versões anteriores.
-- `src/shared/text-search.ts`, `page-layout.ts`, `render-budget.ts`, `pdf-navigation.ts`, `form-authoring.ts` e `annotation-commands.ts`: busca, geometria da leitura, orçamento de pixels e operações locais validadas. Exportação acima do limite não reduz a resolução silenciosamente.
+- `src/shared/page-layout.ts`, `render-budget.ts`, `pdf-navigation.ts`, `form-authoring.ts` e `annotation-commands.ts`: geometria da leitura, orçamento de pixels e operações locais validadas. Exportação acima do limite não reduz a resolução silenciosamente.
 
 - `src/shared/model.ts`: o documento editável (lista de páginas que apontam para os PDFs de origem + anotações em coordenadas da página).
 - `src/shared/build.ts`: monta o PDF final com pdf-lib ao salvar e junta arquivos.

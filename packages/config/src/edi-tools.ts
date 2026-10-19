@@ -34,6 +34,8 @@ export const EDI_TOOLS = [
     windowsAppId: "br.com.informach.edipdf",
     description: "Organize, preencha e assine PDFs",
     projectExtensions: ["pdf"],
+    // Ships @informach/edi-ocr (worker, cores, models, licenses) in its own renderer.
+    ocr: true,
   },
   {
     id: "edisvg",
@@ -61,4 +63,9 @@ export const EDI_DESKTOP_APPS = [EDI_HUB, ...EDI_TOOLS] as const;
 
 export function hasNativeMedia(id: string): boolean {
   return EDI_TOOLS.some((tool) => tool.id === id && "nativeMedia" in tool && !!tool.nativeMedia);
+}
+
+/** Tools that ship the local OCR of `@informach/edi-ocr` in their own installer. */
+export function hasOcr(id: string): boolean {
+  return EDI_TOOLS.some((tool) => tool.id === id && "ocr" in tool && tool.ocr);
 }

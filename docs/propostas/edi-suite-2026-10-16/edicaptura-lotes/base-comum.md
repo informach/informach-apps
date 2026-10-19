@@ -104,7 +104,7 @@ Apps não importam apps. Não há passagem direta entre apps. Packages não ganh
 | --- | --- |
 | E1 | Implementada: executor único e `media-range`; SDK 83 testes, EdiAula 944 testes (928 aprovados, 16 opt-in pulados, 0 falhas), Captura 166 unitários e renderer |
 | E2 | Implementada: `@informach/edi-desktop/audio` e fase 5c do Captura (microfone e áudio do PC opcionais, volume, mudo, medidores, contagem e pausa manual); renderer Chromium cobre som e pausa. Homologação física de áudio pendente |
-| E3 | Em andamento |
+| E3 | Implementada e integrada em `feat/edi-base-comum`. `@informach/edi-ocr` criado (raiz, `/worker`, `/canvas` com blocos, `/search`, `/sensitive`, `/assets`); modelos, `sources.json` e licenças movidos do EdiPDF sem alterar bytes (SHA conferido); catálogo com `ocr` e `hasOcr`. EdiPDF migrado: 272 testes do app (3 neutros passaram para o package, que tem 29, incluindo OCR real offline dos três modelos), tipos e build aprovados; worker, núcleos e modelos do renderer construído idênticos aos de antes. A jornada nativa do EdiPDF não rodou nesta máquina (o `electron-vite` do worktree falha antes do build, também sem a mudança) e continua pendente para a revisão. Ver [README do package](../../../../packages/edi-ocr/README.md). |
 | E4 | Pendente (depende de E3) |
 | E5 | Pendente |
 | E6 | Em andamento |

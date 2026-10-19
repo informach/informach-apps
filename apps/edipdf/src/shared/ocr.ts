@@ -1,3 +1,4 @@
+import { type OcrResult, type OcrTurn, ocrPoint, ocrResultSchema } from "@informach/edi-ocr";
 import fontkit from "@pdf-lib/fontkit";
 import {
   beginText,
@@ -15,41 +16,16 @@ import {
   showText,
   TextRenderingMode,
 } from "pdf-lib";
+import { pruneUnreachable } from "./compress.ts";
 import { viewToPdf } from "./model.ts";
 import { embedUnicodeFont } from "./unicode-fonts.ts";
-
-export type { OcrLanguage, OcrResult } from "./ocr-format.ts";
-export { ocrLanguageSchema, ocrResultSchema } from "./ocr-format.ts";
-
-import { pruneUnreachable } from "./compress.ts";
-import { type OcrResult, ocrResultSchema } from "./ocr-format.ts";
 
 export interface OcrPage {
   page: number;
   result: OcrResult;
   /** Input image rotates the rendered viewport clockwise, then deskews around its centre. */
-  turn: 0 | 90 | 180 | 270;
+  turn: OcrTurn;
   skew: number;
-}
-
-/** Inverse of the exact canvas preprocessing transform, normalized to the original viewport. */
-export function ocrPoint(page: OcrPage, x: number, y: number): [number, number] {
-  const { width, height } = page.result;
-  const a = (-page.skew * Math.PI) / 180;
-  const dx = x - width / 2,
-    dy = y - height / 2;
-  const u = (Math.cos(a) * dx - Math.sin(a) * dy + width / 2) / width;
-  const v = (Math.sin(a) * dx + Math.cos(a) * dy + height / 2) / height;
-  switch (page.turn) {
-    case 90:
-      return [v, 1 - u];
-    case 180:
-      return [1 - u, 1 - v];
-    case 270:
-      return [1 - v, u];
-    default:
-      return [u, v];
-  }
 }
 
 /** A separate owned content stream allows a later OCR pass to replace only our hidden text. */

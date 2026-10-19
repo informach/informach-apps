@@ -2,15 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { ocrResultSchema } from "@informach/edi-ocr";
+import { findTextMatches, plainText } from "@informach/edi-ocr/search";
 import { decodePDFRawStream, degrees, PDFDocument, PDFName, PDFRawStream } from "pdf-lib";
-import { createWorker, OEM } from "tesseract.js";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
-import { addOcrLayer, type OcrPage, ocrPoint, ocrResultSchema } from "../src/shared/ocr.ts";
+import { addOcrLayer } from "../src/shared/ocr.ts";
 import { clearOcrBookkeeping } from "../src/shared/ocr-bookkeeping.ts";
-import { ocrInclination, ocrScore } from "../src/shared/ocr-format.ts";
 import { REDACTION_SANITIZE, sanitizePdf } from "../src/shared/pdf-sanitize.ts";
-import { findTextMatches, plainText } from "../src/shared/text-search.ts";
 
 const require = createRequire(import.meta.url);
 const engine = await LocalPdfEngine.create(
@@ -119,45 +117,6 @@ test("OCR maps rotated cropped pages to their physical PDF coordinates", async (
   const doc = await PDFDocument.load(bytes);
   assert.deepEqual(doc.getPage(0).getCropBox(), { x: 100, y: 50, width: 600, height: 800 });
   assert.equal(doc.getPage(0).getRotation().angle, 90);
-});
-
-test("OCR inverse preprocessing handles all quarter turns and skew without moving the document", () => {
-  const page: OcrPage = { page: 0, result, turn: 0, skew: 0 };
-  assert.deepEqual(ocrPoint(page, 60, 80), [0.1, 0.1]);
-  assert.deepEqual(ocrPoint({ ...page, turn: 90 }, 60, 80), [0.1, 0.9]);
-  assert.deepEqual(ocrPoint({ ...page, turn: 180 }, 60, 80), [0.9, 0.9]);
-  assert.deepEqual(ocrPoint({ ...page, turn: 270 }, 60, 80), [0.9, 0.1]);
-  const angle = (5 * Math.PI) / 180,
-    dx = 60 - 300,
-    dy = 80 - 400;
-  const recovered = ocrPoint(
-    { ...page, skew: 5 },
-    Math.cos(angle) * dx - Math.sin(angle) * dy + 300,
-    Math.sin(angle) * dx + Math.cos(angle) * dy + 400,
-  );
-  assert.ok(Math.abs(recovered[0] - 0.1) < 1e-9);
-  assert.ok(Math.abs(recovered[1] - 0.1) < 1e-9);
-});
-
-test("OCR orientation scoring and deskew reject punctuation noise and implausible baselines", () => {
-  assert.ok(
-    ocrScore(result) >
-      ocrScore({ ...result, words: [{ ...result.words[0], text: "...!?", confidence: 100 }] }),
-  );
-  assert.ok(
-    ocrScore(result) >
-      ocrScore({ ...result, words: result.words.map((word) => ({ ...word, confidence: 10 })) }),
-  );
-  const slope = Math.tan((4 * Math.PI) / 180);
-  assert.ok(
-    Math.abs(
-      ocrInclination([
-        { x0: 0, y0: 100, x1: 500, y1: 100 + slope * 500 },
-        { x0: 0, y0: 0, x1: 20, y1: 0 },
-      ]) - 4,
-    ) < 1e-9,
-  );
-  assert.equal(ocrInclination([{ x0: 0, y0: 0, x1: 0, y1: 500 }]), 0);
 });
 
 test("OCR rejects malformed boxes, excess resources and unsupported glyphs without producing a replacement", async () => {
@@ -270,43 +229,4 @@ test("ordinary content edits cannot retain stale owned OCR streams containing th
     0,
     "Correcting hidden OCR text must preserve invisible rendering",
   );
-});
-
-test("bundled Portuguese, English and Spanish models recognize real raster text offline", async () => {
-  const canvasRequire = createRequire(require.resolve("pdfjs-dist/package.json"));
-  const { createCanvas, GlobalFonts } = canvasRequire("@napi-rs/canvas");
-  GlobalFonts.registerFromPath(
-    fileURLToPath(new URL("../resources/fonts/NotoSans-Regular.ttf", import.meta.url)),
-    "OcrFixture",
-  );
-  for (const [language, text, expected] of [
-    ["por", "Ação local. Educação e informação.", /Ação local.*Educação.*informação/s],
-    ["eng", "English document. Local information.", /English document.*Local information/s],
-    ["spa", "Español local. Educación e información.", /Español local.*Educación.*información/s],
-  ] as const) {
-    const canvas = createCanvas(1500, 220),
-      context = canvas.getContext("2d");
-    context.fillStyle = "white";
-    context.fillRect(0, 0, 1500, 220);
-    context.fillStyle = "black";
-    context.font = "56px OcrFixture";
-    context.fillText(text, 40, 120);
-    const worker = await createWorker(language, OEM.LSTM_ONLY, {
-      langPath: fileURLToPath(new URL("../resources/ocr/models/", import.meta.url)),
-      gzip: false,
-      cacheMethod: "none",
-    });
-    try {
-      const recognized = await worker.recognize(
-        canvas.toBuffer("image/png"),
-        { rotateAuto: false },
-        { text: true, blocks: true },
-      );
-      assert.match(recognized.data.text, expected);
-      assert.ok(recognized.data.confidence > 70, `${language}: insufficient confidence`);
-      assert.ok(recognized.data.blocks?.length);
-    } finally {
-      await worker.terminate();
-    }
-  }
 });
