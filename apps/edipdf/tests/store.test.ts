@@ -51,13 +51,14 @@ function setup(): void {
   useApp.setState({ docs: [doc], activeId: doc.id });
 }
 
-test("deleting current page clamps page index, clears stale selection and search", () => {
+test("deleting current page clamps page index, clears stale selection and requests a fresh search", () => {
   setup();
   commit("doc", (c) => ({ ...c, pages: c.pages.slice(0, 1) }));
   const doc = useApp.getState().docs[0];
   assert.equal(doc.currentPage, 0);
   assert.deepEqual(doc.selection, []);
-  assert.equal(doc.search, null);
+  assert.deepEqual(doc.search?.results, []);
+  assert.equal(doc.search?.running, true);
   assert.equal(isDirty(doc), true);
   undo("doc");
   assert.equal(useApp.getState().docs[0].content.pages.length, 3);
@@ -74,4 +75,44 @@ test("edits after a save snapshot remain dirty and undo restores saved state", (
   assert.equal(isDirty(useApp.getState().docs[0]), true);
   undo("doc");
   assert.equal(isDirty(useApp.getState().docs[0]), false);
+});
+
+test("uncommitted text is pending work, including deletion of an existing annotation", () => {
+  setup();
+  const annot = {
+    id: "t",
+    page: "p0",
+    kind: "text",
+    x: 10,
+    y: 10,
+    text: "Rascunho",
+    font: "helvetica",
+    size: 14,
+    color: "#000000",
+  } as const;
+  patchDoc("doc", { draft: { annot } });
+  assert.equal(isDirty(useApp.getState().docs[0]), true);
+  patchDoc("doc", { draft: { annot: { ...annot, text: "" } } });
+  assert.equal(isDirty(useApp.getState().docs[0]), false);
+  patchDoc("doc", { draft: { annot, before: annot, existing: true } });
+  assert.equal(isDirty(useApp.getState().docs[0]), false);
+  patchDoc("doc", { draft: { annot: { ...annot, text: "" }, before: annot, existing: true } });
+  assert.equal(isDirty(useApp.getState().docs[0]), true);
+});
+
+test("typing in one field is one undo group and a new focus session starts another", () => {
+  setup();
+  for (const value of ["a", "ab", "abc"])
+    commit("doc", (content) => ({ ...content, forms: { name: value } }), {
+      historyGroup: "form:name",
+    });
+  assert.equal(useApp.getState().docs[0].past.length, 1);
+  patchDoc("doc", { historyGroup: null });
+  commit("doc", (content) => ({ ...content, forms: { name: "abcd" } }), {
+    historyGroup: "form:name",
+  });
+  undo("doc");
+  assert.equal(useApp.getState().docs[0].content.forms.name, "abc");
+  undo("doc");
+  assert.deepEqual(useApp.getState().docs[0].content.forms, {});
 });

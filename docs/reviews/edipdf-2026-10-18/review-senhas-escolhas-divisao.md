@@ -1,0 +1,17 @@
+# Review de senhas, escolhas e divisão
+
+18/10/2026. Perfis deste complemento aprovados na jornada integrada completa, incluindo reinício/retomada e gates do SDK. Não constitui full review.
+
+Senhas: nulo, Unicode inválido e pares equivalentes pela compatibilidade Latin-1 são recusados; novas senhas têm limite de 127 bytes UTF-8, sem truncamento. Leitura autorizada com senha vazia não concede edição/troca de proteção. O fluxo nativo recusou os pares inválidos, salvou uma senha Unicode no limite e abriu a cópia em leitor independente, sem privilégio de proprietário para a senha de abertura. A conferência de comprimento também antecede a conversão em bytes; entradas inválidas não recebem mensagem espúria de equivalência.
+
+Escolhas: listas exibem rótulos e gravam códigos; seleção múltipla, dados exportados, configuração de pares e aparência desenhada mantêm a separação. O fluxo real alterou “Rio de Janeiro” para “Rio β revisado” conservando `INTERNAL_RJ`, gravou/releu a cópia, verificou aparência achatada por leitor independente, controle somente leitura e origem exata. [Captura inspecionada](forms-choice.png). O teste revelou que a configuração bloqueava coordenadas fracionárias importadas; `step="any"` agora corresponde ao modelo geométrico, preservando os valores sem arredondamento.
+
+Divisão: marcadores conservam prefácio e páginas na ordem, consolidando destinos repetidos. Tamanho é medido nos PDFs realmente serializados, sem estimativa, rasterização ou exclusão de conteúdo. Planos resolvidos são protegidos e retomados sem replanejar/alterar o prefixo. A jornada recusou uma página acima da meta, revisou os dois modos, conferiu todas as páginas e publicou pastas exclusivas com bytes idênticos ao arquivo revisado.
+
+**265 testes do app aprovados nesse marco**, tipos app/harness/testes e Biome da frente aprovados. A jornada `native-choice-fractions.txt` passou por senhas/escolhas/divisão e todas as regressões anteriores: OCR, cem imagens, Form interno, parágrafos/gestos, campos/fontes/Tab, conversões, tabelas/TIFF, impressão, recuperação e gates. O build normal foi restaurado (`build-choice-fractions-normal.txt`), após as chaves efêmeras. Os novos testes de marcas/numeração, iniciados depois desse build de teste, pertencem ao complemento seguinte e não estão nesse aceite.
+
+Históricos: [senhas](review-senhas-parcial.md), [escolhas](review-escolhas-parcial.md) e [divisão](review-divisao-estrategias-parcial.md). A falha anterior de encerramento não reapareceu nesta rodada completa; o diagnóstico mínimo também encerrou normalmente. A causa daquela ocorrência isolada continua não determinada. O harness observa imediatamente as promises e registra stderr/estado se houver recorrência, sem aumentar timeout ou aceitar falha.
+
+O leitor independente em Node emitiu aviso de fonte padrão para um campo Helvetica preservado: o caminho no harness era relativo à raiz, enquanto PDF.js pertence ao app. O caminho foi corrigido para o módulo instalado do app e será conferido na rodada seguinte. A aparência Unicode alvo usa a fonte embutida e passou; o produto usa seus assets locais e não depende desse caminho de teste. Não se declara verificação de driver/papel ou scanner físico.
+
+Continuam corpus externo amplo de criptografia, widgets/Forms complexos, performance, substituição de páginas, marcas/numeração, demais complementos do mapa, lote 5 e full review. Certificados e serviços externos continuam excluídos. Sem commit/push/deploy/publicação.

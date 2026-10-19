@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -10,6 +10,12 @@ import { promisify } from "node:util";
 import { _electron, type ElectronApplication, type Page } from "playwright";
 import { z } from "zod";
 import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
+import {
+  createPdfNativeFixture,
+  verifyPdfNativeJourney,
+  verifyPdfNativeRestart,
+} from "../../apps/edipdf/scripts/native-journey.mts";
+import { closePdfNativeFixture } from "../../apps/edipdf/scripts/native-process.mts";
 import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
@@ -218,6 +224,8 @@ async function verifyNativeDialog(page: Page, openerName: string, dialogName: st
 }
 const runFailures: unknown[] = [];
 const knownChildren: ReturnType<typeof trackNativeChild>[] = [];
+// PDF restart helpers own their child lifetimes; retain the fixture if that verification fails.
+let pdfRestartsSettled = true;
 const diagnosticPaths = [root, resolve("."), tmpdir()];
 try {
   await nativeStage("suite", "installation", diagnosticPaths, () =>
@@ -225,6 +233,7 @@ try {
   );
   for (const id of applications) {
     console.log(`Native verification: ${id}`);
+    if (id === "edipdf") pdfRestartsSettled = false;
     const applicationRoot = resolve("apps", id);
     const userData = join(root, id, "user-data");
     const suiteData = join(root, id, "suite");
@@ -296,11 +305,18 @@ try {
         .parse(JSON.parse(await readFile(join(applicationRoot, "package.json"), "utf8")));
       await access(join(applicationRoot, manifest.main));
     });
+    const pdfFixture =
+      id === "edipdf" ? await createPdfNativeFixture(join(userData, "documents")) : undefined;
     const application = await nativeStage(id, "launch", diagnosticPaths, () =>
       _electron.launch({
         // The standard workspace launcher holds app readiness until Playwright is
         // connected. executablePath is for custom apps and omits that loader.
-        args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), applicationRoot],
+        args: [
+          "-r",
+          resolve("scripts/edi/fixtures/native-vault.cjs"),
+          applicationRoot,
+          ...(pdfFixture ? [pdfFixture] : []),
+        ],
         cwd: applicationRoot,
         env: {
           ...isolatedEnvironment,
@@ -402,6 +418,7 @@ try {
             (child) => knownChildren.push(child),
           ),
         );
+      if (id === "edipdf") await verifyPdfNativeJourney(application, editor, seedLease, results);
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
       if (id === "edifoto") {
         await verifyNativeDialog(editor, "Novo…", "Novo documento");
@@ -568,6 +585,20 @@ try {
         assert.equal(editor.isClosed(), false, "Canceling close must preserve the existing draft");
         assert.ok(await editor.evaluate(() => localStorage.getItem("edisvg-project")));
       }
+      if (id === "edipdf" && pdfFixture) {
+        await verifyPdfNativeRestart({
+          application,
+          editor,
+          applicationRoot: resolve("apps", id),
+          userData,
+          suiteData,
+          fixturePath: pdfFixture,
+          resultsDirectory: results,
+          buildEnvironment: { ...isolatedEnvironment, EDI_NATIVE_USER_DATA: userData },
+          seedLease,
+          waitForStatus,
+        });
+      }
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
@@ -581,6 +612,8 @@ try {
       }
     } finally {
       try {
+        if (id === "edipdf" && !closed)
+          await closePdfNativeFixture(application, suiteData, diagnosticEditor);
         if (!closed) {
           const nativePid = await application.evaluate(() => process.pid);
           const closing = application.close().then(
@@ -627,6 +660,14 @@ try {
       } catch (error) {
         failures.push(error);
       }
+      if (id === "edipdf" && failures.length) {
+        try {
+          // Read only this run's isolated fixture directory, after child-close handling.
+          console.log("EdiPDF disposable output entries:", await readdir(root));
+        } catch (error) {
+          failures.push(error);
+        }
+      }
       if (startupFailed || failures.length || id === "edicaptura")
         console.error(`Native startup cleanup (${id}):`, JSON.stringify(await startup.snapshot()));
       startup.dispose();
@@ -640,6 +681,7 @@ try {
           failures: failures.length,
         }),
       );
+      if (id === "edipdf" && failures.length === 0 && closed) pdfRestartsSettled = true;
     }
     raiseFailures(failures, `Native verification and cleanup failed: ${id}`);
   }
@@ -658,6 +700,7 @@ try {
       knownChildren.every((child) => child.isClosed()),
       "Known native child remains alive; test root retained",
     );
+    assert.ok(pdfRestartsSettled, "EdiPDF restarts did not settle; test root retained");
     assert.equal(dirname(root), resolve(tmpdir()));
     assert.ok(basename(root).startsWith("edi-native-"));
     await rm(root, { recursive: true, force: true });

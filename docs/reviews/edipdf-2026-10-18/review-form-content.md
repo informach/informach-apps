@@ -1,0 +1,13 @@
+# Review do primeiro perfil de edição interna de grupos
+
+18/10/2026. Perfil inicial aprovado após testes, revisão de contrato/recursos/isolamento e jornada Electron completa. [Implementação, limites e evidências](review-form-content-parcial.md); [defeito do motor reproduzido](probe-form-objects.md). Não é full review.
+
+O editor agora entra em um Form XObject do perfil, permite alterar seus elementos e isola somente a ocorrência escolhida. O conteúdo é editado em um PDF independente e recolocado em um recurso novo, preservando recorte BBox e posição do grupo. Nenhuma alteração direta no filho de um recurso compartilhado é usada para declarar persistência. Recursos, formulário e ocorrências não selecionadas permanecem.
+
+**251 testes do app aprovados**, tipos app/harness/testes, Biome dos arquivos da frente e build normal aprovados. Cinco testes de domínio cobrem Unicode/fonte, fonte/aparência de campo e fonte original intactas, isolamento/exclusão/movimento, clipping BBox, imagem com pixels conferidos, último elemento removido e recusas do perfil. A jornada nativa ampliada passou integralmente: edição dentro do grupo, fonte local, cópia salva relida, Unicode/campos, pixels completos da outra página, desfazer/refazer e original byte a byte. Também passaram todas as regressões anteriores, SDK/acesso, tarefas e reinício. Capturas inspecionadas: [prévia interna](form-objects-preview.png) e [resultado salvo](form-objects-saved.png).
+
+Evidências: `.cache/edipdf-analysis/test-form-content-all.txt`, `test-form-content.txt`, `typecheck-form-content.txt`, `types-form-native.txt`, `biome-form-content.txt`, `native-form-content.txt`, `build-form-content-normal.txt`. O build normal foi restaurado após as chaves efêmeras. A repetição também conferiu os refinamentos de fontes/recorte das frentes anteriores. Não houve commit/push/deploy, instalação ou publicação.
+
+O aceite é limitado a wrappers simples q/cm/Do/Q, Form Matrix identidade, até um nível de edição interna, sem tags/transparência/conteúdo opcional. Páginas mistas, matrizes/aninhamento/recortes compostos e recursos de acessibilidade precisam de ampliação e corpus. Recorte/substituição/extração de imagens internas têm implementação e testes de pixels; ainda precisam de jornada nativa própria. A prévia interna mostra o conteúdo de origem; a revisão do resultado ocorre na página após aplicar, com desfazer disponível. Não é prévia antecipada de todas as alterações de conteúdo.
+
+Continuidade: alças/fluxo de caixas, compatibilidade ampla de grupos/formulários, clipboard nativo isolado, complementos de lotes/Office/hardware, lote 5 e full review. Os gates ausentes não foram dispensados.

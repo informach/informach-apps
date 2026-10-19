@@ -45,6 +45,8 @@ interface Base {
   /** PageRef id. */
   page: string;
   opacity?: number;
+  locked?: boolean;
+  group?: string;
 }
 
 export interface TextAnnot extends Base {
@@ -58,6 +60,21 @@ export interface TextAnnot extends Base {
   color: string;
   bold?: boolean;
   italic?: boolean;
+}
+
+/** One editable fixed frame; wrapping/alignment are evaluated from its embedded font metrics. */
+export interface ParagraphAnnot extends Base, Box {
+  kind: "paragraph";
+  text: string;
+  size: number;
+  color: string;
+  bold?: boolean;
+  italic?: boolean;
+  align: "left" | "center" | "right" | "justify";
+  spacing: number;
+  padding: number;
+  list: "none" | "bullet" | "numbered";
+  fontData?: { name: string; data: string };
 }
 
 export interface ShapeAnnot extends Base, Box {
@@ -83,6 +100,7 @@ export interface InkAnnot extends Base {
   paths: number[][];
   stroke: string;
   width: number;
+  signature?: boolean;
 }
 
 export interface MarkupAnnot extends Base {
@@ -104,10 +122,13 @@ export interface NoteAnnot extends Base {
   y: number;
   text: string;
   color: string;
+  resolved?: boolean;
+  author?: string;
 }
 
 export type Annot =
   | TextAnnot
+  | ParagraphAnnot
   | ShapeAnnot
   | LineAnnot
   | InkAnnot
@@ -123,6 +144,29 @@ export interface Watermark {
   opacity: number;
   /** Degrees counter-clockwise. */
   angle: number;
+  position?: NumberPosition | "center" | "middle-left" | "middle-right";
+  marginX?: number;
+  marginY?: number;
+  fit?: boolean;
+  scope?: DecorationScope;
+}
+
+export interface DecorationScope {
+  /** Absent means all pages, including pages inserted later. IDs remain stable when reordered. */
+  pages?: string[];
+  except?: string[];
+}
+export type NumberStyle =
+  | "decimal"
+  | "roman-lower"
+  | "roman-upper"
+  | "letters-lower"
+  | "letters-upper";
+export interface PageNumberEntry {
+  format: string;
+  position: NumberPosition;
+  size?: number;
+  color?: string;
 }
 
 export type NumberPosition =
@@ -140,6 +184,14 @@ export interface PageNumbers {
   size: number;
   color: string;
   start: number;
+  marginX?: number;
+  marginY?: number;
+  scope?: DecorationScope;
+  countMode?: "physical" | "applied";
+  style?: NumberStyle;
+  padding?: number;
+  additional?: PageNumberEntry[];
+  writePageLabels?: boolean;
 }
 
 export interface DocMeta {
@@ -149,10 +201,13 @@ export interface DocMeta {
   keywords?: string;
 }
 
-export type FormValue = string | boolean;
+export type FormValue = string | boolean | string[];
 
 /** Everything undo/redo restores. */
 export interface DocContent {
+  /** Base for a structural revision; participates in undo/redo with its page references. */
+  baseSource?: string;
+  requiresCopy?: boolean;
   pages: PageRef[];
   annots: Annot[];
   watermark: Watermark | null;
@@ -216,6 +271,26 @@ export function viewToPdf(
   }
 }
 
+export function pdfToView(
+  r: Rotation,
+  crop: { x: number; y: number; w: number; h: number },
+  px: number,
+  py: number,
+): [number, number] {
+  const x = px - crop.x,
+    y = py - crop.y;
+  switch (r) {
+    case 0:
+      return [x, crop.h - y];
+    case 90:
+      return [y, x];
+    case 180:
+      return [crop.w - x, y];
+    case 270:
+      return [crop.h - y, crop.w - x];
+  }
+}
+
 /** Rotates a view-space point by 90° clockwise steps on a page of view size (W, H). */
 function rotatePoint(x: number, y: number, W: number, H: number, steps: number): [number, number] {
   let px = x;
@@ -258,6 +333,7 @@ export function rotateAnnot(
     case "ellipse":
       return { ...a, ...rotateBox(a, W, H, steps) };
     case "image":
+    case "paragraph":
       return { ...a, ...moveCenter(a.x, a.y, a.w, a.h) };
     case "text": {
       const s = size ?? { w: 0, h: 0 };
@@ -276,8 +352,13 @@ export function rotateAnnot(
         ...a,
         paths: a.paths.map((p) => {
           const out: number[] = [];
-          for (let i = 0; i < p.length; i += 2)
-            out.push(...rotatePoint(p[i], p[i + 1], W, H, steps));
+          for (let i = 0; i < p.length; i += 2) {
+            const x = p[i],
+              y = p[i + 1];
+            if (x === undefined || y === undefined)
+              throw new Error("Traçado contém um ponto incompleto.");
+            out.push(...rotatePoint(x, y, W, H, steps));
+          }
           return out;
         }),
       };
@@ -291,12 +372,27 @@ export function rotateAnnot(
 /** Splits text into lines the same way the overlay and the saved PDF both lay it out. */
 export const textLines = (text: string): string[] => text.replace(/\r/g, "").split("\n");
 
+export function sameText(a: TextAnnot, b: TextAnnot): boolean {
+  return (
+    a.text === b.text &&
+    a.font === b.font &&
+    a.size === b.size &&
+    a.color === b.color &&
+    !!a.bold === !!b.bold &&
+    !!a.italic === !!b.italic &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.opacity === b.opacity
+  );
+}
+
 /** Bounding box of an annotation in view space; text needs its measured size. */
 export function annotBounds(a: Annot, textSize?: { w: number; h: number }): Box {
   switch (a.kind) {
     case "rect":
     case "ellipse":
     case "image":
+    case "paragraph":
       return { x: a.x, y: a.y, w: a.w, h: a.h };
     case "text":
       return {
@@ -324,11 +420,16 @@ export function annotBounds(a: Annot, textSize?: { w: number; h: number }): Box 
       let y1 = -Infinity;
       for (const p of a.paths)
         for (let i = 0; i < p.length; i += 2) {
-          x0 = Math.min(x0, p[i]);
-          x1 = Math.max(x1, p[i]);
-          y0 = Math.min(y0, p[i + 1]);
-          y1 = Math.max(y1, p[i + 1]);
+          const x = p[i],
+            y = p[i + 1];
+          if (x === undefined || y === undefined)
+            throw new Error("Traçado contém um ponto incompleto.");
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
         }
+      if (!Number.isFinite(x0)) throw new Error("Traçado sem pontos.");
       const pad = a.width / 2;
       return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
     }
@@ -389,8 +490,25 @@ export function pageLabel(n: number, total: number, fmt: string): string {
   return fmt.replace(/\{n\}/g, String(n)).replace(/\{total\}/g, String(total));
 }
 
-/** Characters the standard PDF fonts (WinAnsi) can encode; others are replaced on save. */
+/** Legacy diagnostic conversion. The editor never uses lossy conversion when saving. */
 const WIN_ANSI_EXTRA = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+export function needsUnicodeFont(text: string): boolean {
+  return [...text].some((ch) => {
+    const c = ch.codePointAt(0) ?? 0;
+    return !(
+      c === 10 ||
+      c === 13 ||
+      c === 9 ||
+      (c >= 32 && c <= 126) ||
+      (c >= 160 && c <= 255) ||
+      WIN_ANSI_EXTRA.includes(ch)
+    );
+  });
+}
+export const cssFontForText = (font: FontKey, text: string): string =>
+  needsUnicodeFont(text) ? '"Edi Noto Sans", sans-serif' : CSS_FONT[font];
+export const baselineForText = (font: FontKey, text: string): number =>
+  needsUnicodeFont(text) ? 0.988 : BASELINE[font];
 export function toWinAnsi(text: string): string {
   let out = "";
   for (const ch of text) {

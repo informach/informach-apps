@@ -14,6 +14,7 @@
       "!**/out",
       "!**/release",
       "!apps/edipdf/src/renderer/public/pdfjs",
+      "!apps/edipdf/src/renderer/public/ocr",
       "!apps/edisvg/audits/etapa-01/fixtures",
       "!**/__snapshots__",
       "!**/test-results",

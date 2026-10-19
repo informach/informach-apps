@@ -21,6 +21,8 @@ import {
 import { useEffect, useState } from "react";
 import { insertFromFiles } from "../lib/actions";
 import { updateDraft } from "../lib/editing";
+import { isDocumentShortcut } from "../lib/keyboard";
+import { openPageDecorations } from "../lib/page-decorations";
 import { pageInfo } from "../lib/pdf";
 import {
   type DocState,
@@ -128,7 +130,7 @@ function Stepper({
         onChange={(e) => setText(e.target.value)}
         onBlur={() => set(Number(text.replace(",", ".")) || value)}
         onKeyDown={(e) => {
-          e.stopPropagation();
+          if (!isDocumentShortcut(e)) e.stopPropagation();
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
       />
@@ -234,6 +236,7 @@ function TextProps({
 }
 
 const KIND_LABEL: Record<Annot["kind"], string> = {
+  paragraph: "Caixa de texto",
   text: "Texto",
   rect: "Retângulo",
   ellipse: "Elipse",
@@ -252,6 +255,23 @@ function AnnotProps({ doc, a }: { doc: DocState; a: Annot }): React.ReactElement
     updateAnnot(doc.id, a.id, p);
   };
   const whiteout = a.kind === "rect" && !a.stroke && a.fill?.toUpperCase() === "#FFFFFF";
+  if (a.locked)
+    return (
+      <>
+        <h3 className="panel-title">Anotação bloqueada</h3>
+        <p className="panel-hint">Desbloqueie para editar, mover ou excluir.</p>
+        <button type="button" className="btn ghost" onClick={() => set({ locked: false })}>
+          Desbloquear anotação
+        </button>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => useApp.setState({ dialog: { kind: "annotations" } })}
+        >
+          Anotações e comentários
+        </button>
+      </>
+    );
   return (
     <>
       <h3 className="panel-title">
@@ -262,6 +282,21 @@ function AnnotProps({ doc, a }: { doc: DocState; a: Annot }): React.ReactElement
             : KIND_LABEL[a.kind]}
       </h3>
       {a.kind === "text" && <TextProps value={a} onChange={set} />}
+      {a.kind === "paragraph" && (
+        <>
+          <p className="panel-hint">
+            Arraste as alças para ajustar a caixa. Na janela de edição, ajuste quebra, alinhamento e
+            listas.
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => useApp.setState({ dialog: { kind: "paragraph", annotId: a.id } })}
+          >
+            Editar caixa de texto
+          </button>
+        </>
+      )}
       {(a.kind === "rect" || a.kind === "ellipse") && (
         <>
           <Field label="Contorno">
@@ -350,7 +385,20 @@ function AnnotProps({ doc, a }: { doc: DocState; a: Annot }): React.ReactElement
         </Field>
       )}
       <div className="panel-spacer" />
+      <div className="preferences-actions">
+        <button type="button" className="btn ghost sm" onClick={() => set({ locked: true })}>
+          Bloquear anotação
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => useApp.setState({ dialog: { kind: "annotations" } })}
+        >
+          Gerenciar anotações
+        </button>
+      </div>
       <p className="panel-hint">
+        {a.group ? "Alt + clique seleciona um item dentro do grupo. " : ""}
         {a.kind === "text" ? "Clique duas vezes para editar o texto. " : ""}Arraste para mover ·
         Delete para excluir · setas para ajustar
       </p>
@@ -384,7 +432,7 @@ const TOOL_TITLE: Partial<Record<Tool, string>> = {
 const TOOL_HINT: Partial<Record<Tool, string>> = {
   text: "Clique na página para escrever. Ctrl+Enter ou Esc termina.",
   edittext:
-    "Passe o mouse sobre o texto do PDF e clique na linha que quer alterar. O texto original é coberto e você digita a nova versão.",
+    "Clique no texto do PDF para abrir o editor de conteúdo original. A alteração modifica o objeto de texto no arquivo.",
   ink: "Arraste para desenhar à mão livre.",
   rect: "Arraste para desenhar. Shift mantém quadrado.",
   ellipse: "Arraste para desenhar. Shift mantém círculo.",
@@ -395,7 +443,7 @@ const TOOL_HINT: Partial<Record<Tool, string>> = {
   strike: "Selecione um trecho de texto para tachar.",
   note: "Clique na página para deixar um comentário.",
   whiteout:
-    "Arraste sobre o que quer esconder: um retângulo branco cobre a área. Combine com Texto para substituir conteúdo.",
+    "Adiciona uma cobertura visual branca. O conteúdo original permanece no arquivo e pode ser extraído. Esta ferramenta não remove dados confidenciais.",
   hand: "Arraste para navegar pelo documento.",
 };
 
@@ -518,10 +566,29 @@ function DocPanel({ doc }: { doc: DocState }): React.ReactElement {
       | "properties"
       | "insertBlank",
   ): void => {
+    if (kind === "watermark" || kind === "pageNumbers") {
+      openPageDecorations(kind);
+      return;
+    }
     useApp.setState({ dialog: { kind } });
   };
   const annots = doc.content.annots;
   const tools: { icon: React.ReactNode; label: string; run: () => void; on?: boolean }[] = [
+    {
+      icon: <MessageSquare size={15} />,
+      label: "Anotações e comentários",
+      run: () => useApp.setState({ dialog: { kind: "annotations" } }),
+    },
+    {
+      icon: <FileDigit size={15} />,
+      label: "Preparar formulário",
+      run: () => useApp.setState({ dialog: { kind: "forms" } }),
+    },
+    {
+      icon: <FileUp size={15} />,
+      label: "Marcadores, links e anexos",
+      run: () => useApp.setState({ dialog: { kind: "navigation" } }),
+    },
     {
       icon: <LayoutGrid size={15} />,
       label: "Organizar páginas",
@@ -587,14 +654,27 @@ function DocPanel({ doc }: { doc: DocState }): React.ReactElement {
       </dl>
       {doc.hasForms && (
         <p className="panel-note">
-          <FileDigit size={14} /> Este PDF tem campos de formulário. Clique neles na página para
-          preencher.
+          <FileDigit size={14} />{" "}
+          {doc.readOnly
+            ? "Este PDF contém campos em modo de leitura."
+            : "Este PDF tem campos de formulário. Clique neles na página para preencher."}
         </p>
       )}
       <h4 className="panel-sub">Ferramentas</h4>
       <div className="tool-list">
         {tools.map((t) => (
-          <button type="button" key={t.label} className="tool-row" onClick={t.run}>
+          <button
+            type="button"
+            key={t.label}
+            className="tool-row"
+            disabled={
+              doc.readOnly &&
+              !["Juntar PDFs", "Marcadores, links e anexos", "Propriedades do documento"].includes(
+                t.label,
+              )
+            }
+            onClick={t.run}
+          >
             {t.icon}
             <span>{t.label}</span>
             {t.on && <span className="pill">ativo</span>}

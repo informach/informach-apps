@@ -110,6 +110,26 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
       // references in executable README files, separate from the JS wrapper.
       notices.push(...files.filter((file) => file.isFile() && /\.exe\.README$/i.test(file.name)));
       if (notices.length === 0) {
+        // tr46 0.0.3 declares MIT but omits both README and license in its tarball.
+        // The author supplied the missing notice in upstream issue #4, commit
+        // 3a6f29721e7063b9ffd421e461a54beae6170001. Distribute that verbatim text;
+        // do not relax the missing-notice error for other packages or versions.
+        if (
+          appId === "edipdf" &&
+          dependency.name === "tr46" &&
+          dependency.versions.length === 1 &&
+          dependency.versions[0] === "0.0.3" &&
+          dependency.license === "MIT"
+        ) {
+          const content = await readFile(
+            fileURLToPath(
+              new URL("../../apps/edipdf/resources/licenses/TR46-MIT.txt", import.meta.url),
+            ),
+            "utf8",
+          );
+          documents.set(content, "LICENSE.md (author-supplied notice, upstream issue #4)");
+          continue;
+        }
         const readme = files.find((file) => file.isFile() && /^readme(\.|$)/i.test(file.name));
         if (!readme)
           throw new Error(`No license text or README is distributed by ${dependency.name}`);

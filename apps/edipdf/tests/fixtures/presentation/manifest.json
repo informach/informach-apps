@@ -1,0 +1,8 @@
+{
+  "generator": "python-pptx 1.0.2 / Pillow 12.3.0",
+  "sha256": "2872eeba279c615a71e14b831055c07934696d7c8470f7ce1f661f81b6405455",
+  "themeRectangleColor": "#4F81BD",
+  "cropVisibleRgb": [255, 0, 0],
+  "odpGenerator": "odfpy 1.4.1 / Pillow 12.3.0",
+  "odpSha256": "7fbd002ff42a22a9b927f404ff66cf94cbdad9b742675a5478ac7148f36fddd0"
+}

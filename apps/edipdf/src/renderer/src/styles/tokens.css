@@ -30,3 +30,26 @@
   /* Room for the native minimize/maximize/close buttons drawn over the top bar. */
   --window-controls-w: 140px;
 }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #f3f4f6;
+  --panel-3: #e8ebf0;
+  --line: #d7dce4;
+  --line-2: #c8cfda;
+  --stage: #e3e7ed;
+  --text-1: #18202c;
+  --text-2: #48576b;
+  --text-3: #607089;
+  --accent: #bf3028;
+  --accent-soft: #bf302814;
+  --accent-line: #bf302866;
+  --on-accent: #ffffff;
+  --ok: #147a42;
+  --danger: #b42318;
+  --select: #1d5ac8;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
