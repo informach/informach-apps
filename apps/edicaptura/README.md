@@ -165,7 +165,7 @@ Apenas uma operação rápida por vez; executor comum até4processos, stdout acu
 
 O teste de receita é portátil e integra `test`; os testes reais Windows ficam no script obrigatório `test:video-native`, selecionado pela capacidade do catálogo em `edi:media:test`. O workflow `edi-native` aguarda `edi-media`, baixa o mesmo bundle verificado e só então executa o renderer. Release e upgrade consultam a capacidade no catálogo; os upgrades dos consumidores de mídia aguardam sua construção/verificação. Não há skip por ausência de binário nem download de outro app.
 
-A fase 5c (som, contagem e pausa), a fase 6 (texto da imagem, dados sensíveis e passos) e a fase 7 (guias simples) foram implementadas em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). As demais fases seguem a ordem registrada lá.
+A fase 5c (som, contagem e pausa), a fase 6 (texto da imagem, dados sensíveis e passos) a fase 7 (guias simples) e o assistente da fase 8 foram implementados em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). As demais fases seguem a ordem registrada lá.
 
 ## Som, contagem e pausa — fase 5c
 
@@ -212,4 +212,19 @@ Verificação: `src/domain/ocr.test.ts` (ordem de leitura, correções e texto o
 Limites: 200 passos por guia, 25 MB por imagem de passo e 400 MB de imagens por guia. Uma captura com rolagem muito alta pode passar de 25 MB como PNG; nesse caso a interface mostra o erro e o guia continua como estava. Não há DOCX, modelos nem editor geral de documentos.
 
 Verificação: `src/main/guides.test.cjs` (passos e imagens, reordenação, imagens ausentes, inválidas ou de outro tamanho, lixeira, índice e backup; HTML escapado, sem script e autocontido), `tests/guides-renderer.cjs` no Chromium com o armazenamento real (a imagem do passo mostra a máscara e não o que estava por baixo, texto alternativo e ordem salvos, captura de passos, exportações, lixeira) e `tests/guide-pdf-native.cjs`, que imprime um guia de três passos no Electron real e confere o PDF de várias páginas e a remoção do arquivo temporário. Os dois últimos estão em `test:renderer`.
+
+## Assistente pela sua assinatura — fase 8
+
+O assistente é opcional e usa o **Claude Code** ou o **Codex** instalados no computador, com a conta da própria pessoa. O EdiCaptura não pede chave, não guarda credenciais, não usa créditos Edi e não oferece API paga ([decisão](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md)). Não é um chat: há duas tarefas delimitadas.
+
+- **Assistente (sua assinatura) → Sugerir título e etiquetas**, no painel lateral do editor, para a captura aberta.
+- **Sugerir textos com o assistente**, no editor de guias, que propõe título, descrição e texto alternativo de cada passo (até 20 passos por vez).
+
+Antes de enviar, **Conferir antes de enviar** mostra exatamente o que vai: a imagem final já saneada (com máscaras, pixelização e recorte, em JPEG de até 1280 px) e, só se a pessoa marcar, o texto visível reconhecido. Texto sob máscara ou fora do recorte nunca entra. O assistente recebe apenas uma ferramenta para ler a tarefa e outra para propor. Não há arquivos, terminal, biblioteca, originais nem outras capturas. O servidor MCP local do Captura responde só ao token da tarefa em curso, com escopos de leitura e proposta; qualquer outro token não vê ferramenta nenhuma. Não há botão Conectar para clientes externos.
+
+A proposta aparece para revisão. **Aplicar** usa a mesma atualização de nome e etiquetas da biblioteca (ou os campos do guia) e **Desfazer sugestão aplicada** volta ao que era. **Parar**, trocar de captura, sair da conta (aqui ou em outra ferramenta) ou fechar o app encerram a tarefa e o token, e uma resposta que chegue depois é descartada. Sem Claude Code ou Codex instalado, a revisão explica como instalar e o trabalho continua igual. Cada execução tem prazo de 10 minutos.
+
+Verificação: `src/main/assistant.test.cjs` usa o servidor MCP real e tokens de execução reais, com um motor substituto que age como o modelo pela rede local: só o token da tarefa vê as ferramentas, a proposta errada é recusada, a válida chega, e depois de **Parar** as chamadas tardias são recusadas sem entregar nada. `tests/assistant-renderer.cjs` cobre no Chromium a imagem conferida (com a máscara), o texto só quando marcado, aplicar/desfazer, a proposta tardia ignorada após trocar de captura, a falta de cliente e os textos do guia. Nenhum teste inicia Claude Code ou Codex reais nem consome assinatura.
+
+**Compartilhamento por link continua pendente.** Ele exige armazenamento privado no servidor, expiração, revogação e cotas, e esse armazenamento ainda não foi escolhido. Até lá, compartilhe os arquivos exportados (imagem, MP4/GIF, HTML ou PDF do guia).
 

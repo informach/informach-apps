@@ -1,4 +1,5 @@
 import "./guides.css";
+import { taskImage } from "./assistant.js";
 import { CanvasEditor } from "./canvas.js";
 
 const SAVE_DELAY = 600;
@@ -30,11 +31,11 @@ async function renderCapture(doc) {
  * alternative text, reordered by buttons, saved automatically, exported as one HTML file or a
  * PDF. "Capturar passos" appends each new capture to the guide instead of opening it.
  */
-export function mountGuides({ api, engine, current, toast }) {
+export function mountGuides({ api, engine, current, toast, assistant }) {
   const dialog = document.createElement("dialog");
   dialog.id = "guide-dialog";
   dialog.setAttribute("aria-label", "Guias");
-  dialog.innerHTML = `<header><h2>Guias</h2><button type="button" id="guide-close">Fechar</button></header><div class="guide-body"><aside><button type="button" id="guide-new" class="primary">Novo guia</button><label><input type="checkbox" id="guide-show-trash"> Lixeira</label><ul id="guide-list" aria-label="Guias salvos"></ul></aside><section id="guide-editor" hidden><label>Título<input id="guide-title" maxlength="120"></label><label>Descrição<textarea id="guide-description" maxlength="4000" rows="2"></textarea></label><label>Layout<select id="guide-layout"><option value="tutorial">Tutorial (um passo abaixo do outro)</option><option value="comparison">Comparação (dois por linha)</option></select></label><div class="guide-actions"><button type="button" id="guide-add-library">Adicionar da biblioteca</button><button type="button" id="guide-add-current">Adicionar captura aberta</button><button type="button" id="guide-session">Capturar passos</button><button type="button" id="guide-html">Exportar HTML</button><button type="button" id="guide-pdf">Exportar PDF</button><button type="button" id="guide-trash">Mover para a lixeira</button></div><div id="guide-picker" hidden><label>Buscar<input id="guide-picker-search" type="search"></label><ul id="guide-picker-list" aria-label="Capturas da biblioteca"></ul><button type="button" id="guide-picker-add" class="primary">Adicionar selecionadas</button><button type="button" id="guide-picker-cancel">Cancelar</button></div><p id="guide-status" role="status"></p><ol id="guide-steps" aria-label="Passos do guia"></ol><p class="muted">Cada passo guarda a imagem final da captura, com máscaras e recorte. O original não entra no guia.</p></section></div>`;
+  dialog.innerHTML = `<header><h2>Guias</h2><button type="button" id="guide-close">Fechar</button></header><div class="guide-body"><aside><button type="button" id="guide-new" class="primary">Novo guia</button><label><input type="checkbox" id="guide-show-trash"> Lixeira</label><ul id="guide-list" aria-label="Guias salvos"></ul></aside><section id="guide-editor" hidden><label>Título<input id="guide-title" maxlength="120"></label><label>Descrição<textarea id="guide-description" maxlength="4000" rows="2"></textarea></label><label>Layout<select id="guide-layout"><option value="tutorial">Tutorial (um passo abaixo do outro)</option><option value="comparison">Comparação (dois por linha)</option></select></label><div class="guide-actions"><button type="button" id="guide-add-library">Adicionar da biblioteca</button><button type="button" id="guide-add-current">Adicionar captura aberta</button><button type="button" id="guide-session">Capturar passos</button><button type="button" id="guide-html">Exportar HTML</button><button type="button" id="guide-pdf">Exportar PDF</button><button type="button" id="guide-trash">Mover para a lixeira</button></div><div class="guide-actions"><button type="button" id="guide-ai">Sugerir textos com o assistente</button><button type="button" id="guide-ai-stop" hidden>Parar assistente</button><button type="button" id="guide-ai-apply" hidden class="primary">Aplicar textos sugeridos</button><button type="button" id="guide-ai-discard" hidden>Descartar sugestão</button><button type="button" id="guide-ai-undo" hidden>Desfazer textos sugeridos</button></div><div id="guide-ai-preview" hidden></div><div id="guide-picker" hidden><label>Buscar<input id="guide-picker-search" type="search"></label><ul id="guide-picker-list" aria-label="Capturas da biblioteca"></ul><button type="button" id="guide-picker-add" class="primary">Adicionar selecionadas</button><button type="button" id="guide-picker-cancel">Cancelar</button></div><p id="guide-status" role="status"></p><ol id="guide-steps" aria-label="Passos do guia"></ol><p class="muted">Cada passo guarda a imagem final da captura, com máscaras e recorte. O original não entra no guia.</p></section></div>`;
   document.body.append(dialog);
   const banner = document.createElement("div");
   banner.id = "guide-banner";
@@ -133,6 +134,7 @@ export function mountGuides({ api, engine, current, toast }) {
     const empty = !guide.steps.length;
     $("guide-html").disabled = empty || !guide.id;
     $("guide-pdf").disabled = empty || !guide.id;
+    renderAi();
     $("guide-steps").replaceChildren(
       ...guide.steps.map((step, index) => {
         const li = document.createElement("li");
@@ -351,6 +353,106 @@ export function mountGuides({ api, engine, current, toast }) {
       const file = await api.guideExport({ id: guide.id, format });
       status(file ? `Exportado: ${file}` : "Exportação cancelada.");
     });
+  // The assistant (phase 8): titles, descriptions and alternative texts for the steps, reviewed
+  // before sending and applied, or not, by the person; one undo restores the previous texts.
+  let suggestion = null,
+    undoTexts = null;
+  function renderAi() {
+    const busy = !!assistant?.busy("guide-texts");
+    $("guide-ai").disabled = !assistant || !guide?.id || !guide.steps.length || busy;
+    $("guide-ai-stop").hidden = !busy;
+    const fits = suggestion && suggestion.targetId === guide?.id;
+    $("guide-ai-apply").hidden = !fits;
+    $("guide-ai-discard").hidden = !fits;
+    $("guide-ai-preview").hidden = !fits;
+    $("guide-ai-undo").hidden = !(undoTexts && undoTexts.targetId === guide?.id);
+    if (!fits) return;
+    const byId = new Map(guide.steps.map((step, index) => [step.id, index + 1]));
+    $("guide-ai-preview").replaceChildren(
+      ...suggestion.proposal.steps.map((step) => {
+        const item = document.createElement("p");
+        item.textContent = `Passo ${byId.get(step.stepId) ?? "?"}: “${step.title}” — ${step.description} [alt: ${step.alt}]`;
+        return item;
+      }),
+    );
+  }
+  $("guide-ai").onclick = safe(async () => {
+    await save();
+    if (guide.steps.length > 20) throw new Error("O assistente recebe até 20 passos por vez.");
+    const context = {
+      task: "guide-texts",
+      targetId: guide.id,
+      title: guide.title,
+      steps: await Promise.all(
+        guide.steps.map(async (step) => ({
+          stepId: step.id,
+          title: step.title,
+          description: step.description,
+          alt: step.alt,
+          image: await taskImage(images.get(step.assetId)),
+        })),
+      ),
+    };
+    const chosen = await assistant.review(context);
+    if (!chosen) return;
+    suggestion = null;
+    const { name } = await assistant.run(chosen.context, chosen.client, {
+      event: (event) => {
+        if (event.type === "error") status(`${name}: ${event.message}`);
+        else if (event.type === "tool") status(`${name}: ${event.title}…`);
+      },
+      proposal: (event) => {
+        suggestion = event;
+        status("Textos sugeridos prontos para revisar.");
+        renderAi();
+      },
+      end: () => renderAi(),
+    });
+    status(`${name} está trabalhando…`);
+    renderAi();
+  });
+  $("guide-ai-stop").onclick = () => {
+    assistant.stop("guide-texts");
+    status("Assistente interrompido.");
+    renderAi();
+  };
+  $("guide-ai-discard").onclick = () => {
+    suggestion = null;
+    renderAi();
+  };
+  $("guide-ai-apply").onclick = () => {
+    if (suggestion?.targetId !== guide?.id) return;
+    const before = guide.steps.map(({ id, title, description, alt }) => ({
+      id,
+      title,
+      description,
+      alt,
+    }));
+    let applied = 0;
+    for (const proposed of suggestion.proposal.steps) {
+      const step = guide.steps.find((item) => item.id === proposed.stepId);
+      if (!step) continue;
+      step.title = proposed.title;
+      step.description = proposed.description;
+      step.alt = proposed.alt;
+      applied++;
+    }
+    undoTexts = { targetId: guide.id, before };
+    suggestion = null;
+    renderSteps();
+    changed();
+    toast(`${applied} passo(s) atualizado(s). “Desfazer textos sugeridos” volta ao que era.`);
+  };
+  $("guide-ai-undo").onclick = () => {
+    if (undoTexts?.targetId !== guide?.id) return;
+    for (const previous of undoTexts.before) {
+      const step = guide.steps.find((item) => item.id === previous.id);
+      if (step) Object.assign(step, previous);
+    }
+    undoTexts = null;
+    renderSteps();
+    changed();
+  };
   return {
     /**
      * During "Capturar passos", a new image capture becomes the next step of the guide and the

@@ -251,5 +251,11 @@ export function mountTextPanel({ api, engine, current, toast }) {
     status(`${chosen.length} máscara(s) opaca(s) adicionada(s). Desfazer remove todas de uma vez.`);
     render();
   });
-  return { activate, render };
+  /** The text the final image shows, for the assistant's review; empty without recognized text. */
+  function shareableText() {
+    if (!sidecar) return "";
+    return visibleText(ocrLines(sidecar), { annotations: engine.annotations, crop: engine.crop })
+      .text;
+  }
+  return { activate, render, shareableText };
 }

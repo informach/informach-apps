@@ -45,6 +45,12 @@ const scrollWorkerEntry = path.join(
 const { allowCapturePermission } = require("./capture-permission.cjs");
 const { VideoOptionsStore } = require("./video-options.ts");
 const { GuideStore } = require("./guides.ts");
+const { createCaptureAssistant } = require("./assistant.ts");
+const {
+  clientStatus: aiClientStatus,
+  createAssistantEngines,
+} = require("@informach/edi-desktop/ai-clients");
+const { ASSISTANT_GUIDE, ASSISTANT_TOOLS } = require("../domain/assistant.ts");
 const { guidePdf } = require("./guide-export.cjs");
 const { RECORDING_PHASES } = require("../domain/video-options.ts");
 const { pixelRect } = require("../capture/geometry.cjs");
@@ -55,6 +61,8 @@ if (!app.isPackaged && process.env.EDICAPTURA_TEST_PROFILE)
   app.setPath("userData", path.resolve(process.env.EDICAPTURA_TEST_PROFILE));
 const desktop = createEdiDesktop({
   appId: "edicaptura",
+  // Signing out here or in another tool ends the assistant's task and its token.
+  onSignedOut: () => assistant?.stop(),
   preloadPath: path.join(__dirname, "../preload/edi-gate.cjs"),
   rendererRoot: path.join(__dirname, "../renderer"),
   getRecoveryWindow: () =>
@@ -148,6 +156,7 @@ function startPhoto(input) {
   );
   return photoCapture.start(input, String(display.id));
 }
+let assistant = null;
 let libraryWorkflow,
   librarySwitch = false,
   tray = null;
@@ -1282,6 +1291,34 @@ async function initialize() {
   handle("library:list", ["editor"], (query) => library.list(query));
   handle("library:read", ["editor"], (id) => library.read(id));
   handle("library:update", ["editor"], (data) => library.updateMetadata(data));
+  // Optional assistant on the person's own Claude Code/Codex subscription (phase 8).
+  const aiLaunch = () => ({ allowElectronRuntime: !app.isPackaged, personalOnly: true });
+  assistant = createCaptureAssistant({
+    version: app.getVersion(),
+    emit: (event) => send("ai-event", event),
+    engines: createAssistantEngines({
+      appName: "EdiCaptura",
+      server: { name: "edicaptura", tokenEnv: "EDICAPTURA_MCP_TOKEN" },
+      systemPrompt: ASSISTANT_GUIDE,
+      workspace: () => {
+        const dir = path.join(app.getPath("userData"), "ai-workspace");
+        require("node:fs").mkdirSync(dir, { recursive: true });
+        return dir;
+      },
+      toolTitle: (name) => ASSISTANT_TOOLS[name]?.title ?? name,
+      launchOptions: aiLaunch,
+      personalOnly: true,
+      sessions: false,
+      scopes: ["read", "propose"],
+      timeoutMs: 10 * 60_000,
+      warn: (event) => console.warn(`[edicaptura] ${event}`),
+    }),
+  });
+  handle("ai:clients", ["editor"], () =>
+    aiClientStatus({ ...aiLaunch(), port: 0, serverName: "edicaptura" }),
+  );
+  handle("ai:task-start", ["editor"], (input) => assistant.start(input));
+  handle("ai:task-stop", ["editor"], () => assistant.stop());
   // Guides live in the current library folder; a root switch gives a new store.
   let guides = null;
   const guideStore = () => {
@@ -1743,5 +1780,8 @@ else {
       app.quit();
     });
 }
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  void assistant?.close();
+});
 app.on("window-all-closed", () => app.quit());

@@ -1,4 +1,5 @@
 import { hydrateIcons, icon } from "../shared/icons.js";
+import { createAssistant, mountCaptureAssistant } from "./assistant.js";
 import { CanvasEditor } from "./canvas.js";
 import { mountGuides } from "./guides.js";
 import { mountLibrary } from "./library.js";
@@ -10,7 +11,7 @@ import { mountTextPanel } from "./text-panel.js";
 hydrateIcons();
 const $ = (id) => document.getElementById(id),
   api = window.edi;
-let quickPanel, textPanel, guidePanel;
+let quickPanel, textPanel, guidePanel, assistantPanel;
 let current = null,
   entries = [],
   zoom = 1,
@@ -362,6 +363,7 @@ async function activateDocument(doc, generation, request, authority) {
   current = doc;
   quickPanel?.activate(doc);
   textPanel?.activate(doc);
+  assistantPanel?.activate(doc);
   revision = 0;
   savedRevision = 0;
   visualRevision = savedVisualRevision = 0;
@@ -993,6 +995,7 @@ function clearDocument() {
   revision = savedRevision = visualRevision = savedVisualRevision = 0;
   engine.clear();
   textPanel?.activate(null);
+  assistantPanel?.activate(null);
   $("document-name").value = "Nenhuma captura aberta";
   $("save-status").textContent = "";
   $("video-preview").pause();
@@ -1320,7 +1323,26 @@ quickPanel.activate(current);
 quickPanel.show(view === "editor");
 textPanel = mountTextPanel({ api, engine, current: () => current, toast });
 textPanel.activate(current);
-guidePanel = mountGuides({ api, engine, current: () => current, toast });
+const assistant = createAssistant({ api });
+guidePanel = mountGuides({ api, engine, current: () => current, toast, assistant });
+assistantPanel = mountCaptureAssistant({
+  assistant,
+  engine,
+  current: () => current,
+  visibleText: () => textPanel.shareableText(),
+  toast,
+  // Name and tags go through the same metadata update as the library; undo uses it too.
+  apply: async ({ name, tags }) => {
+    const target = current;
+    await api.update({ id: target.id, name, tags });
+    if (current !== target) return;
+    target.name = name;
+    target.tags = tags;
+    $("document-name").value = name;
+    await refreshLibrary();
+  },
+});
+assistantPanel.activate(current);
 // Steps (A04): renumbering is always explicit and previewed; repeated numbers from older
 // projects change only here. A number given to a step that another uses swaps the two.
 const stepTools = document.createElement("details");
