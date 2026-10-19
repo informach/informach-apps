@@ -1,67 +1,40 @@
-import { createServer } from "node:http";
-import { authorizeLocalMcp } from "@informach/edi-desktop/access";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { AI_TOOLS, EDITOR_GUIDE } from "../shared/aiTools.js";
-export async function startMcpServer(call, port = 47322) {
-  const http = createServer(async (req, res) => {
-    if (!authorizeLocalMcp(req)) {
-      res.writeHead(403).end("MCP authentication and an active Edi license are required");
-      return;
-    }
-    if (req.headers.origin || !/^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host || "")) {
-      res.writeHead(403).end();
-      return;
-    }
-    if (req.url !== "/mcp") {
-      res.writeHead(404).end();
-      return;
-    }
-    if (req.method !== "POST") {
-      res.writeHead(405).end();
-      return;
-    }
-    let server, transport;
-    try {
-      const chunks = [];
-      let size = 0;
-      for await (const chunk of req) {
-        size += chunk.length;
-        if (size > 1024 * 1024) {
-          res.writeHead(413).end();
-          return;
-        }
-        chunks.push(chunk);
-      }
-      const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      server = new McpServer({ name: "edisvg", version: "0.2.0" }, { instructions: EDITOR_GUIDE });
-      for (const [name, tool] of Object.entries(AI_TOOLS))
-        server.registerTool(
-          name,
-          { description: tool.description, inputSchema: tool.input },
-          async (args) => {
-            const r = await call(name, args);
-            return { content: [{ type: "text", text: r.text }], isError: !r.ok };
-          },
-        );
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined,
-        enableJsonResponse: true,
-      });
-      res.on("close", () => {
-        void transport.close();
-        void server.close();
-      });
-      await server.connect(transport);
-      await transport.handleRequest(req, res, body);
-    } catch {
-      if (!res.headersSent) res.writeHead(400);
-      res.end("Requisição MCP inválida.");
-    }
+import { isGrantLive } from "@informach/edi-desktop/access";
+import {
+  createToolGuard,
+  describeArguments,
+  startLocalMcpServer,
+} from "@informach/edi-desktop/mcp-server";
+import { AI_TOOLS, EDITOR_GUIDE, toolPermission } from "../shared/aiTools.js";
+import { MCP_PORT, MCP_SERVER } from "./engines.js";
+
+const guard = createToolGuard({
+  appName: "EdiSVG",
+  permission: toolPermission,
+  title: (name) => name,
+  describe: describeArguments,
+});
+
+/**
+ * EdiSVG's local MCP endpoint (@informach/edi-desktop/mcp-server): 127.0.0.1 only, no web
+ * pages, a token per request and at most 1 MB per request. Reads run for any grant; edits need
+ * the write scope (the in-app assistant's runs) or the person's approval (`approve`).
+ */
+export function startMcpServer({ call, approve, port = MCP_PORT, version = "0.0.0" }) {
+  return startLocalMcpServer({
+    port,
+    name: MCP_SERVER.name,
+    version,
+    instructions: EDITOR_GUIDE,
+    tools: AI_TOOLS,
+    bodyLimit: 1024 * 1024,
+    call: (grant, name, args) =>
+      guard.guarded(grant, name, args, {
+        approve,
+        live: isGrantLive,
+        call: (tool, input, _meta, allowed) =>
+          allowed()
+            ? call(tool, input)
+            : Promise.resolve({ ok: false, text: "Este acesso terminou. Nada foi feito." }),
+      }),
   });
-  await new Promise((resolve, reject) => {
-    http.once("error", reject);
-    http.listen(port, "127.0.0.1", resolve);
-  });
-  return http;
 }

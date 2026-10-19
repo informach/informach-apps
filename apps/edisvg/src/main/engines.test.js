@@ -1,32 +1,63 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { engineArguments, parseEngineEvent } from "./engines.js";
+import { createEngineRunner, panelEvent, providerClient } from "./engines.js";
 
-test("CLI arguments never interpolate the user prompt into a shell command", () => {
-  const options = { url: "http://127.0.0.1:47322/mcp", prompt: "hello & whoami", model: "" };
-  for (const provider of ["claude", "codex"])
-    assert.ok(!engineArguments(provider, options).includes(options.prompt));
-  assert.ok(engineArguments("claude", options).includes("--strict-mcp-config"));
-  assert.ok(engineArguments("codex", options).includes("read-only"));
-  assert.throws(() => engineArguments("invalid", options));
+test("the panel's providers map to the official clients and nothing else", () => {
+  assert.equal(providerClient("claude"), "claude-code");
+  assert.equal(providerClient("codex"), "codex");
+  for (const provider of ["invalid", "toString", "__proto__", undefined])
+    assert.throws(() => providerClient(provider), /Provedor inválido/);
 });
-test("parses streaming Claude and Codex output and failures", () => {
+
+test("run events reach the panel in its own shape", () => {
+  assert.deepEqual(panelEvent({ type: "text", delta: "Olá" }), { type: "text", text: "Olá" });
   assert.deepEqual(
-    parseEngineEvent("claude", {
-      type: "stream_event",
-      event: { delta: { type: "text_delta", text: "Olá" } },
+    panelEvent({
+      type: "tool",
+      id: "1",
+      name: "mcp__edisvg__get_overview",
+      title: "get_overview",
+      status: "running",
     }),
-    { type: "text", text: "Olá" },
+    { type: "tool", text: "get_overview" },
   );
-  assert.equal(
-    parseEngineEvent("codex", {
-      type: "item.completed",
-      item: { type: "agent_message", text: "Pronto" },
-    }).text,
-    "Pronto\n",
-  );
-  assert.equal(
-    parseEngineEvent("codex", { type: "turn.failed", error: { message: "Login" } }).type,
-    "error",
-  );
+  assert.equal(panelEvent({ type: "tool", id: "1", name: "", title: "", status: "done" }), null);
+  assert.deepEqual(panelEvent({ type: "error", message: "Login" }), {
+    type: "error",
+    text: "Login",
+  });
+  assert.equal(panelEvent({ type: "quota", level: "ok", text: "ok" }), null);
+  assert.deepEqual(panelEvent({ type: "quota", level: "blocked", text: "Limite" }), {
+    type: "error",
+    text: "Limite",
+  });
+  assert.equal(panelEvent({ type: "usage", tokens: 3 }), null);
+  assert.equal(panelEvent({ type: "done" }), null);
+});
+
+test("invalid messages, models and providers are refused before any client starts", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "edisvg-ai-"));
+  const events = [];
+  try {
+    const runner = createEngineRunner(workspace, "http://127.0.0.1:47322/mcp", (e) =>
+      events.push(e),
+    );
+    await assert.rejects(runner.send({ provider: "claude", prompt: "  " }), /Mensagem inválida/);
+    await assert.rejects(
+      runner.send({ provider: "claude", prompt: "x".repeat(32001) }),
+      /longa demais/,
+    );
+    await assert.rejects(
+      runner.send({ provider: "claude", prompt: "oi", model: "a b; rm" }),
+      /Modelo inválido/,
+    );
+    await assert.rejects(runner.send({ provider: "outro", prompt: "oi" }), /Provedor inválido/);
+    assert.equal(runner.busy(), false);
+    assert.deepEqual(events, []);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
