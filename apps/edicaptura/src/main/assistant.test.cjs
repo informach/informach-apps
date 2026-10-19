@@ -198,6 +198,22 @@ test("tarefa de guia: só passos da tarefa e textos dentro dos limites", async (
   await assistant.close();
 });
 
+test("parar enquanto a tarefa ainda prepara o servidor impede a execução", async () => {
+  let ran = 0;
+  const { engines } = stand(async () => {
+    ran++;
+  });
+  const assistant = createCaptureAssistant({ engines, emit() {}, version: "0" });
+  try {
+    const starting = assistant.start({ client: "claude-code", context: capture() });
+    assistant.stop();
+    await assert.rejects(starting, /interrompida/);
+    assert.equal(ran, 0);
+  } finally {
+    await assistant.close();
+  }
+});
+
 async function waitFor(condition, timeout = 10_000) {
   const started = Date.now();
   while (!condition()) {

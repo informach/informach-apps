@@ -168,16 +168,30 @@ const SOURCES = [
   { id: "mic", key: "microphone", name: "Microfone" },
   { id: "system", key: "system", name: "Áudio do PC" },
 ];
+// Each source line shows the device message (which microphone, fallback, failure) and, after
+// it, what the meter finds; the meter never erases the device message.
+const notes = { mic: { device: "", level: "" }, system: { device: "", level: "" } };
+function showNote(id) {
+  $(`${id}-status`).textContent = [notes[id].device, notes[id].level].filter(Boolean).join(" · ");
+}
+function deviceNote(id, text) {
+  notes[id].device = text;
+  showNote(id);
+}
 function showLevels(levels) {
   for (const { id, key, name } of SOURCES) {
     const level = levels[key];
     $(`${id}-level`).value = level ? Math.max(METER_FLOOR, level.db) : METER_FLOOR;
-    if (!level) continue;
-    $(`${id}-status`).textContent = level.clipping
-      ? `${name} alto demais: baixe o volume.`
-      : key === "microphone" && level.silentFor >= 10
-        ? "Microfone em silêncio há mais de 10 s."
-        : "";
+    const note = !level
+      ? ""
+      : level.clipping
+        ? `${name} alto demais: baixe o volume.`
+        : key === "microphone" && level.silentFor >= 10
+          ? "Microfone em silêncio há mais de 10 s."
+          : "";
+    if (note === notes[id].level) continue;
+    notes[id].level = note;
+    showNote(id);
   }
 }
 function ensureMix() {
@@ -194,6 +208,7 @@ async function saveOptions() {
     error(e);
   }
 }
+/** Lists the microphones; returns true when the saved one is gone and the default is used. */
 async function listMicrophones() {
   const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
     (device) => device.kind === "audioinput" && device.deviceId !== "default",
@@ -202,25 +217,41 @@ async function listMicrophones() {
   select.replaceChildren(new Option("Padrão do Windows", ""));
   for (const device of devices)
     select.append(new Option(device.label || "Microfone sem nome", device.deviceId));
-  if (
-    options.microphone.deviceId &&
-    !devices.some((device) => device.deviceId === options.microphone.deviceId)
-  ) {
-    $("mic-status").textContent = "O microfone escolhido não está conectado; usando o padrão.";
-    options.microphone.deviceId = "";
-  }
+  const missing =
+    !!options.microphone.deviceId &&
+    !devices.some((device) => device.deviceId === options.microphone.deviceId);
+  if (missing) options.microphone.deviceId = "";
   select.value = options.microphone.deviceId;
+  return missing;
 }
 async function openMicrophone() {
   mix?.remove("microphone");
   if (!options.microphone.enabled) return;
   try {
-    const opened = await ensureMix().addMicrophone(options.microphone);
+    let opened,
+      fellBack = false;
+    try {
+      opened = await ensureMix().addMicrophone(options.microphone);
+    } catch (error) {
+      // The saved microphone is not connected: fall back to the Windows default.
+      if (
+        !options.microphone.deviceId ||
+        !["OverconstrainedError", "NotFoundError"].includes(error?.name)
+      )
+        throw error;
+      options.microphone.deviceId = "";
+      fellBack = true;
+      opened = await ensureMix().addMicrophone(options.microphone);
+    }
     await mix.start();
-    await listMicrophones();
-    $("mic-status").textContent = opened.label ? `Ouvindo: ${opened.label}` : "";
+    if (await listMicrophones()) fellBack = true;
+    if (fellBack) {
+      // Saved, so the next recording starts on the default without the same failure.
+      await saveOptions();
+      deviceNote("mic", "O microfone escolhido não está conectado; usando o padrão do Windows.");
+    } else deviceNote("mic", opened.label ? `Ouvindo: ${opened.label}` : "");
   } catch (e) {
-    $("mic-status").textContent = `Microfone indisponível: ${e.message} A gravação segue sem ele.`;
+    deviceNote("mic", `Microfone indisponível: ${e.message} A gravação segue sem ele.`);
   }
 }
 function renderSound() {

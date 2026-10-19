@@ -79,7 +79,7 @@ class Library {
   async list(query) {
     await this.queue;
     await this.loadIndex();
-    if (query?.content) await this.loadContent();
+    if (query?.content && !this.contentLoaded) await this.transaction(() => this.loadContent());
     return query === undefined ? this.index.query({}).items : this.index.query(query);
   }
   /** Recognized text for the optional content search, read once from the sidecars. */

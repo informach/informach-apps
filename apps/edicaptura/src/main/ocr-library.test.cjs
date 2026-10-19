@@ -131,3 +131,17 @@ test("busca por conteúdo em 10.000 capturas não trunca o texto", async (t) => 
   t.diagnostic(`10.000 capturas, ~3.800 caracteres cada: ${elapsed.toFixed(1)} ms`);
   assert.ok(elapsed < 2000, `busca levou ${elapsed} ms`);
 });
+
+test("reimportar o mesmo projeto continua reutilizando, mesmo com texto reconhecido aqui", async (t) => {
+  const { importProject } = require("./portable.ts");
+  const lib = await fixture(t);
+  const doc = await lib.save({ name: "Formulário" }, png(400, 300));
+  const exported = await snapshot(lib.root, doc.id);
+  await lib.saveOcr({
+    id: doc.id,
+    languages: ["por"],
+    result: result(400, 300, [["Nome", 0, 10, 10]]),
+  });
+  const again = await importProject(lib.root, exported);
+  assert.deepEqual(again, { id: doc.id, reused: true });
+});

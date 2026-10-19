@@ -60,3 +60,19 @@ test("texto sob máscara, pixelização ou fora do recorte não sai com a imagem
   const arrow = annotationSchema.parse({ kind: "arrow", x: 0, y: 0, x2: 400, y2: 300 });
   assert.equal(visibleText(lines, { annotations: [arrow], crop: null }).hidden, 0);
 });
+
+test("máscara girada esconde tudo o que os cantos girados cobrem", () => {
+  const lines = ocrLines({ result, edits: {} });
+  // A thin mask beside the CPF line, turned 90°: upright it misses the line, turned it covers it.
+  const turned = annotationSchema.parse({
+    kind: "redact",
+    x: 190,
+    y: 160,
+    x2: 200,
+    y2: 260,
+    rotation: 90,
+  });
+  const upright = annotationSchema.parse({ kind: "redact", x: 190, y: 160, x2: 200, y2: 260 });
+  assert.equal(visibleText(lines, { annotations: [upright], crop: null }).hidden, 0);
+  assert.equal(visibleText(lines, { annotations: [turned], crop: null }).hidden, 1);
+});

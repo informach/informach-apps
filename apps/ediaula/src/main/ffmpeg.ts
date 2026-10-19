@@ -72,7 +72,8 @@ export function cacheDir(path: string): string {
 }
 
 export async function probe(path: string): Promise<ProbeResult> {
-  const info = await media.probe(path);
+  // A missing duration stays 0, as before: recovery measures partial takes its own way.
+  const info = await media.probe(path, undefined, { scanPackets: false });
   return {
     kind: info.kind,
     duration: info.duration,

@@ -9,7 +9,8 @@ import { z } from "zod";
 export const GUIDE_EXTENSION = "guide";
 export const MAX_GUIDE_STEPS = 200;
 export const MAX_STEP_IMAGE_BYTES = 25 * 1024 * 1024;
-export const MAX_GUIDE_IMAGE_BYTES = 400 * 1024 * 1024;
+/** Base64 inside one HTML string: 300 MB of images stay well under V8's string limit. */
+export const MAX_GUIDE_IMAGE_BYTES = 300 * 1024 * 1024;
 export const guideLayouts = ["tutorial", "comparison"] as const;
 
 export const guideStepSchema = z.strictObject({

@@ -74,9 +74,12 @@ export function mountTextPanel({ api, engine, current, toast }) {
           else edits[String(line.line)] = input.value;
           const id = doc().id;
           const next = await api.ocrEdit({ id, edits });
+          // Only the corrected line changes: re-rendering the list would take the keyboard
+          // focus away from the line the person moved to with Tab.
           if (doc()?.id === id) {
             sidecar = next;
-            render();
+            const edited = next.edits[String(line.line)];
+            input.title = edited !== undefined && edited !== line.read ? `Lido: ${line.read}` : "";
           }
         });
         item.append(input);
@@ -177,7 +180,11 @@ export function mountTextPanel({ api, engine, current, toast }) {
         },
       );
       if (mine !== generation || doc()?.id !== target.id) return;
-      const saved = await api.ocrSave({ id: target.id, languages, result });
+      const saved = await api.ocrSave({
+        id: target.id,
+        languages,
+        resultJson: JSON.stringify(result),
+      });
       if (mine !== generation) return;
       sidecar = saved;
       status(

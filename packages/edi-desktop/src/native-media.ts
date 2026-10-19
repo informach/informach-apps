@@ -232,7 +232,16 @@ export class NativeMedia {
     for (const [key, group] of this.running)
       if (key === id || key.startsWith(`${id}:`)) for (const child of group) child.kill("SIGKILL");
   }
-  async probe(file: string, signal?: AbortSignal): Promise<MediaInfo> {
+  /**
+   * `scanPackets` (default) measures a missing duration from packet timestamps and refuses an
+   * unusable one. Without it a missing duration is reported as 0, for consumers that measure
+   * damaged or partial files their own way (EdiAula's take recovery).
+   */
+  async probe(
+    file: string,
+    signal?: AbortSignal,
+    { scanPackets = true }: { scanPackets?: boolean } = {},
+  ): Promise<MediaInfo> {
     if (!isAbsolute(file) || !statSync(file).isFile()) throw new Error("Mídia local inválida.");
     const text = await this.run(
       this.paths.ffprobe,
@@ -278,7 +287,8 @@ export class NativeMedia {
       ? 0
       : Number(info.format?.duration ?? video?.duration ?? audio?.duration ?? 0);
     // Streaming WebM often lacks a duration header. Read packet timestamps, never guess by bytes.
-    if (!isImage && !(duration > 0 && Number.isFinite(duration))) {
+    if (!Number.isFinite(duration)) duration = 0;
+    if (scanPackets && !isImage && !(duration > 0)) {
       let tail = "",
         count = 0,
         maximum = 0;
@@ -316,7 +326,7 @@ export class NativeMedia {
       if (tail) line(tail);
       duration = maximum;
     }
-    if (!isImage && (!Number.isFinite(duration) || duration <= 0 || duration > 86400))
+    if (scanPackets && !isImage && (duration <= 0 || duration > 86400))
       throw new Error("Duração de mídia inválida ou superior a 24 horas.");
     const rate = (value?: string) => {
       const [a = 0, b = 0] = (value ?? "0").split("/").map(Number);

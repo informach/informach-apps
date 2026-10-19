@@ -1370,7 +1370,17 @@ async function initialize() {
     return result.filePath;
   });
   handle("ocr:read", ["editor"], (id) => library.readOcr(id));
-  handle("ocr:save", ["editor"], (input) => library.saveOcr(input));
+  // The recognized words cross as one JSON string: a long scroll capture has more words than
+  // the IPC structure limit allows as objects. The library validates the parsed result.
+  handle("ocr:save", ["editor"], (input) => {
+    if (typeof input?.resultJson !== "string" || input.resultJson.length > 30_000_000)
+      throw new Error("Texto reconhecido inválido.");
+    return library.saveOcr({
+      id: input.id,
+      languages: input.languages,
+      result: JSON.parse(input.resultJson),
+    });
+  });
   handle("ocr:edit", ["editor"], (input) => library.editOcr(input));
   handle("ocr:delete", ["editor"], (id) => library.deleteOcr(id));
   handle("ocr:copy-text", ["editor"], (text) => {

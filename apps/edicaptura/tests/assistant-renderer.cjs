@@ -148,6 +148,11 @@ async function run() {
     await page.locator("#ai-capture-details").click();
     await page.waitForFunction(() => document.querySelector("#ai-review").open);
     assert.equal(await page.locator("#ai-review-images img").count(), 1);
+    // Name and tags also go to the model, so the review shows them.
+    assert.match(
+      await page.locator("#ai-review-meta").inputValue(),
+      /Nome: Captura 3\nEtiquetas: antigo/,
+    );
     assert.equal(await page.locator("#ai-review-text").inputValue(), "Relatório de vendas");
     assert.equal(await page.locator("#ai-review-include-text").isChecked(), false);
     const shown = await page.locator("#ai-review-images img").getAttribute("src");

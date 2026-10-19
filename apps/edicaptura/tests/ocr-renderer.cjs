@@ -50,7 +50,8 @@ async function run() {
       let doc = null;
       const api = {
         ocrRead: async () => null,
-        ocrSave: async ({ id, languages, result }) => {
+        ocrSave: async ({ id, languages, resultJson }) => {
+          const result = JSON.parse(resultJson);
           fixture.saved.push({ id, words: result.words.length, height: result.height });
           fixture.last = {
             version: 1,

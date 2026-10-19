@@ -37,7 +37,7 @@ export function createAssistant({ api }) {
   const dialog = document.createElement("dialog");
   dialog.id = "ai-review";
   dialog.setAttribute("aria-labelledby", "ai-review-title");
-  dialog.innerHTML = `<h2 id="ai-review-title">Conferir antes de enviar</h2><p>Vai para o assistente escolhido, com a sua própria conta. O EdiCaptura não envia mais nada: nem originais, nem outras capturas, nem arquivos.</p><div id="ai-review-images"></div><label id="ai-review-text-label"><input type="checkbox" id="ai-review-include-text"> Enviar também o texto visível na imagem</label><textarea id="ai-review-text" readonly rows="5"></textarea><label>Assistente <select id="ai-review-client"></select></label><p id="ai-review-problem" role="alert"></p><footer><button type="button" id="ai-review-cancel">Cancelar</button><button type="button" id="ai-review-send" class="primary">Enviar</button></footer>`;
+  dialog.innerHTML = `<h2 id="ai-review-title">Conferir antes de enviar</h2><p>Vai para o assistente escolhido, com a sua própria conta. O EdiCaptura não envia mais nada: nem originais, nem outras capturas, nem arquivos.</p><div id="ai-review-images"></div><label>Também vai este texto<textarea id="ai-review-meta" readonly rows="4"></textarea></label><label id="ai-review-text-label"><input type="checkbox" id="ai-review-include-text"> Enviar também o texto visível na imagem</label><textarea id="ai-review-text" readonly rows="5"></textarea><label>Assistente <select id="ai-review-client"></select></label><p id="ai-review-problem" role="alert"></p><footer><button type="button" id="ai-review-cancel">Cancelar</button><button type="button" id="ai-review-send" class="primary">Enviar</button></footer>`;
   document.body.append(dialog);
   const $ = (id) => document.getElementById(id);
   let active = null;
@@ -75,6 +75,17 @@ export function createAssistant({ api }) {
         return image;
       }),
     );
+    // Every text the task carries is shown, not only the recognized one.
+    $("ai-review-meta").value =
+      context.task === "capture-details"
+        ? `Nome: ${context.name}\nEtiquetas: ${context.tags.join(", ") || "(nenhuma)"}`
+        : [
+            `Guia: ${context.title}`,
+            ...context.steps.map(
+              (step, index) =>
+                `Passo ${index + 1}: título “${step.title}”; descrição “${step.description}”; texto alternativo “${step.alt}”`,
+            ),
+          ].join("\n");
     const text = context.task === "capture-details" ? context.text : "";
     $("ai-review-text-label").hidden = !text;
     $("ai-review-text").hidden = !text;

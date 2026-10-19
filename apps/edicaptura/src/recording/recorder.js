@@ -300,7 +300,14 @@ export function setupRecording(api, toast, sound = null) {
   /** The person's pause: the recorder stops taking frames and sound, the clock stops. */
   function pause() {
     const state = recording;
-    if (!state?.recorder || state.stopRequested || state.held) return false;
+    // Before the first frame (recorder still inactive) there is nothing to pause yet.
+    if (
+      !state?.recorder ||
+      state.stopRequested ||
+      state.held ||
+      state.recorder.state === "inactive"
+    )
+      return false;
     state.held = true;
     if (state.recorder.state === "recording") {
       state.recorder.pause();

@@ -177,6 +177,44 @@ describe.skipIf(notWindows)("the panel's turns", () => {
     expect(t.done()).toBe(1);
   });
 
+  it("a Stop during the preparation ends the turn before any client starts", async () => {
+    const ai = engines();
+    const t = turn();
+    const running = ai.runClaudeCode({ conversationId: "c8", text: "CHAME", url, emit: t.emit });
+    ai.stop("c8");
+    await running;
+    expect(
+      t.events.some((e) => e.type === "text"),
+      "no client answered",
+    ).toBe(false);
+    expect(calls).toEqual([]);
+    expect(t.done()).toBe(1);
+  });
+
+  it("a Stop while resuming keeps the session and starts no new turn in its place", async () => {
+    const kept = new Map<string, string | undefined>([["claude:c9", "sessao-perdida"]]);
+    let ai: ReturnType<typeof engines>;
+    const store: SessionStore = {
+      // The person clicks Stop right as the kept session is being resumed.
+      load: async (engine: EngineKind, id) => {
+        ai.stop(id);
+        return kept.get(`${engine}:${id}`);
+      },
+      save: async (engine, id, session) => {
+        kept.set(`${engine}:${id}`, session);
+      },
+    };
+    ai = engines({ sessions: store });
+    const t = turn();
+    await ai.runClaudeCode({ conversationId: "c9", text: "CHAME", url, emit: t.emit });
+    expect(
+      t.events.some((e) => e.type === "text"),
+      "no retry with the recap",
+    ).toBe(false);
+    expect(kept.get("claude:c9"), "the session is not forgotten").toBe("sessao-perdida");
+    expect(t.done()).toBe(1);
+  });
+
   it("stops Codex the moment it acts outside the editor", async () => {
     const t = turn();
     await engines().runCodex({ conversationId: "c3", text: "SHELL", url, emit: t.emit });

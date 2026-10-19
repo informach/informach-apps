@@ -93,6 +93,22 @@ export function ocrLines(sidecar: Pick<OcrSidecar, "result" | "edits">): OcrLine
 }
 
 type Hiding = Pick<CaptureDocument, "annotations" | "crop">;
+/**
+ * The editor paints a rotated mask around its center. Everything inside the rotated
+ * rectangle's axis-aligned bounds counts as hidden: it may hide a little more, never less.
+ */
+function rotatedBounds(box: OcrBox, degrees: number): OcrBox {
+  const cx = (box.x0 + box.x1) / 2,
+    cy = (box.y0 + box.y1) / 2,
+    angle = (degrees * Math.PI) / 180,
+    cos = Math.abs(Math.cos(angle)),
+    sin = Math.abs(Math.sin(angle)),
+    halfWidth = (box.x1 - box.x0) / 2,
+    halfHeight = (box.y1 - box.y0) / 2,
+    w = halfWidth * cos + halfHeight * sin,
+    h = halfWidth * sin + halfHeight * cos;
+  return { x0: cx - w, y0: cy - h, x1: cx + w, y1: cy + h };
+}
 const intersects = (a: OcrBox, b: OcrBox) =>
   a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 /** Boxes the final image does not show: opaque masks, pixelation and everything outside the crop. */
@@ -101,12 +117,13 @@ export function hiddenAreas(doc: Hiding): { masks: OcrBox[]; crop: OcrBox | null
     .filter((a) => a.kind === "redact" || a.kind === "blur")
     .map((a) => {
       const end = a as { x2: number; y2: number };
-      return {
+      const box = {
         x0: Math.min(a.x, end.x2),
         y0: Math.min(a.y, end.y2),
         x1: Math.max(a.x, end.x2),
         y1: Math.max(a.y, end.y2),
       };
+      return a.rotation ? rotatedBounds(box, a.rotation) : box;
     });
   const crop = doc.crop
     ? {

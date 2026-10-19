@@ -79,10 +79,12 @@ async function run() {
       };
       const api = {
         guideSave: ({ guide, assets }) =>
-          window.guideSave({
-            guide,
-            assets: assets.map((asset) => ({ id: asset.id, bytes: Array.from(asset.bytes) })),
-          }),
+          fixture.failSave
+            ? Promise.reject(new Error("Disco cheio"))
+            : window.guideSave({
+                guide,
+                assets: assets.map((asset) => ({ id: asset.id, bytes: Array.from(asset.bytes) })),
+              }),
         guideRead: (id) => window.guideRead(id),
         guideList: () => window.guideList(),
         guideTrash: (input) => window.guideTrash(input),
@@ -192,6 +194,16 @@ async function run() {
     guide = (await store.read(guide.id)).guide;
     assert.equal(guide.steps.length, 3);
     assert.equal(guide.steps[2].sourceId, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    // A step whose save fails leaves the guide as it was saved, and later saves still work.
+    await page.evaluate(() => {
+      window.guideFixture.failSave = true;
+    });
+    await page.locator("#guide-add-current").click();
+    await page.waitForFunction(() => window.guideFixture.toasts.some((t) => /Disco cheio/.test(t)));
+    assert.equal(await page.locator(".guide-step").count(), 3);
+    await page.evaluate(() => {
+      window.guideFixture.failSave = false;
+    });
     // 4. Exports go through the main process; trash and restore keep the files.
     await page.locator("#guide-html").click();
     await page.locator("#guide-pdf").click();

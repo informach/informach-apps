@@ -179,7 +179,13 @@ async function run() {
             saves: [],
             options: {
               version: 1,
-              microphone: { enabled: sound, volume: 100, muted: false, deviceId: "" },
+              // A saved microphone that is no longer connected: the controller falls back.
+              microphone: {
+                enabled: sound,
+                volume: 100,
+                muted: false,
+                deviceId: sound ? "microfone-desconectado" : "",
+              },
               system: { enabled: sound, volume: 80, muted: false },
               countdown: sound ? 1 : 0,
             },
@@ -368,6 +374,12 @@ async function run() {
       } else await page.waitForFunction(() => window.fixture.phase === "failed");
       if (mode === "sound-pause") {
         await page.waitForFunction(() => window.fixture.phase === "recording");
+        assert.match(await page.locator("#mic-status").textContent(), /não está conectado/);
+        assert.equal(
+          await page.evaluate(() => window.fixture.options.microphone.deviceId),
+          "",
+          "the fallback to the default microphone is saved",
+        );
         assert.ok(fixture.mimeTypeHasOpus(await page.evaluate(() => window.fixture.mimeType)));
         assert.equal(
           JSON.stringify(await page.evaluate(() => window.fixture.displayConstraints.audio)),

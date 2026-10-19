@@ -931,7 +931,11 @@ $("canvas-viewport").addEventListener("pointercancel", () => {
 // During "Capturar passos" a new capture becomes a guide step instead of opening.
 api.onDocument(
   safe(async (doc) => {
-    if (await guidePanel?.capture(doc)) return;
+    try {
+      if (await guidePanel?.capture(doc)) return;
+    } catch (error) {
+      toast(`Não entrou no guia: ${error.message} A captura foi aberta.`, true);
+    }
     await open(doc);
   }),
 );

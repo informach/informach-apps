@@ -210,6 +210,21 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     config.recap ? config.recap(conversationId, text) : Promise.resolve(text);
 
   /** The client ready to start, or null after telling the person why not (and ending the turn). */
+  /*
+   * Stops asked per conversation (and for all, at sign-out). A turn notes them when it starts:
+   * a Stop during the preparation or between a failed resume and its retry is honoured even
+   * though no process is registered at that moment.
+   */
+  const stops = new Map<string, number>();
+  let stopEpoch = 0;
+  const stopMark = (conversationId: string) => `${stopEpoch}:${stops.get(conversationId) ?? 0}`;
+  /** Ends a turn that was stopped before its process could: the panel still gets one `done`. */
+  const stoppedSince = (request: TurnRequest, mark: string): boolean => {
+    if (stopMark(request.conversationId) === mark) return false;
+    request.emit({ type: "done" });
+    return true;
+  };
+
   async function prepare(id: AiClientId, request: TurnRequest): Promise<{ launch: Launch } | null> {
     const fail = (message: string): null => {
       request.emit({ type: "error", message });
@@ -255,13 +270,17 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
   /* ----- Claude Code ----- */
 
   async function runClaudeCode(request: TurnRequest): Promise<void> {
+    const mark = stopMark(request.conversationId);
     const ready = await prepare("claude-code", request);
-    if (!ready) return;
+    if (!ready || stoppedSince(request, mark)) return;
     const kept = await sessionOf("claude", request.conversationId);
     if (kept) {
       const gate = resumeGate(request.emit);
       await claudeAttempt({ ...request, emit: gate.emit }, ready.launch, kept);
       if (gate.went()) return;
+      // Stopped while resuming: the session stays and no new turn starts in its place.
+      if (stoppedSince(request, mark)) return;
+      request.check?.();
       // The session is gone on Claude Code's side: start over with the recap of the panel.
       await forgetSession("claude", request.conversationId);
     }
@@ -465,13 +484,17 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
   }
 
   async function runCodex(request: TurnRequest): Promise<void> {
+    const mark = stopMark(request.conversationId);
     const ready = await prepare("codex", request);
-    if (!ready) return;
+    if (!ready || stoppedSince(request, mark)) return;
     const kept = await sessionOf("codex", request.conversationId);
     if (kept) {
       const gate = resumeGate(request.emit);
       await codexAttempt({ ...request, emit: gate.emit }, ready.launch, kept);
       if (gate.went()) return;
+      // Stopped while resuming: the thread stays and no new turn starts in its place.
+      if (stoppedSince(request, mark)) return;
+      request.check?.();
       // The thread is gone on Codex's side: start over with the guide and the recap.
       await forgetSession("codex", request.conversationId);
     }
@@ -837,11 +860,18 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     codexSelfTest,
     oneShot,
     /** The Stop button: the run's token is revoked, its process tree ends and the turn is done. */
-    stop: (conversationId: string): boolean => stopRun(conversationId),
+    stop: (conversationId: string): boolean => {
+      stops.set(conversationId, (stops.get(conversationId) ?? 0) + 1);
+      return stopRun(conversationId);
+    },
     /** Signed out of the computer: every run of the chat ends. */
-    stopAll: (): void => stopAllRuns(),
+    stopAll: (): void => {
+      stopEpoch++;
+      stopAllRuns();
+    },
     /** "Nova conversa": the run stops and the conversation's sessions are forgotten here. */
     reset(conversationId: string): void {
+      stops.set(conversationId, (stops.get(conversationId) ?? 0) + 1);
       stopRun(conversationId);
       sessions.delete(key("claude", conversationId));
       sessions.delete(key("codex", conversationId));

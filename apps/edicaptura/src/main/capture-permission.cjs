@@ -20,14 +20,4 @@ function allowCapturePermission({
   if (types.length === 0) return started;
   return audio.microphone && types.length === 1 && types[0] === "audio";
 }
-/** enumerateDevices labels and the meter's permission check follow the same rule. */
-function allowMicrophoneCheck({ trusted, mode, permission, mediaType, audio }) {
-  return (
-    trusted &&
-    mode === "video" &&
-    permission === "media" &&
-    mediaType === "audio" &&
-    !!audio?.microphone
-  );
-}
-module.exports = { allowCapturePermission, allowMicrophoneCheck };
+module.exports = { allowCapturePermission };

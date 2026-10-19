@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { allowCapturePermission: allow, allowMicrophoneCheck } = require("./capture-permission.cjs");
+const { allowCapturePermission: allow } = require("./capture-permission.cjs");
 const request = {
   trusted: true,
   mode: "video",
@@ -49,11 +49,4 @@ test("microfone e áudio do PC só quando a pessoa ligou cada um", () => {
   assert.equal(allow({ ...system, audio: { microphone: false, system: true } }), true);
   assert.equal(allow({ ...system, audio: { microphone: true, system: false } }), false);
   assert.equal(allow({ ...system, started: false, audio: withSound }), false);
-});
-test("a consulta de permissão do microfone segue as opções", () => {
-  const check = { trusted: true, mode: "video", permission: "media", mediaType: "audio" };
-  assert.equal(allowMicrophoneCheck({ ...check, audio: withSound }), true);
-  assert.equal(allowMicrophoneCheck({ ...check, audio: { microphone: false } }), false);
-  assert.equal(allowMicrophoneCheck({ ...check, mediaType: "video", audio: withSound }), false);
-  assert.equal(allowMicrophoneCheck({ ...check, trusted: false, audio: withSound }), false);
 });

@@ -274,6 +274,8 @@ export async function importProject(root: string, source: Files, duplicate = fal
     if (!existing.length) break;
     if (!duplicate) {
       const original = await snapshot(root, id);
+      // Text recognized here later (<id>.ocr) does not make the same project a different one.
+      if (!source.has(`${doc.id}.ocr`)) original.delete(`${id}.ocr`);
       const identical = [...source].every(([name, bytes]) => {
         const targetName = name.replace(doc.id, id);
         if (id !== doc.id && name === `${doc.id}.json`)

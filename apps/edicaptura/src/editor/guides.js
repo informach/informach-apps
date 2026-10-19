@@ -3,6 +3,7 @@ import { taskImage } from "./assistant.js";
 import { CanvasEditor } from "./canvas.js";
 
 const SAVE_DELAY = 600;
+const STEP_IMAGE_BYTES = 25 * 1024 * 1024;
 const dataUrlBytes = (url) =>
   Uint8Array.from(atob(url.slice(url.indexOf(",") + 1)), (c) => c.charCodeAt(0));
 
@@ -54,7 +55,9 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
     pending = new Map(),
     saveTimer = null,
     saving = Promise.resolve(),
-    session = null;
+    session = null,
+    suggestion = null,
+    undoTexts = null;
   const safe = (action) => async () => {
     try {
       await action();
@@ -175,6 +178,12 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
             guide.steps.splice(index + move, 0, item);
             renderSteps();
             changed();
+            // Keep the keyboard on the moved step: its same button, or the other one at an end.
+            const at = index + move + 1;
+            const next =
+              document.querySelector(`[aria-label="${label} passo ${at}"]:not(:disabled)`) ??
+              document.querySelector(`#guide-steps li:nth-child(${at}) .guide-step-actions button`);
+            next?.focus();
           };
           actions.append(button);
         }
@@ -196,8 +205,14 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
       }),
     );
   }
+  /** Leaves the open guide: its task ends, and unsaved changes block the switch instead of being lost. */
+  async function leaveGuide() {
+    assistant?.stop("guide-texts");
+    suggestion = null;
+    await save();
+  }
   async function openGuide(id) {
-    await save().catch(() => undefined);
+    await leaveGuide();
     const { guide: loaded, images: stored } = await api.guideRead(id);
     guide = structuredClone(loaded);
     images = new Map(
@@ -212,12 +227,21 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
     await refreshList();
   }
   /** Appends sanitized images as steps; the alternative text starts empty for the person to write. */
-  function addSteps(entries) {
+  async function addSteps(entries) {
+    if (guide.steps.length + entries.length > 200)
+      throw new Error("Limite de 200 passos atingido.");
+    // Checked before anything is added: a step the store would refuse never enters the guide.
+    if (entries.some((entry) => entry.bytes.byteLength > STEP_IMAGE_BYTES))
+      throw new Error(
+        "Imagem de passo maior que 25 MB. Recorte a captura ou adicione partes dela.",
+      );
+    const before = guide.steps.length;
+    const added = [];
     for (const entry of entries) {
-      if (guide.steps.length >= 200) throw new Error("Limite de 200 passos atingido.");
       const assetId = crypto.randomUUID();
       images.set(assetId, entry.url);
       pending.set(assetId, entry.bytes);
+      added.push(assetId);
       guide.steps.push({
         id: crypto.randomUUID(),
         assetId,
@@ -230,7 +254,18 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
       });
     }
     renderSteps();
-    return save();
+    try {
+      await save();
+    } catch (error) {
+      // The guide goes back to what was saved; nothing half-added stays to block later saves.
+      guide.steps.splice(before);
+      for (const assetId of added) {
+        pending.delete(assetId);
+        images.delete(assetId);
+      }
+      renderSteps();
+      throw error;
+    }
   }
   async function addFromLibrary(ids) {
     const added = [];
@@ -282,7 +317,7 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
   });
   $("guide-show-trash").onchange = safe(refreshList);
   $("guide-new").onclick = safe(async () => {
-    await save().catch(() => undefined);
+    await leaveGuide();
     guide = { id: undefined, title: "Novo guia", description: "", layout: "tutorial", steps: [] };
     images = new Map();
     pending = new Map();
@@ -339,7 +374,7 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
     if (id) await openGuide(id);
   });
   $("guide-trash").onclick = safe(async () => {
-    await save();
+    await leaveGuide();
     const updated = await api.guideTrash({ id: guide.id, deleted: !guide.deletedAt });
     guide.deletedAt = updated.deletedAt;
     renderSteps();
@@ -355,8 +390,6 @@ export function mountGuides({ api, engine, current, toast, assistant }) {
     });
   // The assistant (phase 8): titles, descriptions and alternative texts for the steps, reviewed
   // before sending and applied, or not, by the person; one undo restores the previous texts.
-  let suggestion = null,
-    undoTexts = null;
   function renderAi() {
     const busy = !!assistant?.busy("guide-texts");
     $("guide-ai").disabled = !assistant || !guide?.id || !guide.steps.length || busy;

@@ -53,6 +53,8 @@ export function createCaptureAssistant(deps: {
   version: string;
 }) {
   let task: ActiveTask | null = null;
+  /** Bumped by every start and stop, so a start that waited for the server can tell it was stopped. */
+  let generation = 0;
   let server: Promise<{ http: Server; url: string }> | null = null;
   const owns = (grant: McpGrant) =>
     !!task && grant.projectId === task.runId && isGrantLive(grant.id);
@@ -119,6 +121,7 @@ export function createCaptureAssistant(deps: {
   }
 
   function stop() {
+    generation++;
     const ended = task;
     task = null;
     if (ended) {
@@ -132,7 +135,9 @@ export function createCaptureAssistant(deps: {
     const context = taskContextSchema.parse(input.context);
     if (!["claude-code", "codex"].includes(input.client)) throw new Error("Cliente inválido.");
     stop();
+    const mine = ++generation;
     const { url } = await listen();
+    if (mine !== generation) throw new Error("A tarefa foi interrompida antes de começar.");
     const active: ActiveTask = { runId: randomUUID(), context, proposed: false };
     task = active;
     const request: TurnRequest = {

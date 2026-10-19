@@ -136,7 +136,7 @@ export class GuideStore {
           size = stat.size;
         }
         total += size;
-        if (total > MAX_GUIDE_IMAGE_BYTES) throw new Error("O guia excede 400 MB de imagens.");
+        if (total > MAX_GUIDE_IMAGE_BYTES) throw new Error("O guia excede 300 MB de imagens.");
       }
       await atomicWrite(this.file(id, GUIDE_EXTENSION), JSON.stringify(guide));
       return guide;
