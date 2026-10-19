@@ -31,8 +31,12 @@ public static class EdiNativeFileControl {
   public delegate bool WindowVisitor(IntPtr window, IntPtr context);
   [DllImport("user32.dll", EntryPoint="EnumWindows")]
   private static extern bool EnumerateWindows(WindowVisitor visitor, IntPtr context);
+  [DllImport("user32.dll", EntryPoint="EnumChildWindows")]
+  private static extern bool EnumerateChildWindows(IntPtr parent, WindowVisitor visitor, IntPtr context);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="GetClassNameW")]
   private static extern int GetWindowClass(IntPtr window, StringBuilder name, int capacity);
+  [DllImport("user32.dll", EntryPoint="GetDlgCtrlID")]
+  private static extern int GetControlId(IntPtr window);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
   public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
@@ -58,17 +62,32 @@ public static class EdiNativeFileControl {
     }, IntPtr.Zero);
     return dialogs.ToArray();
   }
+  public static string[] OwnedControlShape(IntPtr dialog, int targetProcess) {
+    var shape = new List<string>();
+    EnumerateChildWindows(dialog, (window, context) => {
+      uint process;
+      GetWindowThreadProcessId(window, out process);
+      if (process != (uint)targetProcess) return true;
+      var name = new StringBuilder(128);
+      if (GetWindowClass(window, name, name.Capacity) > 0)
+        shape.Add(name.ToString() + ":" + GetControlId(window));
+      return shape.Count < 80;
+    }, IntPtr.Zero);
+    return shape.ToArray();
+  }
 }
 '@
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $completed=$false
 $observedOwnedDialogs=0
 $observedFilenameControls=0
+$lastOwnedDialog=[IntPtr]::Zero
 while ([DateTime]::UtcNow -lt $deadline) {
   # Inspect only top-level HWNDs of the exact fixture PID. Desktop-wide UIA
   # traversal can fail on unrelated protected windows before reaching the dialog.
   foreach ($handle in [EdiNativeFileControl]::OwnedDialogs($TestProcessId)) {
     $observedOwnedDialogs++
+    $lastOwnedDialog=$handle
     $window=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
     $buttonId=if ($Action -eq 'Cancel') {'2'} else {'1'}
     $buttonIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$buttonId)
@@ -140,6 +159,19 @@ while ([DateTime]::UtcNow -lt $deadline) {
   Start-Sleep -Milliseconds 100
 }
 if (!$completed) {
-  throw "The owned native file dialog did not appear or did not expose its filename control (ownedDialogSamples=$observedOwnedDialogs, filenameControlSamples=$observedFilenameControls)."
+  $shape=if ($lastOwnedDialog -ne [IntPtr]::Zero) {
+    [EdiNativeFileControl]::OwnedControlShape($lastOwnedDialog,$TestProcessId) -join ','
+  } else { 'none' }
+  $uiaShape='none'
+  if ($lastOwnedDialog -ne [IntPtr]::Zero) {
+    try {
+      $dialog=[System.Windows.Automation.AutomationElement]::FromHandle($lastOwnedDialog)
+      $controls=$dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+      $uiaShape=@($controls | Select-Object -First 80 | ForEach-Object {
+        "$($_.Current.ClassName):$($_.Current.AutomationId):$($_.Current.IsOffscreen)"
+      }) -join ','
+    } catch { $uiaShape='unavailable' }
+  }
+  throw "The owned native file dialog did not expose its filename control (ownedDialogSamples=$observedOwnedDialogs, filenameControlSamples=$observedFilenameControls, ownedControlShape=$shape, ownedUiaShape=$uiaShape)."
 }
 Write-Output "Responded to the owned native file dialog using UI Automation: $Action"
