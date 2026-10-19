@@ -137,7 +137,12 @@ async function fixtureFocusState(editor: Page): Promise<unknown> {
     ),
   }));
 }
-async function waitBatchPreview(editor: Page, dialog: Locator, name: string): Promise<void> {
+async function waitBatchPreview(
+  editor: Page,
+  resultsDirectory: string,
+  dialog: Locator,
+  name: string,
+): Promise<void> {
   const image = dialog.getByRole("img", { name, exact: true }),
     alert = dialog.getByRole("alert").first();
   try {
@@ -146,7 +151,7 @@ async function waitBatchPreview(editor: Page, dialog: Locator, name: string): Pr
       throw new Error(`Batch preparation failed: ${await alert.innerText()}`);
   } catch (failure) {
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-lote4-batch-failure.png"),
+      path: join(resultsDirectory, "edipdf-lote4-batch-failure.png"),
       animations: "disabled",
     });
     console.log("Owned batch dialog diagnostic:", await dialog.innerText());
@@ -439,6 +444,7 @@ export async function verifyPdfNativeJourney(
   application: ElectronApplication,
   editor: Page,
   seedLease: SeedLease,
+  resultsDirectory: string,
 ): Promise<void> {
   await seedLease(application, 300);
   await editor.waitForFunction(
@@ -518,13 +524,28 @@ export async function verifyPdfNativeJourney(
     w.unmaximize();
     w.setSize(1100, 760);
   });
-  await editor.waitForFunction(
-    () =>
-      innerWidth <= 1100 &&
-      (document.querySelector<HTMLElement>(".stage")?.scrollTop ?? 9999) < 50 &&
-      document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
-  );
-  await editor.screenshot({ path: resolve(".cache/edi-native-results/edipdf-lote3-leitura.png") });
+  await editor
+    .waitForFunction(
+      () =>
+        innerWidth <= 1100 &&
+        (document.querySelector<HTMLElement>(".stage")?.scrollTop ?? 9999) < 50 &&
+        document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
+    )
+    .catch(async (error: unknown) => {
+      const layout = await editor
+        .evaluate(() => ({
+          innerWidth,
+          stageScrollTop: document.querySelector<HTMLElement>(".stage")?.scrollTop ?? null,
+          pageCanvasKeyPresent: Boolean(
+            document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
+          ),
+        }))
+        .catch(() => ({ unavailable: true }));
+      throw new Error(`PDF reading layout did not settle: ${JSON.stringify(layout)}`, {
+        cause: error,
+      });
+    });
+  await editor.screenshot({ path: join(resultsDirectory, "edipdf-lote3-leitura.png") });
   const command = async (query: string) => {
     await editor.keyboard.press("Control+k");
     const input = editor.getByRole("combobox", { name: "Buscar ação", exact: true });
@@ -658,7 +679,7 @@ export async function verifyPdfNativeJourney(
     .evaluate((element) => ({ width: element.clientWidth, scroll: element.scrollWidth }));
   assert.ok(toolbar.scroll <= toolbar.width + 1, "The toolbar must fit the minimum window width");
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote3-formulario.png"),
+    path: join(resultsDirectory, "edipdf-lote3-formulario.png"),
     animations: "disabled",
   });
   await editor.getByRole("textbox", { name: "Página", exact: true }).fill("2");
@@ -729,7 +750,7 @@ export async function verifyPdfNativeJourney(
     .getByRole("button", { name: "Continuar em segundo plano", exact: true })
     .click();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-background-queue.png"),
+    path: join(resultsDirectory, "edipdf-lote4-background-queue.png"),
     animations: "disabled",
   });
   await activeQueue
@@ -782,7 +803,7 @@ export async function verifyPdfNativeJourney(
   await ocr.getByRole("button", { name: /EDIPDF/ }).waitFor();
   await ocr.getByLabel(/Corrigir palavra/).fill("OCR_VERIFICADO");
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-ocr.png"),
+    path: join(resultsDirectory, "edipdf-lote4-ocr.png"),
     animations: "disabled",
   });
   await ocr.getByRole("button", { name: "Aplicar texto revisado", exact: true }).click();
@@ -809,7 +830,7 @@ export async function verifyPdfNativeJourney(
   const firstResponse = await response;
   if (firstResponse) {
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-compactacao-falha.png"),
+      path: join(resultsDirectory, "edipdf-compactacao-falha.png"),
     });
     console.log(
       "Compression first native destination failed",
@@ -835,7 +856,7 @@ export async function verifyPdfNativeJourney(
   await preview.or(outcome).or(compressionError).first().waitFor();
   if ((await outcome.isVisible()) || (await compressionError.isVisible())) {
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-compression-target-diagnostic.png"),
+      path: join(resultsDirectory, "edipdf-compression-target-diagnostic.png"),
       animations: "disabled",
     });
     console.log("Owned compression target diagnostic", await editor.locator("body").innerText());
@@ -845,7 +866,7 @@ export async function verifyPdfNativeJourney(
   }
   await preview.getByRole("img", { name: "Página compactada", exact: true }).waitFor();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-compactacao.png"),
+    path: join(resultsDirectory, "edipdf-lote4-compactacao.png"),
     animations: "disabled",
   });
   await preview.getByRole("button", { name: "Continuar depois", exact: true }).click();
@@ -938,16 +959,31 @@ export async function verifyPdfNativeJourney(
   await batch.getByLabel("Dividir por", { exact: true }).selectOption("ranges");
   await batch.getByLabel("Partes e páginas", { exact: true }).fill("1;2");
   await batch.getByRole("button", { name: "Preparar lote", exact: true }).click();
-  await waitBatchPreview(editor, batch, "Prévia do arquivo parte-001.pdf, página 1");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    batch,
+    "Prévia do arquivo parte-001.pdf, página 1",
+  );
   await batch.getByTitle("Fechar", { exact: true }).click();
   await command("tarefas e resultados preparados");
   await editor.getByRole("button", { name: "Revisar audit — partes", exact: true }).click();
   batch = editor.getByRole("dialog", { name: "Retomar lote preparado", exact: true });
-  await waitBatchPreview(editor, batch, "Prévia do arquivo parte-001.pdf, página 1");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    batch,
+    "Prévia do arquivo parte-001.pdf, página 1",
+  );
   await batch.getByLabel("Arquivo da prévia", { exact: true }).selectOption("1");
-  await waitBatchPreview(editor, batch, "Prévia do arquivo parte-002.pdf, página 1");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    batch,
+    "Prévia do arquivo parte-002.pdf, página 1",
+  );
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-split-review.png"),
+    path: join(resultsDirectory, "edipdf-lote4-split-review.png"),
     animations: "disabled",
   });
   await batch
@@ -968,7 +1004,7 @@ export async function verifyPdfNativeJourney(
   assert.equal(secondPart.getPageCount(), 1);
   assert.ok(firstPart.getForm().getFields().length > 0);
   assert.equal(secondPart.getForm().getFields().length, 0);
-  const batchCache = resolve(".cache/edipdf-analysis/native-batch");
+  const batchCache = join(resultsDirectory, "native-batch");
   await mkdir(batchCache, { recursive: true });
   for (const format of ["png", "jpg"]) {
     await command("exportar páginas como imagens");
@@ -985,7 +1021,7 @@ export async function verifyPdfNativeJourney(
       .getByRole("img", { name: `Prévia do arquivo pagina-0002.${format}, página 1`, exact: true })
       .waitFor();
     await editor.screenshot({
-      path: resolve(`.cache/edi-native-results/edipdf-lote4-${format}-batch.png`),
+      path: join(resultsDirectory, `edipdf-lote4-${format}-batch.png`),
       animations: "disabled",
     });
     await batch
@@ -1046,7 +1082,12 @@ export async function verifyPdfNativeJourney(
   await command("tarefas e resultados preparados");
   await editor.getByRole("button", { name: "Retomar batch-many — imagens", exact: true }).click();
   batch = editor.getByRole("dialog", { name: "Retomar lote preparado", exact: true });
-  await waitBatchPreview(editor, batch, "Prévia do arquivo pagina-0001.png, página 1");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    batch,
+    "Prévia do arquivo pagina-0001.png, página 1",
+  );
   assert.equal(
     await batch.getByRole("button", { name: "Escolher pasta e salvar lote", exact: true }).count(),
     0,
@@ -1058,7 +1099,7 @@ export async function verifyPdfNativeJourney(
   assert.equal(completedBatch.result.detail.files.length, 100);
   assert.deepEqual(completedBatch.result.detail.files.slice(0, prefixFiles.length), prefixFiles);
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-batch-resume.png"),
+    path: join(resultsDirectory, "edipdf-lote4-batch-resume.png"),
     animations: "disabled",
   });
   await batch
@@ -1093,11 +1134,11 @@ export async function verifyPdfNativeJourney(
   await merge.locator(".file-list li").nth(1).waitFor();
   await merge.getByLabel("Compactação", { exact: true }).selectOption("balanced");
   await merge.getByRole("button", { name: "Preparar PDF combinado", exact: true }).click();
-  await waitBatchPreview(editor, merge, "Prévia do PDF combinado, página 1");
+  await waitBatchPreview(editor, resultsDirectory, merge, "Prévia do PDF combinado, página 1");
   await merge.getByLabel("Página da prévia", { exact: true }).fill("4");
-  await waitBatchPreview(editor, merge, "Prévia do PDF combinado, página 4");
+  await waitBatchPreview(editor, resultsDirectory, merge, "Prévia do PDF combinado, página 4");
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-merge-review.png"),
+    path: join(resultsDirectory, "edipdf-lote4-merge-review.png"),
     animations: "disabled",
   });
   await merge.getByTitle("Fechar", { exact: true }).click();
@@ -1107,7 +1148,7 @@ export async function verifyPdfNativeJourney(
     name: "Retomar conversão preparada",
     exact: true,
   });
-  await waitBatchPreview(editor, resumedMerge, "Prévia da conversão, página 1");
+  await waitBatchPreview(editor, resultsDirectory, resumedMerge, "Prévia da conversão, página 1");
   await resumedMerge.getByRole("button", { name: "Abrir PDF para revisar", exact: true }).click();
   await resumedMerge.waitFor({ state: "detached" });
   await editor.locator(".tab-name").filter({ hasText: "Combinado.pdf" }).waitFor();
@@ -1115,7 +1156,7 @@ export async function verifyPdfNativeJourney(
   await command("tarefas e resultados preparados");
   await editor.getByRole("button", { name: "Revisar Combinado.pdf", exact: true }).click();
   resumedMerge = editor.getByRole("dialog", { name: "Retomar conversão preparada", exact: true });
-  await waitBatchPreview(editor, resumedMerge, "Prévia da conversão, página 1");
+  await waitBatchPreview(editor, resultsDirectory, resumedMerge, "Prévia da conversão, página 1");
   const mergedPath = join(compressedPath, "..", "edipdf-merged.pdf");
   response = responder("Save", mergedPath);
   await resumedMerge.getByRole("button", { name: "Salvar cópia convertida", exact: true }).click();
@@ -1187,7 +1228,7 @@ export async function verifyPdfNativeJourney(
       document.querySelector(".page .textLayer")?.textContent.includes("FONTE_áβ_123"),
     );
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-autoria-custom-font.png"),
+      path: join(resultsDirectory, "edipdf-autoria-custom-font.png"),
       animations: "disabled",
     });
     await editor
@@ -1223,7 +1264,7 @@ export async function verifyPdfNativeJourney(
       .getByRole("button", { name: "Usar Noto Sans novamente", exact: true })
       .waitFor();
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-form-objects-preview.png"),
+      path: join(resultsDirectory, "edipdf-form-objects-preview.png"),
       animations: "disabled",
     });
     await groupDialog.getByRole("button", { name: "Substituir texto", exact: true }).click();
@@ -1267,7 +1308,7 @@ export async function verifyPdfNativeJourney(
       document.querySelector(".page .textLayer")?.textContent.includes("GRUPO_áβ_123"),
     );
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-form-objects-saved.png"),
+      path: join(resultsDirectory, "edipdf-form-objects-saved.png"),
       animations: "disabled",
     });
     await editor
@@ -1402,7 +1443,7 @@ export async function verifyPdfNativeJourney(
     await paragraphOverlay.waitFor();
     assert.ok((await paragraphOverlay.textContent())?.includes("CAIXA_NATIVA_123"));
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-paragraph-handles.png"),
+      path: join(resultsDirectory, "edipdf-paragraph-handles.png"),
       animations: "disabled",
     });
     const paragraphCopyPath = join(compressedPath, "..", "edipdf-textbox.pdf");
@@ -1443,7 +1484,7 @@ export async function verifyPdfNativeJourney(
     await paragraphOverlay.waitFor();
     assert.ok((await paragraphOverlay.textContent())?.includes("CAIXA_NATIVA_123"));
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-autoria-paragraph.png"),
+      path: join(resultsDirectory, "edipdf-autoria-paragraph.png"),
       animations: "disabled",
     });
     await command("editar texto original");
@@ -1459,7 +1500,7 @@ export async function verifyPdfNativeJourney(
       .getByRole("img", { name: "Área da imagem conservada pelo recorte", exact: true })
       .waitFor();
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-autoria-image-crop.png"),
+      path: join(resultsDirectory, "edipdf-autoria-image-crop.png"),
       animations: "disabled",
     });
     await cropDialog
@@ -1504,7 +1545,7 @@ export async function verifyPdfNativeJourney(
     );
   } catch (failure) {
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-autoria-failure.png"),
+      path: join(resultsDirectory, "edipdf-autoria-failure.png"),
       animations: "disabled",
     });
     console.log("Owned authoring fixture diagnostic", await editor.locator("body").innerText());
@@ -1542,7 +1583,7 @@ export async function verifyPdfNativeJourney(
     .getByLabel("Conferi as ocorrências selecionadas e os efeitos da remoção", { exact: true })
     .check();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-autoria-search-redaction.png"),
+    path: join(resultsDirectory, "edipdf-autoria-search-redaction.png"),
     animations: "disabled",
   });
   await redactSearchDialog
@@ -1822,7 +1863,7 @@ export async function verifyPdfNativeJourney(
     );
     assert.deepEqual(await readFile(formsPath), formsOriginal);
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-autoria-forms-font-order.png"),
+      path: join(resultsDirectory, "edipdf-autoria-forms-font-order.png"),
       animations: "disabled",
     });
     await editor
@@ -1835,7 +1876,7 @@ export async function verifyPdfNativeJourney(
     );
   } catch (failure) {
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-forms-complement-failure.png"),
+      path: join(resultsDirectory, "edipdf-forms-complement-failure.png"),
       animations: "disabled",
     });
     console.log(
@@ -1950,7 +1991,7 @@ export async function verifyPdfNativeJourney(
     await choiceAppearanceTask.destroy();
   }
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-forms-choice.png"),
+    path: join(resultsDirectory, "edipdf-forms-choice.png"),
     animations: "disabled",
   });
   await editor
@@ -1980,7 +2021,12 @@ export async function verifyPdfNativeJourney(
       await strategyDialog.getByLabel("Máximo por arquivo (MB)", { exact: true }).fill("0.006");
     }
     await strategyDialog.getByRole("button", { name: "Preparar lote", exact: true }).click();
-    await waitBatchPreview(editor, strategyDialog, "Prévia do arquivo parte-001.pdf, página 1");
+    await waitBatchPreview(
+      editor,
+      resultsDirectory,
+      strategyDialog,
+      "Prévia do arquivo parte-001.pdf, página 1",
+    );
     const snapshot = await editor.evaluate(async () => {
       const tasks = await window.api.tasks.list();
       const selected = tasks.tasks.find(
@@ -2045,6 +2091,7 @@ export async function verifyPdfNativeJourney(
     editor,
     directory: join(fixture, ".."),
     outputDirectory: join(compressedPath, ".."),
+    resultsDirectory,
     command,
     respond: responder,
   });
@@ -2052,6 +2099,7 @@ export async function verifyPdfNativeJourney(
     editor,
     directory: join(fixture, ".."),
     outputDirectory: join(compressedPath, ".."),
+    resultsDirectory,
     command,
     respond: responder,
   });
@@ -2074,13 +2122,18 @@ export async function verifyPdfNativeJourney(
       .getByRole("button", { name: "Preparar documento como imagens…", exact: true })
       .click();
     if (allowed) {
-      await waitBatchPreview(editor, restricted, "Prévia da face 1 preparada para impressão");
+      await waitBatchPreview(
+        editor,
+        resultsDirectory,
+        restricted,
+        "Prévia da face 1 preparada para impressão",
+      );
       assert.equal(
         await restricted.getByRole("button", { name: "Salvar PDF preparado", exact: true }).count(),
         0,
       );
       await editor.screenshot({
-        path: resolve(".cache/edi-native-results/edipdf-lote4-restricted-print.png"),
+        path: join(resultsDirectory, "edipdf-lote4-restricted-print.png"),
         animations: "disabled",
       });
       await restricted.getByRole("button", { name: "Continuar depois", exact: true }).click();
@@ -2104,7 +2157,12 @@ export async function verifyPdfNativeJourney(
       await command("tarefas e resultados preparados");
       await editor.getByRole("button", { name: `Revisar ${savedPrint.name}`, exact: true }).click();
       restricted = editor.getByRole("dialog", { name: "Preparar impressão", exact: true });
-      await waitBatchPreview(editor, restricted, "Prévia da face 1 preparada para impressão");
+      await waitBatchPreview(
+        editor,
+        resultsDirectory,
+        restricted,
+        "Prévia da face 1 preparada para impressão",
+      );
       assert.equal(
         await restricted.getByRole("button", { name: "Salvar PDF preparado", exact: true }).count(),
         0,
@@ -2169,9 +2227,19 @@ export async function verifyPdfNativeJourney(
     .getByRole("button", { name: "Revisar readonly-many (impressão restrita).pdf", exact: true })
     .click();
   const heldReview = editor.getByRole("dialog", { name: "Preparar impressão", exact: true });
-  await waitBatchPreview(editor, heldReview, "Prévia da face 1 preparada para impressão");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    heldReview,
+    "Prévia da face 1 preparada para impressão",
+  );
   await heldReview.getByRole("button", { name: "Próxima", exact: true }).click();
-  await waitBatchPreview(editor, heldReview, "Prévia da face 2 preparada para impressão");
+  await waitBatchPreview(
+    editor,
+    resultsDirectory,
+    heldReview,
+    "Prévia da face 2 preparada para impressão",
+  );
   await heldReview.getByRole("button", { name: "Continuar depois", exact: true }).click();
   const heldList = await editor.evaluate(() => window.api.tasks.list()),
     heldTask = heldList.tasks.find(
@@ -2195,7 +2263,7 @@ export async function verifyPdfNativeJourney(
     .getByRole("img", { name: "Prévia da conversão, página 1", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-office-export.png"),
+    path: join(resultsDirectory, "edipdf-lote4-office-export.png"),
     animations: "disabled",
   });
   const pendingOffice = await editor.evaluate(() => window.api.tasks.list());
@@ -2244,7 +2312,7 @@ export async function verifyPdfNativeJourney(
     .getByRole("img", { name: "Prévia da conversão, página 1", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-office-import.png"),
+    path: join(resultsDirectory, "edipdf-lote4-office-import.png"),
     animations: "disabled",
   });
   response = responder("Save", convertedPdf);
@@ -2300,7 +2368,7 @@ export async function verifyPdfNativeJourney(
     return frame !== null && frame.scrollTop > 0;
   });
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-rtf-import.png"),
+    path: join(resultsDirectory, "edipdf-lote4-rtf-import.png"),
     animations: "disabled",
   });
   const rtfPdf = join(compressedPath, "..", "edipdf-rtf-import.pdf");
@@ -2415,7 +2483,7 @@ export async function verifyPdfNativeJourney(
       .waitFor();
     assert.ok((await conversion.innerText()).includes("por fluxo"));
     await editor.screenshot({
-      path: resolve(`.cache/edi-native-results/edipdf-lote4-${format}-export.png`),
+      path: join(resultsDirectory, `edipdf-lote4-${format}-export.png`),
       animations: "disabled",
     });
     const path = join(compressedPath, "..", `edipdf-exported.${format}`);
@@ -2455,7 +2523,7 @@ export async function verifyPdfNativeJourney(
       .getByRole("img", { name: "Prévia da conversão, página 1", exact: true })
       .waitFor();
     await editor.screenshot({
-      path: resolve(`.cache/edi-native-results/edipdf-lote4-${extension}-import.png`),
+      path: join(resultsDirectory, `edipdf-lote4-${extension}-import.png`),
       animations: "disabled",
     });
     const converted = join(compressedPath, "..", `edipdf-${extension}-import.pdf`);
@@ -2504,7 +2572,7 @@ export async function verifyPdfNativeJourney(
     await conversion.getByRole("button", { name: "Gerar prévia", exact: true }).click();
     await conversion.getByRole("region", { name: "Células extraídas", exact: true }).waitFor();
     await editor.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-lote4-table-review.png"),
+      path: join(resultsDirectory, `edipdf-lote4-table-${format}-preview.png`),
       animations: "disabled",
     });
     const cell = conversion.getByRole("button", { name: /Linha .*BUSCA_αβγ_123/ });
@@ -2519,7 +2587,7 @@ export async function verifyPdfNativeJourney(
     await cell.click();
     if (format === "xlsx") {
       await editor.screenshot({
-        path: resolve(".cache/edi-native-results/edipdf-lote4-table-review.png"),
+        path: join(resultsDirectory, "edipdf-lote4-table-xlsx-selected.png"),
         animations: "disabled",
       });
       await conversion.getByTitle("Fechar", { exact: true }).click();
@@ -2575,7 +2643,7 @@ export async function verifyPdfNativeJourney(
     .getByRole("img", { name: "Prévia da conversão, página 3", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-tiff-import.png"),
+    path: join(resultsDirectory, "edipdf-lote4-tiff-import.png"),
     animations: "disabled",
   });
   await editor.keyboard.press("Escape");
@@ -2610,7 +2678,7 @@ export async function verifyPdfNativeJourney(
     tiffPages = inspectTiff(tiffBytes).pages;
   assert.equal(tiffPages.length, 2);
   assert.ok(tiffPages.every((page) => page.dpiX === 150 && page.dpiY === 150));
-  await writeFile(resolve(".cache/edi-native-results/edipdf-tiff-export.tif"), tiffBytes);
+  await writeFile(join(resultsDirectory, "edipdf-tiff-export.tif"), tiffBytes);
   console.log(
     "Verified local multipage TIFF import, third-page preview, protected resume, native copies and full TIFF export",
   );
@@ -2627,7 +2695,7 @@ export async function verifyPdfNativeJourney(
     await scanner.getByRole("status").filter({ hasText: "Nenhum scanner WIA conectado" }).waitFor();
   }
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-scanner.png"),
+    path: join(resultsDirectory, "edipdf-lote4-scanner.png"),
     animations: "disabled",
   });
   await scanner.getByTitle("Fechar", { exact: true }).click();
@@ -2645,7 +2713,7 @@ export async function verifyPdfNativeJourney(
     .getByRole("img", { name: "Prévia da face 1 preparada para impressão", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: resolve(".cache/edi-native-results/edipdf-lote4-impressao.png"),
+    path: join(resultsDirectory, "edipdf-lote4-impressao.png"),
     animations: "disabled",
   });
   await printing.getByRole("button", { name: "Continuar depois", exact: true }).click();
@@ -2714,6 +2782,7 @@ export async function verifyPdfNativeRestart(options: {
   userData: string;
   suiteData: string;
   fixturePath: string;
+  resultsDirectory: string;
   buildEnvironment: Record<string, string>;
   seedLease: SeedLease;
   waitForStatus: (page: Page, state: "licensed" | "restricted") => Promise<void>;
@@ -2725,6 +2794,7 @@ export async function verifyPdfNativeRestart(options: {
     userData,
     suiteData,
     fixturePath,
+    resultsDirectory,
     buildEnvironment,
     seedLease,
     waitForStatus,
@@ -2825,7 +2895,7 @@ export async function verifyPdfNativeRestart(options: {
       !protectedBytes.includes(Buffer.from("sources"));
     assert.equal(ciphertext, true);
     await reader.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-lote3-recuperado.png"),
+      path: join(resultsDirectory, "edipdf-lote3-recuperado.png"),
     });
     const pendingTasks = await reader.evaluate(() => window.api.tasks.list());
     const partial = pendingTasks.tasks.find((task) => task.kind === "ocr");
@@ -2857,7 +2927,7 @@ export async function verifyPdfNativeRestart(options: {
     await resumedOcr.getByRole("button", { name: /EDIPDF/ }).waitFor();
     await resumedOcr.getByLabel(/Corrigir palavra/).fill("OCR_RETOMADO");
     await reader.screenshot({
-      path: resolve(".cache/edi-native-results/edipdf-lote4-ocr-retomado.png"),
+      path: join(resultsDirectory, "edipdf-lote4-ocr-retomado.png"),
       animations: "disabled",
     });
     await resumedOcr
@@ -2901,7 +2971,7 @@ export async function verifyPdfNativeRestart(options: {
     for (const [index, page] of restarted.windows().entries()) {
       try {
         await page.screenshot({
-          path: resolve(`.cache/edi-native-results/edipdf-restart-failure-${index}.png`),
+          path: join(resultsDirectory, `edipdf-restart-failure-${index}.png`),
           animations: "disabled",
         });
       } catch (captureFailure) {

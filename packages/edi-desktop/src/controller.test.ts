@@ -17,6 +17,7 @@ function fixture(
     clientVersion?: string;
     minimumClientVersion?: string;
     changed?: (status: DesktopStatus) => void;
+    fetch?: typeof fetch;
   } = {},
 ) {
   let time = Date.parse("2026-10-16T12:00:00Z");
@@ -124,7 +125,7 @@ function fixture(
     appId: options.appId ?? "edifoto",
     clientVersion: options.clientVersion ?? "0.1.0",
     vault,
-    fetch: transport,
+    fetch: options.fetch ?? transport,
     now: () => time,
     changed: options.changed ?? (() => {}),
     openExternal: async () => {},
@@ -141,6 +142,34 @@ function fixture(
   };
 }
 describe("native subscription authorization", () => {
+  it("settles an in-flight license request after shutdown cancellation", async () => {
+    let started: () => void = () => {};
+    const requested = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let aborts = 0;
+    const f = fixture({
+      fetch: async (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => {
+              aborts++;
+              reject(new DOMException("Request canceled", "AbortError"));
+            },
+            { once: true },
+          );
+          started();
+        }),
+    });
+    const refreshing = f.controller.refresh();
+    await requested;
+    f.controller.cancelRefresh();
+    await refreshing;
+    expect(aborts).toBe(1);
+    expect(f.controller.status().state).toBe("restricted");
+  });
+
   it("isolates an outdated app without revoking a current app or interrupting its recording", async () => {
     let jobs: ReturnType<typeof createDesktopJobs> | undefined;
     const current = fixture({

@@ -7,7 +7,10 @@ on:
 permissions:
   contents: read
 jobs:
+  media:
+    uses: ./.github/workflows/edi-media.yml
   native:
+    needs: media
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
@@ -20,6 +23,17 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Restore verified suite native media and corresponding source
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: edi-native-media-windows-x64
+          path: .cache/edi-native-media/windows-x64
+      - name: Install isolated Chromium renderer test runtime
+        run: pnpm exec playwright install chromium
+      - name: Verify EdiCaptura document integrity in the actual renderer
+        run: pnpm --filter @informach/edicaptura test:renderer
+      - name: Verify EdiCaptura raster codec and Windows file clipboard formats
+        run: pnpm --filter @informach/edicaptura test:media-native
       - name: Verify every catalog application with ephemeral licenses and isolated profiles
         run: pnpm edi:test:native
       - name: Preserve native verification screenshots
@@ -27,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: edi-native-verification-${{ github.run_attempt }}
-          path: .cache/edi-native-results/*.png
+          path: .cache/edi-native-results/**/*.png
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 7

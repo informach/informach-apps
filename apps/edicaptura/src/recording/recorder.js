@@ -1,17 +1,109 @@
+import { RecordingClock } from "./clock.mjs";
+
+// One IPC packet at a time. The browser owns encoding buffers; admitted pending
+// Blobs are capped independently, and are released only after durable ACK.
+export const MAX_PENDING_BYTES = 32 * 1024 * 1024;
 export function setupRecording(api, toast) {
   let recording = null;
   let pendingStop = false;
+  const phase = (value) => api.recordPhase(value).catch((error) => toast(error.message));
+  function release(state) {
+    clearInterval(state.timer);
+    clearInterval(state.limit);
+    state.clock.pause();
+    state.stream?.getTracks().forEach((track) => {
+      track.stop();
+    });
+    state.output?.getTracks().forEach((track) => {
+      track.stop();
+    });
+    state.video?.remove();
+  }
+  function stop(state) {
+    state.stopRequested = true;
+    state.clock.pause();
+    if (state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+    release(state);
+  }
+  function settle(state, error) {
+    for (const waiter of state.waiters.splice(0)) error ? waiter.reject(error) : waiter.resolve();
+  }
+  function drain(state) {
+    if (state.draining) return state.draining;
+    // Install ownership before the first async operation, and release it before
+    // resolving the shared promise. Final events may arrive during phase IPC.
+    state.draining = Promise.resolve().then(async () => {
+      try {
+        for (;;) {
+          while (state.pending.length) {
+            const part = state.pending[0];
+            const end = Math.min(part.blob.size, part.offset + state.chunkBytes);
+            const bytes = new Uint8Array(await part.blob.slice(part.offset, end).arrayBuffer());
+            const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+            const sha256 = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
+              "",
+            );
+            const ack = await api.recordAppend({
+              sessionId: state.sessionId,
+              sequence: state.sequence,
+              bytes,
+              sha256,
+              durationMs: part.durationMs,
+            });
+            if (ack.sequence !== state.sequence)
+              throw new Error("Confirmação de gravação fora de ordem.");
+            state.sequence++;
+            part.offset = end;
+            if (end === part.blob.size) {
+              state.pendingBytes -= part.blob.size;
+              state.pending.shift();
+            }
+          }
+          if (!state.stopRequested && state.recorder.state === "paused") {
+            state.recorder.resume();
+            state.clock.resume();
+            await api.recordPhase("recording");
+            continue;
+          }
+          break;
+        }
+      } catch (error) {
+        state.writeError = error;
+        stop(state);
+        await phase("failed");
+        toast(
+          `${error.message} Os trechos confirmados estão no disco; clique em Parar e salvar para repetir a parte pendente.`,
+        );
+        throw error;
+      } finally {
+        state.draining = null;
+      }
+    });
+    return state.draining;
+  }
   async function persist(state) {
     if (state.saving) return state.saving;
     state.saving = (async () => {
-      const blob = new Blob(state.chunks, { type: "video/webm" });
-      if (!blob.size) throw new Error("A gravação não gerou quadros.");
-      await api.recordSave(new Uint8Array(await blob.arrayBuffer()));
+      if (state.overflow) throw state.overflow;
+      await api.recordPhase("finalizing");
+      await drain(state);
+      if (
+        !state.finalChunksReady ||
+        !state.stopRequested ||
+        state.pending.length ||
+        state.pendingBytes ||
+        state.sequence !== state.admittedParts
+      )
+        throw new Error("Aguarde a confirmação de todos os trechos finais antes de salvar.");
+      await api.recordSave({ sessionId: state.sessionId, durationMs: state.clock.elapsed() });
       if (recording === state) recording = null;
       toast("Gravação salva na biblioteca.");
     })();
     try {
       await state.saving;
+    } catch (error) {
+      await phase("failed");
+      throw error;
     } finally {
       state.saving = null;
     }
@@ -20,55 +112,74 @@ export function setupRecording(api, toast) {
     pendingStop = true;
     const state = recording;
     if (!state) return Promise.resolve();
-    // stop() makes MediaRecorder inactive before its final dataavailable/onstop
-    // events. Only onstop confirms that every chunk is available for persistence.
+    // Failure UI can arrive before the failed drain releases its promise.
+    // An explicit retry owns a new drain only after that failure has settled.
+    if (state.writeError && state.draining) {
+      const previousError = state.writeError;
+      return state.draining
+        .catch((error) => {
+          if (error !== previousError) throw error;
+        })
+        .then(() => {
+          if (recording !== state)
+            throw new Error("A sessão mudou durante a repetição da gravação.");
+          return finish();
+        });
+    }
+    state.writeError = null;
     if (state.finalChunksReady) return persist(state);
-    state.stopRequested = true;
     const completion = new Promise((resolve, reject) => state.waiters.push({ resolve, reject }));
-    if (state.recorder?.state === "recording") state.recorder.stop();
+    stop(state);
     return completion;
   }
-  function settle(state, error) {
-    for (const waiter of state.waiters.splice(0)) {
-      if (error) waiter.reject(error);
-      else waiter.resolve();
-    }
-  }
-  function release(state) {
-    clearInterval(state.timer);
-    clearTimeout(state.limit);
-    state.stream?.getTracks().forEach((t) => {
-      t.stop();
-    });
-    state.output?.getTracks().forEach((t) => {
-      t.stop();
-    });
-    state.video?.remove();
-  }
-  window.addEventListener("edicaptura-record", async ({ detail: { rect, display } }) => {
+  window.addEventListener("edicaptura-record", async ({ detail }) => {
     if (recording) return;
-    const state = { chunks: [], bytes: 0, waiters: [] };
+    const { rect, display, sessionId, chunkBytes, maxParts, maxDurationMs, maxBytes } = detail;
+    const state = {
+      pending: [],
+      pendingBytes: 0,
+      totalBytes: 0,
+      admittedParts: 0,
+      sequence: 0,
+      waiters: [],
+      sessionId,
+      chunkBytes,
+      clock: new RecordingClock(),
+    };
     recording = state;
     try {
       if (pendingStop) throw new Error("Gravação encerrada antes do primeiro quadro.");
-      toast("Iniciando gravação…");
+      if (
+        !sessionId ||
+        !Number.isInteger(chunkBytes) ||
+        chunkBytes < 1 ||
+        chunkBytes > 1024 * 1024 ||
+        !Number.isInteger(maxParts) ||
+        maxParts < 100
+      )
+        throw new Error("Sessão de gravação inválida.");
       state.stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
         audio: false,
       });
+      // Permission completion never activates a session cancelled in the meantime.
+      if (pendingStop || state.stopRequested || recording !== state)
+        throw new Error("Gravação interrompida durante a permissão.");
       const video = document.createElement("video");
       state.video = video;
       video.muted = true;
       video.srcObject = state.stream;
       await video.play();
+      if (pendingStop || state.stopRequested)
+        throw new Error("Gravação interrompida antes do primeiro quadro.");
       const sx = video.videoWidth / display.width,
         sy = video.videoHeight / display.height;
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(2, Math.round((rect.width * sx) / 2) * 2);
       canvas.height = Math.max(2, Math.round((rect.height * sy) / 2) * 2);
-      const ctx = canvas.getContext("2d");
+      const context = canvas.getContext("2d");
       const draw = () =>
-        ctx.drawImage(
+        context.drawImage(
           video,
           rect.x * sx,
           rect.y * sy,
@@ -82,54 +193,80 @@ export function setupRecording(api, toast) {
       draw();
       state.timer = setInterval(draw, 1000 / 30);
       state.output = canvas.captureStream(30);
-      const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((t) =>
-        MediaRecorder.isTypeSupported(t),
+      const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(
+        (type) => MediaRecorder.isTypeSupported(type),
       );
       if (!mimeType) throw new Error("Este sistema não suporta gravação WebM.");
       const recorder = new MediaRecorder(state.output, { mimeType, videoBitsPerSecond: 6_000_000 });
       state.recorder = recorder;
-      recorder.ondataavailable = (e) => {
-        if (e.data.size) {
-          state.chunks.push(e.data);
-          state.bytes += e.data.size;
-          if (state.bytes > 300_000_000 && recorder.state === "recording") recorder.stop();
+      recorder.ondataavailable = (event) => {
+        if (!event.data.size) return;
+        const packets = Math.ceil(event.data.size / chunkBytes);
+        if (
+          state.pendingBytes + event.data.size > MAX_PENDING_BYTES ||
+          state.admittedParts + packets > maxParts
+        ) {
+          state.overflow = new Error(
+            "O codificador excedeu o limite de 32 MiB pendentes ou de partes da sessão. Gravação interrompida; recupere os trechos já confirmados ao reabrir o app. A parte excedente não foi salva.",
+          );
+          stop(state);
+          toast(state.overflow.message);
+          return;
         }
+        state.pending.push({ blob: event.data, offset: 0, durationMs: state.clock.elapsed() });
+        state.pendingBytes += event.data.size;
+        state.totalBytes += event.data.size;
+        state.admittedParts += packets;
+        if (state.pendingBytes >= 4 * 1024 * 1024 && recorder.state === "recording") {
+          recorder.pause();
+          state.clock.pause();
+          void phase("paused");
+        }
+        // Leave room for both the current encoder burst and the final stop event.
+        if (
+          state.totalBytes + MAX_PENDING_BYTES >= maxBytes ||
+          state.admittedParts >= maxParts - 2 * Math.ceil(MAX_PENDING_BYTES / chunkBytes) - 2
+        )
+          stop(state);
+        if (!state.writeError)
+          void drain(state).catch(() => {
+            /* drain retains the pending bytes and exposes retry UI. */
+          });
       };
-      recorder.onerror = async (e) => {
-        toast(e.error?.message || "Falha ao gravar vídeo. Preservando os quadros disponíveis.");
+      recorder.onerror = (event) => {
+        toast(event.error?.message || "Falha no codificador; preservando os trechos.");
+        stop(state);
       };
       recorder.onstop = async () => {
         state.finalChunksReady = true;
         release(state);
-        if (state.failed) return;
+        if (state.writeError || state.overflow) {
+          settle(state, state.writeError || state.overflow);
+          return;
+        }
         try {
           await persist(state);
           settle(state);
-        } catch (e) {
-          // Keep the bytes in memory so recovery can retry a failed disk write.
-          toast(e.message);
-          settle(state, e);
+        } catch (error) {
+          toast(error.message);
+          settle(state, error);
         }
       };
-      state.stream.getVideoTracks()[0].onended = () => {
-        if (recorder.state === "recording") recorder.stop();
-      };
-      recorder.start(1000);
-      if (state.stopRequested) recorder.stop();
-      toast("Gravando região");
-      state.limit = setTimeout(
-        () => {
-          if (recorder.state === "recording") recorder.stop();
-        },
-        5 * 60 * 1000,
-      );
+      state.stream.getVideoTracks()[0].onended = () => stop(state);
       await api.recordReady();
-    } catch (e) {
-      state.failed = true;
+      if (pendingStop || state.stopRequested)
+        throw new Error("Gravação interrompida antes do primeiro quadro.");
+      recorder.start(250);
+      state.clock.resume();
+      state.limit = setInterval(() => {
+        if (state.clock.elapsed() >= maxDurationMs) stop(state);
+      }, 250);
+      toast(`Gravando · até ${Math.floor(maxDurationMs / 60000)} min, conforme espaço em disco`);
+    } catch (error) {
       release(state);
       recording = null;
-      settle(state, e);
-      await api.recordFailed(e.message);
+      settle(state, error);
+      await api.recordFailed(error.message);
     }
   });
   api.onStop(() => {

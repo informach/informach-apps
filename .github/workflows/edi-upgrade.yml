@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       applications: ${{ steps.catalog.outputs.applications }}
-      media_application: ${{ steps.catalog.outputs.media_application }}
+      media_applications: ${{ steps.catalog.outputs.media_applications }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -43,11 +43,9 @@ jobs:
         id: catalog
         run: |
           node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
-          import { EDI_DESKTOP_APPS } from "./packages/config/src/edi-tools.ts";
-          const media = EDI_DESKTOP_APPS.find(app => app.id === "ediaula");
-          if (!media) throw new Error("The suite catalog must include EdiAula");
-          console.log("applications=" + JSON.stringify(EDI_DESKTOP_APPS.filter(app => app !== media).map(app => app.id)));
-          console.log("media_application=" + media.id);
+          import { EDI_DESKTOP_APPS, hasNativeMedia } from "./packages/config/src/edi-tools.ts";
+          console.log("applications=" + JSON.stringify(EDI_DESKTOP_APPS.filter(app => !hasNativeMedia(app.id)).map(app => app.id)));
+          console.log("media_applications=" + JSON.stringify(EDI_DESKTOP_APPS.filter(app => hasNativeMedia(app.id)).map(app => app.id)));
           NODE
   upgrade:
     needs: catalog
@@ -62,7 +60,12 @@ jobs:
       app: ${{ matrix.app }}
   upgrade-media:
     needs: [catalog, media]
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        app: ${{ fromJSON(needs.catalog.outputs.media_applications) }}
     uses: ./.github/workflows/edi-upgrade-app.yml
     with:
       source_ref: ${{ inputs.source_ref || github.sha }}
-      app: ${{ needs.catalog.outputs.media_application }}
+      app: ${{ matrix.app }}

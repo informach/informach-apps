@@ -39,6 +39,10 @@ public static class EdiNativeFileControl {
   public static extern IntPtr ReadText(IntPtr window, uint message, IntPtr capacity, StringBuilder text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
   public static extern IntPtr Click(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+  [DllImport("user32.dll", EntryPoint="IsWindowEnabled")]
+  public static extern bool IsWindowEnabled(IntPtr window);
+  [DllImport("user32.dll", EntryPoint="IsWindowVisible")]
+  public static extern bool IsWindowVisible(IntPtr window);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
   public static IntPtr[] OwnedDialogs(int targetProcess) {
@@ -58,10 +62,15 @@ public static class EdiNativeFileControl {
 '@
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $completed=$false
+$maxOwnedDialogs=0
+$sawButton=$false
+$sawFile=$false
 while ([DateTime]::UtcNow -lt $deadline) {
   # Enumerate only top-level HWNDs owned by the exact fixture PID. UIA's
   # desktop-wide descendant search can fail on unrelated protected processes.
-  foreach ($handle in [EdiNativeFileControl]::OwnedDialogs($TestProcessId)) {
+  $dialogs=[EdiNativeFileControl]::OwnedDialogs($TestProcessId)
+  $maxOwnedDialogs=[Math]::Max($maxOwnedDialogs,$dialogs.Length)
+  foreach ($handle in $dialogs) {
     $window=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
     $buttonId=if ($Action -eq 'Cancel') {'2'} else {'1'}
     $buttonIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$buttonId)
@@ -78,7 +87,9 @@ while ([DateTime]::UtcNow -lt $deadline) {
       $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
       $file=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)
     }
-    if ($button -and $button.Current.IsEnabled -and $file) {
+    if ($button) { $sawButton=$true }
+    if ($file) { $sawFile=$true }
+    if ($button -and $file) {
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
       $buttonHandle=[IntPtr]$button.Current.NativeWindowHandle
       foreach($handle in @($fileHandle,$buttonHandle)) {
@@ -86,6 +97,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         [void][EdiNativeFileControl]::GetWindowThreadProcessId($handle,[ref]$controlOwner)
         if ($controlOwner -ne $TestProcessId) { throw 'The file control belongs to another process.' }
       }
+      if (![EdiNativeFileControl]::IsWindowEnabled($fileHandle) -or ![EdiNativeFileControl]::IsWindowVisible($fileHandle)) { continue }
       if ($Action -eq 'Save') {
         if ($file.Current.ClassName -ne 'Edit') { throw 'The native Save dialog must expose its filename edit control.' }
         # EM_REPLACESEL notifies the common dialog; UIA ValuePattern/WM_SETTEXT can
@@ -96,6 +108,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         [void][EdiNativeFileControl]::ReadText($fileHandle,0x000D,[IntPtr]4096,$readback)
         if($readback.ToString() -ne $selected){throw 'Owned filename edit did not retain the exact disposable path.'}
       }
+      if (![EdiNativeFileControl]::IsWindowEnabled($buttonHandle) -or ![EdiNativeFileControl]::IsWindowVisible($buttonHandle)) { continue }
       # Open verifies the existing file preselected by the app's current-file
       # default. The caller asserts the returned full path and bytes; no list
       # item or filename in a personal directory is selected by this helper.
@@ -109,5 +122,5 @@ while ([DateTime]::UtcNow -lt $deadline) {
   if ($completed) { break }
   Start-Sleep -Milliseconds 100
 }
-if (!$completed) { throw 'The owned native file dialog did not appear or did not expose its filename control.' }
+if (!$completed) { throw "The owned native file dialog did not expose an enabled control (dialogs=$maxOwnedDialogs, button=$sawButton, file=$sawFile)." }
 Write-Output 'Responded to the owned native file dialog using UI Automation.'

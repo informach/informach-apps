@@ -66,13 +66,14 @@ public static class EdiNativeFileControl {
   public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
   public static extern IntPtr Click(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+  [DllImport("user32.dll", EntryPoint="IsWindowEnabled")]
+  public static extern bool IsWindowEnabled(IntPtr window);
+  [DllImport("user32.dll", EntryPoint="IsWindowVisible")]
+  public static extern bool IsWindowVisible(IntPtr window);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
 }
 '@
-$processCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$TestProcessId)
-$dialogCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'#32770')
-$combined=New-Object System.Windows.Automation.AndCondition($processCondition,$dialogCondition)
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $completed=$false
 while ([DateTime]::UtcNow -lt $deadline) {
@@ -102,7 +103,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
       $editable=[EdiNativeFileControl]::EditablePart([IntPtr]$file.Current.NativeWindowHandle,$TestProcessId)
       if ($editable -ne [IntPtr]::Zero) { $file=[System.Windows.Automation.AutomationElement]::FromHandle($editable) }
     }
-    if ($button -and $button.Current.IsEnabled -and $file) {
+    if ($button -and $file) {
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
       $fileValue=$null
       $hasValue=$file.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$fileValue)
@@ -112,6 +113,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         [void][EdiNativeFileControl]::GetWindowThreadProcessId($handle,[ref]$controlOwner)
         if ($controlOwner -ne $TestProcessId) { throw 'The file control belongs to another process.' }
       }
+      if (![EdiNativeFileControl]::IsWindowEnabled($fileHandle) -or ![EdiNativeFileControl]::IsWindowVisible($fileHandle)) { continue }
       if ($Action -ne 'Cancel') {
         if ($file.Current.ClassName -ne 'Edit' -and (!$hasValue -or $Action -eq 'Save')) { [EdiNativeFileControl]::OwnedControls($TestProcessId) | ConvertTo-Json -Compress | Write-Output; throw 'The owned filename control does not support a verified selection.' }
         # Edit the native text, so the common dialog receives change notifications.
@@ -124,9 +126,8 @@ while ([DateTime]::UtcNow -lt $deadline) {
         Write-Output "Owned EdiPDF filename selection: $([EdiNativeFileControl]::ReadText($fileHandle))"
       }
       # Only exact disposable paths are selected; the caller verifies output bytes.
-      $buttonInvoke=$null
-      if ($button.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$buttonInvoke)) { $buttonInvoke.Invoke() }
-      else { [void][EdiNativeFileControl]::Click($buttonHandle,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero) }
+      if (![EdiNativeFileControl]::IsWindowEnabled($buttonHandle) -or ![EdiNativeFileControl]::IsWindowVisible($buttonHandle)) { continue }
+      [void][EdiNativeFileControl]::Click($buttonHandle,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero)
       $completed=$true
       break
     }

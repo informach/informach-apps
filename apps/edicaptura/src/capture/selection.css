@@ -13,7 +13,13 @@ body {
   object-fit: fill;
   pointer-events: none;
 }
+#picker {
+  position: absolute;
+  inset: 0;
+}
 #surface {
+  width: 100%;
+  height: 100%;
   position: absolute;
   inset: 0;
   cursor: crosshair;
@@ -186,4 +192,78 @@ i[data-handle="w"] {
 }
 .video-mode [data-mode="video"] {
   background: #40536a;
+}
+#precision-panel {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 12;
+  padding: 10px;
+  color: #fff;
+  background: #171d26;
+  border: 1px solid #738094;
+  border-radius: 8px;
+}
+#precision-panel > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+#precision-panel label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+#precision-panel input {
+  width: 92px;
+}
+#precision-panel input,
+#precision-panel select,
+#precision-panel button {
+  color: #fff;
+  background: #303946;
+  border: 1px solid #738094;
+  border-radius: 4px;
+  padding: 5px;
+}
+#precision-panel small {
+  color: #c9d7e7;
+}
+#precision-panel button:focus-visible,
+#precision-panel input:focus-visible,
+#precision-panel select:focus-visible,
+#capture-toolbar button:focus-visible {
+  outline: 2px solid #79a9e8;
+  outline-offset: 2px;
+}
+#fixed-size {
+  display: inline-flex;
+  gap: 8px;
+}
+#loupe {
+  position: fixed;
+  top: 12px;
+  margin: 0;
+  width: 180px;
+  background: #171d26;
+  color: #fff;
+  padding: 8px;
+  border: 1px solid #738094;
+  border-radius: 6px;
+  z-index: 11;
+  pointer-events: none;
+}
+#magnifier {
+  display: block;
+  width: 150px;
+  height: 150px;
+  image-rendering: pixelated;
+}
+#magnifier-label {
+  font-size: 11px;
+  margin-top: 4px;
 }

@@ -145,7 +145,11 @@ test("o clipe só toca o arquivo tratado do ajuste escolhido e da versão atual"
   assert.equal(treatedPath({ hasAudio: true, voicePreset: "off", treated }), null);
   assert.equal(treatedPath({ hasAudio: true, treated }), null);
   assert.equal(
-    treatedPath({ hasAudio: true, voicePreset: "teacher", treated: { ...treated, version: 0 } }),
+    treatedPath({
+      hasAudio: true,
+      voicePreset: "teacher",
+      treated: { ...treated, version: VOICE_CHAIN_VERSION - 1 },
+    }),
     null,
   );
 });
@@ -190,22 +194,12 @@ for (const [label, ffmpeg] of [
       plain,
     ]);
     const untreated = snr(plain);
-    // Which processor ran it (see the pending item on the GitHub runners in the analysis).
+    // Record the processor so differences between runners can be diagnosed.
     t.diagnostic(`${label}: processador ${cpus()[0]?.model ?? "?"}`);
     t.diagnostic(
       `${label}: chiado sob a fala ${before.under.toFixed(1)} dB abaixo da voz; sem redução ${untreated.under.toFixed(1)} dB; com ${after.under.toFixed(1)} dB`,
     );
-    const reduction = after.under - untreated.under;
-    if (process.env.CI && reduction < 10)
-      // A warning on CI, not a failure: the GitHub runners measure about 7.8 dB here while this
-      // machine, with the very binary the release built, measures 21.8 dB. Decided by the owner
-      // on 18/10/2026 so the release can go out; the cause is pending in
-      // docs/propostas/ediaula-2026-10-17/analise.md, and the check goes back to failing once
-      // it is found.
-      t.diagnostic(
-        `AVISO: redução do chiado de ${reduction.toFixed(1)} dB, abaixo dos 10 dB (${untreated.under} → ${after.under})`,
-      );
-    else assert.ok(reduction >= 10, `${untreated.under} → ${after.under}`);
+    assert.ok(after.under - untreated.under >= 10, `${untreated.under} → ${after.under}`);
     // The expander leaves the pauses quieter, never silent.
     assert.ok(Number.isFinite(after.noise) && after.noise > -110, `pausa em ${after.noise} dBFS`);
     const wav = readWav(first.path);
@@ -222,6 +216,19 @@ for (const [label, ffmpeg] of [
     assert.equal(again.cached, true);
     assert.equal(again.path, first.path);
     assert.deepEqual(readFileSync(first.path), bytes, "o mesmo arquivo, sem rodar de novo");
+    const independent = await treatVoice({
+      ffmpeg,
+      source,
+      preset: "teacher",
+      cacheRoot: join(cacheRoot, "independent"),
+      model: MODEL,
+    });
+    assert.equal(independent.cached, false);
+    assert.deepEqual(
+      readFileSync(independent.path),
+      bytes,
+      "outro cache vazio produz os mesmos bytes, sem depender do estado da pilha do FFmpeg",
+    );
     const soft = await treatVoice({ ffmpeg, source, preset: "soft", cacheRoot, model: MODEL });
     assert.notEqual(soft.path, first.path, "outro ajuste, outro arquivo");
   });

@@ -587,6 +587,12 @@ importers:
       '@informach/edi-desktop':
         specifier: workspace:*
         version: link:../../packages/edi-desktop
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       electron:
         specifier: 44.8.0

@@ -1,8 +1,12 @@
+html {
+  background: #171d26;
+  color-scheme: dark;
+}
 body {
   padding: 16px 20px;
   background: #171d26;
   color: #fff;
-  height: 100vh;
+  min-height: 100vh;
 }
 header {
   display: flex;
@@ -33,6 +37,12 @@ footer {
 button {
   font-size: 12px;
   padding: 9px 11px;
+  background: #263345;
+  border-color: #526074;
+  color: #fff;
+}
+button:hover {
+  background: #35465e;
 }
 #stop-hint {
   font-size: 10px;
@@ -110,4 +120,87 @@ small {
   color: #b8c5d6;
   margin-top: 8px;
   overflow-wrap: anywhere;
+}
+body {
+  overflow-y: auto;
+}
+.scroll-settings,
+.scroll-automation,
+.scroll-review {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.scroll-settings fieldset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border: 1px solid #526074;
+}
+.scroll-settings input,
+.scroll-automation input,
+.scroll-seam input {
+  width: 65px;
+}
+.scroll-settings select,
+.scroll-automation select,
+.scroll-settings input,
+.scroll-automation input,
+.scroll-seam input {
+  color: white;
+  background: #242e3d;
+  padding: 5px;
+  border: 1px solid #526074;
+}
+.scroll-seam {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 0;
+  border-bottom: 1px solid #526074;
+}
+.scroll-seam span {
+  width: 100%;
+}
+#scroll-figure {
+  margin: 0;
+  overflow: auto;
+  max-height: 480px;
+  background: #111;
+}
+#scroll-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+#scroll-warning {
+  color: #ffcf84;
+}
+#scroll-preview-surface {
+  position: relative;
+}
+#scroll-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scroll-marker {
+  position: absolute;
+  color: #111;
+  background: #ffcf84;
+  font-size: 10px;
+}
+.scroll-marker.vertical {
+  left: 0;
+  right: 0;
+  border-top: 2px solid #ffcf84;
+  height: 2px;
+}
+.scroll-marker.horizontal {
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid #ffcf84;
+  width: 2px;
 }

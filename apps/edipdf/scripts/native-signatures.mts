@@ -35,10 +35,11 @@ export async function verifyNativeSignatures(options: {
   editor: Page;
   directory: string;
   outputDirectory: string;
+  resultsDirectory: string;
   command(text: string): Promise<void>;
   respond(action: "Open" | "Save", path: string): Promise<Error | null>;
 }): Promise<void> {
-  const { editor, directory, outputDirectory, command, respond } = options;
+  const { editor, directory, outputDirectory, resultsDirectory, command, respond } = options;
   const sourcePath = join(directory, "signature-editor.pdf"),
     before = await readFile(sourcePath);
   let response = respond("Open", sourcePath);
@@ -115,7 +116,7 @@ export async function verifyNativeSignatures(options: {
   await picker.click({ position: { x: box.width * 0.9, y: box.height * 0.9 } });
   await picker.press("Shift+ArrowUp");
   await editor.screenshot({
-    path: ".cache/edi-native-results/edipdf-signature-position.png",
+    path: join(resultsDirectory, "edipdf-signature-position.png"),
     animations: "disabled",
   });
   await dialog.getByRole("button", { name: "Usar assinatura", exact: true }).click();
@@ -143,7 +144,7 @@ export async function verifyNativeSignatures(options: {
   assert.equal(image.group, date.group);
   assert.deepEqual(await readFile(sourcePath), before);
   await editor.screenshot({
-    path: ".cache/edi-native-results/edipdf-signature-applied.png",
+    path: join(resultsDirectory, "edipdf-signature-applied.png"),
     animations: "disabled",
   });
   await editor

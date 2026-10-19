@@ -2,6 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
 
 if (process.platform !== "win32")
@@ -51,28 +52,36 @@ for (const [option, capabilities] of [
 }
 const packageManager = process.env.npm_execpath;
 if (!packageManager) throw new Error("Run media verification through pnpm");
-const child = spawn(process.execPath, [packageManager, "--filter", "@informach/ediaula", "test"], {
-  windowsHide: true,
-  stdio: "inherit",
-  // The native helper's tests that send real clicks, wheel and pointer moves run here, on the
-  // Windows runner, and stay off on a developer's desktop unless asked for.
-  env: {
-    ...process.env,
-    FFMPEG_BIN: ffmpeg,
-    FFPROBE_BIN: ffprobe,
-    EDIAULA_NATIVE_INPUT_TESTS: "1",
-  },
-});
-await new Promise<void>((resolve, reject) => {
-  child.once("error", reject);
-  child.once("exit", (code) =>
-    code === 0 ? resolve() : reject(new Error(`EdiAula media regression failed (${code})`)),
+for (const tool of EDI_TOOLS) {
+  if (!("nativeMedia" in tool)) continue;
+  const child = spawn(
+    process.execPath,
+    [packageManager, "--filter", `@informach/${tool.id}`, tool.nativeMedia.testScript],
+    {
+      windowsHide: true,
+      stdio: "inherit",
+      // Desktop/input/audio acquisition requires the caller's explicit opt-in flags.
+      env: { ...process.env, FFMPEG_BIN: ffmpeg, FFPROBE_BIN: ffprobe },
+    },
   );
-});
+  await new Promise<void>((done, reject) => {
+    let failure: Error | undefined;
+    child.once("error", (error) => {
+      failure = error;
+    });
+    child.once("close", (code, signal) =>
+      failure
+        ? reject(failure)
+        : code === 0 && signal === null
+          ? done()
+          : reject(new Error(`${tool.name} media regression failed (${code}/${signal})`)),
+    );
+  });
+}
 await writeFile(
   resolve(".cache/edi-media-verification.json"),
   JSON.stringify({ version: bundle.version, recipeDigest: bundle.recipeDigest, passed: true }),
 );
 console.log(
-  `Verified native Windows media ${bundle.version}: required capabilities and the complete EdiAula test suite`,
+  `Verified native Windows media ${bundle.version}: required capabilities and every native-media catalog consumer`,
 );

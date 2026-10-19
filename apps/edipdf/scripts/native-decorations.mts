@@ -23,10 +23,11 @@ export async function verifyNativeDecorations(options: {
   editor: Page;
   directory: string;
   outputDirectory: string;
+  resultsDirectory: string;
   command(text: string): Promise<void>;
   respond(action: "Open" | "Save", path: string): Promise<Error | null>;
 }): Promise<void> {
-  const { editor, directory, outputDirectory, command, respond } = options;
+  const { editor, directory, outputDirectory, resultsDirectory, command, respond } = options;
   const sourcePath = join(directory, "decorations.pdf"),
     sourceBytes = await readFile(sourcePath);
   let response = respond("Open", sourcePath);
@@ -87,7 +88,7 @@ export async function verifyNativeDecorations(options: {
     .getByRole("img", { name: "Prévia real de marcas e cabeçalhos, página 2", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: ".cache/edi-native-results/edipdf-decoration-watermark-preview.png",
+    path: join(resultsDirectory, "edipdf-decoration-watermark-preview.png"),
     animations: "disabled",
   });
   await watermark.getByRole("button", { name: "Aplicar", exact: true }).click();
@@ -121,7 +122,7 @@ export async function verifyNativeDecorations(options: {
     .getByRole("img", { name: "Prévia real de marcas e cabeçalhos, página 2", exact: true })
     .waitFor();
   await editor.screenshot({
-    path: ".cache/edi-native-results/edipdf-decoration-numbering-preview.png",
+    path: join(resultsDirectory, "edipdf-decoration-numbering-preview.png"),
     animations: "disabled",
   });
   await numbering.getByRole("button", { name: "Aplicar", exact: true }).click();
@@ -215,7 +216,7 @@ export async function verifyNativeDecorations(options: {
   assert.ok(geometry.width > geometry.height && geometry.visualHeight > geometry.visualWidth);
   assert.ok(geometry.fontSize > 0 && geometry.fontSize <= geometry.height);
   await editor.screenshot({
-    path: ".cache/edi-native-results/edipdf-decorations-reopened.png",
+    path: join(resultsDirectory, "edipdf-decorations-reopened.png"),
     animations: "disabled",
   });
   await editor

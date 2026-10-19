@@ -25,8 +25,12 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Read native-media capability from the suite catalog
+        id: native-media
+        shell: pwsh
+        run: node --input-type=module -e 'import { hasNativeMedia } from "./packages/config/src/edi-tools.ts"; console.log("enabled=" + hasNativeMedia(process.argv[1]));' '${{ inputs.app }}' >> $env:GITHUB_OUTPUT
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        if: inputs.app == 'ediaula'
+        if: steps.native-media.outputs.enabled == 'true'
         with:
           name: edi-native-media-windows-x64
           path: .cache/edi-native-media/windows-x64

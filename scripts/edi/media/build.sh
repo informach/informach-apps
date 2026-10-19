@@ -95,6 +95,26 @@ case "$name" in
     sed -n '1,/^\/\/ THE SOFTWARE\.$/p' AMF/core/Version.h | sed -E 's|^// ?||' > LICENSE.txt
     grep -q 'MIT license' LICENSE.txt ;;
   ffmpeg)
+    # arnndn rounds GRU input widths up to four floats. Its stack inputs must have
+    # zero padding: zero weights do not neutralize an uninitialized NaN (0 * NaN).
+    # Keep the source patch in the corresponding-source recipe and reject drift.
+    python3 - <<'PY'
+import pathlib
+path = pathlib.Path('libavfilter/af_arnndn.c')
+source = path.read_text()
+before = '''    LOCAL_ALIGNED_32(float, dense_out,     [MAX_NEURONS]);
+    LOCAL_ALIGNED_32(float, noise_input,   [MAX_NEURONS * 3]);
+    LOCAL_ALIGNED_32(float, denoise_input, [MAX_NEURONS * 3]);
+
+    compute_dense(rnn->model->input_dense, dense_out, input);'''
+after = before.replace('    compute_dense(', '''    RNN_CLEAR(dense_out, MAX_NEURONS);
+    RNN_CLEAR(noise_input, MAX_NEURONS * 3);
+    RNN_CLEAR(denoise_input, MAX_NEURONS * 3);
+
+    compute_dense(''')
+assert source.count(before) == 1, 'FFmpeg arnndn input context changed'
+path.write_text(source.replace(before, after))
+PY
     ./configure --prefix="$PREFIX" --target-os=mingw32 --arch=x86_64 --enable-cross-compile --cross-prefix="$TARGET-" \
       --pkg-config=pkg-config --pkg-config-flags=--static --extra-cflags="$CPPFLAGS" --extra-ldflags="$LDFLAGS" \
       --extra-libs='-lstdc++ -lpthread' --disable-autodetect --disable-shared --enable-static --disable-debug --disable-doc --disable-ffplay \

@@ -40,7 +40,12 @@ export const vaultSchema = z.looseObject({
   updateFloors: z.partialRecord(z.enum(["stable", "beta"]), releaseVersionSchema).default({}),
 });
 export type VaultData = z.infer<typeof vaultSchema>;
-export type Vault = { use<T>(operation: (data: VaultData) => Promise<T>): Promise<T> };
+export type Vault = {
+  use<T>(
+    operation: (data: VaultData) => Promise<T>,
+    label?: "refresh" | "synchronize" | "other",
+  ): Promise<T>;
+};
 export function createDeviceIdentity() {
   const keys = generateKeyPairSync("ed25519");
   const spki = keys.publicKey.export({ type: "spki", format: "der" });
@@ -55,18 +60,25 @@ export function createVault(config: {
   directory: string;
   seal: (plain: string) => Buffer;
   unseal: (sealed: Buffer) => string;
-}): Vault & { close(): Promise<void> } {
+}): Vault & {
+  close(): Promise<void>;
+  pendingStages(): Array<{ label: string; phase: string }>;
+} {
   const target = join(config.directory, "session.v1.bin");
-  const active = new Set<Promise<void>>();
+  const active = new Map<Promise<void>, { label: string; phase: string }>();
   let closed = false;
   return {
     close() {
       closed = true;
-      return Promise.all([...active]).then(() => undefined);
+      return Promise.all([...active.keys()]).then(() => undefined);
     },
-    use(operation) {
+    pendingStages() {
+      return [...active.values()].map(({ label, phase }) => ({ label, phase }));
+    },
+    use(operation, label = "other") {
       if (closed) return Promise.reject(new Error("O cofre de sessão está encerrando."));
-      const result = run(operation);
+      const stage = { label, phase: "mkdir" };
+      const result = run(operation, stage);
       // Callers retain their operation's result/error; shutdown tracks completion through release().
       const finished = result.then(
         () => {
@@ -76,12 +88,16 @@ export function createVault(config: {
           active.delete(finished);
         },
       );
-      active.add(finished);
+      active.set(finished, stage);
       return result;
     },
   };
-  async function run<T>(operation: (data: VaultData) => Promise<T>): Promise<T> {
+  async function run<T>(
+    operation: (data: VaultData) => Promise<T>,
+    stage: { phase: string },
+  ): Promise<T> {
     await mkdir(config.directory, { recursive: true, mode: 0o700 });
+    stage.phase = "lock";
     const release = await lock(target, {
       realpath: false,
       stale: 30000,
@@ -89,6 +105,7 @@ export function createVault(config: {
       retries: { retries: 30, minTimeout: 100, maxTimeout: 1000, randomize: true },
     });
     try {
+      stage.phase = "read";
       let data: VaultData;
       let existed = false;
       try {
@@ -114,12 +131,15 @@ export function createVault(config: {
         };
       }
       const before = JSON.stringify(data);
+      stage.phase = "operation";
       const result = await operation(data);
       const after = JSON.stringify(vaultSchema.parse(data));
       if (existed && before === after) return result;
+      stage.phase = "write";
       await atomicWrite(target, config.seal(after));
       return result;
     } finally {
+      stage.phase = "release";
       await release();
     }
   }

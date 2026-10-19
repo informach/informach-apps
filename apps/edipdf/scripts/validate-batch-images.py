@@ -1,9 +1,11 @@
 """Developer-only independent readback of the native journey's synthetic PNG/JPEG exports."""
 from pathlib import Path
+import sys
 from PIL import Image, ImageChops, ImageStat
 
-ROOT = Path(__file__).resolve().parents[3]
-directory = ROOT / '.cache/edipdf-analysis/native-batch'
+if len(sys.argv) != 2:
+    raise SystemExit('Uso: python validate-batch-images.py <run-dir>/native-batch')
+directory = Path(sys.argv[1]).resolve(strict=True)
 for page in (1, 2):
     images = {}
     for suffix in ('png', 'jpg'):

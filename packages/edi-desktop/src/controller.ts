@@ -100,6 +100,7 @@ export function createDesktopController(
     update: "development",
   };
   let login: AbortController | undefined;
+  let refreshAbort: AbortController | undefined;
   let pending: Promise<void> | undefined;
   let lastObservedClock = clock();
   const emit = (patch: Partial<DesktopStatus>) => {
@@ -153,6 +154,7 @@ export function createDesktopController(
     data: VaultData,
     path: RequestProof["path"],
     body: Record<string, string>,
+    signal?: AbortSignal,
   ) {
     const session = data.session;
     if (!session) throw new Error("No desktop session");
@@ -169,7 +171,7 @@ export function createDesktopController(
       JSON.stringify(body),
       data.privateKey,
     );
-    return request(path, body, session.accessToken, proof);
+    return request(path, body, session.accessToken, proof, false, signal);
   }
   function cachedAccess(data: VaultData) {
     const session = data.session;
@@ -197,8 +199,9 @@ export function createDesktopController(
       return { valid: false, reason: "update_required" } as const;
     return result;
   }
-  async function validate() {
+  async function validate(signal: AbortSignal) {
     await config.vault.use(async (data) => {
+      signal.throwIfAborted();
       try {
         const session = data.session;
         if (!session || Date.parse(session.sessionExpiresAt) <= clock()) {
@@ -227,6 +230,7 @@ export function createDesktopController(
               undefined,
               undefined,
               true,
+              signal,
             ),
           );
           session.accessToken = tokens.access_token;
@@ -234,12 +238,17 @@ export function createDesktopController(
           session.accessExpiresAt = clock() + tokens.expires_in * 1000;
         }
         const response = licenseResponseSchema.parse(
-          await signedRequest(data, "/api/desktop/license", {
-            deviceId: data.deviceId,
-            sessionId: session.sessionId,
-            toolId,
-            clientVersion,
-          }),
+          await signedRequest(
+            data,
+            "/api/desktop/license",
+            {
+              deviceId: data.deviceId,
+              sessionId: session.sessionId,
+              toolId,
+              clientVersion,
+            },
+            signal,
+          ),
         );
         if (response.status === "denied") {
           if (response.reason === "update_required") {
@@ -300,6 +309,7 @@ export function createDesktopController(
           offline: false,
         });
       } catch (error) {
+        if (signal.aborted) return;
         const temporary = isTemporary(error);
         const cached = temporary ? cachedAccess(data) : null;
         const claims = cached?.valid ? cached.claims : null;
@@ -332,11 +342,15 @@ export function createDesktopController(
           });
         }
       }
-    });
+    }, "refresh");
   }
   const refresh = () => {
-    pending ??= validate()
+    if (pending) return pending;
+    const active = new AbortController();
+    refreshAbort = active;
+    pending = validate(active.signal)
       .catch((error: unknown) => {
+        if (active.signal.aborted) return;
         emit({
           state: "restricted",
           cause: "unavailable",
@@ -348,6 +362,7 @@ export function createDesktopController(
       })
       .finally(() => {
         pending = undefined;
+        if (refreshAbort === active) refreshAbort = undefined;
       });
     return pending;
   };
@@ -399,7 +414,7 @@ export function createDesktopController(
             reason: "Assinatura validada",
             offline: status.offline,
           });
-      });
+      }, "synchronize");
     },
     setUpdate: (update: DesktopStatus["update"]) => emit({ update }),
     assertAccess() {
@@ -549,6 +564,7 @@ export function createDesktopController(
       }
     },
     cancelConnect: () => login?.abort(),
+    cancelRefresh: () => refreshAbort?.abort(),
     async logout() {
       login?.abort();
       let remoteFailure: unknown;

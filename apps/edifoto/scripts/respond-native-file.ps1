@@ -24,8 +24,23 @@ if ($Action -ne 'Cancel') {
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -TypeDefinition @'
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class EdiNativeFileControl {
+  public delegate bool WindowVisitor(IntPtr window, IntPtr context);
+  [DllImport("user32.dll", EntryPoint="EnumWindows")]
+  private static extern bool EnumerateWindows(WindowVisitor visitor, IntPtr context);
+  [DllImport("user32.dll", EntryPoint="EnumChildWindows")]
+  private static extern bool EnumerateChildWindows(IntPtr parent, WindowVisitor visitor, IntPtr context);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="GetClassNameW")]
+  private static extern int GetWindowClass(IntPtr window, StringBuilder name, int capacity);
+  [DllImport("user32.dll", EntryPoint="GetDlgCtrlID")]
+  private static extern int GetControlId(IntPtr window);
+  [DllImport("user32.dll", EntryPoint="IsWindowEnabled")]
+  public static extern bool IsWindowEnabled(IntPtr window);
+  [DllImport("user32.dll", EntryPoint="IsWindowVisible")]
+  public static extern bool IsWindowVisible(IntPtr window);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
   public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
@@ -38,16 +53,46 @@ public static class EdiNativeFileControl {
   public static extern int WindowStyle(IntPtr window, int index);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+  public static IntPtr[] OwnedDialogs(int targetProcess) {
+    var dialogs = new List<IntPtr>();
+    EnumerateWindows((window, context) => {
+      uint process;
+      GetWindowThreadProcessId(window, out process);
+      if (process != (uint)targetProcess) return true;
+      var name = new StringBuilder(128);
+      if (GetWindowClass(window, name, name.Capacity) > 0 && name.ToString() == "#32770")
+        dialogs.Add(window);
+      return true;
+    }, IntPtr.Zero);
+    return dialogs.ToArray();
+  }
+  public static string[] OwnedControlShape(IntPtr dialog, int targetProcess) {
+    var shape = new List<string>();
+    EnumerateChildWindows(dialog, (window, context) => {
+      uint process;
+      GetWindowThreadProcessId(window, out process);
+      if (process != (uint)targetProcess) return true;
+      var name = new StringBuilder(128);
+      if (GetWindowClass(window, name, name.Capacity) > 0)
+        shape.Add(name.ToString() + ":" + GetControlId(window) + ":" + IsWindowEnabled(window) + ":" + IsWindowVisible(window));
+      return shape.Count < 80;
+    }, IntPtr.Zero);
+    return shape.ToArray();
+  }
 }
 '@
-$processCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$TestProcessId)
-$dialogCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'#32770')
-$combined=New-Object System.Windows.Automation.AndCondition($processCondition,$dialogCondition)
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $completed=$false
+$observedOwnedDialogs=0
+$observedFilenameControls=0
+$lastOwnedDialog=[IntPtr]::Zero
 while ([DateTime]::UtcNow -lt $deadline) {
-  $windows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$combined)
-  foreach ($window in $windows) {
+  # Inspect only top-level HWNDs of the exact fixture PID. Desktop-wide UIA
+  # traversal can fail on unrelated protected windows before reaching the dialog.
+  foreach ($handle in [EdiNativeFileControl]::OwnedDialogs($TestProcessId)) {
+    $observedOwnedDialogs++
+    $lastOwnedDialog=$handle
+    $window=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
     $buttonId=if ($Action -eq 'Cancel') {'2'} else {'1'}
     $buttonIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$buttonId)
     $buttonClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Button')
@@ -58,25 +103,18 @@ while ([DateTime]::UtcNow -lt $deadline) {
     $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
     $file=$null
     foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
-      if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
+      if (!$candidate.Current.IsOffscreen) { $file=$candidate; break }
     }
     if (!$file) {
       $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')
       $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Edit')
       $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
       foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
-        if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
+        if (!$candidate.Current.IsOffscreen) { $file=$candidate; break }
       }
     }
-    if ($button -and !$button.Current.IsOffscreen -and $button.Current.IsEnabled -and $file) {
-      if ($Action -eq 'Save') {
-        $editType=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)
-        $comboType=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ComboBox)
-        $inputTypes=New-Object System.Windows.Automation.OrCondition($editType,$comboType)
-        foreach($inputControl in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$inputTypes)) {
-          Write-Output "Native input: id=$($inputControl.Current.AutomationId); class=$($inputControl.Current.ClassName); label=$($inputControl.Current.Name); offscreen=$($inputControl.Current.IsOffscreen); focusable=$($inputControl.Current.IsKeyboardFocusable)"
-        }
-      }
+    if ($file) { $observedFilenameControls++ }
+    if ($button -and !$button.Current.IsOffscreen -and $file) {
       Write-Output "Owned filename control: $($file.Current.ClassName) $($file.Current.AutomationId)"
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
       $buttonHandle=[IntPtr]$button.Current.NativeWindowHandle
@@ -85,6 +123,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         [void][EdiNativeFileControl]::GetWindowThreadProcessId($handle,[ref]$controlOwner)
         if ($controlOwner -ne $TestProcessId) { throw 'The file control belongs to another process.' }
       }
+      if (![EdiNativeFileControl]::IsWindowEnabled($fileHandle) -or ![EdiNativeFileControl]::IsWindowVisible($fileHandle)) { continue }
       if ($Action -eq 'Save' -or $Action -eq 'Open') {
         if ($file.Current.ClassName -eq 'ComboBox') {
           $editHandle=[EdiNativeFileControl]::FindWindowEx($fileHandle,[IntPtr]::Zero,'Edit',$null)
@@ -97,6 +136,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         } elseif($file.Current.ClassName -ne 'Edit'){throw 'Unexpected filename control.'}
         [uint32]$editOwner=0;[void][EdiNativeFileControl]::GetWindowThreadProcessId($fileHandle,[ref]$editOwner)
         if($editOwner -ne $TestProcessId){throw 'Filename edit belongs to another process.'}
+        if (![EdiNativeFileControl]::IsWindowEnabled($fileHandle) -or ![EdiNativeFileControl]::IsWindowVisible($fileHandle)) { continue }
         Write-Output "Filename edit style: $([Convert]::ToString([EdiNativeFileControl]::WindowStyle($fileHandle,-16),16))"
         # Use the edit operation, so the dialog receives change notifications on every Windows style.
         [void][EdiNativeFileControl]::Click($fileHandle,0x00B1,[IntPtr]::Zero,[IntPtr](-1))
@@ -106,9 +146,8 @@ while ([DateTime]::UtcNow -lt $deadline) {
         if($readback.ToString() -ne $selected){throw 'Owned filename edit did not retain the exact disposable path.'}
       }
       # Only the exact disposable test path can be selected; the caller verifies its bytes.
-      $buttonInvoke=$null
-      if ($button.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$buttonInvoke)) { $buttonInvoke.Invoke() }
-      else { [void][EdiNativeFileControl]::Click($buttonHandle,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero) }
+      if (![EdiNativeFileControl]::IsWindowEnabled($buttonHandle) -or ![EdiNativeFileControl]::IsWindowVisible($buttonHandle)) { continue }
+      [void][EdiNativeFileControl]::Click($buttonHandle,0x00F5,[IntPtr]::Zero,[IntPtr]::Zero)
       $completed=$true
       break
     }
@@ -116,5 +155,20 @@ while ([DateTime]::UtcNow -lt $deadline) {
   if ($completed) { break }
   Start-Sleep -Milliseconds 100
 }
-if (!$completed) { throw 'The owned native file dialog did not appear or did not expose its filename control.' }
+if (!$completed) {
+  $shape=if ($lastOwnedDialog -ne [IntPtr]::Zero) {
+    [EdiNativeFileControl]::OwnedControlShape($lastOwnedDialog,$TestProcessId) -join ','
+  } else { 'none' }
+  $uiaShape='none'
+  if ($lastOwnedDialog -ne [IntPtr]::Zero) {
+    try {
+      $dialog=[System.Windows.Automation.AutomationElement]::FromHandle($lastOwnedDialog)
+      $controls=$dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+      $uiaShape=@($controls | Select-Object -First 80 | ForEach-Object {
+        "$($_.Current.ClassName):$($_.Current.AutomationId):$($_.Current.IsOffscreen):$($_.Current.IsEnabled)"
+      }) -join ','
+    } catch { $uiaShape='unavailable' }
+  }
+  throw "The owned native file dialog did not expose its filename control (ownedDialogSamples=$observedOwnedDialogs, filenameControlSamples=$observedFilenameControls, ownedControlShape=$shape, ownedUiaShape=$uiaShape)."
+}
 Write-Output "Responded to the owned native file dialog using UI Automation: $Action"

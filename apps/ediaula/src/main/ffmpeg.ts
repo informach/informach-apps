@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
+import { resolveNativeMedia } from "@informach/edi-desktop/native-media";
 import { app } from "electron";
 import { sourceMatrix, sourceRange } from "../shared/export/color.ts";
 import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
@@ -13,20 +14,16 @@ import type { AssetKind, Encoder, Filmstrip, ProbeResult } from "../shared/types
 import { parseSceneChanges, sceneArgs } from "../shared/zoom.ts";
 import { scheduler } from "./scheduler.ts";
 
-function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
-  // Release binaries and their complete corresponding source are signed together
-  // in the installation inventory. Environment overrides apply only in development.
-  if (app.isPackaged) return join(process.resourcesPath, "native-media", "bin", `${name}.exe`);
-  const developmentRequire = createRequire(import.meta.url);
-  const binary: unknown =
-    name === "ffmpeg"
-      ? developmentRequire("ffmpeg-static")
-      : developmentRequire("@derhuerst/ffprobe-static");
-  if (typeof binary !== "string") throw new Error(`${name} is unavailable for this platform`);
-  return binary;
-}
-export const FFMPEG = nativeMediaBinary("ffmpeg");
-export const FFPROBE = nativeMediaBinary("ffprobe");
+const developmentRequire = createRequire(import.meta.url);
+const mediaPaths = resolveNativeMedia({
+  packaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  developmentRoot: app.getAppPath(),
+  developmentBinary: (name) =>
+    developmentRequire(name === "ffmpeg" ? "ffmpeg-static" : "@derhuerst/ffprobe-static"),
+});
+export const FFMPEG = mediaPaths.ffmpeg;
+export const FFPROBE = mediaPaths.ffprobe;
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"]);
 
