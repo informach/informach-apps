@@ -603,6 +603,9 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
+      '@informach/edi-native':
+        specifier: workspace:*
+        version: link:../../packages/edi-native
       electron:
         specifier: 44.8.0
         version: 44.8.0

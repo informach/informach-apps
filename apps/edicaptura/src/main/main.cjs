@@ -55,6 +55,7 @@ const { guidePdf } = require("./guide-export.cjs");
 const { RECORDING_PHASES } = require("../domain/video-options.ts");
 const { pixelRect } = require("../capture/geometry.cjs");
 const { chooseDisplay, frameWindows, controlPosition } = require("../capture/displays.cjs");
+const { nativeHelperPath, useNativeHelper } = require("./native-helper.ts");
 
 app.setPath("userData", path.join(app.getPath("appData"), "edicaptura"));
 if (!app.isPackaged && process.env.EDICAPTURA_TEST_PROFILE)
@@ -1772,6 +1773,8 @@ else {
   app
     .whenReady()
     .then(async () => {
+      // Window queries, focus/wheel and the file clipboard all run in the app's own compiled helper.
+      useNativeHelper(nativeHelperPath(app));
       await desktop.start();
       await initialize();
     })

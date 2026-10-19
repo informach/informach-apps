@@ -12,8 +12,13 @@ const {
   nativeForeground,
   queryWindowsCapture,
   assertNativeTarget,
+  configureWindowsCapture,
 } = require("@informach/edi-desktop/windows-capture");
 const { windowsPowerShellEnvironment } = require("@informach/edi-desktop/windows-powershell");
+// The production bridge talks to the app's helper, built by the test:capture-native script.
+configureWindowsCapture({
+  helper: join(__dirname, "..", "resources", "native", "edicaptura-helper.exe"),
+});
 const fixtureScript = String.raw`
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'

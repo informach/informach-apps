@@ -13,6 +13,11 @@ const os = require("node:os");
 const { PhotoCapture } = require("../src/main/capture-pipeline.ts");
 const { Library } = require("../src/main/library.cjs");
 const { CapturePreferences } = require("../src/main/capture-preferences.ts");
+const { nativeHelperPath, useNativeHelper } = require("../src/main/native-helper.ts");
+// Same resolution as the app in development: the helper built by test:capture-pixels-native.
+useNativeHelper(
+  nativeHelperPath({ isPackaged: false, getAppPath: () => path.join(__dirname, "..") }),
+);
 // The Node parent owns this unique root and deletes it only after Electron exits.
 const root = process.argv.find((arg) => arg.startsWith("--fixture-root="))?.slice(15);
 assert(root && path.isAbsolute(root), "Launch through capture-pixels-runner.cjs");

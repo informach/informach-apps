@@ -5,3 +5,6 @@ test-results/
 .test-profile/
 .npm-cache/
 src/assets/ocr/
+# Compiled by scripts/build-native-helper.mjs from native/helper and @informach/edi-native
+resources/native/
+.cache/
