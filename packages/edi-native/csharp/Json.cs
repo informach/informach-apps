@@ -5,9 +5,12 @@ using System.IO;
 using System.Text;
 using System.Web.Script.Serialization;
 
-namespace EdiAula.Helper
+namespace Informach.Edi.Native
 {
-    /// <summary>Minimal JSON helpers: commands are parsed with the framework serializer, events are written by hand.</summary>
+    /// <summary>
+    /// Minimal JSON helpers shared by the suite's native helpers: requests are parsed with the
+    /// framework serializer, answers and events are written by hand.
+    /// </summary>
     internal static class Json
     {
         private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
@@ -52,6 +55,12 @@ namespace EdiAula.Helper
         public static string Bool(bool value)
         {
             return value ? "true" : "false";
+        }
+
+        /// <summary>An integer in invariant digits, whatever the culture of the computer.</summary>
+        public static void Integer(StringBuilder b, long value)
+        {
+            b.Append(value.ToString(Invariant));
         }
 
         public static void Rect(StringBuilder b, int x, int y, int w, int h)

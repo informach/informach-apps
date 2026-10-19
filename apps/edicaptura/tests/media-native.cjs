@@ -6,9 +6,10 @@ const { registerLibraryIpc, readPreferences } = require("../src/main/library-ipc
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
-const { windowsFileDropSource } = require("../src/main/windows-file-clipboard.mts");
+const { nativeSources } = require("@informach/edi-native/sources");
 function verifyNativeFileDrop(files) {
   // Read actual CF_HDROP, then write/read only a newly created private windowstation clipboard.
+  // Compiles the helper's own FileDrop.cs (filedrop command of edicaptura-helper.exe) with the probe.
   const consumer = `
 namespace EdiProbe {
 using System;
@@ -24,7 +25,7 @@ public static class EdiFileConsumer {
   static extern uint DragQueryFileW(IntPtr drop, uint index, StringBuilder file, uint size);
   [DllImport("ole32.dll")] static extern void ReleaseStgMedium(ref STGMEDIUM medium);
   public static string Read(string file) {
-    var data = EdiFileDrop.CreateDataObject(file);
+    var data = Informach.Edi.Native.FileDrop.CreateDataObject(file);
     return ReadData(data, file);
   }
   public static string ReadClipboard(string file) {
@@ -78,7 +79,7 @@ public static class EdiPrivateClipboard {
             string hash;
             using (var stream = File.OpenRead(files[i])) using (var sha = SHA256.Create())
               hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
-            EdiFileDrop.Copy(files[i], hash, new FileInfo(files[i]).Length);
+            Informach.Edi.Native.FileDrop.Copy(files[i], hash, new FileInfo(files[i]).Length);
             results[i] = EdiFileConsumer.ReadClipboard(files[i]);
           }
         } catch (Exception error) { failure = error; }
@@ -95,14 +96,14 @@ public static class EdiPrivateClipboard {
     }
   }
 }}`;
+  const probe = path.join(root, "filedrop-probe.cs");
+  fs.writeFileSync(probe, consumer);
   const script = `$ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
-${windowsFileDropSource}
-${consumer}
-'@
-$inputFiles = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$inputData = [Console]::In.ReadToEnd() | ConvertFrom-Json
+Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing,System.Web.Extensions -Path ([string[]]$inputData.sources)
+$inputFiles = [string[]]$inputData.files
 $construction = @($inputFiles | ForEach-Object { [EdiProbe.EdiFileConsumer]::Read([string]$_) })
 try {
   $files = [EdiProbe.EdiPrivateClipboard]::RoundTrip([string[]]$inputFiles)
@@ -129,7 +130,7 @@ try {
     {
       windowsHide: true,
       encoding: "utf8",
-      input: JSON.stringify(files),
+      input: JSON.stringify({ sources: [...nativeSources(["file-drop"]).files, probe], files }),
       timeout: 30_000,
       maxBuffer: 64_000,
     },

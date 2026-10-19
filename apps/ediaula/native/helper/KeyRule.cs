@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Web.Script.Serialization;
+using Informach.Edi.Native;
 
 namespace EdiAula.Helper
 {

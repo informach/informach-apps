@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Informach.Edi.Native;
 
 namespace EdiAula.Helper
 {

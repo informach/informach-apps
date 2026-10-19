@@ -1,8 +1,12 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assertNativeTarget,
+  configureWindowsCapture,
   nativeCaptureRequestSchema,
   parseNativeCaptureResponse,
+  prepareWindowsCapture,
   queryWindowsCapture,
 } from "./windows-capture.ts";
 
@@ -128,4 +132,29 @@ describe("bounded Windows capture bridge", () => {
     ).rejects.toThrow();
     await expect(queryWindowsCapture({ op: "cursor" }, { timeoutMs: 30_001 })).rejects.toThrow();
   });
+  it.runIf(process.platform === "win32")(
+    "runs only the helper the main process configured, as a local absolute executable",
+    async () => {
+      await expect(queryWindowsCapture({ op: "cursor" })).rejects.toThrow(
+        "NATIVE_HELPER_UNCONFIGURED",
+      );
+      await expect(prepareWindowsCapture()).rejects.toThrow("NATIVE_HELPER_UNCONFIGURED");
+      for (const helper of [
+        "edicaptura-helper.exe",
+        "resources\\native\\edicaptura-helper.exe",
+        "\\\\server\\share\\edicaptura-helper.exe",
+        "C:\\Edi\\helper.cmd",
+        "C:\\Edi\\helper.exe\0.cmd",
+        'C:\\Edi\\"helper".exe',
+      ])
+        expect(() => configureWindowsCapture({ helper })).toThrow();
+      await expect(queryWindowsCapture({ op: "cursor" })).rejects.toThrow(
+        "NATIVE_HELPER_UNCONFIGURED",
+      );
+      const missing = join(tmpdir(), `edi-missing-${process.pid}`, "edicaptura-helper.exe");
+      configureWindowsCapture({ helper: missing });
+      await expect(queryWindowsCapture({ op: "cursor" })).rejects.toThrow("NATIVE_LAUNCH_FAILED");
+      await expect(prepareWindowsCapture()).rejects.toThrow("NATIVE_LAUNCH_FAILED");
+    },
+  );
 });

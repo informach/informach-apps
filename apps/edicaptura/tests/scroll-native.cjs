@@ -6,8 +6,13 @@ const { ScrollAutomation } = require("../src/main/scroll-automation.ts");
 const {
   nativeWindowBounds,
   prepareWindowsCapture,
+  configureWindowsCapture,
 } = require("@informach/edi-desktop/windows-capture");
 const { windowsPowerShellEnvironment } = require("@informach/edi-desktop/windows-powershell");
+// The production bridge talks to the app's helper, built by the test:scroll-native script.
+configureWindowsCapture({
+  helper: join(__dirname, "..", "resources", "native", "edicaptura-helper.exe"),
+});
 
 // Native opaque content is owned by this fixture. No screenshots, global cursor movement or clipboard.
 const script = String.raw`

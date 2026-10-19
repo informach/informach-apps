@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
+using Informach.Edi.Native;
 
 namespace EdiAula.Helper
 {
@@ -20,11 +20,7 @@ namespace EdiAula.Helper
     {
         public static string Version
         {
-            get
-            {
-                object[] attributes = typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
-                return attributes.Length > 0 ? ((AssemblyInformationalVersionAttribute)attributes[0]).InformationalVersion : "0.0.0";
-            }
+            get { return HelperInfo.Version; }
         }
 
         public static double Now()
