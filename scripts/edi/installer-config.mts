@@ -3,9 +3,10 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Configuration } from "electron-builder";
-import { EDI_DESKTOP_APPS, hasNativeMedia } from "../../packages/config/src/edi-tools";
+import { EDI_DESKTOP_APPS, hasNativeMedia, hasOcr } from "../../packages/config/src/edi-tools";
 import { desktopAppIdSchema, releaseVersionSchema } from "../../packages/edi-contracts/src/index";
 import { desktopConfigSchema } from "../../packages/edi-desktop/src/contracts";
+import { verifyOcrAssets } from "../../packages/edi-ocr/src/assets";
 import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
 import { writeThirdPartyNotices } from "./third-party-notices.mts";
 
@@ -87,6 +88,8 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
     beforePack: async () => {
       if (hasNativeMedia(appId)) await verifyNativeMediaBundle();
       if (appId === "ediaula") await verifyEdiAulaHelper(version);
+      // The renderer build must carry the pinned OCR worker, cores, models and licenses.
+      if (hasOcr(appId)) verifyOcrAssets(resolve("apps", app.id, "out", "renderer", "ocr"));
     },
     afterPack: async (context) => {
       await writeThirdPartyNotices(appId, resolve(context.appOutDir, "resources"));

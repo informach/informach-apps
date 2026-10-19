@@ -6,12 +6,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { plainText } from "@informach/edi-ocr/search";
 import { degrees, PDFDocument, rgb } from "pdf-lib";
 import { build } from "vite";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
 import { DEFAULT_PRINT_SETTINGS } from "../src/shared/print-format.ts";
 import { imposePrintPdf } from "../src/shared/print-layout.ts";
-import { plainText } from "../src/shared/text-search.ts";
 
 const root = await mkdtemp(join(tmpdir(), "edipdf-print-pipeline-"));
 assert.equal(dirname(root), resolve(tmpdir()));

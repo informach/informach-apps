@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { plainText } from "@informach/edi-ocr/search";
 import { degrees, PDFDocument, rgb } from "pdf-lib";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
 import { DEFAULT_PRINT_SETTINGS } from "../src/shared/print-format.ts";
 import { imposePrintPdf, printLayout } from "../src/shared/print-layout.ts";
-import { plainText } from "../src/shared/text-search.ts";
 
 const require = createRequire(import.meta.url),
   engine = await LocalPdfEngine.create(

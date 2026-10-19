@@ -3,12 +3,12 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { deflateSync } from "node:zlib";
+import { plainText } from "@informach/edi-ocr/search";
 import { PDFDocument, PDFName, PDFRawStream } from "pdf-lib";
 import { decodeBoundedPdfStream } from "../src/shared/bounded-pdf-stream.ts";
 import { compressPdf, compressToTarget, type Reencode } from "../src/shared/compress.ts";
 import { imagePixelBudgets } from "../src/shared/image-usage.ts";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
-import { plainText } from "../src/shared/text-search.ts";
 
 const require = createRequire(import.meta.url);
 const canvasRequire = createRequire(require.resolve("pdfjs-dist/package.json"));

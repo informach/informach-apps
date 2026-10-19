@@ -1,4 +1,4 @@
-import type { OcrLanguage } from "@shared/ocr";
+import type { OcrLanguage } from "@informach/edi-ocr";
 import { parsePageRange } from "@shared/page-ranges";
 import type { LocalTaskRequest } from "@shared/task-format";
 import { useCallback, useEffect, useRef, useState } from "react";

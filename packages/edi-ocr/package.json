@@ -1,0 +1,27 @@
+{
+  "name": "@informach/edi-ocr",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./canvas": "./src/canvas.ts",
+    "./search": "./src/search.ts",
+    "./assets": "./src/assets.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
