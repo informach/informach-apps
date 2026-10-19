@@ -1,7 +1,8 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { arrowHead, smoothPath } from "@shared/build";
-import { type Annot, CSS_FONT, LINE_HEIGHT, NOTE_SIZE, type TextAnnot } from "@shared/model";
+import { type Annot, cssFontForText, LINE_HEIGHT, NOTE_SIZE, type TextAnnot } from "@shared/model";
 import { MessageSquare } from "lucide-react";
+import { ParagraphView } from "./ParagraphView";
 
 const pts = (flat: number[]): [number, number][] => {
   const out: [number, number][] = [];
@@ -10,10 +11,10 @@ const pts = (flat: number[]): [number, number][] => {
 };
 
 export const textStyle = (
-  a: Pick<TextAnnot, "font" | "size" | "color" | "bold" | "italic" | "opacity">,
+  a: Pick<TextAnnot, "font" | "size" | "color" | "bold" | "italic" | "opacity"> & { text?: string },
   scale: number,
 ): React.CSSProperties => ({
-  fontFamily: CSS_FONT[a.font],
+  fontFamily: cssFontForText(a.font, a.text ?? ""),
   fontSize: a.size * scale,
   lineHeight: LINE_HEIGHT,
   color: a.color,
@@ -90,6 +91,18 @@ export function AnnotSvg({ a, hit }: { a: Annot; hit?: boolean }): React.ReactEl
       return (
         <g {...common}>
           {withRenderKeys(a.paths, (path) => JSON.stringify(path)).map(({ key, value: p }) => {
+            if (p.length === 2)
+              return (
+                <circle
+                  key={key}
+                  data-annot={a.id}
+                  cx={p[0]}
+                  cy={p[1]}
+                  r={a.width / 2}
+                  fill={a.stroke}
+                  style={{ pointerEvents: hit ? "all" : "none" }}
+                />
+              );
             const d = smoothPath(pts(p));
             return (
               <g key={key}>
@@ -179,20 +192,36 @@ export function AnnotHtml({
   scale,
   hit,
   onNoteClick,
+  zIndex,
+  selectable,
 }: {
   a: Annot;
   scale: number;
   hit?: boolean;
   onNoteClick?: () => void;
+  zIndex?: number;
+  selectable?: boolean;
 }): React.ReactElement | null {
   const pe = hit ? "auto" : "none";
   switch (a.kind) {
+    case "paragraph":
+      return (
+        <ParagraphView a={a} scale={scale} zIndex={zIndex} hit={hit} selectable={selectable} />
+      );
     case "text":
       return (
         <div
           data-annot={a.id}
           className="annot-text"
-          style={{ left: a.x * scale, top: a.y * scale, pointerEvents: pe, ...textStyle(a, scale) }}
+          style={{
+            left: a.x * scale,
+            top: a.y * scale,
+            zIndex,
+            pointerEvents: selectable ? "auto" : pe,
+            userSelect: selectable ? "text" : undefined,
+            cursor: selectable ? "text" : undefined,
+            ...textStyle(a, scale),
+          }}
         >
           {a.text || " "}
         </div>
@@ -207,6 +236,7 @@ export function AnnotHtml({
           draggable={false}
           style={{
             left: a.x * scale,
+            zIndex,
             top: a.y * scale,
             width: a.w * scale,
             height: a.h * scale,
@@ -223,6 +253,7 @@ export function AnnotHtml({
           className="annot-note"
           style={{
             left: a.x * scale,
+            zIndex,
             top: a.y * scale,
             width: NOTE_SIZE * scale,
             height: NOTE_SIZE * scale,
@@ -240,4 +271,5 @@ export function AnnotHtml({
   }
 }
 
-export const isSvgKind = (a: Annot): boolean => !["text", "image", "note"].includes(a.kind);
+export const isSvgKind = (a: Annot): boolean =>
+  !["text", "paragraph", "image", "note"].includes(a.kind);

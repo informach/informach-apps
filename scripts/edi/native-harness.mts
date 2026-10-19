@@ -58,6 +58,7 @@ export interface NativeHarness {
     id: DesktopAppId,
     profile: { userData: string; suiteData: string },
     extraEnvironment?: Record<string, string>,
+    extraArguments?: readonly string[],
   ): Promise<ElectronApplication>;
   /** Writes a lease signed by the ephemeral key, valid for `ttl` seconds (at most 3600). */
   seedLease(application: ElectronApplication, ttl: number): Promise<void>;
@@ -168,13 +169,19 @@ export async function createNativeHarness(
     id: DesktopAppId,
     profile: { userData: string; suiteData: string },
     extraEnvironment: Record<string, string> = {},
+    extraArguments: readonly string[] = [],
   ) {
     const applicationRoot = resolve("apps", id);
     const { userData, suiteData } = profile;
     return _electron.launch({
       // The standard workspace launcher holds app readiness until Playwright is
       // connected. executablePath is for custom apps and omits that loader.
-      args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), applicationRoot],
+      args: [
+        "-r",
+        resolve("scripts/edi/fixtures/native-vault.cjs"),
+        applicationRoot,
+        ...extraArguments,
+      ],
       cwd: applicationRoot,
       env: {
         ...buildEnvironment,
