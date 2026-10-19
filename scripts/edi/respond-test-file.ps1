@@ -34,7 +34,9 @@ public static class EdiNativeFileControl {
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="GetClassNameW")]
   private static extern int GetWindowClass(IntPtr window, StringBuilder name, int capacity);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
-  public static extern IntPtr SetText(IntPtr window, uint message, IntPtr wparam, string text);
+  public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
+  public static extern IntPtr ReadText(IntPtr window, uint message, IntPtr capacity, StringBuilder text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
   public static extern IntPtr Click(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
   [DllImport("user32.dll")]
@@ -78,8 +80,6 @@ while ([DateTime]::UtcNow -lt $deadline) {
     }
     if ($button -and $button.Current.IsEnabled -and $file) {
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
-      $fileValue=$null
-      $hasValue=$file.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$fileValue)
       $buttonHandle=[IntPtr]$button.Current.NativeWindowHandle
       foreach($handle in @($fileHandle,$buttonHandle)) {
         [uint32]$controlOwner=0
@@ -88,13 +88,13 @@ while ([DateTime]::UtcNow -lt $deadline) {
       }
       if ($Action -eq 'Save') {
         if ($file.Current.ClassName -ne 'Edit') { throw 'The native Save dialog must expose its filename edit control.' }
-        # Common-dialog controls do not consistently expose UIA Value/Invoke.
-        # Use their documented Win32 edit/button operations, on verified handles.
-        if ($hasValue) { $fileValue.SetValue($selected) }
-        else {
-          $set=[EdiNativeFileControl]::SetText($fileHandle,0x000C,[IntPtr]::Zero,$selected)
-          if ($set.ToInt64() -le 0) { throw 'The owned filename control rejected the test destination.' }
-        }
+        # EM_REPLACESEL notifies the common dialog; UIA ValuePattern/WM_SETTEXT can
+        # change the visible edit without committing the selected Save destination.
+        [void][EdiNativeFileControl]::Click($fileHandle,0x00B1,[IntPtr]::Zero,[IntPtr](-1))
+        [void][EdiNativeFileControl]::EditText($fileHandle,0x00C2,[IntPtr]1,$selected)
+        $readback=New-Object System.Text.StringBuilder 4096
+        [void][EdiNativeFileControl]::ReadText($fileHandle,0x000D,[IntPtr]4096,$readback)
+        if($readback.ToString() -ne $selected){throw 'Owned filename edit did not retain the exact disposable path.'}
       }
       # Open verifies the existing file preselected by the app's current-file
       # default. The caller asserts the returned full path and bytes; no list
