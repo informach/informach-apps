@@ -13,7 +13,7 @@
     "check": "biome check .",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "test": "turbo test --concurrency=2 && pnpm edi:test:tooling",
+    "test": "turbo test --concurrency=1 && pnpm edi:test:tooling",
     "dev:admin": "pnpm --filter @informach/admin dev",
     "build:admin": "turbo build --filter=@informach/admin",
     "start:admin": "pnpm --filter @informach/admin start",
