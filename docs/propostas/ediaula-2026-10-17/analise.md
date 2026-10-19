@@ -488,6 +488,28 @@ Os itens das listas de melhorias e do que faltava implementar recebem aqui o nú
 
 ## Pendências
 
+### Publicação da 0.1.5 parada no teste da voz tratada
+
+Em 18/10/2026 o trabalho entrou na `main` pelo PR #19 (`f488e68`) e a tag `edi-v0.1.5` disparou a [publicação](https://github.com/informach/informach-apps/actions/runs/39169544085). Ela parou duas vezes no job `media / verify`, antes dos instaladores e do `publish`, sempre com os mesmos números, no teste `voz tratada` de `apps/ediaula/tests/voiceChain.test.ts`: o chiado sob a fala, que sem a redução fica 20,5 dB abaixo da voz, foi para 28,3 dB (pede pelo menos 30,5); a pausa ficou em -49 dBFS e o pico em -1,1 dBFS.
+
+O que já se sabe:
+
+| Onde | FFmpeg | Resultado |
+| --- | --- | --- |
+| Esta máquina (AMD Ryzen 5 5600G) | compilado localmente e o compilado pela publicação, baixado do artefato | 42,3 dB, pausa -66 dBFS, pico -3,3 dBFS, sempre igual (mais de 60 rodadas, inclusive em paralelo) |
+| Runner do PR #19, segunda rodada | reaproveitado do cache da primeira rodada | 42,3 dB, passou |
+| Runner da publicação (duas rodadas) | compilado do zero no workflow | 28,3 dB, falhou |
+| Runner do PR #20 (AMD EPYC 7763, sem AVX-512) | compilado do zero no workflow | 28,3 dB, falhou |
+
+- A receita do FFmpeg é a mesma (`recipeDigest` `e23b5edd…`), mas o build não é reproduzível: o `ffmpeg.exe` da publicação tem outro sha256 que o local, com o mesmo tamanho. Mesmo assim, o executável da publicação dá o resultado bom nesta máquina.
+- A hipótese do AVX-512 foi descartada pelo PR #20: o EPYC 7763 não tem AVX-512 e falhou igual.
+- Uma única rodada local, entre umas 60, deu um resultado do `arnndn` completamente diferente das outras e não se repetiu. Pode haver um não determinismo raro no filtro.
+- O teste agora registra o processador no log (`processador …`), para comparar as rodadas.
+
+**Decisão da titular (18/10/2026):** publicar com o recurso como está e deixar essa medida como aviso no CI, sem bloquear. O teste continua rodando e escreve `AVISO: redução do chiado de … dB` no log quando fica abaixo de 10 dB; fora do CI (nesta máquina e nas de desenvolvimento) ele continua falhando. A próxima versão sai pela tag `edi-v0.1.6`. Quando a causa for encontrada e corrigida, o teste volta a bloquear também no CI.
+
+Próximo passo: comparar as entradas da cadeia entre o runner e esta máquina. Gravar como artefato do job o `cadeia`, o `level`, o trecho silencioso escolhido e o WAV intermediário, e rodar só `voiceChain.test.ts` num runner com o FFmpeg do cache e com o compilado do zero. Só depois decidir entre corrigir a cadeia, fixar o build do FFmpeg ou trocar o critério do teste. A tag da próxima tentativa precisa ser nova (`edi-v0.1.6` ou seguinte).
+
 ### Testes locais da verificação final (para a próxima sessão)
 
 Em 18/10/2026 a verificação final da branch integrada (`6e55f459` e a documentação depois dele) passou em `pnpm typecheck`, `pnpm check`, `pnpm exec turbo test`, no build das seis ferramentas Edi e em `pnpm edi:test:tooling`. Os dois testes que abrem o Electron foram interrompidos por falta de memória nesta máquina, e a titular decidiu publicar e rodá-los depois, numa máquina com mais memória:
