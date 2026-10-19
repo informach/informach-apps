@@ -753,6 +753,10 @@ export async function verifyPdfNativeJourney(
   const backgroundSaved = await backgroundResponse;
   if (backgroundSaved) throw backgroundSaved;
   await backgroundConversion.waitFor({ state: "detached" });
+  console.log(
+    "Native conversion result:",
+    await editor.getByText(/^Conversão salva como cópia em /).textContent(),
+  );
   assert.match(await readFile(backgroundTxt, "utf8"), /BUSCA_αβγ_123/);
   await command("tarefas e resultados preparados");
   await activeQueue

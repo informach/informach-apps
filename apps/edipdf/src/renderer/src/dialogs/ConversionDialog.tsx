@@ -283,6 +283,7 @@ export function ConversionDialog({
         throw new Error("O documento mudou. Gere uma nova prévia antes de exportar.");
       const activeTask = task.current;
       if (!activeTask) throw new Error("Retome a conversão em Tarefas para continuar.");
+      let successMessage: string;
       if (open) {
         if (prepared.result.extension !== "pdf")
           throw new Error("Este resultado não é um PDF para abrir no editor.");
@@ -291,18 +292,16 @@ export function ConversionDialog({
           beforeCommit: () => activeTask.check(),
         });
         activeTask.disconnect();
+        successMessage = "PDF aberto. A cópia preparada continua disponível em Tarefas.";
       } else {
         const path = await activeTask.save();
         if (!path) return;
         const outcome = await activeTask.outcome;
         if (outcome.status === "saved" && outcome.warning)
           toast(outcome.warning, { tone: "error", ms: 10000 });
+        successMessage = `Conversão salva como cópia em ${path}.`;
       }
-      toast(
-        open
-          ? "PDF aberto. A cópia preparada continua disponível em Tarefas."
-          : "Conversão salva como cópia.",
-      );
+      toast(successMessage, { ms: 10000 });
       controller.current?.abort();
       useApp.setState({ dialog: null });
     } catch (failure) {
