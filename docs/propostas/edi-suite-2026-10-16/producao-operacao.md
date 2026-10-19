@@ -100,6 +100,14 @@ Conferência independente, feita fora do workflow com o mesmo `verifyRelease` do
 
 Às 20:05 UTC `EDI_BILLING_ENABLED` passou a `true`; o deploy do portal terminou às 20:09 UTC. Depois dele: `/api/ready` 200, a página de vendas sem o aviso de indisponível e com R$ 49,90 por mês levando a `/conta?plano=mensal`, o webhook do Stripe recusando corpo sem assinatura (400, antes 503) e `/api/jobs/reconcile` sem credencial em 401. Em seguida, `railway config apply` com `EDI_RECONCILE_ACTIVE` ligado teve uma única mudança, a imagem do `cron-edi-reconcile`, e o plano seguinte voltou a zerar. Nenhuma compra real foi feita.
 
+## Publicação 0.2.0 — EdiPDF
+
+Em 18/10/2026 às 22:45:47 de Brasília (19/10 às 01:45:47 UTC), a [suíte 0.2.0](https://github.com/informach/edi-releases/releases/tag/edi-v0.2.0) foi publicada a partir de `cee6e86faf21eef05161320978f5d22d660c9b5d`, integrado pelo PR #21. O [workflow](https://github.com/informach/informach-apps/actions/runs/39182516724) aprovou revisão, auditoria/configuração protegida, banco, mídia, seis ciclos A→B, os seis instaladores finais e a publicação. O escopo desta versão encerra o lote atual do EdiPDF; alterações EdiSVG posteriores na main pertencem à frente seguinte.
+
+Às 01:47:26 UTC a verificação independente conferiu a assinatura do manifesto com a chave pública protegida, commit/canal/versão, os sete assets imutáveis e os bytes públicos dos seis instaladores por tamanho, SHA-512 assinado e SHA-256 do GitHub. O portal respondeu prontidão aprovada e listou os seis links da 0.2.0. Evidências no [full review](../../reviews/edipdf-2026-10-18/full-review-entrega.md) e no [relatório de hashes](../../reviews/edipdf-2026-10-18/release-0.2.0-verificacao.json). As [pendências de produto](../../reviews/edipdf-2026-10-18/pendencias-pos-release.md) preservam exclusões, limites e homologações de hardware.
+
+Não houve alteração de cobrança, autenticação, chaves comerciais ou infraestrutura nesta frente. As tags anteriores bloqueadas permanecem no histórico. Versões seguintes devem considerar o marco estável 0.2.0 e conservar as releases imutáveis existentes.
+
 ## Imagem Stripe
 
 Arquivo final: `apps/edi/public/images/edi-suite-product.png` (PNG 1254 × 1254, 75.581 bytes), publicado em `https://edi.informach.com.br/images/edi-suite-product.png`. Em 17/10/2026 a imagem anterior, gerada por `image_gen` na paleta antiga, foi substituída por uma composição da nova identidade: mesa escura com grade, logotipo "edi" com as cinco barras, a frase "Cinco ferramentas, uma bancada." e os cinco ícones da suíte. Ela foi renderizada no Chromium a partir dos mesmos glifos de `packages/config/src/edi-brand.ts` e das fontes da suíte, sem preços, selos ou alegações funcionais. A associação nos produtos teste/produção foi concluída pelo Stripe CLI às 15:44 UTC e lida de volta após HTTP 200 e comparação SHA256 do arquivo público, conforme o [registro Stripe](producao-stripe.md).

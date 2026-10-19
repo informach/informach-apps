@@ -4,6 +4,8 @@ Execução autorizada em 18/10/2026 a partir da [análise funcional](../../docs/
 
 Estado vigente: [full review da entrega](../../docs/reviews/edipdf-2026-10-18/full-review-entrega.md), [pendências pós-release](../../docs/reviews/edipdf-2026-10-18/pendencias-pos-release.md) e [matriz de requisitos](../../docs/reviews/edipdf-2026-10-18/cobertura-requisitos.md). O restante deste plano registra a implementação por lotes; os relatos intermediários abaixo não substituem esses três registros atuais.
 
+O [PR #21](https://github.com/informach/informach-apps/pull/21) passou todos os gates e foi integrado na main em `cee6e86faf21eef05161320978f5d22d660c9b5d`. A tag `edi-v0.2.0` foi criada nesse commit, com a mesma árvore do head revisado `6b838d5f`. A [suíte 0.2.0 foi publicada](https://github.com/informach/edi-releases/releases/tag/edi-v0.2.0) em 18/10/2026, com o [workflow aprovado](https://github.com/informach/informach-apps/actions/runs/39182516724), os seis instaladores e o manifesto público conferidos. Evidências no full review.
+
 ## Escopo aprovado e exclusões
 
 As funções novas devem funcionar localmente, sem contratação, conta, chave ou serviço externo. Bibliotecas abertas e recursos distribuídos junto do app são dependências locais, sujeitas à revisão de licença e empacotamento. A integração comercial já existente da suíte permanece sob seus contratos.
@@ -21,10 +23,10 @@ As funções novas devem funcionar localmente, sem contratação, conta, chave o
 | 1 | Fundação versionada, comandos iniciais, recuperação automática, anotações nativas e formulários importados | Implementado e revisado; complementos no review |
 | 2 | Motor local: edição estrutural, fontes/Unicode, redação/sanitização, senha, objetos e geometria | Implementado e revisado; complementos no review |
 | 3 | Leitura, busca, links/marcadores/anexos, interface, preferências, acessibilidade de interação e autoria de formulários | Implementado e revisado; matriz/corpus no review |
-| 4 | OCR, conversões locais, compactação por meta, impressão, lotes/tarefas/cancelamento e digitalização | Perfis iniciais implementados e revisados; intervalos/segundo plano e retenção de fontes também aprovados na jornada completa. Complementos e limites no review consolidado, sem full review |
+| 4 | OCR, conversões locais, compactação por meta, impressão, lotes/tarefas/cancelamento e digitalização | Perfis iniciais implementados e revisados, com intervalos/segundo plano e retenção de fontes aprovados na jornada completa. Complementos e limites no full review da entrega |
 | 2/3 C | Complementos de autoria e compatibilidade | Senhas, autoria, formulários, Form interno, gestos, campos, marcas e assinatura gráfica revisados; corpus amplo e clipboard nativo nas pendências pós-release |
 | 5 | Comparação, consulta/extração/automação local, preparação por finalidade, acessibilidade documental e recursos especializados | Adiado por orientação final; escopo e critérios nas pendências pós-release |
-| Final | Full review de código/contratos/segurança/UX/roundtrip, gates do app e consumidores afetados, corpus e limites | Review local concluído; testes/tipos/builds e jornada dos seis apps aprovados. Gates remotos/publicação pendentes no full review da entrega |
+| Final | Full review de código/contratos/segurança/UX/roundtrip, gates do app e consumidores afetados, corpus e limites | Concluído no escopo entregue: gates locais/remotos, seis ciclos de atualização e instaladores finais aprovados; suíte 0.2.0 publicada, assinatura/hashes públicos e links do portal conferidos |
 
 Cada lote exige testes proporcionais, tipos, build, análise do diff e review registrado com correções antes de avançar. Jornadas Electron usam perfis e fixtures isolados, com as proteções da suíte ativas. Um teste de abertura não substitui validação do conteúdo da saída. Uma função parcial não será registrada como concluída nem ocultada por mensagem de sucesso.
 
@@ -42,7 +44,7 @@ TIFF multipágina tem corpus independente/comparação de pixels e jornada. WIA 
 
 Gates, marcos, correções e complementos obrigatórios ficam no [review intermediário](../../docs/reviews/edipdf-2026-10-18/review-lote-4-parcial.md). Ainda não há full review.
 
-## Estado e continuidade
+## Histórico de estado e continuidade anterior ao fechamento
 
 Estado vigente do complemento: [senhas, escolhas e divisão](../../docs/reviews/edipdf-2026-10-18/review-senhas-escolhas-divisao.md) passaram pela jornada completa, incluindo reinício/gates, e o build normal foi restaurado. As falhas e seus diagnósticos foram preservados. Próxima frente: intervalos/exceções, margens, cabeçalhos/rodapés, estilos e rótulos de numeração e prévias reais por página. O lote 5 e o full review seguem pendentes.
 

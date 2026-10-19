@@ -1,0 +1,48 @@
+{
+  "verifiedAt": "2026-10-19T01:47:26.346Z",
+  "url": "https://github.com/informach/edi-releases/releases/tag/edi-v0.2.0",
+  "version": "0.2.0",
+  "sourceCommit": "cee6e86faf21eef05161320978f5d22d660c9b5d",
+  "immutable": true,
+  "signatures": ["edi-update-2026-10-17-a92e135e"],
+  "manifestSha256": "sha256:9d40c5e5a5e656c87212dc1e1d881cc8ed05bd35872a89a04d1109b00e0ef1e6",
+  "manifestOnly": false,
+  "artifacts": [
+    {
+      "appId": "edi-hub",
+      "size": 114228043,
+      "sha512": "GyR1npraHLBlRq9OKZyUI0Hr7uhZTSBrX+tMm+2gwFgGWzQIRT7xHRkVdiCzpRzVNQ35wmon25txnIaBKmDMYQ==",
+      "githubDigest": "sha256:b8373ebdbcf5a5b3ccab24392127c50bed98fde13e4b307c59e6065e26fc9a46"
+    },
+    {
+      "appId": "ediaula",
+      "size": 211520930,
+      "sha512": "ppsmADgtvlpg8BW2GK2+mSVuW0fzIBPeq8+HrAndvtv7AWkSb7/hWtp0xDCU1EHgfi6bNQO67G9XO552iCKQ0A==",
+      "githubDigest": "sha256:ad4362458b5b12079612cfc05723cfb1bb683acf1d71c85325974768c2e5ef1b"
+    },
+    {
+      "appId": "edicaptura",
+      "size": 112360438,
+      "sha512": "bA3+xIHhLx5O0PXIfNYnDCYu81vACjTeF8GmUwCYpVuoMFeqEUgONTC+qdFi/zsCXdMNTxO+dXfc9Rtv38+IAQ==",
+      "githubDigest": "sha256:cdbb851a860b8a6d75abbb2365911fe6af01d594324b1ed16816c7c4e1ddc670"
+    },
+    {
+      "appId": "edifoto",
+      "size": 116575392,
+      "sha512": "1mL50Moq5+hMrbakyo4N7IIijm287R5B2nJID/P5K+G1xti4eED4VtDTukT46PV+Kcj1F3ugWMq9ZlGOny0u9g==",
+      "githubDigest": "sha256:4aaccf9f3fc83e5af5eb648196e8fa9b4fdc0f69575d4266066092b660402652"
+    },
+    {
+      "appId": "edipdf",
+      "size": 178294609,
+      "sha512": "rpM6NrgF0vTsBSMhgxBrDdJH5ulpR/yfjpAc0ZYYxCWmR2+8OJ10r1RiEgsU3jlNuKFN5rmBqF+3OhveyOX6Ow==",
+      "githubDigest": "sha256:db471eb0e2a1c26c6c7be0703e5bf7348bd793eb75b2b4d24f222d50e670cf01"
+    },
+    {
+      "appId": "edisvg",
+      "size": 113227529,
+      "sha512": "aV/g8tDA+5Rd1uYuXSHBKvpiTm3+WT/5uydrFKh0mAvOO6pp7dD3gsKgxRW+DhBZMz8d01+bIEpATxITxQSRRQ==",
+      "githubDigest": "sha256:06060730531e4366baab8a69f5a8d0653794c867ec54034ade2e50f271dec64e"
+    }
+  ]
+}
