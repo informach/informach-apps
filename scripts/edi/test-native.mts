@@ -1035,7 +1035,21 @@ try {
       try {
         if (id === "edipdf" && !closed)
           await closePdfNativeFixture(application, suiteData, diagnosticEditor);
-        if (!closed) {
+        if (id === "edicaptura" && !closed && !startupFailed && failures.length === 0) {
+          // Close the editor through its normal before-close/persist handshake.
+          // Playwright's application.close() starts app.quit() while its debugger
+          // detaches and can strand that asynchronous renderer handshake.
+          await application.evaluate(({ BrowserWindow }) => {
+            const window = BrowserWindow.getAllWindows().find((candidate) =>
+              candidate.webContents.getURL().includes("editor/index.html"),
+            );
+            if (!window) throw new Error("EdiCaptura editor window missing at cleanup");
+            setImmediate(() => window.close());
+          });
+          await nativeStage(id, "cleanup", [root], () =>
+            verifyNativeClose(nativeChild, childLifetime.completion, Promise.resolve()),
+          );
+        } else if (!closed) {
           const nativePid = await application.evaluate(() => process.pid);
           const closing = application.close().then(
             () => ({}),
