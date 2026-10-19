@@ -46,12 +46,13 @@ describe("atomic protected session storage", () => {
         signalEntered();
         await gate;
         data.lastTrustedTime = 41;
-      });
+      }, "refresh");
       operations.push(write);
       await started;
+      expect(vault.pendingStages()).toEqual([{ label: "refresh", phase: "operation" }]);
       const queued = vault.use(async (data) => {
         data.lastTrustedTime++;
-      });
+      }, "synchronize");
       operations.push(queued);
       let finished = false;
       const closing = vault.close().then(() => {
@@ -63,6 +64,7 @@ describe("atomic protected session storage", () => {
       expect(await readdir(directory)).toContain("session.v1.bin.lock");
       release();
       await Promise.all([write, queued, closing, vault.close()]);
+      expect(vault.pendingStages()).toEqual([]);
       expect(await readdir(directory)).toEqual(["session.v1.bin"]);
       const reader = createVault({ directory, ...codec });
       expect(await reader.use(async (data) => data.lastTrustedTime)).toBe(42);

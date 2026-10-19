@@ -418,12 +418,27 @@ export function createEdiDesktop(options: {
           event.preventDefault();
           if (!vaultClosing) {
             vaultClosing = true;
-            void sessionVault.close().then(
+            const closingVault = sessionVault;
+            const nativeDiagnostics = process.env.EDI_NATIVE_TEST === "true";
+            if (nativeDiagnostics)
+              console.error(
+                `[edi:${options.appId}] vault-close-start ${JSON.stringify(closingVault.pendingStages())}`,
+              );
+            const slowShutdown = nativeDiagnostics
+              ? setTimeout(() => {
+                  console.error(
+                    `[edi:${options.appId}] vault-close-pending ${JSON.stringify(closingVault.pendingStages())}`,
+                  );
+                }, 5000)
+              : undefined;
+            void closingVault.close().then(
               () => {
+                clearTimeout(slowShutdown);
                 vaultClosed = true;
                 app.quit();
               },
               (error: unknown) => {
+                clearTimeout(slowShutdown);
                 logFailure("session_vault_shutdown_failed", error);
               },
             );

@@ -342,7 +342,7 @@ export function createDesktopController(
           });
         }
       }
-    });
+    }, "refresh");
   }
   const refresh = () => {
     if (pending) return pending;
@@ -414,7 +414,7 @@ export function createDesktopController(
             reason: "Assinatura validada",
             offline: status.offline,
           });
-      });
+      }, "synchronize");
     },
     setUpdate: (update: DesktopStatus["update"]) => emit({ update }),
     assertAccess() {
