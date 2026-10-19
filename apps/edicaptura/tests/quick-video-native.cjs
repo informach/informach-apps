@@ -396,8 +396,11 @@ test("approved native media: real metadata, frame, selected GIF/MP4/audio, recip
   } finally {
     await service.cancel();
     await pending?.catch(() => undefined);
-    assert(path.resolve(root).startsWith(path.resolve(require("node:os").tmpdir()) + path.sep));
-    await fs.rm(root, { recursive: true, force: true });
+    const canonicalRoot = await fs.realpath(root);
+    const canonicalTemp = await fs.realpath(require("node:os").tmpdir());
+    assert.equal(path.dirname(canonicalRoot), canonicalTemp);
+    assert(path.basename(canonicalRoot).startsWith("edi-quick-video-"));
+    await fs.rm(canonicalRoot, { recursive: true, force: true });
   }
 });
 const { syncBuiltinESMExports } = require("node:module");
@@ -536,7 +539,10 @@ for (const mode of ["cancel", "revoke", "control"])
       fs.realpath = originalRealpath;
       syncBuiltinESMExports();
       await service.cancel();
-      assert(path.resolve(root).startsWith(path.resolve(require("node:os").tmpdir()) + path.sep));
-      await fs.rm(root, { recursive: true, force: true });
+      const canonicalRoot = await fs.realpath(root);
+      const canonicalTemp = await fs.realpath(require("node:os").tmpdir());
+      assert.equal(path.dirname(canonicalRoot), canonicalTemp);
+      assert(path.basename(canonicalRoot).startsWith("edi-publication-boundary-"));
+      await fs.rm(canonicalRoot, { recursive: true, force: true });
     }
   });
