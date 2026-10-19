@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
+using Informach.Edi.Native;
 
 namespace EdiAula.Helper
 {

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
+using Informach.Edi.Native;
 
 namespace EdiAula.Helper
 {
