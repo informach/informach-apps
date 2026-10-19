@@ -136,6 +136,10 @@ No head `6caf0f9c`, o fechamento nativo Captura foi confirmado com código zero 
 
 Antes do próximo push, a branch Captura integrou a `main` em `6940c180` (PR #27 do EdiAula). Os scripts de teste agora serializam tanto os arquivos EdiAula quanto os workspaces; a alteração coincidente no script do app foi reconciliada sem conflito. O teste focado dos 11 casos novos/alterados de plano guiado passou localmente, e a CI do conjunto integrado permanece pendente.
 
+Um verificador de mídia do head integrado `b02b7282` revelou um fixture de tempo instável em teste de limpeza do EdiAula: `Date.now()` não delimitou de modo confiável a hora de criação reportada pelo filesystem do runner. O teste agora usa um corte entre os horários medidos das duas pastas, sem mudar a regra de produção; os 6 casos focados e Biome passaram localmente. O novo CI deve confirmar, e a tentativa remota vermelha segue registrada no histórico detalhado.
+
+O segundo verificador de mídia desse head também falhou, em outro teste intermitente de tratamento de MP4 no EdiAula; por isso a jornada nativa foi pulada pelo workflow e o helper PDF novo ainda não teve prova remota. O próximo head precisa completar ambos os verificadores e o nativo antes do merge.
+
 A [divisão de foco](propostas/edi-suite-2026-10-16/edicaptura-lotes/foco-na-suite.md) mantém Captura enxuto com vídeo rápido, edição avançada no EdiAula e trabalho geral de PDF no EdiPDF. IA opcional futura somente pela assinatura do próprio usuário no Claude Code/Codex, conforme a [decisão vigente](propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md), sem API paga/créditos Edi/fallback. Examinar também os consumidores atuais antes de extrair infraestrutura.
 
 ## Ambiente de desenvolvimento

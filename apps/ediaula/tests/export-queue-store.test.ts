@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -264,9 +264,16 @@ test("work folders of exports that did not end are removed, a running one stays"
     await mkdir(join(dir, "export-old", "x"), { recursive: true });
     await writeFile(join(dir, "export-old", "x", "segment-0.txt"), "graph");
     await writeFile(join(dir, "notes.txt"), "not ours");
-    const started = Date.now() + 1;
+    const old = await stat(join(dir, "export-old"));
     await new Promise((r) => setTimeout(r, 20));
     await mkdir(join(dir, "export-running"));
+    const running = await stat(join(dir, "export-running"));
+    const created = (info: { birthtimeMs: number; mtimeMs: number }) =>
+      info.birthtimeMs > 0 ? info.birthtimeMs : info.mtimeMs;
+    const oldAt = created(old);
+    const runningAt = created(running);
+    assert.ok(oldAt < runningAt, "fixture folders must have distinct creation times");
+    const started = (oldAt + runningAt) / 2;
     const errors: string[] = [];
     const removed = await removeOrphanWork(dir, {
       before: started,
