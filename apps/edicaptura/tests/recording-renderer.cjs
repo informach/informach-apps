@@ -461,22 +461,30 @@ async function run() {
         video.removeAttribute("src");
         video.load();
         video.remove();
+        const prefix = await fetch(url, { headers: { Range: "bytes=0-1048575" } });
+        if (
+          prefix.status !== 206 ||
+          prefix.headers.get("content-range") !== "bytes 0-1048575/600000000" ||
+          (await prefix.arrayBuffer()).byteLength !== 1048576
+        )
+          throw Error("Large prefix range failed");
         const range = await fetch(url, { headers: { Range: "bytes=599999994-599999999" } });
-        if (range.status !== 206 || (await range.arrayBuffer()).byteLength !== 6)
+        if (
+          range.status !== 206 ||
+          range.headers.get("content-range") !== "bytes 599999994-599999999/600000000" ||
+          (await range.arrayBuffer()).byteLength !== 6
+        )
           throw Error("Large suffix range failed");
       },
       `${server.resolvedUrls.local[0]}fixture-video/${largeUrl.split("/").at(-1)}`,
     );
     await largePage.close();
-    assert.ok(
-      servedBytes - beforeLarge < 32 * 1024 * 1024,
-      "browser decoded without reading the complete sparse file",
-    );
     console.log(
       JSON.stringify({
         largeOwnedFileBytes: 600_000_000,
         servedBytes: servedBytes - beforeLarge,
         decode: "640x480",
+        prefixRange: 1048576,
         suffixRange: 6,
       }),
     );

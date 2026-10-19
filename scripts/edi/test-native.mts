@@ -1039,11 +1039,17 @@ try {
           // Close the editor through its normal before-close/persist handshake.
           // Playwright's application.close() starts app.quit() while its debugger
           // detaches and can strand that asynchronous renderer handshake.
-          await application.evaluate(({ BrowserWindow }) => {
+          await application.evaluate(({ app, BrowserWindow }) => {
             const window = BrowserWindow.getAllWindows().find((candidate) =>
               candidate.webContents.getURL().includes("editor/index.html"),
             );
             if (!window) throw new Error("EdiCaptura editor window missing at cleanup");
+            const report = (event: string) => console.error(`EdiCaptura native exit: ${event}`);
+            window.once("close", () => report("editor-close-requested"));
+            window.once("closed", () => report("editor-closed"));
+            app.on("before-quit", () => report("before-quit"));
+            app.on("will-quit", () => report("will-quit"));
+            app.once("quit", () => report("quit"));
             setImmediate(() => window.close());
           });
           await nativeStage(id, "cleanup", [root], () =>
