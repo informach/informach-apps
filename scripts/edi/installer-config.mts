@@ -3,26 +3,34 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Configuration } from "electron-builder";
-import { EDI_DESKTOP_APPS, hasNativeMedia, hasOcr } from "../../packages/config/src/edi-tools";
+import {
+  EDI_DESKTOP_APPS,
+  hasNativeMedia,
+  hasOcr,
+  nativeHelperExecutable,
+} from "../../packages/config/src/edi-tools";
 import { desktopAppIdSchema, releaseVersionSchema } from "../../packages/edi-contracts/src/index";
 import { desktopConfigSchema } from "../../packages/edi-desktop/src/contracts";
 import { verifyOcrAssets } from "../../packages/edi-ocr/src/assets";
 import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
 import { writeThirdPartyNotices } from "./third-party-notices.mts";
 
-const ediAulaHelper = resolve("apps/ediaula/resources/native/ediaula-helper.exe");
+/** Where the app build (`@informach/edi-native/build`) leaves the tool's own helper. */
+export function nativeHelperDirectory(appId: string): string {
+  return resolve("apps", appId, "resources", "native");
+}
 
 /** The app build compiles the helper; a stale or missing one must not reach an installer. */
-async function verifyEdiAulaHelper(version: string) {
-  if (!existsSync(ediAulaHelper))
-    throw new Error("EdiAula helper is missing; the app build compiles it on Windows");
-  const { stdout } = await promisify(execFile)(ediAulaHelper, ["--version"], {
+export async function verifyNativeHelper(executable: string, version: string): Promise<void> {
+  if (!existsSync(executable))
+    throw new Error(`${executable} is missing; the app build compiles it on Windows`);
+  const { stdout } = await promisify(execFile)(executable, ["--version"], {
     windowsHide: true,
     timeout: 30000,
   });
   if (stdout.trim() !== version)
     throw new Error(
-      `EdiAula helper version ${stdout.trim()} does not match the release ${version}`,
+      `${executable} reports version ${stdout.trim()}, which does not match the release ${version}`,
     );
 }
 export function installerConfiguration(rawId: unknown, rawVersion: unknown): Configuration {
@@ -30,6 +38,7 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
   const version = releaseVersionSchema.parse(rawVersion);
   const app = EDI_DESKTOP_APPS.find((item) => item.id === appId);
   if (!app) throw new Error("Unknown Edi application");
+  const helper = nativeHelperExecutable(appId);
   const config = desktopConfigSchema.parse({
     portalUrl: process.env.EDI_PORTAL_URL,
     clientId: process.env.EDI_DESKTOP_CLIENT_ID,
@@ -62,32 +71,28 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       "package.json",
       "!**/*.map",
       "!**/tests/**",
-      ...(appId === "ediaula"
-        ? ["!resources/fonts/**", "!resources/native/**", "!resources/rnnoise/**"]
-        : []),
+      // The helper and its build stamp never enter the ASAR.
+      ...(helper ? ["!resources/native/**"] : []),
+      ...(appId === "ediaula" ? ["!resources/fonts/**", "!resources/rnnoise/**"] : []),
     ],
     asar: true,
     extraResources: [
       ...(hasNativeMedia(appId)
         ? [{ from: nativeMediaDirectory, to: "native-media", filter: ["**/*"] }]
         : []),
+      // Subprocesses cannot run from inside the ASAR archive. Each tool carries only its own helper.
+      ...(helper ? [{ from: nativeHelperDirectory(appId), to: "native", filter: [helper] }] : []),
       ...(appId === "ediaula"
         ? [
             { from: resolve("apps/ediaula/resources/fonts"), to: "fonts" },
             // FFmpeg reads the model from disk, outside the ASAR.
             { from: resolve("apps/ediaula/resources/rnnoise"), to: "rnnoise" },
-            // Subprocesses cannot run from inside the ASAR archive.
-            {
-              from: resolve("apps/ediaula/resources/native"),
-              to: "native",
-              filter: ["ediaula-helper.exe"],
-            },
           ]
         : []),
     ],
     beforePack: async () => {
       if (hasNativeMedia(appId)) await verifyNativeMediaBundle();
-      if (appId === "ediaula") await verifyEdiAulaHelper(version);
+      if (helper) await verifyNativeHelper(resolve(nativeHelperDirectory(appId), helper), version);
       // The renderer build must carry the pinned OCR worker, cores, models and licenses.
       if (hasOcr(appId)) verifyOcrAssets(resolve("apps", app.id, "out", "renderer", "ocr"));
     },
