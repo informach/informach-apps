@@ -113,20 +113,16 @@ test("o modelo RNNoise empacotado é o arquivo fixado", () => {
   assert.equal(createHash("sha256").update(readFileSync(MODEL)).digest("hex"), sum);
 });
 
-test("a cadeia escolhe RNNoise só num FFmpeg confiável e lê o que o FFmpeg diz", () => {
+test("a cadeia prefere FFT estável mesmo quando RNNoise está disponível", () => {
   assert.equal(ffmpegMajor("ffmpeg version 9.0.2 Copyright (c) 2000-2026"), 9);
   assert.equal(ffmpegMajor("ffmpeg version 6.1.1-essentials_build-www.gyan.dev"), 6);
   const filters = parseFilterList(
     " TSC afftdn            A->A       Denoise audio samples using FFT.\n TS arnndn A->A x\n",
   );
   assert.deepEqual([...filters], ["afftdn", "arnndn"]);
-  assert.equal(chooseNoiseReduction({ major: 9, filters }, "m.rnnn").kind, "rnnoise");
-  assert.equal(chooseNoiseReduction({ major: 6, filters }, "m.rnnn").kind, "fft");
-  assert.equal(chooseNoiseReduction({ major: 7, filters }, "m.rnnn").kind, "fft");
-  assert.equal(chooseNoiseReduction({ major: 8, filters }, "m.rnnn").kind, "fft");
-  assert.equal(chooseNoiseReduction({ major: 10, filters }, "m.rnnn").kind, "fft");
-  assert.equal(chooseNoiseReduction({ major: 9, filters }, null).kind, "fft");
-  assert.equal(chooseNoiseReduction({ major: 9, filters: new Set() }, "m").kind, "none");
+  for (const major of [6, 7, 8, 9, 10])
+    assert.equal(chooseNoiseReduction({ major, filters }).kind, "fft");
+  assert.equal(chooseNoiseReduction({ major: 9, filters: new Set(["arnndn"]) }).kind, "none");
   const chain = chainFilter("teacher", { kind: "fft", quiet: [5.5, 6.5] }, -30);
   assert.match(
     chain ?? "",

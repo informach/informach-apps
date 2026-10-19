@@ -177,7 +177,7 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
   const caps = await ffmpegCaps(o.ffmpeg);
   const sourceHash = await fileHash(o.source, o.signal);
   // The key depends on the method, not on the measured values: those come from the source.
-  const method = chooseNoiseReduction(caps, o.model);
+  const method = chooseNoiseReduction(caps);
   const key = chainKey(o.preset, method);
   const out = treatedFile(o.cacheRoot, sourceHash, key, o.preset);
   if (existsSync(out)) {
@@ -246,7 +246,7 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
   const quiet = quietestStretch(levels, LEVEL_RATE / LEVEL_FRAME) ?? undefined;
   // Up to a second of warm-up before the source (withWarmup): the noise profile's times move.
   const warm = duration >= 0.5 ? Math.min(1, duration) : 0;
-  const nr = chooseNoiseReduction(caps, o.model, quiet && [quiet[0] + warm, quiet[1] + warm]);
+  const nr = chooseNoiseReduction(caps, quiet && [quiet[0] + warm, quiet[1] + warm]);
   const chain = chainFilter(o.preset, nr, level);
   if (!chain) throw new Error("Este ajuste não trata a voz.");
 

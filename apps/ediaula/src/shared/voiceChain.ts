@@ -5,8 +5,7 @@ import type { Asset } from "./types.ts";
  * pure so they can be tested. The default, "Voz da professora":
  *
  * 1. high-pass at 75 Hz (rumble, desk knocks, mains hum);
- * 2. noise reduction: RNNoise (`arnndn`, model resources/rnnoise/sh.rnnn) when the FFmpeg has it
- *    and runs it reliably, else `afftdn` with the noise profile sampled in the quietest stretch;
+ * 2. noise reduction: `afftdn` with the noise profile sampled in the quietest stretch;
  * 3. the voice brought to a working level (a gain measured in a first pass), a gentle expander
  *    in the pauses, a de-esser and a soft compressor, with a limiter that only catches stray
  *    peaks;
@@ -68,18 +67,12 @@ export function parseFilterList(text: string): Set<string> {
 }
 
 /**
- * RNNoise only on the validated FFmpeg 9 generation with `arnndn`. FFmpeg 6.1.1 was
- * inconsistent, and the development binary on the Windows release runner (7/8 generation)
- * reduced under-speech hiss by only 7.8 dB, below the required 10 dB. The packaged 9.0.2
- * reduced it by 21.8 dB on the same runner. Other versions use the FFT denoiser with a
- * sampled noise profile until they are independently qualified.
+ * RNNoise varied between 7.8 and 21.8 dB of under-speech reduction on the same
+ * Windows release runner, and the weak result alternated between the development
+ * and packaged binaries. Version gating cannot make that path reliable. The FFT
+ * filter with a sampled profile passed the unchanged 10 dB criterion consistently.
  */
-export function chooseNoiseReduction(
-  caps: FfmpegCaps,
-  model: string | null,
-  quiet?: [number, number],
-): NoiseReduction {
-  if (model && caps.filters.has("arnndn") && caps.major === 9) return { kind: "rnnoise", model };
+export function chooseNoiseReduction(caps: FfmpegCaps, quiet?: [number, number]): NoiseReduction {
   if (caps.filters.has("afftdn")) return { kind: "fft", ...(quiet ? { quiet } : {}) };
   return { kind: "none" };
 }
