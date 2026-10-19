@@ -133,6 +133,8 @@ No head `2bcabaf3` do PR #24, os gates remotos de mídia e upgrades passaram; a 
 
 O nativo do head `f7721fe7` voltou a concluir os casos funcionais Captura e falhou no encerramento do Electron; o runner agora inicia o fechamento pelo fluxo próprio do editor antes de desligar o protocolo, conservando a exigência de saída limpa e o fixture em falha. A correção passou nos 64 testes do tooling e ainda depende de CI nativa. Um dos dois verificadores de mídia falhou num teste intermitente de MP4 com áudio atrasado do EdiAula, enquanto o outro passou; a repetição está em curso. Nenhum gate vermelho foi reclassificado como verde por inferência.
 
+No head `6caf0f9c`, o fechamento nativo Captura foi confirmado com código zero e o EdiFoto passou. Ambos os verificadores de mídia e todos os upgrades passaram. A jornada nativa parou no diálogo Save do EdiPDF, cujo helper de teste foi ajustado para os controles Win32 próprios do processo, sem alterar o produto ou OCR; a interação real ainda precisa de novo CI. O merge permanece condicionado aos gates do próximo head, e os resultados completos ficam no registro detalhado.
+
 A [divisão de foco](propostas/edi-suite-2026-10-16/edicaptura-lotes/foco-na-suite.md) mantém Captura enxuto com vídeo rápido, edição avançada no EdiAula e trabalho geral de PDF no EdiPDF. IA opcional futura somente pela assinatura do próprio usuário no Claude Code/Codex, conforme a [decisão vigente](propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md), sem API paga/créditos Edi/fallback. Examinar também os consumidores atuais antes de extrair infraestrutura.
 
 ## Ambiente de desenvolvimento
