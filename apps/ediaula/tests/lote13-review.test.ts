@@ -269,7 +269,7 @@ test("trimming a group skips locked members and stops where any member must", ()
   assert.deepEqual(overlaps({ clips: out }), []);
 });
 
-test("settle with 1,500 clips and 2,000 markers takes under 10 ms, a ripple too", () => {
+test("settle with 1,500 clips and 2,000 markers takes under 10 ms, a ripple too", (t) => {
   const tracks = [
     track("V", "video"),
     track("A", "audio"),
@@ -295,12 +295,14 @@ test("settle with 1,500 clips and 2,000 markers takes under 10 ms, a ripple too"
     ...q,
     clips: q.clips.map((c, i) => (i === 7 ? { ...c, volume: k % 2 ? 1 : 0.9 } : c)),
   }));
+  t.diagnostic(`settle volume median: ${volume.toFixed(1)} ms`);
   assert.ok(volume < 10, `${volume.toFixed(1)} ms per commit`);
   const before = p.markers?.find((m) => m.id === "m100")?.t ?? 0;
   const ripple = median((q, k) => ({
     ...q,
     clips: q.clips.map((c) => (c.start > 4 ? { ...c, start: c.start + (k % 2 ? -0.5 : 0.5) } : c)),
   }));
+  t.diagnostic(`settle ripple median: ${ripple.toFixed(1)} ms`);
   assert.ok(ripple < 10, `${ripple.toFixed(1)} ms per ripple`);
   // An even number of pushes and pulls: the marker on the video is back where it was.
   assert.ok(Math.abs((p.markers?.find((m) => m.id === "m100")?.t ?? 0) - before) < 1e-6);
