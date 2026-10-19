@@ -3,7 +3,7 @@
 // Windows (C# 5). Skips the compiler when sources, version and options are unchanged. Outside
 // Windows it only warns: the helpers exist for Windows alone.
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -186,12 +186,24 @@ export async function buildNativeHelper(input: NativeHelperOptions): Promise<Nat
     if (compiled.error)
       throw new Error(`${name}: compilation failed\n${compiled.stdout || compiled.error.message}`);
     await mkdir(outputDir, { recursive: true });
+    // Earlier executables moved aside by previous builds go once nothing holds them anymore.
+    for (const entry of await readdir(outputDir))
+      if (entry.startsWith(`${name}.exe.old-`))
+        await rm(join(outputDir, entry), { force: true }).catch(() => undefined);
     try {
       await rename(staged, output);
     } catch (error) {
-      // Windows keeps a running executable locked: an app in development may be using it.
-      if (isBusy(error)) throw new Error(`${name}: ${output} ${input.inUse}`);
-      throw error;
+      if (!isBusy(error)) throw error;
+      // Windows keeps an executable locked while it runs (an app in development, or the
+      // antivirus scanning one that just ran), but lets it be renamed: move it aside and put
+      // the new one in its place. The old file is removed by a later build.
+      try {
+        await rename(output, `${output}.old-${randomUUID()}`);
+        await rename(staged, output);
+      } catch (retry) {
+        if (isBusy(retry)) throw new Error(`${name}: ${output} ${input.inUse}`);
+        throw retry;
+      }
     }
     await writeFile(stampFile, `${JSON.stringify({ version, sha256: digest }, null, 2)}\n`);
   } finally {
