@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-18",
+  "product": "EdiFoto",
+  "scope": "Editor simples de imagens; IA por assinatura pessoal; nomes genéricos",
+  "unitTests": {
+    "passed": 33,
+    "failed": 0
+  },
+  "browser": {
+    "checks": 144,
+    "suites": [
+      {
+        "suite": "default",
+        "status": "passed",
+        "checks": 68,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "safety",
+        "status": "passed",
+        "checks": 14,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "fidelity",
+        "status": "passed",
+        "checks": 15,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "workspace",
+        "status": "passed",
+        "checks": 8,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "assistant",
+        "status": "passed",
+        "checks": 14,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "refinements",
+        "status": "passed",
+        "checks": 15,
+        "javascriptErrors": []
+      },
+      {
+        "suite": "chroma",
+        "status": "passed",
+        "checks": 10,
+        "javascriptErrors": []
+      }
+    ]
+  },
+  "typecheck": "passed",
+  "ediToolingTypecheck": "passed",
+  "build": "passed",
+  "native": {
+    "command": "pnpm edi:test:native edifoto",
+    "status": "passed",
+    "journeys": [
+      "Save/Open with native Windows dialogs",
+      "Cancel Save As preserving original",
+      "Durable detached recovery",
+      "PNG export with verified dimensions",
+      "Signed offline license and expiration",
+      "Restricted IPC denial",
+      "Owned fixture cleanup"
+    ],
+    "personalProviderCalls": 0
+  },
+  "quality": {
+    "biome": "No errors; existing warnings remain",
+    "diffCheck": "passed"
+  },
+  "publication": {
+    "commit": false,
+    "push": false,
+    "deploy": false,
+    "release": false
+  }
+}

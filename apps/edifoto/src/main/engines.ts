@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -6,7 +6,9 @@ import { localMcpHeaders } from "@informach/edi-desktop/access";
 import { app } from "electron";
 import { AI_TOOLS, type AiToolName, EDITOR_GUIDE } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
-import { locateClient, MCP_NAME, mcpUrl } from "./aiSettings.ts";
+import { locateClient, MCP_NAME, mcpUrl, requirePersonalLogin } from "./aiSettings.ts";
+
+import { clientCommand, personalClientEnvironment } from "./clientProcess.ts";
 
 /**
  * In-app chat through the user's own Claude Code or Codex install, signed in with their own
@@ -20,10 +22,6 @@ const PANEL_PROMPT = `You are the assistant in EdiFoto's side panel. The user se
 
 const sessions = new Map<string, string>();
 const running = new Map<string, ChildProcess>();
-let activeRuns = 0;
-
-/** True while an in-app run is going, so MCP calls are attributed to the assistant (no toasts). */
-export const inAppRunActive = (): boolean => activeRuns > 0;
 
 /** Empty working folder: no project files, no CLAUDE.md, nothing for the agent to read. */
 function workspace(): string {
@@ -55,7 +53,16 @@ const resultText = (content: unknown): string => {
 
 export function stopEngineRun(conversationId: string): boolean {
   const child = running.get(conversationId);
-  child?.kill();
+  if (child?.pid && process.platform === "win32")
+    execFile(
+      "taskkill.exe",
+      ["/PID", String(child.pid), "/T", "/F"],
+      { windowsHide: true },
+      (error) => {
+        if (error && running.get(conversationId) === child) child.kill();
+      },
+    );
+  else child?.kill();
   return !!child;
 }
 
@@ -72,7 +79,6 @@ function track(
   onExit: (code: number | null, stderr: string) => void,
 ): Promise<void> {
   running.set(conversationId, child);
-  activeRuns++;
   let stderr = "";
   child.stderr?.on("data", (d: Buffer) => {
     stderr = (stderr + d.toString()).slice(-6000);
@@ -80,10 +86,20 @@ function track(
   const rl = createInterface({ input: child.stdout! });
   rl.on("line", (line) => {
     if (!line.startsWith("{")) return;
+    let parsed: Record<string, unknown>;
     try {
-      onLine(JSON.parse(line) as Record<string, unknown>);
+      parsed = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      /* not an event line */
+      return;
+    }
+    try {
+      onLine(parsed);
+    } catch (error) {
+      emit({
+        type: "error",
+        message: `Resposta inesperada do cliente: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      stopEngineRun(conversationId);
     }
   });
   return new Promise((resolve) => {
@@ -91,7 +107,6 @@ function track(
       emit({ type: "error", message: `Não foi possível iniciar: ${err.message}` }),
     );
     child.on("close", (code) => {
-      activeRuns--;
       if (running.get(conversationId) === child) running.delete(conversationId);
       onExit(code, stderr);
       emit({ type: "done" });
@@ -108,8 +123,11 @@ export async function runClaudeCode(
   port: number,
   model: string | undefined,
   emit: Emit,
+  runId: string,
+  check: () => void,
 ): Promise<void> {
   const bin = await locateClient("claude-code");
+  check();
   if (!bin) {
     emit({
       type: "error",
@@ -119,8 +137,16 @@ export async function runClaudeCode(
     emit({ type: "done" });
     return;
   }
+  await requirePersonalLogin("claude-code", bin);
+  check();
   const mcp = JSON.stringify({
-    mcpServers: { [MCP_NAME]: { type: "http", url: mcpUrl(port), headers: localMcpHeaders() } },
+    mcpServers: {
+      [MCP_NAME]: {
+        type: "http",
+        url: mcpUrl(port),
+        headers: { ...localMcpHeaders(), "X-Edi-Run": runId },
+      },
+    },
   });
   const resume = sessions.get(conversationId);
   const args = [
@@ -143,7 +169,10 @@ export async function runClaudeCode(
     ...(resume ? ["--resume", resume] : []),
     ...(model && model !== "default" ? ["--model", model] : []),
   ];
-  const child = spawn(bin, args, {
+  check();
+  const invocation = clientCommand(bin, args);
+  const child = spawn(invocation.command, invocation.args, {
+    env: personalClientEnvironment(),
     cwd: workspace(),
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -272,8 +301,11 @@ export async function runCodex(
   text: string,
   port: number,
   emit: Emit,
+  runId: string,
+  check: () => void,
 ): Promise<void> {
   const bin = await locateClient("codex");
+  check();
   if (!bin) {
     emit({
       type: "error",
@@ -283,8 +315,14 @@ export async function runCodex(
     emit({ type: "done" });
     return;
   }
+  await requirePersonalLogin("codex", bin);
+  check();
   const thread = sessions.get(conversationId);
   const common = [
+    "-c",
+    'forced_login_method="chatgpt"',
+    "-c",
+    'model_provider="openai"',
     "--json",
     "--skip-git-repo-check",
     "-s",
@@ -294,16 +332,19 @@ export async function runCodex(
     "-c",
     `mcp_servers.${MCP_NAME}.url="${mcpUrl(port)}"`,
     "-c",
-    `mcp_servers.${MCP_NAME}.http_headers={Authorization=${JSON.stringify(localMcpHeaders().Authorization)}}`,
+    `mcp_servers.${MCP_NAME}.http_headers={Authorization=${JSON.stringify(localMcpHeaders().Authorization)},"X-Edi-Run"=${JSON.stringify(runId)}}`,
   ];
   // Codex has no separate system prompt in exec mode: the guide goes with the first message.
   const prompt = thread ? text : `${EDITOR_GUIDE}\n\n${PANEL_PROMPT}\n\n---\n\n${text}`;
   const args = thread ? ["exec", ...common, "resume", thread, prompt] : ["exec", ...common, prompt];
-  const child = spawn(bin, args, {
+  check();
+  const invocation = clientCommand(bin, args);
+  const child = spawn(invocation.command, invocation.args, {
+    env: personalClientEnvironment(),
     cwd: workspace(),
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
-    shell: bin.endsWith(".cmd"),
+    shell: false,
   });
   let failed = false;
   await track(

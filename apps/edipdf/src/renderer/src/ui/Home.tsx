@@ -1,6 +1,17 @@
-import { Combine, FileArchive, FilePlus2, FileText, FolderOpen, Images, X } from "lucide-react";
-import { newBlankDocument, openDialog, openPaths } from "../lib/actions";
-import { useApp } from "../state/store";
+import {
+  Combine,
+  FileArchive,
+  FilePlus2,
+  FileText,
+  FolderOpen,
+  Images,
+  Pin,
+  ScanLine,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { newBlankDocument, openDialog, openPaths, restoreRecovery } from "../lib/actions";
+import { toast, useApp } from "../state/store";
 
 const when = (t: number): string => {
   const d = new Date(t);
@@ -19,6 +30,11 @@ const when = (t: number): string => {
 
 export function Home(): React.ReactElement {
   const recents = useApp((s) => s.recents);
+  const recoveries = useApp((s) => s.recoveries);
+  const [query, setQuery] = useState("");
+  const filtered = recents.filter((entry) =>
+    `${entry.name} ${entry.path}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+  );
   const actions = [
     {
       icon: <FolderOpen size={20} />,
@@ -51,6 +67,12 @@ export function Home(): React.ReactElement {
       text: "Comece uma página A4 vazia",
       run: newBlankDocument,
     },
+    {
+      icon: <ScanLine size={20} />,
+      title: "Digitalizar com scanner",
+      text: "Mesa ou alimentador pelo Windows",
+      run: () => useApp.setState({ dialog: { kind: "scanning" } }),
+    },
   ];
   return (
     <div className="home">
@@ -75,8 +97,64 @@ export function Home(): React.ReactElement {
             </button>
           ))}
         </section>
+        {recoveries.length > 0 && (
+          <section className="home-recent" aria-label="Trabalhos recuperáveis">
+            <h2>Trabalhos recuperáveis</h2>
+            <p className="muted">
+              Cópias locais protegidas pelo Windows. Recuperar abre um documento para salvar em
+              outro destino.
+            </p>
+            <div className="recent-grid">
+              {recoveries.map((item) => (
+                <div key={item.id} className="recent">
+                  <button
+                    type="button"
+                    className="card-open"
+                    aria-label={`Recuperar ${item.name}`}
+                    onClick={() => void restoreRecovery(item.id)}
+                  />
+                  <div className="recent-meta">
+                    <span className="recent-name">{item.name}</span>
+                    <span className="recent-sub">{when(item.updatedAt)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="recent-remove"
+                    title="Excluir cópia de recuperação"
+                    onClick={async () => {
+                      const choice = await window.api.message({
+                        type: "question",
+                        message: `Excluir a cópia de recuperação de ${item.name}?`,
+                        detail: "Os arquivos PDF salvos não serão alterados.",
+                        buttons: ["Excluir cópia local", "Cancelar"],
+                      });
+                      if (choice !== 0) return;
+                      try {
+                        await window.api.recovery.remove(item.id);
+                        useApp.setState((s) => ({
+                          recoveries: s.recoveries.filter((r) => r.id !== item.id),
+                        }));
+                      } catch {
+                        toast("Não foi possível excluir a cópia local.", { tone: "error" });
+                      }
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <section className="home-recent">
           <h2>Recentes</h2>
+          <input
+            className="input"
+            aria-label="Buscar nos recentes"
+            value={query}
+            placeholder="Buscar arquivo ou pasta…"
+            onChange={(event) => setQuery(event.target.value)}
+          />
           {recents.length === 0 ? (
             <div className="empty">
               <FileText size={22} />
@@ -84,13 +162,20 @@ export function Home(): React.ReactElement {
             </div>
           ) : (
             <div className="recent-grid">
-              {recents.map((r) => (
+              {filtered.map((r) => (
                 <div key={r.path} className="recent" title={r.path}>
                   <button
                     type="button"
                     className="card-open"
                     aria-label={`Abrir ${r.name}`}
-                    onClick={() => void openPaths([r.path])}
+                    onClick={() => {
+                      if (r.available === false)
+                        toast(
+                          "Este arquivo foi movido ou não está disponível. Use Abrir PDF para localizá-lo.",
+                          { tone: "error" },
+                        );
+                      else void openPaths([r.path]);
+                    }}
                   />
                   <div className="recent-thumb">
                     {r.thumb ? <img src={r.thumb} alt="" /> : <FileText size={26} />}
@@ -99,9 +184,33 @@ export function Home(): React.ReactElement {
                     <span className="recent-name">{r.name}</span>
                     <span className="recent-sub">
                       {when(r.openedAt)}
+                      {r.pinned ? " · fixado" : ""}
+                      {r.available === false ? " · indisponível" : ""}
                       {r.pages ? ` · ${r.pages} ${r.pages === 1 ? "pág." : "págs."}` : ""}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    className="recent-pin"
+                    aria-label={`${r.pinned ? "Desafixar" : "Fixar"} ${r.name}`}
+                    aria-pressed={!!r.pinned}
+                    onClick={async () => {
+                      try {
+                        useApp.setState({
+                          recents: await window.api.recent.pin(r.path, !r.pinned),
+                        });
+                      } catch (failure) {
+                        toast(
+                          failure instanceof Error
+                            ? failure.message
+                            : "Não foi possível fixar o recente.",
+                          { tone: "error" },
+                        );
+                      }
+                    }}
+                  >
+                    <Pin size={13} />
+                  </button>
                   <button
                     type="button"
                     className="recent-remove"
@@ -109,7 +218,16 @@ export function Home(): React.ReactElement {
                     title="Remover da lista"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      useApp.setState({ recents: await window.api.recent.remove(r.path) });
+                      try {
+                        useApp.setState({ recents: await window.api.recent.remove(r.path) });
+                      } catch (failure) {
+                        toast(
+                          failure instanceof Error
+                            ? failure.message
+                            : "Não foi possível remover o recente.",
+                          { tone: "error" },
+                        );
+                      }
                     }}
                   >
                     <X size={13} />

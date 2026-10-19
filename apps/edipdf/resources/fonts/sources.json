@@ -1,0 +1,18 @@
+{
+  "NotoSans-Regular.ttf": {
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf",
+    "sha256": "b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5"
+  },
+  "NotoSans-Bold.ttf": {
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf",
+    "sha256": "c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a"
+  },
+  "NotoSans-Italic.ttf": {
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Italic.ttf",
+    "sha256": "36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b"
+  },
+  "NotoSans-BoldItalic.ttf": {
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-BoldItalic.ttf",
+    "sha256": "6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466"
+  }
+}

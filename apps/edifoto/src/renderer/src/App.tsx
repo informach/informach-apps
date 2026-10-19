@@ -4,8 +4,9 @@ import { Editor } from "@/editor/Editor";
 import { NewDocumentDialog } from "@/editor/NewDocumentDialog";
 import { Home } from "@/home/Home";
 import { actions, attempt } from "@/lib/actions";
-import { runAiTool } from "@/lib/aiTools";
-import { isDocPath, openPath, placePaths, saveDocument } from "@/lib/files";
+import { cancelAiTool, runAiTool } from "@/lib/aiTools";
+import { saveDocument } from "@/lib/files";
+import { discardRecovery, flushRecovery, startRecovery } from "@/lib/recovery";
 import { AiSettings } from "@/settings/AiSettings";
 import { useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
@@ -15,6 +16,7 @@ export function App(): ReactNode {
   const hasDoc = useDoc((s) => !!s.doc);
   const settingsOpen = useUi((s) => s.settingsOpen);
   const newDocumentOpen = useUi((s) => s.newDocumentOpen);
+  useEffect(startRecovery, []);
   useEffect(
     () =>
       registerEdiRecovery(async () => {
@@ -48,14 +50,9 @@ export function App(): ReactNode {
 
   useEffect(() => {
     void useUi.getState().refreshAi();
+    const stopCancel = window.api.onAiCancel(cancelAiTool);
     const stopTools = window.api.handleAiTools((call) => runAiTool(call));
-    const stopFiles = window.api.onOpenFiles((paths) =>
-      attempt(async () => {
-        const docFirst = paths.find(isDocPath);
-        if (!useDoc.getState().doc || docFirst) await openPath(docFirst ?? paths[0]);
-        else await placePaths(paths);
-      }),
-    );
+    const stopFiles = window.api.onOpenFiles((paths) => attempt(() => actions.receiveFiles(paths)));
     const stopDirty = useDoc.subscribe((s, p) => {
       if (
         s.doc?.id !== p.doc?.id ||
@@ -64,6 +61,10 @@ export function App(): ReactNode {
       ) {
         useUi.setState({
           chromaOpen: false,
+          exportOpen: false,
+          resizeOpen: false,
+          beforeAfter: false,
+          previewMode: null,
           selection: null,
           selectionPreview: null,
           penPoints: [],
@@ -76,10 +77,31 @@ export function App(): ReactNode {
       if (s.doc?.name !== p.doc?.name || s.dirty !== p.dirty)
         document.title = s.doc ? `${s.dirty ? "• " : ""}${s.doc.name} — EdiFoto 0.2.0` : "EdiFoto";
     });
+    window.api.setDirty(useDoc.getState().dirty);
+    const stopDiscard = window.api.onDiscardBeforeClose(() =>
+      attempt(async () => {
+        await discardRecovery();
+        window.api.setDirty(false);
+        await window.api.closeSaved();
+      }),
+    );
+    const stopClose = window.api.onSaveBeforeClose(() =>
+      attempt(async () => {
+        if (await saveDocument(false)) {
+          if (useDoc.getState().dirty)
+            throw new Error("Há alterações novas. Salve novamente antes de sair.");
+          await flushRecovery();
+          await window.api.closeSaved();
+        }
+      }),
+    );
     return () => {
       stopTools();
+      stopCancel();
       stopFiles();
       stopDirty();
+      stopClose();
+      stopDiscard();
     };
   }, []);
 

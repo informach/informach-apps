@@ -1,5 +1,6 @@
 import { showModalOnMount } from "@informach/edi-desktop/renderer";
 import { type ChromaKey, DEFAULT_KEY, detectScreen, keyUsable, rgbToHex } from "@shared/chroma";
+import { borderColor } from "@shared/masks";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { requireBitmap } from "@/engine/bitmaps";
 import { attempt } from "@/lib/actions";
@@ -28,20 +29,41 @@ export function ChromaKeyDialog(): ReactNode {
   const [key, setKey] = useState<ChromaKey>(() => ({
     ...DEFAULT_KEY,
     color: source
-      ? (detectScreen(source.image.data, 4, source.image.width, source.image.height) ?? "#00FF00")
+      ? (detectScreen(source.image.data, 4, source.image.width, source.image.height) ??
+        borderColor(source.image.data, source.image.width, source.image.height) ??
+        "#ffffff")
       : "#00FF00",
   }));
-  const [result, setResult] = useState<{ pixels: Uint8ClampedArray; key: ChromaKey } | null>(null);
+  const [method, setMethod] = useState<"chroma" | "uniform">(() =>
+    source && detectScreen(source.image.data, 4, source.image.width, source.image.height)
+      ? "chroma"
+      : "uniform",
+  );
+  const [tolerance, setTolerance] = useState(30),
+    [feather, setFeather] = useState(0);
+  const [result, setResult] = useState<{
+    pixels: Uint8ClampedArray;
+    key: ChromaKey;
+    method: string;
+    tolerance: number;
+    feather: number;
+  } | null>(null);
   const [error, setError] = useState("");
   const [mode, setMode] = useState("result");
   const [background, setBackground] = useState("checker");
   const [zoom, setZoom] = useState(false);
   const [picking, setPicking] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ready = result?.key === key && keyUsable(key.color);
+  const usable = method === "uniform" || keyUsable(key.color);
+  const ready =
+    result?.key === key &&
+    result.method === method &&
+    result.tolerance === tolerance &&
+    result.feather === feather &&
+    usable;
 
   useEffect(() => {
-    if (!source || !keyUsable(key.color)) return;
+    if (!source || !usable) return;
     let worker: Worker | undefined;
     let active = true;
     setError("");
@@ -55,7 +77,8 @@ export function ChromaKeyDialog(): ReactNode {
         ) => {
           if (!active) return;
           if (event.data.error) setError(event.data.error);
-          else if (event.data.pixels) setResult({ pixels: event.data.pixels, key });
+          else if (event.data.pixels)
+            setResult({ pixels: event.data.pixels, key, method, tolerance, feather });
           worker?.terminate();
         };
         worker.onerror = () => {
@@ -67,7 +90,15 @@ export function ChromaKeyDialog(): ReactNode {
         };
         const pixels = source.image.data.slice();
         worker.postMessage(
-          { pixels, width: source.image.width, height: source.image.height, key },
+          {
+            pixels,
+            width: source.image.width,
+            height: source.image.height,
+            key,
+            method,
+            tolerance,
+            feather,
+          },
           [pixels.buffer],
         );
       } catch (e) {
@@ -79,7 +110,7 @@ export function ChromaKeyDialog(): ReactNode {
       clearTimeout(timer);
       worker?.terminate();
     };
-  }, [source, key]);
+  }, [source, key, method, tolerance, feather, usable]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -203,7 +234,21 @@ export function ChromaKeyDialog(): ReactNode {
             </p>
           </div>
           <div className="chroma-controls">
-            <p>Retire fundos verdes ou azuis, com ajuste fino das bordas e dos reflexos de cor.</p>
+            <p>Funciona melhor com fundos de cor uniforme. Confira a prévia antes de aplicar.</p>
+            <label>
+              Método
+              <select
+                className="field"
+                aria-label="Método de recorte"
+                value={method}
+                onChange={(event) =>
+                  setMethod(event.target.value === "chroma" ? "chroma" : "uniform")
+                }
+              >
+                <option value="uniform">Fundo uniforme</option>
+                <option value="chroma">Fundo verde ou azul</option>
+              </select>
+            </label>
             <label className="chroma-color">
               Cor do fundo{" "}
               <input
@@ -226,12 +271,10 @@ export function ChromaKeyDialog(): ReactNode {
                 type="button"
                 className="btn"
                 onClick={() => {
-                  const color = detectScreen(
-                    source.image.data,
-                    4,
-                    source.image.width,
-                    source.image.height,
-                  );
+                  const color =
+                    method === "uniform"
+                      ? borderColor(source.image.data, source.image.width, source.image.height)
+                      : detectScreen(source.image.data, 4, source.image.width, source.image.height);
                   if (color) setKey({ ...key, color });
                   else setError("Não encontrei uma cor uniforme nas bordas. Use o conta-gotas.");
                 }}
@@ -239,40 +282,66 @@ export function ChromaKeyDialog(): ReactNode {
                 Detectar cor
               </button>
             </div>
-            <Slider
-              label="Preservar o objeto"
-              value={key.threshold * 100}
-              min={0}
-              max={90}
-              unit="%"
-              onChange={(v) => setKey({ ...key, threshold: v / 100 })}
-            />
-            <p>Aumente se roupas ou detalhes ficarem transparentes.</p>
-            <Slider
-              label="Transição das bordas"
-              value={key.softness * 100}
-              min={2}
-              max={100}
-              unit="%"
-              onChange={(v) => setKey({ ...key, softness: v / 100 })}
-            />
-            <Slider
-              label="Remover reflexo da cor"
-              value={key.despill * 100}
-              min={0}
-              max={100}
-              unit="%"
-              onChange={(v) => setKey({ ...key, despill: v / 100 })}
-            />
-            <Slider
-              label="Recolher borda"
-              value={key.choke}
-              min={0}
-              max={4}
-              unit=" px"
-              onChange={(v) => setKey({ ...key, choke: v })}
-            />
-            <p>Use 0 para preservar fios finos. Confira o recorte sobre branco e escuro.</p>
+            {method === "uniform" ? (
+              <>
+                <Slider
+                  label="Tolerância da cor"
+                  value={tolerance}
+                  min={0}
+                  max={150}
+                  onChange={setTolerance}
+                />
+                <Slider
+                  label="Suavizar borda"
+                  value={feather}
+                  min={0}
+                  max={12}
+                  unit=" px"
+                  onChange={setFeather}
+                />
+                <p>
+                  Retira apenas regiões ligadas às bordas. Objetos com a mesma cor do fundo podem
+                  precisar de refinamento manual.
+                </p>
+              </>
+            ) : (
+              <>
+                <Slider
+                  label="Preservar o objeto"
+                  value={key.threshold * 100}
+                  min={0}
+                  max={90}
+                  unit="%"
+                  onChange={(v) => setKey({ ...key, threshold: v / 100 })}
+                />
+                <p>Aumente se roupas ou detalhes ficarem transparentes.</p>
+                <Slider
+                  label="Transição das bordas"
+                  value={key.softness * 100}
+                  min={2}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => setKey({ ...key, softness: v / 100 })}
+                />
+                <Slider
+                  label="Remover reflexo da cor"
+                  value={key.despill * 100}
+                  min={0}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => setKey({ ...key, despill: v / 100 })}
+                />
+                <Slider
+                  label="Recolher borda"
+                  value={key.choke}
+                  min={0}
+                  max={4}
+                  unit=" px"
+                  onChange={(v) => setKey({ ...key, choke: v })}
+                />
+                <p>Use 0 para preservar fios finos. Confira o recorte sobre branco e escuro.</p>
+              </>
+            )}
             <button
               type="button"
               className="btn"
@@ -281,7 +350,7 @@ export function ChromaKeyDialog(): ReactNode {
               Restaurar ajustes
             </button>
             <p role="status">
-              {!keyUsable(key.color)
+              {!usable
                 ? "Escolha uma cor saturada de fundo, como verde ou azul."
                 : error || (ready ? "Prévia pronta." : "Refinando o recorte…")}
             </p>
@@ -296,7 +365,8 @@ export function ChromaKeyDialog(): ReactNode {
             disabled={!ready || !!error}
             onClick={() =>
               attempt(() => {
-                applyChromaKey(source.layer, source.version, result!.pixels);
+                if (!result || !ready) throw new Error("Aguarde a prévia terminar.");
+                applyChromaKey(source.layer, source.version, result.pixels);
                 close();
               })
             }

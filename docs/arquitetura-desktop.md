@@ -26,6 +26,8 @@ Entidades editáveis têm IDs persistentes no modelo, inclusive cores de paleta 
 
 Saídas de arquivos passam por capabilities e helpers de escrita compartilhados. Exports com sidecars usam staging/backups e revalidam os destinos antes de substituir. Caches produzidos no main podem conceder leitura do resultado validado; um cache key vindo do renderer nunca pode escolher um diretório. Múltiplos arquivos não constituem uma transação contra queda de energia; preservar e comunicar a pasta de recuperação quando o rollback não puder terminar.
 
+A autoridade de arquivos do SDK também permite saídas documentais CSV/TSV/TXT, Office/OpenDocument/RTF, TIFF, ZIP e BIN após seleção explícita do destino. `supportsOutputExtension` consulta a mesma política usada na gravação; apps não mantêm uma lista paralela. Executáveis e scripts continuam recusados, e recuperação de licença não autoriza novas exportações. Anexos de extensão não permitida são oferecidos pelo EdiPDF como `.bin`, sem execução automática. Permitir um formato na autoridade não comprova que um conversor esteja implementado ou homologado.
+
 A matriz abaixo registra candidatos estáveis consultados em 16/10/2026 nos registros oficiais. É uma referência para homologação, não uma declaração de versões já instaladas ou verificadas contra todos os consumidores do monorepo.
 
 | Componente | Versão candidata | Aplicação |

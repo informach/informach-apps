@@ -82,6 +82,7 @@
       "kysely": "^0.28.17",
       "next": "^16.4.2",
       "postcss": "^8.5.23",
+      "pptxgenjs@4.0.1>image-size": "2.0.3",
       "react": "19.3.1",
       "react-dom": "19.3.1",
       "@types/react": "19.3.0",

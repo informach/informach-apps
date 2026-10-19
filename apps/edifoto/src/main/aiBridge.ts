@@ -6,10 +6,13 @@ import type { AiToolCall, ToolOutcome } from "../shared/types.ts";
 /** Long enough for the user to answer a confirmation dialog. */
 const TOOL_TIMEOUT_MS = 5 * 60 * 1000;
 
-const pending = new Map<string, (r: ToolOutcome) => void>();
+const pending = new Map<
+  string,
+  { finish(r: ToolOutcome): void; runId?: string; win: BrowserWindow }
+>();
 
 ipcMain.handle("ai:result", (_e, id: string, result: ToolOutcome) => {
-  pending.get(id)?.(result);
+  pending.get(id)?.finish(result);
   pending.delete(id);
 });
 
@@ -22,6 +25,7 @@ export function callTool(
   name: string,
   input: unknown,
   source: AiToolCall["source"],
+  context: Pick<AiToolCall, "documentId" | "runId" | "workspaceId"> = {},
 ): Promise<ToolOutcome> {
   assertDesktopAccess();
   if (!win || win.isDestroyed())
@@ -32,10 +36,23 @@ export function callTool(
       pending.delete(id);
       resolve({ ok: false, text: "O EdiFoto não respondeu a tempo." });
     }, TOOL_TIMEOUT_MS);
-    pending.set(id, (r) => {
-      clearTimeout(timer);
-      resolve(r);
+    pending.set(id, {
+      runId: context.runId,
+      win,
+      finish: (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      },
     });
-    win.webContents.send("ai:call", { id, name, input, source } satisfies AiToolCall);
+    win.webContents.send("ai:call", { id, name, input, source, ...context } satisfies AiToolCall);
   });
+}
+
+export function cancelToolRun(runId: string): void {
+  for (const [id, entry] of pending)
+    if (entry.runId === runId) {
+      if (!entry.win.isDestroyed()) entry.win.webContents.send("ai:cancel", id);
+      entry.finish({ ok: false, text: "Pedido interrompido." });
+      pending.delete(id);
+    }
 }

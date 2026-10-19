@@ -6,6 +6,7 @@ export function HistoryList(): ReactNode {
   const past = useDoc((s) => s.past);
   const future = useDoc((s) => s.future);
   const jump = useDoc((s) => s.jumpTo);
+  const initialStateId = useDoc((s) => s.initialStateId);
   const undoAll = (): void => {
     while (useDoc.getState().past.length) useDoc.getState().undo();
   };
@@ -16,7 +17,8 @@ export function HistoryList(): ReactNode {
         className={`history-item${past.length === 0 ? " is-current" : ""}`}
         onClick={undoAll}
       >
-        <FolderOpen size={13} /> Abertura
+        <FolderOpen size={13} />{" "}
+        {!past.length || past[0].stateBefore === initialStateId ? "Abertura" : "Início disponível"}
       </button>
       {past.map((e, i) => (
         <button

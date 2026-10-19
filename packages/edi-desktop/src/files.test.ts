@@ -1,10 +1,31 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { atomicWrite, createFileAuthority, validateIpcValues } from "./files";
 
 describe("selected-file capabilities", () => {
+  it("permits explicitly selected document exports while rejecting executable extensions and restricted recovery", async () => {
+    const root = await mkdtemp(join(tmpdir(), "edi-document-exports-"));
+    expect(dirname(root)).toBe(resolve(tmpdir()));
+    expect(basename(root)).toMatch(/^edi-document-exports-[a-zA-Z0-9]+$/);
+    try {
+      const files = createFileAuthority(["edipdf"]);
+      for (const extension of ["csv", "txt", "bin", "docx", "xlsx", "tiff", "zip"]) {
+        const path = join(root, `document.${extension}`);
+        await expect(files.assertWrite(path, false)).rejects.toThrow();
+        await files.grantWrite(path);
+        await expect(files.assertWrite(path, false)).resolves.toBeTruthy();
+        await expect(files.assertWrite(path, true)).rejects.toThrow("recuperação");
+      }
+      for (const extension of ["exe", "cmd", "ps1", "dll", "lnk"])
+        await expect(files.grantWrite(join(root, `document.${extension}`))).rejects.toThrow(
+          "Unsupported",
+        );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("preserves the existing destination and removes temporary bytes after a failed atomic replacement", async () => {
     const root = await mkdtemp(join(tmpdir(), "edi-atomic-test-"));
     try {

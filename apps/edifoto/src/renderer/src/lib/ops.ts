@@ -15,7 +15,10 @@ import {
   type TextStyle,
   type Transform,
 } from "@shared/doc";
+import { validateDimensions } from "@shared/documentFormat";
+import { inverse, maskPlacement, resizedPlacement } from "@shared/placement";
 import { bitmapFrom, cloneBitmap, createBitmap, requireBitmap } from "@/engine/bitmaps";
+import { compositor } from "@/engine/compositor";
 import { findLayer, updateLayer, useDoc } from "@/state/doc";
 
 /**
@@ -44,6 +47,17 @@ export function requireLayer(id: string): Layer {
   if (!l) throw new OpError(`Camada ${id} não existe. Use get_document para ver os ids.`);
   return l;
 }
+
+export function requireEditableLayer(id: string): Layer {
+  const layer = requireLayer(id);
+  if (layer.locked) throw new OpError(`A camada "${layer.name}" está bloqueada.`);
+  return layer;
+}
+const maskFor = (layer: Layer, bitmap: string) => ({
+  bitmap,
+  enabled: true,
+  reference: "transform" in layer ? structuredClone(layer.transform) : undefined,
+});
 
 const centered = (w: number, h: number): Transform => ({ ...IDENTITY, x: w / 2, y: h / 2 });
 
@@ -218,7 +232,13 @@ const PROP_LABEL: Record<keyof LayerProps, string> = {
 };
 
 export function setLayerProps(id: string, props: LayerProps, key?: string): void {
-  requireLayer(id);
+  const layer = requireLayer(id);
+  if (
+    layer.locked &&
+    props.locked !== false &&
+    Object.keys(props).some((key) => key !== "locked" && key !== "visible")
+  )
+    throw new OpError(`A camada "${layer.name}" está bloqueada.`);
   const first = Object.keys(props)[0] as keyof LayerProps | undefined;
   if (!first) return;
   commit(PROP_LABEL[first], (d) => updateLayer(d, id, (l) => ({ ...l, ...props })), {
@@ -246,7 +266,7 @@ export interface LayerContent {
 }
 
 export function editLayer(id: string, c: LayerContent, key?: string): void {
-  const l = requireLayer(id);
+  const l = requireEditableLayer(id);
   const wrong = (what: string): never => {
     throw new OpError(`A camada "${l.name}" não é ${what}.`);
   };
@@ -291,6 +311,7 @@ export function duplicateLayer(id: string): string {
 }
 
 export function deleteLayer(id: string): void {
+  requireEditableLayer(id);
   const doc = requireDoc();
   const idx = doc.layers.findIndex((l) => l.id === id);
   if (idx < 0) throw new OpError(`Camada ${id} não existe.`);
@@ -323,6 +344,7 @@ export function reorderLayer(id: string, position: "up" | "down" | "top" | "bott
 
 /** Moves a layer to a stack index (0 = bottom). */
 export function moveLayerTo(id: string, to: number): void {
+  requireEditableLayer(id);
   const doc = requireDoc();
   const i = doc.layers.findIndex((l) => l.id === id);
   const target = Math.max(0, Math.min(doc.layers.length - 1, to));
@@ -344,6 +366,18 @@ export function mergeDown(
   const i = doc.layers.findIndex((l) => l.id === id);
   const below = doc.layers[i - 1];
   if (i <= 0 || !below) throw new OpError("Não há camada abaixo para mesclar.");
+  requireEditableLayer(id);
+  requireEditableLayer(below.id);
+  const top = doc.layers[i];
+  if (
+    below.blendMode !== "normal" ||
+    top.blendMode !== "normal" ||
+    below.kind === "adjust" ||
+    top.kind === "adjust"
+  )
+    throw new OpError(
+      "Essas camadas dependem da composição. Use Copiar imagem para obter o resultado sem alterar a aparência.",
+    );
   const canvas = renderLayer(doc, [below.id, id]);
   const merged: RasterLayer = {
     ...baseLayer(below.name),
@@ -352,7 +386,7 @@ export function mergeDown(
     width: doc.width,
     height: doc.height,
     transform: centered(doc.width, doc.height),
-    blendMode: below.blendMode,
+    blendMode: "normal",
     opacity: 1,
   };
   commit(
@@ -372,10 +406,10 @@ function maskCanvas(doc: Doc, draw: (ctx: CanvasRenderingContext2D) => void): st
 
 export function addMask(id: string, fill: "reveal" | "hide" = "reveal"): void {
   const doc = requireDoc();
-  const l = requireLayer(id);
+  const l = requireEditableLayer(id);
   const bitmap = createBitmap(doc.width, doc.height, fill === "reveal" ? "#ffffff" : "#000000");
   commit(l.mask ? "Refazer máscara" : "Adicionar máscara", (d) =>
-    updateLayer(d, id, (x) => ({ ...x, mask: { bitmap, enabled: true } })),
+    updateLayer(d, id, (x) => ({ ...x, mask: maskFor(x, bitmap) })),
   );
 }
 
@@ -392,7 +426,7 @@ export interface MaskShape {
 
 export function shapeMask(id: string, s: MaskShape): void {
   const doc = requireDoc();
-  requireLayer(id);
+  requireEditableLayer(id);
   const W = doc.width;
   const H = doc.height;
   const bitmap = maskCanvas(doc, (ctx) => {
@@ -419,12 +453,12 @@ export function shapeMask(id: string, s: MaskShape): void {
     ctx.fillRect(0, 0, W, H);
   });
   commit("Máscara em degradê", (d) =>
-    updateLayer(d, id, (x) => ({ ...x, mask: { bitmap, enabled: true } })),
+    updateLayer(d, id, (x) => ({ ...x, mask: maskFor(x, bitmap) })),
   );
 }
 
 export function invertMask(id: string): void {
-  const l = requireLayer(id);
+  const l = requireEditableLayer(id);
   if (!l.mask) throw new OpError(`A camada "${l.name}" não tem máscara.`);
   const src = requireBitmap(l.mask.bitmap);
   const bitmap = cloneBitmap(l.mask.bitmap);
@@ -434,20 +468,45 @@ export function invertMask(id: string): void {
   b.ctx.fillRect(0, 0, src.canvas.width, src.canvas.height);
   b.ctx.globalCompositeOperation = "source-over";
   commit("Inverter máscara", (d) =>
-    updateLayer(d, id, (x) => ({ ...x, mask: { bitmap, enabled: true } })),
+    updateLayer(d, id, (x) => ({ ...x, mask: { ...l.mask, bitmap, enabled: true } })),
   );
 }
 
 export function removeMask(id: string): void {
-  requireLayer(id);
+  requireEditableLayer(id);
   commit("Remover máscara", (d) => updateLayer(d, id, (x) => ({ ...x, mask: undefined })));
 }
 
 export function setMaskEnabled(id: string, enabled: boolean): void {
-  const l = requireLayer(id);
+  const l = requireEditableLayer(id);
   if (!l.mask) throw new OpError(`A camada "${l.name}" não tem máscara.`);
   commit(enabled ? "Ativar máscara" : "Desativar máscara", (d) =>
     updateLayer(d, id, (x) => ({ ...x, mask: x.mask && { ...x.mask, enabled } })),
+  );
+}
+
+export function setMaskLinked(id: string, linked: boolean): void {
+  const layer = requireEditableLayer(id),
+    doc = requireDoc();
+  if (!layer.mask || !("transform" in layer))
+    throw new OpError("Escolha uma imagem, texto ou forma com máscara.");
+  if (!!layer.mask.reference === linked) return;
+  // Bake the current placement first so linking never moves the existing cutout.
+  const bitmap = createBitmap(doc.width, doc.height, "#000000");
+  const ctx = requireBitmap(bitmap).ctx;
+  ctx.save();
+  ctx.transform(...inverse(maskPlacement(layer)));
+  ctx.drawImage(requireBitmap(layer.mask.bitmap).canvas, 0, 0);
+  ctx.restore();
+  commit(linked ? "Vincular máscara" : "Desvincular máscara", (d) =>
+    updateLayer(d, id, (l) => ({
+      ...l,
+      mask: {
+        bitmap,
+        enabled: layer.mask?.enabled ?? true,
+        reference: linked ? structuredClone(layer.transform) : undefined,
+      },
+    })),
   );
 }
 
@@ -483,7 +542,11 @@ const mapPlaced = (
   ...doc,
   layers: doc.layers.map((l) =>
     l.kind === "raster" || l.kind === "text" || l.kind === "vector"
-      ? { ...l, transform: fn(l.transform) }
+      ? {
+          ...l,
+          transform: fn(l.transform),
+          mask: l.mask?.reference ? { ...l.mask, reference: fn(l.mask.reference) } : l.mask,
+        }
       : l.kind === "gradient"
         ? { ...l, gradient: grad(l.gradient) }
         : l,
@@ -496,6 +559,7 @@ export function crop(x: number, y: number, w: number, h: number): void {
   const ry = Math.round(y);
   const rw = Math.max(1, Math.round(w));
   const rh = Math.max(1, Math.round(h));
+  validateDimensions(rw, rh, compositor().maxTexture);
   commit("Cortar", (d) => {
     let next: Doc = { ...d, width: rw, height: rh };
     next = mapPlaced(
@@ -553,6 +617,7 @@ export function rotateImage(dir: 1 | -1 | 2): void {
         x: dir === 1 ? H - t.y : t.y,
         y: dir === 1 ? t.x : W - t.x,
         rotation: t.rotation + 90 * dir,
+        basis: t.basis ? [t.basis[3], -t.basis[2], -t.basis[1], t.basis[0]] : undefined,
       }),
       (g) => ({
         ...g,
@@ -579,8 +644,20 @@ export function flipImage(axis: "horizontal" | "vertical"): void {
       d,
       (t) =>
         hz
-          ? { ...t, x: W - t.x, flipX: !t.flipX, rotation: -t.rotation }
-          : { ...t, y: H - t.y, flipY: !t.flipY, rotation: -t.rotation },
+          ? {
+              ...t,
+              x: W - t.x,
+              flipX: !t.flipX,
+              rotation: -t.rotation,
+              basis: t.basis ? [t.basis[0], -t.basis[1], -t.basis[2], t.basis[3]] : undefined,
+            }
+          : {
+              ...t,
+              y: H - t.y,
+              flipY: !t.flipY,
+              rotation: -t.rotation,
+              basis: t.basis ? [t.basis[0], -t.basis[1], -t.basis[2], t.basis[3]] : undefined,
+            },
       (g) =>
         hz ? { ...g, angle: 180 - g.angle, cx: 1 - g.cx } : { ...g, angle: -g.angle, cy: 1 - g.cy },
     );
@@ -596,13 +673,14 @@ export function resizeImage(w: number, h: number): void {
   const doc = requireDoc();
   const nw = Math.max(1, Math.round(w));
   const nh = Math.max(1, Math.round(h));
+  validateDimensions(nw, nh, compositor().maxTexture);
   const sx = nw / doc.width;
   const sy = nh / doc.height;
   commit("Tamanho da imagem", (d) => {
     let next: Doc = { ...d, width: nw, height: nh };
     next = mapPlaced(
       next,
-      (t) => ({ ...t, x: t.x * sx, y: t.y * sy, scale: t.scale * Math.sqrt(sx * sy) }),
+      (t) => resizedPlacement(t, sx, sy),
       (g) => g,
     );
     return remapMasks(next, nw, nh, (ctx, src) => {

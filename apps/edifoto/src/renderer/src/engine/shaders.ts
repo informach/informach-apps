@@ -141,6 +141,7 @@ out vec4 outColor;
 uniform sampler2D uBackdrop;
 uniform sampler2D uSrc;
 uniform sampler2D uMask;
+uniform mat3 uToMask;
 uniform vec2 uTarget;
 uniform vec2 uDoc;
 uniform int uKind;
@@ -175,7 +176,8 @@ void main() {
   vec2 uv = gl_FragCoord.xy / uTarget;
   vec2 p = uv * uDoc;
   vec4 cb = texelFetch(uBackdrop, ivec2(gl_FragCoord.xy), 0);
-  float m = uHasMask ? texture(uMask, uv).r : 1.0;
+  vec2 maskUv = (uToMask * vec3(p, 1.0)).xy;
+  float m = uHasMask ? ((maskUv.x < 0.0 || maskUv.y < 0.0 || maskUv.x > 1.0 || maskUv.y > 1.0) ? 0.0 : texture(uMask, maskUv).r) : 1.0;
 
   if (uKind == 4) {
     if (cb.a <= 0.0) { outColor = cb; return; }

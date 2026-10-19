@@ -9,6 +9,12 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { _electron, type ElectronApplication, type Page } from "playwright";
 import { z } from "zod";
+import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
+import {
+  createPdfNativeFixture,
+  verifyPdfNativeJourney,
+  verifyPdfNativeRestart,
+} from "../../apps/edipdf/scripts/native-journey.mts";
 import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
@@ -178,7 +184,15 @@ async function waitForStatus(page: Page, state: "licensed" | "restricted", reaso
 
 function raiseFailures(failures: unknown[], message: string) {
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, message);
+  if (failures.length > 1) {
+    const describe = (failure: unknown): string =>
+      failure instanceof AggregateError
+        ? `${failure.message}\n${failure.errors.map(describe).join("\n")}`
+        : failure instanceof Error
+          ? failure.message
+          : String(failure);
+    throw new AggregateError(failures, `${message}\n${failures.map(describe).join("\n")}`);
+  }
 }
 async function verifyNativeDialog(page: Page, openerName: string, dialogName: string) {
   const opener = page.getByRole("button", { name: openerName }).first();
@@ -222,10 +236,17 @@ try {
       .object({ main: z.string().min(1) })
       .parse(JSON.parse(await readFile(join(applicationRoot, "package.json"), "utf8")));
     await access(join(applicationRoot, manifest.main));
+    const pdfFixture =
+      id === "edipdf" ? await createPdfNativeFixture(join(userData, "documents")) : undefined;
     const application = await _electron.launch({
       // The standard workspace launcher holds app readiness until Playwright is
       // connected. executablePath is for custom apps and omits that loader.
-      args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), applicationRoot],
+      args: [
+        "-r",
+        resolve("scripts/edi/fixtures/native-vault.cjs"),
+        applicationRoot,
+        ...(pdfFixture ? [pdfFixture] : []),
+      ],
       cwd: applicationRoot,
       env: {
         ...buildEnvironment,
@@ -286,8 +307,13 @@ try {
         true,
       );
       await editor.screenshot({ path: join(results, `${id}-licensed.png`) });
+      if (id === "edipdf") await verifyPdfNativeJourney(application, editor, seedLease);
       if (id === "ediaula") await verifyNativeDialog(editor, "Novo projeto", "Novo projeto");
-      if (id === "edifoto") await verifyNativeDialog(editor, "Novo…", "Novo documento");
+      if (id === "edifoto") {
+        await verifyNativeDialog(editor, "Novo…", "Novo documento");
+        await seedLease(application, 300);
+        await verifyFotoNativeJourney(editor, application, root, results);
+      }
       if (id === "ediaula") {
         const sentinel = join(userData, "documents", "unselected.mp4");
         await writeFile(sentinel, "preserve previous output");
@@ -852,18 +878,48 @@ try {
         assert.equal(editor.isClosed(), false, "Canceling close must preserve the existing draft");
         assert.ok(await editor.evaluate(() => localStorage.getItem("edisvg-project")));
       }
+      if (id === "edipdf" && pdfFixture)
+        await verifyPdfNativeRestart({
+          application,
+          editor,
+          applicationRoot,
+          userData,
+          suiteData,
+          fixturePath: pdfFixture,
+          buildEnvironment,
+          seedLease,
+          waitForStatus,
+        });
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
+      if (id === "edipdf") {
+        for (const [index, page] of application.windows().entries()) {
+          try {
+            await page.screenshot({
+              path: join(results, `edipdf-failure-${index}.png`),
+              animations: "disabled",
+            });
+          } catch (captureFailure) {
+            failures.push(captureFailure);
+          }
+        }
+      }
     } finally {
       try {
+        if (id === "edipdf" && !closed) {
+          const exited = application.waitForEvent("close", { timeout: 10000 });
+          await application.evaluate(({ app }) => app.exit());
+          await exited;
+          closed = true;
+        }
         if (!closed) {
           const nativePid = await application.evaluate(() => process.pid);
           const closing = application.close().then(
             () => ({}),
             (error: unknown) => ({ error }),
           );
-          if (id === "edisvg")
+          if (id === "edisvg" || id === "edifoto")
             await execute(
               "powershell.exe",
               [
@@ -871,7 +927,11 @@ try {
                 "-NoProfile",
                 "-NonInteractive",
                 "-File",
-                resolve("scripts/edi/respond-test-draft.ps1"),
+                resolve(
+                  id === "edifoto"
+                    ? "apps/edifoto/scripts/respond-native-close.ps1"
+                    : "scripts/edi/respond-test-draft.ps1",
+                ),
                 "-TestProcessId",
                 String(nativePid),
               ],

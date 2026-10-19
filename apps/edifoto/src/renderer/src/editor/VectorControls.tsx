@@ -4,7 +4,13 @@ import { Circle, Minus, Pentagon, Square, Star, Triangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { attempt } from "@/lib/actions";
 import { setLayerProps, setTransform } from "@/lib/ops";
-import { clearSelection, invertSelection, selectionMask, vectorSelection } from "@/lib/selection";
+import {
+  clearSelection,
+  invertSelection,
+  refineSelection,
+  selectionMask,
+  vectorSelection,
+} from "@/lib/selection";
 import { editVector, finishPen } from "@/lib/vector";
 import { useDoc } from "@/state/doc";
 import { type SelectionMode, useUi } from "@/state/ui";
@@ -223,6 +229,30 @@ export function SelectionOptions(): ReactNode {
       </button>
       <button type="button" className="btn" onClick={() => attempt(invertSelection)}>
         Inverter seleção
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={!selection}
+        onClick={() => attempt(() => refineSelection(2, 0))}
+      >
+        Expandir 2 px
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={!selection}
+        onClick={() => attempt(() => refineSelection(-2, 0))}
+      >
+        Recolher 2 px
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={!selection}
+        onClick={() => attempt(() => refineSelection(0, 4))}
+      >
+        Suavizar 4 px
       </button>
       <button type="button" className="btn" disabled={!selection} onClick={clearSelection}>
         Desmarcar · Ctrl+D

@@ -1,5 +1,4 @@
 import {
-  decodePDFRawStream,
   PDFArray,
   PDFBool,
   PDFDict,
@@ -11,7 +10,9 @@ import {
   PDFRef,
   PDFStream,
 } from "pdf-lib";
+import { decodeBoundedPdfStream } from "./bounded-pdf-stream.ts";
 import { loadPdf } from "./build.ts";
+import { imagePixelBudgets } from "./image-usage.ts";
 
 /** An image pulled out of the PDF, ready to be re-encoded by the host (canvas in the app). */
 export type SourceImage =
@@ -33,8 +34,12 @@ export type Reencode = (
 ) => Promise<Encoded | null>;
 
 export type CompressLevel = "light" | "balanced" | "strong";
+export interface CompressProfile {
+  dpi: number;
+  quality: number;
+}
 
-/** dpi is applied to the long side of an A4 page: an image is never shown bigger than a page. */
+/** DPI uses each image's largest physical placement, including nested forms and shared uses. */
 export const COMPRESS_LEVELS: Record<
   CompressLevel,
   { label: string; hint: string; dpi: number; quality: number }
@@ -48,8 +53,6 @@ export const COMPRESS_LEVELS: Record<
   },
   strong: { label: "Forte", hint: "Menor arquivo · imagens até 100 dpi", dpi: 100, quality: 0.55 },
 };
-
-const A4_LONG_INCHES = 11.69;
 
 /**
  * Removes objects that nothing points to any more (deleted pages, replaced images, old
@@ -138,18 +141,8 @@ const num = (o: PDFObject | undefined): number | undefined =>
 /** Number of colour channels for colour spaces we can safely re-encode as RGB JPEG. */
 function channelsOf(doc: PDFDocument, cs: PDFObject | undefined): 1 | 3 | null {
   const v = cs instanceof PDFRef ? doc.context.lookup(cs) : cs;
-  if (v === PDFName.of("DeviceRGB") || v === PDFName.of("CalRGB")) return 3;
-  if (v === PDFName.of("DeviceGray") || v === PDFName.of("CalGray")) return 1;
-  if (v instanceof PDFArray && v.size() >= 2) {
-    const kind = v.get(0);
-    if (kind === PDFName.of("CalRGB")) return 3;
-    if (kind === PDFName.of("CalGray")) return 1;
-    if (kind === PDFName.of("ICCBased")) {
-      const icc = doc.context.lookup(v.get(1));
-      const n = icc instanceof PDFStream ? num(icc.dict.get(PDFName.of("N"))) : undefined;
-      return n === 3 ? 3 : n === 1 ? 1 : null;
-    }
-  }
+  if (v === PDFName.of("DeviceRGB")) return 3;
+  if (v === PDFName.of("DeviceGray")) return 1;
   return null;
 }
 
@@ -183,6 +176,15 @@ function extract(doc: PDFDocument, stream: PDFRawStream): SourceImage | null {
   const width = num(get("Width"));
   const height = num(get("Height"));
   if (!width || !height || num(get("BitsPerComponent")) !== 8) return null;
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width * height > 32_000_000 ||
+    Math.max(width, height) > 16384
+  )
+    return null;
   if (get("ImageMask") === PDFBool.True || get("Mask") || get("Decode") || get("SMaskInData"))
     return null;
   const channels = channelsOf(doc, get("ColorSpace"));
@@ -198,7 +200,7 @@ function extract(doc: PDFDocument, stream: PDFRawStream): SourceImage | null {
   if (width * height < 160 * 160) return null;
   let data: Uint8Array;
   try {
-    data = decodePDFRawStream(stream).decode();
+    data = decodeBoundedPdfStream(stream, width * height * channels + height);
   } catch {
     return null;
   }
@@ -211,6 +213,12 @@ function extract(doc: PDFDocument, stream: PDFRawStream): SourceImage | null {
         : parmsRaw;
   if (parms instanceof PDFDict) {
     const predictor = num(parms.get(PDFName.of("Predictor"))) ?? 1;
+    if (
+      (num(parms.get(PDFName.of("Colors"))) ?? channels) !== channels ||
+      (num(parms.get(PDFName.of("Columns"))) ?? width) !== width ||
+      (num(parms.get(PDFName.of("BitsPerComponent"))) ?? 8) !== 8
+    )
+      return null;
     if (predictor >= 10)
       data = unpng(
         data,
@@ -224,21 +232,33 @@ function extract(doc: PDFDocument, stream: PDFRawStream): SourceImage | null {
 }
 
 export interface CompressResult {
+  pages: number;
   bytes: Uint8Array;
   images: number;
   recompressed: number;
+  warnings: string[];
 }
 
 export async function compressPdf(
   bytes: Uint8Array,
-  level: CompressLevel,
+  level: CompressLevel | CompressProfile,
   reencode: Reencode,
   onProgress?: (done: number, total: number) => void,
 ): Promise<CompressResult> {
   const doc = await loadPdf(bytes);
+  if (!doc.getPageCount()) throw new Error("O PDF não contém páginas para compactar.");
   const ctx = doc.context;
-  const { dpi, quality } = COMPRESS_LEVELS[level];
-  const maxSide = Math.round(dpi * A4_LONG_INCHES);
+  const { dpi, quality } = typeof level === "string" ? COMPRESS_LEVELS[level] : level;
+  if (
+    !Number.isFinite(dpi) ||
+    dpi < 72 ||
+    dpi > 600 ||
+    !Number.isFinite(quality) ||
+    quality < 0.35 ||
+    quality > 1
+  )
+    throw new Error("Perfil de compactação inválido.");
+  const usage = imagePixelBudgets(doc, dpi);
 
   const images: [PDFRef, PDFRawStream][] = [];
   const softMasks = new Set<PDFRef>();
@@ -253,14 +273,28 @@ export async function compressPdf(
     if (sm instanceof PDFRef) softMasks.add(sm);
   }
 
-  let recompressed = 0;
+  let recompressed = 0,
+    transparent = 0,
+    unsupported = 0;
   for (let i = 0; i < images.length; i++) {
     onProgress?.(i, images.length);
     const [ref, stream] = images[i];
     // Soft masks must stay single-channel; the JPEG encoder only writes RGB.
-    if (softMasks.has(ref)) continue;
+    if (softMasks.has(ref) || stream.dict.has(PDFName.of("SMask"))) {
+      transparent++;
+      continue;
+    }
+    const budget = usage.budgets.get(ref);
+    if (budget === undefined) {
+      unsupported++;
+      continue;
+    }
+    const maxSide = Math.max(1, Math.round(budget));
     const src = extract(doc, stream);
-    if (!src) continue;
+    if (!src) {
+      unsupported++;
+      continue;
+    }
     const needsResize = Math.max(src.width, src.height) > maxSide;
     // A JPEG already within the size limit is only redone if it is generously encoded.
     if (
@@ -269,7 +303,7 @@ export async function compressPdf(
       stream.contents.length < src.width * src.height * 0.35
     )
       continue;
-    const out = await reencode(src, maxSide, quality).catch(() => null);
+    const out = await reencode(src, maxSide, quality);
     if (!out || out.bytes.length >= stream.contents.length * 0.9) continue;
     const d = stream.dict;
     const keep: Record<string, PDFObject> = {};
@@ -294,15 +328,107 @@ export async function compressPdf(
 
   await doc.flush();
   pruneUnreachable(doc);
-  return { bytes: await doc.save({ useObjectStreams: true }), images: images.length, recompressed };
+  const warnings = usage.warnings;
+  if (transparent)
+    warnings.push(`${transparent} imagens/máscaras com transparência foram preservadas.`);
+  if (unsupported)
+    warnings.push(
+      `${unsupported} imagens foram preservadas por formato, perfil de cor, tamanho pequeno ou geometria não suportados.`,
+    );
+  return {
+    bytes: await doc.save({ useObjectStreams: true }),
+    images: images.length,
+    recompressed,
+    warnings,
+    pages: doc.getPageCount(),
+  };
+}
+
+export interface TargetCompression {
+  pages: number;
+  bytes: Uint8Array;
+  target?: number;
+  targetMet: boolean;
+  profile: CompressProfile | null;
+  attempts: number;
+  warnings: string[];
+}
+
+/** Every attempt starts from the same original; JPEG losses never accumulate across attempts. */
+export async function compressToTarget(
+  bytes: Uint8Array,
+  target: number,
+  minimum: CompressLevel,
+  reencode: Reencode,
+  progress?: (attempt: number, total: number, done: number, images: number) => void,
+): Promise<TargetCompression> {
+  if (!Number.isInteger(target) || target < 1024 || target > 512 * 1024 * 1024)
+    throw new Error("A meta deve ficar entre 1 KB e 512 MB.");
+  let best = bytes;
+  const { bytes: packed, pages } = await packedDocument(bytes);
+  if (packed.length < best.length) best = packed;
+  if (best.length <= target)
+    return {
+      bytes: best,
+      pages,
+      target,
+      targetMet: true,
+      profile: null,
+      attempts: 0,
+      warnings: [],
+    };
+  const floor = COMPRESS_LEVELS[minimum];
+  const profiles = [
+    { dpi: 200, quality: 0.85 },
+    { dpi: 175, quality: 0.8 },
+    { dpi: 150, quality: 0.72 },
+    { dpi: 125, quality: 0.65 },
+    { dpi: 100, quality: 0.55 },
+  ].filter((profile) => profile.dpi >= floor.dpi && profile.quality >= floor.quality);
+  let chosen: CompressProfile | null = null;
+  let warnings: string[] = [];
+  for (let i = 0; i < profiles.length; i++) {
+    const profile = profiles[i];
+    const result = await compressPdf(bytes, profile, reencode, (done, images) =>
+      progress?.(i + 1, profiles.length, done, images),
+    );
+    warnings = result.warnings;
+    if (result.bytes.length < best.length) {
+      best = result.bytes;
+      chosen = profile;
+    }
+    if (best.length <= target)
+      return {
+        bytes: best,
+        pages,
+        target,
+        targetMet: true,
+        profile: chosen,
+        attempts: i + 1,
+        warnings,
+      };
+  }
+  return {
+    bytes: best,
+    target,
+    targetMet: false,
+    profile: chosen,
+    attempts: profiles.length,
+    warnings,
+    pages,
+  };
 }
 
 /** Shrinks a PDF without touching image quality: drops orphaned objects and repacks with object streams. */
 export async function repack(bytes: Uint8Array): Promise<Uint8Array> {
+  return (await packedDocument(bytes)).bytes;
+}
+async function packedDocument(bytes: Uint8Array): Promise<{ bytes: Uint8Array; pages: number }> {
   const doc = await loadPdf(bytes);
+  if (!doc.getPageCount()) throw new Error("O PDF não contém páginas para compactar.");
   await doc.flush();
   pruneUnreachable(doc);
-  return doc.save({ useObjectStreams: true });
+  return { bytes: await doc.save({ useObjectStreams: true }), pages: doc.getPageCount() };
 }
 
 export function formatSize(n: number): string {

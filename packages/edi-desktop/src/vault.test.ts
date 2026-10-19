@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import { createVault } from "./vault";
 
 describe("atomic protected session storage", () => {
+  // The real cross-client lock allows 30 retries of up to 1 second. The default
+  // 5-second unit-test deadline can abort a valid six-client contention run.
   it("persists identity, encrypts credentials and serializes independent clients", async () => {
     const directory = await mkdtemp(join(tmpdir(), "edi-vault-test-"));
     const key = randomBytes(32);
@@ -62,5 +64,5 @@ describe("atomic protected session storage", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+  }, 40_000);
 });

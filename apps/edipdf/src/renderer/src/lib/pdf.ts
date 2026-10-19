@@ -1,4 +1,7 @@
+import { PdfEngineError } from "@shared/engine-contracts";
+import { type FieldMask, fieldMask } from "@shared/form-authoring";
 import {
+  type Annot,
   type Box,
   type FontKey,
   type PageRef,
@@ -6,9 +9,16 @@ import {
   totalRotation,
   uid,
 } from "@shared/model";
+import { takeEditableAnnotations } from "@shared/pdf-annotations";
+import { renderBudget } from "@shared/render-budget";
+import { type WidgetFont, widgetFonts } from "@shared/widget-font";
+import { widgetControlGeometry } from "@shared/widget-geometry";
+import { PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString } from "pdf-lib";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { z } from "zod";
+import { runEngine } from "./local-engine";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -18,15 +28,52 @@ const asset = (dir: string): string => new URL(`./pdfjs/${dir}/`, location.href)
 export interface Source {
   id: string;
   name: string;
+  originPath?: string;
+  fieldMasks?: Record<string, FieldMask>;
+  fieldLabels?: Record<string, string>;
+  fieldFonts?: Map<string, WidgetFont>;
+  tabOrders?: ("rows" | "columns" | undefined)[];
   bytes: Uint8Array;
   pdf: PDFDocumentProxy;
   info: SourcePageInfo[];
-  /** Opened with a password; pdf-lib cannot rewrite it. */
+  /** Original was encrypted; edits use decrypted local bytes and saving requires a copy. */
   encrypted: boolean;
+  readOnly: boolean;
+  canPrint: boolean;
+  canCopy: boolean;
+  readOnlyReason?: string;
+  signed: boolean;
+  /** Only in memory for restricted reading; never serialized to recovery/preferences. */
+  password?: string;
+  annotations: Map<number, Annot[]>;
 }
 
 const sources = new Map<string, Source>();
+const sourceHolds = new Map<string, number>();
+const sourceReleasePending = new Set<string>();
 export const getSource = (id: string): Source | undefined => sources.get(id);
+
+/** A task owns live rendering sources until it finishes, even if their last workspace tab closes. */
+export function holdSourcesForTask(ids: string[]): () => void {
+  const unique = [...new Set(ids)];
+  if (unique.some((id) => !sources.has(id)))
+    throw new Error("Uma fonte da tarefa está indisponível.");
+  for (const id of unique) sourceHolds.set(id, (sourceHolds.get(id) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    for (const id of unique) {
+      const count = sourceHolds.get(id);
+      if (count === undefined || count < 1) throw new Error("Retenção de fonte inconsistente.");
+      if (count > 1) sourceHolds.set(id, count - 1);
+      else {
+        sourceHolds.delete(id);
+        if (sourceReleasePending.delete(id)) releaseSource(id);
+      }
+    }
+  };
+}
 
 export class PasswordCancelled extends Error {}
 
@@ -38,15 +85,88 @@ export async function loadSource(
   bytes: Uint8Array,
   name: string,
   askPassword: (retry: boolean) => Promise<string | null>,
+  options: { output?: boolean } = {},
 ): Promise<Source> {
+  let encrypted = false;
+  let readOnly = false;
+  let signed = false;
+  let formatReadOnlyReason: string | undefined;
+  const inspectFormat = (document: PDFDocument) => {
+    if (document.catalog.lookupMaybe(PDFName.of("AcroForm"), PDFDict)?.has(PDFName.of("XFA")))
+      return "Formulário XFA disponível somente para leitura.";
+    if (
+      document
+        .getPages()
+        .some(
+          (page) =>
+            (page.node.lookupMaybe(PDFName.of("UserUnit"), PDFNumber)?.asNumber() ?? 1) !== 1,
+        )
+    )
+      return "PDF com unidade de página personalizada disponível somente para leitura.";
+    return undefined;
+  };
+  let viewingPassword: string | undefined;
+  let viewingBytes = bytes;
+  let annotations = new Map<number, Annot[]>();
+  const candidate = await PDFDocument.load(bytes, {
+    updateMetadata: false,
+    ignoreEncryption: true,
+  });
+  if (!candidate.isEncrypted) {
+    const editable = candidate;
+    formatReadOnlyReason = inspectFormat(editable);
+    readOnly = !!formatReadOnlyReason;
+    signed = editable.context
+      .enumerateIndirectObjects()
+      .some(
+        ([, object]) =>
+          object instanceof PDFDict && object.get(PDFName.of("Type")) === PDFName.of("Sig"),
+      );
+    annotations = options.output || readOnly ? new Map() : takeEditableAnnotations(editable);
+    if (annotations.size) viewingBytes = await editable.save({ updateFieldAppearances: false });
+  } else {
+    encrypted = true;
+    let retry = false;
+    while (true) {
+      const password = await askPassword(retry);
+      if (password === null) throw new PasswordCancelled();
+      try {
+        bytes = await runEngine({ kind: "decrypt", bytes, password });
+        break;
+      } catch (failure) {
+        if (failure instanceof PdfEngineError && failure.code === "permission") {
+          readOnly = true;
+          viewingPassword = password;
+          break;
+        }
+        if (failure instanceof PdfEngineError && failure.code === "password") retry = true;
+        else throw failure;
+      }
+    }
+    if (!readOnly) {
+      const editable = await PDFDocument.load(bytes, { updateMetadata: false });
+      formatReadOnlyReason = inspectFormat(editable);
+      readOnly = !!formatReadOnlyReason;
+      signed = editable.context
+        .enumerateIndirectObjects()
+        .some(
+          ([, object]) =>
+            object instanceof PDFDict && object.get(PDFName.of("Type")) === PDFName.of("Sig"),
+        );
+      annotations = options.output || readOnly ? new Map() : takeEditableAnnotations(editable);
+      viewingBytes = annotations.size
+        ? await editable.save({ updateFieldAppearances: false })
+        : bytes;
+    }
+  }
   const task = pdfjs.getDocument({
-    data: bytes.slice(),
+    data: viewingBytes.slice(),
+    password: viewingPassword,
     cMapUrl: asset("cmaps"),
     cMapPacked: true,
     standardFontDataUrl: asset("standard_fonts"),
     wasmUrl: asset("wasm"),
   });
-  let encrypted = false;
   let cancelled = false;
   task.onPassword = (update: (pw: string) => void, reason: number) => {
     encrypted = true;
@@ -64,23 +184,93 @@ export async function loadSource(
     if (cancelled) throw new PasswordCancelled();
     throw err;
   }
-  const pages = await Promise.all(
-    Array.from({ length: pdf.numPages }, (_, i) => pdf.getPage(i + 1)),
-  );
-  const info = pages.map((p) => {
-    const [x0, y0, x1, y1] = p.view;
-    return {
-      w: x1 - x0,
-      h: y1 - y0,
-      rotate: (((p.rotate % 360) + 360) % 360) as SourcePageInfo["rotate"],
-    };
-  });
-  const src: Source = { id: uid("src"), name, bytes, pdf, info, encrypted };
+  const info: SourcePageInfo[] = [];
+  let nextPage = 0;
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(4, pdf.numPages) }, async () => {
+        while (nextPage < pdf.numPages) {
+          const index = nextPage++,
+            page = await pdf.getPage(index + 1),
+            viewport = page.getViewport({ scale: 1, rotation: 0 });
+          const rotation = ((page.rotate % 360) + 360) % 360;
+          if (rotation !== 0 && rotation !== 90 && rotation !== 180 && rotation !== 270)
+            throw new Error("Rotação de página inválida.");
+          info[index] = { w: viewport.width, h: viewport.height, rotate: rotation };
+        }
+      }),
+    );
+  } catch (failure) {
+    await task.destroy();
+    throw failure;
+  }
+  const permissions = readOnly ? await pdf.getPermissions() : null;
+  const canPrint = !readOnly || permissions === null || permissions.has(pdfjs.PermissionFlag.PRINT);
+  const canCopy = !readOnly || permissions === null || permissions.has(pdfjs.PermissionFlag.COPY);
+  const readOnlyReason = readOnly
+    ? viewingPassword !== undefined
+      ? "Reabra com a senha de administração para editar."
+      : formatReadOnlyReason
+    : undefined;
+  const src: Source = {
+    id: uid("src"),
+    name,
+    bytes,
+    pdf,
+    info,
+    encrypted,
+    readOnly,
+    canPrint,
+    canCopy,
+    readOnlyReason,
+    signed,
+    password: viewingPassword,
+    annotations,
+  };
+  if (!readOnly) {
+    const fieldDocument = encrypted
+      ? await PDFDocument.load(bytes, { updateMetadata: false })
+      : candidate;
+    src.fieldFonts = widgetFonts(fieldDocument);
+    src.fieldMasks = Object.fromEntries(
+      fieldDocument
+        .getForm()
+        .getFields()
+        .map((field) => [field.getName(), fieldMask(field)]),
+    );
+    src.fieldLabels = Object.fromEntries(
+      fieldDocument
+        .getForm()
+        .getFields()
+        .map((field) => {
+          const label = field.acroField.dict.lookup(PDFName.of("TU"));
+          return [
+            field.getName(),
+            label instanceof PDFString || label instanceof PDFHexString
+              ? label.decodeText()
+              : field.getName(),
+          ];
+        }),
+    );
+    src.tabOrders = fieldDocument
+      .getPages()
+      .map((page) =>
+        page.node.get(PDFName.of("Tabs")) === PDFName.of("R")
+          ? "rows"
+          : page.node.get(PDFName.of("Tabs")) === PDFName.of("C")
+            ? "columns"
+            : undefined,
+      );
+  }
   sources.set(src.id, src);
   return src;
 }
 
 export function releaseSource(id: string): void {
+  if (sourceHolds.has(id)) {
+    sourceReleasePending.add(id);
+    return;
+  }
   const s = sources.get(id);
   if (!s) return;
   sources.delete(id);
@@ -107,11 +297,11 @@ export function renderPage(
   ref: PageRef,
   canvas: HTMLCanvasElement,
   scale: number,
-  opts: { forms?: boolean; dpr?: number } = {},
+  opts: { forms?: boolean; dpr?: number; quality?: "preview" | "export" } = {},
 ): { done: Promise<void>; cancel: () => void } {
   let task: RenderTask | null = null;
   let cancelled = false;
-  const dpr = opts.dpr ?? window.devicePixelRatio ?? 1;
+  const requestedDpr = opts.dpr ?? window.devicePixelRatio ?? 1;
   const done = (async () => {
     const page = await proxy(ref);
     if (cancelled) return;
@@ -120,17 +310,27 @@ export function renderPage(
       const w = ref.blank?.w ?? 595;
       const h = ref.blank?.h ?? 842;
       const swap = ref.rotation % 180 !== 0;
-      canvas.width = Math.floor((swap ? h : w) * scale * dpr);
-      canvas.height = Math.floor((swap ? w : h) * scale * dpr);
-      const ctx = canvas.getContext("2d")!;
+      const budget = renderBudget(
+        (swap ? h : w) * scale,
+        (swap ? w : h) * scale,
+        requestedDpr,
+        opts.quality,
+      );
+      canvas.width = budget.width;
+      canvas.height = budget.height;
+      canvas.dataset.quality = budget.limited ? "limited" : "full";
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponível para a página.");
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       return;
     }
     const viewport = page.getViewport({ scale, rotation: totalRotation(ref, info) });
+    const budget = renderBudget(viewport.width, viewport.height, requestedDpr, opts.quality),
+      dpr = budget.ratio;
     const tmp = document.createElement("canvas");
-    tmp.width = Math.floor(viewport.width * dpr);
-    tmp.height = Math.floor(viewport.height * dpr);
+    tmp.width = budget.width;
+    tmp.height = budget.height;
     task = page.render({
       canvas: tmp,
       viewport,
@@ -147,7 +347,10 @@ export function renderPage(
     // Swap in the finished frame at once so a re-render at a new zoom never flashes blank.
     canvas.width = tmp.width;
     canvas.height = tmp.height;
-    canvas.getContext("2d")!.drawImage(tmp, 0, 0);
+    canvas.dataset.quality = budget.limited ? "limited" : "full";
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas indisponível para a página.");
+    context.drawImage(tmp, 0, 0);
   })();
   return {
     done,
@@ -159,20 +362,62 @@ export function renderPage(
 }
 
 /** Renders a page to a JPEG/PNG data URL `width` pixels wide. */
+export async function renderReviewPage(
+  ref: PageRef,
+  width = 1200,
+  signal?: AbortSignal,
+): Promise<{ url: string; limited: boolean }> {
+  signal?.throwIfAborted();
+  const info = pageInfo(ref),
+    rotation = totalRotation(ref, info),
+    originalWidth = ref.blank?.w ?? info?.w ?? 612,
+    originalHeight = ref.blank?.h ?? info?.h ?? 792;
+  const canvas = document.createElement("canvas"),
+    rendering = renderPage(ref, canvas, width / (rotation % 180 ? originalHeight : originalWidth), {
+      dpr: 1,
+      quality: "preview",
+    });
+  const cancel = () => rendering.cancel();
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    await rendering.done;
+    signal?.throwIfAborted();
+    return {
+      url: canvas.toDataURL("image/jpeg", 0.92),
+      limited: canvas.dataset.quality === "limited",
+    };
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
+}
+
+/** Export uses the requested resolution and fails when it cannot honor the resource budget. */
 export async function renderToDataUrl(
   ref: PageRef,
   width: number,
   type: "image/jpeg" | "image/png" = "image/jpeg",
   quality = 0.85,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   const info = pageInfo(ref);
   const r = totalRotation(ref, info);
   const w0 = ref.blank?.w ?? info?.w ?? 612;
   const h0 = ref.blank?.h ?? info?.h ?? 792;
   const vw = r % 180 === 0 ? w0 : h0;
   const canvas = document.createElement("canvas");
-  await renderPage(ref, canvas, width / vw, { dpr: 1 }).done;
-  return canvas.toDataURL(type, quality);
+  const rendering = renderPage(ref, canvas, width / vw, { dpr: 1, quality: "export" });
+  const cancel = () => rendering.cancel();
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    await rendering.done;
+    signal?.throwIfAborted();
+    return canvas.toDataURL(type, quality);
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }
 
 const thumbCache = new Map<string, Promise<string>>();
@@ -296,44 +541,58 @@ export function joinRuns(items: TextItem[]): TextItem[] {
   return lines;
 }
 
-export const normalize = (s: string): string =>
-  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-/** Finds `query` in a page and returns one rectangle per matched run fragment. */
-export async function findInPage(ref: PageRef, query: string): Promise<Box[][]> {
-  const q = normalize(query.trim());
-  if (!q) return [];
-  const items = await textItems(ref);
-  const matches: Box[][] = [];
-  // Each item is searched on its own and across joined lines so phrases split into runs still match.
-  for (const line of joinRuns(items)) {
-    const text = normalize(line.str);
-    let from = 0;
-    for (;;) {
-      const i = text.indexOf(q, from);
-      if (i < 0) break;
-      const cw = line.box.w / Math.max(1, line.str.length);
-      matches.push([{ x: line.box.x + i * cw, y: line.box.y, w: q.length * cw, h: line.box.h }]);
-      from = i + q.length;
-    }
-  }
-  return matches;
-}
-
 export interface FormWidget {
   name: string;
+  font?: WidgetFont;
   type: "text" | "checkbox" | "radio" | "choice";
   /** View-space rect at scale 1. */
   box: Box;
-  value: string | boolean;
+  control: ReturnType<typeof widgetControlGeometry>;
+  alignment?: "left" | "center" | "right";
+  value: string | boolean | string[];
   exportValue?: string;
-  options?: string[];
+  options?: { id: string; exportValue: string; displayValue: string }[];
   multiline?: boolean;
   readOnly?: boolean;
   fontSize?: number;
+  label?: string;
+  required?: boolean;
+  maxLength?: number;
+  mask?: FieldMask;
+  multiselect?: boolean;
 }
 
 const formCache = new Map<string, Promise<FormWidget[]>>();
+const widgetSchema = z.object({
+  subtype: z.string(),
+  fieldName: z.string().optional(),
+  hidden: z.boolean().optional(),
+  readOnly: z.boolean().optional(),
+  required: z.boolean().optional(),
+  alternativeText: z.string().optional(),
+  rect: z.tuple([
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+  ]),
+  fieldType: z.string().optional(),
+  fieldValue: z
+    .union([z.string(), z.boolean(), z.array(z.string())])
+    .nullable()
+    .optional(),
+  defaultAppearanceData: z.object({ fontSize: z.number().finite().optional() }).optional(),
+  multiLine: z.boolean().optional(),
+  maxLen: z.number().int().nonnegative().nullable().optional(),
+  multiSelect: z.boolean().optional(),
+  checkBox: z.boolean().optional(),
+  radioButton: z.boolean().optional(),
+  exportValue: z.string().optional(),
+  buttonValue: z.string().optional(),
+  rotation: z.number().int().multipleOf(90).optional(),
+  textAlignment: z.number().int().min(0).max(2).nullable().optional(),
+  options: z.array(z.object({ exportValue: z.string(), displayValue: z.string() })).optional(),
+});
 
 export function formWidgets(ref: PageRef): Promise<FormWidget[]> {
   const key = `${ref.src}:${ref.index}:${ref.rotation}`;
@@ -343,29 +602,43 @@ export function formWidgets(ref: PageRef): Promise<FormWidget[]> {
       const page = await proxy(ref);
       if (!page) return [];
       const viewport = page.getViewport({ scale: 1, rotation: totalRotation(ref, pageInfo(ref)) });
-      const annots = (await page.getAnnotations()) as Record<string, unknown>[];
+      const annots: unknown[] = await page.getAnnotations();
       const out: FormWidget[] = [];
-      for (const a of annots) {
+      for (const raw of annots) {
+        if (!raw || typeof raw !== "object" || !("subtype" in raw) || raw.subtype !== "Widget")
+          continue;
+        const a = widgetSchema.parse(raw);
         if (a.subtype !== "Widget" || !a.fieldName || a.hidden) continue;
-        const r = a.rect as number[];
-        const [x1, y1] = viewport.convertToViewportPoint(r[0], r[1]) as number[];
-        const [x2, y2] = viewport.convertToViewportPoint(r[2], r[3]) as number[];
+        const r = a.rect;
+        const [x1, y1] = viewport.convertToViewportPoint(r[0], r[1]);
+        const [x2, y2] = viewport.convertToViewportPoint(r[2], r[3]);
         const box = {
           x: Math.min(x1, x2),
           y: Math.min(y1, y2),
           w: Math.abs(x2 - x1),
           h: Math.abs(y2 - y1),
         };
-        const base = { name: String(a.fieldName), box, readOnly: Boolean(a.readOnly) };
+        const base = {
+          name: a.fieldName,
+          font: getSource(ref.src)?.fieldFonts?.get(a.fieldName),
+          label: a.alternativeText || getSource(ref.src)?.fieldLabels?.[a.fieldName] || a.fieldName,
+          box,
+          control: widgetControlGeometry(box, viewport.rotation, a.rotation),
+          alignment: a.textAlignment === 1 ? "center" : a.textAlignment === 2 ? "right" : "left",
+          readOnly: !!a.readOnly,
+          required: !!a.required,
+          mask: getSource(ref.src)?.fieldMasks?.[a.fieldName] ?? "none",
+        } satisfies Omit<FormWidget, "type" | "value">;
         const fieldValue = a.fieldValue;
         if (a.fieldType === "Tx") {
-          const da = (a.defaultAppearanceData as { fontSize?: number } | undefined)?.fontSize;
+          const da = a.defaultAppearanceData?.fontSize;
           out.push({
             ...base,
             type: "text",
             value: String(fieldValue ?? ""),
             multiline: Boolean(a.multiLine),
             fontSize: da || undefined,
+            maxLength: a.maxLen || undefined,
           });
         } else if (a.fieldType === "Btn" && a.checkBox) {
           out.push({
@@ -382,13 +655,31 @@ export function formWidgets(ref: PageRef): Promise<FormWidget[]> {
             exportValue: String(a.buttonValue ?? ""),
           });
         } else if (a.fieldType === "Ch") {
-          const options = (
-            (a.options as { exportValue: string; displayValue: string }[]) ?? []
-          ).map((o) => o.exportValue ?? o.displayValue);
-          const v = Array.isArray(fieldValue) ? fieldValue[0] : fieldValue;
-          out.push({ ...base, type: "choice", value: String(v ?? ""), options });
+          const options = (a.options ?? []).map((option) => ({
+            ...option,
+            id: crypto.randomUUID(),
+          }));
+          const v = a.multiSelect
+            ? Array.isArray(fieldValue)
+              ? fieldValue
+              : fieldValue
+                ? [String(fieldValue)]
+                : []
+            : Array.isArray(fieldValue)
+              ? fieldValue[0]
+              : fieldValue;
+          out.push({
+            ...base,
+            type: "choice",
+            value: Array.isArray(v) ? v : String(v ?? ""),
+            options,
+            multiselect: a.multiSelect,
+          });
         }
       }
+      const order = getSource(ref.src)?.tabOrders?.[ref.index];
+      if (order === "rows") out.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+      if (order === "columns") out.sort((a, b) => a.box.x - b.box.x || a.box.y - b.box.y);
       return out;
     })();
     formCache.set(key, p);

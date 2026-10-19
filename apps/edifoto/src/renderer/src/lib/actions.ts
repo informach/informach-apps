@@ -1,3 +1,5 @@
+import { validateDimensions } from "@shared/documentFormat";
+import { createImageTemplate, type TemplateId } from "@shared/templates";
 import { compositor } from "@/engine/compositor";
 import { useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
@@ -8,27 +10,54 @@ import {
   blankDoc,
   deleteLayer,
   duplicateLayer,
+  editLayer,
   mergeDown,
   OpError,
   requireDoc,
   rotateImage,
 } from "./ops";
+import { discardRecovery } from "./recovery";
 
 /** User-facing actions shared by menus, shortcuts, the quick dock and the AI tools. */
 
 export function autoAdjust(strength = 1): string {
   const doc = requireDoc();
-  const adjust = autoAdjustFor(analyzeDoc(doc), strength);
+  const existing = doc.layers.find(
+    (layer) => layer.kind === "adjust" && layer.name === "Ajuste automático" && !layer.locked,
+  );
+  const adjust = autoAdjustFor(
+    analyzeDoc(
+      existing ? { ...doc, layers: doc.layers.filter((layer) => layer.id !== existing.id) } : doc,
+    ),
+    strength,
+  );
+  if (existing) {
+    editLayer(existing.id, { adjust });
+    useDoc.getState().setActive(existing.id);
+    useUi.setState({ tab: "props" });
+    return existing.id;
+  }
   const top = doc.layers[doc.layers.length - 1]?.id;
-  return addLayer({ kind: "adjust", name: "Ajuste automático", adjust, above: top });
+  const id = addLayer({ kind: "adjust", name: "Ajuste automático", adjust, above: top });
+  useUi.setState({ tab: "props" });
+  return id;
 }
 
 /** "Luz" and "Cor" in the quick dock: a named adjustment layer on top, opened in Propriedades. */
 export function quickAdjust(kind: "light" | "color"): void {
   const doc = requireDoc();
+  const name = kind === "light" ? "Luz" : "Cor";
+  const existing = doc.layers.find(
+    (layer) => layer.kind === "adjust" && layer.name === name && !layer.locked,
+  );
+  if (existing) {
+    useDoc.getState().setActive(existing.id);
+    useUi.setState({ tab: "props" });
+    return;
+  }
   const id = addLayer({
     kind: "adjust",
-    name: kind === "light" ? "Luz" : "Cor",
+    name,
     above: doc.layers[doc.layers.length - 1]?.id,
   });
   useDoc.getState().setActive(id);
@@ -64,6 +93,18 @@ async function canDiscard(): Promise<boolean> {
 }
 
 export const actions = {
+  async template(id: TemplateId): Promise<boolean> {
+    if (!(await canDiscard())) return false;
+    const doc = createImageTemplate(id);
+    useDoc.getState().load(doc);
+    useUi.setState((s) => ({
+      fitRequest: s.fitRequest + 1,
+      tab: "props",
+      tool: "move",
+      newDocumentOpen: false,
+    }));
+    return true;
+  },
   newDocument: (): void => {
     useUi.setState({ newDocumentOpen: true });
   },
@@ -73,23 +114,10 @@ export const actions = {
     height: number,
     background: string | null,
   ): Promise<boolean> {
-    if (
-      !Number.isInteger(width) ||
-      !Number.isInteger(height) ||
-      width < 1 ||
-      height < 1 ||
-      width > 8192 ||
-      height > 8192 ||
-      width * height > 32000000
-    ) {
-      throw new OpError(
-        "Use dimensões inteiras de 1 a 8192 px, com até 32 milhões de pixels no total.",
-      );
-    }
+    validateDimensions(width, height, compositor().maxTexture);
     if (!(await canDiscard())) return false;
     const doc = blankDoc(width, height, name.trim() || "Sem título", background);
     useDoc.getState().load(doc);
-    useDoc.setState({ dirty: true });
     useUi.setState((s) => ({
       newDocumentOpen: false,
       tool: "move",
@@ -109,13 +137,22 @@ export const actions = {
   async openPath(path: string): Promise<void> {
     if (await canDiscard()) await openPath(path);
   },
+  async receiveFiles(paths: string[]): Promise<void> {
+    if (!paths.length) return;
+    const project = paths.find((path) => /\.edifoto$/i.test(path));
+    if (!useDoc.getState().doc || project) await actions.openPath(project ?? paths[0]);
+    else await placePaths(paths);
+  },
   async place(): Promise<void> {
     requireDoc();
     const paths = await window.api.pickImages(true);
     if (paths.length) await placePaths(paths);
   },
   async close(): Promise<void> {
-    if (await canDiscard()) useDoc.getState().close();
+    if (await canDiscard()) {
+      useDoc.getState().close();
+      await discardRecovery();
+    }
   },
   save: () => saveDocument(false),
   saveAs: () => saveDocument(true),

@@ -261,7 +261,7 @@ export function TopBar(): ReactNode {
         <button
           type="button"
           className={`btn${before ? " is-on" : ""}`}
-          title="Mostra só a camada de baixo (a foto original). Segure para comparar."
+          title="Compara com a imagem ao abrir. O projeto atual continua preservado."
           onClick={() => useUi.setState({ beforeAfter: !before })}
         >
           <Columns2 size={14} /> Antes / Depois

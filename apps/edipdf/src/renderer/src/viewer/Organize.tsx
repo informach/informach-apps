@@ -1,3 +1,4 @@
+import { parsePageRange } from "@shared/page-ranges";
 import {
   Copy,
   FilePlus2,
@@ -20,12 +21,14 @@ import {
   insertFromFiles,
   rotatePages,
 } from "../lib/actions";
-import { type DocState, patchDoc, useApp } from "../state/store";
+import { commit, type DocState, patchDoc, useApp } from "../state/store";
 import { pageSizeAt, ThumbGrid } from "./ThumbGrid";
 
 /** Full-window page grid: the "Organizar páginas" tool. */
 export function Organize({ doc }: { doc: DocState }): React.ReactElement {
   const [size, setSize] = useState(170);
+  const [range, setRange] = useState("");
+  const [error, setError] = useState("");
   const ids = doc.selection;
   const n = ids.length;
   const lastSel = n
@@ -147,6 +150,63 @@ export function Organize({ doc }: { doc: DocState }): React.ReactElement {
           Concluir
         </button>
       </div>
+      <form
+        className="page-range-bar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          try {
+            patchDoc(doc.id, {
+              selection: parsePageRange(range, doc.content.pages.length).map(
+                (index) => doc.content.pages[index].id,
+              ),
+            });
+            setError("");
+          } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Intervalo inválido.");
+          }
+        }}
+      >
+        <label htmlFor="page-selection-range">Selecionar páginas</label>
+        <input
+          id="page-selection-range"
+          className="input"
+          autoComplete="off"
+          placeholder="1-3, 7, 10-12; pares; ímpares…"
+          value={range}
+          onChange={(event) => setRange(event.target.value)}
+        />
+        <button type="submit" className="btn ghost sm">
+          Selecionar intervalo
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() =>
+            patchDoc(doc.id, {
+              selection: doc.content.pages
+                .filter((page) => !ids.includes(page.id))
+                .map((page) => page.id),
+            })
+          }
+        >
+          Inverter seleção
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          disabled={doc.content.pages.length < 2}
+          onClick={() =>
+            commit(doc.id, (content) => ({ ...content, pages: [...content.pages].reverse() }))
+          }
+        >
+          Inverter ordem
+        </button>
+        {error && (
+          <span className="error-text" role="alert">
+            {error}
+          </span>
+        )}
+      </form>
       <p className="organize-hint">
         Arraste para reordenar · Ctrl/Shift+clique para selecionar várias · solte PDFs ou imagens
         aqui para inserir · botão direito para mais opções

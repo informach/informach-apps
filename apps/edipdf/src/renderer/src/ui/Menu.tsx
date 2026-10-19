@@ -16,12 +16,16 @@ export interface MenuItem {
 const useMenu = create<{ x: number; y: number; items: MenuItem[] } | { items: null }>(() => ({
   items: null,
 }));
+let returnFocus: HTMLElement | null = null;
 
 export const openMenu = (x: number, y: number, items: MenuItem[]): void => {
+  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   useMenu.setState({ x, y, items });
 };
 export const closeMenu = (): void => {
   useMenu.setState({ items: null });
+  if (returnFocus?.isConnected) returnFocus.focus();
+  returnFocus = null;
 };
 
 /** Opens a menu under a button. */
@@ -44,8 +48,13 @@ export function MenuHost(): React.ReactElement | null {
   }, [state]);
   useEffect(() => {
     if (!state.items) return;
+    ref.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
     const close = (e: Event): void => {
-      if (e instanceof KeyboardEvent && e.key !== "Escape") return;
+      if (e instanceof KeyboardEvent) {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        e.stopPropagation();
+      }
       if (e.target instanceof Node && ref.current?.contains(e.target)) return;
       closeMenu();
     };
@@ -62,30 +71,83 @@ export function MenuHost(): React.ReactElement | null {
   }, [state.items]);
   if (!state.items) return null;
   return (
-    <div ref={ref} className="menu" style={{ left: pos.x, top: pos.y }} role="menu">
+    <div
+      ref={ref}
+      className="menu"
+      style={{ left: pos.x, top: pos.y }}
+      role="menu"
+      onKeyDown={(event) => {
+        const buttons = Array.from(
+          ref.current?.querySelectorAll<HTMLButtonElement>(
+            'button[role^="menuitem"]:not(:disabled)',
+          ) ?? [],
+        );
+        if (!buttons.length) return;
+        const index = buttons.findIndex((button) => button === document.activeElement);
+        let next: number | undefined;
+        if (event.key === "ArrowDown") next = (index + 1) % buttons.length;
+        if (event.key === "ArrowUp") next = (index - 1 + buttons.length) % buttons.length;
+        if (event.key === "Home") next = 0;
+        if (event.key === "End") next = buttons.length - 1;
+        if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.metaKey) {
+          const query = event.key.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+          for (let offset = 1; offset <= buttons.length; offset++) {
+            const candidate = (index + offset) % buttons.length;
+            if (
+              buttons[candidate].textContent
+                ?.trim()
+                .normalize("NFD")
+                .replace(/\p{M}/gu, "")
+                .toLowerCase()
+                .startsWith(query)
+            ) {
+              next = candidate;
+              break;
+            }
+          }
+        }
+        if (next !== undefined) {
+          event.preventDefault();
+          event.stopPropagation();
+          buttons[next].focus();
+        }
+      }}
+    >
       {withRenderKeys(state.items, (item) =>
         item.separator ? "separator" : (item.label ?? ""),
       ).map(({ key, value: it }) =>
-        it.separator ? (
-          <div key={key} className="menu-sep" />
-        ) : (
-          <button
-            type="button"
-            key={key}
-            role="menuitem"
-            className={`menu-item${it.danger ? " danger" : ""}${it.checked ? " checked" : ""}`}
-            disabled={it.disabled}
-            onClick={() => {
-              closeMenu();
-              it.run?.();
-            }}
-          >
-            <span className="menu-icon">{it.icon}</span>
-            <span className="menu-label">{it.label}</span>
-            {it.hint && <span className="menu-hint">{it.hint}</span>}
-          </button>
-        ),
+        it.separator ? <div key={key} className="menu-sep" /> : <MenuButton key={key} item={it} />,
       )}
     </div>
+  );
+}
+
+function MenuButton({ item }: { item: MenuItem }): React.ReactElement {
+  const props = {
+    type: "button" as const,
+    className: `menu-item${item.danger ? " danger" : ""}${item.checked ? " checked" : ""}`,
+    disabled: item.disabled,
+    onClick: () => {
+      closeMenu();
+      item.run?.();
+    },
+  };
+  const content = (
+    <>
+      <span className="menu-icon" aria-hidden="true">
+        {item.icon}
+      </span>
+      <span className="menu-label">{item.label}</span>
+      {item.hint && <span className="menu-hint">{item.hint}</span>}
+    </>
+  );
+  return item.checked === undefined ? (
+    <button {...props} role="menuitem">
+      {content}
+    </button>
+  ) : (
+    <button {...props} role="menuitemcheckbox" aria-checked={item.checked}>
+      {content}
+    </button>
   );
 }

@@ -1,6 +1,9 @@
 import { type Doc, identifyGradientStops, type Layer } from "@shared/doc";
+import { referencedBitmaps, validateDocument } from "@shared/documentFormat";
 import { create } from "zustand";
-import { getBitmap, touchBitmap } from "@/engine/bitmaps";
+import { collectBitmaps, getBitmap, touchBitmap } from "@/engine/bitmaps";
+import { compositor } from "@/engine/compositor";
+import { useUi } from "./ui";
 
 /** Pixels a step changed in one bitmap, so painting can be undone without full copies. */
 export interface Patch {
@@ -23,6 +26,8 @@ export interface HistoryEntry {
   key?: string;
   time: number;
   byAi?: boolean;
+  stateBefore: number;
+  stateAfter: number;
 }
 
 interface CommitOptions {
@@ -42,13 +47,20 @@ interface DocStore {
   /** Bumps on every visible change, including painting (document JSON unchanged). */
   revision: number;
   dirty: boolean;
+  stateId: number;
+  savedStateId: number | null;
+  initialStateId: number;
   past: HistoryEntry[];
   future: HistoryEntry[];
-  group: { label: string; key: string } | null;
 
   load(
     doc: Doc,
-    opts?: { filePath?: string | null; sourcePath?: string | null; activeId?: string | null },
+    opts?: {
+      filePath?: string | null;
+      sourcePath?: string | null;
+      activeId?: string | null;
+      dirty?: boolean;
+    },
   ): void;
   close(): void;
   commit(label: string, recipe: (d: Doc) => Doc, opts?: CommitOptions): void;
@@ -57,14 +69,55 @@ interface DocStore {
   undo(): void;
   redo(): void;
   jumpTo(entryId: number): void;
-  beginGroup(label: string): void;
-  endGroup(): void;
-  markSaved(path: string): void;
+  markSaved(path: string, docId?: string, stateId?: number, workspaceId?: number): void;
+}
+
+let aiTransaction: {
+  before: DocStore;
+  key: string;
+  label: string;
+  patches: Patch[];
+  selection: string | null;
+} | null = null;
+/** Only a synchronous tool mutation owns this scope; dialogs and decoding happen outside it. */
+export function executeAiTransaction<T>(key: string, label: string, run: () => T): T {
+  if (aiTransaction) throw new Error("Outra edição está em andamento.");
+  const before = useDoc.getState(),
+    ui = useUi.getState();
+  aiTransaction = { before, key, label, patches: [], selection: ui.selection };
+  try {
+    return run();
+  } catch (error) {
+    applyPatches(aiTransaction.patches, "before");
+    useDoc.setState(before);
+    useUi.setState(ui);
+    throw error;
+  } finally {
+    aiTransaction = null;
+    collectDocumentBitmaps();
+  }
 }
 
 const LIMIT = 80;
 let nextEntry = 1;
-let groupSeq = 1;
+let nextState = 1;
+const HISTORY_BYTES = 128 * 1024 * 1024;
+
+function trimHistory(entries: HistoryEntry[]): HistoryEntry[] {
+  let bytes = 0,
+    start = entries.length;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const size = entries[i].patches.reduce(
+      (n, p) => n + p.before.data.byteLength + p.after.data.byteLength,
+      0,
+    );
+    if (i < entries.length - 1 && (bytes + size > HISTORY_BYTES || entries.length - i > LIMIT))
+      break;
+    bytes += size;
+    start = i;
+  }
+  return entries.slice(start);
+}
 
 function applyPatches(patches: Patch[], side: "before" | "after"): void {
   const list = side === "before" ? [...patches].reverse() : patches;
@@ -84,24 +137,33 @@ export const useDoc = create<DocStore>((set, get) => ({
   sourcePath: null,
   revision: 0,
   dirty: false,
+  stateId: 0,
+  savedStateId: null,
+  initialStateId: 0,
   past: [],
   future: [],
-  group: null,
 
-  load: (doc, opts = {}) =>
+  load: (doc, opts = {}) => {
+    const stateId = nextState++,
+      dirty = opts.dirty ?? !(opts.filePath || opts.sourcePath);
     set({
       doc: identifyGradientStops(doc),
       activeId: opts.activeId ?? doc.layers[doc.layers.length - 1]?.id ?? null,
       filePath: opts.filePath ?? null,
       sourcePath: opts.sourcePath ?? null,
       revision: get().revision + 1,
-      dirty: false,
+      dirty,
+      stateId,
+      savedStateId: dirty ? null : stateId,
+      initialStateId: stateId,
       past: [],
       future: [],
-      group: null,
-    }),
+    });
+    compositor().rememberOriginal(doc);
+  },
 
-  close: () =>
+  close: () => {
+    compositor().clearOriginal();
     set({
       doc: null,
       activeId: null,
@@ -110,29 +172,47 @@ export const useDoc = create<DocStore>((set, get) => ({
       past: [],
       future: [],
       dirty: false,
+      stateId: nextState++,
+      savedStateId: null,
       revision: get().revision + 1,
-    }),
+    });
+  },
 
   commit: (label, recipe, opts = {}) => {
     const s = get();
     if (!s.doc) return;
     const after = identifyGradientStops(recipe(s.doc));
+    if (after !== s.doc) validateDocument(after);
     const activeAfter = opts.active !== undefined ? opts.active : s.activeId;
     const patches = opts.patches ?? [];
     if (after === s.doc && !patches.length && activeAfter === s.activeId) return;
-    const key = s.group?.key ?? opts.key;
+    const key = aiTransaction?.key ?? opts.key;
+    if (aiTransaction) aiTransaction.patches.push(...patches);
     const last = s.past[s.past.length - 1];
     const now = Date.now();
+    const stateId = nextState++;
     let past: HistoryEntry[];
-    if (key && last?.key === key && (s.group || now - last.time < 1500)) {
+    if (
+      key &&
+      last?.key === key &&
+      last.stateAfter !== s.savedStateId &&
+      (aiTransaction || now - last.time < 1500)
+    ) {
       past = [
         ...s.past.slice(0, -1),
-        { ...last, after, activeAfter, patches: [...last.patches, ...patches], time: now },
+        {
+          ...last,
+          after,
+          activeAfter,
+          patches: [...last.patches, ...patches],
+          time: now,
+          stateAfter: stateId,
+        },
       ];
     } else {
       const entry: HistoryEntry = {
         id: nextEntry++,
-        label: s.group?.label ?? label,
+        label: aiTransaction?.label ?? label,
         before: s.doc,
         after,
         activeBefore: s.activeId,
@@ -140,16 +220,19 @@ export const useDoc = create<DocStore>((set, get) => ({
         patches,
         key,
         time: now,
-        byAi: !!s.group,
+        byAi: !!aiTransaction,
+        stateBefore: s.stateId,
+        stateAfter: stateId,
       };
-      past = [...s.past, entry].slice(-LIMIT);
+      past = [...s.past, entry];
     }
     set({
       doc: after,
       activeId: activeAfter,
-      past,
+      past: trimHistory(past),
       future: [],
       dirty: true,
+      stateId,
       revision: s.revision + 1,
     });
   },
@@ -168,7 +251,8 @@ export const useDoc = create<DocStore>((set, get) => ({
       activeId: e.activeBefore,
       past: s.past.slice(0, -1),
       future: [e, ...s.future],
-      dirty: true,
+      dirty: e.stateBefore !== s.savedStateId,
+      stateId: e.stateBefore,
       revision: s.revision + 1,
     });
   },
@@ -183,7 +267,8 @@ export const useDoc = create<DocStore>((set, get) => ({
       activeId: e.activeAfter,
       past: [...s.past, e],
       future: s.future.slice(1),
-      dirty: true,
+      dirty: e.stateAfter !== s.savedStateId,
+      stateId: e.stateAfter,
       revision: s.revision + 1,
     });
   },
@@ -197,12 +282,48 @@ export const useDoc = create<DocStore>((set, get) => ({
     }
   },
 
-  /** Everything committed until endGroup becomes one undo step (one assistant turn). */
-  beginGroup: (label) => set({ group: { label, key: `group-${groupSeq++}` } }),
-  endGroup: () => set({ group: null }),
-
-  markSaved: (path) => set({ filePath: path, dirty: false }),
+  markSaved: (path, docId, stateId, workspaceId) => {
+    const s = get();
+    if (
+      !s.doc ||
+      (docId !== undefined && s.doc.id !== docId) ||
+      (workspaceId !== undefined && s.initialStateId !== workspaceId)
+    )
+      return;
+    const savedStateId = stateId ?? s.stateId;
+    set({ filePath: path, savedStateId, dirty: s.stateId !== savedStateId });
+  },
 }));
+
+export function collectDocumentBitmaps(): void {
+  const s = useDoc.getState(),
+    live = new Set<string>();
+  const add = (doc: Doc) => {
+    for (const id of referencedBitmaps(doc)) live.add(id);
+  };
+  if (aiTransaction) {
+    if (aiTransaction.selection) live.add(aiTransaction.selection);
+    if (aiTransaction.before.doc) add(aiTransaction.before.doc);
+    for (const entry of [...aiTransaction.before.past, ...aiTransaction.before.future]) {
+      add(entry.before);
+      add(entry.after);
+      for (const patch of entry.patches) live.add(patch.bitmap);
+    }
+  }
+  if (s.doc) add(s.doc);
+  for (const e of [...s.past, ...s.future]) {
+    add(e.before);
+    add(e.after);
+    for (const p of e.patches) live.add(p.bitmap);
+  }
+  const selection = useUi.getState().selection;
+  if (selection) live.add(selection);
+  collectBitmaps(live);
+}
+useDoc.subscribe(collectDocumentBitmaps);
+useUi.subscribe((current, previous) => {
+  if (current.selection !== previous.selection) collectDocumentBitmaps();
+});
 
 /* ----- Helpers for recipes ----- */
 

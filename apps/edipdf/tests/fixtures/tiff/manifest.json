@@ -1,0 +1,255 @@
+{
+  "generator": "Pillow 12.3.0 / libtiff",
+  "fixtures": [
+    {
+      "name": "rgb-raw.tif",
+      "pages": [
+        "rgb-raw-1.png"
+      ],
+      "sha256": "9cb1d784d27768d9bfac59c1c7f4aeda574459ff14171c11961040baefca7f17",
+      "compression": "raw"
+    },
+    {
+      "name": "rgb-packbits.tif",
+      "pages": [
+        "rgb-packbits-1.png"
+      ],
+      "sha256": "1551b498768cb1b4ab0e44af3e7fa3d827dbf9b5121c13c88a0b649b237937ae",
+      "compression": "packbits"
+    },
+    {
+      "name": "rgb-tiff_lzw.tif",
+      "pages": [
+        "rgb-tiff_lzw-1.png"
+      ],
+      "sha256": "d2f4792db9b2bffae6686930924b809a1a5b902f2e90034262eba5bfb0a515e1",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "rgb-tiff_adobe_deflate.tif",
+      "pages": [
+        "rgb-tiff_adobe_deflate-1.png"
+      ],
+      "sha256": "32bb33066fa9b09efa6cee44e2f35633222068b4ab22a76af3af378df5b39d11",
+      "compression": "tiff_adobe_deflate"
+    },
+    {
+      "name": "orientation-1.tif",
+      "pages": [
+        "orientation-1-1.png"
+      ],
+      "sha256": "4f4b02f6b833dd54d97d6a6d28fa35e95cdb1836ea08055d64c5feeb6d3eac24",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-2.tif",
+      "pages": [
+        "orientation-2-1.png"
+      ],
+      "sha256": "106cfd6436f62426842aae5f0be90e09749b3a74a60f9a7d8ae34b62a25cdff5",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-3.tif",
+      "pages": [
+        "orientation-3-1.png"
+      ],
+      "sha256": "cf93f824f1abfbd3b51e4e0c1d1458230a50b349a5212cd851955db127cf2871",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-4.tif",
+      "pages": [
+        "orientation-4-1.png"
+      ],
+      "sha256": "5e003eb2f27b223c7fc5a83b2cc3d3343d4be9386f089bdb8082805ceace6add",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-5.tif",
+      "pages": [
+        "orientation-5-1.png"
+      ],
+      "sha256": "5ae4b63b46d4cf058a3eb6d631784518dc09292abca6c70cb92067f02d5f5efc",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-6.tif",
+      "pages": [
+        "orientation-6-1.png"
+      ],
+      "sha256": "bb25e4c28c5bc158ed3a1b0f0daab65b2215a96d56c422b57b51a5075602e0c7",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-7.tif",
+      "pages": [
+        "orientation-7-1.png"
+      ],
+      "sha256": "4b2cf1dd03550703581b01239b17092264644ef2c839c5461f3db6d52892f59e",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "orientation-8.tif",
+      "pages": [
+        "orientation-8-1.png"
+      ],
+      "sha256": "2f32bc9968b1cca9dd4c78b9363e58f75842244434a6a35d7e9e229f06c6302a",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "fax-group3.tif",
+      "pages": [
+        "fax-group3-1.png"
+      ],
+      "sha256": "e4a7a94b338e7b287354f7b9656b0ee2d217d0630a0171048d9ac29ccf2b40b3",
+      "compression": "group3"
+    },
+    {
+      "name": "fax-whitezero-group3.tif",
+      "pages": [
+        "fax-whitezero-group3-1.png"
+      ],
+      "sha256": "271117fb46800127b0528a970d33b953a8272f831028e2c5e1ce1d035c59d09f",
+      "compression": "group3"
+    },
+    {
+      "name": "fax-group4.tif",
+      "pages": [
+        "fax-group4-1.png"
+      ],
+      "sha256": "6d2cb08ea92cb0fb955353feea48542faa33b9c9de541ce47cf55c852ec9655d",
+      "compression": "group4"
+    },
+    {
+      "name": "fax-whitezero-group4.tif",
+      "pages": [
+        "fax-whitezero-group4-1.png"
+      ],
+      "sha256": "12cf4346d2ec4ea17da7fc2c4aadf2ee7bcef0b5116ad189e53773b07504be1b",
+      "compression": "group4"
+    },
+    {
+      "name": "fax-tiff_ccitt.tif",
+      "pages": [
+        "fax-tiff_ccitt-1.png"
+      ],
+      "sha256": "763397047d1dfa49640444bb8fa032e9d09e21700f4a33f2b1e0a238ed761cb8",
+      "compression": "tiff_ccitt"
+    },
+    {
+      "name": "fax-whitezero-tiff_ccitt.tif",
+      "pages": [
+        "fax-whitezero-tiff_ccitt-1.png"
+      ],
+      "sha256": "7ea5af51a3f9042178ab443d0cb5477958887971c1005a9f41a3d284af92d82e",
+      "compression": "tiff_ccitt"
+    },
+    {
+      "name": "multipage.tif",
+      "pages": [
+        "multipage-1.png",
+        "multipage-2.png",
+        "multipage-3.png"
+      ],
+      "sha256": "7a49368790abbd44aa125ddab1a1ca44098a65f005ff9dc2d82db23636a3b782",
+      "compression": "tiff_adobe_deflate"
+    },
+    {
+      "name": "alpha.tif",
+      "pages": [
+        "alpha-1.png"
+      ],
+      "sha256": "0ddff4f217540fba579ca5ecd95d8dfb3528d5798aab8a9382c1bcfea569756d",
+      "compression": "tiff_adobe_deflate"
+    },
+    {
+      "name": "palette.tif",
+      "pages": [
+        "palette-1.png"
+      ],
+      "sha256": "3e013dec743ce856d70644a626afa4acbef712285615b0a4b4bc1cde2a16c142",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "gray-I-16.tif",
+      "pages": [
+        "gray-I-16-1.png"
+      ],
+      "sha256": "b7faaecbf2f58ddf9860a652c2ccee345fc9bbbc83b97ff5dfae95e16e42f8ed",
+      "compression": "raw"
+    },
+    {
+      "name": "gray-I-16B.tif",
+      "pages": [
+        "gray-I-16B-1.png"
+      ],
+      "sha256": "2bb51ebb0287743a88116145921422758d61a11b5cada18634b88100a6050217",
+      "compression": "raw"
+    },
+    {
+      "name": "lzw-dictionary.tif",
+      "pages": [
+        "lzw-dictionary-1.png"
+      ],
+      "sha256": "d028a98763d194d0d07e05982f508592f8a79a5f5f5915d696c3687e15749578",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "predictor.tif",
+      "pages": [
+        "predictor-1.png"
+      ],
+      "sha256": "759bdadfafa0e8e56cca89d2208a4d042e953f8f2d5a023789355dcba9ec3089",
+      "compression": "tiff_adobe_deflate"
+    },
+    {
+      "name": "jpeg.tif",
+      "pages": [
+        "jpeg-1.png"
+      ],
+      "sha256": "564e78d9e70b280f37207cdd129bd78f7ec64881c4a7bb213543ac97ebfcce20",
+      "compression": "jpeg"
+    },
+    {
+      "name": "multistrip.tif",
+      "pages": [
+        "multistrip-1.png"
+      ],
+      "sha256": "a4cb0bb4cb2e320b2f8c1b0109aa89cb4dd7f5b021b4eb0541fae9f10c6f5b1b",
+      "compression": "tiff_lzw"
+    },
+    {
+      "name": "fax-lsb.tif",
+      "pages": [
+        "fax-lsb-1.png"
+      ],
+      "sha256": "7098354aafe5d1aa0d1741a5266ac9088a0e31e27c84c6cc74b1065f544500e4",
+      "compression": "group4"
+    },
+    {
+      "name": "raw-lsb.tif",
+      "pages": [
+        "raw-lsb-1.png"
+      ],
+      "sha256": "49720194b16cc06eab9b045748f1720c2620c5222dd6c904439bfd3b708a4b3d",
+      "compression": "raw"
+    },
+    {
+      "name": "icc.tif",
+      "pages": [
+        "icc-1.png"
+      ],
+      "sha256": "c2ab9dd50cbce84c88bf2b1c2797323f03324eca7e1f61a9237c681807ada4db",
+      "compression": "tiff_adobe_deflate"
+    },
+    {
+      "name": "associated-alpha.tif",
+      "pages": [
+        "associated-alpha-1.png"
+      ],
+      "sha256": "1c97e2da5049aa8ca2de7036970fc6d11b05129133e2fb2b887fba7c24663795",
+      "compression": "tiff_lzw"
+    }
+  ]
+}

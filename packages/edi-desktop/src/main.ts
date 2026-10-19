@@ -89,6 +89,8 @@ export function createEdiDesktop(options: {
   preloadPath: string;
   rendererRoot: string;
   recoveryChannels?: readonly string[];
+  /** Native-dialog apps own destination selection in main and never receive a renderer path. */
+  projectFileMode?: "path" | "native-dialog";
   onRecovery?: () => void;
   getRecoveryWindow?: () => BrowserWindow | null | undefined;
 }) {
@@ -200,7 +202,7 @@ export function createEdiDesktop(options: {
     validToolSender(event);
     if (!recoveryChannels.has(channel)) requireController().assertAccess();
     if (
-      ["fs:write", "file:write", "project:save", "dialog:save", "library:save"].includes(channel) &&
+      ["fs:write", "file:write", "file:write-copy", "project:save", "dialog:save", "library:save"].includes(channel) &&
       controller?.status().state !== "licensed" &&
       ![...recoveryRequests.values()].some((request) => request.senderId === event.sender.id)
     )
@@ -221,9 +223,14 @@ export function createEdiDesktop(options: {
   ]);
   const readAtSecond = new Set(["media:proxy", "key:render", "whisper:transcribe", "cursor:begin"]);
   beforeInvoke = async (channel, args) => {
+    if (
+      options.projectFileMode === "native-dialog" &&
+      ["project:open", "project:save"].includes(channel)
+    )
+      return;
     if (readAtFirst.has(channel)) args[0] = await files().assertRead(pathValue.parse(args[0]));
     if (readAtSecond.has(channel)) args[1] = await files().assertRead(pathValue.parse(args[1]));
-    if (["fs:write", "file:write", "file:write-unique", "project:save"].includes(channel)) {
+    if (["fs:write", "file:write", "file:write-copy", "file:write-unique", "project:save"].includes(channel)) {
       args[0] = await files().assertWrite(
         pathValue.parse(args[0]),
         requireController().status().state !== "licensed",

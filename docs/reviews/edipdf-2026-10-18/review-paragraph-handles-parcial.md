@@ -1,0 +1,21 @@
+# Alças de caixa de texto e encerramento de gestos
+
+Aceite integrado concluído no [review consolidado](review-gestos-e-campos.md). O histórico abaixo conserva as falhas, correções e estados intermediários.
+
+18/10/2026. Complemento de autoria em implementação/revisão; não aprovado ainda na jornada nativa.
+
+Caixas passam a oferecer oito alças, com nomes acessíveis, ajuste por setas e passo de dez pontos com Shift. O texto mantém tamanho/fonte e recompõe a quebra; o quadro precisa permanecer na página e conter todo o conteúdo. O mesmo worker de composição/validação de glifos usado pelo diálogo verifica a proposta antes do commit. Erros preservam a caixa anterior. Um ajuste confirmado entra no histórico; redimensionamento de seleção múltipla permanece bloqueado, exigindo seleção individual.
+
+Durante a conferência, o editor impede salvar/fechar a revisão anterior como se fosse a proposta concluída. Esc cancela e termina o worker; ajustes seguintes por teclado substituem o trabalho anterior. Fechar/trocar a revisão aborta o controlador e remove listeners; nenhum resultado antigo pode substituir a revisão nova. Arrastes também removem seus listeners em pointercancel/blur/unmount e ignoram outros ponteiros. Cancelar não chama a finalização de criação que geraria uma forma padrão por clique.
+
+Tipos app/harness, Biome do PageView e build passaram. A primeira jornada nativa confirmou teclado e undo/redo, mas falhou no primeiro arraste: o ponteiro atravessava a alça e a seleção desaparecia. Causa reproduzida no código/CSS: a camada no modo seleção usa pointer-events none e as alças herdavam esse bloqueio. Corrigido com pointer-events auto nas alças; o modo leitura não as expõe. O helper nativo verifica o alvo real com elementFromPoint, sem forced click, aumento de timeout ou deslocamento artificial. Evidência da falha: `.cache/edipdf-analysis/native-paragraph-handles.txt` e captura de diagnóstico da fixture.
+
+Repetição ampliada em execução: `.cache/edipdf-analysis/native-paragraph-handles-reviewed.txt`. Asserts cobrem mouse/teclado, desfazer/refazer, pointercancel, reação a blur, Esc antes da composição, cancelamento de desenho sem forma residual, overflow sem commit e dimensões efetivas na cópia salva/reaberta. Tipos/build: `typecheck-paragraph-handles.txt`, `types-paragraph-handles-native.txt`, `biome-paragraph-handles.txt`, `build-paragraph-handles.txt`.
+
+Não há fluxo automático entre páginas ou redimensionamento coletivo. Ambos continuam na cobertura pendente, com corpus amplo, compatibilidade, lote 5 e full review. Após a jornada, restaurar o build normal e inspecionar as capturas antes do aceite.
+
+A repetição após pointer-events confirmou mouse, teclado, desfazer/refazer, cancelamentos, ausência de forma residual e overflow recusado. Parou na nova asserção de contagem da cópia salva: o teste chamava duas vezes `takeEditableAnnotations`, que é destrutivo e devolve/removerá os modelos na primeira leitura. Corrigido para conferir contagem/propriedades pelo mesmo mapa já lido, sem alterar o produto para satisfazer o teste. A captura também passa a aguardar o SVG composto, em vez de registrar o estado transitório “Compondo”. Próxima evidência: `native-paragraph-handles-roundtrip.txt`.
+
+A rodada de roundtrip passou por toda a autoria, dimensões salvas/reabertas, recorte e remoção por busca. Parou depois na navegação Tab da frente de formulários. O teste não aguardava a remoção da modal de configuração antes de focar os campos; essa condição foi corrigida e o foco inicial/final ganhou diagnóstico explícito, sem alterar a ordenação do produto. Repetição completa em `native-paragraph-handles-focus.txt`; ainda precisa terminar para o aceite integrado. A suíte unitária atual passou em `test-paragraph-handles-all.txt`.
+
+A repetição de foco ainda falhou em Tab, com documento focado/modal fechada. A [revisão da preparação de campos/fontes](review-form-preparation-parcial.md) encontrou e corrigiu a publicação de controles de um snapshot anterior e o carregamento independente que desabilitava campos durante a troca de fonte. O teste passou a exigir o digest da fonte escolhida e registrar a sequência de foco. A execução integrada atual é `native-form-preparation.txt`; não atribuir o resultado dessa correção às rodadas anteriores.

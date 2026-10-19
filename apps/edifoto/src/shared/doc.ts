@@ -7,6 +7,8 @@ import type { BlendMode } from "./blendModes.ts";
 
 /** Placement of content inside the document. x/y is the content's CENTER, in document pixels. */
 export interface Transform {
+  /** Document resizing basis, applied before the editable rotation/scale. */
+  basis?: [number, number, number, number];
   x: number;
   y: number;
   scale: number;
@@ -20,9 +22,12 @@ export interface Mask {
   /** Document-sized grayscale bitmap: white shows the layer, black hides it. */
   bitmap: string;
   enabled: boolean;
+  /** Absent on legacy masks: fixed in document space. New masks follow content. */
+  reference?: Transform;
 }
 
 interface LayerBase {
+  role?: "style" | "image-placeholder";
   id: string;
   name: string;
   visible: boolean;
@@ -100,6 +105,8 @@ export interface GradientLayer extends LayerBase {
 }
 
 export interface TextStyle {
+  /** Optional area width with automatic wrapping, in local image pixels. */
+  maxWidth?: number;
   content: string;
   font: string;
   size: number;
@@ -139,6 +146,7 @@ export interface Adjust {
 }
 
 export interface AdjustLayer extends LayerBase {
+  preset?: "natural" | "warm" | "cool" | "mono";
   kind: "adjust";
   adjust: Adjust;
 }

@@ -6,7 +6,7 @@ import { app } from "electron";
 import { AI_TOOL_NAMES, AI_TOOLS, EDITOR_GUIDE } from "../shared/aiTools.ts";
 import type { ToolOutcome } from "../shared/types.ts";
 
-type Call = (name: string, input: unknown) => Promise<ToolOutcome>;
+type Call = (name: string, input: unknown, runId?: string) => Promise<ToolOutcome>;
 
 const MCP_INSTRUCTIONS = `${EDITOR_GUIDE}
 
@@ -78,7 +78,9 @@ export function startMcpServer(port: number, call: Call): Promise<Server> {
     }
     try {
       const body = req.method === "POST" ? await readBody(req) : undefined;
-      const server = buildServer(call);
+      const runId =
+        typeof req.headers["x-edi-run"] === "string" ? req.headers["x-edi-run"] : undefined;
+      const server = buildServer((name, input) => call(name, input, runId));
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,

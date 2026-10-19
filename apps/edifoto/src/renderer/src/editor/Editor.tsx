@@ -19,6 +19,7 @@ import { ChromaKeyDialog } from "./ChromaKeyDialog";
 import { CompareDialog } from "./CompareDialog";
 import { ExportDialog, ResizeDialog } from "./ExportDialog";
 import { OptionsBar } from "./OptionsBar";
+import { QuickDock } from "./QuickDock";
 import { RightPanel } from "./RightPanel";
 import { StatusBar } from "./StatusBar";
 import { ToolRail } from "./ToolRail";
@@ -48,6 +49,7 @@ const typing = (t: EventTarget | null): boolean =>
   (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
 
 export function Editor(): ReactNode {
+  const tool = useUi((s) => s.tool);
   const chromaOpen = useUi((s) => s.chromaOpen);
   const compareOpen = useUi((s) => s.compareOpen);
   const assistantOpen = useUi((s) => s.assistantOpen);
@@ -279,6 +281,7 @@ export function Editor(): ReactNode {
         <div className="workspace">
           <OptionsBar />
           <Viewport />
+          {tool !== "crop" && <QuickDock />}
           <StatusBar />
         </div>
         <RightPanel />

@@ -65,5 +65,7 @@ export const blendGroup = (id: BlendMode): BlendGroup =>
 /** Shift + / Shift − cycling, Photoshop style. */
 export function cycleBlend(id: BlendMode, dir: 1 | -1): BlendMode {
   const i = blendIndex(id);
-  return BLEND_MODES[(i + dir + BLEND_MODES.length) % BLEND_MODES.length].id;
+  const next = BLEND_MODES[(i + dir + BLEND_MODES.length) % BLEND_MODES.length];
+  if (i < 0 || !next) throw new Error("Modo de mesclagem inválido.");
+  return next.id;
 }

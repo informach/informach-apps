@@ -1,0 +1,309 @@
+{
+  "date": "2026-10-18",
+  "commit": "88c1163d9ca32f3310da77ac853dc71012d3fe7b",
+  "branch": "feat/edisvg-evolution",
+  "appVersion": "0.2.0",
+  "environment": {
+    "node": "24.15.0",
+    "pnpm": "9.15.0",
+    "playwright": "1.59.1",
+    "browser": "Installed Chromium directory chromium-1223; headless, isolated profile"
+  },
+  "checks": {
+    "unit": {
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "warning": "MODULE_TYPELESS_PACKAGE_JSON"
+    },
+    "typecheck": "passed",
+    "native": "pnpm edi:test:native edifoto: passed, ephemeral fixtures; no installer installed/published"
+  },
+  "originalWebHarness": {
+    "default": {
+      "status": "failed",
+      "text": "TypeError: Cannot read properties of null (reading 'getBoundingClientRect')\n    at http://127.0.0.1:5184/tests/app/vector-tools.js:35:60\n    at async http://127.0.0.1:5184/tests/browser/main.js:49:19"
+    },
+    "chroma": "Error: Timed out waiting for chroma UI\n    at until (http://127.0.0.1:5184/tests/app/chroma.js:10:41)\n    at async http://127.0.0.1:5184/tests/app/chroma.js:33:2\n    at async http://127.0.0.1:5184/tests/browser/main.js:34:3",
+    "newDocument": "TypeError: Cannot read properties of undefined (reading 'click')\n    at http://127.0.0.1:5184/tests/app/new-document.js:15:20\n    at http://127.0.0.1:5184/tests/app/new-document.js:90:3"
+  },
+  "originalWebErrors": ["Cannot read properties of undefined (reading 'onRecovery')"],
+  "webWithDiagnosticBridge": {
+    "fixture": "ediSuite.onRecovery only; native APIs remain simulated by original web harness",
+    "standard": {
+      "vectors": {
+        "passed": 12,
+        "results": [
+          "vector renders in GPU composite",
+          "undo vector changes",
+          "redo vector changes",
+          "save/reopen retains vector properties",
+          "pointer drag creates shape layer",
+          "pen points and Bézier handles created with pointer",
+          "path to selection",
+          "selection to mask",
+          "assistant creates editable vectors",
+          "locked vectors cannot be edited",
+          "rotate document with vectors",
+          "all designed tools exposed"
+        ]
+      },
+      "raster": {
+        "passed": 14,
+        "results": [
+          "clone accepts source",
+          "clone copies source color",
+          "clone undo restores pixels",
+          "blur softens the edge",
+          "selection clips paint to selected region",
+          "wand selects connected background only",
+          "delete selection only removes selected pixels",
+          "background removal preserves colored foreground",
+          "curves change rendered pixels",
+          "exports png",
+          "exports jpeg",
+          "exports webp",
+          "side by side comparison renders two versions",
+          "comparison applies chosen mode"
+        ]
+      },
+      "parity": {
+        "passed": 14,
+        "results": [
+          "fill opacity renders independently",
+          "stroke stays opaque with translucent fill",
+          "fill opacity survives save and reopen",
+          "six shape buttons in contextual panel",
+          "eight transform handles with shape tool active",
+          "selected shape appearance in toolbar",
+          "toolbar edits selected vector",
+          "search filters layers",
+          "layer type filter",
+          "side handle changes width independently",
+          "Ctrl moves draft anchor without closing path",
+          "assistant exposes undo for its latest turn",
+          "assistant undo protects subsequent edits",
+          "assistant button undoes correct history entry"
+        ]
+      },
+      "selections": {
+        "passed": 13,
+        "results": [
+          "add preserves both selected regions",
+          "combination does not mutate previous bitmap",
+          "subtract removes only the overlapping region",
+          "intersection keeps only overlap",
+          "disjoint intersection remains an empty selection",
+          "add without an existing selection starts a selection",
+          "toolbar activates rectangular selection",
+          "Shift drag adds a rectangle without forcing square geometry",
+          "Alt drag subtracts without centering the rectangle",
+          "options control updates selection mode",
+          "lasso honors intersection mode",
+          "wand honors temporary subtraction mode",
+          "cancelled drag preserves existing selection"
+        ]
+      },
+      "newDocument": {
+        "passed": 15,
+        "results": [
+          "Arquivo contains Novo",
+          "Novo opens document dialog",
+          "cancel preserves current document",
+          "Ctrl+N opens dialog",
+          "dirty document asks before replacement",
+          "declining discard preserves document and form",
+          "creates requested name and dimensions",
+          "transparent document has editable raster layer",
+          "new document is unsaved with fresh history",
+          "transparent background renders transparent pixels",
+          "white background renders opaque white",
+          "invalid dimensions rejected: 0x100",
+          "invalid dimensions rejected: 1.5x100",
+          "invalid dimensions rejected: 8193x100",
+          "invalid dimensions rejected: 8192x8192"
+        ]
+      }
+    },
+    "newDocumentRepeat": {
+      "passed": 15,
+      "results": [
+        "Arquivo contains Novo",
+        "Novo opens document dialog",
+        "cancel preserves current document",
+        "Ctrl+N opens dialog",
+        "dirty document asks before replacement",
+        "declining discard preserves document and form",
+        "creates requested name and dimensions",
+        "transparent document has editable raster layer",
+        "new document is unsaved with fresh history",
+        "transparent background renders transparent pixels",
+        "white background renders opaque white",
+        "invalid dimensions rejected: 0x100",
+        "invalid dimensions rejected: 1.5x100",
+        "invalid dimensions rejected: 8193x100",
+        "invalid dimensions rejected: 8192x8192"
+      ]
+    },
+    "chroma": "Error: dialog opens and worker completes\n    at assert (http://127.0.0.1:5184/tests/app/chroma.js:4:18)\n    at http://127.0.0.1:5184/tests/app/chroma.js:36:2\n    at async http://127.0.0.1:5184/tests/browser/main.js:34:3",
+    "errors": []
+  },
+  "probes": {
+    "deleteLocked": {
+      "remaining": 0
+    },
+    "editLocked": {
+      "exposure": 1
+    },
+    "resizeNonUniform": {
+      "document": [200, 100],
+      "layerScale": 1.4142135623730951,
+      "expectedScaleX": 2,
+      "expectedScaleY": 1
+    },
+    "editDuringSave": {
+      "dirty": false,
+      "layers": 3
+    },
+    "invalidFormat": {
+      "accepted": true,
+      "width": -10,
+      "version": 999
+    },
+    "missingBitmap": {
+      "serialized": true,
+      "referenced": "bmvdpt48uutfik",
+      "loaded": 0
+    },
+    "bitmapsAfterHistoryLimit": {
+      "before": 1,
+      "after": 91,
+      "history": 80,
+      "live": 1
+    },
+    "partialAi": {
+      "ok": false,
+      "text": "A camada \"Camada 1\" está bloqueada.",
+      "opacity": 0.5
+    },
+    "mergeAppearance": {
+      "before": [64, 0, 127, 255],
+      "after": [64, 0, 64, 255]
+    },
+    "dropUnsaved": {
+      "replaced": true,
+      "confirmation": false,
+      "dirty": false
+    }
+  },
+  "independentJourney": {
+    "fixture": "Isolated browser fixture; file/assistant APIs simulated. Production source unchanged.",
+    "errors": [],
+    "probes": {
+      "maskMove": {
+        "leftAlpha": 255,
+        "rightAlpha": 0,
+        "transform": {
+          "x": 75,
+          "y": 50,
+          "scale": 1,
+          "rotation": 0,
+          "flipX": false,
+          "flipY": false
+        }
+      },
+      "switchDuringSave": {
+        "doc": "Different",
+        "filePath": "/test/previous.edifoto",
+        "dirty": false
+      },
+      "systemOpenUnsaved": {
+        "document": "Received",
+        "confirmation": false
+      },
+      "undoToSaved": {
+        "dirty": true
+      },
+      "manualInsideAiGroup": {
+        "byAi": true,
+        "label": "Assistente: executar pedido"
+      },
+      "newDocumentMemory": {
+        "before": 1,
+        "after": 2,
+        "live": 1
+      },
+      "fillOpacity": {
+        "fill50": [184, 128, 96, 255],
+        "opacity50": [184, 128, 96, 255]
+      },
+      "chromaOriginal": {
+        "bitmap": "bmvdpv4t615ep4f",
+        "mask": "bmvdpv4t718ckxa"
+      }
+    },
+    "chromaPreview": {
+      "dialogVisible": true,
+      "status": "Prévia pronta."
+    },
+    "chromaCancel": "bmvdpv4t615ep4f",
+    "chromaApply": {
+      "mask": "bmvdpv4t718ckxa",
+      "backgroundAlpha": 0,
+      "subjectAlpha": 255,
+      "undo": "bmvdpv4t615ep4f",
+      "redo": "bmvdpv8iw19gk1p",
+      "roundtripAlpha": 0
+    },
+    "layout": {
+      "width": 1100,
+      "topbar": {
+        "x": 0,
+        "y": 0,
+        "w": 1100,
+        "h": 48,
+        "right": 1100
+      },
+      "workspace": {
+        "x": 52,
+        "y": 48,
+        "w": 348,
+        "h": 632,
+        "right": 400
+      },
+      "dock": {
+        "x": -109.859375,
+        "y": 585,
+        "w": 671.71875,
+        "h": 45,
+        "right": 561.859375
+      },
+      "properties": {
+        "x": 400,
+        "y": 48,
+        "w": 340,
+        "h": 632,
+        "right": 740
+      },
+      "assistant": {
+        "x": 740,
+        "y": 48,
+        "w": 360,
+        "h": 632,
+        "right": 1100
+      }
+    }
+  },
+  "fileAuthority": {
+    "selected": "<isolated review folder>/chosen.jpeg",
+    "normalizedByExporter": "<isolated review folder>/chosen.jpg",
+    "authorizedSelected": true,
+    "rejectedActual": "Escolha o destino pelo diálogo de salvamento."
+  },
+  "limitations": [
+    "Web native APIs simulated; original renderer/compositor/operations used",
+    "No Photoshop comparative benchmark or live AI provider calls",
+    "Native smoke covers access/modal, not full editorial file operations",
+    "Screenshots and diagnostic harnesses in ignored .cache/edifoto-review"
+  ]
+}
