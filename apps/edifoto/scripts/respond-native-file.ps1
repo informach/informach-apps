@@ -24,8 +24,15 @@ if ($Action -ne 'Cancel') {
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -TypeDefinition @'
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class EdiNativeFileControl {
+  public delegate bool WindowVisitor(IntPtr window, IntPtr context);
+  [DllImport("user32.dll", EntryPoint="EnumWindows")]
+  private static extern bool EnumerateWindows(WindowVisitor visitor, IntPtr context);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="GetClassNameW")]
+  private static extern int GetWindowClass(IntPtr window, StringBuilder name, int capacity);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
   public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
@@ -38,16 +45,31 @@ public static class EdiNativeFileControl {
   public static extern int WindowStyle(IntPtr window, int index);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+  public static IntPtr[] OwnedDialogs(int targetProcess) {
+    var dialogs = new List<IntPtr>();
+    EnumerateWindows((window, context) => {
+      uint process;
+      GetWindowThreadProcessId(window, out process);
+      if (process != (uint)targetProcess) return true;
+      var name = new StringBuilder(128);
+      if (GetWindowClass(window, name, name.Capacity) > 0 && name.ToString() == "#32770")
+        dialogs.Add(window);
+      return true;
+    }, IntPtr.Zero);
+    return dialogs.ToArray();
+  }
 }
 '@
-$processCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$TestProcessId)
-$dialogCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'#32770')
-$combined=New-Object System.Windows.Automation.AndCondition($processCondition,$dialogCondition)
 $deadline=[DateTime]::UtcNow.AddSeconds(15)
 $completed=$false
+$observedOwnedDialogs=0
+$observedFilenameControls=0
 while ([DateTime]::UtcNow -lt $deadline) {
-  $windows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$combined)
-  foreach ($window in $windows) {
+  # Inspect only top-level HWNDs of the exact fixture PID. Desktop-wide UIA
+  # traversal can fail on unrelated protected windows before reaching the dialog.
+  foreach ($handle in [EdiNativeFileControl]::OwnedDialogs($TestProcessId)) {
+    $observedOwnedDialogs++
+    $window=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
     $buttonId=if ($Action -eq 'Cancel') {'2'} else {'1'}
     $buttonIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$buttonId)
     $buttonClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Button')
@@ -68,6 +90,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
         if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
       }
     }
+    if ($file) { $observedFilenameControls++ }
     if ($button -and !$button.Current.IsOffscreen -and $button.Current.IsEnabled -and $file) {
       if ($Action -eq 'Save') {
         $editType=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)
@@ -116,5 +139,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
   if ($completed) { break }
   Start-Sleep -Milliseconds 100
 }
-if (!$completed) { throw 'The owned native file dialog did not appear or did not expose its filename control.' }
+if (!$completed) {
+  throw "The owned native file dialog did not appear or did not expose its filename control (ownedDialogSamples=$observedOwnedDialogs, filenameControlSamples=$observedFilenameControls)."
+}
 Write-Output "Responded to the owned native file dialog using UI Automation: $Action"
