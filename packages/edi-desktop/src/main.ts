@@ -379,6 +379,7 @@ export function createEdiDesktop(options: {
         controller?.cancelConnect();
       });
       app.on("will-quit", (event) => {
+        controller?.cancelRefresh();
         if (pendingInstaller && updater && !quitVerified) {
           // All editor close/save handlers have completed by will-quit. Recheck
           // the actual cached bytes immediately before the updater can execute.
