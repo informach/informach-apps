@@ -2,13 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type Anthropic from "@anthropic-ai/sdk";
 import {
-  CLAUDE_NO_CONNECTORS,
-  claudeArgs,
-  claudeBilledOnApi,
-  claudeOneShotArgs,
-  engineEnv,
-} from "../src/main/engineArgs.ts";
-import {
   type ApprovalAnswer,
   type CallMeta,
   type GuardDeps,
@@ -17,11 +10,7 @@ import {
 } from "../src/main/mcpGuard.ts";
 import { runToolRound, STOPPED } from "../src/main/toolRound.ts";
 import { buildRequest, CLEAR_TOOL_USES } from "../src/shared/aiModels.ts";
-import {
-  parseStoredSettings,
-  settingsChangesSchema,
-  trustedWhich,
-} from "../src/shared/aiSettings.ts";
+import { parseStoredSettings, settingsChangesSchema } from "../src/shared/aiSettings.ts";
 import { clipTargets } from "../src/shared/aiTargets.ts";
 import { AI_TOOLS } from "../src/shared/aiTools.ts";
 import { assFontName, CAPTION_FONT } from "../src/shared/captions.ts";
@@ -207,56 +196,6 @@ test("the settings file is read field by field and the changes are checked", () 
   assert.ok(!settingsChangesSchema.safeParse({ engine: "shell" }).success);
   assert.equal(settingsChangesSchema.parse({ apiKey: "  sk-ant-x  " }).apiKey, "sk-ant-x");
   assert.equal(settingsChangesSchema.parse({ apiKey: null }).apiKey, null);
-});
-
-/* ----- which(): only programs where they are installed ----- */
-
-test("where.exe hits in the current folder, temp or Downloads are not used", () => {
-  const out = [
-    "C:\\Users\\ana\\Downloads\\claude.exe",
-    "C:\\Projetos\\aula\\claude.cmd",
-    "C:\\Users\\ana\\AppData\\Local\\Temp\\x\\claude.exe",
-    "\\\\servidor\\share\\claude.exe",
-    "C:\\Users\\ana\\.local\\bin\\claude.exe",
-  ].join("\r\n");
-  const untrusted = [
-    "C:\\Projetos\\aula",
-    "C:\\Users\\ana\\AppData\\Local\\Temp",
-    "C:\\Users\\ana\\Downloads",
-  ];
-  assert.equal(trustedWhich(out, untrusted), "C:\\Users\\ana\\.local\\bin\\claude.exe");
-  assert.equal(trustedWhich("C:\\Projetos\\aula\\claude.exe", untrusted), null);
-  assert.equal(
-    trustedWhich("C:\\Program Files\\nodejs\\node.exe\r\n", untrusted),
-    "C:\\Program Files\\nodejs\\node.exe",
-  );
-});
-
-/* ----- Claude Code: connectors, settings sources and who pays ----- */
-
-test("Claude Code runs without the claude.ai connectors nor the settings of the folders around", () => {
-  for (const args of [
-    claudeArgs({ mcpConfig: "{}", systemPrompt: "guia" }),
-    claudeOneShotArgs({}),
-  ]) {
-    const at = args.indexOf("--setting-sources");
-    assert.ok(at > 0);
-    assert.equal(args[at + 1], "user");
-  }
-  const env = engineEnv(
-    { PATH: "C:\\Windows", ENABLE_CLAUDEAI_MCP_SERVERS: "true" },
-    {
-      minimal: false,
-      claude: true,
-    },
-  );
-  assert.equal(env.ENABLE_CLAUDEAI_MCP_SERVERS, "false");
-  assert.deepEqual(CLAUDE_NO_CONNECTORS, { ENABLE_CLAUDEAI_MCP_SERVERS: "false" });
-  assert.equal(engineEnv({ PATH: "x" }, { minimal: true }).ENABLE_CLAUDEAI_MCP_SERVERS, undefined);
-  assert.equal(claudeBilledOnApi({ ANTHROPIC_API_KEY: "sk-ant-x" }), true);
-  assert.equal(claudeBilledOnApi({ anthropic_api_key: "sk-ant-x" }), true);
-  assert.equal(claudeBilledOnApi({ ANTHROPIC_API_KEY: "" }), false);
-  assert.equal(claudeBilledOnApi({ PATH: "x" }), false);
 });
 
 /* ----- C6, C7: groups and locked tracks ----- */

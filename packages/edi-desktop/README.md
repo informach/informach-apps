@@ -51,3 +51,36 @@ O Windows pode recusar uma ativação conforme os direitos do processo e a inter
 `@informach/edi-desktop/media-range` é o tratamento comum de `Range` para servir mídia local ao `<video>`: `byteRange` aceita um único intervalo `bytes=` com inteiros seguros dentro do arquivo e recusa o resto, `rangeHeaders` monta 200/206 com `no-store` e `nosniff`, e `rangeNotSatisfiable` responde 416. A autorização continua em cada app: o Captura usa tokens revogáveis por arquivo e identidade (`VideoStreams`); o EdiAula, as concessões de leitura de `desktopFiles`.
 
 `@informach/edi-desktop/audio` reúne o que os gravadores da suíte julgam igual, sem Electron nem DOM: níveis de PCM 16 bits e de amostras float (`pcmLevels`, `floatLevels`, `dbfs`), silêncio (`SilenceMeter`, `SILENCE_DBFS`) e estouro (`ClipMeter`, `CLIP_LEVEL`), ganho por volume/mudo (`sourceGain`), o contrato do loopback do Windows pelo Chromium (`SYSTEM_AUDIO_CONSTRAINTS`, `excludesOwnAudio`), o microfone sem processamento de chamada (`MICROPHONE_CONSTRAINTS`) e a leitura do build do Windows (`windowsBuild`, `PROCESS_LOOPBACK_BUILD`). EdiAula e EdiCaptura usam esses mesmos valores. O helper nativo de loopback do EdiAula continua no app.
+
+## IA pela assinatura do usuário
+
+Dois subpaths **somente main** levam a infraestrutura de IA local que antes existia em três cópias (EdiAula, EdiFoto e EdiSVG). A base é a versão do EdiAula. O app continua dono do catálogo de ferramentas, do guia do editor, dos prompts, das regras de caminho e da interface; o package não registra IPC nem lê configurações do app. Os dois usam `access` (concessões e tokens) e `mcp-config` (o **Conectar**). Os três consumidores incluem o package pelo `ediBuildOptions`, que já empacota `@informach/edi-desktop`; `@modelcontextprotocol/sdk` fica externo e é resolvido pelas dependências de cada app.
+
+### `@informach/edi-desktop/ai-clients`
+
+| Parte | Contrato |
+| --- | --- |
+| `locateClient`, `clientStatus`, `connectClient`, `clientVersion` | Acha Claude Code e Codex pelo `where.exe` do System32 e pelos caminhos dos instaladores oficiais. Ignora acertos na pasta atual, em temporários, em Downloads, em compartilhamentos de rede, com `.`/`..`, fluxos alternativos ou nomes de dispositivo (`trustedWhich`). `clientStatus` lê a configuração dos próprios clientes. |
+| `resolveLaunch`, `clientLaunch`, `scriptRuntime` | Inicia sem shell. Atalhos `.cmd` do npm e lançadores do bun são lidos para achar o programa real; o script do Codex é trocado pelo `codex.exe` nativo. Formato desconhecido é recusado com mensagem. `allowElectronRuntime` (só desenvolvimento) permite rodar scripts no próprio Electron. |
+| `claudeArgs`, `codexArgs`, `claudeMcpConfig`, one-shot | A mensagem vai pela entrada padrão, nunca em argumento. Claude Code sem ferramentas próprias, só `mcp__<servidor>`, só as configurações do usuário (`--setting-sources user`). Codex em sandbox somente leitura, sem a configuração do usuário, sem busca na web e com as features arriscadas da versão instalada desligadas. O token vai por variável (`McpServerRef.tokenEnv`, por exemplo `EDIAULA_MCP_TOKEN`), nunca escrito. `ephemeral` não guarda sessão no Codex. |
+| `engineEnv` | Tira do filho as variáveis das ferramentas Edi (`EDI_`, `EDIAULA_`, `EDIFOTO_`…, `ELECTRON_`, `NODE_OPTIONS`) e os conectores do claude.ai. Codex recebe só o necessário. `personalOnly` também tira chaves de API e outros provedores. |
+| `codexGuard`, `codexSelfTest` | Para a execução no primeiro evento fora da conversa e das ferramentas do servidor do app (comando, arquivo, web, outro servidor MCP). A conferência do Codex só passa com evidência positiva. |
+| `startRun`, `stopRun`, `stopAllRuns`, `runToText`, `killTree` | Uma execução por conversa. Termina com `done` uma única vez, revoga o token no cleanup e encerra a árvore de processos (`taskkill /T`). `timeoutMs` opcional. |
+| `createAssistantEngines` | Turnos do painel com Claude Code e Codex: token de execução de `mintRunToken` com cliente `PANEL_CLIENT`, renovado enquanto roda e preso a `grantProject` (padrão: a conversa); sessão por conversa em memória, `SessionStore` para guardar entre aberturas, `sessions: false` para não guardar; `resumeGate` recomeça com o resumo quando a sessão sumiu do lado do cliente. `personalOnly` exige login com a assinatura pessoal antes de cada turno. Também oferece `oneShot` sem ferramentas e `codexSelfTest`. |
+| `createToolQueue` | Escritas uma por vez; leituras juntas, sem ver edição pela metade. |
+| `createRendererRequests`, `windowPort` | Pedido main→renderer por id, com prazo. Cada pedido termina uma vez (resposta, prazo, janela fechada, cancelamento). `holdAfterTimeout` responde no prazo e mantém a fila esperando o editor terminar. |
+| `createApprovalRequests`, `dialogApproval` | Pergunta à pessoa com "Permitir uma vez", "Permitir por 15 min" e "Negar"; sem resposta em 60 s, nega. A primeira usa o diálogo do editor; a segunda, um diálogo nativo com `AbortSignal`. |
+
+### `@informach/edi-desktop/mcp-server`
+
+`startLocalMcpServer` escuta só em `127.0.0.1`. Recusa `Origin` e `Host` que não seja `127.0.0.1`/`localhost`, exige token válido de `authorizeLocalMcp` e licença ativa, aceita só `POST /mcp` (StreamableHTTP sem estado, sem sessão) e limita o corpo (5 MB por padrão, `bodyLimit`). Recebe o registro de ferramentas (`title`, `description`, schema zod), `offered` para esconder ferramentas de uma concessão e `call` para executar.
+
+`createToolGuard` aplica a guarda por escopo e por ferramenta. Leitura e proposta rodam quando a concessão cobre; escrita sem o escopo `write` pergunta à pessoa, a menos que uma aprovação de 15 min para o projeto esteja valendo. `alwaysAsk` pergunta sempre a clientes de fora. As execuções do painel (`PANEL_CLIENT`) escrevem sem perguntar e ficam presas ao projeto do token; a conferência do Codex (`CHECK_CLIENT`) nunca pergunta. Uma chamada cuja concessão terminou (Parar, fim do turno, revogação) não roda. As aprovações ficam por instância do guard.
+
+| App | Servidor, porta e variável | Particularidades |
+| --- | --- | --- |
+| EdiAula | `ediaula`, 47321, `EDIAULA_MCP_TOKEN` | Sessões em `motor.json` com resumo; janela restrita; opção de API só no app; `ALWAYS_ASK` para abrir/criar aula e importar mídia. |
+| EdiFoto | `edifoto`, 47331, `EDIFOTO_MCP_TOKEN` | `personalOnly`; o token do painel é preso ao pedido (`runId`); escrita de cliente externo pergunta em diálogo nativo; abrir, inserir e exportar imagem perguntam sempre. |
+| EdiSVG | `edisvg`, 47322, `EDISVG_MCP_TOKEN` | Sem sessão nos clientes (o painel manda o histórico); prazo de 10 min; corpo de 1 MB; edição de cliente externo pergunta em diálogo nativo. |
+
+Os testes (`ai-*.test.ts`, `mcp-*.test.ts`) usam servidores HTTP reais, processos reais e um cliente substituto instalado como o npm instala (`fixtures/ai/fake-client`) num perfil isolado: `USERPROFILE`, `APPDATA` e `PATH` apontam para uma pasta temporária. Nunca usam os clientes, as configurações ou as assinaturas reais.

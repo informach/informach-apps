@@ -1,164 +1,11 @@
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, join, normalize, relative } from "node:path";
+import type { McpServerRef } from "./ai-grants.ts";
 
 /**
- * How EdiAula starts the person's Claude Code and Codex. Never through a shell: a message the
- * person (or a script pasted in the chat) wrote is not a command line, so it goes to the
- * program's standard input, never into its arguments. The functions here only build values;
- * engines.ts and aiSettings.ts run them.
+ * Arguments and environment of the person's own Claude Code and Codex. Never through a shell: a
+ * message the person (or a script pasted in the chat) wrote is not a command line, so it goes to
+ * the program's standard input, never into its arguments. The functions here only build values;
+ * ai-run.ts and ai-engines.ts run them.
  */
-
-/** Environment variable that carries the run's MCP token; never an argument nor a file. */
-export const MCP_TOKEN_ENV = "EDIAULA_MCP_TOKEN";
-
-/** A program ready to spawn without a shell: run `command` with `args` and these variables. */
-export interface Launch {
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-}
-
-export class LaunchError extends Error {}
-
-/** The JavaScript runtime for npm packages that ship a script instead of an executable. */
-export interface ScriptRuntime {
-  command: string;
-  env: Record<string, string>;
-}
-
-/** Node flags a shim may pass to the runtime: only ones that silence warnings. */
-const SAFE_NODE_FLAGS = new Set(["--no-warnings", "--no-deprecation"]);
-
-/** `target` resolved inside `dir`, or null when it would leave it (`..`, another drive). */
-function inside(dir: string, target: string): string | null {
-  const full = normalize(join(dir, target));
-  const rel = relative(dir, full);
-  return !rel || rel.startsWith("..") || isAbsolute(rel) ? null : full;
-}
-
-/**
- * The target of an npm `.cmd` shim: the executable or script it runs, with the Node flags the
- * shim passes. Null when the file is not a shim this code recognises, or points outside its
- * own folder.
- */
-export function parseCmdShim(
-  text: string,
-  dir: string,
-): { target: string; kind: "exe" | "script"; flags: string[] } | null {
-  const pattern = /"%~?dp0%?\\([^"%]+?\.(?:exe|cjs|mjs|js))"/gi;
-  let found: { target: string; index: number } | null = null;
-  for (const match of text.matchAll(pattern)) {
-    // The shim tests for a node.exe next to itself first; that is the runtime, not the program.
-    if (/^node\.exe$/i.test(match[1])) continue;
-    found = { target: match[1], index: match.index ?? 0 };
-  }
-  if (!found) return null;
-  const target = inside(dir, found.target);
-  if (!target) return null;
-  const kind = /\.exe$/i.test(found.target) ? "exe" : "script";
-  // Node flags between the runtime ("%_prog%") and the script.
-  const line = text.slice(text.lastIndexOf("\n", found.index) + 1, found.index);
-  const prog = line.lastIndexOf('"%_prog%"');
-  const flags =
-    kind === "script" && prog >= 0
-      ? line
-          .slice(prog + '"%_prog%"'.length)
-          .trim()
-          .split(/\s+/)
-          .filter((flag) => SAFE_NODE_FLAGS.has(flag))
-      : [];
-  return { target, kind, flags };
-}
-
-/**
- * The script a bun launcher runs: bun installs `<name>.exe` next to `<name>.bunx`, a UTF-16
- * text with the script's path relative to bun's folder. Null when it is not one.
- */
-export function parseBunx(bytes: Buffer, binDir: string): string | null {
-  const text = bytes.toString("utf16le");
-  const end = text.indexOf('"');
-  const path = end > 0 ? text.slice(0, end) : "";
-  return /^[\w@.\\/ -]+\.(?:cjs|mjs|js)$/.test(path) ? inside(dirname(binDir), path) : null;
-}
-
-const CODEX_TRIPLE: Record<string, string> = {
-  x64: "x86_64-pc-windows-msvc",
-  arm64: "aarch64-pc-windows-msvc",
-};
-
-/**
- * The native codex.exe behind the npm package's `bin/codex.js`, which only starts it as a
- * child. Running it directly keeps the real program as EdiAula's own child.
- */
-export function nativeCodexFor(script: string, arch = process.arch): string | null {
-  if (!/[\\/]@openai[\\/]codex[\\/]bin[\\/]codex\.js$/i.test(script)) return null;
-  const pkg = dirname(dirname(script));
-  const triple = CODEX_TRIPLE[arch];
-  if (!triple) return null;
-  const platformPkg = `codex-win32-${arch}`;
-  const roots = [
-    join(pkg, "node_modules", "@openai", platformPkg),
-    join(dirname(pkg), platformPkg),
-    pkg,
-  ];
-  for (const root of roots)
-    for (const rel of [
-      ["bin", "codex.exe"],
-      ["codex", "codex.exe"],
-    ]) {
-      const exe = join(root, "vendor", triple, ...rel);
-      if (existsSync(exe)) return exe;
-    }
-  return null;
-}
-
-/**
- * How to start `bin` without a shell. An `.exe` runs directly, unless it is a bun launcher
- * (a `.bunx` next to it). An npm `.cmd` shim is read to find what it runs. A script runs on
- * `runtime` (a node.exe next to the shim, when there is one), except Codex's launcher script,
- * replaced by the native program it would start. Anything else is refused with a message the
- * person can act on.
- */
-export async function resolveLaunch(
-  bin: string,
-  runtime: (shimDir: string) => Promise<ScriptRuntime>,
-): Promise<Launch> {
-  const ext = extname(bin).toLowerCase();
-  let script: string | null = null;
-  let flags: string[] = [];
-  if (ext === ".exe") {
-    const bunx = join(dirname(bin), `${basename(bin, extname(bin))}.bunx`);
-    if (!existsSync(bunx)) return { command: bin, args: [], env: {} };
-    script = parseBunx(await readFile(bunx), dirname(bin));
-    if (!script || !existsSync(script))
-      throw new LaunchError(
-        `${bin} é um atalho do bun que o EdiAula não reconhece, então ele não é aberto por segurança. Reinstale o programa oficial.`,
-      );
-  } else if (ext === ".cmd" || ext === ".bat") {
-    let text: string;
-    try {
-      text = await readFile(bin, "utf8");
-    } catch {
-      throw new LaunchError(`Não consegui ler ${bin}. Reinstale o programa oficial.`);
-    }
-    const shim = parseCmdShim(text, dirname(bin));
-    if (!shim || !existsSync(shim.target))
-      throw new LaunchError(
-        `${bin} não é um atalho do npm que o EdiAula reconheça, então ele não é aberto por segurança. Reinstale o programa oficial com o instalador dele ou com "npm install -g".`,
-      );
-    if (shim.kind === "exe") return { command: shim.target, args: [], env: {} };
-    script = shim.target;
-    flags = shim.flags;
-  } else
-    throw new LaunchError(
-      `Não sei iniciar ${bin} com segurança. Reinstale o programa oficial (ele instala um .exe ou um atalho do npm).`,
-    );
-  const native = nativeCodexFor(script);
-  if (native) return { command: native, args: [], env: {} };
-  const js = await runtime(dirname(bin));
-  return { command: js.command, args: [...flags, script], env: js.env };
-}
 
 /**
  * Settings Claude Code reads: only the person's own (~/.claude/settings.json, where its login
@@ -167,8 +14,12 @@ export async function resolveLaunch(
  */
 export const CLAUDE_SETTING_SOURCES = ["--setting-sources", "user"] as const;
 
-/** Claude Code without any built-in tool, only EdiAula's, with the message on standard input. */
+const modelArgs = (model?: string): string[] =>
+  model && model !== "default" ? ["--model", model] : [];
+
+/** Claude Code without any built-in tool, only the application's, with the message on stdin. */
 export function claudeArgs(options: {
+  server: Pick<McpServerRef, "name">;
   resume?: string;
   model?: string;
   effort?: string;
@@ -183,7 +34,7 @@ export function claudeArgs(options: {
     "stream-json",
     "--verbose",
     "--include-partial-messages",
-    // No built-in tools at all (files, terminal, web): only EdiAula's editing tools.
+    // No built-in tools at all (files, terminal, web): only the application's editing tools.
     "--tools",
     "",
     "--strict-mcp-config",
@@ -191,23 +42,23 @@ export function claudeArgs(options: {
     options.mcpConfig,
     ...CLAUDE_SETTING_SOURCES,
     "--allowedTools",
-    "mcp__ediaula",
+    `mcp__${options.server.name}`,
     "--append-system-prompt",
     options.systemPrompt,
     ...(options.resume ? ["--resume", options.resume] : []),
-    ...(options.model && options.model !== "default" ? ["--model", options.model] : []),
+    ...modelArgs(options.model),
     ...(options.effort ? ["--effort", options.effort] : []),
   ];
 }
 
 /** MCP configuration for Claude Code: the token is read from the environment (${VAR}). */
-export const claudeMcpConfig = (url: string): string =>
+export const claudeMcpConfig = (url: string, server: McpServerRef): string =>
   JSON.stringify({
     mcpServers: {
-      ediaula: {
+      [server.name]: {
         type: "http",
         url,
-        headers: { Authorization: `Bearer \${${MCP_TOKEN_ENV}}` },
+        headers: { Authorization: `Bearer \${${server.tokenEnv}}` },
       },
     },
   });
@@ -219,17 +70,6 @@ export const claudeMcpConfig = (url: string): string =>
  */
 const RISKY_FEATURE =
   /shell|exec|code_mode|repl|multi_agent|collab|agent_message_board|send_message|send_async|apps|plugin|hook|browser|computer|image_generation|view_image|skill|tool_suggest|search_tool|web_search|memories|workspace_dependencies|worktree|in_app_|realtime|remote_control|remote_plugin|automation|sleep_tool|request_permissions|request_rule|artifact|fanout|subagent|external_agent|mcp_apps|undo/;
-
-/** Names of the installed Codex's features that must be off (from `codex features list`). */
-export function riskyCodexFeatures(list: string): string[] {
-  const names = list
-    .split(/\r?\n/)
-    .map((line) => /^([a-z0-9_.]+)\s/.exec(line.trim())?.[1])
-    .filter((name): name is string => !!name);
-  return [
-    ...new Set([...names.filter((name) => RISKY_FEATURE.test(name)), ...CODEX_DISABLED_FEATURES]),
-  ];
-}
 
 /**
  * Turned off when the installed version's list cannot be read. Each goes through -c, which
@@ -254,20 +94,43 @@ export const CODEX_DISABLED_FEATURES = [
   "js_repl",
 ] as const;
 
+/** Names of the installed Codex's features that must be off (from `codex features list`). */
+export function riskyCodexFeatures(list: string): string[] {
+  const names = list
+    .split(/\r?\n/)
+    .map((line) => /^([a-z0-9_.]+)\s/.exec(line.trim())?.[1])
+    .filter((name): name is string => !!name);
+  return [
+    ...new Set([...names.filter((name) => RISKY_FEATURE.test(name)), ...CODEX_DISABLED_FEATURES]),
+  ];
+}
+
+const featureArgs = (features: readonly string[] = CODEX_DISABLED_FEATURES): string[] =>
+  features.flatMap((feature) => ["-c", `features.${feature}=false`]);
+
+/** Codex may only sign in with the person's ChatGPT account, never an API key. */
+const CODEX_PERSONAL = ["-c", 'forced_login_method="chatgpt"', "-c", 'model_provider="openai"'];
+
 /**
  * Codex in a read-only sandbox, without the person's config, with the message on standard input.
  * The options go before `resume`, as Codex's own SDK passes them (they apply to the resumed
- * session too).
+ * session too). `ephemeral` keeps no session on Codex's side (the caller sends the history).
  */
 export function codexArgs(options: {
+  server: McpServerRef;
   thread?: string;
   url: string;
   workspace: string;
   disabledFeatures?: readonly string[];
+  model?: string;
+  ephemeral?: boolean;
+  personalOnly?: boolean;
 }): string[] {
+  const name = options.server.name;
   return [
     "exec",
     "--json",
+    ...(options.ephemeral ? ["--ephemeral"] : []),
     "--skip-git-repo-check",
     // The person's config.toml can add servers and tools that see the whole computer.
     "--ignore-user-config",
@@ -276,16 +139,15 @@ export function codexArgs(options: {
     "read-only",
     "-C",
     options.workspace,
+    ...(options.personalOnly ? CODEX_PERSONAL : []),
     "-c",
-    `mcp_servers.ediaula.url=${JSON.stringify(options.url)}`,
+    `mcp_servers.${name}.url=${JSON.stringify(options.url)}`,
     "-c",
-    `mcp_servers.ediaula.bearer_token_env_var=${JSON.stringify(MCP_TOKEN_ENV)}`,
+    `mcp_servers.${name}.bearer_token_env_var=${JSON.stringify(options.server.tokenEnv)}`,
     "-c",
     'web_search="disabled"',
-    ...(options.disabledFeatures ?? CODEX_DISABLED_FEATURES).flatMap((feature) => [
-      "-c",
-      `features.${feature}=false`,
-    ]),
+    ...featureArgs(options.disabledFeatures),
+    ...modelArgs(options.model),
     ...(options.thread ? ["resume", options.thread, "-"] : ["-"]),
   ];
 }
@@ -326,40 +188,60 @@ const CODEX_ENV = new Set(
   ].map((name) => name.toUpperCase()),
 );
 
-/** Variables of EdiAula itself that a child must not inherit. */
-const PRIVATE_ENV = /^(ELECTRON_|EDI_|EDIAULA_|NODE_OPTIONS$)/i;
+/** Variables of the Edi applications themselves that a child must not inherit. */
+const PRIVATE_ENV = /^(ELECTRON_|EDI_|EDI(?:AULA|CAPTURA|FOTO|PDF|SVG|HUB)_|NODE_OPTIONS$)/i;
+
+/**
+ * Credentials that would make a client run on a paid API or another provider instead of the
+ * person's own subscription. Left out when the application only accepts the subscription.
+ */
+export const PROVIDER_CREDENTIAL_ENV = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_BASE_URL",
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "CODEX_API_KEY",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+] as const;
+const PROVIDER_CREDENTIALS = new Set<string>(PROVIDER_CREDENTIAL_ENV);
 
 /**
  * Turns off the connectors of the person's claude.ai account (Gmail, Drive, Slack…) in a
- * Claude Code run of EdiAula: only EdiAula's own server is there (--strict-mcp-config covers
- * the configured servers, not these).
+ * Claude Code run: only the application's own server is there (--strict-mcp-config covers the
+ * configured servers, not these).
  */
 export const CLAUDE_NO_CONNECTORS = { ENABLE_CLAUDEAI_MCP_SERVERS: "false" } as const;
 
 /**
- * The environment of an engine process. Codex gets only what it needs (`minimal`); Claude Code
- * keeps the person's variables (its own login may use them) without EdiAula's, and without the
- * claude.ai connectors (`claude`). Both get the run token and what the launch needs (the script
- * runtime).
+ * The environment of a client process. Codex gets only what it needs (`minimal`); Claude Code
+ * keeps the person's variables (its own login may use them) without the application's, and
+ * without the claude.ai connectors (`claude`). `personalOnly` also leaves out API keys and other
+ * providers. Both get the run token and what the launch needs (the script runtime).
  */
 export function engineEnv(
   source: NodeJS.ProcessEnv,
   options: {
     minimal: boolean;
-    token?: string;
+    token?: { env: string; value: string };
     launch?: Record<string, string>;
     claude?: boolean;
+    personalOnly?: boolean;
   },
 ): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(source)) {
     if (value === undefined || PRIVATE_ENV.test(name)) continue;
-    if (options.minimal && !CODEX_ENV.has(name.toUpperCase())) continue;
+    const upper = name.toUpperCase();
+    if (options.minimal && !CODEX_ENV.has(upper)) continue;
+    if (options.personalOnly && PROVIDER_CREDENTIALS.has(upper)) continue;
     env[name] = value;
   }
   Object.assign(env, options.launch ?? {});
   if (options.claude) Object.assign(env, CLAUDE_NO_CONNECTORS);
-  if (options.token) env[MCP_TOKEN_ENV] = options.token;
+  if (options.token) env[options.token.env] = options.token.value;
   return env;
 }
 
@@ -376,18 +258,23 @@ export const claudeBilledOnApi = (env: Readonly<Record<string, string>>): boolea
 /** Item types in Codex's JSON stream that stay inside the conversation. */
 const CODEX_ALLOWED = new Set(["agent_message", "reasoning", "todo_list", "error"]);
 
+const field = (value: unknown, key: string): unknown =>
+  value && typeof value === "object" ? Reflect.get(value, key) : undefined;
+
 /**
- * What a Codex event did outside the editor's tools, or null. Only messages, reasoning, the
- * to-do list, errors and calls to EdiAula's own MCP server are allowed; anything else (a
- * command, a file change, a web search, another MCP server, a sub-agent) stops the run.
+ * What a Codex event did outside the application's tools, or null. Only messages, reasoning, the
+ * to-do list, errors and calls to the application's own MCP server (`server`) are allowed;
+ * anything else (a command, a file change, a web search, another MCP server, a sub-agent) stops
+ * the run.
  */
-export function codexGuard(event: Record<string, unknown>): string | null {
+export function codexGuard(event: Record<string, unknown>, server: string): string | null {
   if (typeof event.type !== "string" || !event.type.startsWith("item.")) return null;
-  const item = event.item as { type?: unknown; server?: unknown } | undefined;
-  const type = typeof item?.type === "string" ? item.type : "desconhecido";
+  const itemType = field(event.item, "type");
+  const type = typeof itemType === "string" ? itemType : "desconhecido";
   if (CODEX_ALLOWED.has(type)) return null;
-  if (type === "mcp_tool_call" && item?.server === "ediaula") return null;
-  return type === "mcp_tool_call" ? `mcp_tool_call:${String(item?.server ?? "")}` : type;
+  const itemServer = field(event.item, "server");
+  if (type === "mcp_tool_call" && itemServer === server) return null;
+  return type === "mcp_tool_call" ? `mcp_tool_call:${String(itemServer ?? "")}` : type;
 }
 
 /** What codexGuard stopped, in words for the person. */
@@ -408,7 +295,7 @@ export interface SelfCheckEvidence {
   violation: string | null;
   leaked: boolean;
   completed: boolean;
-  /** Codex called a tool of EdiAula's server: it did follow the request with its tools. */
+  /** Codex called a tool of the application's server: it did follow the request with its tools. */
   editorTool: boolean;
 }
 
@@ -460,8 +347,9 @@ export function messageDelta(shown: Map<string, string>, id: string, text: strin
 }
 
 /**
- * Claude Code for one answer with no tools at all (not even EdiAula's): a translation or a quiz
- * the editor checks itself. The prompt goes on standard input; the answer comes as one JSON.
+ * Claude Code for one answer with no tools at all (not even the application's): a translation
+ * or a quiz the editor checks itself. The prompt goes on standard input; the answer comes as one
+ * JSON.
  */
 export function claudeOneShotArgs(options: { model?: string; effort?: string }): string[] {
   return [
@@ -476,7 +364,7 @@ export function claudeOneShotArgs(options: { model?: string; effort?: string }):
     "--mcp-config",
     JSON.stringify({ mcpServers: {} }),
     ...CLAUDE_SETTING_SOURCES,
-    ...(options.model && options.model !== "default" ? ["--model", options.model] : []),
+    ...modelArgs(options.model),
     ...(options.effort ? ["--effort", options.effort] : []),
   ];
 }
@@ -490,18 +378,19 @@ export function claudeOneShotResult(stdout: string): string {
     .at(-1);
   if (!line) throw new Error("O Claude Code não devolveu resposta.");
   const parsed: unknown = JSON.parse(line);
-  const result: unknown = parsed && typeof parsed === "object" ? Reflect.get(parsed, "result") : "";
-  const failed: unknown =
-    parsed && typeof parsed === "object" ? Reflect.get(parsed, "is_error") : true;
+  const isObject = !!parsed && typeof parsed === "object";
+  const result = isObject ? field(parsed, "result") : "";
+  const failed = isObject ? field(parsed, "is_error") : true;
   if (failed === true || typeof result !== "string")
     throw new Error(`Claude Code: ${typeof result === "string" && result ? result : "falhou"}`);
   return result;
 }
 
-/** Codex for one answer: read-only, without the person's config, without EdiAula's server. */
+/** Codex for one answer: read-only, without the person's config, without any MCP server. */
 export function codexOneShotArgs(options: {
   workspace: string;
   disabledFeatures?: readonly string[];
+  personalOnly?: boolean;
 }): string[] {
   return [
     "exec",
@@ -513,12 +402,10 @@ export function codexOneShotArgs(options: {
     "read-only",
     "-C",
     options.workspace,
+    ...(options.personalOnly ? CODEX_PERSONAL : []),
     "-c",
     'web_search="disabled"',
-    ...(options.disabledFeatures ?? CODEX_DISABLED_FEATURES).flatMap((feature) => [
-      "-c",
-      `features.${feature}=false`,
-    ]),
+    ...featureArgs(options.disabledFeatures),
     "-",
   ];
 }

@@ -1,17 +1,21 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  connectClient,
+  dialogApproval,
+  localMcpUrl,
+  locateClient,
+} from "@informach/edi-desktop/ai-clients";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { createEdiDesktop, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
-import { connectMcpClient } from "@informach/edi-desktop/mcp-config";
 import { ASSET_BYTES } from "@informach/edi-motion/assets";
 import { app, BrowserWindow, dialog, Menu } from "electron";
 import { newProject, parseProject } from "../shared/project.js";
 import { createBridge } from "./aiBridge.js";
 import { readBoundedBytes } from "./boundedBytes";
 import { readBoundedText, SVG_BYTES } from "./boundedText.ts";
-import { createEngineRunner, locateClient } from "./engines.js";
+import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
 import { createProjectFiles } from "./projectFiles.js";
@@ -202,35 +206,50 @@ else {
     .then(async () => {
       await desktop.start();
       await mkdir(app.getPath("userData"), { recursive: true });
+      const mcpUrl = localMcpUrl(MCP_PORT);
       try {
-        mcp = await startMcpServer((name, input) =>
-          !initialized || files?.isBusy() || checkingClose
-            ? Promise.resolve({ ok: false, text: "Aguarde a operação de arquivo." })
-            : bridge.call(name, input),
-        );
+        mcp = await startMcpServer({
+          version: app.getVersion(),
+          // An edit asked by an AI app that may only read and propose waits for the person.
+          approve: dialogApproval({
+            appName: "EdiSVG",
+            scope: () => (win && !win.isDestroyed() ? "edisvg" : null),
+            show: (options) =>
+              win && !win.isDestroyed()
+                ? dialog.showMessageBox(win, options)
+                : dialog.showMessageBox(options),
+          }),
+          call: (name, input) =>
+            !initialized || files?.isBusy() || checkingClose
+              ? Promise.resolve({ ok: false, text: "Aguarde a operação de arquivo." })
+              : bridge.call(name, input),
+        });
       } catch (error) {
-        mcpError = `MCP indisponível na porta 47322: ${error.message}`;
+        mcpError = `MCP indisponível na porta ${MCP_PORT}: ${error.message}`;
       }
       runner = createEngineRunner(
         join(app.getPath("userData"), "ai-workspace"),
-        "http://127.0.0.1:47322/mcp",
+        mcpUrl,
         (event) => {
           if (win && !win.isDestroyed()) win.webContents.send("ai:event", event);
         },
+        { allowElectronRuntime: !app.isPackaged },
       );
-      handle("ai:status", () => ({
-        clients: ["claude", "codex"].map((id) => ({ id, installed: !!locateClient(id) })),
-        mcp: { ready: !!mcp, url: "http://127.0.0.1:47322/mcp", error: mcpError },
+      handle("ai:status", async () => ({
+        clients: await Promise.all(
+          ["claude", "codex"].map(async (id) => ({
+            id,
+            installed: !!(await locateClient(providerClient(id))),
+          })),
+        ),
+        mcp: { ready: !!mcp, url: mcpUrl, error: mcpError },
       }));
       handle("ai:connect", async (client) => {
         if (!["claude", "codex"].includes(client)) throw new Error("Cliente inválido.");
-        if (!locateClient(client))
-          return { ok: false, message: "Cliente oficial não encontrado neste computador." };
-        return connectMcpClient({
-          client: client === "claude" ? "claude-code" : "codex",
-          home: homedir(),
-          name: "edisvg",
-          port: 47322,
+        return connectClient({
+          id: providerClient(client),
+          port: MCP_PORT,
+          serverName: MCP_SERVER.name,
         });
       });
       handle("ai:send", (request) => {

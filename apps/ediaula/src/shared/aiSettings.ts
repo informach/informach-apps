@@ -6,7 +6,6 @@ import {
   EFFORTS,
   type Effort,
 } from "./aiModels.ts";
-import { folderOf } from "./aiPaths.ts";
 
 /**
  * The AI settings kept in ai.json (main/aiSettings.ts) and the changes the settings screen sends
@@ -78,32 +77,3 @@ export const settingsChangesSchema = z.strictObject({
 });
 
 export type SettingsChanges = z.infer<typeof settingsChangesSchema>;
-
-/** A Windows folder compared as Windows does: any case, either slash, no slash at the end. */
-const folderKey = (folder: string): string =>
-  folder.replaceAll("/", "\\").replace(/\\+$/, "").toLowerCase();
-
-const sameFolder = (a: string, b: string): boolean => folderKey(a) === folderKey(b);
-
-const inside = (path: string, folder: string): boolean => {
-  const f = folderKey(folder);
-  return !!f && folderKey(path).startsWith(`${f}\\`);
-};
-
-/**
- * The first program of where.exe's answer that EdiAula may start: an .exe or .cmd, not in the
- * current folder and not inside one of the `untrusted` folders (temporary files, Downloads).
- */
-export function trustedWhich(out: string, untrusted: readonly string[]): string | null {
-  const [cwd, ...rest] = untrusted;
-  for (const line of out.split(/\r?\n/)) {
-    const path = line.trim();
-    if (!/^[a-z]:\\.+\.(exe|cmd)$/i.test(path)) continue;
-    const folder = folderOf(path);
-    if (!folder) continue;
-    if (cwd && sameFolder(folder, cwd)) continue;
-    if (rest.some((dir) => dir && inside(path, dir))) continue;
-    return path;
-  }
-  return null;
-}
