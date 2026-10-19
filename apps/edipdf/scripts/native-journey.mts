@@ -524,12 +524,27 @@ export async function verifyPdfNativeJourney(
     w.unmaximize();
     w.setSize(1100, 760);
   });
-  await editor.waitForFunction(
-    () =>
-      innerWidth <= 1100 &&
-      (document.querySelector<HTMLElement>(".stage")?.scrollTop ?? 9999) < 50 &&
-      document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
-  );
+  await editor
+    .waitForFunction(
+      () =>
+        innerWidth <= 1100 &&
+        (document.querySelector<HTMLElement>(".stage")?.scrollTop ?? 9999) < 50 &&
+        document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
+    )
+    .catch(async (error: unknown) => {
+      const layout = await editor
+        .evaluate(() => ({
+          innerWidth,
+          stageScrollTop: document.querySelector<HTMLElement>(".stage")?.scrollTop ?? null,
+          pageCanvasKeyPresent: Boolean(
+            document.querySelector<HTMLCanvasElement>(".page-canvas")?.dataset.key,
+          ),
+        }))
+        .catch(() => ({ unavailable: true }));
+      throw new Error(`PDF reading layout did not settle: ${JSON.stringify(layout)}`, {
+        cause: error,
+      });
+    });
   await editor.screenshot({ path: join(resultsDirectory, "edipdf-lote3-leitura.png") });
   const command = async (query: string) => {
     await editor.keyboard.press("Control+k");
