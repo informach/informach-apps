@@ -15,8 +15,9 @@ interface Options {
   strokes: boolean;
   checkPrecision: boolean;
 }
-/** Real Edi SVG and independent lottie-web SVG-light consumers. Pixel tolerance
- * is one channel unit; diagnostic precision canaries keep separate assertions. */
+/** Real Edi SVG and independent lottie-web SVG-light consumers. Raw channel
+ * differences above one unit are reported; callers separately bound sparse
+ * edge antialiasing while keeping paint-space and precision canaries strict. */
 export function compareLottiePixels(page: Page, options: Options) {
   return page.evaluate(
     async ({ blueprint, animation, frames, strokes, checkPrecision }) => {
@@ -58,7 +59,8 @@ export function compareLottiePixels(page: Page, options: Options) {
         }[] = [];
         let previous = 0,
           painted = 0,
-          geometricError = 0;
+          geometricError = 0,
+          differenceCount = 0;
         for (const frame of frames) {
           if (frame < previous) {
             edi.reset();
@@ -112,15 +114,19 @@ export function compareLottiePixels(page: Page, options: Options) {
             const reference = expected[index],
               point = points[index];
             if (!reference || !point) throw new Error("Pixel sample missing");
-            if (
-              pixel.some((channel, at) => Math.abs(channel - (reference[at] ?? -999)) > 1) &&
-              differences.length < 20
-            )
-              differences.push({ frame, point, actual: pixel, expected: reference });
+            const delta = Math.max(
+              ...pixel.map((channel, at) => Math.abs(channel - (reference[at] ?? -999))),
+            );
+            if (delta > 1) {
+              differenceCount++;
+              if (differences.length < 20)
+                differences.push({ frame, point, actual: pixel, expected: reference });
+            }
           }
         }
         return {
           differences,
+          differenceCount,
           loaded: player.isLoaded,
           painted,
           totalFrames: player.totalFrames,

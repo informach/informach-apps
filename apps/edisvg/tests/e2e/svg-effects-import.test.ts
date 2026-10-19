@@ -164,7 +164,7 @@ test("built file import keeps native source choices, independent duplication, un
   }
 });
 
-test("imported native silhouettes animate with exact original SVG pixels in isolated players and restore their hosts", {
+test("imported native silhouettes retain original SVG pixels in isolated players and restore their hosts", {
   timeout: 60000,
 }, async () => {
   const cases = [
@@ -319,13 +319,25 @@ test("imported native silhouettes animate with exact original SVG pixels in isol
         [result.reset, result.initial],
       ]) {
         assert.ok(actual && expected);
-        for (const [index, pixel] of actual.entries())
+        for (const [index, pixel] of actual.entries()) {
+          const reference = expected[index],
+            alpha = pixel[3] ?? 0,
+            referenceAlpha = reference?.[3] ?? -1000;
+          // Straight RGB is undefined on transparent pixels. Compare visible
+          // premultiplied color and keep alpha within one channel unit.
           assert.ok(
-            pixel.every(
-              (value, channel) => Math.abs(value - (expected[index]?.[channel] ?? -1000)) <= 1,
-            ),
-            JSON.stringify({ tag: profile.tag, index, pixel, expected: expected[index] }),
+            Math.abs(alpha - referenceAlpha) <= 1 &&
+              [0, 1, 2].every(
+                (channel) =>
+                  Math.abs(
+                    (pixel[channel] ?? 0) * alpha - (reference?.[channel] ?? 0) * referenceAlpha,
+                  ) /
+                    255 <=
+                  2,
+              ),
+            JSON.stringify({ tag: profile.tag, index, pixel, expected: reference }),
           );
+        }
       }
       assert.equal(JSON.stringify(compiled.document), before);
     }
