@@ -122,6 +122,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
           if ($set.ToInt64() -le 0) { throw 'The owned filename control rejected the test destination.' }
         }
         if (![string]::Equals([EdiNativeFileControl]::ReadText($fileHandle),$selected,[StringComparison]::OrdinalIgnoreCase)) { throw 'The filename control did not retain the exact temporary destination.' }
+        Write-Output "Owned EdiPDF filename selection: $([EdiNativeFileControl]::ReadText($fileHandle))"
       }
       # Only exact disposable paths are selected; the caller verifies output bytes.
       $buttonInvoke=$null

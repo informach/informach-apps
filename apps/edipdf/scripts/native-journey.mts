@@ -689,7 +689,10 @@ export async function verifyPdfNativeJourney(
           selectedPath,
         ],
         { windowsHide: true, timeout: 20_000 },
-        (error, stdout) => resolve(error ? new Error(`${error.message}\n${stdout}`) : null),
+        (error, stdout) => {
+          if (stdout) console.log(stdout.trim());
+          resolve(error ? new Error(`${error.message}\n${stdout}`) : null);
+        },
       );
     });
   function resolvePath() {

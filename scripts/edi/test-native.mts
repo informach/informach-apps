@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
@@ -329,6 +329,10 @@ try {
       console.log(`Verified gate, valid signed offline lease, expiration and IPC denial: ${id}`);
     } catch (error) {
       failures.push(error);
+      if (id === "edipdf") {
+        // Read only the isolated fixture's output directory; never user folders.
+        console.log("EdiPDF disposable output entries:", await readdir(root));
+      }
       if (diagnosticEditor && !diagnosticEditor.isClosed()) {
         try {
           await diagnosticEditor.screenshot({ path: join(results, `${id}-failure.png`) });
