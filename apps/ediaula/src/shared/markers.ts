@@ -181,14 +181,21 @@ function placeOf(
 ): number | null {
   const pool = pools.get(assetId, trackId);
   if (!pool) return null;
-  const showing = (pool.buckets.get(Math.floor((s + EPS) / pool.size)) ?? []).filter(
-    (c) => c.in <= s + EPS && sourceEnd(c) > s + EPS,
-  );
-  if (showing.length)
-    return nearest(
-      showing.map((c) => timelineAt(c, s)),
-      hint,
-    );
+  // Ripple settles up to 2,000 markers per commit. Scan the indexed bucket
+  // directly so every marker does not allocate a filtered list and a mapped list.
+  // Strictly closer preserves the original project-order tie break.
+  let showingTime: number | undefined;
+  let showingDistance = Number.POSITIVE_INFINITY;
+  for (const c of pool.buckets.get(Math.floor((s + EPS) / pool.size)) ?? []) {
+    if (c.in > s + EPS || sourceEnd(c) <= s + EPS) continue;
+    const time = timelineAt(c, s);
+    const distance = Math.abs(time - hint);
+    if (distance < showingDistance) {
+      showingTime = time;
+      showingDistance = distance;
+    }
+  }
+  if (showingTime !== undefined) return showingTime;
   // The first in-point at or after s, and every clip that starts its media there.
   const list = pool.byIn;
   let lo = 0;
