@@ -6,6 +6,9 @@ const { chromium } = require("playwright");
 const { RecordingStore } = require("../src/main/recording-store.ts");
 const { Library } = require("../src/main/library.cjs");
 const { VideoStreams } = require("../src/main/video-stream.ts");
+const fixture = {
+  mimeTypeHasOpus: (type) => typeof type === "string" && type.includes("opus"),
+};
 async function run() {
   const parent = path.resolve(__dirname, "../test-results/recording-renderer");
   await fs.mkdir(parent, { recursive: true });
@@ -68,7 +71,16 @@ async function run() {
     server: { host: "127.0.0.1", port: 0 },
   });
   await server.listen();
-  const browser = await chromium.launch({ headless: true });
+  // Chromium's fake microphone plays a steady beep: the sound test needs a real signal.
+  const browser = await chromium.launch({
+    headless: true,
+    // Electron's default autoplay policy: sound starts without a click, as in the app.
+    args: [
+      "--use-fake-device-for-media-stream",
+      "--use-fake-ui-for-media-stream",
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  });
   const failures = [];
   try {
     for (const mode of [
@@ -77,6 +89,7 @@ async function run() {
       "resume-stop-error",
       "backpressure",
       "disk-error",
+      "sound-pause",
     ]) {
       const session = await store.begin(library.root, 60);
       const page = await browser.newPage();
@@ -100,11 +113,13 @@ async function run() {
             })
           : null;
       const firstBarrier =
-        mode !== "disk-error"
-          ? new Promise((resolve) => {
-              releaseFirst = resolve;
-            })
-          : null;
+        mode === "sound-pause"
+          ? Promise.resolve()
+          : mode !== "disk-error"
+            ? new Promise((resolve) => {
+                releaseFirst = resolve;
+              })
+            : null;
       const resumeBarrier = mode.startsWith("resume-stop")
         ? new Promise((resolve) => {
             releaseResume = resolve;
@@ -159,8 +174,21 @@ async function run() {
         return true;
       });
       await page.addInitScript(
-        ({ session }) => {
+        ({ session, sound }) => {
           window.fixture = {
+            saves: [],
+            options: {
+              version: 1,
+              // A saved microphone that is no longer connected: the controller falls back.
+              microphone: {
+                enabled: sound,
+                volume: 100,
+                muted: false,
+                deviceId: sound ? "microfone-desconectado" : "",
+              },
+              system: { enabled: sound, volume: 80, muted: false },
+              countdown: sound ? 1 : 0,
+            },
             notices: [],
             callbacks: {},
             started: false,
@@ -178,13 +206,15 @@ async function run() {
           window.MediaRecorder = class extends NativeRecorder {
             constructor(...args) {
               super(...args);
+              fixture.mimeType = this.mimeType;
               this.addEventListener("dataavailable", (event) => fixture.emitted.push(event.data));
               this.addEventListener("stop", () => {
                 fixture.stopped = true;
               });
             }
           };
-          navigator.mediaDevices.getDisplayMedia = async () => {
+          navigator.mediaDevices.getDisplayMedia = async (constraints) => {
+            fixture.displayConstraints = constraints;
             const canvas = document.createElement("canvas");
             canvas.width = 640;
             canvas.height = 480;
@@ -204,6 +234,17 @@ async function run() {
             paint();
             const stream = canvas.captureStream(30);
             const timer = setInterval(paint, 33);
+            if (constraints?.audio) {
+              // The computer's sound: a quiet tone, as Windows loopback would hand it.
+              const context = new AudioContext();
+              const tone = context.createOscillator();
+              const level = context.createGain();
+              level.gain.value = 0.2;
+              const out = context.createMediaStreamDestination();
+              tone.connect(level).connect(out);
+              tone.start();
+              stream.addTrack(out.stream.getAudioTracks()[0]);
+            }
             fixture.tracks = stream.getTracks();
             const monitor = setInterval(() => {
               if (fixture.tracks.every((track) => track.readyState === "ended")) {
@@ -275,15 +316,26 @@ async function run() {
               fixture.notices.push(message);
             },
             finish: async () => fixture.recover(),
+            recordOptions: async () => ({ ...fixture.options, error: null }),
+            recordOptionsSave: async (options) => {
+              fixture.saves.push(options);
+              fixture.options = options;
+              return options;
+            },
+            onTogglePause: (callback) => {
+              fixture.callbacks.togglePause = callback;
+            },
             cancel: async () => fixture.recover(),
           };
         },
-        { session },
+        { session, sound: mode === "sound-pause" },
       );
       const url = server.resolvedUrls.local[0];
       await page.goto(`${url}src/recording/control.html`);
       await page.waitForFunction(() => window.fixture.started);
-      if (mode !== "disk-error") {
+      if (mode === "sound-pause") {
+        // No disk barrier here: the sound and the manual pause are checked below.
+      } else if (mode !== "disk-error") {
         await page.waitForFunction(() => window.fixture.phase === "paused", { timeout: 45000 });
         const before = await page.locator("#timer").textContent();
         await page.evaluate(
@@ -320,7 +372,63 @@ async function run() {
           throw error;
         }
       } else await page.waitForFunction(() => window.fixture.phase === "failed");
-      if (mode === "resume-stop-event") await page.evaluate(() => window.fixture.callbacks.stop());
+      if (mode === "sound-pause") {
+        await page.waitForFunction(() => window.fixture.phase === "recording");
+        assert.match(await page.locator("#mic-status").textContent(), /não está conectado/);
+        assert.equal(
+          await page.evaluate(() => window.fixture.options.microphone.deviceId),
+          "",
+          "the fallback to the default microphone is saved",
+        );
+        assert.ok(fixture.mimeTypeHasOpus(await page.evaluate(() => window.fixture.mimeType)));
+        assert.equal(
+          JSON.stringify(await page.evaluate(() => window.fixture.displayConstraints.audio)),
+          JSON.stringify({
+            restrictOwnAudio: true,
+            suppressLocalAudioPlayback: false,
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          }),
+        );
+        // Both meters hear their source before the pause.
+        try {
+          await page.waitForFunction(
+            () =>
+              document.querySelector("#mic-level").value > -60 &&
+              document.querySelector("#system-level").value > -60,
+          );
+        } catch (error) {
+          console.error(
+            "Sound meter diagnostic",
+            JSON.stringify(
+              await page.evaluate(() => ({
+                mic: document.querySelector("#mic-level").value,
+                system: document.querySelector("#system-level").value,
+                micStatus: document.querySelector("#mic-status").textContent,
+                systemStatus: document.querySelector("#system-status").textContent,
+                error: document.querySelector("#error").textContent,
+              })),
+            ),
+          );
+          throw error;
+        }
+        await page.waitForFunction(() => window.fixture.emitted.length >= 4);
+        await page.locator("#pause").click();
+        await page.waitForFunction(() => window.fixture.phase === "held");
+        assert.equal(await page.locator("#pause").textContent(), "Retomar");
+        const heldTimer = await page.locator("#timer").textContent();
+        const heldParts = await page.evaluate(() => window.fixture.emitted.length);
+        await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 1500)));
+        assert.equal(await page.locator("#timer").textContent(), heldTimer);
+        assert.equal(await page.evaluate(() => window.fixture.emitted.length), heldParts);
+        // The global shortcut reaches the controller as this event.
+        await page.evaluate(() => window.fixture.callbacks.togglePause());
+        await page.waitForFunction(() => window.fixture.phase === "recording");
+        await page.waitForFunction((parts) => window.fixture.emitted.length > parts + 1, heldParts);
+        await page.locator("#finish").click();
+      } else if (mode === "resume-stop-event")
+        await page.evaluate(() => window.fixture.callbacks.stop());
       else await page.locator("#finish").click();
       if (initialFailureBarrier) {
         assert.equal(saved, undefined);
@@ -387,6 +495,15 @@ async function run() {
       const journal = await store.read(session.sessionId);
       assert.equal(journal.status, "committed");
       assert.ok(journal.durationMs > 0);
+      if (mode === "sound-pause") {
+        const held = phaseEvents.filter((event) => event.phase === "held");
+        assert.equal(held.length, 1, "one manual pause");
+        const wall = Date.now() - beganAt;
+        assert.ok(
+          journal.durationMs < wall - 1400,
+          `active duration ${journal.durationMs} ms leaves out the 1.5 s pause of ${wall} ms`,
+        );
+      }
       const capability = await streams.grant(
         library.root,
         saved.id,

@@ -1,3 +1,4 @@
+import { ocrLanguageSchema, ocrResultSchema } from "@informach/edi-ocr";
 import { z } from "zod";
 import { batchDetailSchema } from "./batch-format.ts";
 import {
@@ -6,7 +7,6 @@ import {
   compressionSourceSchema,
 } from "./compression-task-format.ts";
 import { conversionResultSchema } from "./conversion-format.ts";
-import { ocrLanguageSchema, ocrResultSchema } from "./ocr-format.ts";
 import { printSettingsSchema } from "./print-format.ts";
 import { scannerSettingsSchema } from "./scanner-format.ts";
 export const scanningTaskDetailSchema = z.strictObject({

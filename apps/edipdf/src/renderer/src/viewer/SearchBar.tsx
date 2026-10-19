@@ -1,5 +1,9 @@
+import {
+  DEFAULT_SEARCH_OPTIONS,
+  findTextMatches,
+  type SearchOptions,
+} from "@informach/edi-ocr/search";
 import type { DocContent } from "@shared/model";
-import { DEFAULT_SEARCH_OPTIONS, findTextMatches, type SearchOptions } from "@shared/text-search";
 import { ChevronDown, ChevronUp, Loader2, Search, Settings2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { documentText } from "../lib/document-text";

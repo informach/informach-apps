@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { extname, join } from "node:path";
+import { dialogApproval } from "@informach/edi-desktop/ai-clients";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { app, BrowserWindow, dialog, shell } from "electron";
@@ -255,6 +256,19 @@ function stopAssistantRun(runId: string): void {
   stopEngineRun(run.conversationId);
 }
 
+/**
+ * A write asked by an AI app outside EdiFoto that may only read and propose: a native question
+ * with "Permitir uma vez", "Permitir por 15 min" and "Negar", denied after a minute.
+ */
+const askPerson = dialogApproval({
+  appName: "EdiFoto",
+  scope: () => (win && !win.isDestroyed() ? "edifoto" : null),
+  show: (options) =>
+    win && !win.isDestroyed()
+      ? dialog.showMessageBox(win, options)
+      : dialog.showMessageBox(options),
+});
+
 let mcpQueue: Promise<void> = Promise.resolve();
 function applyMcp(): Promise<void> {
   const pending = mcpQueue.then(synchronizeMcp);
@@ -273,17 +287,22 @@ async function synchronizeMcp(): Promise<void> {
   }
   if (enabled && !mcp.server) {
     try {
-      const server = await startMcpServer(port, (name, input, runId) => {
-        if (!runId) return callTool(win, name, input, "mcp");
-        const run = assistantRuns.get(runId);
-        if (!run || run.stopped)
-          return Promise.resolve({ ok: false, text: "Este pedido já foi encerrado." });
-        run.job.check();
-        return callTool(win, name, input, "assistant", {
-          runId,
-          documentId: run.documentId,
-          workspaceId: run.workspaceId,
-        });
+      const server = await startMcpServer(port, {
+        approve: askPerson,
+        call: (name, input, source, runId, allowed) => {
+          const ended = { ok: false, text: "Este pedido já foi encerrado." };
+          if (!allowed()) return Promise.resolve(ended);
+          if (source === "mcp") return callTool(win, name, input, "mcp");
+          // The in-app chat: the run token is tied to its request.
+          const run = runId ? assistantRuns.get(runId) : undefined;
+          if (!run || run.stopped) return Promise.resolve(ended);
+          run.job.check();
+          return callTool(win, name, input, "assistant", {
+            runId,
+            documentId: run.documentId,
+            workspaceId: run.workspaceId,
+          });
+        },
       });
       mcp = { server, port };
     } catch (err) {

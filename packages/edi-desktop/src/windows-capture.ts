@@ -1,14 +1,26 @@
 import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { win32 } from "node:path";
 import { z } from "zod";
-import { makeWindowsCaptureScript, windowsCaptureScript } from "./windows-capture-script.ts";
-import { windowsPowerShellEnvironment } from "./windows-powershell.ts";
 
-// The fixed bootstrap reads the bundled trusted source before request JSON. Keep large C#
-// source off Windows' 32767-character command line; no renderer input becomes executable code.
-const bootstrap =
-  "[Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); $source=[Console]::ReadLine(); & ([scriptblock]::Create([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($source))))";
-const encodedBootstrap = Buffer.from(bootstrap, "utf16le").toString("base64");
+// The app's own compiled helper (built from @informach/edi-native) answers the fixed commands.
+// Only the main process configures it; no request, renderer value or environment picks the file.
+const helperPathSchema = z
+  .string()
+  .max(32_000)
+  .refine((path) => win32.isAbsolute(path) && /^[A-Za-z]:\\/.test(path), "local absolute path")
+  .refine((path) => /\.exe$/i.test(path) && !/[\0"*<>?|]/.test(path), "executable");
+let helperExecutable: string | null = null;
+
+/** Main process only: the app's `resources/native/<app>-helper.exe` (installed or in development). */
+export function configureWindowsCapture(options: { helper: string }): void {
+  helperExecutable = helperPathSchema.parse(options.helper);
+}
+
+function helper(): string {
+  if (process.platform !== "win32") throw new Error("WINDOWS_UNAVAILABLE");
+  if (!helperExecutable) throw new Error("NATIVE_HELPER_UNCONFIGURED");
+  return helperExecutable;
+}
 
 export const nativeHandleSchema = z
   .string()
@@ -184,19 +196,12 @@ export async function queryWindowsCapture(
     .min(1)
     .max(30_000)
     .parse(options.timeoutMs ?? 15_000);
-  const root = process.env.SystemRoot;
-  if (!root || !/^[A-Za-z]:\\/.test(root)) throw new Error("WINDOWS_UNAVAILABLE");
-  const executable = join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const executable = helper();
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      executable,
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodedBootstrap],
-      {
-        windowsHide: true,
-        stdio: ["pipe", "pipe", "pipe"],
-        env: windowsPowerShellEnvironment(),
-      },
-    );
+    const child = spawn(executable, ["capture"], {
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     let output = "",
       bytes = 0,
       settled = false;
@@ -240,9 +245,7 @@ export async function queryWindowsCapture(
         done(error instanceof Error ? error : new Error("NATIVE_RESPONSE_INVALID"));
       }
     });
-    child.stdin.end(
-      `${Buffer.from(windowsCaptureScript, "utf8").toString("base64")}\n${JSON.stringify(request)}\n`,
-    );
+    child.stdin.end(`${JSON.stringify(request)}\n`);
   });
 }
 export async function nativeWindowBounds(
@@ -274,18 +277,15 @@ export async function nativeCursor(signal?: AbortSignal): Promise<NativeCursor> 
   return cursorSchema.parse(await queryWindowsCapture({ op: "cursor" }, { signal }));
 }
 
-/** One trusted child per capture session. Ready means compilation finished, not capture happened. */
+/** One trusted child per capture session. Ready means the helper started, not capture happened. */
 export async function prepareWindowsCapture(signal?: AbortSignal) {
   signal?.throwIfAborted();
-  const root = process.env.SystemRoot;
-  if (process.platform !== "win32" || !root || !/^[A-Za-z]:\\/.test(root))
-    throw new Error("WINDOWS_UNAVAILABLE");
+  const executable = helper();
   const started = performance.now();
-  const child = spawn(
-    join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-    ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodedBootstrap],
-    { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], env: windowsPowerShellEnvironment() },
-  );
+  const child = spawn(executable, ["capture", "--session"], {
+    windowsHide: true,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
   let closed = false,
     buffer = "",
     bytes = 0;
@@ -349,7 +349,6 @@ export async function prepareWindowsCapture(signal?: AbortSignal) {
   child.stdin.on("error", () => close(new Error("NATIVE_INPUT_FAILED")));
   child.on("close", () => close(new Error("NATIVE_EXIT_FAILED")));
   const ready = response();
-  child.stdin.write(`${Buffer.from(makeWindowsCaptureScript(true), "utf8").toString("base64")}\n`);
   signal?.addEventListener("abort", abort, { once: true });
   if (signal?.aborted) abort();
   await ready;

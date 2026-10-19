@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { findTextMatches, plainText } from "@informach/edi-ocr/search";
 import {
   decodePDFRawStream,
   PDFDict,
@@ -18,7 +19,6 @@ import type { DocContent } from "../src/shared/model.ts";
 import { changePageGeometry } from "../src/shared/page-geometry.ts";
 import { takeEditableAnnotations } from "../src/shared/pdf-annotations.ts";
 import { REDACTION_SANITIZE, sanitizePdf } from "../src/shared/pdf-sanitize.ts";
-import { findTextMatches, plainText } from "../src/shared/text-search.ts";
 
 const require = createRequire(import.meta.url);
 const wasm = await readFile(require.resolve("@embedpdf/pdfium/pdfium.wasm"));

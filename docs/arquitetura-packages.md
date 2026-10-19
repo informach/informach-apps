@@ -275,6 +275,17 @@ Contratos fixos:
 - Token usage persistido/cobrado sempre usa o tipo interno `TokenUsage` (`promptTokens`, `completionTokens`, `totalTokens`). Se o provider expuser `inputTokens`/`outputTokens`, o app normaliza antes de chamar `computeCreditsFromUsage`.
 - `AgentRunRecorder.finish` aceita apenas status terminal (`succeeded`, `failed`, `canceled`); `running` é estado de abertura via `start`.
 
+### 7. Desktop Edi — `edi-*`
+
+Packages da suíte Edi, consumidos pelos apps Electron e incluídos no build de cada um. Regras de fronteira, distribuição e instaladores em [`arquitetura-desktop.md`](./arquitetura-desktop.md).
+
+- `edi-contracts`: contratos públicos puros. `edi-desktop`: integração local (main, preload, mídia, captura Windows). `edi-licensing`: regras do servidor. `edi-releases`: catálogo público assinado.
+- `edi-motion`: modelo e avaliador das animações do EdiSVG.
+- `edi-ocr`: OCR local com Tesseract. Root neutro (schema, limites, estados, geometria, plano de blocos), `/worker` e `/canvas` no renderer, `/search`, `/sensitive` e `/assets` (Node, no build: copia worker, núcleos, modelos e licenças para o app). Modelos e licenças ficam em `packages/edi-ocr/resources`. Ver [`packages/edi-ocr/README.md`](../packages/edi-ocr/README.md).
+- `edi-native`: fontes C# comuns dos helpers Win32 (`csharp/`) e o build Node (`/build`, `/sources`) que compila o helper de cada app com o `csc` do .NET Framework. Não roda no Electron; o app usa o executável de `resources/native`. Ver [`packages/edi-native/README.md`](../packages/edi-native/README.md).
+
+Um package `edi-*` só nasce quando dois apps usam o código ou na extração que migra o primeiro consumidor (regra da [base comum](./propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md)).
+
 ---
 
 ## Inter-package dependencies
@@ -285,6 +296,8 @@ Declaradas em `package.json` com `"workspace:*"`. Exemplos típicos:
 - `billing` → `db`, `auth`, `emails`, `config`. Observabilidade entra por `logger`/`onAudit` injetados pelo app. O package emite `billing.*`, mas quem persiste em `audit.events` é o app.
 - `emails` → `db`. Audit é opcional via `onAudit`; o package emite `email.*` sem acoplar runtime ao `auth`.
 - `ui` → (sem deps internas).
+- `edi-ocr` → (sem deps internas). Externas fixas: `tesseract.js` e `tesseract.js-core` 7.0.0, `zod`.
+- `edi-native` → (sem deps internas nem externas de runtime). Entra como `devDependency` do build do EdiAula e do EdiCaptura.
 - `ai-core` → `db` (para `agent_runs` e `usage_logs` em `schema/ai`), `billing` (para o ciclo reserve/commit/release de créditos), Mastra (`@mastra/*`, incluindo observability) e AI SDK providers (`@ai-sdk/*`). Telemetria própria permanece provider-neutral; exportar para APM externo é responsabilidade do app.
 
 Ciclos proibidos. Turborepo detecta na build.

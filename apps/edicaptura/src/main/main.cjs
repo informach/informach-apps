@@ -43,14 +43,27 @@ const scrollWorkerEntry = path.join(
     : "scroll-worker.js",
 );
 const { allowCapturePermission } = require("./capture-permission.cjs");
+const { VideoOptionsStore } = require("./video-options.ts");
+const { GuideStore } = require("./guides.ts");
+const { createCaptureAssistant } = require("./assistant.ts");
+const {
+  clientStatus: aiClientStatus,
+  createAssistantEngines,
+} = require("@informach/edi-desktop/ai-clients");
+const { ASSISTANT_GUIDE, ASSISTANT_TOOLS } = require("../domain/assistant.ts");
+const { guidePdf } = require("./guide-export.cjs");
+const { RECORDING_PHASES } = require("../domain/video-options.ts");
 const { pixelRect } = require("../capture/geometry.cjs");
 const { chooseDisplay, frameWindows, controlPosition } = require("../capture/displays.cjs");
+const { nativeHelperPath, useNativeHelper } = require("./native-helper.ts");
 
 app.setPath("userData", path.join(app.getPath("appData"), "edicaptura"));
 if (!app.isPackaged && process.env.EDICAPTURA_TEST_PROFILE)
   app.setPath("userData", path.resolve(process.env.EDICAPTURA_TEST_PROFILE));
 const desktop = createEdiDesktop({
   appId: "edicaptura",
+  // Signing out here or in another tool ends the assistant's task and its token.
+  onSignedOut: () => assistant?.stop(),
   preloadPath: path.join(__dirname, "../preload/edi-gate.cjs"),
   rendererRoot: path.join(__dirname, "../renderer"),
   getRecoveryWindow: () =>
@@ -67,6 +80,7 @@ const desktop = createEdiDesktop({
     "record:failed",
     "record:ready",
     "record:phase",
+    "record:options",
     "control:finish",
     "control:state",
     "capture:cancel",
@@ -85,6 +99,9 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 const recordingStore = new RecordingStore(path.join(app.getPath("userData"), "recordings"));
+const videoOptions = new VideoOptionsStore(
+  path.join(app.getPath("userData"), "video-options.json"),
+);
 let startupRecoveries = [];
 let recoveringVideo = false;
 const videoStreams = new VideoStreams((root) => {
@@ -140,6 +157,7 @@ function startPhoto(input) {
   );
   return photoCapture.start(input, String(display.id));
 }
+let assistant = null;
 let libraryWorkflow,
   librarySwitch = false,
   tray = null;
@@ -401,7 +419,11 @@ async function beginCapture() {
 function openController(mode) {
   closeController();
   const height =
-    mode === "scroll" ? Math.min(720, capture.display.workAreaSize?.height || 720) : 180;
+    mode === "scroll"
+      ? Math.min(720, capture.display.workAreaSize?.height || 720)
+      : mode === "video"
+        ? 340
+        : 180;
   const position = controlPosition(
     capture.rect,
     capture.display,
@@ -783,6 +805,14 @@ async function finishScrollCapture(active, overlap) {
   }
 }
 
+/** The sound the person turned on for the quick video; nothing outside a video capture. */
+function recordingAudio() {
+  if (capture?.mode !== "video" || capture.stopRequested || capture.restricted)
+    return { microphone: false, system: false };
+  const options = videoOptions.read();
+  return { microphone: options.microphone.enabled, system: options.system.enabled };
+}
+
 function controlState() {
   if (photoCapture?.busy && photoState)
     return { mode: "photo", ...photoState, cancelShortcut: photoCancelShortcut };
@@ -876,6 +906,7 @@ async function initialize() {
   let profileError;
   try {
     await photoPreferences.load();
+    await videoOptions.load();
   } catch (error) {
     profileError = error.message;
   }
@@ -922,6 +953,7 @@ async function initialize() {
         started: capture?.recordStarted,
         permission,
         details,
+        audio: recordingAudio(),
       }),
     ),
   );
@@ -946,7 +978,7 @@ async function initialize() {
         active.recordStarted &&
         !active.stopRequested &&
         !active.restricted &&
-        !request.audioRequested &&
+        (!request.audioRequested || recordingAudio().system) &&
         request.videoRequested
       );
     };
@@ -958,7 +990,14 @@ async function initialize() {
           thumbnailSize: { width: 0, height: 0 },
         }),
       );
-      callback(source ? { video: source } : null);
+      // Windows loopback; the controller asks Chromium to leave its own sound out.
+      callback(
+        source
+          ? request.audioRequested
+            ? { video: source, audio: "loopback" }
+            : { video: source }
+          : null,
+      );
     } catch {
       callback(null);
     }
@@ -1253,6 +1292,103 @@ async function initialize() {
   handle("library:list", ["editor"], (query) => library.list(query));
   handle("library:read", ["editor"], (id) => library.read(id));
   handle("library:update", ["editor"], (data) => library.updateMetadata(data));
+  // Optional assistant on the person's own Claude Code/Codex subscription (phase 8).
+  const aiLaunch = () => ({ allowElectronRuntime: !app.isPackaged, personalOnly: true });
+  assistant = createCaptureAssistant({
+    version: app.getVersion(),
+    emit: (event) => send("ai-event", event),
+    engines: createAssistantEngines({
+      appName: "EdiCaptura",
+      server: { name: "edicaptura", tokenEnv: "EDICAPTURA_MCP_TOKEN" },
+      systemPrompt: ASSISTANT_GUIDE,
+      workspace: () => {
+        const dir = path.join(app.getPath("userData"), "ai-workspace");
+        require("node:fs").mkdirSync(dir, { recursive: true });
+        return dir;
+      },
+      toolTitle: (name) => ASSISTANT_TOOLS[name]?.title ?? name,
+      launchOptions: aiLaunch,
+      personalOnly: true,
+      sessions: false,
+      scopes: ["read", "propose"],
+      timeoutMs: 10 * 60_000,
+      warn: (event) => console.warn(`[edicaptura] ${event}`),
+    }),
+  });
+  handle("ai:clients", ["editor"], () =>
+    aiClientStatus({ ...aiLaunch(), port: 0, serverName: "edicaptura" }),
+  );
+  handle("ai:task-start", ["editor"], (input) => assistant.start(input));
+  handle("ai:task-stop", ["editor"], () => assistant.stop());
+  // Guides live in the current library folder; a root switch gives a new store.
+  let guides = null;
+  const guideStore = () => {
+    if (guides?.root !== library.root) guides = new GuideStore(library.root);
+    return guides;
+  };
+  handle("guide:list", ["editor"], () => guideStore().list());
+  handle("guide:read", ["editor"], (id) => guideStore().read(id));
+  handle("guide:save", ["editor"], (input) => {
+    if (
+      !input ||
+      typeof input !== "object" ||
+      !Array.isArray(input.assets) ||
+      input.assets.length > 200
+    )
+      throw new Error("Guia inválido.");
+    const assets = input.assets.map((asset) => {
+      if (!(asset?.bytes instanceof Uint8Array) || typeof asset.id !== "string")
+        throw new Error("Imagem de passo inválida.");
+      return { id: asset.id, bytes: asset.bytes };
+    });
+    return guideStore().save(input.guide, assets);
+  });
+  handle("guide:trash", ["editor"], (input) => guideStore().trash(input?.id, !!input?.deleted));
+  handle("guide:export", ["editor"], async (input) => {
+    const format = input?.format;
+    if (!["html", "pdf"].includes(format)) throw new Error("Formato de guia inválido.");
+    const store = guideStore();
+    const { guide, html } = await store.html(input.id);
+    const safeName =
+      guide.title
+        .split("")
+        .map((character) =>
+          character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character) ? "-" : character,
+        )
+        .join("")
+        .trim()
+        .slice(0, 120) || "Guia";
+    const result = await dialog.showSaveDialog(editor, {
+      defaultPath: path.join(app.getPath("documents"), `${safeName}.${format}`),
+      filters: [{ name: format.toUpperCase(), extensions: [format] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    desktop.assertAccess();
+    const bytes =
+      format === "html" ? Buffer.from(html, "utf8") : await guidePdf(html, { app, BrowserWindow });
+    desktop.assertAccess();
+    await atomicWrite(result.filePath, bytes);
+    return result.filePath;
+  });
+  handle("ocr:read", ["editor"], (id) => library.readOcr(id));
+  // The recognized words cross as one JSON string: a long scroll capture has more words than
+  // the IPC structure limit allows as objects. The library validates the parsed result.
+  handle("ocr:save", ["editor"], (input) => {
+    if (typeof input?.resultJson !== "string" || input.resultJson.length > 30_000_000)
+      throw new Error("Texto reconhecido inválido.");
+    return library.saveOcr({
+      id: input.id,
+      languages: input.languages,
+      result: JSON.parse(input.resultJson),
+    });
+  });
+  handle("ocr:edit", ["editor"], (input) => library.editOcr(input));
+  handle("ocr:delete", ["editor"], (id) => library.deleteOcr(id));
+  handle("ocr:copy-text", ["editor"], (text) => {
+    if (typeof text !== "string" || text.length > 2_000_000) throw new Error("Texto inválido.");
+    clipboard.writeText(text);
+    return true;
+  });
   handle("library:recover", ["editor"], async (id) => {
     await library.recover(id);
     return library.read(id);
@@ -1434,6 +1570,15 @@ async function initialize() {
     return result.filePath;
   });
   handle("control:state", ["controller"], controlState);
+  handle("record:options", ["controller"], () => ({
+    ...videoOptions.read(),
+    error: videoOptions.error,
+  }));
+  handle("record:options-save", ["controller"], async (input) => {
+    if (capture?.mode !== "video" || capture.recordStarted)
+      throw new Error("As opções de vídeo valem antes de começar a gravar.");
+    return videoOptions.save(input);
+  });
   handle("control:next", ["controller"], (overlap) => nextSegment(false, overlap ?? null));
   handle("control:finish", ["controller"], finishCapture);
   handle("scroll:review", ["controller"], reviewScroll);
@@ -1481,11 +1626,7 @@ async function initialize() {
     return true;
   });
   handle("record:phase", ["controller"], (phase) => {
-    if (
-      capture?.mode !== "video" ||
-      !capture.recordStarted ||
-      !["recording", "paused", "finalizing", "failed"].includes(phase)
-    )
+    if (capture?.mode !== "video" || !capture.recordStarted || !RECORDING_PHASES.includes(phase))
       throw new Error("Estado de gravação inválido.");
     capture.recordingState = phase;
     controller?.webContents.send("control-update", controlState());
@@ -1571,6 +1712,15 @@ async function initialize() {
   globalShortcut.register("CommandOrControl+Shift+F10", () => {
     if (capture?.mode === "video") stopRecording();
   });
+  globalShortcut.register("CommandOrControl+Shift+F9", () => {
+    if (
+      capture?.mode === "video" &&
+      capture.recordStarted &&
+      controller &&
+      !controller.isDestroyed()
+    )
+      controller.webContents.send("record-toggle-pause");
+  });
   globalShortcut.register("CommandOrControl+Shift+PageDown", () => {
     try {
       desktop.assertAccess();
@@ -1633,6 +1783,8 @@ else {
   app
     .whenReady()
     .then(async () => {
+      // Window queries, focus/wheel and the file clipboard all run in the app's own compiled helper.
+      useNativeHelper(nativeHelperPath(app));
       await desktop.start();
       await initialize();
     })
@@ -1641,5 +1793,8 @@ else {
       app.quit();
     });
 }
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  void assistant?.close();
+});
 app.on("window-all-closed", () => app.quit());

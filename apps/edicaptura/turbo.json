@@ -1,0 +1,20 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [
+        "out/**",
+        "resources/native/edicaptura-helper.exe",
+        "resources/native/edicaptura-helper.json"
+      ],
+      "passThroughEnv": ["CSC"]
+    },
+    "dev": {
+      "passThroughEnv": ["CSC"]
+    },
+    "test": {
+      "passThroughEnv": ["CSC"]
+    }
+  }
+}

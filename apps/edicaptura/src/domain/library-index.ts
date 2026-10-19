@@ -28,6 +28,8 @@ export const querySchema = z.strictObject({
   sourceApp: z.string().max(120).default(""),
   from: z.union([z.literal(""), z.iso.date()]).default(""),
   to: z.union([z.literal(""), z.iso.date()]).default(""),
+  /** Also look in the text recognized in the images (opt-in; loaded on first use). */
+  content: z.boolean().default(false),
   offset: z.number().int().min(0).max(10_000_000).default(0),
   limit: z.number().int().min(1).max(60).default(60),
 });
@@ -43,6 +45,12 @@ export class LibraryIndex {
   private entries = new Map<string, LibraryEntry>();
   private texts = new Map<string, string>();
   private inverted = new Map<string, Set<string>>();
+  /** Normalized recognized text by capture; searched linearly, never truncated. */
+  private content = new Map<string, string>();
+  setContent(id: string, text: string | null) {
+    if (text?.trim()) this.content.set(id, normalize(text.replace(/\s+/g, " ")));
+    else this.content.delete(id);
+  }
   upsert(value: LibraryEntry) {
     const previous = this.texts.get(value.id);
     if (previous)
@@ -74,12 +82,15 @@ export class LibraryIndex {
     const buckets = [...grams(search)]
       .map((gram) => this.inverted.get(gram) || new Set<string>())
       .sort((a, b) => a.size - b.size);
-    const candidateIds = buckets[0] || this.entries.keys();
+    // Content search scans every entry: recognized text is not in the trigram index.
+    const candidateIds =
+      q.content && search ? this.entries.keys() : buckets[0] || this.entries.keys();
     const found: LibraryEntry[] = [];
     for (const id of candidateIds) {
       const entry = this.entries.get(id);
-      if (!entry || buckets.some((ids) => !ids.has(id)) || !this.texts.get(id)?.includes(search))
-        continue;
+      if (!entry) continue;
+      const named = !buckets.some((ids) => !ids.has(id)) && !!this.texts.get(id)?.includes(search);
+      if (!named && !(q.content && search && this.content.get(id)?.includes(search))) continue;
       if (
         Boolean(entry.deletedAt) !== q.trash ||
         (q.kind && entry.kind !== q.kind) ||

@@ -19,11 +19,19 @@
  * The microphone processing Chromium applies by default (echo cancellation, noise suppression,
  * automatic gain) is off on the fallback: it is the lesson's sound, not a voice in a call.
  */
+import { windowsBuild } from "@informach/edi-desktop/audio";
+
+// The Chromium loopback contract and the Windows build checks are shared with EdiCaptura.
+export {
+  excludesOwnAudio,
+  PROCESS_LOOPBACK_BUILD,
+  SYSTEM_AUDIO_CONSTRAINTS,
+  type SystemAudioSettings,
+  windowsBuild,
+} from "@informach/edi-desktop/audio";
+
 export const SYSTEM_AUDIO_ROUTES = ["native", "chromium"] as const;
 export type SystemAudioRoute = (typeof SYSTEM_AUDIO_ROUTES)[number];
-
-/** Windows 10 version 2004 (build 19041) brought process loopback. */
-export const PROCESS_LOOPBACK_BUILD = 19041;
 
 /**
  * From this build on Windows leaves a window out of every capture (WDA_EXCLUDEFROMCAPTURE, what
@@ -37,34 +45,6 @@ export function screenCaptureProblem(platform: string, release: string): string 
   if (platform !== "win32" || windowsBuild(release) >= CAPTURE_EXCLUSION_BUILD) return null;
   return "Gravar a tela precisa do Windows 10 versão 2004 ou mais novo: nesta versão os controles do gravador cobririam a gravação de preto. Atualize o Windows, ou grave só a voz.";
 }
-
-/** The build number of a Windows release string ("10.0.22631"), 0 when it is not one. */
-export function windowsBuild(text: string): number {
-  const parts = /^(\d+)\.(\d+)\.(\d+)/.exec(text);
-  return parts ? Number(parts[3]) : 0;
-}
-
-export const SYSTEM_AUDIO_CONSTRAINTS = {
-  restrictOwnAudio: true,
-  suppressLocalAudioPlayback: false,
-  echoCancellation: false,
-  noiseSuppression: false,
-  autoGainControl: false,
-} as const;
-
-/** What the captured track reports about itself (MediaStreamTrack.getSettings()). */
-export interface SystemAudioSettings {
-  restrictOwnAudio?: boolean;
-  deviceId?: string;
-}
-
-/**
- * The track really leaves the recorder window's own sound out: the constraint was applied AND
- * the audio service opened the process loopback ("loopbackWithoutChrome"). A Windows or Chromium
- * without process loopback hands the plain loopback instead.
- */
-export const excludesOwnAudio = (settings: SystemAudioSettings): boolean =>
-  settings.restrictOwnAudio === true && settings.deviceId === "loopbackWithoutChrome";
 
 /**
  * Whether a take records the computer's sound. `excludesApp` is true on the native route (every

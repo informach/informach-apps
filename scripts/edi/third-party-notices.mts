@@ -4,8 +4,9 @@ import { basename, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { z } from "zod";
-import { hasNativeMedia } from "../../packages/config/src/edi-tools.ts";
+import { hasNativeMedia, hasOcr } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
+import { OCR_LICENSES_DIRECTORY, ocrLicenseFiles } from "../../packages/edi-ocr/src/assets.ts";
 
 const execute = promisify(execFile);
 const licensesSchema = z.record(
@@ -96,6 +97,16 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
       // CC BY-SA attribution has to travel with the installer.
       `\n--- Portuguese word list (glossary) ---\n${await readFile(fileURLToPath(new URL("../../apps/ediaula/src/shared/lexicon/LICENSE-pt-words.txt", import.meta.url)), "utf8")}`,
     );
+  if (hasOcr(appId)) {
+    // The WebAssembly core of tesseract.js-core compiles these libraries in, and the
+    // tessdata_fast models are data files: neither is an npm package of its own.
+    sections.push(
+      "The local OCR engine (tesseract.js and tesseract.js-core 7.0.0) runs Tesseract compiled to WebAssembly together with Leptonica, libjpeg, libpng, libtiff, libwebp, giflib, zlib and openlibm. The por/eng/spa models are tessdata_fast files, unmodified, pinned by SHA-256 in ocr/sources.json inside app.asar. Their license texts are installed in ocr/licenses inside app.asar and follow.",
+    );
+    for (const license of ocrLicenseFiles())
+      if (/^(OCR-|Tessdata-)/.test(license.name))
+        sections.push(`\n--- ${license.name} ---\n${await readFile(license.path, "utf8")}`);
+  }
   for (const dependency of packages) {
     sections.push(
       `\n${"=".repeat(72)}\n${dependency.name} ${dependency.versions.join(", ")}\nLicense: ${dependency.license}${dependency.homepage ? `\nHomepage: ${dependency.homepage}` : ""}`,
@@ -114,19 +125,15 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
         // The author supplied the missing notice in upstream issue #4, commit
         // 3a6f29721e7063b9ffd421e461a54beae6170001. Distribute that verbatim text;
         // do not relax the missing-notice error for other packages or versions.
+        // It reaches the graph through tesseract.js, so the text lives with @informach/edi-ocr.
         if (
-          appId === "edipdf" &&
+          hasOcr(appId) &&
           dependency.name === "tr46" &&
           dependency.versions.length === 1 &&
           dependency.versions[0] === "0.0.3" &&
           dependency.license === "MIT"
         ) {
-          const content = await readFile(
-            fileURLToPath(
-              new URL("../../apps/edipdf/resources/licenses/TR46-MIT.txt", import.meta.url),
-            ),
-            "utf8",
-          );
+          const content = await readFile(join(OCR_LICENSES_DIRECTORY, "TR46-MIT.txt"), "utf8");
           documents.set(content, "LICENSE.md (author-supplied notice, upstream issue #4)");
           continue;
         }

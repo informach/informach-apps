@@ -122,6 +122,21 @@ const { VideoStreams } = require("../src/main/video-stream.ts");
       window.fixture = {};
       window.ediSuite = { onRecovery() {} };
       window.edi = {
+        // Phase 6–8 preload methods, inert here: no recognized text, guides or assistant clients.
+        ocrRead: async () => null,
+        ocrSave: async () => null,
+        ocrEdit: async () => null,
+        ocrDelete: async () => true,
+        ocrCopyText: async () => true,
+        guideList: async () => [],
+        guideRead: async () => null,
+        guideSave: async () => null,
+        guideTrash: async () => null,
+        guideExport: async () => null,
+        aiClients: async () => [],
+        aiTaskStart: async () => ({ runId: "" }),
+        aiTaskStop: async () => false,
+        onAiEvent() {},
         recordRecoveries: async () => [],
         status: async () => ({ version: "test", captureShortcut: "PrintScreen" }),
         monitors: async () => ({ selected: "cursor", displays: [] }),

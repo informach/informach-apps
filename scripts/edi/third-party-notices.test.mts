@@ -11,7 +11,7 @@ it("distributes complete EdiPDF runtime notices, including the author-supplied t
     const count = await writeThirdPartyNotices("edipdf", directory);
     const notices = await readFile(join(directory, "THIRD-PARTY-NOTICES.txt"), "utf8");
     const license = await readFile(
-      new URL("../../apps/edipdf/resources/licenses/TR46-MIT.txt", import.meta.url),
+      new URL("../../packages/edi-ocr/resources/licenses/TR46-MIT.txt", import.meta.url),
     );
     expect(count).toBeGreaterThan(50);
     expect(notices).toContain("pptxgenjs 4.0.1");
@@ -21,6 +21,18 @@ it("distributes complete EdiPDF runtime notices, including the author-supplied t
       "eeed1ca176eebad5c73870e233cfff03981fecd319c969475dfa3633036c336b",
     );
     expect(notices).not.toMatch(/\nhttps 1\.0\.0\n/);
+    // tesseract.js now arrives through @informach/edi-ocr; its compiled libraries come from
+    // the catalog's `ocr` capability.
+    expect(notices).toContain("tesseract.js 7.0.0");
+    expect(notices).toContain(
+      await readFile(
+        new URL(
+          "../../packages/edi-ocr/resources/licenses/OCR-Leptonica-LICENSE.txt",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

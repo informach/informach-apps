@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { plainText } from "@informach/edi-ocr/search";
 import { strToU8 } from "fflate";
 import { LocalPdfEngine } from "../src/shared/local-engine.ts";
 import { exportDocx, exportXlsx } from "../src/shared/office-export.ts";
@@ -9,7 +10,6 @@ import { officeDocumentSchema } from "../src/shared/office-format.ts";
 import { importDocx, importXlsx, spreadsheetDocument } from "../src/shared/office-import.ts";
 import { readOfficePackage, writeOfficePackage } from "../src/shared/office-package.ts";
 import { renderOfficePdf } from "../src/shared/office-render.ts";
-import { plainText } from "../src/shared/text-search.ts";
 
 const require = createRequire(import.meta.url),
   engine = await LocalPdfEngine.create(

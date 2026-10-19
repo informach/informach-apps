@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { lock } from "proper-lockfile";
 import { type AST, getStaticTOMLValue, parseTOML } from "toml-eslint-parser";
 import { z } from "zod";
-import { createClientGrant, grantForBearer, revokeClientGrants, revokeGrant } from "./access";
+import { createClientGrant, grantForBearer, revokeClientGrants, revokeGrant } from "./access.ts";
 
 function index(source: string) {
   const tree = parseTOML(source, { tomlVersion: "1.0" });

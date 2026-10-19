@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_SEARCH_OPTIONS, findTextMatches } from "../src/shared/text-search.ts";
+import { DEFAULT_SEARCH_OPTIONS, findTextMatches } from "@informach/edi-ocr/search";
 
 const glyphs = (text: string) =>
   [...text].map((text, index) => ({

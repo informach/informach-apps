@@ -205,3 +205,14 @@ export const AI_TOOLS = {
     input: z.object({}).strict(),
   },
 };
+
+/** Tools that only look at the project or move the view (artboard, clip, frame) without editing it. */
+const VIEW_TOOLS = new Set(["select_artboard", "select_clip", "seek_frame"]);
+
+/**
+ * What a tool needs from the token that calls it (the local MCP guard). Reading and moving the
+ * view are reads; everything else edits the project. Clients connected with "Conectar" read and
+ * propose, so each of their edits asks the person first; the in-app assistant edits.
+ */
+export const toolPermission = (name) =>
+  name.startsWith("get_") || VIEW_TOOLS.has(name) ? "read" : "write";

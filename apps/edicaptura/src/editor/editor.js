@@ -1,14 +1,17 @@
 import { hydrateIcons, icon } from "../shared/icons.js";
+import { createAssistant, mountCaptureAssistant } from "./assistant.js";
 import { CanvasEditor } from "./canvas.js";
+import { mountGuides } from "./guides.js";
 import { mountLibrary } from "./library.js";
 import { installPhotoPresets, photoOptions } from "./photo-presets.js";
 import { mountQuickVideo } from "./quick-video.js";
 import { mountRecordingRecovery } from "./recording-recovery.js";
+import { mountTextPanel } from "./text-panel.js";
 
 hydrateIcons();
 const $ = (id) => document.getElementById(id),
   api = window.edi;
-let quickPanel;
+let quickPanel, textPanel, guidePanel, assistantPanel;
 let current = null,
   entries = [],
   zoom = 1,
@@ -174,6 +177,12 @@ function setTool(id) {
   syncProperties(id);
 }
 function syncProperties(kind) {
+  const step = engine.annotations[engine.selected];
+  const stepNumber = document.getElementById("step-number");
+  if (stepNumber) {
+    stepNumber.value = step?.kind === "steps" ? String(step.number) : "";
+    stepNumber.disabled = step?.kind !== "steps";
+  }
   const text = ["text", "callout"].includes(kind),
     color = ["blur", "redact", "crop", "image"].includes(kind);
   $("font-size").hidden = !text;
@@ -353,6 +362,8 @@ async function activateDocument(doc, generation, request, authority) {
   else engine.clear();
   current = doc;
   quickPanel?.activate(doc);
+  textPanel?.activate(doc);
+  assistantPanel?.activate(doc);
   revision = 0;
   savedRevision = 0;
   visualRevision = savedVisualRevision = 0;
@@ -917,7 +928,17 @@ $("canvas-viewport").addEventListener(
 $("canvas-viewport").addEventListener("pointercancel", () => {
   pan = null;
 });
-api.onDocument(safe(open));
+// During "Capturar passos" a new capture becomes a guide step instead of opening.
+api.onDocument(
+  safe(async (doc) => {
+    try {
+      if (await guidePanel?.capture(doc)) return;
+    } catch (error) {
+      toast(`Não entrou no guia: ${error.message} A captura foi aberta.`, true);
+    }
+    await open(doc);
+  }),
+);
 api.onNotice(({ message, error }) => toast(message, error));
 api.onMonitors(renderMonitors);
 api.onBeforeClose(
@@ -977,6 +998,8 @@ function clearDocument() {
   current = null;
   revision = savedRevision = visualRevision = savedVisualRevision = 0;
   engine.clear();
+  textPanel?.activate(null);
+  assistantPanel?.activate(null);
   $("document-name").value = "Nenhuma captura aberta";
   $("save-status").textContent = "";
   $("video-preview").pause();
@@ -1302,3 +1325,54 @@ quickPanel = mountQuickVideo({
 
 quickPanel.activate(current);
 quickPanel.show(view === "editor");
+textPanel = mountTextPanel({ api, engine, current: () => current, toast });
+textPanel.activate(current);
+const assistant = createAssistant({ api });
+guidePanel = mountGuides({ api, engine, current: () => current, toast, assistant });
+assistantPanel = mountCaptureAssistant({
+  assistant,
+  engine,
+  current: () => current,
+  visibleText: () => textPanel.shareableText(),
+  toast,
+  // Name and tags go through the same metadata update as the library; undo uses it too.
+  apply: async ({ name, tags }) => {
+    const target = current;
+    await api.update({ id: target.id, name, tags });
+    if (current !== target) return;
+    target.name = name;
+    target.tags = tags;
+    $("document-name").value = name;
+    await refreshLibrary();
+  },
+});
+assistantPanel.activate(current);
+// Steps (A04): renumbering is always explicit and previewed; repeated numbers from older
+// projects change only here. A number given to a step that another uses swaps the two.
+const stepTools = document.createElement("details");
+stepTools.innerHTML = `<summary>Passos numerados</summary><p id="steps-preview" role="status"></p><div class="object-actions"><button type="button" data-image-action id="steps-reading">Renumerar pela posição na imagem</button><button type="button" data-image-action id="steps-current">Renumerar mantendo a ordem atual</button></div><label>Número do passo selecionado <input id="step-number" type="number" min="1" max="1000"></label><button type="button" data-image-action id="step-number-apply">Aplicar número</button>`;
+document.querySelector(".editor-extras").append(stepTools);
+const describePlan = (plan) =>
+  plan.length
+    ? plan.map(([, from, to]) => `${from}→${to}`).join(", ")
+    : "Os passos já estão em sequência.";
+stepTools.addEventListener("toggle", () => {
+  if (!stepTools.open) return;
+  $("steps-preview").textContent =
+    `Pela posição: ${describePlan(engine.renumberPlan("reading"))}. Ordem atual: ${describePlan(engine.renumberPlan("current"))}.`;
+});
+for (const [id, order] of [
+  ["steps-reading", "reading"],
+  ["steps-current", "current"],
+])
+  $(id).onclick = safe(async () => {
+    const changed = engine.renumberSteps(order);
+    $("steps-preview").textContent = changed
+      ? `${changed} passo(s) renumerado(s). Desfazer volta os números anteriores.`
+      : "Os passos já estão em sequência.";
+    updateState();
+  });
+$("step-number-apply").onclick = safe(async () => {
+  engine.setStepNumber(engine.selected, Number($("step-number").value));
+  updateState();
+});

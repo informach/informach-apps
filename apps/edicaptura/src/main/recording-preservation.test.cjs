@@ -176,7 +176,7 @@ async function harness({
       .replace(/^import .*;\r?\n/gm, "")
       .replace("export function", "function")
       .replace("export const", "const") +
-      "\nwindow.ediSuite.onRecovery(setupRecording(api, toast));",
+      "\nwindow.ediSuite.onRecovery(setupRecording(api, toast).finish);",
     context,
   );
   return {

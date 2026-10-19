@@ -2,16 +2,15 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { mintRunToken } from "@informach/edi-desktop/access";
-import { app } from "electron";
-import { clientLaunch, locateClient, mcpUrl } from "./aiSettings.ts";
 import {
   CLAUDE_SETTING_SOURCES,
   claudeMcpConfig,
+  endChild,
   engineEnv,
   type Launch,
-  MCP_TOKEN_ENV,
-} from "./engineArgs.ts";
-import { killTree } from "./processTree.ts";
+} from "@informach/edi-desktop/ai-clients";
+import { app } from "electron";
+import { clientLaunch, locateClient, MCP_SERVER, mcpUrl } from "./aiSettings.ts";
 
 /** The terminal stays usable for a working day; its token goes away when the window closes. */
 const WINDOW_TTL_MS = 12 * 3600_000;
@@ -28,8 +27,8 @@ const windows = new Map<ChildProcess, () => void>();
 export function migrateRestrictedConfig(port: number): void {
   const dir = folder();
   const config = join(dir, "mcp.json");
-  if (existsSync(config) && !readFileSync(config, "utf8").includes(`\${${MCP_TOKEN_ENV}}`))
-    writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
+  if (existsSync(config) && !readFileSync(config, "utf8").includes(`\${${MCP_SERVER.tokenEnv}}`))
+    writeFileSync(config, claudeMcpConfig(mcpUrl(port), MCP_SERVER));
   rmSync(join(dir, "abrir-claude.cmd"), { force: true });
 }
 
@@ -37,9 +36,7 @@ export function migrateRestrictedConfig(port: number): void {
 export function closeRestrictedWindows(): void {
   for (const [child, revoke] of windows) {
     revoke();
-    void killTree(child.pid).then((ended) => {
-      if (!ended) child.kill();
-    });
+    endChild(child);
   }
   windows.clear();
 }
@@ -66,7 +63,7 @@ export async function openRestrictedClaude(
   const dir = folder();
   mkdirSync(dir, { recursive: true });
   const config = join(dir, "mcp.json");
-  writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
+  writeFileSync(config, claudeMcpConfig(mcpUrl(port), MCP_SERVER));
   const token = mintRunToken({
     scopes: ["read", "propose", "write"],
     ttlMs: WINDOW_TTL_MS,
@@ -84,7 +81,7 @@ export async function openRestrictedClaude(
         "--tools",
         "",
         "--allowedTools",
-        "mcp__ediaula",
+        `mcp__${MCP_SERVER.name}`,
       ],
       {
         cwd: dir,
@@ -95,7 +92,7 @@ export async function openRestrictedClaude(
         stdio: "ignore",
         env: engineEnv(process.env, {
           minimal: false,
-          token: token.token,
+          token: { env: MCP_SERVER.tokenEnv, value: token.token },
           launch: launch.env,
           claude: true,
         }),

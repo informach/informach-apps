@@ -6,28 +6,32 @@
   "private": true,
   "main": "out/main/main.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "node scripts/build-native-helper.mjs && electron-vite dev",
     "start": "electron-vite preview",
-    "build": "electron-vite build",
-    "test": "node --test src/capture/*.test.cjs src/main/*.test.cjs src/domain/*.test.ts",
-    "test:renderer": "pnpm build && node tests/integrity.cjs && node tests/editor-features.cjs && node tests/editor-review-regressions.cjs && node tests/library-workflows.cjs && node tests/workspace-regressions.cjs && node tests/raster-history.cjs && node tests/capture-modes-renderer.cjs && node tests/capture-precision-renderer.cjs && node tests/scroll-renderer.cjs && node tests/recording-renderer.cjs && node tests/quick-video-renderer.cjs",
+    "build": "node scripts/build-native-helper.mjs && electron-vite build",
+    "test": "node scripts/build-native-helper.mjs && node --test src/capture/*.test.cjs src/main/*.test.cjs src/domain/*.test.ts",
+    "test:renderer": "pnpm build && node tests/integrity.cjs && node tests/editor-features.cjs && node tests/editor-review-regressions.cjs && node tests/library-workflows.cjs && node tests/workspace-regressions.cjs && node tests/raster-history.cjs && node tests/capture-modes-renderer.cjs && node tests/capture-precision-renderer.cjs && node tests/scroll-renderer.cjs && node tests/recording-renderer.cjs && node tests/quick-video-renderer.cjs && node tests/ocr-renderer.cjs && node tests/guides-renderer.cjs && node tests/assistant-renderer.cjs && node --test tests/guide-pdf-native.cjs",
     "typecheck": "tsc --noEmit",
     "test:e2e": "pnpm -w edi:test:native edicaptura",
     "pack": "node scripts/package.cjs",
     "dist": "node scripts/package.cjs --zip",
     "test:library-benchmark": "node tests/library-benchmark.cjs",
     "test:media-native": "node ../../scripts/edi/test-capture-media.mts",
-    "test:capture-native": "node tests/capture-native.cjs",
-    "test:capture-pixels-native": "node tests/capture-pixels-runner.cjs",
-    "test:scroll-native": "node tests/scroll-native.cjs",
-    "test:video-native": "node --test tests/quick-video-native.cjs"
+    "test:capture-native": "node scripts/build-native-helper.mjs && node tests/capture-native.cjs",
+    "test:capture-pixels-native": "node scripts/build-native-helper.mjs && node tests/capture-pixels-runner.cjs",
+    "test:scroll-native": "node scripts/build-native-helper.mjs && node tests/scroll-native.cjs",
+    "test:video-native": "node --test tests/quick-video-native.cjs",
+    "postinstall": "node scripts/copy-ocr.mjs"
   },
   "dependencies": {
     "@informach/edi-desktop": "workspace:*",
+    "@informach/edi-ocr": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "fflate": "0.8.3",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@informach/edi-native": "workspace:*",
     "electron": "44.8.0",
     "electron-vite": "^6.0.0",
     "vite": "^8.3.4"

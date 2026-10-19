@@ -1,8 +1,8 @@
+import { plainText } from "@informach/edi-ocr/search";
 import type { ImagePixels } from "./engine-contracts.ts";
 import type { LocalPdfEngine } from "./local-engine.ts";
 import { type OfficeBlock, type OfficeDocument, officeDocumentSchema } from "./office-format.ts";
 import { lineParagraph, nativeTextLines, visiblePageGlyphs } from "./text-layout.ts";
-import { plainText } from "./text-search.ts";
 
 export function pdfToPlainText(
   bytes: Uint8Array,

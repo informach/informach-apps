@@ -63,3 +63,7 @@ Oito lotes principais permanecem como organização. A previsão passa de dezess
 Gates independentes continuam obrigatórios. A decisão posterior de encerramento autoriza commit, push e integração na main após integrar o remoto, revisar o checkpoint e verificar o resultado. Não autoriza release desktop, tag, deploy, alteração operacional ou testes com dados pessoais. Baselines e relatórios anteriores permanecem históricos e imutáveis. Ver [continuidade com o EdiPDF](continuidade-edicaptura-edipdf.md).
 
 O titular exigiu integrar o remoto antes de qualquer push. O remoto consultado foi incorporado localmente até `27ac84cf`, preservando os quatro commits EdiFoto e as mudanças do Captura. A integração foi aceita após corrigir e reavaliar 009/001, que deixava de tentar fechar o filho se Pictures falhasse após launch. Ver [preservação e verificações](integracao-remoto.md). O full review do checkpoint e os gates finais precedem commit/push/main; reconsultar o remoto perto do push. Integração local não equivale a publicação.
+
+## Compartilhamento por link retirado — 19/10/2026
+
+O titular decidiu retirar o compartilhamento por link do Captura (N18, parte do lote 8). O Captura não envia nem hospeda arquivos no servidor: a pessoa compartilha os arquivos exportados pelos meios que já usa. Não tratar como pendência. Uma nova decisão seria necessária para retomar, com armazenamento privado, expiração, revogação, cotas e revisão dos textos legais.
