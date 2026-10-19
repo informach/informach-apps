@@ -42,8 +42,6 @@ export interface TreatOptions {
   cacheRoot: string;
   /** Most bytes the treated voices may take (the least recently used go first). */
   cacheBytes?: number;
-  /** RNNoise model file, null when it is not shipped. */
-  model: string | null;
   signal?: AbortSignal;
   onProgress?: (ratio: number) => void;
   /** Each FFmpeg child (the scheduler lowers its priority during a take). */

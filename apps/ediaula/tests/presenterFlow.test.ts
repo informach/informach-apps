@@ -5,7 +5,6 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "../src/main/presenterVideo.ts";
 import { treatVoice } from "../src/main/voiceTreat.ts";
@@ -24,9 +23,7 @@ import { lessonVoice, readWav, writeWav } from "./helpers/voice.ts";
  */
 
 const run = promisify(execFile);
-const here = dirname(fileURLToPath(import.meta.url));
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
-const MODEL = join(here, "..", "resources", "rnnoise", "sh.rnnn");
 const tmp = mkdtempSync(join(tmpdir(), "ediaula-presenter-"));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 
@@ -41,7 +38,6 @@ test("o vídeo do apresentador segue um corte feito depois da exportação, dent
     source,
     preset: "teacher",
     cacheRoot: join(tmp, "cache"),
-    model: MODEL,
   });
   const voice: Asset = {
     id: "voz",

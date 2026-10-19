@@ -1421,10 +1421,6 @@ const secondsSchema = z
  * background work: it waits for a take that is recording, like proxies and transcriptions.
  */
 function registerVoiceIpc(): void {
-  const model = (): string | null => {
-    const path = nativeResourcePath("rnnoise/sh.rnnn");
-    return existsSync(path) ? path : null;
-  };
   ipcMain.handle(
     "audio:treat",
     async (_e, rawJob: unknown, rawPath: unknown, rawPreset: unknown) => {
@@ -1437,7 +1433,6 @@ function registerVoiceIpc(): void {
           source,
           preset,
           cacheRoot: join(app.getPath("userData"), "cache"),
-          model: model(),
           signal,
           track: (child) => scheduler.track(child),
           onProgress: (ratio) => sendProgress({ id: jobId, ratio }),

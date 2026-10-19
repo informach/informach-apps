@@ -160,7 +160,7 @@ for (const [label, ffmpeg] of [
     const source = noisyVoice();
     const cacheRoot = join(tmp, `cache-${label.length}`);
     const before = snr(source);
-    const first = await treatVoice({ ffmpeg, source, preset: "teacher", cacheRoot, model: MODEL });
+    const first = await treatVoice({ ffmpeg, source, preset: "teacher", cacheRoot });
     assert.equal(first.cached, false);
     assert.equal(first.normalization, "linear", "um ganho linear, como pedido ao loudnorm");
     const loud = await ebur128(STATIC, first.path);
@@ -205,11 +205,11 @@ for (const [label, ffmpeg] of [
     t.diagnostic(`${label}: deslocamento do tratado ${(shift * 1000).toFixed(2)} ms`);
     assert.ok(Math.abs(shift) < 0.001, `deslocado ${shift} s`);
     const bytes = readFileSync(first.path);
-    const again = await treatVoice({ ffmpeg, source, preset: "teacher", cacheRoot, model: MODEL });
+    const again = await treatVoice({ ffmpeg, source, preset: "teacher", cacheRoot });
     assert.equal(again.cached, true);
     assert.equal(again.path, first.path);
     assert.deepEqual(readFileSync(first.path), bytes, "o mesmo arquivo, sem rodar de novo");
-    const soft = await treatVoice({ ffmpeg, source, preset: "soft", cacheRoot, model: MODEL });
+    const soft = await treatVoice({ ffmpeg, source, preset: "soft", cacheRoot });
     assert.notEqual(soft.path, first.path, "outro ajuste, outro arquivo");
   });
 
@@ -248,7 +248,6 @@ test("a voz de um MP4 cujo som começa depois da imagem mantém o tempo do arqui
     source: mp4,
     preset: "teacher",
     cacheRoot: join(tmp, "cache-mp4"),
-    model: MODEL,
   });
   // The file's own sound from its second 0 (the half second of silence included).
   const original = await decodeMono(STATIC, mp4);
