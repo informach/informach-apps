@@ -629,6 +629,24 @@ export const MUTATING_TOOLS = new Set<AiToolName>([
   "undo",
 ]);
 
+/**
+ * What a tool needs from the token that calls it (the local MCP guard): changing the image or
+ * writing a file is a write; looking at it is a read. Clients connected with "Conectar" read and
+ * propose, so each of their writes asks the person first; the in-app assistant's runs write.
+ */
+export const toolPermission = (name: AiToolName): "read" | "write" =>
+  MUTATING_TOOLS.has(name) || name === "export_image" ? "write" : "read";
+
+/**
+ * Asked every time to an AI app outside EdiFoto, even with the write scope or during a
+ * 15-minute approval: they open, bring in or save files.
+ */
+export const ALWAYS_ASK: ReadonlySet<AiToolName> = new Set<AiToolName>([
+  "open_image",
+  "place_image",
+  "export_image",
+]);
+
 /** JSON Schema for a tool's input, as the Claude API expects it. */
 export function toolJsonSchema(name: AiToolName): Record<string, unknown> {
   const { $schema: _ignored, ...schema } = z.toJSONSchema(AI_TOOLS[name].input) as Record<

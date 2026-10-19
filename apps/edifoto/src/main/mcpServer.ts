@@ -1,101 +1,86 @@
-import { createServer, type Server } from "node:http";
-import { authorizeLocalMcp } from "@informach/edi-desktop/access";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Server } from "node:http";
+import { isGrantLive, type McpGrant } from "@informach/edi-desktop/access";
+import {
+  type ApprovalAnswer,
+  type ApprovalQuestion,
+  createToolGuard,
+  describeArguments,
+  startLocalMcpServer,
+  type ToolOutcome,
+} from "@informach/edi-desktop/mcp-server";
 import { app } from "electron";
-import { AI_TOOL_NAMES, AI_TOOLS, EDITOR_GUIDE } from "../shared/aiTools.ts";
-import type { ToolOutcome } from "../shared/types.ts";
-
-import { McpBodyError, readMcpBody } from "./mcpBody.ts";
-
-type Call = (name: string, input: unknown, runId?: string) => Promise<ToolOutcome>;
+import {
+  AI_TOOLS,
+  type AiToolName,
+  ALWAYS_ASK,
+  EDITOR_GUIDE,
+  toolPermission,
+} from "../shared/aiTools.ts";
+import type { ToolOutcome as EditorOutcome } from "../shared/types.ts";
+import { MCP_SERVER } from "./aiSettings.ts";
 
 const MCP_INSTRUCTIONS = `${EDITOR_GUIDE}
 
 The user is watching the EdiFoto window while you work: edits appear live on the canvas and in the Layers panel. Start with get_document.`;
 
-function buildServer(call: Call): McpServer {
-  const server = new McpServer(
-    { name: "edifoto", version: app.getVersion() },
-    { instructions: MCP_INSTRUCTIONS },
-  );
-  for (const name of AI_TOOL_NAMES) {
-    const tool = AI_TOOLS[name];
-    server.registerTool(
-      name,
-      { title: tool.title, description: tool.description, inputSchema: tool.input },
-      async (args: unknown) => {
-        const r = await call(name, args);
-        const content: (
-          | { type: "text"; text: string }
-          | { type: "image"; data: string; mimeType: string }
-        )[] = [{ type: "text", text: r.text }];
-        if (r.image)
-          content.push({ type: "image", data: r.image.data, mimeType: r.image.mimeType });
-        return { content, isError: !r.ok };
-      },
-    );
-  }
-  return server;
+const guard = createToolGuard<AiToolName>({
+  appName: "EdiFoto",
+  permission: toolPermission,
+  title: (name) => AI_TOOLS[name].title,
+  describe: (name, args) => describeArguments(AI_TOOLS[name].title, args),
+  alwaysAsk: (name) => ALWAYS_ASK.has(name),
+});
+
+export interface McpDeps {
+  /** A write of an AI app that may only read and propose waits for the person. */
+  approve(question: ApprovalQuestion): Promise<ApprovalAnswer>;
+  /**
+   * Runs a call the guard let through. `source` "assistant" is a run of the in-app chat, whose
+   * request is the grant's project; `allowed` is false once the grant ended.
+   */
+  call(
+    name: AiToolName,
+    input: unknown,
+    source: "mcp" | "assistant",
+    runId: string | undefined,
+    allowed: () => boolean,
+  ): Promise<EditorOutcome>;
 }
 
+const forMcp = (r: EditorOutcome): ToolOutcome => ({
+  ok: r.ok,
+  text: r.text,
+  ...(r.image ? { images: [{ mime: r.image.mimeType, data: r.image.data }] } : {}),
+});
+
 /**
- * Local MCP endpoint (streamable HTTP, stateless) for Claude Code, Claude Desktop and Codex.
- * Bound to 127.0.0.1 only. Requests carrying an Origin header (web pages) or a foreign Host
- * (DNS rebinding) are refused, so only local programs can reach it.
+ * EdiFoto's local MCP endpoint for Claude Code, Claude Desktop and Codex
+ * (@informach/edi-desktop/mcp-server): 127.0.0.1 only, no web pages, a token per request whose
+ * grant decides what it may do. Reads run for any grant; writes need the write scope (the
+ * in-app chat's runs) or the person's approval, and opening, placing or saving files always asks
+ * an app outside EdiFoto.
  */
-export function startMcpServer(port: number, call: Call): Promise<Server> {
-  const http = createServer(async (req, res) => {
-    if (!authorizeLocalMcp(req)) {
-      res.writeHead(403).end("MCP authentication and an active Edi license are required");
-      return;
-    }
-    const host = req.headers.host ?? "";
-    if (req.headers.origin || !/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(host)) {
-      res.writeHead(403).end("forbidden");
-      return;
-    }
-    if (req.url?.split("?")[0] !== "/mcp") {
-      res.writeHead(404).end("not found");
-      return;
-    }
-    try {
-      const body = req.method === "POST" ? await readMcpBody(req) : undefined;
-      const runId =
-        typeof req.headers["x-edi-run"] === "string" ? req.headers["x-edi-run"] : undefined;
-      const server = buildServer((name, input) => call(name, input, runId));
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined,
-        enableJsonResponse: true,
-      });
-      res.on("close", () => {
-        void transport.close();
-        void server.close();
-      });
-      await server.connect(transport);
-      await transport.handleRequest(req, res, body);
-    } catch (err) {
-      if (!res.headersSent)
-        res.writeHead(err instanceof McpBodyError ? err.status : 500, {
-          "Content-Type": "application/json",
-        });
-      res.end(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          error: {
-            code: -32603,
-            message: err instanceof Error ? err.message : "MCP request failed",
-          },
-          id: null,
-        }),
-      );
-    }
-  });
-  return new Promise((resolve, reject) => {
-    http.once("error", reject);
-    http.listen(port, "127.0.0.1", () => {
-      http.off("error", reject);
-      resolve(http);
-    });
+export function startMcpServer(port: number, deps: McpDeps): Promise<Server> {
+  return startLocalMcpServer<AiToolName>({
+    port,
+    name: MCP_SERVER.name,
+    version: app.getVersion(),
+    instructions: MCP_INSTRUCTIONS,
+    tools: AI_TOOLS,
+    call: (grant: McpGrant, name, args) =>
+      guard.guarded(grant, name, args, {
+        approve: deps.approve,
+        live: isGrantLive,
+        call: async (tool, input, meta, allowed) =>
+          forMcp(
+            await deps.call(
+              tool,
+              input,
+              meta.source,
+              meta.source === "assistant" ? grant.projectId : undefined,
+              allowed,
+            ),
+          ),
+      }),
   });
 }

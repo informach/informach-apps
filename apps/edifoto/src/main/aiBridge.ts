@@ -1,19 +1,44 @@
 import { randomUUID } from "node:crypto";
+import { createRendererRequests, windowPort } from "@informach/edi-desktop/ai-clients";
 import { assertDesktopAccess, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import type { BrowserWindow } from "electron";
+import { z } from "zod";
 import type { AiToolCall, ToolOutcome } from "../shared/types.ts";
 
 /** Long enough for the user to answer a confirmation dialog. */
 const TOOL_TIMEOUT_MS = 5 * 60 * 1000;
 
-const pending = new Map<
-  string,
-  { finish(r: ToolOutcome): void; runId?: string; win: BrowserWindow }
->();
+/**
+ * Tool calls waiting for the renderer (@informach/edi-desktop/ai-clients). A call that runs out
+ * of time or whose request was stopped is cancelled in the editor too.
+ */
+const calls = createRendererRequests<AiToolCall, ToolOutcome>({
+  channel: "ai:call",
+  timeoutMs: TOOL_TIMEOUT_MS,
+  timeout: { ok: false, text: "O EdiFoto não respondeu a tempo." },
+  gone: { ok: false, text: "A janela do EdiFoto não está aberta." },
+  onEnd: (port, id, how) => {
+    if (how === "timeout" || how === "cancel") port.send("ai:cancel", id);
+  },
+});
 
-ipcMain.handle("ai:result", (_e, id: string, result: ToolOutcome) => {
-  pending.get(id)?.finish(result);
-  pending.delete(id);
+/** The editor's answer: text and, for the image tools, one picture in base64. */
+const outcomeSchema = z.object({
+  ok: z.boolean(),
+  text: z.string().max(5_000_000),
+  image: z
+    .object({
+      data: z
+        .string()
+        .max(12_000_000)
+        .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+      mimeType: z.enum(["image/jpeg", "image/png"]),
+    })
+    .optional(),
+});
+
+ipcMain.handle("ai:result", (_e, id: unknown, result: unknown) => {
+  calls.resolve(z.uuid().parse(id), outcomeSchema.parse(result));
 });
 
 /**
@@ -30,30 +55,11 @@ export function callTool(
   assertDesktopAccess();
   if (!win || win.isDestroyed())
     return Promise.resolve({ ok: false, text: "A janela do EdiFoto não está aberta." });
-  const id = randomUUID();
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      if (!win.isDestroyed()) win.webContents.send("ai:cancel", id);
-      resolve({ ok: false, text: "O EdiFoto não respondeu a tempo." });
-    }, TOOL_TIMEOUT_MS);
-    pending.set(id, {
-      runId: context.runId,
-      win,
-      finish: (r) => {
-        clearTimeout(timer);
-        resolve(r);
-      },
-    });
-    win.webContents.send("ai:call", { id, name, input, source, ...context } satisfies AiToolCall);
-  });
+  return calls.request(windowPort(win), { id: randomUUID(), name, input, source, ...context })
+    .answer;
 }
 
+/** Stops the calls of a request (Parar, end of the request): the editor cancels them too. */
 export function cancelToolRun(runId: string): void {
-  for (const [id, entry] of pending)
-    if (entry.runId === runId) {
-      if (!entry.win.isDestroyed()) entry.win.webContents.send("ai:cancel", id);
-      entry.finish({ ok: false, text: "Pedido interrompido." });
-      pending.delete(id);
-    }
+  calls.cancel((call) => call.runId === runId, { ok: false, text: "Pedido interrompido." });
 }

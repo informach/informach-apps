@@ -1,3 +1,4 @@
+import { createServer, request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -9,7 +10,7 @@ import {
 } from "./access.ts";
 import { PANEL_CLIENT } from "./ai-grants.ts";
 import { createToolGuard, describeArguments, type GuardDeps } from "./mcp-guard.ts";
-import { startLocalMcpServer } from "./mcp-server.ts";
+import { McpBodyError, readMcpBody, startLocalMcpServer } from "./mcp-server.ts";
 
 const TOOLS = {
   read_doc: { title: "Ler", description: "Lê o documento.", input: z.object({}) },
@@ -184,5 +185,53 @@ describe("the local MCP server", () => {
     expect(
       (await fetch(url, { method: "POST", headers: headers(run.token), body: "{}" })).status,
     ).toBe(403);
+  });
+});
+
+describe("the request body", () => {
+  it("is bounded by its UTF-8 bytes, and malformed or interrupted requests are refused", async () => {
+    const observed: unknown[] = [];
+    const bodies = createServer(async (req, res) => {
+      try {
+        observed.push(await readMcpBody(req, 32));
+        res.writeHead(200).end();
+      } catch (error) {
+        observed.push(error);
+        res.writeHead(error instanceof McpBodyError ? error.status : 500).end();
+      }
+    });
+    await new Promise<void>((resolve) => bodies.listen(0, "127.0.0.1", resolve));
+    const { port } = bodies.address() as AddressInfo;
+    const post = (chunks: string[], extra = {}): Promise<number | undefined> =>
+      new Promise((resolve, reject) => {
+        const req = request({ host: "127.0.0.1", port, method: "POST", headers: extra }, (res) => {
+          res.resume();
+          res.on("end", () => resolve(res.statusCode));
+        });
+        req.on("error", reject);
+        for (const chunk of chunks) req.write(chunk);
+        req.end();
+      });
+    try {
+      expect(await post(['{"text":', '"Olá"}'])).toBe(200);
+      expect(observed[0]).toEqual({ text: "Olá" });
+      expect(await post(['{"text":"', "á".repeat(20), '"}', "extra".repeat(100)])).toBe(413);
+      expect(await post(["{}"], { "content-length": "100" })).toBe(413);
+      expect(await post(["{invalid}"])).toBe(400);
+      // A client that gives up in the middle of its body.
+      await new Promise<void>((resolve) => {
+        const req = request({ host: "127.0.0.1", port, method: "POST" });
+        req.on("error", () => resolve());
+        bodies.once("request", (incoming) => {
+          incoming.once("aborted", resolve);
+          req.destroy();
+        });
+        req.write("partial");
+        req.flushHeaders();
+      });
+    } finally {
+      bodies.closeAllConnections();
+      await new Promise((resolve) => bodies.close(resolve));
+    }
   });
 });
