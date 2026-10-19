@@ -10,7 +10,7 @@
     "build": "node scripts/build-native-helper.mjs && electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -b tsconfig.node.json tsconfig.web.json --force",
-    "test": "node scripts/build-native-helper.mjs && node --test \"tests/**/*.test.ts\"",
+    "test": "node scripts/build-native-helper.mjs && node --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "shortcut": "node scripts/build-native-helper.mjs && electron-vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcuts.ps1"
   },
   "dependencies": {
