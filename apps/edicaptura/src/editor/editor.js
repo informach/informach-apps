@@ -1,5 +1,6 @@
 import { hydrateIcons, icon } from "../shared/icons.js";
 import { CanvasEditor } from "./canvas.js";
+import { mountGuides } from "./guides.js";
 import { mountLibrary } from "./library.js";
 import { installPhotoPresets, photoOptions } from "./photo-presets.js";
 import { mountQuickVideo } from "./quick-video.js";
@@ -9,7 +10,7 @@ import { mountTextPanel } from "./text-panel.js";
 hydrateIcons();
 const $ = (id) => document.getElementById(id),
   api = window.edi;
-let quickPanel, textPanel;
+let quickPanel, textPanel, guidePanel;
 let current = null,
   entries = [],
   zoom = 1,
@@ -925,7 +926,13 @@ $("canvas-viewport").addEventListener(
 $("canvas-viewport").addEventListener("pointercancel", () => {
   pan = null;
 });
-api.onDocument(safe(open));
+// During "Capturar passos" a new capture becomes a guide step instead of opening.
+api.onDocument(
+  safe(async (doc) => {
+    if (await guidePanel?.capture(doc)) return;
+    await open(doc);
+  }),
+);
 api.onNotice(({ message, error }) => toast(message, error));
 api.onMonitors(renderMonitors);
 api.onBeforeClose(
@@ -1313,6 +1320,7 @@ quickPanel.activate(current);
 quickPanel.show(view === "editor");
 textPanel = mountTextPanel({ api, engine, current: () => current, toast });
 textPanel.activate(current);
+guidePanel = mountGuides({ api, engine, current: () => current, toast });
 // Steps (A04): renumbering is always explicit and previewed; repeated numbers from older
 // projects change only here. A number given to a step that another uses swaps the two.
 const stepTools = document.createElement("details");

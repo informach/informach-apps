@@ -44,6 +44,8 @@ const scrollWorkerEntry = path.join(
 );
 const { allowCapturePermission } = require("./capture-permission.cjs");
 const { VideoOptionsStore } = require("./video-options.ts");
+const { GuideStore } = require("./guides.ts");
+const { guidePdf } = require("./guide-export.cjs");
 const { RECORDING_PHASES } = require("../domain/video-options.ts");
 const { pixelRect } = require("../capture/geometry.cjs");
 const { chooseDisplay, frameWindows, controlPosition } = require("../capture/displays.cjs");
@@ -1280,6 +1282,56 @@ async function initialize() {
   handle("library:list", ["editor"], (query) => library.list(query));
   handle("library:read", ["editor"], (id) => library.read(id));
   handle("library:update", ["editor"], (data) => library.updateMetadata(data));
+  // Guides live in the current library folder; a root switch gives a new store.
+  let guides = null;
+  const guideStore = () => {
+    if (guides?.root !== library.root) guides = new GuideStore(library.root);
+    return guides;
+  };
+  handle("guide:list", ["editor"], () => guideStore().list());
+  handle("guide:read", ["editor"], (id) => guideStore().read(id));
+  handle("guide:save", ["editor"], (input) => {
+    if (
+      !input ||
+      typeof input !== "object" ||
+      !Array.isArray(input.assets) ||
+      input.assets.length > 200
+    )
+      throw new Error("Guia inválido.");
+    const assets = input.assets.map((asset) => {
+      if (!(asset?.bytes instanceof Uint8Array) || typeof asset.id !== "string")
+        throw new Error("Imagem de passo inválida.");
+      return { id: asset.id, bytes: asset.bytes };
+    });
+    return guideStore().save(input.guide, assets);
+  });
+  handle("guide:trash", ["editor"], (input) => guideStore().trash(input?.id, !!input?.deleted));
+  handle("guide:export", ["editor"], async (input) => {
+    const format = input?.format;
+    if (!["html", "pdf"].includes(format)) throw new Error("Formato de guia inválido.");
+    const store = guideStore();
+    const { guide, html } = await store.html(input.id);
+    const safeName =
+      guide.title
+        .split("")
+        .map((character) =>
+          character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character) ? "-" : character,
+        )
+        .join("")
+        .trim()
+        .slice(0, 120) || "Guia";
+    const result = await dialog.showSaveDialog(editor, {
+      defaultPath: path.join(app.getPath("documents"), `${safeName}.${format}`),
+      filters: [{ name: format.toUpperCase(), extensions: [format] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    desktop.assertAccess();
+    const bytes =
+      format === "html" ? Buffer.from(html, "utf8") : await guidePdf(html, { app, BrowserWindow });
+    desktop.assertAccess();
+    await atomicWrite(result.filePath, bytes);
+    return result.filePath;
+  });
   handle("ocr:read", ["editor"], (id) => library.readOcr(id));
   handle("ocr:save", ["editor"], (input) => library.saveOcr(input));
   handle("ocr:edit", ["editor"], (input) => library.editOcr(input));

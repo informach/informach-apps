@@ -165,7 +165,7 @@ Apenas uma operação rápida por vez; executor comum até4processos, stdout acu
 
 O teste de receita é portátil e integra `test`; os testes reais Windows ficam no script obrigatório `test:video-native`, selecionado pela capacidade do catálogo em `edi:media:test`. O workflow `edi-native` aguarda `edi-media`, baixa o mesmo bundle verificado e só então executa o renderer. Release e upgrade consultam a capacidade no catálogo; os upgrades dos consumidores de mídia aguardam sua construção/verificação. Não há skip por ausência de binário nem download de outro app.
 
-A fase 5c (som, contagem e pausa) e a fase 6 (texto da imagem, dados sensíveis e passos) foram implementadas em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). As demais fases seguem a ordem registrada lá.
+A fase 5c (som, contagem e pausa), a fase 6 (texto da imagem, dados sensíveis e passos) e a fase 7 (guias simples) foram implementadas em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). As demais fases seguem a ordem registrada lá.
 
 ## Som, contagem e pausa — fase 5c
 
@@ -199,4 +199,17 @@ Na biblioteca, **Texto das imagens** inclui o texto reconhecido (com correções
 **Passos numerados** (A04): **Renumerar pela posição na imagem** (de cima para baixo, da esquerda para a direita) ou **Renumerar mantendo a ordem atual** (fecha lacunas e repetições). O painel mostra antes o que muda (`3→1, 3→2…`) e cada renumeração é uma alteração desfazível. Números repetidos de projetos antigos só mudam por essa ação. **Número do passo selecionado** troca o número; se outro passo já o usa, os dois trocam entre si.
 
 Verificação: `src/domain/ocr.test.ts` (ordem de leitura, correções e texto oculto por máscara, pixelização e recorte), `src/main/ocr-library.test.cjs` (arquivo ao lado do projeto, original alterado, correções, busca opcional, apagar, duplicar, projeto portátil e a medição de 10.000 capturas) e `tests/ocr-renderer.cjs`, incluído em `test:renderer`. Este último roda o worker e os modelos reais no Chromium sobre imagens sintéticas: três linhas lidas, CPF e e-mail sugeridos, duas máscaras desfeitas de uma vez, texto mascarado fora da cópia, captura de 12.000 px em blocos, cancelamento, resultado tardio descartado e renumeração/troca de passos. Não substitui medir a qualidade do OCR em telas reais variadas (fontes pequenas, temas escuros, escalas de DPI).
+
+## Guias simples — fase 7
+
+**Guias** (barra superior do editor) abre a lista de guias e o editor de um guia: título, descrição, layout (**Tutorial**, um passo abaixo do outro, ou **Comparação**, dois por linha) e os passos. Cada passo tem imagem, título, descrição e texto alternativo, e pode subir, descer ou ser removido. Tudo é salvo sozinho, cerca de meio segundo depois de cada alteração; se a gravação falhar, a interface avisa e mantém as alterações abertas para tentar de novo.
+
+- **Adicionar da biblioteca** e **Adicionar captura aberta** guardam a imagem final da captura, com máscaras, pixelização, recorte e transformações, como sai na exportação. O original e os objetos editáveis nunca entram no guia; o passo guarda só uma referência à captura de origem.
+- **Capturar passos** fecha o editor do guia e mostra uma faixa na parte de baixo da tela. Cada nova captura de imagem (Capturar, Print Screen, modos de imagem) entra como o próximo passo do guia, além de ficar na biblioteca, e o editor não muda de captura. **Concluir passos** volta ao guia. Vídeos abrem normalmente.
+- **Exportar HTML** grava um arquivo único, com as imagens embutidas, sem script e sem nenhum recurso remoto (a própria página declara isso na política de conteúdo). Textos são escapados. **Exportar PDF** imprime esse mesmo HTML no Chromium do app, numa janela oculta, sem JavaScript e numa sessão só em memória. O arquivo temporário é apagado em seguida. Não há segunda biblioteca de PDF no Captura; editar, juntar ou assinar o PDF é trabalho do EdiPDF.
+- **Mover para a lixeira** e **Restaurar** mantêm os arquivos. O guia fica em `<id>.guide` (JSON) e `<id>.<imagem>.png` na pasta da biblioteca, de modo que o backup integral da biblioteca leva os guias junto. O índice de capturas não lê esses arquivos.
+
+Limites: 200 passos por guia, 25 MB por imagem de passo e 400 MB de imagens por guia. Uma captura com rolagem muito alta pode passar de 25 MB como PNG; nesse caso a interface mostra o erro e o guia continua como estava. Não há DOCX, modelos nem editor geral de documentos.
+
+Verificação: `src/main/guides.test.cjs` (passos e imagens, reordenação, imagens ausentes, inválidas ou de outro tamanho, lixeira, índice e backup; HTML escapado, sem script e autocontido), `tests/guides-renderer.cjs` no Chromium com o armazenamento real (a imagem do passo mostra a máscara e não o que estava por baixo, texto alternativo e ordem salvos, captura de passos, exportações, lixeira) e `tests/guide-pdf-native.cjs`, que imprime um guia de três passos no Electron real e confere o PDF de várias páginas e a remoção do arquivo temporário. Os dois últimos estão em `test:renderer`.
 
