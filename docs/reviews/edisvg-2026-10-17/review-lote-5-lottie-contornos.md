@@ -1,0 +1,48 @@
+# Incremento 5.13 — contornos no Lottie
+
+Data: 18/10/2026. Estado: perfil inicial de contornos C explícitos implementado e revisado localmente. Escopo e gates abaixo; não é suporte integral a contornos SVG/Lottie/Rive. Lote 5 restante, lote 6 e full review permanecem obrigatórios; auditoria global de produção segue com alertas concorrentes do EdiPDF.
+
+## Contrato revisado e limites
+
+Nota posterior (5.14 revisado no perfil documentado): o corpus ampliado identificou uma curva fechada sob matriz fracionária conforme com diferenças de pixels causadas pela precisão float32 do consumidor. Os gates abaixo registram os 17 perfis efetivamente verificados no fechamento 5.13, não uma garantia para todos os caminhos C. O contrato atual está sendo corrigido com aviso/consentimento independente de precisão; ver [achado 5.14](review-lote-5-conversao-vetorial.md). Não anunciar identidade de pixels apenas por passar no preflight conformal.
+
+O exportador mantém contornos C explícitos no espaço local com transformação amostrada de posição/escala/rotação em grupo Lottie. A largura local é preservada. Uma matriz afim genérica torna o traço anisotrópico; multiplicar largura pela média das escalas não é fiel. Este perfil exige matriz total conforme em cada amostra, incluindo pais/basis/global/rig. Anisotropia/skew não compensados continuam recusados. Não basta verificar sx==sy localmente; uma composição pode compensar ou introduzir anisotropia.
+
+Cor/alpha, largura absoluta numérica/px, cap/join, miter SVG padrão 4 e preenchimento+contorno foram verificados. Paths C abertos/fechados, inclusive somente com contorno, são emitidos; fill none não elimina sua geometria. Linhas/primitivas, segmentos L/H/V, quadráticas/arcos, fechamento reto implícito, tracejados, unidades relativas/físicas e gradientes continuam recusados. Não modificar automaticamente o projeto para passar pelo perfil: a conversão pode mudar rasterização e topologia de alças. Esses recursos permanecem obrigatórios no backlog.
+
+Inspeção e compilação usam a mesma visita de amostras/validadores, sem segundo avaliador. Inspeção verifica inclusive anisotropia tardia, consumindo orçamento mas sem gerar JSON/baixar arquivos. Geração conserva limites/bytes, cancelamento Worker, consentimentos e atomicidade. Posição/escala vetoriais, rotação sem saltos de 360° e geometria usam um gravador de amostras com platôs e custo contabilizado. Projeto v20/blueprint v9 não mudam, pois este incremento traduz dados existentes.
+
+## Gates antes do fechamento
+
+### Histórico das provas e correções
+
+Os 14 testes focados e tipos passaram, mas a comparação independente revelou diferenças em bordas de segmento reto: SVG line/path L produziu alpha 50 e Lottie C produziu 52 em uma amostra. Um probe trocou somente o comando na referência: L manteve 50; C, inclusive com controles a 1/3 e 2/3, produziu 52. Não é erro de largura. O probe temporário foi retirado, sem mudar a tolerância de um canal. Novos contornos de primitivas/segmentos retos estão recusados explicitamente; não foram silenciosamente convertidos nem declarados concluídos.
+
+A prova com fonte originalmente C revelou ainda sensibilidade ao arredondamento de coordenadas após bake em world space. O renderer independente usa posições float32; controles coincidentes sofrem com recomposição/precisão. Próxima correção: manter geometria e transformação juntas para contornos conformes, emitindo transformação local do grupo Lottie em vez de transformar todos os pontos. A largura fica no espaço local e a transformação a escala naturalmente; inspeção continua verificando a matriz total. Essa correção ainda precisa passar pelos mesmos pixels. Caminhos retos/primitivas, dashes e contornos afins gerais continuam obrigatórios no backlog; restringir este incremento não os conclui.
+
+Atualização da prova: preservar geometria local com posição/escala/rotação amostradas passou nos pixels do perfil butt. A prova round isolou uma segunda causa: o parser compartilhado de cores mantinha alpha RGB legado arbitrário, enquanto o navegador quantiza esse canal antes de aplicar stroke-opacity. Trocar somente rgba por cor opaca + opacidade equivalente fez a prova passar; normalizar o alpha no parser compartilhado, preservando a fonte rgba original, também passou. A regra foi confirmada no [ColorFunctionParser do Chromium](https://chromium.googlesource.com/chromium/src/third_party/+/2083133158e78b0fb16fe1a1bfff534a20b89742/blink/renderer/core/css/properties/css_color_function_parser.cc): RGB legado absoluto comprime alpha em oito bits. Não é política de quantização para cores CSS modernas, que continuam fora do perfil fechado.
+
+O parser do núcleo agora centraliza essa correção para Lottie, importação de gradientes e máscaras; não ficou uma fórmula concorrente no contorno. A descrição anterior de 5.12 permanece como evidência do build revisado naquela etapa, e seus consumidores serão revalidados aqui. A comparação independente ampliada passou em 17 perfis, mantendo tolerância de um canal: os seis originais e contornos C com três caps/joins, animação de escala, reflexo, alpha 0.1/0.25/0.5/0.75/0.9, preenchimento transparente e múltiplas voltas. Fonte retificada para C pertence explicitamente a outro perfil; não é alegação de equivalência com os segmentos L/primitivas recusados. Inspeção/compilação compartilham visita, validação conformal, bounds e orçamento. Canais escalares/vetoriais/geometria compartilham gravador de amostras/bytes, incluindo platôs e retenção final.
+
+Rodada integrada atual: 180 testes do app, 98 do núcleo, tipos app/núcleo/tooling, 43 testes de tooling, sintaxe, build, 60 E2E seriais e Next produção/Turbopack/SSR/hidratação passaram. Inclui 16 unidades focadas de Lottie, inspeção de animação inteira na UI, download do snapshot, cancelamento original e regressão de gradientes/efeitos após corrigir o parser comum. Captura `.cache/edisvg-review/lottie-stroke.png` inspecionada, com relatório/consentimento e footer dentro da tela. Biome em 418 arquivos sem erros após corrigir formatação do helper nativo; 15 warnings/nove infos legados sem supressão. Auditoria de desenvolvimento limpa; produção permanece com dois alertas altos via pptxgenjs/image-size do EdiPDF concorrente, fora do grafo EdiSVG. Electron com contorno está em execução; não marcar incremento revisado antes de conferir seu resultado.
+
+- Unidades: cor/alpha/cap/join/largura, herança, preenchimento+contorno, linhas sem fill, inválidos e preservação do projeto.
+- Matrizes: pais/global/basis, reflexões/rotação/escala uniforme, colapso e animação; anisotropia inicial/tardia recusada na inspeção e compilação.
+- Renderer Lottie SVG light 5.13.0 independente: pixels de interior/borda/joins/caps/overlaps em quadros escolhidos, sem trocar a tolerância para esconder diferenças. Geometrias Bézier originalmente curvas continuam sob consentimento já existente.
+- UI/Worker/download/Cancel, regressão de HTML/React/Next e Electron proporcional; relatório/guia atualizados somente após os gates reais.
+
+## Fechamento
+
+Repetição Electron integral selecionada aprovada após separar destinos: Lottie fill e contorno C usaram Worker file/CSP, consentimento, Save/Cancel e comparação do JSON completo com o compilador. O primeiro Lottie permaneceu byte a byte intacto após o segundo; as edições temporárias foram desfeitas, preservando o projeto anterior. Também passaram integridade/licença/expiração/IPC, arquivos/recuperação, React ZIP e as jornadas de SVG/fontes/áudio/rig. Captura nativa de contorno inspecionada; nenhum instalador foi instalado/publicado, nem houve commit/merge/push/deploy/cobrança.
+
+Gates de fechamento: 180 testes do app, 98 do núcleo, 60 E2E, Next produção, tipos app/núcleo/tooling, 43 testes de tooling, sintaxe/build e check focado sem erros. Warnings legados e aviso de diretiva `use client` permanecem visíveis. Auditoria de desenvolvimento limpa; produção tem os dois alertas do EdiPDF registrados, sem exceção. A restrição histórica do launcher comum não foi reproduzida nem declarada resolvida; segue no full review.
+
+Perfil 5.13 revisado apenas nos casos documentados. Próximo incremento 5.14: conversão vetorial explícita com prévia/consentimento, respeitando histórico, dependências e fonte original. Demais gráficos, tipografia, formatos, rig/raster, semântica/scripting, lote 6 e full review continuam obrigatórios.
+
+### Achado da primeira jornada nativa ampliada
+
+A primeira jornada passou pelos SVGs importados, fontes/áudio/rig, Save/Open/recuperação, React ZIP e Lottie original, mas o helper de Save falhou no segundo perfil. A captura mostrava compatibilidade positiva/consentimento, sem erro do Worker. A fixture reutilizava o destino existente do primeiro Lottie, entrando na confirmação de sobrescrita do Windows não prevista pelo helper. A correção usa dois destinos temporários distintos e explicitamente permitidos, preservando os bytes do primeiro artefato; não confirma sobrescritas cegamente nem altera timeouts. A repetição integral selecionada passou, conforme fechamento acima.
+
+## Referências consultadas
+
+Context7 resolveu `/airbnb/lottie-web` e retornou documentação do renderer SVG. Contrato primário: [Lottie shapes/stroke](https://lottie.github.io/lottie-spec/latest/specs/shapes/#stroke). Implementação independente fixada: [SVGElementsRenderer 5.13.0](https://raw.githubusercontent.com/airbnb/lottie-web/v5.13.0/player/js/elements/helpers/shapes/SVGElementsRenderer.js). A interpretação de matrizes conformes acima é uma decisão matemática do compilador a verificar, não promessa geral de compatibilidade com outros consumidores.

@@ -1,106 +1,413 @@
+import { svgPrimitiveAttributes } from "@informach/edi-motion/geometry";
 import { identity, svgAttributes, validAttributes, validateScene } from "../../shared/scene.js";
-export function importSvg(source, Parser = globalThis.DOMParser) {
-  if (typeof source !== "string" || source.length > 1500000 || /<!DOCTYPE|<!ENTITY/i.test(source))
-    throw new Error("SVG muito grande ou contendo entidades não suportadas.");
-  const doc = new Parser().parseFromString(source, "image/svg+xml");
-  if (doc.querySelector("parsererror") || doc.documentElement.localName !== "svg")
-    throw new Error("O arquivo não contém um SVG válido.");
-  const root = doc.documentElement;
-  let counter = 0;
-  let box = root
-    .getAttribute("viewBox")
-    ?.trim()
-    .split(/[\s,]+/)
-    .map(Number);
-  if (!box) {
-    const dimension = (name) => {
-      const v = root.getAttribute(name) || "";
-      if (!/^\d+(?:\.\d+)?(?:px)?$/.test(v))
-        throw new Error("SVG precisa de viewBox ou dimensões em pixels.");
-      return parseFloat(v);
+import { createSvgEffectCatalog } from "./svg-effect-definitions";
+import { createSvgGradientCatalog } from "./svg-gradients";
+import { parseSvgInlineStyle } from "./svg-inline-style";
+import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics";
+export const SVG_SOURCE_BYTES = 1500000;
+const importAttributes = new Set([...svgAttributes, "clip-path", "mask"]);
+const allowed = new Set([
+  "g",
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "line",
+  "polyline",
+  "polygon",
+  "text",
+]);
+export class SvgImportError extends Error {
+  constructor(report) {
+    super(
+      report.issues.find((issue) => issue.severity === "error")?.message ?? "SVG incompatível.",
+    );
+    this.name = "SvgImportError";
+    this.report = report;
+  }
+}
+/** Reject, never publish a partial interpretation. Reports carry element paths,
+ * not document attribute values, and disclose when the visible list is bounded. */
+export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
+  const issues = [],
+    attributes = new Map(),
+    paints = new Map(),
+    effects = new Map(),
+    locations = new Map(),
+    semantics = new Map(),
+    descriptive = [];
+  let errors = 0,
+    warnings = 0,
+    visited = 0;
+  const report = () => ({
+    errors,
+    warnings,
+    totalObjects: visited,
+    issues,
+    omitted: Math.max(0, errors + warnings - issues.length),
+  });
+  const issue = (path, message, severity = "error") => {
+    if (severity === "error") errors++;
+    else warnings++;
+    const entry = {
+      id: `issue-${errors + warnings}`,
+      path,
+      message:
+        message.length > 2000 ? `${message.slice(0, 1975)} [diagnóstico abreviado]` : message,
+      severity,
     };
-    box = [0, 0, dimension("width"), dimension("height")];
+    if (severity === "error") {
+      const warning = issues.findIndex((item) => item.severity === "warning");
+      if (issues.length === 100 && warning >= 0) issues.splice(warning, 1);
+      if (issues.length < 100) issues.splice(warning >= 0 ? warning : issues.length, 0, entry);
+    } else if (issues.length < 100) issues.push(entry);
+  };
+  if (
+    typeof source !== "string" ||
+    source.length > SVG_SOURCE_BYTES ||
+    new TextEncoder().encode(source).byteLength > SVG_SOURCE_BYTES ||
+    /<!DOCTYPE|<!ENTITY/i.test(source)
+  ) {
+    issue("svg", "SVG muito grande ou contendo entidades não suportadas.");
+    return { scene: null, report: report() };
   }
-  const allowed = new Set([
-    "g",
-    "path",
-    "rect",
-    "circle",
-    "ellipse",
-    "line",
-    "polyline",
-    "polygon",
-    "text",
-  ]);
-  function attrs(el, isRoot = false) {
-    const result = {};
-    for (const a of el.attributes) {
-      if (isRoot && ["width", "height", "x", "y"].includes(a.name)) continue;
-      if (/^on/i.test(a.name) || /href$/i.test(a.name))
-        throw new Error("SVG com eventos ou referências externas não é aceito.");
-      if (a.name === "style") {
-        for (const part of a.value.split(";").filter((p) => p.trim())) {
-          const i = part.indexOf(":");
-          if (i < 1) throw new Error("Estilo SVG inválido.");
-          const key = part.slice(0, i).trim(),
-            value = part.slice(i + 1).trim();
-          if (!svgAttributes.has(key)) throw new Error(`Estilo ainda não suportado: ${key}`);
-          result[key] = value;
-        }
-      } else if (
-        svgAttributes.has(a.name) &&
-        !(isRoot && ["width", "height", "x", "y"].includes(a.name))
-      )
-        result[a.name] = a.value;
-      else if (
-        !["id", "class", "version", "xmlns", "viewBox", "preserveAspectRatio"].includes(a.name) &&
-        !a.name.includes(":")
-      )
-        throw new Error(`Atributo ainda não suportado: ${a.name}`);
+  const doc = new Parser().parseFromString(source, "image/svg+xml"),
+    root = doc.documentElement;
+  if (
+    doc.querySelector("parsererror") ||
+    root.localName !== "svg" ||
+    !["", "http://www.w3.org/2000/svg"].includes(root.namespaceURI || "")
+  ) {
+    issue("svg", "O arquivo não contém um SVG válido no namespace suportado.");
+    return { scene: null, report: report() };
+  }
+  const metadata = new Set(["title", "desc", "metadata"]);
+  let gradients, semanticCatalog, effectCatalog;
+  try {
+    gradients = createSvgGradientCatalog(root);
+    semanticCatalog = createSvgSemanticCatalog(root);
+    effectCatalog = createSvgEffectCatalog(root);
+  } catch (error) {
+    issue("svg/defs", error instanceof Error ? error.message : "Definições SVG inválidas.");
+    return { scene: null, report: report() };
+  }
+  function walk(el, path, depth, isRoot = false) {
+    locations.set(el, path);
+    if (depth > 32 || ++visited > 2000) {
+      issue(path, "SVG excede os limites de complexidade.");
+      return;
     }
-    return validAttributes(result);
-  }
-  function walk(el, depth = 0) {
-    if (depth > 32 || ++counter > 2000) throw new Error("SVG excede os limites de complexidade.");
-    if (["title", "desc", "metadata"].includes(el.localName)) return null;
+    if (metadata.has(el.localName)) {
+      descriptive.push({ element: el, path });
+      return;
+    }
+    if (el.localName === "defs") {
+      try {
+        gradients.validateDefs(el);
+      } catch (error) {
+        issue(path, error instanceof Error ? error.message : "Defs inválido.");
+        return;
+      }
+      let index = 0;
+      for (const child of el.children)
+        walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
+      return;
+    }
+    if (gradients.isDefinition(el) || effectCatalog.isDefinition(el)) return;
     if (
-      !allowed.has(el.localName) ||
-      !["", "http://www.w3.org/2000/svg"].includes(el.namespaceURI || "")
-    )
-      throw new Error(`Elemento ainda não suportado: ${el.localName}. Use formas e cores sólidas.`);
-    const node = {
-      id: `node-${counter}`,
-      name: (el.getAttribute("id") || `${el.localName} ${counter}`).slice(0, 120),
-      tag: el.localName,
-      attrs: attrs(el),
-      text: el.localName === "text" ? el.textContent : "",
-      transform: identity(),
-      visible: true,
-      locked: false,
-      children: [],
-    };
-    for (const child of el.children) {
-      const parsed = walk(child, depth + 1);
-      if (parsed) node.children.push(parsed);
+      !isRoot &&
+      (!allowed.has(el.localName) ||
+        !["", "http://www.w3.org/2000/svg"].includes(el.namespaceURI || ""))
+    ) {
+      issue(
+        path,
+        `Elemento não suportado: ${el.localName.slice(0, 80)}. Nenhuma arte foi importada.`,
+      );
+      return;
     }
-    return node;
+    const result = {},
+      styles = {},
+      localPaints = {},
+      stylePaints = {},
+      styleChannels = new Set();
+    try {
+      const value = semanticCatalog.read(el);
+      if (value) semantics.set(el, value);
+    } catch (error) {
+      issue(path, error instanceof Error ? error.message : "Semântica SVG inválida.");
+    }
+    const attributeValue = (dest, typed, key, value) => {
+      if (key === "clip-path" || key === "mask") {
+        typed[key === "clip-path" ? "clip" : "mask"] = effectCatalog.reference(value);
+        delete dest[key];
+      } else if (["fill", "stroke"].includes(key) && /^url\s*\(/i.test(value)) {
+        typed[key] = gradients.paint(value);
+        delete dest[key];
+      } else {
+        Object.assign(dest, validAttributes({ [key]: value }));
+        delete typed[key];
+      }
+    };
+    for (const attribute of el.attributes) {
+      const name = attribute.name;
+      if (svgSemanticAttributes.has(name)) continue;
+      if (isRoot && ["width", "height", "x", "y", "viewBox", "preserveAspectRatio"].includes(name))
+        continue;
+      if (/^on/i.test(name) || /href$/i.test(name)) {
+        issue(path, "Eventos e referências externas/internas não são aceitos neste perfil.");
+        continue;
+      }
+      if (name === "style") {
+        try {
+          for (const { name: key, value, apply } of parseSvgInlineStyle(
+            attribute.value,
+            importAttributes,
+          )) {
+            if (!apply) {
+              attributeValue({}, {}, key, value);
+              continue;
+            }
+            styleChannels.add(key === "clip-path" ? "clip" : key);
+            attributeValue(styles, stylePaints, key, value);
+          }
+        } catch (error) {
+          issue(path, error instanceof Error ? error.message : "Estilo inválido.");
+        }
+      } else if (importAttributes.has(name)) {
+        try {
+          attributeValue(result, localPaints, name, attribute.value);
+        } catch (error) {
+          issue(path, error instanceof Error ? error.message : "Atributo inválido.");
+        }
+      } else if (name === "class" && attribute.value.trim())
+        issue(
+          path,
+          "Classes externas não são carregadas; use atributos ou estilos inline suportados.",
+          "warning",
+        );
+      else if (!["id", "class", "version", "xmlns"].includes(name) && !name.startsWith("xmlns:"))
+        issue(path, `Atributo não suportado: ${name.slice(0, 80)}.`);
+    }
+    attributes.set(el, { ...result, ...styles });
+    for (const channel of styleChannels) delete localPaints[channel];
+    const combined = { ...localPaints, ...stylePaints };
+    if (combined.fill || combined.stroke)
+      paints.set(el, {
+        ...(combined.fill ? { fill: combined.fill } : {}),
+        ...(combined.stroke ? { stroke: combined.stroke } : {}),
+      });
+    if (combined.clip || combined.mask)
+      effects.set(el, { clip: combined.clip, mask: combined.mask });
+    let index = 0;
+    for (const child of el.children)
+      walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
   }
-  const nodes = [...root.children].map((el) => walk(el)).filter(Boolean);
-  const rootAttrs = attrs(root, true);
-  return validateScene({
-    viewBox: box,
-    nodes: Object.keys(rootAttrs).length
-      ? [
-          {
-            id: "node-root",
-            name: "SVG",
-            tag: "g",
-            attrs: rootAttrs,
-            children: nodes,
+  walk(root, "svg", 0, true);
+  const readPresentation = (element) => ({
+    attrs: attributes.get(element) ?? {},
+    gradients: paints.get(element),
+  });
+  try {
+    for (const definition of effectCatalog.validateAll(readPresentation))
+      for (const element of definition.metadata)
+        descriptive.push({ element, path: "svg/defs/metadata" });
+  } catch (error) {
+    issue("svg/defs", error instanceof Error ? error.message : "Definição de efeito inválida.");
+  }
+  let referenceCount = 0;
+  for (const [element, references] of effects)
+    for (const kind of ["clip", "mask"])
+      if (references[kind]) {
+        try {
+          if (++referenceCount > 256) throw new Error("SVG excede 256 referências de efeitos.");
+          effectCatalog.resolve(references[kind], kind, readPresentation);
+        } catch (error) {
+          issue(
+            locations.get(element) ?? "svg",
+            error instanceof Error ? error.message : "Referência de efeito inválida.",
+          );
+        }
+      }
+  for (const { element, path } of descriptive)
+    if (!semanticCatalog.used(element))
+      issue(
+        path,
+        "Metadados fora da conversão semântica suportada conservados somente na fonte original; revise nomes/descrições após importar.",
+        "warning",
+      );
+    else if (element.localName === "title")
+      issue(
+        path,
+        "Título convertido em nome acessível editável; o tooltip SVG original não é recriado.",
+        "warning",
+      );
+  if (errors) return { scene: null, report: report() };
+  try {
+    let box = root
+      .getAttribute("viewBox")
+      ?.trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    if (!box) {
+      const dimension = (name) => {
+        const value = root.getAttribute(name) || "";
+        if (!/^\d+(?:\.\d+)?(?:px)?$/.test(value))
+          throw new Error("SVG precisa de viewBox ou dimensões em pixels.");
+        return parseFloat(value);
+      };
+      box = [0, 0, dimension("width"), dimension("height")];
+    }
+    let number = 0,
+      generated = 0;
+    const reserveNode = () => {
+      if (++generated > 2000)
+        throw new Error(
+          "Objetos gerados por efeitos excedem o limite de 2000; nenhuma arte foi importada.",
+        );
+    };
+    function attachEffects(node, element) {
+      const references = effects.get(element);
+      if (!references) return node;
+      if (node.tag !== "g") {
+        reserveNode();
+        const artwork = {
+            ...node,
+            id: `node-${crypto.randomUUID()}`,
+            name: `${node.name} · desenho`.slice(0, 120),
+            attrs: { ...node.attrs },
             transform: identity(),
           },
-        ]
-      : nodes,
-    source,
-  });
+          attrs = {};
+        delete artwork.semantics;
+        for (const name of ["transform", "opacity", "display", "visibility"])
+          if (artwork.attrs[name] !== undefined) {
+            attrs[name] = artwork.attrs[name];
+            delete artwork.attrs[name];
+          }
+        node = {
+          id: node.id,
+          name: node.name,
+          tag: "g",
+          attrs,
+          ...(node.semantics ? { semantics: node.semantics } : {}),
+          children: [artwork],
+          transform: identity(),
+          visible: true,
+          locked: false,
+          text: "",
+        };
+      }
+      const typed = {};
+      for (const kind of ["clip", "mask"]) {
+        const id = references[kind];
+        if (!id) continue;
+        reserveNode();
+        const definition = effectCatalog.resolve(id, kind, readPresentation),
+          sourceId = `node-${crypto.randomUUID()}`;
+        node.children.push({
+          id: sourceId,
+          name: `${kind === "clip" ? "Recorte" : "Máscara"} · ${node.name}`.slice(0, 120),
+          tag: definition.nativeShape?.kind ?? "path",
+          attrs: {
+            ...(definition.nativeShape
+              ? svgPrimitiveAttributes(definition.nativeShape)
+              : { d: definition.d }),
+            transform: `matrix(${definition.matrix.join(" ")})`,
+            fill: "#ffffff",
+            stroke: "none",
+          },
+          text: "",
+          transform: { ...identity(), opacity: definition.sourceOpacity },
+          visible: false,
+          locked: false,
+          children: [],
+        });
+        typed[kind] = {
+          sourceId,
+          rule: definition.rule,
+          ...(kind === "mask" ? { opacity: definition.opacity } : {}),
+        };
+      }
+      node.effects = typed;
+      issue(
+        locations.get(element) ?? "svg",
+        "Efeito convertido em grupo portador e fontes locais ocultas editáveis; instâncias de definição ficam independentes por uso.",
+        "warning",
+      );
+      return node;
+    }
+    function convert(el) {
+      if (
+        metadata.has(el.localName) ||
+        gradients.isDefinition(el) ||
+        effectCatalog.isDefinition(el)
+      )
+        return null;
+      reserveNode();
+      const node = {
+        id: `node-${crypto.randomUUID()}`,
+        name: (el.getAttribute("id") || `${el.localName} ${++number}`).slice(0, 120),
+        tag: el.localName,
+        attrs: attributes.get(el) ?? {},
+        ...(paints.has(el) ? { gradients: paints.get(el) } : {}),
+        ...(semantics.has(el) ? { semantics: semantics.get(el) } : {}),
+        text:
+          el.localName === "text"
+            ? [...el.childNodes]
+                .filter((child) => child.nodeType === 3 || child.nodeType === 4)
+                .map((child) => child.textContent ?? "")
+                .join("")
+            : "",
+        transform: identity(),
+        visible: true,
+        locked: false,
+        children: [],
+      };
+      for (const child of el.children) {
+        const parsed = convert(child);
+        if (parsed) node.children.push(parsed);
+      }
+      return attachEffects(node, el);
+    }
+    const rootAttrs = attributes.get(root) ?? {},
+      rootCarrier =
+        Object.keys(rootAttrs).length ||
+        paints.has(root) ||
+        semantics.has(root) ||
+        effects.has(root);
+    if (rootCarrier) reserveNode();
+    const nodes = [...root.children].map(convert).filter(Boolean);
+    const scene = validateScene({
+      viewBox: box,
+      preserveAspectRatio:
+        root.getAttribute("preserveAspectRatio")?.trim().replace(/\s+/g, " ") || "xMidYMid meet",
+      nodes: rootCarrier
+        ? [
+            attachEffects(
+              {
+                id: `node-${crypto.randomUUID()}`,
+                name: "SVG",
+                tag: "g",
+                attrs: rootAttrs,
+                ...(paints.has(root) ? { gradients: paints.get(root) } : {}),
+                ...(semantics.has(root) ? { semantics: semantics.get(root) } : {}),
+                children: nodes,
+                transform: identity(),
+              },
+              root,
+            ),
+          ]
+        : nodes,
+      source,
+    });
+    return { scene, report: report() };
+  } catch (error) {
+    issue("svg", error instanceof Error ? error.message : "Geometria SVG inválida.");
+    return { scene: null, report: report() };
+  }
+}
+export function importSvg(source, Parser = globalThis.DOMParser) {
+  const result = inspectSvgImport(source, Parser);
+  if (!result.scene) throw new SvgImportError(result.report);
+  return result.scene;
 }

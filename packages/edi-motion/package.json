@@ -1,0 +1,51 @@
+{
+  "name": "@informach/edi-motion",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts",
+    "./behavior": "./src/behavior/index.ts",
+    "./data": "./src/data/index.ts",
+    "./rig": "./src/rig/index.ts",
+    "./geometry": "./src/geometry.ts",
+    "./svg-path": "./src/svgPath.ts",
+    "./graphics": "./src/graphics/index.ts",
+    "./graphics/dom": "./src/graphics/dom.ts",
+    "./visual": "./src/visual/index.ts",
+    "./assets": "./src/assets/index.ts",
+    "./assets/browser": "./src/assets/browser.ts",
+    "./audio": "./src/audio/index.ts",
+    "./audio/browser": "./src/audio/browser.ts",
+    "./audio/dom": "./src/audio/dom.ts",
+    "./licenses": "./THIRD_PARTY_LICENSES.txt",
+    "./react": "./src/react.tsx",
+    "./layout": "./src/layout/index.ts",
+    "./layout/dom": "./src/layout/dom.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "fflate": "0.8.3",
+    "yoga-layout": "3.2.1",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "react": "^19.3.1"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

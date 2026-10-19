@@ -98,7 +98,7 @@ test("pen gestures keep drafts out of storage, commit once and clean up on cance
   t.after(() => Object.assign(globalThis, previous));
   const project = newProject(),
     history = createHistory(project);
-  const state = { scene: project.scene, tool: "pen" };
+  const state = { scene: project.artboards[0].scene, tool: "pen" };
   let commits = 0,
     renders = 0;
   const callbacks = {
@@ -121,17 +121,17 @@ test("pen gestures keep drafts out of storage, commit once and clean up on cance
   };
   point(0, 0);
   point(40, 20);
-  assert.equal(project.scene.nodes.length, 0);
+  assert.equal(project.artboards[0].scene.nodes.length, 0);
   assert.equal(commits, 0);
   emit(document, "keydown", { key: "Enter" });
   assert.equal(commits, 1);
   assert.equal(renders, 1);
   assert.equal(
-    parseProject(JSON.parse(JSON.stringify(project))).scene.nodes[0].attrs.d,
+    parseProject(JSON.parse(JSON.stringify(project))).artboards[0].scene.nodes[0].attrs.d,
     "M0 0 L40 20",
   );
-  assert.equal(history.undo().scene.nodes.length, 0);
-  assert.equal(history.redo().scene.nodes.length, 1);
+  assert.equal(history.undo().artboards[0].scene.nodes.length, 0);
+  assert.equal(history.redo().artboards[0].scene.nodes.length, 1);
   emit(document, "keydown", { key: "Enter" });
   assert.equal(commits, 1, "disposed listeners cannot commit twice");
   assert.equal(svg.children.length, 0);

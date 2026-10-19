@@ -2,9 +2,97 @@
 
 Data: 16/10/2026. Base de planejamento: código 0.5.4 e quatro pranchetas de `edisvg.pen`.
 
+## Execução autorizada em 17/10/2026
+
+Em 18/10 o titular determinou executar todos os lotes seguidos, mantendo revisão entre lotes e full review no final. Depois restringiu a entrega imediata a concluir o incremento em curso 5.23, documentar exatamente o restante, fazer o [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) e publicar; isso não cancela o backlog dos lotes 5–6 nem os declara concluídos. [Review de composição](../../docs/reviews/edisvg-2026-10-17/review-lote-2-composicao.md) registra um marco histórico, não o gate vigente.
+
+O titular autorizou implementar o [diagnóstico funcional](../../docs/reviews/edisvg-2026-10-17/analise-funcional.md), em lotes com revisão intermediária e review integral ao final. O remoto foi atualizado de `189d998` para `b37105a` por fast-forward, preservando o diagnóstico local. Trabalho na branch `feat/edisvg-evolution`, sem publicação ou alteração de produção.
+
+| Lote | Escopo e rastreabilidade | Estado |
+| --- | --- | --- |
+| 0 | A01–A10: recuperação, arquivos, fidelidade e capacidades honestas | Implementado e revisado localmente; gates abaixo |
+| 1 | M06/M07, I01/I03/I10: documento extensível, comandos, migração, trilhas e runtime compartilhado | Implementado e revisado localmente |
+| 2 | M01–M05/M08, I02/I03: timeline, curvas, seleção, grupos, artboards, componentes, vetores | Núcleo de autoria revisado em incrementos: vetores/importação/workspace/cores/texto básico implementados; aparência/texto/importação avançados dependem do catálogo do lote 5 |
+| 3 | I04/I05/I08/I11: estados, camadas, dados, eventos, layouts, React | Implementado/revisado localmente, incluindo componentes independentes v12, ZIP React/Next, 16 E2E e jornada Electron; nine-slice e refs de recursos dependem explicitamente do lote 5 |
+| 4 | I06/I07: rig, restrições, IK, malha, morph e expressões | Perfil vetorial integrado e revisado: canais, skin, morph, solo, bindings, 26 E2E e Electron; timeline consolidada no review 5.20. Joystick de alvo raiz entrou no 5.23; raster/triangulação permanece |
+| 5 | I09/I12/I13/I16: assets, fontes, áudio, exportações, semântica e scripting | Incrementos 5.1–5.23 integrados nos perfis estritos dos reviews: recursos/fontes/áudio, semântica limitada, conversão cúbica consentida, timeline, trim, importação SVG protegida, Lottie com diagnóstico/consentimentos, gradientes/bounds e joystick 2D. O 5.23 passou núcleo/app/E2E/Next/Electron; publicação da suíte tem gate separado. Restante de gráficos/tipografia/raster, formatos, semântica dinâmica e scripting está aberto, sem promessa de suporte genérico |
+| 6 | I11/I14/I15/I17: runtimes/plataformas, bibliotecas, colaboração e migração de acervo | Pendente |
+
+Incremento seguinte do lote 2: [artboards e workspace](../../docs/reviews/edisvg-2026-10-17/review-lote-2-artboards.md), documento v5, painel React e exportação por prancheta; 92 testes do editor + 8 do núcleo + 3 E2E e jornada nativa passaram. Componentes aninhados e demais requisitos continuam em execução.
+
+Os IDs remetem ao diagnóstico; esta ordenação reorganiza, não descarta, os 90 requisitos anteriores. M09 (testes) e M10 (assistente) acompanham todos os lotes. Não declarar equivalência ao Rive, compatibilidade `.riv`, superioridade de desempenho ou homologação de plataformas sem evidência correspondente. O acervo real ainda precisa ser definido para a homologação do lote 6.
+
+Matriz confirmada pelo titular nesta execução: **web/React e React Native** para consumo das animações; Windows como autoria inicial já identificada. Flutter, Unity, Unreal e runtimes Apple/Android independentes não entram nesta implementação. React Native exige adapter próprio e testes de suas plataformas/dispositivos; WebView não será apresentada como runtime nativo equivalente. Autoria macOS/web permanece uma decisão posterior, não uma expansão implícita dessa resposta.
+
+Revisão do lote 0 encontrou também colisão de contrato IPC: o SDK espera caminho em `project:open/save`, mas o SVG usa diálogos no main e envia um documento. O modo explícito `projectFileMode: "native-dialog"` mantém autorização/origem e a confirmação de recuperação no SDK; seleção de destinos e validação ficam no app. Os demais consumidores mantêm o modo por caminhos. Testar isso no Electron, não apenas no modelo.
+
+Código novo de infraestrutura usa TypeScript estrito; o novo `typecheck` inclui esse código e suas dependências. O JavaScript legado ainda não tem `checkJs` integral: este gate não certifica todo o renderer como tipado. Recuperação nativa usa `userData/recovery-v1.json`, escrita atômica, validação e marcador durável de limpeza; cópia inválida é preservada e bloqueia edição, nunca substituída silenciosamente.
+
+### Review do lote 0
+
+72 testes unitários e 2 E2E passaram; sintaxe, tipos do app/SDK/tooling, 50 testes do SDK e typecheck transversal (22 tarefas) passaram. O runner Electron ampliado comprovou Save/Open reais, cancelamento de Save As, recuperação destacada do arquivo anterior e preservação dos bytes originais, além dos gates de licença, expiração e IPC. O helper Windows interage somente com o PID da fixture e com o destino exato descartável. A jornada válida usa uma lease de fixture de 300 segundos; a expiração continua sendo forçada/testada separadamente, sem mudar os prazos comerciais.
+
+Achados corrigidos durante a revisão: colisão de contrato IPC do SDK; falta de bloqueio de IA durante inicialização/recuperação; concorrência entre descarte e novas edições; necessidade de permitir salvar em outro destino quando o checkpoint local não pode ser gravado; scheduler do HTML continuando a consumir frames pausado; transformação de preview em espaço diferente do SVG exportado. Mensagens de salvamento distinguem arquivo efetivamente gravado de checkpoint indisponível, sem ocultar a falha.
+
+O E2E usa o renderer compilado, download real e execução do HTML; confirma undo sem perder modo/animação, recuperação na recarga, bloqueio de cópia inválida e movimento reduzido. Outro E2E compila o importador original em memória e usa DOMParser real: `preserveAspectRatio="none"` conserva as dimensões em viewports 200×100 e 100×200; scripts e números não finitos são recusados.
+
+Limites: SVG animado predefinido é amostrado a 60 Hz com diagnóstico explícito; não se declara igualdade contínua exata nem runtime genérico. O teste nativo recupera após recarga e o teste de disco lê com uma instância nova do store; desligamento abrupto do sistema/hardware não foi simulado. Autoria e ecossistema dos lotes seguintes continuam pendentes; não houve commit, merge, push, instalador ou deploy nesta execução. Biome mantém warnings legados visíveis, sem supressões.
+
 Atualização de execução — Etapa 01: inventário de 90 requisitos e baseline automatizada realizados (check, 59 testes e build aprovados). Referência visual principal: `i0JJ4Q`. A etapa permanece **em validação**, pois a inicialização Electron falhou sem relatório e a instância no navegador exibe 0.5.3. Homologação nativa e capacidade de equipe ainda pendentes. Entregáveis, evidências, decisões e backlog E02.1: [Relatório da etapa 01](audits/etapa-01/RELATORIO.md).
 
+### Review do lote 1
+
+Documento v3, migração com backup fiel, transações UI/MCP com sessão/revisão, animações livres, trilhas por objeto, autochave e player SVG offline integrados à interface existente. Contratos em [edi-motion](../../packages/edi-motion/README.md); evidências, achados corrigidos e limites no [review intermediário](../../docs/reviews/edisvg-2026-10-17/review-lote-1.md).
+
+Gates finais: 81 testes do app, 5 do motor, 51 do SDK, 3 E2E reais, tipos/sintaxe/build, typecheck transversal (23 tarefas) e tooling aprovados; auditoria de produção sem vulnerabilidades conhecidas. `pnpm check` sem erros, com 431 warnings e 65 infos visíveis. Runner Electron repetido após a última revisão aprovou integridade, licença/expiração/IPC, Save/Open, cancelamento e recuperação; não instalou/publicou o produto. A revisão encontrou e corrigiu externalização indevida do package TS no main, perda de transformação global na exportação por objeto, XML inválido na alternativa estática, lacuna no glob de testes TS, limites de histórico e conflito de escalas. React/RN, autoria avançada e full review final continuam pendentes.
+
+Atualização adicional: durante a execução, `origin/main` avançou novamente para `e15de57` (PR #14, infraestrutura/Bastidores/auth/e-mails/publicação GitHub). Integrado por fast-forward com preservação do trabalho. O único conflito foi no índice documental: mantida a remoção remota dos parágrafos históricos e a nova seção EdiSVG local. Lockfile conciliado, instalação congelada aprovada, typecheck geral (23 tarefas + tooling) e 43 testes de tooling aprovados após a integração. Nenhum apply Railway, migration ou publicação foi executado.
+
+### Incremento 2.1 — chaves e curvas
+
+Edição de quadro/valor/easing, prévia gráfica real, arraste reversível, duplicação de clips e transações de flags/renomeação implementados. 84 testes do app, 6 do motor e 3 E2E ampliados passaram, além de tipos/build e nova jornada Electron. O lote 2 não está concluído: seleção múltipla, grupos/reparenting, artboards/componentes, vetores/importação e evolução de timeline permanecem. [Review incremental](../../docs/reviews/edisvg-2026-10-17/review-lote-2-parcial.md).
+
+### Incremento 2.5 — timeline e manipulação
+
+Documento v7/movimento v2, seleção/gestos em lote, pivôs/skew/espelhamento, organização da seleção, timeline virtualizada, retiming/cópia/exclusão, alças Bézier e elástico real, onion skin e área de prévia. HTML usa bundle offline explícito, sem serializar funções. [Review e pendências](../../docs/reviews/edisvg-2026-10-17/review-lote-2-manipulacao.md). Gates atuais: 103 testes do editor, 18 do núcleo, 4 E2E e typecheck transversal aprovados; nova repetição nativa do bundle offline pendente. Não conclui lote 2/3–6/full review.
+
+### Incremento 2.6 — vetores, importação, workspace, cores e texto
+
+Documento v8, cálculos em Worker cancelável, booleanas com consentimento, vértices múltiplos, relatório SVG por elemento e nova prancheta sem perda da arte anterior. Paletas/estilos, texto multilinha e controles tipográficos, busca de comandos e divisores acessíveis. [Review incremental e gates](../../docs/reviews/edisvg-2026-10-17/review-lote-2-vetores.md). Os recursos avançados de M03/M04/M05 dependem do catálogo seguro do lote 5; continuam obrigatórios e rastreados, não descartados. A próxima frente é o núcleo de estados/dados/eventos do lote 3, com retorno às dependências de assets antes do full review final. Não marcar toda a proposta concluída.
+
+### Incremento 3.1 — estados, dados, eventos e consumo React
+
+Contrato de lógica por prancheta no documento v9, evaluator puro, editor React, sessão Testar, runtime interativo e HTML completo com confirmação de conversões apenas de animação. Adapter React 19 separado do núcleo, inputs em lote e callbacks atuais; React Native permanece no lote 6. [Review incremental](../../docs/reviews/edisvg-2026-10-17/review-lote-3-estados.md). Layouts, modelos compostos e lógica independente de componentes ainda em execução; não concluir lote 3 ou full review final.
+
+### Incremento 3.2 — layouts e modelos compostos
+
+Documento v11, Yoga/WASM local, layout real no canvas/Testar/HTML, modelos compostos/listas de IDs estáveis/links input↔campo e formulários estruturados. API pública de dados e inspeção MCP paginada. Evidências e limites no [review incremental](../../docs/reviews/edisvg-2026-10-17/review-lote-3-layout-dados.md); a distribuição React/Next passou na prova isolada e os componentes independentes avançaram no incremento 3.3. Não conclui todos os lotes ou o full review final.
+
+### Incremento 3.3 — componentes independentes
+
+Documento v12, blueprint interativo v2, sessões locais de estados/inputs/dados por componente e um único relógio da cena. Máquina inicial e inputs locais, layout responsivo de viewports aninhados, inspeção de sessão no Testar e leituras MCP limitadas. [Review e gates](../../docs/reviews/edisvg-2026-10-17/review-lote-3-componentes.md). Rodada de 127 testes do editor, 35 do núcleo, 16 E2E, Next.js e jornada Electron passou. Check focado limpo; check global tem um erro documental de outra frente, preservado. Próxima frente: lote 4. Nine-slice/refs de assets seguem com as dependências explícitas do lote 5, sem serem declarados concluídos.
+
 ## Objetivo e limites
+
+Perfil atual: [5.23 — joysticks 2D](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md), projeto v22/Rig v4/blueprint v11, painel/cópia/dependências/migração integrados; 136 testes do núcleo, 245 do app, 82 E2E, tipos/build, Next, pixel Lottie e jornada Electron/ASAR passaram. Publicação da suíte tem gate separado e bloqueio de voz EdiAula registrado no review. Referências incompletas de rig e Lottie/SVG-SMIL com trim continuam recusadas. Auditorias atuais sem vulnerabilidades conhecidas; tipos transversais do checkout de trabalho têm bloqueio concorrente EdiPDF registrado. [Review integral e backlog](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) são a fonte vigente; lotes 5 restante e 6 continuam obrigatórios. Os marcos seguintes são históricos.
+
+Marco anterior: [5.14 — conversão vetorial explícita e precisão Lottie](../../docs/reviews/edisvg-2026-10-17/review-lote-5-conversao-vetorial.md). Acrescenta operação reversível com prévia geométrica e consentimento. A comparação ampliada expôs uma limitação do consumidor float32; novo consentimento independente, inicialmente falso, impede exportar sem ciência das possíveis diferenças de bordas nos próprios quadros amostrados. Os gates do marco 5.13 abaixo não significam identidade universal de pixels. Cinco unidades específicas, 185 testes do app, 98 do núcleo, tipos/build, 43 de tooling, 61 E2E, Next produção e Electron passaram. Próxima frente 5.15: tracejados Lottie. Manter restantes do lote 5/6/full review.
+
+Último perfil revisado: [contornos Lottie 5.13](../../docs/reviews/edisvg-2026-10-17/review-lote-5-lottie-contornos.md), paths C explícitos/matriz conforme, com inspeção de todas as amostras, geometria local, correção de alpha legado e gates completos, incluindo Electron. [SVG clip/mask 5.12](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-efeitos.md) preservado; projeto v20/blueprint v9/playback v3, migração/backup e contratos históricos mantidos. Auditoria global de produção tem dois alertas altos via dependência concorrente do EdiPDF, fora do grafo EdiSVG, sem exceção. Frente seguinte 5.14: conversão explícita de caminhos, ainda sem nova capacidade homologada. Marcos abaixo são históricos; demais recursos do lote 5, lote 6 e full review continuam obrigatórios.
+
+Marco atual: [incremento 5.6 — recortes/máscaras alpha](../../docs/reviews/edisvg-2026-10-17/review-lote-5-recortes.md), projeto v17/blueprint v5, revisado com 146 testes do editor, 73 do núcleo, 42 E2E, Next e Electron. Autoria com prévia de gestos, referências/remapeamento, cálculo compartilhado e players isolados no perfil publicado. Próximo incremento centraliza o contrato gráfico portátil para ampliar o render sem regras concorrentes. Importação clip/mask, outras pinturas/efeitos, tipografia/raster/formatos/semântica/scripting e lote 6/full review permanecem obrigatórios.
+
+Marco anterior: [review 5.5 — gradientes/importação](../../docs/reviews/edisvg-2026-10-17/review-lote-5-gradientes.md), gradientes tipados com herança/estilos/overrides, importador SVG limitado e render offline. 143 testes do editor, 66 do núcleo, 38 E2E, Next e jornada Electron passaram; repetições focadas após review também passaram. Não encerra lote 5/6/full review.
+
+Marco atual: [review 5.4 — imagens/nine-slice](../../docs/reviews/edisvg-2026-10-17/review-lote-5-imagens-slice.md), projeto v16/blueprint v4, render compartilhado e layout visual com cantos preservados no perfil documentado. 140 testes do editor, 64 do núcleo, 35 E2E e Next passaram; jornada nativa ampliada aprovada. Próxima frente: recursos vetoriais/gráficos avançados. Lote 5/6/full review continuam obrigatórios.
+
+Marco atual: [review 5.3 — áudio por eventos](../../docs/reviews/edisvg-2026-10-17/review-lote-5-audio.md), mixer Web Audio, alternativas textuais e controles em Testar/HTML/React. 139 testes do editor, 62 do núcleo, 33 E2E e Next passaram; o probe Electron de áudio passou. Não é trilha sonora contínua. Próxima frente: gráficos/render de recursos e dependências avançadas pendentes; lote 5/6/full review continuam obrigatórios.
+
+Marco atual posterior ao 5.1: [review 5.2 de fontes](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes.md), TTF/OTF com consentimento, referências e carga efetiva, gates conjuntos e nova jornada Electron. Próximo incremento: áudio funcional. M04 avançado/fallback de glifos e demais dependências permanecem obrigatórios; o lote 5 não está encerrado.
+
+Marco atual: [review incremental 5.1](../../docs/reviews/edisvg-2026-10-17/review-lote-5-recursos.md), documento v15/blueprint interativo v3 para imagens. Catálogo deduplicado, importação/cancelamento/normalização explícita, referências tipadas, persistência/histórico e exportação SVG/HTML/React testados. Próxima frente: fontes/áudio e demais dependências do lote 5. Não encerra o lote ou a tarefa de todos os lotes.
+
+Estado posterior: [incremento 4.1](../../docs/reviews/edisvg-2026-10-17/review-lote-4-rig.md), documento v13/playback v3, em execução. Testes atuais: 130 do editor/41 do núcleo e três novas jornadas de rig passaram separadamente. Rodada conjunta ampliada e fechamento do lote ainda pendentes; não substituir os gates históricos do lote 3 por uma alegação de nova homologação nativa.
 
 Transformar os recursos apresentados nas pranchetas em funcionalidades editáveis, persistentes e reproduzíveis no player. A presença de uma tela, botão ou demonstração não significa conclusão funcional.
 
@@ -34,6 +122,8 @@ Este documento é planejamento, não certificação do produto. Foram lidos o do
 O README contém descrições históricas que se contradizem com incrementos posteriores. O diagnóstico da etapa 1 deve prevalecer sobre status antigos. O código atual confirma que `poseAt` usa movimentos predefinidos e que o formato restringe as animações a Parado, Acenar e Pular.
 
 ## Regras de execução
+
+Atualização 18/10: [componentes aninhados](../../docs/reviews/edisvg-2026-10-17/review-lote-2-componentes.md) implementados e revisados localmente, documento v6/runtime v2, com overrides, clocks compartilhados e preflight de expansão. Gates: 97 testes do editor, 12 do motor, 3 E2E ampliados, jornada nativa e tipos gerais passaram. Lote 2 continua em execução por manipulação múltipla, timeline e vetores; lotes 3–6/full review final não certificados.
 
 1. Trabalhar em uma etapa ativa por vez, dividida em incrementos demonstráveis. Investigações futuras podem ser registradas sem expandir a entrega atual.
 2. Cada tarefa terá ID, referência de design, responsável, dependência, critério de aceite, evidência e situação.
@@ -298,4 +388,4 @@ Uma mesma pessoa pode acumular papéis. Os nomes e a disponibilidade serão regi
 
 ## Próxima ação
 
-Concluir as pendências de homologação registradas no relatório E01 e iniciar o incremento E02.1 de contrato de documento e migrações, já detalhado naquele relatório. A parte documental de E02.1 pode avançar; E01 e E02 não devem ser declaradas homologadas enquanto os fluxos nativos estiverem pendentes. O restante permanece planejado até sua vez.
+Executar lote 5 e suas dependências gráficas pendentes de 2–4. O [review integrado do lote 4](../../docs/reviews/edisvg-2026-10-17/review-lote-4-integrado.md) registra documento v14/Rig v2, skin/morph/solo, canais/bindings, 133 testes do editor, 53 do núcleo, 26 E2E, Next e jornada Electron. Catálogo seguro de assets e timeline unificada foram revisados nos incrementos seguintes; retomar M03/M04/M05 avançados, raster/triangulação e joystick. Bounds reais e gradientes relativos foram revisados no 5.22; a frente atual é o controlador joystick 2D do 5.23. A referência vigente de execução está no início deste plano e nos reviews incrementais; os marcos antigos não substituem esses registros. Não houve full review final nem homologação React Native/acervo real.

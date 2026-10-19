@@ -10,7 +10,10 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "test": "node --test src/shared/*.test.js src/renderer/src/*.test.js src/main/*.test.js",
+    "test": "node --import tsx --test \"src/**/*.test.js\" \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "node --import tsx --test --test-concurrency=1 tests/e2e/*.test.ts",
+    "test:next": "node --import tsx --test tests/next/*.test.ts",
     "check": "node scripts/check.mjs",
     "desktop": "electron .",
     "package": "npm run build && node scripts/package.mjs",
@@ -18,12 +21,25 @@
   },
   "dependencies": {
     "@informach/edi-desktop": "workspace:*",
+    "@informach/edi-motion": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
+    "fflate": "0.8.3",
+    "polygon-clipping": "0.15.7",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "robust-predicates": "3.0.3",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "electron": "44.8.0",
     "electron-vite": "6.0.0",
+    "lottie-web": "5.13.0",
+    "playwright": "1.59.1",
+    "tsx": "4.21.0",
+    "typescript": "^5.9.3",
     "vite": "8.3.4"
   }
 }

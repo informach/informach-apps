@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Page } from "playwright";
+import { z } from "zod";
 import { verifyFotoNativeJourney } from "../../apps/edifoto/scripts/native-journey.mts";
 import {
   createPdfNativeFixture,
@@ -111,6 +112,11 @@ try {
     let startupFailed = false;
     let diagnosticEditor: Page | undefined;
     try {
+      if (id === "edisvg")
+        await application.evaluate(
+          ({ app }, documents) => app.setPath("documents", documents),
+          join(userData, "documents"),
+        );
       assert.equal(await application.evaluate(() => process.execPath), electronPath);
       const first = await application.firstWindow().catch(async (error: unknown) => {
         startupFailed = true;
@@ -205,6 +211,422 @@ try {
           true,
           "The access gate must close only after the editor exists",
         );
+        if (id === "edisvg") {
+          // This journey includes several real native dialogs. Its valid lease
+          // covers the bounded journey; expiration is tested explicitly below.
+          await seedLease(application, 300);
+          // Exercise the responsive native layout where the menu buttons are hidden.
+          await editor.setViewportSize({ width: 1100, height: 800 });
+          await editor.locator(".scene-artwork>svg").waitFor();
+          const workerAssets = (await readdir(resolve("apps/edisvg/out/renderer/assets"))).filter(
+            (name) => /^documentWorker-.*\.js$/.test(name),
+          );
+          assert.equal(workerAssets.length, 1, "Exactly one compiled document worker must ship");
+          const workerAsset = workerAssets[0];
+          if (!workerAsset) throw new Error("Missing document worker asset");
+          const workerProbe = await editor.evaluate(async (asset) => {
+            const original = localStorage.getItem("edisvg-project"),
+              project = JSON.parse(original ?? "null"),
+              sessionId = crypto.randomUUID();
+            if (!project?.id) throw new Error("Missing isolated project for worker probe");
+            const response = await new Promise<unknown>((resolve, reject) => {
+              const worker = new Worker(new URL(`assets/${asset}`, location.href), {
+                type: "module",
+              });
+              const timer = setTimeout(() => {
+                worker.terminate();
+                reject(new Error("Native document worker exceeded its 10s deadline"));
+              }, 10000);
+              worker.onmessage = (event: MessageEvent<unknown>) => {
+                clearTimeout(timer);
+                worker.terminate();
+                resolve(event.data);
+              };
+              worker.onerror = () => {
+                clearTimeout(timer);
+                worker.terminate();
+                reject(new Error("Document worker failed under the real Electron file origin/CSP"));
+              };
+              worker.postMessage({
+                version: 1,
+                context: { project, sessionId, revision: 0 },
+                request: {
+                  projectId: project.id,
+                  sessionId,
+                  revision: 0,
+                  commands: [
+                    {
+                      type: "motion",
+                      command: {
+                        type: "create-animation",
+                        animation: {
+                          id: "animation-native-worker-probe",
+                          name: "Worker somente cópia",
+                          fps: 30,
+                          frames: 30,
+                          mode: "once",
+                          tracks: [],
+                        },
+                      },
+                    },
+                  ],
+                },
+              });
+            });
+            return { response, preserved: localStorage.getItem("edisvg-project") === original };
+          }, workerAsset);
+          assert.equal(workerProbe.preserved, true);
+          z.object({
+            ok: z.literal(true),
+            result: z.object({
+              changed: z.literal(true),
+              revision: z.literal(1),
+              project: z.object({
+                motion: z.object({ animations: z.array(z.object({ id: z.string() })) }),
+              }),
+            }),
+          }).parse(workerProbe.response);
+          console.log(
+            "Verified isolated document worker under Electron file origin/CSP without changing the open project",
+          );
+          const layoutProbe = await editor.evaluate(async () => {
+            const original = localStorage.getItem("edisvg-project");
+            const runtime = await import(new URL("edi-player.mjs", location.href).href);
+            const host = document.createElement("div");
+            host.style.cssText = "width:200px;height:100px;position:fixed;left:0;top:0";
+            host.innerHTML =
+              '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><g data-edi-object="node-layout"><rect x="0" y="0" width="40" height="20"/></g></svg>';
+            document.body.append(host);
+            let player:
+              | {
+                  inspectLayout(): { boxes: Map<string, { x: number; width: number }> } | null;
+                  destroy(): void;
+                }
+              | undefined;
+            try {
+              const svg = host.querySelector("svg");
+              if (!svg) throw new Error("Missing native layout SVG");
+              player = await runtime.createInteractiveSvgPlayerAsync(
+                svg,
+                {
+                  version: 1,
+                  playback: {
+                    version: 2,
+                    motion: { version: 2, animations: [] },
+                    objects: [
+                      {
+                        id: "node-layout",
+                        transform: { x: 0, y: 0, rotation: 0, sx: 1, sy: 1, opacity: 100 },
+                      },
+                    ],
+                    sources: [
+                      {
+                        id: "node-layout",
+                        objectId: "node-layout",
+                        artboardId: "artboard-layout",
+                        instancePath: [],
+                      },
+                    ],
+                    drivers: [],
+                  },
+                  behavior: {
+                    version: 1,
+                    inputs: [],
+                    machines: [],
+                    bindings: [],
+                    listeners: [],
+                    events: [],
+                    defaultMachineId: null,
+                  },
+                  content: [{ id: "node-layout", parentId: null, name: "Layout", tag: "rect" }],
+                  layout: {
+                    version: 1,
+                    root: {
+                      flow: "row",
+                      direction: "ltr",
+                      wrap: false,
+                      padding: [10, 10, 10, 10],
+                      gap: [0, 0],
+                      justify: "start",
+                      align: "start",
+                      clip: true,
+                      scroll: null,
+                    },
+                    containers: [],
+                    items: [
+                      {
+                        targetId: "node-layout",
+                        width: { kind: "fill", weight: 1 },
+                        height: { kind: "fixed", value: 20 },
+                        minWidth: 0,
+                        maxWidth: 100000,
+                        minHeight: 0,
+                        maxHeight: 100000,
+                        margin: [0, 0, 0, 0],
+                        alignSelf: "auto",
+                        aspectRatio: null,
+                        position: { kind: "flow" },
+                      },
+                    ],
+                  },
+                },
+                { autoplay: false, pauseOffscreen: false },
+              );
+              const box = player?.inspectLayout()?.boxes.get("node-layout");
+              return {
+                x: box?.x,
+                width: box?.width,
+                preserved: localStorage.getItem("edisvg-project") === original,
+              };
+            } finally {
+              player?.destroy();
+              host.remove();
+            }
+          });
+          assert.deepEqual(layoutProbe, { x: 10, width: 180, preserved: true });
+          console.log(
+            "Verified bundled Yoga WASM layout under Electron file origin/CSP with no remote dependency",
+          );
+          const nativePid = await application.evaluate(() => process.pid);
+          const rigJourney: unknown = await import(
+            new URL("../../apps/edisvg/scripts/native-rig-journey.mts", import.meta.url).href
+          );
+          if (
+            typeof rigJourney !== "object" ||
+            rigJourney === null ||
+            !("verifySvgNativeRigJourney" in rigJourney) ||
+            typeof rigJourney.verifySvgNativeRigJourney !== "function"
+          )
+            throw new Error("Invalid EdiSVG native journey module");
+          await rigJourney.verifySvgNativeRigJourney(
+            editor,
+            join(results, "edisvg-rig-runtime.png"),
+          );
+          const destination = join(root, "edisvg-test-project.edisvg");
+          const assertSameFile = async (actualPath: string) => {
+            // Windows dialogs expand 8.3 paths (RUNNER~1) to long names. Check
+            // the file identity, not the spelling of two aliases to one file.
+            const [actual, expected] = await Promise.all([stat(actualPath), stat(destination)]);
+            assert.ok(actual.isFile() && expected.isFile());
+            assert.ok(actual.ino > 0 && expected.ino > 0);
+            assert.equal(actual.dev, expected.dev);
+            assert.equal(actual.ino, expected.ino);
+          };
+          const respond = (action: "Save" | "Open" | "Cancel", selectedPath = destination) =>
+            execute(
+              "powershell.exe",
+              [
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                resolve("scripts/edi/respond-test-file.ps1"),
+                "-TestProcessId",
+                String(nativePid),
+                "-Action",
+                action,
+                "-SelectedPath",
+                selectedPath,
+              ],
+              {
+                windowsHide: true,
+                timeout: 30_000,
+                maxBuffer: 32768,
+                env: windowsPowerShellEnvironment(),
+              },
+            );
+          const invoke = (method: string) =>
+            editor.evaluate(async (operation) => {
+              const desktop: unknown = Reflect.get(window, "desktop");
+              if (!desktop || typeof desktop !== "object")
+                throw new Error("Missing desktop bridge");
+              const callback: unknown = Reflect.get(desktop, operation);
+              if (typeof callback !== "function") throw new Error("Missing file operation");
+              const draft: unknown = JSON.parse(localStorage.getItem("edisvg-project") ?? "null");
+              return Reflect.apply(callback, desktop, operation === "projectSave" ? [draft] : []);
+            }, method);
+          const saving = invoke("projectSave");
+          await respond("Save");
+          const saved = z.object({ saved: z.literal(true), path: z.string() }).parse(await saving);
+          console.log("Verified native initial project save: edisvg");
+          await assertSameFile(saved.path);
+          const written = JSON.parse(await readFile(destination, "utf8"));
+          assert.equal(written.name, "Sem título");
+          const opening = invoke("projectOpen");
+          await respond("Open");
+          const opened = z
+            .object({
+              project: z.object({ name: z.string() }),
+              status: z.object({ dirty: z.boolean(), path: z.string() }),
+            })
+            .parse(await opening);
+          assert.equal(opened.project.name, written.name);
+          await assertSameFile(opened.status.path);
+          assert.equal(opened.status.dirty, false);
+          await editor.locator('[data-action="tool-shapes"]').click();
+          const artboard = await editor.locator(".scene-artwork>svg").boundingBox();
+          if (!artboard) throw new Error("Missing native artboard");
+          await editor.mouse.move(
+            artboard.x + artboard.width / 2,
+            artboard.y + artboard.height / 2,
+          );
+          await editor.mouse.down();
+          await editor.mouse.move(
+            artboard.x + artboard.width / 2 + 50,
+            artboard.y + artboard.height / 2 + 40,
+          );
+          await editor.mouse.up();
+          await editor.waitForFunction(
+            () =>
+              JSON.parse(localStorage.getItem("edisvg-project") ?? "null")?.artboards[0]?.scene
+                .nodes.length === 1,
+          );
+          const result = z.object({ saved: z.literal(true) }).parse(await invoke("projectSave"));
+          assert.equal(result.saved, true);
+          const previous = await readFile(destination, "utf8");
+          const x = editor.locator('[data-scene-transform="x"]');
+          await x.fill("42");
+          await x.press("Tab");
+          const canceling = editor.evaluate(async () => {
+            const desktop: unknown = Reflect.get(window, "desktop");
+            if (!desktop || typeof desktop !== "object") throw new Error("Missing desktop bridge");
+            const callback: unknown = Reflect.get(desktop, "projectSave");
+            if (typeof callback !== "function") throw new Error("Missing save operation");
+            return Reflect.apply(callback, desktop, [
+              JSON.parse(localStorage.getItem("edisvg-project") ?? "null"),
+              true,
+            ]);
+          });
+          await respond("Cancel");
+          const canceled = z
+            .object({ saved: z.literal(false), dirty: z.literal(true) })
+            .parse(await canceling);
+          assert.equal(canceled.dirty, true);
+          assert.equal(await readFile(destination, "utf8"), previous);
+          await editor.evaluate(async () => {
+            const desktop: unknown = Reflect.get(window, "desktop");
+            if (!desktop || typeof desktop !== "object") throw new Error("Missing desktop bridge");
+            const callback: unknown = Reflect.get(desktop, "projectChanged");
+            if (typeof callback !== "function") throw new Error("Missing checkpoint operation");
+            await Reflect.apply(callback, desktop, [
+              JSON.parse(localStorage.getItem("edisvg-project") ?? "null"),
+            ]);
+          });
+          const reloading = editor.reload();
+          await execute(
+            "powershell.exe",
+            [
+              "-NoLogo",
+              "-NoProfile",
+              "-NonInteractive",
+              "-File",
+              resolve("scripts/edi/respond-test-draft.ps1"),
+              "-TestProcessId",
+              String(nativePid),
+              "-Choice",
+              "Recuperar",
+            ],
+            {
+              windowsHide: true,
+              timeout: 30_000,
+              maxBuffer: 32768,
+              env: windowsPowerShellEnvironment(),
+            },
+          );
+          await reloading;
+          await editor.locator(".scene-artwork [data-object]").waitFor();
+          assert.equal(
+            await editor.evaluate(
+              () =>
+                JSON.parse(localStorage.getItem("edisvg-project") ?? "null").artboards[0].scene
+                  .nodes[0].transform.x,
+            ),
+            42,
+          );
+          assert.equal(await readFile(destination, "utf8"), previous);
+          console.log(
+            "Verified native Save/Open, canceled Save As and detached recovery without changing the saved original: edisvg",
+          );
+          const archivePath = join(root, "edisvg-react-test.react.zip"),
+            exportDraft = await editor.evaluate(() => localStorage.getItem("edisvg-project"));
+          await editor.locator('[data-action="export"]').click();
+          await editor.locator('[name="format"][value="react"]').check();
+          await editor.locator("#download").click();
+          await respond("Save", archivePath);
+          await editor.locator("#export-dialog").waitFor({ state: "hidden" });
+          const exportedBytes = await readFile(archivePath);
+          assert.equal(exportedBytes.readUInt32LE(0), 0x04034b50);
+          assert.ok(exportedBytes.includes(Buffer.from("edi-react-player.mjs")));
+          assert.ok(exportedBytes.includes(Buffer.from("EdiAnimation.d.ts")));
+          assert.equal(
+            await editor.evaluate(() => localStorage.getItem("edisvg-project")),
+            exportDraft,
+          );
+          await editor.locator('[data-action="export"]').click();
+          await editor.locator('[name="format"][value="react"]').check();
+          await editor.locator("#download").click();
+          await respond("Cancel", archivePath);
+          await editor.locator("#download").waitFor({ state: "visible" });
+          await editor.waitForFunction(
+            () => !document.querySelector<HTMLButtonElement>("#download")?.disabled,
+          );
+          assert.deepEqual(await readFile(archivePath), exportedBytes);
+          await editor.locator("#close-export").click();
+          assert.equal(await readFile(destination, "utf8"), previous);
+          console.log(
+            "Verified native binary React ZIP Save/Cancel, unchanged document and preserved original project",
+          );
+          const lottieJourney = await import(
+            new URL("../../apps/edisvg/scripts/native-lottie-journey.mts", import.meta.url).href
+          );
+          await lottieJourney.verifyNativeLottieExport(
+            editor,
+            join(root, "edisvg-lottie-test.lottie.json"),
+            join(results, "edisvg-lottie-export.png"),
+            respond,
+          );
+          const baselineLottie = await readFile(join(root, "edisvg-lottie-test.lottie.json"));
+          await lottieJourney.verifyNativeLottieExport(
+            editor,
+            join(root, "edisvg-lottie-stroke-test.lottie.json"),
+            join(results, "edisvg-lottie-stroke.png"),
+            respond,
+            {
+              kind: "stroke",
+              svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120"><path d="M20 35C20 35 90 35 90 35C90 35 55 90 55 90C55 90 20 35 20 35Z" fill="#2368e5" stroke="rgba(255,0,0,0.75)" stroke-width="8" stroke-opacity="0.5" stroke-linejoin="round"/></svg>',
+            },
+          );
+          assert.deepEqual(
+            await readFile(join(root, "edisvg-lottie-test.lottie.json")),
+            baselineLottie,
+          );
+          await lottieJourney.verifyNativeLottieExport(
+            editor,
+            join(root, "edisvg-lottie-conversion-test.lottie.json"),
+            join(results, "edisvg-lottie-conversion.png"),
+            respond,
+            {
+              kind: "cubic-conversion",
+              svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120"><path d="M20 35L90 35L55 90Z" fill="#2368e5" stroke="#ff0000" stroke-width="8" stroke-linejoin="round" stroke-dasharray="8 4 2"/></svg>',
+            },
+          );
+          await lottieJourney.verifyNativeLottieExport(
+            editor,
+            join(root, "edisvg-lottie-gradient-test.lottie.json"),
+            join(results, "edisvg-lottie-gradient.png"),
+            respond,
+            {
+              kind: "gradient",
+              expectedGradientCount: 2,
+              svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120"><defs><linearGradient id="paint" gradientUnits="userSpaceOnUse" x1="20" y1="35" x2="90" y2="90" gradientTransform="matrix(1.2 .2 .35 .9 -12 4)"><stop offset="0" stop-color="#e33a60" stop-opacity=".2"/><stop offset=".5" stop-color="#2050b0" stop-opacity=".7"/><stop offset="1" stop-color="#4fe3c1"/></linearGradient><linearGradient id="relative" gradientUnits="objectBoundingBox" x1=".1" y1=".15" x2=".9" y2=".8" gradientTransform="matrix(-1.2 .2 .35 .9 1 .05)"><stop offset="0" stop-color="#e33a60" stop-opacity=".2"/><stop offset="1" stop-color="#4fe3c1"/></linearGradient></defs><path d="M20 35C20 35 90 35 90 35C90 35 55 90 55 90C55 90 20 35 20 35Z" fill="url(#paint)"/><path d="M100 35C100 35 160 35 160 35C160 35 160 75 160 75C160 75 100 75 100 75C100 75 100 35 100 35Z" fill="url(#relative)" fill-opacity=".8"/></svg>',
+            },
+          );
+          assert.deepEqual(
+            await readFile(join(root, "edisvg-lottie-test.lottie.json")),
+            baselineLottie,
+          );
+          assert.equal(await readFile(destination, "utf8"), previous);
+        }
         const modalName =
           id === "ediaula" ? "Novo projeto" : id === "edifoto" ? "Novo documento" : null;
         if (modalName) {

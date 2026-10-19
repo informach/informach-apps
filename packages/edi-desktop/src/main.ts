@@ -94,6 +94,8 @@ export function createEdiDesktop(options: {
   appId: DesktopAppId;
   preloadPath: string;
   rendererRoot: string;
+  /** Native-dialog projects pass a document, not a filesystem path, through project IPC. */
+  projectFileMode?: "path" | "native-dialog";
   recoveryChannels?: readonly string[];
   onRecovery?: () => void;
   getRecoveryWindow?: () => BrowserWindow | null | undefined;
@@ -253,6 +255,11 @@ export function createEdiDesktop(options: {
   ]);
   const readAtSecond = new Set(["media:proxy", "key:render", "whisper:transcribe", "cursor:begin"]);
   beforeInvoke = async (channel, args) => {
+    if (
+      options.projectFileMode === "native-dialog" &&
+      (channel === "project:open" || channel === "project:save")
+    )
+      return;
     if (readAtFirst.has(channel)) args[0] = await files().assertRead(pathValue.parse(args[0]));
     if (readAtSecond.has(channel)) args[1] = await files().assertRead(pathValue.parse(args[1]));
     if (

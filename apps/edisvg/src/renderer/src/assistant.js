@@ -140,9 +140,9 @@ export function setupAssistant(editor) {
           text: changed ? "Histórico atualizado." : "Não há edição disponível no histórico.",
         };
       }
-      editor.execute(name, input);
-      message(`Aplicado: ${name}`, "system");
-      return { ok: true, text: JSON.stringify(editor.overview()) };
+      const result = await editor.execute(name, input);
+      if (!name.startsWith("get_")) message(`Aplicado: ${name}`, "system");
+      return { ok: true, text: JSON.stringify(result ?? editor.overview()) };
     });
     bridge.onCommand((command) => {
       if (command === "new") void createNew();
@@ -193,7 +193,7 @@ export function setupAssistant(editor) {
     try {
       const result = await bridge.projectSave(editor.snapshot(), as);
       editor.fileStatus(result);
-      if (result.saved) editor.notify("Projeto salvo em arquivo.");
+      if (result.saved) editor.notify(result.warning ?? "Projeto salvo em arquivo.");
     } catch (error) {
       editor.notify(error.message);
     }
@@ -202,6 +202,7 @@ export function setupAssistant(editor) {
     const result = await bridge.projectSave(editor.snapshot(), false);
     editor.fileStatus(result);
     if (!result.saved) throw new Error("Recovery save canceled");
+    if (result.warning) editor.notify(result.warning);
   });
   async function fileMenu() {
     if (!bridge) {

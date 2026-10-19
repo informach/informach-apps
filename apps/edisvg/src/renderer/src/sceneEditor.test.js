@@ -11,8 +11,8 @@ for (const action of ["Enter", "Escape", "blur", "empty"])
       globalThis.document = original;
     });
     const project = newProject(),
-      id = editScene(project.scene, null, "add", "circle");
-    const state = { ...project, selected: id, renaming: id };
+      id = editScene(project.artboards[0].scene, null, "add", "circle");
+    const state = { ...project, scene: project.artboards[0].scene, selected: id, renaming: id };
     const before = state.scene.nodes[0].name;
     let commits = 0,
       selected = false;
@@ -56,7 +56,8 @@ test("name click opens inline editing and inspector has no duplicate name field"
   t.after(() => {
     globalThis.document = original;
   });
-  const state = newProject(),
+  const project = newProject(),
+    state = { ...project, scene: project.artboards[0].scene },
     id = editScene(state.scene, null, "add", "circle");
   let renders = 0;
   const label = {

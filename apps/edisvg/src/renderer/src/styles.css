@@ -44,6 +44,7 @@ button:hover {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--mint);
   outline-offset: 2px;
@@ -196,7 +197,22 @@ h3 small {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 48px 232px minmax(280px, 1fr) 280px;
+  --edi-rail-width: 48px;
+  --edi-sidebar-default: 232px;
+  --edi-inspector-default: 280px;
+  --edi-center-min: 280px;
+  --edi-left-fit: min(
+    var(--edi-sidebar-width, var(--edi-sidebar-default)),
+    max(160px, calc(100% - var(--edi-rail-width) - var(--edi-center-min) - 220px))
+  );
+  --edi-right-fit: min(
+    var(--edi-inspector-width, var(--edi-inspector-default)),
+    max(220px, calc(100% - var(--edi-rail-width) - var(--edi-center-min) - var(--edi-left-fit)))
+  );
+  grid-template-columns: var(--edi-rail-width) var(--edi-left-fit) minmax(
+      var(--edi-center-min),
+      1fr
+    ) var(--edi-right-fit);
   height: calc(100dvh - 352px);
   min-height: 440px;
 }
@@ -651,7 +667,7 @@ h3 small {
   transform: translateX(-50%);
   font-size: 9px !important;
   line-height: 20px;
-  padding: 0 5px !important;
+  padding: 0 5px;
   height: 20px;
   border: 0;
 }
@@ -924,6 +940,10 @@ dialog::backdrop {
   border-color: #4fe3c17a;
   background: #4fe3c107;
 }
+.format-option:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .format-option input {
   margin: 2px 0 0;
   align-self: flex-start;
@@ -953,6 +973,9 @@ dialog::backdrop {
   font-size: 11px;
   margin: 15px 0;
 }
+.export-content [hidden] {
+  display: none;
+}
 .export-field input {
   width: 65%;
   padding: 8px;
@@ -980,6 +1003,20 @@ dialog::backdrop {
   margin-right: auto;
   color: #777f8d;
   font-size: 9px;
+}
+#export-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#export-dialog > .export-content {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+#export-dialog > .dialog-heading,
+#export-dialog > .dialog-footer {
+  flex-shrink: 0;
 }
 .help-content {
   padding: 12px 26px 26px;
@@ -1011,7 +1048,9 @@ dialog::backdrop {
 }
 @media (min-width: 1600px) {
   .workspace {
-    grid-template-columns: 56px 280px minmax(280px, 1fr) 320px;
+    --edi-rail-width: 56px;
+    --edi-sidebar-default: 280px;
+    --edi-inspector-default: 320px;
     height: calc(100dvh - 402px);
   }
   .timeline {
@@ -1050,7 +1089,10 @@ dialog::backdrop {
     font-size: 10px;
   }
   .workspace {
-    grid-template-columns: 42px 200px minmax(240px, 1fr) 240px;
+    --edi-rail-width: 42px;
+    --edi-sidebar-default: 200px;
+    --edi-inspector-default: 240px;
+    --edi-center-min: 240px;
   }
   .topbar {
     gap: 12px;
@@ -1075,6 +1117,33 @@ dialog::backdrop {
     padding: 12px;
   }
 }
+.font-stack-fields {
+  min-width: 0;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+}
+.font-stack-fields > legend {
+  color: var(--muted);
+  font-size: 11px;
+}
+.font-stack-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  align-items: end;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+.font-stack-row > label {
+  min-width: 0;
+}
+.font-stack-row select {
+  width: 100%;
+  min-width: 0;
+}
+.font-stack-row > button {
+  padding: 6px;
+}
 @media (max-width: 900px) {
   .project {
     display: none;
@@ -1083,7 +1152,11 @@ dialog::backdrop {
     display: none;
   }
   .workspace {
-    grid-template-columns: 42px 190px minmax(240px, 1fr);
+    --edi-sidebar-default: 190px;
+    grid-template-columns: var(--edi-rail-width) min(
+        var(--edi-sidebar-width, var(--edi-sidebar-default)),
+        max(160px, calc(100% - var(--edi-rail-width) - var(--edi-center-min)))
+      ) minmax(var(--edi-center-min), 1fr);
   }
   .timeline-header > [data-action="auto"],
   .timeline-header > [data-action="curves"] {
