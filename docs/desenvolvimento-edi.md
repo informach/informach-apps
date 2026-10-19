@@ -252,6 +252,7 @@ pnpm build
 | OAuth, banco e licenças | `pnpm edi:test:integration` — Windows; PostgreSQL descartável com migrations completas, sem banco existente |
 | Portal standalone real | `pnpm build:edi`, depois `pnpm edi:test:integration --portal` — acrescenta HTTP, assets, auth e readiness; não é só `next dev` |
 | Fluxo Electron e acesso | `pnpm edi:test:native` ou `pnpm edi:test:native edifoto` — Windows, perfis isolados, builds próprios, fixtures e screenshots em `.cache/edi-native-results` |
+| Navegação e encerramento do EdiPDF | `pnpm edi:test:pdf-view` — Windows, quinze ciclos de retorno entre documento/Início em três larguras e conferência de locks após fechar. Usa chaves/perfis efêmeros; recompilar `pnpm --filter @informach/edipdf build` depois para restaurar o build normal |
 | Telas do EdiAula de ponta a ponta | `pnpm edi:test:visual`: Windows, pacote de mídia em `.cache/edi-native-media`, perfil isolado, capturas e relatório em `.cache/edi-visual-results` |
 | EdiFoto no navegador | `pnpm --filter @informach/edifoto test:e2e` — regressão de edição, arquivos em memória, IA local sem chamadas pagas e layout; evidências em `.cache/edifoto-tests` |
 | Tooling de release | `pnpm edi:typecheck:tooling` e `pnpm edi:test:tooling` |

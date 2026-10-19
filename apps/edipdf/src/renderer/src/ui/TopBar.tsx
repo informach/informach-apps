@@ -1,11 +1,24 @@
-import { FileText, FolderOpen, Home, Plus, Printer, Save, X } from "lucide-react";
+import {
+  FileText,
+  FolderOpen,
+  Home,
+  ListTodo,
+  Plus,
+  Printer,
+  Save,
+  Search,
+  Settings2,
+  X,
+} from "lucide-react";
 import { closeDoc, openDialog, printDoc, saveDoc } from "../lib/actions";
 import { isDirty, useApp } from "../state/store";
+import { useLocalTasks } from "../state/tasks";
 
 export function TopBar(): React.ReactElement {
   const docs = useApp((s) => s.docs);
   const activeId = useApp((s) => s.activeId);
   const active = docs.find((d) => d.id === activeId);
+  const taskCount = useLocalTasks((state) => Object.keys(state.active).length);
   return (
     <header className="topbar">
       <div className="brand">
@@ -69,6 +82,32 @@ export function TopBar(): React.ReactElement {
         </button>
       </nav>
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="btn ghost"
+          title="Tarefas e resultados preparados"
+          onClick={() => useApp.setState({ dialog: { kind: "tasks" } })}
+        >
+          <ListTodo size={14} /> Tarefas{taskCount ? ` (${taskCount})` : ""}
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Preferências"
+          title="Preferências"
+          onClick={() => useApp.setState({ dialog: { kind: "preferences" } })}
+        >
+          <Settings2 size={16} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Encontrar uma ação"
+          title="Encontrar uma ação (Ctrl+K)"
+          onClick={() => useApp.setState({ dialog: { kind: "commands" } })}
+        >
+          <Search size={16} />
+        </button>
         <button
           type="button"
           className="btn ghost"

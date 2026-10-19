@@ -1,5 +1,9 @@
 # Revisão do EdiPDF — 15/10/2026
 
+Estado atual: [full review da entrega de 18/10/2026](../../docs/reviews/edipdf-2026-10-18/full-review-entrega.md) e [pendências pós-release](../../docs/reviews/edipdf-2026-10-18/pendencias-pos-release.md). Este arquivo conserva o histórico anterior.
+
+Registro histórico. A [análise funcional de 18/10/2026](../../docs/reviews/edipdf-2026-10-18/analise-funcional.md) acrescenta achados reproduzidos em Electron real e no gerador, incluindo conteúdo retido após exclusão, formulários mesclados e recuperação com rascunho. O bloqueio de inicialização descrito nesta revisão não impediu a jornada isolada de 18/10.
+
 Revisão de código e correções com foco em integridade dos PDFs, estado de edição, exportação e segurança do processo Electron. Não representa certificação de ausência de defeitos nem validação completa da interface.
 
 ## Problemas corrigidos

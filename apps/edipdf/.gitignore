@@ -1,6 +1,9 @@
 node_modules/
 out/
 *.tsbuildinfo
+# Generated from pinned dependencies and verified local resources by postinstall.
 src/renderer/public/pdfjs/
+src/renderer/public/ocr/
+src/renderer/public/licenses/
 .review/
 .file-test-*/
