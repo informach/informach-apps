@@ -76,3 +76,5 @@ O merge do PR #21 é presença de fonte em `main`, não prova de que a candidata
 ## Proposta de base comum — 19/10/2026
 
 A [base comum](base-comum.md) substitui o passo 3 acima por uma proposta concreta: o package `@informach/edi-ocr` extraído do EdiPDF, com tiling para o Captura, e subpaths do SDK para mídia, áudio e IA. Também define a ordem da retomada. Decisões pendentes estão no próprio documento.
+
+Atualização do mesmo dia: a proposta foi aprovada e implementada na branch `feat/edi-base-comum`. As linhas 5c, 6 e 7 da tabela "O que ficou faltando" foram entregues, assim como o assistente da linha 8, conforme o [README do Captura](../../../../apps/edicaptura/README.md). Continuam pendentes o compartilhamento por link, que depende do armazenamento no servidor, a homologação física (áudio real, monitores, DPI) e a medição de OCR em telas reais. A tabela de andamento da [base comum](base-comum.md) traz as evidências.
