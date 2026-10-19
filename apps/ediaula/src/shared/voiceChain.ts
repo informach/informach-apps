@@ -29,7 +29,7 @@ export const VOICE_PRESET_LABELS: Record<VoicePreset, string> = {
 };
 
 /** Bumped whenever a chain changes what it writes: older cached files are not used again. */
-export const VOICE_CHAIN_VERSION = 2;
+export const VOICE_CHAIN_VERSION = 3;
 
 /** Loudness targets: integrated LUFS, true peak dBTP; a wide LRA keeps the gain linear. */
 export const VOICE_LOUDNESS = { I: -16, TP: -1, LRA: 20 } as const;
@@ -70,8 +70,10 @@ export function parseFilterList(text: string): Set<string> {
 /**
  * RNNoise when the binary has `arnndn` and is FFmpeg 7 or later: FFmpeg 6.1.1 (the
  * development ffmpeg-static) gave two different results for the same input in repeated runs,
- * one of them with the voice 6 dB down and the hiss barely touched; 9.0.2 (the app's bundle)
- * gave the same bytes every time. Otherwise the FFT denoiser with a sampled noise profile.
+ * one of them with the voice 6 dB down and the hiss barely touched. The app's 9.0.2 recipe
+ * initializes arnndn's padded GRU inputs: uninitialized padding also made stock 9.0.2
+ * nondeterministic. Version 3 invalidates voices cached before that recipe correction.
+ * Otherwise the FFT denoiser uses a sampled noise profile.
  */
 export function chooseNoiseReduction(
   caps: FfmpegCaps,

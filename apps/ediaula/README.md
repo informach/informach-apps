@@ -38,7 +38,7 @@ Se o executável estiver em uso por um EdiAula aberto em desenvolvimento, o coma
 Os testes que enumeram ou amostram o desktop, instalam hooks globais, restauram janelas ou geram entrada
 real só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`. Probes WASAPI, gravação do áudio do sistema e reprodução
 no dispositivo real exigem `EDIAULA_SOUND_TESTS=1`. `pnpm edi:media:test` preserva as escolhas do chamador;
-o workflow de mídia declara ambas explicitamente no runner Windows descartável. Sem opt-in, os casos
+o workflow de mídia habilita input explicitamente e habilita áudio apenas quando um preflight sem aquisição confirma a saída padrão ativa. Sem saída, registra a razão e conta os cinco skips de áudio; erros inesperados do probe falham o gate. A presença do endpoint não substitui os controles de tom/exclusão. Sem opt-in, os casos
 físicos aparecem como skips contados; protocolo, cursor sintético, keyrule e finalização PCM continuam
 ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de desktop.
 
@@ -1414,3 +1414,8 @@ src/shared     tipos, operações da timeline e plano de exportação (testados)
 src/renderer   interface React (home, editor, timeline, preview, exportação)
 tests/         testes com node:test
 ```
+
+
+### Correção da receita RNNoise e cache de voz
+
+A receita FFmpeg9.0.2 inicializava os pesos de padding dos GRUs, mas deixava os buffers de entrada da pilha sem inicialização; o produto0×NaN podia contaminar a rede. O build atual zera os três buffers em um patch de contexto exato, incluído nas fontes correspondentes e no digest da receita. A cadeia de voz versão3 invalida caches anteriores; o teste mantém redução mínima10dB, loudness/pico/alinhamento e compara bytes de duas execuções com caches independentes. O preflight de áudio físico não afeta esses testes sintéticos nem serve para dispensar falha de qualidade da voz.

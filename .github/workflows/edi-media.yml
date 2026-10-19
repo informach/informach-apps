@@ -61,16 +61,24 @@ jobs:
         with:
           name: edi-native-media-windows-x64
           path: .cache/edi-native-media/windows-x64
+      - name: Check sound-test eligibility without audio acquisition
+        id: sound
+        shell: pwsh
+        run: ./scripts/edi/test-sound-preflight.ps1 -OutputPath .cache/edi-sound-test-eligibility.json
       - name: Verify native capabilities and catalog consumer regressions against these binaries
         run: pnpm edi:media:test
-        # Acquisition is explicit on this disposable runner, never enabled by the test script.
+        # Explicit on this disposable runner; sound also needs an active default output.
+        # A runner without one still runs the synthetic/media tests and counts sound skips.
         env:
           EDIAULA_NATIVE_INPUT_TESTS: "1"
-          EDIAULA_SOUND_TESTS: "1"
+          EDIAULA_SOUND_TESTS: ${{ steps.sound.outputs.sound_tests }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: edi-native-media-verification
-          path: .cache/edi-media-verification.json
+          path: |
+            .cache/edi-media-verification.json
+            .cache/edi-sound-test-eligibility.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7

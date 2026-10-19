@@ -145,7 +145,11 @@ test("o clipe só toca o arquivo tratado do ajuste escolhido e da versão atual"
   assert.equal(treatedPath({ hasAudio: true, voicePreset: "off", treated }), null);
   assert.equal(treatedPath({ hasAudio: true, treated }), null);
   assert.equal(
-    treatedPath({ hasAudio: true, voicePreset: "teacher", treated: { ...treated, version: 0 } }),
+    treatedPath({
+      hasAudio: true,
+      voicePreset: "teacher",
+      treated: { ...treated, version: VOICE_CHAIN_VERSION - 1 },
+    }),
     null,
   );
 });
@@ -210,6 +214,19 @@ for (const [label, ffmpeg] of [
     assert.equal(again.cached, true);
     assert.equal(again.path, first.path);
     assert.deepEqual(readFileSync(first.path), bytes, "o mesmo arquivo, sem rodar de novo");
+    const independent = await treatVoice({
+      ffmpeg,
+      source,
+      preset: "teacher",
+      cacheRoot: join(cacheRoot, "independent"),
+      model: MODEL,
+    });
+    assert.equal(independent.cached, false);
+    assert.deepEqual(
+      readFileSync(independent.path),
+      bytes,
+      "outro cache vazio produz os mesmos bytes, sem depender do estado da pilha do FFmpeg",
+    );
     const soft = await treatVoice({ ffmpeg, source, preset: "soft", cacheRoot, model: MODEL });
     assert.notEqual(soft.path, first.path, "outro ajuste, outro arquivo");
   });
