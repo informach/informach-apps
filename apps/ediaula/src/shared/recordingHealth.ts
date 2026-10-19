@@ -4,6 +4,18 @@
  * The judgments live here, apart from the processes, so they can be tested.
  */
 
+import { dbfs } from "@informach/edi-desktop/audio";
+
+// Levels, silence and clipping are the suite's shared judgments (EdiCaptura uses the same).
+export {
+  CLIP_LEVEL,
+  ClipMeter,
+  dbfs,
+  pcmLevels,
+  SILENCE_DBFS,
+  SilenceMeter,
+} from "@informach/edi-desktop/audio";
+
 export interface RecorderHealth {
   /** Seconds recorded, without the pauses. */
   elapsed: number;
@@ -27,8 +39,6 @@ export interface MicLevel {
   error?: string;
 }
 
-/** Below this the microphone counts as silent. */
-export const SILENCE_DBFS = -55;
 /** Silent this long, the strip says so. */
 export const SILENCE_WARN_SECONDS = 10;
 /** Less recording time left than this on the disk: warn. */
@@ -44,51 +54,6 @@ export const SLOW_SPEED = 0.97;
 export const SLOW_SECONDS = 5;
 /** The first seconds of a part: encoders fill their pipeline and FFmpeg's numbers settle. */
 export const WARMUP_SECONDS = 12;
-
-/** Peak and RMS (0..1) of little-endian signed 16-bit samples. */
-export function pcmLevels(bytes: Uint8Array): { peak: number; rms: number } {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const count = Math.floor(bytes.byteLength / 2);
-  if (!count) return { peak: 0, rms: 0 };
-  let peak = 0;
-  let sum = 0;
-  for (let i = 0; i < count; i++) {
-    const v = view.getInt16(i * 2, true) / 32768;
-    const a = Math.abs(v);
-    if (a > peak) peak = a;
-    sum += v * v;
-  }
-  return { peak: Math.min(1, peak), rms: Math.sqrt(sum / count) };
-}
-
-/** dBFS of a 0..1 level (-Infinity for silence). */
-export const dbfs = (level: number): number => (level > 0 ? 20 * Math.log10(level) : -Infinity);
-
-/** Seconds the microphone has been below SILENCE_DBFS, from blocks of measured audio. */
-export class SilenceMeter {
-  silentFor = 0;
-  add(rms: number, seconds: number): number {
-    this.silentFor = dbfs(rms) < SILENCE_DBFS ? this.silentFor + seconds : 0;
-    return this.silentFor;
-  }
-}
-
-/** A block this close to full scale (the meter's 8 kHz copy) counts as clipping. */
-export const CLIP_LEVEL = 0.98;
-/** Clipping is shown for this long after the last block that clipped. */
-const CLIP_HOLD = 2;
-
-/** Whether the microphone clipped in the last seconds, from blocks of measured audio. */
-export class ClipMeter {
-  private since = Number.POSITIVE_INFINITY;
-  add(peak: number, seconds: number): boolean {
-    this.since = peak >= CLIP_LEVEL ? 0 : this.since + seconds;
-    return this.clipping;
-  }
-  get clipping(): boolean {
-    return this.since < CLIP_HOLD;
-  }
-}
 
 /** What the five-second microphone test found, and what to do about it. */
 export interface MicCheck {

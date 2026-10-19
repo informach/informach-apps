@@ -80,7 +80,7 @@ export function normalizeShortcut(value: string): string {
       .map((p) => ({ CONTROL: "Control", ALT: "Alt", SHIFT: "Shift" })[p]),
     key,
   ].join("+");
-  if (["Control+Shift+S", "Control+Shift+F10"].includes(result))
+  if (["Control+Shift+S", "Control+Shift+F9", "Control+Shift+F10"].includes(result))
     throw new Error("Atalho reservado pela captura.");
   return result;
 }

@@ -1,9 +1,16 @@
+import { SYSTEM_AUDIO_CONSTRAINTS } from "@informach/edi-desktop/audio";
 import { RecordingClock } from "./clock.mjs";
 
 // One IPC packet at a time. The browser owns encoding buffers; admitted pending
 // Blobs are capped independently, and are released only after durable ACK.
 export const MAX_PENDING_BYTES = 32 * 1024 * 1024;
-export function setupRecording(api, toast) {
+const BACKPRESSURE_BYTES = 4 * 1024 * 1024;
+/**
+ * `sound` (optional) gives the person's options and the mixer owned by the controller:
+ * `{ options(): VideoOptions, mix(): AudioMix | null, release(): void }`. Without it the video is
+ * recorded without sound, as before phase 5c.
+ */
+export function setupRecording(api, toast, sound = null) {
   let recording = null;
   let pendingStop = false;
   const phase = (value) => api.recordPhase(value).catch((error) => toast(error.message));
@@ -14,10 +21,12 @@ export function setupRecording(api, toast) {
     state.stream?.getTracks().forEach((track) => {
       track.stop();
     });
+    // The mixed sound track belongs to the controller's mixer, which closes it.
     state.output?.getTracks().forEach((track) => {
-      track.stop();
+      if (track !== state.soundTrack) track.stop();
     });
     state.video?.remove();
+    sound?.release();
   }
   function stop(state) {
     state.stopRequested = true;
@@ -59,7 +68,8 @@ export function setupRecording(api, toast) {
               state.pending.shift();
             }
           }
-          if (!state.stopRequested && state.recorder.state === "paused") {
+          // A pause the person asked for is theirs to end; only the disk's pause ends here.
+          if (!state.stopRequested && !state.held && state.recorder.state === "paused") {
             state.recorder.resume();
             state.clock.resume();
             await api.recordPhase("recording");
@@ -158,9 +168,12 @@ export function setupRecording(api, toast) {
         maxParts < 100
       )
         throw new Error("Sessão de gravação inválida.");
+      const options = sound?.options();
+      const mix = sound?.mix() ?? null;
+      const system = !!(options?.system.enabled && mix);
       state.stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
-        audio: false,
+        audio: system ? SYSTEM_AUDIO_CONSTRAINTS : false,
       });
       // Permission completion never activates a session cancelled in the meantime.
       if (pendingStop || state.stopRequested || recording !== state)
@@ -193,11 +206,26 @@ export function setupRecording(api, toast) {
       draw();
       state.timer = setInterval(draw, 1000 / 30);
       state.output = canvas.captureStream(30);
-      const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(
-        (type) => MediaRecorder.isTypeSupported(type),
-      );
+      if (system) {
+        if (state.stream.getAudioTracks().length) {
+          const added = mix.addSystem(state.stream, options.system);
+          if (!added.excludesApp)
+            toast("Este Windows não separa o som do próprio app; o áudio do PC pode incluí-lo.");
+        } else toast("O Windows não entregou o áudio do PC; gravando sem ele.");
+      }
+      const soundTrack = mix?.track() ?? null;
+      state.soundTrack = soundTrack;
+      if (soundTrack) state.output.addTrack(soundTrack);
+      const types = soundTrack
+        ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+        : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+      const mimeType = types.find((type) => MediaRecorder.isTypeSupported(type));
       if (!mimeType) throw new Error("Este sistema não suporta gravação WebM.");
-      const recorder = new MediaRecorder(state.output, { mimeType, videoBitsPerSecond: 6_000_000 });
+      const recorder = new MediaRecorder(state.output, {
+        mimeType,
+        videoBitsPerSecond: 6_000_000,
+        ...(soundTrack ? { audioBitsPerSecond: 160_000 } : {}),
+      });
       state.recorder = recorder;
       recorder.ondataavailable = (event) => {
         if (!event.data.size) return;
@@ -217,7 +245,7 @@ export function setupRecording(api, toast) {
         state.pendingBytes += event.data.size;
         state.totalBytes += event.data.size;
         state.admittedParts += packets;
-        if (state.pendingBytes >= 4 * 1024 * 1024 && recorder.state === "recording") {
+        if (state.pendingBytes >= BACKPRESSURE_BYTES && recorder.state === "recording") {
           recorder.pause();
           state.clock.pause();
           void phase("paused");
@@ -269,8 +297,38 @@ export function setupRecording(api, toast) {
       await api.recordFailed(error.message);
     }
   });
+  /** The person's pause: the recorder stops taking frames and sound, the clock stops. */
+  function pause() {
+    const state = recording;
+    if (!state?.recorder || state.stopRequested || state.held) return false;
+    state.held = true;
+    if (state.recorder.state === "recording") {
+      state.recorder.pause();
+      state.clock.pause();
+    }
+    void phase("held");
+    return true;
+  }
+  /** Ends the person's pause; while the disk still holds the recorder, its drain resumes it. */
+  function resume() {
+    const state = recording;
+    if (!state?.recorder || state.stopRequested || !state.held) return false;
+    state.held = false;
+    if (state.recorder.state !== "paused") return true;
+    // The drain only resumes a recorder that is still paused, so resuming here never doubles.
+    if (state.pendingBytes < BACKPRESSURE_BYTES && !state.writeError) {
+      state.recorder.resume();
+      state.clock.resume();
+      void phase("recording");
+    } else void phase("paused");
+    return true;
+  }
+  const toggle = () => (recording?.held ? resume() : pause());
   api.onStop(() => {
     void finish().catch((error) => toast(error.message));
   });
-  return finish;
+  api.onTogglePause?.(() => {
+    toggle();
+  });
+  return { finish, pause, resume, toggle, held: () => !!recording?.held };
 }

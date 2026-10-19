@@ -36,10 +36,10 @@ Subpaths main-only do SDK desktop, ao lado de `access` e `mcp-config`, que já p
 - **Fica em cada app**: catálogo de ferramentas e guia do editor (`apps/ediaula/src/shared/aiTools.ts`, equivalentes do EdiFoto/EdiSVG e, depois, do Captura), prompts, caminhos e regras de domínio.
 - **Consumidores na extração**: EdiAula (origem) e EdiFoto. O EdiSVG migra em seguida. O Captura entra no lote 8, cumprindo a decisão de IA: sem opção de API nem créditos Edi. A opção de API existente no EdiAula continua no app ou fica desligável por parâmetro.
 
-### 2. Mídia: evoluir `@informach/edi-desktop/native-media` e criar `/media-protocol`
+### 2. Mídia: evoluir `@informach/edi-desktop/native-media` e criar `/media-range`
 
-- Um único executor FFmpeg no `NativeMedia`, com os recursos dos dois lados: timeout, limite de saída, ids de job, `onStderr` e um gancho de agendamento. O EdiAula apaga `run`/`cancel`/`probe`/`stillFrame`/`detectEncoder` locais e mantém só o que é dele: scheduler, proxy, waveform, exportação e a cadeia `encoderChoice`.
-- **`media-protocol`**: `videoRange` e o servidor de Range com capabilities revogáveis, a partir do Captura. O `media://` do EdiAula passa a usá-lo e ganha a mesma restrição.
+- Um único executor FFmpeg no `NativeMedia`, com os recursos dos dois lados: timeout, limite de saída, ids de job e grupos `<id>:<parte>`, `onStderr`, `capture: "stderr"`, `MediaProcessError` com detalhe e um gancho `onSpawn` para prioridade. O EdiAula configura o executor para sua fila (sem teto de processos ou de tempo, IDs compartilhados, mensagem "Cancelado") e apagou `run`/`cancel`/`probe` locais; mantém scheduler, proxy, waveform, exportação e a cadeia `encoderChoice`.
+- **`media-range`**: o tratamento estrito de `Range` (`byteRange`, `rangeHeaders`, `rangeNotSatisfiable`), a partir do Captura. O `media://` do EdiAula passou a usá-lo e deixou de aceitar intervalos malformados. A autorização continua em cada app (tokens revogáveis no Captura, concessões de `desktopFiles` no EdiAula): trocar o modelo de URL do EdiAula por tokens mexeria em todo o renderer dele sem ganho de segurança proporcional.
 - Fora deste subpath: os journals de gravação (ver diagnóstico).
 
 ### 3. Áudio: `@informach/edi-desktop/audio` (puro) e `/audio-capture` (renderer)
@@ -74,7 +74,7 @@ Cada etapa tem review e gates próprios, conforme o padrão da frente. As extra�
 
 | Etapa | Conteúdo | Consumidores verificados |
 | --- | --- | --- |
-| E1 | Executor FFmpeg único e `media-protocol` | EdiAula e EdiCaptura (`test:media-native`, `test:video-native`, nativo) |
+| E1 | Executor FFmpeg único e `media-range` | EdiAula e EdiCaptura (`test:media-native`, `test:video-native`, nativo) |
 | E2 — 5c | `audio` e `audio-capture`; microfone e áudio do PC opcionais, medidores, mudo, contagem regressiva, pausa manual e duração ativa no gravador atual do Captura | EdiAula (medidores) e EdiCaptura |
 | E3 | `@informach/edi-ocr` extraído do EdiPDF, com o PDF migrado primeiro e sem mudar comportamento | EdiPDF (unitários, OCR real, jornada nativa) |
 | E4 — 6 | OCR no Captura com tiling, seleção/cópia/correção, busca, detecção assistida e máscaras; A04 (renumeração e rótulos) | EdiCaptura e EdiPDF |
@@ -102,8 +102,8 @@ Apps não importam apps. Não há passagem direta entre apps. Packages não ganh
 
 | Etapa | Estado |
 | --- | --- |
-| E1 | Em andamento |
-| E2 | Pendente |
+| E1 | Implementada: executor único e `media-range`; SDK 83 testes, EdiAula 944 testes (928 aprovados, 16 opt-in pulados, 0 falhas), Captura 166 unitários e renderer |
+| E2 | Implementada: `@informach/edi-desktop/audio` e fase 5c do Captura (microfone e áudio do PC opcionais, volume, mudo, medidores, contagem e pausa manual); renderer Chromium cobre som e pausa. Homologação física de áudio pendente |
 | E3 | Em andamento |
 | E4 | Pendente (depende de E3) |
 | E5 | Pendente |

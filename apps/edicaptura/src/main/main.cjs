@@ -43,6 +43,8 @@ const scrollWorkerEntry = path.join(
     : "scroll-worker.js",
 );
 const { allowCapturePermission } = require("./capture-permission.cjs");
+const { VideoOptionsStore } = require("./video-options.ts");
+const { RECORDING_PHASES } = require("../domain/video-options.ts");
 const { pixelRect } = require("../capture/geometry.cjs");
 const { chooseDisplay, frameWindows, controlPosition } = require("../capture/displays.cjs");
 
@@ -67,6 +69,7 @@ const desktop = createEdiDesktop({
     "record:failed",
     "record:ready",
     "record:phase",
+    "record:options",
     "control:finish",
     "control:state",
     "capture:cancel",
@@ -85,6 +88,9 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 const recordingStore = new RecordingStore(path.join(app.getPath("userData"), "recordings"));
+const videoOptions = new VideoOptionsStore(
+  path.join(app.getPath("userData"), "video-options.json"),
+);
 let startupRecoveries = [];
 let recoveringVideo = false;
 const videoStreams = new VideoStreams((root) => {
@@ -401,7 +407,11 @@ async function beginCapture() {
 function openController(mode) {
   closeController();
   const height =
-    mode === "scroll" ? Math.min(720, capture.display.workAreaSize?.height || 720) : 180;
+    mode === "scroll"
+      ? Math.min(720, capture.display.workAreaSize?.height || 720)
+      : mode === "video"
+        ? 340
+        : 180;
   const position = controlPosition(
     capture.rect,
     capture.display,
@@ -783,6 +793,14 @@ async function finishScrollCapture(active, overlap) {
   }
 }
 
+/** The sound the person turned on for the quick video; nothing outside a video capture. */
+function recordingAudio() {
+  if (capture?.mode !== "video" || capture.stopRequested || capture.restricted)
+    return { microphone: false, system: false };
+  const options = videoOptions.read();
+  return { microphone: options.microphone.enabled, system: options.system.enabled };
+}
+
 function controlState() {
   if (photoCapture?.busy && photoState)
     return { mode: "photo", ...photoState, cancelShortcut: photoCancelShortcut };
@@ -876,6 +894,7 @@ async function initialize() {
   let profileError;
   try {
     await photoPreferences.load();
+    await videoOptions.load();
   } catch (error) {
     profileError = error.message;
   }
@@ -922,6 +941,7 @@ async function initialize() {
         started: capture?.recordStarted,
         permission,
         details,
+        audio: recordingAudio(),
       }),
     ),
   );
@@ -946,7 +966,7 @@ async function initialize() {
         active.recordStarted &&
         !active.stopRequested &&
         !active.restricted &&
-        !request.audioRequested &&
+        (!request.audioRequested || recordingAudio().system) &&
         request.videoRequested
       );
     };
@@ -958,7 +978,14 @@ async function initialize() {
           thumbnailSize: { width: 0, height: 0 },
         }),
       );
-      callback(source ? { video: source } : null);
+      // Windows loopback; the controller asks Chromium to leave its own sound out.
+      callback(
+        source
+          ? request.audioRequested
+            ? { video: source, audio: "loopback" }
+            : { video: source }
+          : null,
+      );
     } catch {
       callback(null);
     }
@@ -1434,6 +1461,15 @@ async function initialize() {
     return result.filePath;
   });
   handle("control:state", ["controller"], controlState);
+  handle("record:options", ["controller"], () => ({
+    ...videoOptions.read(),
+    error: videoOptions.error,
+  }));
+  handle("record:options-save", ["controller"], async (input) => {
+    if (capture?.mode !== "video" || capture.recordStarted)
+      throw new Error("As opções de vídeo valem antes de começar a gravar.");
+    return videoOptions.save(input);
+  });
   handle("control:next", ["controller"], (overlap) => nextSegment(false, overlap ?? null));
   handle("control:finish", ["controller"], finishCapture);
   handle("scroll:review", ["controller"], reviewScroll);
@@ -1481,11 +1517,7 @@ async function initialize() {
     return true;
   });
   handle("record:phase", ["controller"], (phase) => {
-    if (
-      capture?.mode !== "video" ||
-      !capture.recordStarted ||
-      !["recording", "paused", "finalizing", "failed"].includes(phase)
-    )
+    if (capture?.mode !== "video" || !capture.recordStarted || !RECORDING_PHASES.includes(phase))
       throw new Error("Estado de gravação inválido.");
     capture.recordingState = phase;
     controller?.webContents.send("control-update", controlState());
@@ -1570,6 +1602,15 @@ async function initialize() {
   globalShortcut.register("CommandOrControl+Shift+S", beginCapture);
   globalShortcut.register("CommandOrControl+Shift+F10", () => {
     if (capture?.mode === "video") stopRecording();
+  });
+  globalShortcut.register("CommandOrControl+Shift+F9", () => {
+    if (
+      capture?.mode === "video" &&
+      capture.recordStarted &&
+      controller &&
+      !controller.isDestroyed()
+    )
+      controller.webContents.send("record-toggle-pause");
   });
   globalShortcut.register("CommandOrControl+Shift+PageDown", () => {
     try {

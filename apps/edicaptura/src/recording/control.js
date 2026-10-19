@@ -1,4 +1,5 @@
 import { hydrateIcons } from "../shared/icons.js";
+import { AudioMix } from "./audio-mix.js";
 import { RecordingClock } from "./clock.mjs";
 import { setupRecording } from "./recorder.js";
 import { setupScrollControls } from "./scroll-controls.js";
@@ -68,6 +69,11 @@ function render() {
     $("cancel").textContent = "Cancelar";
     return;
   }
+  if (state.mode === "video") {
+    $("pause").hidden = !["recording", "paused", "held"].includes(state.phase);
+    $("pause").textContent = state.phase === "held" ? "Retomar" : "Pausar";
+    $("pause").setAttribute("aria-pressed", String(state.phase === "held"));
+  }
   if (state.mode === "video" && state.phase === "recording") clock.resume();
   else clock.pause();
   renderClock();
@@ -81,7 +87,9 @@ function render() {
             ? "Não salvo — clique em Parar e salvar para tentar novamente"
             : state.phase === "paused"
               ? "Aguardando confirmação do disco…"
-              : "Preparando gravação…"
+              : state.phase === "held"
+                ? "Pausado · Ctrl+Shift+F9 retoma"
+                : "Preparando gravação…"
       : "Captura com rolagem";
   $("scroll-controls").hidden = state.mode !== "scroll";
   $("cancel").hidden = state.mode !== "scroll";
@@ -133,15 +141,188 @@ api.onControlError(error);
 api.onRecordProgress((value) => {
   $("stop-hint").textContent = `${(value.bytes / 1024 / 1024).toFixed(1)} MB no disco`;
 });
-const finishRecording = setupRecording(api, (message) => {
-  $("title").textContent = message;
-});
-window.ediSuite.onRecovery(() => (state?.mode === "scroll" ? api.finish(null) : finishRecording()));
-if (state?.mode === "video") {
+let options = null,
+  mix = null,
+  recordingStarted = false;
+const sound = {
+  options: () => options,
+  mix: () => mix,
+  release() {
+    const closing = mix;
+    mix = null;
+    void closing?.close();
+  },
+};
+const recorder = setupRecording(
+  api,
+  (message) => {
+    $("title").textContent = message;
+  },
+  sound,
+);
+window.ediSuite.onRecovery(() => (state?.mode === "scroll" ? api.finish(null) : recorder.finish()));
+$("pause").onclick = () => recorder.toggle();
+
+const METER_FLOOR = -60;
+const SOURCES = [
+  { id: "mic", key: "microphone", name: "Microfone" },
+  { id: "system", key: "system", name: "Áudio do PC" },
+];
+function showLevels(levels) {
+  for (const { id, key, name } of SOURCES) {
+    const level = levels[key];
+    $(`${id}-level`).value = level ? Math.max(METER_FLOOR, level.db) : METER_FLOOR;
+    if (!level) continue;
+    $(`${id}-status`).textContent = level.clipping
+      ? `${name} alto demais: baixe o volume.`
+      : key === "microphone" && level.silentFor >= 10
+        ? "Microfone em silêncio há mais de 10 s."
+        : "";
+  }
+}
+function ensureMix() {
+  if (!mix) {
+    mix = new AudioMix();
+    mix.watch(showLevels);
+  }
+  return mix;
+}
+async function saveOptions() {
   try {
-    await api.beginRecording();
+    options = await api.recordOptionsSave(options);
   } catch (e) {
     error(e);
+  }
+}
+async function listMicrophones() {
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+    (device) => device.kind === "audioinput" && device.deviceId !== "default",
+  );
+  const select = $("mic-device");
+  select.replaceChildren(new Option("Padrão do Windows", ""));
+  for (const device of devices)
+    select.append(new Option(device.label || "Microfone sem nome", device.deviceId));
+  if (
+    options.microphone.deviceId &&
+    !devices.some((device) => device.deviceId === options.microphone.deviceId)
+  ) {
+    $("mic-status").textContent = "O microfone escolhido não está conectado; usando o padrão.";
+    options.microphone.deviceId = "";
+  }
+  select.value = options.microphone.deviceId;
+}
+async function openMicrophone() {
+  mix?.remove("microphone");
+  if (!options.microphone.enabled) return;
+  try {
+    const opened = await ensureMix().addMicrophone(options.microphone);
+    await mix.start();
+    await listMicrophones();
+    $("mic-status").textContent = opened.label ? `Ouvindo: ${opened.label}` : "";
+  } catch (e) {
+    $("mic-status").textContent = `Microfone indisponível: ${e.message} A gravação segue sem ele.`;
+  }
+}
+function renderSound() {
+  for (const { id, key } of SOURCES) {
+    const source = options[key];
+    $(`${id}-enabled`).checked = source.enabled;
+    $(`${id}-enabled`).disabled = recordingStarted;
+    $(`${id}-volume`).value = String(source.volume);
+    $(`${id}-volume`).disabled = !source.enabled;
+    $(`${id}-mute`).disabled = !source.enabled;
+    $(`${id}-mute`).setAttribute("aria-pressed", String(source.muted));
+  }
+  $("mic-device").disabled = recordingStarted || !options.microphone.enabled;
+  $("countdown").value = String(options.countdown);
+  $("start-row").hidden = recordingStarted;
+}
+function bindSound() {
+  for (const { id, key } of SOURCES) {
+    $(`${id}-enabled`).onchange = async () => {
+      options[key].enabled = $(`${id}-enabled`).checked;
+      renderSound();
+      await saveOptions();
+      if (key === "microphone") await openMicrophone();
+      else if (options.system.enabled) ensureMix();
+    };
+    $(`${id}-volume`).oninput = () => {
+      options[key].volume = Number($(`${id}-volume`).value);
+      mix?.set(key, { volume: options[key].volume });
+    };
+    $(`${id}-volume`).onchange = () => {
+      if (!recordingStarted) void saveOptions();
+    };
+    $(`${id}-mute`).onclick = () => {
+      options[key].muted = !options[key].muted;
+      mix?.set(key, { muted: options[key].muted });
+      renderSound();
+      if (!recordingStarted) void saveOptions();
+    };
+  }
+  $("mic-device").onchange = async () => {
+    options.microphone.deviceId = $("mic-device").value;
+    await saveOptions();
+    await openMicrophone();
+  };
+}
+/** Counts down, unless the person starts now or cancels; resolves true to record. */
+function countdown() {
+  return new Promise((resolve) => {
+    let left = 0,
+      timer = null;
+    const done = (record) => {
+      clearInterval(timer);
+      $("countdown-status").textContent = "";
+      resolve(record);
+    };
+    const tick = () => {
+      if (left <= 0) return done(true);
+      $("countdown-status").textContent = String(left);
+      left--;
+    };
+    const restart = () => {
+      clearInterval(timer);
+      left = options.countdown;
+      tick();
+      if (left >= 0 && options.countdown > 0) timer = setInterval(tick, 1000);
+    };
+    $("countdown").onchange = async () => {
+      options.countdown = Number($("countdown").value);
+      await saveOptions();
+      restart();
+    };
+    $("start-now").onclick = () => done(true);
+    $("cancel-start").onclick = () => done(false);
+    restart();
+  });
+}
+async function prepareVideo() {
+  const { error: problem, ...saved } = await api.recordOptions();
+  options = saved;
+  if (problem) error(problem);
+  $("sound").hidden = false;
+  renderSound();
+  bindSound();
+  if (options.microphone.enabled) await openMicrophone();
+  else if (options.system.enabled) ensureMix();
+  if (!(await countdown())) {
+    sound.release();
+    await api.cancel();
+    return false;
+  }
+  recordingStarted = true;
+  renderSound();
+  if (mix && !(await mix.start()))
+    error("O som não iniciou neste computador; a gravação segue só com a imagem.");
+  return true;
+}
+if (state?.mode === "video") {
+  try {
+    if (await prepareVideo()) await api.beginRecording();
+  } catch (e) {
+    error(e);
+    sound.release();
     await api.recordFailed(e.message);
   }
 }

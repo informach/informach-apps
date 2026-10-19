@@ -204,3 +204,52 @@ body {
   border-left: 2px solid #ffcf84;
   width: 2px;
 }
+#sound {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+.sound-source {
+  display: grid;
+  gap: 6px;
+}
+.sound-toggle {
+  font-size: 12px;
+}
+.sound-mix {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sound-mix input[type="range"] {
+  flex: 1;
+}
+.sound-mix button {
+  padding: 5px 8px;
+}
+.sound-mix button[aria-pressed="true"] {
+  background: #7a2f2a;
+}
+.sound-mix meter {
+  width: 110px;
+}
+#mic-device,
+#countdown {
+  background: #242e3d;
+  border-color: #526074;
+  color: #fff;
+  font-size: 12px;
+}
+#start-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+#countdown-status {
+  margin-left: auto;
+  font-size: 18px;
+}
+.sound-source small {
+  margin-top: 0;
+}
