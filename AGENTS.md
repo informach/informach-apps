@@ -81,6 +81,7 @@ Consulte também os guias locais de [Agenda da Turma](apps/agenda-da-turma/CLAUD
 - Web por app: `pnpm dev:<app>`, `pnpm build:<app>`, `pnpm start:<app>`, conforme scripts existentes na raiz.
 - Desktop por app: `pnpm --filter @informach/<app> dev` ou `build`, conforme o manifest do app.
 - Qualidade transversal: `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm build`. Biome é o padrão de lint/formatação; não introduzir outro linter por ferramenta.
+- `pnpm test` e o runner de testes do EdiAula executam arquivos/workspaces em série para que o benchmark de `settle` com limite de 10 ms não dispute CPU com outros testes no mesmo runner. Não remover essa isolação, pular a medição ou afrouxar seu limite para obter um gate verde; investigar a performance e o ambiente se ela falhar novamente.
 - Teste focado: `pnpm --filter @informach/<workspace> exec vitest run <arquivo>`; E2E seguem os scripts próprios de cada app.
 - Migrations: `pnpm db:generate` e `pnpm db:migrate`. O segundo também executa o backfill de tarefas e a inicialização do storage Mastra definidos no script da raiz.
 - Edi no Windows: `pnpm edi:test:integration`, `pnpm edi:test:native` e `pnpm edi:test:package --installer`. O smoke HTTP standalone usa `pnpm build:edi` seguido de `pnpm edi:test:integration --portal`.

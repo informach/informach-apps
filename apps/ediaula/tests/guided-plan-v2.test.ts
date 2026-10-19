@@ -215,7 +215,7 @@ function simulation(fps = 30) {
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => timers.push({ at: now + ms, resolve }));
   /** Runs the wall clock in 5 ms steps until `work` settles. */
-  async function drive<T>(work: Promise<T>): Promise<T> {
+  async function drive<T>(work: Promise<T>, onTick?: (ms: number) => void): Promise<T> {
     let settled = false;
     const done = work.finally(() => {
       settled = true;
@@ -224,6 +224,7 @@ function simulation(fps = 30) {
     done.catch(() => undefined);
     for (let i = 0; !settled && i < 400_000; i++) {
       now += 5;
+      onTick?.(now);
       for (const t of timers.filter((x) => x.at <= now)) {
         timers.splice(timers.indexOf(t), 1);
         t.resolve();
@@ -569,8 +570,12 @@ test("stopping the take rejects at once; the timing signature ignores targets", 
   const controller = new AbortController();
   sim.frames.start();
   const run = runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal);
-  setTimeout(() => controller.abort(), 20);
-  await assert.rejects(sim.drive(run), /interrompida/);
+  await assert.rejects(
+    sim.drive(run, (ms) => {
+      if (ms === 20) controller.abort();
+    }),
+    /interrompida/,
+  );
   assert.equal(page.events.filter((e) => e.op === "left-1").length <= 1, true);
 
   const moved = structuredClone(plan);
