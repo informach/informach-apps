@@ -8,7 +8,7 @@ export const EDI_TOOLS = [
     windowsAppId: "br.com.informach.ediaula",
     description: "Grave e edite a aula pelo texto",
     projectExtensions: ["ediaula"],
-    nativeMedia: { testScript: "test" },
+    nativeMedia: { testScript: "test:media-native" },
   },
   {
     id: "edicaptura",

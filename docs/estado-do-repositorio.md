@@ -140,6 +140,8 @@ Um verificador de mídia do head integrado `b02b7282` revelou um fixture de temp
 
 O segundo verificador de mídia desse head também falhou, em outro teste intermitente de tratamento de MP4 no EdiAula; por isso a jornada nativa foi pulada pelo workflow e o helper PDF novo ainda não teve prova remota. O próximo head precisa completar ambos os verificadores e o nativo antes do merge.
 
+O catálogo de mídia agora aponta o EdiAula para `test:media-native`: voz com FFmpeg empacotado e testes físicos de entrada/áudio com os opt-ins existentes. A CI geral continua executando os 944 testes do app; os dois verificadores Windows deixam de duplicar a suíte inteira. Script focado, tooling 64/64 e Biome passaram localmente sem aquisição física; o novo CI deve confirmar o contrato e a jornada nativa.
+
 A [divisão de foco](propostas/edi-suite-2026-10-16/edicaptura-lotes/foco-na-suite.md) mantém Captura enxuto com vídeo rápido, edição avançada no EdiAula e trabalho geral de PDF no EdiPDF. IA opcional futura somente pela assinatura do próprio usuário no Claude Code/Codex, conforme a [decisão vigente](propostas/edi-suite-2026-10-16/edicaptura-lotes/decisao-ia-assinatura.md), sem API paga/créditos Edi/fallback. Examinar também os consumidores atuais antes de extrair infraestrutura.
 
 ## Ambiente de desenvolvimento
