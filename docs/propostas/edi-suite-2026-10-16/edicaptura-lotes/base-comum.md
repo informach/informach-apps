@@ -107,6 +107,6 @@ Apps não importam apps. Não há passagem direta entre apps. Packages não ganh
 | E3 | Em andamento |
 | E4 | Pendente (depende de E3) |
 | E5 | Pendente |
-| E6 | Em andamento |
+| E6 | Implementada em 19/10/2026 na branch `feat/edi-base-comum-e6`: `ai-clients` e `mcp-server` no `edi-desktop`; EdiAula, EdiFoto e EdiSVG migrados e cópias apagadas. Ganhos no EdiFoto e no EdiSVG: prompt por stdin, token por execução, guarda do Codex e guarda por ferramenta (escrita externa pergunta em diálogo nativo). Typecheck, testes e build dos três apps e do package passaram localmente; sem homologação com Claude Code/Codex reais. Detalhes no README do package. |
 | E7 | Pendente (depende de E6) |
 | E8 | Pendente |
