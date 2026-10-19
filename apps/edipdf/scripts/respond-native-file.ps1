@@ -63,7 +63,7 @@ public static class EdiNativeFileControl {
   }
 
   [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")]
-  public static extern IntPtr SetText(IntPtr window, uint message, IntPtr wparam, string text);
+  public static extern IntPtr EditText(IntPtr window, uint message, IntPtr wparam, string text);
   [DllImport("user32.dll", EntryPoint="SendMessageW")]
   public static extern IntPtr Click(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
   [DllImport("user32.dll")]
@@ -114,13 +114,12 @@ while ([DateTime]::UtcNow -lt $deadline) {
       }
       if ($Action -ne 'Cancel') {
         if ($file.Current.ClassName -ne 'Edit' -and (!$hasValue -or $Action -eq 'Save')) { [EdiNativeFileControl]::OwnedControls($TestProcessId) | ConvertTo-Json -Compress | Write-Output; throw 'The owned filename control does not support a verified selection.' }
-        # Common-dialog controls do not consistently expose UIA Value/Invoke.
-        # Use their documented Win32 edit/button operations, on verified handles.
-        if ($hasValue) { $fileValue.SetValue($selected) }
-        else {
-          $set=[EdiNativeFileControl]::SetText($fileHandle,0x000C,[IntPtr]::Zero,$selected)
-          if ($set.ToInt64() -le 0) { throw 'The owned filename control rejected the test destination.' }
-        }
+        # Edit the native text, so the common dialog receives change notifications.
+        # ValuePattern/WM_SETTEXT can change visible text while Save retains its old path.
+        if ($file.Current.ClassName -eq 'Edit') {
+          [void][EdiNativeFileControl]::Click($fileHandle,0x00B1,[IntPtr]::Zero,[IntPtr](-1))
+          [void][EdiNativeFileControl]::EditText($fileHandle,0x00C2,[IntPtr]1,$selected)
+        } else { $fileValue.SetValue($selected) }
         if (![string]::Equals([EdiNativeFileControl]::ReadText($fileHandle),$selected,[StringComparison]::OrdinalIgnoreCase)) { throw 'The filename control did not retain the exact temporary destination.' }
         Write-Output "Owned EdiPDF filename selection: $([EdiNativeFileControl]::ReadText($fileHandle))"
       }
