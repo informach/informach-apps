@@ -2,7 +2,7 @@
 
 OCR local da suíte Edi, com Tesseract (`tesseract.js` e `tesseract.js-core` 7.0.0) e modelos `tessdata_fast` em português, inglês e espanhol. Extraído do EdiPDF na etapa E3 da [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). Nada é baixado nem enviado durante o reconhecimento: worker, núcleos WebAssembly e modelos vão dentro do instalador de cada app.
 
-Consumido como TypeScript, sem build. Consumidores: EdiPDF. O EdiCaptura entra na etapa E4.
+Consumido como TypeScript, sem build. Consumidores: EdiPDF e EdiCaptura (desde a etapa E4).
 
 ## Subpaths
 

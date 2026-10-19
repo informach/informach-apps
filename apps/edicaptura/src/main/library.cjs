@@ -5,9 +5,22 @@ const { atomicWrite } = require("@informach/edi-desktop/files");
 const { parseDocument, metadataUpdateSchema } = require("../domain/document.ts");
 const { validateVideoRecipe } = require("../domain/quick-video.ts");
 const { LibraryIndex, summarize } = require("../domain/library-index.ts");
+const {
+  OCR_SIDECAR_EXTENSION,
+  ocrEditSchema,
+  ocrSaveSchema,
+  ocrSidecarSchema,
+  searchableText,
+} = require("../domain/ocr.ts");
 const { snapshot, importProject } = require("./portable.ts");
 const { assertRasterBudget } = require("../domain/assets.ts");
 const { assertVideoDiskSpace, copyVideo, hashVideo, videoIdentity } = require("./video-files.ts");
+const { createHash } = require("node:crypto");
+const pngSize = (bytes) => {
+  if (bytes.length < 24 || bytes.toString("latin1", 1, 4) !== "PNG")
+    throw new Error("Original da captura inválido.");
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+};
 class Library {
   constructor(root, videoUrl) {
     this.root = root;
@@ -55,6 +68,7 @@ class Library {
         }
       }
       this.index = index;
+      this.contentLoaded = false;
     })();
     try {
       await this.loadingIndex;
@@ -65,7 +79,98 @@ class Library {
   async list(query) {
     await this.queue;
     await this.loadIndex();
+    if (query?.content) await this.loadContent();
     return query === undefined ? this.index.query({}).items : this.index.query(query);
+  }
+  /** Recognized text for the optional content search, read once from the sidecars. */
+  async loadContent() {
+    if (this.contentLoaded) return;
+    for (const name of await fs.readdir(this.root)) {
+      if (!name.endsWith(`.${OCR_SIDECAR_EXTENSION}`)) continue;
+      const id = name.slice(0, -(OCR_SIDECAR_EXTENSION.length + 1));
+      try {
+        this.file(id, OCR_SIDECAR_EXTENSION);
+        const sidecar = ocrSidecarSchema.parse(
+          JSON.parse(await fs.readFile(path.join(this.root, name), "utf8")),
+        );
+        this.index.setContent(id, searchableText(sidecar));
+      } catch {
+        // A damaged or foreign sidecar is left on disk and simply not searched.
+      }
+    }
+    this.contentLoaded = true;
+  }
+  async loadContentOf(id) {
+    try {
+      const sidecar = ocrSidecarSchema.parse(
+        JSON.parse(await fs.readFile(this.file(id, OCR_SIDECAR_EXTENSION), "utf8")),
+      );
+      this.index.setContent(id, searchableText(sidecar));
+    } catch {
+      this.index.setContent(id, null);
+    }
+  }
+  /** The capture's recognized text, or null when there is none or its original changed. */
+  readOcr(id) {
+    return this.transaction(async () => {
+      let raw;
+      try {
+        raw = await fs.readFile(this.file(id, OCR_SIDECAR_EXTENSION), "utf8");
+      } catch (error) {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      }
+      const sidecar = ocrSidecarSchema.parse(JSON.parse(raw));
+      const original = await fs.readFile(this.file(id, "png"));
+      if (createHash("sha256").update(original).digest("hex") !== sidecar.source.sha256)
+        return { stale: true };
+      return sidecar;
+    });
+  }
+  saveOcr(input) {
+    const { id, languages, result } = ocrSaveSchema.parse(input);
+    return this.transaction(async () => {
+      const doc = parseDocument(JSON.parse(await fs.readFile(this.file(id, "json"), "utf8")));
+      if (doc.kind !== "image") throw new Error("Só imagens têm texto reconhecido.");
+      const original = await fs.readFile(this.file(id, "png"));
+      const size = pngSize(original);
+      if (size.width !== result.width || size.height !== result.height)
+        throw new Error("O texto reconhecido não corresponde ao original da captura.");
+      const sidecar = ocrSidecarSchema.parse({
+        version: 1,
+        source: { sha256: createHash("sha256").update(original).digest("hex"), ...size },
+        languages,
+        recognizedAt: new Date().toISOString(),
+        status: result.words.some((word) => word.text.trim()) ? "text" : "empty",
+        result,
+        edits: {},
+      });
+      await atomicWrite(this.file(id, OCR_SIDECAR_EXTENSION), JSON.stringify(sidecar));
+      if (this.contentLoaded) this.index?.setContent(id, searchableText(sidecar));
+      return sidecar;
+    });
+  }
+  editOcr(input) {
+    const { id, edits } = ocrEditSchema.parse(input);
+    return this.transaction(async () => {
+      const file = this.file(id, OCR_SIDECAR_EXTENSION);
+      const sidecar = ocrSidecarSchema.parse(JSON.parse(await fs.readFile(file, "utf8")));
+      const lines = new Set(sidecar.result.words.map((word) => String(word.line)));
+      if (Object.keys(edits).some((line) => !lines.has(line)))
+        throw new Error("Correção para uma linha que não existe.");
+      const next = { ...sidecar, edits };
+      await atomicWrite(file, JSON.stringify(next));
+      if (this.contentLoaded) this.index?.setContent(id, searchableText(next));
+      return next;
+    });
+  }
+  /** Removes the recognized text (opt-out); the image and the project stay as they are. */
+  deleteOcr(id) {
+    return this.transaction(async () => {
+      await fs.rm(this.file(id, OCR_SIDECAR_EXTENSION), { force: true });
+      this.index?.setContent(id, null);
+      return true;
+    });
   }
   transaction(fn) {
     const operation = this.queue.then(fn);
@@ -78,6 +183,7 @@ class Library {
   refreshIndex() {
     return this.transaction(async () => {
       this.index = null;
+      this.contentLoaded = false;
       await this.loadIndex();
     });
   }
@@ -89,6 +195,7 @@ class Library {
         JSON.parse(await fs.readFile(this.file(result.id, "json"), "utf8")),
       );
       this.index?.upsert(summarize(record));
+      if (this.contentLoaded) await this.loadContentOf(record.id);
       return record;
     });
   }
@@ -99,6 +206,7 @@ class Library {
         JSON.parse(await fs.readFile(this.file(result.id, "json"), "utf8")),
       );
       this.index?.upsert(summarize(record));
+      if (this.contentLoaded) await this.loadContentOf(record.id);
       return record;
     });
   }

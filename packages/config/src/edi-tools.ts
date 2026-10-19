@@ -18,6 +18,8 @@ export const EDI_TOOLS = [
     description: "Capture a tela e explique",
     projectExtensions: [],
     nativeMedia: { testScript: "test:video-native" },
+    // Ships @informach/edi-ocr (worker, cores, models, licenses) in its own renderer.
+    ocr: true,
   },
   {
     id: "edifoto",

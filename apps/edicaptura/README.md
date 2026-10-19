@@ -165,7 +165,7 @@ Apenas uma operação rápida por vez; executor comum até4processos, stdout acu
 
 O teste de receita é portátil e integra `test`; os testes reais Windows ficam no script obrigatório `test:video-native`, selecionado pela capacidade do catálogo em `edi:media:test`. O workflow `edi-native` aguarda `edi-media`, baixa o mesmo bundle verificado e só então executa o renderer. Release e upgrade consultam a capacidade no catálogo; os upgrades dos consumidores de mídia aguardam sua construção/verificação. Não há skip por ausência de binário nem download de outro app.
 
-A fase 5c (som, contagem e pausa) foi implementada em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). OCR e demais fases seguem a ordem registrada lá.
+A fase 5c (som, contagem e pausa) e a fase 6 (texto da imagem, dados sensíveis e passos) foram implementadas em 19/10/2026 sobre a [base comum](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/base-comum.md). As demais fases seguem a ordem registrada lá.
 
 ## Som, contagem e pausa — fase 5c
 
@@ -182,3 +182,21 @@ As duas fontes passam cada uma por seu ganho e medidor e viram uma faixa única 
 A permissão segue as opções: o microfone só abre para a janela de controle de um vídeo com microfone ligado, e o áudio do PC só junto com a captura da tela já iniciada e com a opção ligada. Câmera e qualquer outra janela continuam negadas.
 
 Os medidores, o loopback e a regra de exclusão do som do app vêm de `@informach/edi-desktop/audio`, os mesmos do EdiAula. `tests/recording-renderer.cjs` cobre som e pausa no Chromium real com microfone simulado e tom sintético no lugar do áudio do PC: os dois medidores registram sinal, a faixa é Opus, nada é emitido durante a pausa, o relógio para e a duração ativa exclui a pausa. Isso não homologa microfones, placas de som, Bluetooth nem o loopback físico do Windows; esses casos continuam na [matriz Windows](../../docs/propostas/edi-suite-2026-10-16/edicaptura-lotes/matriz-windows.md).
+
+## Texto da imagem, dados sensíveis e passos — fase 6
+
+Em **Texto da imagem** (painel lateral do editor), **Reconhecer texto** lê a captura aberta neste computador, com o OCR local da suíte (`@informach/edi-ocr`: Tesseract e modelos em português, inglês e espanhol, que vão dentro do instalador do Captura). Nada é baixado nem enviado. Escolha de um a três idiomas. Capturas com rolagem maiores que 8192 px são lidas em blocos sobrepostos, até 32 767 px por lado; o resultado volta às coordenadas da imagem original. **Cancelar** encerra o motor, e um resultado que termina depois de trocar de captura é descartado.
+
+- O resultado fica em `<id>.ocr`, ao lado do projeto, e acompanha backup, duplicação, projeto portátil e importação. Ele vale para o original daquele momento: guarda o SHA-256 e o tamanho de `<id>.png`, e um arquivo cujo original mudou não é mostrado (a interface pede para reconhecer de novo). "Nenhum texto encontrado" é diferente de "reconhecimento indisponível", que mostra o motivo.
+- Cada linha pode ser corrigida. A correção fica separada do que foi lido (o original aparece como dica), vale para a cópia e a busca e não muda a imagem. Linha esvaziada sai do texto.
+- **Copiar texto visível** copia só as linhas que a imagem final mostra: linhas sob **Ocultar** ou **Pixelizar**, ou fora do recorte, ficam de fora, porque podem ser justamente o que a pessoa cobriu. A interface diz quantas ficaram de fora.
+- **Apagar texto reconhecido** remove `<id>.ocr` e o tira da busca; a imagem continua igual.
+
+**Procurar dados sensíveis** sugere e-mail, telefone, CPF e CNPJ (com dígito verificador) e credenciais no texto lido. Sugestões confirmadas por dígito ou formato vêm marcadas; as outras aparecem como "conferir". Passar o mouse destaca a área na imagem. **Ocultar selecionados** cria máscaras opacas (**Ocultar**) com 3 px de margem, numa única alteração que um **Desfazer** remove inteira. É heurística: pode deixar passar ou marcar a mais, e a interface pede para conferir a imagem antes de compartilhar.
+
+Na biblioteca, **Texto das imagens** inclui o texto reconhecido (com correções) na busca. É opcional e só local; o texto é lido na primeira busca desse tipo e não é truncado. Medido em `src/main/ocr-library.test.cjs`: 10.000 capturas com cerca de 3.800 caracteres cada, cerca de 20 ms por busca nesta máquina.
+
+**Passos numerados** (A04): **Renumerar pela posição na imagem** (de cima para baixo, da esquerda para a direita) ou **Renumerar mantendo a ordem atual** (fecha lacunas e repetições). O painel mostra antes o que muda (`3→1, 3→2…`) e cada renumeração é uma alteração desfazível. Números repetidos de projetos antigos só mudam por essa ação. **Número do passo selecionado** troca o número; se outro passo já o usa, os dois trocam entre si.
+
+Verificação: `src/domain/ocr.test.ts` (ordem de leitura, correções e texto oculto por máscara, pixelização e recorte), `src/main/ocr-library.test.cjs` (arquivo ao lado do projeto, original alterado, correções, busca opcional, apagar, duplicar, projeto portátil e a medição de 10.000 capturas) e `tests/ocr-renderer.cjs`, incluído em `test:renderer`. Este último roda o worker e os modelos reais no Chromium sobre imagens sintéticas: três linhas lidas, CPF e e-mail sugeridos, duas máscaras desfeitas de uma vez, texto mascarado fora da cópia, captura de 12.000 px em blocos, cancelamento, resultado tardio descartado e renumeração/troca de passos. Não substitui medir a qualidade do OCR em telas reais variadas (fontes pequenas, temas escuros, escalas de DPI).
+

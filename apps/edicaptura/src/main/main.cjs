@@ -1280,6 +1280,15 @@ async function initialize() {
   handle("library:list", ["editor"], (query) => library.list(query));
   handle("library:read", ["editor"], (id) => library.read(id));
   handle("library:update", ["editor"], (data) => library.updateMetadata(data));
+  handle("ocr:read", ["editor"], (id) => library.readOcr(id));
+  handle("ocr:save", ["editor"], (input) => library.saveOcr(input));
+  handle("ocr:edit", ["editor"], (input) => library.editOcr(input));
+  handle("ocr:delete", ["editor"], (id) => library.deleteOcr(id));
+  handle("ocr:copy-text", ["editor"], (text) => {
+    if (typeof text !== "string" || text.length > 2_000_000) throw new Error("Texto inválido.");
+    clipboard.writeText(text);
+    return true;
+  });
   handle("library:recover", ["editor"], async (id) => {
     await library.recover(id);
     return library.read(id);

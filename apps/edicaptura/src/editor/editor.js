@@ -4,11 +4,12 @@ import { mountLibrary } from "./library.js";
 import { installPhotoPresets, photoOptions } from "./photo-presets.js";
 import { mountQuickVideo } from "./quick-video.js";
 import { mountRecordingRecovery } from "./recording-recovery.js";
+import { mountTextPanel } from "./text-panel.js";
 
 hydrateIcons();
 const $ = (id) => document.getElementById(id),
   api = window.edi;
-let quickPanel;
+let quickPanel, textPanel;
 let current = null,
   entries = [],
   zoom = 1,
@@ -174,6 +175,12 @@ function setTool(id) {
   syncProperties(id);
 }
 function syncProperties(kind) {
+  const step = engine.annotations[engine.selected];
+  const stepNumber = document.getElementById("step-number");
+  if (stepNumber) {
+    stepNumber.value = step?.kind === "steps" ? String(step.number) : "";
+    stepNumber.disabled = step?.kind !== "steps";
+  }
   const text = ["text", "callout"].includes(kind),
     color = ["blur", "redact", "crop", "image"].includes(kind);
   $("font-size").hidden = !text;
@@ -353,6 +360,7 @@ async function activateDocument(doc, generation, request, authority) {
   else engine.clear();
   current = doc;
   quickPanel?.activate(doc);
+  textPanel?.activate(doc);
   revision = 0;
   savedRevision = 0;
   visualRevision = savedVisualRevision = 0;
@@ -977,6 +985,7 @@ function clearDocument() {
   current = null;
   revision = savedRevision = visualRevision = savedVisualRevision = 0;
   engine.clear();
+  textPanel?.activate(null);
   $("document-name").value = "Nenhuma captura aberta";
   $("save-status").textContent = "";
   $("video-preview").pause();
@@ -1302,3 +1311,34 @@ quickPanel = mountQuickVideo({
 
 quickPanel.activate(current);
 quickPanel.show(view === "editor");
+textPanel = mountTextPanel({ api, engine, current: () => current, toast });
+textPanel.activate(current);
+// Steps (A04): renumbering is always explicit and previewed; repeated numbers from older
+// projects change only here. A number given to a step that another uses swaps the two.
+const stepTools = document.createElement("details");
+stepTools.innerHTML = `<summary>Passos numerados</summary><p id="steps-preview" role="status"></p><div class="object-actions"><button type="button" data-image-action id="steps-reading">Renumerar pela posição na imagem</button><button type="button" data-image-action id="steps-current">Renumerar mantendo a ordem atual</button></div><label>Número do passo selecionado <input id="step-number" type="number" min="1" max="1000"></label><button type="button" data-image-action id="step-number-apply">Aplicar número</button>`;
+document.querySelector(".editor-extras").append(stepTools);
+const describePlan = (plan) =>
+  plan.length
+    ? plan.map(([, from, to]) => `${from}→${to}`).join(", ")
+    : "Os passos já estão em sequência.";
+stepTools.addEventListener("toggle", () => {
+  if (!stepTools.open) return;
+  $("steps-preview").textContent =
+    `Pela posição: ${describePlan(engine.renumberPlan("reading"))}. Ordem atual: ${describePlan(engine.renumberPlan("current"))}.`;
+});
+for (const [id, order] of [
+  ["steps-reading", "reading"],
+  ["steps-current", "current"],
+])
+  $(id).onclick = safe(async () => {
+    const changed = engine.renumberSteps(order);
+    $("steps-preview").textContent = changed
+      ? `${changed} passo(s) renumerado(s). Desfazer volta os números anteriores.`
+      : "Os passos já estão em sequência.";
+    updateState();
+  });
+$("step-number-apply").onclick = safe(async () => {
+  engine.setStepNumber(engine.selected, Number($("step-number").value));
+  updateState();
+});

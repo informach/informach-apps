@@ -2,9 +2,11 @@ import { resolve } from "node:path";
 import { ediBuildOptions } from "@informach/edi-desktop/build";
 import { defineConfig } from "electron-vite";
 
+// The library validates OCR sidecars with the package's result schema: bundle its source into main.
 const desktop = ediBuildOptions({
   mainEntry: "src/main/main.cjs",
   preloadEntry: "src/main/preload.cjs",
+  bundledPackages: ["@informach/edi-ocr"],
 });
 export default defineConfig({
   ...desktop,

@@ -135,6 +135,7 @@ export class CanvasEditor {
     };
   }
   activate(prepared) {
+    this.highlights = [];
     this.image = prepared.image;
     this.annotations = prepared.annotations;
     this.crop = prepared.crop;
@@ -156,6 +157,7 @@ export class CanvasEditor {
   }
   clear() {
     this.generation++;
+    this.highlights = [];
     this.image = null;
     this.annotations = [];
     this.assets = new RasterAssets();
@@ -690,6 +692,15 @@ export class CanvasEditor {
     }
     for (const mask of redactions) this.paint(ctx, mask);
     if (selection && this.preview) this.paint(ctx, this.preview);
+    if (selection && this.highlights?.length) {
+      ctx.save();
+      ctx.strokeStyle = "#ff8a00";
+      ctx.lineWidth = Math.max(2, Math.round(b.width / 600));
+      ctx.setLineDash([]);
+      for (const box of this.highlights)
+        ctx.strokeRect(box.x0 - 2, box.y0 - 2, box.x1 - box.x0 + 4, box.y1 - box.y0 + 4);
+      ctx.restore();
+    }
     if (selection && this.selected >= 0)
       for (const index of this.selectionIndices()) {
         const box = this.box(this.annotations[index]);
@@ -862,6 +873,86 @@ export class CanvasEditor {
     if (number > 1000) throw new Error("Limite de 1000 passos atingido.");
     used.add(number);
     return number;
+  }
+  /** Steps in reading order: top to bottom, then left to right (rows within one radius). */
+  stepsInReadingOrder() {
+    return this.annotations
+      .map((a, index) => ({ a, index }))
+      .filter(({ a }) => a.kind === "steps")
+      .sort((p, q) =>
+        Math.abs(p.a.y - q.a.y) > Math.max(p.a.radius, q.a.radius)
+          ? p.a.y - q.a.y
+          : p.a.x - q.a.x || p.index - q.index,
+      );
+  }
+  /**
+   * What renumbering would do, without doing it: `reading` follows the position on the image,
+   * `current` keeps the present order of the numbers (ties by creation) and closes gaps and
+   * repeats. Returns [index, from, to] for each step that changes.
+   */
+  renumberPlan(order = "reading") {
+    const steps =
+      order === "reading"
+        ? this.stepsInReadingOrder()
+        : this.annotations
+            .map((a, index) => ({ a, index }))
+            .filter(({ a }) => a.kind === "steps")
+            .sort((p, q) => p.a.number - q.a.number || p.index - q.index);
+    return steps
+      .map(({ a, index }, position) => [index, a.number, position + 1])
+      .filter(([, from, to]) => from !== to);
+  }
+  /** Applies a renumbering as one undoable change. Repeated legacy numbers change only here. */
+  renumberSteps(order = "reading") {
+    const plan = this.renumberPlan(order);
+    if (!plan.length) return 0;
+    this.checkpoint();
+    for (const [index, , to] of plan) this.annotations[index].number = to;
+    this.draw();
+    this.change();
+    return plan.length;
+  }
+  /** Gives a step a number; a step already using it takes the old one (swap), in one change. */
+  setStepNumber(index, number) {
+    const a = this.annotations[index];
+    if (a?.kind !== "steps") throw new Error("Selecione um passo numerado.");
+    if (!Number.isInteger(number) || number < 1 || number > 1000)
+      throw new Error("Use um número de 1 a 1000.");
+    if (a.number === number) return;
+    this.checkpoint();
+    const other = this.annotations.find(
+      (b, i) => i !== index && b.kind === "steps" && b.number === number,
+    );
+    if (other) other.number = a.number;
+    a.number = number;
+    this.draw();
+    this.change();
+  }
+  /** Adds several objects as one undoable change (masks proposed from recognized text). */
+  addAnnotations(parts) {
+    if (!parts.length) return [];
+    if (this.annotations.length + parts.length > 1000)
+      throw new Error("Limite de 1000 objetos atingido.");
+    const added = parts.map((part) =>
+      annotationSchema.parse({
+        ...this.style,
+        id: crypto.randomUUID(),
+        rotation: 0,
+        fill: null,
+        shadow: false,
+        ...part,
+      }),
+    );
+    this.checkpoint();
+    this.annotations.push(...added);
+    this.selectIndices(added.map((_, i) => this.annotations.length - added.length + i));
+    this.change();
+    return added;
+  }
+  /** Boxes outlined over the image (recognized text being reviewed); not part of the project. */
+  setHighlights(boxes = []) {
+    this.highlights = boxes;
+    this.draw();
   }
   duplicateSelection() {
     if (this.selected < 0) return;

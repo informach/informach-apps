@@ -10,7 +10,7 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "test": "node --test src/capture/*.test.cjs src/main/*.test.cjs src/domain/*.test.ts",
-    "test:renderer": "pnpm build && node tests/integrity.cjs && node tests/editor-features.cjs && node tests/editor-review-regressions.cjs && node tests/library-workflows.cjs && node tests/workspace-regressions.cjs && node tests/raster-history.cjs && node tests/capture-modes-renderer.cjs && node tests/capture-precision-renderer.cjs && node tests/scroll-renderer.cjs && node tests/recording-renderer.cjs && node tests/quick-video-renderer.cjs",
+    "test:renderer": "pnpm build && node tests/integrity.cjs && node tests/editor-features.cjs && node tests/editor-review-regressions.cjs && node tests/library-workflows.cjs && node tests/workspace-regressions.cjs && node tests/raster-history.cjs && node tests/capture-modes-renderer.cjs && node tests/capture-precision-renderer.cjs && node tests/scroll-renderer.cjs && node tests/recording-renderer.cjs && node tests/quick-video-renderer.cjs && node tests/ocr-renderer.cjs",
     "typecheck": "tsc --noEmit",
     "test:e2e": "pnpm -w edi:test:native edicaptura",
     "pack": "node scripts/package.cjs",
@@ -20,10 +20,12 @@
     "test:capture-native": "node tests/capture-native.cjs",
     "test:capture-pixels-native": "node tests/capture-pixels-runner.cjs",
     "test:scroll-native": "node tests/scroll-native.cjs",
-    "test:video-native": "node --test tests/quick-video-native.cjs"
+    "test:video-native": "node --test tests/quick-video-native.cjs",
+    "postinstall": "node scripts/copy-ocr.mjs"
   },
   "dependencies": {
     "@informach/edi-desktop": "workspace:*",
+    "@informach/edi-ocr": "workspace:*",
     "fflate": "0.8.3",
     "zod": "4.6.7"
   },
