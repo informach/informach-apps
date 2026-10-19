@@ -160,7 +160,9 @@ describe("post-launch native setup lifecycle", () => {
   assert.ok(start > 0);
   // The complete runner lifecycle executes unchanged. Only external operations
   // use inert doubles; tracking, error propagation and close verification are real.
-  const lifecycle = ts.transpileModule(`${raise.getText(tree)}\n${source.slice(start)}`, {
+  // import.meta is unavailable in this inert VM; SVG-only paths are not reached.
+  const runnerBody = source.slice(start).replaceAll("import.meta.url", "nativeRunnerModuleUrl");
+  const lifecycle = ts.transpileModule(`${raise.getText(tree)}\n${runnerBody}`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   }).outputText;
 
@@ -217,6 +219,7 @@ describe("post-launch native setup lifecycle", () => {
         z,
         AggregateError,
         root: join(tmpdir(), "edi-native-inert-lifecycle"),
+        nativeRunnerModuleUrl: "file:///owned-test-native.mts",
         applications: ["edicaptura"],
         electronPath: "owned-electron",
         packageManager: "owned-pnpm",

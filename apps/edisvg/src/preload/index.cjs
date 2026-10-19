@@ -6,8 +6,10 @@ const subscribe = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, listener);
 };
 contextBridge.exposeInMainWorld("desktop", {
+  projectInitialize: (legacy) => ipcRenderer.invoke("project:initialize", legacy),
   projectNew: () => ipcRenderer.invoke("project:new"),
   importSvg: () => ipcRenderer.invoke("svg:import"),
+  importAsset: () => ipcRenderer.invoke("asset:import"),
   projectOpen: () => ipcRenderer.invoke("project:open"),
   projectSave: (project, as = false) => ipcRenderer.invoke("project:save", project, as),
   projectChanged: (project) => ipcRenderer.invoke("project:changed", project),

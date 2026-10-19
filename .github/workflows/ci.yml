@@ -76,6 +76,14 @@ jobs:
 
       - run: pnpm --filter @informach/agenda-da-turma exec playwright install --with-deps chromium
 
+      - run: pnpm --filter @informach/edisvg exec playwright install --with-deps chromium
+
+      - run: pnpm --filter @informach/edisvg build
+
+      - run: pnpm --filter @informach/edisvg test:e2e
+
+      - run: pnpm --filter @informach/edisvg test:next
+
       - run: pnpm --filter @informach/edifoto exec playwright install --with-deps chromium
 
       - run: pnpm --filter @informach/edifoto test:e2e

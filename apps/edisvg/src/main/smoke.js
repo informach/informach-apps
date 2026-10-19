@@ -4,7 +4,7 @@ import { newProject } from "../shared/project.js";
 export async function smoke(win, bridge, directory) {
   const ui = await win.webContents.executeJavaScript(`(async()=>{
     if(!window.desktop)throw new Error('Preload ausente');
-    if(!document.querySelector('.mascot'))throw new Error('Editor ausente');
+    if(!document.querySelector('.scene-artwork>svg'))throw new Error('Editor ausente');
     document.querySelector('[data-action="assistant"]').click();
     if(document.querySelector('.assistant-panel').hidden)throw new Error('Painel não abriu');
     const status=await window.desktop.aiStatus();
@@ -52,7 +52,10 @@ export async function smoke(win, bridge, directory) {
 export async function toolbarSmoke(win) {
   const js = (code) => win.webContents.executeJavaScript(code);
   const click = (selector) => js(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  const saved = () => js("JSON.parse(localStorage.getItem('edisvg-project'))");
+  const saved = () =>
+    js(
+      "(()=>{const project=JSON.parse(localStorage.getItem('edisvg-project'));return {...project,scene:project.artboards[0]?.scene}})()",
+    );
   const assert = (condition, message) => {
     if (!condition) throw new Error(message);
   };

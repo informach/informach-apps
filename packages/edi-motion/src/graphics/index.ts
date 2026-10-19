@@ -1,0 +1,32 @@
+export { isXmlText } from "../xmlText";
+export { svgAttributes, svgAttributesSchema, validAttributes } from "./attributes";
+export { parseSolidSvgColor } from "./color";
+export {
+  type Gradient,
+  type GradientElement,
+  type GradientPaints,
+  gradientAttributes,
+  gradientDefinitions,
+  gradientElement,
+  gradientId,
+  gradientPaintsSchema,
+  gradientSchema,
+  gradientTags,
+} from "./gradients";
+export { nativeEffectSources } from "./nativeEffectSources";
+export { parseSvgOpacity, validateSvgNumbers } from "./svgValidation";
+export {
+  createVectorEffectContext,
+  type EffectObject,
+  evaluateVectorEffects,
+  playbackVectorEffectContext,
+  remapVectorEffects,
+  type VectorEffectContext,
+  type VectorEffectElement,
+  type VectorEffectFrame,
+  type VectorEffects,
+  vectorEffectAttributes,
+  vectorEffectElement,
+  vectorEffectId,
+  vectorEffectsSchema,
+} from "./vectorEffects";

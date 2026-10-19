@@ -1,0 +1,195 @@
+/* Resource controls share the dense EdiSVG inspector, not a separate theme. */
+.cubic-conversion {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.cubic-previews {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cubic-previews figure {
+  min-width: 0;
+  margin: 0;
+}
+.cubic-previews svg {
+  display: block;
+  width: 100%;
+  height: 80px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.cubic-previews figcaption {
+  margin-top: 4px;
+  color: var(--muted);
+  text-align: center;
+}
+.inspector [data-appearance-panel] > section > fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.resource-editor {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.inspector section.resource-editor {
+  padding: 0;
+  border: 0;
+}
+.resource-editor form {
+  display: grid;
+  gap: 8px;
+}
+.resource-editor fieldset,
+.edi-audio-controls {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.resource-editor fieldset {
+  display: grid;
+  gap: 8px;
+}
+.resource-editor legend {
+  color: var(--text);
+  font-weight: 600;
+  padding: 0 4px;
+}
+.resource-editor label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.resource-editor label.resource-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.resource-editor input,
+.resource-editor select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+}
+.resource-editor input:not([type="checkbox"]),
+.resource-editor select {
+  width: 100%;
+}
+.resource-editor input[type="number"] {
+  font-variant-numeric: tabular-nums;
+}
+.resource-editor input[type="checkbox"] {
+  min-height: 20px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.resource-editor button {
+  min-width: 32px;
+  min-height: 32px;
+  white-space: normal;
+}
+.resource-editor button:disabled {
+  cursor: not-allowed;
+}
+.resource-editor button[type="submit"] {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--mint);
+}
+.resource-editor .resource-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.resource-editor .resource-group {
+  display: grid;
+  gap: 8px;
+}
+.gradient-stops {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.gradient-stops > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.resource-editor .resource-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.resource-editor [role="alert"] {
+  margin: 8px 0;
+  color: var(--text);
+  border-left: 2px solid var(--mint);
+  padding-left: 8px;
+}
+.joystick-control .joystick-pad {
+  display: block;
+  width: min(100%, 200px);
+  aspect-ratio: 1;
+  padding: 0;
+  margin: 8px auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.joystick-pad svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.joystick-envelope {
+  fill: var(--panel2);
+  stroke: var(--muted);
+  stroke-width: 0.012;
+}
+.joystick-axes {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.014;
+}
+.joystick-center {
+  fill: var(--muted);
+}
+.joystick-vector {
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 0.018;
+}
+.joystick-point {
+  fill: var(--mint);
+  stroke: var(--bg);
+  stroke-width: 0.025;
+}
+.joystick-pad:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+.joystick-control output {
+  display: block;
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+}

@@ -33,7 +33,7 @@ export function pathFromAnchors(anchors, closed = false) {
 }
 
 /** Draft paths live only in this controller; a completed path is one history entry. */
-export function bindPenTool(svg, state, { render, commit, notify }) {
+export function bindPenTool(svg, state, { render, commit, notify, changeScene }) {
   const controller = new AbortController();
   const { signal } = controller;
   const anchors = [];
@@ -107,13 +107,15 @@ export function bindPenTool(svg, state, { render, commit, notify }) {
       return;
     }
     try {
-      state.selected = editScene(state.scene, null, "add", {
+      const definition = {
         tag: "path",
         attrs: { d: pathFromAnchors(anchors, closed) },
-      });
+      };
+      if (changeScene) changeScene("add", definition, null);
+      else state.selected = editScene(state.scene, null, "add", definition);
       dispose();
       state.tool = "select";
-      commit();
+      if (!changeScene) commit();
       render();
     } catch (error) {
       notify(error.message);
