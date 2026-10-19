@@ -17,11 +17,14 @@ export interface ToolOutcome {
   images?: { mime: "image/png" | "image/jpeg"; data: string }[];
 }
 
-/** Who a call comes from, which project it is for and the grant that made it. */
+/**
+ * Who a call comes from, which project it is for and the grant that made it (always set by the
+ * guard; absent for calls of an application's own API assistant).
+ */
 export interface CallMeta {
   source: "mcp" | "assistant";
   projectId?: string;
-  client: string;
+  client?: string;
 }
 
 export type ApprovalChoice = "once" | "project" | "deny";

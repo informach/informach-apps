@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import {
+  createRendererRequests,
+  createToolQueue,
+  windowPort,
+} from "@informach/edi-desktop/ai-clients";
+import {
   assertDesktopAccess,
   desktopFiles,
   desktopIpc as ipcMain,
@@ -13,7 +18,6 @@ import {
   callPermission,
   isAiToolName,
 } from "../shared/aiTools.ts";
-import { createToolQueue } from "../shared/toolQueue.ts";
 import type { AiToolCall } from "../shared/types.ts";
 import { checkAiPath } from "./aiPaths.ts";
 import type { CallMeta, ToolOutcome } from "./mcpGuard.ts";
@@ -27,8 +31,18 @@ const TOOL_TIMEOUT_MS = 20 * 60 * 1000;
 export const NOT_ALLOWED =
   "Interrompido: o pedido foi parado pela pessoa ou o acesso desta conexão acabou antes desta ferramenta rodar. Nada foi feito.";
 
-const pending = new Map<string, (r: ToolOutcome | null) => void>();
 const queue = createToolQueue();
+const calls = createRendererRequests<AiToolCall, ToolOutcome>({
+  channel: "ai:call",
+  timeoutMs: TOOL_TIMEOUT_MS,
+  timeout: {
+    ok: false,
+    text: "O EdiAula ainda está trabalhando nesta ferramenta. As próximas chamadas esperam ela terminar; confira o resultado com get_overview daqui a pouco.",
+  },
+  gone: { ok: false, text: "A janela do EdiAula fechou antes de terminar a ferramenta." },
+  // The queue never lets another call run over one the editor is still working on.
+  holdAfterTimeout: true,
+});
 
 /** A picture of get_frame: PNG or JPEG in base64, at most 1568 px on its long side. */
 const imageSchema = z.object({
@@ -45,10 +59,7 @@ const outcomeSchema = z.object({
 });
 
 ipcMain.handle("ai:result", (_e, rawId: unknown, rawResult: unknown) => {
-  const id = z.uuid().parse(rawId);
-  const result = outcomeSchema.parse(rawResult);
-  pending.get(id)?.(result);
-  pending.delete(id);
+  calls.resolve(z.uuid().parse(rawId), outcomeSchema.parse(rawResult));
 });
 
 /**
@@ -90,54 +101,11 @@ async function checkPaths(
 }
 
 /**
- * Sends a call to the editor and waits for its answer. The caller hears back after
- * TOOL_TIMEOUT_MS at most; the returned `settled` only resolves when the editor answered or its
- * window is gone, so the queue never lets another call run over one still working.
- */
-function send(
-  win: BrowserWindow,
-  call: AiToolCall,
-  answer: (r: ToolOutcome) => void,
-): Promise<void> {
-  return new Promise((settled) => {
-    const contents = win.webContents;
-    const timer = setTimeout(
-      () =>
-        answer({
-          ok: false,
-          text: "O EdiAula ainda está trabalhando nesta ferramenta. As próximas chamadas esperam ela terminar; confira o resultado com get_overview daqui a pouco.",
-        }),
-      TOOL_TIMEOUT_MS,
-    );
-    const finish = (r: ToolOutcome | null): void => {
-      clearTimeout(timer);
-      pending.delete(call.id);
-      contents.removeListener("destroyed", gone);
-      contents.removeListener("render-process-gone", gone);
-      answer(
-        r ?? { ok: false, text: "A janela do EdiAula fechou antes de terminar a ferramenta." },
-      );
-      settled();
-    };
-    const gone = (): void => finish(null);
-    pending.set(call.id, finish);
-    contents.once("destroyed", gone);
-    contents.once("render-process-gone", gone);
-    try {
-      contents.send("ai:call", call);
-    } catch {
-      // The window went away between the check and the send.
-      finish(null);
-    }
-  });
-}
-
-/**
  * Runs an AI tool in the renderer, where the project lives, so every edit shows up live and
  * joins the normal undo history. Paths are checked first (a question to the person never holds
  * the other calls); then writes and proposals run one at a time, and reads run together but
- * wait for a write in progress (shared/toolQueue.ts). `allowed` is asked once more when the call
- * leaves the queue: a call of a run the person stopped, or whose access was revoked or ended
+ * wait for a write in progress (the suite's tool queue). `allowed` is asked once more when the
+ * call leaves the queue: a call of a run the person stopped, or whose access was revoked or ended
  * meanwhile, never reaches the editor.
  */
 export async function callTool(
@@ -166,7 +134,14 @@ export async function callTool(
         answer({ ok: false, text: NOT_ALLOWED });
         return;
       }
-      await send(window, { id: randomUUID(), name, input: checked.input, ...meta }, answer);
+      const sent = calls.request(windowPort(window), {
+        id: randomUUID(),
+        name,
+        input: checked.input,
+        ...meta,
+      });
+      void sent.answer.then(answer);
+      await sent.settled;
     });
   });
 }

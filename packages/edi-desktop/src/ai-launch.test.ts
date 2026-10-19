@@ -153,6 +153,9 @@ describe("finding the clients", () => {
       "C:\\Program Files\\nodejs\\node.exe",
     );
     expect(trustedWhich("C:\\Tools\\claude.ps1", untrusted)).toBeNull();
+    expect(trustedWhich("C:\\Tools\\claude.exe:fluxo.exe", untrusted)).toBeNull();
+    expect(trustedWhich("C:\\Tools\\nul.exe", untrusted)).toBeNull();
+    expect(trustedWhich("C:\\Tools\\.\\claude.exe", untrusted)).toBeNull();
   });
 
   it("accepts only a login with the person's own subscription", () => {

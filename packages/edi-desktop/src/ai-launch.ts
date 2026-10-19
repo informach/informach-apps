@@ -197,21 +197,30 @@ export async function resolveLaunch(
 
 /* ----- Finding the programs ----- */
 
+/** Names Windows reserves for devices, in any folder and with any extension. */
+const DEVICE = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³]|conin\$|conout\$)(\..*)?$/i;
+
 /** A Windows path compared as Windows does: any case, either slash, no slash at the end. */
 const folderKey = (folder: string): string =>
   win32.normalize(folder.replaceAll("/", "\\")).replace(/\\+$/, "").toLowerCase();
 
 /**
  * The first program of where.exe's answer that may be started: a local .exe or .cmd (no network
- * share, no `.` or `..` segments), not in the current folder (`untrusted[0]`) and not inside one
- * of the other `untrusted` folders (temporary files, Downloads).
+ * share, no `.` or `..` segments, no alternate stream nor device name), not in the current folder
+ * (`untrusted[0]`) and not inside one of the other `untrusted` folders (temporary files,
+ * Downloads).
  */
 export function trustedWhich(out: string, untrusted: readonly string[]): string | null {
   const [cwd, ...rest] = untrusted;
   for (const line of out.split(/\r?\n/)) {
     const path = line.trim();
-    if (!/^[a-z]:\\.+\.(exe|cmd)$/i.test(path)) continue;
-    if (path.split(/[\\/]/).some((part) => part === "." || part === "..")) continue;
+    if (!/^[a-z]:\\[^:]+\.(exe|cmd)$/i.test(path)) continue;
+    if ([...path].some((ch) => ch.charCodeAt(0) < 32)) continue;
+    const parts = path.slice(3).split(/[\\/]/);
+    if (
+      parts.some((part) => part === "." || part === ".." || DEVICE.test(part.replace(/[ .]+$/, "")))
+    )
+      continue;
     const key = folderKey(path);
     const folder = key.slice(0, key.lastIndexOf("\\"));
     if (cwd && folder === folderKey(cwd)) continue;

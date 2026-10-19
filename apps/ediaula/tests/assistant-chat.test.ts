@@ -1,57 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  claudeOneShotArgs,
-  claudeOneShotResult,
-  codexOneShotArgs,
-  messageDelta,
-} from "../src/main/engineArgs.ts";
 import { chatRecap, chatSchema, turnChanges } from "../src/shared/assistantChat.ts";
 import type { Project } from "../src/shared/types.ts";
-
-test("messageDelta streams only what is new of a Codex message", () => {
-  const shown = new Map<string, string>();
-  assert.equal(messageDelta(shown, "m1", "Olá"), "Olá");
-  assert.equal(messageDelta(shown, "m1", "Olá, cortei"), ", cortei");
-  // The whole text at the end adds only the rest.
-  assert.equal(messageDelta(shown, "m1", "Olá, cortei 3 trechos."), " 3 trechos.");
-  assert.equal(messageDelta(shown, "m1", "Olá, cortei 3 trechos."), "");
-  // A shorter version never takes back what was shown.
-  assert.equal(messageDelta(shown, "m1", "Olá"), "");
-  // A text that changed earlier on adds what comes after what was shown.
-  assert.equal(messageDelta(shown, "m1", "Oi!, cortei 3 trechos. Pronto"), " Pronto");
-  // Each message on its own.
-  assert.equal(messageDelta(shown, "m2", "Outra"), "Outra");
-});
-
-test("one-shot runs have no tools at all and send the prompt on standard input", () => {
-  const claude = claudeOneShotArgs({ model: "claude-opus-5-5", effort: "low" });
-  assert.deepEqual(claude.slice(0, 5), ["-p", "--input-format", "text", "--output-format", "json"]);
-  assert.equal(claude[claude.indexOf("--tools") + 1], "");
-  assert.ok(claude.includes("--strict-mcp-config"));
-  assert.equal(claude[claude.indexOf("--mcp-config") + 1], '{"mcpServers":{}}');
-  assert.ok(!claude.some((a) => /ediaula/.test(a)));
-  assert.equal(claudeOneShotArgs({ model: "default" }).includes("--model"), false);
-  const codex = codexOneShotArgs({ workspace: "C:\\ws", disabledFeatures: ["shell_tool"] });
-  assert.equal(codex.at(-1), "-");
-  assert.ok(codex.includes("read-only") && codex.includes("--ignore-user-config"));
-  assert.ok(!codex.some((a) => /mcp_servers/.test(a)));
-  assert.ok(codex.includes("features.shell_tool=false"));
-});
-
-test("claudeOneShotResult reads the answer, and its failures", () => {
-  assert.equal(
-    claudeOneShotResult(
-      'aviso qualquer\n{"type":"result","is_error":false,"result":"{\\"cues\\":[]}"}\n',
-    ),
-    '{"cues":[]}',
-  );
-  assert.throws(
-    () => claudeOneShotResult('{"type":"result","is_error":true,"result":"Not logged in"}'),
-    /Claude Code: Not logged in/,
-  );
-  assert.throws(() => claudeOneShotResult(""), /não devolveu resposta/);
-});
 
 const base: Project = {
   version: 1,

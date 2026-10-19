@@ -9,7 +9,6 @@ import {
   describeCall,
   PANEL_FORBIDDEN,
   PATH_FIELDS,
-  scopesAllow,
   TOOL_PERMISSIONS,
   toolPermission,
   writesDraft,
@@ -90,10 +89,10 @@ test("a client connected to read and propose must ask before every write", () =>
     asks,
     AI_TOOL_NAMES.filter((name) => toolPermission(name) === "write"),
   );
-  assert.ok(!scopesAllow(["read", "propose"], "write"));
-  assert.ok(scopesAllow(["read", "propose", "write"], "write"));
-  assert.ok(scopesAllow(["read"], "read"));
-  assert.ok(!scopesAllow(["read"], "propose"));
+  assert.ok(!grantAllows({ scopes: ["read", "propose"] }, "write"));
+  assert.ok(grantAllows({ scopes: ["read", "propose", "write"] }, "write"));
+  assert.ok(grantAllows({ scopes: ["read"] }, "read"));
+  assert.ok(!grantAllows({ scopes: ["read"] }, "propose"));
 });
 
 test("the chat inside EdiAula never opens or creates projects", () => {

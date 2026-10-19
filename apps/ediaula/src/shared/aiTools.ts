@@ -778,12 +778,6 @@ export function callPermission(name: AiToolName, input: unknown): ToolPermission
 
 export const isAiToolName = (name: string): name is AiToolName => Object.hasOwn(AI_TOOLS, name);
 
-/** Whether `scopes` cover a tool; a write never rides on read or propose. */
-export const scopesAllow = (
-  scopes: readonly ToolPermission[],
-  permission: ToolPermission,
-): boolean => scopes.includes(permission);
-
 /** Tools never run inside a turn of the chat inside EdiAula (they would change the open lesson). */
 export const PANEL_FORBIDDEN = new Set<AiToolName>(["open_project", "create_project"]);
 
