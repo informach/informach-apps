@@ -1,0 +1,11 @@
+# EdiFoto: publicação concluída em 18/10/2026
+
+Os cinco lotes do escopo simplificado, reviews e correções adicionais foram integrados à main pelos PRs #16, #17 e #18. Código distribuído: `a0f39563f636ee2516e3333a95998d8b1d85f8f3`. Registro operacional final na main: `27ac84cf94e6dc14696f67fe4d68426ec1219587`.
+
+A [suíte 0.1.4](https://github.com/informach/edi-releases/releases/tag/edi-v0.1.4) foi publicada às 15:28:48 UTC, com seis instaladores e manifesto assinado. A assinatura, o sourceCommit e o catálogo foram verificados publicamente; o download do EdiFoto tem 116.564.363 bytes e SHA-512 igual ao manifesto. CI, banco, Windows nativo e upgrades passaram; a publicação concluiu seus 18 jobs. O EdiFoto conserva IA pela assinatura pessoal e nomes genéricos na interface.
+
+O [review completo e a correspondência com o diagnóstico](https://github.com/informach/informach-apps/blob/27ac84cf94e6dc14696f67fe4d68426ec1219587/docs/reviews/edifoto-2026-10-18/review-producao.md) e a [evidência estruturada](https://github.com/informach/informach-apps/blob/27ac84cf94e6dc14696f67fe4d68426ec1219587/docs/reviews/edifoto-2026-10-18/verificacao-producao.json) registram 36 testes unitários, 177 verificações de navegador, correções, tentativas interrompidas e limites. Não representam implementação integral dos 58 itens profissionais originais.
+
+O trabalho de publicação foi feito no worktree isolado `informach-edifoto-review`. Em 19/10/2026, o snapshot do checkout paralelo (`94559f6b`) foi comparado com a `main`: 524 dos 598 caminhos alterados já tinham conteúdo idêntico. Os demais foram reconciliados com as correções posteriores da `main`; o branch `handoff/edifoto-edipdf-2026-10-19` preserva o estado anterior para consulta. Os lotes publicados do EdiFoto não voltam a ser pendências por causa desse histórico.
+
+O portal respondeu readiness 200 na verificação da publicação e estava no backend `68f550c` naquele momento; as correções posteriores foram desktop/testes, sem mudança de servidor ou schema nessa entrega. Avaliação com usuários/hardware representativos é próximo passo de produto. Recursos profissionais fora do plano continuam fora do escopo entregue.
