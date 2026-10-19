@@ -178,7 +178,9 @@ export class NativeMedia {
           else {
             size += chunk.length;
             if (size > this.options.maxStdoutBytes)
-              throw new Error("Resposta de mídia excede o limite.");
+              throw new Error(
+                `Resposta de mídia excede ${Math.round(this.options.maxStdoutBytes / 1024 ** 2)} MiB.`,
+              );
             stdout += chunk.toString();
           }
         } catch (error) {

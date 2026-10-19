@@ -230,5 +230,5 @@ A proposta aparece para revisão. **Aplicar** usa a mesma atualização de nome 
 
 Verificação: `src/main/assistant.test.cjs` usa o servidor MCP real e tokens de execução reais, com um motor substituto que age como o modelo pela rede local: só o token da tarefa vê as ferramentas, a proposta errada é recusada, a válida chega, e depois de **Parar** as chamadas tardias são recusadas sem entregar nada. `tests/assistant-renderer.cjs` cobre no Chromium a imagem conferida (com a máscara), o texto só quando marcado, aplicar/desfazer, a proposta tardia ignorada após trocar de captura, a falta de cliente e os textos do guia. Nenhum teste inicia Claude Code ou Codex reais nem consome assinatura.
 
-**Compartilhamento por link continua pendente.** Ele exige armazenamento privado no servidor, expiração, revogação e cotas, e esse armazenamento ainda não foi escolhido. Até lá, compartilhe os arquivos exportados (imagem, MP4/GIF, HTML ou PDF do guia).
+Decisão do titular em 19/10/2026: o compartilhamento por link foi **retirado** do escopo do Captura. Não há upload nem hospedagem de arquivos; para compartilhar, use os arquivos exportados (imagem, MP4/GIF ou HTML/PDF do guia).
 

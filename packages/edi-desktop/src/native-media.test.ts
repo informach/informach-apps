@@ -124,10 +124,10 @@ it("streams stderr, can resolve with it, and keeps the failure detail", async ()
 });
 
 it("keeps the stdout and time limits unless the consumer lifts them", async () => {
-  const small = new NativeMedia(node, { maxStdoutBytes: 10 });
+  const small = new NativeMedia(node, { maxStdoutBytes: 1024 ** 2 });
   await expect(
-    small.run(node.ffmpeg, script("process.stdout.write('x'.repeat(100))")),
-  ).rejects.toThrow(/limite/);
+    small.run(node.ffmpeg, script("process.stdout.write('x'.repeat(2 * 1024 ** 2))")),
+  ).rejects.toThrow("Resposta de mídia excede 1 MiB.");
   const media = new NativeMedia(node);
   await expect(
     media.run(node.ffmpeg, script("setInterval(()=>{},1000)"), { timeoutMs: 150 }),
