@@ -19,7 +19,9 @@
     "./files": "./src/files.ts",
     "./windows-powershell": "./src/windows-powershell.ts",
     "./windows-capture": "./src/windows-capture.ts",
-    "./native-media": "./src/native-media.ts"
+    "./native-media": "./src/native-media.ts",
+    "./media-range": "./src/media-range.ts",
+    "./audio": "./src/audio.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

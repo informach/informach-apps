@@ -1,25 +1,16 @@
 import { randomBytes } from "node:crypto";
 import { open } from "node:fs/promises";
 import type { Readable } from "node:stream";
+import {
+  type ByteRange,
+  byteRange,
+  rangeHeaders,
+  rangeNotSatisfiable,
+} from "@informach/edi-desktop/media-range";
 import { COPY_BUFFER_BYTES, videoIdentity } from "./video-files.ts";
 
-export function videoRange(value: string | null, size: number) {
-  if (!value) return { start: 0, end: size - 1, partial: false };
-  const match = /^bytes=(\d*)-(\d*)$/.exec(value);
-  if (!match || (!match[1] && !match[2])) throw new Error("Intervalo inválido.");
-  const first = match[1] ? Number(match[1]) : null;
-  const last = match[2] ? Number(match[2]) : null;
-  if (
-    (first !== null && !Number.isSafeInteger(first)) ||
-    (last !== null && !Number.isSafeInteger(last))
-  )
-    throw new Error("Intervalo inválido.");
-  const start = first === null ? Math.max(0, size - (last ?? 0)) : first;
-  const end = first === null || last === null ? size - 1 : Math.min(last, size - 1);
-  if (start < 0 || start >= size || end < start || (first === null && last === 0))
-    throw new Error("Intervalo fora do vídeo.");
-  return { start, end, partial: true };
-}
+/** Kept under the name the Captura tests and callers use. */
+export { byteRange as videoRange };
 
 /** Capabilities live only in the editor's dedicated Electron session. */
 export class VideoStreams {
@@ -133,24 +124,13 @@ export class VideoStreams {
         !valid()
       )
         return new Response(null, { status: 403 });
-      let range: ReturnType<typeof videoRange>;
+      let range: ByteRange;
       try {
-        range = videoRange(request.headers.get("range"), actual.size);
+        range = byteRange(request.headers.get("range"), actual.size);
       } catch {
-        return new Response(null, {
-          status: 416,
-          headers: { "Content-Range": `bytes */${actual.size}` },
-        });
+        return rangeNotSatisfiable(actual.size);
       }
-      const headers: Record<string, string> = {
-        "Content-Type": asset.mime,
-        "Content-Length": String(range.end - range.start + 1),
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
-      };
-      if (range.partial)
-        headers["Content-Range"] = `bytes ${range.start}-${range.end}/${actual.size}`;
+      const headers = rangeHeaders(range, actual.size, asset.mime);
       if (request.method === "HEAD")
         return new Response(null, { status: range.partial ? 206 : 200, headers });
       const stream = handle.createReadStream({

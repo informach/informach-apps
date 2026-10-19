@@ -15,6 +15,12 @@ import {
 import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
+  type ByteRange,
+  byteRange,
+  rangeHeaders,
+  rangeNotSatisfiable,
+} from "@informach/edi-desktop/media-range";
+import {
   app,
   BrowserWindow,
   dialog,
@@ -293,41 +299,18 @@ async function serveMedia(request: Request): Promise<Response> {
   if (!existsSync(path)) return new Response("not found", { status: 404, headers: CORS });
   const size = statSync(path).size;
   const type = MIME[extname(path).toLowerCase()] ?? "application/octet-stream";
-  const range = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") ?? "");
-  if (!range) {
-    const body = Readable.toWeb(createReadStream(path)) as ReadableStream;
-    return new Response(body, {
-      status: 200,
-      headers: {
-        ...CORS,
-        "Content-Type": type,
-        "Content-Length": String(size),
-        "Accept-Ranges": "bytes",
-      },
-    });
+  let range: ByteRange;
+  try {
+    range = byteRange(request.headers.get("range"), size);
+  } catch {
+    return rangeNotSatisfiable(size, CORS);
   }
-  let start = range[1] ? Number(range[1]) : 0;
-  let end = range[2] ? Number(range[2]) : size - 1;
-  if (!range[1] && range[2]) {
-    start = size - Number(range[2]);
-    end = size - 1;
-  }
-  end = Math.min(end, size - 1);
-  if (start > end)
-    return new Response(null, {
-      status: 416,
-      headers: { ...CORS, "Content-Range": `bytes */${size}` },
-    });
-  const body = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream;
+  const body = Readable.toWeb(
+    createReadStream(path, range.partial ? { start: range.start, end: range.end } : {}),
+  ) as ReadableStream;
   return new Response(body, {
-    status: 206,
-    headers: {
-      ...CORS,
-      "Content-Type": type,
-      "Content-Length": String(end - start + 1),
-      "Content-Range": `bytes ${start}-${end}/${size}`,
-      "Accept-Ranges": "bytes",
-    },
+    status: range.partial ? 206 : 200,
+    headers: { ...CORS, ...rangeHeaders(range, size, type) },
   });
 }
 

@@ -1,10 +1,14 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
-import { resolveNativeMedia } from "@informach/edi-desktop/native-media";
+import {
+  MediaProcessError,
+  type MediaRunOptions,
+  NativeMedia,
+  resolveNativeMedia,
+} from "@informach/edi-desktop/native-media";
 import { app } from "electron";
 import { sourceMatrix, sourceRange } from "../shared/export/color.ts";
 import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
@@ -25,94 +29,34 @@ const mediaPaths = resolveNativeMedia({
 export const FFMPEG = mediaPaths.ffmpeg;
 export const FFPROBE = mediaPaths.ffprobe;
 
-const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"]);
+/**
+ * The shared executor (packages/edi-desktop native-media) with EdiAula's needs: the scheduler
+ * decides how many run at once, exports of a long lesson have no time ceiling, and background
+ * jobs get low priority while a take is recording.
+ */
+const media = new NativeMedia(mediaPaths, {
+  maxRunning: Number.POSITIVE_INFINITY,
+  maxTimeoutMs: null,
+  maxStdoutBytes: 16 * 1024 ** 2,
+  exclusiveJobIds: false,
+  cancelledMessage: "Cancelado",
+  onSpawn: (child) => scheduler.track(child),
+});
 
-const running = new Map<string, ChildProcess>();
-
-export interface RunOptions {
-  jobId?: string;
-  signal?: AbortSignal;
-  /** Total seconds of output, used to turn ffmpeg's out_time into a 0..1 ratio. */
-  duration?: number;
-  onProgress?: (ratio: number) => void;
-  onStdout?: (chunk: Buffer) => void;
-  /** Every piece of stderr as it comes (the run keeps only its tail for the error message). */
-  onStderr?: (text: string) => void;
-  /** Resolve with the end of stderr instead of stdout (measurements that print there). */
-  capture?: "stderr";
-}
-
-/** A failed FFmpeg run: the last lines as the message, the end of everything it said as detail. */
-export class FfmpegError extends Error {
-  readonly detail: string;
-
-  constructor(message: string, detail: string) {
-    super(message);
-    this.name = "FfmpegError";
-    this.detail = detail;
-  }
-}
+export type RunOptions = MediaRunOptions;
+export { MediaProcessError as FfmpegError };
 
 /**
  * Runs ffmpeg/ffprobe, resolving with stdout text (or stderr, with `capture`). Rejects with the
  * tail of stderr on failure. Jobs named `<id>:<part>` are cancelled together with `<id>`.
  */
 export function run(bin: string, args: string[], opts: RunOptions = {}): Promise<string> {
-  return new Promise((resolve, reject) => {
-    opts.signal?.throwIfAborted();
-    const withProgress = !!opts.onProgress && bin === FFMPEG;
-    const fullArgs = withProgress ? ["-progress", "pipe:2", "-nostats", ...args] : args;
-    const child = spawn(bin, fullArgs, { windowsHide: true, signal: opts.signal });
-    if (opts.jobId) {
-      running.set(opts.jobId, child);
-      // Background work (proxies, exports): low priority while a take is recording.
-      scheduler.track(child);
-    }
-    let stdout = "";
-    let stderr = "";
-    let failure: Error | undefined;
-    child.stdout.on("data", (d: Buffer) => {
-      if (opts.onStdout) opts.onStdout(d);
-      else stdout += d.toString();
-    });
-    child.stderr.on("data", (d: Buffer) => {
-      const text = d.toString();
-      opts.onStderr?.(text);
-      stderr = (stderr + text).slice(-8000);
-      if (withProgress && opts.duration) {
-        const m = /out_time_us=(\d+)/g;
-        let last: RegExpExecArray | null = null;
-        for (let r = m.exec(text); r; r = m.exec(text)) last = r;
-        if (last) opts.onProgress!(Math.min(1, Number(last[1]) / 1e6 / opts.duration));
-      }
-    });
-    child.on("error", (error) => {
-      failure = error;
-    });
-    child.on("close", (code, signal) => {
-      if (opts.jobId) running.delete(opts.jobId);
-      // Wait until the file handles close before the caller removes staged output.
-      if (failure) reject(failure);
-      else if (opts.signal?.aborted) reject(opts.signal.reason);
-      else if (code === 0) resolve(opts.capture === "stderr" ? stderr : stdout);
-      else if (signal || code === null) reject(new Error("Cancelado"));
-      else {
-        const said = stderr.split("\n").filter((l) => !/^\w+=/.test(l));
-        reject(
-          new FfmpegError(
-            said.slice(-6).join("\n") || `ffmpeg saiu com código ${code}`,
-            said.join("\n"),
-          ),
-        );
-      }
-    });
-  });
+  return media.run(bin, args, opts);
 }
 
 /** Ends the job and every process started under it (`<jobId>:segment-3`, `<jobId>:audio`, …). */
 export function cancel(jobId: string): void {
-  for (const [id, child] of running)
-    if (id === jobId || id.startsWith(`${jobId}:`)) child.kill("SIGKILL");
+  media.cancel(jobId);
 }
 
 /** Per-file cache folder, keyed by path, size and modification time so edits invalidate it. */
@@ -127,76 +71,24 @@ export function cacheDir(path: string): string {
   return dir;
 }
 
-const parseRate = (r?: string): number => {
-  if (!r) return 0;
-  const [a, b] = r.split("/").map(Number);
-  return b ? a / b : a;
-};
-
-function isVariableRate(nominal: number, average: number): boolean {
-  if (!nominal || !average) return false;
-  return Math.abs(nominal - average) / nominal > 0.02;
-}
-
 export async function probe(path: string): Promise<ProbeResult> {
-  const out = await run(FFPROBE, [
-    "-v",
-    "error",
-    "-print_format",
-    "json",
-    "-show_format",
-    "-show_streams",
-    path,
-  ]);
-  const info = JSON.parse(out) as {
-    format?: { duration?: string; size?: string; format_name?: string };
-    streams?: {
-      codec_type: string;
-      codec_name?: string;
-      width?: number;
-      height?: number;
-      avg_frame_rate?: string;
-      r_frame_rate?: string;
-      duration?: string;
-      pix_fmt?: string;
-      color_space?: string;
-      color_range?: string;
-      tags?: Record<string, string>;
-      disposition?: { attached_pic?: number };
-    }[];
-  };
-  const streams = info.streams ?? [];
-  const video = streams.find((s) => s.codec_type === "video" && !s.disposition?.attached_pic);
-  const audio = streams.find((s) => s.codec_type === "audio");
-  const isImage =
-    IMAGE_EXT.has(extname(path).toLowerCase()) ||
-    /image2|_pipe$/.test(info.format?.format_name ?? "");
-  const kind: AssetKind = isImage ? "image" : video ? "video" : "audio";
-  if (!video && !audio) throw new Error("Arquivo sem vídeo ou áudio reconhecível.");
-  const duration = isImage
-    ? 0
-    : Number(info.format?.duration ?? video?.duration ?? audio?.duration ?? 0);
+  const info = await media.probe(path);
   return {
-    kind,
-    duration,
-    width: video?.width ?? 0,
-    height: video?.height ?? 0,
-    fps:
-      Math.round((parseRate(video?.avg_frame_rate) || parseRate(video?.r_frame_rate) || 0) * 100) /
-      100,
-    hasVideo: !!video,
-    hasAudio: !!audio && !isImage,
-    size: Number(info.format?.size ?? statSync(path).size),
-    videoCodec: video?.codec_name,
+    kind: info.kind,
+    duration: info.duration,
+    width: info.width,
+    height: info.height,
+    fps: info.fps,
+    hasVideo: info.hasVideo,
+    hasAudio: info.hasAudio,
+    size: info.size,
+    videoCodec: info.videoCodec,
     // Screen recorders often write variable frame rate; nominal and average rates then disagree.
-    vfr:
-      !isImage &&
-      !!video &&
-      isVariableRate(parseRate(video.r_frame_rate), parseRate(video.avg_frame_rate)),
-    alpha: !!video && hasAlpha(video.pix_fmt, video.tags),
-    colorSpace: video?.color_space,
-    colorRange: video?.color_range,
-    pixFmt: video?.pix_fmt,
+    vfr: info.vfr,
+    alpha: info.hasVideo && hasAlpha(info.pixFmt, info.videoTags),
+    colorSpace: info.colorSpace,
+    colorRange: info.colorRange,
+    pixFmt: info.pixFmt,
   };
 }
 
