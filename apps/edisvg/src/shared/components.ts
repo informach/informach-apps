@@ -10,6 +10,7 @@ import { remapRig, rigOwners } from "@informach/edi-motion/rig";
 import type { ComponentCommand, ComponentInstance } from "./componentContracts";
 import { validateComponentGraph } from "./componentGraph";
 import { componentViewport } from "./componentViewport";
+import { remapDrawOrders } from "./drawOrders";
 import { applySceneAttributes } from "./paintAttributes";
 import { parsePath } from "./pathGeometry.js";
 import type { Project } from "./project";
@@ -113,6 +114,17 @@ export function compileArtboard(
         const before = new Set(sourceMap.keys());
         if (instance.animationId !== null) clock = id;
         const children = expand(instance.artboardId, [...path, node.id], clock, instance.overrides);
+        const viewport: SceneNode = {
+          id: allocate(),
+          name: `Viewport ${source.name}`.slice(0, 120),
+          tag: "svg",
+          attrs: componentViewport(instance, source.scene),
+          text: "",
+          transform: identityTransform(),
+          visible: true,
+          locked: false,
+          children,
+        };
         if (instance.animationId !== null) {
           const clip = project.motion.animations.find((clip) => clip.id === instance.animationId);
           if (!clip) throw new Error("Animação do componente não encontrada.");
@@ -124,8 +136,9 @@ export function compileArtboard(
               identity.instancePath.length === path.length + 1
             )
               targets.set(identity.objectId, compiled);
+          // The component's root stacking reorders its viewport's children.
           const animation = {
-            ...clip,
+            ...remapDrawOrders(clip, (id) => targets.get(id), viewport.id),
             tracks: clip.tracks
               .filter((track) => targets.has(track.targetId))
               .map((track) => {
@@ -142,19 +155,7 @@ export function compileArtboard(
             offsetSeconds: instance.offsetSeconds,
           });
         }
-        result.children = [
-          {
-            id: allocate(),
-            name: `Viewport ${source.name}`.slice(0, 120),
-            tag: "svg",
-            attrs: componentViewport(instance, source.scene),
-            text: "",
-            transform: identityTransform(),
-            visible: true,
-            locked: false,
-            children,
-          },
-        ];
+        result.children = [viewport];
         delete result.instance;
       }
       return result;
@@ -225,7 +226,7 @@ export function compileArtboard(
   const motion = {
     ...project.motion,
     animations: project.motion.animations.map((clip) => ({
-      ...clip,
+      ...remapDrawOrders(clip, (id) => (originals.has(id) ? id : undefined), null),
       tracks: clip.tracks.filter((track) => originals.has(track.targetId)),
     })),
   };

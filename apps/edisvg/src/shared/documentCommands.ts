@@ -282,6 +282,17 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
           project.motion.animations
             .find((clip) => clip.id === operation.animationId)
             ?.tracks.map((track) => track.targetId) ?? [];
+      if (operation.type === "set-draw-order")
+        touched = [...operation.order, ...(operation.scopeId ? [operation.scopeId] : [])];
+      if (operation.type === "delete-draw-order-key") {
+        const drawOrder = project.motion.animations
+          .find((clip) => clip.id === operation.animationId)
+          ?.drawOrders?.find((item) => item.id === operation.drawOrderId);
+        touched = [
+          ...(drawOrder?.scopeId ? [drawOrder.scopeId] : []),
+          ...(drawOrder?.keys.find((key) => key.frame === operation.frame)?.order ?? []),
+        ];
+      }
       if (operation.type === "delete-key" || operation.type === "update-key") {
         const track = project.motion.animations
           .find((clip) => clip.id === operation.animationId)

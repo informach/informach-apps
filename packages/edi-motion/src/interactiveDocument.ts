@@ -302,6 +302,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     ]) {
       tracks += clip.tracks.length;
       keys += clip.tracks.reduce((sum, track) => sum + track.keys.length, 0);
+      for (const drawOrder of clip.drawOrders ?? [])
+        for (const key of drawOrder.keys) keys += 1 + key.order.length;
     }
     if (tracks > 12000 || keys > 100000)
       throw new Error("Cena interativa excede o orçamento agregado de animação.");
@@ -331,6 +333,13 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       throw new Error("Cena interativa excede geometria agregada incluindo efeitos nativos.");
     if (parsed.version < 12 && [...effects.values()].some((value) => value.mask?.mode))
       throw new Error("Modos de máscara requerem blueprint v12.");
+    if (
+      parsed.version < 12 &&
+      [...playback.motion.animations, ...playback.drivers.map((driver) => driver.animation)].some(
+        (clip) => clip.drawOrders,
+      )
+    )
+      throw new Error("Ordem de desenho animável requer blueprint v12.");
     playbackVectorEffectContext(
       playback,
       effects,

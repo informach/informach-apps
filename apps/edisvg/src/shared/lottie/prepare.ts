@@ -88,6 +88,12 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
     );
   if (!Number.isInteger(compiled.scene.viewBox[2]) || !Number.isInteger(compiled.scene.viewBox[3]))
     issue(null, "dimensions", "Este perfil Lottie requer largura e altura inteiras da prancheta.");
+  if (compiled.playback.motion.animations.find((entry) => entry.id === clip.id)?.drawOrders)
+    issue(
+      null,
+      "draw-order",
+      "Ordem de desenho animada não tem representação Lottie: a ordem das camadas é fixa no arquivo. Use HTML/React ou vídeo.",
+    );
   if (board.layout)
     issue(
       null,

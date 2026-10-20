@@ -1,4 +1,6 @@
 import { transformAttribute } from "./affine";
+import { drawOrderScopes } from "./drawOrder";
+import { createDrawOrderBinding } from "./drawOrderDom";
 import { frameAtSeconds } from "./evaluator";
 import { createFrameLoop, type FrameLoopOptions } from "./frameLoop";
 import { geometryPath } from "./geometry";
@@ -88,6 +90,10 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
       throw new Error("Geometria requer caminho SVG correspondente.");
   const changed = new Set<string>();
   const previous = new Map<string, string>();
+  const drawOrderBinding = createDrawOrderBinding(
+    elements,
+    drawOrderScopes([...motion.animations, ...document.drivers.map((driver) => driver.animation)]),
+  );
   function assertLive() {
     if (destroyed) throw new Error("O player foi encerrado.");
   }
@@ -124,6 +130,7 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
       if (display === null || display === undefined) element.removeAttribute("display");
       else element.setAttribute("display", display);
     }
+    drawOrderBinding.paint(evaluated.orders);
     for (const id of changed)
       if (!pose.has(id)) {
         const base = bases.get(id);
@@ -214,6 +221,7 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
       if (destroyed) return;
       destroyed = true;
       loop.destroy();
+      drawOrderBinding.destroy();
     },
   };
 }

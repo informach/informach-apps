@@ -12,11 +12,21 @@ export { factorAffine } from "./affineFactors";
 export { affineSchema } from "./affineSchema";
 export { assertCommandBudget } from "./commandBudget";
 export { applyMotionCommands, type MotionCommand, motionCommandSchema } from "./commands";
+export {
+  type DrawOrders,
+  drawOrderScopes,
+  evaluateDrawOrders,
+  evaluatePlaybackDrawOrders,
+  ROOT_DRAW_SCOPE,
+} from "./drawOrder";
 export { ease, evaluateAnimation, evaluateTrack, frameAtSeconds } from "./evaluator";
 export { type KeyRetiming, keyRetimingSchema, retimeKeyframes } from "./keyRetiming";
 export {
   type Animation,
   animationSchema,
+  type DrawOrder,
+  drawOrderKeySchema,
+  drawOrderSchema,
   type Easing,
   easingSchema,
   emptyMotion,

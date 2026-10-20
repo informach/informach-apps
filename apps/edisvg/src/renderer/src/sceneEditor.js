@@ -189,7 +189,7 @@ export function sceneInspector(state) {
     )
     .join(
       "",
-    )}</div><p class="micro">Valores adicionais ao SVG. px/py definem o pivô local; skewX é a inclinação. Escalas negativas espelham; zero colapsa o eixo e impede gestos nesse espaço. ${locked ? "Camada ou grupo pai bloqueado." : ""}</p></section><div data-transform-actions></div><div data-vector-actions></div>`;
+    )}</div><p class="micro">Valores adicionais ao SVG. px/py definem o pivô local; skewX é a inclinação. Escalas negativas espelham; zero colapsa o eixo e impede gestos nesse espaço. ${locked ? "Camada ou grupo pai bloqueado." : ""}</p></section>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
 }
 export function bindScene(
   state,

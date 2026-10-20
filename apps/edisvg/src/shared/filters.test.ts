@@ -57,7 +57,10 @@ function filtered() {
     id,
     filter,
     boardId: board.id,
-    run: (commands: unknown[]) => (run(commands), project),
+    run: (commands: unknown[]) => {
+      run(commands);
+      return project;
+    },
   };
 }
 

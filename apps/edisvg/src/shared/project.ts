@@ -19,6 +19,7 @@ import {
 } from "@informach/edi-motion/rig";
 import { z } from "zod";
 import { validateComponentGraph } from "./componentGraph";
+import { validateDrawOrders } from "./drawOrders";
 import { artboardIdSchema } from "./identities";
 import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
@@ -274,6 +275,9 @@ export function parseProject(input: unknown): Project {
   );
   if (ids.size > 2000) throw new Error("Orçamento agregado de objetos excedido.");
   const motion = parseMotion(value.motion ?? emptyMotion(), ids);
+  if (header.data.version < 23 && motion.animations.some((clip) => clip.drawOrders))
+    throw new Error("Ordem de desenho animável requer projeto v23.");
+  validateDrawOrders(motion.animations, artboards);
   if ("artboards" in value)
     for (const [index, raw] of value.artboards.entries()) {
       const board = artboards[index];

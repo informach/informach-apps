@@ -62,6 +62,10 @@ export function buildClipExport(
     `data-scene-motion="" style="transform:${globalTransform};`,
   );
   if (options.format === "svg") {
+    if (clip.drawOrders || data.drivers.some((driver) => driver.animation.drawOrders))
+      throw new Error(
+        "Ordem de desenho animada não tem representação SVG/SMIL: o SVG empilha os filhos na ordem do documento. Use HTML, React ou vídeo.",
+      );
     const targets = new Set(
       [...clip.tracks, ...data.drivers.flatMap((driver) => driver.animation.tracks)].map(
         (track) => track.targetId,

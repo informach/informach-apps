@@ -132,6 +132,9 @@ export function parsePlaybackDocument(input: unknown): PlaybackDocument {
   const targets = new Set(raw.objects.map((object) => object.id));
   if (targets.size !== raw.objects.length) throw new Error("ID de objeto duplicado no runtime.");
   const motion = parseMotion(raw.motion, targets);
+  for (const clip of motion.animations)
+    if ((clip.drawOrders ?? []).filter((drawOrder) => drawOrder.scopeId === null).length > 1)
+      throw new Error("Há duas ordens de desenho para a raiz.");
   const sources = "sources" in raw ? raw.sources : [];
   const sourceIds = new Set<string>(),
     identities = new Set<string>();
@@ -150,6 +153,13 @@ export function parsePlaybackDocument(input: unknown): PlaybackDocument {
       (sum, clip) => sum + clip.tracks.reduce((sum, track) => sum + track.keys.length, 0),
       0,
     );
+  const stacked = new Set(
+    motion.animations.flatMap((clip) =>
+      (clip.drawOrders ?? []).flatMap((drawOrder) =>
+        drawOrder.scopeId === null ? [] : [drawOrder.scopeId],
+      ),
+    ),
+  );
   for (const driver of "drivers" in raw ? raw.drivers : []) {
     if (!targets.has(driver.id) || driverIds.has(driver.id))
       throw new Error("Identidade de componente inválida.");
@@ -161,6 +171,13 @@ export function parsePlaybackDocument(input: unknown): PlaybackDocument {
     for (const target of ownTargets) {
       if (owners.has(target)) throw new Error("Objeto com dois relógios de componente.");
       owners.add(target);
+    }
+    // A component clock stacks the children of its own groups/viewport, once per scope.
+    for (const drawOrder of parsed.drawOrders ?? []) {
+      if (drawOrder.scopeId === null || stacked.has(drawOrder.scopeId))
+        throw new Error("Ordem de desenho de componente precisa de um grupo próprio.");
+      stacked.add(drawOrder.scopeId);
+      for (const key of drawOrder.keys) keys += 1 + key.order.length;
     }
     tracks += parsed.tracks.length;
     keys += parsed.tracks.reduce((sum, track) => sum + track.keys.length, 0);

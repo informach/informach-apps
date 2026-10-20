@@ -20,6 +20,8 @@ import {
 import { dispatchBehaviorListeners } from "./behavior/listeners";
 import type { InputValue } from "./behavior/model";
 import { resolveDataPath } from "./data";
+import { drawOrderScopes } from "./drawOrder";
+import { createDrawOrderBinding } from "./drawOrderDom";
 import { type FrameLoopOptions, type FramePolicy, ownerWindow } from "./frameLoop";
 import { type Geometry, geometryCost, geometryPath } from "./geometry";
 import { effectSourcePaints } from "./graphics/effectPaint";
@@ -286,6 +288,13 @@ function createInteractiveScope(
   }
   if (elements.size !== objects.size) throw new Error("SVG interativo incompleto.");
   let effectBinding: ReturnType<typeof createVectorEffectBinding> | undefined;
+  const drawOrderBinding = createDrawOrderBinding(
+    new Map([...elements].map(([id, value]) => [id, value.wrapper])),
+    drawOrderScopes([
+      ...document.playback.motion.animations,
+      ...document.playback.drivers.map((driver) => driver.animation),
+    ]),
+  );
   let session = createBehaviorSession(context, options.machineId),
     frame = prepareFrame(evaluateBehavior(context, session), initialBudget),
     destroyed = false,
@@ -509,6 +518,7 @@ function createInteractiveScope(
       }
       cache.set(id, stamp);
     }
+    drawOrderBinding.paint(shown.orders);
     svgLayout?.paint(reduced);
     effectBinding?.paint(shown.effects);
   }
@@ -606,6 +616,7 @@ function createInteractiveScope(
     );
   } catch (error) {
     effectBinding?.destroy();
+    drawOrderBinding.destroy();
     svgLayout?.destroy();
     throw error;
   }
@@ -916,6 +927,7 @@ function createInteractiveScope(
       loop.destroy();
       listeners.abort();
       effectBinding?.destroy();
+      drawOrderBinding.destroy();
       for (const restore of restores) restore();
       svgLayout?.destroy();
       subscribers.clear();

@@ -17,6 +17,7 @@ import { importSvg } from "./svgImport.js";
 import "./sceneEditor.css";
 import "./resourceControls.css";
 import {
+  drawOrderScopes,
   emptyMotion,
   evaluatePlaybackFrame,
   evaluatePlaybackStaticFrame,
@@ -25,7 +26,10 @@ import {
 } from "@informach/edi-motion";
 import { geometryPath } from "@informach/edi-motion/geometry";
 import { evaluateVectorEffects } from "@informach/edi-motion/graphics";
-import { createVectorEffectBinding } from "@informach/edi-motion/graphics/dom";
+import {
+  createDrawOrderBinding,
+  createVectorEffectBinding,
+} from "@informach/edi-motion/graphics/dom";
 import { rigParameterKey } from "@informach/edi-motion/rig";
 import { inspectAppearance, inspectAppearanceValue } from "../../shared/appearanceInspection";
 import { inspectAssetNotice, inspectAssets } from "../../shared/assetInspection";
@@ -61,6 +65,7 @@ import { editorCommands } from "./commandCatalog";
 import { inspectComponent, inspectOverrideValue } from "./componentInspection.ts";
 import { createCompositionPreview } from "./compositionPreview";
 import { runDocumentTask } from "./documentTaskRunner";
+import { mountDrawOrderPanel } from "./draw-order-panel";
 import { createGestureEffectPreview } from "./effectGesturePreview";
 import { mountEffectsPanel } from "./effects-panel";
 import { createFontCatalogOwner } from "./fontCatalog";
@@ -285,6 +290,8 @@ let disposeImagePanel;
 let disposeEffectsPanel;
 let disposeSemanticsPanel;
 let effectPreview;
+let drawOrderPreview;
+let drawOrderPanel;
 let gestureEffects;
 let effectPreviewFrame;
 let disposeBehaviorWorkbench;
@@ -328,6 +335,8 @@ function render() {
   disposeCanvasTools();
   effectPreview?.destroy();
   effectPreview = null;
+  drawOrderPreview?.destroy();
+  drawOrderPreview = null;
   gestureEffects = null;
   effectPreviewFrame = undefined;
   disposeLayoutPreview?.destroy();
@@ -381,6 +390,8 @@ function render() {
   disposeEffectsPanel?.();
   disposeEffectsPanel = null;
   disposeSemanticsPanel?.();
+  drawOrderPanel?.dispose();
+  drawOrderPanel = null;
   disposeSemanticsPanel = null;
   disposeBehaviorWorkbench?.();
   disposeBehaviorWorkbench = null;
@@ -623,6 +634,24 @@ function render() {
     if (effectsHost) disposeEffectsPanel = mountEffectsPanel(effectsHost, props);
     if (semanticsHost) disposeSemanticsPanel = mountSemanticsPanel(semanticsHost, props);
   }
+  const drawOrderHost = document.querySelector("[data-draw-order-panel]"),
+    orderClip = state.view === "animate" ? activeClip(state) : null;
+  if (drawOrderHost && orderClip && instanceEntry)
+    drawOrderPanel = mountDrawOrderPanel(drawOrderHost, {
+      clip: orderClip,
+      scene: state.scene,
+      selectedId: instanceEntry.node.id,
+      frame: state.frame,
+      locked: instanceEntry.locked,
+      execute(commands) {
+        try {
+          transact(commands);
+        } catch (error) {
+          notify(error instanceof Error ? error.message : "Ordem de desenho recusada.");
+        }
+        render();
+      },
+    });
   if (instanceHost && instanceNode?.instance)
     disposeInstanceInspector = mountInstanceInspector(instanceHost, {
       targetId: instanceNode.id,
@@ -683,6 +712,11 @@ function render() {
   sceneDisplays = new Map(
     [...sceneElements].map(([id, element]) => [id, element.getAttribute("display")]),
   );
+  const stackedScopes = drawOrderScopes([
+    ...(state.previewComposition?.playback.motion.animations ?? []),
+    ...(state.previewComposition?.playback.drivers.map((driver) => driver.animation) ?? []),
+  ]);
+  if (stackedScopes.size) drawOrderPreview = createDrawOrderBinding(sceneElements, stackedScopes);
   bindToolbar();
   const rigSvg = document.querySelector(".scene-artwork>svg");
   if (rigSvg && state.previewEffectContext?.references.length)
@@ -1344,6 +1378,9 @@ function updatePose() {
       if (display === null || display === undefined) element.removeAttribute("display");
       else element.setAttribute("display", display);
     }
+    // Design edits the authored stacking; only Animate shows the animated one.
+    drawOrderPreview?.paint(state.view === "animate" ? evaluated.orders : new Map());
+    drawOrderPanel?.update(state.frame);
     const selectedPose = { ...sceneBases.get(state.selected), ...poses.get(state.selected) };
     effectPreview?.paint(preparedEffects);
     const root = document.querySelector(".scene-artwork>svg");
