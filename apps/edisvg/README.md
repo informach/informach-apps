@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### `use` e `symbol` na importação — incremento 5.25
+
+SVGs com sprites e ícones reutilizados agora importam: cada `use` local vira um grupo com uma cópia editável e independente do alvo; `symbol` ganha o ajuste de viewBox (`meet`, `slice`, `none`) e, quando o overflow é oculto, um recorte retangular editável. A revisão da importação informa quantas cópias e recortes foram criados. Referências externas, ciclos, porcentagens e mais de 8 níveis são recusados sem importar nada. Para reutilização viva, use componentes. [Perfil e gates 5.25](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-use-symbol.md).
+
 ### Imagens e vídeo — incremento 5.24
 
 Em **Exportar**, com uma animação por objeto selecionada, escolha **Sequência PNG · ZIP**, **GIF animado**, **Vídeo MP4 · H.264** ou **Vídeo WebM · VP9**. Cada quadro é desenhado pelo mesmo player do Testar/HTML/React e rasterizado no tamanho e FPS escolhidos (16–3840 px, até 60 FPS e 3600 quadros). PNG preserva alpha; GIF usa até 256 cores por quadro, transparência total ou nenhuma e até 50 FPS; vídeo é opaco, com cor de fundo e dimensões pares. É preciso confirmar a conversão em imagens e, em composições interativas, a exportação somente da timeline. Sem áudio, sem vídeo transparente e sem repetição embutida no vídeo. Projeto continua v22. [Perfil, achados e gates 5.24](../../docs/reviews/edisvg-2026-10-17/review-lote-5-exportacao-raster.md).

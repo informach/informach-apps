@@ -4,6 +4,7 @@ import { createSvgEffectCatalog } from "./svg-effect-definitions";
 import { createSvgGradientCatalog } from "./svg-gradients";
 import { parseSvgInlineStyle } from "./svg-inline-style";
 import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics";
+import { expandSvgUses } from "./svg-use-expansion";
 export const SVG_SOURCE_BYTES = 1500000;
 const importAttributes = new Set([...svgAttributes, "clip-path", "mask"]);
 const allowed = new Set([
@@ -82,6 +83,31 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
     return { scene: null, report: report() };
   }
   const metadata = new Set(["title", "desc", "metadata"]);
+  let expansion;
+  try {
+    expansion = expandSvgUses(root);
+  } catch (error) {
+    issue("svg/use", error instanceof Error ? error.message : "Referência use inválida.");
+    return { scene: null, report: report() };
+  }
+  if (expansion.uses)
+    issue(
+      "svg/use",
+      `${expansion.uses} uso(s) de use/symbol viraram cópias editáveis independentes; editar uma cópia não altera as demais. Para reutilização viva, transforme a arte em componente.`,
+      "warning",
+    );
+  if (expansion.viewports)
+    issue(
+      "svg/symbol",
+      `${expansion.viewports} viewport(s) de symbol viraram recorte retangular editável.`,
+      "warning",
+    );
+  if (expansion.unusedSymbols)
+    issue(
+      "svg/symbol",
+      `${expansion.unusedSymbols} symbol(s) sem uso não aparecem no desenho e não foram importados.`,
+      "warning",
+    );
   let gradients, semanticCatalog, effectCatalog;
   try {
     gradients = createSvgGradientCatalog(root);
@@ -346,7 +372,11 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       reserveNode();
       const node = {
         id: `node-${crypto.randomUUID()}`,
-        name: (el.getAttribute("id") || `${el.localName} ${++number}`).slice(0, 120),
+        name: (
+          el.getAttribute("id") ||
+          expansion.names.get(el) ||
+          `${el.localName} ${++number}`
+        ).slice(0, 120),
         tag: el.localName,
         attrs: attributes.get(el) ?? {},
         ...(paints.has(el) ? { gradients: paints.get(el) } : {}),
