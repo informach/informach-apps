@@ -34,7 +34,12 @@ test("imported use/symbol copies keep the native browser pixels of the original 
         if (!api) throw new Error("Missing import bundle");
         const imported = api.inspectSvgImport(source);
         if (!imported.scene)
-          return { issues: imported.report.issues, mismatches: -1, warnings: [], tags: [] };
+          return {
+            issues: imported.report.issues,
+            mismatches: -1,
+            warnings: [] as string[],
+            tags: [] as string[],
+          };
         const reference = document.createElement("div"),
           host = document.createElement("div");
         reference.innerHTML = source;
