@@ -14,7 +14,7 @@ Este guia descreve o fluxo implementado no checkout em 17/10/2026. Os comandos p
 | EdiPDF | Edição e organização de PDFs | `pnpm --filter @informach/edipdf dev` |
 | EdiSVG | Criação e animação vetorial | `pnpm --filter @informach/edisvg dev` |
 
-O Hub e os cinco editores são aplicativos Electron independentes. Para desenvolver o EdiFoto, execute seu próprio `dev`; não é preciso abrir o Hub primeiro. A abertura direta continua sujeita à mesma licença. Os botões de instalação do Hub trabalham com instaladores e releases assinados, não com os servidores `dev` dos outros workspaces.
+O Hub e os cinco editores são aplicativos Electron independentes. Para desenvolver o EdiFoto, execute seu próprio `dev`; não é preciso abrir o Hub primeiro. A abertura direta continua sujeita à mesma licença: o `dev` sozinho para na janela de acesso. Para abrir uma ferramenta já licenciada e testá-la manualmente, sem portal nem conta, use `pnpm edi:open <ferramenta>` (seção 5). Os botões de instalação do Hub trabalham com instaladores e releases assinados, não com os servidores `dev` dos outros workspaces.
 
 No portal, Next.js serve páginas e APIs por HTTP. No Electron, `electron-vite dev` inicia a aplicação nativa e o servidor de desenvolvimento do renderer. A URL interna desse renderer não substitui a aplicação: um navegador comum não possui o preload nem as operações de arquivo, captura e sistema do main. A interface recebe atualizações durante o desenvolvimento; alterações em main/preload exigem verificar o processo reiniciado e, em caso de dúvida, encerrar e executar `dev` novamente. Configuração pública da suíte é incorporada durante o build, portanto mudar essas variáveis também exige reinício/rebuild.
 
@@ -138,7 +138,32 @@ pnpm --filter @informach/edi-hub dev
 
 Um mapa tem a forma `{"id-da-chave":"PEM da chave pública"}`; as quebras de linha do PEM devem ser escapadas corretamente como JSON. O modo de desenvolvimento aceita autenticação apenas em loopback. Não aponte esse modo para o portal de produção.
 
-**Login não equivale a licença.** Sem chave de licença configurada ou sem direito comercial válido, o desktop continuará restrito. Desabilitar billing impede o checkout; não libera o editor. Não há hoje um comando único que prepare uma sessão interativa permanentemente licenciada, nem um seed genérico para liberar qualquer usuário. O caminho manual usa os serviços reais em ambiente de teste, conforme os passos abaixo.
+**Login não equivale a licença.** Sem chave de licença configurada ou sem direito comercial válido, o desktop continuará restrito. Desabilitar billing impede o checkout; não libera o editor. Não existe seed genérico que libere uma conta nem uma sessão licenciada permanente. Para testar a ferramenta em si, use a sessão de fixture logo abaixo. Para testar login, assinatura e licença com os serviços reais em ambiente de teste, siga os passos de [Sessão interativa com assinatura de teste](#sessão-interativa-com-assinatura-de-teste).
+
+### Abrir uma ferramenta licenciada para testar (sem portal)
+
+Para usar um editor como usuário — conferir uma tela, reproduzir um bug, validar um ajuste — sem portal, banco, conta nem Stripe:
+
+```powershell
+pnpm edi:open edisvg
+pnpm edi:open edipdf C:\caminho\copia.pdf   # argumentos depois do id vão para o app
+```
+
+O id é qualquer valor de `desktopAppIdSchema` (`edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg`). O comando é `scripts/edi/open-licensed.mts`, que reaproveita o harness `scripts/edi/native-harness.mts` dos testes nativos, mas deixa a sessão aberta:
+
+1. Compila a ferramenta (`build`) com uma chave de licença Ed25519 efêmera, gerada a cada execução, e um "portal" loopback que sempre responde 503.
+2. Abre o Electron com perfil isolado numa pasta `edi-open-*` sob o temp do sistema e com `scripts/edi/fixtures/native-vault.cjs` pré-carregado.
+3. Grava no cofre do perfil uma licença de fixture assinada por essa chave, válida por 30 minutos, e a renova a cada 20 minutos enquanto o app estiver aberto. O SDK trata o 503 como falta de conexão e usa a licença em cache; a janela de acesso fecha sozinha e o editor abre.
+4. Ao fechar o app, ou com Ctrl+C no terminal, apaga a pasta temporária inteira, inclusive o que tiver sido salvo nela.
+
+Cuidados:
+
+- **Somente Windows e sempre pelo script da raiz.** `nativeTooling()` recusa outro sistema e recusa rodar fora do `pnpm` fixado do workspace (`npm_execpath`). Não chame `node scripts/edi/open-licensed.mts` diretamente.
+- **Sem hot reload.** É o app compilado. Depois de alterar o código, feche o app e rode o comando de novo. A chave muda a cada execução, então nada de reaproveitar `out/` de outra execução.
+- **`out/` fica com a chave efêmera.** O `dev` recompila e não é afetado, mas um `start`/`preview` ou pacote feito em seguida usaria esse build: recompile com `pnpm --filter @informach/<ferramenta> build` antes. Não rode `edi:open` em paralelo com build/testes que reescrevem o `out/` do mesmo app.
+- **Arquivos reais continuam alcançáveis.** O perfil é isolado, mas os diálogos de abrir/salvar podem escolher documentos pessoais; teste com cópias.
+- **Não prova login, assinatura nem licença comercial.** Conta, cobrança e revogação não são exercitadas, e a sessão não é homologação. Para esses fluxos, use `pnpm edi:test:native` e a seção abaixo.
+- A licença de fixture só é aceita por esse build de desenvolvimento não empacotado; o fixture recusa iniciar sem `EDI_NATIVE_TEST`, `EDI_SUITE_TEST_PROFILE` e `EDI_NATIVE_USER_DATA`, que o harness define.
 
 ### Sessão interativa com assinatura de teste
 
@@ -171,7 +196,7 @@ Um mapa tem a forma `{"id-da-chave":"PEM da chave pública"}`; as quebras de lin
 
 Ao encerrar, pare o listener e os processos locais. Gerencie/cancele somente as assinaturas de teste que você criou. Não use os IDs/chaves live nem o banco de produção para esse fluxo. O [registro Stripe](propostas/edi-suite-2026-10-16/producao-stripe.md) contém os contratos e as evidências dos testes existentes.
 
-Para verificar automaticamente os estados de acesso sem providers reais, use `pnpm edi:test:native`: o harness controla um servidor loopback, gera chaves efêmeras e licenças de fixture, verifica bloqueios e elimina seus perfis ao terminar. Ele não deixa uma sessão interativa permanente nem substitui a preparação descrita acima. O teste visual do EdiAula (`pnpm edi:test:visual`) usa `scripts/edi/native-harness.mts`. O runner de regressão `test-native.mts` mantém temporariamente seu setup equivalente para preservar diagnóstico por etapa, diretórios únicos, fechamento conhecido antes da limpeza e a barreira STOP do Captura. Seu processo Electron recebe home, APPDATA, LOCALAPPDATA e PATH isolados; o SDK recebe o diretório de suíte da fixture. Isso impede a leitura dos clientes MCP pessoais durante a consulta de status. O ambiente de build permanece separado.
+Para verificar automaticamente os estados de acesso sem providers reais, use `pnpm edi:test:native`: o harness controla um servidor loopback, gera chaves efêmeras e licenças de fixture, verifica bloqueios e elimina seus perfis ao terminar. Ele não deixa uma sessão interativa aberta nem substitui a preparação descrita acima; para isso existe `pnpm edi:open` (acima). O teste visual do EdiAula (`pnpm edi:test:visual`), `pnpm edi:test:pdf-view` e `pnpm edi:open` usam `scripts/edi/native-harness.mts`. O runner de regressão `test-native.mts` mantém temporariamente seu setup equivalente para preservar diagnóstico por etapa, diretórios únicos, fechamento conhecido antes da limpeza e a barreira STOP do Captura. Seu processo Electron recebe home, APPDATA, LOCALAPPDATA e PATH isolados; o SDK recebe o diretório de suíte da fixture. Isso impede a leitura dos clientes MCP pessoais durante a consulta de status. O ambiente de build permanece separado.
 
 O teste visual gera mídia sintética com o FFmpeg do pacote de mídia (`.cache/edi-native-media`, feito por `pnpm edi:media:build`) e com o sintetizador de voz do Windows, abre o EdiAula licenciado com perfil isolado e percorre editor, Voz, vídeo do apresentador (nome e miniatura conferidos), roteiro, Preparar aula com os rascunhos e a verificação antes de exportar, exportação (com o volume medido), configurações de IA, gravador nos quatro modos (sem gravar, conferindo as fontes de cada modo e ligando e desligando o áudio do PC), modo guiado, uma passada em 1366 × 768 (editor, Biblioteca, Voz, Exportar e gravador), falha de salvamento, gravação interrompida e reconexão de mídia. As capturas e o `relatorio.md` ficam em `.cache/edi-visual-results`. Os diálogos nativos de arquivo são respondidos pelo próprio teste no processo principal do Electron, sem porta de teste no app. Qualquer erro de página, de console ou de IPC de qualquer janela faz o teste falhar, exceto as mensagens listadas e justificadas em `KNOWN_HARMLESS` (hoje vazia: a sondagem do zod 4 sumiu com `z.config({ jitless: true })` no renderer). O teste abre janelas de verdade, incluindo o gravador em tela cheia por alguns segundos, e espera 2000 MB livres antes do build e de cada abertura.
 
@@ -321,7 +346,9 @@ Uma alteração diária deve ter escopo, testes, documentação e revisão antes
 | Sintoma | Primeiro ponto a conferir |
 | --- | --- |
 | `pnpm dev:edi` abriu um site, não o Hub | Esse é o portal; execute o workspace `@informach/edi-hub` |
-| Editor abre restrito | Portal acessível, setup OAuth, origem/client ID, chave pública correspondente, versão mínima e direito comercial; leia a razão exibida |
+| Editor abre restrito | Para só usar/testar a ferramenta, rode `pnpm edi:open <ferramenta>`. Com portal local: portal acessível, setup OAuth, origem/client ID, chave pública correspondente, versão mínima e direito comercial; leia a razão exibida |
+| Diálogo "Native fixture requires an owned profile before ready" | O processo foi aberto com `native-vault.cjs` sem `EDI_NATIVE_USER_DATA`. Use `harness.launch` de `native-harness.mts` (que define a variável) ou `pnpm edi:open`, não uma chamada própria a `_electron.launch` |
+| `edi:open` falha com "Run native tests through the pinned pnpm workspace script" | Rode pela raiz como `pnpm edi:open <ferramenta>`, não com `node` direto |
 | Cadastro espera OTP que não chega | `EMAIL_SANDBOX_MODE`; para uso manual local, abra os arquivos do sandbox em vez de esperar envio externo |
 | Alterei uma variável e nada mudou | Reinicie/recompile o desktop; configuração pública é incorporada pelo build |
 | Hub não abre meu editor em `dev` | Execute o workspace diretamente; Hub gerencia instalações verificadas, não processos de desenvolvimento |

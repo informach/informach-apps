@@ -81,7 +81,7 @@ Consulte também os guias locais de [Agenda da Turma](apps/agenda-da-turma/CLAUD
 
 - Instalação reproduzível: `pnpm install --frozen-lockfile`.
 - Web por app: `pnpm dev:<app>`, `pnpm build:<app>`, `pnpm start:<app>`, conforme scripts existentes na raiz.
-- Desktop por app: `pnpm --filter @informach/<app> dev` ou `build`, conforme o manifest do app.
+- Desktop por app: `pnpm --filter @informach/<app> dev` ou `build`, conforme o manifest do app. O `dev` para na janela de acesso da suíte. Para abrir e testar uma ferramenta já licenciada, sem portal, conta ou assinatura, use `pnpm edi:open <ferramenta>` no Windows (perfil e licença de fixture efêmeros; cuidados no [guia Edi §5](docs/desenvolvimento-edi.md#abrir-uma-ferramenta-licenciada-para-testar-sem-portal)). Não contorne a licença no código para isso.
 - Qualidade transversal: `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm build`. Biome é o padrão de lint/formatação; não introduzir outro linter por ferramenta.
 - `pnpm test` e o runner de testes do EdiAula executam arquivos/workspaces em série para que o benchmark de `settle` com limite de 10 ms não dispute CPU com outros testes no mesmo runner. Não remover essa isolação, pular a medição ou afrouxar seu limite para obter um gate verde; investigar a performance e o ambiente se ela falhar novamente.
 - Teste focado: `pnpm --filter @informach/<workspace> exec vitest run <arquivo>`; E2E seguem os scripts próprios de cada app.
