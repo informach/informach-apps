@@ -37,6 +37,8 @@ export interface SceneNode {
   basis?: Affine;
   instance?: ComponentInstance;
   textLayout?: TextLayout;
+  /** Base direction resolved from the text (first strong character). */
+  textDirection?: "auto";
   semantics?: SemanticMetadata;
 }
 export interface Scene {

@@ -161,3 +161,71 @@ export function audioFixture(frames = 800): AudioAsset {
     frames,
   };
 }
+function fontTable(bytes: Buffer, tag: string) {
+  for (let index = 0; index < bytes.readUInt16BE(4); index++) {
+    const at = 12 + index * 16;
+    if (bytes.toString("ascii", at, at + 4) === tag)
+      return { offset: bytes.readUInt32BE(at + 8), length: bytes.readUInt32BE(at + 12) };
+  }
+  throw new Error("Missing fixture table");
+}
+function fontChecksum(bytes: Buffer, offset = 0, length = bytes.length) {
+  let checksum = 0;
+  for (let at = 0; at < Math.ceil(length / 4) * 4; at += 4) {
+    let word = 0;
+    for (let byte = 0; byte < 4; byte++)
+      word = (word << 8) | (at + byte < length ? (bytes[offset + at + byte] ?? 0) : 0);
+    checksum = (checksum + (word >>> 0)) >>> 0;
+  }
+  return checksum;
+}
+/** Noto Sans Arabic; `unjoined` renames its GSUB init/medi/fina feature records in
+ * memory (re-checksummed): the glyphs stay, but no shaper joins the letters. */
+export function arabicFontFixture(unjoined = false): FontAsset {
+  const packed = readFileSync(
+      new URL(
+        "../../../packages/edi-motion/tests/fixtures/NotoSansArabic-Regular.ttf.gz.base64",
+        import.meta.url,
+      ),
+      "utf8",
+    ).replace(/\s/g, ""),
+    bytes = gunzipSync(Buffer.from(packed, "base64"), { maxOutputLength: 300000 });
+  if (
+    createHash("sha256").update(bytes).digest("hex") !==
+    "ceea25b464a656dc3b26849bab9356740401af62aedf1bfa8b7f0d9b75925b1b"
+  )
+    throw new Error("Unexpected Arabic font fixture");
+  if (unjoined) {
+    const gsub = fontTable(bytes, "GSUB"),
+      list = gsub.offset + bytes.readUInt16BE(gsub.offset + 6);
+    for (let index = 0; index < bytes.readUInt16BE(list); index++) {
+      const at = list + 2 + index * 6;
+      if (["init", "medi", "fina"].includes(bytes.toString("ascii", at, at + 4)))
+        bytes.write("zzzz", at, "ascii");
+    }
+    const head = fontTable(bytes, "head");
+    bytes.writeUInt32BE(0, head.offset + 8);
+    for (let index = 0; index < bytes.readUInt16BE(4); index++) {
+      const at = 12 + index * 16;
+      bytes.writeUInt32BE(
+        fontChecksum(bytes, bytes.readUInt32BE(at + 8), bytes.readUInt32BE(at + 12)),
+        at + 4,
+      );
+    }
+    bytes.writeUInt32BE((0xb1b0afba - fontChecksum(bytes)) >>> 0, head.offset + 8);
+  }
+  return {
+    kind: "font",
+    mime: "font/ttf",
+    id: assetId(bytes),
+    name: unjoined ? "Noto Sans Arabic (sem formas contextuais)" : "Noto Sans Arabic",
+    byteLength: bytes.length,
+    data: encodeAssetData(bytes),
+    ...inspectFont(bytes),
+    rightsConfirmed: true,
+    licenseNotice: readFileSync(
+      new URL("../../../packages/edi-motion/tests/fixtures/Noto-OFL.txt", import.meta.url),
+      "utf8",
+    ),
+  };
+}

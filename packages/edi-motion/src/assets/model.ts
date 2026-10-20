@@ -2,7 +2,13 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { type FontCharacterMap, UnsupportedCharacterMapError } from "./cmap";
-import { inspectFont, inspectFontCharacterMap } from "./font";
+import {
+  type FontLayoutScripts,
+  inspectFont,
+  inspectFontCharacterMap,
+  inspectFontLayoutScripts,
+  UnsupportedLayoutTableError,
+} from "./font";
 import { ASSET_BASE64_CHARS, ASSET_BYTES, CATALOG_BYTES, IMAGE_PIXELS } from "./limits";
 import { inspectPng, validatePngData } from "./png";
 import { inspectWav } from "./wav";
@@ -62,6 +68,8 @@ interface ValidatedAsset {
   metadata: string;
   characterMap?: FontCharacterMap;
   unsupportedCharacterMap?: UnsupportedCharacterMapError;
+  layoutScripts?: FontLayoutScripts;
+  unsupportedLayout?: UnsupportedLayoutTableError;
 }
 const validated = new WeakMap<object, ValidatedAsset>();
 function metadata(asset: Asset) {
@@ -88,6 +96,23 @@ export function fontCharacterMap(input: FontAsset): FontCharacterMap {
     }
   }
   return entry.characterMap;
+}
+/** GSUB/GPOS scripts of the same verified bytes, cached with the cmap entry. */
+export function fontLayoutScripts(input: FontAsset): FontLayoutScripts {
+  const asset = parseAsset(input);
+  if (asset.kind !== "font") throw new Error("Shaping requer recurso de fonte.");
+  const entry = validated.get(asset);
+  if (!entry) throw new Error("Validação da fonte não disponibilizou sua identidade.");
+  if (entry.unsupportedLayout) throw entry.unsupportedLayout;
+  if (!entry.layoutScripts) {
+    try {
+      entry.layoutScripts = inspectFontLayoutScripts(decodeAssetData(asset.data));
+    } catch (error) {
+      if (error instanceof UnsupportedLayoutTableError) entry.unsupportedLayout = error;
+      throw error;
+    }
+  }
+  return entry.layoutScripts;
 }
 export function decodeAssetData(data: string): Uint8Array {
   if (data.length > ASSET_BASE64_CHARS || data.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data))

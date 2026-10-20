@@ -31,6 +31,7 @@ import { sceneEffectContext } from "./sceneEffects";
 
 export { svgAttributes, validAttributes } from "@informach/edi-motion/graphics";
 
+import { textDirectionSchema } from "@informach/edi-motion/visual";
 import { textLayoutSchema } from "./textLayout";
 
 const tags = new Set([
@@ -165,6 +166,13 @@ export function editScene(scene, id, operation, value) {
     } else if (operation === "text-layout") {
       if (n.tag !== "text") throw new Error("Selecione um texto.");
       n.textLayout = textLayoutSchema.parse(value);
+    } else if (operation === "text-direction") {
+      if (n.tag !== "text") throw new Error("Selecione um texto.");
+      // Explicit directions stay SVG attributes; auto is resolved at render.
+      const { direction: _direction, ...attrs } = n.attrs;
+      n.attrs = value === "auto" ? attrs : { ...attrs, direction: value };
+      if (value === "auto") n.textDirection = "auto";
+      else delete n.textDirection;
     } else if (operation === "transform") n.transform = { ...n.transform, ...value };
     else if (operation === "path") {
       if (!PATH_TAGS.has(n.tag)) throw new Error("Selecione uma forma ou caminho.");
@@ -255,6 +263,7 @@ export function validateScene(
           "basis",
           "instance",
           "textLayout",
+          "textDirection",
           "assetId",
           "imageSlice",
           "gradients",
@@ -325,6 +334,10 @@ export function validateScene(
       if ((n.tag === "image") !== (assetId !== undefined))
         throw new Error("Imagem requer referência tipada; outros objetos não aceitam assetId.");
       if (textLayout && n.tag !== "text") throw new Error("Layout de texto só se aplica a texto.");
+      const textDirection =
+        n.textDirection === undefined ? undefined : textDirectionSchema.parse(n.textDirection);
+      if (textDirection && (n.tag !== "text" || n.attrs?.direction !== undefined))
+        throw new Error("Direção automática requer texto sem direção explícita.");
       if (textLayout) {
         const lines = n.text.replace(/\r\n?/g, "\n").split("\n").length;
         budget.textLines = (budget.textLines ?? 0) + lines;
@@ -393,6 +406,7 @@ export function validateScene(
         ...(n.basis === undefined ? {} : { basis: [...n.basis] }),
         ...(instance === undefined ? {} : { instance }),
         ...(textLayout === undefined ? {} : { textLayout }),
+        ...(textDirection === undefined ? {} : { textDirection }),
         ...(semantics === undefined ? {} : { semantics }),
         ...(assetId === undefined ? {} : { assetId }),
         ...(imageSlice === undefined ? {} : { imageSlice }),

@@ -256,6 +256,7 @@ export function compileInteractiveArtboard(
             text: node.text,
             visible: node.visible,
             ...(node.textLayout ? { textLayout: node.textLayout } : {}),
+            ...(node.textDirection ? { textDirection: node.textDirection } : {}),
           },
           ...(node.assetId ? { assetId: node.assetId } : {}),
           ...(node.imageSlice
@@ -283,6 +284,7 @@ export function compileInteractiveArtboard(
               }
             : {}),
           ...(node.textLayout ? { lineHeight: node.textLayout.lineHeight } : {}),
+          ...(node.textDirection ? { textDirection: node.textDirection } : {}),
         };
       }),
     };

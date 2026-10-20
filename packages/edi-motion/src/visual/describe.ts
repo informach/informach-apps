@@ -30,6 +30,7 @@ import {
 import type { Transform } from "../model";
 import type { TextLayout, VisualTag } from "./model";
 import { type SemanticMetadata, semanticAttributes } from "./semantics";
+import { resolveTextDirection, type TextDirection } from "./textDirection";
 
 export interface VisualNode {
   id: string;
@@ -48,6 +49,7 @@ export interface VisualNode {
   filter?: Filter;
   effects?: VectorEffects;
   textLayout?: TextLayout;
+  textDirection?: TextDirection;
   semantics?: SemanticMetadata;
   /** Needed only for live effect sources; portable playback already owns it. */
   geometry?: Geometry;
@@ -219,10 +221,13 @@ export function describeVisualScene(
       options.semantics === false || (options.mode === "editor" && options.semantics !== true)
         ? undefined
         : node.semantics;
-    const attrs = {
+    const attrs: Record<string, string> = {
         ...node.attrs,
         ...gradientAttributes(node.gradients),
         ...filterAttributes(node.filter),
+        ...(node.tag === "text" && node.textDirection
+          ? { direction: resolveTextDirection(node.text) }
+          : {}),
       },
       image = node.assetId ? resources.get(node.assetId) : undefined;
     if (node.fontAssetId) {

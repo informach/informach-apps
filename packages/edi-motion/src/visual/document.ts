@@ -42,6 +42,7 @@ export function visualSceneFromDocument(input: unknown) {
         imageSlice: object.imageSlice?.insets,
         effects: object.effects,
         textLayout: data.textLayout,
+        textDirection: data.textDirection,
         semantics: object.semantics,
       });
     }

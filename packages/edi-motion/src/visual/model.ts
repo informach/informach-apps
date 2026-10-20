@@ -2,6 +2,7 @@ import { z } from "zod";
 import { svgAttributesSchema } from "../graphics/attributes";
 import { transformSchema } from "../model";
 import { isXmlText } from "../xmlText";
+import { textDirectionSchema } from "./textDirection";
 
 export const visualTagSchema = z.enum([
   "image",
@@ -34,6 +35,7 @@ export const visualContentSchema = z.strictObject({
   text: z.string().max(10000).refine(isXmlText, "Texto deve conter caracteres XML válidos."),
   visible: z.boolean(),
   textLayout: textLayoutSchema.optional(),
+  textDirection: textDirectionSchema.optional(),
 });
 export type VisualContent = z.infer<typeof visualContentSchema>;
 export const visualSceneSchema = z.strictObject({

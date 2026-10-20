@@ -63,6 +63,11 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
   z.strictObject({ ...sceneFields, operation: z.literal("text-layout"), value: textLayoutSchema }),
   z.strictObject({
     ...sceneFields,
+    operation: z.literal("text-direction"),
+    value: z.enum(["auto", "ltr", "rtl"]),
+  }),
+  z.strictObject({
+    ...sceneFields,
     operation: z.literal("semantics"),
     value: semanticSchema.nullable(),
   }),

@@ -16,7 +16,7 @@ export function inspectFontCoverage(scene: Scene, assets: readonly Asset[], raw:
     fontIds: fonts.map((font) => font.id),
     coverage: fonts.length ? inspectTextCoverage(node.text, fonts) : null,
     note: fonts.length
-      ? "Cobertura cmap por cluster; não certifica shaping/ligaturas."
+      ? "Cobertura cmap por cluster e, em scripts com formas contextuais, o script declarado no GSUB da fonte que desenha o cluster; não executa shaping nem certifica ligaturas."
       : "Disponibilidade/cobertura da fonte dependem do sistema do consumidor.",
   };
 }

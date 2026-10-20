@@ -30,6 +30,7 @@ import {
   visualTagSchema,
 } from "./visual/model";
 import { semanticSchema } from "./visual/semantics";
+import { textDirectionSchema } from "./visual/textDirection";
 import { validateVisualDocument } from "./visual/validation";
 export const INTERACTIVE_VERSION = 12;
 
@@ -57,6 +58,7 @@ export const interactiveContentSchema = z.strictObject({
   semantics: semanticSchema.optional(),
   tag: visualTagSchema,
   lineHeight: z.number().min(0.25).max(10).optional(),
+  textDirection: textDirectionSchema.optional(),
 });
 const interactiveSchema = z.strictObject({
   version: z.union([
@@ -377,6 +379,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         throw new Error("Medidas intrínsecas requerem instância de componente válida.");
       else if (value.lineHeight !== undefined && value.tag !== "text")
         throw new Error("Layout interativo requer texto.");
+      else if (value.textDirection && (value.tag !== "text" || parsed.version < 12))
+        throw new Error("Direção automática requer texto e blueprint v12.");
     const authored = new Map(
       playback.sources
         .filter((source) => source.instancePath.length === 0)

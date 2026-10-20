@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Shaping complexo e direção automática — incremento 5.31
+
+Textos em árabe, nos scripts índicos e em outros sistemas de escrita com formas contextuais passam a exigir uma fonte que aplique as substituições OpenType desse script (por exemplo `init`/`medi`/`fina` no árabe). Sem elas, as letras sairiam isoladas ou fora de ordem, e Testar/exportar recusa com a explicação. O painel de texto ganha a direção **Automática (primeiro caractere forte)**, que também acompanha texto trocado por dados. [Contrato e gates 5.31](../../docs/reviews/edisvg-2026-10-17/review-lote-5-shaping-bidi.md).
+
 ### Ordem de desenho animável — incremento 5.30
 
 Uma animação agora pode trocar a ordem de empilhamento dos filhos de um grupo, ou da raiz da prancheta, em degraus por quadro. No modo Animar, selecione um objeto e use **Subir/Descer neste quadro** em *Ordem de desenho*: cada clique grava uma chave no quadro atual. Estados, blends, camadas e relógios de componente usam a mesma ordem. HTML, React e vídeo preservam o empilhamento; SVG animado e Lottie recusam, sem descartá-lo. Mudar de grupo um objeto citado exige remover as chaves antes. [Contrato e gates 5.30](../../docs/reviews/edisvg-2026-10-17/review-lote-5-ordem-de-desenho.md).

@@ -2,6 +2,76 @@ import { createFontCharacterMap, type FontCharacterMap } from "./cmap";
 import { assertAssetBytes, FONT_TABLE_BYTES } from "./limits";
 import { isXmlText } from "./xmlText";
 
+/** Feature tags each layout script applies by default, per GSUB/GPOS. */
+export interface FontLayoutScripts {
+  substitution: ReadonlyMap<string, ReadonlySet<string>>;
+  positioning: ReadonlyMap<string, ReadonlySet<string>>;
+}
+export class UnsupportedLayoutTableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedLayoutTableError";
+  }
+}
+/** ScriptList/FeatureList of a GSUB/GPOS table: for each script, the feature
+ * tags of its default language system (the one a shaper uses without a
+ * language), or of all its language systems when it has no default. Every
+ * offset and count is bounds-checked. */
+function layoutScripts(
+  table: Uint8Array | undefined,
+  tag: string,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const scripts = new Map<string, ReadonlySet<string>>();
+  if (!table) return scripts;
+  const fail = () => {
+      throw new UnsupportedLayoutTableError(`Tabela ${tag} fora do perfil verificável.`);
+    },
+    view = new DataView(table.buffer, table.byteOffset, table.byteLength),
+    read = (offset: number) => (offset + 2 <= table.length ? view.getUint16(offset) : fail()),
+    name = (offset: number) => {
+      if (offset + 4 > table.length) fail();
+      const value = String.fromCharCode(...table.subarray(offset, offset + 4));
+      return /^[\x20-\x7e]{4}$/.test(value) ? value : fail();
+    };
+  if (table.length < 10 || read(0) !== 1 || read(2) > 1) fail();
+  const list = read(4),
+    featureList = read(6),
+    count = read(list),
+    featureCount = read(featureList);
+  if (!list || !featureList || count > 512 || featureCount > 4096) fail();
+  const features = Array.from({ length: featureCount }, (_, index) =>
+    name(featureList + 2 + index * 6),
+  );
+  const featuresOf = (system: number, into: Set<string>) => {
+    const required = read(system + 2),
+      indices = read(system + 4);
+    if (indices > 4096) fail();
+    for (const index of [
+      ...(required === 0xffff ? [] : [required]),
+      ...Array.from({ length: indices }, (_, at) => read(system + 6 + at * 2)),
+    ])
+      into.add(features[index] ?? fail());
+  };
+  for (let index = 0; index < count; index++) {
+    const record = list + 2 + index * 6,
+      script = name(record),
+      offset = list + read(record + 4);
+    if (offset === list) fail();
+    const defaults = read(offset),
+      systems = read(offset + 2),
+      tags = new Set<string>();
+    if (systems > 512) fail();
+    if (defaults) featuresOf(offset + defaults, tags);
+    else
+      for (let language = 0; language < systems; language++) {
+        const system = read(offset + 4 + language * 6 + 4);
+        if (!system) fail();
+        featuresOf(offset + system, tags);
+      }
+    scripts.set(script, tags);
+  }
+  return scripts;
+}
 interface FontTable {
   tag: string;
   offset: number;
@@ -35,7 +105,11 @@ function checksum(bytes: Uint8Array, offset: number, length: number, zeroAdjustm
 /** Uncompressed, single-face OpenType only. Checksums and table bounds precede
  * the platform font sanitizer; this does not pretend to validate every glyph,
  * shaping program, variable-font axis or copyright/license condition. */
-function inspectFontData(bytes: Uint8Array): { info: FontInfo; characterMap: Uint8Array } {
+function inspectFontData(bytes: Uint8Array): {
+  info: FontInfo;
+  characterMap: Uint8Array;
+  layout: Partial<Record<"GSUB" | "GPOS", Uint8Array>>;
+} {
   assertAssetBytes(bytes);
   if (bytes.length < 12) throw new Error("Fonte OpenType truncada.");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
@@ -216,10 +290,26 @@ function inspectFontData(bytes: Uint8Array): { info: FontInfo; characterMap: Uin
       embedding,
     },
     characterMap: bytes.subarray(cmap.offset, cmap.offset + cmap.length),
+    layout: Object.fromEntries(
+      (["GSUB", "GPOS"] as const).flatMap((tag) => {
+        const table = tables.get(tag);
+        return table ? [[tag, bytes.subarray(table.offset, table.offset + table.length)]] : [];
+      }),
+    ),
   };
 }
 export function inspectFont(bytes: Uint8Array): FontInfo {
   return inspectFontData(bytes).info;
+}
+/** OpenType layout scripts that declare features (GSUB substitutions and GPOS
+ * positioning), by script tag. Like coverage, separate from loading: a font
+ * with a malformed layout table still opens and gets an explicit diagnosis. */
+export function inspectFontLayoutScripts(bytes: Uint8Array): FontLayoutScripts {
+  const { layout } = inspectFontData(bytes);
+  return {
+    substitution: layoutScripts(layout.GSUB, "GSUB"),
+    positioning: layoutScripts(layout.GPOS, "GPOS"),
+  };
 }
 /** Coverage is separate from loading/structural validation: unsupported
  * historical encodings remain openable and get an explicit coverage error. */

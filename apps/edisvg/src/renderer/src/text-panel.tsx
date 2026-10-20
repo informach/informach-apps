@@ -27,7 +27,7 @@ function TextPanel({ node, locked, execute, assets }: Props) {
             fontFallbackIds: fallback.map((row) => row.assetId),
           }),
           report = assertTextCoverage(text, stack);
-        return `Cobertura cmap verificada: ${report.graphemes} grupos de caracteres. Shaping/ligaturas dependem do motor da plataforma.`;
+        return `Cobertura cmap verificada: ${report.graphemes} grupos de caracteres. Scripts que exigem formas contextuais (árabe, índicos e outros) têm suporte OpenType declarado na fonte; o shaping em si é feito pelo motor da plataforma.`;
       } catch (error) {
         return error instanceof Error
           ? error.message
@@ -75,9 +75,14 @@ function TextPanel({ node, locked, execute, assets }: Props) {
                     "text-anchor",
                     "letter-spacing",
                     "word-spacing",
-                    "direction",
                   ].map((key) => [key, value(key)]),
                 ),
+              },
+              {
+                type: "scene",
+                operation: "text-direction",
+                targetId: node.id,
+                value: value("direction"),
               },
             ]);
           } catch (error) {
@@ -272,7 +277,11 @@ function TextPanel({ node, locked, execute, assets }: Props) {
           </label>
           <label className="scene-field">
             Direção
-            <select name="direction" defaultValue={node.attrs.direction ?? "ltr"}>
+            <select
+              name="direction"
+              defaultValue={node.textDirection ?? node.attrs.direction ?? "ltr"}
+            >
+              <option value="auto">Automática (primeiro caractere forte)</option>
               <option value="ltr">Esquerda para direita</option>
               <option value="rtl">Direita para esquerda</option>
             </select>
@@ -318,11 +327,12 @@ function TextPanel({ node, locked, execute, assets }: Props) {
         <p role="status">{error}</p>
         <p className="micro">
           Enter cria linhas explícitas. Texto permanece editável no player; shaping e escrita
-          bidirecional usam o motor SVG da plataforma. Fontes TTF/OTF incorporadas são carregadas
-          antes de Testar/exportar; isso ainda não comprova cobertura de todos os glifos. Sem uma
-          fonte incorporada, a família depende do sistema do consumidor. A cadeia verifica cobertura
-          cmap do grupo inteiro; ausência impede os novos testes/exports portáteis até ajuste.
-          Wrapping automático, texto em caminho e contornos seguem em evolução.
+          bidirecional usam o motor SVG da plataforma. A direção automática segue o primeiro
+          caractere forte do texto, também quando ele muda por dados. Fontes TTF/OTF incorporadas
+          são carregadas antes de Testar/exportar. Sem uma fonte incorporada, a família depende do
+          sistema do consumidor. A cadeia verifica a cobertura cmap do grupo inteiro e, para scripts
+          com formas contextuais, se a fonte declara o script no GSUB; uma falha impede os novos
+          testes/exports portáteis até ajuste. Wrapping automático e contornos seguem em evolução.
         </p>
       </form>
     </section>

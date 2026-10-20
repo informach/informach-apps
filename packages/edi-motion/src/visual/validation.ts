@@ -31,6 +31,13 @@ export function validateVisualDocument(document: InteractiveDocument) {
         throw new Error("Conteúdo portátil requer metadados visuais e hierarquia local completa.");
       if (object.visual.textLayout && object.tag !== "text")
         throw new Error("Layout textual requer texto.");
+      if (
+        object.visual.textDirection &&
+        (object.tag !== "text" || object.visual.attrs.direction !== undefined)
+      )
+        throw new Error("Direção automática requer texto sem direção explícita.");
+      if (object.textDirection !== object.visual.textDirection)
+        throw new Error("Direção portátil não corresponde ao conteúdo.");
       const path = object.visual.attrs.d;
       if (path !== undefined && object.tag !== "path")
         throw new Error("Dados de caminho requerem path.");

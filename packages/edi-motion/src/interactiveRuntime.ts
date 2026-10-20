@@ -45,6 +45,7 @@ import { documentFontIds, hasLoadedFont, loadDocumentFonts } from "./runtimeFont
 import { createSceneClock, type SceneClock, type ScopeLoop } from "./sceneClock";
 import { describeVisualDocument } from "./visual/document";
 import { prepareVisualMount } from "./visual/dom";
+import { resolveTextDirection } from "./visual/textDirection";
 
 export interface InteractivePlayerOptions extends FrameLoopOptions {
   audioContext?: AudioContext | OfflineAudioContext;
@@ -226,6 +227,7 @@ function createInteractiveScope(
       baseD: string | null | undefined;
       x: string;
       lineHeight?: number;
+      autoDirection: boolean;
     }
   >();
   const childIds = new Set<string>();
@@ -284,6 +286,7 @@ function createInteractiveScope(
       baseD: shape.localName === "path" ? shape.getAttribute("d") : undefined,
       x: shape.getAttribute("x") ?? "0",
       lineHeight: details.lineHeight,
+      autoDirection: details.textDirection === "auto",
     });
   }
   if (elements.size !== objects.size) throw new Error("SVG interativo incompleto.");
@@ -489,6 +492,9 @@ function createInteractiveScope(
       }
       if (text !== undefined) {
         svgLayout?.invalidateGeometry();
+        // Dynamic text re-resolves its base direction, as authored text does.
+        if (target.autoDirection)
+          target.shape.setAttribute("direction", resolveTextDirection(text));
         if (target.lineHeight === undefined) target.shape.textContent = text;
         else
           target.shape.replaceChildren(

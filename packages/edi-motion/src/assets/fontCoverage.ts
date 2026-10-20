@@ -1,6 +1,8 @@
 import { isXmlText } from "../xmlText";
 import { type FontCharacterMap, UnsupportedCharacterMapError } from "./cmap";
-import { type FontAsset, fontCharacterMap } from "./model";
+import { UnsupportedLayoutTableError } from "./font";
+import { type FontAsset, fontCharacterMap, fontLayoutScripts } from "./model";
+import { type ShapingScript, shapingGap, shapingScript } from "./shapingScripts";
 
 export interface TextCoverageBudget {
   remaining: number;
@@ -9,6 +11,16 @@ export interface MissingTextCluster {
   text: string;
   offset: number;
   codePoints: number[];
+}
+/** A covered grapheme of a script that needs OpenType substitution, drawn by a
+ * font that does not declare that script in GSUB (or whose table is not
+ * verifiable): the platform would show isolated/unjoined glyphs. */
+export interface UnshapedTextCluster {
+  text: string;
+  offset: number;
+  script: string;
+  fontId: string;
+  reason: string;
 }
 export interface TextCoverageReport {
   covered: boolean;
@@ -19,6 +31,8 @@ export interface TextCoverageReport {
   unsupportedFontIds: string[];
   unsupportedFonts: { id: string; reason: string }[];
   usedFontIds: string[];
+  unshapedCount: number;
+  unshaped: UnshapedTextCluster[];
 }
 let segmenter: Intl.Segmenter | undefined;
 const variation = /\p{Variation_Selector}/u,
@@ -48,8 +62,9 @@ function covers(cluster: string, map: FontCharacterMap, budget: TextCoverageBudg
   return true;
 }
 /** Coverage is cmap availability for a whole grapheme in one embedded font,
- * not a certification of shaping, ligatures, color glyphs or visual meaning.
- * No code-point-level splitting of combining clusters/emoji is performed. */
+ * plus, for scripts that need substitution, a GSUB entry for the script in
+ * that font. It does not run shaping or certify ligatures, color glyphs or
+ * visual meaning. No code-point-level splitting of clusters/emoji is done. */
 export function inspectTextCoverage(
   text: string,
   fonts: readonly FontAsset[],
@@ -82,9 +97,31 @@ export function inspectTextCoverage(
       }
     }),
     missing: MissingTextCluster[] = [],
+    unshaped: UnshapedTextCluster[] = [],
+    byId = new Map(fonts.map((font) => [font.id, font])),
+    shapingMemo = new Map<string, string | null>(),
+    unshapedRecorded = new Set<string>(),
     used = new Set<string>(),
     memo = new Map<string, string | null>(),
     recorded = new Set<string>();
+  /** Why the font cannot shape the script, or null when GSUB declares it. */
+  const unshapedReason = (fontId: string, script: ShapingScript) => {
+    const key = `${fontId}:${script.name}`;
+    let gap = shapingMemo.get(key);
+    if (gap === undefined) {
+      const font = byId.get(fontId);
+      if (!font) throw new Error("Fonte selecionada ausente.");
+      try {
+        gap = shapingGap(fontLayoutScripts(font).substitution, script);
+      } catch (error) {
+        if (!(error instanceof UnsupportedLayoutTableError)) throw error;
+        gap = error.message;
+      }
+      shapingMemo.set(key, gap);
+    }
+    return gap;
+  };
+  let unshapedCount = 0;
   let graphemes = 0,
     missingCount = 0,
     truncated = false;
@@ -96,8 +133,26 @@ export function inspectTextCoverage(
       selected = maps.find(({ map }) => covers(segment, map, budget))?.id ?? null;
       memo.set(segment, selected);
     }
-    if (selected !== null) used.add(selected);
-    else {
+    if (selected !== null) {
+      used.add(selected);
+      const script = shapingScript(segment),
+        gap = script ? unshapedReason(selected, script) : null;
+      if (script && gap !== null) {
+        unshapedCount++;
+        if (!unshapedRecorded.has(segment)) {
+          unshapedRecorded.add(segment);
+          if (unshaped.length < 64)
+            unshaped.push({
+              text: [...segment].slice(0, 32).join(""),
+              offset: index,
+              script: script.name,
+              fontId: selected,
+              reason: gap,
+            });
+          else truncated = true;
+        }
+      }
+    } else {
       missingCount++;
       if (!recorded.has(segment)) {
         recorded.add(segment);
@@ -118,7 +173,7 @@ export function inspectTextCoverage(
     }
   }
   return {
-    covered: !missingCount && !unsupportedFontIds.length,
+    covered: !missingCount && !unsupportedFontIds.length && !unshapedCount,
     graphemes,
     missingCount,
     missing,
@@ -126,6 +181,8 @@ export function inspectTextCoverage(
     unsupportedFontIds,
     unsupportedFonts,
     usedFontIds: [...used],
+    unshapedCount,
+    unshaped,
   };
 }
 export function assertTextCoverage(
@@ -156,5 +213,10 @@ export function assertTextCoverage(
       `Fontes incorporadas não cobrem ${report.missingCount} grupos de caracteres (${sample}). Configure fontes de fallback ou escolha explicitamente uma fonte do sistema.`,
     );
   }
+  const gap = report.unshaped[0];
+  if (gap)
+    throw new Error(
+      `${report.unshapedCount} grupos de caracteres do script ${gap.script} sairiam sem as formas contextuais: ${gap.reason} (${fonts.find((font) => font.id === gap.fontId)?.name ?? gap.fontId}). Use uma fonte com suporte OpenType ao script, na frente da cadeia.`,
+    );
   return report;
 }
