@@ -2,6 +2,12 @@ export { isXmlText } from "../xmlText";
 export { svgAttributes, svgAttributesSchema, validAttributes } from "./attributes";
 export { parseSolidSvgColor } from "./color";
 export {
+  EFFECT_PAINT_ATTRIBUTES,
+  type EffectPaint,
+  effectSourcePaints,
+  isPaintedMask,
+} from "./effectPaint";
+export {
   FILTER_BLEND_MODES,
   FILTER_DEFINITIONS,
   type Filter,

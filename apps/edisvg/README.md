@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Máscaras de luminância e pintadas — incremento 5.28
+
+Em **Recortes e máscaras**, escolha o **Modo da máscara**: silhueta da forma (como antes), alpha da pintura ou luminância da pintura. Nos modos pintados a fonte entra com sua cor, gradiente ou padrão e contorno, herdados dos grupos. A importação SVG passa a aceitar máscaras de luminância (o padrão do SVG), gradientes, padrões e contornos na fonte. [Perfil e gates 5.28](../../docs/reviews/edisvg-2026-10-17/review-lote-5-mascaras-pintadas.md).
+
 ### Filtros — incremento 5.27
 
 Na seção **Filtros** do painel de efeitos, aplique sombra projetada, desfoque, brilho externo, saturação, escala de cinza ou rotação de matiz; o resumo mostra o filtro atual e **Remover filtro** o retira, sempre com desfazer. O filtro trabalha dentro da transformação do objeto e antes do recorte/máscara, como no SVG. A importação aceita `<filter>` locais com desfoque, deslocamento, sombra, matriz de cor, cor sólida, mistura, composição e junção; funções CSS e entradas de fundo são recusadas. Lottie recusa filtros. [Perfil e gates 5.27](../../docs/reviews/edisvg-2026-10-17/review-lote-5-filtros.md).

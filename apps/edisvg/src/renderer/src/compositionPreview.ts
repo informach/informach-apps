@@ -1,5 +1,9 @@
 import { createPlaybackContext } from "@informach/edi-motion";
-import { nativeEffectSources, playbackVectorEffectContext } from "@informach/edi-motion/graphics";
+import {
+  effectSourcePaints,
+  nativeEffectSources,
+  playbackVectorEffectContext,
+} from "@informach/edi-motion/graphics";
 import { compileArtboard, renderEditorComposition } from "../../shared/components";
 import type { Project } from "../../shared/project";
 import { flattenScene } from "../../shared/scene.js";
@@ -46,6 +50,10 @@ export function createCompositionPreview() {
           ),
           nativeEffectSources(
             entries.map(({ node }) => node),
+            effects,
+          ),
+          effectSourcePaints(
+            entries.map(({ node, parentId }) => ({ ...node, parentId })),
             effects,
           ),
         ),

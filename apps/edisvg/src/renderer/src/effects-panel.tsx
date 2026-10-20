@@ -43,11 +43,13 @@ function EffectsPanel({ scene, node, locked, execute }: Props) {
                 sourceId: clip,
                 rule: data.get("clip-rule") === "evenodd" ? "evenodd" : "nonzero",
               };
+            const mode = data.get("mask-mode");
             if (mask)
               value.mask = {
                 sourceId: mask,
                 rule: data.get("mask-rule") === "evenodd" ? "evenodd" : "nonzero",
                 opacity: Number(data.get("mask-opacity")),
+                ...(mode === "alpha" || mode === "luminance" ? { mode } : {}),
               };
             const effects = clip || mask ? vectorEffectsSchema.parse(value) : null;
             execute([{ type: "scene", operation: "effects", targetId: node.id, value: effects }]);
@@ -88,6 +90,20 @@ function EffectsPanel({ scene, node, locked, execute }: Props) {
                 </select>
               </label>
               {kind === "mask" && (
+                <label htmlFor={`${id}-mask-mode`}>
+                  Modo da máscara
+                  <select
+                    id={`${id}-mask-mode`}
+                    name="mask-mode"
+                    defaultValue={node.effects?.mask?.mode ?? "silhouette"}
+                  >
+                    <option value="silhouette">Silhueta da forma (ignora a pintura)</option>
+                    <option value="alpha">Alpha da pintura da fonte</option>
+                    <option value="luminance">Luminância da pintura da fonte</option>
+                  </select>
+                </label>
+              )}
+              {kind === "mask" && (
                 <label htmlFor={`${id}-mask-opacity`}>
                   Intensidade da máscara
                   <input
@@ -109,9 +125,10 @@ function EffectsPanel({ scene, node, locked, execute }: Props) {
         <p className="micro">
           Use outra forma ou caminho da prancheta. Primitivas nativas preservam suas bordas;
           deformação exige conversão explícita para caminho. A fonte acompanha TRS, morph e
-          deformação. Pode ficar oculta; não é ocultada automaticamente. O recorte usa a silhueta; a
-          máscara alpha usa também a opacidade animada da própria fonte, sem sua pintura ou a
-          opacidade dos pais.
+          deformação. Pode ficar oculta; não é ocultada automaticamente. O recorte usa a silhueta. A
+          máscara em silhueta ignora a pintura; os modos alpha e luminância usam a pintura efetiva
+          da fonte (cor, gradiente ou padrão, contorno), herdada dos grupos. Todos usam a opacidade
+          animada da própria fonte, não a dos pais. Fonte pintada com filtro é recusada.
         </p>
         {error && <p role="alert">{error}</p>}
       </form>

@@ -74,6 +74,23 @@ export interface SvgEffectDefinition {
   sourceOpacity: number;
   nativeShape?: SvgPrimitive;
   metadata: readonly Element[];
+  /** Painted masks (luminance, or alpha with gradients/patterns/strokes): the source carries
+   * its effective paint explicitly, so it never inherits from the group it ends up in. */
+  painted?: {
+    mode: "alpha" | "luminance";
+    attrs: Record<string, string>;
+    gradients?: GradientPaints;
+  };
+}
+/** Solid colours become #rrggbb; alpha moves into the matching opacity by the caller's profile. */
+function normalizePaint(value: string) {
+  if (value === "none") return value;
+  const color = parseSolidSvgColor(value);
+  if (color.alpha !== 1)
+    throw new Error(
+      "Cor semitransparente na fonte da máscara pintada: use fill-opacity/stroke-opacity.",
+    );
+  return color.color;
 }
 function rule(value: string | undefined): "nonzero" | "evenodd" {
   if (value === undefined || value === "nonzero") return "nonzero";
@@ -132,9 +149,12 @@ export function createSvgEffectCatalog(root: Element) {
       if (name === "clip-rule") {
         if (value !== "inherit") rule(value);
       } else if (name === "mask-type") {
-        if (value !== "alpha")
+        if (value !== "alpha" && value !== "luminance")
+          throw new Error("mask-type precisa ser alpha ou luminance.");
+      } else if ((name === "fill" || name === "stroke") && /^url\(/i.test(value.trim())) {
+        if (!/^url\(\s*(['"]?)#[A-Za-z_][\w.-]{0,119}\1\s*\)$/.test(value.trim()))
           throw new Error(
-            "Este perfil exige mask-type alpha explícito; luminância não é convertida.",
+            "Pintura da máscara aceita somente referência local a gradiente ou padrão.",
           );
       } else validAttributes({ [name]: value });
       if (apply) attrs[name] = value;
@@ -163,14 +183,11 @@ export function createSvgEffectCatalog(root: Element) {
       if (chain.length > 33) throw new Error("Herança de definição SVG profunda demais.");
     }
     if (chain[0] !== root) throw new Error("Definição SVG fora do documento de origem.");
-    const attrs: Record<string, string> = { fill: "black", stroke: "none", visibility: "visible" };
-    let fillGradient = false,
-      strokeGradient = false;
+    const attrs: Record<string, string> = { fill: "black", stroke: "none", visibility: "visible" },
+      servers: GradientPaints = {};
     for (const ancestor of chain) {
       const external = read(ancestor),
         values = local.get(ancestor) ?? external?.attrs ?? {};
-      if (external?.gradients?.fill) fillGradient = true;
-      if (external?.gradients?.stroke) strokeGradient = true;
       for (const name of [
         "fill",
         "stroke",
@@ -178,15 +195,26 @@ export function createSvgEffectCatalog(root: Element) {
         "fill-rule",
         "clip-rule",
         "visibility",
+        "stroke-width",
+        "stroke-opacity",
+        "stroke-linecap",
+        "stroke-linejoin",
+        "stroke-dasharray",
       ] as const) {
         const value = values[name];
         if (value === undefined || value === "inherit") continue;
         attrs[name] = value;
-        if (name === "fill") fillGradient = false;
-        if (name === "stroke") strokeGradient = false;
+        if (name === "fill" || name === "stroke") delete servers[name];
       }
+      if (external?.gradients?.fill) servers.fill = external.gradients.fill;
+      if (external?.gradients?.stroke) servers.stroke = external.gradients.stroke;
     }
-    return { attrs, fillGradient, strokeGradient };
+    return {
+      attrs,
+      servers,
+      fillGradient: !!servers.fill,
+      strokeGradient: !!servers.stroke,
+    };
   }
   function resolveDefinition(
     id: string,
@@ -222,7 +250,8 @@ export function createSvgEffectCatalog(root: Element) {
         element,
         definitionAllowed,
         new Set([...definitionPresentation, ...(kind === "mask" ? ["mask-type"] : [])]),
-      );
+      ),
+      maskType = own["mask-type"] ?? "luminance";
     if (
       kind === "clip" &&
       (element.getAttribute("clipPathUnits") ?? "userSpaceOnUse") !== "userSpaceOnUse"
@@ -234,8 +263,6 @@ export function createSvgEffectCatalog(root: Element) {
         (element.getAttribute("maskContentUnits") ?? "userSpaceOnUse") !== "userSpaceOnUse")
     )
       throw new Error("Este perfil de máscara requer região e conteúdo userSpaceOnUse.");
-    if (kind === "mask" && own["mask-type"] !== "alpha")
-      throw new Error("Máscara precisa declarar mask-type alpha explicitamente.");
     const children = [...element.children],
       drawings = children.filter((child) => !metadata.has(child.localName));
     if (drawings.length !== 1)
@@ -294,22 +321,61 @@ export function createSvgEffectCatalog(root: Element) {
     if (vertices > 100000 || !geometry.length)
       throw new Error("Definições excedem orçamento de geometria ou contêm caminho vazio.");
     let opacity = 1,
-      sourceOpacity = 100;
+      sourceOpacity = 100,
+      painted: SvgEffectDefinition["painted"],
+      strokeReach = 0;
     if (kind === "mask") {
-      if (
-        appearance.fillGradient ||
-        appearance.strokeGradient ||
-        appearance.attrs.stroke !== "none"
-      )
-        throw new Error(
-          "Este perfil de máscara aceita preenchimento sólido, sem gradientes ou contornos.",
-        );
-      const paint =
-        appearance.attrs.fill === "none"
-          ? { alpha: 0 }
-          : parseSolidSvgColor(appearance.attrs.fill ?? "black");
-      opacity = paint.alpha * parseSvgOpacity(appearance.attrs["fill-opacity"]);
       sourceOpacity = parseSvgOpacity(childAttrs.opacity) * 100;
+      const stroked = appearance.attrs.stroke !== "none";
+      if (
+        maskType === "alpha" &&
+        !appearance.fillGradient &&
+        !appearance.strokeGradient &&
+        !stroked
+      ) {
+        // The 5.12 silhouette profile, unchanged: a solid alpha is the mask strength.
+        const paint =
+          appearance.attrs.fill === "none"
+            ? { alpha: 0 }
+            : parseSolidSvgColor(appearance.attrs.fill ?? "black");
+        opacity = paint.alpha * parseSvgOpacity(appearance.attrs["fill-opacity"]);
+      } else {
+        const attrs: Record<string, string> = {};
+        for (const name of [
+          "fill",
+          "fill-opacity",
+          "stroke",
+          "stroke-width",
+          "stroke-opacity",
+          "stroke-linecap",
+          "stroke-linejoin",
+          "stroke-dasharray",
+        ] as const) {
+          const value = appearance.attrs[name];
+          if (
+            value !== undefined &&
+            !(name === "fill" && appearance.servers.fill) &&
+            !(name === "stroke" && appearance.servers.stroke)
+          )
+            attrs[name] = name === "fill" || name === "stroke" ? normalizePaint(value) : value;
+        }
+        if (stroked) {
+          const width = Number(appearance.attrs["stroke-width"] ?? "1");
+          if (!Number.isFinite(width) || width < 0)
+            throw new Error("Contorno da máscara precisa de largura numérica.");
+          strokeReach =
+            width *
+            2 *
+            Math.max(Math.hypot(matrix[0], matrix[1]), Math.hypot(matrix[2], matrix[3]));
+        }
+        painted = {
+          mode: maskType === "alpha" ? "alpha" : "luminance",
+          attrs,
+          ...(appearance.servers.fill || appearance.servers.stroke
+            ? { gradients: { ...appearance.servers } }
+            : {}),
+        };
+      }
       const x = absolute(element.getAttribute("x")),
         y = absolute(element.getAttribute("y")),
         width = absolute(element.getAttribute("width")),
@@ -322,10 +388,10 @@ export function createSvgEffectCatalog(root: Element) {
             if (!point) continue;
             const transformed = transformPoint(matrix, point.x, point.y);
             if (
-              transformed.x < x + 1 ||
-              transformed.x > x + width - 1 ||
-              transformed.y < y + 1 ||
-              transformed.y > y + height - 1
+              transformed.x < x + 1 + strokeReach ||
+              transformed.x > x + width - 1 - strokeReach ||
+              transformed.y < y + 1 + strokeReach ||
+              transformed.y > y + height - 1 - strokeReach
             )
               throw new Error(
                 "Região de máscara precisa conter toda a silhueta e sua margem; recorte regional não é descartado.",
@@ -342,6 +408,7 @@ export function createSvgEffectCatalog(root: Element) {
       sourceOpacity,
       ...(nativeShape ? { nativeShape } : {}),
       metadata: descriptive,
+      ...(painted ? { painted } : {}),
     };
     resolved.set(id, value);
     return value;

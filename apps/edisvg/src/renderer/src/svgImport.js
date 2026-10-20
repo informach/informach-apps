@@ -13,6 +13,8 @@ const importAttributes = new Set([...svgAttributes, "clip-path", "mask", "filter
 /** Inherited by filter resolution only (resolved into each typed filter), never stored. */
 const FILTER_SPACE = "color-interpolation-filters";
 const styleAttributes = new Set([...importAttributes, FILTER_SPACE]);
+/** Definitions validate their own properties; this reader only extracts the paint. */
+const definitionStyles = new Set([...styleAttributes, "mask-type"]);
 const allowed = new Set([
   "g",
   "path",
@@ -255,9 +257,22 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
   }
   walk(root, "svg", 0, true);
+  const definitionPaint = (element) => {
+    const result = {};
+    for (const channel of ["fill", "stroke"]) {
+      const value =
+        parseSvgInlineStyle(element.getAttribute("style") ?? "", definitionStyles)
+          .filter((declaration) => declaration.apply && declaration.name === channel)
+          .at(-1)?.value ?? element.getAttribute(channel);
+      const local = value ? LOCAL_PAINT.exec(value.trim())?.[2] : undefined;
+      if (local)
+        result[channel] = patterns.has(local) ? patterns.resolve(local) : gradients.resolve(local);
+    }
+    return result.fill || result.stroke ? result : undefined;
+  };
   const readPresentation = (element) => ({
     attrs: attributes.get(element) ?? {},
-    gradients: paints.get(element),
+    gradients: attributes.has(element) ? paints.get(element) : definitionPaint(element),
   });
   try {
     for (const definition of effectCatalog.validateAll(readPresentation))
@@ -365,9 +380,23 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
               ? svgPrimitiveAttributes(definition.nativeShape)
               : { d: definition.d }),
             transform: `matrix(${definition.matrix.join(" ")})`,
-            fill: "#ffffff",
-            stroke: "none",
+            ...(definition.painted
+              ? {
+                  // SVG initial values, explicit: mask content inherits from the <mask>, never
+                  // from the group this hidden source is placed in.
+                  fill: "#000000",
+                  "fill-opacity": "1",
+                  stroke: "none",
+                  "stroke-width": "1",
+                  "stroke-opacity": "1",
+                  "stroke-linecap": "butt",
+                  "stroke-linejoin": "miter",
+                  "stroke-dasharray": "none",
+                  ...definition.painted.attrs,
+                }
+              : { fill: "#ffffff", stroke: "none" }),
           },
+          ...(definition.painted?.gradients ? { gradients: definition.painted.gradients } : {}),
           text: "",
           transform: { ...identity(), opacity: definition.sourceOpacity },
           visible: false,
@@ -378,6 +407,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
           sourceId,
           rule: definition.rule,
           ...(kind === "mask" ? { opacity: definition.opacity } : {}),
+          ...(kind === "mask" && definition.painted ? { mode: definition.painted.mode } : {}),
         };
       }
       node.effects = typed;

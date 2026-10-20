@@ -2,6 +2,7 @@ import { parseTransformList } from "@informach/edi-motion";
 import {
   createVectorEffectContext,
   type EffectObject,
+  effectSourcePaints,
   evaluateVectorEffects,
   nativeEffectSources,
 } from "@informach/edi-motion/graphics";
@@ -19,6 +20,12 @@ export function sceneEffectContext(
       entries.flatMap(({ node }) => (node.effects ? [[node.id, node.effects] as const] : [])),
     ),
   );
+  const paints = effectSourcePaints(
+    entries.map(({ node, parentId }) => ({ ...node, parentId })),
+    new Map(
+      entries.flatMap(({ node }) => (node.effects ? [[node.id, node.effects] as const] : [])),
+    ),
+  );
   if (enabled)
     for (const { node, parentId } of entries)
       objects.set(node.id, {
@@ -29,6 +36,7 @@ export function sceneEffectContext(
         attributeMatrix: parseTransformList(node.attrs.transform ?? ""),
         ...(node.effects ? { effects: node.effects } : {}),
         ...(primitives.has(node.id) ? { nativeShape: primitives.get(node.id) } : {}),
+        ...(paints.has(node.id) ? { paint: paints.get(node.id) } : {}),
         ...(node.tag === "path" && node.attrs.d?.trim()
           ? { geometry: parsePath(node.attrs.d), pathData: node.attrs.d }
           : {}),

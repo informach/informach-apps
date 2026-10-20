@@ -22,6 +22,7 @@ import type { InputValue } from "./behavior/model";
 import { resolveDataPath } from "./data";
 import { type FrameLoopOptions, type FramePolicy, ownerWindow } from "./frameLoop";
 import { type Geometry, geometryCost, geometryPath } from "./geometry";
+import { effectSourcePaints } from "./graphics/effectPaint";
 import { filterAttributes } from "./graphics/filters";
 import { validateSvgGradients } from "./graphics/gradientDom";
 import { gradientAttributes } from "./graphics/gradients";
@@ -114,6 +115,18 @@ function createInteractiveScope(
     ),
     nativeEffectSources(
       document.content.map((object) => ({ ...object, attrs: object.visual?.attrs })),
+      new Map(
+        document.content.flatMap((object) =>
+          object.effects ? [[object.id, object.effects] as const] : [],
+        ),
+      ),
+    ),
+    effectSourcePaints(
+      document.content.map((object) => ({
+        ...object,
+        parentId: object.parentId ?? null,
+        attrs: object.visual?.attrs,
+      })),
       new Map(
         document.content.flatMap((object) =>
           object.effects ? [[object.id, object.effects] as const] : [],

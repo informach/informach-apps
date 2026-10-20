@@ -12,6 +12,7 @@ import {
   resolveFontStack,
 } from "../assets";
 import type { Geometry } from "../geometry";
+import { effectSourcePaints } from "../graphics/effectPaint";
 import { type Filter, filterAttributes, filterDefinitions } from "../graphics/filters";
 import {
   type GradientPaints,
@@ -144,6 +145,12 @@ export function describeVisualScene(
         entries.flatMap(({ node }) => (node.effects ? [[node.id, node.effects] as const] : [])),
       ),
     ),
+    paints = effectSourcePaints(
+      entries.map(({ node, parentId }) => ({ ...node, parentId })),
+      new Map(
+        entries.flatMap(({ node }) => (node.effects ? [[node.id, node.effects] as const] : [])),
+      ),
+    ),
     effects = entries.some(({ node }) => node.effects)
       ? evaluateVectorEffects(
           createVectorEffectContext(
@@ -160,6 +167,7 @@ export function describeVisualScene(
                   pathData: node.tag === "path" ? node.attrs.d : undefined,
                   effects: node.effects,
                   nativeShape: primitives.get(node.id),
+                  paint: paints.get(node.id),
                 },
               ]),
             ),

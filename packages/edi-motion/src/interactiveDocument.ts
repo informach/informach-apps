@@ -5,6 +5,7 @@ import { type Asset, type AudioAsset, assetIdSchema, parseAssetCatalog } from ".
 import { type AudioDocument, parseAudioDocument } from "./audio/model";
 import { type Behavior, parseBehavior } from "./behavior/model";
 import { geometryCost } from "./geometry";
+import { effectSourcePaints, isPaintedMask } from "./graphics/effectPaint";
 import { type Filter, filterDefinitions, filterSchema } from "./graphics/filters";
 import {
   type GradientPaints,
@@ -328,7 +329,22 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       if (!geometryIds.has(id)) vertices += geometryCost(parseSvgPath(svgPrimitivePathData(shape)));
     if (vertices > 100000)
       throw new Error("Cena interativa excede geometria agregada incluindo efeitos nativos.");
-    playbackVectorEffectContext(playback, effects, undefined, primitiveSources);
+    if (parsed.version < 12 && [...effects.values()].some((value) => value.mask?.mode))
+      throw new Error("Modos de máscara requerem blueprint v12.");
+    playbackVectorEffectContext(
+      playback,
+      effects,
+      undefined,
+      primitiveSources,
+      effectSourcePaints(
+        parsed.content.map((object) => ({
+          ...object,
+          parentId: object.parentId ?? null,
+          attrs: object.visual?.attrs,
+        })),
+        new Map([...effects].filter(([, value]) => isPaintedMask(value))),
+      ),
+    );
     if (effects.size || portable)
       for (const object of playback.objects) {
         const details = content.get(object.id);
