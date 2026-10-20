@@ -895,6 +895,18 @@ try {
             await readFile(join(root, "edisvg-lottie-test.lottie.json")),
             baselineLottie,
           );
+          const rasterJourney = await import(
+            new URL("../../apps/edisvg/scripts/native-raster-journey.mts", import.meta.url).href
+          );
+          await rasterJourney.verifyNativeRasterExport(
+            editor,
+            {
+              mp4: join(root, "edisvg-raster-test.mp4"),
+              gif: join(root, "edisvg-raster-test.gif"),
+            },
+            join(results, "edisvg-raster-export.png"),
+            respond,
+          );
           assert.equal(await readFile(destination, "utf8"), previous);
         }
         const modalName =

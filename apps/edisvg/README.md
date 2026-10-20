@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Imagens e vídeo — incremento 5.24
+
+Em **Exportar**, com uma animação por objeto selecionada, escolha **Sequência PNG · ZIP**, **GIF animado**, **Vídeo MP4 · H.264** ou **Vídeo WebM · VP9**. Cada quadro é desenhado pelo mesmo player do Testar/HTML/React e rasterizado no tamanho e FPS escolhidos (16–3840 px, até 60 FPS e 3600 quadros). PNG preserva alpha; GIF usa até 256 cores por quadro, transparência total ou nenhuma e até 50 FPS; vídeo é opaco, com cor de fundo e dimensões pares. É preciso confirmar a conversão em imagens e, em composições interativas, a exportação somente da timeline. Sem áudio, sem vídeo transparente e sem repetição embutida no vídeo. Projeto continua v22. [Perfil, achados e gates 5.24](../../docs/reviews/edisvg-2026-10-17/review-lote-5-exportacao-raster.md).
+
 ### Joysticks 2D — incremento 5.23
 
 Rig v4/projeto v22/blueprint v11 vinculam um pad 2D a um alvo raiz. Eixos X/Y solicitados, envelope local quadrado/circular, canais e bindings compartilham o avaliador de IK/skin. O painel React permite arraste com prévia sem histórico, campos e teclado; cancelar restaura a cena, soltar confirma uma transação. Arquivos anteriores mantêm migração/backup e versões antigas recusam a capability nova. App/núcleo, 82 E2E, Next de produção, comparação independente Lottie e jornada Electron/ASAR passaram; veja o [review 5.23](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md) para os limites exatos. O [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) separa o entregue das pendências de lotes 5–6. Não é paridade Rive nem compatibilidade `.riv`.

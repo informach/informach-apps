@@ -94,9 +94,11 @@ import { mountVectorActions } from "./vector-actions";
 import { encodeWorkspace, parseWorkspace, resolvePreviewRange } from "./workspace.ts";
 import "./assistant.css";
 import { animations, poseAt, transition } from "../../shared/animation.js";
+import { RASTER_FORMATS } from "../../shared/raster/profile";
 import { exportProject } from "./export.js";
 import { createLottieExportControls } from "./lottie-export-panel";
 import { runLottieTask } from "./lottieTaskRunner";
+import { createRasterExportControls } from "./raster-export-panel";
 
 const $ = (s) => document.querySelector(s);
 const escapeHtml = (s) =>
@@ -1748,7 +1750,7 @@ document.addEventListener("contextmenu", (event) => {
 });
 function openHelp() {
   const d = $("#help-dialog");
-  d.innerHTML = `<div class="dialog-heading"><div><h2>Seu estúdio de movimento.</h2><p>Crie uma cena própria ou importe um SVG.</p></div><button id="close-help" aria-label="Fechar">×</button></div><div class="help-content"><p><b>01 · Anime objetos</b><br>Crie uma animação, selecione um objeto e grave uma pose. Ative Autochave, mude de quadro e edite as transformações para criar movimento. FPS e duração são configuráveis.</p><p><b>02 · Explore a timeline</b><br>Clique na régua e pressione Espaço para reproduzir. Selecione uma chave para posicionar o cursor ou excluí-la; Ctrl+Z desfaz edições.</p><p><b>03 · Leve para a web</b><br>O HTML independente usa o mesmo avaliador do editor, sem conta ou conexão. SVG usa amostragem no FPS do documento. O projeto preserva trilhas e configurações.</p><p><b>04 · Edite as formas</b><br>Em Design, selecione uma forma e pressione Enter. Arraste pontos e alças; use Concluir para sair.</p><p class="micro">Presets globais são legados; seus marcadores não guardam poses. Alças de curvas são editáveis. Estados permite criar máquinas, camadas, transições e dados; Testar executa sessão isolada e HTML interativo conserva a lógica. Layouts responsivos e modelos compostos/listas são editáveis; React exporta componente, tipos, runtime e exemplo Next.js. Componentes mantêm sessões independentes de lógica/dados/layout; Testar permite inspecioná-las sem editar a origem. Rig, malha e recursos avançados continuam em implementação. Não há compatibilidade .riv.</p></div>`;
+  d.innerHTML = `<div class="dialog-heading"><div><h2>Seu estúdio de movimento.</h2><p>Crie uma cena própria ou importe um SVG.</p></div><button id="close-help" aria-label="Fechar">×</button></div><div class="help-content"><p><b>01 · Anime objetos</b><br>Crie uma animação, selecione um objeto e grave uma pose. Ative Autochave, mude de quadro e edite as transformações para criar movimento. FPS e duração são configuráveis.</p><p><b>02 · Explore a timeline</b><br>Clique na régua e pressione Espaço para reproduzir. Selecione uma chave para posicionar o cursor ou excluí-la; Ctrl+Z desfaz edições.</p><p><b>03 · Leve para a web</b><br>O HTML independente usa o mesmo avaliador do editor, sem conta ou conexão. SVG usa amostragem no FPS do documento. Sequência PNG, GIF, MP4 e WebM desenham cada quadro com o mesmo player, sem áudio nem interação. O projeto preserva trilhas e configurações.</p><p><b>04 · Edite as formas</b><br>Em Design, selecione uma forma e pressione Enter. Arraste pontos e alças; use Concluir para sair.</p><p class="micro">Presets globais são legados; seus marcadores não guardam poses. Alças de curvas são editáveis. Estados permite criar máquinas, camadas, transições e dados; Testar executa sessão isolada e HTML interativo conserva a lógica. Layouts responsivos e modelos compostos/listas são editáveis; React exporta componente, tipos, runtime e exemplo Next.js. Componentes mantêm sessões independentes de lógica/dados/layout; Testar permite inspecioná-las sem editar a origem. Rig, malha e recursos avançados continuam em implementação. Não há compatibilidade .riv.</p></div>`;
   $("#close-help").onclick = () => d.close();
   d.showModal();
 }
@@ -1812,12 +1814,37 @@ function openExport() {
       "componente + runtime",
       "Componente JSX, tipos, runtime local, instruções e licenças. Lógica completa ou clip selecionado quando não há máquina.",
     ],
+    [
+      "png-sequence",
+      "Sequência PNG · ZIP",
+      "imagens",
+      "Um PNG por quadro, com transparência e manifesto de tempos, desenhado pelo player compartilhado.",
+    ],
+    [
+      "gif",
+      "GIF animado",
+      "imagens",
+      "Até 256 cores por quadro e transparência total ou nenhuma; até 50 FPS.",
+    ],
+    [
+      "mp4",
+      "Vídeo MP4 · H.264",
+      "vídeo",
+      "Vídeo opaco com cor de fundo, sem áudio, codificado neste computador.",
+    ],
+    [
+      "webm",
+      "Vídeo WebM · VP9",
+      "vídeo",
+      "Vídeo opaco com cor de fundo, sem áudio, codificado neste computador.",
+    ],
   ]
     .map(([v, n, b, desc], i) => {
-      const unsupported = (hasEffects && ["html", "svg"].includes(v)) || (v === "lottie" && !clip);
+      const needsClip = v === "lottie" || RASTER_FORMATS.includes(v);
+      const unsupported = (hasEffects && ["html", "svg"].includes(v)) || (needsClip && !clip);
       const reason =
-        v === "lottie" && !clip
-          ? "Selecione ou crie uma animação por objeto antes de exportar Lottie; presets globais legados não entram neste perfil."
+        needsClip && !clip
+          ? `Selecione ou crie uma animação por objeto antes de exportar ${v === "lottie" ? "Lottie" : "imagens ou vídeo"}; presets globais legados não entram neste perfil.`
           : "Recortes e máscaras desta composição exigem HTML interativo ou React; não são descartados na exportação.";
       return `<label class="format-option"><input type="radio" name="format" value="${v}" ${i === 0 ? "checked" : ""} ${unsupported ? "disabled" : ""}><div><strong>${n}</strong><span class="badge">${unsupported ? "indisponível neste perfil" : b}</span><p>${unsupported ? reason : desc}</p></div></label>`;
     })
@@ -1828,13 +1855,20 @@ function openExport() {
   const currentFormat = () => d.querySelector('input[name="format"]:checked')?.value;
   const updateExportButton = () => {
     d.querySelector("#download").disabled =
-      preparing || (currentFormat() === "lottie" && !lottieControls?.read().ready);
+      preparing ||
+      (currentFormat() === "lottie" && !lottieControls?.read().ready) ||
+      (RASTER_FORMATS.includes(currentFormat()) && !rasterControls?.read()?.ready);
   };
   const lottieControls =
     clip && exportBoard
       ? createLottieExportControls(exportSnapshot, exportBoard.id, clip.id, updateExportButton)
       : null;
   if (lottieControls) d.querySelector(".export-content").append(lottieControls.element);
+  const rasterControls =
+    clip && exportBoard
+      ? createRasterExportControls(exportSnapshot, exportBoard.id, clip.id, updateExportButton)
+      : null;
+  if (rasterControls) d.querySelector(".export-content").append(rasterControls.element);
   behaviorSettings.innerHTML =
     '<label class="export-field">Máquina inicial (HTML interativo / React)<select id="export-machine" aria-label="Máquina inicial"></select></label><label class="export-field">Ajuste (HTML interativo / React)<select id="export-fit" aria-label="Ajuste do HTML interativo"><option value="contain">Conter proporcionalmente</option><option value="cover">Cobrir com recorte</option><option value="stretch">Esticar</option></select></label><label class="check-row" data-animation-confirm><input id="export-animation-only" type="checkbox"><span>Confirmo exportar apenas a animação, sem lógica, dados, eventos, áudio e layout responsivo<small>Obrigatório ao converter um projeto interativo em HTML de timeline ou SVG.</small></span></label>';
   for (const machine of machines) {
@@ -1846,7 +1880,8 @@ function openExport() {
   }
   const syncBehaviorSettings = () => {
     const format = d.querySelector('input[name="format"]:checked').value;
-    behaviorSettings.hidden = format === "lottie" || format === "json";
+    const raster = RASTER_FORMATS.includes(format);
+    behaviorSettings.hidden = format === "lottie" || format === "json" || raster;
     behaviorSettings.querySelector("#export-machine").disabled = ![
       "interactive-html",
       "react",
@@ -1858,10 +1893,12 @@ function openExport() {
     behaviorSettings.querySelector("[data-animation-confirm]").hidden =
       !losesInteraction || ["interactive-html", "react", "json", "lottie"].includes(format);
     lottieControls?.setEnabled(format === "lottie");
-    d.querySelector("#reduced").disabled = format === "lottie";
-    d.querySelector("#offscreen").disabled = format === "lottie";
-    d.querySelector("#reduced").closest("label").hidden = format === "lottie";
-    d.querySelector("#offscreen").closest("label").hidden = format === "lottie";
+    rasterControls?.setFormat(raster ? format : null);
+    d.querySelector("#reduced").disabled = format === "lottie" || raster;
+    d.querySelector("#offscreen").disabled = format === "lottie" || raster;
+    d.querySelector("#reduced").closest("label").hidden = format === "lottie" || raster;
+    d.querySelector("#offscreen").closest("label").hidden = format === "lottie" || raster;
+    d.querySelector("#alt-text").closest("label").hidden = raster;
     d.querySelector("#alt-text").closest("label").firstChild.textContent =
       format === "lottie" ? "Nome da composição" : "Texto alternativo";
     updateExportButton();
@@ -1873,6 +1910,7 @@ function openExport() {
   const cancel = () => {
     taskController.abort();
     lottieControls?.dispose();
+    rasterControls?.dispose();
     if (disposeExportPanel === cancel) disposeExportPanel = null;
   };
   disposeExportPanel = cancel;
@@ -1899,6 +1937,9 @@ function openExport() {
     b.textContent = "Preparando…";
     try {
       const lottieSettings = lottieControls?.read();
+      const rasterSettings = RASTER_FORMATS.includes(currentFormat())
+        ? rasterControls?.read()
+        : null;
       const exportResult = await exportProject(
         { ...exportSnapshot, activeArtboardId: exportBoard?.id, activeClipId: clip?.id },
         {
@@ -1919,6 +1960,7 @@ function openExport() {
                 subdivisions: lottieSettings?.subdivisions ?? 1,
               }
             : {}),
+          ...(rasterSettings ? { raster: rasterSettings.options } : {}),
         },
         {
           signal: taskController.signal,
@@ -1946,7 +1988,7 @@ function openExport() {
         for (const radio of d.querySelectorAll('input[name="format"]')) {
           if (
             (hasEffects && ["html", "svg"].includes(radio.value)) ||
-            (radio.value === "lottie" && !clip)
+            ((radio.value === "lottie" || RASTER_FORMATS.includes(radio.value)) && !clip)
           )
             radio.disabled = true;
         }

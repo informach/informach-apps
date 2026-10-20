@@ -17,7 +17,7 @@ if ($Action -ne 'Cancel') {
     throw 'Refusing a file outside the disposable test directory.'
   }
   $relative=$selected.Substring($temporary.Length)
-  if ($relative -notmatch '^edi-native-[^\\]+\\(?:edisvg-test-project\.edisvg|edisvg-react-test\.react\.zip|edisvg-lottie-test\.lottie\.json|edisvg-lottie-stroke-test\.lottie\.json|edisvg-lottie-conversion-test\.lottie\.json|edisvg-lottie-gradient-test\.lottie\.json)$') {
+  if ($relative -notmatch '^edi-native-[^\\]+\\(?:edisvg-test-project\.edisvg|edisvg-react-test\.react\.zip|edisvg-lottie-test\.lottie\.json|edisvg-lottie-stroke-test\.lottie\.json|edisvg-lottie-conversion-test\.lottie\.json|edisvg-lottie-gradient-test\.lottie\.json|edisvg-raster-test\.mp4|edisvg-raster-test\.gif)$') {
     throw 'Refusing a file outside the exact disposable EdiSVG test destination.'
   }
 }
