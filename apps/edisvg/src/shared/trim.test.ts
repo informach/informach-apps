@@ -8,7 +8,7 @@ import { inspectLottieCompatibility } from "./lottie/prepare";
 import { PROJECT_VERSION, parseProject } from "./project";
 import { inspectRig, inspectRigValue } from "./rigInspection";
 
-test("trim preserves its project v21/portable v10 minimum across newer formats and refuses capability downgrades or implicit arc conversion", () => {
+test("trim preserves its project v21/portable v10 minimum across newer formats, refuses capability downgrades or implicit arc conversion, and reaches the sampled consumers", () => {
   const fixture = trimFixture(),
     project = fixture.project(),
     before = structuredClone(project);
@@ -46,23 +46,23 @@ test("trim preserves its project v21/portable v10 minimum across newer formats a
     artboardId: fixture.boardId,
     animationId: fixture.animationId,
   });
-  assert.equal(report.supported, false);
-  assert.ok(report.issues.some((issue) => issue.code === "trim" && issue.severity === "error"));
-  assert.throws(
-    () =>
-      buildClipExport(
-        project,
-        fixture.animationId,
-        {
-          format: "svg",
-          alt: "Trim",
-          reduced: false,
-          offscreen: false,
-        },
-        "",
-      ),
-    /topologia/,
+  // Since 5.29 both sampled consumers represent trim instead of refusing it.
+  assert.equal(
+    report.issues.some((issue) => issue.code === "trim"),
+    false,
   );
+  const svg = buildClipExport(
+    project,
+    fixture.animationId,
+    {
+      format: "svg",
+      alt: "Trim",
+      reduced: false,
+      offscreen: false,
+    },
+    "",
+  ).content;
+  assert.match(svg, /<animate attributeName="d"[^>]*calcMode="discrete"/);
   assert.deepEqual(project, before);
 });
 

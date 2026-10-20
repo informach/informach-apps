@@ -94,14 +94,12 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       "layout",
       "Layout responsivo requer HTML/React; este perfil não gera posições fictícias de layout.",
     );
+  const trimTargets = new Set(
+    (compiled.playback.rigScopes ?? []).flatMap((scope) =>
+      (scope.rig.trims ?? []).map((trim) => trim.targetId),
+    ),
+  );
   let losesSemantics = false;
-  for (const scope of compiled.playback.rigScopes ?? [])
-    for (const trim of scope.rig.trims ?? [])
-      issue(
-        trim.targetId,
-        "trim",
-        "Trim paths ainda não têm representação Lottie homologada; use HTML/React. O recorte não será descartado.",
-      );
   for (const { node } of entries) {
     try {
       svgOpacity(node.attrs.opacity);
@@ -154,6 +152,12 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
           "Contorno com gradiente ainda não está no perfil Lottie homologado; a pintura não será substituída por cor sólida.",
         );
       const stroke = prepareLottieStroke(appearance);
+      if (trimTargets.has(node.id)) {
+        if (geometry.some((contour) => contour.closed))
+          throw new Error(
+            "Trim Lottie aceita caminhos abertos: o consumidor mantém o fechamento do primeiro quadro, e o recorte de um contorno fechado o abre. Use HTML/React ou SVG.",
+          );
+      }
       if (
         stroke &&
         (node.tag !== "path" ||

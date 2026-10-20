@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Trim no SVG animado e na Lottie — incremento 5.29
+
+O recorte animável (5.16) agora chega também ao **SVG animado**, com o caminho trocado exatamente a cada quadro, e à **Lottie**, com formas de retenção por quadro para caminhos abertos. Os dois são amostrados: exatos nos quadros, sem interpolar entre eles. Contornos fechados com trim continuam exigindo HTML/React/SVG na Lottie. [Perfil e gates 5.29](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-consumidores.md).
+
 ### Máscaras de luminância e pintadas — incremento 5.28
 
 Em **Recortes e máscaras**, escolha o **Modo da máscara**: silhueta da forma (como antes), alpha da pintura ou luminância da pintura. Nos modos pintados a fonte entra com sua cor, gradiente ou padrão e contorno, herdados dos grupos. A importação SVG passa a aceitar máscaras de luminância (o padrão do SVG), gradientes, padrões e contornos na fonte. [Perfil e gates 5.28](../../docs/reviews/edisvg-2026-10-17/review-lote-5-mascaras-pintadas.md).
@@ -54,7 +58,7 @@ Duplicar objeto/grupo agora copia trim/morph/solo e seus canais, bindings/listen
 
 ### Recorte animável — incremento 5.16 revisado no perfil publicado
 
-Selecione um path e abra Restrições para configurar início/fim (%), offset (graus), tolerância de comprimento local e modos por contorno/caminho inteiro. O avaliador aplica o recorte após morph/skin, sem modificar a fonte salva; parâmetros usam os relógios/blends/bindings existentes. O código emite projeto v21/Rig v3/blueprint v10 e preserva a leitura/migração/backup dos formatos anteriores. Arcos nativos exigem conversão explícita com confirmação de aparência. HTML/React usam o runtime real; SVG/SMIL animado e Lottie recusam trim, sem descartá-lo. No marco 5.16, a duplicação parcial era recusada; o 5.17 acima permite deformadores locais/subrigs fechados, mantendo recusa de referências incompletas. Núcleo, transações, UI, players, regressão completa de navegador/Next e Electron passaram; o review do perfil foi fechado. Demais recursos dos lotes 5/6 e full review continuam pendentes. [Contrato e progresso 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md).
+Selecione um path e abra Restrições para configurar início/fim (%), offset (graus), tolerância de comprimento local e modos por contorno/caminho inteiro. O avaliador aplica o recorte após morph/skin, sem modificar a fonte salva; parâmetros usam os relógios/blends/bindings existentes. O código emite projeto v21/Rig v3/blueprint v10 e preserva a leitura/migração/backup dos formatos anteriores. Arcos nativos exigem conversão explícita com confirmação de aparência. HTML/React usam o runtime real; desde o 5.29 SVG/SMIL animado e Lottie (caminhos abertos) amostram o trim por quadro. No marco 5.16, a duplicação parcial era recusada; o 5.17 acima permite deformadores locais/subrigs fechados, mantendo recusa de referências incompletas. Núcleo, transações, UI, players, regressão completa de navegador/Next e Electron passaram; o review do perfil foi fechado. Demais recursos dos lotes 5/6 e full review continuam pendentes. [Contrato e progresso 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md).
 
 ### Tracejados Lottie e composição — incremento 5.15 revisado
 

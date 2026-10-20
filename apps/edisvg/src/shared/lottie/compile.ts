@@ -1,4 +1,10 @@
-import { type Affine, identityMatrix, multiply, transformPoint } from "@informach/edi-motion";
+import {
+  type Affine,
+  identityMatrix,
+  inverse,
+  multiply,
+  transformPoint,
+} from "@informach/edi-motion";
 import { assertSameTopology, type Contour } from "@informach/edi-motion/geometry";
 import type { SceneNode } from "../sceneTypes";
 import { lottieDashProperties } from "./dashes";
@@ -102,6 +108,20 @@ export function compileLottie(
       "Confirme explicitamente as possíveis diferenças de precisão e bordas do renderer Lottie.",
       report,
     );
+  // Trim changes the vertex count and may empty or split contours every frame. Its paths get a
+  // fixed number of shape slots (two per source contour: an open contour can wrap into two
+  // pieces) sampled with hold keys, exact at every sample without interpolating between them.
+  const trimmed = new Set(
+      (compiled.playback.rigScopes ?? []).flatMap((scope) =>
+        (scope.rig.trims ?? []).map((trim) => trim.targetId),
+      ),
+    ),
+    slotsOf = (id: string) => (geometries.get(id)?.length ?? 0) * (trimmed.has(id) ? 2 : 1),
+    // lottie-web keeps the vertex count of a shape's first keyframe, so every trimmed slot keeps
+    // one size: the longest source contour plus the cut point. Shorter pieces repeat their last
+    // vertex (zero-length segments add no length, caps or joins to a butt-capped stroke).
+    slotSize = (id: string) =>
+      Math.max(0, ...(geometries.get(id) ?? []).map((contour) => contour.points.length)) + 1;
   const shapes = new Map<string, Sample<BezierShape, ShapeKeyframe>[]>(),
     opacities = new Map<string, Sample<number, ScalarKeyframe>>(),
     paintAngles = new Map<string, Sample<number, ScalarKeyframe>>(),
@@ -191,7 +211,7 @@ export function compileLottie(
         bm: 0,
       });
     }
-    for (const [index] of (geometries.get(node.id) ?? []).entries())
+    for (let index = 0; index < slotsOf(node.id); index++)
       credit({ ty: "sh", nm: `${node.name} ${index + 1}`, ks: { a: 0, k: null } });
     visible(node.id);
   }
@@ -275,7 +295,8 @@ export function compileLottie(
   }
   const scalarKey = (t: number, value: number): ScalarKeyframe => ({ t, s: [value], ...linear() }),
     vectorKey = (t: number, value: Vector2): VectorKeyframe => ({ t, s: value, ...linear() }),
-    shapeKey = (t: number, value: BezierShape): ShapeKeyframe => ({ t, s: [value], ...linear() });
+    shapeKey = (t: number, value: BezierShape): ShapeKeyframe => ({ t, s: [value], ...linear() }),
+    holdShapeKey = (t: number, value: BezierShape): ShapeKeyframe => ({ t, s: [value], h: 1 });
   function scalarSample(
     channels: Map<string, Sample<number, ScalarKeyframe>>,
     id: string,
@@ -298,8 +319,9 @@ export function compileLottie(
     index: number,
     time: number,
     value: BezierShape,
+    hold = false,
   ) {
-    states[index] = record(states[index], time, value, sameShape, shapeKey);
+    states[index] = record(states[index], time, value, sameShape, hold ? holdShapeKey : shapeKey);
   }
   try {
     visitLottieSamples(
@@ -337,9 +359,12 @@ export function compileLottie(
           const base = geometries.get(node.id);
           if (!base) continue;
           const geometry = frame.geometry.get(node.id) ?? base,
-            matrix = world.get(node.id);
+            matrix = world.get(node.id),
+            isTrimmed = trimmed.has(node.id);
           if (!matrix) throw new Error("Matriz Lottie ausente.");
-          assertSameTopology(base, geometry);
+          if (!isTrimmed) assertSameTopology(base, geometry);
+          else if (geometry.length > slotsOf(node.id))
+            throw new Error("Trim produziu mais contornos do que o perfil Lottie reserva.");
           const states = shapes.get(node.id) ?? [];
           shapes.set(node.id, states);
           const drawingMatrix = localPaintSpace ? identityMatrix() : multiply(prefix, matrix),
@@ -347,8 +372,49 @@ export function compileLottie(
               localPaintSpace && !strokes.has(node.id)
                 ? multiply(globalTransform.worldPrefix, matrix)
                 : undefined;
-          for (const [index, contour] of geometry.entries())
-            shapeSample(states, index, time, bezier(contour, drawingMatrix, validationMatrix));
+          if (isTrimmed) {
+            // An empty slot is a zero-length subpath. Butt caps draw nothing, so it stays at the
+            // path start; round/square caps would paint a dot, so it is placed far outside the
+            // composition (clipped by its viewport) through the inverse of the layer matrix.
+            const layer = multiply(prefix, matrix),
+              capped =
+                (strokes.get(node.id)?.cap ?? 1) !== 1 &&
+                Math.abs(layer[0] * layer[3] - layer[1] * layer[2]) > 1e-12,
+              far = capped ? transformPoint(inverse(layer), -1e6, -1e6) : undefined,
+              anchor = far
+                ? { x: far.x, y: far.y, in: null, out: null }
+                : (base[0]?.points[0] ?? { x: 0, y: 0, in: null, out: null }),
+              size = slotSize(node.id);
+            for (let index = 0; index < slotsOf(node.id); index++) {
+              const piece = geometry[index],
+                points = piece?.points.length
+                  ? piece.points
+                  : [{ x: anchor.x, y: anchor.y, in: null, out: null }];
+              if (points.length > size || piece?.closed)
+                throw new Error(
+                  "Trim produziu uma peça fora do tamanho reservado no perfil Lottie.",
+                );
+              const last = points.at(-1) ?? anchor,
+                padded = [
+                  ...points,
+                  ...Array.from({ length: size - points.length }, () => ({
+                    x: last.x,
+                    y: last.y,
+                    in: null,
+                    out: null,
+                  })),
+                ];
+              shapeSample(
+                states,
+                index,
+                time,
+                bezier({ closed: false, points: padded }, drawingMatrix, validationMatrix),
+                true,
+              );
+            }
+          } else
+            for (const [index, contour] of geometry.entries())
+              shapeSample(states, index, time, bezier(contour, drawingMatrix, validationMatrix));
         }
       },
       onProgress,
@@ -382,14 +448,14 @@ export function compileLottie(
   function vector(id: string): VectorProperty {
     return property(vectors.get(id), vectorKey);
   }
-  function path(state: Sample<BezierShape, ShapeKeyframe>): ShapeProperty {
-    return property(state, shapeKey);
+  function path(state: Sample<BezierShape, ShapeKeyframe>, hold: boolean): ShapeProperty {
+    return property(state, hold ? holdShapeKey : shapeKey);
   }
   function nodeGroup(node: SceneNode): ShapeElement {
     const it: ShapeElement[] = [...node.children].reverse().map(nodeGroup),
       states = shapes.get(node.id) ?? [];
     for (const [index, state] of states.entries())
-      it.push({ ty: "sh", nm: `${node.name} ${index + 1}`, ks: path(state) });
+      it.push({ ty: "sh", nm: `${node.name} ${index + 1}`, ks: path(state, trimmed.has(node.id)) });
     const paint = paints.get(node.id);
     const stroke = strokes.get(node.id);
     // Lottie paints in reverse style order: fill then stroke in SVG requires
