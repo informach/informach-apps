@@ -1,6 +1,27 @@
-import { type Gradient, gradientSchema, gradientTags } from "@informach/edi-motion/graphics";
+import {
+  type Gradient,
+  gradientSchema,
+  gradientTags,
+  type Pattern,
+  patternSchema,
+} from "@informach/edi-motion/graphics";
 import { useId, useState } from "react";
+import { PATTERN_PRESETS, patternFromPreset } from "../../shared/patternPresets";
 import type { SceneNode } from "../../shared/sceneTypes";
+
+type Kind = "none" | "linear" | "radial" | "pattern";
+const PRESET_LABELS = {
+  stripes: "Listras",
+  dots: "Pontos",
+  checker: "Xadrez",
+  grid: "Grade",
+} as const;
+const TILE_LABELS = {
+  x: "Tile x",
+  y: "Tile y",
+  width: "Largura do tile",
+  height: "Altura do tile",
+} as const;
 
 interface Props {
   node: SceneNode;
@@ -8,11 +29,15 @@ interface Props {
   execute(commands: unknown[]): void;
 }
 function GradientEditor({ node, locked, execute, paint }: Props & { paint: "fill" | "stroke" }) {
-  const original = node.gradients?.[paint],
+  const server = node.gradients?.[paint],
+    original = server?.kind === "pattern" ? undefined : server,
+    pattern: Pattern | undefined = server?.kind === "pattern" ? server : undefined,
     id = useId(),
-    [kind, setKind] = useState<"none" | "linear" | "radial">(original?.kind ?? "none"),
+    [kind, setKind] = useState<Kind>(server?.kind ?? "none"),
+    [patternMode, setPatternMode] = useState<"keep" | "preset">(pattern ? "keep" : "preset"),
+    [patternBackground, setPatternBackground] = useState(true),
     [error, setError] = useState(""),
-    [transformed, setTransformed] = useState(!!original?.transform),
+    [transformed, setTransformed] = useState(!!server?.transform),
     [stops, setStops] = useState(() =>
       (
         original?.stops ?? [
@@ -54,7 +79,32 @@ function GradientEditor({ node, locked, execute, paint }: Props & { paint: "fill
             },
             next = structuredClone(node.gradients ?? {});
           if (kind === "none") delete next[paint];
-          else {
+          else if (kind === "pattern") {
+            if (patternMode === "keep" && pattern)
+              next[paint] = patternSchema.parse({
+                ...pattern,
+                units: text("pattern-units"),
+                x: numeric("pattern-x"),
+                y: numeric("pattern-y"),
+                width: numeric("pattern-width"),
+                height: numeric("pattern-height"),
+                transform: transformed
+                  ? Array.from({ length: 6 }, (_, index) => numeric(`matrix-${index}`))
+                  : undefined,
+              });
+            else {
+              const preset = PATTERN_PRESETS.find((value) => value === text("pattern-preset"));
+              if (!preset) throw new Error("Escolha um modelo de padrão.");
+              next[paint] = patternFromPreset({
+                preset,
+                size: numeric("pattern-size"),
+                weight: numeric("pattern-weight"),
+                angle: numeric("pattern-angle"),
+                color: text("pattern-color"),
+                background: patternBackground ? text("pattern-background") : "none",
+              });
+            }
+          } else {
             const coordinates = Object.fromEntries(
                 (kind === "linear" ? ["x1", "y1", "x2", "y2"] : ["cx", "cy", "r", "fx", "fy"]).map(
                   (name) => [name, numeric(name)],
@@ -106,14 +156,179 @@ function GradientEditor({ node, locked, execute, paint }: Props & { paint: "fill
           value={kind}
           onChange={(event) => {
             const value = event.target.value;
-            if (value === "none" || value === "linear" || value === "radial") setKind(value);
+            if (value === "none" || value === "linear" || value === "radial" || value === "pattern")
+              setKind(value);
           }}
         >
           <option value="none">Cor sólida / herdada</option>
           <option value="linear">Linear</option>
           <option value="radial">Radial</option>
+          <option value="pattern">Padrão (tile)</option>
         </select>
-        {kind !== "none" && (
+        {kind === "pattern" && (
+          <>
+            {pattern && (
+              <>
+                <label htmlFor={`${id}-pattern-mode`}>Origem do padrão de {label}</label>
+                <select
+                  id={`${id}-pattern-mode`}
+                  value={patternMode}
+                  onChange={(event) =>
+                    setPatternMode(event.target.value === "keep" ? "keep" : "preset")
+                  }
+                >
+                  <option value="keep">Manter o tile atual ({pattern.shapes.length} formas)</option>
+                  <option value="preset">Substituir por um modelo</option>
+                </select>
+              </>
+            )}
+            {patternMode === "keep" && pattern ? (
+              <>
+                <label htmlFor={`${id}-pattern-units`}>Coordenadas do tile</label>
+                <select
+                  id={`${id}-pattern-units`}
+                  name="pattern-units"
+                  defaultValue={pattern.units}
+                >
+                  <option value="objectBoundingBox">Frações da forma</option>
+                  <option value="userSpaceOnUse">Espaço local em pixels</option>
+                </select>
+                <div className="resource-pair">
+                  {(["x", "y", "width", "height"] as const).map((name) => (
+                    <label key={name} htmlFor={`${id}-pattern-${name}`}>
+                      {TILE_LABELS[name]}
+                      <input
+                        id={`${id}-pattern-${name}`}
+                        name={`pattern-${name}`}
+                        type="number"
+                        step="any"
+                        min={name === "width" || name === "height" ? 0 : -100000}
+                        max={100000}
+                        required
+                        defaultValue={pattern[name]}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <label className="resource-check">
+                  <input
+                    type="checkbox"
+                    checked={transformed}
+                    onChange={(event) => setTransformed(event.target.checked)}
+                  />
+                  Transformar padrão de {label}
+                </label>
+                {transformed && (
+                  <fieldset>
+                    <legend>Matriz do padrão</legend>
+                    {["a", "b", "c", "d", "tx", "ty"].map((name, index) => (
+                      <label key={name} htmlFor={`${id}-matrix-${index}`}>
+                        Coeficiente {name}
+                        <input
+                          id={`${id}-matrix-${index}`}
+                          name={`matrix-${index}`}
+                          type="number"
+                          min={-1e7}
+                          max={1e7}
+                          step="any"
+                          required
+                          defaultValue={
+                            pattern.transform?.[index] ?? (name === "a" || name === "d" ? 1 : 0)
+                          }
+                        />
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+              </>
+            ) : (
+              <>
+                <label htmlFor={`${id}-pattern-preset`}>Modelo do padrão de {label}</label>
+                <select id={`${id}-pattern-preset`} name="pattern-preset" defaultValue="stripes">
+                  {PATTERN_PRESETS.map((value) => (
+                    <option key={value} value={value}>
+                      {PRESET_LABELS[value]}
+                    </option>
+                  ))}
+                </select>
+                <div className="resource-pair">
+                  <label htmlFor={`${id}-pattern-size`}>
+                    Tamanho do tile (px)
+                    <input
+                      id={`${id}-pattern-size`}
+                      name="pattern-size"
+                      type="number"
+                      min={1}
+                      max={10000}
+                      step="any"
+                      required
+                      defaultValue={16}
+                    />
+                  </label>
+                  <label htmlFor={`${id}-pattern-weight`}>
+                    Espessura (fração)
+                    <input
+                      id={`${id}-pattern-weight`}
+                      name="pattern-weight"
+                      type="number"
+                      min={0.05}
+                      max={0.95}
+                      step="any"
+                      required
+                      defaultValue={0.5}
+                    />
+                  </label>
+                  <label htmlFor={`${id}-pattern-angle`}>
+                    Ângulo (graus)
+                    <input
+                      id={`${id}-pattern-angle`}
+                      name="pattern-angle"
+                      type="number"
+                      min={-360}
+                      max={360}
+                      step="any"
+                      required
+                      defaultValue={0}
+                    />
+                  </label>
+                  <label htmlFor={`${id}-pattern-color`}>
+                    Cor do desenho
+                    <input
+                      id={`${id}-pattern-color`}
+                      name="pattern-color"
+                      type="color"
+                      defaultValue="#4fe3c1"
+                    />
+                  </label>
+                </div>
+                <label className="resource-check">
+                  <input
+                    type="checkbox"
+                    checked={patternBackground}
+                    onChange={(event) => setPatternBackground(event.target.checked)}
+                  />
+                  Fundo do tile de {label}
+                </label>
+                {patternBackground && (
+                  <label htmlFor={`${id}-pattern-background`}>
+                    Cor de fundo do tile
+                    <input
+                      id={`${id}-pattern-background`}
+                      name="pattern-background"
+                      type="color"
+                      defaultValue="#15171c"
+                    />
+                  </label>
+                )}
+              </>
+            )}
+            <p className="micro">
+              O tile repete formas vetoriais de cor sólida e acompanha a forma no canvas, Testar,
+              HTML, React, SVG e imagens. Lottie recusa padrões.
+            </p>
+          </>
+        )}
+        {kind !== "none" && kind !== "pattern" && (
           <>
             <label htmlFor={`${id}-units`}>Coordenadas do gradiente</label>
             <select
@@ -258,7 +473,9 @@ function GradientEditor({ node, locked, execute, paint }: Props & { paint: "fill
             </p>
           </>
         )}
-        <button type="submit">Aplicar gradiente de {label}</button>
+        <button type="submit">
+          {kind === "pattern" ? "Aplicar padrão de" : "Aplicar gradiente de"} {label}
+        </button>
       </fieldset>
       {error && <p role="alert">{error}</p>}
     </form>
@@ -268,7 +485,7 @@ export function GradientPanel(props: Props) {
   if (!gradientTags.has(props.node.tag)) return null;
   return (
     <section className="resource-editor" aria-label="Gradientes">
-      <h3>GRADIENTES</h3>
+      <h3>GRADIENTES E PADRÕES</h3>
       <GradientEditor {...props} paint="fill" />
       <GradientEditor {...props} paint="stroke" />
     </section>

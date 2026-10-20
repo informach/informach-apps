@@ -10,6 +10,7 @@ import {
   gradientDefinitions,
   gradientPaintsSchema,
   gradientTags,
+  hasPattern,
 } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
 import { playbackVectorEffectContext, vectorEffectsSchema } from "./graphics/vectorEffects";
@@ -28,7 +29,7 @@ import {
 } from "./visual/model";
 import { semanticSchema } from "./visual/semantics";
 import { validateVisualDocument } from "./visual/validation";
-export const INTERACTIVE_VERSION = 11;
+export const INTERACTIVE_VERSION = 12;
 
 export const interactiveContentSchema = z.strictObject({
   id: objectIdSchema,
@@ -66,6 +67,7 @@ const interactiveSchema = z.strictObject({
     z.literal(8),
     z.literal(9),
     z.literal(10),
+    z.literal(11),
     z.literal(INTERACTIVE_VERSION),
   ]),
   playback: z.unknown(),
@@ -260,6 +262,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       if (object.gradients) {
         if (parsed.version < 4 || !gradientTags.has(object.tag))
           throw new Error("Gradiente requer forma/texto e blueprint v4.");
+        if (hasPattern(object.gradients) && parsed.version < 12)
+          throw new Error("Padrões requerem blueprint v12.");
         gradients.push(object.gradients);
       }
       graphicNodes +=

@@ -71,6 +71,7 @@ export interface VisualElement {
     | "mask"
     | "linearGradient"
     | "radialGradient"
+    | "pattern"
     | "stop"
     | "desc";
   attrs: Record<string, string>;

@@ -10,7 +10,7 @@ export function validateSvgGradients(root: SVGSVGElement, document: InteractiveD
   }
   collect(document);
   const byId = new Map<string, Element[]>();
-  for (const element of root.querySelectorAll('[id^="edi-gradient-"]')) {
+  for (const element of root.querySelectorAll('[id^="edi-gradient-"],[id^="edi-pattern-"]')) {
     const id = element.getAttribute("id");
     if (!id) throw new Error("Gradiente sem identidade.");
     const list = byId.get(id) ?? [];
@@ -21,6 +21,6 @@ export function validateSvgGradients(root: SVGSVGElement, document: InteractiveD
     const list = byId.get(expected.attrs.id ?? ""),
       actual = list?.[0];
     if (!actual || list?.length !== 1 || !matchesGraphicElement(actual, expected))
-      throw new Error("Gradiente SVG não corresponde à definição tipada.");
+      throw new Error("Gradiente/padrão SVG não corresponde à definição tipada.");
   }
 }

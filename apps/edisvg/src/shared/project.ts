@@ -8,7 +8,7 @@ import {
 import { type Asset, imagePresentation, parseAssetCatalog } from "@informach/edi-motion/assets";
 import { type AudioDocument, parseAudioDocument } from "@informach/edi-motion/audio";
 import { type Behavior, parseBehavior } from "@informach/edi-motion/behavior";
-import { gradientDefinitions } from "@informach/edi-motion/graphics";
+import { gradientDefinitions, hasPattern } from "@informach/edi-motion/graphics";
 import { type LayoutDocument, parseLayout } from "@informach/edi-motion/layout";
 import {
   parseRig,
@@ -24,7 +24,7 @@ import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 
-export const PROJECT_VERSION = 22;
+export const PROJECT_VERSION = 23;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -99,6 +99,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(19),
     z.literal(20),
     z.literal(21),
+    z.literal(22),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -160,6 +161,7 @@ export function parseProject(input: unknown): Project {
       19,
       20,
       21,
+      22,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -205,6 +207,11 @@ export function parseProject(input: unknown): Project {
     artboards.some((board) => board.scene.styles?.some((style) => style.gradients))
   )
     throw new Error("Estilos com gradientes requerem projeto v16.");
+  if (
+    header.data.version < 23 &&
+    artboards.some((board) => board.scene.styles?.some((style) => hasPattern(style.gradients)))
+  )
+    throw new Error("Estilos com padrões requerem projeto v23.");
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
       if (ids.has(node.id)) throw new Error("IDs de objetos precisam ser únicos entre pranchetas.");
@@ -235,6 +242,8 @@ export function parseProject(input: unknown): Project {
         throw new Error("Recortes/máscaras tipados requerem projeto v17.");
       if (node.gradients && header.data.version < 16)
         throw new Error("Gradientes tipados requerem projeto v16.");
+      if (hasPattern(node.gradients) && header.data.version < 23)
+        throw new Error("Padrões tipados requerem projeto v23.");
       if (node.imageSlice) {
         const asset = resourceMap.get(node.assetId ?? "");
         if (header.data.version < 16 || asset?.kind !== "image")

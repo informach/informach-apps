@@ -139,6 +139,10 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       const appearance = paintOf.appearance(node),
         gradients = paintOf.gradients(node),
         geometry = parseGeometry(pathFromNode(node));
+      if (gradients.fill?.kind === "pattern" || gradients.stroke?.kind === "pattern")
+        throw new Error(
+          "Padrões (tiles) não têm equivalente no perfil Lottie; a pintura não será substituída por cor sólida. Exporte HTML, React, SVG ou imagens.",
+        );
       if (gradients.stroke)
         throw new Error(
           "Contorno com gradiente ainda não está no perfil Lottie homologado; a pintura não será substituída por cor sólida.",

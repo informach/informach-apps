@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Padrões (tiles) — incremento 5.26
+
+Em **Gradientes e padrões**, escolha **Padrão (tile)** no preenchimento ou no contorno: aplique um modelo (listras, pontos, xadrez, grade) com cores, tamanho, espessura e ângulo, ou ajuste o retângulo e a matriz de um padrão importado. O tile repete formas vetoriais de cor sólida e aparece igual no canvas, Testar, HTML, React, SVG e imagens; Lottie recusa padrões. A importação SVG aceita `<pattern>` locais, inclusive templates `href` e grupos transformados. Projeto v23/blueprint v12; arquivos anteriores migram com backup. [Perfil, achados e gates 5.26](../../docs/reviews/edisvg-2026-10-17/review-lote-5-padroes.md).
+
 ### `use` e `symbol` na importação — incremento 5.25
 
 SVGs com sprites e ícones reutilizados agora importam: cada `use` local vira um grupo com uma cópia editável e independente do alvo; `symbol` ganha o ajuste de viewBox (`meet`, `slice`, `none`) e, quando o overflow é oculto, um recorte retangular editável. A revisão da importação informa quantas cópias e recortes foram criados. Referências externas, ciclos, porcentagens e mais de 8 níveis são recusados sem importar nada. Para reutilização viva, use componentes. [Perfil e gates 5.25](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-use-symbol.md).

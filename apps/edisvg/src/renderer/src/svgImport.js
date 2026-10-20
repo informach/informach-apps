@@ -3,9 +3,11 @@ import { identity, svgAttributes, validAttributes, validateScene } from "../../s
 import { createSvgEffectCatalog } from "./svg-effect-definitions";
 import { createSvgGradientCatalog } from "./svg-gradients";
 import { parseSvgInlineStyle } from "./svg-inline-style";
+import { createSvgPatternCatalog } from "./svg-patterns";
 import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics";
 import { expandSvgUses } from "./svg-use-expansion";
 export const SVG_SOURCE_BYTES = 1500000;
+const LOCAL_PAINT = /^url\(\s*(['"]?)#([A-Za-z_][\w.-]{0,119})\1\s*\)$/;
 const importAttributes = new Set([...svgAttributes, "clip-path", "mask"]);
 const allowed = new Set([
   "g",
@@ -108,9 +110,11 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       `${expansion.unusedSymbols} symbol(s) sem uso não aparecem no desenho e não foram importados.`,
       "warning",
     );
-  let gradients, semanticCatalog, effectCatalog;
+  let gradients, patterns, semanticCatalog, effectCatalog;
   try {
     gradients = createSvgGradientCatalog(root);
+    patterns = createSvgPatternCatalog(root);
+    patterns.validateAll();
     semanticCatalog = createSvgSemanticCatalog(root);
     effectCatalog = createSvgEffectCatalog(root);
   } catch (error) {
@@ -139,7 +143,8 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
       return;
     }
-    if (gradients.isDefinition(el) || effectCatalog.isDefinition(el)) return;
+    if (gradients.isDefinition(el) || patterns.isDefinition(el) || effectCatalog.isDefinition(el))
+      return;
     if (
       !isRoot &&
       (!allowed.has(el.localName) ||
@@ -167,7 +172,9 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         typed[key === "clip-path" ? "clip" : "mask"] = effectCatalog.reference(value);
         delete dest[key];
       } else if (["fill", "stroke"].includes(key) && /^url\s*\(/i.test(value)) {
-        typed[key] = gradients.paint(value);
+        const local = LOCAL_PAINT.exec(value.trim())?.[2];
+        typed[key] =
+          local && patterns.has(local) ? patterns.resolve(local) : gradients.paint(value);
         delete dest[key];
       } else {
         Object.assign(dest, validAttributes({ [key]: value }));
@@ -366,6 +373,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       if (
         metadata.has(el.localName) ||
         gradients.isDefinition(el) ||
+        patterns.isDefinition(el) ||
         effectCatalog.isDefinition(el)
       )
         return null;
