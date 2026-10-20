@@ -270,6 +270,7 @@ export function compileInteractiveArtboard(
           ...(node.fontFallbackIds ? { fontFallbackIds: [...node.fontFallbackIds] } : {}),
           ...(node.semantics ? { semantics: structuredClone(node.semantics) } : {}),
           ...(node.gradients ? { gradients: node.gradients } : {}),
+          ...(node.filter ? { filter: node.filter } : {}),
           ...(node.effects ? { effects: node.effects } : {}),
           ...(instance
             ? {

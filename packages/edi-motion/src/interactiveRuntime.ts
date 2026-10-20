@@ -22,6 +22,7 @@ import type { InputValue } from "./behavior/model";
 import { resolveDataPath } from "./data";
 import { type FrameLoopOptions, type FramePolicy, ownerWindow } from "./frameLoop";
 import { type Geometry, geometryCost, geometryPath } from "./geometry";
+import { filterAttributes } from "./graphics/filters";
 import { validateSvgGradients } from "./graphics/gradientDom";
 import { gradientAttributes } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
@@ -243,6 +244,8 @@ function createInteractiveScope(
     for (const [name, value] of Object.entries(gradientAttributes(details.gradients)))
       if (shape.getAttribute(name) !== value)
         throw new Error("Pintura SVG não corresponde ao gradiente tipado.");
+    if (shape.getAttribute("filter") !== (filterAttributes(details.filter).filter ?? null))
+      throw new Error("SVG não corresponde ao filtro tipado.");
     if (
       details.tag === "image" &&
       (shape.getAttribute("data-edi-image") !== details.assetId ||

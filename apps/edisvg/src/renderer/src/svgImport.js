@@ -1,6 +1,7 @@
 import { svgPrimitiveAttributes } from "@informach/edi-motion/geometry";
 import { identity, svgAttributes, validAttributes, validateScene } from "../../shared/scene.js";
 import { createSvgEffectCatalog } from "./svg-effect-definitions";
+import { createSvgFilterCatalog } from "./svg-filters";
 import { createSvgGradientCatalog } from "./svg-gradients";
 import { parseSvgInlineStyle } from "./svg-inline-style";
 import { createSvgPatternCatalog } from "./svg-patterns";
@@ -8,7 +9,10 @@ import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics
 import { expandSvgUses } from "./svg-use-expansion";
 export const SVG_SOURCE_BYTES = 1500000;
 const LOCAL_PAINT = /^url\(\s*(['"]?)#([A-Za-z_][\w.-]{0,119})\1\s*\)$/;
-const importAttributes = new Set([...svgAttributes, "clip-path", "mask"]);
+const importAttributes = new Set([...svgAttributes, "clip-path", "mask", "filter"]);
+/** Inherited by filter resolution only (resolved into each typed filter), never stored. */
+const FILTER_SPACE = "color-interpolation-filters";
+const styleAttributes = new Set([...importAttributes, FILTER_SPACE]);
 const allowed = new Set([
   "g",
   "path",
@@ -36,6 +40,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
     attributes = new Map(),
     paints = new Map(),
     effects = new Map(),
+    filters = new Map(),
     locations = new Map(),
     semantics = new Map(),
     descriptive = [];
@@ -110,11 +115,13 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       `${expansion.unusedSymbols} symbol(s) sem uso não aparecem no desenho e não foram importados.`,
       "warning",
     );
-  let gradients, patterns, semanticCatalog, effectCatalog;
+  let gradients, patterns, filterCatalog, semanticCatalog, effectCatalog;
   try {
     gradients = createSvgGradientCatalog(root);
     patterns = createSvgPatternCatalog(root);
     patterns.validateAll();
+    filterCatalog = createSvgFilterCatalog(root);
+    filterCatalog.validateAll();
     semanticCatalog = createSvgSemanticCatalog(root);
     effectCatalog = createSvgEffectCatalog(root);
   } catch (error) {
@@ -143,7 +150,12 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
       return;
     }
-    if (gradients.isDefinition(el) || patterns.isDefinition(el) || effectCatalog.isDefinition(el))
+    if (
+      gradients.isDefinition(el) ||
+      patterns.isDefinition(el) ||
+      filterCatalog.isDefinition(el) ||
+      effectCatalog.isDefinition(el)
+    )
       return;
     if (
       !isRoot &&
@@ -168,8 +180,14 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       issue(path, error instanceof Error ? error.message : "Semântica SVG inválida.");
     }
     const attributeValue = (dest, typed, key, value) => {
-      if (key === "clip-path" || key === "mask") {
+      if (key === FILTER_SPACE) {
+        if (!["auto", "sRGB", "linearRGB", "inherit"].includes(value.trim()))
+          throw new Error("color-interpolation-filters fora do perfil.");
+      } else if (key === "clip-path" || key === "mask") {
         typed[key === "clip-path" ? "clip" : "mask"] = effectCatalog.reference(value);
+        delete dest[key];
+      } else if (key === "filter") {
+        typed.filter = filterCatalog.reference(value);
         delete dest[key];
       } else if (["fill", "stroke"].includes(key) && /^url\s*\(/i.test(value)) {
         const local = LOCAL_PAINT.exec(value.trim())?.[2];
@@ -194,7 +212,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         try {
           for (const { name: key, value, apply } of parseSvgInlineStyle(
             attribute.value,
-            importAttributes,
+            styleAttributes,
           )) {
             if (!apply) {
               attributeValue({}, {}, key, value);
@@ -206,7 +224,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         } catch (error) {
           issue(path, error instanceof Error ? error.message : "Estilo inválido.");
         }
-      } else if (importAttributes.has(name)) {
+      } else if (importAttributes.has(name) || name === FILTER_SPACE) {
         try {
           attributeValue(result, localPaints, name, attribute.value);
         } catch (error) {
@@ -231,6 +249,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       });
     if (combined.clip || combined.mask)
       effects.set(el, { clip: combined.clip, mask: combined.mask });
+    if (combined.filter) filters.set(el, combined.filter);
     let index = 0;
     for (const child of el.children)
       walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
@@ -374,6 +393,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         metadata.has(el.localName) ||
         gradients.isDefinition(el) ||
         patterns.isDefinition(el) ||
+        filterCatalog.isDefinition(el) ||
         effectCatalog.isDefinition(el)
       )
         return null;
@@ -388,6 +408,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         tag: el.localName,
         attrs: attributes.get(el) ?? {},
         ...(paints.has(el) ? { gradients: paints.get(el) } : {}),
+        ...(filters.has(el) ? { filter: filters.get(el) } : {}),
         ...(semantics.has(el) ? { semantics: semantics.get(el) } : {}),
         text:
           el.localName === "text"
@@ -411,6 +432,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       rootCarrier =
         Object.keys(rootAttrs).length ||
         paints.has(root) ||
+        filters.has(root) ||
         semantics.has(root) ||
         effects.has(root);
     if (rootCarrier) reserveNode();
@@ -428,6 +450,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
                 tag: "g",
                 attrs: rootAttrs,
                 ...(paints.has(root) ? { gradients: paints.get(root) } : {}),
+                ...(filters.has(root) ? { filter: filters.get(root) } : {}),
                 ...(semantics.has(root) ? { semantics: semantics.get(root) } : {}),
                 children: nodes,
                 transform: identity(),

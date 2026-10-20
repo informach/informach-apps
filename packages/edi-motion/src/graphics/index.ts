@@ -2,6 +2,20 @@ export { isXmlText } from "../xmlText";
 export { svgAttributes, svgAttributesSchema, validAttributes } from "./attributes";
 export { parseSolidSvgColor } from "./color";
 export {
+  FILTER_BLEND_MODES,
+  FILTER_DEFINITIONS,
+  type Filter,
+  type FilterElement,
+  type FilterInput,
+  type FilterPrimitive,
+  filterAttributes,
+  filterDefinitions,
+  filterElement,
+  filterId,
+  filterPrimitiveSchema,
+  filterSchema,
+} from "./filters";
+export {
   type Gradient,
   type GradientElement,
   type GradientPaints,

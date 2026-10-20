@@ -38,6 +38,7 @@ export function visualSceneFromDocument(input: unknown) {
         fontAssetId: object.fontAssetId,
         fontFallbackIds: object.fontFallbackIds,
         gradients: object.gradients,
+        filter: object.filter,
         imageSlice: object.imageSlice?.insets,
         effects: object.effects,
         textLayout: data.textLayout,

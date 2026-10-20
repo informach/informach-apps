@@ -1,6 +1,6 @@
 import type { Affine, Transform } from "@informach/edi-motion";
 import type { ImageSlice } from "@informach/edi-motion/assets";
-import type { GradientPaints, VectorEffects } from "@informach/edi-motion/graphics";
+import type { Filter, GradientPaints, VectorEffects } from "@informach/edi-motion/graphics";
 import type { SemanticMetadata } from "@informach/edi-motion/visual";
 import type { AppearanceStyle } from "./appearanceContracts";
 import type { ComponentInstance } from "./componentContracts";
@@ -23,6 +23,7 @@ export interface SceneNode {
   assetId?: string;
   imageSlice?: ImageSlice;
   gradients?: GradientPaints;
+  filter?: Filter;
   effects?: VectorEffects;
   fontAssetId?: string;
   fontFallbackIds?: string[];

@@ -115,6 +115,12 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
         "effects",
         "Recortes/máscaras não estão no perfil Lottie inicial; não são descartados.",
       );
+    if (node.filter)
+      issue(
+        node.id,
+        "filter",
+        "Filtros (desfoque, sombra, cor) não têm equivalente no perfil Lottie; o efeito não será descartado. Exporte HTML, React, SVG ou imagens.",
+      );
     if (node.tag === "svg")
       issue(node.id, "component", "Viewports/componentes não estão no perfil Lottie inicial.");
     else if (node.tag !== "g" && !PATH_TAGS.has(node.tag))

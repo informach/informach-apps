@@ -6,6 +6,8 @@ import {
   imageSliceSchema,
 } from "@informach/edi-motion/assets";
 import {
+  filterDefinitions,
+  filterSchema,
   gradientDefinitions,
   gradientPaintsSchema,
   gradientTags,
@@ -150,6 +152,9 @@ export function editScene(scene, id, operation, value) {
         throw new Error("Gradiente requer forma, grupo ou texto local.");
       if (value === null) delete n.gradients;
       else n.gradients = gradientPaintsSchema.parse(value);
+    } else if (operation === "filter") {
+      if (value === null) delete n.filter;
+      else n.filter = filterSchema.parse(value);
     } else if (operation === "image-slice") {
       if (n.tag !== "image") throw new Error("Nine-slice requer imagem.");
       if (value === null) delete n.imageSlice;
@@ -253,6 +258,7 @@ export function validateScene(
           "assetId",
           "imageSlice",
           "gradients",
+          "filter",
           "effects",
           "fontAssetId",
           "fontFallbackIds",
@@ -345,6 +351,8 @@ export function validateScene(
       if (gradients && !gradientTags.has(n.tag))
         throw new Error("Gradiente requer forma, grupo ou texto.");
       if (gradients) budget.attributes += JSON.stringify(gradients).length;
+      const filter = n.filter === undefined ? undefined : filterSchema.parse(n.filter);
+      if (filter) budget.attributes += JSON.stringify(filter).length;
       const effects = n.effects === undefined ? undefined : vectorEffectsSchema.parse(n.effects);
       if (effects) {
         budget.effects = (budget.effects ?? 0) + Number(!!effects.clip) + Number(!!effects.mask);
@@ -389,6 +397,7 @@ export function validateScene(
         ...(assetId === undefined ? {} : { assetId }),
         ...(imageSlice === undefined ? {} : { imageSlice }),
         ...(gradients === undefined ? {} : { gradients }),
+        ...(filter === undefined ? {} : { filter }),
         ...(effects === undefined ? {} : { effects }),
         ...(fontAssetId === undefined ? {} : { fontAssetId }),
         ...(fontFallbackIds === undefined ? {} : { fontFallbackIds }),
@@ -427,6 +436,7 @@ export function validateScene(
     ...flattenScene(result).map(({ node }) => node.gradients),
     ...(result.styles ?? []).map((style) => style.gradients),
   ]);
+  filterDefinitions(flattenScene(result).map(({ node }) => node.filter));
   if (scene.preserveAspectRatio !== undefined) {
     if (
       typeof scene.preserveAspectRatio !== "string" ||

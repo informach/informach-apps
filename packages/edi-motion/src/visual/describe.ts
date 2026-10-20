@@ -12,6 +12,7 @@ import {
   resolveFontStack,
 } from "../assets";
 import type { Geometry } from "../geometry";
+import { type Filter, filterAttributes, filterDefinitions } from "../graphics/filters";
 import {
   type GradientPaints,
   gradientAttributes,
@@ -43,6 +44,7 @@ export interface VisualNode {
   fontFallbackIds?: readonly string[];
   imageSlice?: ImageSlice;
   gradients?: GradientPaints;
+  filter?: Filter;
   effects?: VectorEffects;
   textLayout?: TextLayout;
   semantics?: SemanticMetadata;
@@ -73,6 +75,16 @@ export interface VisualElement {
     | "radialGradient"
     | "pattern"
     | "stop"
+    | "filter"
+    | "feGaussianBlur"
+    | "feOffset"
+    | "feDropShadow"
+    | "feColorMatrix"
+    | "feFlood"
+    | "feBlend"
+    | "feComposite"
+    | "feMerge"
+    | "feMergeNode"
     | "desc";
   attrs: Record<string, string>;
   children: VisualElement[];
@@ -158,6 +170,7 @@ export function describeVisualScene(
     effectAttrs = vectorEffectAttributes(effects),
     definitions: VisualElement[] = [
       ...gradientDefinitions(entries.map(({ node }) => node.gradients)),
+      ...filterDefinitions(entries.map(({ node }) => node.filter)),
       ...effects.map((frame) => vectorEffectElement(frame)),
     ];
   for (const id of images) {
@@ -198,7 +211,11 @@ export function describeVisualScene(
       options.semantics === false || (options.mode === "editor" && options.semantics !== true)
         ? undefined
         : node.semantics;
-    const attrs = { ...node.attrs, ...gradientAttributes(node.gradients) },
+    const attrs = {
+        ...node.attrs,
+        ...gradientAttributes(node.gradients),
+        ...filterAttributes(node.filter),
+      },
       image = node.assetId ? resources.get(node.assetId) : undefined;
     if (node.fontAssetId) {
       const stack = resolveFontStack(resources, node),
@@ -228,6 +245,7 @@ export function describeVisualScene(
     if (node.tag === "image") {
       if (image?.kind !== "image") throw new Error("Imagem visual sem recurso.");
       shape = imagePresentation(image, node.attrs, node.imageSlice);
+      if (node.filter) shape.attrs = { ...shape.attrs, ...filterAttributes(node.filter) };
     } else
       shape = {
         tag: node.tag,

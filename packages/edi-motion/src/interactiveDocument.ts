@@ -5,6 +5,7 @@ import { type Asset, type AudioAsset, assetIdSchema, parseAssetCatalog } from ".
 import { type AudioDocument, parseAudioDocument } from "./audio/model";
 import { type Behavior, parseBehavior } from "./behavior/model";
 import { geometryCost } from "./geometry";
+import { type Filter, filterDefinitions, filterSchema } from "./graphics/filters";
 import {
   type GradientPaints,
   gradientDefinitions,
@@ -47,6 +48,7 @@ export const interactiveContentSchema = z.strictObject({
   assetId: assetIdSchema.optional(),
   imageSlice: slicedImageSchema.optional(),
   gradients: gradientPaintsSchema.optional(),
+  filter: filterSchema.optional(),
   effects: vectorEffectsSchema.optional(),
   visual: visualContentSchema.optional(),
   fontAssetId: assetIdSchema.optional(),
@@ -155,6 +157,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
   preflight(input);
   const ids = new Set<string>(),
     gradients: GradientPaints[] = [],
+    filters: Filter[] = [],
     audioById = new Map<string, Asset>(),
     assetReferences = new Set<string>(),
     absolutePaths = new Set<string>();
@@ -255,6 +258,10 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     if (vertices > 100000 || controls > 100000 || deformers > 256)
       throw new Error("Cena interativa excede orçamento agregado de deformação/geometria.");
     for (const object of parsed.content) {
+      if (object.filter) {
+        if (parsed.version < 12) throw new Error("Filtros requerem blueprint v12.");
+        filters.push(object.filter);
+      }
       if (object.effects && parsed.version < 5)
         throw new Error("Recortes/máscaras requerem blueprint v5.");
       effectReferences += Number(!!object.effects?.clip) + Number(!!object.effects?.mask);
@@ -455,6 +462,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
   }
   const result = parse(input, 0);
   gradientDefinitions(gradients);
+  filterDefinitions(filters);
   validateVisualDocument(result);
   return result;
 }

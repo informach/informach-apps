@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Filtros — incremento 5.27
+
+Na seção **Filtros** do painel de efeitos, aplique sombra projetada, desfoque, brilho externo, saturação, escala de cinza ou rotação de matiz; o resumo mostra o filtro atual e **Remover filtro** o retira, sempre com desfazer. O filtro trabalha dentro da transformação do objeto e antes do recorte/máscara, como no SVG. A importação aceita `<filter>` locais com desfoque, deslocamento, sombra, matriz de cor, cor sólida, mistura, composição e junção; funções CSS e entradas de fundo são recusadas. Lottie recusa filtros. [Perfil e gates 5.27](../../docs/reviews/edisvg-2026-10-17/review-lote-5-filtros.md).
+
 ### Padrões (tiles) — incremento 5.26
 
 Em **Gradientes e padrões**, escolha **Padrão (tile)** no preenchimento ou no contorno: aplique um modelo (listras, pontos, xadrez, grade) com cores, tamanho, espessura e ângulo, ou ajuste o retângulo e a matriz de um padrão importado. O tile repete formas vetoriais de cor sólida e aparece igual no canvas, Testar, HTML, React, SVG e imagens; Lottie recusa padrões. A importação SVG aceita `<pattern>` locais, inclusive templates `href` e grupos transformados. Projeto v23/blueprint v12; arquivos anteriores migram com backup. [Perfil, achados e gates 5.26](../../docs/reviews/edisvg-2026-10-17/review-lote-5-padroes.md).

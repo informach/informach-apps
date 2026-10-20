@@ -244,6 +244,8 @@ export function parseProject(input: unknown): Project {
         throw new Error("Gradientes tipados requerem projeto v16.");
       if (hasPattern(node.gradients) && header.data.version < 23)
         throw new Error("Padrões tipados requerem projeto v23.");
+      if (node.filter && header.data.version < 23)
+        throw new Error("Filtros tipados requerem projeto v23.");
       if (node.imageSlice) {
         const asset = resourceMap.get(node.assetId ?? "");
         if (header.data.version < 16 || asset?.kind !== "image")

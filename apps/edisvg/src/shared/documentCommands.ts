@@ -5,7 +5,11 @@ import {
   objectTransformPatchSchema,
 } from "@informach/edi-motion";
 import { imageSliceSchema } from "@informach/edi-motion/assets";
-import { gradientPaintsSchema, vectorEffectsSchema } from "@informach/edi-motion/graphics";
+import {
+  filterSchema,
+  gradientPaintsSchema,
+  vectorEffectsSchema,
+} from "@informach/edi-motion/graphics";
 import { semanticSchema } from "@informach/edi-motion/visual";
 import { z } from "zod";
 import { applyAnimationDependencies } from "./animationDependencies";
@@ -77,6 +81,11 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
     ...sceneFields,
     operation: z.literal("gradients"),
     value: gradientPaintsSchema.nullable(),
+  }),
+  z.strictObject({
+    ...sceneFields,
+    operation: z.literal("filter"),
+    value: filterSchema.nullable(),
   }),
   z.strictObject({
     ...sceneFields,
