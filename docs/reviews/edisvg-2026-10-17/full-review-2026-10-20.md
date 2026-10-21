@@ -64,6 +64,12 @@ Depois da última correção, passaram localmente: 177 testes do núcleo `edi-mo
 
 No commit do 5.36, último antes deste review, todos os gates remotos do PR passaram (CI geral, banco, catálogo, mídia e as atualizações de cada ferramenta), exceto o `native`, que é o achado 19. O resultado final do CI vale pelo commit deste review no PR #29; a jornada nativa completa vale pelo runner Windows.
 
+## Publicação
+
+No commit `9e24ae47`, os 15 checks do PR #29 passaram. A primeira jornada nativa desse commit parou no EdiCaptura ("Synthetic encoder produced no chunk", seguido de prazo de limpeza estourado) antes de chegar ao EdiSVG. O PR não toca o EdiCaptura, e a mesma verificação nativa falhava no EdiCaptura nas três execuções anteriores da `main`. A repetição passou nos seis apps, EdiSVG incluído. Essa intermitência do EdiCaptura fica para a frente desse produto: falta diagnóstico e correção, e ela não foi tratada aqui.
+
+O PR foi mesclado na `main` em `339d6487` em 21/10/2026, e a tag anotada `edi-v0.4.0`, criada com confirmação do titular, aponta para esse commit. O workflow da tag passou na primeira tentativa: revisão, banco, mídia, atualizações dos seis apps e da mídia, instaladores e publicação. A [suíte 0.4.0](https://github.com/informach/edi-releases/releases/tag/edi-v0.4.0) é a mais recente do canal estável e contém seis executáveis Windows x64 e `edi-release.json`. Numa conferência independente feita depois de baixar os sete arquivos, `verifyRelease` validou a assinatura com a chave pública de atualização do ambiente `edi-release`, a versão 0.4.0, o canal estável e o commit-fonte. Cada instalador tem tamanho e SHA-512 iguais aos do manifesto. A atualização instalada de 0.3.0 para 0.4.0 em máquinas de usuários não foi homologada.
+
 ## Limites que permanecem
 
 - **Lote 5:** cada perfil acima é estrito e recusa o que fica fora dele com motivo: vídeo com transparência, WOFF2, `use` externo, filtros fora das 16 primitivas, ordem de desenho em SVG/SMIL e Lottie, ordem de desenho com layout responsivo, malha com mais de 16 divisões, imagens com nine-slice ou malha na Lottie, fórmulas sobre listas e cores. Os limites de cada incremento estão no seu review.
