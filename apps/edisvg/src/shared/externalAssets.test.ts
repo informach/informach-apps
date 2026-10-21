@@ -15,6 +15,7 @@ function tables(bytes: Uint8Array) {
     const at = 12 + index * 16;
     return {
       tag: String.fromCharCode(...bytes.subarray(at, at + 4)),
+      checksum: view.getUint32(at + 4),
       data: bytes.subarray(
         view.getUint32(at + 8),
         view.getUint32(at + 8) + view.getUint32(at + 12),
@@ -44,6 +45,7 @@ function woff(source: Uint8Array) {
     view.setUint32(at + 4, offset);
     view.setUint32(at + 8, entry.stored.length);
     view.setUint32(at + 12, entry.data.length);
+    view.setUint32(at + 16, entry.checksum);
     output.set(entry.stored, offset);
     offset += Math.ceil(entry.stored.length / 4) * 4;
   }
@@ -70,6 +72,7 @@ function collection(faces: Uint8Array[]) {
       const at = directory + 12 + index * 16;
       for (let character = 0; character < 4; character++)
         output[at + character] = table.tag.charCodeAt(character);
+      view.setUint32(at + 4, table.checksum);
       view.setUint32(at + 8, cursor);
       view.setUint32(at + 12, table.data.length);
       output.set(table.data, cursor);

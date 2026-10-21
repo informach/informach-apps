@@ -225,7 +225,8 @@ export function createSvgPatternCatalog(root: Element) {
     const base = href ? resolve(href.slice(1), [...chain, id]) : undefined,
       read = (name: string) => source.getAttribute(name),
       units = read("patternUnits")?.trim() ?? base?.units ?? "objectBoundingBox",
-      contentUnits = read("patternContentUnits")?.trim() ?? base?.contentUnits ?? "userSpaceOnUse",
+      declaredContentUnits =
+        read("patternContentUnits")?.trim() ?? base?.contentUnits ?? "userSpaceOnUse",
       fraction = units === "objectBoundingBox",
       tile = (name: "x" | "y" | "width" | "height", fallback: number) => {
         const raw = read(name);
@@ -238,6 +239,8 @@ export function createSvgPatternCatalog(root: Element) {
             .split(/[\s,]+/)
             .map((value) => scalar(value, false, "viewBox"))
         : base?.viewBox,
+      // SVG ignores patternContentUnits when a viewBox is present: the viewBox maps the content.
+      contentUnits = viewBox ? "userSpaceOnUse" : declaredContentUnits,
       aspect =
         read("preserveAspectRatio")?.trim().replace(/\s+/g, " ") ?? base?.preserveAspectRatio,
       transformRaw = read("patternTransform"),

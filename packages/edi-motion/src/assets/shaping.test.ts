@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { expect, test } from "vitest";
-import { inspectFont, inspectFontLayoutScripts } from "./font";
+import { inspectFont, inspectFontLayoutScripts, inspectLayoutTable } from "./font";
 import { assertTextCoverage, inspectTextCoverage } from "./fontCoverage";
 import { assetId, encodeAssetData, type FontAsset, parseAsset } from "./model";
 import { shapingScript } from "./shapingScripts";
@@ -139,4 +139,48 @@ test("a malformed layout table keeps the font usable and explains the unverified
   const font = fontAsset(resign(bytes));
   expect(() => inspectFontLayoutScripts(bytes)).toThrow(/GSUB fora do perfil/);
   expect(inspectTextCoverage(greeting, [font]).unshaped[0]?.reason).toMatch(/GSUB fora do perfil/);
+});
+
+test("shared script and language records cannot multiply the layout parsing work", () => {
+  // 512 script records → one Script table → 512 language records → one LangSys with
+  // 4096 feature indices: ~10^9 naive iterations, read once each here.
+  const scripts = 512,
+    languages = 512,
+    indices = 4096,
+    scriptList = 10,
+    scriptTable = scriptList + 2 + scripts * 6,
+    langSys = scriptTable + 4 + languages * 6,
+    featureList = langSys + 6 + indices * 2,
+    size = featureList + 2 + indices * 6,
+    table = new Uint8Array(size),
+    view = new DataView(table.buffer);
+  view.setUint16(0, 1);
+  view.setUint16(4, scriptList);
+  view.setUint16(6, featureList);
+  view.setUint16(scriptList, scripts);
+  for (let index = 0; index < scripts; index++) {
+    const at = scriptList + 2 + index * 6;
+    table.set(
+      [...`s${String(index).padStart(3, "0")}`].map((c) => c.charCodeAt(0)),
+      at,
+    );
+    view.setUint16(at + 4, scriptTable - scriptList);
+  }
+  view.setUint16(scriptTable + 2, languages);
+  for (let index = 0; index < languages; index++) {
+    const at = scriptTable + 4 + index * 6;
+    table.set([108, 97, 110, 103], at);
+    view.setUint16(at + 4, langSys - scriptTable);
+  }
+  view.setUint16(langSys + 2, 0xffff);
+  view.setUint16(langSys + 4, indices);
+  for (let index = 0; index < indices; index++) view.setUint16(langSys + 6 + index * 2, index);
+  view.setUint16(featureList, indices);
+  for (let index = 0; index < indices; index++)
+    table.set([105, 110, 105, 116], featureList + 2 + index * 6);
+  const started = performance.now(),
+    result = inspectLayoutTable(table, "GSUB");
+  expect(performance.now() - started).toBeLessThan(1000);
+  expect(result.size).toBe(512);
+  expect(result.get("s000")?.has("init")).toBe(true);
 });

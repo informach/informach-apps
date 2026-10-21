@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { emptyBehavior } from "@informach/edi-motion/behavior";
 import { chromium } from "playwright";
+import { applyComponent } from "../../src/shared/components";
 import { compileInteractiveArtboard } from "../../src/shared/interactive";
 import { newProject, parseProject } from "../../src/shared/project";
 import { assetTestBundle } from "../assetBundle";
@@ -332,5 +334,107 @@ test("the effects panel switches a mask to luminance in one undoable edit", {
   } finally {
     await browser.close();
     await server.close();
+  }
+});
+
+// Review 2026-10-20: a component drawn inside a parent that sets paint must give its
+// painted-mask sources that inherited paint in the player too, as the static scene does.
+test("a component scope inherits the paint of its parent viewport for painted masks", {
+  timeout: 60000,
+}, async () => {
+  const session = await open();
+  try {
+    const scene = await session.page.evaluate((source) => {
+      const imported = window.EdiAssetTest?.inspectSvgImport(source);
+      if (!imported?.scene) throw new Error("Import failed");
+      return imported.scene;
+    }, paintedMaskSources.defaultLuminance);
+    // An authored source leaves fill-opacity to inheritance (the importer writes it out).
+    const sourceId = scene.nodes.find((node) => node.effects?.mask)?.effects?.mask?.sourceId,
+      source = scene.nodes
+        .flatMap(function walk(node): (typeof scene.nodes)[number][] {
+          return [node, ...node.children.flatMap(walk)];
+        })
+        .find((node) => node.id === sourceId);
+    assert.ok(source);
+    delete source.attrs["fill-opacity"];
+    const project = newProject(),
+      root = project.artboards[0];
+    assert.ok(root);
+    const master = {
+      ...structuredClone(root),
+      id: "artboard-master",
+      name: "Master",
+      scene,
+      // Logic makes the instance its own player scope instead of inlined artwork.
+      behavior: {
+        ...emptyBehavior(),
+        inputs: [{ id: "input-on", kind: "boolean" as const, name: "On", initial: false }],
+      },
+    };
+    project.artboards.push(master);
+    const id = applyComponent(root.scene, {
+        type: "component",
+        operation: "create",
+        name: "Instance",
+        instance: {
+          artboardId: master.id,
+          animationId: null,
+          width: 180,
+          height: 120,
+          fit: "contain",
+          speed: 1,
+          offsetSeconds: 0,
+          overrides: [],
+        },
+      }),
+      instance = root.scene.nodes.find((node) => node.id === id);
+    assert.ok(instance);
+    instance.attrs = { "fill-opacity": "0.5" };
+    const parsed = parseProject(JSON.parse(JSON.stringify(project))),
+      compiled = compileInteractiveArtboard(parsed, root.id);
+    assert.equal(compiled.document.components?.length, 1);
+    const result = await session.page.evaluate(
+      async ({ blueprint, still }) => {
+        const api = window.EdiAssetTest,
+          live = document.querySelector("#live");
+        if (!api || !(live instanceof SVGSVGElement)) throw new Error("Missing player host");
+        const player = await api.createVisualSvgPlayerAsync(live, blueprint, {
+          autoplay: false,
+          pauseOffscreen: false,
+          respectReducedMotion: false,
+        });
+        const host = document.createElement("div");
+        host.innerHTML = still;
+        document.body.append(host);
+        const image = host.querySelector("svg");
+        if (!(image instanceof SVGSVGElement)) throw new Error("Missing still");
+        const width = image.viewBox.baseVal.width,
+          height = image.viewBox.baseVal.height,
+          points: [number, number][] = [];
+        for (let y = 1; y < height; y += 6) for (let x = 1; x < width; x += 6) points.push([x, y]);
+        const expected = await api.svgPixels(image, width, height, points),
+          drawn = await api.svgPixels(live, width, height, points);
+        const opacity = live
+          .querySelector("[data-edi-live-effects] mask *")
+          ?.getAttribute("fill-opacity");
+        await player.destroyAsync();
+        host.remove();
+        let mismatches = 0;
+        for (const [index, pixel] of drawn.entries())
+          if (
+            pixel.some(
+              (value, channel) => Math.abs(value - (expected[index]?.[channel] ?? -999)) > 2,
+            )
+          )
+            mismatches++;
+        return { mismatches, opacity };
+      },
+      { blueprint: compiled.document, still: compiled.svg },
+    );
+    assert.equal(result.opacity, "0.5");
+    assert.equal(result.mismatches, 0);
+  } finally {
+    await session.close();
   }
 });

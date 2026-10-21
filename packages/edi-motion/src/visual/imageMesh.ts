@@ -12,7 +12,8 @@ export const imageMeshSchema = z.strictObject({
 export type ImageMesh = z.infer<typeof imageMeshSchema>;
 /** Seam allowance: each triangle's clip grows by this many image pixels so
  * neighbours overlap instead of leaving antialiased hairlines between them. */
-const SEAM = 0.5;
+const SEAM = 0.5,
+  MITER = 4;
 
 function box(attrs: Readonly<Record<string, string>>) {
   const number = (name: string, fallback?: number) => {
@@ -78,20 +79,32 @@ export function imageMeshClips(mesh: ImageMesh, image: { width: number; height: 
         x: points.reduce((sum, point) => sum + point.x, 0) / 3,
         y: points.reduce((sum, point) => sum + point.y, 0) / 3,
       },
-      [p, q, r] = points as [Point, Point, Point],
-      area = Math.abs((q.x - p.x) * (r.y - p.y) - (r.x - p.x) * (q.y - p.y)) / 2,
-      perimeter =
-        Math.hypot(q.x - p.x, q.y - p.y) +
-        Math.hypot(r.x - q.x, r.y - q.y) +
-        Math.hypot(p.x - r.x, p.y - r.y),
-      // Scaling about the centroid by (inradius + seam) / inradius moves every edge out by the seam.
-      scale = 1 + SEAM / ((2 * area) / perimeter);
+      // Outward unit normal of the edge from a to b.
+      normal = (a: Point, b: Point) => {
+        const length = Math.hypot(b.x - a.x, b.y - a.y),
+          n = { x: (b.y - a.y) / length, y: -(b.x - a.x) / length },
+          middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        return n.x * (center.x - middle.x) + n.y * (center.y - middle.y) > 0
+          ? { x: -n.x, y: -n.y }
+          : n;
+      };
+    // Every edge moves out by exactly the seam: each vertex goes to the intersection of its two
+    // offset edges, seam·(n1+n2)/(1+n1·n2), capped (miter limit) at very acute corners.
     return points
-      .map((point) =>
-        [center.x + (point.x - center.x) * scale, center.y + (point.y - center.y) * scale]
+      .map((point, index) => {
+        const previous = points[(index + 2) % 3],
+          next = points[(index + 1) % 3];
+        if (!previous || !next) throw new Error("Triângulo de malha incompleto.");
+        const n1 = normal(previous, point),
+          n2 = normal(point, next),
+          factor = SEAM / (1 + n1.x * n2.x + n1.y * n2.y),
+          offset = { x: (n1.x + n2.x) * factor, y: (n1.y + n2.y) * factor },
+          length = Math.hypot(offset.x, offset.y),
+          limit = length > SEAM * MITER ? (SEAM * MITER) / length : 1;
+        return [point.x + offset.x * limit, point.y + offset.y * limit]
           .map((value) => Number(value.toFixed(4)))
-          .join(" "),
-      )
+          .join(" ");
+      })
       .join(" ");
   });
 }

@@ -38,6 +38,8 @@ Não há ferramenta MCP de exportação (nenhum formato tem); o assistente não 
 
 Medido antes de decidir: no Chromium e no Edge, `decode()` de um SVG-imagem só resolve depois de carregar a fonte `data:` incorporada (diferença zero entre desenhar na hora e 800 ms depois; 15.387 pixels de diferença para a fonte de fallback).
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (A2) achou que no modo `once` o último quadro exportado não caía na pose final do clip. O plano de quadros fixa o último instante na duração; teste unitário cobre.
+
 ## Gates e evidências
 
 - Unitários: 8 do núcleo raster (plano de quadros, relatório/consentimentos, cópia somente timeline, GIF exato até 256 cores e com reinícios LZW, MP4, WebM, sequência PNG) com leitores independentes em `tests/rasterDecoders.ts`, escritos a partir das especificações; 2 de nível H.264/configuração; 1 de IPC binário. App: 258 testes; núcleo `edi-motion`: 136; tipos do app limpos.

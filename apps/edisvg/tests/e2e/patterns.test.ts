@@ -10,6 +10,10 @@ const XLINK = 'xmlns:xlink="http://www.w3.org/1999/xlink"',
   svg = (body: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" ${XLINK} viewBox="0 0 180 120">${body}</svg>`;
 export const svgPatternSources = {
+  // Review 2026-10-20: a viewBox overrides patternContentUnits, as in the browser.
+  viewBoxBounding: svg(
+    '<defs><pattern id="vb" patternUnits="userSpaceOnUse" width="24" height="24" viewBox="0 0 10 10" patternContentUnits="objectBoundingBox"><rect width="5" height="5" fill="#e33a60"/><circle cx="7.5" cy="7.5" r="2" fill="#2050b0"/></pattern></defs><rect x="10" y="10" width="160" height="100" fill="url(#vb)"/>',
+  ),
   bounding: svg(
     '<defs><pattern id="p" width="0.25" height="0.25"><rect width="10" height="10" fill="#e33a60"/><circle cx="15" cy="15" r="4" fill="#2050b0"/></pattern></defs><rect width="180" height="120" fill="#f2efe8"/><rect x="10" y="10" width="80" height="80" fill="url(#p)"/>',
   ),

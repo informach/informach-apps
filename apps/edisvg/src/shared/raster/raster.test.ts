@@ -458,3 +458,11 @@ test("PNG sequences store the frames byte for byte with their timing manifest", 
   );
   assert.throws(() => packPngSequence(frames.slice(1), plan, settings), /incompatível/);
 });
+
+test("once ends on the final pose even when the output rate rounds the duration down", () => {
+  // 10 frames at 24 FPS = 0.41667 s; at 25 FPS that rounds to 10 output intervals.
+  const plan = planRasterFrames({ fps: 24, frames: 10, mode: "once" }, 25);
+  assert.equal(plan.times.length, 11);
+  assert.equal(plan.times.at(-1), 10 / 24);
+  assert.ok(plan.times.every((time, index) => index === 0 || time > (plan.times[index - 1] ?? 0)));
+});

@@ -40,16 +40,26 @@ function tokenize(source: string): Token[] {
   if (source.length > 4000) throw new Error("Fórmula excede 4000 caracteres.");
   const tokens: Token[] = [],
     pattern =
-      /\s+|(\d+(?:\.\d+)?)|"((?:[^"\\]|\\.)*)"|\$([a-z]+-[\w-]{1,100})|([A-Za-zÀ-ÿ_][\wÀ-ÿ]*)|(==|!=|<=|>=|&&|\|\||[-+*/%<>!(),])/uy;
+      /\s+|(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|"((?:[^"\\]|\\.)*)"|\$([a-z]+-[\w-]{1,100})|([A-Za-zÀ-ÿ_][\wÀ-ÿ]*)|(==|!=|<=|>=|&&|\|\||[-+*/%<>!(),])/uy;
   while (pattern.lastIndex < source.length) {
     const at = pattern.lastIndex,
       match = pattern.exec(source);
     if (!match || match.index !== at)
       throw new Error(`Fórmula com símbolo inesperado na posição ${at + 1}.`);
     if (match[1] !== undefined) tokens.push({ kind: "number", value: Number(match[1]) });
-    else if (match[2] !== undefined)
-      tokens.push({ kind: "text", value: match[2].replace(/\\(.)/g, "$1") });
-    else if (match[3] !== undefined) tokens.push({ kind: "input", value: match[3] });
+    else if (match[2] !== undefined) {
+      // JSON string semantics, as formatFormula writes them; raw line breaks are allowed.
+      let value: unknown;
+      try {
+        value = JSON.parse(
+          `"${match[2].replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")}"`,
+        );
+      } catch {
+        throw new Error(`Texto de fórmula com escape inválido na posição ${at + 1}.`);
+      }
+      if (typeof value !== "string") throw new Error("Texto de fórmula inválido.");
+      tokens.push({ kind: "text", value });
+    } else if (match[3] !== undefined) tokens.push({ kind: "input", value: match[3] });
     else if (match[4] !== undefined) tokens.push({ kind: "name", value: match[4] });
     else if (match[5] !== undefined) tokens.push({ kind: "symbol", value: match[5] });
     if (tokens.length > 1024) throw new Error("Fórmula excede 1024 símbolos.");

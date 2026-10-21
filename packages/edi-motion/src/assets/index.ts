@@ -5,6 +5,7 @@ export {
   inspectFont,
   inspectFontCharacterMap,
   inspectFontLayoutScripts,
+  inspectLayoutTable,
   UnsupportedLayoutTableError,
 } from "./font";
 export { extractFontFace, type FontContainer, fontContainer } from "./fontContainer";

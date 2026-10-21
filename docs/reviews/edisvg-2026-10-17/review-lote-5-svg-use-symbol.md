@@ -24,6 +24,8 @@ Avisos na revisão da importação: quantas referências viraram cópias indepen
 
 O limite de profundidade dependia da ordem: como cada `use` é expandido no lugar, uma cadeia de dez grupos ia sendo achatada nível a nível e nunca chegava a oito. A profundidade agora é um atributo de cada grupo expandido, copiado junto com as cópias.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (A1) mostrou que cópias de `use`/`symbol` duplicavam gradientes, recortes, máscaras e filtros definidos dentro do conteúdo copiado, e que definições internas de `symbol` sumiam com ele. As definições agora vão uma vez para o `defs` raiz e saem das cópias; dois novos SVGs comparam pixels com o Chromium.
+
 ## Gates e evidências
 
 - E2E novos (`tests/e2e/svg-use-import.test.ts`): quatro SVGs — reuso de `defs` com `xlink:href`, rotação e contorno; `symbol` com `slice` e círculo maior que o viewport; `meet` com viewBox negativo e `none`; `use` aninhado em `symbol` com gradiente e skew — comparados com o desenho **nativo** do Chromium em 2400 pontos por imagem, tolerância de 2 por canal: zero diferenças. Quinze recusas com mensagem específica e cena nula. Importação pelo diálogo real: nomes, três cópias com IDs distintos, opacidade e ordem de transformação preservadas.

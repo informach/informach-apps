@@ -21,6 +21,16 @@ const latin = () =>
       "NotoSansArabic-Regular.ttf.gz.base64",
       "ceea25b464a656dc3b26849bab9356740401af62aedf1bfa8b7f0d9b75925b1b",
     );
+/** Directory checksum of each table of an SFNT. */
+function checksums(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+    result = new Map<string, number>();
+  for (let index = 0; index < view.getUint16(4); index++) {
+    const at = 12 + index * 16;
+    result.set(String.fromCharCode(...bytes.subarray(at, at + 4)), view.getUint32(at + 4));
+  }
+  return result;
+}
 /** Directory of an SFNT: tag → table bytes. */
 function tables(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
@@ -36,7 +46,8 @@ function tables(bytes: Uint8Array) {
 }
 /** WOFF 1.0 written in test memory from a real font, compressing every table. */
 function woff(source: Uint8Array) {
-  const entries = [...tables(source)].map(([tag, data]) => {
+  const sums = checksums(source),
+    entries = [...tables(source)].map(([tag, data]) => {
       const compressed = zlibSync(data, { level: 9 });
       return { tag, data, stored: compressed.length < data.length ? compressed : data };
     }),
@@ -56,6 +67,7 @@ function woff(source: Uint8Array) {
     view.setUint32(at + 4, offset);
     view.setUint32(at + 8, entry.stored.length);
     view.setUint32(at + 12, entry.data.length);
+    view.setUint32(at + 16, sums.get(entry.tag) ?? 0);
     output.set(entry.stored, offset);
     offset += Math.ceil(entry.stored.length / 4) * 4;
   }
@@ -64,6 +76,7 @@ function woff(source: Uint8Array) {
 /** A TTC with two real faces (each keeps its own tables). */
 function collection(faces: Uint8Array[]) {
   const parts = faces.map((face) => [...tables(face)]),
+    sums = faces.map(checksums),
     directories = parts.map((list) => 12 + list.length * 16),
     header = 12 + faces.length * 4,
     size =
@@ -85,6 +98,7 @@ function collection(faces: Uint8Array[]) {
       const at = directory + 12 + index * 16;
       for (let character = 0; character < 4; character++)
         output[at + character] = tag.charCodeAt(character);
+      view.setUint32(at + 4, sums[face]?.get(tag) ?? 0);
       view.setUint32(at + 8, cursor);
       view.setUint32(at + 12, data.length);
       output.set(data, cursor);
@@ -137,4 +151,11 @@ test("WOFF2 and damaged containers are refused with a reason", () => {
   const broken = woff(latin());
   new DataView(broken.buffer).setUint32(8, broken.length + 1);
   expect(() => extractFontFace(broken)).toThrow(/tamanho inconsistente/);
+  // A corrupt table byte fails its source checksum, as it would in a plain TTF.
+  const corrupt = collection([latin(), arabic()]),
+    view = new DataView(corrupt.buffer),
+    face = view.getUint32(12),
+    first = view.getUint32(face + 12 + 8);
+  corrupt[first] = (corrupt[first] ?? 0) ^ 0xff;
+  expect(() => extractFontFace(corrupt, 0)).toThrow(/Checksum inválido/);
 });

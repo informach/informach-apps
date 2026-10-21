@@ -22,6 +22,8 @@ Scripting com código (como o Luau do Rive) traria execução de programas do au
 2. Sem um limite de profundidade anterior ao Zod, uma fórmula com milhares de níveis estouraria a pilha da validação recursiva antes do limite de 16. Agora a varredura estrutural recusa antes.
 3. Literais negativos eram lidos como `negate(número)`, e o texto formatado não voltava à mesma árvore. O parser passou a guardar o número negativo como literal.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) achou três casos. D3: fórmulas podiam apontar para inputs de lista ou cor, que elas não sabem calcular; agora são recusadas. D4: resultados fora do intervalo de `double` viravam infinito ou NaN; agora saturam (NaN vira 0). D5: a ida e volta texto ↔ árvore perdia números com expoente e escapes de texto; o parser aceita expoente e decodifica escapes como JSON, recusando escapes inválidos.
+
 ## Gates e evidências
 
 - Núcleo: 168 testes (5 novos): ida e volta texto ↔ árvore, recusas do parser (função desconhecida como `eval`, aridade, símbolo inesperado, semente não inteira), semântica total, ruído limitado e determinístico, dependências fora de ordem de declaração, limite ao intervalo, relógio, somente leitura, tipos, ciclos, limites de nós e profundidade estrutural, listener sobre input calculado.

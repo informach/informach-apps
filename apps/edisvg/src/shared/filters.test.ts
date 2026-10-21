@@ -146,3 +146,29 @@ test("Lottie refuses filters on any node, including groups", () => {
   assert.equal(report.supported, false);
   assert.ok(report.issues.some((issue) => /Filtros \(desfoque, sombra, cor\)/.test(issue.message)));
 });
+
+test("the 64 distinct filters are counted across artboards, as compositions merge them", () => {
+  const project = newProject(),
+    first = project.artboards[0];
+  assert.ok(first);
+  const blurred = (amount: number) =>
+    filterFromPreset({ preset: "blur", amount, dx: 0, dy: 0, color: "#000000", opacity: 1 });
+  const second = structuredClone(first);
+  second.id = "artboard-second";
+  second.name = "Segunda";
+  for (const [index, board] of [first, second].entries())
+    board.scene.nodes = Array.from({ length: 40 }, (_, at) => ({
+      id: `node-f${index}-${at}`,
+      name: `F ${index}-${at}`,
+      tag: "rect" as const,
+      attrs: { width: "10", height: "10" },
+      text: "",
+      children: [],
+      transform: { x: 0, y: 0, rotation: 0, sx: 1, sy: 1, opacity: 100 },
+      visible: true,
+      locked: false,
+      filter: blurred(1 + index * 40 + at),
+    }));
+  project.artboards.push(second);
+  assert.throws(() => parseProject(project), /Limite de 64 filtros/);
+});

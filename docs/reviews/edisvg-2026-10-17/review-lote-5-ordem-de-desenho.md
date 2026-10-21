@@ -22,6 +22,8 @@ Estado: implementado e revisado localmente em 20/10/2026 (branch `feat/edisvg-lo
 3. O vínculo a osso (`bind-rest`) muda o pai sem a política de preservar movimento, então também passou a recusar objetos citados. Antes, a falha só apareceria na validação do commit, com mensagem genérica.
 4. Relógios de componente só podem empilhar grupos próprios e cada escopo tem um único dono; uma ordem de raiz num relógio é recusada no documento de runtime.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) achou dois casos. C1: numa prancheta com layout responsivo, a vinculação da ordem de desenho e os slots do layout disputavam a ordem dos mesmos filhos. A combinação passou a ser recusada na validação do projeto. C2: o reordenamento guardava uma âncora e podia mover os membros para depois da sobreposição do editor; agora ele insere antes do irmão seguinte ao último membro e não mexe quando os membros já saíram do contêiner (E2E com sobreposição).
+
 ## Gates e evidências
 
 - Núcleo: 150 testes (6 novos): validação e orçamento bruto, degraus, relógios de componente com deslocamento de fase, comandos, blend na metade do peso e camadas mascaradas.

@@ -569,6 +569,11 @@ export function parseBehavior(
       unique(formula.id);
       if (computed.has(formula.inputId)) throw new Error("Input com duas fórmulas.");
       computed.add(formula.inputId);
+      const target = requireInput(formula.inputId);
+      // Lists and colours accept only some texts; a free text formula could produce
+      // any other, so they are not formula targets.
+      if (target.kind === "enum" || target.kind === "color")
+        throw new Error("Fórmula calcula número, booleano ou texto livre; listas e cores não.");
       const expected = typeOf(formula.inputId);
       if (linked.has(formula.inputId))
         throw new Error("Input ligado a dados não pode ser calculado por fórmula.");

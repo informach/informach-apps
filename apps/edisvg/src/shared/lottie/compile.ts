@@ -428,14 +428,18 @@ export function compileLottie(
             // An empty slot is a zero-length subpath. Butt caps draw nothing, so it stays at the
             // path start; round/square caps would paint a dot, so it is placed far outside the
             // composition (clipped by its viewport) through the inverse of the layer matrix.
-            const layer = multiply(prefix, matrix),
+            // The point sits just outside the composition (in composition units, whatever the
+            // layer scale), so its local coordinates stay within the vector profile.
+            const composition = multiply(globalTransform.worldPrefix, matrix),
               capped =
                 (strokes.get(node.id)?.cap ?? 1) !== 1 &&
-                Math.abs(layer[0] * layer[3] - layer[1] * layer[2]) > 1e-12,
-              far = capped ? transformPoint(inverse(layer), -1e6, -1e6) : undefined,
-              anchor = far
-                ? { x: far.x, y: far.y, in: null, out: null }
-                : (base[0]?.points[0] ?? { x: 0, y: 0, in: null, out: null }),
+                Math.abs(composition[0] * composition[3] - composition[1] * composition[2]) > 1e-12,
+              outside = -4 * Math.max(width, height),
+              far = capped ? transformPoint(inverse(composition), outside, outside) : undefined,
+              anchor =
+                far && Math.abs(far.x) <= 1e7 && Math.abs(far.y) <= 1e7
+                  ? { x: far.x, y: far.y, in: null, out: null }
+                  : (base[0]?.points[0] ?? { x: 0, y: 0, in: null, out: null }),
               size = slotSize(node.id);
             for (let index = 0; index < slotsOf(node.id); index++) {
               const piece = geometry[index],

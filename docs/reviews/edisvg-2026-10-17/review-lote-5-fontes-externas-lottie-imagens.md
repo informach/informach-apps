@@ -20,6 +20,8 @@ Estado: implementado e revisado localmente em 20/10/2026 (branch `feat/edisvg-lo
 2. O helper de WOFF do teste guardava tabelas comprimidas maiores que o original. A especificação proíbe isso e o conversor recusou corretamente; o helper foi corrigido, não o conversor.
 3. A mudança do tipo das camadas Lottie para uma união quebrou acessos diretos a `layers[0].shapes` em testes e na jornada nativa. Esses pontos passaram a usar `shapeLayers`, que filtra as camadas de forma.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (D2) achou que a conversão WOFF/TTC não conferia os checksums das tabelas e descompactava sem limitar a saída. Os checksums agora são conferidos contra o WOFF e o diretório da coleção, e a descompressão em streaming para assim que excede o tamanho declarado, exigindo o tamanho exato.
+
 ## Gates e evidências
 
 - Núcleo: 171 testes (3 novos): WOFF de uma Noto Sans real com tabelas idênticas byte a byte (exceto o ajuste de checksum do `head`) e mesma inspeção; coleção com Noto Sans e Noto Sans Arabic extraindo cada face, inclusive com o GSUB árabe; recusas de WOFF2 e de tamanho inconsistente.

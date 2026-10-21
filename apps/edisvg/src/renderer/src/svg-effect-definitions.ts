@@ -13,6 +13,7 @@ import {
 } from "@informach/edi-motion/geometry";
 import {
   type GradientPaints,
+  paintedStrokeWidth,
   parseSolidSvgColor,
   parseSvgOpacity,
   validAttributes,
@@ -360,9 +361,7 @@ export function createSvgEffectCatalog(root: Element) {
             attrs[name] = name === "fill" || name === "stroke" ? normalizePaint(value) : value;
         }
         if (stroked) {
-          const width = Number(appearance.attrs["stroke-width"] ?? "1");
-          if (!Number.isFinite(width) || width < 0)
-            throw new Error("Contorno da máscara precisa de largura numérica.");
+          const width = paintedStrokeWidth(appearance.attrs["stroke-width"]);
           strokeReach =
             width *
             2 *

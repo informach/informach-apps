@@ -4,8 +4,8 @@ import { isXmlText } from "../xmlText";
 /** Declarative, pure formulas: a typed expression tree evaluated by the
  * engine, never code. No I/O, no loops, no recursion beyond the bounded tree;
  * the only clock is the session time. Total semantics: division or modulo by
- * zero and square roots of negatives give 0; results outside a number input's
- * range are clamped to it. */
+ * zero and square roots of negatives give 0, overflow saturates to the largest
+ * finite number, and results outside a number input's range are clamped to it. */
 export type FormulaExpression =
   | { op: "number"; value: number }
   | { op: "text"; value: string }
@@ -266,10 +266,10 @@ export function evaluateFormula(
       if (typeof value !== "number") throw new Error("Fórmula com tipo incompatível.");
       return value;
     },
-    finite = (value: number) => {
-      if (!Number.isFinite(value)) throw new Error("Fórmula produziu número fora do intervalo.");
-      return value;
-    };
+    // Saturating, never failing: overflow pins to the largest finite number and an
+    // undefined result (∞ − ∞) is 0, so a type-checked formula always evaluates.
+    finite = (value: number) =>
+      Number.isNaN(value) ? 0 : Math.max(-Number.MAX_VALUE, Math.min(Number.MAX_VALUE, value));
   switch (expression.op) {
     case "number":
     case "text":

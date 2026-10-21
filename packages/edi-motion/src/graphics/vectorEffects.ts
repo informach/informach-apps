@@ -21,7 +21,7 @@ import {
   svgPrimitivePathData,
   svgPrimitiveSchema,
 } from "../svgPrimitive";
-import type { EffectPaint } from "./effectPaint";
+import { type EffectPaint, paintedStrokeWidth } from "./effectPaint";
 
 const reference = z.strictObject({
   sourceId: objectIdSchema,
@@ -322,7 +322,7 @@ export function evaluateVectorEffects(
     // of 4, scaled by the largest stretch of the source-to-target matrix.
     const stroke =
       paint?.stroke !== undefined && paint.stroke !== "none"
-        ? Math.max(0, Number(paint["stroke-width"] ?? "1")) *
+        ? paintedStrokeWidth(paint["stroke-width"]) *
           2 *
           Math.max(Math.hypot(matrix[0], matrix[1]), Math.hypot(matrix[2], matrix[3]))
         : 0;

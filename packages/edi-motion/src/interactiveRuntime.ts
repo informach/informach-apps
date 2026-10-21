@@ -24,7 +24,7 @@ import { drawOrderScopes } from "./drawOrder";
 import { createDrawOrderBinding } from "./drawOrderDom";
 import { type FrameLoopOptions, type FramePolicy, ownerWindow } from "./frameLoop";
 import { type Geometry, geometryCost, geometryPath } from "./geometry";
-import { effectSourcePaints } from "./graphics/effectPaint";
+import { type EffectPaint, effectSourcePaints, inheritedEffectPaint } from "./graphics/effectPaint";
 import { filterAttributes } from "./graphics/filters";
 import { validateSvgGradients } from "./graphics/gradientDom";
 import { gradientAttributes } from "./graphics/gradients";
@@ -75,6 +75,7 @@ function createInteractiveScope(
   speed: number,
   initialBudget: RigEvaluationBudget,
   resources: ReadonlyMap<string, Asset>,
+  inheritedPaint: EffectPaint,
 ) {
   const view = ownerWindow(root);
   const audioBindings = new Map<string, AudioBinding[]>();
@@ -139,6 +140,7 @@ function createInteractiveScope(
           object.effects ? [[object.id, object.effects] as const] : [],
         ),
       ),
+      inheritedPaint,
     ),
   );
   const context = createBehaviorContext(
@@ -1127,6 +1129,7 @@ function createInteractiveSvgScene(
     document: InteractiveDocument,
     path: readonly string[],
     speed: number,
+    inheritedPaint: EffectPaint = {},
   ) {
     autoplay ||=
       !!document.behavior.machines.length ||
@@ -1176,6 +1179,7 @@ function createInteractiveSvgScene(
       speed,
       initialBudget,
       resources,
+      inheritedPaint,
     );
     players.set(JSON.stringify(path), player);
     cleanups.push(() => player.destroy());
@@ -1191,6 +1195,16 @@ function createInteractiveSvgScene(
         component.document,
         [...path, ...component.instancePath],
         speed * component.speed,
+        // The component renders inside this scope's viewport and its ancestors.
+        inheritedEffectPaint(
+          document.content.map((object) => ({
+            ...object,
+            parentId: object.parentId ?? null,
+            attrs: object.visual?.attrs,
+          })),
+          component.rootId,
+          inheritedPaint,
+        ),
       );
     }
     return player;

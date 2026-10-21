@@ -141,3 +141,48 @@ test("a deeply nested document is refused before schema recursion", () => {
     ),
   ).toThrow(/profundidade estrutural/);
 });
+
+test("review fixes: list/colour targets refused, overflow saturates, text round-trips", () => {
+  const listed: Behavior = {
+    ...behavior([]),
+    inputs: [
+      ...behavior([]).inputs,
+      {
+        id: "input-mood",
+        name: "Humor",
+        kind: "enum",
+        values: ["alegre", "triste"],
+        initial: "alegre",
+      },
+    ],
+    formulas: [
+      { id: "formula-mood", inputId: "input-mood", expression: parseFormulaText('"zzz"') },
+    ],
+  };
+  expect(() => createBehaviorContext(listed, [], objects)).toThrow(/listas e cores não/);
+  // 255 nodes of products of 1e7: far beyond the double range, saturated then clamped.
+  let product = "$input-points";
+  for (let level = 0; level < 7; level++) product = `(${product}) * (${product})`;
+  const context = createBehaviorContext(
+    {
+      ...behavior([]),
+      inputs: behavior([]).inputs.map((input) =>
+        input.id === "input-points" && input.kind === "number"
+          ? { ...input, max: 1e7, initial: 1e7 }
+          : input,
+      ),
+      formulas: [
+        { id: "formula-big", inputId: "input-double", expression: parseFormulaText(product) },
+      ],
+    },
+    [],
+    objects,
+  );
+  expect(createBehaviorSession(context).inputs.get("input-double")).toBe(150);
+  for (const source of ["0.0000001 + 1e-7", 'texto("a\nb", "\t", "aspas \\" e \\\\")']) {
+    const tree = parseFormulaText(source);
+    expect(parseFormulaText(formatFormula(tree))).toEqual(tree);
+  }
+  expect(value(parseFormulaText('texto("a\nb")'))).toBe("a\nb");
+  expect(() => parseFormulaText('"\\q"')).toThrow(/escape inválido/);
+});

@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { identityTransform } from "../model";
-import { effectSourcePaints, isPaintedMask } from "./effectPaint";
+import {
+  effectSourcePaints,
+  inheritedEffectPaint,
+  isPaintedMask,
+  paintedStrokeWidth,
+} from "./effectPaint";
 import { type Gradient, type GradientPaints, paintServerId } from "./gradients";
 import {
   createVectorEffectContext,
@@ -75,6 +80,50 @@ describe("painted mask sources", () => {
     ).toThrow(/filtro/);
   });
 
+  // Review 2026-10-20: a component scope is drawn inside the parent's viewport, so its
+  // painted-mask sources start from what the parent chain paints there.
+  it("start a nested scope from the paint inherited at its viewport", () => {
+    const parent: Node[] = [
+      {
+        id: "node-group",
+        parentId: null,
+        attrs: { stroke: "#204080", "stroke-linejoin": "round", "stroke-width": "3" },
+      },
+      { id: "node-viewport", parentId: "node-group", attrs: { "fill-opacity": "0.5" } },
+    ];
+    const inherited = inheritedEffectPaint(parent, "node-viewport", { fill: "#ffffff" });
+    expect(inherited).toEqual({
+      fill: "#ffffff",
+      "fill-opacity": "0.5",
+      stroke: "#204080",
+      "stroke-linejoin": "round",
+      "stroke-width": "3",
+    });
+    const child: Node[] = [
+      { id: "node-source", parentId: null, attrs: { "stroke-width": "6" } },
+      { id: "node-target", parentId: null, attrs: {} },
+    ];
+    const effects = new Map([["node-target", mask("luminance")]]);
+    expect(effectSourcePaints(child, effects, inherited).get("node-source")).toEqual({
+      ...inherited,
+      "stroke-width": "6",
+    });
+    expect(effectSourcePaints(child, effects).get("node-source")).toEqual({ "stroke-width": "6" });
+    expect(() =>
+      effectSourcePaints(child, effects, { stroke: "#000000", "stroke-width": "1em" }),
+    ).not.toThrow();
+    expect(() =>
+      effectSourcePaints(
+        [
+          { id: "node-source", parentId: null },
+          { id: "node-target", parentId: null },
+        ],
+        effects,
+        { stroke: "#000000", "stroke-width": "1em" },
+      ),
+    ).toThrow(/largura absoluta/);
+  });
+
   it("draw the source with its paint, the mask type of the mode and room for the stroke", () => {
     const objects = new Map<string, EffectObject>([
       [
@@ -131,4 +180,24 @@ describe("painted mask sources", () => {
     unpainted.set("node-source", { ...source, paint: undefined });
     expect(() => createVectorEffectContext(unpainted)).toThrow(/pintura efetiva/);
   });
+});
+
+test("painted mask strokes take absolute widths and refuse relative ones up front", () => {
+  expect(paintedStrokeWidth("2")).toBe(2);
+  expect(paintedStrokeWidth("0.26px")).toBeCloseTo(0.26, 9);
+  expect(paintedStrokeWidth("3pt")).toBeCloseTo(4, 9);
+  expect(paintedStrokeWidth(undefined)).toBe(1);
+  for (const value of ["1em", "5%", "-1", "abc"])
+    expect(() => paintedStrokeWidth(value)).toThrow(/largura absoluta/);
+  expect(() =>
+    effectSourcePaints(
+      [{ id: "node-source", parentId: null, attrs: { stroke: "#ffffff", "stroke-width": "1em" } }],
+      new Map([
+        [
+          "node-target",
+          { mask: { sourceId: "node-source", rule: "nonzero", opacity: 1, mode: "luminance" } },
+        ],
+      ]),
+    ),
+  ).toThrow(/largura absoluta/);
 });

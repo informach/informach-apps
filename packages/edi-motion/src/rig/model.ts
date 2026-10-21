@@ -578,9 +578,11 @@ export function parseRig(input: unknown, objects: ReadonlyMap<string, RigObject>
       throw new Error("Limites de distância invertidos.");
     if (
       constraint.kind === "path" &&
-      !objects.get(constraint.targetId)?.geometry?.[constraint.contour]
+      // A meshed image also has geometry (its grid), but it is not a path to follow.
+      (objects.get(constraint.targetId)?.tag !== "path" ||
+        !objects.get(constraint.targetId)?.geometry?.[constraint.contour])
     )
-      throw new Error("Seguir caminho requer geometria e contorno existentes.");
+      throw new Error("Seguir caminho requer um caminho com o contorno indicado.");
     if (constraint.kind === "path" && skinOwners.has(constraint.targetId))
       throw new Error(
         "Seguir caminho usa geometria estática/morph; malha dependente do pós-rig não é alvo suportado.",

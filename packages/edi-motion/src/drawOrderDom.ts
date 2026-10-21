@@ -4,11 +4,11 @@ interface DrawScope {
   container: Element;
   authored: Element[];
   members: Map<string, Element>;
-  anchor: Node | null;
 }
 /** Restacks the direct children of each animated scope in a rendered scene.
- * Every object element moves with its basis wrapper; non-object siblings keep their place
- * before the stacked block. Only scopes in \`scopes\` are watched; destroy restores markup. */
+ * Every object element moves with its basis wrapper; nodes that are not members keep their
+ * place around the stacked block (an editor overlay appended later stays on top). Only scopes
+ * in `scopes` are watched; destroy restores markup. */
 export function createDrawOrderBinding(
   wrappers: ReadonlyMap<string, Element>,
   scopes: ReadonlySet<string>,
@@ -30,7 +30,7 @@ export function createDrawOrderBinding(
       if (!scopes.has(scope)) continue;
       let entry = bound.get(scope);
       if (!entry) {
-        entry = { container, authored: [], members: new Map(), anchor: null };
+        entry = { container, authored: [], members: new Map() };
         bound.set(scope, entry);
       }
       // Two containers for the root (a nested viewport's objects) are not one scope.
@@ -40,17 +40,19 @@ export function createDrawOrderBinding(
   for (const entry of bound.values()) {
     const members = new Set(entry.members.values());
     entry.authored = [...entry.container.children].filter((element) => members.has(element));
-    entry.anchor = entry.authored.at(-1)?.nextSibling ?? null;
   }
   function restack(entry: DrawScope, desired: readonly Element[]) {
     const members = new Set(desired),
       current = [...entry.container.children].filter((element) => members.has(element));
+    // A member moved out of its container by someone else is not taken back.
     if (
-      current.length === desired.length &&
+      current.length !== desired.length ||
       current.every((element, index) => element === desired[index])
     )
       return;
-    for (const element of desired) entry.container.insertBefore(element, entry.anchor);
+    // The block is rebuilt where it currently ends, before whatever follows it now.
+    const anchor = current.at(-1)?.nextSibling ?? null;
+    for (const element of desired) entry.container.insertBefore(element, anchor);
   }
   return {
     paint(orders: DrawOrders) {

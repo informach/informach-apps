@@ -27,6 +27,8 @@ Perfil do tile (`patternSchema`, estrito):
 1. **Arquivos v22 seriam recusados.** `parseProject` tem duas listas de versões aceitas (schema e verificação do cabeçalho) e a segunda não recebeu o 22 ao subir para v23 — todo projeto salvo pela versão publicada 0.2.1 deixaria de abrir. O teste de migração v22→v23 pegou; as duas listas agora incluem o 22.
 2. **Orçamento agregado de tiles.** O teto de 4000 vértices era por tile; 256 padrões distintos somariam 1 milhão de vértices num blueprint, que não passa pelo orçamento de atributos da cena. O pool de definições agora limita 100.000 vértices de tiles distintos.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (B5) achou que um padrão com `viewBox` e `patternContentUnits="objectBoundingBox"` era importado com as unidades declaradas, mas o SVG as ignora quando há `viewBox`. A importação agora usa o espaço do usuário nesse caso (novo SVG com pixels comparados).
+
 ## Gates e evidências
 
 - Núcleo: 3 testes novos (normalização/identidade/elemento, recusas do schema, pool compartilhado com gradientes e teto agregado); 139 no total.

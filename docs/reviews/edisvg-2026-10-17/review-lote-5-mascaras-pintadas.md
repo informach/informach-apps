@@ -21,6 +21,8 @@ A máscara existente (5.6/5.12) é uma **silhueta alpha**: a fonte desenhada em 
 2. **Prévia de composição sem pintura.** O editor monta um contexto próprio para a composição; ele não passava a pintura e a máscara pintada era recusada no canvas. A recusa do contexto revelou o caminho esquecido.
 3. **Pintura `url(#…)` dentro da `<mask>`.** O conteúdo de definições não passa pela varredura principal, então gradientes e padrões nele eram recusados como atributo desconhecido. O leitor de apresentação resolve agora esses casos, e a leitura de `style` aceita as propriedades da própria definição (`mask-type`).
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) achou dois casos. B1: o player calculava a pintura herdada da fonte só dentro de cada escopo de componente, enquanto a cena estática herda da prancheta inteira; um componente dentro de um grupo com `fill-opacity` falhava com "Recorte/máscara SVG não corresponde". Cada escopo de componente agora parte da pintura herdada no seu viewport (E2E confirma a falha sem a correção e pixels iguais com ela). B2: larguras de contorno com unidade (`pt`, `mm`) eram lidas com `Number()`. Agora são convertidas; unidades relativas (`em`, `%`) são recusadas na montagem do contexto, nunca no meio de um quadro.
+
 ## Gates e evidências
 
 - Núcleo: 2 testes (herança/regra de canal/recusa de filtro; elemento pintado vs silhueta, `mask-type` e região exata com folga de contorno, recusa sem pintura); 144 no total. App: 1 teste (comando compartilhado, renderização, gates v23/v12 e silhueta sem `mode`); 267 no total.

@@ -9,6 +9,10 @@ import { rendererServer } from "../rendererServer";
 const svg = (body: string, root = "") =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120"${root}><rect width="180" height="120" fill="#f2efe8"/>${body}</svg>`;
 export const svgFilterSources = {
+  // Review 2026-10-20: color-interpolation-filters="auto" draws as sRGB in the browser.
+  autoSpace: svg(
+    '<defs><linearGradient id="ag"><stop offset="0" stop-color="#e33a60"/><stop offset="1" stop-color="#2050b0"/></linearGradient><filter id="auto" color-interpolation-filters="auto" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter></defs><rect x="30" y="20" width="120" height="80" fill="url(#ag)" filter="url(#auto)"/>',
+  ),
   scaledBlur: svg(
     '<defs><filter id="b"><feGaussianBlur stdDeviation="2"/></filter></defs><rect x="10" y="10" width="30" height="20" fill="#e33a60" transform="scale(2)" filter="url(#b)"/>',
   ),

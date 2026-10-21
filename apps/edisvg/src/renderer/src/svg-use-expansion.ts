@@ -93,6 +93,7 @@ export function expandSvgUses(root: Element): SvgUseExpansion {
       depths.get(element) ?? 0,
       ...[...element.querySelectorAll("g")].map((group) => depths.get(group) ?? 0),
     );
+  const DEFINITIONS = "linearGradient, radialGradient, pattern, clipPath, mask, filter";
   let created = 0,
     generated = 0,
     defs: Element | null = null;
@@ -106,6 +107,9 @@ export function expandSvgUses(root: Element): SvgUseExpansion {
   const copy = (source: Element) => {
     const clone = source.cloneNode(true);
     if (!(clone instanceof Element)) throw new Error("Cópia de referência use inválida.");
+    // Paint servers and effects stay single definitions, referenced by id from every copy;
+    // only the drawn elements are duplicated.
+    for (const definition of [...clone.querySelectorAll(DEFINITIONS)]) definition.remove();
     const originals = [source, ...source.querySelectorAll("*")],
       copies = [clone, ...clone.querySelectorAll("*")];
     for (const [index, original] of originals.entries()) {
@@ -246,6 +250,18 @@ export function expandSvgUses(root: Element): SvgUseExpansion {
   for (const use of [...root.querySelectorAll("use")]) if (use.isConnected) expand(use, []);
   for (const symbol of [...root.querySelectorAll("symbol")]) {
     if (!used.has(symbol)) result.unusedSymbols++;
+    // Definitions declared inside a symbol keep their ids at the document's defs, where the
+    // copies (which dropped them) still reference them.
+    const definitions = [...symbol.querySelectorAll(DEFINITIONS)].filter(
+      (definition) => !definition.parentElement?.closest(DEFINITIONS),
+    );
+    if (definitions.length) {
+      if (!defs) {
+        defs = document.createElementNS(SVG, "defs");
+        root.append(defs);
+      }
+      defs.append(...definitions);
+    }
     symbol.remove();
   }
   return result;

@@ -138,3 +138,76 @@ test("rig skins and morphs accept a meshed image's grid as geometry", () => {
     ),
   ).toThrow(/malha/);
 });
+
+test("each clip edge moves out by the seam, even on very elongated cells", () => {
+  // 4×16 grid over 1600×400: cells of 400×25, triangles with very acute corners.
+  const elongated = { columns: 4, rows: 16 },
+    image = { width: 1600, height: 400 },
+    [first] = imageMeshClips(elongated, image),
+    values = (first ?? "").split(" ").map(Number),
+    corners = [0, 2, 4].map((index) => ({ x: values[index] ?? 0, y: values[index + 1] ?? 0 })),
+    source = [
+      { x: 0, y: 0 },
+      { x: 400, y: 0 },
+      { x: 400, y: 25 },
+    ],
+    // Distance from each original edge line to the parallel clip edge.
+    gap = (
+      a: { x: number; y: number },
+      b: { x: number; y: number },
+      point: { x: number; y: number },
+    ) =>
+      Math.abs((b.x - a.x) * (a.y - point.y) - (a.x - point.x) * (b.y - a.y)) /
+      Math.hypot(b.x - a.x, b.y - a.y);
+  const [p, q, r] = source as [(typeof source)[0], (typeof source)[0], (typeof source)[0]];
+  // The right-angle corner (400, 0) and the 86° corner (400, 25) are not capped by the miter
+  // limit: each sits exactly 0.5 from both of its edges, including the long hypotenuse.
+  expect(gap(p, q, corners[1] ?? p)).toBeCloseTo(0.5, 3);
+  expect(gap(q, r, corners[1] ?? p)).toBeCloseTo(0.5, 3);
+  expect(gap(q, r, corners[2] ?? p)).toBeCloseTo(0.5, 3);
+  expect(gap(r, p, corners[2] ?? p)).toBeCloseTo(0.5, 3);
+  // No vertex travels more than the miter limit (4 × seam) into a neighbouring cell.
+  for (const [index, corner] of corners.entries())
+    expect(
+      Math.hypot(corner.x - (source[index]?.x ?? 0), corner.y - (source[index]?.y ?? 0)),
+    ).toBeLessThanOrEqual(2.0001);
+});
+
+test("a follow-path constraint does not take a meshed image's grid as its path", () => {
+  const objects = new Map([
+    ["node-bone", { tag: "g", parentId: null, transform: identityTransform() }],
+    [
+      "node-photo",
+      {
+        tag: "image",
+        parentId: null,
+        transform: identityTransform(),
+        geometry: imageMeshRest(mesh, attrs),
+      },
+    ],
+  ]);
+  expect(() =>
+    parseRig(
+      {
+        version: 2,
+        bones: [{ targetId: "node-bone", length: 50, minRotation: -180, maxRotation: 180 }],
+        constraints: [
+          {
+            id: "constraint-follow",
+            kind: "path",
+            ownerId: "node-bone",
+            targetId: "node-photo",
+            contour: 0,
+            progress: 0.5,
+            orient: true,
+            rotationOffset: 0,
+            offset: 0,
+            tolerance: 0.01,
+            strength: 1,
+          },
+        ],
+      },
+      objects,
+    ),
+  ).toThrow(/requer um caminho/);
+});

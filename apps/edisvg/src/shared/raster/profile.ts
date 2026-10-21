@@ -91,6 +91,8 @@ export function planRasterFrames(
     durations.push(end - start);
     delays.push(Math.round((100 * (frame + 1)) / fps) - Math.round((100 * frame) / fps));
   }
+  // The output rate need not divide the duration: once always ends on the final pose.
+  if (clip.mode === "once") times[count - 1] = duration;
   return {
     times,
     timestamps,

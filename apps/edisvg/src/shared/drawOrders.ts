@@ -6,7 +6,7 @@ import type { Scene } from "./sceneTypes";
  * artboard root for `null`), all in one artboard. */
 export function validateDrawOrders(
   animations: readonly Pick<Animation, "drawOrders">[],
-  boards: readonly { id: string; scene: Scene }[],
+  boards: readonly { id: string; scene: Scene; layout?: unknown }[],
 ) {
   const owners = new Map<string, { boardId: string; parentId: string | null }>();
   for (const board of boards)
@@ -27,6 +27,11 @@ export function validateDrawOrders(
             throw new Error("Ordem de desenho lista um objeto fora do grupo animado.");
           boardId = owner.boardId;
         }
+      // Responsive layout wraps the artboard's objects in slots and owns their order there.
+      if (boards.find((board) => board.id === boardId)?.layout)
+        throw new Error(
+          "Ordem de desenho animada não combina com layout responsivo na mesma prancheta: o layout define a ordem dos slots.",
+        );
       // One clip may stack the root of several artboards, but each scope only once.
       const scope = JSON.stringify([boardId, drawOrder.scopeId]);
       if (scopes.has(scope)) throw new Error("Há duas ordens de desenho para o mesmo grupo.");

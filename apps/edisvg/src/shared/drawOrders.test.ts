@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { defaultLayoutContainer, defaultLayoutItem } from "@informach/edi-motion/layout";
 import { parseInteractiveDocument } from "@informach/edi-motion/runtime";
 import { buildClipExport } from "../renderer/src/clipExport";
 import { compileArtboard } from "./components";
@@ -250,5 +251,25 @@ test("sampled SVG and Lottie refuse an animated stacking they cannot represent",
   });
   assert.ok(
     report.issues.some((issue) => issue.code === "draw-order" && issue.severity === "error"),
+  );
+});
+
+test("an animated draw order and a responsive layout cannot share an artboard", () => {
+  const f = stacked();
+  assert.throws(
+    () =>
+      f.run([
+        {
+          type: "layout",
+          operation: "replace",
+          value: {
+            version: 1,
+            root: defaultLayoutContainer(),
+            containers: [],
+            items: [defaultLayoutItem(f.a)],
+          },
+        },
+      ]),
+    /layout responsivo/,
   );
 });

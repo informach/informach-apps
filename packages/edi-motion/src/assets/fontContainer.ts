@@ -1,4 +1,4 @@
-import { unzlibSync } from "fflate";
+import { Unzlib } from "fflate";
 import { ASSET_BYTES } from "./limits";
 
 /** Font containers accepted at import, all converted to one uncompressed
@@ -34,6 +34,29 @@ function checksum(bytes: Uint8Array, offset: number, length: number) {
     sum = (sum + (word >>> 0)) >>> 0;
   }
   return sum;
+}
+/** The source checksum of a table (head counted with checkSumAdjustment zeroed). */
+function tableChecksum(tag: string, data: Uint8Array) {
+  if (tag !== "head") return checksum(data, 0, data.length);
+  const copy = data.slice();
+  copy.fill(0, 8, 12);
+  return checksum(copy, 0, copy.length);
+}
+/** Inflates one zlib table, stopping as soon as output exceeds its declared size. */
+function inflate(source: Uint8Array, size: number) {
+  const output = new Uint8Array(size);
+  let produced = 0,
+    done = false;
+  const stream = new Unzlib((chunk, final) => {
+    if (produced + chunk.length > size)
+      throw new Error("Tabela WOFF maior que o tamanho declarado.");
+    output.set(chunk, produced);
+    produced += chunk.length;
+    if (final) done = true;
+  });
+  stream.push(source, true);
+  if (!done || produced !== size) throw new Error("Tabela WOFF descomprimida com tamanho errado.");
+  return output;
 }
 /** Builds a valid SFNT from table bytes: sorted directory, 4-byte padding,
  * table checksums and head.checkSumAdjustment. */
@@ -87,7 +110,8 @@ function fromWoff(bytes: Uint8Array) {
     if (at + 20 > bytes.length) throw new Error("Diretório WOFF truncado.");
     const offset = view.getUint32(at + 4),
       compressed = view.getUint32(at + 8),
-      original = view.getUint32(at + 12);
+      original = view.getUint32(at + 12),
+      declared = view.getUint32(at + 16);
     total += original;
     if (
       offset + compressed > bytes.length ||
@@ -97,12 +121,12 @@ function fromWoff(bytes: Uint8Array) {
     )
       throw new Error("Tabela WOFF fora dos limites.");
     const source = bytes.subarray(offset, offset + compressed),
-      data =
-        compressed === original
-          ? source.slice()
-          : unzlibSync(source, { out: new Uint8Array(original) });
-    if (data.length !== original) throw new Error("Tabela WOFF descomprimida com tamanho errado.");
-    return { tag: tag(bytes, at), data };
+      data = compressed === original ? source.slice() : inflate(source, original),
+      name = tag(bytes, at);
+    // The checksum the inspector verifies for a plain font must also hold for its WOFF.
+    if (tableChecksum(name, data) !== declared)
+      throw new Error(`Checksum inválido na tabela ${name} do WOFF.`);
+    return { tag: name, data };
   });
   return buildSfnt(flavor, tables);
 }
@@ -121,11 +145,15 @@ function fromCollection(bytes: Uint8Array, face: number) {
     const at = start + 12 + index * 16;
     if (at + 16 > bytes.length) throw new Error("Diretório da coleção truncado.");
     const offset = view.getUint32(at + 8),
-      length = view.getUint32(at + 12);
+      length = view.getUint32(at + 12),
+      name = tag(bytes, at);
     if (!length || offset + length > bytes.length)
       throw new Error("Tabela da coleção fora dos limites.");
     // Faces share tables by offset; each extracted face gets its own copy.
-    return { tag: tag(bytes, at), data: bytes.slice(offset, offset + length) };
+    const data = bytes.slice(offset, offset + length);
+    if (tableChecksum(name, data) !== view.getUint32(at + 4))
+      throw new Error(`Checksum inválido na tabela ${name} da coleção.`);
+    return { tag: name, data };
   });
   return buildSfnt(flavor, tables);
 }

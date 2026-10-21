@@ -84,7 +84,9 @@ export function createSvgFilterCatalog(root: Element) {
       const value =
         style(current)["color-interpolation-filters"] ??
         current.getAttribute("color-interpolation-filters");
-      if (value && value !== "inherit" && value !== "auto") return value.trim();
+      // Browsers resolve auto to sRGB; inherit keeps looking upward.
+      if (value?.trim() === "auto") return "sRGB";
+      if (value && value !== "inherit") return value.trim();
       if (current === root) break;
     }
     return "linearRGB";
@@ -141,9 +143,10 @@ export function createSvgFilterCatalog(root: Element) {
         throw new Error(`Primitiva ${element.localName.slice(0, 40)} fora do perfil de filtros.`);
       attributes(element, new Set(names));
       const own = style(element),
-        space =
+        declaredSpace =
           own["color-interpolation-filters"] ??
-          element.getAttribute("color-interpolation-filters")?.trim();
+          element.getAttribute("color-interpolation-filters")?.trim(),
+        space = declaredSpace === "auto" ? "sRGB" : declaredSpace;
       if (space && space !== "inherit" && space !== interpolation)
         throw new Error("Primitivas com espaços de cor diferentes do filtro ficam fora do perfil.");
       const flood = () => {

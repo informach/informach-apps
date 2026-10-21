@@ -17,6 +17,8 @@ HTML interativo e React já usavam o avaliador com trim. O **SVG/SMIL animado** 
 2. Uma recusa a extremidades `round` deixaria o trim Lottie inútil, porque é o padrão da caneta e da forma "Caminho" do editor. Foi substituída pelo ponto fora da composição, exato no que é visível.
 3. Duas corridas de teste preexistentes apareceram nesta rodada e foram corrigidas na causa: o E2E do adapter React (CI Linux) conferia a prontidão depois de ver o texto restaurado pelo player antigo; o de autoria de comportamento abria o diálogo de clip sobre a marcação que o commit da forma estava substituindo. Ambos esperam agora a condição real.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (C4) achou que o ponto distante usado para esconder pontas de traço aparadas na Lottie podia estourar coordenadas sob escalas pequenas. O ponto agora é calculado pela inversa da transformação global composta, com teto de magnitude e alternativa segura; teste unitário cobre.
+
 ## Gates e evidências
 
 - Unitários: Lottie com retenção e contagem constante por espaço (espaço nunca usado fica estático), recusa de contorno fechado; o teste antigo do trim passou a afirmar SVG discreto e ausência de recusa Lottie. App: 269 testes.

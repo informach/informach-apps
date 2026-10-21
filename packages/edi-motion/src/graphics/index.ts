@@ -6,6 +6,7 @@ export {
   type EffectPaint,
   effectSourcePaints,
   isPaintedMask,
+  paintedStrokeWidth,
 } from "./effectPaint";
 export {
   FILTER_BLEND_MODES,

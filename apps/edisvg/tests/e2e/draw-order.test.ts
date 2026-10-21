@@ -120,9 +120,20 @@ test("the shared player restacks scopes in steps and restores the markup on dest
     assert.equal((await probe(page, "#live", "data-edi-object")).top, f.a);
     await advance(0.29);
     assert.equal((await probe(page, "#live", "data-edi-object")).top, f.a);
+    // A node appended after the members (an editor overlay, say) stays after the block.
+    await page.evaluate((id) => {
+      const member = document.querySelector(`[data-edi-object="${id}"]`),
+        overlay = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      overlay.setAttribute("id", "overlay");
+      member?.parentElement?.append(overlay);
+    }, f.a);
     await advance(0.21);
     const swapped = await probe(page, "#live", "data-edi-object");
     assert.equal(swapped.top, f.b);
+    assert.equal(
+      await page.evaluate(() => document.querySelector("#overlay")?.nextElementSibling ?? null),
+      null,
+    );
     assert.ok(swapped.stacks.some((stack) => stack.join() === [f.a, f.group].join()));
     assert.ok(swapped.stacks.some((stack) => stack.join() === [f.c, f.b].join()));
     await page.evaluate(() => Reflect.get(window, "orderPlayer").destroyAsync());

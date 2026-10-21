@@ -22,6 +22,8 @@ O [5.8](review-lote-5-tipografia.md) verificava apenas a cobertura cmap. Uma fon
 3. A regressão encontrou um defeito real antigo: o fixture do ZIP React desenhava "مرحبا" com a Noto Sans Math, que cobre as letras árabes mas não as junta. A captura no Chromium mostrou as letras isoladas, idênticas ao isolamento forçado com ZWNJ. Com a fonte árabe na cadeia, o fixture passou a sair unido.
 4. As formas de apresentação árabes (U+FB50–FDFF, U+FE70–FEFF) e o alfabeto matemático árabe (U+1EE00–1EEFF) pertencem ao script árabe, mas já são glifos isolados; ficam fora da exigência.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) (D1) mostrou que uma fonte maliciosa podia fazer a leitura de GSUB/GPOS repetir registros compartilhados e explodir o trabalho. A leitura agora memoriza cada LangSys e tabela de script, remove duplicatas e divide um orçamento único de leitura; teste com tabela hostil.
+
 ## Gates e evidências
 
 - Fixture novo: Noto Sans Arabic Regular sem modificação (OFL, hash e origem em `packages/edi-motion/tests/fixtures/README.md`). Variantes negativas são geradas só em memória e têm os checksums refeitos.

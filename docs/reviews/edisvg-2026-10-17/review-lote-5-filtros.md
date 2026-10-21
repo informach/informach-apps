@@ -23,6 +23,8 @@ Perfil (`filterSchema`, estrito): `filterUnits`/`primitiveUnits`, região positi
 1. A recusa na Lottie tinha ficado no trecho que só examina formas de caminho; um **grupo** com filtro passaria sem diagnóstico. A verificação foi para o laço que percorre todos os nós, com teste.
 2. `color-interpolation-filters` na raiz (comum em SVGs exportados) recusava a importação inteira como atributo desconhecido. Ele agora é aceito com valor validado e consumido pela resolução dos filtros, sem ser gravado no nó.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) achou dois casos. B3: o teto de definições de filtro era contado por prancheta e não pelo projeto, que é o que o fechamento de componentes publica junto. Agora o teto vale para o projeto todo. B4: `color-interpolation-filters="auto"` era tratado como herdado e caía em linearRGB; o navegador desenha como sRGB, e a importação passou a fazer o mesmo (novo SVG com pixels comparados).
+
 ## Gates e evidências
 
 - Núcleo: 3 testes (cadeia com entradas/resultados explícitos, recusas do schema, pool e teto de 64); 142 no total. App: 4 testes (modelos, projeto v23 e remoção por comando, filtro na forma dentro do `transform` e não no wrapper, blueprint v12 com recusa ao rebaixar, Lottie em grupo); 266 no total.

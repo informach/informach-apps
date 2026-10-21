@@ -16,8 +16,9 @@ export class UnsupportedLayoutTableError extends Error {
 /** ScriptList/FeatureList of a GSUB/GPOS table: for each script, the feature
  * tags of its default language system (the one a shaper uses without a
  * language), or of all its language systems when it has no default. Every
- * offset and count is bounds-checked. */
-function layoutScripts(
+ * offset and count is bounds-checked; records may share a language system, so
+ * each one is read once and the total of indices read is bounded. */
+export function inspectLayoutTable(
   table: Uint8Array | undefined,
   tag: string,
 ): ReadonlyMap<string, ReadonlySet<string>> {
@@ -42,32 +43,53 @@ function layoutScripts(
   const features = Array.from({ length: featureCount }, (_, index) =>
     name(featureList + 2 + index * 6),
   );
+  const systems = new Map<number, readonly string[]>(),
+    scriptTables = new Map<number, ReadonlySet<string>>();
+  // Indices read and tags merged share one allowance, whatever the sharing.
+  let budget = 262144;
   const featuresOf = (system: number, into: Set<string>) => {
-    const required = read(system + 2),
-      indices = read(system + 4);
-    if (indices > 4096) fail();
-    for (const index of [
-      ...(required === 0xffff ? [] : [required]),
-      ...Array.from({ length: indices }, (_, at) => read(system + 6 + at * 2)),
-    ])
-      into.add(features[index] ?? fail());
+    let tags = systems.get(system);
+    if (!tags) {
+      const required = read(system + 2),
+        indices = read(system + 4);
+      budget -= indices + 1;
+      if (indices > 4096 || budget < 0) fail();
+      tags = [
+        ...(required === 0xffff ? [] : [required]),
+        ...Array.from({ length: indices }, (_, at) => read(system + 6 + at * 2)),
+      ].map((index) => features[index] ?? fail());
+      systems.set(system, tags);
+    }
+    budget -= tags.length;
+    if (budget < 0) fail();
+    for (const value of tags) into.add(value);
   };
   for (let index = 0; index < count; index++) {
     const record = list + 2 + index * 6,
       script = name(record),
       offset = list + read(record + 4);
     if (offset === list) fail();
+    const cached = scriptTables.get(offset);
+    if (cached) {
+      scripts.set(script, cached);
+      continue;
+    }
     const defaults = read(offset),
-      systems = read(offset + 2),
+      languages = read(offset + 2),
       tags = new Set<string>();
-    if (systems > 512) fail();
+    if (languages > 512) fail();
     if (defaults) featuresOf(offset + defaults, tags);
-    else
-      for (let language = 0; language < systems; language++) {
+    else {
+      const merged = new Set<number>();
+      for (let language = 0; language < languages; language++) {
         const system = read(offset + 4 + language * 6 + 4);
         if (!system) fail();
+        if (merged.has(system)) continue;
+        merged.add(system);
         featuresOf(offset + system, tags);
       }
+    }
+    scriptTables.set(offset, tags);
     scripts.set(script, tags);
   }
   return scripts;
@@ -307,8 +329,8 @@ export function inspectFont(bytes: Uint8Array): FontInfo {
 export function inspectFontLayoutScripts(bytes: Uint8Array): FontLayoutScripts {
   const { layout } = inspectFontData(bytes);
   return {
-    substitution: layoutScripts(layout.GSUB, "GSUB"),
-    positioning: layoutScripts(layout.GPOS, "GPOS"),
+    substitution: inspectLayoutTable(layout.GSUB, "GSUB"),
+    positioning: inspectLayoutTable(layout.GPOS, "GPOS"),
   };
 }
 /** Coverage is separate from loading/structural validation: unsupported

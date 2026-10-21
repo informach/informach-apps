@@ -8,7 +8,7 @@ import {
 import { type Asset, imagePresentation, parseAssetCatalog } from "@informach/edi-motion/assets";
 import { type AudioDocument, parseAudioDocument } from "@informach/edi-motion/audio";
 import { type Behavior, parseBehavior } from "@informach/edi-motion/behavior";
-import { gradientDefinitions, hasPattern } from "@informach/edi-motion/graphics";
+import { filterDefinitions, gradientDefinitions, hasPattern } from "@informach/edi-motion/graphics";
 import { type LayoutDocument, parseLayout } from "@informach/edi-motion/layout";
 import {
   parseRig,
@@ -281,11 +281,15 @@ export function parseProject(input: unknown): Project {
       ...(board.scene.styles ?? []).map((style) => style.gradients),
     ]),
   );
+  // Like gradients, filters are pooled project-wide: a composition flattens component
+  // artboards into one scene, whose definitions share the 64-filter limit.
+  filterDefinitions(
+    artboards.flatMap((board) => flattenScene(board.scene).map(({ node }) => node.filter)),
+  );
   if (ids.size > 2000) throw new Error("Orçamento agregado de objetos excedido.");
   const motion = parseMotion(value.motion ?? emptyMotion(), ids);
   if (header.data.version < 23 && motion.animations.some((clip) => clip.drawOrders))
     throw new Error("Ordem de desenho animável requer projeto v23.");
-  validateDrawOrders(motion.animations, artboards);
   if ("artboards" in value)
     for (const [index, raw] of value.artboards.entries()) {
       const board = artboards[index];
@@ -340,6 +344,8 @@ export function parseProject(input: unknown): Project {
         );
       }
     }
+  // After layouts are parsed: a draw order cannot stack objects a layout places in slots.
+  validateDrawOrders(motion.animations, artboards);
   const byAnimation: Record<Preset, number[]> = { Parado: [], Acenar: [], Pular: [] };
   for (const name of presetSchema.options) {
     const total = totalFrames[name];

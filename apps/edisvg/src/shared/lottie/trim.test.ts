@@ -55,3 +55,33 @@ test("Lottie refuses trim on closed contours instead of changing their closure",
   assert.equal(report.supported, false);
   assert.ok(report.issues.some((issue) => /caminhos abertos/.test(issue.message)));
 });
+
+test("round-capped trim exports even while the path is scaled almost to nothing", () => {
+  const fixture = trimFixture();
+  fixture.run([
+    {
+      type: "scene",
+      operation: "attrs",
+      targetId: fixture.shapeId,
+      value: { "stroke-linecap": "round" },
+    },
+    ...(["sx", "sy"] as const).flatMap((property) =>
+      [
+        [0, 0.02],
+        [10, 1],
+      ].map(([frame, value]) => ({
+        type: "motion",
+        command: {
+          type: "set-key",
+          animationId: fixture.animationId,
+          targetId: fixture.shapeId,
+          property,
+          frame,
+          value,
+        },
+      })),
+    ),
+  ]);
+  const exported = compileLottie(fixture.project(), options(fixture));
+  assert.ok(shapes(shapeLayers(exported.document)[0]?.shapes ?? []).length >= 2);
+});

@@ -23,6 +23,8 @@ O rig deformava só caminhos vetoriais (skin por ossos e morph). Imagens raster 
 3. A asserção da E2E de repouso falhou de início porque uma única chave de rotação no quadro 10 também vale no quadro 0 (a primeira chave segura antes dela). O fixture ganhou a chave inicial; o código estava certo.
 4. O painel usava uma asserção de tipo em `SubmitEvent` para distinguir "remover" de "aplicar". Foi trocada por um botão de remoção com ação própria.
 
+Depois, o [full review do lote 5](full-review-2026-10-20.md) achou dois casos. C3: a dilatação dos recortes por triângulo era desigual em ângulos agudos e podia deixar frestas; cada aresta agora é afastada meio pixel ao longo da normal, com limite de esquadria. C5: a restrição "seguir caminho" aceitava como alvo um objeto que não era caminho; agora exige um `path` com contorno.
+
 ## Gates e evidências
 
 - Núcleo: 161 testes (4 novos): grade de repouso e afins exatas (pixels da imagem → caixa), deformação de um vértice afetando exatamente os triângulos que o usam, recortes crescidos, saída do renderer e skin/morph aceitando a grade.
