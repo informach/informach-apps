@@ -468,8 +468,7 @@ test("SVG effect import refuses unsafe/ambiguous/oversized profiles atomically a
       wrap('<rect clip-path="url(#missing)"/>'),
       wrap('<rect clip-path="url(https://example.com/cut)"/>'),
       wrap(`<defs><clipPath id="cut">${path}</clipPath></defs>${maskTarget}`),
-      wrap(mask('maskUnits="userSpaceOnUse" x="0" y="0" width="10" height="10"')),
-      wrap(mask(validMask.replace('mask-type="alpha"', 'mask-type="luminance"'))),
+      // Luminance masks (the SVG default) import since 5.28; tests/e2e/painted-masks.test.ts.
       wrap(mask(validMask.replace('maskUnits="userSpaceOnUse"', 'maskUnits="objectBoundingBox"'))),
       wrap(mask(`${validMask} maskContentUnits="objectBoundingBox"`)),
       wrap(mask(validMask.replace('width="10"', 'width="4"'))),

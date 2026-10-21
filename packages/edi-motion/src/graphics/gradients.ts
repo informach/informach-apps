@@ -3,6 +3,15 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { inverse } from "../affine";
 import { affineSchema } from "../affineSchema";
+import {
+  PATTERN_POOL_VERTICES,
+  type Pattern,
+  type PatternElement,
+  patternElement,
+  patternId,
+  patternSchema,
+  patternVertices,
+} from "./patterns";
 
 const coordinate = z.number().min(-100000).max(100000);
 const common = {
@@ -75,14 +84,27 @@ export const gradientSchema = z
       });
   });
 export type Gradient = z.infer<typeof gradientSchema>;
+/** Typed paint servers of a channel. Patterns (5.26) share the gradient channel so inheritance,
+ * component overrides, styles and solid-colour precedence stay one rule. */
+export const paintServerSchema = z.union([gradientSchema, patternSchema]);
+export type PaintServer = Gradient | Pattern;
 export const gradientPaintsSchema = z
-  .strictObject({ fill: gradientSchema.optional(), stroke: gradientSchema.optional() })
-  .refine((value) => value.fill || value.stroke, "Informe ao menos um gradiente.");
+  .strictObject({ fill: paintServerSchema.optional(), stroke: paintServerSchema.optional() })
+  .refine((value) => value.fill || value.stroke, "Informe ao menos um gradiente ou padrão.");
 export type GradientPaints = z.infer<typeof gradientPaintsSchema>;
 export interface GradientElement {
   tag: "linearGradient" | "radialGradient" | "stop";
   attrs: Record<string, string>;
   children: GradientElement[];
+}
+export function paintServerId(input: PaintServer) {
+  return input.kind === "pattern" ? patternId(input) : gradientId(input);
+}
+export function paintServerElement(input: PaintServer): GradientElement | PatternElement {
+  return input.kind === "pattern" ? patternElement(input) : gradientElement(input);
+}
+export function hasPattern(value: GradientPaints | undefined) {
+  return value?.fill?.kind === "pattern" || value?.stroke?.kind === "pattern";
 }
 export function gradientId(input: Gradient) {
   const value = gradientSchema.parse(input),
@@ -128,26 +150,34 @@ export function gradientElement(input: Gradient): GradientElement {
   };
 }
 export function gradientDefinitions(paints: Iterable<GradientPaints | undefined>) {
-  const definitions = new Map<string, GradientElement>();
-  let inspected = 0;
+  const definitions = new Map<string, GradientElement | PatternElement>();
+  let inspected = 0,
+    vertices = 0;
   for (const value of paints) {
     if (++inspected > 12000) throw new Error("Orçamento de pinturas inspecionadas excedido.");
     for (const gradient of [value?.fill, value?.stroke])
       if (gradient) {
-        const element = gradientElement(gradient),
+        const element = paintServerElement(gradient),
           id = element.attrs.id;
         if (!id) throw new Error("Identidade de gradiente ausente.");
+        if (gradient.kind === "pattern" && !definitions.has(id)) {
+          vertices += patternVertices(gradient);
+          if (vertices > PATTERN_POOL_VERTICES)
+            throw new Error(
+              `Padrões distintos excedem ${PATTERN_POOL_VERTICES} vértices por cena/documento.`,
+            );
+        }
         definitions.set(id, element);
         if (definitions.size > 256)
-          throw new Error("Limite de 256 gradientes distintos por cena/documento.");
+          throw new Error("Limite de 256 gradientes/padrões distintos por cena/documento.");
       }
   }
   return [...definitions.values()];
 }
 export function gradientAttributes(value: GradientPaints | undefined) {
   const attrs: Record<string, string> = {};
-  if (value?.fill) attrs.fill = `url(#${gradientId(value.fill)})`;
-  if (value?.stroke) attrs.stroke = `url(#${gradientId(value.stroke)})`;
+  if (value?.fill) attrs.fill = `url(#${paintServerId(value.fill)})`;
+  if (value?.stroke) attrs.stroke = `url(#${paintServerId(value.stroke)})`;
   return attrs;
 }
 export const gradientTags: ReadonlySet<string> = new Set([

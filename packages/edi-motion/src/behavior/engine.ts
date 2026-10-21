@@ -5,6 +5,7 @@ import {
   parseDataModels,
   resolveDataPath,
 } from "../data";
+import { type DrawOrders, evaluatePlaybackDrawOrders, ROOT_DRAW_SCOPE } from "../drawOrder";
 import { ease, frameAtSeconds } from "../evaluator";
 import {
   type Animation,
@@ -22,6 +23,7 @@ import {
 } from "../parameters";
 import { type AnimationDriver, evaluateDrivers, evaluatePlayback } from "../playback";
 import { timelineEventsBetween } from "./events";
+import { evaluateFormula, type Formula, orderFormulas } from "./formulas";
 import {
   type Behavior,
   type BehaviorBinding,
@@ -31,12 +33,14 @@ import {
   type BehaviorTransition,
   type InputValue,
   parseBehavior,
+  semanticValue,
   validateInputValue,
 } from "./model";
 
 interface Pose {
   transforms: Map<string, Partial<Transform>>;
   parameters: Map<string, number>;
+  orders: DrawOrders;
 }
 interface SourceClock {
   stateId: string;
@@ -65,6 +69,8 @@ export interface BehaviorSession {
 }
 export interface BehaviorContext {
   behavior: Behavior;
+  /** Formulas in dependency order, applied after every input write and time step. */
+  formulas?: readonly Formula[];
   animations: readonly Animation[];
   objects: ReadonlyMap<string, Transform>;
   drivers?: AnimationDriver[];
@@ -107,7 +113,32 @@ export function createBehaviorContext(
     data: behavior.data ? parseDataModels(behavior.data) : undefined,
     animation,
     parameters: options.parameters,
+    formulas: orderFormulas(behavior.formulas ?? []),
   };
+}
+/** Recomputes formula inputs from the session's inputs and clock. Numbers are
+ * clamped to their input's range; other values must already be valid. */
+function withFormulas(context: BehaviorContext, source: BehaviorSession): BehaviorSession {
+  if (!context.formulas?.length) return source;
+  const inputs = new Map(source.inputs);
+  for (const formula of context.formulas) {
+    const input = context.behavior.inputs.find((value) => value.id === formula.inputId);
+    if (!input || input.kind === "trigger") throw new Error("Input de fórmula ausente.");
+    let value = evaluateFormula(
+      formula.expression,
+      (id) => {
+        const current = inputs.get(id);
+        if (current === undefined) throw new Error("Fórmula lê input ausente.");
+        return current;
+      },
+      source.seconds,
+      semanticValue,
+    );
+    if (input.kind === "number" && typeof value === "number")
+      value = Math.min(input.max, Math.max(input.min, value));
+    inputs.set(formula.inputId, validateInputValue(input, value));
+  }
+  return { ...source, inputs };
 }
 export interface BehaviorEmission {
   instancePath?: string[];
@@ -168,7 +199,10 @@ export function createBehaviorSession(
       ]),
     ),
   };
-  return context.data ? withDataValues(context, session, new Map(context.data.initial)) : session;
+  return withFormulas(
+    context,
+    context.data ? withDataValues(context, session, new Map(context.data.initial)) : session,
+  );
 }
 function withDataValues(
   context: BehaviorContext,
@@ -188,7 +222,7 @@ function withDataValues(
       ),
     );
   }
-  return { ...source, data, inputs };
+  return withFormulas(context, { ...source, data, inputs });
 }
 export function editBehaviorData(
   context: BehaviorContext,
@@ -206,6 +240,8 @@ export function setBehaviorInput(
 ): BehaviorSession {
   const input = context.behavior.inputs.find((input) => input.id === id);
   if (!input) throw new Error("Input não encontrado.");
+  if (context.formulas?.some((formula) => formula.inputId === id))
+    throw new Error("Input calculado por fórmula é somente leitura.");
   const clean = validateInputValue(input, value);
   if (source.inputs.get(id) === clean) return source;
   const link = context.data?.document.links.find((link) => link.inputId === id);
@@ -218,7 +254,7 @@ export function setBehaviorInput(
   }
   const inputs = new Map(source.inputs);
   inputs.set(id, clean);
-  return { ...source, inputs };
+  return withFormulas(context, { ...source, inputs });
 }
 export function fireBehaviorTrigger(
   context: BehaviorContext,
@@ -263,7 +299,13 @@ function baseValue(context: BehaviorContext, id: string, property: Property) {
   return base[property] ?? 0;
 }
 function mix(context: BehaviorContext, a: Pose, b: Pose, weight: number): Pose {
-  const result: Pose = { transforms: new Map(), parameters: new Map() };
+  // Stacking is discrete, like discrete channels: the nearer pose wins (an absent order is
+  // the authored one).
+  const result: Pose = {
+    transforms: new Map(),
+    parameters: new Map(),
+    orders: new Map(weight < 0.5 ? a.orders : b.orders),
+  };
   for (const id of new Set([...a.transforms.keys(), ...b.transforms.keys()])) {
     const left = a.transforms.get(id),
       right = b.transforms.get(id),
@@ -309,6 +351,7 @@ function sampledPose(
       seconds,
       context.drivers ?? [],
     ),
+    orders: evaluatePlaybackDrawOrders(animation, frame, seconds, context.drivers ?? []),
   };
 }
 function statePose(
@@ -388,6 +431,7 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
     [...context.objects].map(([id, transform]) => [id, { ...transform }]),
   );
   const selected = machine(context, session);
+  const orders: DrawOrders = new Map();
   const parameters = new Map(
     [...(context.parameters?.definitions ?? [])].map(([key, definition]) => [
       key,
@@ -402,6 +446,7 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
       session.seconds,
     );
     for (const [key, value] of pose.parameters) parameters.set(key, value);
+    for (const [scope, order] of pose.orders) orders.set(scope, order);
     for (const [id, patch] of pose.transforms) {
       const target = poses.get(id);
       if (!target) throw new Error("Objeto de componente ausente.");
@@ -413,6 +458,15 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
     const clock = session.layers.get(layer.id);
     if (!clock) throw new Error("Relógio de camada ausente.");
     const pose = layerPose(context, session, layer, clock);
+    // A draw order belongs to a masked layer when its parent is inside the mask (the root
+    // only to unmasked layers); like a discrete channel, it applies from half weight.
+    if (layer.weight >= 0.5)
+      for (const [scope, order] of pose.orders)
+        if (
+          !layer.targetIds.length ||
+          (scope !== ROOT_DRAW_SCOPE && layer.targetIds.includes(scope))
+        )
+          orders.set(scope, order);
     for (const [id, values] of pose.transforms) {
       if (layer.targetIds.length && !layer.targetIds.includes(id)) continue;
       const current = poses.get(id);
@@ -460,7 +514,8 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
   }
   const text = new Map<string, string>(),
     colors = new Map<string, Partial<Record<"fill" | "stroke", string>>>(),
-    visibility = new Map<string, boolean>();
+    visibility = new Map<string, boolean>(),
+    semantics = new Map<string, Partial<Record<"label" | "description", string>>>();
   for (const binding of context.behavior.bindings) {
     const value = session.inputs.get(binding.inputId);
     if (binding.kind === "parameter") {
@@ -479,12 +534,18 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
     } else if (binding.kind === "color") {
       if (typeof value !== "string") throw new Error("Binding de cor inválido.");
       colors.set(binding.targetId, { ...colors.get(binding.targetId), [binding.property]: value });
+    } else if (binding.kind === "semantics") {
+      if (value === undefined) throw new Error("Binding semântico sem valor.");
+      semantics.set(binding.targetId, {
+        ...semantics.get(binding.targetId),
+        [binding.property]: binding.template.replace("{valor}", () => semanticValue(value)),
+      });
     } else {
       if (typeof value !== "boolean") throw new Error("Binding de visibilidade inválido.");
       visibility.set(binding.targetId, binding.invert ? !value : value);
     }
   }
-  return { poses, parameters, text, colors, visibility };
+  return { poses, parameters, text, colors, visibility, semantics, orders };
 }
 
 /** Pure transactional advance: failures/cycles/budgets leave source untouched.
@@ -625,6 +686,8 @@ export function advanceBehavior(
       }
     }
     session.seconds += step;
+    // Time-driven formulas move with the clock, before transitions read them.
+    session.inputs = withFormulas(context, session).inputs;
     remaining -= step;
     if (step === 0 && remaining > 0) throw new Error("Relógio não avançou; sessão preservada.");
     if (remaining === 0) {

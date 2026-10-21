@@ -6,6 +6,8 @@ import {
   imageSliceSchema,
 } from "@informach/edi-motion/assets";
 import {
+  filterDefinitions,
+  filterSchema,
   gradientDefinitions,
   gradientPaintsSchema,
   gradientTags,
@@ -29,6 +31,14 @@ import { sceneEffectContext } from "./sceneEffects";
 
 export { svgAttributes, validAttributes } from "@informach/edi-motion/graphics";
 
+import {
+  imageMeshCells,
+  imageMeshRest,
+  imageMeshSchema,
+  textDirectionSchema,
+  textPathCost,
+  textPathSchema,
+} from "@informach/edi-motion/visual";
 import { textLayoutSchema } from "./textLayout";
 
 const tags = new Set([
@@ -150,6 +160,13 @@ export function editScene(scene, id, operation, value) {
         throw new Error("Gradiente requer forma, grupo ou texto local.");
       if (value === null) delete n.gradients;
       else n.gradients = gradientPaintsSchema.parse(value);
+    } else if (operation === "filter") {
+      if (value === null) delete n.filter;
+      else n.filter = filterSchema.parse(value);
+    } else if (operation === "image-mesh") {
+      if (n.tag !== "image") throw new Error("Malha raster requer imagem.");
+      if (value === null) delete n.imageMesh;
+      else n.imageMesh = imageMeshSchema.parse(value);
     } else if (operation === "image-slice") {
       if (n.tag !== "image") throw new Error("Nine-slice requer imagem.");
       if (value === null) delete n.imageSlice;
@@ -159,7 +176,22 @@ export function editScene(scene, id, operation, value) {
       else n.semantics = semanticSchema.parse(value);
     } else if (operation === "text-layout") {
       if (n.tag !== "text") throw new Error("Selecione um texto.");
+      if (n.textPath) throw new Error("Texto em caminho tem uma linha; remova o caminho antes.");
       n.textLayout = textLayoutSchema.parse(value);
+    } else if (operation === "text-path") {
+      if (n.tag !== "text") throw new Error("Selecione um texto.");
+      if (value === null) delete n.textPath;
+      else {
+        n.textPath = textPathSchema.parse(value);
+        delete n.textLayout;
+      }
+    } else if (operation === "text-direction") {
+      if (n.tag !== "text") throw new Error("Selecione um texto.");
+      // Explicit directions stay SVG attributes; auto is resolved at render.
+      const { direction: _direction, ...attrs } = n.attrs;
+      n.attrs = value === "auto" ? attrs : { ...attrs, direction: value };
+      if (value === "auto") n.textDirection = "auto";
+      else delete n.textDirection;
     } else if (operation === "transform") n.transform = { ...n.transform, ...value };
     else if (operation === "path") {
       if (!PATH_TAGS.has(n.tag)) throw new Error("Selecione uma forma ou caminho.");
@@ -250,9 +282,13 @@ export function validateScene(
           "basis",
           "instance",
           "textLayout",
+          "textDirection",
+          "textPath",
           "assetId",
           "imageSlice",
+          "imageMesh",
           "gradients",
+          "filter",
           "effects",
           "fontAssetId",
           "fontFallbackIds",
@@ -319,6 +355,14 @@ export function validateScene(
       if ((n.tag === "image") !== (assetId !== undefined))
         throw new Error("Imagem requer referência tipada; outros objetos não aceitam assetId.");
       if (textLayout && n.tag !== "text") throw new Error("Layout de texto só se aplica a texto.");
+      const textDirection =
+        n.textDirection === undefined ? undefined : textDirectionSchema.parse(n.textDirection);
+      if (textDirection && (n.tag !== "text" || n.attrs?.direction !== undefined))
+        throw new Error("Direção automática requer texto sem direção explícita.");
+      const textPath = n.textPath === undefined ? undefined : textPathSchema.parse(n.textPath);
+      if (textPath && (n.tag !== "text" || textLayout))
+        throw new Error("Texto em caminho requer texto de uma linha.");
+      if (textPath) budget.vertices += textPathCost(textPath);
       if (textLayout) {
         const lines = n.text.replace(/\r\n?/g, "\n").split("\n").length;
         budget.textLines = (budget.textLines ?? 0) + lines;
@@ -345,6 +389,8 @@ export function validateScene(
       if (gradients && !gradientTags.has(n.tag))
         throw new Error("Gradiente requer forma, grupo ou texto.");
       if (gradients) budget.attributes += JSON.stringify(gradients).length;
+      const filter = n.filter === undefined ? undefined : filterSchema.parse(n.filter);
+      if (filter) budget.attributes += JSON.stringify(filter).length;
       const effects = n.effects === undefined ? undefined : vectorEffectsSchema.parse(n.effects);
       if (effects) {
         budget.effects = (budget.effects ?? 0) + Number(!!effects.clip) + Number(!!effects.mask);
@@ -359,6 +405,14 @@ export function validateScene(
       if (imageSlice) {
         budget.count += 18;
         if (budget.count > 2000) throw new Error("Nine-slice excede orçamento de células SVG.");
+      }
+      const imageMesh = n.imageMesh === undefined ? undefined : imageMeshSchema.parse(n.imageMesh);
+      if (imageMesh && (n.tag !== "image" || imageSlice))
+        throw new Error("Malha raster requer imagem sem nine-slice.");
+      if (imageMesh) {
+        imageMeshRest(imageMesh, attrs);
+        budget.count += imageMeshCells(imageMesh);
+        if (budget.count > 2000) throw new Error("Malha raster excede orçamento de células SVG.");
       }
       if (n.tag === "image" && (attrs.viewBox !== undefined || n.text))
         throw new Error("Viewport da imagem é derivado do recurso; imagem não aceita texto local.");
@@ -385,10 +439,14 @@ export function validateScene(
         ...(n.basis === undefined ? {} : { basis: [...n.basis] }),
         ...(instance === undefined ? {} : { instance }),
         ...(textLayout === undefined ? {} : { textLayout }),
+        ...(textDirection === undefined ? {} : { textDirection }),
+        ...(textPath === undefined ? {} : { textPath }),
         ...(semantics === undefined ? {} : { semantics }),
         ...(assetId === undefined ? {} : { assetId }),
         ...(imageSlice === undefined ? {} : { imageSlice }),
+        ...(imageMesh === undefined ? {} : { imageMesh }),
         ...(gradients === undefined ? {} : { gradients }),
+        ...(filter === undefined ? {} : { filter }),
         ...(effects === undefined ? {} : { effects }),
         ...(fontAssetId === undefined ? {} : { fontAssetId }),
         ...(fontFallbackIds === undefined ? {} : { fontFallbackIds }),
@@ -427,6 +485,7 @@ export function validateScene(
     ...flattenScene(result).map(({ node }) => node.gradients),
     ...(result.styles ?? []).map((style) => style.gradients),
   ]);
+  filterDefinitions(flattenScene(result).map(({ node }) => node.filter));
   if (scene.preserveAspectRatio !== undefined) {
     if (
       typeof scene.preserveAspectRatio !== "string" ||

@@ -5,11 +5,14 @@ import { type Asset, type AudioAsset, assetIdSchema, parseAssetCatalog } from ".
 import { type AudioDocument, parseAudioDocument } from "./audio/model";
 import { type Behavior, parseBehavior } from "./behavior/model";
 import { geometryCost } from "./geometry";
+import { effectSourcePaints, isPaintedMask } from "./graphics/effectPaint";
+import { type Filter, filterDefinitions, filterSchema } from "./graphics/filters";
 import {
   type GradientPaints,
   gradientDefinitions,
   gradientPaintsSchema,
   gradientTags,
+  hasPattern,
 } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
 import { playbackVectorEffectContext, vectorEffectsSchema } from "./graphics/vectorEffects";
@@ -20,6 +23,7 @@ import { rigCost } from "./rig/cost";
 import { playbackParameterContext } from "./rig/playbackRig";
 import { parseSvgPath } from "./svgPath";
 import { svgPrimitivePathData } from "./svgPrimitive";
+import { imageMeshCells, imageMeshSchema } from "./visual/imageMesh";
 import {
   type VisualScene,
   visualContentSchema,
@@ -27,8 +31,10 @@ import {
   visualTagSchema,
 } from "./visual/model";
 import { semanticSchema } from "./visual/semantics";
+import { textDirectionSchema } from "./visual/textDirection";
+import { textPathCost } from "./visual/textPath";
 import { validateVisualDocument } from "./visual/validation";
-export const INTERACTIVE_VERSION = 11;
+export const INTERACTIVE_VERSION = 12;
 
 export const interactiveContentSchema = z.strictObject({
   id: objectIdSchema,
@@ -45,7 +51,9 @@ export const interactiveContentSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
   assetId: assetIdSchema.optional(),
   imageSlice: slicedImageSchema.optional(),
+  imageMesh: imageMeshSchema.optional(),
   gradients: gradientPaintsSchema.optional(),
+  filter: filterSchema.optional(),
   effects: vectorEffectsSchema.optional(),
   visual: visualContentSchema.optional(),
   fontAssetId: assetIdSchema.optional(),
@@ -53,6 +61,7 @@ export const interactiveContentSchema = z.strictObject({
   semantics: semanticSchema.optional(),
   tag: visualTagSchema,
   lineHeight: z.number().min(0.25).max(10).optional(),
+  textDirection: textDirectionSchema.optional(),
 });
 const interactiveSchema = z.strictObject({
   version: z.union([
@@ -66,6 +75,7 @@ const interactiveSchema = z.strictObject({
     z.literal(8),
     z.literal(9),
     z.literal(10),
+    z.literal(11),
     z.literal(INTERACTIVE_VERSION),
   ]),
   playback: z.unknown(),
@@ -153,6 +163,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
   preflight(input);
   const ids = new Set<string>(),
     gradients: GradientPaints[] = [],
+    filters: Filter[] = [],
     audioById = new Map<string, Asset>(),
     assetReferences = new Set<string>(),
     absolutePaths = new Set<string>();
@@ -253,6 +264,10 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     if (vertices > 100000 || controls > 100000 || deformers > 256)
       throw new Error("Cena interativa excede orçamento agregado de deformação/geometria.");
     for (const object of parsed.content) {
+      if (object.filter) {
+        if (parsed.version < 12) throw new Error("Filtros requerem blueprint v12.");
+        filters.push(object.filter);
+      }
       if (object.effects && parsed.version < 5)
         throw new Error("Recortes/máscaras requerem blueprint v5.");
       effectReferences += Number(!!object.effects?.clip) + Number(!!object.effects?.mask);
@@ -260,6 +275,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       if (object.gradients) {
         if (parsed.version < 4 || !gradientTags.has(object.tag))
           throw new Error("Gradiente requer forma/texto e blueprint v4.");
+        if (hasPattern(object.gradients) && parsed.version < 12)
+          throw new Error("Padrões requerem blueprint v12.");
         gradients.push(object.gradients);
       }
       graphicNodes +=
@@ -268,6 +285,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
           ? 1
           : 0) +
         (object.imageSlice ? 18 : 0) +
+        imageMeshCells(object.imageMesh) +
         (object.effects?.clip ? 2 : 0) +
         (object.effects?.mask ? 2 : 0);
       if (graphicNodes > 2000) throw new Error("Cena excede orçamento agregado de células SVG.");
@@ -290,6 +308,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     ]) {
       tracks += clip.tracks.length;
       keys += clip.tracks.reduce((sum, track) => sum + track.keys.length, 0);
+      for (const drawOrder of clip.drawOrders ?? [])
+        for (const key of drawOrder.keys) keys += 1 + key.order.length;
     }
     if (tracks > 12000 || keys > 100000)
       throw new Error("Cena interativa excede o orçamento agregado de animação.");
@@ -315,9 +335,32 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     );
     for (const [id, shape] of primitiveSources)
       if (!geometryIds.has(id)) vertices += geometryCost(parseSvgPath(svgPrimitivePathData(shape)));
+    for (const object of parsed.content) vertices += textPathCost(object.visual?.textPath);
     if (vertices > 100000)
       throw new Error("Cena interativa excede geometria agregada incluindo efeitos nativos.");
-    playbackVectorEffectContext(playback, effects, undefined, primitiveSources);
+    if (parsed.version < 12 && [...effects.values()].some((value) => value.mask?.mode))
+      throw new Error("Modos de máscara requerem blueprint v12.");
+    if (
+      parsed.version < 12 &&
+      [...playback.motion.animations, ...playback.drivers.map((driver) => driver.animation)].some(
+        (clip) => clip.drawOrders,
+      )
+    )
+      throw new Error("Ordem de desenho animável requer blueprint v12.");
+    playbackVectorEffectContext(
+      playback,
+      effects,
+      undefined,
+      primitiveSources,
+      effectSourcePaints(
+        parsed.content.map((object) => ({
+          ...object,
+          parentId: object.parentId ?? null,
+          attrs: object.visual?.attrs,
+        })),
+        new Map([...effects].filter(([, value]) => isPaintedMask(value))),
+      ),
+    );
     if (effects.size || portable)
       for (const object of playback.objects) {
         const details = content.get(object.id);
@@ -341,6 +384,22 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         throw new Error("Medidas intrínsecas requerem instância de componente válida.");
       else if (value.lineHeight !== undefined && value.tag !== "text")
         throw new Error("Layout interativo requer texto.");
+      else if (value.textDirection && (value.tag !== "text" || parsed.version < 12))
+        throw new Error("Direção automática requer texto e blueprint v12.");
+      else if (
+        value.semantics &&
+        value.semantics.kind !== "decorative" &&
+        value.semantics.live &&
+        parsed.version < 12
+      )
+        throw new Error("Região viva requer blueprint v12.");
+      else if (value.visual?.textPath && parsed.version < 12)
+        throw new Error("Texto em caminho requer blueprint v12.");
+      else if (
+        value.imageMesh &&
+        (value.tag !== "image" || value.imageSlice || parsed.version < 12)
+      )
+        throw new Error("Malha raster requer imagem sem nine-slice e blueprint v12.");
     const authored = new Map(
       playback.sources
         .filter((source) => source.instancePath.length === 0)
@@ -357,6 +416,10 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       playback.motion.animations,
       playbackParameterContext(playback),
     );
+    if (parsed.version < 12 && behavior.bindings.some((binding) => binding.kind === "semantics"))
+      throw new Error("Binding semântico requer blueprint v12.");
+    if (parsed.version < 12 && behavior.formulas?.length)
+      throw new Error("Fórmulas requerem blueprint v12.");
     const audio =
       parsed.audio === undefined
         ? undefined
@@ -451,6 +514,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
   }
   const result = parse(input, 0);
   gradientDefinitions(gradients);
+  filterDefinitions(filters);
   validateVisualDocument(result);
   return result;
 }

@@ -14,6 +14,7 @@ import {
 import { describeVisualDocument, serializeVisualElement } from "@informach/edi-motion/visual";
 import type { ComponentInstance } from "./componentContracts";
 import { compileArtboard } from "./components";
+import { remapDrawOrders } from "./drawOrders";
 import type { Project } from "./project";
 import { flattenScene } from "./scene.js";
 
@@ -181,12 +182,15 @@ export function compileInteractiveArtboard(
       .filter(
         (driver) =>
           ownIds.has(driver.id) &&
-          driver.animation.tracks.some((track) => ownIds.has(track.targetId)),
+          (driver.animation.tracks.some((track) => ownIds.has(track.targetId)) ||
+            !!driver.animation.drawOrders?.some(
+              (drawOrder) => drawOrder.scopeId !== null && ownIds.has(drawOrder.scopeId),
+            )),
       )
       .map((driver) => ({
         ...driver,
         animation: {
-          ...driver.animation,
+          ...remapDrawOrders(driver.animation, (id) => (ownIds.has(id) ? id : undefined), null),
           tracks: driver.animation.tracks.filter((track) => ownIds.has(track.targetId)),
         },
       }));
@@ -216,7 +220,7 @@ export function compileInteractiveArtboard(
         motion: {
           ...project.motion,
           animations: project.motion.animations.map((clip) => ({
-            ...clip,
+            ...remapDrawOrders(clip, (id) => mapping.get(id), null),
             tracks: clip.tracks
               .filter((track) => mapping.has(track.targetId))
               .map((track) => ({ ...structuredClone(track), targetId: map(track.targetId) })),
@@ -252,6 +256,8 @@ export function compileInteractiveArtboard(
             text: node.text,
             visible: node.visible,
             ...(node.textLayout ? { textLayout: node.textLayout } : {}),
+            ...(node.textDirection ? { textDirection: node.textDirection } : {}),
+            ...(node.textPath ? { textPath: node.textPath } : {}),
           },
           ...(node.assetId ? { assetId: node.assetId } : {}),
           ...(node.imageSlice
@@ -266,10 +272,12 @@ export function compileInteractiveArtboard(
                 },
               }
             : {}),
+          ...(node.imageMesh ? { imageMesh: node.imageMesh } : {}),
           ...(node.fontAssetId ? { fontAssetId: node.fontAssetId } : {}),
           ...(node.fontFallbackIds ? { fontFallbackIds: [...node.fontFallbackIds] } : {}),
           ...(node.semantics ? { semantics: structuredClone(node.semantics) } : {}),
           ...(node.gradients ? { gradients: node.gradients } : {}),
+          ...(node.filter ? { filter: node.filter } : {}),
           ...(node.effects ? { effects: node.effects } : {}),
           ...(instance
             ? {
@@ -278,6 +286,7 @@ export function compileInteractiveArtboard(
               }
             : {}),
           ...(node.textLayout ? { lineHeight: node.textLayout.lineHeight } : {}),
+          ...(node.textDirection ? { textDirection: node.textDirection } : {}),
         };
       }),
     };

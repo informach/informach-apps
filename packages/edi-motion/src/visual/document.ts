@@ -38,9 +38,13 @@ export function visualSceneFromDocument(input: unknown) {
         fontAssetId: object.fontAssetId,
         fontFallbackIds: object.fontFallbackIds,
         gradients: object.gradients,
+        filter: object.filter,
         imageSlice: object.imageSlice?.insets,
+        imageMesh: object.imageMesh,
         effects: object.effects,
         textLayout: data.textLayout,
+        textDirection: data.textDirection,
+        textPath: data.textPath,
         semantics: object.semantics,
       });
     }

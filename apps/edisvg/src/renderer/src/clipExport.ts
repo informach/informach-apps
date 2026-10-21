@@ -35,10 +35,6 @@ export function buildClipExport(
   const boardId = options.artboardId ?? project.defaultArtboardId;
   if (!boardId) throw new Error("Prancheta indisponível.");
   const { scene, playback: data } = compileArtboard(project, boardId);
-  if (options.format === "svg" && data.rigScopes?.some((scope) => scope.rig.trims?.length))
-    throw new Error(
-      "Recorte animável pode alterar topologia ou ficar vazio; SVG/SMIL ainda não preserva esse perfil. Use HTML ou React.",
-    );
   if (flattenScene(scene).some(({ node }) => node.effects))
     throw new Error(
       "Recortes/máscaras animados requerem HTML interativo ou React; o exportador de clip não preserva esse perfil.",
@@ -66,18 +62,49 @@ export function buildClipExport(
     `data-scene-motion="" style="transform:${globalTransform};`,
   );
   if (options.format === "svg") {
+    const meshed = new Set(
+      data.objects.flatMap((object) =>
+        "tag" in object && object.tag === "image" && object.geometry ? [object.id] : [],
+      ),
+    );
+    if (
+      data.rigScopes?.some((scope) =>
+        [...(scope.rig.skins ?? []), ...(scope.rig.morphs ?? [])].some((deformer) =>
+          meshed.has(deformer.targetId),
+        ),
+      )
+    )
+      throw new Error(
+        "Malha raster deformada não tem representação SVG/SMIL neste perfil. Use HTML, React ou vídeo.",
+      );
+    if (clip.drawOrders || data.drivers.some((driver) => driver.animation.drawOrders))
+      throw new Error(
+        "Ordem de desenho animada não tem representação SVG/SMIL: o SVG empilha os filhos na ordem do documento. Use HTML, React ou vídeo.",
+      );
     const targets = new Set(
       [...clip.tracks, ...data.drivers.flatMap((driver) => driver.animation.tracks)].map(
         (track) => track.targetId,
       ),
     );
     const geometrySamples = new Map<string, string[]>(),
+      // Trim may change topology or empty the path each frame: SMIL cannot interpolate between
+      // different command lists, so these paths step exactly at each sampled frame.
+      discreteGeometry = new Set<string>(),
+      baseGeometry = new Map(
+        objects.flatMap((object) =>
+          object.geometry ? [[object.id, object.geometry] as const] : [],
+        ),
+      ),
       visibilitySamples = new Map<string, string[]>(),
       visible = new Map(flattenScene(scene).map(({ node }) => [node.id, node.visible]));
     for (const scope of data.rigScopes ?? []) {
       for (const id of rigOwners(scope.rig)) targets.add(id);
       for (const morph of scope.rig.morphs ?? []) geometrySamples.set(morph.targetId, []);
       for (const skin of scope.rig.skins ?? []) geometrySamples.set(skin.targetId, []);
+      for (const trim of scope.rig.trims ?? []) {
+        geometrySamples.set(trim.targetId, []);
+        discreteGeometry.add(trim.targetId);
+      }
       for (const solo of scope.rig.solos ?? [])
         for (const id of solo.children) {
           targets.add(id);
@@ -115,9 +142,12 @@ export function buildClipExport(
       const evaluated = evaluatePlaybackFrame(playbackContext, clip, frame),
         pose = evaluated.poses;
       for (const [id, values] of geometrySamples) {
-        const geometry = evaluated.geometry.get(id);
+        const geometry =
+          evaluated.geometry.get(id) ??
+          (discreteGeometry.has(id) ? baseGeometry.get(id) : undefined);
         if (!geometry) throw new Error("Geometria amostrada ausente.");
-        values.push(geometryPath(geometry));
+        // An emptied path keeps a valid, invisible command so the value list stays parseable.
+        values.push(geometryPath(geometry) || "M0 0");
       }
       for (const [id, values] of visibilitySamples)
         values.push(
@@ -133,12 +163,16 @@ export function buildClipExport(
     for (const [id, poses] of samples) {
       const timing = `dur="${steps / clip.fps}s" repeatCount="${clip.mode === "once" ? "1" : "indefinite"}" fill="freeze" calcMode="linear"`;
       const geometry = geometrySamples.get(id),
-        visibility = visibilitySamples.get(id);
+        visibility = visibilitySamples.get(id),
+        // keyTimes pin each discrete value to its frame instead of SMIL's equal intervals.
+        geometryTiming = discreteGeometry.has(id)
+          ? `${timing.replace('calcMode="linear"', 'calcMode="discrete"')} keyTimes="${Array.from({ length: steps + 1 }, (_, step) => step / steps).join(";")}"`
+          : timing;
       if (geometry)
         svg = svg.replace(
           new RegExp(`(<g data-edi-object="${id}"[^>]*>)(<path[^>]*>)`),
           (_, group, path) =>
-            `${group}${path}<animate attributeName="d" ${timing} values="${geometry.join(";")}"/>`,
+            `${group}${path}<animate attributeName="d" ${geometryTiming} values="${geometry.join(";")}"/>`,
         );
       const transform = (
         kind: "translate" | "rotate" | "scale" | "skewX",

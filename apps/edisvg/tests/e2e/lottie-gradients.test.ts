@@ -124,7 +124,7 @@ test("built gradient Lottie export reports the closed profile, requires consent,
       }
       if (profile === "offset") {
         const gradient = fixture.project.artboards[0]?.scene.nodes[0]?.gradients?.fill;
-        assert.ok(gradient?.stops[1]);
+        assert.ok(gradient && gradient.kind !== "pattern" && gradient.stops[1]);
         gradient.stops[1].offset = 0.333;
       }
       const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),

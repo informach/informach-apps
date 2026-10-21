@@ -55,6 +55,18 @@ export const trackSchema = z.strictObject({
   property: propertySchema,
   keys: z.array(keyframeSchema).min(1).max(10000),
 });
+/** One stepped key: the listed children of the scope, back to front. */
+export const drawOrderKeySchema = z.strictObject({
+  id,
+  frame: z.number().int().min(0).max(360000),
+  order: z.array(objectIdSchema).min(1).max(2000),
+});
+/** Animated stacking of one parent's direct children (`null` = the artboard root). */
+export const drawOrderSchema = z.strictObject({
+  id,
+  scopeId: objectIdSchema.nullable(),
+  keys: z.array(drawOrderKeySchema).min(1).max(1000),
+});
 export const animationSchema = z.strictObject({
   id,
   name: z.string().trim().min(1).max(120),
@@ -62,6 +74,7 @@ export const animationSchema = z.strictObject({
   frames: z.number().int().min(1).max(360000),
   mode: modeSchema,
   tracks: z.array(trackSchema).max(12000),
+  drawOrders: z.array(drawOrderSchema).max(256).optional(),
 });
 export const motionSchema = z.strictObject({
   version: z.union([z.literal(1), z.literal(2)]),
@@ -70,6 +83,7 @@ export const motionSchema = z.strictObject({
 export type Motion = Omit<z.infer<typeof motionSchema>, "version"> & { version: 2 };
 export type Animation = z.infer<typeof animationSchema>;
 export type Track = z.infer<typeof trackSchema>;
+export type DrawOrder = z.infer<typeof drawOrderSchema>;
 export type Easing = z.infer<typeof easingSchema>;
 export type Transform = {
   x: number;
@@ -118,6 +132,29 @@ export function parseMotion(input: unknown, targets: ReadonlySet<string>): Motio
   ) {
     if (input.animations.length > 100) throw new Error("Orçamento de animações excedido.");
     for (const clip of input.animations) {
+      if (
+        typeof clip === "object" &&
+        clip !== null &&
+        "drawOrders" in clip &&
+        Array.isArray(clip.drawOrders)
+      )
+        for (const drawOrder of clip.drawOrders) {
+          if (
+            typeof drawOrder !== "object" ||
+            drawOrder === null ||
+            !("keys" in drawOrder) ||
+            !Array.isArray(drawOrder.keys)
+          )
+            continue;
+          for (const key of drawOrder.keys) {
+            rawKeys +=
+              1 +
+              (typeof key === "object" && key !== null && "order" in key && Array.isArray(key.order)
+                ? key.order.length
+                : 0);
+            if (rawKeys > 100000) throw new Error("Orçamento de chaves excedido.");
+          }
+        }
       if (
         typeof clip !== "object" ||
         clip === null ||
@@ -184,6 +221,32 @@ export function parseMotion(input: unknown, targets: ReadonlySet<string>): Motio
           throw new Error("Chaves precisam ser ordenadas, únicas e dentro da duração.");
         if (key.value < min || key.value > max)
           throw new Error("Valor de chave fora dos limites da propriedade.");
+        previous = key.frame;
+      }
+    }
+    const scopes = new Set<string>();
+    for (const drawOrder of animation.drawOrders ?? []) {
+      remember(drawOrder.id);
+      if (drawOrder.scopeId !== null && !targets.has(drawOrder.scopeId))
+        throw new Error("Ordem de desenho referencia um grupo inexistente.");
+      // Root orders of several artboards may share a project clip; documents allow one.
+      if (drawOrder.scopeId !== null) {
+        if (scopes.has(drawOrder.scopeId))
+          throw new Error("Há duas ordens de desenho para o mesmo grupo.");
+        scopes.add(drawOrder.scopeId);
+      }
+      let previous = -1;
+      for (const key of drawOrder.keys) {
+        remember(key.id);
+        keyCount += key.order.length;
+        if (++keyCount > 100000) throw new Error("Orçamento de chaves excedido.");
+        if (key.frame <= previous || key.frame > animation.frames)
+          throw new Error("Chaves precisam ser ordenadas, únicas e dentro da duração.");
+        if (new Set(key.order).size !== key.order.length)
+          throw new Error("Ordem de desenho repete um objeto.");
+        for (const target of key.order)
+          if (!targets.has(target) || target === drawOrder.scopeId)
+            throw new Error("Ordem de desenho referencia um objeto inexistente.");
         previous = key.frame;
       }
     }

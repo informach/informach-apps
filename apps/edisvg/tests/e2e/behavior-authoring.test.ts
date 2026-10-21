@@ -37,6 +37,14 @@ test("authored graph, data and events are created through real UI, survive histo
     await page.mouse.down();
     await page.mouse.move(art.x + 180, art.y + 170);
     await page.mouse.up();
+    // The drawn shape re-renders the editor, dialogs included: open the clip dialog only on the
+    // markup that follows the commit, never on the one being replaced.
+    await page.waitForFunction(
+      () =>
+        JSON.parse(localStorage.getItem("edisvg-project") ?? "null")?.artboards[0]?.scene.nodes
+          .length === 1,
+    );
+    await page.locator("[data-scene-select]").first().waitFor();
     await page.locator('[data-action="clip-new"]').click();
     await page.locator('#clip-dialog [name="name"]').fill("Movimento livre");
     await page.locator('#clip-dialog [name="frames"]').fill("60");

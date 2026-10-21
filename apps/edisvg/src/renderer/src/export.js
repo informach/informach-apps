@@ -7,11 +7,13 @@ import { compileLottie } from "../../shared/lottie/compile";
 import { lottieOptionsSchema } from "../../shared/lottie/prepare";
 import { artboardScene, snapshot } from "../../shared/project.js";
 import { serializeProject } from "../../shared/projectPolicy";
+import { RASTER_FORMATS } from "../../shared/raster/profile";
 import { flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
 import { buildInteractiveExport } from "./behavior/export";
 import { buildReactExport } from "./behavior/react-export";
 import { buildClipExport } from "./clipExport.ts";
 import { runLottieTask } from "./lottieTaskRunner";
+import { buildRasterExport } from "./raster/rasterExport";
 
 function lottieOptions(state, options) {
   return lottieOptionsSchema.parse({
@@ -176,8 +178,12 @@ export async function exportProject(state, options, task = {}) {
     if (!response.ok) throw new Error("Mascote indisponível.");
     demo = await response.text();
   }
-  const { content, extension, type } =
-    options.format === "lottie"
+  const raster = RASTER_FORMATS.includes(options.format);
+  if (raster && options.raster?.format !== options.format)
+    throw new Error("Opções de imagem/vídeo ausentes ou de outro formato.");
+  const { content, extension, type } = raster
+    ? await buildRasterExport(snapshot(captured), options.raster, task)
+    : options.format === "lottie"
       ? await runLottieTask(
           snapshot(captured),
           lottieOptions(captured, options),
@@ -202,6 +208,8 @@ export async function exportProject(state, options, task = {}) {
         : buildExport(captured, options, demo, runtimeSource);
   if (task.signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
   if (globalThis.window?.desktop) {
+    // Images and video cross IPC as bytes; base64 stays only for the bounded React ZIP.
+    if (raster) return window.desktop.exportFile({ extension, bytes: content, encoding: "binary" });
     if (content instanceof Uint8Array) {
       let binary = "";
       for (let offset = 0; offset < content.length; offset += 32768)

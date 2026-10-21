@@ -5,8 +5,12 @@ import {
   objectTransformPatchSchema,
 } from "@informach/edi-motion";
 import { imageSliceSchema } from "@informach/edi-motion/assets";
-import { gradientPaintsSchema, vectorEffectsSchema } from "@informach/edi-motion/graphics";
-import { semanticSchema } from "@informach/edi-motion/visual";
+import {
+  filterSchema,
+  gradientPaintsSchema,
+  vectorEffectsSchema,
+} from "@informach/edi-motion/graphics";
+import { imageMeshSchema, semanticSchema, textPathSchema } from "@informach/edi-motion/visual";
 import { z } from "zod";
 import { applyAnimationDependencies } from "./animationDependencies";
 import { animationKeysCommandSchema, applyAnimationKeys } from "./animationKeys";
@@ -59,6 +63,21 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
   z.strictObject({ ...sceneFields, operation: z.literal("text-layout"), value: textLayoutSchema }),
   z.strictObject({
     ...sceneFields,
+    operation: z.literal("text-direction"),
+    value: z.enum(["auto", "ltr", "rtl"]),
+  }),
+  z.strictObject({
+    ...sceneFields,
+    operation: z.literal("text-path"),
+    value: textPathSchema.nullable(),
+  }),
+  z.strictObject({
+    ...sceneFields,
+    operation: z.literal("image-mesh"),
+    value: imageMeshSchema.nullable(),
+  }),
+  z.strictObject({
+    ...sceneFields,
     operation: z.literal("semantics"),
     value: semanticSchema.nullable(),
   }),
@@ -77,6 +96,11 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
     ...sceneFields,
     operation: z.literal("gradients"),
     value: gradientPaintsSchema.nullable(),
+  }),
+  z.strictObject({
+    ...sceneFields,
+    operation: z.literal("filter"),
+    value: filterSchema.nullable(),
   }),
   z.strictObject({
     ...sceneFields,
@@ -273,6 +297,17 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
           project.motion.animations
             .find((clip) => clip.id === operation.animationId)
             ?.tracks.map((track) => track.targetId) ?? [];
+      if (operation.type === "set-draw-order")
+        touched = [...operation.order, ...(operation.scopeId ? [operation.scopeId] : [])];
+      if (operation.type === "delete-draw-order-key") {
+        const drawOrder = project.motion.animations
+          .find((clip) => clip.id === operation.animationId)
+          ?.drawOrders?.find((item) => item.id === operation.drawOrderId);
+        touched = [
+          ...(drawOrder?.scopeId ? [drawOrder.scopeId] : []),
+          ...(drawOrder?.keys.find((key) => key.frame === operation.frame)?.order ?? []),
+        ];
+      }
       if (operation.type === "delete-key" || operation.type === "update-key") {
         const track = project.motion.animations
           .find((clip) => clip.id === operation.animationId)

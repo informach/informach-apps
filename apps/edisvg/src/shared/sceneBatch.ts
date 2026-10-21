@@ -1,6 +1,7 @@
 import { type Motion, objectIdSchema, objectTransformPatchSchema } from "@informach/edi-motion";
 import { remapVectorEffects } from "@informach/edi-motion/graphics";
 import { z } from "zod";
+import { cloneDrawOrders, pruneDrawOrders } from "./drawOrders";
 import { assertRigCloneClosure, cloneRigRelationships, type RigRelationships } from "./rigClone";
 import { flattenScene } from "./scene.js";
 import { cloneMotionTargets, cloneSubtree } from "./sceneClone";
@@ -90,6 +91,7 @@ export function applySceneBatch(
     }
     for (const clip of motion.animations)
       clip.tracks = clip.tracks.filter((track) => !removed.has(track.targetId));
+    pruneDrawOrders(motion, removed);
     return [];
   }
   if (command.operation === "duplicate") {
@@ -114,6 +116,7 @@ export function applySceneBatch(
       if (node.effects)
         node.effects = remapVectorEffects(node.effects, (id) => mapping.get(id) ?? id);
     cloneMotionTargets(motion, mapping);
+    cloneDrawOrders(motion, mapping);
     cloneRigRelationships(relationships, mapping);
     return copies;
   }

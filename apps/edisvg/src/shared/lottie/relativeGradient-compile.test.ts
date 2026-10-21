@@ -6,6 +6,7 @@ import {
 } from "../../../tests/lottieBoxGradientFixture";
 import { compileLottie } from "./compile";
 import type { ShapeElement } from "./model";
+import { shapeLayers } from "./model";
 import { inspectLottieCompatibility, prepareLottie } from "./prepare";
 
 function elements(shapes: readonly ShapeElement[]): ShapeElement[] {
@@ -24,7 +25,7 @@ test("relative paint emits real sampled Lottie coordinates/opacity after morph a
         confirmSampling: true,
         confirmRendererPrecision: true,
       }),
-      shapes = elements(output.document.layers[0]?.shapes ?? []),
+      shapes = elements(shapeLayers(output.document)[0]?.shapes ?? []),
       paint = shapes.find((shape) => shape.ty === "gf");
     assert.ok(paint?.ty === "gf");
     assert.equal(paint.g.p, 3);

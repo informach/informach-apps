@@ -6,7 +6,7 @@ import {
   type RigEvaluationBudget,
   type RigObject,
 } from "./kinematics";
-import type { RigDocument, RigSkin } from "./model";
+import { deformable, type RigDocument, type RigSkin } from "./model";
 
 /** Capture reference matrices and deterministic inverse-square weights of
  * the four nearest bone segments. This is geometry, not an AI inference. */
@@ -20,8 +20,8 @@ export function captureSkin(
   const source = objects.get(targetId),
     frame = createKinematics(objects, new Map());
   if (
-    source?.tag !== "path" ||
-    !source.geometry ||
+    !deformable(source) ||
+    !source?.geometry ||
     !boneIds.length ||
     new Set(boneIds).size !== boneIds.length
   )

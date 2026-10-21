@@ -1,11 +1,21 @@
 import { svgPrimitiveAttributes } from "@informach/edi-motion/geometry";
 import { identity, svgAttributes, validAttributes, validateScene } from "../../shared/scene.js";
 import { createSvgEffectCatalog } from "./svg-effect-definitions";
+import { createSvgFilterCatalog } from "./svg-filters";
 import { createSvgGradientCatalog } from "./svg-gradients";
 import { parseSvgInlineStyle } from "./svg-inline-style";
+import { createSvgPatternCatalog } from "./svg-patterns";
 import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics";
+import { createSvgTextPathCatalog } from "./svg-text-paths";
+import { expandSvgUses } from "./svg-use-expansion";
 export const SVG_SOURCE_BYTES = 1500000;
-const importAttributes = new Set([...svgAttributes, "clip-path", "mask"]);
+const LOCAL_PAINT = /^url\(\s*(['"]?)#([A-Za-z_][\w.-]{0,119})\1\s*\)$/;
+const importAttributes = new Set([...svgAttributes, "clip-path", "mask", "filter"]);
+/** Inherited by filter resolution only (resolved into each typed filter), never stored. */
+const FILTER_SPACE = "color-interpolation-filters";
+const styleAttributes = new Set([...importAttributes, FILTER_SPACE]);
+/** Definitions validate their own properties; this reader only extracts the paint. */
+const definitionStyles = new Set([...styleAttributes, "mask-type"]);
 const allowed = new Set([
   "g",
   "path",
@@ -33,6 +43,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
     attributes = new Map(),
     paints = new Map(),
     effects = new Map(),
+    filters = new Map(),
     locations = new Map(),
     semantics = new Map(),
     descriptive = [];
@@ -82,9 +93,40 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
     return { scene: null, report: report() };
   }
   const metadata = new Set(["title", "desc", "metadata"]);
-  let gradients, semanticCatalog, effectCatalog;
+  let expansion;
+  try {
+    expansion = expandSvgUses(root);
+  } catch (error) {
+    issue("svg/use", error instanceof Error ? error.message : "Referência use inválida.");
+    return { scene: null, report: report() };
+  }
+  if (expansion.uses)
+    issue(
+      "svg/use",
+      `${expansion.uses} uso(s) de use/symbol viraram cópias editáveis independentes; editar uma cópia não altera as demais. Para reutilização viva, transforme a arte em componente.`,
+      "warning",
+    );
+  if (expansion.viewports)
+    issue(
+      "svg/symbol",
+      `${expansion.viewports} viewport(s) de symbol viraram recorte retangular editável.`,
+      "warning",
+    );
+  if (expansion.unusedSymbols)
+    issue(
+      "svg/symbol",
+      `${expansion.unusedSymbols} symbol(s) sem uso não aparecem no desenho e não foram importados.`,
+      "warning",
+    );
+  let gradients, patterns, filterCatalog, semanticCatalog, effectCatalog;
+  const textPathCatalog = createSvgTextPathCatalog(root),
+    textPaths = new Map();
   try {
     gradients = createSvgGradientCatalog(root);
+    patterns = createSvgPatternCatalog(root);
+    patterns.validateAll();
+    filterCatalog = createSvgFilterCatalog(root);
+    filterCatalog.validateAll();
     semanticCatalog = createSvgSemanticCatalog(root);
     effectCatalog = createSvgEffectCatalog(root);
   } catch (error) {
@@ -113,7 +155,13 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
       return;
     }
-    if (gradients.isDefinition(el) || effectCatalog.isDefinition(el)) return;
+    if (
+      gradients.isDefinition(el) ||
+      patterns.isDefinition(el) ||
+      filterCatalog.isDefinition(el) ||
+      effectCatalog.isDefinition(el)
+    )
+      return;
     if (
       !isRoot &&
       (!allowed.has(el.localName) ||
@@ -137,11 +185,19 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       issue(path, error instanceof Error ? error.message : "Semântica SVG inválida.");
     }
     const attributeValue = (dest, typed, key, value) => {
-      if (key === "clip-path" || key === "mask") {
+      if (key === FILTER_SPACE) {
+        if (!["auto", "sRGB", "linearRGB", "inherit"].includes(value.trim()))
+          throw new Error("color-interpolation-filters fora do perfil.");
+      } else if (key === "clip-path" || key === "mask") {
         typed[key === "clip-path" ? "clip" : "mask"] = effectCatalog.reference(value);
         delete dest[key];
+      } else if (key === "filter") {
+        typed.filter = filterCatalog.reference(value);
+        delete dest[key];
       } else if (["fill", "stroke"].includes(key) && /^url\s*\(/i.test(value)) {
-        typed[key] = gradients.paint(value);
+        const local = LOCAL_PAINT.exec(value.trim())?.[2];
+        typed[key] =
+          local && patterns.has(local) ? patterns.resolve(local) : gradients.paint(value);
         delete dest[key];
       } else {
         Object.assign(dest, validAttributes({ [key]: value }));
@@ -161,7 +217,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         try {
           for (const { name: key, value, apply } of parseSvgInlineStyle(
             attribute.value,
-            importAttributes,
+            styleAttributes,
           )) {
             if (!apply) {
               attributeValue({}, {}, key, value);
@@ -173,7 +229,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         } catch (error) {
           issue(path, error instanceof Error ? error.message : "Estilo inválido.");
         }
-      } else if (importAttributes.has(name)) {
+      } else if (importAttributes.has(name) || name === FILTER_SPACE) {
         try {
           attributeValue(result, localPaints, name, attribute.value);
         } catch (error) {
@@ -198,14 +254,37 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       });
     if (combined.clip || combined.mask)
       effects.set(el, { clip: combined.clip, mask: combined.mask });
+    if (combined.filter) filters.set(el, combined.filter);
+    // A text on a path is read whole: its textPath child is content, not art.
+    if (textPathCatalog.owns(el)) {
+      try {
+        textPaths.set(el, textPathCatalog.read(el));
+      } catch (error) {
+        issue(path, error instanceof Error ? error.message : "Texto em caminho inválido.");
+      }
+      return;
+    }
     let index = 0;
     for (const child of el.children)
       walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
   }
   walk(root, "svg", 0, true);
+  const definitionPaint = (element) => {
+    const result = {};
+    for (const channel of ["fill", "stroke"]) {
+      const value =
+        parseSvgInlineStyle(element.getAttribute("style") ?? "", definitionStyles)
+          .filter((declaration) => declaration.apply && declaration.name === channel)
+          .at(-1)?.value ?? element.getAttribute(channel);
+      const local = value ? LOCAL_PAINT.exec(value.trim())?.[2] : undefined;
+      if (local)
+        result[channel] = patterns.has(local) ? patterns.resolve(local) : gradients.resolve(local);
+    }
+    return result.fill || result.stroke ? result : undefined;
+  };
   const readPresentation = (element) => ({
     attrs: attributes.get(element) ?? {},
-    gradients: paints.get(element),
+    gradients: attributes.has(element) ? paints.get(element) : definitionPaint(element),
   });
   try {
     for (const definition of effectCatalog.validateAll(readPresentation))
@@ -313,9 +392,23 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
               ? svgPrimitiveAttributes(definition.nativeShape)
               : { d: definition.d }),
             transform: `matrix(${definition.matrix.join(" ")})`,
-            fill: "#ffffff",
-            stroke: "none",
+            ...(definition.painted
+              ? {
+                  // SVG initial values, explicit: mask content inherits from the <mask>, never
+                  // from the group this hidden source is placed in.
+                  fill: "#000000",
+                  "fill-opacity": "1",
+                  stroke: "none",
+                  "stroke-width": "1",
+                  "stroke-opacity": "1",
+                  "stroke-linecap": "butt",
+                  "stroke-linejoin": "miter",
+                  "stroke-dasharray": "none",
+                  ...definition.painted.attrs,
+                }
+              : { fill: "#ffffff", stroke: "none" }),
           },
+          ...(definition.painted?.gradients ? { gradients: definition.painted.gradients } : {}),
           text: "",
           transform: { ...identity(), opacity: definition.sourceOpacity },
           visible: false,
@@ -326,6 +419,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
           sourceId,
           rule: definition.rule,
           ...(kind === "mask" ? { opacity: definition.opacity } : {}),
+          ...(kind === "mask" && definition.painted ? { mode: definition.painted.mode } : {}),
         };
       }
       node.effects = typed;
@@ -340,19 +434,28 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       if (
         metadata.has(el.localName) ||
         gradients.isDefinition(el) ||
+        patterns.isDefinition(el) ||
+        filterCatalog.isDefinition(el) ||
         effectCatalog.isDefinition(el)
       )
         return null;
       reserveNode();
       const node = {
         id: `node-${crypto.randomUUID()}`,
-        name: (el.getAttribute("id") || `${el.localName} ${++number}`).slice(0, 120),
+        name: (
+          el.getAttribute("id") ||
+          expansion.names.get(el) ||
+          `${el.localName} ${++number}`
+        ).slice(0, 120),
         tag: el.localName,
         attrs: attributes.get(el) ?? {},
         ...(paints.has(el) ? { gradients: paints.get(el) } : {}),
+        ...(filters.has(el) ? { filter: filters.get(el) } : {}),
         ...(semantics.has(el) ? { semantics: semantics.get(el) } : {}),
-        text:
-          el.localName === "text"
+        ...(textPaths.has(el) ? { textPath: textPaths.get(el).textPath } : {}),
+        text: textPaths.has(el)
+          ? textPaths.get(el).text
+          : el.localName === "text"
             ? [...el.childNodes]
                 .filter((child) => child.nodeType === 3 || child.nodeType === 4)
                 .map((child) => child.textContent ?? "")
@@ -363,16 +466,18 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         locked: false,
         children: [],
       };
-      for (const child of el.children) {
-        const parsed = convert(child);
-        if (parsed) node.children.push(parsed);
-      }
+      if (!textPaths.has(el))
+        for (const child of el.children) {
+          const parsed = convert(child);
+          if (parsed) node.children.push(parsed);
+        }
       return attachEffects(node, el);
     }
     const rootAttrs = attributes.get(root) ?? {},
       rootCarrier =
         Object.keys(rootAttrs).length ||
         paints.has(root) ||
+        filters.has(root) ||
         semantics.has(root) ||
         effects.has(root);
     if (rootCarrier) reserveNode();
@@ -390,6 +495,7 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
                 tag: "g",
                 attrs: rootAttrs,
                 ...(paints.has(root) ? { gradients: paints.get(root) } : {}),
+                ...(filters.has(root) ? { filter: filters.get(root) } : {}),
                 ...(semantics.has(root) ? { semantics: semantics.get(root) } : {}),
                 children: nodes,
                 transform: identity(),

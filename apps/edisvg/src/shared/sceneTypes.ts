@@ -1,7 +1,7 @@
 import type { Affine, Transform } from "@informach/edi-motion";
 import type { ImageSlice } from "@informach/edi-motion/assets";
-import type { GradientPaints, VectorEffects } from "@informach/edi-motion/graphics";
-import type { SemanticMetadata } from "@informach/edi-motion/visual";
+import type { Filter, GradientPaints, VectorEffects } from "@informach/edi-motion/graphics";
+import type { ImageMesh, SemanticMetadata, TextPath } from "@informach/edi-motion/visual";
 import type { AppearanceStyle } from "./appearanceContracts";
 import type { ComponentInstance } from "./componentContracts";
 import type { TextLayout } from "./textLayout";
@@ -23,6 +23,7 @@ export interface SceneNode {
   assetId?: string;
   imageSlice?: ImageSlice;
   gradients?: GradientPaints;
+  filter?: Filter;
   effects?: VectorEffects;
   fontAssetId?: string;
   fontFallbackIds?: string[];
@@ -36,6 +37,12 @@ export interface SceneNode {
   basis?: Affine;
   instance?: ComponentInstance;
   textLayout?: TextLayout;
+  /** Base direction resolved from the text (first strong character). */
+  textDirection?: "auto";
+  /** Own curve in the text's local space; a single line follows it. */
+  textPath?: TextPath;
+  /** Triangulated grid that lets the rig deform a raster image. */
+  imageMesh?: ImageMesh;
   semantics?: SemanticMetadata;
 }
 export interface Scene {

@@ -2,6 +2,7 @@ import { resolveFontStack } from "../assets/fontStack";
 import { geometryPath } from "../geometry";
 import type { InteractiveDocument } from "../interactiveDocument";
 import { parseSvgPath } from "../svgPath";
+import { imageMeshRest } from "./imageMesh";
 import { type SemanticNode, validateSemanticInteractions } from "./semantics";
 
 /** Validate the assembled portable graph, not only each local logic scope.
@@ -31,6 +32,15 @@ export function validateVisualDocument(document: InteractiveDocument) {
         throw new Error("Conteúdo portátil requer metadados visuais e hierarquia local completa.");
       if (object.visual.textLayout && object.tag !== "text")
         throw new Error("Layout textual requer texto.");
+      if (
+        object.visual.textDirection &&
+        (object.tag !== "text" || object.visual.attrs.direction !== undefined)
+      )
+        throw new Error("Direção automática requer texto sem direção explícita.");
+      if (object.textDirection !== object.visual.textDirection)
+        throw new Error("Direção portátil não corresponde ao conteúdo.");
+      if (object.visual.textPath && (object.tag !== "text" || object.visual.textLayout))
+        throw new Error("Texto em caminho requer texto de uma linha.");
       const path = object.visual.attrs.d;
       if (path !== undefined && object.tag !== "path")
         throw new Error("Dados de caminho requerem path.");
@@ -58,6 +68,13 @@ export function validateVisualDocument(document: InteractiveDocument) {
             object.imageSlice.source.height !== asset.height)
         )
           throw new Error("Nine-slice portátil não corresponde à imagem real.");
+        // The mesh's spatial geometry is exactly its rest grid over the image box.
+        if (
+          object.imageMesh &&
+          geometryPath(spatial.get(object.id)?.geometry ?? []) !==
+            geometryPath(imageMeshRest(object.imageMesh, object.visual.attrs))
+        )
+          throw new Error("Malha raster portátil não corresponde à grade da imagem.");
       }
       resolveFontStack(assets, object);
       hierarchy.set(object.id, { parentId: object.parentId ?? viewportId, tag: object.tag });

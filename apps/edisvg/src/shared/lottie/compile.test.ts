@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { lottieFixture } from "../../../tests/lottieFixture";
 import { editScene } from "../scene.js";
 import { compileLottie, LottieExportError } from "./compile";
+import { shapeLayers } from "./model";
 
 test("Lottie compilation requires explicit conversion consents and leaves the source unchanged", () => {
   const fixture = lottieFixture(),
@@ -76,7 +77,7 @@ test("Lottie stores static geometry compactly, includes once's endpoint, and ref
     confirmRendererPrecision: true,
   });
   assert.equal(output.document.op, 31);
-  const group = output.document.layers[0]?.shapes[0];
+  const group = shapeLayers(output.document)[0]?.shapes[0];
   assert.ok(group?.ty === "gr");
   const path = group.it.find((element) => element.ty === "sh");
   assert.ok(path?.ty === "sh");

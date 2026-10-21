@@ -42,7 +42,7 @@ const schema = z.strictObject({
       layerId: z.string().max(120).optional(),
       stateId: z.string().max(120).optional(),
       transitionId: z.string().max(120).optional(),
-      dataTab: z.enum(["bindings", "listeners", "events"]).optional(),
+      dataTab: z.enum(["bindings", "listeners", "events", "formulas"]).optional(),
       modelData: z
         .strictObject({
           modelId: z.string().max(120).optional(),

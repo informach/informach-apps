@@ -8,6 +8,7 @@ import {
   transformMatrix,
 } from "@informach/edi-motion";
 import { z } from "zod";
+import { drawOrderReferences } from "./drawOrders";
 import { inheritedGradientPaints } from "./paintAttributes";
 import { flattenScene, identity } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
@@ -105,6 +106,10 @@ function relocate(
     siblings.splice(Math.min(index, siblings.length), 0, entry.node);
     return;
   }
+  if (drawOrderReferences(motion).has(id))
+    throw new Error(
+      "O objeto está numa ordem de desenho animada do grupo atual. Remova as chaves de ordem antes de mudá-lo de grupo.",
+    );
   let common = 0;
   while (common < before.length && before[common]?.id === after[common]?.id) common++;
   const changedSpaces = [...before.slice(common), ...after.slice(common)];
@@ -213,6 +218,11 @@ export function applyComposition(scene: Scene, motion: Motion, command: Command)
     if (!first) throw new Error("Selecione objetos para agrupar.");
     if (entries.some((entry) => entry.parentId !== first.parentId))
       throw new Error("Agrupe objetos do mesmo nível da hierarquia.");
+    const stacked = drawOrderReferences(motion);
+    if (command.targetIds.some((id) => stacked.has(id)))
+      throw new Error(
+        "A seleção está numa ordem de desenho animada. Remova as chaves de ordem antes de agrupar.",
+      );
     const siblings = listAt(scene, first.parentId),
       indices = entries.map(({ node }) => siblings.indexOf(node)).sort((a, b) => a - b);
     const start = indices[0];
@@ -250,6 +260,10 @@ export function applyComposition(scene: Scene, motion: Motion, command: Command)
     motion.animations.some((clip) => clip.tracks.some((track) => track.targetId === entry.node.id))
   )
     throw new Error("O grupo possui animação própria. Desagrupar removeria essas trilhas.");
+  if (drawOrderReferences(motion).has(entry.node.id))
+    throw new Error(
+      "O grupo participa de uma ordem de desenho animada. Remova as chaves de ordem antes de desagrupar.",
+    );
   const children = [...entry.node.children],
     siblings = listAt(scene, entry.parentId),
     start = siblings.indexOf(entry.node);

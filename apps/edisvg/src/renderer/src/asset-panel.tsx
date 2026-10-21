@@ -75,13 +75,13 @@ function AssetPanel({ assets, importNative, execute, selectedTextId, board }: Pr
       <h3>RECURSOS DO PROJETO</h3>
       <p className="micro">
         {assets.length}/256 recursos · {(size / 1000000).toFixed(2)}/{CATALOG_BYTES / 1000000} MB.
-        PNG estático, WAV PCM16 (até 30 s) e fontes TTF/OTF de face única. Fontes precisam de
-        confirmação de direitos; WOFF2/coleções não são aceitos neste perfil.
+        PNG estático, WAV PCM16 (até 30 s) e fontes TTF/OTF, WOFF ou uma face de coleção TTC/OTC
+        (até 4 MB). Fontes precisam de confirmação de direitos; WOFF2 não está neste perfil.
       </p>
       <input
         ref={file}
         type="file"
-        accept=".png,.wav,.ttf,.otf"
+        accept=".png,.wav,.ttf,.otf,.woff,.ttc,.otc"
         aria-label="Arquivo de recurso"
         hidden
         onChange={(event) => {
@@ -109,6 +109,34 @@ function AssetPanel({ assets, importNative, execute, selectedTextId, board }: Pr
       {pending && (
         <section aria-label="Confirmar conversão">
           <p>{pending.conversion}</p>
+          {pending.kind === "font" && pending.collection && (
+            <label>
+              Face da coleção
+              <select
+                aria-label="Face da coleção"
+                value={pending.collection.face}
+                disabled={busy}
+                onChange={(event) => {
+                  const collection = pending.collection,
+                    face = Number(event.target.value);
+                  if (!collection) return;
+                  void run(async (signal) => {
+                    setPending(
+                      await prepareAssetImport(collection.source, collection.name, signal, face),
+                    );
+                    setRights(false);
+                  });
+                }}
+              >
+                {pending.collection.faces.map((face) => (
+                  <option key={face.index} value={face.index}>
+                    {face.family} · {face.weight}
+                    {face.italic ? " itálico" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {pending.kind === "font" && (
             <>
               <details>

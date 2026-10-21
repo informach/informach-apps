@@ -20,8 +20,12 @@ import {
 import { dispatchBehaviorListeners } from "./behavior/listeners";
 import type { InputValue } from "./behavior/model";
 import { resolveDataPath } from "./data";
+import { drawOrderScopes } from "./drawOrder";
+import { createDrawOrderBinding } from "./drawOrderDom";
 import { type FrameLoopOptions, type FramePolicy, ownerWindow } from "./frameLoop";
 import { type Geometry, geometryCost, geometryPath } from "./geometry";
+import { type EffectPaint, effectSourcePaints, inheritedEffectPaint } from "./graphics/effectPaint";
+import { filterAttributes } from "./graphics/filters";
 import { validateSvgGradients } from "./graphics/gradientDom";
 import { gradientAttributes } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
@@ -41,6 +45,10 @@ import { documentFontIds, hasLoadedFont, loadDocumentFonts } from "./runtimeFont
 import { createSceneClock, type SceneClock, type ScopeLoop } from "./sceneClock";
 import { describeVisualDocument } from "./visual/document";
 import { prepareVisualMount } from "./visual/dom";
+import { imageMeshRest } from "./visual/imageMesh";
+import { createImageMeshBinding } from "./visual/imageMeshDom";
+import { resolveTextDirection } from "./visual/textDirection";
+import { type TextPath, textPathId } from "./visual/textPath";
 
 export interface InteractivePlayerOptions extends FrameLoopOptions {
   audioContext?: AudioContext | OfflineAudioContext;
@@ -67,6 +75,7 @@ function createInteractiveScope(
   speed: number,
   initialBudget: RigEvaluationBudget,
   resources: ReadonlyMap<string, Asset>,
+  inheritedPaint: EffectPaint,
 ) {
   const view = ownerWindow(root);
   const audioBindings = new Map<string, AudioBinding[]>();
@@ -85,7 +94,8 @@ function createInteractiveScope(
       document.playback.objects.map((object) => {
         const details = content.get(object.id);
         if (!details) throw new Error("Conteúdo ausente.");
-        return [object.id, { ...object, tag: details.tag }];
+        // Semantic bindings validate against the authored accessible name/description.
+        return [object.id, { ...object, tag: details.tag, semantics: details.semantics }];
       }),
     ),
     authored = new Map(
@@ -118,6 +128,19 @@ function createInteractiveScope(
           object.effects ? [[object.id, object.effects] as const] : [],
         ),
       ),
+    ),
+    effectSourcePaints(
+      document.content.map((object) => ({
+        ...object,
+        parentId: object.parentId ?? null,
+        attrs: object.visual?.attrs,
+      })),
+      new Map(
+        document.content.flatMap((object) =>
+          object.effects ? [[object.id, object.effects] as const] : [],
+        ),
+      ),
+      inheritedPaint,
     ),
   );
   const context = createBehaviorContext(
@@ -210,8 +233,37 @@ function createInteractiveScope(
       baseD: string | null | undefined;
       x: string;
       lineHeight?: number;
+      autoDirection: boolean;
+      /** The element whose text a binding replaces (the textPath, on a curve). */
+      textTarget: Element;
+      /** Authored accessible name/description, restored when no binding writes them. */
+      baseLabel: string | null;
+      description: Element | null;
+      baseDescription: string | null;
     }
   >();
+  // Component viewports share the definitions of the outermost scene SVG.
+  function outermost(svg: SVGSVGElement) {
+    let current = svg;
+    while (current.ownerSVGElement) current = current.ownerSVGElement;
+    return current;
+  }
+  /** Host markup must carry the typed curve exactly, under its generated ID. */
+  function textPathElement(shape: Element, id: string, textPath: TextPath) {
+    const element = shape.firstElementChild,
+      curve = outermost(root).querySelector(`path[id="${textPathId(id)}"]`);
+    if (
+      shape.children.length !== 1 ||
+      element?.localName !== "textPath" ||
+      element.getAttribute("href") !== `#${textPathId(id)}` ||
+      element.getAttribute("startOffset") !== `${textPath.startOffset}%` ||
+      !curve ||
+      curve.getAttribute("d") !== textPath.d
+    )
+      throw new Error("SVG não corresponde ao texto em caminho tipado.");
+    return element;
+  }
+  const meshes = new Map<string, ReturnType<typeof createImageMeshBinding>>();
   const childIds = new Set<string>();
   function collectChildren(document: InteractiveDocument) {
     for (const component of document.components ?? []) {
@@ -229,7 +281,12 @@ function createInteractiveScope(
       !(shape instanceof view.SVGGraphicsElement) ||
       !id ||
       elements.has(id) ||
-      shape.localName !== (content.get(id)?.tag === "image" ? "svg" : content.get(id)?.tag)
+      shape.localName !==
+        (content.get(id)?.tag === "image"
+          ? content.get(id)?.imageMesh
+            ? "g"
+            : "svg"
+          : content.get(id)?.tag)
     )
       throw new Error("SVG incompatível com o conteúdo interativo.");
     const details = content.get(id);
@@ -243,10 +300,13 @@ function createInteractiveScope(
     for (const [name, value] of Object.entries(gradientAttributes(details.gradients)))
       if (shape.getAttribute(name) !== value)
         throw new Error("Pintura SVG não corresponde ao gradiente tipado.");
+    if (shape.getAttribute("filter") !== (filterAttributes(details.filter).filter ?? null))
+      throw new Error("SVG não corresponde ao filtro tipado.");
     if (
       details.tag === "image" &&
       (shape.getAttribute("data-edi-image") !== details.assetId ||
         (!details.imageSlice &&
+          !details.imageMesh &&
           (shape.children.length !== 1 ||
             shape.firstElementChild?.localName !== "use" ||
             shape.firstElementChild.getAttribute("href") !== `#edi-${details.assetId}`)))
@@ -257,6 +317,20 @@ function createInteractiveScope(
         throw new Error("Nine-slice requer viewport SVG.");
       createSlicedImageBinding(shape, details.imageSlice).destroy();
     }
+    if (details.imageMesh) {
+      const asset = details.assetId ? resources.get(details.assetId) : undefined;
+      if (asset?.kind !== "image" || !details.visual)
+        throw new Error("Malha raster requer recurso de imagem e conteúdo visual.");
+      meshes.set(
+        id,
+        createImageMeshBinding(
+          shape,
+          details.imageMesh,
+          asset,
+          imageMeshRest(details.imageMesh, details.visual.attrs),
+        ),
+      );
+    }
     elements.set(id, {
       wrapper,
       shape,
@@ -266,10 +340,24 @@ function createInteractiveScope(
       baseD: shape.localName === "path" ? shape.getAttribute("d") : undefined,
       x: shape.getAttribute("x") ?? "0",
       lineHeight: details.lineHeight,
+      autoDirection: details.textDirection === "auto",
+      textTarget: details.visual?.textPath
+        ? textPathElement(shape, id, details.visual.textPath)
+        : shape,
+      baseLabel: wrapper.getAttribute("aria-label"),
+      description: wrapper.querySelector(":scope > desc"),
+      baseDescription: wrapper.querySelector(":scope > desc")?.textContent ?? null,
     });
   }
   if (elements.size !== objects.size) throw new Error("SVG interativo incompleto.");
   let effectBinding: ReturnType<typeof createVectorEffectBinding> | undefined;
+  const drawOrderBinding = createDrawOrderBinding(
+    new Map([...elements].map(([id, value]) => [id, value.wrapper])),
+    drawOrderScopes([
+      ...document.playback.motion.animations,
+      ...document.playback.drivers.map((driver) => driver.animation),
+    ]),
+  );
   let session = createBehaviorSession(context, options.machineId),
     frame = prepareFrame(evaluateBehavior(context, session), initialBudget),
     destroyed = false,
@@ -435,6 +523,7 @@ function createInteractiveScope(
       shown = {
         ...still,
         text: frame.text,
+        semantics: frame.semantics,
         colors: frame.colors,
         visibility: new Map([...frame.rawVisibility, ...still.rigVisibility]),
       };
@@ -448,9 +537,33 @@ function createInteractiveScope(
         text = shown.text.get(id),
         color = shown.colors.get(id),
         geometry = shown.geometry.get(id),
-        d = geometry ? geometryPath(geometry) : target.baseD;
-      const stamp = JSON.stringify([value, opacity, visible, text, color, d]);
+        mesh = meshes.get(id),
+        spoken = shown.semantics.get(id),
+        // A meshed image takes its deformed vertices; only paths take a d.
+        d = mesh ? undefined : geometry ? geometryPath(geometry) : target.baseD;
+      const stamp = JSON.stringify([
+        value,
+        opacity,
+        visible,
+        text,
+        color,
+        d,
+        mesh ? geometry && geometryPath(geometry) : undefined,
+        spoken,
+      ]);
       if (cache.get(id) === stamp) continue;
+      mesh?.paint(geometry);
+      // Bound names/descriptions; a live region announces them as they change.
+      const label = spoken?.label ?? target.baseLabel;
+      if (label !== null && target.wrapper.getAttribute("aria-label") !== label)
+        target.wrapper.setAttribute("aria-label", label);
+      const description = spoken?.description ?? target.baseDescription;
+      if (
+        target.description &&
+        description !== null &&
+        target.description.textContent !== description
+      )
+        target.description.textContent = description;
       target.wrapper.setAttribute("transform", value);
       target.wrapper.setAttribute("opacity", opacity);
       if (visible !== undefined)
@@ -464,7 +577,10 @@ function createInteractiveScope(
       }
       if (text !== undefined) {
         svgLayout?.invalidateGeometry();
-        if (target.lineHeight === undefined) target.shape.textContent = text;
+        // Dynamic text re-resolves its base direction, as authored text does.
+        if (target.autoDirection)
+          target.shape.setAttribute("direction", resolveTextDirection(text));
+        if (target.lineHeight === undefined) target.textTarget.textContent = text;
         else
           target.shape.replaceChildren(
             ...text
@@ -493,6 +609,7 @@ function createInteractiveScope(
       }
       cache.set(id, stamp);
     }
+    drawOrderBinding.paint(shown.orders);
     svgLayout?.paint(reduced);
     effectBinding?.paint(shown.effects);
   }
@@ -590,6 +707,7 @@ function createInteractiveScope(
     );
   } catch (error) {
     effectBinding?.destroy();
+    drawOrderBinding.destroy();
     svgLayout?.destroy();
     throw error;
   }
@@ -900,6 +1018,7 @@ function createInteractiveScope(
       loop.destroy();
       listeners.abort();
       effectBinding?.destroy();
+      drawOrderBinding.destroy();
       for (const restore of restores) restore();
       svgLayout?.destroy();
       subscribers.clear();
@@ -1010,6 +1129,7 @@ function createInteractiveSvgScene(
     document: InteractiveDocument,
     path: readonly string[],
     speed: number,
+    inheritedPaint: EffectPaint = {},
   ) {
     autoplay ||=
       !!document.behavior.machines.length ||
@@ -1059,6 +1179,7 @@ function createInteractiveSvgScene(
       speed,
       initialBudget,
       resources,
+      inheritedPaint,
     );
     players.set(JSON.stringify(path), player);
     cleanups.push(() => player.destroy());
@@ -1074,6 +1195,16 @@ function createInteractiveSvgScene(
         component.document,
         [...path, ...component.instancePath],
         speed * component.speed,
+        // The component renders inside this scope's viewport and its ancestors.
+        inheritedEffectPaint(
+          document.content.map((object) => ({
+            ...object,
+            parentId: object.parentId ?? null,
+            attrs: object.visual?.attrs,
+          })),
+          component.rootId,
+          inheritedPaint,
+        ),
       );
     }
     return player;

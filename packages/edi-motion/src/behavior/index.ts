@@ -12,6 +12,14 @@ export {
   writeBehaviorBinding,
 } from "./engine";
 export { type EventOccurrence, timelineEventsBetween } from "./events";
+export {
+  FORMULA_LIMITS,
+  type Formula,
+  type FormulaExpression,
+  formulaSchema,
+  formulaShape,
+} from "./formulas";
+export { formatFormula, parseFormulaText } from "./formulaText";
 export { dispatchBehaviorListeners } from "./listeners";
 export {
   type Behavior,
@@ -31,6 +39,7 @@ export {
   listenerSchema,
   machineSchema,
   parseBehavior,
+  semanticValue,
   stateSchema,
   type TimelineEvent,
   timelineEventSchema,

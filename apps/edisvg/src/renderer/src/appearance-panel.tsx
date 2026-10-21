@@ -63,8 +63,19 @@ function AppearancePanel({ scene, node, locked, execute }: Props) {
     <section>
       <h3>CORES E ESTILOS</h3>
       <p className="micro">
-        Efetivo: preenchimento {effectiveGradients.fill ? "gradiente" : effective.fill}, contorno{" "}
-        {effectiveGradients.stroke ? "gradiente" : effective.stroke}.{" "}
+        Efetivo: preenchimento{" "}
+        {effectiveGradients.fill
+          ? effectiveGradients.fill.kind === "pattern"
+            ? "padrão"
+            : "gradiente"
+          : effective.fill}
+        , contorno{" "}
+        {effectiveGradients.stroke
+          ? effectiveGradients.stroke.kind === "pattern"
+            ? "padrão"
+            : "gradiente"
+          : effective.stroke}
+        .{" "}
         {node.attrs.fill === undefined || node.attrs.fill === "inherit"
           ? "Preenchimento herdado."
           : "Preenchimento local."}{" "}

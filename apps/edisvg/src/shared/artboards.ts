@@ -2,6 +2,7 @@ import type { Motion } from "@informach/edi-motion";
 import { remapVectorEffects } from "@informach/edi-motion/graphics";
 import { remapRig } from "@informach/edi-motion/rig";
 import { z } from "zod";
+import { cloneDrawOrders, pruneDrawOrders } from "./drawOrders";
 import { artboardIdSchema } from "./identities";
 import type { Artboard } from "./project";
 import { flattenScene, validateScene } from "./scene.js";
@@ -110,6 +111,7 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
         });
       animation.tracks.push(...copies);
     }
+    cloneDrawOrders(document.motion, remapped, true);
     if (copy.behavior) {
       const map = (id: string) => {
         const target = remapped.get(id);
@@ -155,6 +157,7 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
   document.artboards = document.artboards.filter((item) => item !== board);
   for (const animation of document.motion.animations)
     animation.tracks = animation.tracks.filter((track) => !removed.has(track.targetId));
+  pruneDrawOrders(document.motion, removed);
   const fallback = document.artboards[0];
   if (!fallback) throw new Error("Prancheta de fallback ausente.");
   if (document.defaultArtboardId === board.id) document.defaultArtboardId = fallback.id;

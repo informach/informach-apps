@@ -10,6 +10,7 @@ import {
 import { pathFromNode } from "../pathGeometry.js";
 import { compileLottie } from "./compile";
 import type { ShapeElement } from "./model";
+import { shapeLayers } from "./model";
 import { inspectLottieCompatibility, prepareLottie } from "./prepare";
 
 test("paint-space hierarchy depth is refused by inspection before structural JSON overflow, not after recording output", () => {
@@ -103,7 +104,7 @@ test("maximum paint-space depth still exports animated morphology at the JSON de
   });
   assert.deepEqual(JSON.parse(result.content), result.document);
   assert.ok(
-    elements(result.document.layers[0]?.shapes ?? []).some(
+    elements(shapeLayers(result.document)[0]?.shapes ?? []).some(
       (shape) => shape.ty === "sh" && shape.ks.a === 1,
     ),
   );
@@ -125,7 +126,7 @@ test("typed gradient fills emit real gf styles in their local paint hierarchy, r
         confirmSampling: true,
         confirmRendererPrecision: true,
       }),
-      shapes = elements(output.document.layers[0]?.shapes ?? []),
+      shapes = elements(shapeLayers(output.document)[0]?.shapes ?? []),
       gradients = shapes.filter((shape) => shape.ty === "gf");
     assert.equal(
       gradients.length,

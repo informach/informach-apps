@@ -129,7 +129,8 @@ export function createSvgLayout(
   const identity = transformAttribute(identityTransform());
   const basePaths = new Map(
     document.playback.objects
-      .filter((object) => object.geometry)
+      // Meshed images also carry geometry, but only paths take a d.
+      .filter((object) => object.geometry && object.tag !== "image")
       .map((object) => [object.id, object.geometry ? geometryPath(object.geometry) : ""]),
   );
   const measure = () => {

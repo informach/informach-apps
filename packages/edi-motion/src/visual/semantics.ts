@@ -13,6 +13,8 @@ const labelled = {
     .max(2000)
     .refine((text) => !!text.trim() && isXmlText(text), "Descrição acessível inválida.")
     .optional(),
+  /** Live region: assistive technology is told about changes inside it. */
+  live: z.enum(["polite", "assertive"]).optional(),
 };
 /** Authored text, not arbitrary ARIA/HTML or generated global IDs. */
 export const semanticSchema = z.discriminatedUnion("kind", [
@@ -83,5 +85,6 @@ export function semanticAttributes(
           ? "button"
           : "group",
     "aria-label": metadata.label,
+    ...(interactive && metadata.live ? { "aria-live": metadata.live } : {}),
   };
 }

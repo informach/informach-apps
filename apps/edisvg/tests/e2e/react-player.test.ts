@@ -200,11 +200,14 @@ test("React 19 adapter survives StrictMode, updates callbacks/inputs without rec
       Reflect.set(window, "oldDocumentHandle", harness.handle());
       harness.replaceDocument(document);
     }, replacement);
+    // "Base" also appears when the old player restores its host, before the new one is ready:
+    // wait for the readiness itself, not for the restored text.
+    await page.waitForFunction(
+      (previous) => (window.reactHarness?.metrics().ready ?? 0) > previous,
+      readies ?? 0,
+    );
     await page.waitForFunction(
       () => document.querySelector("text")?.textContent?.trim() === "Base",
-    );
-    assert.ok(
-      (await page.evaluate(() => window.reactHarness?.metrics().ready ?? 0)) > (readies ?? 0),
     );
     await page.evaluate(() => {
       try {

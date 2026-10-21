@@ -187,6 +187,8 @@ export async function createNativeHarness(
         ...buildEnvironment,
         EDI_SUITE_TEST_PROFILE: suiteData,
         EDI_NATIVE_TEST: "true",
+        // native-vault.cjs refuses to start without the profile it owns before ready.
+        EDI_NATIVE_USER_DATA: userData,
         EDIAULA_USER_DATA: userData,
         EDIFOTO_USER_DATA: userData,
         EDIPDF_USER_DATA: userData,

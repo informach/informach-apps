@@ -363,7 +363,12 @@ else {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {
           defaultPath: app.getPath("documents"),
-          filters: [{ name: "Recursos PNG/WAV/TTF/OTF", extensions: ["png", "wav", "ttf", "otf"] }],
+          filters: [
+            {
+              name: "Recursos PNG/WAV/fontes",
+              extensions: ["png", "wav", "ttf", "otf", "woff", "ttc", "otc"],
+            },
+          ],
           properties: ["openFile", "dontAddToRecent"],
         });
         if (result.canceled) return null;

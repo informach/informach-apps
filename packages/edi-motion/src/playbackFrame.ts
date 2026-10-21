@@ -1,4 +1,5 @@
 import type { Affine } from "./affine";
+import { type DrawOrders, drawOrderCost, evaluatePlaybackDrawOrders } from "./drawOrder";
 import type { Animation, Transform } from "./model";
 import { evaluateParameters } from "./parameters";
 import { evaluateDrivers, evaluatePlayback, type PlaybackDocument } from "./playback";
@@ -69,8 +70,9 @@ function spendFrameBudget(
     1 +
     context.bases.size +
     context.parameters.definitions.size +
-    (animation ? trackCost(animation) : 0);
-  for (const driver of context.document.drivers) cost += 1 + trackCost(driver.animation);
+    (animation ? trackCost(animation) + drawOrderCost(animation) : 0);
+  for (const driver of context.document.drivers)
+    cost += 1 + trackCost(driver.animation) + drawOrderCost(driver.animation);
   for (const clip of [
     ...(animation ? [animation] : []),
     ...context.document.drivers.map((driver) => driver.animation),
@@ -107,6 +109,7 @@ export function evaluatePlaybackFrame(
       budget,
     ),
     budget,
+    evaluatePlaybackDrawOrders(animation, frame, frame / animation.fps, context.document.drivers),
   );
 }
 /** Static constraints/base geometry do not require a fabricated author clip. */
@@ -128,6 +131,7 @@ export function evaluatePlaybackStaticFrame(
       budget,
     ),
     budget,
+    evaluatePlaybackDrawOrders(undefined, 0, 0, context.document.drivers),
   );
 }
 function completeFrame(
@@ -136,8 +140,9 @@ function completeFrame(
   prefixes?: ReadonlyMap<string, Affine>,
   parameters?: ReadonlyMap<string, number>,
   budget?: RigEvaluationBudget,
+  orders: DrawOrders = new Map(),
 ) {
   const poses = new Map<string, Transform>();
   for (const [id, base] of context.bases) poses.set(id, { ...base, ...sampled.get(id) });
-  return applyPlaybackRigs(context.rigs, poses, budget, prefixes, parameters);
+  return { ...applyPlaybackRigs(context.rigs, poses, budget, prefixes, parameters), orders };
 }

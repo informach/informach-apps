@@ -20,6 +20,10 @@ const coordinate = z.number().min(-10000).max(10000),
   positive = z.number().min(0).max(100000),
   strength = z.number().min(0).max(1),
   id = z.string().regex(/^constraint-[\w-]{1,100}$/);
+/** Paths, and images whose mesh gives them vertex geometry. */
+export function deformable(object: { tag?: string; geometry?: unknown } | undefined) {
+  return object?.tag === "path" || (object?.tag === "image" && object.geometry !== undefined);
+}
 export const skinSchema = z.strictObject({
   id: z.string().regex(/^skin-[\w-]{1,100}$/),
   targetId: objectIdSchema,
@@ -432,8 +436,9 @@ export function parseRig(input: unknown, objects: ReadonlyMap<string, RigObject>
   }
   for (const morph of rig.morphs ?? []) {
     const object = objects.get(morph.targetId);
-    if (entities.has(morph.id) || object?.tag !== "path" || !object.geometry)
-      throw new Error("Morph requer ID único e geometria de caminho válida.");
+    // A meshed image exposes its grid vertices as geometry, like a path's anchors.
+    if (entities.has(morph.id) || !deformable(object) || !object?.geometry)
+      throw new Error("Morph requer ID único e geometria de caminho ou malha válida.");
     entities.add(morph.id);
     assertSameTopology(object.geometry, morph.geometry);
   }
@@ -530,7 +535,7 @@ export function parseRig(input: unknown, objects: ReadonlyMap<string, RigObject>
     if (
       entities.has(skin.id) ||
       skinOwners.has(skin.targetId) ||
-      object?.tag !== "path" ||
+      !deformable(object) ||
       !count ||
       count !== skin.weights.length ||
       bones.size !== skin.bones.length
@@ -573,9 +578,11 @@ export function parseRig(input: unknown, objects: ReadonlyMap<string, RigObject>
       throw new Error("Limites de distância invertidos.");
     if (
       constraint.kind === "path" &&
-      !objects.get(constraint.targetId)?.geometry?.[constraint.contour]
+      // A meshed image also has geometry (its grid), but it is not a path to follow.
+      (objects.get(constraint.targetId)?.tag !== "path" ||
+        !objects.get(constraint.targetId)?.geometry?.[constraint.contour])
     )
-      throw new Error("Seguir caminho requer geometria e contorno existentes.");
+      throw new Error("Seguir caminho requer um caminho com o contorno indicado.");
     if (constraint.kind === "path" && skinOwners.has(constraint.targetId))
       throw new Error(
         "Seguir caminho usa geometria estática/morph; malha dependente do pós-rig não é alvo suportado.",

@@ -1,15 +1,17 @@
 import { type Asset, assertTextCoverage, resolveFontStack } from "@informach/edi-motion/assets";
 import { useId, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { SceneNode } from "../../shared/sceneTypes";
+import type { Scene, SceneNode } from "../../shared/sceneTypes";
+import { textPathFromShape, textPathSources } from "../../shared/textPath";
 
 interface Props {
+  scene: Scene;
   node: SceneNode;
   locked: boolean;
   execute(commands: unknown[]): void;
   assets: Asset[];
 }
-function TextPanel({ node, locked, execute, assets }: Props) {
+function TextPanel({ scene, node, locked, execute, assets }: Props) {
   const id = useId(),
     [error, setError] = useState(""),
     [text, setText] = useState(node.text),
@@ -27,7 +29,7 @@ function TextPanel({ node, locked, execute, assets }: Props) {
             fontFallbackIds: fallback.map((row) => row.assetId),
           }),
           report = assertTextCoverage(text, stack);
-        return `Cobertura cmap verificada: ${report.graphemes} grupos de caracteres. Shaping/ligaturas dependem do motor da plataforma.`;
+        return `Cobertura cmap verificada: ${report.graphemes} grupos de caracteres. Scripts que exigem formas contextuais (árabe, índicos e outros) têm suporte OpenType declarado na fonte; o shaping em si é feito pelo motor da plataforma.`;
       } catch (error) {
         return error instanceof Error
           ? error.message
@@ -56,12 +58,17 @@ function TextPanel({ node, locked, execute, assets }: Props) {
                 targetId: node.id,
               },
               { type: "scene", operation: "text", targetId: node.id, value: text },
-              {
-                type: "scene",
-                operation: "text-layout",
-                targetId: node.id,
-                value: { lineHeight: Number(value("lineHeight")) },
-              },
+              // A text on a curve has one line; its layout stays out of the request.
+              ...(node.textPath
+                ? []
+                : [
+                    {
+                      type: "scene",
+                      operation: "text-layout",
+                      targetId: node.id,
+                      value: { lineHeight: Number(value("lineHeight")) },
+                    },
+                  ]),
               {
                 type: "scene",
                 operation: "attrs",
@@ -75,9 +82,14 @@ function TextPanel({ node, locked, execute, assets }: Props) {
                     "text-anchor",
                     "letter-spacing",
                     "word-spacing",
-                    "direction",
                   ].map((key) => [key, value(key)]),
                 ),
+              },
+              {
+                type: "scene",
+                operation: "text-direction",
+                targetId: node.id,
+                value: value("direction"),
               },
             ]);
           } catch (error) {
@@ -272,7 +284,11 @@ function TextPanel({ node, locked, execute, assets }: Props) {
           </label>
           <label className="scene-field">
             Direção
-            <select name="direction" defaultValue={node.attrs.direction ?? "ltr"}>
+            <select
+              name="direction"
+              defaultValue={node.textDirection ?? node.attrs.direction ?? "ltr"}
+            >
+              <option value="auto">Automática (primeiro caractere forte)</option>
               <option value="ltr">Esquerda para direita</option>
               <option value="rtl">Direita para esquerda</option>
             </select>
@@ -301,31 +317,104 @@ function TextPanel({ node, locked, execute, assets }: Props) {
               defaultValue={node.attrs["word-spacing"] ?? "0"}
             />
           </label>
-          <label className="scene-field">
-            Altura de linha (em)
-            <input
-              name="lineHeight"
-              type="number"
-              required
-              min=".25"
-              max="10"
-              step="any"
-              defaultValue={node.textLayout?.lineHeight ?? 1.2}
-            />
-          </label>
+          {node.textPath ? null : (
+            <label className="scene-field">
+              Altura de linha (em)
+              <input
+                name="lineHeight"
+                type="number"
+                required
+                min=".25"
+                max="10"
+                step="any"
+                defaultValue={node.textLayout?.lineHeight ?? 1.2}
+              />
+            </label>
+          )}
           <button type="submit">Aplicar texto</button>
         </fieldset>
         <p role="status">{error}</p>
         <p className="micro">
           Enter cria linhas explícitas. Texto permanece editável no player; shaping e escrita
-          bidirecional usam o motor SVG da plataforma. Fontes TTF/OTF incorporadas são carregadas
-          antes de Testar/exportar; isso ainda não comprova cobertura de todos os glifos. Sem uma
-          fonte incorporada, a família depende do sistema do consumidor. A cadeia verifica cobertura
-          cmap do grupo inteiro; ausência impede os novos testes/exports portáteis até ajuste.
-          Wrapping automático, texto em caminho e contornos seguem em evolução.
+          bidirecional usam o motor SVG da plataforma. A direção automática segue o primeiro
+          caractere forte do texto, também quando ele muda por dados. Fontes TTF/OTF incorporadas
+          são carregadas antes de Testar/exportar. Sem uma fonte incorporada, a família depende do
+          sistema do consumidor. A cadeia verifica a cobertura cmap do grupo inteiro e, para scripts
+          com formas contextuais, se a fonte declara o script no GSUB; uma falha impede os novos
+          testes/exports portáteis até ajuste. Wrapping automático e contornos seguem em evolução.
         </p>
       </form>
+      <TextPathForm scene={scene} node={node} locked={locked} execute={execute} />
     </section>
+  );
+}
+/** Lays the text along its own copy of a sibling shape's outline. */
+function TextPathForm({ scene, node, locked, execute }: Omit<Props, "assets">) {
+  const [error, setError] = useState(""),
+    sources = useMemo(() => {
+      try {
+        return textPathSources(scene, node.id).map(({ node: source }) => source);
+      } catch {
+        return [];
+      }
+    }, [scene, node.id]);
+  return (
+    <form
+      aria-label="Texto em caminho"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const fields = new FormData(event.currentTarget),
+          source = String(fields.get("source") ?? ""),
+          startOffset = Number(fields.get("startOffset"));
+        try {
+          const value =
+            source === ""
+              ? null
+              : source === "current" && node.textPath
+                ? { ...node.textPath, startOffset }
+                : textPathFromShape(scene, node.id, source, startOffset);
+          execute([{ type: "scene", operation: "text-path", targetId: node.id, value }]);
+          setError("");
+        } catch (reason) {
+          setError(reason instanceof Error ? reason.message : "Caminho recusado.");
+        }
+      }}
+    >
+      <fieldset disabled={locked}>
+        <legend>Texto em caminho</legend>
+        <label className="scene-field">
+          Seguir a forma
+          <select name="source" defaultValue={node.textPath ? "current" : ""}>
+            <option value="">Sem caminho (linhas normais)</option>
+            {node.textPath ? <option value="current">Manter a curva atual</option> : null}
+            {sources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="scene-field">
+          Início no caminho (%)
+          <input
+            name="startOffset"
+            type="number"
+            required
+            min="0"
+            max="100"
+            step="any"
+            defaultValue={node.textPath?.startOffset ?? 0}
+          />
+        </label>
+        <button type="submit">Aplicar caminho</button>
+      </fieldset>
+      <p role="status">{error}</p>
+      <p className="micro">
+        O texto guarda uma cópia do contorno no próprio espaço: mover o texto leva a curva junto, e
+        editar a forma depois não muda o texto. Use o Alinhamento (Centro) com início 50% para
+        centralizar. Texto em caminho tem uma linha.
+      </p>
+    </form>
   );
 }
 export function mountTextPanel(host: Element, props: Props) {

@@ -2,6 +2,7 @@
 export { compileInteractiveArtboard } from "../src/shared/interactive";
 export { compileLottie } from "../src/shared/lottie/compile";
 export { parseProject } from "../src/shared/project";
+export { planRasterFrames } from "../src/shared/raster/profile";
 export { audioProjectFixture } from "./audioFixture";
 export { deformationFixture } from "./deformationFixture";
 export { gradientFixture } from "./gradientFixture";

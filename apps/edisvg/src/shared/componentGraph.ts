@@ -2,6 +2,7 @@ import { parseTransformList } from "@informach/edi-motion";
 import { parseRig, rigCost } from "@informach/edi-motion/rig";
 import { validateInstanceLogic } from "./componentContracts";
 import { componentViewport } from "./componentViewport";
+import { drawOrderKeys } from "./drawOrders";
 import { parsePath } from "./pathGeometry.js";
 import type { Project } from "./project";
 import { rigObjects } from "./rigObjects";
@@ -113,7 +114,9 @@ export function validateComponentGraph(project: Project) {
           (node.textLayout ? node.text.replace(/\r\n?/g, "\n").split("\n").length : 0),
         depth: 1,
         attributes:
-          attributeSize(node.attrs) + (node.gradients ? JSON.stringify(node.gradients).length : 0),
+          attributeSize(node.attrs) +
+          (node.gradients ? JSON.stringify(node.gradients).length : 0) +
+          (node.filter ? JSON.stringify(node.filter).length : 0),
         text: node.text.length,
         vertices: vertexCount(node.attrs),
       };
@@ -182,6 +185,7 @@ export function validateComponentGraph(project: Project) {
               cost.tracks++;
               cost.keys += track.keys.length;
             }
+          cost.keys += drawOrderKeys(animation, sourceObjects);
         }
         if (source.rig && overriddenRig) parseRig(source.rig, overriddenRig);
       }
@@ -210,12 +214,14 @@ export function validateComponentGraph(project: Project) {
     const own = objects.get(id);
     if (!own) throw new Error("Índice de objetos ausente.");
     const withRoot = { ...total };
-    for (const clip of project.motion.animations)
+    for (const clip of project.motion.animations) {
       for (const track of clip.tracks)
         if (own.has(track.targetId)) {
           withRoot.tracks++;
           withRoot.keys += track.keys.length;
         }
+      withRoot.keys += drawOrderKeys(clip, own);
+    }
     check(withRoot);
     visiting.delete(id);
     memo.set(id, total);

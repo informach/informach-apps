@@ -1,8 +1,11 @@
 import { transformAttribute } from "./affine";
+import { drawOrderScopes } from "./drawOrder";
+import { createDrawOrderBinding } from "./drawOrderDom";
 import { frameAtSeconds } from "./evaluator";
 import { createFrameLoop, type FrameLoopOptions } from "./frameLoop";
 import { geometryPath } from "./geometry";
 import { createPlaybackContext, evaluatePlaybackFrame } from "./playbackFrame";
+import { createImageMeshBinding, renderedImageMesh } from "./visual/imageMeshDom";
 
 export type { AudioCueEmission, AudioStatus } from "./audio/model";
 export {
@@ -72,9 +75,25 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
   }
   if (elements.size !== bases.size)
     throw new Error("O SVG não contém todos os objetos do documento.");
-  for (const object of document.objects)
-    if (object.geometry && !basePaths.has(object.id))
+  // Meshed images carry their grid in markup and their rest vertices as geometry.
+  const meshes = new Map<string, ReturnType<typeof createImageMeshBinding>>();
+  for (const object of document.objects) {
+    const shape = elements.get(object.id)?.firstElementChild,
+      mesh = shape ? renderedImageMesh(shape) : undefined;
+    if (shape && mesh && object.geometry) {
+      const image = root.querySelector(
+          `image[id="edi-${shape.getAttribute("data-edi-image") ?? ""}"]`,
+        ),
+        width = Number(image?.getAttribute("width")),
+        height = Number(image?.getAttribute("height"));
+      if (!(width > 0 && height > 0)) throw new Error("Malha raster sem recurso de imagem.");
+      meshes.set(
+        object.id,
+        createImageMeshBinding(shape, mesh, { width, height }, object.geometry),
+      );
+    } else if (object.geometry && !basePaths.has(object.id))
       throw new Error("Geometria requer caminho SVG correspondente.");
+  }
   let animation =
     motion.animations.find((clip) => clip.id === options.animationId) ??
     (options.animationId ? undefined : motion.animations[0]);
@@ -84,10 +103,14 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
   let frame = evaluatePlaybackFrame(playbackContext, animation, 0),
     stillFrame = frame;
   for (const id of frame.geometry.keys())
-    if (elements.get(id)?.firstElementChild?.localName !== "path")
+    if (!meshes.has(id) && elements.get(id)?.firstElementChild?.localName !== "path")
       throw new Error("Geometria requer caminho SVG correspondente.");
   const changed = new Set<string>();
   const previous = new Map<string, string>();
+  const drawOrderBinding = createDrawOrderBinding(
+    elements,
+    drawOrderScopes([...motion.animations, ...document.drivers.map((driver) => driver.animation)]),
+  );
   function assertLive() {
     if (destroyed) throw new Error("O player foi encerrado.");
   }
@@ -110,8 +133,10 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
     const evaluated = reduced ? stillFrame : frame,
       pose = evaluated.poses;
     for (const [id, element] of elements) {
-      const geometry = evaluated.geometry.get(id);
-      if (geometry || basePaths.has(id)) {
+      const geometry = evaluated.geometry.get(id),
+        mesh = meshes.get(id);
+      if (mesh) mesh.paint(geometry);
+      else if (geometry || basePaths.has(id)) {
         const shape = element.firstElementChild;
         if (shape?.localName !== "path")
           throw new Error("Geometria requer caminho SVG correspondente.");
@@ -124,6 +149,7 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
       if (display === null || display === undefined) element.removeAttribute("display");
       else element.setAttribute("display", display);
     }
+    drawOrderBinding.paint(evaluated.orders);
     for (const id of changed)
       if (!pose.has(id)) {
         const base = bases.get(id);
@@ -214,6 +240,7 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
       if (destroyed) return;
       destroyed = true;
       loop.destroy();
+      drawOrderBinding.destroy();
     },
   };
 }

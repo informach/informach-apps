@@ -11,7 +11,13 @@ import { applyAsset } from "../../src/shared/assets";
 import { executeDocumentTransaction } from "../../src/shared/documentCommands";
 import { newProject } from "../../src/shared/project";
 import { editScene } from "../../src/shared/scene.js";
-import { audioFixture, fontFixture, mathFontFixture, sliceImageFixture } from "../assetFixtures";
+import {
+  arabicFontFixture,
+  audioFixture,
+  fontFixture,
+  mathFontFixture,
+  sliceImageFixture,
+} from "../assetFixtures";
 import { gradientFixture } from "../gradientFixture";
 import { rendererServer } from "../rendererServer";
 
@@ -30,15 +36,18 @@ test("downloaded React ZIP compiles in an independent typed host and runs the re
   });
   const asset = sliceImageFixture();
   applyAsset(project, board.scene, { type: "asset", operation: "put", value: asset });
+  // Arabic needs a font that joins it: the math font covers the letters but draws them isolated.
   const font = fontFixture(),
+    arabic = arabicFontFixture(),
     fallback = mathFontFixture();
   applyAsset(project, board.scene, { type: "asset", operation: "put", value: font });
+  applyAsset(project, board.scene, { type: "asset", operation: "put", value: arabic });
   applyAsset(project, board.scene, { type: "asset", operation: "put", value: fallback });
   applyAsset(project, board.scene, {
     type: "asset",
     operation: "set-font",
     assetId: font.id,
-    fontFallbackIds: [fallback.id],
+    fontFallbackIds: [arabic.id, fallback.id],
     targetId: node,
   });
   const sliced = applyAsset(project, board.scene, {
@@ -194,7 +203,7 @@ test("downloaded React ZIP compiles in an independent typed host and runs the re
     );
     assert.equal(
       await page.locator(".behavior-test-preview text").getAttribute("font-family"),
-      `edi-${font.id}, edi-${fallback.id}`,
+      `edi-${font.id}, edi-${arabic.id}, edi-${fallback.id}`,
     );
     await page.getByRole("button", { name: "Fechar teste", exact: true }).click();
     await page.locator('[data-action="export"]').click();
@@ -327,7 +336,7 @@ test("downloaded React ZIP compiles in an independent typed host and runs the re
     );
     assert.equal(
       await consumer.locator("text").getAttribute("font-family"),
-      `edi-${font.id}, edi-${fallback.id}`,
+      `edi-${font.id}, edi-${arabic.id}, edi-${fallback.id}`,
     );
     const loaded = await consumer.evaluate(
       (ids) =>
@@ -337,7 +346,7 @@ test("downloaded React ZIP compiles in an independent typed host and runs the re
               font.family.replace(/^["']|["']$/g, "") === `edi-${id}` && font.status === "loaded",
           ),
         ),
-      [font.id, fallback.id],
+      [font.id, arabic.id, fallback.id],
     );
     assert.equal(loaded, true);
     const accessible = consumer.getByRole("img", {

@@ -4,6 +4,58 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Fontes WOFF/coleções e imagens na Lottie — incremento 5.36
+
+A importação de recursos aceita fontes WOFF e uma face de coleções TTC/OTC, convertidas sem perda para uma fonte avulsa (WOFF2 continua recusado). Na Lottie, imagens PNG sem nine-slice e sem malha viram camadas de imagem com o PNG incorporado, posição, escala, rotação e opacidade amostradas. [Contrato e gates 5.36](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes-externas-lottie-imagens.md).
+
+### Fórmulas — incremento 5.35
+
+Inputs podem ser calculados por fórmulas, na aba *Fórmulas* de Dados: `clamp($input-pontos * 2, 0, 100)`, `se($input-fim, "Acabou", "Jogando")` ou `sen(tempo * 2)` para movimento procedural. As fórmulas são declarativas e tipadas, com limites de tamanho, e nada é executado como código. O input calculado fica somente leitura. [Contrato e gates 5.35](../../docs/reviews/edisvg-2026-10-17/review-lote-5-formulas.md).
+
+### Semântica dinâmica — incremento 5.34
+
+O nome e a descrição acessíveis de um objeto podem seguir um input: em Dados, crie um binding *Semântico* com um modelo como "Placar: {valor} pontos". No painel de semântica, *Anunciar mudanças* transforma o objeto numa região viva para leitores de tela. [Contrato e gates 5.34](../../docs/reviews/edisvg-2026-10-17/review-lote-5-semantica-dinamica.md).
+
+### Malha raster — incremento 5.33
+
+Imagens PNG agora deformam pelo rig. No painel da imagem, *Malha raster* cria uma grade de triângulos (até 16×16). Depois, em Restrições → Malha vetorial, vincule a imagem aos ossos, e os vértices da grade seguem o esqueleto como os de um caminho. HTML, React, Testar e vídeo mostram a deformação; SVG animado e Lottie recusam a malha deformada. [Contrato e gates 5.33](../../docs/reviews/edisvg-2026-10-17/review-lote-5-malha-raster.md).
+
+### Texto em caminho — incremento 5.32
+
+Um texto pode seguir uma curva: em *Texto em caminho*, no painel de texto, escolha uma forma do mesmo grupo e o início em porcentagem. O texto guarda uma cópia do contorno no próprio espaço, então mover o texto leva a curva junto, e editar a forma depois não muda o texto. SVGs importados com `<textPath>` local viram texto em caminho editável, com o mesmo desenho do navegador. Tem uma linha por texto; Lottie continua recusando texto. [Contrato e gates 5.32](../../docs/reviews/edisvg-2026-10-17/review-lote-5-texto-em-caminho.md).
+
+### Shaping complexo e direção automática — incremento 5.31
+
+Textos em árabe, nos scripts índicos e em outros sistemas de escrita com formas contextuais passam a exigir uma fonte que aplique as substituições OpenType desse script (por exemplo `init`/`medi`/`fina` no árabe). Sem elas, as letras sairiam isoladas ou fora de ordem, e Testar/exportar recusa com a explicação. O painel de texto ganha a direção **Automática (primeiro caractere forte)**, que também acompanha texto trocado por dados. [Contrato e gates 5.31](../../docs/reviews/edisvg-2026-10-17/review-lote-5-shaping-bidi.md).
+
+### Ordem de desenho animável — incremento 5.30
+
+Uma animação agora pode trocar a ordem de empilhamento dos filhos de um grupo, ou da raiz da prancheta, em degraus por quadro. No modo Animar, selecione um objeto e use **Subir/Descer neste quadro** em *Ordem de desenho*: cada clique grava uma chave no quadro atual. Estados, blends, camadas e relógios de componente usam a mesma ordem. HTML, React e vídeo preservam o empilhamento; SVG animado e Lottie recusam, sem descartá-lo. Mudar de grupo um objeto citado exige remover as chaves antes. [Contrato e gates 5.30](../../docs/reviews/edisvg-2026-10-17/review-lote-5-ordem-de-desenho.md).
+
+### Trim no SVG animado e na Lottie — incremento 5.29
+
+O recorte animável (5.16) agora chega também ao **SVG animado**, com o caminho trocado exatamente a cada quadro, e à **Lottie**, com formas de retenção por quadro para caminhos abertos. Os dois são amostrados: exatos nos quadros, sem interpolar entre eles. Contornos fechados com trim continuam exigindo HTML/React/SVG na Lottie. [Perfil e gates 5.29](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-consumidores.md).
+
+### Máscaras de luminância e pintadas — incremento 5.28
+
+Em **Recortes e máscaras**, escolha o **Modo da máscara**: silhueta da forma (como antes), alpha da pintura ou luminância da pintura. Nos modos pintados a fonte entra com sua cor, gradiente ou padrão e contorno, herdados dos grupos. A importação SVG passa a aceitar máscaras de luminância (o padrão do SVG), gradientes, padrões e contornos na fonte. [Perfil e gates 5.28](../../docs/reviews/edisvg-2026-10-17/review-lote-5-mascaras-pintadas.md).
+
+### Filtros — incremento 5.27
+
+Na seção **Filtros** do painel de efeitos, aplique sombra projetada, desfoque, brilho externo, saturação, escala de cinza ou rotação de matiz; o resumo mostra o filtro atual e **Remover filtro** o retira, sempre com desfazer. O filtro trabalha dentro da transformação do objeto e antes do recorte/máscara, como no SVG. A importação aceita `<filter>` locais com desfoque, deslocamento, sombra, matriz de cor, cor sólida, mistura, composição e junção; funções CSS e entradas de fundo são recusadas. Lottie recusa filtros. [Perfil e gates 5.27](../../docs/reviews/edisvg-2026-10-17/review-lote-5-filtros.md).
+
+### Padrões (tiles) — incremento 5.26
+
+Em **Gradientes e padrões**, escolha **Padrão (tile)** no preenchimento ou no contorno: aplique um modelo (listras, pontos, xadrez, grade) com cores, tamanho, espessura e ângulo, ou ajuste o retângulo e a matriz de um padrão importado. O tile repete formas vetoriais de cor sólida e aparece igual no canvas, Testar, HTML, React, SVG e imagens; Lottie recusa padrões. A importação SVG aceita `<pattern>` locais, inclusive templates `href` e grupos transformados. Projeto v23/blueprint v12; arquivos anteriores migram com backup. [Perfil, achados e gates 5.26](../../docs/reviews/edisvg-2026-10-17/review-lote-5-padroes.md).
+
+### `use` e `symbol` na importação — incremento 5.25
+
+SVGs com sprites e ícones reutilizados agora importam: cada `use` local vira um grupo com uma cópia editável e independente do alvo; `symbol` ganha o ajuste de viewBox (`meet`, `slice`, `none`) e, quando o overflow é oculto, um recorte retangular editável. A revisão da importação informa quantas cópias e recortes foram criados. Referências externas, ciclos, porcentagens e mais de 8 níveis são recusados sem importar nada. Para reutilização viva, use componentes. [Perfil e gates 5.25](../../docs/reviews/edisvg-2026-10-17/review-lote-5-svg-use-symbol.md).
+
+### Imagens e vídeo — incremento 5.24
+
+Em **Exportar**, com uma animação por objeto selecionada, escolha **Sequência PNG · ZIP**, **GIF animado**, **Vídeo MP4 · H.264** ou **Vídeo WebM · VP9**. Cada quadro é desenhado pelo mesmo player do Testar/HTML/React e rasterizado no tamanho e FPS escolhidos (16–3840 px, até 60 FPS e 3600 quadros). PNG preserva alpha; GIF usa até 256 cores por quadro, transparência total ou nenhuma e até 50 FPS; vídeo é opaco, com cor de fundo e dimensões pares. É preciso confirmar a conversão em imagens e, em composições interativas, a exportação somente da timeline. Sem áudio, sem vídeo transparente e sem repetição embutida no vídeo. Projeto continua v22. [Perfil, achados e gates 5.24](../../docs/reviews/edisvg-2026-10-17/review-lote-5-exportacao-raster.md).
+
 ### Joysticks 2D — incremento 5.23
 
 Rig v4/projeto v22/blueprint v11 vinculam um pad 2D a um alvo raiz. Eixos X/Y solicitados, envelope local quadrado/circular, canais e bindings compartilham o avaliador de IK/skin. O painel React permite arraste com prévia sem histórico, campos e teclado; cancelar restaura a cena, soltar confirma uma transação. Arquivos anteriores mantêm migração/backup e versões antigas recusam a capability nova. App/núcleo, 82 E2E, Next de produção, comparação independente Lottie e jornada Electron/ASAR passaram; veja o [review 5.23](../../docs/reviews/edisvg-2026-10-17/review-lote-5-joysticks.md) para os limites exatos. O [review integral](../../docs/reviews/edisvg-2026-10-17/full-review-2026-10-18.md) separa o entregue das pendências de lotes 5–6. Não é paridade Rive nem compatibilidade `.riv`.
@@ -34,7 +86,7 @@ Duplicar objeto/grupo agora copia trim/morph/solo e seus canais, bindings/listen
 
 ### Recorte animável — incremento 5.16 revisado no perfil publicado
 
-Selecione um path e abra Restrições para configurar início/fim (%), offset (graus), tolerância de comprimento local e modos por contorno/caminho inteiro. O avaliador aplica o recorte após morph/skin, sem modificar a fonte salva; parâmetros usam os relógios/blends/bindings existentes. O código emite projeto v21/Rig v3/blueprint v10 e preserva a leitura/migração/backup dos formatos anteriores. Arcos nativos exigem conversão explícita com confirmação de aparência. HTML/React usam o runtime real; SVG/SMIL animado e Lottie recusam trim, sem descartá-lo. No marco 5.16, a duplicação parcial era recusada; o 5.17 acima permite deformadores locais/subrigs fechados, mantendo recusa de referências incompletas. Núcleo, transações, UI, players, regressão completa de navegador/Next e Electron passaram; o review do perfil foi fechado. Demais recursos dos lotes 5/6 e full review continuam pendentes. [Contrato e progresso 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md).
+Selecione um path e abra Restrições para configurar início/fim (%), offset (graus), tolerância de comprimento local e modos por contorno/caminho inteiro. O avaliador aplica o recorte após morph/skin, sem modificar a fonte salva; parâmetros usam os relógios/blends/bindings existentes. O código emite projeto v21/Rig v3/blueprint v10 e preserva a leitura/migração/backup dos formatos anteriores. Arcos nativos exigem conversão explícita com confirmação de aparência. HTML/React usam o runtime real; desde o 5.29 SVG/SMIL animado e Lottie (caminhos abertos) amostram o trim por quadro. No marco 5.16, a duplicação parcial era recusada; o 5.17 acima permite deformadores locais/subrigs fechados, mantendo recusa de referências incompletas. Núcleo, transações, UI, players, regressão completa de navegador/Next e Electron passaram; o review do perfil foi fechado. Demais recursos dos lotes 5/6 e full review continuam pendentes. [Contrato e progresso 5.16](../../docs/reviews/edisvg-2026-10-17/review-lote-5-trim-paths.md).
 
 ### Tracejados Lottie e composição — incremento 5.15 revisado
 

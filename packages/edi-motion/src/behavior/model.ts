@@ -2,6 +2,15 @@ import { z } from "zod";
 import { dataModelSchema, parseDataModels, resolveDataPath } from "../data/model";
 import { type Animation, easingSchema, objectIdSchema, propertySchema } from "../model";
 import { type ParameterContext, parameterKey } from "../parameters";
+import type { SemanticMetadata } from "../visual/semantics";
+import { isXmlText } from "../xmlText";
+import {
+  FORMULA_LIMITS,
+  formulaSchema,
+  formulaShape,
+  formulaType,
+  orderFormulas,
+} from "./formulas";
 
 const id = z.string().regex(/^[a-z]+-[\w-]{1,100}$/);
 const name = z.string().trim().min(1).max(120);
@@ -162,8 +171,33 @@ export const bindingSchema = z.discriminatedUnion("kind", [
     property: z.enum(["fill", "stroke"]),
     direction: z.enum(["one-way", "two-way"]),
   }),
+  // The accessible name or description follows an input through a template
+  // with one {valor} slot; it is announced when the object is a live region.
+  z.strictObject({
+    id,
+    kind: z.literal("semantics"),
+    inputId: id,
+    targetId: objectIdSchema,
+    property: z.enum(["label", "description"]),
+    template: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine(
+        (value) => value.split("{valor}").length === 2 && isXmlText(value),
+        "Modelo semântico requer um único {valor} e texto XML válido.",
+      ),
+    direction: z.literal("one-way"),
+  }),
 ]);
 export type BehaviorBinding = z.infer<typeof bindingSchema>;
+/** Spoken form of an input value: Brazilian number format, sim/não for booleans. */
+export function semanticValue(value: InputValue) {
+  if (typeof value === "number")
+    return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 }).format(value);
+  if (typeof value === "boolean") return value ? "sim" : "não";
+  return value;
+}
 const actionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("set-input"),
@@ -194,6 +228,7 @@ export const behaviorSchema = z.strictObject({
   events: z.array(timelineEventSchema).max(10000),
   defaultMachineId: id.nullable(),
   data: dataModelSchema.optional(),
+  formulas: z.array(formulaSchema).max(FORMULA_LIMITS.formulas).optional(),
 });
 export type Behavior = z.infer<typeof behaviorSchema>;
 export const emptyBehavior = (): Behavior => ({
@@ -235,26 +270,31 @@ export function validateInputValue(input: BehaviorInput, value: unknown): InputV
  * targets describe only this artboard (component internals have separate ownership). */
 export function parseBehavior(
   input: unknown,
-  targets: ReadonlyMap<string, { tag: string }>,
+  targets: ReadonlyMap<string, { tag: string; semantics?: SemanticMetadata }>,
   animations: readonly Animation[],
   parameters?: ParameterContext,
 ): Behavior {
-  const pending: unknown[] = [input];
+  // Depth is bounded here too: recursive schemas (formulas) must not recurse
+  // into an arbitrarily nested document before their own limits apply.
+  const pending: [unknown, number][] = [[input, 0]];
   let work = 0,
     text = 0;
   while (pending.length) {
-    const value = pending.pop();
+    const entry = pending.pop();
+    if (!entry) break;
+    const [value, depth] = entry;
     if (++work > 200000) throw new Error("Orçamento estrutural de lógica excedido.");
+    if (depth > 96) throw new Error("Lógica excede a profundidade estrutural.");
     if (typeof value === "string") text += value.length;
     else if (Array.isArray(value)) {
       if (value.length > 10000) throw new Error("Array de lógica excede o limite.");
-      pending.push(...value);
+      for (const child of value) pending.push([child, depth + 1]);
     } else if (typeof value === "object" && value !== null) {
       const entries = Object.entries(value);
       if (entries.length > 1000) throw new Error("Objeto de lógica excede o limite.");
       for (const [key, child] of entries) {
         text += key.length;
-        pending.push(child);
+        pending.push([child, depth + 1]);
       }
     }
     if (text > 2000000) throw new Error("Orçamento textual de lógica excedido.");
@@ -415,6 +455,24 @@ export function parseBehavior(
       destinations.add(destination);
       continue;
     }
+    if (binding.kind === "semantics") {
+      const input = requireInput(binding.inputId),
+        semantics = requireTarget(binding.targetId).semantics;
+      if (input.kind === "trigger" || input.kind === "color")
+        throw new Error("Binding semântico requer input de texto, número, booleano ou lista.");
+      if (
+        !semantics ||
+        semantics.kind === "decorative" ||
+        (binding.property === "description" && !semantics.description)
+      )
+        throw new Error(
+          "Binding semântico requer objeto com nome acessível (e descrição, para a descrição).",
+        );
+      const destination = `${binding.targetId}:semantics:${binding.property}`;
+      if (destinations.has(destination)) throw new Error("Bindings conflitantes no mesmo destino.");
+      destinations.add(destination);
+      continue;
+    }
     const input = requireInput(binding.inputId),
       target = requireTarget(binding.targetId),
       kind =
@@ -491,6 +549,55 @@ export function parseBehavior(
           "Input controlado por modelo somente leitura não admite listener de escrita/binding bidirecional.",
         );
     }
+  }
+  if (behavior.formulas?.length) {
+    // A computed input has one writer: its formula. Data links, listeners and
+    // reverse bindings would race it, so they are refused.
+    const computed = new Set<string>(),
+      linked = new Set(
+        behavior.data
+          ? parseDataModels(behavior.data).document.links.map((link) => link.inputId)
+          : [],
+      );
+    let nodes = 0;
+    const typeOf = (id: string) => {
+      const input = requireInput(id);
+      if (input.kind === "trigger") throw new Error("Fórmula não lê gatilhos.");
+      return input.kind === "number" ? "number" : input.kind === "boolean" ? "boolean" : "text";
+    };
+    for (const formula of behavior.formulas) {
+      unique(formula.id);
+      if (computed.has(formula.inputId)) throw new Error("Input com duas fórmulas.");
+      computed.add(formula.inputId);
+      const target = requireInput(formula.inputId);
+      // Lists and colours accept only some texts; a free text formula could produce
+      // any other, so they are not formula targets.
+      if (target.kind === "enum" || target.kind === "color")
+        throw new Error("Fórmula calcula número, booleano ou texto livre; listas e cores não.");
+      const expected = typeOf(formula.inputId);
+      if (linked.has(formula.inputId))
+        throw new Error("Input ligado a dados não pode ser calculado por fórmula.");
+      nodes += formulaShape(formula.expression).nodes;
+      if (nodes > FORMULA_LIMITS.totalNodes)
+        throw new Error(`Fórmulas excedem ${FORMULA_LIMITS.totalNodes} nós no total.`);
+      const actual = formulaType(formula.expression, typeOf);
+      if (actual !== expected)
+        throw new Error(
+          `Fórmula de ${formula.inputId} produz ${actual}, mas o input espera ${expected}.`,
+        );
+    }
+    orderFormulas(behavior.formulas);
+    if (
+      behavior.listeners.some((listener) =>
+        listener.actions.some((action) => computed.has(action.inputId)),
+      ) ||
+      behavior.bindings.some(
+        (binding) => binding.direction === "two-way" && computed.has(binding.inputId),
+      )
+    )
+      throw new Error(
+        "Input calculado por fórmula é somente leitura para listeners e bindings bidirecionais.",
+      );
   }
   return behavior;
 }

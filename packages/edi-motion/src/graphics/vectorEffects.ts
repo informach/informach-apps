@@ -21,6 +21,7 @@ import {
   svgPrimitivePathData,
   svgPrimitiveSchema,
 } from "../svgPrimitive";
+import { type EffectPaint, paintedStrokeWidth } from "./effectPaint";
 
 const reference = z.strictObject({
   sourceId: objectIdSchema,
@@ -29,9 +30,15 @@ const reference = z.strictObject({
 export const vectorEffectsSchema = z
   .strictObject({
     clip: reference.optional(),
-    /** Alpha silhouette, independent of source fill/stroke and visibility.
-     * Its own animated opacity multiplies this strength; no luminance profile. */
-    mask: reference.extend({ opacity: z.number().min(0).max(1) }).optional(),
+    /** `silhouette` (default): alpha of the source shape, independent of its paint. `alpha` and
+     * `luminance` (5.26–5.28 formats) draw the source with its effective paint. The source's
+     * own animated opacity multiplies the strength in every mode. */
+    mask: reference
+      .extend({
+        opacity: z.number().min(0).max(1),
+        mode: z.enum(["silhouette", "alpha", "luminance"]).optional(),
+      })
+      .optional(),
   })
   .refine((value) => value.clip !== undefined || value.mask !== undefined, {
     error: "Informe um recorte ou máscara.",
@@ -41,6 +48,8 @@ export interface EffectObject extends RigObject {
   effects?: VectorEffects;
   pathData?: string;
   nativeShape?: SvgPrimitive;
+  /** Effective paint, required only for sources of painted masks (see effectSourcePaints). */
+  paint?: EffectPaint;
 }
 export interface VectorEffectFrame {
   targetId: string;
@@ -52,6 +61,9 @@ export interface VectorEffectFrame {
   matrix: Affine;
   opacity: number;
   region: { x: number; y: number; width: number; height: number };
+  /** Painted masks only: luminance or alpha of the source drawn with `paint`. */
+  mode?: "alpha" | "luminance";
+  paint?: EffectPaint;
 }
 
 /** A validated, reusable local reference graph. No URLs, markup or DOM reads.
@@ -91,6 +103,7 @@ export function createVectorEffectContext(input: ReadonlyMap<string, EffectObjec
     sourceId: string;
     rule: "nonzero" | "evenodd";
     opacity: number;
+    mode?: "alpha" | "luminance";
   }[] = [];
   for (const [id, object] of objects) {
     ancestry(id);
@@ -143,12 +156,19 @@ export function createVectorEffectContext(input: ReadonlyMap<string, EffectObjec
       if (ancestry(id).viewport !== ancestry(value.sourceId).viewport)
         throw new Error("Fonte e destino do efeito precisam compartilhar o viewport.");
       if (references.length >= 256) throw new Error("Cena excede 256 recortes/máscaras.");
+      const painted =
+        kind === "mask" && effects.mask?.mode && effects.mask.mode !== "silhouette"
+          ? effects.mask.mode
+          : undefined;
+      if (painted && !source.paint)
+        throw new Error("Máscara pintada requer a pintura efetiva da fonte.");
       references.push({
         targetId: id,
         kind,
         sourceId: value.sourceId,
         rule: value.rule,
         opacity: kind === "mask" && effects.mask ? effects.mask.opacity : 1,
+        ...(painted ? { mode: painted } : {}),
       });
     }
   }
@@ -174,6 +194,7 @@ export function playbackVectorEffectContext(
   effects: ReadonlyMap<string, VectorEffects>,
   paths?: ReadonlyMap<string, string>,
   primitives?: ReadonlyMap<string, SvgPrimitive>,
+  paints?: ReadonlyMap<string, EffectPaint>,
 ) {
   if (!effects.size) return createVectorEffectContext(new Map());
   const objects = new Map<string, EffectObject>();
@@ -187,6 +208,7 @@ export function playbackVectorEffectContext(
       effects: effects.get(object.id),
       pathData: paths?.get(object.id),
       nativeShape: primitives?.get(object.id),
+      paint: paints?.get(object.id),
     });
   }
   for (const id of effects.keys())
@@ -295,15 +317,26 @@ export function evaluateVectorEffects(
       paths.set(reference.sourceId, d);
     }
     chargeDefinition(reference.sourceId, d, source.nativeShape);
+    const paint = reference.mode ? source.paint : undefined;
+    // A painted stroke reaches past the outline: half its width, up to the default miter limit
+    // of 4, scaled by the largest stretch of the source-to-target matrix.
+    const stroke =
+      paint?.stroke !== undefined && paint.stroke !== "none"
+        ? paintedStrokeWidth(paint["stroke-width"]) *
+          2 *
+          Math.max(Math.hypot(matrix[0], matrix[1]), Math.hypot(matrix[2], matrix[3]))
+        : 0;
+    if (!Number.isFinite(stroke)) throw new Error("Contorno da máscara fora do limite numérico.");
     // Cubic curves stay within the convex hull of their control points. This
     // region encloses the filled silhouette, including numerical edge padding.
-    const pad = Math.max(
-      1,
-      Math.abs(minX) * 1e-12,
-      Math.abs(maxX) * 1e-12,
-      Math.abs(minY) * 1e-12,
-      Math.abs(maxY) * 1e-12,
-    );
+    const pad =
+      Math.max(
+        1,
+        Math.abs(minX) * 1e-12,
+        Math.abs(maxX) * 1e-12,
+        Math.abs(minY) * 1e-12,
+        Math.abs(maxY) * 1e-12,
+      ) + stroke;
     return {
       targetId: reference.targetId,
       kind: reference.kind,
@@ -321,6 +354,7 @@ export function evaluateVectorEffects(
         width: maxX - minX + 2 * pad,
         height: maxY - minY + 2 * pad,
       },
+      ...(reference.mode && paint ? { mode: reference.mode, paint } : {}),
     };
   });
 }
@@ -346,7 +380,7 @@ export function vectorEffectElement(
             id,
             maskUnits: "userSpaceOnUse",
             maskContentUnits: "userSpaceOnUse",
-            "mask-type": "alpha",
+            "mask-type": frame.mode === "luminance" ? "luminance" : "alpha",
             x: String(frame.region.x),
             y: String(frame.region.y),
             width: String(frame.region.width),
@@ -360,8 +394,8 @@ export function vectorEffectElement(
           transform: `matrix(${frame.matrix.join(" ")})`,
           "clip-rule": frame.rule,
           "fill-rule": frame.rule,
-          fill: "#ffffff",
-          ...(frame.nativeShape ? { stroke: "none" } : {}),
+          ...(frame.paint ? frame.paint : { fill: "#ffffff" }),
+          ...(frame.nativeShape && !frame.paint ? { stroke: "none" } : {}),
           ...(frame.kind === "mask" ? { opacity: String(frame.opacity) } : {}),
         },
         children: [],

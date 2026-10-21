@@ -8,7 +8,7 @@ import {
 import { type Asset, imagePresentation, parseAssetCatalog } from "@informach/edi-motion/assets";
 import { type AudioDocument, parseAudioDocument } from "@informach/edi-motion/audio";
 import { type Behavior, parseBehavior } from "@informach/edi-motion/behavior";
-import { gradientDefinitions } from "@informach/edi-motion/graphics";
+import { filterDefinitions, gradientDefinitions, hasPattern } from "@informach/edi-motion/graphics";
 import { type LayoutDocument, parseLayout } from "@informach/edi-motion/layout";
 import {
   parseRig,
@@ -19,12 +19,13 @@ import {
 } from "@informach/edi-motion/rig";
 import { z } from "zod";
 import { validateComponentGraph } from "./componentGraph";
+import { validateDrawOrders } from "./drawOrders";
 import { artboardIdSchema } from "./identities";
 import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 
-export const PROJECT_VERSION = 22;
+export const PROJECT_VERSION = 23;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -99,6 +100,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(19),
     z.literal(20),
     z.literal(21),
+    z.literal(22),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -160,6 +162,7 @@ export function parseProject(input: unknown): Project {
       19,
       20,
       21,
+      22,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -205,6 +208,11 @@ export function parseProject(input: unknown): Project {
     artboards.some((board) => board.scene.styles?.some((style) => style.gradients))
   )
     throw new Error("Estilos com gradientes requerem projeto v16.");
+  if (
+    header.data.version < 23 &&
+    artboards.some((board) => board.scene.styles?.some((style) => hasPattern(style.gradients)))
+  )
+    throw new Error("Estilos com padrões requerem projeto v23.");
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
       if (ids.has(node.id)) throw new Error("IDs de objetos precisam ser únicos entre pranchetas.");
@@ -235,6 +243,20 @@ export function parseProject(input: unknown): Project {
         throw new Error("Recortes/máscaras tipados requerem projeto v17.");
       if (node.gradients && header.data.version < 16)
         throw new Error("Gradientes tipados requerem projeto v16.");
+      if (hasPattern(node.gradients) && header.data.version < 23)
+        throw new Error("Padrões tipados requerem projeto v23.");
+      if (node.filter && header.data.version < 23)
+        throw new Error("Filtros tipados requerem projeto v23.");
+      if (node.effects?.mask?.mode && header.data.version < 23)
+        throw new Error("Modos de máscara requerem projeto v23.");
+      if (node.textDirection && header.data.version < 23)
+        throw new Error("Direção automática de texto requer projeto v23.");
+      if (node.textPath && header.data.version < 23)
+        throw new Error("Texto em caminho requer projeto v23.");
+      if (node.imageMesh && header.data.version < 23)
+        throw new Error("Malha raster requer projeto v23.");
+      if (node.semantics?.kind !== "decorative" && node.semantics?.live && header.data.version < 23)
+        throw new Error("Região viva requer projeto v23.");
       if (node.imageSlice) {
         const asset = resourceMap.get(node.assetId ?? "");
         if (header.data.version < 16 || asset?.kind !== "image")
@@ -259,8 +281,15 @@ export function parseProject(input: unknown): Project {
       ...(board.scene.styles ?? []).map((style) => style.gradients),
     ]),
   );
+  // Like gradients, filters are pooled project-wide: a composition flattens component
+  // artboards into one scene, whose definitions share the 64-filter limit.
+  filterDefinitions(
+    artboards.flatMap((board) => flattenScene(board.scene).map(({ node }) => node.filter)),
+  );
   if (ids.size > 2000) throw new Error("Orçamento agregado de objetos excedido.");
   const motion = parseMotion(value.motion ?? emptyMotion(), ids);
+  if (header.data.version < 23 && motion.animations.some((clip) => clip.drawOrders))
+    throw new Error("Ordem de desenho animável requer projeto v23.");
   if ("artboards" in value)
     for (const [index, raw] of value.artboards.entries()) {
       const board = artboards[index];
@@ -291,13 +320,21 @@ export function parseProject(input: unknown): Project {
             ]),
           ),
         );
-      if (raw.behavior !== undefined)
+      if (raw.behavior !== undefined) {
         board.behavior = parseBehavior(
           raw.behavior,
           new Map(flattenScene(board.scene).map(({ node }) => [node.id, node])),
           motion.animations,
           rigParameterContext(board.rig),
         );
+        if (
+          header.data.version < 23 &&
+          board.behavior.bindings.some((binding) => binding.kind === "semantics")
+        )
+          throw new Error("Binding semântico requer projeto v23.");
+        if (header.data.version < 23 && board.behavior.formulas?.length)
+          throw new Error("Fórmulas requerem projeto v23.");
+      }
       if (raw.audio !== undefined) {
         if (header.data.version < 15) throw new Error("Áudio requer projeto v15.");
         board.audio = parseAudioDocument(
@@ -307,6 +344,8 @@ export function parseProject(input: unknown): Project {
         );
       }
     }
+  // After layouts are parsed: a draw order cannot stack objects a layout places in slots.
+  validateDrawOrders(motion.animations, artboards);
   const byAnimation: Record<Preset, number[]> = { Parado: [], Acenar: [], Pular: [] };
   for (const name of presetSchema.options) {
     const total = totalFrames[name];

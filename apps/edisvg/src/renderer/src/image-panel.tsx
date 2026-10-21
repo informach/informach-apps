@@ -127,7 +127,101 @@ function ImagePanel({ node, assets, locked, execute }: Props) {
         </p>
         {error && <p role="alert">{error}</p>}
       </form>
+      <MeshForm node={node} image={image} locked={locked} execute={execute} />
     </section>
+  );
+}
+/** Grid that lets bones (skin) and morphs deform the raster. */
+function MeshForm({
+  node,
+  image,
+  locked,
+  execute,
+}: Omit<Props, "assets"> & { image: { width: number; height: number } }) {
+  const [error, setError] = useState(""),
+    attempt = (commands: unknown[]) => {
+      try {
+        execute(commands);
+        setError("");
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Malha recusada.");
+      }
+    };
+  return (
+    <form
+      aria-label="Malha raster"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        attempt([
+          // The grid spans the image box, so the box must be absolute and unclipped.
+          {
+            type: "scene",
+            operation: "attrs",
+            targetId: node.id,
+            value: {
+              width: node.attrs.width ?? String(image.width),
+              height: node.attrs.height ?? String(image.height),
+              preserveAspectRatio: "none",
+            },
+          },
+          {
+            type: "scene",
+            operation: "image-mesh",
+            targetId: node.id,
+            value: {
+              columns: Number(data.get("columns")),
+              rows: Number(data.get("rows")),
+            },
+          },
+        ]);
+      }}
+    >
+      <fieldset disabled={locked || !!node.imageSlice}>
+        <legend>Malha raster</legend>
+        <label className="scene-field">
+          Colunas
+          <input
+            name="columns"
+            type="number"
+            min="1"
+            max="16"
+            step="1"
+            required
+            defaultValue={node.imageMesh?.columns ?? 4}
+          />
+        </label>
+        <label className="scene-field">
+          Linhas
+          <input
+            name="rows"
+            type="number"
+            min="1"
+            max="16"
+            step="1"
+            required
+            defaultValue={node.imageMesh?.rows ?? 4}
+          />
+        </label>
+        <button type="submit">{node.imageMesh ? "Atualizar malha" : "Criar malha"}</button>
+        {node.imageMesh ? (
+          <button
+            type="button"
+            onClick={() =>
+              attempt([{ type: "scene", operation: "image-mesh", targetId: node.id, value: null }])
+            }
+          >
+            Remover malha
+          </button>
+        ) : null}
+      </fieldset>
+      <p className="micro">
+        A malha divide a imagem em triângulos que ossos (Restrições → Malha vetorial) e morphs podem
+        deformar. A imagem passa a esticar na caixa (sem manter o aspecto). Nine-slice e malha são
+        exclusivos. SVG animado e Lottie não exportam a malha deformada; HTML, React e vídeo sim.
+      </p>
+      {error && <p role="alert">{error}</p>}
+    </form>
   );
 }
 export function mountImagePanel(host: Element, props: Props) {

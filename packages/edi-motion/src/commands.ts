@@ -77,6 +77,19 @@ export const motionCommandSchema = z.discriminatedUnion("type", [
     trackId: clipId,
     keyId: clipId,
   }),
+  z.strictObject({
+    type: z.literal("set-draw-order"),
+    animationId: clipId,
+    scopeId: objectIdSchema.nullable(),
+    frame: z.number().int().min(0).max(360000),
+    order: z.array(objectIdSchema).min(1).max(2000),
+  }),
+  z.strictObject({
+    type: z.literal("delete-draw-order-key"),
+    animationId: clipId,
+    drawOrderId: clipId,
+    frame: z.number().int().min(0).max(360000),
+  }),
 ]);
 export type MotionCommand = z.infer<typeof motionCommandSchema>;
 
@@ -125,6 +138,10 @@ export function applyMotionCommands(
       for (const track of copy.tracks) {
         track.id = `track-${crypto.randomUUID()}`;
         for (const key of track.keys) key.id = `key-${crypto.randomUUID()}`;
+      }
+      for (const drawOrder of copy.drawOrders ?? []) {
+        drawOrder.id = `order-${crypto.randomUUID()}`;
+        for (const key of drawOrder.keys) key.id = `key-${crypto.randomUUID()}`;
       }
       draft.animations.push(copy);
       continue;
@@ -221,6 +238,39 @@ export function applyMotionCommands(
           );
       }
       animation.tracks = animation.tracks.filter((track) => track.keys.length > 0);
+    } else if (command.type === "set-draw-order") {
+      animation.drawOrders ??= [];
+      const drawOrders = animation.drawOrders,
+        listed = new Set(command.order);
+      // Several artboards may share a clip: a root order is the one stacking these siblings.
+      let drawOrder = drawOrders.find(
+        (item) =>
+          item.scopeId === command.scopeId &&
+          (item.scopeId !== null ||
+            item.keys.some((key) => key.order.some((id) => listed.has(id)))),
+      );
+      if (!drawOrder) {
+        drawOrder = { id: `order-${crypto.randomUUID()}`, scopeId: command.scopeId, keys: [] };
+        drawOrders.push(drawOrder);
+      }
+      const key = drawOrder.keys.find((item) => item.frame === command.frame);
+      if (key) key.order = [...command.order];
+      else
+        drawOrder.keys.push({
+          id: `key-${crypto.randomUUID()}`,
+          frame: command.frame,
+          order: [...command.order],
+        });
+      drawOrder.keys.sort((a, b) => a.frame - b.frame);
+    } else if (command.type === "delete-draw-order-key") {
+      const drawOrder = animation.drawOrders?.find((item) => item.id === command.drawOrderId);
+      if (!drawOrder?.keys.some((key) => key.frame === command.frame))
+        throw new Error("Chave de ordem de desenho não encontrada.");
+      drawOrder.keys = drawOrder.keys.filter((key) => key.frame !== command.frame);
+      if (!drawOrder.keys.length) {
+        animation.drawOrders = animation.drawOrders?.filter((item) => item !== drawOrder);
+        if (!animation.drawOrders?.length) delete animation.drawOrders;
+      }
     } else if (command.type === "update-key") {
       const track = animation.tracks.find((item) => item.id === command.trackId);
       const key = track?.keys.find((item) => item.id === command.keyId);

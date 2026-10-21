@@ -127,6 +127,49 @@ export interface ShapeLayer {
   };
   shapes: ShapeElement[];
 }
+/** Sampled 2D layer transform: T(p)·R(r)·S(s)·T(−a). */
+export interface LayerTransform {
+  o: ScalarProperty;
+  r: ScalarProperty;
+  p: VectorProperty;
+  a: StaticProperty<Vector2>;
+  s: VectorProperty;
+}
+interface LayerBase {
+  ind: number;
+  nm: string;
+  parent?: number;
+  ip: 0;
+  op: number;
+  st: 0;
+  sr: 1;
+  ddd: 0;
+  ao: 0;
+  bm: 0;
+}
+/** Carries a transform for its children only (opacity does not propagate). */
+export interface NullLayer extends LayerBase {
+  ty: 3;
+  ks: LayerTransform | ShapeLayer["ks"];
+}
+export interface ImageLayer extends LayerBase {
+  ty: 2;
+  refId: string;
+  ks: LayerTransform;
+}
+/** An embedded PNG; `p` is a data URI, never an external path. */
+export interface ImageAsset {
+  id: string;
+  w: number;
+  h: number;
+  u: "";
+  p: string;
+  e: 1;
+}
+export type Layer = ShapeLayer | NullLayer | ImageLayer;
+export function shapeLayers(document: { layers: readonly Layer[] }): ShapeLayer[] {
+  return document.layers.filter((layer): layer is ShapeLayer => layer.ty === 4);
+}
 /** This emitter's closed vector profile, not a parser for arbitrary Lottie. */
 export interface LottieDocument {
   v: "5.13.0";
@@ -138,8 +181,8 @@ export interface LottieDocument {
   w: number;
   h: number;
   ddd: 0;
-  assets: [];
-  layers: ShapeLayer[];
+  assets: ImageAsset[];
+  layers: Layer[];
   meta: { g: "EdiSVG"; sampling: string };
 }
 export interface LottieIssue {

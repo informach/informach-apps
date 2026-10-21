@@ -23,7 +23,7 @@ export interface BehaviorFocus {
   layerId?: string;
   stateId?: string;
   transitionId?: string;
-  dataTab?: "bindings" | "listeners" | "events";
+  dataTab?: "bindings" | "listeners" | "events" | "formulas";
   modelData?: ModelFocus;
 }
 interface Props {

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import type { Page } from "playwright";
 import { tsImport } from "tsx/esm/api";
+// Type-only: this script runs as plain ESM and loads TypeScript through tsImport.
+import type { ShapeLayer } from "../src/shared/lottie/model";
 
 /** Actual shipped worker under file/CSP and native Save/Cancel. The helper
  * edits only the harness draft and undoes its authoring changes afterwards. */
@@ -92,7 +94,9 @@ export async function verifyNativeLottieExport(
       confirmRendererPrecision: true,
     });
     if (source?.expectedGradientCount !== undefined) {
-      const pending = expected.document.layers.flatMap((layer) => layer.shapes);
+      const pending = expected.document.layers
+        .filter((layer): layer is ShapeLayer => layer.ty === 4)
+        .flatMap((layer) => layer.shapes);
       let count = 0;
       while (pending.length) {
         const shape = pending.pop();
