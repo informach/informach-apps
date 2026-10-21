@@ -6,6 +6,7 @@ import { parsePath } from "../pathGeometry.js";
 import { compileLottie, LottieExportError } from "./compile";
 import { lottieDashProperties, lottieDashWork, prepareLottieDashes } from "./dashes";
 import type { ShapeStroke } from "./model";
+import { shapeLayers } from "./model";
 import { inspectLottieCompatibility, prepareLottie } from "./prepare";
 
 test("numeric Lottie dash patterns normalize odd lists and all-zero solid without admitting malformed/unbounded values", () => {
@@ -90,7 +91,7 @@ test("dashes preserve real inherited appearance and local units in compilation a
       confirmRendererPrecision: true,
     },
     output = compileLottie(fixture.project, options),
-    group = output.document.layers[0]?.shapes[0];
+    group = shapeLayers(output.document)[0]?.shapes[0];
   assert.ok(group?.ty === "gr");
   const pending = [...group.it];
   let stroke: ShapeStroke | undefined;

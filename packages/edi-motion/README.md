@@ -4,6 +4,8 @@ Package interno, consumido como fonte TypeScript pelo workspace. Não está publ
 
 ## Contratos
 
+Incremento 5.36: `/assets` acrescenta `fontContainer` e `extractFontFace`: WOFF 1.0 (tabelas zlib) e uma face de coleção TTC/OTC viram um SFNT avulso com as tabelas intactas e diretório/checksums refeitos; WOFF2 é recusado com explicação. [Review 5.36](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes-externas-lottie-imagens.md).
+
 Incremento 5.35: `/behavior` acrescenta `behavior.formulas` (`formulaSchema`, `FormulaExpression`, `FORMULA_LIMITS`, `formulaShape`) e a sintaxe de autoria `parseFormulaText`/`formatFormula`. O motor recalcula os inputs calculados em ordem de dependência ao criar a sessão, a cada escrita e a cada passo do relógio; eles ficam somente leitura. A varredura estrutural da lógica limita a profundidade a 96 antes do schema. [Review 5.35](../../docs/reviews/edisvg-2026-10-17/review-lote-5-formulas.md).
 
 Incremento 5.34: `/behavior` acrescenta o binding `kind: "semantics"` (`property: label | description`, `template` com um único `{valor}`, só ida) e `semanticValue` (números em pt-BR, booleanos sim/não); `evaluateBehavior` devolve `semantics`. `semanticSchema` aceita `live: polite | assertive`, que vira `aria-live` no player. O player escreve o `aria-label` e o `desc`; os gates são o blueprint v12. [Review 5.34](../../docs/reviews/edisvg-2026-10-17/review-lote-5-semantica-dinamica.md).

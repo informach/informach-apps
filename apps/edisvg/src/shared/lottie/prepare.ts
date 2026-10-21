@@ -14,6 +14,7 @@ import { parseProject } from "../project";
 import { flattenScene } from "../scene.js";
 import { lottieDashWork } from "./dashes";
 import { LOTTIE_GRADIENT_SAMPLE_COST, prepareLottieGradient } from "./gradient";
+import { type LottieImage, prepareLottieImage } from "./image";
 import { LOTTIE_JSON_MAX_DEPTH } from "./json";
 import type { LottieIssue, LottieReport, ShapeFill, StaticShapeGradientFill } from "./model";
 import {
@@ -105,7 +106,9 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       (scope.rig.trims ?? []).map((trim) => trim.targetId),
     ),
   );
-  let losesSemantics = false;
+  let losesSemantics = false,
+    imageBytes = 0;
+  const images = new Map<string, LottieImage>();
   for (const { node } of entries) {
     try {
       svgOpacity(node.attrs.opacity);
@@ -127,11 +130,11 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       );
     if (node.tag === "svg")
       issue(node.id, "component", "Viewports/componentes não estão no perfil Lottie inicial.");
-    else if (node.tag !== "g" && !PATH_TAGS.has(node.tag))
+    else if (node.tag !== "g" && node.tag !== "image" && !PATH_TAGS.has(node.tag))
       issue(
         node.id,
         "content",
-        "Este perfil Lottie aceita grupos e geometria vetorial, não texto/imagens.",
+        "Este perfil Lottie aceita grupos, geometria vetorial e imagens PNG, não texto.",
       );
     for (const attribute of ["display", "visibility"] as const)
       if (
@@ -143,6 +146,20 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
         ).includes(node.attrs[attribute])
       )
         issue(node.id, "presentation", `Valor de ${attribute} fora do perfil Lottie.`);
+    if (node.tag === "image") {
+      try {
+        const image = prepareLottieImage(node, project.assets);
+        images.set(node.id, image);
+        imageBytes += image.uri.length;
+      } catch (error) {
+        issue(
+          node.id,
+          "image",
+          error instanceof Error ? error.message : "Imagem fora do perfil Lottie.",
+        );
+      }
+      continue;
+    }
     if (!PATH_TAGS.has(node.tag)) continue;
     if (node.tag === "path" && !node.attrs.d?.trim()) continue;
     try {
@@ -298,6 +315,15 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       "cost",
       "Geometria × quadros excede orçamento de amostragem Lottie; nenhuma saída parcial será criada.",
     );
+  if (imageBytes > 6_000_000)
+    issue(null, "image-size", "Imagens incorporadas excedem 6 MB no arquivo Lottie.");
+  if (images.size)
+    issue(
+      null,
+      "image-profile",
+      "Imagens viram camadas de imagem com o PNG incorporado e transformação amostrada; o consumidor reamostra os pixels, então bordas podem diferir levemente.",
+      "warning",
+    );
   const requiresAnimationOnlyConsent =
     losesSemantics || requiresInteractiveExport(project, board.id);
   if (gradientCount)
@@ -360,6 +386,7 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
     geometries,
     paints,
     strokes,
+    images,
     localPaintSpace,
     sourceFrames,
     report,

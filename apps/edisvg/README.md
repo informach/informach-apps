@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Fontes WOFF/coleções e imagens na Lottie — incremento 5.36
+
+A importação de recursos aceita fontes WOFF e uma face de coleções TTC/OTC, convertidas sem perda para uma fonte avulsa (WOFF2 continua recusado). Na Lottie, imagens PNG sem nine-slice e sem malha viram camadas de imagem com o PNG incorporado, posição, escala, rotação e opacidade amostradas. [Contrato e gates 5.36](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes-externas-lottie-imagens.md).
+
 ### Fórmulas — incremento 5.35
 
 Inputs podem ser calculados por fórmulas, na aba *Fórmulas* de Dados: `clamp($input-pontos * 2, 0, 100)`, `se($input-fim, "Acabou", "Jogando")` ou `sen(tempo * 2)` para movimento procedural. As fórmulas são declarativas e tipadas, com limites de tamanho, e nada é executado como código. O input calculado fica somente leitura. [Contrato e gates 5.35](../../docs/reviews/edisvg-2026-10-17/review-lote-5-formulas.md).

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import type { Page } from "playwright";
 import { tsImport } from "tsx/esm/api";
+import { shapeLayers } from "../src/shared/lottie/model";
 
 /** Actual shipped worker under file/CSP and native Save/Cancel. The helper
  * edits only the harness draft and undoes its authoring changes afterwards. */
@@ -92,7 +93,7 @@ export async function verifyNativeLottieExport(
       confirmRendererPrecision: true,
     });
     if (source?.expectedGradientCount !== undefined) {
-      const pending = expected.document.layers.flatMap((layer) => layer.shapes);
+      const pending = shapeLayers(expected.document).flatMap((layer) => layer.shapes);
       let count = 0;
       while (pending.length) {
         const shape = pending.pop();

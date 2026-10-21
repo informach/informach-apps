@@ -1,5 +1,6 @@
 import {
   type Affine,
+  factorAffine,
   identityMatrix,
   inverse,
   multiply,
@@ -13,12 +14,16 @@ import { stringifyLottieJson } from "./json";
 import type {
   BezierShape,
   EasingHandle,
+  ImageAsset,
+  Layer,
   LottieDocument,
   LottieReport,
+  NullLayer,
   ScalarKeyframe,
   ScalarProperty,
   ShapeElement,
   ShapeKeyframe,
+  ShapeLayer,
   ShapeProperty,
   StaticProperty,
   Vector2,
@@ -84,6 +89,7 @@ export function compileLottie(
       geometries,
       paints,
       strokes,
+      images,
       localPaintSpace,
       report,
     } = prepared;
@@ -123,6 +129,8 @@ export function compileLottie(
     slotSize = (id: string) =>
       Math.max(0, ...(geometries.get(id) ?? []).map((contour) => contour.points.length)) + 1;
   const shapes = new Map<string, Sample<BezierShape, ShapeKeyframe>[]>(),
+    imageAngles = new Map<string, Sample<number, ScalarKeyframe>>(),
+    turns = new Map<string, number>(),
     opacities = new Map<string, Sample<number, ScalarKeyframe>>(),
     paintAngles = new Map<string, Sample<number, ScalarKeyframe>>(),
     vectors = new Map<string, Sample<Vector2, VectorKeyframe>>(),
@@ -215,7 +223,8 @@ export function compileLottie(
       credit({ ty: "sh", nm: `${node.name} ${index + 1}`, ks: { a: 0, k: null } });
     visible(node.id);
   }
-  const [, , width, height] = compiled.scene.viewBox;
+  const [, , width, height] = compiled.scene.viewBox,
+    globalOpacity = globalTransform.layer.o.a === 0 ? globalTransform.layer.o.k : 100;
   function bezier(contour: Contour, matrix: Affine, fullMatrix?: Affine): BezierShape {
     const result: BezierShape = { v: [], i: [], o: [], c: contour.closed };
     for (const point of contour.points) {
@@ -328,6 +337,49 @@ export function compileLottie(
       prepared,
       budget,
       ({ time, frame, world, prefix, paintTransforms, gradientSamples }) => {
+        for (const [id, image] of images) {
+          spend(8);
+          // The image's whole matrix becomes a null layer (T·R·S, parented to the global
+          // transform) and the image layer (inner rotation, then the box fit).
+          const matrix = world.get(id);
+          if (!matrix) throw new Error("Matriz Lottie ausente.");
+          const factors = factorAffine(multiply(prefix, matrix)),
+            unwrap = (key: string, angle: number) => {
+              const previous = turns.get(key),
+                value =
+                  previous === undefined
+                    ? angle
+                    : previous + ((((angle - previous + 180) % 360) + 360) % 360) - 180;
+              turns.set(key, value);
+              return value;
+            };
+          vectorSample(`${id}:image-p`, time, [factors.position.x, factors.position.y]);
+          vectorSample(`${id}:image-s`, time, [factors.scale.x * 100, factors.scale.y * 100]);
+          scalarSample(imageAngles, `${id}:image-r`, time, unwrap(`${id}:r`, factors.rotation));
+          scalarSample(
+            imageAngles,
+            `${id}:image-inner`,
+            time,
+            unwrap(`${id}:inner`, factors.innerRotation),
+          );
+          // Lottie parents pass transforms, not opacity: the layer carries the whole chain.
+          let opacity = globalOpacity / 100,
+            cursor: string | null = id;
+          while (cursor) {
+            const entry = byId.get(cursor),
+              pose = frame.poses.get(cursor);
+            if (!entry || !pose) throw new Error("Hierarquia Lottie de imagem incompleta.");
+            const hidden =
+              entry.node.visible === false ||
+              entry.node.attrs.display === "none" ||
+              frame.visibility.get(cursor) === false ||
+              (cursor === id && visibility.get(cursor) === false);
+            opacity *= hidden ? 0 : (pose.opacity / 100) * svgOpacity(entry.node.attrs.opacity);
+            cursor = entry.parentId;
+          }
+          scalarSample(opacities, `${id}:image-o`, time, opacity * 100);
+          if (!image.local.every(Number.isFinite)) throw new Error("Encaixe de imagem inválido.");
+        }
         for (const { node } of entries) {
           spend(1);
           const pose = frame.poses.get(node.id);
@@ -451,9 +503,15 @@ export function compileLottie(
   function path(state: Sample<BezierShape, ShapeKeyframe>, hold: boolean): ShapeProperty {
     return property(state, hold ? holdShapeKey : shapeKey);
   }
+  /** Leaves (vector objects) a shape layer draws; null draws them all. */
+  let included: ReadonlySet<string> | null = null;
+  const contains = (node: SceneNode): boolean =>
+    included === null
+      ? !images.has(node.id)
+      : included.has(node.id) || node.children.some(contains);
   function nodeGroup(node: SceneNode): ShapeElement {
-    const it: ShapeElement[] = [...node.children].reverse().map(nodeGroup),
-      states = shapes.get(node.id) ?? [];
+    const it: ShapeElement[] = [...node.children].reverse().filter(contains).map(nodeGroup),
+      states = included === null || included.has(node.id) ? (shapes.get(node.id) ?? []) : [];
     for (const [index, state] of states.entries())
       it.push({ ty: "sh", nm: `${node.name} ${index + 1}`, ks: path(state, trimmed.has(node.id)) });
     const paint = paints.get(node.id);
@@ -516,6 +574,118 @@ export function compileLottie(
     });
     return { ty: "gr", nm: node.name, it };
   }
+  const layers: Layer[] = [],
+    assets: ImageAsset[] = [];
+  const shapeLayer = (name: string, ind: number): ShapeLayer => ({
+    ty: 4,
+    ind,
+    nm: name,
+    ip: 0,
+    op: report.frames,
+    st: 0,
+    sr: 1,
+    ddd: 0,
+    ao: 0,
+    bm: 0,
+    ks: globalTransform.layer,
+    shapes: [...compiled.scene.nodes].reverse().filter(contains).map(nodeGroup),
+  });
+  if (!images.size) layers.push(shapeLayer(prepared.board.name, 1));
+  else {
+    // Paint order (bottom to top): runs of vector leaves become shape layers, with each
+    // image's layers between them. Lottie lists layers top first.
+    const runs: ({ kind: "shapes"; ids: Set<string> } | { kind: "image"; id: string })[] = [];
+    const walk = (nodes: readonly SceneNode[]) => {
+      for (const node of nodes) {
+        if (images.has(node.id)) runs.push({ kind: "image", id: node.id });
+        else if (node.children.length) walk(node.children);
+        else {
+          const last = runs.at(-1);
+          if (last?.kind === "shapes") last.ids.add(node.id);
+          else runs.push({ kind: "shapes", ids: new Set([node.id]) });
+        }
+      }
+    };
+    walk(compiled.scene.nodes);
+    const base = {
+        ip: 0,
+        op: report.frames,
+        st: 0,
+        sr: 1,
+        ddd: 0,
+        ao: 0,
+        bm: 0,
+      } as const,
+      global: NullLayer = {
+        ...base,
+        ty: 3,
+        ind: 1,
+        nm: "Transformação global",
+        ks: globalTransform.layer,
+      },
+      stack: Layer[] = [],
+      assetIds = new Map<string, string>();
+    let next = 2;
+    for (const run of runs) {
+      if (run.kind === "shapes") {
+        included = run.ids;
+        stack.push(shapeLayer(`${prepared.board.name} · formas`, next++));
+        included = null;
+        continue;
+      }
+      const image = images.get(run.id),
+        entry = byId.get(run.id);
+      if (!image || !entry) throw new Error("Imagem Lottie ausente.");
+      let refId = assetIds.get(image.asset.id);
+      if (!refId) {
+        refId = `image_${assetIds.size}`;
+        assetIds.set(image.asset.id, refId);
+        const asset: ImageAsset = {
+          id: refId,
+          w: image.asset.width,
+          h: image.asset.height,
+          u: "",
+          p: image.uri,
+          e: 1,
+        };
+        credit(asset);
+        assets.push(asset);
+      }
+      const [sx, , , sy, ox, oy] = image.local,
+        holder: NullLayer = {
+          ...base,
+          ty: 3,
+          ind: next++,
+          nm: `${entry.node.name} · posição`,
+          parent: global.ind,
+          ks: {
+            o: { a: 0, k: 100 },
+            r: scalar(imageAngles, `${run.id}:image-r`),
+            p: vector(`${run.id}:image-p`),
+            a: { a: 0, k: [0, 0] },
+            s: vector(`${run.id}:image-s`),
+          },
+        };
+      stack.push(holder, {
+        ...base,
+        ty: 2,
+        ind: next++,
+        nm: entry.node.name,
+        refId,
+        parent: holder.ind,
+        ks: {
+          o: scalar(opacities, `${run.id}:image-o`),
+          r: scalar(imageAngles, `${run.id}:image-inner`),
+          p: { a: 0, k: [0, 0] },
+          // R(inner)·S(fit)·T(offset/fit) = R(inner)·T(offset)·S(fit).
+          a: { a: 0, k: [-ox / sx, -oy / sy] },
+          s: { a: 0, k: [sx * 100, sy * 100] },
+        },
+      });
+    }
+    // Stacking is by array order (top first); null layers draw nothing.
+    layers.push(...stack.reverse(), global);
+  }
   const document: LottieDocument = {
     v: "5.13.0",
     ver: 10000,
@@ -526,27 +696,12 @@ export function compileLottie(
     w: width,
     h: height,
     ddd: 0,
-    assets: [],
+    assets,
     meta: {
       g: "EdiSVG",
       sampling: `${report.fps} FPS; ${clip.mode}; curvas Bézier/amostragem confirmadas; somente animação`,
     },
-    layers: [
-      {
-        ty: 4,
-        ind: 1,
-        nm: prepared.board.name,
-        ip: 0,
-        op: report.frames,
-        st: 0,
-        sr: 1,
-        ddd: 0,
-        ao: 0,
-        bm: 0,
-        ks: globalTransform.layer,
-        shapes: [...compiled.scene.nodes].reverse().map(nodeGroup),
-      },
-    ],
+    layers,
   };
   const content = stringifyLottieJson(document);
   return {

@@ -5,6 +5,7 @@ import { lottieFixture } from "../../../tests/lottieFixture";
 import { editScene } from "../scene.js";
 import { compileLottie, LottieExportError } from "./compile";
 import type { ShapeElement } from "./model";
+import { shapeLayers } from "./model";
 import { inspectLottieCompatibility, prepareLottie } from "./prepare";
 import { visitLottieSamples } from "./sample";
 import { conformalStrokeScale, prepareLottieStroke } from "./stroke";
@@ -139,7 +140,7 @@ test("stroke-only cubic paths emit real geometry/animated widths; native lines r
       if (item.ty === "gr") collect(item.it);
     }
   }
-  for (const layer of output.document.layers) collect(layer.shapes);
+  for (const layer of shapeLayers(output.document)) collect(layer.shapes);
   const stroke = shapes.find((item) => item.ty === "st");
   assert.ok(stroke && stroke.w.a === 0);
   assert.equal(stroke.w.k, 8);

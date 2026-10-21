@@ -7,6 +7,7 @@ export {
   inspectFontLayoutScripts,
   UnsupportedLayoutTableError,
 } from "./font";
+export { extractFontFace, type FontContainer, fontContainer } from "./fontContainer";
 export {
   assertTextCoverage,
   inspectTextCoverage,

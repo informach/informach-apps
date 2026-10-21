@@ -3,7 +3,9 @@ import {
   type Asset,
   assetId,
   encodeAssetData,
+  extractFontFace,
   type FontAsset,
+  fontContainer,
   inspectFont,
   inspectPng,
   inspectWav,
@@ -18,6 +20,13 @@ export type AssetImport =
       kind: "font";
       asset: Omit<FontAsset, "rightsConfirmed" | "licenseNotice">;
       conversion: string;
+      /** A collection keeps its source so another face can be chosen before commit. */
+      collection?: {
+        source: Uint8Array;
+        name: string;
+        face: number;
+        faces: { index: number; family: string; weight: number; italic: boolean }[];
+      };
     };
 /** Bytes enter through bounded File/native-dialog paths. Actual browser decoding
  * precedes commit; structural headers alone never certify a ready image. */
@@ -25,29 +34,52 @@ export async function prepareAssetImport(
   bytes: Uint8Array,
   name: string,
   signal: AbortSignal,
+  face = 0,
 ): Promise<AssetImport> {
   signal.throwIfAborted();
   if (!bytes.length || bytes.length > ASSET_BYTES)
     throw new Error("Recurso vazio ou maior que 4 MB.");
   const filename = name.trim().slice(0, 120) || "Recurso";
+  const signature = String.fromCharCode(...bytes.subarray(0, 4));
   if (
     (bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0) ||
-    (bytes[0] === 79 && bytes[1] === 84 && bytes[2] === 84 && bytes[3] === 79)
+    ["OTTO", "wOFF", "wOF2", "ttcf"].includes(signature)
   ) {
-    const font = inspectFont(bytes);
+    // WOFF and collections become one uncompressed face; table bytes are kept.
+    const { container, faces } = fontContainer(bytes),
+      sfnt = extractFontFace(bytes, face),
+      font = inspectFont(sfnt);
     return {
       kind: "font",
       asset: {
         kind: "font",
         mime: font.format === "truetype" ? "font/ttf" : "font/otf",
         name: filename,
-        id: assetId(bytes),
-        byteLength: bytes.length,
-        data: encodeAssetData(bytes),
+        id: assetId(sfnt),
+        byteLength: sfnt.length,
+        data: encodeAssetData(sfnt),
         ...font,
       },
-      conversion:
-        "A fonte será incorporada integralmente ao projeto e aos arquivos exportados. Confirme que sua licença permite editar e redistribuir dessa forma; os flags do arquivo não substituem a licença.",
+      conversion: `${
+        container === "woff"
+          ? "O WOFF será descompactado para TTF/OTF, sem alterar as tabelas da fonte. "
+          : container === "collection"
+            ? `A face escolhida da coleção (${faces} faces) vira uma fonte avulsa, sem alterar suas tabelas. `
+            : ""
+      }A fonte será incorporada integralmente ao projeto e aos arquivos exportados. Confirme que sua licença permite editar e redistribuir dessa forma; os flags do arquivo não substituem a licença.`,
+      ...(container === "collection"
+        ? {
+            collection: {
+              source: bytes,
+              name,
+              face,
+              faces: Array.from({ length: faces }, (_, index) => {
+                const info = inspectFont(extractFontFace(bytes, index));
+                return { index, family: info.family, weight: info.weight, italic: info.italic };
+              }),
+            },
+          }
+        : {}),
     };
   }
   if (bytes[0] === 137 && bytes[1] === 80) {

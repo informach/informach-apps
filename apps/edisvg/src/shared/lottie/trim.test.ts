@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { trimFixture } from "../../../tests/trimFixture";
 import { compileLottie } from "./compile";
+import { shapeLayers } from "./model";
 import { inspectLottieCompatibility } from "./prepare";
 
 const options = (fixture: ReturnType<typeof trimFixture>) => ({
@@ -23,7 +24,7 @@ function shapes(items: unknown[]): { ks: { a: number; k: unknown } }[] {
 test("trimmed Lottie paths use hold keys with a constant vertex count per slot", () => {
   const fixture = trimFixture(),
     exported = compileLottie(fixture.project(), options(fixture)),
-    slots = shapes(exported.document.layers[0]?.shapes ?? []);
+    slots = shapes(shapeLayers(exported.document)[0]?.shapes ?? []);
   assert.equal(slots.length, 2);
   const sizes = new Set<number | undefined>();
   for (const slot of slots) {
