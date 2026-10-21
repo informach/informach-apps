@@ -6,6 +6,7 @@ import { createSvgGradientCatalog } from "./svg-gradients";
 import { parseSvgInlineStyle } from "./svg-inline-style";
 import { createSvgPatternCatalog } from "./svg-patterns";
 import { createSvgSemanticCatalog, svgSemanticAttributes } from "./svg-semantics";
+import { createSvgTextPathCatalog } from "./svg-text-paths";
 import { expandSvgUses } from "./svg-use-expansion";
 export const SVG_SOURCE_BYTES = 1500000;
 const LOCAL_PAINT = /^url\(\s*(['"]?)#([A-Za-z_][\w.-]{0,119})\1\s*\)$/;
@@ -118,6 +119,8 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
       "warning",
     );
   let gradients, patterns, filterCatalog, semanticCatalog, effectCatalog;
+  const textPathCatalog = createSvgTextPathCatalog(root),
+    textPaths = new Map();
   try {
     gradients = createSvgGradientCatalog(root);
     patterns = createSvgPatternCatalog(root);
@@ -252,6 +255,15 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
     if (combined.clip || combined.mask)
       effects.set(el, { clip: combined.clip, mask: combined.mask });
     if (combined.filter) filters.set(el, combined.filter);
+    // A text on a path is read whole: its textPath child is content, not art.
+    if (textPathCatalog.owns(el)) {
+      try {
+        textPaths.set(el, textPathCatalog.read(el));
+      } catch (error) {
+        issue(path, error instanceof Error ? error.message : "Texto em caminho inválido.");
+      }
+      return;
+    }
     let index = 0;
     for (const child of el.children)
       walk(child, `${path}/${child.localName.slice(0, 80)}[${++index}]`, depth + 1);
@@ -440,8 +452,10 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         ...(paints.has(el) ? { gradients: paints.get(el) } : {}),
         ...(filters.has(el) ? { filter: filters.get(el) } : {}),
         ...(semantics.has(el) ? { semantics: semantics.get(el) } : {}),
-        text:
-          el.localName === "text"
+        ...(textPaths.has(el) ? { textPath: textPaths.get(el).textPath } : {}),
+        text: textPaths.has(el)
+          ? textPaths.get(el).text
+          : el.localName === "text"
             ? [...el.childNodes]
                 .filter((child) => child.nodeType === 3 || child.nodeType === 4)
                 .map((child) => child.textContent ?? "")
@@ -452,10 +466,11 @@ export function inspectSvgImport(source, Parser = globalThis.DOMParser) {
         locked: false,
         children: [],
       };
-      for (const child of el.children) {
-        const parsed = convert(child);
-        if (parsed) node.children.push(parsed);
-      }
+      if (!textPaths.has(el))
+        for (const child of el.children) {
+          const parsed = convert(child);
+          if (parsed) node.children.push(parsed);
+        }
       return attachEffects(node, el);
     }
     const rootAttrs = attributes.get(root) ?? {},

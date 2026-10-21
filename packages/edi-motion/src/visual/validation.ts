@@ -38,6 +38,8 @@ export function validateVisualDocument(document: InteractiveDocument) {
         throw new Error("Direção automática requer texto sem direção explícita.");
       if (object.textDirection !== object.visual.textDirection)
         throw new Error("Direção portátil não corresponde ao conteúdo.");
+      if (object.visual.textPath && (object.tag !== "text" || object.visual.textLayout))
+        throw new Error("Texto em caminho requer texto de uma linha.");
       const path = object.visual.attrs.d;
       if (path !== undefined && object.tag !== "path")
         throw new Error("Dados de caminho requerem path.");

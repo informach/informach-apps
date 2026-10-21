@@ -31,6 +31,7 @@ import {
 } from "./visual/model";
 import { semanticSchema } from "./visual/semantics";
 import { textDirectionSchema } from "./visual/textDirection";
+import { textPathCost } from "./visual/textPath";
 import { validateVisualDocument } from "./visual/validation";
 export const INTERACTIVE_VERSION = 12;
 
@@ -331,6 +332,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     );
     for (const [id, shape] of primitiveSources)
       if (!geometryIds.has(id)) vertices += geometryCost(parseSvgPath(svgPrimitivePathData(shape)));
+    for (const object of parsed.content) vertices += textPathCost(object.visual?.textPath);
     if (vertices > 100000)
       throw new Error("Cena interativa excede geometria agregada incluindo efeitos nativos.");
     if (parsed.version < 12 && [...effects.values()].some((value) => value.mask?.mode))
@@ -381,6 +383,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         throw new Error("Layout interativo requer texto.");
       else if (value.textDirection && (value.tag !== "text" || parsed.version < 12))
         throw new Error("Direção automática requer texto e blueprint v12.");
+      else if (value.visual?.textPath && parsed.version < 12)
+        throw new Error("Texto em caminho requer blueprint v12.");
     const authored = new Map(
       playback.sources
         .filter((source) => source.instancePath.length === 0)

@@ -257,6 +257,7 @@ export function compileInteractiveArtboard(
             visible: node.visible,
             ...(node.textLayout ? { textLayout: node.textLayout } : {}),
             ...(node.textDirection ? { textDirection: node.textDirection } : {}),
+            ...(node.textPath ? { textPath: node.textPath } : {}),
           },
           ...(node.assetId ? { assetId: node.assetId } : {}),
           ...(node.imageSlice

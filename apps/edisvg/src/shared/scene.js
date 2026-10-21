@@ -31,7 +31,7 @@ import { sceneEffectContext } from "./sceneEffects";
 
 export { svgAttributes, validAttributes } from "@informach/edi-motion/graphics";
 
-import { textDirectionSchema } from "@informach/edi-motion/visual";
+import { textDirectionSchema, textPathCost, textPathSchema } from "@informach/edi-motion/visual";
 import { textLayoutSchema } from "./textLayout";
 
 const tags = new Set([
@@ -165,7 +165,15 @@ export function editScene(scene, id, operation, value) {
       else n.semantics = semanticSchema.parse(value);
     } else if (operation === "text-layout") {
       if (n.tag !== "text") throw new Error("Selecione um texto.");
+      if (n.textPath) throw new Error("Texto em caminho tem uma linha; remova o caminho antes.");
       n.textLayout = textLayoutSchema.parse(value);
+    } else if (operation === "text-path") {
+      if (n.tag !== "text") throw new Error("Selecione um texto.");
+      if (value === null) delete n.textPath;
+      else {
+        n.textPath = textPathSchema.parse(value);
+        delete n.textLayout;
+      }
     } else if (operation === "text-direction") {
       if (n.tag !== "text") throw new Error("Selecione um texto.");
       // Explicit directions stay SVG attributes; auto is resolved at render.
@@ -264,6 +272,7 @@ export function validateScene(
           "instance",
           "textLayout",
           "textDirection",
+          "textPath",
           "assetId",
           "imageSlice",
           "gradients",
@@ -338,6 +347,10 @@ export function validateScene(
         n.textDirection === undefined ? undefined : textDirectionSchema.parse(n.textDirection);
       if (textDirection && (n.tag !== "text" || n.attrs?.direction !== undefined))
         throw new Error("Direção automática requer texto sem direção explícita.");
+      const textPath = n.textPath === undefined ? undefined : textPathSchema.parse(n.textPath);
+      if (textPath && (n.tag !== "text" || textLayout))
+        throw new Error("Texto em caminho requer texto de uma linha.");
+      if (textPath) budget.vertices += textPathCost(textPath);
       if (textLayout) {
         const lines = n.text.replace(/\r\n?/g, "\n").split("\n").length;
         budget.textLines = (budget.textLines ?? 0) + lines;
@@ -407,6 +420,7 @@ export function validateScene(
         ...(instance === undefined ? {} : { instance }),
         ...(textLayout === undefined ? {} : { textLayout }),
         ...(textDirection === undefined ? {} : { textDirection }),
+        ...(textPath === undefined ? {} : { textPath }),
         ...(semantics === undefined ? {} : { semantics }),
         ...(assetId === undefined ? {} : { assetId }),
         ...(imageSlice === undefined ? {} : { imageSlice }),

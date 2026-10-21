@@ -251,6 +251,8 @@ export function parseProject(input: unknown): Project {
         throw new Error("Modos de máscara requerem projeto v23.");
       if (node.textDirection && header.data.version < 23)
         throw new Error("Direção automática de texto requer projeto v23.");
+      if (node.textPath && header.data.version < 23)
+        throw new Error("Texto em caminho requer projeto v23.");
       if (node.imageSlice) {
         const asset = resourceMap.get(node.assetId ?? "");
         if (header.data.version < 16 || asset?.kind !== "image")

@@ -3,6 +3,7 @@ import { svgAttributesSchema } from "../graphics/attributes";
 import { transformSchema } from "../model";
 import { isXmlText } from "../xmlText";
 import { textDirectionSchema } from "./textDirection";
+import { textPathSchema } from "./textPath";
 
 export const visualTagSchema = z.enum([
   "image",
@@ -36,6 +37,7 @@ export const visualContentSchema = z.strictObject({
   visible: z.boolean(),
   textLayout: textLayoutSchema.optional(),
   textDirection: textDirectionSchema.optional(),
+  textPath: textPathSchema.optional(),
 });
 export type VisualContent = z.infer<typeof visualContentSchema>;
 export const visualSceneSchema = z.strictObject({

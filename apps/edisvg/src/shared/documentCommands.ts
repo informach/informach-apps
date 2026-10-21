@@ -10,7 +10,7 @@ import {
   gradientPaintsSchema,
   vectorEffectsSchema,
 } from "@informach/edi-motion/graphics";
-import { semanticSchema } from "@informach/edi-motion/visual";
+import { semanticSchema, textPathSchema } from "@informach/edi-motion/visual";
 import { z } from "zod";
 import { applyAnimationDependencies } from "./animationDependencies";
 import { animationKeysCommandSchema, applyAnimationKeys } from "./animationKeys";
@@ -65,6 +65,11 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
     ...sceneFields,
     operation: z.literal("text-direction"),
     value: z.enum(["auto", "ltr", "rtl"]),
+  }),
+  z.strictObject({
+    ...sceneFields,
+    operation: z.literal("text-path"),
+    value: textPathSchema.nullable(),
   }),
   z.strictObject({
     ...sceneFields,

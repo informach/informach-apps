@@ -25,3 +25,10 @@ export {
 } from "./semantics";
 export { escapeXml, serializeVisualElement } from "./serialize";
 export { resolveTextDirection, type TextDirection, textDirectionSchema } from "./textDirection";
+export {
+  type TextPath,
+  textPathCost,
+  textPathId,
+  textPathLength,
+  textPathSchema,
+} from "./textPath";

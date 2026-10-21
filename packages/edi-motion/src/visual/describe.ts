@@ -31,6 +31,7 @@ import type { Transform } from "../model";
 import type { TextLayout, VisualTag } from "./model";
 import { type SemanticMetadata, semanticAttributes } from "./semantics";
 import { resolveTextDirection, type TextDirection } from "./textDirection";
+import { type TextPath, textPathId } from "./textPath";
 
 export interface VisualNode {
   id: string;
@@ -50,6 +51,7 @@ export interface VisualNode {
   effects?: VectorEffects;
   textLayout?: TextLayout;
   textDirection?: TextDirection;
+  textPath?: TextPath;
   semantics?: SemanticMetadata;
   /** Needed only for live effect sources; portable playback already owns it. */
   geometry?: Geometry;
@@ -67,6 +69,7 @@ export interface VisualElement {
     | "polygon"
     | "text"
     | "tspan"
+    | "textPath"
     | "image"
     | "use"
     | "defs"
@@ -238,7 +241,21 @@ export function describeVisualScene(
       if (options.verifyFonts) assertTextCoverage(node.text, stack, fontBudget);
     }
     const children: VisualElement[] = node.children.map(draw);
-    if (node.tag === "text" && node.textLayout) {
+    if (node.tag === "text" && node.textPath) {
+      // The curve lives in a generated definition; textPath follows it in the
+      // text's own user space, so the text's transform moves both together.
+      definitions.push({
+        tag: "path",
+        attrs: { id: textPathId(node.id), d: node.textPath.d },
+        children: [],
+      });
+      children.push({
+        tag: "textPath",
+        attrs: { href: `#${textPathId(node.id)}`, startOffset: `${node.textPath.startOffset}%` },
+        text: node.text,
+        children: [],
+      });
+    } else if (node.tag === "text" && node.textLayout) {
       const lineHeight = node.textLayout.lineHeight;
       children.push(
         ...node.text
@@ -264,7 +281,7 @@ export function describeVisualScene(
         tag: node.tag,
         attrs,
         children,
-        ...(node.tag === "text" && node.textLayout ? {} : { text: node.text }),
+        ...(node.tag === "text" && (node.textLayout || node.textPath) ? {} : { text: node.text }),
       };
     const wrapper: VisualElement = {
       tag: "g",

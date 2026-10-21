@@ -46,6 +46,7 @@ import { createSceneClock, type SceneClock, type ScopeLoop } from "./sceneClock"
 import { describeVisualDocument } from "./visual/document";
 import { prepareVisualMount } from "./visual/dom";
 import { resolveTextDirection } from "./visual/textDirection";
+import { type TextPath, textPathId } from "./visual/textPath";
 
 export interface InteractivePlayerOptions extends FrameLoopOptions {
   audioContext?: AudioContext | OfflineAudioContext;
@@ -228,8 +229,31 @@ function createInteractiveScope(
       x: string;
       lineHeight?: number;
       autoDirection: boolean;
+      /** The element whose text a binding replaces (the textPath, on a curve). */
+      textTarget: Element;
     }
   >();
+  // Component viewports share the definitions of the outermost scene SVG.
+  function outermost(svg: SVGSVGElement) {
+    let current = svg;
+    while (current.ownerSVGElement) current = current.ownerSVGElement;
+    return current;
+  }
+  /** Host markup must carry the typed curve exactly, under its generated ID. */
+  function textPathElement(shape: Element, id: string, textPath: TextPath) {
+    const element = shape.firstElementChild,
+      curve = outermost(root).querySelector(`path[id="${textPathId(id)}"]`);
+    if (
+      shape.children.length !== 1 ||
+      element?.localName !== "textPath" ||
+      element.getAttribute("href") !== `#${textPathId(id)}` ||
+      element.getAttribute("startOffset") !== `${textPath.startOffset}%` ||
+      !curve ||
+      curve.getAttribute("d") !== textPath.d
+    )
+      throw new Error("SVG não corresponde ao texto em caminho tipado.");
+    return element;
+  }
   const childIds = new Set<string>();
   function collectChildren(document: InteractiveDocument) {
     for (const component of document.components ?? []) {
@@ -287,6 +311,9 @@ function createInteractiveScope(
       x: shape.getAttribute("x") ?? "0",
       lineHeight: details.lineHeight,
       autoDirection: details.textDirection === "auto",
+      textTarget: details.visual?.textPath
+        ? textPathElement(shape, id, details.visual.textPath)
+        : shape,
     });
   }
   if (elements.size !== objects.size) throw new Error("SVG interativo incompleto.");
@@ -495,7 +522,7 @@ function createInteractiveScope(
         // Dynamic text re-resolves its base direction, as authored text does.
         if (target.autoDirection)
           target.shape.setAttribute("direction", resolveTextDirection(text));
-        if (target.lineHeight === undefined) target.shape.textContent = text;
+        if (target.lineHeight === undefined) target.textTarget.textContent = text;
         else
           target.shape.replaceChildren(
             ...text

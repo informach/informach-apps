@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Texto em caminho — incremento 5.32
+
+Um texto pode seguir uma curva: em *Texto em caminho*, no painel de texto, escolha uma forma do mesmo grupo e o início em porcentagem. O texto guarda uma cópia do contorno no próprio espaço, então mover o texto leva a curva junto, e editar a forma depois não muda o texto. SVGs importados com `<textPath>` local viram texto em caminho editável, com o mesmo desenho do navegador. Tem uma linha por texto; Lottie continua recusando texto. [Contrato e gates 5.32](../../docs/reviews/edisvg-2026-10-17/review-lote-5-texto-em-caminho.md).
+
 ### Shaping complexo e direção automática — incremento 5.31
 
 Textos em árabe, nos scripts índicos e em outros sistemas de escrita com formas contextuais passam a exigir uma fonte que aplique as substituições OpenType desse script (por exemplo `init`/`medi`/`fina` no árabe). Sem elas, as letras sairiam isoladas ou fora de ordem, e Testar/exportar recusa com a explicação. O painel de texto ganha a direção **Automática (primeiro caractere forte)**, que também acompanha texto trocado por dados. [Contrato e gates 5.31](../../docs/reviews/edisvg-2026-10-17/review-lote-5-shaping-bidi.md).

@@ -43,6 +43,7 @@ export function visualSceneFromDocument(input: unknown) {
         effects: object.effects,
         textLayout: data.textLayout,
         textDirection: data.textDirection,
+        textPath: data.textPath,
         semantics: object.semantics,
       });
     }

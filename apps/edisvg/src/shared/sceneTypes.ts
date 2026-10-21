@@ -1,7 +1,7 @@
 import type { Affine, Transform } from "@informach/edi-motion";
 import type { ImageSlice } from "@informach/edi-motion/assets";
 import type { Filter, GradientPaints, VectorEffects } from "@informach/edi-motion/graphics";
-import type { SemanticMetadata } from "@informach/edi-motion/visual";
+import type { SemanticMetadata, TextPath } from "@informach/edi-motion/visual";
 import type { AppearanceStyle } from "./appearanceContracts";
 import type { ComponentInstance } from "./componentContracts";
 import type { TextLayout } from "./textLayout";
@@ -39,6 +39,8 @@ export interface SceneNode {
   textLayout?: TextLayout;
   /** Base direction resolved from the text (first strong character). */
   textDirection?: "auto";
+  /** Own curve in the text's local space; a single line follows it. */
+  textPath?: TextPath;
   semantics?: SemanticMetadata;
 }
 export interface Scene {
