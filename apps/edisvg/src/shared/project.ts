@@ -255,6 +255,8 @@ export function parseProject(input: unknown): Project {
         throw new Error("Texto em caminho requer projeto v23.");
       if (node.imageMesh && header.data.version < 23)
         throw new Error("Malha raster requer projeto v23.");
+      if (node.semantics?.kind !== "decorative" && node.semantics?.live && header.data.version < 23)
+        throw new Error("Região viva requer projeto v23.");
       if (node.imageSlice) {
         const asset = resourceMap.get(node.assetId ?? "");
         if (header.data.version < 16 || asset?.kind !== "image")
@@ -314,13 +316,19 @@ export function parseProject(input: unknown): Project {
             ]),
           ),
         );
-      if (raw.behavior !== undefined)
+      if (raw.behavior !== undefined) {
         board.behavior = parseBehavior(
           raw.behavior,
           new Map(flattenScene(board.scene).map(({ node }) => [node.id, node])),
           motion.animations,
           rigParameterContext(board.rig),
         );
+        if (
+          header.data.version < 23 &&
+          board.behavior.bindings.some((binding) => binding.kind === "semantics")
+        )
+          throw new Error("Binding semântico requer projeto v23.");
+      }
       if (raw.audio !== undefined) {
         if (header.data.version < 15) throw new Error("Áudio requer projeto v15.");
         board.audio = parseAudioDocument(

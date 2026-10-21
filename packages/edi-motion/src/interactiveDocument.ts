@@ -386,6 +386,13 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         throw new Error("Layout interativo requer texto.");
       else if (value.textDirection && (value.tag !== "text" || parsed.version < 12))
         throw new Error("Direção automática requer texto e blueprint v12.");
+      else if (
+        value.semantics &&
+        value.semantics.kind !== "decorative" &&
+        value.semantics.live &&
+        parsed.version < 12
+      )
+        throw new Error("Região viva requer blueprint v12.");
       else if (value.visual?.textPath && parsed.version < 12)
         throw new Error("Texto em caminho requer blueprint v12.");
       else if (
@@ -409,6 +416,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       playback.motion.animations,
       playbackParameterContext(playback),
     );
+    if (parsed.version < 12 && behavior.bindings.some((binding) => binding.kind === "semantics"))
+      throw new Error("Binding semântico requer blueprint v12.");
     const audio =
       parsed.audio === undefined
         ? undefined

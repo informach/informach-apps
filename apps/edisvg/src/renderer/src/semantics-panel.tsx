@@ -19,6 +19,9 @@ function SemanticsPanel({ node, locked, execute }: Props) {
         ? (node.semantics.description ?? "")
         : "",
     ),
+    [live, setLive] = useState(
+      node.semantics && node.semantics.kind !== "decorative" ? (node.semantics.live ?? "") : "",
+    ),
     [error, setError] = useState("");
   const labelled = kind !== "automatic" && kind !== "decorative";
   return (
@@ -36,6 +39,7 @@ function SemanticsPanel({ node, locked, execute }: Props) {
                       ? {
                           label,
                           ...(description.trim() ? { description } : {}),
+                          ...(live ? { live } : {}),
                         }
                       : {}),
                   });
@@ -98,15 +102,32 @@ function SemanticsPanel({ node, locked, execute }: Props) {
                   onChange={(event) => setDescription(event.currentTarget.value)}
                 />
               </label>
+              <label htmlFor={`${id}-live`}>
+                Anunciar mudanças
+                <select
+                  aria-label="Anunciar mudanças"
+                  id={`${id}-live`}
+                  value={live}
+                  onChange={(event) => {
+                    const next = event.currentTarget.value;
+                    if (next === "" || next === "polite" || next === "assertive") setLive(next);
+                  }}
+                >
+                  <option value="">Não (estático)</option>
+                  <option value="polite">Sim, quando o leitor estiver livre</option>
+                  <option value="assertive">Sim, imediatamente</option>
+                </select>
+              </label>
             </>
           )}
           <button type="submit">Aplicar semântica</button>
         </fieldset>
         <p className="micro">
           Botões precisam de listener de ativação em Dados. Enter/Espaço ativam; setas operam
-          listeners de movimento. Elementos decorativos não podem conter interações. A exportação
-          interativa verifica a árvore inteira; salvar uma configuração incompleta continua
-          permitido.
+          listeners de movimento. Nome e descrição podem seguir um input pelo binding Semântico, em
+          Dados; com Anunciar mudanças, o objeto vira região viva. Elementos decorativos não podem
+          conter interações. A exportação interativa verifica a árvore inteira; salvar uma
+          configuração incompleta continua permitido.
         </p>
         {error && <p role="alert">{error}</p>}
       </form>

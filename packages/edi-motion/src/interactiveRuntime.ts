@@ -93,7 +93,8 @@ function createInteractiveScope(
       document.playback.objects.map((object) => {
         const details = content.get(object.id);
         if (!details) throw new Error("Conteúdo ausente.");
-        return [object.id, { ...object, tag: details.tag }];
+        // Semantic bindings validate against the authored accessible name/description.
+        return [object.id, { ...object, tag: details.tag, semantics: details.semantics }];
       }),
     ),
     authored = new Map(
@@ -233,6 +234,10 @@ function createInteractiveScope(
       autoDirection: boolean;
       /** The element whose text a binding replaces (the textPath, on a curve). */
       textTarget: Element;
+      /** Authored accessible name/description, restored when no binding writes them. */
+      baseLabel: string | null;
+      description: Element | null;
+      baseDescription: string | null;
     }
   >();
   // Component viewports share the definitions of the outermost scene SVG.
@@ -337,6 +342,9 @@ function createInteractiveScope(
       textTarget: details.visual?.textPath
         ? textPathElement(shape, id, details.visual.textPath)
         : shape,
+      baseLabel: wrapper.getAttribute("aria-label"),
+      description: wrapper.querySelector(":scope > desc"),
+      baseDescription: wrapper.querySelector(":scope > desc")?.textContent ?? null,
     });
   }
   if (elements.size !== objects.size) throw new Error("SVG interativo incompleto.");
@@ -513,6 +521,7 @@ function createInteractiveScope(
       shown = {
         ...still,
         text: frame.text,
+        semantics: frame.semantics,
         colors: frame.colors,
         visibility: new Map([...frame.rawVisibility, ...still.rigVisibility]),
       };
@@ -527,6 +536,7 @@ function createInteractiveScope(
         color = shown.colors.get(id),
         geometry = shown.geometry.get(id),
         mesh = meshes.get(id),
+        spoken = shown.semantics.get(id),
         // A meshed image takes its deformed vertices; only paths take a d.
         d = mesh ? undefined : geometry ? geometryPath(geometry) : target.baseD;
       const stamp = JSON.stringify([
@@ -537,9 +547,21 @@ function createInteractiveScope(
         color,
         d,
         mesh ? geometry && geometryPath(geometry) : undefined,
+        spoken,
       ]);
       if (cache.get(id) === stamp) continue;
       mesh?.paint(geometry);
+      // Bound names/descriptions; a live region announces them as they change.
+      const label = spoken?.label ?? target.baseLabel;
+      if (label !== null && target.wrapper.getAttribute("aria-label") !== label)
+        target.wrapper.setAttribute("aria-label", label);
+      const description = spoken?.description ?? target.baseDescription;
+      if (
+        target.description &&
+        description !== null &&
+        target.description.textContent !== description
+      )
+        target.description.textContent = description;
       target.wrapper.setAttribute("transform", value);
       target.wrapper.setAttribute("opacity", opacity);
       if (visible !== undefined)

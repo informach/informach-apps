@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Semântica dinâmica — incremento 5.34
+
+O nome e a descrição acessíveis de um objeto podem seguir um input: em Dados, crie um binding *Semântico* com um modelo como "Placar: {valor} pontos". No painel de semântica, *Anunciar mudanças* transforma o objeto numa região viva para leitores de tela. [Contrato e gates 5.34](../../docs/reviews/edisvg-2026-10-17/review-lote-5-semantica-dinamica.md).
+
 ### Malha raster — incremento 5.33
 
 Imagens PNG agora deformam pelo rig. No painel da imagem, *Malha raster* cria uma grade de triângulos (até 16×16). Depois, em Restrições → Malha vetorial, vincule a imagem aos ossos, e os vértices da grade seguem o esqueleto como os de um caminho. HTML, React, Testar e vídeo mostram a deformação; SVG animado e Lottie recusam a malha deformada. [Contrato e gates 5.33](../../docs/reviews/edisvg-2026-10-17/review-lote-5-malha-raster.md).

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { dataModelSchema, parseDataModels, resolveDataPath } from "../data/model";
 import { type Animation, easingSchema, objectIdSchema, propertySchema } from "../model";
 import { type ParameterContext, parameterKey } from "../parameters";
+import type { SemanticMetadata } from "../visual/semantics";
+import { isXmlText } from "../xmlText";
 
 const id = z.string().regex(/^[a-z]+-[\w-]{1,100}$/);
 const name = z.string().trim().min(1).max(120);
@@ -162,8 +164,33 @@ export const bindingSchema = z.discriminatedUnion("kind", [
     property: z.enum(["fill", "stroke"]),
     direction: z.enum(["one-way", "two-way"]),
   }),
+  // The accessible name or description follows an input through a template
+  // with one {valor} slot; it is announced when the object is a live region.
+  z.strictObject({
+    id,
+    kind: z.literal("semantics"),
+    inputId: id,
+    targetId: objectIdSchema,
+    property: z.enum(["label", "description"]),
+    template: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine(
+        (value) => value.split("{valor}").length === 2 && isXmlText(value),
+        "Modelo semântico requer um único {valor} e texto XML válido.",
+      ),
+    direction: z.literal("one-way"),
+  }),
 ]);
 export type BehaviorBinding = z.infer<typeof bindingSchema>;
+/** Spoken form of an input value: Brazilian number format, sim/não for booleans. */
+export function semanticValue(value: InputValue) {
+  if (typeof value === "number")
+    return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 }).format(value);
+  if (typeof value === "boolean") return value ? "sim" : "não";
+  return value;
+}
 const actionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("set-input"),
@@ -235,7 +262,7 @@ export function validateInputValue(input: BehaviorInput, value: unknown): InputV
  * targets describe only this artboard (component internals have separate ownership). */
 export function parseBehavior(
   input: unknown,
-  targets: ReadonlyMap<string, { tag: string }>,
+  targets: ReadonlyMap<string, { tag: string; semantics?: SemanticMetadata }>,
   animations: readonly Animation[],
   parameters?: ParameterContext,
 ): Behavior {
@@ -411,6 +438,24 @@ export function parseBehavior(
       if (binding.direction === "two-way" && (binding.scale === 0 || definition.discrete))
         throw new Error("Parâmetro bidirecional requer conversão contínua invertível.");
       const destination = parameterKey([], binding.targetId, binding.property);
+      if (destinations.has(destination)) throw new Error("Bindings conflitantes no mesmo destino.");
+      destinations.add(destination);
+      continue;
+    }
+    if (binding.kind === "semantics") {
+      const input = requireInput(binding.inputId),
+        semantics = requireTarget(binding.targetId).semantics;
+      if (input.kind === "trigger" || input.kind === "color")
+        throw new Error("Binding semântico requer input de texto, número, booleano ou lista.");
+      if (
+        !semantics ||
+        semantics.kind === "decorative" ||
+        (binding.property === "description" && !semantics.description)
+      )
+        throw new Error(
+          "Binding semântico requer objeto com nome acessível (e descrição, para a descrição).",
+        );
+      const destination = `${binding.targetId}:semantics:${binding.property}`;
       if (destinations.has(destination)) throw new Error("Bindings conflitantes no mesmo destino.");
       destinations.add(destination);
       continue;

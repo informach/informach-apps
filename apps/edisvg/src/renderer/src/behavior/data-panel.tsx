@@ -81,7 +81,9 @@ function BindingForm({
         ? input.kind === "boolean"
         : kind === "color"
           ? input.kind === "color"
-          : input.kind === "string" || input.kind === "enum",
+          : kind === "semantics"
+            ? input.kind !== "trigger" && input.kind !== "color"
+            : input.kind === "string" || input.kind === "enum",
   );
   return (
     <form
@@ -103,7 +105,10 @@ function BindingForm({
               inputId: formText(data, "input"),
               targetId:
                 kind === "parameter" ? (parameter?.targetId ?? "") : formText(data, "target"),
-              direction: kind === "visibility" ? "one-way" : formText(data, "direction"),
+              direction:
+                kind === "visibility" || kind === "semantics"
+                  ? "one-way"
+                  : formText(data, "direction"),
             };
           save(
             bindingSchema.parse(
@@ -119,7 +124,13 @@ function BindingForm({
                   ? { ...base, property: formText(data, "property") }
                   : kind === "visibility"
                     ? { ...base, invert: data.has("invert") }
-                    : base,
+                    : kind === "semantics"
+                      ? {
+                          ...base,
+                          property: formText(data, "property"),
+                          template: formText(data, "template"),
+                        }
+                      : base,
             ),
           );
         } catch (error) {
@@ -137,7 +148,8 @@ function BindingForm({
               event.target.value === "text" ||
                 event.target.value === "visibility" ||
                 event.target.value === "parameter" ||
-                event.target.value === "color"
+                event.target.value === "color" ||
+                event.target.value === "semantics"
                 ? event.target.value
                 : "transform",
             )
@@ -148,6 +160,7 @@ function BindingForm({
           <option value="visibility">Visibilidade</option>
           <option value="color">Cor</option>
           <option value="parameter">Parâmetro de rig</option>
+          <option value="semantics">Semântico (nome ou descrição acessível)</option>
         </select>
       </label>
       <label className="scene-field">
@@ -211,7 +224,7 @@ function BindingForm({
           </select>
         </label>
       )}
-      {kind !== "visibility" && (
+      {kind !== "visibility" && kind !== "semantics" && (
         <label className="scene-field">
           Direção do binding
           <select
@@ -284,6 +297,36 @@ function BindingForm({
             <option value="stroke">Contorno</option>
           </select>
         </label>
+      )}
+      {kind === "semantics" && (
+        <>
+          <label className="scene-field">
+            Texto acessível vinculado
+            <select
+              aria-label="Texto acessível vinculado"
+              name="property"
+              defaultValue={binding?.kind === "semantics" ? binding.property : "label"}
+            >
+              <option value="label">Nome acessível</option>
+              <option value="description">Descrição acessível</option>
+            </select>
+          </label>
+          <label className="scene-field">
+            Modelo do texto
+            <input
+              aria-label="Modelo do texto"
+              name="template"
+              required
+              maxLength={500}
+              defaultValue={binding?.kind === "semantics" ? binding.template : "{valor}"}
+            />
+          </label>
+          <p className="micro">
+            Use {"{valor}"} uma vez, por exemplo “Placar: {"{valor}"} pontos”. Números saem no
+            formato brasileiro e booleanos como sim/não. O objeto precisa de semântica com nome (e
+            descrição, para a descrição).
+          </p>
+        </>
       )}
       {kind === "visibility" && (
         <label className="check-row">

@@ -32,6 +32,7 @@ import {
   type BehaviorTransition,
   type InputValue,
   parseBehavior,
+  semanticValue,
   validateInputValue,
 } from "./model";
 
@@ -480,7 +481,8 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
   }
   const text = new Map<string, string>(),
     colors = new Map<string, Partial<Record<"fill" | "stroke", string>>>(),
-    visibility = new Map<string, boolean>();
+    visibility = new Map<string, boolean>(),
+    semantics = new Map<string, Partial<Record<"label" | "description", string>>>();
   for (const binding of context.behavior.bindings) {
     const value = session.inputs.get(binding.inputId);
     if (binding.kind === "parameter") {
@@ -499,12 +501,18 @@ export function evaluateBehavior(context: BehaviorContext, session: BehaviorSess
     } else if (binding.kind === "color") {
       if (typeof value !== "string") throw new Error("Binding de cor inválido.");
       colors.set(binding.targetId, { ...colors.get(binding.targetId), [binding.property]: value });
+    } else if (binding.kind === "semantics") {
+      if (value === undefined) throw new Error("Binding semântico sem valor.");
+      semantics.set(binding.targetId, {
+        ...semantics.get(binding.targetId),
+        [binding.property]: binding.template.replace("{valor}", () => semanticValue(value)),
+      });
     } else {
       if (typeof value !== "boolean") throw new Error("Binding de visibilidade inválido.");
       visibility.set(binding.targetId, binding.invert ? !value : value);
     }
   }
-  return { poses, parameters, text, colors, visibility, orders };
+  return { poses, parameters, text, colors, visibility, semantics, orders };
 }
 
 /** Pure transactional advance: failures/cycles/budgets leave source untouched.
