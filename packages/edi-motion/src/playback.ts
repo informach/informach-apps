@@ -220,8 +220,17 @@ export function parsePlaybackDocument(input: unknown): PlaybackDocument {
   let vertices = 0;
   for (const object of objects)
     if (object.geometry) {
-      if (object.tag !== "path") throw new Error("Geometria de runtime requer caminho.");
+      if (object.tag !== "path" && object.tag !== "image")
+        throw new Error("Geometria de runtime requer caminho ou malha de imagem.");
       object.geometry = parseGeometry(object.geometry);
+      // A meshed image's geometry is its grid: one open contour of plain vertices.
+      if (
+        object.tag === "image" &&
+        (object.geometry.length !== 1 ||
+          object.geometry[0]?.closed ||
+          object.geometry[0]?.points.some((point) => point.in || point.out))
+      )
+        throw new Error("Malha de imagem requer vértices de grade sem alças.");
       vertices += object.geometry.reduce((sum, contour) => sum + contour.points.length, 0);
       if (vertices > 100000) throw new Error("Geometria de runtime excede orçamento agregado.");
     }

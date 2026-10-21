@@ -45,6 +45,8 @@ import { documentFontIds, hasLoadedFont, loadDocumentFonts } from "./runtimeFont
 import { createSceneClock, type SceneClock, type ScopeLoop } from "./sceneClock";
 import { describeVisualDocument } from "./visual/document";
 import { prepareVisualMount } from "./visual/dom";
+import { imageMeshRest } from "./visual/imageMesh";
+import { createImageMeshBinding } from "./visual/imageMeshDom";
 import { resolveTextDirection } from "./visual/textDirection";
 import { type TextPath, textPathId } from "./visual/textPath";
 
@@ -254,6 +256,7 @@ function createInteractiveScope(
       throw new Error("SVG não corresponde ao texto em caminho tipado.");
     return element;
   }
+  const meshes = new Map<string, ReturnType<typeof createImageMeshBinding>>();
   const childIds = new Set<string>();
   function collectChildren(document: InteractiveDocument) {
     for (const component of document.components ?? []) {
@@ -271,7 +274,12 @@ function createInteractiveScope(
       !(shape instanceof view.SVGGraphicsElement) ||
       !id ||
       elements.has(id) ||
-      shape.localName !== (content.get(id)?.tag === "image" ? "svg" : content.get(id)?.tag)
+      shape.localName !==
+        (content.get(id)?.tag === "image"
+          ? content.get(id)?.imageMesh
+            ? "g"
+            : "svg"
+          : content.get(id)?.tag)
     )
       throw new Error("SVG incompatível com o conteúdo interativo.");
     const details = content.get(id);
@@ -291,6 +299,7 @@ function createInteractiveScope(
       details.tag === "image" &&
       (shape.getAttribute("data-edi-image") !== details.assetId ||
         (!details.imageSlice &&
+          !details.imageMesh &&
           (shape.children.length !== 1 ||
             shape.firstElementChild?.localName !== "use" ||
             shape.firstElementChild.getAttribute("href") !== `#edi-${details.assetId}`)))
@@ -300,6 +309,20 @@ function createInteractiveScope(
       if (!(shape instanceof view.SVGSVGElement))
         throw new Error("Nine-slice requer viewport SVG.");
       createSlicedImageBinding(shape, details.imageSlice).destroy();
+    }
+    if (details.imageMesh) {
+      const asset = details.assetId ? resources.get(details.assetId) : undefined;
+      if (asset?.kind !== "image" || !details.visual)
+        throw new Error("Malha raster requer recurso de imagem e conteúdo visual.");
+      meshes.set(
+        id,
+        createImageMeshBinding(
+          shape,
+          details.imageMesh,
+          asset,
+          imageMeshRest(details.imageMesh, details.visual.attrs),
+        ),
+      );
     }
     elements.set(id, {
       wrapper,
@@ -503,9 +526,20 @@ function createInteractiveScope(
         text = shown.text.get(id),
         color = shown.colors.get(id),
         geometry = shown.geometry.get(id),
-        d = geometry ? geometryPath(geometry) : target.baseD;
-      const stamp = JSON.stringify([value, opacity, visible, text, color, d]);
+        mesh = meshes.get(id),
+        // A meshed image takes its deformed vertices; only paths take a d.
+        d = mesh ? undefined : geometry ? geometryPath(geometry) : target.baseD;
+      const stamp = JSON.stringify([
+        value,
+        opacity,
+        visible,
+        text,
+        color,
+        d,
+        mesh ? geometry && geometryPath(geometry) : undefined,
+      ]);
       if (cache.get(id) === stamp) continue;
+      mesh?.paint(geometry);
       target.wrapper.setAttribute("transform", value);
       target.wrapper.setAttribute("opacity", opacity);
       if (visible !== undefined)

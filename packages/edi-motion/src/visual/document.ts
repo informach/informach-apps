@@ -40,6 +40,7 @@ export function visualSceneFromDocument(input: unknown) {
         gradients: object.gradients,
         filter: object.filter,
         imageSlice: object.imageSlice?.insets,
+        imageMesh: object.imageMesh,
         effects: object.effects,
         textLayout: data.textLayout,
         textDirection: data.textDirection,

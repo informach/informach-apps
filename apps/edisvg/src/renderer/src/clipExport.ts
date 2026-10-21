@@ -62,6 +62,21 @@ export function buildClipExport(
     `data-scene-motion="" style="transform:${globalTransform};`,
   );
   if (options.format === "svg") {
+    const meshed = new Set(
+      data.objects.flatMap((object) =>
+        "tag" in object && object.tag === "image" && object.geometry ? [object.id] : [],
+      ),
+    );
+    if (
+      data.rigScopes?.some((scope) =>
+        [...(scope.rig.skins ?? []), ...(scope.rig.morphs ?? [])].some((deformer) =>
+          meshed.has(deformer.targetId),
+        ),
+      )
+    )
+      throw new Error(
+        "Malha raster deformada não tem representação SVG/SMIL neste perfil. Use HTML, React ou vídeo.",
+      );
     if (clip.drawOrders || data.drivers.some((driver) => driver.animation.drawOrders))
       throw new Error(
         "Ordem de desenho animada não tem representação SVG/SMIL: o SVG empilha os filhos na ordem do documento. Use HTML, React ou vídeo.",

@@ -272,6 +272,7 @@ export function compileInteractiveArtboard(
                 },
               }
             : {}),
+          ...(node.imageMesh ? { imageMesh: node.imageMesh } : {}),
           ...(node.fontAssetId ? { fontAssetId: node.fontAssetId } : {}),
           ...(node.fontFallbackIds ? { fontFallbackIds: [...node.fontFallbackIds] } : {}),
           ...(node.semantics ? { semantics: structuredClone(node.semantics) } : {}),

@@ -7,6 +7,7 @@ import {
 } from "@informach/edi-motion";
 import { remapVectorEffects } from "@informach/edi-motion/graphics";
 import { remapRig, rigOwners } from "@informach/edi-motion/rig";
+import { imageMeshRest } from "@informach/edi-motion/visual";
 import type { ComponentCommand, ComponentInstance } from "./componentContracts";
 import { validateComponentGraph } from "./componentGraph";
 import { componentViewport } from "./componentViewport";
@@ -204,7 +205,9 @@ export function compileArtboard(
     });
   }
   const fullMetadata =
-    options.spatial || rigScopes.length > 0 || flattenScene(scene).some(({ node }) => node.effects);
+    options.spatial ||
+    rigScopes.length > 0 ||
+    flattenScene(scene).some(({ node }) => node.effects || node.imageMesh);
   const runtimeObjects = fullMetadata
     ? flattenScene(scene).map(({ node, parentId }) => {
         const source = sourceMap.get(node.id);
@@ -218,6 +221,9 @@ export function compileArtboard(
           isComponent: !!(source && authored.get(source.objectId)?.instance),
           ...(node.tag === "path" && node.attrs.d?.trim()
             ? { geometry: parsePath(node.attrs.d) }
+            : {}),
+          ...(node.tag === "image" && node.imageMesh
+            ? { geometry: imageMeshRest(node.imageMesh, node.attrs) }
             : {}),
         };
       })

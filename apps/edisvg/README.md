@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Malha raster — incremento 5.33
+
+Imagens PNG agora deformam pelo rig. No painel da imagem, *Malha raster* cria uma grade de triângulos (até 16×16). Depois, em Restrições → Malha vetorial, vincule a imagem aos ossos, e os vértices da grade seguem o esqueleto como os de um caminho. HTML, React, Testar e vídeo mostram a deformação; SVG animado e Lottie recusam a malha deformada. [Contrato e gates 5.33](../../docs/reviews/edisvg-2026-10-17/review-lote-5-malha-raster.md).
+
 ### Texto em caminho — incremento 5.32
 
 Um texto pode seguir uma curva: em *Texto em caminho*, no painel de texto, escolha uma forma do mesmo grupo e o início em porcentagem. O texto guarda uma cópia do contorno no próprio espaço, então mover o texto leva a curva junto, e editar a forma depois não muda o texto. SVGs importados com `<textPath>` local viram texto em caminho editável, com o mesmo desenho do navegador. Tem uma linha por texto; Lottie continua recusando texto. [Contrato e gates 5.32](../../docs/reviews/edisvg-2026-10-17/review-lote-5-texto-em-caminho.md).

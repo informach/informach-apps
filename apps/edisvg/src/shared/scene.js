@@ -31,7 +31,14 @@ import { sceneEffectContext } from "./sceneEffects";
 
 export { svgAttributes, validAttributes } from "@informach/edi-motion/graphics";
 
-import { textDirectionSchema, textPathCost, textPathSchema } from "@informach/edi-motion/visual";
+import {
+  imageMeshCells,
+  imageMeshRest,
+  imageMeshSchema,
+  textDirectionSchema,
+  textPathCost,
+  textPathSchema,
+} from "@informach/edi-motion/visual";
 import { textLayoutSchema } from "./textLayout";
 
 const tags = new Set([
@@ -156,6 +163,10 @@ export function editScene(scene, id, operation, value) {
     } else if (operation === "filter") {
       if (value === null) delete n.filter;
       else n.filter = filterSchema.parse(value);
+    } else if (operation === "image-mesh") {
+      if (n.tag !== "image") throw new Error("Malha raster requer imagem.");
+      if (value === null) delete n.imageMesh;
+      else n.imageMesh = imageMeshSchema.parse(value);
     } else if (operation === "image-slice") {
       if (n.tag !== "image") throw new Error("Nine-slice requer imagem.");
       if (value === null) delete n.imageSlice;
@@ -275,6 +286,7 @@ export function validateScene(
           "textPath",
           "assetId",
           "imageSlice",
+          "imageMesh",
           "gradients",
           "filter",
           "effects",
@@ -394,6 +406,14 @@ export function validateScene(
         budget.count += 18;
         if (budget.count > 2000) throw new Error("Nine-slice excede orçamento de células SVG.");
       }
+      const imageMesh = n.imageMesh === undefined ? undefined : imageMeshSchema.parse(n.imageMesh);
+      if (imageMesh && (n.tag !== "image" || imageSlice))
+        throw new Error("Malha raster requer imagem sem nine-slice.");
+      if (imageMesh) {
+        imageMeshRest(imageMesh, attrs);
+        budget.count += imageMeshCells(imageMesh);
+        if (budget.count > 2000) throw new Error("Malha raster excede orçamento de células SVG.");
+      }
       if (n.tag === "image" && (attrs.viewBox !== undefined || n.text))
         throw new Error("Viewport da imagem é derivado do recurso; imagem não aceita texto local.");
       budget.attributes += Object.values(attrs).reduce((total, value) => total + value.length, 0);
@@ -424,6 +444,7 @@ export function validateScene(
         ...(semantics === undefined ? {} : { semantics }),
         ...(assetId === undefined ? {} : { assetId }),
         ...(imageSlice === undefined ? {} : { imageSlice }),
+        ...(imageMesh === undefined ? {} : { imageMesh }),
         ...(gradients === undefined ? {} : { gradients }),
         ...(filter === undefined ? {} : { filter }),
         ...(effects === undefined ? {} : { effects }),

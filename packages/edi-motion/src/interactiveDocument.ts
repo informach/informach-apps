@@ -23,6 +23,7 @@ import { rigCost } from "./rig/cost";
 import { playbackParameterContext } from "./rig/playbackRig";
 import { parseSvgPath } from "./svgPath";
 import { svgPrimitivePathData } from "./svgPrimitive";
+import { imageMeshCells, imageMeshSchema } from "./visual/imageMesh";
 import {
   type VisualScene,
   visualContentSchema,
@@ -50,6 +51,7 @@ export const interactiveContentSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
   assetId: assetIdSchema.optional(),
   imageSlice: slicedImageSchema.optional(),
+  imageMesh: imageMeshSchema.optional(),
   gradients: gradientPaintsSchema.optional(),
   filter: filterSchema.optional(),
   effects: vectorEffectsSchema.optional(),
@@ -283,6 +285,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
           ? 1
           : 0) +
         (object.imageSlice ? 18 : 0) +
+        imageMeshCells(object.imageMesh) +
         (object.effects?.clip ? 2 : 0) +
         (object.effects?.mask ? 2 : 0);
       if (graphicNodes > 2000) throw new Error("Cena excede orçamento agregado de células SVG.");
@@ -385,6 +388,11 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         throw new Error("Direção automática requer texto e blueprint v12.");
       else if (value.visual?.textPath && parsed.version < 12)
         throw new Error("Texto em caminho requer blueprint v12.");
+      else if (
+        value.imageMesh &&
+        (value.tag !== "image" || value.imageSlice || parsed.version < 12)
+      )
+        throw new Error("Malha raster requer imagem sem nine-slice e blueprint v12.");
     const authored = new Map(
       playback.sources
         .filter((source) => source.instancePath.length === 0)

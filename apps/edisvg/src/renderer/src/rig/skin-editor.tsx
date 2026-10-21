@@ -38,11 +38,12 @@ export function SkinEditor({
       <h3>MALHA VETORIAL · PESOS</h3>
       <p className="micro">
         Vértices e suas alças deformam por até quatro ossos. Referência capturada em Design; pesos
-        automáticos usam distância aos segmentos. Imagens raster ainda dependem do catálogo/render
-        do lote 5.
+        automáticos usam distância aos segmentos. Imagens com malha raster (painel da imagem)
+        deformam pelos vértices da grade.
       </p>
-      {selected?.node.tag !== "path" ? (
-        <p className="micro">Selecione um caminho vetorial.</p>
+      {selected?.node.tag !== "path" &&
+      !(selected?.node.tag === "image" && selected.node.imageMesh) ? (
+        <p className="micro">Selecione um caminho vetorial ou uma imagem com malha.</p>
       ) : !skin ? (
         <form
           onSubmit={(event) => {

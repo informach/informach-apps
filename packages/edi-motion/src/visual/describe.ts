@@ -28,6 +28,7 @@ import {
   vectorEffectElement,
 } from "../graphics/vectorEffects";
 import type { Transform } from "../model";
+import { type ImageMesh, imageMeshClipElements, imageMeshElement } from "./imageMeshElement";
 import type { TextLayout, VisualTag } from "./model";
 import { type SemanticMetadata, semanticAttributes } from "./semantics";
 import { resolveTextDirection, type TextDirection } from "./textDirection";
@@ -52,6 +53,7 @@ export interface VisualNode {
   textLayout?: TextLayout;
   textDirection?: TextDirection;
   textPath?: TextPath;
+  imageMesh?: ImageMesh;
   semantics?: SemanticMetadata;
   /** Needed only for live effect sources; portable playback already owns it. */
   geometry?: Geometry;
@@ -272,7 +274,13 @@ export function describeVisualScene(
       );
     }
     let shape: VisualElement;
-    if (node.tag === "image") {
+    if (node.tag === "image" && node.imageMesh) {
+      if (image?.kind !== "image") throw new Error("Imagem visual sem recurso.");
+      shape = imageMeshElement(node.id, image, node.attrs, node.imageMesh, node.geometry);
+      for (const clip of imageMeshClipElements(node.id, image, node.imageMesh))
+        definitions.push(clip);
+      if (node.filter) shape.attrs = { ...shape.attrs, ...filterAttributes(node.filter) };
+    } else if (node.tag === "image") {
       if (image?.kind !== "image") throw new Error("Imagem visual sem recurso.");
       shape = imagePresentation(image, node.attrs, node.imageSlice);
       if (node.filter) shape.attrs = { ...shape.attrs, ...filterAttributes(node.filter) };

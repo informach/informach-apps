@@ -28,7 +28,9 @@ import { geometryPath } from "@informach/edi-motion/geometry";
 import { evaluateVectorEffects } from "@informach/edi-motion/graphics";
 import {
   createDrawOrderBinding,
+  createImageMeshBinding,
   createVectorEffectBinding,
+  renderedImageMesh,
 } from "@informach/edi-motion/graphics/dom";
 import { rigParameterKey } from "@informach/edi-motion/rig";
 import { inspectAppearance, inspectAppearanceValue } from "../../shared/appearanceInspection";
@@ -292,6 +294,7 @@ let disposeSemanticsPanel;
 let effectPreview;
 let drawOrderPreview;
 let drawOrderPanel;
+let meshPreviews = new Map();
 let gestureEffects;
 let effectPreviewFrame;
 let disposeBehaviorWorkbench;
@@ -717,6 +720,15 @@ function render() {
     ...(state.previewComposition?.playback.drivers.map((driver) => driver.animation) ?? []),
   ]);
   if (stackedScopes.size) drawOrderPreview = createDrawOrderBinding(sceneElements, stackedScopes);
+  // Meshed images follow their deformed grid; the rest vertices come from the compiled playback.
+  meshPreviews = new Map();
+  for (const object of state.previewComposition?.playback.objects ?? []) {
+    const shape = sceneElements.get(object.id)?.firstElementChild,
+      mesh = shape ? renderedImageMesh(shape) : undefined,
+      asset = state.assets.find((item) => item.id === shape?.getAttribute("data-edi-image"));
+    if (shape && mesh && object.geometry && asset?.kind === "image")
+      meshPreviews.set(object.id, createImageMeshBinding(shape, mesh, asset, object.geometry));
+  }
   bindToolbar();
   const rigSvg = document.querySelector(".scene-artwork>svg");
   if (rigSvg && state.previewEffectContext?.references.length)
@@ -1372,6 +1384,7 @@ function updatePose() {
       const opacity = String(pose.opacity / 100);
       if (element.getAttribute("opacity") !== opacity) element.setAttribute("opacity", opacity);
       const geometry = evaluated.geometry.get(id);
+      meshPreviews.get(id)?.paint(geometry);
       if (geometry && element.firstElementChild?.localName === "path")
         element.firstElementChild.setAttribute("d", geometryPath(geometry));
       const display = evaluated.visibility.get(id) === false ? "none" : sceneDisplays.get(id);

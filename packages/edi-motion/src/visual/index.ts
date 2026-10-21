@@ -7,6 +7,15 @@ export {
 } from "./describe";
 export { describeVisualDocument, visualSceneFromDocument } from "./document";
 export {
+  type ImageMesh,
+  imageMeshCells,
+  imageMeshMatrices,
+  imageMeshRest,
+  imageMeshSchema,
+  imageMeshTriangleCount,
+  imageMeshVertexCount,
+} from "./imageMesh";
+export {
   type TextLayout,
   textLayoutSchema,
   type VisualContent,
