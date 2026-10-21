@@ -4,6 +4,10 @@ Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e
 
 ## Recursos em evolução
 
+### Fórmulas — incremento 5.35
+
+Inputs podem ser calculados por fórmulas, na aba *Fórmulas* de Dados: `clamp($input-pontos * 2, 0, 100)`, `se($input-fim, "Acabou", "Jogando")` ou `sen(tempo * 2)` para movimento procedural. As fórmulas são declarativas e tipadas, com limites de tamanho, e nada é executado como código. O input calculado fica somente leitura. [Contrato e gates 5.35](../../docs/reviews/edisvg-2026-10-17/review-lote-5-formulas.md).
+
 ### Semântica dinâmica — incremento 5.34
 
 O nome e a descrição acessíveis de um objeto podem seguir um input: em Dados, crie um binding *Semântico* com um modelo como "Placar: {valor} pontos". No painel de semântica, *Anunciar mudanças* transforma o objeto numa região viva para leitores de tela. [Contrato e gates 5.34](../../docs/reviews/edisvg-2026-10-17/review-lote-5-semantica-dinamica.md).

@@ -5,7 +5,11 @@ import {
   type BehaviorInput,
   type BehaviorListener,
   bindingSchema,
+  type Formula,
+  formatFormula,
+  formulaSchema,
   listenerSchema,
+  parseFormulaText,
   type TimelineEvent,
   timelineEventSchema,
 } from "@informach/edi-motion/behavior";
@@ -773,10 +777,81 @@ interface Props {
   behavior: Behavior;
   objects: ObjectOption[];
   clips: Animation[];
-  tab: "bindings" | "listeners" | "events";
+  tab: "bindings" | "listeners" | "events" | "formulas";
   tabChanged(tab: Props["tab"]): void;
   apply(edit: (draft: Behavior) => void): void;
   report(error: unknown): void;
+}
+/** A computed input: its value comes from a declarative formula, never code. */
+function FormulaForm({
+  formula,
+  inputs,
+  save,
+  report,
+}: {
+  formula?: Formula;
+  inputs: BehaviorInput[];
+  save(value: Formula): void;
+  report(error: unknown): void;
+}) {
+  return (
+    <form
+      aria-label="Fórmula"
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          const data = new FormData(event.currentTarget);
+          save(
+            formulaSchema.parse({
+              id: formula?.id ?? `formula-${crypto.randomUUID()}`,
+              inputId: formText(data, "input"),
+              expression: parseFormulaText(formText(data, "expression")),
+            }),
+          );
+        } catch (error) {
+          report(error);
+        }
+      }}
+    >
+      <label className="scene-field">
+        Input calculado
+        <select
+          aria-label="Input calculado"
+          name="input"
+          required
+          defaultValue={formula?.inputId ?? ""}
+        >
+          <option value="">Selecione…</option>
+          {inputs
+            .filter((input) => input.kind !== "trigger")
+            .map((input) => (
+              <option key={input.id} value={input.id}>
+                {input.name} ({input.kind})
+              </option>
+            ))}
+        </select>
+      </label>
+      <label className="scene-field">
+        Fórmula
+        <textarea
+          aria-label="Fórmula"
+          name="expression"
+          required
+          maxLength={4000}
+          rows={3}
+          defaultValue={formula ? formatFormula(formula.expression) : ""}
+        />
+      </label>
+      <button type="submit">{formula ? "Aplicar fórmula" : "Criar fórmula"}</button>
+      <p className="micro">
+        Ex.: clamp($input-pontos * 2, 0, 100) · se($input-fim, "Acabou", "Jogando") · sen(tempo * 2)
+        · ruido(7, tempo). Inputs entram como $id; tempo é o relógio da sessão em segundos. Funções:
+        min, max, clamp, abs, piso, teto, arredondar, sen, cos, raiz, se, texto, ruido. Divisão por
+        zero dá 0 e números ficam no intervalo do input. O input calculado fica somente leitura;
+        ciclos entre fórmulas são recusados. Nada é executado como código.
+      </p>
+    </form>
+  );
 }
 export function BehaviorDataPanel({
   rig,
@@ -791,6 +866,8 @@ export function BehaviorDataPanel({
   const [bindingId, setBindingId] = useState<string | null>(null),
     [listenerId, setListenerId] = useState<string | null>(null),
     [eventId, setEventId] = useState<string | null>(null),
+    [formulaId, setFormulaId] = useState<string | null>(null),
+    formula = behavior.formulas?.find((item) => item.id === formulaId),
     binding = behavior.bindings.find((item) => item.id === bindingId),
     listener = behavior.listeners.find((item) => item.id === listenerId),
     event = behavior.events.find((item) => item.id === eventId);
@@ -798,14 +875,20 @@ export function BehaviorDataPanel({
     <section data-behavior-data>
       <h3>DADOS E EVENTOS</h3>
       <div className="scene-tools">
-        {(["bindings", "listeners", "events"] as const).map((value) => (
+        {(["bindings", "listeners", "events", "formulas"] as const).map((value) => (
           <button
             key={value}
             type="button"
             aria-pressed={tab === value}
             onClick={() => tabChanged(value)}
           >
-            {value === "bindings" ? "Bindings" : value === "listeners" ? "Listeners" : "Eventos"}
+            {value === "bindings"
+              ? "Bindings"
+              : value === "listeners"
+                ? "Listeners"
+                : value === "events"
+                  ? "Eventos"
+                  : "Fórmulas"}
           </button>
         ))}
       </div>
@@ -849,6 +932,49 @@ export function BehaviorDataPanel({
               apply((draft) => {
                 if (binding.kind === "parameter") draft.version = 2;
                 upsert(draft.bindings, binding);
+              })
+            }
+            report={report}
+          />
+        </>
+      )}
+      {tab === "formulas" && (
+        <>
+          <PagedItems
+            items={behavior.formulas ?? []}
+            label="fórmulas"
+            render={(item) => (
+              <>
+                <button type="button" onClick={() => setFormulaId(item.id)}>
+                  {behavior.inputs.find((input) => input.id === item.inputId)?.name ?? item.inputId}{" "}
+                  = {formatFormula(item.expression).slice(0, 80)}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Excluir fórmula ${item.id}`}
+                  onClick={() =>
+                    apply((draft) => {
+                      draft.formulas = draft.formulas?.filter((value) => value.id !== item.id);
+                      if (!draft.formulas?.length) delete draft.formulas;
+                    })
+                  }
+                >
+                  ×
+                </button>
+              </>
+            )}
+          />
+          <button type="button" onClick={() => setFormulaId(null)}>
+            Nova fórmula
+          </button>
+          <FormulaForm
+            key={formula?.id ?? "new"}
+            formula={formula}
+            inputs={behavior.inputs}
+            save={(value) =>
+              apply((draft) => {
+                draft.formulas ??= [];
+                upsert(draft.formulas, value);
               })
             }
             report={report}

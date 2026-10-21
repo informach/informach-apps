@@ -418,6 +418,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
     );
     if (parsed.version < 12 && behavior.bindings.some((binding) => binding.kind === "semantics"))
       throw new Error("Binding semântico requer blueprint v12.");
+    if (parsed.version < 12 && behavior.formulas?.length)
+      throw new Error("Fórmulas requerem blueprint v12.");
     const audio =
       parsed.audio === undefined
         ? undefined

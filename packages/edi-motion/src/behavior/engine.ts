@@ -23,6 +23,7 @@ import {
 } from "../parameters";
 import { type AnimationDriver, evaluateDrivers, evaluatePlayback } from "../playback";
 import { timelineEventsBetween } from "./events";
+import { evaluateFormula, type Formula, orderFormulas } from "./formulas";
 import {
   type Behavior,
   type BehaviorBinding,
@@ -68,6 +69,8 @@ export interface BehaviorSession {
 }
 export interface BehaviorContext {
   behavior: Behavior;
+  /** Formulas in dependency order, applied after every input write and time step. */
+  formulas?: readonly Formula[];
   animations: readonly Animation[];
   objects: ReadonlyMap<string, Transform>;
   drivers?: AnimationDriver[];
@@ -110,7 +113,32 @@ export function createBehaviorContext(
     data: behavior.data ? parseDataModels(behavior.data) : undefined,
     animation,
     parameters: options.parameters,
+    formulas: orderFormulas(behavior.formulas ?? []),
   };
+}
+/** Recomputes formula inputs from the session's inputs and clock. Numbers are
+ * clamped to their input's range; other values must already be valid. */
+function withFormulas(context: BehaviorContext, source: BehaviorSession): BehaviorSession {
+  if (!context.formulas?.length) return source;
+  const inputs = new Map(source.inputs);
+  for (const formula of context.formulas) {
+    const input = context.behavior.inputs.find((value) => value.id === formula.inputId);
+    if (!input || input.kind === "trigger") throw new Error("Input de fórmula ausente.");
+    let value = evaluateFormula(
+      formula.expression,
+      (id) => {
+        const current = inputs.get(id);
+        if (current === undefined) throw new Error("Fórmula lê input ausente.");
+        return current;
+      },
+      source.seconds,
+      semanticValue,
+    );
+    if (input.kind === "number" && typeof value === "number")
+      value = Math.min(input.max, Math.max(input.min, value));
+    inputs.set(formula.inputId, validateInputValue(input, value));
+  }
+  return { ...source, inputs };
 }
 export interface BehaviorEmission {
   instancePath?: string[];
@@ -171,7 +199,10 @@ export function createBehaviorSession(
       ]),
     ),
   };
-  return context.data ? withDataValues(context, session, new Map(context.data.initial)) : session;
+  return withFormulas(
+    context,
+    context.data ? withDataValues(context, session, new Map(context.data.initial)) : session,
+  );
 }
 function withDataValues(
   context: BehaviorContext,
@@ -191,7 +222,7 @@ function withDataValues(
       ),
     );
   }
-  return { ...source, data, inputs };
+  return withFormulas(context, { ...source, data, inputs });
 }
 export function editBehaviorData(
   context: BehaviorContext,
@@ -209,6 +240,8 @@ export function setBehaviorInput(
 ): BehaviorSession {
   const input = context.behavior.inputs.find((input) => input.id === id);
   if (!input) throw new Error("Input não encontrado.");
+  if (context.formulas?.some((formula) => formula.inputId === id))
+    throw new Error("Input calculado por fórmula é somente leitura.");
   const clean = validateInputValue(input, value);
   if (source.inputs.get(id) === clean) return source;
   const link = context.data?.document.links.find((link) => link.inputId === id);
@@ -221,7 +254,7 @@ export function setBehaviorInput(
   }
   const inputs = new Map(source.inputs);
   inputs.set(id, clean);
-  return { ...source, inputs };
+  return withFormulas(context, { ...source, inputs });
 }
 export function fireBehaviorTrigger(
   context: BehaviorContext,
@@ -653,6 +686,8 @@ export function advanceBehavior(
       }
     }
     session.seconds += step;
+    // Time-driven formulas move with the clock, before transitions read them.
+    session.inputs = withFormulas(context, session).inputs;
     remaining -= step;
     if (step === 0 && remaining > 0) throw new Error("Relógio não avançou; sessão preservada.");
     if (remaining === 0) {

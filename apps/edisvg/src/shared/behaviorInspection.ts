@@ -1,4 +1,4 @@
-import { type Behavior, emptyBehavior } from "@informach/edi-motion/behavior";
+import { type Behavior, emptyBehavior, formulaShape } from "@informach/edi-motion/behavior";
 import { z } from "zod";
 
 export const behaviorCollectionSchema = z.enum([
@@ -13,6 +13,7 @@ export const behaviorCollectionSchema = z.enum([
   "models",
   "instances",
   "dataLinks",
+  "formulas",
 ]);
 export const behaviorReadSchema = z.strictObject({
   collection: behaviorCollectionSchema,
@@ -30,6 +31,7 @@ function collection(behavior: Behavior, request: Request) {
   if (request.collection === "models") return behavior.data?.models ?? [];
   if (request.collection === "instances") return behavior.data?.instances ?? [];
   if (request.collection === "dataLinks") return behavior.data?.links ?? [];
+  if (request.collection === "formulas") return behavior.formulas ?? [];
   if (
     request.collection === "inputs" ||
     request.collection === "machines" ||
@@ -78,6 +80,9 @@ export function inspectBehavior(value: Behavior | undefined, rawRequest: unknown
           }
         : {}),
       ...("targetId" in item ? { targetId: item.targetId } : {}),
+      ...("expression" in item
+        ? { inputId: item.inputId, nodes: formulaShape(item.expression).nodes }
+        : {}),
       ...("frame" in item ? { frame: item.frame, animationId: item.animationId } : {}),
       ...("initial" in item
         ? {

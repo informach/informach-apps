@@ -4,6 +4,13 @@ import { type Animation, easingSchema, objectIdSchema, propertySchema } from "..
 import { type ParameterContext, parameterKey } from "../parameters";
 import type { SemanticMetadata } from "../visual/semantics";
 import { isXmlText } from "../xmlText";
+import {
+  FORMULA_LIMITS,
+  formulaSchema,
+  formulaShape,
+  formulaType,
+  orderFormulas,
+} from "./formulas";
 
 const id = z.string().regex(/^[a-z]+-[\w-]{1,100}$/);
 const name = z.string().trim().min(1).max(120);
@@ -221,6 +228,7 @@ export const behaviorSchema = z.strictObject({
   events: z.array(timelineEventSchema).max(10000),
   defaultMachineId: id.nullable(),
   data: dataModelSchema.optional(),
+  formulas: z.array(formulaSchema).max(FORMULA_LIMITS.formulas).optional(),
 });
 export type Behavior = z.infer<typeof behaviorSchema>;
 export const emptyBehavior = (): Behavior => ({
@@ -266,22 +274,27 @@ export function parseBehavior(
   animations: readonly Animation[],
   parameters?: ParameterContext,
 ): Behavior {
-  const pending: unknown[] = [input];
+  // Depth is bounded here too: recursive schemas (formulas) must not recurse
+  // into an arbitrarily nested document before their own limits apply.
+  const pending: [unknown, number][] = [[input, 0]];
   let work = 0,
     text = 0;
   while (pending.length) {
-    const value = pending.pop();
+    const entry = pending.pop();
+    if (!entry) break;
+    const [value, depth] = entry;
     if (++work > 200000) throw new Error("Orçamento estrutural de lógica excedido.");
+    if (depth > 96) throw new Error("Lógica excede a profundidade estrutural.");
     if (typeof value === "string") text += value.length;
     else if (Array.isArray(value)) {
       if (value.length > 10000) throw new Error("Array de lógica excede o limite.");
-      pending.push(...value);
+      for (const child of value) pending.push([child, depth + 1]);
     } else if (typeof value === "object" && value !== null) {
       const entries = Object.entries(value);
       if (entries.length > 1000) throw new Error("Objeto de lógica excede o limite.");
       for (const [key, child] of entries) {
         text += key.length;
-        pending.push(child);
+        pending.push([child, depth + 1]);
       }
     }
     if (text > 2000000) throw new Error("Orçamento textual de lógica excedido.");
@@ -536,6 +549,50 @@ export function parseBehavior(
           "Input controlado por modelo somente leitura não admite listener de escrita/binding bidirecional.",
         );
     }
+  }
+  if (behavior.formulas?.length) {
+    // A computed input has one writer: its formula. Data links, listeners and
+    // reverse bindings would race it, so they are refused.
+    const computed = new Set<string>(),
+      linked = new Set(
+        behavior.data
+          ? parseDataModels(behavior.data).document.links.map((link) => link.inputId)
+          : [],
+      );
+    let nodes = 0;
+    const typeOf = (id: string) => {
+      const input = requireInput(id);
+      if (input.kind === "trigger") throw new Error("Fórmula não lê gatilhos.");
+      return input.kind === "number" ? "number" : input.kind === "boolean" ? "boolean" : "text";
+    };
+    for (const formula of behavior.formulas) {
+      unique(formula.id);
+      if (computed.has(formula.inputId)) throw new Error("Input com duas fórmulas.");
+      computed.add(formula.inputId);
+      const expected = typeOf(formula.inputId);
+      if (linked.has(formula.inputId))
+        throw new Error("Input ligado a dados não pode ser calculado por fórmula.");
+      nodes += formulaShape(formula.expression).nodes;
+      if (nodes > FORMULA_LIMITS.totalNodes)
+        throw new Error(`Fórmulas excedem ${FORMULA_LIMITS.totalNodes} nós no total.`);
+      const actual = formulaType(formula.expression, typeOf);
+      if (actual !== expected)
+        throw new Error(
+          `Fórmula de ${formula.inputId} produz ${actual}, mas o input espera ${expected}.`,
+        );
+    }
+    orderFormulas(behavior.formulas);
+    if (
+      behavior.listeners.some((listener) =>
+        listener.actions.some((action) => computed.has(action.inputId)),
+      ) ||
+      behavior.bindings.some(
+        (binding) => binding.direction === "two-way" && computed.has(binding.inputId),
+      )
+    )
+      throw new Error(
+        "Input calculado por fórmula é somente leitura para listeners e bindings bidirecionais.",
+      );
   }
   return behavior;
 }
