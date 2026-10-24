@@ -46,6 +46,11 @@ export const recorderSettingsSchema = z.object({
   region: z
     .object({ preset: z.enum(REGION_PRESETS), rect: rect.optional() })
     .catch({ preset: "full" }),
+  /**
+   * With more than one screen, the controls (and the teleprompter) go on a screen that is not
+   * recorded; the one being recorded only shows the region's frame and stays free to use.
+   */
+  controlsElsewhere: z.boolean().catch(true),
   /** Typing the width or the height keeps the region's proportion. */
   regionLock: z.boolean().catch(true),
   microphone: z.string().max(512).nullable().catch(null),
@@ -58,6 +63,11 @@ export const recorderSettingsSchema = z.object({
   /** Milliseconds the webcam's picture runs behind; moves the camera earlier on import. */
   cameraLatency: z.int().min(0).max(1000).catch(100),
   systemAudio: z.boolean().catch(false),
+  /**
+   * "Tela sobre a narração" records the computer's sound too (never the voice the recorder
+   * plays): remembered apart, since that voice is what decides whether it can.
+   */
+  overSystemAudio: z.boolean().catch(false),
   keys: z.boolean().catch(false),
   fps: z.union([z.literal(30), z.literal(60)]).catch(30),
   quality: z.enum(CAPTURE_QUALITIES).catch("standard"),

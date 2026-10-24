@@ -35,6 +35,7 @@ import {
 } from "./RailPanels";
 import { ReviewBar } from "./ReviewBar";
 import { SidePanel } from "./SidePanel";
+import { SpeechSwapDialog } from "./SpeechSwapDialog";
 import { SpeedDialog } from "./SpeedDialog";
 import { StatusBar } from "./StatusBar";
 import { Timeline } from "./Timeline";
@@ -89,6 +90,7 @@ function handleKey(e: KeyboardEvent): void {
     useApp.getState().settingsOpen ||
     useApp.getState().speedClips ||
     useApp.getState().extendClip ||
+    useApp.getState().speechSwap ||
     useApp.getState().cursorClip ||
     useApp.getState().pastePropsClips
   )
@@ -295,6 +297,7 @@ export function Editor(): ReactNode {
   const exportOpen = useApp((s) => s.exportOpen);
   const speedOpen = useApp((s) => !!s.speedClips);
   const extendOpen = useApp((s) => !!s.extendClip);
+  const swapOpen = useApp((s) => !!s.speechSwap);
   const cursorOpen = useApp((s) => !!s.cursorClip);
   const pastePropsOpen = useApp((s) => !!s.pastePropsClips);
   const reframeOpen = useApp((s) => s.reframeOpen);
@@ -414,6 +417,7 @@ export function Editor(): ReactNode {
       {exportOpen && <ExportDialog />}
       {speedOpen && <SpeedDialog />}
       {extendOpen && <ExtendFrameDialog />}
+      {swapOpen && <SpeechSwapDialog />}
       {cursorOpen && <CursorPathDialog />}
       {pastePropsOpen && <PastePropsDialog />}
       {reframeOpen && <ReframeDialog />}

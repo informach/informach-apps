@@ -467,6 +467,12 @@
   margin: 0 0 8px;
   line-height: 1.5;
 }
+.welcome-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
 .welcome-mark {
   width: 64px;
   height: 64px;

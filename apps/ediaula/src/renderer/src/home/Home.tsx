@@ -6,11 +6,9 @@ import {
   Check,
   ChevronRight,
   Circle,
-  CircleDot,
   Copy,
   Cpu,
   Ellipsis,
-  FileUp,
   FolderOpen,
   GraduationCap,
   History,
@@ -32,8 +30,6 @@ import { duration, relativeTime } from "@/lib/format";
 import { confirmLeave } from "@/lib/leaveGuard";
 import { mediaUrl } from "@/lib/media";
 import { duplicateLesson } from "@/lib/projectFiles";
-import { useRecorderKey } from "@/lib/recorderKeys";
-import { openRecorder } from "@/lib/recording";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Button, Chip, ContextMenu } from "@/ui";
@@ -57,13 +53,11 @@ const status = (r: RecentEntry): Status =>
       : { label: "Editando", tone: "var(--amber)" };
 
 export function Home(): ReactNode {
-  const toggleKey = useRecorderKey("toggle");
-  const stopKey = useRecorderKey("stop");
   const info = useApp((s) => s.info);
   const [recent, setRecent] = useState<RecentEntry[] | null>(null);
   const [query, setQuery] = useState("");
   const [course, setCourse] = useState<string | null>(null);
-  const [creating, setCreating] = useState<{ thenImport: boolean } | null>(null);
+  const [creating, setCreating] = useState(false);
   const [all, setAll] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: RecentEntry } | null>(null);
   const [renaming, setRenaming] = useState<RecentEntry | null>(null);
@@ -97,11 +91,7 @@ export function Home(): ReactNode {
     useProject.getState().load(path, project);
     if (template) await startFromTemplate(template);
     useApp.getState().set({ screen: "editor" });
-    if (creating?.thenImport) {
-      const assets = await actions.importDialog();
-      actions.appendAssets(assets);
-    }
-    setCreating(null);
+    setCreating(false);
   };
 
   const openOther = async (): Promise<void> => {
@@ -118,12 +108,7 @@ export function Home(): ReactNode {
           </span>
           <span className="logo-text">EdiAula</span>
         </div>
-        <Button
-          variant="primary"
-          icon={Plus}
-          className="w-full"
-          onClick={() => setCreating({ thenImport: false })}
-        >
+        <Button variant="primary" icon={Plus} className="w-full" onClick={() => setCreating(true)}>
           Novo projeto
         </Button>
         <nav className="home-nav">
@@ -181,14 +166,6 @@ export function Home(): ReactNode {
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
-          <Button
-            variant="secondary"
-            icon={CircleDot}
-            onClick={() => void openRecorder()}
-            title={`Gravar a tela com o cursor à parte (${toggleKey} inicia, ${stopKey} para)`}
-          >
-            Gravar tela
-          </Button>
         </header>
 
         {recent !== null && recent.length === 0 ? (
@@ -198,21 +175,26 @@ export function Home(): ReactNode {
             </div>
             <h2>Comece sua primeira aula</h2>
             <p className="muted">
-              Crie um projeto, importe as gravações e corte direto na timeline. Tudo é salvo
-              automaticamente.
+              Crie um projeto e, dentro dele, grave, importe a voz e os vídeos, na ordem e na hora
+              que quiser. Para continuar uma aula que alguém empacotou para você, abra o .zip. Tudo
+              é salvo automaticamente.
             </p>
-            <div className="row-10">
-              <Button
-                variant="primary"
-                icon={Plus}
-                onClick={() => setCreating({ thenImport: true })}
-              >
-                Novo projeto com vídeos
+            <div className="welcome-actions">
+              <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>
+                Novo projeto
               </Button>
-              <Button variant="secondary" icon={FolderOpen} onClick={() => void openOther()}>
-                Abrir projeto
+              <Button
+                variant="secondary"
+                icon={PackageOpen}
+                title="Abre um .zip feito com Empacotar a aula, com as mídias dentro"
+                onClick={() => void openPackagedLesson()}
+              >
+                Abrir aula empacotada
               </Button>
             </div>
+            <Button variant="ghost" icon={FolderOpen} onClick={() => void openOther()}>
+              Abrir projeto de outra pasta
+            </Button>
           </div>
         ) : (
           <>
@@ -220,18 +202,11 @@ export function Home(): ReactNode {
               {last && <ContinueCard entry={last} />}
               <div className="quick-actions">
                 <QuickAction
-                  icon={FileUp}
-                  color="var(--blue)"
-                  title="Importar vídeos"
-                  text="Cria um projeto e já coloca na timeline"
-                  onClick={() => setCreating({ thenImport: true })}
-                />
-                <QuickAction
                   icon={Plus}
                   color="var(--accent)"
-                  title="Projeto vazio"
-                  text="Escolha nome, curso e formato"
-                  onClick={() => setCreating({ thenImport: false })}
+                  title="Novo projeto"
+                  text="Nome, curso e formato; dentro dele você grava e importa"
+                  onClick={() => setCreating(true)}
                 />
                 <QuickAction
                   icon={FolderOpen}
@@ -239,6 +214,13 @@ export function Home(): ReactNode {
                   title="Abrir projeto"
                   text="Arquivo .ediaula de outra pasta"
                   onClick={() => void openOther()}
+                />
+                <QuickAction
+                  icon={PackageOpen}
+                  color="var(--amber)"
+                  title="Abrir aula empacotada"
+                  text="O .zip que alguém mandou, com as mídias dentro"
+                  onClick={() => void openPackagedLesson()}
                 />
               </div>
             </section>
@@ -291,7 +273,7 @@ export function Home(): ReactNode {
       </main>
 
       {creating && (
-        <NewProjectModal courses={courses} onCancel={() => setCreating(null)} onCreate={create} />
+        <NewProjectModal courses={courses} onCancel={() => setCreating(false)} onCreate={create} />
       )}
       {menu && (
         <ContextMenu

@@ -810,8 +810,9 @@ export function closeCommonGaps(
 /**
  * Tracks that text-based cuts apply to: every unlocked video track, every unlocked audio track
  * carrying speech, and the microphone and computer sound of a recording (they belong to the
- * screen video even before being transcribed). Music beds keep playing under the edit instead
- * of being chopped.
+ * screen video even before being transcribed). A "Voz" track is the lesson's voice even when its
+ * audio came from a file and was never transcribed ("Importar voz"). Music beds keep playing
+ * under the edit instead of being chopped.
  */
 export function cutTargets(project: Project): Set<string> {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -824,6 +825,7 @@ export function cutTargets(project: Project): Set<string> {
     if (t.music) continue;
     if (
       t.kind === "video" ||
+      (t.kind === "audio" && t.name === "Voz" && onTrack.length > 0) ||
       onTrack.some(
         (a) =>
           a &&

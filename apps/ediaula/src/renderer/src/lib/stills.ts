@@ -1,5 +1,6 @@
 import { buildTrack } from "@shared/cursor";
-import type { Asset } from "@shared/types";
+import { newId, sourceAt, sourceEnd } from "@shared/timeline";
+import type { Asset, Clip } from "@shared/types";
 import { zoomAt } from "@shared/zoom";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
 import { drawCursorScene } from "./cursorDraw";
@@ -61,4 +62,35 @@ export async function stillPicture(asset: Asset, t: number): Promise<string> {
   );
   path = await window.api.saveGenerated(new Uint8Array(await blob.arrayBuffer()), "png");
   return path;
+}
+
+/** The source second a clip shows at timeline time `at`, inside its footage. */
+export function heldSecond(clip: Clip, asset: Asset, at: number): number {
+  const frame = 1 / (asset.fps || 30);
+  return Math.max(
+    clip.in,
+    Math.min(sourceAt(clip, at), sourceEnd(clip) - frame, asset.duration - frame),
+  );
+}
+
+/** A held frame made by the editor, kept with where it came from (lib/relink.ts draws it again). */
+export async function stillAsset(asset: Asset, t: number): Promise<Asset> {
+  const path = await stillPicture(asset, t);
+  return {
+    id: newId("a"),
+    name: `Quadro estendido · ${asset.name}`,
+    path,
+    thumb: path,
+    kind: "image",
+    duration: 0,
+    width: asset.width,
+    height: asset.height,
+    fps: 0,
+    hasVideo: true,
+    hasAudio: false,
+    size: 0,
+    proxyStatus: "none",
+    generated: "still",
+    still: { assetId: asset.id, t },
+  };
 }

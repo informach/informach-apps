@@ -103,6 +103,17 @@ export function overPieces(
   return out;
 }
 
+/**
+ * Timeline second where the take's last kept stretch ends, as the layout puts it: where the next
+ * part of a lesson recorded in parts goes on. Null when nothing of the take is kept.
+ */
+export function overEnd(
+  result: Pick<RecordingResult, "duration" | "pauses" | "over">,
+): number | null {
+  const last = overPieces(result).at(-1);
+  return last ? round(last.start + (last.to - last.from)) : null;
+}
+
 export interface OverLayoutOptions {
   cameraTransform?: (asset: Asset) => Transform;
 }

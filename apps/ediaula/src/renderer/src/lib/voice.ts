@@ -12,6 +12,7 @@ import { clipEnd, newId, newTrackName, splitClip } from "@shared/timeline";
 import type { Asset, Clip, Project, Track, VoiceMaster } from "@shared/types";
 import { treatedPath, VOICE_PRESET_LABELS, type VoicePreset } from "@shared/voiceChain";
 import { cleanupSummary, voiceCleanup, waveSilences } from "@shared/voiceCleanup";
+import { layoutVoiceImport, voiceFileOrder } from "@shared/voiceImport";
 import {
   insertPieces,
   lessonPieces,
@@ -33,6 +34,7 @@ import { create } from "zustand";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { type Commit, personCommit, useProject } from "@/state/project";
+import { clockTenths } from "./format";
 import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
 import { showProposal } from "./proposals";
@@ -320,6 +322,36 @@ export async function exportVoiceFiles(scope: VoiceMaster["scope"]): Promise<boo
   }
 }
 
+/**
+ * "Importar voz": audio files of a voice made elsewhere go on the voice track, after the voice
+ * already there, and the playhead goes to where they start (where "Tela sobre a narração" plays
+ * from). Returns whether any came in.
+ */
+export async function importVoiceFiles(): Promise<boolean> {
+  const { toast } = useApp.getState();
+  if (!useProject.getState().project) return false;
+  const paths = await window.api.pickVoiceFiles();
+  if (!paths.length) return false;
+  const assets = await importMedia(voiceFileOrder(paths));
+  const p = useProject.getState().project;
+  if (!p) return false;
+  // In the order of the names, as they were imported.
+  const current = assets.flatMap((b) => p.assets.filter((a) => a.id === b.id));
+  const layout = layoutVoiceImport(p, current);
+  if (!layout) {
+    if (assets.length) toast("Nenhum desses arquivos tem som para servir de voz.", "error");
+    return false;
+  }
+  if (!useProject.getState().commit((q) => ({ ...q, tracks: layout.tracks, clips: layout.clips })))
+    return false;
+  playback.seek(layout.start);
+  toast(
+    `${plural(layout.placed.length, "arquivo de voz entrou", "arquivos de voz entraram")} na faixa Voz, de ${clockTenths(layout.start)} a ${clockTenths(layout.end)}. Já dá para gravar a tela sobre a narração.`,
+    "success",
+  );
+  return true;
+}
+
 /* ----- The MP4s that come back ----- */
 
 /** A match too unsure to place: shown for the person to check, never placed blind. */
@@ -437,9 +469,6 @@ function placeVideo(
   return { ...p, tracks, clips };
 }
 
-const clock = (s: number): string =>
-  `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
-
 /** The voice as it is now, rendered, as the last resort to compare with. */
 async function currentVoice(p: Project): Promise<PresenterCandidate | null> {
   const span = voiceSpan(p);
@@ -472,7 +501,10 @@ export async function importPresenterVideos(useSound: boolean): Promise<void> {
   const start = useProject.getState().project;
   if (!start) return;
   if (!voiceSpan(start)) {
-    toast("Não há faixa Voz nesta aula para encaixar o vídeo do apresentador.", "error");
+    toast(
+      "O vídeo do apresentador é encaixado pela voz, e esta aula ainda não tem voz. Traga-a antes com Arquivo › Importar voz.",
+      "error",
+    );
     return;
   }
   const videos = await window.api.pickPresenterVideos();
@@ -562,7 +594,7 @@ export async function importPresenterVideos(useSound: boolean): Promise<void> {
       if (!next) continue;
       if (useProject.getState().commit(() => next)) placed++;
       toast(
-        `${presenterClipName(plan.candidate.piece.label)} encaixado em ${clock(plan.placements[0].start)} (confiança de ${Math.round(plan.match.result.confidence * 100)}%${plan.candidate.master ? "" : ", pela voz atual"}).`,
+        `${presenterClipName(plan.candidate.piece.label)} encaixado em ${clockTenths(plan.placements[0].start)} (confiança de ${Math.round(plan.match.result.confidence * 100)}%${plan.candidate.master ? "" : ", pela voz atual"}).`,
         "success",
       );
     } catch (err) {

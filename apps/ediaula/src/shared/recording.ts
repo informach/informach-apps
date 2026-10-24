@@ -120,6 +120,32 @@ export interface RecorderContext {
   palette?: string[];
 }
 
+/**
+ * What the frame over the recorded screen shows while the controls are on another monitor
+ * (main/recorderWindow.ts): the region in pixels of that screen, its handles while it is set up,
+ * the countdown and the drawing.
+ */
+export interface FrameState {
+  region: { x: number; y: number; width: number; height: number };
+  /** Physical pixels the take will record. */
+  size: { w: number; h: number };
+  editable: boolean;
+  recording: boolean;
+  lock: boolean;
+  /** Seconds left of the countdown, or null. */
+  countdown: number | null;
+  /** Shown only when the screen is recorded (not in the voice modes). */
+  visible: boolean;
+  draw: { allowed: boolean; on: boolean; palette: string[]; toggleKey: string };
+}
+
+/** What is done on the frame, for the controls to apply. */
+export type FrameEvent =
+  | { type: "region"; rect: { x: number; y: number; width: number; height: number } }
+  | { type: "size"; size: { width?: number; height?: number } }
+  | { type: "lock"; on: boolean }
+  | { type: "drawExit" };
+
 /** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
 export interface OverContext extends OverPlan {
   /** Where the voice ends on the timeline. */

@@ -6,6 +6,7 @@ import {
   clockOffset,
   layoutOverNarration,
   overAnchor,
+  overEnd,
   overPieces,
 } from "../src/shared/overNarration.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
@@ -415,4 +416,48 @@ test("a tela em partes sobre a narração entra pelas âncoras, sem espaço entr
     ],
   );
   assert.ok(split.pieces.every((p) => p.screen.length > 0));
+});
+
+/** One part of a lesson recorded in parts: the voice plays from `play` at QPC 1800. */
+function part(screen: string, from: number, play: number, seconds: number): RecordingResult {
+  const segments = [{ start: FIRST_FRAME, duration: seconds }];
+  const journal = anchors(play, 1800, [], FIRST_FRAME + seconds * 1000);
+  return {
+    version: 2,
+    dir: `C:/${screen}`,
+    screen: `C:/${screen}.mp4`,
+    duration: seconds,
+    pauses: [],
+    markers: [],
+    mode: "over",
+    over: { from, anchors: journal.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })) },
+  };
+}
+
+test("gravada em partes, cada parte começa onde a anterior terminou, na mesma faixa", () => {
+  const first = part("parte1", 0, 0, 10);
+  const end = overEnd(first);
+  assert.ok(end !== null);
+  // 10 s of take, of which the first 0.84 s came before the voice was heard.
+  assert.ok(Math.abs(end - 9.16) < 0.002, String(end));
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [],
+    assets: [],
+  };
+  const one = layoutOverNarration(project, [screenAsset("parte1")], first);
+  // The next part starts there, with two seconds of voice before it to come in in rhythm.
+  const second = part("parte2", end, end - 2, 8);
+  const two = layoutOverNarration(
+    { ...project, tracks: one.tracks, clips: one.clips, assets: [screenAsset("parte1")] },
+    [screenAsset("parte2")],
+    second,
+  );
+  assert.equal(two.tracks.length, 1);
+  assert.deepEqual(onTrack(two.clips, "tv"), [
+    ["parte1", 0, 9.16],
+    ["parte2", 9.16, 5.16],
+  ]);
+  // A take with nothing kept has no end to go on from.
+  assert.equal(overEnd({ duration: 0, pauses: [], over: { from: 30, anchors: [] } }), null);
 });

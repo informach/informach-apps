@@ -9,6 +9,7 @@ import {
 import { masterIsStale, PIECE_MINUTES, pieceSeconds, voiceClips } from "@shared/voiceMaster";
 import {
   Download,
+  FileAudio,
   Loader,
   Mic,
   MonitorPlay,
@@ -25,6 +26,7 @@ import {
   dropGuess,
   exportVoiceFiles,
   importPresenterVideos,
+  importVoiceFiles,
   proposeVoiceCleanup,
   setPieceMinutes,
   treatVoices,
@@ -86,7 +88,19 @@ export function VoiceSection(): ReactNode {
         <p className="props-hint muted">
           {targets.length
             ? `${selection.length ? "Selecionado" : "Faixa Voz"}: ${targets.map((a) => a.name).join(", ")}.`
-            : "Selecione um clipe com som, ou grave a voz no modo Só voz."}
+            : "Importe o áudio da voz, grave no modo Só voz ou selecione um clipe com som."}
+        </p>
+        <Button
+          icon={FileAudio}
+          disabled={!!busy}
+          title="O arquivo de áudio da voz (WAV, MP3, M4A…), feito em qualquer ferramenta"
+          onClick={() => void run("voz", importVoiceFiles)}
+        >
+          {busy === "voz" ? "Importando…" : "Importar voz"}
+        </Button>
+        <p className="props-hint muted">
+          Entra na faixa Voz, depois da voz que já houver. É por ela que a tela é gravada e o vídeo
+          do apresentador é encaixado.
         </p>
         <label className="tpl-field">
           <span className="field-label">Tratamento</span>
@@ -217,8 +231,9 @@ export function VoiceSection(): ReactNode {
           <MonitorPlay size={13} /> Tela sobre a narração
         </h3>
         <p className="props-hint muted">
-          A voz da aula toca nos fones a partir do cursor da timeline enquanto você grava a tela.
-          Para trocar só um trecho, marque o intervalo na régua da timeline e use Regravar a tela.
+          {hasVoice
+            ? "A voz da aula toca nos fones a partir do cursor da timeline enquanto você grava a tela, em quantas partes quiser. Para trocar só um trecho, marque o intervalo na régua da timeline e use Regravar a tela."
+            : "Precisa da voz na faixa Voz: use Importar voz, acima, ou grave no modo Só voz."}
         </p>
         <Button
           icon={MonitorPlay}

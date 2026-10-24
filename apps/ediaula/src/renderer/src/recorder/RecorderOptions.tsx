@@ -201,6 +201,15 @@ export function RecorderOptions({
         <label className="rec-opt-check">
           <input
             type="checkbox"
+            checked={settings.controlsElsewhere}
+            onChange={(e) => change({ controlsElsewhere: e.target.checked })}
+          />
+          Com mais de uma tela, os controles ficam numa tela que não está sendo gravada (a tela
+          gravada mostra só a região e continua livre para usar)
+        </label>
+        <label className="rec-opt-check">
+          <input
+            type="checkbox"
             checked={settings.pauseBackground}
             onChange={(e) => change({ pauseBackground: e.target.checked })}
           />

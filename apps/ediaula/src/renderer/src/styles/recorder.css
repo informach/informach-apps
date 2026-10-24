@@ -30,6 +30,20 @@ html.is-recorder #root {
   box-shadow: none;
   pointer-events: none;
 }
+/* The frame over a screen the controls left free: only the handles and the tag take the mouse,
+   and the outside is dimmed lightly, so the screen stays readable while it is set up. */
+.rec-region.is-pass {
+  cursor: default;
+  pointer-events: none;
+  box-shadow: 0 0 0 100vmax rgba(6, 8, 14, 0.3);
+}
+.rec-region.is-pass.is-recording {
+  box-shadow: none;
+}
+.rec-region.is-pass .rec-region-tag,
+.rec-region.is-pass .rec-handle {
+  pointer-events: auto;
+}
 .rec-region-tag {
   position: absolute;
   left: 0;
@@ -883,6 +897,29 @@ html.is-recorder #root {
   margin-left: 10px;
   font-size: 12px;
   color: var(--text-2);
+}
+.rec-over-start {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 0 10px;
+  padding: 0;
+  border: 0;
+}
+.rec-over-start button {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 12px;
+  cursor: pointer;
+}
+.rec-over-start button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.rec-over-start button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* "Tela sobre a narração": the karaoke of the voice and the next "Na tela". */

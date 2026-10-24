@@ -41,6 +41,8 @@ test("nothing stored gives the defaults", () => {
   assert.deepEqual(s.hotkeys, DEFAULT_HOTKEYS);
   assert.deepEqual(s.region, { preset: "full" });
   assert.equal(s.microphone, null);
+  assert.equal(s.controlsElsewhere, true);
+  assert.equal(s.overSystemAudio, false);
 });
 
 test("a value that no longer parses falls back alone; the rest is kept", () => {
