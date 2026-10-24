@@ -962,6 +962,13 @@ export interface EdiAulaApi {
     frameEvent(event: import("./recording.ts").FrameEvent): Promise<void>;
     onFrameState(cb: (state: import("./recording.ts").FrameState) => void): () => void;
     onFrameEvent(cb: (event: import("./recording.ts").FrameEvent) => void): () => void;
+    /**
+     * Editor: a part of "Tela sobre a narração" went into the lesson (or did not), for the recorder
+     * that waits for it before moving on to the next part.
+     */
+    partResult(dir: string, ok: boolean, message?: string): Promise<void>;
+    /** Recorder window: the editor's answer about a part it handed over. */
+    onPartResult(cb: (result: { dir: string; ok: boolean; message?: string }) => void): () => void;
     /** Tests the encoders on this monitor at this rate once (seconds) and names the one that
      *  will record. */
     encoder(monitor: number, fps: 30 | 60): Promise<string>;

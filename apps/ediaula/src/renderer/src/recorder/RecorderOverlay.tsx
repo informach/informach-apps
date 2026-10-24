@@ -154,6 +154,47 @@ function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRec
   );
 }
 
+/** The editor's answer about a part of "Tela sobre a narração" it was handed. */
+interface PartResult {
+  ok: boolean;
+  message?: string;
+}
+/** Answers that came before they were waited for, by take folder. */
+const partResults = new Map<string, PartResult>();
+const partWaiters = new Map<string, (result: PartResult) => void>();
+let listeningParts = false;
+function listenParts(): void {
+  if (listeningParts) return;
+  listeningParts = true;
+  window.api.recorder.onPartResult(({ dir, ...result }) => {
+    const waiter = partWaiters.get(dir);
+    if (!waiter) partResults.set(dir, result);
+    else {
+      partWaiters.delete(dir);
+      waiter(result);
+    }
+  });
+}
+/** Waits for the editor to place the part in `dir` in the lesson (a failure after `ms`). */
+function partPlaced(dir: string, ms = 180_000): Promise<PartResult> {
+  listenParts();
+  const ready = partResults.get(dir);
+  if (ready) {
+    partResults.delete(dir);
+    return Promise.resolve(ready);
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      partWaiters.delete(dir);
+      resolve({ ok: false, message: "o editor não respondeu" });
+    }, ms);
+    partWaiters.set(dir, (result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
+}
+
 /** The region select: each preset, the window it was fitted to, or what was drawn by hand. */
 type RegionChoice = RegionPreset | "window";
 
@@ -308,6 +349,8 @@ export function RecorderOverlay(): ReactNode {
   // Settings and sources: what was chosen last time comes back when the device is still there.
   useEffect(() => {
     document.documentElement.classList.add("is-recorder");
+    // Before any part is handed over: the editor's answer may come before it is waited for.
+    listenParts();
     const load = (): Promise<void> =>
       window.api.recorder.context().then((c) => {
         loadedProject.current = c.projectId ?? null;
@@ -1056,6 +1099,19 @@ export function RecorderOverlay(): ReactNode {
       await finishSystemAudio();
       const result = await window.api.recorder.stop(keepOpen);
       if (!keepOpen || !overNow) return;
+      // The next part only starts from here once this one is in the lesson: a part the editor
+      // could not place stays among the interrupted takes it offers, and is recorded again.
+      const placed = await partPlaced(result.dir);
+      if (!placed.ok) {
+        setHealth(null);
+        setMarkers(0);
+        phaseRef.current = "setup";
+        setPhase("setup");
+        setError(
+          `Esta parte não entrou na aula (${placed.message ?? "erro no editor"}). A gravação ficou guardada e o editor a oferece entre as gravações interrompidas. Grave de novo a partir de ${clockOf(overNow.from)}.`,
+        );
+        return;
+      }
       // Where this part ends on the timeline, as the editor lays it out (shared/overNarration.ts).
       // Nothing of it kept (stopped in the lead-in): the next part starts where this one did.
       const end = Math.max(overNow.from, overEnd(result) ?? overNow.from);

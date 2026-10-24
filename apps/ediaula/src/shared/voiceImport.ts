@@ -34,8 +34,11 @@ function voiceTrack(project: Pick<Project, "tracks" | "clips" | "assets">): {
   tracks: Track[];
   track: Track;
 } {
+  // A "Voz" track first: another voice track (a take's microphone) may be muted or apart.
+  const voices = voiceTracks(project).filter((t) => !t.locked);
   const existing =
-    voiceTracks(project).find((t) => !t.locked) ??
+    voices.find((t) => t.name === "Voz") ??
+    voices[0] ??
     project.tracks.find(
       (t) =>
         t.kind === "audio" &&

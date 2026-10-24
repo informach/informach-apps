@@ -369,7 +369,7 @@ async function findResumeJoin(run: GuidedRun, take: string): Promise<ResumeJoin 
 }
 
 /** A finished take goes into the open project (or a new one), every source cut at its pauses. */
-export async function importRecording(r: RecordingResult): Promise<void> {
+export async function importRecording(r: RecordingResult): Promise<boolean> {
   const { toast, set } = useApp.getState();
   // The lines recorded again for the lesson ("Regravar falas") go in as a draft of their own.
   if (takeRetake(r)) {
@@ -383,11 +383,11 @@ export async function importRecording(r: RecordingResult): Promise<void> {
           "info",
         ),
       );
-    return;
+    return true;
   }
   if (r.replaceAsset && useProject.getState().project) {
     try {
-      if (await replaceGuidedTake(r)) return;
+      if (await replaceGuidedTake(r)) return true;
     } catch (error) {
       toast(
         `Não consegui substituir a gravação (${(error as Error).message}): ela entrou como nova.`,
@@ -503,7 +503,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
         : {}),
     };
   });
-  if (!layout) return;
+  if (!layout) return false;
   // A part over the narration: the playhead waits where it ends, where the next part goes on
   // (the same end the recorder starts its next part from).
   const partEnd = r.mode === "over" ? overEnd(r) : null;
@@ -608,6 +608,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
           "info",
         ),
       );
+  return true;
 }
 
 /**
@@ -759,7 +760,24 @@ let listening = false;
 export function listenRecordings(): void {
   if (listening) return;
   listening = true;
-  window.api.recorder.onDone((r) => void importRecording(r));
+  window.api.recorder.onDone((r) => {
+    // A part over the narration waits in the recorder for this answer: it only moves on to the
+    // next part once this one is in the lesson.
+    const answer = (ok: boolean, message?: string): void => {
+      if (r.mode === "over")
+        void window.api.recorder
+          .partResult(r.dir, ok, message)
+          .catch((error: unknown) => console.warn("[recorder] resposta da parte:", error));
+    };
+    importRecording(r).then(
+      (placed) => answer(placed, placed ? undefined : "nada da gravação coube na aula"),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        useApp.getState().toast(`A gravação não entrou na aula: ${message}`, "error");
+        answer(false, message);
+      },
+    );
+  });
   // Plans edited in the recorder belong to the lesson they were made for.
   window.api.recorder.onGuided(({ projectId, store }) => {
     if (useProject.getState().project?.id === projectId) useProject.getState().setGuided(store);

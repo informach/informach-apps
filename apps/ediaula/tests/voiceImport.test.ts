@@ -100,3 +100,21 @@ test("parts of a long voice picked together go in the order of their names", () 
     ],
   );
 });
+
+test("a voz importada vai para a faixa Voz, não para o microfone de um take em outra faixa", () => {
+  const mic = audio("mic", 10, { recording: { id: "take", role: "mic" } });
+  const voz = audio("voz", 10);
+  const next = audio("next", 4);
+  const p = project(
+    [track("tm", "audio", "Microfone"), track("tz", "audio", "Voz")],
+    [
+      { id: "c1", assetId: "mic", trackId: "tm", start: 0, in: 0, duration: 10, volume: 1 },
+      { id: "c2", assetId: "voz", trackId: "tz", start: 0, in: 0, duration: 10, volume: 1 },
+    ],
+    [mic, voz, next],
+  );
+  assert.deepEqual(
+    layoutVoiceImport(p, [next])?.placed.map((c) => [c.trackId, c.start]),
+    [["tz", 10]],
+  );
+});

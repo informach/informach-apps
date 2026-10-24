@@ -389,6 +389,8 @@ function ensureFrame(): BrowserWindow {
   w.on("responsive", () => onFrameBack());
   w.webContents.on("render-process-gone", () => {
     onFrameStuck();
+    // No "responsive" follows a crash: the drawing ends in the controls now.
+    onFrameBack();
     // A new page takes its place; it asks the controls for what to show.
     if (!w.isDestroyed()) w.webContents.reload();
   });
@@ -1083,6 +1085,22 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const result = await rec.recoverOrphan(z.string().min(1).max(32768).parse(dir));
     return grantTake(result);
   });
+  /**
+   * The editor's answer about a part of "Tela sobre a narração": the recorder, kept open between
+   * parts, moves on only once the part is in the lesson.
+   */
+  ipcMain.handle(
+    "recorder:partResult",
+    (e, rawDir: unknown, rawOk: unknown, rawMessage: unknown) => {
+      const w = main();
+      if (!w || w.isDestroyed() || e.sender !== w.webContents) return;
+      overlay?.webContents.send("recorder:partResult", {
+        dir: z.string().min(1).max(32768).parse(rawDir),
+        ok: z.boolean().parse(rawOk),
+        ...(rawMessage === undefined ? {} : { message: z.string().max(2000).parse(rawMessage) }),
+      });
+    },
+  );
   /** The editor placed the take in a project: the journal says so and it is not offered again. */
   ipcMain.handle("recorder:imported", (_e, dir: unknown) =>
     rec.markImported(z.string().min(1).max(32768).parse(dir)),
