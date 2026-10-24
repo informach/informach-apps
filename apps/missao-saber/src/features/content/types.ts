@@ -37,7 +37,7 @@ const choiceItemSchema = commonItemSchema
     type: z.literal("choice"),
     options: z.array(z.string()).min(2).max(6),
     answer: z.string(),
-    misconceptions: z.record(z.string()),
+    misconceptions: z.record(z.string(), z.string()),
   })
   .superRefine((item, context) => {
     if (new Set(item.options).size !== item.options.length)

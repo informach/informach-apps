@@ -33,7 +33,7 @@ const filter = process.env.EVAL_FILTER;
 const selected = DATASET.filter((entry) => !filter || entry.id.includes(filter));
 const scorers = ALL_SCORERS.filter((scorer) => !scorer.usesLlm || process.env.EVAL_JUDGES === "1");
 const checks = ["critical-fidelity", ...scorers.map((scorer) => scorer.name)];
-const scoresSchema = z.record(z.number().min(0).max(1));
+const scoresSchema = z.record(z.string(), z.number().min(0).max(1));
 const bounded = { maxRetries: 0, maxOutputTokens: 3500, temperature: 0 } as const;
 
 async function main() {

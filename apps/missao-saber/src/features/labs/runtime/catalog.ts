@@ -14,7 +14,8 @@ import { type ToolFamilyId, toolFamilySchema } from "./types";
 const referenceSchema = z.string().regex(/^L\d{2}\.[a-z0-9-]+$/);
 const curriculumSchema = z.object({
   version: z.literal(1),
-  tools: z.record(toolFamilySchema, z.string()),
+  // Partial, as zod 3 read it: a record keyed by an enum is exhaustive in zod 4.
+  tools: z.partialRecord(toolFamilySchema, z.string()),
   lessons: z.array(
     z.object({
       lessonId: z.string(),
