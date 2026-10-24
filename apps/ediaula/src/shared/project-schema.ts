@@ -644,6 +644,7 @@ export const projectSchema = z
             }),
           )
           .max(500),
+        rows: z.array(text).max(500).optional(),
       })
       .optional(),
     voiceExport: z.looseObject({ pieceMinutes: z.int().min(1).max(60).optional() }).optional(),

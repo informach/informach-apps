@@ -128,8 +128,10 @@ export function ExportDialog(): ReactNode {
   const relayout = isReels && !portrait;
 
   const lesson = projectDuration(project);
+  // The interval is in the adult edition's seconds; the kids edition moves what follows each
+  // line it replaces, so it always goes out whole.
   const range =
-    onlyRange && interval && hasRange
+    onlyRange && interval && hasRange && !kids
       ? { from: Math.max(0, interval.start), to: Math.min(lesson, interval.end) }
       : undefined;
   const total = range ? range.to - range.from : lesson;
@@ -456,8 +458,8 @@ export function ExportDialog(): ReactNode {
                 </p>
               </div>
               <Toggle
-                on={onlyRange && hasRange}
-                onChange={(v) => setOnlyRange(v && hasRange)}
+                on={onlyRange && hasRange && !kids}
+                onChange={(v) => setOnlyRange(v && hasRange && !kids)}
                 label="Só o intervalo marcado"
               />
             </div>

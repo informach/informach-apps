@@ -86,14 +86,18 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
   // Every part of the script against the voice: each "Na tela" at its line (or each of its
   // pieces at the words it waits for), and each line said as a place to start a take from.
   const guide = doc ? scriptGuide(doc, words) : null;
+  const firstWord = Math.max(0, words.findIndex((w) => w.end >= from) - Math.floor(MAX_WORDS / 4));
   return {
     from,
     ...(request.to !== undefined ? { to: request.to } : {}),
     ...(request.replace ? { replace: true } : {}),
     end: span[1],
     segments: voiceSegments(p, 0, span[1]),
-    // All of them: the recorder can go back to any line, before where it was opened from.
-    words: words.slice(0, MAX_WORDS).map((w) => ({ t: w.start, end: w.end, text: w.text })),
+    // All of them, as the recorder can go back to any line; a very long voice keeps the ones
+    // around where the take starts.
+    words: words
+      .slice(firstWord, firstWord + MAX_WORDS)
+      .map((w) => ({ t: w.start, end: w.end, text: w.text })),
     cues: guide?.cues ?? [],
     lines: (guide?.places ?? []).slice(0, 5000),
     recorded: recordedStretches(p).slice(0, 5000),

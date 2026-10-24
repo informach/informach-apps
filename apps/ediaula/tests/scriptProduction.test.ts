@@ -222,3 +222,58 @@ test("o guia do gravador acha cada fala de todas as partes na voz, e onde já h�
     ],
   );
 });
+
+test("a tabela kids ignora o cabeçalho e o separador com alinhamento, e um bloco cercado solto não vira fala", () => {
+  const doc = parseScript(`## Parte 1. Teste
+
+**Fala para ElevenLabs:**
+
+\`\`\`text
+[curious] Olá, turma.
+\`\`\`
+
+**Substituições na edição kids:**
+
+| Código | Quem | Vez | Antes | Fala | Depois | Tags |
+|:---|:---:|---:|---|---|---|---|
+| K1 | Debinha | 1 | | Olá, turma. | | |
+
+**Fala para ElevenLabs:** (ainda não escrita)
+
+Um parágrafo depois do rótulo.
+
+\`\`\`js
+console.log("exemplo");
+\`\`\`
+`);
+  const [part] = doc.sections;
+  assert.deepEqual(
+    part.substitutions?.map((s) => s.id),
+    ["K1"],
+  );
+  assert.deepEqual(
+    speechItems(part).map((i) => i.text),
+    ["Olá, turma."],
+  );
+});
+
+test("uma parte do roteiro que não está na voz não dá tempo a nenhum Na tela", () => {
+  const doc = parseScript(SCRIPT);
+  // A voice with only part 1.
+  const spoken = speechItems(doc.sections[0])
+    .map((i) => i.text)
+    .join(" ")
+    .split(/\s+/);
+  const words = spoken.map((text, k) => ({
+    key: `w${k}`,
+    clipId: "c",
+    start: k * 0.4,
+    end: k * 0.4 + 0.3,
+    p: 1,
+    text,
+  }));
+  const guide = scriptGuide(doc, words);
+  assert.ok(guide.cues.length > 0);
+  assert.ok(guide.cues.every((c) => !c.text.includes("Estúdio") && !c.text.includes("Tá vendo")));
+  assert.ok(guide.places.every((l) => l.part.startsWith("Parte 1")));
+});

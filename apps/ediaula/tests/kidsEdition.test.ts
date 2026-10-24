@@ -180,3 +180,101 @@ test("a edição kids troca a fala em todas as faixas pelo trecho do personagem,
 });
 
 const round = (v: number): number => Math.round(v * 1000) / 1000;
+
+test("sem apresentador, várias falas kids ficam numa faixa só e cada uma no seu lugar", () => {
+  const lesson = {
+    settings: { width: 1920, height: 1080, fps: 30 },
+    tracks: [track("tv", "video", "Tela"), track("tz", "audio", "Voz")],
+    assets: [
+      media("voz", "audio", 30),
+      media("tela", "video", 30),
+      media("deb", "video", 10, { origin: "presenter" }),
+    ],
+    clips: [clip("cz", "voz", "tz", { duration: 30 }), clip("cv", "tela", "tv", { duration: 30 })],
+  };
+  const piece = (
+    id: string,
+    from: number,
+    to: number,
+    start: number,
+    length: number,
+  ): KidsPiece => ({
+    id,
+    character: "Debinha",
+    assetId: "deb",
+    in: start,
+    out: start + length,
+    voice: { assetId: "voz", from, to },
+  });
+  const out = kidsEdition(lesson, new Set(["tv", "tz"]), [
+    piece("K1", 5, 6, 0, 3),
+    piece("K2", 20, 21, 4, 2),
+  ]);
+  const characters = out.tracks.filter((t) => t.name === "Apresentador");
+  assert.equal(characters.length, 1);
+  const deb = out.clips.filter((c) => c.assetId === "deb").sort((a, b) => a.start - b.start);
+  // K1: 1 s out, 3 s in, so K2's line (20 s) is now at 22 s.
+  assert.deepEqual(
+    deb.map((c) => [round(c.start), round(c.duration)]),
+    [
+      [5, 3],
+      [22, 2],
+    ],
+  );
+  // The teacher's voice never plays under a character's line.
+  const voice = out.clips.filter((c) => c.trackId === "tz");
+  for (const c of deb)
+    assert.ok(
+      voice.every(
+        (v) => v.start + v.duration <= c.start + 1e-6 || v.start >= c.start + c.duration - 1e-6,
+      ),
+    );
+});
+
+test("uma fala de duas linhas da tabela é o segundo take no vídeo, e um corte no meio da fala não a tira", () => {
+  const twice: Substitution[] = [
+    {
+      id: "K1",
+      character: "Dedé",
+      occurrence: 1,
+      before: "",
+      text: "E agora?",
+      after: "",
+      tags: "",
+    },
+    {
+      id: "K2",
+      character: "Dedé",
+      occurrence: 2,
+      before: "",
+      text: "E agora?",
+      after: "",
+      tags: "",
+    },
+  ];
+  const voice = said("E agora? Vamos ver. E agora? Pronto.");
+  const dede = said("E agora? Hum. E agora?", 1);
+  const { pieces } = locateKids(
+    twice,
+    new Map([["voz", voice]]),
+    new Map([["dd", { name: "Dedé.mp4", duration: 6, words: dede }]]),
+  );
+  assert.deepEqual(
+    pieces.map((x) => [x.id, x.in < 2 ? "primeiro" : "segundo"]),
+    [
+      ["K1", "primeiro"],
+      ["K2", "segundo"],
+    ],
+  );
+  // The line's voice cut in two by a cleanup cut in the middle: it still has a place.
+  const split = {
+    clips: [
+      clip("a", "voz", "tz", { start: 0, in: 0, duration: 5.2 }),
+      clip("b", "voz", "tz", { start: 5.2, in: 5.5, duration: 10 }),
+    ],
+  };
+  assert.deepEqual(
+    kidsSpan(split, { ...pieces[0], voice: { assetId: "voz", from: 5, to: 6 } }),
+    [5, 5.7],
+  );
+});

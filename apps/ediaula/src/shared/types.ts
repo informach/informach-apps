@@ -210,7 +210,6 @@ export interface VoiceMasterPiece {
   sourceMap: VoiceMasterSegment[];
 }
 
-/** What the exported voice was: the MP4s that come back are placed by it. */
 /** One line of the kids table, found in a character's video and in the lesson's voice. */
 export interface KidsPiece {
   /** The table's id ("video-a1-abertura-K1"). */
@@ -228,8 +227,11 @@ export interface KidsEdition {
   /** The characters' videos brought in (each with every line of theirs, one after another). */
   videos: string[];
   pieces: KidsPiece[];
+  /** The table's rows of the parts found in the voice, at the last search (the lesson's rows). */
+  rows?: string[];
 }
 
+/** What the exported voice was: the MP4s that come back are placed by it. */
 export interface VoiceMaster {
   id: string;
   /** shared/voiceMaster.ts voiceHash of the voice track when it was exported. */

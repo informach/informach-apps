@@ -491,3 +491,19 @@ test("voltar ao começo de uma fala grava por cima da tela dali em diante, na me
   assert.equal(shown[1][0], "parte2");
   assert.equal(shown[1][1], 4);
 });
+
+test("gravar por cima onde não há tela gravada entra como parte comum, sem apagar a imagem da faixa", () => {
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [{ ...wholeClip("img", "imagem", "tv"), start: 0, duration: 40 }],
+    assets: [screenAsset("imagem")],
+  };
+  const take = {
+    ...part("nova", 4, 2, 6),
+    over: { ...part("nova", 4, 2, 6).over!, replace: true },
+  };
+  const layout = layoutOverNarration(project, [screenAsset("nova", "screen")], take);
+  // The picture stays whole; the take goes on a "Tela" track of its own.
+  assert.deepEqual(onTrack(layout.clips, "tv"), [["imagem", 0, 40]]);
+  assert.equal(layout.tracks.length, 2);
+});

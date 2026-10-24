@@ -1,5 +1,6 @@
 import type { TimelineWord } from "./cleanup.ts";
 import { clipEnd } from "./clipTime.ts";
+import { findPhrase, joinStretches } from "./phrase.ts";
 import type { ScriptDoc, ScriptSection } from "./script.ts";
 import { alignSection, type LineMatch } from "./scriptAlign.ts";
 import type { Project } from "./types.ts";
@@ -18,39 +19,24 @@ export interface TimedCue {
   text: string;
 }
 
-/** A word as compared: lower case, no accents, letters and digits only. */
-const fold = (s: string): string =>
-  s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]/gu, "");
-
 /** How early a cue shows before its words are heard. */
 const LEAD = 0.5;
 
-/** Timeline second the phrase starts being said at or after `from`, or null. */
-function phraseAt(
-  words: readonly { start: number; text: string }[],
-  phrase: string,
-  from: number,
-): number | null {
-  const wanted = phrase.split(/\s+/).map(fold).filter(Boolean);
-  if (!wanted.length) return null;
-  const said = words.map((w) => ({ start: w.start, key: fold(w.text) })).filter((w) => w.key);
-  for (let i = 0; i + wanted.length <= said.length; i++) {
-    if (said[i].start < from) continue;
-    if (wanted.every((key, k) => said[i + k].key === key)) return said[i].start;
-  }
-  return null;
-}
+/** A line counts as said when at least this much of it was found in the voice. */
+const SAID = 0.5;
+
+const said = (l: LineMatch): boolean => l.matched / Math.max(1, l.total) >= SAID;
 
 export function screenCueTimes(
   section: ScriptSection,
-  lines: readonly LineMatch[],
-  words: readonly { start: number; text: string }[],
+  aligned: readonly LineMatch[],
+  words: readonly { start: number; end?: number; text: string }[],
 ): TimedCue[] {
   const out: TimedCue[] = [];
+  // Only lines the voice says: a part of the script that is not in this voice times nothing.
+  const lines = aligned.filter(said);
+  // An anchor is looked for inside its own part, never in a later one.
+  const partEnd = Math.max(...lines.map((l) => l.end ?? l.start ?? 0), 0);
   section.items.forEach((item, index) => {
     if (item.kind !== "screen") return;
     const next = lines.find((l) => l.item > index && l.start !== undefined);
@@ -66,10 +52,14 @@ export function screenCueTimes(
     let from = Math.max(0, at - 1);
     for (const cue of item.cues) {
       if (cue.anchor) {
-        const said = phraseAt(words, cue.anchor, from);
-        if (said !== null) {
-          t = Math.max(0, said - LEAD);
-          from = said + 0.01;
+        const found = findPhrase(
+          words.map((w) => ({ text: w.text, start: w.start, end: w.end ?? w.start })),
+          cue.anchor,
+          { from, to: partEnd },
+        );
+        if (found) {
+          t = Math.max(0, found.start - LEAD);
+          from = found.start + 0.01;
         }
       }
       out.push({ t, text: cue.text });
@@ -102,9 +92,7 @@ export function scriptGuide(
     const part = `Parte ${section.number}${section.title ? ` · ${section.title}` : ""}`;
     for (const line of lines) {
       const item = section.items[line.item];
-      // A line counts as said when at least half of it was found.
-      if (item?.kind !== "speech" || line.start === undefined) continue;
-      if (line.matched / Math.max(1, line.total) < 0.5) continue;
+      if (item?.kind !== "speech" || line.start === undefined || !said(line)) continue;
       places.push({ t: line.start, text: item.text, part });
     }
   }
@@ -123,15 +111,9 @@ export function recordedStretches(
 ): [number, number][] {
   const screens = new Set(p.assets.filter((a) => a.recording?.role === "screen").map((a) => a.id));
   const locked = new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
-  const spans = p.clips
-    .filter((c) => screens.has(c.assetId) && !locked.has(c.trackId))
-    .map((c): [number, number] => [c.start, clipEnd(c)])
-    .sort((a, b) => a[0] - b[0]);
-  const out: [number, number][] = [];
-  for (const [a, b] of spans) {
-    const last = out.at(-1);
-    if (last && a <= last[1] + 0.05) last[1] = Math.max(last[1], b);
-    else out.push([a, b]);
-  }
-  return out;
+  return joinStretches(
+    p.clips
+      .filter((c) => screens.has(c.assetId) && !locked.has(c.trackId))
+      .map((c): [number, number] => [c.start, clipEnd(c)]),
+  );
 }

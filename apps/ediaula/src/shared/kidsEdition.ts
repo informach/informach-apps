@@ -2,6 +2,7 @@ import { applyCuts } from "./cleanup.ts";
 import { clipEnd, newId, sourceEnd, timelineAt } from "./clipTime.ts";
 import { presenterTransform } from "./compose.ts";
 import { transformAt } from "./keyframes.ts";
+import { findPhrase, fold, type PhraseMatch, type SourceWord, tokens } from "./phrase.ts";
 import { PRESENTER_TRACK } from "./recordingImport.ts";
 import { insertClips } from "./ripple.ts";
 import type { Substitution } from "./script.ts";
@@ -18,63 +19,7 @@ import { voiceClips } from "./voiceMaster.ts";
  * presenter was. The adult edition is the lesson as it is: one edit, two exports.
  */
 
-/** A word of a transcript, in its media's seconds. */
-export interface SourceWord {
-  text: string;
-  start: number;
-  end: number;
-}
-
-/** A word as compared: lower case, no accents, letters and digits only. */
-const fold = (s: string): string =>
-  s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]/gu, "");
-
-const tokens = (s: string): string[] => s.split(/\s+/).map(fold).filter(Boolean);
-
-/** The words of the anchors looked at on each side. */
-const ANCHOR_WORDS = 6;
-
-export interface PhraseMatch {
-  start: number;
-  end: number;
-  /** Anchor words that matched around it, out of those compared. */
-  anchors: number;
-}
-
-/**
- * Where `phrase` is said in `words`: every place its words are said in a row, the one whose
- * neighbours match the anchors best (the last words of `before`, the first of `after`), and among
- * equals the `occurrence`-th. Null when it is not said.
- */
-export function findPhrase(
-  words: readonly SourceWord[],
-  phrase: string,
-  opts: { before?: string; after?: string; occurrence?: number } = {},
-): PhraseMatch | null {
-  const said = words.map((w) => ({ ...w, key: fold(w.text) })).filter((w) => w.key);
-  const wanted = tokens(phrase);
-  if (!wanted.length) return null;
-  const before = tokens(opts.before ?? "").slice(-ANCHOR_WORDS);
-  const after = tokens(opts.after ?? "").slice(0, ANCHOR_WORDS);
-  const found: PhraseMatch[] = [];
-  for (let i = 0; i + wanted.length <= said.length; i++) {
-    if (!wanted.every((key, k) => said[i + k].key === key)) continue;
-    let anchors = 0;
-    for (let k = 1; k <= before.length; k++)
-      if (said[i - k]?.key === before[before.length - k]) anchors++;
-    const last = i + wanted.length - 1;
-    for (let k = 0; k < after.length; k++) if (said[last + 1 + k]?.key === after[k]) anchors++;
-    found.push({ start: said[i].start, end: said[last].end, anchors });
-  }
-  if (!found.length) return null;
-  const best = Math.max(...found.map((f) => f.anchors));
-  const top = found.filter((f) => f.anchors === best);
-  return top[Math.min(top.length, Math.max(1, opts.occurrence ?? 1)) - 1];
-}
+export { findPhrase, type SourceWord } from "./phrase.ts";
 
 /** Silence kept around a character's line, at most half the gap to the next word. */
 const PAD = 0.15;
@@ -96,8 +41,9 @@ export interface KidsLocate {
 
 /**
  * Each line of the kids table found in the characters' videos and in the lesson's voice:
- * `voices` and `videos` are the transcripts of the voice media and of the characters' videos, by
- * media id. A video whose name has the character's name is looked at first.
+ * `voices` and `videos` are the transcripts of the voice media (where it says the rows' part:
+ * the occurrence counts there) and of the characters' videos, by media id. A video whose name has
+ * the character's name is looked at first; a line in two rows is its next take there.
  */
 export function locateKids(
   substitutions: readonly Substitution[],
@@ -106,7 +52,12 @@ export function locateKids(
 ): KidsLocate {
   const pieces: KidsPiece[] = [];
   const problems: KidsLocate["problems"] = [];
+  // A line said twice by the same character (two rows) is the next take of it in the video.
+  const seen = new Map<string, number>();
   for (const s of substitutions) {
+    const key = `${fold(s.character)}|${tokens(s.text).join(" ")}`;
+    const take = (seen.get(key) ?? 0) + 1;
+    seen.set(key, take);
     let voice: KidsPiece["voice"] | null = null;
     let anchors = -1;
     for (const [assetId, words] of voices) {
@@ -130,7 +81,7 @@ export function locateKids(
     );
     let piece: KidsPiece | null = null;
     for (const [assetId, video] of order) {
-      const m = findPhrase(video.words, s.text);
+      const m = findPhrase(video.words, s.text, { occurrence: take });
       if (!m) continue;
       const [from, to] = padded(video.words, m, video.duration);
       piece = { id: s.id, character: s.character, assetId, in: from, out: to, voice };
@@ -144,14 +95,21 @@ export function locateKids(
 
 type Lesson = Pick<Project, "tracks" | "clips" | "assets" | "settings">;
 
-/** Where a piece's teacher line is on the timeline now, or null when it was cut away. */
+/**
+ * Where a piece's teacher line is on the timeline now: its start and its end each through the
+ * voice clip that holds it (a cut inside the line splits the clip; the line still goes). Null when
+ * either end was cut away.
+ */
 export function kidsSpan(p: Pick<Project, "clips">, piece: KidsPiece): [number, number] | null {
-  for (const c of p.clips) {
-    if (c.assetId !== piece.voice.assetId) continue;
-    if (piece.voice.from < c.in - 1e-3 || piece.voice.to > sourceEnd(c) + 1e-3) continue;
-    return [timelineAt(c, piece.voice.from), timelineAt(c, piece.voice.to)];
-  }
-  return null;
+  const at = (t: number): number | null => {
+    for (const c of p.clips)
+      if (c.assetId === piece.voice.assetId && t >= c.in - 1e-3 && t <= sourceEnd(c) + 1e-3)
+        return timelineAt(c, Math.min(Math.max(t, c.in), sourceEnd(c)));
+    return null;
+  };
+  const a = at(piece.voice.from);
+  const b = at(piece.voice.to);
+  return a !== null && b !== null && b > a ? [a, b] : null;
 }
 
 /** The presenter's clips: videos marked as the presenter. */
@@ -188,15 +146,17 @@ export function kidsEdition(
     })
     .sort((a, b) => b.span[0] - a.span[0]);
   let p: Lesson = project;
+  /** The track made for the characters when the lesson has no presenter there: one for all. */
+  let made: Track | undefined;
   for (const { piece, span } of placed) {
     const [a, b] = span;
     const video = assets.get(piece.assetId) as Asset;
     const length = Math.max(1 / 30, piece.out - piece.in);
     let tracks = p.tracks;
     const teacher = presenterAt(p, a);
-    let track = teacher ? tracks.find((t) => t.id === teacher.trackId) : undefined;
+    let track = teacher ? tracks.find((t) => t.id === teacher.trackId) : made;
     if (!track) {
-      track = {
+      made = {
         id: newId("t"),
         kind: "video",
         name: PRESENTER_TRACK,
@@ -204,7 +164,8 @@ export function kidsEdition(
         hidden: false,
         locked: false,
       };
-      tracks = [track, ...tracks];
+      track = made;
+      tracks = [made, ...tracks];
     }
     const transform = teacher
       ? transformAt(teacher, Math.max(teacher.start, Math.min(a, clipEnd(teacher) - 1e-6)))
@@ -237,7 +198,13 @@ export function kidsEdition(
         });
     }
     // The teacher's line leaves every track, the voice and the presenter's included.
-    const all = new Set([...targets, track.id, ...voiceClips(p).map((c) => c.trackId)]);
+    // The characters' own track moves along too (pieces placed before this one are on it).
+    const all = new Set([
+      ...targets,
+      track.id,
+      ...(made ? [made.id] : []),
+      ...voiceClips(p).map((c) => c.trackId),
+    ]);
     for (const id of locked) all.delete(id);
     const cut = applyCuts(p.clips, [[a, b]], all, locked);
     p = { ...p, tracks, clips: insertClips({ ...p, tracks, clips: cut }, all, inserted, a) };

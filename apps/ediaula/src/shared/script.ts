@@ -172,6 +172,8 @@ export function parseScript(md: string): ScriptDoc {
    * the teacher's speech (in a fenced block), "Substituições na edição kids:" the kids table.
    */
   let block: "speech" | "substitutions" | null = null;
+  /** Rows of the kids table read so far (the first is its header). */
+  let tableRows = 0;
   /** The lines of a fenced block (```text … ```) while it is open. */
   let fence: string[] | null = null;
   let speaker: { name: string; avatar: boolean } | null = null;
@@ -236,11 +238,14 @@ export function parseScript(md: string): ScriptDoc {
       fence = [];
       continue;
     }
-    // The kids table: its rows, the header and the separator left out.
+    // The kids table: its rows, the header (its first row, whatever it says) and the separator
+    // ("| --- |", "|:---:|") left out.
     if (block === "substitutions" && line.startsWith("|")) {
       const cells = tableCells(line);
       const id = plain(cells[0] ?? "");
-      if (section && cells.length >= 5 && id && !/^id$/i.test(id) && !/^-+$/.test(id)) {
+      const header = tableRows++ === 0;
+      const separator = cells.every((cell) => /^:?-+:?$/.test(cell));
+      if (section && cells.length >= 5 && id && !header && !separator) {
         section.substitutions = section.substitutions ?? [];
         section.substitutions.push({
           id,
@@ -254,7 +259,9 @@ export function parseScript(md: string): ScriptDoc {
       }
       continue;
     }
-    if (line && !line.startsWith("|")) block = block === "substitutions" ? null : block;
+    // A block is the one thing right after its label: anything else (a heading, a paragraph, a
+    // label with no fence after it) ends it, so a later fence is never taken for the speech.
+    if (line) block = null;
     if (line.startsWith(">")) {
       quote.push(line.replace(/^>\s?/, ""));
       continue;
@@ -302,6 +309,7 @@ export function parseScript(md: string): ScriptDoc {
     if (m && /^substitui/i.test(m[1].trim())) {
       speaker = null;
       block = "substitutions";
+      tableRows = 0;
       continue;
     }
     // "**Professora:**" alone on a line opens a speaker block for the quotes that follow.

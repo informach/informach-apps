@@ -9,6 +9,7 @@ import {
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
 import { overEnd } from "@shared/overNarration";
+import { joinStretches } from "@shared/phrase";
 import { plural } from "@shared/plural";
 import type { RecorderSettings } from "@shared/recorderSettings";
 import type {
@@ -157,20 +158,9 @@ function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRec
 /** Where the lesson's voice starts on the timeline. */
 const voiceStart = (over: OverContext): number => over.segments[0]?.start ?? 0;
 
-/** A part from `over.from` records over a screen already there (any recorded after that point). */
+/** A part from `over.from` records over a screen already there: it starts inside one. */
 const overwrites = (over: OverContext, recorded: readonly [number, number][]): boolean =>
-  over.to === undefined && recorded.some(([, b]) => b > over.from + 0.05);
-
-/** Stretches joined where they touch or overlap, in order. */
-function mergeStretches(list: readonly [number, number][]): [number, number][] {
-  const out: [number, number][] = [];
-  for (const [a, b] of [...list].sort((x, y) => x[0] - y[0])) {
-    const last = out.at(-1);
-    if (last && a <= last[1] + 0.05) last[1] = Math.max(last[1], b);
-    else out.push([a, b]);
-  }
-  return out;
-}
+  over.to === undefined && recorded.some(([a, b]) => a <= over.from + 0.05 && b > over.from + 0.05);
 
 /** The editor's answer about a part of "Tela sobre a narração" it was handed. */
 interface PartResult {
@@ -1110,6 +1100,9 @@ export function RecorderOverlay(): ReactNode {
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
     const overNow = modeRef.current === "over" ? overRef.current : null;
     const keepOpen = !!overNow && overNow.to === undefined && !preservationRequested.current;
+    // Taken now: whatever happens to this stop, the next one never finds it left over.
+    const again = keepOpen ? restartAt.current : null;
+    restartAt.current = null;
     setPhase("saving");
     phaseRef.current = "saving";
     setAlert(null);
@@ -1143,10 +1136,8 @@ export function RecorderOverlay(): ReactNode {
       // Nothing of it kept (stopped in the lead-in): the next part starts where this one did.
       const end = Math.max(overNow.from, overEnd(result) ?? overNow.from);
       if (end > overNow.from + 0.05)
-        setRecorded((list) => mergeStretches([...list, [overNow.from, end]]));
+        setRecorded((list) => joinStretches([...list, [overNow.from, end]]));
       // "Voltar ao começo da fala" picked the next start; otherwise it goes on from here.
-      const again = restartAt.current;
-      restartAt.current = null;
       if (again === null && end >= overNow.end - 0.5) {
         // The voice is over: back to the editor, where the parts already are.
         await window.api.recorder.cancel();
@@ -1219,7 +1210,10 @@ export function RecorderOverlay(): ReactNode {
    */
   const rewind = useCallback(async () => {
     const o = overRef.current;
-    if (modeRef.current !== "over" || !o) return;
+    // Only where the recorder stays open for the next part: not in a redo of an interval, nor
+    // when the app has asked for the take to be saved and closed.
+    if (modeRef.current !== "over" || !o || o.to !== undefined || preservationRequested.current)
+      return;
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
     const heard = player.current?.heard() ?? o.from;
     const line = [...(o.lines ?? [])].reverse().find((l) => l.t <= heard + 0.05);
@@ -1912,7 +1906,7 @@ export function RecorderOverlay(): ReactNode {
                   type="button"
                   title={`Voltar ao começo da fala (${keyOf("retake")}): o que foi gravado fica na aula, e o gravador espera no começo da fala para gravar de novo por cima`}
                   aria-label="Voltar ao começo da fala"
-                  disabled={!over?.lines?.length}
+                  disabled={!over?.lines?.length || over.to !== undefined}
                   onClick={() => void rewind()}
                 >
                   <RotateCcw size={15} />
