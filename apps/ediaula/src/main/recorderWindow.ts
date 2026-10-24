@@ -251,6 +251,14 @@ const contextSchema = z.object({
       segments: voiceSegmentsSchema,
       words: z.array(z.object({ t: seconds, end: seconds, text: z.string().max(200) })).max(200000),
       cues: z.array(z.object({ t: seconds, text: line })).max(5000),
+      lines: z
+        .array(z.object({ t: seconds, text: line, part: z.string().max(2000) }))
+        .max(5000)
+        .optional(),
+      recorded: z
+        .array(z.tuple([seconds, seconds]))
+        .max(5000)
+        .optional(),
     })
     .optional(),
   projectId: z.string().min(1).max(200).optional(),

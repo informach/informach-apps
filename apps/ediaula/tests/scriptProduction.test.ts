@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { screenCueTimes } from "../src/shared/screenCues.ts";
+import { recordedStretches, screenCueTimes, scriptGuide } from "../src/shared/screenCues.ts";
 import { parseScript, screenCues, speechItems, withoutVoiceTags } from "../src/shared/script.ts";
 import { alignSection } from "../src/shared/scriptAlign.ts";
 
@@ -164,5 +164,61 @@ test("no gravador cada pedaço do Na tela aparece quando a voz chega na frase de
       at("repare", olha) - 0.5,
       at("tem", olha) - 0.5,
     ].map((v) => Math.round(v * 10) / 10),
+  );
+});
+
+test("o guia do gravador acha cada fala de todas as partes na voz, e onde já há tela gravada", () => {
+  const doc = parseScript(SCRIPT);
+  const spoken = doc.sections
+    .flatMap((s) => speechItems(s).map((i) => i.text))
+    .join(" ")
+    .split(/\s+/);
+  const words = spoken.map((text, k) => ({
+    key: `w${k}`,
+    clipId: "c",
+    assetId: "a",
+    start: k * 0.4,
+    end: k * 0.4 + 0.3,
+    p: 1,
+    text,
+  }));
+  const guide = scriptGuide(doc, words);
+  // Every line of both parts, in order, each with its part.
+  assert.deepEqual(
+    guide.places.map((l) => [l.part, l.text.slice(0, 12)]),
+    [
+      ["Parte 1 · Bem-vindo ao jardim", "Oi! Você vai"],
+      ["Parte 1 · Bem-vindo ao jardim", "Neste jardim"],
+      ["Parte 1 · Bem-vindo ao jardim", "E os outros "],
+      ["Parte 1 · Bem-vindo ao jardim", "Ah, e tem ma"],
+      ["Parte 4 · Faça alguém aparecer", "Aqui no seu "],
+      ["Parte 4 · Faça alguém aparecer", "E como faz i"],
+      ["Parte 4 · Faça alguém aparecer", "Talvez você "],
+    ],
+  );
+  assert.ok(guide.places.every((l, i, all) => i === 0 || all[i - 1].t <= l.t));
+  // The "Na tela" of part 4 comes too, after the ones of part 1.
+  assert.ok(guide.cues.some((c) => c.text.includes("Tá vendo?")));
+  assert.deepEqual(
+    recordedStretches({
+      tracks: [
+        { id: "tv", kind: "video", name: "Tela", muted: false, hidden: false, locked: false },
+      ],
+      assets: [
+        { id: "s1", recording: { id: "a", role: "screen" } },
+        { id: "s2", recording: { id: "b", role: "screen" } },
+        { id: "img" },
+      ] as never,
+      clips: [
+        { id: "1", assetId: "s1", trackId: "tv", start: 0, in: 0, duration: 10, volume: 1 },
+        { id: "2", assetId: "s2", trackId: "tv", start: 10, in: 0, duration: 5, volume: 1 },
+        { id: "3", assetId: "s1", trackId: "tv", start: 30, in: 0, duration: 2, volume: 1 },
+        { id: "4", assetId: "img", trackId: "tv", start: 40, in: 0, duration: 2, volume: 1 },
+      ],
+    }),
+    [
+      [0, 15],
+      [30, 32],
+    ],
   );
 });

@@ -23,9 +23,8 @@ import {
   retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
-import { screenCueTimes } from "@shared/screenCues";
+import { recordedStretches, scriptGuide } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
-import { alignSection } from "@shared/scriptAlign";
 import { sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Project, RecordingRole } from "@shared/types";
 import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
@@ -84,22 +83,20 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
   const voice = new Set(voiceClips(p).map((c) => c.id));
   const words = timelineWords(p, transcripts).filter((w) => voice.has(w.clipId));
   const doc = scriptDoc(p);
-  const section = doc?.sections[p.script?.section ?? 0];
-  // Each "Na tela" at its line, or each of its pieces at the words it waits for.
-  const cues: OverContext["cues"] = section
-    ? screenCueTimes(section, alignSection(section, words).lines, words)
-    : [];
+  // Every part of the script against the voice: each "Na tela" at its line (or each of its
+  // pieces at the words it waits for), and each line said as a place to start a take from.
+  const guide = doc ? scriptGuide(doc, words) : null;
   return {
     from,
     ...(request.to !== undefined ? { to: request.to } : {}),
     ...(request.replace ? { replace: true } : {}),
     end: span[1],
     segments: voiceSegments(p, 0, span[1]),
-    words: words
-      .filter((w) => w.end >= from - 5)
-      .slice(0, MAX_WORDS)
-      .map((w) => ({ t: w.start, end: w.end, text: w.text })),
-    cues,
+    // All of them: the recorder can go back to any line, before where it was opened from.
+    words: words.slice(0, MAX_WORDS).map((w) => ({ t: w.start, end: w.end, text: w.text })),
+    cues: guide?.cues ?? [],
+    lines: (guide?.places ?? []).slice(0, 5000),
+    recorded: recordedStretches(p).slice(0, 5000),
   };
 }
 

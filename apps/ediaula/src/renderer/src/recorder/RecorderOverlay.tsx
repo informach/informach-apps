@@ -154,6 +154,24 @@ function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRec
   );
 }
 
+/** Where the lesson's voice starts on the timeline. */
+const voiceStart = (over: OverContext): number => over.segments[0]?.start ?? 0;
+
+/** A part from `over.from` records over a screen already there (any recorded after that point). */
+const overwrites = (over: OverContext, recorded: readonly [number, number][]): boolean =>
+  over.to === undefined && recorded.some(([, b]) => b > over.from + 0.05);
+
+/** Stretches joined where they touch or overlap, in order. */
+function mergeStretches(list: readonly [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const [a, b] of [...list].sort((x, y) => x[0] - y[0])) {
+    const last = out.at(-1);
+    if (last && a <= last[1] + 0.05) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
+
 /** The editor's answer about a part of "Tela sobre a narração" it was handed. */
 interface PartResult {
   ok: boolean;
@@ -290,6 +308,10 @@ export function RecorderOverlay(): ReactNode {
   const [overMic, setOverMic] = useState("");
   /** Parts of "Tela sobre a narração" saved since the recorder opened (it stays open between them). */
   const [overParts, setOverParts] = useState(0);
+  /** Where the lesson has a recorded screen (from the editor, and each part saved since). */
+  const [recorded, setRecorded] = useState<[number, number][]>([]);
+  /** "Voltar ao começo da fala": the next part starts there instead of where this one ends. */
+  const restartAt = useRef<number | null>(null);
   const overRef = useRef(over);
   overRef.current = over;
   const modeRef = useRef(mode);
@@ -359,6 +381,7 @@ export function RecorderOverlay(): ReactNode {
         setLines(c.teleprompter);
         setNotes(c.screenNotes ?? []);
         setOver(c.over ?? null);
+        setRecorded(c.over?.recorded ?? []);
         setSpeakerOn(
           new Set(
             voiceSpeakers(c.teleprompter)
@@ -904,7 +927,9 @@ export function RecorderOverlay(): ReactNode {
                     over: {
                       from: over.from,
                       ...(over.to !== undefined ? { to: over.to } : {}),
-                      ...(over.replace ? { replace: true } : {}),
+                      // A redo, or a part started where a screen is already recorded, records
+                      // over it from there (shared/overNarration.ts layoutOverNarration).
+                      ...(over.replace || overwrites(over, recorded) ? { replace: true } : {}),
                     },
                   }
                 : {}),
@@ -964,7 +989,9 @@ export function RecorderOverlay(): ReactNode {
       // the stretch already in rhythm (the screen only counts from `over.from`).
       if (mode === "over" && over)
         await player.current?.play(
-          over.replace || overParts > 0 ? Math.max(0, over.from - 2) : over.from,
+          over.replace || over.from > voiceStart(over) + 0.5
+            ? Math.max(0, over.from - 2)
+            : over.from,
         );
       if (guidedMode && guidedPlan) {
         const timing = await window.api.recorder.guidedStart(guidedPlan);
@@ -988,7 +1015,7 @@ export function RecorderOverlay(): ReactNode {
     region,
     mic,
     overMic,
-    overParts,
+    recorded,
     cam,
     screenCam,
     presenterCam,
@@ -1082,7 +1109,7 @@ export function RecorderOverlay(): ReactNode {
     // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
     const overNow = modeRef.current === "over" ? overRef.current : null;
-    const keepOpen = !!overNow && !overNow.replace && !preservationRequested.current;
+    const keepOpen = !!overNow && overNow.to === undefined && !preservationRequested.current;
     setPhase("saving");
     phaseRef.current = "saving";
     setAlert(null);
@@ -1115,19 +1142,28 @@ export function RecorderOverlay(): ReactNode {
       // Where this part ends on the timeline, as the editor lays it out (shared/overNarration.ts).
       // Nothing of it kept (stopped in the lead-in): the next part starts where this one did.
       const end = Math.max(overNow.from, overEnd(result) ?? overNow.from);
-      if (end >= overNow.end - 0.5) {
+      if (end > overNow.from + 0.05)
+        setRecorded((list) => mergeStretches([...list, [overNow.from, end]]));
+      // "Voltar ao começo da fala" picked the next start; otherwise it goes on from here.
+      const again = restartAt.current;
+      restartAt.current = null;
+      if (again === null && end >= overNow.end - 0.5) {
         // The voice is over: back to the editor, where the parts already are.
         await window.api.recorder.cancel();
         return;
       }
-      const from = Math.round(end * 1000) / 1000;
+      const from = Math.round((again ?? end) * 1000) / 1000;
       setOver({ ...overNow, from });
       setOverParts((n) => n + 1);
       setHealth(null);
       setMarkers(0);
       phaseRef.current = "setup";
       setPhase("setup");
-      setFlash(`Parte salva na aula. A próxima começa em ${clockOf(from)}.`);
+      setFlash(
+        again === null
+          ? `Parte salva na aula. A próxima começa em ${clockOf(from)}.`
+          : `Pronto para gravar de novo desde o começo da fala, em ${clockOf(from)}, por cima do que foi gravado ali.`,
+      );
       setTimeout(() => setFlash(null), 5000);
     } catch (err) {
       setError(cleanError(err));
@@ -1176,6 +1212,21 @@ export function RecorderOverlay(): ReactNode {
     phaseRef.current = "setup";
   }, []);
 
+  /**
+   * "Voltar ao começo da fala" (over the narration): the part so far goes into the lesson, and
+   * the recorder waits at the start of the line being heard, ready to record it again over what
+   * was just recorded there.
+   */
+  const rewind = useCallback(async () => {
+    const o = overRef.current;
+    if (modeRef.current !== "over" || !o) return;
+    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    const heard = player.current?.heard() ?? o.from;
+    const line = [...(o.lines ?? [])].reverse().find((l) => l.t <= heard + 0.05);
+    restartAt.current = Math.max(voiceStart(o), line?.t ?? o.from);
+    await stopRef.current();
+  }, []);
+
   const mark = useCallback(
     async (kind: "marker" | "retake") => {
       if (phaseRef.current !== "recording") return;
@@ -1221,7 +1272,8 @@ export function RecorderOverlay(): ReactNode {
         if (name === "toggle") void (phaseRef.current === "setup" ? begin() : togglePause());
         else if (name === "stop") void stop();
         else if (name === "marker") void mark("marker");
-        else if (name === "retake") void mark("retake");
+        // Over the narration, redoing is going back to the start of the line being heard.
+        else if (name === "retake") void (modeRef.current === "over" ? rewind() : mark("retake"));
         else if (name === "line-next") stepTo(1);
         else if (name === "line-prev") stepTo(-1);
         else if (name === "draw" && phaseRef.current === "recording" && drawAllowed.current)
@@ -1230,7 +1282,7 @@ export function RecorderOverlay(): ReactNode {
         // the screen, and the drawing ends here too.
         else if (name === "draw-off") setDrawOn(false);
       }),
-    [begin, togglePause, stop, mark, stepTo, toggleWeb, stopWeb],
+    [begin, togglePause, stop, mark, rewind, stepTo, toggleWeb, stopWeb],
   );
 
   // The disk filled up: the main process already stopped the capture; save what there is.
@@ -1514,7 +1566,14 @@ export function RecorderOverlay(): ReactNode {
                   : ""}
                 A voz da aula toca nos fones a partir de {clockOf(over.from)}
                 {over.to !== undefined ? ` e a tela é regravada até ${clockOf(over.to)}` : ""}
-                {overParts > 0 ? ", com 2 s antes para você pegar o ritmo" : ""}. Use fones.
+                {over.from > voiceStart(over) + 0.5
+                  ? ", com 2 s antes para você pegar o ritmo"
+                  : ""}
+                .{" "}
+                {overwrites(over, recorded)
+                  ? `Grava por cima da tela já gravada a partir de ${clockOf(over.from)}. `
+                  : ""}
+                Use fones.
               </span>
             )}
             {mode === "over" && over && over.to === undefined && phase === "setup" && (
@@ -1848,14 +1907,26 @@ export function RecorderOverlay(): ReactNode {
                 <Bookmark size={15} />
                 {markers > 0 && <small>{markers}</small>}
               </button>
-              <button
-                type="button"
-                title={`${voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"} (${keyOf("retake")})`}
-                aria-label={voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"}
-                onClick={() => void mark("retake")}
-              >
-                <RotateCcw size={15} />
-              </button>
+              {mode === "over" ? (
+                <button
+                  type="button"
+                  title={`Voltar ao começo da fala (${keyOf("retake")}): o que foi gravado fica na aula, e o gravador espera no começo da fala para gravar de novo por cima`}
+                  aria-label="Voltar ao começo da fala"
+                  disabled={!over?.lines?.length}
+                  onClick={() => void rewind()}
+                >
+                  <RotateCcw size={15} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  title={`${voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"} (${keyOf("retake")})`}
+                  aria-label={voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"}
+                  onClick={() => void mark("retake")}
+                >
+                  <RotateCcw size={15} />
+                </button>
+              )}
               {canDraw && (
                 <button
                   type="button"
@@ -1922,8 +1993,41 @@ function OverStart({
   const last = Math.max(first, over.end - 1);
   const move = (to: number): void =>
     onFrom(Math.round(Math.min(last, Math.max(first, to)) * 1000) / 1000);
+  // The script's lines where the voice says them, by part: the line the start is in is shown.
+  const lines = over.lines ?? [];
+  let current = -1;
+  lines.forEach((l, i) => {
+    if (l.t <= over.from + 0.05) current = i;
+  });
+  const parts = [...new Set(lines.map((l) => l.part))];
+  const short = (text: string): string => (text.length > 64 ? `${text.slice(0, 62)}…` : text);
   return (
     <fieldset className="rec-over-start" aria-label="Início da voz nesta parte">
+      {lines.length > 0 && (
+        <select
+          className="rec-over-line"
+          aria-label="Começar na fala"
+          title="Começar a voz no começo de uma fala do roteiro"
+          value={current}
+          onChange={(e) => {
+            const line = lines[Number(e.target.value)];
+            if (line) move(line.t);
+          }}
+        >
+          {current < 0 && <option value={-1}>Antes da primeira fala</option>}
+          {parts.map((part) => (
+            <optgroup key={part} label={part}>
+              {lines.map((l, i) =>
+                l.part === part ? (
+                  <option key={`${l.t}-${l.text}`} value={i}>
+                    {clockOf(l.t)} · {short(l.text)}
+                  </option>
+                ) : null,
+              )}
+            </optgroup>
+          ))}
+        </select>
+      )}
       <button type="button" onClick={() => move(over.from - 5)} disabled={over.from <= first}>
         −5 s
       </button>

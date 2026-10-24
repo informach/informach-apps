@@ -602,7 +602,13 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
    - **Em partes:** **Parar** salva a parte na aula e o gravador continua aberto, pronto para a
      próxima a partir de onde a voz da parte terminou na timeline (`overEnd` em
      `src/shared/overNarration.ts`, a mesma conta do encaixe, então as partes ficam coladas na
-     mesma faixa). Antes de gravar, **−5 s**, **+5 s** e **Do começo da voz** mudam esse ponto.
+     mesma faixa). Antes de gravar, **Começar na fala** lista as falas do roteiro onde a voz as diz,
+     por parte (o roteiro inteiro alinhado com a transcrição, `scriptGuide` em
+     `src/shared/screenCues.ts`), e **−5 s**, **+5 s** e **Do começo da voz** ajustam o ponto. Um
+     ponto onde já há tela gravada grava por cima dela dali em diante, na mesma faixa (o gravador
+     avisa). Durante a gravação, **Voltar ao começo da fala** (na pílula, ou o atalho de refazer)
+     salva o que foi gravado e deixa o gravador no começo da fala que estava tocando, para gravá-la
+     de novo por cima.
      A partir da segunda parte a voz começa 2 s antes, para pegar o ritmo; a tela só conta do
      ponto escolhido. Quando a voz acaba, o gravador fecha e volta ao editor, com o cursor no fim
      da última parte; o X (**Voltar ao editor**) também volta, e as partes já estão na aula. Uma

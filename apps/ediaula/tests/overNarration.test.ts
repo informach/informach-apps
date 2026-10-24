@@ -461,3 +461,33 @@ test("gravada em partes, cada parte começa onde a anterior terminou, na mesma f
   // A take with nothing kept has no end to go on from.
   assert.equal(overEnd({ duration: 0, pauses: [], over: { from: 30, anchors: [] } }), null);
 });
+
+test("voltar ao começo de uma fala grava por cima da tela dali em diante, na mesma faixa", () => {
+  // The first part went from 0 to 9.16 s; the person goes back to the line at 4 s.
+  const first = part("parte1", 0, 0, 10);
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [],
+    assets: [],
+  };
+  const one = layoutOverNarration(project, [screenAsset("parte1", "screen")], first);
+  const again = {
+    ...part("parte2", 4, 2, 6),
+    over: { ...part("parte2", 4, 2, 6).over!, replace: true },
+  };
+  const two = layoutOverNarration(
+    {
+      tracks: one.tracks,
+      clips: one.clips,
+      assets: [screenAsset("parte1", "screen")],
+    },
+    [screenAsset("parte2", "screen")],
+    again,
+  );
+  assert.equal(two.tracks.length, 1);
+  const shown = onTrack(two.clips, "tv");
+  // The first part keeps 0 to 4 s, the new one goes on from 4 s over the rest of it.
+  assert.deepEqual(shown[0], ["parte1", 0, 4]);
+  assert.equal(shown[1][0], "parte2");
+  assert.equal(shown[1][1], 4);
+});
