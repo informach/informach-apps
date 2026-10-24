@@ -1171,3 +1171,12 @@ html.is-recorder #root {
   color: var(--text-1);
   font: 600 11px var(--font-mono);
 }
+.rec-over-line {
+  max-width: 420px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text-1);
+  font-size: 12px;
+}

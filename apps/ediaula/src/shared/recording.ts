@@ -156,6 +156,13 @@ export interface OverContext extends OverPlan {
   words: { t: number; end: number; text: string }[];
   /** "Na tela" directions at the timeline second they apply from. */
   cues: { t: number; text: string }[];
+  /**
+   * The script's lines where the voice says them (the transcript aligned with the script), with
+   * the part of the script each is in: the places the recorder can start a part from.
+   */
+  lines?: { t: number; text: string; part: string }[];
+  /** Timeline stretches that already have a recorded screen: starting inside one records over it. */
+  recorded?: [number, number][];
 }
 
 /** Default frame rate of screen recordings. */

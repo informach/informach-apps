@@ -8,11 +8,13 @@ import {
 } from "@shared/voiceChain";
 import { masterIsStale, PIECE_MINUTES, pieceSeconds, voiceClips } from "@shared/voiceMaster";
 import {
+  Baby,
   Download,
   FileAudio,
   Loader,
   Mic,
   MonitorPlay,
+  Search,
   Sparkles,
   Upload,
   UserRound,
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { leaveField, typedNumber } from "@/lib/fieldText";
+import { importKidsVideos, kidsStatus, locateKidsLines } from "@/lib/kids";
 import { openRecorder } from "@/lib/recording";
 import {
   acceptGuess,
@@ -58,7 +61,8 @@ export function VoiceSection(): ReactNode {
   const selection = useProject((s) => s.selection);
   const original = useVoiceListen((s) => s.original);
   const [scope, setScope] = useState<VoiceMaster["scope"]>("lesson");
-  const [useSound, setUseSound] = useState(false);
+  // The presenter's video brings the final sound (its lips match it); the voice is the reference.
+  const [useSound, setUseSound] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   if (!project) return null;
   const targets = voiceTargets(project, selection);
@@ -221,7 +225,10 @@ export function VoiceSection(): ReactNode {
           {busy === "importar" ? "Encaixando…" : "Importar vídeo do apresentador"}
         </Button>
         <p className="props-hint muted">O app encaixa o vídeo pela voz.</p>
-        <div className="audio-flag" title="Por padrão o vídeo entra mudo e vale a voz tratada">
+        <div
+          className="audio-flag"
+          title="Ligado, o vídeo entra com o som dele e a voz da faixa Voz fica calada por baixo, só como referência. Desligado, o vídeo entra mudo e vale a voz tratada."
+        >
           <small className="muted">Usar o som do vídeo importado</small>
           <Toggle on={useSound} onChange={setUseSound} label="Usar o som do vídeo importado" />
         </div>
@@ -243,7 +250,72 @@ export function VoiceSection(): ReactNode {
           Gravar a tela sobre a narração
         </Button>
       </div>
+      <KidsSection />
     </>
+  );
+}
+
+/**
+ * "Edição kids": the lines of the script's kids table, where each one stands (found in the
+ * characters' videos and in the voice, or not), and the import of the characters' videos.
+ */
+function KidsSection(): ReactNode {
+  const project = useProject((s) => s.project);
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!project) return null;
+  const lines = kidsStatus(project);
+  if (!lines.length && !project.kids) return null;
+  const found = lines.filter((l) => l.at).length;
+  const run = async (label: string, work: () => Promise<unknown>): Promise<void> => {
+    setBusy(label);
+    try {
+      await work();
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="props-section">
+      <h3>
+        <Baby size={13} /> Edição kids
+      </h3>
+      <p className="props-hint muted">
+        {lines.length
+          ? `${plural(lines.length, "fala da tabela do roteiro vai", "falas da tabela do roteiro vão")} para os personagens na versão kids. ${found} de ${lines.length} ${agree(lines.length, "achada", "achadas")}.`
+          : "O roteiro desta aula não tem a tabela de substituições kids."}
+      </p>
+      <Button
+        icon={Upload}
+        disabled={!!busy || !lines.length}
+        title="Um vídeo por personagem, com todas as falas dele, uma depois da outra"
+        onClick={() => void run("importar", importKidsVideos)}
+      >
+        {busy === "importar" ? "Transcrevendo e procurando…" : "Importar vídeos dos personagens"}
+      </Button>
+      {!!project.kids?.videos.length && (
+        <Button
+          icon={Search}
+          disabled={!!busy || !lines.length}
+          onClick={() => void run("procurar", locateKidsLines)}
+        >
+          {busy === "procurar" ? "Procurando…" : "Procurar as falas de novo"}
+        </Button>
+      )}
+      {lines.length > 0 && (
+        <ul className="kids-lines">
+          {lines.map((l) => (
+            <li key={l.id} className={l.at ? "is-found" : ""}>
+              <strong>{l.character}</strong> “{l.text}”{" "}
+              <span className="muted">{l.at ? `em ${l.at}` : "ainda não achada"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="props-hint muted">
+        Na exportação, escolha a versão Adulto (a aula como está) ou Kids (com as falas dos
+        personagens no lugar).
+      </p>
+    </div>
   );
 }
 

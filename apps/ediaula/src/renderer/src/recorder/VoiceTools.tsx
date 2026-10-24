@@ -235,7 +235,8 @@ export function KaraokePrompter({
         ) : (
           <div>
             <p className="vp-empty">
-              Sem transcrição da voz: transcreva a faixa Voz para as palavras acenderem aqui.
+              Sem transcrição da voz. Para as palavras acenderem aqui, abra no editor a aba
+              Transcrição (no painel da direita), transcreva a voz e abra o gravador de novo.
             </p>
             {withRenderKeys(lines, (line) => JSON.stringify(line)).map(({ key, value: l }, i) => (
               <p key={key} className="vp-line">

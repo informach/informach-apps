@@ -485,7 +485,10 @@ faixa **Voz**, depois da voz que já houver, e leva o cursor ao começo deles. E
 entram na ordem do nome com os números contados como números (`parte 2` antes de `parte 10`), para
 uma voz longa demais gerada em partes; uma parte gerada depois entra no fim, com outro Importar voz
 (`src/shared/voiceImport.ts`). Daí em diante é a voz da aula como a do Só voz: a tela é gravada
-sobre ela e o vídeo do apresentador é encaixado por ela.
+sobre ela e o vídeo do apresentador é encaixado por ela. Numa aula ainda sem voz, um áudio trazido de
+qualquer outro jeito (Importar mídia, Ctrl+I, arrastado da biblioteca ou do Explorer) também entra na
+faixa **Voz**, com aviso, a não ser que seja solto de propósito numa faixa de áudio
+(`becomesVoice`).
 
 O trabalho pode ser dividido entre duas pessoas: quem grava importa a voz, grava a tela sobre a
 narração (em quantas partes quiser) e usa **Empacotar a aula com as mídias**; quem edita abre o
@@ -572,8 +575,10 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
    vencedor diz que aquela voz está agora, seguindo os cortes feitos antes e depois da
    exportação. A voz como está agora só é usada quando nenhum arquivo exportado sobrou. O fundo
    liso sai sozinho e o avatar vai para o lado, como nas inserções. Uma pausa curta entre dois
-   clipes da voz (até 1,5 s) não faz o avatar sumir, e o esmaecimento fica só nas pontas. O vídeo
-   entra mudo, porque vale a voz tratada; com **Usar o som do vídeo importado**, a voz fica calada
+   clipes da voz (até 1,5 s) não faz o avatar sumir, e o esmaecimento fica só nas pontas.
+   **Usar o som do vídeo importado** vem ligado (desde 24/10/2026): o som final é o do vídeo, que
+   bate com a boca do apresentador, e a voz da faixa Voz fica calada por baixo, só como
+   referência. Desligado, o vídeo entra mudo e vale a voz tratada. Com som, a voz fica calada
    só naquele trecho (`Clip.mutedFor: "presenter"`; aulas salvas com o valor antigo `"heygen"`
    abrem com o novo), sem mudar a voz exportada nem dar aviso de voz editada. Um vídeo um pouco
    mais longo ou mais curto que a voz é acelerado ou freado o necessário. O clipe e a mídia se
@@ -597,7 +602,13 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
    - **Em partes:** **Parar** salva a parte na aula e o gravador continua aberto, pronto para a
      próxima a partir de onde a voz da parte terminou na timeline (`overEnd` em
      `src/shared/overNarration.ts`, a mesma conta do encaixe, então as partes ficam coladas na
-     mesma faixa). Antes de gravar, **−5 s**, **+5 s** e **Do começo da voz** mudam esse ponto.
+     mesma faixa). Antes de gravar, **Começar na fala** lista as falas do roteiro onde a voz as diz,
+     por parte (o roteiro inteiro alinhado com a transcrição, `scriptGuide` em
+     `src/shared/screenCues.ts`), e **−5 s**, **+5 s** e **Do começo da voz** ajustam o ponto. Um
+     ponto onde já há tela gravada grava por cima dela dali em diante, na mesma faixa (o gravador
+     avisa). Durante a gravação, **Voltar ao começo da fala** (na pílula, ou o atalho de refazer)
+     salva o que foi gravado e deixa o gravador no começo da fala que estava tocando, para gravá-la
+     de novo por cima.
      A partir da segunda parte a voz começa 2 s antes, para pegar o ritmo; a tela só conta do
      ponto escolhido. Quando a voz acaba, o gravador fecha e volta ao editor, com o cursor no fim
      da última parte; o X (**Voltar ao editor**) também volta, e as partes já estão na aula. Uma
@@ -627,6 +638,20 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
 8. **Editar e exportar** como sempre. A exportação usa a voz tratada; se algum tratamento ainda
    não terminou, ela trata antes de exportar.
 
+## Edição kids
+
+Uma aula, duas exportações. A tabela **Substituições na edição kids** do roteiro diz que falas da professora, na
+versão kids, são de um personagem (Debinha, Dedé). No painel **Áudio › Edição kids**, **Importar vídeos dos
+personagens** traz o vídeo de cada personagem (todas as falas dele, uma depois da outra) só para a biblioteca,
+transcreve e procura cada fala da tabela nele e na voz da aula, pelas palavras, pelas âncoras e pela ocorrência
+(`src/shared/kidsEdition.ts`, `locateKids`). O painel mostra cada fala, achada (e onde) ou não; **Procurar as falas
+de novo** refaz depois de transcrever ou editar. O que foi achado fica em `project.kids`, preso à voz (mídia e
+segundos dela), então acompanha os cortes feitos depois. Na exportação, **Versão: Adulto** é a aula como está e
+**Kids** monta na hora a mesma aula com cada fala trocada (`kidsEdition`): o trecho da professora sai de todas as
+faixas, o pedaço do personagem entra com o som dele onde o apresentador estava (mesma posição e tamanho), a tela
+fica parada no último quadro durante a fala dele e o resto da aula anda junto. O arquivo sai com " (kids)" no nome.
+Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da transcrição da voz e dos vídeos.
+
 ## Apresentador (avatar ou pessoa) e composição
 
 - **Remover fundo automático:** ao importar, a EdiAula detecta fundo azul ou verde liso nas bordas e já remove.
@@ -644,6 +669,14 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
 ## Roteiro
 
 - Aba **Roteiro**: cole o roteiro em Markdown (formato dos roteiros do Sistema Zero).
+- **Roteiro de produção** (outubro de 2026, `## Parte N. Título`): ``**Clipe:** `video-a1-abertura` `` dá o código
+  do vídeo da parte; o bloco cercado (```` ```text ````) depois de `**Fala para ElevenLabs:**` são as falas da professora,
+  um parágrafo por fala, sem as marcações de voz entre colchetes (`[curious]`); a tabela depois de
+  `**Substituições na edição kids:**` vira `section.substitutions` (ID, personagem, ocorrência, âncoras, fala e
+  marcações). Um `**Na tela:**` que cita entre aspas palavras da fala da parte ("No 'Olha aqui', tocar…") é
+  dividido nessas frases (`cues`): no gravador cada pedaço aparece quando a voz chega nelas
+  (`src/shared/screenCues.ts`), e o Preparar aula não faz anotação dele, porque é instrução para quem grava. Aspas
+  que não estão na fala (o nome de um botão) não dividem nada.
 - Separa narração (falas citadas de Professora, Debinha…) das notas **Na tela**, das falas do **Zappy (não gravar)**
   e das conferências de produção. Inserções como `F1P1-D01` ficam ligadas à fala do avatar.
 - Escolhe sozinho a seção que corresponde à gravação (`rankSections`, pela parte das palavras de cada seção que foi falada, sem contar artigos e preposições). Se a seção escolhida tem menos de 60% das palavras ditas ou fica a menos de 10 pontos da seguinte, o painel pergunta se é ela mesma; escolher na lista ou clicar em **É esta** confirma (`script.confirmed`).

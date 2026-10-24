@@ -114,6 +114,7 @@ const SETTING_LABEL: Record<string, string> = {
   cleanup: "Escolhas da limpeza",
   publish: "Dados de publicação",
   script: "Roteiro",
+  kids: "Edição kids",
   protected: "Trechos protegidos",
   settings: "Formato da aula",
   name: "Nome da aula",

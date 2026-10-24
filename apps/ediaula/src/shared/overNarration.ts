@@ -219,23 +219,30 @@ export function layoutOverNarration(
     !clips.some((c) => c.trackId === t.id && c.start < end - 1e-3 && clipEnd(c) > start + 1e-3);
 
   let main = tracks.filter((t) => t.kind === "video" && !t.locked).at(-1);
-  if (plan?.replace && pieces.length) {
-    // A redo replaces the screen where it is: the unlocked track with a recording's screen in
-    // the stretch, else the main one. Only what the new take covers goes (a take stopped early
-    // leaves the rest of the stretch as it was).
-    const roles = new Map(project.assets.map((a) => [a.id, a.recording?.role]));
-    const holder = tracks.find(
-      (t) =>
-        t.kind === "video" &&
-        !t.locked &&
-        clips.some(
-          (c) =>
-            c.trackId === t.id &&
-            roles.get(c.assetId) === "screen" &&
-            c.start < end - 1e-3 &&
-            clipEnd(c) > start + 1e-3,
-        ),
-    );
+  // A redo replaces the screen where it is: the unlocked track with a recording's screen in the
+  // stretch, else the main one. Only what the new take covers goes (a take stopped early leaves
+  // the rest of the stretch as it was).
+  const roleOf = new Map(project.assets.map((a) => [a.id, a.recording?.role]));
+  const holder =
+    plan?.replace && pieces.length
+      ? tracks.find(
+          (t) =>
+            t.kind === "video" &&
+            !t.locked &&
+            clips.some(
+              (c) =>
+                c.trackId === t.id &&
+                roleOf.get(c.assetId) === "screen" &&
+                c.start < end - 1e-3 &&
+                clipEnd(c) > start + 1e-3,
+            ),
+        )
+      : undefined;
+  // A part recorded "over" what is there, without an interval (the recorder's own rule), with no
+  // screen recorded in its stretch has nothing to replace: it goes in as any part, never over a
+  // picture or a video that happens to be on the main track.
+  const replacing = !!plan?.replace && pieces.length > 0 && (!!holder || plan.to !== undefined);
+  if (replacing) {
     if (holder) main = holder;
     if (main) {
       clips = clearReplacedTakes(project, clips, main.id, start, end);

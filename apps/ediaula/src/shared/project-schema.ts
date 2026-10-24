@@ -629,6 +629,24 @@ export const projectSchema = z
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),
     voiceMasters: z.array(voiceMaster).max(VOICE_MASTER_LIMIT).optional(),
+    kids: z
+      .looseObject({
+        videos: z.array(id).max(50),
+        pieces: z
+          .array(
+            z.looseObject({
+              id: text,
+              character: text,
+              assetId: id,
+              in: time,
+              out: time,
+              voice: z.looseObject({ assetId: id, from: time, to: time }),
+            }),
+          )
+          .max(500),
+        rows: z.array(text).max(500).optional(),
+      })
+      .optional(),
     voiceExport: z.looseObject({ pieceMinutes: z.int().min(1).max(60).optional() }).optional(),
     audio: z
       .looseObject({

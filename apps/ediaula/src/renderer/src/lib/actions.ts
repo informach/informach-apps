@@ -26,6 +26,7 @@ import {
   trackEnd,
 } from "@shared/timeline";
 import type { Asset, Clip, Project, ProjectSettings, Track } from "@shared/types";
+import { becomesVoice, layoutVoiceImport, voiceTrack } from "@shared/voiceImport";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { type Commit, personCommit, useProject, waitForDraft } from "@/state/project";
@@ -33,6 +34,16 @@ import { importMedia } from "./importMedia";
 import { confirmLeave } from "./leaveGuard";
 import { checkAssets } from "./relink";
 import { cutRangesInteractive } from "./transcripts";
+
+/** Says once that the sound brought in became the lesson's voice (and what that opens). */
+function voiceToast(count: number): void {
+  useApp
+    .getState()
+    .toast(
+      `${count > 1 ? "Os áudios entraram" : "O áudio entrou"} na faixa Voz: é a voz da aula. Já dá para gravar a tela sobre a narração.`,
+      "success",
+    );
+}
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -194,20 +205,30 @@ export const actions = {
     commit((p) => ({ ...p, clips: closeGaps(p.clips, trackId) }));
   },
 
-  /** Appends assets to the end of their default track. */
+  /**
+   * Appends assets to the end of their default track. In a lesson without a voice, the audio
+   * files among them are the voice: they go on the "Voz" track (shared/voiceImport.ts).
+   */
   appendAssets(assets: Asset[], commit: Commit = personCommit): void {
     const { project } = useProject.getState();
     if (!project || !assets.length) return;
+    let voiced = 0;
     commit((p) => {
-      let clips = p.clips;
-      for (const a of assets) {
-        if (a.missing) continue;
-        const track = defaultTrackFor(p, a);
+      const present = assets.filter((a) => !a.missing);
+      const voices = present.filter((a) => becomesVoice(p, a));
+      const voice = voices.length ? layoutVoiceImport(p, voices) : null;
+      voiced = voice?.placed.length ?? 0;
+      const q = voice ? { ...p, tracks: voice.tracks, clips: voice.clips } : p;
+      let clips = q.clips;
+      for (const a of present) {
+        if (voice?.placed.some((c) => c.assetId === a.id)) continue;
+        const track = defaultTrackFor(q, a);
         if (!track) continue;
-        clips = placeClips(clips, [makeClip(a, track.id, trackEnd(clips, track.id), p.settings)]);
+        clips = placeClips(clips, [makeClip(a, track.id, trackEnd(clips, track.id), q.settings)]);
       }
-      return { ...p, clips };
+      return { ...q, clips };
     });
+    if (voiced) voiceToast(voiced);
   },
 
   /**
@@ -219,12 +240,21 @@ export const actions = {
   placeAssets(assets: Asset[], track: Track | undefined, start: number, insert = false): void {
     const { commit, project } = useProject.getState();
     if (!project || !assets.length || waitForDraft("colocar mídia na timeline")) return;
-    commit((p) => {
+    let voiced = 0;
+    commit((before) => {
+      let p = before;
       const placed: Clip[] = [];
       // The timeline already put `start` on a frame, or exactly on the edge it snapped to.
       let cursor = start;
       for (const a of assets) {
-        const target = track && trackAccepts(track, a) ? track : defaultTrackFor(p, a);
+        let target = track && trackAccepts(track, a) ? track : defaultTrackFor(p, a);
+        // A lesson's first sound is its voice, unless it was put on a sound track on purpose.
+        if ((!track || track.kind === "video") && becomesVoice(before, a)) {
+          const voice = voiceTrack(p);
+          p = { ...p, tracks: voice.tracks };
+          target = voice.track;
+          voiced++;
+        }
         if (!target) continue;
         const clip = makeClip(a, target.id, cursor, p.settings);
         placed.push(clip);
@@ -244,6 +274,7 @@ export const actions = {
           : placeClips(clips, [clip]);
       return { ...p, clips };
     });
+    if (voiced) voiceToast(voiced);
   },
 
   /**

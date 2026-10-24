@@ -23,8 +23,8 @@ import {
   retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
+import { recordedStretches, scriptGuide } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
-import { alignSection } from "@shared/scriptAlign";
 import { sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Project, RecordingRole } from "@shared/types";
 import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
@@ -83,30 +83,24 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
   const voice = new Set(voiceClips(p).map((c) => c.id));
   const words = timelineWords(p, transcripts).filter((w) => voice.has(w.clipId));
   const doc = scriptDoc(p);
-  const section = doc?.sections[p.script?.section ?? 0];
-  const cues: OverContext["cues"] = [];
-  if (section) {
-    // Each "Na tela" applies from the start of the line after it (or the end of the one before).
-    const lines = alignSection(section, words).lines;
-    section.items.forEach((item, index) => {
-      if (item.kind !== "screen") return;
-      const next = lines.find((l) => l.item > index && l.start !== undefined);
-      const prev = [...lines].reverse().find((l) => l.item < index && l.end !== undefined);
-      const t = next?.start ?? prev?.end;
-      if (t !== undefined) cues.push({ t: Math.max(0, t - 0.5), text: item.text });
-    });
-  }
+  // Every part of the script against the voice: each "Na tela" at its line (or each of its
+  // pieces at the words it waits for), and each line said as a place to start a take from.
+  const guide = doc ? scriptGuide(doc, words) : null;
+  const firstWord = Math.max(0, words.findIndex((w) => w.end >= from) - Math.floor(MAX_WORDS / 4));
   return {
     from,
     ...(request.to !== undefined ? { to: request.to } : {}),
     ...(request.replace ? { replace: true } : {}),
     end: span[1],
     segments: voiceSegments(p, 0, span[1]),
+    // All of them, as the recorder can go back to any line; a very long voice keeps the ones
+    // around where the take starts.
     words: words
-      .filter((w) => w.end >= from - 5)
-      .slice(0, MAX_WORDS)
+      .slice(firstWord, firstWord + MAX_WORDS)
       .map((w) => ({ t: w.start, end: w.end, text: w.text })),
-    cues,
+    cues: guide?.cues ?? [],
+    lines: (guide?.places ?? []).slice(0, 5000),
+    recorded: recordedStretches(p).slice(0, 5000),
   };
 }
 
