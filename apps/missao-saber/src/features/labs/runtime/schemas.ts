@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const stateSchema = z
-  .record(z.unknown())
+  .record(z.string(), z.unknown())
   .refine((state) => JSON.stringify(state).length <= 32000, "Montagem muito grande.");
 export const labDocumentSchema = z
   .object({
