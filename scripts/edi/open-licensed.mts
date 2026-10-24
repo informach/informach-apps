@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { desktopAppIdSchema } from "../../packages/edi-contracts/src/index.ts";
 import { createNativeHarness, nativeTooling, waitForStatus } from "./native-harness.mts";
 
@@ -8,7 +8,14 @@ import { createNativeHarness, nativeTooling, waitForStatus } from "./native-harn
  * the visual test kept open — a development build with an ephemeral license key, an isolated
  * profile under the OS temp folder and a fixture lease renewed while the app is open. Closing
  * the app (or Ctrl+C here) removes the profile. It never touches the user's own Edi profile.
+ *
+ * `EDI_OPEN_USER_DATA` (an absolute folder) keeps the tool's own data between sessions there
+ * instead: lessons, recordings, transcriptions and the transcription engine survive closing.
+ * The license stays ephemeral either way (it lives in the suite folder, not in this one).
  */
+const keptUserData = process.env.EDI_OPEN_USER_DATA?.trim();
+if (keptUserData && !isAbsolute(keptUserData))
+  throw new Error("EDI_OPEN_USER_DATA must be an absolute folder");
 
 const [requested, ...appArguments] = process.argv.slice(2);
 const parsed = desktopAppIdSchema.safeParse(requested);
@@ -41,9 +48,10 @@ try {
   console.log(`[edi:open] building ${id} with an ephemeral license key`);
   await harness.build(id);
   const profile = {
-    userData: join(harness.root, "user-data"),
+    userData: keptUserData || join(harness.root, "user-data"),
     suiteData: join(harness.root, "suite"),
   };
+  if (keptUserData) console.log(`[edi:open] keeping the tool's data in ${keptUserData}`);
   const launched = await harness.launch(id, profile, {}, appArguments);
   application = launched;
   launched.process().stdout?.on("data", (chunk: Buffer) => process.stdout.write(chunk));

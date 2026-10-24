@@ -34,8 +34,13 @@ export class OverPlayer {
 
   constructor(path: string, fileStart: number) {
     this.fileStart = fileStart;
-    this.audio = new Audio(mediaUrl(path));
+    this.audio = new Audio();
+    // media:// is another origin than the page: without CORS the AudioContext hears silence (the
+    // element's clock still runs, so the karaoke moves with nothing in the headphones).
+    // media:// sends the CORS headers, as the preview's elements count on (editor/mediaPool.ts).
+    this.audio.crossOrigin = "anonymous";
     this.audio.preload = "auto";
+    this.audio.src = mediaUrl(path);
     this.ctx = new AudioContext({ latencyHint: "interactive" });
     this.ctx.createMediaElementSource(this.audio).connect(this.ctx.destination);
   }
