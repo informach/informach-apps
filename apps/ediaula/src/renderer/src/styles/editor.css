@@ -1062,3 +1062,15 @@
   width: 150px;
   height: 26px;
 }
+
+/* "Edição kids" in the audio panel: each line of the kids table and where it was found. */
+.kids-lines {
+  margin: 6px 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.kids-lines li.is-found strong {
+  color: var(--accent);
+}

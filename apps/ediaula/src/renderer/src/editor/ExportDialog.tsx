@@ -31,6 +31,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { hasPlatformData, translationState } from "@/lib/delivery";
 import { exportCurrentFrame } from "@/lib/exportExtras";
 import { bytes, duration } from "@/lib/format";
+import { kidsProject } from "@/lib/kids";
 import {
   checkLesson,
   type LessonCheck,
@@ -117,6 +118,10 @@ export function ExportDialog(): ReactNode {
   const hasRange = !!interval && interval.end - interval.start > 0.1;
   const [onlyRange, setOnlyRange] = useState(false);
   const [stems, setStems] = useState(false);
+  /** The kids edition goes out when the lesson has lines of its kids table placed. */
+  const hasKids = !!project.kids?.pieces.length;
+  const [edition, setEdition] = useState<"adult" | "kids">("adult");
+  const kids = hasKids && edition === "kids";
   const isReels = preset === "reels";
   const isAudio = preset === "audio";
   // A lesson already vertical goes out in its own shape; the vertical layout is for wide ones.
@@ -194,7 +199,7 @@ export function ExportDialog(): ReactNode {
   const start = async (): Promise<void> => {
     const safe = project.name.replace(/[<>:"/\\|?*]/g, "").trim() || "aula";
     const outPath = await window.api.pickExportPath(
-      `${safe}${range ? " (trecho)" : ""}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
+      `${safe}${kids ? " (kids)" : ""}${range ? " (trecho)" : ""}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
     );
     if (!outPath) return;
     // The voice and the music go to a folder of their own (picked here).
@@ -230,9 +235,19 @@ export function ExportDialog(): ReactNode {
             quality: qualityOf(bitrate),
             thumbnail,
           };
+    const base = withoutCursor ? withoutMissingCursors(project) : project;
+    // The kids edition is the same lesson with the characters' lines in place, made now.
+    const built = kids ? await kidsProject(base) : null;
+    if (built?.skipped.length)
+      useApp
+        .getState()
+        .toast(
+          `Na versão kids, ficaram de fora (a fala não está mais na aula ou o vídeo saiu): ${built.skipped.join(", ")}.`,
+          "info",
+        );
     exportQueue.add({
       id: newId("export"),
-      project: withoutCursor ? withoutMissingCursors(project) : project,
+      project: built?.project ?? base,
       spec,
       captions,
       extras: {
@@ -294,6 +309,29 @@ export function ExportDialog(): ReactNode {
           </div>
 
           <div className="export-settings">
+            {hasKids && (
+              <>
+                <span className="section-label">VERSÃO</span>
+                <div className="segmented">
+                  <button
+                    type="button"
+                    className={edition === "adult" ? "is-active" : ""}
+                    onClick={() => setEdition("adult")}
+                  >
+                    <strong>Adulto</strong>
+                    <span>a aula como está</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={edition === "kids" ? "is-active" : ""}
+                    onClick={() => setEdition("kids")}
+                  >
+                    <strong>Kids</strong>
+                    <span>com as falas dos personagens</span>
+                  </button>
+                </div>
+              </>
+            )}
             {relayout && (
               <>
                 <span className="section-label">VERTICAL</span>

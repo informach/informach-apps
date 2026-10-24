@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Asset, Clip, Track } from "../src/shared/types.ts";
-import { layoutVoiceImport, voiceFileOrder } from "../src/shared/voiceImport.ts";
+import { becomesVoice, layoutVoiceImport, voiceFileOrder } from "../src/shared/voiceImport.ts";
 import { voiceClips, voiceSpan } from "../src/shared/voiceMaster.ts";
 
 const audio = (id: string, duration: number, extra: Partial<Asset> = {}): Asset => ({
@@ -117,4 +117,18 @@ test("a voz importada vai para a faixa Voz, não para o microfone de um take em 
     layoutVoiceImport(p, [next])?.placed.map((c) => [c.trackId, c.start]),
     [["tz", 10]],
   );
+});
+
+test("o primeiro áudio de uma aula sem voz é a voz; com voz, ou se não for som, não", () => {
+  const sound = audio("som", 10);
+  const empty = project([track("tv", "video", "Faixa 1")], [], [sound]);
+  assert.equal(becomesVoice(empty, sound), true);
+  assert.equal(becomesVoice(empty, { kind: "video", hasAudio: true }), false);
+  assert.equal(becomesVoice(empty, { kind: "audio", hasAudio: false }), false);
+  const voiced = project(
+    [track("tz", "audio", "Voz")],
+    [{ id: "c1", assetId: "som", trackId: "tz", start: 0, in: 0, duration: 10, volume: 1 }],
+    [sound],
+  );
+  assert.equal(becomesVoice(voiced, audio("musica", 60)), false);
 });

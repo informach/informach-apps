@@ -203,7 +203,9 @@ export function screenDirections(
   );
   const out: DirectionAnnotation[] = [];
   section.items.forEach((it, index) => {
-    if (it.kind !== "screen" || it.insertId || WAIT.test(it.text)) return;
+    // A direction split at the speech it quotes (a production script) is what the person
+    // recording does at each phrase, not text for the video: it shows in the recorder only.
+    if (it.kind !== "screen" || it.insertId || it.cues || WAIT.test(it.text)) return;
     const next = said.find((l) => l.item > index);
     if (next?.start === undefined) return;
     // The real first word heard of that line, when it is inside the line.

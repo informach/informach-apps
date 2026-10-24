@@ -23,6 +23,7 @@ import {
   retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
+import { screenCueTimes } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
 import { alignSection } from "@shared/scriptAlign";
 import { sourceEnd, timelineAt } from "@shared/timeline";
@@ -84,18 +85,10 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
   const words = timelineWords(p, transcripts).filter((w) => voice.has(w.clipId));
   const doc = scriptDoc(p);
   const section = doc?.sections[p.script?.section ?? 0];
-  const cues: OverContext["cues"] = [];
-  if (section) {
-    // Each "Na tela" applies from the start of the line after it (or the end of the one before).
-    const lines = alignSection(section, words).lines;
-    section.items.forEach((item, index) => {
-      if (item.kind !== "screen") return;
-      const next = lines.find((l) => l.item > index && l.start !== undefined);
-      const prev = [...lines].reverse().find((l) => l.item < index && l.end !== undefined);
-      const t = next?.start ?? prev?.end;
-      if (t !== undefined) cues.push({ t: Math.max(0, t - 0.5), text: item.text });
-    });
-  }
+  // Each "Na tela" at its line, or each of its pieces at the words it waits for.
+  const cues: OverContext["cues"] = section
+    ? screenCueTimes(section, alignSection(section, words).lines, words)
+    : [];
   return {
     from,
     ...(request.to !== undefined ? { to: request.to } : {}),

@@ -29,8 +29,18 @@ export function voiceFileOrder(paths: readonly string[]): string[] {
   );
 }
 
+/**
+ * An audio file brought into a lesson that has no voice yet is the voice, however it came in
+ * (Importar mídia, Ctrl+I, dragged from the library or the Explorer): in the flow the app is
+ * made for, the first sound of a lesson is the narration the screen is recorded over.
+ */
+export const becomesVoice = (
+  project: Pick<Project, "tracks" | "clips" | "assets">,
+  asset: Pick<Asset, "kind" | "hasAudio">,
+): boolean => asset.kind === "audio" && asset.hasAudio && !voiceSpan(project);
+
 /** The track the voice goes on: the lesson's voice track, an empty "Voz" one, or a new "Voz". */
-function voiceTrack(project: Pick<Project, "tracks" | "clips" | "assets">): {
+export function voiceTrack(project: Pick<Project, "tracks" | "clips" | "assets">): {
   tracks: Track[];
   track: Track;
 } {

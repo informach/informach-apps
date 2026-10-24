@@ -211,6 +211,25 @@ export interface VoiceMasterPiece {
 }
 
 /** What the exported voice was: the MP4s that come back are placed by it. */
+/** One line of the kids table, found in a character's video and in the lesson's voice. */
+export interface KidsPiece {
+  /** The table's id ("video-a1-abertura-K1"). */
+  id: string;
+  character: string;
+  /** The character's video and the stretch of it (source seconds) that says the line. */
+  assetId: string;
+  in: number;
+  out: number;
+  /** Where the teacher says the same line: the voice media and its source seconds. */
+  voice: { assetId: string; from: number; to: number };
+}
+
+export interface KidsEdition {
+  /** The characters' videos brought in (each with every line of theirs, one after another). */
+  videos: string[];
+  pieces: KidsPiece[];
+}
+
 export interface VoiceMaster {
   id: string;
   /** shared/voiceMaster.ts voiceHash of the voice track when it was exported. */
@@ -420,6 +439,11 @@ export interface Project {
   /** The voices exported for the presenter's video (Arquivo › Exportar a voz), oldest first and at
    *  most VOICE_MASTER_LIMIT: an MP4 that comes back is matched against all of them. */
   voiceMasters?: VoiceMaster[];
+  /**
+   * The kids edition (shared/kidsEdition.ts): the characters' videos and, for each line of the
+   * script's kids table found in them, the stretch that replaces the teacher's line on export.
+   */
+  kids?: KidsEdition;
   /** How the voice is exported: no piece longer than `pieceMinutes` (1 to 60, default 5). */
   voiceExport?: { pieceMinutes?: number };
   /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */

@@ -123,7 +123,7 @@ export function TopBar(): ReactNode {
                 {
                   label: "Importar vídeo do apresentador…",
                   disabled: !project,
-                  onSelect: () => void importPresenterVideos(false),
+                  onSelect: () => void importPresenterVideos(true),
                 },
                 {
                   label: "Gravar a tela sobre a narração…",

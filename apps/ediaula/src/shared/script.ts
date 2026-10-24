@@ -24,6 +24,36 @@ export interface ScriptSection {
   target?: [number, number];
   targetText?: string;
   items: ScriptItem[];
+  /** "Substituições na edição kids": the lines a character says instead, in the kids edition. */
+  substitutions?: Substitution[];
+}
+
+/**
+ * One row of "Substituições na edição kids": in the kids edition the exact line `text`, said
+ * between `before` and `after`, is the character's (its own video) instead of the teacher's.
+ */
+export interface Substitution {
+  /** "video-a1-abertura-K1". */
+  id: string;
+  /** "Debinha", "Dedé". */
+  character: string;
+  /** Which time the line is said in the section (1 = the first), when it is said more than once. */
+  occurrence: number;
+  before: string;
+  text: string;
+  after: string;
+  /** Voice directions of the line ("[curious]"), for the character's render. */
+  tags: string;
+}
+
+/**
+ * A "Na tela" split at the words of the speech it waits for ("No 'Olha aqui', tocar…"): each
+ * piece shows while recording when the voice reaches `anchor`; a piece without an anchor (the
+ * opening of the direction) shows from the start of the part.
+ */
+export interface ScreenCue {
+  anchor?: string;
+  text: string;
 }
 
 export type ScriptItem =
@@ -43,6 +73,8 @@ export type ScriptItem =
       insertId?: string;
       /** Every insert id it names, in order, when there are several. */
       insertIds?: string[];
+      /** The direction split at the spoken words it waits for (production scripts). */
+      cues?: ScreenCue[];
     }
   | { kind: "bridge"; text: string }
   | { kind: "note"; label: string; text: string };
@@ -75,10 +107,73 @@ export function parseTarget(text: string): [number, number] | undefined {
   return [Math.min(a, b), Math.max(a, b)];
 }
 
+/** "[curious]", "[upbeat, welcoming voice]": voice directions for the voice tool, never said. */
+const VOICE_TAGS = /\[[^\]\n]*\]/g;
+export const withoutVoiceTags = (s: string): string =>
+  s.replace(VOICE_TAGS, " ").replace(/\s+/g, " ").trim();
+
+/** A quoted spoken phrase inside a direction ('No "Olha aqui", tocar…'). */
+const QUOTED = /["“]([^"”]+)["”]/;
+
+/** Text as compared for a quoted phrase: lower case, no accents, single spaces. */
+const foldText = (s: string): string =>
+  ` ${s
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()} `;
+
+/**
+ * A "Na tela" split into the pieces each spoken phrase it quotes starts: a sentence that quotes
+ * words of the speech (`spoken`, the section's lines) opens a piece at those words, the
+ * sentences after it belong to it, and what comes before the first one is the opening, shown from
+ * the start. A quote that is not said (a button's label: Clicar em "Cadastrar") anchors nothing.
+ * Null when nothing it quotes is said (a plain direction, as in the earlier scripts).
+ */
+export function screenCues(text: string, spoken: string): ScreenCue[] | null {
+  const said = foldText(spoken);
+  const anchorOf = (sentence: string): string | undefined => {
+    const quoted = QUOTED.exec(sentence)?.[1]?.trim();
+    return quoted && foldText(quoted).trim() && said.includes(foldText(quoted))
+      ? quoted
+      : undefined;
+  };
+  const sentences = text
+    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ"“*])/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!sentences.some((s) => anchorOf(s))) return null;
+  const cues: ScreenCue[] = [];
+  for (const sentence of sentences) {
+    const anchor = anchorOf(sentence);
+    const last = cues.at(-1);
+    if (anchor) cues.push({ anchor, text: sentence });
+    else if (last) last.text = `${last.text} ${sentence}`;
+    else cues.push({ text: sentence });
+  }
+  return cues;
+}
+
+/** A row of a Markdown table, its cells trimmed ("| a | b |" → ["a", "b"]). */
+const tableCells = (line: string): string[] =>
+  line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+
 export function parseScript(md: string): ScriptDoc {
   const lines = md.replace(/\r\n?/g, "\n").split("\n");
   const doc: ScriptDoc = { title: "", notes: [], sections: [] };
   let section: ScriptSection | null = null;
+  /**
+   * What the block after a label holds in the production scripts: "Fala para ElevenLabs:" opens
+   * the teacher's speech (in a fenced block), "Substituições na edição kids:" the kids table.
+   */
+  let block: "speech" | "substitutions" | null = null;
+  /** The lines of a fenced block (```text … ```) while it is open. */
+  let fence: string[] | null = null;
   let speaker: { name: string; avatar: boolean } | null = null;
   let quote: string[] = [];
   // Insert ids of the directions so far, each waiting for the next avatar line.
@@ -119,6 +214,47 @@ export function parseScript(md: string): ScriptDoc {
 
   for (const raw of lines) {
     const line = raw.trim();
+    // A fenced block: the teacher's speech after "Fala para ElevenLabs:", one item per paragraph
+    // without the voice directions; any other fenced block is not part of the lesson.
+    if (fence) {
+      if (!line.startsWith("```")) {
+        fence.push(line);
+        continue;
+      }
+      if (block === "speech" && section)
+        for (const paragraph of fence.join("\n").split(/\n\s*\n/)) {
+          const text = withoutVoiceTags(paragraph.replace(/\n/g, " "));
+          if (text)
+            section.items.push({ kind: "speech", speaker: "Professora", avatar: false, text });
+        }
+      fence = null;
+      block = null;
+      continue;
+    }
+    if (line.startsWith("```")) {
+      flushQuote();
+      fence = [];
+      continue;
+    }
+    // The kids table: its rows, the header and the separator left out.
+    if (block === "substitutions" && line.startsWith("|")) {
+      const cells = tableCells(line);
+      const id = plain(cells[0] ?? "");
+      if (section && cells.length >= 5 && id && !/^id$/i.test(id) && !/^-+$/.test(id)) {
+        section.substitutions = section.substitutions ?? [];
+        section.substitutions.push({
+          id,
+          character: plain(cells[1] ?? ""),
+          occurrence: Math.max(1, Number.parseInt(cells[2] ?? "1", 10) || 1),
+          before: withoutVoiceTags(plain(cells[3] ?? "")),
+          text: withoutVoiceTags(plain(cells[4] ?? "")),
+          after: withoutVoiceTags(plain(cells[5] ?? "")),
+          tags: plain(cells[6] ?? ""),
+        });
+      }
+      continue;
+    }
+    if (line && !line.startsWith("|")) block = block === "substitutions" ? null : block;
     if (line.startsWith(">")) {
       quote.push(line.replace(/^>\s?/, ""));
       continue;
@@ -155,6 +291,19 @@ export function parseScript(md: string): ScriptDoc {
       }
       continue;
     }
+    // Production scripts: "**Fala para ElevenLabs:**" and "**Substituições na edição kids:**"
+    // alone on a line open the block below them (they are not speakers).
+    m = /^\*\*([^*]+?):\*\*$/.exec(line);
+    if (m && /^fala\b/i.test(m[1].trim())) {
+      speaker = null;
+      block = "speech";
+      continue;
+    }
+    if (m && /^substitui/i.test(m[1].trim())) {
+      speaker = null;
+      block = "substitutions";
+      continue;
+    }
     // "**Professora:**" alone on a line opens a speaker block for the quotes that follow.
     m = SPEAKER.exec(line);
     if (m && section) {
@@ -174,6 +323,9 @@ export function parseScript(md: string): ScriptDoc {
       if (/^dura[çc][ãa]o/i.test(label)) {
         section.targetText = plain(text);
         section.target = parseTarget(text);
+      } else if (/^clipe$/i.test(label) && plain(text)) {
+        // "**Clipe:** `video-a1-abertura`": the part's video, as a "### `id`" heading names it.
+        section.videoId ??= plain(text);
       } else if (/^na tela/i.test(label)) {
         const lead = LEADING_ID.exec(text);
         // A direction opening with a bold id announces its bold ids; otherwise any id it names.
@@ -200,6 +352,19 @@ export function parseScript(md: string): ScriptDoc {
     else section.items.push({ kind: "note", label: "", text: plain(line.replace(/^[-*]\s+/, "")) });
   }
   flushQuote();
+
+  // Each direction split at the words of its section's speech that it quotes (the speech comes
+  // after the direction in production scripts, so this waits for the whole section).
+  for (const s of doc.sections) {
+    const spoken = speechItems(s)
+      .map((i) => i.text)
+      .join(" ");
+    s.items = s.items.map((item) => {
+      if (item.kind !== "screen") return item;
+      const cues = screenCues(item.text, spoken);
+      return cues ? { ...item, cues } : item;
+    });
+  }
 
   const wpm = /(\d{2,3})\s*palavras por minuto/i.exec(md);
   if (wpm) doc.wordsPerMinute = Number(wpm[1]);
