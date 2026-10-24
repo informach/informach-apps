@@ -22,8 +22,9 @@ const descriptionSchema = z
     MAX_ACTIVITY_DESCRIPTION_LENGTH,
     `Observação muito longa (máx ${MAX_ACTIVITY_DESCRIPTION_LENGTH})`,
   )
-  .optional()
-  .transform((v) => (v && v.length > 0 ? v : undefined));
+  .transform((v) => (v.length > 0 ? v : undefined))
+  // After the transform: in zod 4 the key stays optional in the output only this way round.
+  .optional();
 
 const typeSchema = activityTypeSchema;
 

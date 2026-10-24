@@ -40,7 +40,7 @@ export const reserveCreditsInputSchema = z.object({
 export const commitReservationInputSchema = z.object({
   reservationId: z.string().uuid(),
   actualAmount: z.number().int().positive(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const releaseReservationInputSchema = z.object({
@@ -55,7 +55,7 @@ export const consumeCreditsInputSchema = z.object({
   feature: z.string().min(1),
   model: z.string().min(1).optional(),
   runId: z.string().min(1).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const grantBonusCreditsInputSchema = z.object({
@@ -64,7 +64,7 @@ export const grantBonusCreditsInputSchema = z.object({
   reason: z.enum(["subscription_monthly", "promo", "compensation"]),
   expiresAt: z.date().nullable().optional(),
   stripeEventId: z.string().min(1).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const refundCreditsInputSchema = z.object({
@@ -73,11 +73,11 @@ export const refundCreditsInputSchema = z.object({
   amount: z.number().int().positive(),
   stripeEventId: z.string().min(1),
   reason: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const getOrCreateCustomerInputSchema = z.object({
   subject: subjectRefSchema,
   email: z.string().email(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
