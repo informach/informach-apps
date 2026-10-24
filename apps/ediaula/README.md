@@ -479,6 +479,21 @@ ou gravar você mesmo, trazer o vídeo de volta, gravar a tela sobre a voz e edi
 computador; a ferramenta de avatar é usada pelo site dela, como sempre. A interface não cita
 marca: quem aparece no vídeo é o **apresentador**.
 
+A voz também pode vir pronta de fora (uma ferramenta de voz, outro gravador): **Importar voz**
+(menu Arquivo ou painel Áudio › Voz) põe os arquivos de áudio (WAV, MP3, M4A, AAC, OGG, FLAC) na
+faixa **Voz**, depois da voz que já houver, e leva o cursor ao começo deles. Escolhidos juntos,
+entram na ordem do nome com os números contados como números (`parte 2` antes de `parte 10`), para
+uma voz longa demais gerada em partes; uma parte gerada depois entra no fim, com outro Importar voz
+(`src/shared/voiceImport.ts`). Daí em diante é a voz da aula como a do Só voz: a tela é gravada
+sobre ela e o vídeo do apresentador é encaixado por ela.
+
+O trabalho pode ser dividido entre duas pessoas: quem grava importa a voz, grava a tela sobre a
+narração (em quantas partes quiser) e usa **Empacotar a aula com as mídias**; quem edita abre o
+`.zip` com **Abrir aula empacotada** (no início ou no menu Arquivo), importa o vídeo do
+apresentador e as outras mídias e termina a aula no próprio computador. O início do app oferece só
+**Novo projeto**, **Abrir projeto** e **Abrir aula empacotada**, sem abrir a escolha de mídia
+sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
+
 1. **Gravar a voz (modo Só voz).** Em Gravar, escolha **Só voz** em Modo de gravação. Só o
    microfone é gravado, em PCM 48 kHz, em partes Matroska (`voz-0.mkv`) que sobrevivem a uma
    queda; ao parar vira `voz.wav`. O diário, a recuperação de gravação interrompida e o painel de
@@ -571,13 +586,22 @@ marca: quem aparece no vídeo é o **apresentador**.
 6. **Gravar a tela sobre a narração.** No painel Áudio (ou no menu Arquivo), **Gravar a tela
    sobre a narração** abre o gravador nesse modo: a voz da aula toca nos fones a partir do cursor
    da timeline enquanto a tela é gravada. O teleprompter mostra a voz em karaokê, com a palavra
-   atual acesa, e as próximas instruções "Na tela" do roteiro. Microfone e áudio do PC começam
-   desligados (a voz já existe); dá para ligar, e o áudio do PC não grava a voz que o gravador
-   toca, porque deixa de fora o som da janela do gravador (num Windows que não separa esse som, o áudio
-   do PC fica desligado, com aviso). Pausar pausa as duas coisas: a pausa vira corte
+   atual acesa, e as próximas instruções "Na tela" do roteiro. O microfone começa desligado (a
+   voz já existe); o áudio do PC começa como ficou da última vez neste modo
+   (`overSystemAudio` nas opções do gravador), e nunca grava a voz que o gravador toca, porque
+   deixa de fora o som do app (num Windows que não separa esse som, o áudio do PC fica desligado,
+   com aviso). Pausar pausa as duas coisas: a pausa vira corte
    na tela e a voz continua do mesmo ponto. O take entra na faixa da tela no tempo da voz: o
    gravador anota, a cada meio segundo, que segundo da voz estava sendo ouvido, já descontada a
    latência da saída de áudio.
+   - **Em partes:** **Parar** salva a parte na aula e o gravador continua aberto, pronto para a
+     próxima a partir de onde a voz da parte terminou na timeline (`overEnd` em
+     `src/shared/overNarration.ts`, a mesma conta do encaixe, então as partes ficam coladas na
+     mesma faixa). Antes de gravar, **−5 s**, **+5 s** e **Do começo da voz** mudam esse ponto.
+     A partir da segunda parte a voz começa 2 s antes, para pegar o ritmo; a tela só conta do
+     ponto escolhido. Quando a voz acaba, o gravador fecha e volta ao editor, com o cursor no fim
+     da última parte; o X (**Voltar ao editor**) também volta, e as partes já estão na aula. Uma
+     regravação de intervalo continua fechando ao parar.
    - **Regravar a tela neste intervalo:** marque um intervalo na régua da timeline e use o botão
      ao lado de Narrar intervalo. A voz começa dois segundos antes, a gravação para sozinha no
      fim do intervalo e só aquele trecho da tela é trocado, na faixa em que a tela gravada está.
@@ -585,7 +609,22 @@ marca: quem aparece no vídeo é o **apresentador**.
      do take antigo saem do mesmo trecho; o microfone dele sai também quando outra voz cobre o trecho
      (quando ele é a própria voz da aula, ele fica). O desenho e o quadro do take novo entram sobre a
      tela nova, e uma tela guardada em partes (sem espaço para juntar) entra pelas mesmas âncoras.
-7. **Editar e exportar** como sempre. A exportação usa a voz tratada; se algum tratamento ainda
+7. **Trocar uma fala.** Quando o roteiro muda depois que a aula está montada e a fala nova é
+   gerada de novo (o áudio e, se quiser, um vídeo curto do apresentador só com ela), marque a
+   fala antiga na régua da timeline e use **Trocar esta fala…** na barra do intervalo. A janela
+   mostra o que é dito ali hoje (com transcrição), pede o áudio novo e, opcionalmente, o vídeo
+   novo. A fala antiga sai de todas as faixas que os cortes alcançam (como **Excluir o
+   intervalo**, respeitando os trechos protegidos), um espaço do tamanho da fala nova se abre no
+   mesmo ponto e tudo o que vem depois anda junto; a música que ia até o fim acompanha o novo
+   fim, e faixas travadas não mudam (`src/shared/speechSwap.ts`). A voz nova entra na faixa em
+   que a antiga estava, com o mesmo volume e o mesmo tratamento; o vídeo novo entra na faixa do
+   apresentador, na posição e no tamanho que ele tinha, mudo e encaixado pelo próprio som contra
+   o áudio novo (com o fundo liso removido ao importar); sem vídeo novo, o apresentador some
+   durante a fala nova. Na tela, o último quadro antes da fala fica parado durante a fala nova
+   (como em Estender quadro). Tudo volta com um Ctrl+Z. No fim a fala nova fica marcada na
+   régua, para **Regravar a tela neste intervalo**; com **Regravar a tela desse trecho logo
+   depois** o gravador já abre nesse trecho.
+8. **Editar e exportar** como sempre. A exportação usa a voz tratada; se algum tratamento ainda
    não terminou, ela trata antes de exportar.
 
 ## Apresentador (avatar ou pessoa) e composição
@@ -626,6 +665,13 @@ marca: quem aparece no vídeo é o **apresentador**.
 - **Gravar tela** (Início, barra superior ou barra lateral): camada transparente sobre o monitor com região
   ajustável, câmera (com prévia e modo escolhido sozinho ou à mão), microfone (com medidor) e **teleprompter**
   com as falas do roteiro do projeto. Nada disso aparece na gravação (proteção de conteúdo do Windows).
+- **Controles em outra tela:** com mais de um monitor (opção nas opções do gravador, ligada por padrão), os
+  controles, o teleprompter e o karaokê vão para um monitor que não está sendo gravado (o do editor, senão o
+  principal). A tela gravada recebe só uma janela de moldura (`#recorder-frame`, `RecorderFrame.tsx`) com a
+  região, as alças, a contagem e o desenho: ela deixa passar todo clique, menos sobre as alças e enquanto se
+  desenha, então a tela continua livre para ajeitar antes e durante a gravação. O que se faz na moldura volta
+  para a janela dos controles, que é quem guarda o estado. Os modos Só voz, Voz e câmera e o plano na janela da
+  aula não gravam tela e ficam numa janela só, como antes.
 - **Modos de gravação**, nesta ordem: **Tela** (microfone, câmera e áudio do PC, todos opcionais e lembrados
   entre gravações), **Só voz** (só o microfone, sem áudio do PC), **Voz e câmera** (o microfone e a câmera do
   apresentador, sem áudio do PC), **Tela sobre a narração** (microfone e áudio do PC opcionais, desligados por

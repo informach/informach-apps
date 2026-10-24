@@ -1,54 +1,15 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { cutTargets } from "@shared/cleanup";
 import { extendFrameAll } from "@shared/ripple";
-import {
-  clipEnd,
-  extendFrame,
-  MIN_CLIP,
-  newId,
-  parseDuration,
-  sourceAt,
-  sourceEnd,
-} from "@shared/timeline";
-import type { Asset, Clip } from "@shared/types";
+import { clipEnd, extendFrame, MIN_CLIP, parseDuration } from "@shared/timeline";
+import type { Asset } from "@shared/types";
 import { type ReactNode, useState } from "react";
 import { timecode } from "@/lib/format";
-import { stillPicture } from "@/lib/stills";
+import { heldSecond, stillAsset } from "@/lib/stills";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject, waitForDraft } from "@/state/project";
 import { Button, Modal, Toggle } from "@/ui";
-
-/** The source second a clip shows at timeline time `at`, inside its footage. */
-function heldSecond(clip: Clip, asset: Asset, at: number): number {
-  const frame = 1 / (asset.fps || 30);
-  return Math.max(
-    clip.in,
-    Math.min(sourceAt(clip, at), sourceEnd(clip) - frame, asset.duration - frame),
-  );
-}
-
-/** A held frame made by the editor, kept with where it came from (lib/relink.ts draws it again). */
-async function stillAsset(asset: Asset, t: number): Promise<Asset> {
-  const path = await stillPicture(asset, t);
-  return {
-    id: newId("a"),
-    name: `Quadro estendido · ${asset.name}`,
-    path,
-    thumb: path,
-    kind: "image",
-    duration: 0,
-    width: asset.width,
-    height: asset.height,
-    fps: 0,
-    hasVideo: true,
-    hasAudio: false,
-    size: 0,
-    proxyStatus: "none",
-    generated: "still",
-    still: { assetId: asset.id, t },
-  };
-}
 
 /** The last choice of "every track", for the next time the dialog opens. */
 const ALL_TRACKS_KEY = "ediaula.extendFrame.allTracks";

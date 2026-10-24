@@ -12,7 +12,7 @@ import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { startSeamReview } from "@/lib/review";
 import { zoomToFit } from "@/lib/timelineView";
-import { exportVoiceFiles, importPresenterVideos } from "@/lib/voice";
+import { exportVoiceFiles, importPresenterVideos, importVoiceFiles } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { useExportQueue } from "@/state/exportQueue";
 import { useProject } from "@/state/project";
@@ -110,6 +110,11 @@ export function TopBar(): ReactNode {
                 },
                 { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
                 { separator: true, label: "" },
+                {
+                  label: "Importar voz…",
+                  disabled: !project,
+                  onSelect: () => void importVoiceFiles(),
+                },
                 {
                   label: "Exportar a voz (para o vídeo do apresentador)",
                   disabled: !project,

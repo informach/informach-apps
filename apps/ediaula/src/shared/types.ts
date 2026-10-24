@@ -915,8 +915,11 @@ export interface EdiAulaApi {
     clock(): Promise<number>;
     /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
     overAnchor(at: number, when: number): Promise<void>;
-    /** "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`. */
-    narration(): Promise<{ path: string; start: number }>;
+    /**
+     * "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`, from a
+     * little before `from` (default: where the editor opened it from).
+     */
+    narration(from?: number): Promise<{ path: string; start: number }>;
     /** "Só voz": the line the voice just finished, and the QPC moment its last word ended. */
     onFollow(cb: (done: { line: number; at: number }) => void): () => void;
     onFollowState(cb: (s: { state: string; message: string }) => void): () => void;
@@ -946,7 +949,19 @@ export interface EdiAulaApi {
     /** Recorder window: it was opened again for another lesson or media; read the context again. */
     onContextChanged(cb: () => void): () => void;
     sources(): Promise<CaptureSources & { current: number | null }>;
-    moveTo(index: number): Promise<void>;
+    /**
+     * The recorder on that monitor; with `split` (and another monitor) the controls go to another
+     * one and a frame shows the region over this one. Says whether it is split.
+     */
+    moveTo(index: number, split?: boolean): Promise<{ split: boolean }>;
+    /** Controls: what the frame over the recorded screen shows. */
+    frameState(state: import("./recording.ts").FrameState): Promise<void>;
+    /** Frame: what to show when it loads (null until the controls say). */
+    frameInit(): Promise<import("./recording.ts").FrameState | null>;
+    /** Frame: something done on it, for the controls. */
+    frameEvent(event: import("./recording.ts").FrameEvent): Promise<void>;
+    onFrameState(cb: (state: import("./recording.ts").FrameState) => void): () => void;
+    onFrameEvent(cb: (event: import("./recording.ts").FrameEvent) => void): () => void;
     /** Tests the encoders on this monitor at this rate once (seconds) and names the one that
      *  will record. */
     encoder(monitor: number, fps: 30 | 60): Promise<string>;
@@ -1016,7 +1031,11 @@ export interface EdiAulaApi {
     cancel(): Promise<void>;
     /** Throws the take away (Recycle Bin) and stays in the recorder. */
     discard(): Promise<void>;
-    stop(): Promise<RecordingResult>;
+    /**
+     * Ends the take and hands it to the editor. With `keepOpen` the recorder stays on screen for
+     * the next take ("Tela sobre a narração" recorded in parts); otherwise it closes.
+     */
+    stop(keepOpen?: boolean): Promise<RecordingResult>;
     /** Takes the app did not finish, and what to do with them. */
     orphans(): Promise<OrphanTake[]>;
     recoverOrphan(dir: string): Promise<RecordingResult>;
@@ -1062,6 +1081,8 @@ export interface EdiAulaApi {
     pieces: { label: string; start: number; end: number }[],
   ): Promise<VoiceMaster>;
   pickPresenterVideos(): Promise<string[]>;
+  /** "Importar voz": audio files of a voice made elsewhere, readable once picked. */
+  pickVoiceFiles(): Promise<string[]>;
   /** The exported voice files a presenter video may come from, best first, and its length. */
   locatePresenter(
     jobId: string,

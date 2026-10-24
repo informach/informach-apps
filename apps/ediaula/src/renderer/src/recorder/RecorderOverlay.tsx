@@ -8,11 +8,14 @@ import {
   storeProblem,
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
+import { overEnd } from "@shared/overNarration";
+import { plural } from "@shared/plural";
 import type { RecorderSettings } from "@shared/recorderSettings";
 import type {
   CaptureMonitor,
   CaptureSources,
   CaptureWindow,
+  FrameEvent,
   OverContext,
   RecorderContext,
   RecorderEvent,
@@ -40,8 +43,6 @@ import {
   EyeOff,
   Keyboard,
   Loader,
-  Lock,
-  LockOpen,
   Mic,
   MonitorUp,
   MousePointer2,
@@ -58,15 +59,7 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-  type PointerEvent as ReactPointerEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { mediaUrl } from "@/lib/media";
 import { DrawLayer, drawing } from "./DrawLayer";
 import { GuidedSetup, guidedProblem } from "./GuidedSetup";
@@ -74,18 +67,13 @@ import { GuidedWebPanel } from "./GuidedWebPanel";
 import { HealthStrip, LevelBars } from "./HealthStrip";
 import { OverPlayer } from "./overPlayer";
 import { CameraModeSelect, RecorderOptions } from "./RecorderOptions";
+import { type Rect, RegionFrame } from "./RegionFrame";
 import { SystemAudio } from "./systemAudio";
 import { resendUiRects, useUiRect } from "./uiRects";
 import { KaraokePrompter, MicTest, SpeakerChips, VoicePrompter } from "./VoiceTools";
 import { WindowPicker } from "./WindowPicker";
 
 type Phase = "setup" | "countdown" | "recording" | "paused" | "saving";
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
 type Line = PrompterLine;
 /** What is being recorded: the screen (by hand or guided), the voice alone, the voice with the
  *  camera filming the presenter, or the screen over the lesson's voice. */
@@ -114,13 +102,23 @@ const fullWindow = (): Rect => ({
 /** This window's size, in its own pixels (DIP). */
 const windowSize = (): RegionSize => ({ width: window.innerWidth, height: window.innerHeight });
 
+/**
+ * The recorded monitor in window pixels (DIP): the region is drawn in these, by this window when
+ * it covers that monitor or by the frame over it when the controls are on another one.
+ */
+const stageOf = (monitor: CaptureMonitor | null): RegionSize =>
+  monitor?.dip ? { width: monitor.dip.width, height: monitor.dip.height } : windowSize();
+
+/** The whole recorded monitor as a region. */
+const fullStage = (monitor: CaptureMonitor | null): Rect => ({ x: 0, y: 0, ...stageOf(monitor) });
+
 /** The monitor in physical pixels; the window's own size until it is known. */
 const physicalOf = (monitor: CaptureMonitor | null): RegionSize =>
   monitor ? { width: monitor.width, height: monitor.height } : windowSize();
 
-/** A rectangle of physical pixels of the monitor, in this window's pixels. */
+/** A rectangle of physical pixels of the monitor, in window pixels of that monitor. */
 const toWindow = (rect: RegionRect, monitor: CaptureMonitor | null): Rect =>
-  physicalToDip(rect, physicalOf(monitor), windowSize());
+  physicalToDip(rect, physicalOf(monitor), stageOf(monitor));
 
 /**
  * The region the settings ask for on this screen (shared/region.ts presets in physical pixels):
@@ -132,21 +130,22 @@ function regionFrom(
   lesson: RegionSize | undefined,
 ): Rect {
   const r = settings.region;
+  const stage = stageOf(monitor);
   if (r.preset === "custom" && r.rect) {
     const { x, y, width, height } = r.rect;
-    if (x + width <= window.innerWidth + 0.5 && y + height <= window.innerHeight + 0.5)
+    if (x + width <= stage.width + 0.5 && y + height <= stage.height + 0.5)
       return { x, y, width, height };
   }
   const physical = physicalOf(monitor);
   const preset = presetRegion(r.preset, physical, lesson) ?? presetRegion("full", physical);
-  return preset ? toWindow(preset, monitor) : fullWindow();
+  return preset ? toWindow(preset, monitor) : fullStage(monitor);
 }
 
 /** The region in physical pixels of the monitor, as the capture will record it. */
 function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRect {
   const physical = physicalOf(monitor);
   return (
-    dipToPhysical(region, physical, windowSize()) ?? {
+    dipToPhysical(region, physical, stageOf(monitor)) ?? {
       x: 0,
       y: 0,
       width: Math.floor(physical.width / 2) * 2,
@@ -205,13 +204,15 @@ export function RecorderOverlay(): ReactNode {
   const [settings, setSettings] = useState<RecorderSettings | null>(null);
   const [monitor, setMonitor] = useState<CaptureMonitor | null>(null);
   const [region, setRegion] = useState<Rect>(fullWindow);
+  /** The controls are on another monitor; the frame shows the region over the recorded one. */
+  const [split, setSplit] = useState(false);
+  const splitRef = useRef(split);
+  splitRef.current = split;
   /** What the region select shows. */
   const [regionChoice, setRegionChoice] = useState<RegionChoice>("full");
   /** "Janela…": the window the region was fitted to, followed during the take. */
   const [followed, setFollowed] = useState<{ window: CaptureWindow; front: boolean } | null>(null);
   const [windowPicker, setWindowPicker] = useState(false);
-  /** A region for the monitor the window is being moved to, applied once it has its new size. */
-  const pendingRegion = useRef<RegionRect | null>(null);
   /** The lesson's frame and colors (RecorderContext). */
   const [lesson, setLesson] = useState<RecorderContext["lesson"]>();
   const [palette, setPalette] = useState<string[]>([]);
@@ -246,8 +247,12 @@ export function RecorderOverlay(): ReactNode {
   const [retake, setRetake] = useState<number[] | null>(null);
   /** Over the narration the microphone is off unless chosen here. */
   const [overMic, setOverMic] = useState("");
-  /** Over the narration the computer's sound is off unless turned on here, for this take. */
-  const [overSystem, setOverSystem] = useState(false);
+  /** Parts of "Tela sobre a narração" saved since the recorder opened (it stays open between them). */
+  const [overParts, setOverParts] = useState(0);
+  const overRef = useRef(over);
+  overRef.current = over;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [follow, setFollow] = useState<{ state: string; message: string } | null>(null);
   /** Timeline second of the voice being heard, while it plays. */
   const [heard, setHeard] = useState<number | null>(null);
@@ -357,8 +362,8 @@ export function RecorderOverlay(): ReactNode {
           s.monitors.find((x) => x.index === s.current) ??
           s.monitors.find((x) => x.primary) ??
           s.monitors[0];
+        // The window goes to it (and the controls to another monitor) below, once the mode is known.
         setMonitor(m ?? null);
-        if (m && m.index !== s.current) void window.api.recorder.moveTo(m.index);
         // "" was "Sem áudio" on purpose; a microphone that is gone gives way to the first one.
         setMic(
           saved.microphone === ""
@@ -488,31 +493,30 @@ export function RecorderOverlay(): ReactNode {
     };
   }, [cam, fps]);
 
-  // The window resizes when moved to another monitor: the region the options ask for, if it
-  // fits there, else the whole screen.
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-  const monitorRef = useRef(monitor);
-  monitorRef.current = monitor;
-  const lessonRef = useRef(lesson);
-  lessonRef.current = lesson;
+  // The recorder goes to the monitor chosen. With more than one, and the option on, the controls
+  // go to another monitor and the one recorded keeps only the region's frame, free to use. A take
+  // of the voice alone or in the lesson window records no screen: nothing to keep free.
+  const wantSplit =
+    !!settings?.controlsElsewhere &&
+    (sources?.monitors.filter((m) => m.output >= 0).length ?? 0) > 1 &&
+    !voiceMode &&
+    !(guidedMode && guidedPlan?.mode === "web");
+  const monitorIdx = monitor?.index;
+  const settingsReady = !!settings;
   useEffect(() => {
-    const onResize = (): void => {
-      const pending = pendingRegion.current;
-      pendingRegion.current = null;
-      if (pending) {
-        // A window on another monitor: its rectangle there, now that this window covers it.
-        const r = toWindow(pending, monitorRef.current);
-        setRegion(r);
-        setSettings((s) => (s ? { ...s, region: { preset: "custom", rect: r } } : s));
-        return;
-      }
-      const s = settingsRef.current;
-      setRegion(s ? regionFrom(s, monitorRef.current, lessonRef.current) : fullWindow());
+    if (monitorIdx === undefined || !settingsReady) return;
+    let current = true;
+    window.api.recorder.moveTo(monitorIdx, wantSplit).then(
+      // The region is in pixels of the recorded monitor (stageOf), set where the monitor is
+      // chosen: moving the windows does not change it.
+      ({ split: now }) => current && setSplit(now),
+      (err: unknown) =>
+        current && setError(`O gravador não passou para a outra tela: ${cleanError(err)}`),
+    );
+    return () => {
+      current = false;
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [monitorIdx, wantSplit, settingsReady]);
 
   // Drawing is for the take while it records: a pause, the stop or a discard turns it off. The
   // window takes the mouse while it is on, and the main process notes when (clicks are the pen).
@@ -533,6 +537,9 @@ export function RecorderOverlay(): ReactNode {
       return;
     }
     void window.api.recorder.drawMode(drawOn);
+    // Split, the pen is on the frame over the recorded screen (the main process gives it the
+    // mouse): this window keeps letting clicks through outside its controls.
+    if (splitRef.current) return;
     // Leaving the drawing with the pointer on a control (the pill's pause) keeps it clickable.
     const overControls = [...document.querySelectorAll(".rec-root fieldset")].some((el) =>
       el.matches(":hover"),
@@ -599,34 +606,17 @@ export function RecorderOverlay(): ReactNode {
     setFollowed({ window: w, front });
     setRegionChoice("window");
     void window.api.recorder.followWindow(w.hwnd, front);
-    if (monitor && target.index !== monitor.index) {
-      // The recorder moves to that monitor first; the region follows once it is there (from the
-      // resize, or as soon as the move ends when that monitor has the same size and no resize
-      // comes).
-      pendingRegion.current = snapped;
-      setMonitor(target);
-      change({ monitor: { x: target.x, y: target.y, width: target.width, height: target.height } });
-      void window.api.recorder.moveTo(target.index).then(
-        () => {
-          const pending = pendingRegion.current;
-          pendingRegion.current = null;
-          if (!pending) return;
-          const r = toWindow(pending, target);
-          setRegion(r);
-          setSettings((s) => (s ? { ...s, region: { preset: "custom", rect: r } } : s));
-        },
-        (error: unknown) => {
-          pendingRegion.current = null;
-          setError(
-            `O gravador não passou para a outra tela: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        },
-      );
-      return;
-    }
+    // On another monitor, the recorder follows it (the move effect above); the region is in that
+    // monitor's pixels either way.
     const r = toWindow(snapped, target);
     setRegion(r);
-    change({ region: { preset: "custom", rect: r } });
+    if (monitor && target.index !== monitor.index) {
+      setMonitor(target);
+      change({
+        monitor: { x: target.x, y: target.y, width: target.width, height: target.height },
+        region: { preset: "custom", rect: r },
+      });
+    } else change({ region: { preset: "custom", rect: r } });
   };
 
   const showFlash = useCallback((text: string): void => {
@@ -766,7 +756,7 @@ export function RecorderOverlay(): ReactNode {
       return;
     }
     if (mode === "over" && !over) {
-      setError("Abra o gravador pelo editor, numa aula com a faixa Voz.");
+      setError("Abra o gravador pelo editor, numa aula que já tenha a voz na faixa Voz.");
       return;
     }
     if (guidedMode && guidedPlan?.mode === "web") {
@@ -803,7 +793,7 @@ export function RecorderOverlay(): ReactNode {
       if (mode === "over" && over) {
         // The lesson's voice, rendered as one file and ready to play when the take starts.
         setFlash("Preparando a voz da aula…");
-        const narration = await window.api.recorder.narration();
+        const narration = await window.api.recorder.narration(over.from);
         const p = new OverPlayer(narration.path, narration.start);
         p.onHeard = (at) => {
           setHeard(at);
@@ -820,7 +810,8 @@ export function RecorderOverlay(): ReactNode {
       // it on the native route, this window's own on Chromium's fallback. The voice played over
       // the screen, or a guided narration, never comes back in it twice; where Windows cannot
       // leave it out, the computer's sound is off for such a take.
-      const wanted = (mode === "over" ? overSystem : settings.systemAudio) && !voiceMode;
+      const wanted =
+        (mode === "over" ? settings.overSystemAudio : settings.systemAudio) && !voiceMode;
       const narrationPlays = mode === "over" || narrated;
       const native = wanted && (await window.api.recorder.systemAudioRoute()) === "native";
       const plan = systemAudioPlan({
@@ -926,9 +917,12 @@ export function RecorderOverlay(): ReactNode {
       phaseRef.current = "recording";
       void window.api.recorder.interactive(false);
       void window.api.recorder.teleprompterLine(line);
-      // A redo starts the voice two seconds early, to come into the stretch already in rhythm.
+      // A redo, and each part after the first, starts the voice two seconds early, to come into
+      // the stretch already in rhythm (the screen only counts from `over.from`).
       if (mode === "over" && over)
-        await player.current?.play(over.replace ? Math.max(0, over.from - 2) : over.from);
+        await player.current?.play(
+          over.replace || overParts > 0 ? Math.max(0, over.from - 2) : over.from,
+        );
       if (guidedMode && guidedPlan) {
         const timing = await window.api.recorder.guidedStart(guidedPlan);
         guidedOffset.current = timing.origin + timing.lead;
@@ -951,7 +945,7 @@ export function RecorderOverlay(): ReactNode {
     region,
     mic,
     overMic,
-    overSystem,
+    overParts,
     cam,
     screenCam,
     presenterCam,
@@ -1042,6 +1036,10 @@ export function RecorderOverlay(): ReactNode {
 
   const stop = useCallback(async () => {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
+    // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
+    const overNow = modeRef.current === "over" ? overRef.current : null;
+    const keepOpen = !!overNow && !overNow.replace && !preservationRequested.current;
     setPhase("saving");
     phaseRef.current = "saving";
     setAlert(null);
@@ -1056,11 +1054,31 @@ export function RecorderOverlay(): ReactNode {
       // The take ends at the key press, not after the computer's sound is wrapped up.
       await window.api.recorder.halt();
       await finishSystemAudio();
-      await window.api.recorder.stop();
+      const result = await window.api.recorder.stop(keepOpen);
+      if (!keepOpen || !overNow) return;
+      // Where this part ends on the timeline, as the editor lays it out (shared/overNarration.ts).
+      // Nothing of it kept (stopped in the lead-in): the next part starts where this one did.
+      const end = Math.max(overNow.from, overEnd(result) ?? overNow.from);
+      if (end >= overNow.end - 0.5) {
+        // The voice is over: back to the editor, where the parts already are.
+        await window.api.recorder.cancel();
+        return;
+      }
+      const from = Math.round(end * 1000) / 1000;
+      setOver({ ...overNow, from });
+      setOverParts((n) => n + 1);
+      setHealth(null);
+      setMarkers(0);
+      phaseRef.current = "setup";
+      setPhase("setup");
+      setFlash(`Parte salva na aula. A próxima começa em ${clockOf(from)}.`);
+      setTimeout(() => setFlash(null), 5000);
     } catch (err) {
       setError(cleanError(err));
-      phaseRef.current = "paused";
-      setPhase("paused");
+      // Kept open after a part that failed to save: back to setting up, nothing is recording.
+      const nothing = keepOpen && (await window.api.recorder.status()).phase === null;
+      phaseRef.current = nothing ? "setup" : "paused";
+      setPhase(nothing ? "setup" : "paused");
     }
   }, [finishSystemAudio]);
   const stopRef = useRef(stop);
@@ -1171,6 +1189,7 @@ export function RecorderOverlay(): ReactNode {
     hotkeyLabel(settings?.hotkeys[action] ?? "");
   const badKeys = hotkeys.filter((r) => !r.ok);
   const prompterOn = !!settings?.teleprompter.on && lines.length > 0;
+  const pcSoundOn = mode === "over" ? !!settings?.overSystemAudio : !!settings?.systemAudio;
   const bigSize = Math.max(30, Math.round((settings?.teleprompter.size ?? 22) * 1.6));
   const followNote =
     voiceMode && settings?.follow
@@ -1182,6 +1201,47 @@ export function RecorderOverlay(): ReactNode {
   /** Drawing on the screen is for a take by hand (the guided mode moves the mouse itself). */
   const canDraw = mode === "screen" || mode === "over";
   drawAllowed.current = canDraw;
+
+  // Split, the frame over the recorded screen shows the region, the countdown and the drawing.
+  const drawKey = keyOf("draw");
+  const regionLock = settings?.regionLock ?? true;
+  const frameVisible = !voiceMode && !webPlan;
+  useEffect(() => {
+    if (!split) return;
+    void window.api.recorder.frameState({
+      region,
+      size: { w: exact.width, h: exact.height },
+      editable: phase === "setup",
+      recording,
+      lock: regionLock,
+      countdown: phase === "countdown" ? count : null,
+      visible: frameVisible,
+      draw: { allowed: canDraw, on: drawOn && phase === "recording", palette, toggleKey: drawKey },
+    });
+  }, [
+    split,
+    region,
+    exact.width,
+    exact.height,
+    phase,
+    recording,
+    regionLock,
+    count,
+    frameVisible,
+    canDraw,
+    drawOn,
+    palette,
+    drawKey,
+  ]);
+  // What is done on the frame comes back here, as if done on this window.
+  const onFrame = useRef<(event: FrameEvent) => void>(() => undefined);
+  onFrame.current = (event) => {
+    if (event.type === "region") customRegion(event.rect);
+    else if (event.type === "size") typeSize(event.size);
+    else if (event.type === "lock") change({ regionLock: event.on });
+    else setDrawOn(false);
+  };
+  useEffect(() => window.api.recorder.onFrameEvent((event) => onFrame.current(event)), []);
   if (web)
     return (
       <div className="rec-root is-guided-web">
@@ -1234,7 +1294,7 @@ export function RecorderOverlay(): ReactNode {
           )}
         </Interactive>
       )}
-      {!voiceMode && !webPlan && (
+      {!voiceMode && !webPlan && !split && (
         <RegionFrame
           region={region}
           onChange={customRegion}
@@ -1254,7 +1314,7 @@ export function RecorderOverlay(): ReactNode {
           onClose={() => setWindowPicker(false)}
         />
       )}
-      {canDraw && (
+      {canDraw && !split && (
         <DrawLayer
           region={region}
           on={drawOn && phase === "recording"}
@@ -1266,7 +1326,8 @@ export function RecorderOverlay(): ReactNode {
       )}
 
       {cam && camModes && phase === "setup" && !voiceMode && !webPlan && (
-        <CameraPreview device={cam} region={region} />
+        // Split, the preview sits in a corner of the controls' screen, not over the recorded one.
+        <CameraPreview device={cam} region={split ? fullWindow() : region} />
       )}
       {cam && camModes && phase === "setup" && voiceCam && <CameraPreview device={cam} presenter />}
       {!cam && phase === "setup" && voiceCam && (
@@ -1384,16 +1445,24 @@ export function RecorderOverlay(): ReactNode {
               <option value="voice">Só voz</option>
               <option value="voicecam">Voz e câmera</option>
               <option value="over" disabled={!over}>
-                {over ? "Tela sobre a narração" : "Tela sobre a narração (abra pelo editor)"}
+                {over
+                  ? "Tela sobre a narração"
+                  : "Tela sobre a narração (importe a voz da aula no editor)"}
               </option>
               <option value="guided">Guiado por plano (roteiro ou áudio)</option>
             </select>
             {mode === "over" && over && (
               <span className="rec-mode-note">
+                {overParts > 0
+                  ? `${plural(overParts, "parte salva", "partes salvas")} na aula. `
+                  : ""}
                 A voz da aula toca nos fones a partir de {clockOf(over.from)}
-                {over.to !== undefined ? ` e a tela é regravada até ${clockOf(over.to)}` : ""}. Use
-                fones.
+                {over.to !== undefined ? ` e a tela é regravada até ${clockOf(over.to)}` : ""}
+                {overParts > 0 ? ", com 2 s antes para você pegar o ritmo" : ""}. Use fones.
               </span>
+            )}
+            {mode === "over" && over && over.to === undefined && phase === "setup" && (
+              <OverStart over={over} onFrom={(from) => setOver({ ...over, from })} />
             )}
           </div>
           <div className="rec-bar">
@@ -1428,7 +1497,8 @@ export function RecorderOverlay(): ReactNode {
                         }
                         setMonitor(m);
                         change({ monitor: { x: m.x, y: m.y, width: m.width, height: m.height } });
-                        void window.api.recorder.moveTo(m.index);
+                        // The region the options ask for, if it fits there, else the whole screen.
+                        if (settings) setRegion(regionFrom(settings, m, lesson));
                       }
                     }}
                   >
@@ -1587,12 +1657,14 @@ export function RecorderOverlay(): ReactNode {
               <>
                 <Source icon={Volume2} label="Áudio do PC">
                   <select
-                    value={(mode === "over" ? overSystem : settings?.systemAudio) ? "on" : "off"}
-                    title={`${(mode === "over" ? overSystem : settings?.systemAudio) ? "Ligado, numa faixa separada" : "Desligado"}. O som do computador (música, efeitos de um jogo, o navegador), sem a voz que o gravador toca.`}
+                    value={pcSoundOn ? "on" : "off"}
+                    title={`${pcSoundOn ? "Ligado, numa faixa separada" : "Desligado"}. O som do computador (música, efeitos de um jogo, o navegador), sem a voz que o gravador toca.`}
                     onChange={(e) =>
-                      mode === "over"
-                        ? setOverSystem(e.target.value === "on")
-                        : change({ systemAudio: e.target.value === "on" })
+                      change(
+                        mode === "over"
+                          ? { overSystemAudio: e.target.value === "on" }
+                          : { systemAudio: e.target.value === "on" },
+                      )
                     }
                   >
                     <option value="off">Desligado</option>
@@ -1641,8 +1713,12 @@ export function RecorderOverlay(): ReactNode {
             <button
               type="button"
               className="rec-icon"
-              title="Fechar sem gravar"
-              aria-label="Fechar sem gravar"
+              title={
+                overParts > 0
+                  ? "Voltar ao editor (as partes já estão na aula)"
+                  : "Fechar sem gravar"
+              }
+              aria-label={overParts > 0 ? "Voltar ao editor" : "Fechar sem gravar"}
               onClick={() => void window.api.recorder.cancel()}
             >
               <X size={16} />
@@ -1775,6 +1851,36 @@ export function RecorderOverlay(): ReactNode {
   );
 }
 
+/**
+ * "Tela sobre a narração": where the voice starts for this part, moved back or forward before
+ * recording (the next part starts where the last one ended; this is to go back a little or skip).
+ */
+function OverStart({
+  over,
+  onFrom,
+}: {
+  over: OverContext;
+  onFrom: (from: number) => void;
+}): ReactNode {
+  const first = over.segments[0]?.start ?? 0;
+  const last = Math.max(first, over.end - 1);
+  const move = (to: number): void =>
+    onFrom(Math.round(Math.min(last, Math.max(first, to)) * 1000) / 1000);
+  return (
+    <fieldset className="rec-over-start" aria-label="Início da voz nesta parte">
+      <button type="button" onClick={() => move(over.from - 5)} disabled={over.from <= first}>
+        −5 s
+      </button>
+      <button type="button" onClick={() => move(over.from + 5)} disabled={over.from >= last}>
+        +5 s
+      </button>
+      <button type="button" onClick={() => move(first)} disabled={over.from <= first}>
+        Do começo da voz
+      </button>
+    </fieldset>
+  );
+}
+
 function Source({
   icon: Icon,
   label,
@@ -1804,189 +1910,6 @@ function Source({
         {extra}
       </span>
     </fieldset>
-  );
-}
-
-/** A size field of the region: physical pixels, applied on Enter or when it loses focus. */
-function SizeField({
-  label,
-  value,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  onCommit: (v: number) => void;
-}): ReactNode {
-  const [text, setText] = useState(String(value));
-  useEffect(() => setText(String(value)), [value]);
-  const commit = (): void => {
-    const v = Math.round(Number(text));
-    if (Number.isFinite(v) && v > 0 && v !== value) onCommit(v);
-    else setText(String(value));
-  };
-  return (
-    <input
-      type="number"
-      className="rec-region-size"
-      aria-label={label}
-      title={`${label} em pixels da tela`}
-      min={80}
-      step={2}
-      value={text}
-      onPointerDown={(e) => e.stopPropagation()}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
-      }}
-    />
-  );
-}
-
-/** Region of the screen to record: drag inside to move, handles to resize, size typed in. */
-/** What each handle of the region does, for the screen reader. */
-const HANDLE_LABELS: Record<string, string> = {
-  nw: "canto superior esquerdo",
-  n: "borda de cima",
-  ne: "canto superior direito",
-  e: "borda direita",
-  se: "canto inferior direito",
-  s: "borda de baixo",
-  sw: "canto inferior esquerdo",
-  w: "borda esquerda",
-};
-
-/**
- * The region moved ("move") or resized from a handle ("nw", "e"…) by dx, dy window pixels from
- * `r0`, kept inside the window and at least 80 pixels on each side.
- */
-function reshapeRegion(r0: Rect, mode: string, dx: number, dy: number): Rect {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  let { x, y, width, height } = r0;
-  if (mode === "move") {
-    x = Math.min(Math.max(0, x + dx), W - width);
-    y = Math.min(Math.max(0, y + dy), H - height);
-  } else {
-    if (mode.includes("w")) {
-      x = Math.min(Math.max(0, r0.x + dx), r0.x + r0.width - 80);
-      width = r0.x + r0.width - x;
-    }
-    if (mode.includes("e")) width = Math.min(Math.max(80, r0.width + dx), W - r0.x);
-    if (mode.includes("n")) {
-      y = Math.min(Math.max(0, r0.y + dy), r0.y + r0.height - 80);
-      height = r0.y + r0.height - y;
-    }
-    if (mode.includes("s")) height = Math.min(Math.max(80, r0.height + dy), H - r0.y);
-  }
-  return {
-    x: Math.round(x),
-    y: Math.round(y),
-    width: Math.round(width),
-    height: Math.round(height),
-  };
-}
-
-/** Arrow keys on a handle: one pixel, ten with Shift. */
-const ARROWS: Record<string, [number, number]> = {
-  ArrowLeft: [-1, 0],
-  ArrowRight: [1, 0],
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-};
-
-function RegionFrame({
-  region,
-  onChange,
-  editable,
-  recording,
-  size,
-  lock,
-  onLock,
-  onSize,
-}: {
-  region: Rect;
-  onChange: (r: Rect) => void;
-  editable: boolean;
-  recording: boolean;
-  /** Physical pixels the take will record. */
-  size: { w: number; h: number };
-  lock: boolean;
-  onLock: (lock: boolean) => void;
-  onSize: (size: { width?: number; height?: number }) => void;
-}): ReactNode {
-  const drag = (e: ReactPointerEvent, mode: string): void => {
-    if (!editable) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const sx = e.clientX;
-    const sy = e.clientY;
-    const r0 = region;
-    const move = (ev: PointerEvent): void =>
-      onChange(reshapeRegion(r0, mode, ev.clientX - sx, ev.clientY - sy));
-    const up = (): void => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
-  const nudge = (e: ReactKeyboardEvent, mode: string): void => {
-    const step = ARROWS[e.key];
-    if (!editable || !step) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const by = e.shiftKey ? 10 : 1;
-    onChange(reshapeRegion(region, mode, step[0] * by, step[1] * by));
-  };
-  const style = { left: region.x, top: region.y, width: region.width, height: region.height };
-  return (
-    <div
-      className={`rec-region ${recording ? "is-recording" : ""} ${editable ? "is-editable" : ""}`}
-      style={style}
-      onPointerDown={(e) => drag(e, "move")}
-    >
-      {editable && (
-        <>
-          <span className="rec-region-tag">
-            <button
-              type="button"
-              className="rec-region-move"
-              title="Mover a região (setas; Shift move de 10 em 10)"
-              aria-label="Mover a região com as setas do teclado"
-              onPointerDown={(e) => drag(e, "move")}
-              onKeyDown={(e) => nudge(e, "move")}
-            >
-              <ScanLine size={13} />
-            </button>{" "}
-            Região
-            <SizeField label="Largura" value={size.w} onCommit={(width) => onSize({ width })} />
-            ×
-            <SizeField label="Altura" value={size.h} onCommit={(height) => onSize({ height })} />
-            <button
-              type="button"
-              className={`rec-region-lock ${lock ? "is-on" : ""}`}
-              title={lock ? "Proporção travada" : "Proporção livre"}
-              aria-pressed={lock}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onLock(!lock)}
-            >
-              {lock ? <Lock size={12} /> : <LockOpen size={12} />}
-            </button>
-          </span>
-          {["nw", "n", "ne", "e", "se", "s", "sw", "w"].map((h) => (
-            <button
-              type="button"
-              key={h}
-              className={`rec-handle h-${h}`}
-              aria-label={`Redimensionar pela ${HANDLE_LABELS[h]} com as setas do teclado`}
-              onPointerDown={(e) => drag(e, h)}
-              onKeyDown={(e) => nudge(e, h)}
-            />
-          ))}
-        </>
-      )}
-    </div>
   );
 }
 

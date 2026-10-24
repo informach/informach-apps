@@ -20,9 +20,14 @@ import { App } from "./App";
 import { loadBundledFonts } from "./lib/fonts";
 import { startKeying } from "./lib/keying";
 import { usePalettes } from "./lib/palettes";
+import { RecorderFrame } from "./recorder/RecorderFrame";
 import { RecorderOverlay } from "./recorder/RecorderOverlay";
 
-if (location.hash !== "#recorder") {
+// The recorder's windows are the same app loaded with #recorder (its controls) or
+// #recorder-frame (the region over the recorded screen, while the controls are on another one).
+const recorderWindow = location.hash === "#recorder" || location.hash === "#recorder-frame";
+
+if (!recorderWindow) {
   startKeying();
   // Bundled fonts (annotations, templates, captions) are registered up front so the preview has them.
   void loadBundledFonts();
@@ -53,8 +58,14 @@ if (import.meta.env.DEV) {
   });
 }
 
-// The recorder overlay is the same app loaded with #recorder in its own transparent window.
-const isRecorder = location.hash === "#recorder";
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>{isRecorder ? <RecorderOverlay /> : <App />}</StrictMode>,
+  <StrictMode>
+    {location.hash === "#recorder-frame" ? (
+      <RecorderFrame />
+    ) : location.hash === "#recorder" ? (
+      <RecorderOverlay />
+    ) : (
+      <App />
+    )}
+  </StrictMode>,
 );

@@ -847,6 +847,19 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           >
             Regravar a tela neste intervalo
           </button>
+          <button
+            type="button"
+            className="tool"
+            title="Uma fala gerada de novo (áudio e, se tiver, o vídeo do apresentador) entra no lugar deste trecho em todas as faixas"
+            disabled={interval.end < interval.start || interval.start > duration}
+            onClick={() =>
+              useApp.getState().set({
+                speechSwap: { start: interval.start, end: Math.min(interval.end, duration) },
+              })
+            }
+          >
+            Trocar esta fala…
+          </button>
           <span>
             Início <b>{timecode(interval.start, project.settings.fps)}</b>
           </span>

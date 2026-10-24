@@ -1488,16 +1488,29 @@ function registerVoiceIpc(): void {
       return master;
     },
   );
-  ipcMain.handle("presenter:pick", async () => {
+  /** Files picked in a dialog, readable by the editor once picked (none when it is cancelled). */
+  const pickReadable = async (title: string, name: string, extensions: string[]) => {
     const r = await openDialog({
-      title: "Importar vídeo do apresentador",
+      title,
       properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Vídeo do apresentador", extensions: ["mp4", "mov", "m4v", "webm"] }],
+      filters: [{ name, extensions }],
     });
     if (r.canceled) return [];
     for (const path of r.filePaths) await desktopFiles.grantRead(path);
     return r.filePaths;
-  });
+  };
+  ipcMain.handle("presenter:pick", () =>
+    pickReadable("Importar vídeo do apresentador", "Vídeo do apresentador", [
+      "mp4",
+      "mov",
+      "m4v",
+      "webm",
+    ]),
+  );
+  /** "Importar voz": a voice made elsewhere (a voice tool, another recorder), as audio files. */
+  ipcMain.handle("voice:pick", () =>
+    pickReadable("Importar voz", "Voz", ["wav", "mp3", "m4a", "aac", "ogg", "flac"]),
+  );
   ipcMain.handle(
     "presenter:locate",
     async (_e, rawJob: unknown, rawVideo: unknown, rawMasters: unknown) => {

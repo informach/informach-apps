@@ -52,6 +52,8 @@ interface AppStore {
   /** Clips whose speed is being changed (the speed dialog is open). */
   speedClips: string[] | null;
   extendClip: string | null;
+  /** "Trocar uma fala" is open for this stretch of the lesson. */
+  speechSwap: { start: number; end: number } | null;
   cursorClip: string | null;
   /** Clips receiving copied properties (the paste-properties dialog is open). */
   pastePropsClips: string[] | null;
@@ -100,6 +102,7 @@ export const useApp = create<AppStore>((set, get) => ({
   exportOpen: false,
   speedClips: null,
   extendClip: null,
+  speechSwap: null,
   cursorClip: null,
   pastePropsClips: null,
   settingsOpen: false,

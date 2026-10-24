@@ -15,6 +15,12 @@ export function duration(seconds: number): string {
   return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
 }
 
+/** 1:23.4 (minutes, seconds and tenths), for where something is placed on the timeline. */
+export function clockTenths(seconds: number): string {
+  const s = Math.max(0, seconds);
+  return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+}
+
 /** Ruler label: 0:05, 1:30, 1:00:00 — with tenths when the step is below a second. */
 export function rulerLabel(seconds: number, step: number): string {
   if (step < 1) return `${duration(Math.floor(seconds))}.${Math.round((seconds % 1) * 10)}`;

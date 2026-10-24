@@ -10,7 +10,7 @@ import {
   MAX_RUNS,
   planTiming,
 } from "@shared/guidedPlan";
-import { layoutOverNarration } from "@shared/overNarration";
+import { layoutOverNarration, overEnd } from "@shared/overNarration";
 import { pausedInMedia } from "@shared/pausedMedia";
 import { plural } from "@shared/plural";
 import {
@@ -31,7 +31,7 @@ import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/vo
 import { voiceTakes } from "@shared/voiceTakes";
 import { autoZoomRecording } from "@/editor/RecordingProps";
 import { useApp } from "@/state/app";
-import { usePlayback } from "@/state/playback";
+import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { placeTakeDrawing } from "./drawing";
 import { enrich, importMedia } from "./importMedia";
@@ -133,7 +133,10 @@ export async function openRecorder(request: RecorderRequest = {}): Promise<void>
   if (request.mode === "over" && !over) {
     useApp
       .getState()
-      .toast("Para gravar a tela sobre a narração, a aula precisa da faixa Voz.", "error");
+      .toast(
+        "Para gravar a tela sobre a narração, traga a voz antes: Arquivo › Importar voz, ou grave no modo Só voz.",
+        "error",
+      );
     return;
   }
   await window.api.recorder.open({
@@ -501,6 +504,10 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     };
   });
   if (!layout) return;
+  // A part over the narration: the playhead waits where it ends, where the next part goes on
+  // (the same end the recorder starts its next part from).
+  const partEnd = r.mode === "over" ? overEnd(r) : null;
+  if (partEnd !== null) playback.seek(partEnd);
   const take = basename(r.dir);
   const pathOf = new Map(useProject.getState().project?.assets.map((a) => [a.id, a.path]) ?? []);
   for (const { assetId, role } of layout.roles)

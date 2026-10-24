@@ -43,6 +43,7 @@ import {
 import { DEFAULT_RECORDER_SETTINGS, type RecorderSettings } from "../shared/recorderSettings.ts";
 import type {
   CaptureMonitor,
+  FrameState,
   MarkerKind,
   RecorderStatus,
   RecordingResult,
@@ -76,9 +77,33 @@ import { checkedEngine, engineStatus } from "./whisper.ts";
  * The recorder is a transparent window over the monitor being recorded: region frame,
  * teleprompter and controls. Content protection keeps it out of the capture, and during the
  * recording it lets clicks through to the apps underneath, except over its own controls.
+ *
+ * With more than one monitor (and the option on), that window goes to a monitor that is not
+ * recorded, and the one being recorded gets a second window, `frame`, with only the region's
+ * outline, its handles and the drawing: it lets every click through to the screen except on the
+ * handles (and while drawing), so the screen stays free to use while the take is set up.
  */
 
 let overlay: BrowserWindow | null = null;
+/** The region's window on the recorded monitor while the controls are on another one. */
+let frame: BrowserWindow | null = null;
+/** The controls are on another monitor than the one recorded. */
+let split = false;
+/** The monitor being recorded (or set up to be). */
+let recordedIndex: number | null = null;
+/** What the controls last told the frame, for a frame that loads after it. */
+let frameState: FrameState | null = null;
+/** The recorded monitor's bounds the frame covers (set again each time it shows). */
+let frameBounds: Electron.Rectangle | null = null;
+/**
+ * The frame stopped answering, or its page died, while it held the mouse for drawing
+ * (registerRecorder sets it: the drawing state lives there).
+ */
+let onFrameStuck: () => void = () => undefined;
+/** The frame answers again after it got stuck while drawing. */
+let onFrameBack: () => void = () => undefined;
+/** Where each recorder window's own controls are, in screen pixels (shared/helperProtocol). */
+const uiRectsBy = new Map<number, { x: number; y: number; w: number; h: number }[]>();
 let context: RecorderContext = { teleprompter: [] };
 let monitors: CaptureMonitor[] = [];
 let settings: RecorderSettings = DEFAULT_RECORDER_SETTINGS;
@@ -107,6 +132,37 @@ const rectDip = z.object({
 });
 
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
+
+/** What the frame tells the controls (shared/recording.ts FrameEvent). */
+const frameEventSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("region"), rect: rectDip }),
+  z.object({
+    type: z.literal("size"),
+    size: z.object({
+      width: z.int().positive().max(16384).optional(),
+      height: z.int().positive().max(16384).optional(),
+    }),
+  }),
+  z.object({ type: z.literal("lock"), on: z.boolean() }),
+  z.object({ type: z.literal("drawExit") }),
+]);
+
+/** What the controls tell the frame (shared/recording.ts FrameState). */
+const frameStateSchema = z.object({
+  region: rectDip,
+  size: z.object({ w: z.int().nonnegative().max(16384), h: z.int().nonnegative().max(16384) }),
+  editable: z.boolean(),
+  recording: z.boolean(),
+  lock: z.boolean(),
+  countdown: z.int().min(0).max(10).nullable(),
+  visible: z.boolean(),
+  draw: z.object({
+    allowed: z.boolean(),
+    on: z.boolean(),
+    palette: z.array(z.string().regex(/^#[\da-f]{6}$/i)).max(32),
+    toggleKey: z.string().max(64),
+  }),
+});
 
 /**
  * A stroke as the recorder window sends it: when it started (QPC ms) and its points as one typed
@@ -274,9 +330,117 @@ export async function grantTake(result: RecordingResult): Promise<RecordingResul
 const dipRect = (m: CaptureMonitor): Electron.Rectangle =>
   screen.screenToDipRect(null, { x: m.x, y: m.y, width: m.width, height: m.height });
 
-function place(m: CaptureMonitor): void {
-  if (!overlay) return;
-  overlay.setBounds(dipRect(m));
+/**
+ * The monitor the controls go to while `recorded` is recorded: the editor's own monitor, else
+ * the main one, else any other. Null with a single monitor.
+ */
+function controlsMonitor(
+  recorded: CaptureMonitor,
+  editor: BrowserWindow | null,
+): CaptureMonitor | null {
+  const others = monitors.filter((m) => m.index !== recorded.index && m.output >= 0);
+  if (!others.length) return null;
+  const at = editor && !editor.isDestroyed() ? screen.getDisplayMatching(editor.getBounds()) : null;
+  const same = (m: CaptureMonitor): boolean => {
+    const r = dipRect(m);
+    return !!at && r.x === at.bounds.x && r.y === at.bounds.y;
+  };
+  return others.find(same) ?? others.find((m) => m.primary) ?? others[0];
+}
+
+/** A window of the recorder that is on screen (the controls, or the frame when split). */
+const live = (w: BrowserWindow | null): w is BrowserWindow => !!w && !w.isDestroyed();
+
+/** The frame, made the first time the controls go to another monitor. */
+function ensureFrame(): BrowserWindow {
+  if (live(frame)) return frame;
+  const w = new BrowserWindow({
+    transparent: true,
+    frame: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    focusable: false,
+    hasShadow: false,
+    skipTaskbar: true,
+    show: false,
+    title: "EdiAula · Região da gravação",
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.cjs"),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      devTools: !app.isPackaged,
+      backgroundThrottling: false,
+    },
+  });
+  w.setAlwaysOnTop(true, "screen-saver");
+  // Never appears in screen captures, and the screen under it stays usable.
+  w.setContentProtection(true);
+  w.setIgnoreMouseEvents(true, { forward: true });
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL)
+    void w.loadURL(`${process.env.ELECTRON_RENDERER_URL}#recorder-frame`);
+  else void w.loadFile(join(__dirname, "../renderer/index.html"), { hash: "recorder-frame" });
+  const id = w.webContents.id;
+  w.on("unresponsive", () => onFrameStuck());
+  w.on("responsive", () => onFrameBack());
+  w.webContents.on("render-process-gone", () => {
+    onFrameStuck();
+    // A new page takes its place; it asks the controls for what to show.
+    if (!w.isDestroyed()) w.webContents.reload();
+  });
+  w.on("closed", () => {
+    uiRectsBy.delete(id);
+    if (frame === w) frame = null;
+  });
+  frame = w;
+  return w;
+}
+
+/**
+ * The recorder on `m`: its window over it, or (`wantSplit`, more than one monitor) the controls
+ * on another monitor and the frame over this one. Returns whether it is split.
+ */
+function place(m: CaptureMonitor, wantSplit: boolean, editor: BrowserWindow | null): boolean {
+  if (!overlay) return false;
+  recordedIndex = m.index;
+  const other = wantSplit ? controlsMonitor(m, editor) : null;
+  split = !!other;
+  if (other) {
+    overlay.setBounds(dipRect(other));
+    const f = ensureFrame();
+    frameBounds = dipRect(m);
+    f.setBounds(frameBounds);
+    if (overlay.isVisible()) showFrame();
+  } else {
+    overlay.setBounds(dipRect(m));
+    if (live(frame)) frame.hide();
+  }
+  return split;
+}
+
+/** The frame on screen over the recorded monitor, without taking the focus. */
+function showFrame(): void {
+  if (!live(frame) || !frameBounds) return;
+  frame.showInactive();
+  // Windows shrinks a window to the work area when it shows: the frame covers the taskbar too.
+  frame.setBounds(frameBounds);
+}
+
+/** The recorder's windows back on screen, taking the mouse (setting up again). */
+function showRecorder(): void {
+  overlay?.show();
+  overlay?.setIgnoreMouseEvents(false);
+  if (split) showFrame();
+}
+
+/** The recorder's windows out of the way (marking a target, the lesson window). */
+function hideRecorder(): void {
+  overlay?.hide();
+  if (live(frame)) frame.hide();
 }
 
 export function registerRecorder(getMain: () => BrowserWindow | null): void {
@@ -306,6 +470,25 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   let drawingNow = false;
   /** It was turned off here because the page stopped answering. */
   let stuckDrawing = false;
+  // Split, the pen is on the frame: a frame that stops answering while drawing would hold the
+  // mouse of the recorded screen. The clicks go back to the programs underneath, and the drawing
+  // ends when it answers again, as for the controls' window.
+  onFrameStuck = () => {
+    if (!drawingNow) return;
+    drawingNow = false;
+    rec.drawMode(false);
+    if (live(frame)) {
+      frame.setIgnoreMouseEvents(true, { forward: true });
+      frame.setFocusable(false);
+      frame.blur();
+    }
+    stuckDrawing = true;
+  };
+  onFrameBack = () => {
+    if (!stuckDrawing) return;
+    stuckDrawing = false;
+    overlay?.webContents.send("recorder:hotkey", "draw-off");
+  };
   /** The take being prepared records a screen (the drawing shortcut belongs to it). */
   let takeHasScreen = false;
   /** "Janela…": the window the next take follows. */
@@ -389,8 +572,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     }
     if (action === "guidedTarget" && browsing) {
       browsing = false;
-      overlay?.show();
-      overlay?.setIgnoreMouseEvents(false);
+      showRecorder();
       return;
     }
     overlay?.webContents.send("recorder:hotkey", HOTKEY_NAMES[action]);
@@ -641,6 +823,14 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const o = overlay;
     overlay = null;
     if (o && !o.isDestroyed()) o.close();
+    const f = frame;
+    frame = null;
+    split = false;
+    recordedIndex = null;
+    frameState = null;
+    frameBounds = null;
+    uiRectsBy.clear();
+    if (live(f)) f.close();
     const w = main();
     if (w && !w.isDestroyed()) {
       w.show();
@@ -667,6 +857,9 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     await loadSettings;
     settings = await readRecorderSettings();
     finishing = null;
+    split = false;
+    recordedIndex = null;
+    frameState = null;
     const w = main();
     const display = w ? screen.getDisplayMatching(w.getBounds()) : screen.getPrimaryDisplay();
     overlay = new BrowserWindow({
@@ -728,6 +921,10 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       rec.drawMode(false);
       overlay?.setIgnoreMouseEvents(true, { forward: true });
       overlay?.blur();
+      if (live(frame)) {
+        frame.setIgnoreMouseEvents(true, { forward: true });
+        frame.setFocusable(false);
+      }
       stuckDrawing = true;
     });
     overlay.on("responsive", () => {
@@ -780,13 +977,23 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     ...rec.status(),
     holdBackground: scheduler.state().holding,
   }));
-  /** The recorder's own controls, in window pixels: the helper marks the pointer over them. */
-  ipcMain.handle("recorder:uiRects", (_e, raw: unknown) => {
+  /** A recorder window that sent a message: the controls, or the frame. */
+  const senderWindow = (e: Electron.IpcMainInvokeEvent): BrowserWindow | null => {
+    if (live(overlay) && e.sender === overlay.webContents) return overlay;
+    if (live(frame) && e.sender === frame.webContents) return frame;
+    return null;
+  };
+  /**
+   * The recorder's own controls, in pixels of the window that sent them (the controls or the
+   * frame): the helper marks the pointer over any of them.
+   */
+  ipcMain.handle("recorder:uiRects", (e, raw: unknown) => {
     const rects = z.array(rectDip).max(32).parse(raw);
-    const o = overlay;
+    const o = senderWindow(e);
     if (!o) return;
     const origin = o.getBounds();
-    rec.uiRects(
+    uiRectsBy.set(
+      e.sender.id,
       rects
         .filter((r) => r.width > 0 && r.height > 0)
         .map((r) => {
@@ -799,6 +1006,22 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
           return { x: p.x, y: p.y, w: p.width, h: p.height };
         }),
     );
+    rec.uiRects([...uiRectsBy.values()].flat().slice(0, 32));
+  });
+  /** The frame's region, handles and drawing, as the controls have them now. */
+  ipcMain.handle("recorder:frameState", (e, raw: unknown) => {
+    if (!live(overlay) || e.sender !== overlay.webContents) return;
+    const state: FrameState = frameStateSchema.parse(raw);
+    frameState = state;
+    if (live(frame)) frame.webContents.send("recorder:frameState", state);
+  });
+  ipcMain.handle("recorder:frameInit", (e) =>
+    live(frame) && e.sender === frame.webContents ? frameState : null,
+  );
+  /** What was done on the frame (the region dragged, its size typed, the drawing closed). */
+  ipcMain.handle("recorder:frameEvent", (e, event: unknown) => {
+    if (!live(frame) || e.sender !== frame.webContents) return;
+    overlay?.webContents.send("recorder:frameEvent", frameEventSchema.parse(event));
   });
   /**
    * The teleprompter moved to a line: by a shortcut (now), or because the voice finished the line
@@ -826,11 +1049,15 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       z.number().finite().positive().parse(when),
     ),
   );
-  /** The lesson's voice as one file, from a little before the point it plays from. */
-  ipcMain.handle("recorder:narration", async () => {
+  /**
+   * The lesson's voice as one file, from a little before the point it plays from: where the
+   * editor opened the recorder, or the point picked in the recorder for the next part.
+   */
+  ipcMain.handle("recorder:narration", async (_e, rawFrom: unknown) => {
     const over = context.over;
-    if (!over) throw new Error("Abra o gravador pelo editor, com a faixa Voz na aula.");
-    const start = Math.max(0, over.from - 2);
+    if (!over) throw new Error("Abra o gravador pelo editor, com a voz na faixa Voz.");
+    const from = seconds.max(over.end).optional().parse(rawFrom) ?? over.from;
+    const start = Math.max(0, from - 2);
     const end = Math.max(
       start + 0.1,
       over.to !== undefined ? Math.min(over.end, over.to + 1) : over.end,
@@ -847,8 +1074,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       recordingJob = undefined;
       captureBounds = null;
       drawingNow = false;
-      overlay?.show();
-      overlay?.setIgnoreMouseEvents(false);
+      showRecorder();
     }
   });
   // Takes the app did not finish (main window, after the license gate).
@@ -881,7 +1107,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     picking = true;
     const point = screen.dipToScreenPoint(screen.getCursorScreenPoint());
     const input = new GuidedInput();
-    overlay?.hide();
+    hideRecorder();
     try {
       return await captureBrowserTarget(
         await input.command<GuidedTarget>({ op: "sample", ...point }),
@@ -889,8 +1115,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     } finally {
       input.close();
       picking = false;
-      overlay?.show();
-      overlay?.setIgnoreMouseEvents(false);
+      showRecorder();
     }
   });
   ipcMain.handle("recorder:guidedCancel", () => endGuided());
@@ -922,18 +1147,17 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:guidedBrowser", async (_e, url: string) => {
     if (rec.isRecording()) throw new Error("Abra a aula antes de gravar.");
     browsing = true;
-    overlay?.hide();
+    hideRecorder();
     try {
       await openGuidedBrowser(url, hotkeyLabel(settings.hotkeys.guidedTarget), () => {
         // Closing the lesson window goes back to the recorder, as the shortcut does.
         if (!browsing) return;
         browsing = false;
-        overlay?.show();
-        overlay?.setIgnoreMouseEvents(false);
+        showRecorder();
       });
     } catch (err) {
       browsing = false;
-      overlay?.show();
+      showRecorder();
       throw err;
     }
   });
@@ -943,8 +1167,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     recordingJob?.finish();
     recordingJob = undefined;
     captureBounds = null;
-    overlay?.show();
-    overlay?.setIgnoreMouseEvents(false);
+    showRecorder();
   });
   /** Runs a screen plan (the Windows pointer) over the take being recorded. */
   ipcMain.handle("recorder:guidedStart", async (_e, raw: unknown) => {
@@ -988,7 +1211,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         : rec.elapsed() + 1;
       if (state.controller.signal.aborted || !rec.isRecording())
         throw new Error("Gravação interrompida.");
-      overlay?.hide();
+      hideRecorder();
       const resolveTarget = async (target: GuidedTarget): Promise<GuidedTarget> => {
         const found = await resolveBrowserTarget(target);
         if (!inside(found)) throw new Error("O elemento saiu da região gravada.");
@@ -1029,8 +1252,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
           state.paused = true;
           await rec.pause().catch(() => {});
           if (signal.aborted) return;
-          overlay?.show();
-          overlay?.setIgnoreMouseEvents(false);
+          showRecorder();
           overlay?.webContents.send(
             "recorder:hotkey",
             `guided-error:${err instanceof Error ? err.message : String(err)}`,
@@ -1085,13 +1307,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       viewport,
     );
     marking = session;
-    overlay?.hide();
+    hideRecorder();
     try {
       return await session.result;
     } finally {
       marking = null;
-      overlay?.show();
-      overlay?.setIgnoreMouseEvents(false);
+      showRecorder();
       overlay?.focus();
     }
   });
@@ -1122,6 +1343,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   const webCodec = async (fps: number): Promise<CaptureCodec> => {
     const b = overlay?.getBounds();
     const monitor =
+      monitors.find((m) => m.index === recordedIndex) ??
       (b && monitors.find((m) => m.dip?.x === b.x && m.dip?.y === b.y)) ??
       monitors.find((m) => m.primary);
     if (!monitor || monitor.output < 0) return "libx264";
@@ -1193,7 +1415,9 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const s = await rec.captureSources();
     monitors = s.monitors.map((m) => ({ ...m, dip: dipRect(m) }));
     const b = overlay?.getBounds();
-    const current = b ? monitors.find((m) => m.dip!.x === b.x && m.dip!.y === b.y) : undefined;
+    const current =
+      monitors.find((m) => m.index === recordedIndex) ??
+      (b ? monitors.find((m) => m.dip!.x === b.x && m.dip!.y === b.y) : undefined);
     return { ...s, monitors, current: current?.index ?? null };
   });
   /** Tried in the background while the recorder is set up, not during the countdown. */
@@ -1203,9 +1427,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     // The rate on screen now, not the one saved half a second from now.
     return rec.encoderFor(monitor, z.union([z.literal(30), z.literal(60)]).parse(fps));
   });
-  ipcMain.handle("recorder:moveTo", (_e, index: number) => {
+  /** The recorder on that monitor, with the controls on another one when asked and possible. */
+  ipcMain.handle("recorder:moveTo", (_e, rawIndex: unknown, rawSplit: unknown) => {
+    const index = z.int().nonnegative().parse(rawIndex);
+    const wantSplit = z.boolean().optional().parse(rawSplit) ?? false;
     const m = monitors.find((x) => x.index === index);
-    if (m) place(m);
+    return { split: m ? place(m, wantSplit, main()) : split };
   });
   /** Region comes in window pixels (DIP); the capture needs physical pixels of the monitor. */
   ipcMain.handle("recorder:prepare", async (_e, raw: unknown) => {
@@ -1289,12 +1516,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (guided) guided.paused = true;
     await rec.pause();
     if (guided) {
-      overlay?.show();
-      overlay?.setIgnoreMouseEvents(false);
+      showRecorder();
     }
   });
   ipcMain.handle("recorder:resume", async () => {
-    if (guided) overlay?.hide();
+    if (guided) hideRecorder();
     await rec.resume();
     if (guided) guided.paused = false;
   });
@@ -1348,27 +1574,49 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     rec.drawMode(drawing);
     // The board's keys (B, N, P, Ctrl+Z, Esc) reach the recorder window while drawing; leaving
     // it hands the keyboard back to the program being recorded (the next window under this one).
-    if (drawing) overlay?.focus();
-    else if (was) overlay?.blur();
+    // Split, the drawing is on the frame, over the recorded screen: it takes the mouse there.
+    const pen = split && live(frame) ? frame : overlay;
+    if (pen === frame && live(frame)) {
+      frame.setFocusable(drawing);
+      frame.setIgnoreMouseEvents(!drawing, { forward: true });
+    }
+    if (drawing) pen?.focus();
+    else if (was) pen?.blur();
   });
   ipcMain.handle("recorder:mark", (_e, kind: unknown) =>
     rec.mark(z.enum(["marker", "retake"]).parse(kind) satisfies MarkerKind),
   );
   ipcMain.handle("recorder:elapsed", () => rec.elapsed());
-  ipcMain.handle("recorder:interactive", (_e, on: boolean) =>
-    overlay?.setIgnoreMouseEvents(!on, { forward: true }),
-  );
+  ipcMain.handle("recorder:interactive", (e, raw: unknown) => {
+    const on = z.boolean().parse(raw);
+    const w = senderWindow(e);
+    if (!w) return;
+    // The frame takes the keyboard only while the pointer is on its handles (the size fields):
+    // otherwise the program being set up keeps it.
+    if (w === frame && !drawingNow) w.setFocusable(on);
+    w.setIgnoreMouseEvents(!on, { forward: true });
+  });
   ipcMain.handle("recorder:cancel", async () => {
     endGuided();
     await rec.cancel();
     close();
   });
-  ipcMain.handle("recorder:stop", async () => {
+  ipcMain.handle("recorder:stop", async (_e, raw: unknown) => {
+    const keepOpen = z.boolean().optional().parse(raw) ?? false;
     endGuided();
     try {
       return await finishTake();
     } finally {
-      close();
+      if (!keepOpen) close();
+      else {
+        // The take went to the editor; the recorder stays for the next one, as after a discard.
+        finishing = null;
+        recordingJob?.finish();
+        recordingJob = undefined;
+        captureBounds = null;
+        drawingNow = false;
+        showRecorder();
+      }
     }
   });
 }
