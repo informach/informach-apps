@@ -3,7 +3,7 @@ import {
   type LayoutContainer,
   type LayoutDocument,
 } from "@informach/edi-motion/layout";
-import { useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ArtboardCommand } from "../../shared/artboards";
 import type { Artboard } from "../../shared/project";
@@ -27,11 +27,85 @@ const defaultDocument = (): LayoutDocument => ({
   items: [],
 });
 let linkedSizePreference = false;
+let linkedOriginPreference = false;
+let linkedScalePreference = false;
 let paddingExpandedPreference = false;
+
+const roundValue = (value: number) => Math.round(value * 100) / 100;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function LinkIcon({ linked }: { linked: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        d={
+          linked
+            ? "M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 013.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 01-3.5-3.5l1-1"
+            : "M7 4.5l1-1a2.5 2.5 0 013.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 01-3.5-3.5l1-1M3 3l1.5 1.5M13 13l-1.5-1.5"
+        }
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// Dragging the short label changes the value by 1 per pixel (Shift ×10, Alt ×0.1).
+// Window listeners survive the remount that a live preview triggers, and the
+// final value goes through the same commit as typing, exactly once.
+function startScrub(
+  event: ReactPointerEvent<HTMLLabelElement>,
+  options: {
+    min: number;
+    max: number;
+    onCommit(input: HTMLInputElement): void;
+    preview?(value: number): void;
+  },
+) {
+  const input = event.currentTarget.querySelector("input");
+  if (event.button !== 0 || !input || input.disabled) return;
+  event.preventDefault();
+  const startX = event.clientX,
+    start = Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0;
+  let moved = false,
+    latest = start,
+    frame = 0;
+  const move = (pointer: PointerEvent) => {
+    const delta = pointer.clientX - startX;
+    if (!moved && Math.abs(delta) < 3) return;
+    moved = true;
+    document.body.classList.add("artboard-scrubbing");
+    const factor = pointer.shiftKey ? 10 : pointer.altKey ? 0.1 : 1;
+    latest = clamp(roundValue(start + delta * factor), options.min, options.max);
+    input.value = String(latest);
+    if (options.preview && !frame)
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        options.preview?.(latest);
+      });
+  };
+  const end = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+    cancelAnimationFrame(frame);
+    document.body.classList.remove("artboard-scrubbing");
+    if (!moved) return;
+    input.value = String(latest);
+    options.onCommit(input);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+}
 
 function ArtboardInspector({ board, view, updateView, execute }: Props) {
   const [error, setError] = useState("");
   const [linkedSize, setLinkedSize] = useState(linkedSizePreference);
+  const [linkedOrigin, setLinkedOrigin] = useState(linkedOriginPreference);
+  const [linkedScale, setLinkedScale] = useState(linkedScalePreference);
   const [paddingExpanded, setPaddingExpanded] = useState(paddingExpandedPreference);
   const [name, setName] = useState(board.name);
   const width = board.scene.viewBox[2];
@@ -80,27 +154,71 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     label: string,
     value: number,
     onCommit: (input: HTMLInputElement) => void,
-    options: { min?: number; max?: number; shortLabel?: string } = {},
+    options: {
+      min?: number;
+      max?: number;
+      shortLabel?: string;
+      unit?: string;
+      preview?(value: number): void;
+    } = {},
   ) => (
-    <label className="artboard-value" key={label}>
-      <span title={label}>{options.shortLabel ?? label}</span>
-      <input
-        aria-label={label}
-        type="number"
-        step="any"
-        min={options.min ?? 0}
-        max={options.max ?? 100000}
-        defaultValue={value}
-        onBlur={(event) => onCommit(event.currentTarget)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") {
-            event.currentTarget.value = String(value);
-            event.currentTarget.blur();
-          }
-        }}
-      />
+    <label
+      className="artboard-value"
+      key={label}
+      onPointerDown={(event) => {
+        if ((event.target as Element).closest(".artboard-scrub"))
+          startScrub(event, {
+            min: options.min ?? 0,
+            max: options.max ?? 100000,
+            onCommit,
+            preview: options.preview,
+          });
+      }}
+    >
+      <span className="artboard-scrub" title={`${label}: arraste para ajustar`}>
+        {options.shortLabel ?? label}
+      </span>
+      <span className="artboard-value-input">
+        <input
+          aria-label={label}
+          type="number"
+          step="any"
+          min={options.min ?? 0}
+          max={options.max ?? 100000}
+          defaultValue={value}
+          onBlur={(event) => onCommit(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              event.currentTarget.value = String(value);
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        {options.unit && (
+          <span className="artboard-unit" aria-hidden="true">
+            {options.unit}
+          </span>
+        )}
+      </span>
     </label>
+  );
+  const linkButton = (
+    subject: string,
+    linked: boolean,
+    toggle: (next: boolean) => void,
+    className = "artboard-link",
+  ) => (
+    <button
+      type="button"
+      className={className}
+      aria-label={`${linked ? "Desvincular" : "Vincular"} ${subject}`}
+      aria-pressed={linked}
+      title={`${linked ? "Desvincular" : "Vincular"} ${subject}`}
+      onClick={() => toggle(!linked)}
+    >
+      <LinkIcon linked={linked} />
+    </button>
   );
   const padding = root?.padding ?? [0, 0, 0, 0];
   const updatePadding = (index: number, input: HTMLInputElement) => {
@@ -115,6 +233,19 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     next[index] = value;
     updateLayout({ padding: next });
   };
+  const partners: Partial<Record<keyof ArtboardView, keyof ArtboardView>> = {
+    ...(linkedOrigin ? { originX: "originY", originY: "originX" } : {}),
+    ...(linkedScale ? { scaleX: "scaleY", scaleY: "scaleX" } : {}),
+  };
+  // `view` is the value at render time; during a scrub it stays the starting
+  // point, so the linked axis keeps the proportion it had when the drag began.
+  const viewPatch = (key: keyof ArtboardView, value: number, min: number, max: number) => {
+    const partner = partners[key];
+    if (!partner) return { [key]: value };
+    const other =
+      view[key] === 0 ? value : clamp(roundValue((value * view[partner]) / view[key]), min, max);
+    return { [key]: value, [partner]: other };
+  };
   const commitView = (
     key: keyof ArtboardView,
     input: HTMLInputElement,
@@ -127,7 +258,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
       setError(`Valor de ${input.getAttribute("aria-label") ?? key} fora do intervalo permitido.`);
       return;
     }
-    if (value !== view[key]) updateView({ [key]: value });
+    if (value !== view[key]) updateView(viewPatch(key, value, minimum, maximum));
   };
   const viewField = (
     label: string,
@@ -135,11 +266,14 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     key: keyof ArtboardView,
     min: number,
     max: number,
+    unit?: string,
   ) =>
     numberField(label, view[key], (input) => commitView(key, input, min, max), {
       min,
       max,
       shortLabel,
+      unit,
+      preview: (value) => updateView(viewPatch(key, value, min, max)),
     });
 
   return (
@@ -180,51 +314,72 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
         <div className="artboard-transform-row">
           <span>Origem</span>
           <div className="artboard-value-row">
-            {viewField("Origem X (%)", "X %", "originX", 0, 100)}
-            {viewField("Origem Y (%)", "Y %", "originY", 0, 100)}
+            {viewField("Origem X (%)", "X", "originX", 0, 100, "%")}
+            {viewField("Origem Y (%)", "Y", "originY", 0, 100, "%")}
           </div>
+          {linkButton("origem", linkedOrigin, (next) => {
+            linkedOriginPreference = next;
+            setLinkedOrigin(next);
+          })}
         </div>
         <div className="artboard-transform-row">
           <span>Escala</span>
           <div className="artboard-value-row">
-            {viewField("Escala X (%)", "X %", "scaleX", 1, 1000)}
-            {viewField("Escala Y (%)", "Y %", "scaleY", 1, 1000)}
+            {viewField("Escala X (%)", "X", "scaleX", 1, 1000, "%")}
+            {viewField("Escala Y (%)", "Y", "scaleY", 1, 1000, "%")}
           </div>
+          {linkButton("escala", linkedScale, (next) => {
+            linkedScalePreference = next;
+            setLinkedScale(next);
+          })}
         </div>
         <div className="artboard-transform-row">
           <span>Rotação</span>
-          {viewField("Rotação (°)", "°", "rotation", -3600, 3600)}
+          {viewField("Rotação (°)", "∠", "rotation", -3600, 3600, "°")}
         </div>
         <div className="artboard-transform-row">
           <span>Opacidade</span>
-          {viewField("Opacidade (%)", "%", "opacity", 0, 100)}
+          {viewField("Opacidade (%)", "◐", "opacity", 0, 100, "%")}
+        </div>
+        <div className="artboard-transform-row">
+          <span>Recorte</span>
+          <label
+            className="artboard-check artboard-clip"
+            title={
+              root
+                ? "Recortar o conteúdo nos limites da prancheta"
+                : "Ative o layout dos filhos para recortar o conteúdo"
+            }
+          >
+            <input
+              type="checkbox"
+              aria-label="Recortar conteúdo"
+              disabled={!root}
+              checked={root?.clip ?? false}
+              onChange={(event) => updateLayout({ clip: event.target.checked })}
+            />
+          </label>
         </div>
       </section>
 
       <section className="artboard-inspector-section">
         <div className="artboard-inspector-title">
           <h3>Tamanho</h3>
-          <button
-            type="button"
-            aria-label={linkedSize ? "Desvincular proporção" : "Vincular proporção"}
-            aria-pressed={linkedSize}
-            title={linkedSize ? "Desvincular proporção" : "Vincular proporção"}
-            onClick={() => {
-              linkedSizePreference = !linkedSize;
-              setLinkedSize(linkedSizePreference);
-            }}
-          >
-            {linkedSize ? "↔" : "⛓"}
-          </button>
+          {linkButton("proporção", linkedSize, (next) => {
+            linkedSizePreference = next;
+            setLinkedSize(next);
+          })}
         </div>
         <div className="artboard-value-row">
           {numberField("Largura", width, (input) => commitSize("width", input), {
             min: 0.001,
             shortLabel: "W",
+            unit: "px",
           })}
           {numberField("Altura", height, (input) => commitSize("height", input), {
             min: 0.001,
             shortLabel: "H",
+            unit: "px",
           })}
         </div>
       </section>
@@ -310,7 +465,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
                     setError("Espaço horizontal inválido.");
                   }
                 },
-                { shortLabel: "Horizontal" },
+                { shortLabel: "↔", unit: "px" },
               )}
               {numberField(
                 "Espaço vertical",
@@ -324,7 +479,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
                     setError("Espaço vertical inválido.");
                   }
                 },
-                { shortLabel: "Vertical" },
+                { shortLabel: "↕", unit: "px" },
               )}
             </div>
             <div className="artboard-value-row">
@@ -369,7 +524,8 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
               <div className="artboard-padding-grid">
                 {(["Superior", "Direita", "Inferior", "Esquerda"] as const).map((label, index) =>
                   numberField(label, padding[index] ?? 0, (input) => updatePadding(index, input), {
-                    shortLabel: ["Topo", "Direita", "Base", "Esquerda"][index],
+                    shortLabel: ["↑", "→", "↓", "←"][index],
+                    unit: "px",
                   }),
                 )}
               </div>
@@ -377,18 +533,6 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
           </>
         )}
       </section>
-      {root && (
-        <section className="artboard-inspector-section artboard-clip-section">
-          <label className="artboard-check">
-            <span>Recortar conteúdo</span>
-            <input
-              type="checkbox"
-              checked={root.clip}
-              onChange={(event) => updateLayout({ clip: event.target.checked })}
-            />
-          </label>
-        </section>
-      )}
       {error && (
         <p className="artboard-inspector-error" role="alert">
           {error}
