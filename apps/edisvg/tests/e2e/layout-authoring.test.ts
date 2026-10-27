@@ -24,6 +24,7 @@ test("layout is authored, undone, restored and exported offline through the real
     await page.mouse.down();
     await page.mouse.move(box.x + 180, box.y + 150);
     await page.mouse.up();
+    await page.locator('[data-inspector-section="layout"] > summary').click();
     await page.getByRole("button", { name: "Ativar layout da prancheta", exact: true }).click();
     await page.locator(".scene-artwork [data-edi-layout]").waitFor();
     const get = () => page.evaluate(() => localStorage.getItem("edisvg-project")),
@@ -36,6 +37,7 @@ test("layout is authored, undone, restored and exported offline through the real
     await page.reload();
     await page.locator(".scene-artwork [data-edi-layout]").waitFor();
     assert.equal(await get(), authored);
+    await page.locator('[data-inspector-section="layout"] > summary').click();
     await page.getByRole("button", { name: "Testar layout", exact: true }).click();
     await page.locator(".behavior-test-preview [data-edi-layout]").waitFor();
     await page.getByRole("button", { name: "Resetar teste", exact: true }).click();

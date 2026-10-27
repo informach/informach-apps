@@ -95,10 +95,6 @@ function RigPanel({
             />
             Mostrar ossos, alvos e malha selecionada no canvas
           </label>
-          <p className="micro">
-            Design edita a pose de referência; Animar grava poses e resolve restrições. Arte
-            vinculada conserva a pose de referência, passando a receber o movimento do osso.
-          </p>
           <fieldset>
             <legend>Ossos e alvos</legend>
             <select

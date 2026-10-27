@@ -126,6 +126,7 @@ test("the semantics panel turns the object into a live region", {
     await page.goto(server.url);
     await page.locator(".scene-artwork>svg").waitFor();
     await page.locator(`[data-scene-select="${f.group}"]`).click();
+    await page.locator('[data-inspector-section="semantics"] > summary').click();
     const semantics = page.getByRole("region", { name: "Semântica acessível" });
     await semantics.getByLabel("Anunciar mudanças").selectOption("polite");
     await semantics.getByRole("button", { name: "Aplicar semântica", exact: true }).click();

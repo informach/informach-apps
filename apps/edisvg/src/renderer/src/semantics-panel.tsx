@@ -122,13 +122,6 @@ function SemanticsPanel({ node, locked, execute }: Props) {
           )}
           <button type="submit">Aplicar semântica</button>
         </fieldset>
-        <p className="micro">
-          Botões precisam de listener de ativação em Dados. Enter/Espaço ativam; setas operam
-          listeners de movimento. Nome e descrição podem seguir um input pelo binding Semântico, em
-          Dados; com Anunciar mudanças, o objeto vira região viva. Elementos decorativos não podem
-          conter interações. A exportação interativa verifica a árvore inteira; salvar uma
-          configuração incompleta continua permitido.
-        </p>
         {error && <p role="alert">{error}</p>}
       </form>
     </section>

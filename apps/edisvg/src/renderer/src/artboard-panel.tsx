@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ArtboardCommand } from "../../shared/artboards";
 import type { ComponentCommand } from "../../shared/componentContracts";
@@ -27,19 +27,6 @@ function ArtboardPanel({ boards, activeId, defaultId, select, execute, report, c
       report(error instanceof Error ? error.message : "Falha ao editar prancheta.");
     }
   };
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!active) return;
-    const form = new FormData(event.currentTarget);
-    run({
-      type: "artboard",
-      operation: "update",
-      id: active.id,
-      name: String(form.get("name")),
-      width: Number(form.get("width")),
-      height: Number(form.get("height")),
-    });
-  }
   return (
     <section className="scene-padding" aria-label="Pranchetas">
       <h3>
@@ -88,49 +75,6 @@ function ArtboardPanel({ boards, activeId, defaultId, select, execute, report, c
             execute={execute}
             report={report}
           />
-          <form key={active.id} onSubmit={submit}>
-            <label className="scene-field">
-              Nome
-              <input
-                name="name"
-                aria-label="Nome da prancheta"
-                defaultValue={active.name}
-                maxLength={120}
-                required
-              />
-            </label>
-            <label className="scene-field">
-              Largura
-              <input
-                name="width"
-                aria-label="Largura da prancheta"
-                type="number"
-                min="0.001"
-                max="100000"
-                step="any"
-                defaultValue={active.scene.viewBox[2]}
-                required
-              />
-            </label>
-            <label className="scene-field">
-              Altura
-              <input
-                name="height"
-                aria-label="Altura da prancheta"
-                type="number"
-                min="0.001"
-                max="100000"
-                step="any"
-                defaultValue={active.scene.viewBox[3]}
-                required
-              />
-            </label>
-            <button type="submit">Aplicar prancheta</button>
-          </form>
-          <p className="micro">
-            Dimensões alteram a área visível, não escalam nem apagam a arte. Trocar de prancheta não
-            consome Desfazer.
-          </p>
           <div className="scene-tools">
             <button
               type="button"

@@ -295,8 +295,9 @@ test("the effects panel applies and removes a preset filter in undoable edits; L
     await page.locator(".scene-artwork>svg").waitFor();
     const before = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await page.locator('[data-scene-select="node-shadowed"]').click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     const form = page.getByRole("form", { name: "Filtros", exact: true });
-    await form.getByText("Sem filtro.").waitFor();
+    await form.getByLabel("Desfoque da sombra (px)", { exact: true }).waitFor();
     await form.getByLabel("Desfoque da sombra (px)", { exact: true }).fill("6");
     await form.getByRole("button", { name: "Aplicar filtro", exact: true }).click();
     const hasFilter = () =>
@@ -315,7 +316,6 @@ test("the effects panel applies and removes a preset filter in undoable edits; L
     );
     assert.equal(saved.artboards[0]?.scene.nodes[0]?.filter?.primitives[0]?.kind, "dropShadow");
     assert.equal(await page.locator(".scene-artwork filter feDropShadow").count(), 1);
-    await form.getByText("Filtro atual: sombra.").waitFor();
     await form.getByRole("button", { name: "Remover filtro", exact: true }).click();
     await page.waitForFunction((value) => localStorage.getItem("edisvg-project") === value, before);
     await page.keyboard.press("Control+z");

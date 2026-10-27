@@ -311,6 +311,7 @@ test("the effects panel switches a mask to luminance in one undoable edit", {
     await page.locator(".scene-artwork>svg").waitFor();
     const before = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await page.locator('[data-scene-select="node-art"]').click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     const panel = page.getByRole("region", { name: "Recortes e máscaras", exact: true });
     await panel
       .getByRole("combobox", { name: "Fonte da máscara alpha", exact: true })

@@ -172,6 +172,7 @@ test("built gradient editor authors stops/opacity/geometry, refuses unsorted edi
     }, fixture.project);
     await page.goto(server.url);
     await page.locator(`[data-layer-name="${fixture.shapeId}"]`).click();
+    await page.getByText("Gradientes e padrões", { exact: true }).click();
     const form = page.getByRole("form", { name: "Gradiente de preenchimento", exact: true });
     await form
       .getByLabel("Tipo de gradiente de preenchimento", { exact: true })
@@ -208,6 +209,7 @@ test("built gradient editor authors stops/opacity/geometry, refuses unsorted edi
     await page.locator(".scene-artwork linearGradient").waitFor({ state: "attached" });
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), stored);
     await page.locator(`[data-layer-name="${fixture.shapeId}"]`).click();
+    await page.getByText("Gradientes e padrões", { exact: true }).click();
     await mkdir(resolve("../../.cache/edisvg-review"), { recursive: true });
     await form
       .getByLabel("Tipo de gradiente de preenchimento", { exact: true })

@@ -2,7 +2,6 @@ import { type VectorEffects, vectorEffectsSchema } from "@informach/edi-motion/g
 import { useId, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  describeFilter,
   FILTER_PRESET_LABELS,
   FILTER_PRESETS,
   type FilterPreset,
@@ -191,9 +190,6 @@ function FilterEditor({ node, locked, execute }: Omit<Props, "scene">) {
     >
       <fieldset disabled={locked}>
         <legend>Filtros</legend>
-        <p className="micro">
-          {node.filter ? `Filtro atual: ${describeFilter(node.filter)}.` : "Sem filtro."}
-        </p>
         <label htmlFor={`${id}-preset`}>
           Modelo de filtro
           <select

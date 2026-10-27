@@ -3,6 +3,7 @@ import { bindPathCanvas, startPathEditing } from "./pathEditor.js";
 import { bindPenTool } from "./penTool.js";
 import { bindBoneTool } from "./rig/bone-tool";
 import { bindSelectionGestures } from "./selectionGestures";
+import { defaultArtboardView } from "./workspace";
 
 let cleanupGesture;
 let cleanupViewport;
@@ -39,7 +40,12 @@ export function bindViewport(state, { render }) {
   state.pan ??= { x: 0, y: 0 };
   const pan = state.pan;
   const apply = () => {
-    board.style.translate = `${pan.x}px ${pan.y}px`;
+    const view = state.artboardViews?.[state.activeArtboardId] ?? defaultArtboardView();
+    board.style.translate = `${pan.x + view.x}px ${pan.y + view.y}px`;
+    board.style.transformOrigin = `${view.originX}% ${view.originY}%`;
+    board.style.rotate = `${view.rotation}deg`;
+    board.style.scale = `${view.scaleX / 100} ${view.scaleY / 100}`;
+    board.style.opacity = String(view.opacity / 100);
   };
   apply();
   stage.dataset.tool = state.tool || "select";

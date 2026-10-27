@@ -172,6 +172,7 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     // Real UI authoring, two independent objects, actual offline download.
     await page.locator('[data-action="design"]').click();
     await page.locator("[data-scene-select]").first().click();
+    await page.locator('[data-inspector-section="organize"] > summary').click();
     await page.locator('[data-scene-operation="duplicate"]').click();
     const objects = (await snapshot(page)).scene.nodes;
     await page.locator(`[data-scene-select="${objects[0].id}"]`).click();
@@ -488,6 +489,7 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
       .locator(".layer-icon")
       .click({ modifiers: ["Shift"] });
     assert.equal(await page.locator('[data-scene-select][aria-pressed="true"]').count(), 2);
+    await page.locator('[data-inspector-section="organize"] > summary').click();
     await page.locator('[data-composition="group"]').click();
     const groupedProject = await snapshot(page);
     assert.equal(groupedProject.scene.nodes.length, 1);
@@ -519,9 +521,11 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     assert.equal((await snapshot(page)).artboards.length, 2);
     const newBoard = (await snapshot(page)).artboards[1];
     await page.getByLabel("Nome da prancheta", { exact: true }).fill("Botão responsivo");
-    await page.getByLabel("Largura da prancheta", { exact: true }).fill("320");
-    await page.getByLabel("Altura da prancheta", { exact: true }).fill("80");
-    await page.getByRole("button", { name: "Aplicar prancheta", exact: true }).click();
+    await page.getByLabel("Nome da prancheta", { exact: true }).press("Enter");
+    await page.getByLabel("Largura", { exact: true }).fill("320");
+    await page.getByLabel("Largura", { exact: true }).press("Enter");
+    await page.getByLabel("Altura", { exact: true }).fill("80");
+    await page.getByLabel("Altura", { exact: true }).press("Enter");
     assert.deepEqual((await snapshot(page)).artboards[1].scene.viewBox, [0, 0, 320, 80]);
     const beforeSwitch = await snapshot(page);
     await page.locator('[data-artboard-select="artboard-main"]').click();
@@ -797,16 +801,22 @@ test("built renderer preserves work, navigation undo and actual exported HTML", 
     assert.deepEqual(afterBoolean.motion, beforeBoolean.motion);
     await page.locator('[data-action="undo"]').click();
     assert.deepEqual(await snapshot(page), beforeBoolean);
-    await page.getByLabel("Cor de preenchimento", { exact: true }).fill("#123456");
+    await page.getByRole("button", { name: "Escolher cor de preenchimento" }).click();
+    const colorPicker = page.getByRole("dialog", { name: "Escolher cor de preenchimento" });
+    await colorPicker.getByLabel("Hexadecimal").fill("#123456");
+    await page.screenshot({ path: resolve("../../.cache/edisvg-paint-picker.png") });
     assert.deepEqual(await snapshot(page), beforeBoolean, "Color drafts do not edit the project");
-    await page.getByRole("button", { name: "Aplicar cores", exact: true }).click();
+    await colorPicker.getByRole("button", { name: "Aplicar cor" }).click();
     assert.equal((await snapshot(page)).artboards.at(-1).scene.nodes[0].attrs.fill, "#123456");
-    await page.getByRole("button", { name: "Guardar cor na paleta", exact: true }).click();
-    assert.deepEqual((await snapshot(page)).artboards.at(-1).scene.palette, ["#123456"]);
-    await page.getByLabel("Nome do estilo", { exact: true }).fill("Menta de teste");
+    await page.getByRole("button", { name: "Escolher cor de preenchimento" }).click();
     await page
-      .getByRole("button", { name: "Guardar aparência efetiva como estilo", exact: true })
+      .getByRole("dialog", { name: "Escolher cor de preenchimento" })
+      .getByRole("button", { name: "Guardar na paleta" })
       .click();
+    assert.deepEqual((await snapshot(page)).artboards.at(-1).scene.palette, ["#123456"]);
+    await page.getByText("Estilos e paleta", { exact: true }).click();
+    await page.getByLabel("Nome do estilo", { exact: true }).fill("Menta de teste");
+    await page.getByRole("button", { name: "Guardar estilo", exact: true }).click();
     assert.equal((await snapshot(page)).artboards.at(-1).scene.styles[0].name, "Menta de teste");
     const beforeText = await snapshot(page);
     await page.locator('[data-action="tool-text"]').click();

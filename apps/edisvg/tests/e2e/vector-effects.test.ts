@@ -305,6 +305,7 @@ test("built effects inspector authors safe references, preserves undo/recovery a
     }, fixture.project);
     await page.goto(server.url);
     await page.locator(`[data-layer-name="${fixture.targetId}"]`).click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     const panel = page.getByRole("region", { name: "Recortes e máscaras", exact: true });
     await panel
       .getByRole("combobox", { name: "Fonte do recorte", exact: true })
@@ -333,6 +334,7 @@ test("built effects inspector authors safe references, preserves undo/recovery a
     await page.locator(".scene-artwork clipPath").first().waitFor({ state: "attached" });
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), stored);
     await page.locator(`[data-layer-name="${fixture.targetId}"]`).click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     await panel
       .getByRole("button", { name: "Aplicar recorte / máscara", exact: true })
       .scrollIntoViewIfNeeded();

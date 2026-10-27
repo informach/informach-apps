@@ -142,15 +142,18 @@ export function sceneCanvas(state) {
       : ""
   }<button data-viewport-reset title="Centralizar área de trabalho">Centralizar</button><select id="zoom" aria-label="Zoom">${[25, 50, 75, 100, 125, 150, 200, 300].map((v) => `<option ${state.zoom === v ? "selected" : ""}>${v}%</option>`).join("")}</select><button data-action="import-svg">Importar SVG</button></div><div class="stage"><div class="artboard scene-artboard" style="--zoom:${state.zoom / 75};aspect-ratio:${state.scene.viewBox[2]}/${state.scene.viewBox[3]}"><div class="scene-artwork">${state.previewMarkup ?? (state.previewComposition ? renderEditorComposition(state.previewComposition) : renderScene(state.scene, { editor: true }))}</div></div><p data-preview-error role="alert" hidden></p><span class="canvas-hint">${state.pathEdit ? "Arraste os pontos e alças. Duplo clique no segmento adiciona um ponto." : { pen: "Clique para criar pontos; arraste para curvas. Enter conclui; Esc cancela.", select: "Arraste para mover · Esc para cancelar", shapes: "Arraste para desenhar · Shift para proporções iguais", text: "Clique para inserir texto e edite no painel direito", hand: "Arraste para mover a área de trabalho", zoom: "Clique para ampliar · Alt + clique para reduzir" }[state.tool] || "Selecione um objeto"}</span></div>`;
 }
-function scenePaintInspector(node, locked) {
-  if (node.tag === "image")
-    return '<h3>IMAGEM</h3><p class="micro">A pintura pertence ao recurso raster. Preenchimento, contorno e estilos vetoriais não se aplicam à imagem.</p><div data-image-panel></div>';
-  return `<h3>APARÊNCIA</h3><label class="scene-field">Preenchimento<input data-scene-paint="fill" value="${esc(node.attrs.fill ?? "")}" placeholder="Herdado · #hex ou none" ${locked ? "disabled" : ""}></label><label class="scene-field">Contorno<input data-scene-paint="stroke" value="${esc(node.attrs.stroke ?? "")}" placeholder="Herdado · #hex ou none" ${locked ? "disabled" : ""}></label><label class="scene-field">Espessura<input type="number" min="0" max="10000" step="0.5" data-scene-stroke value="${esc(node.attrs["stroke-width"] ?? "1")}" ${locked ? "disabled" : ""}></label><div data-appearance-panel></div>`;
+function scenePaintInspector(node) {
+  if (node.tag === "image") return "<div data-image-panel></div>";
+  return "<div data-appearance-panel></div>";
+}
+const openInspectorSections = new Set();
+function inspectorDisclosure(id, label, content) {
+  return `<details class="inspector-disclosure" data-inspector-section="${id}" ${openInspectorSections.has(id) ? "open" : ""}><summary>${label}</summary>${content}</details>`;
 }
 export function sceneInspector(state) {
   const entry = flattenScene(state.scene).find((e) => e.node.id === state.selected);
   if (!entry)
-    return '<div class="panel-heading">Propriedades</div><div data-layout-panel></div><div data-rig-panel></div><p class="micro scene-padding">Selecione uma camada para editar.</p>';
+    return `<div data-artboard-inspector></div>${inspectorDisclosure("layout", "Layout avançado", "<div data-layout-panel></div>")}<div data-rig-panel></div>`;
   const { node, locked } = entry;
   const controls = `<div class="scene-tools"><button data-composition="group" ${locked ? "disabled" : ""}>Agrupar (${selectionIds(state).length})</button><button data-composition="ungroup" ${locked || node.tag !== "g" || node.instance ? "disabled" : ""}>Desagrupar</button></div><label class="scene-field">Grupo pai<select data-parent-group aria-label="Grupo pai" ${locked ? "disabled" : ""}><option value="" ${entry.parentId === null ? "selected" : ""}>Raiz</option>${flattenScene(
     state.scene,
@@ -162,8 +165,7 @@ export function sceneInspector(state) {
     )
     .join(
       "",
-    )}</select></label><p class="micro">Shift ou Ctrl + clique nas camadas para selecionar várias. Mudanças de grupo preservam o espaço das trilhas; operações incompatíveis são recusadas.</p>`;
-  return `<div class="panel-heading">${esc(node.name)}</div><div data-layout-panel></div><div data-rig-panel></div>${node.instance ? "<div data-instance-inspector></div>" : pathInspector(state)}<section>${controls}<div class="scene-flags"><button data-scene-visible>${node.visible ? "Ocultar" : "Mostrar"}</button><button data-scene-lock>${node.locked ? "Desbloquear" : "Bloquear"}</button></div><div class="scene-tools">${[
+    )}</select></label><div class="scene-flags"><button data-scene-visible>${node.visible ? "Ocultar" : "Mostrar"}</button><button data-scene-lock>${node.locked ? "Desbloquear" : "Bloquear"}</button></div><div class="scene-tools">${[
     ["duplicate", "Duplicar"],
     ["delete", "Excluir"],
     ["front", "Trazer à frente"],
@@ -173,9 +175,8 @@ export function sceneInspector(state) {
       ([op, label]) =>
         `<button data-scene-operation="${op}" ${locked ? "disabled" : ""}>${label}</button>`,
     )
-    .join(
-      "",
-    )}</div><div data-semantics-panel></div>${scenePaintInspector(node, locked)}<div data-effects-panel></div>${node.tag === "text" ? "<div data-text-panel></div>" : ""}<h3>TRANSFORMAÇÃO DO OBJETO</h3><div class="property-grid">${Object.entries(
+    .join("")}</div>`;
+  const transform = `<section class="inspector-transform"><h3>TRANSFORMAÇÃO</h3><div class="property-grid">${Object.entries(
     {
       ...objectPose(state, node),
       px: objectPose(state, node).px ?? 0,
@@ -183,13 +184,23 @@ export function sceneInspector(state) {
       skewX: objectPose(state, node).skewX ?? 0,
     },
   )
-    .map(
-      ([k, v]) =>
-        `<label class="property">${k}<input data-scene-transform="${k}" aria-label="Objeto ${k}" type="number" step="${k === "sx" || k === "sy" ? ".05" : "1"}" value="${v}" ${locked ? "disabled" : ""}></label>`,
-    )
-    .join(
-      "",
-    )}</div><p class="micro">Valores adicionais ao SVG. px/py definem o pivô local; skewX é a inclinação. Escalas negativas espelham; zero colapsa o eixo e impede gestos nesse espaço. ${locked ? "Camada ou grupo pai bloqueado." : ""}</p></section>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
+    .map(([k, v]) => {
+      const label =
+        {
+          x: "X",
+          y: "Y",
+          rotation: "Rotação",
+          sx: "Escala X",
+          sy: "Escala Y",
+          opacity: "Opacidade",
+          px: "Origem X",
+          py: "Origem Y",
+          skewX: "Inclinação X",
+        }[k] ?? k;
+      return `<label class="property">${label}<input data-scene-transform="${k}" aria-label="Objeto ${label}" type="number" step="${k === "sx" || k === "sy" ? ".05" : "1"}" value="${v}" ${locked ? "disabled" : ""}></label>`;
+    })
+    .join(" ")}</div></section>`;
+  return `<div class="panel-heading">${esc(node.name)}</div>${scenePaintInspector(node)}${node.tag === "text" ? "<div data-text-panel></div>" : ""}${transform}${node.instance ? "<div data-instance-inspector></div>" : pathInspector(state)}${inspectorDisclosure("organize", "Organizar", controls)}${inspectorDisclosure("effects", "Efeitos", "<div data-effects-panel></div>")}${inspectorDisclosure("semantics", "Acessibilidade", "<div data-semantics-panel></div>")}${inspectorDisclosure("layout", "Layout", "<div data-layout-panel></div>")}<div data-rig-panel></div>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
 }
 export function bindScene(
   state,
@@ -206,6 +217,12 @@ export function bindScene(
   },
 ) {
   const boundId = state.selected;
+  document.querySelectorAll("[data-inspector-section]").forEach((section) => {
+    section.ontoggle = () => {
+      if (section.open) openInspectorSections.add(section.dataset.inspectorSection);
+      else openInspectorSections.delete(section.dataset.inspectorSection);
+    };
+  });
   for (const element of document.querySelectorAll("[data-composition]"))
     element.onclick = () => {
       try {
@@ -263,21 +280,7 @@ export function bindScene(
   document.querySelectorAll("[data-scene-operation]").forEach((el) => {
     el.onclick = () => change(el.dataset.sceneOperation);
   });
-  document.querySelectorAll("[data-scene-paint]").forEach((el) => {
-    el.onchange = () => {
-      const value = el.value.trim();
-      if (!/^(#[0-9a-f]{3}|#[0-9a-f]{6}|none)$/i.test(value)) {
-        notify("Use uma cor hexadecimal (#4fe3c1) ou none para remover a pintura.");
-        render();
-        return;
-      }
-      change("attrs", { [el.dataset.scenePaint]: value });
-    };
-  });
-  for (const [selector, key, min] of [
-    ["[data-scene-stroke]", "stroke-width", 0],
-    ["[data-scene-font]", "font-size", 1],
-  ]) {
+  for (const [selector, key, min] of [["[data-scene-font]", "font-size", 1]]) {
     const el = document.querySelector(selector);
     if (el)
       el.onchange = () => {

@@ -118,6 +118,7 @@ test("real object duplication preserves animated trim, undo/reload and the copie
     };
     await page.locator('[data-action="design"]').click();
     await page.locator(`[data-scene-select="${fixture.shapeId}"]`).click();
+    await page.locator('[data-inspector-section="organize"] > summary').click();
     await page.locator('[data-scene-operation="duplicate"]').click();
     const copied = await snapshot(),
       copyId = copied.artboards[0]?.scene.nodes[1]?.id,

@@ -129,6 +129,7 @@ test("built semantic inspector authors metadata transactionally and preserves un
     );
     await page.reload();
     await page.locator(`.scene-artwork [data-object="${fixture.buttonId}"]`).click();
+    await page.locator('[data-inspector-section="semantics"] > summary').click();
     const panel = page.getByRole("region", { name: "Semântica acessível", exact: true });
     // A section with an accessible name is exposed as a region by the browser.
     await panel.getByLabel("Nome acessível", { exact: true }).fill("Cumprimentar");
@@ -174,6 +175,7 @@ test("built semantic inspector authors metadata transactionally and preserves un
     await dialog.getByRole("button", { name: "Fechar teste", exact: true }).click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), stable);
     await page.locator(`.scene-artwork [data-object="${fixture.buttonId}"]`).click();
+    await page.locator('[data-inspector-section="semantics"] > summary').click();
     await panel.scrollIntoViewIfNeeded();
     await page.screenshot({ path: "../../.cache/edisvg-review/semantic-authoring.png" });
     await page.locator(".scene-artwork").click({ position: { x: 5, y: 5 } });

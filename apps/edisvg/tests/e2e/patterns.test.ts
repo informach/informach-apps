@@ -323,6 +323,7 @@ test("the appearance panel applies a preset tile in one undoable edit and Lottie
     await page.locator(".scene-artwork>svg").waitFor();
     const before = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await page.locator('[data-scene-select="node-patterned"]').click();
+    await page.getByText("Gradientes e padrões", { exact: true }).click();
     const form = page.getByRole("form", { name: "Gradiente de preenchimento", exact: true });
     await form
       .getByLabel("Tipo de gradiente de preenchimento", { exact: true })
@@ -346,7 +347,7 @@ test("the appearance panel applies a preset tile in one undoable edit and Lottie
     assert.equal(fill?.kind, "pattern");
     assert.equal(fill?.kind === "pattern" ? fill.width : 0, 40);
     assert.equal(await page.locator(".scene-artwork pattern").count(), 1);
-    await page.getByText(/Efetivo: preenchimento\s*padrão/).waitFor();
+    await page.getByText("Padrão", { exact: true }).waitFor();
     await page.keyboard.press("Control+z");
     await page.waitForFunction((value) => localStorage.getItem("edisvg-project") === value, before);
     await page.keyboard.press("Control+Shift+z");

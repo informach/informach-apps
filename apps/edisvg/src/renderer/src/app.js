@@ -16,6 +16,7 @@ import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEdi
 import { importSvg } from "./svgImport.js";
 import "./sceneEditor.css";
 import "./resourceControls.css";
+import "./paint-controls.css";
 import {
   drawOrderScopes,
   emptyMotion,
@@ -55,6 +56,7 @@ import {
 } from "../../shared/project.js";
 import { inspectRig, inspectRigValue } from "../../shared/rigInspection";
 import { mountAppearancePanel } from "./appearance-panel";
+import { mountArtboardInspector } from "./artboard-inspector.tsx";
 import { mountArtboardPanel } from "./artboard-panel.tsx";
 import { bindActiveArtboard, replaceActiveScene } from "./artboardWorkspace.ts";
 import { mountAssetPanel } from "./asset-panel";
@@ -98,7 +100,12 @@ import { mountTimelinePanel } from "./timeline-panel";
 import { activeTimelineClip } from "./timelineState";
 import { mountTransformActions } from "./transform-actions";
 import { mountVectorActions } from "./vector-actions";
-import { encodeWorkspace, parseWorkspace, resolvePreviewRange } from "./workspace.ts";
+import {
+  defaultArtboardView,
+  encodeWorkspace,
+  parseWorkspace,
+  resolvePreviewRange,
+} from "./workspace.ts";
 import "./assistant.css";
 import { animations, poseAt, transition } from "../../shared/animation.js";
 import { RASTER_FORMATS } from "../../shared/raster/profile";
@@ -117,6 +124,7 @@ const state = {
   tool: "select",
   shape: "rect",
   pan: { x: 0, y: 0 },
+  artboardViews: {},
   view: "animate",
   animation: "Acenar",
   frame: 18,
@@ -276,6 +284,7 @@ let sceneElements = new Map();
 let sceneBases = new Map();
 let sceneDisplays = new Map();
 let disposeArtboardPanel;
+let disposeArtboardInspector;
 let disposeExportPanel;
 let disposeAssetPanel;
 let disposeInstanceInspector;
@@ -330,6 +339,7 @@ const layers = [
 const button = (action, label, cls = "") =>
   `<button data-action="${action}" class="${cls}">${label}</button>`;
 function render() {
+  document.body.classList.toggle("edisvg-design-mode", Boolean(state.scene && state.view === "design"));
   disposeJoystickPreview?.();
   disposeJoystickPreview = null;
   disposeExportPanel?.();
@@ -373,6 +383,8 @@ function render() {
       "Não foi possível gravar preferências da área de trabalho. O projeto continua editável; salve seu conteúdo em arquivo.";
   }
   disposeArtboardPanel?.();
+  disposeArtboardInspector?.();
+  disposeArtboardInspector = null;
   disposeAssetPanel?.();
   disposeAssetPanel = null;
   disposeTransformActions?.();
@@ -492,6 +504,25 @@ function render() {
         render();
       },
       report: notify,
+    });
+  const artboardInspectorHost = document.querySelector("[data-artboard-inspector]");
+  const activeInspectorBoard = state.artboards.find((board) => board.id === state.activeArtboardId);
+  if (artboardInspectorHost && activeInspectorBoard)
+    disposeArtboardInspector = mountArtboardInspector(artboardInspectorHost, {
+      board: activeInspectorBoard,
+      view: state.artboardViews?.[activeInspectorBoard.id] ?? defaultArtboardView(),
+      updateView(patch) {
+        state.artboardViews ??= {};
+        state.artboardViews[activeInspectorBoard.id] = {
+          ...(state.artboardViews[activeInspectorBoard.id] ?? defaultArtboardView()),
+          ...patch,
+        };
+        render();
+      },
+      execute(command) {
+        transact([command]);
+        render();
+      },
     });
   const instanceHost = document.querySelector("[data-instance-inspector]");
   const layoutHost = document.querySelector("[data-layout-panel]"),
@@ -1137,6 +1168,7 @@ function applyProject(value, resetSession = true) {
       behaviorFocus: undefined,
       zoom: 75,
       pan: { x: 0, y: 0 },
+      artboardViews: {},
       sidebarTab: "hierarchy",
     });
     chooseObject(state, state.selected);

@@ -437,10 +437,6 @@ function LayoutPanel({ board, selectedId, execute, test }: Props) {
   return (
     <section>
       <h3>LAYOUT RESPONSIVO</h3>
-      <p className="micro">
-        Canvas usa as unidades da prancheta. Testar e HTML recalculam o fluxo no viewport real; não
-        é apenas redimensionar o desenho. TRS são offsets visuais sobre o fluxo.
-      </p>
       {!layout ? (
         <button type="button" onClick={() => update(() => {})}>
           Ativar layout da prancheta

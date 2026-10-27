@@ -273,6 +273,20 @@ Antes de considerar a etapa 1 concluída, ainda é necessário testar os diálog
 
 A validação visual/nativa continua pendente. A curva de interpolação e os ossos ainda representam o protótipo. O mascote de demonstração mantém sua lista de camadas ilustrativa; projetos novos e SVGs importados usam a hierarquia real descrita acima.
 
+## Pintura no inspetor (27/10/2026)
+
+No modo Design, selecione uma forma e clique na amostra de **Preenchimento** ou **Contorno** no painel direito. O seletor flutuante permite escolher a cor pela área de saturação/luminosidade, ajustar matiz e opacidade, amostrar a tela ou usar uma cor da paleta da prancheta. O hexadecimal continua disponível como entrada opcional. **Aplicar cor** cria uma única edição desfeita pelo histórico; os rascunhos no seletor não alteram a arte. Os botões `+` e `−` ativam ou removem cada pintura, e a espessura do contorno fica logo abaixo. Gradientes e padrões, estilos e paleta ficam em seções expansíveis. Organização, efeitos, acessibilidade e layout também começam recolhidos; pintura e transformação permanecem à vista. Foram removidos textos explicativos do inspetor, sem retirar os controles dessas seções. O formato do projeto e os contratos de pintura permanecem os mesmos: uma pintura por canal, sem camadas múltiplas de fills/strokes como no Rive.
+
+O ajuste foi integrado à `main` local, sem push. Build, typecheck, teste de conversão de cor, 290 testes do app e 119 E2E passaram. A inspeção visual foi feita por captura do renderer compilado. Ainda falta validação manual na janela Electron com mouse e teclado.
+
+## Inspetor da prancheta (27/10/2026)
+
+Sem objeto selecionado, o painel direito configura a prancheta ativa. Nome, largura e altura são editados diretamente; o vínculo de proporção ajusta a outra dimensão na mesma edição. O painel apresenta layout dos filhos com fluxo horizontal, vertical ou grade, alinhamento, distribuição, espaços, direção, quebra de linha, padding por lado e recorte. Essas alterações usam os comandos de prancheta e layout existentes, entram no histórico e são preservadas no projeto e nos consumidores compatíveis.
+
+Posição, origem, escala, rotação e opacidade nesse painel afetam somente a disposição da prancheta no editor, conforme decisão do titular. Elas são preferências locais por prancheta, recuperadas no workspace, sem mudar o SVG ou o arquivo `.edisvg` exportado. O modo Design mantém a timeline compacta para dar espaço ao canvas e ao inspetor; Animar preserva a timeline completa. A lista de pranchetas à esquerda mantém criação, seleção, duplicação, definição inicial e exclusão, sem repetir os campos de nome e tamanho.
+
+Modelo, instância e margem do artboard mostrados na referência do Rive não têm uma propriedade equivalente na raiz do documento atual; não foram apresentados como controles sem efeito. Os modelos e instâncias de dados existentes continuam no modo Estados, e margens dos itens continuam no editor de layout avançado. A captura do renderer e o E2E do inspetor cobrem aparência, persistência local, edição do documento e Desfazer; a suíte E2E completa passou com 119 testes. Ainda falta avaliação manual na janela Electron.
+
 ## Ferramentas de objetos (0.4.0)
 
 Em projetos novos ou SVGs importados, o painel de camadas permite adicionar retângulo, círculo, linha e texto. Selecione um objeto para editar preenchimento e contorno (cor hexadecimal ou `none`), espessura, texto e tamanho da fonte. Duplicar (Ctrl+D), excluir (Delete), trazer à frente e enviar ao fundo respeitam os grupos e bloqueios. A ordem muda dentro do mesmo grupo. Todas essas operações participam do histórico e do arquivo de projeto; duplicar grupos gera novos IDs para os descendentes.

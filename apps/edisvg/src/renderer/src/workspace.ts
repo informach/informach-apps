@@ -1,6 +1,28 @@
 import { z } from "zod";
 import type { Project } from "../../shared/project";
 
+const artboardViewSchema = z.strictObject({
+  x: z.number().min(-100000).max(100000),
+  y: z.number().min(-100000).max(100000),
+  originX: z.number().min(0).max(100),
+  originY: z.number().min(0).max(100),
+  scaleX: z.number().min(1).max(1000),
+  scaleY: z.number().min(1).max(1000),
+  rotation: z.number().min(-3600).max(3600),
+  opacity: z.number().min(0).max(100),
+});
+export type ArtboardView = z.infer<typeof artboardViewSchema>;
+export const defaultArtboardView = (): ArtboardView => ({
+  x: 0,
+  y: 0,
+  originX: 0,
+  originY: 0,
+  scaleX: 100,
+  scaleY: 100,
+  rotation: 0,
+  opacity: 100,
+});
+
 const schema = z.strictObject({
   version: z.literal(1),
   projectId: z.string().max(120),
@@ -11,6 +33,7 @@ const schema = z.strictObject({
   frame: z.number().min(0).max(360000),
   zoom: z.number().min(25).max(300),
   pan: z.strictObject({ x: z.number().min(-1e7).max(1e7), y: z.number().min(-1e7).max(1e7) }),
+  artboardViews: z.record(z.string().max(120), artboardViewSchema).optional(),
   timelineZoom: z.number().min(1).max(64).optional(),
   timelineScroll: z
     .strictObject({ left: z.number().min(0).max(1e7), top: z.number().min(0).max(1e7) })
@@ -77,7 +100,7 @@ export function resolvePreviewRange(
     : { start: 0, end: clip.frames };
 }
 export function parseWorkspace(text: string, project: Project): Workspace | null {
-  if (text.length > 4000) throw new Error("Preferências excedem o limite permitido.");
+  if (text.length > 20000) throw new Error("Preferências excedem o limite permitido.");
   const value = schema.parse(JSON.parse(text));
   if (value.projectId !== project.id) return null;
   const clip = project.motion.animations.find((clip) => clip.id === value.activeClipId);
@@ -91,6 +114,11 @@ export function parseWorkspace(text: string, project: Project): Workspace | null
     frame: Math.min(value.frame, clip?.frames ?? 120),
     zoom: value.zoom,
     pan: value.pan,
+    artboardViews: Object.fromEntries(
+      Object.entries(value.artboardViews ?? {}).filter(([id]) =>
+        project.artboards.some((board) => board.id === id),
+      ),
+    ),
     timelineZoom: value.timelineZoom ?? 1,
     timelineScroll: value.timelineScroll ?? { left: 0, top: 0 },
     onion: value.onion ?? false,
@@ -126,6 +154,7 @@ export function encodeWorkspace(projectId: string, state: Workspace) {
       frame: state.frame,
       zoom: state.zoom,
       pan: state.pan,
+      artboardViews: state.artboardViews,
       timelineZoom: state.timelineZoom,
       timelineScroll: state.timelineScroll,
       onion: state.onion,

@@ -29,13 +29,26 @@ test("workspace is project-scoped, validated, does not change content and drops 
     frame: 0,
     zoom: 100,
     pan: { x: 10, y: 20 },
+    artboardViews: {
+      "artboard-main": {
+        x: 42,
+        y: 0,
+        originX: 0,
+        originY: 0,
+        scaleX: 125,
+        scaleY: 100,
+        rotation: 15,
+        opacity: 100,
+      },
+    },
   });
   assert.equal(parseWorkspace(encoded, project)?.sidebarTab, "artboards");
+  assert.equal(parseWorkspace(encoded, project)?.artboardViews?.["artboard-main"]?.scaleX, 125);
   assert.deepEqual(project, before);
   assert.equal(parseWorkspace(encoded, newProject()), null);
   const stale = parseWorkspace(encoded.replace("artboard-main", "artboard-deleted"), project);
   assert.equal(stale?.activeArtboardId, project.defaultArtboardId);
   assert.throws(() => parseWorkspace("broken{", project));
   assert.throws(() => parseWorkspace(encoded.replace('"zoom":100', '"zoom":1e999'), project));
-  assert.throws(() => parseWorkspace("x".repeat(4001), project));
+  assert.throws(() => parseWorkspace("x".repeat(20001), project));
 });

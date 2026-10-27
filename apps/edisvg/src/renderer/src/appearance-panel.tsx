@@ -1,182 +1,89 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { inheritedAppearance, inheritedGradients } from "../../shared/appearance";
 import { appearanceKeys } from "../../shared/appearanceContracts";
 import type { Scene, SceneNode } from "../../shared/sceneTypes";
 import { GradientPanel } from "./gradient-panel";
+import { PaintControls } from "./paint-controls";
 
-declare global {
-  interface Window {
-    EyeDropper?: new () => { open(options: { signal: AbortSignal }): Promise<{ sRGBHex: string }> };
-  }
-}
 interface Props {
   scene: Scene;
   node: SceneNode;
   locked: boolean;
   execute(commands: unknown[]): void;
 }
-const hex = (value: string) =>
-  /^#[\da-f]{6}$/i.test(value)
-    ? value
-    : /^#[\da-f]{3}$/i.test(value)
-      ? `#${[...value.slice(1)].map((char) => char + char).join("")}`
-      : null;
+
+let gradientsExpanded = false;
+let stylesExpanded = false;
+
 function AppearancePanel({ scene, node, locked, execute }: Props) {
-  const id = useId(),
-    effective = inheritedAppearance(scene, node),
-    effectiveGradients = inheritedGradients(scene, node),
-    [fill, setFill] = useState(hex(effective.fill ?? "") ?? "#000000"),
-    [stroke, setStroke] = useState(hex(effective.stroke ?? "") ?? "#000000"),
-    [name, setName] = useState(""),
-    [style, setStyle] = useState(scene.styles?.[0]?.id ?? ""),
-    [error, setError] = useState(""),
-    [sampling, setSampling] = useState(false),
-    controller = useRef<AbortController | null>(null);
-  useEffect(() => () => controller.current?.abort(), []);
+  const id = useId();
+  const effective = inheritedAppearance(scene, node);
+  const effectiveGradients = inheritedGradients(scene, node);
+  const [name, setName] = useState("");
+  const [style, setStyle] = useState(scene.styles?.[0]?.id ?? "");
+  const [error, setError] = useState("");
+
   const apply = (commands: unknown[]) => {
     try {
       execute(commands);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Aparência recusada.");
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Aparência recusada.");
     }
   };
-  const sample = async () => {
-    if (!window.EyeDropper || controller.current) return;
-    const task = new AbortController();
-    controller.current = task;
-    setSampling(true);
-    try {
-      const color = await new window.EyeDropper().open({ signal: task.signal });
-      if (!task.signal.aborted && hex(color.sRGBHex)) setFill(color.sRGBHex);
-    } catch (error) {
-      if (!task.signal.aborted && !(error instanceof DOMException && error.name === "AbortError"))
-        setError(error instanceof Error ? error.message : "Não foi possível amostrar a cor.");
-    } finally {
-      if (!task.signal.aborted) {
-        controller.current = null;
-        setSampling(false);
-      }
-    }
-  };
+
   return (
-    <section>
-      <h3>CORES E ESTILOS</h3>
-      <p className="micro">
-        Efetivo: preenchimento{" "}
-        {effectiveGradients.fill
-          ? effectiveGradients.fill.kind === "pattern"
-            ? "padrão"
-            : "gradiente"
-          : effective.fill}
-        , contorno{" "}
-        {effectiveGradients.stroke
-          ? effectiveGradients.stroke.kind === "pattern"
-            ? "padrão"
-            : "gradiente"
-          : effective.stroke}
-        .{" "}
-        {node.attrs.fill === undefined || node.attrs.fill === "inherit"
-          ? "Preenchimento herdado."
-          : "Preenchimento local."}{" "}
-        Seletores abaixo aplicam cores sólidas explícitas.
-      </p>
-      <fieldset disabled={locked || sampling}>
-        <label className="scene-field">
-          Cor de preenchimento
-          <input
-            type="color"
-            name="fill-color"
-            value={fill}
-            onChange={(event) => setFill(event.target.value)}
-          />
-        </label>
-        <label className="scene-field">
-          Cor de contorno
-          <input
-            type="color"
-            name="stroke-color"
-            value={stroke}
-            onChange={(event) => setStroke(event.target.value)}
-          />
-        </label>
-        <div className="scene-tools">
-          <button
-            type="button"
-            onClick={() =>
-              apply([
-                { type: "scene", operation: "attrs", targetId: node.id, value: { fill, stroke } },
-              ])
-            }
-          >
-            Aplicar cores
-          </button>
-          <button
-            type="button"
-            disabled={!window.EyeDropper}
-            title={
-              !window.EyeDropper
-                ? "Amostragem de tela indisponível nesta plataforma; use o seletor de cor."
-                : "Selecione um pixel; Escape cancela."
-            }
-            onClick={() => void sample()}
-          >
-            Amostrar preenchimento
-          </button>
-        </div>
-        <fieldset className="color-palette" aria-label="Paleta da prancheta">
-          {(scene.palette ?? []).map((color) => (
-            <button
-              type="button"
-              key={color}
-              aria-label={`Usar ${color} no preenchimento`}
-              title={color}
-              style={{ backgroundColor: color }}
-              onClick={() => setFill(color)}
-            />
-          ))}
-        </fieldset>
-        <div className="scene-tools">
-          <button
-            type="button"
-            disabled={
-              (scene.palette?.length ?? 0) >= 64 ||
-              scene.palette?.some((color) => color.toLowerCase() === fill.toLowerCase())
-            }
-            onClick={() =>
-              apply([
-                {
-                  type: "appearance",
-                  operation: "palette",
-                  colors: [...(scene.palette ?? []), fill],
-                },
-              ])
-            }
-          >
-            Guardar cor na paleta
-          </button>
-          <button
-            type="button"
-            disabled={!scene.palette?.some((color) => color.toLowerCase() === fill.toLowerCase())}
-            onClick={() =>
-              apply([
-                {
-                  type: "appearance",
-                  operation: "palette",
-                  colors: scene.palette?.filter(
-                    (color) => color.toLowerCase() !== fill.toLowerCase(),
-                  ),
-                },
-              ])
-            }
-          >
-            Remover cor selecionada
-          </button>
-        </div>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (name.trim())
+    <section className="appearance-panel">
+      <PaintControls scene={scene} node={node} locked={locked} execute={execute} />
+      <details
+        className="paint-advanced"
+        open={gradientsExpanded}
+        onToggle={(event) => {
+          gradientsExpanded = event.currentTarget.open;
+        }}
+      >
+        <summary>Gradientes e padrões</summary>
+        <GradientPanel node={node} locked={locked} execute={execute} />
+      </details>
+      <details
+        className="paint-advanced"
+        open={stylesExpanded}
+        onToggle={(event) => {
+          stylesExpanded = event.currentTarget.open;
+        }}
+      >
+        <summary>Estilos e paleta</summary>
+        <fieldset disabled={locked} className="paint-styles">
+          {(scene.palette?.length ?? 0) > 0 && (
+            <fieldset className="color-palette" aria-label="Paleta da prancheta">
+              <legend>Paleta</legend>
+              {scene.palette?.map((color) => (
+                <button
+                  type="button"
+                  key={color}
+                  aria-label={`Remover ${color} da paleta`}
+                  title={`Remover ${color}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() =>
+                    apply([
+                      {
+                        type: "appearance",
+                        operation: "palette",
+                        colors: scene.palette?.filter((item) => item !== color),
+                      },
+                    ])
+                  }
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              ))}
+            </fieldset>
+          )}
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!name.trim()) return;
               apply([
                 {
                   type: "appearance",
@@ -195,86 +102,66 @@ function AppearancePanel({ scene, node, locked, execute }: Props) {
                   },
                 },
               ]);
-          }}
-        >
-          <label className="scene-field" htmlFor={id}>
-            Nome do estilo
-            <input
-              id={id}
-              name="style-name"
-              autoComplete="off"
-              maxLength={120}
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
+            }}
+          >
+            <label className="scene-field" htmlFor={id}>
+              Nome do estilo
+              <input
+                id={id}
+                autoComplete="off"
+                maxLength={120}
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <button type="submit">Guardar estilo</button>
+          </form>
+          <label className="scene-field">
+            Estilo
+            <select value={style} onChange={(event) => setStyle(event.target.value)}>
+              <option value="">Selecione…</option>
+              {scene.styles?.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </label>
-          <button type="submit">Guardar aparência efetiva como estilo</button>
-        </form>
-        <label className="scene-field">
-          Estilo reutilizável
-          <select
-            name="appearance-style"
-            value={style}
-            onChange={(event) => setStyle(event.target.value)}
-          >
-            <option value="">Selecione…</option>
-            {scene.styles?.map((style) => (
-              <option value={style.id} key={style.id}>
-                {style.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="scene-tools">
-          <button
-            type="button"
-            disabled={!style}
-            onClick={() =>
-              apply([
-                {
-                  type: "appearance",
-                  operation: "apply-style",
-                  styleId: style,
-                  targetIds: [node.id],
-                },
-              ])
-            }
-          >
-            Aplicar estilo
-          </button>
-          <button
-            type="button"
-            disabled={!style}
-            onClick={() =>
-              apply([{ type: "appearance", operation: "delete-style", styleId: style }])
-            }
-          >
-            Excluir estilo
-          </button>
-        </div>
-      </fieldset>
-      <GradientPanel node={node} locked={locked || sampling} execute={execute} />
-      {sampling && (
-        <button
-          type="button"
-          onClick={() => {
-            controller.current?.abort();
-            controller.current = null;
-            setSampling(false);
-          }}
-        >
-          Cancelar amostragem
-        </button>
-      )}
-      <p role="status">{error || (sampling ? "Escolha uma cor na tela; Escape cancela." : "")}</p>
-      <p className="micro">
-        Paleta e até 100 estilos são salvos nesta prancheta. Aplicar copia os valores; alterar ou
-        excluir o estilo não altera objetos já pintados. Desfazer restaura edições.
-      </p>
+          <div className="scene-tools">
+            <button
+              type="button"
+              disabled={!style}
+              onClick={() =>
+                apply([
+                  {
+                    type: "appearance",
+                    operation: "apply-style",
+                    styleId: style,
+                    targetIds: [node.id],
+                  },
+                ])
+              }
+            >
+              Aplicar
+            </button>
+            <button
+              type="button"
+              disabled={!style}
+              onClick={() =>
+                apply([{ type: "appearance", operation: "delete-style", styleId: style }])
+              }
+            >
+              Excluir
+            </button>
+          </div>
+        </fieldset>
+        {error && <p role="alert">{error}</p>}
+      </details>
     </section>
   );
 }
+
 export function mountAppearancePanel(host: Element, props: Props) {
   const root = createRoot(host);
   root.render(<AppearancePanel {...props} />);

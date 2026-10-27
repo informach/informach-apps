@@ -44,12 +44,14 @@ test("built file import keeps native source choices, independent duplication, un
     assert.ok(board && target && sourceId);
     assert.equal(target.children.find((node) => node.id === sourceId)?.tag, "circle");
     await page.locator(`[data-scene-select="${target.id}"]`).click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     const panel = page.getByRole("region", { name: "Recortes e máscaras", exact: true });
     assert.equal(
       await panel.getByRole("combobox", { name: "Fonte do recorte", exact: true }).inputValue(),
       sourceId,
     );
     await page.locator(`[data-scene-select="${sourceId}"]`).click();
+    await page.locator('[data-inspector-section="organize"] > summary').click();
     await page.locator("[data-scene-visible]").click();
     const shown = await page.evaluate(() => localStorage.getItem("edisvg-project")),
       circle = page.locator(`[data-object="${sourceId}"]>circle`),
@@ -98,6 +100,7 @@ test("built file import keeps native source choices, independent duplication, un
     await page.locator(`[data-artboard-select="${board.id}"]`).click();
     await page.locator('[data-action="hierarchy"]').click();
     await page.locator(`[data-scene-select="${target.id}"]`).click();
+    await page.locator('[data-inspector-section="effects"] > summary').click();
     assert.equal(
       await panel.getByRole("combobox", { name: "Fonte do recorte", exact: true }).inputValue(),
       sourceId,
