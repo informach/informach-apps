@@ -143,3 +143,32 @@ test("orphan/circular/ambiguous/oversized layouts reject before publication; fai
       engine.compute(document, { width: 100, height: 50 }, objects, intrinsic).boxes.size,
     ).toBe(3);
 });
+test("rootSize sizes the artboard per axis from its design size, its children or the viewport", async () => {
+  const engine = await createLayoutEngine(),
+    document = layout();
+  document.root.padding = [5, 5, 5, 5];
+  document.root.gap = [10, 10];
+  const viewport = { width: 300, height: 200 },
+    design = { width: 120, height: 80 },
+    root = (value: LayoutDocument) =>
+      engine.compute(value, viewport, objects, intrinsic, design).containers.get(null);
+  expect(root(document)).toMatchObject({ width: 300, height: 200 });
+  document.rootSize = { width: "fixed", height: "fixed" };
+  expect(root(document)).toMatchObject({ width: 120, height: 80 });
+  document.rootSize = { width: "hug", height: "hug" };
+  // Three 20×10 children in a row, 10 px gaps and 5 px padding on each side.
+  expect(root(document)).toMatchObject({ width: 90, height: 20 });
+  document.rootSize = { width: "fill", height: "hug" };
+  expect(root(document)).toMatchObject({ width: 300, height: 20 });
+});
+test("a hugging artboard refuses children that depend on its size on the same axis", () => {
+  const document = layout();
+  document.rootSize = { width: "hug", height: "fixed" };
+  document.items = [{ ...defaultLayoutItem("node-a"), width: { kind: "fill", weight: 1 } }];
+  expect(() => parseLayout(document, objects)).toThrow(/dependência circular/);
+  document.items = [{ ...defaultLayoutItem("node-a"), height: { kind: "percent", value: 0.5 } }];
+  expect(parseLayout(document, objects).rootSize).toEqual({ width: "hug", height: "fixed" });
+  document.root = { ...document.root, flow: "grid", columns: { kind: "auto-fit", minWidth: 20 } };
+  document.items = [];
+  expect(() => parseLayout(document, objects)).toThrow(/auto-fit com largura hug/);
+});

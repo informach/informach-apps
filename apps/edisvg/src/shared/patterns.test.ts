@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { patternId } from "@informach/edi-motion/graphics";
-import { parseInteractiveDocument } from "@informach/edi-motion/runtime";
+import { INTERACTIVE_VERSION, parseInteractiveDocument } from "@informach/edi-motion/runtime";
 import { executeDocumentTransaction } from "./documentCommands";
 import { compileInteractiveArtboard } from "./interactive";
 import { inspectLottieCompatibility } from "./lottie/prepare";
@@ -95,7 +95,7 @@ test("preset tiles are ordinary typed patterns with an optional rotation", () =>
 
 test("projects store patterns from v23, refuse them under older headers and migrate v22 files", () => {
   const { project, id, fill } = patterned();
-  assert.equal(PROJECT_VERSION, 23);
+  assert.ok(PROJECT_VERSION >= 23);
   const reopened = parseProject(JSON.parse(JSON.stringify(project)));
   assert.deepEqual(reopened.artboards[0]?.scene.nodes[0]?.gradients?.fill, fill);
   assert.throws(
@@ -103,7 +103,7 @@ test("projects store patterns from v23, refuse them under older headers and migr
     /Padrões tipados requerem projeto v23/,
   );
   const plain = newProject();
-  assert.equal(parseProject({ ...plain, version: 22 }).version, 23);
+  assert.equal(parseProject({ ...plain, version: 22 }).version, PROJECT_VERSION);
   const styled = structuredClone(project),
     scene = styled.artboards[0]?.scene;
   assert.ok(scene);
@@ -134,7 +134,7 @@ test("rendered scenes and interactive blueprints carry one pooled pattern defini
   const compiled = compileInteractiveArtboard(project, boardId, {
     animationId: "animation-pattern",
   });
-  assert.equal(compiled.document.version, 12);
+  assert.equal(compiled.document.version, INTERACTIVE_VERSION);
   assert.equal(compiled.document.content[0]?.gradients?.fill?.kind, "pattern");
   assert.match(compiled.svg, /<pattern /);
   assert.throws(

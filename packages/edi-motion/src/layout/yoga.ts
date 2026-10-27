@@ -40,6 +40,8 @@ export interface LayoutEngine {
     viewport: { width: number; height: number },
     objects: ReadonlyMap<string, LayoutObject>,
     intrinsic: ReadonlyMap<string, Bounds>,
+    /** The artboard's authored size, used by `rootSize` fixed axes. */
+    design?: { width: number; height: number },
   ): LayoutResult;
 }
 let yogaPromise: Promise<Yoga> | undefined;
@@ -66,9 +68,9 @@ export async function createLayoutEngine(): Promise<LayoutEngine> {
       "space-evenly": Justify.SpaceEvenly,
     };
   return {
-    compute(raw, viewport, objects, intrinsic) {
+    compute(raw, viewport, objects, intrinsic, design = viewport) {
       if (
-        ![viewport.width, viewport.height].every(
+        ![viewport.width, viewport.height, design.width, design.height].every(
           (value) => Number.isFinite(value) && value >= 0 && value <= 100000,
         )
       )
@@ -239,14 +241,29 @@ export async function createLayoutEngine(): Promise<LayoutEngine> {
         const root = create();
         owners.set(root, null);
         containerStyle(root, document.root);
-        root.setWidth(viewport.width);
-        root.setHeight(viewport.height);
+        const rootSize = document.rootSize ?? { width: "fill", height: "fill" },
+          rootWidth =
+            rootSize.width === "hug"
+              ? undefined
+              : rootSize.width === "fixed"
+                ? design.width
+                : viewport.width,
+          rootHeight =
+            rootSize.height === "hug"
+              ? undefined
+              : rootSize.height === "fixed"
+                ? design.height
+                : viewport.height;
+        if (rootWidth === undefined) root.setWidthAuto();
+        else root.setWidth(rootWidth);
+        if (rootHeight === undefined) root.setHeightAuto();
+        else root.setHeight(rootHeight);
         append(root, null, document.root);
         let settled = false;
         for (let pass = 0; pass < 35; pass++) {
           root.calculateLayout(
-            viewport.width,
-            viewport.height,
+            rootWidth,
+            rootHeight,
             document.root.direction === "rtl" ? Direction.RTL : Direction.LTR,
           );
           let changes = 0;

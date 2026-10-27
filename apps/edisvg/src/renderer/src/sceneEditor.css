@@ -197,6 +197,9 @@
   border-color: color-mix(in srgb, var(--mint) 60%, var(--line));
   background: var(--panel2);
 }
+.artboard-value.is-derived {
+  opacity: 0.5;
+}
 .artboard-scrub {
   flex: 0 0 auto;
   min-width: 16px;
@@ -259,6 +262,32 @@
 }
 .artboard-link[aria-pressed="true"] {
   color: var(--mint);
+}
+.artboard-size-mode {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.artboard-size-mode select {
+  min-width: 0;
+  flex: 1;
+  height: 25px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+}
+.artboard-size-mode select:hover:not(:disabled) {
+  border-color: var(--line);
+}
+.artboard-size-mode select:disabled {
+  opacity: 0.5;
 }
 .artboard-clip input {
   width: 16px;

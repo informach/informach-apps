@@ -231,9 +231,12 @@ export function createSvgLayout(
     if (destroyed || calculating) return;
     calculating = true;
     try {
-      const { width, height } = viewportSize();
+      const viewport = viewportSize();
       if (dirty) measure();
-      const next = engine.compute(layout, { width, height }, objects, intrinsic);
+      const next = engine.compute(layout, viewport, objects, intrinsic, initialViewBox),
+        rootResult = next.containers.get(null),
+        width = rootResult?.width ?? viewport.width,
+        height = rootResult?.height ?? viewport.height;
       const transforms = new Map<string, string>();
       const imageUpdates: (() => void)[] = [];
       for (const [id, box] of next.boxes) {
@@ -309,7 +312,7 @@ export function createSvgLayout(
         }
       }
       result = next;
-      viewportStamp = JSON.stringify([width, height]);
+      viewportStamp = JSON.stringify([viewport.width, viewport.height]);
       paintScroll();
       options.changed();
     } finally {

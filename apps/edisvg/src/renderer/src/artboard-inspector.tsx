@@ -2,6 +2,7 @@ import {
   defaultLayoutContainer,
   type LayoutContainer,
   type LayoutDocument,
+  type LayoutRootSize,
 } from "@informach/edi-motion/layout";
 import { type PointerEvent as ReactPointerEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -19,6 +20,8 @@ interface Props {
       | { type: "layout"; operation: "replace" | "disable"; value?: LayoutDocument },
   ): void;
 }
+
+type SizeMode = LayoutRootSize["width"];
 
 const defaultDocument = (): LayoutDocument => ({
   version: 1,
@@ -135,6 +138,11 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     next.root = { ...next.root, ...patch };
     run({ type: "layout", operation: "replace", value: next });
   };
+  const updateRootSize = (axis: "width" | "height", mode: SizeMode) => {
+    const next = structuredClone(board.layout ?? defaultDocument());
+    next.rootSize = { ...(next.rootSize ?? { width: "fill", height: "fill" }), [axis]: mode };
+    run({ type: "layout", operation: "replace", value: next });
+  };
   const commitSize = (axis: "width" | "height", input: HTMLInputElement) => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value <= 0 || value > 100000) {
@@ -159,11 +167,12 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
       max?: number;
       shortLabel?: string;
       unit?: string;
+      derived?: boolean;
       preview?(value: number): void;
     } = {},
   ) => (
     <label
-      className="artboard-value"
+      className={options.derived ? "artboard-value is-derived" : "artboard-value"}
       key={label}
       onPointerDown={(event) => {
         if ((event.target as Element).closest(".artboard-scrub"))
@@ -375,12 +384,39 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
             min: 0.001,
             shortLabel: "W",
             unit: "px",
+            derived: board.layout?.rootSize?.width === "hug",
           })}
           {numberField("Altura", height, (input) => commitSize("height", input), {
             min: 0.001,
             shortLabel: "H",
             unit: "px",
+            derived: board.layout?.rootSize?.height === "hug",
           })}
+        </div>
+        <div className="artboard-value-row">
+          {(["width", "height"] as const).map((axis) => (
+            <label
+              className="artboard-size-mode"
+              key={axis}
+              title={
+                root
+                  ? undefined
+                  : "Ative o layout dos filhos para ajustar ao conteúdo ou preencher o contêiner"
+              }
+            >
+              <span aria-hidden="true">{axis === "width" ? "↔" : "↕"}</span>
+              <select
+                aria-label={axis === "width" ? "Modo da largura" : "Modo da altura"}
+                disabled={!root}
+                value={root ? (board.layout?.rootSize?.[axis] ?? "fill") : "fixed"}
+                onChange={(event) => updateRootSize(axis, event.target.value as SizeMode)}
+              >
+                <option value="fixed">Fixo</option>
+                <option value="hug">Conteúdo</option>
+                <option value="fill">Preencher</option>
+              </select>
+            </label>
+          ))}
         </div>
       </section>
 

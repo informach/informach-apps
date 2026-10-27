@@ -58,9 +58,19 @@ export const layoutItemSchema = z.strictObject({
   ]),
 });
 export type LayoutItem = z.infer<typeof layoutItemSchema>;
+const rootSizeModeSchema = z.enum(["fixed", "hug", "fill"]);
+/** How the artboard itself is sized per axis: its design size (fixed), its
+ * laid-out children (hug) or the host viewport (fill). Absent means fill on
+ * both axes, the behavior of every layout before the field existed. */
+export const layoutRootSizeSchema = z.strictObject({
+  width: rootSizeModeSchema,
+  height: rootSizeModeSchema,
+});
+export type LayoutRootSize = z.infer<typeof layoutRootSizeSchema>;
 export const layoutSchema = z.strictObject({
   version: z.literal(1),
   root: layoutContainerSchema,
+  rootSize: layoutRootSizeSchema.optional(),
   containers: z
     .array(z.strictObject({ targetId: objectIdSchema, config: layoutContainerSchema }))
     .max(2000),
@@ -171,6 +181,21 @@ export function parseLayout(
   }
   // Yoga's flex rules are deterministic, but this profile refuses a semantic
   // dependency on a parent that is itself being measured from that child.
+  const rootSize = layout.rootSize;
+  if (rootSize?.width === "hug" && layout.root.columns?.kind === "auto-fit")
+    throw new Error("Grade auto-fit com largura hug é circular.");
+  if (rootSize?.width === "hug" || rootSize?.height === "hug")
+    for (const [childId, object] of objects) {
+      if (object.parentId !== null) continue;
+      const child = items.get(childId) ?? defaultLayoutItem(childId);
+      if (
+        (rootSize.width === "hug" && ["fill", "percent"].includes(child.width.kind)) ||
+        (rootSize.height === "hug" && ["fill", "percent"].includes(child.height.kind))
+      )
+        throw new Error(
+          "Hug/fill ou percent cria dependência circular; defina o tamanho da prancheta.",
+        );
+    }
   for (const [id, container] of containers) {
     const parentStyle = items.get(id) ?? defaultLayoutItem(id);
     if (

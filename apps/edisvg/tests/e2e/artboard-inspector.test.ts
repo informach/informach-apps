@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import { chromium } from "playwright";
 import { newProject, parseProject } from "../../src/shared/project";
+import { editScene } from "../../src/shared/scene.js";
 import { rendererServer } from "../rendererServer";
 
 test("o inspetor da prancheta edita tamanho e layout com histórico, e guarda a disposição apenas no editor", {
@@ -96,6 +97,7 @@ test("arrastar o rótulo ajusta o valor e os vínculos mantêm a proporção do 
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("dialog", (dialog) => dialog.accept());
     await page.addInitScript(
       (project) => localStorage.setItem("edisvg-project", JSON.stringify(project)),
       newProject(),
@@ -144,6 +146,66 @@ test("arrastar o rótulo ajusta o valor e os vínculos mantêm a proporção do 
     );
     await page.locator('[data-action="undo"]').click();
     assert.equal(await readProject(), original);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("os modos de tamanho da prancheta exigem layout e ajustar ao conteúdo redimensiona a moldura", {
+  timeout: 60000,
+}, async () => {
+  const server = await rendererServer();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("dialog", (dialog) => dialog.accept());
+    const project = newProject(),
+      board = project.artboards[0];
+    if (!board) throw new Error("Missing board");
+    editScene(board.scene, null, "add", "rect");
+    await page.addInitScript(
+      (value) => localStorage.setItem("edisvg-project", JSON.stringify(value)),
+      project,
+    );
+    await page.goto(server.url);
+    await page.locator("[data-artboard-inspector]").waitFor();
+    const readProject = () =>
+      page.evaluate(() => JSON.parse(localStorage.getItem("edisvg-project") ?? "null"));
+    const width = page.getByLabel("Modo da largura", { exact: true }),
+      height = page.getByLabel("Modo da altura", { exact: true });
+
+    assert.equal(await width.isDisabled(), true);
+    assert.equal(await width.inputValue(), "fixed");
+    await page.getByRole("button", { name: "Ativar layout", exact: true }).click();
+    assert.equal(await width.inputValue(), "fill");
+    await width.selectOption("hug");
+    await height.selectOption("hug");
+    assert.deepEqual(parseProject(await readProject()).artboards[0]?.layout?.rootSize, {
+      width: "hug",
+      height: "hug",
+    });
+    await page.waitForFunction(() => {
+      const svg = document.querySelector<SVGSVGElement>(".scene-artwork > svg");
+      return svg && svg.viewBox.baseVal.width !== 1080;
+    });
+    const frame = await page.evaluate(() => {
+      const svg = document.querySelector<SVGSVGElement>(".scene-artwork > svg"),
+        artboard = document.querySelector<HTMLElement>(".scene-artboard");
+      return {
+        viewBox: [svg?.viewBox.baseVal.width, svg?.viewBox.baseVal.height],
+        aspect: artboard?.style.aspectRatio,
+      };
+    });
+    assert.equal(frame.aspect, `${frame.viewBox[0]} / ${frame.viewBox[1]}`);
+
+    await width.selectOption("fixed");
+    assert.equal(parseProject(await readProject()).artboards[0]?.layout?.rootSize?.width, "fixed");
+    await page.locator('[data-action="undo"]').click();
+    assert.equal(await width.inputValue(), "hug");
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

@@ -25,7 +25,7 @@ import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 
-export const PROJECT_VERSION = 23;
+export const PROJECT_VERSION = 24;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -101,6 +101,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(20),
     z.literal(21),
     z.literal(22),
+    z.literal(23),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -163,6 +164,7 @@ export function parseProject(input: unknown): Project {
       20,
       21,
       22,
+      23,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -310,7 +312,7 @@ export function parseProject(input: unknown): Project {
               "Trim de arco nativo requer conversão Bézier explícita e confirmação de aparência.",
             );
       }
-      if (raw.layout !== undefined)
+      if (raw.layout !== undefined) {
         board.layout = parseLayout(
           raw.layout,
           new Map(
@@ -320,6 +322,9 @@ export function parseProject(input: unknown): Project {
             ]),
           ),
         );
+        if (board.layout.rootSize && header.data.version < 24)
+          throw new Error("Tamanho da prancheta no layout requer projeto v24.");
+      }
       if (raw.behavior !== undefined) {
         board.behavior = parseBehavior(
           raw.behavior,
