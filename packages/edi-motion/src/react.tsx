@@ -40,7 +40,11 @@ export interface EdiSvgComponentHandle {
   inspect(): BehaviorDebug;
   inspectRig(): RigDiagnostic[];
   advance(seconds: number): void;
-  getData(instanceId: string, path?: readonly string[]): DataValue;
+  /** Without an id, reads the instance bound to the artboard. */
+  getData(instanceId?: string | null, path?: readonly string[]): DataValue;
+  getDataInstance(): string | null;
+  /** Binds another instance of the artboard's model; reset() returns to the default one. */
+  bindDataInstance(instanceId: string): void;
   editData(changes: readonly DataChange[]): void;
 }
 export interface EdiSvgHandle extends EdiSvgComponentHandle, AudioControlHandle {
@@ -183,6 +187,12 @@ function MountedEdiSvgPlayer({
       },
       getData(instanceId, path) {
         return current().getData(instanceId, path);
+      },
+      getDataInstance() {
+        return current().getDataInstance();
+      },
+      bindDataInstance(instanceId) {
+        current().bindDataInstance(instanceId);
       },
       editData(changes) {
         current().editData(changes);

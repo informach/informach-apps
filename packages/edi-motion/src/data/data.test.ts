@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   advanceBehavior,
+  bindBehaviorDataInstance,
   createBehaviorContext,
   createBehaviorSession,
   editBehaviorData,
@@ -222,4 +223,116 @@ test("data links drive inputs and actual poses bidirectionally, remain atomic, a
   expect(() =>
     setBehaviorInput(readonly, createBehaviorSession(readonly), "input-score", 70),
   ).toThrow(/somente leitura/);
+});
+
+test("the artboard's bound instance drives null-instance links and can be swapped at runtime", () => {
+  const data = document();
+  data.instances.push({
+    id: "instance-class-b",
+    name: "Turma B",
+    modelId: "model-class",
+    value: {
+      "field-teacher": { "field-name": "Davi", "field-score": 80 },
+      "field-rows": [],
+    },
+  });
+  data.context = { modelId: "model-class", instanceId: "instance-class" };
+  data.links.push({
+    id: "link-score",
+    instanceId: null,
+    path: ["field-teacher", "field-score"],
+    inputId: "input-score",
+    direction: "two-way",
+  });
+  const behavior = {
+      ...emptyBehavior(),
+      data,
+      inputs: [{ id: "input-score", name: "Pontos", kind: "number", min: 0, max: 100, initial: 0 }],
+    },
+    context = createBehaviorContext(behavior, [], new Map()),
+    initial = createBehaviorSession(context);
+  expect(initial.dataInstanceId).toBe("instance-class");
+  expect(initial.inputs.get("input-score")).toBe(50);
+  const swapped = bindBehaviorDataInstance(context, initial, "instance-class-b");
+  expect(swapped.inputs.get("input-score")).toBe(80);
+  // Two-way writes go to whichever instance is bound, never the default one.
+  const written = setBehaviorInput(context, swapped, "input-score", 90);
+  if (!context.data || !written.data) throw new Error("Missing data");
+  const score = (instanceId: string) =>
+    context.data &&
+    written.data &&
+    resolveDataPath(context.data, written.data, instanceId, ["field-teacher", "field-score"]).value;
+  expect(score("instance-class-b")).toBe(90);
+  expect(score("instance-class")).toBe(50);
+  expect(bindBehaviorDataInstance(context, swapped, "instance-class-b")).toBe(swapped);
+  expect(() => bindBehaviorDataInstance(context, swapped, "instance-missing")).toThrow(
+    /modelo da prancheta/,
+  );
+});
+test("the data context validates its model and instance, and bound links stay unambiguous", () => {
+  const data = document();
+  data.context = { modelId: "model-person", instanceId: "instance-class" };
+  expect(() => parseDataModels(data)).toThrow(/precisa ser do modelo da prancheta/);
+  data.context = { modelId: "model-class", instanceId: "instance-gone" };
+  expect(() => parseDataModels(data)).toThrow(/Instância da prancheta ausente/);
+  delete data.context;
+  data.links.push({
+    id: "link-unbound",
+    instanceId: null,
+    path: ["field-teacher", "field-score"],
+    inputId: "input-score",
+    direction: "one-way",
+  });
+  expect(() => parseDataModels(data)).toThrow(/requer modelo da prancheta/);
+  data.context = { modelId: "model-class", instanceId: "instance-class" };
+  expect(parseDataModels(data).document.context?.instanceId).toBe("instance-class");
+  data.links[0] = {
+    id: "link-list",
+    instanceId: null,
+    path: ["field-rows", "item-a", "field-score"],
+    inputId: "input-score",
+    direction: "one-way",
+  };
+  expect(() => parseDataModels(data)).toThrow(/não atravessa listas/);
+  data.links = [
+    {
+      id: "link-bound",
+      instanceId: null,
+      path: ["field-teacher", "field-score"],
+      inputId: "input-a",
+      direction: "two-way",
+    },
+    {
+      id: "link-fixed",
+      instanceId: "instance-class",
+      path: ["field-teacher", "field-score"],
+      inputId: "input-b",
+      direction: "two-way",
+    },
+  ];
+  expect(() => parseDataModels(data)).toThrow(/conflitantes/);
+  delete data.context;
+  data.links = data.links.slice(1);
+  expect(parseDataModels(data).document.links).toHaveLength(1);
+});
+test("a missing bound instance reports the artboard context, not a generic path error", () => {
+  const data = document();
+  data.context = { modelId: "model-class", instanceId: "instance-gone" };
+  data.links.push({
+    id: "link-score",
+    instanceId: null,
+    path: ["field-teacher", "field-score"],
+    inputId: "input-score",
+    direction: "one-way",
+  });
+  expect(() => parseDataModels(data)).toThrow(/Instância da prancheta ausente/);
+  data.context = { modelId: "model-class", instanceId: "instance-class" };
+  data.links[0] = {
+    id: "link-list",
+    instanceId: null,
+    path: ["field-rows", "item-gone", "field-score"],
+    inputId: "input-score",
+    direction: "one-way",
+  };
+  expect(() => parseDataModels(data)).toThrow(/não atravessa listas/);
 });

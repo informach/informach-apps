@@ -53,7 +53,13 @@ export function mountLayoutPreview(
                     ? { width: root.width.baseVal.value, height: root.height.baseVal.value }
                     : { width: compiled.scene.viewBox[2], height: compiled.scene.viewBox[3] },
                 changed() {
-                  if (live) changed();
+                  if (!live) return;
+                  // A hug axis resizes the artboard; the frame follows its proportion.
+                  const frame = nested ? null : root.closest<HTMLElement>(".scene-artboard"),
+                    { width, height } = root.viewBox.baseVal;
+                  if (frame && width > 0 && height > 0)
+                    frame.style.aspectRatio = `${width}/${height}`;
+                  changed();
                 },
                 error(error) {
                   if (live) report(error.message);

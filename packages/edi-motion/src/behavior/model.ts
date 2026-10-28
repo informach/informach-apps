@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dataModelSchema, parseDataModels, resolveDataPath } from "../data/model";
+import { dataModelSchema, linkInstanceId, parseDataModels, resolveDataPath } from "../data/model";
 import { type Animation, easingSchema, objectIdSchema, propertySchema } from "../model";
 import { type ParameterContext, parameterKey } from "../parameters";
 import type { SemanticMetadata } from "../visual/semantics";
@@ -516,7 +516,7 @@ export function parseBehavior(
     const data = parseDataModels(behavior.data);
     for (const link of data.document.links) {
       const input = requireInput(link.inputId),
-        leaf = resolveDataPath(data, data.initial, link.instanceId, link.path),
+        leaf = resolveDataPath(data, data.initial, linkInstanceId(data.document, link), link.path),
         field = leaf.field;
       if (field.kind !== input.kind) throw new Error("Link requer input e campo do mesmo tipo.");
       if (

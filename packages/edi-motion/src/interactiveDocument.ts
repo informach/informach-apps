@@ -34,7 +34,7 @@ import { semanticSchema } from "./visual/semantics";
 import { textDirectionSchema } from "./visual/textDirection";
 import { textPathCost } from "./visual/textPath";
 import { validateVisualDocument } from "./visual/validation";
-export const INTERACTIVE_VERSION = 12;
+export const INTERACTIVE_VERSION = 13;
 
 export const interactiveContentSchema = z.strictObject({
   id: objectIdSchema,
@@ -76,6 +76,7 @@ const interactiveSchema = z.strictObject({
     z.literal(9),
     z.literal(10),
     z.literal(11),
+    z.literal(12),
     z.literal(INTERACTIVE_VERSION),
   ]),
   playback: z.unknown(),
@@ -420,6 +421,11 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       throw new Error("Binding semântico requer blueprint v12.");
     if (parsed.version < 12 && behavior.formulas?.length)
       throw new Error("Fórmulas requerem blueprint v12.");
+    if (
+      parsed.version < 13 &&
+      (behavior.data?.context || behavior.data?.links.some((link) => link.instanceId === null))
+    )
+      throw new Error("Modelo da prancheta requer blueprint v13.");
     const audio =
       parsed.audio === undefined
         ? undefined
@@ -468,6 +474,8 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         });
       }
       layout = parseLayout(parsed.layout, objects);
+      if (layout.rootSize && parsed.version < 13)
+        throw new Error("Tamanho da prancheta no layout requer blueprint v13.");
     }
     if (parsed.version === 1 && parsed.components?.length)
       throw new Error("Componentes independentes requerem documento interativo v2.");

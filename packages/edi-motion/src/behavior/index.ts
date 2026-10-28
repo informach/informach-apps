@@ -3,6 +3,7 @@ export {
   type BehaviorContext,
   type BehaviorEmission,
   type BehaviorSession,
+  bindBehaviorDataInstance,
   createBehaviorContext,
   createBehaviorSession,
   editBehaviorData,

@@ -4,6 +4,7 @@ import { renderEditorComposition } from "../../shared/components";
 import { editScene, flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
 import { bindCanvasTools } from "./canvasTools.js";
 import { objectPose } from "./clipEditor.js";
+import { formatInput, roundTypedInput } from "./form-values.ts";
 import { bindPathInspector, pathInspector } from "./pathEditor.js";
 import { chooseObject, selectionIds } from "./selection.ts";
 
@@ -197,7 +198,7 @@ export function sceneInspector(state) {
           py: "Origem Y",
           skewX: "Inclinação X",
         }[k] ?? k;
-      return `<label class="property">${label}<input data-scene-transform="${k}" aria-label="Objeto ${label}" type="number" step="${k === "sx" || k === "sy" ? ".05" : "1"}" value="${v}" ${locked ? "disabled" : ""}></label>`;
+      return `<label class="property">${label}<input data-scene-transform="${k}" aria-label="Objeto ${label}" type="number" step="${k === "sx" || k === "sy" ? ".05" : "1"}" value="${formatInput(v)}" ${locked ? "disabled" : ""}></label>`;
     })
     .join(" ")}</div></section>`;
   return `<div class="panel-heading">${esc(node.name)}</div>${scenePaintInspector(node)}${node.tag === "text" ? "<div data-text-panel></div>" : ""}${transform}${node.instance ? "<div data-instance-inspector></div>" : pathInspector(state)}${inspectorDisclosure("organize", "Organizar", controls)}${inspectorDisclosure("effects", "Efeitos", "<div data-effects-panel></div>")}${inspectorDisclosure("semantics", "Acessibilidade", "<div data-semantics-panel></div>")}${inspectorDisclosure("layout", "Layout", "<div data-layout-panel></div>")}<div data-rig-panel></div>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
@@ -321,7 +322,7 @@ export function bindScene(
       try {
         if (!el.value.trim()) throw new Error("Informe um número.");
         const values = objectTransformPatchSchema.parse({
-          [el.dataset.sceneTransform]: Number(el.value),
+          [el.dataset.sceneTransform]: roundTypedInput(Number(el.value)),
         });
         if (changeTransform) changeTransform(values, item.node.id);
         else {
@@ -330,7 +331,7 @@ export function bindScene(
         }
         render();
       } catch (error) {
-        el.value = item.node.transform[el.dataset.sceneTransform];
+        el.value = formatInput(item.node.transform[el.dataset.sceneTransform] ?? 0);
         notify(error.message);
       }
     };

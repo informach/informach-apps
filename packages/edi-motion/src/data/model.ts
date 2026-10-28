@@ -28,11 +28,14 @@ export const dataModelSchema = z.strictObject({
   version: z.literal(1),
   models: z.array(z.strictObject({ ...base, fields: z.array(dataFieldSchema).max(100) })).max(100),
   instances: z.array(z.strictObject({ ...base, modelId: id, value: z.unknown() })).max(100),
+  /** The artboard's own model and the instance it starts bound to. Links with
+   * a null instanceId follow whichever instance of this model is bound. */
+  context: z.strictObject({ modelId: id, instanceId: id }).optional(),
   links: z
     .array(
       z.strictObject({
         id,
-        instanceId: id,
+        instanceId: id.nullable(),
         path: z.array(id).min(1).max(16),
         inputId: id,
         direction: z.enum(["one-way", "two-way"]),
@@ -137,24 +140,83 @@ export function parseDataModels(input: unknown): DataContext {
     unique(instance.id);
     initial.set(instance.id, validateDataRecord(context, instance.modelId, instance.value));
   }
-  validateDataInstances(context, initial);
+  if (document.context) {
+    const bound = document.instances.find(
+      (instance) => instance.id === document.context?.instanceId,
+    );
+    if (!models.has(document.context.modelId))
+      throw new Error("Modelo da prancheta ausente; escolha outro no inspetor da prancheta.");
+    if (!bound)
+      throw new Error("Instância da prancheta ausente; escolha outra no inspetor da prancheta.");
+    if (bound.modelId !== document.context.modelId)
+      throw new Error("Instância da prancheta precisa ser do modelo da prancheta.");
+  }
   for (const link of document.links) {
     unique(link.id);
-    if (!initial.has(link.instanceId)) throw new Error("Instância vinculada órfã.");
-    const leaf = resolveDataPath(context, initial, link.instanceId, link.path);
+    // Item ids belong to one instance; a path through a list would break when
+    // another instance of the model is bound.
+    if (
+      link.instanceId === null &&
+      dataPathCrossesList(context, document.context?.modelId, link.path)
+    )
+      throw new Error("Link da instância da prancheta não atravessa listas.");
+    const instanceId = linkInstanceId(document, link);
+    if (!initial.has(instanceId)) throw new Error("Instância vinculada órfã.");
+    const leaf = resolveDataPath(context, initial, instanceId, link.path);
     if (leaf.field.kind === "model" || leaf.field.kind === "list")
       throw new Error("Input requer campo escalar, não lista/modelo.");
   }
+  validateDataInstances(context, initial);
   const destinations = new Set<string>(),
-    sources = new Set<string>();
+    sources = new Set<string>(),
+    boundPaths = new Set(
+      document.links
+        .filter((link) => link.instanceId === null && link.direction === "two-way")
+        .map((link) => JSON.stringify(link.path)),
+    );
   for (const link of document.links) {
     const key = JSON.stringify([link.instanceId, link.path]);
     if (destinations.has(link.inputId) || (link.direction === "two-way" && sources.has(key)))
+      throw new Error("Links de dados conflitantes.");
+    // A bound two-way link writes whichever instance is bound; a fixed two-way
+    // link on the same field of that model could then race it.
+    if (
+      link.direction === "two-way" &&
+      link.instanceId !== null &&
+      boundPaths.has(JSON.stringify(link.path)) &&
+      document.instances.find((instance) => instance.id === link.instanceId)?.modelId ===
+        document.context?.modelId
+    )
       throw new Error("Links de dados conflitantes.");
     destinations.add(link.inputId);
     if (link.direction === "two-way") sources.add(key);
   }
   return { ...context, initial };
+}
+/** The instance a link reads: its own, or the artboard's bound instance. */
+export function linkInstanceId(
+  document: Pick<DataModelDocument, "context">,
+  link: Pick<DataModelDocument["links"][number], "instanceId">,
+  bound = document.context?.instanceId,
+): string {
+  const instanceId = link.instanceId ?? bound;
+  if (!instanceId) throw new Error("Link da instância da prancheta requer modelo da prancheta.");
+  return instanceId;
+}
+/** Whether a field path goes through a list item (item ids belong to one instance). */
+export function dataPathCrossesList(
+  context: Pick<DataContext, "models">,
+  modelId: string | undefined,
+  path: readonly string[],
+) {
+  let model = modelId ? context.models.get(modelId) : undefined;
+  for (const step of path) {
+    const field = model?.fields.find((field) => field.id === step);
+    if (!field) return false;
+    if (field.kind === "list") return true;
+    model = field.kind === "model" ? context.models.get(field.modelId) : undefined;
+  }
+  return false;
 }
 export function validateDataRecord(
   context: Pick<DataContext, "models">,
@@ -237,7 +299,7 @@ export function validateDataInstances(
     result.set(instance.id, validateDataRecord(context, instance.modelId, source.get(instance.id)));
   // Stable IDs, never array indices: deleting a linked item is an explicit error.
   for (const link of context.document.links)
-    resolveDataPath(context, result, link.instanceId, link.path);
+    resolveDataPath(context, result, linkInstanceId(context.document, link), link.path);
   return result;
 }
 export function resolveDataPath(

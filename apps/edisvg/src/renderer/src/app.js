@@ -1,7 +1,12 @@
 import packageInfo from "../../../package.json";
 import { startPathEditing, synchronizePathEditing } from "./pathEditor.js";
 import "./pathEditor.css";
-import { bindCanvasTools, bindViewport, disposeCanvasTools } from "./canvasTools.js";
+import {
+  applyArtboardView,
+  bindCanvasTools,
+  bindViewport,
+  disposeCanvasTools,
+} from "./canvasTools.js";
 import {
   activateTool,
   bindToolbar,
@@ -73,6 +78,7 @@ import { mountDrawOrderPanel } from "./draw-order-panel";
 import { createGestureEffectPreview } from "./effectGesturePreview";
 import { mountEffectsPanel } from "./effects-panel";
 import { createFontCatalogOwner } from "./fontCatalog";
+import { formatInput } from "./form-values";
 import { mountImagePanel } from "./image-panel";
 import { mountInstanceInspector } from "./instance-inspector.tsx";
 import {
@@ -511,13 +517,15 @@ function render() {
     disposeArtboardInspector = mountArtboardInspector(artboardInspectorHost, {
       board: activeInspectorBoard,
       view: state.artboardViews?.[activeInspectorBoard.id] ?? defaultArtboardView(),
-      updateView(patch) {
+      updateView(patch, preview) {
         state.artboardViews ??= {};
         state.artboardViews[activeInspectorBoard.id] = {
           ...(state.artboardViews[activeInspectorBoard.id] ?? defaultArtboardView()),
           ...patch,
         };
-        render();
+        // A scrub preview only moves the frame; the release renders and persists once.
+        if (preview) applyArtboardView(state);
+        else render();
       },
       execute(command) {
         transact([command]);
@@ -1445,7 +1453,7 @@ function updatePose() {
         input !== document.activeElement &&
         selectedPose[input.dataset.sceneTransform] !== undefined
       )
-        input.value = String(selectedPose[input.dataset.sceneTransform]);
+        input.value = formatInput(selectedPose[input.dataset.sceneTransform]);
   }
   if ($("#timecode"))
     $("#timecode").innerHTML =

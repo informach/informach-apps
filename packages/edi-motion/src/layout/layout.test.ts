@@ -143,3 +143,67 @@ test("orphan/circular/ambiguous/oversized layouts reject before publication; fai
       engine.compute(document, { width: 100, height: 50 }, objects, intrinsic).boxes.size,
     ).toBe(3);
 });
+test("rootSize sizes the artboard per axis from its design size, its children or the viewport", async () => {
+  const engine = await createLayoutEngine(),
+    document = layout();
+  document.root.padding = [5, 5, 5, 5];
+  document.root.gap = [10, 10];
+  const viewport = { width: 300, height: 200 },
+    design = { width: 120, height: 80 },
+    root = (value: LayoutDocument) =>
+      engine.compute(value, viewport, objects, intrinsic, design).containers.get(null);
+  expect(root(document)).toMatchObject({ width: 300, height: 200 });
+  document.rootSize = { width: "fixed", height: "fixed" };
+  expect(root(document)).toMatchObject({ width: 120, height: 80 });
+  document.rootSize = { width: "hug", height: "hug" };
+  // Three 20×10 children in a row, 10 px gaps and 5 px padding on each side.
+  expect(root(document)).toMatchObject({ width: 90, height: 20 });
+  document.rootSize = { width: "fill", height: "hug" };
+  expect(root(document)).toMatchObject({ width: 300, height: 20 });
+});
+test("a hugging artboard refuses children that depend on its size on the same axis", () => {
+  const document = layout();
+  document.rootSize = { width: "hug", height: "fixed" };
+  document.items = [{ ...defaultLayoutItem("node-a"), width: { kind: "fill", weight: 1 } }];
+  expect(() => parseLayout(document, objects)).toThrow(/dependência circular/);
+  document.items = [{ ...defaultLayoutItem("node-a"), height: { kind: "percent", value: 0.5 } }];
+  expect(parseLayout(document, objects).rootSize).toEqual({ width: "hug", height: "fixed" });
+  document.root = { ...document.root, flow: "grid", columns: { kind: "auto-fit", minWidth: 20 } };
+  document.items = [];
+  expect(() => parseLayout(document, objects)).toThrow(/auto-fit com largura hug/);
+});
+test("a hugging root grid sizes each row by its own cells and ignores absolute children", async () => {
+  const engine = await createLayoutEngine(),
+    four = new Map<string, LayoutObject>(
+      ["node-a", "node-b", "node-c", "node-d"].map((id) => [id, { tag: "rect", parentId: null }]),
+    ),
+    heights: Record<string, number> = { "node-a": 10, "node-b": 10, "node-c": 100, "node-d": 100 },
+    sizes = new Map(
+      [...four.keys()].map((id) => [id, { x: 0, y: 0, width: 20, height: heights[id] ?? 0 }]),
+    ),
+    document = layout();
+  document.root = {
+    ...document.root,
+    flow: "grid",
+    columns: { kind: "fixed", count: 2 },
+    gap: [0, 10],
+  };
+  document.rootSize = { width: "fixed", height: "hug" };
+  const root = engine
+    .compute(document, { width: 300, height: 300 }, four, sizes, { width: 100, height: 300 })
+    .containers.get(null);
+  expect(root?.height).toBe(120);
+
+  const hugging = layout();
+  hugging.rootSize = { width: "hug", height: "hug" };
+  hugging.items = [
+    {
+      ...defaultLayoutItem("node-c"),
+      width: { kind: "fill", weight: 1 },
+      position: { kind: "absolute", left: 0, right: 0, top: 0, bottom: null },
+    },
+  ];
+  expect(parseLayout(hugging, objects).rootSize).toEqual({ width: "hug", height: "hug" });
+  hugging.items = [{ ...defaultLayoutItem("node-c"), width: { kind: "fill", weight: 1 } }];
+  expect(() => parseLayout(hugging, objects)).toThrow(/dependência circular/);
+});

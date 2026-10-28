@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { defaultLayoutContainer, defaultLayoutItem } from "@informach/edi-motion/layout";
+import { parseInteractiveDocument } from "@informach/edi-motion/runtime";
 import { executeDocumentTransaction } from "./documentCommands";
 import { createHistory } from "./history.js";
+import { compileInteractiveArtboard } from "./interactive";
 import { newProject, PROJECT_VERSION, parseProject } from "./project";
 import { editScene } from "./scene.js";
 
@@ -85,4 +87,33 @@ test("layout edits share atomic revision guards, preserve history, migrate v9 an
     /Item/,
   );
   assert.deepEqual(project, before);
+});
+
+test("artboard size modes are a project v24 / blueprint v13 capability", () => {
+  const project = newProject(),
+    board = project.artboards[0];
+  if (!board) throw new Error("Missing board");
+  board.layout = {
+    version: 1,
+    root: defaultLayoutContainer(),
+    rootSize: { width: "hug", height: "fixed" },
+    containers: [],
+    items: [],
+  };
+  const saved = JSON.parse(JSON.stringify(project));
+  assert.equal(PROJECT_VERSION, 24);
+  assert.deepEqual(parseProject(saved).artboards[0]?.layout?.rootSize, {
+    width: "hug",
+    height: "fixed",
+  });
+  assert.throws(
+    () => parseProject({ ...saved, version: 23 }),
+    /Tamanho da prancheta no layout requer projeto v24/,
+  );
+  const compiled = compileInteractiveArtboard(project, board.id);
+  assert.deepEqual(compiled.document.layout?.rootSize, { width: "hug", height: "fixed" });
+  assert.throws(
+    () => parseInteractiveDocument({ ...compiled.document, version: 12 }),
+    /Tamanho da prancheta no layout requer blueprint v13/,
+  );
 });

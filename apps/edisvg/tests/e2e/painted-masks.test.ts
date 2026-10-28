@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { emptyBehavior } from "@informach/edi-motion/behavior";
+import { INTERACTIVE_VERSION } from "@informach/edi-motion/runtime";
 import { chromium } from "playwright";
 import { applyComponent } from "../../src/shared/components";
 import { compileInteractiveArtboard } from "../../src/shared/interactive";
@@ -213,7 +214,7 @@ test("the shared player draws painted masks like the static scene and updates th
     });
     const parsed = parseProject(JSON.parse(JSON.stringify(project))),
       compiled = compileInteractiveArtboard(parsed, board.id, { animationId: "animation-mask" });
-    assert.equal(compiled.document.version, 12);
+    assert.equal(compiled.document.version, INTERACTIVE_VERSION);
     const result = await session.page.evaluate(
       async ({ blueprint, scene }) => {
         const api = window.EdiAssetTest,

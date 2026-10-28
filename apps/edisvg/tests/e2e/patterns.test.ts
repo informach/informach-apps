@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { INTERACTIVE_VERSION } from "@informach/edi-motion/runtime";
 import { chromium } from "playwright";
 import { compileInteractiveArtboard } from "../../src/shared/interactive";
 import { newProject, parseProject } from "../../src/shared/project";
@@ -241,7 +242,7 @@ test("the shared visual player draws patterns like the static scene", {
       board.scene = scene;
       const parsed = parseProject(JSON.parse(JSON.stringify(project))),
         compiled = compileInteractiveArtboard(parsed, board.id);
-      assert.equal(compiled.document.version, 12);
+      assert.equal(compiled.document.version, INTERACTIVE_VERSION);
       const mismatches = await page.evaluate(
         async ({ document: blueprint, scene }) => {
           const api = window.EdiAssetTest,

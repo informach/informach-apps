@@ -83,7 +83,10 @@ function RigPanel({
       }}
     >
       <summary>
-        Rig · {rig.bones.length} ossos · {rig.constraints.length} restrições
+        Rig
+        <span className="rig-panel-count">
+          {rig.bones.length} ossos · {rig.constraints.length} restrições
+        </span>
       </summary>
       {open && (
         <>

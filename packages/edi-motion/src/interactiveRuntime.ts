@@ -9,6 +9,7 @@ import type { AudioBinding, AudioCueEmission, AudioStatus } from "./audio/model"
 import {
   advanceBehavior,
   type BehaviorEmission,
+  bindBehaviorDataInstance,
   createBehaviorContext,
   createBehaviorSession,
   editBehaviorData,
@@ -447,11 +448,13 @@ function createInteractiveScope(
     const previous = session;
     session = next;
     frame = nextFrame;
-    if (previous.data !== session.data) dataVersion++;
+    const dataChanged =
+      previous.data !== session.data || previous.dataInstanceId !== session.dataInstanceId;
+    if (dataChanged) dataVersion++;
     const observers = () => {
       if (destroyed) return;
       notify(() => {
-        if (previous.data !== session.data)
+        if (dataChanged)
           for (const subscriber of [...dataChanges]) {
             if (destroyed) return;
             subscriber();
@@ -907,14 +910,32 @@ function createInteractiveScope(
     setInputs(values: Readonly<Record<string, unknown>>) {
       writeInputs(values);
     },
-    getData(instanceId: string, path?: readonly string[]) {
+    /** Without an id, reads the instance bound to the artboard. */
+    getData(instanceId?: string | null, path?: readonly string[]) {
       assertLive();
       if (!context.data || !session.data) throw new Error("Player sem modelos de dados.");
+      const id = instanceId ?? session.dataInstanceId;
+      if (!id) throw new Error("Prancheta sem instância de dados ligada.");
       const value = path
-        ? resolveDataPath(context.data, session.data, instanceId, path).value
-        : session.data.get(instanceId);
+        ? resolveDataPath(context.data, session.data, id, path).value
+        : session.data.get(id);
       if (value === undefined) throw new Error("Instância de dados ausente.");
       return structuredClone(value);
+    },
+    getDataInstance() {
+      assertLive();
+      return session.dataInstanceId ?? null;
+    },
+    bindDataInstance(instanceId: string) {
+      assertWritable();
+      const result = advanceBehavior(
+        context,
+        bindBehaviorDataInstance(context, session, instanceId),
+        0,
+      );
+      publish(result.session, prepareFrame(result.frame));
+      loop.invalidate();
+      emit(result.events);
     },
     editData(changes: unknown) {
       assertWritable();
@@ -946,6 +967,7 @@ function createInteractiveScope(
       const next = createBehaviorSession(context, id);
       next.inputs = new Map(session.inputs);
       if (session.data) next.data = session.data;
+      if (session.dataInstanceId) next.dataInstanceId = session.dataInstanceId;
       publish(next);
       cache.clear();
       loop.invalidate();

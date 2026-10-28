@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { parseInteractiveDocument } from "@informach/edi-motion/runtime";
 import { executeDocumentTransaction } from "./documentCommands";
 import { compileInteractiveArtboard } from "./interactive";
-import { newProject, parseProject } from "./project";
+import { newProject, PROJECT_VERSION, parseProject } from "./project";
 import { renderScene } from "./scene.js";
 
 test("luminance masks are a v23/v12 capability set through the shared command", () => {
@@ -62,5 +62,5 @@ test("luminance masks are a v23/v12 capability set through the shared command", 
       value: { mask: { sourceId: source.id, rule: "nonzero", opacity: 1 } },
     },
   ]);
-  assert.equal(parseProject({ ...project, version: 22 }).version, 23);
+  assert.equal(parseProject({ ...project, version: 22 }).version, PROJECT_VERSION);
 });

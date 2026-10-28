@@ -33,20 +33,25 @@ export function shapeAttributes(tag, start, end, square = false) {
         : { x, y, width: w, height: h };
   return Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, String(v)]));
 }
+/** Places the active artboard on the stage from the pan and its editor-only view. */
+export function applyArtboardView(state) {
+  const board = document.querySelector(".stage .artboard");
+  if (!board) return;
+  const pan = state.pan ?? { x: 0, y: 0 },
+    view = state.artboardViews?.[state.activeArtboardId] ?? defaultArtboardView();
+  board.style.translate = `${pan.x + view.x}px ${pan.y + view.y}px`;
+  board.style.transformOrigin = `${view.originX}% ${view.originY}%`;
+  board.style.rotate = `${view.rotation}deg`;
+  board.style.scale = `${view.scaleX / 100} ${view.scaleY / 100}`;
+  board.style.opacity = String(view.opacity / 100);
+}
 export function bindViewport(state, { render }) {
   const stage = document.querySelector(".stage"),
     board = stage?.querySelector(".artboard");
   if (!board) return;
   state.pan ??= { x: 0, y: 0 };
   const pan = state.pan;
-  const apply = () => {
-    const view = state.artboardViews?.[state.activeArtboardId] ?? defaultArtboardView();
-    board.style.translate = `${pan.x + view.x}px ${pan.y + view.y}px`;
-    board.style.transformOrigin = `${view.originX}% ${view.originY}%`;
-    board.style.rotate = `${view.rotation}deg`;
-    board.style.scale = `${view.scaleX / 100} ${view.scaleY / 100}`;
-    board.style.opacity = String(view.opacity / 100);
-  };
+  const apply = () => applyArtboardView(state);
   apply();
   stage.dataset.tool = state.tool || "select";
   const reset = document.querySelector("[data-viewport-reset]");

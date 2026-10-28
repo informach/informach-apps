@@ -10,7 +10,7 @@ import {
 /** Definition edits explicitly add defaults/remove deleted fields, while
  * preserving every retained value and stable list identity. No type coercion. */
 export function reconcileDataDefinitions(next: DataModelDocument): DataModelDocument {
-  const context = parseDataModels({ ...next, instances: [], links: [] });
+  const context = parseDataModels({ ...next, context: undefined, instances: [], links: [] });
   let work = 0;
   const record = (modelId: string, source: unknown): DataRecord => {
     const model = context.models.get(modelId);
