@@ -1,3 +1,5 @@
+import { type Behavior, emptyBehavior } from "@informach/edi-motion/behavior";
+import { emptyDataModels } from "@informach/edi-motion/data";
 import {
   defaultLayoutContainer,
   type LayoutContainer,
@@ -8,16 +10,19 @@ import { type PointerEvent as ReactPointerEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ArtboardCommand } from "../../shared/artboards";
 import type { Artboard } from "../../shared/project";
+import { formatInput, roundInput, roundTypedInput } from "./form-values";
 import type { ArtboardView } from "./workspace";
 
 interface Props {
   board: Artboard;
   view: ArtboardView;
-  updateView(patch: Partial<ArtboardView>): void;
+  /** `preview` moves the frame without rendering; omit it to persist. */
+  updateView(patch: Partial<ArtboardView>, preview?: boolean): void;
   execute(
     command:
       | ArtboardCommand
-      | { type: "layout"; operation: "replace" | "disable"; value?: LayoutDocument },
+      | { type: "layout"; operation: "replace" | "disable"; value?: LayoutDocument }
+      | { type: "behavior"; operation: "replace"; value: Behavior },
   ): void;
 }
 
@@ -34,7 +39,6 @@ let linkedOriginPreference = false;
 let linkedScalePreference = false;
 let paddingExpandedPreference = false;
 
-const roundValue = (value: number) => Math.round(value * 100) / 100;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function LinkIcon({ linked }: { linked: boolean }) {
@@ -56,15 +60,16 @@ function LinkIcon({ linked }: { linked: boolean }) {
 }
 
 // Dragging the short label changes the value by 1 per pixel (Shift ×10, Alt ×0.1).
-// Window listeners survive the remount that a live preview triggers, and the
-// final value goes through the same commit as typing, exactly once.
+// Window listeners keep the drag alive across remounts. Fields with a preview
+// apply the release value directly; the others go through the typing commit once.
 function startScrub(
   event: ReactPointerEvent<HTMLLabelElement>,
   options: {
     min: number;
     max: number;
     onCommit(input: HTMLInputElement): void;
-    preview?(value: number): void;
+    /** Live value while dragging; `final` marks the release, applied even if unchanged. */
+    preview?(value: number, final: boolean): void;
   },
 ) {
   const input = event.currentTarget.querySelector("input");
@@ -81,12 +86,12 @@ function startScrub(
     moved = true;
     document.body.classList.add("artboard-scrubbing");
     const factor = pointer.shiftKey ? 10 : pointer.altKey ? 0.1 : 1;
-    latest = clamp(roundValue(start + delta * factor), options.min, options.max);
+    latest = clamp(roundInput(start + delta * factor), options.min, options.max);
     input.value = String(latest);
     if (options.preview && !frame)
       frame = requestAnimationFrame(() => {
         frame = 0;
-        options.preview?.(latest);
+        options.preview?.(latest, false);
       });
   };
   const end = () => {
@@ -96,8 +101,9 @@ function startScrub(
     cancelAnimationFrame(frame);
     document.body.classList.remove("artboard-scrubbing");
     if (!moved) return;
-    input.value = String(latest);
-    options.onCommit(input);
+    input.value = formatInput(latest);
+    if (options.preview) options.preview(latest, true);
+    else options.onCommit(input);
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
@@ -138,6 +144,42 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     next.root = { ...next.root, ...patch };
     run({ type: "layout", operation: "replace", value: next });
   };
+  const data = board.behavior?.data,
+    bound = data?.context,
+    boundLinks = data?.links.filter((link) => link.instanceId === null).length ?? 0;
+  const updateContext = (next: { modelId: string; instanceId: string } | null) => {
+    if (boundLinks && next?.modelId !== bound?.modelId) {
+      setError(
+        `${boundLinks} ${boundLinks === 1 ? "link segue" : "links seguem"} a instância da prancheta; refaça-os no modo Estados antes de trocar o modelo.`,
+      );
+      return;
+    }
+    const behavior = structuredClone(board.behavior ?? emptyBehavior()),
+      document = behavior.data ?? emptyDataModels();
+    if (next) document.context = next;
+    else delete document.context;
+    behavior.data = document;
+    run({ type: "behavior", operation: "replace", value: behavior });
+  };
+  const chooseModel = (modelId: string) => {
+    if (!modelId) return updateContext(null);
+    const instance = data?.instances.find((instance) => instance.modelId === modelId);
+    if (!instance) {
+      setError("Crie uma instância desse modelo no modo Estados antes de ligá-lo à prancheta.");
+      return;
+    }
+    updateContext({ modelId, instanceId: instance.id });
+  };
+  // A grid needs columns and the other flows refuse them; keep authored columns.
+  const setFlow = (flow: LayoutContainer["flow"]) => {
+    const next = structuredClone(board.layout ?? defaultDocument()),
+      { columns, ...rest } = next.root;
+    next.root =
+      flow === "grid"
+        ? { ...rest, flow, columns: columns ?? { kind: "fixed", count: 2 } }
+        : { ...rest, flow };
+    run({ type: "layout", operation: "replace", value: next });
+  };
   const updateRootSize = (axis: "width" | "height", mode: SizeMode) => {
     const next = structuredClone(board.layout ?? defaultDocument());
     next.rootSize = { ...(next.rootSize ?? { width: "fill", height: "fill" }), [axis]: mode };
@@ -146,7 +188,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
   const commitSize = (axis: "width" | "height", input: HTMLInputElement) => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value <= 0 || value > 100000) {
-      input.value = String(axis === "width" ? width : height);
+      input.value = formatInput(axis === "width" ? width : height);
       setError("A dimensão deve ser maior que zero e até 100.000 px.");
       return;
     }
@@ -154,8 +196,8 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     const ratio = axis === "width" ? height / width : width / height;
     updateBoard(
       axis === "width"
-        ? { width: value, ...(linkedSize ? { height: value * ratio } : {}) }
-        : { height: value, ...(linkedSize ? { width: value * ratio } : {}) },
+        ? { width: value, ...(linkedSize ? { height: roundInput(value * ratio) } : {}) }
+        : { height: value, ...(linkedSize ? { width: roundInput(value * ratio) } : {}) },
     );
   };
   const numberField = (
@@ -168,7 +210,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
       shortLabel?: string;
       unit?: string;
       derived?: boolean;
-      preview?(value: number): void;
+      preview?(value: number, final: boolean): void;
     } = {},
   ) => (
     <label
@@ -194,12 +236,25 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
           step="any"
           min={options.min ?? 0}
           max={options.max ?? 100000}
-          defaultValue={value}
-          onBlur={(event) => onCommit(event.currentTarget)}
+          defaultValue={formatInput(value)}
+          onBlur={(event) => {
+            const input = event.currentTarget;
+            // Untouched fields keep the stored precision instead of rounding it.
+            if (input.value === formatInput(value)) return;
+            if (Number.isFinite(input.valueAsNumber))
+              try {
+                input.value = formatInput(roundTypedInput(input.valueAsNumber));
+              } catch (reason) {
+                input.value = formatInput(value);
+                setError(reason instanceof Error ? reason.message : "Valor inválido.");
+                return;
+              }
+            onCommit(input);
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") {
-              event.currentTarget.value = String(value);
+              event.currentTarget.value = formatInput(value);
               event.currentTarget.blur();
             }
           }}
@@ -233,7 +288,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
   const updatePadding = (index: number, input: HTMLInputElement) => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value < 0 || value > 100000) {
-      input.value = String(padding[index]);
+      input.value = formatInput(padding[index] ?? 0);
       setError("O espaçamento deve estar entre 0 e 100.000 px.");
       return;
     }
@@ -248,11 +303,15 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
   };
   // `view` is the value at render time; during a scrub it stays the starting
   // point, so the linked axis keeps the proportion it had when the drag began.
+  // From zero there is no proportion, so the partner moves by the same amount.
   const viewPatch = (key: keyof ArtboardView, value: number, min: number, max: number) => {
     const partner = partners[key];
     if (!partner) return { [key]: value };
-    const other =
-      view[key] === 0 ? value : clamp(roundValue((value * view[partner]) / view[key]), min, max);
+    const other = clamp(
+      roundInput(view[key] === 0 ? view[partner] + value : (value * view[partner]) / view[key]),
+      min,
+      max,
+    );
     return { [key]: value, [partner]: other };
   };
   const commitView = (
@@ -263,7 +322,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
   ) => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value < minimum || value > maximum) {
-      input.value = String(view[key]);
+      input.value = formatInput(view[key]);
       setError(`Valor de ${input.getAttribute("aria-label") ?? key} fora do intervalo permitido.`);
       return;
     }
@@ -282,7 +341,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
       max,
       shortLabel,
       unit,
-      preview: (value) => updateView(viewPatch(key, value, min, max)),
+      preview: (value, final) => updateView(viewPatch(key, value, min, max), !final),
     });
 
   return (
@@ -313,6 +372,47 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
       </div>
 
       <section className="artboard-inspector-section artboard-transform">
+        <div
+          className="artboard-transform-row"
+          title={data?.models.length ? undefined : "Crie modelos de dados no modo Estados"}
+        >
+          <span>Modelo</span>
+          <select
+            className="artboard-select-inline"
+            aria-label="Modelo da prancheta"
+            disabled={!data?.models.length}
+            value={bound?.modelId ?? ""}
+            onChange={(event) => chooseModel(event.target.value)}
+          >
+            <option value="">Nenhum</option>
+            {data?.models.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="artboard-transform-row">
+          <span>Instância</span>
+          <select
+            className="artboard-select-inline"
+            aria-label="Instância da prancheta"
+            disabled={!bound}
+            value={bound?.instanceId ?? ""}
+            onChange={(event) =>
+              bound && updateContext({ modelId: bound.modelId, instanceId: event.target.value })
+            }
+          >
+            {!bound && <option value="">—</option>}
+            {data?.instances
+              .filter((instance) => instance.modelId === bound?.modelId)
+              .map((instance) => (
+                <option key={instance.id} value={instance.id}>
+                  {instance.name}
+                </option>
+              ))}
+          </select>
+        </div>
         <div className="artboard-transform-row">
           <span>Posição</span>
           <div className="artboard-value-row">
@@ -381,13 +481,13 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
         </div>
         <div className="artboard-value-row">
           {numberField("Largura", width, (input) => commitSize("width", input), {
-            min: 0.001,
+            min: 0.01,
             shortLabel: "W",
             unit: "px",
             derived: board.layout?.rootSize?.width === "hug",
           })}
           {numberField("Altura", height, (input) => commitSize("height", input), {
-            min: 0.001,
+            min: 0.01,
             shortLabel: "H",
             unit: "px",
             derived: board.layout?.rootSize?.height === "hug",
@@ -448,7 +548,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
                   }
                   aria-pressed={root.flow === flow}
                   title={{ row: "Horizontal", column: "Vertical", grid: "Grade" }[flow]}
-                  onClick={() => updateLayout({ flow })}
+                  onClick={() => setFlow(flow)}
                 >
                   {{ row: "▥", column: "▤", grid: "▦" }[flow]}
                 </button>
@@ -497,7 +597,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
                   if (Number.isFinite(value) && value >= 0 && value <= 100000)
                     updateLayout({ gap: [value, root.gap[1]] });
                   else {
-                    input.value = String(root.gap[0]);
+                    input.value = formatInput(root.gap[0]);
                     setError("Espaço horizontal inválido.");
                   }
                 },
@@ -511,7 +611,7 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
                   if (Number.isFinite(value) && value >= 0 && value <= 100000)
                     updateLayout({ gap: [root.gap[0], value] });
                   else {
-                    input.value = String(root.gap[1]);
+                    input.value = formatInput(root.gap[1]);
                     setError("Espaço vertical inválido.");
                   }
                 },

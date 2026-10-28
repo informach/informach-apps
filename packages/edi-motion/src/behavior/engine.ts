@@ -2,6 +2,7 @@ import {
   applyDataChanges,
   type DataContext,
   type DataRecord,
+  linkInstanceId,
   parseDataModels,
   resolveDataPath,
 } from "../data";
@@ -65,6 +66,8 @@ export interface BehaviorSession {
   layers: Map<string, LayerClock>;
   seconds: number;
   data?: Map<string, DataRecord>;
+  /** Instance bound to the artboard's data context; null-instance links read it. */
+  dataInstanceId?: string;
   animationEntered?: boolean;
 }
 export interface BehaviorContext {
@@ -199,9 +202,16 @@ export function createBehaviorSession(
       ]),
     ),
   };
+  const bound = context.data?.document.context?.instanceId;
   return withFormulas(
     context,
-    context.data ? withDataValues(context, session, new Map(context.data.initial)) : session,
+    context.data
+      ? withDataValues(
+          context,
+          bound ? { ...session, dataInstanceId: bound } : session,
+          new Map(context.data.initial),
+        )
+      : session,
   );
 }
 function withDataValues(
@@ -218,7 +228,12 @@ function withDataValues(
       link.inputId,
       validateInputValue(
         input,
-        resolveDataPath(context.data, data, link.instanceId, link.path).value,
+        resolveDataPath(
+          context.data,
+          data,
+          linkInstanceId(context.data.document, link, source.dataInstanceId),
+          link.path,
+        ).value,
       ),
     );
   }
@@ -232,6 +247,20 @@ export function editBehaviorData(
   if (!context.data || !source.data) throw new Error("Sessão sem modelos de dados.");
   return withDataValues(context, source, applyDataChanges(context.data, source.data, changes));
 }
+/** Binds another instance of the artboard's model; bound links re-read it. */
+export function bindBehaviorDataInstance(
+  context: BehaviorContext,
+  source: BehaviorSession,
+  instanceId: string,
+): BehaviorSession {
+  const document = context.data?.document;
+  if (!document?.context || !source.data) throw new Error("Prancheta sem modelo de dados.");
+  const instance = document.instances.find((instance) => instance.id === instanceId);
+  if (!instance || instance.modelId !== document.context.modelId)
+    throw new Error("Instância precisa ser do modelo da prancheta.");
+  if (source.dataInstanceId === instanceId) return source;
+  return withDataValues(context, { ...source, dataInstanceId: instanceId }, source.data);
+}
 export function setBehaviorInput(
   context: BehaviorContext,
   source: BehaviorSession,
@@ -244,12 +273,18 @@ export function setBehaviorInput(
     throw new Error("Input calculado por fórmula é somente leitura.");
   const clean = validateInputValue(input, value);
   if (source.inputs.get(id) === clean) return source;
-  const link = context.data?.document.links.find((link) => link.inputId === id);
-  if (link) {
+  const document = context.data?.document,
+    link = document?.links.find((link) => link.inputId === id);
+  if (document && link) {
     if (link.direction !== "two-way")
       throw new Error("Input é controlado pelo modelo de dados (somente leitura).");
     return editBehaviorData(context, source, [
-      { operation: "set", instanceId: link.instanceId, path: link.path, value: clean },
+      {
+        operation: "set",
+        instanceId: linkInstanceId(document, link, source.dataInstanceId),
+        path: link.path,
+        value: clean,
+      },
     ]);
   }
   const inputs = new Map(source.inputs);

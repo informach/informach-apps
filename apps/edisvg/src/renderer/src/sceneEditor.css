@@ -263,6 +263,22 @@
 .artboard-link[aria-pressed="true"] {
   color: var(--mint);
 }
+.artboard-select-inline {
+  min-width: 0;
+  height: 25px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+}
+.artboard-select-inline:hover:not(:disabled) {
+  border-color: var(--line);
+}
+.artboard-select-inline:disabled {
+  color: var(--muted);
+}
 .artboard-size-mode {
   display: flex;
   min-width: 0;

@@ -421,6 +421,11 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
       throw new Error("Binding semântico requer blueprint v12.");
     if (parsed.version < 12 && behavior.formulas?.length)
       throw new Error("Fórmulas requerem blueprint v12.");
+    if (
+      parsed.version < 13 &&
+      (behavior.data?.context || behavior.data?.links.some((link) => link.instanceId === null))
+    )
+      throw new Error("Modelo da prancheta requer blueprint v13.");
     const audio =
       parsed.audio === undefined
         ? undefined

@@ -233,7 +233,14 @@ export function createSvgLayout(
     try {
       const viewport = viewportSize();
       if (dirty) measure();
-      const next = engine.compute(layout, viewport, objects, intrinsic, initialViewBox),
+      // Without an authored viewBox there is no design size; fixed axes use the viewport.
+      const next = engine.compute(
+          layout,
+          viewport,
+          objects,
+          intrinsic,
+          oldViewBox === null ? viewport : initialViewBox,
+        ),
         rootResult = next.containers.get(null),
         width = rootResult?.width ?? viewport.width,
         height = rootResult?.height ?? viewport.height;

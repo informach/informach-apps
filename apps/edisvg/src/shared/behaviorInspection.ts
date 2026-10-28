@@ -54,6 +54,8 @@ export function inspectBehavior(value: Behavior | undefined, rawRequest: unknown
   return {
     version: behavior.version,
     defaultMachineId: behavior.defaultMachineId,
+    // Replacing behavior without this would silently unbind the artboard's model.
+    dataContext: behavior.data?.context ?? null,
     collection: request.collection,
     total: list.length,
     offset: request.offset,

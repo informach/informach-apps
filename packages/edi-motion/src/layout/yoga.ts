@@ -303,8 +303,9 @@ export async function createLayoutEngine(): Promise<LayoutEngine> {
               ),
               width = Math.max(0, (innerWidth - grid.config.gap[0] * (count - 1)) / count),
               fixedHeight =
-                grid.targetId === null ||
-                (styles.get(grid.targetId)?.height.kind ?? "hug") !== "hug",
+                grid.targetId === null
+                  ? rootSize.height !== "hug"
+                  : (styles.get(grid.targetId)?.height.kind ?? "hug") !== "hug",
               height = fixedHeight
                 ? Math.max(minimumHeight, (innerHeight - grid.config.gap[1] * (rows - 1)) / rows)
                 : null,

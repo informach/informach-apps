@@ -339,6 +339,12 @@ export function parseProject(input: unknown): Project {
           throw new Error("Binding semântico requer projeto v23.");
         if (header.data.version < 23 && board.behavior.formulas?.length)
           throw new Error("Fórmulas requerem projeto v23.");
+        if (
+          header.data.version < 24 &&
+          (board.behavior.data?.context ||
+            board.behavior.data?.links.some((link) => link.instanceId === null))
+        )
+          throw new Error("Modelo da prancheta requer projeto v24.");
       }
       if (raw.audio !== undefined) {
         if (header.data.version < 15) throw new Error("Áudio requer projeto v15.");

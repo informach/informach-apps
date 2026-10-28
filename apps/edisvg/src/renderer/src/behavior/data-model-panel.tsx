@@ -3,6 +3,7 @@ import {
   applyDataChanges,
   type DataModelDocument,
   dataFieldSchema,
+  dataPathCrossesList,
   defaultDataRecord,
   emptyDataModels,
   parseDataModels,
@@ -41,7 +42,13 @@ export function DataModelPanel({ behavior, focus, focusChanged, save, report }: 
     paths = allPaths.filter((value) =>
       value.label.toLocaleLowerCase("pt-BR").includes(filter.toLocaleLowerCase("pt-BR")),
     ),
-    [linkPath, setLinkPath] = useState("");
+    [linkPath, setLinkPath] = useState(""),
+    // Following the bound instance only makes sense for the artboard's model, and
+    // never through a list item, whose id belongs to this instance alone.
+    boundTarget =
+      !!instance &&
+      data.context?.modelId === instance.modelId &&
+      !(linkPath && dataPathCrossesList(context, instance.modelId, linkPath.split("/")));
   const edit = (change: (draft: DataModelDocument) => void, definitions = false) => {
     try {
       const draft = structuredClone(data);
@@ -382,7 +389,8 @@ export function DataModelPanel({ behavior, focus, focusChanged, save, report }: 
               edit((draft) =>
                 draft.links.push({
                   id: `link-${crypto.randomUUID()}`,
-                  instanceId: instance.id,
+                  instanceId:
+                    boundTarget && formText(form, "target") === "bound" ? null : instance.id,
                   path: linkPath.split("/"),
                   inputId: formText(form, "input"),
                   direction: formText(form, "direction") === "two-way" ? "two-way" : "one-way",
@@ -419,6 +427,20 @@ export function DataModelPanel({ behavior, focus, focusChanged, save, report }: 
                   ))}
               </select>
             </label>
+            {boundTarget && (
+              <label className="scene-field">
+                Alvo do link
+                <select
+                  key={instance.id}
+                  name="target"
+                  aria-label="Alvo do link"
+                  defaultValue={data.context?.instanceId === instance.id ? "bound" : "fixed"}
+                >
+                  <option value="bound">Instância da prancheta (segue a ligada)</option>
+                  <option value="fixed">Somente {instance.name}</option>
+                </select>
+              </label>
+            )}
             <label className="scene-field">
               Direção do link
               <select name="direction" aria-label="Direção do link" defaultValue="one-way">
@@ -433,7 +455,12 @@ export function DataModelPanel({ behavior, focus, focusChanged, save, report }: 
       {data.links.map((link) => (
         <div key={link.id}>
           <small>
-            {link.instanceId} → {link.inputId} · {link.direction}
+            {link.instanceId === null
+              ? "Instância da prancheta"
+              : (data.instances.find((value) => value.id === link.instanceId)?.name ??
+                link.instanceId)}{" "}
+            → {behavior.inputs.find((input) => input.id === link.inputId)?.name ?? link.inputId} ·{" "}
+            {link.direction}
           </small>
           <button
             type="button"

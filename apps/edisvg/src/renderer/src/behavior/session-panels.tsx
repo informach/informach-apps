@@ -20,6 +20,8 @@ type Controls = Pick<
   | "onDataChange"
   | "onStateChange"
   | "getData"
+  | "getDataInstance"
+  | "bindDataInstance"
   | "editData"
   | "dataVersion"
 >;
@@ -176,6 +178,24 @@ function SessionControls({
               .join(" · ") || "Sem camadas"}
           </p>
         </>
+      )}
+      {behavior.data?.context && (
+        <label className="scene-field">
+          Instância ligada à prancheta
+          <select
+            aria-label="Instância ligada à prancheta"
+            value={controls.getDataInstance() ?? ""}
+            onChange={(event) => run(() => controls.bindDataInstance(event.target.value))}
+          >
+            {behavior.data.instances
+              .filter((instance) => instance.modelId === behavior.data?.context?.modelId)
+              .map((instance) => (
+                <option key={instance.id} value={instance.id}>
+                  {instance.name}
+                </option>
+              ))}
+          </select>
+        </label>
       )}
       {behavior.data?.instances.map((instance) => {
         const value = controls.getData(instance.id);

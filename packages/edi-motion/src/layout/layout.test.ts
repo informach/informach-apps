@@ -172,3 +172,38 @@ test("a hugging artboard refuses children that depend on its size on the same ax
   document.items = [];
   expect(() => parseLayout(document, objects)).toThrow(/auto-fit com largura hug/);
 });
+test("a hugging root grid sizes each row by its own cells and ignores absolute children", async () => {
+  const engine = await createLayoutEngine(),
+    four = new Map<string, LayoutObject>(
+      ["node-a", "node-b", "node-c", "node-d"].map((id) => [id, { tag: "rect", parentId: null }]),
+    ),
+    heights: Record<string, number> = { "node-a": 10, "node-b": 10, "node-c": 100, "node-d": 100 },
+    sizes = new Map(
+      [...four.keys()].map((id) => [id, { x: 0, y: 0, width: 20, height: heights[id] ?? 0 }]),
+    ),
+    document = layout();
+  document.root = {
+    ...document.root,
+    flow: "grid",
+    columns: { kind: "fixed", count: 2 },
+    gap: [0, 10],
+  };
+  document.rootSize = { width: "fixed", height: "hug" };
+  const root = engine
+    .compute(document, { width: 300, height: 300 }, four, sizes, { width: 100, height: 300 })
+    .containers.get(null);
+  expect(root?.height).toBe(120);
+
+  const hugging = layout();
+  hugging.rootSize = { width: "hug", height: "hug" };
+  hugging.items = [
+    {
+      ...defaultLayoutItem("node-c"),
+      width: { kind: "fill", weight: 1 },
+      position: { kind: "absolute", left: 0, right: 0, top: 0, bottom: null },
+    },
+  ];
+  expect(parseLayout(hugging, objects).rootSize).toEqual({ width: "hug", height: "hug" });
+  hugging.items = [{ ...defaultLayoutItem("node-c"), width: { kind: "fill", weight: 1 } }];
+  expect(() => parseLayout(hugging, objects)).toThrow(/dependência circular/);
+});

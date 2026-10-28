@@ -188,6 +188,8 @@ export function parseLayout(
     for (const [childId, object] of objects) {
       if (object.parentId !== null) continue;
       const child = items.get(childId) ?? defaultLayoutItem(childId);
+      // Absolute children are placed inside the hugged box but never size it.
+      if (child.position.kind === "absolute") continue;
       if (
         (rootSize.width === "hug" && ["fill", "percent"].includes(child.width.kind)) ||
         (rootSize.height === "hug" && ["fill", "percent"].includes(child.height.kind))
@@ -207,6 +209,7 @@ export function parseLayout(
     for (const [childId, object] of objects) {
       if (object.parentId !== id) continue;
       const child = items.get(childId) ?? defaultLayoutItem(childId);
+      if (child.position.kind === "absolute") continue;
       if (
         (parentStyle.width.kind === "hug" && ["fill", "percent"].includes(child.width.kind)) ||
         (parentStyle.height.kind === "hug" && ["fill", "percent"].includes(child.height.kind))
