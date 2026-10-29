@@ -94,6 +94,7 @@ import { mountLayoutPreview } from "./layout-preview";
 import { paintOnionSkin } from "./onionSkin";
 import { bindPanelResize } from "./panelResize";
 import { mountPathActions } from "./path-actions";
+import { mountPathEffectsPanel } from "./path-effects-panel";
 import { mountRigOverlay } from "./rig/rig-overlay";
 import { mountRigPanel } from "./rig/rig-panel";
 import { mountSkinOverlay } from "./rig/skin-overlay";
@@ -105,6 +106,7 @@ import { mountTextPanel } from "./text-panel";
 import { mountTimelinePanel } from "./timeline-panel";
 import { activeTimelineClip } from "./timelineState";
 import { mountTransformActions } from "./transform-actions";
+import { paintDesignTrim } from "./trim-preview";
 import { mountVectorActions } from "./vector-actions";
 import {
   defaultArtboardView,
@@ -302,6 +304,7 @@ let disposePalette;
 let disposePanelResize;
 let disposeVectorActions;
 let disposeAppearancePanel;
+let disposePathEffectsPanel;
 let disposeTextPanel;
 let disposeImagePanel;
 let disposeEffectsPanel;
@@ -404,6 +407,8 @@ function render() {
   disposeVectorActions = null;
   disposeAppearancePanel?.();
   disposeAppearancePanel = null;
+  disposePathEffectsPanel?.();
+  disposePathEffectsPanel = null;
   disposeTextPanel?.();
   disposeTextPanel = null;
   disposeImagePanel?.();
@@ -671,6 +676,25 @@ function render() {
       },
     };
     if (appearanceHost) disposeAppearancePanel = mountAppearancePanel(appearanceHost, props);
+    const pathEffectsHost = document.querySelector("[data-path-effects-panel]");
+    if (pathEffectsHost && layoutBoard)
+      disposePathEffectsPanel = mountPathEffectsPanel(pathEffectsHost, {
+        board: layoutBoard,
+        node: instanceNode,
+        locked: instanceEntry.locked,
+        execute(command) {
+          transact([command]);
+          render();
+        },
+        previewTrim(trim) {
+          if (state.view !== "design") return;
+          paintDesignTrim(
+            sceneElements.get(instanceNode.id),
+            instanceNode,
+            trim ?? layoutBoard.rig?.trims?.find((item) => item.targetId === instanceNode.id) ?? null,
+          );
+        },
+      });
     if (textHost) disposeTextPanel = mountTextPanel(textHost, props);
     if (imageHost) disposeImagePanel = mountImagePanel(imageHost, props);
     if (effectsHost) disposeEffectsPanel = mountEffectsPanel(effectsHost, props);
@@ -754,6 +778,11 @@ function render() {
   sceneDisplays = new Map(
     [...sceneElements].map(([id, element]) => [id, element.getAttribute("display")]),
   );
+  if (state.view === "design" && !state.pathEdit) {
+    const nodes = new Map(flattenScene(state.scene).map(({ node }) => [node.id, node]));
+    for (const trim of layoutBoard?.rig?.trims ?? [])
+      paintDesignTrim(sceneElements.get(trim.targetId), nodes.get(trim.targetId), trim);
+  }
   const stackedScopes = drawOrderScopes([
     ...(state.previewComposition?.playback.motion.animations ?? []),
     ...(state.previewComposition?.playback.drivers.map((driver) => driver.animation) ?? []),

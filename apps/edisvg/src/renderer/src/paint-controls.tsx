@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { inheritedAppearance, inheritedGradients } from "../../shared/appearance";
 import type { Scene, SceneNode } from "../../shared/sceneTypes";
+import { formatInput } from "./form-values";
+import { ScrubField } from "./inspector-field";
 import { normalizeHex } from "./paint-color";
 import { PaintPicker } from "./paint-picker";
 
@@ -14,8 +16,14 @@ interface Props {
   execute(commands: unknown[]): void;
 }
 
+const labels: Record<Paint, string> = { fill: "Preenchimento", stroke: "Contorno" };
+// Hiding a paint stores opacity 0, so the color and gradient survive. The
+// opacity it had comes back when shown again in this session; otherwise 100%.
+const hiddenOpacity = new Map<string, number>();
+
 export function PaintControls({ scene, node, locked, execute }: Props) {
   const [open, setOpen] = useState<Paint | null>(null);
+  const [adding, setAdding] = useState(false);
   const [position, setPosition] = useState({ top: 52, left: 8 });
   const [error, setError] = useState("");
   const appearance = inheritedAppearance(scene, node);
@@ -28,6 +36,8 @@ export function PaintControls({ scene, node, locked, execute }: Props) {
       setError(reason instanceof Error ? reason.message : "Pintura recusada.");
     }
   };
+  const setAttrs = (value: Record<string, string>) =>
+    apply([{ type: "scene", operation: "attrs", targetId: node.id, value }]);
   const saveColor = (color: string) => {
     if (scene.palette?.some((item) => item.toLowerCase() === color.toLowerCase())) return;
     if ((scene.palette?.length ?? 0) >= 64) {
@@ -38,44 +48,48 @@ export function PaintControls({ scene, node, locked, execute }: Props) {
       { type: "appearance", operation: "palette", colors: [...(scene.palette ?? []), color] },
     ]);
   };
-  const row = (paint: Paint) => {
-    const label = paint === "fill" ? "Preenchimento" : "Contorno";
+  const describe = (paint: Paint) => {
     const value = appearance[paint] ?? (paint === "fill" ? "#000000" : "none");
     const gradient = gradients[paint];
     const firstStop = gradient?.kind !== "pattern" ? gradient?.stops[0]?.color : undefined;
-    const solid = normalizeHex(firstStop ?? "") ?? normalizeHex(value) ?? "#000000";
     const rawOpacity = Number(appearance[`${paint}-opacity`] ?? "1");
-    const opacity = Number.isFinite(rawOpacity) ? Math.min(1, Math.max(0, rawOpacity)) : 1;
-    const inherited = node.attrs[paint] === undefined || node.attrs[paint] === "inherit";
-    const absent = value === "none" && !gradient;
-    const kind =
-      gradient?.kind === "pattern"
-        ? "Padrão"
-        : gradient
-          ? "Gradiente"
-          : absent
-            ? "Sem pintura"
-            : inherited
-              ? "Herdado"
-              : "";
+    return {
+      gradient,
+      absent: value === "none" && !gradient,
+      solid: normalizeHex(firstStop ?? "") ?? normalizeHex(value) ?? "#000000",
+      opacity: Number.isFinite(rawOpacity) ? Math.min(1, Math.max(0, rawOpacity)) : 1,
+      inherited: node.attrs[paint] === undefined || node.attrs[paint] === "inherit",
+    };
+  };
+  const absentPaints = (["fill", "stroke"] as const).filter((paint) => describe(paint).absent);
+  const addPaint = (paint: Paint) => {
+    setAdding(false);
+    setAttrs({ [paint]: paint === "fill" ? "#747474" : "#000000", [`${paint}-opacity`]: "1" });
+  };
+
+  const row = (paint: Paint) => {
+    const label = labels[paint];
+    const { gradient, absent, solid, opacity, inherited } = describe(paint);
+    if (absent) return null;
+    const hidden = opacity === 0;
+    const key = `${node.id}:${paint}`;
     const background =
       gradient && gradient.kind !== "pattern"
         ? `linear-gradient(90deg, ${gradient.stops.map((stop) => `${stop.color} ${stop.offset * 100}%`).join(", ")})`
         : gradient?.kind === "pattern"
           ? "repeating-linear-gradient(45deg, #87919c 0 3px, #282d35 3px 6px)"
-          : absent
-            ? undefined
-            : solid;
+          : solid;
     return (
-      <div className="paint-channel" key={paint}>
+      <div className={hidden ? "paint-channel is-hidden" : "paint-channel"} key={paint}>
         <div className="paint-channel-row">
           <button
             type="button"
-            className={`paint-swatch ${paint === "stroke" ? "paint-swatch-stroke" : ""} ${absent ? "paint-swatch-empty" : ""}`}
+            className={`paint-swatch ${paint === "stroke" ? "paint-swatch-stroke" : ""}`}
             aria-label={`Escolher cor de ${label.toLowerCase()}`}
             aria-expanded={open === paint}
+            title={inherited ? `${label} herdado do grupo` : label}
             disabled={locked}
-            style={background ? { background } : undefined}
+            style={{ background }}
             onClick={(event) => {
               const bounds = event.currentTarget.getBoundingClientRect();
               setPosition({
@@ -85,28 +99,82 @@ export function PaintControls({ scene, node, locked, execute }: Props) {
               setOpen(open === paint ? null : paint);
             }}
           />
-          <div className="paint-channel-label">
-            <strong>{label}</strong>
-            {kind && <small>{kind}</small>}
-          </div>
+          {gradient ? (
+            <span className="paint-hex paint-kind">
+              {gradient.kind === "pattern" ? "Padrão" : "Gradiente"}
+            </span>
+          ) : (
+            <input
+              key={solid}
+              className="paint-hex"
+              aria-label={`Cor hexadecimal de ${label.toLowerCase()}`}
+              maxLength={7}
+              spellCheck={false}
+              disabled={locked}
+              defaultValue={solid.slice(1).toUpperCase()}
+              onBlur={(event) => {
+                const text = event.currentTarget.value.trim();
+                const color = normalizeHex(text.startsWith("#") ? text : `#${text}`);
+                if (!color) {
+                  event.currentTarget.value = solid.slice(1).toUpperCase();
+                  setError("Use uma cor hexadecimal, como 747474.");
+                  return;
+                }
+                if (color !== solid) setAttrs({ [paint]: color });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") {
+                  event.currentTarget.value = solid.slice(1).toUpperCase();
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          )}
+          <ScrubField
+            label={`Opacidade de ${label.toLowerCase()} (%)`}
+            shortLabel="◐"
+            value={opacity * 100}
+            min={0}
+            max={100}
+            unit="%"
+            disabled={locked}
+            onError={setError}
+            onCommit={(input) => {
+              const value = input.valueAsNumber;
+              if (!Number.isFinite(value) || value < 0 || value > 100) {
+                input.value = formatInput(opacity * 100);
+                setError("A opacidade deve estar entre 0% e 100%.");
+                return;
+              }
+              if (value !== opacity * 100) setAttrs({ [`${paint}-opacity`]: String(value / 100) });
+            }}
+          />
           <button
             type="button"
             className="paint-channel-action"
-            title={`${absent ? "Ativar" : "Remover"} ${label.toLowerCase()}`}
-            aria-label={`${absent ? "Ativar" : "Remover"} ${label.toLowerCase()}`}
+            aria-label={`${hidden ? "Mostrar" : "Ocultar"} ${label.toLowerCase()}`}
+            aria-pressed={hidden}
+            title={`${hidden ? "Mostrar" : "Ocultar"} ${label.toLowerCase()}`}
             disabled={locked}
-            onClick={() =>
-              apply([
-                {
-                  type: "scene",
-                  operation: "attrs",
-                  targetId: node.id,
-                  value: { [paint]: absent ? solid : "none" },
-                },
-              ])
-            }
+            onClick={() => {
+              if (!hidden) hiddenOpacity.set(key, opacity);
+              const restored = hiddenOpacity.get(key) || 1;
+              if (hidden) hiddenOpacity.delete(key);
+              setAttrs({ [`${paint}-opacity`]: hidden ? String(restored) : "0" });
+            }}
           >
-            {absent ? "+" : "−"}
+            <EyeIcon hidden={hidden} />
+          </button>
+          <button
+            type="button"
+            className="paint-channel-action"
+            aria-label={`Remover ${label.toLowerCase()}`}
+            title={`Remover ${label.toLowerCase()}`}
+            disabled={locked}
+            onClick={() => setAttrs({ [paint]: "none" })}
+          >
+            −
           </button>
         </div>
         {open === paint &&
@@ -120,14 +188,7 @@ export function PaintControls({ scene, node, locked, execute }: Props) {
               onClose={() => setOpen(null)}
               onSaveColor={saveColor}
               onApply={(color, nextOpacity) =>
-                apply([
-                  {
-                    type: "scene",
-                    operation: "attrs",
-                    targetId: node.id,
-                    value: { [paint]: color, [`${paint}-opacity`]: String(nextOpacity) },
-                  },
-                ])
+                setAttrs({ [paint]: color, [`${paint}-opacity`]: String(nextOpacity) })
               }
             />,
             document.body,
@@ -135,43 +196,80 @@ export function PaintControls({ scene, node, locked, execute }: Props) {
       </div>
     );
   };
+  const stroke = describe("stroke");
   return (
     <div className="paint-controls">
-      <h3>PREENCHIMENTOS E CONTORNOS</h3>
-      <div className="paint-channels">{(["fill", "stroke"] as const).map(row)}</div>
-      <label className="paint-width">
-        Espessura
-        <input
-          type="number"
-          min={0}
-          max={10000}
-          step={0.5}
-          defaultValue={appearance["stroke-width"] ?? "1"}
-          disabled={locked}
-          onBlur={(event) => {
-            const width = Number(event.target.value);
-            if (
-              event.target.value.trim() &&
-              Number.isFinite(width) &&
-              width >= 0 &&
-              width <= 10000 &&
-              String(width) !== appearance["stroke-width"]
-            )
-              apply([
-                {
-                  type: "scene",
-                  operation: "attrs",
-                  targetId: node.id,
-                  value: { "stroke-width": String(width) },
-                },
-              ]);
+      <div className="artboard-inspector-title paint-controls-title">
+        <h3>Preenchimentos e contornos</h3>
+        <button
+          type="button"
+          aria-label="Adicionar preenchimento ou contorno"
+          title={absentPaints.length ? "Adicionar" : "O objeto já tem preenchimento e contorno"}
+          aria-expanded={adding}
+          disabled={locked || !absentPaints.length}
+          onClick={() => {
+            const only = absentPaints.length === 1 ? absentPaints[0] : undefined;
+            if (only) addPaint(only);
+            else setAdding(!adding);
           }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-          }}
-        />
-      </label>
+        >
+          +
+        </button>
+      </div>
+      {adding && absentPaints.length > 1 && (
+        <div className="paint-add-menu">
+          {absentPaints.map((paint) => (
+            <button type="button" key={paint} onClick={() => addPaint(paint)}>
+              {labels[paint]}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="paint-channels">
+        {(["fill", "stroke"] as const).map(row)}
+        {absentPaints.length === 2 && <p className="micro">Sem preenchimento nem contorno.</p>}
+      </div>
+      {!stroke.absent && (
+        <div className="paint-width">
+          <span>Espessura</span>
+          <ScrubField
+            label="Espessura do contorno"
+            shortLabel="≡"
+            value={Number(appearance["stroke-width"] ?? "1") || 0}
+            min={0}
+            max={10000}
+            unit="px"
+            disabled={locked}
+            onError={setError}
+            onCommit={(input) => {
+              const width = input.valueAsNumber;
+              if (!Number.isFinite(width) || width < 0 || width > 10000) {
+                input.value = appearance["stroke-width"] ?? "1";
+                setError("A espessura deve estar entre 0 e 10.000 px.");
+                return;
+              }
+              if (String(width) !== appearance["stroke-width"])
+                setAttrs({ "stroke-width": String(width) });
+            }}
+          />
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
     </div>
+  );
+}
+
+function EyeIcon({ hidden }: { hidden: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <circle cx="8" cy="8" r="2" fill={hidden ? "none" : "currentColor"} stroke="currentColor" />
+      {hidden && <path d="M2.5 2.5l11 11" stroke="currentColor" strokeWidth="1.3" />}
+    </svg>
   );
 }

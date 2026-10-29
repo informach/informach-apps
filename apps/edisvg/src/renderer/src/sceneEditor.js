@@ -1,6 +1,7 @@
 import { objectTransformPatchSchema } from "@informach/edi-motion";
 import { animations } from "../../shared/animation.js";
 import { renderEditorComposition } from "../../shared/components";
+import { PATH_TAGS } from "../../shared/pathGeometry.js";
 import { editScene, flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
 import { bindCanvasTools } from "./canvasTools.js";
 import { objectPose } from "./clipEditor.js";
@@ -201,7 +202,7 @@ export function sceneInspector(state) {
       return `<label class="property">${label}<input data-scene-transform="${k}" aria-label="Objeto ${label}" type="number" step="${k === "sx" || k === "sy" ? ".05" : "1"}" value="${formatInput(v)}" ${locked ? "disabled" : ""}></label>`;
     })
     .join(" ")}</div></section>`;
-  return `<div class="panel-heading">${esc(node.name)}</div>${scenePaintInspector(node)}${node.tag === "text" ? "<div data-text-panel></div>" : ""}${transform}${node.instance ? "<div data-instance-inspector></div>" : pathInspector(state)}${inspectorDisclosure("organize", "Organizar", controls)}${inspectorDisclosure("effects", "Efeitos", "<div data-effects-panel></div>")}${inspectorDisclosure("semantics", "Acessibilidade", "<div data-semantics-panel></div>")}${inspectorDisclosure("layout", "Layout", "<div data-layout-panel></div>")}<div data-rig-panel></div>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
+  return `<div class="panel-heading">${esc(node.name)}</div>${scenePaintInspector(node)}${PATH_TAGS.has(node.tag) && !node.instance ? "<div data-path-effects-panel></div>" : ""}${node.tag === "text" ? "<div data-text-panel></div>" : ""}${transform}${node.instance ? "<div data-instance-inspector></div>" : pathInspector(state)}${inspectorDisclosure("organize", "Organizar", controls)}${inspectorDisclosure("effects", "Efeitos", "<div data-effects-panel></div>")}${inspectorDisclosure("semantics", "Acessibilidade", "<div data-semantics-panel></div>")}${inspectorDisclosure("layout", "Layout", "<div data-layout-panel></div>")}<div data-rig-panel></div>${state.view === "animate" ? "<div data-draw-order-panel></div>" : ""}<div data-transform-actions></div><div data-vector-actions></div>`;
 }
 export function bindScene(
   state,

@@ -1,3 +1,4 @@
+export { type TrimOptions, type TrimResult, trimGeometry } from "../geometry/trimGeometry";
 export { affinePose, createRigContext, evaluateRig, type RigContext } from "./constraints";
 export { rigCost } from "./cost";
 export {

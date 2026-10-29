@@ -6,11 +6,12 @@ import {
   type LayoutDocument,
   type LayoutRootSize,
 } from "@informach/edi-motion/layout";
-import { type PointerEvent as ReactPointerEvent, useState } from "react";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ArtboardCommand } from "../../shared/artboards";
 import type { Artboard } from "../../shared/project";
-import { formatInput, roundInput, roundTypedInput } from "./form-values";
+import { formatInput, roundInput } from "./form-values";
+import { ScrubField, type ScrubFieldProps } from "./inspector-field";
 import type { ArtboardView } from "./workspace";
 
 interface Props {
@@ -57,57 +58,6 @@ function LinkIcon({ linked }: { linked: boolean }) {
       />
     </svg>
   );
-}
-
-// Dragging the short label changes the value by 1 per pixel (Shift ×10, Alt ×0.1).
-// Window listeners keep the drag alive across remounts. Fields with a preview
-// apply the release value directly; the others go through the typing commit once.
-function startScrub(
-  event: ReactPointerEvent<HTMLLabelElement>,
-  options: {
-    min: number;
-    max: number;
-    onCommit(input: HTMLInputElement): void;
-    /** Live value while dragging; `final` marks the release, applied even if unchanged. */
-    preview?(value: number, final: boolean): void;
-  },
-) {
-  const input = event.currentTarget.querySelector("input");
-  if (event.button !== 0 || !input || input.disabled) return;
-  event.preventDefault();
-  const startX = event.clientX,
-    start = Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0;
-  let moved = false,
-    latest = start,
-    frame = 0;
-  const move = (pointer: PointerEvent) => {
-    const delta = pointer.clientX - startX;
-    if (!moved && Math.abs(delta) < 3) return;
-    moved = true;
-    document.body.classList.add("artboard-scrubbing");
-    const factor = pointer.shiftKey ? 10 : pointer.altKey ? 0.1 : 1;
-    latest = clamp(roundInput(start + delta * factor), options.min, options.max);
-    input.value = String(latest);
-    if (options.preview && !frame)
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        options.preview?.(latest, false);
-      });
-  };
-  const end = () => {
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", end);
-    window.removeEventListener("pointercancel", end);
-    cancelAnimationFrame(frame);
-    document.body.classList.remove("artboard-scrubbing");
-    if (!moved) return;
-    input.value = formatInput(latest);
-    if (options.preview) options.preview(latest, true);
-    else options.onCommit(input);
-  };
-  window.addEventListener("pointermove", move);
-  window.addEventListener("pointerup", end);
-  window.addEventListener("pointercancel", end);
 }
 
 function ArtboardInspector({ board, view, updateView, execute }: Props) {
@@ -204,68 +154,16 @@ function ArtboardInspector({ board, view, updateView, execute }: Props) {
     label: string,
     value: number,
     onCommit: (input: HTMLInputElement) => void,
-    options: {
-      min?: number;
-      max?: number;
-      shortLabel?: string;
-      unit?: string;
-      derived?: boolean;
-      preview?(value: number, final: boolean): void;
-    } = {},
+    options: Omit<ScrubFieldProps, "label" | "value" | "onCommit" | "onError"> = {},
   ) => (
-    <label
-      className={options.derived ? "artboard-value is-derived" : "artboard-value"}
+    <ScrubField
       key={label}
-      onPointerDown={(event) => {
-        if ((event.target as Element).closest(".artboard-scrub"))
-          startScrub(event, {
-            min: options.min ?? 0,
-            max: options.max ?? 100000,
-            onCommit,
-            preview: options.preview,
-          });
-      }}
-    >
-      <span className="artboard-scrub" title={`${label}: arraste para ajustar`}>
-        {options.shortLabel ?? label}
-      </span>
-      <span className="artboard-value-input">
-        <input
-          aria-label={label}
-          type="number"
-          step="any"
-          min={options.min ?? 0}
-          max={options.max ?? 100000}
-          defaultValue={formatInput(value)}
-          onBlur={(event) => {
-            const input = event.currentTarget;
-            // Untouched fields keep the stored precision instead of rounding it.
-            if (input.value === formatInput(value)) return;
-            if (Number.isFinite(input.valueAsNumber))
-              try {
-                input.value = formatInput(roundTypedInput(input.valueAsNumber));
-              } catch (reason) {
-                input.value = formatInput(value);
-                setError(reason instanceof Error ? reason.message : "Valor inválido.");
-                return;
-              }
-            onCommit(input);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-            if (event.key === "Escape") {
-              event.currentTarget.value = formatInput(value);
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        {options.unit && (
-          <span className="artboard-unit" aria-hidden="true">
-            {options.unit}
-          </span>
-        )}
-      </span>
-    </label>
+      label={label}
+      value={value}
+      onCommit={onCommit}
+      onError={setError}
+      {...options}
+    />
   );
   const linkButton = (
     subject: string,
