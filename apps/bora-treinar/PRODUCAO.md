@@ -14,7 +14,7 @@ Destino: `https://bora-treinar.informach.com.br`, no projeto Railway `informach-
 | PostgreSQL | Compartilhado; schema `bora_treinar`, criado pela migração `0076_bora_treinar` | aplicada em 31/10/2026, 13:08 UTC |
 | Redis | Compartilhado; sessões com prefixo `bora-treinar:auth:` (sem cache em cookie) e lease da manutenção em `bora-treinar:jobs:billing:*` | `REDIS_URL` com `?family=0` |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `bora-treinar` (id `4512351147655168`), criado pelo MCP do Sentry | criado em 31/10/2026 |
-| Cloudflare | CNAME `bora-treinar` para `ef7jp8xj.up.railway.app`, proxy ligado | pendente |
+| Cloudflare | CNAME `bora-treinar` para `ef7jp8xj.up.railway.app`, proxy ligado | no ar em 31/10/2026; certificado do Railway válido, `Server: cloudflare` |
 | SendGrid | Fila compartilhada, webhook assinado já existente; remetente `Bora Treinar <nao-responda@informach.com.br>` | domínio `informach.com.br` já usado pelos outros apps |
 
 O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:bora-treinar`, copia `public/` e `.next/static` para o standalone e o start roda `node apps/bora-treinar/.next/standalone/apps/bora-treinar/server.js`. O `build` do app roda antes `scripts/fetch-assets.mjs`, que copia o WASM do MediaPipe e **baixa o modelo de pose** de `storage.googleapis.com` (conferido por SHA-256): o build no Railway precisa dessa saída de rede. `/api/ready` confere banco e Redis; `/api/health` diz o commit servido.
@@ -73,8 +73,8 @@ Crons `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`: `APP_ORIGIN=h
 3. [x] Integrar a branch em `main` com o CI verde. O push dispara o `migrator`, que aplica `0076_bora_treinar`; conferir `[db:migrate] done.` no log.
 4. [x] `railway config plan` pelo PowerShell (ver `docs/deploy-runbook.md`, "Infraestrutura como código"). O plano deve **criar** só `@informach/bora-treinar`, `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`; qualquer linha de destroy é motivo para parar.
 5. [x] `railway config apply`, gravar as variáveis acima nos três serviços e fazer o primeiro deploy do app.
-6. [ ] Cloudflare: CNAME `bora-treinar` para o domínio Railway do serviço, proxy ligado; conferir o certificado.
-7. [x] Conferir `/api/ready` (200), o commit em `/api/health` e os assets em `/mediapipe/`. Em 31/10/2026, pela borda do Railway (`curl --connect-to bora-treinar.informach.com.br:443:ef7jp8xj.up.railway.app:443`): deployment `e20207d8-1f5b-4ba4-950c-83f18e0b4f96`, commit `f7e4818a`, `/api/ready` 200 e o modelo de pose servido. Repetir pelo domínio depois do DNS.
+6. [x] Cloudflare: CNAME `bora-treinar` para o domínio Railway do serviço, proxy ligado; conferir o certificado.
+7. [x] Conferir `/api/ready` (200), o commit em `/api/health` e os assets em `/mediapipe/`. Em 31/10/2026, pela borda do Railway (`curl --connect-to bora-treinar.informach.com.br:443:ef7jp8xj.up.railway.app:443`): deployment `e20207d8-1f5b-4ba4-950c-83f18e0b4f96`, commit `f7e4818a`, `/api/ready` 200 e o modelo de pose servido. Pelo domínio, com o proxy do Cloudflare, `/api/health` e `/api/ready` responderam 200 no mesmo dia.
 8. [ ] Bastidores: em 31/10/2026 o Bastidores usa o papel principal (sem `READONLY_DATABASE_URL`), então não há GRANT a rodar. Se o papel `bastidores_leitura` for criado, rodar os `GRANT` do schema `bora_treinar` (`apps/admin/PRODUCAO.md`); conferir a aba Bora Treinar em Produtos e as rotinas `billing` e `lembretes` em Operação.
 9. [ ] Smoke: cadastro com OTP real (entrega `delivered`), primeiro treino grátis com contagem manual e pela câmera, compra real Individual, Portal, cancelamento.
 
