@@ -85,7 +85,10 @@ export const boraChainProgress = boraTreinar.table(
   },
   (t) => [
     primaryKey({ columns: [t.profileId, t.chainId] }),
-    check("bora_chain_progress_values", sql`${t.level} >= 0 and ${t.bonus} >= 0 and ${t.streak} >= 0`),
+    check(
+      "bora_chain_progress_values",
+      sql`${t.level} >= 0 and ${t.bonus} >= 0 and ${t.streak} >= 0`,
+    ),
   ],
 );
 
