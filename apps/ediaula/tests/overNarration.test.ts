@@ -585,3 +585,36 @@ test("a voz continua na próxima fala depois do trecho acelerado, ou no fim da f
   // Never past the end of the voice.
   assert.equal(lapseEnd(58.5, { end: 60, words: [] }), 60);
 });
+
+test("o trecho acelerado nunca começa antes do ponto da parte nem fica em câmera lenta", () => {
+  // F7 in the 2 s lead-in (the voice heard from 8, the part from 10): nothing before 10.
+  const lead: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 30,
+    pauses: [],
+    over: {
+      from: 10,
+      anchors: [{ t: 0, at: 8 }],
+      lapses: [{ from: 1, to: 20, start: 9, end: 19 }],
+    },
+  };
+  const first = overPieces(lead)[0];
+  assert.ok(first && first.start >= 10);
+  // F7 twice in half a second over 5 s of voice: at its own speed, never slower.
+  const quick: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 20,
+    pauses: [],
+    over: {
+      from: 10,
+      anchors: [
+        { t: 0, at: 10 },
+        { t: 4.5, at: 14.5 },
+        { t: 6, at: 20 },
+        { t: 9, at: 23 },
+      ],
+      lapses: [{ from: 5, to: 5.5, start: 15, end: 20 }],
+    },
+  };
+  const lapse = overPieces(quick).find((p) => p.from === 5);
+  assert.equal(lapse?.speed, undefined);
+  assert.equal(lapse?.start, 15);
+});

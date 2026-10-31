@@ -49,7 +49,7 @@ test("the defaults: F9, F10 and F8 while open; marker, redo and the teleprompter
   ]);
   // The time-lapse key only over the narration.
   assert.deepEqual(sessionHotkeys(false, true, true).at(-1), "timelapse");
-  assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.note), "Ctrl+Shift+N");
+  assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.note), "Ctrl+Shift+Y");
   assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.draw), "Ctrl+Shift+D");
   assert.deepEqual(sessionHotkeys(true).slice(-2), ["clickerNext", "clickerPrev"]);
   assert.deepEqual(hotkeyConflicts(DEFAULT_HOTKEYS, true), []);
@@ -62,7 +62,7 @@ test("the helper hides every shortcut in use from the keys on screen, the clicke
     { vk: 0x79, m: 0 },
     { vk: 0x77, m: 0 },
     { vk: 0x4d, m: CTRL_SHIFT },
-    { vk: 0x4e, m: CTRL_SHIFT },
+    { vk: 0x59, m: CTRL_SHIFT },
     { vk: 0x52, m: CTRL_SHIFT },
     { vk: 0x28, m: CTRL_SHIFT },
     { vk: 0x26, m: CTRL_SHIFT },

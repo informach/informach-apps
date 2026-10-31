@@ -391,11 +391,12 @@ export function teleprompterLine(index: number, heard?: number): void {
   session?.teleprompterLine(index, heard);
 }
 
-/** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
+/** "Trecho acelerado": the voice held at `at` (start), or going on from `at` (end). */
 export function lapse(edge: "start" | "end", at: number): void {
   session?.lapse(edge, at);
 }
 
+/** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
 export function overAnchor(at: number, when: number): void {
   session?.overAnchor(at, when);
 }

@@ -978,6 +978,8 @@ export interface EdiAulaApi {
     onGuided(cb: (update: { projectId: string; store: GuidedStore }) => void): () => void;
     /** Recorder window: it was opened again for another lesson or media; read the context again. */
     onContextChanged(cb: () => void): () => void;
+    /** Whether the recorder window is open now. */
+    isOpen(): Promise<boolean>;
     /** Editor window: the voice's text again, for an open "Tela sobre a narração". */
     refreshOver(text: import("./recording.ts").OverText): Promise<void>;
     /** Recorder window: the voice's text changed (its transcript got ready). */

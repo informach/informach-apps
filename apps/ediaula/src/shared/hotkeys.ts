@@ -29,7 +29,9 @@ export const DEFAULT_HOTKEYS: HotkeyMap = {
   stop: "F10",
   guidedTarget: "F8",
   marker: "CommandOrControl+Shift+M",
-  note: "CommandOrControl+Shift+N",
+  // Not Ctrl+Shift+N: a new folder in Explorer and a private window in the browser are shown
+  // in lessons.
+  note: "CommandOrControl+Shift+Y",
   retake: "CommandOrControl+Shift+R",
   lineNext: "CommandOrControl+Shift+Down",
   linePrev: "CommandOrControl+Shift+Up",

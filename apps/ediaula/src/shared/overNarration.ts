@@ -108,13 +108,21 @@ export function overPieces(
   for (const { a, b, lapse } of splitAtLapses(kept, lapses)) {
     if (lapse) {
       // What of the time-lapse is kept (its pauses are cut) fills the voice from start to end.
-      const speed = overlap(kept, lapse.from, lapse.to) / (lapse.end - lapse.start);
+      // Shorter than the voice it covers (F7 twice in a row) it is never slowed down: it plays
+      // at its own speed from the start and the screen holds after it.
+      const speed = Math.max(1, overlap(kept, lapse.from, lapse.to) / (lapse.end - lapse.start));
       const piece: OverPiece = {
         from: round(a),
         to: round(b),
         start: round(lapse.start + overlap(kept, lapse.from, a) / speed),
-        speed: Math.round(speed * 10000) / 10000,
+        ...(speed > 1 ? { speed: Math.round(speed * 10000) / 10000 } : {}),
       };
+      // Nothing before the point the voice started from (F7 in the lead-in of a part).
+      if (piece.start < plan.from) {
+        piece.from = round(piece.from + (plan.from - piece.start) * speed);
+        piece.start = round(plan.from);
+      }
+      if (piece.to - piece.from < 1 / 30) continue;
       const prev = out.at(-1);
       if (prev && piece.start < pieceEnd(prev))
         prev.to = round(prev.from + (piece.start - prev.start) * (prev.speed ?? 1));

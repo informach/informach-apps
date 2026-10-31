@@ -211,14 +211,17 @@ test("os recados da gravação vão para o ponto da timeline que mostra aquele s
   const placed = notesOnTimeline(clips, sources, [
     { t: 10, text: "errei o clique" },
     { t: 40, text: "zoom no botão" },
-    // Cut out of the lesson (part 2, source 2): nowhere.
-    { t: 32, text: "sumiu" },
+    // Cut out of the lesson (part 2, source 2, left during a pause): the next moment kept.
+    { t: 32, text: "na pausa" },
+    // Past the end of every clip: nowhere.
+    { t: 60, text: "sumiu" },
   ]);
   assert.deepEqual(placed, [
     { t: 10, text: "errei o clique" },
     { t: 105, text: "zoom no botão" },
+    { t: 100, text: "na pausa" },
   ]);
-  const list = addNotes([{ id: "m", t: 10, label: "Marcador 1" }], placed);
+  const list = addNotes([{ id: "m", t: 10, label: "Marcador 1" }], placed.slice(0, 2));
   assert.deepEqual(
     list.map((m) => [Math.round(m.t * 1000) / 1000, m.label, !!m.note]),
     [

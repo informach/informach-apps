@@ -346,7 +346,9 @@ export function RecorderOverlay(): ReactNode {
   /** "Tela sobre a narração": the map of the lines is open. */
   const [mapOpen, setMapOpen] = useState(false);
   /** "Tela sobre a narração": the voice played to its end; the closing step is shown. */
-  const [overDone, setOverDone] = useState(false);
+  const [overDone, setOverDone] = useState<false | "gaps" | "complete">(false);
+  const overDoneRef = useRef(overDone);
+  overDoneRef.current = overDone;
   /** "Trecho acelerado": where the voice is waiting while the screen goes on. */
   const lapse = useRef<{ at: number } | null>(null);
   const [lapsing, setLapsing] = useState(false);
@@ -732,6 +734,20 @@ export function RecorderOverlay(): ReactNode {
     await window.api.recorder.keyboard(true);
     requestAnimationFrame(() => noteInput.current?.focus());
   }, []);
+  /**
+   * What belongs to one take only: a time-lapse or a note left open, the part saving itself
+   * after the voice ended. Gone at the start of a take and when one is thrown away.
+   */
+  const resetTakeState = useCallback((): void => {
+    clearTimeout(voiceEnded.current);
+    lapse.current = null;
+    setLapsing(false);
+    if (noteRef.current) {
+      noteRef.current = null;
+      setNote(null);
+      void window.api.recorder.keyboard(false);
+    }
+  }, []);
   const closeNote = useCallback(
     async (save: boolean) => {
       const open = noteRef.current;
@@ -872,7 +888,13 @@ export function RecorderOverlay(): ReactNode {
   const begin = useCallback(async () => {
     if (!settings || phaseRef.current !== "setup" || guidedBusy) return;
     if (!voiceMode && !monitor) return;
+    // The whole voice has a screen: F9 never records over the lesson without a line picked.
+    if (overDoneRef.current === "complete") {
+      showFlash("Toda a voz já tem tela. Escolha uma fala para gravar de novo.");
+      return;
+    }
     setOverDone(false);
+    resetTakeState();
     if (voiceMode && !mic) {
       setError("Escolha o microfone para gravar a voz.");
       return;
@@ -1098,6 +1120,8 @@ export function RecorderOverlay(): ReactNode {
     finishSystemAudio,
     startWeb,
     replace,
+    resetTakeState,
+    showFlash,
   ]);
 
   useEffect(() => {
@@ -1174,6 +1198,9 @@ export function RecorderOverlay(): ReactNode {
 
   const stop = useCallback(async () => {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    // Saving from here on: a second stop (F10 twice, the end of the voice) finds it taken.
+    setPhase("saving");
+    phaseRef.current = "saving";
     // A note being typed is kept with the take, and a time-lapse ends where the voice would go on.
     await closeNote(true);
     const lapseOpen = lapse.current;
@@ -1234,19 +1261,20 @@ export function RecorderOverlay(): ReactNode {
         // whoever edits the lesson.
         // F9 from here records what is still missing, never over the start of the lesson.
         const gap = screenCoverage([], nowRecorded, voiceStart(overNow), overNow.end).firstGap;
-        setOver({ ...overNow, from: gap ?? voiceStart(overNow) });
+        // The text may have come in while this part was saving (onOverText): it stays.
+        setOver((o) => (o ? { ...o, from: gap ?? voiceStart(overNow) } : o));
         setOverParts((n) => n + 1);
         setHealth(null);
         setMarkers(0);
         setNoteCount(0);
         setFlash(null);
-        setOverDone(true);
+        setOverDone(gap === null ? "complete" : "gaps");
         phaseRef.current = "setup";
         setPhase("setup");
         return;
       }
       const from = Math.round((again ?? end) * 1000) / 1000;
-      setOver({ ...overNow, from });
+      setOver((o) => (o ? { ...o, from } : o));
       setOverParts((n) => n + 1);
       setHealth(null);
       setMarkers(0);
@@ -1324,6 +1352,7 @@ export function RecorderOverlay(): ReactNode {
   const discard = useCallback(async () => {
     setConfirmDiscard(false);
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    resetTakeState();
     guidedAudio.current?.pause();
     guidedOffset.current = null;
     player.current?.stop();
@@ -1341,7 +1370,7 @@ export function RecorderOverlay(): ReactNode {
     setHealth(null);
     setPhase("setup");
     phaseRef.current = "setup";
-  }, []);
+  }, [resetTakeState]);
 
   /**
    * "Voltar ao começo da fala" (over the narration): the part so far goes into the lesson, and
@@ -1642,8 +1671,9 @@ export function RecorderOverlay(): ReactNode {
             <OverDone
               over={over}
               recorded={recorded}
-              onFrom={(from) => {
-                setOver({ ...over, from });
+              onRecord={(from, to) => {
+                // Only that stretch, as a redo: nothing recorded after it is touched.
+                setOver({ ...over, from, to, replace: true });
                 setOverDone(false);
               }}
               onClose={(next) => void window.api.recorder.cancel(next)}
@@ -2272,15 +2302,19 @@ function OverStart({
 function OverDone({
   over,
   recorded,
-  onFrom,
+  onRecord,
   onClose,
 }: {
   over: OverContext;
   recorded: readonly [number, number][];
-  onFrom: (from: number) => void;
+  onRecord: (from: number, to: number) => void;
   onClose: (next: "flow" | "send") => void;
 }): ReactNode {
   const coverage = coverageOf(over, recorded);
+  const gap = coverage.firstGap;
+  // The stretch without a screen ends where the next recorded one starts.
+  const gapEnd =
+    gap === null ? over.end : (recorded.find(([a]) => a > gap + 0.05)?.[0] ?? over.end);
   const missing = coverage.lines.filter((l) => l.status !== "done");
   const complete = coverage.firstGap === null && !missing.length;
   return (
@@ -2291,7 +2325,7 @@ function OverDone({
           {complete
             ? "Toda a voz da aula tem tela gravada. As partes já estão na aula."
             : missing.length
-              ? `${plural(missing.length, "fala ainda está sem tela", "falas ainda estão sem tela")}. Grave agora ou volte depois: o gravador começa no primeiro trecho que falta.`
+              ? `${plural(missing.length, "fala ainda está sem tela", "falas ainda estão sem tela")}. Grave cada uma agora (só aquele trecho) ou volte depois: o gravador começa no primeiro trecho que falta.`
               : `Um trecho da voz em ${clockOf(coverage.firstGap ?? 0)} ainda está sem tela.`}
         </small>
       </div>
@@ -2301,7 +2335,7 @@ function OverDone({
             <li key={`${l.t}-${l.text}`}>
               <span className="rec-map-time">{clockOf(l.t)}</span>
               <span className="rec-map-text">{l.text}</span>
-              <button type="button" onClick={() => onFrom(l.t)}>
+              <button type="button" onClick={() => onRecord(l.t, l.end)}>
                 Gravar esta fala
               </button>
             </li>
@@ -2310,7 +2344,7 @@ function OverDone({
       )}
       {!missing.length && coverage.firstGap !== null && (
         <p>
-          <button type="button" onClick={() => onFrom(coverage.firstGap ?? voiceStart(over))}>
+          <button type="button" onClick={() => onRecord(gap ?? voiceStart(over), gapEnd)}>
             Gravar o trecho que falta
           </button>
         </p>

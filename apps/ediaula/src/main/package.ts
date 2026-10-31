@@ -149,22 +149,35 @@ const sizeOf = async (path: string): Promise<number> => {
   }
 };
 
-/** The package's files and size, and what stays out, without writing anything. */
+/**
+ * The package's files and size, and what stays out, without writing anything. Only files the
+ * app may read are looked at (`canRead`, the same rule as packing): any other counts as missing,
+ * so a project sent by the renderer cannot probe the disk.
+ */
 export async function estimatePackage(
   project: Project,
-  options: PackOptions = {},
+  options: PackOptions,
+  canRead: (path: string) => Promise<boolean>,
 ): Promise<PackEstimate> {
-  const plan = packPlan(project, existsSync, cursorImagesOf, options);
-  const missing = plan.files.filter((f) => !existsSync(f.path)).map((f) => basename(f.path));
+  const cursors = new Set<string>();
+  for (const a of project.assets) if (a.cursor && (await canRead(a.cursor))) cursors.add(a.cursor);
+  const images = (cursor: string): string[] => (cursors.has(cursor) ? cursorImagesOf(cursor) : []);
+  const readable = new Set<string>();
+  const check = async (paths: readonly string[]): Promise<void> => {
+    for (const path of paths) if ((await canRead(path)) && existsSync(path)) readable.add(path);
+  };
+  const plan = packPlan(project, existsSync, images, options);
+  await check(plan.files.map((f) => f.path));
+  const missing = plan.files.filter((f) => !readable.has(f.path)).map((f) => basename(f.path));
   let bytes = 0;
-  for (const f of plan.files) bytes += await sizeOf(f.path);
+  for (const f of plan.files) if (readable.has(f.path)) bytes += await sizeOf(f.path);
   // What the left-out media would have carried: the same fields packPlan stores.
   const { guided: _plans, voiceMasters: _voices, ...rest } = project;
-  const left = packPlan(
-    { ...rest, assets: plan.leftOut, clips: [] },
-    existsSync,
-    cursorImagesOf,
-  ).files.filter((f) => existsSync(f.path) && !f.name.startsWith(PACKAGE_CURSORS));
+  const leftPlan = packPlan({ ...rest, assets: plan.leftOut, clips: [] }, existsSync, images);
+  await check(leftPlan.files.map((f) => f.path));
+  const left = leftPlan.files.filter(
+    (f) => readable.has(f.path) && !f.name.startsWith(PACKAGE_CURSORS),
+  );
   let leftBytes = 0;
   for (const f of left) leftBytes += await sizeOf(f.path);
   return {

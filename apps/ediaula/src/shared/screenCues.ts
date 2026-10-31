@@ -163,8 +163,9 @@ export function screenCoverage(
   end: number,
 ): ScreenCoverage {
   const stretches = joinStretches(recorded);
+  // A line said once but found in two parts of the script (a greeting) is one place.
   const lines = places
-    .filter((p) => p.t < end)
+    .filter((p, i, all) => p.t < end && all.findIndex((q) => Math.abs(q.t - p.t) < 1e-3) === i)
     .map((p, i, all): LineCoverage => {
       const from = Math.max(start, p.t);
       const to = Math.max(from, Math.min(end, all[i + 1]?.t ?? end));
@@ -172,7 +173,17 @@ export function screenCoverage(
       const length = to - from;
       // As firstGap: less than a second without a screen is a seam, not something missing.
       const least = Math.min(GAP, length / 2);
-      const status = length - has < least ? "done" : has < least ? "missing" : "partial";
+      // A line with no length (the voice ended on it) is done when its moment has a screen.
+      const status =
+        length < 1e-3
+          ? stretches.some(([x, y]) => x <= from + 1e-3 && y > from)
+            ? "done"
+            : "missing"
+          : length - has < least
+            ? "done"
+            : has < least
+              ? "missing"
+              : "partial";
       return { ...p, end: to, status };
     });
   let firstGap: number | null = null;

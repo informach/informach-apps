@@ -133,6 +133,8 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
 export async function refreshRecorderText(): Promise<void> {
   const p = useProject.getState().project;
   if (!p || !voiceSpan(p)) return;
+  // The context outlives the recorder window: nothing to do with it closed.
+  if (!(await window.api.recorder.isOpen())) return;
   const open = await window.api.recorder.context();
   if (!open.over || open.projectId !== p.id) return;
   await window.api.recorder.refreshOver(await overText(p, open.over.from));

@@ -309,7 +309,8 @@ export const NOTE_MAX = 200;
 /**
  * Notes left while recording (seconds of the take) at their place on the timeline: each one at
  * the first of the take's media (`sources`, with the take second their own second 0 is at) whose
- * clip shows that second. A note whose moment was cut out of the lesson goes nowhere.
+ * clip shows that second. A note whose moment was cut out (left during a pause, or in a stretch
+ * cut since) goes to the next moment of that media still in the lesson; past its end, nowhere.
  */
 export function notesOnTimeline(
   clips: readonly Clip[],
@@ -329,6 +330,17 @@ export function notesOnTimeline(
         break;
       }
     }
+    if (placed === null)
+      for (const source of sources) {
+        const s = note.t - source.at;
+        const next = clips
+          .filter((c) => c.assetId === source.assetId && c.in >= s - EPS)
+          .sort((x, y) => x.in - y.in)[0];
+        if (next) {
+          placed = next.start;
+          break;
+        }
+      }
     if (placed !== null) out.push({ t: placed, text: note.text.slice(0, NOTE_MAX) });
   }
   return out;

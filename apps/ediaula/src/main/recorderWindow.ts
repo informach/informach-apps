@@ -1156,6 +1156,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       if (overlay) await writeFile(path, (await overlay.webContents.capturePage()).toPNG());
     });
   ipcMain.handle("recorder:context", () => context);
+  ipcMain.handle("recorder:isOpen", () => live(overlay));
   // The voice's transcript got ready while "Tela sobre a narração" is open: only its text changes.
   ipcMain.handle("recorder:refreshOver", (_e, raw: unknown) => {
     const text: OverText = overTextSchema.parse(raw);

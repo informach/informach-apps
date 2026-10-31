@@ -316,3 +316,35 @@ test("a cobertura de tela por fala e o primeiro trecho da voz sem tela", () => {
   assert.equal(full.firstGap, null);
   assert.equal(full.done, 4);
 });
+
+test("uma fala achada em duas partes no mesmo ponto conta uma vez, e a fala sem duração no fim vale pelo seu ponto", () => {
+  const places = [
+    { t: 0, text: "Olá", part: "Parte 1" },
+    { t: 5, text: "Tchau", part: "Parte 1" },
+    { t: 5, text: "Tchau", part: "Parte 2" },
+    { t: 20, text: "Fim", part: "Parte 2" },
+  ];
+  const c = screenCoverage(places, [[0, 20]], 0, 20);
+  assert.deepEqual(
+    c.lines.map((l) => [l.t, l.status]),
+    [
+      [0, "done"],
+      [5, "done"],
+    ],
+  );
+  const atEnd = screenCoverage([{ t: 19.9999, text: "x", part: "P" }], [[0, 20]], 0, 19.9999);
+  assert.deepEqual(atEnd.lines, []);
+  const zero = screenCoverage(
+    [
+      { t: 0, text: "a", part: "P" },
+      { t: 10, text: "b", part: "P" },
+    ],
+    [[0, 15]],
+    0,
+    10,
+  );
+  assert.deepEqual(
+    zero.lines.map((l) => l.status),
+    ["done"],
+  );
+});

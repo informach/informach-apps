@@ -111,6 +111,7 @@ const api: EdiAulaApi = {
     onOverText: (cb) => listen("recorder:overText", cb),
     open: (ctx) => ipcRenderer.invoke("recorder:open", ctx),
     context: () => ipcRenderer.invoke("recorder:context"),
+    isOpen: () => ipcRenderer.invoke("recorder:isOpen"),
     clock: () => ipcRenderer.invoke("recorder:clock"),
     overAnchor: (at, when) => ipcRenderer.invoke("recorder:overAnchor", at, when),
     lapse: (edge, at) => ipcRenderer.invoke("recorder:lapse", edge, at),

@@ -382,14 +382,21 @@ export async function transcribeVoice(force = false): Promise<VoiceReading> {
   const p = useProject.getState().project;
   if (!p) return "nothing";
   if (!force && !(await window.api.recorder.settings()).autoTranscribe) return "off";
-  const busy = new Set(Object.keys(useTranscribing.getState()));
+  // Running now, or waiting their turn in a queue started earlier: never twice.
+  const busy = new Set([...Object.keys(useTranscribing.getState()), ...queuedVoices]);
   const todo = voiceToTranscribe(p, busy);
   if (!todo.length) return voiceToTranscribe(p).length ? "busy" : "nothing";
   const status = await window.api.engineStatus();
   if (!status.bin || !status.model) return "no-engine";
-  void transcribeAssets(todo, useCleanup.getState().language || "pt");
+  for (const a of todo) queuedVoices.add(a.id);
+  void transcribeAssets(todo, useCleanup.getState().language || "pt").finally(() => {
+    for (const a of todo) queuedVoices.delete(a.id);
+  });
   return "started";
 }
+
+/** Voice files handed to a transcription queue that has not reached them yet. */
+const queuedVoices = new Set<string>();
 
 /* ----- The MP4s that come back ----- */
 

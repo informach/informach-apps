@@ -505,10 +505,6 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.emit("line", index, at);
   }
 
-  /**
-   * "Tela sobre a narração": the lesson's voice heard at timeline second `at` at QPC `when`
-   * (the recorder window converts its clock and takes the output latency off).
-   */
   /** "Trecho acelerado": the voice held at `at` (start), or going on from `at` (end). */
   lapse(edge: "start" | "end", at: number): void {
     if (this.phase !== "recording" && this.phase !== "paused") return;
@@ -516,6 +512,10 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.journal.write({ k: "lapse", qpc: qpc(), edge, at });
   }
 
+  /**
+   * "Tela sobre a narração": the lesson's voice heard at timeline second `at` at QPC `when`
+   * (the recorder window converts its clock and takes the output latency off).
+   */
   overAnchor(at: number, when: number): void {
     if (this.phase !== "recording" && this.phase !== "paused") return;
     if (!Number.isFinite(at) || at < 0 || !Number.isFinite(when) || when <= 0) return;

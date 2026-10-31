@@ -1211,7 +1211,11 @@ function registerIpc(): void {
   });
   // What a package of the lesson will hold, before it is made.
   ipcMain.handle("project:packEstimate", async (_e, project: unknown, rawOptions: unknown) =>
-    estimatePackage(projectSchema.parse(projectJson(project)), packOptionsSchema.parse(rawOptions)),
+    estimatePackage(
+      projectSchema.parse(projectJson(project)),
+      packOptionsSchema.parse(rawOptions),
+      (path) => desktopFiles.canRead(path),
+    ),
   );
   // Empacotar a aula: the lesson and its media in one ZIP, saved where the person picks or
   // straight into the folder lessons are sent from.
