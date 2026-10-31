@@ -60,9 +60,9 @@ O titular confirmou que a homologação deve culminar em compras liberadas, sem 
 
 ## Bora Treinar (apps/bora-treinar)
 
-Novo app web na branch `feat/bora-treinar`: treino guiado com o peso do corpo para a família, portado do protótipo EdiBody (instrutor 3D, contagem de repetições pela câmera com MediaPipe no próprio aparelho, perfis, níveis, desafio semanal, editor de treinos, lembretes e resumo semanal por e-mail, celular como câmera da TV). Mesma arquitetura da Missão Saber: conta do titular com perfis familiares, schema `bora_treinar` (migração `0075_bora_treinar`), sessões no Redis com prefixo `bora-treinar:auth:` e sem cache em cookie, quatro preços (Individual e Família, mensal e anual), sem IA e sem créditos. O Bastidores, o site institucional, o CI e o `.railway/railway.ts` (serviço `@informach/bora-treinar` e os crons `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`) já conhecem o app.
+App web em `main` desde 31/10/2026 (merge `d5db8c1a`): treino guiado com o peso do corpo para a família, portado do protótipo EdiBody (instrutor 3D, contagem de repetições pela câmera com MediaPipe no próprio aparelho, perfis, níveis, desafio semanal, editor de treinos, lembretes e resumo semanal por e-mail, celular como câmera da TV). Mesma arquitetura da Missão Saber: conta do titular com perfis familiares, schema `bora_treinar` (migração `0076_bora_treinar`), sessões no Redis com prefixo `bora-treinar:auth:` e sem cache em cookie, quatro preços (Individual e Família, mensal e anual), sem IA e sem créditos. O Bastidores, o site institucional, o CI e o `.railway/railway.ts` (serviço `@informach/bora-treinar` e os crons `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`) já conhecem o app.
 
-Estado: implementado localmente, sem merge e sem nada publicado. Pendentes: produtos e preços no Stripe (os ids do catálogo ainda são `price_TODO_*`), portal de cobrança e webhook, projeto `bora-treinar` no Sentry, DNS de `bora-treinar.informach.com.br`, variáveis do serviço e dos crons no Railway, `railway config plan`/`apply`, migração em produção, grants do papel só leitura do Bastidores no schema novo e termos próprios do app. Passo a passo e checklist na [operação do Bora Treinar](../apps/bora-treinar/PRODUCAO.md).
+Estado: provisionado em 31/10/2026. Stripe de teste e de produção (produtos com descrição e imagem, quatro preços, Portal e webhook), projeto `bora-treinar` no Sentry, serviço e crons no Railway pelo `railway config apply`, variáveis gravadas e primeiro deploy saudável (`f7e4818a`, `/api/ready` 200 pela borda do Railway). Falta o CNAME no Cloudflare para o domínio responder, depois a homologação do Stripe em teste, o smoke real e os termos próprios. Passo a passo e identificadores na [operação do Bora Treinar](../apps/bora-treinar/PRODUCAO.md).
 
 ## EdiAula: o que falta para substituir o Camtasia
 
@@ -197,7 +197,7 @@ Pedido da titular, com canvas de proposta aprovado no mesmo dia. Branch `feat/mi
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.
-- [Bora Treinar](../apps/bora-treinar/PRODUCAO.md): ainda não publicado; provisionamento pendente de Stripe, Sentry, DNS e Railway.
+- [Bora Treinar](../apps/bora-treinar/PRODUCAO.md): provisionado e com deploy saudável desde 31/10/2026; falta o DNS no Cloudflare e o smoke.
 - [Cozya](../apps/cozya/CLAUDE.md): produto, preços, acesso e referências da operação.
 - [Agenda da Turma](../apps/agenda-da-turma/CLAUDE.md): família, permissões e fluxos de atividades/recados.
 - [Runbook compartilhado](deploy-runbook.md): procedimentos gerais; conferir a configuração versionada e o guia atual de cada app antes de aplicar exemplos históricos.
