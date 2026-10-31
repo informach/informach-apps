@@ -2,6 +2,20 @@
 
 Aplicativo Electron baseado em `edisvg.pen`, com `main`, `preload`, `renderer` e `shared`. O canvas e os painéis existentes permanecem em JavaScript; interfaces novas, como o painel de pranchetas, usam React/TypeScript integrado sem reescrita visual integral.
 
+## Exportar uma animação para um aplicativo web
+
+Em Exportar, escolha **Animação para web**, a prancheta com o desenho e a animação ou máquina
+inicial. O arquivo `.edi-animation.json` contém a arte declarativa e uma reserva PNG transparente
+gerada pelo mesmo renderer. Uma prancheta com máquina de estados preserva a máquina; não é
+convertida silenciosamente em um clipe. Os controles públicos usam os nomes do projeto.
+
+O Sistema Zero recebe esse único arquivo no Admin após integrar a migração correspondente.
+Outros aplicativos podem usar **Baixar player para outro aplicativo** no mesmo diálogo: o ZIP
+inclui JavaScript independente, tipos, exemplos para JavaScript e React e licenças. O player é
+instalado uma vez por aplicativo, sem Electron, conta ou serviço do editor. O formato não é
+exclusivo do Sistema Zero e não está publicado no npm. O projeto `.edisvg` continua sendo o
+arquivo editável; guarde-o para futuras revisões.
+
 ## Recursos em evolução
 
 ### Fontes WOFF/coleções e imagens na Lottie — incremento 5.36

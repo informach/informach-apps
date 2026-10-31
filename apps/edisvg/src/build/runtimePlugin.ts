@@ -8,10 +8,13 @@ export function runtimePlugin(
   offlineEntry: string,
   reactEntry: string,
   licensesEntry: string,
+  webEntry: string,
+  dataEntry: string,
+  typesEntry: string,
 ): Plugin {
   let productionBuild = false;
-  async function bundle(kind: "es" | "iife" | "react") {
-    const format = kind === "react" ? "es" : kind;
+  async function bundle(kind: "es" | "iife" | "react" | "web" | "data") {
+    const format = kind === "iife" ? "iife" : "es";
     const result = await build({
       configFile: false,
       mode: productionBuild ? "production" : "development",
@@ -25,7 +28,16 @@ export function runtimePlugin(
           output: { codeSplitting: false },
         },
         lib: {
-          entry: kind === "react" ? reactEntry : format === "es" ? entry : offlineEntry,
+          entry:
+            kind === "react"
+              ? reactEntry
+              : kind === "web"
+                ? webEntry
+                : kind === "data"
+                  ? dataEntry
+                  : format === "es"
+                    ? entry
+                    : offlineEntry,
           formats: [format],
           name: "EdiSVGRuntime",
           fileName: "edi-player",
@@ -58,6 +70,19 @@ export function runtimePlugin(
     es: "edi-player.mjs",
     iife: "edi-player.global.js",
     react: "edi-react-player.mjs",
+    web: "edi-web-player.mjs",
+    data: "edi-web-data.mjs",
+  };
+  const declarations = {
+    "edi-web-types.d.ts": () => readFile(typesEntry, "utf8"),
+    "edi-web-data.d.mts": () =>
+      Promise.resolve(
+        'import type { WebAnimationInfo } from "./edi-web-types.js";\nexport declare function normalizeWebAnimation(input: unknown): string;\nexport declare function readWebAnimation(input: unknown): WebAnimationInfo;\nexport declare function webAnimationPoster(input: unknown): { bytes: Uint8Array; width: number; height: number; mime: "image/png" } | null;\n',
+      ),
+    "edi-web-player.d.mts": () =>
+      Promise.resolve(
+        'export * from "./edi-web-data.mjs";\nexport type * from "./edi-web-types.js";\nimport type { WebAnimationHandle, WebAnimationOptions } from "./edi-web-types.js";\nexport declare function mountWebAnimation(root: SVGSVGElement, input: unknown, options?: WebAnimationOptions): Promise<WebAnimationHandle>;\n',
+      ),
   };
   return {
     name: "edi-svg-runtime",
@@ -71,13 +96,25 @@ export function runtimePlugin(
         fileName: "edi-player.licenses.txt",
         source: await readFile(licensesEntry, "utf8"),
       });
-      for (const format of ["es", "iife", "react"] as const) {
+      for (const format of ["es", "iife", "react", "web", "data"] as const) {
         this.emitFile({ type: "asset", fileName: names[format], source: await bundle(format) });
       }
+      for (const [fileName, source] of Object.entries(declarations))
+        this.emitFile({ type: "asset", fileName, source: await source() });
     },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split("?")[0];
+        const declaration = Object.entries(declarations).find(([name]) => path === `/${name}`);
+        if (declaration) {
+          try {
+            response.setHeader("Content-Type", "text/plain; charset=utf-8");
+            response.end(await declaration[1]());
+          } catch (error) {
+            next(error);
+          }
+          return;
+        }
         if (path === "/edi-player.licenses.txt") {
           try {
             response.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -94,7 +131,11 @@ export function runtimePlugin(
               ? "iife"
               : path === "/edi-react-player.mjs"
                 ? "react"
-                : null;
+                : path === "/edi-web-player.mjs"
+                  ? "web"
+                  : path === "/edi-web-data.mjs"
+                    ? "data"
+                    : null;
         if (!format) {
           next();
           return;

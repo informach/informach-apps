@@ -6,6 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./runtime": "./src/runtime.ts",
+    "./animation-artifact": "./src/animationArtifact.ts",
+    "./web-player": "./src/webPlayer.ts",
+    "./web-player/data": "./src/webPlayerData.ts",
+    "./web-player/types": "./src/webPlayerTypes.ts",
     "./behavior": "./src/behavior/index.ts",
     "./data": "./src/data/index.ts",
     "./rig": "./src/rig/index.ts",

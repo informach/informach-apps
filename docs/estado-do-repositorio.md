@@ -2,6 +2,15 @@
 
 Atualizado em 31/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
+## Exportação web ediSVG em integração (31/10/2026)
+
+A frente `feat/edisvg-player-web-export` implementa arte declarativa v1, reserva PNG do mesmo
+renderer e download do player genérico, tipos, exemplos e licenças. Integração Sistema Zero em
+outro repositório ainda em andamento. Foram verificados 12 projetos reais em 15 exportações e
+o fluxo de download no diálogo web. Não equivale a publicação de instalador, pacote npm ou
+homologação completa da migração nos consumidores. Contrato em `packages/edi-motion/README.md`
+e uso em `apps/edisvg/README.md`. Próximos gates: lifecycle/voz/baú e consumidores Admin/Kids/adulto.
+
 ## Contexto confirmado
 
 - Os apps web existentes usam o Railway e o domínio `informach.com.br`, com serviços e subdomínios por produto. O Edi deve seguir esse padrão, reutilizando a infraestrutura compatível; GitHub é o canal de distribuição desktop, não o backend comercial.

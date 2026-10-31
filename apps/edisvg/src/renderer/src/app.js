@@ -122,9 +122,10 @@ import {
 import "./assistant.css";
 import { animations, poseAt, transition } from "../../shared/animation.js";
 import { RASTER_FORMATS } from "../../shared/raster/profile";
-import { exportProject } from "./export.js";
+import { exportProject, exportWebPlayer } from "./export.js";
 import { createLottieExportControls } from "./lottie-export-panel";
 import { runLottieTask } from "./lottieTaskRunner";
+import { createPlayerWebExportControls } from "./player-web-export-controls";
 import { createRasterExportControls } from "./raster-export-panel";
 
 const $ = (s) => document.querySelector(s);
@@ -2004,6 +2005,12 @@ function openExport() {
       "Componente JSX, tipos, runtime local, instruções e licenças. Lógica completa ou clip selecionado quando não há máquina.",
     ],
     [
+      "player-web",
+      "Animação para web",
+      "Sistema Zero e outros aplicativos",
+      "Um arquivo com a arte, a prévia e os controles. Envie no Admin do Sistema Zero ou use em outro aplicativo com o player ediSVG.",
+    ],
+    [
       "png-sequence",
       "Sequência PNG · ZIP",
       "imagens",
@@ -2042,7 +2049,18 @@ function openExport() {
     )}<h3>OPÇÕES</h3><label class="export-field">Texto alternativo<input id="alt-text" value="${escapeHtml(state.name)}" maxlength="200"></label><label class="check-row"><input id="reduced" type="checkbox" checked><span>Respeitar “reduzir movimento”<small>Pausa a animação quando solicitado pelo sistema.</small></span></label><label class="check-row"><input id="offscreen" type="checkbox" checked><span>Pausar fora da tela<small>Economiza recursos quando o personagem não está visível.</small></span></label></div><div class="dialog-footer"><span>Escolha onde salvar o arquivo</span><button id="cancel-export">Cancelar</button><button class="primary" id="download">↗ Exportar arquivo</button></div>`;
   const behaviorSettings = document.createElement("section");
   const currentFormat = () => d.querySelector('input[name="format"]:checked')?.value;
+  const playerWebControls = createPlayerWebExportControls(
+    exportSnapshot,
+    exportBoard?.id,
+    clip?.id,
+  );
+  d.querySelector(".export-content").append(playerWebControls.element);
+  const playerDownload = document.createElement("button");
+  playerDownload.type = "button";
+  playerDownload.textContent = "Baixar player para outro aplicativo";
+  playerWebControls.element.append(playerDownload);
   const updateExportButton = () => {
+    playerDownload.disabled = preparing;
     d.querySelector("#download").disabled =
       preparing ||
       (currentFormat() === "lottie" && !lottieControls?.read().ready) ||
@@ -2059,7 +2077,7 @@ function openExport() {
       : null;
   if (rasterControls) d.querySelector(".export-content").append(rasterControls.element);
   behaviorSettings.innerHTML =
-    '<label class="export-field">Máquina inicial (HTML interativo / React)<select id="export-machine" aria-label="Máquina inicial"></select></label><label class="export-field">Ajuste (HTML interativo / React)<select id="export-fit" aria-label="Ajuste do HTML interativo"><option value="contain">Conter proporcionalmente</option><option value="cover">Cobrir com recorte</option><option value="stretch">Esticar</option></select></label><label class="check-row" data-animation-confirm><input id="export-animation-only" type="checkbox"><span>Confirmo exportar apenas a animação, sem lógica, dados, eventos, áudio e layout responsivo<small>Obrigatório ao converter um projeto interativo em HTML de timeline ou SVG.</small></span></label>';
+    '<label class="export-field">Máquina inicial (HTML interativo / React)<select id="export-machine" aria-label="Máquina inicial"></select></label><label class="export-field">Encaixe da animação<select id="export-fit" aria-label="Encaixe da animação"><option value="contain">Conter proporcionalmente</option><option value="cover">Cobrir com recorte</option><option value="stretch">Esticar</option></select></label><label class="check-row" data-animation-confirm><input id="export-animation-only" type="checkbox"><span>Confirmo exportar apenas a animação, sem lógica, dados, eventos, áudio e layout responsivo<small>Obrigatório ao converter um projeto interativo em HTML de timeline ou SVG.</small></span></label>';
   for (const machine of machines) {
     const option = document.createElement("option");
     option.value = machine.id;
@@ -2070,6 +2088,9 @@ function openExport() {
   const syncBehaviorSettings = () => {
     const format = d.querySelector('input[name="format"]:checked').value;
     const raster = RASTER_FORMATS.includes(format);
+    playerWebControls.setEnabled(format === "player-web");
+    behaviorSettings.querySelector("#export-machine").closest("label").hidden =
+      format === "player-web";
     behaviorSettings.hidden = format === "lottie" || format === "json" || raster;
     behaviorSettings.querySelector("#export-machine").disabled = ![
       "interactive-html",
@@ -2078,9 +2099,11 @@ function openExport() {
     behaviorSettings.querySelector("#export-fit").disabled = ![
       "interactive-html",
       "react",
+      "player-web",
     ].includes(format);
     behaviorSettings.querySelector("[data-animation-confirm]").hidden =
-      !losesInteraction || ["interactive-html", "react", "json", "lottie"].includes(format);
+      !losesInteraction ||
+      ["interactive-html", "react", "json", "lottie", "player-web"].includes(format);
     lottieControls?.setEnabled(format === "lottie");
     rasterControls?.setFormat(raster ? format : null);
     d.querySelector("#reduced").disabled = format === "lottie" || raster;
@@ -2100,6 +2123,7 @@ function openExport() {
     taskController.abort();
     lottieControls?.dispose();
     rasterControls?.dispose();
+    playerWebControls.dispose();
     if (disposeExportPanel === cancel) disposeExportPanel = null;
   };
   disposeExportPanel = cancel;
@@ -2116,9 +2140,28 @@ function openExport() {
     cancel();
     d.close();
   };
+  playerDownload.onclick = async () => {
+    if (preparing || taskController.signal.aborted) return;
+    preparing = true;
+    updateExportButton();
+    playerDownload.textContent = "Preparando player…";
+    try {
+      const result = await exportWebPlayer(taskController.signal);
+      if (!taskController.signal.aborted)
+        notify(result?.saved === false ? "Exportação cancelada." : "Player web exportado.");
+    } catch (error) {
+      if (!taskController.signal.aborted) notify(`Não foi possível exportar: ${error.message}`);
+    } finally {
+      preparing = false;
+      if (d.open && !taskController.signal.aborted) updateExportButton();
+      playerDownload.textContent = "Baixar player para outro aplicativo";
+    }
+  };
   $("#download").onclick = async () => {
+    if (preparing || taskController.signal.aborted) return;
     const b = $("#download");
     preparing = true;
+    updateExportButton();
     lottieControls?.suspend();
     for (const control of d.querySelectorAll(".export-content input,.export-content select"))
       control.disabled = true;
@@ -2150,6 +2193,7 @@ function openExport() {
               }
             : {}),
           ...(rasterSettings ? { raster: rasterSettings.options } : {}),
+          ...(currentFormat() === "player-web" ? playerWebControls.read() : {}),
         },
         {
           signal: taskController.signal,
