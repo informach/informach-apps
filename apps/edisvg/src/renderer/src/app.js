@@ -369,7 +369,10 @@ const layers = [
 const button = (action, label, cls = "") =>
   `<button data-action="${action}" class="${cls}">${label}</button>`;
 function render() {
-  document.body.classList.toggle("edisvg-design-mode", Boolean(state.scene && state.view === "design"));
+  document.body.classList.toggle(
+    "edisvg-design-mode",
+    Boolean(state.scene && state.view === "design"),
+  );
   disposeJoystickPreview?.();
   disposeJoystickPreview = null;
   disposeExportPanel?.();

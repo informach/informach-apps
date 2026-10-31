@@ -53,6 +53,10 @@ export async function verifyNativeRigClone(
       boardId,
     );
     edits++;
+    // The scene operations live in the "Organizar" section of the inspector, closed by default.
+    const organize = page.locator('[data-inspector-section="organize"]');
+    if (!(await organize.evaluate((section) => (section as HTMLDetailsElement).open)))
+      await organize.locator("> summary").click();
     await page.locator('[data-scene-operation="duplicate"]').click();
     await page.waitForFunction(
       (boardId) =>
