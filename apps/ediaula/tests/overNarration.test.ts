@@ -10,6 +10,7 @@ import {
   overEnd,
   overPieces,
   phraseStart,
+  pieceEnd,
 } from "../src/shared/overNarration.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
 import { layoutRecording } from "../src/shared/recordingImport.ts";
@@ -644,7 +645,7 @@ test("errei, voltar: a nova tentativa começa no ponto de volta e fica no lugar 
     { from: 22, to: 40, start: 18 },
   ]);
   // What it took the place of: take 8..12, once at 18, now shown from take 22.
-  assert.deepEqual(overAttempts(result), [{ from: 8, to: 12, start: 18, later: 22 }]);
+  assert.deepEqual(overAttempts(result), [{ from: 8, to: 12, start: 18, later: 22, length: 4 }]);
   // Back over two stretches (a pause before the mistake): both give way.
   const twice = {
     ...result,
@@ -657,4 +658,100 @@ test("errei, voltar: a nova tentativa começa no ponto de volta e fica no lugar 
   assert.equal(pieces.at(-1)?.start, 18);
   assert.ok(pieces.slice(0, -1).every((p) => p.start + (p.to - p.from) <= 18.001));
   assert.equal(overAttempts(twice).length, 1);
+});
+
+test("segurar a voz duas vezes na mesma fala é uma construção só, sem perder tela", () => {
+  // Line from voice 15. Held at 20 (take 20..40), let go, 2 s said (voice 20..22 at take 40..42),
+  // held again at 22 (take 42..60), let go: voice 22.. at take 60.
+  const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 70,
+    pauses: [],
+    over: {
+      from: 0,
+      anchors: [
+        ...Array.from({ length: 40 }, (_, i) => ({ t: i * 0.5, at: i * 0.5 })),
+        { t: 40.5, at: 20.5 },
+        { t: 41.5, at: 21.5 },
+        ...Array.from({ length: 20 }, (_, i) => ({ t: 60 + i * 0.5, at: 22 + i * 0.5 })),
+      ],
+      lapses: [
+        { held: 20, to: 40, start: 15, end: 20 },
+        { held: 42, to: 60, start: 15, end: 22 },
+      ],
+    },
+  };
+  const pieces = overPieces(result);
+  // Take 15..60 (all of it) goes under voice 15..22; then the voice from 22.
+  assert.deepEqual(
+    pieces.map((p) => [p.from, p.to, p.start, p.speed]),
+    [
+      [0, 15, 0, undefined],
+      [15, 60, 15, 6.4286],
+      [60, 70, 22, undefined],
+    ],
+  );
+});
+
+test("errei, voltar e logo segurar a voz: a construção nova fica no lugar da tentativa anterior", () => {
+  // Take 0..10 heard 0..10; a mistake at 10, fixed (pause 10..12); back to 6 with lead-in from 4
+  // (take 12..14 heard 4..6), heard 6..9 at take 14..17, held at 9 (line from 6) until take 30,
+  // then the voice from 9 on.
+  const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 40,
+    pauses: [[10, 12]],
+    over: {
+      from: 0,
+      anchors: [
+        ...Array.from({ length: 20 }, (_, i) => ({ t: i * 0.5, at: i * 0.5 })),
+        ...Array.from({ length: 10 }, (_, i) => ({ t: 12 + i * 0.5, at: 4 + i * 0.5 })),
+        ...Array.from({ length: 20 }, (_, i) => ({ t: 30 + i * 0.5, at: 9 + i * 0.5 })),
+      ],
+      redos: [{ t: 12, at: 6 }],
+      lapses: [{ held: 17, to: 30, start: 6, end: 9 }],
+    },
+  };
+  const pieces = overPieces(result);
+  const lapse = pieces.find((p) => p.speed);
+  assert.equal(lapse?.start, 6);
+  // Nothing overlaps and nothing is empty.
+  for (let i = 1; i < pieces.length; i++)
+    assert.ok(pieces[i].start >= pieceEnd(pieces[i - 1]) - 1e-3);
+  assert.ok(pieces.every((p) => p.to > p.from));
+  // The earlier attempt (take 6..10, once at 6) is kept, shown again from the time-lapse.
+  const attempts = overAttempts(result);
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0].from, 6);
+  assert.equal(attempts[0].start, 6);
+});
+
+test("dois errei, voltar seguidos: a primeira tentativa aponta para a última, em ordem", () => {
+  // A1 at take 0..10 (voice 0..10); back to 5 (A2, take 12..17 at voice 5..10); back to 5 again
+  // (A3, take 19.. at voice 5..).
+  const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 30,
+    pauses: [
+      [10, 12],
+      [17, 19],
+    ],
+    over: {
+      from: 0,
+      anchors: [
+        ...Array.from({ length: 20 }, (_, i) => ({ t: i * 0.5, at: i * 0.5 })),
+        ...Array.from({ length: 10 }, (_, i) => ({ t: 12 + i * 0.5, at: 5 + i * 0.5 })),
+        ...Array.from({ length: 22 }, (_, i) => ({ t: 19 + i * 0.5, at: 5 + i * 0.5 })),
+      ],
+      redos: [
+        { t: 12, at: 5 },
+        { t: 19, at: 5 },
+      ],
+    },
+  };
+  const attempts = overAttempts(result);
+  assert.deepEqual(
+    attempts.map((a) => [a.from, a.to, a.start, a.later]),
+    [
+      [5, 10, 5, 19],
+      [12, 17, 5, 19],
+    ],
+  );
 });

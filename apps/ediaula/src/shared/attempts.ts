@@ -1,4 +1,4 @@
-import { newId, sourceEnd, timelineAt } from "./clipTime.ts";
+import { clipEnd, newId, sourceEnd, timelineAt } from "./clipTime.ts";
 import { overwriteRange } from "./timeline.ts";
 import type { Asset, Clip, Project, Retry } from "./types.ts";
 
@@ -48,7 +48,13 @@ export function swapAttempt(
   const clip = showing(p, assetId, point);
   if (!clip) return null;
   const at = timelineAt(clip, point);
-  const length = (r.earlier[1] - r.earlier[0]) / (r.speed ?? 1);
+  // Only what both attempts can show, and never past the clip showing the one in the lesson:
+  // what comes after it (the next part, a cut) is not touched.
+  const length = Math.min(
+    r.length ?? (r.earlier[1] - r.earlier[0]) / (r.speed ?? 1),
+    clipEnd(clip) - at,
+  );
+  if (length < 1 / 30) return null;
   const {
     id: _id,
     start: _start,
@@ -81,13 +87,17 @@ export function swapAttempt(
 /**
  * The retries of a take's screen media from the layout's earlier attempts (take seconds), for the
  * files the screen was recorded in (whole, or in parts at `at` of the take from `in` of the file).
- * An attempt that crosses two parts of the screen stays out.
+ * An attempt that crosses two parts of the screen stays out. `kept` lists the attempts that
+ * became retries (the others have nothing to put back).
  */
-export function retriesFromAttempts(
-  attempts: readonly { from: number; to: number; speed?: number; later: number }[],
+export function retriesFromAttempts<
+  A extends { from: number; to: number; speed?: number; later: number; length?: number },
+>(
+  attempts: readonly A[],
   files: readonly { assetId: string; at: number; in?: number; duration: number }[],
-): Map<string, Retry[]> {
+): { byAsset: Map<string, Retry[]>; kept: A[] } {
   const out = new Map<string, Retry[]>();
+  const kept: A[] = [];
   const fileOf = (t: number) => files.find((f) => t >= f.at - EPS && t < f.at + f.duration + EPS);
   for (const a of attempts) {
     const f = fileOf(a.from);
@@ -99,8 +109,10 @@ export function retriesFromAttempts(
         earlier: [src(a.from), src(a.to)],
         later: src(a.later),
         ...(a.speed ? { speed: a.speed } : {}),
+        ...(a.length !== undefined ? { length: a.length } : {}),
       },
     ]);
+    kept.push(a);
   }
-  return out;
+  return { byAsset: out, kept };
 }

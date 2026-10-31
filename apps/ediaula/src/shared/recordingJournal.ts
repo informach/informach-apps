@@ -244,6 +244,8 @@ export function replayJournal(text: string): JournalReplay {
     skipped: 0,
   };
   let pausedAt: number | null = null;
+  /** "Errei, voltar" started and not ended: the take is cut until it ends. */
+  let fixing = false;
   let drawingFrom: number | null = null;
   let boardFrom: { qpc: number; kind: (typeof BOARD_KINDS)[number] } | null = null;
   const pause = (at: number): void => {
@@ -285,6 +287,9 @@ export function replayJournal(text: string): JournalReplay {
         pause(line.qpc);
         break;
       case "resume":
+        // A source that failed while a mistake was being undone came back: the fixing is still
+        // going on, and only "Errei, voltar" ends it.
+        if (fixing) break;
         if (pausedAt !== null && replay.stop === null) {
           if (line.qpc > pausedAt) replay.pauses.push([pausedAt, line.qpc]);
           pausedAt = null;
@@ -295,8 +300,11 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "redo":
         // The mistake being undone is cut, as a pause; the attempt after it starts at the end.
-        if (line.edge === "start") pause(line.qpc);
-        else if (pausedAt !== null && replay.stop === null) {
+        if (line.edge === "start") {
+          pause(line.qpc);
+          fixing = true;
+        } else if (pausedAt !== null && replay.stop === null) {
+          fixing = false;
           if (line.qpc > pausedAt) replay.pauses.push([pausedAt, line.qpc]);
           pausedAt = null;
           replay.redos.push({ qpc: line.qpc, at: line.at });

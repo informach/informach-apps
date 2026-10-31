@@ -32,7 +32,8 @@ export function BatchSection({ clips }: { clips: Clip[] }): ReactNode {
     return !!a && a.kind !== "audio" && !c.zoomLayer;
   });
   const sounds = free.filter((c) => assets.get(c.assetId)?.hasAudio);
-  const timed = free.filter((c) => hasSpeed(project, c));
+  // "Tela sem voz" has its own speed (setLapse): the clip speed leaves it alone.
+  const timed = free.filter((c) => hasSpeed(project, c) && !c.timelapse);
   const first = pictures[0]?.transform ?? DEFAULT_TRANSFORM;
   const frame = project.settings;
 

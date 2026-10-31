@@ -76,5 +76,29 @@ test("as tentativas anteriores do take viram retries da mídia da tela certa", (
       { assetId: "p2", at: 30, in: 0, duration: 20 },
     ],
   );
-  assert.deepEqual([...map], [["p1", [{ earlier: [8, 12], later: 22 }]]]);
+  assert.deepEqual([...map.byAsset], [["p1", [{ earlier: [8, 12], later: 22 }]]]);
+  assert.equal(map.kept.length, 1);
+});
+
+test("a troca nunca passa do que as duas tentativas mostram nem do clipe da última", () => {
+  // The new attempt lasted 3 s (stopped at 21); the next part starts at 21 from another file.
+  const short: Project = {
+    ...lesson(),
+    assets: [
+      { ...screen, retries: [{ earlier: [8, 13], later: 22, length: 3 }] },
+      { ...screen, id: "parte2" },
+    ],
+    clips: [
+      { id: "a", assetId: "tela", trackId: "v1", start: 10, in: 0, duration: 8, volume: 1 },
+      { id: "b", assetId: "tela", trackId: "v1", start: 18, in: 22, duration: 3, volume: 1 },
+      { id: "c", assetId: "parte2", trackId: "v1", start: 21, in: 0, duration: 10, volume: 1 },
+    ],
+  };
+  const swapped = swapAttempt(short, "tela", 0);
+  assert.ok(swapped);
+  assert.deepEqual(shown(swapped), [
+    [10, 18, 0],
+    [18, 21, 8],
+    [21, 31, 0],
+  ]);
 });

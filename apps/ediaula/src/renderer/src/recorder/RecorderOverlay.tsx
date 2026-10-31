@@ -1208,11 +1208,10 @@ export function RecorderOverlay(): ReactNode {
     phaseRef.current = "saving";
     // A note being typed is kept with the take, and a time-lapse ends where the voice would go on.
     await closeNote(true);
-    const redoOpen = redo.current;
-    if (redoOpen) {
+    // Stopped while undoing a mistake: the fixing stays cut to the end (no new attempt began).
+    if (redo.current) {
       redo.current = null;
       setRedoing(null);
-      await window.api.recorder.redo("end", redoOpen.back);
     }
     const lapseOpen = lapse.current;
     if (lapseOpen && overRef.current) {
@@ -1382,7 +1381,8 @@ export function RecorderOverlay(): ReactNode {
     if (lapse.current || redo.current) return;
     const at = p.heard();
     p.pause();
-    const next = { at, back: phraseStart(at, o) };
+    // Never before this part's start: what came before belongs to the part already saved.
+    const next = { at, back: Math.min(at, Math.max(o.from, phraseStart(at, o))) };
     redo.current = next;
     setRedoing(next);
     await window.api.recorder.redo("start", at);
@@ -1402,7 +1402,7 @@ export function RecorderOverlay(): ReactNode {
     const o = overRef.current;
     const r = redo.current;
     if (!o || !r) return;
-    const back = Math.min(r.at, Math.max(voiceStart(o), r.back + delta));
+    const back = Math.min(r.at, Math.max(o.from, r.back + delta));
     const next = { ...r, back: Math.round(back * 1000) / 1000 };
     redo.current = next;
     setRedoing(next);

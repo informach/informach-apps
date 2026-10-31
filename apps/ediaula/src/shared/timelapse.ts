@@ -21,6 +21,9 @@ export function lapseChoice(t: TimeLapse): LapseChoice {
 /** The most room the voice can make: past it the screen would go slower than recorded. */
 export const maxSpace = (t: TimeLapse): number => Math.max(0, t.source - t.under);
 
+/** The room offered at first: 8 s, or less when the screen would go slower than recorded. */
+export const defaultSpace = (t: TimeLapse): number => Math.min(8, Math.floor(maxSpace(t)));
+
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 
 /**

@@ -354,3 +354,16 @@ test("revisar a gravação só aparece quando a gravação deixou algo para deci
   const noted = project({ markers: [{ id: "m", t: 3, label: "Lembrete: zoom", note: true }] });
   assert.equal(skipReason(noted, "recording"), null);
 });
+
+test("uma aula que já passou do começo do Preparar aula segue de onde estava, sem a etapa nova", () => {
+  const before = {
+    step: "cuts" as const,
+    decisions: { transcribe: "done" as const, section: "done" as const },
+  };
+  const opened = normalizeProject(projectSchema.parse(project({ prepare: before })));
+  assert.equal(opened.prepare?.decisions.recording, "skipped");
+  assert.equal(resumeStep(opened.prepare), "cuts");
+  // A lesson that never started it goes through the new step as any other.
+  const fresh = normalizeProject(projectSchema.parse(project()));
+  assert.equal(fresh.prepare, undefined);
+});

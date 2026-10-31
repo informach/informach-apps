@@ -57,11 +57,25 @@ function layerPiece(
 
 /** The stretch [from, to) of a clip, in timeline seconds, as a clip of its own. */
 export function piece(c: Clip, from: number, to: number, opts: PieceOptions = {}): Clip {
-  const { fadeIn, enter, transition, fadeOut, exit, keyframes, zoomLayer, gain, ...rest } = c;
+  const {
+    fadeIn,
+    enter,
+    transition,
+    fadeOut,
+    exit,
+    keyframes,
+    zoomLayer,
+    gain,
+    timelapse,
+    ...rest
+  } = c;
   const head = opts.head ?? Math.abs(from - c.start) <= EPS;
   const tail = opts.tail ?? Math.abs(to - clipEnd(c)) <= EPS;
+  // "Tela sem voz" is about the whole stretch: a piece of it is a plain sped-up clip.
+  const whole = Math.abs(from - c.start) <= EPS && Math.abs(to - clipEnd(c)) <= EPS;
   const out: Clip = {
     ...rest,
+    ...(timelapse && whole ? { timelapse } : {}),
     // The original id stays with the piece holding the clip's start (or its moved start).
     id: from <= c.start + EPS || opts.head === true ? c.id : newId("c"),
     start: from,

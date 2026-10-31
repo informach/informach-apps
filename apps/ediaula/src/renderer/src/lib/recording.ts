@@ -530,10 +530,20 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
             { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
           );
+    // The earlier attempts stay in the screen media, to put back with one click.
+    const retries = retriesFromAttempts(
+      layout.attempts ?? [],
+      screens.flatMap((s) => {
+        const a = byPath(s.path);
+        return a
+          ? [{ assetId: a.id, at: s.at, in: "in" in s ? s.in : 0, duration: s.duration }]
+          : [];
+      }),
+    );
     const notes = [
       ...(r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : []),
-      // Each "Errei, voltar" says that the last attempt stayed (the earlier one can come back).
-      ...(layout.attempts ?? []).map((a) => ({
+      // Each "Errei, voltar" kept says that the last attempt stayed (the earlier one can come back).
+      ...retries.kept.map((a) => ({
         t: a.start,
         text: "Errei, voltei: ficou a última tentativa (a anterior volta nas propriedades da tela)",
       })),
@@ -547,24 +557,12 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
         })),
     ];
     notesPlaced = notes.length;
-    // The earlier attempts stay in the screen media, to put back with one click.
-    const retries = layout.attempts?.length
-      ? retriesFromAttempts(
-          layout.attempts,
-          screens.flatMap((s) => {
-            const a = byPath(s.path);
-            return a
-              ? [{ assetId: a.id, at: s.at, in: "in" in s ? s.in : 0, duration: s.duration }]
-              : [];
-          }),
-        )
-      : new Map();
     return {
       ...p,
-      ...(retries.size
+      ...(retries.byAsset.size
         ? {
             assets: p.assets.map((a) => {
-              const add = retries.get(a.id);
+              const add = retries.byAsset.get(a.id);
               return add ? { ...a, retries: [...(a.retries ?? []), ...add] } : a;
             }),
           }

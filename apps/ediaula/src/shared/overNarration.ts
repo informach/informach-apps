@@ -51,7 +51,7 @@ interface LapseFit {
  * start), forward to where it was let go.
  */
 function lapseFits(lapses: readonly OverLapse[], kept: readonly [number, number][]): LapseFit[] {
-  return lapses
+  const fits = lapses
     .flatMap((l) => {
       const range = kept.find(([x, y]) => l.held >= x - 0.05 && l.held <= y + 0.05);
       const from = Math.max(range?.[0] ?? l.held, l.held - Math.max(0, l.end - l.start));
@@ -59,6 +59,16 @@ function lapseFits(lapses: readonly OverLapse[], kept: readonly [number, number]
       return l.to > from && l.end > start ? [{ from, to: l.to, start, end: l.end }] : [];
     })
     .sort((x, y) => x.from - y.from);
+  // Held twice in the same line (the fits meet): one construction, one stretch under the line.
+  const out: LapseFit[] = [];
+  for (const f of fits) {
+    const last = out.at(-1);
+    if (last && f.from < last.to + 0.05) {
+      last.to = Math.max(last.to, f.to);
+      last.end = Math.max(last.end, f.end);
+    } else out.push({ ...f });
+  }
+  return out;
 }
 
 /**
@@ -131,6 +141,8 @@ export interface OverAttempt {
   start: number;
   speed?: number;
   later: number;
+  /** Timeline seconds from `start` that both attempts can show (the shorter of the two). */
+  length: number;
 }
 
 /** Where each kept stretch of the take goes, clipped to the planned interval. */
@@ -165,7 +177,81 @@ function overLayout(result: Pick<RecordingResult, "duration" | "pauses" | "over"
   const lapses = lapseFits(plan.lapses ?? [], kept);
   const out: OverPiece[] = [];
   let lastK: number | null = null;
+  /** "Errei, voltar" waiting for the first piece of its new attempt (plain or held). */
+  let pending: { at: number } | null = null;
+  /** Whether a take second is still shown by a piece placed. */
+  const shown = (t: number): boolean => out.some((p) => t >= p.from - 1e-3 && t < p.to - 1e-3);
+  /**
+   * What is placed from `piece.start` on gives way to it, whole or in part. For a new attempt,
+   * what gave way is kept as earlier attempts (in order), and earlier attempts that pointed at it
+   * point at the new one now.
+   */
+  const giveWay = (piece: OverPiece, attempt: boolean): void => {
+    const speedOf = (p: OverPiece): number => p.speed ?? 1;
+    const laterAt = (t: number): number => round(piece.from + (t - piece.start) * speedOf(piece));
+    const gone: OverAttempt[] = [];
+    while (out.length && pieceEnd(out[out.length - 1]) > piece.start + 1e-3) {
+      const last = out[out.length - 1];
+      const whole = last.start >= piece.start - 1e-3;
+      const cutFrom = whole ? last.from : last.from + (piece.start - last.start) * speedOf(last);
+      const startAt = Math.max(last.start, piece.start);
+      if (attempt)
+        gone.push({
+          from: round(cutFrom),
+          to: last.to,
+          start: round(startAt),
+          ...(last.speed ? { speed: last.speed } : {}),
+          later: laterAt(startAt),
+          length: round(Math.min((last.to - cutFrom) / speedOf(last), pieceEnd(piece) - startAt)),
+        });
+      if (whole) out.pop();
+      else {
+        last.to = round(cutFrom);
+        break;
+      }
+    }
+    if (!attempt) return;
+    for (const a of attempts)
+      if (!shown(a.later) && a.start >= piece.start - 1e-3 && a.start < pieceEnd(piece)) {
+        a.later = laterAt(a.start);
+        a.length = round(Math.min(a.length, pieceEnd(piece) - a.start));
+      }
+    attempts.push(...gone.reverse());
+  };
+  /** A piece into the layout: a new attempt takes the place of what is there, others follow. */
+  const place = (piece: OverPiece): void => {
+    if (pending) {
+      // The new attempt starts where the voice went back to: its lead-in is not used.
+      if (piece.start < pending.at) {
+        piece.from = round(piece.from + (pending.at - piece.start) * (piece.speed ?? 1));
+        piece.start = round(pending.at);
+      }
+      if (piece.to - piece.from < 1 / 30) return;
+      giveWay(piece, true);
+      pending = null;
+      out.push(piece);
+      return;
+    }
+    if (piece.speed) {
+      giveWay(piece, false);
+      out.push(piece);
+      return;
+    }
+    const prev = out.at(-1);
+    if (prev) {
+      const gap = piece.start - pieceEnd(prev);
+      if (gap < 0) {
+        // Overlap: the later stretch starts where the earlier one ends.
+        piece.from = round(piece.from - gap);
+        piece.start = round(pieceEnd(prev));
+        if (piece.to - piece.from < 1 / 30) return;
+      } else if (gap > 0 && gap <= HOLD && !prev.speed) prev.to = round(prev.to + gap);
+    }
+    out.push(piece);
+  };
   for (const { a, b, lapse } of splitAtLapses(kept, lapses)) {
+    const redo = redos.find((r) => Math.abs(r.t - a) < 0.1);
+    if (redo) pending = { at: redo.at };
     if (lapse) {
       // The line and the held time, without their pauses, fill the line in the voice. It is never
       // slowed down (the voice let go at once): at its own pace from the start of the line.
@@ -181,13 +267,9 @@ function overLayout(result: Pick<RecordingResult, "duration" | "pauses" | "over"
         piece.from = round(piece.from + (plan.from - piece.start) * speed);
         piece.start = round(plan.from);
       }
-      if (piece.to - piece.from < 1 / 30) continue;
-      const prev = out.at(-1);
-      if (prev && piece.start < pieceEnd(prev))
-        prev.to = round(prev.from + (piece.start - prev.start) * (prev.speed ?? 1));
-      out.push(piece);
       // The voice goes on from where it was held.
       lastK = lapse.end - lapse.to;
+      if (piece.to - piece.from >= 1 / 30) place(piece);
       continue;
     }
     const inside = anchors.filter((x) => x.t >= a - 0.05 && x.t <= b + 0.05);
@@ -206,47 +288,8 @@ function overLayout(result: Pick<RecordingResult, "duration" | "pauses" | "over"
     let to = b;
     if (from + k < plan.from) from = plan.from - k;
     if (plan.to !== undefined && to + k > plan.to) to = plan.to - k;
-    const redo = redos.find((r) => Math.abs(r.t - a) < 0.1);
-    // A new attempt starts where the voice went back to: its lead-in is not used.
-    if (redo && from + k < redo.at) from = redo.at - k;
     if (to - from < 1 / 30) continue;
-    const piece = { from: round(from), to: round(to), start: round(from + k) };
-    if (redo) {
-      // It takes the place of everything placed from its start on, whole or in part.
-      while (out.length && pieceEnd(out[out.length - 1]) > piece.start + 1e-3) {
-        const last = out[out.length - 1];
-        const speed = last.speed ?? 1;
-        const whole = last.start >= piece.start - 1e-3;
-        const cutFrom = whole ? last.from : last.from + (piece.start - last.start) * speed;
-        const startAt = Math.max(last.start, piece.start);
-        attempts.unshift({
-          from: round(cutFrom),
-          to: last.to,
-          start: round(startAt),
-          ...(last.speed ? { speed: last.speed } : {}),
-          later: round(piece.from + (startAt - piece.start)),
-        });
-        if (whole) out.pop();
-        else {
-          last.to = round(cutFrom);
-          break;
-        }
-      }
-      out.push(piece);
-      continue;
-    }
-    const prev = out.at(-1);
-    if (prev) {
-      const prevEnd = pieceEnd(prev);
-      const gap = piece.start - prevEnd;
-      if (gap < 0) {
-        // Overlap: the later stretch starts where the earlier one ends.
-        piece.from = round(piece.from - gap);
-        piece.start = round(prevEnd);
-        if (piece.to - piece.from < 1 / 30) continue;
-      } else if (gap > 0 && gap <= HOLD && !prev.speed) prev.to = round(prev.to + gap);
-    }
-    out.push(piece);
+    place({ from: round(from), to: round(to), start: round(from + k) });
   }
   return { pieces: out, attempts };
 }

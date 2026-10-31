@@ -164,7 +164,8 @@ export function setClipSpeed(clips: Clip[], id: string, speed: number, ripple: b
   const k = clipSpeed(c) / s;
   const duration = Math.max(MIN_CLIP, c.duration * k);
   const delta = duration - c.duration;
-  const { speed: _old, ...rest } = c;
+  // A "Tela sem voz" given another speed by hand is a plain sped-up clip from now on.
+  const { speed: _old, timelapse: _lapse, ...rest } = c;
   const changed: Clip = {
     ...rest,
     duration,

@@ -94,6 +94,23 @@ export function markDetachedSound(p: Project): Project {
   return changed ? { ...p, clips } : p;
 }
 
+/**
+ * "Revisar a gravação" came in as the first step of Preparar aula after lessons went through it:
+ * a lesson that already decided a step goes on where it was, as if that new step was left out.
+ */
+export function skipNewFirstStep(p: Project): Project {
+  const prepare = p.prepare;
+  if (!prepare || prepare.decisions.recording || !Object.keys(prepare.decisions).length) return p;
+  return {
+    ...p,
+    prepare: {
+      ...prepare,
+      decisions: { recording: "skipped", ...prepare.decisions },
+      notes: { recording: "Etapa nova, depois desta aula.", ...prepare.notes },
+    },
+  };
+}
+
 /** Everything a project read from disk goes through before the editor uses it. */
 export const normalizeProject = (stored: StoredProject): Project =>
-  markDetachedSound(moveDrawingsToMedia(stored, moveZoomsToMedia(stored)));
+  skipNewFirstStep(markDetachedSound(moveDrawingsToMedia(stored, moveZoomsToMedia(stored))));

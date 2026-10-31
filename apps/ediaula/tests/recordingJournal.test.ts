@@ -236,3 +236,18 @@ test("errei, voltar: o conserto vira pausa e a nova tentativa sai com o ponto de
   assert.deepEqual(replay.pauses, [[5000, 9000]]);
   assert.deepEqual(replay.redos, [{ qpc: 9000, at: 18 }]);
 });
+
+test("uma fonte que volta durante o errei, voltar não encerra o conserto", () => {
+  const replay = replayJournal(
+    text(
+      begin,
+      { k: "first", src: "screen", part: 0, qpc: 2000, file: "tela-0.mp4" },
+      { k: "redo", qpc: 5000, edge: "start", at: 22 },
+      { k: "fail", src: "screen", qpc: 6000, message: "parou" },
+      { k: "resume", qpc: 7000 },
+      { k: "redo", qpc: 9000, edge: "end", at: 18 },
+    ),
+  );
+  assert.deepEqual(replay.pauses, [[5000, 9000]]);
+  assert.deepEqual(replay.redos, [{ qpc: 9000, at: 18 }]);
+});

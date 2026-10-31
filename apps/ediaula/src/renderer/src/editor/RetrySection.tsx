@@ -41,7 +41,7 @@ export function RetrySection({ project, asset }: { project: Project; asset: Asse
       </h3>
       <p className="props-hint muted">
         Onde você usou Errei, voltar, a aula ficou com a última tentativa. A anterior continua
-        guardada.
+        guardada. A troca vale para a tela; câmera e som do PC do take seguem a última tentativa.
       </p>
       <ul className="retry-list">
         {retries.map((r, i) => {

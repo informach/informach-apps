@@ -221,6 +221,8 @@ export interface Retry {
   earlier: [number, number];
   later: number;
   speed?: number;
+  /** Timeline seconds both attempts can show (the shorter); absent: the earlier one's length. */
+  length?: number;
   using?: "earlier";
 }
 

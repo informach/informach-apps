@@ -1,4 +1,4 @@
-import { maxSpace } from "@shared/timelapse";
+import { defaultSpace as spaceOf } from "@shared/timelapse";
 import { clipSpeed } from "@shared/timeline";
 import {
   ClipboardPaste,
@@ -45,8 +45,12 @@ export function ClipMenu({
   const clip = project?.clips.find((c) => c.id === clipId);
   if (!project || !clip) return null;
   const ids = selection.includes(clipId) ? selection : [clipId];
-  const timed = project.clips.filter((c) => ids.includes(c.id) && hasSpeed(project, c));
+  // "Tela sem voz" has its own speed (setLapse): the clip speed leaves it alone.
+  const timed = project.clips.filter(
+    (c) => ids.includes(c.id) && hasSpeed(project, c) && !c.timelapse,
+  );
   const locked = !!project.tracks.find((t) => t.id === clip.trackId)?.locked;
+  const space = clip.timelapse ? spaceOf(clip.timelapse) : 0;
   const speed = clipSpeed(clip);
 
   return (
@@ -65,10 +69,10 @@ export function ClipMenu({
               },
               {
                 icon: FastForward,
-                label: "Tela sem voz: abrir 8 s na voz",
-                disabled: locked || maxSpace(clip.timelapse) < 0.5,
+                label: `Tela sem voz: abrir ${space} s na voz`,
+                disabled: locked || space < 1,
                 hint: "Ajuste os segundos nas propriedades do clipe",
-                onSelect: () => applyLapse(clipId, { kind: "space", seconds: 8 }),
+                onSelect: () => applyLapse(clipId, { kind: "space", seconds: space }),
               },
               {
                 icon: FastForward,

@@ -279,11 +279,14 @@ const asset = z.looseObject({
         earlier: z.tuple([time, time]),
         later: time,
         speed: number.positive().optional(),
+        length: time.optional(),
         using: z.literal("earlier").optional(),
       }),
     )
-    .max(500)
-    .optional(),
+    .max(5000)
+    .optional()
+    // A list that does not read is left out: the lesson opens without the earlier attempts.
+    .catch(undefined),
   recording: z
     .looseObject({
       id: text,

@@ -1,6 +1,6 @@
 import { retryAt } from "@shared/attempts";
 import { lessonNotes, noteText } from "@shared/markers";
-import { lapseChoice, maxSpace } from "@shared/timelapse";
+import { defaultSpace, lapseChoice } from "@shared/timelapse";
 import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { confirmRecordingReview } from "@/lib/prepare";
@@ -67,15 +67,10 @@ export function RecordingReview(): ReactNode {
                     </Button>
                     <Button
                       size="sm"
-                      disabled={off || maxSpace(t) < 0.5}
-                      onClick={() =>
-                        applyLapse(c.id, {
-                          kind: "space",
-                          seconds: Math.min(8, Math.floor(maxSpace(t))),
-                        })
-                      }
+                      disabled={off || defaultSpace(t) < 1}
+                      onClick={() => applyLapse(c.id, { kind: "space", seconds: defaultSpace(t) })}
                     >
-                      Abrir 8 s
+                      Abrir {defaultSpace(t)} s
                     </Button>
                     <Button
                       size="sm"
