@@ -120,12 +120,46 @@ const median = (values: number[]): number => {
 const HOLD = 0.25;
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 
+/**
+ * An earlier attempt left out by "Errei, voltar": the stretch of the take (`from`, `to`, at
+ * `speed`) that played at timeline second `start`, and the take second `later` where the attempt
+ * that took its place shows that same moment.
+ */
+export interface OverAttempt {
+  from: number;
+  to: number;
+  start: number;
+  speed?: number;
+  later: number;
+}
+
 /** Where each kept stretch of the take goes, clipped to the planned interval. */
 export function overPieces(
   result: Pick<RecordingResult, "duration" | "pauses" | "over">,
 ): OverPiece[] {
+  return overLayout(result).pieces;
+}
+
+/** The earlier attempts each "Errei, voltar" of the take left out, in order. */
+export function overAttempts(
+  result: Pick<RecordingResult, "duration" | "pauses" | "over">,
+): OverAttempt[] {
+  return overLayout(result).attempts;
+}
+
+/**
+ * Where each kept stretch of the take goes, clipped to the planned interval, and what the new
+ * attempts after "Errei, voltar" took the place of: an attempt starts at the voice second it went
+ * back to (its 2 s lead-in is not used) and wins over everything placed from there on.
+ */
+function overLayout(result: Pick<RecordingResult, "duration" | "pauses" | "over">): {
+  pieces: OverPiece[];
+  attempts: OverAttempt[];
+} {
   const plan = result.over;
-  if (!plan) return [];
+  const attempts: OverAttempt[] = [];
+  if (!plan) return { pieces: [], attempts };
+  const redos = plan.redos ?? [];
   const kept = keptRanges(result.pauses, result.duration);
   const anchors = [...plan.anchors].sort((a, b) => a.t - b.t);
   const lapses = lapseFits(plan.lapses ?? [], kept);
@@ -172,8 +206,35 @@ export function overPieces(
     let to = b;
     if (from + k < plan.from) from = plan.from - k;
     if (plan.to !== undefined && to + k > plan.to) to = plan.to - k;
+    const redo = redos.find((r) => Math.abs(r.t - a) < 0.1);
+    // A new attempt starts where the voice went back to: its lead-in is not used.
+    if (redo && from + k < redo.at) from = redo.at - k;
     if (to - from < 1 / 30) continue;
     const piece = { from: round(from), to: round(to), start: round(from + k) };
+    if (redo) {
+      // It takes the place of everything placed from its start on, whole or in part.
+      while (out.length && pieceEnd(out[out.length - 1]) > piece.start + 1e-3) {
+        const last = out[out.length - 1];
+        const speed = last.speed ?? 1;
+        const whole = last.start >= piece.start - 1e-3;
+        const cutFrom = whole ? last.from : last.from + (piece.start - last.start) * speed;
+        const startAt = Math.max(last.start, piece.start);
+        attempts.unshift({
+          from: round(cutFrom),
+          to: last.to,
+          start: round(startAt),
+          ...(last.speed ? { speed: last.speed } : {}),
+          later: round(piece.from + (startAt - piece.start)),
+        });
+        if (whole) out.pop();
+        else {
+          last.to = round(cutFrom);
+          break;
+        }
+      }
+      out.push(piece);
+      continue;
+    }
     const prev = out.at(-1);
     if (prev) {
       const prevEnd = pieceEnd(prev);
@@ -187,7 +248,7 @@ export function overPieces(
     }
     out.push(piece);
   }
-  return out;
+  return { pieces: out, attempts };
 }
 
 /**
@@ -276,7 +337,7 @@ export function layoutOverNarration(
 ): RecordingLayout {
   const find = (path: string | undefined): Asset | undefined =>
     path ? assets.find((a) => a.path.toLowerCase() === path.toLowerCase()) : undefined;
-  const pieces = overPieces(result);
+  const { pieces, attempts } = overLayout(result);
   let tracks = [...project.tracks];
   let clips = [...project.clips];
   const placed: Clip[] = [];
@@ -457,6 +518,7 @@ export function layoutOverNarration(
     roles,
     duration: pieces.reduce((sum, p) => sum + p.to - p.from, 0),
     at: start,
+    ...(attempts.length ? { attempts } : {}),
   };
 }
 

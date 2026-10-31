@@ -6,6 +6,7 @@ import {
   clockOffset,
   layoutOverNarration,
   overAnchor,
+  overAttempts,
   overEnd,
   overPieces,
   phraseStart,
@@ -620,4 +621,40 @@ test("o começo da frase: a fala do roteiro, senão a pausa da voz, senão 5 s a
   assert.equal(phraseStart(13, { segments, words: [] }), 8);
   // Never before the voice starts.
   assert.equal(phraseStart(4, { segments, words: [] }), 2);
+});
+
+test("errei, voltar: a nova tentativa começa no ponto de volta e fica no lugar da anterior", () => {
+  // Voice from 10: take 0..12 heard 10..22. A mistake at 22: the voice paused (take 12..20 cut),
+  // and went back to 18 with 2 s of lead-in (heard 16 at take 20), then on to the end.
+  const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 40,
+    pauses: [[12, 20]],
+    over: {
+      from: 10,
+      anchors: [
+        ...Array.from({ length: 24 }, (_, i) => ({ t: i * 0.5, at: 10 + i * 0.5 })),
+        ...Array.from({ length: 40 }, (_, i) => ({ t: 20 + i * 0.5, at: 16 + i * 0.5 })),
+      ],
+      redos: [{ t: 20, at: 18 }],
+    },
+  };
+  assert.deepEqual(overPieces(result), [
+    { from: 0, to: 8, start: 10 },
+    // The lead-in (take 20..22) is not used: the new attempt starts at 18.
+    { from: 22, to: 40, start: 18 },
+  ]);
+  // What it took the place of: take 8..12, once at 18, now shown from take 22.
+  assert.deepEqual(overAttempts(result), [{ from: 8, to: 12, start: 18, later: 22 }]);
+  // Back over two stretches (a pause before the mistake): both give way.
+  const twice = {
+    ...result,
+    pauses: [
+      [6, 7],
+      [12, 20],
+    ] as [number, number][],
+  };
+  const pieces = overPieces(twice);
+  assert.equal(pieces.at(-1)?.start, 18);
+  assert.ok(pieces.slice(0, -1).every((p) => p.start + (p.to - p.from) <= 18.001));
+  assert.equal(overAttempts(twice).length, 1);
 });

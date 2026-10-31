@@ -273,6 +273,17 @@ const asset = z.looseObject({
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
     .max(20000)
     .optional(),
+  retries: z
+    .array(
+      z.looseObject({
+        earlier: z.tuple([time, time]),
+        later: time,
+        speed: number.positive().optional(),
+        using: z.literal("earlier").optional(),
+      }),
+    )
+    .max(500)
+    .optional(),
   recording: z
     .looseObject({
       id: text,

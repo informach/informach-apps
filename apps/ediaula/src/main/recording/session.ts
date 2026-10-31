@@ -505,6 +505,16 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.emit("line", index, at);
   }
 
+  /**
+   * "Errei, voltar": the voice paused at `at` while a mistake is undone (start), and the point it
+   * went back to (end). The stretch in between is cut from the take as a pause.
+   */
+  redo(edge: "start" | "end", at: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    if (!Number.isFinite(at) || at < 0) return;
+    this.journal.write({ k: "redo", qpc: qpc(), edge, at });
+  }
+
   /** "Segurar a voz": the voice held at `at` (start, `from` its line's start), or let go (end). */
   lapse(edge: "start" | "end", at: number, from?: number): void {
     if (this.phase !== "recording" && this.phase !== "paused") return;

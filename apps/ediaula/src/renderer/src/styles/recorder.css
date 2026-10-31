@@ -1312,3 +1312,21 @@ html.is-recorder #root {
   color: var(--text-1);
   font: 13px var(--font-ui);
 }
+
+/* "Errei, voltar": the voice paused while the mistake is undone, and where it goes back to. */
+.rec-redo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: #1a1204;
+  font-size: 12.5px;
+}
+.rec-pill .rec-redo-step {
+  height: 24px;
+  padding: 0 8px;
+  background: #00000022;
+  color: inherit;
+}

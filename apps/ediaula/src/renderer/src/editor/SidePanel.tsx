@@ -48,6 +48,7 @@ import { PaletteSection } from "./PaletteEditor";
 import { PreparePanel } from "./PreparePanel";
 import { setDenoise } from "./RailPanels";
 import { CursorSection, ZoomSection } from "./RecordingProps";
+import { RetrySection } from "./RetrySection";
 import { ScriptPanel } from "./ScriptPanel";
 import { ShadowSection } from "./ShadowControls";
 import { TranscriptPanel } from "./TranscriptPanel";
@@ -245,6 +246,7 @@ function Properties(): ReactNode {
       </div>
 
       {clip.timelapse && <LapseSection key={clip.id} clip={clip} locked={locked} />}
+      {asset?.retries?.length ? <RetrySection project={project} asset={asset} /> : null}
       {clip.zoomLayer && <ZoomLayerSection clip={clip} />}
       {clip.regionFx && <RegionSection clip={clip} region={clip.regionFx} />}
       {asset?.kind === "video" && (

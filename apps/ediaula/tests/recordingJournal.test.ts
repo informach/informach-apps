@@ -223,3 +223,16 @@ test("a voz segurada volta do diÃ¡rio com a fala em que segurou, e sem soltar nÃ
     { from: 12000, at: 30 },
   ]);
 });
+
+test("errei, voltar: o conserto vira pausa e a nova tentativa sai com o ponto de volta", () => {
+  const replay = replayJournal(
+    text(
+      begin,
+      { k: "first", src: "screen", part: 0, qpc: 2000, file: "tela-0.mp4" },
+      { k: "redo", qpc: 5000, edge: "start", at: 22 },
+      { k: "redo", qpc: 9000, edge: "end", at: 18 },
+    ),
+  );
+  assert.deepEqual(replay.pauses, [[5000, 9000]]);
+  assert.deepEqual(replay.redos, [{ qpc: 9000, at: 18 }]);
+});

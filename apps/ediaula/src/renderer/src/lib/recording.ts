@@ -1,3 +1,4 @@
+import { retriesFromAttempts } from "@shared/attempts";
 import { timelineWords } from "@shared/cleanup";
 import { cameraPresenterTransform, squareCrop, type Transform } from "@shared/compose";
 import { type GuidedRun, normalizeGuidedRun } from "@shared/guidedCursor";
@@ -531,6 +532,11 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
           );
     const notes = [
       ...(r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : []),
+      // Each "Errei, voltar" says that the last attempt stayed (the earlier one can come back).
+      ...(layout.attempts ?? []).map((a) => ({
+        t: a.start,
+        text: "Errei, voltei: ficou a última tentativa (a anterior volta nas propriedades da tela)",
+      })),
       // Each screen recorded with the voice held says how fast it went in, to check the pace.
       ...layout.placed
         .filter((c) => c.timelapse && c.speed)
@@ -541,8 +547,28 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
         })),
     ];
     notesPlaced = notes.length;
+    // The earlier attempts stay in the screen media, to put back with one click.
+    const retries = layout.attempts?.length
+      ? retriesFromAttempts(
+          layout.attempts,
+          screens.flatMap((s) => {
+            const a = byPath(s.path);
+            return a
+              ? [{ assetId: a.id, at: s.at, in: "in" in s ? s.in : 0, duration: s.duration }]
+              : [];
+          }),
+        )
+      : new Map();
     return {
       ...p,
+      ...(retries.size
+        ? {
+            assets: p.assets.map((a) => {
+              const add = retries.get(a.id);
+              return add ? { ...a, retries: [...(a.retries ?? []), ...add] } : a;
+            }),
+          }
+        : {}),
       tracks: layout.tracks,
       clips: layout.clips,
       ...(notes.length ? { markers: addNotes(p.markers ?? [], notes) } : {}),

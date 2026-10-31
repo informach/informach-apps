@@ -96,6 +96,17 @@ export const journalLineSchema = z.discriminatedUnion("k", [
    */
   z.object({ k: z.literal("over"), qpc, at: z.number().nonnegative() }),
   /**
+   * "Errei, voltar": the voice paused at timeline second `at` while the teacher undoes a mistake
+   * (start), and the point of the voice it went back to (end). The stretch in between is cut, as
+   * a pause; what comes after is a new attempt of the same voice.
+   */
+  z.object({
+    k: z.literal("redo"),
+    qpc,
+    edge: z.enum(["start", "end"]),
+    at: z.number().nonnegative(),
+  }),
+  /**
    * "Segurar a voz": the voice held at timeline second `at` while the screen goes on (start, with
    * `from`, where the line being said started in the voice), and let go again (end).
    */
@@ -180,6 +191,8 @@ export interface JournalReplay {
    * held at and where the line being said started.
    */
   lapses: { from: number; at: number; line?: number; to?: number }[];
+  /** "Errei, voltar": where each new attempt starts (QPC) and the voice second it went back to. */
+  redos: { qpc: number; at: number }[];
   narration: { file: string; offset: number; origin?: number; video?: true } | null;
   /** Strokes drawn on the screen, "apagar tudo" moments and the stretches the pen was out. */
   strokes: {
@@ -216,6 +229,7 @@ export function replayJournal(text: string): JournalReplay {
     lines: [],
     over: [],
     lapses: [],
+    redos: [],
     narration: null,
     strokes: [],
     clears: [],
@@ -278,6 +292,15 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "marker":
         replay.markers.push({ qpc: line.qpc, kind: line.kind });
+        break;
+      case "redo":
+        // The mistake being undone is cut, as a pause; the attempt after it starts at the end.
+        if (line.edge === "start") pause(line.qpc);
+        else if (pausedAt !== null && replay.stop === null) {
+          if (line.qpc > pausedAt) replay.pauses.push([pausedAt, line.qpc]);
+          pausedAt = null;
+          replay.redos.push({ qpc: line.qpc, at: line.at });
+        }
         break;
       case "note":
         replay.notes.push({ qpc: line.qpc, text: line.text });

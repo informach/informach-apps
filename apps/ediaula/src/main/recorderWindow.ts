@@ -1077,6 +1077,10 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     (await processLoopbackAvailable()) ? "native" : "chromium",
   );
   /** "Trecho acelerado": the voice held at `at`, or going on from `at`. */
+  /** "Errei, voltar": the voice paused at `at`, or the point it went back to. */
+  ipcMain.handle("recorder:redo", (_e, edge: unknown, at: unknown) =>
+    rec.redo(z.enum(["start", "end"]).parse(edge), z.number().finite().nonnegative().parse(at)),
+  );
   ipcMain.handle("recorder:lapse", (_e, edge: unknown, at: unknown, from: unknown) =>
     rec.lapse(
       z.enum(["start", "end"]).parse(edge),

@@ -119,6 +119,12 @@ export interface Asset {
   /** Markers set while recording (Ctrl+Shift+M) and passages to redo (Ctrl+Shift+R), source seconds. */
   markers?: { t: number; kind: MarkerKind }[];
   /**
+   * "Errei, voltar" in this screen recording (shared/attempts.ts): each earlier attempt left out
+   * (seconds of this media, at `speed`) and the second where the attempt that took its place
+   * starts; `using` is set while the earlier one is the one in the lesson.
+   */
+  retries?: Retry[];
+  /**
    * The take this file belongs to (its folder) and which of its sources it is; `paused`, the
    * source seconds recorded during the take's pauses, which no clip may reach.
    */
@@ -208,6 +214,14 @@ export interface VoiceMasterPiece {
   start: number;
   end: number;
   sourceMap: VoiceMasterSegment[];
+}
+
+/** An earlier attempt of a screen recording, kept to put back (Asset.retries). */
+export interface Retry {
+  earlier: [number, number];
+  later: number;
+  speed?: number;
+  using?: "earlier";
 }
 
 /**
@@ -960,6 +974,8 @@ export interface EdiAulaApi {
      * started), or let go again (end).
      */
     lapse(edge: "start" | "end", at: number, from?: number): Promise<void>;
+    /** "Errei, voltar": the voice paused at `at` (start), or the point it went back to (end). */
+    redo(edge: "start" | "end", at: number): Promise<void>;
     /**
      * "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`, from a
      * little before `from` (default: where the editor opened it from).

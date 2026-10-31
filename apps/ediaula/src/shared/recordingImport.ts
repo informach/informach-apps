@@ -37,6 +37,11 @@ export interface RecordingLayout {
   duration: number;
   /** Seconds of the timeline where the take starts. */
   at: number;
+  /**
+   * "Errei, voltar": the earlier attempts left out (take seconds `from` to `to` at `speed`, once
+   * at timeline second `start`), each with the take second `later` that took its place.
+   */
+  attempts?: { from: number; to: number; start: number; speed?: number; later: number }[];
 }
 
 export interface LayoutOptions {

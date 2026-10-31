@@ -290,6 +290,9 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
       ? {
           ...replay.begin.over,
           anchors: replay.over.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })),
+          ...(replay.redos.length
+            ? { redos: replay.redos.map((r) => ({ t: momentInTake(segments, r.qpc), at: r.at })) }
+            : {}),
           // A voice held and never let go (a crash) has no end: it goes by the anchors.
           ...(replay.lapses.some((l) => l.to !== undefined)
             ? {

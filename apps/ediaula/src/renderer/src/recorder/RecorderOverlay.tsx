@@ -311,7 +311,6 @@ export function RecorderOverlay(): ReactNode {
   const recordedRef = useRef(recorded);
   recordedRef.current = recorded;
   /** "Voltar ao começo da fala": the next part starts there instead of where this one ends. */
-  const restartAt = useRef<number | null>(null);
   const overRef = useRef(over);
   overRef.current = over;
   const modeRef = useRef(mode);
@@ -346,6 +345,10 @@ export function RecorderOverlay(): ReactNode {
   const [overDone, setOverDone] = useState<false | "gaps" | "complete">(false);
   const overDoneRef = useRef(overDone);
   overDoneRef.current = overDone;
+  /** "Errei, voltar": where the voice paused, and the point it goes back to. */
+  const redo = useRef<{ at: number; back: number } | null>(null);
+  const [redoing, setRedoing] = useState<{ at: number; back: number } | null>(null);
+  const endRedoRef = useRef<() => Promise<void>>(async () => undefined);
   /** "Segurar a voz": where the voice is waiting while the screen goes on. */
   const lapse = useRef<{ at: number } | null>(null);
   const [lapsing, setLapsing] = useState(false);
@@ -736,6 +739,8 @@ export function RecorderOverlay(): ReactNode {
   const resetTakeState = useCallback((): void => {
     lapse.current = null;
     setLapsing(false);
+    redo.current = null;
+    setRedoing(null);
     if (noteRef.current) {
       noteRef.current = null;
       setNote(null);
@@ -1160,6 +1165,10 @@ export function RecorderOverlay(): ReactNode {
   const [resuming, setResuming] = useState(false);
   const togglePause = useCallback(async () => {
     if (guidedFailed.current) return;
+    if (redo.current) {
+      await endRedoRef.current();
+      return;
+    }
     if (phaseRef.current === "recording") {
       guidedAudio.current?.pause();
       // The voice pauses with the take: the pause becomes a cut and the voice goes on from here.
@@ -1197,6 +1206,12 @@ export function RecorderOverlay(): ReactNode {
     phaseRef.current = "saving";
     // A note being typed is kept with the take, and a time-lapse ends where the voice would go on.
     await closeNote(true);
+    const redoOpen = redo.current;
+    if (redoOpen) {
+      redo.current = null;
+      setRedoing(null);
+      await window.api.recorder.redo("end", redoOpen.back);
+    }
     const lapseOpen = lapse.current;
     if (lapseOpen && overRef.current) {
       lapse.current = null;
@@ -1207,9 +1222,6 @@ export function RecorderOverlay(): ReactNode {
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
     const overNow = modeRef.current === "over" ? overRef.current : null;
     const keepOpen = !!overNow && overNow.to === undefined && !preservationRequested.current;
-    // Taken now: whatever happens to this stop, the next one never finds it left over.
-    const again = keepOpen ? restartAt.current : null;
-    restartAt.current = null;
     setPhase("saving");
     phaseRef.current = "saving";
     setAlert(null);
@@ -1248,8 +1260,7 @@ export function RecorderOverlay(): ReactNode {
           ? joinStretches([...recordedRef.current, [overNow.from, end]])
           : recordedRef.current;
       setRecorded(nowRecorded);
-      // "Voltar ao começo da fala" picked the next start; otherwise it goes on from here.
-      if (again === null && end >= overNow.end - 0.5) {
+      if (end >= overNow.end - 0.5) {
         // The voice is over: what is still without a screen, and back to the editor or on to
         // whoever edits the lesson.
         // F9 from here records what is still missing, never over the start of the lesson.
@@ -1266,7 +1277,7 @@ export function RecorderOverlay(): ReactNode {
         setPhase("setup");
         return;
       }
-      const from = Math.round((again ?? end) * 1000) / 1000;
+      const from = Math.round(end * 1000) / 1000;
       setOver((o) => (o ? { ...o, from } : o));
       setOverParts((n) => n + 1);
       setHealth(null);
@@ -1274,11 +1285,7 @@ export function RecorderOverlay(): ReactNode {
       setNoteCount(0);
       phaseRef.current = "setup";
       setPhase("setup");
-      setFlash(
-        again === null
-          ? `Parte salva na aula. A próxima começa em ${clockOf(from)}.`
-          : `Pronto para gravar de novo desde o começo da fala, em ${clockOf(from)}, por cima do que foi gravado ali.`,
-      );
+      setFlash(`Parte salva na aula. A próxima começa em ${clockOf(from)}.`);
       setTimeout(() => setFlash(null), 5000);
     } catch (err) {
       setError(cleanError(err));
@@ -1298,7 +1305,7 @@ export function RecorderOverlay(): ReactNode {
     const o = overRef.current;
     const p = player.current;
     if (modeRef.current !== "over" || !o || o.to !== undefined || !p) return;
-    if (phaseRef.current !== "recording") return;
+    if (phaseRef.current !== "recording" || redo.current) return;
     const open = lapse.current;
     if (!open) {
       const at = p.heard();
@@ -1361,22 +1368,48 @@ export function RecorderOverlay(): ReactNode {
   }, [resetTakeState]);
 
   /**
-   * "Voltar ao começo da fala" (over the narration): the part so far goes into the lesson, and
-   * the recorder waits at the start of the line being heard, ready to record it again over what
-   * was just recorded there.
+   * "Errei, voltar" (over the narration): the voice pauses while the screen goes on, so the
+   * mistake can be undone at the teacher's pace (that time is cut); then the voice goes back to
+   * the start of the phrase (2 s of lead-in) and the take goes on, a new attempt that takes the
+   * place of the earlier one. The take never stops.
    */
-  const rewind = useCallback(async () => {
+  const startRedo = useCallback(async () => {
     const o = overRef.current;
-    // Only where the recorder stays open for the next part: not in a redo of an interval, nor
-    // when the app has asked for the take to be saved and closed.
-    if (modeRef.current !== "over" || !o || o.to !== undefined || preservationRequested.current)
-      return;
-    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
-    const heard = player.current?.heard() ?? o.from;
-    const line = [...(o.lines ?? [])].reverse().find((l) => l.t <= heard + 0.05);
-    restartAt.current = Math.max(voiceStart(o), line?.t ?? o.from);
-    await stopRef.current();
+    const p = player.current;
+    if (modeRef.current !== "over" || !o || !p || phaseRef.current !== "recording") return;
+    if (lapse.current || redo.current) return;
+    const at = p.heard();
+    p.pause();
+    const next = { at, back: phraseStart(at, o) };
+    redo.current = next;
+    setRedoing(next);
+    await window.api.recorder.redo("start", at);
   }, []);
+  const endRedo = useCallback(async () => {
+    const o = overRef.current;
+    const r = redo.current;
+    if (!o || !r) return;
+    redo.current = null;
+    setRedoing(null);
+    await window.api.recorder.redo("end", r.back);
+    await player.current?.play(Math.max(voiceStart(o), r.back - 2));
+    showFlash(`A voz volta em ${clockOf(r.back)}. Grave de novo a partir daí.`);
+  }, [showFlash]);
+  /** The point "Errei, voltar" goes back to, moved before going on (never past the mistake). */
+  const moveRedo = (delta: number): void => {
+    const o = overRef.current;
+    const r = redo.current;
+    if (!o || !r) return;
+    const back = Math.min(r.at, Math.max(voiceStart(o), r.back + delta));
+    const next = { ...r, back: Math.round(back * 1000) / 1000 };
+    redo.current = next;
+    setRedoing(next);
+  };
+  endRedoRef.current = endRedo;
+  const toggleRedo = useCallback(
+    () => (redo.current ? endRedo() : startRedo()),
+    [endRedo, startRedo],
+  );
 
   const mark = useCallback(
     async (kind: "marker" | "retake") => {
@@ -1426,7 +1459,8 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "note") void openNote();
         else if (name === "timelapse") void toggleLapseRef.current();
         // Over the narration, redoing is going back to the start of the line being heard.
-        else if (name === "retake") void (modeRef.current === "over" ? rewind() : mark("retake"));
+        else if (name === "retake")
+          void (modeRef.current === "over" ? toggleRedo() : mark("retake"));
         else if (name === "line-next") stepTo(1);
         else if (name === "line-prev") stepTo(-1);
         else if (name === "draw" && phaseRef.current === "recording" && drawAllowed.current)
@@ -1435,7 +1469,7 @@ export function RecorderOverlay(): ReactNode {
         // the screen, and the drawing ends here too.
         else if (name === "draw-off") setDrawOn(false);
       }),
-    [begin, togglePause, stop, mark, openNote, rewind, stepTo, toggleWeb, stopWeb],
+    [begin, togglePause, stop, mark, openNote, toggleRedo, stepTo, toggleWeb, stopWeb],
   );
 
   // The disk filled up: the main process already stopped the capture; save what there is.
@@ -2137,19 +2171,47 @@ export function RecorderOverlay(): ReactNode {
                   }
                   aria-label={lapsing ? "Soltar a voz" : "Segurar a voz"}
                   aria-pressed={lapsing}
-                  disabled={phase !== "recording"}
+                  disabled={phase !== "recording" || !!redoing}
                   onClick={() => void toggleLapse()}
                 >
                   <FastForward size={15} />
                 </button>
               )}
+              {mode === "over" && redoing && (
+                <span className="rec-redo" role="status">
+                  Desfaça o erro no seu tempo. A voz volta em {clockOf(redoing.back)}
+                  <button
+                    type="button"
+                    className="rec-redo-step"
+                    onClick={() => moveRedo(-5)}
+                    aria-label="Voltar 5 s antes"
+                  >
+                    −5 s
+                  </button>
+                  <button
+                    type="button"
+                    className="rec-redo-step"
+                    onClick={() => moveRedo(5)}
+                    disabled={redoing.back >= redoing.at - 0.05}
+                    aria-label="Voltar 5 s depois"
+                  >
+                    +5 s
+                  </button>
+                </span>
+              )}
               {mode === "over" ? (
                 <button
                   type="button"
-                  title={`Voltar ao começo da fala (${keyOf("retake")}): o que foi gravado fica na aula, e o gravador espera no começo da fala para gravar de novo por cima`}
-                  aria-label="Voltar ao começo da fala"
-                  disabled={!over?.lines?.length || over.to !== undefined || lapsing}
-                  onClick={() => void rewind()}
+                  className={redoing ? "is-on" : ""}
+                  title={
+                    redoing
+                      ? `Voltar agora (${keyOf("retake")} ou ${keyOf("toggle")}): a voz toca do ponto escolhido e a tela segue`
+                      : `Errei, voltar (${keyOf("retake")}): a voz pausa e a tela segue enquanto você desfaz o erro; o tempo do conserto sai da aula e a nova tentativa fica no lugar da anterior`
+                  }
+                  aria-label={redoing ? "Voltar agora" : "Errei, voltar"}
+                  aria-pressed={!!redoing}
+                  disabled={phase !== "recording" || lapsing}
+                  onClick={() => void toggleRedo()}
                 >
                   <RotateCcw size={15} />
                 </button>

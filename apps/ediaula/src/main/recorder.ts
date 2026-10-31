@@ -391,6 +391,11 @@ export function teleprompterLine(index: number, heard?: number): void {
   session?.teleprompterLine(index, heard);
 }
 
+/** "Errei, voltar": the voice paused at `at` (start), and the point it went back to (end). */
+export function redo(edge: "start" | "end", at: number): void {
+  session?.redo(edge, at);
+}
+
 /** "Segurar a voz": the voice held at `at` (start, `from` its line's start), or let go (end). */
 export function lapse(edge: "start" | "end", at: number, from?: number): void {
   session?.lapse(edge, at, from);

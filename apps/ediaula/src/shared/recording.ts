@@ -378,7 +378,12 @@ export interface RecordingResult {
   mode?: Exclude<RecordMode, "screen">;
   /** "Tela sobre a narração": the plan, and at moments of the take (`t`, seconds without the
    *  pauses removed) which timeline second of the voice was heard (`at`). */
-  over?: OverPlan & { anchors: { t: number; at: number }[]; lapses?: OverLapse[] };
+  over?: OverPlan & {
+    anchors: { t: number; at: number }[];
+    lapses?: OverLapse[];
+    /** "Errei, voltar": take second each new attempt starts, and the voice second it is from. */
+    redos?: { t: number; at: number }[];
+  };
   /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
   cursorIssues?: string[];
   /** The chosen encoder could not start and another one recorded. */
