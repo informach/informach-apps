@@ -1967,12 +1967,12 @@ function MarkerFlags({
       {markers.map((m) => (
         <Fragment key={m.id}>
           <div
-            className={`marker-line ${m.chapter ? "is-chapter" : ""}`}
+            className={`marker-line ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
             style={{ left: m.t * zoom, height }}
           />
           <button
             type="button"
-            className={`marker-flag ${m.chapter ? "is-chapter" : ""}`}
+            className={`marker-flag ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
             style={{ left: m.t * zoom }}
             title={`${m.label} · ${timecode(m.t, fps)}${m.chapter ? " · capítulo" : ""}. Dois cliques renomeiam; botão direito para mais opções.`}
             aria-label={`Marcador ${m.label}`}

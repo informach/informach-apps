@@ -4,9 +4,12 @@ import { applyCuts } from "../src/shared/cleanup.ts";
 import { chaptersInRange, cuesInRange, ffmetadata } from "../src/shared/export/assemble.ts";
 import {
   addMarker,
+  addNotes,
   chaptersOf,
   followMarkers,
+  lessonNotes,
   type Marker,
+  notesOnTimeline,
   stepMarker,
   withMarkerChapters,
 } from "../src/shared/markers.ts";
@@ -174,5 +177,58 @@ test("a stretch exported on its own counts chapters and captions from its start"
       { start: 5, end: 7, text: "dentro" },
       { start: 29, end: 30, text: "fim" },
     ],
+  );
+});
+
+test("os recados da gravação vão para o ponto da timeline que mostra aquele segundo do take", () => {
+  // Take part 2 starts at take second 30; its clip shows source 5 to 20 at timeline 100.
+  const clips = [
+    {
+      id: "c1",
+      assetId: "tela1",
+      trackId: "v1",
+      start: 0,
+      in: 0,
+      out: 30,
+      duration: 30,
+      volume: 1,
+    },
+    {
+      id: "c2",
+      assetId: "tela2",
+      trackId: "v1",
+      start: 100,
+      in: 5,
+      out: 20,
+      duration: 15,
+      volume: 1,
+    },
+  ];
+  const sources = [
+    { assetId: "tela1", at: 0 },
+    { assetId: "tela2", at: 30 },
+  ];
+  const placed = notesOnTimeline(clips, sources, [
+    { t: 10, text: "errei o clique" },
+    { t: 40, text: "zoom no botão" },
+    // Cut out of the lesson (part 2, source 2): nowhere.
+    { t: 32, text: "sumiu" },
+  ]);
+  assert.deepEqual(placed, [
+    { t: 10, text: "errei o clique" },
+    { t: 105, text: "zoom no botão" },
+  ]);
+  const list = addNotes([{ id: "m", t: 10, label: "Marcador 1" }], placed);
+  assert.deepEqual(
+    list.map((m) => [Math.round(m.t * 1000) / 1000, m.label, !!m.note]),
+    [
+      [10, "Marcador 1", false],
+      [10.033, "Recado: errei o clique", true],
+      [105, "Recado: zoom no botão", true],
+    ],
+  );
+  assert.deepEqual(
+    lessonNotes({ markers: list }).map((m) => m.label),
+    ["Recado: errei o clique", "Recado: zoom no botão"],
   );
 });

@@ -79,6 +79,8 @@ export const journalLineSchema = z.discriminatedUnion("k", [
   z.object({ k: z.literal("pause"), qpc }),
   z.object({ k: z.literal("resume"), qpc }),
   z.object({ k: z.literal("marker"), qpc, kind: z.enum(["marker", "retake"]) }),
+  /** A note for whoever edits the lesson, at the moment it was opened ("Recado"). */
+  z.object({ k: z.literal("note"), qpc, text: z.string().min(1).max(200) }),
   z.object({ k: z.literal("fail"), src: source, qpc, message: z.string().max(4000) }),
   z.object({ k: z.literal("health"), qpc, note: z.string().max(4000) }),
   z.object({
@@ -158,6 +160,7 @@ export interface JournalReplay {
    *  after the stop. An open range ends at Infinity. */
   pauses: [number, number][];
   markers: { qpc: number; kind: "marker" | "retake" }[];
+  notes: { qpc: number; text: string }[];
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
   over: { qpc: number; at: number }[];
@@ -192,6 +195,7 @@ export function replayJournal(text: string): JournalReplay {
     parts: { screen: [], mic: [], camera: [], system: [] },
     pauses: [],
     markers: [],
+    notes: [],
     failures: [],
     lines: [],
     over: [],
@@ -257,6 +261,9 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "marker":
         replay.markers.push({ qpc: line.qpc, kind: line.kind });
+        break;
+      case "note":
+        replay.notes.push({ qpc: line.qpc, text: line.text });
         break;
       case "fail":
         replay.failures.push({ src: line.src, qpc: line.qpc, message: line.message });

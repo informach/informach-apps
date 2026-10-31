@@ -353,6 +353,8 @@ export interface RecordingResult {
   /** Stretches of the take recorded while paused (or after a failure): cut on import. */
   pauses: [number, number][];
   markers: { t: number; kind: MarkerKind }[];
+  /** Notes left for whoever edits the lesson ("Recado"), in seconds of the take. */
+  notes?: { t: number; text: string }[];
   /** Teleprompter line shown from each moment. */
   lines?: { t: number; index: number }[];
   /** Strokes drawn on the screen during the take, in seconds of the take (shared/drawing.ts). */

@@ -39,7 +39,17 @@ test("the defaults: F9, F10 and F8 while open; marker, redo and the teleprompter
   assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.retake), "Ctrl+Shift+R");
   assert.deepEqual([...OPEN_HOTKEYS], ["toggle", "stop", "guidedTarget"]);
   assert.deepEqual([...REQUIRED_HOTKEYS], ["toggle", "stop"]);
-  assert.deepEqual(sessionHotkeys(false), ["marker", "retake", "lineNext", "linePrev", "draw"]);
+  assert.deepEqual(sessionHotkeys(false), [
+    "marker",
+    "note",
+    "retake",
+    "lineNext",
+    "linePrev",
+    "draw",
+  ]);
+  // The time-lapse key only over the narration.
+  assert.deepEqual(sessionHotkeys(false, true, true).at(-1), "timelapse");
+  assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.note), "Ctrl+Shift+N");
   assert.equal(hotkeyLabel(DEFAULT_HOTKEYS.draw), "Ctrl+Shift+D");
   assert.deepEqual(sessionHotkeys(true).slice(-2), ["clickerNext", "clickerPrev"]);
   assert.deepEqual(hotkeyConflicts(DEFAULT_HOTKEYS, true), []);
@@ -52,10 +62,12 @@ test("the helper hides every shortcut in use from the keys on screen, the clicke
     { vk: 0x79, m: 0 },
     { vk: 0x77, m: 0 },
     { vk: 0x4d, m: CTRL_SHIFT },
+    { vk: 0x4e, m: CTRL_SHIFT },
     { vk: 0x52, m: CTRL_SHIFT },
     { vk: 0x28, m: CTRL_SHIFT },
     { vk: 0x26, m: CTRL_SHIFT },
     { vk: 0x44, m: CTRL_SHIFT },
+    { vk: 0x76, m: 0 },
   ]);
   const on = toKeyFilter(DEFAULT_HOTKEYS, true);
   assert.deepEqual(on.slice(-2), [
@@ -76,7 +88,7 @@ test("a shortcut that repeats another or does not parse is reported, not registe
   const clicker = { ...DEFAULT_HOTKEYS, clickerNext: "F9" };
   assert.deepEqual(hotkeyConflicts(clicker, false), []);
   assert.equal(hotkeyConflicts(clicker, true)[0]?.other, "toggle");
-  assert.equal(activeHotkeys(false).length, 8);
+  assert.equal(activeHotkeys(false).length, 10);
 });
 
 test("a key pressed in the options becomes an accelerator by its place on the keyboard", () => {

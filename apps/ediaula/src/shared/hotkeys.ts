@@ -12,10 +12,12 @@ export const HOTKEY_ACTIONS = [
   "stop",
   "guidedTarget",
   "marker",
+  "note",
   "retake",
   "lineNext",
   "linePrev",
   "draw",
+  "timelapse",
   "clickerNext",
   "clickerPrev",
 ] as const;
@@ -27,10 +29,13 @@ export const DEFAULT_HOTKEYS: HotkeyMap = {
   stop: "F10",
   guidedTarget: "F8",
   marker: "CommandOrControl+Shift+M",
+  note: "CommandOrControl+Shift+N",
   retake: "CommandOrControl+Shift+R",
   lineNext: "CommandOrControl+Shift+Down",
   linePrev: "CommandOrControl+Shift+Up",
   draw: "CommandOrControl+Shift+D",
+  // "Tela sobre a narração": hold the voice while the screen goes on (a long construction).
+  timelapse: "F7",
   // A presentation clicker sends Page Down and Page Up; only when the teacher turns it on.
   clickerNext: "PageDown",
   clickerPrev: "PageUp",
@@ -41,10 +46,12 @@ export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
   stop: "Parar",
   guidedTarget: "Alvo do modo guiado",
   marker: "Marcador",
+  note: "Recado para quem edita",
   retake: "Refazer o último trecho",
   lineNext: "Próxima fala",
   linePrev: "Fala anterior",
   draw: "Desenhar na tela",
+  timelapse: "Trecho acelerado (sobre a narração)",
   clickerNext: "Passador: próxima fala",
   clickerPrev: "Passador: fala anterior",
 };
@@ -56,14 +63,17 @@ export const REQUIRED_HOTKEYS: readonly HotkeyAction[] = ["toggle", "stop"];
 const CLICKER: readonly HotkeyAction[] = ["clickerNext", "clickerPrev"];
 
 /** Shortcuts registered only while a take is running. */
-export function sessionHotkeys(clicker: boolean, screen = true): HotkeyAction[] {
+export function sessionHotkeys(clicker: boolean, screen = true, over = false): HotkeyAction[] {
   return [
     "marker",
+    "note",
     "retake",
     "lineNext",
     "linePrev",
     // Drawing goes over a screen: a voice take leaves the shortcut to the other programs.
     ...(screen ? (["draw"] as const) : []),
+    // Only over the narration: F7 is left to the other programs in any other take.
+    ...(over ? (["timelapse"] as const) : []),
     ...(clicker ? CLICKER : []),
   ];
 }
@@ -71,7 +81,7 @@ export function sessionHotkeys(clicker: boolean, screen = true): HotkeyAction[] 
 /** Every shortcut in use with these settings. */
 export const activeHotkeys = (clicker: boolean): HotkeyAction[] => [
   ...OPEN_HOTKEYS,
-  ...sessionHotkeys(clicker),
+  ...sessionHotkeys(clicker, true, true),
 ];
 
 const MODIFIERS: Record<string, number> = {

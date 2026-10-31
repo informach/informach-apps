@@ -394,6 +394,12 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     if (this.phase === "recording") this.journal.write({ k: "marker", qpc: qpc(), kind });
   }
 
+  /** A note for whoever edits the lesson, at `at` (QPC, when it was opened). */
+  note(at: number, text: string): void {
+    if (this.phase === "recording" || this.phase === "paused")
+      this.journal.write({ k: "note", qpc: at, text });
+  }
+
   /** Stops acquiring now; the session stays for the computer's sound and the finalization. */
   preserve(): Promise<void> {
     return this.serial(() => this.halt());

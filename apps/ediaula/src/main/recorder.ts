@@ -363,6 +363,11 @@ export async function preserve(): Promise<void> {
   await session?.preserve();
 }
 
+/** "Recado": a note for whoever edits the lesson, at the QPC moment it was opened. */
+export function note(at: number, text: string): void {
+  session?.note(at, text);
+}
+
 export function mark(kind: MarkerKind): void {
   session?.mark(kind);
 }

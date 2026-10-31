@@ -8,6 +8,7 @@ import {
   storeProblem,
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
+import { NOTE_MAX } from "@shared/markers";
 import { overEnd } from "@shared/overNarration";
 import { joinStretches } from "@shared/phrase";
 import { plural } from "@shared/plural";
@@ -45,6 +46,7 @@ import {
   EyeOff,
   Keyboard,
   Loader,
+  MessageSquarePlus,
   Mic,
   MonitorUp,
   MousePointer2,
@@ -702,6 +704,44 @@ export function RecorderOverlay(): ReactNode {
     setTimeout(() => setFlash(null), 1400);
   }, []);
 
+  /**
+   * "Recado": a short note for whoever edits the lesson, at the moment it was opened. The pill
+   * takes the keyboard while it is typed (keys typed here never show on screen) and gives it back
+   * with Enter or Esc.
+   */
+  const [note, setNote] = useState<{ at: number; text: string } | null>(null);
+  const [noteCount, setNoteCount] = useState(0);
+  const noteRef = useRef(note);
+  noteRef.current = note;
+  const noteInput = useRef<HTMLInputElement>(null);
+  const openNote = useCallback(async () => {
+    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    if (noteRef.current) {
+      noteInput.current?.focus();
+      return;
+    }
+    const at = await window.api.recorder.clock();
+    setNote({ at, text: "" });
+    await window.api.recorder.keyboard(true);
+    requestAnimationFrame(() => noteInput.current?.focus());
+  }, []);
+  const closeNote = useCallback(
+    async (save: boolean) => {
+      const open = noteRef.current;
+      if (!open) return;
+      noteRef.current = null;
+      setNote(null);
+      const text = open.text.trim();
+      if (save && text) {
+        await window.api.recorder.note(open.at, text.slice(0, NOTE_MAX));
+        setNoteCount((n) => n + 1);
+        showFlash("Recado guardado para quem edita");
+      }
+      await window.api.recorder.keyboard(false);
+    },
+    [showFlash],
+  );
+
   const moveLine = useCallback(
     (index: number, at?: number) => {
       const next = Math.max(0, Math.min(lines.length - 1, index));
@@ -965,6 +1005,7 @@ export function RecorderOverlay(): ReactNode {
       ]);
       const started = await window.api.recorder.start();
       setMarkers(0);
+      setNoteCount(0);
       // On the native route the main process records it; Chromium's capture is the fallback,
       // also when the native one did not open (if it can leave out a voice this window plays).
       const fallback =
@@ -1125,6 +1166,8 @@ export function RecorderOverlay(): ReactNode {
 
   const stop = useCallback(async () => {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    // A note being typed is kept with the take.
+    await closeNote(true);
     // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
     clearTimeout(voiceEnded.current);
@@ -1155,6 +1198,7 @@ export function RecorderOverlay(): ReactNode {
       if (!placed.ok) {
         setHealth(null);
         setMarkers(0);
+        setNoteCount(0);
         phaseRef.current = "setup";
         setPhase("setup");
         setError(
@@ -1180,6 +1224,7 @@ export function RecorderOverlay(): ReactNode {
         setOverParts((n) => n + 1);
         setHealth(null);
         setMarkers(0);
+        setNoteCount(0);
         setFlash(null);
         setOverDone(true);
         phaseRef.current = "setup";
@@ -1191,6 +1236,7 @@ export function RecorderOverlay(): ReactNode {
       setOverParts((n) => n + 1);
       setHealth(null);
       setMarkers(0);
+      setNoteCount(0);
       phaseRef.current = "setup";
       setPhase("setup");
       setFlash(
@@ -1206,7 +1252,7 @@ export function RecorderOverlay(): ReactNode {
       phaseRef.current = nothing ? "setup" : "paused";
       setPhase(nothing ? "setup" : "paused");
     }
-  }, [finishSystemAudio]);
+  }, [finishSystemAudio, closeNote]);
   const stopRef = useRef(stop);
   stopRef.current = stop;
   // The karaoke follows the voice ten times a second (the notes to the main process go at two).
@@ -1309,6 +1355,7 @@ export function RecorderOverlay(): ReactNode {
         if (name === "toggle") void (phaseRef.current === "setup" ? begin() : togglePause());
         else if (name === "stop") void stop();
         else if (name === "marker") void mark("marker");
+        else if (name === "note") void openNote();
         // Over the narration, redoing is going back to the start of the line being heard.
         else if (name === "retake") void (modeRef.current === "over" ? rewind() : mark("retake"));
         else if (name === "line-next") stepTo(1);
@@ -1319,7 +1366,7 @@ export function RecorderOverlay(): ReactNode {
         // the screen, and the drawing ends here too.
         else if (name === "draw-off") setDrawOn(false);
       }),
-    [begin, togglePause, stop, mark, rewind, stepTo, toggleWeb, stopWeb],
+    [begin, togglePause, stop, mark, openNote, rewind, stepTo, toggleWeb, stopWeb],
   );
 
   // The disk filled up: the main process already stopped the capture; save what there is.
@@ -1982,6 +2029,33 @@ export function RecorderOverlay(): ReactNode {
                 <Bookmark size={15} />
                 {markers > 0 && <small>{markers}</small>}
               </button>
+              <button
+                type="button"
+                title={`Recado para quem edita (${keyOf("note")})`}
+                aria-label={
+                  noteCount > 0 ? `Recado, ${noteCount} até agora` : "Recado para quem edita"
+                }
+                onClick={() => void openNote()}
+              >
+                <MessageSquarePlus size={15} />
+                {noteCount > 0 && <small>{noteCount}</small>}
+              </button>
+              {note && (
+                <input
+                  ref={noteInput}
+                  className="rec-note-field"
+                  aria-label="Recado para quem edita"
+                  placeholder="Recado para quem edita. Enter guarda, Esc desiste"
+                  maxLength={NOTE_MAX}
+                  value={note.text}
+                  onChange={(e) => setNote({ ...note, text: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void closeNote(true);
+                    if (e.key === "Escape") void closeNote(false);
+                  }}
+                  onBlur={() => void closeNote(true)}
+                />
+              )}
               {mode === "over" ? (
                 <button
                   type="button"

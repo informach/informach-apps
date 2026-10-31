@@ -1067,6 +1067,10 @@ export interface EdiAulaApi {
     status(): Promise<RecorderStatus>;
     /** Closes the recorder; `next` is what the editor shows then. */
     cancel(next?: import("./recording.ts").RecorderNext): Promise<void>;
+    /** "Recado": a note for whoever edits the lesson, at `at` (recorder.clock() when opened). */
+    note(at: number, text: string): Promise<void>;
+    /** The controls take the keyboard (to type a note) or hand it back to the recorded program. */
+    keyboard(on: boolean): Promise<void>;
     /** Editor window: the recorder closed and asked for this to be shown. */
     onClosed(cb: (next: import("./recording.ts").RecorderNext) => void): () => void;
     /** Throws the take away (Recycle Bin) and stays in the recorder. */

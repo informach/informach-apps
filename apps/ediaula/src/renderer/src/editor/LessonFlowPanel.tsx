@@ -1,3 +1,4 @@
+import { lessonNotes } from "@shared/markers";
 import { agree, plural } from "@shared/plural";
 import { speechItems } from "@shared/script";
 import { voiceClips, voiceSpan } from "@shared/voiceMaster";
@@ -7,6 +8,7 @@ import {
   Download,
   FileAudio,
   ListChecks,
+  MessageSquareText,
   Mic,
   MonitorPlay,
   PackageCheck,
@@ -74,6 +76,7 @@ export function LessonFlowPanel(): ReactNode {
   const coverage = useScreenCoverage(project);
   if (!project) return null;
 
+  const notes = lessonNotes(project);
   const parts = doc?.sections.length ?? 0;
   const lines = doc?.sections.reduce((n, s) => n + speechItems(s).length, 0) ?? 0;
 
@@ -235,6 +238,22 @@ export function LessonFlowPanel(): ReactNode {
             </Button>
           </Step>
         </ol>
+        {notes.length > 0 && (
+          <section className="flow-notes" aria-label="Recados da gravação">
+            <h4>
+              <MessageSquareText size={13} /> Recados da gravação
+            </h4>
+            <ul className="flow-missing">
+              {notes.map((m) => (
+                <li key={m.id}>
+                  <button type="button" onClick={() => playback.seek(m.t)} title="Ir até o recado">
+                    <span className="mono">{clock(m.t)}</span> {m.label.replace(/^Recado: /, "")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </section>
   );

@@ -699,7 +699,13 @@ export const projectSchema = z
       .optional(),
     markers: z
       .array(
-        z.looseObject({ id, t: time, label: z.string().max(400), chapter: z.boolean().optional() }),
+        z.looseObject({
+          id,
+          t: time,
+          label: z.string().max(400),
+          chapter: z.boolean().optional(),
+          note: z.boolean().optional(),
+        }),
       )
       .max(MARKER_LIMIT)
       .optional(),

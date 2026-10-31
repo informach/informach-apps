@@ -650,6 +650,11 @@ body.is-resizing-track * {
   background: var(--accent);
   color: var(--on-accent);
 }
+/* A note left while recording, for whoever edits the lesson. */
+.marker-flag.is-note {
+  background: var(--amber);
+  color: #1a1204;
+}
 .marker-input {
   width: 110px;
   height: 13px;
@@ -670,6 +675,9 @@ body.is-resizing-track * {
 }
 .marker-line.is-chapter {
   border-left-color: rgba(200, 240, 49, 0.75);
+}
+.marker-line.is-note {
+  border-left-color: rgba(255, 181, 71, 0.75);
 }
 
 /* Clips in a group: a dotted lime edge on top. */

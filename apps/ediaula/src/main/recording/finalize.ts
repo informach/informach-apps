@@ -317,6 +317,14 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     duration: round(duration),
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),
+    ...(replay.notes.length
+      ? {
+          notes: replay.notes.map((n) => ({
+            t: momentInTake(segments, n.qpc),
+            text: n.text,
+          })),
+        }
+      : {}),
     ...(lines.length ? { lines } : {}),
     ...(drawing ? { drawing } : {}),
     ...(voice

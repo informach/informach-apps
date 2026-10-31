@@ -357,3 +357,16 @@
 .send-pack .audio-flag small {
   font-size: 11.5px;
 }
+
+.flow-notes h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber);
+}
+.send-line.is-note {
+  grid-template-columns: 40px 1fr auto;
+}

@@ -1,7 +1,15 @@
+import { lessonNotes } from "@shared/markers";
 import { plural } from "@shared/plural";
 import { newId } from "@shared/timeline";
 import { voiceClips } from "@shared/voiceMaster";
-import { AlertTriangle, CheckCircle2, FolderOpen, Info, PackageCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FolderOpen,
+  Info,
+  MessageSquareText,
+  PackageCheck,
+} from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useScreenCoverage } from "@/lib/coverage";
 import { bytes } from "@/lib/format";
@@ -66,6 +74,7 @@ export function SendDialog(): ReactNode {
     (id) => assets.get(id)?.transcriptStatus !== "ready",
   );
   const missingMedia = estimate?.missing ?? [];
+  const notes = lessonNotes(project);
   const goTo = (t: number): void => {
     close();
     playback.pause();
@@ -201,6 +210,27 @@ export function SendDialog(): ReactNode {
                       computador ({missingMedia.slice(0, 3).join(", ")}
                       {missingMedia.length > 3 ? "…" : ""}). Reconecte na Mídia antes de enviar.
                     </span>
+                  </li>
+                )}
+                {notes.length > 0 && (
+                  <li className="send-check is-info">
+                    <MessageSquareText size={14} className="send-icon" />
+                    <div>
+                      {plural(notes.length, "recado vai", "recados vão")} junto para quem edita:
+                      <ul className="send-lines">
+                        {notes.slice(0, 5).map((m) => (
+                          <li className="send-line is-note" key={m.id}>
+                            <span className="mono">{clock(m.t)}</span>
+                            <span className="send-line-text">
+                              {m.label.replace(/^Recado: /, "")}
+                            </span>
+                            <Button size="sm" onClick={() => goTo(m.t)}>
+                              Ir até
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </li>
                 )}
                 {voiceUnread && coverage && (

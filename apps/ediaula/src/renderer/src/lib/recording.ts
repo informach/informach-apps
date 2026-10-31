@@ -10,6 +10,7 @@ import {
   MAX_RUNS,
   planTiming,
 } from "@shared/guidedPlan";
+import { addNotes, notesOnTimeline } from "@shared/markers";
 import { layoutOverNarration, overEnd } from "@shared/overNarration";
 import { pausedInMedia } from "@shared/pausedMedia";
 import { plural } from "@shared/plural";
@@ -500,6 +501,15 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
   const run = r.guidedRun ? await guidedRunOf(r.guidedRun).catch(() => null) : null;
   if (run) await keepGuidedRun(run, r.dir);
   const join = run ? await findResumeJoin(run, basename(r.dir)) : null;
+  // Where each note left while recording is looked for: the screen parts, then the voice.
+  const noteSources = [
+    ...screens.flatMap((s) => {
+      const a = byPath(s.path);
+      return a ? [{ assetId: a.id, at: s.at }] : [];
+    }),
+    ...(mic ? [{ assetId: mic.id, at: 0 }] : []),
+  ];
+  let notesPlaced = 0;
   let layout: RecordingLayout | undefined;
   useProject.getState().commit((before) => {
     // Nothing follows the earlier take: it is cut where this one starts, and this one goes there.
@@ -517,10 +527,13 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
             { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
           );
+    const notes = r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : [];
+    notesPlaced = notes.length;
     return {
       ...p,
       tracks: layout.tracks,
       clips: layout.clips,
+      ...(notes.length ? { markers: addNotes(p.markers ?? [], notes) } : {}),
       ...(voice
         ? {
             assets: p.assets.map((a) =>
@@ -568,7 +581,7 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));
   toast(
-    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}${zoomed ? ` · ${plural(zoomed, "zoom automático", "zooms automáticos")}` : ""}.`,
+    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}${notesPlaced ? ` · ${plural(notesPlaced, "recado", "recados")}` : ""}${zoomed ? ` · ${plural(zoomed, "zoom automático", "zooms automáticos")}` : ""}.`,
     "success",
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];

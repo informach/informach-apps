@@ -16,6 +16,8 @@ export interface Marker {
   label: string;
   /** Starts a chapter of the exported MP4 (and of publish.chapters). */
   chapter?: boolean;
+  /** A note left while recording, for whoever edits the lesson ("Recado"). */
+  note?: boolean;
 }
 
 export const MARKER_LIMIT = 2000;
@@ -300,6 +302,57 @@ export function addMarker(list: readonly Marker[], t: number, label?: string): M
     { id: newId("m"), t: Math.max(0, t), label: label ?? newMarkerLabel(list) },
   ]);
 }
+
+/** The longest note left while recording. */
+export const NOTE_MAX = 200;
+
+/**
+ * Notes left while recording (seconds of the take) at their place on the timeline: each one at
+ * the first of the take's media (`sources`, with the take second their own second 0 is at) whose
+ * clip shows that second. A note whose moment was cut out of the lesson goes nowhere.
+ */
+export function notesOnTimeline(
+  clips: readonly Clip[],
+  sources: readonly { assetId: string; at: number }[],
+  notes: readonly { t: number; text: string }[],
+): { t: number; text: string }[] {
+  const out: { t: number; text: string }[] = [];
+  for (const note of notes) {
+    let placed: number | null = null;
+    for (const source of sources) {
+      const s = note.t - source.at;
+      const clip = clips.find(
+        (c) => c.assetId === source.assetId && s >= c.in - EPS && s < sourceEnd(c) + EPS,
+      );
+      if (clip) {
+        placed = timelineAt(clip, Math.max(clip.in, s));
+        break;
+      }
+    }
+    if (placed !== null) out.push({ t: placed, text: note.text.slice(0, NOTE_MAX) });
+  }
+  return out;
+}
+
+/** The notes as markers ("Recado: …"), next to the markers already there. */
+export function addNotes(
+  list: readonly Marker[],
+  notes: readonly { t: number; text: string }[],
+): Marker[] {
+  const out = [...list];
+  for (const n of notes) {
+    if (out.length >= MARKER_LIMIT) break;
+    // A note on the very moment of another marker moves a frame on, never lost.
+    let t = Math.max(0, n.t);
+    while (out.some((m) => Math.abs(m.t - t) < 1e-3)) t += 1 / 30;
+    out.push({ id: newId("m"), t, label: `Recado: ${n.text}`, note: true });
+  }
+  return sortMarkers(out);
+}
+
+/** The notes left while recording, in the lesson's order. */
+export const lessonNotes = (p: Pick<Project, "markers">): Marker[] =>
+  sortMarkers((p.markers ?? []).filter((m) => m.note));
 
 /** The next marker after `t` (dir 1) or the one before it (dir −1). */
 export function stepMarker(list: readonly Marker[], t: number, dir: 1 | -1): Marker | undefined {

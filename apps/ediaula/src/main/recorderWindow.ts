@@ -40,6 +40,7 @@ import {
   sessionHotkeys,
   toKeyFilter,
 } from "../shared/hotkeys.ts";
+import { NOTE_MAX } from "../shared/markers.ts";
 import { DEFAULT_RECORDER_SETTINGS, type RecorderSettings } from "../shared/recorderSettings.ts";
 import type {
   CaptureMonitor,
@@ -123,10 +124,12 @@ const HOTKEY_NAMES: Record<HotkeyAction, string> = {
   stop: "stop",
   guidedTarget: "guided-target",
   marker: "marker",
+  note: "note",
   retake: "retake",
   lineNext: "line-next",
   linePrev: "line-prev",
   draw: "draw",
+  timelapse: "timelapse",
   clickerNext: "line-next",
   clickerPrev: "line-prev",
 };
@@ -515,6 +518,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   };
   /** The take being prepared records a screen (the drawing shortcut belongs to it). */
   let takeHasScreen = false;
+  /** The take is "Tela sobre a narração" (the time-lapse key belongs to it). */
+  let takeIsOver = false;
   /** "Janela…": the window the next take follows. */
   let followTarget: { hwnd: string; front: boolean } | null = null;
   /**
@@ -731,7 +736,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       });
     // Marker, redo and the teleprompter keys belong to the take (G14).
     if ((status.phase === "recording" || status.phase === "paused") && !sessionKeys.length) {
-      sessionKeys = sessionHotkeys(settings.clicker, takeHasScreen);
+      sessionKeys = sessionHotkeys(settings.clicker, takeHasScreen, takeIsOver);
       registerHotkeys(sessionKeys);
     } else if (!active || status.phase === "stopping") {
       unregisterHotkeys(sessionKeys);
@@ -1518,6 +1523,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     }
     if (!isVoiceMode(opts.mode)) opts.follow = undefined;
     takeHasScreen = opts.monitor !== undefined;
+    takeIsOver = opts.mode === "over" && opts.over?.to === undefined;
     if (opts.mode !== "over") opts.over = undefined;
     await rec.prepare({ ...opts, region }, monitors, {
       // Keys typed in the lesson window still show on screen; it belongs to this process too.
@@ -1634,6 +1640,19 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     }
     if (drawing) pen?.focus();
     else if (was) pen?.blur();
+  });
+  // "Recado": the controls take the keyboard while the note is typed, then hand it back to the
+  // program being recorded (keys typed in this process's windows never show on screen).
+  ipcMain.handle("recorder:keyboard", (_e, raw: unknown) => {
+    const on = z.boolean().parse(raw);
+    if (!live(overlay)) return;
+    if (on) overlay.focus();
+    else overlay.blur();
+  });
+  ipcMain.handle("recorder:note", (_e, rawAt: unknown, rawText: unknown) => {
+    const at = z.number().nonnegative().parse(rawAt);
+    const text = z.string().trim().min(1).max(NOTE_MAX).parse(rawText);
+    rec.note(at, text);
   });
   ipcMain.handle("recorder:mark", (_e, kind: unknown) =>
     rec.mark(z.enum(["marker", "retake"]).parse(kind) satisfies MarkerKind),

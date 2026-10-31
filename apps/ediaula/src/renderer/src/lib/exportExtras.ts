@@ -1,3 +1,5 @@
+import { lessonNotes } from "@shared/markers";
+import { plural } from "@shared/plural";
 import { newId } from "@shared/timeline";
 import type { ExportSpec } from "@shared/types";
 import { useApp } from "@/state/app";
@@ -65,7 +67,17 @@ export async function openPackagedLesson(): Promise<void> {
   const { toast } = useApp.getState();
   try {
     const path = await window.api.openPackage();
-    if (path) await actions.openProject(path);
+    if (!path) return;
+    await actions.openProject(path);
+    // The notes of whoever recorded it come first: they are also on the ruler, in amber.
+    const project = useProject.getState().project;
+    const notes = project ? lessonNotes(project).length : 0;
+    if (notes)
+      toast(
+        `${plural(notes, "recado de quem gravou", "recados de quem gravou")} na régua da timeline e no painel Etapas.`,
+        "info",
+      );
+    if (project) useApp.getState().set({ leftPanel: "lessonFlow" });
   } catch (err) {
     toast(`O pacote não abriu: ${cleanError(err)}`, "error");
   }

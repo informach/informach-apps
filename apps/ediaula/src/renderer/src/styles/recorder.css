@@ -1296,3 +1296,14 @@ html.is-recorder #root {
   color: var(--on-accent);
   font-weight: 600;
 }
+
+/* "Recado": the note for whoever edits the lesson, typed in the pill. */
+.rec-note-field {
+  width: 280px;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text-1);
+  font: 13px var(--font-ui);
+}
