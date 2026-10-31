@@ -74,6 +74,18 @@ export default async function Laboratory({
         titulo="Pensar com as mãos."
         apoio="Faça uma previsão, experimente, explique o que descobriu e tente um novo caso. Cada experiência acompanha sua faixa escolar e sua trilha."
       />
+      <Link
+        href="/laboratorio/pecas"
+        className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 border-ceu/35 bg-ceu-claro p-5 text-tinta no-underline shadow-chapa"
+      >
+        <span>
+          <span className="block font-display text-xl font-semibold">Desafios de peças</span>
+          <span className="block text-tinta-suave">
+            Tangram, Cubo Soma, 4 Ts e outros quebra-cabeças para montar girando as peças.
+          </span>
+        </span>
+        <span className="font-display font-semibold">Abrir</span>
+      </Link>
       {error && (
         <p role="alert" className="mb-4 rounded-card border-2 border-coral p-4">
           {error}{" "}

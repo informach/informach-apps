@@ -26,6 +26,7 @@ import {
   missaoLabExecutions as labExecutions,
   missaoNotes as notes,
   missaoProfiles as profiles,
+  missaoPuzzleSolves as puzzleSolves,
   missaoReports as reports,
   missaoSessions as sessions,
   users,
@@ -33,6 +34,7 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import { withBillingLifecycleWait } from "../billing/repository";
 import { getAccess } from "../billing/service";
+import { exportCompetitions } from "../competition/repository";
 import {
   assertableAvailabilityMessage,
   lessonAvailability,
@@ -1372,6 +1374,10 @@ export async function exportFamily(userId: string) {
         .select()
         .from(familyChallenges)
         .where(eq(familyChallenges.userId, userId)),
+      competitions: await exportCompetitions(tx, userId),
+      puzzleSolves: ids.length
+        ? await tx.select().from(puzzleSolves).where(inArray(puzzleSolves.profileId, ids))
+        : [],
     };
   });
 }

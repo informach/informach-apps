@@ -1,6 +1,6 @@
 # Estado do trabalho no repositório
 
-Atualizado em 27/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+Atualizado em 31/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
 ## Contexto confirmado
 
@@ -183,6 +183,10 @@ O [incremento 5.23 — joysticks 2D](reviews/edisvg-2026-10-17/review-lote-5-joy
 O titular restringiu a entrega imediata a encerrar 5.23, documentar o restante, revisar e publicar código e instaladores. O [PR #22](https://github.com/informach/informach-apps/pull/22) integrou a frente EdiSVG à `main` em `5da48c46`, depois de todos os gates remotos passarem; o [review integral](reviews/edisvg-2026-10-17/full-review-2026-10-18.md) contém achados corrigidos, evidências e pendências. A tag `edi-v0.1.5` falhou antes de gerar instaladores no gate de áudio do EdiAula; a `edi-v0.1.6` pertence à decisão do EdiAula e a `edi-v0.2.0`, ao EdiPDF integrado no PR #21. A [suíte 0.2.1](https://github.com/informach/edi-releases/releases/tag/edi-v0.2.1) do EdiSVG foi publicada em 19/10/2026 pelo [workflow de distribuição](https://github.com/informach/informach-apps/actions/runs/39186093523), após uma repetição do gate de revisão, com seis instaladores e manifesto Ed25519. A conferência independente validou os seis arquivos públicos por tamanho, SHA-512 do manifesto e SHA-256 do GitHub; o manifesto aponta para `5da48c46` e 0.2.1 é a release estável mais recente. A matriz de consumo definida é web/React e React Native, mas só web/React está entregue; React Native requer adapter e homologação Android/iOS. A autoria inicial é Windows.
 
 Pós-publicação, o CI do PR documental #26 falhou duas vezes no benchmark de tempo de parede do EdiAula, embora banco e jornada nativa passassem. Uma correção de QA isolada serializa os testes (sem alterar teto ou produto) e substitui um timer real por tick virtual no teste de captura guiada; os 944 testes EdiAula passaram localmente, com seis opt-in pulados. O [full review](reviews/edisvg-2026-10-17/full-review-2026-10-18.md) distingue essa verificação da homologação de desempenho em hardware real e registra a pendência da qualidade de voz. A versão pública 0.2.1 permanece imutável.
+
+## Missão Saber: competição em família e desafios de peças (31/10/2026)
+
+Pedido da titular, com canvas de proposta aprovado no mesmo dia. Branch `feat/missao-saber-competicao`: competição coordenada pelo responsável (vezes cronometradas, correção no servidor, som, pódio privado) e 15 desafios de peças em 3D no laboratório, sorteados também na competição. Migração aditiva `0075`. Decisões, regras, verificação e pendências no [registro da frente](propostas/missao-saber-competicao-2026-10-31/PROPOSTA.md); levantamento dos quebra-cabeças em [desafios.md](propostas/missao-saber-competicao-2026-10-31/desafios.md). Próximo passo: PR, CI e o teste da titular com as crianças em tablet e TV; o merge em `main` fica com ela.
 
 ## Operação dos produtos existentes
 

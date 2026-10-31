@@ -374,3 +374,135 @@ export const missaoLabExecutions = missaoSaber.table(
     check("missao_lab_grade", sql`${t.grade} between 1 and 12`),
   ],
 );
+
+/**
+ * Competição em família: o responsável coordena, no aparelho dele, uma
+ * sequência de vezes entre perfis escolhidos. É a exceção registrada à regra
+ * "cooperação, não ranking" (docs/propostas/missao-saber-competicao-2026-10-31):
+ * o pódio existe, mas só aqui, na conta do responsável, e nunca no estudo da
+ * criança. Resultados sob tempo não alimentam o motor de evidência.
+ */
+export const missaoCompetitions = missaoSaber.table(
+  "competitions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    area: text("area", { enum: ["matematica", "financeira"] }).notNull(),
+    /** Quantidades por competidor. */
+    problemCount: integer("problem_count").notNull(),
+    challengeCount: integer("challenge_count").notNull(),
+    problemSeconds: integer("problem_seconds").notNull(),
+    challengeSeconds: integer("challenge_seconds").notNull(),
+    /** Semente do sorteio, guardada para que o sorteio seja reproduzível. */
+    seed: integer("seed").notNull(),
+    status: text("status", { enum: ["ready", "running", "finished", "cancelled"] })
+      .notNull()
+      .default("ready"),
+    requestKey: uuid("request_key").notNull(),
+    createdAt: time("created_at"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("missao_competition_request").on(t.userId, t.requestKey),
+    index("missao_competitions_owner").on(t.userId, t.createdAt),
+    check("missao_competition_title", sql`length(${t.title}) between 2 and 60`),
+    check(
+      "missao_competition_counts",
+      sql`${t.problemCount} between 0 and 20 and ${t.challengeCount} between 0 and 3 and ${t.problemCount} + ${t.challengeCount} > 0`,
+    ),
+    check(
+      "missao_competition_seconds",
+      sql`${t.problemSeconds} between 20 and 300 and ${t.challengeSeconds} between 60 and 900`,
+    ),
+  ],
+);
+
+/**
+ * Apelido, avatar e nível ficam copiados: o pódio de uma competição encerrada
+ * não muda se o perfil for renomeado, avançar de ano ou for apagado.
+ */
+export const missaoCompetitors = missaoSaber.table(
+  "competitors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => missaoCompetitions.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").references(() => missaoProfiles.id, { onDelete: "set null" }),
+    seat: integer("seat").notNull(),
+    nickname: text("nickname").notNull(),
+    avatar: text("avatar").notNull(),
+    grade: integer("grade").notNull(),
+    /** Rótulo do nível sorteado, como "Canguru E e OBMEP Mirim 2". */
+    level: text("level").notNull(),
+    /** Faixa dos desafios de peças: a (2º-3º), b (4º-5º), c (6º-7º), d (8º em diante). */
+    band: text("band", { enum: ["a", "b", "c", "d"] }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("missao_competitor_seat").on(t.competitionId, t.seat),
+    check("missao_competitor_grade", sql`${t.grade} between 1 and 12`),
+  ],
+);
+
+export const missaoCompetitionTurns = missaoSaber.table(
+  "competition_turns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => missaoCompetitions.id, { onDelete: "cascade" }),
+    competitorId: uuid("competitor_id")
+      .notNull()
+      .references(() => missaoCompetitors.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    kind: text("kind", { enum: ["problem", "challenge"] }).notNull(),
+    /** Problema: lição de origem e cópia do item com gabarito, só no servidor. */
+    lessonId: text("lesson_id"),
+    itemId: text("item_id"),
+    item: jsonb("item").$type<Record<string, unknown>>(),
+    /** Desafio: id no catálogo de peças. */
+    puzzleId: text("puzzle_id"),
+    seconds: integer("seconds").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    answer: text("answer"),
+    result: text("result", { enum: ["correct", "incorrect", "timeout", "gave_up"] }),
+    points: integer("points").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("missao_competition_turn_position").on(t.competitionId, t.position),
+    index("missao_competition_turn_competitor").on(t.competitorId),
+    check(
+      "missao_competition_turn_content",
+      sql`(${t.kind} = 'problem' and ${t.itemId} is not null and ${t.item} is not null and ${t.lessonId} is not null and ${t.puzzleId} is null) or (${t.kind} = 'challenge' and ${t.puzzleId} is not null and ${t.itemId} is null)`,
+    ),
+    check("missao_competition_turn_points", sql`${t.points} between 0 and 3`),
+  ],
+);
+
+/**
+ * Desafios de peças montados no laboratório: uma linha por perfil e desafio.
+ * Guarda só o fato e o melhor tempo; a montagem em si fica no aparelho.
+ */
+export const missaoPuzzleSolves = missaoSaber.table(
+  "puzzle_solves",
+  {
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => missaoProfiles.id, { onDelete: "cascade" }),
+    puzzleId: text("puzzle_id").notNull(),
+    solves: integer("solves").notNull().default(1),
+    bestSeconds: integer("best_seconds").notNull(),
+    firstSolvedAt: time("first_solved_at"),
+    lastSolvedAt: time("last_solved_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.profileId, t.puzzleId] }),
+    check("missao_puzzle_solve_counts", sql`${t.solves} > 0 and ${t.bestSeconds} >= 0`),
+  ],
+);

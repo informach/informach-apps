@@ -51,10 +51,11 @@ export default function Privacy() {
         </p>
         <h2>Quem acessa</h2>
         <p>
-          Os perfis pertencem à conta do responsável. Não existem perfis públicos, ranking entre
-          crianças, anúncios, chat entre alunos ou tutor de IA livre nesta versão. O conteúdo
-          pedagógico e o progresso do Missão Saber ficam separados dos dados de outros apps
-          Informach. A autenticação utiliza a conta compartilhada Informach.
+          Os perfis pertencem à conta do responsável. Não existem perfis públicos, ranking público
+          entre crianças, anúncios, chat entre alunos ou tutor de IA livre nesta versão. O pódio das
+          competições em família aparece só na conta do responsável. O conteúdo pedagógico e o
+          progresso do Missão Saber ficam separados dos dados de outros apps Informach. A
+          autenticação utiliza a conta compartilhada Informach.
         </p>
         <h2>Serviços de operação</h2>
         <p>

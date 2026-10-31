@@ -7,6 +7,7 @@ import {
   House,
   NotebookPen,
   Settings,
+  Trophy,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +23,7 @@ const parent = [
   { href: "/familia", label: "Visão geral", Icon: House },
   { href: "/familia/estudantes", label: "Estudantes", Icon: Users },
   { href: "/familia/acompanhamento", label: "Acompanhamento", Icon: ChartNoAxesCombined },
+  { href: "/familia/competicoes", label: "Competições", Icon: Trophy },
   { href: "/familia/conta", label: "Conta", Icon: Settings },
 ];
 function active(path: string, href: string) {
@@ -51,7 +53,11 @@ export function Navigation({
       }
       style={mobile ? { paddingBottom: "env(safe-area-inset-bottom, 0px)" } : undefined}
     >
-      <ul className={mobile ? "grid grid-cols-4" : "space-y-1.5"}>
+      <ul
+        className={
+          mobile ? (entries.length > 4 ? "grid grid-cols-5" : "grid grid-cols-4") : "space-y-1.5"
+        }
+      >
         {entries.map(({ href, label, Icon }) => {
           const current = active(path, href);
           return (
