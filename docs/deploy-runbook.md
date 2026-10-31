@@ -600,6 +600,8 @@ Em ordem de impacto:
 2. **`?family=0` no REDIS_URL** — IPv6-only network do Railway + ioredis IPv4 default = `ENOTFOUND`. Custou ~30min na primeira vez por não estar documentado claramente.
 3. **`NPM_CONFIG_PRODUCTION=false`** — devDeps são necessárias no build (turbo, tsc). Sem isso, build quebra com mensagem misleading "turbo: not found".
 4. **`rk_*` na validação STRIPE_SECRET_KEY** — restricted keys são recomendadas pra prod mas o env validator inicial só aceitava `sk_*`.
+5. **DNS antes dos crons** (Bora Treinar, 31/10/2026). Cron que roda antes do CNAME existir faz o resolvedor do Railway guardar NXDOMAIN para o registro A por até 30 minutos. O AAAA resolve, mas o container não sai por IPv6, então o `curl` falha com "Could not connect to server" em ~60 ms enquanto o domínio responde de qualquer outro lugar. Criar o CNAME antes do `railway config apply` que cria os crons, ou esperar o cache vencer; o log `dns` do serviço mostra o NXDOMAIN.
+6. **Variáveis de banco e Redis por referência.** Copiar o valor resolvido de outro serviço fixa a URL e o serviço fica sem ligação com Postgres e Redis no canvas. Gravar `${{Postgres.DATABASE_URL}}` e `${{Redis.REDIS_URL}}?family=0`; para copiar de outro serviço, ler com `unrendered: true` na API (ver `apps/bora-treinar/scripts/production.py`).
 5. **Port hardcode em `start` script** — `next start -p 3002` ignora `PORT` env do Railway, healthcheck nunca passa. Drop `-p`.
 6. **CVE block do Railway scanner** — `next@15.1.2` puxado transitivamente. Bumpar o pacote raiz que puxa a versão vulnerável.
 7. **Drizzle SQL `ANY()` array bug** — `sql\`... = ANY(${jsArr})\`` gera SQL inválido. Usar `inArray()`.
