@@ -167,6 +167,13 @@ export interface OverContext extends OverPlan {
   transcribing?: boolean;
 }
 
+/**
+ * What the editor shows when the recorder closes: the lesson's recording steps, or the sending
+ * of the lesson to whoever edits it.
+ */
+export const RECORDER_NEXT = ["flow", "send"] as const;
+export type RecorderNext = (typeof RECORDER_NEXT)[number];
+
 /** The voice read as text, sent again to an open recorder when its transcript is ready. */
 export type OverText = Pick<OverContext, "words" | "cues" | "lines" | "transcribing">;
 

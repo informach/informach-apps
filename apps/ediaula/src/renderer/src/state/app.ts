@@ -28,6 +28,7 @@ export interface Toast {
 }
 
 export type LeftPanel =
+  | "lessonFlow"
   | "media"
   | "annotations"
   | "templates"
@@ -49,6 +50,8 @@ interface AppStore {
   /** What the left panel shows. */
   leftPanel: LeftPanel;
   exportOpen: boolean;
+  /** "Enviar para a edição" is open (the lesson packed for whoever edits it). */
+  sendOpen: boolean;
   /** Clips whose speed is being changed (the speed dialog is open). */
   speedClips: string[] | null;
   extendClip: string | null;
@@ -100,6 +103,7 @@ export const useApp = create<AppStore>((set, get) => ({
   libraryFilter: "all",
   leftPanel: "media",
   exportOpen: false,
+  sendOpen: false,
   speedClips: null,
   extendClip: null,
   speechSwap: null,

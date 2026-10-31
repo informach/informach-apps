@@ -1254,3 +1254,45 @@ html.is-recorder #root {
   color: var(--text-1);
   font: 600 11px var(--font-mono);
 }
+
+/* "Tela sobre a narração" when the voice is over: what is missing and the way out. */
+.rec-done-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.rec-done-list li {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rec-done-list button,
+.rec-done-actions button,
+.rec-over-done p button {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 12px;
+  cursor: pointer;
+}
+.rec-done-list button:hover,
+.rec-done-actions button:hover,
+.rec-over-done p button:hover {
+  border-color: var(--accent);
+}
+.rec-done-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rec-done-actions .is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}

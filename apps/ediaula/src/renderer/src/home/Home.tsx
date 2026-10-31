@@ -90,7 +90,8 @@ export function Home(): ReactNode {
     const { path, project } = await window.api.createProject(name, courseName, settings);
     useProject.getState().load(path, project);
     if (template) await startFromTemplate(template);
-    useApp.getState().set({ screen: "editor" });
+    // A new lesson starts at the steps of recording it.
+    useApp.getState().set({ screen: "editor", leftPanel: "lessonFlow" });
     setCreating(false);
   };
 

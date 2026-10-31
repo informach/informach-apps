@@ -4,6 +4,7 @@ import {
   Captions,
   FolderOpen,
   LayoutTemplate,
+  ListChecks,
   type LucideIcon,
   MessageSquareText,
   MousePointerClick,
@@ -21,6 +22,7 @@ import { useProject } from "@/state/project";
 type Action = LeftPanel | "record" | "recording";
 
 const ITEMS: [string, LucideIcon, Action][] = [
+  ["Etapas", ListChecks, "lessonFlow"],
   ["Mídia", FolderOpen, "media"],
   ["Gravar", Video, "record"],
   ["Templates", LayoutTemplate, "templates"],

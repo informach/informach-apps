@@ -53,7 +53,9 @@ import {
   isVoiceMode,
   type OverText,
   RECORD_MODES,
+  RECORDER_NEXT,
   type RecorderContext,
+  type RecorderNext,
 } from "../shared/recording.ts";
 import { dipToPhysical } from "../shared/region.ts";
 import { SYSTEM_AUDIO_ROUTES } from "../shared/systemAudio.ts";
@@ -831,7 +833,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       .then((sources) => callback({ video: sources[0], audio: "loopback" }));
   });
 
-  const close = (): void => {
+  /**
+   * Closes the recorder and brings the editor back. `next` says what the editor shows then: the
+   * lesson's recording steps ("flow") or the sending of the lesson to whoever edits it ("send").
+   */
+  const close = (next?: RecorderNext): void => {
     followTarget = null;
     recordingJob?.finish();
     recordingJob = undefined;
@@ -857,6 +863,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (w && !w.isDestroyed()) {
       w.show();
       w.focus();
+      if (next) w.webContents.send("recorder:closed", next);
     }
   };
 
@@ -1641,10 +1648,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (w === frame && !drawingNow) w.setFocusable(on);
     w.setIgnoreMouseEvents(!on, { forward: true });
   });
-  ipcMain.handle("recorder:cancel", async () => {
+  ipcMain.handle("recorder:cancel", async (_e, raw: unknown) => {
+    const next = z.enum(RECORDER_NEXT).optional().parse(raw);
     endGuided();
     await rec.cancel();
-    close();
+    close(next);
   });
   ipcMain.handle("recorder:stop", async (_e, raw: unknown) => {
     const keepOpen = z.boolean().optional().parse(raw) ?? false;

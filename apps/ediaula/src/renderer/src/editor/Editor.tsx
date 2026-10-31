@@ -21,6 +21,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { CursorPathDialog } from "./CursorPathDialog";
 import { ExportDialog } from "./ExportDialog";
 import { ExtendFrameDialog } from "./ExtendFrameDialog";
+import { LessonFlowPanel } from "./LessonFlowPanel";
 import { Library } from "./Library";
 import { PastePropsDialog } from "./PastePropsDialog";
 import { PrepareOffer } from "./PreparePanel";
@@ -274,6 +275,8 @@ function handleKey(e: KeyboardEvent): void {
 
 function LeftPanel({ which }: { which: LeftPanelKind }): ReactNode {
   switch (which) {
+    case "lessonFlow":
+      return <LessonFlowPanel />;
     case "annotations":
       return <AnnotationsPanel />;
     case "templates":

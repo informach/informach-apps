@@ -1065,7 +1065,10 @@ export interface EdiAulaApi {
     saveSettings(settings: RecorderSettings): Promise<RecorderSettings>;
     hotkeys(): Promise<HotkeyReport[]>;
     status(): Promise<RecorderStatus>;
-    cancel(): Promise<void>;
+    /** Closes the recorder; `next` is what the editor shows then. */
+    cancel(next?: import("./recording.ts").RecorderNext): Promise<void>;
+    /** Editor window: the recorder closed and asked for this to be shown. */
+    onClosed(cb: (next: import("./recording.ts").RecorderNext) => void): () => void;
     /** Throws the take away (Recycle Bin) and stays in the recorder. */
     discard(): Promise<void>;
     /**

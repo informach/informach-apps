@@ -31,6 +31,8 @@ export class OverPlayer {
   /** Called on every note with the second being heard (the recorder stops a redo at its end). */
   onHeard: (at: number) => void = () => undefined;
   onError: (message: string) => void = () => undefined;
+  /** Called when the voice has played to its end. */
+  onEnded: () => void = () => undefined;
 
   constructor(path: string, fileStart: number) {
     this.fileStart = fileStart;
@@ -43,6 +45,7 @@ export class OverPlayer {
     this.audio.src = mediaUrl(path);
     this.ctx = new AudioContext({ latencyHint: "interactive" });
     this.ctx.createMediaElementSource(this.audio).connect(this.ctx.destination);
+    this.audio.onended = () => this.onEnded();
   }
 
   async load(): Promise<void> {

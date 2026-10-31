@@ -156,6 +156,9 @@ function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRec
   );
 }
 
+/** After the voice ends, the part waits this long before saving itself: the last click counts. */
+const VOICE_END_GRACE_MS = 1500;
+
 /** Where the lesson's voice starts on the timeline. */
 const voiceStart = (over: OverContext): number => over.segments[0]?.start ?? 0;
 
@@ -301,6 +304,9 @@ export function RecorderOverlay(): ReactNode {
   const [overParts, setOverParts] = useState(0);
   /** Where the lesson has a recorded screen (from the editor, and each part saved since). */
   const [recorded, setRecorded] = useState<[number, number][]>([]);
+  // Read by stop(), which outlives the render it was made in.
+  const recordedRef = useRef(recorded);
+  recordedRef.current = recorded;
   /** "Voltar ao começo da fala": the next part starts there instead of where this one ends. */
   const restartAt = useRef<number | null>(null);
   const overRef = useRef(over);
@@ -333,6 +339,10 @@ export function RecorderOverlay(): ReactNode {
   const [optionsOpen, setOptionsOpen] = useState(false);
   /** "Tela sobre a narração": the map of the lines is open. */
   const [mapOpen, setMapOpen] = useState(false);
+  /** "Tela sobre a narração": the voice played to its end; the closing step is shown. */
+  const [overDone, setOverDone] = useState(false);
+  /** The part saving itself after the voice ended (stopping by hand first cancels it). */
+  const voiceEnded = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The teacher picked a mode: the one remembered, arriving later, does not take its place. */
   const modePicked = useRef(false);
   const guidedFailed = useRef(false);
@@ -383,6 +393,8 @@ export function RecorderOverlay(): ReactNode {
           ),
         );
         if (c.mode === "over" && c.over) setMode("over");
+        // "Gravar a voz" in the lesson's steps opens straight in a voice mode.
+        else if (c.mode === "voice" || c.mode === "voicecam") setMode(c.mode);
         const store = c.guided ?? { plans: [] };
         savedStore.current = store;
         setGuidedStore(store);
@@ -813,6 +825,7 @@ export function RecorderOverlay(): ReactNode {
   const begin = useCallback(async () => {
     if (!settings || phaseRef.current !== "setup" || guidedBusy) return;
     if (!voiceMode && !monitor) return;
+    setOverDone(false);
     if (voiceMode && !mic) {
       setError("Escolha o microfone para gravar a voz.");
       return;
@@ -867,6 +880,12 @@ export function RecorderOverlay(): ReactNode {
           if (over.to !== undefined && at >= over.to + 0.3) void stopRef.current();
         };
         p.onError = (message) => setError(`A voz da aula: ${message}`);
+        // The voice is over: the part saves itself a moment later (the last click still counts).
+        if (over.to === undefined)
+          p.onEnded = () => {
+            setFlash("A voz acabou. Salvando a parte…");
+            voiceEnded.current = setTimeout(() => void stopRef.current(), VOICE_END_GRACE_MS);
+          };
         await p.load();
         player.current = p;
         setFlash(null);
@@ -1108,6 +1127,7 @@ export function RecorderOverlay(): ReactNode {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
     // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
+    clearTimeout(voiceEnded.current);
     const overNow = modeRef.current === "over" ? overRef.current : null;
     const keepOpen = !!overNow && overNow.to === undefined && !preservationRequested.current;
     // Taken now: whatever happens to this stop, the next one never finds it left over.
@@ -1145,12 +1165,25 @@ export function RecorderOverlay(): ReactNode {
       // Where this part ends on the timeline, as the editor lays it out (shared/overNarration.ts).
       // Nothing of it kept (stopped in the lead-in): the next part starts where this one did.
       const end = Math.max(overNow.from, overEnd(result) ?? overNow.from);
-      if (end > overNow.from + 0.05)
-        setRecorded((list) => joinStretches([...list, [overNow.from, end]]));
+      const nowRecorded =
+        end > overNow.from + 0.05
+          ? joinStretches([...recordedRef.current, [overNow.from, end]])
+          : recordedRef.current;
+      setRecorded(nowRecorded);
       // "Voltar ao começo da fala" picked the next start; otherwise it goes on from here.
       if (again === null && end >= overNow.end - 0.5) {
-        // The voice is over: back to the editor, where the parts already are.
-        await window.api.recorder.cancel();
+        // The voice is over: what is still without a screen, and back to the editor or on to
+        // whoever edits the lesson.
+        // F9 from here records what is still missing, never over the start of the lesson.
+        const gap = screenCoverage([], nowRecorded, voiceStart(overNow), overNow.end).firstGap;
+        setOver({ ...overNow, from: gap ?? voiceStart(overNow) });
+        setOverParts((n) => n + 1);
+        setHealth(null);
+        setMarkers(0);
+        setFlash(null);
+        setOverDone(true);
+        phaseRef.current = "setup";
+        setPhase("setup");
         return;
       }
       const from = Math.round((again ?? end) * 1000) / 1000;
@@ -1506,18 +1539,34 @@ export function RecorderOverlay(): ReactNode {
 
       {phase === "setup" || phase === "countdown" ? (
         <div className="rec-dock">
-          {mapOpen && mode === "over" && over && over.to === undefined && phase === "setup" && (
-            <OverMap
+          {overDone && mode === "over" && over && phase === "setup" && (
+            <OverDone
               over={over}
               recorded={recorded}
               onFrom={(from) => {
-                const first = voiceStart(over);
-                const to = Math.min(Math.max(first, over.end - 1), Math.max(first, from));
-                setOver({ ...over, from: Math.round(to * 1000) / 1000 });
+                setOver({ ...over, from });
+                setOverDone(false);
               }}
-              onClose={() => setMapOpen(false)}
+              onClose={(next) => void window.api.recorder.cancel(next)}
             />
           )}
+          {mapOpen &&
+            !overDone &&
+            mode === "over" &&
+            over &&
+            over.to === undefined &&
+            phase === "setup" && (
+              <OverMap
+                over={over}
+                recorded={recorded}
+                onFrom={(from) => {
+                  const first = voiceStart(over);
+                  const to = Math.min(Math.max(first, over.end - 1), Math.max(first, from));
+                  setOver({ ...over, from: Math.round(to * 1000) / 1000 });
+                }}
+                onClose={() => setMapOpen(false)}
+              />
+            )}
           {optionsOpen && settings && (
             <RecorderOptions
               settings={settings}
@@ -1856,7 +1905,11 @@ export function RecorderOverlay(): ReactNode {
                   : "Fechar sem gravar"
               }
               aria-label={overParts > 0 ? "Voltar ao editor" : "Fechar sem gravar"}
-              onClick={() => void window.api.recorder.cancel()}
+              onClick={() =>
+                void window.api.recorder.cancel(
+                  mode === "over" && overParts > 0 ? "flow" : undefined,
+                )
+              }
             >
               <X size={16} />
             </button>
@@ -2065,6 +2118,69 @@ function OverStart({
         Do começo da voz
       </button>
     </fieldset>
+  );
+}
+
+/**
+ * "Tela sobre a narração" when the voice has played to its end: how much of it has a screen, the
+ * lines still without one (each can be recorded now) and the way out, to the editor or straight
+ * on to sending the lesson to whoever edits it.
+ */
+function OverDone({
+  over,
+  recorded,
+  onFrom,
+  onClose,
+}: {
+  over: OverContext;
+  recorded: readonly [number, number][];
+  onFrom: (from: number) => void;
+  onClose: (next: "flow" | "send") => void;
+}): ReactNode {
+  const coverage = coverageOf(over, recorded);
+  const missing = coverage.lines.filter((l) => l.status !== "done");
+  const complete = coverage.firstGap === null && !missing.length;
+  return (
+    <div className="rec-options rec-over-done" role="dialog" aria-label="A voz acabou">
+      <div className="rec-opt-head">
+        <strong>{complete ? "Tela completa" : "A voz acabou"}</strong>
+        <small className="muted">
+          {complete
+            ? "Toda a voz da aula tem tela gravada. As partes já estão na aula."
+            : missing.length
+              ? `${plural(missing.length, "fala ainda está sem tela", "falas ainda estão sem tela")}. Grave agora ou volte depois: o gravador começa no primeiro trecho que falta.`
+              : `Um trecho da voz em ${clockOf(coverage.firstGap ?? 0)} ainda está sem tela.`}
+        </small>
+      </div>
+      {missing.length > 0 && (
+        <ul className="rec-done-list">
+          {missing.slice(0, 50).map((l) => (
+            <li key={`${l.t}-${l.text}`}>
+              <span className="rec-map-time">{clockOf(l.t)}</span>
+              <span className="rec-map-text">{l.text}</span>
+              <button type="button" onClick={() => onFrom(l.t)}>
+                Gravar esta fala
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!missing.length && coverage.firstGap !== null && (
+        <p>
+          <button type="button" onClick={() => onFrom(coverage.firstGap ?? voiceStart(over))}>
+            Gravar o trecho que falta
+          </button>
+        </p>
+      )}
+      <div className="rec-done-actions">
+        <button type="button" onClick={() => onClose("flow")}>
+          Voltar ao editor
+        </button>
+        <button type="button" className="is-primary" onClick={() => onClose("send")}>
+          Enviar para a edição
+        </button>
+      </div>
+    </div>
   );
 }
 

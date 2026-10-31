@@ -366,7 +366,7 @@ const VOICE_READING: Record<VoiceReading, string> = {
   busy: "Ela está sendo transcrita, para o gravador mostrar as falas.",
   nothing: "Já dá para gravar a tela sobre a narração.",
   "no-engine":
-    "Para o gravador acompanhar as falas, instale a transcrição (painel Gravação, passo Voz).",
+    "Para o gravador acompanhar as falas, instale a transcrição (painel Etapas, passo Voz).",
   off: "Já dá para gravar a tela sobre a narração.",
 };
 

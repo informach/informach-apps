@@ -52,6 +52,16 @@ export function App(): ReactNode {
     refreshKeys();
     const stopKeys = window.api.recorder.onState(refreshKeys);
     listenRecordings();
+    // The recorder closed asking for the lesson's steps, or for sending the lesson on.
+    const stopClosed = window.api.recorder.onClosed((next) =>
+      useApp
+        .getState()
+        .set(
+          next === "send"
+            ? { leftPanel: "lessonFlow", sendOpen: true }
+            : { leftPanel: "lessonFlow" },
+        ),
+    );
     // AI tools (from Claude Code/Codex over MCP, or the in-app assistant) run here, on the live project.
     const stopTools = window.api.handleAiTools((call) => runAiTool(call));
     const stopApprovals = listenAiApprovals();
@@ -61,6 +71,7 @@ export function App(): ReactNode {
     const stopSeams = listenSeamReview();
     const stopLearning = listenLearning();
     return () => {
+      stopClosed();
       stopLearning();
       stopSeams();
       stopPrepare();
