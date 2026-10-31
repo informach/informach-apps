@@ -207,3 +207,19 @@ test("um recado volta do diário no momento em que foi aberto, e um recado vazio
   assert.deepEqual(replay.notes, [{ qpc: 4000, text: "errei o clique no bloco" }]);
   assert.equal(replay.skipped, 1);
 });
+
+test("a voz segurada volta do diário com a fala em que segurou, e sem soltar não vale", () => {
+  const replay = replayJournal(
+    text(
+      begin,
+      { k: "first", src: "screen", part: 0, qpc: 2000, file: "tela-0.mp4" },
+      { k: "lapse", qpc: 4000, edge: "start", at: 20, from: 15 },
+      { k: "lapse", qpc: 9000, edge: "end", at: 20 },
+      { k: "lapse", qpc: 12000, edge: "start", at: 30 },
+    ),
+  );
+  assert.deepEqual(replay.lapses, [
+    { from: 4000, at: 20, line: 15, to: 9000 },
+    { from: 12000, at: 30 },
+  ]);
+});

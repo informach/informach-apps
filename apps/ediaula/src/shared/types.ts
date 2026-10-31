@@ -943,8 +943,11 @@ export interface EdiAulaApi {
     clock(): Promise<number>;
     /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
     overAnchor(at: number, when: number): Promise<void>;
-    /** "Trecho acelerado": the voice held at `at` (start), or going on from `at` (end). */
-    lapse(edge: "start" | "end", at: number): Promise<void>;
+    /**
+     * "Segurar a voz": the voice held at `at` (start, with `from`, where the line being said
+     * started), or let go again (end).
+     */
+    lapse(edge: "start" | "end", at: number, from?: number): Promise<void>;
     /**
      * "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`, from a
      * little before `from` (default: where the editor opened it from).

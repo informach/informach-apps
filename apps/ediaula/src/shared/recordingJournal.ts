@@ -96,14 +96,15 @@ export const journalLineSchema = z.discriminatedUnion("k", [
    */
   z.object({ k: z.literal("over"), qpc, at: z.number().nonnegative() }),
   /**
-   * "Trecho acelerado": the voice held at timeline second `at` while the screen goes on (start),
-   * and where it goes on from (end).
+   * "Segurar a voz": the voice held at timeline second `at` while the screen goes on (start, with
+   * `from`, where the line being said started in the voice), and let go again (end).
    */
   z.object({
     k: z.literal("lapse"),
     qpc,
     edge: z.enum(["start", "end"]),
     at: z.number().nonnegative(),
+    from: z.number().nonnegative().optional(),
   }),
   /**
    * The guided recording's narration (copied into the folder), where it starts in seconds of
@@ -174,8 +175,11 @@ export interface JournalReplay {
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
   over: { qpc: number; at: number }[];
-  /** Time-lapses over the narration: QPC and voice second at each edge (no end: cut short). */
-  lapses: { from: number; at: number; to?: number; end?: number }[];
+  /**
+   * Voice held over the narration: QPC held and let go (no `to`: cut short), the voice second
+   * held at and where the line being said started.
+   */
+  lapses: { from: number; at: number; line?: number; to?: number }[];
   narration: { file: string; offset: number; origin?: number; video?: true } | null;
   /** Strokes drawn on the screen, "apagar tudo" moments and the stretches the pen was out. */
   strokes: {
@@ -287,13 +291,15 @@ export function replayJournal(text: string): JournalReplay {
         replay.lines.push({ qpc: line.qpc, index: line.index });
         break;
       case "lapse":
-        if (line.edge === "start") replay.lapses.push({ from: line.qpc, at: line.at });
+        if (line.edge === "start")
+          replay.lapses.push({
+            from: line.qpc,
+            at: line.at,
+            ...(line.from !== undefined ? { line: line.from } : {}),
+          });
         else {
           const open = replay.lapses.at(-1);
-          if (open && open.to === undefined && line.qpc >= open.from) {
-            open.to = line.qpc;
-            open.end = line.at;
-          }
+          if (open && open.to === undefined && line.qpc >= open.from) open.to = line.qpc;
         }
         break;
       case "over":

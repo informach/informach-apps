@@ -34,14 +34,42 @@ const overlap = (ranges: readonly [number, number][], a: number, b: number): num
   ranges.reduce((sum, [x, y]) => sum + Math.max(0, Math.min(b, y) - Math.max(a, x)), 0);
 
 /**
- * The kept stretches of the take cut at the time-lapses: each piece either goes by the voice's
- * anchors (`lapse` absent) or is one of a time-lapse's.
+ * A held voice as a stretch of the take fitted into a stretch of the voice: take seconds `from`
+ * to `to` (the line it was held in, said at normal pace, then the held time) go under the voice
+ * from `start` to `end` (that line).
+ */
+interface LapseFit {
+  from: number;
+  to: number;
+  start: number;
+  end: number;
+}
+
+/**
+ * Each held voice as the stretch it fills: back from the moment it was held by the length of the
+ * line said so far (never before the kept stretch it is in, so never across a pause or a part's
+ * start), forward to where it was let go.
+ */
+function lapseFits(lapses: readonly OverLapse[], kept: readonly [number, number][]): LapseFit[] {
+  return lapses
+    .flatMap((l) => {
+      const range = kept.find(([x, y]) => l.held >= x - 0.05 && l.held <= y + 0.05);
+      const from = Math.max(range?.[0] ?? l.held, l.held - Math.max(0, l.end - l.start));
+      const start = l.end - (l.held - from);
+      return l.to > from && l.end > start ? [{ from, to: l.to, start, end: l.end }] : [];
+    })
+    .sort((x, y) => x.from - y.from);
+}
+
+/**
+ * The kept stretches of the take cut at the held voices: each piece either goes by the voice's
+ * anchors (`lapse` absent) or is one of a held voice's.
  */
 function splitAtLapses(
   kept: readonly [number, number][],
-  lapses: readonly OverLapse[],
-): { a: number; b: number; lapse?: OverLapse }[] {
-  const out: { a: number; b: number; lapse?: OverLapse }[] = [];
+  lapses: readonly LapseFit[],
+): { a: number; b: number; lapse?: LapseFit }[] {
+  const out: { a: number; b: number; lapse?: LapseFit }[] = [];
   for (const [a, b] of kept) {
     let at = a;
     for (const lapse of lapses) {
@@ -100,16 +128,13 @@ export function overPieces(
   if (!plan) return [];
   const kept = keptRanges(result.pauses, result.duration);
   const anchors = [...plan.anchors].sort((a, b) => a.t - b.t);
-  const lapses = [...(plan.lapses ?? [])]
-    .filter((l) => l.to > l.from && l.end > l.start)
-    .sort((x, y) => x.from - y.from);
+  const lapses = lapseFits(plan.lapses ?? [], kept);
   const out: OverPiece[] = [];
   let lastK: number | null = null;
   for (const { a, b, lapse } of splitAtLapses(kept, lapses)) {
     if (lapse) {
-      // What of the time-lapse is kept (its pauses are cut) fills the voice from start to end.
-      // Shorter than the voice it covers (F7 twice in a row) it is never slowed down: it plays
-      // at its own speed from the start and the screen holds after it.
+      // The line and the held time, without their pauses, fill the line in the voice. It is never
+      // slowed down (the voice let go at once): at its own pace from the start of the line.
       const speed = Math.max(1, overlap(kept, lapse.from, lapse.to) / (lapse.end - lapse.start));
       const piece: OverPiece = {
         from: round(a),
@@ -127,7 +152,7 @@ export function overPieces(
       if (prev && piece.start < pieceEnd(prev))
         prev.to = round(prev.from + (piece.start - prev.start) * (prev.speed ?? 1));
       out.push(piece);
-      // The voice goes on from the end of the time-lapse.
+      // The voice goes on from where it was held.
       lastK = lapse.end - lapse.to;
       continue;
     }
@@ -433,29 +458,33 @@ export function layoutOverNarration(
   };
 }
 
-/** A pause in the voice this long ends a phrase (where a time-lapse can end without lines). */
+/** A pause in the voice this long ends a phrase. */
 const PHRASE_GAP = 0.6;
-/** Without lines or a pause found, a time-lapse covers this much of the voice. */
-const LAPSE_FALLBACK = 3;
 
 /**
- * Where the voice goes on after a time-lapse held at `at`: the start of the next line of the
- * script, else the end of the phrase being said (the first pause of the voice), else a few
- * seconds on; never past the end of the voice. The time-lapse is fitted into [at, there].
+ * Where the phrase being said at timeline second `at` started: the last line of the script that
+ * started before it, else the word after the last pause of the voice before it, else 5 s back;
+ * never before the voice starts. "Segurar a voz" puts the held time under it, and "Errei,
+ * voltar" goes back to it.
  */
-export function lapseEnd(
+export function phraseStart(
   at: number,
   over: {
-    end: number;
+    segments: readonly { start: number }[];
     lines?: readonly { t: number }[];
     words: readonly { t: number; end: number }[];
   },
 ): number {
-  const next = over.lines?.find((l) => l.t > at + 0.3)?.t;
-  if (next !== undefined) return Math.min(over.end, next);
-  const words = over.words.filter((w) => w.end > at);
-  for (let i = 0; i + 1 < words.length; i++)
-    if (words[i + 1].t - words[i].end >= PHRASE_GAP && words[i].end > at + 0.3)
-      return Math.min(over.end, words[i + 1].t);
-  return Math.min(over.end, at + LAPSE_FALLBACK);
+  const first = over.segments[0]?.start ?? 0;
+  const line = over.lines?.filter((l) => l.t < at - 0.3).at(-1)?.t;
+  if (line !== undefined) return Math.max(first, line);
+  // A phrase longer than this by the pauses is not one: the voice never paused for breath.
+  const longest = 20;
+  const words = over.words.filter((w) => w.t < at - 0.3 && w.t > at - longest);
+  for (let i = words.length - 1; i > 0; i--)
+    if (words[i].t - words[i - 1].end >= PHRASE_GAP) return Math.max(first, words[i].t);
+  const before = over.words.filter((w) => w.end <= (words[0]?.t ?? at)).at(-1);
+  if (words.length && (!before || words[0].t - before.end >= PHRASE_GAP))
+    return Math.max(first, words[0].t);
+  return Math.max(first, at - 5);
 }

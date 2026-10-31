@@ -9,7 +9,7 @@ import {
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
 import { NOTE_MAX } from "@shared/markers";
-import { lapseEnd, overEnd } from "@shared/overNarration";
+import { overEnd, phraseStart } from "@shared/overNarration";
 import { joinStretches } from "@shared/phrase";
 import { plural } from "@shared/plural";
 import type { RecorderSettings } from "@shared/recorderSettings";
@@ -158,9 +158,6 @@ function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRec
     }
   );
 }
-
-/** After the voice ends, the part waits this long before saving itself: the last click counts. */
-const VOICE_END_GRACE_MS = 1500;
 
 /** Where the lesson's voice starts on the timeline. */
 const voiceStart = (over: OverContext): number => over.segments[0]?.start ?? 0;
@@ -349,11 +346,9 @@ export function RecorderOverlay(): ReactNode {
   const [overDone, setOverDone] = useState<false | "gaps" | "complete">(false);
   const overDoneRef = useRef(overDone);
   overDoneRef.current = overDone;
-  /** "Trecho acelerado": where the voice is waiting while the screen goes on. */
+  /** "Segurar a voz": where the voice is waiting while the screen goes on. */
   const lapse = useRef<{ at: number } | null>(null);
   const [lapsing, setLapsing] = useState(false);
-  /** The part saving itself after the voice ended (stopping by hand first cancels it). */
-  const voiceEnded = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The teacher picked a mode: the one remembered, arriving later, does not take its place. */
   const modePicked = useRef(false);
   const guidedFailed = useRef(false);
@@ -735,11 +730,10 @@ export function RecorderOverlay(): ReactNode {
     requestAnimationFrame(() => noteInput.current?.focus());
   }, []);
   /**
-   * What belongs to one take only: a time-lapse or a note left open, the part saving itself
-   * after the voice ended. Gone at the start of a take and when one is thrown away.
+   * What belongs to one take only: a held voice or a note left open. Gone at the start of a
+   * take and when one is thrown away.
    */
   const resetTakeState = useCallback((): void => {
-    clearTimeout(voiceEnded.current);
     lapse.current = null;
     setLapsing(false);
     if (noteRef.current) {
@@ -949,12 +943,12 @@ export function RecorderOverlay(): ReactNode {
           if (over.to !== undefined && at >= over.to + 0.3) void stopRef.current();
         };
         p.onError = (message) => setError(`A voz da aula: ${message}`);
-        // The voice is over: the part saves itself a moment later (the last click still counts).
+        // The voice is over, the screen is not always: it goes on until the teacher stops it.
         if (over.to === undefined)
-          p.onEnded = () => {
-            setFlash("A voz acabou. Salvando a parte…");
-            voiceEnded.current = setTimeout(() => void stopRef.current(), VOICE_END_GRACE_MS);
-          };
+          p.onEnded = () =>
+            setFlash(
+              `A voz acabou. Termine o que estiver fazendo na tela e pare com ${hotkeyLabel(settingsRef.current?.hotkeys.stop ?? "")}.`,
+            );
         await p.load();
         player.current = p;
         setFlash(null);
@@ -1207,11 +1201,10 @@ export function RecorderOverlay(): ReactNode {
     if (lapseOpen && overRef.current) {
       lapse.current = null;
       setLapsing(false);
-      await window.api.recorder.lapse("end", lapseEnd(lapseOpen.at, overRef.current));
+      await window.api.recorder.lapse("end", lapseOpen.at);
     }
     // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
-    clearTimeout(voiceEnded.current);
     const overNow = modeRef.current === "over" ? overRef.current : null;
     const keepOpen = !!overNow && overNow.to === undefined && !preservationRequested.current;
     // Taken now: whatever happens to this stop, the next one never finds it left over.
@@ -1296,9 +1289,10 @@ export function RecorderOverlay(): ReactNode {
     }
   }, [finishSystemAudio, closeNote]);
   /**
-   * "Trecho acelerado" (F7, over the narration): the voice waits where it is while the screen
-   * goes on (a long construction, at the teacher's pace); F7 again lets the voice go on from the
-   * next line. On import the construction is sped up to fit the voice in between.
+   * "Segurar a voz" (F7, over the narration): the voice waits where it is while the screen goes
+   * on (a long construction, at the teacher's pace); F7 again lets it go on from the same point.
+   * Nothing is decided here: on import the line it was held in and the held time go under that
+   * line, sped up, and the edit can open room in the voice or cut the extra time instead.
    */
   const toggleLapse = useCallback(async () => {
     const o = overRef.current;
@@ -1311,23 +1305,17 @@ export function RecorderOverlay(): ReactNode {
       p.pause();
       lapse.current = { at };
       setLapsing(true);
-      await window.api.recorder.lapse("start", at);
+      await window.api.recorder.lapse("start", at, phraseStart(at, o));
       setFlash(
-        `Trecho acelerado: a voz espera em ${clockOf(at)}. Faça no seu tempo e aperte ${hotkeyLabel(settingsRef.current?.hotkeys.timelapse ?? "")} para a voz continuar.`,
+        `A voz espera em ${clockOf(at)}. Faça no seu tempo e aperte ${hotkeyLabel(settingsRef.current?.hotkeys.timelapse ?? "")} para ela continuar daqui.`,
       );
       return;
     }
-    const resume = lapseEnd(open.at, o);
-    await window.api.recorder.lapse("end", resume);
+    await window.api.recorder.lapse("end", open.at);
     lapse.current = null;
     setLapsing(false);
-    if (resume >= o.end - 0.5) {
-      // The time-lapse goes to the end of the voice: the part is over.
-      await stopRef.current();
-      return;
-    }
-    await p.play(resume);
-    showFlash(`A voz continua em ${clockOf(resume)}. O trecho entra acelerado até ali.`);
+    await p.play(open.at);
+    showFlash("A voz continua. Na edição, esse trecho entra acelerado sob a fala.");
   }, [showFlash]);
   const toggleLapseRef = useRef(toggleLapse);
   toggleLapseRef.current = toggleLapse;
@@ -2144,10 +2132,10 @@ export function RecorderOverlay(): ReactNode {
                   className={lapsing ? "is-on" : ""}
                   title={
                     lapsing
-                      ? `Fim do trecho acelerado (${keyOf("timelapse")}): a voz continua na próxima fala`
-                      : `Trecho acelerado (${keyOf("timelapse")}): a voz espera enquanto você faz algo longo na tela, que entra acelerado no tempo da fala`
+                      ? `Soltar a voz (${keyOf("timelapse")}): ela continua de onde parou`
+                      : `Segurar a voz (${keyOf("timelapse")}): a voz espera enquanto você faz algo longo na tela; na edição, o trecho entra acelerado sob a fala`
                   }
-                  aria-label={lapsing ? "Fim do trecho acelerado" : "Trecho acelerado"}
+                  aria-label={lapsing ? "Soltar a voz" : "Segurar a voz"}
                   aria-pressed={lapsing}
                   disabled={phase !== "recording"}
                   onClick={() => void toggleLapse()}

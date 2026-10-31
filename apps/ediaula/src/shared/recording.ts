@@ -168,13 +168,16 @@ export interface OverContext extends OverPlan {
 }
 
 /**
- * "Trecho acelerado" (time-lapse) over the narration: the voice held at timeline second `start`
- * while the screen went on from take second `from` to `to` (a long construction, done at the
- * teacher's pace); it goes back in over the voice from `start` to `end`, sped up to fit.
+ * "Segurar a voz" over the narration: the voice held at timeline second `end` from take second
+ * `held` to `to`, while the screen went on (a long construction, done at the teacher's pace); the
+ * voice then went on from `end`. On import the line it was held in (from `start`, its first
+ * second in the voice) and the held time go in together under that line, sped up to fit.
  */
 export interface OverLapse {
-  from: number;
+  /** Take seconds: the voice held, and let go. */
+  held: number;
   to: number;
+  /** Voice seconds: where the line being said started, and where the voice was held. */
   start: number;
   end: number;
 }

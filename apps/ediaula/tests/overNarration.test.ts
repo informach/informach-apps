@@ -4,11 +4,11 @@ import { cameraPresenterTransform } from "../src/shared/compose.ts";
 import { drawingPartClips } from "../src/shared/drawing.ts";
 import {
   clockOffset,
-  lapseEnd,
   layoutOverNarration,
   overAnchor,
   overEnd,
   overPieces,
+  phraseStart,
 } from "../src/shared/overNarration.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
 import { layoutRecording } from "../src/shared/recordingImport.ts";
@@ -509,9 +509,10 @@ test("gravar por cima onde não há tela gravada entra como parte comum, sem apa
   assert.equal(layout.tracks.length, 2);
 });
 
-test("o trecho acelerado: a construção longa entra acelerada no tempo da fala, e a voz segue depois", () => {
-  // Voice from 10 s: heard 10..20 during take 0..10; held at 20 while the screen went on from
-  // take 10 to 190 (3 min of construction); resumed at 30 (the next line) for take 190..200.
+test("segurar a voz: a fala em que a construção começou e o tempo segurado entram acelerados sob a fala", () => {
+  // Voice from 10 s: heard 10..20 during take 0..10. The line "agora vamos construir" started at
+  // voice 15 (take 5); the voice was held at 20 (take 10) while the screen went on to take 190
+  // (3 min of construction), and went on from 20 for take 190..200.
   const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
     duration: 200,
     pauses: [],
@@ -519,31 +520,29 @@ test("o trecho acelerado: a construção longa entra acelerada no tempo da fala,
       from: 10,
       anchors: [
         ...Array.from({ length: 20 }, (_, i) => ({ t: i * 0.5, at: 10 + i * 0.5 })),
-        ...Array.from({ length: 20 }, (_, i) => ({ t: 190 + i * 0.5, at: 30 + i * 0.5 })),
+        ...Array.from({ length: 20 }, (_, i) => ({ t: 190 + i * 0.5, at: 20 + i * 0.5 })),
       ],
-      lapses: [{ from: 10, to: 190, start: 20, end: 30 }],
+      lapses: [{ held: 10, to: 190, start: 15, end: 20 }],
     },
   };
-  const pieces = overPieces(result);
-  assert.deepEqual(pieces, [
-    { from: 0, to: 10, start: 10 },
-    { from: 10, to: 190, start: 20, speed: 18 },
-    { from: 190, to: 200, start: 30 },
+  assert.deepEqual(overPieces(result), [
+    { from: 0, to: 5, start: 10 },
+    { from: 5, to: 190, start: 15, speed: 37 },
+    { from: 190, to: 200, start: 20 },
   ]);
-  assert.equal(overEnd(result), 40);
-  // A pause during the construction is cut: what is kept fills the same stretch, a bit slower.
-  const paused = { ...result, pauses: [[100, 130]] as [number, number][] };
-  const withPause = overPieces(paused);
+  assert.equal(overEnd(result), 30);
+  // A pause during the construction is cut: what is kept fills the same line, a bit slower.
+  const withPause = overPieces({ ...result, pauses: [[100, 130]] });
   assert.deepEqual(
     withPause.map((p) => [p.from, p.to, p.start, p.speed]),
     [
-      [0, 10, 10, undefined],
-      [10, 100, 20, 15],
-      [130, 190, 26, 15],
-      [190, 200, 30, undefined],
+      [0, 5, 10, undefined],
+      [5, 100, 15, 31],
+      [130, 190, 18.065, 31],
+      [190, 200, 20, undefined],
     ],
   );
-  // On the timeline: the screen of the time-lapse sped up and marked, nothing else under it.
+  // On the timeline: the screen of the held stretch sped up and marked, nothing else under it.
   const screen: Asset = {
     id: "tela",
     name: "tela",
@@ -564,57 +563,61 @@ test("o trecho acelerado: a construção longa entra acelerada no tempo da fala,
     { ...(result as RecordingResult), screen: screen.path, markers: [], dir: "C:/g", version: 2 },
   );
   const lapse = layout.placed.find((c) => c.speed);
-  assert.equal(lapse?.start, 20);
-  assert.equal(lapse?.duration, 10);
-  assert.equal(lapse?.in, 10);
-  assert.equal(lapse?.timelapse, true);
-  // The drawing never goes over the time-lapse.
+  assert.equal(lapse?.start, 15);
+  assert.equal(lapse?.duration, 5);
+  assert.equal(lapse?.in, 5);
+  assert.ok(lapse?.timelapse);
+  // The drawing never goes over the held stretch.
   assert.equal(layout.pieces.length, 2);
 });
 
-test("a voz continua na próxima fala depois do trecho acelerado, ou no fim da frase", () => {
-  const words = [
-    { t: 20, end: 20.4 },
-    { t: 20.5, end: 21 },
-    // A pause of 0,8 s: the phrase ends here.
-    { t: 21.8, end: 22.2 },
-  ];
-  assert.equal(lapseEnd(20.2, { end: 60, lines: [{ t: 12 }, { t: 25 }], words }), 25);
-  assert.equal(lapseEnd(20.2, { end: 60, words }), 21.8);
-  assert.equal(lapseEnd(20.2, { end: 60, words: [] }), 23.2);
-  // Never past the end of the voice.
-  assert.equal(lapseEnd(58.5, { end: 60, words: [] }), 60);
-});
-
-test("o trecho acelerado nunca começa antes do ponto da parte nem fica em câmera lenta", () => {
-  // F7 in the 2 s lead-in (the voice heard from 8, the part from 10): nothing before 10.
+test("a fala em que a voz segurou nunca passa do começo da parte nem atravessa uma pausa", () => {
+  // Held in the 2 s lead-in (the voice heard from 8, the part from 10): nothing before 10.
   const lead: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
     duration: 30,
     pauses: [],
     over: {
       from: 10,
       anchors: [{ t: 0, at: 8 }],
-      lapses: [{ from: 1, to: 20, start: 9, end: 19 }],
+      lapses: [{ held: 1, to: 20, start: 8, end: 9 }],
     },
   };
-  const first = overPieces(lead)[0];
-  assert.ok(first && first.start >= 10);
-  // F7 twice in half a second over 5 s of voice: at its own speed, never slower.
-  const quick: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
-    duration: 20,
-    pauses: [],
+  assert.ok(overPieces(lead).every((p) => p.start >= 10));
+  // A pause in the middle of the line: only what came after it goes under the line.
+  const paused: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 60,
+    pauses: [[4, 8]],
     over: {
       from: 10,
       anchors: [
         { t: 0, at: 10 },
-        { t: 4.5, at: 14.5 },
-        { t: 6, at: 20 },
-        { t: 9, at: 23 },
+        { t: 3.5, at: 13.5 },
+        { t: 8.5, at: 14.5 },
+        { t: 12, at: 18 },
+        { t: 40.5, at: 20.5 },
       ],
-      lapses: [{ from: 5, to: 5.5, start: 15, end: 20 }],
+      // The line started at voice 12 (take 2); held at voice 20 (take 14), let go at take 40.
+      lapses: [{ held: 14, to: 40, start: 12, end: 20 }],
     },
   };
-  const lapse = overPieces(quick).find((p) => p.from === 5);
-  assert.equal(lapse?.speed, undefined);
-  assert.equal(lapse?.start, 15);
+  const held = overPieces(paused).find((p) => p.speed);
+  // Back from take 14 by 8 s would be take 6, inside the pause: it starts after it, at 8.
+  assert.equal(held?.from, 8);
+  assert.equal(held?.start, 14);
+});
+
+test("o começo da frase: a fala do roteiro, senão a pausa da voz, senão 5 s antes", () => {
+  const segments = [{ start: 2 }];
+  const words = [
+    { t: 10, end: 10.4 },
+    { t: 10.5, end: 11 },
+    // A pause of 0,8 s: a phrase starts at 11.8.
+    { t: 11.8, end: 12.2 },
+    { t: 12.3, end: 12.8 },
+  ];
+  assert.equal(phraseStart(13, { segments, lines: [{ t: 4 }, { t: 9 }, { t: 12.9 }], words }), 9);
+  assert.equal(phraseStart(13, { segments, words }), 11.8);
+  assert.equal(phraseStart(13, { segments, words: [] }), 8);
+  // Never before the voice starts.
+  assert.equal(phraseStart(4, { segments, words: [] }), 2);
 });

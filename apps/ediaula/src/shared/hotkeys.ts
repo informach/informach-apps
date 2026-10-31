@@ -53,7 +53,7 @@ export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
   lineNext: "Próxima fala",
   linePrev: "Fala anterior",
   draw: "Desenhar na tela",
-  timelapse: "Trecho acelerado (sobre a narração)",
+  timelapse: "Segurar e soltar a voz (sobre a narração)",
   clickerNext: "Passador: próxima fala",
   clickerPrev: "Passador: fala anterior",
 };

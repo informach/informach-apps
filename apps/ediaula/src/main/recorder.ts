@@ -391,9 +391,9 @@ export function teleprompterLine(index: number, heard?: number): void {
   session?.teleprompterLine(index, heard);
 }
 
-/** "Trecho acelerado": the voice held at `at` (start), or going on from `at` (end). */
-export function lapse(edge: "start" | "end", at: number): void {
-  session?.lapse(edge, at);
+/** "Segurar a voz": the voice held at `at` (start, `from` its line's start), or let go (end). */
+export function lapse(edge: "start" | "end", at: number, from?: number): void {
+  session?.lapse(edge, at, from);
 }
 
 /** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
