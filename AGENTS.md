@@ -23,6 +23,7 @@ O código fica no repositório privado `informach/informach-apps`. Os aplicativo
 | `apps/admin` | Bastidores, console da equipe: papéis owner e admin com duas etapas obrigatórias, leitura só por conexão read-only, auditoria de cada consulta e ação, sem impersonação e sem conteúdo das famílias | Porta 3003; guia em `apps/admin/CLAUDE.md` |
 | `apps/informach-site` | Site institucional, termos e privacidade; sem auth, billing, banco ou IA | Porta 3004 |
 | `apps/missao-saber` | Preparação para olimpíadas escolares, com assinatura e perfis familiares | Porta 3005 |
+| `apps/bora-treinar` | Treino guiado com o peso do corpo para a família: instrutor 3D, contagem de repetições pela câmera no aparelho, perfis familiares e assinatura; sem IA | Porta 3007; guia em `apps/bora-treinar/CLAUDE.md` |
 | `apps/edi` | Portal, conta, cobrança, autenticação e licenças da suíte Edi; `edi.informach.com.br` no Railway | Porta 3006; estado comercial e distribuição no runbook |
 | `apps/edi-hub` | Central desktop de instalação, acesso e atualização da suíte | Electron, sem porta web fixa |
 | `apps/ediaula`, `apps/edicaptura`, `apps/edifoto`, `apps/edipdf`, `apps/edisvg` | Cinco ferramentas criativas em desenvolvimento | Electron, sem porta web fixa |
@@ -71,6 +72,7 @@ Registro histórico EdiSVG 5.8–5.13: fontes alternativas tipadas em `fontFallb
 | Auditoria, dados pessoais e logs | [Política de auditoria](docs/audit-payload-policy.md) |
 | Deploy, provedores e migrations em produção | [Runbook de deploy](docs/deploy-runbook.md) e configuração Railway do app |
 | Missão Saber publicado | [Operação do Missão Saber](apps/missao-saber/PRODUCAO.md) |
+| Bora Treinar e sua implantação | [Operação do Bora Treinar](apps/bora-treinar/PRODUCAO.md) |
 | Portal Edi e implantação | [Operação do Edi](apps/edi/PRODUCAO.md) |
 | Instaladores e atualizações Edi | [Distribuição do piloto](docs/propostas/edi-suite-2026-10-16/distribuicao-piloto.md) |
 | Lotes, evidências e pendências Edi | [Implementação da suíte](docs/propostas/edi-suite-2026-10-16/implementacao.md) |

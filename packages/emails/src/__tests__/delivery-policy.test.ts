@@ -12,5 +12,7 @@ describe("which categories obey an unsubscribe", () => {
     expect(shouldRespectUnsubscribe("admin.weekly-summary")).toBe(true);
     expect(shouldRespectUnsubscribe("billing.payment-failed")).toBe(true);
     expect(shouldRespectUnsubscribe("missao.weekly-report")).toBe(true);
+    expect(shouldRespectUnsubscribe("bora.reminder")).toBe(true);
+    expect(shouldRespectUnsubscribe("bora.weekly-summary")).toBe(true);
   });
 });

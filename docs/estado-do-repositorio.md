@@ -58,6 +58,12 @@ O primeiro build do migrator ainda usava Nixpacks e selecionou Node 24.10, abaix
 
 O titular confirmou que a homologação deve culminar em compras liberadas, sem mensagens públicas de piloto ou de vendas futuras. O texto de venda, downloads, site e distribuição foi ajustado para essa fase, preservando a informação real de ausência de Authenticode e o bloqueio operacional enquanto a cobrança estiver desabilitada. Os gates precisam validar a revisão final antes da ativação; o conjunto em edição pelas outras sessões continua reservado para o próximo deploy.
 
+## Bora Treinar (apps/bora-treinar)
+
+Novo app web na branch `feat/bora-treinar`: treino guiado com o peso do corpo para a família, portado do protótipo EdiBody (instrutor 3D, contagem de repetições pela câmera com MediaPipe no próprio aparelho, perfis, níveis, desafio semanal, editor de treinos, lembretes e resumo semanal por e-mail, celular como câmera da TV). Mesma arquitetura da Missão Saber: conta do titular com perfis familiares, schema `bora_treinar` (migração `0075_bora_treinar`), sessões no Redis com prefixo `bora-treinar:auth:` e sem cache em cookie, quatro preços (Individual e Família, mensal e anual), sem IA e sem créditos. O Bastidores, o site institucional, o CI e o `.railway/railway.ts` (serviço `@informach/bora-treinar` e os crons `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`) já conhecem o app.
+
+Estado: implementado localmente, sem merge e sem nada publicado. Pendentes: produtos e preços no Stripe (os ids do catálogo ainda são `price_TODO_*`), portal de cobrança e webhook, projeto `bora-treinar` no Sentry, DNS de `bora-treinar.informach.com.br`, variáveis do serviço e dos crons no Railway, `railway config plan`/`apply`, migração em produção, grants do papel só leitura do Bastidores no schema novo e termos próprios do app. Passo a passo e checklist na [operação do Bora Treinar](../apps/bora-treinar/PRODUCAO.md).
+
 ## EdiAula: o que falta para substituir o Camtasia
 
 Em 17/10/2026, a pedido da titular, foi feita uma análise de leitura do EdiAula (código igual ao de `origin/main` em `0415ff4`), com foco na gravação de aula e de tela: [análise](propostas/ediaula-2026-10-17/analise.md). Ela lista ajustes, melhorias e funcionalidades a implementar em gravação, editor, exportação e IA, com prioridade, referências no código e duas medições de exportação.
@@ -191,6 +197,7 @@ Pedido da titular, com canvas de proposta aprovado no mesmo dia. Branch `feat/mi
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.
+- [Bora Treinar](../apps/bora-treinar/PRODUCAO.md): ainda não publicado; provisionamento pendente de Stripe, Sentry, DNS e Railway.
 - [Cozya](../apps/cozya/CLAUDE.md): produto, preços, acesso e referências da operação.
 - [Agenda da Turma](../apps/agenda-da-turma/CLAUDE.md): família, permissões e fluxos de atividades/recados.
 - [Runbook compartilhado](deploy-runbook.md): procedimentos gerais; conferir a configuração versionada e o guia atual de cada app antes de aplicar exemplos históricos.

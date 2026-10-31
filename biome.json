@@ -16,6 +16,7 @@
       "!apps/edipdf/src/renderer/public/pdfjs",
       "!apps/edipdf/src/renderer/public/ocr",
       "!apps/edicaptura/src/assets/ocr",
+      "!apps/bora-treinar/public/mediapipe",
       "!apps/edisvg/audits/etapa-01/fixtures",
       "!**/__snapshots__",
       "!**/test-results",

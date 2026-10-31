@@ -193,6 +193,35 @@ export function StartChooser() {
       ),
     },
     {
+      id: "treino",
+      label: "A família quer se mexer mais",
+      panel: (
+        <Panel
+          product={productBySlug("bora-treinar")}
+          title="Treino com o corpo, na sala, com a família inteira."
+          body="Um instrutor 3D mostra cada exercício, a câmera conta as repetições no próprio aparelho e cada pessoa da casa sobe de nível no seu ritmo. Dá para usar o celular como câmera e treinar na frente da TV."
+          price={<strong>{productBySlug("bora-treinar").price}</strong>}
+          cta={productBySlug("bora-treinar").cta}
+          ctaClassName="bg-[#0B0D10] text-[#C8FF2E] dark:ring-1 dark:ring-[#C8FF2E]/40"
+          visual={
+            <div
+              role="img"
+              aria-label="Exemplo de série no Bora Treinar: agachamento, segunda série de três, oito de doze repetições contadas pela câmera."
+              className="grid justify-items-center gap-2 rounded-[22px] bg-[#0B0D10] p-6 text-center text-[#F4F6F1]"
+            >
+              <p className="text-xs font-extrabold tracking-[0.08em] text-[#C8FF2E]">
+                AGACHAMENTO · SÉRIE 2 DE 3
+              </p>
+              <p className="text-6xl font-extrabold leading-none tracking-[-0.03em]">
+                8<span className="text-[#8A9099]"> / 12</span>
+              </p>
+              <p className="text-sm text-[#C9CDD3]">contadas pela câmera</p>
+            </div>
+          }
+        />
+      ),
+    },
+    {
       id: "aulas",
       label: "Eu gravo aulas e materiais",
       panel: (

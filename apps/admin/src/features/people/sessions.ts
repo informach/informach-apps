@@ -16,7 +16,7 @@ export type AppSessions = {
   sessions: CachedSession[] | null;
 };
 
-/** Sessões de Cozya, Agenda e Missão, que vivem no Redis de cada app. */
+/** Sessões de Cozya, Agenda, Missão e Bora Treinar, que vivem no Redis de cada app. */
 export async function cachedSessionsByApp(userId: string): Promise<AppSessions[]> {
   return Promise.all(
     REDIS_SESSION_APPS.map(async ({ app, name }) => {

@@ -9,7 +9,7 @@
 Site institucional da **Informach Núcleo de Aprendizagem Ltda** (CNPJ 43.588.758/0001-03), em `informach.com.br`. **Não é um SaaS**: sem auth, sem billing, sem banco, sem IA, sem RBAC.
 
 Razões para existir:
-1. **Apresentar a casa e os cinco produtos**: Sistema Zero (Comunidade dos Criadores, para crianças de 9 a 14 anos), Missão Saber, Agenda da Turma, Cozya e Suíte Edi. A home ajuda a família a escolher por onde começar.
+1. **Apresentar a casa e os seis produtos**: Sistema Zero (Comunidade dos Criadores, para crianças de 9 a 14 anos), Missão Saber, Agenda da Turma, Cozya, Bora Treinar e Suíte Edi. A home ajuda a família a escolher por onde começar.
 2. **Termos e Privacidade guarda-chuva** que cobrem a holding e o serviço de cobrança via Stripe. Após o deploy, o Customer Portal do Stripe é reapontado para `informach.com.br/{termos,privacidade}`.
 3. **Quem faz**: Helena e Júlio, desenvolvedores e pais do André, e o canal público de contato.
 
@@ -57,11 +57,11 @@ apps/informach-site/
 │   │   ├── site-header.tsx         # logo, âncoras, ModeToggle, CTA
 │   │   ├── site-header-mobile-nav.tsx # gaveta (ilha "use client")
 │   │   ├── site-footer.tsx         # produtos, empresa, identidade legal
-│   │   ├── hero.tsx                # título, Helena e Júlio, órbita com os cinco produtos
+│   │   ├── hero.tsx                # título, Helena e Júlio, órbita com os seis produtos
 │   │   ├── start-chooser.tsx       # painéis "O que está pedindo ajuda na sua casa hoje?" (servidor)
 │   │   ├── start-chooser-client.tsx # botões de situação (ilha "use client")
 │   │   ├── sistema-zero.tsx        # Comunidade dos Criadores: método, ferramentas, turma, pais, preço
-│   │   ├── products.tsx            # cartões da Missão Saber, Agenda, Cozya e Edi
+│   │   ├── products.tsx            # cartões da Missão Saber, Agenda, Cozya, Bora Treinar e Edi
 │   │   ├── principles.tsx          # "O que vale em todos os produtos"
 │   │   ├── founders.tsx            # Quem faz + #contato (direct do Instagram)
 │   │   ├── final-cta.tsx
@@ -74,7 +74,7 @@ apps/informach-site/
 ├── assets/og/                      # fontes, aviso de licença e Zappy em PNG da imagem social
 └── public/
     ├── logo-informach-{light,dark}.svg
-    ├── produtos/                   # ícones de Missão Saber, Agenda, Cozya e Edi
+    ├── produtos/                   # ícones de Missão Saber, Agenda, Cozya, Bora Treinar e Edi
     └── sistema-zero/               # logos claro/escuro, foto de Helena e Júlio, telas reais, Zappy
 ```
 
@@ -105,7 +105,7 @@ A Plus Jakarta Sans tem espaço largo antes de vírgula e ponto em tamanho grand
 
 - Wordmark `public/logo-informach-{light,dark}.svg`: assets oficiais. **Não modificar conteúdo.** Renderizados com `next/image` **`unoptimized`** (sem isso o SVG era rasterizado e perdia qualidade). Troca claro/escuro por CSS (`dark:hidden` / `hidden dark:block`). No rodapé, sempre escuro, usar `tone="onDark"`.
 - `public/sistema-zero/`: logos e telas reais baixados de `sistemazero.com.br` em 17/10/2026. Os SVGs dos logos receberam só um `<title>` para acessibilidade. As telas são composição de vitrine, não captura ao vivo; atualizar quando a plataforma mudar de cara.
-- `public/produtos/`: ícones copiados dos próprios apps (Cozya e Agenda em SVG, Missão Saber e Edi em PNG).
+- `public/produtos/`: ícones copiados dos próprios apps (Cozya e Agenda em SVG, Missão Saber e Edi em PNG). O do Bora Treinar (`bora-treinar.png`, 192x192) foi gerado do `icon.svg` do EdiBody, a origem do app: boneco verde-limão `#C8FF2E` sobre o quadrado `#0B0D10`.
 - Ícones do navegador em `src/app/` pelas convenções de metadata do Next 16. Não há `manifest.ts` nem service worker (não é PWA).
 
 ---
@@ -114,8 +114,8 @@ A Plus Jakarta Sans tem espaço largo antes de vírgula e ponto em tamanho grand
 
 - **Metadata** estática no root layout (`TITLE`, `DESCRIPTION`, `openGraph`, `twitter`, `robots`, `metadataBase`, `alternates.canonical`).
 - **`viewport`** exportado separado, com `themeColor` igual ao `paper` claro e escuro.
-- **JSON-LD** `Organization` + `WebSite` no `<body>`. Sem e-mail: o `contactPoint` aponta para o direct do Instagram, e `sameAs` lista o Instagram e as URLs dos cinco produtos (`SITE_PRODUCTS`).
-- **`opengraph-image.tsx`**: a peça "Compartilhamento" do canvas aprovado. Marinho, órbita tracejada, esfera, wordmark, "Feito em casa, para a sua família." e os ícones dos cinco produtos. Gerada no build (rota estática). Regras:
+- **JSON-LD** `Organization` + `WebSite` no `<body>`. Sem e-mail: o `contactPoint` aponta para o direct do Instagram, e `sameAs` lista o Instagram e as URLs dos seis produtos (`SITE_PRODUCTS`).
+- **`opengraph-image.tsx`**: a peça "Compartilhamento" do canvas aprovado. Marinho, órbita tracejada, esfera, wordmark, "Feito em casa, para a sua família." e os ícones dos seis produtos. Gerada no build (rota estática). Regras:
   - Satori exige `display: flex` em todo div com mais de um filho; não usar `<br>`.
   - Fontes só de arquivo local: Plus Jakarta Sans 400 e 800 em `assets/og/` (OFL, aviso em `assets/og/LICENSE.txt`). Sem fonte da rede.
   - Satori não lê WebP: o Zappy da imagem é `assets/og/zappy.png`.
@@ -146,10 +146,10 @@ Copy em português, humanizada e **sem travessão** (nem `—` nem `–`).
 
 ## 8. Páginas legais (guarda-chuva)
 
-`/termos` e `/privacidade` tratam a Informach como entidade legal e como contratante do serviço de cobrança Stripe. O Cozya, a Missão Saber e o Sistema Zero têm termos próprios (`cozya.informach.com.br/termos`, `missao-saber.informach.com.br/termos` e `sistemazero.com.br/kids/termos`), linkados na cláusula 3. A Agenda da Turma tem só a página de dados da família, que complementa a política guarda-chuva, e a Suíte Edi usa estes Termos e esta Política diretamente.
+`/termos` e `/privacidade` tratam a Informach como entidade legal e como contratante do serviço de cobrança Stripe. O Cozya, a Missão Saber e o Sistema Zero têm termos próprios (`cozya.informach.com.br/termos`, `missao-saber.informach.com.br/termos` e `sistemazero.com.br/kids/termos`), linkados na cláusula 3. A Agenda da Turma tem só a página de dados da família, que complementa a política guarda-chuva, e a Suíte Edi usa estes Termos e esta Política diretamente. O Bora Treinar ainda não tem termos próprios publicados: quando tiver, entra na cláusula 3 como os outros.
 
 - O canal de contato e de direitos LGPD é o direct do Instagram (`DirectLink`), nunca um endereço de e-mail.
-- Cláusula 12 da privacidade (revista em 17/10/2026, por decisão da titular): a conta é sempre de um adulto; crianças e adolescentes usam Missão Saber e Agenda por perfis criados e supervisionados pelo responsável, no melhor interesse deles (art. 14 da LGPD), sem publicidade nem perfis públicos. O Sistema Zero tem política própria em `sistemazero.com.br/kids/privacidade`, com a Informach como controladora. Os Termos (seção 4) remetem a essa cláusula.
+- Cláusula 12 da privacidade (revista em 17/10/2026, por decisão da titular): a conta é sempre de um adulto; crianças e adolescentes usam Missão Saber, Agenda e Bora Treinar por perfis criados e supervisionados pelo responsável, no melhor interesse deles (art. 14 da LGPD), sem publicidade nem perfis públicos. O Sistema Zero tem política própria em `sistemazero.com.br/kids/privacidade`, com a Informach como controladora. Os Termos (seção 4) remetem a essa cláusula.
 - OpenRouter: a empresa é a OpenRouter, Inc. (EUA). A Informach contrata e paga; o usuário não tem conta lá. Pela política do OpenRouter, ele não guarda o conteúdo por padrão e registra metadados; os provedores de modelo têm retenção própria, então a política não promete descarte imediato. A política cita o modelo reserva da Anthropic e a busca Exa do Cozya, e diz que a IA da Suíte Edi vai do computador da pessoa direto para a conta dela no Claude ou no ChatGPT. Os Termos (seção 8) explicam a cota de créditos do Cozya e da Agenda e que a assinatura Edi não inclui IA. Ao trocar de provedor, modelo, fallback ou forma de cobrança da IA, revisar os dois textos.
 - Há marcadores `TODO(legal)` para reembolso, limitação de responsabilidade e nomeação formal do encarregado. **Revisão jurídica antes do go-live continua obrigatória**; os textos acima foram escritos com base nos produtos e nas fontes públicas, não substituem essa revisão.
 - Após o deploy, trocar no Stripe Dashboard (Settings → Billing → Customer Portal) as URLs de Termos e Privacidade. Operação manual, fora do código.

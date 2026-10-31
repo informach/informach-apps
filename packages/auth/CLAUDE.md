@@ -124,7 +124,7 @@ Helpers expostos pelo `createAuth()` result:
 
 `isUserBanned(user)` é exportado do root para quem precisa aplicar a mesma regra de banimento (o Bastidores confere papel e banimento direto em `core.users` a cada pedido).
 
-Atenção: com `secondaryStorage`, as sessões ficam só no Redis do app. Apagar linhas de `core.sessions` (o que `setUserBanState` faz) não desconecta ninguém em Cozya, Agenda ou Missão; use `revokeCachedSessions` de `@informach/auth/sessions` com o armazenamento de cada app, como faz o Bastidores. O cache em cookie (5 minutos no Cozya e na Agenda) ainda pode manter a sessão viva por esse tempo.
+Atenção: com `secondaryStorage`, as sessões ficam só no Redis do app. Apagar linhas de `core.sessions` (o que `setUserBanState` faz) não desconecta ninguém em Cozya, Agenda, Missão ou Bora Treinar; use `revokeCachedSessions` de `@informach/auth/sessions` com o armazenamento de cada app, como faz o Bastidores. O cache em cookie (5 minutos no Cozya e na Agenda) ainda pode manter a sessão viva por esse tempo.
 
 Manipulação de role/ban deve passar pelos helpers explícitos `setUserRole(headers, targetUserId, role, options?)` e `setUserBanState(headers, input)`. Eles aplicam `users.set_role` / `users.ban`, atualizam `core.users`, logam `user.role_changed` (`{ targetId, previousRole, newRole, reason? }`) / `user.banned` / `user.unbanned` (`{ targetId, reason }`) e revogam sessões quando necessário. Não use `databaseHooks.user.update.*` para esse side effect: o hook do Better Auth recebe os dados do update, não o alvo confiável da alteração.
 

@@ -264,6 +264,19 @@ export async function loadFicha(id: string, staff: Staff) {
     });
   }
 
+  if (usage.bora.present || hasSub("bora-treinar")) {
+    const facts = [
+      usage.bora.profiles === 1 ? "1 perfil de treino" : `${usage.bora.profiles} perfis de treino`,
+      usage.bora.trainings === 0
+        ? "Nenhum treino concluído ainda"
+        : `${usage.bora.trainings === 1 ? "1 treino concluído" : `${usage.bora.trainings} treinos concluídos`}`,
+    ];
+    add("bora-treinar", {
+      facts,
+      notes: ["Dos perfis, só a contagem. Apelido, treinos e repetições ficam fora."],
+    });
+  }
+
   const ediConnected = edi.devices.filter((device) => device.connected).length;
   if (edi.devices.length || edi.entitlement || hasSub("edi")) {
     const facts = [

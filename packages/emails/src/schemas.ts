@@ -21,6 +21,8 @@ export const EMAIL_CATEGORIES = [
   "billing.credits-purchased",
   "billing.credits-warning",
   "missao.weekly-report",
+  "bora.reminder",
+  "bora.weekly-summary",
 ] as const;
 
 export const EmailCategorySchema = z.enum(EMAIL_CATEGORIES);

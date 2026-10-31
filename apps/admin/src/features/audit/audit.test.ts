@@ -53,7 +53,7 @@ describe("frases da auditoria", () => {
       event("admin.sessions_revoked", "u-helena", {
         targetId: "u-marina",
         count: 3,
-        apps: ["cozya", "agenda-da-turma", "missao-saber"],
+        apps: ["cozya", "agenda-da-turma", "missao-saber", "bora-treinar"],
         reason: "pedido pelo direct",
       }),
       people,
@@ -72,7 +72,7 @@ describe("frases da auditoria", () => {
       people,
     );
     expect(sentenceText(partial.parts)).toBe(
-      "Encerrou as sessões de Marina Duarte (sem alcançar Agenda da Turma e Missão Saber), 0 sessões",
+      "Encerrou as sessões de Marina Duarte (sem alcançar Agenda da Turma, Missão Saber e Bora Treinar), 0 sessões",
     );
   });
 
@@ -329,6 +329,7 @@ describe("filtros da auditoria", () => {
     expect(groupOf("email.delivery_sent")).toBe("emails");
     expect(groupOf("auth.two_factor_enabled")).toBe("sessoes");
     expect(groupOf("missao.profile_updated")).toBe("produtos");
+    expect(groupOf("bora.custom_workout_saved")).toBe("produtos");
   });
 
   it("banir, desbanir e mudar papel entram em Ações da equipe e ficam em azul", () => {

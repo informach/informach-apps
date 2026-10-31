@@ -39,7 +39,9 @@ export type EmailCategory =
   | "billing.subscription-canceled"
   | "billing.credits-purchased"
   | "billing.credits-warning"
-  | "missao.weekly-report";
+  | "missao.weekly-report"
+  | "bora.reminder"
+  | "bora.weekly-summary";
 
 export type EmailAddress = string;
 
@@ -127,7 +129,9 @@ function shouldPersistBody(category: EmailCategory): boolean {
     !category.startsWith("auth.") &&
     !category.startsWith("admin.") &&
     category !== "agenda.routine" &&
-    category !== "missao.weekly-report"
+    category !== "missao.weekly-report" &&
+    category !== "bora.reminder" &&
+    category !== "bora.weekly-summary"
   );
 }
 

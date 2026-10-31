@@ -8,7 +8,7 @@ export type VerificationRequest =
 
 /**
  * Pede ao próprio produto um código novo de confirmação de e-mail. Só o app
- * consegue emitir um código que a tela dele aceita: Cozya, Agenda e Missão
+ * consegue emitir um código que a tela dele aceita: Cozya, Agenda, Missão e Bora Treinar
  * guardam as verificações no Redis de cada um, e cada produto manda o e-mail
  * com o próprio nome. A rota é a do Better Auth (`email-otp`) e responde igual
  * para qualquer e-mail, então o Bastidores não aprende nada novo com ela.

@@ -15,6 +15,11 @@ export const APPS = {
     name: "Missão Saber",
     domain: "missao-saber.informach.com.br",
   },
+  boraTreinar: {
+    slug: "bora-treinar",
+    name: "Bora Treinar",
+    domain: "bora-treinar.informach.com.br",
+  },
   agendaDaTurma: {
     slug: "agenda-da-turma",
     name: "Agenda da Turma",

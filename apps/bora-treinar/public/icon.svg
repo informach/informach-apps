@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img">
+  <title>Bora Treinar</title>
+  <rect width="512" height="512" rx="112" fill="#0B0D10"/>
+  <circle cx="256" cy="138" r="46" fill="#C8FF2E"/>
+  <path d="M256 196v132M256 328l-70 110M256 328l70 110M150 236l106 22 106-22" stroke="#C8FF2E" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

@@ -12,6 +12,7 @@ export const SENTRY_PROJECTS = [
   { project: "cozya", name: "Cozya" },
   { project: "agenda-da-turma", name: "Agenda da Turma" },
   { project: "missao-saber", name: "Missão Saber" },
+  { project: "bora-treinar", name: "Bora Treinar" },
   { project: "edi", name: "Suíte Edi" },
   { project: "admin", name: "Bastidores" },
 ] as const;

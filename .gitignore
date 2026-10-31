@@ -45,6 +45,11 @@ apps/missao-saber/.next-e2e*/
 apps/missao-saber/.next-isolated-*/
 apps/missao-saber/test-results-*/
 apps/missao-saber/scripts/__pycache__/
+apps/bora-treinar/tmp/
+apps/bora-treinar/.next-e2e*/
+apps/bora-treinar/.next-isolated-*/
+apps/bora-treinar/test-results-*/
+apps/bora-treinar/public/mediapipe/
 
 # Acervo de referência do estudo de olimpíadas (originais de terceiros)
 docs/propostas/missao-saber-2026-09-13/acervo/arquivos/

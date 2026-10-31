@@ -17,6 +17,9 @@ import {
 import {
   agendaFamilyMembers,
   agendaStudentProfiles,
+  boraFamilies,
+  boraProfiles,
+  boraSessions,
   cozyaMeals,
   cozyaProfiles,
   cozyaRecipes,
@@ -59,6 +62,7 @@ import {
  * - Cozya: tem `cozya.profiles` (criado na primeira entrada no app) ou cliente de cobrança do Cozya.
  * - Agenda da Turma: tem perfil de criança, é adulto convidado numa família ou tem cliente de cobrança da Agenda.
  * - Missão Saber: tem `missao_saber.families` (criada no primeiro acesso) ou cliente de cobrança da Missão.
+ * - Bora Treinar: tem `bora_treinar.families` (criada no primeiro acesso) ou cliente de cobrança do Bora.
  * - Suíte Edi: tem computador conectado alguma vez, direito de uso em `edi.entitlements` ou cliente de cobrança do Edi.
  */
 
@@ -78,6 +82,8 @@ function usesProduct(app: ProductKey) {
         or ${hasCustomer(app)})`;
     case "missao-saber":
       return sql`(exists (select 1 from ${missaoFamilies} where ${missaoFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
+    case "bora-treinar":
+      return sql`(exists (select 1 from ${boraFamilies} where ${boraFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
     case "edi":
       return sql`(exists (select 1 from ${ediDevices} where ${ediDevices.userId} = ${users.id})
         or exists (select 1 from ${ediEntitlements} where ${ediEntitlements.userId} = ${users.id})
@@ -217,7 +223,7 @@ export async function productPresenceFor(userIds: string[]) {
     set.add(app);
     presence.set(userId, set);
   };
-  const [cozya, agendaProfiles, agendaGuests, missao, edi, entitlements, billingCustomers] =
+  const [cozya, agendaProfiles, agendaGuests, missao, bora, edi, entitlements, billingCustomers] =
     await Promise.all([
       readDb()
         .select({ userId: cozyaProfiles.userId, trialStartedAt: cozyaProfiles.trialStartedAt })
@@ -235,6 +241,10 @@ export async function productPresenceFor(userIds: string[]) {
         .select({ userId: missaoFamilies.userId })
         .from(missaoFamilies)
         .where(inArray(missaoFamilies.userId, userIds)),
+      readDb()
+        .select({ userId: boraFamilies.userId })
+        .from(boraFamilies)
+        .where(inArray(boraFamilies.userId, userIds)),
       readDb()
         .selectDistinct({ userId: ediDevices.userId })
         .from(ediDevices)
@@ -255,12 +265,14 @@ export async function productPresenceFor(userIds: string[]) {
   }
   for (const row of [...agendaProfiles, ...agendaGuests]) add(row.userId, "agenda-da-turma");
   for (const row of missao) add(row.userId, "missao-saber");
+  for (const row of bora) add(row.userId, "bora-treinar");
   for (const row of [...edi, ...entitlements]) add(row.userId, "edi");
   for (const row of billingCustomers) {
     if (
       row.app === "cozya" ||
       row.app === "agenda-da-turma" ||
       row.app === "missao-saber" ||
+      row.app === "bora-treinar" ||
       row.app === "edi"
     )
       add(row.userId, row.app);
@@ -306,6 +318,9 @@ export async function usageCounts(userId: string) {
     [studentProfiles],
     [studyDevices],
     [missions],
+    [boraFamily],
+    [trainingProfiles],
+    [trainings],
   ] = await Promise.all([
     readDb()
       .select({ trialStartedAt: cozyaProfiles.trialStartedAt })
@@ -361,6 +376,21 @@ export async function usageCounts(userId: string) {
       .from(missaoSessions)
       .innerJoin(missaoProfiles, eq(missaoSessions.profileId, missaoProfiles.id))
       .where(and(eq(missaoProfiles.userId, userId), isNotNull(missaoSessions.completedAt))),
+    readDb()
+      .select({ userId: boraFamilies.userId })
+      .from(boraFamilies)
+      .where(eq(boraFamilies.userId, userId))
+      .limit(1),
+    readDb().select({ value: count() }).from(boraProfiles).where(eq(boraProfiles.userId, userId)),
+    readDb()
+      .select({
+        value: count(),
+        last: sql<Date | null>`max(${boraSessions.startedAt})`.mapWith((value) =>
+          value ? new Date(value) : null,
+        ),
+      })
+      .from(boraSessions)
+      .where(eq(boraSessions.userId, userId)),
   ]);
   return {
     cozya: {
@@ -380,6 +410,12 @@ export async function usageCounts(userId: string) {
       studyDevices: studyDevices?.value ?? 0,
       completedMissions: missions?.value ?? 0,
       lastCompletedAt: missions?.last ?? null,
+    },
+    bora: {
+      present: Boolean(boraFamily),
+      profiles: trainingProfiles?.value ?? 0,
+      trainings: trainings?.value ?? 0,
+      lastTrainedAt: trainings?.last ?? null,
     },
   };
 }

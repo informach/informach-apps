@@ -5,7 +5,7 @@ import { SITE_PRODUCTS, type SiteProduct } from "@/lib/products";
 import { SITE } from "@/lib/site";
 
 export const alt =
-  "Informach: feito em casa, para a sua família. Programação para crianças, olimpíadas, rotina da escola, jantar da semana e aulas gravadas.";
+  "Informach: feito em casa, para a sua família. Programação para crianças, olimpíadas, rotina da escola, jantar da semana, treino em família e aulas gravadas.";
 export const size = { width: 1200, height: 630 } as const;
 export const contentType = "image/png";
 
@@ -27,6 +27,7 @@ const ICONS: Partial<Record<SiteProduct["slug"], () => Promise<Buffer>>> = {
   "agenda-da-turma": () =>
     readFile(join(process.cwd(), "public", "produtos", "agenda-da-turma.svg")),
   cozya: () => readFile(join(process.cwd(), "public", "produtos", "cozya.svg")),
+  "bora-treinar": () => readFile(join(process.cwd(), "public", "produtos", "bora-treinar.png")),
   edi: () => readFile(join(process.cwd(), "public", "produtos", "edi.png")),
 };
 
@@ -110,8 +111,8 @@ export default async function Image() {
           </div>
         </div>
         <div style={{ display: "flex", fontSize: 26, fontWeight: 400, color: "#D7E0E8" }}>
-          Programação para crianças, olimpíadas, rotina da escola, jantar da semana e aulas
-          gravadas.
+          Programação para crianças, olimpíadas, rotina da escola, jantar da semana, treino em
+          família e aulas gravadas.
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
