@@ -37,6 +37,12 @@ try {
       to_regclass('missao_saber.report_updates') is not null as report_updates_present,
       to_regclass('missao_saber.lab_executions') is not null as lab_executions_present,
       (
+        to_regclass('missao_saber.competitions') is not null
+        and to_regclass('missao_saber.competitors') is not null
+        and to_regclass('missao_saber.competition_turns') is not null
+      ) as competition_tables_present,
+      to_regclass('missao_saber.puzzle_solves') is not null as puzzle_solves_present,
+      (
         select count(*) = 2 from information_schema.columns
         where table_schema = 'missao_saber' and table_name = 'lab_executions'
           and is_nullable = 'NO'
@@ -140,6 +146,8 @@ try {
     notebook_weekly_columns_present: true,
     notebook_page_index_ready: true,
     notebook_session_fk_valid: true,
+    competition_tables_present: true,
+    puzzle_solves_present: true,
   };
 
   for (const [key, expectedValue] of Object.entries(expected)) {

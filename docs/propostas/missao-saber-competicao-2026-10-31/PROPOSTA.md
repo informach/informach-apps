@@ -60,6 +60,18 @@ O estado da mesa é uma função pura (`mesa-estado.ts`); a cena, os botões e o
 - **Conferência visual:** capturas de todas as telas no desktop e no celular, claro e escuro. Elas levaram a três ajustes: o enquadramento próprio das mesas planas (o enquadramento automático girava a imagem), o cabeçalho do desafio no celular e a legenda da tabela do pódio.
 - **Workspace:** tipagem das 26 tarefas, Biome sem erros nos arquivos do repositório e build de produção do Missão Saber.
 
+## Produção (31/10/2026)
+
+Merge local em `main` e push a pedido da titular (`0a020865`).
+
+- **Migrator:** SUCCESS no commit, com `[db:migrate] done.`.
+- **Apps:** Missão Saber, Cozya e Agenda da Turma em SUCCESS, com `/api/ready` 200 e `/api/health` servindo `0a020865`.
+- **Schema:** `production:verify-schema` confirmou 76 migrações. O script passou a conferir também as tabelas da competição e `puzzle_solves`.
+- **Rotas novas:** `/familia/competicoes` e `/laboratorio/pecas` pedem login.
+- **Privacidade:** o texto novo já está publicado.
+
+Nenhuma competição de teste foi criada em produção.
+
 ## Pendências e próximos passos
 
 - **Teste da titular com as crianças**, em tablet e TV: legibilidade a distância, ritmo das vezes e se o pódio funciona bem na família. É a validação que nenhum teste automático substitui.
