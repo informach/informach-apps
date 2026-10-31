@@ -17,6 +17,7 @@ import { parsePath } from "./pathGeometry.js";
 import type { Project } from "./project";
 import { flattenScene, renderScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
+import { compiledVertexRig } from "./vertexKeys";
 
 export function applyComponent(scene: Scene, command: ComponentCommand): string {
   if (command.operation === "create") {
@@ -181,8 +182,10 @@ export function compileArtboard(
   );
   for (const identity of sourceMap.values()) {
     const board = boards.get(identity.artboardId),
-      key = JSON.stringify(identity.instancePath);
-    if (!board?.rig || !rigOwners(board.rig).size || scopePaths.has(key)) continue;
+      key = JSON.stringify(identity.instancePath),
+      // Vertex keys run as morph channels of the board's rig.
+      boardRig = board && compiledVertexRig(board);
+    if (!boardRig || !rigOwners(boardRig).size || scopePaths.has(key)) continue;
     scopePaths.add(key);
     const mapping = new Map(
       [...sourceMap]
@@ -194,7 +197,7 @@ export function compileArtboard(
       if (!value) throw new Error("Referência de rig não mapeada.");
       return value;
     };
-    const rig = remapRig(board.rig, map);
+    const rig = remapRig(boardRig, map);
     const instance = [...sourceMap].find(
       ([, value]) => JSON.stringify([...value.instancePath, value.objectId]) === key,
     )?.[0];

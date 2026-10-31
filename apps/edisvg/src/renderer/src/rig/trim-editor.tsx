@@ -17,7 +17,8 @@ export function TrimEditor({
   report(error: unknown): void;
 }) {
   const selected = flattenScene(board.scene).find(({ node }) => node.id === selectedId),
-    trim = rig.trims?.find((value) => value.targetId === selectedId),
+    // Paint layer trims live in each layer's row options; this is the shape's own.
+    trim = rig.trims?.find((value) => value.targetId === selectedId && !value.layerId),
     nativeArc = /[aA]/.test(selected?.node.attrs.d ?? "");
   if (selected?.node.tag !== "path")
     return <p className="micro">Selecione um caminho para configurar o recorte animável.</p>;

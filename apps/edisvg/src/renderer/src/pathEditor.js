@@ -1,3 +1,4 @@
+import { writeShapePath } from "@informach/edi-motion/graphics";
 import {
   deleteVertex,
   moveHandle,
@@ -11,8 +12,26 @@ import {
   splitSegment,
 } from "../../shared/pathGeometry.js";
 import { editScene, flattenScene } from "../../shared/scene.js";
+import { vertexGeometryAt } from "../../shared/vertexKeys";
 
+const ANIMATE_ONLY_MOVES =
+  "No Animar, mova pontos e alças: isso grava uma chave de vértices no quadro atual. Acrescentar, excluir ou mudar o tipo de pontos é no Design.";
+
+/** The path being edited: in Animate, the keyed path at the current frame. */
+function editedGeometry(state, node) {
+  const animationId = state.pathEdit?.animationId;
+  if (!animationId) return pathFromNode(node);
+  const clip = state.artboards
+    ?.find((board) => board.id === state.activeArtboardId)
+    ?.vertexClips?.find((value) => value.animationId === animationId && value.targetId === node.id);
+  return clip ? vertexGeometryAt(clip, Math.round(state.frame)) : pathFromNode(node);
+}
 function commitPath(state, callbacks, id, geometry) {
+  if (state.pathEdit?.animationId) {
+    if (!callbacks.setVertexKey) throw new Error("Gravação de chaves de vértices indisponível.");
+    callbacks.setVertexKey(id, geometry);
+    return;
+  }
   const path = serializePath(geometry);
   if (callbacks.changeScene) callbacks.changeScene("path", path, id);
   else {
@@ -82,7 +101,10 @@ export function synchronizePathEditing(state) {
       entry.locked ||
       !entry.visible ||
       entry.node.tag !== "path" ||
-      !["select", "pen"].includes(state.tool))
+      !["select", "pen"].includes(state.tool) ||
+      // Vertex keys belong to one animation; leaving it ends that editing.
+      (state.pathEdit.animationId &&
+        (state.view !== "animate" || state.activeClipId !== state.pathEdit.animationId)))
   )
     state.pathEdit = null;
   if (state.pathEdit) {
@@ -101,20 +123,32 @@ export function startPathEditing(state, callbacks, id = state.selected) {
       throw new Error("Selecione uma forma ou um caminho na hierarquia.");
     if (entry.locked) throw new Error("Desbloqueie a forma e seus grupos para editar vértices.");
     if (!entry.visible) throw new Error("Mostre a forma e seus grupos para editar vértices.");
-    const geometry = pathFromNode(entry.node);
+    // In Animate, editing records vertex keys of the open animation, as in Rive.
+    const animation =
+      state.view === "animate"
+        ? state.motion?.animations.find((clip) => clip.id === state.activeClipId)
+        : undefined;
+    if (animation) {
+      if (entry.node.tag !== "path")
+        throw new Error("Converta a forma em caminho no Design antes de animar os vértices.");
+      const rig = state.artboards?.find((board) => board.id === state.activeArtboardId)?.rig;
+      if ([...(rig?.skins ?? []), ...(rig?.morphs ?? [])].some((item) => item.targetId === id))
+        throw new Error("Este caminho já é deformado por ossos ou morphs; anime-o por eles.");
+    }
+    state.selected = id;
+    state.pathEdit = { id, ...(animation ? { animationId: animation.id } : {}) };
+    const geometry = editedGeometry(state, entry.node);
     if (entry.node.tag !== "path") {
       commitPath(state, callbacks, id, geometry);
     }
-    state.selected = id;
-    state.pathEdit = {
-      id,
+    Object.assign(state.pathEdit, {
       contour: 0,
       index: 0,
       mode: inferVertexMode(geometry[0].points[0]),
       vertices: [{ contour: 0, index: 0 }],
-    };
+    });
     state.tool = "select";
-    state.view = "design";
+    if (!animation) state.view = "design";
     state.playing = false;
     render();
     document.querySelector(".scene-artwork>svg")?.focus({ preventScroll: true });
@@ -127,8 +161,9 @@ export function pathInspector(state) {
   if (!entry || !PATH_TAGS.has(entry.node.tag)) return "";
   if (!state.pathEdit)
     return `<section class="path-properties"><h3>CAMINHO</h3><button class="path-primary" data-path-enter ${entry.locked ? "disabled" : ""}>${entry.node.tag === "path" ? "Editar vértices" : "Converter em caminho e editar"}</button><p class="micro">Enter ou duplo clique para editar pontos e alças.${entry.node.tag === "path" ? "" : " A conversão pode ser desfeita."}</p></section>`;
-  const contours = pathFromNode(entry.node),
-    edit = state.pathEdit;
+  const contours = editedGeometry(state, entry.node),
+    edit = state.pathEdit,
+    animating = !!edit.animationId;
   edit.contour = Math.min(edit.contour, contours.length - 1);
   const contour = contours[edit.contour];
   if (edit.vertices)
@@ -137,7 +172,7 @@ export function pathInspector(state) {
   if (!edit.vertices?.length) edit.vertices = [{ contour: edit.contour, index: edit.index }];
   const p = contour.points[edit.index],
     disabled = entry.locked ? "disabled" : "";
-  return `<section class="path-properties"><div class="path-heading"><h3>EDITAR VÉRTICES</h3><button data-path-done>Concluir</button></div><label class="scene-field">Contorno<select data-path-contour>${contours.map((c, i) => `<option value="${i}" ${i === edit.contour ? "selected" : ""}>${i + 1} · ${c.closed ? "Fechado" : "Aberto"} · ${c.points.length} pontos</option>`).join("")}</select></label><div class="path-actions"><button data-path-op="close">${contour.closed ? "Abrir caminho" : "Fechar caminho"}</button><button data-path-op="reverse">Inverter direção</button></div><h3>VÉRTICE ${edit.index + 1} / ${contour.points.length}</h3><div class="property-grid">${["x", "y"].map((key) => `<label class="property">${key.toUpperCase()}<input aria-label="Vértice ${key.toUpperCase()}" data-vertex-coordinate="${key}" type="number" step="0.1" value="${Number(p[key].toFixed(4))}" ${disabled}></label>`).join("")}</div><h3>TIPO DE VÉRTICE</h3>${vertexModeBar(edit.mode, entry.locked)}<div class="path-actions"><button data-path-op="insert">Inserir ponto após</button><button data-path-op="delete">Excluir vértice</button></div><p class="micro">Arraste pontos e alças. Duplo clique no segmento insere um ponto. Alt solta a alça. Delete exclui a seleção; Esc sai ou cancela o arraste.</p></section><div data-path-actions></div>`;
+  return `<section class="path-properties"><div class="path-heading"><h3>${animating ? "ANIMAR VÉRTICES" : "EDITAR VÉRTICES"}</h3><button data-path-done>Concluir</button></div>${animating ? `<p class="micro" data-vertex-keying>Quadro ${Math.round(state.frame)}: ${ANIMATE_ONLY_MOVES}</p>` : ""}<label class="scene-field">Contorno<select data-path-contour>${contours.map((c, i) => `<option value="${i}" ${i === edit.contour ? "selected" : ""}>${i + 1} · ${c.closed ? "Fechado" : "Aberto"} · ${c.points.length} pontos</option>`).join("")}</select></label>${animating ? "" : `<div class="path-actions"><button data-path-op="close">${contour.closed ? "Abrir caminho" : "Fechar caminho"}</button><button data-path-op="reverse">Inverter direção</button></div>`}<h3>VÉRTICE ${edit.index + 1} / ${contour.points.length}</h3><div class="property-grid">${["x", "y"].map((key) => `<label class="property">${key.toUpperCase()}<input aria-label="Vértice ${key.toUpperCase()}" data-vertex-coordinate="${key}" type="number" step="0.1" value="${Number(p[key].toFixed(4))}" ${disabled}></label>`).join("")}</div>${animating ? '<p class="micro">Arraste pontos e alças ou use as setas. Esc sai.</p></section>' : `<h3>TIPO DE VÉRTICE</h3>${vertexModeBar(edit.mode, entry.locked)}<div class="path-actions"><button data-path-op="insert">Inserir ponto após</button><button data-path-op="delete">Excluir vértice</button></div><p class="micro">Arraste pontos e alças. Duplo clique no segmento insere um ponto. Alt solta a alça. Delete exclui a seleção; Esc sai ou cancela o arraste.</p></section><div data-path-actions></div>`}`;
 }
 
 export function bindPathInspector(state, callbacks) {
@@ -155,7 +190,7 @@ export function bindPathInspector(state, callbacks) {
     try {
       const entry = entryFor(state);
       if (!entry || entry.locked) throw new Error("Objeto bloqueado ou ausente.");
-      const geometry = pathFromNode(entry.node),
+      const geometry = editedGeometry(state, entry.node),
         edit = state.pathEdit,
         contour = geometry[edit.contour];
       operation(contour, edit);
@@ -173,7 +208,7 @@ export function bindPathInspector(state, callbacks) {
       state.pathEdit.index = 0;
       state.pathEdit.vertices = [{ contour: state.pathEdit.contour, index: 0 }];
       state.pathEdit.mode = inferVertexMode(
-        pathFromNode(entryFor(state).node)[state.pathEdit.contour].points[0],
+        editedGeometry(state, entryFor(state).node)[state.pathEdit.contour].points[0],
       );
       render();
     };
@@ -249,7 +284,7 @@ export function bindPathCanvas(svg, state, callbacks) {
     ),
     shape = wrapper?.firstElementChild;
   if (!entry || entry.locked || !entry.visible || !shape) return () => {};
-  const base = pathFromNode(entry.node),
+  const base = editedGeometry(state, entry.node),
     original = shape.getAttribute("d");
   let geometry = structuredClone(base),
     drag = null;
@@ -330,7 +365,7 @@ export function bindPathCanvas(svg, state, callbacks) {
   function dispose() {
     controller.abort();
     overlay.remove();
-    shape.setAttribute("d", original);
+    writeShapePath(shape, original);
     callbacks.previewChanged?.();
     if (drag && svg.hasPointerCapture(drag.pointerId)) svg.releasePointerCapture(drag.pointerId);
     drag = null;
@@ -421,7 +456,7 @@ export function bindPathCanvas(svg, state, callbacks) {
       const h = p[drag.part];
       moveHandle(p, drag.part, h.x + dx, h.y + dy, event.altKey ? "detached" : edit.mode);
     }
-    shape.setAttribute("d", serializePath(geometry));
+    writeShapePath(shape, serializePath(geometry));
     try {
       callbacks.previewChanged?.();
     } catch (error) {
@@ -467,6 +502,10 @@ export function bindPathCanvas(svg, state, callbacks) {
     "dblclick",
     (event) => {
       if (event.target.closest("[data-vertex-part]")) return;
+      if (state.pathEdit.animationId) {
+        notify(ANIMATE_ONLY_MOVES);
+        return;
+      }
       const m = matrices();
       if (!m) return;
       let nearest = null;
@@ -534,7 +573,9 @@ export function bindPathCanvas(svg, state, callbacks) {
         return;
       }
       try {
-        if (callbacks.changePath) {
+        if (state.pathEdit.animationId && ["Delete", "Backspace"].includes(event.key))
+          throw new Error(ANIMATE_ONLY_MOVES);
+        if (callbacks.changePath && !state.pathEdit.animationId) {
           const edit = state.pathEdit,
             vertices = edit.vertices?.length
               ? edit.vertices

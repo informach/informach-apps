@@ -2,6 +2,7 @@ import type { InteractiveDocument } from "../interactiveDocument";
 import { matchesGraphicElement } from "./domElements";
 import { type Filter, filterDefinitions } from "./filters";
 import { type GradientPaints, gradientDefinitions } from "./gradients";
+import { paintLayerServers } from "./paintLayers";
 /** Canonical definitions must match the typed content, including nested scopes. */
 export function validateSvgGradients(root: SVGSVGElement, document: InteractiveDocument) {
   const paints: GradientPaints[] = [],
@@ -9,6 +10,7 @@ export function validateSvgGradients(root: SVGSVGElement, document: InteractiveD
   function collect(document: InteractiveDocument) {
     for (const object of document.content) {
       if (object.gradients) paints.push(object.gradients);
+      for (const fill of paintLayerServers(object.paintLayers)) paints.push({ fill });
       if (object.filter) filters.push(object.filter);
     }
     for (const child of document.components ?? []) collect(child.document);

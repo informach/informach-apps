@@ -86,7 +86,7 @@ export function timelineClip(board: Artboard, animation: Animation): TimelineCli
     for (const [index, solo] of (rig.solos ?? []).entries())
       labels.set(solo.id, `Solo ${index + 1}`);
     for (const [index, trim] of (rig.trims ?? []).entries())
-      labels.set(trim.id, `Recorte ${index + 1}`);
+      labels.set(trim.id, `Recorte ${index + 1}${trim.layerId ? " · camada de pintura" : ""}`);
     for (const [index, joystick] of (rig.joysticks ?? []).entries())
       labels.set(joystick.id, `Joystick ${index + 1} · ${joystick.name}`);
     for (const track of rig.parameterClips?.find((clip) => clip.animationId === animation.id)
@@ -111,6 +111,25 @@ export function timelineClip(board: Artboard, animation: Animation): TimelineCli
         keys: track.keys,
       });
     }
+  }
+  // One row per animated path: its vertex keys carry whole paths, not values.
+  for (const clip of board.vertexClips ?? []) {
+    const object = objects.get(clip.targetId);
+    if (clip.animationId !== animation.id || !object) continue;
+    add({
+      id: clip.id,
+      source: { kind: "vertex", artboardId: board.id, trackId: clip.id },
+      targetId: clip.targetId,
+      property: "vertices",
+      label: `${object.name} · Vértices`,
+      definition: { initial: 0, bounds: [0, 1], discrete: false, ownerIds: [clip.targetId] },
+      keys: clip.keys.map((key) => ({
+        id: key.id,
+        frame: key.frame,
+        value: 0,
+        easing: key.easing,
+      })),
+    });
   }
   const result: TimelineClip = { ...animation, tracks, keyIndex };
   clips.set(animation, result);

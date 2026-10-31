@@ -8,7 +8,12 @@ import {
 import { type Asset, imagePresentation, parseAssetCatalog } from "@informach/edi-motion/assets";
 import { type AudioDocument, parseAudioDocument } from "@informach/edi-motion/audio";
 import { type Behavior, parseBehavior } from "@informach/edi-motion/behavior";
-import { filterDefinitions, gradientDefinitions, hasPattern } from "@informach/edi-motion/graphics";
+import {
+  filterDefinitions,
+  gradientDefinitions,
+  hasPattern,
+  paintLayerServers,
+} from "@informach/edi-motion/graphics";
 import { type LayoutDocument, parseLayout } from "@informach/edi-motion/layout";
 import {
   parseRig,
@@ -20,12 +25,14 @@ import {
 import { z } from "zod";
 import { validateComponentGraph } from "./componentGraph";
 import { validateDrawOrders } from "./drawOrders";
+import { type Guide, guidesSchema } from "./guides";
 import { artboardIdSchema } from "./identities";
 import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
+import { compiledVertexRig, parseVertexClips, type VertexClip } from "./vertexKeys";
 
-export const PROJECT_VERSION = 24;
+export const PROJECT_VERSION = 25;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -80,6 +87,8 @@ const artboardSchema = z.strictObject({
   layout: z.unknown().optional(),
   rig: z.unknown().optional(),
   audio: z.unknown().optional(),
+  vertexClips: z.unknown().optional(),
+  guides: z.unknown().optional(),
 });
 const currentSchema = previousSchema.omit({ version: true, scene: true }).extend({
   version: z.union([
@@ -102,6 +111,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(21),
     z.literal(22),
     z.literal(23),
+    z.literal(24),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -116,6 +126,10 @@ export interface Artboard {
   layout?: LayoutDocument;
   rig?: RigDocument;
   audio?: AudioDocument;
+  /** Vertex keys per animation and path (project v25). */
+  vertexClips?: VertexClip[];
+  /** Ruler guides, editor-only (project v25). */
+  guides?: Guide[];
 }
 export interface Project {
   version: typeof PROJECT_VERSION;
@@ -165,6 +179,7 @@ export function parseProject(input: unknown): Project {
       21,
       22,
       23,
+      24,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -249,6 +264,8 @@ export function parseProject(input: unknown): Project {
         throw new Error("Padrões tipados requerem projeto v23.");
       if (node.filter && header.data.version < 23)
         throw new Error("Filtros tipados requerem projeto v23.");
+      if (node.paintLayers && header.data.version < 25)
+        throw new Error("Camadas de pintura requerem projeto v25.");
       if (node.effects?.mask?.mode && header.data.version < 23)
         throw new Error("Modos de máscara requerem projeto v23.");
       if (node.textDirection && header.data.version < 23)
@@ -281,6 +298,9 @@ export function parseProject(input: unknown): Project {
     artboards.flatMap((board) => [
       ...flattenScene(board.scene).map(({ node }) => node.gradients),
       ...(board.scene.styles ?? []).map((style) => style.gradients),
+      ...flattenScene(board.scene).flatMap(({ node }) =>
+        paintLayerServers(node.paintLayers).map((fill) => ({ fill })),
+      ),
     ]),
   );
   // Like gradients, filters are pooled project-wide: a composition flattens component
@@ -306,11 +326,20 @@ export function parseProject(input: unknown): Project {
         if (header.data.version < 21 && board.rig.version >= 3)
           throw new Error("Rig v3 requer projeto v21.");
         const nodes = new Map(flattenScene(board.scene).map(({ node }) => [node.id, node]));
-        for (const trim of board.rig.trims ?? [])
+        for (const trim of board.rig.trims ?? []) {
           if (/[aA]/.test(nodes.get(trim.targetId)?.attrs.d ?? ""))
             throw new Error(
               "Trim de arco nativo requer conversão Bézier explícita e confirmação de aparência.",
             );
+          if (trim.layerId) {
+            if (header.data.version < 25)
+              throw new Error("Trim de camada de pintura requer projeto v25.");
+            if (!nodes.get(trim.targetId)?.paintLayers?.some((layer) => layer.id === trim.layerId))
+              throw new Error(
+                "Trim de camada de pintura sem a camada no objeto. Remova o trim antes da camada.",
+              );
+          }
+        }
       }
       if (raw.layout !== undefined) {
         board.layout = parseLayout(
@@ -353,6 +382,30 @@ export function parseProject(input: unknown): Project {
           resourceMap,
           new Set(board.behavior?.events.map((event) => event.id)),
         );
+      }
+      if (raw.guides !== undefined) {
+        if (header.data.version < 25) throw new Error("Guias requerem projeto v25.");
+        board.guides = guidesSchema.parse(raw.guides);
+      }
+      if (raw.vertexClips !== undefined) {
+        if (header.data.version < 25) throw new Error("Animação de vértices requer projeto v25.");
+        board.vertexClips = parseVertexClips(
+          raw.vertexClips,
+          new Map(
+            flattenScene(board.scene).flatMap(({ node }) =>
+              node.tag === "path"
+                ? [[node.id, { d: node.attrs.d, isComponent: !!node.instance }] as const]
+                : [],
+            ),
+          ),
+          motion.animations,
+        );
+        // The keys compile into morphs: the board's rig must still fit with them.
+        const compiled = compiledVertexRig(board);
+        if (compiled) {
+          parseRig(compiled, rigObjects(board.scene));
+          validateRigAnimations(compiled, motion.animations);
+        }
       }
     }
   // After layouts are parsed: a draw order cannot stack objects a layout places in slots.

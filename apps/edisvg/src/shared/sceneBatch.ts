@@ -92,6 +92,38 @@ export function applySceneBatch(
     for (const clip of motion.animations)
       clip.tracks = clip.tracks.filter((track) => !removed.has(track.targetId));
     pruneDrawOrders(motion, removed);
+    // Vertex keys go with their path, like its motion tracks.
+    if (relationships?.vertexClips) {
+      relationships.vertexClips = relationships.vertexClips.filter(
+        (clip) => !removed.has(clip.targetId),
+      );
+      if (!relationships.vertexClips.length) delete relationships.vertexClips;
+    }
+    // A trim is a paint-row effect of its path: it goes with the path, keys
+    // included. A logic binding is still a dependency to remove explicitly.
+    const rig = relationships?.rig,
+      trims = new Set(
+        (rig?.trims ?? []).filter((trim) => removed.has(trim.targetId)).map((trim) => trim.id),
+      );
+    if (rig && trims.size) {
+      if (
+        relationships?.behavior?.bindings.some(
+          (binding) => binding.kind === "parameter" && trims.has(binding.targetId),
+        )
+      )
+        throw new Error(
+          "O trim do caminho está ligado à lógica. Remova o binding antes de excluir.",
+        );
+      rig.trims = rig.trims?.filter((trim) => !trims.has(trim.id));
+      if (!rig.trims?.length) delete rig.trims;
+      if (rig.parameterClips) {
+        rig.parameterClips = rig.parameterClips.flatMap((clip) => {
+          const tracks = clip.tracks.filter((track) => !trims.has(track.targetId));
+          return tracks.length || !clip.tracks.length ? [{ ...clip, tracks }] : [];
+        });
+        if (!rig.parameterClips.length) delete rig.parameterClips;
+      }
+    }
     return [];
   }
   if (command.operation === "duplicate") {
@@ -118,6 +150,19 @@ export function applySceneBatch(
     cloneMotionTargets(motion, mapping);
     cloneDrawOrders(motion, mapping);
     cloneRigRelationships(relationships, mapping);
+    for (const clip of relationships?.vertexClips?.slice() ?? []) {
+      const targetId = mapping.get(clip.targetId);
+      if (targetId)
+        relationships?.vertexClips?.push({
+          ...structuredClone(clip),
+          id: `track-${crypto.randomUUID()}`,
+          targetId,
+          keys: clip.keys.map((key) => ({
+            ...structuredClone(key),
+            id: `key-${crypto.randomUUID()}`,
+          })),
+        });
+    }
     return copies;
   }
   for (const list of changedLists) {

@@ -327,3 +327,105 @@
   border-radius: 6px;
   background: color-mix(in srgb, var(--panel2) 60%, transparent);
 }
+.paint-options-toggle.has-effects {
+  color: var(--mint);
+}
+.paint-options {
+  position: fixed;
+  z-index: 100;
+  width: min(260px, calc(100vw - 16px));
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--mint) 45%, var(--line));
+  border-radius: 8px;
+  background: #242a33;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+.paint-options-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--panel2);
+}
+.paint-options-tabs button {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.paint-options-tabs button[aria-selected="true"] {
+  background: #3a424e;
+  color: var(--text);
+}
+.paint-options-body {
+  display: grid;
+  gap: 4px;
+}
+.paint-options .path-effects {
+  border-top: 0;
+}
+.paint-options p[role="alert"] {
+  margin: 0;
+  color: #ffb3a7;
+  font-size: 11px;
+}
+.paint-name {
+  flex: 1;
+  min-width: 0;
+  height: 25px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 25px;
+}
+input.paint-name:hover:not(:disabled) {
+  border-color: var(--line);
+}
+input.paint-name:focus {
+  border-color: color-mix(in srgb, var(--mint) 60%, var(--line));
+  background: var(--panel2);
+  outline: none;
+}
+.paint-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.paint-segmented {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--panel2);
+}
+.paint-segmented button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+.paint-segmented button[aria-pressed="true"] {
+  background: #3a424e;
+  color: var(--text);
+}
+.paint-segmented button:hover:not(:disabled) {
+  color: var(--text);
+}

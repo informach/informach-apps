@@ -25,6 +25,12 @@ import {
 } from "./ai-args.ts";
 import { CHECK_CLIENT, type McpServerRef, PANEL_CLIENT } from "./ai-grants.ts";
 import {
+  checkTurnImages,
+  claudeImageMessage,
+  imageExtension,
+  type TurnImage,
+} from "./ai-images.ts";
+import {
   AI_CLIENT_NAMES,
   type AiClientId,
   clientLaunch,
@@ -92,6 +98,8 @@ export interface TurnRequest {
   grantProject?: string;
   /** Called between the steps before the program starts; throws to give up (a stopped request). */
   check?(): void;
+  /** Reference images of this message (checked by checkTurnImages before the program starts). */
+  images?: readonly TurnImage[];
 }
 
 /** A run's token lasts this long, renewed while the run goes on, and is revoked when it ends. */
@@ -269,7 +277,19 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
 
   /* ----- Claude Code ----- */
 
+  /** The message's images, or null after telling the person why not (and ending the turn). */
+  function imagesOf(request: TurnRequest): readonly TurnImage[] | null {
+    try {
+      return checkTurnImages(request.images);
+    } catch (err) {
+      request.emit({ type: "error", message: errorText(err) });
+      request.emit({ type: "done" });
+      return null;
+    }
+  }
+
   async function runClaudeCode(request: TurnRequest): Promise<void> {
+    if (!imagesOf(request)) return;
     const mark = stopMark(request.conversationId);
     const ready = await prepare("claude-code", request);
     if (!ready || stoppedSince(request, mark)) return;
@@ -293,11 +313,14 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     resume: string | undefined,
   ): Promise<void> {
     const { conversationId, emit } = request;
-    const prompt = resume ? request.text : await firstMessage(conversationId, request.text);
+    const text = resume ? request.text : await firstMessage(conversationId, request.text);
+    const images = request.images ?? [];
+    const prompt = images.length ? claudeImageMessage(text, images) : text;
     const token = runToken(request.grantProject ?? conversationId);
     const args = claudeArgs({
       server,
       resume,
+      input: images.length ? "stream-json" : "text",
       model: request.model,
       effort: request.effort,
       mcpConfig: claudeMcpConfig(request.url, server),
@@ -484,6 +507,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
   }
 
   async function runCodex(request: TurnRequest): Promise<void> {
+    if (!imagesOf(request)) return;
     const mark = stopMark(request.conversationId);
     const ready = await prepare("codex", request);
     if (!ready || stoppedSince(request, mark)) return;
@@ -513,11 +537,29 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       : `${config.systemPrompt}\n\n---\n\n${await firstMessage(conversationId, request.text)}`;
     const disabledFeatures = await codexFeatures(launch);
     request.check?.();
+    // Codex reads attached images from files: a folder of their own, gone when the run ends.
+    const images = request.images ?? [];
+    const imageDir = images.length ? mkdtempSync(join(tmpdir(), `${server.name}-images-`)) : "";
+    let imageFiles: string[];
+    try {
+      imageFiles = images.map((image, index) => {
+        const file = join(imageDir, `referencia-${index + 1}.${imageExtension(image.mediaType)}`);
+        writeFileSync(file, image.data);
+        return file;
+      });
+    } catch (err) {
+      rmSync(imageDir, { recursive: true, force: true });
+      throw err;
+    }
     const token = runToken(request.grantProject ?? conversationId);
     /** What of each agent message the panel already shows (Codex may stream it). */
     const shown = new Map<string, string>();
     let failed = false;
     const workspace = config.workspace();
+    const cleanup = (): void => {
+      token.end();
+      if (imageDir) rmSync(imageDir, { recursive: true, force: true });
+    };
     await startRun({
       conversationId,
       launch,
@@ -530,6 +572,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
         model: request.model,
         ephemeral: config.sessions === false,
         personalOnly: config.personalOnly,
+        images: imageFiles,
       }),
       env: engineEnv(process.env, {
         minimal: true,
@@ -540,7 +583,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       cwd: workspace,
       prompt,
       emit,
-      cleanup: token.end,
+      cleanup,
       redact: redactMcpCredentials,
       timeoutMs: config.timeoutMs,
       onLine: (ev, stop) => {

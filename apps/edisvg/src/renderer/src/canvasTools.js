@@ -2,6 +2,7 @@ import { editScene } from "../../shared/scene.js";
 import { bindPathCanvas, startPathEditing } from "./pathEditor.js";
 import { bindPenTool } from "./penTool.js";
 import { bindBoneTool } from "./rig/bone-tool";
+import { layoutRulers } from "./rulers";
 import { bindSelectionGestures } from "./selectionGestures";
 import { defaultArtboardView } from "./workspace";
 
@@ -33,6 +34,13 @@ export function shapeAttributes(tag, start, end, square = false) {
         : { x, y, width: w, height: h };
   return Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, String(v)]));
 }
+export const ZOOM_PRESETS = [25, 50, 75, 100, 125, 150, 200, 300];
+const clampZoom = (zoom) => Math.max(10, Math.min(800, zoom));
+/** Shows a zoom in the toolbar select: a preset, or the free value from the wheel. */
+export function zoomOptions(zoom) {
+  const shown = Math.round(zoom);
+  return `${ZOOM_PRESETS.includes(shown) ? "" : `<option selected data-zoom-custom>${shown}%</option>`}${ZOOM_PRESETS.map((v) => `<option ${shown === v ? "selected" : ""}>${v}%</option>`).join("")}`;
+}
 /** Places the active artboard on the stage from the pan and its editor-only view. */
 export function applyArtboardView(state) {
   const board = document.querySelector(".stage .artboard");
@@ -44,6 +52,7 @@ export function applyArtboardView(state) {
   board.style.rotate = `${view.rotation}deg`;
   board.style.scale = `${view.scaleX / 100} ${view.scaleY / 100}`;
   board.style.opacity = String(view.opacity / 100);
+  layoutRulers();
 }
 export function bindViewport(state, { render }) {
   const stage = document.querySelector(".stage"),
@@ -61,11 +70,31 @@ export function bindViewport(state, { render }) {
       state.zoom = 75;
       render();
     };
+  // Ctrl + wheel (a trackpad pinch arrives the same way) zooms around the pointer:
+  // the artboard point under it stays put. It does not render, like the zoom select.
+  stage.onwheel = (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const step = e.deltaMode === 1 ? 0.05 : e.deltaMode === 2 ? 1 : 0.002,
+      next = clampZoom(state.zoom * Math.exp(-e.deltaY * step));
+    if (next === state.zoom) return;
+    const before = board.getBoundingClientRect(),
+      fx = (e.clientX - before.left) / before.width,
+      fy = (e.clientY - before.top) / before.height;
+    state.zoom = next;
+    board.style.setProperty("--zoom", String(next / 75));
+    const after = board.getBoundingClientRect();
+    pan.x += e.clientX - (after.left + fx * after.width);
+    pan.y += e.clientY - (after.top + fy * after.height);
+    apply();
+    const select = document.querySelector("#zoom");
+    if (select) select.innerHTML = zoomOptions(next);
+  };
   stage.onpointerdown = (e) => {
     if (e.button !== 1 && !(e.button === 0 && ["hand", "zoom"].includes(state.tool))) return;
     e.preventDefault();
     if (state.tool === "zoom" && e.button === 0) {
-      state.zoom = Math.max(25, Math.min(300, state.zoom + (e.altKey ? -25 : 25)));
+      state.zoom = clampZoom(state.zoom + (e.altKey ? -25 : 25));
       render();
       return;
     }
@@ -114,7 +143,17 @@ export function bindViewport(state, { render }) {
 }
 export function bindCanvasTools(
   state,
-  { render, commit, notify, changeTransforms, changeScene, changePath, transact, previewChanged },
+  {
+    render,
+    commit,
+    notify,
+    changeTransforms,
+    changeScene,
+    setVertexKey,
+    changePath,
+    transact,
+    previewChanged,
+  },
 ) {
   cleanupGesture?.();
   cleanupGesture = null;
@@ -126,6 +165,7 @@ export function bindCanvasTools(
       commit,
       notify,
       changeScene,
+      setVertexKey,
       changePath,
       previewChanged,
     });
@@ -150,7 +190,8 @@ export function bindCanvasTools(
       notify,
       transform: changeTransforms,
       previewChanged,
-      editPath: (id) => startPathEditing(state, { render, commit, notify, changeScene }, id),
+      editPath: (id) =>
+        startPathEditing(state, { render, commit, notify, changeScene, setVertexKey }, id),
     });
     return;
   }

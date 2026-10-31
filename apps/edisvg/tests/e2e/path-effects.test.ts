@@ -81,10 +81,13 @@ test("efeitos de caminho adicionam, editam e removem o trim com prévia no Desig
   const { page, close } = await open(seed());
   try {
     await page.locator('[data-scene-select="node-box"]').click();
-    await page
-      .getByText("Converta a forma em caminho (seção Caminho) para usar o trim.")
-      .waitFor();
+    await page.getByRole("button", { name: "Opções e efeitos de preenchimento" }).click();
+    await page.getByRole("tab", { name: "Efeitos" }).click();
+    await page.getByText("Converta a forma em caminho (seção Caminho) para usar o trim.").waitFor();
     await page.locator('[data-scene-select="node-line"]').click();
+    // The stroke row opens on its options; path effects are the second tab.
+    await page.getByRole("button", { name: "Opções e efeitos de contorno" }).click();
+    await page.getByRole("tab", { name: "Efeitos" }).click();
     await page.getByRole("button", { name: "Adicionar trim" }).click();
     let trim = (await saved(page)).artboards[0]?.rig?.trims?.[0];
     assert.deepEqual(
@@ -153,13 +156,9 @@ test("linhas de pintura editam hexadecimal, opacidade, visibilidade e espessura"
     assert.equal((await attrs())["fill-opacity"], "0.4");
 
     await page.getByRole("button", { name: "Adicionar preenchimento ou contorno" }).click();
+    await page.getByRole("button", { name: "Contorno", exact: true }).click();
     assert.equal((await attrs()).stroke, "#000000");
-    assert.ok(
-      await page
-        .getByRole("button", { name: "Adicionar preenchimento ou contorno" })
-        .isDisabled(),
-    );
-    await type(page, "Espessura do contorno", "3");
+    await type(page, "Espessura de contorno", "3");
     assert.equal((await attrs())["stroke-width"], "3");
     await page.getByRole("button", { name: "Remover contorno" }).click();
     assert.equal((await attrs()).stroke, "none");

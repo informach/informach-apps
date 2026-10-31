@@ -6,6 +6,8 @@ import {
   fireBehaviorTrigger,
 } from "../behavior/engine";
 import { type Behavior, type BehaviorState, emptyBehavior } from "../behavior/model";
+import { geometryPath } from "../geometry";
+import { paintLayerPaths } from "../graphics/paintLayers";
 import { type Animation, identityTransform, propertySchema } from "../model";
 import { parseSvgPath } from "../svgPath";
 import { createRigContext, evaluateRig } from "./constraints";
@@ -409,4 +411,38 @@ test("trim parameter tracks require valid destinations, ranges, unique keys and 
       objects,
     ),
   ).toThrow(/limites/);
+});
+
+test("each paint row has its own trim: a layer's trim cuts only that copy", () => {
+  const { objects, rig } = fixture(),
+    shape = rig.trims?.[0];
+  if (!shape) throw new Error("Missing trim");
+  const layer = {
+    ...shape,
+    id: "trim-hand",
+    layerId: "paint-hand",
+    start: 0.9,
+    end: 1,
+  };
+  rig.trims = [layer, shape];
+  expect(parseRig(rig, objects).trims).toEqual([layer, shape]);
+  expect(() =>
+    parseRig({ ...rig, trims: [layer, { ...layer, id: "trim-other" }] }, objects),
+  ).toThrow(/único/);
+  const geometry = evaluateRig(createRigContext(rig, objects), new Map()).geometry,
+    xs = (key: string) =>
+      geometry.get(key)?.flatMap((contour) => contour.points.map((point) => Math.round(point.x)));
+  // The layer trim reads the untrimmed path even when listed before the shape's.
+  expect(xs("node-path#paint-hand")).toEqual([90, 100]);
+  expect(xs("node-path")).toEqual([25, 75]);
+  // Copies without their own trim keep the whole path.
+  expect(xs("node-path#")).toEqual([0, 100]);
+  const paths = paintLayerPaths(geometry, "node-path");
+  expect(paths("paint-hand")).toBe(geometryPath(geometry.get("node-path#paint-hand") ?? []));
+  expect(paths("paint-other")).toBe(geometryPath(geometry.get("node-path#") ?? []));
+  rig.trims = [{ ...layer, start: 0, end: 1 }];
+  const whole = evaluateRig(createRigContext(rig, objects), new Map()).geometry;
+  // A full trim rewrites nothing: the copy follows the shape's path.
+  expect(whole.size).toBe(0);
+  expect(paintLayerPaths(whole, "node-path")("paint-hand")).toBeUndefined();
 });

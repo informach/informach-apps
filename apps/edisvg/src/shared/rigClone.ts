@@ -1,7 +1,7 @@
 import { constraintOwners, type RigDocument, rigCost } from "@informach/edi-motion/rig";
 import type { Artboard } from "./project";
 
-export type RigRelationships = Pick<Artboard, "rig" | "behavior">;
+export type RigRelationships = Pick<Artboard, "rig" | "behavior" | "vertexClips">;
 
 /** References sharing one cloned subtree receive the same world translation,
  * even beneath animated/reflected/skewed parents. This is not a rest-pose

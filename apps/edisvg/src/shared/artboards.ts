@@ -142,6 +142,17 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
       };
       copy.rig = remapRig(copy.rig, map);
     }
+    if (copy.vertexClips)
+      copy.vertexClips = copy.vertexClips.map((clip) => {
+        const targetId = remapped.get(clip.targetId);
+        if (!targetId) throw new Error("Referência de vértices não mapeada.");
+        return {
+          ...clip,
+          id: `track-${crypto.randomUUID()}`,
+          targetId,
+          keys: clip.keys.map((key) => ({ ...key, id: `key-${crypto.randomUUID()}` })),
+        };
+      });
     document.artboards.push(copy);
     return copy.id;
   }

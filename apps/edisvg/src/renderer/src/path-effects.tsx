@@ -4,48 +4,74 @@ import {
   trimSchema,
   upgradeRigVersion,
 } from "@informach/edi-motion/rig";
-import { useState } from "react";
-import { createRoot } from "react-dom/client";
-import type { Artboard } from "../../shared/project";
 import type { SceneNode } from "../../shared/sceneTypes";
 import { ScrubField } from "./inspector-field";
 
-interface Props {
-  board: Artboard;
+export interface TrimEffectsHost {
+  rig: RigDocument | undefined;
+  /** Paints the node's trims on the canvas without saving; null restores the stored ones. */
+  previewTrims(trims: RigTrim[] | null): void;
+}
+
+interface Props extends TrimEffectsHost {
   node: SceneNode;
+  /** The paint layer this row draws; undefined for the shape's own fill and stroke. */
+  layerId?: string;
   locked: boolean;
-  execute(command: { type: "rig"; operation: "replace"; value: RigDocument }): void;
-  /** Paints a trim on the canvas without saving; null restores the stored one. */
-  previewTrim(trim: RigTrim | null): void;
+  execute(commands: unknown[]): void;
+  onError(message: string): void;
 }
 
 const emptyRig = (): RigDocument => ({ version: 1, bones: [], constraints: [], targets: [] });
+
+/** The rig after removing a paint layer's trim, or null when it has none. */
+export function withoutLayerTrim(rig: RigDocument | undefined, node: SceneNode, layerId: string) {
+  const trims = rig?.trims ?? [];
+  if (!rig || !trims.some((trim) => trim.targetId === node.id && trim.layerId === layerId))
+    return null;
+  return {
+    ...rig,
+    trims: trims.filter((trim) => trim.targetId !== node.id || trim.layerId !== layerId),
+  };
+}
 
 // The stored offset is in degrees (360° = one turn around the path); the
 // inspector shows it as a percentage of the path, like start and end.
 const offsetPercent = (degrees: number) => degrees / 3.6;
 
-function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) {
-  const [error, setError] = useState("");
-  const rig = board.rig ?? emptyRig(),
-    trim = rig.trims?.find((value) => value.targetId === node.id),
+/** Path effects of one paint row. A trim without a layer cuts the shape, base
+ * fill and stroke together; a layer's trim cuts only that copy. */
+export function PathEffects({
+  rig: stored,
+  previewTrims,
+  node,
+  layerId,
+  locked,
+  execute,
+  onError,
+}: Props) {
+  const rig = stored ?? emptyRig(),
+    owned = (rig.trims ?? []).filter((value) => value.targetId === node.id),
+    trim = owned.find((value) => value.layerId === layerId),
     nativeArc = /[aA]/.test(node.attrs.d ?? "");
 
   const save = (trims: RigTrim[]) => {
     try {
-      setError("");
-      execute({
-        type: "rig",
-        operation: "replace",
-        value: {
-          ...rig,
-          version: upgradeRigVersion(rig.version, 3),
-          trims: trims.map((value) => trimSchema.parse(value)),
+      onError("");
+      execute([
+        {
+          type: "rig",
+          operation: "replace",
+          value: {
+            ...rig,
+            version: upgradeRigVersion(rig.version, 3),
+            trims: trims.map((value) => trimSchema.parse(value)),
+          },
         },
-      });
+      ]);
     } catch (reason) {
-      previewTrim(null);
-      setError(reason instanceof Error ? reason.message : "Efeito recusado.");
+      previewTrims(null);
+      onError(reason instanceof Error ? reason.message : "Efeito recusado.");
     }
   };
   const others = (rig.trims ?? []).filter((value) => value.id !== trim?.id);
@@ -53,6 +79,8 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
     if (!trim) return;
     save([...others, { ...trim, ...patch }]);
   };
+  const preview = (next: RigTrim) =>
+    previewTrims([...owned.filter((value) => value.id !== next.id), next]);
   const field = (
     label: string,
     shortLabel: string,
@@ -74,12 +102,12 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
           max={max}
           unit="%"
           disabled={locked}
-          onError={setError}
+          onError={onError}
           onCommit={(input) => {
             const value = input.valueAsNumber;
             if (!Number.isFinite(value) || value < min || value > max) {
               input.value = String(shown);
-              setError(`${shortLabel} deve estar entre ${min}% e ${max}%.`);
+              onError(`${shortLabel} deve estar entre ${min}% e ${max}%.`);
               return;
             }
             if (value !== shown) update({ [key]: toStored(value) });
@@ -87,7 +115,7 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
           preview={(value, final) => {
             const next = { ...trim, [key]: toStored(value) };
             if (final) update(next);
-            else previewTrim(next);
+            else preview(next);
           }}
         />
       </div>
@@ -95,19 +123,9 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
   };
 
   if (node.tag !== "path")
-    return (
-      <section className="artboard-inspector artboard-inspector-section path-effects">
-        <div className="artboard-inspector-title">
-          <h3>Efeitos de caminho</h3>
-        </div>
-        <p className="micro">Converta a forma em caminho (seção Caminho) para usar o trim.</p>
-      </section>
-    );
+    return <p className="micro">Converta a forma em caminho (seção Caminho) para usar o trim.</p>;
   return (
-    <section
-      className="artboard-inspector artboard-inspector-section path-effects"
-      aria-label="Efeitos de caminho"
-    >
+    <section className="path-effects" aria-label="Efeitos de caminho">
       <div className="artboard-inspector-title">
         <h3>Efeitos de caminho</h3>
         {!trim && (
@@ -126,6 +144,7 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
                 {
                   id: `trim-${crypto.randomUUID()}`,
                   targetId: node.id,
+                  ...(layerId ? { layerId } : {}),
                   start: 0,
                   end: 1,
                   offset: 0,
@@ -176,17 +195,12 @@ function PathEffectsPanel({ board, node, locked, execute, previewTrim }: Props) 
           Este caminho tem arcos SVG nativos. Converta-os em curvas Bézier antes de usar o trim.
         </p>
       )}
-      {error && (
-        <p role="alert" className="artboard-inspector-error">
-          {error}
+      {!layerId && (
+        <p className="micro">
+          Este trim recorta a forma: vale para o preenchimento e o contorno do próprio objeto. Para
+          recortar só um contorno, adicione um contorno extra e use o trim dele.
         </p>
       )}
     </section>
   );
-}
-
-export function mountPathEffectsPanel(host: Element, props: Props) {
-  const root = createRoot(host);
-  root.render(<PathEffectsPanel {...props} />);
-  return () => root.unmount();
 }

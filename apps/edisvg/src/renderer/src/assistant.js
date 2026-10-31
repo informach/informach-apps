@@ -1,3 +1,12 @@
+import { toolPermission } from "../../shared/aiTools.js";
+import {
+  IMAGE_LIMIT,
+  IMAGE_TYPES,
+  imageFiles,
+  readAttachment,
+  referenceImages,
+  revokeAttachments,
+} from "./assistantImages.ts";
 import "./fileDialog.css";
 export function setupAssistant(editor) {
   const bridge = window.desktop,
@@ -5,7 +14,7 @@ export function setupAssistant(editor) {
   const panel = document.createElement("aside");
   panel.className = "assistant-panel";
   panel.hidden = true;
-  panel.innerHTML = `<header><strong>✧ Assistente</strong><button type="button" aria-label="Fechar assistente" data-close>×</button></header><div class="assistant-settings"><label>Provedor<select aria-label="Provedor de IA"><option value="claude">Claude Code</option><option value="codex">Codex</option></select></label><label>Modelo<input aria-label="Modelo de IA" placeholder="Padrão da sua conta" maxlength="120"></label><p data-status role="status">Verificando conexão…</p><details><summary>Conectar um agente externo</summary><p>Configure a conexão autenticada apenas para esta ferramenta:</p><button type="button" data-connect="claude">Conectar Claude Code</button><button type="button" data-connect="codex">Conectar Codex</button><p>Os clientes usam seus próprios logins. A credencial local não é um token da sua assinatura.</p></details></div><div class="assistant-messages" aria-live="polite"></div><form><textarea aria-label="Mensagem ao assistente" placeholder="Ex.: deixe o mascote menor e selecione Pular" rows="3" maxlength="8000" required></textarea><div><button type="button" data-reset>Nova conversa</button><button type="button" data-stop disabled>Parar</button><button class="primary" type="submit">Enviar</button></div></form>`;
+  panel.innerHTML = `<header><strong>✧ Assistente</strong><button type="button" aria-label="Fechar assistente" data-close>×</button></header><div class="assistant-settings"><label>Provedor<select aria-label="Provedor de IA"><option value="claude">Claude Code</option><option value="codex">Codex</option></select></label><label>Modelo<input aria-label="Modelo de IA" placeholder="Padrão da sua conta" maxlength="120"></label><p data-status role="status">Verificando conexão…</p><details><summary>Conectar um agente externo</summary><p>Configure a conexão autenticada apenas para esta ferramenta:</p><button type="button" data-connect="claude">Conectar Claude Code</button><button type="button" data-connect="codex">Conectar Codex</button><p>Os clientes usam seus próprios logins. A credencial local não é um token da sua assinatura.</p></details></div><div class="assistant-messages" aria-live="polite"></div><form><div class="assistant-attachments" data-attachments hidden></div><textarea aria-label="Mensagem ao assistente" placeholder="Ex.: deixe o mascote menor e selecione Pular. Cole ou arraste imagens de referência." rows="3" maxlength="8000"></textarea><input type="file" accept="${IMAGE_TYPES.join(",")}" multiple hidden data-file><div><button type="button" data-reset>Nova conversa</button><button type="button" data-attach title="Anexar imagem de referência (também dá para colar ou arrastar)">Imagem</button><button type="button" data-stop disabled>Parar</button><button class="primary" type="submit">Enviar</button></div></form>`;
   document.body.append(panel);
   const find = (s) => panel.querySelector(s),
     messages = find(".assistant-messages"),
@@ -28,15 +37,91 @@ export function setupAssistant(editor) {
   }
   let busy = false,
     response = null,
-    currentText = "";
+    currentText = "",
+    activity = null,
+    edits = 0;
+  /** The one line of a reply that says what the assistant is doing, in words. */
+  function showActivity(text) {
+    if (!activity) {
+      activity = document.createElement("div");
+      activity.className = "chat-activity";
+      messages.append(activity);
+    }
+    activity.classList.add("is-working");
+    activity.textContent = `${text}…`;
+  }
+  /** At the end of a reply the line says how many edits were applied, or goes away. */
+  function endActivity() {
+    if (activity && edits) {
+      activity.classList.remove("is-working");
+      activity.textContent =
+        edits === 1
+          ? "1 alteração aplicada ao projeto · Ctrl+Z desfaz"
+          : `${edits} alterações aplicadas ao projeto · Ctrl+Z desfaz`;
+    } else activity?.remove();
+    activity = null;
+    edits = 0;
+  }
+  /** Images attached to the message being written. */
+  let pending = [];
   try {
     provider.value = localStorage.getItem("edisvg-ai-provider") || "claude";
     model.value = localStorage.getItem("edisvg-ai-model") || "";
   } catch {}
-  function message(text, role) {
+  function thumbnails(images, remove) {
+    return images.map((image, index) => {
+      const item = document.createElement("figure"),
+        img = document.createElement("img");
+      img.src = image.url;
+      img.alt = `Imagem de referência: ${image.name}`;
+      item.append(img);
+      if (remove) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "attachment-remove";
+        button.textContent = "×";
+        button.setAttribute("aria-label", `Remover ${image.name}`);
+        button.onclick = () => remove(index);
+        item.append(button);
+      }
+      return item;
+    });
+  }
+  function renderPending() {
+    const list = find("[data-attachments]");
+    list.hidden = !pending.length;
+    list.replaceChildren(
+      ...thumbnails(pending, (index) => {
+        revokeAttachments(pending.splice(index, 1));
+        renderPending();
+        find("textarea").focus();
+      }),
+    );
+  }
+  async function attach(files) {
+    for (const file of files) {
+      if (pending.length >= IMAGE_LIMIT) {
+        editor.notify(`Anexe no máximo ${IMAGE_LIMIT} imagens por mensagem.`);
+        break;
+      }
+      try {
+        pending.push(await readAttachment(file));
+      } catch (error) {
+        editor.notify(error.message);
+      }
+    }
+    renderPending();
+  }
+  function message(text, role, images = []) {
     const el = document.createElement("div");
     el.className = `chat-message ${role}`;
     el.textContent = text;
+    if (images.length) {
+      const list = document.createElement("div");
+      list.className = "chat-images";
+      list.append(...thumbnails(images));
+      el.prepend(list);
+    }
     messages.append(el);
     messages.scrollTop = messages.scrollHeight;
     return el;
@@ -46,6 +131,7 @@ export function setupAssistant(editor) {
     find("[type=submit]").disabled = value || !bridge;
     find("[data-stop]").disabled = !value;
     find("[data-reset]").disabled = value;
+    find("[data-attach]").disabled = value || !bridge;
     provider.disabled = value;
     model.disabled = value;
   }
@@ -80,36 +166,95 @@ export function setupAssistant(editor) {
     panel.hidden = true;
   };
   find("[data-stop]").onclick = () => bridge?.aiStop();
-  find("[data-reset]").onclick = () => {
+  const fileInput = find("[data-file]");
+  find("[data-attach]").onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    void attach([...fileInput.files]);
+    fileInput.value = "";
+  };
+  find("textarea").addEventListener("paste", (event) => {
+    const files = imageFiles(event.clipboardData);
+    if (!files.length || busy || !bridge) return;
+    event.preventDefault();
+    void attach(files);
+  });
+  panel.addEventListener("dragover", (event) => {
+    if (![...(event.dataTransfer?.types ?? [])].includes("Files")) return;
+    event.preventDefault();
+    panel.classList.add("is-dropping");
+  });
+  panel.addEventListener("dragleave", (event) => {
+    if (!panel.contains(event.relatedTarget)) panel.classList.remove("is-dropping");
+  });
+  panel.addEventListener("drop", (event) => {
+    panel.classList.remove("is-dropping");
+    const files = imageFiles(event.dataTransfer);
+    if (!files.length) return;
+    event.preventDefault();
+    if (busy || !bridge) return;
+    void attach(files);
+  });
+  /** Forgets the conversation and frees its thumbnails. */
+  function clearHistory() {
+    revokeAttachments(history.flatMap((entry) => entry.images ?? []));
     history.length = 0;
+  }
+  find("[data-reset]").onclick = () => {
+    clearHistory();
     messages.replaceChildren();
     message("Nova conversa. O projeto atual foi mantido.", "system");
   };
   find("form").onsubmit = async (event) => {
     event.preventDefault();
     if (busy || !bridge) return;
-    const text = find("textarea").value.trim();
-    if (!text) return;
-    history.push({ role: "user", text });
-    message(text, "user");
+    const images = pending,
+      text =
+        find("textarea").value.trim() ||
+        (images.length ? "Use a imagem anexada como referência." : "");
+    if (!text) {
+      find("textarea").focus();
+      return;
+    }
+    history.push({ role: "user", text, images });
+    message(text, "user", images);
+    pending = [];
+    renderPending();
     find("textarea").value = "";
     response = message("", "assistant");
+    response.hidden = true;
     currentText = "";
+    showActivity("Pensando");
     setBusy(true);
     try {
       localStorage.setItem("edisvg-ai-provider", provider.value);
       localStorage.setItem("edisvg-ai-model", model.value);
     } catch {}
-    const prompt = history
-      .slice(-8)
-      .map((m) => `${m.role === "user" ? "Usuário" : "Assistente"}: ${m.text}`)
-      .join("\n\n")
-      .slice(-30000);
+    const recent = history.slice(-8),
+      attached = (count) =>
+        count === 1
+          ? "[1 imagem de referência anexada] "
+          : count
+            ? `[${count} imagens de referência anexadas] `
+            : "",
+      prompt = recent
+        .map(
+          (m) =>
+            `${m.role === "user" ? "Usuário" : "Assistente"}: ${attached(m.images?.length ?? 0)}${m.text}`,
+        )
+        .join("\n\n")
+        .slice(-30000);
     try {
-      await bridge.aiSend({ provider: provider.value, model: model.value.trim(), prompt });
+      await bridge.aiSend({
+        provider: provider.value,
+        model: model.value.trim(),
+        prompt,
+        images: referenceImages(recent),
+      });
     } catch (error) {
       response.textContent = error.message;
       response.classList.add("error");
+      response.hidden = false;
+      endActivity();
       setBusy(false);
     }
   };
@@ -117,16 +262,28 @@ export function setupAssistant(editor) {
     bridge.onAssistantEvent((event) => {
       if (event.type === "text") {
         currentText += event.text;
-        if (response) response.textContent = currentText;
+        if (response) {
+          response.textContent = currentText;
+          response.hidden = false;
+          // The reply itself shows it is moving; the line comes back with the next tool.
+          if (activity) activity.hidden = true;
+        }
       }
-      if (event.type === "tool") message(`Ferramenta: ${event.text}`, "system");
+      if (event.type === "tool") {
+        showActivity(event.text);
+        activity.hidden = false;
+        messages.append(activity);
+      }
       if (event.type === "error") message(event.text, "error");
       if (event.type === "done") {
         if (currentText) history.push({ role: "assistant", text: currentText });
-        if (response && !response.textContent)
+        if (response && !response.textContent && !(edits && !event.stopped))
           response.textContent = event.stopped
             ? "Resposta interrompida."
             : "Solicitação concluída.";
+        if (response) response.hidden = !response.textContent;
+        if (activity) activity.hidden = false;
+        endActivity();
         setBusy(false);
       }
       messages.scrollTop = messages.scrollHeight;
@@ -135,13 +292,14 @@ export function setupAssistant(editor) {
       if (name === "get_overview") return { ok: true, text: JSON.stringify(editor.overview()) };
       if (name === "undo" || name === "redo") {
         const changed = editor[name]();
+        if (changed) edits++;
         return {
           ok: changed,
           text: changed ? "Histórico atualizado." : "Não há edição disponível no histórico.",
         };
       }
       const result = await editor.execute(name, input);
-      if (!name.startsWith("get_")) message(`Aplicado: ${name}`, "system");
+      if (toolPermission(name) === "write") edits++;
       return { ok: true, text: JSON.stringify(result ?? editor.overview()) };
     });
     bridge.onCommand((command) => {
@@ -161,7 +319,7 @@ export function setupAssistant(editor) {
     try {
       const value = await bridge.projectNew();
       if (value) {
-        history.length = 0;
+        clearHistory();
         messages.replaceChildren();
         editor.restore(value.project);
         editor.fileStatus(value.status);
@@ -179,7 +337,7 @@ export function setupAssistant(editor) {
     try {
       const value = await bridge.projectOpen();
       if (value) {
-        history.length = 0;
+        clearHistory();
         messages.replaceChildren();
         editor.restore(value.project);
         editor.fileStatus(value.status);

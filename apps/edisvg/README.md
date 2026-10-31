@@ -297,9 +297,55 @@ Os campos do inspetor (prancheta e transformação do objeto) mostram e gravam n
 
 ## Pintura e efeitos de caminho no padrão do Rive (29/10/2026)
 
-As linhas de **Preenchimentos e contornos** seguem o Rive: amostra (abre o seletor de cor), hexadecimal editável, opacidade em % com arraste no rótulo, olho para ocultar e − para remover. Pinturas ausentes não ocupam linha; o **+** do cabeçalho adiciona a que falta, ou oferece as duas. A espessura do contorno fica abaixo das linhas, em px. Ocultar grava opacidade 0: a cor e o gradiente continuam no projeto e mostrar de novo devolve a opacidade anterior na mesma sessão (depois disso, 100%). O formato do projeto não mudou: cada objeto continua com um preenchimento e um contorno. Várias camadas de pintura exigem projeto v25/blueprint v14 e serão propostas à parte.
+As linhas de **Preenchimentos e contornos** seguem o Rive: amostra (abre o seletor de cor), hexadecimal editável, opacidade em % com arraste no rótulo, olho para ocultar e − para remover. Pinturas ausentes não ocupam linha; o **+** do cabeçalho adiciona a que falta, ou oferece as duas. A espessura do contorno fica abaixo das linhas, em px. Ocultar grava opacidade 0: a cor e o gradiente continuam no projeto e mostrar de novo devolve a opacidade anterior na mesma sessão (depois disso, 100%). O formato do projeto não mudou nesse primeiro passo.
 
-**Efeitos de caminho**, abaixo da pintura, adiciona o trim de um caminho com **+** e o remove com ×. Modo (Sequencial = comprimento total do caminho; Simultâneo = cada contorno), Início, Fim e Deslocamento usam %. O deslocamento é gravado em graus, como antes (100% = 360°). São os mesmos dados do recorte animável do Rig (`rig.trims`), então animação em Parâmetros, exportadores e players continuam iguais, e Rig › Restrições segue com a tolerância. O modo Design passa a mostrar o trim no canvas, sem alterar o `d` gravado; durante a edição de vértices o caminho aparece inteiro. Formas (retângulo, círculo etc.) precisam ser convertidas em caminho antes; caminhos com arcos SVG nativos pedem a conversão Bézier, como no Rig.
+Formas e caminhos aceitam **camadas extras** de preenchimento e contorno (projeto v25, blueprint v14). Com a pintura base já presente, o **+** acrescenta uma camada daquele tipo; sem ela, cria primeiro a base. As linhas aparecem na ordem do desenho: as camadas extras por cima (a última adicionada no topo), depois o contorno e o preenchimento do próprio objeto. Cada camada extra tem cor sólida, opacidade, olho (visibilidade própria, sem mexer na opacidade) e −; as de contorno têm espessura. São até 16 por objeto. No documento, a camada é `paintLayers` no objeto e aceita também gradiente ou padrão tipado (pelo assistente; o painel edita cor sólida, e escolher uma cor troca o gradiente da camada por ela).
+
+Cada camada visível é desenhada como uma cópia da geometria logo depois da forma, no mesmo grupo do objeto. Assim ela acompanha transformações, deformações do rig, layout, recortes e máscaras, e todos os pontos que reescrevem o caminho (player, runtime de clips, layout, prévias do editor, edição de vértices, papel vegetal, SVG animado) atualizam as cópias junto. Canvas, Testar, HTML interativo, React, imagens/vídeo e SVG (estático e animado) desenham as camadas. Limites: as camadas não são animáveis nem ligáveis a dados (cores animadas ou ligadas continuam no preenchimento/contorno base); não se reordenam no painel; não combinam com filtro nem com fonte de máscara pintada (recusados com aviso); texto e grupos não as aceitam; a Lottie recusa camadas visíveis sem descartá-las; estilos de aparência não as guardam. [Review das camadas de pintura](../../docs/reviews/edisvg-2026-10-17/review-camadas-de-pintura.md).
+
+**Opções e efeitos por linha.** Como no Rive, o ícone de ajustes à esquerda de cada linha abre **Opções** e **Efeitos** (efeitos de caminho). Em Opções ficam o nome da camada (as camadas extras aceitam nome, `paintLayers[].name`; a pintura do próprio objeto aparece como "Contorno do objeto"/"Preenchimento do objeto") e, nos contornos, ponta (reta, arredondada, quadrada) e junção (em ponta, arredondada, chanfrada) em botões com ícone. Mistura (blend), "aplicar transformação" e feather do Rive ainda não existem: precisam de suporte nos players e exportadores. Em Efeitos, **+** adiciona o trim e × o remove. Modo (Sequencial = comprimento total do caminho; Simultâneo = cada contorno), Início, Fim e Deslocamento usam %. O deslocamento é gravado em graus, como antes (100% = 360°). O ícone fica verde quando a linha tem trim.
+
+O trim vale **por linha**: o trim de uma camada extra recorta só aquela cópia (`rig.trims[].layerId`, projeto v25/blueprint v14), e as linhas sem trim próprio continuam com o caminho inteiro. Assim um único caminho com três contornos, cada um com seu trim, desenha mão, braço e ombro. O preenchimento e o contorno do próprio objeto são o mesmo elemento SVG e dividem um único trim, que recorta a forma inteira; para recortar só um contorno, use um contorno extra. Remover uma camada remove o trim dela na mesma ação (desfazer traz os dois de volta). São os mesmos dados do recorte animável do Rig, então start/end/offset de cada trim são canais de Parâmetros; Rig › Restrições edita o trim da forma, com a tolerância. O modo Design mostra os trims no canvas, sem alterar o `d` gravado; durante a edição de vértices o caminho aparece inteiro. Formas (retângulo, círculo etc.) precisam ser convertidas em caminho antes; caminhos com arcos SVG nativos pedem a conversão Bézier, como no Rig. HTML, React, Testar e SVG animado desenham cada cópia no próprio caminho, e o SVG animado amostra um `d` por cópia; a Lottie já recusa camadas visíveis.
+
+## Animação de vértices (29/10/2026)
+
+Como no Rive, os vértices de um caminho podem ser animados. No **Animar**, com uma animação aberta, **Editar vértices** (ou Enter) continua no Animar: arrastar pontos e alças, ou movê-los com as setas, grava uma **chave de vértices** no quadro atual da animação. Uma chave no mesmo quadro é substituída. Entre duas chaves o caminho se move de forma linear, com a curva da chave anterior; antes da primeira e depois da última ele fica parado. O caminho do Design não muda, e o Design continua mostrando o desenho original.
+
+Na timeline, cada caminho animado ganha a linha **"Nome · Vértices"**. As chaves dessa linha se movem, copiam e excluem como as outras, e o diálogo de chave edita quadro e curva. Para mudar o caminho de uma chave, vá ao quadro dela e edite os vértices.
+
+No Animar só se movem pontos e alças. Acrescentar ou excluir pontos, abrir ou fechar o contorno e trocar o tipo de vértice são edições do Design. Enquanto o caminho tiver chaves de vértices, o Design também recusa essas mudanças de topologia, porque as chaves deixariam de corresponder ao caminho. Caminhos já deformados por ossos ou morphs não recebem chaves de vértices: anime-os por eles.
+
+No projeto (v25), as chaves ficam em `artboards[].vertexClips` (uma lista por caminho e animação, com o caminho inteiro em cada chave). Excluir o caminho ou a animação leva as chaves junto; duplicar copia. Ao compilar, cada chave vira um morph do rig com um canal de peso que vale 1 no quadro dela e 0 nas vizinhas, então HTML, React, Testar, vídeo, SVG animado, Lottie e as transições da máquina de estados tocam a animação de vértices sem mudança de formato no runtime. Limites: as chaves contam no limite de 256 morphs por prancheta; curvas que passam de 0–1 (elástico, Bézier com overshoot) são limitadas a 0–1 entre as duas chaves.
+
+## Réguas e guias (30/10/2026)
+
+O canvas tem réguas no topo e à esquerda, nas unidades da prancheta. Elas acompanham o zoom e o pan, e o passo das marcas (1, 2 ou 5 × 10ⁿ) se ajusta para os números não se sobreporem. **Réguas** e **Guias**, na barra do canvas, ou Shift+R e Shift+G, mostram e ocultam cada uma. A preferência fica no editor, não no arquivo.
+
+Arrastar a partir da régua de cima cria uma guia horizontal; da régua da esquerda, uma vertical. A guia mostra a posição enquanto é arrastada e fica em unidades inteiras. Arrastar uma guia a move. Soltá-la de volta sobre a régua, ou fora do palco, a remove. Com a guia focada (Tab), as setas a movem 1 unidade (Shift: 10) e Delete a remove. **Remover guias da prancheta** (paleta de comandos, grupo Exibir) apaga todas. Cada mudança é uma entrada do histórico.
+
+Ao mover objetos, a caixa da seleção encaixa nas guias pela borda ou pelo centro, a até 6 pixels de tela. A guia em que encaixou fica destacada. O encaixe nas guias vale depois da grade, e só no eixo que está se movendo. Guias ocultas não encaixam.
+
+As guias ficam no projeto, por prancheta, em `artboards[].guides` (projeto v25, até 200). Elas só servem ao editor: HTML, React, SVG, Lottie, vídeo e imagens não as desenham. Duplicar a prancheta copia as guias.
+
+## Prancheta ao abrir um projeto (30/10/2026)
+
+Um projeto abre na prancheta padrão. Se ela estiver vazia e outra prancheta tiver objetos, o editor abre na primeira prancheta com objetos, para o arquivo não aparecer em branco. A prancheta padrão salva no projeto não muda. Isso acontecia em projetos cujo desenho foi importado numa prancheta nova enquanto a "Prancheta 1" ficou vazia.
+
+## Excluir um caminho com trim (30/10/2026)
+
+O trim é um efeito da linha de pintura, como no Rive. Ao excluir um caminho (ou o grupo que o contém), seus trims e as chaves animadas deles saem junto, na mesma ação desfazível. Antes, a exclusão falhava com "Trim requer ID único e um caminho local por controlador.". Um binding de lógica ligado ao trim continua sendo uma dependência explícita: o editor pede para removê-lo antes de excluir.
+
+## Imagens de referência no assistente (30/10/2026)
+
+O painel ✧ Assistente aceita até 4 imagens por mensagem: botão **Imagem**, Ctrl+V no campo de mensagem ou arrastar para o painel. São aceitos PNG, JPEG, GIF e WebP. Uma imagem com lado maior que 1568 px é reduzida antes do envio, porque os modelos não olham além disso; acima de 3,5 MB vira JPEG. As miniaturas aparecem antes do envio (com × para remover) e na conversa. Dá para mandar só a imagem: o pedido padrão é "Use a imagem anexada como referência.".
+
+A imagem é só referência visual: o assistente recria formas, cores e proporções com as ferramentas de edição, e ela não entra no projeto. As perguntas seguintes da conversa continuam levando as imagens mais recentes (até 4, nas últimas 8 mensagens). Assim, "deixe mais parecido" ainda tem a referência. **Nova conversa**, **Novo projeto** e **Abrir** esquecem as imagens.
+
+O processo principal confere tipo, tamanho e quantidade de novo (`panelImages` em `src/main/engines.js`). O Claude Code recebe as imagens pela entrada padrão em `stream-json`. O Codex recebe arquivos temporários, apagados ao fim da resposta. Os dois caminhos foram conferidos com os clientes instalados (Claude Code 2.1.314 e Codex 0.164.0), que identificaram a cor de uma imagem de teste.
+
+## Atividade do assistente em palavras (31/10/2026)
+
+O painel não lista mais "Ferramenta: get_overview" e "Aplicado: edit_document" a cada chamada. Cada resposta tem uma única linha de atividade em português, com um ponto pulsando: "Pensando…", depois "Lendo o projeto…", "Editando o desenho…", e assim por diante. A linha some enquanto o texto da resposta chega e volta na próxima ferramenta. No fim, se a resposta alterou o projeto, a linha fica como resumo: "3 alterações aplicadas ao projeto · Ctrl+Z desfaz". Uma resposta que só leu o projeto não deixa linha. Os textos ficam em `toolActivity` (`src/shared/aiTools.js`); uma ferramenta nova sem texto próprio aparece como "Consultando o projeto" ou "Trabalhando no projeto", e um teste exige texto próprio para cada ferramenta do editor.
 
 ## Ferramentas de objetos (0.4.0)
 
@@ -330,7 +376,7 @@ Referência de interação: [Rive — Edit Vertices](https://rive.app/docs/edito
 
 Em um projeto novo ou SVG importado, use **V** para selecionar e arrastar, **R** para retângulo, **O** para círculo, **L** para linha e **T** para inserir texto com um clique. Edite o texto no painel direito. **Shift** mantém proporções iguais ao desenhar; **Esc** cancela o gesto. Cada desenho ou arraste pode ser desfeito com **Ctrl+Z**. Camadas bloqueadas não podem ser movidas.
 
-Use **H** para mover a área de trabalho e **Z** para ampliar (Alt + clique reduz). O botão Centralizar restaura a posição e o zoom. Pan e zoom não alteram a arte exportada.
+Use **H** para mover a área de trabalho e **Z** para ampliar (Alt + clique reduz). **Ctrl + roda do mouse** (ou pinça no touchpad) amplia e reduz em torno do ponteiro, de 10% a 800%; o seletor de zoom mostra o valor livre. O botão Centralizar restaura a posição e o zoom. Pan e zoom não alteram a arte exportada.
 
 Na versão 0.4.2, a barra segue o nó `m5eAtQ` do `edisvg.pen`: nove ícones vetoriais extraídos da referência, grupos separados, largura de 56 px, botões de 38 px e ícones de 18 px. **P** ativa a Caneta: clique para segmentos retos, arraste ao criar um ponto para curvas Bézier, pressione Enter para concluir ou clique no primeiro ponto para fechar (mínimo de três pontos). Backspace remove o último ponto; Esc cancela. Caminhos em construção não entram no projeto nem no histórico antes da confirmação.
 

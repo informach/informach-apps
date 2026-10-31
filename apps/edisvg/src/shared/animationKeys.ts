@@ -11,6 +11,7 @@ import { animationKeyReferenceSchema, animationKeySelectionId } from "./animatio
 import type { Artboard, Project } from "./project";
 import { applyRig } from "./rig";
 import { flattenScene } from "./scene.js";
+import type { VertexClip, VertexKey } from "./vertexKeys";
 
 const fields = {
   animationId: animationSchema.shape.id,
@@ -55,7 +56,8 @@ export function applyAnimationKeys(project: Project, command: AnimationKeysComma
     rigTracks = new Map<Artboard, Map<string, RigTrack>>(),
     keys = new WeakMap<NumericTrack, ReadonlySet<string>>(),
     motion = new Map<string, Selection<Track>>(),
-    rigs = new Map<Artboard, { source: RigDocument; tracks: Map<string, Selection<RigTrack>> }>();
+    rigs = new Map<Artboard, { source: RigDocument; tracks: Map<string, Selection<RigTrack>> }>(),
+    vertex = new Map<VertexClip, { board: Artboard; ids: Set<string> }>();
   // Index only referenced channels, once. A dense multi-key selection must not
   // scan the same channel's full key array for every selected key.
   function contains(track: NumericTrack | undefined, id: string) {
@@ -71,7 +73,20 @@ export function applyAnimationKeys(project: Project, command: AnimationKeysComma
     const identity = animationKeySelectionId(reference);
     if (identities.has(identity)) throw new Error("Seleção contém referências de chave repetidas.");
     identities.add(identity);
-    if (reference.kind === "motion") {
+    if (reference.kind === "vertex") {
+      const board = boards.get(reference.artboardId),
+        clip = board?.vertexClips?.find(
+          (clip) => clip.id === reference.trackId && clip.animationId === animation.id,
+        );
+      if (!board || !clip?.keys.some((key) => key.id === reference.keyId))
+        throw new Error("Referência de chave de vértices inexistente.");
+      let selection = vertex.get(clip);
+      if (!selection) {
+        selection = { board, ids: new Set() };
+        vertex.set(clip, selection);
+      }
+      selection.ids.add(reference.keyId);
+    } else if (reference.kind === "motion") {
       const track = motionTracks.get(reference.trackId);
       if (!track || !contains(track, reference.keyId))
         throw new Error("Referência de chave motion inexistente.");
@@ -109,7 +124,10 @@ export function applyAnimationKeys(project: Project, command: AnimationKeysComma
       selection.ids.add(reference.keyId);
     }
   }
-  const touched = new Set([...motion.values()].map(({ track }) => track.targetId));
+  const touched = new Set([
+    ...[...motion.values()].map(({ track }) => track.targetId),
+    ...[...vertex.keys()].map((clip) => clip.targetId),
+  ]);
   if (
     project.artboards.some((board) =>
       flattenScene(board.scene).some(({ node, locked }) => locked && touched.has(node.id)),
@@ -159,6 +177,19 @@ export function applyAnimationKeys(project: Project, command: AnimationKeysComma
     );
   }
   for (const { track, ids } of motion.values()) track.keys = edit(track.keys, ids);
+  // Vertex keys move, copy and change easing like the others; a whole path
+  // stands in for the value, which they never take.
+  for (const [clip, { board, ids }] of vertex) {
+    const edited = edit(
+      clip.keys.map((key) => ({ ...key, value: 0 })),
+      ids,
+    ) as (VertexKey & { value: number })[];
+    clip.keys = edited.map(({ value: _value, ...key }) => key);
+    if (!clip.keys.length) {
+      board.vertexClips = board.vertexClips?.filter((value) => value !== clip);
+      if (!board.vertexClips?.length) delete board.vertexClips;
+    }
+  }
   animation.tracks = animation.tracks.filter((track) => track.keys.length > 0);
   for (const [board, plan] of rigs) {
     const next = structuredClone(plan.source),

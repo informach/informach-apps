@@ -30,6 +30,14 @@ import { filterAttributes } from "./graphics/filters";
 import { validateSvgGradients } from "./graphics/gradientDom";
 import { gradientAttributes } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
+import {
+  drawnPaintLayers,
+  PAINT_LAYER_ATTRIBUTE,
+  paintLayerAttributes,
+  paintLayerCopies,
+  paintLayerPaths,
+  writeShapePath,
+} from "./graphics/paintLayers";
 import { createVectorEffectBinding } from "./graphics/vectorEffectDom";
 import { evaluateVectorEffects, playbackVectorEffectContext } from "./graphics/vectorEffects";
 import { type InteractiveDocument, parseInteractiveDocument } from "./interactiveDocument";
@@ -205,6 +213,9 @@ function createInteractiveScope(
         throw new Error("Geometria transitória excede orçamento de avaliação.");
       vertices += geometryCost(evaluated.geometry.get(object.id) ?? object.geometry ?? []);
     }
+    // Paint layer paths (`objectId#layerId`) are drawn too.
+    for (const [key, geometry] of evaluated.geometry)
+      if (key.includes("#")) vertices += geometryCost(geometry);
     return {
       ...raw,
       poses: evaluated.poses,
@@ -232,6 +243,8 @@ function createInteractiveScope(
       baseFill: string | null;
       baseStroke: string | null;
       baseD: string | null | undefined;
+      /** Drawn paint layer copies, in markup order. */
+      layerIds: string[];
       x: string;
       lineHeight?: number;
       autoDirection: boolean;
@@ -303,6 +316,19 @@ function createInteractiveScope(
         throw new Error("Pintura SVG não corresponde ao gradiente tipado.");
     if (shape.getAttribute("filter") !== (filterAttributes(details.filter).filter ?? null))
       throw new Error("SVG não corresponde ao filtro tipado.");
+    const copies = paintLayerCopies(shape),
+      layers = drawnPaintLayers(details.paintLayers);
+    if (
+      copies.length !== layers.length ||
+      layers.some(
+        (layer, index) =>
+          copies[index]?.getAttribute(PAINT_LAYER_ATTRIBUTE) !== layer.id ||
+          Object.entries(paintLayerAttributes(layer)).some(
+            ([name, value]) => copies[index]?.getAttribute(name) !== value,
+          ),
+      )
+    )
+      throw new Error("SVG não corresponde às camadas de pintura tipadas.");
     if (
       details.tag === "image" &&
       (shape.getAttribute("data-edi-image") !== details.assetId ||
@@ -339,6 +365,7 @@ function createInteractiveScope(
       baseFill: shape.getAttribute("fill"),
       baseStroke: shape.getAttribute("stroke"),
       baseD: shape.localName === "path" ? shape.getAttribute("d") : undefined,
+      layerIds: layers.map((layer) => layer.id),
       x: shape.getAttribute("x") ?? "0",
       lineHeight: details.lineHeight,
       autoDirection: details.textDirection === "auto",
@@ -543,7 +570,10 @@ function createInteractiveScope(
         mesh = meshes.get(id),
         spoken = shown.semantics.get(id),
         // A meshed image takes its deformed vertices; only paths take a d.
-        d = mesh ? undefined : geometry ? geometryPath(geometry) : target.baseD;
+        d = mesh ? undefined : geometry ? geometryPath(geometry) : target.baseD,
+        // A paint layer with its own trim has its own path.
+        layerPath = paintLayerPaths(shown.geometry, id),
+        layerDs = d === undefined ? [] : target.layerIds.map(layerPath);
       const stamp = JSON.stringify([
         value,
         opacity,
@@ -551,6 +581,7 @@ function createInteractiveScope(
         text,
         color,
         d,
+        layerDs,
         mesh ? geometry && geometryPath(geometry) : undefined,
         spoken,
       ]);
@@ -575,8 +606,7 @@ function createInteractiveScope(
       else target.wrapper.setAttribute("display", target.baseDisplay);
       if (d !== undefined) {
         if (target.shape.localName !== "path") throw new Error("Deformação requer caminho SVG.");
-        if (d === null) target.shape.removeAttribute("d");
-        else target.shape.setAttribute("d", d);
+        writeShapePath(target.shape, d, layerPath);
       }
       if (text !== undefined) {
         svgLayout?.invalidateGeometry();

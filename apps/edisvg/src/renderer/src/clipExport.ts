@@ -4,6 +4,7 @@ import {
   type Transform,
 } from "@informach/edi-motion";
 import { geometryPath } from "@informach/edi-motion/geometry";
+import { drawnPaintLayers, paintLayerGeometryKey } from "@informach/edi-motion/graphics";
 import { rigOwners } from "@informach/edi-motion/rig";
 import { compileArtboard } from "../../shared/components";
 import { requiresInteractiveExport } from "../../shared/interactiveCapabilities";
@@ -19,6 +20,24 @@ interface Options {
   offscreen: boolean;
   artboardId?: string | null;
   confirmAnimationOnly?: boolean;
+}
+/** Rewrites the opening tags of an object's shape (`null`) and of the paint
+ * layer copies right after it, in serialized SVG. */
+function editObjectPaths(
+  svg: string,
+  id: string,
+  edit: (open: string, layerId: string | null) => string,
+) {
+  return svg.replace(
+    new RegExp(
+      `(<g data-edi-object="${id}"[^>]*>)(<path[^>]*>)(</path>)((?:<path [^>]*data-edi-paint-layer="[^"]*"[^>]*></path>)*)`,
+    ),
+    (_, group: string, path: string, close: string, layers: string) =>
+      `${group}${edit(path, null)}${close}${layers.replace(
+        /<path [^>]*data-edi-paint-layer="([^"]*)"[^>]*>/g,
+        (open, layer: string) => edit(open, layer),
+      )}`,
+  );
 }
 export function buildClipExport(
   project: Project,
@@ -96,14 +115,26 @@ export function buildClipExport(
         ),
       ),
       visibilitySamples = new Map<string, string[]>(),
-      visible = new Map(flattenScene(scene).map(({ node }) => [node.id, node.visible]));
+      visible = new Map(flattenScene(scene).map(({ node }) => [node.id, node.visible])),
+      layered = new Set(
+        flattenScene(scene).flatMap(({ node }) =>
+          drawnPaintLayers(node.paintLayers).length ? [node.id] : [],
+        ),
+      );
     for (const scope of data.rigScopes ?? []) {
       for (const id of rigOwners(scope.rig)) targets.add(id);
       for (const morph of scope.rig.morphs ?? []) geometrySamples.set(morph.targetId, []);
       for (const skin of scope.rig.skins ?? []) geometrySamples.set(skin.targetId, []);
+      // A layer's trim samples that copy alone; a trim on the shape leaves the copies
+      // without their own trim on the untrimmed path.
       for (const trim of scope.rig.trims ?? []) {
-        geometrySamples.set(trim.targetId, []);
-        discreteGeometry.add(trim.targetId);
+        const key = trim.layerId
+          ? paintLayerGeometryKey(trim.targetId, trim.layerId)
+          : trim.targetId;
+        geometrySamples.set(key, []);
+        discreteGeometry.add(key);
+        if (!trim.layerId && layered.has(trim.targetId))
+          geometrySamples.set(paintLayerGeometryKey(trim.targetId), []);
       }
       for (const solo of scope.rig.solos ?? [])
         for (const id of solo.children) {
@@ -112,12 +143,13 @@ export function buildClipExport(
         }
     }
     const steps = clip.frames * (clip.mode === "ping-pong" ? 2 : 1);
-    const geometryCost = objects
-      .filter((object) => geometrySamples.has(object.id))
+    const sampled = new Map(objects.map((object) => [object.id, object]));
+    const geometryCost = [...geometrySamples.keys()]
+      .map((key) => sampled.get(key.split("#")[0] ?? key))
       .reduce(
         (sum, object) =>
           sum +
-          (object.geometry ?? []).reduce(
+          (object?.geometry ?? []).reduce(
             (sum, contour) =>
               sum +
               contour.points.reduce(
@@ -142,9 +174,15 @@ export function buildClipExport(
       const evaluated = evaluatePlaybackFrame(playbackContext, clip, frame),
         pose = evaluated.poses;
       for (const [id, values] of geometrySamples) {
-        const geometry =
-          evaluated.geometry.get(id) ??
-          (discreteGeometry.has(id) ? baseGeometry.get(id) : undefined);
+        // A full trim rewrites nothing: its path is the one it follows that frame.
+        const owner = id.split("#")[0] ?? id,
+          geometry =
+            evaluated.geometry.get(id) ??
+            (id === owner
+              ? undefined
+              : (evaluated.geometry.get(paintLayerGeometryKey(owner)) ??
+                evaluated.geometry.get(owner))) ??
+            (discreteGeometry.has(id) || id !== owner ? baseGeometry.get(owner) : undefined);
         if (!geometry) throw new Error("Geometria amostrada ausente.");
         // An emptied path keeps a valid, invisible command so the value list stays parseable.
         values.push(geometryPath(geometry) || "M0 0");
@@ -162,18 +200,29 @@ export function buildClipExport(
     }
     for (const [id, poses] of samples) {
       const timing = `dur="${steps / clip.fps}s" repeatCount="${clip.mode === "once" ? "1" : "indefinite"}" fill="freeze" calcMode="linear"`;
-      const geometry = geometrySamples.get(id),
-        visibility = visibilitySamples.get(id),
-        // keyTimes pin each discrete value to its frame instead of SMIL's equal intervals.
-        geometryTiming = discreteGeometry.has(id)
-          ? `${timing.replace('calcMode="linear"', 'calcMode="discrete"')} keyTimes="${Array.from({ length: steps + 1 }, (_, step) => step / steps).join(";")}"`
-          : timing;
-      if (geometry)
-        svg = svg.replace(
-          new RegExp(`(<g data-edi-object="${id}"[^>]*>)(<path[^>]*>)`),
-          (_, group, path) =>
-            `${group}${path}<animate attributeName="d" ${geometryTiming} values="${geometry.join(";")}"/>`,
-        );
+      const visibility = visibilitySamples.get(id),
+        pathAnimation = (key: string) => {
+          const values = geometrySamples.get(key);
+          // keyTimes pin each discrete value to its frame instead of SMIL's equal intervals.
+          const geometryTiming = discreteGeometry.has(key)
+            ? `${timing.replace('calcMode="linear"', 'calcMode="discrete"')} keyTimes="${Array.from({ length: steps + 1 }, (_, step) => step / steps).join(";")}"`
+            : timing;
+          return values
+            ? `<animate attributeName="d" ${geometryTiming} values="${values.join(";")}"/>`
+            : "";
+        };
+      // Paint layer copies step with their own trim, with the untrimmed path while only
+      // the shape is trimmed, or else with the shape.
+      const shapeAnimation = pathAnimation(id),
+        copyAnimation = (layerId: string) =>
+          [paintLayerGeometryKey(id, layerId), paintLayerGeometryKey(id)]
+            .map(pathAnimation)
+            .find(Boolean) ?? shapeAnimation;
+      svg = editObjectPaths(
+        svg,
+        id,
+        (open, layerId) => open + (layerId === null ? shapeAnimation : copyAnimation(layerId)),
+      );
       const transform = (
         kind: "translate" | "rotate" | "scale" | "skewX",
         values: (string | number)[],
@@ -229,11 +278,21 @@ export function buildClipExport(
         if (geometry) node.attrs.d = geometryPath(geometry);
         if (initial.visibility.get(node.id) === false) node.visible = false;
       }
-      const still = renderScene(stillScene, {
+      let still = renderScene(stillScene, {
         runtime: true,
         compiled: true,
         assets: project.assets,
-      })
+      });
+      for (const id of layered)
+        still = editObjectPaths(still, id, (open, layerId) => {
+          const own =
+            layerId === null
+              ? undefined
+              : (initial.geometry.get(paintLayerGeometryKey(id, layerId)) ??
+                initial.geometry.get(paintLayerGeometryKey(id)));
+          return own ? open.replace(/ d="[^"]*"/, ` d="${geometryPath(own)}"`) : open;
+        });
+      still = still
         .replace(
           'data-scene-motion="" style="',
           `data-scene-motion="" style="transform:${globalTransform};`,

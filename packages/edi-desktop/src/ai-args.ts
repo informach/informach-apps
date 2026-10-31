@@ -17,7 +17,10 @@ export const CLAUDE_SETTING_SOURCES = ["--setting-sources", "user"] as const;
 const modelArgs = (model?: string): string[] =>
   model && model !== "default" ? ["--model", model] : [];
 
-/** Claude Code without any built-in tool, only the application's, with the message on stdin. */
+/**
+ * Claude Code without any built-in tool, only the application's, with the message on stdin: plain
+ * text, or one stream-json user message when it carries images.
+ */
 export function claudeArgs(options: {
   server: Pick<McpServerRef, "name">;
   resume?: string;
@@ -25,11 +28,12 @@ export function claudeArgs(options: {
   effort?: string;
   mcpConfig: string;
   systemPrompt: string;
+  input?: "text" | "stream-json";
 }): string[] {
   return [
     "-p",
     "--input-format",
-    "text",
+    options.input ?? "text",
     "--output-format",
     "stream-json",
     "--verbose",
@@ -125,11 +129,15 @@ export function codexArgs(options: {
   model?: string;
   ephemeral?: boolean;
   personalOnly?: boolean;
+  /** Image files attached to the message (read by Codex itself, before its sandbox). */
+  images?: readonly string[];
 }): string[] {
   const name = options.server.name;
   return [
     "exec",
     "--json",
+    // --image takes several files: an option must follow it, never the "-" of standard input.
+    ...(options.images ?? []).flatMap((file) => ["--image", file]),
     ...(options.ephemeral ? ["--ephemeral"] : []),
     "--skip-git-repo-check",
     // The person's config.toml can add servers and tools that see the whole computer.

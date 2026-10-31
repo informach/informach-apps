@@ -4,6 +4,7 @@ import { createDrawOrderBinding } from "./drawOrderDom";
 import { frameAtSeconds } from "./evaluator";
 import { createFrameLoop, type FrameLoopOptions } from "./frameLoop";
 import { geometryPath } from "./geometry";
+import { paintLayerPaths, writeShapePath } from "./graphics/paintLayers";
 import { createPlaybackContext, evaluatePlaybackFrame } from "./playbackFrame";
 import { createImageMeshBinding, renderedImageMesh } from "./visual/imageMeshDom";
 
@@ -102,9 +103,12 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
     destroyed = false;
   let frame = evaluatePlaybackFrame(playbackContext, animation, 0),
     stillFrame = frame;
-  for (const id of frame.geometry.keys())
+  // Paint layer paths are keyed `objectId#layerId` and belong to their object.
+  for (const key of frame.geometry.keys()) {
+    const id = key.split("#")[0] ?? key;
     if (!meshes.has(id) && elements.get(id)?.firstElementChild?.localName !== "path")
       throw new Error("Geometria requer caminho SVG correspondente.");
+  }
   const changed = new Set<string>();
   const previous = new Map<string, string>();
   const drawOrderBinding = createDrawOrderBinding(
@@ -140,9 +144,11 @@ export function createSvgPlayer(root: SVGSVGElement, input: unknown, options: Pl
         const shape = element.firstElementChild;
         if (shape?.localName !== "path")
           throw new Error("Geometria requer caminho SVG correspondente.");
-        const d = geometry ? geometryPath(geometry) : basePaths.get(id);
-        if (d === null || d === undefined) shape.removeAttribute("d");
-        else if (shape.getAttribute("d") !== d) shape.setAttribute("d", d);
+        writeShapePath(
+          shape,
+          (geometry ? geometryPath(geometry) : basePaths.get(id)) ?? null,
+          paintLayerPaths(evaluated.geometry, id),
+        );
       }
       const visible = evaluated.visibility.get(id),
         display = visible === false ? "none" : baseDisplays.get(id);

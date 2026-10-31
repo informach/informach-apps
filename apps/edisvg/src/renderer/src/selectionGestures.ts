@@ -1,9 +1,11 @@
 import { inverse, type Motion, type Transform } from "@informach/edi-motion";
+import type { Guide } from "../../shared/guides";
 import { PATH_TAGS } from "../../shared/pathGeometry.js";
 import { flattenScene } from "../../shared/scene.js";
 import { selectionRoots } from "../../shared/sceneBatch";
 import type { Scene } from "../../shared/sceneTypes";
 import { objectPose } from "./clipPose";
+import { activeGuides, guideTolerance, markSnappedGuides, snapToGuides } from "./rulers";
 import { chooseObject, selectionIds } from "./selection";
 import { bindTransformGesture } from "./transformGesture";
 
@@ -21,6 +23,9 @@ interface State {
   selectedIds?: string[];
   clean: boolean;
   snapGrid?: number;
+  artboards: { id: string; guides?: Guide[] }[];
+  activeArtboardId: string | null;
+  guides?: boolean;
   lastVertexClick?: { id: string; x: number; y: number; time: number } | null;
 }
 export interface TransformUpdate {
@@ -284,6 +289,22 @@ export function bindSelectionGestures(svg: SVGSVGElement, state: State, actions:
             rootInverse.multiply(firstMatrix),
           )
         : start;
+    // Guides snap the selection box: its edges and centre, as drawn when the drag starts.
+    const guides = preview ? [] : activeGuides(state),
+      tolerance = guideTolerance(svg);
+    let bounds: DOMRect | null = null;
+    if (guides.length)
+      for (const outline of svg.querySelectorAll<SVGGraphicsElement>(".selection-outline")) {
+        const box = outline.getBBox();
+        bounds = bounds
+          ? DOMRect.fromRect({
+              x: Math.min(bounds.x, box.x),
+              y: Math.min(bounds.y, box.y),
+              width: Math.max(bounds.right, box.x + box.width) - Math.min(bounds.x, box.x),
+              height: Math.max(bounds.bottom, box.y + box.height) - Math.min(bounds.y, box.y),
+            })
+          : DOMRect.fromRect(box);
+      }
     preview?.setAttribute("class", "selection-marquee");
     if (preview) svg.append(preview);
     let moved = false,
@@ -296,6 +317,7 @@ export function bindSelectionGestures(svg: SVGSVGElement, state: State, actions:
       window.removeEventListener("blur", cancel);
       if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
       preview?.remove();
+      markSnappedGuides([]);
       svg.querySelectorAll(".selection-outline").forEach((element) => {
         element.removeAttribute("transform");
       });
@@ -344,6 +366,12 @@ export function bindSelectionGestures(svg: SVGSVGElement, state: State, actions:
         if (grid >= 0.1) {
           if (dx) dx = Math.round((anchor.x + dx) / grid) * grid - anchor.x;
           if (dy) dy = Math.round((anchor.y + dy) / grid) * grid - anchor.y;
+        }
+        if (bounds) {
+          const snap = snapToGuides(bounds, dx, dy, guides, tolerance);
+          dx = snap.dx;
+          dy = snap.dy;
+          markSnappedGuides(snap.snapped);
         }
         const screen = new DOMPoint(start.x + dx, start.y + dy).matrixTransform(
           rootInverse.inverse(),

@@ -31,7 +31,12 @@ import {
   transformAttribute,
 } from "@informach/edi-motion";
 import { geometryPath } from "@informach/edi-motion/geometry";
-import { evaluateVectorEffects } from "@informach/edi-motion/graphics";
+import {
+  evaluateVectorEffects,
+  paintLayerCopies,
+  paintLayerPaths,
+  writeShapePath,
+} from "@informach/edi-motion/graphics";
 import {
   createDrawOrderBinding,
   createImageMeshBinding,
@@ -94,10 +99,10 @@ import { mountLayoutPreview } from "./layout-preview";
 import { paintOnionSkin } from "./onionSkin";
 import { bindPanelResize } from "./panelResize";
 import { mountPathActions } from "./path-actions";
-import { mountPathEffectsPanel } from "./path-effects-panel";
 import { mountRigOverlay } from "./rig/rig-overlay";
 import { mountRigPanel } from "./rig/rig-panel";
 import { mountSkinOverlay } from "./rig/skin-overlay";
+import { bindRulers, boardGuides, disposeRulers } from "./rulers.ts";
 import { chooseObject, selectionIds } from "./selection.ts";
 import { mountSemanticsPanel } from "./semantics-panel";
 import { bindSvgIngress, readSvgFile } from "./svg-import-input";
@@ -106,7 +111,7 @@ import { mountTextPanel } from "./text-panel";
 import { mountTimelinePanel } from "./timeline-panel";
 import { activeTimelineClip } from "./timelineState";
 import { mountTransformActions } from "./transform-actions";
-import { paintDesignTrim } from "./trim-preview";
+import { paintDesignTrims } from "./trim-preview";
 import { mountVectorActions } from "./vector-actions";
 import {
   defaultArtboardView,
@@ -233,6 +238,23 @@ async function transactHeavy(commands, request, signal) {
     throw new Error("Resposta de cálculo incompatível com a sessão.");
   return acceptDocumentResult(result);
 }
+/** Records the edited path as a vertex key of the open animation at the current frame. */
+function setVertexKey(targetId, geometry) {
+  const animationId = state.pathEdit?.animationId;
+  if (!animationId) throw new Error("Abra uma animação para gravar chaves de vértices.");
+  transact([
+    {
+      type: "vertex-keys",
+      command: {
+        operation: "set",
+        animationId,
+        targetId,
+        frame: Math.round(state.frame),
+        geometry,
+      },
+    },
+  ]);
+}
 function changeScene(operation, value, targetId = state.selected) {
   if (
     ["delete", "duplicate", "front", "back"].includes(operation) &&
@@ -304,7 +326,6 @@ let disposePalette;
 let disposePanelResize;
 let disposeVectorActions;
 let disposeAppearancePanel;
-let disposePathEffectsPanel;
 let disposeTextPanel;
 let disposeImagePanel;
 let disposeEffectsPanel;
@@ -407,8 +428,6 @@ function render() {
   disposeVectorActions = null;
   disposeAppearancePanel?.();
   disposeAppearancePanel = null;
-  disposePathEffectsPanel?.();
-  disposePathEffectsPanel = null;
   disposeTextPanel?.();
   disposeTextPanel = null;
   disposeImagePanel?.();
@@ -433,6 +452,7 @@ function render() {
   disposeTimelinePanel?.();
   disposeTimelinePanel = null;
   disposeCanvasTools();
+  disposeRulers();
   synchronizePathEditing(state);
   const authoredMachine = Boolean(state.scene && state.view === "machine");
   $("#app").innerHTML =
@@ -600,7 +620,8 @@ function render() {
             ]);
             if (element.firstElementChild?.localName === "path") {
               const shape = element.firstElementChild;
-              baseline.push([shape, [["d", shape.getAttribute("d")]]]);
+              for (const path of [shape, ...paintLayerCopies(shape)])
+                baseline.push([path, [["d", path.getAttribute("d")]]]);
             }
           }
         }
@@ -674,27 +695,26 @@ function render() {
         transact(commands);
         render();
       },
+      // Path effects live in each paint row's options, as in Rive.
+      effects:
+        layoutBoard && !instanceNode.instance
+          ? {
+              rig: layoutBoard.rig,
+              previewTrims(trims) {
+                if (state.view !== "design") return;
+                paintDesignTrims(
+                  sceneElements.get(instanceNode.id),
+                  instanceNode,
+                  trims ??
+                    (layoutBoard.rig?.trims ?? []).filter(
+                      (item) => item.targetId === instanceNode.id,
+                    ),
+                );
+              },
+            }
+          : undefined,
     };
     if (appearanceHost) disposeAppearancePanel = mountAppearancePanel(appearanceHost, props);
-    const pathEffectsHost = document.querySelector("[data-path-effects-panel]");
-    if (pathEffectsHost && layoutBoard)
-      disposePathEffectsPanel = mountPathEffectsPanel(pathEffectsHost, {
-        board: layoutBoard,
-        node: instanceNode,
-        locked: instanceEntry.locked,
-        execute(command) {
-          transact([command]);
-          render();
-        },
-        previewTrim(trim) {
-          if (state.view !== "design") return;
-          paintDesignTrim(
-            sceneElements.get(instanceNode.id),
-            instanceNode,
-            trim ?? layoutBoard.rig?.trims?.find((item) => item.targetId === instanceNode.id) ?? null,
-          );
-        },
-      });
     if (textHost) disposeTextPanel = mountTextPanel(textHost, props);
     if (imageHost) disposeImagePanel = mountImagePanel(imageHost, props);
     if (effectsHost) disposeEffectsPanel = mountEffectsPanel(effectsHost, props);
@@ -780,8 +800,13 @@ function render() {
   );
   if (state.view === "design" && !state.pathEdit) {
     const nodes = new Map(flattenScene(state.scene).map(({ node }) => [node.id, node]));
-    for (const trim of layoutBoard?.rig?.trims ?? [])
-      paintDesignTrim(sceneElements.get(trim.targetId), nodes.get(trim.targetId), trim);
+    const trims = layoutBoard?.rig?.trims ?? [];
+    for (const id of new Set(trims.map((trim) => trim.targetId)))
+      paintDesignTrims(
+        sceneElements.get(id),
+        nodes.get(id),
+        trims.filter((trim) => trim.targetId === id),
+      );
   }
   const stackedScopes = drawOrderScopes([
     ...(state.previewComposition?.playback.motion.animations ?? []),
@@ -839,6 +864,14 @@ function render() {
   const workspace = document.querySelector(".workspace");
   if (workspace) disposePanelResize = bindPanelResize(workspace, state, render);
   bindViewport(state, { render });
+  if (state.scene && state.view !== "machine")
+    bindRulers(state, {
+      execute(guides) {
+        transact([{ type: "guides", guides }]);
+        render();
+      },
+      notify,
+    });
   updatePose();
   if (state.scene)
     bindScene(state, {
@@ -846,6 +879,7 @@ function render() {
       commit: save,
       notify,
       changeScene,
+      setVertexKey,
       changePath: (command) => transact([command]),
       changeTransform: changeObjectTransforms,
       changeTransforms: changeObjectTransformsBatch,
@@ -867,6 +901,7 @@ function render() {
           commit: save,
           notify,
           changeScene,
+          setVertexKey,
           changePath: (command) => transact([command]),
           changeTransforms: changeObjectTransformsBatch,
           previewChanged: () => gestureEffects?.(),
@@ -907,7 +942,11 @@ function render() {
       report: notify,
       execute(command) {
         transact([command]);
-        startPathEditing(state, { render, commit: save, notify, changeScene }, command.targetId);
+        startPathEditing(
+          state,
+          { render, commit: save, notify, changeScene, setVertexKey },
+          command.targetId,
+        );
       },
     });
   const vectorHost = document.querySelector("[data-vector-actions]"),
@@ -1174,6 +1213,14 @@ function bind() {
     };
   }
 }
+/** Opens on the default artboard unless it is empty and another one has the
+ * work: a file then shows its drawing, not a blank board. */
+function openingArtboardId(project) {
+  const boards = project.artboards,
+    fallback = boards.find((board) => board.id === project.defaultArtboardId);
+  if (!fallback || fallback.scene.nodes.length) return project.defaultArtboardId;
+  return boards.find((board) => board.scene.nodes.length)?.id ?? project.defaultArtboardId;
+}
 function applyProject(value, resetSession = true) {
   const project = parseProject(value);
   state.tool = "select";
@@ -1192,7 +1239,7 @@ function applyProject(value, resetSession = true) {
     frame: 0,
     playing: false,
   });
-  bindActiveArtboard(state, resetSession ? project.defaultArtboardId : state.activeArtboardId);
+  bindActiveArtboard(state, resetSession ? openingArtboardId(project) : state.activeArtboardId);
   if (resetSession) {
     Object.assign(state, {
       selectedKeys: [],
@@ -1454,8 +1501,13 @@ function updatePose() {
       if (element.getAttribute("opacity") !== opacity) element.setAttribute("opacity", opacity);
       const geometry = evaluated.geometry.get(id);
       meshPreviews.get(id)?.paint(geometry);
-      if (geometry && element.firstElementChild?.localName === "path")
-        element.firstElementChild.setAttribute("d", geometryPath(geometry));
+      const shape = element.firstElementChild;
+      if (shape?.localName === "path")
+        writeShapePath(
+          shape,
+          geometry ? geometryPath(geometry) : shape.getAttribute("d"),
+          paintLayerPaths(evaluated.geometry, id),
+        );
       const display = evaluated.visibility.get(id) === false ? "none" : sceneDisplays.get(id);
       if (display === null || display === undefined) element.removeAttribute("display");
       else element.setAttribute("display", display);
@@ -1496,6 +1548,20 @@ function updatePose() {
 function action(id) {
   if (["commands", "object", "animation", "view"].includes(id))
     return openCommands({ object: "Objeto", animation: "Animação", view: "Exibir" }[id]);
+  if (state.scene && (id === "rulers" || id === "guides")) {
+    state[id] = state[id] === false;
+    render();
+    return;
+  }
+  if (state.scene && id === "guides-clear") {
+    try {
+      transact([{ type: "guides", guides: [] }]);
+      render();
+    } catch (error) {
+      notify(error.message);
+    }
+    return;
+  }
   if (id === "viewport-reset") {
     state.zoom = 75;
     state.pan = { x: 0, y: 0 };
@@ -1811,6 +1877,7 @@ function openCommands(group) {
       key: !!state.selectedKey,
       keys: selectedKeyIds(state).length > 0,
       group: selection.length === 1 && selection[0].node.tag === "g" && !selection[0].node.instance,
+      guides: boardGuides(state).length > 0,
       undo: projectHistory.canUndo,
       redo: projectHistory.canRedo,
     },
@@ -2183,11 +2250,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (state.scene && e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
-    if (state.view === "animate" && activeClip(state)) {
-      notify("Use Design para editar vértices; Animar edita as poses.");
-      return;
-    }
-    startPathEditing(state, { render, commit: save, notify, changeScene });
+    startPathEditing(state, { render, commit: save, notify, changeScene, setVertexKey });
     return;
   }
   if (
@@ -2201,6 +2264,19 @@ document.addEventListener("keydown", (e) => {
     } catch (error) {
       notify(error.message);
     }
+    return;
+  }
+  if (
+    state.scene &&
+    e.shiftKey &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !e.altKey &&
+    !e.repeat &&
+    ["r", "g"].includes(e.key.toLowerCase())
+  ) {
+    e.preventDefault();
+    action(e.key.toLowerCase() === "r" ? "rulers" : "guides");
     return;
   }
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {

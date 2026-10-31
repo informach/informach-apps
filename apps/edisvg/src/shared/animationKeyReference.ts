@@ -6,21 +6,23 @@ const fields = { trackId: keyframeSchema.shape.id, keyId: keyframeSchema.shape.i
 export const animationKeyReferenceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("motion"), ...fields }),
   z.strictObject({ kind: z.literal("rig"), artboardId: artboardIdSchema, ...fields }),
+  /** A vertex key; trackId is the vertex clip of one path in one animation. */
+  z.strictObject({ kind: z.literal("vertex"), artboardId: artboardIdSchema, ...fields }),
 ]);
 export type AnimationKeyReference = z.infer<typeof animationKeyReferenceSchema>;
 export type AnimationTrackReference =
   | { kind: "motion"; trackId: string }
-  | { kind: "rig"; artboardId: string; trackId: string };
+  | { kind: "rig" | "vertex"; artboardId: string; trackId: string };
 
 /** Persisted IDs cannot contain JSON punctuation. Motion's globally unique
  * raw key IDs stay compatible; rig IDs include board, track and key domains. */
 export function animationKeySelectionId(reference: AnimationKeyReference): string {
   return reference.kind === "motion"
     ? reference.keyId
-    : JSON.stringify(["rig", reference.artboardId, reference.trackId, reference.keyId]);
+    : JSON.stringify([reference.kind, reference.artboardId, reference.trackId, reference.keyId]);
 }
 export function animationTrackSelectionId(reference: AnimationTrackReference): string {
   return reference.kind === "motion"
     ? reference.trackId
-    : JSON.stringify(["rig", reference.artboardId, reference.trackId]);
+    : JSON.stringify([reference.kind, reference.artboardId, reference.trackId]);
 }

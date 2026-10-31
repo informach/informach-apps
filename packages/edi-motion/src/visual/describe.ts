@@ -21,6 +21,15 @@ import {
 } from "../graphics/gradients";
 import { nativeEffectSources } from "../graphics/nativeEffectSources";
 import {
+  drawnPaintLayers,
+  PAINT_LAYER_ATTRIBUTE,
+  type PaintLayer,
+  paintLayerAttributes,
+  paintLayerGeometry,
+  paintLayerServers,
+  paintLayerTags,
+} from "../graphics/paintLayers";
+import {
   createVectorEffectContext,
   evaluateVectorEffects,
   type VectorEffects,
@@ -49,6 +58,7 @@ export interface VisualNode {
   imageSlice?: ImageSlice;
   gradients?: GradientPaints;
   filter?: Filter;
+  paintLayers?: readonly PaintLayer[];
   effects?: VectorEffects;
   textLayout?: TextLayout;
   textDirection?: TextDirection;
@@ -134,6 +144,7 @@ export function describeVisualScene(
           ? 1
           : 0) +
         (node.imageSlice ? 18 : 0) +
+        drawnPaintLayers(node.paintLayers).length +
         (node.effects?.clip ? 2 : 0) +
         (node.effects?.mask ? 2 : 0);
       if (cells > 2000 || ids.has(node.id))
@@ -184,7 +195,12 @@ export function describeVisualScene(
       : [],
     effectAttrs = vectorEffectAttributes(effects),
     definitions: VisualElement[] = [
-      ...gradientDefinitions(entries.map(({ node }) => node.gradients)),
+      ...gradientDefinitions([
+        ...entries.map(({ node }) => node.gradients),
+        ...entries.flatMap(({ node }) =>
+          paintLayerServers(node.paintLayers).map((fill) => ({ fill })),
+        ),
+      ]),
       ...filterDefinitions(entries.map(({ node }) => node.filter)),
       ...effects.map((frame) => vectorEffectElement(frame)),
     ];
@@ -291,6 +307,20 @@ export function describeVisualScene(
         children,
         ...(node.tag === "text" && (node.textLayout || node.textPath) ? {} : { text: node.text }),
       };
+    // Extra paints follow the shape as siblings, so the shape stays the
+    // wrapper's first element for every consumer that writes its geometry.
+    const layers: VisualElement[] =
+      paintLayerTags.has(node.tag) && node.paintLayers
+        ? drawnPaintLayers(node.paintLayers).map((layer) => ({
+            tag: node.tag,
+            attrs: {
+              ...paintLayerGeometry(node.attrs),
+              ...paintLayerAttributes(layer),
+              [PAINT_LAYER_ATTRIBUTE]: layer.id,
+            },
+            children: [],
+          }))
+        : [];
     const wrapper: VisualElement = {
       tag: "g",
       attrs: {
@@ -303,6 +333,7 @@ export function describeVisualScene(
       },
       children: [
         shape,
+        ...layers,
         ...(semantics && semantics.kind !== "decorative" && semantics.description
           ? [{ tag: "desc" as const, attrs: {}, text: semantics.description, children: [] }]
           : []),

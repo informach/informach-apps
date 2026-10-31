@@ -33,6 +33,29 @@ export function applyAnimationDependencies(
     return { board, clip, events, eventIds, audio };
   });
   for (const { board, clip, events, eventIds, audio } of plans) {
+    // Vertex keys belong to their animation, like its rig channels.
+    const vertexClips = board.vertexClips?.filter(
+      (value) => value.animationId === command.animationId,
+    );
+    if (vertexClips?.length) {
+      if (command.type === "delete-animation") {
+        board.vertexClips = board.vertexClips?.filter(
+          (value) => value.animationId !== command.animationId,
+        );
+        if (!board.vertexClips?.length) delete board.vertexClips;
+      } else
+        board.vertexClips?.push(
+          ...vertexClips.map((value) => ({
+            ...structuredClone(value),
+            id: `track-${crypto.randomUUID()}`,
+            animationId: command.id,
+            keys: value.keys.map((key) => ({
+              ...structuredClone(key),
+              id: `key-${crypto.randomUUID()}`,
+            })),
+          })),
+        );
+    }
     if (board.rig && clip) {
       const parameterClips =
         command.type === "delete-animation"

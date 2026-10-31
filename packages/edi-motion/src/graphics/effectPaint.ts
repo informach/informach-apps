@@ -22,6 +22,7 @@ interface PaintedNode {
   attrs?: Readonly<Record<string, string>>;
   gradients?: GradientPaints;
   filter?: unknown;
+  paintLayers?: readonly unknown[];
 }
 
 const ABSOLUTE_UNITS: Readonly<Record<string, number>> = {
@@ -89,7 +90,7 @@ export function isPaintedMask(effects: VectorEffects | undefined) {
 }
 /** Effective paint of every painted-mask source, following the same channel rule as authoring:
  * a typed gradient/pattern sets its channel, a solid colour clears an inherited one. Sources with
- * their own filter are refused rather than drawn without it. */
+ * their own filter or extra paint layers are refused rather than drawn without them. */
 export function effectSourcePaints(
   nodes: Iterable<PaintedNode>,
   effects: ReadonlyMap<string, VectorEffects>,
@@ -122,6 +123,10 @@ export function effectSourcePaints(
     if (!source || source.id !== id) throw new Error("Fonte de máscara pintada ausente.");
     if (source.filter !== undefined)
       throw new Error("Fonte de máscara pintada com filtro fica fora do perfil.");
+    if (source.paintLayers?.length)
+      throw new Error(
+        "Fonte de máscara pintada com camadas de pintura extras fica fora do perfil.",
+      );
     const paint = resolvePaint(chain, inherited);
     // Checked when the context is built, never as a failure in the middle of a render.
     if (paint.stroke !== undefined && paint.stroke !== "none")

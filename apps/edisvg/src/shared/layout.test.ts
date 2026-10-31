@@ -101,7 +101,7 @@ test("artboard size modes are a project v24 / blueprint v13 capability", () => {
     items: [],
   };
   const saved = JSON.parse(JSON.stringify(project));
-  assert.equal(PROJECT_VERSION, 24);
+  assert.ok(PROJECT_VERSION >= 24);
   assert.deepEqual(parseProject(saved).artboards[0]?.layout?.rootSize, {
     width: "hug",
     height: "fixed",

@@ -46,6 +46,12 @@ export type RigSkin = z.infer<typeof skinSchema>;
 export const trimSchema = z.strictObject({
   id: z.string().regex(/^trim-[\w-]{1,100}$/),
   targetId: objectIdSchema,
+  /** Trims only this extra paint layer of the target (project v25/blueprint
+   * v14); without it the trim cuts the shape, base fill and stroke together. */
+  layerId: z
+    .string()
+    .regex(/^paint-[\w-]{1,100}$/)
+    .optional(),
   start: strength,
   end: strength,
   offset: z.number().min(-36000).max(36000),
@@ -420,19 +426,21 @@ export function parseRig(input: unknown, objects: ReadonlyMap<string, RigObject>
     throw new Error("Trim paths exigem formato de rig v3.");
   if (rig.version < 4 && rig.joysticks !== undefined)
     throw new Error("Joysticks exigem formato de rig v4.");
+  // One trim per paint row: the shape itself, or each of its extra layers.
   const trimOwners = new Set<string>();
   for (const trim of rig.trims ?? []) {
-    const object = objects.get(trim.targetId);
+    const object = objects.get(trim.targetId),
+      owner = `${trim.targetId}#${trim.layerId ?? ""}`;
     if (
       entities.has(trim.id) ||
-      trimOwners.has(trim.targetId) ||
+      trimOwners.has(owner) ||
       object?.tag !== "path" ||
       object.isComponent ||
       !object.geometry?.length
     )
       throw new Error("Trim requer ID único e um caminho local por controlador.");
     entities.add(trim.id);
-    trimOwners.add(trim.targetId);
+    trimOwners.add(owner);
   }
   for (const morph of rig.morphs ?? []) {
     const object = objects.get(morph.targetId);

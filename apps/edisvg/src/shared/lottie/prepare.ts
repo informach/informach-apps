@@ -101,9 +101,10 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
       "layout",
       "Layout responsivo requer HTML/React; este perfil não gera posições fictícias de layout.",
     );
+  // A paint layer's own trim draws only with its layer, which this profile refuses.
   const trimTargets = new Set(
     (compiled.playback.rigScopes ?? []).flatMap((scope) =>
-      (scope.rig.trims ?? []).map((trim) => trim.targetId),
+      (scope.rig.trims ?? []).flatMap((trim) => (trim.layerId ? [] : [trim.targetId])),
     ),
   );
   let losesSemantics = false,
@@ -127,6 +128,12 @@ export function prepareLottie(rawProject: unknown, rawOptions: unknown) {
         node.id,
         "filter",
         "Filtros (desfoque, sombra, cor) não têm equivalente no perfil Lottie; o efeito não será descartado. Exporte HTML, React, SVG ou imagens.",
+      );
+    if (node.paintLayers?.some((layer) => layer.visible))
+      issue(
+        node.id,
+        "paint-layers",
+        "Camadas extras de preenchimento/contorno ainda não estão no perfil Lottie; não são descartadas. Exporte HTML, React, SVG ou imagens.",
       );
     if (node.tag === "svg")
       issue(node.id, "component", "Viewports/componentes não estão no perfil Lottie inicial.");

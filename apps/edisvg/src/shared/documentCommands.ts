@@ -8,6 +8,7 @@ import { imageSliceSchema } from "@informach/edi-motion/assets";
 import {
   filterSchema,
   gradientPaintsSchema,
+  paintLayersSchema,
   vectorEffectsSchema,
 } from "@informach/edi-motion/graphics";
 import { imageMeshSchema, semanticSchema, textPathSchema } from "@informach/edi-motion/visual";
@@ -22,6 +23,7 @@ import { applyBehavior, behaviorCommandSchema } from "./behavior";
 import { componentCommandSchema } from "./componentContracts";
 import { applyComponent } from "./components";
 import { applyComposition, compositionCommandSchema } from "./composition";
+import { applyGuides, guidesCommandSchema } from "./guides";
 import { applyLayout, layoutCommandSchema } from "./layout";
 import { applyPathEdit, pathEditSchema } from "./pathOperations";
 import { artboardScene, parseProject } from "./project.js";
@@ -36,6 +38,7 @@ import {
 } from "./sceneBatch";
 import { textLayoutSchema } from "./textLayout";
 import { applyVectorBoolean, vectorBooleanSchema } from "./vectorBoolean";
+import { applyVertexKeys, vertexKeysCommandSchema } from "./vertexKeys";
 
 const target = z.string().regex(/^node-[\w-]{1,100}$/);
 const attrs = z.record(z.string().max(80), z.string().max(500000));
@@ -104,6 +107,11 @@ export const sceneCommandSchema = z.discriminatedUnion("operation", [
   }),
   z.strictObject({
     ...sceneFields,
+    operation: z.literal("paint-layers"),
+    value: paintLayersSchema.nullable(),
+  }),
+  z.strictObject({
+    ...sceneFields,
     operation: z.literal("path"),
     value: z.string().min(1).max(500000),
   }),
@@ -131,6 +139,8 @@ const commandSchema = z.union([
   pathEditSchema,
   vectorBooleanSchema,
   animationKeysCommandSchema,
+  vertexKeysCommandSchema,
+  guidesCommandSchema,
   z.strictObject({ type: z.literal("motion"), command: motionCommandSchema }),
 ]);
 export const documentTransactionSchema = z.strictObject({
@@ -271,6 +281,14 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
       }
     } else if (command.type === "animation-keys") {
       applyAnimationKeys(project, command.command);
+    } else if (command.type === "vertex-keys") {
+      const board = project.artboards.find((board) => board.scene === scene);
+      if (!board) throw new Error("Selecione uma prancheta para animar vértices.");
+      applyVertexKeys(board, project.motion.animations, command.command);
+    } else if (command.type === "guides") {
+      const board = project.artboards.find((board) => board.scene === scene);
+      if (!board) throw new Error("Selecione uma prancheta para editar guias.");
+      applyGuides(board, command);
     } else {
       const operation = command.command;
       const objects = project.artboards.flatMap((board) => flattenScene(board.scene));
