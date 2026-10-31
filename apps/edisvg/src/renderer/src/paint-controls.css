@@ -1,9 +1,12 @@
-.paint-controls h3 {
-  margin-bottom: 10px;
+.paint-controls-title {
+  margin-bottom: 6px;
 }
 .paint-channels {
   display: grid;
-  gap: 5px;
+  gap: 2px;
+}
+.paint-channels .micro {
+  margin: 0;
 }
 .paint-channel {
   position: relative;
@@ -12,68 +15,101 @@
 .paint-channel-row {
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  padding: 5px 7px;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 7px;
-  background: var(--panel2);
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 0;
 }
 .paint-swatch {
-  width: 29px;
-  height: 29px;
-  flex: 0 0 29px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
   padding: 0;
-  border: 2px solid #aab5c2;
-  border-radius: 5px;
+  border: 1px solid #aab5c2;
+  border-radius: 4px;
   background: #000;
   box-shadow: 0 0 0 1px #0b0e12;
 }
 .paint-swatch-stroke {
-  border-width: 5px;
+  border-width: 4px;
   border-color: #aab5c2;
 }
-.paint-swatch-empty {
-  background:
-    linear-gradient(135deg, transparent 46%, #e67481 47%, #e67481 53%, transparent 54%), #333940;
-}
-.paint-channel-label {
+.paint-hex {
+  width: 64px;
   min-width: 0;
-  flex: 1;
-  display: grid;
-  gap: 2px;
-}
-.paint-channel-label strong {
+  height: 25px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-family: ui-monospace, monospace;
   font-size: 11px;
-  font-weight: 600;
+  text-transform: uppercase;
 }
-.paint-channel-label small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.paint-hex:hover:not(:disabled) {
+  border-color: var(--line);
+}
+.paint-hex:focus {
+  border-color: color-mix(in srgb, var(--mint) 60%, var(--line));
+  background: var(--panel2);
+  outline: none;
+}
+.paint-kind {
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: none;
   color: var(--muted);
-  font-size: 9px;
+}
+.paint-channel-row .artboard-value {
+  flex: 1;
 }
 .paint-channel-action {
-  width: 25px;
-  height: 25px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
   padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
   font-size: 16px;
   line-height: 1;
 }
-.paint-width {
+.paint-channel-action:hover:not(:disabled) {
+  background: var(--panel2);
+  color: var(--text);
+}
+.paint-channel-action[aria-pressed="true"] {
+  color: var(--mint);
+}
+.paint-channel.is-hidden :is(.paint-swatch, .paint-hex, .artboard-value) {
+  opacity: 0.45;
+}
+.paint-add-menu {
   display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.paint-add-menu button {
+  flex: 1;
+  font-size: 10px;
+}
+.paint-width {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 9px;
+  gap: 7px;
+  margin-top: 4px;
   color: var(--muted);
   font-size: 10px;
 }
-.paint-width input {
-  width: 76px;
-  min-width: 0;
-  text-align: right;
+.paint-controls :is(input, button):focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 1px;
 }
 .paint-advanced {
   margin-top: 10px;
@@ -279,4 +315,117 @@
   background: var(--mint);
   color: #06231c;
   font-weight: 700;
+}
+.path-effects {
+  border-top: 1px solid var(--line);
+}
+.path-effect-card {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel2) 60%, transparent);
+}
+.paint-options-toggle.has-effects {
+  color: var(--mint);
+}
+.paint-options {
+  position: fixed;
+  z-index: 100;
+  width: min(260px, calc(100vw - 16px));
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--mint) 45%, var(--line));
+  border-radius: 8px;
+  background: #242a33;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+.paint-options-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--panel2);
+}
+.paint-options-tabs button {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.paint-options-tabs button[aria-selected="true"] {
+  background: #3a424e;
+  color: var(--text);
+}
+.paint-options-body {
+  display: grid;
+  gap: 4px;
+}
+.paint-options .path-effects {
+  border-top: 0;
+}
+.paint-options p[role="alert"] {
+  margin: 0;
+  color: #ffb3a7;
+  font-size: 11px;
+}
+.paint-name {
+  flex: 1;
+  min-width: 0;
+  height: 25px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 25px;
+}
+input.paint-name:hover:not(:disabled) {
+  border-color: var(--line);
+}
+input.paint-name:focus {
+  border-color: color-mix(in srgb, var(--mint) 60%, var(--line));
+  background: var(--panel2);
+  outline: none;
+}
+.paint-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.paint-segmented {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--panel2);
+}
+.paint-segmented button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+.paint-segmented button[aria-pressed="true"] {
+  background: #3a424e;
+  color: var(--text);
+}
+.paint-segmented button:hover:not(:disabled) {
+  color: var(--text);
 }

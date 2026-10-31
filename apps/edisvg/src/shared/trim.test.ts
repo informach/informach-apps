@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { emptyBehavior } from "@informach/edi-motion/behavior";
 import { INTERACTIVE_VERSION, parseInteractiveDocument } from "@informach/edi-motion/runtime";
 import { trimFixture } from "../../tests/trimFixture";
 import { buildClipExport } from "../renderer/src/clipExport";
@@ -88,10 +89,6 @@ test("trim edits respect inherited locks, cannot orphan channels or geometry, an
     ]),
   );
   assert.deepEqual(fixture.project(), before);
-  assert.throws(() =>
-    fixture.run([{ type: "scene-batch", operation: "delete", targetIds: [fixture.shapeId] }]),
-  );
-  assert.deepEqual(fixture.project(), before);
   fixture.run([{ type: "scene", operation: "lock", targetId: fixture.shapeId, value: true }]);
   const locked = structuredClone(fixture.project());
   assert.throws(
@@ -172,4 +169,42 @@ test("artboard copies remap trim owners and preserve shared animation identity w
     copy.rig.trims[0].targetId,
   );
   assert.deepEqual(project.artboards[0], master);
+});
+
+test("deleting a trimmed path takes its trim and channel keys along, but a logic binding still blocks it", () => {
+  const fixture = trimFixture(),
+    bound = trimFixture();
+  fixture.run([{ type: "scene-batch", operation: "delete", targetIds: [fixture.shapeId] }]);
+  const rig = fixture.project().artboards[0]?.rig;
+  assert.equal(rig?.trims, undefined);
+  assert.equal(rig?.parameterClips, undefined);
+  bound.run([
+    {
+      type: "behavior",
+      operation: "replace",
+      value: {
+        ...emptyBehavior(),
+        version: 2,
+        inputs: [{ id: "input-draw", kind: "number", name: "Traço", initial: 0, min: 0, max: 1 }],
+        bindings: [
+          {
+            id: "binding-draw",
+            kind: "parameter",
+            inputId: "input-draw",
+            targetId: "trim-draw",
+            property: "end",
+            scale: 1,
+            offset: 0,
+            direction: "one-way",
+          },
+        ],
+      },
+    },
+  ]);
+  const before = structuredClone(bound.project());
+  assert.throws(
+    () => bound.run([{ type: "scene", operation: "delete", targetId: bound.shapeId }]),
+    /Remova o binding/,
+  );
+  assert.deepEqual(bound.project(), before);
 });

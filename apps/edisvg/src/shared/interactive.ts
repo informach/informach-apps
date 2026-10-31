@@ -278,6 +278,7 @@ export function compileInteractiveArtboard(
           ...(node.semantics ? { semantics: structuredClone(node.semantics) } : {}),
           ...(node.gradients ? { gradients: node.gradients } : {}),
           ...(node.filter ? { filter: node.filter } : {}),
+          ...(node.paintLayers ? { paintLayers: node.paintLayers } : {}),
           ...(node.effects ? { effects: node.effects } : {}),
           ...(instance
             ? {

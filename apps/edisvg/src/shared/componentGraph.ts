@@ -111,12 +111,14 @@ export function validateComponentGraph(project: Project) {
         nodes:
           1 +
           (node.imageSlice ? 18 : 0) +
+          (node.paintLayers?.filter((layer) => layer.visible).length ?? 0) +
           (node.textLayout ? node.text.replace(/\r\n?/g, "\n").split("\n").length : 0),
         depth: 1,
         attributes:
           attributeSize(node.attrs) +
           (node.gradients ? JSON.stringify(node.gradients).length : 0) +
-          (node.filter ? JSON.stringify(node.filter).length : 0),
+          (node.filter ? JSON.stringify(node.filter).length : 0) +
+          (node.paintLayers ? JSON.stringify(node.paintLayers).length : 0),
         text: node.text.length,
         vertices: vertexCount(node.attrs),
       };

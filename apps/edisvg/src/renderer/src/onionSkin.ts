@@ -8,6 +8,7 @@ import {
   transformAttribute,
 } from "@informach/edi-motion";
 import { geometryPath } from "@informach/edi-motion/geometry";
+import { paintLayerPaths, writeShapePath } from "@informach/edi-motion/graphics";
 
 const contexts = new WeakMap<PlaybackDocument, PlaybackContext>();
 
@@ -49,9 +50,14 @@ export function paintOnionSkin(
         const transform = { ...base, ...pose.get(id ?? "") };
         element.setAttribute("transform", transformAttribute(transform));
         element.setAttribute("opacity", String(transform.opacity / 100));
-        const geometry = evaluated.geometry.get(id ?? "");
-        if (geometry && element.firstElementChild?.localName === "path")
-          element.firstElementChild.setAttribute("d", geometryPath(geometry));
+        const geometry = evaluated.geometry.get(id ?? ""),
+          shape = element.firstElementChild;
+        if (id && shape?.localName === "path")
+          writeShapePath(
+            shape,
+            geometry ? geometryPath(geometry) : shape.getAttribute("d"),
+            paintLayerPaths(evaluated.geometry, id),
+          );
         if (evaluated.visibility.get(id ?? "") === false) element.setAttribute("display", "none");
         else {
           const display = baseDisplays?.get(id ?? "");

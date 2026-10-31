@@ -2,10 +2,11 @@ import { objectTransformPatchSchema } from "@informach/edi-motion";
 import { animations } from "../../shared/animation.js";
 import { renderEditorComposition } from "../../shared/components";
 import { editScene, flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
-import { bindCanvasTools } from "./canvasTools.js";
+import { bindCanvasTools, zoomOptions } from "./canvasTools.js";
 import { objectPose } from "./clipEditor.js";
 import { formatInput, roundTypedInput } from "./form-values.ts";
 import { bindPathInspector, pathInspector } from "./pathEditor.js";
+import { guidesShown, rulerMarkup, rulersShown } from "./rulers.ts";
 import { chooseObject, selectionIds } from "./selection.ts";
 
 const esc = xmlEscape;
@@ -141,7 +142,7 @@ export function sceneCanvas(state) {
           )
           .join("")}</select>`
       : ""
-  }<button data-viewport-reset title="Centralizar área de trabalho">Centralizar</button><select id="zoom" aria-label="Zoom">${[25, 50, 75, 100, 125, 150, 200, 300].map((v) => `<option ${state.zoom === v ? "selected" : ""}>${v}%</option>`).join("")}</select><button data-action="import-svg">Importar SVG</button></div><div class="stage"><div class="artboard scene-artboard" style="--zoom:${state.zoom / 75};aspect-ratio:${state.scene.viewBox[2]}/${state.scene.viewBox[3]}"><div class="scene-artwork">${state.previewMarkup ?? (state.previewComposition ? renderEditorComposition(state.previewComposition) : renderScene(state.scene, { editor: true }))}</div></div><p data-preview-error role="alert" hidden></p><span class="canvas-hint">${state.pathEdit ? "Arraste os pontos e alças. Duplo clique no segmento adiciona um ponto." : { pen: "Clique para criar pontos; arraste para curvas. Enter conclui; Esc cancela.", select: "Arraste para mover · Esc para cancelar", shapes: "Arraste para desenhar · Shift para proporções iguais", text: "Clique para inserir texto e edite no painel direito", hand: "Arraste para mover a área de trabalho", zoom: "Clique para ampliar · Alt + clique para reduzir" }[state.tool] || "Selecione um objeto"}</span></div>`;
+  }<button data-action="rulers" aria-pressed="${rulersShown(state)}" title="Mostrar ou ocultar réguas (Shift+R)">Réguas</button><button data-action="guides" aria-pressed="${guidesShown(state)}" title="Mostrar ou ocultar guias (Shift+G)">Guias</button><button data-viewport-reset title="Centralizar área de trabalho">Centralizar</button><select id="zoom" aria-label="Zoom">${zoomOptions(state.zoom)}</select><button data-action="import-svg">Importar SVG</button></div><div class="stage${rulersShown(state) ? " has-rulers" : ""}"><div class="artboard scene-artboard" style="--zoom:${state.zoom / 75};aspect-ratio:${state.scene.viewBox[2]}/${state.scene.viewBox[3]}"><div class="scene-artwork">${state.previewMarkup ?? (state.previewComposition ? renderEditorComposition(state.previewComposition) : renderScene(state.scene, { editor: true }))}</div></div>${rulerMarkup(state)}<p data-preview-error role="alert" hidden></p><span class="canvas-hint">${state.pathEdit ? "Arraste os pontos e alças. Duplo clique no segmento adiciona um ponto." : { pen: "Clique para criar pontos; arraste para curvas. Enter conclui; Esc cancela.", select: "Arraste para mover · Esc para cancelar", shapes: "Arraste para desenhar · Shift para proporções iguais", text: "Clique para inserir texto e edite no painel direito", hand: "Arraste para mover a área de trabalho", zoom: "Clique para ampliar · Alt + clique para reduzir" }[state.tool] || "Selecione um objeto"}</span></div>`;
 }
 function scenePaintInspector(node) {
   if (node.tag === "image") return "<div data-image-panel></div>";
@@ -210,6 +211,7 @@ export function bindScene(
     commit,
     notify,
     changeScene,
+    setVertexKey,
     changePath,
     changeTransform,
     changeTransforms,
@@ -304,11 +306,12 @@ export function bindScene(
     changeTransform,
     changeTransforms,
     changeScene,
+    setVertexKey,
     changePath,
     transact,
     previewChanged,
   });
-  bindPathInspector(state, { render, commit, notify, changeScene, changePath });
+  bindPathInspector(state, { render, commit, notify, changeScene, setVertexKey, changePath });
   const shape = document.querySelector("[data-shape]");
   if (shape)
     shape.onchange = () => {

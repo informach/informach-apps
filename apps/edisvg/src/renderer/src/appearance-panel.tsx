@@ -5,18 +5,20 @@ import { appearanceKeys } from "../../shared/appearanceContracts";
 import type { Scene, SceneNode } from "../../shared/sceneTypes";
 import { GradientPanel } from "./gradient-panel";
 import { PaintControls } from "./paint-controls";
+import type { TrimEffectsHost } from "./path-effects";
 
 interface Props {
   scene: Scene;
   node: SceneNode;
   locked: boolean;
   execute(commands: unknown[]): void;
+  effects?: TrimEffectsHost;
 }
 
 let gradientsExpanded = false;
 let stylesExpanded = false;
 
-function AppearancePanel({ scene, node, locked, execute }: Props) {
+function AppearancePanel({ scene, node, locked, execute, effects }: Props) {
   const id = useId();
   const effective = inheritedAppearance(scene, node);
   const effectiveGradients = inheritedGradients(scene, node);
@@ -35,7 +37,13 @@ function AppearancePanel({ scene, node, locked, execute }: Props) {
 
   return (
     <section className="appearance-panel">
-      <PaintControls scene={scene} node={node} locked={locked} execute={execute} />
+      <PaintControls
+        scene={scene}
+        node={node}
+        locked={locked}
+        execute={execute}
+        effects={effects}
+      />
       <details
         className="paint-advanced"
         open={gradientsExpanded}

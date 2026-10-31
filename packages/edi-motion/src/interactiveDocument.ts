@@ -15,6 +15,12 @@ import {
   hasPattern,
 } from "./graphics/gradients";
 import { nativeEffectSources } from "./graphics/nativeEffectSources";
+import {
+  drawnPaintLayers,
+  paintLayerServers,
+  paintLayersSchema,
+  paintLayerTags,
+} from "./graphics/paintLayers";
 import { playbackVectorEffectContext, vectorEffectsSchema } from "./graphics/vectorEffects";
 import { type LayoutDocument, parseLayout } from "./layout/model";
 import { objectIdSchema } from "./model";
@@ -34,7 +40,7 @@ import { semanticSchema } from "./visual/semantics";
 import { textDirectionSchema } from "./visual/textDirection";
 import { textPathCost } from "./visual/textPath";
 import { validateVisualDocument } from "./visual/validation";
-export const INTERACTIVE_VERSION = 13;
+export const INTERACTIVE_VERSION = 14;
 
 export const interactiveContentSchema = z.strictObject({
   id: objectIdSchema,
@@ -54,6 +60,7 @@ export const interactiveContentSchema = z.strictObject({
   imageMesh: imageMeshSchema.optional(),
   gradients: gradientPaintsSchema.optional(),
   filter: filterSchema.optional(),
+  paintLayers: paintLayersSchema.optional(),
   effects: vectorEffectsSchema.optional(),
   visual: visualContentSchema.optional(),
   fontAssetId: assetIdSchema.optional(),
@@ -77,6 +84,7 @@ const interactiveSchema = z.strictObject({
     z.literal(10),
     z.literal(11),
     z.literal(12),
+    z.literal(13),
     z.literal(INTERACTIVE_VERSION),
   ]),
   playback: z.unknown(),
@@ -246,6 +254,12 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
           throw new Error(
             "Trim requer caminho visual sem arcos nativos; converta explicitamente antes.",
           );
+        if (trim.layerId) {
+          if (parsed.version < 14)
+            throw new Error("Trim de camada de pintura requer blueprint v14.");
+          if (!source.paintLayers?.some((layer) => layer.id === trim.layerId))
+            throw new Error("Trim de camada de pintura sem a camada no objeto.");
+        }
       }
       const cost = rigCost(scope.rig);
       vertices += cost.vertices;
@@ -269,6 +283,16 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
         if (parsed.version < 12) throw new Error("Filtros requerem blueprint v12.");
         filters.push(object.filter);
       }
+      if (object.paintLayers) {
+        if (parsed.version < 14) throw new Error("Camadas de pintura requerem blueprint v14.");
+        if (!paintLayerTags.has(object.tag))
+          throw new Error("Camadas de pintura valem só para formas e caminhos.");
+        if (object.filter)
+          throw new Error("Camadas de pintura extras com filtro ficam fora do perfil.");
+        gradients.push(
+          ...paintLayerServers(object.paintLayers).map((fill): GradientPaints => ({ fill })),
+        );
+      }
       if (object.effects && parsed.version < 5)
         throw new Error("Recortes/máscaras requerem blueprint v5.");
       effectReferences += Number(!!object.effects?.clip) + Number(!!object.effects?.mask);
@@ -286,6 +310,7 @@ export function parseInteractiveDocument(input: unknown): InteractiveDocument {
           ? 1
           : 0) +
         (object.imageSlice ? 18 : 0) +
+        drawnPaintLayers(object.paintLayers).length +
         imageMeshCells(object.imageMesh) +
         (object.effects?.clip ? 2 : 0) +
         (object.effects?.mask ? 2 : 0);

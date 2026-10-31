@@ -21,7 +21,8 @@ function KeyDialog({ clip, selection, apply, close }: KeyProps) {
   const curve = useKeyCurve(selection.key.easing, selection.track.definition.discrete),
     { easing, discrete } = curve,
     [error, setError] = useState(""),
-    id = useId();
+    id = useId(),
+    vertex = selection.reference.kind === "vertex";
   const unit = discrete
     ? "Índice inteiro; interpolação Degrau obrigatória."
     : selection.track.property === "offset" ||
@@ -75,22 +76,29 @@ function KeyDialog({ clip, selection, apply, close }: KeyProps) {
             required
           />
         </label>
-        <label className="scene-field">
-          Valor
-          <input
-            name="value"
-            aria-describedby={`${id}-unit`}
-            type="number"
-            min={selection.track.definition.bounds[0]}
-            max={selection.track.definition.bounds[1]}
-            step={discrete ? 1 : "any"}
-            defaultValue={selection.key.value}
-            required
-          />
-        </label>
-        <p id={`${id}-unit`} className="micro">
-          {unit}
-        </p>
+        {vertex ? (
+          // A vertex key holds a whole path: edit it on the canvas at its frame.
+          <input name="value" type="hidden" value="0" />
+        ) : (
+          <>
+            <label className="scene-field">
+              Valor
+              <input
+                name="value"
+                aria-describedby={`${id}-unit`}
+                type="number"
+                min={selection.track.definition.bounds[0]}
+                max={selection.track.definition.bounds[1]}
+                step={discrete ? 1 : "any"}
+                defaultValue={selection.key.value}
+                required
+              />
+            </label>
+            <p id={`${id}-unit`} className="micro">
+              {unit}
+            </p>
+          </>
+        )}
         <KeyCurveEditor curve={curve} />
         <p className="micro">
           A curva vale até a próxima chave. Colisões são recusadas; nenhuma chave é sobrescrita.

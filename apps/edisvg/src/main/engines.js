@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
-import { createAssistantEngines } from "@informach/edi-desktop/ai-clients";
-import { EDITOR_GUIDE } from "../shared/aiTools.js";
+import { checkTurnImages, createAssistantEngines } from "@informach/edi-desktop/ai-clients";
+import { EDITOR_GUIDE, toolActivity } from "../shared/aiTools.js";
 
 /**
  * The assistant panel through the person's own Claude Code or Codex
@@ -24,6 +24,26 @@ export function providerClient(provider) {
   const client = Object.hasOwn(PROVIDERS, provider) ? PROVIDERS[provider] : undefined;
   if (!client) throw new Error("Provedor inválido.");
   return client;
+}
+
+/**
+ * Reference images of a message, from the panel ({mediaType, data}); the bytes must be the image
+ * their type says. Throws a message for the person otherwise.
+ */
+export function panelImages(images) {
+  if (images === undefined) return [];
+  if (!Array.isArray(images)) throw new Error("Imagens inválidas.");
+  return checkTurnImages(
+    images.map((image) => {
+      const data = image?.data;
+      if (
+        typeof image?.mediaType !== "string" ||
+        !(data instanceof Uint8Array || data instanceof ArrayBuffer)
+      )
+        throw new Error("Imagens inválidas.");
+      return { mediaType: image.mediaType, data: new Uint8Array(data) };
+    }),
+  );
 }
 
 /** An event of a run in the shape the panel reads ({type, text}); null when it shows nothing. */
@@ -51,7 +71,7 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
     server: MCP_SERVER,
     systemPrompt: EDITOR_GUIDE,
     workspace: () => workspace,
-    toolTitle: (name) => name,
+    toolTitle: toolActivity,
     launchOptions: () => launchOptions,
     sessions: false,
     timeoutMs: TIMEOUT_MS,
@@ -63,13 +83,14 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
       stopping = true;
       engines.stop(CONVERSATION);
     },
-    async send({ provider, prompt, model = "" } = {}) {
+    async send({ provider, prompt, model = "", images } = {}) {
       if (busy) throw new Error("Aguarde ou interrompa a resposta atual.");
       if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 32000)
         throw new Error("Mensagem inválida ou longa demais.");
       if (typeof model !== "string" || !/^[\w.:-]{0,120}$/.test(model))
         throw new Error("Modelo inválido.");
       const client = providerClient(provider);
+      const attached = panelImages(images);
       await mkdir(workspace, { recursive: true });
       busy = true;
       stopping = false;
@@ -78,6 +99,7 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
         text: prompt,
         url,
         model: model || undefined,
+        images: attached,
         // The panel's own "done" says whether the person stopped the run.
         emit: (event) => {
           const shown = panelEvent(event);

@@ -39,6 +39,8 @@ const schema = z.strictObject({
     .strictObject({ left: z.number().min(0).max(1e7), top: z.number().min(0).max(1e7) })
     .optional(),
   onion: z.boolean().optional(),
+  rulers: z.boolean().optional(),
+  guides: z.boolean().optional(),
   snapGrid: z.union([z.literal(0), z.number().min(0.1).max(10000)]).optional(),
   rigFocus: z
     .strictObject({
@@ -122,6 +124,8 @@ export function parseWorkspace(text: string, project: Project): Workspace | null
     timelineZoom: value.timelineZoom ?? 1,
     timelineScroll: value.timelineScroll ?? { left: 0, top: 0 },
     onion: value.onion ?? false,
+    rulers: value.rulers ?? true,
+    guides: value.guides ?? true,
     snapGrid: value.snapGrid ?? 0,
     rigFocus:
       value.rigFocus && project.artboards.some((board) => board.id === value.rigFocus?.artboardId)
@@ -158,6 +162,8 @@ export function encodeWorkspace(projectId: string, state: Workspace) {
       timelineZoom: state.timelineZoom,
       timelineScroll: state.timelineScroll,
       onion: state.onion,
+      rulers: state.rulers,
+      guides: state.guides,
       snapGrid: state.snapGrid,
       rigFocus: state.rigFocus,
       panelWidths: state.panelWidths,

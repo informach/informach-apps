@@ -12,6 +12,9 @@ import {
   gradientPaintsSchema,
   gradientTags,
   isXmlText,
+  paintLayerServers,
+  paintLayersSchema,
+  paintLayerTags,
   validAttributes,
   vectorEffectsSchema,
 } from "@informach/edi-motion/graphics";
@@ -163,6 +166,11 @@ export function editScene(scene, id, operation, value) {
     } else if (operation === "filter") {
       if (value === null) delete n.filter;
       else n.filter = filterSchema.parse(value);
+    } else if (operation === "paint-layers") {
+      if (!paintLayerTags.has(n.tag))
+        throw new Error("Camadas de pintura requerem forma ou caminho.");
+      if (value === null || (Array.isArray(value) && !value.length)) delete n.paintLayers;
+      else n.paintLayers = paintLayersSchema.parse(value);
     } else if (operation === "image-mesh") {
       if (n.tag !== "image") throw new Error("Malha raster requer imagem.");
       if (value === null) delete n.imageMesh;
@@ -289,6 +297,7 @@ export function validateScene(
           "imageMesh",
           "gradients",
           "filter",
+          "paintLayers",
           "effects",
           "fontAssetId",
           "fontFallbackIds",
@@ -391,6 +400,17 @@ export function validateScene(
       if (gradients) budget.attributes += JSON.stringify(gradients).length;
       const filter = n.filter === undefined ? undefined : filterSchema.parse(n.filter);
       if (filter) budget.attributes += JSON.stringify(filter).length;
+      const paintLayers =
+        n.paintLayers === undefined ? undefined : paintLayersSchema.parse(n.paintLayers);
+      if (paintLayers) {
+        if (!paintLayerTags.has(n.tag))
+          throw new Error("Camadas de pintura requerem forma ou caminho.");
+        if (filter) throw new Error("Camadas de pintura extras com filtro ficam fora do perfil.");
+        budget.attributes += JSON.stringify(paintLayers).length;
+        budget.count += paintLayers.filter((layer) => layer.visible).length;
+        if (budget.count > 2000)
+          throw new Error("Camadas de pintura excedem orçamento de células SVG.");
+      }
       const effects = n.effects === undefined ? undefined : vectorEffectsSchema.parse(n.effects);
       if (effects) {
         budget.effects = (budget.effects ?? 0) + Number(!!effects.clip) + Number(!!effects.mask);
@@ -447,6 +467,7 @@ export function validateScene(
         ...(imageMesh === undefined ? {} : { imageMesh }),
         ...(gradients === undefined ? {} : { gradients }),
         ...(filter === undefined ? {} : { filter }),
+        ...(paintLayers === undefined ? {} : { paintLayers }),
         ...(effects === undefined ? {} : { effects }),
         ...(fontAssetId === undefined ? {} : { fontAssetId }),
         ...(fontFallbackIds === undefined ? {} : { fontFallbackIds }),
@@ -484,6 +505,9 @@ export function validateScene(
   gradientDefinitions([
     ...flattenScene(result).map(({ node }) => node.gradients),
     ...(result.styles ?? []).map((style) => style.gradients),
+    ...flattenScene(result).flatMap(({ node }) =>
+      paintLayerServers(node.paintLayers).map((fill) => ({ fill })),
+    ),
   ]);
   filterDefinitions(flattenScene(result).map(({ node }) => node.filter));
   if (scene.preserveAspectRatio !== undefined) {

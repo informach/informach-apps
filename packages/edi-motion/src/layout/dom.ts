@@ -9,6 +9,7 @@ import {
 import { createSlicedImageBinding } from "../assets/imageDom";
 import { ownerWindow } from "../frameLoop";
 import { geometryPath } from "../geometry";
+import { paintLayerCopies } from "../graphics/paintLayers";
 import type { InteractiveDocument } from "../interactiveDocument";
 import { identityTransform } from "../model";
 import type { Bounds, LayoutObject } from "./model";
@@ -138,7 +139,7 @@ export function createSvgLayout(
     const displays = new Map<SVGElement, string | null>();
     const bases = new Map(document.playback.objects.map((object) => [object.id, object.transform]));
     const helpers = new Map<SVGElement, string | null>();
-    const paths = new Map<SVGElement, string | null>();
+    const paths = new Map<Element, string | null>();
     try {
       for (const helper of root.querySelectorAll("[data-edi-rig-overlay]"))
         if (helper instanceof view.SVGElement) {
@@ -158,8 +159,10 @@ export function createSvgLayout(
         if (d !== undefined) {
           if (shape.localName !== "path")
             throw new Error("Geometria base de layout não corresponde ao SVG.");
-          paths.set(shape, shape.getAttribute("d"));
-          shape.setAttribute("d", d);
+          for (const element of [shape, ...paintLayerCopies(shape)]) {
+            paths.set(element, element.getAttribute("d"));
+            element.setAttribute("d", d);
+          }
         }
       }
       for (const [id, original] of originals) {

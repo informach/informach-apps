@@ -8,6 +8,8 @@ interface Availability {
   key: boolean;
   keys: boolean;
   group: boolean;
+  /** The active artboard has ruler guides. */
+  guides: boolean;
   undo: boolean;
   redo: boolean;
 }
@@ -114,6 +116,26 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
     },
     { id: "hierarchy", label: "Abrir hierarquia", group: "Exibir" },
     { id: "viewport-reset", label: "Centralizar área de trabalho", group: "Exibir" },
+    {
+      id: "rulers",
+      label: "Mostrar ou ocultar réguas",
+      group: "Exibir",
+      shortcut: "Shift+R",
+      reason: available.scene ? undefined : "Crie uma prancheta própria.",
+    },
+    {
+      id: "guides",
+      label: "Mostrar ou ocultar guias",
+      group: "Exibir",
+      shortcut: "Shift+G",
+      reason: available.scene ? undefined : "Crie uma prancheta própria.",
+    },
+    {
+      id: "guides-clear",
+      label: "Remover guias da prancheta",
+      group: "Exibir",
+      reason: available.guides ? undefined : "A prancheta não tem guias.",
+    },
     { id: "help", label: "Ajuda e atalhos", group: "Ajuda", shortcut: "F1" },
     ...tools,
   ];

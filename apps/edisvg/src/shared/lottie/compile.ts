@@ -119,7 +119,7 @@ export function compileLottie(
   // pieces) sampled with hold keys, exact at every sample without interpolating between them.
   const trimmed = new Set(
       (compiled.playback.rigScopes ?? []).flatMap((scope) =>
-        (scope.rig.trims ?? []).map((trim) => trim.targetId),
+        (scope.rig.trims ?? []).flatMap((trim) => (trim.layerId ? [] : [trim.targetId])),
       ),
     ),
     slotsOf = (id: string) => (geometries.get(id)?.length ?? 0) * (trimmed.has(id) ? 2 : 1),

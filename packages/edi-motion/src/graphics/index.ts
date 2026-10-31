@@ -41,6 +41,22 @@ export {
 } from "./gradients";
 export { nativeEffectSources } from "./nativeEffectSources";
 export {
+  drawnPaintLayers,
+  PAINT_LAYER_ATTRIBUTE,
+  PAINT_LAYER_LIMIT,
+  type PaintLayer,
+  paintLayerAttributes,
+  paintLayerCopies,
+  paintLayerGeometry,
+  paintLayerGeometryKey,
+  paintLayerPaths,
+  paintLayerSchema,
+  paintLayerServers,
+  paintLayersSchema,
+  paintLayerTags,
+  writeShapePath,
+} from "./paintLayers";
+export {
   PATTERN_POOL_VERTICES,
   PATTERN_TILE_VERTICES,
   type Pattern,
