@@ -142,8 +142,8 @@ export const PRODUCTS: readonly Product[] = [
     tier: "individual",
     interval: "month",
     stripePriceId: {
-      dev: "price_TODO_bora_individual_monthly",
-      prod: "price_TODO_bora_individual_monthly",
+      dev: "price_1UWcYICvOctqao3059ICegU1",
+      prod: "price_1UWcaZCvOctqao30ltttfUvn",
     },
     listPrice: { amountCents: 2490, currency: "BRL" },
   },
@@ -157,8 +157,8 @@ export const PRODUCTS: readonly Product[] = [
     tier: "individual",
     interval: "year",
     stripePriceId: {
-      dev: "price_TODO_bora_individual_annual",
-      prod: "price_TODO_bora_individual_annual",
+      dev: "price_1UWcYICvOctqao306eZc23DE",
+      prod: "price_1UWcaZCvOctqao30dEzj9vWP",
     },
     listPrice: { amountCents: 24900, currency: "BRL" },
   },
@@ -172,8 +172,8 @@ export const PRODUCTS: readonly Product[] = [
     tier: "family",
     interval: "month",
     stripePriceId: {
-      dev: "price_TODO_bora_family_monthly",
-      prod: "price_TODO_bora_family_monthly",
+      dev: "price_1UWcYKCvOctqao30OZJHEuVi",
+      prod: "price_1UWcaaCvOctqao30XEHid2Lo",
     },
     listPrice: { amountCents: 3490, currency: "BRL" },
   },
@@ -187,8 +187,8 @@ export const PRODUCTS: readonly Product[] = [
     tier: "family",
     interval: "year",
     stripePriceId: {
-      dev: "price_TODO_bora_family_annual",
-      prod: "price_TODO_bora_family_annual",
+      dev: "price_1UWcYKCvOctqao30USvJGQgn",
+      prod: "price_1UWcabCvOctqao3086Cnz1Ju",
     },
     listPrice: { amountCents: 34900, currency: "BRL" },
   },
