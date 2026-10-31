@@ -1654,7 +1654,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (drawing) pen?.focus();
     else if (was) pen?.blur();
   });
-  // "Recado": the controls take the keyboard while the note is typed, then hand it back to the
+  // "Lembrete": the controls take the keyboard while the note is typed, then hand it back to the
   // program being recorded (keys typed in this process's windows never show on screen).
   ipcMain.handle("recorder:keyboard", (_e, raw: unknown) => {
     const on = z.boolean().parse(raw);

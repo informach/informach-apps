@@ -619,7 +619,7 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));
   toast(
-    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}${notesPlaced ? ` · ${plural(notesPlaced, "recado", "recados")}` : ""}${zoomed ? ` · ${plural(zoomed, "zoom automático", "zooms automáticos")}` : ""}.`,
+    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}${notesPlaced ? ` · ${plural(notesPlaced, "lembrete", "lembretes")}` : ""}${zoomed ? ` · ${plural(zoomed, "zoom automático", "zooms automáticos")}` : ""}.`,
     "success",
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];

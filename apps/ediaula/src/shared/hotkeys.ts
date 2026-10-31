@@ -48,7 +48,7 @@ export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
   stop: "Parar",
   guidedTarget: "Alvo do modo guiado",
   marker: "Marcador",
-  note: "Recado para quem edita",
+  note: "Lembrete da gravação",
   retake: "Refazer o último trecho",
   lineNext: "Próxima fala",
   linePrev: "Fala anterior",

@@ -10,6 +10,7 @@ import type { Project } from "./types.ts";
  */
 
 export const PREPARE_STEPS = [
+  "recording",
   "transcribe",
   "section",
   "cuts",
@@ -37,6 +38,7 @@ export interface PrepareState {
 }
 
 export const PREPARE_LABEL: Record<PrepareStep, string> = {
+  recording: "Revisar a gravação",
   transcribe: "Transcrever",
   section: "Confirmar a seção do roteiro",
   cuts: "Cortes",
@@ -50,6 +52,8 @@ export const PREPARE_LABEL: Record<PrepareStep, string> = {
 };
 
 export const PREPARE_HINT: Record<PrepareStep, string> = {
+  recording:
+    "O que a gravação deixou para decidir: a tela gravada com a voz segurada, as tentativas de Errei, voltar e os lembretes.",
   transcribe:
     "Transcreve cada fonte que se ouve na aula uma vez só: a voz tirada de um vídeo não é transcrita de novo.",
   section: "Confere qual seção do roteiro esta gravação é antes de cortar pelo roteiro.",
@@ -269,11 +273,17 @@ export function liveVoices(
 
 /** Why a step does not apply to this lesson, known without reading any file; null when it does. */
 export function skipReason(
-  project: Pick<Project, "voiceMasters" | "script" | "assets" | "clips" | "tracks">,
+  project: Pick<Project, "voiceMasters" | "script" | "assets" | "clips" | "tracks" | "markers">,
   step: PrepareStep,
 ): string | null {
   const used = new Set(project.clips.map((c) => c.assetId));
   switch (step) {
+    case "recording":
+      return project.clips.some((c) => c.timelapse) ||
+        project.assets.some((a) => a.retries?.length && used.has(a.id)) ||
+        project.markers?.some((m) => m.note)
+        ? null
+        : "A gravação não deixou nada para decidir.";
     case "section":
       return project.script?.text ? null : "A aula não tem roteiro colado.";
     case "cuts":

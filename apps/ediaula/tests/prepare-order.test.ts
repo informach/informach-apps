@@ -39,6 +39,7 @@ const project = (extra: Partial<Project> = {}): Project => ({
 
 test("the steps run in a fixed order: cuts before inserts, overlays after, the check last", () => {
   assert.deepEqual(PREPARE_STEPS, [
+    "recording",
     "transcribe",
     "section",
     "cuts",
@@ -59,15 +60,16 @@ test("the steps run in a fixed order: cuts before inserts, overlays after, the c
 
 test("only the waiting step can be decided, and each decision moves on to the next", () => {
   let state = startPrepare();
-  assert.equal(resumeStep(state), "transcribe");
+  assert.equal(resumeStep(state), "recording");
   // Deciding a later step out of turn changes nothing.
   assert.equal(decide(state, "zoom", "done"), state);
+  state = decide(state, "recording", "skipped");
   state = decide(state, "transcribe", "done");
   assert.equal(state.step, "section");
   state = decide(state, "section", "skipped", "A aula não tem roteiro colado.");
   assert.equal(state.step, "cuts");
   assert.equal(state.notes?.section, "A aula não tem roteiro colado.");
-  for (const s of PREPARE_STEPS.slice(2)) state = decide(state, s, "done");
+  for (const s of PREPARE_STEPS.slice(3)) state = decide(state, s, "done");
   assert.ok(prepareFinished(state));
   assert.equal(nextStep(state), null);
   assert.equal(resumeStep(state), null);
@@ -85,6 +87,7 @@ test('a lesson saved with mutedFor "heygen" opens with "presenter"', () => {
 
 test("the state is kept in the project and the pipeline goes on where it stopped", () => {
   let state = startPrepare();
+  state = decide(state, "recording", "skipped");
   state = decide(state, "transcribe", "done");
   state = decide(state, "section", "done");
   state = decide(state, "cuts", "skipped", "voz já limpa");
@@ -92,7 +95,10 @@ test("the state is kept in the project and the pipeline goes on where it stopped
   assert.deepEqual(saved.prepare, state);
   assert.equal(resumeStep(saved.prepare), "inserts");
   // A saved step that is not the first open one (an older file) resumes at the first open one.
-  assert.equal(resumeStep({ step: "zoom", decisions: { transcribe: "done" } }), "section");
+  assert.equal(
+    resumeStep({ step: "zoom", decisions: { recording: "skipped", transcribe: "done" } }),
+    "section",
+  );
   assert.ok(
     !projectSchema.safeParse(project({ prepare: { step: "nada" as "zoom", decisions: {} } }))
       .success,
@@ -101,11 +107,11 @@ test("the state is kept in the project and the pipeline goes on where it stopped
 
 test("opening a step again clears it and every step after it", () => {
   let state = startPrepare();
-  for (const s of PREPARE_STEPS.slice(0, 6)) state = decide(state, s, "done", `nota ${s}`);
+  for (const s of PREPARE_STEPS.slice(0, 7)) state = decide(state, s, "done", `nota ${s}`);
   const again = reopen(state, "inserts");
   assert.equal(again.step, "inserts");
-  assert.deepEqual(Object.keys(again.decisions), ["transcribe", "section", "cuts"]);
-  assert.deepEqual(Object.keys(again.notes ?? {}), ["transcribe", "section", "cuts"]);
+  assert.deepEqual(Object.keys(again.decisions), ["recording", "transcribe", "section", "cuts"]);
+  assert.deepEqual(Object.keys(again.notes ?? {}), ["recording", "transcribe", "section", "cuts"]);
   assert.equal(resumeStep(again), "inserts");
 });
 
@@ -254,7 +260,7 @@ test("what a step made is resolved for that step only, also after a Refazer", ()
   assert.ok(isPrepareAuthor("preparar") && isPrepareAuthor("preparar:cards"));
   assert.ok(!isPrepareAuthor("modelo") && !isPrepareAuthor("prepararx"));
   let state = startPrepare();
-  for (const s of PREPARE_STEPS.slice(0, 6)) state = decide(state, s, "done");
+  for (const s of PREPARE_STEPS.slice(0, 7)) state = decide(state, s, "done");
   assert.equal(resumeStep(state), "annotations");
   // The draft of the annotations is applied: the step is done, the next one waits.
   const applied = resolveReview(state, prepareAuthor("annotations"), "applied", "2 anotações");
@@ -276,17 +282,19 @@ test("what a step made is resolved for that step only, also after a Refazer", ()
 test("the course template applied from its offer marks the steps it covered", () => {
   const steps = ["template", "zoom", "annotations", "captions", "cards"] as const;
   const fresh = markDone(undefined, steps, "Feita pelo modelo do curso.");
-  assert.equal(resumeStep(fresh), "transcribe");
+  assert.equal(resumeStep(fresh), "recording");
   for (const s of steps) assert.equal(fresh.decisions[s], "done");
   assert.ok(projectSchema.safeParse(project({ prepare: fresh })).success);
   // Then the pipeline runs the first steps and goes from the cuts to the inserts to the check.
   let state = fresh;
-  for (const s of ["transcribe", "section", "cuts"] as const) state = decide(state, s, "done");
+  for (const s of ["recording", "transcribe", "section", "cuts"] as const)
+    state = decide(state, s, "done");
   assert.equal(resumeStep(state), "inserts");
   state = decide(state, "inserts", "done");
   assert.equal(resumeStep(state), "check");
   // A step already decided keeps its own note.
-  const kept = markDone(decide(startPrepare(), "transcribe", "done", "ok"), ["transcribe"], "x");
+  const recorded = decide(startPrepare(), "recording", "skipped");
+  const kept = markDone(decide(recorded, "transcribe", "done", "ok"), ["transcribe"], "x");
   assert.equal(kept.notes?.transcribe, "ok");
 });
 
@@ -335,4 +343,14 @@ test('"Voz e câmera": the voice and the camera were recorded together, so the c
     ],
   };
   assert.notEqual(skipReason(exported, "cuts"), null);
+});
+
+test("revisar a gravação só aparece quando a gravação deixou algo para decidir", () => {
+  assert.match(skipReason(project(), "recording") ?? "", /não deixou nada/);
+  const lapse = project({
+    clips: [{ ...clip("c", "tela", "v1"), speed: 30, timelapse: { under: 5, source: 150 } }],
+  });
+  assert.equal(skipReason(lapse, "recording"), null);
+  const noted = project({ markers: [{ id: "m", t: 3, label: "Lembrete: zoom", note: true }] });
+  assert.equal(skipReason(noted, "recording"), null);
 });

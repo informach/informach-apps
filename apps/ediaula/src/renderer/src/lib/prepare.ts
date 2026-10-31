@@ -284,6 +284,9 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
     };
   const into = commit(step);
   switch (step) {
+    case "recording":
+      // Decided in the panel (RecordingReview), with Pronto.
+      return { kind: "blocked", note: "Confira cada item abaixo e clique em Pronto." };
     case "transcribe": {
       const busy = new Set(Object.keys(useTranscribing.getState()));
       const todo = pendingSpeech(p, busy);
@@ -579,6 +582,15 @@ export function confirmPrepareSection(index: number): void {
     ...q,
     script: q.script ? { ...q.script, section: index, confirmed: true } : q.script,
   }));
+  void runPrepare();
+}
+
+/** "Revisar a gravação" checked: the step is done and the next one runs. */
+export function confirmRecordingReview(): void {
+  const p = useProject.getState().project;
+  if (!p || resumeStep(stateOf(p)) !== "recording") return;
+  keep(decide(stateOf(p), "recording", "done", "Gravação revisada."));
+  usePrepare.setState({ waiting: null, message: null });
   void runPrepare();
 }
 

@@ -7,7 +7,7 @@ import { OrphanRecordings } from "./home/OrphanRecordings";
 import { reportAiContext, runAiTool } from "./lib/aiTools";
 import { watchCourseOffer } from "./lib/courseTemplate";
 import { listenLearning } from "./lib/learning";
-import { listenPrepare } from "./lib/prepare";
+import { listenPrepare, openPrepare } from "./lib/prepare";
 import { loadRecorderKeys } from "./lib/recorderKeys";
 import { listenRecordings } from "./lib/recording";
 import { listenSeamReview } from "./lib/review";
@@ -52,16 +52,18 @@ export function App(): ReactNode {
     refreshKeys();
     const stopKeys = window.api.recorder.onState(refreshKeys);
     listenRecordings();
-    // The recorder closed asking for the lesson's steps, or for sending the lesson on.
-    const stopClosed = window.api.recorder.onClosed((next) =>
+    // The recorder closed asking for the lesson's steps, editing it now, or packing it for
+    // someone else.
+    const stopClosed = window.api.recorder.onClosed((next) => {
       useApp
         .getState()
         .set(
           next === "send"
             ? { leftPanel: "lessonFlow", sendOpen: true }
             : { leftPanel: "lessonFlow" },
-        ),
-    );
+        );
+      if (next === "edit") openPrepare();
+    });
     // AI tools (from Claude Code/Codex over MCP, or the in-app assistant) run here, on the live project.
     const stopTools = window.api.handleAiTools((call) => runAiTool(call));
     const stopApprovals = listenAiApprovals();

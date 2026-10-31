@@ -79,7 +79,7 @@ export const journalLineSchema = z.discriminatedUnion("k", [
   z.object({ k: z.literal("pause"), qpc }),
   z.object({ k: z.literal("resume"), qpc }),
   z.object({ k: z.literal("marker"), qpc, kind: z.enum(["marker", "retake"]) }),
-  /** A note for whoever edits the lesson, at the moment it was opened ("Recado"). */
+  /** A note left while recording, at the moment it was opened ("Lembrete"). */
   z.object({ k: z.literal("note"), qpc, text: z.string().min(1).max(200) }),
   z.object({ k: z.literal("fail"), src: source, qpc, message: z.string().max(4000) }),
   z.object({ k: z.literal("health"), qpc, note: z.string().max(4000) }),

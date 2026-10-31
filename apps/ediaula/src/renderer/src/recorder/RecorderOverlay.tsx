@@ -21,6 +21,7 @@ import type {
   OverContext,
   RecorderContext,
   RecorderEvent,
+  RecorderNext,
   RecorderStatus,
 } from "@shared/recording";
 import type { MicLevel, RecorderHealth } from "@shared/recordingHealth";
@@ -712,7 +713,8 @@ export function RecorderOverlay(): ReactNode {
   }, []);
 
   /**
-   * "Recado": a short note for whoever edits the lesson, at the moment it was opened. The pill
+   * "Lembrete": a short note for later (for whoever edits, or oneself), at the moment it was
+   * opened. The pill
    * takes the keyboard while it is typed (keys typed here never show on screen) and gives it back
    * with Enter or Esc.
    */
@@ -757,7 +759,7 @@ export function RecorderOverlay(): ReactNode {
       if (save && text) {
         await window.api.recorder.note(open.at, text.slice(0, NOTE_MAX));
         setNoteCount((n) => n + 1);
-        showFlash("Recado guardado para quem edita");
+        showFlash("Lembrete guardado");
       }
       await window.api.recorder.keyboard(false);
     },
@@ -2135,9 +2137,9 @@ export function RecorderOverlay(): ReactNode {
               </button>
               <button
                 type="button"
-                title={`Recado para quem edita (${keyOf("note")})`}
+                title={`Lembrete da gravação (${keyOf("note")}): uma nota para a edição, sua ou de outra pessoa`}
                 aria-label={
-                  noteCount > 0 ? `Recado, ${noteCount} até agora` : "Recado para quem edita"
+                  noteCount > 0 ? `Lembrete, ${noteCount} até agora` : "Lembrete da gravação"
                 }
                 onClick={() => void openNote()}
               >
@@ -2148,8 +2150,8 @@ export function RecorderOverlay(): ReactNode {
                 <input
                   ref={noteInput}
                   className="rec-note-field"
-                  aria-label="Recado para quem edita"
-                  placeholder="Recado para quem edita. Enter guarda, Esc desiste"
+                  aria-label="Lembrete da gravação"
+                  placeholder="Lembrete para a edição. Enter guarda, Esc desiste"
                   maxLength={NOTE_MAX}
                   value={note.text}
                   onChange={(e) => setNote({ ...note, text: e.target.value })}
@@ -2358,7 +2360,7 @@ function OverDone({
   over: OverContext;
   recorded: readonly [number, number][];
   onRecord: (from: number, to: number) => void;
-  onClose: (next: "flow" | "send") => void;
+  onClose: (next: RecorderNext) => void;
 }): ReactNode {
   const coverage = coverageOf(over, recorded);
   const gap = coverage.firstGap;
@@ -2403,8 +2405,11 @@ function OverDone({
         <button type="button" onClick={() => onClose("flow")}>
           Voltar ao editor
         </button>
-        <button type="button" className="is-primary" onClick={() => onClose("send")}>
-          Enviar para a edição
+        <button type="button" className="is-primary" onClick={() => onClose("edit")}>
+          Editar agora
+        </button>
+        <button type="button" onClick={() => onClose("send")}>
+          Empacotar para outra pessoa
         </button>
       </div>
     </div>

@@ -271,7 +271,7 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 
 ## Preparar aula, revisão e verificação
 
-**Preparar aula** leva a gravação até uma edição pronta para revisar, em dez etapas, sempre na
+**Preparar aula** leva a gravação até uma edição pronta para revisar, em onze etapas, sempre na
 mesma ordem. Abre pelo botão **Preparar aula** no topo do editor, pela faixa que aparece quando uma
 gravação de tela ou o vídeo do apresentador entra na aula ou pela IA (`prepare_lesson`). Depois de uma
 gravação **Só voz**, a faixa lembra o caminho da voz (escolher as tomadas, limpar e exportar para

@@ -402,3 +402,34 @@
   align-items: center;
   gap: 6px;
 }
+
+/* "Revisar a gravação" in Preparar aula (RecordingReview.tsx). */
+.recording-review {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.recording-review section {
+  width: 100%;
+}
+.recording-review h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.recording-review ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.recording-review li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

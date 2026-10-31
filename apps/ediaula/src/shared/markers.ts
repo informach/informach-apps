@@ -16,7 +16,7 @@ export interface Marker {
   label: string;
   /** Starts a chapter of the exported MP4 (and of publish.chapters). */
   chapter?: boolean;
-  /** A note left while recording, for whoever edits the lesson ("Recado"). */
+  /** A note left while recording, for whoever edits the lesson, or for oneself ("Lembrete"). */
   note?: boolean;
 }
 
@@ -346,7 +346,7 @@ export function notesOnTimeline(
   return out;
 }
 
-/** The notes as markers ("Recado: …"), next to the markers already there. */
+/** The notes as markers ("Lembrete: …"), next to the markers already there. */
 export function addNotes(
   list: readonly Marker[],
   notes: readonly { t: number; text: string }[],
@@ -357,10 +357,14 @@ export function addNotes(
     // A note on the very moment of another marker moves a frame on, never lost.
     let t = Math.max(0, n.t);
     while (out.some((m) => Math.abs(m.t - t) < 1e-3)) t += 1 / 30;
-    out.push({ id: newId("m"), t, label: `Recado: ${n.text}`, note: true });
+    out.push({ id: newId("m"), t, label: `Lembrete: ${n.text}`, note: true });
   }
   return sortMarkers(out);
 }
+
+/** What a note says, without its "Lembrete: " (or the "Recado: " of older lessons). */
+export const noteText = (m: Pick<Marker, "label">): string =>
+  m.label.replace(/^(Lembrete|Recado): /, "");
 
 /** The notes left while recording, in the lesson's order. */
 export const lessonNotes = (p: Pick<Project, "markers">): Marker[] =>

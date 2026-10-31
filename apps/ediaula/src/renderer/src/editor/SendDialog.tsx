@@ -1,4 +1,4 @@
-import { lessonNotes } from "@shared/markers";
+import { lessonNotes, noteText } from "@shared/markers";
 import { plural } from "@shared/plural";
 import { newId } from "@shared/timeline";
 import { voiceClips } from "@shared/voiceMaster";
@@ -32,7 +32,7 @@ const packageName = (name: string, course?: string): string =>
   "Aula";
 
 /**
- * "Enviar para a edição": what is still missing in the lesson (lines without a screen, media
+ * "Empacotar para outra pessoa": what is still missing in the lesson (lines without a screen, media
  * gone, the voice not read yet), the package with only what the lesson uses, and the folder it
  * goes to (a cloud-synced one sends it on by itself).
  */
@@ -91,7 +91,7 @@ export function SendDialog(): ReactNode {
   const send = async (): Promise<void> => {
     const { startJob, endJob, toast } = useApp.getState();
     if (!(await useProject.getState().saveNow())) {
-      setError("Salve a aula antes de enviar.");
+      setError("Salve a aula antes de empacotar.");
       return;
     }
     const current = useProject.getState().project ?? project;
@@ -126,11 +126,11 @@ export function SendDialog(): ReactNode {
   };
 
   return (
-    <Modal label="Enviar para a edição" onClose={close} width={600}>
+    <Modal label="Empacotar para outra pessoa" onClose={close} width={600}>
       <div className="modal-body stack-16">
         <div className="modal-title-row">
           <PackageCheck size={18} color="var(--accent)" />
-          <h2 className="modal-title">Enviar para a edição</h2>
+          <h2 className="modal-title">Empacotar para outra pessoa</h2>
         </div>
         {sent ? (
           <>
@@ -208,7 +208,7 @@ export function SendDialog(): ReactNode {
                     <span>
                       {plural(missingMedia.length, "arquivo sumiu", "arquivos sumiram")} do
                       computador ({missingMedia.slice(0, 3).join(", ")}
-                      {missingMedia.length > 3 ? "…" : ""}). Reconecte na Mídia antes de enviar.
+                      {missingMedia.length > 3 ? "…" : ""}). Reconecte na Mídia antes de empacotar.
                     </span>
                   </li>
                 )}
@@ -216,14 +216,12 @@ export function SendDialog(): ReactNode {
                   <li className="send-check is-info">
                     <MessageSquareText size={14} className="send-icon" />
                     <div>
-                      {plural(notes.length, "recado vai", "recados vão")} junto para quem edita:
+                      {plural(notes.length, "lembrete vai", "lembretes vão")} junto no pacote:
                       <ul className="send-lines">
                         {notes.slice(0, 5).map((m) => (
                           <li className="send-line is-note" key={m.id}>
                             <span className="mono">{clock(m.t)}</span>
-                            <span className="send-line-text">
-                              {m.label.replace(/^Recado: /, "")}
-                            </span>
+                            <span className="send-line-text">{noteText(m)}</span>
                             <Button size="sm" onClick={() => goTo(m.t)}>
                               Ir até
                             </Button>
@@ -297,7 +295,11 @@ export function SendDialog(): ReactNode {
                 disabled={busy || missingMedia.length > 0}
                 onClick={() => void send()}
               >
-                {busy ? "Empacotando…" : folder ? "Empacotar e enviar" : "Empacotar e salvar…"}
+                {busy
+                  ? "Empacotando…"
+                  : folder
+                    ? "Empacotar na pasta de envio"
+                    : "Empacotar e salvar…"}
               </Button>
             </div>
           </>

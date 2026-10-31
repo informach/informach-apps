@@ -1,4 +1,4 @@
-import { lessonNotes } from "@shared/markers";
+import { lessonNotes, noteText } from "@shared/markers";
 import { agree, plural } from "@shared/plural";
 import { speechItems } from "@shared/script";
 import { voiceClips, voiceSpan } from "@shared/voiceMaster";
@@ -13,9 +13,11 @@ import {
   MonitorPlay,
   PackageCheck,
   ScrollText,
+  Wand2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useScreenCoverage } from "@/lib/coverage";
+import { openPrepare } from "@/lib/prepare";
 import { openRecorder } from "@/lib/recording";
 import { scriptDoc } from "@/lib/script";
 import { useEngine, useTranscribing } from "@/lib/transcripts";
@@ -23,7 +25,7 @@ import { importVoiceFiles, transcribeVoice } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { Button } from "@/ui";
+import { Button, Toggle } from "@/ui";
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -60,7 +62,27 @@ function Step({
  * screen, send to whoever edits it), each with where it stands and the one thing to do next.
  * The buttons are the ones of the Áudio panel and the menus, gathered in order.
  */
+const AUTO_KEY = "ediaula.etapasSozinho";
+
+/** Whether the steps open by themselves in a new lesson (a convenience of this computer). */
+export function flowOpensAlone(): boolean {
+  try {
+    return localStorage.getItem(AUTO_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function setFlowOpensAlone(on: boolean): void {
+  try {
+    localStorage.setItem(AUTO_KEY, on ? "1" : "0");
+  } catch {
+    // Without storage it opens by itself, as by default.
+  }
+}
+
 export function LessonFlowPanel(): ReactNode {
+  const [alone, setAlone] = useState(flowOpensAlone);
   const project = useProject((s) => s.project);
   const running = useTranscribing();
   const jobs = useApp((s) => s.jobs);
@@ -121,7 +143,8 @@ export function LessonFlowPanel(): ReactNode {
       </div>
       <div className="prepare">
         <p className="props-hint muted">
-          O caminho de quem grava: o roteiro, a voz, a tela sobre a voz e o envio para quem edita.
+          Um guia, não uma ordem: o roteiro, a voz, a tela sobre a voz e o que fazer depois. Use o
+          que servir, na ordem que quiser.
         </p>
         <ol className="prepare-steps">
           <Step n={1} title="Roteiro" state={state(!!doc, true)}>
@@ -223,37 +246,63 @@ export function LessonFlowPanel(): ReactNode {
             )}
           </Step>
 
-          <Step n={4} title="Enviar para a edição" state={state(false, hasVoice && anyScreen)}>
+          <Step n={4} title="Concluir a gravação" state={state(false, hasVoice && anyScreen)}>
             <p className="muted">
-              Confere o que falta, empacota a aula com as mídias e salva na pasta de envio.
+              Edite aqui mesmo, começando pelo Preparar aula (que traz o que a gravação deixou para
+              decidir), ou empacote a aula com as mídias para outra pessoa editar.
             </p>
-            <Button
-              size="sm"
-              icon={PackageCheck}
-              variant={screenDone ? "primary" : "secondary"}
-              disabled={!hasVoice}
-              onClick={() => useApp.getState().set({ sendOpen: true })}
-            >
-              Enviar para a edição
-            </Button>
+            <div className="row-6 row-wrap">
+              <Button
+                size="sm"
+                icon={Wand2}
+                variant={screenDone ? "primary" : "secondary"}
+                disabled={!hasVoice}
+                onClick={openPrepare}
+              >
+                Editar agora
+              </Button>
+              <Button
+                size="sm"
+                icon={PackageCheck}
+                disabled={!hasVoice}
+                onClick={() => useApp.getState().set({ sendOpen: true })}
+              >
+                Empacotar para outra pessoa
+              </Button>
+            </div>
           </Step>
         </ol>
         {notes.length > 0 && (
-          <section className="flow-notes" aria-label="Recados da gravação">
+          <section className="flow-notes" aria-label="Lembretes da gravação">
             <h4>
-              <MessageSquareText size={13} /> Recados da gravação
+              <MessageSquareText size={13} /> Lembretes da gravação
             </h4>
             <ul className="flow-missing">
               {notes.map((m) => (
                 <li key={m.id}>
-                  <button type="button" onClick={() => playback.seek(m.t)} title="Ir até o recado">
-                    <span className="mono">{clock(m.t)}</span> {m.label.replace(/^Recado: /, "")}
+                  <button
+                    type="button"
+                    onClick={() => playback.seek(m.t)}
+                    title="Ir até o lembrete"
+                  >
+                    <span className="mono">{clock(m.t)}</span> {noteText(m)}
                   </button>
                 </li>
               ))}
             </ul>
           </section>
         )}
+        <div className="audio-flag">
+          <small className="muted">Abrir este painel sozinho num projeto novo</small>
+          <Toggle
+            on={alone}
+            onChange={(on) => {
+              setAlone(on);
+              setFlowOpensAlone(on);
+            }}
+            label="Abrir este painel sozinho num projeto novo"
+          />
+        </div>
       </div>
     </section>
   );

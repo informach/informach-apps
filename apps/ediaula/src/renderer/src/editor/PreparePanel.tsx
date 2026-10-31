@@ -36,10 +36,11 @@ import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Button, IconButton } from "@/ui";
 import { PreflightList } from "./PreflightList";
+import { RecordingReview } from "./RecordingReview";
 
 /**
  * "Preparar aula" in the side panel (opened from the top bar, the offer after a take or the AI):
- * the ten steps, where the lesson stands and what is waiting.
+ * the eleven steps, where the lesson stands and what is waiting.
  */
 export function PreparePanel(): ReactNode {
   const project = useProject((s) => s.project);
@@ -64,7 +65,7 @@ export function PreparePanel(): ReactNode {
         <div className="spacer">
           <strong>Preparar aula</strong>
           <p className="muted">
-            Dez etapas em ordem. Cada uma vira uma proposta ou um rascunho para você aprovar na
+            Onze etapas em ordem. Cada uma vira uma proposta ou um rascunho para você aprovar na
             barra de revisão; nada muda na aula sem a sua aprovação.
           </p>
         </div>
@@ -127,6 +128,7 @@ export function PreparePanel(): ReactNode {
                     {isRunning && <p className="prepare-note">Trabalhando nesta etapa…</p>}
                     {!isRunning && message && <p className="prepare-note">{message}</p>}
                     {step === "section" && !isRunning && doc && <SectionChoice />}
+                    {step === "recording" && !isRunning && <RecordingReview />}
                     {!isRunning && (
                       <div className="row-6">
                         {waiting ? (

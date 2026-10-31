@@ -104,7 +104,7 @@ export function TopBar(): ReactNode {
                 },
                 { separator: true, label: "" },
                 {
-                  label: "Enviar para a edição (empacotar com as mídias)…",
+                  label: "Empacotar para outra pessoa (com as mídias)…",
                   disabled: !project,
                   onSelect: packLesson,
                 },

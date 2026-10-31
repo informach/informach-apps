@@ -186,7 +186,7 @@ export interface OverLapse {
  * What the editor shows when the recorder closes: the lesson's recording steps, or the sending
  * of the lesson to whoever edits it.
  */
-export const RECORDER_NEXT = ["flow", "send"] as const;
+export const RECORDER_NEXT = ["flow", "edit", "send"] as const;
 export type RecorderNext = (typeof RECORDER_NEXT)[number];
 
 /** The voice read as text, sent again to an open recorder when its transcript is ready. */
@@ -368,7 +368,7 @@ export interface RecordingResult {
   /** Stretches of the take recorded while paused (or after a failure): cut on import. */
   pauses: [number, number][];
   markers: { t: number; kind: MarkerKind }[];
-  /** Notes left for whoever edits the lesson ("Recado"), in seconds of the take. */
+  /** Notes left while recording ("Lembrete"), in seconds of the take. */
   notes?: { t: number; text: string }[];
   /** Teleprompter line shown from each moment. */
   lines?: { t: number; index: number }[];

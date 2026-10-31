@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { flowOpensAlone } from "@/editor/LessonFlowPanel";
 import { BackupsDialog, RenameDialog } from "@/editor/ProjectDialogs";
 import { actions } from "@/lib/actions";
 import { startFromTemplate } from "@/lib/courseStart";
@@ -91,7 +92,9 @@ export function Home(): ReactNode {
     useProject.getState().load(path, project);
     if (template) await startFromTemplate(template);
     // A new lesson starts at the steps of recording it.
-    useApp.getState().set({ screen: "editor", leftPanel: "lessonFlow" });
+    useApp
+      .getState()
+      .set({ screen: "editor", ...(flowOpensAlone() ? { leftPanel: "lessonFlow" as const } : {}) });
     setCreating(false);
   };
 

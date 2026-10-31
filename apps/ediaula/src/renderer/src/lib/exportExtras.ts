@@ -74,7 +74,7 @@ export async function openPackagedLesson(): Promise<void> {
     const notes = project ? lessonNotes(project).length : 0;
     if (notes)
       toast(
-        `${plural(notes, "recado de quem gravou", "recados de quem gravou")} na régua da timeline e no painel Etapas.`,
+        `${plural(notes, "lembrete da gravação", "lembretes da gravação")} na régua da timeline e no Preparar aula.`,
         "info",
       );
     if (project) useApp.getState().set({ leftPanel: "lessonFlow" });

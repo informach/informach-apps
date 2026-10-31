@@ -10,6 +10,7 @@ import {
   lessonNotes,
   type Marker,
   notesOnTimeline,
+  noteText,
   stepMarker,
   withMarkerChapters,
 } from "../src/shared/markers.ts";
@@ -226,12 +227,15 @@ test("os recados da gravação vão para o ponto da timeline que mostra aquele s
     list.map((m) => [Math.round(m.t * 1000) / 1000, m.label, !!m.note]),
     [
       [10, "Marcador 1", false],
-      [10.033, "Recado: errei o clique", true],
-      [105, "Recado: zoom no botão", true],
+      [10.033, "Lembrete: errei o clique", true],
+      [105, "Lembrete: zoom no botão", true],
     ],
   );
   assert.deepEqual(
     lessonNotes({ markers: list }).map((m) => m.label),
-    ["Recado: errei o clique", "Recado: zoom no botão"],
+    ["Lembrete: errei o clique", "Lembrete: zoom no botão"],
   );
+  // Older lessons keep "Recado: " in the label: the text reads the same.
+  assert.equal(noteText({ label: "Recado: antigo" }), "antigo");
+  assert.equal(noteText({ label: "Lembrete: novo" }), "novo");
 });

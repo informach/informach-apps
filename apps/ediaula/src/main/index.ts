@@ -1192,7 +1192,7 @@ function registerIpc(): void {
     await desktopFiles.grantWrite(music);
     return { voice, music };
   });
-  // "Enviar para a edição": the folder packages go to (a cloud-synced one, usually).
+  // "Empacotar para outra pessoa": the folder packages go to (a cloud-synced one, usually).
   ipcMain.handle("send:settings", async () => {
     const settings = await readSendSettings();
     return { folder: settings.folder && existsSync(settings.folder) ? settings.folder : null };
@@ -1200,7 +1200,7 @@ function registerIpc(): void {
   ipcMain.handle("send:pickFolder", async () => {
     const current = (await readSendSettings()).folder;
     const r = await openDialog({
-      title: "Pasta de envio para a edição",
+      title: "Pasta de envio dos pacotes",
       properties: ["openDirectory", "createDirectory"],
       ...(current && existsSync(current) ? { defaultPath: current } : {}),
     });

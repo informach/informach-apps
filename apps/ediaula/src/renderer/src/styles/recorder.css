@@ -1302,7 +1302,7 @@ html.is-recorder #root {
   font-weight: 600;
 }
 
-/* "Recado": the note for whoever edits the lesson, typed in the pill. */
+/* "Lembrete": a note left while recording, typed in the pill. */
 .rec-note-field {
   width: 280px;
   padding: 4px 8px;
