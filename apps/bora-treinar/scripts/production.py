@@ -60,13 +60,22 @@ def variables(service):
     return json.loads(result.stdout)
 
 
+def raw_variables(service):
+    """Values as stored, keeping references such as ${{Postgres.DATABASE_URL}}.
+
+    Copying the rendered value would hardcode the URL and drop the link to the
+    database service in the Railway canvas."""
+    query = "query($p: String!, $e: String!, $s: String) { variables(projectId: $p, environmentId: $e, serviceId: $s, unrendered: true) }"
+    return railway(query, {"p": PROJECT, "e": ENVIRONMENT, "s": service_id(service)})["variables"]
+
+
 def set_variables(service, values):
     railway("mutation($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }", {"input": {"projectId": PROJECT, "environmentId": ENVIRONMENT, "serviceId": service_id(service), "variables": values, "skipDeploys": True}})
 
 
 def app_variables(sentry_dsn):
     """Everything the app needs except the Stripe catalog, portal and webhook."""
-    donor = variables(DONOR)
+    donor = raw_variables(DONOR)
     current = variables(APP)
     origin = "https://" + DOMAIN
     values = {name: donor[name] for name in SHARED}
