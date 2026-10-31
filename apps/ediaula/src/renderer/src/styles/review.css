@@ -370,3 +370,18 @@
 .send-line.is-note {
   grid-template-columns: 40px 1fr auto;
 }
+
+/* "Tela sem voz" in the clip's properties (LapseSection.tsx). */
+.lapse-choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.lapse-seconds {
+  width: 64px;
+}

@@ -35,6 +35,7 @@ import {
   PlacementSection,
   TransitionSection,
 } from "./ClipVisual";
+import { LapseSection } from "./LapseSection";
 import {
   BackgroundSection,
   ColorSection,
@@ -230,7 +231,7 @@ function Properties(): ReactNode {
           <Button size="sm" variant="secondary" icon={Scissors} onClick={actions.splitAtPlayhead}>
             Dividir no cursor
           </Button>
-          {project && hasSpeed(project, clip) && (
+          {project && hasSpeed(project, clip) && !clip.timelapse && (
             <Button
               size="sm"
               variant="secondary"
@@ -243,6 +244,7 @@ function Properties(): ReactNode {
         </div>
       </div>
 
+      {clip.timelapse && <LapseSection key={clip.id} clip={clip} locked={locked} />}
       {clip.zoomLayer && <ZoomLayerSection clip={clip} />}
       {clip.regionFx && <RegionSection clip={clip} region={clip.regionFx} />}
       {asset?.kind === "video" && (

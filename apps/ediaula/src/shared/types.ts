@@ -210,6 +210,18 @@ export interface VoiceMasterPiece {
   sourceMap: VoiceMasterSegment[];
 }
 
+/**
+ * A screen recorded while the voice was held ("Segurar a voz"): `source` seconds of screen that
+ * went in under `under` seconds of the voice (the line it was held in), sped up. The edit can open
+ * `space` seconds in the voice after that line for it, or `cut` the extra time instead.
+ */
+export interface TimeLapse {
+  under: number;
+  source: number;
+  space?: number;
+  cut?: boolean;
+}
+
 /** One line of the kids table, found in a character's video and in the lesson's voice. */
 export interface KidsPiece {
   /** The table's id ("video-a1-abertura-K1"). */
@@ -358,8 +370,8 @@ export interface Clip {
   /** Playback speed (2 = twice as fast, 0.5 = half); absent = 1. The clip lasts duration on the
    *  timeline and covers duration × speed of the source. */
   speed?: number;
-  /** Recorded as a time-lapse over the narration ("Trecho acelerado"): its speed fits the voice. */
-  timelapse?: boolean;
+  /** "Tela sem voz": recorded while the voice was held (shared/timelapse.ts). */
+  timelapse?: TimeLapse;
   /** Removes steady background noise (fan, hum, hiss) from the clip's sound at export. */
   denoise?: boolean;
   /** Position, size, crop and opacity in the frame; absent = fit to the frame. */

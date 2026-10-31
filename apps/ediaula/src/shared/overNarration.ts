@@ -400,7 +400,9 @@ export function layoutOverNarration(
         start: p.start + (a - p.from) / speed,
         in: f.in + (a - f.at),
         duration: (b - a) / speed,
-        ...(p.speed ? { speed: p.speed, timelapse: true } : {}),
+        ...(p.speed
+          ? { speed: p.speed, timelapse: { under: round((b - a) / speed), source: round(b - a) } }
+          : {}),
         ...extra,
       });
       return clip ? [clip] : [];

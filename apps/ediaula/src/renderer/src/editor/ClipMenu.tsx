@@ -1,7 +1,9 @@
+import { maxSpace } from "@shared/timelapse";
 import { clipSpeed } from "@shared/timeline";
 import {
   ClipboardPaste,
   Copy,
+  FastForward,
   Gauge,
   Group,
   PaintBucket,
@@ -17,6 +19,7 @@ import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copiedProps, copyProps } from "@/lib/clipProps";
 import { hasSpeed, speedLabel } from "@/lib/speed";
+import { applyLapse } from "@/lib/timelapse";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
@@ -43,6 +46,7 @@ export function ClipMenu({
   if (!project || !clip) return null;
   const ids = selection.includes(clipId) ? selection : [clipId];
   const timed = project.clips.filter((c) => ids.includes(c.id) && hasSpeed(project, c));
+  const locked = !!project.tracks.find((t) => t.id === clip.trackId)?.locked;
   const speed = clipSpeed(clip);
 
   return (
@@ -51,10 +55,34 @@ export function ClipMenu({
       y={y}
       onClose={onClose}
       items={[
+        ...(clip.timelapse
+          ? [
+              {
+                icon: FastForward,
+                label: "Tela sem voz: acelerar sob a fala",
+                disabled: locked,
+                onSelect: () => applyLapse(clipId, { kind: "under" }),
+              },
+              {
+                icon: FastForward,
+                label: "Tela sem voz: abrir 8 s na voz",
+                disabled: locked || maxSpace(clip.timelapse) < 0.5,
+                hint: "Ajuste os segundos nas propriedades do clipe",
+                onSelect: () => applyLapse(clipId, { kind: "space", seconds: 8 }),
+              },
+              {
+                icon: FastForward,
+                label: "Tela sem voz: cortar o tempo extra",
+                disabled: locked,
+                onSelect: () => applyLapse(clipId, { kind: "cut" }),
+              },
+              { separator: true, label: "" },
+            ]
+          : []),
         {
           icon: Gauge,
           label: `Velocidade do clipe…${speed !== 1 ? ` (${speedLabel(speed)})` : ""}`,
-          disabled: !timed.length,
+          disabled: !timed.length || !!clip.timelapse,
           hint: timed.length
             ? undefined
             : "Imagens, anotações e camadas de zoom não têm velocidade",

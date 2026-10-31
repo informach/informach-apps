@@ -20,7 +20,7 @@ const AT_END = 0.05;
 
 type Lesson = Pick<Project, "clips" | "tracks" | "assets">;
 
-const lockedOf = (p: Pick<Project, "tracks">): Set<string> =>
+export const lockedOf = (p: Pick<Project, "tracks">): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
 
 /**
@@ -56,7 +56,7 @@ export function openSpace(
  * Beds outside the targets (music, unlocked) that played to the end of the lesson keep playing
  * to its new end, as far as their media goes.
  */
-function followEnd(
+export function followEnd(
   before: readonly Clip[],
   after: Clip[],
   targets: ReadonlySet<string>,

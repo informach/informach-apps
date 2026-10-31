@@ -396,7 +396,16 @@ const clip = z.looseObject({
   duration: time,
   volume: number.nonnegative(),
   speed: number.positive().optional(),
-  timelapse: z.boolean().optional(),
+  // "Tela sem voz"; the first shape of it (true) is left out.
+  timelapse: z
+    .looseObject({
+      under: number.positive(),
+      source: number.positive(),
+      space: number.nonnegative().optional(),
+      cut: z.boolean().optional(),
+    })
+    .optional()
+    .catch(undefined),
   denoise: z.boolean().optional(),
   transform: transform.optional(),
   besideFrom: transform.nullable().optional(),

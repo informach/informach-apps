@@ -409,6 +409,12 @@ body.is-resizing-track * {
   color: #12140a;
   font-weight: 700;
 }
+.clip-speed.is-lapse {
+  color: #1a1204;
+  background: var(--amber);
+  border-radius: 3px;
+  padding: 0 3px;
+}
 .clip-vol {
   font-size: 10px;
   padding: 0 4px;

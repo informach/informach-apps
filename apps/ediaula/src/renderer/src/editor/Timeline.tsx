@@ -1914,8 +1914,18 @@ const ClipView = memo(function ClipView({
                 ? `${REGION_LABEL[clip.regionFx.kind]} · faixas abaixo`
                 : name}
           </span>
-          {clipSpeed(clip) !== 1 && (
-            <span className="clip-speed mono">{speedLabel(clipSpeed(clip))}</span>
+          {clip.timelapse ? (
+            <span
+              className="clip-speed is-lapse mono"
+              title="Tela sem voz: a voz ficou segurada enquanto a tela seguia (veja nas propriedades)"
+            >
+              {clip.timelapse.space ? "espaço " : clip.timelapse.cut ? "cortado " : ""}
+              {clipSpeed(clip) !== 1 ? speedLabel(clipSpeed(clip)) : ""}
+            </span>
+          ) : (
+            clipSpeed(clip) !== 1 && (
+              <span className="clip-speed mono">{speedLabel(clipSpeed(clip))}</span>
+            )
           )}
           {clip.volume !== 1 && (
             <span className="clip-vol mono">{Math.round(clip.volume * 100)}%</span>
