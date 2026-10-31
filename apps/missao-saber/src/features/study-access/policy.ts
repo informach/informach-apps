@@ -42,6 +42,7 @@ const studyPaths = new Set([
   "/hoje",
   "/jornada",
   "/laboratorio",
+  "/laboratorio/pecas",
   "/revisao",
   "/simulados",
   "/caderno",
@@ -55,6 +56,8 @@ const parentPaths = new Set([
   "/familia/conta",
   "/familia/preparar",
   "/familia/pronto",
+  "/familia/competicoes",
+  "/familia/competicoes/nova",
   "/manutencao",
   "/estudar",
 ]);
@@ -72,8 +75,13 @@ export function safeDestination(value: unknown, audience: "study" | "parent", fa
     return defaultPath;
   const url = new URL(value, "https://missao.invalid");
   if (url.origin !== "https://missao.invalid") return defaultPath;
-  const study = studyPaths.has(url.pathname) || /^\/missao\/[a-f\d-]{36}$/.test(url.pathname);
-  if (!(audience === "study" ? study : parentPaths.has(url.pathname) || study)) return defaultPath;
+  const study =
+    studyPaths.has(url.pathname) ||
+    /^\/missao\/[a-f\d-]{36}$/.test(url.pathname) ||
+    /^\/laboratorio\/pecas\/[a-z\d-]{1,60}$/.test(url.pathname);
+  const parent =
+    parentPaths.has(url.pathname) || /^\/familia\/competicoes\/[a-f\d-]{36}$/.test(url.pathname);
+  if (!(audience === "study" ? study : parent || study)) return defaultPath;
   return `${url.pathname}${url.search}${url.hash}`;
 }
 

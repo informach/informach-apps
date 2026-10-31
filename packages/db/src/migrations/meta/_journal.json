@@ -526,6 +526,13 @@
       "when": 1792263443922,
       "tag": "0074_cozya_hoje_tem",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1793444378768,
+      "tag": "0075_missao_competicao",
+      "breakpoints": true
     }
   ]
 }

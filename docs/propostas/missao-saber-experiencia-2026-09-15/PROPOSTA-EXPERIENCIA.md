@@ -164,7 +164,7 @@ O único dos dois cases com design system declarado: variáveis de cor no Figma 
 Registrado explicitamente porque é a fronteira da essência do Missão Saber:
 
 - **Economia de moedas e gemas com itens comprados** e personagens bloqueados por preço. Cria pressão de consumo dentro de um produto infantil já pago e desloca o objetivo do aprendizado para a coleção.
-- **Ranking, PvP e leaderboard entre crianças.** A `PROPOSTA.md` §5 proíbe comparação pública entre crianças, e a landing page promete isso ao comprador (“sem comparação pública entre crianças”).
+- **Ranking, PvP e leaderboard entre crianças.** A `PROPOSTA.md` §5 proíbe comparação pública entre crianças, e a landing page promete isso ao comprador (“sem comparação pública entre crianças”). *Exceção registrada em 31/10/2026:* a titular aprovou a competição em família com pódio privado, visível só na conta do responsável e coordenada por ele ([proposta da competição](../missao-saber-competicao-2026-10-31/PROPOSTA.md)). Continua valendo para tudo o que a criança vê: nada de ranking no espaço de estudo, e o Desafio da família segue cooperativo.
 - **Ofensiva com perda** (a corrente que quebra). `BolhasSemana` foi feito deliberadamente como contagem, não corrente — está comentado no próprio componente.
 - **Badge por minutos ou por dias seguidos.** Mede presença, não compreensão.
 - **Recompensa por volume de respostas.** Incentiva repetir a mesma família de item, exatamente o que o motor de evidência existe para não premiar.
