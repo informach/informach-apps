@@ -1,12 +1,13 @@
+import { parseAnimationArtifact } from "@informach/edi-motion/animation-artifact";
 import { z } from "zod";
 
 const textSchema = z.strictObject({
-  extension: z.enum(["html", "svg", "edisvg.json", "lottie.json"]),
+  extension: z.enum(["html", "svg", "edisvg.json", "lottie.json", "edi-animation.json"]),
   content: z.string(),
   encoding: z.literal("utf8").optional(),
 });
 const binarySchema = z.strictObject({
-  extension: z.literal("react.zip"),
+  extension: z.enum(["react.zip", "web-player.zip"]),
   content: z.string(),
   encoding: z.literal("base64"),
 });
@@ -61,5 +62,6 @@ export function parseExportPayload(input: unknown): {
   }
   if (Buffer.byteLength(value.content, "utf8") > 10000000)
     throw new Error("Exportação excede 10 MB.");
+  if (value.extension === "edi-animation.json") parseAnimationArtifact(value.content);
   return { extension: value.extension, content: value.content };
 }

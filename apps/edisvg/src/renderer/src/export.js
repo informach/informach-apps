@@ -10,9 +10,12 @@ import { serializeProject } from "../../shared/projectPolicy";
 import { RASTER_FORMATS } from "../../shared/raster/profile";
 import { flattenScene, renderScene, xmlEscape } from "../../shared/scene.js";
 import { buildInteractiveExport } from "./behavior/export";
+import { buildPlayerWebExport } from "./behavior/player-web-export";
 import { buildReactExport } from "./behavior/react-export";
+import { loadWebPlayerPackage } from "./behavior/web-player-package";
 import { buildClipExport } from "./clipExport.ts";
 import { runLottieTask } from "./lottieTaskRunner";
+import { buildPlayerWebExportWithPoster } from "./player-web-poster";
 import { buildRasterExport } from "./raster/rasterExport";
 
 function lottieOptions(state, options) {
@@ -31,12 +34,13 @@ function lottieOptions(state, options) {
 export function buildExport(state, options, demoSvg = "", runtimeSource = "") {
   const project = snapshot(state);
   if (
-    !["html", "interactive-html", "svg", "json", "lottie"].includes(options.format) ||
+    !["html", "interactive-html", "svg", "json", "lottie", "player-web"].includes(options.format) ||
     typeof options.alt !== "string" ||
     options.alt.length > 200
   )
     throw new Error("Opções de exportação inválidas.");
   if (options.format === "lottie") return compileLottie(project, lottieOptions(state, options));
+  if (options.format === "player-web") return buildPlayerWebExport(project, options);
   if (options.format === "json")
     return {
       extension: "edisvg.json",
@@ -171,7 +175,7 @@ export async function exportProject(state, options, task = {}) {
   }
   let demo = "";
   if (
-    options.format !== "json" &&
+    !["json", "player-web"].includes(options.format) &&
     !artboardScene(captured, captured.activeArtboardId ?? captured.defaultArtboardId)
   ) {
     const response = await fetch("assets/zeze.svg");
@@ -194,22 +198,35 @@ export async function exportProject(state, options, task = {}) {
           if (result.kind !== "export") throw new Error("Resposta Lottie inesperada.");
           return { content: result.content, extension: "lottie.json", type: "application/json" };
         })
-      : options.format === "react"
-        ? buildReactExport(
-            snapshot(captured),
-            {
-              ...options,
-              artboardId: captured.activeArtboardId,
-              animationId: captured.activeClipId,
-            },
-            runtimeSource,
-            licenses,
-          )
-        : buildExport(captured, options, demo, runtimeSource);
-  if (task.signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
+      : options.format === "player-web"
+        ? await buildPlayerWebExportWithPoster(snapshot(captured), options, task.signal)
+        : options.format === "react"
+          ? buildReactExport(
+              snapshot(captured),
+              {
+                ...options,
+                artboardId: captured.activeArtboardId,
+                animationId: captured.activeClipId,
+              },
+              runtimeSource,
+              licenses,
+            )
+          : buildExport(captured, options, demo, runtimeSource);
+  return saveExport({ content, extension, type }, { signal: task.signal, binaryMedia: raster });
+}
+
+export async function exportWebPlayer(signal) {
+  const artifact = await loadWebPlayerPackage(signal);
+  return saveExport(artifact, { signal });
+}
+
+/** The same native Save boundary serves all formats, including the reusable player. */
+export function saveExport({ content, extension, type }, { signal, binaryMedia = false } = {}) {
+  if (signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
   if (globalThis.window?.desktop) {
-    // Images and video cross IPC as bytes; base64 stays only for the bounded React ZIP.
-    if (raster) return window.desktop.exportFile({ extension, bytes: content, encoding: "binary" });
+    // Images and video cross IPC as bytes; bounded library/component ZIPs use base64.
+    if (binaryMedia)
+      return window.desktop.exportFile({ extension, bytes: content, encoding: "binary" });
     if (content instanceof Uint8Array) {
       let binary = "";
       for (let offset = 0; offset < content.length; offset += 32768)

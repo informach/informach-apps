@@ -2,6 +2,20 @@
 
 Package interno, consumido como fonte TypeScript pelo workspace. Não está publicado no npm. O editor mantém a sessão/licença no SDK Edi; o runtime exportado não requer conta, rede, Electron, IA ou credenciais.
 
+## Arte declarativa para aplicativos web (31/10/2026)
+
+`/animation-artifact` valida o envelope `edi-animation` v1 e o blueprint portátil vigente, com
+limite de 10 MB, custo estrutural e PNG de reserva verificado. Não aceita código do projeto.
+`/web-player/data` normaliza, descreve controles públicos e extrai a reserva sem DOM ou React.
+`/web-player` monta o mesmo renderer em um SVG e devolve sessão independente com descarte assíncrono.
+As entradas e máquinas são endereçadas pelo nome público, que deve ser único na prancheta.
+AbortSignal cancela a montagem ou descarta a sessão. Não compartilhar uma sessão entre SVGs.
+
+O build do ediSVG distribui os módulos independentes, declarações TypeScript e licenças em um
+ZIP, com exemplos JavaScript e React. Isso não publica o package no npm. Os aplicativos instalam
+o player uma vez e carregam vários arquivos de arte. Eventos da arte não autorizam recompensas
+ou efeitos de servidor. O PNG incorporado permite manter uma imagem quando a animação não roda.
+
 ## Contratos
 
 Incremento 5.36: `/assets` acrescenta `fontContainer` e `extractFontFace`: WOFF 1.0 (tabelas zlib) e uma face de coleção TTC/OTC viram um SFNT avulso com as tabelas intactas e diretório/checksums refeitos; WOFF2 é recusado com explicação. [Review 5.36](../../docs/reviews/edisvg-2026-10-17/review-lote-5-fontes-externas-lottie-imagens.md).

@@ -2,6 +2,15 @@
 
 Atualizado em 31/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
+## Exportação web ediSVG em integração (31/10/2026)
+
+A frente `feat/edisvg-player-web-export` implementa arte declarativa v1, reserva PNG do mesmo
+renderer e download do player genérico, tipos, exemplos e licenças. Integração Sistema Zero em
+outro repositório ainda em andamento. Foram verificados 12 projetos reais em 15 exportações e
+o fluxo de download no diálogo web. Não equivale a publicação de instalador, pacote npm ou
+homologação completa da migração nos consumidores. Contrato em `packages/edi-motion/README.md`
+e uso em `apps/edisvg/README.md`. Próximos gates: lifecycle/voz/baú e consumidores Admin/Kids/adulto.
+
 ## Contexto confirmado
 
 - Os apps web existentes usam o Railway e o domínio `informach.com.br`, com serviços e subdomínios por produto. O Edi deve seguir esse padrão, reutilizando a infraestrutura compatível; GitHub é o canal de distribuição desktop, não o backend comercial.
@@ -237,3 +246,12 @@ Em seguida, o titular autorizou novo full review, correções, commit e publica�
 ## EdiPDF: entrega publicada na suíte 0.2.0
 
 18/10/2026. O titular autorizou concluir o lote atual, documentar o restante, realizar full review e publicar. O [PR #21](https://github.com/informach/informach-apps/pull/21) foi integrado em `cee6e86f`; a [suíte 0.2.0](https://github.com/informach/edi-releases/releases/tag/edi-v0.2.0) foi publicada com todos os gates aprovados. O [full review](reviews/edipdf-2026-10-18/full-review-entrega.md) reúne correções e evidências locais/remotas, incluindo código integrado, jornadas nativas, seis ciclos de atualização e instaladores finais. A conferência pública aprovou manifesto Ed25519, tamanhos/SHA-512/SHA-256 dos seis executáveis, prontidão do portal e seus seis links. As [pendências](reviews/edipdf-2026-10-18/pendencias-pos-release.md) separam evolução adiada, compatibilidade, hardware e exclusões; o objetivo amplo de substituir o Acrobat permanece uma evolução de produto. A decisão upstream sobre a meta de voz do EdiAula está explícita no review. Alterações locais das outras frentes foram preservadas. Próximo passo: priorizar as pendências por corpus e uso real; mudanças posteriores do EdiSVG pertencem à release seguinte.
+
+
+### ediSVG: variantes de reserva do acervo, 31/10/2026
+
+A implementação do Player web está em 2fcead2b. As preparações reproduzíveis de fala e do baú
+aberto foram acrescentadas ao editor, com fontes verificadas e saída nova sem sobrescrita.
+O acervo está no Sistema Zero; o editor não depende dele para funcionar. Conferir o README do
+ediSVG para comandos e limites. A integração desta frente é no main local, conforme pedido;
+não significa publicar instalador. O consumidor será integrado ao staging local do Sistema Zero.
