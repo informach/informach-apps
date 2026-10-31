@@ -65,6 +65,7 @@ Depois de mudar o código, rode `pnpm --filter @informach/edipdf build` (ou `sho
 
 **Organizar páginas** (painel lateral ou a visão Organizar)
 - Arrastar para reordenar, Ctrl/Shift+clique para selecionar várias
+- Na visão Organizar, as miniaturas quebram em linhas e o tamanho vai de 80 px até uma página por linha, pelos botões +/− ou por Ctrl+roda do mouse (a página sob o cursor continua na mesma altura da tela)
 - Girar, excluir, duplicar, inserir página em branco, inserir páginas de outro PDF ou imagem (inclusive arrastando do Explorer)
 - Extrair páginas; dividir por quantidade, intervalos, nível de marcadores ou tamanho real máximo; exportar páginas como PNG/JPG. Os planos resolvidos entram na retomada protegida e conservam arquivos completos. [Perfil revisado](../../docs/reviews/edipdf-2026-10-18/review-senhas-escolhas-divisao.md).
 - **Juntar PDFs**: vários PDFs e imagens em um só, na ordem escolhida; "Juntar e salvar" grava direto (com compactação opcional) e "Abrir para revisar" abre o resultado para editar antes

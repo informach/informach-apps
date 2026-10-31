@@ -12,7 +12,8 @@ import {
   SplitSquareHorizontal,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   deletePages,
   duplicatePages,
@@ -24,9 +25,60 @@ import {
 import { commit, type DocState, patchDoc, useApp } from "../state/store";
 import { pageSizeAt, ThumbGrid } from "./ThumbGrid";
 
+const MIN_SIZE = 80,
+  MAX_SIZE = 1600,
+  SIZE_STEP = 1.25;
+
+/** Widest thumbnail that still fits one per row: the grid's side padding plus the thumb's own. */
+const widest = (grid: HTMLElement) => Math.max(MIN_SIZE, Math.min(MAX_SIZE, grid.clientWidth - 76));
+const clampSize = (value: number, max: number) =>
+  Math.round(Math.max(MIN_SIZE, Math.min(max, value)));
+
 /** Full-window page grid: the "Organizar páginas" tool. */
 export function Organize({ doc }: { doc: DocState }): React.ReactElement {
   const [size, setSize] = useState(170);
+  const [fits, setFits] = useState(MAX_SIZE);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current,
+      grid = el?.querySelector<HTMLElement>(".thumbs");
+    if (!el || !grid) return;
+    const observer = new ResizeObserver(() => setFits(widest(grid)));
+    observer.observe(grid);
+    // The page under the cursor when a Ctrl+wheel gesture starts. Reflowing moves it to another
+    // column, so it stays the anchor for the whole gesture and only its height is kept in place.
+    let gesture: { thumb: HTMLElement; ratio: number; last: number } | null = null;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      if (!gesture?.thumb.isConnected || event.timeStamp - gesture.last > 400) {
+        const thumb =
+          event.target instanceof Element ? event.target.closest<HTMLElement>(".thumb") : null;
+        const bounds = thumb?.getBoundingClientRect();
+        gesture =
+          thumb && bounds
+            ? { thumb, ratio: (event.clientY - bounds.top) / bounds.height, last: 0 }
+            : null;
+      }
+      // Rendered synchronously so the anchored page can be put back under the cursor.
+      flushSync(() =>
+        setSize((current) =>
+          clampSize(Math.min(current, widest(grid)) * 1.0015 ** -event.deltaY, widest(grid)),
+        ),
+      );
+      if (!gesture) return;
+      gesture.last = event.timeStamp;
+      const bounds = gesture.thumb.getBoundingClientRect();
+      grid.scrollTop += bounds.top + gesture.ratio * bounds.height - event.clientY;
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("wheel", wheel);
+    };
+  }, []);
+  // A narrower window shrinks the thumbnails instead of scrolling sideways.
+  const width = Math.min(size, fits);
   const [range, setRange] = useState("");
   const [error, setError] = useState("");
   const ids = doc.selection;
@@ -36,7 +88,7 @@ export function Organize({ doc }: { doc: DocState }): React.ReactElement {
     : doc.content.pages.length - 1;
   const allSelected = n === doc.content.pages.length;
   return (
-    <div className="organize">
+    <div className="organize" ref={rootRef}>
       <div className="organize-bar">
         <span className="organize-count">
           {n
@@ -129,16 +181,18 @@ export function Organize({ doc }: { doc: DocState }): React.ReactElement {
         <button
           type="button"
           className="icon-btn"
-          title="Miniaturas menores"
-          onClick={() => setSize((s) => Math.max(110, s - 30))}
+          title="Miniaturas menores (Ctrl+roda do mouse)"
+          disabled={width <= MIN_SIZE}
+          onClick={() => setSize(clampSize(width / SIZE_STEP, fits))}
         >
           <Minus size={15} />
         </button>
         <button
           type="button"
           className="icon-btn"
-          title="Miniaturas maiores"
-          onClick={() => setSize((s) => Math.min(320, s + 30))}
+          title="Miniaturas maiores (Ctrl+roda do mouse)"
+          disabled={width >= fits}
+          onClick={() => setSize(clampSize(width * SIZE_STEP, fits))}
         >
           <Plus size={15} />
         </button>
@@ -208,10 +262,10 @@ export function Organize({ doc }: { doc: DocState }): React.ReactElement {
         )}
       </form>
       <p className="organize-hint">
-        Arraste para reordenar · Ctrl/Shift+clique para selecionar várias · solte PDFs ou imagens
-        aqui para inserir · botão direito para mais opções
+        Arraste para reordenar · Ctrl/Shift+clique para selecionar várias · Ctrl+roda do mouse para
+        ampliar · solte PDFs ou imagens aqui para inserir · botão direito para mais opções
       </p>
-      <ThumbGrid doc={doc} layout="grid" width={size} />
+      <ThumbGrid doc={doc} layout="grid" width={width} />
     </div>
   );
 }
