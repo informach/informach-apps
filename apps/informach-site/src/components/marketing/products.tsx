@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { ProductMark } from "@/components/marketing/product-mark";
 import { AUDIENCE_LABEL, SITE_PRODUCTS } from "@/lib/products";
 
-/* O Sistema Zero tem seção própria logo acima; aqui ficam os outros quatro. */
+/* O Sistema Zero tem seção própria logo acima; aqui ficam os outros cinco. */
 const OTHERS = SITE_PRODUCTS.filter((product) => product.slug !== "sistema-zero");
 
 export function Products() {

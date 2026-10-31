@@ -257,9 +257,9 @@ export default function PrivacyPolicyPage() {
           <p>
             Quem abre uma conta Informach é sempre um adulto, maior de 18 anos. Alguns produtos são
             feitos para crianças e adolescentes usarem com a família, sempre sob supervisão do
-            responsável: na Missão Saber e na Agenda da Turma, o responsável cria o perfil da
-            criança dentro da própria conta. A criança não tem e-mail nem senha nesses perfis, e o
-            responsável acompanha o que ela faz pela área da família de cada app.
+            responsável: na Missão Saber, na Agenda da Turma e no Bora Treinar, o responsável cria o
+            perfil da criança dentro da própria conta. A criança não tem e-mail nem senha nesses
+            perfis, e o responsável acompanha o que ela faz pela área da família de cada app.
           </p>
           <p>
             Tratamos os dados da criança ou do adolescente para prestar o serviço que o responsável

@@ -26,6 +26,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   "billing.credits-warning": "Aviso de créditos",
   "agenda.routine": "Lembretes e resumo da Agenda",
   "missao.weekly-report": "Resumo semanal da Missão Saber",
+  "bora.reminder": "Lembrete de treino do Bora Treinar",
+  "bora.weekly-summary": "Resumo semanal do Bora Treinar",
   "admin.alert": "Avisos do Bastidores",
   "admin.weekly-summary": "Resumo da semana do Bastidores",
 } satisfies Record<EmailCategory, string>;

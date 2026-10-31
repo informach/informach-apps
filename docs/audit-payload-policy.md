@@ -53,6 +53,19 @@ Eventos `missao.*` registram o que o responsável fez com os perfis das criança
 
 Eventos de acesso restrito: `missao.study_code_issued` e `missao.study_revoked` usam somente `{ deviceId }`; `missao.study_connected` usa `{ deviceId, profileIds }`. O ator é o titular técnico da conexão, inclusive no resgate de código: o evento não comprova presença do adulto. Nunca incluir código, token, hash de credencial, nome do aparelho, IP, apelido ou texto do estudante. Finalidade: investigar emissão e encerramento de acesso. Acesso restrito à operação autorizada, com a retenção padrão de segurança acima. Esses eventos não são métricas de aprendizagem.
 
+## Eventos do Bora Treinar
+
+Eventos `bora.*` registram o que o titular fez com os perfis, os treinos montados e as preferências do app `bora-treinar`, com payload mínimo de IDs, nomes de campo e contagens. Perfis costumam ser de crianças: nunca gravar apelido, cor escolhida, nome ou blocos de treino, repetições, tempos, séries ou qualquer outro número de desempenho.
+
+- `bora.profile_created` e `bora.profile_deleted`: `{ profileId }`.
+- `bora.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos (`name`, `color`), nunca os valores.
+- `bora.custom_workout_saved`: `{ workoutId, created }`, com `created` verdadeiro quando o treino é novo. `bora.custom_workout_deleted`: `{ workoutId }`. O nome e os blocos do treino ficam fora.
+- `bora.preferences_updated`: `{ fields }`, só os nomes das preferências alteradas (dias e hora do lembrete, fuso, resumo semanal), sem os valores.
+- `bora.backup_imported`: `{ profiles, sessions, skippedProfiles }`, só contagens do que entrou e do que ficou de fora pelo limite do plano.
+- `bora.pairing_started` e `bora.pairing_connected` (celular como câmera da TV): nunca incluir o código de pareamento, token, nome do aparelho, IP ou imagem. Ao implementar o emissor, registrar aqui os campos, só IDs técnicos.
+
+Finalidade: investigar mudanças na conta da família e atender pedidos de suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores. Esses eventos não são métricas de treino.
+
 ## Eventos da Agenda da Turma
 
 Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com payload mínimo de IDs e flags operacionais. Não gravar nomes de estudantes, nomes de matérias, títulos, descrições ou conteúdo livre de atividades.

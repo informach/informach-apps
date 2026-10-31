@@ -10,7 +10,7 @@ export const AUDIENCE_LABEL: Record<Audience, string> = {
 };
 
 export type SiteProduct = {
-  slug: "sistema-zero" | "missao-saber" | "agenda-da-turma" | "cozya" | "edi";
+  slug: "sistema-zero" | "missao-saber" | "agenda-da-turma" | "cozya" | "bora-treinar" | "edi";
   name: string;
   url: string;
   audience: Audience;
@@ -119,6 +119,23 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
     cta: { label: "Conhecer o Cozya", href: appUrl("cozya") },
     icon: "/produtos/cozya.svg",
     brand: { background: "#FF7A3D", foreground: "#173247", link: "#B4501C" },
+  },
+  {
+    slug: "bora-treinar",
+    name: "Bora Treinar",
+    url: appUrl("boraTreinar"),
+    audience: "familia",
+    promise: "O treino da família na sala de casa.",
+    facts: [
+      "Instrutor 3D que mostra cada movimento",
+      "A câmera conta as repetições no próprio aparelho",
+      "Perfis, níveis e um desafio por semana",
+    ],
+    price: `Primeiro treino grátis · a partir de ${monthlyPrice("bora_individual_monthly")} por mês`,
+    cta: { label: "Conhecer o Bora Treinar", href: appUrl("boraTreinar") },
+    icon: "/produtos/bora-treinar.png",
+    /* O verde-limão do Bora não lê sobre o papel claro: o link usa um verde-oliva (6,2:1). */
+    brand: { background: "#0B0D10", foreground: "#C8FF2E", link: "#4A6B00" },
   },
   {
     slug: "edi",

@@ -47,6 +47,12 @@ export const REDIS_SESSION_APPS = [
     keyPrefix: "missao-saber:auth:",
     cookieCacheMinutes: 0,
   },
+  {
+    app: "bora-treinar",
+    name: "Bora Treinar",
+    keyPrefix: "bora-treinar:auth:",
+    cookieCacheMinutes: 0,
+  },
 ] as const;
 
 export type RedisSessionApp = (typeof REDIS_SESSION_APPS)[number]["app"];

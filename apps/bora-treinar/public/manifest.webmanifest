@@ -1,0 +1,15 @@
+{
+  "name": "Bora Treinar · Calistenia guiada em família",
+  "short_name": "Bora Treinar",
+  "description": "Treinos de calistenia com instrutor 3D, contador de repetições e progresso para cada pessoa da família.",
+  "lang": "pt-BR",
+  "start_url": "/perfis",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0B0D10",
+  "background_color": "#0B0D10",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

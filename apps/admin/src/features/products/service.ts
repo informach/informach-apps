@@ -26,6 +26,7 @@ import { type ServiceCard, serviceCard } from "../overview/service";
 import { type FunnelBar, funnelBars, type ProductTab, tabProduct } from "./logic";
 import {
   type AgendaUsage,
+  type BoraUsage,
   type CozyaUsage,
   type EdiUsage,
   type MissaoUsage,
@@ -303,6 +304,31 @@ export async function getProductView(
         { label: "Área de manutenção", href: `https://${info.domain}/manutencao` },
         ...links.slice(1),
       ],
+    };
+  }
+
+  if (product === "bora-treinar") {
+    const bora = usage as BoraUsage;
+    const trainings = Object.values(bora.sessions).reduce((sum, total) => sum + total, 0);
+    return {
+      ...base,
+      kpis: [
+        { value: formatNumber(bora.accounts), label: "famílias" },
+        { value: formatNumber(bora.active), label: "treinaram nos últimos 7 dias" },
+        { ...proPair, label: proPair.label.replace("assinantes Pro", "famílias assinantes") },
+        { value: formatNumber(bora.profiles), label: "perfis de quem treina" },
+        ...revenue,
+      ],
+      usageTitle: "Treino na semana",
+      usage: [
+        { label: "Treinos concluídos", value: formatNumber(trainings) },
+        { label: "Contados pela câmera", value: formatNumber(bora.sessions.camera ?? 0) },
+        { label: "Contados à mão", value: formatNumber(bora.sessions.manual ?? 0) },
+        { label: "Com o celular como câmera", value: formatNumber(bora.sessions.pareado ?? 0) },
+        { label: "Treinos montados no editor", value: formatNumber(bora.customWorkouts) },
+      ],
+      ai: "O Bora Treinar não usa IA: a contagem pela câmera roda no aparelho da pessoa.",
+      note: "Nomes de perfil, treinos e números de repetição nunca aparecem aqui: só quantos treinos aconteceram.",
     };
   }
 

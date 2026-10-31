@@ -5,7 +5,13 @@ import { APPS } from "@informach/config";
  * `billing.customers.app`, `billing.credit_ledger.app` e `ops.job_runs.app`.
  * As cores vêm do site de cada produto e só aparecem em marcadores pequenos.
  */
-export const PRODUCT_KEYS = ["cozya", "agenda-da-turma", "missao-saber", "edi"] as const;
+export const PRODUCT_KEYS = [
+  "cozya",
+  "agenda-da-turma",
+  "missao-saber",
+  "bora-treinar",
+  "edi",
+] as const;
 export type ProductKey = (typeof PRODUCT_KEYS)[number];
 
 export type ProductInfo = {
@@ -35,6 +41,12 @@ export const PRODUCTS: Record<ProductKey, ProductInfo> = {
     domain: APPS.missaoSaber.domain,
     mark: { background: "#1E5A44", foreground: "#EAF6DD" },
   },
+  "bora-treinar": {
+    key: "bora-treinar",
+    name: APPS.boraTreinar.name,
+    domain: APPS.boraTreinar.domain,
+    mark: { background: "#0B0D10", foreground: "#C8FF2E" },
+  },
   edi: {
     key: "edi",
     name: APPS.edi.name,
@@ -56,7 +68,14 @@ export function productName(app: string): string {
  * `health` diz qual versão está servindo. O site não tem API: a página inicial
  * responde pelas duas perguntas, sem versão.
  */
-export const SERVICE_KEYS = ["site", "cozya", "agenda-da-turma", "missao-saber", "edi"] as const;
+export const SERVICE_KEYS = [
+  "site",
+  "cozya",
+  "agenda-da-turma",
+  "missao-saber",
+  "bora-treinar",
+  "edi",
+] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
 
 export type ServiceInfo = {
@@ -102,6 +121,14 @@ export const SERVICES: Record<ServiceKey, ServiceInfo> = {
     readyPath: "/api/ready",
     healthPath: "/api/health",
   },
+  "bora-treinar": {
+    key: "bora-treinar",
+    name: PRODUCTS["bora-treinar"].name,
+    railwayService: "@informach/bora-treinar",
+    defaultOrigin: `https://${PRODUCTS["bora-treinar"].domain}`,
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
   edi: {
     key: "edi",
     name: PRODUCTS.edi.name,
@@ -141,6 +168,7 @@ const APP_PHRASES: Record<string, string> = {
   [PRODUCTS.cozya.name]: `no ${PRODUCTS.cozya.name}`,
   [PRODUCTS["agenda-da-turma"].name]: `na ${PRODUCTS["agenda-da-turma"].name}`,
   [PRODUCTS["missao-saber"].name]: `na ${PRODUCTS["missao-saber"].name}`,
+  [PRODUCTS["bora-treinar"].name]: `no ${PRODUCTS["bora-treinar"].name}`,
   [PRODUCTS.edi.name]: `na ${PRODUCTS.edi.name}`,
   Bastidores: "no Bastidores",
 };
@@ -150,7 +178,12 @@ export function appPhrase(appName: string | null | undefined): string | null {
 }
 
 /** Produtos que guardam a sessão no Redis (os mesmos de `REDIS_SESSION_APPS`). */
-const REDIS_SESSION_PRODUCTS: ProductKey[] = ["cozya", "agenda-da-turma", "missao-saber"];
+const REDIS_SESSION_PRODUCTS: ProductKey[] = [
+  "cozya",
+  "agenda-da-turma",
+  "missao-saber",
+  "bora-treinar",
+];
 
 /**
  * Onde um "encerrar sessões" chegou, a partir de `apps` do evento

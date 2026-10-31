@@ -17,6 +17,9 @@ import {
   agendaProductEvents,
   agendaStudentProfiles,
   agentRuns,
+  boraFamilies,
+  boraProfiles,
+  boraSessions,
   cozyaProductEvents,
   cozyaProfiles,
   creditLedger,
@@ -247,6 +250,13 @@ async function main() {
       productId: "missao_individual_annual",
       status: "active",
       startedDaysAgo: 6,
+    },
+    {
+      userId: "demo-joao",
+      app: "bora-treinar",
+      productId: "bora_family_monthly",
+      status: "active",
+      startedDaysAgo: 12,
     },
   ];
   for (const plan of plans) {
@@ -516,6 +526,23 @@ async function main() {
       status: "open",
     });
   }
+  await db.insert(boraFamilies).values({ userId: "demo-joao" }).onConflictDoNothing();
+  const [trainingProfile] = await db
+    .insert(boraProfiles)
+    .values({ userId: "demo-joao", name: "SEGREDO-APELIDO", color: "#C8FF2E" })
+    .returning({ id: boraProfiles.id });
+  if (trainingProfile) {
+    await db.insert(boraSessions).values({
+      id: randomUUID(),
+      userId: "demo-joao",
+      profileId: trainingProfile.id,
+      workoutRef: "catalogo:demo",
+      workoutName: "SEGREDO-TREINO",
+      startedAt: ago(1 * DAY),
+      durationSeconds: 900,
+      mode: "camera",
+    });
+  }
   const [device] = await db
     .insert(ediDevices)
     .values({
@@ -539,6 +566,8 @@ async function main() {
     ["agenda-da-turma", "billing-release-reservations", true, null],
     ["cozya", "email-retry", false, "PostgresError"],
     ["missao-saber", "billing", true, null],
+    ["bora-treinar", "billing", true, null],
+    ["bora-treinar", "lembretes", true, null],
     ["admin", "admin-watch", true, null],
   ];
   await db.insert(jobRuns).values(

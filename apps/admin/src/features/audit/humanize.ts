@@ -326,6 +326,18 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "missao.study_code_issued": () => [t("Gerou um código de estudo na Missão Saber")],
   "missao.study_revoked": () => [t("Desconectou um aparelho de estudo na Missão Saber")],
   "missao.consent_recorded": () => [t("Registrou o consentimento da família na Missão Saber")],
+  // Bora Treinar
+  "bora.profile_created": () => [t("Criou um perfil de treino no Bora Treinar")],
+  "bora.profile_updated": () => [t("Mudou um perfil de treino no Bora Treinar")],
+  "bora.profile_deleted": () => [t("Apagou um perfil de treino no Bora Treinar")],
+  "bora.custom_workout_saved": () => [t("Salvou um treino montado no editor do Bora Treinar")],
+  "bora.custom_workout_deleted": () => [t("Apagou um treino montado no editor do Bora Treinar")],
+  "bora.preferences_updated": () => [t("Mudou os lembretes e o resumo semanal no Bora Treinar")],
+  "bora.pairing_started": () => [
+    t("Gerou um código para usar o celular como câmera no Bora Treinar"),
+  ],
+  "bora.pairing_connected": () => [t("Conectou o celular como câmera no Bora Treinar")],
+  "bora.backup_imported": () => [t("Importou um backup de treinos no Bora Treinar")],
 };
 
 function categoryText(ctx: Context): string {

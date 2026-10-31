@@ -330,6 +330,59 @@ export default defineRailway((ctx) => {
     },
   });
 
+  // Bora Treinar: sem IA, então sem OPENROUTER_*. O build baixa o modelo do
+  // MediaPipe e copia o WASM para public/mediapipe antes do `next build`, e o
+  // standalone leva public/ junto. Provisionamento pendente em
+  // apps/bora-treinar/PRODUCAO.md.
+  const boraTreinar = service("@informach/bora-treinar", {
+    source: main,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: standaloneNext("bora-treinar").buildCommand,
+      watchPatterns: [
+        "/apps/bora-treinar/**",
+        ...packages("auth", "billing", "config", "db", "emails", "ui"),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: standaloneNext("bora-treinar").startCommand,
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 30,
+    replicas: { [REGION]: 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
+    domains: ["bora-treinar.informach.com.br"],
+    networking: { privateNetworkEndpoint: "informachbora-treinar" },
+    env: {
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      BETTER_AUTH_SECRET: preserve(),
+      BETTER_AUTH_URL: preserve(),
+      BORA_FAMILY_ANNUAL_PRICE: preserve(),
+      BORA_FAMILY_MONTHLY_PRICE: preserve(),
+      BORA_INDIVIDUAL_ANNUAL_PRICE: preserve(),
+      BORA_INDIVIDUAL_MONTHLY_PRICE: preserve(),
+      CRON_SECRET: preserve(),
+      DATABASE_URL: preserve(),
+      EMAIL_SANDBOX_MODE: preserve(),
+      LOG_LEVEL: preserve(),
+      NEXT_PUBLIC_APP_URL: preserve(),
+      NEXT_PUBLIC_SENTRY_DSN: preserve(),
+      NODE_ENV: preserve(),
+      NPM_CONFIG_PRODUCTION: preserve(),
+      REDIS_URL: preserve(),
+      SENDGRID_API_KEY: preserve(),
+      SENDGRID_FROM: preserve(),
+      SENDGRID_WEBHOOK_PUBLIC_KEY: preserve(),
+      SENTRY_AUTH_TOKEN: preserve(),
+      SENTRY_DSN: preserve(),
+      SENTRY_ORG: preserve(),
+      SENTRY_PROJECT: preserve(),
+      STRIPE_MODE: preserve(),
+      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
+      STRIPE_WEBHOOK_SECRET: preserve(),
+    },
+  });
+
   const site = service("@informach/informach-site", {
     source: main,
     build: {
@@ -569,6 +622,36 @@ export default defineRailway((ctx) => {
     },
   });
 
+  // Manutenção da cobrança do Bora Treinar, igual à da Missão: confere o
+  // /api/ready e chama /api/jobs/billing (lease no Redis do app).
+  const boraBilling = service("cron-bora-treinar-billing", {
+    source: image(CURL_IMAGE),
+    start: shellScript("apps/bora-treinar/scripts/maintenance-cron.sh"),
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: {
+      APP_ORIGIN: preserve(),
+      CRON_SECRET: preserve(),
+      SENTRY_DSN: preserve(),
+      SENTRY_ENVELOPE_URL: preserve(),
+    },
+  });
+
+  // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
+  // app decide quem recebe pela hora local de cada família.
+  const boraLembretes = service("cron-bora-treinar-lembretes", {
+    source: image(CURL_IMAGE),
+    start: shellScript("apps/bora-treinar/scripts/lembretes-cron.sh"),
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "0 * * * *", restartPolicyType: "NEVER" },
+    env: {
+      APP_ORIGIN: preserve(),
+      CRON_SECRET: preserve(),
+      SENTRY_DSN: preserve(),
+      SENTRY_ENVELOPE_URL: preserve(),
+    },
+  });
+
   // Sem imagem, o cron não roda. Ela entrou com EDI_RECONCILE_ACTIVE em
   // 17/10/2026, 20:09 UTC, depois da distribuição assinada e da cobrança ligada.
   const ediReconcile = service("cron-edi-reconcile", {
@@ -596,6 +679,7 @@ export default defineRailway((ctx) => {
       cozya,
       agenda,
       missaoSaber,
+      boraTreinar,
       site,
       admin,
       ...adminCrons,
@@ -605,6 +689,8 @@ export default defineRailway((ctx) => {
       cozyaRetention,
       missaoBilling,
       missaoWeeklyReport,
+      boraBilling,
+      boraLembretes,
       ediReconcile,
     ],
   });

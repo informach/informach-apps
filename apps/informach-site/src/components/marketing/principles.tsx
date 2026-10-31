@@ -55,7 +55,7 @@ const PRINCIPLES: readonly { title: string; body: string; icon: ReactNode }[] = 
   },
   {
     title: "Uma conta Informach",
-    body: "O mesmo login entra na Missão Saber, na Agenda da Turma, no Cozya e na Suíte Edi.",
+    body: "O mesmo login entra na Missão Saber, na Agenda da Turma, no Cozya, no Bora Treinar e na Suíte Edi.",
     icon: (
       <Icon>
         <circle cx="12" cy="8" r="4" />

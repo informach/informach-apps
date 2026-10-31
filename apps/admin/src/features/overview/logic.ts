@@ -157,6 +157,8 @@ export const EMAIL_CATEGORY_LABEL: Record<string, { one: string; many: string }>
   "billing.credits-warning": { one: "aviso de créditos", many: "avisos de créditos" },
   "agenda.routine": { one: "resumo da Agenda", many: "resumos da Agenda" },
   "missao.weekly-report": { one: "resumo da Missão", many: "resumos da Missão" },
+  "bora.reminder": { one: "lembrete de treino", many: "lembretes de treino" },
+  "bora.weekly-summary": { one: "resumo do Bora Treinar", many: "resumos do Bora Treinar" },
   "admin.alert": { one: "aviso do Bastidores", many: "avisos do Bastidores" },
   "admin.weekly-summary": { one: "resumo do Bastidores", many: "resumos do Bastidores" },
 } satisfies Record<EmailCategory, { one: string; many: string }>;

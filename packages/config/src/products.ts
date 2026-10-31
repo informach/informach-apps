@@ -133,6 +133,66 @@ export const PRODUCTS: readonly Product[] = [
     listPrice: { amountCents: 44900, currency: "BRL" },
   },
   {
+    id: "bora_individual_monthly",
+    app: "bora-treinar",
+    kind: "subscription",
+    name: "Bora Treinar Individual",
+    description:
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil.",
+    tier: "individual",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_bora_individual_monthly",
+      prod: "price_TODO_bora_individual_monthly",
+    },
+    listPrice: { amountCents: 2490, currency: "BRL" },
+  },
+  {
+    id: "bora_individual_annual",
+    app: "bora-treinar",
+    kind: "subscription",
+    name: "Bora Treinar Individual anual",
+    description:
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil, por um ano.",
+    tier: "individual",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_bora_individual_annual",
+      prod: "price_TODO_bora_individual_annual",
+    },
+    listPrice: { amountCents: 24900, currency: "BRL" },
+  },
+  {
+    id: "bora_family_monthly",
+    app: "bora-treinar",
+    kind: "subscription",
+    name: "Bora Treinar Família",
+    description:
+      "Calistenia guiada para até quatro perfis da família, com desafios, editor de treinos e celular como câmera da TV.",
+    tier: "family",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_bora_family_monthly",
+      prod: "price_TODO_bora_family_monthly",
+    },
+    listPrice: { amountCents: 3490, currency: "BRL" },
+  },
+  {
+    id: "bora_family_annual",
+    app: "bora-treinar",
+    kind: "subscription",
+    name: "Bora Treinar Família anual",
+    description:
+      "Calistenia guiada para até quatro perfis da família, com desafios, editor de treinos e celular como câmera da TV, por um ano.",
+    tier: "family",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_bora_family_annual",
+      prod: "price_TODO_bora_family_annual",
+    },
+    listPrice: { amountCents: 34900, currency: "BRL" },
+  },
+  {
     id: "cozya_pro_monthly",
     app: "cozya",
     kind: "subscription",

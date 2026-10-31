@@ -1,10 +1,11 @@
 import { isProductKey, type ProductKey } from "@/lib/products";
 
-/** Abas de Produtos: os quatro apps com conta, o site e o Sistema Zero. */
+/** Abas de Produtos: os cinco apps com conta, o site e o Sistema Zero. */
 export const PRODUCT_TABS = [
   "cozya",
   "agenda-da-turma",
   "missao-saber",
+  "bora-treinar",
   "edi",
   "site",
   "sistema-zero",
@@ -15,6 +16,7 @@ export const TAB_LABEL: Record<ProductTab, string> = {
   cozya: "Cozya",
   "agenda-da-turma": "Agenda da Turma",
   "missao-saber": "Missão Saber",
+  "bora-treinar": "Bora Treinar",
   edi: "Suíte Edi",
   site: "Site",
   "sistema-zero": "Sistema Zero",

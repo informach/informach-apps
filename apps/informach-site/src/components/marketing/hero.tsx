@@ -2,13 +2,14 @@ import Image from "next/image";
 import { ProductMark } from "@/components/marketing/product-mark";
 import { productBySlug, type SiteProduct } from "@/lib/products";
 
-/* Posições na órbita, em porcentagem do quadrado: um produto a cada 72 graus. */
+/* Posições na órbita, em porcentagem do quadrado: um produto a cada 60 graus. */
 const ORBIT: readonly { slug: SiteProduct["slug"]; left: string; top: string }[] = [
   { slug: "sistema-zero", left: "50%", top: "11.5%" },
-  { slug: "missao-saber", left: "86.6%", top: "38.1%" },
-  { slug: "agenda-da-turma", left: "72.6%", top: "81.1%" },
-  { slug: "cozya", left: "27.4%", top: "81.1%" },
-  { slug: "edi", left: "13.4%", top: "38.1%" },
+  { slug: "missao-saber", left: "83.3%", top: "30.75%" },
+  { slug: "agenda-da-turma", left: "83.3%", top: "69.25%" },
+  { slug: "bora-treinar", left: "50%", top: "88.5%" },
+  { slug: "cozya", left: "16.7%", top: "69.25%" },
+  { slug: "edi", left: "16.7%", top: "30.75%" },
 ];
 
 export function Hero() {
@@ -30,7 +31,7 @@ export function Hero() {
         </h1>
         <p className="max-w-[600px] text-lg leading-relaxed text-ink-soft md:text-xl">
           Fazemos tecnologia para o que acontece em casa: a criança que aprende, a rotina da escola,
-          o jantar da semana e as aulas de quem ensina.
+          o jantar da semana, o treino da família e as aulas de quem ensina.
         </p>
         <div className="flex items-center gap-3.5 rounded-full border border-line-warm bg-surface py-2 pr-5 pl-2">
           <Image
@@ -64,7 +65,7 @@ export function Hero() {
       <div className="grid min-w-0 flex-[1_1_440px] place-items-center">
         <div
           role="img"
-          aria-label="A esfera da Informach no centro, com os cinco produtos ao redor: Sistema Zero, Missão Saber, Agenda da Turma, Cozya e Suíte Edi."
+          aria-label="A esfera da Informach no centro, com os seis produtos ao redor: Sistema Zero, Missão Saber, Agenda da Turma, Bora Treinar, Cozya e Suíte Edi."
           className="relative aspect-square w-full max-w-[520px]"
         >
           <span className="absolute inset-[11.5%] rounded-full border-2 border-dashed border-orbit" />

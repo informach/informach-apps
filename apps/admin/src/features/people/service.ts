@@ -391,6 +391,8 @@ const EMAIL_CATEGORY: Record<string, string> = {
   "billing.credits-warning": "Aviso de créditos acabando",
   "agenda.routine": "Lembrete da rotina da Agenda",
   "missao.weekly-report": "Resumo semanal da Missão Saber",
+  "bora.reminder": "Lembrete de treino do Bora Treinar",
+  "bora.weekly-summary": "Resumo semanal do Bora Treinar",
   "admin.alert": "Aviso do Bastidores",
   "admin.weekly-summary": "Resumo da semana do Bastidores",
 } satisfies Record<EmailCategory, string>;
@@ -467,14 +469,17 @@ function safeId(value: string | null): string | null {
   return value && ID_PATTERN.test(value) ? value : null;
 }
 
-/** "no Cozya", "na Agenda da Turma": o Cozya é o único nome masculino da casa. */
+/** Nomes masculinos da casa: "no Cozya", "no Bora Treinar"; os outros são femininos. */
+const MASCULINE: ReadonlySet<ProductKey> = new Set(["cozya", "bora-treinar"]);
+
+/** "no Cozya", "na Agenda da Turma". */
 export function productIn(app: ProductKey): string {
-  return app === "cozya" ? `no ${PRODUCTS.cozya.name}` : `na ${PRODUCTS[app].name}`;
+  return MASCULINE.has(app) ? `no ${PRODUCTS[app].name}` : `na ${PRODUCTS[app].name}`;
 }
 
 /** "pelo Cozya", "pela Missão Saber". */
 export function productBy(app: ProductKey): string {
-  return app === "cozya" ? `pelo ${PRODUCTS.cozya.name}` : `pela ${PRODUCTS[app].name}`;
+  return MASCULINE.has(app) ? `pelo ${PRODUCTS[app].name}` : `pela ${PRODUCTS[app].name}`;
 }
 
 /** Produto citado no evento pelo slug; slug desconhecido fica de fora. */
@@ -531,6 +536,15 @@ const SIMPLE: Record<string, string> = {
   "missao.study_connected": "Conectou um aparelho de estudo na Missão Saber",
   "missao.study_code_issued": "Gerou um código de acesso para estudo na Missão Saber",
   "missao.study_revoked": "Desconectou um aparelho de estudo na Missão Saber",
+  "bora.profile_created": "Criou um perfil de treino no Bora Treinar",
+  "bora.profile_updated": "Atualizou um perfil de treino no Bora Treinar",
+  "bora.profile_deleted": "Apagou um perfil de treino no Bora Treinar",
+  "bora.custom_workout_saved": "Salvou um treino montado no editor do Bora Treinar",
+  "bora.custom_workout_deleted": "Apagou um treino montado no editor do Bora Treinar",
+  "bora.preferences_updated": "Mudou os lembretes e o resumo semanal no Bora Treinar",
+  "bora.pairing_started": "Gerou um código para usar o celular como câmera no Bora Treinar",
+  "bora.pairing_connected": "Conectou o celular como câmera no Bora Treinar",
+  "bora.backup_imported": "Importou um backup de treinos no Bora Treinar",
 };
 
 /** Quem agiu e não existe mais em `core.users`. */

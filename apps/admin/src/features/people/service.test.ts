@@ -273,7 +273,7 @@ describe("linha do tempo", () => {
         {
           targetId: subject,
           count: 3,
-          apps: ["cozya", "agenda-da-turma", "missao-saber"],
+          apps: ["cozya", "agenda-da-turma", "missao-saber", "bora-treinar"],
           reason: "A pessoa pediu pelo direct",
         },
         "staff-helena",
@@ -288,7 +288,7 @@ describe("linha do tempo", () => {
       names,
     );
     expect(offline.title).toBe(
-      "Helena encerrou 0 sessões (sem alcançar Cozya, Agenda da Turma e Missão Saber)",
+      "Helena encerrou 0 sessões (sem alcançar Cozya, Agenda da Turma, Missão Saber e Bora Treinar)",
     );
     expect(entry.detail).toBe("Motivo: A pessoa pediu pelo direct");
     expect(entry.otherPersonId).toBeNull();
@@ -310,6 +310,7 @@ describe("linha do tempo", () => {
         .title,
     ).toBe("Recebeu 10 créditos de IA no Cozya");
     expect(productIn("agenda-da-turma")).toBe("na Agenda da Turma");
+    expect(productIn("bora-treinar")).toBe("no Bora Treinar");
     expect(
       describeEvent(
         event(

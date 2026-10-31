@@ -21,7 +21,7 @@ const nunito = Nunito({
 
 const TITLE = "Informach: feito em casa, para a sua família";
 const DESCRIPTION =
-  "Somos Helena e Júlio, desenvolvedores e pais do André. Fazemos o Sistema Zero, onde crianças de 9 a 14 anos aprendem programação criando jogos, e também a Missão Saber, a Agenda da Turma, o Cozya e a Suíte Edi.";
+  "Somos Helena e Júlio, desenvolvedores e pais do André. Fazemos o Sistema Zero, onde crianças de 9 a 14 anos aprendem programação criando jogos, e também a Missão Saber, a Agenda da Turma, o Cozya, o Bora Treinar e a Suíte Edi.";
 
 export const metadata: Metadata = {
   title: { default: TITLE, template: "%s · Informach" },

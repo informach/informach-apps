@@ -4,6 +4,10 @@ import {
   agendaFamilyMembers,
   agendaProductEvents,
   agendaStudentProfiles,
+  boraCustomWorkouts,
+  boraFamilies,
+  boraProfiles,
+  boraSessions,
   cozyaProductEvents,
   cozyaProfiles,
   customers,
@@ -179,6 +183,39 @@ export function missaoUsage(since: Date, now: Date): Promise<MissaoUsage> {
   });
 }
 
+export type BoraUsage = Funnel & {
+  profiles: number;
+  /** Treinos da semana por modo de contagem (`camera`, `manual`, `pareado`). */
+  sessions: Record<string, number>;
+  customWorkouts: number;
+};
+
+export function boraUsage(since: Date): Promise<BoraUsage> {
+  return memo(`products:bora:${since.toISOString().slice(0, 13)}`, TTL, async () => {
+    const db = readDb();
+    const [funnel, profiles, sessions, workouts] = await Promise.all([
+      funnelFor(
+        sql`select ${boraFamilies.userId} as user_id from ${boraFamilies}`,
+        sql`select distinct ${boraSessions.userId} as user_id from ${boraSessions}
+            where ${boraSessions.createdAt} >= ${iso(since)}`,
+      ),
+      db.select({ total: count() }).from(boraProfiles),
+      db
+        .select({ mode: boraSessions.mode, total: count() })
+        .from(boraSessions)
+        .where(gte(boraSessions.createdAt, since))
+        .groupBy(boraSessions.mode),
+      db.select({ total: count() }).from(boraCustomWorkouts),
+    ]);
+    return {
+      ...funnel,
+      profiles: Number(profiles[0]?.total ?? 0),
+      sessions: Object.fromEntries(sessions.map((row) => [row.mode, Number(row.total)])),
+      customWorkouts: Number(workouts[0]?.total ?? 0),
+    };
+  });
+}
+
 export type EdiUsage = Funnel & {
   connectedDevices: number;
   devicesSeen: number;
@@ -223,6 +260,7 @@ export type UsageByProduct = {
   cozya: CozyaUsage;
   "agenda-da-turma": AgendaUsage;
   "missao-saber": MissaoUsage;
+  "bora-treinar": BoraUsage;
   edi: EdiUsage;
 };
 
@@ -238,6 +276,8 @@ export async function usageFor<K extends ProductKey>(
         ? agendaUsage(since)
         : product === "missao-saber"
           ? missaoUsage(since, now)
-          : ediUsage(since, now);
+          : product === "bora-treinar"
+            ? boraUsage(since)
+            : ediUsage(since, now);
   return usage as Promise<UsageByProduct[K]>;
 }

@@ -16,9 +16,15 @@ const SRC = fileURLToPath(new URL("..", import.meta.url));
 const SCHEMA_DIR = fileURLToPath(new URL("../../../../packages/db/src/schema/", import.meta.url));
 
 /** Arquivos de schema cujas tabelas guardam o que as famílias criam. */
-const CONTENT_SCHEMA_FILES = ["cozya.ts", "agenda.ts", "agenda-family.ts", "missao-saber.ts"];
+const CONTENT_SCHEMA_FILES = [
+  "cozya.ts",
+  "agenda.ts",
+  "agenda-family.ts",
+  "missao-saber.ts",
+  "bora-treinar.ts",
+];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
-const CONTENT_SQL_SCHEMAS = ["cozya", "agenda", "missao_saber"];
+const CONTENT_SQL_SCHEMAS = ["cozya", "agenda", "missao_saber", "bora_treinar"];
 
 /** Nome de coluna que nunca sai do banco, em qualquer tabela. */
 const FORBIDDEN_ANYWHERE = new Set([

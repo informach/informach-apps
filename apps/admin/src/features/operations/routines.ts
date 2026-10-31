@@ -120,6 +120,20 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     maxRuntimeMinutes: 60,
   },
   {
+    app: "bora-treinar",
+    job: "billing",
+    label: "Manutenção da cobrança do Bora Treinar",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+  },
+  {
+    app: "bora-treinar",
+    job: "lembretes",
+    label: "Lembretes de treino e resumo semanal",
+    intervalMinutes: 60,
+    schedule: "de hora em hora",
+  },
+  {
     app: "edi",
     job: "reconcile",
     label: "Conciliação da Suíte Edi",
