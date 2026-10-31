@@ -490,8 +490,94 @@ qualquer outro jeito (Importar mídia, Ctrl+I, arrastado da biblioteca ou do Exp
 faixa **Voz**, com aviso, a não ser que seja solto de propósito numa faixa de áudio
 (`becomesVoice`).
 
+### O caminho de quem grava: painel Etapas (31/10/2026)
+
+O primeiro item da barra lateral, **Etapas** (painel **Gravação da aula**,
+`src/renderer/src/editor/LessonFlowPanel.tsx`), junta em ordem o que quem grava faz. Cada passo
+mostra onde está e o botão do próximo passo. O painel abre sozinho num projeto novo e quando o
+gravador fecha pelo X ou pela etapa final. Os botões são os mesmos do painel Áudio e dos menus;
+tratamento, exportar a voz, apresentador e kids continuam no painel Áudio, para quem edita.
+
+1. **Roteiro:** partes e falas do roteiro colado, com **Colar o roteiro**. É opcional, mas é dele
+   que o gravador tira as falas e as instruções Na tela.
+2. **Voz:** **Importar voz** e **Gravar a voz** (o gravador abre direto no Só voz), a duração e o
+   estado da transcrição, com o progresso. A voz importada ou gravada é **transcrita sozinha** em
+   segundo plano (`transcribeVoice` em `src/renderer/src/lib/voice.ts`, só a voz:
+   `voiceToTranscribe` em `src/shared/speechSources.ts`), para o gravador ter o karaokê, a lista
+   das falas e o Na tela. Sem o motor de transcrição, o passo oferece **Instalar a transcrição**.
+   A opção **Transcrever a voz sozinho ao importar ou gravar** (opções do gravador, ligada por
+   padrão) desliga isso. Se a transcrição terminar com o gravador aberto, as palavras e as falas
+   chegam a ele sem fechar (`recorder:refreshOver`), e o ponto de começo não muda.
+3. **Tela sobre a voz:** quanto da voz já tem tela gravada, por fala do roteiro
+   (`screenCoverage` em `src/shared/screenCues.ts`), as falas sem tela com **Ir até** e
+   **Gravar a tela** ou **Continuar de onde parei**.
+4. **Enviar para a edição:** abre a janela de envio (abaixo).
+
+No fim do painel ficam os **Recados da gravação**, com **Ir até**.
+
+**O mapa das falas no gravador.** Em Tela sobre a narração, ao lado do ponto de começo, a barra
+mostra "Tela em N de M falas" e abre a lista das falas por parte, cada uma com um ponto: com
+tela, com parte da tela ou sem tela. Um clique numa fala faz a próxima parte começar nela.
+**Continuar de onde parei** leva ao primeiro trecho de um segundo ou mais da voz sem tela. Aberto
+pelo editor numa aula que já tem tela gravada, o gravador já começa nesse trecho. Menos de um
+segundo sem tela entre duas partes conta como emenda, não como falta.
+
+**Quando a voz acaba.** A parte grava sozinha 1,5 s depois do fim da voz (o último clique ainda
+conta). O gravador mostra **Tela completa** ou a lista das falas ainda sem tela, cada uma com
+**Gravar esta fala** (regrava só aquele trecho, como Regravar a tela neste intervalo), e os botões
+**Voltar ao editor** e **Enviar para a edição**. Daí, F9 grava o primeiro trecho que falta; com a
+voz toda coberta, F9 não grava nada até uma fala ser escolhida. O gravador avisa o editor do próximo passo pelo
+evento `recorder:closed` (`flow` ou `send`).
+
+**Enviar para a edição** (painel Etapas, ou Arquivo › Enviar para a edição, que substituiu o
+antigo Empacotar; `src/renderer/src/editor/SendDialog.tsx`):
+
+- **Conferência:** as falas sem tela, com **Ir até** e **Gravar este trecho** (regrava só aquele
+  intervalo), arquivos que sumiram do computador (o envio fica bloqueado até reconectar), a voz
+  ainda sem transcrição e os recados que vão junto.
+- **Pacote:** **Levar só o que a aula usa** vem ligado. Ficam de fora os takes gravados por cima e
+  as mídias fora da timeline; continuam no pacote o que a aula precisa mesmo sem clipe: a origem
+  de um quadro estendido, a tela sob o desenho, a imagem de fundo, os vídeos dos personagens kids,
+  a música que espera o começo da aula e os vídeos do apresentador com encaixe ainda a decidir
+  (`usedAssetIds` e `onlyUsedAssets` em `src/shared/usedAssets.ts`). O que apontava para as
+  mídias que saíram (trechos protegidos, propostas, mapas da voz exportada) sai junto. A janela
+  mostra antes o tamanho e quanto fica de fora (`project:packEstimate`).
+- **Pasta de envio:** escolhida uma vez e lembrada (`userData/envio.json`,
+  `src/main/sendSettings.ts`). Com ela, o .zip vai direto para lá com o nome "Curso, Aula" (e
+  "(2)" se já existir), sem a janela de salvar. Numa pasta sincronizada com a nuvem no
+  computador, o pacote chega sozinho a quem edita. Sem pasta, o app pergunta onde salvar.
+
+**Recados para quem edita.** Durante a gravação, **Ctrl+Shift+Y** ou o botão de recado na pílula
+abre um campo curto. O momento do recado é o da abertura; Enter guarda e Esc desiste, e os dois
+devolvem o teclado ao programa gravado. O que se digita ali não entra nas teclas na tela (o
+auxiliar nativo não registra teclas com uma janela do app em primeiro plano). O recado vai pelo
+diário da sessão (linha `note`) até o take e entra como marcador âmbar "Recado: …" na régua da
+timeline, na mesma etapa de desfazer do take, no ponto que mostra aquele segundo do take
+(`notesOnTimeline` e `addNotes` em `src/shared/markers.ts`). Um recado deixado numa pausa (ou num
+trecho cortado depois) vai para o próximo ponto do take que ficou na aula. O atalho não é
+Ctrl+Shift+N de propósito: nova pasta no Explorador e janela anônima no navegador aparecem em
+aulas. Quem abre a aula empacotada recebe o aviso de quantos recados há; o painel Etapas e
+a janela de envio também os listam.
+
+**Trecho acelerado (time-lapse).** Para uma construção longa que na aula precisa caber numa fala
+curta: em Tela sobre a narração, **F7** (ou o botão na pílula) segura a voz e a tela continua
+gravando, no tempo de quem grava. **F7** de novo solta a voz no começo da fala seguinte do
+roteiro; sem as falas, no fim da frase que estava sendo dita (a primeira pausa de 0,6 s da voz), e
+sem a transcrição, 3 s depois (`lapseEnd` em `src/shared/overNarration.ts`). O diário guarda as
+duas bordas (linha `lapse`), e a importação encaixa o trecho inteiro, sem as pausas feitas nele,
+no intervalo da voz entre as duas, acelerado o quanto for preciso (`overPieces`: o clipe sai com
+`speed` e `timelapse`). Só a tela entra no trecho: câmera, áudio do PC e desenho feitos durante
+ele ficam de fora. Cada trecho ganha um recado "Trecho acelerado N×: confira o ritmo". Um trecho
+que chega ao fim da voz encerra a parte. Parar no meio de um trecho fecha o trecho ali. Um trecho
+mais curto que a voz que ele cobre (F7 duas vezes seguidas) nunca vira câmera lenta: toca na
+velocidade normal e a tela fica parada depois dele. Apertado no embalo de 2 s do começo de uma
+parte, ele nunca entra antes do ponto escolhido. A prévia
+toca o vídeo a no máximo 16× (limite do Chromium) e acompanha o resto pulando; a exportação usa a
+velocidade inteira. A velocidade não tem o limite de 8× de Velocidade / duração.
+
 O trabalho pode ser dividido entre duas pessoas: quem grava importa a voz, grava a tela sobre a
-narração (em quantas partes quiser) e usa **Empacotar a aula com as mídias**; quem edita abre o
+narração (em quantas partes quiser) e usa **Enviar para a edição** (antes, Empacotar a aula com as
+mídias); quem edita abre o
 `.zip` com **Abrir aula empacotada** (no início ou no menu Arquivo), importa o vídeo do
 apresentador e as outras mídias e termina a aula no próprio computador. O início do app oferece só
 **Novo projeto**, **Abrir projeto** e **Abrir aula empacotada**, sem abrir a escolha de mídia
@@ -610,8 +696,9 @@ sozinho: gravar, importar a voz e importar vídeos ficam dentro do projeto.
      salva o que foi gravado e deixa o gravador no começo da fala que estava tocando, para gravá-la
      de novo por cima.
      A partir da segunda parte a voz começa 2 s antes, para pegar o ritmo; a tela só conta do
-     ponto escolhido. Quando a voz acaba, o gravador fecha e volta ao editor, com o cursor no fim
-     da última parte; o X (**Voltar ao editor**) também volta, e as partes já estão na aula. Uma
+     ponto escolhido. Quando a voz acaba, a parte grava sozinha e o gravador mostra **Tela
+     completa** ou as falas ainda sem tela (veja o painel Etapas, acima); o X (**Voltar ao editor**)
+     volta ao editor, com o painel Etapas aberto, e as partes já estão na aula. Uma
      regravação de intervalo continua fechando ao parar.
    - **Regravar a tela neste intervalo:** marque um intervalo na régua da timeline e use o botão
      ao lado de Narrar intervalo. A voz começa dois segundos antes, a gravação para sozinha no
@@ -725,7 +812,8 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   ela fica anotada no perfil (`janelas-na-frente.json`): se o app e o auxiliar caírem juntos, a próxima abertura a
   devolve ao normal (só se o computador não reiniciou no meio).
 - Atalhos (configuráveis): **F9** inicia e pausa, **F10** para, **F8** marca o alvo do modo guiado,
-  **Ctrl+Shift+M** marcador, **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte; veja abaixo),
+  **Ctrl+Shift+M** marcador, **Ctrl+Shift+Y** recado para quem edita, **F7** trecho acelerado (só em
+  Tela sobre a narração), **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte; veja abaixo),
   **Ctrl+Shift+D** desenhar na tela, **Ctrl+Shift+↓** e **Ctrl+Shift+↑** próxima fala e fala anterior do
   teleprompter. Um passador de slides (Page Down e Page Up) também muda a fala, se ligado nas opções. Iniciar,
   parar e o alvo valem enquanto o gravador está aberto; os outros só durante a gravação, então Ctrl+R e as setas

@@ -78,6 +78,18 @@ A [tabela de estado da análise](propostas/ediaula-2026-10-17/analise.md#estado-
 
 Em 23/10/2026, na branch `feat/ediaula-gravacao-em-partes` (sem push), a titular pediu ajustes para o fluxo de gravação dividido entre duas pessoas: a voz vem pronta de uma ferramenta de voz (às vezes em várias partes) e entra com **Importar voz** na faixa Voz; a tela é gravada sobre a narração em várias partes, com o gravador aberto entre elas e o ponto de início ajustável; com mais de um monitor, os controles ficam numa tela e a gravada recebe só a moldura, que deixa passar os cliques; o áudio do PC deste modo é lembrado e nunca grava a voz do app; o início oferece só novo projeto, abrir projeto e abrir aula empacotada, e gravar e importar ficam dentro do projeto. Em 24/10/2026 entrou **Trocar uma fala**: marcada a fala antiga na régua, o áudio novo e o vídeo novo do apresentador entram no lugar dela em todas as faixas, e o resto da aula anda junto. Na branch `feat/ediaula-roteiro-novo`, ainda no mesmo dia: o primeiro áudio de uma aula vira a voz, o som do vídeo do apresentador vem ligado (o HeyGen dá o som final; a voz é referência), o leitor entende o roteiro de produção (fala para a ferramenta de voz, clipe, tabela kids, "Na tela" dividido nas frases que cita, mostrado no gravador no tempo de cada uma) e a **Edição kids**: uma aula, exportação Adulto ou Kids, com as falas dos personagens no lugar. Falta o teste manual da titular. Comportamento e arquivos no [README do EdiAula](../apps/ediaula/README.md#voz-apresentador-e-tela-o-caminho-de-uma-aula). Testes unitários e typecheck passaram; falta o teste manual com dois monitores e uma gravação real em partes, o pacote da aula aberto em outro computador e uma troca de fala real com o vídeo do apresentador (o encaixe pelo som e o quadro parado da tela só foram provados por testes unitários).
 
+Em 31/10/2026, a pedido da titular, o caminho de quem grava e envia para a edição foi simplificado ([proposta e estado](propostas/ediaula-gravacao-2026-10-31/proposta.md)):
+
+- **Painel Etapas:** roteiro, voz, tela sobre a voz e envio.
+- **Transcrição:** a voz é transcrita sozinha para o gravador acompanhar as falas.
+- **Mapa das falas:** o gravador mostra as falas com e sem tela e começa no primeiro buraco.
+- **Fim da voz:** a parte grava sozinha e aparece "Tela completa".
+- **Enviar para a edição:** conferência, pacote só com o que a aula usa e pasta de envio lembrada.
+- **Recados:** quem grava deixa recados para quem edita (Ctrl+Shift+Y).
+- **Trecho acelerado:** F7 segura a voz enquanto a tela continua, e a construção entra acelerada no tempo da fala.
+
+Typecheck, Biome e a suíte do app passaram; falta o teste manual da titular, descrito na proposta.
+
 Em 24/10/2026 a publicação da suíte `edi-v0.4.1` parou no `pnpm audit --prod` do workflow, antes dos instaladores: alertas novos em `zod` 3 (alto, sem correção na linha 3), `body-parser` 2.3 e `fast-uri` 3.1.8, todos de apps web. A titular decidiu migrar tudo para o Zod 4 antes de publicar: branch `chore/zod-4`, com overrides de `body-parser` e `fast-uri`. A suíte sai como `edi-v0.4.2`; a tag `edi-v0.4.1` existe mas não publicou nada.
 
 ## Home institucional e contato público
