@@ -163,7 +163,12 @@ export interface OverContext extends OverPlan {
   lines?: { t: number; text: string; part: string }[];
   /** Timeline stretches that already have a recorded screen: starting inside one records over it. */
   recorded?: [number, number][];
+  /** The voice is still being transcribed: its words, lines and cues come when it is done. */
+  transcribing?: boolean;
 }
+
+/** The voice read as text, sent again to an open recorder when its transcript is ready. */
+export type OverText = Pick<OverContext, "words" | "cues" | "lines" | "transcribing">;
 
 /** Default frame rate of screen recordings. */
 export const RECORDING_FPS = 30;

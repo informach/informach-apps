@@ -94,6 +94,11 @@ export const recorderSettingsSchema = z.object({
    * lesson; the helper also notes the text cursor for it.
    */
   autoZoom: z.boolean().catch(true),
+  /**
+   * The lesson's voice is transcribed as soon as it is imported or recorded, so "Tela sobre a
+   * narração" has its karaoke, its lines and its "Na tela" cues (needs the transcription engine).
+   */
+  autoTranscribe: z.boolean().catch(true),
 });
 
 export type RecorderSettings = z.infer<typeof recorderSettingsSchema>;

@@ -8,6 +8,7 @@ import {
   planPresenterVideo,
 } from "@shared/presenterImport";
 import { speechItems } from "@shared/script";
+import { voiceToTranscribe } from "@shared/speechSources";
 import { clipEnd, newId, newTrackName, splitClip } from "@shared/timeline";
 import type { Asset, Clip, Project, Track, VoiceMaster } from "@shared/types";
 import { treatedPath, VOICE_PRESET_LABELS, type VoicePreset } from "@shared/voiceChain";
@@ -40,7 +41,13 @@ import { loadWaveform } from "./media";
 import { showProposal } from "./proposals";
 import { presenterPlaced } from "./recordingHooks";
 import { scriptDoc } from "./script";
-import { cleanError, loadProjectTranscripts } from "./transcripts";
+import {
+  cleanError,
+  loadProjectTranscripts,
+  transcribeAssets,
+  useCleanup,
+  useTranscribing,
+} from "./transcripts";
 
 /**
  * The teacher's voice in the editor: its treatment (shared/voiceChain.ts), the cleanup before the
@@ -345,11 +352,43 @@ export async function importVoiceFiles(): Promise<boolean> {
   if (!useProject.getState().commit((q) => ({ ...q, tracks: layout.tracks, clips: layout.clips })))
     return false;
   playback.seek(layout.start);
+  const reading = await transcribeVoice();
   toast(
-    `${plural(layout.placed.length, "arquivo de voz entrou", "arquivos de voz entraram")} na faixa Voz, de ${clockTenths(layout.start)} a ${clockTenths(layout.end)}. Já dá para gravar a tela sobre a narração.`,
+    `${plural(layout.placed.length, "arquivo de voz entrou", "arquivos de voz entraram")} na faixa Voz, de ${clockTenths(layout.start)} a ${clockTenths(layout.end)}. ${VOICE_READING[reading]}`,
     "success",
   );
   return true;
+}
+
+/** What happens to the voice's transcript, said after the voice comes in. */
+const VOICE_READING: Record<VoiceReading, string> = {
+  started: "Ela está sendo transcrita, para o gravador mostrar as falas.",
+  busy: "Ela está sendo transcrita, para o gravador mostrar as falas.",
+  nothing: "Já dá para gravar a tela sobre a narração.",
+  "no-engine":
+    "Para o gravador acompanhar as falas, instale a transcrição (painel Gravação, passo Voz).",
+  off: "Já dá para gravar a tela sobre a narração.",
+};
+
+export type VoiceReading = "started" | "busy" | "nothing" | "no-engine" | "off";
+
+/**
+ * Starts transcribing the lesson's voice in the background (the recorder's karaoke, lines and
+ * "Na tela" cues come from it): "started" when it began, "busy" when it is already running,
+ * "nothing" when it is all read, "no-engine" when the engine or a model is missing and "off" when
+ * the option is turned off (`force` ignores the option). It never waits for the transcription.
+ */
+export async function transcribeVoice(force = false): Promise<VoiceReading> {
+  const p = useProject.getState().project;
+  if (!p) return "nothing";
+  if (!force && !(await window.api.recorder.settings()).autoTranscribe) return "off";
+  const busy = new Set(Object.keys(useTranscribing.getState()));
+  const todo = voiceToTranscribe(p, busy);
+  if (!todo.length) return voiceToTranscribe(p).length ? "busy" : "nothing";
+  const status = await window.api.engineStatus();
+  if (!status.bin || !status.model) return "no-engine";
+  void transcribeAssets(todo, useCleanup.getState().language || "pt");
+  return "started";
 }
 
 /* ----- The MP4s that come back ----- */

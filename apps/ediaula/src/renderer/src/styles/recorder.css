@@ -921,6 +921,89 @@ html.is-recorder #root {
   opacity: 0.4;
   cursor: default;
 }
+.rec-over-cover {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.rec-over-cover.is-open {
+  border-color: var(--accent);
+}
+.rec-over-bar {
+  position: relative;
+  width: 64px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--panel-3);
+}
+.rec-over-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* "Tela sobre a narração": the lines of the lesson, with and without a screen. */
+.rec-over-map .rec-opt-head small {
+  flex: 1;
+}
+.rec-map-part h4 {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.rec-map-part ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rec-map-line {
+  display: grid;
+  grid-template-columns: 10px 44px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.rec-map-line:hover {
+  border-color: var(--line);
+}
+.rec-map-line.is-current {
+  border-color: var(--accent);
+}
+.rec-map-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-3);
+}
+.rec-map-line.is-done .rec-map-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.rec-map-line.is-partial .rec-map-dot {
+  border-color: var(--amber);
+  background: linear-gradient(90deg, var(--amber) 50%, transparent 50%);
+}
+.rec-map-time {
+  font: 500 11px var(--font-mono);
+  color: var(--text-2);
+}
+.rec-map-line.is-missing .rec-map-text {
+  color: var(--text-1);
+}
+.rec-map-line.is-done .rec-map-text {
+  color: var(--text-2);
+}
 
 /* "Tela sobre a narração": the karaoke of the voice and the next "Na tela". */
 .karaoke-cues {
@@ -1170,13 +1253,4 @@ html.is-recorder #root {
   background: var(--panel-3);
   color: var(--text-1);
   font: 600 11px var(--font-mono);
-}
-.rec-over-line {
-  max-width: 420px;
-  padding: 3px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel-2);
-  color: var(--text-1);
-  font-size: 12px;
 }

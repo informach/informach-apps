@@ -1,5 +1,6 @@
 import { clipEnd } from "./timeline.ts";
 import type { Asset, Project } from "./types.ts";
+import { voiceClips } from "./voiceMaster.ts";
 
 /**
  * Media worth transcribing: assets with audio used on the timeline. Recordings with picture come
@@ -67,4 +68,24 @@ export function pendingSpeech(project: Project, busy: ReadonlySet<string> = new 
     // Neither is transcribed: the extracted voice is the one transcribed.
     return a.kind === "audio" || !candidates.includes(twin) || !heard.has(twin.id);
   });
+}
+
+/**
+ * The lesson's voice still without a transcript, in the order it plays: what the screen recorder
+ * needs read as text for its karaoke, its "Começar na fala" list and its "Na tela" cues. Unlike
+ * pendingSpeech, a voice muted under the presenter's sound still counts (it is the reference the
+ * screen follows). `busy` holds the assets being transcribed right now.
+ */
+export function voiceToTranscribe(
+  project: Project,
+  busy: ReadonlySet<string> = new Set(),
+): Asset[] {
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const out: Asset[] = [];
+  for (const clip of voiceClips(project)) {
+    const a = assets.get(clip.assetId);
+    if (!a || a.missing || a.transcriptStatus === "ready" || busy.has(a.id)) continue;
+    if (!out.includes(a)) out.push(a);
+  }
+  return out;
 }

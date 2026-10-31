@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pendingSpeech } from "../src/shared/speechSources.ts";
+import { pendingSpeech, voiceToTranscribe } from "../src/shared/speechSources.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
 const media = (
@@ -136,5 +136,38 @@ test("a voice heard only under the presenter's own sound is not transcribed agai
   assert.deepEqual(
     pendingSpeech(quiet).map((a) => a.id),
     ["voz"],
+  );
+});
+
+test("the voice to transcribe for the recorder: the Voz track, muted or not, once per file", () => {
+  const voz = track("voz", "audio");
+  voz.name = "Voz";
+  const part1 = media("parte1", "C:/aulas/parte 1.mp3", "audio");
+  const part2 = media("parte2", "C:/aulas/parte 2.mp3", "audio");
+  const music = media("musica", "C:/aulas/musica.mp3", "audio");
+  const p = project(
+    [part1, part2, music],
+    [
+      { ...on("parte2", "voz"), id: "b", start: 60 },
+      // Under the presenter's sound it is still the voice the screen follows.
+      { ...on("parte1", "voz"), id: "a", start: 0, mutedFor: "presenter" },
+      { ...on("parte1", "voz"), id: "a2", start: 120 },
+      on("musica", "a1"),
+    ],
+    [voz, track("a1", "audio")],
+  );
+  assert.deepEqual(
+    voiceToTranscribe(p).map((a) => a.id),
+    ["parte1", "parte2"],
+  );
+  // Done, running or missing: left out.
+  const later = {
+    ...p,
+    assets: [{ ...part1, transcriptStatus: "ready" as const }, { ...part2, missing: true }, music],
+  };
+  assert.deepEqual(voiceToTranscribe(later), []);
+  assert.deepEqual(
+    voiceToTranscribe(p, new Set(["parte1"])).map((a) => a.id),
+    ["parte2"],
   );
 });

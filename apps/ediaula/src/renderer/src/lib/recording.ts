@@ -16,6 +16,7 @@ import { plural } from "@shared/plural";
 import {
   isVoiceMode,
   type OverContext,
+  type OverText,
   type RecorderContext,
   type RecordingResult,
   type RecordMode,
@@ -23,7 +24,7 @@ import {
   retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
-import { recordedStretches, scriptGuide } from "@shared/screenCues";
+import { recordedStretches, screenCoverage, scriptGuide } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
 import { sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Project, RecordingRole } from "@shared/types";
@@ -43,8 +44,8 @@ import { recorderKey } from "./recorderKeys";
 import { recordingImported } from "./recordingHooks";
 import { takeRetake } from "./retake";
 import { scriptDoc } from "./script";
-import { loadAssetTranscript, loadProjectTranscripts } from "./transcripts";
-import { proposeVoiceCleanup, treatVoices } from "./voice";
+import { loadAssetTranscript, loadProjectTranscripts, useTranscribing } from "./transcripts";
+import { proposeVoiceCleanup, transcribeVoice, treatVoices } from "./voice";
 
 /** The take's folder name, which identifies it (Asset.recording.id). */
 const basename = (dir: string): string => dir.split(/[\\/]/).filter(Boolean).at(-1) ?? dir;
@@ -68,17 +69,11 @@ export interface RecorderRequest {
 const MAX_WORDS = 12000;
 
 /**
- * The lesson's voice for "Tela sobre a narração": its segments to render, its words for the
- * karaoke and the "Na tela" directions at the time the script puts them.
+ * The voice read as text for "Tela sobre a narração", from a little before `from`: its words for
+ * the karaoke, the "Na tela" directions at the time the script puts them, each line said as a
+ * place to start a take from, and whether the voice is still being transcribed.
  */
-async function overContext(p: Project, request: RecorderRequest): Promise<OverContext | undefined> {
-  const span = voiceSpan(p);
-  if (!span) return undefined;
-  const playhead = usePlayback.getState().time;
-  const from = Math.max(
-    0,
-    request.from ?? (playhead >= span[0] && playhead < span[1] - 1 ? playhead : span[0]),
-  );
+async function overText(p: Project, from: number): Promise<OverText> {
   const transcripts = await loadProjectTranscripts(p);
   const voice = new Set(voiceClips(p).map((c) => c.id));
   const words = timelineWords(p, transcripts).filter((w) => voice.has(w.clipId));
@@ -87,12 +82,13 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
   // pieces at the words it waits for), and each line said as a place to start a take from.
   const guide = doc ? scriptGuide(doc, words) : null;
   const firstWord = Math.max(0, words.findIndex((w) => w.end >= from) - Math.floor(MAX_WORDS / 4));
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  const running = useTranscribing.getState();
+  const transcribing = voiceClips(p).some((c) => {
+    const a = assets.get(c.assetId);
+    return !!a && (a.transcriptStatus === "pending" || a.id in running);
+  });
   return {
-    from,
-    ...(request.to !== undefined ? { to: request.to } : {}),
-    ...(request.replace ? { replace: true } : {}),
-    end: span[1],
-    segments: voiceSegments(p, 0, span[1]),
     // All of them, as the recorder can go back to any line; a very long voice keeps the ones
     // around where the take starts.
     words: words
@@ -100,8 +96,45 @@ async function overContext(p: Project, request: RecorderRequest): Promise<OverCo
       .map((w) => ({ t: w.start, end: w.end, text: w.text })),
     cues: guide?.cues ?? [],
     lines: (guide?.places ?? []).slice(0, 5000),
-    recorded: recordedStretches(p).slice(0, 5000),
+    transcribing,
   };
+}
+
+/** The lesson's voice for "Tela sobre a narração": its segments to render and its text. */
+async function overContext(p: Project, request: RecorderRequest): Promise<OverContext | undefined> {
+  const span = voiceSpan(p);
+  if (!span) return undefined;
+  const playhead = usePlayback.getState().time;
+  const recorded = recordedStretches(p);
+  const text0 = request.from === undefined && recorded.length ? await overText(p, 0) : null;
+  // With screen already recorded, the take continues at the first stretch of voice without it.
+  const gap = text0 ? screenCoverage(text0.lines ?? [], recorded, span[0], span[1]).firstGap : null;
+  const from = Math.max(
+    0,
+    request.from ?? gap ?? (playhead >= span[0] && playhead < span[1] - 1 ? playhead : span[0]),
+  );
+  return {
+    from,
+    ...(request.to !== undefined ? { to: request.to } : {}),
+    ...(request.replace ? { replace: true } : {}),
+    end: span[1],
+    segments: voiceSegments(p, 0, span[1]),
+    ...(text0 && from === 0 ? text0 : await overText(p, from)),
+    recorded: recorded.slice(0, 5000),
+  };
+}
+
+/**
+ * The voice's text sent again to an open "Tela sobre a narração" once its transcript is ready
+ * (or failed): the karaoke, the lines and the "Na tela" cues show up without reopening it, and
+ * where the take starts is not touched.
+ */
+export async function refreshRecorderText(): Promise<void> {
+  const p = useProject.getState().project;
+  if (!p || !voiceSpan(p)) return;
+  const open = await window.api.recorder.context();
+  if (!open.over || open.projectId !== p.id) return;
+  await window.api.recorder.refreshOver(await overText(p, open.over.from));
 }
 
 /** Opens the recorder over the screen, with the project's script as teleprompter. */
@@ -577,6 +610,8 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
     // The takes become one cleanup proposal once the waveform is there (the silences).
     void treatVoices([voice.id], "teacher");
     void proposeTakes(voice.id);
+    // Read as text right away: the screen is recorded over it next, with its karaoke and lines.
+    void transcribeVoice();
   } else if (mic && r.markers.some((m) => m.kind === "retake"))
     void proposeRetakes(mic.id, r.markers);
   const failures = await recordingImported({
@@ -775,5 +810,29 @@ export function listenRecordings(): void {
   // Plans edited in the recorder belong to the lesson they were made for.
   window.api.recorder.onGuided(({ projectId, store }) => {
     if (useProject.getState().project?.id === projectId) useProject.getState().setGuided(store);
+  });
+  // A voice transcript that finished (or failed), however it was started, reaches an open
+  // "Tela sobre a narração".
+  let reading = "";
+  useProject.subscribe((s) => {
+    const p = s.project;
+    const assets = new Map(p?.assets.map((a) => [a.id, a]));
+    // Only the transcript state of each file of the voice: cutting the voice does not count.
+    const now = p
+      ? [
+          ...new Set(
+            voiceClips(p).map((c) => `${c.assetId}:${assets.get(c.assetId)?.transcriptStatus}`),
+          ),
+        ]
+          .sort()
+          .join(",")
+      : "";
+    if (now === reading) return;
+    const before = reading;
+    reading = now;
+    if (before && p)
+      void refreshRecorderText().catch((error: unknown) =>
+        console.warn("[recorder] texto da voz:", error),
+      );
   });
 }

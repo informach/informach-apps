@@ -107,6 +107,8 @@ const api: EdiAulaApi = {
     onGuidedStatus: (cb) => listen("recorder:guidedStatus", cb),
     onGuided: (cb) => listen("recorder:guided", cb),
     onContextChanged: (cb) => listen("recorder:contextChanged", () => cb()),
+    refreshOver: (text) => ipcRenderer.invoke("recorder:refreshOver", text),
+    onOverText: (cb) => listen("recorder:overText", cb),
     open: (ctx) => ipcRenderer.invoke("recorder:open", ctx),
     context: () => ipcRenderer.invoke("recorder:context"),
     clock: () => ipcRenderer.invoke("recorder:clock"),

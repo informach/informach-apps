@@ -34,6 +34,10 @@ test("nothing stored gives the defaults", () => {
   assert.equal(s.fps, 30);
   assert.equal(s.quality, "standard");
   assert.equal(s.countdown, 3);
+  // The voice is transcribed on its own unless turned off.
+  assert.equal(s.autoTranscribe, true);
+  assert.equal(parseRecorderSettings({ autoTranscribe: "sim" }).autoTranscribe, true);
+  assert.equal(parseRecorderSettings({ autoTranscribe: false }).autoTranscribe, false);
   assert.equal(s.cameraLatency, 100);
   assert.equal(s.pauseBackground, true);
   assert.equal(s.clicker, false);

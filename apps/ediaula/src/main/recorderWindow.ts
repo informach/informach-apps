@@ -49,7 +49,12 @@ import type {
   RecordingResult,
   RecordOptions,
 } from "../shared/recording.ts";
-import { isVoiceMode, RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
+import {
+  isVoiceMode,
+  type OverText,
+  RECORD_MODES,
+  type RecorderContext,
+} from "../shared/recording.ts";
 import { dipToPhysical } from "../shared/region.ts";
 import { SYSTEM_AUDIO_ROUTES } from "../shared/systemAudio.ts";
 import { detectCaptureEncoder } from "./encoders.ts";
@@ -223,6 +228,18 @@ const seconds = z
   .min(0)
   .max(7 * 86400);
 const line = z.string().max(20000);
+/** The voice read as text (shared/recording.ts OverText), in the context or sent again later. */
+const overTextFields = {
+  words: z.array(z.object({ t: seconds, end: seconds, text: z.string().max(200) })).max(200000),
+  cues: z.array(z.object({ t: seconds, text: line })).max(5000),
+  lines: z
+    .array(z.object({ t: seconds, text: line, part: z.string().max(2000) }))
+    .max(5000)
+    .optional(),
+  transcribing: z.boolean().optional(),
+};
+const overTextSchema = z.object(overTextFields);
+
 /** What the editor hands the recorder (shared/recording.ts RecorderContext). */
 const contextSchema = z.object({
   teleprompter: z
@@ -249,12 +266,7 @@ const contextSchema = z.object({
       replace: z.boolean().optional(),
       end: seconds,
       segments: voiceSegmentsSchema,
-      words: z.array(z.object({ t: seconds, end: seconds, text: z.string().max(200) })).max(200000),
-      cues: z.array(z.object({ t: seconds, text: line })).max(5000),
-      lines: z
-        .array(z.object({ t: seconds, text: line, part: z.string().max(2000) }))
-        .max(5000)
-        .optional(),
+      ...overTextFields,
       recorded: z
         .array(z.tuple([seconds, seconds]))
         .max(5000)
@@ -1128,6 +1140,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       if (overlay) await writeFile(path, (await overlay.webContents.capturePage()).toPNG());
     });
   ipcMain.handle("recorder:context", () => context);
+  // The voice's transcript got ready while "Tela sobre a narração" is open: only its text changes.
+  ipcMain.handle("recorder:refreshOver", (_e, raw: unknown) => {
+    const text: OverText = overTextSchema.parse(raw);
+    if (!context.over) return;
+    context = { ...context, over: { ...context.over, ...text } };
+    overlay?.webContents.send("recorder:overText", text);
+  });
   ipcMain.handle("recorder:guidedPick", async () => {
     if (rec.isRecording() || picking) throw new Error("Marque os alvos antes de gravar.");
     picking = true;

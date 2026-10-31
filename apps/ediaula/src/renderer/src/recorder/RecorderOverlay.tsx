@@ -35,6 +35,7 @@ import {
   resizeRegion,
   snapToWindow,
 } from "@shared/region";
+import { type LineCoverage, type ScreenCoverage, screenCoverage } from "@shared/screenCues";
 import { systemAudioPlan } from "@shared/systemAudio";
 import { type PrompterLine, readLines, stepLine, voiceSpeakers } from "@shared/voiceTakes";
 import {
@@ -330,6 +331,8 @@ export function RecorderOverlay(): ReactNode {
   const webRef = useRef(web);
   webRef.current = web;
   const [optionsOpen, setOptionsOpen] = useState(false);
+  /** "Tela sobre a narração": the map of the lines is open. */
+  const [mapOpen, setMapOpen] = useState(false);
   /** The teacher picked a mode: the one remembered, arriving later, does not take its place. */
   const modePicked = useRef(false);
   const guidedFailed = useRef(false);
@@ -396,6 +399,10 @@ export function RecorderOverlay(): ReactNode {
     void load();
     // Opened again for another lesson (or a media to record again): its plans replace these.
     const offContext = window.api.recorder.onContextChanged(() => void load());
+    // The voice's transcript got ready: the karaoke, the lines and the cues, nothing else.
+    const offText = window.api.recorder.onOverText((text) =>
+      setOver((o) => (o ? { ...o, ...text } : o)),
+    );
     void Promise.all([window.api.recorder.sources(), window.api.recorder.settings()]).then(
       ([s, saved]) => {
         setSources(s);
@@ -442,7 +449,10 @@ export function RecorderOverlay(): ReactNode {
       },
     );
     void window.api.recorder.hotkeys().then(setHotkeys);
-    return offContext;
+    return () => {
+      offContext();
+      offText();
+    };
   }, []);
 
   // The plans go to the main process (draft, then the project) a second after the last change,
@@ -1496,6 +1506,18 @@ export function RecorderOverlay(): ReactNode {
 
       {phase === "setup" || phase === "countdown" ? (
         <div className="rec-dock">
+          {mapOpen && mode === "over" && over && over.to === undefined && phase === "setup" && (
+            <OverMap
+              over={over}
+              recorded={recorded}
+              onFrom={(from) => {
+                const first = voiceStart(over);
+                const to = Math.min(Math.max(first, over.end - 1), Math.max(first, from));
+                setOver({ ...over, from: Math.round(to * 1000) / 1000 });
+              }}
+              onClose={() => setMapOpen(false)}
+            />
+          )}
           {optionsOpen && settings && (
             <RecorderOptions
               settings={settings}
@@ -1571,7 +1593,13 @@ export function RecorderOverlay(): ReactNode {
               </span>
             )}
             {mode === "over" && over && over.to === undefined && phase === "setup" && (
-              <OverStart over={over} onFrom={(from) => setOver({ ...over, from })} />
+              <OverStart
+                over={over}
+                recorded={recorded}
+                mapOpen={mapOpen}
+                onMap={setMapOpen}
+                onFrom={(from) => setOver({ ...over, from })}
+              />
             )}
           </div>
           <div className="rec-bar">
@@ -1972,55 +2000,60 @@ export function RecorderOverlay(): ReactNode {
   );
 }
 
+/** The voice against the screen already recorded, line by line (shared/screenCues.ts). */
+const coverageOf = (over: OverContext, recorded: readonly [number, number][]): ScreenCoverage =>
+  screenCoverage(over.lines ?? [], recorded, voiceStart(over), over.end);
+
 /**
  * "Tela sobre a narração": where the voice starts for this part, moved back or forward before
- * recording (the next part starts where the last one ended; this is to go back a little or skip).
+ * recording (the next part starts where the last one ended; this is to go back a little or skip),
+ * with how much of the voice has a screen and the map of the lines to start at any of them.
  */
 function OverStart({
   over,
+  recorded,
+  mapOpen,
+  onMap,
   onFrom,
 }: {
   over: OverContext;
+  recorded: readonly [number, number][];
+  mapOpen: boolean;
+  onMap: (open: boolean) => void;
   onFrom: (from: number) => void;
 }): ReactNode {
-  const first = over.segments[0]?.start ?? 0;
+  const first = voiceStart(over);
   const last = Math.max(first, over.end - 1);
   const move = (to: number): void =>
     onFrom(Math.round(Math.min(last, Math.max(first, to)) * 1000) / 1000);
-  // The script's lines where the voice says them, by part: the line the start is in is shown.
-  const lines = over.lines ?? [];
-  let current = -1;
-  lines.forEach((l, i) => {
-    if (l.t <= over.from + 0.05) current = i;
-  });
-  const parts = [...new Set(lines.map((l) => l.part))];
-  const short = (text: string): string => (text.length > 64 ? `${text.slice(0, 62)}…` : text);
+  const coverage = coverageOf(over, recorded);
+  const lines = coverage.lines;
+  const gap = coverage.firstGap;
+  const ratio = coverage.total ? coverage.covered / coverage.total : 0;
   return (
     <fieldset className="rec-over-start" aria-label="Início da voz nesta parte">
-      {lines.length > 0 && (
-        <select
-          className="rec-over-line"
-          aria-label="Começar na fala"
-          title="Começar a voz no começo de uma fala do roteiro"
-          value={current}
-          onChange={(e) => {
-            const line = lines[Number(e.target.value)];
-            if (line) move(line.t);
-          }}
+      <button
+        type="button"
+        className={`rec-over-cover ${mapOpen ? "is-open" : ""}`}
+        aria-expanded={mapOpen}
+        title="As falas da aula, com e sem tela gravada: clique numa para começar nela"
+        onClick={() => onMap(!mapOpen)}
+      >
+        <span className="rec-over-bar" aria-hidden="true">
+          <span style={{ width: `${Math.round(ratio * 100)}%` }} />
+        </span>
+        {lines.length
+          ? `Tela em ${coverage.done} de ${plural(lines.length, "fala", "falas")}`
+          : `Tela em ${Math.round(ratio * 100)}% da voz`}
+      </button>
+      {gap !== null && Math.abs(gap - over.from) > 0.5 && recorded.length > 0 && (
+        <button
+          type="button"
+          title={`Começar a voz em ${clockOf(gap)}, onde a tela gravada acaba`}
+          onClick={() => move(gap)}
         >
-          {current < 0 && <option value={-1}>Antes da primeira fala</option>}
-          {parts.map((part) => (
-            <optgroup key={part} label={part}>
-              {lines.map((l, i) =>
-                l.part === part ? (
-                  <option key={`${l.t}-${l.text}`} value={i}>
-                    {clockOf(l.t)} · {short(l.text)}
-                  </option>
-                ) : null,
-              )}
-            </optgroup>
-          ))}
-        </select>
+          Continuar de onde parei
+        </button>
       )}
       <button type="button" onClick={() => move(over.from - 5)} disabled={over.from <= first}>
         −5 s
@@ -2032,6 +2065,80 @@ function OverStart({
         Do começo da voz
       </button>
     </fieldset>
+  );
+}
+
+const LINE_STATUS: Record<LineCoverage["status"], string> = {
+  done: "com tela",
+  partial: "com parte da tela",
+  missing: "sem tela",
+};
+
+/**
+ * The lines of the lesson by part of the script, each with whether it has a screen: one click
+ * starts the voice of the next part at it.
+ */
+function OverMap({
+  over,
+  recorded,
+  onFrom,
+  onClose,
+}: {
+  over: OverContext;
+  recorded: readonly [number, number][];
+  onFrom: (from: number) => void;
+  onClose: () => void;
+}): ReactNode {
+  const coverage = coverageOf(over, recorded);
+  const lines = coverage.lines;
+  const parts = [...new Set(lines.map((l) => l.part))];
+  let current = -1;
+  lines.forEach((l, i) => {
+    if (l.t <= over.from + 0.05) current = i;
+  });
+  const missing = lines.filter((l) => l.status !== "done").length;
+  return (
+    <div className="rec-options rec-over-map" role="dialog" aria-label="Falas da aula">
+      <div className="rec-opt-head">
+        <strong>Falas da aula</strong>
+        <small className="muted">
+          {lines.length
+            ? missing
+              ? `${plural(missing, "fala ainda sem tela", "falas ainda sem tela")}. Clique numa fala para a próxima parte começar nela.`
+              : "Todas as falas têm tela. Clique numa para gravar por cima dali."
+            : over.transcribing
+              ? "A voz ainda está sendo transcrita: as falas aparecem aqui quando terminar."
+              : "Sem as falas do roteiro na voz: transcreva a voz e cole o roteiro no editor."}
+        </small>
+        <button type="button" className="rec-icon" aria-label="Fechar" onClick={onClose}>
+          <X size={15} />
+        </button>
+      </div>
+      {parts.map((part) => (
+        <section key={part} className="rec-map-part">
+          <h4>{part}</h4>
+          <ul>
+            {lines.map((l, i) =>
+              l.part === part ? (
+                <li key={`${l.t}-${l.text}`}>
+                  <button
+                    type="button"
+                    className={`rec-map-line is-${l.status} ${i === current ? "is-current" : ""}`}
+                    aria-current={i === current ? "true" : undefined}
+                    aria-label={`${clockOf(l.t)}, ${l.text}, ${LINE_STATUS[l.status]}`}
+                    onClick={() => onFrom(l.t)}
+                  >
+                    <span className="rec-map-dot" aria-hidden="true" />
+                    <span className="rec-map-time">{clockOf(l.t)}</span>
+                    <span className="rec-map-text">{l.text}</span>
+                  </button>
+                </li>
+              ) : null,
+            )}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
 

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { recordedStretches, screenCueTimes, scriptGuide } from "../src/shared/screenCues.ts";
+import {
+  recordedStretches,
+  screenCoverage,
+  screenCueTimes,
+  scriptGuide,
+} from "../src/shared/screenCues.ts";
 import { parseScript, screenCues, speechItems, withoutVoiceTags } from "../src/shared/script.ts";
 import { alignSection } from "../src/shared/scriptAlign.ts";
 
@@ -276,4 +281,38 @@ test("uma parte do roteiro que não está na voz não dá tempo a nenhum Na tela
   assert.ok(guide.cues.length > 0);
   assert.ok(guide.cues.every((c) => !c.text.includes("Estúdio") && !c.text.includes("Tá vendo")));
   assert.ok(guide.places.every((l) => l.part.startsWith("Parte 1")));
+});
+
+test("a cobertura de tela por fala e o primeiro trecho da voz sem tela", () => {
+  const places = [
+    { t: 0, text: "Olá", part: "Parte 1" },
+    { t: 10, text: "Agora", part: "Parte 1" },
+    { t: 20, text: "Depois", part: "Parte 2" },
+    { t: 30, text: "Fim", part: "Parte 2" },
+  ];
+  // Two parts glued by a seam of 0,3 s, then a gap from 25 s.
+  const recorded: [number, number][] = [
+    [0, 12],
+    [12.3, 25],
+  ];
+  const c = screenCoverage(places, recorded, 0, 40);
+  assert.deepEqual(
+    c.lines.map((l) => [l.text, l.end, l.status]),
+    [
+      ["Olá", 10, "done"],
+      ["Agora", 20, "done"],
+      ["Depois", 30, "partial"],
+      ["Fim", 40, "missing"],
+    ],
+  );
+  assert.equal(c.done, 2);
+  assert.equal(c.firstGap, 25);
+  assert.equal(Math.round(c.covered * 10) / 10, 24.7);
+  assert.equal(c.total, 40);
+  // Nothing recorded: the gap is the voice's start.
+  assert.equal(screenCoverage(places, [], 2, 40).firstGap, 2);
+  // Everything recorded, but for a tail shorter than a second: no gap.
+  const full = screenCoverage(places, [[0, 39.5]], 0, 40);
+  assert.equal(full.firstGap, null);
+  assert.equal(full.done, 4);
 });

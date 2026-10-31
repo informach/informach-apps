@@ -117,3 +117,78 @@ export function recordedStretches(
       .map((c): [number, number] => [c.start, clipEnd(c)]),
   );
 }
+
+/** A line of the script with how much of it already has a recorded screen. */
+export interface LineCoverage extends ScriptPlace {
+  /** Where the line ends: the next line's start, or the end of the voice. */
+  end: number;
+  status: "done" | "partial" | "missing";
+}
+
+/** How much of the voice already has a recorded screen, line by line. */
+export interface ScreenCoverage {
+  lines: LineCoverage[];
+  /** Lines fully covered. */
+  done: number;
+  /** Seconds of the voice with a screen, out of `total`. */
+  covered: number;
+  total: number;
+  /** Where the first stretch of the voice without a screen starts (null when there is none). */
+  firstGap: number | null;
+}
+
+/** A stretch without a screen shorter than this is a seam between two takes, not a gap. */
+const GAP = 1;
+
+/** Seconds of [a, b] inside the stretches. */
+function coveredIn(
+  stretches: readonly (readonly [number, number])[],
+  a: number,
+  b: number,
+): number {
+  let sum = 0;
+  for (const [x, y] of stretches) sum += Math.max(0, Math.min(b, y) - Math.max(a, x));
+  return sum;
+}
+
+/**
+ * The voice from `start` to `end` against the screen already recorded (recordedStretches): each
+ * line of the script (scriptGuide's places) done, partly done or missing, the seconds covered and
+ * the first stretch of a second or more still without a screen, where the next take continues.
+ */
+export function screenCoverage(
+  places: readonly ScriptPlace[],
+  recorded: readonly (readonly [number, number])[],
+  start: number,
+  end: number,
+): ScreenCoverage {
+  const stretches = joinStretches(recorded);
+  const lines = places
+    .filter((p) => p.t < end)
+    .map((p, i, all): LineCoverage => {
+      const from = Math.max(start, p.t);
+      const to = Math.max(from, Math.min(end, all[i + 1]?.t ?? end));
+      const has = coveredIn(stretches, from, to);
+      const length = to - from;
+      // As firstGap: less than a second without a screen is a seam, not something missing.
+      const least = Math.min(GAP, length / 2);
+      const status = length - has < least ? "done" : has < least ? "missing" : "partial";
+      return { ...p, end: to, status };
+    });
+  let firstGap: number | null = null;
+  let at = start;
+  for (const [x, y] of stretches) {
+    if (y <= at) continue;
+    if (x - at >= GAP) break;
+    at = Math.max(at, y);
+    if (at >= end) break;
+  }
+  if (end - at >= GAP) firstGap = at;
+  return {
+    lines,
+    done: lines.filter((l) => l.status === "done").length,
+    covered: coveredIn(stretches, start, end),
+    total: Math.max(0, end - start),
+    firstGap,
+  };
+}

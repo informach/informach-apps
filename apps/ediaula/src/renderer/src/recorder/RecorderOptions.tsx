@@ -231,6 +231,14 @@ export function RecorderOptions({
           />
           Zoom automático ao importar a gravação (nos cliques, nos arrastos e na digitação)
         </label>
+        <label className="rec-opt-check">
+          <input
+            type="checkbox"
+            checked={settings.autoTranscribe}
+            onChange={(e) => change({ autoTranscribe: e.target.checked })}
+          />
+          Transcrever a voz sozinho ao importar ou gravar (para o gravador mostrar as falas)
+        </label>
       </div>
       <div className="rec-opt-head">
         <strong>Atalhos</strong>
