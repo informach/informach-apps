@@ -246,7 +246,7 @@ As entregas seguem dependências técnicas. Cada incremento deve ter testes rele
 | 4. Estados e interação | Criação de estados/transições, condições, inputs, eventos e prévia | Montar uma interação nova sem alterar código e reproduzi-la no player | Planejada |
 | 5. Rig e deformação | Hierarquia de ossos, pivôs, IK e, depois, malha/morph | Manipular um membro sem mover o personagem inteiro e salvar o rig | Planejada |
 | 6. IA ampliada | Ferramentas de objetos, trilhas e estados; progresso, cancelamento e edições agrupadas | Claude e Codex completam uma tarefa real por ferramentas, com desfazer e mensagens de erro verificadas | Planejada; integração básica já existe |
-| 7. Exportação e distribuição | Player web fiel ao editor, pacote interativo, instalador e revisão de desempenho/acessibilidade | Projeto exportado funciona offline e instalação Windows passa pelos fluxos essenciais | Planejada; pacote portátil básico já existe |
+| 7. Exportação e distribuição | Player web fiel ao editor, pacote interativo, instalador e revisão de desempenho/acessibilidade | Projeto exportado funciona offline e instalação Windows passa pelos fluxos essenciais | Exportação declarativa e player web implementados; homologação Windows e distribuição pendentes |
 
 ### Incremento 1.1 — implementado
 
@@ -281,7 +281,7 @@ Ampliar a compatibilidade de importação e implementar manipulação direta no 
 
 ### Publicação na web
 
-Hoje é possível exportar HTML independente e SVG animado para hospedagem ou incorporação em uma página. O arquivo `.edisvg` é o projeto editável, não um player web. Um runtime JavaScript que carregue esse arquivo, com animações e estados equivalentes ao editor, pertence à etapa 7. Não há importação/exportação de `.riv` nem compatibilidade com o runtime do Rive.
+Hoje é possível exportar HTML independente, SVG animado e Animação para web. O arquivo `.edisvg` continua sendo o projeto editável. A exportação `.edi-animation.json` é declarativa e usa o player web compartilhado de edi-motion, com os mesmos estados, recursos e controles públicos. O ZIP do player inclui tipos, exemplos e licenças para qualquer aplicação web. A homologação do diálogo nativo do Windows e a publicação do instalador continuam separadas da implementação. Não há importação/exportação de `.riv` nem compatibilidade com o runtime do Rive.
 
 Antes de considerar a etapa 1 concluída, ainda é necessário testar os diálogos e fechamento na janela Windows e uma solicitação real de cada provedor. Os testes automatizados exercitam o controlador de arquivos com diálogos simulados; a execução Electron e os modelos não foram validados neste ambiente restrito.
 
@@ -397,3 +397,18 @@ Na versão 0.4.2, a barra segue o nó `m5eAtQ` do `edisvg.pen`: nove ícones vet
 Osso, Malha e Restrições estão representados conforme o desenho, mas indisponíveis: criação de rig, deformação e IK ainda não existem no motor. O comando Mostrar ossos do canvas permanece uma visualização da demonstração. A barra informa o motivo da indisponibilidade ao receber foco ou clique; não simula uma edição de rig.
 
 A implementação separa a definição e acessibilidade da barra (`toolbar.js`), seus estilos (`toolbar.css`), os ícones exportados (`toolbarIcons.js`), os gestos do canvas (`canvasTools.js`) e a Caneta (`penTool.js`). Operações de criação e movimentação passam por `editScene`, com validação antes de aplicar o novo estado. Testes próximos aos módulos cobrem caminhos, atalhos, disponibilidade, histórico, cancelamento e descarte de ouvintes. O smoke test desktop verifica também a ordem e as dimensões da barra. Sua execução visual permanece pendente neste ambiente devido à restrição de acesso do sandbox do Windows aos binários Electron.
+
+### Preparação reproduzível das artes enviadas em 31/10/2026
+
+Os scripts `scripts/prepare-speaking-art.mts` e `scripts/prepare-open-chest-art.mts` são
+preparações específicas para o acervo autorizado do Sistema Zero, não conversores universais.
+Executar com `node --import tsx <script> <fonte.edisvg> <pasta-nova-de-saida>`, a partir deste
+pacote. Eles usam parseProject e executeDocumentTransaction, preservam o original e escrevem
+uma variante editável e a proveniência. A saída não é o arquivo final para uma aplicação.
+Abra a variante e exporte por Animação para web, ou use o qualificador do exportador.
+
+A fala deriva das formas da boca da saudação e controla a entrada booleana falando. Pausar
+fecha a boca; não é sincronização fonética. O baú aberto seleciona o estado Aberto da máquina
+Baú já existente no projeto. Não se desenha uma segunda versão nem se modifica a abertura
+interativa. Arquivos existentes nunca são sobrescritos. Os originais e derivados permanecem
+no repositório consumidor com hashes; não embutir esse acervo no instalador do editor.
