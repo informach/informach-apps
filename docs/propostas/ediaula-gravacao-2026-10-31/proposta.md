@@ -72,3 +72,51 @@ O app não foi aberto nesta sessão: o computador da titular fica sem memória c
 7. abrir o .zip em outro computador: os recados aparecem.
 
 Comando: `$env:EDI_OPEN_USER_DATA = "$env:USERPROFILE\EdiAula-teste\user-data"; pnpm edi:open ediaula`.
+
+## Segunda proposta: gravador flexível
+
+Ainda em 31/10/2026, a titular apontou que a primeira entrega engessava o processo:
+
+- a tela muitas vezes precisa de mais tempo que a voz, e a parte longa é acelerada depois;
+- erros acontecem durante a gravação e é preciso voltar;
+- às vezes quem grava é quem edita, e "Enviar para a edição" não faz sentido.
+
+Princípio: **a voz é guia, o encaixe se decide na edição e o que o app ajusta sozinho é reversível.** Ela decidiu que o trecho com a voz segurada entra, por padrão, acelerado sob a fala, e que depois de "Errei, voltar" a aula já entra com a última tentativa, com a anterior guardada.
+
+| Lote | Item | Onde | Commit |
+| --- | --- | --- | --- |
+| 1 | Segurar a voz (F7): solta do mesmo ponto; a fala e o tempo segurado entram acelerados sob a fala; o fim da voz não para a gravação | `shared/overNarration.ts` (`lapseFits`, `phraseStart`), journal `lapse`, `RecorderOverlay.tsx` | `a29dc75e` |
+| 2 | Tela sem voz na edição: acelerar sob a fala, abrir espaço na voz, cortar o tempo extra | `shared/timelapse.ts`, `LapseSection.tsx`, `ClipMenu.tsx` | `725f6212` |
+| 3 | Errei, voltar sem parar o take; a última tentativa vence; Usar a anterior | journal `redo`, `overPieces`, `shared/attempts.ts`, `RetrySection.tsx` | `be745849` |
+| 4 | Concluir a gravação (Editar agora, Empacotar para outra pessoa), Lembretes, etapa Revisar a gravação, painel Etapas opcional | `LessonFlowPanel.tsx`, `SendDialog.tsx`, `shared/prepare.ts`, `RecordingReview.tsx` | `fb4c2a94` |
+
+O F7 e o "Voltar ao começo da fala" da primeira entrega saíram: o trecho acelerado que pulava para a fala seguinte e o voltar que salvava a parte e esperava. A forma de `Clip.timelapse` mudou de booleano para objeto; o booleano antigo nunca saiu em instalador e é descartado ao abrir.
+
+### Full review da segunda proposta
+
+Um review independente achou e o trabalho corrigiu:
+
+- segurar a voz duas vezes na mesma fala perdia parte da tela (agora é uma construção só);
+- "Errei, voltar" seguido de segurar a voz ignorava o erro e deixava trechos sobrepostos (o erro vale para o primeiro trecho depois dele, seja normal ou segurado);
+- a troca de tentativas podia apagar o começo da parte seguinte ou ler além da mídia (agora troca só o que as duas tentativas mostram, sem passar do clipe);
+- dois "Errei, voltar" seguidos deixavam a primeira tentativa sem lugar e fora de ordem;
+- dividir, aparar ou mudar a velocidade de uma tela sem voz deixava as escolhas valendo sobre um trecho que não era mais o mesmo (agora vira um clipe acelerado comum);
+- aulas que já tinham começado o Preparar aula voltavam para a etapa nova (agora seguem de onde estavam);
+- parar durante um "Errei" podia criar um pedaço solto e atrasar a parte seguinte;
+- o ponto de volta podia ficar antes do começo da parte;
+- "Abrir 8 s" abria menos que o anunciado;
+- uma fonte que voltava durante o "Errei" encerrava o conserto;
+- uma lista de tentativas grande demais impedia a aula de abrir.
+
+Ficam como limite, por decisão: a troca de tentativas vale só para a tela (câmera e som do PC do take seguem a última tentativa, e a seção avisa); takes de antes desta versão com o F7 antigo não existem fora desta máquina (nunca saíram em instalador).
+
+Depois das correções: typecheck, Biome, `node --test` (976 testes, 961 aprovados, 15 pulados por exigirem hardware, nenhuma falha) e o build do app.
+
+### Teste manual da segunda proposta
+
+1. Gravar a tela sobre a narração e, numa construção longa, segurar a voz com F7, construir e soltar: o bloco entra acelerado sob a fala.
+2. Nas propriedades do bloco, trocar para abrir espaço na voz e para cortar o tempo extra.
+3. Errar um clique, apertar Ctrl+Shift+R, desfazer, voltar: a aula fica com a última tentativa; Usar a anterior troca.
+4. Deixar a voz acabar e seguir gravando até o F10.
+5. Concluir a gravação › Editar agora: o Preparar aula abre em Revisar a gravação.
+

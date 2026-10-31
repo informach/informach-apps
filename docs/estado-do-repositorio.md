@@ -83,12 +83,21 @@ Em 31/10/2026, a pedido da titular, o caminho de quem grava e envia para a ediç
 - **Painel Etapas:** roteiro, voz, tela sobre a voz e envio.
 - **Transcrição:** a voz é transcrita sozinha para o gravador acompanhar as falas.
 - **Mapa das falas:** o gravador mostra as falas com e sem tela e começa no primeiro buraco.
-- **Fim da voz:** a parte grava sozinha e aparece "Tela completa".
-- **Enviar para a edição:** conferência, pacote só com o que a aula usa e pasta de envio lembrada.
-- **Recados:** quem grava deixa recados para quem edita (Ctrl+Shift+Y).
-- **Trecho acelerado:** F7 segura a voz enquanto a tela continua, e a construção entra acelerada no tempo da fala.
+- **Fim da voz:** aparece "Tela completa" (a parada automática saiu na segunda proposta).
+- **Enviar para a edição:** conferência, pacote só com o que a aula usa e pasta de envio lembrada (hoje "Empacotar para outra pessoa").
+- **Recados:** quem grava deixa recados para quem edita (Ctrl+Shift+Y; hoje "Lembretes").
+- **Trecho acelerado:** F7 segura a voz enquanto a tela continua (substituído por "Segurar a voz" na segunda proposta).
 
 Typecheck, Biome e a suíte do app passaram; falta o teste manual da titular, descrito na proposta.
+
+No mesmo dia, ela pediu um gravador menos engessado ("segunda proposta", na mesma [proposta](propostas/ediaula-gravacao-2026-10-31/proposta.md#segunda-proposta-gravador-flexível)): a voz é guia, não relógio.
+
+- **Segurar a voz (F7):** a voz espera e solta do mesmo ponto; a construção entra acelerada sob a fala.
+- **Tela sem voz:** na edição, cada trecho vira acelerar sob a fala, abrir espaço na voz ou cortar o tempo extra.
+- **Errei, voltar:** a voz pausa e volta ao começo da frase sem parar o take; fica a última tentativa e a anterior volta com um clique.
+- **Fim da voz:** a gravação não para mais sozinha.
+- **Concluir a gravação:** Editar agora ou Empacotar para outra pessoa.
+- **Lembretes** no lugar de recados, e o Preparar aula começa por **Revisar a gravação**.
 
 Em 24/10/2026 a publicação da suíte `edi-v0.4.1` parou no `pnpm audit --prod` do workflow, antes dos instaladores: alertas novos em `zod` 3 (alto, sem correção na linha 3), `body-parser` 2.3 e `fast-uri` 3.1.8, todos de apps web. A titular decidiu migrar tudo para o Zod 4 antes de publicar: branch `chore/zod-4`, com overrides de `body-parser` e `fast-uri`. A suíte sai como `edi-v0.4.2`; a tag `edi-v0.4.1` existe mas não publicou nada.
 
