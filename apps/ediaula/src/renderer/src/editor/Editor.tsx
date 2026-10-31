@@ -35,6 +35,7 @@ import {
   TransitionsPanel,
 } from "./RailPanels";
 import { ReviewBar } from "./ReviewBar";
+import { SendDialog } from "./SendDialog";
 import { SidePanel } from "./SidePanel";
 import { SpeechSwapDialog } from "./SpeechSwapDialog";
 import { SpeedDialog } from "./SpeedDialog";
@@ -88,6 +89,7 @@ function handleKey(e: KeyboardEvent): void {
     isTyping(e) ||
     dialogOpen() ||
     useApp.getState().exportOpen ||
+    useApp.getState().sendOpen ||
     useApp.getState().settingsOpen ||
     useApp.getState().speedClips ||
     useApp.getState().extendClip ||
@@ -298,6 +300,7 @@ function LeftPanel({ which }: { which: LeftPanelKind }): ReactNode {
 
 export function Editor(): ReactNode {
   const exportOpen = useApp((s) => s.exportOpen);
+  const sendOpen = useApp((s) => s.sendOpen);
   const speedOpen = useApp((s) => !!s.speedClips);
   const extendOpen = useApp((s) => !!s.extendClip);
   const swapOpen = useApp((s) => !!s.speechSwap);
@@ -418,6 +421,7 @@ export function Editor(): ReactNode {
       </div>
       <StatusBar />
       {exportOpen && <ExportDialog />}
+      {sendOpen && <SendDialog />}
       {speedOpen && <SpeedDialog />}
       {extendOpen && <ExtendFrameDialog />}
       {swapOpen && <SpeechSwapDialog />}

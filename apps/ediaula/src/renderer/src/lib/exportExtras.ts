@@ -6,7 +6,6 @@ import { usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { actions } from "./actions";
 import { ensureCursorSprites } from "./cursorRender";
-import { bytes } from "./format";
 import { ensureRevealSprites } from "./reveal";
 import { cleanError } from "./transcripts";
 
@@ -53,42 +52,12 @@ export async function exportCurrentFrame(): Promise<boolean> {
   }
 }
 
-/** Empacotar a aula: the project and every media it uses in one ZIP, for another computer. */
-export async function packLesson(): Promise<boolean> {
-  const { toast, startJob, endJob } = useApp.getState();
-  const project = useProject.getState().project;
-  if (!project) return false;
-  if (!(await useProject.getState().saveNow())) {
-    toast("Salve a aula antes de empacotar.", "error");
-    return false;
-  }
-  const jobId = newId("pack");
-  startJob(jobId, `Empacotando: ${project.name}`);
-  try {
-    const done = await window.api.packProject(
-      jobId,
-      JSON.stringify(project),
-      safeName(project.name),
-    );
-    if (!done) return false;
-    toast(
-      `Aula empacotada com ${done.files} ${done.files === 1 ? "arquivo" : "arquivos"} (${bytes(done.bytes)}) em ${done.path}.`,
-      "success",
-    );
-    if (done.droppedVoices)
-      toast(
-        done.droppedVoices === 1
-          ? "Uma voz exportada para o vídeo do apresentador ficou fora do pacote, porque os arquivos dela não estão mais no computador."
-          : `${done.droppedVoices} vozes exportadas para o vídeo do apresentador ficaram fora do pacote, porque os arquivos delas não estão mais no computador.`,
-        "info",
-      );
-    return true;
-  } catch (err) {
-    toast(`A aula não foi empacotada: ${cleanError(err)}`, "error");
-    return false;
-  } finally {
-    endJob(jobId);
-  }
+/**
+ * Empacotar a aula: the project and every media it uses in one ZIP, for another computer. It
+ * goes through "Enviar para a edição", which checks what is missing first (SendDialog.tsx).
+ */
+export function packLesson(): void {
+  if (useProject.getState().project) useApp.getState().set({ sendOpen: true });
 }
 
 /** Abrir aula empacotada: extracts the ZIP into the projects folder and opens the lesson. */

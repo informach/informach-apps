@@ -118,7 +118,7 @@ import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import { cancelOneShot, runOneShot } from "./oneShot.ts";
-import { inspectPackage, packProject, unpackProject } from "./package.ts";
+import { estimatePackage, inspectPackage, packProject, unpackProject } from "./package.ts";
 import { cancelPersonKey, registerPersonKey } from "./personKey.ts";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
 import {
@@ -149,6 +149,7 @@ import {
   openRestrictedClaude,
 } from "./restricted.ts";
 import { scheduler, type WorkKind } from "./scheduler.ts";
+import { readSendSettings, writeSendSettings } from "./sendSettings.ts";
 import { rankInWorker } from "./syncPool.ts";
 import { renderVoiceCached } from "./voiceFiles.ts";
 import { treatVoice } from "./voiceTreat.ts";
@@ -479,6 +480,24 @@ const fileNameOnly = (value: unknown): string =>
     .join("")
     .trim()
     .slice(0, 120);
+
+/** What goes into a package (shared/projectPackage.ts PackOptions) and where it goes. */
+const packOptionsSchema = z
+  .object({
+    onlyUsed: z.boolean().optional(),
+    keep: z.array(z.string().min(1).max(200)).max(5000).optional(),
+    toSendFolder: z.boolean().optional(),
+  })
+  .catch({});
+
+/** `<folder>/<name>`, or `<name> (2)<ext>` and so on when it is taken. */
+function freeFile(folder: string, name: string): string {
+  const ext = extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+  let path = join(folder, name);
+  for (let i = 2; existsSync(path); i++) path = join(folder, `${stem} (${i})${ext}`);
+  return path;
+}
 
 /** Dialogs open over the editor window when it exists. */
 const saveDialog = (options: SaveDialogOptions) =>
@@ -1173,20 +1192,49 @@ function registerIpc(): void {
     await desktopFiles.grantWrite(music);
     return { voice, music };
   });
-  // Empacotar a aula: the lesson and its media in one ZIP picked here.
+  // "Enviar para a edição": the folder packages go to (a cloud-synced one, usually).
+  ipcMain.handle("send:settings", async () => {
+    const settings = await readSendSettings();
+    return { folder: settings.folder && existsSync(settings.folder) ? settings.folder : null };
+  });
+  ipcMain.handle("send:pickFolder", async () => {
+    const current = (await readSendSettings()).folder;
+    const r = await openDialog({
+      title: "Pasta de envio para a edição",
+      properties: ["openDirectory", "createDirectory"],
+      ...(current && existsSync(current) ? { defaultPath: current } : {}),
+    });
+    const folder = r.canceled ? undefined : r.filePaths[0];
+    if (!folder) return null;
+    await writeSendSettings({ folder });
+    return folder;
+  });
+  // What a package of the lesson will hold, before it is made.
+  ipcMain.handle("project:packEstimate", async (_e, project: unknown, rawOptions: unknown) =>
+    estimatePackage(projectSchema.parse(projectJson(project)), packOptionsSchema.parse(rawOptions)),
+  );
+  // Empacotar a aula: the lesson and its media in one ZIP, saved where the person picks or
+  // straight into the folder lessons are sent from.
   ipcMain.handle(
     "project:pack",
-    async (_e, rawJob: unknown, project: unknown, defaultName: unknown) => {
+    async (_e, rawJob: unknown, project: unknown, defaultName: unknown, rawOptions: unknown) => {
       const jobId = jobIdSchema.parse(rawJob);
       const parsed = projectSchema.parse(projectJson(project));
-      const name = fileNameOnly(defaultName);
-      const r = await saveDialog({
-        title: "Empacotar a aula com as mídias",
-        defaultPath: join(app.getPath("documents"), `${name || "Aula"}.zip`),
-        filters: [{ name: "Pacote ZIP", extensions: ["zip"] }],
-      });
-      if (r.canceled || !r.filePath) return null;
-      const path = extname(r.filePath).toLowerCase() === ".zip" ? r.filePath : `${r.filePath}.zip`;
+      const { toSendFolder, ...options } = packOptionsSchema.parse(rawOptions);
+      const name = fileNameOnly(defaultName).replace(/[. ]+$/, "") || "Aula";
+      const sendFolder = (await readSendSettings()).folder;
+      const folder = sendFolder && existsSync(sendFolder) ? sendFolder : undefined;
+      let path: string;
+      if (toSendFolder && folder) path = freeFile(folder, `${name}.zip`);
+      else {
+        const r = await saveDialog({
+          title: "Empacotar a aula com as mídias",
+          defaultPath: join(folder ?? app.getPath("documents"), `${name}.zip`),
+          filters: [{ name: "Pacote ZIP", extensions: ["zip"] }],
+        });
+        if (r.canceled || !r.filePath) return null;
+        path = extname(r.filePath).toLowerCase() === ".zip" ? r.filePath : `${r.filePath}.zip`;
+      }
       await desktopFiles.grantWrite(path);
       const out = await desktopFiles.assertWrite(path);
       const done = await processingJob(jobId, "segment", (signal) =>
@@ -1197,6 +1245,7 @@ function registerIpc(): void {
           (ratio) => sendProgress({ id: jobId, ratio }),
           signal,
           FFMPEG,
+          options,
         ),
       );
       return { path: out, ...done };

@@ -24,6 +24,7 @@ import {
   PACKAGE_MEDIA,
   PACKAGE_PROJECT,
   type PackFile,
+  type PackOptions,
   packPlan,
   unpackPaths,
 } from "../shared/projectPackage.ts";
@@ -89,8 +90,9 @@ export async function packProject(
   onProgress?: (ratio: number) => void,
   signal?: AbortSignal,
   ffmpeg?: string,
+  options: PackOptions = {},
 ): Promise<{ files: number; bytes: number; droppedVoices: number }> {
-  const plan = packPlan(project, existsSync, cursorImagesOf);
+  const plan = packPlan(project, existsSync, cursorImagesOf, options);
   const missing = plan.files.filter((f) => !existsSync(f.path)).map((f) => basename(f.path));
   if (missing.length)
     throw new Error(
@@ -126,6 +128,51 @@ export async function packProject(
   } finally {
     if (scratch) await rm(scratch, { recursive: true, force: true });
   }
+}
+
+/** What a package will hold, before it is made ("Enviar para a edição"). */
+export interface PackEstimate {
+  /** Files that go in, and their bytes as they are now (paused stretches blanked keep the size). */
+  files: number;
+  bytes: number;
+  /** Media the lesson no longer uses, left out, and their bytes. */
+  leftOut: { files: number; bytes: number };
+  /** Files the package needs that are not on the disk (reconnect them before sending). */
+  missing: string[];
+}
+
+const sizeOf = async (path: string): Promise<number> => {
+  try {
+    return (await stat(path)).size;
+  } catch {
+    return 0;
+  }
+};
+
+/** The package's files and size, and what stays out, without writing anything. */
+export async function estimatePackage(
+  project: Project,
+  options: PackOptions = {},
+): Promise<PackEstimate> {
+  const plan = packPlan(project, existsSync, cursorImagesOf, options);
+  const missing = plan.files.filter((f) => !existsSync(f.path)).map((f) => basename(f.path));
+  let bytes = 0;
+  for (const f of plan.files) bytes += await sizeOf(f.path);
+  // What the left-out media would have carried: the same fields packPlan stores.
+  const { guided: _plans, voiceMasters: _voices, ...rest } = project;
+  const left = packPlan(
+    { ...rest, assets: plan.leftOut, clips: [] },
+    existsSync,
+    cursorImagesOf,
+  ).files.filter((f) => existsSync(f.path) && !f.name.startsWith(PACKAGE_CURSORS));
+  let leftBytes = 0;
+  for (const f of left) leftBytes += await sizeOf(f.path);
+  return {
+    files: plan.files.length + 1,
+    bytes,
+    leftOut: { files: left.length, bytes: leftBytes },
+    missing,
+  };
 }
 
 /** `<folder>/<name>`, or `<name> (2)` and so on when it is taken. */

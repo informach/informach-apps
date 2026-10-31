@@ -1,6 +1,4 @@
-import { timelineWords } from "@shared/cleanup";
 import { agree, plural } from "@shared/plural";
-import { recordedStretches, screenCoverage, scriptGuide } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
 import { voiceClips, voiceSpan } from "@shared/voiceMaster";
 import {
@@ -15,9 +13,10 @@ import {
   ScrollText,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useScreenCoverage } from "@/lib/coverage";
 import { openRecorder } from "@/lib/recording";
 import { scriptDoc } from "@/lib/script";
-import { useEngine, useTranscribing, useTranscripts } from "@/lib/transcripts";
+import { useEngine, useTranscribing } from "@/lib/transcripts";
 import { importVoiceFiles, transcribeVoice } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
@@ -64,7 +63,6 @@ export function LessonFlowPanel(): ReactNode {
   const running = useTranscribing();
   const jobs = useApp((s) => s.jobs);
   const engine = useEngine((s) => s.status);
-  const transcripts = useTranscripts(project);
   const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
     void useEngine.getState().refresh();
@@ -73,14 +71,7 @@ export function LessonFlowPanel(): ReactNode {
   const doc = scriptDoc(project);
   const voice = useMemo(() => (project ? voiceClips(project) : []), [project]);
   const span = project ? voiceSpan(project) : null;
-  const coverage = useMemo(() => {
-    const range = project ? voiceSpan(project) : null;
-    if (!project || !range) return null;
-    const ids = new Set(voice.map((c) => c.id));
-    const words = timelineWords(project, transcripts).filter((w) => ids.has(w.clipId));
-    const places = doc ? scriptGuide(doc, words).places : [];
-    return screenCoverage(places, recordedStretches(project), range[0], range[1]);
-  }, [project, transcripts, doc, voice]);
+  const coverage = useScreenCoverage(project);
   if (!project) return null;
 
   const parts = doc?.sections.length ?? 0;

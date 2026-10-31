@@ -287,3 +287,73 @@
   color: var(--text-2);
   margin-right: 4px;
 }
+
+/* "Enviar para a edição" (SendDialog.tsx). */
+.send-checks h3,
+.send-pack h3,
+.send-folder h3 {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.send-checks > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.send-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.send-icon {
+  flex: none;
+  margin-top: 2px;
+}
+.send-check.is-ok > .send-icon {
+  color: var(--accent);
+}
+.send-check.is-warn > .send-icon {
+  color: var(--amber);
+}
+.send-check.is-error > .send-icon,
+.send-error {
+  color: var(--rec);
+}
+.send-check.is-info > .send-icon {
+  color: var(--text-2);
+}
+.send-lines {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.send-line {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.send-line-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.send-path {
+  word-break: break-all;
+}
+.send-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  word-break: break-all;
+}
+.send-pack .audio-flag small {
+  font-size: 11.5px;
+}

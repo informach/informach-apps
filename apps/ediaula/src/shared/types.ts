@@ -1210,12 +1210,30 @@ export interface EdiAulaApi {
    * already there is replaced only when the person says so). null when called off.
    */
   pickStems(videoName: string): Promise<{ voice: string; music: string } | null>;
-  /** Packs the lesson and its media into a ZIP picked by the person; null when called off. */
+  /**
+   * Packs the lesson and its media into a ZIP picked by the person, or straight into the send
+   * folder with `toSendFolder` (when there is one); null when called off.
+   */
   packProject(
     jobId: string,
     projectJson: string,
     defaultName: string,
+    options?: import("./projectPackage.ts").PackOptions & { toSendFolder?: boolean },
   ): Promise<{ path: string; files: number; bytes: number; droppedVoices: number } | null>;
+  /** What a package of the lesson will hold, before it is made. */
+  packEstimate(
+    projectJson: string,
+    options?: import("./projectPackage.ts").PackOptions,
+  ): Promise<{
+    files: number;
+    bytes: number;
+    leftOut: { files: number; bytes: number };
+    missing: string[];
+  }>;
+  /** The folder lessons are sent from (null when none is set, or it is gone). */
+  sendSettings(): Promise<{ folder: string | null }>;
+  /** Picks the folder lessons are sent from and keeps it; null when called off. */
+  pickSendFolder(): Promise<string | null>;
   /**
    * Opens a packed lesson picked by the person: checks every entry, asks before extracting,
    * and returns the lesson's file (null when called off, with nothing written).

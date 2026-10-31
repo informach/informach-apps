@@ -104,9 +104,9 @@ export function TopBar(): ReactNode {
                 },
                 { separator: true, label: "" },
                 {
-                  label: "Empacotar a aula com as mídias…",
+                  label: "Enviar para a edição (empacotar com as mídias)…",
                   disabled: !project,
-                  onSelect: () => void packLesson(),
+                  onSelect: packLesson,
                 },
                 { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
                 { separator: true, label: "" },

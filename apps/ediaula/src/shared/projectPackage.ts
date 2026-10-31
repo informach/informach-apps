@@ -1,4 +1,5 @@
 import type { Asset, Project } from "./types.ts";
+import { onlyUsedAssets, usedAssetIds } from "./usedAssets.ts";
 
 /**
  * The lesson packed in one ZIP (Arquivo › Empacotar a aula): the project with its media, the
@@ -80,6 +81,16 @@ export interface PackPlan {
   project: Project;
   /** Exported voices left out because their files are gone (they cannot be matched again). */
   droppedVoices: number;
+  /** Media the lesson no longer uses, left out with `onlyUsed` (shared/usedAssets.ts). */
+  leftOut: Asset[];
+}
+
+/** What goes into a package. */
+export interface PackOptions {
+  /** Only the media the lesson uses: takes recorded over and media off the timeline stay out. */
+  onlyUsed?: boolean;
+  /** Media kept even when unused (a presenter's video still waiting to be placed). */
+  keep?: readonly string[];
 }
 
 /** Statuses of the caches above, made again too. */
@@ -105,10 +116,14 @@ const drawnName = (a: Asset): string =>
  * cursor images beside a cursor data file (their paths).
  */
 export function packPlan(
-  p: Project,
+  whole: Project,
   exists: (path: string) => boolean = () => true,
   cursorImages: (cursor: string) => string[] = () => [],
+  options: PackOptions = {},
 ): PackPlan {
+  const used = options.onlyUsed ? usedAssetIds(whole, options.keep) : null;
+  const p = used ? onlyUsedAssets(whole, used) : whole;
+  const leftOut = used ? whole.assets.filter((a) => !used.has(a.id)) : [];
   const files: PackFile[] = [];
   const taken = new Set<string>();
   const store = (label: string, path: string, blank?: PackFile["blank"]): string => {
@@ -183,7 +198,12 @@ export function packPlan(
   const project: Project = { ...p, assets };
   if (p.voiceMasters) project.voiceMasters = voiceMasters;
   if (guided) project.guided = guided;
-  return { files, project, droppedVoices: (p.voiceMasters?.length ?? 0) - kept.length };
+  return {
+    files,
+    project,
+    droppedVoices: (p.voiceMasters?.length ?? 0) - kept.length,
+    leftOut,
+  };
 }
 
 /** A path anywhere in a project (a drive, a share, a root, an address of a file). */

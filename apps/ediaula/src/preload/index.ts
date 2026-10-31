@@ -217,8 +217,12 @@ const api: EdiAulaApi = {
   exportFramePng: (jobId, projectJson, t, spec) =>
     ipcRenderer.invoke("export:framePng", jobId, projectJson, t, spec),
   pickStems: (videoName) => ipcRenderer.invoke("dialog:stems", videoName),
-  packProject: (jobId, projectJson, defaultName) =>
-    ipcRenderer.invoke("project:pack", jobId, projectJson, defaultName),
+  packProject: (jobId, projectJson, defaultName, options) =>
+    ipcRenderer.invoke("project:pack", jobId, projectJson, defaultName, options),
+  packEstimate: (projectJson, options) =>
+    ipcRenderer.invoke("project:packEstimate", projectJson, options),
+  sendSettings: () => ipcRenderer.invoke("send:settings"),
+  pickSendFolder: () => ipcRenderer.invoke("send:pickFolder"),
   openPackage: () => ipcRenderer.invoke("project:openPackage"),
   listLibrary: () => ipcRenderer.invoke("library:list"),
   saveLibrary: (library) => ipcRenderer.invoke("library:save", library),
