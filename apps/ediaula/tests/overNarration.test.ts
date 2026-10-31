@@ -4,6 +4,7 @@ import { cameraPresenterTransform } from "../src/shared/compose.ts";
 import { drawingPartClips } from "../src/shared/drawing.ts";
 import {
   clockOffset,
+  lapseEnd,
   layoutOverNarration,
   overAnchor,
   overEnd,
@@ -506,4 +507,81 @@ test("gravar por cima onde não há tela gravada entra como parte comum, sem apa
   // The picture stays whole; the take goes on a "Tela" track of its own.
   assert.deepEqual(onTrack(layout.clips, "tv"), [["imagem", 0, 40]]);
   assert.equal(layout.tracks.length, 2);
+});
+
+test("o trecho acelerado: a construção longa entra acelerada no tempo da fala, e a voz segue depois", () => {
+  // Voice from 10 s: heard 10..20 during take 0..10; held at 20 while the screen went on from
+  // take 10 to 190 (3 min of construction); resumed at 30 (the next line) for take 190..200.
+  const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
+    duration: 200,
+    pauses: [],
+    over: {
+      from: 10,
+      anchors: [
+        ...Array.from({ length: 20 }, (_, i) => ({ t: i * 0.5, at: 10 + i * 0.5 })),
+        ...Array.from({ length: 20 }, (_, i) => ({ t: 190 + i * 0.5, at: 30 + i * 0.5 })),
+      ],
+      lapses: [{ from: 10, to: 190, start: 20, end: 30 }],
+    },
+  };
+  const pieces = overPieces(result);
+  assert.deepEqual(pieces, [
+    { from: 0, to: 10, start: 10 },
+    { from: 10, to: 190, start: 20, speed: 18 },
+    { from: 190, to: 200, start: 30 },
+  ]);
+  assert.equal(overEnd(result), 40);
+  // A pause during the construction is cut: what is kept fills the same stretch, a bit slower.
+  const paused = { ...result, pauses: [[100, 130]] as [number, number][] };
+  const withPause = overPieces(paused);
+  assert.deepEqual(
+    withPause.map((p) => [p.from, p.to, p.start, p.speed]),
+    [
+      [0, 10, 10, undefined],
+      [10, 100, 20, 15],
+      [130, 190, 26, 15],
+      [190, 200, 30, undefined],
+    ],
+  );
+  // On the timeline: the screen of the time-lapse sped up and marked, nothing else under it.
+  const screen: Asset = {
+    id: "tela",
+    name: "tela",
+    path: "C:/g/tela.mp4",
+    kind: "video",
+    duration: 200,
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    hasVideo: true,
+    hasAudio: false,
+    size: 1,
+    proxyStatus: "none",
+  };
+  const layout = layoutOverNarration(
+    { tracks: defaultTracks(), clips: [], assets: [screen] },
+    [screen],
+    { ...(result as RecordingResult), screen: screen.path, markers: [], dir: "C:/g", version: 2 },
+  );
+  const lapse = layout.placed.find((c) => c.speed);
+  assert.equal(lapse?.start, 20);
+  assert.equal(lapse?.duration, 10);
+  assert.equal(lapse?.in, 10);
+  assert.equal(lapse?.timelapse, true);
+  // The drawing never goes over the time-lapse.
+  assert.equal(layout.pieces.length, 2);
+});
+
+test("a voz continua na próxima fala depois do trecho acelerado, ou no fim da frase", () => {
+  const words = [
+    { t: 20, end: 20.4 },
+    { t: 20.5, end: 21 },
+    // A pause of 0,8 s: the phrase ends here.
+    { t: 21.8, end: 22.2 },
+  ];
+  assert.equal(lapseEnd(20.2, { end: 60, lines: [{ t: 12 }, { t: 25 }], words }), 25);
+  assert.equal(lapseEnd(20.2, { end: 60, words }), 21.8);
+  assert.equal(lapseEnd(20.2, { end: 60, words: [] }), 23.2);
+  // Never past the end of the voice.
+  assert.equal(lapseEnd(58.5, { end: 60, words: [] }), 60);
 });

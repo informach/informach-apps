@@ -396,6 +396,7 @@ const clip = z.looseObject({
   duration: time,
   volume: number.nonnegative(),
   speed: number.positive().optional(),
+  timelapse: z.boolean().optional(),
   denoise: z.boolean().optional(),
   transform: transform.optional(),
   besideFrom: transform.nullable().optional(),

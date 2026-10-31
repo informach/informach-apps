@@ -96,6 +96,16 @@ export const journalLineSchema = z.discriminatedUnion("k", [
    */
   z.object({ k: z.literal("over"), qpc, at: z.number().nonnegative() }),
   /**
+   * "Trecho acelerado": the voice held at timeline second `at` while the screen goes on (start),
+   * and where it goes on from (end).
+   */
+  z.object({
+    k: z.literal("lapse"),
+    qpc,
+    edge: z.enum(["start", "end"]),
+    at: z.number().nonnegative(),
+  }),
+  /**
    * The guided recording's narration (copied into the folder), where it starts in seconds of
    * the recorder's clock, and the first-frame estimate that clock counted from then.
    */
@@ -164,6 +174,8 @@ export interface JournalReplay {
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
   over: { qpc: number; at: number }[];
+  /** Time-lapses over the narration: QPC and voice second at each edge (no end: cut short). */
+  lapses: { from: number; at: number; to?: number; end?: number }[];
   narration: { file: string; offset: number; origin?: number; video?: true } | null;
   /** Strokes drawn on the screen, "apagar tudo" moments and the stretches the pen was out. */
   strokes: {
@@ -199,6 +211,7 @@ export function replayJournal(text: string): JournalReplay {
     failures: [],
     lines: [],
     over: [],
+    lapses: [],
     narration: null,
     strokes: [],
     clears: [],
@@ -272,6 +285,16 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "line":
         replay.lines.push({ qpc: line.qpc, index: line.index });
+        break;
+      case "lapse":
+        if (line.edge === "start") replay.lapses.push({ from: line.qpc, at: line.at });
+        else {
+          const open = replay.lapses.at(-1);
+          if (open && open.to === undefined && line.qpc >= open.from) {
+            open.to = line.qpc;
+            open.end = line.at;
+          }
+        }
         break;
       case "over":
         replay.over.push({ qpc: line.qpc, at: line.at });

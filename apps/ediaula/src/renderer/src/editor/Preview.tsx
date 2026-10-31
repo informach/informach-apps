@@ -23,7 +23,7 @@ import {
   type RegionFx,
   spotlightDarkness,
 } from "@shared/look";
-import { driftCorrection } from "@shared/playbackSync";
+import { driftCorrection, elementRate } from "@shared/playbackSync";
 import { regionRectAt, regionStrength } from "@shared/regionFollow";
 import { clipEnd, clipSpeed, projectDuration, sourceAt, sourceEnd } from "@shared/timeline";
 import {
@@ -654,17 +654,24 @@ export function Preview(): ReactNode {
                 : null,
             );
             if (el.paused) {
-              if (el.playbackRate !== r) el.playbackRate = r;
+              if (el.playbackRate !== elementRate(r)) el.playbackRate = elementRate(r);
               if (Math.abs(el.currentTime - target) > frame / 2) el.currentTime = target;
               void el.play().catch(() => undefined);
             } else {
               // Picture and voice follow their clock the same way (shared/playbackSync.ts).
-              const fix = driftCorrection(el.currentTime, target, r, frame, el.playbackRate !== r);
+              const fix = driftCorrection(
+                el.currentTime,
+                target,
+                r,
+                frame,
+                el.playbackRate !== elementRate(r),
+              );
               if (fix.seek) {
                 el.currentTime = target;
                 pool.seeks++;
               }
-              if (el.playbackRate !== fix.rate) el.playbackRate = fix.rate;
+              if (el.playbackRate !== elementRate(fix.rate))
+                el.playbackRate = elementRate(fix.rate);
             }
           } else {
             if (!el.paused) el.pause();

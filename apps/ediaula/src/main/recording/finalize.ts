@@ -290,6 +290,23 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
       ? {
           ...replay.begin.over,
           anchors: replay.over.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })),
+          // A time-lapse left open by a crash has no end on the voice: it goes by the anchors.
+          ...(replay.lapses.some((l) => l.to !== undefined)
+            ? {
+                lapses: replay.lapses.flatMap((l) =>
+                  l.to !== undefined && l.end !== undefined
+                    ? [
+                        {
+                          from: momentInTake(segments, l.from),
+                          to: momentInTake(segments, l.to),
+                          start: l.at,
+                          end: l.end,
+                        },
+                      ]
+                    : [],
+                ),
+              }
+            : {}),
         }
       : undefined;
   const result: RecordingResult = {

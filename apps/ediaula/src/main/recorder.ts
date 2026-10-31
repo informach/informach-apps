@@ -392,6 +392,10 @@ export function teleprompterLine(index: number, heard?: number): void {
 }
 
 /** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
+export function lapse(edge: "start" | "end", at: number): void {
+  session?.lapse(edge, at);
+}
+
 export function overAnchor(at: number, when: number): void {
   session?.overAnchor(at, when);
 }

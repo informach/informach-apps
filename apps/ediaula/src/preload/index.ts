@@ -113,6 +113,7 @@ const api: EdiAulaApi = {
     context: () => ipcRenderer.invoke("recorder:context"),
     clock: () => ipcRenderer.invoke("recorder:clock"),
     overAnchor: (at, when) => ipcRenderer.invoke("recorder:overAnchor", at, when),
+    lapse: (edge, at) => ipcRenderer.invoke("recorder:lapse", edge, at),
     narration: (from) => ipcRenderer.invoke("recorder:narration", from),
     onFollow: (cb) => listen("recorder:follow", cb),
     onFollowState: (cb) => listen("recorder:followState", cb),

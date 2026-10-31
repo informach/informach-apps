@@ -358,6 +358,8 @@ export interface Clip {
   /** Playback speed (2 = twice as fast, 0.5 = half); absent = 1. The clip lasts duration on the
    *  timeline and covers duration × speed of the source. */
   speed?: number;
+  /** Recorded as a time-lapse over the narration ("Trecho acelerado"): its speed fits the voice. */
+  timelapse?: boolean;
   /** Removes steady background noise (fan, hum, hiss) from the clip's sound at export. */
   denoise?: boolean;
   /** Position, size, crop and opacity in the frame; absent = fit to the frame. */
@@ -941,6 +943,8 @@ export interface EdiAulaApi {
     clock(): Promise<number>;
     /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
     overAnchor(at: number, when: number): Promise<void>;
+    /** "Trecho acelerado": the voice held at `at` (start), or going on from `at` (end). */
+    lapse(edge: "start" | "end", at: number): Promise<void>;
     /**
      * "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`, from a
      * little before `from` (default: where the editor opened it from).

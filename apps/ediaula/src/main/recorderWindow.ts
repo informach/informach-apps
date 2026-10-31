@@ -1076,6 +1076,10 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:systemAudioRoute", async () =>
     (await processLoopbackAvailable()) ? "native" : "chromium",
   );
+  /** "Trecho acelerado": the voice held at `at`, or going on from `at`. */
+  ipcMain.handle("recorder:lapse", (_e, edge: unknown, at: unknown) =>
+    rec.lapse(z.enum(["start", "end"]).parse(edge), z.number().finite().nonnegative().parse(at)),
+  );
   /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
   ipcMain.handle("recorder:overAnchor", (_e, at: unknown, when: unknown) =>
     rec.overAnchor(

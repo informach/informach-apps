@@ -527,7 +527,17 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
             { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
           );
-    const notes = r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : [];
+    const notes = [
+      ...(r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : []),
+      // Each time-lapse tells whoever edits it how fast it went in, to check the pace.
+      ...layout.placed
+        .filter((c) => c.timelapse && c.speed)
+        .filter((c, i, all) => all.findIndex((x) => Math.abs(x.start - c.start) < 0.5) === i)
+        .map((c) => ({
+          t: c.start,
+          text: `Trecho acelerado ${(c.speed ?? 1).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}×: confira o ritmo`,
+        })),
+    ];
     notesPlaced = notes.length;
     return {
       ...p,

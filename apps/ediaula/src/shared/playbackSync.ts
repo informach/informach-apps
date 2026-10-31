@@ -10,6 +10,12 @@ export const SEEK_DRIFT = 0.15;
 /** Largest change of the playback rate used to catch up. */
 export const NUDGE = 0.03;
 
+/**
+ * The rate a media element is set to: Chromium refuses more than 16× (or less than 1/16), and a
+ * time-lapse over the narration can be faster; the drift correction seeks it along the rest.
+ */
+export const elementRate = (rate: number): number => Math.min(16, Math.max(1 / 16, rate));
+
 export function driftCorrection(
   /** Where the element is, seconds of its source. */
   current: number,

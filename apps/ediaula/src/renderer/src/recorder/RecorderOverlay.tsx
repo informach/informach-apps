@@ -9,7 +9,7 @@ import {
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
 import { NOTE_MAX } from "@shared/markers";
-import { overEnd } from "@shared/overNarration";
+import { lapseEnd, overEnd } from "@shared/overNarration";
 import { joinStretches } from "@shared/phrase";
 import { plural } from "@shared/plural";
 import type { RecorderSettings } from "@shared/recorderSettings";
@@ -44,6 +44,7 @@ import {
   Bookmark,
   Eye,
   EyeOff,
+  FastForward,
   Keyboard,
   Loader,
   MessageSquarePlus,
@@ -257,6 +258,9 @@ export function RecorderOverlay(): ReactNode {
     null,
   );
   const [settings, setSettings] = useState<RecorderSettings | null>(null);
+  // Read by callbacks that outlive the render they were made in.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const [monitor, setMonitor] = useState<CaptureMonitor | null>(null);
   const [region, setRegion] = useState<Rect>(fullWindow);
   /** The controls are on another monitor; the frame shows the region over the recorded one. */
@@ -343,6 +347,9 @@ export function RecorderOverlay(): ReactNode {
   const [mapOpen, setMapOpen] = useState(false);
   /** "Tela sobre a narração": the voice played to its end; the closing step is shown. */
   const [overDone, setOverDone] = useState(false);
+  /** "Trecho acelerado": where the voice is waiting while the screen goes on. */
+  const lapse = useRef<{ at: number } | null>(null);
+  const [lapsing, setLapsing] = useState(false);
   /** The part saving itself after the voice ended (stopping by hand first cancels it). */
   const voiceEnded = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The teacher picked a mode: the one remembered, arriving later, does not take its place. */
@@ -1147,7 +1154,8 @@ export function RecorderOverlay(): ReactNode {
       setResuming(true);
       try {
         await window.api.recorder.resume();
-        await player.current?.play();
+        // During a time-lapse the voice keeps waiting: only the screen goes on.
+        if (!lapse.current) await player.current?.play();
         setAlert(null);
         setPhase("recording");
         phaseRef.current = "recording";
@@ -1166,8 +1174,14 @@ export function RecorderOverlay(): ReactNode {
 
   const stop = useCallback(async () => {
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
-    // A note being typed is kept with the take.
+    // A note being typed is kept with the take, and a time-lapse ends where the voice would go on.
     await closeNote(true);
+    const lapseOpen = lapse.current;
+    if (lapseOpen && overRef.current) {
+      lapse.current = null;
+      setLapsing(false);
+      await window.api.recorder.lapse("end", lapseEnd(lapseOpen.at, overRef.current));
+    }
     // "Tela sobre a narração" is recorded in parts: the recorder stays open for the next one,
     // from where the voice of this one ends. A redo, or a take the app has to save now, closes.
     clearTimeout(voiceEnded.current);
@@ -1253,6 +1267,43 @@ export function RecorderOverlay(): ReactNode {
       setPhase(nothing ? "setup" : "paused");
     }
   }, [finishSystemAudio, closeNote]);
+  /**
+   * "Trecho acelerado" (F7, over the narration): the voice waits where it is while the screen
+   * goes on (a long construction, at the teacher's pace); F7 again lets the voice go on from the
+   * next line. On import the construction is sped up to fit the voice in between.
+   */
+  const toggleLapse = useCallback(async () => {
+    const o = overRef.current;
+    const p = player.current;
+    if (modeRef.current !== "over" || !o || o.to !== undefined || !p) return;
+    if (phaseRef.current !== "recording") return;
+    const open = lapse.current;
+    if (!open) {
+      const at = p.heard();
+      p.pause();
+      lapse.current = { at };
+      setLapsing(true);
+      await window.api.recorder.lapse("start", at);
+      setFlash(
+        `Trecho acelerado: a voz espera em ${clockOf(at)}. Faça no seu tempo e aperte ${hotkeyLabel(settingsRef.current?.hotkeys.timelapse ?? "")} para a voz continuar.`,
+      );
+      return;
+    }
+    const resume = lapseEnd(open.at, o);
+    await window.api.recorder.lapse("end", resume);
+    lapse.current = null;
+    setLapsing(false);
+    if (resume >= o.end - 0.5) {
+      // The time-lapse goes to the end of the voice: the part is over.
+      await stopRef.current();
+      return;
+    }
+    await p.play(resume);
+    showFlash(`A voz continua em ${clockOf(resume)}. O trecho entra acelerado até ali.`);
+  }, [showFlash]);
+  const toggleLapseRef = useRef(toggleLapse);
+  toggleLapseRef.current = toggleLapse;
+
   const stopRef = useRef(stop);
   stopRef.current = stop;
   // The karaoke follows the voice ten times a second (the notes to the main process go at two).
@@ -1356,6 +1407,7 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "stop") void stop();
         else if (name === "marker") void mark("marker");
         else if (name === "note") void openNote();
+        else if (name === "timelapse") void toggleLapseRef.current();
         // Over the narration, redoing is going back to the start of the line being heard.
         else if (name === "retake") void (modeRef.current === "over" ? rewind() : mark("retake"));
         else if (name === "line-next") stepTo(1);
@@ -2056,12 +2108,29 @@ export function RecorderOverlay(): ReactNode {
                   onBlur={() => void closeNote(true)}
                 />
               )}
+              {mode === "over" && over?.to === undefined && (
+                <button
+                  type="button"
+                  className={lapsing ? "is-on" : ""}
+                  title={
+                    lapsing
+                      ? `Fim do trecho acelerado (${keyOf("timelapse")}): a voz continua na próxima fala`
+                      : `Trecho acelerado (${keyOf("timelapse")}): a voz espera enquanto você faz algo longo na tela, que entra acelerado no tempo da fala`
+                  }
+                  aria-label={lapsing ? "Fim do trecho acelerado" : "Trecho acelerado"}
+                  aria-pressed={lapsing}
+                  disabled={phase !== "recording"}
+                  onClick={() => void toggleLapse()}
+                >
+                  <FastForward size={15} />
+                </button>
+              )}
               {mode === "over" ? (
                 <button
                   type="button"
                   title={`Voltar ao começo da fala (${keyOf("retake")}): o que foi gravado fica na aula, e o gravador espera no começo da fala para gravar de novo por cima`}
                   aria-label="Voltar ao começo da fala"
-                  disabled={!over?.lines?.length || over.to !== undefined}
+                  disabled={!over?.lines?.length || over.to !== undefined || lapsing}
                   onClick={() => void rewind()}
                 >
                   <RotateCcw size={15} />

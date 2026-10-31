@@ -168,6 +168,18 @@ export interface OverContext extends OverPlan {
 }
 
 /**
+ * "Trecho acelerado" (time-lapse) over the narration: the voice held at timeline second `start`
+ * while the screen went on from take second `from` to `to` (a long construction, done at the
+ * teacher's pace); it goes back in over the voice from `start` to `end`, sped up to fit.
+ */
+export interface OverLapse {
+  from: number;
+  to: number;
+  start: number;
+  end: number;
+}
+
+/**
  * What the editor shows when the recorder closes: the lesson's recording steps, or the sending
  * of the lesson to whoever edits it.
  */
@@ -363,7 +375,7 @@ export interface RecordingResult {
   mode?: Exclude<RecordMode, "screen">;
   /** "Tela sobre a narração": the plan, and at moments of the take (`t`, seconds without the
    *  pauses removed) which timeline second of the voice was heard (`at`). */
-  over?: OverPlan & { anchors: { t: number; at: number }[] };
+  over?: OverPlan & { anchors: { t: number; at: number }[]; lapses?: OverLapse[] };
   /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
   cursorIssues?: string[];
   /** The chosen encoder could not start and another one recorded. */

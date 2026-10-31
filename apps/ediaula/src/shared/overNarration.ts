@@ -1,6 +1,6 @@
 import { clipEnd, newId } from "./clipTime.ts";
 import type { Transform } from "./compose.ts";
-import type { RecordingPiece, RecordingResult } from "./recording.ts";
+import type { OverLapse, RecordingPiece, RecordingResult } from "./recording.ts";
 import type { RecordingLayout } from "./recordingImport.ts";
 import { keptRanges } from "./recordingJournal.ts";
 import { overwriteRange, videoTrackSlot } from "./timeline.ts";
@@ -22,6 +22,37 @@ export interface OverPiece {
   to: number;
   /** Timeline second where `from` goes. */
   start: number;
+  /** A time-lapse stretch: take seconds per timeline second (absent = 1). */
+  speed?: number;
+}
+
+/** Timeline second where a piece ends. */
+export const pieceEnd = (p: OverPiece): number => p.start + (p.to - p.from) / (p.speed ?? 1);
+
+/** Seconds of [a, b] inside the ranges. */
+const overlap = (ranges: readonly [number, number][], a: number, b: number): number =>
+  ranges.reduce((sum, [x, y]) => sum + Math.max(0, Math.min(b, y) - Math.max(a, x)), 0);
+
+/**
+ * The kept stretches of the take cut at the time-lapses: each piece either goes by the voice's
+ * anchors (`lapse` absent) or is one of a time-lapse's.
+ */
+function splitAtLapses(
+  kept: readonly [number, number][],
+  lapses: readonly OverLapse[],
+): { a: number; b: number; lapse?: OverLapse }[] {
+  const out: { a: number; b: number; lapse?: OverLapse }[] = [];
+  for (const [a, b] of kept) {
+    let at = a;
+    for (const lapse of lapses) {
+      if (lapse.to <= at || lapse.from >= b) continue;
+      if (lapse.from > at) out.push({ a: at, b: lapse.from });
+      out.push({ a: Math.max(at, lapse.from), b: Math.min(b, lapse.to), lapse });
+      at = Math.min(b, lapse.to);
+    }
+    if (b > at) out.push({ a: at, b });
+  }
+  return out.filter((s) => s.b - s.a >= 1 / 30);
 }
 
 /** The window's clock against the main process's (QPC ms): the sample with the shortest trip. */
@@ -69,16 +100,39 @@ export function overPieces(
   if (!plan) return [];
   const kept = keptRanges(result.pauses, result.duration);
   const anchors = [...plan.anchors].sort((a, b) => a.t - b.t);
+  const lapses = [...(plan.lapses ?? [])]
+    .filter((l) => l.to > l.from && l.end > l.start)
+    .sort((x, y) => x.from - y.from);
   const out: OverPiece[] = [];
   let lastK: number | null = null;
-  for (const [a, b] of kept) {
+  for (const { a, b, lapse } of splitAtLapses(kept, lapses)) {
+    if (lapse) {
+      // What of the time-lapse is kept (its pauses are cut) fills the voice from start to end.
+      const speed = overlap(kept, lapse.from, lapse.to) / (lapse.end - lapse.start);
+      const piece: OverPiece = {
+        from: round(a),
+        to: round(b),
+        start: round(lapse.start + overlap(kept, lapse.from, a) / speed),
+        speed: Math.round(speed * 10000) / 10000,
+      };
+      const prev = out.at(-1);
+      if (prev && piece.start < pieceEnd(prev))
+        prev.to = round(prev.from + (piece.start - prev.start) * (prev.speed ?? 1));
+      out.push(piece);
+      // The voice goes on from the end of the time-lapse.
+      lastK = lapse.end - lapse.to;
+      continue;
+    }
     const inside = anchors.filter((x) => x.t >= a - 0.05 && x.t <= b + 0.05);
     const before = anchors.filter((x) => x.t < a).at(-1);
+    const afterLapse = lapses.find((l) => Math.abs(l.to - a) < 0.05);
     const k: number = inside.length
       ? median(inside.map((x) => x.at - x.t))
-      : before
-        ? before.at - before.t
-        : (lastK ?? plan.from - a);
+      : afterLapse
+        ? afterLapse.end - afterLapse.to
+        : before
+          ? before.at - before.t
+          : (lastK ?? plan.from - a);
     lastK = k;
     // Nothing before the point the voice started from, nor after the end of a redo.
     let from = a;
@@ -89,14 +143,14 @@ export function overPieces(
     const piece = { from: round(from), to: round(to), start: round(from + k) };
     const prev = out.at(-1);
     if (prev) {
-      const prevEnd = prev.start + (prev.to - prev.from);
+      const prevEnd = pieceEnd(prev);
       const gap = piece.start - prevEnd;
       if (gap < 0) {
         // Overlap: the later stretch starts where the earlier one ends.
         piece.from = round(piece.from - gap);
         piece.start = round(prevEnd);
         if (piece.to - piece.from < 1 / 30) continue;
-      } else if (gap > 0 && gap <= HOLD) prev.to = round(prev.to + gap);
+      } else if (gap > 0 && gap <= HOLD && !prev.speed) prev.to = round(prev.to + gap);
     }
     out.push(piece);
   }
@@ -111,7 +165,7 @@ export function overEnd(
   result: Pick<RecordingResult, "duration" | "pauses" | "over">,
 ): number | null {
   const last = overPieces(result).at(-1);
-  return last ? round(last.start + (last.to - last.from)) : null;
+  return last ? round(pieceEnd(last)) : null;
 }
 
 export interface OverLayoutOptions {
@@ -213,7 +267,7 @@ export function layoutOverNarration(
   const screens = onTakeClock(result.screen, result.screenParts);
   const start = pieces[0]?.start ?? plan?.from ?? 0;
   const last = pieces.at(-1);
-  const end = last ? last.start + (last.to - last.from) : start;
+  const end = last ? pieceEnd(last) : start;
   const free = (t: Track): boolean =>
     !t.locked &&
     !clips.some((c) => c.trackId === t.id && c.start < end - 1e-3 && clipEnd(c) > start + 1e-3);
@@ -306,12 +360,14 @@ export function layoutOverNarration(
       const a = Math.max(p.from, f.at);
       const b = Math.min(p.to, f.at + f.duration, f.at + length);
       if (b - a < 1 / 30) return [];
+      const speed = p.speed ?? 1;
       const clip = add({
         assetId: f.asset.id,
         trackId: track.id,
-        start: p.start + (a - p.from),
+        start: p.start + (a - p.from) / speed,
         in: f.in + (a - f.at),
-        duration: b - a,
+        duration: (b - a) / speed,
+        ...(p.speed ? { speed: p.speed, timelapse: true } : {}),
         ...extra,
       });
       return clip ? [clip] : [];
@@ -321,6 +377,9 @@ export function layoutOverNarration(
   const shown: Clip[][] = pieces.map(() => []);
   for (const [i, p] of pieces.entries()) {
     if (main) shown[i].push(...lay(p, screens, main, { volume: 1 }));
+    // A time-lapse is the screen alone: the camera and the sound of a long construction, sped
+    // up, would only be noise under the voice.
+    if (p.speed) continue;
     if (cameraTrack)
       for (const c of cameras) {
         const a = Math.max(p.from, c.at);
@@ -356,9 +415,39 @@ export function layoutOverNarration(
     tracks,
     clips,
     placed,
-    pieces: pieces.map((p, i) => ({ from: p.from, to: p.to, start: p.start, screen: shown[i] })),
+    // The drawing goes over the pieces at the voice's pace; a time-lapse has no drawing laid.
+    pieces: pieces.flatMap((p, i) =>
+      p.speed ? [] : [{ from: p.from, to: p.to, start: p.start, screen: shown[i] }],
+    ),
     roles,
     duration: pieces.reduce((sum, p) => sum + p.to - p.from, 0),
     at: start,
   };
+}
+
+/** A pause in the voice this long ends a phrase (where a time-lapse can end without lines). */
+const PHRASE_GAP = 0.6;
+/** Without lines or a pause found, a time-lapse covers this much of the voice. */
+const LAPSE_FALLBACK = 3;
+
+/**
+ * Where the voice goes on after a time-lapse held at `at`: the start of the next line of the
+ * script, else the end of the phrase being said (the first pause of the voice), else a few
+ * seconds on; never past the end of the voice. The time-lapse is fitted into [at, there].
+ */
+export function lapseEnd(
+  at: number,
+  over: {
+    end: number;
+    lines?: readonly { t: number }[];
+    words: readonly { t: number; end: number }[];
+  },
+): number {
+  const next = over.lines?.find((l) => l.t > at + 0.3)?.t;
+  if (next !== undefined) return Math.min(over.end, next);
+  const words = over.words.filter((w) => w.end > at);
+  for (let i = 0; i + 1 < words.length; i++)
+    if (words[i + 1].t - words[i].end >= PHRASE_GAP && words[i].end > at + 0.3)
+      return Math.min(over.end, words[i + 1].t);
+  return Math.min(over.end, at + LAPSE_FALLBACK);
 }

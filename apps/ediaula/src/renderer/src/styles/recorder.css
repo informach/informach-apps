@@ -391,6 +391,11 @@ html.is-recorder #root {
   font-size: 10.5px;
   color: var(--accent);
 }
+/* The time-lapse is on: the voice is waiting. */
+.rec-pill button.is-on {
+  background: var(--amber);
+  color: #1a1204;
+}
 .rec-pill .rec-stop {
   background: var(--rec);
   color: #fff;
