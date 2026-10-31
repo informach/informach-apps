@@ -30,7 +30,7 @@ async function criarConta(page: Page, email: string) {
   await page.getByRole("button", { name: "Criar conta", exact: true }).last().click();
   await expect(page.getByText("Confira seu e-mail")).toBeVisible();
   await page.getByLabel("Código de seis dígitos").fill(await codigoPara(email));
-  await page.getByRole("button", { name: "Confirmar e-mail" }).click();
+  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
   await expect(page).toHaveURL(/\/perfis$/);
 }
 
