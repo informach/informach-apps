@@ -751,10 +751,10 @@ export class CdpDriver {
   }
 
   /** The element a locator names now, and where to act on it in page pixels. */
-  async find(locator: Locator): Promise<Found> {
+  async find(locator: Locator, drop = false): Promise<Found> {
     const facts = await this.facts(locator);
     if (!facts.ready) return { ok: false, message: facts.message, navigating: true };
-    const ranked = rankCandidates(locator, facts.matches, facts.view, facts.canvas);
+    const ranked = rankCandidates(locator, facts.matches, facts.view, facts.canvas, drop);
     if (!ranked.ok) {
       const away = ranked.away;
       return {
@@ -1128,7 +1128,7 @@ export class WebDriver implements GuidedDriver {
   }
 
   /** Looks the element up until it is there and usable, or `timeout` seconds pass. */
-  private async found(locator: Locator, timeout: number) {
+  private async found(locator: Locator, timeout: number, drop = false) {
     const over = this.deadline(timeout);
     for (;;) {
       if (this.signal.aborted) throw new Error(STOPPED);
@@ -1136,7 +1136,7 @@ export class WebDriver implements GuidedDriver {
       let message: string;
       let navigating = false;
       try {
-        const found = await this.cdp.find(locator);
+        const found = await this.cdp.find(locator, drop);
         if (found.ok) return found;
         message = found.message;
         navigating = found.navigating;
@@ -1245,7 +1245,8 @@ export class WebDriver implements GuidedDriver {
     }
     const locator = to?.target?.locator;
     if (!locator) throw new Error("Marque onde o arrasto termina.");
-    const target = await this.found(locator, timeout);
+    // Where the drag ends may be under the palette the drag closes.
+    const target = await this.found(locator, timeout, true);
     const first = locator.strategies[0];
     if (first?.by === "blockly" && first.below && target.block && step.target?.locator) {
       const source = await this.found(step.target.locator, timeout);

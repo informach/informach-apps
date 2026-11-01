@@ -370,6 +370,11 @@ export function rankCandidates(
   matches: readonly StrategyMatches[],
   view: ViewSize,
   canvas: BlocklyCanvas | null = null,
+  /**
+   * The end of a drag: it may be under something the drag itself takes away (the palette of a
+   * block editor closes once a block leaves it), so being covered does not rule it out.
+   */
+  drop = false,
 ): LocateOutcome {
   const problems = new Set<LocatorProblem>();
   const marked = locator.fingerprint;
@@ -390,7 +395,7 @@ export function rankCandidates(
       problems.add("absent");
       continue;
     }
-    const usable = found.filter((c) => c.visible && c.inView && c.enabled && !c.covered);
+    const usable = found.filter((c) => c.visible && c.inView && c.enabled && (drop || !c.covered));
     if (!usable.length) {
       // A single element only out of view, or under something fixed at the edge of the page (a
       // footer bar): the robot can scroll it to the middle, as a person would.

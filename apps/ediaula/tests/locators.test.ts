@@ -444,3 +444,21 @@ test("um item escondido numa lista com rolagem própria: a roda gira sobre a lis
   assert.deepEqual(revealOf(away, view, { x: 10, y: 20 }).at, { x: 970, y: 560 });
   assert.equal(revealOf(away, view, { x: 0, y: 0 }).dy, Math.round(720 - 1080 * 0.45));
 });
+
+test("o fim de um arrasto pode estar sob a paleta que o próprio arrasto fecha", () => {
+  const locator: Locator = {
+    strategies: [{ by: "css", value: '[data-palco-alvo="a1"]' }],
+    point: { u: 0.6, v: 0.4 },
+    fingerprint: {
+      tag: "",
+      text: "",
+      rect: { x: 0, y: 0, width: 0, height: 0 },
+      view: { width: 1920, height: 1080 },
+      cursor: "",
+    },
+  };
+  const under = [{ strategy: 0, candidates: [candidate({ covered: true })] }];
+  const view = { width: 1920, height: 1080 };
+  assert.equal(rankCandidates(locator, under, view).ok, false);
+  assert.equal(rankCandidates(locator, under, view, null, true).ok, true);
+});
