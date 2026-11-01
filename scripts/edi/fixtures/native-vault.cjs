@@ -9,8 +9,13 @@ if (process.env.EDI_NATIVE_TEST !== "true" || app.isPackaged || !process.env.EDI
 const profile = process.env.EDI_NATIVE_USER_DATA;
 if (!profile || !require("node:path").isAbsolute(profile) || app.isReady())
   throw new Error("Native fixture requires an owned profile before ready");
-for (const name of ["userData", "sessionData", "logs", "crashDumps"]) {
-  const owned = name === "userData" ? profile : join(profile, name);
+// `pnpm edi:work` opens the tool's real profile: Chromium's storage stays at its root, as in a
+// released app, and logs and crash dumps keep Electron's defaults.
+const work = process.env.EDI_WORK_PROFILE === "true";
+for (const name of work
+  ? ["userData", "sessionData"]
+  : ["userData", "sessionData", "logs", "crashDumps"]) {
+  const owned = name === "userData" || work ? profile : join(profile, name);
   require("node:fs").mkdirSync(owned, { recursive: true });
   app.setPath(name, owned);
   if (app.getPath(name) !== owned) throw new Error("Native fixture profile mismatch");

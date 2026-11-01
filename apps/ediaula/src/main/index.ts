@@ -264,9 +264,12 @@ const MIME: Record<string, string> = {
 };
 
 // Lets automated checks run against a throwaway profile instead of the user's real projects.
+// `pnpm edi:work` keeps a profile of its own but the real Documents
+// (EDIAULA_REAL_DOCUMENTS), so projects and recordings land where the installed app puts them.
 if (!app.isPackaged && process.env.EDIAULA_USER_DATA) {
   app.setPath("userData", process.env.EDIAULA_USER_DATA);
-  app.setPath("documents", join(process.env.EDIAULA_USER_DATA, "documents"));
+  if (process.env.EDIAULA_REAL_DOCUMENTS !== "true")
+    app.setPath("documents", join(process.env.EDIAULA_USER_DATA, "documents"));
 }
 
 // media://local/<encoded absolute path> serves local files to the renderer with HTTP range support,

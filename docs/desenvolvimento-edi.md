@@ -138,7 +138,7 @@ pnpm --filter @informach/edi-hub dev
 
 Um mapa tem a forma `{"id-da-chave":"PEM da chave pública"}`; as quebras de linha do PEM devem ser escapadas corretamente como JSON. O modo de desenvolvimento aceita autenticação apenas em loopback. Não aponte esse modo para o portal de produção.
 
-**Login não equivale a licença.** Sem chave de licença configurada ou sem direito comercial válido, o desktop continuará restrito. Desabilitar billing impede o checkout; não libera o editor. Não existe seed genérico que libere uma conta nem uma sessão licenciada permanente. Para testar a ferramenta em si, use a sessão de fixture logo abaixo. Para testar login, assinatura e licença com os serviços reais em ambiente de teste, siga os passos de [Sessão interativa com assinatura de teste](#sessão-interativa-com-assinatura-de-teste).
+**Login não equivale a licença.** Sem chave de licença configurada ou sem direito comercial válido, o desktop continuará restrito. Desabilitar billing impede o checkout; não libera o editor. Não existe seed genérico que libere uma conta nem uma sessão licenciada permanente. Para testar a ferramenta em si, use a sessão de fixture logo abaixo; para usá-la no dia a dia, o modo de trabalho (`pnpm edi:work`). Para testar login, assinatura e licença com os serviços reais em ambiente de teste, siga os passos de [Sessão interativa com assinatura de teste](#sessão-interativa-com-assinatura-de-teste).
 
 ### Abrir uma ferramenta licenciada para testar (sem portal)
 
@@ -165,6 +165,38 @@ Cuidados:
 - **Arquivos reais continuam alcançáveis.** O perfil é isolado, mas os diálogos de abrir/salvar podem escolher documentos pessoais; teste com cópias.
 - **Não prova login, assinatura nem licença comercial.** Conta, cobrança e revogação não são exercitadas, e a sessão não é homologação. Para esses fluxos, use `pnpm edi:test:native` e a seção abaixo.
 - A licença de fixture só é aceita por esse build de desenvolvimento não empacotado; o fixture recusa iniciar sem `EDI_NATIVE_TEST`, `EDI_SUITE_TEST_PROFILE` e `EDI_NATIVE_USER_DATA`, que o harness define.
+
+### Usar as ferramentas no dia a dia em modo de desenvolvimento (Hub de desenvolvimento)
+
+Para trabalhar de verdade com as ferramentas compiladas do código local, sem assinatura e sem perder arquivos, use o modo de trabalho em vez do `edi:open`:
+
+```powershell
+pnpm edi:work ediaula
+```
+
+A diferença para o `edi:open` está nos dados (`scripts/edi/open-profile.mts`):
+
+- **Perfil de sempre.** A ferramenta usa `%APPDATA%\<ferramenta>`, o mesmo perfil do app instalado (e das cópias avulsas antigas), então recentes, biblioteca do EdiCaptura, glossários e motor de transcrição continuam lá. Nada é apagado ao fechar. `EDI_WORK_DATA` muda a raiz desses perfis; a pasta temporária do Windows é recusada.
+- **Documentos reais no EdiAula.** Projetos e gravações vão para `Documentos\EdiAula\Projetos` e `Gravações`, como no app instalado (`EDIAULA_REAL_DOCUMENTS`). No `edi:open`, esses documentos ficam dentro do perfil descartável.
+- **Licença de 72 horas**, o mesmo prazo sem internet da produção, renovada a cada 20 minutos. Um computador que dormiu não cai na janela de acesso com trabalho aberto. A licença continua sendo de fixture, numa pasta temporária apagada ao fechar.
+- **Uma execução por ferramenta.** A trava `.cache/edi-open/<ferramenta>.pid` impede um segundo build reescrevendo o `out/` da ferramenta aberta.
+- **Código atual a cada abertura.** Cada execução compila de novo. Depois de editar ou de `git pull`, feche a ferramenta e abra outra vez; não há recarga com o app aberto.
+
+O resto vale como no `edi:open`: somente Windows, pelo `pnpm` da raiz, e o `out/` fica com a chave efêmera.
+
+**Atalhos e Hub de desenvolvimento.** Em cada computador de desenvolvimento, depois de clonar o repositório e preparar Node, pnpm e Git conforme a seção 2:
+
+```powershell
+pnpm edi:work:instalar
+```
+
+O instalador (`scripts/edi/hub-dev/instalar.ps1`) cria, na Área de Trabalho e no menu Iniciar (pasta "Edi (desenvolvimento)"), o atalho **Edi Hub (desenvolvimento)** e um atalho por ferramenta ("EdiAula (dev)" e outros), apontando para o clone daquela máquina. Para fixar na barra de tarefas, procure o atalho no menu Iniciar e escolha "Fixar na barra de tarefas". Rodar de novo refaz os atalhos (por exemplo, depois de mover o repositório); `-Remover` apaga só os atalhos (`powershell -ExecutionPolicy Bypass -File scripts/edi/hub-dev/instalar.ps1 -Remover`).
+
+- O Hub (`hub-dev.ps1`) lista as ferramentas, mostra o andamento (instalando pacotes, backup, compilando, aberta, falhou), abre o registro de cada uma e tem o botão **Puxar atualizações** (`git pull --ff-only`, que não mescla nem descarta nada).
+- Cada abertura (`abrir.ps1`) roda `pnpm install --frozen-lockfile` quando o `pnpm-lock.yaml` mudou desde a última vez e faz o **backup do dia** do perfil (e de `Documentos\EdiAula\Projetos`) em `%USERPROFILE%\Edi-backups\<ferramenta>\<data>`, guardando os 10 mais recentes. Ficam de fora caches do Chromium, o motor de transcrição e arquivos acima de 200 MB, então gravações grandes precisam de backup próprio.
+- Registros em `.cache/edi-work/registros/<ferramenta>.log`. Pelo atalho direto da ferramenta, uma falha aparece numa caixa de mensagem com o final do registro.
+- Não abra ao mesmo tempo a cópia antiga e a do modo de trabalho da mesma ferramenta: elas usam o mesmo perfil. O instalador lista os atalhos antigos que encontrar.
+- Quem abre por aqui usa o build de desenvolvimento: sem atualização automática, sem portal, e mídia do EdiAula pelo FFmpeg de `.cache/edi-native-media` quando existir (`pnpm edi:media:build`) ou pelo `ffmpeg-static`.
 
 ### Sessão interativa com assinatura de teste
 

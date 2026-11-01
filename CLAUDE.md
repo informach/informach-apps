@@ -44,7 +44,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 ### Per app
 - `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:bora-treinar` | `pnpm dev:informach-site` | `pnpm dev:edi`
 - `pnpm build:<app>` | `pnpm start:<app>`
-- Edi desktop tools: `pnpm --filter @informach/<tool> dev` stops at the suite access window. To open a tool licensed for manual testing (no portal/account/subscription, Windows only): `pnpm edi:open <tool>` — see `docs/desenvolvimento-edi.md` §5.
+- Edi desktop tools: `pnpm --filter @informach/<tool> dev` stops at the suite access window. To open a tool licensed for manual testing (no portal/account/subscription, Windows only): `pnpm edi:open <tool>` — see `docs/desenvolvimento-edi.md` §5. For daily work on the development build with the real profiles and Documents (never removed) use `pnpm edi:work <tool>`; `pnpm edi:work:instalar` creates the desktop/Start menu shortcuts of the development Hub on any dev machine.
 
 ### Single test
 - Vitest: `pnpm --filter @informach/<app> exec vitest run path/to/file.test.ts -t "test name"`

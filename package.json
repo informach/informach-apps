@@ -54,6 +54,8 @@
     "edi:typecheck:tooling": "tsc --project scripts/edi/tsconfig.json",
     "edi:test:tooling": "vitest run --config scripts/edi/vitest.config.mts",
     "edi:open": "node scripts/edi/open-licensed.mts",
+    "edi:work": "node scripts/edi/open-licensed.mts --work",
+    "edi:work:instalar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/edi/hub-dev/instalar.ps1",
     "edi:test:native": "node scripts/edi/test-native.mts",
     "edi:test:pdf-view": "node apps/edipdf/scripts/probe-view-restart.mts",
     "edi:test:visual": "node scripts/edi/visual-ediaula.mts"

@@ -60,7 +60,10 @@ export interface NativeHarness {
     extraEnvironment?: Record<string, string>,
     extraArguments?: readonly string[],
   ): Promise<ElectronApplication>;
-  /** Writes a lease signed by the ephemeral key, valid for `ttl` seconds (at most 3600). */
+  /**
+   * Writes a lease signed by the ephemeral key, valid for `ttl` seconds (at most
+   * MAX_LEASE_SECONDS, the production offline window; the schema refuses more).
+   */
   seedLease(application: ElectronApplication, ttl: number): Promise<void>;
   /** Closes the portal and removes the root; returns what failed instead of throwing. */
   dispose(): Promise<unknown[]>;
@@ -124,7 +127,8 @@ export async function createNativeHarness(
       iat: now,
       nbf: now,
       exp: now + ttl,
-      paidThrough: now + 3600,
+      // A lease never outlives the paid period; short test leases keep the old hour.
+      paidThrough: now + Math.max(ttl, 3600),
       jti: randomUUID(),
     });
     const header = Buffer.from(
