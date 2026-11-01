@@ -140,7 +140,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   }
 
   const KEEP =
-    "svg,g.blocklyWorkspace,g.blocklyBlockCanvas,g.blocklyDraggable,g.blocklyEditableText,path.blocklyPath," +
+    "svg,g.blocklyWorkspace,g.blocklyBlockCanvas,g.blocklyDraggable,g.blocklyEditableText,g.blocklyEditableField,path.blocklyPath," +
     "text.blocklyText,.blocklyToolboxDiv,.blocklyToolbox,.blocklyToolboxCategory,.blocklyTreeRow," +
     ".blocklyTreeLabel,.blocklyToolboxCategoryLabel";
   function blockly() {

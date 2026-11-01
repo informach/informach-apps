@@ -395,3 +395,12 @@ test("conditions look at the most specific strategy that finds anything", () => 
   );
   assert.equal(conditionMet("enabled", shown), true);
 });
+
+test("Blockly 11 and later mark fields as blocklyEditableField: still values, not labels", () => {
+  const renamed: BlocklyNode[] = JSON.parse(
+    JSON.stringify(tree).replaceAll("blocklyEditableText", "blocklyEditableField"),
+  );
+  const move = blocklyBlocks(renamed).find((b) => b.key === "move-1");
+  assert.equal(move?.label, "mover passos");
+  assert.equal(move?.text, "mover 10 passos");
+});

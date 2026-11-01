@@ -522,7 +522,12 @@ export function blocklyBlocks(roots: readonly BlocklyNode[]): BlocklyBlock[] {
       if (has(child, "blocklyDraggable")) continue;
       if (child.tag === "text" && child.text)
         into.push({ text: child.text, editable, ...(child.rect ? { rect: child.rect } : {}) });
-      texts(child, editable || has(child, "blocklyEditableText"), into);
+      // A field: blocklyEditableText up to Blockly 10, blocklyEditableField from Blockly 11.
+      texts(
+        child,
+        editable || has(child, "blocklyEditableText") || has(child, "blocklyEditableField"),
+        into,
+      );
     }
   };
   const visit = (node: BlocklyNode, area: BlocklyArea | null): void => {

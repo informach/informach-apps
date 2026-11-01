@@ -221,6 +221,7 @@ export function planFromScript(
       }
     }
   }
-  steps.sort((a, b) => a.at - b.at);
+  // The script's order stands: gestures that do not fit before the next phrase run after it and go
+  // in sped up ("Tela sem voz"), never mixed with the next phrase's.
   return { steps, notes, unsaid, afterVoice };
 }

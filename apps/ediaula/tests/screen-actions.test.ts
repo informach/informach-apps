@@ -100,3 +100,23 @@ test("[na edição: …] não é gesto: vira lembrete no segundo da frase, para 
   // A take that started later in the narration does not show notes from before it.
   assert.deepEqual(editMarks(plan.notes, { at: 0, narrationOffset: -10, duration: 30 }), []);
 });
+
+test("o que não cabe antes da frase seguinte fica na ordem do roteiro, sem se misturar com ela", () => {
+  const lines = ["Aqui aparecem como blocos. Olha aqui: neste menu."];
+  const notes = [
+    {
+      before: 0,
+      text: 'No "como blocos", [apontar bloco "A"] e [apontar bloco "B"]. No "neste menu", [apontar paleta].',
+    },
+  ];
+  const words = lines[0]
+    .split(/\s+/)
+    .map((text, k) => ({ text, start: 1 + k * 0.35, end: 1.3 + k * 0.35 }));
+  const { steps } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  assert.deepEqual(
+    steps.map((s) => s.platform),
+    ['apontar bloco "A"', 'apontar bloco "B"', "apontar paleta"],
+  );
+  // The second gesture would fall after the next phrase: it keeps its place and runs late.
+  assert.ok(steps[1].at > steps[2].at);
+});
