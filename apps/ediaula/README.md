@@ -1594,7 +1594,8 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
       cada `[na edição: …]`.
 6. **Conferir.** Assista: a página ocupa a tela inteira, os gestos caem nas frases, os trechos acelerados ficam
    sob a fala. Uma parte com problema: tire os clipes dela, corrija (roteiro, palco ou plano) e grave de novo
-   só aquela parte.
+   só aquela parte. Para gravar a aula toda de novo, limpe a timeline e remova da biblioteca (**Mídia**) as
+   gravações que ficaram sem uso, para o projeto não acumular takes velhos; os planos continuam no projeto.
 
 ### Teste de fumaça da gravação guiada
 
