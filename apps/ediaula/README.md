@@ -1447,9 +1447,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   No "Olha aqui", [ampliar jogo] e [achar arbusto].
   ```
 
-  Com a narração importada (transcrita sozinha), **Gerar plano do roteiro** faz de cada colchete uma etapa, no
-  segundo em que a voz diz a frase citada (o mesmo alinhamento do teleprompter); um segundo colchete da mesma
-  frase vem depois do tempo que a mão leva. Um **Na tela** sem frase citada vale do começo da fala seguinte, e
+  Com a narração importada (transcrita sozinha), **Gerar plano do roteiro** faz de cada colchete uma etapa: a mão
+  chega ao alvo quando a voz começa a frase citada e age quando a voz termina de dizê-la (o mesmo alinhamento
+  do teleprompter), então o clique de `No "Agora clique em Próxima parte"` vem depois de "parte". Um segundo
+  colchete da mesma frase vem depois do tempo que a mão leva. Um **Na tela** sem frase citada vale do começo da fala seguinte, e
   aspas dentro do colchete nomeiam um botão, nunca uma frase. Verbos do EdiAula, para qualquer página:
   `clicar "Texto"`, `clique duplo "Texto"`, `clique direito "Texto"`, `apontar "Texto"`,
   `passar o mouse "Texto"`, `rolar até "Texto"`, `rolar para baixo 400`, `esperar "Texto"` (ou `sumir`),
@@ -1544,6 +1545,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   do ponto dentro de um alvo grande (o número de um jogo). Uma plataforma pode escolher o ponto exato (`exato`),
   como o palco do Sistema Zero faz com os blocos: a mão para ao lado do bloco, no fundo da área, porque parada
   em cima dele o editor mostra a dica do bloco por cima da aula.
+- **Aula ampliada:** em **Tamanho**, "1920 × 1080, aula ampliada" (o padrão dos planos novos) desenha a aula
+  como numa tela de 1280 × 720 e grava em 1920 × 1080, com 1,5 pixel do vídeo por ponto da página: as letras
+  dos blocos ficam grandes o bastante para ler num vídeo pequeno, sem perder nitidez. A automação trabalha em
+  pixels da página; o vídeo e o cursor desenhado, em pixels do vídeo.
 - **Janela fora da tela:** a gravação acontece numa janela fora da tela, no tamanho do plano. O mouse que cai
   num quadro desenhado por outro processo (um jogo num iframe isolado, um vídeo de outro site) vai pela sessão
   daquele quadro, com as coordenadas de dentro dele. A tela cheia de um livro ou vídeo ocupa o tamanho do plano.
@@ -1579,8 +1584,8 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
 5. **Para cada parte**, nesta ordem:
    1. No painel **Roteiro**, escolha a **Seção N** (é dela que o gravador tira as falas e o **Na tela**).
    2. **Gravar tela** › **Modo de gravação: Guiado por plano**. **Criar um plano** (ou **Novo plano**),
-      **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080**,
-      **Quadros 30**.
+      **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080, aula
+      ampliada**, **Quadros 30**.
    3. **Endereço da aula:** o da aula no palco, com `?parte=N` (`…/aulas/<curso>/<aula>?parte=3`); a Parte 1
       sem ele. Na primeira vez, **Abrir janela da aula** e entre com a conta da equipe; no palco, escolha o
       curso e a aula para pegar o endereço. O login fica no perfil dessa janela.
