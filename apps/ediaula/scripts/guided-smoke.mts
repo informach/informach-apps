@@ -26,7 +26,12 @@ import { fileURLToPath } from "node:url";
 import { app } from "electron";
 import { detectCaptureEncoder } from "../src/main/encoders.ts";
 import { FFMPEG, probe } from "../src/main/ffmpeg.ts";
-import { GuidedTake, loadLesson, openLessonCapture } from "../src/main/guidedCapture.ts";
+import {
+  GuidedTake,
+  loadLesson,
+  openLessonCapture,
+  verifyGuidedPlan,
+} from "../src/main/guidedCapture.ts";
 import type { CdpDriver } from "../src/main/guidedCdp.ts";
 import { listDisplays } from "../src/main/nativeHelper.ts";
 import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.ts";
@@ -41,6 +46,7 @@ import {
 } from "../src/shared/guidedPlan.ts";
 import { duplicationOutput } from "../src/shared/helperProtocol.ts";
 import type { Locator, Point } from "../src/shared/locators.ts";
+import { actionStep } from "../src/shared/screenActions.ts";
 
 const appDir = fileURLToPath(new URL("..", import.meta.url));
 const scratch = mkdtempSync(join(tmpdir(), "ediaula-guided-smoke-"));
@@ -56,6 +62,35 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 const INSIDE = '<button id="inside" style="margin:40px;padding:12px 24px">Dentro</button>';
 const FRAMED = `<!doctype html><html><body style="margin:0"><button id="top">Topo</button><iframe srcdoc="${INSIDE.replaceAll('"', "&quot;")}" style="position:absolute;left:300px;top:200px;width:400px;height:300px;border:0"></iframe></body></html>`;
 
+/**
+ * A platform with the recording bridge (shared/platformBridge.ts): "abrir" is a click on Abrir
+ * and a wait for the panel; the page says it is busy for a moment after each click.
+ */
+const BRIDGED = `<!doctype html><html><body style="margin:0;font:20px sans-serif">
+<button id="abrir" style="position:absolute;left:200px;top:200px;padding:16px 32px">Abrir</button>
+<button id="fechar" style="position:absolute;left:900px;top:600px;padding:16px 32px">Fechar</button>
+<p id="painel" hidden style="position:absolute;left:200px;top:400px">Painel aberto</p>
+<script>
+let busyUntil = 0;
+document.getElementById("abrir").onclick = () => {
+  busyUntil = performance.now() + 600;
+  setTimeout(() => { document.getElementById("painel").hidden = false; }, 400);
+};
+document.getElementById("fechar").onclick = () => { document.title = "fechado"; };
+window.__gravacao = {
+  versao: 1,
+  verbos: () => [{ verbo: "abrir", exemplo: "abrir" }],
+  agir: async (acao) => {
+    if (acao !== "abrir") throw new Error("Não conheço " + acao);
+    return [
+      { fazer: "clicar", alvo: { papel: "button", nome: "Abrir" } },
+      { fazer: "esperar", alvo: { texto: "Painel aberto" } },
+    ];
+  },
+  ocupado: () => performance.now() < busyUntil,
+};
+</script></body></html>`;
+
 function serve(): Promise<{ url: string; base: string; close: () => void }> {
   const page = readFileSync(join(appDir, "tests", "fixtures", "guided-blockly.html"));
   const html = { "content-type": "text/html; charset=utf-8" };
@@ -67,6 +102,7 @@ function serve(): Promise<{ url: string; base: string; close: () => void }> {
     else if (path === "/lenta") response.writeHead(200, html).end('<p>texto</p><img src="/nunca">');
     else if (path === "/nunca") response.writeHead(200, { "content-type": "image/png" });
     else if (path === "/quadro") response.writeHead(200, html).end(FRAMED);
+    else if (path === "/ponte") response.writeHead(200, html).end(BRIDGED);
     else response.writeHead(404).end();
   });
   return new Promise((resolve) =>
@@ -623,6 +659,37 @@ async function main(): Promise<number> {
     check("página que não abre", closed.startsWith("recusada: Não consegui abrir"), closed);
     loads.cdp.detach();
     loads.window.destroy();
+
+    // The recording bridge: the script's brackets checked against a platform that has one, and
+    // against a page that has none.
+    const bridged: GuidedPlanV2 = {
+      ...draft,
+      url: `${server.base}/ponte`,
+      steps: [
+        { ...actionStep("abrir", "p1", draft.viewport), at: 1, speechAt: 1 },
+        { ...actionStep('clicar "Fechar"', "p2", draft.viewport), at: 6, speechAt: 6 },
+        { ...actionStep("voar", "p3", draft.viewport), at: 11, speechAt: 11 },
+      ],
+    };
+    const verified = await verifyGuidedPlan(bridged, new AbortController().signal, () => undefined);
+    const problems = verified.filter((b) => !b.notice);
+    check(
+      "ponte de gravação: ação da plataforma e verbo do EdiAula conferidos",
+      problems.length === 1 &&
+        problems[0].index === 2 &&
+        /Não conheço voar/.test(problems[0].message),
+      JSON.stringify(problems.map((b) => [b.index, b.message])),
+    );
+    const bare = await verifyGuidedPlan(
+      { ...bridged, url: server.url, steps: bridged.steps.slice(0, 1) },
+      new AbortController().signal,
+      () => undefined,
+    );
+    check(
+      "página sem a ponte: a etapa diz o que fazer",
+      bare.length === 1 && /ponte de gravação/.test(bare[0].message),
+      JSON.stringify(bare.map((b) => b.message)),
+    );
     check(
       "marcação: Começar por test id",
       start.strategies[0]?.by === "testid",
@@ -653,6 +720,8 @@ async function main(): Promise<number> {
         action: "wait",
         until: { locator: flyoutBlock, state: "visible" },
         timeout: 15,
+        // The video holds while the page loads (the default records it, to speed it up later).
+        wait: { policy: "cut" },
       },
       {
         id: "3",

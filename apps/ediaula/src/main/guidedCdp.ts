@@ -38,6 +38,7 @@ import {
   type ViewSize,
   workspaceToPage,
 } from "../shared/locators.ts";
+import { BRIDGE_VERSION, bridgeBusy, bridgeSteps } from "../shared/platformBridge.ts";
 
 /**
  * The lesson page driven through the Chrome DevTools Protocol (D2): no real pointer moves.
@@ -700,6 +701,26 @@ export class CdpDriver {
     return conditionMet(condition.state, facts.matches);
   }
 
+  /**
+   * Calls the platform's recording bridge, window.__gravacao, in the page's own world (where the
+   * platform put it): `{ semPonte: true }` when the page has none, else `{ valor }` with its
+   * answer, checked by the caller (shared/platformBridge.ts). An error of the page is thrown with
+   * its first line.
+   */
+  async bridge(method: "agir" | "ocupado" | "verbos", arg?: string): Promise<unknown> {
+    const call = arg === undefined ? `b.${method}()` : `b.${method}(${JSON.stringify(arg)})`;
+    const r = await this.send<EvaluateResult>("Runtime.evaluate", {
+      expression: `(async () => { const b = globalThis.__gravacao; if (!b || b.versao !== ${BRIDGE_VERSION} || typeof b.${method} !== "function") return { semPonte: true }; return { valor: await ${call} }; })()`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (r.exceptionDetails)
+      throw new Error(
+        (r.exceptionDetails.exception?.description ?? r.exceptionDetails.text).split("\n")[0],
+      );
+    return r.result.value;
+  }
+
   async blocklyCanvas(): Promise<BlocklyCanvas | null> {
     const frame = await this.frameFor(undefined);
     if (!frame) return null;
@@ -950,6 +971,7 @@ export class WebDriver implements GuidedDriver {
   private readonly signal: AbortSignal;
   private readonly log: ((line: GuidedLogLine) => void) | null;
   private readonly paintAfter: (() => Promise<void>) | null;
+  private readonly viewport: GuidedViewport;
   private lastShape = "";
   /** The button press of a drag, until its release. */
   private pressing: Promise<unknown> | null = null;
@@ -970,6 +992,7 @@ export class WebDriver implements GuidedDriver {
     this.signal = options.signal;
     this.log = options.clock ? (options.log ?? null) : null;
     this.paintAfter = options.paintAfter ?? null;
+    this.viewport = options.viewport;
     this.pointer = {
       x: Math.round(options.viewport.width / 2),
       y: Math.round(options.viewport.height / 2),
@@ -1317,6 +1340,46 @@ export class WebDriver implements GuidedDriver {
         throw new Error(
           `Esperei ${timeout} s e “${locatorLabel(condition.locator)}” não ficou ${STATE_TEXT[condition.state]}.`,
         );
+      await sleep(100, this.signal);
+    }
+  }
+
+  /** The gestures the platform makes `action` of (shared/platformBridge.ts). */
+  async platform(action: string, id: string, timeout: number): Promise<GuidedStepV2[]> {
+    this.question();
+    // A page that never answers fails the step; the timer goes with the answer that came.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const silent = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`Esperei ${timeout} s e a plataforma não respondeu a “${action}”.`)),
+        timeout * 1000,
+      );
+    });
+    try {
+      const answer = await Promise.race([
+        this.cdp.bridge("agir", action).catch((error: unknown) => {
+          if (this.fatal(error)) throw error;
+          throw new Error(`A plataforma não conseguiu “${action}”: ${(error as Error).message}`);
+        }),
+        silent,
+      ]);
+      return bridgeSteps(answer, action, id, this.viewport);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Waits while the platform says it is busy (a page with no bridge never is). */
+  async idle(timeout: number): Promise<void> {
+    const over = this.deadline(timeout);
+    for (;;) {
+      this.question();
+      const busy = await this.cdp.bridge("ocupado").then(bridgeBusy, (error: unknown) => {
+        if (this.fatal(error)) throw error;
+        return false;
+      });
+      if (!busy) return;
+      if (over()) throw new Error(`Esperei ${timeout} s e a plataforma continuou ocupada.`);
       await sleep(100, this.signal);
     }
   }

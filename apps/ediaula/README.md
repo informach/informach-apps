@@ -1383,9 +1383,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   pergunta (confirmar, digitar) é recusada e a etapa diz qual foi.
 - **Captura em tamanho fixo** (`main/guidedCapture.ts`): uma janela fora da tela, na mesma sessão já logada,
   desenha a página em 1280 × 720 ou 1920 × 1080, escala 1, a 30 ou 60 quadros. O relógio do vídeo é a contagem
-  de quadros: o último quadro se repete enquanto a página não muda. Quando a etapa espera (o alvo ainda
-  carregando, uma navegação, uma condição), o vídeo segura: não sai quadro e a espera fica registrada. A ação
-  acontece no segundo exato da narração, sem "O movimento atrasou". O codificador é o detectado para a tela, pelo
+  de quadros: o último quadro se repete enquanto a página não muda. Quando a etapa espera o alvo ainda
+  carregando ou uma navegação, o vídeo segura: não sai quadro e a espera fica registrada. Quando a página demora
+  mais do que a fala dá para uma condição, o vídeo continua sendo gravado e o trecho entra acelerado (veja **Tela
+  sem voz na gravação guiada**). A ação acontece no segundo exato da narração, sem "O movimento atrasou". O codificador é o detectado para a tela, pelo
   caminho da CPU (BT.709), e o x264 entra se ele não aceitar. Durante o take, o gravador mostra uma prévia a 5
   quadros por segundo, a etapa e o motivo de cada espera; **F9** pausa, **F10** para e salva. Cada espera vai
   para o registro do take assim que termina, e um take recuperado depois de uma queda entra no projeto com o
@@ -1417,9 +1418,68 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   1 ou 2 pixels; a 60 quadros com a página animada e o codificador atrasado, um quadro ou outro a até 7),
   por mais lenta que a página seja; o take só demora mais no relógio.
 - **Ações:** apontar, passar o mouse, clicar, clique duplo, clique direito, arrastar, rolar (uma distância ou até
-  um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**) e esperar (um elemento
-  aparecer, sumir ou ficar disponível). Cada etapa pode ter **Conferir depois** (a etapa só termina quando a
-  condição vale) e uma **Espera máxima**.
+  um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**), esperar (um elemento
+  aparecer, sumir ou ficar disponível) e **Ação da plataforma** (veja **Ponte de gravação**). Cada etapa pode ter
+  **Conferir depois** (a etapa só termina quando a condição vale) e uma **Espera máxima** de até 300 s (uma
+  plataforma que confere um projeto no servidor leva minutos).
+- **Movimento humano** (`shared/humanMotion.ts`): em **Movimento do mouse**, **Como uma criança** (o padrão dos
+  planos novos) ou **Como a professora**. O ponteiro sai devagar, acelera e freia ao chegar (perfil de menor
+  solavanco), num arco leve cujo lado e tamanho mudam a cada movimento, e num alvo pequeno ou distante passa um
+  pouco e volta. Quanto tempo leva depende da distância e do tamanho do alvo (lei de Fitts), dentro do tempo de
+  **Movimento**: a mão espera parada e chega quando o cronograma diz. Tudo vem de uma semente, e o
+  `guided-log.jsonl` guarda a curva, então o cursor do vídeo passa exatamente por ela; takes antigos seguem
+  retos. Um alvo fora da vista não falha: o robô rola a página até ele com a roda, suave, e segue. Planos sem
+  **Movimento do mouse** fazem cada movimento no tempo de **Movimento**, como antes.
+- **Tela sem voz na gravação guiada** (`shared/guidedLapse.ts`): o que a página demora além do que a fala dá
+  (**Verificar projeto** no servidor, um painel que abre devagar) e uma etapa mais longa que o tempo até a próxima
+  fala são gravados como aconteceram. O trecho fica no `guided-run.json` (`lapses`) e entra acelerado sob a fala
+  na importação, com a narração alinhada às ações seguintes; na edição valem as três escolhas de sempre
+  (acelerar sob a fala, abrir espaço na voz ou cortar), e um lembrete **Tela sem voz** marca cada um. Em cada
+  etapa, **Se a página demorar**: **Acelerar sob a fala** (o padrão) ou **Cortar a espera** (o vídeo segura, como
+  antes). Na janela da aula, etapas mais próximas que as ações delas não são recusadas: acontecem uma depois da
+  outra, e o que passar entra acelerado. **Verificar plano** avisa, em cada etapa, os trechos que vão passar do
+  tempo da fala. **Continuar da etapa k** encontra o ponto de junção mesmo depois de trechos acelerados, e
+  **Regravar e substituir** só substitui quando os trechos acelerados caem nos mesmos lugares.
+- **Plano gerado do roteiro** (`shared/screenActions.ts`): no **Na tela** do roteiro, o que o robô faz vai entre
+  colchetes, junto da frase citada que ele espera:
+
+  ```
+  No "Olha aqui", [ampliar jogo] e [achar arbusto].
+  ```
+
+  Com a narração importada (transcrita sozinha), **Gerar plano do roteiro** faz de cada colchete uma etapa, no
+  segundo em que a voz diz a frase citada (o mesmo alinhamento do teleprompter); um segundo colchete da mesma
+  frase vem depois do tempo que a mão leva. Um **Na tela** sem frase citada vale do começo da fala seguinte, e
+  aspas dentro do colchete nomeiam um botão, nunca uma frase. Verbos do EdiAula, para qualquer página:
+  `clicar "Texto"`, `clique duplo "Texto"`, `clique direito "Texto"`, `apontar "Texto"`,
+  `passar o mouse "Texto"`, `rolar até "Texto"`, `rolar para baixo 400`, `esperar "Texto"` (ou `sumir`),
+  `digitar "texto" em "Campo"`, `tecla Ctrl+Z` e `arrastar "A" para "B"` (o alvo pelo rótulo ou pelo texto).
+  Qualquer outro vira uma **Ação da plataforma**. As etapas geradas são editáveis como as outras.
+- **Ponte de gravação** (`shared/platformBridge.ts`): uma plataforma que quer as aulas gravadas assim expõe, no
+  mundo da própria página:
+
+  ```ts
+  window.__gravacao = {
+    versao: 1,
+    verbos(): { verbo: string; exemplo: string; descricao?: string }[],
+    agir(acao: string): Passo[] | Promise<Passo[]>, // acao: o texto entre colchetes
+    ocupado(): boolean, // carregando, conferindo, virando página
+  };
+  // Passo, gestos simples que o robô faz com a mão de uma pessoa:
+  // { fazer: "apontar" | "clicar" | "clique duplo" | "clique direito", alvo, espera?, maximo? }
+  // { fazer: "arrastar", alvo, para, maximo? }
+  // { fazer: "rolar", alvo?, dy?, ate?, espera?, maximo? }
+  // { fazer: "digitar", alvo, texto }
+  // { fazer: "tecla", tecla: "Ctrl+Z" }
+  // { fazer: "esperar", alvo, estado?: "aparecer" | "sumir" | "ficar disponível", espera?, maximo? }
+  // alvo: { seletor } | { papel, nome } | { rotulo } | { texto }, com u e v de 0 a 1 para um ponto
+  // dentro dele (um jogo num canvas); espera: "acelerar" (padrão) ou "cortar"; maximo em segundos.
+  ```
+
+  O primeiro gesto acontece na frase, com a mesma antecedência de uma etapa marcada; cada um dos outros, depois
+  que o anterior terminou e a plataforma não está mais ocupada. A plataforma nunca move o ponteiro, e o EdiAula
+  não sabe nada dela além desses gestos. **Verificar plano** pergunta à página cada ação: um verbo que ela não
+  conhece ou uma página sem a ponte aparecem na etapa, com o que fazer.
 - **Verificar plano** roda o plano inteiro na janela fora da tela, sem gravar, e lista as etapas que falharam,
   cada uma com uma foto da página naquele momento. Marque de novo só essas. Depois de 3 etapas seguidas com
   falha a verificação para, porque as seguintes dependem delas.
@@ -1460,8 +1520,8 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   produz tempos estimados. Também dá para definir etapas e tempos à mão.
 - Ritmo didático inicial para aulas de **9 a 14 anos**, ajustável: movimento suave de **1,2 s**, chegada **0,5 s
   antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa,
-  **Fala começa em (s)** indica o início da frase e **Ação em (s)** quando agir. Etapas próximas demais são
-  recusadas.
+  **Fala começa em (s)** indica o início da frase e **Ação em (s)** quando agir. Na tela, em outros programas,
+  etapas próximas demais são recusadas.
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
   fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
   Sem narração, grave a demonstração e use **Narrar intervalo** depois. A conclusão das etapas encerra a gravação automaticamente.
@@ -1475,8 +1535,9 @@ clique, espera, arrasto do flyout para baixo de um bloco, digitação, conferên
 (com a página animada e parada), e um take que continua da quarta etapa. Confere a duração do vídeo e o que ele
 mostra (o alvo sob o ponteiro em cada clique e o bloco junto da mão no arrasto), o cursor e o `guided-run.json`,
 e mede CPU e memória de cada processo. Confere também o que a janela da aula recusa (microfone, Ctrl+W, Ctrl+R e
-F5), um botão num quadro do mesmo site e páginas que redirecionam, nunca terminam de carregar ou não abrem. Não
-mexe no mouse real.
+F5), um botão num quadro do mesmo site e páginas que redirecionam, nunca terminam de carregar ou não abrem. Com
+uma página que tem a ponte de gravação, confere pelo **Verificar plano** uma ação da plataforma, um verbo do
+EdiAula e um verbo que a página não conhece, e uma página sem a ponte. Não mexe no mouse real.
 
 ## Grupos, marcadores, efeitos de região e exportações extras
 

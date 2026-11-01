@@ -539,6 +539,65 @@ test("steps closer than their actions run one after the other, the excess sped u
   assert.match(cut.message, /cortada do vídeo/);
 });
 
+test("a platform's action: its gestures in order, the first on the phrase, the rest by the hand", async () => {
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    asked: string[] = [];
+    idles = 0;
+    async platform(action: string, id: string) {
+      this.asked.push(action);
+      return [
+        { id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+        { id: `${id}-2`, speech: "", at: 0, action: "click" as const, target: on("Próxima") },
+      ];
+    }
+    async idle() {
+      this.idles++;
+    }
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    { id: "a", at: 2, speech: "Olha aqui", action: "platform", platform: "ampliar jogo" },
+    { id: "b", at: 9, speech: "Agora", action: "click", target: on("Nome") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const [a, b] = schedule.steps;
+  // The platform's action is scheduled as one that moves: the hand leaves before the phrase.
+  assert.equal(a.moves, true);
+  assert.ok(a.moveAt < a.actAt);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  assert.deepEqual(page.asked, ["ampliar jogo"]);
+  assert.equal(page.idles, 1);
+  const clicks = page.events.filter((e) => e.op === "left-1");
+  assert.deepEqual(
+    clicks.map((c) => [c.x, c.y]),
+    [
+      [300, 200],
+      [900, 600],
+      [500, 500],
+    ],
+  );
+  assert.equal(clicks[0].t, a.actAt);
+  // The second gesture comes after the first one's look and the hand's move and hover.
+  const { move, dwell } = plan.tempos;
+  assert.ok(clicks[1].t >= a.actAt + 0.4 + 0.25 + move + dwell - 1 / 30, `at ${clicks[1].t}`);
+  assert.equal(clicks[2].t, b.actAt);
+  // On the screen, or without a bridge, it says where it works.
+  await assert.rejects(
+    runGuided(
+      plan,
+      new FakePage(null, sim.sleep, points),
+      instantClock(controller.signal),
+      controller.signal,
+    ),
+    /janela da aula/,
+  );
+});
+
 test("a target the page moved before the click is followed, and the take goes on", async () => {
   // The reviewer's case: the video held at the click while the correction waited on the video.
   const sim = simulation(30);

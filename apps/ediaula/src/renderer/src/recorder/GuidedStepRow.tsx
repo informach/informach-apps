@@ -9,6 +9,7 @@ import {
   type GuidedPlanV2,
   type GuidedStepTarget,
   type GuidedStepV2,
+  MAX_STEP_TIMEOUT,
   WAIT_POLICIES,
   WAIT_POLICY_LABELS,
   type WaitPolicy,
@@ -64,9 +65,9 @@ function destinationText(step: GuidedStepV2, mode: GuidedPlanV2["mode"]): string
 const conditionText = (condition: GuidedCondition | undefined): string =>
   condition ? `“${locatorLabel(condition.locator)}”` : "";
 
-/** Actions each mode can do: waiting for an element needs the lesson window. */
+/** Actions each mode can do: waiting for an element and the platform's own need the lesson window. */
 export const actionsFor = (mode: GuidedPlanV2["mode"]): readonly GuidedAction[] =>
-  mode === "web" ? GUIDED_ACTIONS : GUIDED_ACTIONS.filter((a) => a !== "wait");
+  mode === "web" ? GUIDED_ACTIONS : GUIDED_ACTIONS.filter((a) => a !== "wait" && a !== "platform");
 
 export function GuidedStepRow({
   step,
@@ -130,7 +131,7 @@ export function GuidedStepRow({
     </>
   );
   const needsTarget =
-    !["wait", "scroll", "key"].includes(step.action) || (step.action === "key" && !web);
+    !["wait", "scroll", "key", "platform"].includes(step.action) || (step.action === "key" && !web);
   return (
     <div className={`guided-step ${broken ? "is-broken" : ""}`}>
       <span>{n}.</span>
@@ -175,6 +176,7 @@ export function GuidedStepRow({
             delta: action === "scroll" ? (step.delta ?? { x: 0, y: web ? 400 : 3 }) : undefined,
             to: action === "drag" ? step.to : undefined,
             until: action === "wait" || action === "scroll" ? step.until : undefined,
+            platform: action === "platform" ? (step.platform ?? "") : undefined,
           });
         }}
       >
@@ -198,6 +200,16 @@ export function GuidedStepRow({
         )}
       {step.action === "drag" &&
         markButton("to", "Marcar destino", destinationText(step, plan.mode))}
+      {step.action === "platform" && (
+        <input
+          aria-label={`O que a plataforma faz na etapa ${n}`}
+          title="O texto entre colchetes do roteiro. A plataforma diz de que gestos ele é feito; o Verificar plano confere."
+          placeholder="ampliar jogo, verificar projeto…"
+          maxLength={500}
+          value={step.platform ?? ""}
+          onChange={(e) => update({ platform: e.target.value })}
+        />
+      )}
       {step.action === "type" && (
         <input
           aria-label={`Texto a digitar na etapa ${n}`}
@@ -237,7 +249,7 @@ export function GuidedStepRow({
       {step.action === "scroll" && web && condition("until", step.until)}
       {step.action === "wait" && condition("until", step.until)}
       {web && step.action !== "wait" && condition("expect", step.expect)}
-      {web && (step.expect || step.until) && (
+      {web && (step.expect || step.until || step.action === "platform") && (
         <label title="O que o vídeo faz quando a página demora mais do que a fala dá: o trecho entra acelerado sob a fala (tela sem voz) ou a espera é cortada.">
           Se a página demorar
           <select
@@ -262,7 +274,7 @@ export function GuidedStepRow({
           <input
             type="number"
             min="0.5"
-            max="120"
+            max={MAX_STEP_TIMEOUT}
             step="0.5"
             value={step.timeout ?? DEFAULT_STEP_TIMEOUT}
             onChange={(e) => update({ timeout: Number(e.target.value) })}

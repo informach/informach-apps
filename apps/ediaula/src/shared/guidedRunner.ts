@@ -2,12 +2,14 @@ import type { FrameClock, HoldReason } from "./frameClock.ts";
 import type { GuidedInteraction } from "./guidedCursor.ts";
 import { LAPSE_FLOOR, LAPSE_MIN } from "./guidedLapse.ts";
 import {
+  actionLength,
   type Chord,
   DEFAULT_STEP_TIMEOUT,
   type GuidedCondition,
   type GuidedPlanV2,
   type GuidedStepTarget,
   type GuidedStepV2,
+  needsTarget,
   type PlannedStep,
   parseChord,
   schedulePlan,
@@ -67,6 +69,13 @@ export interface GuidedDriver {
   check(condition: GuidedCondition): Promise<boolean>;
   /** Waits up to `timeout` wall seconds for the condition (page only). */
   until(condition: GuidedCondition, timeout: number): Promise<void>;
+  /**
+   * The gestures the platform's recording bridge makes `action` of, as steps without times
+   * (page only, shared/platformBridge.ts). `id` names them after the step.
+   */
+  platform?(action: string, id: string, timeout: number): Promise<GuidedStepV2[]>;
+  /** Waits up to `timeout` wall seconds while the platform says it is busy (page only). */
+  idle?(timeout: number): Promise<void>;
 }
 
 /** The time of the take and what to do when the page or the screen is late. */
@@ -179,6 +188,9 @@ function targetSize(target: GuidedStepTarget | undefined): number {
 
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 
+/** Seconds to watch a gesture of a platform's action before the next one. */
+const GESTURE_AFTER = 0.4;
+
 export async function runGuided(
   plan: GuidedPlanV2,
   driver: GuidedDriver,
@@ -242,20 +254,27 @@ export async function runGuided(
     // Its time ends at the next step's start when that one comes sooner.
     const stop = Math.min(s.endAt, next);
     const lapse = lapsing && (step.wait?.policy ?? "lapse") === "lapse";
-    /** Waits for the condition: recorded under a lapse, or with the video held ("cut"). */
-    const awaitCondition = async (condition: GuidedCondition): Promise<void> => {
+    /** Waits for the page: recorded under a lapse, or with the video held ("cut"). */
+    const awaitPage = async (wait: () => Promise<void>): Promise<void> => {
       const room = Math.max(0, stop - clock.time());
       const began = performance.now();
       if (lapse) {
         mark();
-        await driver.until(condition, timeout);
+        await wait();
       } else {
         clock.hold(stop, "wait");
-        await driver.until(condition, timeout);
+        await wait();
         clock.release();
       }
       options.onWaited?.(s.index, (performance.now() - began) / 1000, room);
     };
+    const awaitCondition = (condition: GuidedCondition): Promise<void> =>
+      awaitPage(() => driver.until(condition, timeout));
+    if (step.action === "platform") {
+      await runPlatform(s, next, timeout, awaitPage);
+      if (step.expect) await awaitCondition(step.expect);
+      return;
+    }
     let point: Point | null = null;
     let drop: Point | null = null;
     let actAt = s.actAt;
@@ -433,6 +452,57 @@ export async function runGuided(
     await clock.wait(
       clock.holds || step.action === "wait" ? stop : Math.max(s.endAt, clock.time() + span(after)),
     );
+  };
+
+  /**
+   * A platform's action: the bridge is asked for its gestures when the hand would leave for the
+   * target, the first one is done on the step's own times (it acts on the phrase), and each of
+   * the others when the one before it ended and the platform is no longer busy, with the hand of
+   * a person. What runs past the next phrase goes in sped up, as any long step.
+   */
+  const runPlatform = async (
+    s: PlannedStep,
+    next: number,
+    timeout: number,
+    awaitPage: (wait: () => Promise<void>) => Promise<void>,
+  ): Promise<void> => {
+    const ask = driver.platform;
+    if (!ask) throw new Error("A ação da plataforma só funciona na janela da aula.");
+    await clock.wait(Math.max(0, s.moveAt - 0.25));
+    clock.hold(s.moveAt, "locate");
+    const gestures = await ask.call(driver, s.step.platform ?? "", s.step.id, timeout);
+    clock.release();
+    const idle = driver.idle;
+    for (const [k, gesture] of gestures.entries()) {
+      if (k > 0 && idle) await awaitPage(() => idle.call(driver, timeout));
+      const moves = needsTarget(gesture, plan.mode);
+      const length = actionLength(gesture, plan);
+      const last = k === gestures.length - 1;
+      let planned: PlannedStep;
+      if (k === 0) {
+        planned = {
+          ...s,
+          step: gesture,
+          moves,
+          ...(moves ? {} : { moveAt: s.actAt, arriveAt: s.actAt }),
+          endAt: s.actAt + (last ? after : GESTURE_AFTER) + length,
+        };
+      } else {
+        const moveAt = clock.time() + 0.25;
+        const actAt = moves ? moveAt + move + dwell : moveAt;
+        planned = {
+          step: gesture,
+          index: s.index,
+          moves,
+          moveAt,
+          arriveAt: moves ? moveAt + move : actAt,
+          speechAt: actAt,
+          actAt,
+          endAt: actAt + (last ? after : GESTURE_AFTER) + length,
+        };
+      }
+      await runStep(planned, last ? next : planned.endAt);
+    }
   };
 
   for (const [i, s] of schedule.steps.entries()) {

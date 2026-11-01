@@ -134,7 +134,8 @@ const foldText = (s: string): string =>
 export function screenCues(text: string, spoken: string): ScreenCue[] | null {
   const said = foldText(spoken);
   const anchorOf = (sentence: string): string | undefined => {
-    const quoted = QUOTED.exec(sentence)?.[1]?.trim();
+    // A quote inside a bracket names a button of the robot's action, never a phrase to wait for.
+    const quoted = QUOTED.exec(sentence.replace(/\[[^\]\n]*\]/g, " "))?.[1]?.trim();
     return quoted && foldText(quoted).trim() && said.includes(foldText(quoted))
       ? quoted
       : undefined;

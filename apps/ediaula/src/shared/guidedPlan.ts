@@ -40,6 +40,7 @@ export const GUIDED_ACTIONS = [
   "type",
   "key",
   "wait",
+  "platform",
 ] as const;
 export type GuidedAction = (typeof GUIDED_ACTIONS)[number];
 
@@ -54,6 +55,7 @@ export const ACTION_LABELS: Record<GuidedAction, string> = {
   type: "Clicar e digitar",
   key: "Tecla ou atalho",
   wait: "Esperar",
+  platform: "Ação da plataforma",
 };
 
 /**
@@ -112,6 +114,11 @@ export interface GuidedStepV2 {
   timeout?: number;
   /** When the page takes longer than the narration gives (lesson window); absent: "lapse". */
   wait?: { policy: WaitPolicy };
+  /**
+   * platform: what the platform is asked to do ("ampliar jogo"), the text between brackets of
+   * the script; its recording bridge answers with the gestures (shared/platformBridge.ts).
+   */
+  platform?: string;
 }
 
 export interface GuidedTempos {
@@ -241,6 +248,8 @@ export const VIEWPORTS: readonly GuidedViewport[] = [
 export const DEFAULT_TEMPOS: GuidedTempos = { ...GUIDED_DEFAULTS };
 /** Seconds a step waits for its target or a condition before it fails. */
 export const DEFAULT_STEP_TIMEOUT = 8;
+/** The longest a step may wait: a platform that checks a project on its server takes minutes. */
+export const MAX_STEP_TIMEOUT = 300;
 /** Seconds between two typed characters. */
 export const TYPE_INTERVAL = 0.08;
 /** Seconds between two wheel steps of a scroll. */
@@ -426,8 +435,9 @@ const stepSchema = z.looseObject({
     .optional(),
   until: conditionSchema.optional(),
   expect: conditionSchema.optional(),
-  timeout: z.number().finite().min(0.5).max(120).optional(),
+  timeout: z.number().finite().min(0.5).max(MAX_STEP_TIMEOUT).optional(),
   wait: z.object({ policy: z.enum(WAIT_POLICIES) }).optional(),
+  platform: z.string().max(500).optional(),
 }) satisfies z.ZodType<GuidedStepV2>;
 
 export const guidedPlanV2Schema = z.looseObject({
@@ -577,7 +587,7 @@ export function needsTarget(
   step: Pick<GuidedStepV2, "action" | "target">,
   mode: "web" | "screen",
 ): boolean {
-  if (step.action === "wait") return false;
+  if (step.action === "wait" || step.action === "platform") return false;
   if (step.action === "scroll") return !!step.target;
   if (step.action === "key") return mode === "screen" || !!step.target;
   return true;
@@ -674,15 +684,21 @@ function checkStep(step: GuidedStepV2, i: number, plan: GuidedPlanV2): void {
   }
   if (step.action === "wait" && !step.until)
     throw new Error(`Etapa ${n}: marque o elemento a esperar.`);
+  if (step.action === "platform") {
+    if (!web) throw new Error(`Etapa ${n}: a ação da plataforma só funciona na janela da aula.`);
+    if (!step.platform?.trim()) throw new Error(`Etapa ${n}: diga o que a plataforma deve fazer.`);
+  }
   if (!web && (step.until || step.expect))
     throw new Error(
       `Etapa ${n}: esperar por um elemento só funciona na janela da aula. No modo de tela, use tempos.`,
     );
   if (
     step.timeout !== undefined &&
-    (!Number.isFinite(step.timeout) || step.timeout < 0.5 || step.timeout > 120)
+    (!Number.isFinite(step.timeout) || step.timeout < 0.5 || step.timeout > MAX_STEP_TIMEOUT)
   )
-    throw new Error(`Etapa ${n}: o tempo máximo de espera deve estar entre 0,5 e 120 segundos.`);
+    throw new Error(
+      `Etapa ${n}: o tempo máximo de espera deve estar entre 0,5 e ${MAX_STEP_TIMEOUT} segundos.`,
+    );
 }
 
 /**
@@ -732,7 +748,10 @@ export function schedulePlan(plan: GuidedPlanV2, from = 0): PlanSchedule {
     if (index < from) return;
     const actAt = lead + step.at - base;
     const speechAt = lead + phrase - base;
-    const moves = needsTarget(step, plan.mode);
+    // A platform's action brings its own target (the first gesture): the hand leaves for it as
+    // for a marked one.
+    const moves =
+      needsTarget(step, plan.mode) || (step.action === "platform" && plan.mode === "web");
     const arriveAt = moves ? Math.min(actAt - dwell, speechAt - anticipation) : actAt;
     const moveAt = moves ? arriveAt - move : actAt;
     const endAt = actAt + after + actionLength(step, plan);

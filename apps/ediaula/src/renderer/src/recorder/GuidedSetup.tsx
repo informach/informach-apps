@@ -14,7 +14,8 @@ import {
 } from "@shared/guidedPlan";
 import { type GuidedStep, stepsFromScript, stepsFromWords } from "@shared/guidedRecording";
 import { MOTION_LABELS, MOTION_PROFILES } from "@shared/humanMotion";
-import type { Transcript } from "@shared/types";
+import { planFromScript, type ScriptPart, screenActions } from "@shared/screenActions";
+import type { Transcript, Word } from "@shared/types";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { mediaUrl } from "@/lib/media";
 import { PreviewMedia } from "@/ui/PreviewMedia";
@@ -70,6 +71,7 @@ export function GuidedSetup({
   onStore,
   onPlanId,
   script,
+  part,
   busy,
   onBusy,
   keys,
@@ -82,6 +84,8 @@ export function GuidedSetup({
   onStore: (store: GuidedStore) => void;
   onPlanId: (id: string) => void;
   script: string;
+  /** The script's part as the recorder has it: its lines and its "Na tela", for the brackets. */
+  part?: ScriptPart;
   busy: boolean;
   onBusy: (busy: boolean) => void;
   /** The recorder's shortcuts as configured: target, start and pause, stop. */
@@ -106,6 +110,8 @@ export function GuidedSetup({
     broken: BrokenStep[] | null;
   } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  /** The narration's words, once transcribed, to time the script's brackets. */
+  const [heard, setHeard] = useState<{ path: string; words: Word[] } | null>(null);
   const [notice, setNotice] = useState("");
   /** The plans as last handed to the recorder: edits that follow each other build on it. */
   const storeRef = useRef(store);
@@ -212,6 +218,7 @@ export function GuidedSetup({
     );
 
   const web = plan.mode === "web";
+  const bracketed = !!part?.notes.some((note) => screenActions(note.text).length);
   async function mark(step: GuidedStepV2, field: MarkField): Promise<void> {
     setError("");
     if (!web) {
@@ -263,18 +270,8 @@ export function GuidedSetup({
       const info = await window.api.probe(path);
       if (!info.hasAudio) throw new Error("Selecione um arquivo com narração.");
       change({ audio: { path, duration: info.duration } });
-      const transcript = await window.api.transcribe(
-        `guided-${Date.now()}`,
-        path,
-        info.duration,
-        "pt",
-        [],
-      );
-      const response = await fetch(mediaUrl(transcript));
-      if (!response.ok) throw new Error("Não foi possível ler a transcrição.");
-      const data: Transcript = await response.json();
-      // Words the hallucination filter set aside are not narration.
-      const steps = proposed(stepsFromWords(data.words.filter((w) => !w.dropped)));
+      const words = await transcribed(path, info.duration);
+      const steps = proposed(stepsFromWords(words));
       savePlan({ ...plan, audio: { path, duration: info.duration }, steps });
       if (!steps.length)
         setError(
@@ -284,6 +281,61 @@ export function GuidedSetup({
       setError(
         `${(e as Error).message} Você também pode definir os tempos das etapas manualmente.`,
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** The narration's words (transcribed once per file while the recorder is open). */
+  async function transcribed(path: string, duration: number): Promise<Word[]> {
+    if (heard?.path === path) return heard.words;
+    const transcript = await window.api.transcribe(
+      `guided-${Date.now()}`,
+      path,
+      duration,
+      "pt",
+      [],
+    );
+    const response = await fetch(mediaUrl(transcript));
+    if (!response.ok) throw new Error("Não foi possível ler a transcrição.");
+    const data: Transcript = await response.json();
+    // Words the hallucination filter set aside are not narration.
+    const words = data.words.filter((w) => !w.dropped);
+    setHeard({ path, words });
+    return words;
+  }
+
+  /** "Gerar plano do roteiro": each bracket of the part's "Na tela" on its phrase in the voice. */
+  async function fromScript(): Promise<void> {
+    if (!plan || !part) return;
+    setError("");
+    setNotice("");
+    if (!plan.audio) {
+      setError("Importe a narração antes: o plano usa os tempos em que a voz diz cada frase.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const words = await transcribed(plan.audio.path, plan.audio.duration);
+      const { steps, unplaced } = planFromScript(
+        part,
+        words,
+        plan.viewport,
+        plan.tempos,
+        plan.audio.duration,
+      );
+      if (!steps.length) {
+        setError(
+          "Não encontrei ações entre colchetes no Na tela desta parte. Escreva, por exemplo: No “Olha aqui”, [clicar “Começar”].",
+        );
+        return;
+      }
+      savePlan({ ...plan, steps });
+      setNotice(
+        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${unplaced ? `; ${unplaced === 1 ? "1 ação ficou" : `${unplaced} ações ficaram`} de fora porque a voz termina antes` : ""}. Use Verificar plano antes de gravar.`,
+      );
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -533,6 +585,15 @@ export function GuidedSetup({
           <button type="button" onClick={() => void audio()}>
             Importar narração (áudio ou vídeo)
           </button>
+          {web && bracketed && (
+            <button
+              type="button"
+              title="Cada ação entre colchetes do Na tela vira uma etapa, no segundo em que a voz diz a frase citada."
+              onClick={() => void fromScript()}
+            >
+              Gerar plano do roteiro
+            </button>
+          )}
         </div>
         <p>
           Escolha o áudio da narração ou o vídeo do apresentador com a voz. Do vídeo, a voz é

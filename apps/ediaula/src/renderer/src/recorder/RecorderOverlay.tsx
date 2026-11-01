@@ -1562,6 +1562,7 @@ export function RecorderOverlay(): ReactNode {
           onStore={setGuidedStore}
           onPlanId={setPlanId}
           script={lines.map((l) => l.text).join("\n")}
+          part={{ lines: lines.map((l) => l.text), notes }}
           busy={phase !== "setup"}
           onBusy={setGuidedBusy}
           keys={{ target: keyOf("guidedTarget"), toggle: keyOf("toggle"), stop: keyOf("stop") }}

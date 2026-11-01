@@ -17,6 +17,11 @@ import type { Project } from "./types.ts";
 export interface TimedCue {
   t: number;
   text: string;
+  /** Item of the section it comes from, and which piece of it (absent: the whole direction). */
+  item?: number;
+  cue?: number;
+  /** When its words are said (or its line starts): `t` without the lead. */
+  said?: number;
 }
 
 /** How early a cue shows before its words are heard. */
@@ -45,12 +50,13 @@ export function screenCueTimes(
     if (at === undefined) return;
     const t0 = Math.max(0, at - LEAD);
     if (!item.cues?.length) {
-      out.push({ t: t0, text: item.text });
+      out.push({ t: t0, text: item.text, item: index, said: at });
       return;
     }
     let t = t0;
+    let saidAt = at;
     let from = Math.max(0, at - 1);
-    for (const cue of item.cues) {
+    for (const [k, cue] of item.cues.entries()) {
       if (cue.anchor) {
         const found = findPhrase(
           words.map((w) => ({ text: w.text, start: w.start, end: w.end ?? w.start })),
@@ -59,10 +65,11 @@ export function screenCueTimes(
         );
         if (found) {
           t = Math.max(0, found.start - LEAD);
+          saidAt = found.start;
           from = found.start + 0.01;
         }
       }
-      out.push({ t, text: cue.text });
+      out.push({ t, text: cue.text, item: index, cue: k, said: saidAt });
     }
   });
   return out;
