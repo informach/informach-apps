@@ -63,14 +63,3 @@ export function globalToPixel(rect: CaptureRect, area: CaptureRect, size: PixelS
     height: Math.round((rect.height * size.height) / area.height),
   };
 }
-/** Window into the original bitmap. Integer source pixels and no interpolation. */
-export function magnifierSample(x: number, y: number, size: PixelSize, span = 15) {
-  const width = Math.min(span, size.width),
-    height = Math.min(span, size.height);
-  return {
-    x: clamp(Math.floor(x) - Math.floor(width / 2), 0, size.width - width),
-    y: clamp(Math.floor(y) - Math.floor(height / 2), 0, size.height - height),
-    width,
-    height,
-  };
-}

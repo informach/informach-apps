@@ -1,10 +1,4 @@
-import {
-  constrainSelection,
-  globalToPixel,
-  magnifierSample,
-  nudgeSelection,
-  pixelToGlobal,
-} from "../domain/selection-precision.ts";
+import { constrainSelection, nudgeSelection } from "../domain/selection-precision.ts";
 import { hydrateIcons } from "../shared/icons.js";
 
 hydrateIcons();
@@ -35,12 +29,6 @@ const fromPixels = (p) => ({
   width: (p.width * viewWidth) / state.pixels.width,
   height: (p.height * viewHeight) / state.pixels.height,
 });
-const area = () => ({
-  x: state.origin?.x ?? 0,
-  y: state.origin?.y ?? 0,
-  width: state.display.width,
-  height: state.display.height,
-});
 const fail = (e) => {
   $("error").textContent = e.message;
   $("error").hidden = false;
@@ -62,7 +50,6 @@ function render(showToolbar = true) {
   $("intro").hidden = !!rect;
   surface.classList.toggle("selected", !!rect);
   toolbar.hidden = !rect || !showToolbar;
-  $("selection-tip").hidden = !rect || !showToolbar;
   if (!rect) return;
   Object.assign(region.style, {
     left: rect.x + "px",
@@ -74,26 +61,15 @@ function render(showToolbar = true) {
     sy = state.pixels.height / viewHeight;
   $("width").value = Math.round(rect.width * sx);
   $("height").value = Math.round(rect.height * sy);
-  const global = pixelToGlobal(pixelRect(), area(), state.pixels);
-  $("x").value = Number(global.x.toFixed(6));
-  $("y").value = Number(global.y.toFixed(6));
   toolbar.style.left =
     offsetX +
     clamp(rect.x + rect.width - toolbar.offsetWidth, 8, viewWidth - toolbar.offsetWidth - 8) +
     "px";
-  const availableBottom = innerHeight - $("precision-panel").offsetHeight - 20;
   toolbar.style.top =
     clamp(
       offsetY + (rect.y >= 82 ? rect.y - 78 : rect.y + 10),
       8,
-      availableBottom - toolbar.offsetHeight,
-    ) + "px";
-  $("selection-tip").style.left = offsetX + clamp(rect.x, 8, viewWidth - 490) + "px";
-  $("selection-tip").style.top =
-    clamp(
-      offsetY + rect.y + rect.height + 12,
-      8,
-      availableBottom - $("selection-tip").offsetHeight,
+      innerHeight - 8 - toolbar.offsetHeight,
     ) + "px";
 }
 picker.addEventListener("pointerdown", (e) => {
@@ -114,7 +90,6 @@ picker.addEventListener("pointerdown", (e) => {
 });
 picker.addEventListener("pointermove", (e) => {
   if (!state || busy) return;
-  magnify(point(e));
   if (!drag) return;
   const p = point(e),
     o = drag.original,
@@ -194,7 +169,7 @@ async function select(mode) {
   }
   busy = true;
   document.querySelectorAll("button,input,select").forEach((b) => {
-    b.disabled = !["cancel", "precision-cancel"].includes(b.id);
+    b.disabled = b.id !== "cancel";
   });
   try {
     const chosen = state.photo
@@ -213,7 +188,6 @@ async function select(mode) {
     document.querySelectorAll("button,input,select").forEach((b) => {
       b.disabled = false;
     });
-    $("repeat-region").disabled = !state.last;
   }
 }
 const recordButton = document.createElement("button");
@@ -229,9 +203,6 @@ toolbar.querySelectorAll("[data-mode]").forEach((b) => {
     document.body.classList.toggle("video-mode", videoMode);
     recordButton.hidden = !videoMode;
     b.setAttribute("aria-pressed", String(videoMode));
-    $("selection-tip").textContent = videoMode
-      ? "Ajuste a região · Gravar ou Enter para iniciar · Esc para cancelar"
-      : "Arraste as bordas para ajustar · Enter para capturar · Esc para cancelar";
     render();
   };
 });
@@ -251,169 +222,36 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     select(videoMode ? "video" : "image");
   }
-  if (rect && e.key.startsWith("Arrow")) {
+  if (state && e.key.startsWith("Arrow")) {
     e.preventDefault();
-    rect = fromPixels(nudgeSelection(pixelRect(), e.key, e.shiftKey, state.pixels));
-    render();
-    magnify({ x: rect.x, y: rect.y });
-  }
-});
-function magnify(p) {
-  const image = $("desktop");
-  if (!image.complete || !image.naturalWidth) return;
-  const x = clamp(Math.floor((p.x * state.pixels.width) / viewWidth), 0, state.pixels.width - 1),
-    y = clamp(Math.floor((p.y * state.pixels.height) / viewHeight), 0, state.pixels.height - 1);
-  const sample = magnifierSample(x, y, state.pixels),
-    canvas = $("magnifier"),
-    ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, 150, 150);
-  ctx.drawImage(image, sample.x, sample.y, sample.width, sample.height, 0, 0, 150, 150);
-  const sx = 150 / sample.width,
-    sy = 150 / sample.height;
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 1;
-  ctx.strokeRect((x - sample.x) * sx + 0.5, (y - sample.y) * sy + 0.5, sx - 1, sy - 1);
-  $("magnifier-label").textContent =
-    `Pixel ${x}, ${y} · bitmap ${state.pixels.width} × ${state.pixels.height}`;
-  $("loupe").hidden = false;
-  $("loupe").style.left = (p.x + offsetX > innerWidth - 220 ? 12 : innerWidth - 200) + "px";
-}
-picker.addEventListener("pointerleave", () => {
-  if (!drag) $("loupe").hidden = true;
-});
-for (const axis of ["x", "y"])
-  $(axis).onchange = () => {
-    if (!rect || busy) return;
+    // Without a mouse, the first arrow creates a region in the corner; the next ones move it.
     try {
-      const value = Number($(axis).value);
-      if (!Number.isFinite(value) || $(axis).value === "")
-        throw new Error("Informe uma coordenada válida.");
-      const global = pixelToGlobal(pixelRect(), area(), state.pixels);
-      global[axis] = value;
       rect = fromPixels(
-        constrainSelection(globalToPixel(global, area(), state.pixels), state.pixels, precision),
+        rect
+          ? nudgeSelection(pixelRect(), e.key, e.shiftKey, state.pixels)
+          : constrainSelection(
+              {
+                x: 0,
+                y: 0,
+                width: Math.min(640, state.pixels.width),
+                height: Math.min(360, state.pixels.height),
+              },
+              state.pixels,
+              precision,
+            ),
       );
-      $("error").hidden = true;
-    } catch (e) {
-      fail(e);
+    } catch (error) {
+      fail(error);
+      return;
     }
     render();
-  };
-function applyPrecision() {
-  if (!state || busy) return;
-  try {
-    const value = $("precision").value;
-    const next =
-      value === "free"
-        ? { kind: "free" }
-        : value === "fixed"
-          ? {
-              kind: "fixed",
-              width: Number($("fixed-width").value),
-              height: Number($("fixed-height").value),
-            }
-          : {
-              kind: "ratio",
-              width: Number(value.split(":")[0]),
-              height: Number(value.split(":")[1]),
-            };
-    if (
-      next.kind === "fixed" &&
-      (!Number.isInteger(next.width) ||
-        !Number.isInteger(next.height) ||
-        next.width < 2 ||
-        next.height < 2)
-    )
-      throw new Error("Tamanho fixo exige números inteiros de pelo menos 2 pixels.");
-    rect = fromPixels(
-      constrainSelection(
-        rect
-          ? pixelRect()
-          : {
-              x: 0,
-              y: 0,
-              width: Math.min(640, state.pixels.width),
-              height: Math.min(360, state.pixels.height),
-            },
-        state.pixels,
-        next,
-      ),
-    );
-    precision = next;
-    $("error").hidden = true;
-    render();
-  } catch (e) {
-    fail(e);
   }
-  $("fixed-size").hidden = $("precision").value !== "fixed";
-}
-$("precision").onchange = applyPrecision;
-$("fixed-apply").onclick = applyPrecision;
-document.querySelectorAll("[data-size]").forEach((el) => {
-  el.onclick = () => {
-    const [w, h] = el.dataset.size.split("x");
-    $("precision").value = "fixed";
-    $("fixed-width").value = w;
-    $("fixed-height").value = h;
-    applyPrecision();
-  };
 });
-$("create-region").onclick = () => {
-  if (!state || busy) return;
-  try {
-    rect = fromPixels(
-      constrainSelection(
-        {
-          x: 0,
-          y: 0,
-          width: Math.min(640, state.pixels.width),
-          height: Math.min(360, state.pixels.height),
-        },
-        state.pixels,
-        precision,
-      ),
-    );
-    render();
-    surface.focus();
-  } catch (e) {
-    fail(e);
-  }
-};
-$("repeat-region").onclick = () => {
-  try {
-    const next = globalToPixel(state.last.rect, area(), state.pixels);
-    if (
-      next.x < 0 ||
-      next.y < 0 ||
-      next.x + next.width > state.pixels.width ||
-      next.y + next.height > state.pixels.height
-    )
-      throw new Error("Última região fora desta imagem.");
-    rect = fromPixels(next);
-    precision = { kind: "free" };
-    $("precision").value = "free";
-    $("fixed-size").hidden = true;
-    render();
-    surface.focus();
-  } catch (e) {
-    fail(e);
-  }
-};
-$("precision-cancel").onclick = () => window.edi.cancel();
 try {
   state = await window.edi.selection();
   if (!state) throw new Error("Sessão encerrada.");
   $("desktop").src = state.image;
   precision = state.precision ?? { kind: "free" };
-  $("repeat-region").disabled = !state.last;
-  $("precision").value =
-    precision.kind === "ratio" ? `${precision.width}:${precision.height}` : precision.kind;
-  if (precision.kind === "fixed") {
-    $("fixed-width").value = precision.width;
-    $("fixed-height").value = precision.height;
-    $("fixed-size").hidden = false;
-  }
   if (state.photo) {
     const fit = Math.min(innerWidth / state.display.width, innerHeight / state.display.height);
     viewWidth = state.display.width * fit;
@@ -435,10 +273,6 @@ try {
       state.timing === "frozen"
         ? "Selecione na imagem congelada"
         : "Selecione a região da próxima captura";
-    $("selection-tip").textContent =
-      state.timing === "frozen"
-        ? "Imagem congelada ao abrir · Enter salva este instante · Esc cancela"
-        : "Imagem de prévia · Enter inicia nova captura e contagem · Esc cancela";
   }
   surface.focus();
 } catch (e) {
