@@ -378,6 +378,12 @@ export function createEdiDesktop(options: {
         quitting = true;
         controller?.cancelConnect();
       });
+      // Resumes a quit that will-quit deferred. Never call app.quit() straight from the deferred
+      // work's promise: when it settles at once (a vault with nothing pending), the continuation
+      // runs while Electron is still inside the quit that started from a nested call, such as
+      // app.quit() in a window's "closed" handler. Electron ignores that call, then cancels its own
+      // quit because of preventDefault, and the process stays alive with no window.
+      const quitAfterThisQuit = () => setImmediate(() => app.quit());
       app.on("will-quit", (event) => {
         controller?.cancelRefresh();
         if (pendingInstaller && updater && !quitVerified) {
@@ -403,7 +409,7 @@ export function createEdiDesktop(options: {
             )
             .finally(() => {
               quitVerified = true;
-              app.quit();
+              quitAfterThisQuit();
             });
           return;
         }
@@ -435,7 +441,7 @@ export function createEdiDesktop(options: {
               () => {
                 clearTimeout(slowShutdown);
                 vaultClosed = true;
-                app.quit();
+                quitAfterThisQuit();
               },
               (error: unknown) => {
                 clearTimeout(slowShutdown);
