@@ -201,17 +201,23 @@ async function verifySelectionService() {
               await page.waitForFunction(() =>
                 document.querySelector("#desktop").getAttribute("src")?.startsWith("data:image/"),
               );
-              await page.locator("#create-region").click();
-              for (const [id, value] of Object.entries({
-                width: 2,
-                height: 2,
-                x: origin.x + point.x / scale,
-                y: origin.y + point.y / scale,
-              })) {
-                await page.locator("#" + id).fill(String(value));
+              // The first arrow creates the region at 0,0; the toolbar sets 2 × 2 and the
+              // arrows move it bitmap pixel by bitmap pixel to the point under test.
+              await page.locator("#surface").focus();
+              await page.keyboard.press("ArrowRight");
+              for (const id of ["width", "height"]) {
+                await page.locator("#" + id).fill("2");
                 await page.locator("#" + id).press("Tab");
               }
               await page.locator("#surface").focus();
+              for (const [axis, key] of [
+                ["x", "ArrowRight"],
+                ["y", "ArrowDown"],
+              ]) {
+                for (let step = 0; step < Math.floor(point[axis] / 10); step++)
+                  await page.keyboard.press("Shift+" + key);
+                for (let step = 0; step < point[axis] % 10; step++) await page.keyboard.press(key);
+              }
               await page.keyboard.press("Enter");
               await page.waitForFunction(() => window.fixture.result);
               assert.deepEqual(
