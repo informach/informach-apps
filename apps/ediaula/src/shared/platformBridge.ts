@@ -18,6 +18,8 @@ import { BLOCKLY_AREAS, type Locator, type LocatorStrategy } from "./locators.ts
  * guided take; `ocupado` says the page is still working (loading, checking, turning a page), so
  * the next gesture waits for it. The platform never moves the pointer itself, and the app never
  * learns anything of the platform but these gestures: the same contract serves any platform.
+ * `{ fazer: "continuar", acao }` asks `agir(acao)` again once the gestures before it are done, so
+ * the page decides on what they opened (a list or a text box after clicking a field).
  */
 
 export const BRIDGE_VERSION = 1;
@@ -89,6 +91,7 @@ export const passoSchema = z.discriminatedUnion("fazer", [
     espera,
     maximo,
   }),
+  z.object({ fazer: z.literal("continuar"), acao: z.string().min(1).max(500) }),
 ]);
 export type Passo = z.infer<typeof passoSchema>;
 
@@ -237,6 +240,9 @@ function gestureStep(passo: Passo, id: string, viewport: GuidedViewport): Guided
         ...wait,
         ...timeout,
       };
+    case "continuar":
+      // Asked of the page again when its turn comes (shared/guidedRunner.ts runPlatform).
+      return { ...base, action: "platform", platform: passo.acao };
   }
 }
 

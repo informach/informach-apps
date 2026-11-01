@@ -606,6 +606,41 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
   );
 });
 
+test("a platform's action that continues: the page is asked again after the gestures before it", async () => {
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    asked: string[] = [];
+    async platform(action: string, id: string) {
+      this.asked.push(action);
+      // A field is clicked first; what it opened says how to choose (a list or a text box).
+      return action === "trocar campo"
+        ? [
+            { id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+            { id: `${id}-2`, speech: "", at: 0, action: "platform" as const, platform: "escolher" },
+          ]
+        : [{ id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Próxima") }];
+    }
+    async idle() {}
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    { id: "a", at: 2, speech: "Troque", action: "platform", platform: "trocar campo" },
+  ]);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  assert.deepEqual(page.asked, ["trocar campo", "escolher"]);
+  assert.deepEqual(
+    page.events.filter((e) => e.op === "left-1").map((c) => [c.x, c.y]),
+    [
+      [300, 200],
+      [900, 600],
+    ],
+  );
+});
+
 test("replacing a field's text selects all of it before typing", async () => {
   const sim = simulation(30);
   const page = new FakePage(sim.frames, sim.sleep, points);

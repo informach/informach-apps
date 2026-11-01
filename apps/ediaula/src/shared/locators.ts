@@ -309,6 +309,8 @@ export interface Candidate {
   covered: boolean;
   inView: boolean;
   cursor: string;
+  /** A list with its own scroll that hides it (a menu, a picker): the wheel goes over it. */
+  scroller?: Rect;
   /** Blockly block id or category label. */
   key?: string;
   /** Where a Blockly block is grabbed. */
@@ -463,6 +465,34 @@ export function actionPoint(locator: Locator, candidate: Candidate): Point {
   return {
     x: candidate.rect.x + candidate.rect.width * locator.point.u,
     y: candidate.rect.y + candidate.rect.height * locator.point.v,
+  };
+}
+
+/**
+ * The wheel that brings an element into view, as a person turns it: over the page, so the
+ * element ends near the middle, or over the list with its own scroll that hides it (a menu, a
+ * picker), so it ends in the middle of the list. `offset` is the element's frame in the page.
+ */
+export function revealOf(
+  away: Candidate,
+  view: ViewSize,
+  offset: Point,
+): { dx: number; dy: number; at: Point } {
+  const middle = away.rect.y + away.rect.height / 2;
+  const list = away.scroller;
+  if (list)
+    return {
+      dx: 0,
+      dy: Math.round(middle - (list.y + list.height / 2)),
+      at: {
+        x: Math.min(view.width - 1, Math.max(0, list.x + list.width / 2)) + offset.x,
+        y: Math.min(view.height - 1, Math.max(0, list.y + list.height / 2)) + offset.y,
+      },
+    };
+  return {
+    dx: 0,
+    dy: Math.round(middle - view.height * 0.45),
+    at: { x: view.width / 2 + offset.x, y: view.height / 2 + offset.y },
   };
 }
 

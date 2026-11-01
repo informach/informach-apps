@@ -34,6 +34,7 @@ import {
   pageToWorkspace,
   pointingSpot,
   rankCandidates,
+  revealOf,
   type StrategyMatches,
   urlMatches,
   type ViewSize,
@@ -67,6 +68,7 @@ const candidateSchema = z.object({
   covered: z.boolean(),
   inView: z.boolean(),
   cursor: z.string().max(2000),
+  scroller: rectSchema.optional(),
 });
 const blocklyNodeSchema: z.ZodType<BlocklyNode> = z.lazy(() =>
   z.object({
@@ -759,18 +761,7 @@ export class CdpDriver {
         ok: false,
         message: locateMessage(locator, ranked.problem),
         navigating: false,
-        ...(away
-          ? {
-              reveal: {
-                dx: 0,
-                dy: Math.round(away.rect.y + away.rect.height / 2 - facts.view.height * 0.45),
-                at: {
-                  x: facts.view.width / 2 + facts.offset.x,
-                  y: facts.view.height / 2 + facts.offset.y,
-                },
-              },
-            }
-          : {}),
+        ...(away ? { reveal: revealOf(away, facts.view, facts.offset) } : {}),
       };
     }
     const p = actionPoint(locator, ranked.candidate);

@@ -21,6 +21,7 @@ import {
   parseTransform,
   pointingSpot,
   rankCandidates,
+  revealOf,
   urlMatches,
   urlPatternOf,
   workspaceToPage,
@@ -424,4 +425,22 @@ test("apontar deixa a mão logo abaixo do que mostra, para a criança ler", () =
     x: 70,
     y: 796,
   });
+});
+
+test("um item escondido numa lista com rolagem própria: a roda gira sobre a lista", () => {
+  const view = { width: 1920, height: 1080 };
+  const item = {
+    ...candidate({ covered: true }),
+    rect: { x: 500, y: 700, width: 200, height: 40 },
+    scroller: { x: 480, y: 300, width: 240, height: 240 },
+  };
+  assert.deepEqual(revealOf(item, view, { x: 0, y: 0 }), {
+    dx: 0,
+    dy: 300,
+    at: { x: 600, y: 420 },
+  });
+  // Sem lista, a página rola e o item termina perto do meio dela.
+  const away = { ...item, scroller: undefined };
+  assert.deepEqual(revealOf(away, view, { x: 10, y: 20 }).at, { x: 970, y: 560 });
+  assert.equal(revealOf(away, view, { x: 0, y: 0 }).dy, Math.round(720 - 1080 * 0.45));
 });

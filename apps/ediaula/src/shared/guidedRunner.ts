@@ -496,10 +496,20 @@ export async function runGuided(
     const gestures = await ask.call(driver, s.step.platform ?? "", s.step.id, timeout);
     clock.release();
     const idle = driver.idle;
-    for (const [k, given] of gestures.entries()) {
+    let asked = 1;
+    for (let k = 0; k < gestures.length; k++) {
+      const given = gestures[k];
+      if (k > 0 && idle) await awaitPage(() => idle.call(driver, timeout));
+      // "continuar": the page is asked again now, on what the gestures before it opened.
+      if (given.action === "platform") {
+        if (++asked > 10) throw new Error("A plataforma pediu para continuar vezes demais.");
+        const more = await ask.call(driver, given.platform ?? "", `${s.step.id}-${asked}`, timeout);
+        gestures.splice(k, 1, ...more);
+        k--;
+        continue;
+      }
       // What the step says to do when the page is slow holds for its gestures that say nothing.
       const gesture = s.step.wait && !given.wait ? { ...given, wait: s.step.wait } : given;
-      if (k > 0 && idle) await awaitPage(() => idle.call(driver, timeout));
       const moves = needsTarget(gesture, plan.mode);
       const length = actionLength(gesture, plan);
       const last = k === gestures.length - 1;

@@ -77,6 +77,26 @@ test("sem ponte ou com resposta estranha, a professora sabe o que fazer", () => 
   assert.throws(() => bridgeSteps({ valor: [] }, "ampliar jogo", "a", viewport), /não entende/);
 });
 
+test("continuar: a página decide depois dos gestos anteriores", () => {
+  const steps = bridgeSteps(
+    {
+      valor: [
+        { fazer: "clicar", alvo: { texto: "jogador" } },
+        { fazer: "continuar", acao: "escolher" },
+      ],
+    },
+    "trocar",
+    "a",
+    viewport,
+  );
+  assert.equal(steps[1].action, "platform");
+  assert.equal(steps[1].platform, "escolher");
+  assert.throws(
+    () => bridgeSteps({ valor: [{ fazer: "continuar", acao: "" }] }, "trocar", "a", viewport),
+    /não entende/,
+  );
+});
+
 test("sem ponte ainda: a página que carrega é consultada de novo", () => {
   assert.equal(bridgeAbsent({ semPonte: true }), true);
   assert.equal(bridgeAbsent({ valor: [] }), false);

@@ -64,7 +64,20 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       const hit = document.elementFromPoint(x, y);
       covered = !(hit && (hit === el || el.contains(hit)));
     }
-    return { tag: tagOf(el), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: cursorOf(st.cursor) };
+    const scroller = covered ? scrollerOf(el, r) : null;
+    return { tag: tagOf(el), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: cursorOf(st.cursor), ...(scroller ? { scroller } : {}) };
+  }
+
+  // A list with its own scroll (a menu, a picker) that hides the element: the wheel goes there.
+  function scrollerOf(el, r) {
+    for (let box = el.parentElement; box && box !== document.body; box = box.parentElement) {
+      const overflow = getComputedStyle(box).overflowY;
+      if (!/auto|scroll/.test(overflow) || box.scrollHeight <= box.clientHeight + 1) continue;
+      const b = rectOf(box);
+      const inside = r.y >= b.y - 1 && r.y + r.height <= b.y + b.height + 1;
+      return inside ? null : b;
+    }
+    return null;
   }
 
   function byLabel(value, scope) {
