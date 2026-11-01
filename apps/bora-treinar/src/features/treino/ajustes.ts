@@ -3,13 +3,15 @@ import { useCallback, useEffect, useState } from "react";
 
 export interface Ajustes {
   audio: boolean;
+  /** música de fundo sintetizada no aparelho; só toca com o som ligado */
+  music: boolean;
   countAloud: boolean;
   /** instrutor acompanha a pessoa (câmera) em vez de ditar o ritmo */
   follow: boolean;
 }
 
 const CHAVE = "bora:ajustes";
-const PADRAO: Ajustes = { audio: true, countAloud: true, follow: false };
+const PADRAO: Ajustes = { audio: true, music: true, countAloud: true, follow: false };
 
 /** Preferências do player neste aparelho. Sem armazenamento local, valem os padrões. */
 export function useAjustes() {

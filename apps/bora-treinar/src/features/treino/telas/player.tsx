@@ -4,6 +4,7 @@ import {
   Maximize,
   Minimize,
   Minus,
+  Music,
   Pause,
   Play,
   Plus,
@@ -28,8 +29,9 @@ import { MP_BONES } from "../body/landmarks";
 import { exerciseById, type View } from "../catalog/catalog";
 import { buildSteps, type LevelMap, type Step, type Workout } from "../catalog/workouts";
 import { HoldTracker, RepCounter } from "../engine/counter";
+import { definirMusica } from "../engine/musica";
 import { WorkoutRunner } from "../engine/runner";
-import { beep, numberWord, say, setAudioEnabled } from "../engine/voice";
+import { beep, numberWord, say, setAudioEnabled, unlockAudio } from "../engine/voice";
 import { Instructor3D } from "../instructor/instructor-3d";
 import type { InstructorMode } from "../instructor/instructor-scene";
 import { type PoseFrame, PoseTracker } from "../vision/pose-tracker";
@@ -420,6 +422,18 @@ export function PlayerScreen({
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [runner, quitting]);
 
+  // música de fundo: banda inteira na série, fundo calmo no descanso, parada na pausa e no fim
+  const music =
+    !settings.audio || !settings.music || runner.paused || runner.done || quitting || saveError
+      ? "parado"
+      : runner.step?.kind === "rest"
+        ? "descanso"
+        : runner.step
+          ? "treino"
+          : "parado";
+  useEffect(() => definirMusica(music), [music]);
+  useEffect(() => () => definirMusica("parado"), []);
+
   const s = runner.step;
   if (saveError)
     return (
@@ -450,7 +464,8 @@ export function PlayerScreen({
   const following = settings.follow && sensing;
   let instructorMode: InstructorMode = "cadence";
   if (runner.done) instructorMode = "celebrate";
-  else if (!ex) instructorMode = "idle";
+  // pausado, o boneco volta à pose de repouso em vez de congelar no meio da repetição
+  else if (!ex || runner.paused) instructorMode = "idle";
   else if (isHold) instructorMode = "hold";
   else if (following && !isRest) instructorMode = "follow";
 
@@ -537,7 +552,8 @@ export function PlayerScreen({
               : { dot: "warn", text: "Procurando você…" };
 
   return (
-    <div className="player">
+    // qualquer toque libera o áudio no celular, se o navegador o suspendeu
+    <div className="player" onPointerDownCapture={unlockAudio}>
       <header className="player-top">
         <button type="button" className="icon-btn" onClick={askQuit} aria-label="Sair do treino">
           <X size={20} />
@@ -569,6 +585,17 @@ export function PlayerScreen({
           aria-label={settings.audio ? "Silenciar" : "Ativar som"}
         >
           {settings.audio ? <Volume2 size={20} /> : <VolumeX size={20} />}
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setSettings({ music: !settings.music })}
+          aria-label="Música de fundo"
+          aria-pressed={settings.audio && settings.music}
+          disabled={!settings.audio}
+          title={settings.audio ? undefined : "Ligue o som para ouvir a música"}
+        >
+          <Music size={20} />
         </button>
         <span className="num elapsed">{fmtTime(runner.totalElapsed)}</span>
         <Avatar profile={profile} />

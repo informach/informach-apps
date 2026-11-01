@@ -13,6 +13,8 @@ O player tem três arranjos no mesmo componente, escolhidos só por CSS: TV e co
 - **Assinatura:** os demais treinos, câmera, celular pareado, níveis, editor, desafios e histórico completo. Individual (1 perfil) ou Família (4).
 - A política fica toda em `features/acesso/policy.ts`. Telas e servidor consultam as mesmas funções. O servidor recusa salvar um treino ou modo que o plano não libera, mesmo que a tela tenha deixado passar.
 
+**Música de fundo** (`engine/musica.ts`): sintetizada no aparelho pelo Web Audio, sem arquivo de áudio nem licença de terceiros, e funciona offline. Banda inteira na série, fundo calmo sem bateria no descanso; para na pausa, no fim e no diálogo de sair, abaixa enquanto a voz fala e silencia com a aba em segundo plano. Tem botão próprio no player (`music` nos ajustes do aparelho) e só toca com o som ligado. O padrão musical é uma função pura testada (`test/musica.test.ts`); se trocar por faixas gravadas, confira a licença de uso comercial e o cache offline do `sw.js`.
+
 ## Câmera e privacidade
 
 - A contagem roda no aparelho (`features/treino/vision`, `engine/counter.ts`). Nenhum quadro de vídeo vai ao servidor, nem no pareamento.
