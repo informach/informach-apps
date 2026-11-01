@@ -6,6 +6,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +38,18 @@ const assets = spawnSync(process.execPath, [join(app, "scripts/fetch-assets.mjs"
 });
 if (assets.status !== 0) process.exit(assets.status ?? 1);
 
-console.log(`\n[bora] Playground: ${origin}/dev/playground\n`);
+// Para abrir no celular na mesma rede: o Next só serve o modo de desenvolvimento a origens
+// liberadas. Sem HTTPS, a câmera não liga no celular; o resto (manual, som, música) funciona.
+const lan = Object.values(networkInterfaces())
+  .flat()
+  .filter((net) => net && net.family === "IPv4" && !net.internal)
+  .map((net) => net.address);
+env.BORA_DEV_ORIGINS = lan.join(",");
+
+console.log(`\n[bora] Playground: ${origin}/dev/playground`);
+for (const ip of lan)
+  console.log(`[bora] No celular (mesma rede): http://${ip}:${port}/dev/playground`);
+console.log("");
 const next = createRequire(join(app, "package.json")).resolve("next/dist/bin/next");
 const child = spawn(process.execPath, [next, "dev", "-p", port], {
   cwd: app,

@@ -22,10 +22,23 @@ if (hasSpeech()) {
   speechSynthesis.addEventListener("voiceschanged", pickVoice);
 }
 
+/** O contexto de áudio do app, o mesmo dos bipes e da música de fundo. */
+export function audioContext() {
+  ctx ??= new AudioContext();
+  return ctx;
+}
+
 /** Precisa ser chamado num gesto do usuário (toque/clique) para liberar o áudio no celular. */
 export function unlockAudio() {
-  ctx ??= new AudioContext();
-  if (ctx.state === "suspended") void ctx.resume();
+  const c = audioContext();
+  if (c.state === "suspended") void c.resume();
+}
+
+let speaking: ((falando: boolean) => void) | null = null;
+let falando = 0;
+/** Quem precisa saber quando a voz fala (a música abaixa para ela ser entendida). */
+export function onSpeaking(listener: ((falando: boolean) => void) | null) {
+  speaking = listener;
 }
 
 export function say(text: string, opts: { interrupt?: boolean; rate?: number } = {}) {
@@ -35,6 +48,21 @@ export function say(text: string, opts: { interrupt?: boolean; rate?: number } =
   u.lang = "pt-BR";
   if (voice) u.voice = voice;
   u.rate = opts.rate ?? 1.08;
+  // Conta as falas ativas: ao interromper, o fim da fala cancelada pode chegar depois do início
+  // da nova, e um simples sim/não soltaria a música no meio da frase.
+  let ativa = false;
+  u.onstart = () => {
+    if (ativa) return;
+    ativa = true;
+    falando++;
+    speaking?.(true);
+  };
+  u.onend = u.onerror = () => {
+    if (!ativa) return;
+    ativa = false;
+    falando = Math.max(0, falando - 1);
+    speaking?.(falando > 0);
+  };
   speechSynthesis.speak(u);
 }
 
@@ -42,7 +70,7 @@ const TONES = { tick: [880, 0.09], go: [1320, 0.25], rep: [660, 0.06], done: [99
 
 export function beep(kind: keyof typeof TONES = "tick") {
   if (!enabled) return;
-  ctx ??= new AudioContext();
+  const ctx = audioContext();
   const [freq, dur] = TONES[kind];
   const t = ctx.currentTime;
   const o = ctx.createOscillator();

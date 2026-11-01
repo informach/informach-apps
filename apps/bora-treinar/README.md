@@ -38,6 +38,8 @@ pnpm playground:bora-treinar
 
 Abre em `http://localhost:3007/dev/playground`. Não precisa de PostgreSQL, login nem assinatura, e nada é salvo. Sem `.env.local`, o script (`scripts/playground.mjs`) preenche as variáveis obrigatórias com valores de mentira só para o app subir. Nesse modo o resto do app (login, conta, treinos salvos) não funciona. Com `.env.local`, ele vale. Em produção, as rotas `/dev/*` respondem 404.
 
+Para abrir no celular na mesma rede Wi-Fi, use o endereço "No celular" que o script imprime (`http://<ip-do-computador>:3007/dev/playground`). O script libera esses IPs no Next (`allowedDevOrigins`, via `BORA_DEV_ORIGINS`), que de outro modo bloqueia o modo de desenvolvimento para quem não é `localhost`. Sem HTTPS o navegador do celular não liga a câmera: o modo manual, a voz e a música funcionam.
+
 - **Laboratório da câmera** (`/dev/playground/camera?ex=<id>`): mostra o ângulo medido (bruto e filtrado), a confiança, o fps e o estado do contador. Uma régua marca onde começa a parcial, onde a repetição passa a contar e o limiar. Cada repetição entra numa tabela com a profundidade alcançada. Os limiares mudam ao vivo, e "Copiar regra" leva os números para `catalog/catalog.ts`. No esqueleto desenhado, linha verde é ponto bem visto, laranja só vale durante o movimento e vermelha é descartada.
 - **Praticar e treinos prontos**: abrem o player de verdade, com câmera ou manual. No fim, em vez de salvar, mostram o que seria gravado.
 

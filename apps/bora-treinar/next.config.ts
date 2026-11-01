@@ -23,6 +23,8 @@ const config: NextConfig = {
     "@informach/emails",
   ],
   experimental: { serverActions: { bodySizeLimit: "256kb" } },
+  // Só em desenvolvimento: o playground passa os IPs da rede local para abrir no celular.
+  allowedDevOrigins: process.env.BORA_DEV_ORIGINS?.split(",").filter(Boolean),
   // O Railway expõe ambiente e commit também no build; o cliente do Sentry os
   // recebe daqui, sem variável NEXT_PUBLIC_* criada à mão.
   env: {
