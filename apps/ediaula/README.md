@@ -1471,12 +1471,15 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
     ocupado(): boolean, // carregando, conferindo, virando página
   };
   // Passo, gestos simples que o robô faz com a mão de uma pessoa:
-  // { fazer: "apontar" | "clicar" | "clique duplo" | "clique direito", alvo, espera?, maximo? }
+  // { fazer: "apontar" | "clicar" | "clique duplo" | "clique direito", alvo, espera?, maximo?,
+  //   exato? } (exato, no apontar: a mão descansa no ponto dado, sem descer para baixo do alvo)
   // { fazer: "arrastar", alvo, para, maximo? }
   // { fazer: "rolar", alvo?, dy?, ate?, espera?, maximo? }
   // { fazer: "digitar", alvo, texto, substituir? } (substituir: seleciona o texto do campo antes)
   // { fazer: "tecla", tecla: "Ctrl+Z" }
   // { fazer: "esperar", alvo, estado?: "aparecer" | "sumir" | "ficar disponível", espera?, maximo? }
+  // { fazer: "continuar", acao } (pergunta agir(acao) de novo depois dos gestos anteriores: a
+  //   página decide no que eles abriram, como a lista ou a caixa de texto de um campo)
   // alvo: { seletor } | { papel, nome } | { rotulo } | { texto } | { bloco: { texto, area, abaixo? } },
   // com "dentro" (um seletor) para procurar só dentro de um elemento, como um menu aberto,
   // com u e v de 0 a 1 para um ponto dentro dele (um jogo num canvas); bloco é um bloco de
@@ -1485,7 +1488,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   ```
 
   O primeiro gesto acontece na frase, com a mesma antecedência de uma etapa marcada; cada um dos outros, depois
-  que o anterior terminou e a plataforma não está mais ocupada. A plataforma nunca move o ponteiro, e o EdiAula
+  que o anterior terminou e a plataforma não está mais ocupada (por até a espera máxima do gesto, quando ela é
+  maior que a da etapa, como na conferência de um projeto no servidor). Uma página que ainda não pôs a ponte é
+  consultada de novo até a espera máxima da etapa. A plataforma nunca move o ponteiro, e o EdiAula
   não sabe nada dela além desses gestos. **Verificar plano** pergunta à página cada ação: um verbo que ela não
   conhece ou uma página sem a ponte aparecem na etapa, com o que fazer.
 - **Verificar plano** roda o plano inteiro na janela fora da tela, sem gravar, e lista as etapas que falharam,
@@ -1533,6 +1538,56 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
   fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
   Sem narração, grave a demonstração e use **Narrar intervalo** depois. A conclusão das etapas encerra a gravação automaticamente.
+
+- **Apontar e o mouse parado:** ao mostrar algo (`apontar`), a ponta da seta para logo abaixo do que é mostrado
+  (`pointingSpot`), para quem assiste ler a palavra: abaixo da borda de um alvo pequeno, ou uma linha abaixo
+  do ponto dentro de um alvo grande (o número de um jogo). Uma plataforma pode escolher o ponto exato (`exato`),
+  como o palco do Sistema Zero faz com os blocos: a mão para ao lado do bloco, no fundo da área, porque parada
+  em cima dele o editor mostra a dica do bloco por cima da aula.
+- **Janela fora da tela:** a gravação acontece numa janela fora da tela, no tamanho do plano. O mouse que cai
+  num quadro desenhado por outro processo (um jogo num iframe isolado, um vídeo de outro site) vai pela sessão
+  daquele quadro, com as coordenadas de dentro dele. A tela cheia de um livro ou vídeo ocupa o tamanho do plano.
+  Um alvo coberto por algo fixo na borda (o rodapé da aula) é rolado para o meio, e um alvo escondido numa lista
+  com rolagem própria (um menu, um seletor) é trazido com a roda sobre a lista. O fim de um arrasto pode estar
+  sob a paleta de blocos, que fecha quando o arrasto começa. O som da página não é gravado.
+
+### Gravar uma aula do Sistema Zero, passo a passo
+
+Pelo palco de gravação do Sistema Zero (`packages/palco-gravacao` daquele repositório), que mostra a aula como
+a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1, saiu inteira assim em 01/11/2026.
+
+1. **O roteiro pronto.** O **Na tela** de cada parte escrito a partir da fala, com os colchetes (seção 9 de
+   `docs/aulas-interativas-tecnico/ESPEC-ROTEIRO.md` no Sistema Zero). Rode lá o `validar-roteiros.py`, que
+   confere que cada frase citada está na fala da parte.
+2. **A voz.** O áudio da professora (ElevenLabs) da aula inteira. Se veio num arquivo só, corte uma narração
+   por parte nas pausas longas entre as partes (o `[long pause]`), por exemplo com o FFmpeg:
+   `ffmpeg -i aula.mp3 -af silencedetect=noise=-35dB:d=1 -f null -` mostra as pausas, e
+   `ffmpeg -i aula.mp3 -ss 42.15 -to 67.05 -ar 48000 -ac 1 parte2.wav` corta uma parte no meio da pausa.
+3. **O palco no ar.** O do staging, ou um local: no Sistema Zero, `bun run --filter @sistemazero/palco-gravacao
+   build` e `railway run --service palco-gravacao --environment staging -- env GATEWAY_URL=<gateway público>
+   JWT_JWKS_URL=<gateway público>/auth/.well-known/jwks.json npx next start -p 3010` (as variáveis do serviço
+   entram sem aparecer; só o gateway e o JWKS trocam pelo endereço público, porque a rede interna do Railway
+   não chega ao computador).
+4. **O projeto.** **Novo projeto** com o nome da aula e o curso. Painel **Roteiro**: cole o roteiro da aula
+   (**Usar roteiro**).
+5. **Para cada parte**, nesta ordem:
+   1. No painel **Roteiro**, escolha a **Seção N** (é dela que o gravador tira as falas e o **Na tela**).
+   2. **Gravar tela** › **Modo de gravação: Guiado por plano**. **Criar um plano** (ou **Novo plano**),
+      **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080**,
+      **Quadros 30**.
+   3. **Endereço da aula:** o da aula no palco, com `?parte=N` (`…/aulas/<curso>/<aula>?parte=3`); a Parte 1
+      sem ele. Na primeira vez, **Abrir janela da aula** e entre com a conta da equipe; no palco, escolha o
+      curso e a aula para pegar o endereço. O login fica no perfil dessa janela.
+   4. **Importar narração** com o áudio da parte (é transcrito sozinho, em segundos com a placa de vídeo).
+   5. **Gerar plano do roteiro.** O aviso diz quantas etapas saíram e se alguma ficou de fora (a voz não diz a
+      frase dela, ou a voz termina antes): corrija o **Na tela** e gere de novo.
+   6. **Verificar plano.** Precisa terminar com "Todas as etapas funcionaram na página". Os trechos que vão
+      passar do tempo da fala entram acelerados (tela sem voz), e está certo assim.
+   7. **Gravar** (ou **F9**). O gravador fecha sozinho no fim, e o take entra no projeto depois do anterior,
+      com a narração numa faixa própria e um lembrete em cada `[na edição: …]`.
+6. **Conferir.** Assista: a página ocupa a tela inteira, os gestos caem nas frases, os trechos acelerados ficam
+   sob a fala. Uma parte com problema: tire os clipes dela, corrija (roteiro, palco ou plano) e grave de novo
+   só aquela parte.
 
 ### Teste de fumaça da gravação guiada
 
