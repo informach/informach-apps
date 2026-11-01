@@ -59,7 +59,12 @@ export class PoseTracker {
 
   async start(facingMode: "user" | "environment" = "user") {
     if (!navigator.mediaDevices?.getUserMedia)
-      throw new Error("Este navegador não dá acesso à câmera.");
+      // fora de HTTPS (e de localhost) o navegador esconde a câmera de propósito
+      throw new Error(
+        window.isSecureContext
+          ? "Este navegador não dá acesso à câmera."
+          : "A câmera só liga em conexão segura (https://).",
+      );
     const [lm, stream] = await Promise.all([
       loadLandmarker(),
       navigator.mediaDevices.getUserMedia({
