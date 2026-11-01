@@ -128,7 +128,8 @@ export const followGap = (tempos: GuidedTempos): number =>
 /**
  * The plan the script's brackets make with this voice: every bracket a step on the second its
  * phrase is said (a plain direction: when its line starts), the ones after it in the same piece
- * `followGap` later each. Brackets whose phrase the voice does not say are left out and counted.
+ * `followGap` later each. Brackets left out are counted: those whose phrase (or line) the voice
+ * does not say, and those that would fall after the voice ends.
  */
 export function planFromScript(
   part: ScriptPart,
@@ -136,7 +137,7 @@ export function planFromScript(
   viewport: GuidedViewport,
   tempos: GuidedTempos,
   duration: number,
-): { steps: GuidedStepV2[]; unplaced: number } {
+): { steps: GuidedStepV2[]; unsaid: number; afterVoice: number } {
   const items: ScriptSection["items"] = [];
   const spoken = part.lines.join(" ");
   for (let i = 0; i <= part.lines.length; i++) {
@@ -158,28 +159,32 @@ export function planFromScript(
   }));
   const times = screenCueTimes(section, alignSection(section, timeline).lines, timeline);
   const steps: GuidedStepV2[] = [];
-  let placed = 0;
-  let total = 0;
+  let unsaid = 0;
+  let afterVoice = 0;
   for (const [index, item] of items.entries()) {
     if (item.kind !== "screen") continue;
     const pieces = item.cues?.length ? item.cues.map((c) => c.text) : [item.text];
     for (const [k, piece] of pieces.entries()) {
       const actions = screenActions(piece);
-      total += actions.length;
       const time = times.find((t) => t.item === index && (t.cue ?? 0) === k);
-      if (time?.said === undefined) continue;
+      if (time?.said === undefined) {
+        unsaid += actions.length;
+        continue;
+      }
       let at = time.said;
       for (const [j, text] of actions.entries()) {
-        if (at >= duration) break;
+        if (at >= duration) {
+          afterVoice += actions.length - j;
+          break;
+        }
         const step = actionStep(text, `roteiro-${index + 1}-${k + 1}-${j + 1}`, viewport);
         const hundredth = Math.round(at * 100) / 100;
         steps.push({ ...step, at: hundredth, speechAt: hundredth });
-        placed++;
         // The next one when the hand can be there (a step with nothing to reach comes sooner).
         at += needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1;
       }
     }
   }
   steps.sort((a, b) => a.at - b.at);
-  return { steps, unplaced: total - placed };
+  return { steps, unsaid, afterVoice };
 }

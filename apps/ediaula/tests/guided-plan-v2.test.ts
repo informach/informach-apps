@@ -152,8 +152,13 @@ test("the schedule of drags, scrolls, waits, double clicks and shortcuts", () =>
   assert.ok(dbl.moves && dbl.moveAt < dbl.arriveAt && dbl.arriveAt < dbl.actAt);
   // The drag moves for `move` seconds after its moment.
   assert.equal(drag.endAt, drag.actAt + plan.tempos.after + plan.tempos.move);
-  // On the page a 300 px scroll is one smooth scroll (shared/humanMotion.ts scrollSeconds).
-  assert.ok(Math.abs(scroll.endAt - (scroll.actAt + plan.tempos.after + 0.35)) < 1e-9);
+  // Three wheel steps take 0.24 s; a plan whose hand moves as a person's scrolls smoothly
+  // (shared/humanMotion.ts scrollSeconds), and older plans keep their timing signature.
+  assert.ok(Math.abs(scroll.endAt - (scroll.actAt + plan.tempos.after + 0.24)) < 1e-9);
+  const human = { ...plan, tempos: { ...plan.tempos, motion: "crianca" as const } };
+  const smooth = schedulePlan(human).steps[2];
+  assert.ok(Math.abs(smooth.endAt - (smooth.actAt + plan.tempos.after + 0.35)) < 1e-9);
+  assert.notEqual(planTiming(human), planTiming(plan));
   // Without a target nothing moves: the step starts at its own moment.
   for (const step of [scroll, wait, key]) {
     assert.equal(step.moves, false);
@@ -456,9 +461,10 @@ test("a wait past its time is recorded and goes in sped up, the next action on i
   const schedule = schedulePlan(plan);
   const controller = new AbortController();
   const lapses: GuidedLapse[] = [];
+  const acts: { t: number; step: number }[] = [];
   const log: GuidedRunLog = {
     step: () => undefined,
-    act: () => undefined,
+    act: (_kind, t, _until, step) => acts.push({ t, step }),
     lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
   };
   sim.frames.start();
@@ -478,6 +484,8 @@ test("a wait past its time is recorded and goes in sped up, the next action on i
   // The next click is on its second of the narration once the lapse is sped up.
   const click = page.events.filter((e) => e.op === "left-1")[1];
   assert.ok(Math.abs(alignedAt(lapses, click.t) - b.actAt) <= 1 / 30 + 0.01, `at ${click.t}`);
+  // The log keeps every interaction on the video's seconds, as the cursor and the clicks are.
+  assert.equal(acts.find((a) => a.step === 1)?.t, click.t);
   const shift = lapse.to - lapse.from - lapse.narration;
   assert.ok(Math.abs(sim.frames.time() - (schedule.duration + shift)) <= 0.05);
 });

@@ -707,13 +707,21 @@ export class CdpDriver {
    * answer, checked by the caller (shared/platformBridge.ts). An error of the page is thrown with
    * its first line.
    */
-  async bridge(method: "agir" | "ocupado" | "verbos", arg?: string): Promise<unknown> {
+  async bridge(
+    method: "agir" | "ocupado" | "verbos",
+    arg?: string,
+    timeout = SEND_TIMEOUT,
+  ): Promise<unknown> {
     const call = arg === undefined ? `b.${method}()` : `b.${method}(${JSON.stringify(arg)})`;
-    const r = await this.send<EvaluateResult>("Runtime.evaluate", {
-      expression: `(async () => { const b = globalThis.__gravacao; if (!b || b.versao !== ${BRIDGE_VERSION} || typeof b.${method} !== "function") return { semPonte: true }; return { valor: await ${call} }; })()`,
-      awaitPromise: true,
-      returnByValue: true,
-    });
+    const r = await this.send<EvaluateResult>(
+      "Runtime.evaluate",
+      {
+        expression: `(async () => { const b = globalThis.__gravacao; if (!b || b.versao !== ${BRIDGE_VERSION} || typeof b.${method} !== "function") return { semPonte: true }; return { valor: await ${call} }; })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      },
+      timeout,
+    );
     if (r.exceptionDetails)
       throw new Error(
         (r.exceptionDetails.exception?.description ?? r.exceptionDetails.text).split("\n")[0],
@@ -1091,19 +1099,28 @@ export class WebDriver implements GuidedDriver {
     const vertical = Math.abs(dy) >= Math.abs(dx);
     let i = 0;
     await new Promise<void>((resolve, reject) => {
+      // A stopped take writes no more frames: the scroll ends with it, as a glide does.
+      const settle = (): void => {
+        off();
+        this.signal.removeEventListener("abort", stop);
+      };
+      const fail = (error: unknown): void => {
+        settle();
+        reject(error);
+      };
+      const stop = (): void => fail(new Error(STOPPED));
       const off = clock.onFrame(() => {
         const step = steps[i++];
         if (step === undefined) {
-          off();
+          settle();
           resolve();
           return true;
         }
-        this.wheel(p, vertical ? 0 : step, vertical ? step : 0).catch((error: unknown) => {
-          off();
-          reject(error);
-        });
+        this.wheel(p, vertical ? 0 : step, vertical ? step : 0).catch(fail);
         return false;
       });
+      if (this.signal.aborted) stop();
+      else this.signal.addEventListener("abort", stop, { once: true });
     });
   }
 
@@ -1347,26 +1364,14 @@ export class WebDriver implements GuidedDriver {
   /** The gestures the platform makes `action` of (shared/platformBridge.ts). */
   async platform(action: string, id: string, timeout: number): Promise<GuidedStepV2[]> {
     this.question();
-    // A page that never answers fails the step; the timer goes with the answer that came.
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const silent = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(
-        () => reject(new Error(`Esperei ${timeout} s e a plataforma não respondeu a “${action}”.`)),
-        timeout * 1000,
-      );
+    // The step's own longest wait: a platform may take its time to say what to do.
+    const answer = await this.cdp.bridge("agir", action, timeout * 1000).catch((error: unknown) => {
+      if (this.fatal(error)) throw error;
+      if (error instanceof CdpTimeout)
+        throw new Error(`Esperei ${timeout} s e a plataforma não respondeu a “${action}”.`);
+      throw new Error(`A plataforma não conseguiu “${action}”: ${(error as Error).message}`);
     });
-    try {
-      const answer = await Promise.race([
-        this.cdp.bridge("agir", action).catch((error: unknown) => {
-          if (this.fatal(error)) throw error;
-          throw new Error(`A plataforma não conseguiu “${action}”: ${(error as Error).message}`);
-        }),
-        silent,
-      ]);
-      return bridgeSteps(answer, action, id, this.viewport);
-    } finally {
-      clearTimeout(timer);
-    }
+    return bridgeSteps(answer, action, id, this.viewport);
   }
 
   /** Waits while the platform says it is busy (a page with no bridge never is). */
@@ -1374,9 +1379,10 @@ export class WebDriver implements GuidedDriver {
     const over = this.deadline(timeout);
     for (;;) {
       this.question();
+      // A page that does not answer is still working (its main thread is busy): wait on.
       const busy = await this.cdp.bridge("ocupado").then(bridgeBusy, (error: unknown) => {
         if (this.fatal(error)) throw error;
-        return false;
+        return true;
       });
       if (!busy) return;
       if (over()) throw new Error(`Esperei ${timeout} s e a plataforma continuou ocupada.`);

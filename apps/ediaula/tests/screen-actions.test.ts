@@ -58,7 +58,7 @@ test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
   const spoken = lines.join(" ").split(/\s+/);
   const words = spoken.map((text, k) => ({ text, start: 1 + k * 0.5, end: 1.4 + k * 0.5 }));
   const said = (word: string) => words.find((w) => w.text.startsWith(word))?.start ?? -1;
-  const { steps, unplaced } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  const { steps, unsaid } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
   assert.deepEqual(
     steps.map((s) => [s.action === "platform" ? s.platform : s.action, s.at]),
     [
@@ -72,9 +72,10 @@ test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
     ],
   );
   for (const s of steps) assert.equal(s.speechAt, s.at);
-  assert.equal(unplaced, 0);
+  assert.equal(unsaid, 0);
   // Past the end of the voice nothing is placed, and the teacher is told how many were left out.
   const short = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, said("Agora"));
   assert.equal(short.steps.length, 2);
-  assert.equal(short.unplaced, 2);
+  assert.equal(short.afterVoice, 2);
+  assert.equal(short.unsaid, 0);
 });

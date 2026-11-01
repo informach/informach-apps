@@ -317,7 +317,7 @@ export function GuidedSetup({
     setLoading(true);
     try {
       const words = await transcribed(plan.audio.path, plan.audio.duration);
-      const { steps, unplaced } = planFromScript(
+      const { steps, unsaid, afterVoice } = planFromScript(
         part,
         words,
         plan.viewport,
@@ -330,9 +330,20 @@ export function GuidedSetup({
         );
         return;
       }
+      // Steps marked by hand would be lost: the teacher says whether to replace them.
+      const marked = plan.steps.filter((s) => s.target || s.to || s.until || s.expect).length;
+      if (
+        marked &&
+        !window.confirm(
+          `Gerar o plano do roteiro troca as ${plan.steps.length} etapas deste plano, inclusive ${marked === 1 ? "1 etapa com alvo marcado" : `${marked} etapas com alvos marcados`}. Continuar?`,
+        )
+      )
+        return;
       savePlan({ ...plan, steps });
+      const left = (n: number, why: string) =>
+        n ? `; ${n === 1 ? "1 ação ficou" : `${n} ações ficaram`} de fora ${why}` : "";
       setNotice(
-        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${unplaced ? `; ${unplaced === 1 ? "1 ação ficou" : `${unplaced} ações ficaram`} de fora porque a voz termina antes` : ""}. Use Verificar plano antes de gravar.`,
+        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${left(unsaid, "porque a voz não diz a frase dela")}${left(afterVoice, "porque a voz termina antes")}. Use Verificar plano antes de gravar.`,
       );
     } catch (e) {
       setError((e as Error).message);
@@ -622,25 +633,27 @@ export function GuidedSetup({
           </div>
         )}
         <div className="guided-timing">
-          <label>
-            Movimento do mouse
-            <select
-              value={plan.tempos.motion ?? ""}
-              title="Como a mão leva o mouse até cada alvo: em curva, saindo e chegando devagar, no tempo de uma pessoa para aquela distância."
-              onChange={(e) => {
-                const motion = MOTION_PROFILES.find((m) => m === e.target.value);
-                const { motion: _old, ...rest } = plan.tempos;
-                change({ tempos: motion ? { ...rest, motion } : rest });
-              }}
-            >
-              {MOTION_PROFILES.map((m) => (
-                <option key={m} value={m}>
-                  {MOTION_LABELS[m]}
-                </option>
-              ))}
-              <option value="">Sempre o tempo de Movimento</option>
-            </select>
-          </label>
+          {web && (
+            <label>
+              Movimento do mouse
+              <select
+                value={plan.tempos.motion ?? ""}
+                title="Como a mão leva o mouse até cada alvo: em curva, saindo e chegando devagar, no tempo de uma pessoa para aquela distância."
+                onChange={(e) => {
+                  const motion = MOTION_PROFILES.find((m) => m === e.target.value);
+                  const { motion: _old, ...rest } = plan.tempos;
+                  change({ tempos: motion ? { ...rest, motion } : rest });
+                }}
+              >
+                {MOTION_PROFILES.map((m) => (
+                  <option key={m} value={m}>
+                    {MOTION_LABELS[m]}
+                  </option>
+                ))}
+                <option value="">Sempre o tempo de Movimento</option>
+              </select>
+            </label>
+          )}
           {(
             [
               ["move", "Movimento", 0.5, 5],

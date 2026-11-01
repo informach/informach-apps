@@ -13,6 +13,7 @@ import {
   type PlannedStep,
   parseChord,
   schedulePlan,
+  smoothScrolls,
   TYPE_INTERVAL,
   WHEEL_INTERVAL,
   WHEEL_STEP,
@@ -183,7 +184,10 @@ async function letGo(driver: GuidedDriver, cause: unknown): Promise<void> {
 /** The smaller side of the marked element, for how carefully the hand aims (40 without one). */
 function targetSize(target: GuidedStepTarget | undefined): number {
   const rect = target?.locator?.fingerprint.rect;
-  return rect ? Math.max(4, Math.min(rect.width, rect.height)) : 40;
+  // A target named by text (the script, the platform) has no marked rectangle.
+  return rect && rect.width > 0 && rect.height > 0
+    ? Math.max(4, Math.min(rect.width, rect.height))
+    : 40;
 }
 
 const round = (v: number): number => Math.round(v * 1000) / 1000;
@@ -247,6 +251,9 @@ export async function runGuided(
   const beat = (from: number, i: number, interval: number): Promise<void> =>
     clock.wait(clock.holds ? from + (i + 1) * interval : clock.time() + span(interval));
   const log = options.log;
+  /** Interactions go in the log on the video's seconds, as every other line of it does. */
+  const logAct = (kind: GuidedInteraction, from: number, until: number, index: number): void =>
+    log?.act(kind, from + shift, until + shift, index);
 
   const runStep = async (s: PlannedStep, next: number): Promise<void> => {
     const step = s.step;
@@ -285,10 +292,13 @@ export async function runGuided(
         s.moveAt + 0.1,
         "A execução atrasou. A gravação foi pausada para não acelerar os cliques.",
       );
-      // A target out of view is brought into it first, on camera, as a person scrolls to it.
-      if (driver.reveal && !clock.instant) {
-        await clock.wait(s.moveAt - 0.25);
+      // A target out of view is brought into it first, on camera, as a person scrolls to it
+      // (checking a plan scrolls too, at once). A scroll longer than the time before the
+      // pointer leaves goes in sped up, so the action still falls on its phrase.
+      if (driver.reveal) {
+        mark();
         await driver.reveal(step.target, timeout);
+        settle(s.moveAt, s.index);
       }
       clock.hold(s.moveAt, "locate");
       const target = await driver.locate(step.target, "approach", timeout);
@@ -303,9 +313,11 @@ export async function runGuided(
       // room; it waits where it is first, so it still arrives when the schedule says.
       const size = targetSize(step.target);
       const distance = Math.hypot(target.x - from.x, target.y - from.y);
-      const hand = plan.tempos.motion
-        ? Math.min(move, humanDuration(distance, size, plan.tempos.motion))
-        : move;
+      // The Windows pointer only moves straight: there the move keeps its whole time.
+      const hand =
+        plan.tempos.motion && driver.space === "page"
+          ? Math.min(move, humanDuration(distance, size, plan.tempos.motion))
+          : move;
       if (hand < move) await clock.wait(s.moveAt + (span(move) - span(hand)));
       await driver.glide(from, target, span(hand), false, size);
       const arrived = clock.time();
@@ -361,7 +373,7 @@ export async function runGuided(
           step.action === "rightClick" ? "right" : "left",
           step.action === "doubleClick" ? 2 : 1,
         );
-        log?.act(step.action === "type" ? "click" : step.action, at, clock.time(), s.index);
+        logAct(step.action === "type" ? "click" : step.action, at, clock.time(), s.index);
         if (step.action !== "type") break;
         const typing = clock.time();
         let i = 0;
@@ -372,7 +384,7 @@ export async function runGuided(
           await driver.text(char);
           await beat(typing, i++, TYPE_INTERVAL);
         }
-        log?.act("type", typing, clock.time(), s.index);
+        logAct("type", typing, clock.time(), s.index);
         break;
       }
       case "key": {
@@ -382,7 +394,7 @@ export async function runGuided(
         await clock.wait(0);
         late(s.actAt + 0.5, "A validação do alvo atrasou. Revise a etapa antes de continuar.");
         await driver.key(chord);
-        log?.act("key", at, clock.time(), s.index);
+        logAct("key", at, clock.time(), s.index);
         break;
       }
       case "drag": {
@@ -399,7 +411,7 @@ export async function runGuided(
           if (held) await letGo(driver, cause);
           throw cause;
         }
-        log?.act("drag", at, clock.time(), s.index);
+        logAct("drag", at, clock.time(), s.index);
         break;
       }
       case "scroll": {
@@ -423,7 +435,7 @@ export async function runGuided(
             } else await beat(started, i, WHEEL_INTERVAL);
           }
           clock.release();
-        } else if (step.delta && driver.scroll && plan.mode === "web") {
+        } else if (step.delta && driver.scroll && smoothScrolls(plan)) {
           await clock.wait(0);
           await driver.scroll(p, step.delta.x, step.delta.y);
         } else if (step.delta) {
@@ -435,7 +447,7 @@ export async function runGuided(
             await beat(started, i, WHEEL_INTERVAL);
           }
         }
-        log?.act("wheel", at, clock.time(), s.index);
+        logAct("wheel", at, clock.time(), s.index);
         break;
       }
       case "wait": {
@@ -473,7 +485,9 @@ export async function runGuided(
     const gestures = await ask.call(driver, s.step.platform ?? "", s.step.id, timeout);
     clock.release();
     const idle = driver.idle;
-    for (const [k, gesture] of gestures.entries()) {
+    for (const [k, given] of gestures.entries()) {
+      // What the step says to do when the page is slow holds for its gestures that say nothing.
+      const gesture = s.step.wait && !given.wait ? { ...given, wait: s.step.wait } : given;
       if (k > 0 && idle) await awaitPage(() => idle.call(driver, timeout));
       const moves = needsTarget(gesture, plan.mode);
       const length = actionLength(gesture, plan);

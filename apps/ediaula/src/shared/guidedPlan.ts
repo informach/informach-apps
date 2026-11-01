@@ -575,8 +575,9 @@ export function newPlan(id: string, name: string, mode: "web" | "screen" = "web"
     viewport: { ...DEFAULT_VIEWPORT },
     fps: 30,
     steps: [],
-    // A new plan moves like a child's hand; older plans keep their fixed-length moves.
-    tempos: { ...DEFAULT_TEMPOS, motion: "crianca" },
+    // A new plan in the lesson window moves like a child's hand; older plans, and the Windows
+    // pointer (which only moves straight), keep their fixed-length moves.
+    tempos: mode === "web" ? { ...DEFAULT_TEMPOS, motion: "crianca" } : { ...DEFAULT_TEMPOS },
   };
 }
 
@@ -600,6 +601,13 @@ export function wheelSteps(delta: { x: number; y: number }, mode: "web" | "scree
 }
 
 /** Seconds the action itself takes after its moment, before the observation time. */
+/**
+ * A scroll of the page as a person's wheel (shared/humanMotion.ts smoothScroll): plans that move
+ * the hand as a person does. Older plans keep their wheel notches, and so their timing signature.
+ */
+export const smoothScrolls = (plan: Pick<GuidedPlanV2, "mode" | "tempos">): boolean =>
+  plan.mode === "web" && plan.tempos.motion !== undefined;
+
 export function actionLength(
   step: GuidedStepV2,
   plan: Pick<GuidedPlanV2, "mode" | "tempos">,
@@ -607,7 +615,7 @@ export function actionLength(
   if (step.action === "type") return (step.value?.length ?? 0) * TYPE_INTERVAL;
   if (step.action === "drag") return plan.tempos.move;
   if (step.action === "scroll" && step.delta)
-    return plan.mode === "web"
+    return smoothScrolls(plan)
       ? scrollSeconds(Math.max(Math.abs(step.delta.x), Math.abs(step.delta.y)))
       : wheelSteps(step.delta, plan.mode) * WHEEL_INTERVAL;
   return 0;
