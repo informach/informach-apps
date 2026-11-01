@@ -618,9 +618,21 @@ test("a platform's action that continues: the page is asked again after the gest
             { id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
             { id: `${id}-2`, speech: "", at: 0, action: "platform" as const, platform: "escolher" },
           ]
-        : [{ id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Próxima") }];
+        : [
+            {
+              id: `${id}-1`,
+              speech: "",
+              at: 0,
+              action: "click" as const,
+              target: on("Próxima"),
+              timeout: 180,
+            },
+          ];
     }
-    async idle() {}
+    idles: number[] = [];
+    async idle(timeout: number) {
+      this.idles.push(timeout);
+    }
   }
   const page = new BridgePage(sim.frames, sim.sleep, points);
   const plan = webPlan([
@@ -632,6 +644,8 @@ test("a platform's action that continues: the page is asked again after the gest
     runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
   );
   assert.deepEqual(page.asked, ["trocar campo", "escolher"]);
+  // A gesture that waits long (the check on the server) waits that long for the busy page too.
+  assert.deepEqual(page.idles, [8, 180]);
   assert.deepEqual(
     page.events.filter((e) => e.op === "left-1").map((c) => [c.x, c.y]),
     [

@@ -499,7 +499,10 @@ export async function runGuided(
     let asked = 1;
     for (let k = 0; k < gestures.length; k++) {
       const given = gestures[k];
-      if (k > 0 && idle) await awaitPage(() => idle.call(driver, timeout));
+      // The page busy before a gesture that waits long (the check of a project on the server)
+      // is waited for as long as that gesture would.
+      const busy = Math.max(timeout, given.timeout ?? 0);
+      if (k > 0 && idle) await awaitPage(() => idle.call(driver, busy));
       // "continuar": the page is asked again now, on what the gestures before it opened.
       if (given.action === "platform") {
         if (++asked > 10) throw new Error("A plataforma pediu para continuar vezes demais.");
