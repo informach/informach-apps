@@ -39,6 +39,24 @@ const NUMBERS: Record<string, string> = {
 const sameWord = (a: string, b: string): boolean =>
   a === b || (NUMBERS[a] ?? a) === (NUMBERS[b] ?? b);
 
+/**
+ * The words of a transcript's word as compared. The transcription sometimes joins two words in
+ * one before a quoted name (`em "próxima`): each is a word of its own, the time shared between
+ * them by their length.
+ */
+function spoken(w: SourceWord): (SourceWord & { key: string })[] {
+  const parts = w.text.split(/\s+/).filter((t) => fold(t));
+  if (parts.length < 2) return [{ ...w, key: fold(w.text) }];
+  const total = parts.reduce((n, t) => n + t.length, 0);
+  let start = w.start;
+  return parts.map((text) => {
+    const end = start + ((w.end - w.start) * text.length) / total;
+    const word = { text, start, end, key: fold(text) };
+    start = end;
+    return word;
+  });
+}
+
 /** Words of a loose match that may be heard otherwise ("num" heard "no"): one in four. */
 const looseMisses = (n: number): number => (n >= 4 ? Math.floor(n / 4) : 0);
 
@@ -78,7 +96,7 @@ export function findPhrase(
   phrase: string,
   opts: PhraseOptions = {},
 ): PhraseMatch | null {
-  const said = words.map((w) => ({ ...w, key: fold(w.text) })).filter((w) => w.key);
+  const said = words.flatMap(spoken).filter((w) => w.key);
   const wanted = tokens(phrase);
   if (!wanted.length) return null;
   const before = tokens(opts.before ?? "").slice(-ANCHOR_WORDS);

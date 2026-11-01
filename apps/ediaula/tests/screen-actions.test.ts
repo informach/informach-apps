@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DEFAULT_TEMPOS } from "../src/shared/guidedPlan.ts";
+import { findPhrase } from "../src/shared/phrase.ts";
 import {
   actionStep,
   editMarks,
@@ -167,4 +168,20 @@ test("a citação acha a voz mesmo com uma palavra ouvida diferente, e a que nã
   );
   assert.deepEqual(missed, ["Que legal"]);
   for (const [i, s] of steps.entries()) if (i) assert.ok(s.at >= steps[i - 1].at);
+});
+
+test("a palavra que a transcrição junta antes de um nome entre aspas conta como duas", () => {
+  const words = [
+    { text: "Quando", start: 43.2, end: 43.7 },
+    { text: "terminar,", start: 43.8, end: 44.2 },
+    { text: "clique", start: 44.3, end: 44.5 },
+    { text: ' em "próxima', start: 44.5, end: 45.3 },
+    { text: 'parte".', start: 45.4, end: 45.9 },
+  ];
+  const found = findPhrase(words, "Quando terminar, clique em Próxima");
+  assert.ok(found);
+  assert.equal(found.start, 43.2);
+  // "em" takes its share of the joined word: "próxima" ends where it did.
+  assert.equal(found.end, 45.3);
+  assert.equal(findPhrase(words, "clique em")?.end, 44.5 + (0.8 * 2) / 10);
 });
