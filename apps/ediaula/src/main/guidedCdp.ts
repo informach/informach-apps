@@ -207,6 +207,9 @@ const AX_IGNORED = new Set([
   "RootWebArea",
 ]);
 
+/** Seconds a page has to put its recording bridge (the take gives a page as long to open). */
+const BRIDGE_LOAD_SECONDS = 30;
+
 type MouseType = "mouseMoved" | "mousePressed" | "mouseReleased" | "mouseWheel";
 interface MouseOptions {
   button?: "none" | "left" | "right";
@@ -1460,7 +1463,9 @@ export class WebDriver implements GuidedDriver {
   /** The gestures the platform makes `action` of (shared/platformBridge.ts). */
   async platform(action: string, id: string, timeout: number): Promise<GuidedStepV2[]> {
     this.question();
-    const over = this.deadline(timeout);
+    // A page that has not put its bridge yet is still loading: it gets as long as a page has to
+    // open (a server answering its first page after a restart), not only the step's wait.
+    const over = this.deadline(Math.max(timeout, BRIDGE_LOAD_SECONDS));
     for (;;) {
       // The step's own longest wait: a platform may take its time to say what to do.
       const answer = await this.cdp
