@@ -108,6 +108,8 @@ No mesmo dia, ela pediu um gravador menos engessado ("segunda proposta", na mesm
 - **Concluir a gravação:** Editar agora ou Empacotar para outra pessoa.
 - **Lembretes** no lugar de recados, e o Preparar aula começa por **Revisar a gravação**.
 
+Em 01/11/2026 ela pediu a gravação automatizada das aulas do Sistema Zero ([registro](propostas/ediaula-gravacao-automatica-2026-11-01/proposta.md)): o modo guiado ganhou movimento humano, esperas da plataforma aceleradas sob a fala, plano gerado dos colchetes do "Na tela" e a ponte `window.__gravacao`. No Sistema Zero, o palco de gravação (PR #233 para `staging`) aguarda a criação do serviço e o merge, que dependem dela; o piloto real com a Aula 1 do Cadê e o Lote 5 (montar o projeto) ficaram pendentes.
+
 Em 24/10/2026 a publicação da suíte `edi-v0.4.1` parou no `pnpm audit --prod` do workflow, antes dos instaladores: alertas novos em `zod` 3 (alto, sem correção na linha 3), `body-parser` 2.3 e `fast-uri` 3.1.8, todos de apps web. A titular decidiu migrar tudo para o Zod 4 antes de publicar: branch `chore/zod-4`, com overrides de `body-parser` e `fast-uri`. A suíte sai como `edi-v0.4.2`; a tag `edi-v0.4.1` existe mas não publicou nada.
 
 ## Home institucional e contato público
