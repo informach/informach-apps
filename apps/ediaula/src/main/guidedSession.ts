@@ -21,6 +21,9 @@ export function lessonSession(): Electron.Session {
       callback(lessonPermissionAllowed(permission)),
     );
     s.setPermissionCheckHandler((_wc, permission) => lessonPermissionAllowed(permission));
+    // A download the lesson starts (a material, a certificate) would open a save dialog over a
+    // window nobody sees and hold the take: the page shows its answer, the file is not kept.
+    s.on("will-download", (_event, item) => item.cancel());
   }
   return s;
 }

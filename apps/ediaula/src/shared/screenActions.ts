@@ -23,6 +23,30 @@ import { alignSection } from "./scriptAlign.ts";
  * is asked of the platform, through its recording bridge (shared/platformBridge.ts).
  */
 
+/** "[na edição: …]": a stretch the edit replaces, not an action. */
+const EDIT_NOTE = /^na edi[cç][aã]o\s*:\s*(.+)$/iu;
+
+/** The text of an edit note, or null when the bracket is an action. */
+export const editNoteOf = (bracket: string): string | null =>
+  EDIT_NOTE.exec(bracket)?.[1]?.trim() || null;
+
+/**
+ * Where each edit note goes on the timeline: the take starts at timeline second `at`, and
+ * narration second n is the take's aligned second n + narrationOffset (the lapses go in sped up,
+ * so the timeline follows the narration). Notes outside the take are left out.
+ */
+export function editMarks(
+  notes: readonly { at: number; text: string }[],
+  take: { at: number; narrationOffset: number; duration: number },
+): { t: number; text: string }[] {
+  return notes.flatMap((note) => {
+    const aligned = note.at + take.narrationOffset;
+    return aligned >= 0 && aligned <= take.duration
+      ? [{ t: Math.round((take.at + aligned) * 1000) / 1000, text: `Na edição: ${note.text}` }]
+      : [];
+  });
+}
+
 /** The texts between brackets of a direction, in order. */
 export function screenActions(text: string): string[] {
   return [...text.matchAll(/\[([^\]\n]{1,500})\]/g)]
@@ -137,7 +161,12 @@ export function planFromScript(
   viewport: GuidedViewport,
   tempos: GuidedTempos,
   duration: number,
-): { steps: GuidedStepV2[]; unsaid: number; afterVoice: number } {
+): {
+  steps: GuidedStepV2[];
+  notes: { at: number; text: string }[];
+  unsaid: number;
+  afterVoice: number;
+} {
   const items: ScriptSection["items"] = [];
   const spoken = part.lines.join(" ");
   for (let i = 0; i <= part.lines.length; i++) {
@@ -159,6 +188,7 @@ export function planFromScript(
   }));
   const times = screenCueTimes(section, alignSection(section, timeline).lines, timeline);
   const steps: GuidedStepV2[] = [];
+  const notes: { at: number; text: string }[] = [];
   let unsaid = 0;
   let afterVoice = 0;
   for (const [index, item] of items.entries()) {
@@ -177,8 +207,14 @@ export function planFromScript(
           afterVoice += actions.length - j;
           break;
         }
-        const step = actionStep(text, `roteiro-${index + 1}-${k + 1}-${j + 1}`, viewport);
         const hundredth = Math.round(at * 100) / 100;
+        // The robot stays still there; the edit gets a note.
+        const note = editNoteOf(text);
+        if (note) {
+          notes.push({ at: hundredth, text: note });
+          continue;
+        }
+        const step = actionStep(text, `roteiro-${index + 1}-${k + 1}-${j + 1}`, viewport);
         steps.push({ ...step, at: hundredth, speechAt: hundredth });
         // The next one when the hand can be there (a step with nothing to reach comes sooner).
         at += needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1;
@@ -186,5 +222,5 @@ export function planFromScript(
     }
   }
   steps.sort((a, b) => a.at - b.at);
-  return { steps, unsaid, afterVoice };
+  return { steps, notes, unsaid, afterVoice };
 }

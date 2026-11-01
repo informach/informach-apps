@@ -45,6 +45,8 @@ const alvoSchema = z
         abaixo: z.boolean().optional(),
       })
       .optional(),
+    /** Only inside the single element this CSS selector names (an open menu, a dialog). */
+    dentro: z.string().min(1).max(4000).optional(),
     u: z.number().min(0).max(1).optional(),
     v: z.number().min(0).max(1).optional(),
   })
@@ -73,7 +75,12 @@ export const passoSchema = z.discriminatedUnion("fazer", [
     espera,
     maximo,
   }),
-  z.object({ fazer: z.literal("digitar"), alvo: alvoSchema, texto: z.string().min(1).max(1000) }),
+  z.object({
+    fazer: z.literal("digitar"),
+    alvo: alvoSchema,
+    texto: z.string().max(1000),
+    substituir: z.boolean().optional(),
+  }),
   z.object({ fazer: z.literal("tecla"), tecla: z.string().min(1).max(60) }),
   z.object({
     fazer: z.literal("esperar"),
@@ -129,6 +136,7 @@ export function locatorOf(alvo: Alvo, viewport: GuidedViewport): Locator {
     });
   return {
     strategies,
+    ...(alvo.dentro ? { within: { by: "css" as const, value: alvo.dentro } } : {}),
     point: { u: alvo.u ?? 0.5, v: alvo.v ?? 0.5 },
     fingerprint: {
       tag: "",
@@ -209,7 +217,13 @@ function gestureStep(passo: Passo, id: string, viewport: GuidedViewport): Guided
         ...timeout,
       };
     case "digitar":
-      return { ...base, action: "type", target: at(passo.alvo), value: passo.texto };
+      return {
+        ...base,
+        action: "type",
+        target: at(passo.alvo),
+        value: passo.texto,
+        ...(passo.substituir ? { replace: true } : {}),
+      };
     case "tecla":
       return { ...base, action: "key", chord: passo.tecla };
     case "esperar":

@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { DEFAULT_TEMPOS } from "../src/shared/guidedPlan.ts";
 import {
   actionStep,
+  editMarks,
+  editNoteOf,
   followGap,
   planFromScript,
   screenActions,
@@ -78,4 +80,23 @@ test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
   assert.equal(short.steps.length, 2);
   assert.equal(short.afterVoice, 2);
   assert.equal(short.unsaid, 0);
+});
+
+test("[na edição: …] não é gesto: vira lembrete no segundo da frase, para a edição trocar", () => {
+  const lines = ["Você terminou! Olha só o que você programou."];
+  const notes = [{ before: 0, text: 'No "Olha só", [na edição: jogo pronto sendo jogado].' }];
+  const words = lines[0]
+    .split(/\s+/)
+    .map((text, k) => ({ text, start: 2 + k * 0.5, end: 2.4 + k * 0.5 }));
+  const plan = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  assert.equal(plan.steps.length, 0);
+  assert.deepEqual(plan.notes, [{ at: 3, text: "jogo pronto sendo jogado" }]);
+  assert.equal(editNoteOf("Na edição: vídeo"), "vídeo");
+  assert.equal(editNoteOf("achar arbusto"), null);
+  // A take placed at timeline 10 s, narration 0 at its 2.5 s: the note lands at 10 + 2.5 + 3.
+  assert.deepEqual(editMarks(plan.notes, { at: 10, narrationOffset: 2.5, duration: 30 }), [
+    { t: 15.5, text: "Na edição: jogo pronto sendo jogado" },
+  ]);
+  // A take that started later in the narration does not show notes from before it.
+  assert.deepEqual(editMarks(plan.notes, { at: 0, narrationOffset: -10, duration: 30 }), []);
 });

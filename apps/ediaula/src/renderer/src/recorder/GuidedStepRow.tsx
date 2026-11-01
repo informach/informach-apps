@@ -211,6 +211,16 @@ export function GuidedStepRow({
         />
       )}
       {step.action === "type" && (
+        <label title="Seleciona o que o campo já tem antes de digitar, como um número trocado num bloco.">
+          <input
+            type="checkbox"
+            checked={step.replace === true}
+            onChange={(e) => update({ replace: e.target.checked ? true : undefined })}
+          />
+          Substituir o texto
+        </label>
+      )}
+      {step.action === "type" && (
         <input
           aria-label={`Texto a digitar na etapa ${n}`}
           placeholder="Texto a digitar"

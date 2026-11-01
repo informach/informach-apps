@@ -102,6 +102,26 @@ test("ocupado e verbos: só o que a ponte disse conta", () => {
     viewport,
   );
   assert.equal(drag.action, "drag");
+  // A menu item only inside the open menu; a field's text replaced, not added to.
+  const [item, number] = bridgeSteps(
+    {
+      valor: [
+        { fazer: "clicar", alvo: { texto: "achados", dentro: ".blocklyDropDownDiv" } },
+        {
+          fazer: "digitar",
+          alvo: { seletor: "input.blocklyHtmlInput" },
+          texto: "0",
+          substituir: true,
+        },
+      ],
+    },
+    "trocar",
+    "f",
+    viewport,
+  );
+  assert.deepEqual(item.target?.locator?.within, { by: "css", value: ".blocklyDropDownDiv" });
+  assert.equal(number.replace, true);
+  assert.equal(number.value, "0");
   assert.deepEqual(drag.target?.locator?.strategies, [
     { by: "blockly", text: "mover", area: "flyout" },
   ]);

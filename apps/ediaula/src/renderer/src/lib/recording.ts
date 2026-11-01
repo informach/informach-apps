@@ -27,6 +27,7 @@ import {
   retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
+import { editMarks } from "@shared/screenActions";
 import { recordedStretches, screenCoverage, scriptGuide } from "@shared/screenCues";
 import { speechItems } from "@shared/script";
 import { sourceEnd, timelineAt } from "@shared/timeline";
@@ -554,8 +555,19 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
           : [];
       }),
     );
+    // The script's "[na edição: …]": where the edit replaces the screen with something else.
+    const planNotes = run
+      ? (p.guided?.plans.find((x) => x.id === run.planId)?.editNotes ?? [])
+      : [];
     const notes = [
       ...(r.notes?.length ? notesOnTimeline(layout.clips, noteSources, r.notes) : []),
+      ...(run && planNotes.length
+        ? editMarks(planNotes, {
+            at: layout.at,
+            narrationOffset: run.narrationOffset,
+            duration: layout.duration,
+          })
+        : []),
       // Each "Errei, voltar" kept says that the last attempt stayed (the earlier one can come back).
       ...retries.kept.map((a) => ({
         t: a.start,

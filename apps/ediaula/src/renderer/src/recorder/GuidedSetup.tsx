@@ -317,14 +317,14 @@ export function GuidedSetup({
     setLoading(true);
     try {
       const words = await transcribed(plan.audio.path, plan.audio.duration);
-      const { steps, unsaid, afterVoice } = planFromScript(
+      const { steps, notes, unsaid, afterVoice } = planFromScript(
         part,
         words,
         plan.viewport,
         plan.tempos,
         plan.audio.duration,
       );
-      if (!steps.length) {
+      if (!steps.length && !notes.length) {
         setError(
           "Não encontrei ações entre colchetes no Na tela desta parte. Escreva, por exemplo: No “Olha aqui”, [clicar “Começar”].",
         );
@@ -339,11 +339,12 @@ export function GuidedSetup({
         )
       )
         return;
-      savePlan({ ...plan, steps });
+      const { editNotes: _old, ...rest } = plan;
+      savePlan({ ...rest, steps, ...(notes.length ? { editNotes: notes } : {}) });
       const left = (n: number, why: string) =>
         n ? `; ${n === 1 ? "1 ação ficou" : `${n} ações ficaram`} de fora ${why}` : "";
       setNotice(
-        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${left(unsaid, "porque a voz não diz a frase dela")}${left(afterVoice, "porque a voz termina antes")}. Use Verificar plano antes de gravar.`,
+        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${notes.length ? `, ${notes.length === 1 ? "1 trecho" : `${notes.length} trechos`} para a edição trocar (o robô fica parado e a importação deixa um lembrete)` : ""}${left(unsaid, "porque a voz não diz a frase dela")}${left(afterVoice, "porque a voz termina antes")}. Use Verificar plano antes de gravar.`,
       );
     } catch (e) {
       setError((e as Error).message);

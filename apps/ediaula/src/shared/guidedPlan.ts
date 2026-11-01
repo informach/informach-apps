@@ -102,6 +102,8 @@ export interface GuidedStepV2 {
   to?: GuidedDestination;
   /** type: the text */
   value?: string;
+  /** type: the field's text is replaced (all of it selected first), not added to. */
+  replace?: boolean;
   /** key: "Enter", "Ctrl+Shift+Z" */
   chord?: string;
   /** scroll: CSS pixels (lesson window) or wheel notches of 120 (screen), down and right positive. */
@@ -152,6 +154,11 @@ export interface GuidedPlanV2 {
   steps: GuidedStepV2[];
   tempos: GuidedTempos;
   audio?: { path: string; duration: number };
+  /**
+   * Stretches the edit replaces (a video of the game being played, a picture), from the script's
+   * "[na edição: …]": nothing is done there, and the take's import leaves a note at that second.
+   */
+  editNotes?: { at: number; text: string }[];
   updatedAt?: number;
 }
 
@@ -426,6 +433,7 @@ const stepSchema = z.looseObject({
     })
     .optional(),
   value: z.string().max(1000).optional(),
+  replace: z.boolean().optional(),
   chord: z.string().max(60).optional(),
   delta: z
     .object({
@@ -468,6 +476,10 @@ export const guidedPlanV2Schema = z.looseObject({
         .refine((v) => !v.includes("\0")),
       duration: z.number().finite().positive().max(14400),
     })
+    .optional(),
+  editNotes: z
+    .array(z.object({ at: seconds, text: z.string().min(1).max(500) }))
+    .max(300)
     .optional(),
   updatedAt: z.number().nonnegative().optional(),
 }) satisfies z.ZodType<GuidedPlanV2>;
@@ -675,7 +687,10 @@ function checkStep(step: GuidedStepV2, i: number, plan: GuidedPlanV2): void {
     throw new Error(`Marque o alvo da etapa ${n}.`);
   if (step.action === "key" && !parseChord(step.chord ?? ""))
     throw new Error(`Etapa ${n}: escolha uma tecla.`);
-  if (step.action === "type" && (!step.value || step.value.length > 1000))
+  if (
+    step.action === "type" &&
+    ((!step.value && !step.replace) || (step.value?.length ?? 0) > 1000)
+  )
     throw new Error(`Etapa ${n}: digite até 1000 caracteres.`);
   if (step.action === "drag") {
     const to = step.to;

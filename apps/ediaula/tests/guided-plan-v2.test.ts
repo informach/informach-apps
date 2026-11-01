@@ -606,6 +606,31 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
   );
 });
 
+test("replacing a field's text selects all of it before typing", async () => {
+  const sim = simulation(30);
+  const page = new FakePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 0,
+      speech: "Troque",
+      action: "type",
+      value: "0",
+      replace: true,
+      target: on("Nome"),
+    },
+  ]);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  assert.deepEqual(
+    page.events.map((e) => e.op).filter((op) => !op.startsWith("locate") && op !== "glide"),
+    ["left-1", "key-Ctrl+A", "text-0"],
+  );
+});
+
 test("a target the page moved before the click is followed, and the take goes on", async () => {
   // The reviewer's case: the video held at the click while the correction waited on the video.
   const sim = simulation(30);

@@ -375,6 +375,11 @@ export async function runGuided(
         );
         logAct(step.action === "type" ? "click" : step.action, at, clock.time(), s.index);
         if (step.action !== "type") break;
+        // Replacing what the field has: everything selected first, as a person would.
+        if (step.replace) {
+          const all = parseChord("Ctrl+A");
+          if (all) await driver.key(all);
+        }
         const typing = clock.time();
         let i = 0;
         for (const char of step.value ?? "") {

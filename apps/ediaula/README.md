@@ -1455,6 +1455,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   `passar o mouse "Texto"`, `rolar até "Texto"`, `rolar para baixo 400`, `esperar "Texto"` (ou `sumir`),
   `digitar "texto" em "Campo"`, `tecla Ctrl+Z` e `arrastar "A" para "B"` (o alvo pelo rótulo ou pelo texto).
   Qualquer outro vira uma **Ação da plataforma**. As etapas geradas são editáveis como as outras.
+  `[na edição: jogo pronto sendo jogado]` não é gesto: marca um trecho que a edição troca por
+  outra tela (um vídeo, uma imagem). O robô fica parado ali, e a importação do take deixa um
+  lembrete "Na edição: …" na linha do tempo, no segundo da frase.
+- **Downloads na janela da aula:** um material ou certificado baixado pela página é cancelado: a
+  página mostra a resposta dela e nenhuma janela de salvar segura a tomada.
 - **Ponte de gravação** (`shared/platformBridge.ts`): uma plataforma que quer as aulas gravadas assim expõe, no
   mundo da própria página:
 
@@ -1469,10 +1474,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   // { fazer: "apontar" | "clicar" | "clique duplo" | "clique direito", alvo, espera?, maximo? }
   // { fazer: "arrastar", alvo, para, maximo? }
   // { fazer: "rolar", alvo?, dy?, ate?, espera?, maximo? }
-  // { fazer: "digitar", alvo, texto }
+  // { fazer: "digitar", alvo, texto, substituir? } (substituir: seleciona o texto do campo antes)
   // { fazer: "tecla", tecla: "Ctrl+Z" }
   // { fazer: "esperar", alvo, estado?: "aparecer" | "sumir" | "ficar disponível", espera?, maximo? }
   // alvo: { seletor } | { papel, nome } | { rotulo } | { texto } | { bloco: { texto, area, abaixo? } },
+  // com "dentro" (um seletor) para procurar só dentro de um elemento, como um menu aberto,
   // com u e v de 0 a 1 para um ponto dentro dele (um jogo num canvas); bloco é um bloco de
   // programação pelo texto, na paleta ("flyout"), na área de trabalho ("workspace", "abaixo" dele)
   // ou nas categorias ("toolbox"); espera: "acelerar" (padrão) ou "cortar"; maximo em segundos.
