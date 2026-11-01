@@ -13,10 +13,13 @@ import {
   buildGuidedRun,
   GUIDED_LOG_FILE,
   GUIDED_RUN_FILE,
+  type GuidedLogLine,
+  PAGE_SOUND_TRACK_FILE,
   parseGuidedLog,
   synthesizeCursor,
 } from "../../shared/guidedCursor.ts";
 import { type HookEvent, parseHookLine } from "../../shared/helperProtocol.ts";
+import { soundAlignFilter, soundPieces } from "../../shared/pageSound.ts";
 import { isVoiceMode, type RecordingPiece, type RecordingResult } from "../../shared/recording.ts";
 import {
   drawingInTake,
@@ -206,6 +209,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
   let cursor: string | undefined;
   let cursorParts: string[] | undefined;
   let guidedRun: string | undefined;
+  let pageSound: string | undefined;
   const writeCursor = async (data: CursorData): Promise<void> => {
     if (screenParts) {
       cursorParts = [];
@@ -250,6 +254,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
         guidedRun = join(dir, GUIDED_RUN_FILE);
         await writeAtomic(guidedRun, JSON.stringify(run, null, 2));
       }
+      pageSound = await alignPageSound(dir, log, duration, warnings);
     }
   }
 
@@ -334,6 +339,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     ...(cameraParts.length ? { cameraParts } : {}),
     ...narration,
     ...(guidedRun ? { guidedRun } : {}),
+    ...(pageSound ? { pageSound } : {}),
     duration: round(duration),
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),
@@ -724,6 +730,60 @@ async function alignAudio(
       partial,
     ]);
     await rename(partial, out);
+  } finally {
+    await rm(partial, { force: true });
+    await rm(script, { force: true });
+  }
+}
+
+/**
+ * The page's sound of a guided take on the video's time (shared/pageSound.ts): what played while
+ * the video held is left out. Nothing when the take recorded no sound.
+ */
+async function alignPageSound(
+  dir: string,
+  log: readonly GuidedLogLine[],
+  duration: number,
+  warnings: string[],
+): Promise<string | undefined> {
+  const sound = log.find((line) => line.k === "sound");
+  if (sound?.k !== "sound") return undefined;
+  const source = join(dir, basename(sound.file));
+  const size = await stat(source).then(
+    (s) => s.size,
+    () => 0,
+  );
+  if (!size) return undefined;
+  const samples = log.flatMap((line) => (line.k === "sync" ? [{ w: line.w, t: line.t }] : []));
+  const out = join(dir, PAGE_SOUND_TRACK_FILE);
+  const partial = `${out}.partial.wav`;
+  const script = await writeFilterScript(
+    soundAlignFilter(soundPieces(samples, sound.w, duration), duration),
+  );
+  try {
+    await run(FFMPEG, [
+      "-y",
+      "-v",
+      "error",
+      "-i",
+      source,
+      await filterScriptOption(FFMPEG),
+      script,
+      "-map",
+      "[out]",
+      "-c:a",
+      "pcm_s16le",
+      "-f",
+      "wav",
+      partial,
+    ]);
+    await rename(partial, out);
+    return out;
+  } catch (error) {
+    warnings.push(
+      `O som da página não entrou no projeto: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return undefined;
   } finally {
     await rm(partial, { force: true });
     await rm(script, { force: true });

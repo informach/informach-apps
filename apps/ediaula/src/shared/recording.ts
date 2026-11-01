@@ -362,6 +362,8 @@ export interface RecordingResult {
   narrationFromVideo?: boolean;
   /** guided-run.json of a guided take in the lesson window (shared/guidedCursor.ts). */
   guidedRun?: string;
+  /** A guided take's page sound, on the take's time ("Som da página", shared/pageSound.ts). */
+  pageSound?: string;
   /** "Regravar e substituir": the screen media this take replaces (never written to disk). */
   replaceAsset?: string;
   duration: number;

@@ -58,6 +58,9 @@ export interface LayoutOptions {
   lapses?: readonly GuidedLapse[];
 }
 
+/** The track of a guided take's page sound. */
+export const PAGE_SOUND_TRACK = "Som da página";
+
 /** The track a "Voz e câmera" take puts the presenter on, above the lesson. */
 export const PRESENTER_TRACK = "Apresentador";
 
@@ -115,6 +118,9 @@ export function layoutRecording(
   const system = find(result.systemAudio);
   const systemParts = system ? [] : withAssets(result.systemParts);
   const narration = find(result.narration);
+  // A guided take's page sound follows the screen (it is on the take's time) and keeps the
+  // "Tela sem voz" of a take of the screen and the narration.
+  const pageSound = find(result.pageSound);
 
   let tracks = [...project.tracks];
   const clips = [...project.clips];
@@ -177,6 +183,7 @@ export function layoutRecording(
   const voiceTrack = mic || micParts.length ? audioTrack("Voz") : undefined;
   const systemTrack = system || systemParts.length ? audioTrack("Áudio do PC") : undefined;
   const narrationTrack = narration ? audioTrack("Narração guiada") : undefined;
+  const pageTrack = pageSound ? audioTrack(PAGE_SOUND_TRACK) : undefined;
 
   const add = (clip: Omit<Clip, "id">): Clip | undefined => {
     if (clip.duration < MIN) return undefined;
@@ -256,6 +263,18 @@ export function layoutRecording(
       if (b - from < MIN) return undefined;
       return add({ assetId: asset.id, trackId: track.id, ...place(from, b), in: from, volume });
     };
+    // The page's sound at normal speed only: a "Tela sem voz" goes in sped up without it.
+    if (pageSound && pageTrack)
+      for (const span of lapseSpans(lapses, from, Math.min(to, pageSound.duration || to))) {
+        if (span.speed) continue;
+        add({
+          assetId: pageSound.id,
+          trackId: pageTrack.id,
+          ...place(span.from, span.to),
+          in: span.from,
+          volume: 1,
+        });
+      }
     if (mic && voiceTrack) piece.voice = sound(mic, voiceTrack, 1);
     if (system && systemTrack) sound(system, systemTrack, 0.8);
     pieces.push(piece);
@@ -284,6 +303,8 @@ export function layoutRecording(
     ...(system ? [{ assetId: system.id, role: "system" as const }] : []),
     ...systemParts.map((c) => ({ assetId: c.asset.id, role: "system" as const })),
     ...(narration ? [{ assetId: narration.id, role: "narration" as const }] : []),
+    // Sound of the computer (the page's), never a voice: not transcribed nor cleaned.
+    ...(pageSound ? [{ assetId: pageSound.id, role: "system" as const }] : []),
   ].filter((r, i, all) => all.findIndex((o) => o.assetId === r.assetId) === i);
 
   return { tracks, clips, placed, pieces, roles, duration, at: start };

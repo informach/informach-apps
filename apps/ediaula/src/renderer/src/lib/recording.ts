@@ -464,6 +464,7 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
     ...micFiles,
     ...systemFiles,
     ...(r.narration ? [r.narration] : []),
+    ...(r.pageSound ? [r.pageSound] : []),
   ];
   const assets = await importMedia(wanted);
   const byPath = (path: string | undefined): Asset | undefined =>

@@ -10,7 +10,7 @@ import {
   captureEncoderLabel,
 } from "../shared/encoderChoice.ts";
 import { FrameClock } from "../shared/frameClock.ts";
-import { GUIDED_LOG_FILE, type GuidedLogLine } from "../shared/guidedCursor.ts";
+import { GUIDED_LOG_FILE, type GuidedLogLine, PAGE_SOUND_FILE } from "../shared/guidedCursor.ts";
 import { takeNotices, VERIFY_SLACK } from "../shared/guidedLapse.ts";
 import {
   type BrokenStep,
@@ -35,6 +35,7 @@ import type { RecordingResult } from "../shared/recording.ts";
 import { CdpDriver, WebDriver } from "./guidedCdp.ts";
 import { guardLessonWindow, lessonSession } from "./guidedSession.ts";
 import { qpc } from "./nativeHelper.ts";
+import { PageSoundCapture } from "./pageSound.ts";
 import { finalizeTake } from "./recording/finalize.ts";
 import { SessionJournal } from "./recording/journal.ts";
 
@@ -326,6 +327,9 @@ export class GuidedTake {
   private frameBytes: number;
   private writer: ReturnType<typeof setInterval> | undefined;
   private previewer: ReturnType<typeof setInterval> | undefined;
+  /** The page's sound ("Som da página"), and the samples that put it on the video's time. */
+  private sound: PageSoundCapture | null = null;
+  private syncer: ReturnType<typeof setInterval> | undefined;
   private encoderHeld = false;
   /** No more frames: the run ended or failed, or the take is stopping. */
   private halted = false;
@@ -544,7 +548,21 @@ export class GuidedTake {
       paintAfter: () => this.nextPaint(),
     });
     await driver.place(start);
+    // The page's sound starts before the video's clock: what comes before the first frame is
+    // left out when the take is finished (shared/pageSound.ts).
+    this.sound = await PageSoundCapture.start(
+      opened.window.webContents,
+      join(dir, PAGE_SOUND_FILE),
+    );
     clock.start();
+    const origin = performance.now();
+    const wall = (at: number) => Math.round(at - origin) / 1000;
+    if (this.sound)
+      this.log?.write({ k: "sound", file: PAGE_SOUND_FILE, w: wall(this.sound.startedAt) }, true);
+    this.syncer = setInterval(
+      () => this.log?.write({ k: "sync", w: wall(performance.now()), t: clock.time() }),
+      500,
+    );
     this.journal.write({ k: "first", src: "screen", part: 0, qpc: qpc(), file: "tela-0.mp4" });
     this.phase = "recording";
     this.writer = setInterval(() => this.writeFrames(), 4);
@@ -676,6 +694,11 @@ export class GuidedTake {
   /** Stops the run, the writer and the encoder; true when frames were written. */
   private async close(keep: boolean): Promise<boolean> {
     this.controller.abort();
+    clearInterval(this.syncer);
+    // The sound before the page: closing the window would cut its last piece.
+    const sound = this.sound;
+    this.sound = null;
+    await sound?.stop();
     // The page goes first: a load or a command still waiting on it ends with it.
     this.cdp?.detach();
     if (this.window && !this.window.isDestroyed()) this.window.destroy();

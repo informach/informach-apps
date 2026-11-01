@@ -306,6 +306,40 @@ test("a guided take's stretches past the narration go in sped up, the narration 
   assert.deepEqual(on(layout.clips, track), [["voice", 2, 0, 7]]);
 });
 
+test("the page's sound follows the screen, and is left out where it goes in sped up", () => {
+  const lapses = [{ from: 4, to: 9, narration: 2, step: 1 }];
+  const take = asset("guided", "C:/take/tela-0.mp4", "video", 12);
+  const page = asset("page", "C:/take/som-da-pagina.wav", "audio", 12);
+  const layout = layoutRecording(
+    project(),
+    [take, assets[4], page],
+    {
+      version: 2,
+      dir: "C:/take",
+      screen: "C:/take/tela-0.mp4",
+      narration: "C:/take/narracao.wav",
+      narrationOffset: 2,
+      pageSound: "C:/take/som-da-pagina.wav",
+      duration: 12,
+      pauses: [],
+      markers: [],
+    },
+    undefined,
+    { lapses },
+  );
+  // The page's sound does not take the "Tela sem voz" away.
+  assert.equal(layout.duration, 9);
+  const track = layout.tracks.find((t) => t.name === "Som da página");
+  assert.deepEqual(on(layout.clips, track), [
+    ["page", 0, 0, 4],
+    ["page", 6, 9, 3],
+  ]);
+  assert.deepEqual(
+    layout.roles.find((r) => r.assetId === "page"),
+    { assetId: "page", role: "system" },
+  );
+});
+
 test("a take with its own sound never speeds up: the lapses are only for the screen alone", () => {
   const layout = layoutRecording(project(), assets, result, undefined, {
     lapses: [{ from: 1, to: 2.5, narration: 1 }],

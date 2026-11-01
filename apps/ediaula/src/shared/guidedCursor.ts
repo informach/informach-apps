@@ -30,6 +30,9 @@ import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 
 export const GUIDED_LOG_FILE = "guided-log.jsonl";
 export const GUIDED_RUN_FILE = "guided-run.json";
+/** The page's sound as recorded (main/pageSound.ts), and on the video's time once finished. */
+export const PAGE_SOUND_FILE = "som-da-pagina.webm";
+export const PAGE_SOUND_TRACK_FILE = "som-da-pagina.wav";
 
 export const GUIDED_INTERACTIONS = [
   "click",
@@ -190,6 +193,10 @@ export const guidedLogLineSchema = z.discriminatedUnion("k", [
     step: z.int().nonnegative(),
   }),
   z.object({ k: z.literal("end"), t, status: z.enum(["done", "failed", "stopped"]) }),
+  /** The page's sound started at wall second `w` of the video's clock (before it: negative). */
+  z.object({ k: z.literal("sound"), file: z.string().max(200), w: z.number().finite() }),
+  /** Both clocks at one moment, every half second: wall `w` and video `t` (shared/pageSound.ts). */
+  z.object({ k: z.literal("sync"), w: z.number().finite(), t }),
 ]);
 export type GuidedLogLine = z.infer<typeof guidedLogLineSchema>;
 export type GuidedLogBegin = Extract<GuidedLogLine, { k: "begin" }>;
