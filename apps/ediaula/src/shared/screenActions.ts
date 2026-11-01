@@ -150,9 +150,9 @@ export const followGap = (tempos: GuidedTempos): number =>
   tempos.move + Math.max(tempos.dwell, tempos.anticipation) + 0.3;
 
 /**
- * The plan the script's brackets make with this voice: every bracket a step on the second its
- * phrase is said (a plain direction: when its line starts), the ones after it in the same piece
- * `followGap` later each. Brackets left out are counted: those whose phrase (or line) the voice
+ * The plan the script's brackets make with this voice: the hand reaches the first bracket of a
+ * phrase when the phrase starts and acts when the voice finishes the words quoted (a plain
+ * direction: when its line starts), the ones after it in the same piece `followGap` later each. Brackets left out are counted: those whose phrase (or line) the voice
  * does not say, and those that would fall after the voice ends.
  */
 export function planFromScript(
@@ -201,21 +201,27 @@ export function planFromScript(
         unsaid += actions.length;
         continue;
       }
-      let at = time.said;
+      // The hand is there when the phrase starts; the first action waits for the voice to finish
+      // the words quoted ("Agora clique em Próxima parte": the click after "parte").
+      const phrase = time.said;
+      let at = Math.max(phrase, time.saidEnd ?? phrase);
+      let first = true;
       for (const [j, text] of actions.entries()) {
         if (at >= duration) {
           afterVoice += actions.length - j;
           break;
         }
         const hundredth = Math.round(at * 100) / 100;
-        // The robot stays still there; the edit gets a note.
+        // The robot stays still there; the edit gets a note, where the phrase starts.
         const note = editNoteOf(text);
         if (note) {
-          notes.push({ at: hundredth, text: note });
+          notes.push({ at: Math.round(phrase * 100) / 100, text: note });
           continue;
         }
         const step = actionStep(text, `roteiro-${index + 1}-${k + 1}-${j + 1}`, viewport);
-        steps.push({ ...step, at: hundredth, speechAt: hundredth });
+        const speechAt = first ? Math.round(phrase * 100) / 100 : hundredth;
+        first = false;
+        steps.push({ ...step, at: hundredth, speechAt });
         // The next one when the hand can be there (a step with nothing to reach comes sooner).
         at += needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1;
       }

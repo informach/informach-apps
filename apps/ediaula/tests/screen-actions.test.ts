@@ -50,7 +50,7 @@ test("os verbos do EdiAula viram etapas; os outros vão para a plataforma", () =
   }
 });
 
-test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
+test("a mão chega quando a frase citada começa e age quando a voz termina de dizê-la", () => {
   const lines = ["Vamos começar. Olha aqui, o jogo pronto.", "Agora repare no arbusto."];
   const notes = [
     { before: 0, text: 'No "Olha aqui", [ampliar jogo] e [achar arbusto].' },
@@ -60,12 +60,14 @@ test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
   const spoken = lines.join(" ").split(/\s+/);
   const words = spoken.map((text, k) => ({ text, start: 1 + k * 0.5, end: 1.4 + k * 0.5 }));
   const said = (word: string) => words.find((w) => w.text.startsWith(word))?.start ?? -1;
+  const ends = (word: string) => words.find((w) => w.text.startsWith(word))?.end ?? -1;
   const { steps, unsaid } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
   assert.deepEqual(
     steps.map((s) => [s.action === "platform" ? s.platform : s.action, s.at]),
     [
-      ["ampliar jogo", said("Olha")],
-      ["achar arbusto", Math.round((said("Olha") + followGap(DEFAULT_TEMPOS)) * 100) / 100],
+      // "Olha aqui": the action after "aqui", not on "Olha".
+      ["ampliar jogo", ends("aqui")],
+      ["achar arbusto", Math.round((ends("aqui") + followGap(DEFAULT_TEMPOS)) * 100) / 100],
       // A plain direction: when its line starts.
       ["voltar à aula", said("Agora")],
       // The quote inside the bracket is a button, not a phrase: the one outside is never said,
@@ -73,12 +75,15 @@ test("cada colchete cai no segundo em que a voz diz a frase citada", () => {
       ["click", said("Agora")],
     ],
   );
-  for (const s of steps) assert.equal(s.speechAt, s.at);
+  // The hand is there when the phrase starts; the others of the phrase come after the first.
+  assert.equal(steps[0].speechAt, said("Olha"));
+  for (const s of steps.slice(1)) assert.equal(s.speechAt, s.at);
   assert.equal(unsaid, 0);
   // Past the end of the voice nothing is placed, and the teacher is told how many were left out.
+  // (The second of "Olha aqui" comes after the hand's time from the end of the phrase: past it.)
   const short = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, said("Agora"));
-  assert.equal(short.steps.length, 2);
-  assert.equal(short.afterVoice, 2);
+  assert.equal(short.steps.length, 1);
+  assert.equal(short.afterVoice, 3);
   assert.equal(short.unsaid, 0);
 });
 

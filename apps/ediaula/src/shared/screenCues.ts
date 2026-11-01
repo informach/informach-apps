@@ -22,6 +22,8 @@ export interface TimedCue {
   cue?: number;
   /** When its words are said (or its line starts): `t` without the lead. */
   said?: number;
+  /** When the voice finishes the words it quotes (absent: it quotes none, or they were not found). */
+  saidEnd?: number;
 }
 
 /** How early a cue shows before its words are heard. */
@@ -55,8 +57,10 @@ export function screenCueTimes(
     }
     let t = t0;
     let saidAt = at;
+    let saidEnd: number | undefined;
     let from = Math.max(0, at - 1);
     for (const [k, cue] of item.cues.entries()) {
+      saidEnd = undefined;
       if (cue.anchor) {
         const found = findPhrase(
           words.map((w) => ({ text: w.text, start: w.start, end: w.end ?? w.start })),
@@ -66,10 +70,18 @@ export function screenCueTimes(
         if (found) {
           t = Math.max(0, found.start - LEAD);
           saidAt = found.start;
+          saidEnd = found.end;
           from = found.start + 0.01;
         }
       }
-      out.push({ t, text: cue.text, item: index, cue: k, said: saidAt });
+      out.push({
+        t,
+        text: cue.text,
+        item: index,
+        cue: k,
+        said: saidAt,
+        ...(saidEnd !== undefined ? { saidEnd } : {}),
+      });
     }
   });
   return out;
