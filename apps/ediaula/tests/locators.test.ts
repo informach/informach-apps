@@ -462,3 +462,60 @@ test("o fim de um arrasto pode estar sob a paleta que o próprio arrasto fecha",
   assert.equal(rankCandidates(locator, under, view).ok, false);
   assert.equal(rankCandidates(locator, under, view, null, true).ok, true);
 });
+
+test("a category inside another is a category too, named without its icon", () => {
+  const row = (y: number, text: string) => ({
+    tag: "div",
+    cls: ["blocklyTreeRow"],
+    rect: { x: 0, y, width: 160, height: 40 },
+    children: [{ tag: "span", cls: ["blocklyToolboxCategoryLabel"], text }],
+  });
+  const nested: BlocklyNode[] = [
+    {
+      tag: "div",
+      cls: ["blocklyToolboxDiv"],
+      children: [
+        {
+          tag: "div",
+          cls: ["blocklyToolboxCategory"],
+          rect: { x: 0, y: 0, width: 160, height: 120 },
+          children: [
+            row(0, "Programação"),
+            {
+              tag: "div",
+              cls: ["blocklyToolboxCategoryGroup"],
+              children: [
+                {
+                  tag: "div",
+                  cls: ["blocklyToolboxCategory"],
+                  rect: { x: 0, y: 40, width: 160, height: 40 },
+                  children: [row(40, "🏷️ Variáveis")],
+                },
+                {
+                  tag: "div",
+                  cls: ["blocklyToolboxCategory"],
+                  rect: { x: 0, y: 80, width: 160, height: 40 },
+                  children: [row(80, "❓ Lógica & Se")],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ] as BlocklyNode[];
+  const blocks = blocklyBlocks(nested);
+  assert.deepEqual(
+    blocks.filter((b) => b.area === "toolbox").map((b) => b.label),
+    ["Programação", "Variáveis", "Lógica & Se"],
+  );
+  const [variaveis] = blocklyMatches(blocks, { by: "blockly", text: "Variáveis", area: "toolbox" });
+  assert.equal(variaveis?.rect.y, 40);
+  // The open category is grabbed on its own row, never on the ones inside it.
+  const [programacao] = blocklyMatches(blocks, {
+    by: "blockly",
+    text: "Programação",
+    area: "toolbox",
+  });
+  assert.deepEqual(programacao?.grab, { x: 80, y: 20 });
+});

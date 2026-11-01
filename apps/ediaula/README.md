@@ -1589,11 +1589,13 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
       **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080**,
       **Quadros 30**.
    3. **Endereço da aula:** o da aula no palco, com `?parte=N` (`…/aulas/<curso>/<aula>?parte=3`); a Parte 1
-      sem ele. Na primeira vez, **Abrir janela da aula** e entre com a conta da equipe; no palco, escolha o
-      curso e a aula para pegar o endereço. O login fica no perfil dessa janela.
+      sem ele. Uma parte que vem depois do envio do projeto (a do Compartilhar, por exemplo) leva também
+      `&enviado=1`, e o roteiro dela avisa. Na primeira vez, **Abrir janela da aula** e entre com a conta da
+      equipe; no palco, escolha o curso e a aula para pegar o endereço. O login fica no perfil dessa janela.
    4. **Importar narração** com o áudio da parte (é transcrito sozinho, em segundos com a placa de vídeo).
-   5. **Gerar plano do roteiro.** O aviso diz quantas etapas saíram e se alguma ficou de fora (a voz não diz a
-      frase dela, ou a voz termina antes): corrija o **Na tela** e gere de novo.
+   5. **Gerar plano do roteiro.** O aviso diz quantas etapas saíram, se alguma ficou de fora (a voz não diz a
+      frase dela) e qual citação não foi achada na voz (o gesto dela vem logo depois do anterior): corrija o
+      **Na tela** e gere de novo. O que passa do fim da voz não sai: entra acelerado logo depois dela.
    6. **Verificar plano.** Precisa terminar com "Todas as etapas funcionaram na página". Os trechos que vão
       passar do tempo da fala entram acelerados (tela sem voz), e está certo assim.
    7. **Gravar** (ou **F9**). O gravador fecha sozinho no fim, e o take entra no projeto depois do anterior,

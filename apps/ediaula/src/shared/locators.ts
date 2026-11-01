@@ -145,6 +145,9 @@ export const locatorSchema = z.object({
 /** Text as the page shows it: one space between words, trimmed. */
 export const normalizeText = (value: string): string =>
   value.normalize("NFC").replace(/\s+/g, " ").trim();
+/** A label without the pictographic icons it may carry (emoji and their joiners). */
+const withoutIcon = (value: string): string =>
+  value.replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, "");
 const sameText = (a: string, b: string): boolean =>
   normalizeText(a).toLocaleLowerCase("pt-BR") === normalizeText(b).toLocaleLowerCase("pt-BR");
 
@@ -629,18 +632,23 @@ export function blocklyBlocks(roots: readonly BlocklyNode[]): BlocklyBlock[] {
         node,
         (n) => has(n, "blocklyTreeLabel") || has(n, "blocklyToolboxCategoryLabel"),
       );
-      const text = normalizeText(labelNode?.text ?? node.text ?? "");
-      if (text && node.rect && !out.some((b) => b.area === "toolbox" && b.label === text))
+      // A category is named without the icon it may start with ("🏷️ Variáveis" is "Variáveis").
+      const text = normalizeText(withoutIcon(labelNode?.text ?? node.text ?? ""));
+      // Its own row: an open category may also hold the rows of the ones inside it.
+      const rect =
+        (has(node, "blocklyTreeRow") ? node : findNode(node, (n) => has(n, "blocklyTreeRow")))
+          ?.rect ?? node.rect;
+      if (text && rect && !out.some((b) => b.area === "toolbox" && b.label === text))
         out.push({
           key: `toolbox:${text}`,
           label: text,
           text,
           area: "toolbox",
-          rect: node.rect,
-          grab: center(node.rect),
+          rect,
+          grab: center(rect),
           disabled: false,
         });
-      return;
+      // The categories inside it (Programação › Variáveis) are categories too.
     }
     for (const child of node.children ?? []) visit(child, here);
   };

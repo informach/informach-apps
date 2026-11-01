@@ -19,6 +19,8 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   if (globalThis.__ediaulaGuided) return true;
   const norm = (s) => String(s == null ? "" : s).normalize("NFC").replace(/\s+/g, " ").trim();
   const low = (s) => norm(s).toLocaleLowerCase("pt-BR");
+  // A toolbox category is named without its icon, as shared/locators.ts names it.
+  const categoryName = (s) => norm(String(s == null ? "" : s).replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, ""));
   const CLICKABLE =
     'button,a[href],input,select,textarea,summary,label,[role="button"],[role="link"],[role="tab"],' +
     '[role="menuitem"],[role="checkbox"],[role="radio"],[role="option"],[role="switch"],' +
@@ -188,7 +190,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       const category = el.closest(".blocklyToolboxCategory,.blocklyTreeRow");
       if (category) {
         const label = category.querySelector(".blocklyTreeLabel,.blocklyToolboxCategoryLabel");
-        return "toolbox:" + norm((label || category).textContent);
+        return "toolbox:" + categoryName((label || category).textContent);
       }
       return null;
     });
@@ -265,7 +267,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       blockly = { key: el.getAttribute("data-id"), area: svg && svg.matches(".blocklyFlyout") ? "flyout" : "workspace" };
     } else if (el.matches(".blocklyToolboxCategory,.blocklyTreeRow")) {
       const label = el.querySelector(".blocklyTreeLabel,.blocklyToolboxCategoryLabel");
-      blockly = { key: "toolbox:" + norm((label || el).textContent), area: "toolbox" };
+      blockly = { key: "toolbox:" + categoryName((label || el).textContent), area: "toolbox" };
     }
     const r = rectOf(el);
     const p = point || { x: r.x + r.width / 2, y: r.y + r.height / 2 };
