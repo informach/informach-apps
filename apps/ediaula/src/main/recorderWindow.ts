@@ -312,6 +312,7 @@ function takeFiles(result: RecordingResult): string[] {
     result.systemAudio,
     result.narration,
     result.guidedRun,
+    result.pageSound,
     ...(result.screenParts ?? []).flatMap((p) => [p.path, p.cursor]),
     ...(result.cameraParts ?? []).map((p) => p.path),
     ...(result.microphoneParts ?? []).map((p) => p.path),

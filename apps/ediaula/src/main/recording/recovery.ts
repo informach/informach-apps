@@ -72,6 +72,7 @@ export function rebaseResult(result: RecordingResult, dir: string): RecordingRes
     "systemAudio",
     "narration",
     "guidedRun",
+    "pageSound",
   ] as const) {
     const value = maybe(result[key]);
     if (value) out[key] = value;
