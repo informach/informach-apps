@@ -121,6 +121,11 @@ export interface GuidedStepV2 {
    * the script; its recording bridge answers with the gestures (shared/platformBridge.ts).
    */
   platform?: string;
+  /**
+   * point: the platform chose where the hand rests (beside a block, not on it, where the block's
+   * help would show); the hand is not moved under the target as for reading.
+   */
+  exact?: boolean;
 }
 
 export interface GuidedTempos {

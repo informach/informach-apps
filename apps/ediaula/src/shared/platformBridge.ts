@@ -67,6 +67,8 @@ export const passoSchema = z.discriminatedUnion("fazer", [
     alvo: alvoSchema,
     espera,
     maximo,
+    /** apontar: o ponto é onde a mão descansa (ao lado do bloco, não em cima dele). */
+    exato: z.boolean().optional(),
   }),
   z.object({ fazer: z.literal("arrastar"), alvo: alvoSchema, para: alvoSchema, maximo }),
   z.object({
@@ -196,6 +198,7 @@ function gestureStep(passo: Passo, id: string, viewport: GuidedViewport): Guided
                 ? "doubleClick"
                 : "rightClick",
         target: at(passo.alvo),
+        ...(passo.fazer === "apontar" && passo.exato ? { exact: true } : {}),
         ...wait,
         ...timeout,
       };

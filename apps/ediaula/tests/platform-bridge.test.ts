@@ -97,6 +97,22 @@ test("continuar: a página decide depois dos gestos anteriores", () => {
   );
 });
 
+test("apontar exato: a mão descansa onde a página disse (ao lado do bloco)", () => {
+  const [exato, comum] = bridgeSteps(
+    {
+      valor: [
+        { fazer: "apontar", alvo: { seletor: "svg" }, exato: true },
+        { fazer: "apontar", alvo: { texto: "Achados" } },
+      ],
+    },
+    "apontar bloco",
+    "a",
+    viewport,
+  );
+  assert.equal(exato.exact, true);
+  assert.equal(comum.exact, undefined);
+});
+
 test("sem ponte ainda: a página que carrega é consultada de novo", () => {
   assert.equal(bridgeAbsent({ semPonte: true }), true);
   assert.equal(bridgeAbsent({ valor: [] }), false);

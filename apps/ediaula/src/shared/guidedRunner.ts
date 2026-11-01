@@ -307,7 +307,9 @@ export async function runGuided(
         settle(s.moveAt, s.index);
       }
       clock.hold(s.moveAt, "locate");
-      const target = await driver.locate(step.target, "approach", timeout, step.action);
+      // Showing, the hand rests under the target; where the platform chose the spot, right there.
+      const purpose = step.exact ? undefined : step.action;
+      const target = await driver.locate(step.target, "approach", timeout, purpose);
       const from = await driver.sample();
       clock.release();
       await clock.wait(s.moveAt);
@@ -341,7 +343,7 @@ export async function runGuided(
       );
       // Looked up again just before the action; on the page the video waits for the answer.
       clock.hold(actAt, "locate");
-      const final = await driver.locate(step.target, "act", timeout, step.action);
+      const final = await driver.locate(step.target, "act", timeout, purpose);
       await clock.wait(0);
       const shifted = moved(final, target);
       if (shifted && driver.space !== "page")
