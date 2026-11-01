@@ -78,6 +78,12 @@ Crons `cron-bora-treinar-billing` e `cron-bora-treinar-lembretes`: `APP_ORIGIN=h
 8. [ ] Bastidores: em 31/10/2026 o Bastidores usa o papel principal (sem `READONLY_DATABASE_URL`), então não há GRANT a rodar. Se o papel `bastidores_leitura` for criado, rodar os `GRANT` do schema `bora_treinar` (`apps/admin/PRODUCAO.md`); conferir a aba Bora Treinar em Produtos e as rotinas `billing` e `lembretes` em Operação.
 9. [ ] Smoke: cadastro com OTP real (entrega `delivered`), primeiro treino grátis com contagem manual e pela câmera, compra real Individual, Portal, cancelamento.
 
+### Deploys seguintes
+
+O serviço acompanha a `main` (`watchPatterns` em `.railway/railway.ts`); cada push que toca o app ou os packages dele gera um deploy.
+
+- **01/11/2026:** o deploy automático do `7d51922d` (`9c2d3689`) falhou no Railway antes do build, com `failed to fetch snapshot` (a plataforma não baixou o código), sem efeito na produção, que seguiu no `078491c1`. Refeito com `railway redeploy --service "@informach/bora-treinar" --from-source`: deployment `84fdd340-223e-437f-a02b-88214e1a1d59`, commit `ccc8c27b`, SUCCESS. Pelo domínio: `/api/ready` 200, `/api/health` com esse commit, `/` e `/entrar` 200, `/dev/playground` 404 e o modelo de pose servido (9,4 MB). Entraram o player no celular em pé, a música de fundo, o boneco em repouso na pausa e a mensagem da câmera sem HTTPS; sem migração.
+
 O app não entra em `APP_DOMAINS` dos crons per-app: como a Missão, tem cron próprio de cobrança (`/api/jobs/billing`, com lease e cursor no Redis: reconciliação e inadimplência).
 
 ## E-mail, jobs e observabilidade
