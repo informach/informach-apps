@@ -534,7 +534,7 @@ export function GuidedSetup({
               >
                 Abrir janela da aula
               </button>
-              <label title="A aula ampliada é desenhada como numa tela de 1280 × 720 e gravada em 1920 × 1080: nítida e com letras grandes o bastante para ler num vídeo pequeno.">
+              <label title="A página é desenhada como numa tela de 1920 × 1080. Em 3840 × 2160 ela é gravada com o dobro de pixels, para um zoom da edição continuar nítido; é pesado, e o vídeo segura mais.">
                 Tamanho{" "}
                 <select
                   aria-label="Tamanho da captura"

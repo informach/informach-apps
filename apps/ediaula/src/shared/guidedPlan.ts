@@ -156,9 +156,8 @@ export interface GuidedPlanV2 {
   /** Size the lesson page is laid out at, in CSS pixels (web). */
   viewport: GuidedViewport;
   /**
-   * Video pixels per CSS pixel (web): 1.5 lays the lesson out as on a 1280 × 720 screen and
-   * records it at 1920 × 1080, sharp and big enough to read when the video is watched small.
-   * Absent: 1, the video at the page's size.
+   * Video pixels per CSS pixel (web): 2 records the page laid out at 1920 × 1080 with twice the
+   * pixels (3840 × 2160), so its text stays sharp. Absent: 1, the video at the page's size.
    */
   scale?: CaptureScale;
   fps?: 30 | 60;
@@ -272,16 +271,20 @@ export const CAPTURE_SIZES: readonly {
   scale: CaptureScale;
   label: string;
 }[] = [
-  {
-    viewport: { width: 1280, height: 720 },
-    scale: 1.5,
-    label: "1920 × 1080, aula ampliada (como numa tela de 1280 × 720)",
-  },
   { viewport: { width: 1920, height: 1080 }, scale: 1, label: "1920 × 1080" },
+  {
+    viewport: { width: 1920, height: 1080 },
+    scale: 2,
+    label: "3840 × 2160, para zoom na edição (pesado: o vídeo segura mais)",
+  },
   { viewport: { width: 1280, height: 720 }, scale: 1, label: "1280 × 720" },
 ];
 
-/** The new plans in the lesson window: the lesson ampliada, as on a laptop's screen. */
+/**
+ * The new plans in the lesson window: the page as on a 1920 × 1080 screen, at its pixels. Twice
+ * the pixels keeps a zoom of the edit sharp, but a 4K frame often outruns the encoder here (the
+ * video holds while the page goes on), so it is a choice, not the default.
+ */
 export const DEFAULT_CAPTURE = CAPTURE_SIZES[0];
 
 /** Pixels of the video a take of `plan` records (its page's size times its scale). */
@@ -625,7 +628,7 @@ export function newPlan(id: string, name: string, mode: "web" | "screen" = "web"
     id,
     name,
     mode,
-    // In the lesson window, the lesson ampliada; on the screen, its pixels.
+    // In the lesson window, the default page size and scale; on the screen, its pixels.
     ...(mode === "web"
       ? { viewport: { ...DEFAULT_CAPTURE.viewport }, scale: DEFAULT_CAPTURE.scale }
       : { viewport: { ...DEFAULT_VIEWPORT } }),

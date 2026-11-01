@@ -1545,10 +1545,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   do ponto dentro de um alvo grande (o número de um jogo). Uma plataforma pode escolher o ponto exato (`exato`),
   como o palco do Sistema Zero faz com os blocos: a mão para ao lado do bloco, no fundo da área, porque parada
   em cima dele o editor mostra a dica do bloco por cima da aula.
-- **Aula ampliada:** em **Tamanho**, "1920 × 1080, aula ampliada" (o padrão dos planos novos) desenha a aula
-  como numa tela de 1280 × 720 e grava em 1920 × 1080, com 1,5 pixel do vídeo por ponto da página: as letras
-  dos blocos ficam grandes o bastante para ler num vídeo pequeno, sem perder nitidez. A automação trabalha em
-  pixels da página; o vídeo e o cursor desenhado, em pixels do vídeo.
+- **Tamanho e definição:** a página é desenhada como numa tela de 1920 × 1080 (o padrão) e gravada nesse
+  tamanho. "3840 × 2160, para zoom na edição" grava a mesma página com o dobro de pixels (escala 2), para um
+  zoom nos blocos continuar nítido; numa máquina sem folga o codificador não acompanha um quadro 4K e o vídeo
+  segura mais. A automação trabalha em pixels da página; o vídeo e o cursor desenhado, em pixels do vídeo.
 - **Janela fora da tela:** a gravação acontece numa janela fora da tela, no tamanho do plano. O mouse que cai
   num quadro desenhado por outro processo (um jogo num iframe isolado, um vídeo de outro site) vai pela sessão
   daquele quadro, com as coordenadas de dentro dele. A tela cheia de um livro ou vídeo ocupa o tamanho do plano.
@@ -1584,8 +1584,8 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
 5. **Para cada parte**, nesta ordem:
    1. No painel **Roteiro**, escolha a **Seção N** (é dela que o gravador tira as falas e o **Na tela**).
    2. **Gravar tela** › **Modo de gravação: Guiado por plano**. **Criar um plano** (ou **Novo plano**),
-      **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080, aula
-      ampliada**, **Quadros 30**.
+      **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080**,
+      **Quadros 30**.
    3. **Endereço da aula:** o da aula no palco, com `?parte=N` (`…/aulas/<curso>/<aula>?parte=3`); a Parte 1
       sem ele. Na primeira vez, **Abrir janela da aula** e entre com a conta da equipe; no palco, escolha o
       curso e a aula para pegar o endereço. O login fica no perfil dessa janela.

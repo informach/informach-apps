@@ -3,12 +3,13 @@ import { test } from "node:test";
 import { type GuidedLogLine, videoLog } from "../src/shared/guidedCursor.ts";
 import { DEFAULT_CAPTURE, newPlan, videoSize } from "../src/shared/guidedPlan.ts";
 
-test("aula ampliada: a página como numa tela de 1280 × 720, o vídeo em 1920 × 1080", () => {
+test("a página em 1920 × 1080; com o dobro de definição, o vídeo em 3840 × 2160", () => {
   const plan = newPlan("p", "Parte 1");
-  assert.deepEqual(plan.viewport, { width: 1280, height: 720 });
-  assert.equal(plan.scale, 1.5);
+  assert.deepEqual(plan.viewport, { width: 1920, height: 1080 });
+  assert.equal(plan.scale, 1);
   assert.deepEqual(videoSize(plan), { width: 1920, height: 1080 });
-  assert.equal(DEFAULT_CAPTURE.scale, 1.5);
+  assert.equal(DEFAULT_CAPTURE.scale, 1);
+  assert.deepEqual(videoSize({ ...plan, scale: 2 }), { width: 3840, height: 2160 });
   // A plan of before, without a scale, records at the page's size.
   assert.deepEqual(videoSize({ viewport: { width: 1920, height: 1080 } }), {
     width: 1920,
