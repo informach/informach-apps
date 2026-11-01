@@ -161,17 +161,41 @@ async function finishControllerCleanup(page: Page) {
     // Cleanup only: the shipped finish operation destroys this controller.
   }
 }
+/** The selection shows only its toolbar: the first arrow creates the region at the bitmap
+ * origin, the toolbar sets its size in output pixels and the arrows move it one bitmap pixel
+ * (Shift: ten) to the requested global DIP position on `display`. */
 async function selectRectangle(
   page: Page,
   rect: { x: number; y: number; width: number; height: number },
   mode: string,
+  display: { x: number; y: number; width: number },
 ) {
   await page.waitForLoadState("load");
-  await click(page, "#create-region");
-  for (const field of ["width", "height", "x", "y"] as const) {
+  await page.waitForFunction(() => {
+    const image = document.querySelector("#desktop");
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
+  });
+  const bitmapPerDip =
+    (await page
+      .locator("#desktop")
+      .evaluate((image) => (image instanceof HTMLImageElement ? image.naturalWidth : 0))) /
+    display.width;
+  await page.locator("#surface").focus();
+  await page.keyboard.press("ArrowRight");
+  for (const field of ["width", "height"] as const) {
     await page.locator(`#${field}`).fill(String(rect[field]));
     await page.locator(`#${field}`).press("Tab");
     assert.equal(await page.locator(`#${field}`).inputValue(), String(rect[field]));
+  }
+  await page.locator("#surface").focus();
+  for (const [offset, key] of [
+    [rect.x - display.x, "ArrowRight"],
+    [rect.y - display.y, "ArrowDown"],
+  ] as const) {
+    const steps = Math.round(offset * bitmapPerDip);
+    for (let step = 0; step < Math.floor(steps / 10); step++)
+      await page.keyboard.press(`Shift+${key}`);
+    for (let step = 0; step < steps % 10; step++) await page.keyboard.press(key);
   }
   await click(page, `[data-mode="${mode}"]`);
 }
@@ -476,8 +500,9 @@ export async function verifyLicensedCapture(
     const recordingReady = waitForCapturePage(application, "/recording/control.html");
     await selectRectangle(
       recordingSelection.page,
-      { x: 20, y: 20, width: 64, height: 48 },
+      { x: primary.bounds.x + 20, y: primary.bounds.y + 20, width: 64, height: 48 },
       "video",
+      primary.bounds,
     );
     await click(recordingSelection.page, "#record-start");
     await recordingSelection.finish();
@@ -612,6 +637,7 @@ export async function verifyLicensedCapture(
         selection,
         { x: primary.bounds.x + 20, y: primary.bounds.y + 20, width: 64, height: 48 },
         "image",
+        primary.bounds,
       );
       const region = await newest(before);
       await pixels(region.dataUrl, [{ x: 10, y: 10, bgra: [56, 34, 12, 255] }], {
@@ -843,6 +869,7 @@ export async function verifyLicensedCapture(
         overlay,
         { x: primary.bounds.x + 80, y: primary.bounds.y + 80, width: 120, height: 100 },
         "scroll",
+        primary.bounds,
       );
       const controller = await controllerReady;
       activeController = controller;
