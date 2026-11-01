@@ -136,7 +136,14 @@ async function run() {
     );
     const base = `http://127.0.0.1:${server.httpServer.address().port}`;
     await page.goto(base + "/src/capture/selection.html");
-    await page.locator("#create-region").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#desktop").getAttribute("src")?.startsWith("data:image/"),
+    );
+    // Without a mouse, the first arrow creates the region; there is no panel beyond the toolbar.
+    await page.locator("#surface").focus();
+    await page.keyboard.press("ArrowRight");
+    assert.equal(await page.locator("#width").inputValue(), "640");
+    assert.equal(await page.locator("#height").inputValue(), "360");
     assert.equal(
       await page.locator("#surface").evaluate((el) => el === document.activeElement),
       true,
@@ -145,7 +152,7 @@ async function run() {
     const tree = await ax.send("Accessibility.getFullAXTree");
     const picker = tree.nodes.find((node) => node.role?.value === "application");
     assert.equal(picker?.name?.value, "Selecionar região bidimensional");
-    assert.match(picker?.description?.value, /Tab acessa os campos e ações/);
+    assert.match(picker?.description?.value, /pressione uma seta para criar uma região/);
     const graphic = tree.nodes.find((node) => node.name?.value === "Área gráfica de seleção");
     assert.equal(
       graphic.properties.find((property) => property.name === "focused").value.value,
@@ -163,31 +170,25 @@ async function run() {
       }),
     );
     await ax.detach();
+    const surfaceBounds = await page.locator("#surface").boundingBox();
+    const pixelStep = surfaceBounds.width / 1200;
+    const regionLeft = async () =>
+      Math.round(((await page.locator("#region").boundingBox()).x - surfaceBounds.x) / pixelStep);
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("Shift+ArrowRight");
-    assert.equal(await page.locator("#x").inputValue(), "-394.5");
+    assert.equal(await regionLeft(), 11);
     await page.keyboard.press("Tab");
     assert.equal(await page.evaluate(() => document.activeElement.tagName), "BUTTON");
-    await page.locator("#x").fill("-390");
-    await page.locator("#x").press("Tab");
-    assert.equal(await page.locator("#x").inputValue(), "-390");
-    await page.locator("#width").fill("320");
+    await page.locator("#width").fill("200");
     await page.locator("#width").press("Tab");
-    await page.locator("#precision").selectOption("16:9");
-    assert.equal(await page.locator("#height").inputValue(), "180");
-    await page.locator("#precision").selectOption("fixed");
-    assert.match(await page.locator("#error").innerText(), /não cabe/);
-    await page.locator("#fixed-width").fill("200");
-    await page.locator("#fixed-height").fill("100");
-    await page.locator("#fixed-apply").click();
+    await page.locator("#height").fill("100");
+    await page.locator("#height").press("Tab");
     assert.equal(await page.locator("#width").inputValue(), "200");
     assert.equal(await page.locator("#height").inputValue(), "100");
-    await page.locator("#repeat-region").click();
-    assert.equal(await page.locator("#x").inputValue(), "-300");
-    assert.equal(await page.locator("#y").inputValue(), "50");
-    await page.locator("#precision").selectOption("free");
+    // Down 100 bitmap pixels, so the toolbar sits above the region instead of over its center.
+    await page.locator("#surface").focus();
+    for (let step = 0; step < 10; step++) await page.keyboard.press("Shift+ArrowDown");
     const regionBounds = await page.locator("#region").boundingBox();
-    const pixelStep = (await page.locator("#surface").boundingBox()).width / 1200;
     await page.mouse.move(
       regionBounds.x + regionBounds.width / 2,
       regionBounds.y + regionBounds.height / 2,
@@ -206,7 +207,7 @@ async function run() {
       await page.locator("#surface").evaluate((el) => el === document.activeElement),
       true,
     );
-    assert.equal(await page.locator("#x").inputValue(), "-295");
+    assert.equal(await regionLeft(), 21);
     assert.equal(await page.locator("#width").inputValue(), "200");
     const edge = await page.locator('[data-handle="e"]').boundingBox();
     await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2);
@@ -222,48 +223,18 @@ async function run() {
       await page.locator("#surface").evaluate((el) => el === document.activeElement),
       true,
     );
-    await page.locator("#repeat-region").click();
-    assert.equal(await page.locator("#x").inputValue(), "-300");
-    assert.equal(await page.locator("#width").inputValue(), "200");
-    console.log(
-      "SELECTION POINTER: overlay move 10 bitmap pixels; east resize 10; canvas focus; repeat restores",
-    );
+    console.log("SELECTION POINTER: overlay move 10 bitmap pixels; east resize 10; canvas focus");
     const evidence = await require("./renderer-evidence.cjs")("selection");
     await page.screenshot({ path: path.join(evidence, "selection.png") });
-    await page.mouse.move(1100, 450);
-    await page.waitForFunction(() => !document.querySelector("#loupe").hidden);
-    // At this viewport the fitted image begins at y=156 1/3; (1100,450)
-    // maps to source floor(966.325...,257.979...), independently of DPR.
-    assert.equal(
-      await page.locator("#magnifier-label").innerText(),
-      "Pixel 966, 257 · bitmap 1200 × 400",
-    );
-    assert.deepEqual(
-      await page
-        .locator("#magnifier")
-        .evaluate((c) => Array.from(c.getContext("2d").getImageData(75, 75, 1, 1).data)),
-      [0, 255, 0, 255],
-    );
-    assert.deepEqual(
-      await page
-        .locator("#magnifier")
-        .evaluate((c) => Array.from(c.getContext("2d").getImageData(65, 75, 1, 1).data)),
-      [0, 0, 255, 255],
-    );
-    assert.deepEqual(
-      await page
-        .locator("#magnifier")
-        .evaluate((c) => Array.from(c.getContext("2d").getImageData(75, 65, 1, 1).data)),
-      [0, 0, 255, 255],
-    );
+    // Only the toolbar accompanies the region: no hint, loupe or side panel.
+    for (const id of ["selection-tip", "loupe", "precision-panel"])
+      assert.equal(await page.locator("#" + id).count(), 0, id);
     await page.locator("#surface").focus();
     await page.keyboard.press("Enter");
-    assert.deepEqual(await page.evaluate(() => window.fixture.selections[0].rect), {
-      x: 100,
-      y: 50,
-      width: 100,
-      height: 50,
-    });
+    // Bitmap 1200 × 400 shown as 600 × 200 DIP: region 21,100 210 × 100 px.
+    const chosen = await page.evaluate(() => window.fixture.selections[0].rect);
+    for (const [key, value] of Object.entries({ x: 10.5, y: 50, width: 105, height: 50 }))
+      assert(Math.abs(chosen[key] - value) < 1e-6, `${key}: ${chosen[key]}`);
     await page.keyboard.press("Escape");
     assert(await page.evaluate(() => window.fixture.cancelled));
     await page.goto(base + "/src/editor/index.html");
@@ -334,11 +305,7 @@ async function run() {
       JSON.stringify({
         pixelNudge: true,
         shift: true,
-        globalNumbers: true,
-        aspect: true,
-        fixedSize: true,
         repeat: true,
-        magnifierActualPixels: true,
         cancel: true,
         persistedDefaults: true,
         presets: true,

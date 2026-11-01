@@ -301,3 +301,113 @@ test("solo timeline keys retain integer indices and mandatory hold without losin
     await server.close();
   }
 });
+
+test("dragging the ruler scrubs the playhead continuously and keeps a visible handle", {
+  timeout: 60000,
+}, async () => {
+  const fixture = animationTimelineFixture(),
+    server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.addInitScript((project) => {
+      if (localStorage.getItem("edisvg-project") === null)
+        localStorage.setItem("edisvg-project", JSON.stringify(project));
+    }, fixture.project());
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.locator('[data-action="animate"]').click();
+    const ruler = page.locator("[data-timeline-ruler]"),
+      head = page.locator("#playhead-head"),
+      frame = async () => {
+        const text = await page.locator("#timecode").innerText();
+        const match = /quadro (\d+) de (\d+)/.exec(text);
+        assert.ok(match, text);
+        return { frame: Number(match[1]), frames: Number(match[2]) };
+      },
+      headCenter = async () => {
+        const box = await head.boundingBox();
+        assert.ok(box && box.width > 0 && box.height > 0, "The handle is visible");
+        return box.x + box.width / 2;
+      };
+    const box = await ruler.boundingBox();
+    assert.ok(box);
+    const { frames } = await frame(),
+      y = box.y + box.height / 2,
+      at = (fraction: number) => box.x + box.width * fraction;
+    await page.mouse.move(at(0.1), y);
+    await page.mouse.down();
+    assert.equal((await frame()).frame, Math.round(frames * 0.1));
+    for (const fraction of [0.25, 0.5, 0.75]) {
+      await page.mouse.move(at(fraction), y, { steps: 4 });
+      // Mid-drag: the frame and the handle follow the pointer before any release.
+      assert.equal((await frame()).frame, Math.round(frames * fraction));
+      assert.ok(Math.abs((await headCenter()) - at(fraction)) <= box.width / frames + 2);
+    }
+    await page.mouse.move(box.x + box.width + 200, y);
+    assert.equal((await frame()).frame, frames, "Dragging past the end clamps to the last frame");
+    await page.mouse.move(at(0.5), y);
+    await page.mouse.up();
+    assert.equal((await frame()).frame, Math.round(frames * 0.5));
+    assert.ok(Math.abs((await headCenter()) - at(0.5)) <= box.width / frames + 2);
+    const line = await page.locator("#playhead").boundingBox();
+    assert.ok(line && Math.abs(line.x - at(0.5)) <= box.width / frames + 2);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("the preset timeline ruler scrubs by dragging and the stage ruler keeps its own gesture", {
+  timeout: 60000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.goto(server.url);
+    await page.locator('[data-action="animate"]').click();
+    const ruler = page.locator(".timeline-body > .ruler"),
+      frame = async () => {
+        const match = /quadro (\d+) de (\d+)/.exec(await page.locator("#timecode").innerText());
+        assert.ok(match);
+        return { frame: Number(match[1]), frames: Number(match[2]) };
+      };
+    assert.equal(await page.locator("[data-timeline-ruler]").count(), 0, "No clip is active");
+    const box = await ruler.boundingBox();
+    assert.ok(box);
+    const { frames } = await frame(),
+      y = box.y + box.height / 2,
+      at = (fraction: number) => box.x + box.width * fraction;
+    await page.mouse.move(at(0.2), y);
+    await page.mouse.down();
+    await page.mouse.move(at(0.6), y, { steps: 5 });
+    assert.equal((await frame()).frame, Math.round(frames * 0.6), "The frame follows mid-drag");
+    await page.mouse.up();
+    assert.equal((await frame()).frame, Math.round(frames * 0.6));
+    const head = await page.locator("#playhead > span").boundingBox();
+    assert.ok(head && head.width >= 12 && head.height >= 16, "The handle is visible");
+    assert.ok(Math.abs(head.x + head.width / 2 - at(0.6)) <= box.width / frames + 2);
+    // The stage's horizontal ruler starts a guide; it must not seek the timeline any more.
+    const stageRuler = page.locator('.stage .ruler[data-ruler="x"]');
+    if (await stageRuler.count()) {
+      const stage = await stageRuler.boundingBox();
+      assert.ok(stage);
+      await page.mouse.click(stage.x + stage.width * 0.1, stage.y + stage.height / 2);
+      assert.equal((await frame()).frame, Math.round(frames * 0.6));
+    }
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});

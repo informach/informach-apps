@@ -3,7 +3,6 @@ import { test } from "node:test";
 import {
   constrainSelection,
   globalToPixel,
-  magnifierSample,
   nudgeSelection,
   pixelToGlobal,
 } from "./selection-precision.ts";
@@ -23,5 +22,4 @@ test("physical pixel precision survives negative DIP origins and scaled preview"
   });
   assert.equal(constrainSelection(rect, size, { kind: "ratio", width: 16, height: 9 }).height, 169);
   assert.throws(() => constrainSelection(rect, size, { kind: "fixed", width: 1280, height: 720 }));
-  assert.deepEqual(magnifierSample(1199, 399, size), { x: 1185, y: 385, width: 15, height: 15 });
 });

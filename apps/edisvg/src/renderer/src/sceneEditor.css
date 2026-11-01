@@ -606,6 +606,25 @@
   flex-shrink: 0;
   z-index: 1;
 }
+.virtual-ruler .ruler {
+  position: relative;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+/* Drag handle of the playhead, inside the ruler so it stays visible above the tracks. */
+#playhead-head {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 16px;
+  transform: translateX(-50%);
+  background: var(--mint);
+  border-radius: 2px 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%);
+  pointer-events: none;
+}
 .virtual-timeline .track {
   flex-shrink: 0;
 }

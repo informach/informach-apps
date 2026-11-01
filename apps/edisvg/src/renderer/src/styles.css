@@ -683,12 +683,17 @@ h3 small {
   pointer-events: none;
   z-index: 2;
 }
+.timeline-body > .ruler {
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
 #playhead > span {
   position: absolute;
-  top: 0;
-  left: -4px;
-  width: 9px;
-  height: 9px;
+  top: 4px;
+  left: -5.5px;
+  width: 12px;
+  height: 16px;
   background: var(--mint);
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
 }

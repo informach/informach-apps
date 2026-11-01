@@ -763,6 +763,7 @@ function render() {
         clip: timelineView,
         state,
         seek,
+        scrub,
         updatePose,
       });
     bindKeyEditing(state, { transact, render, notify, seek });
@@ -1193,11 +1194,10 @@ function bind() {
       save();
       render();
     };
-  if ($(".ruler"))
-    $(".ruler").onpointerdown = (e) => {
-      const r = e.currentTarget.getBoundingClientRect();
-      seek(Math.round(((e.clientX - r.left) / r.width) * currentAnimation().frames));
-    };
+  // Only the ruler of the preset timeline. A bare ".ruler" is the stage's horizontal ruler, whose
+  // guide drag this handler used to replace; the clip timeline has its own ruler handlers.
+  const presetRuler = $(".timeline-body > .ruler");
+  if (presetRuler) bindRulerScrub(presetRuler, () => currentAnimation().frames);
   if ($(".preview-body")) {
     const p = $(".preview-body");
     p.onmouseenter = () => {
@@ -1392,6 +1392,40 @@ function seek(frame) {
   state.frame = Math.max(0, Math.min(currentAnimation().frames, frame));
   render();
 }
+// Dragging the timeline ruler: the preview, timecode and playhead follow without a full render,
+// which would rebuild the timeline under the pointer. The release calls seek once.
+function scrub(frame) {
+  state.playing = false;
+  state.frame = Math.max(0, Math.min(currentAnimation().frames, frame));
+  updatePose();
+}
+function bindRulerScrub(ruler, frames) {
+  let dragging = null;
+  const frameAt = (event) => {
+    const box = ruler.getBoundingClientRect();
+    return Math.round(Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)) * frames());
+  };
+  const finish = () => {
+    const frame = dragging;
+    dragging = null;
+    if (frame !== null) seek(frame);
+  };
+  ruler.onpointerdown = (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    ruler.setPointerCapture(event.pointerId);
+    dragging = frameAt(event);
+    scrub(dragging);
+  };
+  ruler.onpointermove = (event) => {
+    if (dragging === null) return;
+    const frame = frameAt(event);
+    if (frame === dragging) return;
+    dragging = frame;
+    scrub(frame);
+  };
+  ruler.onpointerup = ruler.onpointercancel = ruler.onlostpointercapture = finish;
+}
 function play() {
   if (state.playing) state.playing = false;
   else {
@@ -1548,6 +1582,9 @@ function updatePose() {
     $("#playhead").style.left = $("#playhead").dataset.timelineWidth
       ? `calc(var(--track-label) + ${(Number($("#playhead").dataset.timelineWidth) * state.frame) / a.frames}px)`
       : `calc(var(--track-label) + (100% - var(--track-label) - 20px) * ${state.frame / a.frames})`;
+  if ($("#playhead-head") && $("#playhead")?.dataset.timelineWidth)
+    $("#playhead-head").style.left =
+      `${(Number($("#playhead").dataset.timelineWidth) * state.frame) / a.frames}px`;
 }
 function action(id) {
   if (["commands", "object", "animation", "view"].includes(id))
