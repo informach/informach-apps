@@ -153,8 +153,14 @@ export interface GuidedPlanV2 {
   mode: "web" | "screen";
   /** Page the take starts from (web). */
   url?: string;
-  /** Size the lesson page is captured at (web). */
+  /** Size the lesson page is laid out at, in CSS pixels (web). */
   viewport: GuidedViewport;
+  /**
+   * Video pixels per CSS pixel (web): 1.5 lays the lesson out as on a 1280 × 720 screen and
+   * records it at 1920 × 1080, sharp and big enough to read when the video is watched small.
+   * Absent: 1, the video at the page's size.
+   */
+  scale?: CaptureScale;
   fps?: 30 | 60;
   steps: GuidedStepV2[];
   tempos: GuidedTempos;
@@ -257,6 +263,35 @@ export const VIEWPORTS: readonly GuidedViewport[] = [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
 ];
+export const CAPTURE_SCALES = [1, 1.5, 2] as const;
+export type CaptureScale = (typeof CAPTURE_SCALES)[number];
+
+/** The sizes a lesson window take offers: the page's layout and the video it makes. */
+export const CAPTURE_SIZES: readonly {
+  viewport: GuidedViewport;
+  scale: CaptureScale;
+  label: string;
+}[] = [
+  {
+    viewport: { width: 1280, height: 720 },
+    scale: 1.5,
+    label: "1920 × 1080, aula ampliada (como numa tela de 1280 × 720)",
+  },
+  { viewport: { width: 1920, height: 1080 }, scale: 1, label: "1920 × 1080" },
+  { viewport: { width: 1280, height: 720 }, scale: 1, label: "1280 × 720" },
+];
+
+/** The new plans in the lesson window: the lesson ampliada, as on a laptop's screen. */
+export const DEFAULT_CAPTURE = CAPTURE_SIZES[0];
+
+/** Pixels of the video a take of `plan` records (its page's size times its scale). */
+export function videoSize(plan: Pick<GuidedPlanV2, "viewport" | "scale">): GuidedViewport {
+  const scale = plan.scale ?? 1;
+  return {
+    width: Math.round(plan.viewport.width * scale),
+    height: Math.round(plan.viewport.height * scale),
+  };
+}
 export const DEFAULT_TEMPOS: GuidedTempos = { ...GUIDED_DEFAULTS };
 /** Seconds a step waits for its target or a condition before it fails. */
 export const DEFAULT_STEP_TIMEOUT = 8;
@@ -463,6 +498,7 @@ export const guidedPlanV2Schema = z.looseObject({
     width: z.int().min(320).max(3840),
     height: z.int().min(240).max(2160),
   }),
+  scale: z.union([z.literal(1), z.literal(1.5), z.literal(2)]).optional(),
   fps: z.union([z.literal(30), z.literal(60)]).optional(),
   steps: z.array(stepSchema).max(300),
   tempos: z.object({
@@ -589,7 +625,10 @@ export function newPlan(id: string, name: string, mode: "web" | "screen" = "web"
     id,
     name,
     mode,
-    viewport: { ...DEFAULT_VIEWPORT },
+    // In the lesson window, the lesson ampliada; on the screen, its pixels.
+    ...(mode === "web"
+      ? { viewport: { ...DEFAULT_CAPTURE.viewport }, scale: DEFAULT_CAPTURE.scale }
+      : { viewport: { ...DEFAULT_VIEWPORT } }),
     fps: 30,
     steps: [],
     // A new plan in the lesson window moves like a child's hand; older plans, and the Windows

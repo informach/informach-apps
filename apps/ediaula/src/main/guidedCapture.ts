@@ -21,6 +21,7 @@ import {
   type PlanSchedule,
   planTiming,
   schedulePlan,
+  videoSize,
 } from "../shared/guidedPlan.ts";
 import {
   FailureStreak,
@@ -145,7 +146,8 @@ export async function openLessonCapture(
     // that went full screen itself would be resized offscreen and leave the rest black.
     fullscreenable: false,
     webPreferences: {
-      offscreen: { deviceScaleFactor: 1 },
+      // The page at the plan's layout, painted at its scale (1.5: 1280 × 720 into 1920 × 1080).
+      offscreen: { deviceScaleFactor: plan.scale ?? 1 },
       session: lessonSession(),
       sandbox: true,
       contextIsolation: true,
@@ -172,7 +174,7 @@ export async function openLessonCapture(
     // The protocol answers once the window has a page; a blank one is enough.
     await wc.loadURL("about:blank");
     await cdp.attach();
-    await cdp.emulate(plan.viewport);
+    await cdp.emulate(plan.viewport, plan.scale ?? 1);
   } catch (error) {
     cdp.detach();
     window.destroy();
@@ -351,7 +353,8 @@ export class GuidedTake {
     this.fps = options.plan.fps ?? 30;
     this.schedule = schedulePlan(options.plan, options.from);
     this.step = options.from;
-    this.frameBytes = options.plan.viewport.width * options.plan.viewport.height * 4;
+    const video = videoSize(options.plan);
+    this.frameBytes = video.width * video.height * 4;
     let end: (value: GuidedTakeEnd) => void = () => undefined;
     this.ended = new Promise((resolve) => {
       end = resolve;
@@ -431,11 +434,12 @@ export class GuidedTake {
     this.window = opened.window;
     this.cdp = opened.cdp;
     if (signal.aborted) throw new Error(STOPPED);
+    const video = videoSize(plan);
     const codec = pageCodec(
       this.options.ffmpeg,
       this.options.encoder.codec,
-      plan.viewport.width,
-      plan.viewport.height,
+      video.width,
+      video.height,
       this.fps,
     );
     // An unhandled rejection while the page loads would be reported twice.
@@ -482,6 +486,7 @@ export class GuidedTake {
         timing: planTiming(plan),
         fps: this.fps,
         viewport: plan.viewport,
+        ...(plan.scale && plan.scale !== 1 ? { scale: plan.scale } : {}),
         from: this.from,
         narrationOffset: narrationOffset(this.schedule),
         steps: this.schedule.steps.map((s) => ({
@@ -505,8 +510,8 @@ export class GuidedTake {
     const encoder = spawn(
       this.options.ffmpeg,
       pageCaptureArgs({
-        width: plan.viewport.width,
-        height: plan.viewport.height,
+        width: video.width,
+        height: video.height,
         fps: this.fps,
         codec: chosen,
         quality: this.options.encoder.quality,
@@ -635,13 +640,13 @@ export class GuidedTake {
     }
   }
 
-  /** BGRA of the viewport's size (an offscreen window the system kept smaller is scaled). */
+  /** BGRA of the video's size (an offscreen window the system kept smaller is scaled). */
   private frameOf(image: NativeImage): Buffer {
-    const { width, height } = this.plan.viewport;
+    // A page laid out at scale 1.5 is painted with the video's pixels already.
+    const { width, height } = videoSize(this.plan);
     const size = image.getSize();
-    const fitted =
-      size.width === width && size.height === height ? image : image.resize({ width, height });
-    return fitted.toBitmap();
+    if (size.width === width && size.height === height) return image.toBitmap();
+    return image.resize({ width, height }).toBitmap();
   }
 
   private preview(): void {

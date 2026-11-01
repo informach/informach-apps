@@ -17,6 +17,7 @@ import {
   PAGE_SOUND_TRACK_FILE,
   parseGuidedLog,
   synthesizeCursor,
+  videoLog,
 } from "../../shared/guidedCursor.ts";
 import { type HookEvent, parseHookLine } from "../../shared/helperProtocol.ts";
 import { soundAlignFilter, soundPieces } from "../../shared/pageSound.ts";
@@ -248,7 +249,19 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     const log = parseGuidedLog(await readFile(join(dir, GUIDED_LOG_FILE), "utf8"));
     const begin = log.find((line) => line.k === "begin");
     if (begin) {
-      await writeCursor(synthesizeCursor(log, begin.viewport, begin.fps, duration));
+      // The cursor in pixels of the video: a page laid out smaller (scale 1.5) is drawn bigger.
+      const scale = begin.scale ?? 1;
+      await writeCursor(
+        synthesizeCursor(
+          videoLog(log, scale),
+          {
+            width: Math.round(begin.viewport.width * scale),
+            height: Math.round(begin.viewport.height * scale),
+          },
+          begin.fps,
+          duration,
+        ),
+      );
       const run = buildGuidedRun(log, duration);
       if (run) {
         guidedRun = join(dir, GUIDED_RUN_FILE);

@@ -1,5 +1,6 @@
 import {
   type BrokenStep,
+  CAPTURE_SIZES,
   DEFAULT_TEMPOS,
   type GuidedPlanV2,
   type GuidedReplace,
@@ -10,7 +11,6 @@ import {
   newPlan,
   planTiming,
   schedulePlan,
-  VIEWPORTS,
 } from "@shared/guidedPlan";
 import { type GuidedStep, stepsFromScript, stepsFromWords } from "@shared/guidedRecording";
 import { MOTION_LABELS, MOTION_PROFILES } from "@shared/humanMotion";
@@ -21,6 +21,10 @@ import { mediaUrl } from "@/lib/media";
 import { PreviewMedia } from "@/ui/PreviewMedia";
 import { GuidedStepRow, type MarkField } from "./GuidedStepRow";
 import "./guided.css";
+
+/** One choice of "Tamanho": the page's layout and its scale. */
+const sizeKey = (viewport: { width: number; height: number }, scale: number): string =>
+  `${viewport.width}x${viewport.height}@${scale}`;
 
 /**
  * The guided recording's plans (shared/guidedPlan.ts): which plan, where it runs, its steps and
@@ -530,19 +534,21 @@ export function GuidedSetup({
               >
                 Abrir janela da aula
               </button>
-              <label>
+              <label title="A aula ampliada é desenhada como numa tela de 1280 × 720 e gravada em 1920 × 1080: nítida e com letras grandes o bastante para ler num vídeo pequeno.">
                 Tamanho{" "}
                 <select
                   aria-label="Tamanho da captura"
-                  value={`${plan.viewport.width}x${plan.viewport.height}`}
+                  value={sizeKey(plan.viewport, plan.scale ?? 1)}
                   onChange={(e) => {
-                    const [width, height] = e.target.value.split("x").map(Number);
-                    change({ viewport: { width, height } });
+                    const size = CAPTURE_SIZES.find(
+                      (c) => sizeKey(c.viewport, c.scale) === e.target.value,
+                    );
+                    if (size) change({ viewport: { ...size.viewport }, scale: size.scale });
                   }}
                 >
-                  {VIEWPORTS.map((v) => (
-                    <option key={v.width} value={`${v.width}x${v.height}`}>
-                      {v.width} × {v.height}
+                  {CAPTURE_SIZES.map((c) => (
+                    <option key={sizeKey(c.viewport, c.scale)} value={sizeKey(c.viewport, c.scale)}>
+                      {c.label}
                     </option>
                   ))}
                 </select>

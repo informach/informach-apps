@@ -409,11 +409,12 @@ export class CdpDriver {
     return scale;
   }
 
-  async emulate(viewport: GuidedViewport): Promise<void> {
+  /** The page laid out at `viewport` CSS pixels, `scale` device pixels each. */
+  async emulate(viewport: GuidedViewport, scale = 1): Promise<void> {
     await this.send("Emulation.setDeviceMetricsOverride", {
       width: viewport.width,
       height: viewport.height,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: scale,
       mobile: false,
     });
   }

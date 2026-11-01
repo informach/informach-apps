@@ -125,6 +125,8 @@ export const guidedLogLineSchema = z.discriminatedUnion("k", [
     timing: z.string().max(64),
     fps: z.number().positive().max(240),
     viewport: z.object({ width: z.int().positive(), height: z.int().positive() }),
+    /** Video pixels per CSS pixel of the page (shared/guidedPlan.ts `scale`); absent: 1. */
+    scale: z.number().positive().max(4).optional(),
     from: z.int().nonnegative(),
     narrationOffset: z.number().finite(),
     steps: z.array(plannedStep).max(300),
@@ -317,6 +319,42 @@ function pointerWalk(segments: readonly Segment[], start: { x: number; y: number
       y: active.from.y + (active.to.y - active.from.y) * k,
     };
   };
+}
+
+/**
+ * The log in pixels of the video: the automation works in CSS pixels of the page, and a page
+ * laid out smaller than the video (scale 1.5) is drawn bigger in it.
+ */
+export function videoLog(log: readonly GuidedLogLine[], scale: number): GuidedLogLine[] {
+  if (scale === 1) return [...log];
+  const p = (q: { x: number; y: number }) => ({ x: q.x * scale, y: q.y * scale });
+  return log.map((line) => {
+    switch (line.k) {
+      case "move":
+      case "down":
+      case "up":
+        return { ...line, ...p(line) };
+      case "wheel":
+        return { ...line, ...p(line), dx: line.dx * scale, dy: line.dy * scale };
+      case "glide":
+        return {
+          ...line,
+          from: p(line.from),
+          to: p(line.to),
+          ...(line.path
+            ? {
+                path: {
+                  c1: p(line.path.c1),
+                  c2: p(line.path.c2),
+                  over: line.path.over * scale,
+                },
+              }
+            : {}),
+        };
+      default:
+        return line;
+    }
+  });
 }
 
 /**
