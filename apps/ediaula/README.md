@@ -1472,8 +1472,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   // { fazer: "digitar", alvo, texto }
   // { fazer: "tecla", tecla: "Ctrl+Z" }
   // { fazer: "esperar", alvo, estado?: "aparecer" | "sumir" | "ficar disponível", espera?, maximo? }
-  // alvo: { seletor } | { papel, nome } | { rotulo } | { texto }, com u e v de 0 a 1 para um ponto
-  // dentro dele (um jogo num canvas); espera: "acelerar" (padrão) ou "cortar"; maximo em segundos.
+  // alvo: { seletor } | { papel, nome } | { rotulo } | { texto } | { bloco: { texto, area, abaixo? } },
+  // com u e v de 0 a 1 para um ponto dentro dele (um jogo num canvas); bloco é um bloco de
+  // programação pelo texto, na paleta ("flyout"), na área de trabalho ("workspace", "abaixo" dele)
+  // ou nas categorias ("toolbox"); espera: "acelerar" (padrão) ou "cortar"; maximo em segundos.
   ```
 
   O primeiro gesto acontece na frase, com a mesma antecedência de uma etapa marcada; cada um dos outros, depois

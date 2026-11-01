@@ -81,4 +81,28 @@ test("ocupado e verbos: só o que a ponte disse conta", () => {
   ]);
   assert.equal(bridgeVerbs({ semPonte: true }), null);
   assert.equal(locatorOf({ texto: "Ok" }, viewport).fingerprint.view.width, 1920);
+  // A block of the programming editor, as the guided mode already finds blocks.
+  assert.deepEqual(
+    locatorOf({ bloco: { texto: "quando começar", area: "workspace", abaixo: true } }, viewport)
+      .strategies,
+    [{ by: "blockly", text: "quando começar", area: "workspace", below: true }],
+  );
+  const [drag] = bridgeSteps(
+    {
+      valor: [
+        {
+          fazer: "arrastar",
+          alvo: { bloco: { texto: "mover", area: "flyout" } },
+          para: { bloco: { texto: "quando começar", area: "workspace", abaixo: true } },
+        },
+      ],
+    },
+    "arrastar",
+    "e",
+    viewport,
+  );
+  assert.equal(drag.action, "drag");
+  assert.deepEqual(drag.target?.locator?.strategies, [
+    { by: "blockly", text: "mover", area: "flyout" },
+  ]);
 });

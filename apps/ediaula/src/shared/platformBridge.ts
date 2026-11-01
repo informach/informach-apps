@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { type GuidedStepV2, type GuidedViewport, MAX_STEP_TIMEOUT } from "./guidedPlan.ts";
-import type { Locator, LocatorStrategy } from "./locators.ts";
+import { BLOCKLY_AREAS, type Locator, type LocatorStrategy } from "./locators.ts";
 
 /**
  * The recording bridge: a lesson platform that wants its lessons recorded by the guided mode
@@ -37,11 +37,20 @@ const alvoSchema = z
     nome: z.string().max(500).optional(),
     rotulo: z.string().min(1).max(500).optional(),
     texto: z.string().min(1).max(500).optional(),
+    /** A programming block by its labels: in the palette, the workspace or the category list. */
+    bloco: z
+      .object({
+        texto: z.string().min(1).max(500),
+        area: z.enum(BLOCKLY_AREAS),
+        abaixo: z.boolean().optional(),
+      })
+      .optional(),
     u: z.number().min(0).max(1).optional(),
     v: z.number().min(0).max(1).optional(),
   })
-  .refine((a) => a.seletor || (a.papel && a.nome !== undefined) || a.rotulo || a.texto, {
-    message: "O alvo precisa de um seletor, de um papel com nome, de um rótulo ou de um texto.",
+  .refine((a) => a.seletor || (a.papel && a.nome !== undefined) || a.rotulo || a.texto || a.bloco, {
+    message:
+      "O alvo precisa de um seletor, de um papel com nome, de um rótulo, de um texto ou de um bloco.",
   });
 export type Alvo = z.infer<typeof alvoSchema>;
 
@@ -111,12 +120,19 @@ export function locatorOf(alvo: Alvo, viewport: GuidedViewport): Locator {
     strategies.push({ by: "role", role: alvo.papel, name: alvo.nome });
   if (alvo.rotulo) strategies.push({ by: "label", value: alvo.rotulo });
   if (alvo.texto) strategies.push({ by: "text", value: alvo.texto });
+  if (alvo.bloco)
+    strategies.push({
+      by: "blockly",
+      text: alvo.bloco.texto,
+      area: alvo.bloco.area,
+      ...(alvo.bloco.abaixo ? { below: true } : {}),
+    });
   return {
     strategies,
     point: { u: alvo.u ?? 0.5, v: alvo.v ?? 0.5 },
     fingerprint: {
       tag: "",
-      text: alvo.nome ?? alvo.rotulo ?? alvo.texto ?? "",
+      text: alvo.nome ?? alvo.rotulo ?? alvo.texto ?? alvo.bloco?.texto ?? "",
       rect: { x: 0, y: 0, width: 0, height: 0 },
       view: { width: viewport.width, height: viewport.height },
       cursor: "",
