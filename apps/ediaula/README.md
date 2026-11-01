@@ -1549,7 +1549,13 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   daquele quadro, com as coordenadas de dentro dele. A tela cheia de um livro ou vídeo ocupa o tamanho do plano.
   Um alvo coberto por algo fixo na borda (o rodapé da aula) é rolado para o meio, e um alvo escondido numa lista
   com rolagem própria (um menu, um seletor) é trazido com a roda sobre a lista. O fim de um arrasto pode estar
-  sob a paleta de blocos, que fecha quando o arrasto começa. O som da página não é gravado.
+  sob a paleta de blocos, que fecha quando o arrasto começa.
+- **Som da página** (`main/pageSound.ts`, `shared/pageSound.ts`): o som que a aula toca (um jogo, uma
+  experiência) é gravado à parte, sem sair nos alto-falantes: uma janela oculta pede o áudio da página por
+  `getDisplayMedia`, e o EdiAula entrega o da janela da aula. O take registra os dois relógios a cada meio
+  segundo (`sync` no `guided-log.jsonl`); ao salvar, o som é cortado para o tempo do vídeo
+  (`som-da-pagina.wav`), sem o que tocou enquanto o vídeo segurava. Na importação ele vai para a faixa
+  **Som da página**, junto da tela, e fica fora dos trechos acelerados (que continuam acelerados).
 
 ### Gravar uma aula do Sistema Zero, passo a passo
 
@@ -1584,7 +1590,8 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
    6. **Verificar plano.** Precisa terminar com "Todas as etapas funcionaram na página". Os trechos que vão
       passar do tempo da fala entram acelerados (tela sem voz), e está certo assim.
    7. **Gravar** (ou **F9**). O gravador fecha sozinho no fim, e o take entra no projeto depois do anterior,
-      com a narração numa faixa própria e um lembrete em cada `[na edição: …]`.
+      com a narração numa faixa própria, o som da página na faixa **Som da página** e um lembrete em
+      cada `[na edição: …]`.
 6. **Conferir.** Assista: a página ocupa a tela inteira, os gestos caem nas frases, os trechos acelerados ficam
    sob a fala. Uma parte com problema: tire os clipes dela, corrija (roteiro, palco ou plano) e grave de novo
    só aquela parte.
