@@ -185,3 +185,21 @@ test("a palavra que a transcrição junta antes de um nome entre aspas conta com
   assert.equal(found.end, 45.3);
   assert.equal(findPhrase(words, "clique em")?.end, 44.5 + (0.8 * 2) / 10);
 });
+
+test("a citação acha a voz quando a transcrição pula ou junta uma palavra", () => {
+  const words = "Aí é só clicar em outro bicho, como gato. Se não achar, role a lista."
+    .split(" ")
+    .map((text, k) => ({ text, start: k, end: k + 0.5 }));
+  // "o" was left out of "como o gato": the place still ends on "gato".
+  assert.equal(
+    findPhrase(words, "Aí é só clicar em outro bicho, como o gato", { loose: true })?.end,
+    8.5,
+  );
+  // Without loose, every word must be there.
+  assert.equal(findPhrase(words, "Aí é só clicar em outro bicho, como o gato"), null);
+  // The last word is never one left out.
+  assert.equal(
+    findPhrase(words, "Aí é só clicar em outro bicho, como o cachorro", { loose: true }),
+    null,
+  );
+});

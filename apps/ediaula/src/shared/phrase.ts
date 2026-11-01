@@ -57,7 +57,7 @@ function spoken(w: SourceWord): (SourceWord & { key: string })[] {
   });
 }
 
-/** Words of a loose match that may be heard otherwise ("num" heard "no"): one in four. */
+/** Words of a loose match that may differ ("num" heard "no", a word left out): one in four. */
 const looseMisses = (n: number): number => (n >= 4 ? Math.floor(n / 4) : 0);
 
 /** The words of the anchors looked at on each side. */
@@ -80,8 +80,9 @@ export interface PhraseOptions {
   from?: number;
   to?: number;
   /**
-   * Where no place says every word, accept one heard otherwise in four (never the last one, the
-   * moment a direction acts on): a name or a short word the transcription got wrong.
+   * Where no place says every word, accept one in four heard otherwise, left out or added by
+   * the transcription ("como o gato" heard "como gato"), never the last one: the moment a
+   * direction acts on.
    */
   loose?: boolean;
 }
@@ -103,16 +104,42 @@ export function findPhrase(
   const after = tokens(opts.after ?? "").slice(0, ANCHOR_WORDS);
   const lo = opts.from ?? Number.NEGATIVE_INFINITY;
   const hi = opts.to ?? Number.POSITIVE_INFINITY;
+  /**
+   * The last word said of the place starting at said word `i`, when the quote is said there with
+   * at most `misses` words heard otherwise, left out or added (the last word always said).
+   */
+  const endOf = (i: number, misses: number): number | null => {
+    const n = wanted.length;
+    if (!misses) {
+      const last = i + n - 1;
+      if (last >= said.length) return null;
+      for (let k = 0; k < n; k++) if (!sameWord(said[i + k].key, wanted[k])) return null;
+      return last;
+    }
+    // Edit distance of the quote's first k words against the m words said from i.
+    const width = Math.min(said.length - i, n + misses);
+    let prev = Array.from({ length: width + 1 }, (_, m) => m);
+    let best: number | null = null;
+    for (let k = 1; k <= n; k++) {
+      const row = [k];
+      for (let m = 1; m <= width; m++) {
+        const same = sameWord(said[i + m - 1].key, wanted[k - 1]);
+        row[m] = Math.min(prev[m - 1] + (same ? 0 : 1), prev[m] + 1, row[m - 1] + 1);
+        if (k === n && same && prev[m - 1] <= misses && best === null) best = i + m - 1;
+      }
+      prev = row;
+    }
+    return best;
+  };
   const places = (misses: number): PhraseMatch[] => {
     const found: PhraseMatch[] = [];
-    for (let i = 0; i + wanted.length <= said.length; i++) {
+    for (let i = 0; i < said.length; i++) {
       if (said[i].start < lo || said[i].start > hi) continue;
-      const last = i + wanted.length - 1;
-      if (!sameWord(said[last].key, wanted[wanted.length - 1])) continue;
-      let wrong = 0;
-      for (let k = 0; k < wanted.length && wrong <= misses; k++)
-        if (!sameWord(said[i + k].key, wanted[k])) wrong++;
-      if (wrong > misses) continue;
+      // A place starts on a word of the quote's beginning.
+      if (misses && !sameWord(said[i].key, wanted[0]) && !sameWord(said[i].key, wanted[1] ?? ""))
+        continue;
+      const last = endOf(i, misses);
+      if (last === null) continue;
       let anchors = 0;
       for (let k = 1; k <= before.length; k++)
         if (said[i - k]?.key === before[before.length - k]) anchors++;
