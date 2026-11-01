@@ -505,13 +505,20 @@ export function revealOf(
 const ONE_LINE = 72;
 
 /**
+ * Room under what is shown, in page pixels: the cursor grows in the edit (its drawing and the
+ * highlight around its tip), and a tip close to a word would cover it then.
+ */
+export const POINTING_ROOM = { under: 18, line: 48 } as const;
+
+/**
  * Where the hand rests to show something without covering it, so a child reads it: the tip of
- * the arrow just under the baseline. Under the bottom edge of a small element; inside a big one
- * (a game, where the point is a word on it), about a line under the point.
+ * the arrow under the baseline, with room for the bigger cursor of the edit. Under the bottom
+ * edge of a small element; inside a big one (a game, where the point is a word on it), about two
+ * lines under the point.
  */
 export function pointingSpot(rect: Rect, p: Point): Point {
-  if (rect.height <= ONE_LINE) return { x: p.x, y: rect.y + rect.height + 6 };
-  return { x: p.x, y: Math.min(rect.y + rect.height - 4, p.y + 28) };
+  if (rect.height <= ONE_LINE) return { x: p.x, y: rect.y + rect.height + POINTING_ROOM.under };
+  return { x: p.x, y: Math.min(rect.y + rect.height - 4, p.y + POINTING_ROOM.line) };
 }
 
 export const TARGET_STATES = ["visible", "hidden", "enabled"] as const;

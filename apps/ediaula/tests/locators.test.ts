@@ -410,16 +410,16 @@ test("Blockly 11 and later mark fields as blocklyEditableField: still values, no
   assert.equal(move?.text, "mover 10 passos");
 });
 
-test("apontar deixa a mão logo abaixo do que mostra, para a criança ler", () => {
-  // A word or a button: the tip just under its bottom edge.
+test("apontar deixa a mão abaixo do que mostra, com folga para o cursor maior da edição", () => {
+  // A word or a button: the tip under its bottom edge, with room.
   assert.deepEqual(pointingSpot({ x: 100, y: 200, width: 120, height: 40 }, { x: 160, y: 220 }), {
     x: 160,
-    y: 246,
+    y: 258,
   });
-  // A word on a big element (the number on a game): about a line under the point, never out of it.
+  // A word on a big element (the number on a game): two lines under the point, never out of it.
   assert.deepEqual(pointingSpot({ x: 0, y: 0, width: 1500, height: 800 }, { x: 70, y: 50 }), {
     x: 70,
-    y: 78,
+    y: 98,
   });
   assert.deepEqual(pointingSpot({ x: 0, y: 0, width: 1500, height: 800 }, { x: 70, y: 790 }), {
     x: 70,
