@@ -40,6 +40,11 @@ export async function verifyNativeSvgEffectImport(
     );
     await page.locator('[data-action="hierarchy"]').click();
     await page.locator(`[data-scene-select="${target.id}"]`).click();
+    // The clip and mask sources live in the "Efeitos" section of the inspector, closed by default;
+    // the editor remembers it open, so a later import finds it open already.
+    const effects = page.locator('[data-inspector-section="effects"]');
+    if (!(await effects.evaluate((section) => (section as HTMLDetailsElement).open)))
+      await effects.locator("> summary").click();
     const panel = page.getByRole("region", { name: "Recortes e máscaras", exact: true }),
       label = target.effects?.clip ? "Fonte do recorte" : "Fonte da máscara alpha";
     assert.equal(

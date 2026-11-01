@@ -46,11 +46,12 @@ export async function verifyNativeLottieExport(
     }
     await page.locator('[data-action="hierarchy"]').click();
     await page.locator("[data-scene-select]").first().click();
-    const stroke = page.locator('[data-scene-paint="stroke"]'),
-      previousStroke = await stroke.inputValue();
-    if (!importSource && previousStroke !== "none") {
-      await stroke.fill("none");
-      await stroke.press("Tab");
+    // The appearance panel shows the stroke as a row while there is one; removing it sets the
+    // shape's stroke to none, as the old text field did.
+    const removeStroke = page.getByRole("button", { name: "Remover contorno", exact: true });
+    if (!importSource && (await removeStroke.count()) > 0) {
+      await removeStroke.click();
+      await removeStroke.waitFor({ state: "detached" });
       edits++;
     }
     if (convertCubic) {
