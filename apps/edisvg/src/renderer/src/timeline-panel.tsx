@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { animationKeySelectionId } from "../../shared/animationKeyReference";
@@ -15,6 +15,8 @@ interface Props {
   clip: TimelineClip;
   state: State;
   seek(frame: number): void;
+  /** Moves the frame and the preview without rebuilding the editor, so a drag survives. */
+  scrub(frame: number): void;
   updatePose(): void;
 }
 const rowHeight = 24;
@@ -29,6 +31,7 @@ function TimelinePanel({
   clip,
   state,
   seek,
+  scrub,
   updatePose,
   initialViewport,
   viewportContainer,
@@ -38,6 +41,19 @@ function TimelinePanel({
   const zoom = state.timelineZoom ?? 1,
     width = Math.max(200, viewport.width - viewport.label - 20) * zoom;
   const tracks = clip.tracks;
+  const dragFrame = useRef<number | null>(null);
+  const frameAt = (event: PointerEvent<HTMLElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    return Math.round(fraction * clip.frames);
+  };
+  // Seeking renders the whole editor and remounts this panel, which would drop the pointer.
+  // While dragging only the frame and the preview move; the release seeks once.
+  const finishDrag = () => {
+    const frame = dragFrame.current;
+    dragFrame.current = null;
+    if (frame !== null) seek(frame);
+  };
   const selected = new Set(
     state.selectedKeys?.length
       ? state.selectedKeys
@@ -105,14 +121,29 @@ function TimelinePanel({
         <div
           className="ruler"
           style={{ width }}
+          data-timeline-ruler
           onPointerDown={(event) => {
-            const box = event.currentTarget.getBoundingClientRect();
-            seek(Math.round(((event.clientX - box.left) / box.width) * clip.frames));
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            dragFrame.current = frameAt(event);
+            scrub(dragFrame.current);
           }}
+          onPointerMove={(event) => {
+            if (dragFrame.current === null) return;
+            const frame = frameAt(event);
+            if (frame === dragFrame.current) return;
+            dragFrame.current = frame;
+            scrub(frame);
+          }}
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+          onLostPointerCapture={finishDrag}
         >
           {[0, 1 / 6, 1 / 3, 1 / 2, 2 / 3, 5 / 6, 1].map((fraction) => (
             <span key={fraction}>{Math.round(clip.frames * fraction)}</span>
           ))}
+          <div id="playhead-head" aria-hidden="true" />
         </div>
       </div>
       {tracks.slice(start, end).map((track, index) => {
@@ -166,9 +197,7 @@ function TimelinePanel({
           </div>
         </div>
       )}
-      <div id="playhead" data-timeline-width={width} style={{ left: viewport.label }}>
-        <span />
-      </div>
+      <div id="playhead" data-timeline-width={width} style={{ left: viewport.label }} />
     </div>
   );
 }
