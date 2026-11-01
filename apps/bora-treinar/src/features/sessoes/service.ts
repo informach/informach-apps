@@ -17,15 +17,8 @@ import {
   suggestionFor,
 } from "@/features/treino/engine/progression";
 import { AppError, assertAllowed } from "@/lib/errors";
-import {
-  createProfile,
-  ensureFamily,
-  inTransaction,
-  progressOf,
-  saveProgress,
-} from "../familia/repository";
+import { inTransaction, progressOf, saveProgress } from "../familia/repository";
 import { customWorkout } from "../meus-treinos/repository";
-import type { ImportedProfile } from "./edibody";
 import { grantAchievements, insertSession, sessionsOf } from "./repository";
 import type { SessionInput } from "./schema";
 
@@ -46,42 +39,6 @@ export async function acceptSuggestion(
     await saveProgress(profileId, applySuggestion(progress, suggestion), tx);
     if (suggestion.type === "level") await grantAchievements(tx, profileId, ["novo-nivel"], null);
   });
-}
-
-/**
- * Traz perfis e treinos de um backup do EdiBody para a conta. Os perfis entram
- * até o limite do plano; os que não couberem são informados, não descartados
- * em silêncio.
- */
-export async function importProfiles(
-  userId: string,
-  perfis: ImportedProfile[],
-  limit: number,
-  existing: number,
-) {
-  const cabem = perfis.slice(0, Math.max(0, limit - existing));
-  let sessoes = 0;
-  for (const perfil of cabem) {
-    const id = await createProfile(userId, perfil.name, perfil.color, limit);
-    await inTransaction(async (tx) => {
-      await ensureFamily(userId, tx);
-      await saveProgress(id, perfil.progress, tx);
-      for (const s of perfil.sessions) {
-        const created = await insertSession(tx, userId, {
-          id: crypto.randomUUID(),
-          profileId: id,
-          workoutRef: s.workoutRef,
-          workoutName: s.workoutName,
-          startedAt: s.startedAt,
-          duration: s.durationSeconds,
-          mode: s.mode,
-          logs: s.logs,
-        });
-        if (created) sessoes += 1;
-      }
-    });
-  }
-  return { perfis: cabem.length, sessoes, ficaramDeFora: perfis.length - cabem.length };
 }
 
 /** Treino pronto para o player, já validado contra o plano. */

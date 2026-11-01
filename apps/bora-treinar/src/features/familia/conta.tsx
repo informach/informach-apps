@@ -1,7 +1,6 @@
 "use client";
-import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useServerAction } from "@/lib/use-server-action";
 import {
@@ -9,7 +8,6 @@ import {
   checkoutAction,
   clearAction,
   forgetProfileAction,
-  importEdibodyAction,
   portalAction,
   preferencesAction,
   reactivateAction,
@@ -249,56 +247,6 @@ export function Lembretes({
           Salvar
         </button>
       </div>
-      <p role="status" className="form-message">
-        {message}
-      </p>
-    </div>
-  );
-}
-
-export function ImportarEdibody() {
-  const router = useRouter();
-  const arquivo = useRef<HTMLInputElement>(null);
-  const [message, setMessage] = useState("");
-  const [pending, start] = useServerAction();
-  const importar = (f: File) =>
-    start(async () => {
-      const result = await importEdibodyAction(await f.text());
-      if (!result.ok) return setMessage(result.error);
-      const { perfis, sessoes, ficaramDeFora } = result.data;
-      setMessage(
-        `${perfis} perfil(is) e ${sessoes} treino(s) importados.${
-          ficaramDeFora ? ` ${ficaramDeFora} perfil(is) não couberam no plano atual.` : ""
-        }`,
-      );
-      router.refresh();
-    });
-  return (
-    <div className="card" id="edibody">
-      <strong>Trazer dados do EdiBody</strong>
-      <p className="muted spaced">
-        Se você usava o EdiBody, exporte o backup em Progresso e escolha o arquivo aqui. Perfis,
-        níveis e treinos passam para a sua conta.
-      </p>
-      <button
-        type="button"
-        className="btn ghost spaced"
-        disabled={pending}
-        onClick={() => arquivo.current?.click()}
-      >
-        <Upload size={18} /> {pending ? "Importando…" : "Escolher backup"}
-      </button>
-      <input
-        ref={arquivo}
-        type="file"
-        accept="application/json"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) importar(f);
-          e.target.value = "";
-        }}
-      />
       <p role="status" className="form-message">
         {message}
       </p>

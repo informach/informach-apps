@@ -225,9 +225,6 @@ export function ProgressScreen({
           <a className="btn" href="/api/conta/exportar">
             <Download size={18} /> Exportar dados da família
           </a>
-          <Link href="/conta#edibody" className="btn ghost">
-            Trazer um backup do EdiBody
-          </Link>
         </div>
       </main>
     </div>

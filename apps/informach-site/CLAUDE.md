@@ -105,7 +105,7 @@ A Plus Jakarta Sans tem espaço largo antes de vírgula e ponto em tamanho grand
 
 - Wordmark `public/logo-informach-{light,dark}.svg`: assets oficiais. **Não modificar conteúdo.** Renderizados com `next/image` **`unoptimized`** (sem isso o SVG era rasterizado e perdia qualidade). Troca claro/escuro por CSS (`dark:hidden` / `hidden dark:block`). No rodapé, sempre escuro, usar `tone="onDark"`.
 - `public/sistema-zero/`: logos e telas reais baixados de `sistemazero.com.br` em 17/10/2026. Os SVGs dos logos receberam só um `<title>` para acessibilidade. As telas são composição de vitrine, não captura ao vivo; atualizar quando a plataforma mudar de cara.
-- `public/produtos/`: ícones copiados dos próprios apps (Cozya e Agenda em SVG, Missão Saber e Edi em PNG). O do Bora Treinar (`bora-treinar.png`, 192x192) foi gerado do `icon.svg` do EdiBody, a origem do app: boneco verde-limão `#C8FF2E` sobre o quadrado `#0B0D10`.
+- `public/produtos/`: ícones copiados dos próprios apps (Cozya e Agenda em SVG, Missão Saber e Edi em PNG). O do Bora Treinar (`bora-treinar.png`, 192x192) foi gerado do `icon.svg` do próprio app (`apps/bora-treinar/public/icon.svg`): boneco verde-limão `#C8FF2E` sobre o quadrado `#0B0D10`.
 - Ícones do navegador em `src/app/` pelas convenções de metadata do Next 16. Não há `manifest.ts` nem service worker (não é PWA).
 
 ---

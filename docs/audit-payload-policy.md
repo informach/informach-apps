@@ -61,7 +61,6 @@ Eventos `bora.*` registram o que o titular fez com os perfis, os treinos montado
 - `bora.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos (`name`, `color`), nunca os valores.
 - `bora.custom_workout_saved`: `{ workoutId, created }`, com `created` verdadeiro quando o treino é novo. `bora.custom_workout_deleted`: `{ workoutId }`. O nome e os blocos do treino ficam fora.
 - `bora.preferences_updated`: `{ fields }`, só os nomes das preferências alteradas (dias e hora do lembrete, fuso, resumo semanal), sem os valores.
-- `bora.backup_imported`: `{ profiles, sessions, skippedProfiles }`, só contagens do que entrou e do que ficou de fora pelo limite do plano.
 - `bora.pairing_started` e `bora.pairing_connected` (celular como câmera da TV): nunca incluir o código de pareamento, token, nome do aparelho, IP ou imagem. Ao implementar o emissor, registrar aqui os campos, só IDs técnicos.
 
 Finalidade: investigar mudanças na conta da família e atender pedidos de suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores. Esses eventos não são métricas de treino.

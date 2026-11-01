@@ -19,7 +19,7 @@ function loadLandmarker() {
     const { FilesetResolver, PoseLandmarker } = await import("@mediapipe/tasks-vision");
     const files = await FilesetResolver.forVisionTasks(`${base}mediapipe/wasm`);
     const opts = (delegate: "GPU" | "CPU") => ({
-      baseOptions: { modelAssetPath: `${base}mediapipe/pose_landmarker_lite.task`, delegate },
+      baseOptions: { modelAssetPath: `${base}mediapipe/pose_landmarker_full.task`, delegate },
       runningMode: "VIDEO" as const,
       numPoses: 1,
       minPoseDetectionConfidence: 0.5,

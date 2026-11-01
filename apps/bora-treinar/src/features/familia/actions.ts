@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { recentParent, runAction, verifiedUser } from "@/lib/action";
-import { AppError, assertAllowed } from "@/lib/errors";
+import { assertAllowed } from "@/lib/errors";
 import { audit } from "@/lib/observability";
 import {
   changePlan,
@@ -12,8 +12,6 @@ import {
   portal,
   reactivate,
 } from "../billing/service";
-import { parseEdibodyBackup } from "../sessoes/edibody";
-import { importProfiles } from "../sessoes/service";
 import {
   clearFamily,
   createProfile,
@@ -158,39 +156,5 @@ export async function clearAction(confirmation: string) {
     await closeBillingAndFamily(user.id, () => clearFamily(user.id));
     (await cookies()).delete(PROFILE_COOKIE);
     revalidatePath("/", "layout");
-  });
-}
-
-function lerBackup(json: string) {
-  try {
-    return parseEdibodyBackup(JSON.parse(json));
-  } catch {
-    throw new AppError("INPUT", "O arquivo não é um backup do EdiBody.");
-  }
-}
-
-/**
- * Traz perfis e treinos de um backup do EdiBody para a conta. Os perfis entram
- * até o limite do plano; os que não couberem são informados, não descartados
- * em silêncio.
- */
-export async function importEdibodyAction(json: string) {
-  return runAction(async () => {
-    assertAllowed(json.length <= 5_000_000, "INPUT", "Arquivo grande demais.");
-    const perfis = lerBackup(json);
-    const user = await recentParent();
-    const { access, profiles } = await familyView(user.id);
-    const result = await importProfiles(user.id, perfis, access.profileLimit, profiles.length);
-    audit({
-      eventType: "bora.backup_imported",
-      actorId: user.id,
-      payload: {
-        profiles: result.perfis,
-        sessions: result.sessoes,
-        skippedProfiles: result.ficaramDeFora,
-      },
-    });
-    revalidatePath("/", "layout");
-    return result;
   });
 }

@@ -11,10 +11,10 @@ const app = join(dirname(fileURLToPath(import.meta.url)), "..");
 // O pacote não exporta package.json; a pasta wasm fica ao lado do módulo de entrada.
 const wasmSrc = join(app, "node_modules/@mediapipe/tasks-vision/wasm");
 const wasmDst = join(app, "public/mediapipe/wasm");
-const modelDst = join(app, "public/mediapipe/pose_landmarker_lite.task");
+const modelDst = join(app, "public/mediapipe/pose_landmarker_full.task");
 const MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-const MODEL_SHA256 = "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a";
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+const MODEL_SHA256 = "5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1";
 
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 

@@ -78,6 +78,11 @@ export interface PlayerProps {
   workoutName: string;
   mode: CountMode;
   levels: LevelMap;
+  /**
+   * Entrega o treino concluído a quem chamou em vez de salvar no servidor.
+   * Só o playground de desenvolvimento usa: lá não há conta nem banco.
+   */
+  onFinish?: (session: SessionInput) => void;
 }
 
 export function PlayerScreen({
@@ -88,6 +93,7 @@ export function PlayerScreen({
   workoutName,
   mode,
   levels,
+  onFinish,
 }: PlayerProps) {
   const router = useRouter();
   const [settings, setSettings] = useAjustes();
@@ -178,6 +184,10 @@ export function PlayerScreen({
     };
     say("Treino concluído! Mandou bem.", { interrupt: true });
     beep("done");
+    if (onFinish) {
+      onFinish(input);
+      return;
+    }
     try {
       const result = await saveSessionAction(input);
       if (result.ok) {

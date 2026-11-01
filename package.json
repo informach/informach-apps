@@ -29,6 +29,7 @@
     "dev:bora-treinar": "pnpm --filter @informach/bora-treinar dev",
     "build:bora-treinar": "turbo build --filter=@informach/bora-treinar",
     "start:bora-treinar": "pnpm --filter @informach/bora-treinar start",
+    "playground:bora-treinar": "pnpm --filter @informach/bora-treinar playground",
     "dev:informach-site": "pnpm --filter @informach/informach-site dev",
     "build:informach-site": "turbo build --filter=@informach/informach-site",
     "start:informach-site": "pnpm --filter @informach/informach-site start",

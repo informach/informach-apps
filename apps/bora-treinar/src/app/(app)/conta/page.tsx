@@ -6,7 +6,6 @@ import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import {
   BillingButton,
-  ImportarEdibody,
   Lembretes,
   PlanChangeControls,
   PrivacyControls,
@@ -206,11 +205,6 @@ export default async function Conta({
           }
           email={user.email}
         />
-
-        <div className="section-title">
-          <h2>EdiBody</h2>
-        </div>
-        {acessoRecente ? <ImportarEdibody /> : <ConfirmarAcesso para="importar um backup" />}
 
         <div className="section-title">
           <h2>Seus dados e suas escolhas</h2>

@@ -26,6 +26,20 @@ function metricAt(ex: Exercise, d: number) {
   return result.value;
 }
 
+/** Profundidade do instrutor que leva a uma fração `target` do caminho até o limiar (busca binária). */
+function depthFor(ex: Exercise, target: number) {
+  const rule = repRule(ex);
+  const progressAt = (d: number) => (metricAt(ex, d) - rule.rest) / (rule.peak - rule.rest);
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (progressAt(mid) < target) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
 describe("limiares batem com o movimento do instrutor", () => {
   for (const ex of repExercises) {
     it(ex.id, () => {
@@ -49,20 +63,20 @@ describe("contagem de repetições com ruído", () => {
       expect(events.filter((e) => e.type === "partial")).toHaveLength(0);
     });
     it(`${ex.id}: amplitude incompleta vira parcial, não repetição`, () => {
-      const rule = repRule(ex);
-      const progressAt = (d: number) => (metricAt(ex, d) - rule.rest) / (rule.peak - rule.rest);
-      // profundidade que leva a 75% do caminho até o limiar (busca binária)
-      let lo = 0;
-      let hi = 1;
-      for (let i = 0; i < 30; i++) {
-        const mid = (lo + hi) / 2;
-        if (progressAt(mid) < 0.75) lo = mid;
-        else hi = mid;
-      }
-      const c = new RepCounter(rule);
-      const events = synthFrames(ex, 5, lo, 0.006, 11).flatMap((f) => c.update(f.lm, f.t).events);
+      const c = new RepCounter(repRule(ex));
+      const events = synthFrames(ex, 5, depthFor(ex, 0.75), 0.006, 11).flatMap(
+        (f) => c.update(f.lm, f.t).events,
+      );
       expect(events.filter((e) => e.type === "rep")).toHaveLength(0);
       expect(events.filter((e) => e.type === "partial")).toHaveLength(5);
+    });
+    it(`${ex.id}: quase no limiar já conta, porque a câmera erra alguns graus`, () => {
+      const c = new RepCounter(repRule(ex));
+      const events = synthFrames(ex, 5, depthFor(ex, 0.93), 0.006, 13).flatMap(
+        (f) => c.update(f.lm, f.t).events,
+      );
+      expect(events.filter((e) => e.type === "rep")).toHaveLength(5);
+      expect(events.filter((e) => e.type === "partial")).toHaveLength(0);
     });
   }
 
@@ -79,6 +93,20 @@ describe("contagem de repetições com ruído", () => {
     });
     expect(events.filter((e) => e.type === "rep")).toHaveLength(3);
     expect(events.every((e) => e.issues.includes("Mantenha o quadril alinhado"))).toBe(true);
+  });
+
+  it("visibilidade baixa no fundo do movimento não perde a repetição", () => {
+    const ex = exerciseById("flexao");
+    const rule = repRule(ex);
+    const c = new RepCounter(rule);
+    const events = synthFrames(ex, 5).flatMap((f) => {
+      const r = evalMetric(rule.metric, f.lm);
+      const p = r ? (r.value - rule.rest) / (rule.peak - rule.rest) : 0;
+      // perto do fundo, o detector baixa a confiança em cotovelo e punho
+      const lm = p > 0.6 ? f.lm.map((l) => ({ ...l, visibility: 0.4 })) : f.lm;
+      return c.update(lm, f.t).events;
+    });
+    expect(events.filter((e) => e.type === "rep")).toHaveLength(5);
   });
 
   it("pontos invisíveis não contam nada", () => {

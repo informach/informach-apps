@@ -4,7 +4,7 @@ Leia antes o `AGENTS.md` da raiz, o [README](README.md) (como rodar e verificar)
 
 ## Produto
 
-Calistenia guiada para a família, portada do EdiBody (PWA local em Vite). A aparência é a do EdiBody: `src/app/globals.css` é o CSS original, sem mudanças. Telas novas usam as mesmas classes e o que faltar entra em `src/app/bora.css`. Não há Tailwind nem `@informach/ui` neste app, de propósito.
+Calistenia guiada para a família. A aparência das telas de treino está em `src/app/globals.css`; telas novas usam as mesmas classes e o que faltar entra em `src/app/bora.css`. Não há Tailwind nem `@informach/ui` neste app, de propósito.
 
 - **Conta do titular, perfis só de apelido e cor.** Nada de data de nascimento, peso, altura, foto ou dado de saúde.
 - **Plano gratuito:** 1 perfil, o "Primeiro treino" (`FREE_WORKOUT_IDS`), a biblioteca com o instrutor 3D e a prática de cada exercício contando à mão.
@@ -25,9 +25,15 @@ Cada exercício (`catalog/catalog.ts`) tem uma pose procedural (`body/poses.ts`)
 
 - **Os testes provam que a regra conta o movimento do próprio instrutor.** `test/counter.test.ts` exige 10 de 10 com ruído, parcial com amplitude incompleta, e isometria reconhecida na pose e recusada em pé. Exercício novo precisa passar nesses testes sem afrouxar os limiares.
 - Para calibrar, meça o ângulo da pose em profundidade 0 e 1 e deixe pelo menos 5° de folga para `rest` e `peak`.
+- **Folga para gente de verdade.** `peak` é calibrado no instrutor, que vai sempre até o fim. A câmera mede o corpo real com erro de alguns graus, então a repetição conta a partir de `full` (padrão 85%) do caminho até `peak`. Abaixo disso e acima de `partial` (45%) vira parcial ("Quase!"). Os testes fixam os dois lados: 93% conta, 75% é parcial.
+  - A profundidade sai do valor bruto (mediana de 3 quadros), não do filtrado, que atrasa e achata o fundo.
+  - Durante o movimento a visibilidade mínima cai de 0,5 para 0,3, porque no fundo da flexão ou do agachamento o detector baixa a confiança de cotovelo, punho e joelho.
+  - A barra de acompanhamento e o instrutor que segue a pessoa chegam ao fundo no ponto em que a repetição já conta.
+- O modelo é o `pose_landmarker_full` (≈9 MB), mais preciso que o lite, principalmente na profundidade (eixo z), de que dependem os agachamentos vistos de frente. Ao trocar o modelo, mude também o nome do cache `DETECTOR` em `public/sw.js`.
 - Exercícios alternados (`alternating`) trocam de lado pelo `cycle` do `PoseState`.
 - Em desenvolvimento, `/dev/poses?ex=<id>&d=<0..1>` mostra o instrutor parado numa profundidade, para conferir poses. Em produção essa rota é 404.
-- **Trilhas:** o nível do perfil é um índice em `CHAINS[].levels`. Inserir um nível no meio muda o exercício de quem já está na trilha. Prefira acrescentar no fim ou faça migração de dados. O import do EdiBody converte níveis pelo exercício (`EDIBODY_CHAINS`).
+- **Playground** (`pnpm playground:bora-treinar`, `/dev/playground`, 404 em produção): laboratório de calibração da câmera e o player sem conta nem banco (`features/playground`). O player recebe `onFinish` para entregar o treino em vez de salvar; só o playground usa. Para recalibrar um exercício com gente de verdade, meça no laboratório e leve a regra copiada ao catálogo, sem quebrar os testes do instrutor.
+- **Trilhas:** o nível do perfil é um índice em `CHAINS[].levels`. Inserir um nível no meio muda o exercício de quem já está na trilha. Prefira acrescentar no fim ou faça migração de dados.
 
 ## Dados
 

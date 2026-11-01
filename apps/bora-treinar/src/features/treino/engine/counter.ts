@@ -34,6 +34,12 @@ export interface RepRule {
   rest: number;
   /** valor que precisa ser alcançado para a repetição contar */
   peak: number;
+  /**
+   * fração do caminho que já conta como repetição completa (padrão 0,85). A
+   * folga existe porque a câmera mede o corpo real com erro de alguns graus e
+   * os limiares foram calibrados no instrutor 3D, que vai sempre até o fim.
+   */
+  full?: number;
   /** fração do caminho a partir da qual o movimento conta como parcial (padrão 0,45) */
   partial?: number;
   checks?: Check[];
@@ -55,7 +61,17 @@ export interface RepEvent {
   issues: string[];
 }
 
+/** Visibilidade mínima de um ponto para a medida valer. */
 const MIN_VIS = 0.5;
+/**
+ * Durante o movimento a exigência cai: no fundo da flexão ou do agachamento
+ * mãos, cotovelos e joelhos ficam parcialmente encobertos e o detector baixa a
+ * visibilidade justo no quadro que decide a profundidade.
+ */
+const MOVING_VIS = 0.3;
+/** Progresso que inicia uma repetição e progresso que a encerra (histerese). */
+const START_AT = 0.12;
+const END_AT = 0.04;
 
 function angle(a: Landmark, b: Landmark, c: Landmark) {
   const ux = a.x - b.x,
@@ -70,15 +86,33 @@ function angle(a: Landmark, b: Landmark, c: Landmark) {
 
 const vis = (l: Landmark | undefined) => (l ? (l.visibility ?? 1) : 0);
 
+const SIDES = [0, 1] as const;
+
+/** Ângulo de cada lado do corpo com pontos visíveis (só para medidas de ângulo). */
+function evalSides(
+  m: Extract<Metric, { kind: "angle" }>,
+  lm: Landmark[],
+  minVis = MIN_VIS,
+): { value: number; conf: number }[] {
+  return SIDES.flatMap((s) => {
+    const [a, b, c] = m.at.map((p) => lm[IDX[p][s]]);
+    const conf = Math.min(vis(a), vis(b), vis(c));
+    return a && b && c && conf >= minVis ? [{ value: angle(a, b, c), conf }] : [];
+  });
+}
+
 /** Avalia uma medida. Devolve null quando os pontos necessários não estão visíveis. */
-export function evalMetric(m: Metric, lm: Landmark[]): { value: number; conf: number } | null {
-  const SIDES = [0, 1] as const;
+export function evalMetric(
+  m: Metric,
+  lm: Landmark[],
+  minVis = MIN_VIS,
+): { value: number; conf: number } | null {
   if (m.kind === "incline") {
     const ok = SIDES.flatMap((s) => {
       const a = lm[IDX[m.from][s]];
       const b = lm[IDX[m.to][s]];
       const conf = Math.min(vis(a), vis(b));
-      return a && b && conf >= MIN_VIS ? [{ a, b, conf }] : [];
+      return a && b && conf >= minVis ? [{ a, b, conf }] : [];
     });
     if (!ok.length) return null;
     const avg = (k: "x" | "y" | "z", p: "a" | "b") =>
@@ -92,12 +126,7 @@ export function evalMetric(m: Metric, lm: Landmark[]): { value: number; conf: nu
       conf: Math.max(...ok.map((s) => s.conf)),
     };
   }
-  const ok = SIDES.flatMap((s) => {
-    const [a, b, c] = m.at.map((p) => lm[IDX[p][s]]);
-    const conf = Math.min(vis(a), vis(b), vis(c));
-    return a && b && c && conf >= MIN_VIS ? [{ value: angle(a, b, c), conf }] : [];
-  });
-  const [first, second] = ok;
+  const [first, second] = evalSides(m, lm, minVis);
   if (!first) return null;
   if (!second) return first;
   const conf = Math.max(first.conf, second.conf);
@@ -149,7 +178,7 @@ export class OneEuro {
 }
 
 export interface RepUpdate {
-  /** 0 no topo, 1 no limiar do fundo */
+  /** 0 no topo, 1 quando a repetição já conta (`full` do caminho até o limiar) */
   progress: number;
   conf: number;
   value: number | null;
@@ -157,7 +186,15 @@ export interface RepUpdate {
   events: RepEvent[];
 }
 
-/** Conta repetições a partir de uma medida com histerese entre topo e fundo. */
+/**
+ * Conta repetições a partir de uma medida com histerese entre topo e fundo.
+ *
+ * O estado (começou, terminou) segue o valor filtrado, que não treme. A
+ * profundidade alcançada, que decide entre repetição e parcial, segue o valor
+ * bruto pela mediana dos últimos 3 quadros: o filtro atrasa e achata o fundo,
+ * que dura poucos quadros, e a mediana descarta um quadro isolado fora da
+ * curva.
+ */
 export class RepCounter {
   private filter = new OneEuro();
   private state: "waiting" | "top" | "moving" = "waiting";
@@ -165,6 +202,7 @@ export class RepCounter {
   private maxP = 0;
   private frames = 0;
   private fails = new Map<string, number>();
+  private recent: number[] = [];
   progress = 0;
 
   constructor(readonly rule: RepRule) {}
@@ -173,10 +211,21 @@ export class RepCounter {
     this.filter.reset();
     this.state = "waiting";
     this.progress = 0;
+    this.recent = [];
+  }
+
+  /** Estado interno, lido pelo laboratório de calibração do playground. */
+  get debug() {
+    return { state: this.state, reached: this.state === "moving" ? this.maxP : 0 };
+  }
+
+  private toProgress(value: number) {
+    return (value - this.rule.rest) / (this.rule.peak - this.rule.rest);
   }
 
   update(lm: Landmark[], tMs: number): RepUpdate {
-    const r = evalMetric(this.rule.metric, lm);
+    const minVis = this.state === "moving" ? MOVING_VIS : MIN_VIS;
+    const r = evalMetric(this.rule.metric, lm, minVis);
     if (!r)
       return {
         progress: this.progress,
@@ -186,29 +235,33 @@ export class RepCounter {
         events: [],
       };
     const value = this.filter.filter(r.value, tMs / 1000);
-    const p = (value - this.rule.rest) / (this.rule.peak - this.rule.rest);
-    this.progress = Math.max(0, Math.min(1, p));
+    const p = this.toProgress(value);
+    this.recent.push(this.toProgress(r.value));
+    if (this.recent.length > 3) this.recent.shift();
+    const reached = median(this.recent);
+    // a barra e o instrutor que acompanha chegam ao fundo quando a repetição já conta
+    this.progress = Math.max(0, Math.min(1, p / (this.rule.full ?? 0.85)));
     const events: RepEvent[] = [];
 
     if (this.state === "waiting") {
-      if (p <= 0) this.state = "top";
+      if (p <= END_AT) this.state = "top";
     } else if (this.state === "top") {
-      if (p > 0.12) {
+      if (p > START_AT) {
         this.state = "moving";
         this.startT = tMs;
-        this.maxP = p;
+        this.maxP = Math.max(p, reached);
         this.frames = 0;
         this.fails.clear();
       }
     } else {
-      this.maxP = Math.max(this.maxP, p);
+      this.maxP = Math.max(this.maxP, p, reached);
       this.frames++;
       for (const c of this.rule.checks ?? [])
         if (!passes(c, lm)) this.fails.set(c.cue, (this.fails.get(c.cue) ?? 0) + 1);
-      if (p <= 0) {
+      if (p <= END_AT) {
         const issues = [...this.fails].filter(([, n]) => n > this.frames * 0.3).map(([cue]) => cue);
         const base = { at: tMs, duration: tMs - this.startT, depth: this.maxP };
-        if (this.maxP >= 1) events.push({ type: "rep", ...base, issues });
+        if (this.maxP >= (this.rule.full ?? 0.85)) events.push({ type: "rep", ...base, issues });
         else if (this.maxP >= (this.rule.partial ?? 0.45))
           events.push({ type: "partial", ...base, issues });
         this.state = "top";
@@ -222,6 +275,11 @@ export class RepCounter {
       events,
     };
   }
+}
+
+function median(xs: number[]) {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)] ?? 0;
 }
 
 export interface HoldUpdate {

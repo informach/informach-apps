@@ -538,15 +538,3 @@ export const CHAINS: Chain[] = [
 ];
 
 export const chainOf = (exerciseId: string) => CHAINS.find((c) => c.levels.includes(exerciseId));
-
-/**
- * Trilhas do EdiBody, para importar backups: lá o nível era um índice na
- * trilha original, e aqui as trilhas ganharam degraus no começo.
- */
-export const EDIBODY_CHAINS: Record<string, string[]> = {
-  empurrar: ["flexao-joelhos", "flexao", "flexao-diamante"],
-  pernas: ["agachamento", "afundo"],
-  core: ["ponte", "abdominal"],
-  isometria: ["prancha"],
-  cardio: ["polichinelo"],
-};

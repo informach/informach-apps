@@ -26,9 +26,20 @@ pnpm dev:bora-treinar
 
 `preview:setup` lê o `DATABASE_URL` local da raiz, cria um banco `bora_preview_<uuid>`, aplica as migrations nele e grava `.env.local` ignorado pelo Git. Recusa destino remoto e não sobrescreve um `.env.local` que já exista. O app abre em `http://localhost:3007`.
 
-O `dev` e o `build` rodam antes `scripts/fetch-assets.mjs` (também disponível como `pnpm --filter @informach/bora-treinar assets`): ele copia o runtime WASM do `@mediapipe/tasks-vision` instalado para `public/mediapipe/wasm` e baixa o modelo `pose_landmarker_lite.task`, conferido por SHA-256. O detector roda servido pela própria origem, sem CDN de terceiros; a primeira execução precisa de rede para o download do modelo.
+O `dev` e o `build` rodam antes `scripts/fetch-assets.mjs` (também disponível como `pnpm --filter @informach/bora-treinar assets`): ele copia o runtime WASM do `@mediapipe/tasks-vision` instalado para `public/mediapipe/wasm` e baixa o modelo `pose_landmarker_full.task`, conferido por SHA-256. O detector roda servido pela própria origem, sem CDN de terceiros; a primeira execução precisa de rede para o download do modelo.
 
 E-mails ficam em modo sandbox no local, gravados em `tmp/emails`; a Stripe local usa chave de teste.
+
+## Playground (sem conta e sem banco)
+
+```powershell
+pnpm playground:bora-treinar
+```
+
+Abre em `http://localhost:3007/dev/playground`. Não precisa de PostgreSQL, login nem assinatura, e nada é salvo. Sem `.env.local`, o script (`scripts/playground.mjs`) preenche as variáveis obrigatórias com valores de mentira só para o app subir. Nesse modo o resto do app (login, conta, treinos salvos) não funciona. Com `.env.local`, ele vale. Em produção, as rotas `/dev/*` respondem 404.
+
+- **Laboratório da câmera** (`/dev/playground/camera?ex=<id>`): mostra o ângulo medido (bruto e filtrado), a confiança, o fps e o estado do contador. Uma régua marca onde começa a parcial, onde a repetição passa a contar e o limiar. Cada repetição entra numa tabela com a profundidade alcançada. Os limiares mudam ao vivo, e "Copiar regra" leva os números para `catalog/catalog.ts`. No esqueleto desenhado, linha verde é ponto bem visto, laranja só vale durante o movimento e vermelha é descartada.
+- **Praticar e treinos prontos**: abrem o player de verdade, com câmera ou manual. No fim, em vez de salvar, mostram o que seria gravado.
 
 ## Verificar
 
@@ -54,13 +65,13 @@ apps/bora-treinar/
 └── src/
     ├── app/api/                # auth, health, ready, jobs, webhooks Stripe e SendGrid, descadastro
     ├── features/
-    │   ├── treino/             # núcleo portado do EdiBody
+    │   ├── treino/             # núcleo do treino: instrutor, contagem e catálogo
     │   │   ├── body/           # landmarks, poses, esqueleto e cadência
     │   │   ├── engine/         # contador de repetições, runner da sessão, progressão, voz
     │   │   ├── catalog/        # exercícios, trilhas e treinos prontos
     │   │   ├── instructor/     # instrutor 3D (three.js)
     │   │   └── vision/         # rastreador de pose do MediaPipe
-    │   ├── familia/            # perfis, preferências, backup
+    │   ├── familia/            # perfis e preferências
     │   ├── meus-treinos/       # editor de treinos
     │   ├── sessoes/            # registro das sessões e séries
     │   ├── desafios/           # desafio semanal da família
@@ -71,7 +82,7 @@ apps/bora-treinar/
     └── lib/                    # env, auth, redis, e-mails, observabilidade, job-runs
 ```
 
-O núcleo de `features/treino` veio do protótipo EdiBody; o resto (conta, cobrança, banco, e-mails, auditoria) segue o mesmo desenho da Missão Saber e usa os packages compartilhados (`@informach/auth`, `billing`, `config`, `db`, `emails`). As tabelas ficam no schema `bora_treinar` (`packages/db/src/schema/bora-treinar.ts`) e tudo cai em cascata a partir de `core.users`.
+O núcleo de `features/treino` roda todo no navegador; o resto (conta, cobrança, banco, e-mails, auditoria) segue o mesmo desenho da Missão Saber e usa os packages compartilhados (`@informach/auth`, `billing`, `config`, `db`, `emails`). As tabelas ficam no schema `bora_treinar` (`packages/db/src/schema/bora-treinar.ts`) e tudo cai em cascata a partir de `core.users`.
 
 ## Decisões principais
 
