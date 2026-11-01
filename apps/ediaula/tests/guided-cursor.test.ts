@@ -9,6 +9,7 @@ import {
   parseGuidedLog,
   synthesizeCursor,
 } from "../src/shared/guidedCursor.ts";
+import { humanPath, pathAt } from "../src/shared/humanMotion.ts";
 import { CURSOR_SHAPES } from "../src/shared/recording.ts";
 
 const viewport = { width: 1280, height: 720 };
@@ -186,4 +187,41 @@ test("computed CSS cursors map to the editor's shapes", () => {
   assert.equal(cursorShapeFor("col-resize"), "ew");
   assert.equal(cursorShapeFor("none"), "hidden");
   assert.equal(cursorShapeFor('url("x.png") 4 4, pointer'), "hand");
+});
+
+test("um deslizar em curva é desenhado no vídeo pela mesma curva, e um antigo segue reto", () => {
+  const from = { x: 100, y: 600 };
+  const to = { x: 1000, y: 150 };
+  const path = humanPath(from, to, 9, 20);
+  const curved: GuidedLogLine[] = [
+    begin,
+    { k: "move", t: 0, x: from.x, y: from.y },
+    {
+      k: "glide",
+      t: 0.5,
+      until: 1.7,
+      from,
+      to,
+      path: { c1: path.c1, c2: path.c2, over: path.over },
+    },
+    { k: "end", t: 9.2, status: "done" },
+  ];
+  const data = synthesizeCursor(curved, viewport, 30, 9.2);
+  // Halfway through the glide the drawn pointer is where the curve is, off the straight line.
+  const mid = pointerAt(data.moves, 1.1);
+  assert.ok(mid);
+  const expected = pathAt(path, (1.1 - 0.5) / 1.2);
+  assert.ok(Math.abs(mid[1] - expected.x) <= 1 && Math.abs(mid[2] - expected.y) <= 1);
+  const straightY = from.y + (to.y - from.y) * 0.5;
+  assert.ok(Math.abs(mid[2] - straightY) > 3 || Math.abs(mid[1] - (from.x + to.x) / 2) > 3);
+  // It ends exactly on the target.
+  const last = pointerAt(data.moves, 1.7);
+  assert.deepEqual([last?.[1], last?.[2]], [to.x, to.y]);
+  // The same log without the curve (a take made before it) still parses and draws straight.
+  const old = parseGuidedLog(
+    curved.map((l) => JSON.stringify(l.k === "glide" ? { ...l, path: undefined } : l)).join("\n"),
+  );
+  const straight = pointerAt(synthesizeCursor(old, viewport, 30, 9.2).moves, 1.1);
+  assert.ok(straight);
+  assert.ok(Math.abs(straight[2] - straightY) < 30);
 });

@@ -15,6 +15,7 @@ import {
   WHEEL_STEP,
   wheelSteps,
 } from "./guidedPlan.ts";
+import { humanDuration } from "./humanMotion.ts";
 import type { Point } from "./locators.ts";
 
 /**
@@ -46,7 +47,11 @@ export interface GuidedDriver {
    * Travels along smoothPointer in `duration` seconds of the clock (0: at once), with the left
    * button held when dragging. A pause stops it where it is and the same curve goes on after.
    */
-  glide(from: Point, to: Point, duration: number, drag?: boolean): Promise<void>;
+  glide(from: Point, to: Point, duration: number, drag?: boolean, size?: number): Promise<void>;
+  /** Brings a target out of view into it with a smooth scroll (the page only). */
+  reveal?(target: GuidedStepTarget, timeout: number): Promise<void>;
+  /** A smooth wheel scroll of so many pixels (the page only); otherwise wheel notches. */
+  scroll?(p: Point, dx: number, dy: number): Promise<void>;
   /** The last check before the button or a key goes out. */
   ready(target: GuidedStepTarget | undefined, purpose: "click" | "key"): Promise<void>;
   click(p: Point, button: PointerButton, count: 1 | 2): Promise<void>;
@@ -158,6 +163,12 @@ async function letGo(driver: GuidedDriver, cause: unknown): Promise<void> {
   }
 }
 
+/** The smaller side of the marked element, for how carefully the hand aims (40 without one). */
+function targetSize(target: GuidedStepTarget | undefined): number {
+  const rect = target?.locator?.fingerprint.rect;
+  return rect ? Math.max(4, Math.min(rect.width, rect.height)) : 40;
+}
+
 export async function runGuided(
   plan: GuidedPlanV2,
   driver: GuidedDriver,
@@ -195,6 +206,11 @@ export async function runGuided(
         s.moveAt + 0.1,
         "A execução atrasou. A gravação foi pausada para não acelerar os cliques.",
       );
+      // A target out of view is brought into it first, on camera, as a person scrolls to it.
+      if (driver.reveal && !clock.instant) {
+        await clock.wait(s.moveAt - 0.25);
+        await driver.reveal(step.target, timeout);
+      }
       clock.hold(s.moveAt, "locate");
       const target = await driver.locate(step.target, "approach", timeout);
       const from = await driver.sample();
@@ -204,7 +220,15 @@ export async function runGuided(
         s.moveAt + 0.1,
         "A localização do alvo atrasou. Revise a etapa para preservar a antecipação da fala.",
       );
-      await driver.glide(from, target, span(move));
+      // A person's hand takes its own time for the distance and the target, within the move's
+      // room; it waits where it is first, so it still arrives when the schedule says.
+      const size = targetSize(step.target);
+      const distance = Math.hypot(target.x - from.x, target.y - from.y);
+      const hand = plan.tempos.motion
+        ? Math.min(move, humanDuration(distance, size, plan.tempos.motion))
+        : move;
+      if (hand < move) await clock.wait(s.moveAt + (span(move) - span(hand)));
+      await driver.glide(from, target, span(hand), false, size);
       const arrived = clock.time();
       if (clock.late(s.arriveAt + 0.1) || clock.late(s.speechAt - 1e-9))
         throw new Error(
@@ -318,6 +342,9 @@ export async function runGuided(
             } else await beat(started, i, WHEEL_INTERVAL);
           }
           clock.release();
+        } else if (step.delta && driver.scroll && plan.mode === "web") {
+          await clock.wait(0);
+          await driver.scroll(p, step.delta.x, step.delta.y);
         } else if (step.delta) {
           const n = wheelSteps(step.delta, plan.mode);
           const started = clock.time();

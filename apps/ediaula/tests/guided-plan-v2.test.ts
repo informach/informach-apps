@@ -149,9 +149,10 @@ test("the schedule of drags, scrolls, waits, double clicks and shortcuts", () =>
   const [dbl, drag, scroll, wait, key] = s.steps;
   assert.equal(s.lead, 2.5);
   assert.ok(dbl.moves && dbl.moveAt < dbl.arriveAt && dbl.arriveAt < dbl.actAt);
-  // The drag moves for `move` seconds after its moment; three wheel steps take 0.24 s.
+  // The drag moves for `move` seconds after its moment.
   assert.equal(drag.endAt, drag.actAt + plan.tempos.after + plan.tempos.move);
-  assert.ok(Math.abs(scroll.endAt - (scroll.actAt + plan.tempos.after + 0.24)) < 1e-9);
+  // On the page a 300 px scroll is one smooth scroll (shared/humanMotion.ts scrollSeconds).
+  assert.ok(Math.abs(scroll.endAt - (scroll.actAt + plan.tempos.after + 0.35)) < 1e-9);
   // Without a target nothing moves: the step starts at its own moment.
   for (const step of [scroll, wait, key]) {
     assert.equal(step.moves, false);

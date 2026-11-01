@@ -183,6 +183,7 @@ export function stepsFromWords(words: Word[]): GuidedStep[] {
   });
 }
 
+/** The ease of the moves of older takes, straight from one point to the next. */
 export const smoothPointer = (t: number): number => {
   const p = Math.max(0, Math.min(1, t));
   return p * p * (3 - 2 * p);

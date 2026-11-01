@@ -6,6 +6,7 @@ import {
   type GuidedPlan,
   type GuidedTarget,
 } from "./guidedRecording.ts";
+import { MOTION_PROFILES, type MotionProfile, scrollSeconds } from "./humanMotion.ts";
 import {
   type Locator,
   legacyLocator,
@@ -102,6 +103,11 @@ export interface GuidedTempos {
   dwell: number;
   after: number;
   anticipation: number;
+  /**
+   * How the hand moves (shared/humanMotion.ts): each move takes the time of a person's hand for
+   * that distance and target, within `move`. Absent: every move takes `move`, as before.
+   */
+  motion?: MotionProfile;
 }
 
 export interface GuidedViewport {
@@ -422,6 +428,7 @@ export const guidedPlanV2Schema = z.looseObject({
     dwell: z.number().finite(),
     after: z.number().finite(),
     anticipation: z.number().finite(),
+    motion: z.enum(MOTION_PROFILES).optional(),
   }),
   audio: z
     .object({
@@ -539,7 +546,8 @@ export function newPlan(id: string, name: string, mode: "web" | "screen" = "web"
     viewport: { ...DEFAULT_VIEWPORT },
     fps: 30,
     steps: [],
-    tempos: { ...DEFAULT_TEMPOS },
+    // A new plan moves like a child's hand; older plans keep their fixed-length moves.
+    tempos: { ...DEFAULT_TEMPOS, motion: "crianca" },
   };
 }
 
@@ -570,7 +578,9 @@ export function actionLength(
   if (step.action === "type") return (step.value?.length ?? 0) * TYPE_INTERVAL;
   if (step.action === "drag") return plan.tempos.move;
   if (step.action === "scroll" && step.delta)
-    return wheelSteps(step.delta, plan.mode) * WHEEL_INTERVAL;
+    return plan.mode === "web"
+      ? scrollSeconds(Math.max(Math.abs(step.delta.x), Math.abs(step.delta.y)))
+      : wheelSteps(step.delta, plan.mode) * WHEEL_INTERVAL;
   return 0;
 }
 

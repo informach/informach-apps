@@ -333,7 +333,7 @@ export type LocatorProblem = (typeof LOCATOR_PROBLEMS)[number];
 
 export type LocateOutcome =
   | { ok: true; candidate: Candidate; strategy: number; changed: boolean }
-  | { ok: false; problem: LocatorProblem };
+  | { ok: false; problem: LocatorProblem; away?: Candidate };
 
 const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
 
@@ -390,6 +390,10 @@ export function rankCandidates(
     }
     const usable = found.filter((c) => c.visible && c.inView && c.enabled && !c.covered);
     if (!usable.length) {
+      // A single element only out of view: the robot can scroll to it, as a person would.
+      const away = found.filter((c) => c.visible && !c.inView && c.enabled);
+      if (away.length === 1 && found.length === 1)
+        return { ok: false, problem: "offscreen", away: away[0] };
       for (const c of found)
         problems.add(
           !c.visible ? "hidden" : !c.inView ? "offscreen" : !c.enabled ? "disabled" : "covered",

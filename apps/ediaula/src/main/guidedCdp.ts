@@ -10,8 +10,8 @@ import {
   type GuidedViewport,
   parseChord,
 } from "../shared/guidedPlan.ts";
-import { smoothPointer } from "../shared/guidedRecording.ts";
 import { type GuidedDriver, type PointerButton, STOPPED } from "../shared/guidedRunner.ts";
+import { humanPath, moveSeed, pathAt, scrollSeconds, smoothScroll } from "../shared/humanMotion.ts";
 import { LOCATOR_PAGE_SCRIPT } from "../shared/locatorPage.ts";
 import {
   actionPoint,
@@ -158,7 +158,13 @@ export type Found =
       block?: BlocklyBlock;
       canvas: BlocklyCanvas | null;
     }
-  | { ok: false; message: string; navigating: boolean };
+  | {
+      ok: false;
+      message: string;
+      navigating: boolean;
+      /** The element is there but out of view: CSS pixels to scroll to bring it to the middle. */
+      reveal?: { dx: number; dy: number; at: Point };
+    };
 
 /** The page took longer than this to answer a command: it counts as busy, not broken. */
 const SEND_TIMEOUT = 10000;
@@ -652,8 +658,26 @@ export class CdpDriver {
     const facts = await this.facts(locator);
     if (!facts.ready) return { ok: false, message: facts.message, navigating: true };
     const ranked = rankCandidates(locator, facts.matches, facts.view, facts.canvas);
-    if (!ranked.ok)
-      return { ok: false, message: locateMessage(locator, ranked.problem), navigating: false };
+    if (!ranked.ok) {
+      const away = ranked.away;
+      return {
+        ok: false,
+        message: locateMessage(locator, ranked.problem),
+        navigating: false,
+        ...(away
+          ? {
+              reveal: {
+                dx: 0,
+                dy: Math.round(away.rect.y + away.rect.height / 2 - facts.view.height * 0.45),
+                at: {
+                  x: facts.view.width / 2 + facts.offset.x,
+                  y: facts.view.height / 2 + facts.offset.y,
+                },
+              },
+            }
+          : {}),
+      };
+    }
     const p = actionPoint(locator, ranked.candidate);
     const key = ranked.candidate.key;
     return {
@@ -1011,6 +1035,55 @@ export class WebDriver implements GuidedDriver {
     }
   }
 
+  /**
+   * An element out of view comes into it the way a person brings it: a smooth wheel scroll that
+   * leaves it near the middle. A few tries at most (a page that grows as it scrolls).
+   */
+  async reveal(target: GuidedStepTarget, timeout: number): Promise<void> {
+    const locator = target.locator;
+    if (!locator) return;
+    for (let i = 0; i < 4; i++) {
+      const found = await this.cdp.find(locator).catch((error: unknown) => {
+        if (this.fatal(error)) throw error;
+        return null;
+      });
+      if (!found || found.ok || !found.reveal) return;
+      await this.scroll(found.reveal.at, found.reveal.dx, found.reveal.dy);
+    }
+    void timeout;
+  }
+
+  /**
+   * A wheel scroll as a person's: small steps on each frame that speed up and slow down
+   * (shared/humanMotion.ts smoothScroll). Untimed (verifying a plan), one step.
+   */
+  async scroll(p: Point, dx: number, dy: number): Promise<void> {
+    const clock = this.clock;
+    const delta = Math.abs(dy) >= Math.abs(dx) ? dy : dx;
+    if (!clock || !delta) {
+      await this.wheel(p, dx, dy);
+      return;
+    }
+    const steps = smoothScroll(delta, scrollSeconds(delta), clock.fps);
+    const vertical = Math.abs(dy) >= Math.abs(dx);
+    let i = 0;
+    await new Promise<void>((resolve, reject) => {
+      const off = clock.onFrame(() => {
+        const step = steps[i++];
+        if (step === undefined) {
+          off();
+          resolve();
+          return true;
+        }
+        this.wheel(p, vertical ? 0 : step, vertical ? step : 0).catch((error: unknown) => {
+          off();
+          reject(error);
+        });
+        return false;
+      });
+    });
+  }
+
   async locate(
     target: GuidedStepTarget,
     _phase: "approach" | "act",
@@ -1070,7 +1143,10 @@ export class WebDriver implements GuidedDriver {
    * ("paint"). Every frame then shows the block where the log puts the pointer, however slow the
    * page is; the take only takes longer in wall time.
    */
-  glide(from: Point, to: Point, duration: number, drag = false): Promise<void> {
+  /** Moves made in this take: each one's seed, so no two arcs are the same. */
+  private moves = 0;
+
+  glide(from: Point, to: Point, duration: number, drag = false, size = 40): Promise<void> {
     const clock = this.clock;
     const buttons = drag ? { button: "left" as const, buttons: 1 } : {};
     if (!clock || duration <= 0) {
@@ -1090,13 +1166,19 @@ export class WebDriver implements GuidedDriver {
     /** The second of the frame after the one at `t`, as the clock will give it. */
     const next = (t: number): number => (Math.round(t * clock.fps) + 1) / clock.fps;
     const paints = drag ? this.paintAfter : null;
-    const at = (t: number): Point => {
-      const u = Math.min(1, (t - t0) / duration);
-      if (u >= 1) return to;
-      const k = smoothPointer(u);
-      return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
-    };
-    this.log?.({ k: "glide", t: t0, until: t0 + duration, from, to, ...(drag ? { drag } : {}) });
+    // A person's hand: a slight arc, slow out and in; a dragged block never overshoots its slot.
+    const shape = humanPath(from, to, moveSeed(from, to, this.moves++), size);
+    const path = drag ? { ...shape, over: 0 } : shape;
+    const at = (t: number): Point => pathAt(path, (t - t0) / duration);
+    this.log?.({
+      k: "glide",
+      t: t0,
+      until: t0 + duration,
+      from,
+      to,
+      ...(drag ? { drag } : {}),
+      path: { c1: path.c1, c2: path.c2, over: path.over },
+    });
     return new Promise<void>((resolve, reject) => {
       let painting = false;
       const settle = (): void => {

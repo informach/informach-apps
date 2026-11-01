@@ -13,6 +13,7 @@ import {
   VIEWPORTS,
 } from "@shared/guidedPlan";
 import { type GuidedStep, stepsFromScript, stepsFromWords } from "@shared/guidedRecording";
+import { MOTION_LABELS, MOTION_PROFILES } from "@shared/humanMotion";
 import type { Transcript } from "@shared/types";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { mediaUrl } from "@/lib/media";
@@ -555,6 +556,25 @@ export function GuidedSetup({
           </div>
         )}
         <div className="guided-timing">
+          <label>
+            Movimento do mouse
+            <select
+              value={plan.tempos.motion ?? ""}
+              title="Como a mão leva o mouse até cada alvo: em curva, saindo e chegando devagar, no tempo de uma pessoa para aquela distância."
+              onChange={(e) => {
+                const motion = MOTION_PROFILES.find((m) => m === e.target.value);
+                const { motion: _old, ...rest } = plan.tempos;
+                change({ tempos: motion ? { ...rest, motion } : rest });
+              }}
+            >
+              {MOTION_PROFILES.map((m) => (
+                <option key={m} value={m}>
+                  {MOTION_LABELS[m]}
+                </option>
+              ))}
+              <option value="">Sempre o tempo de Movimento</option>
+            </select>
+          </label>
           {(
             [
               ["move", "Movimento", 0.5, 5],

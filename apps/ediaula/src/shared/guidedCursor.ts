@@ -3,6 +3,7 @@ import type { CursorData, CursorShapeInfo } from "./cursorData.ts";
 import { HOLD_REASONS, type HoldRecord } from "./frameClock.ts";
 import { GUIDED_ACTIONS, type GuidedAction, type GuidedViewport } from "./guidedPlan.ts";
 import { smoothPointer } from "./guidedRecording.ts";
+import { type HumanPath, pathAt } from "./humanMotion.ts";
 import { cursorKeyword } from "./locators.ts";
 import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 
@@ -124,7 +125,10 @@ export const guidedLogLineSchema = z.discriminatedUnion("k", [
   }),
   /** The pointer is placed at a point without travelling. */
   z.object({ k: z.literal("move"), t, x: coordinate, y: coordinate }),
-  /** smoothPointer from `from` at `t` to `to` at `until`; `drag` with the left button held. */
+  /**
+   * From `from` at `t` to `to` at `until`; `drag` with the left button held. With `path`, along
+   * that curve (shared/humanMotion.ts); without it (older takes), straight with smoothPointer.
+   */
   z.object({
     k: z.literal("glide"),
     t,
@@ -132,6 +136,7 @@ export const guidedLogLineSchema = z.discriminatedUnion("k", [
     from: point,
     to: point,
     drag: z.literal(true).optional(),
+    path: z.object({ c1: point, c2: point, over: z.number().finite().min(0).max(100) }).optional(),
   }),
   z.object({ k: z.literal("down"), t, x: coordinate, y: coordinate, b: button }),
   z.object({ k: z.literal("up"), t, x: coordinate, y: coordinate, b: button }),
@@ -263,6 +268,7 @@ type Segment =
       until: number;
       from: { x: number; y: number };
       to: { x: number; y: number };
+      path?: HumanPath;
     }
   | { kind: "move"; t: number; x: number; y: number };
 
@@ -285,7 +291,9 @@ function pointerWalk(segments: readonly Segment[], start: { x: number; y: number
       active = null;
       return rest;
     }
-    const k = smoothPointer((at - active.t) / Math.max(EPS, active.until - active.t));
+    const u = (at - active.t) / Math.max(EPS, active.until - active.t);
+    if (active.path) return pathAt(active.path, u);
+    const k = smoothPointer(u);
     return {
       x: active.from.x + (active.to.x - active.from.x) * k,
       y: active.from.y + (active.to.y - active.from.y) * k,
@@ -342,6 +350,7 @@ export function synthesizeCursor(
           until: line.until,
           from: line.from,
           to: line.to,
+          ...(line.path ? { path: { from: line.from, to: line.to, ...line.path } } : {}),
         });
         break;
       case "shape":
