@@ -321,7 +321,7 @@ export function GuidedSetup({
     setLoading(true);
     try {
       const words = await transcribed(plan.audio.path, plan.audio.duration);
-      const { steps, notes, unsaid, afterVoice } = planFromScript(
+      const { steps, notes, unsaid, afterVoice, missed } = planFromScript(
         part,
         words,
         plan.viewport,
@@ -348,7 +348,7 @@ export function GuidedSetup({
       const left = (n: number, why: string) =>
         n ? `; ${n === 1 ? "1 ação ficou" : `${n} ações ficaram`} de fora ${why}` : "";
       setNotice(
-        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${notes.length ? `, ${notes.length === 1 ? "1 trecho" : `${notes.length} trechos`} para a edição trocar (o robô fica parado e a importação deixa um lembrete)` : ""}${left(unsaid, "porque a voz não diz a frase dela")}${left(afterVoice, "porque a voz termina antes")}. Use Verificar plano antes de gravar.`,
+        `${steps.length === 1 ? "1 etapa gerada" : `${steps.length} etapas geradas`} do roteiro${notes.length ? `, ${notes.length === 1 ? "1 trecho" : `${notes.length} trechos`} para a edição trocar (o robô fica parado e a importação deixa um lembrete)` : ""}${left(unsaid, "porque a voz não diz a frase dela")}${afterVoice ? `; ${afterVoice === 1 ? "1 ação passa" : `${afterVoice} ações passam`} do fim da voz e ${afterVoice === 1 ? "entra acelerada" : "entram aceleradas"} logo depois dela` : ""}${missed.length ? `. Não achei na voz ${missed.map((m) => `“${m}”`).join(", ")}: ${missed.length === 1 ? "o gesto dessa citação vem" : "os gestos dessas citações vêm"} logo depois do anterior; ajuste a citação no Na tela para cair na palavra certa` : ""}. Use Verificar plano antes de gravar.`,
       );
     } catch (e) {
       setError((e as Error).message);

@@ -635,11 +635,15 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
   const now = useProject.getState().project;
   if (now) requestMotion(now);
   // The automatic zoom of the recorder's options, on each screen of the take that has a cursor.
-  // The boards put over the screen while drawing get no zoom (the screen is under them).
-  const zoomed = await autoZoomTake(
-    roleIds("screen"),
-    r.screen ? (r.drawing?.boards ?? []).map((b): [number, number] => [b.start, b.end]) : [],
-  );
+  // The boards put over the screen while drawing get no zoom (the screen is under them). A guided
+  // take gets none: its page is already laid out for the lesson, and a zoom panning after a drag
+  // while the page scrolls under it shakes the picture; zooms there are chosen by hand.
+  const zoomed = r.guidedRun
+    ? 0
+    : await autoZoomTake(
+        roleIds("screen"),
+        r.screen ? (r.drawing?.boards ?? []).map((b): [number, number] => [b.start, b.end]) : [],
+      );
 
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));

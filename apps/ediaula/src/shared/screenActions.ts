@@ -152,8 +152,9 @@ export const followGap = (tempos: GuidedTempos): number =>
 /**
  * The plan the script's brackets make with this voice: the hand reaches the first bracket of a
  * phrase when the phrase starts and acts when the voice finishes the words quoted (a plain
- * direction: when its line starts), the ones after it in the same piece `followGap` later each. Brackets left out are counted: those whose phrase (or line) the voice
- * does not say, and those that would fall after the voice ends.
+ * direction: when its line starts), the ones after it in the same piece `followGap` later each.
+ * Counted: the brackets left out, whose phrase (or line) the voice does not say, and those that
+ * would fall after the voice ends (`afterVoice`), placed at its end to go in sped up.
  */
 export function planFromScript(
   part: ScriptPart,
@@ -166,6 +167,8 @@ export function planFromScript(
   notes: { at: number; text: string }[];
   unsaid: number;
   afterVoice: number;
+  /** Quotes the voice was not found saying: their gestures follow the one before. */
+  missed: string[];
 } {
   const items: ScriptSection["items"] = [];
   const spoken = part.lines.join(" ");
@@ -191,25 +194,38 @@ export function planFromScript(
   const notes: { at: number; text: string }[] = [];
   let unsaid = 0;
   let afterVoice = 0;
+  const missed: string[] = [];
+  // When the last gesture placed acts: one whose quote was not found comes after it, never before.
+  let last = Number.NEGATIVE_INFINITY;
   for (const [index, item] of items.entries()) {
     if (item.kind !== "screen") continue;
     const pieces = item.cues?.length ? item.cues.map((c) => c.text) : [item.text];
     for (const [k, piece] of pieces.entries()) {
       const actions = screenActions(piece);
       const time = times.find((t) => t.item === index && (t.cue ?? 0) === k);
-      if (time?.said === undefined) {
+      if (time?.said === undefined || time.said >= duration) {
         unsaid += actions.length;
         continue;
       }
       // The hand is there when the phrase starts; the first action waits for the voice to finish
       // the words quoted ("Agora clique em Próxima parte": the click after "parte").
-      const phrase = time.said;
+      let phrase = time.said;
       let at = Math.max(phrase, time.saidEnd ?? phrase);
+      // A piece without a time of its own (its quote not found in the voice, or none after
+      // another piece) follows the gesture before it.
+      if (time.missed !== undefined || (k > 0 && time.saidEnd === undefined)) {
+        if (time.missed !== undefined) missed.push(time.missed);
+        at = Math.max(at, last + followGap(tempos));
+        phrase = at;
+      }
       let first = true;
       for (const [j, text] of actions.entries()) {
-        if (at >= duration) {
-          afterVoice += actions.length - j;
-          break;
+        // Every gesture of the script is shown: one that would come after the voice ends goes
+        // right at its end, and what does not fit there goes in sped up ("Tela sem voz").
+        const latest = Math.max(phrase, duration - 0.01 * (actions.length - j));
+        if (at > latest) {
+          at = latest;
+          afterVoice++;
         }
         const hundredth = Math.round(at * 100) / 100;
         // The robot stays still there; the edit gets a note, where the phrase starts.
@@ -222,6 +238,7 @@ export function planFromScript(
         const speechAt = first ? Math.round(phrase * 100) / 100 : hundredth;
         first = false;
         steps.push({ ...step, at: hundredth, speechAt });
+        last = hundredth;
         // The next one when the hand can be there (a step with nothing to reach comes sooner).
         at += needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1;
       }
@@ -229,5 +246,5 @@ export function planFromScript(
   }
   // The script's order stands: gestures that do not fit before the next phrase run after it and go
   // in sped up ("Tela sem voz"), never mixed with the next phrase's.
-  return { steps, notes, unsaid, afterVoice };
+  return { steps, notes, unsaid, afterVoice, missed };
 }

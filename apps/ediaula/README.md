@@ -1037,7 +1037,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 - **Zoom automático**: um zoom por sequência de cliques, passeando entre eles, acompanhando arrastos (blocos do
   Blockly) e seguindo o cursor de texto enquanto algo é digitado (o auxiliar anota onde ele está, com o zoom automático
   ligado nas opções do gravador). Roda sozinho quando a gravação entra no projeto (opção ligada por padrão) e nunca dá
-  zoom num clique sobre os controles do gravador. Zoom manual "aqui". O zoom fica no tempo da gravação, então
+  zoom num clique sobre os controles do gravador. A gravação guiada (o robô seguindo o roteiro) entra sem zoom
+  automático: a página já vem no tamanho da aula, e um zoom passeando atrás de um arrasto enquanto a área de blocos rola
+  faz a imagem tremer; ali o zoom é escolhido à mão. Zoom manual "aqui". O zoom fica no tempo da gravação, então
   acompanha cortes.
 - **Zooms da gravação editáveis:** as faixas âmbar na timeline se clicam e se arrastam pelas pontas (começo e fim).
   Com um zoom selecionado, o painel e o retângulo na prévia são os mesmos da camada de zoom: aproximar, ponto (o
