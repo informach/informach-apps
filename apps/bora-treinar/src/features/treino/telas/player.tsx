@@ -527,7 +527,7 @@ export function PlayerScreen({
           ? { dot: "off", text: par.erro ?? "Pareamento indisponível" }
           : { dot: "warn", text: "Esperando o celular…" }
       : cam.state === "loading"
-        ? { dot: "warn", text: "Ligando a câmera…" }
+        ? null
         : cam.state === "error"
           ? { dot: "off", text: cam.message }
           : conf >= 0.75
@@ -545,7 +545,8 @@ export function PlayerScreen({
         <span className="title">
           {workoutName}{" "}
           <small className="muted">
-            · passo {Math.min(runner.index + 1, runner.steps.length)} de {runner.steps.length}
+            <span className="sep">· </span>passo {Math.min(runner.index + 1, runner.steps.length)}{" "}
+            de {runner.steps.length}
           </small>
         </span>
         <div className="progress">
@@ -554,7 +555,7 @@ export function PlayerScreen({
         {typeof document !== "undefined" && document.fullscreenEnabled && (
           <button
             type="button"
-            className="icon-btn"
+            className="icon-btn fullscreen-btn"
             onClick={() => void toggleFullscreen()}
             aria-label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
           >
@@ -586,7 +587,9 @@ export function PlayerScreen({
           <div className="inst-overlay">
             <div className="inst-head">
               <div>
-                <span className="muted strong">{isRest ? "A seguir" : setInfo}</span>
+                <span className={`muted strong ${isRest ? "" : "set-info"}`}>
+                  {isRest ? "A seguir" : setInfo}
+                </span>
                 <h1>{ex?.name ?? "Prepare-se"}</h1>
                 {ex && <p>{ex.cue}</p>}
               </div>
@@ -623,10 +626,13 @@ export function PlayerScreen({
               {mode === "camera" && (
                 <div className="cam-pip" ref={camHost}>
                   <canvas ref={overlay} />
-                  <span className="cam-badge">
-                    <span className={`dot ${badge.dot}`} />
-                    {badge.text}
-                  </span>
+                  {/* enquanto a câmera liga, a miniatura fica sem selo */}
+                  {badge && (
+                    <span className="cam-badge">
+                      <span className={`dot ${badge.dot}`} />
+                      {badge.text}
+                    </span>
+                  )}
                 </div>
               )}
               {mode === "pareado" && (
@@ -644,10 +650,12 @@ export function PlayerScreen({
                       </div>
                     </div>
                   ) : null}
-                  <span className="cam-badge">
-                    <span className={`dot ${badge.dot}`} />
-                    {badge.text}
-                  </span>
+                  {badge && (
+                    <span className="cam-badge">
+                      <span className={`dot ${badge.dot}`} />
+                      {badge.text}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -683,7 +691,7 @@ export function PlayerScreen({
             <div className="label">
               <span>{label}</span>
               {mode !== "manual" && !isRest && runner.partials > 0 && (
-                <span>
+                <span className="partials">
                   {runner.partials} parcia{runner.partials > 1 ? "is" : "l"}
                 </span>
               )}
@@ -712,7 +720,8 @@ export function PlayerScreen({
             )}
           </div>
 
-          <div className="stats-row">
+          {/* No celular em pé, as parciais da série tomam o lugar do total do treino. */}
+          <div className="stats-row" data-partials={mode !== "manual" && !isRest ? "" : undefined}>
             <div className="stat">
               <span className="label">
                 {isRest ? "Séries feitas" : remaining !== null ? "Restante" : "Tempo da série"}
@@ -721,11 +730,15 @@ export function PlayerScreen({
                 {isRest ? runner.logs.length : fmtTime(remaining ?? runner.elapsed)}
               </span>
             </div>
-            <div className="stat">
+            <div className="stat total-stat">
               <span className="label">Repetições no treino</span>
               <span className="value num accent">
                 {runner.totalReps + (isRest ? 0 : runner.reps)}
               </span>
+            </div>
+            <div className="stat partials-stat">
+              <span className="label">Parciais</span>
+              <span className="value num warn">{runner.partials}</span>
             </div>
           </div>
 

@@ -6,6 +6,8 @@ Leia antes o `AGENTS.md` da raiz, o [README](README.md) (como rodar e verificar)
 
 Calistenia guiada para a família. A aparência das telas de treino está em `src/app/globals.css`; telas novas usam as mesmas classes e o que faltar entra em `src/app/bora.css`. Não há Tailwind nem `@informach/ui` neste app, de propósito.
 
+O player tem três arranjos no mesmo componente, escolhidos só por CSS: TV e computador (instrutor e contador lado a lado), celular deitado (o mesmo, compacto) e celular em pé (`@media (orientation: portrait)`, desenho "Player — Mobile"). Em pé, o cabeçalho mostra o passo embaixo do nome e a barra de progresso em largura total, sem o botão de tela cheia; o contador põe o número à esquerda e a série à direita; e, com câmera ou celular pareado, as parciais da série viram um card no lugar de "Repetições no treino".
+
 - **Conta do titular, perfis só de apelido e cor.** Nada de data de nascimento, peso, altura, foto ou dado de saúde.
 - **Plano gratuito:** 1 perfil, o "Primeiro treino" (`FREE_WORKOUT_IDS`), a biblioteca com o instrutor 3D e a prática de cada exercício contando à mão.
 - **Assinatura:** os demais treinos, câmera, celular pareado, níveis, editor, desafios e histórico completo. Individual (1 perfil) ou Família (4).

@@ -864,6 +864,10 @@ button.card:focus-visible {
 .stats-row .stat .value {
   font-size: 1.9rem;
 }
+/* só o celular em pé mostra as parciais como card (no resto elas ficam no contador) */
+.stats-row .partials-stat {
+  display: none;
+}
 .controls {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -940,55 +944,171 @@ button.card:focus-visible {
     height: auto;
     min-height: 100%;
   }
+  /* cabeçalho: título e passo em duas linhas, progresso em largura total embaixo */
   .player-top {
-    padding: 0.8rem 1rem;
+    flex-wrap: wrap;
+    padding: 0.9rem 1rem 0.75rem;
     gap: 0.75rem;
+    row-gap: 0.85rem;
+  }
+  .player-top .title {
+    flex: 1;
+    min-width: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.25;
   }
   .player-top .title small {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .player-top .title small::first-letter {
+    text-transform: uppercase;
+  }
+  .player-top .title .sep,
+  .player-top .fullscreen-btn {
     display: none;
+  }
+  .player-top .elapsed {
+    font-weight: 700;
+    font-size: 1.15rem;
+  }
+  .player-top .progress {
+    order: 10;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
   }
   .player-stage {
     flex-direction: column;
     padding: 0 1rem 1rem;
-    gap: 0.9rem;
+    gap: 0.75rem;
   }
   .inst-area {
     flex: none;
-    height: 46vh;
-    min-height: 18rem;
+    height: 52vh;
+    min-height: 20rem;
   }
   .inst-overlay {
-    padding: 1rem;
+    padding: 1.1rem;
   }
-  .inst-head p,
-  .inst-overlay .view-toggle {
+  .inst-head {
+    gap: 0.6rem;
+  }
+  .inst-head > div:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .inst-head .set-info {
     display: none;
   }
+  /* o nome mais longo do catálogo tem 11 letras e cabe inteiro ao lado das vistas a partir de
+     360 px; abaixo disso a quebra dentro da palavra é só o último recurso */
   .inst-head h1 {
-    font-size: 1.6rem;
+    font-size: min(2.1rem, 5.6vw);
+    overflow-wrap: anywhere;
+  }
+  .inst-head p {
+    font-size: 0.9rem;
+  }
+  .inst-overlay .view-toggle {
+    flex: none;
+    padding: 0.2rem;
+    gap: 0.15rem;
+  }
+  .inst-overlay .view-toggle button {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
   }
   .cam-pip {
     width: 8.5rem;
   }
+  .cam-pip:not(.pair-pip) {
+    width: 5.6rem;
+    aspect-ratio: 3 / 4;
+  }
+  .cam-pip:not(.pair-pip) .cam-badge {
+    left: 0.35rem;
+    bottom: 0.35rem;
+    right: 0.35rem;
+    width: auto;
+    padding: 0.25rem 0.45rem;
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
   .side {
     width: auto;
-  }
-  .counter {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    padding: 1.25rem;
     gap: 0.75rem;
   }
+  /* contador: número grande à esquerda; rótulo, série e barras à direita */
+  .counter {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "big label"
+      "big sets";
+    column-gap: 1.25rem;
+    row-gap: 0.7rem;
+    align-items: center;
+    padding: 1.25rem 1.4rem;
+  }
   .counter .label {
-    width: 100%;
+    grid-area: label;
+    align-self: end;
+    font-size: 0.75rem;
+  }
+  .counter .label .partials {
+    display: none;
+  }
+  .counter .big {
+    grid-area: big;
   }
   .counter .big .value {
-    font-size: 5.5rem;
+    font-size: 6rem;
   }
-  .counter .sets {
-    flex: 1;
-    min-width: 8rem;
+  .counter .big .of {
+    font-size: 1.8rem;
+  }
+  .counter .sets,
+  .counter .next-up {
+    grid-area: sets;
+    align-self: start;
+    min-width: 0;
+  }
+  .counter .next-up strong {
+    font-size: 1.15rem;
+  }
+  .counter .set-dots {
+    margin-top: 0.55rem;
+  }
+  .stats-row {
+    gap: 0.75rem;
+  }
+  .stats-row .stat {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--r-md);
+  }
+  .stats-row .stat .label {
+    font-size: 0.8rem;
+  }
+  .stats-row .stat .value {
+    font-size: 1.35rem;
+  }
+  .stats-row[data-partials] .total-stat {
+    display: none;
+  }
+  .stats-row[data-partials] .partials-stat {
+    display: flex;
+  }
+  .controls {
+    gap: 0.6rem;
+  }
+  .ctrl {
+    height: 3.6rem;
   }
 }
 
