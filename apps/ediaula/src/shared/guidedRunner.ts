@@ -42,9 +42,15 @@ export interface GuidedDriver {
   /**
    * Where to act on the target now. "approach" is the lookup before the movement (on the
    * screen it also checks the window); "act" the one just before the action. On the page it
-   * waits up to `timeout` seconds for the element to be there and usable.
+   * waits up to `timeout` seconds for the element to be there and usable. Showing it (`point`),
+   * the hand rests just under it, where it does not cover what is written.
    */
-  locate(target: GuidedStepTarget, phase: "approach" | "act", timeout: number): Promise<Point>;
+  locate(
+    target: GuidedStepTarget,
+    phase: "approach" | "act",
+    timeout: number,
+    action?: GuidedStepV2["action"],
+  ): Promise<Point>;
   /** Where the drag of `step` ends, the pointer being at `from` (on its source). */
   destination(step: GuidedStepV2, from: Point, timeout: number): Promise<Point>;
   /**
@@ -301,7 +307,7 @@ export async function runGuided(
         settle(s.moveAt, s.index);
       }
       clock.hold(s.moveAt, "locate");
-      const target = await driver.locate(step.target, "approach", timeout);
+      const target = await driver.locate(step.target, "approach", timeout, step.action);
       const from = await driver.sample();
       clock.release();
       await clock.wait(s.moveAt);
@@ -335,7 +341,7 @@ export async function runGuided(
       );
       // Looked up again just before the action; on the page the video waits for the answer.
       clock.hold(actAt, "locate");
-      const final = await driver.locate(step.target, "act", timeout);
+      const final = await driver.locate(step.target, "act", timeout, step.action);
       await clock.wait(0);
       const shifted = moved(final, target);
       if (shifted && driver.space !== "page")

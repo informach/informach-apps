@@ -19,6 +19,7 @@ import {
   locatorSchema,
   pageToWorkspace,
   parseTransform,
+  pointingSpot,
   rankCandidates,
   urlMatches,
   urlPatternOf,
@@ -369,7 +370,10 @@ test("ranking: unique usable wins, ties go to nth or to the marked spot, else th
     ],
     view,
   );
-  assert.deepEqual(problem, { ok: false, problem: "covered" });
+  assert.ok(!problem.ok && problem.problem === "covered");
+  // Covered only (a footer bar fixed at the bottom of the page): the robot scrolls it to the
+  // middle, as it does an element out of view.
+  assert.ok(!problem.ok && problem.away?.covered && problem.away.inView);
   assert.match(locateMessage(locator, "covered"), /“Próxima” está coberto/);
   assert.match(locateMessage(locator, "offscreen"), /rolagem/);
   // The copy never uses the em dash or the en dash.
@@ -403,4 +407,21 @@ test("Blockly 11 and later mark fields as blocklyEditableField: still values, no
   const move = blocklyBlocks(renamed).find((b) => b.key === "move-1");
   assert.equal(move?.label, "mover passos");
   assert.equal(move?.text, "mover 10 passos");
+});
+
+test("apontar deixa a mão logo abaixo do que mostra, para a criança ler", () => {
+  // A word or a button: the tip just under its bottom edge.
+  assert.deepEqual(pointingSpot({ x: 100, y: 200, width: 120, height: 40 }, { x: 160, y: 220 }), {
+    x: 160,
+    y: 246,
+  });
+  // A word on a big element (the number on a game): about a line under the point, never out of it.
+  assert.deepEqual(pointingSpot({ x: 0, y: 0, width: 1500, height: 800 }, { x: 70, y: 50 }), {
+    x: 70,
+    y: 78,
+  });
+  assert.deepEqual(pointingSpot({ x: 0, y: 0, width: 1500, height: 800 }, { x: 70, y: 790 }), {
+    x: 70,
+    y: 796,
+  });
 });

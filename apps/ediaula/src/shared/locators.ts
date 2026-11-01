@@ -390,10 +390,15 @@ export function rankCandidates(
     }
     const usable = found.filter((c) => c.visible && c.inView && c.enabled && !c.covered);
     if (!usable.length) {
-      // A single element only out of view: the robot can scroll to it, as a person would.
-      const away = found.filter((c) => c.visible && !c.inView && c.enabled);
+      // A single element only out of view, or under something fixed at the edge of the page (a
+      // footer bar): the robot can scroll it to the middle, as a person would.
+      const away = found.filter((c) => c.visible && (!c.inView || c.covered) && c.enabled);
       if (away.length === 1 && found.length === 1)
-        return { ok: false, problem: "offscreen", away: away[0] };
+        return {
+          ok: false,
+          problem: away[0].inView ? "covered" : "offscreen",
+          away: away[0],
+        };
       for (const c of found)
         problems.add(
           !c.visible ? "hidden" : !c.inView ? "offscreen" : !c.enabled ? "disabled" : "covered",
@@ -459,6 +464,19 @@ export function actionPoint(locator: Locator, candidate: Candidate): Point {
     x: candidate.rect.x + candidate.rect.width * locator.point.u,
     y: candidate.rect.y + candidate.rect.height * locator.point.v,
   };
+}
+
+/** An element up to this tall is one line of something to read (a word, a number, a button). */
+const ONE_LINE = 72;
+
+/**
+ * Where the hand rests to show something without covering it, so a child reads it: the tip of
+ * the arrow just under the baseline. Under the bottom edge of a small element; inside a big one
+ * (a game, where the point is a word on it), about a line under the point.
+ */
+export function pointingSpot(rect: Rect, p: Point): Point {
+  if (rect.height <= ONE_LINE) return { x: p.x, y: rect.y + rect.height + 6 };
+  return { x: p.x, y: Math.min(rect.y + rect.height - 4, p.y + 28) };
 }
 
 export const TARGET_STATES = ["visible", "hidden", "enabled"] as const;

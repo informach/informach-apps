@@ -32,13 +32,14 @@ import {
   locatorLabel,
   type Point,
   pageToWorkspace,
+  pointingSpot,
   rankCandidates,
   type StrategyMatches,
   urlMatches,
   type ViewSize,
   workspaceToPage,
 } from "../shared/locators.ts";
-import { BRIDGE_VERSION, bridgeBusy, bridgeSteps } from "../shared/platformBridge.ts";
+import { BRIDGE_VERSION, bridgeAbsent, bridgeBusy, bridgeSteps } from "../shared/platformBridge.ts";
 
 /**
  * The lesson page driven through the Chrome DevTools Protocol (D2): no real pointer moves.
@@ -204,6 +205,15 @@ const AX_IGNORED = new Set([
   "RootWebArea",
 ]);
 
+type MouseType = "mouseMoved" | "mousePressed" | "mouseReleased" | "mouseWheel";
+interface MouseOptions {
+  button?: "none" | "left" | "right";
+  buttons?: number;
+  clickCount?: number;
+  deltaX?: number;
+  deltaY?: number;
+}
+
 export class CdpDriver {
   private readonly wc: WebContents;
   private readonly worlds = new Map<string, number>();
@@ -212,9 +222,20 @@ export class CdpDriver {
   private attached = false;
   /** A confirmation the page asked for and the app refused, until a step reports it. */
   private dialog: string | null = null;
+  /**
+   * Offscreen, the window does not hand the mouse to a frame another process draws (a sandboxed
+   * game, a site's player): those frames get it through their own session, by frame id.
+   */
+  private readonly routeFrames: boolean;
+  private readonly frameSessions = new Map<string, string>();
+  private readonly frameOwners = new Map<string, number>();
+  /** The frame a press went to: the drag and the release go there too. */
+  private pressedIn: { sessionId: string; origin: Point } | null = null;
+  private mouseQueue: Promise<unknown> = Promise.resolve();
 
-  constructor(wc: WebContents) {
+  constructor(wc: WebContents, options: { routeFrames?: boolean } = {}) {
     this.wc = wc;
+    this.routeFrames = options.routeFrames ?? false;
   }
 
   get detachedError(): Error | null {
@@ -237,6 +258,12 @@ export class CdpDriver {
     debug.on("message", this.onMessage);
     await this.send("Page.enable");
     await this.send("DOM.enable");
+    if (this.routeFrames)
+      await this.send("Target.setAutoAttach", {
+        autoAttach: true,
+        waitForDebuggerOnStart: false,
+        flatten: true,
+      });
   }
 
   /**
@@ -265,6 +292,9 @@ export class CdpDriver {
 
   detach(): void {
     this.worlds.clear();
+    this.frameSessions.clear();
+    this.frameOwners.clear();
+    this.pressedIn = null;
     const was = this.attached;
     this.attached = false;
     // A window already closed took its debugger with it.
@@ -296,6 +326,21 @@ export class CdpDriver {
     } else if (method === "Page.frameDetached" && typeof params.frameId === "string")
       this.worlds.delete(params.frameId);
     else if (method === "Page.javascriptDialogOpening") this.answerDialog(params);
+    else if (method === "Target.attachedToTarget") {
+      // A frame's target id is its frame id.
+      const info = params.targetInfo as { type?: unknown; targetId?: unknown } | undefined;
+      if (
+        info?.type === "iframe" &&
+        typeof info.targetId === "string" &&
+        typeof params.sessionId === "string"
+      )
+        this.frameSessions.set(info.targetId, params.sessionId);
+    } else if (method === "Target.detachedFromTarget" && typeof params.sessionId === "string")
+      for (const [frameId, sessionId] of this.frameSessions)
+        if (sessionId === params.sessionId) {
+          this.frameSessions.delete(frameId);
+          this.frameOwners.delete(frameId);
+        }
     for (const fn of this.listeners.get(method) ?? []) fn(params);
   };
 
@@ -315,12 +360,13 @@ export class CdpDriver {
     method: string,
     params?: Record<string, unknown>,
     timeout = SEND_TIMEOUT,
+    sessionId?: string,
   ): Promise<T> {
     if (this.detached) throw this.detached;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        this.wc.debugger.sendCommand(method, params),
+        this.wc.debugger.sendCommand(method, params, sessionId),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(new CdpTimeout(method)), timeout);
         }),
@@ -369,30 +415,78 @@ export class CdpDriver {
 
   // ---- input --------------------------------------------------------------------------
 
-  mouse(
-    type: "mouseMoved" | "mousePressed" | "mouseReleased" | "mouseWheel",
+  mouse(type: MouseType, p: Point, options: MouseOptions = {}): Promise<unknown> {
+    if (!this.routeFrames) return this.dispatchMouse(type, p, options, null);
+    // Each event waits for where it goes: one after the other, so they keep their order.
+    const sent = this.mouseQueue.then(async () =>
+      this.dispatchMouse(type, p, options, await this.frameAt(type, p)),
+    );
+    this.mouseQueue = sent.catch(() => undefined);
+    return sent;
+  }
+
+  private dispatchMouse(
+    type: MouseType,
     p: Point,
-    options: {
-      button?: "none" | "left" | "right";
-      buttons?: number;
-      clickCount?: number;
-      deltaX?: number;
-      deltaY?: number;
-    } = {},
+    options: MouseOptions,
+    frame: { sessionId: string; origin: Point } | null,
   ): Promise<unknown> {
-    return this.send("Input.dispatchMouseEvent", {
-      type,
-      x: p.x,
-      y: p.y,
-      button: options.button ?? "none",
-      buttons: options.buttons ?? 0,
-      clickCount: options.clickCount ?? 0,
-      modifiers: 0,
-      pointerType: "mouse",
-      ...(type === "mouseWheel"
-        ? { deltaX: options.deltaX ?? 0, deltaY: options.deltaY ?? 0 }
-        : {}),
-    });
+    if (type === "mouseReleased") this.pressedIn = null;
+    return this.send(
+      "Input.dispatchMouseEvent",
+      {
+        type,
+        x: p.x - (frame?.origin.x ?? 0),
+        y: p.y - (frame?.origin.y ?? 0),
+        button: options.button ?? "none",
+        buttons: options.buttons ?? 0,
+        clickCount: options.clickCount ?? 0,
+        modifiers: 0,
+        pointerType: "mouse",
+        ...(type === "mouseWheel"
+          ? { deltaX: options.deltaX ?? 0, deltaY: options.deltaY ?? 0 }
+          : {}),
+      },
+      SEND_TIMEOUT,
+      frame?.sessionId,
+    );
+  }
+
+  /**
+   * The frame drawn by another process under the pointer, with its top-left in page pixels, when
+   * the window routes frames (offscreen): the topmost element there is the frame's owner. Null
+   * for the page itself. A press keeps its frame until the release, as a real drag does.
+   */
+  private async frameAt(
+    type: string,
+    p: Point,
+  ): Promise<{ sessionId: string; origin: Point } | null> {
+    if (!this.routeFrames || !this.frameSessions.size) return null;
+    if (this.pressedIn && type !== "mousePressed") return this.pressedIn;
+    try {
+      const { backendNodeId } = await this.send<{ backendNodeId: number }>(
+        "DOM.getNodeForLocation",
+        { x: Math.round(p.x), y: Math.round(p.y), ignorePointerEventsNone: true },
+      );
+      for (const [frameId, sessionId] of this.frameSessions) {
+        let owner = this.frameOwners.get(frameId);
+        if (owner === undefined) {
+          owner = (await this.send<{ backendNodeId: number }>("DOM.getFrameOwner", { frameId }))
+            .backendNodeId;
+          this.frameOwners.set(frameId, owner);
+        }
+        if (owner !== backendNodeId) continue;
+        const { model } = await this.send<{ model: { content: number[] } }>("DOM.getBoxModel", {
+          backendNodeId: owner,
+        });
+        const frame = { sessionId, origin: { x: model.content[0] ?? 0, y: model.content[1] ?? 0 } };
+        if (type === "mousePressed") this.pressedIn = frame;
+        return frame;
+      }
+    } catch {
+      // A page between documents or a frame going away: the event goes to the page, as before.
+    }
+    return null;
   }
 
   /** Modifiers go down first and up last, each with the flags held at that point. */
@@ -1128,9 +1222,19 @@ export class WebDriver implements GuidedDriver {
     target: GuidedStepTarget,
     _phase: "approach" | "act",
     timeout: number,
+    action?: GuidedStepV2["action"],
   ): Promise<Point> {
-    if (!target.locator) throw new Error("Marque o alvo desta etapa na janela da aula.");
-    return (await this.found(target.locator, timeout)).point;
+    const locator = target.locator;
+    if (!locator) throw new Error("Marque o alvo desta etapa na janela da aula.");
+    const found = await this.found(locator, timeout);
+    if (action !== "point") return found.point;
+    // The element's box in page pixels: the point is the action point plus its frame's offset.
+    const at = actionPoint(locator, found.candidate);
+    const rect = found.candidate.rect;
+    return pointingSpot(
+      { ...rect, x: rect.x + found.point.x - at.x, y: rect.y + found.point.y - at.y },
+      found.point,
+    );
   }
 
   async destination(step: GuidedStepV2, _from: Point, timeout: number): Promise<Point> {
@@ -1364,14 +1468,25 @@ export class WebDriver implements GuidedDriver {
   /** The gestures the platform makes `action` of (shared/platformBridge.ts). */
   async platform(action: string, id: string, timeout: number): Promise<GuidedStepV2[]> {
     this.question();
-    // The step's own longest wait: a platform may take its time to say what to do.
-    const answer = await this.cdp.bridge("agir", action, timeout * 1000).catch((error: unknown) => {
-      if (this.fatal(error)) throw error;
-      if (error instanceof CdpTimeout)
-        throw new Error(`Esperei ${timeout} s e a plataforma não respondeu a “${action}”.`);
-      throw new Error(`A plataforma não conseguiu “${action}”: ${(error as Error).message}`);
-    });
-    return bridgeSteps(answer, action, id, this.viewport);
+    const over = this.deadline(timeout);
+    for (;;) {
+      // The step's own longest wait: a platform may take its time to say what to do.
+      const answer = await this.cdp
+        .bridge("agir", action, timeout * 1000)
+        .catch((error: unknown) => {
+          if (this.fatal(error)) throw error;
+          if (error instanceof CdpTimeout)
+            throw new Error(`Esperei ${timeout} s e a plataforma não respondeu a “${action}”.`);
+          throw new Error(`A plataforma não conseguiu “${action}”: ${(error as Error).message}`);
+        });
+      // A page still loading (the first step of a take) puts its bridge a moment later: asked
+      // again until the step's longest wait, as a condition is.
+      if (bridgeAbsent(answer) && !over()) {
+        await sleep(100, this.signal);
+        continue;
+      }
+      return bridgeSteps(answer, action, id, this.viewport);
+    }
   }
 
   /** Waits while the platform says it is busy (a page with no bridge never is). */

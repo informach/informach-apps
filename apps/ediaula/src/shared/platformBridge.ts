@@ -240,6 +240,11 @@ function gestureStep(passo: Passo, id: string, viewport: GuidedViewport): Guided
   }
 }
 
+/** True when the page answered that it has no bridge (yet: a page still loading puts it later). */
+export function bridgeAbsent(raw: unknown): boolean {
+  return z.object({ semPonte: z.literal(true) }).safeParse(raw).success;
+}
+
 /** The page's `ocupado()`: true while it works, false when it has no bridge. */
 export function bridgeBusy(raw: unknown): boolean {
   const parsed = z

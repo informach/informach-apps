@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bridgeBusy, bridgeSteps, bridgeVerbs, locatorOf } from "../src/shared/platformBridge.ts";
+import {
+  bridgeAbsent,
+  bridgeBusy,
+  bridgeSteps,
+  bridgeVerbs,
+  locatorOf,
+} from "../src/shared/platformBridge.ts";
 
 /** A ponte de gravação: a plataforma diz de que gestos é feita cada ação sua. */
 
@@ -69,6 +75,12 @@ test("sem ponte ou com resposta estranha, a professora sabe o que fazer", () => 
     /não entende/,
   );
   assert.throws(() => bridgeSteps({ valor: [] }, "ampliar jogo", "a", viewport), /não entende/);
+});
+
+test("sem ponte ainda: a página que carrega é consultada de novo", () => {
+  assert.equal(bridgeAbsent({ semPonte: true }), true);
+  assert.equal(bridgeAbsent({ valor: [] }), false);
+  assert.equal(bridgeAbsent(undefined), false);
 });
 
 test("ocupado e verbos: só o que a ponte disse conta", () => {

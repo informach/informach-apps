@@ -140,6 +140,9 @@ export async function openLessonCapture(
     width,
     height,
     useContentSize: true,
+    // The page's full screen (a book, a video) fills this window at the plan's size: a window
+    // that went full screen itself would be resized offscreen and leave the rest black.
+    fullscreenable: false,
     webPreferences: {
       offscreen: { deviceScaleFactor: 1 },
       session: lessonSession(),
@@ -162,7 +165,8 @@ export async function openLessonCapture(
     painted();
     onPaint?.(image);
   });
-  const cdp = new CdpDriver(wc);
+  // Offscreen, frames of another process get the mouse through their own session.
+  const cdp = new CdpDriver(wc, { routeFrames: true });
   try {
     // The protocol answers once the window has a page; a blank one is enough.
     await wc.loadURL("about:blank");
