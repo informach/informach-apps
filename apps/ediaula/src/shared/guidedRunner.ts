@@ -229,19 +229,33 @@ export async function runGuided(
     if (lapsing) marks.push(takeClock.time());
   };
   /**
-   * A step starts after its time (the one before it waited or lasted longer than the narration
-   * gave it): what that one did goes in sped up, from the latest moment that leaves it at least
-   * LAPSE_FLOOR seconds of narration, so the run is back on its second.
+   * Video second the last click, tap, drag, typing or key began. A lapse never starts before
+   * it: sped up, the stretch before an action already done would bring it earlier than its
+   * word in the narration ("clique em jogador" clicked on "Então").
+   */
+  let acted = Number.NEGATIVE_INFINITY;
+  /** Video second the last lapse ended: a stretch is never sped up twice. */
+  let lapsed = Number.NEGATIVE_INFINITY;
+  /**
+   * The run is past `due`: what was recorded since the last action goes in sped up, from the
+   * latest moment that leaves it at least LAPSE_FLOOR seconds of narration, so the run is back
+   * on its second (as much as that stretch allows; the rest stays late, never early).
    */
   const settle = (due: number, step: number): void => {
     const over = clock.time() - due;
-    if (!lapsing || over < LAPSE_MIN || !marks.length) return;
+    if (!lapsing || over < LAPSE_MIN) return;
     const now = takeClock.time();
-    const from = [...marks].reverse().find((m) => now - m - over >= LAPSE_FLOOR) ?? marks[0];
+    const floor = Math.max(acted, lapsed);
+    const starts = [...marks, floor]
+      .filter((m) => Number.isFinite(m) && m >= floor && m < now)
+      .sort((a, b) => a - b);
+    if (!starts.length) return;
+    const from = [...starts].reverse().find((m) => now - m - over >= LAPSE_FLOOR) ?? starts[0];
     const narration = Math.max(LAPSE_FLOOR, now - from - over);
     if (now - from - narration < LAPSE_MIN) return;
     options.log?.lapse?.(round(from), round(now), round(narration), step);
     shift += now - from - narration;
+    lapsed = now;
   };
   const check = (): void => {
     if (signal.aborted) throw new Error(STOPPED);
@@ -258,8 +272,10 @@ export async function runGuided(
     clock.wait(clock.holds ? from + (i + 1) * interval : clock.time() + span(interval));
   const log = options.log;
   /** Interactions go in the log on the video's seconds, as every other line of it does. */
-  const logAct = (kind: GuidedInteraction, from: number, until: number, index: number): void =>
+  const logAct = (kind: GuidedInteraction, from: number, until: number, index: number): void => {
+    acted = Math.max(acted, from + shift);
     log?.act(kind, from + shift, until + shift, index);
+  };
 
   const runStep = async (s: PlannedStep, next: number): Promise<void> => {
     const step = s.step;
@@ -365,6 +381,9 @@ export async function runGuided(
     }
     await clock.wait(actAt);
     late(s.actAt + 0.5, "A execução atrasou. A gravação foi pausada para não acelerar os cliques.");
+    // Late for its word (the page or the gesture before took longer): what came since the last
+    // action goes in sped up now, and the action falls on its second of the narration.
+    if (step.action !== "point" && step.action !== "hover") settle(actAt, s.index);
     const at = clock.time();
     mark();
     switch (step.action) {
@@ -551,6 +570,7 @@ export async function runGuided(
     const before = schedule.steps[i - 1];
     if (before) settle(s.moveAt, before.index);
     marks = [];
+    mark();
     clock.step?.(s.index);
     log?.step(s.index, "start");
     try {

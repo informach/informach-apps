@@ -490,6 +490,47 @@ test("a wait past its time is recorded and goes in sped up, the next action on i
   assert.ok(Math.abs(sim.frames.time() - (schedule.duration + shift)) <= 0.05);
 });
 
+test("a click already done never goes in sped up: no action shows before its word", async () => {
+  // The page scrolls each target into view first, on camera (two seconds of the video).
+  const sim = simulation(30);
+  const page = Object.assign(new FakePage(sim.frames, sim.sleep, points), {
+    reveal: () => sim.sleep(2000),
+  });
+  // Three clicks on words close together ("clique em jogador, desça e clique em escolhido").
+  const plan = webPlan([
+    { id: "a", at: 0, speech: "Comece", action: "click", target: on("Começar") },
+    { id: "b", at: 1, speech: "Clique", action: "click", target: on("Próxima") },
+    { id: "c", at: 2, speech: "Escolha", action: "click", target: on("Nome") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const controller = new AbortController();
+  const lapses: GuidedLapse[] = [];
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, {
+      log: {
+        step: () => undefined,
+        act: () => undefined,
+        lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
+      },
+    }),
+  );
+  assert.ok(lapses.length > 0);
+  const clicks = page.events.filter((e) => e.op === "left-1");
+  assert.equal(clicks.length, 3);
+  for (const [i, click] of clicks.entries()) {
+    const at = alignedAt(lapses, click.t);
+    const due = schedule.steps[i].actAt;
+    // Never before its second of the narration; late only by what the page took.
+    assert.ok(at >= due - 1 / 30 - 0.01, `click ${i + 1} at ${at}, due ${due}`);
+    // No lapse covers a click (one may end right on it, to the millisecond it is written in).
+    assert.ok(
+      !lapses.some((l) => click.t > l.from + 0.01 && click.t < l.to - 0.01),
+      `click ${i + 1}`,
+    );
+  }
+});
+
 test("steps closer than their actions run one after the other, the excess sped up", async () => {
   const sim = simulation(30);
   const page = new FakePage(sim.frames, sim.sleep, points);
