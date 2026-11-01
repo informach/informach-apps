@@ -9,6 +9,9 @@ import {
   type GuidedPlanV2,
   type GuidedStepTarget,
   type GuidedStepV2,
+  WAIT_POLICIES,
+  WAIT_POLICY_LABELS,
+  type WaitPolicy,
 } from "@shared/guidedPlan";
 import { locatorLabel, TARGET_STATES, type TargetState } from "@shared/locators";
 import type { ReactNode } from "react";
@@ -72,6 +75,7 @@ export function GuidedStepRow({
   keys,
   marking,
   broken,
+  notices,
   update,
   remove,
   mark,
@@ -83,6 +87,8 @@ export function GuidedStepRow({
   /** The field being marked now, if it is one of this step's. */
   marking: MarkField | null;
   broken?: BrokenStep;
+  /** What "Verificar plano" found the take will do there (a stretch sped up). */
+  notices?: readonly string[];
   update: (patch: Partial<GuidedStepV2>) => void;
   remove: () => void;
   mark: (field: MarkField) => void;
@@ -231,8 +237,27 @@ export function GuidedStepRow({
       {step.action === "scroll" && web && condition("until", step.until)}
       {step.action === "wait" && condition("until", step.until)}
       {web && step.action !== "wait" && condition("expect", step.expect)}
+      {web && (step.expect || step.until) && (
+        <label title="O que o vídeo faz quando a página demora mais do que a fala dá: o trecho entra acelerado sob a fala (tela sem voz) ou a espera é cortada.">
+          Se a página demorar
+          <select
+            aria-label={`Se a página demorar na etapa ${n}`}
+            value={step.wait?.policy ?? "lapse"}
+            onChange={(e) => {
+              const policy = e.target.value as WaitPolicy;
+              update({ wait: policy === "lapse" ? undefined : { policy } });
+            }}
+          >
+            {WAIT_POLICIES.map((policy) => (
+              <option key={policy} value={policy}>
+                {WAIT_POLICY_LABELS[policy]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {web && (
-        <label title="Quanto a etapa espera pelo alvo ou pela condição antes de dar erro. O vídeo fica parado enquanto espera além do tempo da fala.">
+        <label title="Quanto a etapa espera pelo alvo ou pela condição antes de dar erro.">
           Espera máxima (s)
           <input
             type="number"
@@ -255,6 +280,11 @@ export function GuidedStepRow({
           <span>{broken.message}</span>
         </div>
       )}
+      {notices?.map((message) => (
+        <p key={message} className="guided-notice" role="status">
+          {message}
+        </p>
+      ))}
     </div>
   );
 }

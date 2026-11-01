@@ -11,6 +11,7 @@ import {
 } from "../shared/encoderChoice.ts";
 import { FrameClock } from "../shared/frameClock.ts";
 import { GUIDED_LOG_FILE, type GuidedLogLine } from "../shared/guidedCursor.ts";
+import { takeNotices, VERIFY_SLACK } from "../shared/guidedLapse.ts";
 import {
   type BrokenStep,
   type GuidedPlanV2,
@@ -326,6 +327,8 @@ export class GuidedTake {
   private halted = false;
   private phase: GuidedTakePhase = "opening";
   private step: number;
+  /** Video seconds gone in sped up so far: the progress shows the narration's time. */
+  private lapsed = 0;
   private message: string | undefined;
   private result: GuidedTakeEnd | null = null;
   private readonly started: Promise<void>;
@@ -398,7 +401,7 @@ export class GuidedTake {
           : this.phase,
       step: this.step,
       steps: this.plan.steps.length,
-      time: clock?.time() ?? 0,
+      time: Math.max(0, (clock?.time() ?? 0) - this.lapsed),
       duration: this.schedule.duration,
       ...(holding ? { holding } : {}),
       ...(this.message ? { message: this.message } : {}),
@@ -551,6 +554,10 @@ export class GuidedTake {
         );
       },
       act: (kind, from, until, step) => this.log?.write({ k: "act", t: from, until, kind, step }),
+      lapse: (from, to, narration, step) => {
+        this.lapsed += to - from - narration;
+        this.log?.write({ k: "lapse", from, to, narration, step }, true);
+      },
     };
     await Promise.race([
       runGuided(plan, driver, videoClock(clock, signal), signal, { from: this.from, log }),
@@ -725,7 +732,7 @@ export async function verifyGuidedPlan(
   signal: AbortSignal,
   onProgress: (step: number) => void,
 ): Promise<BrokenStep[]> {
-  schedulePlan(plan);
+  const schedule = schedulePlan(plan);
   const { window, cdp, firstPaint } = await openLessonCapture(plan, 30);
   const close = (): void => {
     cdp.detach();
@@ -733,6 +740,7 @@ export async function verifyGuidedPlan(
   };
   signal.addEventListener("abort", close, { once: true });
   const broken: BrokenStep[] = [];
+  const waits = new Map<number, { seconds: number; room: number }>();
   try {
     await loadLesson(window, plan.url ?? "", firstPaint, signal);
     const driver = new WebDriver(cdp, { viewport: plan.viewport, signal });
@@ -763,11 +771,14 @@ export async function verifyGuidedPlan(
             });
           return false;
         },
+        onWaited: (index, seconds, room) => {
+          if (seconds > room + VERIFY_SLACK) waits.set(index, { seconds, room });
+        },
       },
     );
   } finally {
     signal.removeEventListener("abort", close);
     close();
   }
-  return broken;
+  return [...broken, ...takeNotices(plan, schedule, waits)];
 }

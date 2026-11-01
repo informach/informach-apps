@@ -1,5 +1,6 @@
 import { clipEnd, newId } from "./clipTime.ts";
 import type { Transform } from "./compose.ts";
+import { alignedAt, type GuidedLapse, lapseSpans } from "./guidedLapse.ts";
 import type { RecordingPiece, RecordingResult } from "./recording.ts";
 import { keptRanges } from "./recordingJournal.ts";
 import { videoTrackSlot } from "./timeline.ts";
@@ -49,6 +50,12 @@ export interface LayoutOptions {
   cameraTransform?: (asset: Asset) => Transform;
   /** "Voz e câmera": where the presenter (the camera) sits; absent fills the frame. */
   presenterTransform?: (asset: Asset) => Transform | undefined;
+  /**
+   * A guided take's "Tela sem voz" (guided-run.json): those stretches of the screen go in sped
+   * up under the line, so the narration stays on the actions. Only a take of the screen and the
+   * narration has them (the lesson window records nothing else).
+   */
+  lapses?: readonly GuidedLapse[];
 }
 
 /** The track a "Voz e câmera" take puts the presenter on, above the lesson. */
@@ -57,6 +64,9 @@ export const PRESENTER_TRACK = "Apresentador";
 /** The shortest clip worth placing. */
 const MIN = 1 / 30;
 const EPS = 1e-6;
+
+const round3 = (v: number): number => Math.round(v * 1000) / 1000;
+const round4 = (v: number): number => Math.round(v * 10000) / 10000;
 
 const samePath = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase();
 
@@ -110,7 +120,12 @@ export function layoutRecording(
   const clips = [...project.clips];
   const placed: Clip[] = [];
   const kept = keptRanges(result.pauses, result.duration);
-  const duration = kept.reduce((sum, [a, b]) => sum + (b - a), 0);
+  const alone = !cameras.length && !mic && !micParts.length && !system && !systemParts.length;
+  const lapses = alone ? (options.lapses ?? []) : [];
+  /** Seconds of the timeline that take seconds `a` to `b` fill (less where they are sped up). */
+  const fill = (a: number, b: number): number =>
+    lapses.length ? alignedAt(lapses, b) - alignedAt(lapses, a) : b - a;
+  const duration = kept.reduce((sum, [a, b]) => sum + fill(a, b), 0);
 
   // The main track is the bottom video track. When it is locked (or missing) the screen gets a
   // track of its own below the others, after everything the lesson already has: a track above
@@ -176,22 +191,34 @@ export function layoutRecording(
   for (const [from, to] of kept) {
     const piece: RecordingPieceLayout = { from, to, start: cursor, screen: [] };
     const place = (srcFrom: number, srcTo: number) => ({
-      start: cursor + (srcFrom - from),
-      duration: srcTo - srcFrom,
+      start: cursor + fill(from, srcFrom),
+      duration: fill(srcFrom, srcTo),
     });
     if (main)
       for (const s of screens) {
         const a = Math.max(from, s.at);
         const b = Math.min(to, s.at + s.duration);
         if (b - a < MIN) continue;
-        const clip = add({
-          assetId: s.asset.id,
-          trackId: main.id,
-          ...place(a, b),
-          in: s.in + (a - s.at),
-          volume: 1,
-        });
-        if (clip) piece.screen.push(clip);
+        // A "Tela sem voz" is a clip of its own, sped up: the edit makes it what it should be.
+        for (const span of lapseSpans(lapses, a, b)) {
+          const clip = add({
+            assetId: s.asset.id,
+            trackId: main.id,
+            ...place(span.from, span.to),
+            in: s.in + (span.from - s.at),
+            volume: 1,
+            ...(span.speed
+              ? {
+                  speed: round4(span.speed),
+                  timelapse: {
+                    under: round3(fill(span.from, span.to)),
+                    source: round3(span.to - span.from),
+                  },
+                }
+              : {}),
+          });
+          if (clip) piece.screen.push(clip);
+        }
       }
     /** Files placed on the take's clock as recorded (the camera, or sound kept in parts). */
     const placeAll = (
@@ -232,7 +259,7 @@ export function layoutRecording(
     if (mic && voiceTrack) piece.voice = sound(mic, voiceTrack, 1);
     if (system && systemTrack) sound(system, systemTrack, 0.8);
     pieces.push(piece);
-    cursor += to - from;
+    cursor += fill(from, to);
   }
 
   // The narration was timed by the recorder's clock, which already skipped the pauses.

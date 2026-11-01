@@ -1,4 +1,5 @@
 import { clipEnd, sourceEnd, timelineAt } from "./clipTime.ts";
+import { type GuidedLapse, videoAt } from "./guidedLapse.ts";
 import type { Clip, Project } from "./types.ts";
 
 /**
@@ -32,11 +33,12 @@ const EPS = 1e-6;
  */
 export function resumeJoin(
   project: Pick<Project, "clips" | "assets">,
-  earlier: { take: string; screen: string; narrationOffset: number },
+  earlier: { take: string; screen: string; narrationOffset: number; lapses?: GuidedLapse[] },
   nextNarrationOffset: number,
 ): ResumeJoin | null {
-  // The narration second where the new take starts, in seconds of the earlier take's video.
-  const source = earlier.narrationOffset - nextNarrationOffset;
+  // The narration second where the new take starts, in seconds of the earlier take's video
+  // (later by what it recorded sped up before it).
+  const source = videoAt(earlier.lapses ?? [], earlier.narrationOffset - nextNarrationOffset);
   const screenClip = project.clips.find(
     (c) => c.assetId === earlier.screen && c.in <= source + EPS && sourceEnd(c) > source + EPS,
   );

@@ -1,5 +1,6 @@
 import type { FrameClock, HoldReason } from "./frameClock.ts";
 import type { GuidedInteraction } from "./guidedCursor.ts";
+import { LAPSE_FLOOR, LAPSE_MIN } from "./guidedLapse.ts";
 import {
   type Chord,
   DEFAULT_STEP_TIMEOUT,
@@ -95,6 +96,8 @@ export interface GuidedClock {
 export interface GuidedRunLog {
   step(index: number, status: "start" | "done" | "failed", message?: string): void;
   act(kind: GuidedInteraction, from: number, until: number, step: number): void;
+  /** Video seconds `from` to `to` go in under `narration` seconds (shared/guidedLapse.ts). */
+  lapse?(from: number, to: number, narration: number, step: number): void;
 }
 
 export interface RunOptions {
@@ -106,6 +109,11 @@ export interface RunOptions {
   /** Verification: a failing step is reported here; the run goes on with the next one while
    *  it answers true. */
   onFailure?: (index: number, error: Error) => Promise<boolean>;
+  /**
+   * What the page took (wall seconds) to meet a condition of step `index`, and the seconds of
+   * narration it had for that (verification: what will go in sped up).
+   */
+  onWaited?: (index: number, seconds: number, room: number) => void;
 }
 
 /**
@@ -169,15 +177,50 @@ function targetSize(target: GuidedStepTarget | undefined): number {
   return rect ? Math.max(4, Math.min(rect.width, rect.height)) : 40;
 }
 
+const round = (v: number): number => Math.round(v * 1000) / 1000;
+
 export async function runGuided(
   plan: GuidedPlanV2,
   driver: GuidedDriver,
-  clock: GuidedClock,
+  takeClock: GuidedClock,
   signal: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
   const schedule = schedulePlan(plan, options.from ?? 0);
   const { move, dwell, after } = plan.tempos;
+  // The video's clock records a page that takes longer than the narration gives instead of
+  // holding ("Tela sem voz", shared/guidedLapse.ts): the run then goes on `shift` seconds later
+  // in the video, and the schedule's seconds are the narration's without the lapses.
+  const lapsing = takeClock.holds && !takeClock.instant;
+  let shift = 0;
+  const clock: GuidedClock = lapsing
+    ? {
+        ...takeClock,
+        time: () => takeClock.time() - shift,
+        wait: (t) => takeClock.wait(t + shift),
+        hold: (t, reason) => takeClock.hold(t + shift, reason),
+      }
+    : takeClock;
+  /** Video seconds where what the step did began: its action, then what it waited for. */
+  let marks: number[] = [];
+  const mark = (): void => {
+    if (lapsing) marks.push(takeClock.time());
+  };
+  /**
+   * A step starts after its time (the one before it waited or lasted longer than the narration
+   * gave it): what that one did goes in sped up, from the latest moment that leaves it at least
+   * LAPSE_FLOOR seconds of narration, so the run is back on its second.
+   */
+  const settle = (due: number, step: number): void => {
+    const over = clock.time() - due;
+    if (!lapsing || over < LAPSE_MIN || !marks.length) return;
+    const now = takeClock.time();
+    const from = [...marks].reverse().find((m) => now - m - over >= LAPSE_FLOOR) ?? marks[0];
+    const narration = Math.max(LAPSE_FLOOR, now - from - over);
+    if (now - from - narration < LAPSE_MIN) return;
+    options.log?.lapse?.(round(from), round(now), round(narration), step);
+    shift += now - from - narration;
+  };
   const check = (): void => {
     if (signal.aborted) throw new Error(STOPPED);
   };
@@ -193,9 +236,26 @@ export async function runGuided(
     clock.wait(clock.holds ? from + (i + 1) * interval : clock.time() + span(interval));
   const log = options.log;
 
-  const runStep = async (s: PlannedStep): Promise<void> => {
+  const runStep = async (s: PlannedStep, next: number): Promise<void> => {
     const step = s.step;
     const timeout = step.timeout ?? DEFAULT_STEP_TIMEOUT;
+    // Its time ends at the next step's start when that one comes sooner.
+    const stop = Math.min(s.endAt, next);
+    const lapse = lapsing && (step.wait?.policy ?? "lapse") === "lapse";
+    /** Waits for the condition: recorded under a lapse, or with the video held ("cut"). */
+    const awaitCondition = async (condition: GuidedCondition): Promise<void> => {
+      const room = Math.max(0, stop - clock.time());
+      const began = performance.now();
+      if (lapse) {
+        mark();
+        await driver.until(condition, timeout);
+      } else {
+        clock.hold(stop, "wait");
+        await driver.until(condition, timeout);
+        clock.release();
+      }
+      options.onWaited?.(s.index, (performance.now() - began) / 1000, room);
+    };
     let point: Point | null = null;
     let drop: Point | null = null;
     let actAt = s.actAt;
@@ -267,6 +327,7 @@ export async function runGuided(
     await clock.wait(actAt);
     late(s.actAt + 0.5, "A execução atrasou. A gravação foi pausada para não acelerar os cliques.");
     const at = clock.time();
+    mark();
     switch (step.action) {
       case "point":
       case "hover":
@@ -335,9 +396,10 @@ export async function runGuided(
               );
             await clock.wait(0);
             await driver.wheel(p, 0, direction * (plan.mode === "web" ? WHEEL_STEP : 1));
-            // Past its own time the video holds while the page keeps scrolling.
-            if (clock.holds && started + (i + 1) * WHEEL_INTERVAL > s.endAt) {
-              clock.hold(s.endAt, "wait");
+            // Past its own time the video holds while the page keeps scrolling, unless the
+            // scrolling goes in sped up.
+            if (clock.holds && !lapse && started + (i + 1) * WHEEL_INTERVAL > stop) {
+              clock.hold(stop, "wait");
               await clock.rest(WHEEL_INTERVAL);
             } else await beat(started, i, WHEEL_INTERVAL);
           }
@@ -359,34 +421,30 @@ export async function runGuided(
       }
       case "wait": {
         if (!step.until) throw new Error("Marque o elemento a esperar.");
-        // Within its own time the page may take what it needs; beyond it the video holds.
-        clock.hold(s.endAt, "wait");
-        await driver.until(step.until, timeout);
-        clock.release();
+        // Within its own time the page may take what it needs; beyond it the video goes on
+        // (sped up afterwards) or holds.
+        await awaitCondition(step.until);
         break;
       }
     }
-    if (step.expect) {
-      clock.hold(s.endAt, "wait");
-      await driver.until(step.expect, timeout);
-      clock.release();
-    }
+    if (step.expect) await awaitCondition(step.expect);
     // Time to watch the result. On the video's clock the schedule already holds it (a step
     // that ran long held the video instead); the screen gives it in full after the action.
     await clock.wait(
-      clock.holds || step.action === "wait"
-        ? s.endAt
-        : Math.max(s.endAt, clock.time() + span(after)),
+      clock.holds || step.action === "wait" ? stop : Math.max(s.endAt, clock.time() + span(after)),
     );
   };
 
-  for (const s of schedule.steps) {
+  for (const [i, s] of schedule.steps.entries()) {
     if (options.to !== undefined && s.index >= options.to) break;
     check();
+    const before = schedule.steps[i - 1];
+    if (before) settle(s.moveAt, before.index);
+    marks = [];
     clock.step?.(s.index);
     log?.step(s.index, "start");
     try {
-      await runStep(s);
+      await runStep(s, schedule.steps[i + 1]?.moveAt ?? schedule.duration);
     } catch (cause) {
       clock.release();
       if (signal.aborted) throw new Error(STOPPED);
@@ -399,7 +457,11 @@ export async function runGuided(
     }
     log?.step(s.index, "done");
   }
-  if (options.to === undefined) await clock.wait(schedule.duration);
+  if (options.to === undefined) {
+    const last = schedule.steps.at(-1);
+    if (last) settle(schedule.duration, last.index);
+    await clock.wait(schedule.duration);
+  }
 }
 
 /** The recorder's clock for a screen take: paused while the take is, never holding. */

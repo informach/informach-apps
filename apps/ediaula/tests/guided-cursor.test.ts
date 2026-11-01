@@ -174,6 +174,26 @@ test("guided-run.json keeps the steps, the interactions and the holds; the log s
     ["pending", "failed"],
   );
   assert.equal(failed?.steps[1].message, "Etapa 2: sumiu");
+  // Older takes have no lapses at all.
+  assert.equal(run.lapses, undefined);
+});
+
+test("guided-run.json keeps what goes in sped up, read back from the log", () => {
+  const lines: GuidedLogLine[] = [
+    ...log.slice(0, -1),
+    { k: "lapse", from: 2.5, to: 4, narration: 1, step: 0 },
+    ...log.slice(-1),
+  ];
+  const lapsed = parseGuidedLog(lines.map((l) => JSON.stringify(l)).join("\n"));
+  assert.equal(lapsed.length, lines.length);
+  const run = buildGuidedRun(lapsed, 9.2);
+  assert.deepEqual(run?.lapses, [{ from: 2.5, to: 4, narration: 1, step: 0 }]);
+  assert.deepEqual(normalizeGuidedRun(JSON.parse(JSON.stringify(run))), run);
+  // The cursor of the take ignores them: it is drawn on the video's own seconds.
+  assert.deepEqual(
+    synthesizeCursor(lapsed, viewport, 30, 9.2),
+    synthesizeCursor(log, viewport, 30, 9.2),
+  );
 });
 
 test("computed CSS cursors map to the editor's shapes", () => {

@@ -91,3 +91,18 @@ test("no join when the earlier video does not reach that second on the timeline"
   const p = project([clip("cv", "tela-1", "v1", 0, 10)]);
   assert.equal(resumeJoin(p, earlier, next), null);
 });
+
+test("an earlier take with stretches sped up is cut where its video reached that narration", () => {
+  // 3 s of the earlier video (4 to 7) went under 1 s of the line: from there on its video is
+  // 2 s later than the narration, so narration second 11 is its video second 15.
+  const sped = { ...earlier, lapses: [{ from: 4, to: 7, narration: 1 }] };
+  const p = project([
+    clip("a", "tela-1", "v1", 5, 4),
+    { ...clip("b", "tela-1", "v1", 9, 1), in: 4, speed: 3 },
+    { ...clip("c", "tela-1", "v1", 10, 25), in: 7 },
+  ]);
+  const join = resumeJoin(p, sped, next);
+  assert.ok(join);
+  // Video second 15 is in "c", 8 s after its start: timeline 18, as without the lapse.
+  assert.equal(join.at, 18);
+});

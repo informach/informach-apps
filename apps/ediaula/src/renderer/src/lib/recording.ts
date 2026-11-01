@@ -3,6 +3,7 @@ import { timelineWords } from "@shared/cleanup";
 import { cameraPresenterTransform, squareCrop, type Transform } from "@shared/compose";
 import { type GuidedRun, normalizeGuidedRun } from "@shared/guidedCursor";
 import { applyResumeJoin, type ResumeJoin, resumeJoin } from "@shared/guidedJoin";
+import { sameLapses } from "@shared/guidedLapse";
 import {
   type GuidedReplace,
   type GuidedRunRecord,
@@ -266,6 +267,14 @@ async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
     );
     return false;
   }
+  // A page that took another time to answer sped up other stretches: the cuts would not match.
+  if (!sameLapses(before.lapses, run.lapses)) {
+    toast(
+      "A página demorou outro tempo para responder nesta gravação, e os trechos acelerados mudaram: ela entrou como uma gravação nova.",
+      "info",
+    );
+    return false;
+  }
   if (
     before.viewport.width !== run.viewport.width ||
     before.viewport.height !== run.viewport.height ||
@@ -392,6 +401,7 @@ async function findResumeJoin(run: GuidedRun, take: string): Promise<ResumeJoin 
         take: asset.recording?.id ?? "",
         screen: asset.id,
         narrationOffset: earlier.narrationOffset,
+        ...(earlier.lapses?.length ? { lapses: earlier.lapses } : {}),
       },
       run.narrationOffset,
     );
@@ -528,7 +538,11 @@ export async function importRecording(r: RecordingResult): Promise<boolean> {
             current,
             r,
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
-            { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
+            {
+              cameraTransform,
+              presenterTransform: (a) => cameraPresenterTransform(a, p.settings),
+              ...(run?.lapses?.length ? { lapses: run.lapses } : {}),
+            },
           );
     // The earlier attempts stay in the screen media, to put back with one click.
     const retries = retriesFromAttempts(

@@ -305,7 +305,12 @@ export function GuidedSetup({
   const resume = resumeStep(store, plan.id);
   const replacing = replace?.planId === plan.id ? replace : undefined;
   const validation = guidedProblem(plan, replacing?.from ?? 0, replacing);
-  const brokenOf = new Map((verify?.broken ?? []).map((b) => [b.index, b]));
+  const problems = (verify?.broken ?? []).filter((b) => !b.notice);
+  const brokenOf = new Map(problems.map((b) => [b.index, b]));
+  const noticesOf = new Map<number, string[]>();
+  for (const b of verify?.broken ?? [])
+    if (b.notice) noticesOf.set(b.index, [...(noticesOf.get(b.index) ?? []), b.message]);
+  const lapsed = (verify?.broken?.length ?? 0) - problems.length;
 
   if (picking)
     return (
@@ -600,7 +605,9 @@ export function GuidedSetup({
         </div>
         <p>
           Informe o início da frase e o instante da ação no áudio. O cursor chega antes dos dois.
-          Etapas sem espaço para movimento e pausas precisam ser espaçadas.
+          {plan.mode === "web"
+            ? " O que não couber antes da próxima fala entra acelerado sob ela (tela sem voz)."
+            : " Etapas sem espaço para movimento e pausas precisam ser espaçadas."}
         </p>
         <div className="guided-steps">
           {plan.steps.map((s, i) => (
@@ -612,6 +619,7 @@ export function GuidedSetup({
               keys={keys}
               marking={marking?.id === s.id ? marking.field : null}
               broken={brokenOf.get(i)}
+              notices={noticesOf.get(i)}
               update={(patch) => updateStep(s.id, patch)}
               remove={() => savePlan({ ...plan, steps: plan.steps.filter((x) => x.id !== s.id) })}
               mark={(field) => void mark(s, field)}
@@ -666,9 +674,11 @@ export function GuidedSetup({
       )}
       {verify?.broken && (
         <p role="status">
-          {verify.broken.length
-            ? `${verify.broken.length === 1 ? "1 etapa com problema" : `${verify.broken.length} etapas com problema`}. Marque de novo só essas e verifique outra vez.`
+          {problems.length
+            ? `${problems.length === 1 ? "1 etapa com problema" : `${problems.length} etapas com problema`}. Marque de novo só essas e verifique outra vez.`
             : "Todas as etapas funcionaram na página."}
+          {lapsed > 0 &&
+            ` ${lapsed === 1 ? "1 trecho vai" : `${lapsed} trechos vão`} passar do tempo da fala: veja o aviso nas etapas.`}
         </p>
       )}
       {marking && (

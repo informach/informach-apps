@@ -270,3 +270,46 @@ test("a voice and camera take: the presenter on a track of its own above the les
     ],
   );
 });
+
+test("a guided take's stretches past the narration go in sped up, the narration on the actions", () => {
+  // Video seconds 4 to 9 waited on the page: they go under 2 s of the line.
+  const lapses = [{ from: 4, to: 9, narration: 2, step: 1 }];
+  const take = asset("guided", "C:/take/tela-0.mp4", "video", 12);
+  const layout = layoutRecording(
+    project(),
+    [take, assets[4]],
+    {
+      version: 2,
+      dir: "C:/take",
+      screen: "C:/take/tela-0.mp4",
+      narration: "C:/take/narracao.wav",
+      narrationOffset: 2,
+      duration: 12,
+      pauses: [],
+      markers: [],
+    },
+    undefined,
+    { lapses },
+  );
+  assert.equal(layout.duration, 9);
+  const main = layout.tracks.find((t) => t.name === "Faixa 3");
+  assert.deepEqual(on(layout.clips, main), [
+    ["guided", 0, 0, 4],
+    ["guided", 4, 4, 2],
+    ["guided", 6, 9, 3],
+  ]);
+  const sped = layout.clips.find((c) => c.timelapse);
+  assert.equal(sped?.speed, 2.5);
+  assert.deepEqual(sped?.timelapse, { under: 2, source: 5 });
+  // The narration is one clip, as long as the take on the timeline.
+  const track = layout.tracks.find((t) => t.name === "Narração guiada");
+  assert.deepEqual(on(layout.clips, track), [["voice", 2, 0, 7]]);
+});
+
+test("a take with its own sound never speeds up: the lapses are only for the screen alone", () => {
+  const layout = layoutRecording(project(), assets, result, undefined, {
+    lapses: [{ from: 1, to: 2.5, narration: 1 }],
+  });
+  assert.equal(layout.duration, 8);
+  assert.equal(layout.clips.filter((c) => c.timelapse).length, 0);
+});

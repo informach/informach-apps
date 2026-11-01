@@ -56,6 +56,20 @@ export const ACTION_LABELS: Record<GuidedAction, string> = {
   wait: "Esperar",
 };
 
+/**
+ * What the video does while the page takes longer than the narration gives a step (what it waits
+ * for after the action, or a step longer than the time before the next line), in the lesson
+ * window: "lapse" (the default) records it and it goes in sped up under the line, "Tela sem voz"
+ * (shared/guidedLapse.ts); "cut" holds the video, so the waiting is left out.
+ */
+export const WAIT_POLICIES = ["lapse", "cut"] as const;
+export type WaitPolicy = (typeof WAIT_POLICIES)[number];
+
+export const WAIT_POLICY_LABELS: Record<WaitPolicy, string> = {
+  lapse: "Acelerar sob a fala",
+  cut: "Cortar a espera",
+};
+
 /** The element (lesson window) or the position on the screen (other programs). */
 export interface GuidedStepTarget {
   locator?: Locator;
@@ -96,6 +110,8 @@ export interface GuidedStepV2 {
   expect?: GuidedCondition;
   /** Longest wait for this step's target or conditions, seconds. */
   timeout?: number;
+  /** When the page takes longer than the narration gives (lesson window); absent: "lapse". */
+  wait?: { policy: WaitPolicy };
 }
 
 export interface GuidedTempos {
@@ -213,6 +229,8 @@ export interface BrokenStep {
   index: number;
   message: string;
   screenshot?: string;
+  /** Not a problem: what the take will do there (a stretch that goes in sped up). */
+  notice?: true;
 }
 
 export const DEFAULT_VIEWPORT: GuidedViewport = { width: 1920, height: 1080 };
@@ -409,6 +427,7 @@ const stepSchema = z.looseObject({
   until: conditionSchema.optional(),
   expect: conditionSchema.optional(),
   timeout: z.number().finite().min(0.5).max(120).optional(),
+  wait: z.object({ policy: z.enum(WAIT_POLICIES) }).optional(),
 }) satisfies z.ZodType<GuidedStepV2>;
 
 export const guidedPlanV2Schema = z.looseObject({
@@ -596,6 +615,11 @@ export interface PlannedStep {
   endAt: number;
   /** The step moves the pointer to a target first. */
   moves: boolean;
+  /**
+   * Lesson window: seconds the step before it still lasts when this one starts. The run does
+   * them one after the other, and what does not fit goes in sped up ("Tela sem voz").
+   */
+  overlap?: number;
 }
 
 export interface PlanSchedule {
@@ -712,12 +736,25 @@ export function schedulePlan(plan: GuidedPlanV2, from = 0): PlanSchedule {
     const arriveAt = moves ? Math.min(actAt - dwell, speechAt - anticipation) : actAt;
     const moveAt = moves ? arriveAt - move : actAt;
     const endAt = actAt + after + actionLength(step, plan);
-    if (moveAt < previousEnd - 0.001)
+    // The screen cannot wait for anything; the lesson window records what does not fit and
+    // speeds it up under the line (shared/guidedLapse.ts).
+    const overlap = previousEnd - moveAt;
+    if (overlap > 0.001 && plan.mode !== "web")
       throw new Error(
         `Etapas muito próximas na etapa ${index + 1}. Aumente o tempo para permitir movimento e pausas.`,
       );
-    previousEnd = endAt;
-    steps.push({ step, index, moveAt, arriveAt, speechAt, actAt, endAt, moves });
+    previousEnd = Math.max(previousEnd, endAt);
+    steps.push({
+      step,
+      index,
+      moveAt,
+      arriveAt,
+      speechAt,
+      actAt,
+      endAt,
+      moves,
+      ...(overlap > 0.001 ? { overlap: Math.round(overlap * 1000) / 1000 } : {}),
+    });
   });
   const audio = plan.audio;
   if (

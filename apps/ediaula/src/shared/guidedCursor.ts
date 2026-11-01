@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CursorData, CursorShapeInfo } from "./cursorData.ts";
 import { HOLD_REASONS, type HoldRecord } from "./frameClock.ts";
+import type { GuidedLapse } from "./guidedLapse.ts";
 import { GUIDED_ACTIONS, type GuidedAction, type GuidedViewport } from "./guidedPlan.ts";
 import { smoothPointer } from "./guidedRecording.ts";
 import { type HumanPath, pathAt } from "./humanMotion.ts";
@@ -88,6 +89,8 @@ export interface GuidedRun {
   steps: GuidedRunStep[];
   actions: GuidedRunAction[];
   holds: HoldRecord[];
+  /** "Tela sem voz": what goes in sped up under the line (absent in older takes). */
+  lapses?: GuidedLapse[];
 }
 
 // ---- the log ------------------------------------------------------------------------------
@@ -177,6 +180,14 @@ export const guidedLogLineSchema = z.discriminatedUnion("k", [
     duration: z.number().nonnegative(),
     reason: z.enum(HOLD_REASONS),
     step: z.int().nonnegative().optional(),
+  }),
+  /** Video seconds `from` to `to` go in under `narration` seconds (shared/guidedLapse.ts). */
+  z.object({
+    k: z.literal("lapse"),
+    from: t,
+    to: t,
+    narration: z.number().finite().positive(),
+    step: z.int().nonnegative(),
   }),
   z.object({ k: z.literal("end"), t, status: z.enum(["done", "failed", "stopped"]) }),
 ]);
@@ -449,6 +460,7 @@ export function buildGuidedRun(log: readonly GuidedLogLine[], duration: number):
   const byIndex = new Map(steps.map((s) => [s.index, s]));
   const actions: GuidedRunAction[] = [];
   const holds: HoldRecord[] = [];
+  const lapses: GuidedLapse[] = [];
   let status: GuidedRun["status"] = "stopped";
   for (const line of log) {
     if (line.k === "step") {
@@ -474,6 +486,13 @@ export function buildGuidedRun(log: readonly GuidedLogLine[], duration: number):
         reason: line.reason,
         ...(line.step !== undefined ? { step: line.step } : {}),
       });
+    else if (line.k === "lapse")
+      lapses.push({
+        from: round(line.from),
+        to: round(line.to),
+        narration: round(line.narration),
+        step: line.step,
+      });
     else if (line.k === "end") status = line.status;
   }
   return {
@@ -490,6 +509,7 @@ export function buildGuidedRun(log: readonly GuidedLogLine[], duration: number):
     steps,
     actions,
     holds,
+    ...(lapses.length ? { lapses } : {}),
   };
 }
 
@@ -534,6 +554,16 @@ export const guidedRunSchema = z.looseObject({
       step: z.int().nonnegative().optional(),
     }),
   ),
+  lapses: z
+    .array(
+      z.looseObject({
+        from: z.number(),
+        to: z.number(),
+        narration: z.number().positive(),
+        step: z.int().nonnegative().optional(),
+      }),
+    )
+    .optional(),
 }) satisfies z.ZodType<GuidedRun>;
 
 /** guided-run.json as written by any version of the app; throws when it is not one. */

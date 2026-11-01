@@ -208,3 +208,9 @@
   border: 1px solid #637086;
   cursor: pointer;
 }
+.guided-notice {
+  flex-basis: 100%;
+  margin: 0;
+  color: #e6ed9d;
+  font-size: 13px;
+}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FrameClock } from "../src/shared/frameClock.ts";
+import { alignedAt, type GuidedLapse, takeNotices } from "../src/shared/guidedLapse.ts";
 import {
   type GuidedCondition,
   type GuidedPlanV2,
@@ -375,7 +376,7 @@ test("on the video's clock a late target holds the writer and the click stays on
   assert.deepEqual(steps, ["0:start", "0:done", "1:start", "1:done"]);
 });
 
-test("a wait holds only past its own time, then the drag, scroll and shortcut follow", async () => {
+test("a wait that cuts holds only past its own time, then the drag, scroll and shortcut follow", async () => {
   const sim = simulation(60);
   const page = new FakePage(sim.frames, sim.sleep, points);
   page.slow.set("Pronto", 3000);
@@ -397,6 +398,7 @@ test("a wait holds only past its own time, then the drag, scroll and shortcut fo
         speech: "Espere",
         action: "wait",
         until: { locator: locator("Pronto"), state: "visible" },
+        wait: { policy: "cut" },
       },
       { id: "e", at: 15, speech: "Desfaça", action: "key", chord: "Ctrl+Z" },
     ],
@@ -434,6 +436,107 @@ test("a wait holds only past its own time, then the drag, scroll and shortcut fo
   assert.ok(Math.abs(wait.at - schedule.steps[3].endAt) < 1e-9);
   assert.ok(Math.abs(wait.duration - 1.5) < 0.05, `held ${wait.duration}`);
   assert.equal(at("key-Ctrl+Z"), schedule.steps[4].actAt);
+});
+
+test("a wait past its time is recorded and goes in sped up, the next action on its second", async () => {
+  const sim = simulation(30);
+  const page = new FakePage(sim.frames, sim.sleep, points);
+  page.slow.set("Pronto", 5000);
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 0,
+      speech: "Verifique",
+      action: "click",
+      target: on("Começar"),
+      expect: { locator: locator("Pronto"), state: "visible" },
+    },
+    { id: "b", at: 6, speech: "Avance", action: "click", target: on("Próxima") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const controller = new AbortController();
+  const lapses: GuidedLapse[] = [];
+  const log: GuidedRunLog = {
+    step: () => undefined,
+    act: () => undefined,
+    lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
+  };
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, { log }),
+  );
+  // Nothing held: the page's five seconds are in the video.
+  assert.equal(sim.frames.holds.filter((h) => h.reason === "wait").length, 0);
+  assert.equal(lapses.length, 1);
+  const [lapse] = lapses;
+  const [a, b] = schedule.steps;
+  assert.equal(lapse.step, 0);
+  assert.ok(Math.abs(lapse.from - a.actAt) <= 1 / 30, `from ${lapse.from}`);
+  assert.ok(Math.abs(lapse.to - lapse.from - 5) < 0.1, `lasted ${lapse.to - lapse.from}`);
+  // Under the line it gets the time the narration had until the next step.
+  assert.ok(Math.abs(lapse.narration - (b.moveAt - a.actAt)) < 0.1, `under ${lapse.narration}`);
+  // The next click is on its second of the narration once the lapse is sped up.
+  const click = page.events.filter((e) => e.op === "left-1")[1];
+  assert.ok(Math.abs(alignedAt(lapses, click.t) - b.actAt) <= 1 / 30 + 0.01, `at ${click.t}`);
+  const shift = lapse.to - lapse.from - lapse.narration;
+  assert.ok(Math.abs(sim.frames.time() - (schedule.duration + shift)) <= 0.05);
+});
+
+test("steps closer than their actions run one after the other, the excess sped up", async () => {
+  const sim = simulation(30);
+  const page = new FakePage(sim.frames, sim.sleep, points);
+  const text = "a".repeat(50);
+  const plan = webPlan([
+    { id: "a", at: 0, speech: "Escreva", action: "type", value: text, target: on("Nome") },
+    { id: "b", at: 3.5, speech: "Avance", action: "click", target: on("Próxima") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const [a, b] = schedule.steps;
+  assert.ok(b.overlap && b.overlap > 2, `overlap ${b.overlap}`);
+  // The screen cannot speed anything up: there it is still refused.
+  assert.throws(
+    () =>
+      schedulePlan(
+        webPlan(
+          plan.steps.map((s) => ({ ...s, target: { screen: screenTarget } })),
+          { mode: "screen" },
+        ),
+      ),
+    /muito próximas/,
+  );
+  const controller = new AbortController();
+  const lapses: GuidedLapse[] = [];
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, {
+      log: {
+        step: () => undefined,
+        act: () => undefined,
+        lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
+      },
+    }),
+  );
+  assert.equal(page.events.filter((e) => e.op.startsWith("text-")).length, 50);
+  assert.equal(lapses.length, 1);
+  assert.equal(lapses[0].step, 0);
+  assert.ok(Math.abs(lapses[0].from - a.actAt) <= 1 / 30);
+  // The typing's own click first, then the step's.
+  const click = page.events.filter((e) => e.op === "left-1")[1];
+  assert.ok(click);
+  assert.ok(Math.abs(alignedAt(lapses, click.t) - b.actAt) <= 1 / 30 + 0.01, `at ${click.t}`);
+  // "Verificar plano" says so on the step whose typing goes in sped up.
+  const [notice] = takeNotices(plan, schedule, new Map([[1, { seconds: 2, room: 0.5 }]]));
+  assert.equal(notice.index, 0);
+  assert.equal(notice.notice, true);
+  assert.match(notice.message, /etapa 2 começa 4 s antes de esta terminar: .*(tela sem voz)/);
+  const waited = takeNotices(plan, schedule, new Map([[1, { seconds: 2, room: 0.5 }]]))[1];
+  assert.match(waited.message, /levou 2 s .* dá 0,5 s: o resto entra acelerado/);
+  const cut = takeNotices(
+    { ...plan, steps: plan.steps.map((s) => ({ ...s, wait: { policy: "cut" as const } })) },
+    schedule,
+    new Map([[1, { seconds: 2, room: 0.5 }]]),
+  )[1];
+  assert.match(cut.message, /cortada do vídeo/);
 });
 
 test("a target the page moved before the click is followed, and the take goes on", async () => {
