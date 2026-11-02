@@ -147,7 +147,7 @@ export const normalizeText = (value: string): string =>
   value.normalize("NFC").replace(/\s+/g, " ").trim();
 /** A label without the pictographic icons it may carry (emoji and their joiners). */
 const withoutIcon = (value: string): string =>
-  value.replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, "");
+  value.replace(/\p{Extended_Pictographic}|\u200d|\ufe0f/gu, "");
 const sameText = (a: string, b: string): boolean =>
   normalizeText(a).toLocaleLowerCase("pt-BR") === normalizeText(b).toLocaleLowerCase("pt-BR");
 
