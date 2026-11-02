@@ -93,6 +93,27 @@ describe("executor", () => {
     expect(events[events.length - 1]).toBe("finish");
   });
 
+  it("anuncia cada segundo da isometria só enquanto a pessoa está na posição", () => {
+    const c = clock();
+    const prancha = simple.blocks[1];
+    if (!prancha) throw new Error("bloco de prancha ausente");
+    const r = new WorkoutRunner(buildSteps({ ...simple, blocks: [prancha] }), c.now);
+    const segundos: number[] = [];
+    r.on((e) => {
+      if (e.type === "hold-second") segundos.push(e.seconds);
+    });
+    r.start();
+    while (!r.isHold) run(r, c, 1);
+    r.setHolding(true);
+    run(r, c, 4.05);
+    r.setHolding(false); // saiu da posição: não conta nem fala
+    run(r, c, 3);
+    r.setHolding(true);
+    run(r, c, 7);
+    expect(segundos).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(r.done).toBe(true);
+  });
+
   it("pausa congela o cronômetro", () => {
     const c = clock();
     const r = new WorkoutRunner(buildSteps(simple), c.now);
