@@ -341,13 +341,19 @@ export class CdpDriver {
       )
         this.frameSessions.set(info.targetId, params.sessionId);
     } else if (method === "Target.detachedFromTarget" && typeof params.sessionId === "string")
-      for (const [frameId, sessionId] of this.frameSessions)
-        if (sessionId === params.sessionId) {
-          this.frameSessions.delete(frameId);
-          this.frameOwners.delete(frameId);
-        }
+      this.forgetSession(params.sessionId);
     for (const fn of this.listeners.get(method) ?? []) fn(params);
   };
+
+  /** A frame's session that no longer exists: its frame, owner and a press held in it go too. */
+  private forgetSession(gone: string): void {
+    for (const [frameId, sessionId] of this.frameSessions)
+      if (sessionId === gone) {
+        this.frameSessions.delete(frameId);
+        this.frameOwners.delete(frameId);
+      }
+    if (this.pressedIn?.sessionId === gone) this.pressedIn = null;
+  }
 
   /** A protocol event; the listener also hears `{__detached: true}` when the protocol goes away. */
   on(method: string, fn: (params: Record<string, unknown>) => void): () => void {
@@ -424,9 +430,18 @@ export class CdpDriver {
   mouse(type: MouseType, p: Point, options: MouseOptions = {}): Promise<unknown> {
     if (!this.routeFrames) return this.dispatchMouse(type, p, options, null);
     // Each event waits for where it goes: one after the other, so they keep their order.
-    const sent = this.mouseQueue.then(async () =>
-      this.dispatchMouse(type, p, options, await this.frameAt(type, p)),
-    );
+    const sent = this.mouseQueue.then(async () => {
+      const frame = await this.frameAt(type, p);
+      try {
+        return await this.dispatchMouse(type, p, options, frame);
+      } catch (error) {
+        // The frame's process went away (a preview rebuilt after the page changed) before its
+        // detach arrived: forget that session and send the event to what is there now.
+        if (!frame || !/session with given id not found/i.test(String(error))) throw error;
+        this.forgetSession(frame.sessionId);
+        return this.dispatchMouse(type, p, options, await this.frameAt(type, p));
+      }
+    });
     this.mouseQueue = sent.catch(() => undefined);
     return sent;
   }
