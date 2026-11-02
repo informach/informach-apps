@@ -1,4 +1,5 @@
 import { DUCKING, duckGain, duckingOf, ducks, spotlightSpans } from "@shared/audio";
+import { autoSoundEvents } from "@shared/autoSounds";
 import {
   animAt,
   BORDER_WIDTH,
@@ -286,6 +287,29 @@ export function Preview(): ReactNode {
     ro.observe(el);
     return () => ro.disconnect();
   }, [settings.width, settings.height]);
+
+  // The automatic whooshes (shared/autoSounds.ts): each one sounds once when the playhead passes
+  // its moment while playing forward (not on a jump), in the preview's mix like the export's,
+  // stepping aside for a highlighted track; a solo listens to its tracks only.
+  const autoSounds = useMemo(() => (raw ? autoSoundEvents(raw) : []), [raw]);
+  useEffect(() => {
+    if (!autoSounds.length) return;
+    let last = usePlayback.getState().time;
+    return usePlayback.subscribe(({ time: t, playing, rate }) => {
+      const before = last;
+      last = t;
+      if (!playing || rate <= 0 || t <= before || t - before > 0.25) return;
+      if (useApp.getState().solo.length) return;
+      for (const e of autoSounds) {
+        if (e.at > t) break;
+        if (e.at <= before) continue;
+        const aside = spotlit.current.length
+          ? duckGain(spotlit.current, t, ducking.current.depth, ducking.current.ramp)
+          : 1;
+        poolRef.current?.sound(e.sound, e.volume * aside);
+      }
+    });
+  }, [autoSounds]);
 
   // Recompute which clips need media elements only when that set changes, not every frame.
   useEffect(() => {
@@ -1155,7 +1179,7 @@ export function Preview(): ReactNode {
                           const el = served.current.get(c.id);
                           return el instanceof HTMLVideoElement ? el : undefined;
                         }}
-                        playClick={(volume) => {
+                        playClick={(volume, sound) => {
                           // Heard when its track is heard and seen, and stepping aside for
                           // another highlighted track, as the export mixes it (audioPlan.ts).
                           const track = project?.tracks.find((t) => t.id === c.trackId);
@@ -1170,7 +1194,7 @@ export function Preview(): ReactNode {
                                   ducking.current.ramp,
                                 )
                               : 1;
-                          poolRef.current?.click(volume * aside);
+                          poolRef.current?.sound(sound, volume * aside);
                         }}
                       />
                     )}

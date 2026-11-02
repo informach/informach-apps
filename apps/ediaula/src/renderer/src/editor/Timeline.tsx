@@ -14,6 +14,7 @@ import { draftClips } from "@shared/projectDiff";
 import { type RippleTrim, rippleTrim } from "@shared/ripple";
 import { deriveSeams, isReviewed } from "@shared/seams";
 import { buildSnapIndex, type SnapIndex, type Snapped, shownSnap, snapTo } from "@shared/snap";
+import { isSoundEffectId } from "@shared/soundEffects";
 import {
   adjacency,
   clipEnd,
@@ -87,6 +88,7 @@ import { recorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { useSeamReview } from "@/lib/review";
 import { scrubTo } from "@/lib/scrub";
+import { soundAsset } from "@/lib/soundLibrary";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { useTranscripts } from "@/lib/transcripts";
@@ -104,7 +106,7 @@ import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
 import { Filmstrip } from "./Filmstrip";
 import { addGainPoint, GainEnvelope } from "./GainEnvelope";
-import { ASSET_MIME } from "./Library";
+import { ASSET_MIME, SOUND_MIME } from "./Library";
 import { NarrationPanel } from "./NarrationPanel";
 import { RecordingBands } from "./RecordingBands";
 import { Waveform } from "./Waveform";
@@ -667,7 +669,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   };
 
   const acceptsDrop = (e: React.DragEvent): boolean =>
-    e.dataTransfer.types.includes(ASSET_MIME) || e.dataTransfer.types.includes("Files");
+    e.dataTransfer.types.includes(ASSET_MIME) ||
+    e.dataTransfer.types.includes(SOUND_MIME) ||
+    e.dataTransfer.types.includes("Files");
 
   /** Where a drag from the library lands (dragover fires often: the magnet is already made). */
   const dropTime = (clientX: number): number =>
@@ -681,6 +685,13 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const time = dropTime(e.clientX);
     // Ctrl + drop inserts, pushing what comes after on every unlocked track.
     const insert = e.ctrlKey;
+    // A sound effect of the library goes exactly where it was dropped, never as the voice.
+    const sound = e.dataTransfer.getData(SOUND_MIME);
+    if (isSoundEffectId(sound)) {
+      const asset = await soundAsset(sound);
+      if (asset) actions.placeAssets([asset], track, time, insert, { voice: false });
+      return;
+    }
     const raw = e.dataTransfer.getData(ASSET_MIME);
     if (raw) {
       const ids = JSON.parse(raw) as string[];
@@ -978,6 +989,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               zoom={zoom}
               height={RULER_H + lanesHeight}
               fps={fps}
+              part="lines"
             />
             {tracks.map((t) => {
               const top = laneTops.get(t.id) ?? RULER_H;
@@ -1172,45 +1184,66 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               previewTime={preview?.playhead}
               onPointerDown={onPlayheadDown}
               onClearInterval={() => setInterval(null)}
+              part="line"
             />
-            <IntervalMarkers
-              interval={interval}
-              fps={project.settings.fps}
-              zoom={zoom}
-              height={RULER_H + lanesHeight}
-              onDrag={(e, edge) => {
-                if (e.button !== 0) return;
-                if (e.shiftKey) {
-                  onPlayheadDown(e);
-                  return;
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                playback.pause();
-                const initial = interval ?? {
-                  start: usePlayback.getState().time,
-                  end: usePlayback.getState().time,
-                };
-                setInterval(initial);
-                const stop = listen(
-                  (ev) => {
-                    if (ev.shiftKey) {
-                      stop();
-                      onPlayheadDown(e, true, ev.clientX);
-                      return;
-                    }
-                    const t =
-                      Math.round(xToTime(ev.clientX) * project.settings.fps) / project.settings.fps;
-                    setInterval(
-                      edge === "start"
-                        ? { start: Math.min(t, initial.end), end: initial.end }
-                        : { start: initial.start, end: Math.max(t, initial.start) },
-                    );
-                  },
-                  () => undefined,
-                );
-              }}
-            />
+            <IntervalFill interval={interval} zoom={zoom} height={RULER_H + lanesHeight} />
+            {/* O que se arrasta na régua fica preso a ela: a régua não sai do alto ao rolar as faixas. */}
+            <div className="tl-ruler-layer">
+              <MarkerFlags
+                markers={project.markers ?? []}
+                zoom={zoom}
+                height={RULER_H + lanesHeight}
+                fps={fps}
+                part="flags"
+              />
+              <Playhead
+                zoom={zoom}
+                height={RULER_H + lanesHeight}
+                scrollRef={scrollRef}
+                previewTime={preview?.playhead}
+                onPointerDown={onPlayheadDown}
+                onClearInterval={() => setInterval(null)}
+                part="head"
+              />
+              <IntervalMarkers
+                interval={interval}
+                fps={project.settings.fps}
+                zoom={zoom}
+                onDrag={(e, edge) => {
+                  if (e.button !== 0) return;
+                  if (e.shiftKey) {
+                    onPlayheadDown(e);
+                    return;
+                  }
+                  e.preventDefault();
+                  e.stopPropagation();
+                  playback.pause();
+                  const initial = interval ?? {
+                    start: usePlayback.getState().time,
+                    end: usePlayback.getState().time,
+                  };
+                  setInterval(initial);
+                  const stop = listen(
+                    (ev) => {
+                      if (ev.shiftKey) {
+                        stop();
+                        onPlayheadDown(e, true, ev.clientX);
+                        return;
+                      }
+                      const t =
+                        Math.round(xToTime(ev.clientX) * project.settings.fps) /
+                        project.settings.fps;
+                      setInterval(
+                        edge === "start"
+                          ? { start: Math.min(t, initial.end), end: initial.end }
+                          : { start: initial.start, end: Math.max(t, initial.start) },
+                      );
+                    },
+                    () => undefined,
+                  );
+                }}
+              />
+            </div>
             {project.clips.length === 0 && (
               <div className="tl-empty" style={{ top: RULER_H + 8, left: view.left + 24 }}>
                 Arraste vídeos da biblioteca (ou do Windows Explorer) para cá.
@@ -1632,17 +1665,37 @@ function Ruler({
   );
 }
 
+/** The marked interval across the tracks; its handles ride the ruler layer (IntervalMarkers). */
+function IntervalFill({
+  interval,
+  zoom,
+  height,
+}: {
+  interval: { start: number; end: number } | null;
+  zoom: number;
+  height: number;
+}): ReactNode {
+  const time = usePlayback((s) => s.time);
+  const start = interval?.start ?? time;
+  const end = interval?.end ?? time;
+  if (end <= start) return null;
+  return (
+    <div
+      className="tl-interval-fill"
+      style={{ left: start * zoom, width: (end - start) * zoom, height }}
+    />
+  );
+}
+
 function IntervalMarkers({
   interval,
   fps,
   zoom,
-  height,
   onDrag,
 }: {
   interval: { start: number; end: number } | null;
   fps: number;
   zoom: number;
-  height: number;
   onDrag: (e: React.PointerEvent, edge: "start" | "end") => void;
 }): ReactNode {
   const time = usePlayback((s) => s.time);
@@ -1696,12 +1749,6 @@ function IntervalMarkers({
   }, [interval]);
   return (
     <>
-      {end > start && (
-        <div
-          className="tl-interval-fill"
-          style={{ left: start * zoom, width: (end - start) * zoom, height }}
-        />
-      )}
       <button
         type="button"
         ref={startRef}
@@ -1749,6 +1796,7 @@ function Playhead({
   previewTime,
   onPointerDown,
   onClearInterval,
+  part,
 }: {
   zoom: number;
   height: number;
@@ -1756,6 +1804,8 @@ function Playhead({
   previewTime?: number;
   onPointerDown: (e: React.PointerEvent) => void;
   onClearInterval: () => void;
+  /** "line" goes down the tracks; "head" rides the ruler layer, which stays on screen. */
+  part: "line" | "head";
 }): ReactNode {
   const time = usePlayback((s) => s.time);
   const playing = usePlayback((s) => s.playing);
@@ -1764,19 +1814,19 @@ function Playhead({
   // Page the view forward while playing so the playhead never leaves the screen.
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !playing) return;
+    if (part !== "line" || !el || !playing) return;
     if (x > el.scrollLeft + el.clientWidth - 40) el.scrollLeft = x - 80;
     else if (x < el.scrollLeft) el.scrollLeft = Math.max(0, x - 80);
-  }, [x, playing, scrollRef]);
+  }, [x, playing, scrollRef, part]);
 
   return (
     <>
-      <div className="playhead" style={{ left: x, height }} />
-      <div className="playhead-head" style={{ left: x }} />
+      {part === "line" && <div className="playhead" style={{ left: x, height }} />}
+      {part === "head" && <div className="playhead-head" style={{ left: x }} />}
       <fieldset
         className="playhead-hit"
         aria-label="Indicador de reprodução. Use os controles de transporte para navegar pelo teclado."
-        style={{ left: x, height }}
+        style={{ left: x, height: part === "head" ? RULER_H : height }}
         onPointerDown={onPointerDown}
         onDoubleClick={(e) => {
           if (
@@ -1963,11 +2013,14 @@ function MarkerFlags({
   zoom,
   height,
   fps,
+  part,
 }: {
   markers: Marker[];
   zoom: number;
   height: number;
   fps: number;
+  /** "lines" go down the tracks; "flags" ride the ruler layer, which stays on screen. */
+  part: "lines" | "flags";
 }): ReactNode {
   const [editing, setEditing] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -1976,59 +2029,63 @@ function MarkerFlags({
     <>
       {markers.map((m) => (
         <Fragment key={m.id}>
-          <div
-            className={`marker-line ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
-            style={{ left: m.t * zoom, height }}
-          />
-          <button
-            type="button"
-            className={`marker-flag ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
-            style={{ left: m.t * zoom }}
-            title={`${m.label} · ${timecode(m.t, fps)}${m.chapter ? " · capítulo" : ""}. Dois cliques renomeiam; botão direito para mais opções.`}
-            aria-label={`Marcador ${m.label}`}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              if (e.button === 0) {
-                playback.pause();
-                playback.seek(m.t);
-              }
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditing(m.id);
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setMenu({ x: e.clientX, y: e.clientY, id: m.id });
-            }}
-          >
-            <MapPin size={10} />
-            {editing === m.id ? (
-              <input
-                className="marker-input"
-                ref={focusOnMount}
-                defaultValue={m.label}
-                aria-label="Nome do marcador"
-                onPointerDown={(e) => e.stopPropagation()}
-                onBlur={(e) => {
-                  setEditing(null);
-                  const label = e.target.value.trim();
-                  if (label && label !== m.label) actions.updateMarker(m.id, { label });
-                }}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === "Enter") e.currentTarget.blur();
-                  if (e.key === "Escape") {
-                    e.currentTarget.value = m.label;
-                    e.currentTarget.blur();
-                  }
-                }}
-              />
-            ) : (
-              <span className="marker-label">{m.label}</span>
-            )}
-          </button>
+          {part === "lines" && (
+            <div
+              className={`marker-line ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
+              style={{ left: m.t * zoom, height }}
+            />
+          )}
+          {part === "flags" && (
+            <button
+              type="button"
+              className={`marker-flag ${m.chapter ? "is-chapter" : ""} ${m.note ? "is-note" : ""}`}
+              style={{ left: m.t * zoom }}
+              title={`${m.label} · ${timecode(m.t, fps)}${m.chapter ? " · capítulo" : ""}. Dois cliques renomeiam; botão direito para mais opções.`}
+              aria-label={`Marcador ${m.label}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                if (e.button === 0) {
+                  playback.pause();
+                  playback.seek(m.t);
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setEditing(m.id);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenu({ x: e.clientX, y: e.clientY, id: m.id });
+              }}
+            >
+              <MapPin size={10} />
+              {editing === m.id ? (
+                <input
+                  className="marker-input"
+                  ref={focusOnMount}
+                  defaultValue={m.label}
+                  aria-label="Nome do marcador"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    setEditing(null);
+                    const label = e.target.value.trim();
+                    if (label && label !== m.label) actions.updateMarker(m.id, { label });
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") {
+                      e.currentTarget.value = m.label;
+                      e.currentTarget.blur();
+                    }
+                  }}
+                />
+              ) : (
+                <span className="marker-label">{m.label}</span>
+              )}
+            </button>
+          )}
         </Fragment>
       ))}
       {menu && current && (

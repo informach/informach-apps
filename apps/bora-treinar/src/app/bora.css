@@ -783,3 +783,19 @@ details.card summary {
     grid-template-columns: 1fr;
   }
 }
+
+/* contagem pela voz: o que o microfone entendeu, no canto do instrutor */
+.voz-pill {
+  max-width: 62%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.voz-pill .dot {
+  animation: voz-pulso 1.2s ease-in-out infinite;
+}
+@keyframes voz-pulso {
+  50% {
+    opacity: 0.35;
+  }
+}

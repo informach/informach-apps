@@ -3,9 +3,10 @@ import { existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { z } from "zod";
-import { CLICK_RATE, clickSamples, fillClicks } from "../shared/clickSound.ts";
+import { SOUND_EFFECT_IDS } from "../shared/soundEffects.ts";
 import { cursorClicksPath, cursorSpritePath } from "./cursor-sprite-path.ts";
 import { cacheDir, FFMPEG } from "./ffmpeg.ts";
+import { samplesOf, writeSoundTrack } from "./soundTrack.ts";
 
 /**
  * Encodes the pointer sprite frames drawn by the renderer (same drawing as the preview) into a
@@ -27,61 +28,12 @@ const clickTimes = z
   .instanceof(Float64Array)
   .refine((times) => times.length <= 200_000 && times.every((t) => Number.isFinite(t) && t >= 0));
 const clickVolume = z.number().min(0).max(1);
+const clickSound = z.enum(SOUND_EFFECT_IDS);
 const clickDuration = z
   .number()
   .positive()
   .max(7 * 86400);
 
-/**
- * Writes the click sound of a recording, `duration` seconds long with a click at each of
- * `times`, as FLAC: one second of samples at a time goes to FFmpeg, so a long recording never
- * sits whole in memory, and the silence between clicks takes almost no room.
- */
-async function writeClicks(
-  out: string,
-  times: readonly number[],
-  volume: number,
-  duration: number,
-): Promise<void> {
-  const tmp = out.replace(/\.flac$/, ".part.flac");
-  const proc = spawn(
-    FFMPEG,
-    [
-      ...["-y", "-v", "error", "-f", "f32le", "-ar", String(CLICK_RATE), "-ac", "1"],
-      // The same click in both channels at full level, as the preview plays it (an upmix of
-      // mono would take 3 dB off).
-      ...["-i", "-", "-af", "pan=stereo|c0=c0|c1=c0", "-c:a", "flac", tmp],
-    ],
-    { windowsHide: true },
-  );
-  let err = "";
-  proc.stderr.on("data", (d: Buffer) => (err = (err + d.toString()).slice(-2000)));
-  proc.stdin.on("error", () => undefined);
-  const done = new Promise<void>((resolve, reject) => {
-    proc.on("error", reject);
-    proc.on("close", (code) =>
-      code === 0 ? resolve() : reject(new Error(err.trim() || `ffmpeg saiu com código ${code}`)),
-    );
-  });
-  const click = clickSamples(CLICK_RATE);
-  const total = Math.ceil(duration * CLICK_RATE);
-  try {
-    for (let from = 0; from < total; from += CLICK_RATE) {
-      const chunk = new Float32Array(Math.min(CLICK_RATE, total - from));
-      fillClicks(chunk, from, times, volume, click, CLICK_RATE);
-      const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-      if (!proc.stdin.write(bytes)) await new Promise((res) => proc.stdin.once("drain", res));
-    }
-    proc.stdin.end();
-    await done;
-    await rename(tmp, out);
-  } catch (error) {
-    proc.kill("SIGKILL");
-    await done.catch(() => undefined);
-    await rm(tmp, { force: true });
-    throw error;
-  }
-}
 const spritePath = (path: string, id: string): string => cursorSpritePath(cacheDir(path), id);
 
 export function registerCursorSprites(): void {
@@ -179,14 +131,29 @@ export function registerCursorSprites(): void {
 
   ipcMain.handle(
     "cursor:clicks",
-    async (_e, path: unknown, id: unknown, times: unknown, volume: unknown, duration: unknown) => {
+    async (
+      _e,
+      path: unknown,
+      id: unknown,
+      times: unknown,
+      volume: unknown,
+      duration: unknown,
+      sound: unknown,
+    ) => {
       const media = z.string().min(1).max(32768).parse(path);
       // The cache sits beside a media the editor was given, never beside any path.
       await desktopFiles.assertRead(media);
       const out = cursorClicksPath(cacheDir(media), id);
       if (existsSync(out)) return out;
       const sorted = [...clickTimes.parse(times)].sort((a, b) => a - b);
-      await writeClicks(out, sorted, clickVolume.parse(volume), clickDuration.parse(duration));
+      const level = clickVolume.parse(volume);
+      const samples = samplesOf(clickSound.parse(sound ?? "clique"));
+      await writeSoundTrack(
+        FFMPEG,
+        out,
+        sorted.map((at) => ({ at, samples, volume: level })),
+        clickDuration.parse(duration),
+      );
       return out;
     },
   );

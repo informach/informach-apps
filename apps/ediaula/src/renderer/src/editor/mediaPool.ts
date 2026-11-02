@@ -1,4 +1,4 @@
-import { clickSamples } from "@shared/clickSound";
+import { type SoundEffectId, soundSamples } from "@shared/soundEffects";
 
 /**
  * The DOM side of the preview's pool (previewPool.ts): two media elements per lane, made once
@@ -35,8 +35,8 @@ export class MediaPool {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private meter: AnalyserNode | null = null;
-  /** The click of the cursor effects (shared/clickSound.ts), made once. */
-  private clickBuffer: AudioBuffer | null = null;
+  /** The sound effects played so far (shared/soundEffects.ts), each made once. */
+  private readonly effects = new Map<SoundEffectId, AudioBuffer>();
   /** Each element's WebAudio nodes, disconnected when the element goes. */
   private readonly nodes = new Map<
     HTMLMediaElement,
@@ -149,20 +149,23 @@ export class MediaPool {
   }
 
   /**
-   * The click sound of the cursor effects at `volume`, in the same mix as the clips (through
-   * the master and its limiter), the same samples the export mixes in.
+   * A sound effect at `volume` (the click of the cursor effects, an automatic whoosh), in the
+   * same mix as the clips (through the master and its limiter): the same samples the export
+   * mixes in.
    */
-  click(volume: number): void {
+  sound(id: SoundEffectId, volume: number): void {
     const ctx = this.audio();
     if (!ctx || !this.master || volume <= 0) return;
-    if (!this.clickBuffer) {
-      const samples = clickSamples(ctx.sampleRate);
-      this.clickBuffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
-      this.clickBuffer.copyToChannel(samples, 0);
+    let buffer = this.effects.get(id);
+    if (!buffer) {
+      const samples = soundSamples(id, ctx.sampleRate);
+      buffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+      buffer.copyToChannel(samples, 0);
+      this.effects.set(id, buffer);
     }
     this.wake();
     const source = ctx.createBufferSource();
-    source.buffer = this.clickBuffer;
+    source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = Math.min(1, volume);
     source.connect(gain).connect(this.master);

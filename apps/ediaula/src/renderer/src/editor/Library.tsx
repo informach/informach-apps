@@ -5,9 +5,11 @@ import {
   type LibraryMedia,
   TARGET_LABEL,
 } from "@shared/library";
+import { SOUND_GROUP_LABEL, SOUND_GROUPS, soundsOf } from "@shared/soundEffects";
 import type { Asset } from "@shared/types";
 import {
   AlertTriangle,
+  AudioLines,
   BookmarkPlus,
   Film,
   FolderSearch,
@@ -15,6 +17,7 @@ import {
   Loader,
   Music,
   Palette,
+  Play,
   Plus,
   Replace,
   RotateCcw,
@@ -37,11 +40,15 @@ import {
   setMediaCategory,
   useSharedLibrary,
 } from "@/lib/sharedLibrary";
+import { placeSoundHere } from "@/lib/soundLibrary";
+import { previewSound } from "@/lib/soundPreview";
 import { type LibraryFilter, useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Badge, Chip } from "@/ui";
 
 export const ASSET_MIME = "application/x-ediaula-assets";
+/** A sound effect of the library dragged to the timeline (its id, shared/soundEffects.ts). */
+export const SOUND_MIME = "application/x-ediaula-sound";
 
 const FILTERS: [LibraryFilter, string][] = [
   ["all", "Tudo"],
@@ -206,6 +213,7 @@ function SharedLibrary(): ReactNode {
     if (!useSharedLibrary.getState().loaded) void loadSharedLibrary();
   }, []);
   const media = library.media.filter((m) => category === "all" || m.category === category);
+  const effects = category === "all" || category === "efeito";
   return (
     <>
       <div className="lib-header">
@@ -221,57 +229,122 @@ function SharedLibrary(): ReactNode {
           </Chip>
         ))}
       </div>
-      {!loaded ? (
-        <p className="muted">Abrindo a biblioteca…</p>
-      ) : media.length === 0 ? (
-        <p className="lib-hint muted">
-          Use o botão de marcador num item de Desta aula para guardar vinhetas, logos, músicas e
-          cartelas que você usa em todas as aulas.
-        </p>
-      ) : (
-        <ul className="shared-list">
-          {media.map((m) => (
-            <SharedMediaRow key={m.id} media={m} />
-          ))}
-        </ul>
-      )}
+      {/* Mídias guardadas, efeitos sonoros e estilos rolam juntos; título e filtros ficam fixos. */}
+      <div className="shared-scroll">
+        {!loaded ? (
+          <p className="muted">Abrindo a biblioteca…</p>
+        ) : media.length === 0 ? (
+          category === "efeito" ? null : (
+            <p className="lib-hint muted">
+              Use o botão de marcador num item de Desta aula para guardar vinhetas, logos, músicas e
+              cartelas que você usa em todas as aulas.
+            </p>
+          )
+        ) : (
+          <ul className="shared-list">
+            {media.map((m) => (
+              <SharedMediaRow key={m.id} media={m} />
+            ))}
+          </ul>
+        )}
+        {effects && <BuiltInSounds />}
+        <div className="lib-header">
+          <h2>
+            <Palette size={13} /> Estilos favoritos
+          </h2>
+        </div>
+        {library.styles.length === 0 ? (
+          <p className="lib-hint muted">
+            Em Propriedades, use Favoritar estilo numa anotação, na legenda ou no cursor de uma
+            gravação.
+          </p>
+        ) : (
+          <ul className="shared-list">
+            {library.styles.map((s) => (
+              <li key={s.id} className="shared-row">
+                <span className="spacer">
+                  <strong>{s.name}</strong>
+                  <span className="muted"> · {TARGET_LABEL[s.target]}</span>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => applyStyle(s)}
+                >
+                  Aplicar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  title="Tirar dos favoritos"
+                  onClick={() => void removeFromLibrary(s.id)}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
+ * The sound effects that come with EdiAula (shared/soundEffects.ts), by group: heard with a
+ * click, placed where the timeline's cursor is with "Aqui", or dragged to a track.
+ */
+function BuiltInSounds(): ReactNode {
+  return (
+    <>
       <div className="lib-header">
         <h2>
-          <Palette size={13} /> Estilos favoritos
+          <AudioLines size={13} /> Efeitos sonoros do EdiAula
         </h2>
       </div>
-      {library.styles.length === 0 ? (
-        <p className="lib-hint muted">
-          Em Propriedades, use Favoritar estilo numa anotação, na legenda ou no cursor de uma
-          gravação.
-        </p>
-      ) : (
-        <ul className="shared-list">
-          {library.styles.map((s) => (
-            <li key={s.id} className="shared-row">
-              <span className="spacer">
-                <strong>{s.name}</strong>
-                <span className="muted"> · {TARGET_LABEL[s.target]}</span>
-              </span>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => applyStyle(s)}
+      {SOUND_GROUPS.map((group) => (
+        <div key={group}>
+          <span className="field-label">{SOUND_GROUP_LABEL[group]}</span>
+          <ul className="shared-list">
+            {soundsOf(group).map((s) => (
+              <li
+                key={s.id}
+                className="shared-row"
+                title={`${s.hint}. Arraste para uma faixa ou use Aqui.`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(SOUND_MIME, s.id);
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
               >
-                Aplicar
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                title="Tirar dos favoritos"
-                onClick={() => void removeFromLibrary(s.id)}
-              >
-                <Trash2 size={12} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  aria-label={`Ouvir ${s.name}`}
+                  title="Ouvir"
+                  onClick={() => previewSound(s.id)}
+                >
+                  <Play size={12} />
+                </button>
+                <span className="spacer shared-name">{s.name}</span>
+                <span className="muted mono">{s.seconds.toFixed(1).replace(".", ",")} s</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  title="Coloca onde está o cursor da timeline, numa faixa Efeitos sonoros"
+                  onClick={() => void placeSoundHere(s.id)}
+                >
+                  <Plus size={12} /> Aqui
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <p className="lib-hint muted">
+        Os arquivos ficam em Documentos\EdiAula\Efeitos sonoros. O clique do cursor e o woosh
+        automático dos zooms e das transições se escolhem em Propriedades.
+      </p>
     </>
   );
 }

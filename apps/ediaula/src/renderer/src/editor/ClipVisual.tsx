@@ -35,6 +35,7 @@ import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { KeyDialog } from "./KeyDialog";
+import { AutoSoundToggle } from "./SoundEffects";
 import { Swatches } from "./Swatches";
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
@@ -621,6 +622,7 @@ export function TransitionSection({ clip }: { clip: Clip }): ReactNode {
           }
         />
       )}
+      {tr && <AutoSoundToggle kind="transitions" />}
     </div>
   );
 }

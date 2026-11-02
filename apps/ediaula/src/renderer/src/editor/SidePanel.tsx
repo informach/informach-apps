@@ -35,6 +35,7 @@ import {
   PlacementSection,
   TransitionSection,
 } from "./ClipVisual";
+import { startExtendFrame } from "./ExtendFrameDialog";
 import { LapseSection } from "./LapseSection";
 import {
   BackgroundSection,
@@ -51,6 +52,7 @@ import { CursorSection, ZoomSection } from "./RecordingProps";
 import { RetrySection } from "./RetrySection";
 import { ScriptPanel } from "./ScriptPanel";
 import { ShadowSection } from "./ShadowControls";
+import { AutoSoundsSection } from "./SoundEffects";
 import { TranscriptPanel } from "./TranscriptPanel";
 import { ZoomLayerSection } from "./ZoomLayerPanel";
 
@@ -144,6 +146,7 @@ function Properties(): ReactNode {
         {selected.length === 0 && <PaletteSection />}
         {selected.length === 0 && <CaptionSettings />}
         {selected.length === 0 && <BackgroundSection />}
+        {selected.length === 0 && <AutoSoundsSection />}
         {selected.length === 0 && <MarkersSection />}
         {selected.length > 1 ? (
           <>
@@ -255,7 +258,7 @@ function Properties(): ReactNode {
             size="sm"
             variant="secondary"
             disabled={project?.tracks.find((t) => t.id === clip.trackId)?.locked}
-            onClick={() => useApp.getState().set({ extendClip: clip.id })}
+            onClick={() => void startExtendFrame(clip.id)}
           >
             Estender quadro…
           </Button>

@@ -9,6 +9,7 @@ import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
 import { Slider } from "./ClipVisual";
+import { AutoSoundToggle } from "./SoundEffects";
 
 const SPOTS: [string, number, number][] = [
   ["↖", 0.25, 0.25],
@@ -157,6 +158,7 @@ export function ZoomLayerSection({ clip }: { clip: Clip }): ReactNode {
         está. No vídeo, arraste o retângulo; a rodinha do mouse muda o quanto aproxima.
       </p>
       <ZoomPointControls scale={z.scale} x={z.x} y={z.y} onChange={set} />
+      <AutoSoundToggle kind="zooms" />
 
       <span className="field-label">Entrada</span>
       <Chips

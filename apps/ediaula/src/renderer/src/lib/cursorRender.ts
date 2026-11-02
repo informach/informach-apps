@@ -18,6 +18,7 @@ import {
   spriteSize,
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
+import { SOUND_VERSION } from "@shared/soundEffects";
 import { newId } from "@shared/timeline";
 import type { CursorSprite, Project } from "@shared/types";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
@@ -127,13 +128,19 @@ export async function ensureCursorSprites(
     }
     const times = clickSoundTimes(data, fx);
     const volume = fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume;
+    const sound = fx.clickSoundKind ?? CURSOR_EFFECT_DEFAULTS.clickSoundKind;
     if (times.length && volume > 0)
       entry.clicks = await window.api.cursorSprite.clicks(
         asset.path,
-        numbersKey(times, `stereo|${volume.toFixed(3)}|${asset.duration.toFixed(3)}`),
+        // The first click keeps the key it always had, so its cached file is still good.
+        numbersKey(
+          times,
+          `stereo|${volume.toFixed(3)}|${asset.duration.toFixed(3)}${sound === "clique" ? "" : `|${sound}|${SOUND_VERSION}`}`,
+        ),
         Float64Array.from(times),
         volume,
         asset.duration,
+        sound,
       );
     // Kept typed: an Int32Array crosses IPC as one value, so a long recording fits the limit.
     out[asset.id] = entry;

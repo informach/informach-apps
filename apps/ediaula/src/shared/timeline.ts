@@ -105,6 +105,54 @@ export function speedForDuration(clips: Clip[], seconds: number): number | null 
 }
 
 /** Insert a silent still on this track and resume the original footage after it. */
+/**
+ * O vão logo depois do clipe, na mesma faixa, até o clipe seguinte. null quando não há clipe à frente,
+ * quando o seguinte encosta (vão menor que um quadro) ou quando outro clipe já ocupa o começo do vão.
+ */
+export function gapAfter(clips: Clip[], id: string): { start: number; end: number } | null {
+  const c = clips.find((x) => x.id === id);
+  if (!c) return null;
+  const end = clipEnd(c);
+  const others = clips.filter((x) => x.id !== id && x.trackId === c.trackId);
+  if (others.some((x) => x.start < end - EPS && clipEnd(x) > end + EPS)) return null;
+  const next = others
+    .filter((x) => x.start >= end - EPS)
+    .reduce<Clip | undefined>((a, x) => (!a || x.start < a.start ? x : a), undefined);
+  if (!next || next.start - end < MIN_CLIP) return null;
+  return { start: end, end: next.start };
+}
+
+/**
+ * Preenche o vão depois do clipe (gapAfter) com o último quadro dele, parado e sem áudio, até o
+ * clipe seguinte. Nada se move. A saída do clipe (fade, animação) passa para o quadro parado, que
+ * vira o novo fim.
+ */
+export function fillGapWithFrame(
+  clips: Clip[],
+  id: string,
+  stillAssetId: string,
+): { clips: Clip[]; stillId: string } {
+  const c = clips.find((x) => x.id === id);
+  const gap = gapAfter(clips, id);
+  if (!c || !gap) throw new Error("Não há vão até o próximo clipe desta faixa.");
+  const stillId = newId("c");
+  const still: Clip = {
+    id: stillId,
+    assetId: stillAssetId,
+    trackId: c.trackId,
+    start: gap.start,
+    in: 0,
+    duration: gap.end - gap.start,
+    volume: 0,
+    transform: transformAt(c, gap.start),
+  };
+  if (c.fadeOut !== undefined) still.fadeOut = c.fadeOut;
+  if (c.exit !== undefined) still.exit = c.exit;
+  const out = clips.filter((x) => x.id !== id);
+  out.push(piece(c, c.start, gap.start, { tail: false }), still);
+  return { clips: out, stillId };
+}
+
 export function extendFrame(
   clips: Clip[],
   id: string,

@@ -2,6 +2,7 @@
 import {
   ChevronLeft,
   Maximize,
+  Mic,
   Minimize,
   Minus,
   Music,
@@ -31,7 +32,15 @@ import { buildSteps, type LevelMap, type Step, type Workout } from "../catalog/w
 import { HoldTracker, RepCounter } from "../engine/counter";
 import { definirMusica } from "../engine/musica";
 import { WorkoutRunner } from "../engine/runner";
-import { beep, numberWord, say, setAudioEnabled, unlockAudio } from "../engine/voice";
+import {
+  beep,
+  numberWord,
+  say,
+  setAudioEnabled,
+  setSpeechMuted,
+  unlockAudio,
+} from "../engine/voice";
+import { contagemPelaVoz, OuvinteDeVoz, vozDisponivel } from "../engine/voz";
 import { Instructor3D } from "../instructor/instructor-3d";
 import type { InstructorMode } from "../instructor/instructor-scene";
 import { type PoseFrame, PoseTracker } from "../vision/pose-tracker";
@@ -72,6 +81,16 @@ function stepTitle(s: Step) {
   return `${ex.name} · ${s.target}${ex.rule.kind === "hold" ? " s" : " rep."}`;
 }
 
+/** O navegador já negou o microfone a este site? (sem a API de permissões, presume que não) */
+async function microfoneNegado() {
+  try {
+    const estado = await navigator.permissions?.query({ name: "microphone" as PermissionName });
+    return estado?.state === "denied";
+  } catch {
+    return false;
+  }
+}
+
 export interface PlayerProps {
   profile: { id: string; name: string; color: string };
   workout: Workout | null;
@@ -98,7 +117,7 @@ export function PlayerScreen({
   onFinish,
 }: PlayerProps) {
   const router = useRouter();
-  const [settings, setSettings] = useAjustes();
+  const [settings, setSettings, ajustesCarregados] = useAjustes();
   // o treino é montado uma vez por entrada no player
   const runner = useMemo(
     () =>
@@ -112,6 +131,15 @@ export function PlayerScreen({
   const [pop, setPop] = useState(0);
   const [view, setView] = useState<View | undefined>();
   const [quitting, setQuitting] = useState(false);
+  // contagem pela voz (modo manual): o navegador reconhece os números ditos
+  const [vozSuportada, setVozSuportada] = useState(false);
+  const [ouvindo, setOuvindo] = useState(false);
+  const [ouvido, setOuvido] = useState("");
+  const [pedindoVoz, setPedindoVoz] = useState(false);
+  const [microfoneBloqueado, setMicrofoneBloqueado] = useState(false);
+  const decidiuVoz = useRef(false);
+  const pausouParaVoz = useRef(false);
+  const ouvinte = useRef<OuvinteDeVoz | null>(null);
   const [saveError, setSaveError] = useState("");
   const [cam, setCam] = useState<CamStatus>({ state: mode === "camera" ? "loading" : "off" });
   const [conf, setConf] = useState(0);
@@ -233,6 +261,9 @@ export function PlayerScreen({
           runner.step.window
         )
           flash("Meta batida! Descanse até o fim do minuto", true);
+      } else if (e.type === "hold-second") {
+        // isometria: conta os segundos em voz alta, como as repetições
+        if (countAloud.current) say(numberWord(e.seconds), { interrupt: true, rate: 1.25 });
       } else if (e.type === "countdown") beep("tick");
       else if (e.type === "round") say(`Volta ${e.rounds} completa`, { interrupt: true });
       else if (e.type === "finish") void saveRef.current();
@@ -422,9 +453,121 @@ export function PlayerScreen({
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [runner, quitting]);
 
+  // Contagem pela voz. O ouvinte entrega só números novos; a contagem só avança (contagemPelaVoz)
+  // e segue as regras das repetições: nada em descanso, isometria, pausa ou depois do fim.
+  useEffect(() => setVozSuportada(mode === "manual" && vozDisponivel()), [mode]);
+  const aoOuvirVoz = useCallback(
+    (novos: number[], texto: string) => {
+      setOuvido(texto.trim().split(/\s+/).slice(-3).join(" "));
+      const st = runner.step;
+      if (
+        !novos.length ||
+        !st ||
+        st.kind === "rest" ||
+        runner.isHold ||
+        runner.paused ||
+        runner.done
+      )
+        return;
+      const atual = st.kind === "amrap" ? runner.amrapItemReps : runner.reps;
+      const alvo = contagemPelaVoz(atual, novos);
+      for (let i = atual; i < alvo; i++) runner.addRep(1);
+    },
+    [runner],
+  );
+  const pararVoz = useCallback(() => {
+    ouvinte.current?.parar();
+    ouvinte.current = null;
+    setOuvindo(false);
+    setOuvido("");
+    setSpeechMuted(false);
+  }, []);
+  // pergunta pelo microfone com o treino pausado, para o "Prepare-se" não correr por baixo
+  const perguntarVoz = useCallback(() => {
+    if (!runner.paused && !runner.done) {
+      runner.pause();
+      pausouParaVoz.current = true;
+    }
+    setPedindoVoz(true);
+  }, [runner]);
+  const fecharPerguntaVoz = useCallback(() => {
+    setPedindoVoz(false);
+    if (pausouParaVoz.current) {
+      pausouParaVoz.current = false;
+      runner.resume();
+    }
+  }, [runner]);
+  const ligarVoz = useCallback(() => {
+    const o = new OuvinteDeVoz(aoOuvirVoz, (falha) => {
+      pararVoz();
+      if (falha === "negado") {
+        // bloqueado pelo navegador, ou o navegador quer um toque antes: o aviso explica e tenta de novo
+        void microfoneNegado().then((negado) => {
+          setMicrofoneBloqueado(negado);
+          perguntarVoz();
+        });
+        return;
+      }
+      flash(
+        falha === "sem-rede"
+          ? "A contagem pela voz precisa de internet"
+          : "Este navegador não reconhece voz",
+      );
+    });
+    ouvinte.current = o;
+    // a voz do app e a música calam: o microfone as ouviria e contaria errado
+    setSpeechMuted(true);
+    setOuvindo(true);
+    o.ligar();
+  }, [aoOuvirVoz, pararVoz, flash, perguntarVoz]);
+  // ligar ou desligar pelo botão vira a escolha para os próximos treinos
+  const alternarVoz = () => {
+    if (ouvindo) {
+      pararVoz();
+      setSettings({ vozAoIniciar: false });
+    } else if (!settings.vozAceita || microfoneBloqueado) perguntarVoz();
+    else {
+      setSettings({ vozAoIniciar: true });
+      ligarVoz();
+    }
+  };
+  // Ao abrir o treino no modo manual: pergunta uma vez; depois liga sozinho ou não pergunta mais.
+  useEffect(() => {
+    if (!ajustesCarregados || !vozSuportada || decidiuVoz.current) return;
+    decidiuVoz.current = true;
+    void microfoneNegado().then((negado) => {
+      setMicrofoneBloqueado(negado);
+      if (settings.vozAoIniciar === null || (settings.vozAoIniciar && negado)) perguntarVoz();
+      else if (settings.vozAoIniciar && settings.vozAceita) ligarVoz();
+    });
+  }, [
+    ajustesCarregados,
+    vozSuportada,
+    settings.vozAoIniciar,
+    settings.vozAceita,
+    ligarVoz,
+    perguntarVoz,
+  ]);
+  useEffect(() => {
+    if (runner.done) pararVoz();
+  }, [runner.done, pararVoz]);
+  useEffect(
+    () => () => {
+      ouvinte.current?.parar();
+      setSpeechMuted(false);
+    },
+    [],
+  );
+
   // música de fundo: banda inteira na série, fundo calmo no descanso, parada na pausa e no fim
   const music =
-    !settings.audio || !settings.music || runner.paused || runner.done || quitting || saveError
+    !settings.audio ||
+    !settings.music ||
+    ouvindo ||
+    runner.paused ||
+    runner.done ||
+    quitting ||
+    saveError
       ? "parado"
       : runner.step?.kind === "rest"
         ? "descanso"
@@ -597,6 +740,18 @@ export function PlayerScreen({
         >
           <Music size={20} />
         </button>
+        {vozSuportada && (
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={alternarVoz}
+            aria-label="Contar pela voz"
+            aria-pressed={ouvindo}
+            title={ouvindo ? "Desligar o microfone" : "Contar as repetições dizendo os números"}
+          >
+            <Mic size={20} />
+          </button>
+        )}
         <span className="num elapsed">{fmtTime(runner.totalElapsed)}</span>
         <Avatar profile={profile} />
       </header>
@@ -650,6 +805,12 @@ export function PlayerScreen({
               ) : (
                 <span />
               )}
+              {mode === "manual" && ouvindo && (
+                <span className="pill voz-pill" role="status">
+                  <span className="dot" />
+                  {ouvido ? `Ouvi: “${ouvido}”` : "Ouvindo… diga o número"}
+                </span>
+              )}
               {mode === "camera" && (
                 <div className="cam-pip" ref={camHost}>
                   <canvas ref={overlay} />
@@ -688,7 +849,7 @@ export function PlayerScreen({
             </div>
           </div>
           {toast && <div className={`toast ${toast.good ? "good" : ""}`}>{toast.text}</div>}
-          {runner.paused && !quitting && (
+          {runner.paused && !quitting && !pedindoVoz && (
             <div className="overlay-msg">
               <div>
                 <h2>Pausado</h2>
@@ -844,6 +1005,54 @@ export function PlayerScreen({
           </div>
         </aside>
       </div>
+
+      {pedindoVoz && (
+        <div className="overlay-msg fixed" data-modal>
+          <div>
+            <h2>{microfoneBloqueado ? "Microfone bloqueado" : "Contar pela voz"}</h2>
+            {microfoneBloqueado ? (
+              <p className="muted">
+                O navegador bloqueou o microfone para este site. No Chrome, toque no ícone ao lado
+                do endereço › Permissões › Microfone › Permitir. No Safari, toque em aA › Ajustes do
+                Site › Microfone › Permitir. Depois toque em Tentar de novo.
+              </p>
+            ) : (
+              <p className="muted">
+                Diga os números em voz alta (“um, dois, três…”) e o app conta por você. O
+                reconhecimento é feito pelo navegador: no Chrome o áudio vai para o Google e no
+                Safari para a Apple, só enquanto o microfone estiver ligado. O Bora Treinar não
+                grava nem guarda o áudio. Com o microfone ligado, a voz do app e a música ficam
+                caladas.
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn primary big"
+              // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para a escolha
+              autoFocus
+              onClick={() => {
+                // o toque é o gesto que o navegador exige para mostrar o pedido de permissão
+                setSettings({ vozAceita: true, vozAoIniciar: true });
+                setMicrofoneBloqueado(false);
+                fecharPerguntaVoz();
+                ligarVoz();
+              }}
+            >
+              <Mic size={20} /> {microfoneBloqueado ? "Tentar de novo" : "Ligar o microfone"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setSettings({ vozAoIniciar: false });
+                fecharPerguntaVoz();
+              }}
+            >
+              Agora não
+            </button>
+          </div>
+        </div>
+      )}
 
       {quitting && (
         <div className="overlay-msg fixed" data-modal>

@@ -36,6 +36,7 @@ import { Button, Toggle } from "@/ui";
 import { Slider } from "./ClipVisual";
 import { cursorFxOf, loadCursorData } from "./CursorLayer";
 import { FavoriteStyle } from "./LookSections";
+import { AutoSoundToggle, CLICK_CHOICES, SoundChips } from "./SoundEffects";
 import { Swatches } from "./Swatches";
 import { ZoomPointControls } from "./ZoomLayerPanel";
 
@@ -196,15 +197,24 @@ export function CursorSection({ asset, clip }: { asset: Asset; clip: Clip }): Re
             onChange={(v) => set({ clickSound: v })}
           />
           {fx.clickSound && (
-            <Slider
-              label="Volume"
-              value={fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume}
-              min={0.05}
-              max={1}
-              step={0.05}
-              format={percent}
-              onCommit={(v) => set({ clickVolume: v })}
-            />
+            <>
+              <SoundChips
+                label="Qual clique"
+                value={fx.clickSoundKind ?? CURSOR_EFFECT_DEFAULTS.clickSoundKind}
+                options={CLICK_CHOICES}
+                volume={fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume}
+                onChange={(id) => set({ clickSoundKind: id })}
+              />
+              <Slider
+                label="Volume"
+                value={fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume}
+                min={0.05}
+                max={1}
+                step={0.05}
+                format={percent}
+                onCommit={(v) => set({ clickVolume: v })}
+              />
+            </>
           )}
           <ToggleRow
             label="Esconder quando parado"
@@ -533,6 +543,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
           </button>
         )}
       </div>
+      <AutoSoundToggle kind="zooms" />
       <Slider
         label="Aproximação"
         value={scale}

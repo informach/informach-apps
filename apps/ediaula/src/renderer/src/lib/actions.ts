@@ -12,6 +12,7 @@ import { magneticBlockers, magneticSlot } from "@shared/magnetic";
 import { addMarker, type Marker, stepMarker } from "@shared/markers";
 import { insertClips } from "@shared/ripple";
 import {
+  clipEnd,
   clipsFrom,
   closeGaps,
   makeClip,
@@ -44,6 +45,9 @@ function voiceToast(count: number): void {
       "success",
     );
 }
+
+/** The track a sound effect of the library goes on (lib/actions.ts placeSoundEffect). */
+export const SOUND_TRACK = "Efeitos sonoros";
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -235,9 +239,15 @@ export const actions = {
    * Places assets one after another starting at `start` on `track` (or each asset's default
    * track). With `insert` (Ctrl + drop) they go in pushing what comes after on every unlocked
    * track text cuts reach and on the tracks they go to (insertClips); otherwise they cover what
-   * is under them.
+   * is under them. `voice: false` (a sound effect) never makes a sound the lesson's voice.
    */
-  placeAssets(assets: Asset[], track: Track | undefined, start: number, insert = false): void {
+  placeAssets(
+    assets: Asset[],
+    track: Track | undefined,
+    start: number,
+    insert = false,
+    { voice: asVoice = true }: { voice?: boolean } = {},
+  ): void {
     const { commit, project } = useProject.getState();
     if (!project || !assets.length || waitForDraft("colocar mídia na timeline")) return;
     let voiced = 0;
@@ -249,7 +259,7 @@ export const actions = {
       for (const a of assets) {
         let target = track && trackAccepts(track, a) ? track : defaultTrackFor(p, a);
         // A lesson's first sound is its voice, unless it was put on a sound track on purpose.
-        if ((!track || track.kind === "video") && becomesVoice(before, a)) {
+        if (asVoice && (!track || track.kind === "video") && becomesVoice(before, a)) {
           const voice = voiceTrack(p);
           p = { ...p, tracks: voice.tracks };
           target = voice.track;
@@ -275,6 +285,44 @@ export const actions = {
       return { ...p, clips };
     });
     if (voiced) voiceToast(voiced);
+  },
+
+  /**
+   * A sound effect of the library at `at` (the playhead): on an "Efeitos sonoros" track free at
+   * that moment (made below the others when there is none), never as the lesson's voice and
+   * never over another clip. One undo step.
+   */
+  placeSoundEffect(asset: Asset, at: number): void {
+    const { commit, project } = useProject.getState();
+    if (!project || asset.missing || waitForDraft("colocar o efeito sonoro")) return;
+    commit((p) => {
+      const start = toFrame(Math.max(0, at), p.settings.fps);
+      const clip0 = makeClip(asset, "", start, p.settings);
+      const end = start + clip0.duration;
+      const free = p.tracks.find(
+        (t) =>
+          t.kind === "audio" &&
+          !t.locked &&
+          t.name.startsWith(SOUND_TRACK) &&
+          !p.clips.some((c) => c.trackId === t.id && c.start < end && clipEnd(c) > start),
+      );
+      const names = new Set(p.tracks.map((t) => t.name));
+      let name = SOUND_TRACK;
+      for (let k = 2; names.has(name); k++) name = `${SOUND_TRACK} ${k}`;
+      const track: Track = free ?? {
+        id: newId("t"),
+        kind: "audio",
+        name,
+        muted: false,
+        hidden: false,
+        locked: false,
+      };
+      return {
+        ...p,
+        tracks: free ? p.tracks : [...p.tracks, track],
+        clips: [...p.clips, { ...clip0, trackId: track.id }],
+      };
+    });
   },
 
   /**

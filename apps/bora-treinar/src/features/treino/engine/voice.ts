@@ -41,8 +41,15 @@ export function onSpeaking(listener: ((falando: boolean) => void) | null) {
   speaking = listener;
 }
 
+let muted = false;
+/** Cala a fala do app (bipes continuam): enquanto o microfone conta pela voz, ele ouviria o app. */
+export function setSpeechMuted(on: boolean) {
+  muted = on;
+  if (on && hasSpeech()) speechSynthesis.cancel();
+}
+
 export function say(text: string, opts: { interrupt?: boolean; rate?: number } = {}) {
-  if (!enabled || !hasSpeech()) return;
+  if (!enabled || muted || !hasSpeech()) return;
   if (opts.interrupt) speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "pt-BR";
