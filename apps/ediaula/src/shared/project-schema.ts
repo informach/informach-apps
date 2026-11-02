@@ -15,6 +15,7 @@ import { DEVICES, REGION_KINDS } from "./look.ts";
 import { MARKER_LIMIT } from "./markers.ts";
 import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
 import { REVIEWED_LIMIT } from "./seams.ts";
+import { SOUND_EFFECT_IDS } from "./soundEffects.ts";
 import {
   ENCODERS,
   EXPORT_QUALITIES,
@@ -111,6 +112,7 @@ export const cursorFxSchema = z.looseObject({
   spotlightDim: z.number().min(0).max(0.95).optional(),
   clickSound: z.boolean().optional(),
   clickVolume: z.number().min(0).max(1).optional(),
+  clickSoundKind: z.enum(SOUND_EFFECT_IDS).optional(),
   ranges: z
     .array(
       z.looseObject({
@@ -683,6 +685,15 @@ export const projectSchema = z
           .optional(),
       })
       .optional(),
+    autoSounds: z
+      .looseObject({
+        zooms: z.boolean().optional(),
+        transitions: z.boolean().optional(),
+        volume: z.number().min(0).max(1).optional(),
+        zoomSound: z.enum(["par", ...SOUND_EFFECT_IDS]).optional(),
+        transitionSound: z.enum(SOUND_EFFECT_IDS).optional(),
+      })
+      .optional(),
     prepare: z
       .looseObject({
         step: z.enum(PREPARE_STEPS),
@@ -837,6 +848,7 @@ export const exportSpecSchema = z
       )
       .optional(),
     range: z.strictObject({ from: time, to: time }).optional(),
+    effects: path.min(1).optional(),
     stems: z.strictObject({ voice: path.min(1), music: path.min(1) }).optional(),
     reveals: z
       .record(

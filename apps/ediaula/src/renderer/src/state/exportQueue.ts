@@ -1,3 +1,4 @@
+import { autoSoundEvents, autoSoundsEnd } from "@shared/autoSounds";
 import {
   buildAss,
   buildCues,
@@ -8,7 +9,7 @@ import {
 import { keyId } from "@shared/chroma";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
 import { CURSOR_MISSING } from "@shared/preflight";
-import { newId } from "@shared/timeline";
+import { newId, projectDuration } from "@shared/timeline";
 import type { ExportSpec, Project } from "@shared/types";
 import { treatedPath } from "@shared/voiceChain";
 import type { TextCue } from "@shared/webvtt";
@@ -175,6 +176,16 @@ export const exportQueue = new ExportQueue(
         // Annotations that come in word by word or are drawn: their transparent videos.
         const reveals = await ensureRevealSprites(project, signal);
         if (Object.keys(reveals).length) spec.reveals = reveals;
+        check();
+      }
+      // The automatic whooshes of the zooms and transitions, as one track of the lesson.
+      const effects = autoSoundEvents(project);
+      if (effects.length) {
+        status("preparing", "Preparando os efeitos sonoros…");
+        spec.effects = await window.api.sounds.track(
+          effects,
+          Math.max(projectDuration(project), autoSoundsEnd(effects)),
+        );
         check();
       }
       status("exporting", "Exportando…");

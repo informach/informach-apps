@@ -24,6 +24,7 @@ import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { ContextMenu } from "@/ui";
+import { startExtendFrame } from "./ExtendFrameDialog";
 
 /**
  * Right-click menu of a clip on the timeline. It acts on the selection (the clicked clip is
@@ -111,7 +112,7 @@ export function ClipMenu({
           disabled:
             project.assets.find((a) => a.id === clip.assetId)?.kind !== "video" ||
             project.tracks.find((t) => t.id === clip.trackId)?.locked,
-          onSelect: () => useApp.getState().set({ extendClip: clipId }),
+          onSelect: () => void startExtendFrame(clipId),
         },
         {
           icon: Paintbrush,

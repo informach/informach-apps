@@ -1,5 +1,6 @@
 import { type CursorData, shapeName } from "./cursorData.ts";
 import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
+import type { SoundEffectId } from "./soundEffects.ts";
 
 /**
  * The pointer of an EdiAula screen recording is drawn by the editor (the video has none), so it
@@ -51,6 +52,8 @@ export interface CursorFx {
   clickSound?: boolean;
   /** Volume of the click sound (0 to 1). */
   clickVolume?: number;
+  /** Which click (shared/soundEffects.ts, one of the "clique" group); default "clique". */
+  clickSoundKind?: SoundEffectId;
   /** Effects turned on or off for a stretch of the recording (source seconds); the last wins. */
   ranges?: CursorRange[];
 }
@@ -245,6 +248,7 @@ export const CURSOR_EFFECT_DEFAULTS = {
   spotlightRadius: 0.2,
   spotlightDim: 0.55,
   clickVolume: 0.6,
+  clickSoundKind: "clique",
 } as const;
 
 /** Bump when the drawing changes so cached pointer videos are rebuilt. */

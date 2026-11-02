@@ -150,6 +150,7 @@ import {
 } from "./restricted.ts";
 import { scheduler, type WorkKind } from "./scheduler.ts";
 import { readSendSettings, writeSendSettings } from "./sendSettings.ts";
+import { autoSoundTrack, ensureSoundLibrary } from "./soundTrack.ts";
 import { rankInWorker } from "./syncPool.ts";
 import { renderVoiceCached } from "./voiceFiles.ts";
 import { treatVoice } from "./voiceTreat.ts";
@@ -1297,6 +1298,18 @@ function registerIpc(): void {
   const libraryAccess = { canRead: desktopFiles.canRead, grantRead: desktopFiles.grantRead };
   ipcMain.handle("library:list", () => listLibrary(library(), libraryAccess));
   ipcMain.handle("library:save", (_e, raw: unknown) => saveLibrary(library(), raw, libraryAccess));
+  // The library's sound effects (shared/soundEffects.ts): WAV files in Documentos, beside the
+  // projects, so a lesson that uses one keeps a real file and the person can find them.
+  ipcMain.handle("sounds:library", async () => {
+    const files = await ensureSoundLibrary(
+      join(app.getPath("documents"), "EdiAula", "Efeitos sonoros"),
+    );
+    for (const f of files) await desktopFiles.grantRead(f.path);
+    return files;
+  });
+  ipcMain.handle("sounds:track", (_e, events: unknown, duration: unknown) =>
+    autoSoundTrack(FFMPEG, join(app.getPath("userData"), "cache"), events, duration),
+  );
   ipcMain.handle("job:cancel", (_e, jobId: string) => {
     const exporting = exportJobs.get(jobId);
     if (exporting) {

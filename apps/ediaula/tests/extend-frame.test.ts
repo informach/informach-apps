@@ -11,6 +11,8 @@ import { transformAt } from "../src/shared/keyframes.ts";
 import { projectSchema } from "../src/shared/project-schema.ts";
 import {
   extendFrame,
+  fillGapWithFrame,
+  gapAfter,
   parseDuration,
   setClipSpeed,
   sourceEnd,
@@ -271,4 +273,39 @@ test("export holds the chosen picture and resumes the video with silence only du
   assert.ok(rms(0.2) > 0.01);
   assert.ok(rms(1) < 0.001);
   assert.ok(rms(2.5) > 0.01);
+});
+
+test("estender com clipe à frente preenche o vão com o último quadro, sem mover nada", () => {
+  const edged = { ...clip, fadeOut: 0.3, exit: "pop" as const };
+  const next = { ...clip, id: "next", start: 6 };
+  const other = { ...clip, id: "other", trackId: "music", start: 4.5 };
+  assert.deepEqual(gapAfter([edged, next, other], "c"), { start: 4, end: 6 });
+  const { clips, stillId } = fillGapWithFrame([edged, next, other], "c", "still");
+  const still = clips.find((c) => c.id === stillId);
+  const footage = clips.find((c) => c.id === "c");
+  assert.ok(still && footage);
+  assert.deepEqual([still.start, still.duration, still.volume, still.assetId], [4, 2, 0, "still"]);
+  // o vídeo fica inteiro e passa a saída para o quadro parado, que é o novo fim
+  assert.deepEqual(
+    [footage.start, footage.duration, footage.fadeOut, footage.exit],
+    [0, 4, undefined, undefined],
+  );
+  assert.deepEqual([still.fadeOut, still.exit], [0.3, "pop"]);
+  assert.equal(
+    clips.find((c) => c.id === "next"),
+    next,
+  );
+  assert.equal(
+    clips.find((c) => c.id === "other"),
+    other,
+  );
+  assertSavable(clips);
+});
+
+test("sem clipe à frente, encostado ou só em outra faixa, não há vão: estender pede o tempo", () => {
+  assert.equal(gapAfter([clip], "c"), null);
+  assert.equal(gapAfter([clip, { ...clip, id: "next", start: 4 }], "c"), null);
+  assert.equal(gapAfter([clip, { ...clip, id: "other", trackId: "music", start: 6 }], "c"), null);
+  assert.equal(gapAfter([clip, { ...clip, id: "quase", start: 4.01 }], "c"), null);
+  assert.throws(() => fillGapWithFrame([clip], "c", "still"));
 });

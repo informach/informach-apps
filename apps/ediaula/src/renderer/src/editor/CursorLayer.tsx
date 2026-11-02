@@ -6,6 +6,7 @@ import {
   DEFAULT_CURSOR_FX,
 } from "@shared/cursor";
 import { type CursorData, normalizeCursorData } from "@shared/cursorData";
+import type { SoundEffectId } from "@shared/soundEffects";
 import type { Asset } from "@shared/types";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { drawCursorScene } from "@/lib/cursorDraw";
@@ -75,7 +76,7 @@ export function CursorLayer({
   getVideo: () => HTMLVideoElement | undefined;
   width: number;
   height: number;
-  playClick: (volume: number) => void;
+  playClick: (volume: number, sound: SoundEffectId) => void;
 }): ReactNode {
   const data = useCursorData(asset.cursor);
   const fx = useMemo(() => cursorFxOf(asset), [asset]);
@@ -111,6 +112,7 @@ export function CursorLayer({
     const k = (width / data.width) * dpr;
     const sounds = clickSoundTimes(data, fx);
     const volume = fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume;
+    const sound = fx.clickSoundKind ?? CURSOR_EFFECT_DEFAULTS.clickSoundKind;
     let raf = 0;
     let last = -1;
     const frame = (): void => {
@@ -119,7 +121,7 @@ export function CursorLayer({
       if (t !== last) {
         // A press passed while playing (not a jump of the playhead) sounds once.
         if (v && !v.paused && last >= 0 && t > last && t - last < 0.25 && volume > 0)
-          for (const at of sounds) if (at > last && at <= t) click.current(volume);
+          for (const at of sounds) if (at > last && at <= t) click.current(volume, sound);
         last = t;
         ctx.clearRect(0, 0, el.width, el.height);
         drawCursorScene(ctx, {

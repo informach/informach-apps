@@ -1017,8 +1017,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
     instante do clique, fica nele enquanto o botão está apertado (um arrasto segue a gravação) e solta aos poucos
     depois. O erro no instante do clique fica abaixo de 0,5 px (`tests/cursor-effects.test.ts`).
   - **Lupa** (raio e aumento): um círculo em volta do ponteiro com a tela ampliada. **Holofote** (raio e
-    intensidade): escurece o resto da tela. **Som de clique** (volume): um clique curto feito pelo próprio app
-    (`src/shared/clickSound.ts`), tocado na prévia e misturado ao áudio da exportação.
+    intensidade): escurece o resto da tela. **Som de clique** (qual clique e volume): um clique feito pelo próprio
+    app, tocado na prévia e misturado ao áudio da exportação. **Qual clique** escolhe entre Padrão (o de sempre,
+    `src/shared/clickSound.ts`), Suave, Mouse (o botão descendo e subindo), Mecânico e Pop; cada um toca ao ser
+    escolhido. São os efeitos de `src/shared/soundEffects.ts` (veja **Efeitos sonoros**).
   - **Efeito por trecho:** liga ou desliga a lupa, o holofote, o halo, a onda, o som ou o próprio cursor só num
     pedaço da gravação. O trecho aparece em roxo no pé do clipe da gravação, e as pontas dele se arrastam ali.
   - Tudo igual na prévia e na exportação: o mesmo desenho (`src/renderer/src/lib/cursorDraw.ts`) faz a prévia e o
@@ -1354,6 +1356,34 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   desliza de um ponto a outro sem voltar ao normal; "Voltar ao normal aqui" é o "Restaurar" (uma etapa em 1×).
 - A exportação aplica o zoom ao composto das faixas de baixo naquele ponto da pilha (`zoomLayerFilter`), com as
   mesmas curvas da prévia (`shared/zoomLayer.ts`). IA: `add_zoom`.
+
+## Efeitos sonoros
+
+- **Os sons são feitos pelo próprio app** (`src/shared/soundEffects.ts`), como o clique do cursor: números fixos e
+  ruído de semente fixa, então o som é o mesmo em qualquer computador, na prévia e na exportação, sem arquivo de
+  terceiros nem licença. São 13: cliques (Clique, Clique suave, Clique de mouse, Clique mecânico, Pop), wooshes
+  (Woosh curto, Woosh longo, Swoosh de entrada, Swoosh de saída) e destaques (Ding de acerto, Erro, Digitação,
+  Tchan). Mudou um som? Suba `SOUND_VERSION`: os arquivos e as faixas guardadas são feitos de novo.
+- **Na biblioteca** (Mídia › Todas as aulas, ou o filtro **Efeito sonoro**): cada som se ouve no ▶, entra onde
+  está o cursor da timeline com **Aqui** (numa faixa de áudio "Efeitos sonoros", criada embaixo quando não há uma
+  livre naquele ponto) ou se arrasta para qualquer faixa. Nunca vira a voz da aula, mesmo numa aula ainda sem
+  voz. Os arquivos ficam em `Documentos\EdiAula\Efeitos sonoros` (WAV, 48 kHz, 16 bits, mono; refeitos quando
+  somem), então a aula usa um arquivo de verdade: empacotar, reconectar e exportar funcionam como em qualquer
+  mídia (`src/main/soundTrack.ts`, `src/renderer/src/lib/soundLibrary.ts`).
+- **Woosh automático** (Propriedades do projeto, clicando fora dos clipes › **Efeitos sonoros automáticos**):
+  **Woosh nos zooms** toca um som quando um zoom entra e quando ele volta, tanto nos zooms das gravações quanto nas
+  camadas de zoom (Entra e sai: o swoosh que sobe na entrada e o que desce na volta; ou um woosh só para os dois).
+  **Woosh nas transições** toca um woosh em cada transição. Há um volume único. O momento mais forte do som cai no
+  meio do movimento: no meio da entrada ou da saída do zoom; no meio da transição que acontece depois do corte;
+  em cima do corte no passar pelo preto, no glitch e nas transições de cor. Uma camada que segue para outro ponto
+  sem voltar ao normal soa uma vez na passagem; uma camada em 1× que não se move não soa; zooms e transições de
+  faixas ocultas não soam; dois sons a menos de 0,15 s viram um (`src/shared/autoSounds.ts`). A mesma chave
+  aparece no painel do zoom, da camada de zoom e da transição.
+- **Prévia e exportação iguais:** a prévia toca cada som quando a reprodução passa pelo momento dele, no mesmo
+  mix das faixas (com o limitador e o "Destacar faixa"); com uma faixa em solo, o woosh fica calado. A
+  exportação recebe todos os wooshes da aula numa faixa FLAC só, no relógio da aula (`spec.effects`, feita pelo
+  processo principal em `userData/cache/sounds` e reaproveitada enquanto os wooshes não mudam), misturada com as
+  vozes (`buildAudioPlan`). Testes em `tests/sound-effects.test.ts`.
 
 ## Gravação guiada da plataforma web
 
@@ -1723,7 +1753,7 @@ EdiAula e um verbo que a página não conhece, e uma página sem a ponte. Não m
   uma anotação cortada continua de onde a anotação estava no corte (o relógio é o do clipe inteiro,
   `revealSpan`), sem entrar de novo.
 - **Biblioteca de todas as aulas** (Mídia › Todas as aulas, em `userData/library.json`): o ícone de
-  marcador num cartão guarda a mídia (vinheta, logo, música, cartela) para as próximas aulas, e
+  marcador num cartão guarda a mídia (vinheta, logo, música, efeito sonoro, cartela) para as próximas aulas, e
   **Favoritar estilo** guarda o visual de uma anotação, da legenda ou do cursor de uma gravação, que
   depois se aplica em um clique. O processo principal só guarda mídias que o app já podia ler e as
   libera de novo ao listar.

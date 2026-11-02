@@ -124,6 +124,13 @@ let photoCapture, photoSelection, photoState;
 let quickVideo;
 let photoCancelShortcut = false;
 let photoPreferences;
+// Passed by the Windows login item (and the development startup shortcut).
+const HIDDEN_START_FLAG = "--oculto";
+// app.quit() (update, suite access, Windows logoff) must not be absorbed by the tray.
+let quitRequested = false;
+app.on("before-quit", () => {
+  quitRequested = true;
+});
 function captureTopology() {
   return screen.getAllDisplays().map((d) => ({
     id: String(d.id),
@@ -240,6 +247,12 @@ function showEditor() {
     editor.show();
     editor.focus();
   }
+}
+// The same path as closing without the tray: the editor saves, then asks the main to close.
+function quitFromTray() {
+  showEditor();
+  if (capture?.mode === "video") stopRecording();
+  else send("before-close");
 }
 function closeOverlay() {
   if (overlay && !overlay.isDestroyed()) overlay.destroy();
@@ -918,7 +931,9 @@ async function initialize() {
   } catch {}
   editor = createWindow("editor");
   editor.once("ready-to-show", () => {
-    editor.show();
+    // Started at login: wait in the tray for Print Screen. Without the tray, a hidden window
+    // would leave no way back, so the flag only applies when the tray is enabled.
+    if (!(preferences.tray && process.argv.includes(HIDDEN_START_FLAG))) editor.show();
     if (profileError)
       send("notice", {
         error: true,
@@ -928,8 +943,14 @@ async function initialize() {
   editor.on("close", (event) => {
     if (closing) return;
     event.preventDefault();
-    if (capture?.mode === "video") stopRecording();
+    // With the tray enabled, closing the window keeps the app (and Print Screen) running; the
+    // tray's "Sair" goes through before-close to really quit.
+    if (tray && !quitRequested) editor.hide();
+    else if (capture?.mode === "video") stopRecording();
     else send("before-close");
+  });
+  editor.on("session-end", () => {
+    quitRequested = true;
   });
   editor.on("closed", () => {
     videoStreams.revoke();
@@ -1217,7 +1238,11 @@ async function initialize() {
   const applyPreferences = (prefs) => {
     if (prefs.startWithWindows && !app.isPackaged)
       throw new Error("Iniciar com Windows está disponível no aplicativo instalado.");
-    app.setLoginItemSettings({ openAtLogin: prefs.startWithWindows, path: process.execPath });
+    app.setLoginItemSettings({
+      openAtLogin: prefs.startWithWindows,
+      path: process.execPath,
+      args: [HIDDEN_START_FLAG],
+    });
     if (prefs.tray && !tray) {
       const pixels = Buffer.alloc(16 * 16 * 4);
       for (let i = 0; i < pixels.length; i += 4) {
@@ -1232,6 +1257,8 @@ async function initialize() {
         Menu.buildFromTemplate([
           { label: "Abrir EdiCaptura", click: showEditor },
           { label: "Capturar", click: beginCapture },
+          { type: "separator" },
+          { label: "Sair", click: quitFromTray },
         ]),
       );
       tray.on("click", showEditor);

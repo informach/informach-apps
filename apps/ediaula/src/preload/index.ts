@@ -76,8 +76,12 @@ const api: EdiAulaApi = {
     frames: (jobId, frames, counts) => ipcRenderer.invoke("cursor:frames", jobId, frames, counts),
     end: (jobId) => ipcRenderer.invoke("cursor:end", jobId),
     cancel: (jobId) => ipcRenderer.invoke("cursor:cancel", jobId),
-    clicks: (path, id, times, volume, duration) =>
-      ipcRenderer.invoke("cursor:clicks", path, id, times, volume, duration),
+    clicks: (path, id, times, volume, duration, sound) =>
+      ipcRenderer.invoke("cursor:clicks", path, id, times, volume, duration, sound),
+  },
+  sounds: {
+    library: () => ipcRenderer.invoke("sounds:library"),
+    track: (events, duration) => ipcRenderer.invoke("sounds:track", events, duration),
   },
   personKey: {
     model: () => ipcRenderer.invoke("personKey:model"),

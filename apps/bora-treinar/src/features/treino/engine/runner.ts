@@ -19,6 +19,8 @@ export type RunnerEvent =
   | { type: "partial" }
   | { type: "set-done"; log: SetLog }
   | { type: "countdown"; seconds: number }
+  /** mais um segundo inteiro na posição da isometria (1, 2, 3…), para contar em voz alta */
+  | { type: "hold-second"; seconds: number; target?: number }
   | { type: "round"; rounds: number }
   | { type: "finish" };
 
@@ -49,6 +51,7 @@ export class WorkoutRunner {
   private lastTick = 0;
   private completedAt = 0;
   private lastCountdown = -1;
+  private lastHoldSecond = 0;
   readonly startedAt: number;
   private listeners = new Set<(e: RunnerEvent) => void>();
 
@@ -203,7 +206,18 @@ export class WorkoutRunner {
     this.lastTick = now;
     const s = this.step;
     if (!s || this.paused || this.done) return;
-    if (this.isHold && this.holding) this.holdSeconds += Math.min(dt, 0.5);
+    if (this.isHold && this.holding) {
+      this.holdSeconds += Math.min(dt, 0.5);
+      const whole = Math.floor(this.holdSeconds);
+      if (whole > this.lastHoldSecond) {
+        this.lastHoldSecond = whole;
+        this.emit({
+          type: "hold-second",
+          seconds: whole,
+          target: s.kind === "exercise" ? s.target : undefined,
+        });
+      }
+    }
 
     const rem = this.remaining;
     if (rem !== null) {
@@ -268,6 +282,7 @@ export class WorkoutRunner {
     this.reps = 0;
     this.partials = 0;
     this.holdSeconds = 0;
+    this.lastHoldSecond = 0;
     this.completedAt = 0;
     this.issues = {};
     this.amrapPos = 0;

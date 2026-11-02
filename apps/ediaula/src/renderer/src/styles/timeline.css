@@ -64,6 +64,11 @@
   background: var(--panel);
 }
 .ruler-head {
+  /* acompanha a régua, que fica no alto ao rolar as faixas */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--panel);
   height: 28px;
   display: flex;
   align-items: center;
@@ -236,6 +241,19 @@ body.is-resizing-track * {
   z-index: 20;
   cursor: col-resize;
   overflow: hidden;
+}
+/* Cabeça da agulha, alças da seleção e bandeiras dos marcadores, sobre a régua e presos a ela.
+   Fica logo depois da régua no fluxo (o resto do conteúdo é absoluto) e sobe por cima dela. */
+.tl-ruler-layer {
+  position: sticky;
+  top: 0;
+  height: 28px;
+  margin-top: -28px;
+  z-index: 28;
+  pointer-events: none;
+}
+.tl-ruler-layer > :not(.playhead-head) {
+  pointer-events: auto;
 }
 .tick {
   position: absolute;

@@ -122,7 +122,7 @@ const continues = (a: Sound, b: Sound): boolean =>
 
 export function buildAudioPlan(
   project: Project,
-  spec: Pick<ExportSpec, "speech" | "cursors">,
+  spec: Pick<ExportSpec, "speech" | "cursors" | "effects">,
   options: AudioOptions = {},
 ): AudioPlan {
   const duration = projectDuration(project);
@@ -323,6 +323,19 @@ export function buildAudioPlan(
         : `${parts.map((p) => `[${p}]`).join("")}concat=n=${parts.length}:v=0:a=1${aside}[${name}]`,
     );
     laneLabels.push({ trackId: lane.owner, label: name });
+  }
+
+  // The automatic whooshes (shared/autoSounds.ts): one track on the lesson's clock, heard with
+  // the voices and stepping aside for a highlighted track like any track that is not it.
+  if (spec.effects) {
+    const index = input++;
+    inputArgs.push("-i", spec.effects);
+    media.add(spec.effects);
+    const aside = spotlit ? `,volume='${spotlit}':eval=frame` : "";
+    graph.push(
+      `[${index}:a]aresample=${RATE},${format},apad=whole_len=${samples},atrim=end_sample=${samples}${aside}[effects]`,
+    );
+    laneLabels.push({ trackId: "", label: "effects" });
   }
 
   const mixOf = (labels: string[], out: string): void => {
