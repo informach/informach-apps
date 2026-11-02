@@ -1542,6 +1542,12 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa,
   **Fala começa em (s)** indica o início da frase e **Ação em (s)** quando agir. Na tela, em outros programas,
   etapas próximas demais são recusadas.
+- **Na janela da aula, gesto e fala juntos** (`webTravel` em `src/shared/guidedPlan.ts`): a mão nunca sai antes
+  de a frase começar. Ela sai na primeira palavra da citação, chega dentro da frase (em até 1,2 s, mais rápida
+  numa frase curta, nunca menos de 0,35 s) e espera no alvo até a palavra da ação; o "Antes da fala" não vale
+  ali. O vídeo de cada parte começa junto com a voz (antes só pelo que a mão precisa numa frase logo no
+  primeiro segundo) e termina com ela: o que ainda acontece depois da voz entra acelerado antes do fim. Assim
+  as partes se juntam na timeline sem vídeo sobrando entre uma voz e outra.
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
   fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
   Sem narração, grave a demonstração e use **Narrar intervalo** depois. A conclusão das etapas encerra a gravação automaticamente.

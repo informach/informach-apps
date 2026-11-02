@@ -668,27 +668,30 @@ export function GuidedSetup({
               ["dwell", "Antes do clique", 0.3, 5],
               ["after", "Após a ação", 0.5, 15],
             ] as const
-          ).map(([key, label, min, max]) => (
-            <label key={key}>
-              {label} (s)
-              <input
-                type="number"
-                min={min}
-                max={max}
-                step="0.1"
-                value={plan.tempos[key] ?? DEFAULT_TEMPOS[key]}
-                onChange={(e) =>
-                  change({ tempos: { ...plan.tempos, [key]: Number(e.target.value) } })
-                }
-              />
-            </label>
-          ))}
+          )
+            // The lesson window never anticipates the phrase (shared/guidedPlan.ts webTravel).
+            .filter(([key]) => key !== "anticipation" || plan.mode !== "web")
+            .map(([key, label, min, max]) => (
+              <label key={key}>
+                {label} (s)
+                <input
+                  type="number"
+                  min={min}
+                  max={max}
+                  step="0.1"
+                  value={plan.tempos[key] ?? DEFAULT_TEMPOS[key]}
+                  onChange={(e) =>
+                    change({ tempos: { ...plan.tempos, [key]: Number(e.target.value) } })
+                  }
+                />
+              </label>
+            ))}
         </div>
         <p>
-          Informe o início da frase e o instante da ação no áudio. O cursor chega antes dos dois.
+          Informe o início da frase e o instante da ação no áudio.
           {plan.mode === "web"
-            ? " O que não couber antes da próxima fala entra acelerado sob ela (tela sem voz)."
-            : " Etapas sem espaço para movimento e pausas precisam ser espaçadas."}
+            ? " O cursor sai no início da frase e age no instante da ação, e o vídeo dura o mesmo que a voz. O que não couber antes da próxima fala entra acelerado sob ela (tela sem voz)."
+            : " O cursor chega antes dos dois. Etapas sem espaço para movimento e pausas precisam ser espaçadas."}
         </p>
         <div className="guided-steps">
           {plan.steps.map((s, i) => (

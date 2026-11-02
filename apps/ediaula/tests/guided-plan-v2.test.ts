@@ -125,6 +125,47 @@ test("a version 1 plan migrates to a screen plan with the same schedule", () => 
   assert.equal(store.plans.length, 2);
 });
 
+test("in the lesson window the hand leaves when the phrase starts and the take lasts as the voice", () => {
+  const plan = webPlan(
+    [
+      // "Compare o que acontece": a phrase long enough for the whole move and rest.
+      {
+        id: "a",
+        at: 33.11,
+        speechAt: 32.16,
+        speech: "Aponte",
+        action: "point",
+        target: on("Ligar"),
+      },
+      // A long phrase: the hand still leaves when it starts, then rests until the word.
+      { id: "b", at: 41.31, speechAt: 37.5, speech: "Clique", action: "click", target: on("Zap") },
+      // A phrase of one word: a quicker hand and a shorter rest, leaving only a little early.
+      { id: "c", at: 43.2, speechAt: 43.0, speech: "Volte", action: "click", target: on("Voltar") },
+    ],
+    { audio: { path: "C:/voz.wav", duration: 45.5 } },
+  );
+  const s = schedulePlan(plan);
+  assert.equal(s.lead, 0);
+  assert.equal(narrationOffset(s), 0);
+  const [a, b, c] = s.steps;
+  for (const step of [a, b]) {
+    assert.equal(step.moveAt, step.speechAt);
+    assert.ok(step.arriveAt < step.actAt);
+  }
+  assert.ok(a.arriveAt - a.moveAt <= plan.tempos.move + 1e-9);
+  assert.ok(Math.abs(b.arriveAt - (b.speechAt + plan.tempos.move)) < 1e-9);
+  assert.ok(c.speechAt - c.moveAt <= 0.35 + 1e-9);
+  assert.ok(c.arriveAt - c.moveAt >= 0.35 - 1e-9 && c.arriveAt < c.actAt);
+  // The video ends with the voice, not `after` past it.
+  assert.equal(s.duration, 45.5);
+  // A phrase at the voice's very start: the video starts just early enough for the hand.
+  const early = schedulePlan(
+    webPlan([{ id: "a", at: 0.1, speechAt: 0, speech: "Já", action: "click", target: on("Ok") }]),
+  );
+  assert.ok(early.lead > 0 && early.lead < 1);
+  assert.ok(Math.abs(early.steps[0].moveAt) < 1e-9);
+});
+
 test("the schedule of drags, scrolls, waits, double clicks and shortcuts", () => {
   const until: GuidedCondition = { locator: locator("Pronto"), state: "visible" };
   const plan = webPlan([
@@ -148,7 +189,9 @@ test("the schedule of drags, scrolls, waits, double clicks and shortcuts", () =>
   ]);
   const s = schedulePlan(plan);
   const [dbl, drag, scroll, wait, key] = s.steps;
-  assert.equal(s.lead, 2.5);
+  // The lesson window's video starts with the voice, early only by the quickest hand and rest
+  // for the click on its very first second.
+  assert.equal(s.lead, 0.5);
   assert.ok(dbl.moves && dbl.moveAt < dbl.arriveAt && dbl.arriveAt < dbl.actAt);
   // The drag moves for `move` seconds after its moment.
   assert.equal(drag.endAt, drag.actAt + plan.tempos.after + plan.tempos.move);
@@ -456,7 +499,7 @@ test("a wait past its time is recorded and goes in sped up, the next action on i
       target: on("Começar"),
       expect: { locator: locator("Pronto"), state: "visible" },
     },
-    { id: "b", at: 6, speech: "Avance", action: "click", target: on("Próxima") },
+    { id: "b", at: 4, speech: "Avance", action: "click", target: on("Próxima") },
   ]);
   const schedule = schedulePlan(plan);
   const controller = new AbortController();
@@ -577,7 +620,7 @@ test("steps closer than their actions run one after the other, the excess sped u
   const [notice] = takeNotices(plan, schedule, new Map([[1, { seconds: 2, room: 0.5 }]]));
   assert.equal(notice.index, 0);
   assert.equal(notice.notice, true);
-  assert.match(notice.message, /etapa 2 começa 4 s antes de esta terminar: .*(tela sem voz)/);
+  assert.match(notice.message, /etapa 2 começa 2,5 s antes de esta terminar: .*(tela sem voz)/);
   const waited = takeNotices(plan, schedule, new Map([[1, { seconds: 2, room: 0.5 }]]))[1];
   assert.match(waited.message, /levou 2 s .* dá 0,5 s: o resto entra acelerado/);
   const cut = takeNotices(
@@ -849,8 +892,9 @@ test("continuing from a step replays the earlier ones untimed, then times the ta
 test("stopping the take rejects at once; the timing signature ignores targets", async () => {
   const sim = simulation(30);
   const page = new FakePage(sim.frames, sim.sleep, points);
+  // Stopped while the run waits for the first phrase (the fake hand's glide ignores the signal).
   const plan = webPlan([
-    { id: "a", at: 0, speech: "Comece", action: "click", target: on("Começar") },
+    { id: "a", at: 2, speech: "Comece", action: "click", target: on("Começar") },
     { id: "b", at: 30, speech: "Avance", action: "click", target: on("Próxima") },
   ]);
   const controller = new AbortController();

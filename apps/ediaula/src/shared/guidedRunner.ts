@@ -334,18 +334,22 @@ export async function runGuided(
         "A localização do alvo atrasou. Revise a etapa para preservar a antecipação da fala.",
       );
       // A person's hand takes its own time for the distance and the target, within the move's
-      // room; it waits where it is first, so it still arrives when the schedule says.
+      // room (shorter in the lesson window when the phrase is); it waits where it is first, so
+      // it still arrives when the schedule says.
+      const room = plan.mode === "web" ? s.arriveAt - s.moveAt : move;
       const size = targetSize(step.target);
       const distance = Math.hypot(target.x - from.x, target.y - from.y);
       // The Windows pointer only moves straight: there the move keeps its whole time.
       const hand =
         plan.tempos.motion && driver.space === "page"
-          ? Math.min(move, humanDuration(distance, size, plan.tempos.motion))
-          : move;
-      if (hand < move) await clock.wait(s.moveAt + (span(move) - span(hand)));
+          ? Math.min(room, humanDuration(distance, size, plan.tempos.motion))
+          : room;
+      if (hand < room) await clock.wait(s.moveAt + (span(room) - span(hand)));
       await driver.glide(from, target, span(hand), false, size);
       const arrived = clock.time();
-      if (clock.late(s.arriveAt + 0.1) || clock.late(s.speechAt - 1e-9))
+      // Anticipating (the screen), the pointer is there before the phrase starts too.
+      const before = s.arriveAt <= s.speechAt ? s.speechAt - 1e-9 : Number.POSITIVE_INFINITY;
+      if (clock.late(s.arriveAt + 0.1) || clock.late(before))
         throw new Error(
           "O cursor não chegou antes da fala com tempo para observar. A gravação foi pausada para revisão.",
         );

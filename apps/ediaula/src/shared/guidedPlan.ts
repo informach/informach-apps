@@ -804,9 +804,35 @@ export function schedulePlan(plan: GuidedPlanV2, from = 0): PlanSchedule {
       throw new Error("Tamanho de captura inválido.");
   }
   for (const [i, step] of plan.steps.entries()) checkStep(step, i, plan);
-  const lead = move + Math.max(dwell, anticipation) + 0.5;
+  const web = plan.mode === "web";
   const first = plan.steps[from];
   const base = from === 0 ? 0 : (first.speechAt ?? first.at);
+  // A platform's action brings its own target (the first gesture): the hand leaves for it as
+  // for a marked one.
+  const movesOf = (step: GuidedStepV2): boolean =>
+    needsTarget(step, plan.mode) || (step.action === "platform" && web);
+  /**
+   * Seconds after the phrase starts (lead and base aside) that the hand leaves and arrives.
+   * The screen anticipates: the pointer is there before the phrase starts. The lesson window
+   * keeps the video on the voice (webTravel): the hand leaves when the phrase starts.
+   */
+  const travel = (step: GuidedStepV2, phrase: number): { leave: number; arrive: number } => {
+    if (!movesOf(step)) return { leave: step.at - phrase, arrive: step.at - phrase };
+    if (web) return webTravel(step.at - phrase, move, dwell);
+    const arrive = Math.min(step.at - dwell, phrase - anticipation) - phrase;
+    return { leave: arrive - move, arrive };
+  };
+  // The screen's video starts early enough for the first anticipation; the lesson window's
+  // starts with the voice, earlier only by what a phrase at its very start needs.
+  const lead = web
+    ? Math.max(
+        0,
+        ...plan.steps.slice(from).map((s) => {
+          const phrase = s.speechAt ?? s.at;
+          return base - phrase - travel(s, phrase).leave;
+        }),
+      )
+    : move + Math.max(dwell, anticipation) + 0.5;
   let previousEnd = 0;
   const steps: PlannedStep[] = [];
   plan.steps.forEach((step, index) => {
@@ -818,12 +844,10 @@ export function schedulePlan(plan: GuidedPlanV2, from = 0): PlanSchedule {
     if (index < from) return;
     const actAt = lead + step.at - base;
     const speechAt = lead + phrase - base;
-    // A platform's action brings its own target (the first gesture): the hand leaves for it as
-    // for a marked one.
-    const moves =
-      needsTarget(step, plan.mode) || (step.action === "platform" && plan.mode === "web");
-    const arriveAt = moves ? Math.min(actAt - dwell, speechAt - anticipation) : actAt;
-    const moveAt = moves ? arriveAt - move : actAt;
+    const moves = movesOf(step);
+    const { leave, arrive } = travel(step, phrase);
+    const arriveAt = speechAt + arrive;
+    const moveAt = speechAt + leave;
     const endAt = actAt + after + actionLength(step, plan);
     // The screen cannot wait for anything; the lesson window records what does not fit and
     // speeds it up under the line (shared/guidedLapse.ts).
@@ -857,9 +881,36 @@ export function schedulePlan(plan: GuidedPlanV2, from = 0): PlanSchedule {
     lead,
     base,
     from,
-    duration: Math.max(previousEnd, audio ? lead + audio.duration - base + after : 0),
+    // The lesson window's take ends with the voice: what the last steps still do after it goes
+    // in sped up before the end (each part's video is as long as its voice).
+    duration:
+      web && audio
+        ? lead + audio.duration - base
+        : Math.max(previousEnd, audio ? lead + audio.duration - base + after : 0),
     steps,
   };
+}
+
+/** The shortest the hand takes to a target: faster than a person only when the phrase is short. */
+export const WEB_MIN_MOVE = 0.35;
+/** The shortest it rests on the target before acting. */
+const WEB_MIN_DWELL = 0.15;
+
+/**
+ * The lesson window's hand, in seconds after the phrase starts: it leaves when the phrase starts
+ * (never before, while the voice still says something else), arrives within `move` and rests
+ * `dwell` before the action on the words quoted. A phrase too short for that takes a quicker
+ * hand and a shorter rest; only one shorter than the quickest hand has it leave a little early.
+ */
+export function webTravel(
+  room: number,
+  move: number,
+  dwell: number,
+): { leave: number; arrive: number } {
+  const rest = Math.min(dwell, Math.max(WEB_MIN_DWELL, room * 0.35));
+  const span = Math.min(move, room - rest);
+  if (span >= WEB_MIN_MOVE) return { leave: 0, arrive: span };
+  return { leave: room - rest - WEB_MIN_MOVE, arrive: room - rest };
 }
 
 /** The steps a take from `from` replays first, untimed, to bring the page to where it starts. */

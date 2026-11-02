@@ -150,7 +150,7 @@ export const followGap = (tempos: GuidedTempos): number =>
   tempos.move + Math.max(tempos.dwell, tempos.anticipation) + 0.3;
 
 /**
- * The plan the script's brackets make with this voice: the hand reaches the first bracket of a
+ * The plan the script's brackets make with this voice: the hand leaves for the first bracket of a
  * phrase when the phrase starts and acts when the voice finishes the words quoted (a plain
  * direction: when its line starts), the ones after it in the same piece `followGap` later each.
  * Counted: the brackets left out, whose phrase (or line) the voice does not say, and those that
@@ -207,7 +207,7 @@ export function planFromScript(
         unsaid += actions.length;
         continue;
       }
-      // The hand is there when the phrase starts; the first action waits for the voice to finish
+      // The hand leaves when the phrase starts; the first action waits for the voice to finish
       // the words quoted ("Agora clique em Próxima parte": the click after "parte").
       let phrase = time.said;
       let at = Math.max(phrase, time.saidEnd ?? phrase);
@@ -235,7 +235,8 @@ export function planFromScript(
           continue;
         }
         const step = actionStep(text, `roteiro-${index + 1}-${k + 1}-${j + 1}`, viewport);
-        const speechAt = first ? Math.round(phrase * 100) / 100 : hundredth;
+        // The ones after the first of a phrase: the hand leaves when the one before has acted.
+        const speechAt = Math.round((first ? phrase : Math.min(last, at)) * 100) / 100;
         first = false;
         steps.push({ ...step, at: hundredth, speechAt });
         last = hundredth;

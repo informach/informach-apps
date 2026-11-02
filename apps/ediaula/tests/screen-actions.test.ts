@@ -51,7 +51,7 @@ test("os verbos do EdiAula viram etapas; os outros vão para a plataforma", () =
   }
 });
 
-test("a mão chega quando a frase citada começa e age quando a voz termina de dizê-la", () => {
+test("a mão sai quando a frase citada começa e age quando a voz termina de dizê-la", () => {
   const lines = ["Vamos começar. Olha aqui, o jogo pronto.", "Agora repare no arbusto."];
   const notes = [
     { before: 0, text: 'No "Olha aqui", [ampliar jogo] e [achar arbusto].' },
@@ -76,9 +76,10 @@ test("a mão chega quando a frase citada começa e age quando a voz termina de d
       ["click", said("Agora")],
     ],
   );
-  // The hand is there when the phrase starts; the others of the phrase come after the first.
+  // The hand leaves when the phrase starts; for the next of the phrase, once the first acted.
   assert.equal(steps[0].speechAt, said("Olha"));
-  for (const s of steps.slice(1)) assert.equal(s.speechAt, s.at);
+  assert.equal(steps[1].speechAt, steps[0].at);
+  for (const s of steps.slice(2)) assert.equal(s.speechAt, s.at);
   assert.equal(unsaid, 0);
   // Every gesture is shown: one past the end of the voice goes right at its end (in sped up), and
   // the teacher is told how many. (The second of "Olha aqui" comes after the hand's time from the
