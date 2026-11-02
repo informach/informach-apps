@@ -2,18 +2,26 @@ import { z } from "zod";
 
 /**
  * The library shared by every lesson (userData/library.json): media used again and again
- * (openings, logos, music, cards) and favorite styles (of an annotation, of the captions, of
+ * (openings, logos, music, sound effects, cards) and favorite styles (of an annotation, of the captions, of
  * the pointer). The main process lets the app read a media of the library again when it lists
  * it, and only keeps media the app could already read when it was saved.
  */
 
-export const LIBRARY_CATEGORIES = ["vinheta", "logo", "musica", "cartela", "outro"] as const;
+export const LIBRARY_CATEGORIES = [
+  "vinheta",
+  "logo",
+  "musica",
+  "efeito",
+  "cartela",
+  "outro",
+] as const;
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
 
 export const CATEGORY_LABEL: Record<LibraryCategory, string> = {
   vinheta: "Vinheta",
   logo: "Logo",
   musica: "Música",
+  efeito: "Efeito sonoro",
   cartela: "Cartela",
   outro: "Outro",
 };

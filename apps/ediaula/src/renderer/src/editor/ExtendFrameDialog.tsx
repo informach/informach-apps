@@ -1,7 +1,14 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { cutTargets } from "@shared/cleanup";
 import { extendFrameAll } from "@shared/ripple";
-import { clipEnd, extendFrame, MIN_CLIP, parseDuration } from "@shared/timeline";
+import {
+  clipEnd,
+  extendFrame,
+  fillGapWithFrame,
+  gapAfter,
+  MIN_CLIP,
+  parseDuration,
+} from "@shared/timeline";
 import type { Asset } from "@shared/types";
 import { type ReactNode, useState } from "react";
 import { timecode } from "@/lib/format";
@@ -20,6 +27,51 @@ const rememberedAll = (): boolean => {
     return false;
   }
 };
+
+/**
+ * O "Estender quadro" dos menus. Com um vão depois do clipe até o próximo da mesma faixa, preenche
+ * esse vão com o último quadro, sem mover nada e sem perguntar. Sem clipe à frente (ou sem vão),
+ * abre o diálogo para informar o tempo, que congela o quadro da agulha e empurra o resto.
+ */
+export async function startExtendFrame(clipId: string): Promise<void> {
+  const snapshot = useProject.getState();
+  const project = snapshot.project;
+  const clip = project?.clips.find((c) => c.id === clipId);
+  const asset = project?.assets.find((a) => a.id === clip?.assetId);
+  const gap = project && clip ? gapAfter(project.clips, clip.id) : null;
+  const locked = project?.tracks.find((t) => t.id === clip?.trackId)?.locked;
+  if (!project || !clip || !asset || asset.kind !== "video" || locked || !gap) {
+    useApp.getState().set({ extendClip: clipId });
+    return;
+  }
+  if (waitForDraft("estender o quadro")) return;
+  playback.pause();
+  try {
+    const still = await stillAsset(asset, heldSecond(clip, asset, gap.start));
+    const current = useProject.getState();
+    if (
+      current.path !== snapshot.path ||
+      current.revision !== snapshot.revision ||
+      current.project?.id !== project.id
+    )
+      throw new Error("O projeto mudou enquanto o quadro era criado. Tente estender de novo.");
+    let selected = "";
+    current.commit((p) => {
+      const result = fillGapWithFrame(p.clips, clip.id, still.id);
+      selected = result.stillId;
+      return { ...p, assets: [...p.assets, still], clips: result.clips };
+    });
+    useProject.getState().select([selected]);
+    useApp
+      .getState()
+      .toast(
+        `Vão de ${timecode(gap.end - gap.start, project.settings.fps)} preenchido com o último quadro até o próximo clipe. Ctrl+Z desfaz.`,
+        "success",
+      );
+  } catch (e) {
+    useApp.getState().toast((e as Error).message, "error");
+  }
+}
 
 export function ExtendFrameDialog(): ReactNode {
   const id = useApp((s) => s.extendClip);

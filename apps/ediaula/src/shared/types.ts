@@ -4,6 +4,7 @@ import type { Annotation } from "./annotation.ts";
 import type { SavedChat } from "./assistantChat.ts";
 import type { Ducking } from "./audio.ts";
 import type { PieceMatch } from "./audioSync.ts";
+import type { AutoSounds } from "./autoSounds.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { CaptionTranslation } from "./captionTranslate.ts";
@@ -480,6 +481,8 @@ export interface Project {
   voiceExport?: { pieceMinutes?: number };
   /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */
   audio?: { ducking?: Partial<Ducking> };
+  /** The automatic whoosh with zooms and transitions (shared/autoSounds.ts); absent = off. */
+  autoSounds?: AutoSounds;
   /** "Preparar aula": the step waiting and what was decided in each (shared/prepare.ts). */
   prepare?: PrepareState;
   /** Seams the person approved in "Revisar cortes" (shared/seams.ts ids, anchored in the media). */
@@ -660,6 +663,11 @@ export interface ExportSpec {
   stems?: { voice: string; music: string };
   /** Annotations drawn word by word or stroke by stroke, by clip id (shared/reveal.ts). */
   reveals?: Record<string, RevealSprite>;
+  /**
+   * The automatic whooshes of the lesson (shared/autoSounds.ts) as one track on the lesson's
+   * clock (FLAC, made by main/soundTrack.ts), mixed with the voices.
+   */
+  effects?: string;
 }
 
 /** The transparent video of an animated annotation, drawn in the renderer, one per clip. */
@@ -939,7 +947,18 @@ export interface EdiAulaApi {
       times: Float64Array,
       volume: number,
       duration: number,
+      sound?: import("./soundEffects.ts").SoundEffectId,
     ): Promise<string>;
+  };
+  /** Sound effects (shared/soundEffects.ts, main/soundTrack.ts). */
+  sounds: {
+    /**
+     * The library's sound effects as WAV files in Documentos/EdiAula/Efeitos sonoros (made when
+     * missing), each allowed for reading.
+     */
+    library(): Promise<{ id: import("./soundEffects.ts").SoundEffectId; path: string }[]>;
+    /** The automatic whooshes of a lesson as one FLAC track `duration` seconds long. */
+    track(events: import("./autoSounds.ts").SoundEvent[], duration: number): Promise<string>;
   };
   /**
    * "Remover fundo com IA local" (main/personKey.ts): the model, then the small frames of a
