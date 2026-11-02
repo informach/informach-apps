@@ -309,6 +309,7 @@ test("packing carries the exported voices and the guided narration, or leaves ou
           audio: { path: "C:\\aula\\narracao.wav", duration: 3 },
         },
       ],
+      runs: [{ planId: "g1", step: 4, status: "done", dir: "C:\\Gravações\\take-1", at: 1 }],
     },
   });
   const plan = packPlan(
@@ -325,6 +326,32 @@ test("packing carries the exported voices and the guided narration, or leaves ou
     ["media/voz-vm1-1.wav"],
   );
   assert.equal(plan.project.guided?.plans[0].audio?.path, "media/narracao-g1.wav");
+  // The takes' folders are this computer's: their history stays here.
+  assert.equal(plan.project.guided?.runs, undefined);
+});
+
+test("a package made with the history of guided takes opens without it", {
+  skip: !windows,
+}, async () => {
+  const zip = pack(
+    lesson({
+      guided: {
+        plans: [],
+        runs: [
+          {
+            planId: "g1",
+            step: 4,
+            status: "done",
+            dir: "C:\\Users\\x\\Documents\\EdiAula\\Gravações\\take-1",
+            at: 1,
+          },
+        ],
+      },
+    }),
+  );
+  const { project } = await unpackProject(zip, join(dir, "com-historico"));
+  assert.equal(project.guided?.runs, undefined);
+  assert.deepEqual(project.guided?.plans, []);
 });
 
 test("the cursor images a recording saved go in the package and come back beside its cursor data", {

@@ -10,7 +10,9 @@ import { onlyUsedAssets, usedAssetIds } from "./usedAssets.ts";
  * data, which names them the same way. What the app makes again by itself (proxies, thumbnails, waveforms,
  * filmstrips, the avatar cut out, the treated voice, the pictures of annotations and held
  * frames) stays out. Opening the package extracts it into a folder of its own and puts absolute
- * paths back before the lesson opens (main/package.ts); nothing in it may point elsewhere.
+ * paths back before the lesson opens (main/package.ts); nothing in it may point elsewhere. The
+ * history of guided takes (`guided.runs`, the folder of each take on this computer, to resume a
+ * plan where it stopped) stays out too: the takes travel as media, each with its guided run.
  */
 
 export const PACKAGE_PROJECT = "aula.ediaula";
@@ -105,6 +107,12 @@ function withoutCaches(a: Asset): Asset {
   return out;
 }
 
+/** The guided plans without the history of takes, whose folders are on this computer only. */
+function withoutRuns(store: NonNullable<Project["guided"]>): NonNullable<Project["guided"]> {
+  const { runs: _here, ...rest } = store;
+  return rest;
+}
+
 /** Where an editor picture lives in the package folder: nowhere yet, so it is drawn again. */
 const drawnName = (a: Asset): string =>
   `${PACKAGE_MEDIA}${packName(`${a.id}-desenho${extOf(baseOf(a.path)) || ".png"}`)}`;
@@ -179,7 +187,7 @@ export function packPlan(
   }));
   // And the narration of each guided plan, heard by the recorder.
   const guided = p.guided && {
-    ...p.guided,
+    ...withoutRuns(p.guided),
     plans: p.guided.plans.map((plan) => {
       if (!plan.audio) return plan;
       if (!exists(plan.audio.path)) {
@@ -224,8 +232,9 @@ export function strayPaths(value: unknown, root: string, out: string[] = []): st
 /**
  * The packed project with its paths inside `folder` again (absolute, Windows separators). A
  * package comes from someone else: the caches it may carry are deleted (they are made again
- * here), the editor's pictures get a place in the folder (drawn again), and a path that points
- * outside the media folder of the package refuses it.
+ * here), the editor's pictures get a place in the folder (drawn again), the history of guided
+ * takes a package made before it stayed out is dropped (its folders are on the other computer),
+ * and a path that points outside the media folder of the package refuses it.
  */
 export function unpackPaths(p: Project, folder: string): Project {
   const root = folder.replace(/[\\/]+$/, "");
@@ -264,7 +273,7 @@ export function unpackPaths(p: Project, folder: string): Project {
     }));
   if (p.guided)
     project.guided = {
-      ...p.guided,
+      ...withoutRuns(p.guided),
       plans: p.guided.plans.map((plan) =>
         plan.audio ? { ...plan, audio: { ...plan.audio, path: inside(plan.audio.path) } } : plan,
       ),
