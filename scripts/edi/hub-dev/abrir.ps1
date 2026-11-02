@@ -11,7 +11,10 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateSet("ediaula", "edicaptura", "edifoto", "edipdf", "edisvg")]
   [string]$Ferramenta,
-  [switch]$Avisar
+  [switch]$Avisar,
+  # Repassa --oculto: o EdiCaptura com a bandeja ligada abre escondido, esperando o Print Screen
+  # (usado pelo atalho da pasta Inicializar do Windows).
+  [switch]$Oculto
 )
 . (Join-Path $PSScriptRoot "comum.ps1")
 $ErrorActionPreference = "Stop"
@@ -56,7 +59,8 @@ try {
     $backup = Backup-EdiFerramenta $Ferramenta
     if ($backup) { Registrar "backup em $backup" }
     Registrar "compilando e abrindo"
-    $codigo = Executar "pnpm edi:work $Ferramenta"
+    $argumentos = if ($Oculto) { " --oculto" } else { "" }
+    $codigo = Executar "pnpm edi:work $Ferramenta$argumentos"
   }
 }
 catch {
