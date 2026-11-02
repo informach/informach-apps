@@ -1187,20 +1187,41 @@ export class WebDriver implements GuidedDriver {
 
   /**
    * An element out of view comes into it the way a person brings it: a smooth wheel scroll that
-   * leaves it near the middle. A few tries at most (a page that grows as it scrolls).
+   * leaves it near the middle. A few tries at most (a page that grows as it scrolls). An element
+   * the page has not drawn yet (a block that loads after the page) is waited for, up to `timeout`,
+   * and scrolled to once it is there.
    */
   async reveal(target: GuidedStepTarget, timeout: number): Promise<void> {
     const locator = target.locator;
     if (!locator) return;
-    for (let i = 0; i < 4; i++) {
-      const found = await this.cdp.find(locator).catch((error: unknown) => {
-        if (this.fatal(error)) throw error;
-        return null;
-      });
-      if (!found || found.ok || !found.reveal) return;
-      await this.scroll(found.reveal.at, found.reveal.dx, found.reveal.dy);
+    const over = this.deadline(timeout);
+    // Waiting, the video holds, as a lookup does: the page loading is not shown.
+    let held = false;
+    const show = (): void => {
+      if (held) this.clock?.resume("locate");
+      held = false;
+    };
+    try {
+      for (let scrolls = 0; scrolls < 4; ) {
+        const found = await this.cdp.find(locator).catch((error: unknown) => {
+          if (this.fatal(error)) throw error;
+          return null;
+        });
+        if (found?.ok) return;
+        if (found?.reveal) {
+          show();
+          await this.scroll(found.reveal.at, found.reveal.dx, found.reveal.dy);
+          scrolls++;
+          continue;
+        }
+        if (over()) return;
+        if (!held) this.clock?.hold("locate");
+        held = true;
+        await sleep(100, this.signal);
+      }
+    } finally {
+      show();
     }
-    void timeout;
   }
 
   /**
