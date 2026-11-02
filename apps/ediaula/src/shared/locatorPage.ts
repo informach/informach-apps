@@ -11,10 +11,41 @@
  * - `describe(element, point)`: what is stable about a marked element (ElementDescription);
  * - `blockly()`: the Blockly SVG and toolbox as BlocklyNode JSON;
  * - `hits(points)`: the block or category on top at each point;
- * - `cursorAt(x, y)`: the computed cursor there, and whether the element takes typing.
+ * - `cursorAt(x, y)`: the computed cursor there, and whether the element takes typing
+ *   (CURSOR_AT_SOURCE, also run alone in a frame drawn by another process).
  *
  * Plain JavaScript in a string: it must not depend on anything the bundler adds.
  */
+/**
+ * The pointer's shape at a point of a document, and whether the element there takes typing:
+ * self-contained, so it also runs alone in the page of a frame drawn by another process. Over a
+ * frame the shape is the frame's own, as the screen shows it: the page around can hold a rule for
+ * its own pointer (a split handle the pointer crossed on its way in pins every cursor of that page
+ * to its arrows until the pointer comes back). A frame it cannot read shows the plain arrow.
+ */
+export const CURSOR_AT_SOURCE = String.raw`function cursorAt(x, y, doc) {
+    const el = (doc || document).elementFromPoint(x, y);
+    if (!el) return { cursor: "default", editable: false };
+    if (el.tagName === "IFRAME" || el.tagName === "FRAME") {
+      let inner = null;
+      try { inner = el.contentDocument; } catch {}
+      if (!inner) return { cursor: "default", editable: false };
+      const r = el.getBoundingClientRect();
+      return cursorAt(x - r.left - el.clientLeft, y - r.top - el.clientTop, inner);
+    }
+    const typing = (e) =>
+      !!e &&
+      (e.isContentEditable ||
+        (e.tagName === "INPUT" && !/^(button|submit|reset|checkbox|radio|range|color|file|image)$/i.test(e.type)) ||
+        e.tagName === "TEXTAREA");
+    const css = String(getComputedStyle(el).cursor || "").split(",").pop().trim().toLowerCase().slice(0, 64);
+    return { cursor: css, editable: typing(el) || typing(el.closest("input,textarea,[contenteditable]")) };
+  }`;
+
+/** CURSOR_AT_SOURCE as an expression for the point (x, y) of the page it runs in. */
+export const cursorAtExpression = (x: number, y: number): string =>
+  `(${CURSOR_AT_SOURCE})(${x}, ${y})`;
+
 export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   if (globalThis.__ediaulaGuided) return true;
   const norm = (s) => String(s == null ? "" : s).normalize("NFC").replace(/\s+/g, " ").trim();
@@ -316,11 +347,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
     return facts(el, point);
   }
 
-  function cursorAt(x, y) {
-    const el = document.elementFromPoint(x, y);
-    if (!el) return { cursor: "default", editable: false };
-    return { cursor: cursorOf(getComputedStyle(el).cursor), editable: editable(el) || editable(el.closest("input,textarea,[contenteditable]")) };
-  }
+  const cursorAt = ${CURSOR_AT_SOURCE};
 
   Object.defineProperty(globalThis, "__ediaulaGuided", {
     value: Object.freeze({ locate, facts, factsIn, promote, describe, blockly, hits, cursorAt, own: (el) => el.ownerDocument === document }),

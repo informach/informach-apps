@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  CURSOR_AT_SOURCE,
+  cursorAtExpression,
+  LOCATOR_PAGE_SCRIPT,
+} from "../src/shared/locatorPage.ts";
+import {
   actionPoint,
   type BlocklyNode,
   blocklyBlocks,
@@ -518,4 +523,42 @@ test("a category inside another is a category too, named without its icon", () =
     area: "toolbox",
   });
   assert.deepEqual(programacao?.grab, { x: 80, y: 20 });
+});
+
+test("the pointer over a frame takes the frame's shape, not a rule the page around holds", () => {
+  // A split handle crossed on the way in left `* { cursor: ew-resize }` on the page around.
+  type El = { tagName: string; cursor: string; contentDocument?: Doc | null; closest?: () => null };
+  type Doc = { elementFromPoint: (x: number, y: number) => El | null };
+  const button: El = { tagName: "BUTTON", cursor: "pointer", closest: () => null };
+  let asked: [number, number] = [0, 0];
+  const game: Doc = {
+    elementFromPoint: (x, y) => {
+      asked = [x, y];
+      return button;
+    },
+  };
+  const frame = (inner: Doc | null) => ({
+    tagName: "IFRAME",
+    cursor: "ew-resize",
+    contentDocument: inner,
+    clientLeft: 2,
+    clientTop: 2,
+    getBoundingClientRect: () => ({ left: 100, top: 50 }),
+  });
+  const run = (top: Doc, x: number, y: number) =>
+    new Function("document", "getComputedStyle", `return ${cursorAtExpression(x, y)}`)(
+      top,
+      (el: El) => ({ cursor: el.cursor }),
+    );
+  assert.deepEqual(run({ elementFromPoint: () => frame(game) }, 300, 200), {
+    cursor: "pointer",
+    editable: false,
+  });
+  assert.deepEqual(asked, [198, 148]);
+  // A frame of another origin is read by its own process; here it shows the plain arrow.
+  assert.deepEqual(run({ elementFromPoint: () => frame(null) }, 300, 200), {
+    cursor: "default",
+    editable: false,
+  });
+  assert.equal(LOCATOR_PAGE_SCRIPT.includes(CURSOR_AT_SOURCE), true);
 });

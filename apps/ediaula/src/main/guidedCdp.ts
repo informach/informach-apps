@@ -12,7 +12,7 @@ import {
 } from "../shared/guidedPlan.ts";
 import { type GuidedDriver, type PointerButton, STOPPED } from "../shared/guidedRunner.ts";
 import { humanPath, moveSeed, pathAt, scrollSeconds, smoothScroll } from "../shared/humanMotion.ts";
-import { LOCATOR_PAGE_SCRIPT } from "../shared/locatorPage.ts";
+import { cursorAtExpression, LOCATOR_PAGE_SCRIPT } from "../shared/locatorPage.ts";
 import {
   actionPoint,
   type BlocklyBlock,
@@ -843,6 +843,21 @@ export class CdpDriver {
   }
 
   async cursorAt(p: Point): Promise<{ cursor: string; editable: boolean }> {
+    // Over a frame drawn by another process (a game's preview) the shape is that frame's own.
+    const routed = await this.frameAt("mouseMoved", p);
+    if (routed) {
+      const r = await this.send<EvaluateResult>(
+        "Runtime.evaluate",
+        {
+          expression: cursorAtExpression(p.x - routed.origin.x, p.y - routed.origin.y),
+          returnByValue: true,
+        },
+        SEND_TIMEOUT,
+        routed.sessionId,
+      );
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.text);
+      return cursorSchema.parse(r.result.value);
+    }
     const frame = await this.frameFor(undefined);
     if (!frame) return { cursor: "default", editable: false };
     return cursorSchema.parse(
@@ -1499,6 +1514,24 @@ export class WebDriver implements GuidedDriver {
         continue;
       }
       return bridgeSteps(answer, action, id, this.viewport);
+    }
+  }
+
+  /**
+   * Before the video starts: waits for the platform's bridge and then while it says it is busy
+   * (the platform arranging what it shows first), up to `timeout` wall seconds. Past it, or with
+   * a page that never puts a bridge, the take starts as the page is.
+   */
+  async settled(timeout: number): Promise<void> {
+    const over = this.deadline(timeout);
+    while (!over()) {
+      this.question();
+      const answer = await this.cdp.bridge("ocupado").catch((error: unknown) => {
+        if (this.fatal(error)) throw error;
+        return { valor: true };
+      });
+      if (!bridgeAbsent(answer) && !bridgeBusy(answer)) return;
+      await sleep(100, this.signal);
     }
   }
 

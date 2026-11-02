@@ -1493,7 +1493,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   O primeiro gesto acontece na frase, com a mesma antecedência de uma etapa marcada; cada um dos outros, depois
   que o anterior terminou e a plataforma não está mais ocupada (por até a espera máxima do gesto, quando ela é
   maior que a da etapa, como na conferência de um projeto no servidor). Uma página que ainda não pôs a ponte é
-  consultada de novo até a espera máxima da etapa. A plataforma nunca move o ponteiro, e o EdiAula
+  consultada de novo até a espera máxima da etapa. Num plano com ações da plataforma, o vídeo só começa depois
+  que a página pôs a ponte e deixou de estar ocupada (até 20 s): é a hora de ela arrumar o que aparece primeiro,
+  como os blocos de um Estúdio um por cima do outro. A plataforma nunca move o ponteiro, e o EdiAula
   não sabe nada dela além desses gestos. **Verificar plano** pergunta à página cada ação: um verbo que ela não
   conhece ou uma página sem a ponte aparecem na etapa, com o que fazer.
 - **Verificar plano** roda o plano inteiro na janela fora da tela, sem gravar, e lista as etapas que falharam,
@@ -1508,7 +1510,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 - **Cursor e registro:** o cursor do vídeo é sintetizado do que a automação fez (`shared/guidedCursor.ts`):
   `cursor.json` versão 2 com um movimento por quadro enquanto ele anda, passando pelo ponto de cada clique no
   instante do clique, cliques com duração (o arrasto é um clique segurado), roda, atalhos com o rótulo e a forma
-  tirada do cursor CSS do elemento (mão, texto). Ao lado fica `guided-run.json` (formato estável, versão 1): as
+  tirada do cursor CSS do elemento (mão, texto). Sobre um quadro (o jogo da pré-visualização) a forma é a de
+  dentro dele, como a tela mostra: a página em volta pode ter ficado com a seta dupla de um divisor por onde a mão
+  passou. Ao lado fica `guided-run.json` (formato estável, versão 1): as
   etapas com os segundos planejados e reais, cada interação e cada espera. A mídia da tela guarda o caminho
   dele (`guidedRun`). A pasta do take é um take comum: uma queda é recuperada como as outras, com cursor. Os
   planos que vieram com o take entram no projeto mesmo quando o gravador foi aberto sem ele.

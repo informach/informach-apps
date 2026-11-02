@@ -200,6 +200,9 @@ function deadline(ms: number, message: string): { promise: Promise<never>; cance
   return { promise, cancel: () => clearTimeout(timer) };
 }
 
+/** Wall seconds the platform has to arrange its page before the video starts anyway. */
+const PLATFORM_READY = 20;
+
 /**
  * Loads the plan's page and waits for its first picture. A page that keeps something loading
  * forever (a picture, a stream) counts once its document is ready; a redirect is followed; a
@@ -445,6 +448,10 @@ export class GuidedTake {
     // An unhandled rejection while the page loads would be reported twice.
     codec.catch(() => undefined);
     await loadLesson(opened.window, plan.url ?? "", opened.firstPaint, signal);
+    // The platform arranges what it shows first (blocks one over another in a studio) before the
+    // video starts: a plan that talks to its bridge waits while the page says it is busy.
+    if (plan.steps.some((s) => s.action === "platform"))
+      await new WebDriver(opened.cdp, { viewport: plan.viewport, signal }).settled(PLATFORM_READY);
     // The take goes on from where the preparation left the pointer.
     let start: { x: number; y: number } | undefined;
     if (this.from > 0) {
