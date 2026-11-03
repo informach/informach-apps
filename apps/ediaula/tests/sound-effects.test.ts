@@ -13,7 +13,10 @@ import { buildAudioPlan } from "../src/shared/export/audioPlan.ts";
 import { projectSchema } from "../src/shared/project-schema.ts";
 import {
   fillSounds,
+  loudness,
   SOUND_EFFECTS,
+  SOUND_LUFS,
+  SOUND_PEAK,
   SOUND_RATE,
   soundEffect,
   soundSamples,
@@ -46,7 +49,12 @@ test("every sound effect is the same on every run, lasts what it says and peaks 
     assert.deepEqual(soundSamples(effect.id), a, `${effect.id}: made the same every time`);
     assert.equal(a.length, Math.max(1, Math.round(effect.seconds * SOUND_RATE)), effect.id);
     const peak = Math.max(...a.map(Math.abs));
-    assert.ok(peak > 0.5 && peak <= 0.91, `${effect.id}: peak ${peak}`);
+    assert.ok(peak > 0.1 && peak <= SOUND_PEAK + 1e-6, `${effect.id}: peak ${peak}`);
+    // Every sound at about -18 LUFS; one that would peak above -1 dBFS stays under it instead.
+    const lufs = loudness(a, SOUND_RATE);
+    if (peak < SOUND_PEAK - 1e-3)
+      assert.ok(Math.abs(lufs - SOUND_LUFS) < 0.1, `${effect.id}: ${lufs.toFixed(1)} LUFS`);
+    else assert.ok(lufs < SOUND_LUFS, `${effect.id}: ${lufs.toFixed(1)} LUFS at the peak limit`);
     assert.ok(a.every(Number.isFinite), `${effect.id}: finite`);
     // No step at the ends (a click of its own).
     assert.ok(Math.abs(a[0]) < 0.05 && Math.abs(a[a.length - 1]) < 0.05, `${effect.id}: edges`);
@@ -57,8 +65,16 @@ test("every sound effect is the same on every run, lasts what it says and peaks 
         `${effect.id}: loudest at ${loudest(a).toFixed(3)} s, said ${effect.peak} s`,
       );
   }
-  // The first click is the click the cursor always had: old lessons sound the same.
-  assert.deepEqual(soundSamples("clique"), clickSamples());
+  // The first click is the click the cursor always had, brought to the level of the others.
+  const old = clickSamples();
+  const now = soundSamples("clique");
+  const gain =
+    now[old.findIndex((v) => Math.abs(v) > 0.1)] / old[old.findIndex((v) => Math.abs(v) > 0.1)];
+  assert.ok(gain > 0 && gain < 1);
+  assert.ok(
+    now.every((v, i) => Math.abs(v - old[i] * gain) < 1e-6),
+    "the same click, softer",
+  );
   // Made at the preview's rate too (a sound card at 44.1 kHz).
   assert.equal(soundSamples("woosh-curto", 44100).length, Math.round(0.45 * 44100));
 });

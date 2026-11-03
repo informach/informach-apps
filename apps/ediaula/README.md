@@ -326,9 +326,82 @@ os cortes e Revisar cortes esperam: aplique ou descarte antes. O rascunho fica s
 para o arquivo da aula nem para a exportação, e por isso fechar a aula, ir para o início ou abrir
 outra pergunta se é para aplicar, descartar ou cancelar (a IA não troca de aula com um rascunho
 esperando). Uma anotação, cartela ou paleta posta no rascunho é feita sobre o que o rascunho mostra.
-As ferramentas da IA `add_annotations`, `auto_zoom`, `place_inserts`, `set_palette` e
+As ferramentas da IA `add_annotations`, `align_track_to`, `auto_zoom`, `place_inserts`, `set_palette` e
 `apply_editing_template` escrevem no rascunho por padrão; com `mode: "apply"` (só quando você pede)
 mudam a aula na hora. Um rascunho espera por vez.
+
+**Tempo numa faixa só (IA).** `cut_ranges` e `cut_text` cortam todas as faixas juntas; para mexer numa
+faixa só, a IA tem três ferramentas (`src/shared/clipMoves.ts`):
+
+- `split_clip` divide um clipe em `at` (segundos da timeline). As duas metades levam layout, escala,
+  opacidade, remoção de fundo, velocidade, efeitos e grupo; a segunda começa na mídia onde a primeira
+  termina, com a velocidade considerada; a entrada fica na primeira e a saída na segunda.
+- `move_clips` move clipes no tempo sem empurrar os outros: `clip_ids` com `delta` (ou `start`, para um
+  clipe só), ou `moves` com um deslocamento por clipe numa chamada. Grupos andam juntos. Só o estado
+  final é conferido: se um clipe ficaria sobre outro na mesma faixa ou antes do 0, nada se move e a
+  resposta diz qual e onde.
+- `align_track_to` trata a faixa como a referência emendada sem pausas (um avatar renderizado com a
+  narração inteira) e devolve as pausas: divide onde termina cada clipe da faixa de referência e põe cada
+  pedaço no início do clipe correspondente. Avisa quando a soma da referência e o conteúdo diferem em
+  mais de 0,2 s. Por padrão é rascunho.
+
+As três pedem a revisão do projeto lida (como `cut_ranges`), conferem todos os ids antes, deixam de fora
+(e nomeiam) faixas travadas, são recusadas com um rascunho de estrutura esperando, viram um passo só do
+histórico (o `undo` da IA também desfaz) e valem no painel do assistente e nos apps conectados.
+
+**Cortar bordas (IA).** `set_crop` faz pela IA o que o **Cortar bordas** do inspetor faz: `left`, `right`,
+`top` e `bottom` são frações da largura ou da altura do vídeo original (0 a 0,45). O recorte vem antes da
+posição e da escala, então o clipe fica no mesmo centro e do mesmo tamanho e só some a faixa cortada; vale
+depois da remoção de fundo e acompanha a sombra, os cantos arredondados e o movimento (`move_clip`). Serve
+para a linha vertical que alguns avatares com fundo removido mostram na borda do vídeo original (na Aula02,
+2 a 4 px de cada lado do vídeo de 2160 px: `left: 0.02, right: 0.02` tira com folga). Cada chamada define o
+recorte inteiro (lado não informado é 0; sem valores, tira o recorte), grupos mudam juntos, faixas travadas
+e clipes de som ficam de fora, um id errado não muda nada, e é um passo só do desfazer. `get_overview`
+mostra o recorte de cada clipe e as caixas de `get_frame` são a parte que sobra, com o recorte ao lado.
+
+**Faixas e seleção (IA).** `get_overview` começa pelo que a pessoa selecionou: `Seleção: faixa [id]
+<nome>; clipes [id], [id]…` ou `Seleção: nenhuma`, e devolve o mesmo como dado (`structuredContent`
+`selection: { track_id, clip_ids }`, para os apps conectados). A faixa selecionada é a que a pessoa
+clicou pela etiqueta (F1…Fn) no cabeçalho, destacada com uma barra; sem ela, a do primeiro clipe
+selecionado. Selecionar clipes larga a faixa clicada. `add_track` cria uma faixa vazia logo acima ou
+abaixo da selecionada (ou de `track_id`), do mesmo tipo dela e com o próximo "Faixa N", e é recusada sem
+seleção; o editor não separa faixas de vídeo e de áudio (toda faixa aceita todo tipo de clipe), então
+qualquer lugar vale. `move_track` põe uma faixa logo acima ou abaixo de outra (faixa travada não muda de
+lugar, como no editor), `rename_track` renomeia, `remove_track` só remove faixa vazia (e diz quantos
+clipes a impedem) e `set_track` trava, silencia ou oculta. Nenhum clipe muda; as etiquetas F1…Fn seguem a
+ordem sozinhas; cada chamada é um passo do desfazer e aceita a `revision` do `get_overview` (revisão
+velha é recusada) (`src/shared/trackOps.ts`; testes em `tests/track-ops.test.ts` e
+`tests/l15-ai-tools.test.ts`).
+
+**Duas vozes: personagem silencia a professora.** Nunca há duas vozes ao mesmo tempo
+(`src/shared/voiceRule.ts`). Enquanto um personagem (Dedé, Debinha… em clipes próprios) é ouvido, todas
+as fontes da voz da professora ficam mudas nesse trecho, com rampa de 0,05 s nas bordas: a narração, o som
+do clipe do avatar dela e a voz da gravação de tela. O som da página e a música continuam, e a música
+abaixa como abaixa para qualquer voz. O avatar dela, por padrão, some com fade de 0,2 s (para a boca não
+mexer sem som); dá para escolher **congelar** no quadro em que ela para ou **deixar como está**.
+
+- **Nada é gravado nos clipes da professora.** A regra é calculada a partir dos clipes como estão, igual às
+  transições, para a prévia e para a exportação (`applyVoiceRule`, aplicada antes de `withTransitions` na
+  prévia e no que vai para o processo principal: exportação, quadro em PNG, quadro para a IA e medição de
+  volume). Por isso mover ou cortar o clipe do personagem leva o silêncio junto, desligar a regra devolve o
+  volume original e desfazer não tem nada a mais para desfazer. As legendas e o abaixar da música também
+  deixam de fora as palavras dela que ficaram mudas.
+- **Papel de cada voz**, quando não foi dado à mão (`set_voice_role`, na mídia ou na faixa): música,
+  efeitos e Cliques não são voz; uma fala de avatar encaixada do roteiro é de quem a fala; mídia, arquivo ou
+  faixa com o nome de um personagem (`…Dede…`, `…Debinha…`, ou um personagem da tabela kids ou das falas
+  "avatar" do roteiro) é desse personagem; o som da página não é voz; narração, microfone, câmera, gravação
+  de tela, qualquer outro áudio e o avatar da professora são dela; um vídeo comum (b-roll) não é voz.
+- **Por aula**: ligada por padrão; desliga em Áudio › **Duas vozes** (aparece quando a aula tem
+  personagem) ou com `set_voice_rule`. A **Verificação antes de exportar** acusa como erro um personagem e a
+  professora ouvidos juntos por mais de 0,3 s, com **Silenciar a professora** (liga a regra) num clique.
+- **Pela IA**: `set_voice_rule` liga, desliga e escolhe o que o avatar faz, e responde onde ela fica calada;
+  `set_voice_role` corrige quem fala; `set_volume` muda o volume de clipes inteiros ou só de um trecho
+  (`from`/`to`), sem dividir, com rampa de 0,05 s; `get_overview` mostra o volume, os trechos mudos, a voz
+  de cada clipe e onde a professora fica calada. `place_insert` e `place_inserts` aceitam o id de uma linha
+  da tabela kids ("No kids, silenciar … e substituir pelo áudio do personagem"): a fala do personagem, já
+  achada no vídeo dele (Edição kids), entra sobre a fala marcada da professora, onde o avatar dela está, numa
+  faixa do personagem logo acima, sem procurar pausa e sem mover nada (`src/shared/substitutionPlace.ts`).
+  Testes em `tests/voice-rule.test.ts` e `tests/l15-ai-tools.test.ts`.
 
 **Barra de revisão.** Junta o rascunho, as propostas de corte e a revisão dos cortes. Em cada corte
 proposto, **Ouvir pulando o corte** toca 1,5 s antes e 1,5 s depois como se o trecho já tivesse saído.
@@ -1361,9 +1434,12 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 
 - **Os sons são feitos pelo próprio app** (`src/shared/soundEffects.ts`), como o clique do cursor: números fixos e
   ruído de semente fixa, então o som é o mesmo em qualquer computador, na prévia e na exportação, sem arquivo de
-  terceiros nem licença. São 13: cliques (Clique, Clique suave, Clique de mouse, Clique mecânico, Pop), wooshes
+  terceiros nem licença. São 16: cliques (Clique, Clique suave, Clique de mouse, Clique mecânico, Pop), wooshes
   (Woosh curto, Woosh longo, Swoosh de entrada, Swoosh de saída) e destaques (Ding de acerto, Erro, Digitação,
-  Tchan). Mudou um som? Suba `SOUND_VERSION`: os arquivos e as faixas guardadas são feitos de novo.
+  Tchan, Sucesso, Comemoração, Notificação). Todos saem a cerca de −18 LUFS sem passar de −1 dBFS de pico, e
+  cada um tem tags em português ("sucesso", "comemoração", "pop", "whoosh"…) para a IA e a busca. Origem e
+  licença de cada um em `sfx/LICENSES.md`. Mudou um som? Suba `SOUND_VERSION`: os arquivos e as faixas
+  guardadas são feitos de novo.
 - **Na biblioteca** (Mídia › Todas as aulas, ou o filtro **Efeito sonoro**): cada som se ouve no ▶, entra onde
   está o cursor da timeline com **Aqui** (numa faixa de áudio "Efeitos sonoros", criada embaixo quando não há uma
   livre naquele ponto) ou se arrasta para qualquer faixa. Nunca vira a voz da aula, mesmo numa aula ainda sem
@@ -1384,6 +1460,23 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   exportação recebe todos os wooshes da aula numa faixa FLAC só, no relógio da aula (`spec.effects`, feita pelo
   processo principal em `userData/cache/sounds` e reaproveitada enquanto os wooshes não mudam), misturada com as
   vozes (`buildAudioPlan`). Testes em `tests/sound-effects.test.ts`.
+- **Clique automático das gravações de tela** (Propriedades da gravação › Som de clique, ou `set_click_sound`):
+  usa os cliques salvos com o cursor e toca no relógio da aula, então acompanha os cortes, as velocidades e os
+  trechos acelerados; acima de 2× toca no máximo um clique a cada 0,15 s, sem rajada. Dá para escolher o que
+  soa: clique, clique duplo, início e fim de arrasto, digitação (padrão: clique, clique duplo e início de
+  arrasto). Os cliques aparecem como marquinhas na faixa **Cliques**, criada embaixo quando o som é ligado;
+  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música, e
+  saem de lado quando outra faixa está destacada (`src/shared/clickEvents.ts`; a exportação recebe uma faixa
+  FLAC só, `spec.clicks`).
+- **Pela IA** (MCP e assistente do painel lateral): `list_library` lista as mídias do projeto, os efeitos do
+  EdiAula (`sfx:<id>`) e os sons da pessoa (`lib:<id>`); `add_clip` põe um item num tempo, sem ripple (faixa
+  ocupada → outra faixa livre do mesmo tipo ou uma nova; sem faixa, som vai para "Efeitos sonoros" e imagem ou
+  vídeo para uma faixa nova em cima); `add_sound_effects` põe vários efeitos de uma vez (por tempo, por fala ou
+  na entrada de uma anotação) como rascunho; `import_media` aceita `at` e `track_id`. Regras comuns: cada
+  chamada é um passo do desfazer, faixas travadas não mudam, um efeito nunca cobre a fala por mais de 0,3 s
+  acima de 30% de volume (é baixado e a resposta avisa) e o **Verificar antes de exportar** aponta mais de 3
+  efeitos em 2 s, sem contar os cliques (`src/shared/soundPlacement.ts`). Testes em
+  `tests/sound-tools.test.ts` e `tests/l15-ai-tools.test.ts`.
 
 ## Gravação guiada da plataforma web
 

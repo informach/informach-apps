@@ -1,5 +1,7 @@
 import { strip, type TimelineWord, timelineWords } from "./cleanup.ts";
-import type { Project, Transcript } from "./types.ts";
+import { gainAt } from "./gain.ts";
+import type { Clip, Project, Transcript } from "./types.ts";
+import { roleContext, teacherSilence, voiceRoleOf } from "./voiceRule.ts";
 
 /**
  * Captions drawn into the video ("legenda gravada"), built from the edited timeline words.
@@ -127,9 +129,28 @@ export function captionWords(
       })
       .map((c) => c.id),
   );
+  // Words not heard: where the clip's envelope silences it (set_volume), and the teacher's while
+  // a character speaks (shared/voiceRule.ts).
+  const clips = new Map(project.clips.map((c) => [c.id, c]));
+  const silence = teacherSilence(project);
+  const ctx = silence.length ? roleContext(project) : null;
+  const teacher = new Map<string, boolean>();
+  const isTeacher = (c: Clip): boolean => {
+    if (!ctx) return false;
+    let known = teacher.get(c.id);
+    if (known === undefined) {
+      known = voiceRoleOf(c, ctx).kind === "teacher";
+      teacher.set(c.id, known);
+    }
+    return known;
+  };
   const out: TimelineWord[] = [];
   for (const w of timelineWords(project, transcripts)) {
     if (!audible.has(w.clipId)) continue;
+    const c = clips.get(w.clipId);
+    const mid = (w.start + w.end) / 2;
+    if (c?.gain?.length && gainAt(c.gain, mid - c.start) < 0.05) continue;
+    if (c && silence.some(([a, b]) => mid >= a && mid <= b) && isTeacher(c)) continue;
     const text = strip(w.text);
     let twin = false;
     for (let i = out.length - 1; i >= 0 && w.start - out[i].start < SAME_WORD; i--)

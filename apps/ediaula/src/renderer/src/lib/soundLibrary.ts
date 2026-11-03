@@ -27,17 +27,23 @@ export function soundFiles(): Promise<Map<SoundEffectId, string>> {
   return files;
 }
 
+/** The file of a sound effect, written again when it was deleted since the folder was listed. */
+export async function soundPath(id: SoundEffectId, retry = true): Promise<string | undefined> {
+  const path = (await soundFiles()).get(id);
+  if (!path) return undefined;
+  if (!(await window.api.exists([path]))[0]) {
+    if (!retry) throw new Error(`${path} não foi gravado.`);
+    files = null;
+    return soundPath(id, false);
+  }
+  return path;
+}
+
 /** The sound effect as a media of this lesson (the one already there, if it is). */
-export async function soundAsset(id: SoundEffectId, retry = true): Promise<Asset | undefined> {
+export async function soundAsset(id: SoundEffectId): Promise<Asset | undefined> {
   try {
-    const path = (await soundFiles()).get(id);
+    const path = await soundPath(id);
     if (!path) return undefined;
-    // Asked again: a file deleted since the folder was listed is written back.
-    if (!(await window.api.exists([path]))[0]) {
-      if (!retry) throw new Error(`${path} não foi gravado.`);
-      files = null;
-      return soundAsset(id, false);
-    }
     const [asset] = await importMedia([path]);
     return asset;
   } catch (err) {

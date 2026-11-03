@@ -1,3 +1,4 @@
+import type { ClickKind } from "./clickEvents.ts";
 import { type CursorData, shapeName } from "./cursorData.ts";
 import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 import type { SoundEffectId } from "./soundEffects.ts";
@@ -54,6 +55,11 @@ export interface CursorFx {
   clickVolume?: number;
   /** Which click (shared/soundEffects.ts, one of the "clique" group); default "clique". */
   clickSoundKind?: SoundEffectId;
+  /**
+   * What sounds (shared/clickEvents.ts): clicks, the second press of a double click, the start and
+   * end of a drag, the typing. Absent: every press, as the click always did.
+   */
+  clickInclude?: ClickKind[];
   /** Effects turned on or off for a stretch of the recording (source seconds); the last wins. */
   ranges?: CursorRange[];
 }

@@ -1,4 +1,5 @@
 import { sumExpr } from "./exprSum.ts";
+import { isSfxTrack } from "./sfxTrack.ts";
 import { clipEnd } from "./timeline.ts";
 import type { Project, Track } from "./types.ts";
 
@@ -57,6 +58,9 @@ export function speechSpans(
       !track ||
       !asset ||
       track.music ||
+      // A sound effect or the clicks are no one speaking.
+      track.clicks ||
+      isSfxTrack(track) ||
       track.muted ||
       !asset.hasAudio ||
       asset.kind === "image" ||

@@ -13,6 +13,8 @@ import {
   defaultOutline,
   isDrawingKind,
 } from "@shared/annotation";
+import { speechSpans } from "@shared/audio";
+import { captionWords } from "@shared/captions";
 import { DEFAULT_KEY } from "@shared/chroma";
 import {
   findQuote,
@@ -24,28 +26,79 @@ import {
   timelineWords,
   wordsToSource,
 } from "@shared/cleanup";
+import { clicksTrack } from "@shared/clickEvents";
+import { type MoveRequest, planAlign, planMoves, splitOneClip } from "@shared/clipMoves";
 import {
+  type Crop,
   DEFAULT_TRANSFORM,
+  NO_CROP,
   placementTransform,
   SHADOW_PRESETS,
   type Shadow,
 } from "@shared/compose";
 import { rangeProject } from "@shared/courseSplit";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
+import { type CursorFx, DEFAULT_CURSOR_FX } from "@shared/cursor";
 import { buildEditingTemplate } from "@shared/editingTemplate";
 import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
+import { GAIN_MAX_DB, GAIN_MIN_DB } from "@shared/gain";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
+import { CATEGORY_LABEL, type LibraryMedia } from "@shared/library";
 import { chaptersOf, hasChapterMarkers } from "@shared/markers";
 import { plural } from "@shared/plural";
 import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
+import { findSoundEffect, plainWord, SOUND_EFFECTS, SOUND_GROUP_LABEL } from "@shared/soundEffects";
+import {
+  type PlaceOptions,
+  placeOverSpeech,
+  type SoundPlacement,
+  withClicksTrack,
+} from "@shared/soundPlacement";
 import { pendingSpeech } from "@shared/speechSources";
+import { isSubstitutionId, placeSubstitutions } from "@shared/substitutionPlace";
 import { templateById } from "@shared/templates";
-import { clipSpeed, newId, projectDuration, sourceEnd, trackLabels } from "@shared/timeline";
+import {
+  clipEnd,
+  clipSpeed,
+  newId,
+  projectDuration,
+  sourceEnd,
+  trackLabels,
+} from "@shared/timeline";
+import {
+  addTrackBeside,
+  moveTrackBeside,
+  removeEmptyTrack,
+  renameTrack,
+  setTrackFlags,
+} from "@shared/trackOps";
 import { DEFAULT_TRANSITION, previousClip } from "@shared/transitions";
-import type { AiToolCall, Clip, Project, ToolImage, Transcript } from "@shared/types";
+import type {
+  AiToolCall,
+  Asset,
+  Clip,
+  Project,
+  ToolImage,
+  Transcript,
+  VoiceRole,
+} from "@shared/types";
+import {
+  characterSpans,
+  gainStretches,
+  type RoleContext,
+  rangeGain,
+  roleContext,
+  roleLabel,
+  teacherPicture,
+  teacherSilence,
+  twoVoices,
+  VOICE_RAMP,
+  voiceRoleOf,
+  voiceRuleOn,
+} from "@shared/voiceRule";
 import { editZoomsIn, type Zoom, zoomsIn } from "@shared/zoom";
 import { setCaptions } from "@/editor/CaptionSettings";
 import { addMusic, setDenoise, setTrackMusic } from "@/editor/RailPanels";
@@ -71,17 +124,21 @@ import { actions } from "./actions";
 import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
+import { loadClickEvents } from "./clickSounds";
 import { askConfirm } from "./confirm";
 import { applyTemplateParts, courseTemplate } from "./courseTemplate";
 import { hasPlatformData, makeQuiz, quizItemTime, translateLesson } from "./delivery";
 import { frameForAi } from "./frame";
-import { importMedia } from "./importMedia";
+import { importMedia, mediaPictures, preparePlayback, probeMedia } from "./importMedia";
 import { keyIsCurrent } from "./keying";
+import { kidsTable } from "./kids";
 import { allPalettes, applyPalette, usePalettes } from "./palettes";
 import { checkLesson, measureLoudness } from "./preflight";
 import { runPrepare } from "./prepare";
 import { blindNotes, proposeCleanup, showProposal } from "./proposals";
 import { currentView, placeInserts, proposeOffScript, scriptDoc } from "./script";
+import { loadSharedLibrary, useSharedLibrary } from "./sharedLibrary";
+import { soundPath } from "./soundLibrary";
 import { addTemplate, TemplateBlockedError } from "./templates";
 import {
   type CutResult,
@@ -102,10 +159,12 @@ export interface ToolOutcome {
   text: string;
   /** Pictures for the model, after the text (get_frame). */
   images?: ToolImage[];
+  /** The same facts as data for MCP clients (get_overview's selection). */
+  structured?: Record<string, unknown>;
 }
 
 /** A handler's answer: its text, or its text with pictures. */
-type Answer = string | { text: string; images: ToolImage[] };
+type Answer = string | { text: string; images?: ToolImage[]; structured?: Record<string, unknown> };
 
 /** m:ss.s — compact and unambiguous for the model. */
 const t = (s: number): string => {
@@ -195,6 +254,20 @@ function requireNoStructuralDraft(): void {
   throw new ToolError(
     `Há um rascunho que muda a estrutura da aula esperando a revisão da pessoa ("${title}"). Nada foi feito: peça para ela aplicar ou descartar o rascunho antes.`,
   );
+}
+
+/** Edits timed from what the AI read: refused when the project changed since (as cut_ranges). */
+function requireRevision(revision: number): void {
+  const current = useProject.getState().revision;
+  if (revision !== current)
+    throw new ToolError(
+      `O projeto mudou desde a leitura (revisão ${revision} → ${current}). Leia get_overview de novo e recalcule os tempos.`,
+    );
+}
+
+/** A refused commit of a timing edit: the lesson changed under the call. */
+function committedOrFail(ok: boolean): void {
+  if (!ok) throw new ToolError("Nada foi feito: a aula aberta mudou.");
 }
 
 /**
@@ -319,6 +392,301 @@ async function timeFor(p: Project, nearText?: string, at?: number): Promise<numb
   return at ?? usePlayback.getState().time;
 }
 
+/**
+ * A media for add_clip / add_sound_effects / import_media, and whether it is a sound effect. A
+ * `fresh` one is not in the lesson yet: it goes in with its clips, in the same undo step.
+ */
+interface ResolvedMedia {
+  asset: Asset;
+  effect: boolean;
+  fresh?: { codec?: string };
+}
+
+/** The media of a file: the lesson's own, or a new one ready to go in (one per file and call). */
+async function mediaOfFile(
+  path: string,
+  seen: Map<string, ResolvedMedia>,
+  effect: boolean,
+): Promise<ResolvedMedia> {
+  const key = path.replaceAll("/", "\\").toLowerCase();
+  const cached = seen.get(key);
+  if (cached) return cached;
+  const own = requireProject().assets.find((a) => samePath(a.path, path));
+  let media: ResolvedMedia;
+  if (own) media = { asset: own, effect };
+  else {
+    let probed: Awaited<ReturnType<typeof probeMedia>>;
+    try {
+      probed = await probeMedia(path);
+    } catch (err) {
+      throw new ToolError(
+        `Não foi possível ler ${path}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    const asset = { ...probed.asset, ...(await mediaPictures(probed.asset)) };
+    media = { asset, effect, fresh: probed.codec ? { codec: probed.codec } : {} };
+  }
+  seen.set(key, media);
+  return media;
+}
+
+/** `q` with the fresh media of `list` that it does not have yet. */
+function withMedia(q: Project, list: readonly ResolvedMedia[]): Project {
+  const have = new Set(q.assets.map((a) => a.id));
+  const add: Asset[] = [];
+  for (const m of list)
+    if (m.fresh && !have.has(m.asset.id)) {
+      have.add(m.asset.id);
+      add.push(m.asset);
+    }
+  return add.length ? { ...q, assets: [...q.assets, ...add] } : q;
+}
+
+/** Once the fresh media are in the lesson: their proxies and filmstrips. */
+function mediaAdded(list: readonly ResolvedMedia[]): void {
+  const done = new Set<string>();
+  for (const m of list)
+    if (m.fresh && !done.has(m.asset.id)) {
+      done.add(m.asset.id);
+      preparePlayback(m.asset, m.fresh.codec);
+    }
+}
+
+const loweredNote =
+  "Atenção: um efeito ficaria sobre a fala por mais de 0,3 s acima de 30% de volume, então foi baixado para 30%. Se a ideia é destacar esse momento, escolha um instante sem fala.";
+
+/**
+ * The media an AI names: "sfx:<id>" (a sound of EdiAula), "lib:<id>" (the library of every
+ * lesson), a media of the project (id or name), or a sound effect by id or Portuguese tag. A
+ * sound or a library media not in the lesson yet comes in with the clip (mediaOfFile).
+ */
+async function resolveMedia(
+  name: string,
+  seen: Map<string, ResolvedMedia>,
+  effectsFirst = false,
+): Promise<ResolvedMedia> {
+  const p = requireProject();
+  const sfx = async (query: string): Promise<ResolvedMedia | undefined> => {
+    const found = findSoundEffect(query);
+    if (!found) return undefined;
+    let path: string | undefined;
+    try {
+      path = await soundPath(found.id);
+    } catch (err) {
+      throw new ToolError(
+        `O efeito ${found.name} não pôde ser preparado: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    if (!path) throw new ToolError(`O efeito ${found.name} não pôde ser preparado.`);
+    return mediaOfFile(path, seen, true);
+  };
+  const fromLibrary = async (pick: (m: LibraryMedia) => boolean) => {
+    if (!useSharedLibrary.getState().loaded) await loadSharedLibrary();
+    const m = useSharedLibrary.getState().library.media.find(pick);
+    if (!m) return undefined;
+    if (m.missing) throw new ToolError(`O arquivo de ${m.name} não está mais neste computador.`);
+    return mediaOfFile(m.path, seen, m.category === "efeito");
+  };
+  if (name.startsWith("sfx:")) {
+    const r = await sfx(name.slice(4));
+    if (r) return r;
+    throw new ToolError(`Efeito sonoro não encontrado: "${name}". Veja os ids em list_library.`);
+  }
+  if (name.startsWith("lib:")) {
+    const id = name.slice(4);
+    const r = await fromLibrary((m) => m.id === id);
+    if (r) return r;
+    throw new ToolError(`Item da biblioteca não encontrado: "${name}". Veja list_library.`);
+  }
+  const own = p.assets.find((a) => a.id === name);
+  if (own) return { asset: own, effect: false };
+  const query = plainWord(name);
+  const byName = async () => {
+    const a = p.assets.find((x) => !x.generated && plainWord(x.name).includes(query));
+    return a ? { asset: a, effect: false } : undefined;
+  };
+  const fromShared = () => fromLibrary((m) => plainWord(m.name).includes(query));
+  const order = effectsFirst
+    ? [() => sfx(name), fromShared, byName]
+    : [byName, () => sfx(name), fromShared];
+  for (const look of order) {
+    const r = await look();
+    if (r) return r;
+  }
+  throw new ToolError(`Mídia não encontrada: "${name}". Veja list_library.`);
+}
+
+/** Moments someone speaks, word by word (no ramp nor hold): what a sound effect may not cover. */
+async function rawSpeech(p: Project): Promise<[number, number][]> {
+  const transcripts = await loadProjectTranscripts(p);
+  return speechSpans(p, captionWords(p, transcripts), new Set(transcripts.keys()), 0, 0);
+}
+
+/** When a sound effect plays: at a time, when some words are said, or as an annotation comes in. */
+async function soundTime(
+  p: Project,
+  it: { at?: number; near_text?: string; on_annotation?: string },
+): Promise<number> {
+  const given = [it.at !== undefined, !!it.near_text, !!it.on_annotation].filter(Boolean).length;
+  if (given !== 1) throw new ToolError("informe um só entre at, near_text e on_annotation.");
+  if (it.on_annotation) {
+    const c = p.clips.find((x) => x.id === it.on_annotation);
+    if (!c?.annotation)
+      throw new ToolError(`anotação não encontrada: ${it.on_annotation} (ids em get_overview).`);
+    return c.start;
+  }
+  return timeFor(p, it.near_text, it.at);
+}
+
+/** The lesson after a placement worked out again on a newer view; unchanged when it fails. */
+const placedOrSame = (r: SoundPlacement, q: Project): Project => (r.ok ? r.project : q);
+
+/**
+ * What the person selected: the track picked by its header, else the track of the first clip
+ * selected; and the clips selected (only those still in the lesson).
+ */
+function selectionOf(p: Project): { trackId: string | null; clipIds: string[] } {
+  const { selection, selectedTrack } = useProject.getState();
+  const clipIds = selection.filter((id) => p.clips.some((c) => c.id === id));
+  const picked =
+    selectedTrack && p.tracks.some((x) => x.id === selectedTrack) ? selectedTrack : null;
+  const first = clipIds.length ? (p.clips.find((c) => c.id === clipIds[0])?.trackId ?? null) : null;
+  return { trackId: picked ?? first, clipIds };
+}
+
+/** "Seleção: faixa [id] nome; clipes [id], [id]" or "Seleção: nenhuma". */
+function selectionLine(p: Project): string {
+  const { trackId, clipIds } = selectionOf(p);
+  if (!trackId && !clipIds.length) return "Seleção: nenhuma";
+  const parts: string[] = [];
+  if (trackId)
+    parts.push(`faixa [${trackId}] ${p.tracks.find((x) => x.id === trackId)?.name ?? ""}`);
+  if (clipIds.length) parts.push(`clipes ${clipIds.map((id) => `[${id}]`).join(", ")}`);
+  return `Seleção: ${parts.join("; ")}`;
+}
+
+/**
+ * The answer of a track tool: what was done, then the tracks top to bottom as the timeline
+ * numbers them now (the new or changed one marked), and the revision.
+ */
+function trackAnswer(done: string, mark?: string): string {
+  const p = requireProject();
+  const labels = trackLabels(p.tracks);
+  const list = p.tracks
+    .map(
+      (x, i) =>
+        `${i + 1}. ${labels.get(x.id)} [${x.id}] ${x.name}${x.kind === "audio" ? " (áudio)" : ""}${x.locked ? " (travada)" : ""}${x.muted ? " (muda)" : ""}${x.hidden ? " (oculta)" : ""}${x.id === mark ? "  ← esta" : ""}`,
+    )
+    .join("\n");
+  return `${done}\nFaixas de cima para baixo:\n${list}\n${revisionLine()}`;
+}
+
+/**
+ * The voices of the lesson in a few lines (set_voice_rule, set_voice_role, get_overview): the
+ * rule, the characters heard and where the teacher is silent for them, and two voices left.
+ */
+function voiceSummary(p: Project): string[] {
+  const ctx = roleContext(p);
+  const chars = characterSpans(p, ctx);
+  const on = voiceRuleOn(p);
+  const picture = teacherPicture(p);
+  const pictureLabel =
+    picture === "fade"
+      ? "o avatar dela some com fade de 0,2 s"
+      : picture === "freeze"
+        ? "o avatar dela congela no quadro em que ela para"
+        : "o avatar dela fica como está";
+  const lines = [
+    `Regra "personagem silencia a professora": ${on ? `ligada (${pictureLabel})` : "desligada"}.`,
+  ];
+  lines.push(
+    chars.length
+      ? `Personagens na timeline: ${chars.map((s) => `${s.name} [${s.clipId}] ${t(s.start)}–${t(s.end)}`).join("; ")}.`
+      : "Nenhum clipe de personagem com som na timeline.",
+  );
+  const silence = teacherSilence(p, ctx);
+  if (silence.length)
+    lines.push(`Professora calada em: ${silence.map(([a, b]) => `${t(a)}–${t(b)}`).join("; ")}.`);
+  const both = twoVoices(p);
+  if (both.length)
+    lines.push(
+      `Duas vozes juntas: ${both.map((v) => `${v.character} e a professora [${v.teacherClip}] ${t(v.start)}–${t(v.end)}`).join("; ")}.`,
+    );
+  return lines;
+}
+
+/** The volume of a clip by parts and whose voice it is, for get_overview. */
+function audioOfClip(c: Clip, ctx: RoleContext, silence: readonly [number, number][]): string {
+  const asset = ctx.assets.get(c.assetId);
+  if (!asset?.hasAudio || asset.kind === "image" || c.annotation) return "";
+  const parts: string[] = [];
+  if (c.volume <= 0) parts.push("mudo");
+  else if (Math.abs(c.volume - 1) > 1e-3) parts.push(`volume ${Math.round(c.volume * 100)}%`);
+  for (const s of gainStretches(c.gain, c.duration)) {
+    const span = `${t(c.start + s.from)}–${t(c.start + s.to)}`;
+    parts.push(
+      s.db <= GAIN_MIN_DB
+        ? `mudo ${span}`
+        : `volume ${Math.round(c.volume * 10 ** (s.db / 20) * 100)}% ${span}`,
+    );
+  }
+  const role = voiceRoleOf(c, ctx);
+  if (role.kind !== "none") parts.push(`voz: ${roleLabel(role)}`);
+  if (role.kind === "teacher") {
+    const end = clipEnd(c);
+    const quiet = silence
+      .filter(([a, b]) => a < end && b > c.start)
+      .map(([a, b]) => `${t(Math.max(a, c.start))}–${t(Math.min(b, end))}`);
+    if (quiet.length) parts.push(`calada pelo personagem ${quiet.join(", ")}`);
+  }
+  return parts.length ? ` ${parts.join(", ")}` : "";
+}
+
+/**
+ * Rows of the kids table placed over the teacher's lines (shared/substitutionPlace.ts): one commit
+ * through `commit`. Refused, with nothing done, when none can be placed.
+ */
+function substitute(p: Project, ids: string[], commit: Commit): string {
+  const r = placeSubstitutions(p, ids);
+  if (!r.placed.length)
+    throw new ToolError(
+      `Nada foi colocado: ${r.problems.map((x) => `${x.id}: ${x.why}`).join("; ")}.`,
+    );
+  committedOrFail(commit((q) => (q === p ? r.project : placeSubstitutions(q, ids).project)));
+  return [
+    `${plural(r.placed.length, "fala de personagem colocada", "falas de personagem colocadas")} sobre a fala da professora, sem procurar pausa e sem mover nada:`,
+    ...r.placed.map(
+      (x) =>
+        `- ${x.id}: ${x.character} [${x.clipId}] ${t(x.start)}–${t(x.end)} na faixa ${x.trackName}${x.longer > 0.3 ? ` (dura ${x.longer.toFixed(1)} s a mais que a fala dela: as palavras dela até ${t(x.end)} também ficam caladas)` : ""}`,
+    ),
+    ...r.problems.map((x) => `Não colocada ${x.id}: ${x.why}.`),
+    r.ruleOff
+      ? 'Atenção: a regra "personagem silencia a professora" está desligada nesta aula, então as duas vozes vão se sobrepor. Ligue com set_voice_rule.'
+      : "A professora fica calada e o avatar dela sai enquanto o personagem fala (set_voice_rule).",
+  ].join("\n");
+}
+
+/** Whether a crop cuts anything. */
+const hasCrop = (c: Crop | undefined): c is Crop =>
+  !!c && (c.left > 0 || c.right > 0 || c.top > 0 || c.bottom > 0);
+
+/** "esquerda 2%, direita 2%": the sides a crop cuts. */
+function cropLabel(c: Crop): string {
+  const pct = (v: number): string => `${Math.round(v * 1000) / 10}%`;
+  const sides: [string, number][] = [
+    ["esquerda", c.left],
+    ["direita", c.right],
+    ["topo", c.top],
+    ["base", c.bottom],
+  ];
+  return (
+    sides
+      .filter(([, v]) => v > 0)
+      .map(([name, v]) => `${name} ${pct(v)}`)
+      .join(", ") || "nenhum"
+  );
+}
+
 /** A named shadow from the AI tools: none → null, default → the kind's usual one (undefined). */
 function shadowNamed(
   name: "none" | "default" | "soft" | "strong" | "long" | "glow",
@@ -418,14 +786,18 @@ const handlers: {
       return n ? ` ${plural(n, "zoom", "zooms")}` : "";
     };
     const lines = [
+      // What the person selected, first: "a faixa selecionada", "o clipe selecionado".
+      selectionLine(p),
       `Projeto: ${p.name}${p.course ? ` · curso: ${p.course}` : ""}`,
       `Formato: ${p.settings.width}x${p.settings.height} ${p.settings.fps} fps · duração ${t(projectDuration(p))} · cursor em ${t(usePlayback.getState().time)}`,
       "Faixas:",
     ];
     if (track && !p.tracks.some((tr) => tr.id === track))
       throw new ToolError(`Faixa ${track} não existe. Use os ids de get_overview.`);
+    const voiceCtx = roleContext(p);
+    const silence = teacherSilence(p, voiceCtx);
     const describe = (c: Clip): string =>
-      `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.groupId ? ` grupo ${c.groupId}` : ""}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${zoomCount(c)}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}`;
+      `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.groupId ? ` grupo ${c.groupId}` : ""}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${hasCrop(c.transform?.crop) ? ` recorte ${cropLabel(c.transform?.crop ?? NO_CROP)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${zoomCount(c)}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}${audioOfClip(c, voiceCtx, silence)}`;
     for (const tr of p.tracks) {
       if (track && tr.id !== track) continue;
       const clips = p.clips.filter((c) => c.trackId === tr.id).sort((a, b) => a.start - b.start);
@@ -441,6 +813,7 @@ const handlers: {
         `- [${tr.id}] ${labels.get(tr.id)} ${tr.name}${flags ? ` (${flags})` : ""}: ${clips.length ? shown : "vazia"}`,
       );
     }
+    lines.push(...voiceSummary(p));
     lines.push("Mídias:");
     for (const a of p.assets)
       lines.push(
@@ -473,7 +846,11 @@ const handlers: {
         `Glossário do curso (entre parênteses, como o nome sai na transcrição): ${formatGlossary(glossary)}`,
       );
     lines.push(revisionLine());
-    return lines.join("\n");
+    const picked = selectionOf(p);
+    return {
+      text: lines.join("\n"),
+      structured: { selection: { track_id: picked.trackId, clip_ids: picked.clipIds } },
+    };
   },
 
   async get_transcript({ from, to, with_word_times, summary }) {
@@ -907,8 +1284,54 @@ const handlers: {
     ].join("\n");
   },
 
-  async import_media({ paths, add_to_timeline }, { commit }) {
+  async import_media({ paths, add_to_timeline, at, track_id }, { commit }) {
     requireProject();
+    if (at !== undefined && add_to_timeline !== false) {
+      // The files go in with their clips, in one step: undoing it takes both away.
+      requireNoStructuralDraft();
+      const seen = new Map<string, ResolvedMedia>();
+      const media: ResolvedMedia[] = [];
+      for (const path of paths) media.push(await mediaOfFile(path, seen, false));
+      const speech = await rawSpeech(requireProject());
+      const p = requireProject();
+      const placeAll = (q: Project) => {
+        let project = withMedia(q, media);
+        let time = at;
+        const placed: string[] = [];
+        for (const { asset } of media) {
+          const r = placeOverSpeech(
+            project,
+            asset,
+            time,
+            track_id ? { trackId: track_id } : {},
+            speech,
+          );
+          if (!r.ok) return r;
+          project = r.project;
+          const clip = project.clips.find((c) => c.id === r.clipId);
+          const track = project.tracks.find((x) => x.id === r.trackId)?.name ?? r.trackId;
+          placed.push(
+            `[${r.clipId}] ${asset.name} em ${t(time)} na faixa ${track}${r.note}${r.lowered ? " (volume baixado para 30%: ficaria sobre a fala)" : ""}`,
+          );
+          time += clip?.duration ?? 0;
+        }
+        return { ok: true as const, project, placed };
+      };
+      const plan = placeAll(p);
+      if (!plan.ok) throw new ToolError(`Nada foi importado: ${plan.error}`);
+      committedOrFail(
+        commit((q) => {
+          if (q === p) return plan.project;
+          const again = placeAll(q);
+          return again.ok ? again.project : q;
+        }),
+      );
+      mediaAdded(media);
+      return [
+        `${plural(media.length, "arquivo importado", "arquivos importados")} e colocados sem empurrar nada:`,
+        ...plan.placed,
+      ].join("\n");
+    }
     const assets = await importMedia(paths);
     if (add_to_timeline !== false) actions.appendAssets(assets, commit);
     return `${assets.length} de ${plural(paths.length, "arquivo importado", "arquivos importados")}${add_to_timeline !== false ? " e colocados no fim da timeline" : ""}. Duração: ${t(before())}.`;
@@ -962,15 +1385,43 @@ const handlers: {
   },
 
   async place_insert({ insert_id }, { commit }) {
-    requireProject();
+    const p = requireProject();
     requireNoStructuralDraft();
+    if (
+      isSubstitutionId(
+        p,
+        insert_id,
+        kidsTable(p).map((r) => r.id),
+      )
+    )
+      return substitute(p, [insert_id], commit);
     const r = await placeInserts(insert_id, commit);
     if (!r.ok) throw new ToolError(r.message);
     return r.message;
   },
 
   async place_inserts({ insert_ids }, { commit, draft }) {
-    requireProject();
+    const p = requireProject();
+    if (insert_ids !== "all") {
+      const rows = kidsTable(p).map((r) => r.id);
+      const subs = insert_ids.filter((id) => isSubstitutionId(p, id, rows));
+      const lines = insert_ids.filter((id) => !subs.includes(id));
+      if (subs.length) {
+        // Both kinds in one undo step: the rows over the teacher's lines, then the avatar lines.
+        const one = batched(commit);
+        const first = substitute(basisOf(commit) ?? p, subs, one.commit);
+        let rest = "";
+        if (lines.length) {
+          const r = await placeInserts(lines, one.commit, draft ? shownProject : undefined);
+          if (!r.ok)
+            throw new ToolError(`${first}
+${r.message}`);
+          rest = r.message;
+        }
+        committedOrFail(one.flush());
+        return [first, rest].filter(Boolean).join("\n");
+      }
+    }
     const r = await placeInserts(insert_ids, commit, draft ? shownProject : undefined);
     if (!r.ok) throw new ToolError(r.message);
     return r.message;
@@ -979,6 +1430,290 @@ const handlers: {
   async propose_off_script(_input, { call }) {
     requireProject();
     return proposeOffScript(proposalAuthor(call, "propose_off_script"));
+  },
+
+  // Tracks (shared/trackOps.ts), as the timeline changes them: no clip moves.
+  async add_track({ position, track_id, kind, label, revision }, { commit }) {
+    const p = requireProject();
+    if (revision !== undefined) requireRevision(revision);
+    const ref = track_id ?? selectionOf(p).trackId;
+    if (!ref)
+      throw new ToolError(
+        "Nenhuma faixa selecionada: informe track_id, ou peça para a pessoa clicar no cabeçalho de uma faixa (ou num clipe dela). Nada foi feito.",
+      );
+    const r = addTrackBeside(p, ref, position, kind, label);
+    if (!r.ok) throw new ToolError(r.error);
+    const made = r.track;
+    committedOrFail(
+      commit((q) => {
+        if (q === p) return r.project;
+        const at = q.tracks.findIndex((x) => x.id === ref);
+        if (at < 0) return q;
+        const i = at + (position === "below" ? 1 : 0);
+        return { ...q, tracks: [...q.tracks.slice(0, i), made, ...q.tracks.slice(i)] };
+      }),
+    );
+    return trackAnswer(
+      `Faixa nova [${made.id}] "${made.name}" (${made.kind === "video" ? "vídeo" : "áudio"}) criada logo ${position === "below" ? "abaixo" : "acima"} da faixa ${p.tracks.find((x) => x.id === ref)?.name ?? ref} [${ref}]${track_id ? "" : " (a selecionada)"}. Nenhum clipe mudou.`,
+      made.id,
+    );
+  },
+
+  async move_track({ track_id, position, reference_track_id, revision }, { commit }) {
+    const p = requireProject();
+    if (revision !== undefined) requireRevision(revision);
+    requireNoStructuralDraft();
+    const r = moveTrackBeside(p, track_id, position, reference_track_id);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(
+      commit((q) => {
+        if (q === p) return r.project;
+        const again = moveTrackBeside(q, track_id, position, reference_track_id);
+        return again.ok ? again.project : q;
+      }),
+    );
+    return trackAnswer(
+      `Faixa ${r.track.name} [${track_id}] agora logo ${position === "below" ? "abaixo" : "acima"} da faixa ${p.tracks.find((x) => x.id === reference_track_id)?.name} [${reference_track_id}]. Nenhum clipe mudou.`,
+      track_id,
+    );
+  },
+
+  async rename_track({ track_id, label, revision }, { commit }) {
+    const p = requireProject();
+    if (revision !== undefined) requireRevision(revision);
+    const r = renameTrack(p, track_id, label);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(
+      commit((q) => {
+        const again = renameTrack(q, track_id, label);
+        return again.ok ? again.project : q;
+      }),
+    );
+    return trackAnswer(`Faixa [${track_id}] agora se chama "${r.track.name}".`, track_id);
+  },
+
+  async remove_track({ track_id, revision }, { commit }) {
+    const p = requireProject();
+    if (revision !== undefined) requireRevision(revision);
+    requireNoStructuralDraft();
+    const r = removeEmptyTrack(p, track_id);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(
+      commit((q) => {
+        const again = removeEmptyTrack(q, track_id);
+        return again.ok ? again.project : q;
+      }),
+    );
+    if (useProject.getState().selectedTrack === track_id) useProject.getState().selectTrack(null);
+    return trackAnswer(`Faixa vazia ${r.track.name} [${track_id}] removida.`);
+  },
+
+  async set_track({ track_id, locked, muted, hidden, revision }, { commit }) {
+    const p = requireProject();
+    if (revision !== undefined) requireRevision(revision);
+    if (locked === undefined && muted === undefined && hidden === undefined)
+      throw new ToolError("Informe locked, muted ou hidden. Nada foi feito.");
+    const flags = {
+      ...(locked !== undefined ? { locked } : {}),
+      ...(muted !== undefined ? { muted } : {}),
+      ...(hidden !== undefined ? { hidden } : {}),
+    };
+    const r = setTrackFlags(p, track_id, flags);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(
+      commit((q) => {
+        const again = setTrackFlags(q, track_id, flags);
+        return again.ok ? again.project : q;
+      }),
+    );
+    const said = [
+      locked !== undefined && (locked ? "travada" : "destravada"),
+      muted !== undefined && (muted ? "muda" : "com som"),
+      hidden !== undefined && (hidden ? "oculta" : "visível"),
+    ].filter(Boolean);
+    return trackAnswer(`Faixa ${r.track.name} [${track_id}]: ${said.join(", ")}.`, track_id);
+  },
+
+  // Voices (shared/voiceRule.ts): never two at once.
+  async set_volume({ clip_ids, volume, mute, from, to }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    if ((from === undefined) !== (to === undefined))
+      throw new ToolError("Informe from e to juntos (ou nenhum, para o clipe inteiro).");
+    if (from !== undefined && to !== undefined && to - from < 0.05)
+      throw new ToolError("O trecho é vazio: to precisa ser maior que from. Nada foi feito.");
+    const target = editableClips(p, clip_ids);
+    const assets = new Map(p.assets.map((a) => [a.id, a]));
+    const level = mute ? 0 : volume;
+    const notes: string[] = [];
+    const changes = new Map<string, Partial<Clip>>();
+    for (const id of target.ids) {
+      const c = p.clips.find((x) => x.id === id);
+      const a = c && assets.get(c.assetId);
+      if (!c || !a?.hasAudio || a.kind === "image") continue;
+      if (from === undefined || to === undefined) {
+        changes.set(id, { volume: level });
+        continue;
+      }
+      const a0 = Math.max(from, c.start);
+      const b0 = Math.min(to, clipEnd(c));
+      if (b0 - a0 < 0.01) {
+        notes.push(`${id} não passa por ${t(from)}–${t(to)}`);
+        continue;
+      }
+      if (c.volume <= 0 && level > 0) {
+        notes.push(`${id} está com volume 0 no clipe inteiro: suba o volume do clipe antes`);
+        continue;
+      }
+      const db = level <= 0 ? GAIN_MIN_DB : 20 * Math.log10(level / c.volume);
+      if (db > GAIN_MAX_DB)
+        notes.push(`${id}: no trecho, no máximo +${GAIN_MAX_DB} dB sobre o volume do clipe`);
+      changes.set(id, { gain: rangeGain(c.gain, a0 - c.start, b0 - c.start, db, VOICE_RAMP) });
+    }
+    if (!changes.size)
+      throw new ToolError(
+        `Nada foi feito: ${notes.length ? notes.join("; ") : "nenhum dos clipes tem som"}.${target.note}`,
+      );
+    committedOrFail(
+      commit((q) => ({
+        ...q,
+        clips: q.clips.map((c) => {
+          const change = changes.get(c.id);
+          return change ? { ...c, ...change } : c;
+        }),
+      })),
+    );
+    const what = level <= 0 ? "mudo" : `volume ${Math.round(level * 100)}%`;
+    return [
+      `${plural(changes.size, "clipe", "clipes")} ${from !== undefined && to !== undefined ? `com ${what} de ${t(from)} a ${t(to)} (rampa de 0,05 s nas bordas, sem dividir)` : `com ${what}`}: ${[...changes.keys()].join(", ")}.`,
+      ...notes.map((n) => `Ficou de fora: ${n}.`),
+    ]
+      .join("\n")
+      .concat(target.note);
+  },
+
+  async set_voice_rule({ enabled, picture }, { commit }) {
+    requireProject();
+    requireNoStructuralDraft();
+    if (enabled === undefined && picture === undefined)
+      return voiceSummary(requireProject()).join("\n");
+    committedOrFail(
+      commit((q) => ({
+        ...q,
+        voiceRule: {
+          ...q.voiceRule,
+          ...(enabled !== undefined ? { enabled } : {}),
+          ...(picture ? { picture } : {}),
+        },
+      })),
+    );
+    return voiceSummary(requireProject()).join("\n");
+  },
+
+  async set_voice_role({ media, track_id, role, name }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    if (!!media === !!track_id) throw new ToolError("Informe media ou track_id (um dos dois).");
+    if (role === "personagem" && !name)
+      throw new ToolError('Para "personagem", informe name (o nome do personagem).');
+    const value: VoiceRole | undefined =
+      role === "professora"
+        ? { kind: "teacher" }
+        : role === "personagem"
+          ? { kind: "character", name: (name ?? "").trim() }
+          : role === "nenhum"
+            ? { kind: "none" }
+            : undefined;
+    let label: string;
+    if (track_id) {
+      const tr = p.tracks.find((x) => x.id === track_id);
+      if (!tr)
+        throw new ToolError(`Faixa não encontrada: ${track_id}. Use os ids de get_overview.`);
+      if (tr.locked) throw new ToolError(`A faixa ${tr.name} está travada: nada foi feito.`);
+      label = `faixa ${tr.name}`;
+      committedOrFail(
+        commit((q) => ({
+          ...q,
+          tracks: q.tracks.map((x) => {
+            if (x.id !== track_id) return x;
+            const { voiceRole: _old, ...rest } = x;
+            return value ? { ...rest, voiceRole: value } : rest;
+          }),
+        })),
+      );
+    } else {
+      const wanted = media ?? "";
+      const a =
+        p.assets.find((x) => x.id === wanted) ??
+        p.assets.find((x) => x.name.toLowerCase().includes(wanted.toLowerCase()));
+      if (!a) throw new ToolError(`Mídia "${wanted}" não encontrada. Veja get_overview.`);
+      label = a.name;
+      committedOrFail(
+        commit((q) => ({
+          ...q,
+          assets: q.assets.map((x) => {
+            if (x.id !== a.id) return x;
+            const { voiceRole: _old, ...rest } = x;
+            return value ? { ...rest, voiceRole: value } : rest;
+          }),
+        })),
+      );
+    }
+    return [
+      `${label}: ${value ? roleLabel(value) : "papel automático"}.`,
+      ...voiceSummary(requireProject()),
+    ].join("\n");
+  },
+
+  async set_crop({ clip_ids, left, right, top, bottom }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    const target = editableClips(p, clip_ids);
+    const assets = new Map(p.assets.map((a) => [a.id, a]));
+    const visual = (c: Clip): boolean => {
+      const a = assets.get(c.assetId);
+      return !!a && a.kind !== "audio" && !c.soundOnly && !c.zoomLayer;
+    };
+    const ids = new Set(
+      target.ids.filter((id) => {
+        const c = p.clips.find((x) => x.id === id);
+        return !!c && visual(c);
+      }),
+    );
+    if (!ids.size)
+      throw new ToolError(
+        "Nada foi feito: só clipes de vídeo ou de imagem têm bordas para cortar (os pedidos são de som ou camadas de zoom).",
+      );
+    const crop: Crop = { left: left ?? 0, top: top ?? 0, right: right ?? 0, bottom: bottom ?? 0 };
+    const none = !crop.left && !crop.top && !crop.right && !crop.bottom;
+    committedOrFail(
+      commit((q) => ({
+        ...q,
+        clips: q.clips.map((c) => {
+          if (!ids.has(c.id)) return c;
+          if (none) {
+            if (!c.transform?.crop) return c;
+            const { crop: _removed, ...rest } = c.transform;
+            return { ...c, transform: rest };
+          }
+          // The center and the scale stay: only the strips cut off disappear.
+          return { ...c, transform: { ...(c.transform ?? DEFAULT_TRANSFORM), crop } };
+        }),
+      })),
+    );
+    const sides = cropLabel(crop);
+    const skipped = target.ids.length - ids.size;
+    return [
+      none
+        ? `Recorte tirado de ${plural(ids.size, "clipe", "clipes")}: ${[...ids].join(", ")}.`
+        : `Recorte (${sides}) em ${plural(ids.size, "clipe", "clipes")}: ${[...ids].join(", ")}. O centro e a escala não mudaram; confira com get_frame.`,
+      skipped
+        ? `${plural(skipped, "clipe de som do grupo ficou", "clipes de som do grupo ficaram")} de fora.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .concat(target.note);
   },
 
   async set_clip_layout(
@@ -1621,6 +2356,279 @@ const handlers: {
     return keyframes.length
       ? `${plural(keyframes.length, "posição marcada", "posições marcadas")}${moved}; o clipe desliza entre elas.${target.note}`
       : `Movimento removido${moved}.${target.note}`;
+  },
+
+  // Timing on one track (shared/clipMoves.ts). Everything is checked on the lesson as it is now
+  // before the single commit: a refused call changes nothing and leaves no step in the history.
+  async split_clip({ clip_id, at, revision }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    const r = splitOneClip(p, clip_id, at);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
+    return `Clipe ${clip_id} dividido em ${t(at)}: [${r.first}] até ${t(at)} e [${r.second}] a partir de ${t(at)}. As outras faixas não mudaram.`;
+  },
+
+  async move_clips({ clip_ids, start, delta, moves, revision }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    let requests: MoveRequest[];
+    if (moves) {
+      if (clip_ids || start !== undefined || delta !== undefined)
+        throw new ToolError("Use moves ou clip_ids com start/delta, não os dois. Nada foi feito.");
+      requests = moves.map((m) => ({ id: m.clip_id, start: m.start, delta: m.delta }));
+    } else {
+      if (!clip_ids) throw new ToolError("Informe clip_ids (com start ou delta) ou moves.");
+      if ((start === undefined) === (delta === undefined))
+        throw new ToolError("Informe start ou delta (um dos dois). Nada foi feito.");
+      if (start !== undefined && clip_ids.length !== 1)
+        throw new ToolError(
+          "start vale para um clipe só: para vários, use delta ou moves. Nada foi feito.",
+        );
+      requests = clip_ids.map((id) => ({ id, start, delta }));
+    }
+    const plan = planMoves(p, requests);
+    if (!plan.ok) throw new ToolError(plan.error);
+    if (!plan.moved.length) {
+      if (plan.locked.length) throw new ToolError(`Nada foi movido.${lockedNote(plan.locked)}`);
+      return "Nada mudou: os clipes já estavam nessas posições.";
+    }
+    committedOrFail(commit((q) => ({ ...q, clips: plan.clips })));
+    const lines = plan.moved
+      .sort((a, b) => a.to - b.to)
+      .map((m) => `[${m.id}] ${t(m.from)} → ${t(m.to)}`);
+    return [
+      `${plural(plan.moved.length, "clipe movido", "clipes movidos")} no tempo, sem empurrar os outros:`,
+      ...lines,
+    ]
+      .join("\n")
+      .concat(lockedNote(plan.locked));
+  },
+
+  async align_track_to({ track_id, reference_track_id, revision }, { commit, draft }) {
+    // In a draft the plan is worked out on the draft as shown; otherwise on the lesson.
+    const p = basisOf(commit) ?? requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    const plan = planAlign(p, track_id, reference_track_id);
+    if (!plan.ok) throw new ToolError(plan.error);
+    committedOrFail(commit((q) => ({ ...q, clips: plan.clips })));
+    const pieces = plan.pieces.map((x) => `[${x.id}] ${t(x.from)} → ${t(x.to)}`);
+    const splits = plan.splits.map(t).join(", ") || "nenhum ponto";
+    return [
+      `Faixa ${track_id} ${draft ? "alinhada no rascunho" : "alinhada"} à faixa ${reference_track_id}: dividida em ${splits}; ${plural(plan.pieces.length, "pedaço", "pedaços")} no início de cada clipe da referência:`,
+      ...pieces,
+      plan.warning ? `Atenção: ${plan.warning}` : "",
+      "A referência e as outras faixas não mudaram.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+
+  // Library and sound (shared/soundPlacement.ts): nothing is ever covered nor pushed.
+  async list_library({ kind, search }) {
+    const p = requireProject();
+    if (!useSharedLibrary.getState().loaded) await loadSharedLibrary();
+    const query = search ? plainWord(search) : "";
+    const matches = (...words: string[]): boolean =>
+      !query || words.some((w) => plainWord(w).includes(query));
+    const used = new Map<string, number>();
+    for (const c of p.clips) used.set(c.assetId, (used.get(c.assetId) ?? 0) + 1);
+    const lines: string[] = [];
+    if (kind !== "sfx") {
+      const own = p.assets.filter(
+        (a) => !a.generated && (!kind || a.kind === kind) && matches(a.name, a.kind),
+      );
+      if (own.length) {
+        lines.push("Mídias deste projeto:");
+        for (const a of own)
+          lines.push(
+            `- [${a.id}] ${a.name} · ${a.kind}${a.kind === "image" ? "" : ` · ${a.duration.toFixed(1)} s`} · ${used.get(a.id) ? `na timeline (${plural(used.get(a.id) ?? 0, "clipe", "clipes")})` : "fora da timeline"}${a.missing ? " · ARQUIVO NÃO ENCONTRADO" : ""}`,
+          );
+      }
+    }
+    if (!kind || kind === "sfx" || kind === "audio") {
+      const sounds = SOUND_EFFECTS.filter((s) => matches(s.id, s.name, s.hint, ...s.tags));
+      if (sounds.length) {
+        lines.push(
+          "Efeitos sonoros do EdiAula (cerca de −18 LUFS, próprios, sem licença a pagar):",
+        );
+        for (const s of sounds)
+          lines.push(
+            `- [sfx:${s.id}] ${s.name} · ${SOUND_GROUP_LABEL[s.group]} · ${s.seconds.toFixed(2)} s · tags: ${s.tags.join(", ")} · ${s.hint}`,
+          );
+      }
+    }
+    const library = useSharedLibrary
+      .getState()
+      .library.media.filter(
+        (m) =>
+          (kind === "sfx"
+            ? m.category === "efeito"
+            : !kind || m.kind === kind || (kind === "audio" && m.category === "efeito")) &&
+          matches(m.name, CATEGORY_LABEL[m.category]),
+      );
+    if (library.length) {
+      lines.push("Biblioteca de todas as aulas (da pessoa):");
+      for (const m of library)
+        lines.push(
+          `- [lib:${m.id}] ${m.name} · ${CATEGORY_LABEL[m.category]} · ${m.kind}${m.missing ? " · ARQUIVO NÃO ENCONTRADO" : ""}`,
+        );
+    }
+    return lines.length ? lines.join("\n") : "Nada encontrado com esse filtro.";
+  },
+
+  async add_clip(input, { commit }) {
+    requireProject();
+    requireNoStructuralDraft();
+    const media = await resolveMedia(input.media_id, new Map());
+    const speech = media.asset.kind === "image" ? [] : await rawSpeech(requireProject());
+    const p = basisOf(commit) ?? requireProject();
+    const options: PlaceOptions = {
+      ...(input.track_id ? { trackId: input.track_id } : {}),
+      ...(input.in !== undefined ? { in: input.in } : {}),
+      ...(input.out !== undefined ? { out: input.out } : {}),
+      ...(input.volume !== undefined ? { volume: input.volume } : {}),
+      ...(input.fade_in !== undefined ? { fadeIn: input.fade_in } : {}),
+      ...(input.fade_out !== undefined ? { fadeOut: input.fade_out } : {}),
+    };
+    const place = (q: Project) =>
+      placeOverSpeech(withMedia(q, [media]), media.asset, input.at, options, speech, media.effect);
+    const r = place(p);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => (q === p ? r.project : placedOrSame(place(q), q))));
+    mediaAdded([media]);
+    const track = r.project.tracks.find((x) => x.id === r.trackId);
+    return `${media.asset.name} colocado em ${t(input.at)} na faixa ${track?.name ?? r.trackId} [${r.clipId}], sem cobrir nem empurrar nada.${r.note}${r.lowered ? ` ${loweredNote}` : ""}`;
+  },
+
+  async add_sound_effects({ items }, { commit, draft }) {
+    requireProject();
+    // Into a draft they go with the rest of it; on the lesson, not while a draft moves its clips.
+    if (!draft) requireNoStructuralDraft();
+    // Times and sounds are worked out first; the lesson changes once, at the end.
+    const shown = basisOf(commit) ?? requireProject();
+    const problems: string[] = [];
+    const wanted: { media: ResolvedMedia; at: number; volume: number; label: string }[] = [];
+    const seen = new Map<string, ResolvedMedia>();
+    for (const it of items) {
+      try {
+        const at = await soundTime(shown, it);
+        const media = await resolveMedia(it.sfx, seen, true);
+        wanted.push({ media, at, volume: it.volume ?? 0.8, label: it.sfx });
+      } catch (err) {
+        problems.push(`${it.sfx}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    if (!wanted.length) throw new ToolError(`Nenhum efeito foi colocado.\n${problems.join("\n")}`);
+    const speech = await rawSpeech(requireProject());
+    const p = basisOf(commit) ?? requireProject();
+    const placeAll = (q: Project) => {
+      let project = withMedia(
+        q,
+        wanted.map((w) => w.media),
+      );
+      const placed: { at: number; label: string; id: string; track: string; lowered: boolean }[] =
+        [];
+      const failed: string[] = [];
+      for (const w of [...wanted].sort((a, b) => a.at - b.at)) {
+        const r = placeOverSpeech(project, w.media.asset, w.at, { volume: w.volume }, speech, true);
+        if (!r.ok) {
+          failed.push(`${w.label} em ${t(w.at)}: ${r.error}`);
+          continue;
+        }
+        project = r.project;
+        const track = project.tracks.find((x) => x.id === r.trackId)?.name ?? r.trackId;
+        placed.push({ at: w.at, label: w.label, id: r.clipId, track, lowered: r.lowered });
+      }
+      return { project, placed, failed };
+    };
+    const plan = placeAll(p);
+    if (!plan.placed.length)
+      throw new ToolError(
+        `Nenhum efeito foi colocado.\n${[...problems, ...plan.failed].join("\n")}`,
+      );
+    committedOrFail(commit((q) => (q === p ? plan.project : placeAll(q).project)));
+    mediaAdded(wanted.map((w) => w.media));
+    const lowered = plan.placed.filter((x) => x.lowered);
+    const tracks = [...new Set(plan.placed.map((x) => x.track))].join(", ");
+    return [
+      `${plural(plan.placed.length, "efeito sonoro", "efeitos sonoros")} ${draft ? "no rascunho" : "colocados"} na faixa ${tracks}, sem mexer nas outras faixas:`,
+      ...plan.placed.map(
+        (x) =>
+          `- [${x.id}] ${x.label} em ${t(x.at)}${x.lowered ? " (volume baixado para 30%)" : ""}`,
+      ),
+      lowered.length ? loweredNote : "",
+      ...problems,
+      ...plan.failed,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+
+  async set_click_sound({ media, enabled, sound, volume, include }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    const recordings = p.assets.filter((a) => !!a.cursor);
+    const targets = media
+      ? recordings.filter(
+          (a) => a.id === media || a.name.toLowerCase().includes(media.toLowerCase()),
+        )
+      : recordings;
+    if (!targets.length)
+      throw new ToolError(
+        media
+          ? `Nenhuma gravação de tela do EdiAula com "${media}". O clique automático só vale para elas (as gravadas com o cursor salvo).`
+          : "Este projeto não tem gravações de tela do EdiAula: não há cliques salvos para tocar.",
+      );
+    const kind = sound ? findSoundEffect(sound) : undefined;
+    if (sound && !kind)
+      throw new ToolError(`Efeito sonoro não encontrado: "${sound}". Veja os ids em list_library.`);
+    const changes: Partial<CursorFx> = {
+      clickSound: enabled,
+      ...(kind ? { clickSoundKind: kind.id } : {}),
+      ...(volume !== undefined ? { clickVolume: volume } : {}),
+      ...(include ? { clickInclude: [...new Set(include)] } : {}),
+    };
+    const ids = new Set(targets.map((a) => a.id));
+    const clicks = clicksTrack(p);
+    const unmute = enabled && !!clicks?.muted && !clicks.locked;
+    committedOrFail(
+      commit((q) => {
+        const next: Project = {
+          ...q,
+          assets: q.assets.map((a) =>
+            ids.has(a.id)
+              ? { ...a, cursorFx: { ...DEFAULT_CURSOR_FX, ...a.cursorFx, ...changes } }
+              : a,
+          ),
+          tracks: unmute ? q.tracks.map((x) => (x.clicks ? { ...x, muted: false } : x)) : q.tracks,
+        };
+        return enabled ? withClicksTrack(next) : next;
+      }),
+    );
+    const now = requireProject();
+    const events = await loadClickEvents(now);
+    const names = targets.map((a) => a.name).join(", ");
+    const lines = [
+      `Clique automático ${enabled ? "ligado" : "desligado"} em ${names}.`,
+      `A aula tem agora ${plural(events.length, "clique", "cliques")} soando na faixa ${clicksTrack(now)?.name ?? "Cliques"}${
+        events.length
+          ? `: ${events
+              .slice(0, 15)
+              .map((e) => t(e.at))
+              .join(", ")}${events.length > 15 ? "…" : ""}`
+          : ""
+      }.`,
+    ];
+    if (unmute) lines.push("A faixa Cliques estava silenciada e foi ligada.");
+    if (enabled && clicks?.muted && clicks.locked)
+      lines.push(
+        "A faixa Cliques está silenciada e travada: ela não foi mudada, então os cliques não soam até a pessoa destravar e ligar a faixa.",
+      );
+    return lines.join("\n");
   },
 
   async list_projects() {

@@ -17,7 +17,10 @@ export async function projectSpeech(p: Project): Promise<[number, number][]> {
 /** Speech spans, only computed when the project has a music track. */
 export function useSpeechSpans(project: Project | null): [number, number][] {
   const [spans, setSpans] = useState<[number, number][]>([]);
-  const hasMusic = !!project?.tracks.some((t) => t.music);
+  // Needed by the music and by the automatic clicks (both step aside for the voice).
+  const hasMusic =
+    !!project?.tracks.some((t) => t.music || t.clicks) ||
+    !!project?.assets.some((a) => a.cursorFx?.clickSound);
   useEffect(() => {
     let alive = true;
     if (!project || !hasMusic) return setSpans([]);

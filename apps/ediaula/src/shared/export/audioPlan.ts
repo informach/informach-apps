@@ -1,4 +1,5 @@
 import { duckExpr, duckingOf, ducks, speechSpans, spotlightSpans } from "../audio.ts";
+import { clicksTrack } from "../clickEvents.ts";
 import { gainExpr, gainSlice } from "../gain.ts";
 import { adjacency, clipEnd, clipSpeed, projectDuration, sourceEnd } from "../timeline.ts";
 import { isCutFx } from "../transitions.ts";
@@ -122,7 +123,7 @@ const continues = (a: Sound, b: Sound): boolean =>
 
 export function buildAudioPlan(
   project: Project,
-  spec: Pick<ExportSpec, "speech" | "cursors" | "effects">,
+  spec: Pick<ExportSpec, "speech" | "cursors" | "effects" | "clicks">,
   options: AudioOptions = {},
 ): AudioPlan {
   const duration = projectDuration(project);
@@ -146,7 +147,7 @@ export function buildAudioPlan(
 
   // Lanes: the clips of a track one after the other (a clip overlapping the lane's last one, which
   // the timeline does not make, starts another lane of the same track).
-  /** A lane of a track, or of a recording's clicks beside it (`owner` is the track either way). */
+  /** A lane of a track (`owner` is the track). */
   type Lane = { trackId: string; owner: string; sounds: Sound[] };
   const lanes: Lane[] = [];
   const clips = [...project.clips].sort(
@@ -163,37 +164,6 @@ export function buildAudioPlan(
   for (const clip of clips) {
     const track = tracks.get(clip.trackId);
     const asset = assets.get(clip.assetId);
-    // The click sound of a screen recording (cursor effects) plays with each clip that shows its
-    // pointer, as the preview plays it (Preview.tsx CursorLayer): in a lane of its own beside
-    // the track, heard when the track is and seen (a hidden track shows no pointer), never from
-    // the sound taken out of the video (soundOnly), so a take clicks once.
-    const clicks = asset?.cursor ? spec.cursors?.[asset.id]?.clicks : undefined;
-    if (
-      asset &&
-      clicks &&
-      track &&
-      !track.muted &&
-      !track.hidden &&
-      !clip.zoomLayer &&
-      !clip.soundOnly
-    ) {
-      const from = at(clip.start);
-      const to = at(clipEnd(clip));
-      if (to > from)
-        lane(`${clip.trackId}:clicks`, from, clip.trackId).sounds.push({
-          clip,
-          asset,
-          path: clicks,
-          denoise: false,
-          from,
-          to,
-          in: clip.in,
-          out: sourceEnd(clip),
-          fadeIn: 0,
-          fadeOut: 0,
-          level: 1,
-        });
-    }
     if (
       !track ||
       !asset ||
@@ -336,6 +306,29 @@ export function buildAudioPlan(
       `[${index}:a]aresample=${RATE},${format},apad=whole_len=${samples},atrim=end_sample=${samples}${aside}[effects]`,
     );
     laneLabels.push({ trackId: "", label: "effects" });
+  }
+
+  // The automatic clicks (shared/clickEvents.ts, the track "Cliques"): one track on the lesson's
+  // clock, lowered while someone speaks like the music, and stepping aside for a highlighted one.
+  if (spec.clicks) {
+    const own = clicksTrack(project);
+    const index = input++;
+    inputArgs.push("-i", spec.clicks);
+    media.add(spec.clicks);
+    const d = duckingOf(project);
+    const duck = duckExpr(
+      spec.speech ?? options.speech ?? speechSpans(project, [], new Set(), d.ramp, d.hold),
+      d.depth,
+      d.ramp,
+    );
+    const levels = [
+      duck === "1" ? "" : `volume='${duck}':eval=frame`,
+      spotlit && !own?.spotlight ? `volume='${spotlit}':eval=frame` : "",
+    ].filter(Boolean);
+    graph.push(
+      `[${index}:a]aresample=${RATE},${format},apad=whole_len=${samples},atrim=end_sample=${samples}${levels.length ? `,${levels.join(",")}` : ""}[clicks]`,
+    );
+    laneLabels.push({ trackId: own?.id ?? "", label: "clicks" });
   }
 
   const mixOf = (labels: string[], out: string): void => {

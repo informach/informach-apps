@@ -7,6 +7,7 @@ import {
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
+import { CLICK_KINDS } from "./clickEvents.ts";
 import { CURSOR_POINTERS } from "./cursor.ts";
 import { DRAWING_TOOLS, MAX_STROKE_POINTS, MAX_STROKES } from "./drawing.ts";
 import { GAIN_LIMIT } from "./gain.ts";
@@ -22,6 +23,7 @@ import {
   type ExportSpec,
   type Project,
   RECORDING_ROLES,
+  TEACHER_PICTURE,
 } from "./types.ts";
 import { VOICE_PRESETS } from "./voiceChain.ts";
 import { VOICE_MASTER_LIMIT } from "./voiceMaster.ts";
@@ -113,6 +115,7 @@ export const cursorFxSchema = z.looseObject({
   clickSound: z.boolean().optional(),
   clickVolume: z.number().min(0).max(1).optional(),
   clickSoundKind: z.enum(SOUND_EFFECT_IDS).optional(),
+  clickInclude: z.array(z.enum(CLICK_KINDS)).max(CLICK_KINDS.length).optional(),
   ranges: z
     .array(
       z.looseObject({
@@ -270,6 +273,13 @@ const asset = z.looseObject({
   cursor: path.optional(),
   cursorMissing: z.boolean().optional(),
   cursorFx: cursorFxSchema.optional(),
+  voiceRole: z
+    .union([
+      z.strictObject({ kind: z.literal("teacher") }),
+      z.strictObject({ kind: z.literal("character"), name: z.string().min(1).max(100) }),
+      z.strictObject({ kind: z.literal("none") }),
+    ])
+    .optional(),
   zooms: zooms.optional(),
   markers: z
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
@@ -382,6 +392,15 @@ const track = z.looseObject({
   duck: z.boolean().optional(),
   magnetic: z.boolean().optional(),
   spotlight: z.boolean().optional(),
+  clicks: z.boolean().optional(),
+  sfx: z.boolean().optional(),
+  voiceRole: z
+    .union([
+      z.strictObject({ kind: z.literal("teacher") }),
+      z.strictObject({ kind: z.literal("character"), name: z.string().min(1).max(100) }),
+      z.strictObject({ kind: z.literal("none") }),
+    ])
+    .optional(),
 });
 const transform = z.looseObject({
   x: number,
@@ -685,6 +704,12 @@ export const projectSchema = z
           .optional(),
       })
       .optional(),
+    voiceRule: z
+      .looseObject({
+        enabled: z.boolean().optional(),
+        picture: z.enum(TEACHER_PICTURE).optional(),
+      })
+      .optional(),
     autoSounds: z
       .looseObject({
         zooms: z.boolean().optional(),
@@ -849,6 +874,7 @@ export const exportSpecSchema = z
       .optional(),
     range: z.strictObject({ from: time, to: time }).optional(),
     effects: path.min(1).optional(),
+    clicks: path.min(1).optional(),
     stems: z.strictObject({ voice: path.min(1), music: path.min(1) }).optional(),
     reveals: z
       .record(

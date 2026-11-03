@@ -12,9 +12,11 @@ import { CURSOR_MISSING } from "@shared/preflight";
 import { newId, projectDuration } from "@shared/timeline";
 import type { ExportSpec, Project } from "@shared/types";
 import { treatedPath } from "@shared/voiceChain";
+import { applyVoiceRule } from "@shared/voiceRule";
 import type { TextCue } from "@shared/webvtt";
 import { create } from "zustand";
 import { projectSpeech } from "@/lib/audio";
+import { loadClickEvents } from "@/lib/clickSounds";
 import { ensureCursorSprites } from "@/lib/cursorRender";
 import { exportTranslations, platformInput } from "@/lib/delivery";
 import { keyIsCurrent, renderKeyFile } from "@/lib/keying";
@@ -188,9 +190,20 @@ export const exportQueue = new ExportQueue(
         );
         check();
       }
+      // The automatic clicks of the screen recordings, as the track "Cliques" of the lesson.
+      const clicks = await loadClickEvents(project);
+      if (clicks.length) {
+        status("preparing", "Preparando o som dos cliques…");
+        spec.clicks = await window.api.sounds.track(
+          clicks,
+          Math.max(projectDuration(project), autoSoundsEnd(clicks)),
+        );
+        check();
+      }
       status("exporting", "Exportando…");
       useApp.getState().startJob(id, `Exportando: ${project.name}`);
-      await window.api.startExport(id, JSON.stringify(project), spec);
+      // The teacher silent and away while a character speaks (shared/voiceRule.ts), as in the preview.
+      await window.api.startExport(id, JSON.stringify(applyVoiceRule(project)), spec);
       check();
       const current = useProject.getState().project;
       if (current?.id === project.id && current.updatedAt === project.updatedAt) {

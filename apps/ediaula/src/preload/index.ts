@@ -76,8 +76,6 @@ const api: EdiAulaApi = {
     frames: (jobId, frames, counts) => ipcRenderer.invoke("cursor:frames", jobId, frames, counts),
     end: (jobId) => ipcRenderer.invoke("cursor:end", jobId),
     cancel: (jobId) => ipcRenderer.invoke("cursor:cancel", jobId),
-    clicks: (path, id, times, volume, duration, sound) =>
-      ipcRenderer.invoke("cursor:clicks", path, id, times, volume, duration, sound),
   },
   sounds: {
     library: () => ipcRenderer.invoke("sounds:library"),
@@ -295,7 +293,12 @@ const api: EdiAulaApi = {
   },
   handleAiTools: (runTool) => {
     const listener = async (_e: unknown, call: AiToolCall): Promise<void> => {
-      let result: { ok: boolean; text: string; images?: ToolImage[] };
+      let result: {
+        ok: boolean;
+        text: string;
+        images?: ToolImage[];
+        structured?: Record<string, unknown>;
+      };
       try {
         result = await runTool(call);
       } catch (err) {

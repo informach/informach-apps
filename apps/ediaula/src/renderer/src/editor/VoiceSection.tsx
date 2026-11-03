@@ -1,5 +1,10 @@
 import { agree, plural } from "@shared/plural";
-import type { VoiceMaster } from "@shared/types";
+import {
+  TEACHER_PICTURE,
+  type TeacherPicture,
+  type VoiceMaster,
+  type VoiceRuleSettings,
+} from "@shared/types";
 import {
   treatedPath,
   VOICE_PRESET_LABELS,
@@ -7,6 +12,7 @@ import {
   type VoicePreset,
 } from "@shared/voiceChain";
 import { masterIsStale, PIECE_MINUTES, pieceSeconds, voiceClips } from "@shared/voiceMaster";
+import { characterSpans, teacherPicture, voiceRuleOn } from "@shared/voiceRule";
 import {
   Baby,
   Download,
@@ -251,6 +257,7 @@ export function VoiceSection(): ReactNode {
         </Button>
       </div>
       <KidsSection />
+      <VoiceRuleSection />
     </>
   );
 }
@@ -315,6 +322,67 @@ function KidsSection(): ReactNode {
         Na exportação, escolha a versão Adulto (a aula como está) ou Kids (com as falas dos
         personagens no lugar).
       </p>
+    </div>
+  );
+}
+
+const PICTURE_LABEL: Record<TeacherPicture, string> = {
+  fade: "Some com fade",
+  freeze: "Congela num quadro",
+  keep: "Fica como está",
+};
+
+/**
+ * "Personagem silencia a professora" (shared/voiceRule.ts): on by default, per lesson, with what
+ * the teacher's avatar does while a character speaks. Shown when the lesson has characters.
+ */
+function VoiceRuleSection(): ReactNode {
+  const project = useProject((s) => s.project);
+  if (!project) return null;
+  const spans = characterSpans(project);
+  if (!spans.length && !kidsStatus(project).length) return null;
+  const on = voiceRuleOn(project);
+  const set = (change: Partial<VoiceRuleSettings>): void => {
+    useProject.getState().commit((q) => ({ ...q, voiceRule: { ...q.voiceRule, ...change } }));
+  };
+  const names = [...new Set(spans.map((s) => s.name))];
+  return (
+    <div className="props-section">
+      <h3>
+        <UserRound size={13} /> Duas vozes
+      </h3>
+      <div className="audio-flag" title="Nunca duas vozes ao mesmo tempo">
+        <small className="muted">Personagem silencia a professora</small>
+        <Toggle
+          on={on}
+          onChange={(v) => set({ enabled: v })}
+          label="Personagem silencia a professora"
+        />
+      </div>
+      <p className="props-hint muted">
+        {spans.length
+          ? `Enquanto ${names.join(" ou ")} fala, a narração, o som do avatar da professora e a voz da gravação de tela ficam mudos. O som da página e a música continuam.`
+          : "Quando um personagem entrar na timeline, a professora fica muda enquanto ele fala."}
+      </p>
+      {on && (
+        <label className="tpl-field">
+          <span className="field-label">Avatar da professora</span>
+          <select
+            className="select"
+            value={teacherPicture(project)}
+            onChange={(e) => {
+              const next = TEACHER_PICTURE.find((p) => p === e.target.value);
+              if (next) set({ picture: next });
+            }}
+          >
+            {TEACHER_PICTURE.map((p) => (
+              <option key={p} value={p}>
+                {PICTURE_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from "@shared/frameGrab";
 import { newId, sourceAt } from "@shared/timeline";
 import type { ExportSpec, Project, ToolImage } from "@shared/types";
+import { applyVoiceRule } from "@shared/voiceRule";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { drawCursorScene } from "./cursorDraw";
@@ -192,7 +193,13 @@ async function composedFrame(
   startJob(jobId, "Montando o quadro para a IA");
   let png: Uint8Array<ArrayBuffer>;
   try {
-    png = await window.api.composeFrame(jobId, JSON.stringify(p), spec, req.time, geometry);
+    png = await window.api.composeFrame(
+      jobId,
+      JSON.stringify(applyVoiceRule(p)),
+      spec,
+      req.time,
+      geometry,
+    );
   } finally {
     signal?.removeEventListener("abort", stop);
     endJob(jobId);

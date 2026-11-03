@@ -3,6 +3,7 @@ import { speechIntervals, timelineWords } from "@shared/cleanup";
 import { type Finding, type Loudness, preflight } from "@shared/preflight";
 import { newId } from "@shared/timeline";
 import type { Project } from "@shared/types";
+import { applyVoiceRule } from "@shared/voiceRule";
 import { setCaptions } from "@/editor/CaptionSettings";
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
@@ -54,7 +55,11 @@ export async function measureLoudness(): Promise<MeasuredLoudness> {
     const { project, revision } = useProject.getState();
     if (!project) throw new Error("Nenhum projeto aberto.");
     const speech = project.tracks.some((t) => t.music) ? await projectSpeech(project) : undefined;
-    const value = await window.api.measureLoudness(jobId, JSON.stringify(project), speech);
+    const value = await window.api.measureLoudness(
+      jobId,
+      JSON.stringify(applyVoiceRule(project)),
+      speech,
+    );
     return { value, revision };
   } finally {
     endJob(jobId);
@@ -167,6 +172,11 @@ export async function runFix(
       case "solo-off":
         useApp.getState().set({ solo: [] });
         return true;
+      case "silence-teacher":
+        // The rule "personagem silencia a professora" on (shared/voiceRule.ts): one undo step.
+        return useProject
+          .getState()
+          .commit((q) => ({ ...q, voiceRule: { ...q.voiceRule, enabled: true } }));
     }
   } catch (err) {
     toast(`A correção não pôde ser feita: ${cleanError(err)}`, "error");
