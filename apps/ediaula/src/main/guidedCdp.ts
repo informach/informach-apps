@@ -512,13 +512,34 @@ export class CdpDriver {
 
   /** Modifiers go down first and up last, each with the flags held at that point. */
   async chord(chord: Chord): Promise<void> {
+    await this.chordDown(chord);
+    await this.chordUp(chord);
+  }
+
+  /** The modifier keys of a chord, in the order they go down. */
+  private modifierKeys(chord: Chord): { key: string; code: string; vk: number; bit: number }[] {
     const held: { key: string; code: string; vk: number; bit: number }[] = [];
     if (chord.ctrl) held.push({ key: "Control", code: "ControlLeft", vk: 17, bit: 2 });
     if (chord.alt) held.push({ key: "Alt", code: "AltLeft", vk: 18, bit: 1 });
     if (chord.shift) held.push({ key: "Shift", code: "ShiftLeft", vk: 16, bit: 8 });
     if (chord.meta) held.push({ key: "Meta", code: "MetaLeft", vk: 91, bit: 4 });
+    return held;
+  }
+
+  private mainKey(chord: Chord, modifiers: number) {
+    return {
+      key: chord.key,
+      code: chord.code,
+      windowsVirtualKeyCode: chord.vk,
+      nativeVirtualKeyCode: chord.vk,
+      modifiers,
+    };
+  }
+
+  /** The chord pressed and kept down (a game's arrow held): the modifiers, then the key. */
+  async chordDown(chord: Chord): Promise<void> {
     let modifiers = 0;
-    for (const m of held) {
+    for (const m of this.modifierKeys(chord)) {
       modifiers |= m.bit;
       await this.send("Input.dispatchKeyEvent", {
         type: "rawKeyDown",
@@ -528,19 +549,18 @@ export class CdpDriver {
         modifiers,
       });
     }
-    const main = {
-      key: chord.key,
-      code: chord.code,
-      windowsVirtualKeyCode: chord.vk,
-      nativeVirtualKeyCode: chord.vk,
-      modifiers,
-    };
     await this.send("Input.dispatchKeyEvent", {
-      ...main,
+      ...this.mainKey(chord, modifiers),
       type: chord.text ? "keyDown" : "rawKeyDown",
       ...(chord.text ? { text: chord.text, unmodifiedText: chord.text } : {}),
     });
-    await this.send("Input.dispatchKeyEvent", { ...main, type: "keyUp" });
+  }
+
+  /** The chord let go: the key, then the modifiers in reverse. */
+  async chordUp(chord: Chord): Promise<void> {
+    const held = this.modifierKeys(chord);
+    let modifiers = held.reduce((bits, m) => bits | m.bit, 0);
+    await this.send("Input.dispatchKeyEvent", { ...this.mainKey(chord, modifiers), type: "keyUp" });
     for (const m of [...held].reverse()) {
       modifiers &= ~m.bit;
       await this.send("Input.dispatchKeyEvent", {
@@ -1473,6 +1493,17 @@ export class WebDriver implements GuidedDriver {
     const at = this.now();
     await this.cdp.chord(chord);
     this.log?.({ k: "key", t: at, label: chord.label });
+  }
+
+  /** A key held down until keyUp (a game's arrow): the editor shows it when it goes down. */
+  async keyDown(chord: Chord): Promise<void> {
+    const at = this.now();
+    await this.cdp.chordDown(chord);
+    this.log?.({ k: "key", t: at, label: chord.label });
+  }
+
+  async keyUp(chord: Chord): Promise<void> {
+    await this.cdp.chordUp(chord);
   }
 
   /** A character typed as a key: down with its text, then up, as the page expects from a keyboard. */

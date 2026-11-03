@@ -6,7 +6,13 @@ import {
   screenCueTimes,
   scriptGuide,
 } from "../src/shared/screenCues.ts";
-import { parseScript, screenCues, speechItems, withoutVoiceTags } from "../src/shared/script.ts";
+import {
+  parseScript,
+  screenCues,
+  sentencesOf,
+  speechItems,
+  withoutVoiceTags,
+} from "../src/shared/script.ts";
 import { alignSection } from "../src/shared/scriptAlign.ts";
 
 /** A production script as the course writes them now (Cadê Todo Mundo, aula 1). */
@@ -347,4 +353,29 @@ test("uma fala achada em duas partes no mesmo ponto conta uma vez, e a fala sem 
     zero.lines.map((l) => l.status),
     ["done"],
   );
+});
+
+test("a frase do Na tela termina no ponto de fora das aspas: a pontuação da fala citada fica nela", () => {
+  assert.deepEqual(
+    sentencesOf(
+      'No "Funcionou? Clique em Verificar projeto", verificar [verificar projeto]. No "Agora vamos testar! Segure uma seta", [segurar seta]. Depois, nada.',
+    ),
+    [
+      'No "Funcionou? Clique em Verificar projeto", verificar [verificar projeto].',
+      'No "Agora vamos testar! Segure uma seta", [segurar seta].',
+      "Depois, nada.",
+    ],
+  );
+  // The quote of a button inside a bracket closes too.
+  assert.deepEqual(sentencesOf('Apontar [apontar "Câmera lenta"]. No “Olha só!” Tocar.'), [
+    'Apontar [apontar "Câmera lenta"].',
+    "No “Olha só!” Tocar.",
+  ]);
+  // A quote never closed: every end splits, as before.
+  assert.deepEqual(sentencesOf('No "Olha. Aqui está. Fim.'), ['No "Olha.', "Aqui está.", "Fim."]);
+  const cues = screenCues(
+    'No "Funcionou? Clique em Verificar projeto", [verificar projeto].',
+    "Funcionou? Clique em Verificar projeto.",
+  );
+  assert.equal(cues?.[0]?.anchor, "Funcionou? Clique em Verificar projeto");
 });

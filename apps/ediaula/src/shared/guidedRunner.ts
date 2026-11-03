@@ -4,6 +4,7 @@ import { LAPSE_FLOOR, LAPSE_MIN } from "./guidedLapse.ts";
 import {
   actionLength,
   type Chord,
+  DEFAULT_HOLD,
   DEFAULT_STEP_TIMEOUT,
   type GuidedCondition,
   type GuidedPlanV2,
@@ -70,6 +71,9 @@ export interface GuidedDriver {
   /** Down and right positive: CSS pixels on the page, notches on the screen. */
   wheel(p: Point, dx: number, dy: number): Promise<void>;
   key(chord: Chord): Promise<void>;
+  /** A key held down until keyUp (the page only: the screen helper cannot hold keys). */
+  keyDown?(chord: Chord): Promise<void>;
+  keyUp?(chord: Chord): Promise<void>;
   /** One typed character. */
   text(char: string): Promise<void>;
   /** The condition holds now (page only). */
@@ -431,6 +435,38 @@ export async function runGuided(
         late(s.actAt + 0.5, "A validação do alvo atrasou. Revise a etapa antes de continuar.");
         await driver.key(chord);
         logAct("key", at, clock.time(), s.index);
+        break;
+      }
+      case "hold": {
+        // A game's arrow kept down for its seconds: the button on the target, or a key.
+        const until = at + span(step.hold ?? DEFAULT_HOLD);
+        if (step.chord) {
+          const chord = parseChord(step.chord);
+          if (!chord) throw new Error("Escolha a tecla a segurar.");
+          if (!driver.keyDown || !driver.keyUp)
+            throw new Error("Segurar uma tecla só funciona na janela da aula.");
+          if (step.target) await driver.ready(step.target, "key");
+          await clock.wait(0);
+          await driver.keyDown(chord);
+          try {
+            await clock.wait(until);
+          } finally {
+            // Stopped or failed while held: the key never stays down after the run.
+            await driver.keyUp(chord);
+          }
+          logAct("key", at, clock.time(), s.index);
+          break;
+        }
+        const p = point ?? (await driver.sample());
+        await driver.press(p);
+        try {
+          await clock.wait(until);
+        } catch (cause) {
+          await letGo(driver, cause);
+          throw cause;
+        }
+        await driver.release(p);
+        logAct("hold", at, clock.time(), s.index);
         break;
       }
       case "drag": {

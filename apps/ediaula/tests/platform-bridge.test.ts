@@ -174,3 +174,32 @@ test("ocupado e verbos: só o que a ponte disse conta", () => {
     { by: "blockly", text: "mover", area: "flyout" },
   ]);
 });
+
+test("segurar vira uma etapa que segura o botão no alvo ou uma tecla, pelo tempo pedido", () => {
+  const steps = bridgeSteps(
+    {
+      valor: [
+        { fazer: "segurar", alvo: { seletor: "iframe.jogo", u: 0.2, v: 0.9 }, segundos: 1.5 },
+        { fazer: "segurar", tecla: "ArrowRight" },
+      ],
+    },
+    "segurar seta da direita",
+    "etapa-2",
+    viewport,
+  );
+  assert.deepEqual(
+    steps.map((s) => [s.action, s.hold, s.chord]),
+    [
+      ["hold", 1.5, undefined],
+      ["hold", undefined, "ArrowRight"],
+    ],
+  );
+  assert.deepEqual(steps[0].target?.locator?.point, { u: 0.2, v: 0.9 });
+  assert.equal(steps[1].target, undefined);
+  // Both, or neither: the platform said something the robot cannot do.
+  for (const passo of [
+    { fazer: "segurar", segundos: 1 },
+    { fazer: "segurar", alvo: { texto: "Seta" }, tecla: "ArrowUp" },
+  ])
+    assert.throws(() => bridgeSteps({ valor: [passo] }, "segurar", "x", viewport));
+});

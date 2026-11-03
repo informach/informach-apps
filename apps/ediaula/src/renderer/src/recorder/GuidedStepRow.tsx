@@ -2,6 +2,7 @@ import {
   ACTION_LABELS,
   type BrokenStep,
   COMMON_KEYS,
+  DEFAULT_HOLD,
   DEFAULT_STEP_TIMEOUT,
   GUIDED_ACTIONS,
   type GuidedAction,
@@ -9,6 +10,7 @@ import {
   type GuidedPlanV2,
   type GuidedStepTarget,
   type GuidedStepV2,
+  MAX_HOLD,
   MAX_STEP_TIMEOUT,
   WAIT_POLICIES,
   WAIT_POLICY_LABELS,
@@ -172,7 +174,13 @@ export function GuidedStepRow({
           update({
             action,
             value: action === "type" ? (step.value ?? "") : undefined,
-            chord: action === "key" ? (step.chord ?? "Enter") : undefined,
+            chord:
+              action === "key"
+                ? (step.chord ?? "Enter")
+                : action === "hold"
+                  ? step.chord
+                  : undefined,
+            hold: action === "hold" ? step.hold : undefined,
             delta: action === "scroll" ? (step.delta ?? { x: 0, y: web ? 400 : 3 }) : undefined,
             to: action === "drag" ? step.to : undefined,
             until: action === "wait" || action === "scroll" ? step.until : undefined,
@@ -195,7 +203,9 @@ export function GuidedStepRow({
               ? "Rolar sobre (opcional)"
               : step.action === "key" && web
                 ? "Campo (opcional)"
-                : "Marcar alvo",
+                : step.action === "hold" && web
+                  ? "Marcar o que segurar"
+                  : "Marcar alvo",
           targetText(step.target, plan.mode),
         )}
       {step.action === "drag" &&
@@ -244,6 +254,28 @@ export function GuidedStepRow({
             ))}
           </datalist>
         </>
+      )}
+      {step.action === "hold" && web && (
+        <input
+          aria-label={`Tecla a segurar na etapa ${n}`}
+          title="Vazio: segura o botão do mouse no alvo. Com uma tecla (ArrowRight…), segura a tecla."
+          placeholder="Tecla (opcional)"
+          value={step.chord ?? ""}
+          onChange={(e) => update({ chord: e.target.value || undefined })}
+        />
+      )}
+      {step.action === "hold" && (
+        <label>
+          Segurar por (s)
+          <input
+            type="number"
+            min="0.1"
+            max={MAX_HOLD}
+            step="0.1"
+            value={step.hold ?? DEFAULT_HOLD}
+            onChange={(e) => update({ hold: Number(e.target.value) })}
+          />
+        </label>
       )}
       {step.action === "scroll" && (
         <label>

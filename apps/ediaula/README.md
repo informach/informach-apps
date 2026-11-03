@@ -1450,7 +1450,8 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   1 ou 2 pixels; a 60 quadros com a página animada e o codificador atrasado, um quadro ou outro a até 7),
   por mais lenta que a página seja; o take só demora mais no relógio.
 - **Ações:** apontar, passar o mouse, clicar, clique duplo, clique direito, arrastar, rolar (uma distância ou até
-  um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**), esperar (um elemento
+  um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**), **Segurar** (o botão
+  do mouse no alvo ou uma tecla, por **Segurar por (s)**, até 30 s: a seta de um jogo), esperar (um elemento
   aparecer, sumir ou ficar disponível) e **Ação da plataforma** (veja **Ponte de gravação**). Cada etapa pode ter
   **Conferir depois** (a etapa só termina quando a condição vale) e uma **Espera máxima** de até 300 s (uma
   plataforma que confere um projeto no servidor leva minutos).
@@ -1486,7 +1487,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   aspas dentro do colchete nomeiam um botão, nunca uma frase. Verbos do EdiAula, para qualquer página:
   `clicar "Texto"`, `clique duplo "Texto"`, `clique direito "Texto"`, `apontar "Texto"`,
   `passar o mouse "Texto"`, `rolar até "Texto"`, `rolar para baixo 400`, `esperar "Texto"` (ou `sumir`),
-  `digitar "texto" em "Campo"`, `tecla Ctrl+Z` e `arrastar "A" para "B"` (o alvo pelo rótulo ou pelo texto).
+  `digitar "texto" em "Campo"`, `tecla Ctrl+Z`, `segurar "Texto" por 2 s`, `segurar tecla ArrowRight por 1,5 s`
+  e `arrastar "A" para "B"` (o alvo pelo rótulo ou pelo texto). Um colchete que segura ("segurar …", do EdiAula
+  ou da plataforma, com `por N s` no fim; sem ele, 1 s) empurra o gesto seguinte da mesma frase pelo tempo que
+  segura. As frases do **Na tela** terminam no ponto (ou "?", "!") seguido de maiúscula fora das aspas: a
+  pontuação da fala citada fica na citação (`No "Funcionou? Clique em Verificar projeto"` é uma frase só).
   Qualquer outro vira uma **Ação da plataforma**. As etapas geradas são editáveis como as outras.
   `[na edição: jogo pronto sendo jogado]` não é gesto: marca um trecho que a edição troca por
   outra tela (um vídeo, uma imagem). O robô fica parado ali, e a importação do take deixa um
@@ -1510,6 +1515,8 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   // { fazer: "rolar", alvo?, dy?, ate?, espera?, maximo? }
   // { fazer: "digitar", alvo, texto, substituir? } (substituir: seleciona o texto do campo antes)
   // { fazer: "tecla", tecla: "Ctrl+Z" }
+  // { fazer: "segurar", alvo? | tecla?, segundos? } (o botão do mouse no alvo, ou a tecla com o foco
+  //   onde os gestos de antes o deixaram, por segundos, de 0,1 a 30; sem segundos, 1)
   // { fazer: "esperar", alvo, estado?: "aparecer" | "sumir" | "ficar disponível", espera?, maximo? }
   // { fazer: "continuar", acao } (pergunta agir(acao) de novo depois dos gestos anteriores: a
   //   página decide no que eles abriram, como a lista ou a caixa de texto de um campo)
