@@ -199,6 +199,11 @@ export interface DerivedClip extends Clip {
    * frame grid, so a clip made longer by it holds its last frame rather than show one cut away.
    */
   sourceStop?: number;
+  /**
+   * The lesson's clip a piece was cut from when it is not that clip itself (shared/voiceRule.ts
+   * takes the teacher's avatar away while a character speaks): the preview selects and moves it.
+   */
+  sourceId?: string;
 }
 
 /** An effect over the whole frame, centered on a cut. */

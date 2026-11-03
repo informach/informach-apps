@@ -2,6 +2,7 @@ import { lessonNotes } from "@shared/markers";
 import { plural } from "@shared/plural";
 import { newId } from "@shared/timeline";
 import type { ExportSpec } from "@shared/types";
+import { applyVoiceRule } from "@shared/voiceRule";
 import { useApp } from "@/state/app";
 import { prepareCaptions } from "@/state/exportQueue";
 import { usePlayback } from "@/state/playback";
@@ -43,7 +44,12 @@ export async function exportCurrentFrame(): Promise<boolean> {
     spec.cursors = await ensureCursorSprites(project);
     const reveals = await ensureRevealSprites(project);
     if (Object.keys(reveals).length) spec.reveals = reveals;
-    const path = await window.api.exportFramePng(jobId, JSON.stringify(project), t, spec);
+    const path = await window.api.exportFramePng(
+      jobId,
+      JSON.stringify(applyVoiceRule(project)),
+      t,
+      spec,
+    );
     toast(`Quadro salvo em ${path}.`, "success");
     return true;
   } catch (err) {

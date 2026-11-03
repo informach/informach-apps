@@ -1,4 +1,4 @@
-import { clipLayout } from "./compose.ts";
+import { type Crop, clipLayout } from "./compose.ts";
 import { transformAt } from "./keyframes.ts";
 import { clipEnd, sourceAt } from "./timeline.ts";
 import type { Asset, Clip, Project } from "./types.ts";
@@ -85,7 +85,10 @@ export interface FrameOverlay {
   clip: string;
   kind: string;
   text?: string;
+  /** The part of the clip left after its crop (set_crop), where it sits on the lesson frame. */
   box: FrameBox;
+  /** Fractions of the original picture cut off each side, when the clip is cropped. */
+  crop?: Crop;
   /** A zoom layer: how much and toward where it zooms what is below it. */
   zoom?: { scale: number; x: number; y: number };
   start: number;
@@ -103,8 +106,9 @@ export interface FrameFacts {
     name: string;
     /** Second of the media shown. */
     sourceTime: number;
-    /** Where the media sits on the lesson frame. */
+    /** Where the media sits on the lesson frame (the part left after its crop). */
     box: FrameBox;
+    crop?: Crop;
     /** The zoom of the recording at that moment (1 = none), and its center (fractions). */
     zoom?: { scale: number; x: number; y: number };
   };
@@ -123,6 +127,19 @@ const box = (
   height: round(r.h / H),
 });
 const round = (v: number): number => Math.round(v * 1000) / 1000;
+
+/** The crop of a clip for get_frame, when it cuts anything. */
+const cropOf = (c: Crop): { crop?: Crop } =>
+  c.left || c.top || c.right || c.bottom
+    ? {
+        crop: {
+          left: round(c.left),
+          top: round(c.top),
+          right: round(c.right),
+          bottom: round(c.bottom),
+        },
+      }
+    : {};
 
 /** Whether a media is a screen recording (it was recorded as the screen, or has cursor data). */
 export const isScreenMedia = (a: Asset): boolean =>
@@ -180,6 +197,7 @@ export function frameFacts(project: Project, time: number): FrameFacts {
         name: a.name,
         sourceTime: round(src),
         box: box(layout.visible, W, H),
+        ...cropOf(layout.crop),
         ...(view.scale > 1.001
           ? { zoom: { scale: round(view.scale), x: round(view.cx), y: round(view.cy) } }
           : {}),
@@ -215,6 +233,7 @@ export function frameFacts(project: Project, time: number): FrameFacts {
       kind,
       ...(c.annotation?.text ? { text: c.annotation.text } : {}),
       box: box(layout.visible, W, H),
+      ...("crop" in layout ? cropOf(layout.crop) : {}),
       ...(c.zoomLayer
         ? { zoom: { scale: c.zoomLayer.scale, x: c.zoomLayer.x, y: c.zoomLayer.y } }
         : {}),

@@ -11,6 +11,7 @@ import {
 import { magneticBlockers, magneticSlot } from "@shared/magnetic";
 import { addMarker, type Marker, stepMarker } from "@shared/markers";
 import { insertClips } from "@shared/ripple";
+import { isSfxTrack, SOUND_TRACK } from "@shared/sfxTrack";
 import {
   clipEnd,
   clipsFrom,
@@ -46,8 +47,8 @@ function voiceToast(count: number): void {
     );
 }
 
-/** The track a sound effect of the library goes on (lib/actions.ts placeSoundEffect). */
-export const SOUND_TRACK = "Efeitos sonoros";
+/** The track a sound effect of the library goes on (shared/sfxTrack.ts). */
+export { SOUND_TRACK };
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -303,7 +304,7 @@ export const actions = {
         (t) =>
           t.kind === "audio" &&
           !t.locked &&
-          t.name.startsWith(SOUND_TRACK) &&
+          isSfxTrack(t) &&
           !p.clips.some((c) => c.trackId === t.id && c.start < end && clipEnd(c) > start),
       );
       const names = new Set(p.tracks.map((t) => t.name));
@@ -316,6 +317,7 @@ export const actions = {
         muted: false,
         hidden: false,
         locked: false,
+        sfx: true,
       };
       return {
         ...p,

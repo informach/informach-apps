@@ -135,7 +135,7 @@ test("export: magnifier, spotlight and click sound around the pointer", {
   const spot = spotlightOf("holofote", 100);
   // A light smaller than the magnifier: what the magnifier shows around it is not darkened.
   const narrow = spotlightOf("holofote-estreito", 10);
-  // The click sound, a press at 1 s of the recording, written as the app writes it.
+  // The click sound, a press at 1 s of the lesson, as the track "Cliques" of the export.
   const clicks = join(dir, "cliques.flac");
   const samples = new Float32Array(CLICK_RATE * 3);
   fillClicks(samples, 0, [1], 0.8, clickSamples());
@@ -185,7 +185,7 @@ test("export: magnifier, spotlight and click sound around the pointer", {
     tracks: [{ id: "v", kind: "video", name: "Tela", muted: false, hidden: false, locked: false }],
     clips: [{ id: "c", assetId: "a", trackId: "v", start: 0, in: 0, duration: 3, volume: 1 }],
   };
-  const render = (name: string, sprite: CursorSprite): string => {
+  const render = (name: string, sprite: CursorSprite, clickTrack?: string): string => {
     const out = join(dir, `${name}.mp4`);
     const plan = buildExportPlan(project, {
       outPath: out,
@@ -196,6 +196,8 @@ test("export: magnifier, spotlight and click sound around the pointer", {
       normalizeLoudness: false,
       encoder: "x264",
       cursors: { a: sprite },
+      // The automatic clicks are the lesson's track "Cliques" (shared/clickEvents.ts).
+      ...(clickTrack ? { clicks: clickTrack } : {}),
     });
     const script = join(dir, `${name}.txt`);
     writeFileSync(script, plan.filter);
@@ -216,7 +218,8 @@ test("export: magnifier, spotlight and click sound around the pointer", {
   const lens = render("lupa", cursor({ magnifier: { radius: 40, side: 40, on: [[0, 2]] } }));
   const lit = render(
     "holofote",
-    cursor({ spotlight: { picture: spot, width: W, height: H, on: [[0, 3]] }, clicks }),
+    cursor({ spotlight: { picture: spot, width: W, height: H, on: [[0, 3]] } }),
+    clicks,
   );
 
   const both = render(

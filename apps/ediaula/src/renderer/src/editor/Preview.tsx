@@ -1,5 +1,6 @@
 import { DUCKING, duckGain, duckingOf, ducks, spotlightSpans } from "@shared/audio";
 import { autoSoundEvents } from "@shared/autoSounds";
+import { clicksTrack } from "@shared/clickEvents";
 import {
   animAt,
   BORDER_WIDTH,
@@ -42,6 +43,7 @@ import {
   withTransitions,
 } from "@shared/transitions";
 import type { Asset, Clip, Project } from "@shared/types";
+import { applyVoiceRule } from "@shared/voiceRule";
 import { clipCues } from "@shared/webvtt";
 import { zoomAt, zoomsIn } from "@shared/zoom";
 import { zoomAffine, zoomsOver } from "@shared/zoomLayer";
@@ -71,6 +73,7 @@ import {
   useState,
 } from "react";
 import { useSpeechSpans } from "@/lib/audio";
+import { useClickEvents } from "@/lib/clickSounds";
 import { timecode } from "@/lib/format";
 import { mediaUrl, playbackPath } from "@/lib/media";
 import { clipRevealTimes, revealing, revealPicture, revealStateAt } from "@/lib/reveal";
@@ -211,7 +214,14 @@ export function Preview(): ReactNode {
     return `${captionsVersion}:${textCues.length}`;
   }, [textCues]);
   // Drawn through the same transition model as the export (dissolve tails, fades).
-  const project = useMemo(() => (raw ? withTransitions(raw) : null), [raw]);
+  // As the export shows it: the teacher silent and away while a character speaks, transitions.
+  const project = useMemo(() => (raw ? withTransitions(applyVoiceRule(raw)) : null), [raw]);
+  /** The lesson's clip a clip on stage stands for (itself, or the one a piece was cut from). */
+  const lessonId = (c: Clip): string => (c as DerivedClip).sourceId ?? c.id;
+  const lessonClip = (c: Clip): Clip => {
+    const id = (c as DerivedClip).sourceId;
+    return (id && raw?.clips.find((x) => x.id === id)) || c;
+  };
   const selection = useProject((s) => s.selection);
   // A/B of the audio panel: the original voice instead of the treated one.
   const original = useVoiceListen((s) => s.original);
@@ -292,6 +302,34 @@ export function Preview(): ReactNode {
   // its moment while playing forward (not on a jump), in the preview's mix like the export's,
   // stepping aside for a highlighted track; a solo listens to its tracks only.
   const autoSounds = useMemo(() => (raw ? autoSoundEvents(raw) : []), [raw]);
+  // The automatic clicks (shared/clickEvents.ts, track "Cliques"): played the same way, and
+  // lowered while someone speaks like the music, as the export mixes them.
+  const clicks = useClickEvents(raw ?? null);
+  // The track "Cliques" itself: heard when it is the one soloed, never aside when highlighted.
+  const ownTrack = raw ? clicksTrack(raw) : undefined;
+  const ownId = ownTrack?.id;
+  const ownLit = !!ownTrack?.spotlight;
+  useEffect(() => {
+    if (!clicks.length) return;
+    let last = usePlayback.getState().time;
+    return usePlayback.subscribe(({ time: t, playing, rate }) => {
+      const before = last;
+      last = t;
+      if (!playing || rate <= 0 || t <= before || t - before > 0.25) return;
+      const { solo } = useApp.getState();
+      if (solo.length && !(ownId && solo.includes(ownId))) return;
+      for (const e of clicks) {
+        if (e.at > t) break;
+        if (e.at <= before) continue;
+        const voice = duckGain(speech.current, t, ducking.current.depth, ducking.current.ramp);
+        const aside =
+          !ownLit && spotlit.current.length
+            ? duckGain(spotlit.current, t, ducking.current.depth, ducking.current.ramp)
+            : 1;
+        poolRef.current?.sound(e.sound, e.volume * voice * aside);
+      }
+    });
+  }, [clicks, ownId, ownLit]);
   useEffect(() => {
     if (!autoSounds.length) return;
     let last = usePlayback.getState().time;
@@ -343,6 +381,10 @@ export function Preview(): ReactNode {
         end: clipEnd(c),
         in: c.in,
         speed: clipSpeed(c),
+        // A frame held while a character speaks (shared/voiceRule.ts "freeze").
+        ...((c as DerivedClip).tail && (c as DerivedClip).sourceStop !== undefined
+          ? { stop: (c as DerivedClip).sourceStop }
+          : {}),
       };
       const add = (role: "p" | "v" | "s", kind: "video" | "audio", path: string): void => {
         const lane = `${role}|${c.trackId}|${path}`;
@@ -763,8 +805,11 @@ export function Preview(): ReactNode {
   const jobs = useApp((s) => s.jobs);
   const keyJob = Object.values(jobs).find((j) => j.label.startsWith("Removendo fundo"));
 
-  const transformOf = (c: Clip): Transform =>
-    draft?.id === c.id ? draft.t : liveTransform(c, live);
+  const transformOf = (c: Clip): Transform => {
+    // A piece the voice rule cut from a clip moves and shows its edits as that clip.
+    const id = lessonId(c);
+    return draft?.id === id ? draft.t : liveTransform(id === c.id ? c : { ...c, id }, live);
+  };
 
   /** The pictures on screen at time `t`, top layer first, with what each one covers. */
   const visibleAt = (t: number): { clip: Clip; bounds: Box }[] => {
@@ -805,15 +850,18 @@ export function Preview(): ReactNode {
   };
 
   /** Moves (or, from a corner, resizes) a clip by dragging it on the stage; one drag is one undo step. */
-  const startDrag = (e: ReactPointerEvent, clip: Clip, mode: "move" | "scale"): void => {
+  const startDrag = (e: ReactPointerEvent, shown: Clip, mode: "move" | "scale"): void => {
     if (e.button !== 0 || !project) return;
+    // The lesson's own clip: a piece of the voice rule is moved and selected as it.
+    const clip = lessonClip(shown);
     const track = project.tracks.find((t) => t.id === clip.trackId);
     const asset = assets.get(clip.assetId);
     if (!asset) return;
     e.stopPropagation();
     // Which layer an Alt + click goes to is decided now, from the selection before the click,
     // and chosen only if the pointer goes up without dragging.
-    const below = e.altKey && mode === "move" ? layerBelow(e.clientX, e.clientY, clip) : null;
+    const under = e.altKey && mode === "move" ? layerBelow(e.clientX, e.clientY, shown) : null;
+    const below = under ? lessonClip(under) : null;
     const pick = (): void => {
       if (!useProject.getState().selection.includes(clip.id))
         useProject.getState().select([clip.id]);
@@ -839,7 +887,9 @@ export function Preview(): ReactNode {
     let moved = false;
 
     // The frame's edges and center, and the edges and centers of the other pictures on screen.
-    const others = visibleAt(usePlayback.getState().time).filter((o) => o.clip.id !== clip.id);
+    const others = visibleAt(usePlayback.getState().time).filter(
+      (o) => lessonId(o.clip) !== clip.id,
+    );
     const targetsX = [0, frame.width / 2, frame.width];
     const targetsY = [0, frame.height / 2, frame.height];
     for (const { bounds: b } of others) {
@@ -956,7 +1006,10 @@ export function Preview(): ReactNode {
     setView((v) => zoomedView(v, factor, px, py));
 
   const selected =
-    selection.length === 1 ? project?.clips.find((c) => c.id === selection[0]) : undefined;
+    selection.length === 1
+      ? (project?.clips.find((c) => c.id === selection[0]) ??
+        raw?.clips.find((c) => c.id === selection[0]))
+      : undefined;
   const selectedAsset = selected && assets.get(selected.assetId);
 
   return (
@@ -1178,23 +1231,6 @@ export function Preview(): ReactNode {
                         getVideo={() => {
                           const el = served.current.get(c.id);
                           return el instanceof HTMLVideoElement ? el : undefined;
-                        }}
-                        playClick={(volume, sound) => {
-                          // Heard when its track is heard and seen, and stepping aside for
-                          // another highlighted track, as the export mixes it (audioPlan.ts).
-                          const track = project?.tracks.find((t) => t.id === c.trackId);
-                          if (!track || track.hidden || !heard(track, useApp.getState().solo))
-                            return;
-                          const aside =
-                            spotlit.current.length && !track.spotlight
-                              ? duckGain(
-                                  spotlit.current,
-                                  usePlayback.getState().time,
-                                  ducking.current.depth,
-                                  ducking.current.ramp,
-                                )
-                              : 1;
-                          poolRef.current?.sound(sound, volume * aside);
                         }}
                       />
                     )}

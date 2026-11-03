@@ -11,6 +11,7 @@ import {
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
 import { plural } from "@shared/plural";
+import { withClicksTrack } from "@shared/soundPlacement";
 import { clipEnd, newId, sourceAt, sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Clip } from "@shared/types";
 import {
@@ -48,14 +49,18 @@ export function setCursorFx(
   changes: Partial<CursorFx>,
   commit: Commit = personCommit,
 ): void {
-  commit((p) => ({
-    ...p,
-    assets: p.assets.map((a) =>
-      a.id === assetId
-        ? { ...a, cursorFx: { ...DEFAULT_CURSOR_FX, ...a.cursorFx, ...changes } }
-        : a,
-    ),
-  }));
+  commit((p) => {
+    const next = {
+      ...p,
+      assets: p.assets.map((a) =>
+        a.id === assetId
+          ? { ...a, cursorFx: { ...DEFAULT_CURSOR_FX, ...a.cursorFx, ...changes } }
+          : a,
+      ),
+    };
+    // The click sound shows on the timeline, on the track "Cliques" that also silences it.
+    return changes.clickSound ? withClicksTrack(next) : next;
+  });
 }
 
 const POINTERS: [CursorPointer, string, string][] = [

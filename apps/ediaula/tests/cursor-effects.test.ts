@@ -295,7 +295,6 @@ test("the cursor effects are saved with the project and reach the export's pictu
         height: 1080,
         on: [[0, 10]] as [number, number][],
       },
-      clicks: "C:/cache/clicks-x.flac",
     },
   };
   const plan = buildExportPlan(project, {
@@ -315,9 +314,9 @@ test("the cursor effects are saved with the project and reach the export's pictu
   assert.match(plan.filter, /enable='\(between\(t,-2,1\)\+between\(t,3,8\)\)'/);
   assert.match(plan.filter, /scale=3840:2160/);
   assert.ok(plan.inputArgs.includes("C:/cache/spot.png"));
-  // The click sound plays with the clip, at its own level, even though the screen is silent.
-  const audio = buildAudioPlan(project, { cursors });
+  // The click sound is the lesson's track "Cliques": mixed even though the screen is silent.
+  const audio = buildAudioPlan(project, { clicks: "C:/cache/clicks-x.flac" });
   assert.ok(audio.inputArgs.includes("C:/cache/clicks-x.flac"));
-  assert.match(audio.filter, /volume=1,/);
+  assert.match(audio.filter, /[clicks]/);
   assert.equal(buildAudioPlan(project, {}).inputArgs.length, 0);
 });

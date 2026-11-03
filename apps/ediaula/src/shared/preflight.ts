@@ -7,8 +7,10 @@ import { chaptersOf, hasChapterMarkers } from "./markers.ts";
 import { LINE_MISSING, LINE_PARTIAL } from "./retake.ts";
 import { type ScriptSection, speechItems } from "./script.ts";
 import type { Alignment } from "./scriptAlign.ts";
+import { CROWD_COUNT, CROWD_WINDOW, crowdedEffects } from "./soundPlacement.ts";
 import { clipEnd, projectDuration } from "./timeline.ts";
 import type { Asset, Clip, Project, PublishInfo } from "./types.ts";
+import { twoVoices } from "./voiceRule.ts";
 
 /**
  * The check before exporting: what would make the lesson worse for a child of 9 to 14 watching
@@ -37,7 +39,9 @@ export type FindingKind =
   | "chapters"
   | "black-gap"
   | "short-piece"
-  | "solo";
+  | "solo"
+  | "sfx-crowded"
+  | "two-voices";
 
 export type Fix = { label: string } & (
   | { action: "cut"; ranges: [number, number][] }
@@ -49,6 +53,7 @@ export type Fix = { label: string } & (
   | { action: "caption-size"; size: number }
   | { action: "solo-off" }
   | { action: "without-cursor" }
+  | { action: "silence-teacher" }
 );
 
 /** What a recording whose cursor data went missing looks like in the export. */
@@ -490,7 +495,19 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
           const e = Math.min(b, d);
           if (e - s > PREFLIGHT.overlap) overlaps.push([s, e]);
         }
-  for (const [s, e] of overlaps.sort((x, y) => x[0] - y[0]))
+  // A character and the teacher heard together (shared/voiceRule.ts): an error, fixed by the
+  // rule "personagem silencia a professora". Overlaps of words inside one are not said twice.
+  const both = twoVoices(project);
+  for (const v of both)
+    out.push({
+      severity: "error",
+      kind: "two-voices",
+      at: v.start,
+      message: `${v.character} e a professora falam juntos por ${secs(v.seconds)} em ${clock(v.start)}: nunca duas vozes ao mesmo tempo.`,
+      fix: { label: "Silenciar a professora", action: "silence-teacher" },
+    });
+  const inTwo = (s: number, e: number): boolean => both.some((v) => s < v.end && e > v.start);
+  for (const [s, e] of overlaps.sort((x, y) => x[0] - y[0]).filter(([s, e]) => !inTwo(s, e)))
     out.push({
       severity: "warn",
       kind: "voices-overlap",
@@ -649,6 +666,15 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       kind: "solo",
       message: `No editor, só ${alone.length > 1 ? `${alone.slice(0, -1).join(", ")} e ${alone.at(-1)} estão` : `${alone[0]} está`} tocando (solo). A exportação leva o som de todas as faixas que não estão mudas.`,
       fix: { label: "Ouvir todas as faixas", action: "solo-off" },
+    });
+
+  // Sound effects piled up (the automatic clicks are not counted): they fight for attention.
+  for (const crowd of crowdedEffects(project))
+    out.push({
+      severity: "warn",
+      kind: "sfx-crowded",
+      at: crowd.start,
+      message: `${crowd.count} efeitos sonoros em ${CROWD_WINDOW} s: amontoados, eles disputam a atenção e cansam. Deixe no máximo ${CROWD_COUNT} nesse intervalo.`,
     });
 
   const order: Record<Severity, number> = { error: 0, warn: 1, info: 2 };

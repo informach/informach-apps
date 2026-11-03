@@ -531,19 +531,13 @@ test("P1-10: o ganho de volume da tela não vale para o som de clique", () => {
       [{ id: "c", assetId: "a", trackId: "m", start: 0, in: 0, duration: 6, volume: 1 }],
     ),
   };
-  const cursors = {
-    a: {
-      sprite: "C:/s.webm",
-      size: 240,
-      fps: 30,
-      positions: new Int32Array(600),
-      clicks: "C:/cache/clicks.flac",
-    },
-  };
-  const plan = buildAudioPlan(project, { cursors }, { gains: { a: 12 } });
-  const volumes = plan.filter.match(/volume=[\d.]+/g) ?? [];
-  // The clicks at 1; the screen's own sound with its +12 dB.
-  assert.deepEqual(volumes.sort(), ["volume=1", "volume=3.981"]);
+  // The clicks are their own track ("Cliques", shared/clickEvents.ts), made at their level.
+  const plan = buildAudioPlan(project, { clicks: "C:/cache/clicks.flac" }, { gains: { a: 12 } });
+  const clicksLine = plan.filter.split(";\n").find((l) => l.endsWith("[clicks]")) ?? "missing";
+  assert.ok(plan.inputArgs.includes("C:/cache/clicks.flac"));
+  // The screen's own sound with its +12 dB; the clicks without it.
+  assert.match(plan.filter, /volume=3\.981/);
+  assert.doesNotMatch(clicksLine, /3\.981|missing/);
 });
 
 test("P2: a fixação no clique acerta o ponto e não passa do que foi gravado", () => {

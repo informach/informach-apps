@@ -33,6 +33,9 @@ export const SOUND_EFFECT_IDS = [
   "erro",
   "digitacao",
   "tchan",
+  "sucesso",
+  "comemoracao",
+  "notificacao",
 ] as const;
 export type SoundEffectId = (typeof SOUND_EFFECT_IDS)[number];
 
@@ -41,6 +44,11 @@ export interface SoundEffect {
   name: string;
   group: SoundGroup;
   hint: string;
+  /**
+   * Words to find it by (Portuguese, lower case): what it is for ("sucesso", "comemoração") and
+   * what it sounds like ("pop", "whoosh"). The AI and the library search look here.
+   */
+  tags: readonly string[];
   /** Seconds it lasts. */
   seconds: number;
   /**
@@ -56,6 +64,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Clique",
     group: "clique",
     hint: "O clique de sempre: curto e seco",
+    tags: ["clique"],
     seconds: 0.035,
     peak: 0,
   },
@@ -64,6 +73,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Clique suave",
     group: "clique",
     hint: "Mais grave e macio, para cliques frequentes",
+    tags: ["clique", "suave"],
     seconds: 0.05,
     peak: 0,
   },
@@ -72,6 +82,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Clique de mouse",
     group: "clique",
     hint: "O botão descendo e subindo, como um mouse de verdade",
+    tags: ["clique", "mouse"],
     seconds: 0.11,
     peak: 0,
   },
@@ -80,15 +91,25 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Clique mecânico",
     group: "clique",
     hint: "Estalo de tecla mecânica, mais presente",
+    tags: ["clique", "tecla", "teclado"],
     seconds: 0.07,
     peak: 0,
   },
-  { id: "pop", name: "Pop", group: "clique", hint: "Bolha que estoura", seconds: 0.09, peak: 0 },
+  {
+    id: "pop",
+    name: "Pop",
+    group: "clique",
+    hint: "Bolha que estoura",
+    tags: ["pop", "bolha", "balão", "aparecer"],
+    seconds: 0.09,
+    peak: 0,
+  },
   {
     id: "woosh-curto",
     name: "Woosh curto",
     group: "woosh",
     hint: "Passada rápida de ar, para zooms e transições curtas",
+    tags: ["whoosh", "woosh", "transição", "passagem"],
     seconds: 0.45,
     peak: 0.2,
   },
@@ -97,6 +118,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Woosh longo",
     group: "woosh",
     hint: "Passada larga e lenta, para transições mais longas",
+    tags: ["whoosh", "woosh", "transição", "passagem"],
     seconds: 0.9,
     peak: 0.42,
   },
@@ -105,6 +127,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Swoosh de entrada",
     group: "woosh",
     hint: "Sobe e chega: bom para o zoom entrando",
+    tags: ["whoosh", "woosh", "zoom", "entrada"],
     seconds: 0.5,
     peak: 0.34,
   },
@@ -113,6 +136,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Swoosh de saída",
     group: "woosh",
     hint: "Sai e desce: bom para o zoom voltando",
+    tags: ["whoosh", "woosh", "zoom", "saída"],
     seconds: 0.5,
     peak: 0.13,
   },
@@ -121,6 +145,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Ding de acerto",
     group: "destaque",
     hint: "Sininho claro para um acerto ou uma dica",
+    tags: ["sucesso", "acerto", "dica", "sino"],
     seconds: 1.2,
     peak: 0,
   },
@@ -129,6 +154,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Erro",
     group: "destaque",
     hint: "Dois tons descendo, para mostrar o que não fazer",
+    tags: ["erro", "falha", "não"],
     seconds: 0.42,
     peak: 0,
   },
@@ -137,6 +163,7 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Digitação",
     group: "destaque",
     hint: "Um pouco mais de um segundo de teclado",
+    tags: ["digitação", "teclado", "escrever"],
     seconds: 1.25,
     peak: 0,
   },
@@ -145,8 +172,36 @@ export const SOUND_EFFECTS: readonly SoundEffect[] = [
     name: "Tchan",
     group: "destaque",
     hint: "Acorde que sobe, para revelar um resultado",
+    tags: ["comemoração", "revelação", "resultado"],
     seconds: 1.1,
     peak: 0.36,
+  },
+  {
+    id: "sucesso",
+    name: "Sucesso",
+    group: "destaque",
+    hint: "Dois toques de sino subindo: acertou, publicou, deu certo",
+    tags: ["sucesso", "acerto", "publicação", "pronto"],
+    seconds: 0.75,
+    peak: 0.09,
+  },
+  {
+    id: "comemoracao",
+    name: "Comemoração",
+    group: "destaque",
+    hint: "Fanfarra curta com brilho, para uma vitória ou o fim de um desafio",
+    tags: ["comemoração", "vitória", "festa", "parabéns"],
+    seconds: 1.8,
+    peak: 0.42,
+  },
+  {
+    id: "notificacao",
+    name: "Notificação",
+    group: "destaque",
+    hint: "Dois toques suaves, como uma mensagem chegando",
+    tags: ["notificação", "alerta", "mensagem", "aviso"],
+    seconds: 0.6,
+    peak: 0,
   },
 ];
 
@@ -161,8 +216,29 @@ export const isSoundEffectId = (v: unknown): v is SoundEffectId =>
 export const soundsOf = (group: SoundGroup): SoundEffect[] =>
   SOUND_EFFECTS.filter((s) => s.group === group);
 
+/** Lower case without accents, to compare what the AI or a person types with ids and tags. */
+export const plainWord = (v: string): string =>
+  v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+/**
+ * The sound an id, a name or a tag points to ("sucesso", "Comemoração", "whoosh"): the id or the
+ * name first, then the first sound with that tag. Undefined when none.
+ */
+export function findSoundEffect(query: string): SoundEffect | undefined {
+  const q = plainWord(query);
+  if (!q) return undefined;
+  return (
+    SOUND_EFFECTS.find((s) => s.id === q || plainWord(s.name) === q) ??
+    SOUND_EFFECTS.find((s) => s.tags.some((t) => plainWord(t) === q))
+  );
+}
+
 /** Bump when a sound changes, so files and cached tracks made from the old one are made again. */
-export const SOUND_VERSION = 1;
+export const SOUND_VERSION = 2;
 /** Sample rate the sounds are made at for the export and the library files. */
 export const SOUND_RATE = CLICK_RATE;
 
@@ -488,11 +564,125 @@ const MAKERS: Record<SoundEffectId, (rate: number) => Float32Array<ArrayBuffer>>
     edges(out, rate, 0.01);
     return normalize(out, 0.8);
   },
+  sucesso: (rate) => {
+    const out = empty("sucesso", rate);
+    // E and the B a fifth up, struck one after the other: a short, bright "yes".
+    for (const [at, base, gain] of [
+      [0, 1318.5, 0.75],
+      [0.09, 1975.5, 1],
+    ] as const)
+      for (const [ratio, decay, g] of [
+        [1, 0.22, 1],
+        [2.76, 0.07, 0.2],
+      ] as const)
+        tone(out, rate, at, base * ratio, decay, gain * g);
+    edges(out, rate, 0.01);
+    return normalize(out, 0.8);
+  },
+  comemoracao: (rate) => {
+    const out = empty("comemoracao", rate);
+    // Three quick notes leading to a held major chord, with a shimmer over it.
+    [523.25, 659.25, 783.99].forEach((f, i) => {
+      tone(out, rate, i * 0.11, f, 0.09, 0.55);
+    });
+    for (const f of [1046.5, 1318.5, 1567.98]) tone(out, rate, 0.33, f, 0.5, 0.45, 1.4);
+    const rnd = noise(0xc0ffe);
+    let band = 0;
+    let low = 0;
+    const from = Math.round(0.33 * rate);
+    for (let i = from; i < out.length; i++) {
+      const t = (i - from) / rate;
+      const f = 2 * Math.sin((Math.PI * 8000) / rate);
+      const high = rnd() - low - 0.5 * band;
+      band += f * high;
+      low += f * band;
+      // Sparkles that come and go, fading with the chord.
+      out[i] += 0.16 * band * Math.exp(-t / 0.45) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 11 * t));
+    }
+    edges(out, rate, 0.02);
+    return normalize(out, 0.8);
+  },
+  notificacao: (rate) => {
+    const out = empty("notificacao", rate);
+    // G, then the C above it, soft and round, like a message arriving.
+    tone(out, rate, 0, 783.99, 0.08, 0.7);
+    tone(out, rate, 0.13, 1046.5, 0.16, 0.8);
+    edges(out, rate, 0.01);
+    return normalize(out, 0.75);
+  },
 };
 
-/** The mono samples of a sound effect at `rate`, peaking under full scale. */
+/** Target loudness of every sound effect (LUFS, ITU-R BS.1770 K-weighting, whole sound). */
+export const SOUND_LUFS = -18;
+/** No sound peaks above this (about -1 dBFS), even when that leaves it under SOUND_LUFS. */
+export const SOUND_PEAK = 0.89;
+
+/** One biquad stage (direct form I) over `x`. */
+function biquad(x: ArrayLike<number>, b: number[], a: number[]): Float64Array {
+  const y = new Float64Array(x.length);
+  let x1 = 0;
+  let x2 = 0;
+  let y1 = 0;
+  let y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const v = (b[0] * x[i] + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2) / a[0];
+    x2 = x1;
+    x1 = x[i];
+    y2 = y1;
+    y1 = v;
+    y[i] = v;
+  }
+  return y;
+}
+
+/**
+ * Loudness of a mono sound in LUFS (BS.1770: the K-weighting high shelf and high pass, then the
+ * mean square). A sound effect is shorter than the 400 ms gating blocks, so it is measured whole,
+ * without gating. -Infinity for silence.
+ */
+export function loudness(samples: ArrayLike<number>, rate: number): number {
+  const A = 10 ** (3.999843853973347 / 40);
+  const w0 = (2 * Math.PI * 1681.974450955533) / rate;
+  const alpha0 = Math.sin(w0) / (2 * 0.7071752369554196);
+  const c0 = Math.cos(w0);
+  const root = 2 * Math.sqrt(A) * alpha0;
+  const shelf = biquad(
+    samples,
+    [
+      A * (A + 1 + (A - 1) * c0 + root),
+      -2 * A * (A - 1 + (A + 1) * c0),
+      A * (A + 1 + (A - 1) * c0 - root),
+    ],
+    [A + 1 - (A - 1) * c0 + root, 2 * (A - 1 - (A + 1) * c0), A + 1 - (A - 1) * c0 - root],
+  );
+  const w1 = (2 * Math.PI * 38.13547087602444) / rate;
+  const alpha1 = Math.sin(w1) / (2 * 0.5003270373238773);
+  const c1 = Math.cos(w1);
+  const weighted = biquad(
+    shelf,
+    [(1 + c1) / 2, -(1 + c1), (1 + c1) / 2],
+    [1 + alpha1, -2 * c1, 1 - alpha1],
+  );
+  let sum = 0;
+  for (const v of weighted) sum += v * v;
+  const meanSquare = sum / Math.max(1, weighted.length);
+  return meanSquare > 0 ? -0.691 + 10 * Math.log10(meanSquare) : Number.NEGATIVE_INFINITY;
+}
+
+/** `out` brought to SOUND_LUFS, its peak kept under SOUND_PEAK. */
+function toTargetLoudness(out: Float32Array<ArrayBuffer>, rate: number): Float32Array<ArrayBuffer> {
+  const lufs = loudness(out, rate);
+  let peak = 0;
+  for (const v of out) peak = Math.max(peak, Math.abs(v));
+  if (!Number.isFinite(lufs) || peak <= 0) return out;
+  const gain = Math.min(10 ** ((SOUND_LUFS - lufs) / 20), SOUND_PEAK / peak);
+  for (let i = 0; i < out.length; i++) out[i] *= gain;
+  return out;
+}
+
+/** The mono samples of a sound effect at `rate`, at about -18 LUFS and under -1 dBFS. */
 export function soundSamples(id: SoundEffectId, rate = SOUND_RATE): Float32Array<ArrayBuffer> {
-  return MAKERS[id](rate);
+  return toTargetLoudness(MAKERS[id](rate), rate);
 }
 
 export interface PlacedSound {

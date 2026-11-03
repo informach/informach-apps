@@ -37,37 +37,15 @@ export async function importMedia(paths: string[]): Promise<Asset[]> {
       continue;
     }
     try {
-      const info = await window.api.probe(path);
-      // Avatars recorded on a solid blue or green screen get their background removed right away.
-      const screen =
-        info.kind === "video" && info.hasVideo
-          ? await window.api.detectScreen(path, info.duration, info.width, info.height)
-          : null;
-      const asset: Asset = {
-        id: newId("a"),
-        name: baseName(path),
-        path,
-        kind: info.kind,
-        duration: info.duration,
-        width: info.width,
-        height: info.height,
-        fps: info.fps,
-        hasVideo: info.hasVideo,
-        hasAudio: info.hasAudio,
-        size: info.size,
-        vfr: info.vfr,
-        ...(info.alpha ? { alpha: true } : {}),
-        proxyStatus: "none",
-        ...(screen ? { screen, key: { color: screen, ...DEFAULT_KEY } } : {}),
-      };
+      const { asset, codec } = await probeMedia(path);
       useProject.getState().patch((p) => ({ ...p, assets: [...p.assets, asset] }));
       result.push(asset);
-      if (screen)
+      if (asset.screen)
         toast(
-          `${asset.name}: fundo ${screen.toUpperCase()} detectado. Removendo automaticamente.`,
+          `${asset.name}: fundo ${asset.screen.toUpperCase()} detectado. Removendo automaticamente.`,
           "info",
         );
-      void enrich(asset, info.videoCodec);
+      void enrich(asset, codec);
     } catch (err) {
       toast(`Não foi possível importar ${baseName(path)}: ${(err as Error).message}`, "error");
     }
@@ -75,21 +53,61 @@ export async function importMedia(paths: string[]): Promise<Asset[]> {
   return result;
 }
 
-/** Thumbnail, waveform and, when it needs one, the proxy of a media just added or replaced. */
-export async function enrich(asset: Asset, codec?: string): Promise<void> {
-  const { patchAsset } = useProject.getState();
+/**
+ * One file as a media of the lesson, not added to it yet: an edit that brings it in adds it in
+ * the same step as its clips (the AI tools), so undoing that step takes the media away too.
+ * Throws when the file cannot be read.
+ */
+export async function probeMedia(path: string): Promise<{ asset: Asset; codec?: string }> {
+  const info = await window.api.probe(path);
+  // Avatars recorded on a solid blue or green screen get their background removed right away.
+  const screen =
+    info.kind === "video" && info.hasVideo
+      ? await window.api.detectScreen(path, info.duration, info.width, info.height)
+      : null;
+  const asset: Asset = {
+    id: newId("a"),
+    name: baseName(path),
+    path,
+    kind: info.kind,
+    duration: info.duration,
+    width: info.width,
+    height: info.height,
+    fps: info.fps,
+    hasVideo: info.hasVideo,
+    hasAudio: info.hasAudio,
+    size: info.size,
+    vfr: info.vfr,
+    ...(info.alpha ? { alpha: true } : {}),
+    proxyStatus: "none",
+    ...(screen ? { screen, key: { color: screen, ...DEFAULT_KEY } } : {}),
+  };
+  return { asset, ...(info.videoCodec ? { codec: info.videoCodec } : {}) };
+}
+
+/** The thumbnail and the waveform of a media (files made by the main process). */
+export async function mediaPictures(asset: Asset): Promise<Pick<Asset, "thumb" | "waveform">> {
+  const out: Pick<Asset, "thumb" | "waveform"> = {};
   try {
-    if (asset.kind !== "audio") {
-      const thumb = await window.api.thumbnail(asset.path, asset.kind, asset.duration);
-      patchAsset(asset.id, { thumb });
-    }
-    if (asset.hasAudio) {
-      const waveform = await window.api.waveform(asset.path);
-      patchAsset(asset.id, { waveform });
-    }
+    if (asset.kind !== "audio")
+      out.thumb = await window.api.thumbnail(asset.path, asset.kind, asset.duration);
+    if (asset.hasAudio) out.waveform = await window.api.waveform(asset.path);
   } catch (err) {
     console.warn("enrich failed", asset.path, err);
   }
+  return out;
+}
+
+/** Thumbnail, waveform and, when it needs one, the proxy of a media just added or replaced. */
+export async function enrich(asset: Asset, codec?: string): Promise<void> {
+  const pictures = await mediaPictures(asset);
+  if (pictures.thumb !== undefined || pictures.waveform !== undefined)
+    useProject.getState().patchAsset(asset.id, pictures);
+  preparePlayback(asset, codec);
+}
+
+/** The proxy (when it needs one) and the filmstrip of a media that is in the lesson. */
+export function preparePlayback(asset: Asset, codec?: string): void {
   // The filmstrip decodes the proxy when there is one (a 4K original would be slow to read).
   const strip = (): void => {
     const now = useProject.getState().project?.assets.find((a) => a.id === asset.id);

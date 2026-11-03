@@ -72,6 +72,26 @@ export const RECORDING_ROLES = [
 export type RecordingRole = (typeof RECORDING_ROLES)[number];
 export type ProxyStatus = "none" | "pending" | "ready" | "error";
 
+/**
+ * Whose voice a track or a media is (shared/voiceRule.ts): the teacher's, a character's
+ * (Dedé, Debinha…) or nobody's (page sound, music, a b-roll).
+ */
+export type VoiceRole =
+  | { kind: "teacher" }
+  | { kind: "character"; name: string }
+  | { kind: "none" };
+
+/** What happens to the teacher's avatar picture while a character speaks. */
+export const TEACHER_PICTURE = ["keep", "fade", "freeze"] as const;
+export type TeacherPicture = (typeof TEACHER_PICTURE)[number];
+
+export interface VoiceRuleSettings {
+  /** Off only when false. */
+  enabled?: boolean;
+  /** Default "fade". */
+  picture?: TeacherPicture;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -117,6 +137,8 @@ export interface Asset {
   cursorMissing?: boolean;
   /** How the recorded pointer is drawn; absent = defaults. */
   cursorFx?: CursorFx;
+  /** Whose voice the media is, set by hand (shared/voiceRule.ts); worked out when absent. */
+  voiceRole?: VoiceRole;
   /** Markers set while recording (Ctrl+Shift+M) and passages to redo (Ctrl+Shift+R), source seconds. */
   markers?: { t: number; kind: MarkerKind }[];
   /**
@@ -371,6 +393,15 @@ export interface Track {
   magnetic?: boolean;
   /** "Destacar faixa": while it sounds, the other tracks step aside (the ducking of the music). */
   spotlight?: boolean;
+  /**
+   * The track "Cliques" (shared/clickEvents.ts): it holds no clips; it shows the automatic click
+   * sounds of the screen recordings, and muting it silences them in the preview and the export.
+   */
+  clicks?: boolean;
+  /** A track of sound effects (shared/sfxTrack.ts): never counted as someone speaking. */
+  sfx?: boolean;
+  /** Whose voice the track holds, set by hand (shared/voiceRule.ts); worked out when absent. */
+  voiceRole?: VoiceRole;
 }
 
 export interface Clip {
@@ -481,6 +512,8 @@ export interface Project {
   voiceExport?: { pieceMinutes?: number };
   /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */
   audio?: { ducking?: Partial<Ducking> };
+  /** "Personagem silencia a professora" (shared/voiceRule.ts): on unless `enabled` is false. */
+  voiceRule?: VoiceRuleSettings;
   /** The automatic whoosh with zooms and transitions (shared/autoSounds.ts); absent = off. */
   autoSounds?: AutoSounds;
   /** "Preparar aula": the step waiting and what was decided in each (shared/prepare.ts). */
@@ -668,6 +701,11 @@ export interface ExportSpec {
    * clock (FLAC, made by main/soundTrack.ts), mixed with the voices.
    */
   effects?: string;
+  /**
+   * The automatic clicks of the screen recordings (shared/clickEvents.ts, the track "Cliques") as
+   * one track on the lesson's clock, lowered while someone speaks like the music.
+   */
+  clicks?: string;
 }
 
 /** The transparent video of an animated annotation, drawn in the renderer, one per clip. */
@@ -699,8 +737,6 @@ export interface CursorSprite {
    * half of twice the recording's size, moved with the pointer during the source stretches `on`.
    */
   spotlight?: { picture: string; width: number; height: number; on: [number, number][] };
-  /** The click sound on the recording's own clock (FLAC), mixed like the recording's sound. */
-  clicks?: string;
 }
 
 /** Where an export is: getting media ready, rendering segments, mixing the sound, putting it together. */
@@ -937,18 +973,6 @@ export interface EdiAulaApi {
     frames(jobId: string, frames: Uint8Array, counts: number[]): Promise<void>;
     end(jobId: string): Promise<string>;
     cancel(jobId: string): Promise<void>;
-    /**
-     * The click sound of a recording on its own clock (shared/clickSound.ts), cached as FLAC
-     * beside its sprite: a click at each of `times` (source seconds) at `volume`.
-     */
-    clicks(
-      path: string,
-      id: string,
-      times: Float64Array,
-      volume: number,
-      duration: number,
-      sound?: import("./soundEffects.ts").SoundEffectId,
-    ): Promise<string>;
   };
   /** Sound effects (shared/soundEffects.ts, main/soundTrack.ts). */
   sounds: {
@@ -1362,6 +1386,11 @@ export interface EdiAulaApi {
   onAssistantEvent(cb: (conversationId: string, e: AssistantEvent) => void): () => void;
   /** Registers the renderer as the executor of AI tool calls (from MCP clients and the assistant). */
   handleAiTools(
-    run: (call: AiToolCall) => Promise<{ ok: boolean; text: string; images?: ToolImage[] }>,
+    run: (call: AiToolCall) => Promise<{
+      ok: boolean;
+      text: string;
+      images?: ToolImage[];
+      structured?: Record<string, unknown>;
+    }>,
   ): () => void;
 }

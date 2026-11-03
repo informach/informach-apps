@@ -61,7 +61,13 @@ export function exportProject(project: Project, r: Rate): DerivedProject {
     const start = snap(c.start);
     const end = snap(clipEnd(c));
     if (end <= start) continue;
-    const out: DerivedClip = { ...c, start, duration: end - start, sourceStop: sourceEnd(c) };
+    // A held frame (shared/voiceRule.ts "freeze") keeps the source second it stops at.
+    const out: DerivedClip = {
+      ...c,
+      start,
+      duration: end - start,
+      sourceStop: c.sourceStop ?? sourceEnd(c),
+    };
     // A tail keeps at least one frame, so its progress never divides by zero.
     if (c.tail)
       out.tail = Math.min(end - start, Math.max(frameTime(1, r), end - snap(clipEnd(c) - c.tail)));

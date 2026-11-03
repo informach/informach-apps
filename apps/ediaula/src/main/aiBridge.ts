@@ -56,6 +56,8 @@ const outcomeSchema = z.object({
   ok: z.boolean(),
   text: z.string().max(5_000_000),
   images: z.array(imageSchema).max(4).optional(),
+  /** The same facts as data (MCP structuredContent), e.g. get_overview's selection. */
+  structured: z.record(z.string(), z.unknown()).optional(),
 });
 
 ipcMain.handle("ai:result", (_e, rawId: unknown, rawResult: unknown) => {

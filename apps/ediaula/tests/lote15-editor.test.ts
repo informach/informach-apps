@@ -12,6 +12,8 @@ import { renderSegments, type SegmentJob, segmentKeys } from "../src/main/export
 import { SegmentCache } from "../src/main/export/segmentCache.ts";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { lessonFile } from "../src/main/lessonFile.ts";
+import { clickEvents } from "../src/shared/clickEvents.ts";
+import { DEFAULT_CURSOR_FX } from "../src/shared/cursor.ts";
 import { buildAudioPlan } from "../src/shared/export/audioPlan.ts";
 import { windowSignature } from "../src/shared/export/fingerprint.ts";
 import { exportProject, frameRate } from "../src/shared/export/frames.ts";
@@ -266,17 +268,15 @@ test("the sound taken out of a video is not drawn and does not click again", () 
   const plan = buildVideoWindowPlan(exportProject(p, r), spec, r, { from: 0, frames: 300 });
   assert.equal(plan.inputArgs.filter((a) => a === "-i").length, 1, "the video read once");
   assert.equal((plan.filter.match(/overlay=/g) ?? []).length, 1, "drawn once");
-  const cursors = {
-    cam: {
-      sprite: "s.webm",
-      size: 64,
-      fps: 30,
-      positions: new Int32Array(2),
-      clicks: "C:/cache/clicks.flac",
-    },
+  // One click of the recording sounds once: the picture clicks, its separated sound does not.
+  const sounding = {
+    ...p,
+    assets: p.assets.map((a) => ({ ...a, cursorFx: { ...DEFAULT_CURSOR_FX, clickSound: true } })),
   };
-  const audio = buildAudioPlan(p, { cursors });
-  assert.equal(audio.inputArgs.filter((a) => a === "C:/cache/clicks.flac").length, 1);
+  assert.deepEqual(
+    clickEvents(sounding, new Map([["cam", oneClick]])).map((e) => e.at),
+    [2],
+  );
   // A lesson saved before the mark: its separated sound is recognized when it opens.
   const old = structuredClone(p);
   for (const c of old.clips) delete c.soundOnly;
@@ -291,33 +291,41 @@ test("the sound taken out of a video is not drawn and does not click again", () 
 });
 
 test("the clicks follow their track as in the preview: hidden, highlighted", () => {
-  const scr = asset("scr", "video", { cursor: "C:/aulas/scr.cursor.json" });
-  const cursors = {
-    scr: {
-      sprite: "s.webm",
-      size: 64,
-      fps: 30,
-      positions: new Int32Array(2),
-      clicks: "C:/cache/clicks.flac",
-    },
-  };
-  const lesson = (extra: Partial<Track>): Project =>
+  const scr = asset("scr", "video", {
+    cursor: "C:/aulas/scr.cursor.json",
+    cursorFx: { ...DEFAULT_CURSOR_FX, clickSound: true },
+  });
+  const data = new Map([["scr", oneClick]]);
+  const lesson = (screen: Partial<Track>, clicks: Partial<Track> = {}): Project =>
     project(
       [scr, asset("voz", "audio")],
-      [track("v1", "video", extra), track("a1", "audio")],
+      [
+        track("v1", "video", screen),
+        track("a1", "audio"),
+        track("k", "audio", { clicks: true, ...clicks }),
+      ],
       [clip("s1", "scr", "v1", 0, 10), clip("n1", "voz", "a1", 0, 10)],
     );
-  const hidden = buildAudioPlan(lesson({ hidden: true }), { cursors });
-  assert.ok(!hidden.inputArgs.includes("C:/cache/clicks.flac"), "a hidden track does not click");
-  // Its own track highlighted: the narration steps aside, the clicks do not (lane 0 is theirs,
-  // lane 1 the screen's own sound, lane 2 the narration).
-  const lit = buildAudioPlan(lesson({ spotlight: true }), { cursors });
-  const laneLine = (name: string): string | undefined =>
-    lit.filter.split(";\n").find((l) => l.endsWith(`[${name}]`));
-  assert.ok(lit.inputArgs.includes("C:/cache/clicks.flac"));
-  assert.match(laneLine("lane2") ?? "", /volume=/, "the narration steps aside");
-  assert.doesNotMatch(laneLine("lane0") ?? "missing", /volume=|missing/, "the clicks do not");
+  // A hidden or muted screen track does not click, nor a muted "Cliques".
+  assert.equal(clickEvents(lesson({ hidden: true }), data).length, 0);
+  assert.equal(clickEvents(lesson({ muted: true }), data).length, 0);
+  assert.equal(clickEvents(lesson({}, { muted: true }), data).length, 0);
+  assert.equal(clickEvents(lesson({}), data).length, 1);
+  const line = (plan: ReturnType<typeof buildAudioPlan>, name: string): string =>
+    plan.filter.split(";\n").find((l) => l.endsWith(`[${name}]`)) ?? "missing";
+  // Another track highlighted: the clicks go under the voice and step aside with the rest.
+  const other = buildAudioPlan(lesson({ spotlight: true }), { clicks: "C:/cache/clicks.flac" });
+  assert.equal(line(other, "clicks").match(/volume=/g)?.length, 2);
+  // "Cliques" highlighted itself: only lowered under the voice, never aside.
+  const own = buildAudioPlan(lesson({}, { spotlight: true }), { clicks: "C:/cache/clicks.flac" });
+  assert.equal(line(own, "clicks").match(/volume=/g)?.length, 1);
 });
+
+/** One press at source second 2 (a click, not a drag). */
+const oneClick = {
+  clicks: [[2, 10, 10, 0, 0.05]] as [number, number, number, number, number][],
+  typing: [] as number[],
+};
 
 // ---- 4. Magnetic track with a cut group ----
 

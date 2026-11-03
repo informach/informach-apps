@@ -1,12 +1,10 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
-import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
+import { desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { z } from "zod";
-import { SOUND_EFFECT_IDS } from "../shared/soundEffects.ts";
-import { cursorClicksPath, cursorSpritePath } from "./cursor-sprite-path.ts";
+import { cursorSpritePath } from "./cursor-sprite-path.ts";
 import { cacheDir, FFMPEG } from "./ffmpeg.ts";
-import { samplesOf, writeSoundTrack } from "./soundTrack.ts";
 
 /**
  * Encodes the pointer sprite frames drawn by the renderer (same drawing as the preview) into a
@@ -22,17 +20,6 @@ interface Job {
 }
 
 const jobs = new Map<string, Job>();
-
-/** Most clicks in one recording's sound, and its longest length (a week, like the project). */
-const clickTimes = z
-  .instanceof(Float64Array)
-  .refine((times) => times.length <= 200_000 && times.every((t) => Number.isFinite(t) && t >= 0));
-const clickVolume = z.number().min(0).max(1);
-const clickSound = z.enum(SOUND_EFFECT_IDS);
-const clickDuration = z
-  .number()
-  .positive()
-  .max(7 * 86400);
 
 const spritePath = (path: string, id: string): string => cursorSpritePath(cacheDir(path), id);
 
@@ -128,35 +115,6 @@ export function registerCursorSprites(): void {
     await rename(job.tmp, job.out);
     return job.out;
   });
-
-  ipcMain.handle(
-    "cursor:clicks",
-    async (
-      _e,
-      path: unknown,
-      id: unknown,
-      times: unknown,
-      volume: unknown,
-      duration: unknown,
-      sound: unknown,
-    ) => {
-      const media = z.string().min(1).max(32768).parse(path);
-      // The cache sits beside a media the editor was given, never beside any path.
-      await desktopFiles.assertRead(media);
-      const out = cursorClicksPath(cacheDir(media), id);
-      if (existsSync(out)) return out;
-      const sorted = [...clickTimes.parse(times)].sort((a, b) => a - b);
-      const level = clickVolume.parse(volume);
-      const samples = samplesOf(clickSound.parse(sound ?? "clique"));
-      await writeSoundTrack(
-        FFMPEG,
-        out,
-        sorted.map((at) => ({ at, samples, volume: level })),
-        clickDuration.parse(duration),
-      );
-      return out;
-    },
-  );
 
   ipcMain.handle("cursor:cancel", async (_e, jobId: string) => {
     const job = jobs.get(jobId);
