@@ -127,7 +127,11 @@ function buildServer<Name extends string>(
           data: image.data,
           mimeType: image.mime,
         }));
-        return { content: [{ type: "text" as const, text: r.text }, ...images], isError: !r.ok };
+        return {
+          content: [{ type: "text" as const, text: r.text }, ...images],
+          ...(r.structured ? { structuredContent: r.structured } : {}),
+          isError: !r.ok,
+        };
       },
     );
   }

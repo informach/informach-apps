@@ -61,6 +61,11 @@ interface ProjectStore {
   saveError?: string;
   selection: string[];
   /**
+   * The track picked by its header in the timeline (the AI tools read it as "a faixa
+   * selecionada"); picking clips drops it, and then the first clip says which track it is.
+   */
+  selectedTrack: string | null;
+  /**
    * Bumped on every edit, undo, redo and project change, from one counter that never goes back:
    * AI tools use it to detect a stale view of the project, even of another project.
    */
@@ -100,6 +105,8 @@ interface ProjectStore {
   /** The guided plans as the recorder saved them: kept in the project, outside the undo history. */
   setGuided(store: GuidedStore): void;
   select(ids: string[]): void;
+  /** Picks a track by its header (the clips selected are let go). */
+  selectTrack(id: string | null): void;
   /** Saves the current state; resolves false when it could not be written. */
   saveNow(): Promise<boolean>;
   /** Writes what is pending: cancels the autosave timer and waits for a save in flight. */
@@ -183,6 +190,7 @@ const emptyState = {
   pastMeta: [],
   futureMeta: [],
   selection: [],
+  selectedTrack: null,
   saveState: "saved" as SaveState,
   saveError: undefined,
   aiTurn: null,
@@ -375,8 +383,10 @@ export const useProject = create<ProjectStore>((set, get) => {
       return { ok, applied: ok ? pending.length : 0, conflicts: [] };
     },
 
+    selectTrack: (id) => set({ selectedTrack: id, selection: [] }),
+
     select: (ids) => {
-      set({ selection: ids });
+      set({ selection: ids, selectedTrack: null });
       // The last selection made is the one Delete acts on: picking clips drops selected words.
       if (ids.length && useApp.getState().textCut) useApp.getState().set({ textCut: null });
     },

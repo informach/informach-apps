@@ -1,9 +1,7 @@
 import {
   buildTrack,
-  CURSOR_EFFECT_DEFAULTS,
   type CursorFx,
   type CursorTrack,
-  clickSoundTimes,
   cursorAt,
   cursorFxId,
   cursorScale,
@@ -18,7 +16,6 @@ import {
   spriteSize,
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
-import { SOUND_VERSION } from "@shared/soundEffects";
 import { newId } from "@shared/timeline";
 import type { CursorSprite, Project } from "@shared/types";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
@@ -39,14 +36,6 @@ const BATCH = 48;
  * more than a thousand pixels a side, and 48 of them would be hundreds of megabytes.
  */
 const BATCH_BYTES = 32 * 1024 * 1024;
-
-/** A short, stable key for a list of numbers (the cache name of the click sound). */
-function numbersKey(values: readonly number[], extra: string): string {
-  let hash = 2166136261;
-  for (const char of `${extra}|${values.map((v) => v.toFixed(4)).join(",")}`)
-    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return `${values.length}_${(hash >>> 0).toString(16)}`;
-}
 
 /**
  * The spotlight's picture: the recording's size (half of the twice-as-large area the export
@@ -126,22 +115,7 @@ export async function ensureCursorSprites(
           on,
         };
     }
-    const times = clickSoundTimes(data, fx);
-    const volume = fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume;
-    const sound = fx.clickSoundKind ?? CURSOR_EFFECT_DEFAULTS.clickSoundKind;
-    if (times.length && volume > 0)
-      entry.clicks = await window.api.cursorSprite.clicks(
-        asset.path,
-        // The first click keeps the key it always had, so its cached file is still good.
-        numbersKey(
-          times,
-          `stereo|${volume.toFixed(3)}|${asset.duration.toFixed(3)}${sound === "clique" ? "" : `|${sound}|${SOUND_VERSION}`}`,
-        ),
-        Float64Array.from(times),
-        volume,
-        asset.duration,
-        sound,
-      );
+    // The click sound is the lesson's track "Cliques" (shared/clickEvents.ts, exportQueue.ts).
     // Kept typed: an Int32Array crosses IPC as one value, so a long recording fits the limit.
     out[asset.id] = entry;
   }

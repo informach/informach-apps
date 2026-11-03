@@ -19,6 +19,8 @@ export interface PoolClip {
   /** Source second at `start`, and source seconds per timeline second. */
   in: number;
   speed: number;
+  /** Source second the picture holds at (a frame held while a character speaks). */
+  stop?: number;
 }
 
 /** What one element of a lane does now: play a piece from a source second, or wait at it. */
@@ -71,8 +73,15 @@ export function planLane(clips: readonly PoolClip[], t: number, lookahead: numbe
   const plan: LanePlan = [null, null];
   const i = lastStarted(clips, t);
   for (const k of [i - 1, i])
-    if (k >= 0 && t < clips[k].end)
-      plan[slotOf(k)] = { clipId: clips[k].id, play: true, time: sourceAt(clips[k], t) };
+    if (k >= 0 && t < clips[k].end) {
+      const at = sourceAt(clips[k], t);
+      const stop = clips[k].stop;
+      // Past the held frame the element waits on it.
+      plan[slotOf(k)] =
+        stop !== undefined && at >= stop
+          ? { clipId: clips[k].id, play: false, time: stop }
+          : { clipId: clips[k].id, play: true, time: at };
+    }
   for (let k = i + 1; k < clips.length && k <= i + 2; k++) {
     const slot = slotOf(k);
     if (plan[slot] || clips[k].start - t > lookahead) continue;

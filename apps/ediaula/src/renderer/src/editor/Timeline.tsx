@@ -79,6 +79,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
+import { useClickEvents } from "@/lib/clickSounds";
 import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
@@ -170,7 +171,11 @@ export function Timeline(): ReactNode {
 }
 
 function TimelineInner({ project }: { project: Project }): ReactNode {
+  // The automatic clicks (track "Cliques"): one tick each, in the visible stretch only.
+  const clickTicks = useClickEvents(project);
   const selection = useProject((s) => s.selection);
+  // The track picked by its header (the AI reads it as the selected track).
+  const selectedTrack = useProject((s) => s.selectedTrack);
   const junction = useApp((s) => s.junction);
   const zoom = useApp((s) => s.zoom);
   const tool = useApp((s) => s.tool);
@@ -927,6 +932,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               empty={!byTrack.has(t.id)}
               soloed={solo.includes(t.id)}
               dragging={trackDrag?.id === t.id}
+              selected={selectedTrack === t.id}
               onMenu={(e) => {
                 e.preventDefault();
                 setTrackMenu({ x: e.clientX, y: e.clientY, trackId: t.id });
@@ -1011,6 +1017,19 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                       }
                     />
                   )}
+                  {t.clicks &&
+                    !t.muted &&
+                    clickTicks
+                      .filter((e) => e.at >= visibleFrom && e.at <= visibleTo)
+                      .map((e, i) => (
+                        <span
+                          // biome-ignore lint/suspicious/noArrayIndexKey: ticks have no identity of their own
+                          key={i}
+                          className="click-tick"
+                          style={{ left: e.at * zoom }}
+                          title={`Clique automático em ${timecode(e.at, project.settings.fps)}`}
+                        />
+                      ))}
                 </div>
               );
             })}
@@ -1490,6 +1509,7 @@ function TrackHeader({
   empty,
   soloed,
   dragging,
+  selected,
   onMenu,
   onDragStart,
   onMove,
@@ -1499,6 +1519,8 @@ function TrackHeader({
   empty: boolean;
   soloed: boolean;
   dragging: boolean;
+  /** Picked by its header: the AI tools read it as the selected track. */
+  selected: boolean;
   onMenu: (e: React.MouseEvent) => void;
   onDragStart: (e: React.PointerEvent) => void;
   /** One place up (-1) or down (1), from the keyboard. */
@@ -1507,7 +1529,7 @@ function TrackHeader({
   const [editing, setEditing] = useState(false);
   return (
     <fieldset
-      className={`track-head track-head-${track.kind} ${trackH(track) < 44 ? "is-short" : ""} ${dragging ? "is-dragging" : ""}`}
+      className={`track-head track-head-${track.kind} ${trackH(track) < 44 ? "is-short" : ""} ${dragging ? "is-dragging" : ""} ${selected ? "is-selected" : ""}`}
       style={{ height: trackH(track) }}
       aria-label={`Faixa ${label}: ${track.name}. Botão direito para mais opções.`}
       onContextMenu={onMenu}
@@ -1515,7 +1537,9 @@ function TrackHeader({
       <button
         type="button"
         className={`track-tag tag-${track.kind}`}
-        title="Arraste, ou use Alt+↑ e Alt+↓, para mudar a faixa de lugar (a de cima fica na frente)"
+        title="Clique para selecionar a faixa. Arraste, ou use Alt+↑ e Alt+↓, para mudar a faixa de lugar (a de cima fica na frente)"
+        aria-pressed={selected}
+        onClick={() => useProject.getState().selectTrack(selected ? null : track.id)}
         aria-label={`Mover a faixa ${track.name}`}
         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
         data-track-tag={track.id}

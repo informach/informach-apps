@@ -309,10 +309,16 @@ export const AI_TOOLS = {
     title: "Importar mídia",
     permission: "write",
     description:
-      "Imports video, audio or image files (absolute Windows paths) into the project library and, optionally, appends them to the end of the timeline in the given order.",
+      "Imports video, audio or image files (absolute Windows paths) into the project library and, optionally, appends them to the end of the timeline in the given order. With at (and optionally track_id) they are put at that time instead, one after the other, without ripple, as add_clip does.",
     input: z.object({
       paths: z.array(z.string().min(3)).min(1),
       add_to_timeline: z.boolean().optional().describe("Default true"),
+      at: z
+        .number()
+        .min(0)
+        .optional()
+        .describe("Timeline seconds to put the files at (one after the other), instead of the end"),
+      track_id: z.string().optional().describe("Track for them (with at); see add_clip"),
     }),
   },
   get_script: {
@@ -326,14 +332,14 @@ export const AI_TOOLS = {
     title: "Encaixar inserção do avatar",
     permission: "write",
     description:
-      "Places an avatar line from the script (by insert id, e.g. F1P4-D01) over the lesson: finds the line in a transcribed media (the presenter's render), puts it right after the line before it, opens the timeline with the screen held still if the recorded pause is too short, and places the avatar beside the content with a short dissolve. Warns when the avatar would talk over another voice, another avatar included. Undoable.",
+      "Places an avatar line from the script (by insert id, e.g. F1P4-D01) over the lesson. A row id of the kids table (\"Substituições na edição kids\", e.g. video-a2-retomada-K1: \"No kids, silenciar … e substituir pelo áudio do personagem\") puts the character's line, as found in its video, right over the teacher's marked line where her avatar is, on the character's track, and set_voice_rule keeps her silent meanwhile: no pause is looked for and nothing moves. An insert id instead: finds the line in a transcribed media (the presenter's render), puts it right after the line before it, opens the timeline with the screen held still if the recorded pause is too short, and places the avatar beside the content with a short dissolve. Warns when the avatar would talk over another voice, another avatar included. Undoable.",
     input: z.object({ insert_id: z.string().min(3) }),
   },
   place_inserts: {
     title: "Encaixar várias inserções do avatar",
     permission: "write",
     description:
-      'Places several avatar lines at once, as place_insert does for one: insert_ids lists them, or "all" for every avatar line of the section not on the timeline yet. All are planned on the same alignment and applied from the end of the lesson to the start, as one undo step; lines that cannot be placed (not found, a locked track in the way, two in the same pause) are reported and the rest are placed. By default it is a draft the person reviews and applies as one undo step.',
+      'Places several avatar lines at once, as place_insert does for one (kids table row ids too, placed over the teacher line): insert_ids lists them, or "all" for every avatar line of the section not on the timeline yet. All are planned on the same alignment and applied from the end of the lesson to the start, as one undo step; lines that cannot be placed (not found, a locked track in the way, two in the same pause) are reported and the rest are placed. By default it is a draft the person reviews and applies as one undo step.',
     input: z.object({
       insert_ids: z.union([z.literal("all"), z.array(z.string().min(3)).min(1)]),
       mode: MODE,
@@ -345,6 +351,132 @@ export const AI_TOOLS = {
     description:
       "Shows everything said outside the script (false starts, earlier takes of a line, comments) as a cut proposal for the user to approve. Only whole blocks between pauses or punctuation are proposed, a few words slipped into a line (a paraphrase) never are. Refused until the section is confirmed (get_script says so) and when more than 35% of what was said falls outside the script.",
     input: z.object({}),
+  },
+  add_track: {
+    title: "Criar faixa",
+    permission: "write",
+    description:
+      "Creates an empty track right above or below a track: track_id, or without it the track the person selected (get_overview says which, from the track header or the first selected clip); refused when there is neither. kind is video or audio, by default the kind of that track; label is its name, by default the editor's next \"Faixa N\". Every track takes every kind of clip and the editor keeps no video/audio separation, so any place is fine. The F1…Fn labels follow the order (F1 at the bottom). No clip moves or changes; locked tracks around are fine. Returns the new track's id and position. One undo step.",
+    input: z.object({
+      position: z.enum(["above", "below"]),
+      track_id: z.string().optional(),
+      kind: z.enum(["video", "audio"]).optional(),
+      label: z.string().min(1).max(100).optional(),
+      revision: z
+        .number()
+        .int()
+        .optional()
+        .describe("Project revision read from get_overview; a stale one is refused"),
+    }),
+  },
+  move_track: {
+    title: "Mudar faixa de lugar",
+    permission: "write",
+    description:
+      "Moves a track right above or below another one (the upper track is drawn in front). A locked track does not move, as in the editor. No clip changes. One undo step.",
+    input: z.object({
+      track_id: z.string(),
+      position: z.enum(["above", "below"]),
+      reference_track_id: z.string(),
+      revision: z
+        .number()
+        .int()
+        .optional()
+        .describe("Project revision read from get_overview; a stale one is refused"),
+    }),
+  },
+  rename_track: {
+    title: "Renomear faixa",
+    permission: "write",
+    description: "Renames a track (the name shown in its header). One undo step.",
+    input: z.object({
+      track_id: z.string(),
+      label: z.string().min(1).max(100),
+      revision: z
+        .number()
+        .int()
+        .optional()
+        .describe("Project revision read from get_overview; a stale one is refused"),
+    }),
+  },
+  remove_track: {
+    title: "Remover faixa vazia",
+    permission: "write",
+    description:
+      "Removes an empty track. A track with clips is refused and the answer says how many it has (move or delete them first); a locked one too. One undo step.",
+    input: z.object({
+      track_id: z.string(),
+      revision: z
+        .number()
+        .int()
+        .optional()
+        .describe("Project revision read from get_overview; a stale one is refused"),
+    }),
+  },
+  set_track: {
+    title: "Travar, silenciar ou ocultar faixa",
+    permission: "write",
+    description:
+      "Locks or unlocks a track (locked = no tool nor the editor changes its clips), mutes it (silent in the preview and the export) or hides it (not drawn). Only the fields given change. One undo step.",
+    input: z.object({
+      track_id: z.string(),
+      locked: z.boolean().optional(),
+      muted: z.boolean().optional(),
+      hidden: z.boolean().optional(),
+      revision: z
+        .number()
+        .int()
+        .optional()
+        .describe("Project revision read from get_overview; a stale one is refused"),
+    }),
+  },
+  set_volume: {
+    title: "Volume de clipes",
+    permission: "write",
+    description:
+      "Sets the volume of clips (ids from get_overview): 1 = as recorded, 0 = silent, up to 2; mute=true is 0. With from and to (timeline seconds) only that stretch of each clip changes, without splitting it, with a 0.05 s ramp at each edge so it does not click; without them the whole clip. Clips in a group change together, clips on locked tracks are left out, picture-only clips are skipped; every id is checked before anything changes. get_overview shows each clip's volume and its silent stretches. To keep the teacher quiet while a character speaks use set_voice_rule (it follows the clips when they move) rather than silencing stretches by hand. One undo step.",
+    input: z.object({
+      clip_ids: z.array(z.string()).min(1),
+      volume: z.number().min(0).max(2),
+      mute: z.boolean().optional(),
+      from: z.number().min(0).optional().describe("Timeline seconds"),
+      to: z.number().min(0).optional().describe("Timeline seconds"),
+    }),
+  },
+  set_voice_rule: {
+    title: "Personagem silencia a professora",
+    permission: "write",
+    description:
+      'The rule "personagem silencia a professora" of this lesson: never two voices at once. While a character (Dedé, Debinha… on clips of their own) is heard, every source of the teacher\'s voice is silent over that stretch: the narration, the sound of her avatar\'s clip and the voice of a screen recording; the page\'s sound and the music go on (the music steps aside as for any voice). It follows the clips: moving or cutting a character\'s clip moves or shortens the silence; turning it off gives the volume back. picture: what her avatar does meanwhile: "fade" (default, gone with a 0.2 s fade, so her mouth does not move without sound), "freeze" (holds the frame where she stops) or "keep". On by default. The answer lists the characters and the silences. One undo step.',
+    input: z.object({
+      enabled: z.boolean().optional(),
+      picture: z.enum(["fade", "freeze", "keep"]).optional(),
+    }),
+  },
+  set_voice_role: {
+    title: "Papel da voz",
+    permission: "write",
+    description:
+      'Says whose voice a media or a track is, for set_voice_rule: "professora" (the teacher), "personagem" (with name: Dedé, Debinha…), "nenhum" (page sound, music, a b-roll) or "automatico" to go back to the role worked out by EdiAula (a character\'s name in the file, the track or the script\'s avatar lines; narration, microphone, screen recordings and the teacher\'s avatar are the teacher; the page\'s sound, music and effects nobody). Give media (id or name) or track_id. get_overview shows the role of every clip. One undo step.',
+    input: z.object({
+      media: z.string().optional(),
+      track_id: z.string().optional(),
+      role: z.enum(["professora", "personagem", "nenhum", "automatico"]),
+      name: z.string().min(1).max(100).optional(),
+    }),
+  },
+  set_crop: {
+    title: "Cortar bordas",
+    permission: "write",
+    description:
+      'Crops the edges of video or picture clips (ids from get_overview), as the inspector\'s "Cortar bordas": left, right, top and bottom are fractions of the width or height of the original video, 0 to 0.45 each. The crop happens before the position and the scale: the clip keeps its center and its size, only the cropped strip disappears. It stays after the background removal and goes with the shadow, the rounded corners and the movement (move_clip). Use it to hide a line or a border at the edge of an avatar with the background removed (try left 0.02 and right 0.02, then check with get_frame). Each call sets the whole crop: a side left out is 0, and no values removes the crop. Clips in a group change together, clips on locked tracks are left out, sound clips are skipped; every id is checked before anything changes. One undo step.',
+    input: z.object({
+      clip_ids: z.array(z.string()).min(1),
+      left: z.number().min(0).max(0.45).optional(),
+      right: z.number().min(0).max(0.45).optional(),
+      top: z.number().min(0).max(0.45).optional(),
+      bottom: z.number().min(0).max(0.45).optional(),
+    }),
   },
   set_clip_layout: {
     title: "Posição e entrada de clipes",
@@ -703,6 +835,115 @@ export const AI_TOOLS = {
       ),
     }),
   },
+  split_clip: {
+    title: "Dividir um clipe",
+    permission: "write",
+    description:
+      "Splits one clip in two at timeline second `at` (strictly inside the clip), on its own track only: the other tracks and clips do not change (cut_ranges and cut_text cut every track together; this does not). Both halves keep layout, scale, opacity, background removal, speed, effects and group; the second half starts in the media where the first ends, speed included; the entrance transition stays on the first half and the exit on the second. Requires the project revision you read the times from (get_overview); a stale revision is refused. Refused on a locked track and while a draft that changes the structure waits for review. Returns the ids of both halves. One undo step.",
+    input: z.object({
+      clip_id: z.string(),
+      at: z.number().min(0).describe("Timeline seconds, inside the clip"),
+      revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  move_clips: {
+    title: "Mover clipes no tempo",
+    permission: "write",
+    description:
+      "Moves clips in time on their own tracks, without ripple: the other clips of the track stay where they are (move_clip only changes the position in the frame). Either clip_ids with delta (seconds, same shift for all) or with start (one clip only), or moves: a list of {clip_id, start | delta} to shift several clips by different amounts in one call. Grouped clips move with their group, as in the editor. Only the final state is checked, so clips may pass over each other on the way; the whole call is refused, nothing moved, if any clip would overlap another on its track or start before 0, and the answer says which clip and where. Clips on locked tracks are left out and named. Every id is checked first. Requires the project revision you read the times from. Returns the new positions. One undo step.",
+    input: z.object({
+      clip_ids: z.array(z.string()).min(1).optional(),
+      start: z.number().min(0).optional().describe("New start, timeline seconds (one clip only)"),
+      delta: z.number().optional().describe("Shift in seconds, + later, - earlier"),
+      moves: z
+        .array(
+          z.object({
+            clip_id: z.string(),
+            start: z.number().min(0).optional(),
+            delta: z.number().optional(),
+          }),
+        )
+        .min(1)
+        .optional()
+        .describe("Different shifts in one call, instead of clip_ids"),
+      revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  align_track_to: {
+    title: "Alinhar faixa à referência",
+    permission: "write",
+    description:
+      "Lines a track up with the clips of a reference track, assuming the track holds the reference joined without its pauses (e.g. an avatar rendered from the whole narration, while the narration track has the same speech in several clips with pauses between them). Splits the track content where each reference clip ends and moves each piece to the start of its reference clip, without ripple; the reference and every other track stay intact. Warns when the reference clips add up to more than 0.2 s more or less than the content. By default it is a draft the person reviews and applies in the review bar, as auto_zoom and place_inserts. Refused on a locked track, when the track clips are grouped with clips of other tracks, and while a draft that changes the structure waits for review. Requires the project revision you read the tracks from (get_overview). One undo step.",
+    input: z.object({
+      track_id: z.string().describe("Track to split and move (ids from get_overview)"),
+      reference_track_id: z.string().describe("Track whose clips give the pauses"),
+      mode: MODE,
+      revision: z.number().int().describe("Project revision the tracks were read at"),
+    }),
+  },
+  list_library: {
+    title: "Listar biblioteca",
+    permission: "read",
+    description:
+      'Lists what can be put in the lesson: the media of this project (id, name, kind, duration, whether it is on the timeline) and the sound effects (id "sfx:<id>" for the ones that come with EdiAula, "lib:<id>" for the person\'s own sounds kept in the library of every lesson as "Efeito sonoro"), with category and Portuguese tags such as clique, sucesso, pop, whoosh, erro, comemoração, digitação, notificação. kind filters (video, audio, image, sfx); search matches names and tags. Read-only.',
+    input: z.object({
+      kind: z.enum(["video", "audio", "image", "sfx"]).optional(),
+      search: z.string().max(200).optional(),
+    }),
+  },
+  add_clip: {
+    title: "Inserir clipe da biblioteca",
+    permission: "write",
+    description:
+      'Puts a media of the library on the timeline at timeline second `at` (media_id from list_library: a project media id, "sfx:<id>" or a tag of a sound effect, or "lib:<id>"). in/out pick a stretch of the media (source seconds), volume (1 = as recorded), fade_in/fade_out in seconds. Without ripple: it never covers nor pushes another clip. With track_id it goes on that track; if the place is taken there, it goes to another free track of the same kind or a new one. Without track_id, sound goes to the "Efeitos sonoros" track (created when missing) and a picture to a new track on top. A sound effect never covers speech for more than 0.3 s above 30% volume: it is lowered and the answer says so. Refused on a locked track. Returns the new clip id. One undo step.',
+    input: z.object({
+      media_id: z.string().min(1),
+      track_id: z.string().optional(),
+      at: z.number().min(0).describe("Timeline seconds"),
+      in: z.number().min(0).optional(),
+      out: z.number().min(0).optional(),
+      volume: z.number().min(0).max(2).optional(),
+      fade_in: z.number().min(0).max(5).optional(),
+      fade_out: z.number().min(0).max(5).optional(),
+    }),
+  },
+  add_sound_effects: {
+    title: "Colocar efeitos sonoros",
+    permission: "write",
+    description:
+      'Puts several short sound effects at once on the "Efeitos sonoros" track, without ripple and without touching other tracks. Each item: sfx (an id or a Portuguese tag: "sucesso", "comemoração", "pop", "whoosh", "erro", "notificação", "clique", "digitação"; or "lib:<id>" from list_library) and when: at (timeline seconds), near_text (exact words spoken, from the transcript) or on_annotation (an annotation clip id: plays as it comes in); volume 0..1 (default 0.8). A sound never covers speech for more than 0.3 s above 30% volume: it is lowered and the answer says so. Keep them few: more than 3 within 2 s is flagged by check_before_export. By default it is a draft the person reviews item by item in the review bar, as add_annotations.',
+    input: z.object({
+      items: z
+        .array(
+          z.object({
+            sfx: z.string().min(1),
+            at: z.number().min(0).optional(),
+            near_text: z.string().min(1).optional(),
+            on_annotation: z.string().optional(),
+            volume: z.number().min(0).max(1).optional(),
+          }),
+        )
+        .min(1)
+        .max(60),
+      mode: MODE,
+    }),
+  },
+  set_click_sound: {
+    title: "Som de clique automático",
+    permission: "write",
+    description:
+      'Turns the automatic click sound of the screen recordings made in EdiAula on or off (media: name or id; without it, every such recording). It uses the clicks saved with the pointer and follows the cuts, the speed changes and the sped-up stretches; on a stretch faster than 2x at most one click every 0.15 s. include picks what sounds: click, double_click, drag_start, drag_end, typing (default: click, double_click, drag_start). sound: a sound effect id or tag (default "clique"); volume 0..1. The clicks show on the timeline on the track "Cliques" (created when it is turned on), where the person can mute them; in the export they are mixed as that track and lowered while someone speaks, like the music. Returns how many clicks the lesson now has. One undo step.',
+    input: z.object({
+      media: z.string().optional(),
+      enabled: z.boolean(),
+      sound: z.string().optional(),
+      volume: z.number().min(0).max(1).optional(),
+      include: z
+        .array(z.enum(["click", "double_click", "drag_start", "drag_end", "typing"]))
+        .min(1)
+        .optional(),
+    }),
+  },
   list_projects: {
     title: "Listar projetos",
     permission: "read",
@@ -749,6 +990,8 @@ export const toolPermission = (name: AiToolName): ToolPermission => AI_TOOLS[nam
  */
 export const DRAFT_TOOLS: ReadonlySet<AiToolName> = new Set<AiToolName>([
   "add_annotations",
+  "add_sound_effects",
+  "align_track_to",
   "auto_zoom",
   "place_inserts",
   "set_palette",
@@ -833,7 +1076,12 @@ How editing works:
 - After every cut the timeline shifts left, so re-read the transcript before computing new time ranges. cut_ranges needs the project revision you read; a stale revision is refused.
 - Protected passages (listed in get_overview) can never be cut; if a requested cut hits one, tell the user and let them decide.
 - Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through a proposal the user reviews: propose_cuts, propose_off_script, or apply_cleanup in its default "propose" mode. Use apply_cleanup with mode "apply" only when the person explicitly asks to cut without reviewing.
-- Broad visual edits (add_annotations, auto_zoom, place_inserts, set_palette and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits. While a draft that changes the structure of the lesson (clips split, moved, removed) waits for review, cuts, cards, inserts placed right away and speed changes are refused, as in the editor: ask the person to apply or discard it first.
+- Sound: list_library lists the project media and the sound effects (Portuguese tags). add_clip puts one item at a time without ripple; add_sound_effects puts several short effects at once (a draft by default), at moments that matter (a success, a publish, a celebration, an annotation coming in), never over speech and never piled up. set_click_sound turns on the automatic click of the screen recordings (track "Cliques").
+- Tracks: get_overview starts with what the person selected ("Seleção: faixa [id] …; clipes […]"). add_track creates an empty track above or below the selected track (or track_id); move_track, rename_track, remove_track (empty ones only) and set_track (lock, mute, hide) change tracks; no clip moves.
+- Voices: never two at once. set_voice_rule (on by default) silences the teacher while a character (Dedé, Debinha…) speaks and fades her avatar away; set_voice_role fixes whose voice a media or track is; set_volume sets a clip's volume, whole or in a stretch. check_before_export flags two voices together as an error.
+- Edges of a clip: set_crop cuts a strip off any side (a line at the edge of an avatar with the background removed) without moving or resizing it; get_overview shows each clip's crop and get_frame's boxes are the part left.
+- Timing on one track: split_clip divides a single clip, move_clips moves clips in time without ripple (one shift for all, or "moves" with a shift per clip), align_track_to splits a track joined without pauses (an avatar rendered from the whole narration) and puts each piece at the start of its clip in a reference track. None of them touches other tracks; cut_ranges and cut_text cut every track together.
+- Broad edits (add_annotations, add_sound_effects, auto_zoom, place_inserts, set_palette, align_track_to and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits. While a draft that changes the structure of the lesson (clips split, moved, removed) waits for review, cuts, cards, inserts placed right away and speed changes are refused, as in the editor: ask the person to apply or discard it first.
 - Clips in a group (get_overview shows "grupo") move and change together: a tool given one clip of a group changes the whole group, as the editor does. Clips on locked tracks are left as they are, and the answer names them. Every clip id of a call is checked before anything changes: one wrong id and nothing is done.
 - prepare_lesson runs "Preparar aula" step by step (each step waits for the person's approval); check_before_export lists what to fix before exporting, with the time of each finding.
 - The automatic cleanup (find_cleanup, apply_cleanup) follows the person's choices in the Transcrição panel: what they marked to keep, or left out of an earlier cleanup proposal, is never cut. It only shortens a pause where nobody is heard on any track (the avatar placed in a pause of the narration is speech, and so is every word whisper heard, however soft) and the screen stands still: the picture changing, the pointer moving (even slowly), clicks, drags, scrolling, shortcuts and typing all hold the pause, and a screen recording whose picture was not analyzed yet is not cut at all. The steps of a guided recording are protected too once its guided-run.json is there. After a question, or where the script says to pause or wait, the pause keeps 2.5 s. Hesitations and repeats are looked for in the teacher's own words only, never in an avatar's lines or the computer's sound; the same words said again after a demonstration, far apart or across the end of a sentence are not a repeat, and emphasis or counting ("muito, muito", "vamos lá, vamos lá", "um, dois, três") stays. Tell the person about the blind spots the tools report.
