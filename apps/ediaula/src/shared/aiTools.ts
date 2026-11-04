@@ -284,11 +284,33 @@ export const AI_TOOLS = {
     title: "Exportar o vídeo",
     permission: "write",
     description:
-      "Puts an export of the open lesson in the export queue and returns its id. preset: youtube, hotmart, draft, reels or audio. formats: what else goes beside the video, among captions (.srt and .vtt), thumbnail (.jpg), translations (the translated captions that are up to date) and platform (<aula>.plataforma.json for the course platform); by default captions, thumbnail, translations and, when the lesson has publishing data, platform. range exports only that stretch (timeline seconds), with captions and thumbnail only: translations and the platform package describe the whole lesson and are refused for a stretch. The check before exporting runs first: with problems, the person is asked whether to export anyway. The person always picks the destination in a dialog; you never choose it. Follow it with get_export_status.",
+      'Puts an export of the open lesson in the export queue and returns its id. preset: youtube, hotmart, draft, reels or audio. formats: what else goes beside the video, among captions (.srt and .vtt), thumbnail (.jpg), translations (the translated captions that are up to date) and platform (<aula>.plataforma.json for the course platform); by default captions, thumbnail, translations and, when the lesson has publishing data, platform. range exports only that stretch (timeline seconds), with captions and thumbnail only: translations and the platform package describe the whole lesson and are refused for a stretch. Several parts at once, instead of range: ranges lists them ({from, to, name?}), or split: "clips" with track_id makes one part per clip or group of clips of that track (the pieces the cleanup cut from one recording are one part; on a track of recordings a b-roll goes with the part before it, the first part starts at 0:00 and each runs until the next begins). The person picks one folder for every part; each file is "<lesson title> - Parte N" (a range\'s name replaces it), and when some are already there the person is asked once whether to replace them all or add a suffix. All parts go into the queue at once, each with its own id; they follow the preset and formats like a single stretch (captions and thumbnail, never translations nor the platform package). The check before exporting runs first: with problems, the person is asked whether to export anyway. The person always picks the destination in a dialog; you never choose it. Follow it with get_export_status.',
     input: z.object({
       preset: z.enum(EXPORT_PRESET_IDS),
       formats: z.array(z.enum(EXPORT_FORMATS)).max(4).optional(),
       range: z.object({ from: z.number().min(0), to: z.number().min(0) }).optional(),
+      ranges: z
+        .array(
+          z.object({
+            from: z.number().min(0),
+            to: z.number().min(0),
+            name: z
+              .string()
+              .min(1)
+              .max(120)
+              .optional()
+              .describe('File name of this part, in place of "<lesson title> - Parte N"'),
+          }),
+        )
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Several parts at once, each a file of its own in one folder"),
+      split: z
+        .enum(["clips"])
+        .optional()
+        .describe("One part per clip or group of clips of track_id"),
+      track_id: z.string().optional().describe('The track split: "clips" goes by'),
     }),
   },
   get_export_status: {

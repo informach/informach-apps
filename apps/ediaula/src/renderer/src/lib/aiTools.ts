@@ -40,13 +40,21 @@ import { rangeProject } from "@shared/courseSplit";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { type CursorFx, DEFAULT_CURSOR_FX } from "@shared/cursor";
 import { buildEditingTemplate } from "@shared/editingTemplate";
-import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
+import {
+  checkParts,
+  type PartRange,
+  partFiles,
+  runExportParts,
+  trackParts,
+} from "@shared/exportParts";
+import { type ExportPresetId, exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
 import { GAIN_MAX_DB, GAIN_MIN_DB } from "@shared/gain";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
 import { CATEGORY_LABEL, type LibraryMedia } from "@shared/library";
 import { chaptersOf, hasChapterMarkers } from "@shared/markers";
 import { plural } from "@shared/plural";
+import type { Finding } from "@shared/preflight";
 import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
@@ -80,6 +88,7 @@ import type {
   AiToolCall,
   Asset,
   Clip,
+  ExportSpec,
   Project,
   ToolImage,
   Transcript,
@@ -125,7 +134,7 @@ import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
 import { loadClickEvents } from "./clickSounds";
-import { askConfirm } from "./confirm";
+import { askChoice, askConfirm } from "./confirm";
 import { applyTemplateParts, courseTemplate } from "./courseTemplate";
 import { hasPlatformData, makeQuiz, quizItemTime, translateLesson } from "./delivery";
 import { frameForAi } from "./frame";
@@ -673,6 +682,95 @@ function substitutionPlan(p: Project, ids: string[]): { project: Project; messag
   return { project: r.project, message };
 }
 
+/**
+ * export_video with several parts (shared/exportParts.ts): one folder picked by the person, the
+ * files named "<aula> - Parte N", one question when some are already there, and each part in the
+ * queue as a stretch of the lesson (as `range` exports one), with captions and thumbnail only.
+ */
+async function exportParts(
+  p: Project,
+  parts: readonly PartRange[],
+  opts: {
+    preset: ExportPresetId;
+    spec: Omit<ExportSpec, "outPath">;
+    vertical: boolean;
+    wanted: ReadonlySet<string>;
+    check: () => Promise<readonly Finding[]>;
+    confirm: (problems: readonly string[]) => Promise<boolean>;
+  },
+  progress: (step: string) => void,
+  signal: AbortSignal,
+): Promise<string> {
+  const files = partFiles(parts, p.name, opts.preset, opts.vertical);
+  let folder = "";
+  const result = await runExportParts(
+    {
+      check: opts.check,
+      confirm: opts.confirm,
+      pickFolder: async () => {
+        progress("Esperando você escolher a pasta das partes");
+        const picked = await window.api.pickFolder(`Onde salvar as ${parts.length} partes`);
+        // Cancelled while the dialog was open: nothing goes into the queue.
+        signal.throwIfAborted();
+        folder = picked ?? "";
+        return picked;
+      },
+      exists: (paths) => window.api.exists(paths),
+      queued: () =>
+        new Set(
+          useExportQueue
+            .getState()
+            .items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state))
+            .map((i) => i.spec.outPath.toLowerCase()),
+        ),
+      ask: async (names) => {
+        const answer = await askChoice(
+          {
+            title: "Alguns arquivos já estão na pasta",
+            message: `${names.length === 1 ? "Um arquivo" : `${names.length} arquivos`} das ${parts.length} partes já ${names.length === 1 ? "está" : "estão"} em ${folder}. Substituir todos, ou dar aos novos um sufixo, como (2)?`,
+            items: names,
+            confirm: "Substituir todos",
+            other: "Acrescentar sufixo",
+            cancel: "Não exportar",
+          },
+          signal,
+        );
+        signal.throwIfAborted();
+        return answer === "confirm" ? "replace" : answer === "other" ? "suffix" : null;
+      },
+      enqueue: (part, outPath) => {
+        signal.throwIfAborted();
+        const id = newId("export");
+        exportQueue.add({
+          id,
+          project: rangeProject(p, part.from, part.to),
+          spec: { ...opts.spec, outPath },
+          captions: opts.wanted.has("captions"),
+          extras: { translations: false, platform: false },
+        });
+        return id;
+      },
+    },
+    parts,
+    files,
+  );
+  if (!result.ok) throw new ToolError(result.text);
+  const name = (path: string): string => path.slice(path.lastIndexOf("\\") + 1);
+  return [
+    `${plural(result.parts.length, "parte na fila", "partes na fila")}, na pasta escolhida pela pessoa (${result.folder})${result.confirmed ? ", exportando apesar dos problemas, como a pessoa confirmou" : ""}:`,
+    ...result.parts.map(
+      (x, i) => `- Parte ${i + 1} · ${t(x.from)}–${t(x.to)} · id ${x.id} · ${name(x.outPath)}`,
+    ),
+    ...(result.replaced.length
+      ? [`Substituídos, como a pessoa pediu: ${result.replaced.map(name).join(", ")}.`]
+      : []),
+    ...(result.suffixed.length
+      ? [`Com sufixo, porque o nome já existia: ${result.suffixed.map(name).join(", ")}.`]
+      : []),
+    "As partes saem sem legendas traduzidas nem pacote da plataforma. Acompanhe cada uma com get_export_status.",
+  ].join("\n");
+}
+
 /** Whether a crop cuts anything. */
 const hasCrop = (c: Crop | undefined): c is Crop =>
   !!c && (c.left > 0 || c.right > 0 || c.top > 0 || c.bottom > 0);
@@ -1138,24 +1236,43 @@ const handlers: {
     return `${r.translated ? `${plural(r.translated, "legenda traduzida", "legendas traduzidas")} agora para "${lang}"` : `As legendas em "${lang}" já estavam em dia`}; ${r.count} no total guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, chame de novo: só as que mudaram são traduzidas.`;
   },
 
-  async export_video({ preset, formats, range }, { progress, signal }) {
+  async export_video({ preset, formats, range, ranges, split, track_id }, { progress, signal }) {
     const p = requireProject();
     const info = useApp.getState().info;
+    if ([range, ranges, split].filter((x) => x !== undefined).length > 1)
+      throw new ToolError("Use só um de range, ranges e split. Nada foi exportado.");
+    if (split && !track_id)
+      throw new ToolError(
+        'split: "clips" precisa de track_id, a faixa que divide as partes (ids de get_overview). Nada foi exportado.',
+      );
+    if (track_id && !split)
+      throw new ToolError('track_id só vale com split: "clips". Nada foi exportado.');
     if (range && range.to <= range.from + 0.5)
       throw new ToolError(
         "O trecho para exportar precisa ter mais de meio segundo (to depois de from).",
       );
+    // Several parts at once: the ones asked, or one per clip or group of clips of the track.
+    let parts: PartRange[] | null = ranges ?? null;
+    if (split && track_id) {
+      const r = trackParts(p, track_id);
+      if (!r.ok) throw new ToolError(r.error);
+      parts = r.parts;
+    }
+    if (parts) {
+      const valid = checkParts(parts, projectDuration(p));
+      if (!valid.ok) throw new ToolError(valid.error);
+    }
     // A stretch is not the lesson: its translations and the platform package would describe
     // the whole lesson (chapters, quiz, captions of other times), so they do not go with it.
     const whole = (formats ?? []).filter((f) => f === "translations" || f === "platform");
-    if (range && whole.length)
+    if ((range || parts) && whole.length)
       throw new ToolError(
-        `Um trecho sai sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
+        `${parts ? "As partes saem" : "Um trecho sai"} sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
       );
     const project = range ? rangeProject(p, range.from, range.to) : p;
     const wanted = new Set(
       formats ??
-        (range
+        (range || parts
           ? ["captions", "thumbnail"]
           : [
               "captions",
@@ -1170,22 +1287,32 @@ const handlers: {
     });
     progress("Conferindo a aula antes de exportar");
     const vertical = !!spec.vertical;
+    const check = async () =>
+      (await checkLesson(p, useProject.getState().revision, { srt: wanted.has("captions") }))
+        .findings;
+    const confirm = (problems: readonly string[]) =>
+      askConfirm(
+        {
+          title: "A IA quer exportar com problemas",
+          message: `A verificação antes de exportar achou ${problems.length === 1 ? "um problema" : `${problems.length} problemas`}:`,
+          items: [...problems],
+          confirm: "Exportar assim mesmo",
+          cancel: "Não exportar",
+        },
+        signal,
+      );
+    if (parts)
+      return exportParts(
+        p,
+        parts,
+        { preset, spec, vertical, wanted, check, confirm },
+        progress,
+        signal,
+      );
     const result = await runExportVideo(
       {
-        check: async () =>
-          (await checkLesson(p, useProject.getState().revision, { srt: wanted.has("captions") }))
-            .findings,
-        confirm: (problems) =>
-          askConfirm(
-            {
-              title: "A IA quer exportar com problemas",
-              message: `A verificação antes de exportar achou ${problems.length === 1 ? "um problema" : `${problems.length} problemas`}:`,
-              items: [...problems],
-              confirm: "Exportar assim mesmo",
-              cancel: "Não exportar",
-            },
-            signal,
-          ),
+        check,
+        confirm,
         pickPath: async (name) => {
           progress("Esperando você escolher onde salvar");
           const path = await window.api.pickExportPath(name);

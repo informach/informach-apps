@@ -1239,3 +1239,80 @@ test("faixas: move_track, rename_track, remove_track (só vazia), set_track; rev
   assert.equal((await call("undo", { steps: 5 })).ok, true);
   assert.deepEqual(now().tracks, original.tracks);
 });
+
+test('export_video com split "clips": uma pasta, "Parte 1" a "Parte N", todas na fila de uma vez', async () => {
+  const { useExportQueue } = await import("../src/renderer/src/state/exportQueue.ts");
+  const { exportQueue } = await import("../src/renderer/src/state/exportQueue.ts");
+  // Duas gravações de tela cortadas pela limpeza na faixa v; a fila não começa a exportar aqui.
+  const rec = (id: string) => asset(id, "video", { recording: { id, role: "screen" } });
+  open(
+    lesson("p1", {
+      name: "Aula02 gravação automática",
+      assets: [rec("t1"), rec("t2"), asset("mic", "audio")],
+      clips: [
+        { id: "a", assetId: "t1", trackId: "v", start: 0, in: 0, duration: 20, volume: 1 },
+        { id: "b", assetId: "t1", trackId: "v", start: 20, in: 25, duration: 10, volume: 1 },
+        { id: "c", assetId: "t2", trackId: "v", start: 31, in: 0, duration: 29, volume: 1 },
+        { id: "m", assetId: "mic", trackId: "a", start: 0, in: 0, duration: 60, volume: 1 },
+      ],
+    }),
+  );
+  exportQueue.hold(true);
+  const folders: string[] = [];
+  Object.assign(api, {
+    pickFolder: async (title: string) => {
+      folders.push(title);
+      return "D:\\Partes";
+    },
+    exists: async (paths: string[]) => paths.map(() => false),
+    // The queue keeps what it has for the next time the app opens.
+    exportQueue: { save: async () => {} },
+  });
+  try {
+    const before = useExportQueue.getState().items.length;
+    const r = await call("export_video", {
+      preset: "draft",
+      formats: ["captions"],
+      split: "clips",
+      track_id: "v",
+    });
+    assert.equal(r.ok, true, r.text);
+    assert.deepEqual(folders, ["Onde salvar as 2 partes"], "uma janela de pasta só");
+    const items = useExportQueue.getState().items.slice(before);
+    assert.deepEqual(
+      items.map((i) => i.spec.outPath),
+      [
+        "D:\\Partes\\Aula02 gravação automática - Parte 1.mp4",
+        "D:\\Partes\\Aula02 gravação automática - Parte 2.mp4",
+      ],
+    );
+    // Cada parte é o seu trecho da aula: 0–31 s e 31–60 s.
+    assert.deepEqual(
+      items.map((i) => Math.round(Math.max(...i.project.clips.map((c) => c.start + c.duration)))),
+      [31, 29],
+    );
+    assert.ok(items.every((i) => i.extras?.platform === false && i.extras?.translations === false));
+    assert.match(r.text, /2 partes na fila/);
+    const status = await call("get_export_status", {});
+    assert.match(status.text, /Parte 1\.mp4[\s\S]*Parte 2\.mp4/);
+    // Pedidos que não fazem sentido são recusados antes de qualquer janela.
+    const both = await call("export_video", {
+      preset: "draft",
+      range: { from: 0, to: 5 },
+      split: "clips",
+      track_id: "v",
+    });
+    assert.equal(both.ok, false);
+    const platform = await call("export_video", {
+      preset: "draft",
+      formats: ["platform"],
+      ranges: [{ from: 0, to: 5 }],
+    });
+    assert.equal(platform.ok, false);
+    assert.match(platform.text, /As partes saem sem o pacote da plataforma/);
+    assert.deepEqual(folders.length, 1);
+  } finally {
+    for (const i of useExportQueue.getState().items) exportQueue.remove(i.id);
+    exportQueue.hold(false);
+  }
+});

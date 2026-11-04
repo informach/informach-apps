@@ -509,6 +509,24 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   **Não exportar** selecionado. O destino é sempre você quem escolhe, na janela de salvar; a IA nunca escolhe. A
   exportação entra na fila e a IA acompanha com `get_export_status`. Com `range`, sai só o trecho, com legenda e
   miniatura: as legendas traduzidas e o pacote da plataforma descrevem a aula inteira e são recusados num trecho.
+- **Várias partes de uma vez** (`src/shared/exportParts.ts`): no lugar de `range`, `ranges: [{from, to, name?}]`, ou
+  `split: "clips"` com `track_id`, que dá uma parte por clipe ou grupo de clipes da faixa, do início ao fim do que
+  ele cobre.
+  - Numa faixa de gravações, os pedaços que a limpeza cortou de uma mesma gravação são uma parte só, e o quadro
+    estendido fica com a gravação dele. Um b-roll vai com a parte de antes (antes da primeira gravação, com a
+    primeira).
+  - A primeira parte começa em 0:00, cada parte vai até a seguinte começar e a última termina no fim do seu último
+    clipe.
+  - Numa faixa sem gravações, cada clipe (ou grupo) é uma parte.
+  - Uma janela só, de escolher pasta, vale para todas as partes. Cada arquivo é `<título da aula> - Parte N.mp4`, e
+    o `name` de um trecho substitui esse nome.
+  - Se algum arquivo já está na pasta, a pergunta vem uma vez só: **Substituir todos**, **Acrescentar sufixo**
+    (`(2)`, `(3)`…) ou **Não exportar**, que é o selecionado. Um arquivo que a fila já está exportando sempre
+    ganha sufixo.
+  - Todas as partes entram na fila de uma vez, cada uma com o seu id em `get_export_status`. Seguem o preset e os
+    formatos como um trecho: legenda e miniatura sim, legendas traduzidas e pacote da plataforma não.
+  - Na "Aula02 gravação automática", `split: "clips"` na faixa da tela dá 5 partes: 0:00–0:30.7, 0:30.7–1:21.0,
+    1:21.0–3:59.1, 3:59.1–6:41.6 e 6:41.6–7:49.2 (`tests/export-parts.test.ts`).
 
 ## Regravar falas, narração pelo roteiro e lote por curso
 
