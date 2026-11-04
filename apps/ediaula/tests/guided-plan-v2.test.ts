@@ -362,6 +362,12 @@ class FakePage implements GuidedDriver {
   async key(chord: { label: string }) {
     this.events.push({ t: this.time(), op: `key-${chord.label}` });
   }
+  async keyDown(chord: { label: string }) {
+    this.events.push({ t: this.time(), op: `keydown-${chord.label}` });
+  }
+  async keyUp(chord: { label: string }) {
+    this.events.push({ t: this.time(), op: `keyup-${chord.label}` });
+  }
   async text(char: string) {
     this.events.push({ t: this.time(), op: `text-${char}` });
   }
@@ -381,6 +387,40 @@ const points = {
   Pronto: { x: 0, y: 0 },
   Nome: { x: 500, y: 500 },
 };
+
+test("segurar prende o botão no alvo e a tecla pelo tempo pedido, e solta antes da etapa seguinte", async () => {
+  const sim = simulation(30);
+  const page = new FakePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    { id: "a", at: 1, speech: "Segure a seta", action: "hold", target: on("Começar"), hold: 1.5 },
+    { id: "b", at: 6, speech: "E no teclado", action: "hold", chord: "ArrowRight", hold: 2 },
+  ]);
+  const schedule = schedulePlan(plan);
+  // What it holds is part of the step: it lasts its seconds.
+  assert.ok(schedule.steps[0].endAt >= schedule.steps[0].actAt + 1.5);
+  const controller = new AbortController();
+  const acts: string[] = [];
+  const log: GuidedRunLog = { step: () => undefined, act: (kind) => acts.push(kind) };
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, { log }),
+  );
+  const at = (op: string) => page.events.find((e) => e.op === op);
+  const press = at("press");
+  const release = at("release");
+  assert.ok(press && release);
+  assert.ok(Math.abs(press.t - schedule.steps[0].actAt) < 1e-9);
+  assert.ok(Math.abs(release.t - (press.t + 1.5)) < 0.05, `${release.t - press.t}`);
+  assert.deepEqual([press.x, press.y, release.x, release.y], [300, 200, 300, 200]);
+  const down = at("keydown-→");
+  const up = at("keyup-→");
+  assert.ok(down && up, JSON.stringify(page.events.map((e) => e.op)));
+  assert.ok(Math.abs(down.t - schedule.steps[1].actAt) < 1e-9);
+  assert.ok(Math.abs(up.t - (down.t + 2)) < 0.05, `${up.t - down.t}`);
+  // Holding a key does not move the hand.
+  assert.equal(page.events.filter((e) => e.op === "glide").length, 1);
+  assert.deepEqual(acts, ["hold", "key"]);
+});
 
 test("on the video's clock a late target holds the writer and the click stays on its second", async () => {
   const sim = simulation(30);

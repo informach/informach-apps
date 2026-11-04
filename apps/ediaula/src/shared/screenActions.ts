@@ -1,5 +1,6 @@
 import type { TimelineWord } from "./cleanup.ts";
 import {
+  DEFAULT_HOLD,
   type GuidedStepV2,
   type GuidedTempos,
   type GuidedViewport,
@@ -55,6 +56,21 @@ export function screenActions(text: string): string[] {
 }
 
 const Q = String.raw`["“]([^"”]+)["”]`;
+/** " por 2 s", " por 1,5 segundo": how long a "segurar" holds, at the end of its bracket. */
+const FOR = String.raw`(?:\s+por\s+(\d+(?:[.,]\d+)?)\s*(?:s|seg|segundos?))?`;
+const seconds = (text: string | undefined): number | undefined =>
+  text ? Number(text.replace(",", ".")) : undefined;
+
+/**
+ * Seconds a bracket holds a button or a key ("segurar seta da direita por 2 s"), the app's verb
+ * or the platform's: the gesture after it in the same phrase waits for it to let go. 0 when the
+ * bracket holds nothing.
+ */
+export function heldFor(bracket: string): number {
+  const text = bracket.replace(/\s+/g, " ").trim();
+  if (!/^segurar\b/i.test(text)) return 0;
+  return seconds(new RegExp(`${FOR}$`, "iu").exec(text)?.[1]) ?? DEFAULT_HOLD;
+}
 const ON = String.raw`(?:\s+(?:em|no|na|nos|nas|sobre|para|o|a))?`;
 const re = (pattern: string): RegExp => new RegExp(`^${pattern}$`, "iu");
 
@@ -74,6 +90,22 @@ const VERBS: [
   [re(`clique direito${ON}\\s*${Q}`), (m, at) => ({ action: "rightClick", target: at(m[1]) })],
   [re(`apontar${ON}\\s*${Q}`), (m, at) => ({ action: "point", target: at(m[1]) })],
   [re(`passar o mouse${ON}\\s*${Q}`), (m, at) => ({ action: "hover", target: at(m[1]) })],
+  [
+    re(String.raw`segurar tecla\s+(.+?)${FOR}`),
+    (m) => {
+      const hold = seconds(m[2]);
+      return parseChord(m[1])
+        ? { action: "hold", chord: m[1].trim(), ...(hold ? { hold } : {}) }
+        : null;
+    },
+  ],
+  [
+    re(`segurar${ON}\\s*${Q}${FOR}`),
+    (m, at) => {
+      const hold = seconds(m[2]);
+      return { action: "hold", target: at(m[1]), ...(hold ? { hold } : {}) };
+    },
+  ],
   [
     re(`rolar até\\s*${Q}`),
     (m, at) => {
@@ -240,8 +272,11 @@ export function planFromScript(
         first = false;
         steps.push({ ...step, at: hundredth, speechAt });
         last = hundredth;
-        // The next one when the hand can be there (a step with nothing to reach comes sooner).
-        at += needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1;
+        // The next one when the hand can be there (a step with nothing to reach comes sooner),
+        // after what this one holds has been let go.
+        at +=
+          (needsTarget(step, "web") || step.action === "platform" ? followGap(tempos) : 1) +
+          heldFor(text);
       }
     }
   }

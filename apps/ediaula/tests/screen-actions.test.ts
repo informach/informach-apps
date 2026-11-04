@@ -7,6 +7,7 @@ import {
   editMarks,
   editNoteOf,
   followGap,
+  heldFor,
   planFromScript,
   screenActions,
 } from "../src/shared/screenActions.ts";
@@ -203,4 +204,36 @@ test("a citação acha a voz quando a transcrição pula ou junta uma palavra", 
     findPhrase(words, "Aí é só clicar em outro bicho, como o cachorro", { loose: true }),
     null,
   );
+});
+
+test("segurar prende o botão ou a tecla pelo tempo do colchete, e o gesto seguinte espera soltar", () => {
+  const button = actionStep('segurar "Mover para a direita" por 1,5 s', "a", viewport);
+  assert.deepEqual([button.action, button.hold], ["hold", 1.5]);
+  assert.equal(button.target?.locator?.fingerprint.text, "Mover para a direita");
+  const key = actionStep("segurar tecla ArrowRight por 2 segundos", "b", viewport);
+  assert.deepEqual(
+    [key.action, key.chord, key.hold, key.target],
+    ["hold", "ArrowRight", 2, undefined],
+  );
+  assert.equal(actionStep("segurar tecla ArrowUp", "c", viewport).hold, undefined);
+  // The platform's own "segurar" (its arrows on the game's screen) stays the platform's.
+  assert.equal(actionStep("segurar seta da direita por 2 s", "d", viewport).action, "platform");
+  assert.equal(heldFor("segurar seta da direita por 2 s"), 2);
+  assert.equal(heldFor("segurar seta de cima"), 1);
+  assert.equal(heldFor("apontar jogo"), 0);
+
+  const lines = ["Agora segure cada seta até a beirada."];
+  const notes = [
+    {
+      before: 0,
+      text: 'No "Agora segure cada seta", [segurar seta de cima por 2 s] e [segurar seta da esquerda].',
+    },
+  ];
+  const words = lines[0]
+    .split(/\s+/)
+    .map((text, k) => ({ text, start: 1 + k * 0.4, end: 1.3 + k * 0.4 }));
+  const { steps } = planFromScript({ lines, notes }, words, viewport, DEFAULT_TEMPOS, 60);
+  assert.equal(steps.length, 2);
+  // The second one comes after the hand's time and the 2 s the first one holds.
+  assert.equal(steps[1].at, Math.round((steps[0].at + followGap(DEFAULT_TEMPOS) + 2) * 100) / 100);
 });

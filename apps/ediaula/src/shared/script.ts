@@ -124,6 +124,39 @@ const foldText = (s: string): string =>
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()} `;
 
+const SENTENCE_END = /^\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ"“*])/u;
+
+/**
+ * The sentences of a "Na tela": each ends at a period (or "?", "!") followed by a capital, never
+ * inside quotes, where the speech's own punctuation stays ("No "Funcionou? Clique em Verificar
+ * projeto"" is one sentence). Quotes left open fall back to splitting at every end.
+ */
+export function sentencesOf(text: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  let open = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "“") open = true;
+    else if (c === "”") open = false;
+    else if (c === '"') open = !open;
+    else if (!open && (c === "." || c === "!" || c === "?")) {
+      const gap = SENTENCE_END.exec(text.slice(i + 1));
+      if (!gap) continue;
+      out.push(text.slice(start, i + 1));
+      start = i + 1 + gap[0].length;
+      i = start - 1;
+    }
+  }
+  if (open)
+    return text
+      .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ"“*])/u)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  out.push(text.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
 /**
  * A "Na tela" split into the pieces each spoken phrase it quotes starts: a sentence that quotes
  * words of the speech (`spoken`, the section's lines) opens a piece at those words, the
@@ -140,10 +173,7 @@ export function screenCues(text: string, spoken: string): ScreenCue[] | null {
       ? quoted
       : undefined;
   };
-  const sentences = text
-    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ"“*])/u)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const sentences = sentencesOf(text);
   if (!sentences.some((s) => anchorOf(s))) return null;
   const cues: ScreenCue[] = [];
   for (const sentence of sentences) {

@@ -39,6 +39,7 @@ export const GUIDED_INTERACTIONS = [
   "doubleClick",
   "rightClick",
   "drag",
+  "hold",
   "wheel",
   "key",
   "type",

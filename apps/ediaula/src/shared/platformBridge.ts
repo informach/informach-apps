@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { type GuidedStepV2, type GuidedViewport, MAX_STEP_TIMEOUT } from "./guidedPlan.ts";
+import {
+  type GuidedStepV2,
+  type GuidedViewport,
+  MAX_HOLD,
+  MAX_STEP_TIMEOUT,
+} from "./guidedPlan.ts";
 import { BLOCKLY_AREAS, type Locator, type LocatorStrategy } from "./locators.ts";
 
 /**
@@ -86,6 +91,20 @@ export const passoSchema = z.discriminatedUnion("fazer", [
     substituir: z.boolean().optional(),
   }),
   z.object({ fazer: z.literal("tecla"), tecla: z.string().min(1).max(60) }),
+  /**
+   * Holds the mouse button on `alvo` (a game's arrow on the screen), or the key `tecla` (with the
+   * focus where the gestures before it left it), for `segundos`.
+   */
+  z
+    .object({
+      fazer: z.literal("segurar"),
+      alvo: alvoSchema.optional(),
+      tecla: z.string().min(1).max(60).optional(),
+      segundos: z.number().min(0.1).max(MAX_HOLD).optional(),
+    })
+    .refine((p) => !!p.alvo !== !!p.tecla, {
+      message: "Segurar precisa de um alvo (o botão do mouse) ou de uma tecla, e só de um deles.",
+    }),
   z.object({
     fazer: z.literal("esperar"),
     alvo: alvoSchema,
@@ -232,6 +251,14 @@ function gestureStep(passo: Passo, id: string, viewport: GuidedViewport): Guided
       };
     case "tecla":
       return { ...base, action: "key", chord: passo.tecla };
+    case "segurar":
+      return {
+        ...base,
+        action: "hold",
+        ...(passo.alvo ? { target: at(passo.alvo) } : {}),
+        ...(passo.tecla ? { chord: passo.tecla } : {}),
+        ...(passo.segundos ? { hold: passo.segundos } : {}),
+      };
     case "esperar":
       return {
         ...base,

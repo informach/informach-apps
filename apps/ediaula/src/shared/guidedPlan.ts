@@ -39,6 +39,7 @@ export const GUIDED_ACTIONS = [
   "scroll",
   "type",
   "key",
+  "hold",
   "wait",
   "platform",
 ] as const;
@@ -54,6 +55,7 @@ export const ACTION_LABELS: Record<GuidedAction, string> = {
   scroll: "Rolar",
   type: "Clicar e digitar",
   key: "Tecla ou atalho",
+  hold: "Segurar",
   wait: "Esperar",
   platform: "Ação da plataforma",
 };
@@ -104,8 +106,10 @@ export interface GuidedStepV2 {
   value?: string;
   /** type: the field's text is replaced (all of it selected first), not added to. */
   replace?: boolean;
-  /** key: "Enter", "Ctrl+Shift+Z" */
+  /** key: "Enter", "Ctrl+Shift+Z"; hold: the key held down (absent: the mouse button on the target). */
   chord?: string;
+  /** hold: seconds the button or the key stays down (a game's arrow, held). */
+  hold?: number;
   /** scroll: CSS pixels (lesson window) or wheel notches of 120 (screen), down and right positive. */
   delta?: { x: number; y: number };
   /** scroll until it shows; wait until it is in this state. */
@@ -302,6 +306,9 @@ export const DEFAULT_STEP_TIMEOUT = 8;
 export const MAX_STEP_TIMEOUT = 300;
 /** Seconds between two typed characters. */
 export const TYPE_INTERVAL = 0.08;
+/** hold: seconds held when the step does not say, and the most it may say. */
+export const DEFAULT_HOLD = 1;
+export const MAX_HOLD = 30;
 /** Seconds between two wheel steps of a scroll. */
 export const WHEEL_INTERVAL = 0.08;
 /** CSS pixels of one wheel step in the lesson window. */
@@ -478,6 +485,7 @@ const stepSchema = z.looseObject({
   value: z.string().max(1000).optional(),
   replace: z.boolean().optional(),
   chord: z.string().max(60).optional(),
+  hold: z.number().finite().min(0.1).max(MAX_HOLD).optional(),
   delta: z
     .object({
       x: z.number().finite().min(-100000).max(100000),
@@ -644,12 +652,14 @@ export function newPlan(id: string, name: string, mode: "web" | "screen" = "web"
 
 /** Actions that start with the pointer on a target. */
 export function needsTarget(
-  step: Pick<GuidedStepV2, "action" | "target">,
+  step: Pick<GuidedStepV2, "action" | "target" | "chord">,
   mode: "web" | "screen",
 ): boolean {
   if (step.action === "wait" || step.action === "platform") return false;
   if (step.action === "scroll") return !!step.target;
   if (step.action === "key") return mode === "screen" || !!step.target;
+  // Holding a key needs no target on the page (the focus has it); the mouse button does.
+  if (step.action === "hold") return mode === "screen" || !step.chord || !!step.target;
   return true;
 }
 
@@ -673,6 +683,7 @@ export function actionLength(
 ): number {
   if (step.action === "type") return (step.value?.length ?? 0) * TYPE_INTERVAL;
   if (step.action === "drag") return plan.tempos.move;
+  if (step.action === "hold") return step.hold ?? DEFAULT_HOLD;
   if (step.action === "scroll" && step.delta)
     return smoothScrolls(plan)
       ? scrollSeconds(Math.max(Math.abs(step.delta.x), Math.abs(step.delta.y)))
@@ -734,6 +745,17 @@ function checkStep(step: GuidedStepV2, i: number, plan: GuidedPlanV2): void {
     throw new Error(`Marque o alvo da etapa ${n}.`);
   if (step.action === "key" && !parseChord(step.chord ?? ""))
     throw new Error(`Etapa ${n}: escolha uma tecla.`);
+  if (step.action === "hold") {
+    if (!web && step.chord !== undefined)
+      throw new Error(`Etapa ${n}: segurar uma tecla só funciona na janela da aula.`);
+    if (step.chord !== undefined && !parseChord(step.chord))
+      throw new Error(
+        `Etapa ${n}: escolha a tecla a segurar, ou deixe vazio para segurar o botão do mouse.`,
+      );
+    const held = step.hold ?? DEFAULT_HOLD;
+    if (!Number.isFinite(held) || held < 0.1 || held > MAX_HOLD)
+      throw new Error(`Etapa ${n}: segure entre 0,1 e ${MAX_HOLD} segundos.`);
+  }
   if (
     step.action === "type" &&
     ((!step.value && !step.replace) || (step.value?.length ?? 0) > 1000)
