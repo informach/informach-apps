@@ -10,7 +10,14 @@ import { createFileAuthority } from "@informach/edi-desktop/files";
 import type { RunOptions } from "../src/main/export/renderSegments.ts";
 import { exportLesson } from "../src/main/export-lesson.ts";
 import { ffmpegVersion, filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
-import { DUCKING, duckExpr, duckGain, duckingOf, speechSpans } from "../src/shared/audio.ts";
+import {
+  DUCKING,
+  duckExpr,
+  duckGain,
+  duckingOf,
+  needsSpeech,
+  speechSpans,
+} from "../src/shared/audio.ts";
 import { buildAudioPlan, MICROFADE, MUSIC_END_FADE, RATE } from "../src/shared/export/audioPlan.ts";
 import { buildExportPlan, DENOISE } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
@@ -390,4 +397,26 @@ test("loudness: two voices recorded at different levels are evened out and the l
   } finally {
     await rm(dir, { recursive: true });
   }
+});
+
+test("the words heard are worked out for the music and for the clicks alike (preview = export)", () => {
+  const track = (extra: object) => ({
+    id: "t",
+    kind: "audio" as const,
+    name: "t",
+    muted: false,
+    hidden: false,
+    locked: false,
+    ...extra,
+  });
+  const none = { tracks: [track({})], assets: [] };
+  assert.equal(needsSpeech(none), false);
+  assert.equal(needsSpeech({ tracks: [track({ music: true })], assets: [] }), true);
+  assert.equal(needsSpeech({ tracks: [track({ clicks: true })], assets: [] }), true);
+  // A lesson with no music whose recording sounds its clicks, whole or only in a stretch.
+  const sounding = (cursorFx: object) =>
+    needsSpeech({ tracks: [track({})], assets: [{ cursorFx } as never] });
+  assert.equal(sounding({ clickSound: true }), true);
+  assert.equal(sounding({ ranges: [{ from: 0, to: 5, fx: { clickSound: true } }] }), true);
+  assert.equal(sounding({ clickSound: false }), false);
 });

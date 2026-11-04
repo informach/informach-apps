@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
+import { parseScript, speechItems } from "../src/shared/script.ts";
+import type { Asset, Clip, Project, Track, Transcript, Word } from "../src/shared/types.ts";
 
 /*
  * The AI tools as the editor runs them (renderer/src/lib/aiTools.ts runAiTool), on the real
@@ -1018,6 +1019,109 @@ test("vozes: place_insert com a linha da tabela kids põe o Dedé sobre a fala d
   // Em place_inserts também, e uma linha que ainda não foi achada é dita.
   const many = await call("place_inserts", { insert_ids: ["video-a2-retomada-K1"], mode: "apply" });
   assert.equal(many.ok, true, many.text);
+});
+
+/**
+ * Seção 4 do roteiro do Farol (o mesmo de tests/inserts.test.ts): a narração da professora, com
+ * uma pausa longa onde a F1P4-D01 cabe, o vídeo da Debinha com as falas dela e uma linha da
+ * tabela kids (o Dedé no lugar das primeiras palavras da professora).
+ */
+function farolComKids(): { project: Project; files: Map<string, Transcript> } {
+  const text = readFileSync(new URL("./fixtures/roteiro-farol-dia1.md", import.meta.url), "utf8");
+  const items = speechItems(parseScript(text).sections[3]);
+  const say = (text: string, from: number): Word[] =>
+    text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w, i) => ({ text: w, start: from + i * 0.4, end: from + i * 0.4 + 0.3, p: 0.9 }));
+  const transcriptOf = (words: Word[], duration: number): Transcript => ({
+    version: 1,
+    model: "m",
+    language: "pt",
+    duration,
+    words,
+    silences: [],
+  });
+  const words: Word[] = [];
+  let at = 0;
+  items.forEach((item, k) => {
+    if (item.avatar) return;
+    words.push(...say(item.text, at));
+    at = words[words.length - 1].end + (items[k + 1]?.insertId === "F1P4-D01" ? 6 : 0.8);
+  });
+  const debinha = items.filter((i) => i.avatar).flatMap((item, k) => say(item.text, 1 + k * 6));
+  const project: Project = {
+    ...lesson("farol"),
+    script: { text, section: 3, confirmed: true },
+    assets: [
+      asset("tela", "video", { duration: 600 }),
+      asset("voz", "audio", { duration: 600, transcript: "voz.json", transcriptStatus: "ready" }),
+      asset("deb", "video", {
+        duration: 20,
+        width: 1080,
+        height: 1920,
+        transcript: "deb.json",
+        transcriptStatus: "ready",
+      }),
+      asset("dede", "video", { name: "Dedé", duration: 5 }),
+    ],
+    tracks: [track("v1", "video", { name: "Tela" }), track("a1", "audio", { name: "Voz" })],
+    clips: [
+      { id: "cv", assetId: "tela", trackId: "v1", start: 0, in: 0, duration: at, volume: 1 },
+      { id: "ca", assetId: "voz", trackId: "a1", start: 0, in: 0, duration: at, volume: 1 },
+    ],
+    kids: {
+      videos: ["dede"],
+      pieces: [
+        {
+          id: "video-d1-andar-K1",
+          character: "Dedé",
+          assetId: "dede",
+          in: 0,
+          out: 1.2,
+          voice: { assetId: "voz", from: 0, to: 1.1 },
+        },
+      ],
+    },
+  };
+  return {
+    project,
+    files: new Map([
+      ["voz.json", transcriptOf(words, at)],
+      ["deb.json", transcriptOf(debinha, 20)],
+    ]),
+  };
+}
+
+test("vozes: place_inserts com uma linha kids e uma fala do avatar coloca as duas, num passo", async () => {
+  const { project, files } = farolComKids();
+  const fetchBefore = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const name = decodeURIComponent(String(url).replace("media://local/", ""));
+    const t = files.get(name);
+    return { ok: !!t, status: t ? 200 : 404, json: async () => t };
+  }) as typeof fetch;
+  try {
+    open(project);
+    const steps = history();
+    const r = await call("place_inserts", {
+      insert_ids: ["video-d1-andar-K1", "F1P4-D01"],
+      mode: "apply",
+    });
+    assert.equal(r.ok, true, r.text);
+    assert.equal(history(), steps + 1, "um passo só");
+    const dede = now().clips.filter((c) => c.assetId === "dede");
+    const deb = now().clips.filter((c) => c.assetId === "deb");
+    assert.equal(dede.length, 1, "a linha kids continua na aula");
+    assert.equal(deb.length, 1, "a fala do avatar entrou");
+    assert.ok(
+      now().tracks.some((t) => t.id === dede[0].trackId),
+      "a faixa do Dedé existe",
+    );
+    assert.match(r.text, new RegExp(`Dedé \\[${dede[0].id}\\]`), "o id dito é o que ficou");
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
 });
 
 /** A Aula02 com as faixas na ordem do editor: Faixa 6, 5, 4 (avatar), 3 (tela, travada), áudios. */

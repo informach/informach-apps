@@ -1,3 +1,4 @@
+import { needsSpeech } from "@shared/audio";
 import { autoSoundEvents, autoSoundsEnd } from "@shared/autoSounds";
 import {
   buildAss,
@@ -147,7 +148,8 @@ export const exportQueue = new ExportQueue(
       if (spec.thumbnail && spec.thumbnailAt === undefined && project.publish?.thumbnail)
         spec.thumbnailAt = project.publish.thumbnail.time;
       check();
-      if (project.tracks.some((t) => t.music)) spec.speech = await projectSpeech(project);
+      // The words heard, as the preview lowers the music and the clicks under them.
+      if (needsSpeech(project)) spec.speech = await projectSpeech(project);
       check();
       // A voice whose treatment is not ready yet (or whose file is gone) is treated now: the
       // export plays what the preview plays (shared/voiceChain.ts).
@@ -200,6 +202,9 @@ export const exportQueue = new ExportQueue(
         );
         check();
       }
+      // Last chance before main writes the file: a cancel during any step above (one that found
+      // nothing to do skips its own check) stops here, since main has no export job to cancel yet.
+      check();
       status("exporting", "Exportando…");
       useApp.getState().startJob(id, `Exportando: ${project.name}`);
       // The teacher silent and away while a character speaks (shared/voiceRule.ts), as in the preview.

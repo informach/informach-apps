@@ -75,6 +75,7 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 
 - Se o salvamento falhar, o aviso fica fixo na barra de cima até um salvamento dar certo, com **Tentar de novo** e **Salvar cópia…**. A cópia ganha o nome do arquivo escolhido e a edição continua nela. Voltar ao início, abrir ou criar outro projeto e fechar a janela (pelo X ou Alt+F4) esperam o texto que está sendo digitado, as anotações sendo redesenhadas e o salvamento, com o aviso "Salvando antes de fechar…" quando demora; se o salvamento falhar ou passar de 20 s, uma janela pergunta o que fazer: tentar de novo, salvar uma cópia, sair sem salvar ou cancelar. Com exportações na fila, a janela continua aberta e nada é descartado.
 - Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura. O arquivo é gravado compacto e o teto vale sobre ele; perto de 80% do teto, o app avisa uma vez por aula, e os desenhos feitos na tela (o que mais ocupa) têm um teto de pontos para a aula inteira, além do teto de cada take (`src/shared/projectSize.ts`). Abrir e salvar só aceitam um `.ediaula` escolhido pela pessoa (diálogo, lista de recentes, aula criada, copiada ou tirada de um pacote pelo app; `src/main/lessonFile.ts`); as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
+- Um `.ediaula` aberto de fora pergunta antes de liberar os arquivos que ele usa ("Permitir acesso aos N arquivos"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos fora da pasta da aula, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
 - Os zooms pertencem à gravação, no tempo dela, como o cursor: cada clipe mostra os do seu trecho. Cortar, aparar e desfazer o aparo pela borda nunca perde nem duplica um zoom, e um zoom tirado fica fora. Projetos antigos, com os zooms copiados em cada pedaço, são convertidos ao abrir.
 - Cada pedaço de um clipe cortado (dividir, sobrescrever, aparar, estender quadro, cortes da transcrição) mostra exatamente o mesmo movimento e a mesma vista da camada de zoom do original (`src/shared/pieces.ts`): o pedaço guarda todas as posições do movimento, então aumentá-lo pela borda traz o movimento de volta, e a camada de zoom mantém o tempo da entrada e da saída mesmo num pedaço curto. Um corte no meio tira a entrada e a saída das bordas de dentro; cortar a cabeça ou o rabo de um clipe só move aquela borda, com a transição, o fade e a animação dela.
 - Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente, taxa de quadros e transparência do arquivo) e o tempo de edição medido não voltam com o desfazer.
@@ -338,12 +339,14 @@ faixa só, a IA tem três ferramentas (`src/shared/clipMoves.ts`):
   termina, com a velocidade considerada; a entrada fica na primeira e a saída na segunda.
 - `move_clips` move clipes no tempo sem empurrar os outros: `clip_ids` com `delta` (ou `start`, para um
   clipe só), ou `moves` com um deslocamento por clipe numa chamada. Grupos andam juntos. Só o estado
-  final é conferido: se um clipe ficaria sobre outro na mesma faixa ou antes do 0, nada se move e a
-  resposta diz qual e onde.
+  final é conferido: se um clipe ficaria sobre outro na mesma faixa ou antes do 0, ou numa faixa
+  magnética (que o juntaria de novo aos outros desde 0:00), nada se move e a resposta diz qual e onde.
 - `align_track_to` trata a faixa como a referência emendada sem pausas (um avatar renderizado com a
   narração inteira) e devolve as pausas: divide onde termina cada clipe da faixa de referência e põe cada
   pedaço no início do clipe correspondente. Avisa quando a soma da referência e o conteúdo diferem em
-  mais de 0,2 s. Por padrão é rascunho.
+  mais de 0,2 s. Uma faixa que já tem mais de 0,2 s de pausas entre os clipes (já alinhada) é recusada, para
+  uma segunda chamada não cortá-la de novo nos lugares errados; uma faixa magnética também. Por padrão é
+  rascunho.
 
 As três pedem a revisão do projeto lida (como `cut_ranges`), conferem todos os ids antes, deixam de fora
 (e nomeiam) faixas travadas, são recusadas com um rascunho de estrutura esperando, viram um passo só do
@@ -401,6 +404,8 @@ mexer sem som); dá para escolher **congelar** no quadro em que ela para ou **de
   da tabela kids ("No kids, silenciar … e substituir pelo áudio do personagem"): a fala do personagem, já
   achada no vídeo dele (Edição kids), entra sobre a fala marcada da professora, onde o avatar dela está, numa
   faixa do personagem logo acima, sem procurar pausa e sem mover nada (`src/shared/substitutionPlace.ts`).
+  Pedidas junto com falas do avatar, as linhas kids entram primeiro e as falas do avatar são planejadas sobre a
+  aula já com elas, num passo só.
   Testes em `tests/voice-rule.test.ts` e `tests/l15-ai-tools.test.ts`.
 
 **Barra de revisão.** Junta o rascunho, as propostas de corte e a revisão dos cortes. Em cada corte
@@ -1046,7 +1051,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   `sistema.m4a` começando no segundo 0 da tela; a câmera fica como foi gravada; o `cursor.json` (versão 2, com as
   pausas, os trechos sobre os controles e as lacunas do auxiliar) e `gravacao.json` são escritos. Cada arquivo
   novo é conferido pela duração e gravado no disco antes da linha `finalized`, e só então as partes copiadas
-  saem; uma parte que não sai (arquivo preso) vira aviso e o take não se perde. Sem espaço para alinhar o som,
+  saem; uma parte que não sai (arquivo preso) vira aviso e o take não se perde. Um arquivo novo com duração
+  diferente da das partes (fora de 0,25 s), num take que terminou limpo, é descartado: o take fica nas partes
+  em que foi gravado, colocadas pedaço a pedaço, e o aviso diz isso. Depois de uma queda, a duração de uma parte
+  pode ser a prometida no cabeçalho, e não a gravada; aí o arquivo novo é usado e as partes ficam na pasta. Sem espaço para alinhar o som,
   o microfone e o áudio do PC ficam nas partes em que foram gravados, colocados pedaço a pedaço. O editor lê
   `cursor.json` da versão 1 como versão 2.
 - **Gravação interrompida:** se o app ou o computador caírem durante uma gravação, ao abrir o EdiAula de novo
@@ -1130,7 +1138,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 ## Anotações, memes e animações
 
 - **Anotações** (barra lateral › Anotações): seta, balão de fala, nota, rótulo, título, destaque e número de
-  passo. Entram no ponto do cursor, numa faixa livre acima da aula; arraste no vídeo para posicionar.
+  passo. Com um clique, entram no ponto do cursor, numa faixa livre acima da aula; arrastadas para uma faixa
+  da timeline, entram nessa faixa e nesse tempo, encurtadas até o próximo clipe (no mínimo 0,5 s). Soltas
+  sobre um clipe, vão para a faixa livre mais próxima acima, ou uma nova logo acima. Soltas numa faixa de som
+  (a da voz, por exemplo), vão para a frente da imagem daquele momento, nunca atrás da tela; uma faixa
+  magnética não recebe a anotação (`src/shared/dropSpot.ts`). Arraste no vídeo para posicionar.
   Propriedades: texto, cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
   Cada anotação é desenhada como imagem transparente (`lib/annotations.ts`), a mesma na prévia e na exportação.
 - **Meme**: imagem que entra com pop por 2,5 s no canto, sem cobrir o centro da tela.
@@ -1465,7 +1477,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   trechos acelerados; acima de 2× toca no máximo um clique a cada 0,15 s, sem rajada. Dá para escolher o que
   soa: clique, clique duplo, início e fim de arrasto, digitação (padrão: clique, clique duplo e início de
   arrasto). Os cliques aparecem como marquinhas na faixa **Cliques**, criada embaixo quando o som é ligado;
-  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música, e
+  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música,
+  sob as mesmas palavras na prévia, na exportação e na medição de volume, com ou sem música (`needsSpeech` em
+  `src/shared/audio.ts`), e
   saem de lado quando outra faixa está destacada (`src/shared/clickEvents.ts`; a exportação recebe uma faixa
   FLAC só, `spec.clicks`).
 - **Pela IA** (MCP e assistente do painel lateral): `list_library` lista as mídias do projeto, os efeitos do

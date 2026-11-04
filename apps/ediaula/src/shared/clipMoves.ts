@@ -1,5 +1,6 @@
 import { clipEnd } from "./clipTime.ts";
 import { withGroups } from "./groups.ts";
+import { applyMagnetic } from "./magnetic.ts";
 import { splitClip } from "./timeline.ts";
 import type { Clip, Project } from "./types.ts";
 
@@ -117,12 +118,35 @@ export function planMoves(
   );
   const overlap = firstOverlap(clips, new Set(moves.keys()));
   if (overlap) return { ok: false, error: overlap };
+  const packed = packedBack(p, clips);
+  if (packed) return { ok: false, error: packed };
   return {
     ok: true,
     clips,
     moved: [...moves].map(([id, to]) => ({ id, from: byId.get(id)!.start, to })),
     locked,
   };
+}
+
+/**
+ * Why a result would not hold: a magnetic track packs its clips from 0:00 at every commit
+ * (shared/magnetic.ts), so a clip moved apart on one goes back. Null when nothing is packed.
+ */
+function packedBack(p: Pick<Project, "tracks">, clips: Clip[]): string | null {
+  const packed = applyMagnetic({ tracks: p.tracks, clips });
+  if (packed.clips === clips) return null;
+  const was = new Map(clips.map((c) => [c.id, c.start]));
+  const back = packed.clips.filter((c) => Math.abs((was.get(c.id) ?? c.start) - c.start) > EPS);
+  if (!back.length) return null;
+  const names = [
+    ...new Set(
+      back
+        .map((c) => p.tracks.find((t) => t.id === c.trackId))
+        .filter((t) => t?.magnetic)
+        .map((t) => t?.name),
+    ),
+  ];
+  return `A faixa ${names.join(", ") || "de destino"} é magnética: ela junta os clipes de novo a partir de 0:00, então ${back.map((c) => c.id).join(", ")} não ficaria onde foi pedido. Nada foi feito. Peça para a pessoa desligar a faixa magnética (no cabeçalho da faixa) antes.`;
 }
 
 /** The first overlap, on a track, between a moved clip and any other clip; null when none. */
@@ -197,6 +221,16 @@ export function planAlign(
     return {
       ok: false,
       error: `Clipes da faixa ${target.name} estão em grupo com clipes de outras faixas (${outside.join(", ")}). Nada foi feito: desagrupe antes de alinhar.`,
+    };
+  // The content is the reference joined without its pauses. Pauses already between its clips
+  // mean it was aligned (or laid out by hand): aligning again would cut it at the wrong places.
+  let paused = 0;
+  for (let i = 1; i < content.length; i++)
+    paused += Math.max(0, content[i].start - clipEnd(content[i - 1]));
+  if (paused > ALIGN_TOLERANCE)
+    return {
+      ok: false,
+      error: `A faixa ${target.name} já tem ${paused.toFixed(1)} s de pausas entre os clipes: ela parece já estar alinhada. Nada foi feito. Para alinhar de novo, desfaça o alinhamento anterior (undo) ou junte os clipes sem pausas antes.`,
     };
   const origin = content[0].start;
   // Where each reference clip begins in the joined content (seconds from its start).

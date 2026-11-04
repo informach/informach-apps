@@ -24,6 +24,8 @@ const {
   listBackups,
   openProject,
   recentProjects,
+  remember,
+  removeRecent,
   renameProject,
   restoreBackup,
   saveProject,
@@ -76,6 +78,18 @@ test("duplicating makes a lesson of its own beside the original", async () => {
   const second = await duplicateProject(path);
   assert.equal(second.path, join(root, "Aula 1 (cópia) (2).ediaula"));
   assert.equal((await openProject(path)).id, "original", "the original stays as it was");
+});
+
+test("opening a lesson leaves the recent list alone until its files are allowed", async () => {
+  // Saved elsewhere (another computer), so not in this one's list yet.
+  const path = join(root, "De fora.ediaula");
+  await saveProject(path, lesson("De fora"));
+  await removeRecent(path);
+  const opened = await openProject(path);
+  assert.ok(!(await recentProjects()).some((r) => r.path === path), "refused: not listed");
+  // project:open, once the person allowed the linked files.
+  await remember(path, opened);
+  assert.ok((await recentProjects()).some((r) => r.path === path));
 });
 
 test("renaming moves the file and its backups, and the recent list follows", async () => {

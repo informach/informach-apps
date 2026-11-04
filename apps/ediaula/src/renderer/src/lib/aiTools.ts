@@ -647,13 +647,19 @@ function audioOfClip(c: Clip, ctx: RoleContext, silence: readonly [number, numbe
  * through `commit`. Refused, with nothing done, when none can be placed.
  */
 function substitute(p: Project, ids: string[], commit: Commit): string {
+  const planned = substitutionPlan(p, ids);
+  committedOrFail(commit((q) => (q === p ? planned.project : placeSubstitutions(q, ids).project)));
+  return planned.message;
+}
+
+/** The lesson with the rows of the kids table placed, and the answer; refused when none fits. */
+function substitutionPlan(p: Project, ids: string[]): { project: Project; message: string } {
   const r = placeSubstitutions(p, ids);
   if (!r.placed.length)
     throw new ToolError(
       `Nada foi colocado: ${r.problems.map((x) => `${x.id}: ${x.why}`).join("; ")}.`,
     );
-  committedOrFail(commit((q) => (q === p ? r.project : placeSubstitutions(q, ids).project)));
-  return [
+  const message = [
     `${plural(r.placed.length, "fala de personagem colocada", "falas de personagem colocadas")} sobre a fala da professora, sem procurar pausa e sem mover nada:`,
     ...r.placed.map(
       (x) =>
@@ -664,6 +670,7 @@ function substitute(p: Project, ids: string[], commit: Commit): string {
       ? 'Atenção: a regra "personagem silencia a professora" está desligada nesta aula, então as duas vozes vão se sobrepor. Ligue com set_voice_rule.'
       : "A professora fica calada e o avatar dela sai enquanto o personagem fala (set_voice_rule).",
   ].join("\n");
+  return { project: r.project, message };
 }
 
 /** Whether a crop cuts anything. */
@@ -1408,11 +1415,22 @@ const handlers: {
       const lines = insert_ids.filter((id) => !subs.includes(id));
       if (subs.length) {
         // Both kinds in one undo step: the rows over the teacher's lines, then the avatar lines.
+        // The avatar lines are planned on the lesson with the rows in it: their plan gives the
+        // clips and tracks of the whole lesson, so planned without the rows it would drop them.
         const one = batched(commit);
-        const first = substitute(basisOf(commit) ?? p, subs, one.commit);
+        const base = basisOf(commit) ?? p;
+        const rows = substitutionPlan(base, subs);
+        committedOrFail(
+          one.commit((q) => (q === base ? rows.project : placeSubstitutions(q, subs).project)),
+        );
+        const first = rows.message;
         let rest = "";
         if (lines.length) {
-          const r = await placeInserts(lines, one.commit, draft ? shownProject : undefined);
+          const lesson = draft ? shownProject : () => useProject.getState().project;
+          const r = await placeInserts(lines, one.commit, () => {
+            const now = lesson();
+            return now === base ? rows.project : now && placeSubstitutions(now, subs).project;
+          });
           if (!r.ok)
             throw new ToolError(`${first}
 ${r.message}`);

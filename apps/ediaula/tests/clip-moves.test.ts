@@ -177,3 +177,36 @@ test("align_track_to: avisa quando referência e conteúdo diferem, recusa faixa
   assert.equal(planAlign(p, "f4", "f4").ok, false);
   assert.equal(planAlign(p, "x", "narr").ok, false);
 });
+
+test("align_track_to: a track already aligned is refused, so a second call never cuts it again", () => {
+  const p = aula02();
+  const first = planAlign(p, "f4", "narr");
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const again = planAlign({ ...p, clips: first.clips }, "f4", "narr");
+  assert.equal(again.ok, false);
+  if (again.ok) return;
+  assert.match(again.error, /já tem .* s de pausas entre os clipes: ela parece já estar alinhada/);
+});
+
+test("move_clips and align_track_to: a magnetic track would pack the result back, so it is refused", () => {
+  // Magnetic track M: A 0–5 and B 5–10 packed from 0:00.
+  const m = {
+    tracks: [track("M", { magnetic: true })],
+    clips: [clip("A", "M", 0, 5), clip("B", "M", 5, 10)],
+  };
+  const moved = planMoves(m, [{ id: "A", start: 20 }]);
+  assert.equal(moved.ok, false);
+  if (!moved.ok) assert.match(moved.error, /A faixa M é magnética.*A.*não ficaria onde foi pedido/);
+  // The avatar on a magnetic track: the pauses given back would be packed away.
+  const p = aula02();
+  const aligned = planAlign(
+    { ...p, tracks: p.tracks.map((t) => (t.id === "f4" ? { ...t, magnetic: true } : t)) },
+    "f4",
+    "narr",
+  );
+  assert.equal(aligned.ok, false);
+  if (!aligned.ok) assert.match(aligned.error, /f4 é magnética/);
+  // Not magnetic: the same move goes through.
+  assert.equal(planMoves({ ...m, tracks: [track("M")] }, [{ id: "A", start: 20 }]).ok, true);
+});

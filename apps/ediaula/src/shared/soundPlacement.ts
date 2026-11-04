@@ -26,7 +26,18 @@ export interface PlaceOptions {
   fadeOut?: number;
 }
 
-const free = (p: Pick<Project, "clips">, trackId: string, start: number, end: number): boolean =>
+/**
+ * Whether a clip can go on `trackId` at exactly [start, end]: nothing there, and the track is not
+ * magnetic (a magnetic track packs its clips from 0:00 at every commit, so the clip would not stay
+ * at the time asked).
+ */
+const free = (
+  p: Pick<Project, "clips" | "tracks">,
+  trackId: string,
+  start: number,
+  end: number,
+): boolean =>
+  !p.tracks.find((t) => t.id === trackId)?.magnetic &&
   !p.clips.some((c) => c.trackId === trackId && c.start < end - EPS && clipEnd(c) > start + EPS);
 
 /** The first name of `base`, `base 2`, `base 3`… not used by a track yet. */
@@ -109,7 +120,9 @@ export function placeWithoutRipple(
         const i = p.tracks.indexOf(asked);
         tracks = [...p.tracks.slice(0, i + 1), target, ...p.tracks.slice(i + 1)];
       }
-      note = ` A faixa ${asked.name} estava ocupada nesse tempo, por isso ele foi para a faixa ${target.name}.`;
+      note = asked.magnetic
+        ? ` A faixa ${asked.name} é magnética (juntaria o clipe aos outros, fora do tempo pedido), por isso ele foi para a faixa ${target.name}.`
+        : ` A faixa ${asked.name} estava ocupada nesse tempo, por isso ele foi para a faixa ${target.name}.`;
     }
   } else if (kind === "audio") {
     target = p.tracks.find(
