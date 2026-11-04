@@ -1676,8 +1676,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   de a frase começar. Ela sai na primeira palavra da citação, chega dentro da frase (em até 1,2 s, mais rápida
   numa frase curta, nunca menos de 0,35 s) e espera no alvo até a palavra da ação; o "Antes da fala" não vale
   ali. O vídeo de cada parte começa junto com a voz (antes só pelo que a mão precisa numa frase logo no
-  primeiro segundo) e termina com ela: o que ainda acontece depois da voz entra acelerado antes do fim. Assim
-  as partes se juntam na timeline sem vídeo sobrando entre uma voz e outra.
+  primeiro segundo) e termina com ela: o que ainda acontece depois da voz entra acelerado antes do fim. Na
+  timeline, cada parte entra 2 s depois do fim da anterior (`PART_GAP`): o espaço vazio mostra, na edição,
+  onde uma parte termina e a outra começa, e **Fechar lacunas** junta tudo quando a edição quiser. A tomada
+  que continua uma interrompida vai para o lugar exato dela, sem espaço.
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
   fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
   Sem narração, grave a demonstração e use **Narrar intervalo** depois. A conclusão das etapas encerra a gravação automaticamente.

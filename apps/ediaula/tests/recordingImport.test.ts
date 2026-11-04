@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { applyCuts, cutTargets } from "../src/shared/cleanup.ts";
 import type { RecordingResult } from "../src/shared/recording.ts";
-import { layoutRecording } from "../src/shared/recordingImport.ts";
+import { layoutRecording, PART_GAP } from "../src/shared/recordingImport.ts";
 import { clipEnd, defaultTracks } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
@@ -174,6 +174,36 @@ test("the guided narration starts on the recorder's clock, which skipped the pau
   });
   const track = layout.tracks.find((t) => t.name === "Narração guiada");
   assert.deepEqual(on(layout.clips, track), [["voice", 2, 0, 6]]);
+});
+
+test("each part of a guided recording starts after a gap, so the edit sees where parts meet", () => {
+  const guided = { ...result, narration: "C:/take/narracao.wav", narrationOffset: 0 };
+  // The first part starts at zero.
+  const first = layoutRecording(project(), assets, guided);
+  const main = first.tracks.filter((t) => t.kind === "video").at(-1);
+  const firstEnd = Math.max(...first.clips.filter((c) => c.trackId === main?.id).map(clipEnd));
+  assert.equal(
+    Math.min(...first.clips.filter((c) => c.trackId === main?.id).map((c) => c.start)),
+    0,
+  );
+  // The next one, PART_GAP seconds after it, with its narration on the same seconds.
+  const second = layoutRecording({ tracks: first.tracks, clips: first.clips }, assets, guided);
+  const added = second.clips.filter((c) => !first.clips.some((d) => d.id === c.id));
+  const screenStart = Math.min(...added.filter((c) => c.trackId === main?.id).map((c) => c.start));
+  assert.equal(screenStart, firstEnd + PART_GAP);
+  const voice = second.tracks.find((t) => t.name === "Narração guiada");
+  assert.equal(added.find((c) => c.trackId === voice?.id)?.start, firstEnd + PART_GAP);
+  // A take that carries on an interrupted one goes exactly where it is told.
+  const resumed = layoutRecording({ tracks: first.tracks, clips: first.clips }, assets, guided, 4);
+  const resumedAdded = resumed.clips.filter((c) => !first.clips.some((d) => d.id === c.id));
+  assert.equal(Math.min(...resumedAdded.map((c) => c.start)), 4);
+  // A plain screen take still goes right after the lesson.
+  const plain = layoutRecording({ tracks: first.tracks, clips: first.clips }, assets, result);
+  const plainAdded = plain.clips.filter((c) => !first.clips.some((d) => d.id === c.id));
+  assert.equal(
+    Math.min(...plainAdded.filter((c) => c.trackId === main?.id).map((c) => c.start)),
+    firstEnd,
+  );
 });
 
 test("screen parts kept apart are laid on the take's clock with their own seconds", () => {
