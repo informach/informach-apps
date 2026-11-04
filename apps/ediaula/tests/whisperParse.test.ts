@@ -9,9 +9,11 @@ import {
   whisperThreads,
 } from "../src/shared/whisperArgs.ts";
 import {
+  fillHoles,
   makeTranscript,
   parseVadSegments,
   parseWhisper,
+  transcriptHoles,
   vadOutcome,
   vadToSource,
   type WhisperJson,
@@ -90,6 +92,112 @@ test("what whisper invents over silence is set aside, real speech stays", () => 
   const hum = words.find((w) => w.text === "hum");
   const assistir = words.find((w) => w.text === "assistir!");
   assert.ok(hum && assistir && assistir.start > hum.end, "a set-aside word does not push others");
+});
+
+test("a subtitle credit with any name at the end, and words after the audio, are set aside", () => {
+  // Farol Aula 3, Parte 8: "... em Concluir aula. Legenda por Sônia Ruberti", depois do fim.
+  const t = makeTranscript(
+    json([
+      [" Concluir", 7400, 0.98],
+      [" aula.", 7660, 0.98],
+      [" Legenda", 7710, 0.52],
+      [" por", 7722, 0.69],
+      [" Sônia", 7727, 0.98],
+      [" Ruberti", 7732, 1],
+    ]),
+    [],
+    "m",
+    "pt",
+    77.13,
+  );
+  assert.deepEqual(shownText(t.words), ["Concluir", "aula."]);
+  // "Legenda" dito no meio de uma aula não é crédito.
+  const meio = makeTranscript(
+    json([
+      [" A", 100, 0.9],
+      [" legenda", 140, 0.9],
+      [" por", 180, 0.9],
+      [" baixo", 220, 0.9],
+      [" aparece", 400, 0.9],
+      [" quando", 700, 0.9],
+      [" você", 1000, 0.9],
+      [" fala.", 1300, 0.9],
+    ]),
+    [],
+    "m",
+    "pt",
+    20,
+  );
+  assert.equal(shownText(meio.words).length, 8);
+});
+
+test("a stretch whisper skipped is heard again with the words next to it, in order", () => {
+  // Farol Aula 3, Parte 3: o "O" de "O segundo bloco" saiu antes do buraco, e no buraco havia
+  // "Solte em cima do número e deixe em verdadeiro".
+  const t = makeTranscript(
+    json([
+      [" verdadeiro.", 6751, 0.9],
+      [" O", 6918, 0.6],
+      [" segundo", 7208, 0.9],
+      [" bloco", 7242, 0.9],
+    ]),
+    [],
+    "m",
+    "pt",
+    80,
+  );
+  const holes = transcriptHoles(t);
+  const janela = holes.find(([a, b]) => a <= 69.1 && b >= 72.1);
+  assert.ok(janela, JSON.stringify(holes));
+  const [ws, we] = janela as [number, number];
+  // A janela vai da palavra de antes do buraco ("O") até a de depois ("segundo").
+  const filled = fillHoles(t, [
+    {
+      hole: [ws, we],
+      words: [
+        { text: "Solte", start: 69.2, end: 69.45, p: 0.9 },
+        { text: "em", start: 69.45, end: 69.6, p: 0.9 },
+        { text: "cima", start: 69.6, end: 69.83, p: 0.9 },
+        { text: "do", start: 69.83, end: 69.95, p: 0.9 },
+        { text: "número", start: 69.95, end: 70.2, p: 0.9 },
+        { text: "e", start: 70.2, end: 70.4, p: 0.9 },
+        { text: "deixe", start: 70.5, end: 70.9, p: 0.9 },
+        { text: "em", start: 70.9, end: 71.0, p: 0.9 },
+        { text: "verdadeiro.", start: 71.0, end: 71.6, p: 0.9 },
+        { text: "O", start: 72.0, end: 72.08, p: 0.9 },
+        { text: "segundo", start: 72.08, end: 72.33, p: 0.9 },
+      ],
+    },
+  ]);
+  assert.deepEqual(shownText(filled.words), [
+    "verdadeiro.",
+    "Solte",
+    "em",
+    "cima",
+    "do",
+    "número",
+    "e",
+    "deixe",
+    "em",
+    "verdadeiro.",
+    "O",
+    "segundo",
+    "bloco",
+  ]);
+  // Ouvido de novo com menos palavras, fica como estava.
+  assert.equal(fillHoles(t, [{ hole: [ws, we], words: [] }]), t);
+  // Um silêncio longo não é buraco.
+  const calada = makeTranscript(
+    json([
+      [" Oi.", 100, 0.9],
+      [" Tchau.", 900, 0.9],
+    ]),
+    [[1.5, 8.7]],
+    "m",
+    "pt",
+    10,
+  );
+  assert.deepEqual(transcriptHoles(calada), []);
 });
 
 test("speech the VAD heard is never taken for silence", () => {

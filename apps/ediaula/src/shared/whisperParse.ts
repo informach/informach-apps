@@ -159,6 +159,8 @@ const LOW_P = 0.5;
 const SIGN_OFF_P = 0.7;
 /** Silences at least this long are where whisper makes things up. */
 const LONG_SILENCE = 0.5;
+/** Seconds from the end of what was heard where a subtitle credit with any name is looked for. */
+const CREDIT_TAIL = 3;
 
 const fold = (s: string): string =>
   s
@@ -250,6 +252,15 @@ export function findHallucinations(
   const folded = words.map((w) => fold(w.text));
   const matchAt = (at: number, list: string[][]): number =>
     list.find((p) => p.every((part, j) => folded[at + j] === part))?.length ?? 0;
+  // "Legenda por Sônia Ruberti": um crédito de legenda com qualquer nome, só no fim do que foi
+  // ouvido (os últimos segundos), onde o whisper inventa o fim de um vídeo.
+  const fim = words.length ? words[words.length - 1].end : 0;
+  for (let at = 0; at < words.length; at++) {
+    if (!/^legendas?$/.test(folded[at] ?? "") || words[at].start < fim - CREDIT_TAIL) continue;
+    const resto = words.length - at;
+    if (resto >= 2 && resto <= 6 && (folded[at + 1] === "por" || folded[at + 1] === "pela"))
+      for (let j = at; j < words.length; j++) out[j] = "credit";
+  }
   for (let at = 0; at < words.length; at++) {
     const credit = matchAt(at, CREDITS);
     const n = credit || matchAt(at, SIGN_OFFS);
@@ -365,13 +376,83 @@ export function makeTranscript(
   vad: VadSegment[] = [],
 ): Transcript {
   const speech = vad.map((s): [number, number] => [s.origStart, s.origEnd]);
+  const words = parseWhisper(remapVad(json, vad), silences, speech);
+  // Nada é dito depois do fim do áudio: o que o whisper põe ali ele inventou.
+  for (const w of words)
+    if (!w.dropped && duration > 0 && w.start >= duration) w.dropped = "silence";
   return {
     version: 1,
     model,
     language,
     duration,
-    words: parseWhisper(remapVad(json, vad), silences, speech),
+    words,
     silences,
     ...(speech.length ? { speech } : {}),
   };
+}
+
+/* ----- Holes ----- */
+
+/** A stretch without words this long, where there is voice, is a hole whisper left. */
+const HOLE = 1.5;
+/** The most holes heard again in one transcription. */
+const MOST_HOLES = 12;
+/** How far past the window a word heard again may reach and still be the window's. */
+const EDGE_SLACK = 0.15;
+
+/**
+ * Where whisper skipped speech: a stretch of at least HOLE seconds between two kept words (or
+ * before the first and after the last) that is mostly not silence. Whisper sometimes jumps a
+ * sentence of a long file, and the word next to the jump can come out of place (the "O" of
+ * "O segundo bloco" before the stretch). Each hole is given with the word before it and the
+ * word after it: that whole window is heard again alone (fillHoles).
+ */
+export function transcriptHoles(t: Transcript): [number, number][] {
+  const kept = t.words.filter((w) => !w.dropped);
+  const silent = (a: number, b: number): number => {
+    let q = 0;
+    for (const [s, e] of t.silences) q += Math.max(0, Math.min(b, e) - Math.max(a, s));
+    return q;
+  };
+  const out: [number, number][] = [];
+  for (let i = 0; i <= kept.length; i++) {
+    const before = kept[i - 1];
+    const after = kept[i];
+    const a = before?.end ?? 0;
+    const b = after?.start ?? t.duration;
+    if (b - a < HOLE || b - a - silent(a, b) < HOLE * 0.6) continue;
+    out.push([before?.start ?? 0, after?.end ?? t.duration]);
+    if (out.length >= MOST_HOLES) break;
+  }
+  return out;
+}
+
+/**
+ * What was heard again in each window (`heard`, times already on the whole file) takes the
+ * place of the words that were there, when it has more of them (it found what whisper had
+ * skipped): the words next to the hole come back in the right order. A window heard with fewer
+ * words stays as it was.
+ */
+export function fillHoles(
+  t: Transcript,
+  heard: { hole: [number, number]; words: Word[] }[],
+): Transcript {
+  let words = [...t.words];
+  for (const {
+    hole: [a, b],
+    words: again,
+  } of heard) {
+    // Pelo meio de cada palavra: a de novo pode passar um pouco da borda da janela (o "segundo"
+    // ouvido de novo termina depois do antigo), e a que só raspa a borda é da palavra vizinha.
+    const meio = (w: Word) => (w.start + w.end) / 2;
+    const antigas = words.filter((w) => !w.dropped && meio(w) >= a && meio(w) <= b);
+    const novas = again.filter(
+      (w) => !w.dropped && meio(w) >= a - EDGE_SLACK && meio(w) <= b + EDGE_SLACK,
+    );
+    if (novas.length <= antigas.length) continue;
+    words = [...words.filter((w) => !antigas.includes(w)), ...novas];
+  }
+  if (words.length === t.words.length && words.every((w, i) => w === t.words[i])) return t;
+  words.sort((x, y) => x.start - y.start || x.end - y.end);
+  return { ...t, words };
 }
