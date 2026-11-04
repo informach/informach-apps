@@ -22,6 +22,7 @@ import {
   shadowReach,
   type Transform,
 } from "@shared/compose";
+import { dropSpot } from "@shared/dropSpot";
 import { fontStack } from "@shared/fonts";
 import { inPalette } from "@shared/palettes";
 import type { RevealState } from "@shared/reveal";
@@ -589,8 +590,13 @@ export function overlayTrack(
   return { tracks: [track, ...p.tracks], track };
 }
 
+/** A tile of the Anotações panel dragged to the timeline: { kind, spec? } as JSON. */
+export const ANNOTATION_MIME = "application/x-ediaula-annotation";
+
 export interface AddOptions {
   at?: number;
+  /** Dropped on this track of the timeline: it goes there (shared/dropSpot.ts). */
+  trackId?: string;
   duration?: number;
   x?: number;
   y?: number;
@@ -634,10 +640,13 @@ export async function addAnnotation(
     generated: "annotation",
   };
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
-  const duration = opts.duration ?? preset.duration;
+  const wanted = opts.duration ?? preset.duration;
   const id = newId("c");
   commit((q) => {
-    const { tracks, track } = overlayTrack(q, start, start + duration);
+    // Dropped on a track: there (shortened to the gap, or above a clip it fell on).
+    const spot = opts.trackId ? dropSpot(q, opts.trackId, start, wanted) : null;
+    const { tracks, track } = spot ?? overlayTrack(q, start, start + wanted);
+    const duration = spot?.duration ?? wanted;
     const clip: Clip = {
       id,
       assetId: asset.id,

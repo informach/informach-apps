@@ -1,4 +1,5 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
+import type { Annotation, AnnotationKind } from "@shared/annotation";
 import {
   audibleClips,
   cutTargets,
@@ -79,6 +80,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
+import { ANNOTATION_MIME, addAnnotation } from "@/lib/annotations";
 import { useClickEvents } from "@/lib/clickSounds";
 import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
@@ -674,6 +676,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   };
 
   const acceptsDrop = (e: React.DragEvent): boolean =>
+    e.dataTransfer.types.includes(ANNOTATION_MIME) ||
     e.dataTransfer.types.includes(ASSET_MIME) ||
     e.dataTransfer.types.includes(SOUND_MIME) ||
     e.dataTransfer.types.includes("Files");
@@ -690,6 +693,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const time = dropTime(e.clientX);
     // Ctrl + drop inserts, pushing what comes after on every unlocked track.
     const insert = e.ctrlKey;
+    // An annotation of the panel goes on this track at this time (shared/dropSpot.ts).
+    const annotation = e.dataTransfer.getData(ANNOTATION_MIME);
+    if (annotation) {
+      const { kind, spec } = JSON.parse(annotation) as {
+        kind: AnnotationKind;
+        spec?: Partial<Annotation>;
+      };
+      if (await addAnnotation(kind, spec ?? {}, { at: time, trackId: track.id }))
+        useApp.getState().set({ sideTab: "properties" });
+      return;
+    }
     // A sound effect of the library goes exactly where it was dropped, never as the voice.
     const sound = e.dataTransfer.getData(SOUND_MIME);
     if (isSoundEffectId(sound)) {

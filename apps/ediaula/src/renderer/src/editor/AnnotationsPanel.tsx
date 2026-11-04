@@ -22,7 +22,7 @@ import {
   Type,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { addAnnotation, addCard, addImageOverlay } from "@/lib/annotations";
+import { ANNOTATION_MIME, addAnnotation, addCard, addImageOverlay } from "@/lib/annotations";
 import { useActivePalette } from "@/lib/palettes";
 import { useApp } from "@/state/app";
 import { usePlayback } from "@/state/playback";
@@ -132,6 +132,8 @@ export function AnnotationsPanel(): ReactNode {
     hint: string,
     color: string,
     onClick: () => void,
+    /** Can be dragged to a track of the timeline (the cards and the meme cannot). */
+    drag?: { kind: AnnotationKind; spec?: Partial<Annotation> },
   ): ReactNode => (
     <button
       type="button"
@@ -139,7 +141,15 @@ export function AnnotationsPanel(): ReactNode {
       className="ann-tile"
       disabled={busy !== null}
       onClick={onClick}
-      title={hint}
+      title={
+        drag ? `${hint}. Clique para pôr no cursor, ou arraste para uma faixa da timeline.` : hint
+      }
+      draggable={!!drag}
+      onDragStart={(e) => {
+        if (!drag) return;
+        e.dataTransfer.setData(ANNOTATION_MIME, JSON.stringify(drag));
+        e.dataTransfer.effectAllowed = "copy";
+      }}
     >
       <span className="ann-icon" style={{ color }}>
         <Icon size={22} />
@@ -159,9 +169,9 @@ export function AnnotationsPanel(): ReactNode {
       </div>
       <PaletteSection />
       <p className="muted ann-hint">
-        Entram no ponto do cursor ({Math.floor(time / 60)}:
-        {String(Math.floor(time % 60)).padStart(2, "0")}), por cima da aula. Arraste no vídeo para
-        posicionar.
+        Clique para pôr no ponto do cursor ({Math.floor(time / 60)}:
+        {String(Math.floor(time % 60)).padStart(2, "0")}), por cima da aula, ou arraste para a faixa
+        e o tempo que quiser na timeline, sem criar faixa nova. Arraste no vídeo para posicionar.
       </p>
 
       <h3 className="ann-group">Cartelas</h3>
@@ -194,6 +204,7 @@ export function AnnotationsPanel(): ReactNode {
             HINTS[p.kind]!,
             tint(inPalette(p.spec, palette).color),
             () => void run(p.kind, () => addAnnotation(p.kind)),
+            { kind: p.kind },
           ),
         )}
       </div>
@@ -208,6 +219,7 @@ export function AnnotationsPanel(): ReactNode {
             s.hint,
             shapeColor(s),
             () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
+            { kind: s.kind, spec: s.spec },
           ),
         )}
       </div>
