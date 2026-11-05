@@ -67,6 +67,11 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 .avaliar { margin: 6px 0 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); }
 .bib button.boa::after { content: " ✓"; color: #2f8f4e; font-weight: 700; }
 .bib button.marcada-ruim::after { content: " ✗"; color: #c0392b; font-weight: 700; }
+.roupa-slots { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+.roupa-slots label { font-size: 13px; color: var(--fg); }
+.roupa-slots select { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
+  background: var(--chip); color: var(--fg); min-width: 0; width: 100%; }
+.roupa-slots select:disabled { opacity: 0.5; }
 </style>
 
 <div class="app">
@@ -93,6 +98,10 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
       <div class="grupo" id="cabelo-tipo"></div>
       <div class="grupo" id="cabelo-rosto"></div>
       <div class="grupo" id="cabelo-cor"></div>
+    </div>
+    <div id="roupa-bloco" hidden>
+      <p class="rotulo">Roupa</p>
+      <div class="roupa-slots" id="roupa-slots"></div>
     </div>
     <div id="gravidez-bloco" hidden>
       <p class="rotulo">Gravidez</p>
@@ -203,7 +212,7 @@ const ROSTO = { "Clara": 1, "Média": 1, "Morena": 0.6, "Escura": 0.28 }; // tra
 
 const estado = { sexo: "m", idade: "adulto", corpo: "adulto", tom: "Média", expr: "neutro", anim: "parado", chupeta: true,
   cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0",
-  penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum" };
+  penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum", roupa: {} };
 const GRAVIDEZ = { "0": "Não grávida", "1": "1º trimestre", "2": "2º trimestre", "3": "3º trimestre" };
 
 // ---------------------------------------------------------------- palco
@@ -406,7 +415,7 @@ async function carregarCorpo(id) {
   const bin = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
   const gltf = await new Promise((ok, erro) => loader.parse(bin.buffer, "", ok, erro));
   const raiz = gltf.scene;
-  const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [], estilos = {};
+  const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [], estilos = {}, roupas = {};
   let gorro = null;
   const barriga = [];
   let chupeta = null;
@@ -425,6 +434,14 @@ async function carregarCorpo(id) {
     if (o.material.name === "Manta" || o.material.name === "Gorro") { o.material.map = null; o.material.roughness = 0.95; tecido.push(o); }
     if (/_gorro$/.test(o.name)) gorro = o;
     if (o.morphTargetDictionary && "gravidez_1" in o.morphTargetDictionary) barriga.push(o);
+    // roupas: a textura é a do pacote de origem (roupas/<material>.png); o id do catálogo vem nos extras do nó
+    if (o.material.name.startsWith("Roupa_")) {
+      const mat = o.material;
+      mat.map = null;
+      texturaRoupa(mat.name).then((t) => { if (t) { mat.map = t; mat.needsUpdate = true; } });
+    }
+    const rid = roupaDe(o);
+    if (rid) { (roupas[rid] ||= []).push(o); o.visible = false; }
   });
   // cada expressão é uma malha de rosto: <id>_rosto_<expressão>; a chupeta é <id>_chupeta
   raiz.traverse((o) => {
@@ -441,12 +458,13 @@ async function carregarCorpo(id) {
     moises = montarMoises(cx.max.z - cx.min.z, cx.max.x - cx.min.x);
   }
   raiz.updateMatrixWorld(true);
-  const caixa = new THREE.Box3().setFromObject(raiz);
+  const caixa = new THREE.Box3(); // o corpo, sem roupas e acessórios (chapéu, mochila)
+  raiz.traverse((o) => { if (o.isMesh && !roupaDe(o)) caixa.expandByObject(o); });
   if (!moises) raiz.position.y -= caixa.min.y;
   const mixer = new THREE.AnimationMixer(raiz);
   const clips = {};
   for (const c of gltf.animations) clips[c.name] = mixer.clipAction(c);
-  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, estilos, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
+  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, estilos, roupas, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
     altura: moises ? 0.5 : caixa.max.y - caixa.min.y, acao: null };
   cache.set(id, c);
   return c;
@@ -488,10 +506,10 @@ async function mostrar(id) {
   if (!c.clips[estado.anim]) estado.anim = "parado";
   apoio.position.copy(c.raiz.position);
   enquadrar();
-  aplicarTom(); aplicarExpr(); aplicarAnim(true); aplicarChupeta(); aplicarCabelo(); if (c.barriga.length) aplicarGravidez();
+  aplicarTom(); aplicarExpr(); aplicarAnim(true); aplicarChupeta(); aplicarCabelo(); aplicarRoupa(); if (c.barriga.length) aplicarGravidez();
   document.getElementById("nome").textContent = CORPOS.find((x) => x.id === id).rotulo;
   status.textContent = "";
-  desenharExpr(); desenharExtras(); desenharCabelo(); desenharManta(); desenharGravidez(); desenharAnims();
+  desenharExpr(); desenharExtras(); desenharCabelo(); desenharRoupa(); desenharManta(); desenharGravidez(); desenharAnims();
   if (!c.bib && !recem) {
     document.getElementById("bib-status").textContent = "Carregando a biblioteca…";
     try { await ligarBiblioteca(c); } catch (e) { document.getElementById("bib-status").textContent = "Não consegui carregar a biblioteca: " + e.message; return; }
@@ -602,6 +620,53 @@ function desenharGravidez() {
   bloco.hidden = !atual.barriga.length;
   if (bloco.hidden) return;
   chips(document.getElementById("gravidez"), Object.entries(GRAVIDEZ), estado.gravidez, (k) => { estado.gravidez = k; aplicarGravidez(); desenharGravidez(); });
+}
+// ---------------------------------------------------------------- roupas (catálogo roupas.json, uma peça por parte)
+let CAT_ROUPA = { itens: [], slots: {} };
+fetch("roupas.json").then((r) => r.json()).then((j) => { CAT_ROUPA = j; if (atual) { aplicarRoupa(); desenharRoupa(); } }).catch(() => {});
+const _texRoupa = new Map();
+function texturaRoupa(nome) {
+  if (!_texRoupa.has(nome)) {
+    _texRoupa.set(nome, new THREE.TextureLoader().loadAsync(`roupas/${nome}.png`)
+      .then((t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; return t; }).catch(() => null));
+  }
+  return _texRoupa.get(nome);
+}
+function roupaDe(o) {
+  for (let x = o; x; x = x.parent) if (x.userData?.roupa) return x.userData.roupa;
+  return null;
+}
+const slotDe = (rid) => CAT_ROUPA.itens.find((x) => x.id === rid)?.slot;
+function aplicarRoupa() {
+  const inteira = !!estado.roupa.inteira;
+  for (const [rid, malhas] of Object.entries(atual.roupas || {})) {
+    const slot = slotDe(rid);
+    const ve = !!slot && estado.roupa[slot] === rid && !(inteira && (slot === "cima" || slot === "baixo"));
+    for (const m of malhas) m.visible = ve;
+  }
+  if (par) copiarVisivel(atual.raiz, par.raiz);
+}
+function desenharRoupa() {
+  const bloco = document.getElementById("roupa-bloco");
+  const tem = Object.keys(atual.roupas || {});
+  bloco.hidden = !tem.length || !CAT_ROUPA.itens.length;
+  if (bloco.hidden) return;
+  const el = document.getElementById("roupa-slots");
+  el.replaceChildren();
+  for (const [slot, rotulo] of Object.entries(CAT_ROUPA.slots)) {
+    const itens = CAT_ROUPA.itens.filter((x) => x.slot === slot && atual.roupas[x.id]);
+    if (!itens.length) continue;
+    const id = "roupa-" + slot;
+    const lab = document.createElement("label"); lab.htmlFor = id; lab.textContent = rotulo;
+    const sel = document.createElement("select"); sel.id = id;
+    sel.append(new Option("Nenhum", ""));
+    for (const x of itens) sel.append(new Option(x.rotulo, x.id));
+    sel.value = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
+    sel.disabled = !!estado.roupa.inteira && (slot === "cima" || slot === "baixo");
+    if (sel.disabled) sel.title = "A fantasia ocupa a parte de cima e a de baixo";
+    sel.onchange = () => { estado.roupa[slot] = sel.value; aplicarRoupa(); desenharRoupa(); };
+    el.append(lab, sel);
+  }
 }
 function desenharManta() {
   const bloco = document.getElementById("manta-bloco");

@@ -63,3 +63,10 @@ O Mixamo não tem 23 delas: estão em `rotulos.json`, campo `compostas`, com uma
   `resident.parto.contracao_deitada` (trabalho de parto, sem nada explícito).
 - Parto no jogo: contrações → tela escurece → ela volta à biblioteca normal (gravidez 0) segurando o recém-nascido
   (`resident.care.hold_idle` / `care.rock`: mão esquerda sob a cabecinha, direita sob o corpinho).
+
+## Roupas
+
+Os corpos (`corpos/*.glb`) trazem as 65 roupas e acessórios dos pacotes, cada um como uma malha `<corpo>_<id>` com o id
+nos extras do nó (`roupa`, `slot`). Mostre uma peça por slot. Nas grávidas, as peças têm as formas `gravidez_1` a
+`gravidez_3`: use o mesmo peso do corpo. Veja `LEIA_roupas.md`.
+

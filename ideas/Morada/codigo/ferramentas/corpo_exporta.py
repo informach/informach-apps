@@ -25,7 +25,19 @@ for c in CORPOS:
     bpy.context.view_layer.objects.active = arm
     out = os.path.join(SAIDA, f"{c}.glb")
     bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=True, export_animation_mode="NLA_TRACKS",
-                              export_optimize_animation_size=True, export_image_format="NONE", export_frame_step=2)
+                              export_optimize_animation_size=True, export_image_format="NONE", export_frame_step=2,
+                              export_extras=True)  # extras: cada roupa leva o id do catálogo (userData.roupa)
     for t in list(ad.nla_tracks): ad.nla_tracks.remove(t)
     lugar.location = loc
     print("fim", c, os.path.getsize(out) // 1024, "KB", flush=True)
+# texturas das roupas (a página carrega cada uma uma vez, pelo nome do material: roupas/<material>.png)
+import json  # noqa: E402
+tex = {}
+for m in bpy.data.materials:
+    if m.name.startswith("Roupa_") and m.node_tree:
+        img = next((n.image for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None)
+        if img:
+            tex[m.name] = bpy.path.abspath(img.filepath)
+json.dump(tex, open(os.path.join(SAIDA, "roupas_texturas.json"), "w"), ensure_ascii=False, indent=1)
+print("texturas de roupa", len(tex))
+

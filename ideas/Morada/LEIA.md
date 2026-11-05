@@ -17,6 +17,13 @@ Os personagens derivam dos pacotes gratuitos da ITHappy que estão em `ideas/` (
 Não estão aqui (dá para regenerar a partir do que está): blends intermediários das bibliotecas, renders de revisão, testes.
 As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equivalem às ações originais.
 
+## Roupas
+
+As 65 roupas e acessórios dos pacotes estão em todos os corpos (menos o recém-nascido), também nas grávidas. O catálogo,
+o encaixe e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`. O arquivo-mestre em `blend/` é o de antes
+das roupas. Para ter o mestre vestido, rode `codigo/ferramentas/veste.py -- corpos.blend todos` (uns 20 minutos); o
+resultado é o mesmo.
+
 ## Animações aprovadas
 
 As animações marcadas como boas na página ficam congeladas: corrigir outra animação nunca muda uma delas. O procedimento
