@@ -17,6 +17,11 @@ Os personagens derivam dos pacotes gratuitos da ITHappy que estão em `ideas/` (
 Não estão aqui (dá para regenerar a partir do que está): blends intermediários das bibliotecas, renders de revisão, testes.
 As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equivalem às ações originais.
 
+## Animações aprovadas
+
+As animações marcadas como boas na página ficam congeladas: corrigir outra animação nunca muda uma delas. O procedimento
+está em `biblioteca/LEIA_congeladas.md`, e a ferramenta é `codigo/ferramentas/congeladas.py`.
+
 ## Remontar o arquivo-mestre
 
 ```bash

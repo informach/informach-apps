@@ -27,5 +27,6 @@ PY
   $B -I tools/biblioteca_junta.py -- biblioteca/corrigido_todos/$c.blend biblioteca/compostos/$c.blend $c biblioteca/corrigido_todos/$c.blend 2>&1 | grep -E "^fim|Error|Trace"
   $B -I tools/biblioteca_chao.py -- biblioteca/corrigido_todos/$c.blend $c "$NOVAS" 2>&1 | grep -E "^fim|Error|Trace"
   $B -I tools/biblioteca_antebraco.py -- biblioteca/corrigido_todos/$c.blend $c "$NOVAS" 2>&1 | grep -E "^fim|Error|Trace"
+  $B -I tools/congeladas.py -- repoe $c 2>&1 | grep -E "congeladas|Error|Trace"  # as aprovadas voltam como estavam
 done
 echo FIMCOMP

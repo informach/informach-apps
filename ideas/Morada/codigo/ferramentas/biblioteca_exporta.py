@@ -4,6 +4,10 @@ a = sys.argv[sys.argv.index("--") + 1:]
 BLEND, CORPO, SAIDA = a[:3]
 FPS_SAIDA = int(os.environ.get("FPS", "30"))
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+# animações aprovadas: o GLB leva sempre a cópia congelada (congeladas.py), mesmo que a biblioteca de trabalho tenha mudado
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import congeladas  # noqa: E402
+congeladas.repoe_em_memoria(os.path.basename(SAIDA)[:-4])
 arm = bpy.data.objects[CORPO]
 for o in list(bpy.data.objects):
     if o is not arm and o is not arm.parent:

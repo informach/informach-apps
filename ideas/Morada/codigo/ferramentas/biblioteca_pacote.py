@@ -23,6 +23,14 @@ for f in sorted(glob.glob(os.path.join(B, "glb", "*.glb"))):
     open(os.path.join(V, "biblioteca", nome + ".txt"), "w").write(base64.b64encode(gzip.compress(open(f, "rb").read(), 9)).decode())
     m = json.load(open(jpath))
     info["apoios"][nome] = m["apoios"]; info["correcoes"][nome] = m["correcoes"]
+    # animações aprovadas: apoios e correções da cópia congelada
+    dc = os.path.join(B, "congeladas", nome)
+    for f in (sorted(os.listdir(dc)) if os.path.isdir(dc) else []):
+        if f.endswith(".json"):
+            c = json.load(open(os.path.join(dc, f)))
+            for campo in ("apoios", "correcoes"):
+                if c.get(campo) is not None:
+                    info[campo][nome][f[:-5]] = c[campo]
 json.dump(info, open(os.path.join(V, "biblioteca", "info.json"), "w"), ensure_ascii=False)
 tot = sum(os.path.getsize(p) for p in glob.glob(os.path.join(V, "biblioteca", "*")) + glob.glob(os.path.join(V, "corpos", "*.txt")))
 print("ok", len(info["apoios"]), "bibliotecas;", tot // 1048576, "MB entre corpos e bibliotecas")

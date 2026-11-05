@@ -13,10 +13,12 @@ for c in adulto plus_m plus_f musculoso atletica alto_magro idoso adolescente_m 
   $B -I tools/biblioteca_chao.py -- biblioteca/corrigido_todos/$c.blend $c 2>&1 | grep -E "^fim|Error|Trace"
   $B -I tools/biblioteca_antebraco.py -- biblioteca/corrigido_todos/$c.blend $c 2>&1 | grep -E "^fim|Error|Trace"
   bash tools/_rb_comp.sh $c 2>&1 | grep -E "^fim .* \[|faltou|Error|Trace"
+  $B -I tools/congeladas.py -- repoe $c 2>&1 | grep -E "congeladas|Error|Trace"  # as aprovadas voltam como estavam
   $B -I tools/lista_dup.py -- biblioteca/corrigido_todos/$c.blend 2>&1 | grep DUP
   FPS=15 $B -I tools/biblioteca_exporta.py -- biblioteca/corrigido_todos/$c.blend $c biblioteca/glb/$c.glb 2>&1 | grep -E "Error|Trace|^fim"
   FPS=30 $B -I tools/biblioteca_exporta.py -- biblioteca/corrigido_todos/$c.blend $c biblioteca/glb30/$c.glb 2>&1 | grep -E "Error|Trace|^fim"
 done
 echo "== grávida"
 bash tools/_rb_g1.sh && bash tools/_rb_g2.sh && bash tools/_rb_g3.sh
+$B -I tools/congeladas.py -- confere 2>&1 | grep -E "MUDOU|fim confere"
 echo FIMTUDO
