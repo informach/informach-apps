@@ -30,7 +30,8 @@
       "!**/.agents",
       "!**/.git",
       "!**/migrations",
-      "!**/next-env.d.ts"
+      "!**/next-env.d.ts",
+      "!ideas"
     ]
   },
   "linter": {

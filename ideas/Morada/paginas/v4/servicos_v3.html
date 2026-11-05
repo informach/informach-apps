@@ -1,0 +1,139 @@
+<!-- SERVIÇOS -->
+<section id="servicos">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--teal)">Serviços contratados</span>
+    <h2>Contrate como um emprego: dias, horário, salário e quantas pessoas a casa precisar</h2>
+    <p class="lead">Além do chamado avulso, a casa pode contratar funcionários fixos. É sempre a mesma pessoa, que chega sozinha no turno, cria vínculo com a família e recebe do fundo da casa. Dá para ter duas diaristas, duas babás ou qualquer combinação dentro do limite do mundo. Funcionários são moradores do mundo, com rotina, vínculos e memória, mas não entram na família: ninguém os dirige pelo retrato; a família combina o trabalho pelo contrato.</p>
+  </div>
+
+  <div class="grid g2">
+    <div class="card facet tint" style="--soft:var(--surface)">
+      <span class="tag" style="--soft:var(--sun-soft)">Avulso</span>
+      <h3>Para uma necessidade pontual</h3>
+      <p class="small">Chama pelo telefone, vem quem estiver disponível, cobra por visita. Bom para uma festa, uma faxina pesada ou uma noite fora.</p>
+    </div>
+    <div class="card facet" style="background:var(--teal-soft)">
+      <span class="tag" style="--soft:var(--surface);--c:var(--teal)">Contrato</span>
+      <h3>Para a rotina da casa</h3>
+      <p class="small">Agenda semanal por dia e hora, salário por hora, atribuições (quais cômodos, quais crianças), período de experiência de um dia, férias e aviso prévio.</p>
+    </div>
+  </div>
+
+  <div class="sched" id="sched">
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="row" style="flex-wrap:wrap">
+        <h3>Agenda da casa dos Oliveira</h3>
+        <span class="small muted">Escolha um funcionário e clique ou arraste nas horas</span>
+      </div>
+      <div class="staff-list" id="staff-list"></div>
+      <div class="grid-wrap"><table class="sgrid" id="sgrid" aria-label="Agenda semanal dos funcionários"></table></div>
+      <div class="row" style="flex-wrap:wrap;justify-content:flex-start">
+        <button type="button" class="btn ghost" id="add-dia">Contratar outra diarista</button>
+        <button type="button" class="btn ghost" id="add-baba">Contratar outra babá</button>
+        <span class="small muted">Limite padrão: 3 por tipo, ajustável por quem gere o mundo</span>
+      </div>
+    </div>
+    <div class="sum" id="sum"></div>
+  </div>
+  <p class="caption">Exemplo interativo com dados fictícios. Salários em M$ (moeda provisória). As regras de cobertura são simplificadas para a demonstração.</p>
+
+  <div class="grid g2">
+    <div class="card facet" style="--cut:18px">
+      <h3>Como dois funcionários dividem o trabalho</h3>
+      <p class="small">A casa gera tarefas a partir do estado dos objetos e das pessoas: pia suja, lixo cheio, roupa no cesto, bebê com fome, criança sem dever de casa feito. Cada tarefa vai para um <b>quadro de tarefas</b> do lote.</p>
+      <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+        <li>Funcionário em turno pega a tarefa de maior pontuação e a <b>reserva</b>; ninguém mais pega a mesma.</li>
+        <li>Duas diaristas recebem <b>zonas</b> (por andar ou por cômodo) e só atravessam de zona quando a sua acaba.</li>
+        <li>Duas babás dividem as <b>crianças atribuídas</b>; sem atribuição, o servidor equilibra pela carga.</li>
+        <li>Na troca de turno há sobreposição opcional: a babá que sai passa as tarefas abertas para a que chega.</li>
+      </ul>
+    </div>
+    <div style="display:grid;gap:22px;min-width:0">
+      <div class="code-head"><span>packages/morada-sim/servicos/quadro.ts</span><span>TypeScript</span></div>
+<pre><span class="k">export function</span> <span class="n">proximaTarefa</span>(f: Funcionario, quadro: Tarefa[], agora: Tick) {
+  <span class="k">return</span> quadro
+    .filter((t) =&gt; !t.reservadaPor &amp;&amp; t.tipo === f.tipo)
+    .filter((t) =&gt; cabeNoTurno(f, t, agora) &amp;&amp; estaAtribuida(f, t))
+    .map((t) =&gt; ({
+      t,
+      score: t.prioridade * <span class="n">10</span>
+        - distanciaEmPassos(f, t) * <span class="n">0.5</span>
+        - (t.zona === f.zona ? <span class="n">0</span> : <span class="n">8</span>),   <span class="c">// prefere a própria zona</span>
+    }))
+    .sort((a, b) =&gt; b.score - a.score)[<span class="n">0</span>]?.t;
+}</pre>
+    </div>
+  </div>
+
+  <h3>Ciclo de vida de um contrato</h3>
+  <div class="dg" role="img" aria-label="Estados do contrato: proposta, experiência, ativo, férias, aviso prévio e encerrado">
+    <svg viewBox="0 0 960 290">
+      <defs><marker id="ct-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker></defs>
+      <rect class="box" x="20" y="110" width="148" height="52" rx="10"/><text class="t" x="94" y="141" text-anchor="middle">Proposta</text>
+      <rect class="warm" x="210" y="110" width="148" height="52" rx="10"/><text class="t" x="284" y="141" text-anchor="middle">Experiência</text>
+      <rect class="good" x="400" y="110" width="148" height="52" rx="10"/><text class="t" x="474" y="141" text-anchor="middle">Ativo</text>
+      <rect class="box" x="590" y="110" width="148" height="52" rx="10"/><text class="t" x="664" y="141" text-anchor="middle">Aviso prévio</text>
+      <rect class="bad" x="790" y="110" width="148" height="52" rx="10"/><text class="t" x="864" y="141" text-anchor="middle">Encerrado</text>
+      <rect class="acc-b" x="400" y="220" width="148" height="52" rx="10"/><text class="t" x="474" y="251" text-anchor="middle">Férias</text>
+      <g class="ar">
+        <path d="M168 136H208" marker-end="url(#ct-ar)"/><path d="M358 136H398" marker-end="url(#ct-ar)"/><path d="M548 136H588" marker-end="url(#ct-ar)"/><path d="M738 136H788" marker-end="url(#ct-ar)"/>
+        <path d="M450 162V218" marker-end="url(#ct-ar)"/><path d="M500 220V164" marker-end="url(#ct-ar)"/>
+        <path d="M284 110V60H864V108" marker-end="url(#ct-ar)"/><path d="M474 110V80H840V108" marker-end="url(#ct-ar)"/>
+      </g>
+      <text class="sub" x="189" y="100" text-anchor="middle">aceita</text>
+      <text class="sub" x="379" y="100" text-anchor="middle">aprovada</text>
+      <text class="sub" x="569" y="100" text-anchor="middle">aviso</text>
+      <text class="sub" x="764" y="100" text-anchor="middle">prazo</text>
+      <text class="sub" x="442" y="196" text-anchor="end">pausa</text>
+      <text class="sub" x="508" y="196">volta</text>
+      <text class="sub" x="574" y="52" text-anchor="middle">não aprovada na experiência ou recusada pela pessoa</text>
+      <text class="sub" x="657" y="75" text-anchor="middle">dispensa imediata, com multa de um turno</text>
+    </svg>
+  </div>
+
+  <div class="grid g3">
+    <div class="card facet"><h4>Pagamento</h4><p class="small">Salário por hora trabalhada, debitado do fundo da casa no fim de cada turno ou semanalmente. Sem saldo, o valor vira dívida; com duas faltas de pagamento, o funcionário dá aviso prévio.</p></div>
+    <div class="card facet"><h4>Satisfação e nível</h4><p class="small">Cada funcionário tem nível (1 a 5: velocidade e qualidade) e satisfação, que sobe com bom trato e pagamento em dia e cai com sobrecarga (casa grande para uma diarista só). Aumento de salário melhora a satisfação.</p></div>
+    <div class="card facet"><h4>Quem gerencia</h4><p class="small">Moradores com a permissão "gerenciar serviços". Toda mudança aparece no histórico da casa: quem contratou, quem alterou a agenda, quem dispensou.</p></div>
+    <div class="card facet"><h4>Lote sem ninguém olhando</h4><p class="small">Se ninguém está no lote durante o turno, a simulação roda resumida: a limpeza é aplicada em lote no fim do turno e as necessidades das crianças ficam garantidas pela babá, sem animar ninguém.</p></div>
+    <div class="card facet"><h4>Tipos de serviço</h4><p class="small">Diarista, babá, cozinheira, jardineiro e cuidador de idosos no lançamento. Todos usam o mesmo sistema de contrato, agenda e quadro de tarefas.</p></div>
+    <div class="card facet"><h4>Avulso continua</h4><p class="small">Chamado avulso funciona em paralelo e respeita o quadro: uma diarista avulsa entra na zona menos coberta naquele momento.</p></div>
+  </div>
+
+  <div class="grid g2">
+    <div style="display:grid;gap:22px;min-width:0">
+      <div class="code-head"><span>packages/morada-sim/servicos/contrato.ts</span><span>Zod</span></div>
+<pre><span class="k">export const</span> Contrato = z.object({
+  id: Id,
+  casaId: Id,
+  funcionarioId: Id,                    <span class="c">// morador persistente, sempre a mesma pessoa</span>
+  tipo: z.enum([<span class="s">"diarista"</span>, <span class="s">"baba"</span>, <span class="s">"cozinheira"</span>, <span class="s">"jardineiro"</span>, <span class="s">"cuidador"</span>]),
+  agenda: z.array(z.object({
+    dia: z.number().int().min(<span class="n">0</span>).max(<span class="n">6</span>),
+    inicio: HoraJogo, fim: HoraJogo,
+  })).min(<span class="n">1</span>),
+  salarioHora: z.number().positive(),
+  pagamento: z.enum([<span class="s">"por_turno"</span>, <span class="s">"semanal"</span>]),
+  atribuicao: z.object({
+    comodos: z.array(Id).optional(),
+    criancas: z.array(Id).optional(),
+  }),
+  estado: z.enum([<span class="s">"proposta"</span>, <span class="s">"experiencia"</span>, <span class="s">"ativo"</span>,
+                  <span class="s">"ferias"</span>, <span class="s">"aviso_previo"</span>, <span class="s">"encerrado"</span>]),
+  nivel: z.number().int().min(<span class="n">1</span>).max(<span class="n">5</span>),
+  satisfacao: z.number().min(<span class="n">0</span>).max(<span class="n">100</span>),
+});</pre>
+    </div>
+    <div class="card facet" style="--cut:18px">
+      <h3>Um dia na casa dos Oliveira</h3>
+      <div class="day">
+        <div class="ev" style="--c:var(--berry)"><time>07:00</time><p class="small">Carla (babá) chega, acorda Nina e Theo e prepara o café. Bruno está fora; Lia está no mundo.</p></div>
+        <div class="ev" style="--c:var(--teal)"><time>08:00</time><p class="small">Ana (diarista) começa pelo andar de cima, sua zona. A pia da cozinha fica para a tarde.</p></div>
+        <div class="ev" style="--c:var(--sky)"><time>09:00</time><p class="small">Lia vai trabalhar. Sem ninguém no lote, a casa passa para a simulação resumida.</p></div>
+        <div class="ev" style="--c:var(--tangerine)"><time>14:00</time><p class="small">Duda (babá) chega; Carla passa as tarefas abertas e sai às 15h. Uma hora com duas babás.</p></div>
+        <div class="ev" style="--c:var(--leaf)"><time>17:00</time><p class="small">Fim do turno de Bia. O fundo da casa paga 72 M$ e o histórico registra.</p></div>
+        <div class="ev" style="--c:var(--sun)"><time>19:30</time><p class="small">Bruno entra no mundo, reserva Marcos e janta com Lia e as crianças. Duda termina às 20h.</p></div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,26 @@
+"""Empacota para a página: corpos (GLB → base64), bibliotecas (GLB → gzip → base64) e info.json."""
+import base64, gzip, json, os, sys, glob
+S = sys.argv[1]
+B = os.path.join(S, "biblioteca"); V = os.path.join(S, "corpos_viewer")
+os.makedirs(os.path.join(V, "biblioteca"), exist_ok=True)
+for f in glob.glob(os.path.join(B, "corpos_glb", "*.glb")):
+    open(os.path.join(V, "corpos", os.path.basename(f)[:-4] + ".txt"), "w").write(base64.b64encode(open(f, "rb").read()).decode())
+info = {"apoios": {}, "correcoes": {}, "status": {}}
+ind = json.load(open(os.path.join(S, "biblioteca_indice.json")))
+for x in ind["indice"]:
+    if x["corpo"] in ind["fonte"] and x.get("status") == "ruim":
+        info["status"].setdefault(x["corpo"], {})[x["id"]] = "ruim"
+for f in sorted(glob.glob(os.path.join(B, "glb", "*.glb"))):
+    nome = os.path.basename(f)[:-4]
+    gravida = nome.endswith("_gravida")
+    if not gravida and nome not in ind["fonte"]:
+        continue
+    jpath = os.path.join(B, "gravida", nome[:-8] + ".json") if gravida else os.path.join(B, "corrigido_todos", nome + ".json")
+    if not os.path.exists(jpath):
+        continue
+    open(os.path.join(V, "biblioteca", nome + ".txt"), "w").write(base64.b64encode(gzip.compress(open(f, "rb").read(), 9)).decode())
+    m = json.load(open(jpath))
+    info["apoios"][nome] = m["apoios"]; info["correcoes"][nome] = m["correcoes"]
+json.dump(info, open(os.path.join(V, "biblioteca", "info.json"), "w"), ensure_ascii=False)
+tot = sum(os.path.getsize(p) for p in glob.glob(os.path.join(V, "biblioteca", "*")) + glob.glob(os.path.join(V, "corpos", "*.txt")))
+print("ok", len(info["apoios"]), "bibliotecas;", tot // 1048576, "MB entre corpos e bibliotecas")

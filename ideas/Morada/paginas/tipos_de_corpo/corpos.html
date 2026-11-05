@@ -1,0 +1,824 @@
+<title>Tipos de corpo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Editor de personagem: palco 3D com um corpo só; à direita, de cima para baixo: sexo e idade, miniaturas dos corpos,
+   tom de pele, expressões do corpo escolhido e animações. */
+:root {
+  --bg: #EEF1F6; --palco: #3D5A92; --fg: #1E2633; --suave: #5B6677; --linha: #C9D1DB;
+  --acento: #2F5FA8; --acento-fg: #FFFFFF; --chip: #FFFFFF; --mini: #DCE3EF;
+  --palco-fg: #FFFFFF; --palco-suave: #DCE4F5;
+  --display: "Fraunces", Georgia, serif; --texto: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161D; --palco: #22355C; --fg: #E6EAF0; --suave: #9AA5B5; --linha: #2C3542;
+    --acento: #7FA6E6; --acento-fg: #0E1420; --chip: #1F2631; --mini: #22355C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161D; --palco: #22355C; --fg: #E6EAF0; --suave: #9AA5B5; --linha: #2C3542;
+  --acento: #7FA6E6; --acento-fg: #0E1420; --chip: #1F2631; --mini: #22355C; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font-family: var(--texto); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px; box-sizing: border-box;
+}
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; height: 100%; max-width: 1320px; margin: 0 auto; }
+.palco { position: relative; background: var(--palco); border-radius: 14px; overflow: hidden; min-height: 420px; }
+.palco canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.status { position: absolute; left: 14px; bottom: 12px; color: var(--palco-suave); font-size: 13px; }
+.nome { position: absolute; left: 14px; top: 12px; color: var(--palco-fg); font-family: var(--display); font-size: 24px; }
+.dica { position: absolute; right: 14px; bottom: 12px; color: var(--palco-suave); font-size: 12px; }
+aside { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; overflow-y: auto; padding-right: 2px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 26px; margin: 0 0 2px; text-wrap: balance; }
+.grupo { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+button {
+  font: inherit; cursor: pointer; border: 1px solid var(--linha); background: var(--chip); color: var(--fg);
+  border-radius: 999px; padding: 6px 12px; font-size: 14px;
+}
+button:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--acento); color: var(--acento-fg); border-color: var(--acento); }
+.amostra { width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 2px solid var(--linha); }
+.amostra[aria-pressed="true"] { border-color: var(--acento); box-shadow: 0 0 0 2px var(--acento); background: inherit; }
+input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid var(--linha); border-radius: 50%; background: none; cursor: pointer; }
+.nota { color: var(--suave); font-size: 13px; margin: 2px 0 0; }
+.rotulo { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); margin: 10px 0 0; }
+.minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.mini {
+  display: grid; gap: 4px; justify-items: center; padding: 8px 6px 6px; border-radius: 12px; background: var(--mini);
+  border: 2px solid transparent; font-size: 13px; text-align: center; line-height: 1.2;
+}
+.mini img { height: 110px; width: auto; max-width: 100%; object-fit: contain; }
+.bib { display: grid; gap: 4px; }
+.bib h3 { font: 600 13px var(--texto); color: var(--fg); margin: 8px 0 0; }
+.bib button.ruim { border-style: dashed; }
+.mini[aria-pressed="true"] { border-color: var(--acento); background: var(--mini); color: var(--fg); }
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .palco { height: 58vh; min-height: 340px; }
+  aside { overflow: visible; }
+  .dica { display: none; }
+}
+</style>
+
+<div class="app">
+  <div class="palco" id="palco">
+    <div class="nome" id="nome"></div>
+    <div class="status" id="status">Carregando…</div>
+    <div class="dica">Arraste para girar · pinça ou roda para aproximar</div>
+  </div>
+  <aside>
+    <h1>Tipos de corpo do Morada</h1>
+    <p class="rotulo">Sexo</p>
+    <div class="grupo" id="sexo"></div>
+    <p class="rotulo">Idade</p>
+    <div class="grupo" id="idade"></div>
+    <p class="rotulo">Corpo</p>
+    <div class="minis" id="minis"></div>
+    <p class="rotulo">Tom de pele</p>
+    <div class="grupo" id="tons"></div>
+    <p class="rotulo">Expressão</p>
+    <div class="grupo" id="expr"></div>
+    <div class="grupo" id="extras"></div>
+    <div id="cabelo-bloco" hidden>
+      <p class="rotulo">Cabelo</p>
+      <div class="grupo" id="cabelo-tipo"></div>
+      <div class="grupo" id="cabelo-cor"></div>
+    </div>
+    <div id="gravidez-bloco" hidden>
+      <p class="rotulo">Gravidez</p>
+      <div class="grupo" id="gravidez"></div>
+    </div>
+    <div id="manta-bloco" hidden>
+      <p class="rotulo">Manta e gorrinho</p>
+      <div class="grupo" id="manta-cor"></div>
+    </div>
+    <p class="nota" id="nota-recem" hidden>Recém-nascido não tem animações: só as expressões do rosto. No jogo ele fica no colo, no moisés ou no berço; aqui aparece deitado num moisés.</p>
+    <div id="bloco-anim">
+    <p class="rotulo">Animação · do pacote</p>
+    <div class="grupo" id="anims"></div>
+    <p class="nota" id="nota-apoio" hidden></p>
+    <p class="rotulo">Animação · biblioteca do Mixamo</p>
+    <p class="nota" id="bib-status"></p>
+    <div id="bib" class="bib"></div>
+    </div>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { clone as clonarEsqueleto } from "three/addons/utils/SkeletonUtils.js";
+
+const CORPOS = [
+  { id: "recem_m", rotulo: "Recém-nascido", sexo: "m", idade: "recem" },
+  { id: "recem_f", rotulo: "Recém-nascida", sexo: "f", idade: "recem" },
+  { id: "bebe_m", rotulo: "Bebê de colo", sexo: "m", idade: "colo" },
+  { id: "bebe_f", rotulo: "Bebê de colo", sexo: "f", idade: "colo" },
+  { id: "pequeno_m", rotulo: "2–3 anos", sexo: "m", idade: "pequeno" },
+  { id: "pequena_f", rotulo: "2–3 anos", sexo: "f", idade: "pequeno" },
+  { id: "crianca_m", rotulo: "Criança", sexo: "m", idade: "crianca" },
+  { id: "crianca_f", rotulo: "Criança", sexo: "f", idade: "crianca" },
+  { id: "adolescente_m", rotulo: "Adolescente", sexo: "m", idade: "adolescente" },
+  { id: "adolescente_f", rotulo: "Adolescente", sexo: "f", idade: "adolescente" },
+  { id: "adulto", rotulo: "Adulto", sexo: "m", idade: "adulto" },
+  { id: "plus_m", rotulo: "Plus-size", sexo: "m", idade: "adulto" },
+  { id: "musculoso", rotulo: "Musculoso", sexo: "m", idade: "adulto" },
+  { id: "alto_magro", rotulo: "Alto e magro", sexo: "m", idade: "adulto" },
+  { id: "adulta", rotulo: "Adulta", sexo: "f", idade: "adulto" },
+  { id: "plus_f", rotulo: "Plus-size", sexo: "f", idade: "adulto" },
+  { id: "atletica", rotulo: "Atlética", sexo: "f", idade: "adulto" },
+  { id: "idoso", rotulo: "Idoso", sexo: "m", idade: "idoso" },
+  { id: "idosa", rotulo: "Idosa", sexo: "f", idade: "idoso" },
+];
+const SEXOS = { m: "Masculino", f: "Feminino" };
+const IDADES = { recem: "Recém-nascido", colo: "Bebê de colo", pequeno: "2–3 anos", crianca: "Criança", adolescente: "Adolescente", adulto: "Adulto", idoso: "Idoso" };
+const EXPR = { neutro: "Neutro", feliz: "Feliz", triste: "Triste", bravo: "Bravo", confiante: "Confiante", serio: "Sério",
+  surpreso: "Surpreso", assustado: "Assustado", aborrecido: "Aborrecido", confuso: "Confuso", dormindo: "Dormindo",
+  chorando: "Chorando" };
+// cabelo configurável (por enquanto só no recém-nascido, que tem material próprio para o cabelo)
+const CABELO_TIPOS = { careca: "Careca", baixinho: "Baixinho", gorro: "Com gorrinho" };
+const MANTA_CORES = { "Creme": "#f6efe2", "Branco": "#fbfbf8", "Rosa-bebê": "#f4cfd6", "Azul-bebê": "#c9dcf0", "Verde-água": "#c4e4dc",
+  "Amarelo-claro": "#f5e7b8", "Cinza": "#cfcfcf" };
+const CABELO_CORES = { "Castanho claro": "#976858", "Castanho": "#5a3f33", "Preto": "#262322", "Loiro": "#d2a66a", "Ruivo": "#a9532f" };
+const semAnimacoes = (id) => id.startsWith("recem");
+const ANIM = { parado: "Parado", olhando: "Olhando em volta", andando: "Andando", correndo: "Correndo",
+  comemorando: "Comemorando", triste: "Triste", aplaudindo: "Aplaudindo", conversando: "Conversando",
+  telefone: "Ao telefone", carregando: "Carregando algo" };
+// biblioteca do Mixamo: uma por esqueleto; corpos com o mesmo esqueleto usam a do gêmeo
+const GEMEO = { adulta: "adulto", idosa: "idoso", adolescente_f: "adolescente_m", crianca_f: "crianca_m", pequena_f: "pequeno_m", bebe_f: "bebe_m" };
+// grávida (2º e 3º trimestre): biblioteca própria, com a postura e as correções contra a barriga
+const COM_GRAVIDA = new Set(["adulta", "plus_f", "atletica"]);
+const fonteDe = (id) => (COM_GRAVIDA.has(id) && (estado.gravidez === "2" || estado.gravidez === "3")) ? id + "_gravida" : (GEMEO[id] || id);
+const BIB = {"categorias":["Parado e andando","Sentar, deitar e dormir","Necessidades","Casa e objetos","Conversa e convívio","Emoções","Afeto e romance","Gravidez e parto","Bebês","Cozinha e limpeza","Escola e trabalho","Jardinagem","Música, dança e brincadeira","Exercícios","Carro","Escalar"],"rotulos":{"resident.idle.neutral":["Parado e andando","Parado"],"resident.idle.happy":["Parado e andando","Parado feliz"],"resident.idle.sad":["Parado e andando","Parado triste"],"resident.idle.bored":["Parado e andando","Entediado"],"resident.idle.look_around":["Parado e andando","Olhando em volta"],"resident.idle.old":["Parado e andando","Parado (idoso)"],"resident.walk.normal":["Parado e andando","Andando"],"resident.walk.happy":["Parado e andando","Andando feliz"],"resident.walk.sad":["Parado e andando","Andando triste"],"resident.walk.old":["Parado e andando","Andando (idoso)"],"resident.run.normal":["Parado e andando","Correndo"],"resident.jog":["Parado e andando","Trotando"],"resident.turn.left":["Parado e andando","Virando à esquerda"],"resident.turn.right":["Parado e andando","Virando à direita"],"resident.stairs.up":["Parado e andando","Subindo degraus"],"resident.stairs.up.rm":["Parado e andando","Subindo degraus (com deslocamento)"],"resident.stairs.down":["Parado e andando","Descendo degraus"],"resident.stairs.down.rm":["Parado e andando","Descendo degraus (com deslocamento)"],"resident.crouch.enter":["Parado e andando","Agachando"],"resident.crouch.idle":["Parado e andando","Agachado"],"resident.crouch.exit":["Parado e andando","Levantando do agachado"],"resident.pickup.floor":["Parado e andando","Pegando do chão"],"resident.jump.small":["Parado e andando","Pulinho"],"resident.sit.chair.enter":["Sentar, deitar e dormir","Sentando na cadeira"],"resident.sit.chair.idle":["Sentar, deitar e dormir","Sentado na cadeira"],"resident.sit.chair.exit":["Sentar, deitar e dormir","Levantando da cadeira"],"resident.sit.legs_swing":["Sentar, deitar e dormir","Sentado balançando as pernas"],"resident.sit.talk":["Sentar, deitar e dormir","Conversando sentado"],"resident.sit.clap":["Sentar, deitar e dormir","Aplaudindo sentado"],"resident.sit.laugh":["Sentar, deitar e dormir","Rindo sentado"],"resident.sit.angry":["Sentar, deitar e dormir","Bravo sentado"],"resident.lie.enter":["Sentar, deitar e dormir","Deitando na cama"],"resident.lie.idle":["Sentar, deitar e dormir","Deitado"],"resident.sleep.idle":["Sentar, deitar e dormir","Dormindo"],"resident.yawn":["Sentar, deitar e dormir","Bocejando"],"resident.drink.stand":["Necessidades","Bebendo"],"resident.dizzy":["Necessidades","Tonto"],"resident.stretch":["Necessidades","Alongando o braço"],"resident.door.open_in":["Casa e objetos","Abrindo porta (puxando)"],"resident.door.open_out":["Casa e objetos","Abrindo porta (empurrando)"],"resident.cabinet.open":["Casa e objetos","Abrindo armário"],"resident.cabinet.close":["Casa e objetos","Fechando armário"],"resident.button.push":["Casa e objetos","Apertando botão"],"resident.carry.box.idle":["Casa e objetos","Segurando caixa"],"resident.push.start":["Casa e objetos","Começando a empurrar"],"resident.push.loop":["Casa e objetos","Empurrando"],"resident.push.stop":["Casa e objetos","Parando de empurrar"],"resident.search.pockets":["Casa e objetos","Procurando nos bolsos"],"resident.throw":["Casa e objetos","Jogando algo"],"resident.talk.a":["Conversa e convívio","Conversando"],"resident.talk.b":["Conversa e convívio","Explicando"],"resident.talk.listen":["Conversa e convívio","Escutando"],"resident.wave":["Conversa e convívio","Dando tchau"],"resident.greet":["Conversa e convívio","Cumprimentando"],"resident.agree":["Conversa e convívio","Concordando"],"resident.disagree":["Conversa e convívio","Discordando"],"resident.laugh":["Conversa e convívio","Rindo"],"resident.clap":["Conversa e convívio","Aplaudindo"],"resident.cheer":["Conversa e convívio","Comemorando"],"resident.point":["Conversa e convívio","Apontando"],"resident.phone.talk":["Conversa e convívio","Ao telefone"],"resident.text":["Conversa e convívio","Mexendo no celular"],"resident.look_behind":["Conversa e convívio","Olhando para trás"],"resident.handshake":["Conversa e convívio","Aperto de mão"],"resident.handshake.partner":["Conversa e convívio","Aperto de mão (a outra pessoa)"],"resident.pat":["Conversa e convívio","Tapinha carinhoso"],"resident.romance.kiss_taller":["Afeto e romance","Beijo (pessoa mais alta)"],"resident.romance.kiss_shorter":["Afeto e romance","Beijo (pessoa mais baixa)"],"resident.romance.blow_kiss":["Afeto e romance","Mandando beijo"],"resident.romance.propose":["Afeto e romance","Ajoelhado (pedido)"],"resident.romance.propose_exit":["Afeto e romance","Levantando do ajoelhado"],"resident.romance.kiss_long_taller":["Afeto e romance","Beijo longo (mais alta)"],"resident.romance.kiss_long_shorter":["Afeto e romance","Beijo longo (mais baixa)"],"resident.romance.dance_rumba":["Afeto e romance","Dançando rumba"],"resident.romance.dance_salsa":["Afeto e romance","Dançando salsa"],"resident.baby.crawl":["Bebês","Engatinhando"],"resident.baby.cry":["Bebês","Chorando"],"resident.baby.sit":["Bebês","Sentado no chão"],"resident.emote.cry":["Emoções","Chorando"],"resident.emote.angry":["Emoções","Bravo"],"resident.emote.tantrum":["Emoções","Birra"],"resident.emote.scared":["Emoções","Assustado"],"resident.emote.surprised":["Emoções","Surpreso"],"resident.emote.excited":["Emoções","Empolgado"],"resident.emote.disappointed":["Emoções","Decepcionado"],"resident.emote.thinking":["Emoções","Pensando"],"resident.emote.thankful":["Emoções","Agradecendo"],"resident.emote.pain":["Emoções","Dor nas costas"],"resident.emote.reacting":["Emoções","Reagindo"],"resident.emote.relieved":["Emoções","Aliviado"],"resident.emote.shoved":["Emoções","Levando esbarrão"],"resident.desk.type":["Escola e trabalho","Digitando"],"resident.desk.write":["Escola e trabalho","Escrevendo"],"resident.desk.point":["Escola e trabalho","Apontando sentado"],"resident.garden.water":["Jardinagem","Regando"],"resident.garden.dig":["Jardinagem","Cavando"],"resident.garden.plant":["Jardinagem","Plantando"],"resident.garden.pick":["Jardinagem","Colhendo fruta"],"resident.garden.pull":["Jardinagem","Arrancando mato"],"resident.music.piano":["Música, dança e brincadeira","Tocando piano"],"resident.music.guitar":["Música, dança e brincadeira","Tocando violão"],"resident.dance.silly":["Música, dança e brincadeira","Dança engraçada"],"resident.dance.samba":["Música, dança e brincadeira","Sambando"],"resident.dance.hiphop":["Música, dança e brincadeira","Dançando hip hop"],"resident.swim":["Música, dança e brincadeira","Nadando"],"resident.swim.tread":["Música, dança e brincadeira","Boiando"],"resident.play.jump_rope":["Música, dança e brincadeira","Pulando corda"],"resident.play.videogame":["Música, dança e brincadeira","Jogando videogame"],"resident.play.ball_kick":["Música, dança e brincadeira","Chutando a bola"],"resident.fit.squat":["Exercícios","Agachamento"],"resident.fit.jacks":["Exercícios","Polichinelo"],"resident.fit.pushup":["Exercícios","Flexão"],"resident.fit.curl":["Exercícios","Rosca com haltere"],"resident.fit.crunch":["Exercícios","Abdominal"],"resident.fit.yoga":["Exercícios","Alongamento"],"resident.car.enter":["Carro","Entrando no carro"],"resident.car.exit":["Carro","Saindo do carro"],"resident.car.drive":["Carro","Dirigindo"],"resident.climb.ladder":["Escalar","Subindo escada de mão"],"resident.climb.ladder.rm":["Escalar","Subindo escada de mão (com deslocamento)"],"resident.climb.rope":["Escalar","Subindo na corda"],"resident.climb.rope.rm":["Escalar","Subindo na corda (com deslocamento)"],"resident.hang.enter":["Escalar","Pulando para pendurar"],"resident.climb.top":["Escalar","Subindo na borda"],"resident.sit.sofa.relaxed":["Sentar, deitar e dormir","Largado no sofá"],"resident.sit.floor.crossed":["Sentar, deitar e dormir","Sentado no chão, pernas cruzadas"],"resident.sleep.exit":["Sentar, deitar e dormir","Levantando da cama"],"resident.drink.sit":["Necessidades","Bebendo sentado"],"resident.eat.sit":["Necessidades","Comendo à mesa"],"resident.wash":["Necessidades","Lavando as mãos e o rosto"],"resident.carry.box.walk":["Casa e objetos","Andando com caixa"],"resident.hug":["Afeto e romance","Abraço"],"resident.romance.dance_slow":["Afeto e romance","Dança lenta a dois"],"resident.care.hold_idle":["Bebês","Segurando bebê no colo"],"resident.care.rock":["Bebês","Ninando bebê"],"resident.baby.cry_sit":["Bebês","Chorando sentado"],"resident.device.use":["Escola e trabalho","Usando tablet"],"resident.read.sit":["Escola e trabalho","Lendo sentado"],"resident.read.stand":["Escola e trabalho","Lendo de pé"],"resident.present":["Escola e trabalho","Explicando para um grupo"],"resident.kitchen.stir":["Cozinha e limpeza","Mexendo a panela"],"resident.kitchen.chop":["Cozinha e limpeza","Picando na tábua"],"resident.clean.sweep":["Cozinha e limpeza","Varrendo"],"resident.clean.mop":["Cozinha e limpeza","Passando pano no chão"],"resident.clean.wipe":["Cozinha e limpeza","Limpando a mesa"],"resident.clean.vacuum":["Cozinha e limpeza","Aspirando"],"resident.laundry.fold":["Cozinha e limpeza","Dobrando roupa"],"resident.gravida.belly_hold":["Gravidez e parto","Mão na barriga"],"resident.gravida.back_hold":["Gravidez e parto","Mão na lombar"],"resident.gravida.sit_slow":["Gravidez e parto","Sentando devagar"],"resident.gravida.stand_slow":["Gravidez e parto","Levantando devagar"],"resident.gravida.lie_side":["Gravidez e parto","Deitada de lado"],"resident.parto.contracao_pe":["Gravidez e parto","Contração (em pé)"],"resident.parto.contracao_deitada":["Gravidez e parto","Trabalho de parto (deitada)"]},"compostas":{"resident.sit.sofa.relaxed":"o sentado na cadeira do Mixamo, recostado, com os braços no braço do sofá","resident.sit.floor.crossed":"o tronco do sentado na cadeira, com o quadril no chão e as pernas cruzadas por IK","resident.sleep.exit":"o deitar na cama tocado de trás para a frente","resident.drink.sit":"as pernas do sentado na cadeira com o tronco e os braços do bebendo de pé","resident.eat.sit":"o sentado na cadeira com a mão indo do prato à boca por IK","resident.wash":"o parado, inclinado na pia, com as mãos esfregando e jogando água no rosto por IK","resident.carry.box.walk":"o andar com as mãos nas laterais de uma caixa por IK","resident.hug":"o parado com os braços envolvendo alguém à frente por IK","resident.romance.dance_slow":"o parado com as mãos no par por IK e balanço de lado com os pés no lugar","resident.care.hold_idle":"o parado com os braços em berço por IK","resident.care.rock":"os braços em berço com balanço de lado","resident.baby.cry_sit":"as pernas do bebê sentado com o tronco e os braços do bebê chorando","resident.device.use":"o mexendo no celular com as mãos afastadas, como num tablet","resident.read.sit":"o sentado com o tronco do celular, mãos afastadas como num livro, virando a página","resident.read.stand":"o celular de pé com as mãos afastadas como num livro, virando a página","resident.present":"o explicando com as duas mãos, com o tronco e o olhar varrendo o grupo","resident.kitchen.stir":"o parado na bancada com a mão mexendo em círculo por IK","resident.kitchen.chop":"o parado na bancada com a faca subindo e descendo por IK","resident.clean.sweep":"o parado segurando o cabo por IK, varrendo de lado","resident.clean.mop":"o parado segurando o cabo por IK, passando o rodo para a frente e de lado","resident.clean.wipe":"o inclinado na mesa com o pano em círculo por IK","resident.clean.vacuum":"o parado empurrando e puxando o aspirador por IK","resident.laundry.fold":"o parado na mesa pegando, dobrando e alisando a roupa por IK","resident.gravida.belly_hold":"o parado com as duas mãos na barriga (IK na pele), uma acariciando","resident.gravida.back_hold":"o parado com uma mão na lombar e a outra na barriga (IK na pele)","resident.gravida.sit_slow":"o sentando na cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.stand_slow":"o levantando da cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.lie_side":"o deitado rolado de lado, com os joelhos dobrados e a mão na barriga","resident.parto.contracao_pe":"o parado com contrações: tronco curva, joelhos dobram, respiração, mãos na lombar e na barriga","resident.parto.contracao_deitada":"o deitado com os joelhos para cima e contrações, segurando nas laterais da cama"}};
+const PARES = { "resident.handshake": "resident.handshake.partner", "resident.romance.kiss_taller": "resident.romance.kiss_shorter",
+  "resident.romance.kiss_shorter": "resident.romance.kiss_taller", "resident.romance.kiss_long_taller": "resident.romance.kiss_long_shorter",
+  "resident.romance.kiss_long_shorter": "resident.romance.kiss_long_taller",
+  "resident.hug": "resident.hug", "resident.romance.dance_slow": "resident.romance.dance_slow" };
+// distância entre as duas pessoas (em alturas de 1,75 m); as do Mixamo andam um pouco em direção à outra pessoa
+const DIST_PAR = { "resident.handshake": 1.25, "resident.hug": 0.44, "resident.romance.dance_slow": 0.48 };
+const TONS = { "Clara": "#FFB69F", "Média": "#FEA679", "Morena": "#BA6953", "Escura": "#482B25" };
+const REF = "#FB9D72"; // cor média da faixa de pele da paleta (sRGB): a pele é a textura × (tom ÷ esta cor)
+const ROSTO = { "Clara": 1, "Média": 1, "Morena": 0.6, "Escura": 0.28 }; // traços escurecem junto com a pele
+
+const estado = { sexo: "m", idade: "adulto", corpo: "adulto", tom: "Média", expr: "neutro", anim: "parado", chupeta: true,
+  cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0" };
+const GRAVIDEZ = { "0": "Não grávida", "1": "1º trimestre", "2": "2º trimestre", "3": "3º trimestre" };
+
+// ---------------------------------------------------------------- palco
+const palco = document.getElementById("palco");
+const status = document.getElementById("status");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+palco.prepend(renderer.domElement);
+const cena = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 100);
+const orbita = new OrbitControls(camera, renderer.domElement);
+orbita.enableDamping = true; orbita.enablePan = false;
+cena.add(new THREE.HemisphereLight(0xffffff, 0x7a86a6, 1.9));
+const sol = new THREE.DirectionalLight(0xffffff, 2.1);
+sol.position.set(2, 5, 4); sol.castShadow = true; sol.shadow.mapSize.set(1024, 1024);
+Object.assign(sol.shadow.camera, { left: -2, right: 2, top: 3, bottom: -1 });
+cena.add(sol);
+// apoio (cadeira ou cama) para as animações que esperam um móvel embaixo; medidas por corpo em apoios.json
+const apoio = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xc9d2e3, roughness: 0.9 }));
+apoio.castShadow = true; apoio.receiveShadow = true; apoio.visible = false;
+let APOIOS = {}, INFO = {};
+fetch("biblioteca/info.json").then((r) => r.json()).then((j) => { APOIOS = j.apoios; INFO = j; if (atual) { aplicarApoio(); desenharAnims(); } }).catch(() => {});
+// auxiliares das animações que precisam de algo na cena: só existem aqui, não fazem parte da animação
+const auxiliar = new THREE.Group(); 
+const MAT_AUX = {
+  bloco: new THREE.MeshStandardMaterial({ color: 0xc9d2e3, roughness: 0.9 }),
+  saco: new THREE.MeshStandardMaterial({ color: 0xb5524a, roughness: 0.8 }),
+  madeira: new THREE.MeshStandardMaterial({ color: 0xb98b5e, roughness: 0.85 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.4, metalness: 0.3 }),
+};
+function peca(geo, mat, x, y, z) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; auxiliar.add(m); return m;
+}
+let par = null; // a outra pessoa (cópia do corpo escolhido)
+let camMovida = false;
+let seguir = null; // auxiliar que acompanha as mãos (caixa empurrada)
+let dinamico = null;
+const INCLINA_LIVRO = 0.85; // objeto entre as mãos ou cabo, atualizado a cada quadro
+function maosDe(raiz) { const m = {}; raiz.traverse((o) => { if (o.isBone && (o.name === "LeftHand" || o.name === "RightHand")) m[o.name] = o; }); return m; }
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m4 = new THREE.Matrix4();
+function atualizaDinamico() {
+  const d = dinamico; if (!d || !d.maos.LeftHand || !d.maos.RightHand) return;
+  d.maos.LeftHand.getWorldPosition(_a); d.maos.RightHand.getWorldPosition(_b);
+  if (d.tipo === "entre_maos") {
+    const x = _c.subVectors(_a, _b).normalize(), y = new THREE.Vector3(0, 1, 0), z = new THREE.Vector3().crossVectors(x, y).normalize();
+    y.crossVectors(z, x);
+    d.mesh.quaternion.setFromRotationMatrix(_m4.makeBasis(x, y, z));
+    d.mesh.position.addVectors(_a, _b).multiplyScalar(0.5);
+    if (d.objeto === "bebe") d.mesh.position.y += d.tam[1] * 0.45;
+    if (d.bebe) { // deitado de barriga para cima nos braços: cabeça do lado do cotovelo esquerdo
+      // a mão esquerda segura a cabecinha e o pescoço, a direita o corpinho: a cabeça vai para o lado da mão esquerda
+      const L = new THREE.Vector3().subVectors(_a, _b); L.y = 0; L.normalize(); const Up = new THREE.Vector3(0, 1, 0);
+      const Lx = new THREE.Vector3().crossVectors(L, Up).normalize(); Up.crossVectors(Lx, L);
+      d.bebe.quaternion.setFromRotationMatrix(_m4.makeBasis(Lx, L, Up));
+      d.bebe.position.addVectors(_a, _b).multiplyScalar(0.5).addScaledVector(L, -0.27).addScaledVector(Up, 0.06).addScaledVector(Lx, 0.05); // sobre as palmas, à frente dos pulsos
+    }
+    if (d.objeto === "livro" || d.objeto === "tablet") { d.mesh.position.y += 0.03; d.mesh.rotateX(INCLINA_LIVRO); } // inclinado para o rosto
+  } else {
+    // vassoura e rodo: o cabo passa pelas duas mãos e vai até o chão; aspirador: da mão direita até o chão, à frente
+    let topo, pe;
+    if (d.objeto === "aspirador") { topo = _b.clone(); pe = new THREE.Vector3(_b.x, 0.04, _b.z + 0.42 * Math.max(d.k, 0.5)); }
+    else {
+      const dir = _c.subVectors(_b, _a).normalize();
+      const t = dir.y < -0.05 ? (_b.y - 0.03) / -dir.y : 1.0;
+      pe = _b.clone().addScaledVector(dir, t); topo = _a.clone().addScaledVector(dir, -0.15);
+    }
+    const meio = topo.clone().add(pe).multiplyScalar(0.5), comp = topo.distanceTo(pe);
+    d.pau.position.copy(meio); d.pau.scale.set(1, comp, 1);
+    d.pau.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), topo.clone().sub(pe).normalize());
+    d.cabeca.position.set(pe.x, 0.03, pe.z);
+    d.cabeca.rotation.y = Math.atan2(_a.x - _b.x, _a.z - _b.z) + Math.PI / 2;
+  }
+}
+const _v = new THREE.Vector3(); // a câmera saiu do enquadramento normal para mostrar o auxiliar
+const NOTAS = { cadeira: "O bloco faz o papel da cadeira, na altura que esse corpo precisa.",
+  cama: "O bloco faz o papel da cama, na altura que esse corpo precisa.",
+  saco: "O saco de pancada é só um auxiliar desta cena de teste.", escada: "A escada é só um auxiliar desta cena de teste.",
+  barra: "A barra é só um auxiliar desta cena de teste.", parapeito: "O muro é só um auxiliar desta cena de teste, na altura em que as mãos se apoiam.", corda: "A corda é só um auxiliar desta cena de teste.",
+  botao: "O painel com botão é só um auxiliar desta cena de teste.", caixa_segue: "A caixa é só um auxiliar desta cena de teste.", par: "A outra pessoa é uma cópia deste corpo, só para a cena de teste." };
+const chao = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48), new THREE.ShadowMaterial({ opacity: 0.25 }));
+chao.rotation.x = -Math.PI / 2; chao.receiveShadow = true; cena.add(chao); cena.add(apoio); cena.add(auxiliar);
+function aoMudarTamanho() {
+  const r = palco.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(r.height, 1); camera.updateProjectionMatrix();
+}
+new ResizeObserver(aoMudarTamanho).observe(palco);
+
+const ref = new THREE.Color(REF);
+const fatorDoTom = (hex) => { const t = new THREE.Color(hex); return new THREE.Color(t.r / ref.r, t.g / ref.g, t.b / ref.b); };
+// coordenadas do Blender (x, y, z para cima; frente = -y) → three (x, z, -y): a frente do corpo é +z
+function montarAuxiliar(a) {
+  const k = a.k || atual.altura / 1.75;
+  if (a.tipo === "saco") {
+    const r = 0.17 * Math.max(k, 0.5), alto = 0.9 * Math.max(k, 0.5);
+    const yc = Math.max(a.z, alto / 2 + 0.05);
+    peca(new THREE.CylinderGeometry(r, r, alto, 24), MAT_AUX.saco, a.x, yc, a.frente + r * 0.7);
+    peca(new THREE.CylinderGeometry(0.012, 0.012, 3, 8), MAT_AUX.metal, a.x, yc + alto / 2 + 1.5, a.frente + r * 0.7);
+  } else if (a.tipo === "escada") {
+    const z = a.frente, w = Math.max(a.meia_largura, 0.24 * k), topo = a.topo, g = 0.022 * Math.max(k, 0.6), x0 = a.x || 0;
+    for (const s of [-1, 1]) peca(new THREE.BoxGeometry(g, topo, g), MAT_AUX.madeira, x0 + s * w, topo / 2, z);
+    const passo = 0.28 * Math.max(k, 0.45);
+    for (let y = passo * 0.8; y < topo - 0.05; y += passo) {
+      const d = peca(new THREE.CylinderGeometry(g * 0.55, g * 0.55, 2 * w, 10), MAT_AUX.madeira, x0, y, z);
+      d.rotation.z = Math.PI / 2;
+    }
+    orbita.target.set(x0, Math.min(topo * 0.5, atual.altura), z);
+    camera.position.set(x0 + atual.altura * 2.2 + 0.4, Math.min(topo * 0.55, atual.altura) + 0.3, z - atual.altura * 1.1);
+    camMovida = true;
+  } else if (a.tipo === "barra") {
+    const z = a.frente, w = a.meia_largura, h = a.h, g = 0.02 * Math.max(k, 0.6);
+    const barra = peca(new THREE.CylinderGeometry(g, g, 2 * w, 16), MAT_AUX.metal, 0, h, z);
+    barra.rotation.z = Math.PI / 2;
+    for (const s of [-1, 1]) peca(new THREE.CylinderGeometry(g, g, h + 0.1, 12), MAT_AUX.metal, s * w, (h + 0.1) / 2, z);
+    if (h > atual.altura * 1.1) { orbita.target.set(0, h * 0.55, z); camera.position.set(atual.altura * 0.6, h * 0.65, z + h * 2.2 + 0.6); camMovida = true; }
+  } else if (a.tipo === "corda") {
+    const z = a.frente, x0 = a.x || 0;
+    peca(new THREE.CylinderGeometry(0.022, 0.022, a.topo, 12), MAT_AUX.madeira, x0, a.topo / 2, z);
+    orbita.target.set(x0, 1.3, z); camera.position.set(x0 + 2.2, 1.6, z + 4.2); camMovida = true;
+  } else if (a.tipo === "parapeito") {
+    const prof = 0.9, larg = 1.8 * Math.max(k, 0.6);
+    peca(new THREE.BoxGeometry(larg, a.topo, prof), MAT_AUX.bloco, a.x || 0, a.topo / 2, a.frente + prof / 2);
+    orbita.target.set(0, a.topo * 0.7, a.frente);
+    camera.position.set(atual.altura * 2.4 + 0.8, a.topo * 0.95, a.frente - atual.altura * 1.2); camMovida = true; // de lado
+  } else if (a.tipo === "botao") {
+    const p = peca(new THREE.BoxGeometry(0.34, 0.5, 0.06), MAT_AUX.metal, a.x, a.z, a.frente + 0.035);
+    peca(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), MAT_AUX.saco, a.x, a.z, a.frente + 0.005).rotation.x = Math.PI / 2;
+    peca(new THREE.BoxGeometry(0.06, a.z, 0.06), MAT_AUX.metal, a.x, a.z / 2, a.frente + 0.07);
+    orbita.target.set(0, 1.0, a.frente / 2); camera.position.set(4.2, 1.4, a.frente / 2 + 1.2); camMovida = true; // de lado
+  } else if (a.tipo === "caixa_segue") {
+    seguir = { mesh: peca(new THREE.BoxGeometry(0.7, 0.8, 0.7), MAT_AUX.madeira, 0, 0.4, 0.6), maos: [] };
+    atual.raiz.traverse((o) => { if (o.isBone && (o.name === "LeftHand" || o.name === "RightHand")) seguir.maos.push(o); });
+  } else if (a.tipo === "par") {
+    const raiz = clonarEsqueleto(atual.raiz);
+    raiz.rotation.y = Math.PI;
+    raiz.position.set(atual.raiz.position.x, atual.raiz.position.y, a.dist);
+    copiarVisivel(atual.raiz, raiz);
+    const mixer = new THREE.AnimationMixer(raiz);
+    const clip = atual.anims.find((c) => c.name === a.anim);
+    if (clip) mixer.clipAction(clip).play();
+    par = { raiz, mixer };
+    cena.add(raiz);
+    orbita.target.set(0, atual.altura * 0.55, a.dist / 2);
+    camera.position.set(atual.altura * 1.9 + 0.6, atual.altura * 0.75, a.dist / 2 + 0.2);
+    camMovida = true;
+  }
+}
+function montarMoises(comp, larg) {
+  const g = new THREE.Group();
+  const palha = new THREE.MeshStandardMaterial({ color: 0xc8a165, roughness: 0.95, side: THREE.DoubleSide });
+  const forro = new THREE.MeshStandardMaterial({ color: 0xf3ede2, roughness: 1 });
+  const rz = comp * 0.62 + 0.05, rx = Math.max(larg, 0.16) * 0.95 + 0.05, h = 0.2;
+  const parede = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.86, 1, 48, 1, true), palha);
+  parede.scale.set(rx, h, rz); parede.position.y = h / 2;
+  const fundo = new THREE.Mesh(new THREE.CircleGeometry(1, 48), palha);
+  fundo.rotation.x = -Math.PI / 2; fundo.scale.set(rx * 0.86, rz * 0.86, 1); fundo.position.y = 0.004;
+  const colchao = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 16), forro);
+  colchao.scale.set(rx * 0.84, 0.05, rz * 0.84); colchao.position.y = 0.03;
+  const borda = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 10, 64), palha);
+  borda.rotation.x = Math.PI / 2; borda.scale.set(rx, rz, 0.25); borda.position.y = h;
+  for (const p of [parede, fundo, colchao, borda]) { p.castShadow = true; p.receiveShadow = true; g.add(p); }
+  for (const s of [-1, 1]) { // alças nas pontas
+    const alca = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 8, 24, Math.PI), palha);
+    alca.position.set(0, h, s * rz * 0.98); alca.rotation.y = Math.PI / 2 * 0 ; g.add(alca);
+  }
+  return g;
+}
+function rostoPorLuz(hex) {
+  const c = new THREE.Color(hex); const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return THREE.MathUtils.clamp(0.28 + (l - 0.03) / 0.25, 0.28, 1);
+}
+
+// ---------------------------------------------------------------- carregamento (um corpo por vez, guardado depois de carregado)
+const loader = new GLTFLoader();
+let paleta = null;
+const cache = new Map();
+let atual = null;
+const relogio = new THREE.Clock();
+
+async function carregarCorpo(id) {
+  if (cache.has(id)) return cache.get(id);
+  if (!paleta) {
+    paleta = await new THREE.TextureLoader().loadAsync("corpos/paleta.png");
+    paleta.flipY = false; paleta.colorSpace = THREE.SRGBColorSpace;
+    paleta.magFilter = THREE.NearestFilter; paleta.minFilter = THREE.NearestFilter; paleta.generateMipmaps = false;
+  }
+  const txt = await (await fetch(`corpos/${id}.txt`)).text();
+  const bin = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
+  const gltf = await new Promise((ok, erro) => loader.parse(bin.buffer, "", ok, erro));
+  const raiz = gltf.scene;
+  const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [];
+  let gorro = null;
+  const barriga = [];
+  let chupeta = null;
+  raiz.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.frustumCulled = false;
+    o.material = o.material.clone();
+    o.material.roughness = 0.75; o.material.metalness = 0;
+    o.material.map = paleta; o.material.color.set(0xffffff); o.material.needsUpdate = true;
+    if (o.material.name === "Pele") pele.push(o.material);
+    if (o.material.name === "Rosto") rosto.push(o.material);
+    if (o.material.name === "Cabelo") { o.material.map = null; o.material.roughness = 0.9; cabelo.push(o); }
+    if (o.material.name === "Manta" || o.material.name === "Gorro") { o.material.map = null; o.material.roughness = 0.95; tecido.push(o); }
+    if (/_gorro$/.test(o.name)) gorro = o;
+    if (o.morphTargetDictionary && "gravidez_1" in o.morphTargetDictionary) barriga.push(o);
+  });
+  // cada expressão é uma malha de rosto: <id>_rosto_<expressão>; a chupeta é <id>_chupeta
+  raiz.traverse((o) => {
+    const m = o.name.match(/_rosto_([a-z]+)$/);
+    if (m && EXPR[m[1]]) rostos[m[1]] = o;
+    if (/_chupeta$/.test(o.name)) chupeta = o;
+  });
+  let moises = null;
+  if (semAnimacoes(id)) { // deitado de barriga para cima, cabeça um pouco mais alta, dentro de um moisés
+    raiz.rotation.x = -Math.PI / 2 + 0.22;
+    raiz.updateMatrixWorld(true);
+    const cx = new THREE.Box3().setFromObject(raiz), ct = cx.getCenter(new THREE.Vector3());
+    raiz.position.set(-ct.x, 0.075 - cx.min.y, -ct.z);
+    moises = montarMoises(cx.max.z - cx.min.z, cx.max.x - cx.min.x);
+  }
+  raiz.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(raiz);
+  if (!moises) raiz.position.y -= caixa.min.y;
+  const mixer = new THREE.AnimationMixer(raiz);
+  const clips = {};
+  for (const c of gltf.animations) clips[c.name] = mixer.clipAction(c);
+  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
+    altura: moises ? 0.5 : caixa.max.y - caixa.min.y, acao: null };
+  cache.set(id, c);
+  return c;
+}
+
+const bibCache = new Map();
+async function carregarBiblioteca(fonte) {
+  if (bibCache.has(fonte)) return bibCache.get(fonte);
+  const p = (async () => {
+    const txt = await (await fetch(`biblioteca/${fonte}.txt`)).text();
+    const gz = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
+    const buf = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const gltf = await new Promise((ok, erro) => loader.parse(buf, "", ok, erro));
+    return gltf.animations;
+  })();
+  bibCache.set(fonte, p);
+  return p;
+}
+async function ligarBiblioteca(c) {
+  const fonte = fonteDe(c.id);
+  if (c.bib && c.bibFonte === fonte) return;
+  const clips = await carregarBiblioteca(fonte);
+  if (c.bib) for (const n of Object.keys(c.clips)) if (n.startsWith("bib:")) delete c.clips[n];
+  c.bibFonte = fonte;
+  c.bib = {};
+  for (const clip of clips) { c.bib[clip.name] = clip; c.clips["bib:" + clip.name] = c.mixer.clipAction(clip); }
+}
+
+async function mostrar(id) {
+  status.textContent = "Carregando…";
+  const c = await carregarCorpo(id);
+  if (estado.corpo !== id) return; // outra escolha chegou antes
+  if (atual && atual !== c) { cena.remove(atual.raiz); if (atual.moises) cena.remove(atual.moises); }
+  atual = c; cena.add(c.raiz); if (c.moises) cena.add(c.moises);
+  const recem = semAnimacoes(id);
+  document.getElementById("bloco-anim").hidden = recem;
+  document.getElementById("nota-recem").hidden = !recem;
+  if (!c.rostos[estado.expr]) estado.expr = "neutro";
+  if (!c.clips[estado.anim]) estado.anim = "parado";
+  apoio.position.copy(c.raiz.position);
+  enquadrar();
+  aplicarTom(); aplicarExpr(); aplicarAnim(true); aplicarChupeta(); aplicarCabelo(); if (c.barriga.length) aplicarGravidez();
+  document.getElementById("nome").textContent = CORPOS.find((x) => x.id === id).rotulo;
+  status.textContent = "";
+  desenharExpr(); desenharExtras(); desenharCabelo(); desenharManta(); desenharGravidez(); desenharAnims();
+  if (!c.bib && !recem) {
+    document.getElementById("bib-status").textContent = "Carregando a biblioteca…";
+    try { await ligarBiblioteca(c); } catch (e) { document.getElementById("bib-status").textContent = "Não consegui carregar a biblioteca: " + e.message; return; }
+    if (estado.corpo === id) desenharAnims();
+  }
+}
+
+function enquadrar() {
+  if (atual.moises) { // de cima, do lado dos pés, para ver o rosto
+    orbita.target.set(0, 0.1, -0.1);
+    camera.position.set(0.42, 1.0, 0.72);
+    orbita.minDistance = 0.25; orbita.maxDistance = 8; chao.scale.setScalar(0.5);
+    return;
+  }
+  const h = atual.altura;
+  orbita.target.set(0, h * 0.52, 0);
+  camera.position.set(h * 0.35, h * 0.62, h * 2.5 + 0.5);
+  orbita.minDistance = 0.25; orbita.maxDistance = 8;
+  chao.scale.setScalar(Math.max(0.4, h * 0.7));
+}
+
+function aplicarTom() {
+  if (!atual) return;
+  const hex = TONS[estado.tom] ?? estado.tom;
+  const r = ROSTO[estado.tom] ?? rostoPorLuz(hex);
+  for (const m of atual.pele) m.color.copy(fatorDoTom(hex));
+  for (const m of atual.rosto) m.color.setScalar(r);
+}
+function aplicarExpr() {
+  for (const [k, o] of Object.entries(atual.rostos)) o.visible = k === estado.expr;
+  if (par) copiarVisivel(atual.raiz, par.raiz);
+}
+function copiarVisivel(de, para) {
+  const vis = {}; de.traverse((o) => { vis[o.name] = o.visible; });
+  para.traverse((o) => { if (o.name in vis) o.visible = vis[o.name]; });
+}
+function aplicarCabelo() {
+  for (const o of atual.cabelo) { o.visible = estado.cabeloTipo !== "careca"; o.material.color.set(CABELO_CORES[estado.cabeloCor] ?? estado.cabeloCor); }
+  if (atual.gorro) atual.gorro.visible = estado.cabeloTipo === "gorro";
+  for (const o of atual.tecido) o.material.color.set(MANTA_CORES[estado.manta] ?? estado.manta);
+  if (par) copiarVisivel(atual.raiz, par.raiz);
+}
+function desenharCabelo() {
+  const bloco = document.getElementById("cabelo-bloco");
+  bloco.hidden = !atual.cabelo.length;
+  if (bloco.hidden) return;
+  chips(document.getElementById("cabelo-tipo"), Object.entries(CABELO_TIPOS), estado.cabeloTipo, (k) => { estado.cabeloTipo = k; aplicarCabelo(); desenharCabelo(); });
+  const el = document.getElementById("cabelo-cor");
+  el.replaceChildren();
+  if (estado.cabeloTipo === "careca") return;
+  for (const [nome, hex] of Object.entries(CABELO_CORES)) {
+    const b = document.createElement("button");
+    b.className = "amostra"; b.type = "button"; b.style.background = hex; b.title = nome; b.dataset.k = nome;
+    b.setAttribute("aria-label", `Cabelo ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(estado.cabeloCor === nome));
+    b.onclick = () => { estado.cabeloCor = nome; aplicarCabelo(); desenharCabelo(); };
+    el.append(b);
+  }
+  const livre = document.createElement("input");
+  livre.type = "color"; livre.title = "Outra cor"; livre.setAttribute("aria-label", "Escolher outra cor de cabelo");
+  livre.value = CABELO_CORES[estado.cabeloCor] ?? estado.cabeloCor;
+  livre.oninput = () => { estado.cabeloCor = livre.value; aplicarCabelo(); for (const b of el.querySelectorAll(".amostra")) b.setAttribute("aria-pressed", "false"); };
+  el.append(livre);
+}
+function aplicarGravidez() {
+  for (const o of atual.barriga) {
+    for (const n of ["1", "2", "3"]) o.morphTargetInfluences[o.morphTargetDictionary["gravidez_" + n]] = estado.gravidez === n ? 1 : 0;
+  }
+  if (par) copiarVisivel(atual.raiz, par.raiz);
+  const c = atual;
+  if (c.bib && c.bibFonte !== fonteDe(c.id)) { // troca de biblioteca (grávida ou não)
+    document.getElementById("bib-status").textContent = "Carregando a biblioteca…";
+    ligarBiblioteca(c).then(() => {
+      if (atual !== c) return;
+      if (estado.anim.startsWith("bib:") && !c.clips[estado.anim]) { estado.anim = "parado"; aplicarAnim(false); }
+      else if (estado.anim.startsWith("bib:")) { atual.acao = null; aplicarAnim(true); }
+      desenharAnims();
+    }).catch((e) => { document.getElementById("bib-status").textContent = "Não consegui carregar a biblioteca: " + e.message; });
+  }
+}
+function desenharGravidez() {
+  const bloco = document.getElementById("gravidez-bloco");
+  bloco.hidden = !atual.barriga.length;
+  if (bloco.hidden) return;
+  chips(document.getElementById("gravidez"), Object.entries(GRAVIDEZ), estado.gravidez, (k) => { estado.gravidez = k; aplicarGravidez(); desenharGravidez(); });
+}
+function desenharManta() {
+  const bloco = document.getElementById("manta-bloco");
+  bloco.hidden = !atual.tecido.length;
+  if (bloco.hidden) return;
+  const el = document.getElementById("manta-cor");
+  el.replaceChildren();
+  for (const [nome, hex] of Object.entries(MANTA_CORES)) {
+    const b = document.createElement("button");
+    b.className = "amostra"; b.type = "button"; b.style.background = hex; b.title = nome; b.dataset.k = nome;
+    b.setAttribute("aria-label", `Manta ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(estado.manta === nome));
+    b.onclick = () => { estado.manta = nome; aplicarCabelo(); desenharManta(); };
+    el.append(b);
+  }
+  const livre = document.createElement("input");
+  livre.type = "color"; livre.title = "Outra cor"; livre.setAttribute("aria-label", "Escolher outra cor de manta");
+  livre.value = MANTA_CORES[estado.manta] ?? estado.manta;
+  livre.oninput = () => { estado.manta = livre.value; aplicarCabelo(); for (const b of el.querySelectorAll(".amostra")) b.setAttribute("aria-pressed", "false"); };
+  el.append(livre);
+}
+function aplicarChupeta() { if (atual.chupeta) atual.chupeta.visible = estado.chupeta; if (par) copiarVisivel(atual.raiz, par.raiz); }
+function aplicarAnim(imediato) {
+  const nova = atual.clips[estado.anim];
+  if (!nova) return;
+  if (atual.acao && atual.acao !== nova) {
+    nova.reset().play();
+    if (imediato) atual.acao.stop(); else atual.acao.crossFadeTo(nova, 0.35, false);
+  } else nova.play();
+  atual.acao = nova;
+  aplicarApoio();
+}
+function aplicarApoio() {
+  if (estado.anim.startsWith("bib:")) { apoioBiblioteca(estado.anim.slice(4)); return; }
+  const a = null;
+  auxiliar.clear(); seguir = null;
+  if (par) { cena.remove(par.raiz); par = null; }
+  if (camMovida) { camMovida = false; enquadrar(); }
+  apoio.visible = !!a && (a.tipo === "cadeira" || a.tipo === "cama");
+  const nota = document.getElementById("nota-apoio");
+  nota.hidden = !a; nota.textContent = a ? NOTAS[a.tipo] : "";
+  if (!a) return;
+  if (a.tipo !== "cadeira" && a.tipo !== "cama") { montarAuxiliar(a); return; }
+  const k = atual.altura / 1.75;
+  // coordenadas do Blender (x, y, z para cima) → three (x, z, -y)
+  const qx = a.quadril[0], qz = -a.quadril[1];
+  if (a.tipo === "cadeira") {
+    const lado = 0.44 * Math.max(k, 0.45);
+    apoio.scale.set(lado, a.h, lado);
+    apoio.position.set(qx, a.h / 2, qz + 0.04 * k);
+    apoio.rotation.set(0, 0, 0);
+  } else {
+    // colchão no sentido quadril → cabeça, com a cabeça perto da cabeceira e as pernas cabendo
+    let dx = a.cabeca[0] - a.quadril[0], dz = -(a.cabeca[1] - a.quadril[1]);
+    const d = Math.hypot(dx, dz);
+    if (d < 0.05 * k) { dx = 0; dz = -1; } else { dx /= d; dz /= d; }
+    const comp = atual.altura * 1.3, larg = Math.max(0.5, 1.0 * k);
+    apoio.scale.set(larg, a.h, comp);
+    apoio.rotation.set(0, Math.atan2(dx, dz), 0);
+    const meio = 0.5 * comp - atual.altura * 0.62; // do quadril até o centro do colchão
+    apoio.position.set(qx - dx * meio, a.h / 2, qz - dz * meio);
+  }
+}
+
+function apoioBiblioteca(nome) {
+  auxiliar.clear(); seguir = null;
+  if (par) { cena.remove(par.raiz); par = null; }
+  if (camMovida) { camMovida = false; enquadrar(); }
+  const fonte = fonteDe(atual.id), k = atual.altura / 1.75;
+  const m = APOIOS[fonte]?.[nome];
+  const notas = [];
+  apoio.visible = !!m && ((m.tipo === "assento" && m.altura > 0.15) || m.tipo === "cama");
+  dinamico = null;
+  if (m && (m.tipo === "bancada" || m.tipo === "pia")) {
+    const prof = 0.6 * Math.max(k, 0.5);
+    peca(new THREE.BoxGeometry(m.largura, m.topo, prof), MAT_AUX.bloco, m.x, m.topo / 2, m.frente + prof / 2);
+    if (m.tipo === "pia") peca(new THREE.BoxGeometry(m.largura * 0.45, 0.012, prof * 0.55), MAT_AUX.metal, m.x, m.topo + 0.004, m.frente + prof * 0.4);
+    notas.push(m.tipo === "pia" ? "A pia é só um auxiliar desta cena de teste." : "A bancada é só um auxiliar desta cena de teste.");
+  } else if (m && m.tipo === "entre_maos") {
+    const cor = { caixa: MAT_AUX.madeira, bebe: MAT_AUX.bloco, tablet: MAT_AUX.metal, livro: MAT_AUX.saco }[m.objeto];
+    const geo = m.objeto === "bebe" ? new THREE.CapsuleGeometry(m.tam[1] / 2, m.tam[0] - m.tam[1], 6, 16) : new THREE.BoxGeometry(...m.tam);
+    const mesh = peca(geo, cor, 0, 0, 0);
+    if (m.objeto === "bebe") mesh.geometry.rotateZ(Math.PI / 2);
+    dinamico = { tipo: "entre_maos", objeto: m.objeto, mesh, tam: m.tam, maos: maosDe(atual.raiz) };
+    if (m.objeto === "bebe") { // o recém-nascido de verdade no colo (dormindo, enrolado na manta)
+      const d0 = dinamico;
+      carregarCorpo("recem_f").then((rn) => {
+        if (dinamico !== d0) return;
+        const bebe = clonarEsqueleto(rn.raiz);
+        bebe.rotation.set(0, 0, 0); bebe.position.set(0, 0, 0);
+        bebe.traverse((o) => {
+          if (!o.isMesh) return;
+          const ex = o.name.match(/_rosto_([a-z]+)$/);
+          if (ex) o.visible = ex[1] === "dormindo";
+          if (/_gorro$/.test(o.name)) o.visible = false;
+          if (/_chupeta$/.test(o.name)) o.visible = true;
+        });
+        const g = new THREE.Group(); g.add(bebe); auxiliar.add(g);
+        mesh.visible = false; d0.bebe = g;
+      }).catch(() => {});
+    }
+    notas.push({ caixa: "A caixa é", bebe: "O recém-nascido no colo é", tablet: "O tablet é", livro: "O livro é" }[m.objeto] + " só um auxiliar desta cena de teste.");
+  } else if (m && m.tipo === "cabo") {
+    const pau = peca(new THREE.CylinderGeometry(0.012, 0.012, 1, 10), MAT_AUX.madeira, 0, 0, 0);
+    const cabeca = peca(m.objeto === "aspirador" ? new THREE.BoxGeometry(0.28, 0.07, 0.18) : new THREE.BoxGeometry(m.objeto === "rodo" ? 0.4 : 0.28, 0.05, 0.07),
+      m.objeto === "vassoura" ? MAT_AUX.saco : MAT_AUX.metal, 0, 0, 0);
+    dinamico = { tipo: "cabo", objeto: m.objeto, pau, cabeca, maos: maosDe(atual.raiz), k };
+    notas.push({ vassoura: "A vassoura", rodo: "O rodo", aspirador: "O aspirador" }[m.objeto] + " é só um auxiliar desta cena de teste.");
+  } else if (m && !apoio.visible && m.tipo !== "assento") { montarAuxiliar({ ...m, k }); notas.push(NOTAS[m.tipo] || ""); }
+  else if (m && apoio.visible) {
+    // coordenadas do Blender (x, y, z para cima) → three (x, z, -y)
+    if (m.tipo === "assento") {
+      const lado = 0.44 * Math.max(k, 0.45);
+      apoio.scale.set(lado, m.altura, lado); apoio.rotation.set(0, 0, 0);
+      apoio.position.set(m.x, m.altura / 2, -m.y + 0.04 * k);
+      if (m.mesa) { // mesa à frente: tampo e quatro pés
+        const larg = 0.9 * Math.max(k, 0.5), prof = 0.6 * Math.max(k, 0.5), z0 = m.mesa.frente;
+        peca(new THREE.BoxGeometry(larg, 0.035, prof), MAT_AUX.madeira, m.mesa.x, m.mesa.topo - 0.018, z0 + prof / 2);
+        for (const sx of [-1, 1]) for (const sz of [0.06, prof - 0.06])
+          peca(new THREE.BoxGeometry(0.04, m.mesa.topo - 0.035, 0.04), MAT_AUX.madeira, m.mesa.x + sx * (larg / 2 - 0.05), (m.mesa.topo - 0.035) / 2, z0 + sz);
+      }
+      if (nome === "resident.sit.sofa.relaxed") { // encosto e braços do sofá
+        peca(new THREE.BoxGeometry(lado * 2.4, m.altura + 0.45 * k, 0.16 * k), MAT_AUX.bloco, m.x, (m.altura + 0.45 * k) / 2, -m.y - lado * 0.5 - 0.06 * k);
+        for (const sx of [-1, 1]) peca(new THREE.BoxGeometry(0.14 * k, m.altura + 0.18 * k, lado * 1.1), MAT_AUX.bloco, m.x + sx * (lado * 1.2 + 0.07 * k), (m.altura + 0.18 * k) / 2, -m.y);
+        apoio.scale.set(lado * 2.4, m.altura, lado);
+      }
+      if (m.carro) notas.push("O bloco faz o papel do banco do carro, na altura que essa animação espera.");
+      else if (m.teclado) {
+        const tz = -m.teclado.y, alto = m.teclado.z;
+        peca(new THREE.BoxGeometry(1.3 * Math.max(k, 0.6), 0.05, 0.2), MAT_AUX.bloco, 0, alto - 0.025, tz);
+        const larg = 1.4 * Math.max(k, 0.6), cx = 0.16 * Math.max(k, 0.6); // caixa do teclado no alto, espaço livre para os joelhos
+        peca(new THREE.BoxGeometry(larg, cx, 0.42), MAT_AUX.madeira, 0, alto - 0.05 - cx / 2, tz + 0.2);
+        for (const sx of [-1, 1]) peca(new THREE.BoxGeometry(0.06, alto - 0.05 - cx, 0.06), MAT_AUX.madeira, sx * (larg / 2 - 0.05), (alto - 0.05 - cx) / 2, tz + 0.3);
+        orbita.target.set(0, atual.altura * 0.45, tz / 2);
+        camera.position.set(atual.altura * 2.0 + 0.6, atual.altura * 0.9, tz / 2 - atual.altura * 0.8); camMovida = true; // de lado
+        notas.push("O bloco faz o papel do banco e a tábua clara, do teclado do piano.");
+      } else notas.push("O bloco faz o papel do assento, na altura que essa animação espera.");
+    } else {
+      const s = atual.altura * 1.25;
+      apoio.scale.set(s * 0.7, m.altura, s); apoio.rotation.set(0, 0, 0);
+      apoio.position.set(m.x, m.altura / 2, -m.y);
+      notas.push("O bloco faz o papel da cama, na altura que essa animação espera.");
+    }
+  }
+  const outro = PARES[nome];
+  if (outro && atual.bib[outro]) {
+    const raiz = clonarEsqueleto(atual.raiz);
+    const dist = (DIST_PAR[nome] ?? 0.62) * Math.max(k, 0.5);
+    raiz.rotation.y = Math.PI; raiz.position.set(atual.raiz.position.x, atual.raiz.position.y, dist);
+    copiarVisivel(atual.raiz, raiz);
+    const mixer = new THREE.AnimationMixer(raiz);
+    mixer.clipAction(atual.bib[outro]).play();
+    par = { raiz, mixer }; cena.add(raiz);
+    orbita.target.set(0, atual.altura * 0.55, dist / 2);
+    camera.position.set(atual.altura * 1.9 + 0.6, atual.altura * 0.75, dist / 2 + 0.2); camMovida = true;
+    notas.push("A outra pessoa é uma cópia deste corpo, só para a cena de teste.");
+  }
+  const sobre = {
+    "resident.swim": "Nada no ar aqui; no jogo, a água fica na altura do peito.",
+    "resident.swim.tread": "Boia no ar aqui; no jogo, a água fica na altura do peito.",
+    "resident.music.guitar": "Sem o violão: a mão da batida fica na frente do quadril, onde o violão vai ficar.",
+    "resident.garden.pick": "A fruta fica na altura dos olhos; no jogo, só para árvores e arbustos altos.",
+    "resident.fit.yoga": "Do Mixamo vem como alongamento de braços (não há yoga no acervo).",
+    "resident.climb.top": "Começa pendurado na borda e termina em pé em cima do muro.",
+  }[nome.replace(/\.rm$/, "")];
+  if (sobre) notas.push(sobre);
+  const comp = BIB.compostas?.[nome.replace(/\.rm$/, "")];
+  if (comp) notas.push(`O Mixamo não tem esta animação: fizemos a partir d${comp}.`);
+  const cor = INFO.correcoes?.[fonte]?.[nome] || {};
+  if (cor.telefone) notas.push("Ajuste nosso: a mão do telefone foi afastada da cabeça.");
+  if (cor.mao_no_corpo) notas.push(`Ajuste nosso: a mão foi tirada de dentro do corpo em ${cor.mao_no_corpo} quadros.`);
+  if (cor.chao) notas.push(`Ajuste nosso: ${cor.chao.afundava_cm >= 6 ? "mãos, joelhos ou pés afundavam" : "a ponta do pé afundava"} até ${String(cor.chao.afundava_cm).replace(".", ",")} cm no chão; agora tudo fica na superfície.`);
+  if (cor.postura_gravida) notas.push("Postura de grávida: costas um pouco para trás e barriga para a frente.");
+  if (cor.mao_na_barriga) notas.push(`Ajuste nosso: a mão foi tirada de dentro da barriga em ${cor.mao_na_barriga} quadros.`);
+  if (cor.antebraco) notas.push(`Ajuste nosso: o antebraço entrava até ${String(cor.antebraco.entrava_cm).replace(".", ",")} cm no corpo; o braço abre o necessário.`);
+  if (cor.maos_nos_olhos) notas.push("Ajuste nosso: as mãos chegam aos olhos (com o braço curto, paravam no queixo).");
+  if (cor.menos_curvado) notas.push("Ajuste nosso: o tronco dobra menos (a cabeça grande quase encostava nos joelhos).");
+  if (cor.cabeca_chao_graus) notas.push("Ajuste nosso: o tronco e o pescoço sobem para a cabeça não encostar no chão.");
+  const st = INFO.status?.[fonte]?.[nome];
+  if (st === "ruim" && !Object.keys(cor).length) notas.push("Marcado como ruim na escolha do Mixamo; ainda falta corrigir.");
+  if (m && m.tipo === "cama") notas.push(`O Mixamo espera a cama a ${Math.round(m.altura * 100)} cm; no jogo, o morador desce até a altura da cama de verdade.`);
+  if (GEMEO[atual.id]) notas.push(`Usa a biblioteca do corpo ${GEMEO[atual.id].replace("_", " ")}, que tem o mesmo esqueleto.`);
+  const nota = document.getElementById("nota-apoio");
+  nota.hidden = notas.length === 0; nota.textContent = notas.join(" ");
+}
+
+// ---------------------------------------------------------------- painel
+function chips(el, opcoes, ativo, aoEscolher) {
+  el.replaceChildren();
+  for (const [k, rot] of opcoes) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = rot; b.dataset.k = k; b.setAttribute("aria-pressed", String(k === ativo));
+    b.onclick = () => aoEscolher(k);
+    el.append(b);
+  }
+}
+function desenharFiltros() {
+  chips(document.getElementById("sexo"), Object.entries(SEXOS), estado.sexo, (k) => { estado.sexo = k; trocarFiltro(); });
+  chips(document.getElementById("idade"), Object.entries(IDADES), estado.idade, (k) => { estado.idade = k; trocarFiltro(); });
+}
+function corposDoFiltro() { return CORPOS.filter((c) => c.sexo === estado.sexo && c.idade === estado.idade); }
+function trocarFiltro() {
+  const lista = corposDoFiltro();
+  if (!lista.some((c) => c.id === estado.corpo)) estado.corpo = lista[0].id;
+  desenharFiltros(); desenharMinis(); mostrar(estado.corpo);
+}
+function desenharMinis() {
+  const el = document.getElementById("minis");
+  el.replaceChildren();
+  for (const c of corposDoFiltro()) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "mini"; b.dataset.k = c.id; b.setAttribute("aria-pressed", String(c.id === estado.corpo));
+    const img = document.createElement("img"); img.src = `miniaturas/${c.id}.webp`; img.alt = "";
+    const t = document.createElement("span"); t.textContent = c.rotulo;
+    b.append(img, t);
+    b.onclick = () => { estado.corpo = c.id; desenharMinis(); mostrar(c.id); };
+    el.append(b);
+  }
+}
+function desenharTons() {
+  const el = document.getElementById("tons");
+  el.replaceChildren();
+  for (const [nome, hex] of Object.entries(TONS)) {
+    const b = document.createElement("button");
+    b.className = "amostra"; b.type = "button"; b.style.background = hex; b.title = nome; b.dataset.k = nome;
+    b.setAttribute("aria-label", `Pele ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(estado.tom === nome));
+    b.onclick = () => { estado.tom = nome; aplicarTom(); desenharTons(); };
+    el.append(b);
+  }
+  const livre = document.createElement("input");
+  livre.type = "color"; livre.id = "tom-livre"; livre.title = "Outro tom"; livre.setAttribute("aria-label", "Escolher outro tom");
+  livre.value = TONS[estado.tom] ? "#C98A6B" : estado.tom;
+  livre.oninput = () => { estado.tom = livre.value; aplicarTom(); for (const b of el.querySelectorAll(".amostra")) b.setAttribute("aria-pressed", "false"); };
+  el.append(livre);
+}
+function desenharExpr() {
+  const disponiveis = Object.keys(EXPR).filter((k) => atual.rostos[k]).map((k) => [k, EXPR[k]]);
+  chips(document.getElementById("expr"), disponiveis, estado.expr, (k) => { estado.expr = k; aplicarExpr(); desenharExpr(); });
+}
+function desenharExtras() {
+  const el = document.getElementById("extras");
+  el.replaceChildren();
+  if (!atual.chupeta) return;
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = "Chupeta"; b.dataset.k = "chupeta"; b.setAttribute("aria-pressed", String(estado.chupeta));
+  b.onclick = () => { estado.chupeta = !estado.chupeta; aplicarChupeta(); desenharExtras(); };
+  el.append(b);
+}
+function desenharAnims() {
+  const escolher = (k) => { estado.anim = k; aplicarAnim(false); desenharAnims(); };
+  chips(document.getElementById("anims"), Object.keys(ANIM).filter((k) => atual.clips[k]).map((k) => [k, ANIM[k]]), estado.anim, escolher);
+  const el = document.getElementById("bib");
+  el.replaceChildren();
+  const st = document.getElementById("bib-status");
+  if (!atual.bib) return;
+  const fonte = fonteDe(atual.id);
+  const nomes = Object.keys(atual.bib).filter((n) => !n.endsWith(".partner"));
+  st.textContent = `${nomes.length} animações para este corpo.`;
+  for (const cat of BIB.categorias.concat(["Outros"])) {
+    const itens = nomes.filter((n) => (BIB.rotulos[n]?.[0] || "Outros") === cat)
+      .sort((x, y) => Object.keys(BIB.rotulos).indexOf(x) - Object.keys(BIB.rotulos).indexOf(y));
+    if (!itens.length) continue;
+    const h = document.createElement("h3"); h.textContent = cat;
+    const g = document.createElement("div"); g.className = "grupo";
+    chips(g, itens.map((n) => ["bib:" + n, BIB.rotulos[n]?.[1] || n]), estado.anim, escolher);
+    for (const b of g.querySelectorAll("button")) { const n = b.dataset.k.slice(4); if (INFO.status?.[fonte]?.[n] === "ruim" && !INFO.correcoes?.[fonte]?.[n]) { b.classList.add("ruim"); b.title = "Marcado como ruim, ainda sem correção"; } }
+    el.append(h, g);
+  }
+}
+
+const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+renderer.setAnimationLoop(() => {
+  const dt = relogio.getDelta();
+  if (atual && !reduzido) atual.mixer.update(dt);
+  if (par && !reduzido) par.mixer.update(dt);
+  atualizaDinamico();
+  if (seguir && seguir.maos.length) { // a face de trás da caixa fica nas mãos
+    let z = 0, x = 0;
+    for (const m of seguir.maos) { m.getWorldPosition(_v); z += _v.z; x += _v.x; }
+    seguir.mesh.position.set(x / seguir.maos.length, 0.4, z / seguir.maos.length + 0.37);
+  }
+  orbita.update();
+  renderer.render(cena, camera);
+});
+aoMudarTamanho();
+desenharFiltros(); desenharMinis(); desenharTons();
+mostrar(estado.corpo).catch((e) => { status.textContent = "Não consegui carregar o corpo: " + e.message; });
+</script>
