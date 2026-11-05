@@ -31,6 +31,13 @@ export const EXPORT_PRESETS = [
     height: 1080,
     bitrate: 10000,
   },
+  {
+    id: "gif",
+    name: "GIF animado",
+    desc: "480p · 15 quadros/s · sem som",
+    height: 480,
+    bitrate: 12000,
+  },
   { id: "audio", name: "Só áudio (podcast)", desc: "MP3 · 192 kbps", height: 1080, bitrate: 0 },
 ] as const;
 export type ExportPresetId = (typeof EXPORT_PRESETS)[number]["id"];
@@ -48,6 +55,19 @@ export const EXPORT_QUALITY: [string, number, ExportQuality][] = [
 ];
 export const qualityOf = (kbps: number): ExportQuality | undefined =>
   EXPORT_QUALITY.find(([, k]) => k === kbps)?.[2];
+
+/**
+ * The GIF: frames per second offered and the short sides of its picture (a GIF grows fast with
+ * both). The picture is first rendered as a video at the lesson's rate, in high quality, and
+ * then turned into the GIF (main/export/pipeline.ts).
+ */
+export const GIF_FPS = [10, 15, 20] as const;
+export const GIF_DEFAULT_FPS = 15;
+export const GIF_SIDES = [360, 480, 720] as const;
+
+/** The extension of an export's main file: the podcast's MP3, the GIF, or the video. */
+export const exportExtension = (spec: Pick<ExportSpec, "audioOnly" | "gif">): string =>
+  spec.audioOnly ? "mp3" : spec.gif ? "gif" : "mp4";
 
 /** What else goes out beside the video. */
 export const EXPORT_FORMATS = ["captions", "thumbnail", "translations", "platform"] as const;
@@ -78,6 +98,16 @@ export function presetSpec(
     encoder: opts.encoder,
   };
   if (p.id === "audio") return { ...common, width, height, videoBitrate: 0, audioOnly: true };
+  if (p.id === "gif")
+    return {
+      ...common,
+      width,
+      height,
+      videoBitrate: p.bitrate,
+      quality: qualityOf(p.bitrate),
+      normalizeLoudness: false,
+      gif: { fps: GIF_DEFAULT_FPS },
+    };
   if (p.id === "reels" && !portrait)
     return {
       ...common,
@@ -101,7 +131,8 @@ export function presetSpec(
 /** The file name offered in the save dialog. */
 export function exportName(lesson: string, preset: ExportPresetId, vertical: boolean): string {
   const safe = lesson.replace(/[<>:"/\\|?*]/g, "").trim() || "aula";
-  return `${safe}${vertical ? " (vertical)" : ""}.${preset === "audio" ? "mp3" : "mp4"}`;
+  const ext = preset === "audio" ? "mp3" : preset === "gif" ? "gif" : "mp4";
+  return `${safe}${vertical ? " (vertical)" : ""}.${ext}`;
 }
 
 /** What export_video needs from the editor (the renderer gives the real ones, tests fakes). */

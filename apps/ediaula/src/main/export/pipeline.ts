@@ -117,6 +117,24 @@ export const thumbnailSecond = (
     ? Math.min(Math.max(0, duration - 0.05), Math.max(0, spec.thumbnailAt - offset))
     : Math.max(0, duration * 0.3);
 
+/**
+ * FFmpeg output options that turn a video into a looping GIF at `fps`: one palette made from the
+ * whole stretch, weighing what changes between frames, and only the changed rectangle of each
+ * frame dithered again, so a screen recording stays small and its still parts do not shimmer.
+ */
+export function gifArgs(fps: number): string[] {
+  return [
+    "-filter_complex",
+    `[0:v]fps=${fps},split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle[gif]`,
+    "-map",
+    "[gif]",
+    "-loop",
+    "0",
+    "-f",
+    "gif",
+  ];
+}
+
 const inside = (path: string, root: string): boolean => {
   const child = relative(resolve(root).toLowerCase(), resolve(path).toLowerCase());
   return child !== "" && !child.startsWith("..") && !isAbsolute(child);
@@ -222,19 +240,23 @@ export async function renderLesson(
       exportSpec.fontsDir = deps.fontsDirectory;
       await writeFile(exportSpec.assFile, spec.burnAss, "utf8");
     }
-    audio = renderAudio({
-      ...job,
-      project,
-      spec: exportSpec,
-      checkInputs,
-      checkFile,
-    }).then((result) => {
-      read.push(result.wav);
-      return result;
-    });
+    // A GIF has no sound: nothing to mix.
+    audio = spec.gif
+      ? undefined
+      : renderAudio({
+          ...job,
+          project,
+          spec: exportSpec,
+          checkInputs,
+          checkFile,
+        }).then((result) => {
+          read.push(result.wav);
+          return result;
+        });
     // The sound renders while the picture does; a failure of it is thrown where it is awaited
     // (a failure of the picture first stops it, below).
-    audio.catch((error: unknown) => stop.abort(error));
+    audio?.catch((error: unknown) => stop.abort(error));
+    const heard = (): Promise<Sound> => audio ?? Promise.reject(new Error("Export without sound"));
 
     let assemble: string[];
     let duration: number;
@@ -246,7 +268,7 @@ export async function renderLesson(
     let offset = 0;
     if (spec.audioOnly) {
       progress({ ratio: 0.1, phase: "audio" });
-      const sound = await audio;
+      const sound = await heard();
       const total = projectDuration(project);
       offset = range ? Math.min(range.from, total) : 0;
       duration = (range ? Math.min(range.to, total) : total) - offset;
@@ -319,24 +341,6 @@ export async function renderLesson(
         }
       }
       read.push(...files);
-      // Segments joined by copying must carry the same H.264 parameter sets (one set per track):
-      // ones from another driver or build of the same encoder are joined by encoding the picture
-      // once more instead, with the same options.
-      const headers = new Set<string>();
-      for (const file of files) {
-        const header = await cache.header(file);
-        if (header) headers.add(header);
-      }
-      const video =
-        headers.size > 1
-          ? segmentOptions({ encoder, spec: { ...exportSpec, encoder }, rate: r, threads })
-          : ["-c:v", "copy"];
-      if (headers.size > 1) {
-        note = "Trechos de versões diferentes do codificador: o vídeo é refeito na montagem.";
-        onCard = encoder !== "x264";
-      }
-      progress({ ratio: 0.9, phase: "audio" });
-      const sound = await audio;
       duration = frameTime(total, r);
       offset = frameTime(windows[0].from, r);
       const list = join(work, "segments.txt");
@@ -348,43 +352,75 @@ export async function renderLesson(
         ),
         "utf8",
       );
-      const meta = ffmetadata(
-        range
-          ? { ...publish, chapters: chaptersInRange(publish.chapters, offset, offset + duration) }
-          : publish,
-        duration,
-      );
-      const metaFile = join(work, "metadata.txt");
-      if (meta) await writeFile(metaFile, meta, "utf8");
-      assemble = [
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        list,
-        "-i",
-        sound.wav,
-        ...(meta ? ["-f", "ffmetadata", "-i", metaFile] : []),
-        "-map",
-        "0:v:0",
-        "-map",
-        "1:a:0",
-        ...video,
-        ...soundFilter(sound, range && { start: offset, length: duration }),
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-ar",
-        "48000",
-        ...(meta ? ["-map_metadata", "2", "-map_chapters", "2"] : []),
-        "-video_track_timescale",
-        String(trackTimescale(r)),
-        "-movflags",
-        "+faststart",
-        outputs.primary,
-      ];
+      if (spec.gif) {
+        // The segments decoded once more into the GIF, at its own rate (gifArgs).
+        assemble = [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          list,
+          ...gifArgs(spec.gif.fps),
+          outputs.primary,
+        ];
+      } else {
+        // Segments joined by copying must carry the same H.264 parameter sets (one set per track):
+        // ones from another driver or build of the same encoder are joined by encoding the picture
+        // once more instead, with the same options.
+        const headers = new Set<string>();
+        for (const file of files) {
+          const header = await cache.header(file);
+          if (header) headers.add(header);
+        }
+        const video =
+          headers.size > 1
+            ? segmentOptions({ encoder, spec: { ...exportSpec, encoder }, rate: r, threads })
+            : ["-c:v", "copy"];
+        if (headers.size > 1) {
+          note = "Trechos de versões diferentes do codificador: o vídeo é refeito na montagem.";
+          onCard = encoder !== "x264";
+        }
+        progress({ ratio: 0.9, phase: "audio" });
+        const sound = await heard();
+        const meta = ffmetadata(
+          range
+            ? { ...publish, chapters: chaptersInRange(publish.chapters, offset, offset + duration) }
+            : publish,
+          duration,
+        );
+        const metaFile = join(work, "metadata.txt");
+        if (meta) await writeFile(metaFile, meta, "utf8");
+        assemble = [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          list,
+          "-i",
+          sound.wav,
+          ...(meta ? ["-f", "ffmetadata", "-i", metaFile] : []),
+          "-map",
+          "0:v:0",
+          "-map",
+          "1:a:0",
+          ...video,
+          ...soundFilter(sound, range && { start: offset, length: duration }),
+          "-c:a",
+          "aac",
+          "-b:a",
+          "192k",
+          "-ar",
+          "48000",
+          ...(meta ? ["-map_metadata", "2", "-map_chapters", "2"] : []),
+          "-video_track_timescale",
+          String(trackTimescale(r)),
+          "-movflags",
+          "+faststart",
+          outputs.primary,
+        ];
+      }
     }
     deps.check();
     const told = note ? { message: note } : {};
@@ -460,7 +496,7 @@ export async function renderLesson(
     // Stems last: the same mix, the voice and the music on their own, over the same stretch.
     if (outputs.stems) {
       progress({ ratio: 0.99, phase: "audio", message: "Gravando a voz e a música separadas…" });
-      const sound = await audio;
+      const sound = await heard();
       await renderStems(
         { ...job, project, spec: exportSpec, checkInputs, checkFile },
         sound,

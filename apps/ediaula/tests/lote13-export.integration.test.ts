@@ -642,3 +642,63 @@ test("a region that follows the recording is blurred where the zoom took what it
   assert.ok(stillAtFollow > 60, `the still one past its rectangle ${stillAtFollow} dB`);
   await rm(side, { recursive: true, force: true });
 });
+
+test("an animated GIF: the stretch without sound, at its own frame rate, looping and alone", {
+  timeout: 180_000,
+}, async () => {
+  const side = join(dir, "gif");
+  const out = join(dir, "animado.gif");
+  const d = await deps(side, async (a) => {
+    await a.grantWrite(out);
+  });
+  await exportLesson(
+    lesson(),
+    {
+      ...spec(out),
+      videoBitrate: 12000,
+      quality: "high",
+      range: { from: 2, to: 6 },
+      gif: { fps: 10 },
+      // Asked by mistake: a GIF goes out alone.
+      thumbnail: true,
+      captionCues: [{ start: 3, end: 4, text: "dentro" }],
+    },
+    d,
+  );
+  const bytes = readFileSync(out);
+  assert.equal(bytes.subarray(0, 6).toString("latin1"), "GIF89a");
+  assert.ok(bytes.includes(Buffer.from("NETSCAPE2.0", "latin1")), "loops");
+  const info = probe(out, [
+    "-count_frames",
+    "-show_entries",
+    "stream=codec_type,codec_name,width,height,nb_read_frames",
+  ]) as {
+    streams: {
+      codec_type: string;
+      codec_name: string;
+      width: number;
+      height: number;
+      nb_read_frames: string;
+    }[];
+  };
+  assert.deepEqual(
+    info.streams.map((s) => [s.codec_type, s.codec_name, s.width, s.height]),
+    [["video", "gif", 320, 180]],
+  );
+  // 4 s at 10 frames per second (the lesson is 30).
+  assert.ok(
+    Math.abs(Number(info.streams[0].nb_read_frames) - 40) <= 1,
+    info.streams[0].nb_read_frames,
+  );
+  for (const beside of ["animado.jpg", "animado.srt", "animado.vtt"])
+    assert.equal(existsSync(join(dir, beside)), false, beside);
+  // An .mp4 destination for a GIF is refused before anything is rendered.
+  const wrong = join(dir, "errado.mp4");
+  const d2 = await deps(join(dir, "gif-wrong"), async (a) => {
+    await a.grantWrite(wrong);
+  });
+  await assert.rejects(
+    exportLesson(lesson(), { ...spec(wrong), gif: { fps: 10 } }, d2),
+    /GIF para GIF animado/,
+  );
+});

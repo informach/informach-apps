@@ -68,8 +68,9 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 - **Qualidade:** Rascunho, Padrão, Alta e Máxima usam qualidade constante pela resolução (CRF no x264, CQ com AQ e lookahead no NVENC); o valor em Mbps é o teto.
 - **Montagem:** os trechos são juntados sem recodificar (quando dois trechos do cache vêm de versões diferentes do codificador, com cabeçalhos H.264 diferentes, a imagem é refeita na montagem), com o título e os capítulos (os marcadores de capítulo, ou os de `publish`) no MP4, `+faststart` e a miniatura; a barra só chega a 100% depois disso. As legendas `.srt` e `.vtt` saem dos mesmos cues da legenda gravada (no máximo duas linhas de 42 caracteres, sem sobreposição), só com as falas ouvidas e cada palavra uma vez, mesmo quando o vídeo do apresentador e a voz extraída dele estão transcritos.
 - **Vertical e podcast:** a resolução é escolhida pelo lado menor, então um projeto vertical sai em 1080 × 1920; o layout vertical (fundo desfocado ou corte) fica para projetos horizontais. **Só áudio (podcast)** sai em MP3.
+- **GIF animado:** sem som e em loop, em 360, 480 ou 720 px no lado menor e 10, 15 ou 20 quadros por segundo. A imagem é feita pelos mesmos trechos do vídeo (em qualidade alta) e a montagem a transforma em GIF com uma paleta só para ele, feita do trecho inteiro, e redesenhando só o retângulo que muda de um quadro para o outro, para uma gravação de tela ficar leve e sem tremer (`gifArgs` em `src/main/export/pipeline.ts`). O som não é mixado; a legenda gravada na imagem entra, e nada sai ao lado (legendas, miniatura, traduções, pacote). Com um intervalo marcado, o preset já liga "Só o intervalo marcado", e o diálogo avisa quando o GIF passa de 30 s. A IA também exporta GIF (`export_video` com `preset: gif`).
 - **Limpeza:** ao abrir, o app apaga as pastas `.edi-output-*` que uma exportação interrompida deixou ao lado do destino e as pastas `work/export-*` dela, só as de antes da abertura; as que guardam cópias de segurança ficam. Uma exportação espera essa limpeza terminar.
-- **Retomar:** um item da fila cuja pasta de destino ou mídia sumiu aparece como "não dá para retomar", com o motivo, e nada dele é liberado; um item cuja aula foi editada depois de entrar na fila avisa disso. Só destinos `.mp4` (ou `.mp3` no podcast) são guardados.
+- **Retomar:** um item da fila cuja pasta de destino ou mídia sumiu aparece como "não dá para retomar", com o motivo, e nada dele é liberado; um item cuja aula foi editada depois de entrar na fila avisa disso. Só destinos `.mp4` (`.gif` no GIF animado, `.mp3` no podcast) são guardados.
 
 ## Salvamento e mídias ausentes
 
@@ -1183,7 +1184,7 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   imagem de antes, inclusive o movimento por keyframes e o ponto das camadas de zoom (`reframeProject` em
   `src/shared/compose.ts`), num único Ctrl+Z.
 - **Exportar** para Reels/Shorts 9:16 (aula inteira sobre fundo desfocado, ou cortada no centro) e
-  **só áudio** em MP3 (podcast).
+  **só áudio** em MP3 (podcast), e GIF animado.
 - IA: `set_transition`, `add_card`.
 
 ## Legenda gravada, movimento, áudio do PC, teclas e modelos

@@ -3,6 +3,10 @@ import {
   EXPORT_PRESETS,
   EXPORT_QUALITY,
   type ExportPresetId,
+  exportExtension,
+  GIF_DEFAULT_FPS,
+  GIF_FPS,
+  GIF_SIDES,
   qualityOf,
 } from "@shared/exportPresets";
 import { withoutMissingCursors } from "@shared/preflight";
@@ -17,6 +21,7 @@ import {
   GraduationCap,
   HardDrive,
   Image,
+  ImagePlay,
   Languages,
   type LucideIcon,
   MonitorPlay,
@@ -55,11 +60,14 @@ const ICONS: Record<ExportPresetId, LucideIcon> = {
   hotmart: GraduationCap,
   draft: Zap,
   reels: Smartphone,
+  gif: ImagePlay,
   audio: AudioLines,
 };
 /** The presets of shared/exportPresets.ts (the AI's export_video uses the same ones). */
 const PRESETS: Preset[] = EXPORT_PRESETS.map((p) => ({ ...p, icon: ICONS[p.id] }));
 const QUALITY = EXPORT_QUALITY;
+/** Past this many seconds a GIF gets heavy: the dialog suggests a short stretch. */
+const GIF_LONG = 30;
 
 type Phase = { kind: "setup" } | { kind: "error"; message: string };
 
@@ -124,6 +132,8 @@ export function ExportDialog(): ReactNode {
   const kids = hasKids && edition === "kids";
   const isReels = preset === "reels";
   const isAudio = preset === "audio";
+  const isGif = preset === "gif";
+  const [gifFps, setGifFps] = useState<number>(GIF_DEFAULT_FPS);
   // A lesson already vertical goes out in its own shape; the vertical layout is for wide ones.
   const relayout = isReels && !portrait;
 
@@ -141,6 +151,9 @@ export function ExportDialog(): ReactNode {
     portrait ? [even(side), even(side / ratio)] : [even(side * ratio), even(side)];
   const [width, height] = frameOf(short);
   const sizeEstimate = (((isAudio ? 0 : bitrate) + 192) * 1000 * total) / 8;
+  // The GIF's sizes: the short sides offered, never above the lesson's.
+  const gifSides = GIF_SIDES.filter((side) => side <= projectShort);
+  const gifOptions: number[] = gifSides.length ? gifSides : [projectShort];
   // Recordings whose cursor data went missing export only after "Exportar sem o cursor".
   const [withoutCursor, setWithoutCursor] = useState(false);
   const noCursor = project.assets.filter(
@@ -166,7 +179,11 @@ export function ExportDialog(): ReactNode {
   const [checkError, setCheckError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    checkLesson(project, revision, { normalize, srt: captions, loudness: measured }).then(
+    checkLesson(project, revision, {
+      normalize: normalize && !isGif,
+      srt: captions && !isGif,
+      loudness: measured,
+    }).then(
       (list) => {
         if (!alive) return;
         setCheck(list);
@@ -179,7 +196,7 @@ export function ExportDialog(): ReactNode {
     return () => {
       alive = false;
     };
-  }, [project, revision, normalize, captions, measured]);
+  }, [project, revision, normalize, captions, measured, isGif]);
   const measure = async (): Promise<void> => {
     setMeasuring(true);
     try {
@@ -196,19 +213,22 @@ export function ExportDialog(): ReactNode {
     setPreset(p.id);
     setShort(Math.min(p.height, projectShort));
     if (p.bitrate) setBitrate(p.bitrate);
+    // A GIF is usually a short stretch: the interval marked, when there is one.
+    if (p.id === "gif" && hasRange && !kids) setOnlyRange(true);
   };
 
   const start = async (): Promise<void> => {
     const safe = project.name.replace(/[<>:"/\\|?*]/g, "").trim() || "aula";
     const outPath = await window.api.pickExportPath(
-      `${safe}${kids ? " (kids)" : ""}${range ? " (trecho)" : ""}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
+      `${safe}${kids ? " (kids)" : ""}${range ? " (trecho)" : ""}${relayout ? " (vertical)" : ""}.${exportExtension({ audioOnly: isAudio, gif: isGif ? { fps: gifFps } : undefined })}`,
     );
     if (!outPath) return;
-    // The voice and the music go to a folder of their own (picked here).
-    const picked = stems
-      ? await window.api.pickStems(outPath.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, ""))
-      : null;
-    if (stems && !picked) return;
+    // The voice and the music go to a folder of their own (picked here); a GIF has no sound.
+    const picked =
+      stems && !isGif
+        ? await window.api.pickStems(outPath.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, ""))
+        : null;
+    if (stems && !isGif && !picked) return;
     const common = {
       outPath,
       fps: project.settings.fps,
@@ -219,24 +239,35 @@ export function ExportDialog(): ReactNode {
     };
     const spec: ExportSpec = isAudio
       ? { ...common, width, height, videoBitrate: 0, audioOnly: true }
-      : relayout
+      : isGif
         ? {
-            ...common,
-            width: 1080,
-            height: 1920,
-            videoBitrate: bitrate,
-            quality: qualityOf(bitrate),
-            thumbnail,
-            vertical,
-          }
-        : {
             ...common,
             width,
             height,
-            videoBitrate: bitrate,
-            quality: qualityOf(bitrate),
-            thumbnail,
-          };
+            // The picture is rendered as a video first, in high quality, then made a GIF.
+            videoBitrate: 12000,
+            quality: qualityOf(12000),
+            normalizeLoudness: false,
+            gif: { fps: gifFps },
+          }
+        : relayout
+          ? {
+              ...common,
+              width: 1080,
+              height: 1920,
+              videoBitrate: bitrate,
+              quality: qualityOf(bitrate),
+              thumbnail,
+              vertical,
+            }
+          : {
+              ...common,
+              width,
+              height,
+              videoBitrate: bitrate,
+              quality: qualityOf(bitrate),
+              thumbnail,
+            };
     const base = withoutCursor ? withoutMissingCursors(project) : project;
     // The kids edition is the same lesson with the characters' lines in place, made now.
     const built = kids ? await kidsProject(base) : null;
@@ -251,10 +282,10 @@ export function ExportDialog(): ReactNode {
       id: newId("export"),
       project: built?.project ?? base,
       spec,
-      captions,
+      captions: captions && !isGif,
       extras: {
-        translations: translations && ready.current.length > 0,
-        platform: platform && !isAudio,
+        translations: translations && ready.current.length > 0 && !isGif,
+        platform: platform && !isAudio && !isGif,
       },
     });
     close();
@@ -357,8 +388,57 @@ export function ExportDialog(): ReactNode {
                 </div>
               </>
             )}
-            {!isAudio && <span className="section-label">VÍDEO</span>}
-            {!isAudio && !relayout && (
+            {!isAudio && <span className="section-label">{isGif ? "GIF" : "VÍDEO"}</span>}
+            {isGif && (
+              <div className="grid-2">
+                <Field label="Tamanho" htmlFor="export-gif-size">
+                  <select
+                    id="export-gif-size"
+                    className="select"
+                    value={short}
+                    onChange={(e) => setShort(Number(e.target.value))}
+                  >
+                    {gifOptions.map((side) => {
+                      const [w, h] = frameOf(side);
+                      return (
+                        <option key={side} value={side}>
+                          {w} × {h}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+                <Field label="Quadros por segundo">
+                  <div className="segmented">
+                    {GIF_FPS.map((fps) => (
+                      <button
+                        type="button"
+                        key={fps}
+                        className={gifFps === fps ? "is-active" : ""}
+                        onClick={() => setGifFps(fps)}
+                      >
+                        <strong>{fps}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+            )}
+            {isGif && (
+              <p className="muted">
+                Sem som e em loop, para pôr numa página, num e-mail ou num chat. A legenda gravada
+                no vídeo entra; legendas à parte, miniatura e pacote, não.
+              </p>
+            )}
+            {isGif && total > GIF_LONG && (
+              <div className="export-warning">
+                <p>
+                  {duration(total)} de GIF fica pesado. Marque um intervalo curto na régua da
+                  timeline e ligue Só o intervalo marcado, ou diminua o tamanho e os quadros.
+                </p>
+              </div>
+            )}
+            {!isAudio && !isGif && !relayout && (
               <div className="grid-2">
                 <Field label="Resolução" htmlFor="export-resolution">
                   <select
@@ -391,7 +471,7 @@ export function ExportDialog(): ReactNode {
                 </Field>
               </div>
             )}
-            {!isAudio && (
+            {!isAudio && !isGif && (
               <Field label="Qualidade">
                 <div className="segmented">
                   {QUALITY.map(([label, kbps]) => (
@@ -408,16 +488,18 @@ export function ExportDialog(): ReactNode {
                 </div>
               </Field>
             )}
-            <div className="loudness">
-              <AudioLines size={15} className="accent" />
-              <div className="spacer">
-                <strong>Normalizar volume para −14 LUFS</strong>
-                <p className="muted">
-                  Padrão do YouTube e do Spotify: todas as aulas ficam no mesmo volume.
-                </p>
+            {!isGif && (
+              <div className="loudness">
+                <AudioLines size={15} className="accent" />
+                <div className="spacer">
+                  <strong>Normalizar volume para −14 LUFS</strong>
+                  <p className="muted">
+                    Padrão do YouTube e do Spotify: todas as aulas ficam no mesmo volume.
+                  </p>
+                </div>
+                <Toggle on={normalize} onChange={setNormalize} label="Normalizar volume" />
               </div>
-              <Toggle on={normalize} onChange={setNormalize} label="Normalizar volume" />
-            </div>
+            )}
             {transcribed.length > 0 && !isAudio && (
               <div className="loudness">
                 <Captions size={15} className="accent" />
@@ -435,7 +517,7 @@ export function ExportDialog(): ReactNode {
                 />
               </div>
             )}
-            {transcribed.length > 0 && (
+            {transcribed.length > 0 && !isGif && (
               <div className="loudness">
                 <Captions size={15} className="accent" />
                 <div className="spacer">
@@ -463,17 +545,19 @@ export function ExportDialog(): ReactNode {
                 label="Só o intervalo marcado"
               />
             </div>
-            <div className="loudness">
-              <AudioLines size={15} className="accent" />
-              <div className="spacer">
-                <strong>Voz e música separadas (WAV)</strong>
-                <p className="muted">
-                  Dois arquivos numa pasta que você escolhe, para mixar em outro programa.
-                </p>
+            {!isGif && (
+              <div className="loudness">
+                <AudioLines size={15} className="accent" />
+                <div className="spacer">
+                  <strong>Voz e música separadas (WAV)</strong>
+                  <p className="muted">
+                    Dois arquivos numa pasta que você escolhe, para mixar em outro programa.
+                  </p>
+                </div>
+                <Toggle on={stems} onChange={setStems} label="Voz e música separadas" />
               </div>
-              <Toggle on={stems} onChange={setStems} label="Voz e música separadas" />
-            </div>
-            {!isAudio && (
+            )}
+            {!isAudio && !isGif && (
               <div className="loudness">
                 <Image size={15} className="accent" />
                 <div className="spacer">
@@ -487,7 +571,7 @@ export function ExportDialog(): ReactNode {
                 <Toggle on={thumbnail} onChange={setThumbnail} label="Gerar miniatura" />
               </div>
             )}
-            {(ready.current.length > 0 || ready.stale.length > 0) && (
+            {!isGif && (ready.current.length > 0 || ready.stale.length > 0) && (
               <div className="loudness">
                 <Languages size={15} className="accent" />
                 <div className="spacer">
@@ -508,7 +592,7 @@ export function ExportDialog(): ReactNode {
                 />
               </div>
             )}
-            {!isAudio && (
+            {!isAudio && !isGif && (
               <div className="loudness">
                 <FileJson size={15} className="accent" />
                 <div className="spacer">
@@ -598,9 +682,11 @@ export function ExportDialog(): ReactNode {
       <div className="export-foot">
         {phase.kind === "setup" && (
           <>
-            <span className="stat">
-              <HardDrive size={14} /> {isAudio ? "≈" : "até"} {bytes(sizeEstimate)}
-            </span>
+            {!isGif && (
+              <span className="stat">
+                <HardDrive size={14} /> {isAudio ? "≈" : "até"} {bytes(sizeEstimate)}
+              </span>
+            )}
             <span className="stat">
               <Timer size={14} /> {duration(total)} de vídeo
             </span>

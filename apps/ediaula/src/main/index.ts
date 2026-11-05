@@ -685,13 +685,16 @@ function registerIpc(): void {
   });
   ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
     const audio = /\.mp3$/i.test(defaultName);
+    const gif = /\.gif$/i.test(defaultName);
     const r = await dialog.showSaveDialog(win!, {
-      title: audio ? "Exportar áudio" : "Exportar vídeo",
-      defaultPath: join(app.getPath(audio ? "music" : "videos"), defaultName),
+      title: audio ? "Exportar áudio" : gif ? "Exportar GIF animado" : "Exportar vídeo",
+      defaultPath: join(app.getPath(audio ? "music" : gif ? "pictures" : "videos"), defaultName),
       filters: [
         audio
           ? { name: "Áudio MP3", extensions: ["mp3"] }
-          : { name: "Vídeo MP4", extensions: ["mp4"] },
+          : gif
+            ? { name: "GIF animado", extensions: ["gif"] }
+            : { name: "Vídeo MP4", extensions: ["mp4"] },
       ],
     });
     return r.canceled ? null : r.filePath;
