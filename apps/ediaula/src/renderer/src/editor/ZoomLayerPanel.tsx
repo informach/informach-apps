@@ -155,7 +155,8 @@ export function ZoomLayerSection({ clip }: { clip: Clip }): ReactNode {
       </h3>
       <p className="props-hint muted">
         Tudo que está nas faixas abaixo desta aproxima enquanto ela dura; o que está acima fica como
-        está. No vídeo, arraste o retângulo; a rodinha do mouse muda o quanto aproxima.
+        está. No vídeo, arraste o retângulo para mudar o ponto; as alças dos cantos (ou a rodinha do
+        mouse) mudam o quanto aproxima.
       </p>
       <ZoomPointControls scale={z.scale} x={z.x} y={z.y} onChange={set} />
       <AutoSoundToggle kind="zooms" />

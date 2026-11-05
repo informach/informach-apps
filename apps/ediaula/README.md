@@ -1450,7 +1450,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   enquanto dura, com entrada e saída suaves; o que está acima (anotações, legenda) fica como está. Entra numa faixa
   nova no topo; arraste para uma faixa mais baixa para deixar camadas de fora.
 - Com a camada selecionada, a prévia mostra o quadro sem zoom e um retângulo com a área que vai encher a tela:
-  arraste para mover, rodinha do mouse para aproximar mais ou menos. Propriedades: força, ponto (atalhos de
+  arraste para mover; as alças dos cantos mudam o quanto aproxima, com o canto oposto parado e a proporção do
+  quadro mantida (`resizeFocus` em `src/shared/zoomLayer.ts`), e a rodinha do mouse faz o mesmo em volta do
+  centro. Propriedades: força, ponto (atalhos de
   posição) e suavidade. Os zooms das gravações usam o mesmo painel e o mesmo retângulo (`FocusBox` em
   `ZoomTarget.tsx`, `ZoomPointControls` em `ZoomLayerPanel.tsx`); a camada continua sendo o jeito de aproximar tudo
   o que está nas faixas abaixo dela.

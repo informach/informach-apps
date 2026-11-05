@@ -13,6 +13,7 @@ import {
   entryView,
   layerViewAt,
   layerViewExprs,
+  resizeFocus,
   zoomAffine,
   zoomsOver,
 } from "../src/shared/zoomLayer.ts";
@@ -251,4 +252,22 @@ test("zoom in and out are each optional, and a layer can continue from the previ
       );
     }
   }
+});
+
+test("a corner handle of the zoom box changes how close it gets, the opposite corner kept", () => {
+  const close = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9;
+  // 2× box centered: corners at 0.25 and 0.75. Dragging the bottom right out to 0.95 keeps 0.25.
+  const out = resizeFocus({ scale: 2, x: 0.5, y: 0.5 }, "se", 0.95, 0.8);
+  assert.ok(close(1 / out.scale, 0.7), "size follows the farther of the two directions");
+  assert.ok(close(out.x - 0.5 / out.scale, 0.25) && close(out.y - 0.5 / out.scale, 0.25));
+  // Dragging the top left in: the bottom right corner (0.75) stays.
+  const inward = resizeFocus({ scale: 2, x: 0.5, y: 0.5 }, "nw", 0.6, 0.55);
+  assert.ok(close(inward.scale, 1 / 0.2), "stops at the most it goes in");
+  assert.ok(close(inward.x + 0.5 / inward.scale, 0.75));
+  // Never past the frame: from a corner at 0.25 the box is at most 0.75 wide.
+  const past = resizeFocus({ scale: 2, x: 0.5, y: 0.5 }, "se", 3, 3);
+  assert.ok(close(past.scale, 1 / 0.75) && close(past.x + 0.5 / past.scale, 1));
+  // A recording's zoom never goes all the way back to normal.
+  const edge = resizeFocus({ scale: 2, x: 0.25, y: 0.25 }, "se", 2, 2, 1.05);
+  assert.ok(close(edge.scale, 1.05));
 });
