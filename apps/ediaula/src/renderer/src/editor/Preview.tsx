@@ -64,8 +64,10 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -82,6 +84,7 @@ import { heard, useApp } from "@/state/app";
 import { liveTransform, useLiveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
 import { assetMap, useProject, useShownProject } from "@/state/project";
+import { AnnotationTextEditor, typedOnStage } from "./AnnotationTextEditor";
 import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
 import { CursorLayer } from "./CursorLayer";
@@ -272,6 +275,11 @@ export function Preview(): ReactNode {
   const live = useLiveEdit((s) => s.live);
   const [draft, setDraft] = useState<{ id: string; t: Transform } | null>(null);
   const [tailEditing, setTailEditing] = useState<string | null>(null);
+  /** The annotation whose text is being typed on it (AnnotationTextEditor): a double click or the panel. */
+  const textEditing = useApp((s) => s.textEdit);
+  /** The annotation whose picture the text being typed replaces on the screen (a title). */
+  const [textHidden, setTextHidden] = useState<string | null>(null);
+  const closeText = useCallback(() => useApp.getState().set({ textEdit: null }), []);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   // Background music steps aside while anyone speaks (the same envelope as the export).
@@ -1011,6 +1019,29 @@ export function Preview(): ReactNode {
         raw?.clips.find((c) => c.id === selection[0]))
       : undefined;
   const selectedAsset = selected && assets.get(selected.assetId);
+  // Another selection ends the typing on an annotation (what was typed is written as it closes).
+  const selectedId = selected?.id;
+  useEffect(() => {
+    const open = useApp.getState().textEdit;
+    if (open && open.id !== selectedId) useApp.getState().set({ textEdit: null });
+  }, [selectedId]);
+
+  /** Double click on an annotation with text: it is typed right on it. False for anything else. */
+  const editText = (e: ReactMouseEvent, shown: Clip): boolean => {
+    const clip = lessonClip(shown);
+    if (!typedOnStage(clip.annotation)) return false;
+    e.stopPropagation();
+    if (project?.tracks.find((t) => t.id === clip.trackId)?.locked) return true;
+    const rect = stageRef.current?.getBoundingClientRect();
+    useProject.getState().select([clip.id]);
+    useApp.getState().set({
+      textEdit: {
+        id: clip.id,
+        at: rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null,
+      },
+    });
+    return true;
+  };
 
   return (
     <section className="preview">
@@ -1125,7 +1156,14 @@ export function Preview(): ReactNode {
             ),
             transform: view.x || view.y ? `translate(${view.x}px, ${view.y}px)` : undefined,
           }}
-          onDoubleClick={() => void areaRef.current?.requestFullscreen()}
+          onDoubleClick={(e) => {
+            // A balloon's text is typed on it; anywhere else the preview goes full screen.
+            const layer = e.target instanceof Element ? e.target.closest(".stage-layer") : null;
+            const id = layer instanceof HTMLElement ? layer.dataset.clip : undefined;
+            const shown = id ? project?.clips.find((c) => c.id === id) : undefined;
+            if (shown && editText(e, shown)) return;
+            void areaRef.current?.requestFullscreen();
+          }}
           onPointerDown={(e) => {
             if (e.button === 0) useProject.getState().select([]);
           }}
@@ -1177,6 +1215,7 @@ export function Preview(): ReactNode {
                 key={c.id}
                 ref={layerRef(c)}
                 className="stage-layer"
+                data-clip={c.id}
                 style={{
                   ...box,
                   zIndex:
@@ -1216,7 +1255,9 @@ export function Preview(): ReactNode {
                         ref={imageRef(c)}
                         src={mediaUrl(a.path)}
                         className="stage-media"
-                        style={{ opacity: tailEditing === c.id ? 0 : undefined }}
+                        style={{
+                          opacity: tailEditing === c.id || textHidden === c.id ? 0 : undefined,
+                        }}
                         alt=""
                         draggable={false}
                       />
@@ -1302,6 +1343,7 @@ export function Preview(): ReactNode {
                 project={project}
                 scale={scale}
                 onDrag={startDrag}
+                onEditText={editText}
               />
             )}
           <div ref={parkingRef} className="stage-parking" aria-hidden="true" />
@@ -1313,7 +1355,7 @@ export function Preview(): ReactNode {
           )}
           {selected?.annotation?.kind === "balloon" && selectedAsset && project && (
             <BalloonTailControl
-              key={selected.id}
+              key={`tail:${selected.id}`}
               clip={selected}
               asset={selectedAsset}
               project={project}
@@ -1321,6 +1363,23 @@ export function Preview(): ReactNode {
               onEditing={setTailEditing}
             />
           )}
+          {textEditing &&
+            selected?.id === textEditing.id &&
+            typedOnStage(selected.annotation) &&
+            selectedAsset &&
+            project && (
+              <AnnotationTextEditor
+                key={`text:${selected.id}:${textEditing.key ?? ""}`}
+                clip={selected}
+                asset={selectedAsset}
+                project={project}
+                scale={scale}
+                at={textEditing.at}
+                field={textEditing.key}
+                onClose={closeText}
+                onHide={setTextHidden}
+              />
+            )}
         </div>
       </div>
 
@@ -1341,6 +1400,7 @@ function Gizmo({
   project,
   scale,
   onDrag,
+  onEditText,
 }: {
   dragging: boolean;
   clip: Clip;
@@ -1349,6 +1409,7 @@ function Gizmo({
   project: Project;
   scale: number;
   onDrag: (e: ReactPointerEvent, clip: Clip, mode: "move" | "scale") => void;
+  onEditText: (e: ReactMouseEvent, clip: Clip) => boolean;
 }): ReactNode {
   const time = usePlayback((s) =>
     clip.keyframes?.length ? s.time : s.time >= clip.start && s.time < clipEnd(clip) ? 1 : 0,
@@ -1372,8 +1433,12 @@ function Gizmo({
       className="gizmo"
       aria-label="Transformação do clipe selecionado"
       style={style}
+      title={typedOnStage(clip.annotation) ? "Clique duas vezes para editar o texto" : undefined}
       onPointerDown={(e) => onDrag(e, clip, "move")}
-      onDoubleClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onEditText(e, clip);
+      }}
     >
       {(["nw", "ne", "sw", "se"] as const).map((h) => (
         <span

@@ -85,6 +85,15 @@ interface AppStore {
    * preview its focus rectangle, like a zoom layer's.
    */
   recordingZoom: { assetId: string; zoomId: string } | null;
+  /**
+   * The text of an annotation being typed on the preview (editor/AnnotationTextEditor.tsx): its
+   * clip, where it was double-clicked (stage pixels) or which of its texts the panel asked for.
+   */
+  textEdit: {
+    id: string;
+    at: { x: number; y: number } | null;
+    key?: "text" | "kicker" | "subtitle";
+  } | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -120,6 +129,7 @@ export const useApp = create<AppStore>((set, get) => ({
   solo: [],
   cursorRange: null,
   recordingZoom: null,
+  textEdit: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {

@@ -211,11 +211,6 @@
   font-size: 11.5px;
   color: var(--text-3);
 }
-.ann-text {
-  width: 100%;
-  resize: vertical;
-  font: 13px / 1.4 var(--font-ui);
-}
 .swatch-row {
   display: flex;
   flex-wrap: wrap;

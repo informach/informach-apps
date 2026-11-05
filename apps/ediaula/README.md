@@ -1160,7 +1160,24 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   sobre um clipe, vão para a faixa livre mais próxima acima, ou uma nova logo acima. Soltas numa faixa de som
   (a da voz, por exemplo), vão para a frente da imagem daquele momento, nunca atrás da tela; uma faixa
   magnética não recebe a anotação (`src/shared/dropSpot.ts`). Arraste no vídeo para posicionar.
-  Propriedades: texto, cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
+  Propriedades: cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
+  O texto se edita na própria anotação (balão, nota, rótulo, título, passo, faixa de nome e cartelas):
+  duplo clique nela na prévia abre um campo sobre o texto, com a mesma letra, cores e quebra de linha do
+  desenho (`editor/AnnotationTextEditor.tsx`). O campo usa os mesmos números do desenho:
+  `textLayout` em `lib/annotations.ts` diz onde cada texto fica, e o desenho e o campo partem das mesmas
+  funções de geometria. Na faixa de nome e na cartela, abre o texto em que se clicou (nome, linha de
+  cima, linha de baixo). Clicar fora ou Ctrl + Enter redesenha a anotação num passo de desfazer (num
+  texto de uma linha só, Enter); Enter quebra a linha nos textos que quebram; Esc descarta. O título,
+  que não tem fundo, some enquanto se digita por cima. O campo fica onde a anotação repousa, mesmo no
+  instante em que a entrada ainda a esconde; faixa travada não abre. Duplo clique fora de uma anotação
+  com texto continua abrindo a tela cheia. O painel Propriedades não tem campo de texto: tem botões
+  ("Editar texto"; na faixa de nome, "Nome" e "Linha de baixo"; na cartela, "Linha de cima", "Título" e
+  "Linha de baixo") que levam a agulha para onde a anotação já entrou e abrem o texto na prévia, também
+  uma linha ainda vazia.
+  Rabinho do balão no estilo de balão de HQ (Camtasia): base larga, que cresce com o comprimento, sai
+  do balão em ângulo reto e curva até a ponta afiada (`balloonPath`/`balloonTail` em
+  `src/shared/annotation.ts`, os mesmos no desenho e na prévia do arrasto). Sem arrastar, a ponta sai
+  em diagonal com `BALLOON_TAIL` (40 px em 1080p); arrastada, vai aonde foi solta, até a borda do quadro.
   Cada anotação é desenhada como imagem transparente (`lib/annotations.ts`), a mesma na prévia e na exportação.
 - **Meme**: imagem que entra com pop por 2,5 s no canto, sem cobrir o centro da tela.
 - **Entrada e saída** de qualquer clipe: dissolver, pop, aproximar, deslizar (4 direções), com duração.

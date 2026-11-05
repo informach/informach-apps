@@ -1,18 +1,21 @@
 import {
   ANNOTATION_MOTION,
   ANNOTATION_PRESETS,
-  ANNOTATION_TEXT,
   type Annotation,
   type AnnotationKind,
+  BALLOON_TAIL,
   type BalloonGeometry,
   balloonPath,
+  balloonTail,
   CARD,
   defaultOutline,
   freeBalloonTip,
   isDrawingKind,
   MEME,
+  type Outline,
   outlineStyle,
   preserveBalloonBody,
+  textBoxLayout,
 } from "@shared/annotation";
 import {
   DEFAULT_TRANSFORM,
@@ -73,6 +76,437 @@ const rgba = (hex: string, alpha: number): string => {
   return `rgba(${(v >> 16) & 255},${(v >> 8) & 255},${v & 255},${alpha})`;
 };
 
+/* ---------- where the texts go: shared by the drawing and by the text typed on the stage ---------- */
+
+/** Sizes every kind is drawn with, for a frame `frameHeight` pixels high. */
+interface Sizing {
+  /** Picture pixels per 1080p pixel. */
+  k: number;
+  outline: Outline;
+  /** Outline width in picture pixels. */
+  olw: number;
+  /** Room around the shape (its outline included). */
+  pad: number;
+  font: (size: number, weight?: number) => string;
+  ink: string;
+}
+
+function sizing(a: Annotation, frameHeight: number): Sizing {
+  const k = (frameHeight / 1080) * OVERSAMPLE;
+  const outline = a.outline ?? defaultOutline(a);
+  const olw = Math.max(0, outline.width) * k;
+  const family = fontStack(a.fontFamily);
+  return {
+    k,
+    outline,
+    olw,
+    pad: 24 * k + olw,
+    font: (size, weight = 700) => `${weight} ${size * k}px ${family}`,
+    ink: a.ink ?? "#12140A",
+  };
+}
+
+let measurer: CanvasRenderingContext2D | null = null;
+/** A canvas that only measures text (the drawing measures the same fonts the same way). */
+function measuring(font: string): CanvasRenderingContext2D {
+  measurer ??= document.createElement("canvas").getContext("2d")!;
+  measurer.font = font;
+  return measurer;
+}
+const widest = (ctx: CanvasRenderingContext2D, lines: string[], least: number): number =>
+  Math.max(...lines.map((l) => ctx.measureText(l).width), least);
+
+/** Balloon, note and label: the box of text and, for a balloon, its tail. */
+function boxGeometry(a: Annotation, s: Sizing) {
+  const { k, pad } = s;
+  const box = textBoxLayout(a);
+  const font = s.font(box.fontSize);
+  const ctx = measuring(font);
+  const lines = box.wraps ? wrap(ctx, a.text ?? "", box.maxWidth * k) : [a.text ?? ""];
+  const lh = box.lineHeight * k;
+  const tw = widest(ctx, lines, 20 * k);
+  const px = box.padX * k;
+  const py = box.padY * k;
+  const bw = tw + px * 2;
+  const bh = lines.length * lh + py * 2;
+  const free =
+    a.kind === "balloon" && a.tailPoint && a.tail !== "none"
+      ? freeBalloonTip(a.tailPoint)
+      : undefined;
+  const tail = free?.tail ?? (a.kind === "balloon" ? (a.tail ?? "bottom-left") : "none");
+  const tl = tail === "none" ? 0 : BALLOON_TAIL * k;
+  const tip = free ? { x: free.point.x * bw, y: free.point.y * bh } : undefined;
+  const left = tip ? Math.max(tl, -tip.x) : tl;
+  const top = tip ? Math.max(tl, -tip.y) : tl;
+  const right = tip ? Math.max(tl, tip.x - bw) : tl;
+  const bottom = tip ? Math.max(tl, tip.y - bh) : tl;
+  const x = pad + left;
+  const y = pad + top;
+  return {
+    box,
+    font,
+    lines,
+    lh,
+    tw,
+    px,
+    py,
+    bw,
+    bh,
+    tail,
+    tl,
+    x,
+    y,
+    absoluteTip: tip ? { x: x + tip.x, y: y + tip.y } : undefined,
+    radius: a.kind === "balloon" ? 16 * k : a.kind === "label" ? bh / 2 : 22 * k,
+    width: Math.ceil(bw + pad * 2 + left + right),
+    height: Math.ceil(bh + pad * 2 + top + bottom),
+  };
+}
+
+function titleGeometry(a: Annotation, s: Sizing) {
+  const { k, pad } = s;
+  const fs = a.fontSize ?? 72;
+  const font = s.font(fs, 800);
+  const ctx = measuring(font);
+  const wrapAt = (a.width ?? 1400) * k;
+  const lines = wrap(ctx, a.text ?? "", wrapAt);
+  const lh = fs * 1.15 * k;
+  const tw = widest(ctx, lines, 20 * k);
+  return {
+    font,
+    lines,
+    lh,
+    tw,
+    wrapAt,
+    width: Math.ceil(tw + pad * 4),
+    height: Math.ceil(lines.length * lh + pad * 4),
+  };
+}
+
+function lowerthirdGeometry(a: Annotation, s: Sizing) {
+  const { k, pad } = s;
+  const nameFont = s.font(40, 800);
+  const subFont = s.font(28, 600);
+  const nameW = measuring(nameFont).measureText(a.text ?? "").width;
+  const subW = a.subtitle ? measuring(subFont).measureText(a.subtitle).width : 0;
+  const bar = 14 * k;
+  const px = 28 * k;
+  const w = Math.max(nameW, subW) + px * 2 + bar;
+  const h = (a.subtitle ? 112 : 76) * k;
+  return {
+    nameFont,
+    subFont,
+    nameW,
+    subW,
+    bar,
+    px,
+    w,
+    h,
+    width: Math.ceil(w + pad * 2),
+    height: Math.ceil(h + pad * 2),
+  };
+}
+
+function cardGeometry(a: Annotation, s: Sizing, frameWidth: number, frameHeight: number) {
+  const { k } = s;
+  const W = frameWidth * OVERSAMPLE;
+  const height = Math.ceil(frameHeight * OVERSAMPLE);
+  const centered = a.layout === "center";
+  const left = centered ? W / 2 : 150 * k;
+  const fs = a.fontSize ?? 96;
+  const titleFont = s.font(fs, 800);
+  const wrapAt = Math.min(W - 300 * k, 1500 * k);
+  const lines = wrap(measuring(titleFont), a.text ?? "", wrapAt);
+  const lh = fs * 1.1 * k;
+  const subFont = s.font(40, 600);
+  const subWrap = 1400 * k;
+  const subLines = a.subtitle ? wrap(measuring(subFont), a.subtitle, subWrap) : [];
+  // Centered: the whole block sits in the middle of the frame.
+  const blockH = (a.kicker ? 40 * k : 0) + lh * lines.length + (a.subtitle ? 82 * k : 0);
+  const y0 = centered ? (height - blockH) / 2 + 34 * k : 360 * k;
+  const titleY = y0 + (a.kicker ? 40 * k : 0);
+  return {
+    width: Math.ceil(W),
+    height,
+    centered,
+    left,
+    kickerFont: s.font(34, 800),
+    titleFont,
+    subFont,
+    wrapAt,
+    subWrap,
+    lines,
+    subLines,
+    lh,
+    barY: y0 - 70 * k,
+    kickerY: y0,
+    /** Title line i sits on titleY + lh·(i+1); subtitle line i on subY + 52k·(i+1). */
+    titleY,
+    subY: titleY + lh * lines.length + 30 * k,
+  };
+}
+
+const STEP_SIZE = 76;
+
+/** A text of an annotation where its picture draws it, in pixels of the picture before the shadow's margin. */
+export interface TextField {
+  key: "text" | "kicker" | "subtitle";
+  /** The lines' box: left edge, top of the first line, widest line, line height, how many lines. */
+  left: number;
+  top: number;
+  width: number;
+  lineHeight: number;
+  lines: number;
+  align: "left" | "center";
+  font: string;
+  color: string;
+  /** The width it wraps at (null: one line). */
+  wrap: number | null;
+  uppercase?: boolean;
+  maxLength?: number;
+  /** What is behind the text: its box, of this color (absent: nothing, so the picture is hidden while typed). */
+  box?: { x: number; y: number; w: number; h: number; radius: number; color: string };
+  /** Letters with an outline (titles). */
+  stroke?: { color: string; width: number };
+}
+
+export interface TextLayout {
+  /** The picture without the shadow's margin (the margin is the same on every side). */
+  width: number;
+  height: number;
+  /** The point a redraw keeps still on the screen: the picture's center, a balloon's body center. */
+  anchor: { x: number; y: number };
+  fields: TextField[];
+}
+
+/** Top of a CSS line box of height `lh` whose letters sit where the canvas puts them on `y`. */
+function lineTop(font: string, baseline: CanvasTextBaseline, y: number, lh: number): number {
+  const ctx = measuring(font);
+  ctx.textBaseline = baseline;
+  const m = ctx.measureText("Hg");
+  ctx.textBaseline = "alphabetic";
+  const asc = m.fontBoundingBoxAscent;
+  return y - asc - (lh - asc - m.fontBoundingBoxDescent) / 2;
+}
+
+/** Fonts an annotation is drawn with, loaded before it is measured or drawn. */
+export async function loadAnnotationFonts(
+  fontFamily: string | undefined,
+  frameHeight: number,
+): Promise<void> {
+  const k = (frameHeight / 1080) * OVERSAMPLE;
+  await document.fonts.load(`700 ${Math.round(40 * k)}px ${FONT}`).catch(() => undefined);
+  await ensureFont(fontFamily);
+}
+
+/**
+ * Where each text of an annotation is drawn (the same numbers renderAnnotation draws with), so it
+ * can be typed right over its picture. Null for kinds without text.
+ */
+export function textLayout(
+  a: Annotation,
+  frameHeight: number,
+  frameWidth: number,
+): TextLayout | null {
+  const s = sizing(a, frameHeight);
+  const { k, pad, ink } = s;
+  const center = (width: number, height: number) => ({ x: width / 2, y: height / 2 });
+  switch (a.kind) {
+    case "balloon":
+    case "note":
+    case "label": {
+      const g = boxGeometry(a, s);
+      return {
+        width: g.width,
+        height: g.height,
+        anchor:
+          a.kind === "balloon"
+            ? { x: g.x + g.bw / 2, y: g.y + g.bh / 2 }
+            : center(g.width, g.height),
+        fields: [
+          {
+            key: "text",
+            left: g.x + g.px,
+            top: lineTop(g.font, "middle", g.y + g.py + g.lh / 2, g.lh),
+            width: g.tw,
+            lineHeight: g.lh,
+            lines: g.lines.length,
+            align: g.box.align,
+            font: g.font,
+            color: g.box.textColor,
+            wrap: g.box.wraps ? g.box.maxWidth * k : null,
+            box: { x: g.x, y: g.y, w: g.bw, h: g.bh, radius: g.radius, color: g.box.fill },
+          },
+        ],
+      };
+    }
+    case "title": {
+      const g = titleGeometry(a, s);
+      return {
+        width: g.width,
+        height: g.height,
+        anchor: center(g.width, g.height),
+        fields: [
+          {
+            key: "text",
+            left: pad * 2,
+            top: lineTop(g.font, "middle", pad * 2 + g.lh / 2, g.lh),
+            width: g.tw,
+            lineHeight: g.lh,
+            lines: g.lines.length,
+            align: a.layout === "center" ? "center" : "left",
+            font: g.font,
+            color: a.color,
+            wrap: g.wrapAt,
+            ...(s.olw > 0 ? { stroke: { color: s.outline.color, width: s.olw * 2 } } : {}),
+          },
+        ],
+      };
+    }
+    case "step": {
+      const d = STEP_SIZE * k;
+      const font = s.font(40, 800);
+      const lh = 48 * k;
+      const width = Math.ceil(d + pad * 2);
+      return {
+        width,
+        height: width,
+        anchor: center(width, width),
+        fields: [
+          {
+            key: "text",
+            left: pad,
+            top: lineTop(font, "middle", pad + d / 2 + 2 * k, lh),
+            width: d,
+            lineHeight: lh,
+            lines: 1,
+            align: "center",
+            font,
+            color: isLight(a.color) ? ink : "#FFFFFF",
+            wrap: null,
+            maxLength: 3,
+            box: { x: pad, y: pad, w: d, h: d, radius: d / 2, color: a.color },
+          },
+        ],
+      };
+    }
+    case "lowerthird": {
+      const g = lowerthirdGeometry(a, s);
+      const x = pad + g.bar + g.px;
+      // The name's part of the bar and, below it, the subtitle's.
+      const split = a.subtitle ? 66 * k : g.h;
+      const back = rgba(ink, 0.92);
+      const boxAt = (y: number, h: number) => ({
+        x: pad + g.bar,
+        y,
+        w: g.w - g.bar,
+        h,
+        radius: 0,
+        color: back,
+      });
+      const fields: TextField[] = [
+        {
+          key: "text",
+          left: x,
+          top: lineTop(g.nameFont, "alphabetic", pad + 52 * k, 50 * k),
+          width: Math.max(g.nameW, 20 * k),
+          lineHeight: 50 * k,
+          lines: 1,
+          align: "left",
+          font: g.nameFont,
+          color: "#FFFFFF",
+          wrap: null,
+          box: boxAt(pad, split),
+        },
+      ];
+      if (a.subtitle)
+        fields.push({
+          key: "subtitle",
+          left: x,
+          top: lineTop(g.subFont, "alphabetic", pad + 92 * k, 36 * k),
+          width: Math.max(g.subW, 20 * k),
+          lineHeight: 36 * k,
+          lines: 1,
+          align: "left",
+          font: g.subFont,
+          color: a.color,
+          wrap: null,
+          box: boxAt(pad + split, g.h - split),
+        });
+      return { width: g.width, height: g.height, anchor: center(g.width, g.height), fields };
+    }
+    case "card": {
+      const g = cardGeometry(a, s, frameWidth, frameHeight);
+      const cardInk = isLight(a.color) ? ink : "#FFFFFF";
+      const accent = isLight(a.color) ? ink : (a.accent ?? "#C8F031");
+      const margin = 10 * k;
+      /** A text on the card's flat color: the box is that color, a little bigger than the lines. */
+      const onCard = (field: Omit<TextField, "left" | "box" | "align">): TextField => {
+        const left = g.centered ? g.left - field.width / 2 : g.left;
+        return {
+          ...field,
+          left,
+          align: g.centered ? "center" : "left",
+          box: {
+            x: left - margin,
+            y: field.top - margin,
+            w: field.width + margin * 2,
+            h: field.lineHeight * field.lines + margin * 2,
+            radius: 0,
+            color: a.color,
+          },
+        };
+      };
+      const fields: TextField[] = [];
+      if (a.kicker)
+        fields.push(
+          onCard({
+            key: "kicker",
+            top: lineTop(g.kickerFont, "alphabetic", g.kickerY, 40 * k),
+            width: Math.max(
+              measuring(g.kickerFont).measureText(a.kicker.toUpperCase()).width,
+              20 * k,
+            ),
+            lineHeight: 40 * k,
+            lines: 1,
+            font: g.kickerFont,
+            color: accent,
+            wrap: null,
+            uppercase: true,
+          }),
+        );
+      fields.push(
+        onCard({
+          key: "text",
+          top: lineTop(g.titleFont, "alphabetic", g.titleY + g.lh, g.lh),
+          width: widest(measuring(g.titleFont), g.lines, 20 * k),
+          lineHeight: g.lh,
+          lines: g.lines.length,
+          font: g.titleFont,
+          color: cardInk,
+          wrap: g.wrapAt,
+        }),
+      );
+      if (a.subtitle)
+        fields.push(
+          onCard({
+            key: "subtitle",
+            top: lineTop(g.subFont, "alphabetic", g.subY + 52 * k, 52 * k),
+            width: widest(measuring(g.subFont), g.subLines, 20 * k),
+            lineHeight: 52 * k,
+            lines: g.subLines.length,
+            font: g.subFont,
+            color: isLight(a.color) ? rgba(ink, 0.8) : "rgba(255,255,255,0.8)",
+            wrap: g.subWrap,
+          }),
+        );
+      return { width: g.width, height: g.height, anchor: center(g.width, g.height), fields };
+    }
+    default:
+      return null;
+  }
+}
+
 /**
  * Draws an annotation into a tightly sized transparent PNG (k = pixels per 1080p pixel).
  * The shape is drawn first without shadow (outlines always outside the shape, so dashes and
@@ -84,18 +518,13 @@ export async function renderAnnotation(
   frameWidth = (frameHeight * 16) / 9,
   reveal?: RevealState | null,
 ): Promise<Rendered> {
-  const k = (frameHeight / 1080) * OVERSAMPLE;
-  await document.fonts.load(`700 ${Math.round(40 * k)}px ${FONT}`).catch(() => undefined);
-  await ensureFont(a.fontFamily);
-  const family = fontStack(a.fontFamily);
+  await loadAnnotationFonts(a.fontFamily, frameHeight);
+  const sz = sizing(a, frameHeight);
+  const { k, olw, pad, font, ink } = sz;
+  const ol = sz.outline;
   let balloon: BalloonGeometry | undefined;
   const canvas = document.createElement("canvas");
   let ctx = canvas.getContext("2d")!;
-  const ol = a.outline ?? defaultOutline(a);
-  const olw = Math.max(0, ol.width) * k;
-  const pad = 24 * k + olw;
-  const font = (size: number, weight = 700): string => `${weight} ${size * k}px ${family}`;
-  const ink = a.ink ?? "#12140A";
 
   // The kind's usual soft shadow, used when the annotation does not choose its own.
   let builtIn: Shadow | null = null;
@@ -281,76 +710,29 @@ export async function renderAnnotation(
     case "balloon":
     case "note":
     case "label": {
-      const fs = a.fontSize ?? ANNOTATION_TEXT;
-      ctx.font = font(fs);
-      const maxW = (a.width ?? 420) * k;
-      const lines = a.kind === "label" ? [a.text ?? ""] : wrap(ctx, a.text ?? "", maxW);
-      const lh = fs * 1.3 * k;
-      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 20 * k);
-      const px = (a.kind === "label" ? 20 : 26) * k;
-      const py = (a.kind === "label" ? 12 : 20) * k;
-      const bw = tw + px * 2;
-      const bh = lines.length * lh + py * 2;
-      const free =
-        a.kind === "balloon" && a.tailPoint && a.tail !== "none"
-          ? freeBalloonTip(a.tailPoint)
-          : undefined;
-      const tail = free?.tail ?? (a.kind === "balloon" ? (a.tail ?? "bottom-left") : "none");
-      const tl = tail === "none" ? 0 : 26 * k;
-      const tip = free ? { x: free.point.x * bw, y: free.point.y * bh } : undefined;
-      const left = tip ? Math.max(tl, -tip.x) : tl;
-      const top = tip ? Math.max(tl, -tip.y) : tl;
-      const right = tip ? Math.max(tl, tip.x - bw) : tl;
-      const bottom = tip ? Math.max(tl, tip.y - bh) : tl;
-      size(bw + pad * 2 + left + right, bh + pad * 2 + top + bottom);
-      const x = pad + left;
-      const y = pad + top;
-      const absoluteTip = tip ? { x: x + tip.x, y: y + tip.y } : undefined;
+      const g = boxGeometry(a, sz);
+      const { box, lines, lh, px, py, bw, bh, tail, tl, x, y, absoluteTip } = g;
+      size(g.width, g.height);
       if (a.kind === "balloon") {
-        const baseX =
-          x +
-          Math.max(
-            16 * k + Math.min(tl * 0.42, (bw - 32 * k) / 5, (bh - 32 * k) / 3),
-            Math.min(
-              bw - 16 * k - Math.min(tl * 0.42, (bw - 32 * k) / 5, (bh - 32 * k) / 3),
-              bw * (tail.endsWith("left") ? 0.28 : 0.72),
-            ),
-          );
-        balloon = {
-          x,
-          y,
-          w: bw,
-          h: bh,
-          tipX:
-            absoluteTip?.x ??
-            (tail === "left"
-              ? x - tl
-              : tail === "right"
-                ? x + bw + tl
-                : baseX + (tail.endsWith("left") ? -tl * 0.35 : tl * 0.35)),
-          tipY:
-            absoluteTip?.y ??
-            (tail.startsWith("top")
-              ? y - tl
-              : tail.startsWith("bottom")
-                ? y + bh + tl
-                : y + bh / 2),
-        };
+        const { tip } =
+          tail === "none"
+            ? { tip: { x: x + bw / 2, y: y + bh } }
+            : balloonTail(x, y, bw, bh, g.radius, tl, tail, absoluteTip);
+        balloon = { x, y, w: bw, h: bh, tipX: tip.x, tipY: tip.y };
       }
-      const r = a.kind === "label" ? bh / 2 : 22 * k;
-      const fill = a.kind === "balloon" ? (a.fill ?? "#FFFFFF") : a.color;
+      const fill = box.fill;
       const path =
         a.kind === "balloon"
-          ? new Path2D(balloonPath(x, y, bw, bh, 16 * k, tl, tail, absoluteTip))
+          ? new Path2D(balloonPath(x, y, bw, bh, g.radius, tl, tail, absoluteTip))
           : new Path2D();
-      if (a.kind !== "balloon") path.roundRect(x, y, bw, bh, r);
+      if (a.kind !== "balloon") path.roundRect(x, y, bw, bh, g.radius);
       outlined(path, fill);
       if (a.kind === "balloon") shadow(12, 3, 0.2);
       else shadow();
-      ctx.fillStyle = isLight(fill) ? ink : "#FFFFFF";
-      ctx.font = font(fs);
+      ctx.fillStyle = box.textColor;
+      ctx.font = g.font;
       ctx.textBaseline = "middle";
-      const centered = a.kind === "balloon" && a.layout !== "left";
+      const centered = box.align === "center";
       ctx.textAlign = centered ? "center" : "left";
       lines.forEach((l, i) => {
         const ly = y + py + lh * (i + 0.5);
@@ -359,13 +741,9 @@ export async function renderAnnotation(
       break;
     }
     case "title": {
-      const fs = a.fontSize ?? 72;
-      ctx.font = font(fs, 800);
-      const lines = wrap(ctx, a.text ?? "", (a.width ?? 1400) * k);
-      const lh = fs * 1.15 * k;
-      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 20 * k);
-      size(tw + pad * 4, lines.length * lh + pad * 4);
-      ctx.font = font(fs, 800);
+      const { lines, lh, tw, width, height } = titleGeometry(a, sz);
+      size(width, height);
+      ctx.font = font(a.fontSize ?? 72, 800);
       ctx.textBaseline = "middle";
       ctx.lineJoin = "round";
       // Centered titles (templates) center each line; the others keep a left edge.
@@ -418,41 +796,32 @@ export async function renderAnnotation(
     case "card": {
       // Full frame: kicker, big title and subtitle on the left third, with a lime accent bar.
       fullFrame = true;
-      const W = frameWidth * OVERSAMPLE;
-      size(W, frameHeight * OVERSAMPLE);
+      const g = cardGeometry(a, sz, frameWidth, frameHeight);
+      size(g.width, g.height);
       ctx.fillStyle = a.color;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const cardInk = isLight(a.color) ? ink : "#FFFFFF";
       const accent = isLight(a.color) ? ink : (a.accent ?? "#C8F031");
-      const centered = a.layout === "center";
-      const left = centered ? W / 2 : 150 * k;
+      const { centered, left, lh } = g;
       ctx.textAlign = centered ? "center" : "left";
-      ctx.font = font(a.fontSize ?? 96, 800);
-      const lines = wrap(ctx, a.text ?? "", Math.min(W - 300 * k, 1500 * k));
-      const lh = (a.fontSize ?? 96) * 1.1 * k;
-      // Centered: the whole block sits in the middle of the frame.
-      const blockH = (a.kicker ? 40 * k : 0) + lh * lines.length + (a.subtitle ? 82 * k : 0);
-      let y = centered ? (canvas.height - blockH) / 2 + 34 * k : 360 * k;
       ctx.fillStyle = accent;
-      ctx.fillRect(centered ? left - 45 * k : left, y - 70 * k, 90 * k, 10 * k);
+      ctx.fillRect(centered ? left - 45 * k : left, g.barY, 90 * k, 10 * k);
       ctx.textBaseline = "alphabetic";
       if (a.kicker) {
-        ctx.font = font(34, 800);
+        ctx.font = g.kickerFont;
         ctx.fillStyle = accent;
-        ctx.fillText(a.kicker.toUpperCase(), left, y);
-        y += 40 * k;
+        ctx.fillText(a.kicker.toUpperCase(), left, g.kickerY);
       }
-      ctx.font = font(a.fontSize ?? 96, 800);
+      ctx.font = g.titleFont;
       ctx.fillStyle = cardInk;
-      lines.forEach((l, i) => {
-        say(l, left, (t, lx) => ctx.fillText(t, lx, y + lh * (i + 1)));
+      g.lines.forEach((l, i) => {
+        say(l, left, (t, lx) => ctx.fillText(t, lx, g.titleY + lh * (i + 1)));
       });
-      y += lh * lines.length + 30 * k;
       if (a.subtitle) {
-        ctx.font = font(40, 600);
+        ctx.font = g.subFont;
         ctx.globalAlpha = 0.8;
-        wrap(ctx, a.subtitle, 1400 * k).forEach((l, i) => {
-          say(l, left, (t, lx) => ctx.fillText(t, lx, y + 52 * k * (i + 1)));
+        g.subLines.forEach((l, i) => {
+          say(l, left, (t, lx) => ctx.fillText(t, lx, g.subY + 52 * k * (i + 1)));
         });
         ctx.globalAlpha = 1;
       }
@@ -460,15 +829,8 @@ export async function renderAnnotation(
     }
     case "lowerthird": {
       // Name bar: accent block on the left, name in bold and a lighter line below.
-      ctx.font = font(40, 800);
-      const nameW = ctx.measureText(a.text ?? "").width;
-      ctx.font = font(28, 600);
-      const subW = a.subtitle ? ctx.measureText(a.subtitle).width : 0;
-      const bar = 14 * k;
-      const px = 28 * k;
-      const w = Math.max(nameW, subW) + px * 2 + bar;
-      const h = (a.subtitle ? 112 : 76) * k;
-      size(w + pad * 2, h + pad * 2);
+      const { bar, px, w, h, width, height } = lowerthirdGeometry(a, sz);
+      size(width, height);
       const path = new Path2D();
       path.rect(pad, pad, w, h);
       outlined(path, rgba(ink, 0.92));
@@ -503,7 +865,7 @@ export async function renderAnnotation(
       break;
     }
     case "step": {
-      const d = 76 * k;
+      const d = STEP_SIZE * k;
       size(d + pad * 2, d + pad * 2);
       const path = new Path2D();
       path.arc(pad + d / 2, pad + d / 2, d / 2, 0, Math.PI * 2);

@@ -91,6 +91,96 @@ export function freeBalloonTip(point: { x: number; y: number }): {
   return { point: { x, y }, tail: y > 0.5 ? "bottom-left" : "top-left" };
 }
 
+/** Length of a balloon's tail when it is not dragged, in 1080p pixels. */
+export const BALLOON_TAIL = 40;
+
+type Point = { x: number; y: number };
+
+/** Corner radius of a balloon's body (never more than a quarter of a side). */
+const bodyRadius = (w: number, h: number, radius: number): number => Math.min(radius, w / 4, h / 4);
+
+/**
+ * Half the width where the tail leaves the body: broad, growing with the tail's reach (`dist`),
+ * never more than a third of the side it leaves (`along`, with its rounded corners `r`).
+ */
+export function tailHalfWidth(along: number, r: number, length: number, dist: number): number {
+  return Math.max(
+    0,
+    Math.min(Math.max(length * 0.45, dist * 0.2), length * 2.4, (along - 2 * r) / 3.2),
+  );
+}
+
+/**
+ * Where a tail leaves the body and where it points: the middle of its base on that side and
+ * its tip. Without a dragged tip, the tail of the preset direction, `length` long.
+ */
+export function balloonTail(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number,
+  length: number,
+  tail: Tail,
+  tip?: Point,
+): { base: Point; b: number; tip: Point } {
+  const r = bodyRadius(w, h, radius);
+  const across = tail.startsWith("top") || tail.startsWith("bottom");
+  const along = across ? w : h;
+  const side = tail.startsWith("top") ? y : tail.startsWith("bottom") ? y + h : 0;
+  const edge = tail === "left" ? x : tail === "right" ? x + w : 0;
+  // How far the tip reaches beyond the side (its reach without a dragged tip is the length).
+  const dist = tip
+    ? across
+      ? Math.hypot(tip.x - Math.max(x + r, Math.min(x + w - r, tip.x)), tip.y - side)
+      : Math.hypot(tip.y - Math.max(y + r, Math.min(y + h - r, tip.y)), tip.x - edge)
+    : length;
+  const b = tailHalfWidth(along, r, length, dist);
+  const clampAlong = (v: number, from: number, size: number): number =>
+    Math.max(from + r + b, Math.min(from + size - r - b, v));
+  if (across) {
+    const cx = clampAlong(tip ? tip.x : x + w * (tail.endsWith("left") ? 0.28 : 0.72), x, w);
+    return {
+      base: { x: cx, y: side },
+      b,
+      // Leaning out past the base, so the tail sweeps toward its side.
+      tip: tip ?? {
+        x: cx + (tail.endsWith("left") ? -length : length),
+        y: tail.startsWith("top") ? y - length : y + h + length,
+      },
+    };
+  }
+  const cy = clampAlong(tip ? tip.y : y + h / 2, y, h);
+  return {
+    base: { x: edge, y: cy },
+    b,
+    tip: tip ?? { x: tail === "left" ? x - length : x + w + length, y: cy },
+  };
+}
+
+/**
+ * The tail between its base corners A and B (in the outline's order) and its tip T: each edge
+ * leaves the body square and sweeps to the tip, narrowing as it goes, so the tail bends toward
+ * where it points like a comic or Camtasia callout, and ends sharp.
+ */
+function tailCurve(A: Point, B: Point, T: Point, out: Point): string {
+  const M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+  const depth = Math.max(1, (T.x - M.x) * out.x + (T.y - M.y) * out.y);
+  const control = (P: Point): Point => {
+    // Halfway between the straight edge and a line square out of the body...
+    const straight = { x: (P.x + T.x) / 2, y: (P.y + T.y) / 2 };
+    const square = { x: P.x + out.x * depth * 0.55, y: P.y + out.y * depth * 0.55 };
+    // ...pulled toward the middle of the base, so it narrows.
+    return {
+      x: straight.x * 0.45 + square.x * 0.55 + (M.x - P.x) * 0.35,
+      y: straight.y * 0.45 + square.y * 0.55 + (M.y - P.y) * 0.35,
+    };
+  };
+  const a = control(A);
+  const b = control(B);
+  return `L ${A.x} ${A.y} Q ${a.x} ${a.y} ${T.x} ${T.y} Q ${b.x} ${b.y} ${B.x} ${B.y}`;
+}
+
 /** One closed outline, so the tail never leaves a stroke across the balloon's interior. */
 export function balloonPath(
   x: number,
@@ -100,37 +190,35 @@ export function balloonPath(
   radius: number,
   length: number,
   tail: Tail,
-  tip?: { x: number; y: number },
+  tip?: Point,
 ): string {
-  const r = Math.min(radius, w / 4, h / 4);
-  const b = Math.min(length * 0.42, (w - 2 * r) / 5, (h - 2 * r) / 3);
-  const cx =
-    x +
-    Math.max(
-      r + b,
-      Math.min(w - r - b, tip ? tip.x - x : w * (tail.endsWith("left") ? 0.28 : 0.72)),
-    );
-  const cy = Math.max(y + r + b, Math.min(y + h - r - b, tip?.y ?? y + h / 2));
-  const tipX = tip?.x ?? cx + (tail.endsWith("left") ? -length * 0.35 : length * 0.35);
+  const r = bodyRadius(w, h, radius);
+  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip);
   const parts = [`M ${x + r} ${y}`];
-  if (tail.startsWith("top"))
+  if (t && tail.startsWith("top"))
     parts.push(
-      `L ${cx - b} ${y} Q ${cx} ${y} ${tipX} ${tip?.y ?? y - length} Q ${cx + b * 0.45} ${y} ${cx + b} ${y}`,
+      tailCurve({ x: t.base.x - t.b, y }, { x: t.base.x + t.b, y }, t.tip, { x: 0, y: -1 }),
     );
   parts.push(`L ${x + w - r} ${y} Q ${x + w} ${y} ${x + w} ${y + r}`);
-  if (tail === "right")
+  if (t && tail === "right")
     parts.push(
-      `L ${x + w} ${cy - b} Q ${x + w} ${cy - b * 0.4} ${tip?.x ?? x + w + length} ${tip?.y ?? cy} Q ${x + w} ${cy + b * 0.4} ${x + w} ${cy + b}`,
+      tailCurve({ x: x + w, y: t.base.y - t.b }, { x: x + w, y: t.base.y + t.b }, t.tip, {
+        x: 1,
+        y: 0,
+      }),
     );
   parts.push(`L ${x + w} ${y + h - r} Q ${x + w} ${y + h} ${x + w - r} ${y + h}`);
-  if (tail.startsWith("bottom"))
+  if (t && tail.startsWith("bottom"))
     parts.push(
-      `L ${cx + b} ${y + h} Q ${cx + b * 0.45} ${y + h} ${tipX} ${tip?.y ?? y + h + length} Q ${cx} ${y + h} ${cx - b} ${y + h}`,
+      tailCurve({ x: t.base.x + t.b, y: y + h }, { x: t.base.x - t.b, y: y + h }, t.tip, {
+        x: 0,
+        y: 1,
+      }),
     );
   parts.push(`L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r}`);
-  if (tail === "left")
+  if (t && tail === "left")
     parts.push(
-      `L ${x} ${cy + b} Q ${x} ${cy + b * 0.4} ${tip?.x ?? x - length} ${tip?.y ?? cy} Q ${x} ${cy - b * 0.4} ${x} ${cy - b}`,
+      tailCurve({ x, y: t.base.y + t.b }, { x, y: t.base.y - t.b }, t.tip, { x: -1, y: 0 }),
     );
   parts.push(`L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`);
   return parts.join(" ");
@@ -206,19 +294,20 @@ export function outlineStyle(o: Outline): OutlineStyle {
       : "solid";
 }
 
+const isLightHex = (hex: string): boolean => {
+  const v = parseInt(hex.replace("#", "").slice(0, 6), 16);
+  return ((v >> 16) & 255) * 0.299 + ((v >> 8) & 255) * 0.587 + (v & 255) * 0.114 > 150;
+};
+
 /** The usual outline of each kind (what absent `outline` means). */
 export function defaultOutline(a: Pick<Annotation, "kind" | "color" | "ink">): Outline {
-  const light = (hex: string): boolean => {
-    const v = parseInt(hex.replace("#", "").slice(0, 6), 16);
-    return ((v >> 16) & 255) * 0.299 + ((v >> 8) & 255) * 0.587 + (v & 255) * 0.114 > 150;
-  };
   switch (a.kind) {
     case "arrow":
       return { color: "#FFFFFF", width: 4 };
     case "balloon":
       return { color: a.color, width: 3 };
     case "title":
-      return { color: light(a.color) ? (a.ink ?? "#12140A") : "#FFFFFF", width: 5 };
+      return { color: isLightHex(a.color) ? (a.ink ?? "#12140A") : "#FFFFFF", width: 5 };
     case "highlight":
       return { color: a.color, width: 8 };
     case "step":
@@ -233,6 +322,40 @@ export function defaultOutline(a: Pick<Annotation, "kind" | "color" | "ink">): O
  * of 9 to 14 reads on a phone (the check before exporting asks at least this much).
  */
 export const ANNOTATION_TEXT = 36;
+
+/** The text box of balloons, notes and labels, in 1080p pixels: drawn this way and edited this way. */
+export interface TextBoxLayout {
+  fontSize: number;
+  lineHeight: number;
+  padX: number;
+  padY: number;
+  /** Width the text wraps at (labels never wrap). */
+  maxWidth: number;
+  wraps: boolean;
+  align: "center" | "left";
+  /** Inside of the box and the color of the letters on it. */
+  fill: string;
+  textColor: string;
+}
+
+export function textBoxLayout(
+  a: Pick<Annotation, "kind" | "fontSize" | "width" | "layout" | "fill" | "color" | "ink">,
+): TextBoxLayout {
+  const fontSize = a.fontSize ?? ANNOTATION_TEXT;
+  const label = a.kind === "label";
+  const fill = a.kind === "balloon" ? (a.fill ?? "#FFFFFF") : a.color;
+  return {
+    fontSize,
+    lineHeight: fontSize * 1.3,
+    padX: label ? 20 : 26,
+    padY: label ? 12 : 20,
+    maxWidth: a.width ?? 420,
+    wraps: !label,
+    align: a.kind === "balloon" && a.layout !== "left" ? "center" : "left",
+    fill,
+    textColor: isLightHex(fill) ? (a.ink ?? "#12140A") : "#FFFFFF",
+  };
+}
 
 export const PALETTE = [
   "#C8F031",
