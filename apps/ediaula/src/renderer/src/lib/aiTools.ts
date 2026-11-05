@@ -1236,11 +1236,10 @@ const handlers: {
     return `${r.translated ? `${plural(r.translated, "legenda traduzida", "legendas traduzidas")} agora para "${lang}"` : `As legendas em "${lang}" já estavam em dia`}; ${r.count} no total guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, chame de novo: só as que mudaram são traduzidas.`;
   },
 
-  async export_video({ preset, formats, range, ranges, split, track_id }, { progress, signal }) {
+  async export_video({ preset, formats, range, split, track_id }, { progress, signal }) {
     const p = requireProject();
     const info = useApp.getState().info;
-    if ([range, ranges, split].filter((x) => x !== undefined).length > 1)
-      throw new ToolError("Use só um de range, ranges e split. Nada foi exportado.");
+    if (range && split) throw new ToolError("Use range ou split, não os dois. Nada foi exportado.");
     if (split && !track_id)
       throw new ToolError(
         'split: "clips" precisa de track_id, a faixa que divide as partes (ids de get_overview). Nada foi exportado.',
@@ -1251,8 +1250,8 @@ const handlers: {
       throw new ToolError(
         "O trecho para exportar precisa ter mais de meio segundo (to depois de from).",
       );
-    // Several parts at once: the ones asked, or one per clip or group of clips of the track.
-    let parts: PartRange[] | null = ranges ?? null;
+    // Several parts at once: one per clip or group of clips of the track.
+    let parts: PartRange[] | null = null;
     if (split && track_id) {
       const r = trackParts(p, track_id);
       if (!r.ok) throw new ToolError(r.error);

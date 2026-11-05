@@ -1306,7 +1306,8 @@ test('export_video com split "clips": uma pasta, "Parte 1" a "Parte N", todas na
     const platform = await call("export_video", {
       preset: "draft",
       formats: ["platform"],
-      ranges: [{ from: 0, to: 5 }],
+      split: "clips",
+      track_id: "v",
     });
     assert.equal(platform.ok, false);
     assert.match(platform.text, /As partes saem sem o pacote da plataforma/);

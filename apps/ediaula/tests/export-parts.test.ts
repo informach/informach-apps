@@ -147,19 +147,18 @@ test("split: a track of loose clips gives one part each; a group is one part", (
   assert.equal(trackParts({ ...p, clips: [] }, "f3").ok, false);
 });
 
-test("names: a part's own name replaces the automatic one; two alike get (2); vertical and audio", () => {
+test("names: <aula> - Parte N, without the characters a file name cannot have; vertical and audio", () => {
   assert.deepEqual(
     partFiles(
       [
-        { from: 0, to: 5, name: "Abertura" },
+        { from: 0, to: 5 },
         { from: 5, to: 9 },
-        { from: 9, to: 12, name: "abertura" },
       ],
       "Aula: 2",
       "youtube",
       false,
     ),
-    ["Abertura.mp4", "Aula 2 - Parte 2.mp4", "abertura (2).mp4"],
+    ["Aula 2 - Parte 1.mp4", "Aula 2 - Parte 2.mp4"],
   );
   assert.deepEqual(partFiles([{ from: 0, to: 5 }], "Aula", "reels", true), [
     "Aula - Parte 1 (vertical).mp4",

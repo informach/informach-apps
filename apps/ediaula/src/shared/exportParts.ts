@@ -4,17 +4,16 @@ import type { Finding } from "./preflight.ts";
 import type { Clip, Project } from "./types.ts";
 
 /**
- * export_video with several parts at once (`ranges`, or `split: "clips"` on a track): the parts
+ * export_video with several parts at once (`split: "clips"` on a track): the parts
  * of a track, their file names ("<aula> - Parte 1.mp4"), one folder for all of them and one
  * question when some files are already there. Each part is then exported as a stretch of the
  * lesson (courseSplit.ts rangeProject), as export_video with `range` does.
  */
 
-/** One part: timeline seconds, and the file name in place of "<aula> - Parte N". */
+/** One part, in timeline seconds. */
 export interface PartRange {
   from: number;
   to: number;
-  name?: string;
 }
 
 /** The most parts one call puts in the queue. */
@@ -93,24 +92,14 @@ export function trackParts(
   return { ok: true, parts };
 }
 
-/**
- * The file of each part: "<aula> - Parte N.mp4" (".mp3" for audio, " (vertical)" for reels), or
- * the part's own name. Two parts never share a name: the second becomes "<nome> (2)".
- */
+/** The file of each part: "<aula> - Parte N.mp4" (".mp3" for audio, " (vertical)" for reels). */
 export function partFiles(
   parts: readonly PartRange[],
   lesson: string,
   preset: ExportPresetId,
   vertical: boolean,
 ): string[] {
-  const used = new Set<string>();
-  return parts.map((part, i) => {
-    const file = exportName(part.name?.trim() || `${lesson} - Parte ${i + 1}`, preset, vertical);
-    let name = file;
-    for (let n = 2; used.has(name.toLowerCase()); n++) name = numbered(file, n);
-    used.add(name.toLowerCase());
-    return name;
-  });
+  return parts.map((_, i) => exportName(`${lesson} - Parte ${i + 1}`, preset, vertical));
 }
 
 /** "Aula - Parte 1.mp4" → "Aula - Parte 1 (2).mp4". */
