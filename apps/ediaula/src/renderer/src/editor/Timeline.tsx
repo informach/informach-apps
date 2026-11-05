@@ -96,6 +96,7 @@ import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { useTranscripts } from "@/lib/transcripts";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
+import { addZoomLayer, ZOOM_MIME } from "@/lib/zoomLayer";
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import {
@@ -677,6 +678,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const acceptsDrop = (e: React.DragEvent): boolean =>
     e.dataTransfer.types.includes(ANNOTATION_MIME) ||
+    e.dataTransfer.types.includes(ZOOM_MIME) ||
     e.dataTransfer.types.includes(ASSET_MIME) ||
     e.dataTransfer.types.includes(SOUND_MIME) ||
     e.dataTransfer.types.includes("Files");
@@ -701,6 +703,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         spec?: Partial<Annotation>;
       };
       if (await addAnnotation(kind, spec ?? {}, { at: time, trackId: track.id }))
+        useApp.getState().set({ sideTab: "properties" });
+      return;
+    }
+    // A zoom layer of the Zoom panel, the same way: it zooms the tracks below where it lands.
+    if (e.dataTransfer.types.includes(ZOOM_MIME)) {
+      if (await addZoomLayer({ at: time, dropOn: track.id }))
         useApp.getState().set({ sideTab: "properties" });
       return;
     }

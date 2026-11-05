@@ -1446,8 +1446,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 ## Camada de zoom
 
 - Barra lateral › Zoom › "Adicionar camada de zoom": um clipe que aproxima **tudo que está nas faixas abaixo dele**
-  enquanto dura, com entrada e saída suaves; o que está acima (anotações, legenda) fica como está. Entra numa faixa
-  nova no topo; arraste para uma faixa mais baixa para deixar camadas de fora.
+  enquanto dura, com entrada e saída suaves; o que está acima (anotações, legenda) fica como está. Com um clique,
+  entra numa faixa nova no topo, no ponto do cursor; arrastado para uma faixa da timeline, o botão põe a camada
+  nessa faixa e nesse tempo, com a mesma regra das anotações (`src/shared/dropSpot.ts`): encurtada até o próximo
+  clipe, acima do clipe em que caiu, ou na frente da imagem daquele momento quando solta numa faixa de som. O que
+  fica acima dela fica de fora do zoom.
 - Com a camada selecionada, a prévia mostra o quadro sem zoom e um retângulo com a área que vai encher a tela:
   arraste para mover; as alças dos cantos mudam o quanto aproxima, com o canto oposto parado e a proporção do
   quadro mantida (`resizeFocus` em `src/shared/zoomLayer.ts`), e a rodinha do mouse faz o mesmo em volta do

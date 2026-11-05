@@ -3,7 +3,7 @@ import { previousZoom } from "@shared/zoomLayer";
 import { Minimize2, MousePointerClick, MoveRight, Plus, ZoomIn } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { addRegionFx } from "@/lib/regionFx";
-import { addZoomLayer, continueZoom, setZoomLayer } from "@/lib/zoomLayer";
+import { addZoomLayer, continueZoom, setZoomLayer, ZOOM_MIME } from "@/lib/zoomLayer";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
@@ -258,14 +258,20 @@ export function ZoomPanel({ onRecordingZoom }: { onRecordingZoom: () => void }):
       </div>
       <p className="muted ann-hint">
         A camada de zoom aproxima tudo que está nas faixas abaixo dela; entrada e saída suaves são
-        opcionais, e dá para seguir de um ponto a outro sem sair do zoom. Ela entra numa faixa nova,
-        no topo, no ponto do cursor ({clock(time)}); arraste-a para uma faixa mais baixa para deixar
-        de fora o que fica acima.
+        opcionais, e dá para seguir de um ponto a outro sem sair do zoom. Com um clique, ela entra
+        numa faixa nova, no topo, no ponto do cursor ({clock(time)}); ou arraste o botão para a
+        faixa e o tempo que quiser na timeline, e o que fica acima dela fica de fora do zoom.
       </p>
       <Button
         variant="primary"
         icon={Plus}
         disabled={busy}
+        title="Clique para pôr no cursor, numa faixa nova no topo, ou arraste para uma faixa da timeline."
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(ZOOM_MIME, "zoom");
+          e.dataTransfer.effectAllowed = "copy";
+        }}
         onClick={async () => {
           setBusy(true);
           await addZoomLayer();
