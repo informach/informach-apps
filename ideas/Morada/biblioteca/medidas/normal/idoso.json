@@ -3,7 +3,10 @@
  "altura": 1.684,
  "correcoes": {
   "resident.phone.talk": {
-   "telefone": 145
+   "telefone": 145,
+   "dedos": {
+    "Left": "telefone"
+   }
   },
   "resident.car.enter": {
    "chao": {
@@ -279,26 +282,55 @@
   },
   "resident.device.use": {
    "antebraco": {
-    "quadros": 247,
-    "entrava_cm": 1.9
+    "quadros": 557,
+    "entrava_cm": 4.8
    }
   },
   "resident.drink.sit": {
    "antebraco": {
     "quadros": 71,
     "entrava_cm": 1.1
+   },
+   "dedos": {
+    "Left": "copo"
    }
   },
   "resident.read.sit": {
    "antebraco": {
-    "quadros": 115,
-    "entrava_cm": 3.9
+    "quadros": 240,
+    "entrava_cm": 11.2
    }
   },
   "resident.read.stand": {
    "antebraco": {
-    "quadros": 125,
-    "entrava_cm": 4.0
+    "quadros": 240,
+    "entrava_cm": 11.5
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
    }
   }
  },
@@ -375,37 +407,6 @@
    "x": 0.0,
    "y": 0.142
   },
-  "resident.car.drive": {
-   "tipo": "assento",
-   "altura": 0.446,
-   "x": -0.027,
-   "y": -0.142,
-   "carro": true
-  },
-  "resident.car.enter": {
-   "tipo": "assento",
-   "altura": 0.659,
-   "x": 0.012,
-   "y": -1.733,
-   "carro": true
-  },
-  "resident.car.exit": {
-   "tipo": "assento",
-   "altura": 0.659,
-   "x": 0.009,
-   "y": -0.151,
-   "carro": true
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.428,
-   "x": -0.016,
-   "y": -0.119,
-   "teclado": {
-    "z": 0.66,
-    "y": -0.528
-   }
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.409,
@@ -424,10 +425,13 @@
    }
   },
   "resident.read.sit": {
-   "tipo": "assento",
-   "altura": 0.41,
-   "x": 0.004,
-   "y": -0.137
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.25,
+    0.024,
+    0.183
+   ]
   },
   "resident.sit.sofa.relaxed": {
    "tipo": "assento",

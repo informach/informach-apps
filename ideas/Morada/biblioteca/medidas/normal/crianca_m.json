@@ -132,6 +132,10 @@
    "chao": {
     "quadros": 78,
     "afundava_cm": 1.7
+   },
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
    }
   },
   "resident.push.loop": {
@@ -272,6 +276,41 @@
    "antebraco": {
     "quadros": 232,
     "entrava_cm": 1.4
+   },
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
    }
   }
  },
@@ -360,60 +399,6 @@
    "x": 0.0,
    "y": 0.084
   },
-  "resident.climb.ladder": {
-   "tipo": "escada",
-   "frente": 0.329,
-   "x": -0.006,
-   "meia_largura": 0.18,
-   "topo": 1.816
-  },
-  "resident.climb.ladder.rm": {
-   "tipo": "escada",
-   "frente": 0.329,
-   "x": -0.006,
-   "meia_largura": 0.18,
-   "topo": 2.074
-  },
-  "resident.climb.rope": {
-   "tipo": "corda",
-   "frente": 0.122,
-   "x": 0.02,
-   "topo": 2.056
-  },
-  "resident.climb.rope.rm": {
-   "tipo": "corda",
-   "frente": 0.122,
-   "x": 0.02,
-   "topo": 2.382
-  },
-  "resident.climb.top": {
-   "tipo": "parapeito",
-   "frente": -0.03,
-   "x": 0.001,
-   "topo": 1.397
-  },
-  "resident.hang.enter": {
-   "tipo": "parapeito",
-   "frente": 0.192,
-   "x": -0.137,
-   "topo": 1.356
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.263,
-   "x": -0.01,
-   "y": -0.077,
-   "teclado": {
-    "z": 0.413,
-    "y": -0.326
-   }
-  },
-  "resident.play.videogame": {
-   "tipo": "assento",
-   "altura": 0.238,
-   "x": 0.01,
-   "y": -0.093
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.252,
@@ -430,6 +415,15 @@
     "frente": 0.151,
     "x": 0.002
    }
+  },
+  "resident.read.sit": {
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.166,
+    0.016,
+    0.122
+   ]
   },
   "resident.sit.floor.crossed": {
    "tipo": "assento",
@@ -476,13 +470,31 @@
    "x": -0.002,
    "largura": 0.704
   },
-  "resident.read.sit": {
+  "resident.push.start": {
    "tipo": "entre_maos",
-   "objeto": "livro",
+   "objeto": "caixote",
    "tam": [
-    0.166,
-    0.016,
-    0.122
+    0.448,
+    0.48,
+    0.352
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.448,
+    0.48,
+    0.352
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.448,
+    0.48,
+    0.352
    ]
   }
  }

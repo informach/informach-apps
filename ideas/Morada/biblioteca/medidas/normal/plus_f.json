@@ -3,7 +3,10 @@
  "altura": 1.734,
  "correcoes": {
   "resident.phone.talk": {
-   "telefone": 137
+   "telefone": 137,
+   "dedos": {
+    "Left": "telefone"
+   }
   },
   "resident.agree": {
    "mao_no_corpo": 79,
@@ -40,7 +43,7 @@
     "afundava_cm": 11.6
    },
    "antebraco": {
-    "quadros": 48,
+    "quadros": 50,
     "entrava_cm": 3.4
    }
   },
@@ -96,6 +99,9 @@
    "antebraco": {
     "quadros": 267,
     "entrava_cm": 3.0
+   },
+   "dedos": {
+    "Left": "copo"
    }
   },
   "resident.emote.angry": {
@@ -106,11 +112,7 @@
    }
   },
   "resident.emote.cry": {
-   "mao_no_corpo": 61,
-   "antebraco": {
-    "quadros": 56,
-    "entrava_cm": 3.0
-   }
+   "mao_no_corpo": 22
   },
   "resident.emote.disappointed": {
    "mao_no_corpo": 65,
@@ -157,7 +159,7 @@
   "resident.emote.thankful": {
    "mao_no_corpo": 89,
    "antebraco": {
-    "quadros": 81,
+    "quadros": 82,
     "entrava_cm": 2.8
    }
   },
@@ -191,14 +193,10 @@
    }
   },
   "resident.handshake.partner": {
-   "mao_no_corpo": 126,
-   "chao": {
-    "quadros": 132,
-    "afundava_cm": 1.7
-   },
+   "mao_no_corpo": 31,
    "antebraco": {
-    "quadros": 132,
-    "entrava_cm": 4.5
+    "quadros": 53,
+    "entrava_cm": 1.1
    }
   },
   "resident.idle.bored": {
@@ -283,7 +281,7 @@
    }
   },
   "resident.pickup.floor": {
-   "mao_no_corpo": 36
+   "mao_no_corpo": 38
   },
   "resident.romance.blow_kiss": {
    "mao_no_corpo": 56,
@@ -311,40 +309,16 @@
    }
   },
   "resident.romance.kiss_long_shorter": {
-   "mao_no_corpo": 185,
-   "antebraco": {
-    "quadros": 213,
-    "entrava_cm": 10.0
-   }
+   "mao_no_corpo": 91
   },
   "resident.romance.kiss_long_taller": {
-   "mao_no_corpo": 60,
-   "chao": {
-    "quadros": 213,
-    "afundava_cm": 2.7
-   },
-   "antebraco": {
-    "quadros": 61,
-    "entrava_cm": 4.2
-   }
+   "mao_no_corpo": 161
   },
   "resident.romance.kiss_shorter": {
-   "mao_no_corpo": 62,
-   "antebraco": {
-    "quadros": 113,
-    "entrava_cm": 5.5
-   }
+   "mao_no_corpo": 66
   },
   "resident.romance.kiss_taller": {
-   "mao_no_corpo": 42,
-   "chao": {
-    "quadros": 113,
-    "afundava_cm": 2.0
-   },
-   "antebraco": {
-    "quadros": 51,
-    "entrava_cm": 5.6
-   }
+   "mao_no_corpo": 88
   },
   "resident.romance.propose_exit": {
    "mao_no_corpo": 61,
@@ -389,14 +363,14 @@
    "mao_no_corpo": 54,
    "antebraco": {
     "quadros": 63,
-    "entrava_cm": 4.0
+    "entrava_cm": 4.1
    }
   },
   "resident.sit.chair.idle": {
    "mao_no_corpo": 90,
    "antebraco": {
     "quadros": 90,
-    "entrava_cm": 2.1
+    "entrava_cm": 2.2
    }
   },
   "resident.sit.clap": {
@@ -414,7 +388,7 @@
    }
   },
   "resident.sit.talk": {
-   "mao_no_corpo": 175,
+   "mao_no_corpo": 176,
    "antebraco": {
     "quadros": 1323,
     "entrava_cm": 3.1
@@ -460,6 +434,9 @@
    "antebraco": {
     "quadros": 246,
     "entrava_cm": 4.8
+   },
+   "dedos": {
+    "Left": "concha"
    }
   },
   "resident.talk.a": {
@@ -603,7 +580,7 @@
    }
   },
   "resident.climb.top": {
-   "mao_no_corpo": 32
+   "mao_no_corpo": 34
   },
   "resident.dance.silly": {
    "mao_no_corpo": 129,
@@ -623,7 +600,7 @@
    "mao_no_corpo": 17,
    "antebraco": {
     "quadros": 17,
-    "entrava_cm": 4.1
+    "entrava_cm": 4.2
    }
   },
   "resident.fit.squat": {
@@ -645,10 +622,14 @@
    "antebraco": {
     "quadros": 83,
     "entrava_cm": 5.6
+   },
+   "dedos": {
+    "Left": "punho",
+    "Right": "punho"
    }
   },
   "resident.garden.pick": {
-   "mao_no_corpo": 59,
+   "mao_no_corpo": 58,
    "antebraco": {
     "quadros": 58,
     "entrava_cm": 1.5
@@ -677,10 +658,13 @@
    }
   },
   "resident.garden.water": {
-   "mao_no_corpo": 68,
+   "mao_no_corpo": 70,
    "antebraco": {
-    "quadros": 88,
+    "quadros": 86,
     "entrava_cm": 4.1
+   },
+   "dedos": {
+    "Right": "copo"
    }
   },
   "resident.hang.enter": {
@@ -782,44 +766,60 @@
    }
   },
   "resident.clean.mop": {
-   "mao_no_corpo": 108,
+   "mao_no_corpo": 56,
    "antebraco": {
-    "quadros": 76,
-    "entrava_cm": 6.8
+    "quadros": 72,
+    "entrava_cm": 6.3
    }
   },
   "resident.clean.vacuum": {
    "mao_no_corpo": 150,
    "antebraco": {
-    "quadros": 102,
-    "entrava_cm": 2.3
+    "quadros": 98,
+    "entrava_cm": 2.1
    }
   },
   "resident.drink.sit": {
-   "mao_no_corpo": 33,
+   "mao_no_corpo": 32,
    "antebraco": {
     "quadros": 257,
     "entrava_cm": 4.0
+   },
+   "dedos": {
+    "Left": "copo"
    }
   },
+  "resident.eat.sit": {
+   "mao_no_corpo": 164
+  },
   "resident.hug": {
-   "mao_no_corpo": 30
+   "mao_no_corpo": 42
+  },
+  "resident.kitchen.chop": {
+   "mao_no_corpo": 120
+  },
+  "resident.kitchen.stir": {
+   "mao_no_corpo": 59
   },
   "resident.laundry.fold": {
-   "mao_no_corpo": 47,
+   "mao_no_corpo": 106,
    "antebraco": {
-    "quadros": 48,
-    "entrava_cm": 1.1
+    "quadros": 49,
+    "entrava_cm": 1.2
    }
   },
   "resident.present": {
-   "mao_no_corpo": 84
+   "mao_no_corpo": 51
   },
   "resident.read.sit": {
-   "mao_no_corpo": 99
+   "mao_no_corpo": 96
   },
   "resident.read.stand": {
-   "mao_no_corpo": 82
+   "mao_no_corpo": 96,
+   "antebraco": {
+    "quadros": 51,
+    "entrava_cm": 1.2
+   }
   },
   "resident.sit.floor.crossed": {
    "mao_no_corpo": 240,
@@ -832,8 +832,11 @@
     "entrava_cm": 2.0
    }
   },
+  "resident.sit.sofa.relaxed": {
+   "mao_no_corpo": 240
+  },
   "resident.wash": {
-   "mao_no_corpo": 199
+   "mao_no_corpo": 240
   },
   "resident.carry.box.walk": {
    "chao": {
@@ -841,28 +844,52 @@
     "afundava_cm": 1.3
    }
   },
-  "resident.care.hold_idle": {
-   "antebraco": {
-    "quadros": 180,
-    "entrava_cm": 6.6
-   }
-  },
-  "resident.care.rock": {
-   "antebraco": {
-    "quadros": 192,
-    "entrava_cm": 6.6
-   }
-  },
   "resident.clean.wipe": {
    "antebraco": {
-    "quadros": 75,
-    "entrava_cm": 2.2
+    "quadros": 71,
+    "entrava_cm": 1.9
+   }
+  },
+  "resident.device.use": {
+   "mao_no_corpo": 556,
+   "antebraco": {
+    "quadros": 473,
+    "entrava_cm": 2.3
    }
   },
   "resident.sleep.exit": {
    "antebraco": {
     "quadros": 74,
-    "entrava_cm": 5.8
+    "entrava_cm": 5.9
+   }
+  },
+  "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
+  "resident.fit.curl": {
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
    }
   }
  },
@@ -945,81 +972,6 @@
    "x": -0.002,
    "y": 0.142
   },
-  "resident.car.drive": {
-   "tipo": "assento",
-   "altura": 0.462,
-   "x": -0.035,
-   "y": -0.206,
-   "carro": true
-  },
-  "resident.car.enter": {
-   "tipo": "assento",
-   "altura": 0.682,
-   "x": 0.072,
-   "y": -1.794,
-   "carro": true
-  },
-  "resident.car.exit": {
-   "tipo": "assento",
-   "altura": 0.682,
-   "x": 0.013,
-   "y": -0.216,
-   "carro": true
-  },
-  "resident.climb.ladder": {
-   "tipo": "escada",
-   "frente": 0.51,
-   "x": -0.011,
-   "meia_largura": 0.18,
-   "topo": 2.936
-  },
-  "resident.climb.ladder.rm": {
-   "tipo": "escada",
-   "frente": 0.51,
-   "x": -0.011,
-   "meia_largura": 0.18,
-   "topo": 3.358
-  },
-  "resident.climb.rope": {
-   "tipo": "corda",
-   "frente": 0.204,
-   "x": 0.032,
-   "topo": 3.307
-  },
-  "resident.climb.rope.rm": {
-   "tipo": "corda",
-   "frente": 0.204,
-   "x": 0.032,
-   "topo": 3.842
-  },
-  "resident.climb.top": {
-   "tipo": "parapeito",
-   "frente": -0.029,
-   "x": 0.001,
-   "topo": 2.296
-  },
-  "resident.hang.enter": {
-   "tipo": "parapeito",
-   "frente": 0.335,
-   "x": -0.226,
-   "topo": 2.235
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.437,
-   "x": -0.016,
-   "y": -0.179,
-   "teclado": {
-    "z": 0.682,
-    "y": -0.531
-   }
-  },
-  "resident.play.videogame": {
-   "tipo": "assento",
-   "altura": 0.395,
-   "x": 0.021,
-   "y": -0.203
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.416,
@@ -1038,10 +990,13 @@
    }
   },
   "resident.read.sit": {
-   "tipo": "assento",
-   "altura": 0.416,
-   "x": 0.005,
-   "y": -0.196
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.258,
+    0.025,
+    0.188
+   ]
   },
   "resident.sit.floor.crossed": {
    "tipo": "assento",
@@ -1152,6 +1107,33 @@
    "frente": 0.205,
    "x": -0.002,
    "largura": 1.09
+  },
+  "resident.push.start": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.694,
+    0.743,
+    0.545
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.694,
+    0.743,
+    0.545
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.694,
+    0.743,
+    0.545
+   ]
   }
  }
 }

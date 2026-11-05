@@ -23,6 +23,7 @@ import bmesh  # noqa: E402 (depois do bpy)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import expressoes as EX  # noqa: E402
 import contato  # noqa: E402
+import cabelos as CAB  # noqa: E402
 import numpy as np
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.bvhtree import BVHTree
@@ -557,6 +558,45 @@ def chupeta(arm, rosto, cor=None):
     return ch
 
 
+# ------------------------------------------------------------------ penteados extras (catálogo cabelos.json)
+def penteados_extra(arm, partes, base, nome):
+    """Os itens do catálogo que servem neste corpo, encaixados na cabeça dele (cabelos.py)."""
+    return {x["id"]: CAB.encaixa(x, arm, partes["corpo"], I) for x in CAB.itens_para(nome, base)}
+
+
+def cabelo_raspado(arm, partes, nome):
+    """Camada rente ao couro cabeludo (cabelo raspado), feita da própria cabeça, depois das deformações."""
+    corpo = partes["corpo"]
+    w_cab = peso(corpo, ["Head"])
+    Pc = pos_mundo(corpo)
+    R = pos_mundo(partes["rosto"])
+    boca, _ = _boca_olhos(partes["rosto"])
+    z_sobr = R[:, 2].max()
+    topo = Pc[w_cab > 0.5, 2].max()
+    k = (Pc[:, 2].max() - Pc[:, 2].min()) / 1.75
+    hc = Pc[w_cab > 0.9].mean(0)
+    raio = float(np.median(np.linalg.norm(Pc[w_cab > 0.9] - hc, axis=1)))
+    bm = bmesh.new()
+    bm.from_mesh(corpo.data)
+    bm.transform(corpo.matrix_world)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if w_cab[v.index] < 0.9], context="VERTS")
+    bvh_cab = BVHTree.FromBMesh(bm)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=2, use_grid_fill=True)
+    n_pl = Vector((0, 0.4, 1)).normalized()
+    p_pl = Vector((hc[0], hc[1] - raio, z_sobr + 0.33 * (topo - z_sobr)))
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=p_pl, plane_no=n_pl, clear_inner=True)
+    for v in bm.verts:
+        q = bvh_cab.find_nearest(v.co)[0]
+        v.co = (q if q is not None else v.co) + (v.co - Vector(hc)).normalized() * (0.0025 * k)
+    me_c = bpy.data.meshes.new(nome + "_cabelo_raspado")
+    bm.to_mesh(me_c)
+    bm.free()
+    if "cabelo" not in MAT:
+        MAT["cabelo"] = material("Cabelo", False)
+    return _objeto(nome + "_cabelo_raspado", me_c, arm, "Head", (0.822, 0.254), MAT["cabelo"])
+
+
 # ------------------------------------------------------------------ recém-nascido: manta e cabelo rente
 MANTA_UV = (0.70, (0.982, 0.99))  # creme da paleta
 
@@ -990,15 +1030,21 @@ for k, (nome, base, rotulo, cabelo, cfg) in enumerate(TIPOS):
         for _id, _a in MIXAMO.items():
             ACOES_BASE[_id] = _a
     arm.name = nome
+    if not cfg.get("recem"):
+        partes.update(penteados_extra(arm, partes, base, nome))
+    arm["base"] = base  # para tools/adiciona_cabelo.py saber qual é o cabelo original
+    if "cabelo" not in MAT:  # material próprio do cabelo: no jogo a cor é escolhida (material.color)
+        MAT["cabelo"] = material("Cabelo", False)
     for papel, o in partes.items():
         o.name = f"{nome}_{papel}"
         if o.get("_roupa_propria"):
             continue  # roupa de outro pacote mantém o material e a textura dele
         o.data.materials.clear()
-        o.data.materials.append(MAT["pele"] if papel == "corpo" else MAT["rosto"] if papel == "rosto" else MAT["geral"])
+        o.data.materials.append(MAT["pele"] if papel == "corpo" else MAT["rosto"] if papel == "rosto" else
+                                MAT["cabelo"] if CAB.eh_pelo(papel) else MAT["geral"])
     uv_faixa(partes["corpo"], PELE_U, PELE_V)
-    if "cabelo" in partes:
-        uv_faixa(partes["cabelo"], *CABELOS[cabelo])
+    for papel in [p_ for p_ in partes if CAB.eh_pelo(p_)]:
+        uv_faixa(partes[papel], *CABELOS[cabelo])
     # expressões: uma malha de rosto por expressão (a neutra é a original)
     ex = EX.gerar(partes["corpo"], partes["rosto"], arm, base in ("f", "fm"), MAT["rosto"], A, nome)
     for k_, o_ in ex.items():
@@ -1022,6 +1068,9 @@ for k, (nome, base, rotulo, cabelo, cfg) in enumerate(TIPOS):
         deforma(arm, partes, cfg)
     if cfg.get("recem"):
         enrolar(arm, partes, nome)
+    else:
+        partes["cabelo_raspado"] = cabelo_raspado(arm, partes, nome)
+        uv_faixa(partes["cabelo_raspado"], *CABELOS[cabelo])
     # animações do pacote, com o deslocamento do quadril na escala nova
     s = cfg.get("s", 1.0)
     copias = {}

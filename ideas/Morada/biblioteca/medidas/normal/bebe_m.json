@@ -17,8 +17,8 @@
   },
   "resident.baby.cry": {
    "antebraco": {
-    "quadros": 112,
-    "entrava_cm": 3.6
+    "quadros": 37,
+    "entrava_cm": 1.3
    }
   },
   "resident.lie.idle": {
@@ -36,7 +36,7 @@
   "resident.sit.legs_swing": {
    "antebraco": {
     "quadros": 64,
-    "entrava_cm": 2.7
+    "entrava_cm": 1.3
    }
   },
   "resident.sleep.idle": {
@@ -47,12 +47,18 @@
   },
   "resident.baby.cry_sit": {
    "antebraco": {
-    "quadros": 60,
-    "entrava_cm": 2.0
+    "quadros": 41,
+    "entrava_cm": 2.3
    }
   }
  },
  "apoios": {
+  "resident.baby.sit": {
+   "tipo": "assento",
+   "altura": 0.028,
+   "x": -0.008,
+   "y": -0.076
+  },
   "resident.lie.idle": {
    "tipo": "cama",
    "altura": 0.284,

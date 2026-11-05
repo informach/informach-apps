@@ -30,7 +30,21 @@ animação por ID, com o nome do ID (`resident.walk.normal`, `resident.sit.chair
   - `bancada`, `pia`, `mesa`: altura do tampo e distância até a frente do corpo.
   - `entre_maos` (caixa, bebê, livro, tablet) e `cabo` (vassoura, rodo, aspirador): objeto preso às mãos.
 - `correcoes[corpo][id]`: ajustes feitos sobre o clipe do Mixamo (telefone, mão no corpo, antebraço, chão, cabeça do
-  engatinhar, mãos nos olhos, tronco menos curvado).
+  engatinhar, mãos nos olhos, tronco menos curvado, `dedos`).
+  - `dedos`: a pegada dos dedos de cada mão que segura algo (copo, telefone, cabo, corda, controle, caixa, caneta). A
+    pose dos dedos é a mesma durante o clipe; o objeto do jogo vai preso à mão (osso `LeftHandProp` ou à mão direita).
+
+## Mãos
+
+- A mão segue o pulso e o antebraço: quando uma animação precisa virar a palma, quem gira é o antebraço (até uns 25°,
+  porque o esqueleto não tem osso de torção), não o pulso.
+- Com um objeto entre as mãos (livro, tablet, caixa, caixote), as duas mãos andam juntas nas correções. Afastar uma
+  só soltaria o objeto.
+
+## Cabelos
+
+Os corpos (`corpos/*.glb`) trazem todos os penteados e barbas do catálogo, cada um como uma malha
+`<corpo>_<item>`, com o material `Cabelo` (cor livre). Veja `LEIA_cabelos.md`.
 
 ## Animações feitas por nós
 

@@ -42,6 +42,10 @@
    "mao_na_barriga": 15
   },
   "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   },
    "postura_gravida": true
   },
   "resident.carry.box.walk": {
@@ -58,22 +62,21 @@
    "postura_gravida": true
   },
   "resident.clean.mop": {
-   "mao_na_barriga": 101,
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 66,
-    "entrava_cm": 4.2
+    "quadros": 65,
+    "entrava_cm": 3.6
    }
   },
   "resident.clean.sweep": {
    "postura_gravida": true
   },
   "resident.clean.vacuum": {
-   "mao_na_barriga": 82,
+   "mao_na_barriga": 99,
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 91,
-    "entrava_cm": 2.6
+    "quadros": 86,
+    "entrava_cm": 1.3
    }
   },
   "resident.clean.wipe": {
@@ -95,13 +98,14 @@
     "quadros": 23,
     "entrava_cm": 1.3
    },
-   "mao_na_barriga": 24
+   "mao_na_barriga": 27
   },
   "resident.crouch.idle": {
    "chao": {
     "quadros": 76,
     "afundava_cm": 4.1
-   }
+   },
+   "mao_na_barriga": 54
   },
   "resident.dance.samba": {
    "chao": {
@@ -112,11 +116,15 @@
   },
   "resident.desk.point": {},
   "resident.desk.type": {},
-  "resident.desk.write": {},
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
   "resident.device.use": {
    "antebraco": {
-    "quadros": 557,
-    "entrava_cm": 1.9
+    "quadros": 447,
+    "entrava_cm": 1.1
    },
    "postura_gravida": true
   },
@@ -154,17 +162,27 @@
    "antebraco": {
     "quadros": 119,
     "entrava_cm": 1.6
-   }
+   },
+   "dedos": {
+    "Left": "copo"
+   },
+   "mao_na_barriga": 168
   },
   "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   },
+   "mao_na_barriga": 165,
    "postura_gravida": true
   },
-  "resident.eat.sit": {},
+  "resident.eat.sit": {
+   "mao_na_barriga": 188
+  },
   "resident.emote.angry": {
    "postura_gravida": true
   },
   "resident.emote.cry": {
-   "mao_na_barriga": 50,
+   "mao_na_barriga": 31,
    "postura_gravida": true
   },
   "resident.emote.disappointed": {
@@ -201,7 +219,7 @@
     "quadros": 601,
     "afundava_cm": 2.4
    },
-   "mao_na_barriga": 74,
+   "mao_na_barriga": 40,
    "postura_gravida": true
   },
   "resident.emote.shoved": {
@@ -223,6 +241,10 @@
    "postura_gravida": true
   },
   "resident.fit.curl": {
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   },
    "postura_gravida": true
   },
   "resident.fit.squat": {
@@ -236,6 +258,10 @@
    }
   },
   "resident.garden.dig": {
+   "dedos": {
+    "Left": "punho",
+    "Right": "punho"
+   },
    "postura_gravida": true,
    "antebraco": {
     "quadros": 65,
@@ -243,24 +269,25 @@
    }
   },
   "resident.garden.pick": {
-   "mao_na_barriga": 61,
    "postura_gravida": true
   },
   "resident.garden.plant": {
    "chao": {
     "quadros": 166,
     "afundava_cm": 16.7
-   },
-   "mao_na_barriga": 51
+   }
   },
   "resident.garden.pull": {
    "chao": {
     "quadros": 143,
     "afundava_cm": 14.1
-   },
-   "mao_na_barriga": 72
+   }
   },
   "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   },
+   "mao_na_barriga": 22,
    "postura_gravida": true
   },
   "resident.greet": {
@@ -287,7 +314,7 @@
    }
   },
   "resident.hug": {
-   "mao_na_barriga": 128,
+   "mao_na_barriga": 39,
    "postura_gravida": true
   },
   "resident.idle.bored": {
@@ -325,7 +352,6 @@
    "postura_gravida": true
   },
   "resident.laundry.fold": {
-   "mao_na_barriga": 75,
    "postura_gravida": true
   },
   "resident.lie.enter": {
@@ -341,9 +367,14 @@
    "postura_gravida": true
   },
   "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   },
+   "mao_na_barriga": 104,
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 85,
+    "quadros": 84,
     "entrava_cm": 2.4
    }
   },
@@ -353,15 +384,23 @@
   },
   "resident.phone.talk": {
    "telefone": 81,
+   "dedos": {
+    "Left": "telefone"
+   },
    "postura_gravida": true
   },
   "resident.pickup.floor": {},
-  "resident.play.videogame": {},
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
   "resident.point": {
    "postura_gravida": true
   },
   "resident.present": {
-   "mao_na_barriga": 58,
+   "mao_na_barriga": 59,
    "postura_gravida": true
   },
   "resident.push.loop": {
@@ -388,16 +427,14 @@
   "resident.read.sit": {
    "antebraco": {
     "quadros": 240,
-    "entrava_cm": 11.4
-   },
-   "mao_na_barriga": 105
+    "entrava_cm": 9.6
+   }
   },
   "resident.read.stand": {
    "antebraco": {
     "quadros": 240,
-    "entrava_cm": 14.0
+    "entrava_cm": 9.6
    },
-   "mao_na_barriga": 85,
    "postura_gravida": true
   },
   "resident.romance.blow_kiss": {
@@ -426,8 +463,8 @@
   },
   "resident.romance.kiss_long_shorter": {
    "antebraco": {
-    "quadros": 213,
-    "entrava_cm": 7.1
+    "quadros": 123,
+    "entrava_cm": 6.5
    },
    "postura_gravida": true
   },
@@ -441,8 +478,8 @@
   "resident.romance.kiss_shorter": {
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 113,
-    "entrava_cm": 2.3
+    "quadros": 53,
+    "entrava_cm": 1.3
    }
   },
   "resident.romance.kiss_taller": {
@@ -452,8 +489,8 @@
    },
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 35,
-    "entrava_cm": 1.7
+    "quadros": 16,
+    "entrava_cm": 1.4
    }
   },
   "resident.romance.propose": {
@@ -477,14 +514,14 @@
     "quadros": 41,
     "entrava_cm": 1.3
    },
-   "mao_na_barriga": 82
+   "mao_na_barriga": 78
   },
   "resident.sit.chair.enter": {
    "antebraco": {
     "quadros": 45,
     "entrava_cm": 1.0
    },
-   "mao_na_barriga": 50
+   "mao_na_barriga": 51
   },
   "resident.sit.chair.exit": {
    "mao_na_barriga": 41
@@ -499,23 +536,23 @@
    "antebraco": {
     "quadros": 21,
     "entrava_cm": 1.4
-   },
-   "mao_na_barriga": 91
+   }
   },
   "resident.sit.laugh": {
    "antebraco": {
-    "quadros": 150,
+    "quadros": 148,
     "entrava_cm": 5.0
-   },
-   "mao_na_barriga": 21
+   }
   },
-  "resident.sit.sofa.relaxed": {},
+  "resident.sit.sofa.relaxed": {
+   "mao_na_barriga": 240
+  },
   "resident.sit.talk": {
    "antebraco": {
     "quadros": 87,
     "entrava_cm": 1.2
    },
-   "mao_na_barriga": 76
+   "mao_na_barriga": 89
   },
   "resident.sleep.exit": {
    "antebraco": {
@@ -543,9 +580,13 @@
    "postura_gravida": true
   },
   "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
+   },
+   "mao_na_barriga": 69,
    "postura_gravida": true,
    "antebraco": {
-    "quadros": 145,
+    "quadros": 146,
     "entrava_cm": 2.1
    }
   },
@@ -559,7 +600,7 @@
     "quadros": 17,
     "entrava_cm": 1.3
    },
-   "mao_na_barriga": 53,
+   "mao_na_barriga": 54,
    "postura_gravida": true
   },
   "resident.talk.listen": {
@@ -607,7 +648,7 @@
     "quadros": 20,
     "entrava_cm": 1.8
    },
-   "mao_na_barriga": 23,
+   "mao_na_barriga": 25,
    "postura_gravida": true,
    "chao": {
     "quadros": 26,
@@ -626,7 +667,6 @@
    "postura_gravida": true
   },
   "resident.wash": {
-   "mao_na_barriga": 206,
    "postura_gravida": true
   },
   "resident.wave": {
@@ -646,38 +686,32 @@
     "afundava_cm": 1.3
    },
    "antebraco": {
-    "quadros": 40,
-    "entrava_cm": 1.3
+    "quadros": 102,
+    "entrava_cm": 1.7
    }
   },
   "resident.gravida.back_hold": {
    "antebraco": {
     "quadros": 180,
-    "entrava_cm": 2.8
+    "entrava_cm": 2.5
    }
   },
   "resident.gravida.belly_hold": {
    "antebraco": {
     "quadros": 180,
-    "entrava_cm": 1.9
+    "entrava_cm": 1.5
    }
   },
   "resident.gravida.lie_side": {
    "antebraco": {
     "quadros": 180,
-    "entrava_cm": 4.3
-   }
-  },
-  "resident.gravida.stand_slow": {
-   "antebraco": {
-    "quadros": 56,
-    "entrava_cm": 1.3
+    "entrava_cm": 3.7
    }
   },
   "resident.parto.contracao_pe": {
    "antebraco": {
     "quadros": 480,
-    "entrava_cm": 2.9
+    "entrava_cm": 4.0
    }
   }
  },
@@ -760,43 +794,6 @@
    "x": 0.001,
    "y": 0.154
   },
-  "resident.car.drive": {
-   "tipo": "assento",
-   "altura": 0.458,
-   "x": -0.028,
-   "y": -0.138,
-   "carro": true
-  },
-  "resident.car.enter": {
-   "tipo": "assento",
-   "altura": 0.679,
-   "x": 0.003,
-   "y": -1.796,
-   "carro": true
-  },
-  "resident.car.exit": {
-   "tipo": "assento",
-   "altura": 0.679,
-   "x": 0.009,
-   "y": -0.146,
-   "carro": true
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.441,
-   "x": -0.018,
-   "y": -0.112,
-   "teclado": {
-    "z": 0.686,
-    "y": -0.532
-   }
-  },
-  "resident.play.videogame": {
-   "tipo": "assento",
-   "altura": 0.396,
-   "x": 0.016,
-   "y": -0.14
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.422,
@@ -815,10 +812,13 @@
    }
   },
   "resident.read.sit": {
-   "tipo": "assento",
-   "altura": 0.422,
-   "x": 0.004,
-   "y": -0.131
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.26,
+    0.025,
+    0.19
+   ]
   },
   "resident.sit.sofa.relaxed": {
    "tipo": "assento",
@@ -905,6 +905,33 @@
    "frente": 0.205,
    "x": -0.002,
    "largura": 1.099
+  },
+  "resident.push.start": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.7,
+    0.75,
+    0.55
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.7,
+    0.75,
+    0.55
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.7,
+    0.75,
+    0.55
+   ]
   },
   "resident.parto.contracao_deitada": {
    "tipo": "cama",

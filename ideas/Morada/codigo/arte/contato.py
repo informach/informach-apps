@@ -33,7 +33,7 @@ def _gira_osso(arm, pb, q_mundo):
 
 
 def _ik(arm, lado, delta):
-    """Move o pulso por delta (mundo) girando braço e antebraço; a mão mantém a orientação no mundo."""
+    """Move o pulso por delta (mundo) girando braço e antebraço; a mão acompanha o antebraço (não torce no pulso)."""
     mw = arm.matrix_world
     pa, pf, ph = (arm.pose.bones[lado + n] for n in ("Arm", "ForeArm", "Hand"))
     S, E, W = mw @ pa.head, mw @ pf.head, mw @ ph.head
@@ -54,13 +54,12 @@ def _ik(arm, lado, delta):
     E1, W1 = mw @ pf.head, mw @ ph.head
     _gira_osso(arm, pf, (W1 - E1).rotation_difference(S + d * L - E1))
     bpy.context.view_layer.update()
-    R = mw.to_quaternion()
-    ph.matrix = Matrix.Translation(ph.head) @ (R.inverted() @ rot_mao).to_matrix().to_4x4()
-    bpy.context.view_layer.update()
 
 
-def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12):
-    """apoio: {id da animação: "cama" | "chao"} — superfície onde a mão também pode se apoiar."""
+def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12, juntas=()):
+    """apoio: {id da animação: "cama" | "chao"} — superfície onde a mão também pode se apoiar.
+    juntas: animações em que as duas mãos seguram o mesmo objeto (livro, tablet, caixa): as duas andam juntas, para
+    fora do corpo, o quanto a que mais entrou precisa (empurrar cada uma pela palma afastaria as mãos do objeto)."""
     apoio = apoio or {}
     """Devolve {acao: quadros corrigidos}. k = altura do corpo / 1,75."""
     scn = bpy.context.scene
@@ -74,10 +73,10 @@ def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12):
             tris.append((v[0], v[i], v[i + 1]))
     tris = np.array(tris)
     mascara = {}
-    for lado in LADOS:  # a malha do próprio braço não conta como "corpo"
-        ossos = [b.name for b in arm.data.bones if b.name.startswith(lado) and any(
-            t in b.name for t in ("Shoulder", "Arm", "Hand"))]
-        w = _peso(corpo, ossos)
+    # a malha dos dois braços não conta como "corpo" (a outra mão encostando, como no aplauso, não é penetração)
+    ossos = [b.name for b in arm.data.bones if any(t in b.name for t in ("Shoulder", "Arm", "Hand"))]
+    w = _peso(corpo, ossos)
+    for lado in LADOS:
         mascara[lado] = tris[(w[tris] < 0.3).all(1)]
     # só o corpo deforma enquanto mede (mais rápido)
     tronco = _peso(corpo, ["Hips", "Spine", "Spine1"]) > 0.45  # o colchão fica embaixo do tronco
@@ -111,6 +110,7 @@ def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12):
         nome_id = a.name.split("_", 1)[1] if "_" in a.name else a.name
         encosta = any(a.name.endswith("_" + d) for d in descanso)
         sup = next((v for k_, v in apoio.items() if a.name.endswith("_" + k_)), None)
+        unidas = a.name in juntas
         for i, f in enumerate(range(f0, f1 + 1)):
             scn.frame_set(f)
             ev = corpo.evaluated_get(dg())
@@ -123,11 +123,13 @@ def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12):
                 bvh = BVHTree.FromPolygons([tuple(p) for p in P], [tuple(t) for t in mascara[lado]])
                 ph = arm.pose.bones[lado + "Hand"]
                 pts = [(mw @ ph.head + mw @ ph.tail) / 2, mw @ ph.tail, mw @ arm.pose.bones[lado + "HandMiddle2"].tail]
-                sds = []
+                sds, fora = [], Vector()
                 for q in pts:
                     loc, nrm, _, dist = bvh.find_nearest(q)
                     if loc is not None:
                         sds.append(dist if (q - loc).dot(nrm) >= 0 else -dist)
+                        if sds[-1] < m_cont:
+                            fora += nrm * (m_cont - sds[-1])
                     if z_apoio is not None:  # colchão ou chão: plano horizontal
                         sds.append(q.z - z_apoio)
                 if not sds:
@@ -142,7 +144,14 @@ def corrigir(arm, corpo, acoes, k, descanso=(), apoio=None, min_seguidos=12):
                     if s > m_cont:
                         w = 1.0 - _suave((s - 0.5 * m_enc) / (0.5 * m_enc))  # 1 até a metade, 0 em m_enc
                         puxa = (s - m_cont) * w
-                D[lado][i] = np.array(palma) * (puxa - empurra)
+                if unidas:  # para fora da pele (normal), não pela palma
+                    D[lado][i] = np.array(fora.normalized()) * empurra if fora.length > 1e-9 else 0.0
+                else:
+                    D[lado][i] = np.array(palma) * (puxa - empurra)
+            if unidas:  # as duas mãos com o mesmo deslocamento: o da que mais entrou
+                maior = max(LADOS, key=lambda l_: float(np.linalg.norm(D[l_][i])))
+                for lado in LADOS:
+                    D[lado][i] = D[maior][i]
         total = 0
         sigma = 3.0  # quadros
         xs = np.arange(-9, 10)

@@ -3,6 +3,8 @@ import base64, gzip, json, os, sys, glob
 S = sys.argv[1]
 B = os.path.join(S, "biblioteca"); V = os.path.join(S, "corpos_viewer")
 os.makedirs(os.path.join(V, "biblioteca"), exist_ok=True)
+# catálogo de cabelos: a página lê o mesmo arquivo que gera os corpos
+open(os.path.join(V, "cabelos.json"), "w").write(open(os.path.join(S, "morada-art", "cabelos.json")).read())
 for f in glob.glob(os.path.join(B, "corpos_glb", "*.glb")):
     open(os.path.join(V, "corpos", os.path.basename(f)[:-4] + ".txt"), "w").write(base64.b64encode(open(f, "rb").read()).decode())
 info = {"apoios": {}, "correcoes": {}, "status": {}}

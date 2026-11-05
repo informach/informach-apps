@@ -3,7 +3,10 @@
  "altura": 1.884,
  "correcoes": {
   "resident.phone.talk": {
-   "telefone": 142
+   "telefone": 142,
+   "dedos": {
+    "Left": "telefone"
+   }
   },
   "resident.car.enter": {
    "chao": {
@@ -275,14 +278,69 @@
   },
   "resident.read.sit": {
    "antebraco": {
-    "quadros": 184,
-    "entrava_cm": 3.4
+    "quadros": 240,
+    "entrava_cm": 10.2
    }
   },
   "resident.read.stand": {
    "antebraco": {
-    "quadros": 181,
-    "entrava_cm": 4.3
+    "quadros": 240,
+    "entrava_cm": 10.5
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.drink.sit": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.garden.dig": {
+   "dedos": {
+    "Left": "punho",
+    "Right": "punho"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
+  "resident.fit.curl": {
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
    }
   }
  },
@@ -365,81 +423,6 @@
    "x": 0.001,
    "y": 0.182
   },
-  "resident.car.drive": {
-   "tipo": "assento",
-   "altura": 0.499,
-   "x": -0.026,
-   "y": -0.129,
-   "carro": true
-  },
-  "resident.car.enter": {
-   "tipo": "assento",
-   "altura": 0.734,
-   "x": -0.016,
-   "y": -1.899,
-   "carro": true
-  },
-  "resident.car.exit": {
-   "tipo": "assento",
-   "altura": 0.734,
-   "x": 0.008,
-   "y": -0.136,
-   "carro": true
-  },
-  "resident.climb.ladder": {
-   "tipo": "escada",
-   "frente": 0.543,
-   "x": -0.014,
-   "meia_largura": 0.18,
-   "topo": 3.16
-  },
-  "resident.climb.ladder.rm": {
-   "tipo": "escada",
-   "frente": 0.543,
-   "x": -0.014,
-   "meia_largura": 0.18,
-   "topo": 3.605
-  },
-  "resident.climb.rope": {
-   "tipo": "corda",
-   "frente": 0.203,
-   "x": 0.03,
-   "topo": 3.578
-  },
-  "resident.climb.rope.rm": {
-   "tipo": "corda",
-   "frente": 0.203,
-   "x": 0.03,
-   "topo": 4.143
-  },
-  "resident.climb.top": {
-   "tipo": "parapeito",
-   "frente": -0.036,
-   "x": 0.001,
-   "topo": 2.457
-  },
-  "resident.hang.enter": {
-   "tipo": "parapeito",
-   "frente": 0.35,
-   "x": -0.239,
-   "topo": 2.424
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.483,
-   "x": -0.018,
-   "y": -0.11,
-   "teclado": {
-    "z": 0.742,
-    "y": -0.557
-   }
-  },
-  "resident.play.videogame": {
-   "tipo": "assento",
-   "altura": 0.433,
-   "x": 0.016,
-   "y": -0.138
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.462,
@@ -458,10 +441,13 @@
    }
   },
   "resident.read.sit": {
-   "tipo": "assento",
-   "altura": 0.462,
-   "x": 0.003,
-   "y": -0.124
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.28,
+    0.027,
+    0.205
+   ]
   },
   "resident.sit.floor.crossed": {
    "tipo": "assento",
@@ -572,6 +558,33 @@
    "frente": 0.218,
    "x": -0.001,
    "largura": 1.184
+  },
+  "resident.push.start": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.754,
+    0.807,
+    0.592
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.754,
+    0.807,
+    0.592
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.754,
+    0.807,
+    0.592
+   ]
   }
  }
 }

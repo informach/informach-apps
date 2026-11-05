@@ -108,7 +108,8 @@ def eixos():
 
 def ik(cadeia, alvo, polo=None, rot_ponta=None):
     """Dois ossos (ex.: LeftArm, LeftForeArm, LeftHand): leva a cabeça do 3º osso ao alvo. polo: ponto para onde o
-    cotovelo/joelho aponta. A ponta mantém a orientação no mundo (ou recebe rot_ponta)."""
+    cotovelo/joelho aponta. Sem rot_ponta, a ponta acompanha o osso de cima (a mão segue o antebraço, sem torcer no
+    pulso); com rot_ponta, recebe essa orientação no mundo."""
     p1, p2, p3 = (PB[n] for n in cadeia)
     S, E, Wp = mw @ p1.head, mw @ p2.head, mw @ p3.head
     rot3 = rot_ponta if rot_ponta is not None else (mw @ p3.matrix).to_quaternion()
@@ -136,16 +137,41 @@ def ik(cadeia, alvo, polo=None, rot_ponta=None):
     E1, W1 = mw @ p2.head, mw @ p3.head
     gira_q(p2, (W1 - E1).rotation_difference(S + d * L - E1))
     bpy.context.view_layer.update()
-    p3.matrix = Matrix.Translation(p3.head) @ (R.inverted() @ rot3).to_matrix().to_4x4()
-    bpy.context.view_layer.update()
+    if rot_ponta is not None:
+        p3.matrix = Matrix.Translation(p3.head) @ (R.inverted() @ rot3).to_matrix().to_4x4()
+        bpy.context.view_layer.update()
 
 
 def mao(lado, alvo, polo=None, rot=None):
     ik((lado + "Arm", lado + "ForeArm", lado + "Hand"), alvo, polo, rot)
 
 
+def rola(lado, palma_alvo, limite=25.0):
+    """Gira o antebraço sobre o próprio eixo até a palma ficar o mais perto de 'palma_alvo' (mundo). É o giro natural
+    do antebraço; a mão continua alinhada a ele (não torce no pulso)."""
+    fa = PB[lado + "ForeArm"]
+    eixo = ((mw @ fa.tail) - (mw @ fa.head)).normalized()
+    palma = (rot_mundo(lado + "Hand").to_matrix() @ PALMA[lado]).normalized()
+    alvo_ = Vector(palma_alvo).normalized()
+    p1, p2 = palma - eixo * palma.dot(eixo), alvo_ - eixo * alvo_.dot(eixo)
+    if p1.length < 1e-4 or p2.length < 1e-4:
+        return
+    p1.normalize()
+    p2.normalize()
+    ang = math.degrees(math.atan2(eixo.dot(p1.cross(p2)), p1.dot(p2)))
+    # o esqueleto não tem osso de torção: giro grande torce a malha do antebraço, então fica limitado
+    gira(lado + "ForeArm", eixo, max(-limite, min(limite, ang)), mw @ fa.head)
+
+
+def pulso_neutro(lado):
+    """A mão volta ao pulso neutro (o do parado), alinhada ao antebraço: sem a dobra que o clipe de base tinha."""
+    PB[lado + "Hand"].matrix_basis = quadro(PARADO, 0)[lado + "Hand"].copy()
+    bpy.context.view_layer.update()
+
+
 def perna(lado, alvo, polo=None, rot=None):
-    ik((lado + "UpLeg", lado + "Leg", lado + "Foot"), alvo, polo, rot)
+    # o pé mantém a orientação no mundo (fica plantado), a não ser que se peça outra
+    ik((lado + "UpLeg", lado + "Leg", lado + "Foot"), alvo, polo, rot if rot is not None else rot_mundo(lado + "Foot"))
 
 
 def rot_mundo(nb):
@@ -215,6 +241,50 @@ def rot_palma(lado, palma, dedos):
     A = Matrix((yl, pl, yl.cross(pl))).transposed()
     B = Matrix((f, n, f.cross(n))).transposed()
     return (B @ A.transposed()).to_quaternion()
+
+
+OLHO = {}
+if _r is not None:
+    _zs, _zb = R_[:, 2].max(), R_[:, 2].min()
+    _zo = _zb + 0.62 * (_zs - _zb)
+    _fx = R_[np.abs(R_[:, 2] - _zo) < 0.15 * (_zs - _zb)]
+    for _l, _sx in (("Left", 1), ("Right", -1)):
+        _lp = _fx[(_fx[:, 0] - R_[:, 0].mean()) * _sx > 0]
+        if len(_lp):
+            OLHO[_l] = (mw @ PB["Head"].matrix).inverted() @ Vector((float(np.median(_lp[:, 0])), float(_lp[:, 1].min()), float(_zo)))
+
+
+# poses de dedos por pegada: (graus no 1º e no 2º segmento) dos quatro dedos, e do polegar
+PEGADAS = {
+    "punho": ((62, 80), (28, 34)),    # fecha em volta de um cabo (vassoura, rodo, faca, cabo da panela)
+    "pinca": ((40, 48), (22, 28)),    # colher, garfo, caneta
+    "apoio": ((18, 22), (8, 10)),     # livro, tablet, apoiando sem apertar
+    "concha": ((14, 18), (6, 8)),     # caixa, bebê, costas do par: acompanha a forma
+    "aberta": ((3, 4), (0, 0)),       # pano, tábua, empurrar: mão estendida
+}
+DEDOS = ("Index", "Middle", "Ring", "Pinky")
+
+
+def dedos(lado, pegada, w=1.0):
+    """Dobra os dedos em direção à palma (a pose de pegada sobre a pose atual), na proporção w."""
+    if w <= 1e-3 or pegada not in PEGADAS:
+        return
+    (g1, g2), (p1, p2) = PEGADAS[pegada]
+    palma = (rot_mundo(lado + "Hand").to_matrix() @ PALMA[lado]).normalized()
+    for dedo, (a1, a2) in [(d_, (g1 + 4 * k_, g2 + 3 * k_)) for k_, d_ in enumerate(DEDOS)] + [("Thumb", (p1, p2))]:
+        for seg, ang in ((1, a1), (2, a2)):
+            nb = f"{lado}Hand{dedo}{seg}"
+            if nb not in PB or ang == 0:
+                continue
+            pb = PB[nb]
+            base, ponta = mw @ pb.head, mw @ pb.tail
+            eixo = (ponta - base).cross(palma)
+            if eixo.length < 1e-6:
+                continue
+            eixo.normalize()
+            gira(nb, eixo, ang * w, base)
+            if ((mw @ pb.tail) - ponta).dot(palma) < 0:  # foi para o lado das costas da mão: inverte
+                gira(nb, eixo, -2 * ang * w, base)
 
 
 def boca_mundo():
@@ -365,16 +435,17 @@ def _come_sentado():
         q = W("Hips")
         mesa = q.z + 0.2 * K
         prato = q + frente * 0.36 * K - esq * 0.07 * K
-        prato.z = mesa + 0.04 * K
+        prato.z = mesa + 0.07 * K
         u = (t % ciclo) / ciclo  # 0–0,3 sobe, 0,3–0,45 na boca, 0,45–0,8 desce, resto no prato
         w = suave(u / 0.3) if u < 0.3 else 1.0 if u < 0.45 else 1 - suave((u - 0.45) / 0.35) if u < 0.8 else 0.0
         if 0.3 <= u < 0.45:
             gira("Head", esq, 4 * math.sin((u - 0.3) / 0.15 * math.pi))  # a cabeça vem um pouco ao encontro
         b = boca_mundo() + frente * 0.035 * K - esq * 0.01 * K
         mao("Right", mistura(prato, b, w), W("RightArm") - esq * 0.35 * K - UP * 0.3 * K)
+        dedos("Right", "pinca")  # o garfo
         apoio = q + frente * 0.34 * K + esq * 0.13 * K
-        apoio.z = mesa + 0.02 * K
-        mao("Left", apoio, W("LeftArm") + esq * 0.35 * K - UP * 0.3 * K)
+        apoio.z = mesa + 0.035 * K
+        mao("Left", apoio, W("LeftArm") + esq * 0.35 * K - UP * 0.3 * K, rot_palma("Left", -UP, frente))
     compor("resident.eat.sit", ciclo * 4, passo, "sentado + mão do prato à boca (IK), outra mão na mesa",
            lambda: {"mesa": (lambda f, q: {"topo": round(q.z + 0.2 * K, 3), "frente": round(-(q + f * 0.14 * K).y, 3),
                                            "x": round(q.x, 3)})(eixos()[0], W("Hips"))})
@@ -413,8 +484,10 @@ def _caixa_andando():
             inclina(-3)  # o peso da caixa leva o tronco um pouco para trás
             frente, esq, C = eixos()
             caixa = C + frente * 0.3 * K - UP * 0.24 * K
-            for lado, s in (("Left", 1), ("Right", -1)):  # mãos nas laterais da caixa
-                mao(lado, caixa + esq * s * 0.17 * K, W(lado + "Arm") + esq * s * 0.4 * K - UP * 0.35 * K)
+            for lado, s in (("Left", 1), ("Right", -1)):  # mãos nas laterais da caixa, palmas para dentro
+                mao(lado, caixa + esq * s * 0.18 * K - frente * 0.04 * K, W(lado + "Arm") + esq * s * 0.4 * K - UP * 0.35 * K,
+                    rot_palma(lado, -esq * s, frente * 0.8 - UP * 0.2))
+                dedos(lado, "concha")
         compor(nome, duracao(base), passo, "andando + mãos nas laterais de uma caixa à frente (IK)",
                lambda: {"tipo": "entre_maos", "objeto": "caixa", "tam": [round(0.3 * K, 3), round(0.26 * K, 3), round(0.3 * K, 3)]})
 
@@ -427,13 +500,14 @@ def _abraco():
         pose((quadro(PARADO, i), None))
         w = envelope(t, dur, 0.6, 0.6)
         vira(3 * math.sin(t * 1.6) * w)
-        inclina(4 * w)
+        inclina(9 * w, 3 * w)
         frente, esq, C = eixos()
         for lado, s, dz, dl in (("Left", 1, -0.1, -0.07), ("Right", -1, -0.19, 0.05)):
             # as mãos vão às costas de quem está à frente, uma mais alta, cruzando
             costas = C + frente * 0.31 * K + esq * dl * K + UP * dz * K
             base = W(lado + "Hand")
             mao(lado, mistura(base, costas, w), W(lado + "Arm") + esq * s * 0.4 * K + frente * 0.12 * K - UP * 0.08 * K)
+            dedos(lado, "concha", w)
     compor("resident.hug", dur, passo, "parado + braços envolvendo alguém à frente (IK), entra e sai")
 
 
@@ -454,6 +528,8 @@ def _berco(t, balanca):
         rot_palma("Left", UP, -esq * 0.2 + frente * 1.0))
     mao("Right", corpo_b - frente * 0.01 * K, W("RightArm") - esq * 0.5 * K - UP * 0.2 * K - frente * 0.05 * K,
         rot_palma("Right", UP, esq * 0.45 + frente * 0.9))
+    dedos("Left", "concha")
+    dedos("Right", "concha")
 
 
 @receita("care.hold_idle", "AD ID TE")
@@ -488,25 +564,34 @@ def _danca_lenta():
             s = 1 if l == "Left" else -1
             perna(l, p, W(l + "UpLeg") + frente * 0.5 * K + esq * s * 0.05 * K, r)
         vira(-5 * math.sin(t * 2 * math.pi / per))
+        inclina(6, 2)
         frente, esq, C = eixos()
         mao("Left", C + frente * 0.28 * K + esq * 0.13 * K - UP * 0.01 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.25 * K)  # no ombro
         mao("Right", C + frente * 0.26 * K - esq * 0.15 * K - UP * 0.3 * K, W("RightArm") - esq * 0.4 * K - UP * 0.2 * K)  # na cintura
+        dedos("Left", "concha")
+        dedos("Right", "concha")
     compor("resident.romance.dance_slow", per * 4, passo, "parado + mãos no par (IK) + balanço com os pés no lugar")
 
 
-def _abre_maos(dist, sobe=0.0):
-    """Afasta as mãos (livro, tablet) e sobe para a altura do peito."""
+def _abre_maos(dist, sobe=0.0, frente_min=0.32):
+    """Afasta as mãos (livro, tablet), sobe para a altura do peito e garante o objeto à frente do corpo: a mão fica
+    pelo menos 'frente_min' à frente dos ombros (perto demais, o antebraço entrava no peito e na barriga)."""
     frente, esq, C = eixos()
     for lado, s in (("Left", 1), ("Right", -1)):
-        mao(lado, W(lado + "Hand") + esq * s * dist * K + UP * sobe * K - frente * 0.4 * sobe * K)
+        alvo = W(lado + "Hand") + esq * s * dist * K + UP * sobe * K
+        f = (alvo - C).dot(frente)
+        if f < frente_min * K:
+            alvo = alvo + frente * (frente_min * K - f)
+        mao(lado, alvo)
+        dedos(lado, "apoio")
 
 
 @receita("device.use", "AD ID TE")
 def _tablet():
     def passo(i, t):
-        pose((quadro("resident.text", i), None))
-        _abre_maos(0.06, 0.05)
-    compor("resident.device.use", duracao("resident.text"), passo, "mexendo no celular + mãos afastadas (tablet)",
+        pose((quadro("resident.text", i), None))  # o balanço e a cabeça baixa do celular
+        _segura_livro(0.32, 0.21, 0.11, inclinar=False)
+    compor("resident.device.use", duracao("resident.text"), passo, "corpo do celular + tablet nas duas mãos à frente (IK)",
            lambda: {"tipo": "entre_maos", "objeto": "tablet", "tam": [round(0.22 * K, 3), round(0.012, 3), round(0.16 * K, 3)]})
 
 
@@ -520,13 +605,20 @@ def _pagina(t):
         mao("Right", mistura(W("RightHand"), alvo, w * 0.9))
 
 
-def _segura_livro():
-    """Sem o clipe do celular: cabeça baixa e as mãos segurando o livro na frente do peito (IK)."""
-    inclina(4, 0, 10, 16)
+def _segura_livro(frente_d=0.32, baixo=0.18, larg=0.13, inclinar=True):
+    """As duas mãos seguram o livro (ou tablet) na frente do peito, por IK: o objeto fica a 'frente_d' dos ombros
+    (perto demais, o antebraço entrava no peito e na barriga), as palmas viradas para o objeto e um pouco para cima
+    (girando o antebraço, sem torcer o pulso)."""
+    if inclinar:
+        inclina(4, 0, 10, 16)
     frente, esq, C = eixos()
-    livro = C + frente * 0.24 * K - UP * 0.26 * K
+    livro = C + frente * frente_d * K - UP * baixo * K
     for lado, s in (("Left", 1), ("Right", -1)):
-        mao(lado, livro + esq * s * 0.1 * K, W(lado + "Arm") + esq * s * 0.35 * K - UP * 0.35 * K)
+        pulso_neutro(lado)
+        # cotovelo para baixo e pouco aberto: o antebraço aponta para a frente (aberto demais, as mãos se cruzavam)
+        mao(lado, livro + esq * s * larg * K, W(lado + "Arm") + esq * s * 0.1 * K - UP * 0.45 * K - frente * 0.05 * K)
+        rola(lado, -esq * s + UP * 0.7)
+        dedos(lado, "apoio")
 
 
 @receita("read.sit", "AD ID TE CR")
@@ -536,12 +628,12 @@ def _le_sentado():
     def passo(i, t):
         if tem_celular:
             pose((quadro(SENTADO, i), None), (quadro("resident.text", i), cima_de()))
-            _abre_maos(0.07, 0.1)
+            _segura_livro(inclinar=False)
         else:
             pose((quadro(SENTADO, i), None))
             _segura_livro()
         _pagina(t)
-    compor("resident.read.sit", 8.0, passo, "sentado + tronco e braços do celular, mãos afastadas (livro) + vira página",
+    compor("resident.read.sit", 8.0, passo, "sentado + tronco do celular + livro nas duas mãos à frente (IK) + vira página",
            lambda: {"tipo": "entre_maos", "objeto": "livro", "tam": [round(0.26 * K, 3), round(0.025 * K, 3), round(0.19 * K, 3)]})
 
 
@@ -549,9 +641,9 @@ def _le_sentado():
 def _le_de_pe():
     def passo(i, t):
         pose((quadro("resident.text", i), None))
-        _abre_maos(0.07, 0.1)
+        _segura_livro(inclinar=False)
         _pagina(t)
-    compor("resident.read.stand", 8.0, passo, "celular de pé + mãos afastadas (livro) + vira página",
+    compor("resident.read.stand", 8.0, passo, "corpo do celular de pé + livro nas duas mãos à frente (IK) + vira página",
            lambda: {"tipo": "entre_maos", "objeto": "livro", "tam": [round(0.26 * K, 3), round(0.025 * K, 3), round(0.19 * K, 3)]})
 
 
@@ -582,6 +674,8 @@ def _mexe_panela():
         ang = t * 2 * math.pi / 1.6
         mao("Right", panela + (esq * math.cos(ang) + frente * math.sin(ang)) * 0.05 * K, W("RightArm") - esq * 0.4 * K - UP * 0.3 * K)
         mao("Left", q + frente * 0.28 * K + esq * 0.18 * K + UP * 0.16 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.3 * K)
+        dedos("Right", "pinca")  # a colher
+        dedos("Left", "punho")  # o cabo da panela
     compor("resident.kitchen.stir", 6.4, passo, "parado na bancada + mão mexendo em círculo (IK), outra no cabo",
            lambda: (lambda f, e, q: {"tipo": "bancada", "topo": round(q.z + (0.11) * K, 3), "frente": round(-(q + f * 0.17 * K).y, 3), "x": round(q.x, 3), "largura": round(1.1 * K, 3)})(*eixos()[:2], W("Hips")))
 
@@ -594,7 +688,10 @@ def _pica():
         corte = abs(math.sin(t * math.pi / 0.5))
         avanco = (t % 2.0) / 2.0
         mao("Right", tabua - esq * (0.1 - 0.05 * avanco) * K + UP * (0.03 + 0.07 * corte) * K, W("RightArm") - esq * 0.4 * K - UP * 0.3 * K)
-        mao("Left", tabua + esq * (0.08 - 0.05 * avanco) * K + UP * 0.03 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.3 * K)
+        dedos("Right", "punho")  # a faca
+        mao("Left", tabua + esq * (0.08 - 0.05 * avanco) * K + UP * 0.035 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.3 * K,
+            rot_palma("Left", -UP, frente * 0.7 - esq * 0.3))  # mão aberta, palma para baixo, segurando o que corta
+        dedos("Left", "concha")
     compor("resident.kitchen.chop", 4.0, passo, "parado na bancada + faca subindo e descendo (IK), outra mão segurando",
            lambda: (lambda f, e, q: {"tipo": "bancada", "topo": round(q.z + (0.11) * K, 3), "frente": round(-(q + f * 0.15 * K).y, 3), "x": round(q.x, 3), "largura": round(1.1 * K, 3)})(*eixos()[:2], W("Hips")))
 
@@ -607,8 +704,15 @@ def _cabo(t, per, lateral, frente_amp, inc):
     frente, esq, C = eixos()
     baixo = q + frente * (0.34 + frente_amp * math.sin(ang * 2 if lateral else ang)) * K - esq * (0.04 - lateral * math.sin(ang)) * K + UP * 0.08 * K
     cima = C + frente * 0.2 * K + esq * 0.02 * K - UP * 0.17 * K + (baixo - q) * 0.35
+    for lado in ("Left", "Right"):
+        pulso_neutro(lado)
     mao("Right", baixo, W("RightArm") - esq * 0.4 * K - UP * 0.2 * K)
     mao("Left", cima, W("LeftArm") + esq * 0.4 * K - UP * 0.3 * K)
+    # as palmas viradas para o cabo, que passa pelo meio do corpo (giro do antebraço, não do pulso)
+    rola("Left", -esq)
+    rola("Right", esq)
+    dedos("Right", "punho")
+    dedos("Left", "punho")
 
 
 @receita("clean.sweep", "AD ID TE CR")
@@ -629,8 +733,11 @@ def _limpa_mesa():
         frente, esq, q = _bancada(i, t, 24)
         mesa = q + frente * 0.4 * K - UP * 0.09 * K
         ang = t * 2 * math.pi / 1.2
-        mao("Right", mesa - esq * 0.05 * K + (esq * math.cos(ang) + frente * math.sin(ang)) * 0.1 * K, W("RightArm") - esq * 0.4 * K - UP * 0.2 * K)
-        mao("Left", mesa + esq * 0.22 * K - frente * 0.04 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.2 * K)
+        mao("Right", mesa - esq * 0.05 * K + UP * 0.03 * K + (esq * math.cos(ang) + frente * math.sin(ang)) * 0.1 * K,
+            W("RightArm") - esq * 0.4 * K - UP * 0.2 * K, rot_palma("Right", -UP, frente))  # palma para baixo no pano
+        dedos("Right", "aberta")
+        mao("Left", mesa + esq * 0.22 * K - frente * 0.04 * K + UP * 0.03 * K, W("LeftArm") + esq * 0.4 * K - UP * 0.2 * K,
+            rot_palma("Left", -UP, frente))
     compor("resident.clean.wipe", 4.8, passo, "inclinado na mesa + pano em círculo (IK), outra mão apoiada",
            lambda: (lambda f, e, q: {"tipo": "bancada", "topo": round(q.z + (-0.1) * K, 3), "frente": round(-(q + f * 0.2 * K).y, 3), "x": round(q.x, 3), "largura": round(1.1 * K, 3)})(*eixos()[:2], W("Hips")))
 
@@ -651,6 +758,7 @@ def _aspira():
         frente, esq, C = eixos()
         q = W("Hips")
         mao("Right", q + frente * (0.28 + 0.14 * math.sin(ang)) * K - esq * 0.1 * K + UP * 0.1 * K, W("RightArm") - esq * 0.4 * K - UP * 0.2 * K)
+        dedos("Right", "punho")  # o cabo do aspirador
     compor("resident.clean.vacuum", per * 3, passo, "parado + empurra e puxa o aspirador (IK), peso indo e voltando",
            lambda: {"tipo": "cabo", "objeto": "aspirador"})
 
@@ -673,8 +781,132 @@ def _dobra():
             s_, z_ = 0.03 + 0.22 * suave((u - 0.75) / 0.25), 0.03
         for lado, s in (("Left", 1), ("Right", -1)):
             mao(lado, mesa + esq * s * s_ * K + UP * z_ * K, W(lado + "Arm") + esq * s * 0.4 * K - UP * 0.3 * K)
+            dedos(lado, "pinca" if u < 0.75 else "aberta")
     compor("resident.laundry.fold", ciclo * 2, passo, "parado na mesa + pega, dobra e alisa a roupa (IK)",
            lambda: (lambda f, e, q: {"tipo": "bancada", "topo": round(q.z + (-0.03) * K, 3), "frente": round(-(q + f * 0.17 * K).y, 3), "x": round(q.x, 3), "largura": round(1.1 * K, 3)})(*eixos()[:2], W("Hips")))
+
+
+# ---------------------------------------------------------------- correções de clipes do Mixamo (refeitos com o mesmo nome)
+def _corrige(nome, passo, meta, apoio=None):
+    """Refaz um clipe da biblioteca quadro a quadro (a amostra original fica guardada antes de substituir)."""
+    s = amostra(nome)
+    compor(nome, len(s) / FPS, lambda i, t: passo(s[i], i, t), meta, apoio)
+
+
+def _junta_rot(lado, q_alvo, w):
+    """Gira a mão (no mundo) da orientação atual para q_alvo, na proporção w."""
+    pb = PB[lado + "Hand"]
+    q0 = rot_mundo(lado + "Hand")
+    if q0.dot(q_alvo) < 0:
+        q_alvo = -q_alvo
+    q = q0.slerp(q_alvo, max(0.0, min(1.0, w)))
+    pb.matrix = Matrix.Translation(pb.head) @ (mw.to_quaternion().inverted() @ q).to_matrix().to_4x4()
+    bpy.context.view_layer.update()
+
+
+D_BEIJO = 0.62  # distância entre as duas pessoas na cena (em alturas de 1,75 m), a mesma da página
+
+
+def _beijo(nome, mais_baixa):
+    if not existe(nome):
+        return
+
+    def passo(d, i, t):
+        pose((d, None))
+        frente, esq, C = eixos()
+        raiz = W("Hips")
+        raiz.z = 0
+        par = Vector((0, 0, 0)) + frente * D_BEIJO * K  # a outra pessoa, de frente para esta
+        for lado, s in (("Left", 1), ("Right", -1)):
+            m = W(lado + "Hand")
+            alcance = (m - W(lado + "Arm")).dot(frente)  # quanto a mão está à frente do ombro
+            w = suave((alcance - 0.12 * K) / (0.14 * K))
+            if mais_baixa:  # por fora, pela lateral, e fecha nas costas do par (na altura do meio das costas)
+                alvo = par + frente * 0.07 * K + esq * s * 0.1 * K
+                alvo.z = W("Spine1").z - 0.06 * K
+                polo = W(lado + "Arm") + esq * s * 0.55 * K + frente * 0.25 * K - UP * 0.1 * K
+            else:  # fecha os braços e as mãos atrás do pescoço do par
+                alvo = par + frente * 0.05 * K + esq * s * 0.035 * K
+                alvo.z = W("Neck").z - 0.04 * K
+                polo = W(lado + "Arm") + esq * s * 0.45 * K + frente * 0.1 * K - UP * 0.2 * K
+            if w > 1e-3:
+                mao(lado, mistura(m, alvo, w), mistura(W(lado + "ForeArm"), polo, w))
+                _junta_rot(lado, rot_palma(lado, -frente, -esq * s * 0.8 + UP * (0.1 if mais_baixa else 0.5)), w * 0.8)
+                dedos(lado, "concha", w)
+    _corrige(nome, passo, "clipe do Mixamo com os braços em volta do par (IK): " +
+             ("por fora, fechando nas costas" if mais_baixa else "fechando atrás do pescoço"))
+
+
+@receita("romance.kiss", "AD ID TE")
+def _beijos():
+    for n, baixa in (("resident.romance.kiss_shorter", True), ("resident.romance.kiss_long_shorter", True),
+                     ("resident.romance.kiss_taller", False), ("resident.romance.kiss_long_taller", False)):
+        _beijo(n, baixa)
+
+
+D_APERTO = 1.25  # distância entre as duas pessoas no aperto de mão (a mesma da página)
+
+
+@receita("handshake", "AD ID TE CR")
+def _aperto():
+    for n in ("resident.handshake", "resident.handshake.partner"):
+        if not existe(n):
+            continue
+
+        def passo(d, i, t):
+            pose((d, None))
+            frente, esq, C = eixos()
+            m = W("RightHand")
+            alcance = (m - W("RightArm")).dot(frente)
+            w = suave((alcance - 0.18 * K) / (0.12 * K))
+            if w < 1e-3:
+                return
+            meio = frente * D_APERTO * K * 0.5  # as duas mãos se encontram no meio, na linha entre as pessoas
+            alvo = Vector((meio.x, meio.y, m.z)) + esq * 0.015 * K - frente * 0.03 * K
+            mao("Right", mistura(m, alvo, w), W("RightArm") - esq * 0.35 * K - UP * 0.3 * K)
+            _junta_rot("Right", rot_palma("Right", esq, frente), w)  # palma de lado, dedos para a frente
+            dedos("Right", "apoio", w)
+        _corrige(n, passo, "clipe do Mixamo com a mão direita indo até a do par, no meio (IK)")
+
+
+@receita("emote.cry", "AD ID TE CR")
+def _choro():
+    if not existe("resident.emote.cry") or not OLHO:
+        return
+
+    def passo(d, i, t):
+        pose((d, None))
+        Mc = mw @ PB["Head"].matrix
+        frente, esq, C = eixos()
+        for lado in ("Left", "Right"):
+            if lado not in OLHO:
+                continue
+            alvo = Mc @ OLHO[lado] - frente * 0.02 * K
+            ponta = W(lado + "Hand", True)
+            dist = (ponta - alvo).length
+            w = suave(1 - (dist - 0.05 * K) / (0.16 * K))
+            if w > 1e-3:
+                mao(lado, W(lado + "Hand") + (alvo - ponta) * w)
+    _corrige("resident.emote.cry", passo, "clipe do Mixamo com as mãos chegando aos olhos quando sobem ao rosto (IK)")
+
+
+@receita("push", "AD ID TE CR")
+def _empurra():
+    for n in ("resident.push.start", "resident.push.loop", "resident.push.stop"):
+        if not existe(n):
+            continue
+
+        def passo(d, i, t):
+            pose((d, None))
+            frente, esq, C = eixos()
+            for lado, s in (("Left", 1), ("Right", -1)):
+                alcance = (W(lado + "Hand") - W(lado + "Arm")).dot(frente)
+                w = suave((alcance - 0.15 * K) / (0.12 * K))
+                if w > 1e-3:  # palmas retas para a frente, dedos para cima (pulso dobrado para trás)
+                    _junta_rot(lado, rot_palma(lado, frente, UP * 0.9 - esq * s * 0.15), w)
+                    dedos(lado, "aberta", w)
+        _corrige(n, passo, "clipe do Mixamo com as palmas retas para a frente quando empurra",
+                 lambda: {"tipo": "entre_maos", "objeto": "caixote", "tam": [round(0.7 * K, 3), round(0.75 * K, 3), round(0.55 * K, 3)]})
 
 
 # ---------------------------------------------------------------- roda as receitas deste corpo

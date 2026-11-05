@@ -9,6 +9,20 @@
     "afundava_cm": 9.6
    }
   },
+  "resident.emote.cry": {
+   "maos_nos_olhos": 134,
+   "antebraco": {
+    "quadros": 92,
+    "entrava_cm": 3.1
+   }
+  },
+  "resident.emote.scared": {
+   "menos_curvado": true,
+   "antebraco": {
+    "quadros": 31,
+    "entrava_cm": 1.1
+   }
+  },
   "resident.crouch.enter": {
    "chao": {
     "quadros": 123,
@@ -33,20 +47,6 @@
    "antebraco": {
     "quadros": 34,
     "entrava_cm": 1.1
-   }
-  },
-  "resident.emote.cry": {
-   "maos_nos_olhos": 134,
-   "antebraco": {
-    "quadros": 102,
-    "entrava_cm": 3.1
-   }
-  },
-  "resident.emote.scared": {
-   "menos_curvado": true,
-   "antebraco": {
-    "quadros": 141,
-    "entrava_cm": 3.4
    }
   },
   "resident.agree": {
@@ -77,6 +77,9 @@
    "antebraco": {
     "quadros": 267,
     "entrava_cm": 1.7
+   },
+   "dedos": {
+    "Left": "copo"
    }
   },
   "resident.emote.excited": {
@@ -94,7 +97,7 @@
   "resident.idle.happy": {
    "antebraco": {
     "quadros": 89,
-    "entrava_cm": 2.9
+    "entrava_cm": 1.1
    }
   },
   "resident.idle.look_around": {
@@ -117,8 +120,8 @@
   },
   "resident.lie.enter": {
    "antebraco": {
-    "quadros": 120,
-    "entrava_cm": 4.0
+    "quadros": 91,
+    "entrava_cm": 1.9
    }
   },
   "resident.lie.idle": {

@@ -55,8 +55,9 @@ def ik(lado, alvo, cadeia=("Arm", "ForeArm", "Hand")):
     E1, W1 = mw @ p2.head, mw @ p3.head
     gira_osso(p2, (W1 - E1).rotation_difference(S + d * L - E1))
     bpy.context.view_layer.update()
-    p3.matrix = Matrix.Translation(p3.head) @ (mw.to_quaternion().inverted() @ rot3).to_matrix().to_4x4()
-    bpy.context.view_layer.update()
+    if cadeia[0].endswith("UpLeg"):  # pé plantado; a mão acompanha o antebraço
+        p3.matrix = Matrix.Translation(p3.head) @ (mw.to_quaternion().inverted() @ rot3).to_matrix().to_4x4()
+        bpy.context.view_layer.update()
 
 
 # olhos no repouso, no espaço da cabeça (do rosto neutro: as duas ilhas de altura do meio)

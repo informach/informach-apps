@@ -114,9 +114,7 @@ def ik(lado, alvo, polo_hint):
     bpy.context.view_layer.update()
     E1, W1 = mw @ p2.head, mw @ p3.head
     gira_osso(p2, (W1 - E1).rotation_difference(S + d * L - E1))
-    bpy.context.view_layer.update()
-    p3.matrix = Matrix.Translation(p3.head) @ (mw.to_quaternion().inverted() @ rot3).to_matrix().to_4x4()
-    bpy.context.view_layer.update()
+    bpy.context.view_layer.update()  # a mão acompanha o antebraço (não torce no pulso)
 
 
 def suaviza(X, sigma=2.5):
@@ -134,6 +132,8 @@ def suaviza(X, sigma=2.5):
 J = BLEND[:-6] + ".json"
 dados = json.load(open(J))
 rel = dados.setdefault("correcoes", {})
+# objeto entre as mãos (livro, tablet, caixa): as duas mãos andam juntas, com o empurrão do antebraço que mais entrou
+JUNTAS = {k_ for k_, v_ in dados.get("apoios", {}).items() if v_.get("tipo") == "entre_maos"}
 OSSOS = [l + n for l in ("Left", "Right") for n in ("Arm", "ForeArm", "Hand")]
 total = 0
 for act in sorted([x for x in bpy.data.actions if x.name.startswith("resident.") and (not SO or x.name in SO)],
@@ -169,14 +169,16 @@ for act in sorted([x for x in bpy.data.actions if x.name.startswith("resident.")
         for l in D:
             D[l] = suaviza(D[l])
             T[l] = np.convolve(np.pad(T[l], 4, mode="edge"), np.ones(9) / 9, mode="valid")
+        unidas = act.name in JUNTAS
         for i, f in enumerate(quadros):
             scn.frame_set(f)
             mexeu = False
+            maior = max(("Left", "Right"), key=lambda l_: float(np.linalg.norm(D[l_][i])))
             for l in ("Left", "Right"):
-                v = Vector(D[l][i])
+                v = Vector(D[maior][i] if unidas else D[l][i])
                 if v.length < 1e-4:
                     continue
-                t = float(T[l][i])
+                t = 1.0 if unidas else float(T[l][i])
                 E = mw @ arm.pose.bones[l + "ForeArm"].head
                 W = mw @ arm.pose.bones[l + "Hand"].head
                 ik(l, W + v * (0.2 + 0.8 * t), E + v * (1.0 - 0.6 * t) * 1.5)

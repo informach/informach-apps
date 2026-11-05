@@ -17,7 +17,8 @@ from mathutils import Matrix, Vector
 a = sys.argv[sys.argv.index("--") + 1:]
 BLEND, CORPO = a[:2]
 SO = set(a[2].split(",")) if len(a) > 2 and a[2] else set()
-FORA = ("resident.stairs.", "resident.swim", "resident.lie.", "resident.sleep.")  # degrau, água e cama
+FORA = ("resident.stairs.", "resident.swim", "resident.lie.", "resident.sleep.", "resident.gravida.lie_side",
+        "resident.parto.contracao_deitada")  # degrau, água e cama
 FOLGA = 0.004  # o ponto mais baixo fica 4 mm acima do chão
 bpy.ops.wm.open_mainfile(filepath=BLEND)
 scn = bpy.context.scene

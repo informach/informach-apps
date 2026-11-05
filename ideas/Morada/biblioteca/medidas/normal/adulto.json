@@ -3,7 +3,10 @@
  "altura": 1.732,
  "correcoes": {
   "resident.phone.talk": {
-   "telefone": 139
+   "telefone": 139,
+   "dedos": {
+    "Left": "telefone"
+   }
   },
   "resident.car.enter": {
    "chao": {
@@ -335,16 +338,77 @@
     "afundava_cm": 1.9
    }
   },
+  "resident.device.use": {
+   "antebraco": {
+    "quadros": 557,
+    "entrava_cm": 4.3
+   }
+  },
   "resident.read.sit": {
    "antebraco": {
-    "quadros": 61,
-    "entrava_cm": 5.0
+    "quadros": 240,
+    "entrava_cm": 11.3
    }
   },
   "resident.read.stand": {
    "antebraco": {
-    "quadros": 61,
-    "entrava_cm": 5.0
+    "quadros": 240,
+    "entrava_cm": 11.2
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.drink.sit": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.garden.dig": {
+   "dedos": {
+    "Left": "punho",
+    "Right": "punho"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
+  "resident.fit.curl": {
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
    }
   }
  },
@@ -427,81 +491,6 @@
    "x": 0.001,
    "y": 0.145
   },
-  "resident.car.drive": {
-   "tipo": "assento",
-   "altura": 0.456,
-   "x": -0.027,
-   "y": -0.138,
-   "carro": true
-  },
-  "resident.car.enter": {
-   "tipo": "assento",
-   "altura": 0.675,
-   "x": 0.004,
-   "y": -1.778,
-   "carro": true
-  },
-  "resident.car.exit": {
-   "tipo": "assento",
-   "altura": 0.675,
-   "x": 0.009,
-   "y": -0.147,
-   "carro": true
-  },
-  "resident.climb.ladder": {
-   "tipo": "escada",
-   "frente": 0.509,
-   "x": -0.012,
-   "meia_largura": 0.18,
-   "topo": 2.923
-  },
-  "resident.climb.ladder.rm": {
-   "tipo": "escada",
-   "frente": 0.509,
-   "x": -0.012,
-   "meia_largura": 0.18,
-   "topo": 3.341
-  },
-  "resident.climb.rope": {
-   "tipo": "corda",
-   "frente": 0.198,
-   "x": 0.028,
-   "topo": 3.298
-  },
-  "resident.climb.rope.rm": {
-   "tipo": "corda",
-   "frente": 0.198,
-   "x": 0.028,
-   "topo": 3.828
-  },
-  "resident.climb.top": {
-   "tipo": "parapeito",
-   "frente": -0.031,
-   "x": 0.001,
-   "topo": 2.282
-  },
-  "resident.hang.enter": {
-   "tipo": "parapeito",
-   "frente": 0.329,
-   "x": -0.224,
-   "topo": 2.23
-  },
-  "resident.music.piano": {
-   "tipo": "assento",
-   "altura": 0.439,
-   "x": -0.017,
-   "y": -0.114,
-   "teclado": {
-    "z": 0.68,
-    "y": -0.526
-   }
-  },
-  "resident.play.videogame": {
-   "tipo": "assento",
-   "altura": 0.395,
-   "x": 0.016,
-   "y": -0.141
-  },
   "resident.drink.sit": {
    "tipo": "assento",
    "altura": 0.42,
@@ -520,10 +509,13 @@
    }
   },
   "resident.read.sit": {
-   "tipo": "assento",
-   "altura": 0.42,
-   "x": 0.004,
-   "y": -0.133
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.257,
+    0.025,
+    0.188
+   ]
   },
   "resident.sit.floor.crossed": {
    "tipo": "assento",
@@ -634,6 +626,33 @@
    "frente": 0.203,
    "x": -0.002,
    "largura": 1.089
+  },
+  "resident.push.start": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.693,
+    0.742,
+    0.544
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.693,
+    0.742,
+    0.544
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.693,
+    0.742,
+    0.544
+   ]
   }
  }
 }

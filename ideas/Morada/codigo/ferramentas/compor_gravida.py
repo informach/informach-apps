@@ -42,7 +42,24 @@ for _l in ("Left", "Right"):
 COMPR_MAO = {l: ((mw @ PB[l + "Hand"].tail) - (mw @ PB[l + "Hand"].head)).length for l in ("Left", "Right")}
 
 
-def pousa(lado, ponto, normal, dedos, polo):
+FIXO = {}  # mão pousada calculada uma vez por clipe e presa ao quadril (não remexe de um quadro para o outro)
+
+
+def _presa(chave, lado, calcula):
+    Mh = mw @ PB["Hips"].matrix
+    if chave not in FIXO:
+        r = calcula()
+        if r is None:
+            return
+        pos, rot, polo = r
+        Mi = Mh.inverted()
+        FIXO[chave] = (Mi @ pos, Mh.to_quaternion().inverted() @ rot, Mi @ polo)
+    lp, lr, lpolo = FIXO[chave]
+    mao(lado, Mh @ lp, Mh @ lpolo, Mh.to_quaternion() @ lr)
+    dedos(lado, "concha")  # os dedos acompanham a curva da barriga
+
+
+def pousa(lado, ponto, normal, dedos, polo, so_calcula=False):
     """Mão aberta sobre a pele: palma virada para a pele, dedos na direção 'dedos' (ajustada ao plano da pele)."""
     n = Vector(normal)
     f = Vector(dedos) - n * Vector(dedos).dot(n)
@@ -56,31 +73,49 @@ def pousa(lado, ponto, normal, dedos, polo):
     pw = -n
     B = Matrix((f, pw, f.cross(pw))).transposed()
     rot = (B @ A.transposed()).to_quaternion()
-    pulso = Vector(ponto) + n * 0.012 * K - f * 0.55 * COMPR_MAO[lado]
+    pulso = Vector(ponto) + n * 0.016 * K - f * 0.55 * COMPR_MAO[lado]
+    if so_calcula:
+        return pulso, rot, Vector(polo)
     mao(lado, pulso, polo, rot)
 
 
-def na_barriga(lado, dz, dl, folga=0.0):
-    frente, esq, C = eixos()
-    q = W("Hips")
-    alvo = q + UP * dz * K + esq * dl * K
-    r = pele(alvo + frente * 1.0, -frente)  # raio vindo da frente: acha a pele da barriga
-    if r is None:
+def na_barriga(lado, dz, dl, folga=0.0, chave=None):
+    """Mão pousada na barriga. Com 'chave', a posição é calculada no primeiro quadro e acompanha o quadril depois."""
+    def calcula():
+        frente, esq, C = eixos()
+        q = W("Hips")
+        alvo = q + UP * dz * K + esq * dl * K
+        r = pele(alvo + frente * 1.0, -frente)  # raio vindo da frente: acha a pele da barriga
+        if r is None:
+            return None
+        s = 1 if lado == "Left" else -1
+        return pousa(lado, r[0] + r[1] * folga * K, r[1], -esq * s * 0.8 - UP * 0.35,
+                     W(lado + "Arm") + esq * s * 0.45 * K - UP * 0.25 * K + frente * 0.05 * K, True)
+    if chave is not None:
+        _presa(chave, lado, calcula)
         return
-    s = 1 if lado == "Left" else -1
-    pousa(lado, r[0] + r[1] * folga * K, r[1], -esq * s * 0.8 - UP * 0.35,
-          W(lado + "Arm") + esq * s * 0.45 * K - UP * 0.25 * K + frente * 0.05 * K)
+    r = calcula()
+    if r is not None:
+        mao(lado, r[0], r[2], r[1])
 
 
-def na_lombar(lado, dz=0.13):
-    frente, esq, C = eixos()
-    q = W("Hips")
-    s = 1 if lado == "Left" else -1
-    alvo = q + UP * dz * K + esq * s * 0.04 * K
-    r = pele(alvo - frente * 1.0, frente)  # raio vindo de trás: acha a pele da lombar
-    if r is None:
+def na_lombar(lado, dz=0.13, chave=None):
+    def calcula():
+        frente, esq, C = eixos()
+        q = W("Hips")
+        s = 1 if lado == "Left" else -1
+        alvo = q + UP * dz * K + esq * s * 0.04 * K
+        r = pele(alvo - frente * 1.0, frente)  # raio vindo de trás: acha a pele da lombar
+        if r is None:
+            return None
+        return pousa(lado, r[0], r[1], -esq * s * 0.5 - UP * 0.8,
+                     W(lado + "Arm") + esq * s * 0.5 * K - frente * 0.15 * K - UP * 0.2 * K, True)
+    if chave is not None:
+        _presa(chave, lado, calcula)
         return
-    pousa(lado, r[0], r[1], -esq * s * 0.7 - UP * 0.5, W(lado + "Arm") + esq * s * 0.5 * K - frente * 0.15 * K - UP * 0.2 * K)
+    r = calcula()
+    if r is not None:
+        mao(lado, r[0], r[2], r[1])
 
 
 def esticado(nome, fator):
@@ -101,10 +136,9 @@ def receita(f):
 def _mao_na_barriga():
     def passo(i, t):
         pose((quadro(PARADO, i), None))
-        ang = t * 2 * math.pi / 3.0
-        na_barriga("Left", 0.2 + 0.015 * math.sin(ang), 0.05 + 0.02 * math.cos(ang))  # acaricia em círculos
-        na_barriga("Right", 0.1, -0.06)
-    compor("resident.gravida.belly_hold", 6.0, passo, "parado + as duas mãos na barriga (IK na pele), uma acariciando")
+        na_barriga("Left", 0.2, 0.05, chave="belly_L")  # as duas mãos paradas na barriga
+        na_barriga("Right", 0.1, -0.06, chave="belly_R")
+    compor("resident.gravida.belly_hold", 6.0, passo, "parado + as duas mãos paradas na barriga (IK na pele)")
 
 
 @receita
@@ -112,8 +146,8 @@ def _mao_na_lombar():
     def passo(i, t):
         pose((quadro(PARADO, i), None))
         inclina(-3 - 1.5 * math.sin(t * 2 * math.pi / 3.0))
-        na_lombar("Right")
-        na_barriga("Left", 0.15, 0.03)
+        na_lombar("Right", chave="back_R")
+        na_barriga("Left", 0.15, 0.03, chave="back_L")
     compor("resident.gravida.back_hold", 6.0, passo, "parado + mão na lombar e outra na barriga (IK na pele)")
 
 
@@ -124,9 +158,9 @@ def _senta_devagar():
             continue
         s = esticado(base, 1.5)
 
-        def passo(i, t, s=s):
+        def passo(i, t, s=s, nome=nome):
             pose((s[i], None))
-            na_barriga("Left", 0.16, 0.04)
+            na_barriga("Left", 0.16, 0.04, chave=nome + "_L")
         compor(nome, len(s) / FPS, passo, f"{base.split('.', 1)[1]} uma vez e meia mais devagar + mão na barriga")
 
 
@@ -146,8 +180,8 @@ def _contracao_em_pe():
             sl = 1 if l == "Left" else -1
             perna(l, p_, W(l + "UpLeg") + frente * 0.5 * K + esq * sl * 0.1 * K, r_)
         inclina(14 * w, 3 * w + 1.5 * respira, 6 * w, 8 * w)
-        na_lombar("Right", 0.12)
-        na_barriga("Left", 0.13, 0.02)
+        na_lombar("Right", 0.12, chave="contr_R")
+        na_barriga("Left", 0.13, 0.02, chave="contr_L")
     compor("resident.parto.contracao_pe", ciclo * 2, passo, "parado + contrações (tronco curva, joelhos dobram, respiração) + mãos na lombar e na barriga")
 
 
@@ -207,14 +241,17 @@ def _deitada_de_lado():
         longo = (q - cab)
         longo.z = 0
         longo.normalize()
-        gira("Root", longo, 70, q)  # rola de lado em torno do comprimento do corpo
+        # rola de lado em torno do comprimento do corpo; só a rotação do Root é gravada, então o quadril volta ao
+        # lugar pela posição do Hips (girar em torno do quadril deslocava o corpo para fora da cama)
+        gira("Root", longo, 70)
+        move("Hips", q - W("Hips"))
         lat = (W("LeftUpLeg") - W("RightUpLeg")).normalized()
         barriga = Quaternion(longo, math.radians(70)) @ UP  # a frente do corpo gira junto
         barriga = (barriga - longo * barriga.dot(longo)).normalized()
         for l, g_quad, g_joel in (("Left", 55, 80), ("Right", 40, 75)):  # joelhos dobrados, uma perna à frente da outra
             dobra(l + "UpLeg", lat, g_quad, l + "Leg", barriga)
             dobra(l + "Leg", lat, g_joel, l + "Foot", -barriga)
-        na_barriga("Left", 0.14, 0.0, 0.0)
+        na_barriga("Left", 0.14, 0.0, 0.01, chave="lado_L")
     compor("resident.gravida.lie_side", 6.0, passo, "deitada rolada de lado + quadris e joelhos dobrados + mão na barriga")
 
 

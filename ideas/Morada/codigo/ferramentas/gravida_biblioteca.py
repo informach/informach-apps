@@ -92,7 +92,9 @@ print("postura", n_post, flush=True)
 # ---------------------------------------------------------------- mãos fora da barriga
 altura = max((corpo.evaluated_get(bpy.context.evaluated_depsgraph_get()).matrix_world @ v.co).z for v in corpo.data.vertices)
 k = altura / 1.75
-res = contato.corrigir(arm, corpo, acoes, k)
+_ap = json.load(open(FONTE[:-6] + ".json")).get("apoios", {})
+juntas = {n for n, v in _ap.items() if v.get("tipo") == "entre_maos"}  # livro, tablet, caixa: as mãos andam juntas
+res = contato.corrigir(arm, corpo, acoes, k, juntas=juntas)
 print("maos", len(res), flush=True)
 
 arm.animation_data.action = None

@@ -88,6 +88,7 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
     <div id="cabelo-bloco" hidden>
       <p class="rotulo">Cabelo</p>
       <div class="grupo" id="cabelo-tipo"></div>
+      <div class="grupo" id="cabelo-rosto"></div>
       <div class="grupo" id="cabelo-cor"></div>
     </div>
     <div id="gravidez-bloco" hidden>
@@ -148,11 +149,30 @@ const IDADES = { recem: "Recém-nascido", colo: "Bebê de colo", pequeno: "2–3
 const EXPR = { neutro: "Neutro", feliz: "Feliz", triste: "Triste", bravo: "Bravo", confiante: "Confiante", serio: "Sério",
   surpreso: "Surpreso", assustado: "Assustado", aborrecido: "Aborrecido", confuso: "Confuso", dormindo: "Dormindo",
   chorando: "Chorando" };
-// cabelo configurável (por enquanto só no recém-nascido, que tem material próprio para o cabelo)
-const CABELO_TIPOS = { careca: "Careca", baixinho: "Baixinho", gorro: "Com gorrinho" };
+// cabelo configurável em todos os corpos (material próprio "Cabelo": a cor é material.color; o tipo liga uma malha)
+const CABELO_TIPOS = { careca: "Careca", baixinho: "Baixinho", gorro: "Com gorrinho" }; // recém-nascido
+// os outros corpos: o catálogo cabelos.json (o mesmo que gera os corpos) dá os nomes; a malha <id>_cabelo é o penteado
+// original do corpo e <id>_<item> é cada item do catálogo (tipo cabelo: um por vez; tipo rosto: barba e bigode)
+let CAT = { itens: [], originais: {}, gerados: {} };
+fetch("cabelos.json").then((r) => r.json()).then((j) => { CAT = j; if (atual) desenharCabelo(); }).catch(() => {});
+const rotuloPelo = (k) => CAT.gerados[k] ?? CAT.itens.find((x) => x.id === k)?.rotulo ?? k;
+const ehRosto = (k) => k === "nenhum" || CAT.itens.find((x) => x.id === k)?.tipo === "rosto";
+const penteadosDe = (id) => {
+  const orig = CAT.originais[id === "plus_m" ? "p" : CORPOS.find((x) => x.id === id).sexo === "f" ? "f" : "m"];
+  const itens = CAT.itens.filter((x) => x.tipo === "cabelo" && x.id !== orig).map((x) => [x.id, x.rotulo]);
+  return Object.fromEntries([["cabelo", rotuloPelo(orig)], ...itens, ["cabelo_raspado", rotuloPelo("cabelo_raspado")],
+    ["careca", rotuloPelo("careca")]]);
+};
+const pelosDoRosto = () => [["nenhum", rotuloPelo("nenhum")], ...CAT.itens.filter((x) => x.tipo === "rosto").map((x) => [x.id, x.rotulo])];
 const MANTA_CORES = { "Creme": "#f6efe2", "Branco": "#fbfbf8", "Rosa-bebê": "#f4cfd6", "Azul-bebê": "#c9dcf0", "Verde-água": "#c4e4dc",
   "Amarelo-claro": "#f5e7b8", "Cinza": "#cfcfcf" };
-const CABELO_CORES = { "Castanho claro": "#976858", "Castanho": "#5a3f33", "Preto": "#262322", "Loiro": "#d2a66a", "Ruivo": "#a9532f" };
+const CABELO_CORES = { "Castanho claro": "#976858", "Castanho": "#5a3f33", "Preto": "#262322", "Loiro": "#d2a66a", "Ruivo": "#a9532f",
+  "Grisalho": "#b5b0a8" };
+// cor com que cada corpo começa (a do penteado original dele)
+const COR_PADRAO = { adulto: "Castanho", adulta: "Ruivo", plus_m: "Castanho", plus_f: "Ruivo", idoso: "Grisalho", idosa: "Grisalho",
+  musculoso: "Castanho", adolescente_m: "Castanho", adolescente_f: "Ruivo", crianca_m: "Castanho", crianca_f: "Ruivo",
+  pequeno_m: "Castanho", pequena_f: "Ruivo", bebe_m: "Castanho", bebe_f: "Ruivo", atletica: "Preto", alto_magro: "Preto",
+  recem_m: "Castanho claro", recem_f: "Castanho claro" };
 const semAnimacoes = (id) => id.startsWith("recem");
 const ANIM = { parado: "Parado", olhando: "Olhando em volta", andando: "Andando", correndo: "Correndo",
   comemorando: "Comemorando", triste: "Triste", aplaudindo: "Aplaudindo", conversando: "Conversando",
@@ -174,7 +194,8 @@ const REF = "#FB9D72"; // cor média da faixa de pele da paleta (sRGB): a pele �
 const ROSTO = { "Clara": 1, "Média": 1, "Morena": 0.6, "Escura": 0.28 }; // traços escurecem junto com a pele
 
 const estado = { sexo: "m", idade: "adulto", corpo: "adulto", tom: "Média", expr: "neutro", anim: "parado", chupeta: true,
-  cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0" };
+  cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0",
+  penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum" };
 const GRAVIDEZ = { "0": "Não grávida", "1": "1º trimestre", "2": "2º trimestre", "3": "3º trimestre" };
 
 // ---------------------------------------------------------------- palco
@@ -216,12 +237,18 @@ let camMovida = false;
 let seguir = null; // auxiliar que acompanha as mãos (caixa empurrada)
 let dinamico = null;
 const INCLINA_LIVRO = 0.85; // objeto entre as mãos ou cabo, atualizado a cada quadro
-function maosDe(raiz) { const m = {}; raiz.traverse((o) => { if (o.isBone && (o.name === "LeftHand" || o.name === "RightHand")) m[o.name] = o; }); return m; }
+function maosDe(raiz) {
+  const m = {};
+  raiz.traverse((o) => { if (o.isBone && /^(Left|Right)Hand(Middle1)?$/.test(o.name)) m[o.name] = o; });
+  return m;
+}
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m4 = new THREE.Matrix4();
 function atualizaDinamico() {
   const d = dinamico; if (!d || !d.maos.LeftHand || !d.maos.RightHand) return;
   d.maos.LeftHand.getWorldPosition(_a); d.maos.RightHand.getWorldPosition(_b);
   if (d.tipo === "entre_maos") {
+    const palmas = (d.objeto === "livro" || d.objeto === "tablet") && d.maos.LeftHandMiddle1 && d.maos.RightHandMiddle1;
+    if (palmas) { d.maos.LeftHandMiddle1.getWorldPosition(_a); d.maos.RightHandMiddle1.getWorldPosition(_b); } // entre as palmas
     const x = _c.subVectors(_a, _b).normalize(), y = new THREE.Vector3(0, 1, 0), z = new THREE.Vector3().crossVectors(x, y).normalize();
     y.crossVectors(z, x);
     d.mesh.quaternion.setFromRotationMatrix(_m4.makeBasis(x, y, z));
@@ -234,7 +261,10 @@ function atualizaDinamico() {
       d.bebe.quaternion.setFromRotationMatrix(_m4.makeBasis(Lx, L, Up));
       d.bebe.position.addVectors(_a, _b).multiplyScalar(0.5).addScaledVector(L, -0.27).addScaledVector(Up, 0.06).addScaledVector(Lx, 0.05); // sobre as palmas, à frente dos pulsos
     }
-    if (d.objeto === "livro" || d.objeto === "tablet") { d.mesh.position.y += 0.03; d.mesh.rotateX(INCLINA_LIVRO); } // inclinado para o rosto
+    if (d.objeto === "livro" || d.objeto === "tablet") { d.mesh.position.y += 0.02; d.mesh.rotateX(INCLINA_LIVRO); } // inclinado para o rosto
+    if (d.objeto === "caixote") { // no chão, logo à frente das palmas
+      d.mesh.position.addScaledVector(z, d.tam[2] / 2 + 0.03); d.mesh.position.y = d.tam[1] / 2;
+    }
   } else {
     // vassoura e rodo: o cabo passa pelas duas mãos e vai até o chão; aspirador: da mão direita até o chão, à frente
     let topo, pe;
@@ -368,7 +398,7 @@ async function carregarCorpo(id) {
   const bin = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
   const gltf = await new Promise((ok, erro) => loader.parse(bin.buffer, "", ok, erro));
   const raiz = gltf.scene;
-  const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [];
+  const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [], estilos = {};
   let gorro = null;
   const barriga = [];
   let chupeta = null;
@@ -380,7 +410,10 @@ async function carregarCorpo(id) {
     o.material.map = paleta; o.material.color.set(0xffffff); o.material.needsUpdate = true;
     if (o.material.name === "Pele") pele.push(o.material);
     if (o.material.name === "Rosto") rosto.push(o.material);
-    if (o.material.name === "Cabelo") { o.material.map = null; o.material.roughness = 0.9; cabelo.push(o); }
+    if (o.material.name === "Cabelo") {
+      o.material.map = null; o.material.roughness = 0.9; cabelo.push(o);
+      if (o.name.startsWith(id + "_")) estilos[o.name.slice(id.length + 1)] = o;
+    }
     if (o.material.name === "Manta" || o.material.name === "Gorro") { o.material.map = null; o.material.roughness = 0.95; tecido.push(o); }
     if (/_gorro$/.test(o.name)) gorro = o;
     if (o.morphTargetDictionary && "gravidez_1" in o.morphTargetDictionary) barriga.push(o);
@@ -405,7 +438,7 @@ async function carregarCorpo(id) {
   const mixer = new THREE.AnimationMixer(raiz);
   const clips = {};
   for (const c of gltf.animations) clips[c.name] = mixer.clipAction(c);
-  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
+  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, estilos, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
     altura: moises ? 0.5 : caixa.max.y - caixa.min.y, acao: null };
   cache.set(id, c);
   return c;
@@ -487,9 +520,18 @@ function copiarVisivel(de, para) {
   const vis = {}; de.traverse((o) => { vis[o.name] = o.visible; });
   para.traverse((o) => { if (o.name in vis) o.visible = vis[o.name]; });
 }
+const ehRecem = () => semAnimacoes(atual.id);
+const corCabelo = () => (ehRecem() ? estado.cabeloCor : estado.corCabeloAdulto ?? COR_PADRAO[atual.id] ?? "Castanho");
 function aplicarCabelo() {
-  for (const o of atual.cabelo) { o.visible = estado.cabeloTipo !== "careca"; o.material.color.set(CABELO_CORES[estado.cabeloCor] ?? estado.cabeloCor); }
-  if (atual.gorro) atual.gorro.visible = estado.cabeloTipo === "gorro";
+  const cor = corCabelo(), hex = CABELO_CORES[cor] ?? cor;
+  for (const o of atual.cabelo) o.material.color.set(hex);
+  if (ehRecem()) {
+    for (const o of atual.cabelo) o.visible = estado.cabeloTipo !== "careca";
+    if (atual.gorro) atual.gorro.visible = estado.cabeloTipo === "gorro";
+  } else {
+    const est = atual.estilos[estado.penteado] || estado.penteado === "careca" ? estado.penteado : "cabelo";
+    for (const [k, o] of Object.entries(atual.estilos)) o.visible = ehRosto(k) ? k === estado.barba : k === est;
+  }
   for (const o of atual.tecido) o.material.color.set(MANTA_CORES[estado.manta] ?? estado.manta);
   if (par) copiarVisivel(atual.raiz, par.raiz);
 }
@@ -497,21 +539,36 @@ function desenharCabelo() {
   const bloco = document.getElementById("cabelo-bloco");
   bloco.hidden = !atual.cabelo.length;
   if (bloco.hidden) return;
-  chips(document.getElementById("cabelo-tipo"), Object.entries(CABELO_TIPOS), estado.cabeloTipo, (k) => { estado.cabeloTipo = k; aplicarCabelo(); desenharCabelo(); });
+  const tipoEl = document.getElementById("cabelo-tipo");
+  if (ehRecem()) {
+    chips(tipoEl, Object.entries(CABELO_TIPOS), estado.cabeloTipo, (k) => { estado.cabeloTipo = k; aplicarCabelo(); desenharCabelo(); });
+  } else {
+    const nomes = penteadosDe(atual.id);
+    const opcoes = Object.entries(nomes).filter(([k]) => k === "careca" || atual.estilos[k]);
+    const atualK = opcoes.some(([k]) => k === estado.penteado) ? estado.penteado : "cabelo";
+    chips(tipoEl, opcoes, atualK, (k) => { estado.penteado = k; aplicarCabelo(); desenharCabelo(); });
+  }
+  const rostoEl = document.getElementById("cabelo-rosto");
+  const pelos = ehRecem() ? [] : pelosDoRosto().filter(([k]) => k === "nenhum" || atual.estilos[k]);
+  rostoEl.hidden = pelos.length < 2;
+  if (rostoEl.hidden) rostoEl.replaceChildren();
+  else chips(rostoEl, pelos, estado.barba, (k) => { estado.barba = k; aplicarCabelo(); desenharCabelo(); });
   const el = document.getElementById("cabelo-cor");
   el.replaceChildren();
-  if (estado.cabeloTipo === "careca") return;
+  if (ehRecem() && estado.cabeloTipo === "careca") return;
+  const cor = corCabelo();
+  const escolhe = (v) => { if (ehRecem()) estado.cabeloCor = v; else estado.corCabeloAdulto = v; aplicarCabelo(); };
   for (const [nome, hex] of Object.entries(CABELO_CORES)) {
     const b = document.createElement("button");
     b.className = "amostra"; b.type = "button"; b.style.background = hex; b.title = nome; b.dataset.k = nome;
-    b.setAttribute("aria-label", `Cabelo ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(estado.cabeloCor === nome));
-    b.onclick = () => { estado.cabeloCor = nome; aplicarCabelo(); desenharCabelo(); };
+    b.setAttribute("aria-label", `Cabelo ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(cor === nome));
+    b.onclick = () => { escolhe(nome); desenharCabelo(); };
     el.append(b);
   }
   const livre = document.createElement("input");
   livre.type = "color"; livre.title = "Outra cor"; livre.setAttribute("aria-label", "Escolher outra cor de cabelo");
-  livre.value = CABELO_CORES[estado.cabeloCor] ?? estado.cabeloCor;
-  livre.oninput = () => { estado.cabeloCor = livre.value; aplicarCabelo(); for (const b of el.querySelectorAll(".amostra")) b.setAttribute("aria-pressed", "false"); };
+  livre.value = CABELO_CORES[cor] ?? cor;
+  livre.oninput = () => { escolhe(livre.value); for (const b of el.querySelectorAll(".amostra")) b.setAttribute("aria-pressed", "false"); };
   el.append(livre);
 }
 function aplicarGravidez() {
@@ -524,8 +581,10 @@ function aplicarGravidez() {
     document.getElementById("bib-status").textContent = "Carregando a biblioteca…";
     ligarBiblioteca(c).then(() => {
       if (atual !== c) return;
-      if (estado.anim.startsWith("bib:") && !c.clips[estado.anim]) { estado.anim = "parado"; aplicarAnim(false); }
-      else if (estado.anim.startsWith("bib:")) { atual.acao = null; aplicarAnim(true); }
+      // a animação da biblioteca anterior para de vez (senão continua tocando por baixo e mistura as poses)
+      c.mixer.stopAllAction(); c.acao = null;
+      if (estado.anim.startsWith("bib:") && !c.clips[estado.anim]) estado.anim = "parado";
+      aplicarAnim(true);
       desenharAnims();
     }).catch((e) => { document.getElementById("bib-status").textContent = "Não consegui carregar a biblioteca: " + e.message; });
   }
@@ -563,6 +622,7 @@ function aplicarAnim(imediato) {
     nova.reset().play();
     if (imediato) atual.acao.stop(); else atual.acao.crossFadeTo(nova, 0.35, false);
   } else nova.play();
+  for (const a of Object.values(atual.clips)) if (a !== nova && a !== atual.acao && a.isRunning()) a.stop(); // nenhuma sobra tocando
   atual.acao = nova;
   aplicarApoio();
 }
@@ -613,7 +673,7 @@ function apoioBiblioteca(nome) {
     if (m.tipo === "pia") peca(new THREE.BoxGeometry(m.largura * 0.45, 0.012, prof * 0.55), MAT_AUX.metal, m.x, m.topo + 0.004, m.frente + prof * 0.4);
     notas.push(m.tipo === "pia" ? "A pia é só um auxiliar desta cena de teste." : "A bancada é só um auxiliar desta cena de teste.");
   } else if (m && m.tipo === "entre_maos") {
-    const cor = { caixa: MAT_AUX.madeira, bebe: MAT_AUX.bloco, tablet: MAT_AUX.metal, livro: MAT_AUX.saco }[m.objeto];
+    const cor = { caixa: MAT_AUX.madeira, caixote: MAT_AUX.madeira, bebe: MAT_AUX.bloco, tablet: MAT_AUX.metal, livro: MAT_AUX.saco }[m.objeto];
     const geo = m.objeto === "bebe" ? new THREE.CapsuleGeometry(m.tam[1] / 2, m.tam[0] - m.tam[1], 6, 16) : new THREE.BoxGeometry(...m.tam);
     const mesh = peca(geo, cor, 0, 0, 0);
     if (m.objeto === "bebe") mesh.geometry.rotateZ(Math.PI / 2);
@@ -635,7 +695,7 @@ function apoioBiblioteca(nome) {
         mesh.visible = false; d0.bebe = g;
       }).catch(() => {});
     }
-    notas.push({ caixa: "A caixa é", bebe: "O recém-nascido no colo é", tablet: "O tablet é", livro: "O livro é" }[m.objeto] + " só um auxiliar desta cena de teste.");
+    notas.push({ caixa: "A caixa é", caixote: "O caixote é", bebe: "O recém-nascido no colo é", tablet: "O tablet é", livro: "O livro é" }[m.objeto] + " só um auxiliar desta cena de teste.");
   } else if (m && m.tipo === "cabo") {
     const pau = peca(new THREE.CylinderGeometry(0.012, 0.012, 1, 10), MAT_AUX.madeira, 0, 0, 0);
     const cabeca = peca(m.objeto === "aspirador" ? new THREE.BoxGeometry(0.28, 0.07, 0.18) : new THREE.BoxGeometry(m.objeto === "rodo" ? 0.4 : 0.28, 0.05, 0.07),
