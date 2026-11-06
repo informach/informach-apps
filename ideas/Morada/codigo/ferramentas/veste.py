@@ -54,5 +54,6 @@ for arm in corpos:
         feitos += 1
     print("vestido", c, f"{time.time() - t0:.0f}s", flush=True)
 R.limpa_fontes()  # as fontes importadas para medir não ficam no arquivo
+R.salva_mascaras()  # máscaras de cor livre (biblioteca/roupas_mascaras)
 bpy.ops.wm.save_as_mainfile(filepath=SAIDA, compress=True)
 print("fim", feitos)

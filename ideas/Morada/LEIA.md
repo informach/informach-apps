@@ -19,9 +19,9 @@ As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equi
 
 ## Roupas
 
-As 65 roupas e acessórios dos pacotes estão em todos os corpos (menos o recém-nascido), também nas grávidas. O catálogo,
+As 65 roupas e acessórios dos pacotes, mais variações feitas a partir delas (bermudas, shorts, capris, regatas, croppeds, coletes, saias, vestidos, boné e chapéus), estão em todos os corpos (menos o recém-nascido), também nas grávidas. Toda peça tem cor livre, e há conjuntos prontos (profissões e estilos). Cada penteado tem as versões comprida, volumosa e para chapéu. O catálogo,
 o encaixe e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`. O arquivo-mestre em `blend/` é o de antes
-das roupas. Para ter o mestre vestido, rode `codigo/ferramentas/veste.py -- corpos.blend todos` (uns 20 minutos); o
+das roupas. Para ter o mestre vestido, rode `codigo/ferramentas/veste.py -- corpos.blend todos` (uns 45 minutos) e `adiciona_cabelo.py` com os ids das variações de cabelo; o
 resultado é o mesmo.
 
 ## Animações aprovadas

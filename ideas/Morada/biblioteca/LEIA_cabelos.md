@@ -16,6 +16,18 @@
   for preciso para não afundar no rosto. A peça fica presa só ao osso `Head`.
 - `codigo/tools/adiciona_cabelo.py`: acrescenta itens do catálogo aos corpos que já existem, sem regerar os corpos.
 
+## Variações
+
+Um item com `"base"` (outro penteado) e `"forma"`:
+- `comprido`: o que fica abaixo da metade da cabeça desce, e as pontas abrem um pouco.
+- `volume`: mais largo e mais alto.
+- `achatado`: rente no alto, para caber debaixo de chapéu.
+- `rente`: barba mais curta, junto do rosto.
+- `corta_lados`: só o meio, como no cavanhaque.
+
+Cada penteado tem as versões comprida, volumosa e para chapéu. Também existem barba rente, cavanhaque e barba cheia
+curta.
+
 ## Para acrescentar um cabelo
 
 1. Coloque o FBX na pasta dos pacotes e acrescente um item em `cabelos.json`.

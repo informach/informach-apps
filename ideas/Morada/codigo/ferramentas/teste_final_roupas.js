@@ -1,0 +1,23 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader']});
+const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await p.goto('http://localhost:8765/teste_local.html');
+const espera = async () => { await p.waitForFunction(()=>/animações/.test(document.getElementById('bib-status').textContent),undefined,{timeout:240000}); await p.waitForTimeout(1500); };
+await espera();
+const out=process.argv[2];
+const n = async (sel) => p.$$eval(sel + ' option', o => o.length);
+console.log('cima', await n('#roupa-cima'), 'baixo', await n('#roupa-baixo'), 'inteira', await n('#roupa-inteira'), 'cabeca', await n('#roupa-cabeca'), 'conjuntos', await n('#roupa-conjunto'), 'penteados', await n('#cabelo-tipo select'), 'rosto', await n('#cabelo-rosto select'));
+const conj = await p.$$eval('#roupa-conjunto option', o => o.map(x => x.textContent));
+const shot = async (nome) => { await p.waitForTimeout(1200); await p.locator('#palco').screenshot({path:`${out}/${nome}.png`}); };
+for (const [i, nome] of [[2,'executivo'],[9,'fazendeiro'],[14,'praia'],[15,'inverno']]) { await p.selectOption('#roupa-conjunto', String(i - 2)); await shot('c_' + nome); }
+await p.selectOption('#cabelo-tipo select', 'cabelo_lenhador_volume'); await p.selectOption('#cabelo-rosto select', 'cavanhaque'); await shot('cabelo_barba');
+await p.click('#sexo button[data-k="f"]'); await espera();
+await p.selectOption('#roupa-conjunto', '__nada');
+await p.selectOption('#roupa-inteira', 'gen_vestido_longo'); await shot('vestido_longo');
+await p.click('#roupa-slots .roupa-cores button[title="Vermelho"]'); await shot('vestido_vermelho');
+await p.selectOption('#cabelo-tipo select', 'cabelo_caixa_comprido'); await shot('cabelo_comprido');
+await p.click('#gravidez button[data-k="3"]'); await espera(); await p.waitForTimeout(1500); await shot('vestido_gravida');
+await p.click('#gravidez button[data-k="0"]'); await espera();
+await p.selectOption('#roupa-inteira', ''); await p.selectOption('#roupa-cima', 'var_cropped'); await p.selectOption('#roupa-baixo', 'gen_saia_rodada'); await p.selectOption('#roupa-cabeca', 'var_bone'); await shot('cropped_saia_bone');
+await p.click('#idade button[data-k="crianca"]'); await espera(); await shot('crianca');
+console.log('erros',JSON.stringify(errs.slice(0,6)));await b.close();})();

@@ -1,0 +1,773 @@
+{
+ "var_bermuda_cargo_bege": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_bermuda_cargo_bege__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.29835,
+   "cor": "#68a33b"
+  }
+ },
+ "var_bermuda_azul": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "var_bermuda_azul__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.03796,
+   "cor": "#393635"
+  }
+ },
+ "var_short_vermelho": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "var_short_vermelho__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.06007,
+   "cor": "#484443"
+  }
+ },
+ "var_short_verde": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_short_verde__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.33591,
+   "cor": "#75ab3d"
+  }
+ },
+ "var_regata_rosa": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_regata_rosa__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "var_sueter_manga_curta": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_sueter_manga_curta__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.3248,
+   "cor": "#f37701"
+  }
+ },
+ "var_chapeu_aba_larga": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_chapeu_aba_larga__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.43211,
+   "cor": "#fd9702"
+  }
+ },
+ "var_chapeu_marrom": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_chapeu_marrom__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.43211,
+   "cor": "#fd9702"
+  }
+ },
+ "var_capri_cargo": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_capri_cargo__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.2461,
+   "cor": "#5a9636"
+  }
+ },
+ "var_bermuda_cargo_preta": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_bermuda_cargo_preta__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.02123,
+   "cor": "#272829"
+  }
+ },
+ "var_short_cargo_preto": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_short_cargo_preto__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.02219,
+   "cor": "#27292a"
+  }
+ },
+ "var_bermuda_social": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_bermuda_social__Roupa_Casino_Textures_4.png",
+   "lum": 0.06128,
+   "cor": "#474545"
+  }
+ },
+ "var_bermuda_roxa": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_bermuda_roxa__Roupa_Casino_Textures_4.png",
+   "lum": 0.08747,
+   "cor": "#6536b2"
+  }
+ },
+ "var_capri": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_capri__Roupa_Casino_Textures_4.png",
+   "lum": 0.06494,
+   "cor": "#5a28a5"
+  }
+ },
+ "var_short_36": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_short_36__Roupa_Casino_Textures_4.png",
+   "lum": 0.08747,
+   "cor": "#6536b2"
+  }
+ },
+ "var_bermuda_lenhador": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "var_bermuda_lenhador__Roupa_Apocalypse_Color2.png",
+   "lum": 0.03133,
+   "cor": "#482923"
+  }
+ },
+ "var_bermuda_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "var_bermuda_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.06229,
+   "cor": "#464647"
+  }
+ },
+ "var_capri_xadrez": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "var_capri_xadrez__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.01521,
+   "cor": "#212121"
+  }
+ },
+ "var_cropped": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_cropped__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "var_top": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_top__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "var_cropped_camisa": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_cropped_camisa__Roupa_Casino_Textures_4.png",
+   "lum": 0.22579,
+   "cor": "#e24785"
+  }
+ },
+ "var_colete_social": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_colete_social__Roupa_Casino_Textures_4.png",
+   "lum": 0.07482,
+   "cor": "#6c27a6"
+  }
+ },
+ "var_colete_jaqueta": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_colete_jaqueta__Roupa_Casino_Textures_4.png",
+   "lum": 0.03775,
+   "cor": "#373636"
+  }
+ },
+ "var_colete_acolchoado": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_colete_acolchoado__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.48221,
+   "cor": "#fea502"
+  }
+ },
+ "var_moletom_manga_curta": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_moletom_manga_curta__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.48221,
+   "cor": "#fea502"
+  }
+ },
+ "var_jaqueta_manga_curta": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_jaqueta_manga_curta__Roupa_Casino_Textures_4.png",
+   "lum": 0.03775,
+   "cor": "#373636"
+  }
+ },
+ "var_camisa_xadrez_sem_manga": {
+  "Roupa_Apocalypse_Fabric_14": {
+   "mascara": "var_camisa_xadrez_sem_manga__Roupa_Apocalypse_Fabric_14.png",
+   "lum": 0.27527,
+   "cor": "#c87976"
+  },
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "var_camisa_xadrez_sem_manga__Roupa_Apocalypse_Color2.png",
+   "lum": 0.55295,
+   "cor": "#ffb700"
+  }
+ },
+ "var_casaca_colete": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_casaca_colete__Roupa_Casino_Textures_4.png",
+   "lum": 0.5496,
+   "cor": "#ffb609"
+  }
+ },
+ "var_bone": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_bone__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.43211,
+   "cor": "#fd9702"
+  }
+ },
+ "var_chapeu_feltro": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "var_chapeu_feltro__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.43211,
+   "cor": "#fd9702"
+  }
+ },
+ "var_chapeu_coco": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "var_chapeu_coco__Roupa_Casino_Textures_4.png",
+   "lum": 0.08411,
+   "cor": "#7927a8"
+  }
+ },
+ "var_bota_cano_curto": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "var_bota_cano_curto__Roupa_Apocalypse_Color2.png",
+   "lum": 0.37298,
+   "cor": "#b6a44a"
+  }
+ },
+ "var_bota_noel_curta": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "var_bota_noel_curta__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.04712,
+   "cor": "#57342b"
+  }
+ },
+ "roupa_calca_caixa": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_calca_caixa__Roupa_Casino_Textures_4.png",
+   "lum": 0.06128,
+   "cor": "#474545"
+  }
+ },
+ "roupa_calca_xadrez1": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_calca_xadrez1__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.03743,
+   "cor": "#393534"
+  }
+ },
+ "roupa_calca_seguranca": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_calca_seguranca__Roupa_Casino_Textures_4.png",
+   "lum": 0.01926,
+   "cor": "#252626"
+  }
+ },
+ "gen_minissaia": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_minissaia__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.26897,
+   "cor": "#4993cb"
+  }
+ },
+ "gen_saia_rodada": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_saia_rodada__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.26897,
+   "cor": "#4993cb"
+  }
+ },
+ "gen_saia_lapis": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_saia_lapis__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.26897,
+   "cor": "#4993cb"
+  }
+ },
+ "gen_saia_midi": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_saia_midi__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.26897,
+   "cor": "#4993cb"
+  }
+ },
+ "gen_saia_longa": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_saia_longa__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.26897,
+   "cor": "#4993cb"
+  }
+ },
+ "roupa_camiseta_criativa": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_camiseta_criativa__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "gen_vestido_casual": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_vestido_casual__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "gen_vestido_justo": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_vestido_justo__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "gen_vestido_longo": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_vestido_longo__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "gen_vestido_midi": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_vestido_midi__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "gen_vestido_festa": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "gen_vestido_festa__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23691,
+   "cor": "#458ac4"
+  }
+ },
+ "roupa_casaco_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_casaco_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.07487,
+   "cor": "#694438"
+  }
+ },
+ "roupa_camiseta_xadrez1": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_camiseta_xadrez1__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.28081,
+   "cor": "#0997e7"
+  }
+ },
+ "roupa_camiseta_xadrez2": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_camiseta_xadrez2__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.20231,
+   "cor": "#d94d18"
+  }
+ },
+ "roupa_camisa_caixa": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_camisa_caixa__Roupa_Casino_Textures_4.png",
+   "lum": 0.48113,
+   "cor": "#fea502"
+  }
+ },
+ "roupa_camisa_plus": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_camisa_plus__Roupa_Casino_Textures_4.png",
+   "lum": 0.22579,
+   "cor": "#e24785"
+  }
+ },
+ "roupa_camisa_seguranca": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_camisa_seguranca__Roupa_Casino_Textures_4.png",
+   "lum": 0.03775,
+   "cor": "#373636"
+  }
+ },
+ "roupa_jaqueta_36": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_jaqueta_36__Roupa_Casino_Textures_4.png",
+   "lum": 0.07484,
+   "cor": "#6c27a6"
+  }
+ },
+ "roupa_blusa_showgirl": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_blusa_showgirl__Roupa_Casino_Textures_4.png",
+   "lum": 0.5496,
+   "cor": "#ffb609"
+  }
+ },
+ "roupa_camisa_lenhador": {
+  "Roupa_Apocalypse_Fabric_14": {
+   "mascara": "roupa_camisa_lenhador__Roupa_Apocalypse_Fabric_14.png",
+   "lum": 0.27527,
+   "cor": "#c87976"
+  },
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_camisa_lenhador__Roupa_Apocalypse_Color2.png",
+   "lum": 0.55295,
+   "cor": "#ffb700"
+  }
+ },
+ "roupa_jaqueta_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_jaqueta_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.28319,
+   "cor": "#ff5804"
+  }
+ },
+ "roupa_agasalho_029": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_agasalho_029__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.48221,
+   "cor": "#fea502"
+  }
+ },
+ "roupa_agasalho_036": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_agasalho_036__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.3248,
+   "cor": "#f37701"
+  }
+ },
+ "roupa_calca_xadrez2": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_calca_xadrez2__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.01521,
+   "cor": "#212121"
+  }
+ },
+ "roupa_calca_36": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_calca_36__Roupa_Casino_Textures_4.png",
+   "lum": 0.06494,
+   "cor": "#5a28a5"
+  }
+ },
+ "roupa_bermuda_plus": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_bermuda_plus__Roupa_Casino_Textures_4.png",
+   "lum": 0.22985,
+   "cor": "#4688c4"
+  }
+ },
+ "roupa_saia_showgirl": {
+  "Roupa_Casino_Lines": {
+   "mascara": "roupa_saia_showgirl__Roupa_Casino_Lines.png",
+   "lum": 0.05333,
+   "cor": "#633523"
+  },
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_saia_showgirl__Roupa_Casino_Textures_4.png",
+   "lum": 0.44698,
+   "cor": "#ff9a10"
+  }
+ },
+ "roupa_calca_lenhador": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_calca_lenhador__Roupa_Apocalypse_Color2.png",
+   "lum": 0.03122,
+   "cor": "#482923"
+  }
+ },
+ "roupa_calca_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_calca_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.03828,
+   "cor": "#383636"
+  }
+ },
+ "roupa_calca_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_calca_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.13176,
+   "cor": "#c32434"
+  }
+ },
+ "roupa_calca_010": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_calca_010__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.2461,
+   "cor": "#5a9636"
+  }
+ },
+ "roupa_calca_014": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_calca_014__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.02036,
+   "cor": "#262727"
+  }
+ },
+ "roupa_short_003": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_short_003__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.30798,
+   "cor": "#959697"
+  }
+ },
+ "roupa_fantasia_6": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_fantasia_6__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.15212,
+   "cor": "#a95439"
+  }
+ },
+ "roupa_fantasia_10": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_fantasia_10__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.5518,
+   "cor": "#feb708"
+  }
+ },
+ "roupa_tenis_xadrez1": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_tenis_xadrez1__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.02114,
+   "cor": "#282728"
+  }
+ },
+ "roupa_tenis_xadrez2": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_tenis_xadrez2__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.02092,
+   "cor": "#252829"
+  }
+ },
+ "roupa_sapato_caixa": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_sapato_caixa__Roupa_Casino_Textures_4.png",
+   "lum": 0.02191,
+   "cor": "#282829"
+  }
+ },
+ "roupa_sapato_seguranca": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_sapato_seguranca__Roupa_Casino_Textures_4.png",
+   "lum": 0.01835,
+   "cor": "#232525"
+  }
+ },
+ "roupa_sapato_36": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_sapato_36__Roupa_Casino_Textures_4.png",
+   "lum": 0.01955,
+   "cor": "#242627"
+  }
+ },
+ "roupa_tenis_plus": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_tenis_plus__Roupa_Casino_Textures_4.png",
+   "lum": 0.13927,
+   "cor": "#c72829"
+  }
+ },
+ "roupa_salto_showgirl": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_salto_showgirl__Roupa_Casino_Textures_4.png",
+   "lum": 0.13145,
+   "cor": "#c3252a"
+  }
+ },
+ "roupa_bota_lenhador": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_bota_lenhador__Roupa_Apocalypse_Color2.png",
+   "lum": 0.37298,
+   "cor": "#b6a44a"
+  }
+ },
+ "roupa_bota_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_bota_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.02056,
+   "cor": "#292626"
+  }
+ },
+ "roupa_bota_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_bota_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.10889,
+   "cor": "#7a5346"
+  }
+ },
+ "roupa_chinelo_002": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_chinelo_002__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.07628,
+   "cor": "#1a47a8"
+  }
+ },
+ "roupa_chinelo_005": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_chinelo_005__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.23928,
+   "cor": "#e65810"
+  }
+ },
+ "roupa_tenis_009": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_tenis_009__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.81273,
+   "cor": "#e6e9ea"
+  }
+ },
+ "roupa_meias_008": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_meias_008__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.17353,
+   "cor": "#db2c42"
+  }
+ },
+ "roupa_luvas_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_luvas_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.03205,
+   "cor": "#2b3336"
+  }
+ },
+ "roupa_luvas_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_luvas_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.11047,
+   "cor": "#7c5345"
+  }
+ },
+ "roupa_luvas_006": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_luvas_006__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.22233,
+   "cor": "#6c8c28"
+  }
+ },
+ "roupa_luvas_014": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_luvas_014__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.15591,
+   "cor": "#d02d2e"
+  }
+ },
+ "roupa_chapeu_showgirl": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_chapeu_showgirl__Roupa_Casino_Textures_4.png",
+   "lum": 0.50055,
+   "cor": "#feaa06"
+  }
+ },
+ "roupa_bone_36": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_bone_36__Roupa_Casino_Textures_4.png",
+   "lum": 0.08411,
+   "cor": "#7927a8"
+  }
+ },
+ "roupa_chapeu_sobrevivente": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_chapeu_sobrevivente__Roupa_Apocalypse_Color2.png",
+   "lum": 0.21536,
+   "cor": "#ea4204"
+  }
+ },
+ "roupa_gorro_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_gorro_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.13892,
+   "cor": "#c72636"
+  }
+ },
+ "roupa_chapeu_010": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_chapeu_010__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.43211,
+   "cor": "#fd9702"
+  }
+ },
+ "roupa_chapeu_049": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_chapeu_049__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.21308,
+   "cor": "#d85427"
+  }
+ },
+ "roupa_chapeu_057": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_chapeu_057__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.02072,
+   "cor": "#262728"
+  }
+ },
+ "roupa_oculos_xadrez": {
+  "Roupa_Chess_Pack_Textures1": {
+   "mascara": "roupa_oculos_xadrez__Roupa_Chess_Pack_Textures1.png",
+   "lum": 0.16806,
+   "cor": "#b85433"
+  }
+ },
+ "roupa_oculos_seguranca": {
+  "Roupa_Casino_Textures_4": {
+   "mascara": "roupa_oculos_seguranca__Roupa_Casino_Textures_4.png",
+   "lum": 0.03331,
+   "cor": "#2c3438"
+  }
+ },
+ "roupa_oculos_lenhador": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_oculos_lenhador__Roupa_Apocalypse_Color2.png",
+   "lum": 0.02363,
+   "cor": "#272b2c"
+  }
+ },
+ "roupa_oculos_noel": {
+  "Roupa_Christmas_Pack_Textures_4": {
+   "mascara": "roupa_oculos_noel__Roupa_Christmas_Pack_Textures_4.png",
+   "lum": 0.13279,
+   "cor": "#646667"
+  }
+ },
+ "roupa_oculos_004": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_oculos_004__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.13939,
+   "cor": "#c72829"
+  }
+ },
+ "roupa_oculos_006": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_oculos_006__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.38177,
+   "cor": "#fc8707"
+  }
+ },
+ "roupa_fones_002": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_fones_002__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.91335,
+   "cor": "#f4f5f5"
+  }
+ },
+ "roupa_nariz_palhaco": {
+  "Roupa_Creative_Characters_Textures_4": {
+   "mascara": "roupa_nariz_palhaco__Roupa_Creative_Characters_Textures_4.png",
+   "lum": 0.13944,
+   "cor": "#c72829"
+  }
+ },
+ "roupa_corrente_plus": {
+  "Roupa_Casino_Chain_BaseColor": {
+   "mascara": "roupa_corrente_plus__Roupa_Casino_Chain_BaseColor.png",
+   "lum": 0.10641,
+   "cor": "#775520"
+  }
+ },
+ "roupa_pulseira_plus": {
+  "Roupa_Casino_Chain_BaseColor": {
+   "mascara": "roupa_pulseira_plus__Roupa_Casino_Chain_BaseColor.png",
+   "lum": 0.10641,
+   "cor": "#775520"
+  }
+ },
+ "roupa_mochila": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_mochila__Roupa_Apocalypse_Color2.png",
+   "lum": 0.0541,
+   "cor": "#563a35"
+  }
+ },
+ "roupa_violao_costas": {
+  "Roupa_Apocalypse_Color2": {
+   "mascara": "roupa_violao_costas__Roupa_Apocalypse_Color2.png",
+   "lum": 0.02296,
+   "cor": "#362522"
+  }
+ }
+}
