@@ -10,6 +10,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
@@ -37,6 +38,11 @@ export const boraFamilies = boraTreinar.table(
     weeklySummary: boolean("weekly_summary").notNull().default(false),
     /** Checkpoint do resumo semanal (segunda-feira local já tratada). */
     weeklySummaryWeek: date("weekly_summary_week"),
+    /**
+     * Início do teste de 7 dias sem cartão (tudo liberado). Nulo = nunca começou. Um por e-mail:
+     * quem decide é `trial_claims`, que sobrevive à exclusão da conta.
+     */
+    trialStartedAt: timestamp("trial_started_at", { withTimezone: true }),
     createdAt: time("created_at"),
   },
   (t) => [
@@ -46,8 +52,19 @@ export const boraFamilies = boraTreinar.table(
 );
 
 /**
- * Perfil de quem treina. Só apelido e cor: nenhuma data de nascimento ou outro
- * dado pessoal, porque perfis costumam ser de crianças.
+ * O teste de 7 dias, um por e-mail: o hash HMAC do e-mail (nunca o e-mail) segura o pedido mesmo
+ * depois que a conta é apagada e criada de novo. Mesmo desenho do teste do Cozya.
+ */
+export const boraTrialClaims = boraTreinar.table("trial_claims", {
+  emailHash: text("email_hash").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  startedAt: time("started_at"),
+});
+
+/**
+ * Perfil de quem treina. Apelido, cor e preferências de treino (jeito de treinar, tempo, dias por
+ * semana): nenhuma data de nascimento, peso, foto ou dado de saúde, porque perfis costumam ser de
+ * crianças.
  */
 export const boraProfiles = boraTreinar.table(
   "profiles",
@@ -60,12 +77,29 @@ export const boraProfiles = boraTreinar.table(
     color: text("color").notNull(),
     /** Perfil escolhido para continuar ativo quando o plano comporta menos perfis. */
     accessEnabled: boolean("access_enabled").notNull().default(true),
+    /**
+     * Jeito de treinar, escolhido no primeiro acesso: "leve" troca saltos por versões sem impacto
+     * e reduz as metas; "forte" começa mais alto. É preferência de treino, não dado de saúde.
+     */
+    intensity: text("intensity").notNull().default("normal"),
+    /** Meta de dias de treino por semana (a semana cumprida substitui os dias seguidos). */
+    weeklyGoal: integer("weekly_goal").notNull().default(3),
+    /** Tempo que costuma ter, em minutos, para o "Hoje é dia de". Nulo = não respondeu. */
+    minutesPref: integer("minutes_pref"),
+    /** Quando passou pelo primeiro acesso; nulo = ainda vai passar. */
+    onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     createdAt: time("created_at"),
   },
   (t) => [
     index("bora_profiles_owner").on(t.userId, t.createdAt),
     check("bora_profiles_name", sql`char_length(${t.name}) between 1 and 24`),
     check("bora_profiles_color", sql`${t.color} ~ '^#[0-9A-F]{6}$'`),
+    check("bora_profiles_intensity", sql`${t.intensity} in ('leve', 'normal', 'forte')`),
+    check("bora_profiles_weekly_goal", sql`${t.weeklyGoal} between 1 and 7`),
+    check(
+      "bora_profiles_minutes_pref",
+      sql`${t.minutesPref} is null or ${t.minutesPref} in (10, 20, 30)`,
+    ),
   ],
 );
 
@@ -81,6 +115,11 @@ export const boraChainProgress = boraTreinar.table(
     bonus: integer("bonus").notNull().default(0),
     /** Sessões seguidas batendo a meta em todas as séries do nível atual. */
     streak: integer("streak").notNull().default(0),
+    /**
+     * Quanto o nível atual está pesando: sobe com treino sem a meta batida (+1) ou marcado como
+     * "difícil" (+2), e zera com a meta batida. A partir de 3, o app sugere descer.
+     */
+    struggle: integer("struggle").notNull().default(0),
     updatedAt: time("updated_at"),
   },
   (t) => [
@@ -112,6 +151,12 @@ export const boraSessions = boraTreinar.table(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     durationSeconds: integer("duration_seconds").notNull(),
     mode: text("mode").notNull(),
+    /** "Como foi?" no fim do treino; ajusta a progressão. Nulo = pulou a pergunta. */
+    feeling: text("feeling"),
+    /** Encerrou pelo botão Parar. Neutro de propósito: nenhum dado de dor ou de saúde. */
+    endedEarly: boolean("ended_early").notNull().default(false),
+    /** Treino feito junto, na vez de cada um: as sessões de cada perfil dividem o grupo. */
+    groupId: uuid("group_id"),
     createdAt: time("created_at"),
   },
   (t) => [
@@ -119,6 +164,10 @@ export const boraSessions = boraTreinar.table(
     index("bora_sessions_user_started").on(t.userId, t.startedAt),
     check("bora_sessions_mode", sql`${t.mode} in ('camera', 'manual', 'pareado')`),
     check("bora_sessions_duration", sql`${t.durationSeconds} between 0 and 14400`),
+    check(
+      "bora_sessions_feeling",
+      sql`${t.feeling} is null or ${t.feeling} in ('facil', 'na_medida', 'dificil')`,
+    ),
   ],
 );
 
@@ -172,13 +221,19 @@ export const boraCustomWorkouts = boraTreinar.table(
   ],
 );
 
-/** Desafio semanal da família: uma meta compartilhada por semana. */
+/**
+ * Desafio da semana: o de cada perfil (`profileId`) e, se a família quiser somar junto, um da
+ * família (`profileId` nulo). Um de cada por semana.
+ */
 export const boraChallenges = boraTreinar.table(
   "challenges",
   {
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
       .notNull()
       .references(() => boraFamilies.userId, { onDelete: "cascade" }),
+    /** Perfil dono do desafio; nulo = desafio da família, somado por todos. */
+    profileId: uuid("profile_id").references(() => boraProfiles.id, { onDelete: "cascade" }),
     /** Segunda-feira local, em data pura. */
     weekStart: date("week_start").notNull(),
     metric: text("metric").notNull(),
@@ -188,7 +243,12 @@ export const boraChallenges = boraTreinar.table(
     createdAt: time("created_at"),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.weekStart] }),
+    uniqueIndex("bora_challenges_family_week")
+      .on(t.userId, t.weekStart)
+      .where(sql`${t.profileId} is null`),
+    uniqueIndex("bora_challenges_profile_week")
+      .on(t.profileId, t.weekStart)
+      .where(sql`${t.profileId} is not null`),
     check(
       "bora_challenges_metric",
       sql`${t.metric} in ('repeticoes', 'minutos', 'treinos', 'exercicio')`,

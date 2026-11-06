@@ -544,6 +544,7 @@ const SIMPLE: Record<string, string> = {
   "bora.preferences_updated": "Mudou os lembretes e o resumo semanal no Bora Treinar",
   "bora.pairing_started": "Gerou um código para usar o celular como câmera no Bora Treinar",
   "bora.pairing_connected": "Conectou o celular como câmera no Bora Treinar",
+  "bora.trial_started": "Começou o teste de 7 dias do Bora Treinar",
 };
 
 /** Quem agiu e não existe mais em `core.users`. */

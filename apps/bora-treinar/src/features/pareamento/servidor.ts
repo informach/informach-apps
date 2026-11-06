@@ -155,6 +155,11 @@ async function registro(bus: Barramento, codigo: string): Promise<Registro | nul
   return bruto ? (JSON.parse(bruto) as Registro) : null;
 }
 
+/** O canal ainda existe (o celular pode voltar para ele com a credencial que já tem). */
+export async function canalAberto(bus: Barramento, codigo: string) {
+  return (await registro(bus, codigo)) !== null;
+}
+
 export async function tvDona(bus: Barramento, codigo: string, userId: string) {
   return (await registro(bus, codigo))?.userId === userId;
 }

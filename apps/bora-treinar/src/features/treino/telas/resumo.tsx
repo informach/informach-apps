@@ -4,16 +4,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fmtTime } from "@/components/avatar";
+import { Cadeado } from "@/features/billing/planos";
 import type { Conquista } from "@/features/conquistas/catalogo";
 import { acceptSuggestionAction } from "@/features/sessoes/actions";
 import { useServerAction } from "@/lib/use-server-action";
 import { exerciseById } from "../catalog/catalog";
-import { describeSuggestion, type Suggestion } from "../engine/progression";
+import { describeSuggestion, type Feeling, type Suggestion } from "../engine/progression";
 import type { SetLog } from "../engine/runner";
 import { Instructor3D } from "../instructor/instructor-3d";
 
+const SENSACAO: Record<Feeling, string> = {
+  facil: "Você achou fácil",
+  na_medida: "Você achou na medida",
+  dificil: "Você achou difícil",
+};
+
 export function SummaryScreen({
   profileId,
+  profileName,
   session,
   records,
   suggestions,
@@ -21,7 +29,14 @@ export function SummaryScreen({
   progressionAllowed,
 }: {
   profileId: string;
-  session: { workoutName: string; duration: number; logs: SetLog[] };
+  profileName: string;
+  session: {
+    workoutName: string;
+    duration: number;
+    logs: SetLog[];
+    feeling?: Feeling | null;
+    endedEarly?: boolean;
+  };
   records: { exerciseId: string; kind: "reps" | "hold"; value: number }[];
   suggestions: Suggestion[];
   achievements: Conquista[];
@@ -58,7 +73,12 @@ export function SummaryScreen({
               <Instructor3D className="canvas" mode="celebrate" />
             </div>
             <span className="muted">{session.workoutName}</span>
-            <h1>Treino concluído!</h1>
+            <h1>{session.endedEarly ? "Treino salvo" : "Treino concluído!"}</h1>
+            <p className="muted">
+              Salvo no perfil de {profileName}
+              {session.feeling ? ` · ${SENSACAO[session.feeling]}` : ""}
+              {session.endedEarly ? " · encerrado antes do fim" : ""}
+            </p>
           </div>
 
           <div className="stat-stack">
@@ -125,44 +145,59 @@ export function SummaryScreen({
             </>
           )}
 
-          {suggestions.length > 0 && (
-            <>
-              <div className="section-title">
-                <h2>
-                  <TrendingUp size={22} className="title-icon" /> Hora de evoluir
-                </h2>
-                <span className="muted">você bateu a meta duas vezes seguidas</span>
+          {[
+            {
+              lista: suggestions.filter((s) => s.type !== "down"),
+              titulo: "Hora de evoluir",
+              sub: "você bateu a meta nas últimas vezes",
+              aceitar: "Aceitar",
+            },
+            {
+              lista: suggestions.filter((s) => s.type === "down"),
+              titulo: "Ajustar a meta",
+              sub: "pesou nas últimas vezes; um passo atrás ajuda a voltar a evoluir",
+              aceitar: "Ajustar",
+            },
+          ].map((grupo) =>
+            grupo.lista.length ? (
+              <div key={grupo.titulo}>
+                <div className="section-title">
+                  <h2>
+                    <TrendingUp size={22} className="title-icon" /> {grupo.titulo}
+                  </h2>
+                  <span className="muted">{grupo.sub}</span>
+                </div>
+                <div className="stack">
+                  {grupo.lista.map((s) => (
+                    <div className="card suggestion" key={s.chainId}>
+                      <span className="grow">{describeSuggestion(s)}</span>
+                      {accepted.has(s.chainId) ? (
+                        <span className="chip">
+                          <Check size={16} /> Aplicado
+                        </span>
+                      ) : progressionAllowed ? (
+                        <button
+                          type="button"
+                          className="btn primary"
+                          disabled={pending}
+                          onClick={() => accept(s)}
+                        >
+                          {grupo.aceitar}
+                        </button>
+                      ) : (
+                        <Cadeado motivo="niveis" className="btn ghost">
+                          <Lock size={16} /> Na assinatura
+                        </Cadeado>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="stack">
-                {suggestions.map((s) => (
-                  <div className="card suggestion" key={s.chainId}>
-                    <span className="grow">{describeSuggestion(s)}</span>
-                    {accepted.has(s.chainId) ? (
-                      <span className="chip">
-                        <Check size={16} /> Aplicado
-                      </span>
-                    ) : progressionAllowed ? (
-                      <button
-                        type="button"
-                        className="btn primary"
-                        disabled={pending}
-                        onClick={() => accept(s)}
-                      >
-                        Aceitar
-                      </button>
-                    ) : (
-                      <Link href="/conta" className="btn ghost">
-                        <Lock size={16} /> Na assinatura
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <p role="status" className="form-message">
-                {message}
-              </p>
-            </>
+            ) : null,
           )}
+          <p role="status" className="form-message">
+            {message}
+          </p>
 
           {(partials > 0 || issues.length > 0) && (
             <>

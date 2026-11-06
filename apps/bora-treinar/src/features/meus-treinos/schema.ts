@@ -1,3 +1,4 @@
+import "@/lib/zod-pt";
 import { z } from "zod";
 import { CHAINS, EXERCISES } from "@/features/treino/catalog/catalog";
 import { type Block, estimateMinutes, type Workout } from "@/features/treino/catalog/workouts";
@@ -15,7 +16,11 @@ export const slotSchema = z
     { message: "Exercício desconhecido", abort: true },
   );
 
-const label = z.string().trim().min(1).max(20);
+const label = z
+  .string()
+  .trim()
+  .min(1, "Dê um nome ao bloco.")
+  .max(20, "O nome do bloco cabe em até 20 letras.");
 const repsSlot = z.object({ slot: slotSchema, reps: z.number().int().min(1).max(100) });
 
 export const blockSchema: z.ZodType<Block> = z.discriminatedUnion("type", [
@@ -53,11 +58,22 @@ export const MAX_MINUTES = 90;
 
 export const customWorkoutSchema = z
   .object({
-    name: z.string().trim().min(1).max(40),
-    subtitle: z.string().trim().max(80).default(""),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Dê um nome ao treino.")
+      .max(40, "O nome cabe em até 40 letras."),
+    subtitle: z.string().trim().max(80, "A descrição cabe em até 80 letras.").default(""),
     level: z.enum(LEVELS),
-    focus: z.string().trim().min(1).max(24),
-    blocks: z.array(blockSchema).min(1).max(12),
+    focus: z
+      .string()
+      .trim()
+      .min(1, "Diga o foco do treino (força, cardio…).")
+      .max(24, "O foco cabe em até 24 letras."),
+    blocks: z
+      .array(blockSchema)
+      .min(1, "Monte pelo menos um bloco.")
+      .max(12, "Cabem até 12 blocos."),
   })
   .refine(
     (w) => estimateMinutes({ id: "previa", ...w }) <= MAX_MINUTES,

@@ -19,13 +19,13 @@ const sessoes = [
 ];
 
 describe("placar do desafio da semana", () => {
-  it("soma repetições da família e ordena os perfis", () => {
+  it("soma repetições da família sem ordenar os perfis (não é ranking)", () => {
     const p = placar({ metric: "repeticoes", exerciseId: null, target: 100 }, sessoes, perfis);
     expect(p.total).toBe(90);
     expect(p.concluido).toBe(false);
     expect(p.linhas.map((l) => [l.id, l.valor])).toEqual([
-      ["b", 50],
       ["a", 40],
+      ["b", 50],
     ]);
   });
   it("minutos, treinos e um exercício", () => {
@@ -43,5 +43,11 @@ describe("placar do desafio da semana", () => {
     expect(descreverDesafio({ metric: "exercicio", exerciseId: "polichinelo", target: 300 })).toBe(
       "300 repetições de polichinelo",
     );
+    expect(descreverDesafio({ metric: "repeticoes", exerciseId: null, target: 250 })).toBe(
+      "250 repetições juntos",
+    );
+    expect(
+      descreverDesafio({ metric: "repeticoes", exerciseId: null, target: 250 }, { pessoal: true }),
+    ).toBe("250 repetições na semana");
   });
 });

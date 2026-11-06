@@ -12,6 +12,7 @@ import { codigoSchema, estadoTvSchema, eventoCelularSchema } from "./protocolo";
 import {
   barramento,
   canal,
+  canalAberto,
   criarPareamento,
   DURACAO_CANAL_S,
   emitirCredencial,
@@ -67,6 +68,13 @@ export async function entrar(request: Request) {
     return json({ erro: "Muitas tentativas. Aguarde alguns minutos." }, 429);
   const corpo = z.object({ codigo: codigoSchema }).safeParse(await lerJson(request));
   if (!corpo.success) return json({ erro: "Código inválido." }, 400);
+  // O mesmo celular voltando (recarregou a página, a tela apagou): a credencial que ele já tem
+  // vale para este código, então ele reentra sem gastar o código de novo.
+  const jaTinha = lerCredencial((await cookies()).get(CREDENCIAL_COOKIE)?.value);
+  if (jaTinha === corpo.data.codigo && (await canalAberto(bus, corpo.data.codigo))) {
+    await bus.publicar(canal(corpo.data.codigo, "tv"), JSON.stringify({ tipo: "ola" }));
+    return json({ ok: true });
+  }
   const dono = await entrarComCodigo(bus, corpo.data.codigo);
   if (!dono) return json({ erro: "Código vencido ou já usado. Gere outro na TV." }, 404);
   (await cookies()).set(CREDENCIAL_COOKIE, emitirCredencial(corpo.data.codigo), {

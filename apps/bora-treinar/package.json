@@ -24,7 +24,7 @@
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
-    "@mediapipe/tasks-vision": "^1.2.0",
+    "@mediapipe/tasks-vision": "1.2.0",
     "@sentry/nextjs": "^10.76.2",
     "dexie": "^4.4.7",
     "ioredis": "^5.11.1",

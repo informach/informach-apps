@@ -406,6 +406,58 @@ const wallSit: PoseFn = ({ time }) => {
   return b.build();
 };
 
+/** Alongamento de quadríceps em pé: calcanhar direito no glúteo, mão segurando o tornozelo. */
+const quadStretch: PoseFn = ({ time }) => {
+  const b = new PoseBuilder(v(0, 0.925 + breath(time, 0.003), 0), torsoFrame(UP, LEFT));
+  b.legIK("L", v(0.1, BODY.ankleH, 0.02), FWD).foot("L", v(0.08, -0.34, 0.94));
+  b.legFK("R", v(0, -1, -0.04), v(0, 0.8, -0.6)).foot("R", v(0, 0.4, -0.9));
+  b.armIK("R", add(b.at("ankleR"), v(-0.02, 0.03, -0.02)), norm(v(-0.5, -0.2, -0.8)));
+  b.armFK("L", limbDir(b.torso, "L", 70, 0), limbDir(b.torso, "L", 80, 0));
+  return b.build();
+};
+
+/** Alongamento de posterior sentado: pernas esticadas à frente, tronco inclinado até os pés. */
+const hamstringStretch: PoseFn = ({ time }) => {
+  const u = rotateToward(UP, FWD, rad(52 + breath(time, 2)));
+  const b = new PoseBuilder(v(0, 0.12, -0.1), torsoFrame(u, LEFT));
+  b.headDir(rotateToward(u, FWD, rad(10)));
+  for (const sd of SIDES) {
+    const sg = sideSign(sd);
+    const leg = norm(v(sg * 0.08, -0.04, 1));
+    b.legFK(sd, leg, leg).foot(sd, v(sg * 0.1, 1, 0.25));
+    const arm = norm(v(sg * 0.12, -0.45, 1));
+    b.armFK(sd, arm, arm);
+  }
+  return b.build();
+};
+
+/** Alongamento de peitoral: em pé, mãos unidas atrás das costas, braços esticados para trás. */
+const chestStretch: PoseFn = ({ time }) => {
+  const b = new PoseBuilder(v(0, 0.925 + breath(time, 0.003), 0), torsoFrame(UP, LEFT));
+  b.headDir(rotateToward(UP, FWD, rad(-8)));
+  for (const sd of SIDES) {
+    const sg = sideSign(sd);
+    b.armFK(sd, norm(v(sg * 0.18, -0.75, -0.6)), norm(v(-sg * 0.3, -0.55, -0.75)));
+  }
+  standingLegs(b, 0.12);
+  return b.build();
+};
+
+/** Postura da criança: sentado nos calcanhares, tronco dobrado à frente, braços esticados no chão. */
+const childPose: PoseFn = ({ time }) => {
+  const u = rotateToward(FWD, DOWN, rad(22 + breath(time, 1.5)));
+  const b = new PoseBuilder(v(0, 0.32, -0.2), torsoFrame(u, LEFT));
+  b.headDir(rotateToward(u, UP, rad(20)));
+  for (const sd of SIDES) {
+    const sg = sideSign(sd);
+    b.legKnee(sd, v(sg * 0.13, 0.06, 0.2), v(0, -0.08, -1)).foot(sd, v(0, 0.1, -1));
+    const arm = norm(v(sg * 0.12, -0.2, 1));
+    b.armFK(sd, arm, arm);
+    b.hand(sd, v(0, -0.1, 1));
+  }
+  return b.build();
+};
+
 export const POSES = {
   idle,
   celebrate,
@@ -453,6 +505,10 @@ export const POSES = {
   bridge: bridgePose(false),
   bridgeSingle: bridgePose(true),
   wallSit,
+  quadStretch,
+  hamstringStretch,
+  chestStretch,
+  childPose,
 } satisfies Record<string, PoseFn>;
 
 export type PoseId = keyof typeof POSES;

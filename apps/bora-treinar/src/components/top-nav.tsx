@@ -1,13 +1,13 @@
 "use client";
-import { ChartNoAxesColumn, Dumbbell, House, Settings, Trophy } from "lucide-react";
+import { ChartNoAxesColumn, Dumbbell, House, ListChecks, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "./avatar";
 
 const TABS = [
   { href: "/inicio", label: "Início", icon: House },
+  { href: "/treinos", label: "Treinos", icon: ListChecks },
   { href: "/exercicios", label: "Exercícios", icon: Dumbbell },
-  { href: "/desafios", label: "Desafios", icon: Trophy },
   { href: "/progresso", label: "Progresso", icon: ChartNoAxesColumn },
 ] as const;
 

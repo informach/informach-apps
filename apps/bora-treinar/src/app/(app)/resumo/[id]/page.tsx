@@ -33,6 +33,7 @@ export default async function Resumo({ params }: { params: Promise<{ id: string 
   return (
     <SummaryScreen
       profileId={session.profileId}
+      profileName={profiles.find((p) => p.id === session.profileId)?.name ?? ""}
       session={session}
       records={newRecords(previous, session.logs)}
       suggestions={

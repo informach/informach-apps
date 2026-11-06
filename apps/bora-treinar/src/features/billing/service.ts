@@ -9,12 +9,16 @@ import { buildUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { audit, packageLogger } from "@/lib/observability";
+import { emTolerancia, estadoDoTeste, TRIAL_PROFILE_LIMIT } from "../teste/regras";
+import { inicioDoTeste } from "../teste/repository";
 import { planChangeMode, planProfileLimit } from "./plan-policy";
 import {
   billingDatabase,
   billingEmail,
   billingEventOwner,
+  enableAllProfiles,
   entitlement,
+  pastDueSubscription,
   retainProfilesForSmallerPlan,
   withBillingLifecycle,
   withBillingLifecycleWait,
@@ -67,12 +71,29 @@ export const billing = createBillingService({
   buildUnsubscribeUrl,
   manageBillingUrl: `${env.NEXT_PUBLIC_APP_URL}/conta`,
 });
+/**
+ * Assinatura, teste de 7 dias e tolerância com o pagamento atrasado, numa resposta só. Quem libera
+ * os recursos é `unlocked`; `subscribed` diz se há assinatura (as telas de cobrança leem ele).
+ */
 export async function getAccess(userId: string) {
-  const subscription = await entitlement(userId);
+  const [ativa, atrasada, inicio] = await Promise.all([
+    entitlement(userId),
+    pastDueSubscription(userId),
+    inicioDoTeste(userId),
+  ]);
+  const tolerada = !ativa && atrasada && emTolerancia(atrasada.currentPeriodEnd) ? atrasada : null;
+  const subscription = ativa ?? tolerada;
   const product = products.find((p) => p.id === subscription?.productId);
+  const subscribed = !!subscription && !!product;
+  const teste = estadoDoTeste(inicio);
+  const trial = { ...teste, active: teste.active && !subscribed };
   return {
-    paid: !!subscription && !!product,
-    profileLimit: product ? planProfileLimit(product) : 1,
+    subscribed,
+    unlocked: subscribed || trial.active,
+    trial,
+    /** pagamento atrasado, ainda liberado pela tolerância */
+    pagamentoAtrasado: !!tolerada,
+    profileLimit: product ? planProfileLimit(product) : trial.active ? TRIAL_PROFILE_LIMIT : 1,
     subscription,
     tier: product?.tier ?? "free",
   };
@@ -161,6 +182,9 @@ export async function reactivate(userId: string) {
       "Não há alteração agendada.",
     );
     await billing.reactivateSubscription({ subscriptionId: current.id, actorId: userId });
+    // A escolha de perfis feita para o plano menor deixa de valer: sem isso ela ficava gravada e
+    // apagava perfis num cancelamento futuro qualquer.
+    await enableAllProfiles(userId);
   });
 }
 export async function closeBillingAndFamily(userId: string, removeData: () => Promise<void>) {

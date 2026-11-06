@@ -1,3 +1,4 @@
+import type { Cadence } from "../body/cadence";
 import type { Landmark } from "../body/landmarks";
 
 export type Part = "shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle" | "toe";
@@ -15,15 +16,28 @@ const IDX: Record<Part, [number, number]> = {
  * Medida extraída dos pontos do corpo.
  * angle: ângulo interno na articulação do meio (graus), combinando os dois lados.
  * incline: inclinação do segmento em relação à vertical (0 = em pé, 90 = deitado).
+ * spread: afastamento lateral (eixo x) entre os pontos esquerdo e direito de `part`
+ *   dividido pelo mesmo afastamento de `ref` (1 = mesma largura). Joelhos sobre
+ *   tornozelos mostra joelho caindo para dentro; tornozelos sobre quadril mostra
+ *   pernas abertas. Por ser uma razão, não depende do tamanho da pessoa.
  */
 export type Metric =
   | { kind: "angle"; at: [Part, Part, Part]; combine?: "visible" | "avg" | "min" | "max" }
-  | { kind: "incline"; from: Part; to: Part };
+  | { kind: "incline"; from: Part; to: Part }
+  | { kind: "spread"; part: Part; ref: Part };
 
 export interface Check {
   metric: Metric;
   min?: number;
   max?: number;
+  /**
+   * Quando a verificação vale (padrão "always"). "always": avisa se falhar em
+   * mais de 30% dos quadros do movimento. "peak": vale só o quadro de maior
+   * progresso da repetição, para o que só acontece no fundo (pernas abertas no
+   * polichinelo).
+   */
+  at?: "always" | "peak";
+  /** frase curta, falada em voz alta depois da repetição */
   cue: string;
 }
 
@@ -50,7 +64,15 @@ export interface HoldRule {
   conditions: Check[];
 }
 
-export type CountRule = RepRule | HoldRule;
+/**
+ * Só cronômetro: alongamentos da volta à calma. A câmera não conta nada, a série não vira
+ * registro, e o exercício fica fora da prática, dos desafios e das trilhas.
+ */
+export interface TimedRule {
+  kind: "timed";
+}
+
+export type CountRule = RepRule | HoldRule | TimedRule;
 
 export interface RepEvent {
   type: "rep" | "partial";
@@ -72,6 +94,14 @@ const MOVING_VIS = 0.3;
 /** Progresso que inicia uma repetição e progresso que a encerra (histerese). */
 const START_AT = 0.12;
 const END_AT = 0.04;
+/**
+ * Perda curta do rastreamento (braço passando na frente do corpo, borrão de
+ * movimento) não desfaz a repetição em andamento. Acima disso a contagem
+ * recomeça do topo.
+ */
+const LOST_TOLERANCE_MS = 500;
+/** Afastamento mínimo da referência (m) para a razão de `spread` fazer sentido. */
+const MIN_SPREAD_REF = 0.04;
 
 function angle(a: Landmark, b: Landmark, c: Landmark) {
   const ux = a.x - b.x,
@@ -107,6 +137,16 @@ export function evalMetric(
   lm: Landmark[],
   minVis = MIN_VIS,
 ): { value: number; conf: number } | null {
+  if (m.kind === "spread") {
+    // precisa dos dois lados: um lado só não tem afastamento
+    const pts = [...IDX[m.part], ...IDX[m.ref]].map((i) => lm[i]);
+    const [pl, pr, rl, rr] = pts;
+    const conf = Math.min(...pts.map(vis));
+    if (!pl || !pr || !rl || !rr || conf < minVis) return null;
+    const ref = Math.abs(rl.x - rr.x);
+    if (ref < MIN_SPREAD_REF) return null;
+    return { value: Math.abs(pl.x - pr.x) / ref, conf };
+  }
   if (m.kind === "incline") {
     const ok = SIDES.flatMap((s) => {
       const a = lm[IDX[m.from][s]];
@@ -138,6 +178,7 @@ export function evalMetric(
   return { value: (first.value + second.value) / 2, conf };
 }
 
+/** Verificação de forma num quadro; ponto invisível não reprova. */
 const passes = (c: Check, lm: Landmark[]) => {
   const r = evalMetric(c.metric, lm);
   if (!r) return true;
@@ -195,6 +236,23 @@ export interface RepUpdate {
  * que dura poucos quadros, e a mediana descarta um quadro isolado fora da
  * curva.
  */
+export interface RepCounterOptions {
+  /**
+   * Duração mínima (ms) de uma repetição ou parcial. Abaixo disso o movimento
+   * é tratado como ruído (um tremor do detector até o fundo e de volta) e não
+   * gera evento. Padrão 0; use `minRepMsFor(cadência)`.
+   */
+  minRepMs?: number;
+}
+
+/**
+ * Duração mínima de uma repetição para a cadência do exercício: 38% da descida
+ * mais a subida. Quem acelera bastante ainda conta; um pico de dois quadros não.
+ */
+export function minRepMsFor(c: Cadence) {
+  return Math.round(0.38 * (c.down + c.up) * 1000);
+}
+
 export class RepCounter {
   private filter = new OneEuro();
   private state: "waiting" | "top" | "moving" = "waiting";
@@ -202,16 +260,28 @@ export class RepCounter {
   private maxP = 0;
   private frames = 0;
   private fails = new Map<string, number>();
+  /** progresso bruto do quadro mais fundo da repetição e as verificações "peak" reprovadas nele */
+  private peakP = Number.NEGATIVE_INFINITY;
+  private peakFails = new Set<string>();
   private recent: number[] = [];
+  /** instante em que a medida sumiu (null enquanto visível) */
+  private lostAt: number | null = null;
+  private readonly minRepMs: number;
   progress = 0;
 
-  constructor(readonly rule: RepRule) {}
+  constructor(
+    readonly rule: RepRule,
+    opts: RepCounterOptions = {},
+  ) {
+    this.minRepMs = opts.minRepMs ?? 0;
+  }
 
   reset() {
     this.filter.reset();
     this.state = "waiting";
     this.progress = 0;
     this.recent = [];
+    this.lostAt = null;
   }
 
   /** Estado interno, lido pelo laboratório de calibração do playground. */
@@ -226,7 +296,9 @@ export class RepCounter {
   update(lm: Landmark[], tMs: number): RepUpdate {
     const minVis = this.state === "moving" ? MOVING_VIS : MIN_VIS;
     const r = evalMetric(this.rule.metric, lm, minVis);
-    if (!r)
+    if (!r) {
+      this.lostAt ??= tMs;
+      if (tMs - this.lostAt > LOST_TOLERANCE_MS) this.reset();
       return {
         progress: this.progress,
         conf: 0,
@@ -234,9 +306,12 @@ export class RepCounter {
         ready: this.state !== "waiting",
         events: [],
       };
+    }
+    this.lostAt = null;
     const value = this.filter.filter(r.value, tMs / 1000);
     const p = this.toProgress(value);
-    this.recent.push(this.toProgress(r.value));
+    const rawP = this.toProgress(r.value);
+    this.recent.push(rawP);
     if (this.recent.length > 3) this.recent.shift();
     const reached = median(this.recent);
     // a barra e o instrutor que acompanha chegam ao fundo quando a repetição já conta
@@ -252,18 +327,34 @@ export class RepCounter {
         this.maxP = Math.max(p, reached);
         this.frames = 0;
         this.fails.clear();
+        this.peakP = Number.NEGATIVE_INFINITY;
+        this.peakFails.clear();
       }
     } else {
       this.maxP = Math.max(this.maxP, p, reached);
       this.frames++;
-      for (const c of this.rule.checks ?? [])
-        if (!passes(c, lm)) this.fails.set(c.cue, (this.fails.get(c.cue) ?? 0) + 1);
+      const deepest = rawP > this.peakP;
+      if (deepest) {
+        this.peakP = rawP;
+        this.peakFails.clear();
+      }
+      for (const c of this.rule.checks ?? []) {
+        if (c.at === "peak") {
+          if (deepest && !passes(c, lm)) this.peakFails.add(c.cue);
+        } else if (!passes(c, lm)) this.fails.set(c.cue, (this.fails.get(c.cue) ?? 0) + 1);
+      }
       if (p <= END_AT) {
-        const issues = [...this.fails].filter(([, n]) => n > this.frames * 0.3).map(([cue]) => cue);
+        const issues = [
+          ...[...this.fails].filter(([, n]) => n > this.frames * 0.3).map(([cue]) => cue),
+          ...this.peakFails,
+        ];
         const base = { at: tMs, duration: tMs - this.startT, depth: this.maxP };
-        if (this.maxP >= (this.rule.full ?? 0.85)) events.push({ type: "rep", ...base, issues });
-        else if (this.maxP >= (this.rule.partial ?? 0.45))
-          events.push({ type: "partial", ...base, issues });
+        // rápido demais para ser gente: tremor do detector, não repetição
+        if (base.duration >= this.minRepMs) {
+          if (this.maxP >= (this.rule.full ?? 0.85)) events.push({ type: "rep", ...base, issues });
+          else if (this.maxP >= (this.rule.partial ?? 0.45))
+            events.push({ type: "partial", ...base, issues });
+        }
         this.state = "top";
       }
     }

@@ -26,6 +26,9 @@ export interface Exercise {
   alternating?: boolean;
 }
 
+/** Conta repetição ou tempo na posição (os alongamentos da volta à calma são só cronômetro). */
+export const contavel = (e: Exercise) => e.rule.kind !== "timed";
+
 const line: Metric = { kind: "angle", at: ["shoulder", "hip", "ankle"] };
 const lying: Metric = { kind: "incline", from: "hip", to: "shoulder" };
 
@@ -42,6 +45,14 @@ export const EXERCISES: Exercise[] = [
       metric: { kind: "angle", at: ["hip", "knee", "ankle"], combine: "avg" },
       rest: 150,
       peak: 95,
+      // instrutor: joelhos/tornozelos de 0,93 (em pé) a 1,29 (fundo)
+      checks: [
+        {
+          metric: { kind: "spread", part: "knee", ref: "ankle" },
+          min: 0.8,
+          cue: "Joelhos para fora, na linha dos pés",
+        },
+      ],
     },
     cameraHint: "Câmera de frente ou na diagonal, corpo inteiro visível",
     muscles: ["Quadríceps", "Glúteos", "Posterior de coxa"],
@@ -61,6 +72,13 @@ export const EXERCISES: Exercise[] = [
       metric: { kind: "angle", at: ["hip", "knee", "ankle"], combine: "avg" },
       rest: 145,
       peak: 95,
+      checks: [
+        {
+          metric: { kind: "incline", from: "hip", to: "shoulder" },
+          max: 25,
+          cue: "Tronco reto, olhe para frente",
+        },
+      ],
     },
     cameraHint: "Câmera de lado, corpo inteiro visível",
     muscles: ["Quadríceps", "Glúteos"],
@@ -146,6 +164,15 @@ export const EXERCISES: Exercise[] = [
       metric: { kind: "angle", at: ["hip", "shoulder", "wrist"], combine: "avg" },
       rest: 45,
       peak: 140,
+      // instrutor: tornozelos/quadril 1,0 juntos e 3,4 abertos
+      checks: [
+        {
+          metric: { kind: "spread", part: "ankle", ref: "hip" },
+          min: 1.8,
+          at: "peak",
+          cue: "Abra as pernas também",
+        },
+      ],
     },
     cameraHint: "Câmera de frente, corpo inteiro e braços visíveis",
     muscles: ["Cardio", "Ombros", "Panturrilhas"],
@@ -300,6 +327,13 @@ export const EXERCISES: Exercise[] = [
       metric: { kind: "angle", at: ["hip", "knee", "ankle"], combine: "avg" },
       rest: 145,
       peak: 95,
+      checks: [
+        {
+          metric: { kind: "incline", from: "hip", to: "shoulder" },
+          max: 25,
+          cue: "Tronco reto, olhe para frente",
+        },
+      ],
     },
     cameraHint: "Câmera de lado, corpo inteiro visível",
     muscles: ["Glúteos", "Quadríceps", "Posterior de coxa"],
@@ -471,6 +505,63 @@ export const EXERCISES: Exercise[] = [
     muscles: ["Glúteos", "Posterior de coxa", "Core"],
     highlight: ["glutes", "core"],
     mistakes: ["Quadril inclinando para o lado", "Perna estendida caindo"],
+    equipment: "chão",
+  },
+  // Volta à calma: alongamentos só de cronômetro (regra `timed`), sem câmera e sem registro.
+  {
+    id: "alongamento-quadriceps",
+    name: "Alongamento de quadríceps",
+    cue: "Calcanhar no glúteo, joelhos juntos. Troque de perna na metade",
+    pose: "quadStretch",
+    view: "side",
+    cadence: { down: 1, bottom: 0, up: 1, top: 0 },
+    rule: { kind: "timed" },
+    cameraHint: "Só o cronômetro: a câmera descansa",
+    muscles: ["Quadríceps"],
+    highlight: ["legs"],
+    mistakes: ["Joelho de apoio travado", "Puxar com força até doer"],
+    equipment: "chão",
+  },
+  {
+    id: "alongamento-posterior",
+    name: "Alongamento de posterior",
+    cue: "Sentado, pernas esticadas, leve o peito na direção dos pés",
+    pose: "hamstringStretch",
+    view: "side",
+    cadence: { down: 1, bottom: 0, up: 1, top: 0 },
+    rule: { kind: "timed" },
+    cameraHint: "Só o cronômetro: a câmera descansa",
+    muscles: ["Posterior de coxa", "Lombar"],
+    highlight: ["legs"],
+    mistakes: ["Dar trancos para descer mais", "Prender a respiração"],
+    equipment: "chão",
+  },
+  {
+    id: "alongamento-peitoral",
+    name: "Alongamento de peitoral",
+    cue: "Mãos unidas atrás, braços esticados, abra o peito",
+    pose: "chestStretch",
+    view: "three4",
+    cadence: { down: 1, bottom: 0, up: 1, top: 0 },
+    rule: { kind: "timed" },
+    cameraHint: "Só o cronômetro: a câmera descansa",
+    muscles: ["Peitoral", "Ombros"],
+    highlight: ["chest", "shoulders"],
+    mistakes: ["Arquear a lombar", "Subir os ombros"],
+    equipment: "chão",
+  },
+  {
+    id: "postura-da-crianca",
+    name: "Postura da criança",
+    cue: "Sente nos calcanhares, braços à frente, respire fundo",
+    pose: "childPose",
+    view: "side",
+    cadence: { down: 1, bottom: 0, up: 1, top: 0 },
+    rule: { kind: "timed" },
+    cameraHint: "Só o cronômetro: a câmera descansa",
+    muscles: ["Lombar", "Quadril", "Ombros"],
+    highlight: ["core"],
+    mistakes: ["Forçar os joelhos se doer: afaste-os"],
     equipment: "chão",
   },
 ];

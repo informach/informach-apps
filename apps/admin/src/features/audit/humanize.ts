@@ -337,6 +337,7 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
     t("Gerou um código para usar o celular como câmera no Bora Treinar"),
   ],
   "bora.pairing_connected": () => [t("Conectou o celular como câmera no Bora Treinar")],
+  "bora.trial_started": () => [t("Começou o teste de 7 dias do Bora Treinar")],
 };
 
 function categoryText(ctx: Context): string {

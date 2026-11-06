@@ -138,7 +138,7 @@ export const PRODUCTS: readonly Product[] = [
     kind: "subscription",
     name: "Bora Treinar Individual",
     description:
-      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil.",
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e pela voz, celular como câmera da TV, níveis, editor de treinos e desafio da semana, para um perfil.",
     tier: "individual",
     interval: "month",
     stripePriceId: {
@@ -153,7 +153,7 @@ export const PRODUCTS: readonly Product[] = [
     kind: "subscription",
     name: "Bora Treinar Individual anual",
     description:
-      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil, por um ano.",
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e pela voz, celular como câmera da TV, níveis, editor de treinos e desafio da semana, para um perfil, por um ano.",
     tier: "individual",
     interval: "year",
     stripePriceId: {
