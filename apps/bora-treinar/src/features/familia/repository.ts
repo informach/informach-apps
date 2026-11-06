@@ -92,6 +92,15 @@ export async function deleteProfile(userId: string, id: string) {
   assertAllowed(deleted.length, "PROFILE", "Perfil não encontrado.");
 }
 
+/**
+ * Trava o perfil até o fim da transação. Quem lê e regrava o progresso (salvar um treino, aceitar
+ * um avanço) passa por aqui antes: dois envios ao mesmo tempo (a fila offline em duas abas, a TV e
+ * o celular) liam o mesmo progresso e um apagava a sequência do outro.
+ */
+export async function lockProfile(tx: Tx, profileId: string) {
+  await tx.execute(sql`SELECT id FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`);
+}
+
 export async function progressOf(profileId: string, tx: Tx | typeof db = db): Promise<ProgressMap> {
   const rows = await tx
     .select()
@@ -125,6 +134,22 @@ export async function saveProgress(profileId: string, progress: ProgressMap, tx:
     });
 }
 
+/**
+ * Grava o fuso da família. Com `soSePadrao`, só troca se ele ainda for o padrão (o primeiro
+ * perfil traz o fuso do navegador, mas não desfaz uma escolha feita em Conta).
+ */
+export async function setTimezone(userId: string, fuso: string, soSePadrao = false) {
+  await ensureFamily(userId);
+  await db
+    .update(boraFamilies)
+    .set({ timezone: fuso })
+    .where(
+      soSePadrao
+        ? and(eq(boraFamilies.userId, userId), eq(boraFamilies.timezone, "America/Sao_Paulo"))
+        : eq(boraFamilies.userId, userId),
+    );
+}
+
 const CATEGORIAS = ["bora.reminder", "bora.weekly-summary"] as const;
 
 /**
@@ -134,7 +159,7 @@ const CATEGORIAS = ["bora.reminder", "bora.weekly-summary"] as const;
  */
 export async function setPreferences(
   userId: string,
-  prefs: { reminderDays: number; reminderHour: number; weeklySummary: boolean },
+  prefs: { reminderDays: number; reminderHour: number; weeklySummary: boolean; timezone?: string },
 ) {
   await db.transaction(async (tx) => {
     await ensureFamily(userId, tx);

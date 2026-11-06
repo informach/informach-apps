@@ -48,16 +48,19 @@ export function HomeScreen({
   progress,
   workouts,
   paid,
+  fuso,
 }: {
   profile: { name: string; color: string };
   sessions: (SessionLike & { workoutRef: string })[];
   progress: ProgressMap;
   workouts: WorkoutCard[];
   paid: boolean;
+  /** fuso da família: sem ele, servidor e navegador contavam a semana em relógios diferentes */
+  fuso: string;
 }) {
   const rec = recommend(sessions, workouts);
-  const week = weeklyReps(sessions, 1)[0] ?? { reps: 0, minutes: 0 };
-  const streak = streakDays(sessions);
+  const week = weeklyReps(sessions, 1, Date.now(), fuso)[0] ?? { reps: 0, minutes: 0 };
+  const streak = streakDays(sessions, Date.now(), fuso);
   const firstName = profile.name.split(" ")[0];
   const mine = workouts.filter((w) => w.ref.startsWith("meu:"));
   const catalog = workouts.filter((w) => w.ref.startsWith("catalogo:"));

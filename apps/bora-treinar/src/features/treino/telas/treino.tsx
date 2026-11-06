@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Hand, Lock, Play, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { voltar } from "@/lib/voltar";
 import { exerciseById } from "../catalog/catalog";
 import {
   type Block,
@@ -96,7 +97,7 @@ export function WorkoutScreen({
         <button
           type="button"
           className="icon-btn"
-          onClick={() => router.back()}
+          onClick={() => voltar(router, "/inicio")}
           aria-label="Voltar"
         >
           <ArrowLeft size={20} />

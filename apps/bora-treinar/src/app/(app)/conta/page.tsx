@@ -13,6 +13,7 @@ import {
 import { unsubscribedCategories } from "@/features/familia/repository";
 import { currentTrainer } from "@/features/familia/view";
 import { getSession } from "@/lib/auth";
+import { FUSO_PADRAO } from "@/lib/datas";
 
 export const metadata = { title: "Conta e plano" };
 
@@ -204,6 +205,7 @@ export default async function Conta({
             !descadastros.has("bora.weekly-summary") && (family?.weeklySummary ?? false)
           }
           email={user.email}
+          timezone={family?.timezone ?? FUSO_PADRAO}
         />
 
         <div className="section-title">

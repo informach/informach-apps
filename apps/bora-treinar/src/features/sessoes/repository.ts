@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, db, desc, eq, gte, inArray, lt } from "@informach/db";
+import { and, asc, db, desc, eq, gte, inArray, lt, sql } from "@informach/db";
 import { boraAchievements, boraSessions, boraSetLogs } from "@informach/db/schema";
 import type { SetLog } from "@/features/treino/engine/runner";
 import type { Tx } from "../familia/repository";
@@ -72,6 +72,32 @@ export async function sessionsOf(
     .orderBy(desc(boraSessions.startedAt))
     .limit(opts.limit ?? 2000);
   return (await withLogs(rows, tx)).reverse();
+}
+
+/**
+ * O resumo de cada treino do perfil (quando, modo, repetições, maior isometria), somado no banco.
+ * As conquistas precisam do histórico inteiro, mas não das séries: carregar até 2000 sessões com
+ * todas as séries dentro da transação de cada treino salvo deixava o save cada vez mais lento.
+ */
+export async function resumosDoPerfil(profileId: string, tx: Tx | typeof db = db) {
+  const rows = await tx
+    .select({
+      startedAt: boraSessions.startedAt,
+      mode: boraSessions.mode,
+      reps: sql<number>`coalesce(sum(${boraSetLogs.reps}), 0)::int`,
+      bestHold: sql<number>`coalesce(max(${boraSetLogs.holdSeconds}), 0)::int`,
+    })
+    .from(boraSessions)
+    .leftJoin(boraSetLogs, eq(boraSetLogs.sessionId, boraSessions.id))
+    .where(eq(boraSessions.profileId, profileId))
+    .groupBy(boraSessions.id)
+    .orderBy(asc(boraSessions.startedAt));
+  return rows.map((r) => ({
+    startedAt: r.startedAt.getTime(),
+    mode: r.mode as SessionRecord["mode"],
+    reps: Number(r.reps),
+    bestHold: Number(r.bestHold),
+  }));
 }
 
 /** Sessões de toda a família desde um instante (desafios e resumo semanal). */

@@ -22,7 +22,7 @@ import { Avatar, fmtTime } from "@/components/avatar";
 import type { EventoCelular } from "@/features/pareamento/protocolo";
 import { usePareamentoTv } from "@/features/pareamento/use-pareamento-tv";
 import { saveSessionAction } from "@/features/sessoes/actions";
-import { guardarPendente } from "@/features/sessoes/fila";
+import { GUARDAR_NA_FILA, guardarPendente } from "@/features/sessoes/fila";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { useAjustes } from "../ajustes";
 import { cadenceLabel } from "../body/cadence";
@@ -40,13 +40,25 @@ import {
   setSpeechMuted,
   unlockAudio,
 } from "../engine/voice";
-import { contagemPelaVoz, OuvinteDeVoz, vozDisponivel } from "../engine/voz";
+import {
+  contagemPelaVoz,
+  type Dito,
+  type FalhaVoz,
+  JuntaContagem,
+  OuvinteDeVoz,
+  pedirMicrofone,
+  vozDisponivel,
+} from "../engine/voz";
 import { Instructor3D } from "../instructor/instructor-3d";
 import type { InstructorMode } from "../instructor/instructor-scene";
+import { ajudaDaCamera, ajudaDaVoz, navegadorDe } from "../permissoes";
 import { type PoseFrame, PoseTracker } from "../vision/pose-tracker";
+import { presenca } from "../vision/presenca";
 import type { CountMode } from "./treino";
 
-type CamStatus = { state: "off" | "loading" | "on" } | { state: "error"; message: string };
+type CamStatus =
+  | { state: "off" | "loading" | "on" }
+  | { state: "error"; message: string; negada?: boolean };
 
 const VIEWS: [View, string][] = [
   ["front", "Frente"],
@@ -99,6 +111,8 @@ export interface PlayerProps {
   workoutName: string;
   mode: CountMode;
   levels: LevelMap;
+  /** Para onde "Sair sem salvar" leva. Padrão: a tela do treino (ou do exercício praticado). */
+  saidaHref?: string;
   /**
    * Entrega o treino concluído a quem chamou em vez de salvar no servidor.
    * Só o playground de desenvolvimento usa: lá não há conta nem banco.
@@ -112,20 +126,28 @@ export function PlayerScreen({
   practiceExerciseId,
   workoutRef,
   workoutName,
-  mode,
+  mode: modoInicial,
   levels,
+  saidaHref,
   onFinish,
 }: PlayerProps) {
   const router = useRouter();
   const [settings, setSettings, ajustesCarregados] = useAjustes();
-  // o treino é montado uma vez por entrada no player
-  const runner = useMemo(
+  // O treino é montado uma vez por entrada no player. Não depende da identidade das props: um
+  // refresh do servidor (a fila offline salvando outro treino) mandava objetos novos e recriava o
+  // executor, zerando o treino no meio. Outro treino é outra montagem (a página usa `key`).
+  const [runner] = useState(
     () =>
       new WorkoutRunner(
         workout ? buildSteps(workout, levels) : practiceSteps(practiceExerciseId ?? "agachamento"),
       ),
-    [workout, levels, practiceExerciseId],
   );
+  const [mode, setMode] = useState<CountMode>(modoInicial);
+  const saida =
+    saidaHref ??
+    (workout
+      ? `/treino?ref=${encodeURIComponent(workoutRef)}`
+      : `/exercicios/${practiceExerciseId ?? ""}`);
   const [, render] = useReducer((x: number) => x + 1, 0);
   const [toast, setToast] = useState<{ text: string; good?: boolean } | null>(null);
   const [pop, setPop] = useState(0);
@@ -136,7 +158,16 @@ export function PlayerScreen({
   const [ouvindo, setOuvindo] = useState(false);
   const [ouvido, setOuvido] = useState("");
   const [pedindoVoz, setPedindoVoz] = useState(false);
-  const [microfoneBloqueado, setMicrofoneBloqueado] = useState(false);
+  /** por que a voz não ligou, para o aviso dizer o caminho certo neste navegador */
+  const [falhaVoz, setFalhaVoz] = useState<FalhaVoz | null>(null);
+  /** câmera e voz juntas não contam duas vezes a mesma repetição */
+  const junta = useRef(new JuntaContagem());
+  const [nadaParaSalvar, setNadaParaSalvar] = useState(false);
+  /** 3-2-1 antes de retomar uma pausa */
+  const [retomando, setRetomando] = useState(0);
+  const [camTentativa, setCamTentativa] = useState(0);
+  /** o celular pareado está ouvindo a voz: a TV não fala os números */
+  const [celularOuvindo, setCelularOuvindo] = useState(false);
   const decidiuVoz = useRef(false);
   const pausouParaVoz = useRef(false);
   const ouvinte = useRef<OuvinteDeVoz | null>(null);
@@ -176,11 +207,12 @@ export function PlayerScreen({
       if (e.tipo === "sinal") {
         setConf(Math.round(e.confianca * 10) / 10);
         if (followRef.current) setFollow(Math.round(e.progresso * 50) / 50);
+        setCelularOuvindo(!!e.ouvindo);
         return;
       }
       if (e.passo !== runner.index || runner.paused || runner.done) return;
       if (e.tipo === "rep") {
-        runner.addRep(1, e.issues);
+        if (junta.current.camera(performance.now())) runner.addRep(1, e.issues);
         if (e.issues[0]) flash(e.issues[0]);
       } else if (e.tipo === "parcial") {
         runner.addPartial(e.issues);
@@ -199,7 +231,8 @@ export function PlayerScreen({
     saving.current = true;
     const logs = runner.logs.filter((l) => l.reps > 0 || l.holdSeconds > 0);
     if (!logs.length) {
-      router.back();
+      // nada feito: diz isso e deixa escolher, em vez de voltar calado
+      setNadaParaSalvar(true);
       return;
     }
     const duration = Math.max(1, Math.round(runner.totalElapsed));
@@ -207,7 +240,8 @@ export function PlayerScreen({
       id: crypto.randomUUID(),
       profileId: profile.id,
       workoutRef,
-      startedAt: Date.now() - duration * 1000,
+      // o início de verdade, marcado no start (descontar a duração errava quando havia pausa)
+      startedAt: runner.startedWallAt || Date.now() - duration * 1000,
       durationSeconds: duration,
       mode: camOn.current ? (mode === "pareado" ? "pareado" : "camera") : "manual",
       logs: logs.map((l) => ({ ...l, holdSeconds: Math.round(l.holdSeconds) })),
@@ -224,8 +258,12 @@ export function PlayerScreen({
         router.replace(`/resumo/${result.data.sessionId}`);
         return;
       }
-      setSaveError(result.error);
-      if (result.code === "UNEXPECTED") await guardarPendente(input);
+      // Recusas que podem mudar (plano, perfil, login) ficam guardadas no aparelho, com o motivo:
+      // antes só o erro inesperado ficava, e um treino feito com o plano vencendo se perdia.
+      if (GUARDAR_NA_FILA.has(result.code)) {
+        await guardarPendente(input, result.code === "UNEXPECTED" ? undefined : result.code);
+        setSaveError(`${result.error} O treino ficou guardado neste aparelho.`);
+      } else setSaveError(result.error);
     } catch {
       // sem rede: guarda no aparelho e salva quando a conexão voltar
       await guardarPendente(input);
@@ -247,13 +285,17 @@ export function PlayerScreen({
           if (s.kind !== "rest") beep("go");
         }
         counters.current = null;
+        junta.current.zerar();
         setView(undefined);
         if (!camOn.current) runner.setHolding(true);
       } else if (e.type === "rep") {
-        setPop((p) => p + 1);
-        beep("rep");
-        if (countAloud.current && e.count > 0)
-          say(numberWord(e.count), { interrupt: true, rate: 1.25 });
+        // a correção (−1) atualiza a tela, sem bipe, sem número falado e sem comemorar
+        if (e.delta > 0) {
+          setPop((p) => p + 1);
+          beep("rep");
+          if (countAloud.current && e.count > 0)
+            say(numberWord(e.count), { interrupt: true, rate: 1.25 });
+        }
         if (
           e.target &&
           e.count === e.target &&
@@ -274,6 +316,40 @@ export function PlayerScreen({
       off();
     };
   }, [runner, flash]);
+
+  // Aba escondida (outro app, tela bloqueada) pausa o treino: o cronômetro seguia correndo e o
+  // descanso acabava sem ninguém ver. A volta é com 3-2-1.
+  useEffect(() => {
+    const aoMudar = () => {
+      if (document.hidden && !runner.done && !runner.paused) {
+        runner.pause();
+        setRetomando(0);
+        render();
+      }
+    };
+    document.addEventListener("visibilitychange", aoMudar);
+    return () => document.removeEventListener("visibilitychange", aoMudar);
+  }, [runner]);
+
+  /** Retoma a pausa com 3-2-1, para dar tempo de voltar à posição. */
+  const retomar = useCallback(() => {
+    if (!runner.paused || runner.done) return;
+    setRetomando(3);
+  }, [runner]);
+  useEffect(() => {
+    if (!retomando) return;
+    beep("tick");
+    say(numberWord(retomando), { interrupt: true });
+    const t = window.setTimeout(() => {
+      if (retomando === 1) {
+        runner.resume();
+        beep("go");
+        setRetomando(0);
+        render();
+      } else setRetomando(retomando - 1);
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [retomando, runner]);
 
   // relógio da interface: tick do executor a cada quadro, redesenho ~8x por segundo
   useEffect(() => {
@@ -312,6 +388,7 @@ export function PlayerScreen({
       navigator.wakeLock
         ?.request("screen")
         .then((l) => {
+          void lock?.release().catch(() => undefined);
           lock = l;
         })
         .catch(() => undefined);
@@ -327,6 +404,7 @@ export function PlayerScreen({
   }, []);
 
   // câmera + detecção de pose + contador, tudo no aparelho
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `camTentativa` religa a câmera de propósito ("Tentar de novo")
   useEffect(() => {
     if (mode !== "camera") return;
     const tracker = new PoseTracker();
@@ -364,7 +442,11 @@ export function PlayerScreen({
       }
       const exId = runner.exerciseId;
       const s = runner.step;
-      if (!exId || !s || s.kind === "rest" || runner.paused || runner.done) return;
+      if (!exId || !s || s.kind === "rest" || runner.paused || runner.done) {
+        // no preparo, no descanso e na pausa o selo segue a pessoa (antes ficava parado)
+        setConf(Math.round(presenca(f.image) * 10) / 10);
+        return;
+      }
       const key = `${runner.index}:${exId}`;
       if (counters.current?.key !== key) {
         const rule = exerciseById(exId).rule;
@@ -382,7 +464,7 @@ export function PlayerScreen({
         if (followRef.current) setFollow(Math.round(u.progress * 50) / 50);
         for (const ev of u.events) {
           if (ev.type === "rep") {
-            runner.addRep(1, ev.issues);
+            if (junta.current.camera(performance.now())) runner.addRep(1, ev.issues);
             if (ev.issues[0]) flash(ev.issues[0]);
           } else {
             runner.addPartial(ev.issues);
@@ -399,6 +481,11 @@ export function PlayerScreen({
       }
     };
     const off = tracker.on(onFrame);
+    tracker.aoParar(() => {
+      if (!alive) return;
+      setCam({ state: "error", message: "A câmera parou." });
+      runner.setHolding(true);
+    });
     tracker
       .start()
       .then(() => {
@@ -413,7 +500,8 @@ export function PlayerScreen({
         const denied = err.name === "NotAllowedError";
         setCam({
           state: "error",
-          message: denied ? "Permissão da câmera negada" : err.message || "Câmera indisponível",
+          message: denied ? "A câmera foi bloqueada" : err.message || "Câmera indisponível",
+          negada: denied,
         });
         runner.setHolding(true);
       });
@@ -424,7 +512,7 @@ export function PlayerScreen({
       tracker.video.remove();
       camOn.current = false;
     };
-  }, [mode, runner, flash]);
+  }, [mode, runner, flash, camTentativa]);
 
   // atalhos: espaço = +1, P = pausa; Voltar/Esc pergunta antes de sair
   useEffect(() => {
@@ -444,20 +532,21 @@ export function PlayerScreen({
         e.preventDefault();
         runner.addRep(1);
       } else if (e.key === "p" || e.key === "P" || e.key === "MediaPlayPause") {
-        if (runner.paused) runner.resume();
+        if (runner.paused) retomar();
         else runner.pause();
         render();
       }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [runner, quitting]);
+  }, [runner, quitting, retomar]);
 
   // Contagem pela voz. O ouvinte entrega só números novos; a contagem só avança (contagemPelaVoz)
   // e segue as regras das repetições: nada em descanso, isometria, pausa ou depois do fim.
-  useEffect(() => setVozSuportada(mode === "manual" && vozDisponivel()), [mode]);
+  // a voz vale em qualquer modo: sozinha no manual, e completando a câmera quando ela perde
+  useEffect(() => setVozSuportada(vozDisponivel()), []);
   const aoOuvirVoz = useCallback(
-    (novos: number[], texto: string) => {
+    (novos: Dito[], texto: string) => {
       setOuvido(texto.trim().split(/\s+/).slice(-3).join(" "));
       const st = runner.step;
       if (
@@ -471,6 +560,7 @@ export function PlayerScreen({
         return;
       const atual = st.kind === "amrap" ? runner.amrapItemReps : runner.reps;
       const alvo = contagemPelaVoz(atual, novos);
+      if (alvo > atual) junta.current.voz(atual, alvo, performance.now());
       for (let i = atual; i < alvo; i++) runner.addRep(1);
     },
     [runner],
@@ -494,51 +584,56 @@ export function PlayerScreen({
     setPedindoVoz(false);
     if (pausouParaVoz.current) {
       pausouParaVoz.current = false;
-      runner.resume();
+      retomar();
     }
-  }, [runner]);
-  const ligarVoz = useCallback(() => {
-    const o = new OuvinteDeVoz(aoOuvirVoz, (falha) => {
+  }, [retomar]);
+  /** A voz não ligou: o aviso diz por quê e o caminho certo neste navegador. */
+  const mostrarFalhaVoz = useCallback(
+    (falha: FalhaVoz) => {
       pararVoz();
-      if (falha === "negado") {
-        // bloqueado pelo navegador, ou o navegador quer um toque antes: o aviso explica e tenta de novo
-        void microfoneNegado().then((negado) => {
-          setMicrofoneBloqueado(negado);
-          perguntarVoz();
-        });
-        return;
-      }
-      flash(
-        falha === "sem-rede"
-          ? "A contagem pela voz precisa de internet"
-          : "Este navegador não reconhece voz",
-      );
-    });
+      setFalhaVoz(falha);
+      perguntarVoz();
+    },
+    [pararVoz, perguntarVoz],
+  );
+  /**
+   * Liga a voz. Primeiro pede o microfone com getUserMedia, ainda dentro do toque (o pedido que
+   * todo navegador mostra); só depois abre o reconhecimento. Antes, ligar direto o reconhecimento
+   * falhava calado em vários navegadores e o aviso mandava "liberar" sem dizer onde.
+   */
+  const ligarVoz = useCallback(async () => {
+    const pedido = await pedirMicrofone();
+    if (pedido !== "ok") return mostrarFalhaVoz(pedido);
+    setFalhaVoz(null);
+    const o = new OuvinteDeVoz(aoOuvirVoz, mostrarFalhaVoz);
     ouvinte.current = o;
     // a voz do app e a música calam: o microfone as ouviria e contaria errado
     setSpeechMuted(true);
     setOuvindo(true);
     o.ligar();
-  }, [aoOuvirVoz, pararVoz, flash, perguntarVoz]);
+  }, [aoOuvirVoz, mostrarFalhaVoz]);
   // ligar ou desligar pelo botão vira a escolha para os próximos treinos
   const alternarVoz = () => {
     if (ouvindo) {
       pararVoz();
       setSettings({ vozAoIniciar: false });
-    } else if (!settings.vozAceita || microfoneBloqueado) perguntarVoz();
+    } else if (!settings.vozAceita || falhaVoz) perguntarVoz();
     else {
       setSettings({ vozAoIniciar: true });
-      ligarVoz();
+      void ligarVoz();
     }
   };
   // Ao abrir o treino no modo manual: pergunta uma vez; depois liga sozinho ou não pergunta mais.
+  // Com a câmera, a voz é escolha do botão do microfone (e fica lembrada do mesmo jeito).
   useEffect(() => {
     if (!ajustesCarregados || !vozSuportada || decidiuVoz.current) return;
     decidiuVoz.current = true;
     void microfoneNegado().then((negado) => {
-      setMicrofoneBloqueado(negado);
-      if (settings.vozAoIniciar === null || (settings.vozAoIniciar && negado)) perguntarVoz();
-      else if (settings.vozAoIniciar && settings.vozAceita) ligarVoz();
+      if (negado) setFalhaVoz("negado");
+      const perguntar =
+        mode === "manual" && (settings.vozAoIniciar === null || (settings.vozAoIniciar && negado));
+      if (perguntar) perguntarVoz();
+      else if (settings.vozAoIniciar && settings.vozAceita && !negado) void ligarVoz();
     });
   }, [
     ajustesCarregados,
@@ -547,7 +642,13 @@ export function PlayerScreen({
     settings.vozAceita,
     ligarVoz,
     perguntarVoz,
+    mode,
   ]);
+  // o celular pareado ouvindo a voz: a TV não fala os números (o microfone dele os contaria)
+  useEffect(() => {
+    if (ouvindo) return;
+    setSpeechMuted(celularOuvindo);
+  }, [celularOuvindo, ouvindo]);
   useEffect(() => {
     if (runner.done) pararVoz();
   }, [runner.done, pararVoz]);
@@ -596,7 +697,43 @@ export function PlayerScreen({
         </div>
       </div>
     );
-  if (!s) return <div className="player" />;
+  if (nadaParaSalvar)
+    return (
+      <div className="player">
+        <div className="overlay-msg static">
+          <div>
+            <h2>Nada para salvar</h2>
+            <p className="muted">
+              Nenhuma série teve repetição ou tempo contado. Se a contagem não pegou, dá para contar
+              à mão ou pela voz.
+            </p>
+            <button
+              type="button"
+              className="btn primary big"
+              // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para a escolha
+              autoFocus
+              onClick={() => window.location.reload()}
+            >
+              Fazer de novo
+            </button>
+            <button type="button" className="btn ghost" onClick={() => router.replace(saida)}>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  if (!s)
+    return (
+      <div className="player">
+        <div className="overlay-msg static" role="status">
+          <div>
+            <h2>Salvando o treino…</h2>
+            <p className="muted">Só um instante.</p>
+          </div>
+        </div>
+      </div>
+    );
 
   const exId = s.kind === "rest" ? s.next : runner.exerciseId;
   const ex = exId ? exerciseById(exId) : undefined;
@@ -681,9 +818,11 @@ export function PlayerScreen({
         ? conf >= 0.75
           ? { dot: "", text: "Celular ok" }
           : { dot: "warn", text: "Ajuste o celular" }
-        : par.fase === "erro"
-          ? { dot: "off", text: par.erro ?? "Pareamento indisponível" }
-          : { dot: "warn", text: "Esperando o celular…" }
+        : par.fase === "desconectado"
+          ? { dot: "off", text: "Celular desconectado" }
+          : par.fase === "erro"
+            ? { dot: "off", text: par.erro ?? "Pareamento indisponível" }
+            : { dot: "warn", text: "Esperando o celular…" }
       : cam.state === "loading"
         ? null
         : cam.state === "error"
@@ -805,7 +944,7 @@ export function PlayerScreen({
               ) : (
                 <span />
               )}
-              {mode === "manual" && ouvindo && (
+              {ouvindo && (
                 <span className="pill voz-pill" role="status">
                   <span className="dot" />
                   {ouvido ? `Ouvi: “${ouvido}”` : "Ouvindo… diga o número"}
@@ -825,7 +964,9 @@ export function PlayerScreen({
               )}
               {mode === "pareado" && (
                 <div className="cam-pip pair-pip">
-                  {par.fase === "aguardando" && par.codigo && par.url ? (
+                  {(par.fase === "aguardando" || par.fase === "desconectado") &&
+                  par.codigo &&
+                  par.url ? (
                     <div className="pair-code">
                       <QrCode text={par.url} />
                       <div>
@@ -835,9 +976,17 @@ export function PlayerScreen({
                           digite
                         </span>
                         <span className="num code">{par.codigo}</span>
+                        <button type="button" className="link" onClick={par.novoCodigo}>
+                          Gerar outro código
+                        </button>
                       </div>
                     </div>
                   ) : null}
+                  {par.fase === "erro" && (
+                    <button type="button" className="btn ghost" onClick={par.novoCodigo}>
+                      Gerar outro código
+                    </button>
+                  )}
                   {badge && (
                     <span className="cam-badge">
                       <span className={`dot ${badge.dot}`} />
@@ -849,24 +998,63 @@ export function PlayerScreen({
             </div>
           </div>
           {toast && <div className={`toast ${toast.good ? "good" : ""}`}>{toast.text}</div>}
+          {mode === "camera" && cam.state === "error" && (
+            <div className="overlay-msg cam-falhou" role="alert">
+              <div>
+                <h2>{cam.message}</h2>
+                <p className="muted">
+                  {cam.negada
+                    ? ajudaDaCamera(navegadorDe(navigator.userAgent))
+                    : "Outro app pode estar usando a câmera, ou o aparelho a desligou. Dá para tentar de novo ou seguir contando à mão."}
+                </p>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      setCam({ state: "off" });
+                      setMode("manual");
+                      runner.setHolding(true);
+                    }}
+                  >
+                    Contar à mão
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      setCam({ state: "loading" });
+                      setCamTentativa((n) => n + 1);
+                    }}
+                  >
+                    Tentar de novo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {runner.paused && !quitting && !pedindoVoz && (
             <div className="overlay-msg">
-              <div>
-                <h2>Pausado</h2>
-                <button
-                  type="button"
-                  className="btn primary big"
-                  data-autofocus
-                  // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para Continuar
-                  autoFocus
-                  onClick={() => {
-                    runner.resume();
-                    render();
-                  }}
-                >
-                  <Play size={20} fill="currentColor" /> Continuar
-                </button>
-              </div>
+              {retomando ? (
+                <div role="status" aria-live="assertive">
+                  <span className="muted">Voltando em</span>
+                  <h2 className="num retomando">{retomando}</h2>
+                </div>
+              ) : (
+                <div>
+                  <h2>Pausado</h2>
+                  <button
+                    type="button"
+                    className="btn primary big"
+                    data-autofocus
+                    // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para Continuar
+                    autoFocus
+                    onClick={retomar}
+                  >
+                    <Play size={20} fill="currentColor" /> Continuar
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -885,7 +1073,9 @@ export function PlayerScreen({
               )}
             </div>
             <div className="big num">
-              <span className="value">{big}</span>
+              <span className="value" aria-live="polite">
+                {big}
+              </span>
               {of && <span className="of">{of}</span>}
             </div>
             {isRest ? (
@@ -958,7 +1148,7 @@ export function PlayerScreen({
               type="button"
               className="ctrl"
               onClick={() => {
-                if (runner.paused) runner.resume();
+                if (runner.paused) retomar();
                 else runner.pause();
                 render();
               }}
@@ -1009,12 +1199,14 @@ export function PlayerScreen({
       {pedindoVoz && (
         <div className="overlay-msg fixed" data-modal>
           <div>
-            <h2>{microfoneBloqueado ? "Microfone bloqueado" : "Contar pela voz"}</h2>
-            {microfoneBloqueado ? (
+            <h2>
+              {falhaVoz
+                ? ajudaDaVoz(falhaVoz, navegadorDe(navigator.userAgent)).titulo
+                : "Contar pela voz"}
+            </h2>
+            {falhaVoz ? (
               <p className="muted">
-                O navegador bloqueou o microfone para este site. No Chrome, toque no ícone ao lado
-                do endereço › Permissões › Microfone › Permitir. No Safari, toque em aA › Ajustes do
-                Site › Microfone › Permitir. Depois toque em Tentar de novo.
+                {ajudaDaVoz(falhaVoz, navegadorDe(navigator.userAgent)).texto}
               </p>
             ) : (
               <p className="muted">
@@ -1022,24 +1214,25 @@ export function PlayerScreen({
                 reconhecimento é feito pelo navegador: no Chrome o áudio vai para o Google e no
                 Safari para a Apple, só enquanto o microfone estiver ligado. O Bora Treinar não
                 grava nem guarda o áudio. Com o microfone ligado, a voz do app e a música ficam
-                caladas.
+                caladas.{mode !== "manual" ? " Com a câmera, a voz completa o que ela perder." : ""}
               </p>
             )}
-            <button
-              type="button"
-              className="btn primary big"
-              // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para a escolha
-              autoFocus
-              onClick={() => {
-                // o toque é o gesto que o navegador exige para mostrar o pedido de permissão
-                setSettings({ vozAceita: true, vozAoIniciar: true });
-                setMicrofoneBloqueado(false);
-                fecharPerguntaVoz();
-                ligarVoz();
-              }}
-            >
-              <Mic size={20} /> {microfoneBloqueado ? "Tentar de novo" : "Ligar o microfone"}
-            </button>
+            {falhaVoz !== "indisponivel" && (
+              <button
+                type="button"
+                className="btn primary big"
+                // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa ir para a escolha
+                autoFocus
+                onClick={() => {
+                  // o toque é o gesto que o navegador exige para mostrar o pedido de permissão
+                  setSettings({ vozAceita: true, vozAoIniciar: true });
+                  fecharPerguntaVoz();
+                  void ligarVoz();
+                }}
+              >
+                <Mic size={20} /> {falhaVoz ? "Tentar de novo" : "Ligar o microfone"}
+              </button>
+            )}
             <button
               type="button"
               className="btn ghost"
@@ -1066,17 +1259,18 @@ export function PlayerScreen({
               autoFocus
               onClick={() => {
                 setQuitting(false);
-                runner.resume();
+                retomar();
               }}
             >
               Continuar treinando
             </button>
-            {runner.logs.length > 0 && (
+            {/* a série em andamento também conta: antes o botão só aparecia com uma série fechada */}
+            {(runner.logs.length > 0 || runner.reps > 0 || runner.holdSeconds >= 1) && (
               <button type="button" className="btn" onClick={() => runner.finish()}>
                 Encerrar e salvar
               </button>
             )}
-            <button type="button" className="btn ghost" onClick={() => router.back()}>
+            <button type="button" className="btn ghost" onClick={() => router.replace(saida)}>
               Sair sem salvar
             </button>
           </div>

@@ -32,7 +32,16 @@ export function audioContext() {
 export function unlockAudio() {
   const c = audioContext();
   if (c.state === "suspended") void c.resume();
+  // No iPhone a fala também só sai depois de uma fala feita dentro de um toque: sem isso, o
+  // primeiro anúncio do treino (que vem de um temporizador) fica mudo.
+  if (!falaDestravada && hasSpeech()) {
+    falaDestravada = true;
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    speechSynthesis.speak(u);
+  }
 }
+let falaDestravada = false;
 
 let speaking: ((falando: boolean) => void) | null = null;
 let falando = 0;

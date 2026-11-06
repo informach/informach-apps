@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { useConfirmar } from "@/components/confirmar";
 import {
   createProfileAction,
   deleteProfileAction,
@@ -30,6 +31,7 @@ export function ProfilesScreen({
   const [color, setColor] = useState(colors[0] ?? "#3D7BFF");
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
+  const [dialogo, confirmar] = useConfirmar();
   const showForm = creating || profiles.length === 0;
   const full = profiles.length >= limit;
 
@@ -45,20 +47,31 @@ export function ProfilesScreen({
     start(async () => {
       if (!name.trim()) return;
       unlockAudio();
-      const result = await createProfileAction(name, color);
+      const result = await createProfileAction(
+        name,
+        color,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      );
       if (!result.ok) return setMessage(result.error);
       setName("");
       setCreating(false);
       router.push("/inicio");
     });
 
-  const remove = (p: Perfil) =>
+  const remove = async (p: Perfil) => {
+    const sim = await confirmar({
+      titulo: `Apagar o perfil ${p.name}?`,
+      texto: "O histórico de treinos, os níveis e as conquistas desse perfil saem junto.",
+      confirmar: "Apagar perfil",
+      perigo: true,
+    });
+    if (!sim) return;
     start(async () => {
-      if (!window.confirm(`Apagar o perfil ${p.name} e todo o histórico de treinos?`)) return;
       const result = await deleteProfileAction(p.id);
       setMessage(result.ok ? "" : result.error);
       router.refresh();
     });
+  };
 
   if (showForm)
     return (
@@ -120,6 +133,7 @@ export function ProfilesScreen({
 
   return (
     <main className="profiles" id="conteudo">
+      {dialogo}
       <div className="brand">
         <i />
         Bora Treinar

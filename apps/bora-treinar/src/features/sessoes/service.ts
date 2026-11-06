@@ -17,9 +17,9 @@ import {
   suggestionFor,
 } from "@/features/treino/engine/progression";
 import { AppError, assertAllowed } from "@/lib/errors";
-import { inTransaction, progressOf, saveProgress } from "../familia/repository";
+import { inTransaction, lockProfile, progressOf, saveProgress } from "../familia/repository";
 import { customWorkout } from "../meus-treinos/repository";
-import { grantAchievements, insertSession, sessionsOf } from "./repository";
+import { grantAchievements, insertSession, resumosDoPerfil } from "./repository";
 import type { SessionInput } from "./schema";
 
 /** Aceita o avanço de uma trilha, conferindo de novo se ele ainda vale. */
@@ -32,6 +32,7 @@ export async function acceptSuggestion(
   assertAllowed(canUseProgression(access), "PLAN", "Subir de nível faz parte da assinatura.");
   assertAllowed(allowedProfileIds.includes(profileId), "PROFILE", "Perfil não encontrado.");
   await inTransaction(async (tx) => {
+    await lockProfile(tx, profileId);
     const progress = await progressOf(profileId, tx);
     const st = progress[chainId];
     const suggestion = st && suggestionFor(chainId, st);
@@ -62,17 +63,6 @@ export async function resolveWorkout(
   if (!workout) throw new AppError("WORKOUT", "Treino não encontrado.");
   return { workout, name: workout.name };
 }
-
-const resumo = (s: {
-  startedAt: number;
-  mode: string;
-  logs: { reps: number; holdSeconds: number }[];
-}) => ({
-  startedAt: s.startedAt,
-  mode: s.mode as "camera" | "manual" | "pareado",
-  reps: s.logs.reduce((t, l) => t + l.reps, 0),
-  bestHold: Math.max(0, ...s.logs.map((l) => l.holdSeconds)),
-});
 
 /**
  * Grava um treino concluído, atualiza a sequência de cada trilha e as
@@ -107,6 +97,8 @@ export async function saveSession(
   const startedAt = Math.min(input.startedAt, Date.now());
 
   return inTransaction(async (tx) => {
+    // o perfil fica travado até o fim: o progresso é lido e regravado aqui dentro
+    await lockProfile(tx, input.profileId);
     const created = await insertSession(tx, userId, {
       id: input.id,
       profileId: input.profileId,
@@ -120,11 +112,11 @@ export async function saveSession(
     if (!created) return { sessionId: input.id, achievements: [] as string[] };
     const progress = await progressOf(input.profileId, tx);
     await saveProgress(input.profileId, evaluateSession(progress, logs).progress, tx);
-    const history = await sessionsOf(input.profileId, {}, tx);
+    const history = await resumosDoPerfil(input.profileId, tx);
     const achievements = await grantAchievements(
       tx,
       input.profileId,
-      conquistasMerecidas(history.map(resumo), Date.now(), timezone),
+      conquistasMerecidas(history, Date.now(), timezone),
       input.id,
     );
     return { sessionId: input.id, achievements };

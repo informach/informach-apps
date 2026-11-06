@@ -15,7 +15,8 @@ export interface SetLog {
 
 export type RunnerEvent =
   | { type: "step"; index: number }
-  | { type: "rep"; count: number; target?: number }
+  /** `delta` negativo é correção (−1): quem ouve não comemora nem fala o número */
+  | { type: "rep"; count: number; target?: number; delta: number }
   | { type: "partial" }
   | { type: "set-done"; log: SetLog }
   | { type: "countdown"; seconds: number }
@@ -52,15 +53,21 @@ export class WorkoutRunner {
   private completedAt = 0;
   private lastCountdown = -1;
   private lastHoldSecond = 0;
-  readonly startedAt: number;
+  /** segundos somados ao descanso atual (+15 s), sem mexer no passo, que é compartilhado */
+  private restExtra = 0;
+  /** passo de cada registro, para `prev()` desfazer a série que vai ser refeita */
+  private logSteps: number[] = [];
+  /** início real (relógio monotônico), marcado em `start()`; antes dele o treino não conta */
+  startedAt = 0;
+  /** início real no relógio de parede, para a sessão gravar quando o treino começou */
+  startedWallAt = 0;
   private listeners = new Set<(e: RunnerEvent) => void>();
 
   constructor(
     readonly steps: Step[],
     private now: () => number = () => performance.now(),
-  ) {
-    this.startedAt = now();
-  }
+    private wallNow: () => number = () => Date.now(),
+  ) {}
 
   on(fn: (e: RunnerEvent) => void) {
     this.listeners.add(fn);
@@ -84,7 +91,8 @@ export class WorkoutRunner {
   get remaining(): number | null {
     const s = this.step;
     if (!s) return null;
-    if (s.kind === "rest" || s.kind === "amrap") return Math.max(0, s.seconds - this.elapsed);
+    if (s.kind === "rest") return Math.max(0, s.seconds + this.restExtra - this.elapsed);
+    if (s.kind === "amrap") return Math.max(0, s.seconds - this.elapsed);
     if (s.window) return Math.max(0, s.window - this.elapsed);
     return null;
   }
@@ -112,8 +120,16 @@ export class WorkoutRunner {
     return this.completedAt > 0;
   }
 
+  get started() {
+    return this.index >= 0;
+  }
+
   start() {
-    if (this.index < 0) this.goto(0);
+    if (this.index >= 0) return;
+    this.startedAt = this.now();
+    this.startedWallAt = this.wallNow();
+    this.lastTick = this.startedAt;
+    this.goto(0);
   }
 
   pause() {
@@ -138,6 +154,7 @@ export class WorkoutRunner {
 
   /** segundos de treino desde o início, sem pausas */
   get totalElapsed() {
+    if (!this.started) return 0;
     const end = this.paused ? this.pausedAt : this.now();
     return Math.max(0, (end - this.startedAt - this.pausedAll) / 1000);
   }
@@ -146,7 +163,7 @@ export class WorkoutRunner {
   extendRest(seconds: number) {
     const s = this.step;
     if (s?.kind === "rest") {
-      s.seconds += seconds;
+      this.restExtra += seconds;
       this.lastCountdown = -1;
     }
   }
@@ -158,8 +175,17 @@ export class WorkoutRunner {
     this.goto(this.steps.length);
   }
 
+  /**
+   * Volta um passo. A série que vai ser refeita sai dos registros: sem isso ela entrava duas
+   * vezes (a primeira, quando terminou, e a segunda, quando terminar de novo).
+   */
   prev() {
-    this.goto(Math.max(0, this.index - 1));
+    const target = Math.max(0, this.index - 1);
+    while (this.logSteps.length && (this.logSteps.at(-1) ?? -1) >= target) {
+      this.logSteps.pop();
+      this.logs.pop();
+    }
+    this.goto(target);
   }
 
   /** acrescenta (ou corrige, com valor negativo) repetições na série atual */
@@ -170,12 +196,17 @@ export class WorkoutRunner {
     if (s.kind === "amrap") {
       const item = s.circuit[this.amrapPos];
       if (!item) return;
-      this.amrapItemReps = Math.max(0, this.amrapItemReps + n);
-      if (n > 0) {
-        this.amrapTotals.set(item.exerciseId, (this.amrapTotals.get(item.exerciseId) ?? 0) + n);
-        this.reps += n;
-      }
-      this.emit({ type: "rep", count: this.amrapItemReps, target: item.reps });
+      // a correção (−1) também desconta do total do exercício, senão ela só mudava a tela
+      const before = this.amrapItemReps;
+      this.amrapItemReps = Math.max(0, before + n);
+      const delta = this.amrapItemReps - before;
+      if (!delta) return;
+      this.amrapTotals.set(
+        item.exerciseId,
+        Math.max(0, (this.amrapTotals.get(item.exerciseId) ?? 0) + delta),
+      );
+      this.reps = Math.max(0, this.reps + delta);
+      this.emit({ type: "rep", count: this.amrapItemReps, target: item.reps, delta });
       if (this.amrapItemReps >= item.reps) {
         this.amrapItemReps = 0;
         this.amrapPos = (this.amrapPos + 1) % s.circuit.length;
@@ -183,8 +214,11 @@ export class WorkoutRunner {
       }
       return;
     }
-    this.reps = Math.max(0, this.reps + n);
-    this.emit({ type: "rep", count: this.reps, target: s.target });
+    const before = this.reps;
+    this.reps = Math.max(0, before + n);
+    const delta = this.reps - before;
+    if (!delta) return;
+    this.emit({ type: "rep", count: this.reps, target: s.target, delta });
     if (s.target && this.reps >= s.target && !this.completedAt) this.completedAt = this.now();
     if (s.target && this.reps < s.target) this.completedAt = 0;
   }
@@ -265,6 +299,7 @@ export class WorkoutRunner {
 
   private pushLog(log: SetLog) {
     this.logs.push(log);
+    this.logSteps.push(this.index);
     this.emit({ type: "set-done", log });
   }
 
@@ -290,6 +325,7 @@ export class WorkoutRunner {
     this.amrapItemReps = 0;
     this.amrapTotals.clear();
     this.lastCountdown = -1;
+    this.restExtra = 0;
     this.emit({ type: "step", index: i });
   }
 

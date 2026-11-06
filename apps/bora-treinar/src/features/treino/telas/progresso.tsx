@@ -65,6 +65,7 @@ export function ProgressScreen({
   allAchievements,
   paid,
   historyLimit,
+  fuso,
 }: {
   profile: { name: string; color: string };
   sessions: Sessao[];
@@ -73,6 +74,7 @@ export function ProgressScreen({
   allAchievements: Conquista[];
   paid: boolean;
   historyLimit: number;
+  fuso: string;
 }) {
   const recs = records(sessions);
   const totalReps = sessions.reduce((t, s) => t + s.logs.reduce((u, l) => u + l.reps, 0), 0);
@@ -100,7 +102,7 @@ export function ProgressScreen({
           <div className="stat">
             <span className="label">Sequência</span>
             <span className="value num">
-              {streakDays(sessions)}
+              {streakDays(sessions, Date.now(), fuso)}
               <small>dias</small>
             </span>
           </div>
@@ -111,7 +113,7 @@ export function ProgressScreen({
           <span className="muted">últimas 8 semanas</span>
         </div>
         <div className="card">
-          <WeeklyChart weeks={weeklyReps(sessions, 8)} />
+          <WeeklyChart weeks={weeklyReps(sessions, 8, Date.now(), fuso)} />
         </div>
 
         <div className="section-title">

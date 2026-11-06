@@ -1,11 +1,13 @@
 "use client";
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useConfirmar } from "@/components/confirmar";
 import { CHAINS, exerciseById } from "@/features/treino/catalog/catalog";
 import { type Block, estimateMinutes } from "@/features/treino/catalog/workouts";
 import { describeBlock } from "@/features/treino/telas/treino";
 import { useServerAction } from "@/lib/use-server-action";
+import { voltar } from "@/lib/voltar";
 import { deleteCustomWorkoutAction, saveCustomWorkoutAction } from "./actions";
 import { type CustomWorkoutInput, customWorkoutSchema, LEVELS, MAX_MINUTES } from "./schema";
 
@@ -85,6 +87,11 @@ function Numero({
   max: number;
   sufixo?: string;
 }) {
+  // O texto do campo é guardado como a pessoa digita: antes, apagar o número para escrever outro
+  // virava o mínimo na hora, e para pôr "15" era preciso brigar com o campo. Só vale para o treino
+  // quando é um número dentro dos limites; ao sair do campo, volta ao último valor válido.
+  const [texto, setTexto] = useState(String(value));
+  useEffect(() => setTexto(String(value)), [value]);
   return (
     <label className="num-field">
       <span className="muted">{label}</span>
@@ -95,8 +102,21 @@ function Numero({
           inputMode="numeric"
           min={min}
           max={max}
-          value={value}
-          onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value) || min)))}
+          value={texto}
+          onChange={(e) => {
+            setTexto(e.target.value);
+            const n = Number(e.target.value);
+            if (e.target.value !== "" && Number.isInteger(n) && n >= min && n <= max) onChange(n);
+          }}
+          onBlur={() => {
+            const n = Number(texto);
+            const valido =
+              texto === "" || !Number.isFinite(n)
+                ? value
+                : Math.max(min, Math.min(max, Math.round(n)));
+            setTexto(String(valido));
+            if (valido !== value) onChange(valido);
+          }}
         />
         {sufixo && <span className="muted">{sufixo}</span>}
       </span>
@@ -281,7 +301,17 @@ export function WorkoutEditor({ id, initial }: { id?: string; initial?: CustomWo
   );
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
+  const [dialogo, confirmar] = useConfirmar();
   const validacao = useMemo(() => customWorkoutSchema.safeParse(form), [form]);
+  // alterações não salvas: o navegador pergunta antes de fechar ou recarregar a aba
+  const inicial = useRef(JSON.stringify(form));
+  const mudou = JSON.stringify(form) !== inicial.current;
+  useEffect(() => {
+    if (!mudou) return;
+    const segurar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", segurar);
+    return () => window.removeEventListener("beforeunload", segurar);
+  }, [mudou]);
   const minutos = estimateMinutes({ id: "previa", ...form });
   const mudarBloco = (i: number, b: Block) =>
     setForm({ ...form, blocks: form.blocks.map((x, j) => (j === i ? b : x)) });
@@ -299,25 +329,44 @@ export function WorkoutEditor({ id, initial }: { id?: string; initial?: CustomWo
       if (!result.ok) return setMessage(result.error);
       router.push(`/treino?ref=${encodeURIComponent(`meu:${result.data.id}`)}`);
     });
-  const apagar = () =>
+  const apagar = async () => {
+    if (
+      !id ||
+      !(await confirmar({
+        titulo: "Apagar este treino?",
+        texto: "O histórico de quem já fez continua guardado.",
+        confirmar: "Apagar treino",
+        perigo: true,
+      }))
+    )
+      return;
     start(async () => {
-      if (
-        !id ||
-        !window.confirm("Apagar este treino? O histórico de quem já fez continua guardado.")
-      )
-        return;
       const result = await deleteCustomWorkoutAction(id);
       if (!result.ok) return setMessage(result.error);
       router.push("/meus-treinos");
     });
+  };
 
   return (
     <div className="screen">
+      {dialogo}
       <header className="topbar">
         <button
           type="button"
           className="icon-btn"
-          onClick={() => router.back()}
+          onClick={async () => {
+            if (
+              mudou &&
+              !(await confirmar({
+                titulo: "Sair sem salvar?",
+                texto: "As mudanças neste treino vão se perder.",
+                confirmar: "Sair sem salvar",
+                perigo: true,
+              }))
+            )
+              return;
+            voltar(router, "/meus-treinos");
+          }}
           aria-label="Voltar"
         >
           <ArrowLeft size={20} />
@@ -386,7 +435,16 @@ export function WorkoutEditor({ id, initial }: { id?: string; initial?: CustomWo
                   className="field compact"
                   aria-label="Tipo do bloco"
                   value={bloco.type}
-                  onChange={(e) => mudarBloco(i, novoBloco(e.target.value as Block["type"]))}
+                  onChange={async (e) => {
+                    const tipo = e.target.value as Block["type"];
+                    // trocar o tipo recomeça o bloco: pergunta antes de apagar o que foi montado
+                    const sim = await confirmar({
+                      titulo: "Trocar o tipo do bloco?",
+                      texto: "Os exercícios e números deste bloco voltam ao começo.",
+                      confirmar: "Trocar",
+                    });
+                    if (sim) mudarBloco(i, novoBloco(tipo));
+                  }}
                 >
                   {TIPOS.map((t) => (
                     <option key={t.type} value={t.type}>
@@ -465,7 +523,7 @@ export function WorkoutEditor({ id, initial }: { id?: string; initial?: CustomWo
           )}
         </div>
         <p role="status" className="form-message">
-          {message || (!validacao.success && form.name ? validacao.error.issues[0]?.message : "")}
+          {message || (!validacao.success && mudou ? validacao.error.issues[0]?.message : "")}
         </p>
       </main>
     </div>

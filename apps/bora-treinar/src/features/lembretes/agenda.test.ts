@@ -21,6 +21,17 @@ describe("quando enviar", () => {
     ).toBeNull();
     expect(oQueEnviar({ ...base, reminderDays: 1 << 2 }, segunda18).lembrete).toBeNull();
   });
+  it("lembrete ainda sai se a rodada da hora certa falhou, até 3 horas depois", () => {
+    const segunda = 1 << 1;
+    // marcado para 16h; são 18h30: a rodada das 16h e a das 17h podem ter falhado
+    expect(
+      oQueEnviar({ ...base, reminderDays: segunda, reminderHour: 16 }, segunda18).lembrete,
+    ).toBe("2026-11-02");
+    // marcado para 15h: já passou do prazo, o lembrete não ajuda mais
+    expect(
+      oQueEnviar({ ...base, reminderDays: segunda, reminderHour: 15 }, segunda18).lembrete,
+    ).toBeNull();
+  });
   it("resumo na segunda depois das 8h, uma vez por semana", () => {
     expect(oQueEnviar({ ...base, weeklySummary: true }, segunda18).resumo).toEqual({
       semana: "2026-11-02",

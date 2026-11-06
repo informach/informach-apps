@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { recentParent, runAction, verifiedUser } from "@/lib/action";
+import { fusoValido } from "@/lib/datas";
 import { assertAllowed } from "@/lib/errors";
 import { audit } from "@/lib/observability";
 import {
@@ -17,6 +18,7 @@ import {
   createProfile,
   deleteProfile,
   setPreferences,
+  setTimezone,
   updateProfile,
 } from "./repository";
 import { familyView, PROFILE_COLORS, PROFILE_COOKIE } from "./view";
@@ -36,12 +38,18 @@ async function rememberProfile(id: string) {
   });
 }
 
-export async function createProfileAction(name: string, color: string) {
+/**
+ * Cria um perfil. `fusoDoAparelho` é o fuso do navegador: no primeiro perfil ele vira o fuso da
+ * família (antes ninguém gravava, e famílias fora de Brasília recebiam lembrete na hora errada).
+ */
+export async function createProfileAction(name: string, color: string, fusoDoAparelho?: string) {
   return runAction(async () => {
     const input = profileSchema.parse({ name, color });
     const user = await verifiedUser();
-    const { access } = await familyView(user.id);
+    const { access, profiles } = await familyView(user.id);
     const id = await createProfile(user.id, input.name, input.color, access.profileLimit);
+    if (!profiles.length && fusoDoAparelho && fusoValido(fusoDoAparelho))
+      await setTimezone(user.id, fusoDoAparelho, true);
     audit({ eventType: "bora.profile_created", actorId: user.id, payload: { profileId: id } });
     await rememberProfile(id);
     revalidatePath("/", "layout");
@@ -97,6 +105,7 @@ export async function forgetProfileAction() {
 }
 
 const preferencesSchema = z.object({
+  timezone: z.string().max(64).refine(fusoValido, "Fuso inválido.").optional(),
   reminderDays: z.number().int().min(0).max(127),
   reminderHour: z.number().int().min(0).max(23),
   weeklySummary: z.boolean(),

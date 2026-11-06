@@ -1,17 +1,20 @@
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata = { title: "Termos" };
 
-export default function Termos() {
+export default async function Termos() {
+  // quem está logado volta ao app, não à página de vendas
+  const user = await getCurrentUser();
   return (
     <div className="screen">
       <header className="topbar">
         <Brand />
         <span className="spacer" />
-        <Link href="/" className="btn ghost">
-          Início
+        <Link href={user ? "/inicio" : "/"} className="btn ghost">
+          {user ? "Voltar ao app" : "Início"}
         </Link>
       </header>
       <main id="conteudo" className="scroll narrow prosa">

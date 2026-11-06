@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { FUSOS_DO_BRASIL } from "@/lib/datas";
 import { useServerAction } from "@/lib/use-server-action";
 import {
   changePlanAction,
@@ -174,15 +175,22 @@ export function Lembretes({
   reminderHour,
   weeklySummary,
   email,
+  timezone,
 }: {
   reminderDays: number;
   reminderHour: number;
   weeklySummary: boolean;
   email: string;
+  /** fuso da família: lembretes, "hoje", semana e sequência seguem o relógio da casa */
+  timezone: string;
 }) {
   const router = useRouter();
   const [dias, setDias] = useState(reminderDays);
   const [hora, setHora] = useState(reminderHour);
+  const [fuso, setFuso] = useState(timezone);
+  const fusos = FUSOS_DO_BRASIL.some((f) => f.id === timezone)
+    ? FUSOS_DO_BRASIL
+    : [...FUSOS_DO_BRASIL, { id: timezone, nome: timezone }];
   const [resumo, setResumo] = useState(weeklySummary);
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
@@ -223,6 +231,16 @@ export function Lembretes({
           ))}
         </select>
       </label>
+      <label className="spaced block">
+        <span className="muted">Fuso da família</span>
+        <select className="field compact" value={fuso} onChange={(e) => setFuso(e.target.value)}>
+          {fusos.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.nome}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="check spaced">
         <input type="checkbox" checked={resumo} onChange={(e) => setResumo(e.target.checked)} />
         Receber o resumo da semana às segundas, com sequência, repetições e recordes de cada perfil
@@ -238,6 +256,7 @@ export function Lembretes({
                 reminderDays: dias,
                 reminderHour: hora,
                 weeklySummary: resumo,
+                timezone: fuso,
               });
               setMessage(result.ok ? "Preferências salvas." : result.error);
               if (result.ok) router.refresh();

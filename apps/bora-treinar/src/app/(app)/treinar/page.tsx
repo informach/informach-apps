@@ -36,6 +36,8 @@ export default async function Treinar({
   ]);
   return (
     <PlayerLoader
+      // outro treino ou outro modo é outra montagem: o executor nasce uma vez por montagem
+      key={`${formatWorkoutRef(ref)}:${mode}`}
       profile={{ id: profile.id, name: profile.name, color: profile.color }}
       workout={workout}
       practiceExerciseId={ref.kind === "pratica" ? ref.exerciseId : null}

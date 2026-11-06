@@ -3,6 +3,25 @@
  * "sequência de dias" precisam ser os do relógio da casa.
  */
 export const FUSO_PADRAO = "America/Sao_Paulo";
+
+/** Os fusos do Brasil, para a família escolher em Conta (o navegador sugere o dele). */
+export const FUSOS_DO_BRASIL = [
+  { id: "America/Sao_Paulo", nome: "Brasília (SP, RJ, MG, Sul, Nordeste, GO, DF)" },
+  { id: "America/Manaus", nome: "Amazonas, MT, MS, RO e RR (uma hora a menos)" },
+  { id: "America/Rio_Branco", nome: "Acre e oeste do Amazonas (duas horas a menos)" },
+  { id: "America/Noronha", nome: "Fernando de Noronha (uma hora a mais)" },
+] as const;
+
+/** Um fuso que o Intl conhece (o que o navegador manda é conferido antes de gravar). */
+export function fusoValido(fuso: string) {
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(fuso)) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: fuso });
+    return true;
+  } catch {
+    return false;
+  }
+}
 const DIA = 86_400_000;
 
 const formatadores = new Map<string, Intl.DateTimeFormat>();

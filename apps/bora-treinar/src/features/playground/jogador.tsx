@@ -40,6 +40,7 @@ export function JogadorPlayground({
         workoutName={workoutName}
         mode={mode}
         levels={{}}
+        saidaHref="/dev/playground"
         onFinish={setResultado}
       />
     );

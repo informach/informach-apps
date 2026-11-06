@@ -35,6 +35,11 @@ export const eventoCelularSchema = z.discriminatedUnion("tipo", [
     tipo: z.literal("sinal"),
     confianca: z.number().min(0).max(1),
     progresso: z.number().min(0).max(1),
+    /**
+     * O celular está ouvindo a contagem pela voz: a TV cala os números falados, senão o
+     * microfone do celular ouviria a TV e contaria. Também é o batimento (a cada 2 s, sempre).
+     */
+    ouvindo: z.boolean().optional(),
   }),
 ]);
 

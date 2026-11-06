@@ -18,8 +18,8 @@
  */
 const CACHE = "bora-casca-v1";
 const CASCA = ["/offline", "/manifest.webmanifest", "/icon.svg"];
-/* WASM e modelo de pose: nomes fixos, conteúdo conferido por hash no build. */
-const DETECTOR = "bora-detector-v2";
+/* WASM (numa pasta com a versão do pacote) e modelos de pose (conferidos por hash no build). */
+const DETECTOR = "bora-detector-v3";
 
 /* Os pacotes com hash vivem num cache separado da casca. Eles são a única
    parte que cresce sozinha: cada deploy publica nomes novos e os antigos

@@ -155,6 +155,74 @@ describe("executor", () => {
     run(r, c, 50.5);
     expect(r.exerciseId).toBe("agachamento");
   });
+
+  it("voltar do descanso refaz a série sem registrá-la duas vezes", () => {
+    const c = clock();
+    const r = new WorkoutRunner(buildSteps(simple), c.now);
+    r.start();
+    run(r, c, 8.2);
+    for (let i = 0; i < 3; i++) r.addRep();
+    run(r, c, 1);
+    expect(r.step?.kind).toBe("rest");
+    expect(r.logs).toHaveLength(1);
+    r.prev();
+    expect(r.step?.kind).toBe("exercise");
+    expect(r.logs).toHaveLength(0);
+    for (let i = 0; i < 3; i++) r.addRep();
+    run(r, c, 1);
+    expect(r.logs.map((l) => l.reps)).toEqual([3]);
+  });
+
+  it("+15 s vale só para este descanso, sem mudar o passo", () => {
+    const c = clock();
+    const steps = buildSteps(simple);
+    const r = new WorkoutRunner(steps, c.now);
+    r.start();
+    const before = steps[0]?.kind === "rest" ? steps[0].seconds : -1;
+    r.extendRest(15);
+    expect(steps[0]?.kind === "rest" ? steps[0].seconds : -2).toBe(before);
+    expect(Math.round(r.remaining ?? -1)).toBe(before + 15);
+  });
+
+  it("−1 no AMRAP também desconta do total e não comemora", () => {
+    const c = clock();
+    const r = new WorkoutRunner(buildSteps(workoutById("amrap-8")), c.now);
+    const deltas: number[] = [];
+    r.on((e) => {
+      if (e.type === "rep") deltas.push(e.delta);
+    });
+    r.start();
+    run(r, c, 8.2);
+    r.addRep();
+    r.addRep();
+    r.addRep(-1);
+    r.finish();
+    expect(deltas).toEqual([1, 1, -1]);
+    expect(r.totalReps).toBe(1);
+  });
+
+  it("o tempo do treino começa no start, não na montagem", () => {
+    const c = clock();
+    const r = new WorkoutRunner(buildSteps(simple), c.now, () => 1_700_000_000_000 + c.now());
+    c.advance(30); // a tela montou e a pessoa demorou a começar
+    expect(r.totalElapsed).toBe(0);
+    r.start();
+    run(r, c, 5);
+    expect(Math.round(r.totalElapsed)).toBe(5);
+    expect(r.startedWallAt).toBe(1_700_000_030_000);
+  });
+
+  it("encerrar registra a série em andamento", () => {
+    const c = clock();
+    const r = new WorkoutRunner(buildSteps(simple), c.now);
+    r.start();
+    run(r, c, 8.2);
+    r.addRep();
+    r.addRep();
+    r.finish();
+    expect(r.logs.map((l) => l.reps)).toEqual([2]);
+    expect(r.done).toBe(true);
+  });
 });
 
 describe("progressão e recordes", () => {

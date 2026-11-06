@@ -19,9 +19,10 @@ const desafioSchema = z
   .refine(
     (d) =>
       d.metric === "exercicio"
-        ? EXERCISES.some((e) => e.id === d.exerciseId)
+        ? // só exercícios de repetição: a meta soma repetições, e uma isometria nunca andaria
+          EXERCISES.some((e) => e.id === d.exerciseId && e.rule.kind === "reps")
         : d.exerciseId === null,
-    "Escolha um exercício para a meta.",
+    "Escolha um exercício de repetições para a meta.",
   );
 
 /** Cria ou troca o desafio desta semana; `null` encerra. */

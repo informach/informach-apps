@@ -8,6 +8,16 @@ import { familyView } from "../familia/view";
 import { sessionInputSchema } from "./schema";
 import { acceptSuggestion, saveSession } from "./service";
 
+/**
+ * As telas que mostram o resultado de um treino. Nada de `revalidatePath("/", "layout")`: ele
+ * mandava props novas ao player aberto e recriava o executor, zerando um treino em andamento
+ * quando a fila offline salvava outro treino no meio dele.
+ */
+function revalidarTelasDoTreino() {
+  for (const p of ["/inicio", "/progresso", "/perfis", "/desafios", "/exercicios"])
+    revalidatePath(p);
+}
+
 /** Grava o treino que o player acabou de concluir (ou que estava na fila sem rede). */
 export async function saveSessionAction(input: unknown) {
   return runAction(async () => {
@@ -21,7 +31,7 @@ export async function saveSessionAction(input: unknown) {
       session,
       view.family?.timezone ?? FUSO_PADRAO,
     );
-    revalidatePath("/", "layout");
+    revalidarTelasDoTreino();
     return result;
   });
 }
@@ -39,6 +49,6 @@ export async function acceptSuggestionAction(profileId: string, chainId: string)
       id,
       chain,
     );
-    revalidatePath("/", "layout");
+    revalidarTelasDoTreino();
   });
 }

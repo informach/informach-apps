@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TopNav } from "@/components/top-nav";
+import { voltar } from "@/lib/voltar";
 import { cadenceLabel } from "../body/cadence";
 import { CHAINS, exerciseById, type View } from "../catalog/catalog";
 import type { ProgressMap } from "../engine/progression";
@@ -108,7 +109,7 @@ export function ExerciseScreen({
         <button
           type="button"
           className="icon-btn"
-          onClick={() => router.back()}
+          onClick={() => voltar(router, "/exercicios")}
           aria-label="Voltar"
         >
           <ArrowLeft size={20} />

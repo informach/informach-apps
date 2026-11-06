@@ -2,6 +2,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { installFocusNav, moveFocus } from "@/features/treino/focus-nav";
+import { contarTela, voltar } from "@/lib/voltar";
 
 /**
  * Navegação por setas para controle remoto de TV e teclado. O botão Voltar do
@@ -11,9 +12,10 @@ import { installFocusNav, moveFocus } from "@/features/treino/focus-nav";
 export function FocusNav() {
   const router = useRouter();
   const path = usePathname();
-  useEffect(() => installFocusNav(() => router.back()), [router]);
+  useEffect(() => installFocusNav(() => voltar(router, "/inicio")), [router]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: o foco é refeito a cada troca de página
   useEffect(() => {
+    contarTela();
     const t = setTimeout(() => {
       const el = document.querySelector<HTMLElement>("[data-autofocus]");
       if (el) el.focus({ preventScroll: true });

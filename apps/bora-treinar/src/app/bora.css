@@ -21,8 +21,12 @@ a.history-row {
 a.btn.primary {
   color: var(--on-accent);
 }
-a.card {
+/* :where zera a especificidade: com "a.card" (0,1,1) o bloco vencia .ex-card, .workout-card e
+   .level-card (0,1,0), que são flex em coluna, e a descrição e os músculos saíam colados */
+:where(a.card) {
   display: block;
+}
+a.card {
   transition:
     background 0.15s,
     transform 0.12s;
@@ -797,5 +801,46 @@ details.card summary {
 @keyframes voz-pulso {
   50% {
     opacity: 0.35;
+  }
+}
+
+/* ---------- alvos de toque: pelo menos 44 px, também no celular (raiz de 14 px) ---------- */
+button.chip,
+a.chip {
+  min-height: 44px;
+}
+.icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ---------- player: retomar com 3-2-1, câmera que falhou ---------- */
+.retomando {
+  font-size: clamp(5rem, 22vmin, 12rem);
+  line-height: 1;
+  margin: 0.2em 0 0;
+}
+.overlay-msg.cam-falhou {
+  z-index: 6;
+}
+.overlay-msg.cam-falhou .row {
+  justify-content: center;
+}
+
+/* ---------- treino esperando na fila (recusado por plano, perfil ou login) ---------- */
+.fila-aviso {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 5.5rem);
+  z-index: 20;
+  display: grid;
+  gap: 0.5rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+@media (min-width: 761px) {
+  .fila-aviso {
+    bottom: 1.5rem;
   }
 }
