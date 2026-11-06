@@ -2,6 +2,7 @@ import { Skeleton } from "@informach/ui/components/skeleton";
 import { Hand } from "lucide-react";
 import Link from "next/link";
 import { StudentAvatar } from "@/features/students/components/student-avatar";
+import { shortChildNames } from "@/features/students/utils";
 import { SubjectKitDialog } from "@/features/subject-kits/components/subject-kit-dialog";
 import { listSubjectKits } from "@/features/subject-kits/service";
 import { SHEET_LINK } from "@/features/unified-activities/components/activity-list";
@@ -21,27 +22,33 @@ function SubjectNames({ view, kits }: { view: TodaySubjectsView; kits: Record<st
     );
   return (
     <>
+      {/* A vírgula fica colada na aula de antes (`nowrap` no par): o nome é um
+          botão, e entre um botão e o texto o navegador quebra linha, o que
+          deixava ", Língua Portuguesa" começando a linha seguinte. */}
       {view.subjects.map((subject, index) => (
         <span key={subject.id}>
-          {index > 0 ? ", " : null}
-          <SubjectKitDialog
-            variant="text"
-            note={
-              subject.source === "extra"
-                ? "fora da escola"
-                : subject.isAlternating
-                  ? subject.alternatingPairName
-                    ? `reveza com ${subject.alternatingPairName}`
-                    : "quinzenal"
-                  : null
-            }
-            profileId={view.profileId}
-            subjectId={subject.source === "turma" ? subject.id : null}
-            profileSubjectId={subject.source === "extra" ? subject.id : null}
-            subjectName={subject.name}
-            profileName={view.profileName}
-            items={kits[`${view.profileId}:${subject.id}`] ?? []}
-          />
+          {index > 0 ? " " : null}
+          <span className="whitespace-nowrap">
+            <SubjectKitDialog
+              variant="text"
+              note={
+                subject.source === "extra"
+                  ? "fora da escola"
+                  : subject.isAlternating
+                    ? subject.alternatingPairName
+                      ? `reveza com ${subject.alternatingPairName}`
+                      : "quinzenal"
+                    : null
+              }
+              profileId={view.profileId}
+              subjectId={subject.source === "turma" ? subject.id : null}
+              profileSubjectId={subject.source === "extra" ? subject.id : null}
+              subjectName={subject.name}
+              profileName={view.profileName}
+              items={kits[`${view.profileId}:${subject.id}`] ?? []}
+            />
+            {index < view.subjects.length - 1 ? "," : null}
+          </span>
         </span>
       ))}
     </>
@@ -49,44 +56,52 @@ function SubjectNames({ view, kits }: { view: TodaySubjectsView; kits: Record<st
 }
 
 /**
- * Uma criança por linha. No celular: o avatar, o nome, as aulas e "A vez de
- * Clara" como botão. No computador, a tabela do canvas: nome, aulas e o link.
+ * Uma criança por linha. No celular: o avatar, o nome e "A vez de Clara" na
+ * primeira linha, e as aulas embaixo, na largura toda. Eram três colunas, e o
+ * botão (que não encolhe) com o nome inteiro empurrava as aulas para uma
+ * palavra por linha e saía da tela. No computador, a tabela do canvas: nome,
+ * aulas e o link. Nos dois, o nome curto da criança (`shortChildNames`).
  */
 function ProfileSchedule({
   view,
   kits,
+  shortName,
 }: {
   view: TodaySubjectsView;
   kits: Record<string, string[]>;
+  shortName: string;
 }) {
   return (
     <li className="border-t border-foreground/15">
-      <div className="flex min-h-16 items-center gap-3 py-2.5 pl-3.5 pr-3.5 lg:hidden">
+      <div className="grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2.5 pl-3.5 pr-3.5 lg:hidden">
         <StudentAvatar name={view.profileName} size="line" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-bold">{view.profileName}</p>
-          <p className="text-[13px] font-medium text-muted-foreground">
-            <SubjectNames view={view} kits={kits} />
-          </p>
-        </div>
+        <p className="truncate text-[15px] font-bold" title={view.profileName}>
+          {shortName}
+        </p>
         {/*
           A porta da vez da criança onde o telefone costuma ser passado: a linha
           da própria criança, na primeira tela da manhã.
         */}
         <Link
           href={`/crianca/${view.profileId}`}
-          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3.5 text-sm font-bold hover:bg-muted"
+          className="inline-flex min-h-11 max-w-[11rem] items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3 text-sm font-bold hover:bg-muted"
         >
-          <Hand className="size-[18px]" aria-hidden />A vez de {view.profileName}
+          <Hand className="size-[18px] shrink-0" aria-hidden />
+          <span className="truncate">A vez de {shortName}</span>
         </Link>
+        <p className="col-start-2 col-end-4 text-[13px] font-medium leading-snug text-muted-foreground">
+          <SubjectNames view={view} kits={kits} />
+        </p>
       </div>
-      <div className="hidden grid-cols-[70px_1fr_auto] items-center gap-2.5 px-5 py-3 text-sm leading-[normal] lg:grid">
-        <b className="truncate">{view.profileName}</b>
+      <div className="hidden grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-2.5 px-5 py-3 text-sm leading-[normal] lg:grid">
+        <b className="truncate" title={view.profileName}>
+          {shortName}
+        </b>
         <span className="min-w-0">
           <SubjectNames view={view} kits={kits} />
         </span>
         <Link href={`/crianca/${view.profileId}`} className={SHEET_LINK}>
-          A vez de {view.profileName}
+          A vez de {shortName}
         </Link>
       </div>
     </li>
@@ -130,6 +145,9 @@ export async function TodayScheduleSection({ data }: { data: Promise<TodaySchedu
   // "Horário" leva à turma da primeira criança que tem uma; quem tem crianças
   // em turmas diferentes chega às outras por Família.
   const firstTurma = views.find((view) => view.turmaId)?.turmaId ?? null;
+  const shortNames = shortChildNames(
+    views.map((view) => ({ id: view.profileId, name: view.profileName })),
+  );
 
   return (
     <section
@@ -151,7 +169,12 @@ export async function TodayScheduleSection({ data }: { data: Promise<TodaySchedu
       </div>
       <ul>
         {views.map((view) => (
-          <ProfileSchedule key={view.profileId} view={view} kits={kits} />
+          <ProfileSchedule
+            key={view.profileId}
+            view={view}
+            kits={kits}
+            shortName={shortNames.get(view.profileId) ?? view.profileName}
+          />
         ))}
       </ul>
     </section>

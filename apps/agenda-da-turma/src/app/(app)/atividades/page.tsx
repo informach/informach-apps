@@ -5,6 +5,7 @@ import { ActivitiesSection } from "@/features/activities/components/activities-s
 import { hasSecondAdultInFamily } from "@/features/family/access";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
+import { shortChildNames, withShortChildName } from "@/features/students/utils";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import {
   dueWindowSchema,
@@ -51,6 +52,7 @@ export default async function AtividadesPage({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina),
   };
   const result = await getActivityOverview(user.id, filters);
+  const childNames = shortChildNames(profiles);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
       <header className="flex items-start gap-2">
@@ -70,7 +72,11 @@ export default async function AtividadesPage({
         </div>
       </header>
       <ActivitiesSection
-        items={result.items}
+        // Os cards levam o nome curto de cada criança; o filtro, o inteiro.
+        items={result.items.map((entry) => ({
+          ...entry,
+          item: withShortChildName(entry.item, childNames),
+        }))}
         hasNextPage={result.hasNextPage}
         filters={filters}
         profiles={profiles}

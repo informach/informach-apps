@@ -81,7 +81,7 @@ export function SubjectKitDialog({
           aria-label={`${subjectName}${note ? `, ${note}` : ""}. Levar sempre${
             initialItems.length ? `: ${initialItems.join(", ")}` : ""
           }`}
-          className="relative rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
+          className="relative whitespace-normal rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
         >
           {subjectName}
         </button>
