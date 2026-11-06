@@ -12,7 +12,7 @@ Os personagens derivam dos pacotes gratuitos da ITHappy que estão em `ideas/` (
 | `mixamo/` | os FBX baixados do Mixamo (P0 por corpo, P1, P2), o prompt usado para baixá-los, o log, os manifestos, `nao_encontrados.md`, o índice que liga cada arquivo a um ID e a um corpo, e o zip dos 17 corpos enviados ao Mixamo |
 | `codigo/arte/` | geradores: `corpos.py` (tipos de corpo), `cabelos.json` + `cabelos.py` (catálogo e encaixe de cabelos), `roupas.json` + `roupas.py` (catálogo e encaixe de roupas), `geradores.py` + `novas_pecas.py` (peças feitas aqui e conjuntos), `expressoes.py`, `contato.py`, `gravidez.py`, cena e páginas do Morada |
 | `codigo/ferramentas/` | conversão do Mixamo (`biblioteca_bake.py`), correções (`biblioteca_corrige.py`, `biblioteca_chao.py`, `biblioteca_antebraco.py`, `pequeno_corrige.py`, `biblioteca_dedos.py`: pegada dos dedos nos objetos), cabelos novos em corpos prontos (`adiciona_cabelo.py`), reconstrução completa (`_rebuild_all.sh` e os `_rb_*.sh`), animações compostas (`compor.py`, `compor_gravida.py`), biblioteca de grávida (`gravida_biblioteca.py`), exportação (`biblioteca_exporta.py`, `corpo_exporta.py`, `exporta_itens.py` e `peles.py` para as peças em arquivos separados), pacote da página (`biblioteca_pacote.py`) e testes de página (`teste_*.js`) |
-| `paginas/` | `morada.html` e `recreio.html` (propostas), as fontes delas (`v4/`, `rv2/`) e a página Tipos de corpo (`tipos_de_corpo/corpos.html`, que carrega `corpos/*.txt`, `biblioteca/*.txt` e `itens/*.txt`, gerados por `biblioteca_pacote.py`) |
+| `paginas/` | `morada.html` e `recreio.html` (propostas), as fontes delas (`v4/`, `rv2/`), a página Tipos de corpo (`tipos_de_corpo/corpos.html`, que carrega `corpos/*.txt`, `biblioteca/*.txt` e `itens/*.txt`, gerados por `biblioteca_pacote.py`) e a página Bichos do Morada (`bichos/bichos.html`) |
 
 Não estão aqui (dá para regenerar a partir do que está): blends intermediários das bibliotecas, renders de revisão, testes.
 As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equivalem às ações originais.
@@ -60,6 +60,15 @@ com chapéu (1), o cabelo não atravessa a copa.
 
 O catálogo, o encaixe, o formato dos arquivos e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`.
 
+## Bichos de estimação
+
+Treze bichos feitos a partir do Doberman do pacote Apocalypse, com as onze animações dele ajustadas a cada um
+(`biblioteca/bichos/`, gerados por `codigo/arte/bichos.py`; detalhes em `biblioteca/bichos/LEIA.md`):
+Doberman e Doberman marrom, Labrador, Rottweiler, dois Salsichas, Spitz branco, três Lulus (branco, rosa e azul) e três
+gatos (preto, frajola e laranja). Cada um muda as proporções dos ossos (a malha vai junto e as animações continuam
+valendo), as cores, as orelhas, a cauda e, alguns, ganham pelo fofo, coleira ou bigode. As animações: parado, andar,
+correr, virar, latir (miar), pedir para brincar, dar a pata, cambalhota, deitar, barriga para cima e dormir.
+
 ## Animações aprovadas
 
 As animações marcadas como boas na página ficam congeladas: corrigir outra animação nunca muda uma delas. O procedimento
@@ -84,3 +93,5 @@ dentro dos zips de `mixamo/fbx/` os arquivos mantêm o mesmo caminho relativo (`
 ## Página publicada
 
 Tipos de corpo: https://claude.ai/artifact/Uw3fipkYR7aSq3dZFmZiMd (privada).
+
+Bichos do Morada: https://claude.ai/artifact/Jmqybk3QQhGu7HKRmSkKmA (privada).

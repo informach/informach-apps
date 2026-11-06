@@ -1,0 +1,665 @@
+{
+ "doberman": {
+  "nome": "Doberman",
+  "especie": "cachorro",
+  "escala": 1.0,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "doberman_marrom": {
+  "nome": "Doberman marrom",
+  "especie": "cachorro",
+  "escala": 1.0,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "labrador": {
+  "nome": "Labrador",
+  "especie": "cachorro",
+  "escala": 0.95,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "rottweiler": {
+  "nome": "Rottweiler",
+  "especie": "cachorro",
+  "escala": 0.97,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "salsicha": {
+  "nome": "Salsicha preto e castanho",
+  "especie": "cachorro",
+  "escala": 0.64,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "salsicha_marrom": {
+  "nome": "Salsicha marrom",
+  "especie": "cachorro",
+  "escala": 0.64,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "spitz": {
+  "nome": "Spitz branco",
+  "especie": "cachorro",
+  "escala": 0.62,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "lulu": {
+  "nome": "Lulu branco",
+  "especie": "cachorro",
+  "escala": 0.42,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "lulu_rosa": {
+  "nome": "Lulu rosa",
+  "especie": "cachorro",
+  "escala": 0.42,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "lulu_azul": {
+  "nome": "Lulu azul",
+  "especie": "cachorro",
+  "escala": 0.42,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Latir"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "gato": {
+  "nome": "Gato preto",
+  "especie": "gato",
+  "escala": 0.6,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Miar"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "gato_frajola": {
+  "nome": "Gato frajola",
+  "especie": "gato",
+  "escala": 0.6,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Miar"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ },
+ "gato_laranja": {
+  "nome": "Gato laranja",
+  "especie": "gato",
+  "escala": 0.6,
+  "animacoes": [
+   {
+    "id": "parado",
+    "rotulo": "Parado"
+   },
+   {
+    "id": "andar",
+    "rotulo": "Andar"
+   },
+   {
+    "id": "correr",
+    "rotulo": "Correr"
+   },
+   {
+    "id": "virar",
+    "rotulo": "Virar"
+   },
+   {
+    "id": "latir",
+    "rotulo": "Miar"
+   },
+   {
+    "id": "brincar",
+    "rotulo": "Pedir para brincar"
+   },
+   {
+    "id": "pata",
+    "rotulo": "Dar a pata"
+   },
+   {
+    "id": "cambalhota",
+    "rotulo": "Cambalhota"
+   },
+   {
+    "id": "deitar",
+    "rotulo": "Deitar"
+   },
+   {
+    "id": "barriga",
+    "rotulo": "Barriga para cima"
+   },
+   {
+    "id": "dormir",
+    "rotulo": "Dormir"
+   }
+  ]
+ }
+}
