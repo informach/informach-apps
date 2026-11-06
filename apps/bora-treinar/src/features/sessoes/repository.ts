@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, db, desc, eq, gte, inArray, lt, ne, sql } from "@informach/db";
+import { and, asc, db, desc, eq, gt, gte, inArray, lt, ne, or, sql } from "@informach/db";
 import { boraAchievements, boraSessions, boraSetLogs } from "@informach/db/schema";
 import type { SessaoResumo } from "@/features/conquistas/catalogo";
 import type { MelhorMarca } from "@/features/treino/engine/habito";
@@ -127,6 +127,11 @@ export async function resumosDoPerfil(
 export async function melhoresAnteriores(
   profileId: string,
   excetoSessao: string,
+  /**
+   * só treinos feitos antes deste: um treino da fila offline que chega dias depois é comparado com
+   * o que existia quando ele foi feito, não com o que veio depois
+   */
+  antesDe: Date,
   tx: Tx | typeof db = db,
 ): Promise<Map<string, MelhorMarca>> {
   const rows = await tx
@@ -137,7 +142,13 @@ export async function melhoresAnteriores(
     })
     .from(boraSetLogs)
     .innerJoin(boraSessions, eq(boraSessions.id, boraSetLogs.sessionId))
-    .where(and(eq(boraSessions.profileId, profileId), ne(boraSessions.id, excetoSessao)))
+    .where(
+      and(
+        eq(boraSessions.profileId, profileId),
+        ne(boraSessions.id, excetoSessao),
+        lt(boraSessions.startedAt, antesDe),
+      ),
+    )
     .groupBy(boraSetLogs.exerciseId);
   return new Map(
     rows.map((r) => [r.exerciseId, { bestSet: Number(r.bestSet), bestHold: Number(r.bestHold) }]),
@@ -250,4 +261,84 @@ export async function sessoesDoGrupo(userId: string, groupId: string) {
     .where(and(eq(boraSessions.userId, userId), eq(boraSessions.groupId, groupId)))
     .orderBy(asc(boraSessions.profileId));
   return withLogs(rows);
+}
+
+/**
+ * O volume de cada treino da família desde um instante, somado por exercício no banco: o desafio
+ * da semana só precisa de repetições, segundos de isometria e duração. Antes ele carregava cada
+ * série de 8 semanas de todos os perfis a cada abertura do Início e do Progresso.
+ */
+export async function volumeDaFamiliaDesde(userId: string, since: Date) {
+  const rows = await db
+    .select({
+      id: boraSessions.id,
+      profileId: boraSessions.profileId,
+      startedAt: boraSessions.startedAt,
+      duration: boraSessions.durationSeconds,
+      exerciseId: boraSetLogs.exerciseId,
+      reps: sql<number>`coalesce(sum(${boraSetLogs.reps}), 0)::int`,
+      holdSeconds: sql<number>`coalesce(sum(${boraSetLogs.holdSeconds}), 0)::int`,
+    })
+    .from(boraSessions)
+    .leftJoin(boraSetLogs, eq(boraSetLogs.sessionId, boraSessions.id))
+    .where(and(eq(boraSessions.userId, userId), gte(boraSessions.startedAt, since)))
+    .groupBy(boraSessions.id, boraSetLogs.exerciseId)
+    .orderBy(asc(boraSessions.startedAt));
+  const porSessao = new Map<
+    string,
+    {
+      profileId: string;
+      startedAt: number;
+      duration: number;
+      logs: { exerciseId: string; reps: number; holdSeconds: number }[];
+    }
+  >();
+  for (const r of rows) {
+    const sessao = porSessao.get(r.id) ?? {
+      profileId: r.profileId,
+      startedAt: r.startedAt.getTime(),
+      duration: r.duration,
+      logs: [],
+    };
+    porSessao.set(r.id, sessao);
+    if (r.exerciseId)
+      sessao.logs.push({
+        exerciseId: r.exerciseId,
+        reps: Number(r.reps),
+        holdSeconds: Number(r.holdSeconds),
+      });
+  }
+  return [...porSessao.values()];
+}
+
+/**
+ * Todos os treinos de um perfil, em páginas: a exportação (LGPD) não pode depender de caber numa
+ * consulta só. Antes ia tudo de uma vez, e as séries saíam num `IN` com todos os ids, que passa
+ * do limite de parâmetros do Postgres num histórico longo.
+ */
+export async function todasAsSessoes(profileId: string, pagina = 500) {
+  const todas: SessionRecord[] = [];
+  let depois: { startedAt: Date; id: string } | null = null;
+  for (;;) {
+    const rows: (typeof boraSessions.$inferSelect)[] = await db
+      .select()
+      .from(boraSessions)
+      .where(
+        and(
+          eq(boraSessions.profileId, profileId),
+          depois
+            ? or(
+                gt(boraSessions.startedAt, depois.startedAt),
+                and(eq(boraSessions.startedAt, depois.startedAt), gt(boraSessions.id, depois.id)),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(asc(boraSessions.startedAt), asc(boraSessions.id))
+      .limit(pagina);
+    todas.push(...(await withLogs(rows)));
+    const ultima = rows.at(-1);
+    if (rows.length < pagina || !ultima) return todas;
+    depois = { startedAt: ultima.startedAt, id: ultima.id };
+  }
 }

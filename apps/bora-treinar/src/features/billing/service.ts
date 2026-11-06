@@ -128,10 +128,24 @@ export async function checkout(userId: string, productId: string) {
       });
   });
 }
+/**
+ * Com o pagamento atrasado (ainda na tolerância), trocar de plano ou desfazer uma alteração no
+ * Stripe cobraria de novo um cartão recusado: primeiro se atualiza o pagamento.
+ */
+async function semPagamentoAtrasado(userId: string) {
+  const atrasada = await pastDueSubscription(userId);
+  assertAllowed(
+    !atrasada,
+    "PAYMENT",
+    "O pagamento está pendente. Atualize a forma de pagamento antes de mudar o plano.",
+  );
+}
+
 export async function changePlan(userId: string, newProductId: string, retainedProfileId?: string) {
   assertAllowed(configuredPrice(newProductId), "BILLING_CONFIG", "Este plano não está disponível.");
   return withBillingLifecycle(userId, async () => {
     const currentSubscription = await entitlement(userId);
+    if (!currentSubscription) await semPagamentoAtrasado(userId);
     assertAllowed(currentSubscription, "SUBSCRIPTION", "Assinatura ativa não encontrada.");
     const current = products.find((product) => product.id === currentSubscription.productId);
     const target = products.find((product) => product.id === newProductId);
@@ -176,15 +190,20 @@ export async function changePlan(userId: string, newProductId: string, retainedP
 export async function reactivate(userId: string) {
   return withBillingLifecycle(userId, async () => {
     const current = await entitlement(userId);
+    if (!current) await semPagamentoAtrasado(userId);
     assertAllowed(
       current?.cancelAtPeriodEnd || current?.pendingProductId,
       "SUBSCRIPTION",
       "Não há alteração agendada.",
     );
     await billing.reactivateSubscription({ subscriptionId: current.id, actorId: userId });
-    // A escolha de perfis feita para o plano menor deixa de valer: sem isso ela ficava gravada e
-    // apagava perfis num cancelamento futuro qualquer.
-    await enableAllProfiles(userId);
+    // Desfazer uma troca para um plano menor desfaz também a escolha de perfis feita para ele.
+    // Só nesse caso: desfazer um cancelamento mantém a escolha de quem já está num plano menor
+    // (religar todos liberava o perfil mais antigo e bloqueava o que a pessoa escolheu manter).
+    const pendente = products.find((p) => p.id === current.pendingProductId);
+    const atual = products.find((p) => p.id === current.productId);
+    if (pendente && atual && planProfileLimit(pendente) < planProfileLimit(atual))
+      await enableAllProfiles(userId);
   });
 }
 export async function closeBillingAndFamily(userId: string, removeData: () => Promise<void>) {

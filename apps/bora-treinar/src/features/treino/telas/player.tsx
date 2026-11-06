@@ -31,6 +31,7 @@ import { exerciseById, type View } from "../catalog/catalog";
 import {
   buildGroupSteps,
   buildSteps,
+  faltaTrabalho,
   type Intensidade,
   type LevelMap,
   type Step,
@@ -1725,7 +1726,9 @@ export function PlayerScreen({
                 onClick={() => {
                   setQuitting(false);
                   // terminou antes do fim planejado: salva marcado, sem perder a sequência
-                  if (runner.index < runner.steps.length - 1) encerrouAntes.current = true;
+                  // a série atual com a meta cumprida já conta como feita
+                  const desde = runner.targetReached ? runner.index + 1 : runner.index;
+                  if (faltaTrabalho(runner.steps, desde)) encerrouAntes.current = true;
                   runner.finish();
                 }}
               >

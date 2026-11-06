@@ -14,6 +14,7 @@ import {
   buildSteps,
   seriesPlanejadas,
   soSeries,
+  trocaDaIntensidade,
   type Workout,
   workoutById,
 } from "@/features/treino/catalog/workouts";
@@ -149,12 +150,13 @@ async function gravarSessao(tx: Tx, userId: string, v: Validada, timezone: strin
       const avaliado = evaluateSession(progress, logs, {
         planejadas: input.endedEarly ? undefined : plano.contagem,
         feeling: input.feeling,
+        troca: (id) => trocaDaIntensidade(id, intensity),
       });
       await saveProgress(input.profileId, avaliado.progress, tx);
     }
     // dois agregados no banco: o histórico resumido e as melhores marcas sem esta sessão
     const history = await resumosDoPerfil(input.profileId, tx);
-    const anteriores = await melhoresAnteriores(input.profileId, input.id, tx);
+    const anteriores = await melhoresAnteriores(input.profileId, input.id, new Date(startedAt), tx);
     const achievements = await grantAchievements(
       tx,
       input.profileId,

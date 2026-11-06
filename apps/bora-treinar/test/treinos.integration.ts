@@ -25,9 +25,15 @@ import {
   entrarComCodigo,
   lerCredencial,
 } from "@/features/pareamento/servidor";
-import { achievementsOf, sessionsOf, sessoesDoGrupo } from "@/features/sessoes/repository";
+import {
+  achievementsOf,
+  melhoresAnteriores,
+  sessionsOf,
+  sessoesDoGrupo,
+} from "@/features/sessoes/repository";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { acceptSuggestion, saveGroupSession, saveSession } from "@/features/sessoes/service";
+import { reivindicarTeste } from "@/features/teste/repository";
 import { comecarTeste } from "@/features/teste/service";
 import { pendingSuggestions } from "@/features/treino/engine/progression";
 import { inicioDaSemana, inicioDoDiaLocal, relogioLocal, somarDias } from "@/lib/datas";
@@ -330,6 +336,24 @@ describe("teste de 7 dias, sem cartão", () => {
     }
   });
 
+  it("um pedido feito com a chave antiga continua valendo depois da chave própria", async () => {
+    const primeira = randomUUID();
+    const segunda = randomUUID();
+    await conta(primeira, `${primeira}@example.test`);
+    await conta(segunda, `${segunda}@example.test`);
+    try {
+      // a primeira conta pediu quando só existia a chave antiga
+      expect(await reivindicarTeste(primeira, ["hash-antigo"])).toBeInstanceOf(Date);
+      // com a chave nova, o mesmo e-mail chega com dois hashes: o antigo ainda segura o pedido
+      expect(await reivindicarTeste(segunda, ["hash-novo", "hash-antigo"])).toBeNull();
+      // e a dona do pedido continua com o mesmo início
+      expect(await reivindicarTeste(primeira, ["hash-novo", "hash-antigo"])).toBeInstanceOf(Date);
+    } finally {
+      await db.delete(users).where(eq(users.id, primeira));
+      await db.delete(users).where(eq(users.id, segunda));
+    }
+  });
+
   it("e-mail não confirmado não começa o teste", async () => {
     expect(
       await comecarTeste({ id: randomUUID(), email: "x@example.test", emailVerified: false }),
@@ -427,5 +451,26 @@ describe("treinar junto", () => {
     await expect(
       saveSession(owner, family, profiles, { ...sessao(a), groupId: outro }, "America/Sao_Paulo"),
     ).rejects.toThrow("vai junto com o grupo");
+  });
+});
+
+describe("recordes de treino que chega atrasado", () => {
+  it("compara só com os treinos feitos antes dele", async () => {
+    const profileId = profiles[3] ?? "";
+    const dia = 86_400_000;
+    const com = (reps: number, diasAtras: number) =>
+      sessao(profileId, {
+        startedAt: Date.now() - diasAtras * dia,
+        logs: sessao(profileId).logs.map((l) => ({ ...l, reps })),
+      });
+    await saveSession(owner, family, profiles, com(8, 30), "America/Sao_Paulo");
+    await saveSession(owner, family, profiles, com(20, 10), "America/Sao_Paulo");
+    // um treino feito há 20 dias, que só agora saiu da fila offline
+    const melhores = await melhoresAnteriores(
+      profileId,
+      randomUUID(),
+      new Date(Date.now() - 20 * dia),
+    );
+    expect(melhores.get("agachamento")?.bestSet).toBe(8);
   });
 });

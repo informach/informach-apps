@@ -396,3 +396,39 @@ describe("treinar junto", () => {
     expect(r.logs[0]?.profileId).toBe("a");
   });
 });
+
+describe("correções do review", () => {
+  it("perfil leve sobe na trilha pelo exercício que fez no lugar (polichinelo → escalador)", async () => {
+    const { trocaDaIntensidade } = await import("../catalog/workouts");
+    const feitas = [1, 2, 3].map(() => ({
+      exerciseId: "escalador",
+      kind: "reps" as const,
+      target: 10,
+      reps: 10,
+      partials: 0,
+      holdSeconds: 0,
+      seconds: 30,
+      issues: {},
+    }));
+    const troca = (id: string) => trocaDaIntensidade(id, "leve");
+    const planejadas = new Map([["escalador", 3]]);
+    const r = evaluateSession(initialProgress(), feitas, { planejadas, troca });
+    expect(r.progress.cardio).toMatchObject({ level: 0, streak: 1 });
+    // sem a troca, as séries não eram achadas e a trilha ficava parada
+    expect(evaluateSession(initialProgress(), feitas, { planejadas }).progress.cardio?.streak).toBe(
+      0,
+    );
+  });
+
+  it("parar nos alongamentos não marca o treino como interrompido", async () => {
+    const { faltaTrabalho } = await import("../catalog/workouts");
+    const steps = buildSteps(simple, {}, { voltaACalma: true });
+    const primeiroAlongamento = steps.findIndex(
+      (s) => s.kind === "exercise" && s.label === "Volta à calma",
+    );
+    expect(primeiroAlongamento).toBeGreaterThan(0);
+    expect(faltaTrabalho(steps, primeiroAlongamento)).toBe(false);
+    expect(faltaTrabalho(steps, primeiroAlongamento - 1)).toBe(false); // o descanso antes
+    expect(faltaTrabalho(steps, 0)).toBe(true);
+  });
+});

@@ -20,6 +20,12 @@ export const schema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   CRON_SECRET: z.string().min(32),
+  /**
+   * Chave do hash do e-mail no teste de 7 dias (um por e-mail). Própria e estável: trocar o
+   * BETTER_AUTH_SECRET (rotina depois de um vazamento) não pode devolver o teste a quem já usou.
+   * Sem ela, vale o BETTER_AUTH_SECRET, como até 06/11/2026.
+   */
+  BORA_TRIAL_KEY: z.string().min(32).optional(),
   BORA_INDIVIDUAL_MONTHLY_PRICE: z.string().default(""),
   BORA_INDIVIDUAL_ANNUAL_PRICE: z.string().default(""),
   BORA_FAMILY_MONTHLY_PRICE: z.string().default(""),

@@ -1,6 +1,6 @@
 import { currentTrainer, PROFILE_COLORS } from "@/features/familia/view";
 import { ritmoDaIntensidade } from "@/features/perfil/regras";
-import { familySessionsSince } from "@/features/sessoes/repository";
+import { volumeDaFamiliaDesde } from "@/features/sessoes/repository";
 import { semanaAtual } from "@/features/treino/engine/habito";
 import { ProfilesScreen } from "@/features/treino/telas/perfis";
 import { FUSO_PADRAO, inicioDaSemana, inicioDoDiaLocal, numeroDoDia } from "@/lib/datas";
@@ -11,7 +11,7 @@ export default async function Perfis() {
   const { user, profiles, access, family } = await currentTrainer();
   const fuso = family?.timezone ?? FUSO_PADRAO;
   const agora = Date.now();
-  const semana = await familySessionsSince(
+  const semana = await volumeDaFamiliaDesde(
     user.id,
     inicioDoDiaLocal(inicioDaSemana(agora, fuso), fuso),
   );

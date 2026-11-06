@@ -106,3 +106,7 @@ A migração `0076_bora_treinar` só cria o schema `bora_treinar` e as tabelas n
 - [ ] Termos de uso e política do app (ou decisão de usar só os guarda-chuva de `informach.com.br`), e link na cláusula 3 dos Termos do site quando existirem.
 - [ ] Revisão do texto de privacidade sobre a câmera e o pareamento celular → TV antes de qualquer promessa pública sobre imagens.
 - [ ] Monitor de uptime: como na Missão, o monitor operacional é o próprio cron, que reporta ao Sentry.
+
+## Chave do teste de 7 dias (06/11/2026)
+
+- `BORA_TRIAL_KEY` (opcional, 32+ caracteres): chave própria do hash do e-mail no teste grátis. Gravar no serviço do Railway **com o valor atual do `BETTER_AUTH_SECRET`**, antes de qualquer rotação dele: assim os pedidos já feitos continuam reconhecidos. Sem ela, vale o `BETTER_AUTH_SECRET` (o código também confere o hash antigo).
