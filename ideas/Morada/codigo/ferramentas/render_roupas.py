@@ -34,6 +34,16 @@ def _tinge(o, rid):
 for o in list(bpy.data.objects):
     if o.type == "MESH" and "_nov_" in o.name:
         _tinge(o, "nov_" + o.name.split("_nov_", 1)[1])
+
+def _com_chapeu(arm, ids):
+    """Com um chapéu visível, o cabelo vai para a forma sob_chapeu (tools/cabelo_chapeu.py)."""
+    import json as _j2
+    cat = _j2.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "morada-art", "roupas.json")))["itens"]
+    tem = any(x["id"] in ids and x.get("slot") == "cabeca" and x.get("achata") is not False for x in cat)
+    if "com_chapeu" in arm:
+        arm["com_chapeu"] = 1.0 if tem else 0.0
+        bpy.context.scene.frame_set(bpy.context.scene.frame_current)
+
 for c in CORPOS:
     arm = bpy.data.objects[c]
     if arm.animation_data: arm.animation_data.action = None
@@ -54,6 +64,7 @@ for c in CORPOS:
             quer.discard(c + "_cabelo")
         for o in bpy.data.objects:
             if o.type == "MESH": o.hide_render = o.name not in quer
+        _com_chapeu(arm, ids)
         for v, az in (("f", 0), ("l", 50)):
             d = Vector((math.sin(math.radians(az)), -math.cos(math.radians(az)), 0.12)).normalized()
             cam.location = alvo + d * 6; cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()

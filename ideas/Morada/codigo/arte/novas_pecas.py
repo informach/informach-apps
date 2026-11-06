@@ -6,12 +6,14 @@ R = "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fb
 N = []
 
 
-def cam(id_, slot, rot, cor=None, _cobre=None, **g):
+def cam(id_, slot, rot, cor=None, _cobre=None, _transparente=False, **g):
     g.setdefault("familia", "destino")
     N.append({"id": "nov_" + id_, "slot": slot, "rotulo": rot, "arquivo": R, "corpo_origem": "", "pecas": [],
               "tipo": "pele", "gerar": {"tipo": "camada", **g}, "variacao": {"cor": cor} if cor else {}})
     if _cobre:  # peça inteira que deixa a parte de cima à mostra (jardineira): só esconde estes slots
         N[-1]["cobre"] = _cobre
+    if _transparente:  # trama com furos (arrastão): a página não esconde a pele embaixo
+        N[-1]["transparente"] = True
 
 
 def hat(id_, rot, cor=None, slot="cabeca", **g):
@@ -26,9 +28,11 @@ def oc(id_, rot, cor=None, **g):  # óculos gerados no rosto
               "tipo": "cabeca", "gerar": {"tipo": "oculos", **g}, "variacao": {"cor": cor} if cor else {}})
 
 
-def obj(id_, mao, rot, cor=None, **g):  # objeto de mão (mao: "dir" ou "esq")
+def obj(id_, mao, rot, cor=None, _pose=None, **g):  # objeto de mão (mao: "dir" ou "esq")
     N.append({"id": "nov_" + id_, "slot": "mao_" + mao, "rotulo": rot, "arquivo": R, "corpo_origem": "", "pecas": [],
               "tipo": "mao", "mao": mao, "gerar": {"tipo": "objeto", **g}, "variacao": {"cor": cor} if cor else {}})
+    if _pose:  # pose de segurar: o braço vai até 'alvo' e o eixo Y da mão (o do objeto) aponta para 'aponta'
+        N[-1]["pose"] = _pose
 
 
 def comp(id_, slot, rot, partes, cor=None):
@@ -141,10 +145,10 @@ QUAD = lambda d=-0.03: {"marco": "quadril", "desloca": d}
 # --- por cima (casacos abertos e coletes, sobre a parte de cima)
 cam("jaleco", "sobre", "Jaleco", "#F2F2F2", regiao="tronco", folga=0.034, abre_frente=0.035, gola={"altura": 0.025, "dobra": 0.9},
     partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(0.0), PUNHO]},
-            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": 0.02, "abertura": 1.12, "abre_frente": 9, "folga": 0.035}}])
+            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": 0.02, "abertura": 1.12, "abre_frente": 9, "folga": 0.046}}])
 cam("casaco_longo", "sobre", "Casaco longo", "#7B4B2D", regiao="tronco", folga=0.04, abre_frente=0.02, gola={"altura": 0.035, "dobra": 0.8},
     partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(0.0), PUNHO]},
-            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": -0.06, "abertura": 1.17, "abre_frente": 6, "folga": 0.04}}])
+            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": -0.06, "abertura": 1.17, "abre_frente": 6, "folga": 0.052}}])
 cam("cardiga", "sobre", "Cardigã", "#C9A46E", regiao="tronco", folga=0.03, abre_frente=0.03,
     cortes=[GOLA_V, QUAD(-0.04), PUNHO])
 cam("jaqueta_aberta", "sobre", "Jaqueta aberta", "#24346B", regiao="tronco", folga=0.034, abre_frente=0.04, gola={"altura": 0.03, "dobra": 0.8},
@@ -315,7 +319,7 @@ cam("camisa_aberta", "sobre", "Camisa aberta", "#7CC242", regiao="tronco", folga
                                                 {"marco": "braco_meio"}])
 cam("capa_chuva", "sobre", "Capa de chuva", "#3FC1B0", regiao="tronco", folga=0.04, gola={"altura": 0.02},
     partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(0.0), PUNHO]},
-            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": 0.0, "abertura": 1.12, "folga": 0.04}},
+            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": 0.0, "abertura": 1.12, "folga": 0.052}},
             {"capuz_caido": {"espessura": 0.03, "altura": 0.075, "abre": 70}}])
 # parte de baixo
 cam("biquini_baixo", "baixo", "Calcinha de biquíni", "#D9433B", regiao="pernas", folga=0.005,
@@ -404,6 +408,21 @@ obj("maleta", "esq", "Maleta", "#2B2B2B", objeto="maleta")
 obj("mala_rodinha", "esq", "Mala de rodinhas", "#F2C231", objeto="mala_rodinha")
 obj("sacolas", "esq", "Sacolas de compras", "#EE70A9", objeto="sacolas")
 obj("sacola_papel", "esq", "Sacola de compras com pão", "#C9A46E", objeto="sacola_papel")
+
+# ================= quarta leva: objetos com pose de segurar e arrastão
+GUARDA = {"alvo": [0.32, -0.02, 0.12], "aponta": [-0.08, 1.0, -0.04]}  # na frente do ombro; a cúpula sobre a cabeça
+SELFIE = {"alvo": [0.55, 0.3, 0.2], "aponta": [0.75, 0.6, 0.1]}  # braço esticado para a frente e para cima
+obj("guarda_chuva_aberto", "dir", "Guarda-chuva aberto", "#EE70A9", _pose=GUARDA, objeto="guarda_chuva_aberto")
+obj("guarda_chuva_colorido", "dir", "Guarda-chuva colorido", "#D9433B", _pose=GUARDA, objeto="guarda_chuva_colorido")
+obj("pau_selfie", "dir", "Pau de selfie", "#2B2B2B", _pose=SELFIE, objeto="pau_selfie")
+ARRASTAO = dict(regiao="pernas", folga=0.003, padrao="arrastao", uv_repete=[24, 230], _transparente=True)
+cam("meia_arrastao", "meias", "Meia-calça arrastão", "#2B2B2B", cortes=[{"marco": "quadril", "acima": True, "desloca": 0.01}],
+    **ARRASTAO)
+cam("meia_arrastao_coxa", "meias", "Meia 7/8 arrastão", "#2B2B2B", cortes=[{"marco": "coxa_meio", "acima": True, "desloca": 0.06}],
+    **ARRASTAO)
+cam("luvas_arrastao", "maos", "Mangas arrastão", "#2B2B2B", regiao="maos", folga=0.004, subdivide=0, padrao="arrastao",
+    uv_repete=[16, 75], _transparente=True, cortes=[{"marco": "cotovelo", "acima": True, "desloca": 0.03},
+                                                    {"marco": "punho", "desloca": -0.005}])
 
 # ================= conjuntos (profissões e estilos das imagens), feitos com as peças do catálogo
 CONJ = []
@@ -552,13 +571,13 @@ conj("Dia de compras", cima=n("camisa_onca"), baixo=n("calca_boca_sino"), oculos
      pes="roupa_salto_showgirl")
 conj("Feira", cima=n("camiseta_larga", "#F2C231"), baixo=n("calca_jeans"), cabeca=n("balde", "#F2F2F2"), mao_esq=n("sacola_papel"),
      pes="roupa_tenis_009")
-conj("Dia de chuva", cima=n("camiseta_justa"), sobre=n("capa_chuva"), baixo=n("calca_jeans"), mao_dir=n("guarda_chuva"),
+conj("Dia de chuva", cima=n("camiseta_justa"), sobre=n("capa_chuva"), baixo=n("calca_jeans"), mao_dir=n("guarda_chuva_aberto", "#3FC1B0"),
      pes=n("galocha"))
 conj("Encontro", inteira=n("vestido_um_ombro"), cintura=n("cinto_fivela"), mao_dir=n("buque"), pes="roupa_salto_showgirl")
 conj("Sorveteria", cima=n("camiseta_faixa"), baixo=n("short_curto", "#F2F2F2"), cabeca=n("bone_duas_cores"), mao_dir=n("sorvete"),
      pes="roupa_tenis_009")
 conj("Café", cima=n("camisa_ziguezague"), baixo=n("calca_social", "#C9A46E"), mao_dir=n("cafe"), pes="roupa_sapato_seguranca")
-conj("Selfie", cima=n("cropped_manga", "#2B2B2B"), baixo=n("bermuda_rasgada"), oculos=n("oculos_sol_redondos"), mao_dir=n("celular"),
+conj("Selfie", cima=n("cropped_manga", "#2B2B2B"), baixo=n("bermuda_rasgada"), oculos=n("oculos_sol_redondos"), mao_dir=n("pau_selfie"),
      pes="roupa_tenis_009")
 conj("Aviador(a)", cima=n("jaqueta_aviador"), baixo=n("calca_jeans", "#2B2B2B"), oculos="roupa_oculos_006", pes=n("bota_alta"))
 conj("Colegial", cima=n("jaqueta_colegial"), baixo=n("calca_jeans"), costas="roupa_mochila", pes="roupa_tenis_009")
@@ -571,7 +590,7 @@ conj("Inverno de capuz", cima=n("acolchoada_capuz"), baixo=n("legging"), cabeca=
      pes=n("bota_alta", "#F2F2F2"))
 conj("Roqueiro(a)", cima=n("camisa_caveira"), baixo=n("calca_rasgada", "#2B2B2B"), oculos=n("oculos_sol_redondos", "#2B2B2B"),
      pes="roupa_bota_sobrevivente")
-conj("Festa à fantasia: coelho", inteira=n("maio", "#2B2B2B"), meias=n("meia_calca"), cabeca=n("orelhas_coelho"),
+conj("Festa à fantasia: coelho", inteira=n("maio", "#2B2B2B"), meias=n("meia_arrastao"), maos=n("luvas_arrastao"), cabeca=n("orelhas_coelho"),
      pescoco_peca=n("gravata_borboleta"), pes="roupa_salto_showgirl")
 conj("Festa à fantasia: urso", cima=n("moletom", "#7B4B2D"), baixo=n("calca_moletom", "#7B4B2D"), cabeca=n("touca_urso", "#7B4B2D"),
      pes="roupa_tenis_009")
@@ -579,6 +598,10 @@ conj("Cinema 3D", cima=n("camiseta_justa", "#3D7BD6"), baixo=n("short_curto", "#
      pes="roupa_tenis_009")
 conj("Retrô", cima=n("camisa_listrada_vertical"), baixo=n("calca_boca_sino", "#E27B3B"), oculos=n("oculos_redondos"),
      pes="roupa_sapato_36")
+conj("Passeio de sol", inteira=n("vestido_manga_curta", "#3BAA5C"), cabeca=n("chapeu_praia", "#F2F2F2"),
+     mao_dir=n("guarda_chuva_colorido"), pes="roupa_salto_showgirl")
+conj("Roqueira de arrastão", cima=n("camisa_caveira"), baixo=n("short_curto", "#2B2B2B"), meias=n("meia_arrastao_coxa"),
+     maos=n("luvas_arrastao"), pes=n("bota_alta", "#2B2B2B"))
 conj("Boina e lenço", cima=n("camiseta_larga", "#F2F2F2"), baixo=n("calca_jeans"), cabeca=n("boina"), pescoco_peca=n("lenco"),
      pes="roupa_tenis_009")
 

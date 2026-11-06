@@ -300,3 +300,52 @@ def encaixa(item, arm, corpo, pasta_pacotes, ajuste=None):
         if o is not cab:
             bpy.data.objects.remove(o, do_unlink=True)
     return cab
+
+
+
+CORTE_CHAPEU, NUCA_CHAPEU = 0.58, 0.12
+
+
+def sob_chapeu(arm, corpo):
+    """Cabelo sob o chapéu no arquivo-mestre: cada cabelo do corpo ganha a forma "sob_chapeu", em que o que fica acima
+    da linha da aba (58% da altura da cabeça na frente, 12% mais baixo na nuca) entra para dentro da cabeça, e o resto
+    fica como está. A forma é ligada (driver) à propriedade "com_chapeu" (0 ou 1) do esqueleto. É a mesma ideia da
+    página e do jogo (lá, o corte usa a altura da aba de cada chapéu). Devolve quantos cabelos ganharam a forma."""
+    if "com_chapeu" not in arm:
+        arm["com_chapeu"] = 0.0
+        arm.id_properties_ui("com_chapeu").update(min=0.0, max=1.0, description="1 com chapéu: o cabelo fica sob a aba")
+    c = arm.name
+    hmin, hmax = caixa_cabeca(corpo)
+    cen = Vector((hmin + hmax) / 2)
+    Hc, ry = hmax[2] - hmin[2], (hmax[1] - hmin[1]) / 2
+    P = [corpo.matrix_world @ v.co for v in corpo.data.vertices]
+    bvh = BVHTree.FromPolygons([tuple(p) for p in P], [tuple(f.vertices) for f in corpo.data.polygons])
+    feitos = 0
+    for o in [o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm]:
+        papel = o.name[len(c) + 1:]
+        if papel not in ("cabelo", "cabelo_raspado") and (papel not in ITENS or ITENS[papel].get("tipo") == "rosto"):
+            continue
+        if not o.data.shape_keys:
+            o.shape_key_add(name="Basis", from_mix=False)
+        kb = o.data.shape_keys.key_blocks.get("sob_chapeu") or o.shape_key_add(name="sob_chapeu", from_mix=False)
+        mw, mi = o.matrix_world, o.matrix_world.inverted()
+        for i, d in enumerate(o.data.shape_keys.key_blocks["Basis"].data):
+            p = mw @ d.co
+            tras = min(max((p.y - cen.y) / ry, 0.0), 1.0)  # a aba desce na nuca (+y é a nuca)
+            if p.z <= hmin[2] + (CORTE_CHAPEU - NUCA_CHAPEU * tras) * Hc:
+                kb.data[i].co = d.co
+                continue
+            dirc = (p - cen).normalized()
+            hit = bvh.ray_cast(cen, dirc, 1.0)
+            r = (hit[0] - cen).length - 0.004 if hit[0] is not None else (p - cen).length * 0.85
+            kb.data[i].co = mi @ (cen + dirc * max(r, 0.01))
+        kb.value = 0.0
+        kb.driver_remove("value")
+        fc = kb.driver_add("value")
+        fc.driver.type = "AVERAGE"
+        var = fc.driver.variables.new()
+        var.name = "com_chapeu"
+        var.targets[0].id = arm
+        var.targets[0].data_path = '["com_chapeu"]'
+        feitos += 1
+    return feitos

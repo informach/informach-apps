@@ -746,10 +746,13 @@ fetch("roupas.json").then((r) => r.json()).then((j) => {
   if (atual) { aplicarRoupa(); desenharRoupa(); }
 }).catch(() => {});
 const _texRoupa = new Map();
+// tramas que se repetem pela peça (o UV passa de 0..1): arrastão
+const REPETE = /arrastao/;
 function texturaRoupa(nome) {
   if (!_texRoupa.has(nome)) {
     _texRoupa.set(nome, new THREE.TextureLoader().loadAsync(`roupas/${nome}.png`)
-      .then((t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; return t; }).catch(() => null));
+      .then((t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace;
+        if (REPETE.test(nome)) t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }).catch(() => null));
   }
   return _texRoupa.get(nome);
 }
@@ -778,7 +781,8 @@ function texturaMascara(nome) {
   MASC_PNG ||= fetch("roupas/mascaras_png.json").then((r) => r.json()).catch(() => ({}));
   if (!_texMasc.has(nome)) {
     _texMasc.set(nome, MASC_PNG.then((j) => new THREE.TextureLoader().loadAsync(j[nome] ? `data:image/png;base64,${j[nome]}` : `roupas/${nome}`))
-      .then((t) => { t.flipY = false; t.colorSpace = THREE.NoColorSpace; return t; }).catch(() => null));
+      .then((t) => { t.flipY = false; t.colorSpace = THREE.NoColorSpace;
+        if (REPETE.test(nome)) t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }).catch(() => null));
   }
   return _texMasc.get(nome);
 }
@@ -904,8 +908,7 @@ const _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _ax = new THRE
 function fechaDedos(c) {
   if (!c || !c.roupas) return;
   for (const lado of ["dir", "esq"]) {
-    const rid = estado.roupa["mao_" + lado];
-    if (!rid || !c.roupas[rid]?.[0]?.visible) continue;
+    if (!c.naMao?.[lado]?.mesh?.visible) continue;
     const L = lado === "dir" ? "Right" : "Left";
     c.dedos ||= {};
     if (!c.dedos[L]) {
@@ -976,12 +979,16 @@ function materialItem(c, nome) {
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0, name: nome });
   if (nome === "Cabelo") { mat.roughness = 0.9; mat.color.set(CABELO_CORES[corCabelo()] ?? corCabelo()); }
   else if (nome.startsWith("Roupa_")) { texturaRoupa(nome).then((t) => { if (t) { mat.map = t; mat.needsUpdate = true; } }); prepararCorRoupa(mat); }
+  // arrastão: os furos da trama; desenhado um pouco atrás, para a roupa por cima sempre ganhar onde as duas se encostam
+  if (REPETE.test(nome)) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; mat.polygonOffset = true; mat.polygonOffsetFactor = 1; mat.polygonOffsetUnits = 4; }
   return mat;
 }
-async function montarItem(c, id) {
+async function montarItem(c, id, ladoForcado) {
   c.itens ||= {};
-  if (c.itens[id]) return c.itens[id];
-  const [base, { cab, b }] = await Promise.all([baseItens(), dadosItem(id)]);
+  const chave = ladoForcado ? `${id}@${ladoForcado}` : id; // cópia de um objeto de mão na outra mão
+  if (c.itens[chave]) return c.itens[chave];
+  const [base, { cab: cab0, b }] = await Promise.all([baseItens(), dadosItem(id)]);
+  const cab = ladoForcado ? { ...cab0, mao: ladoForcado } : cab0;
   const pele = prepararPele(c, base), fam = pele.pel.familia, corpo = c.corpoMesh;
   if (!cab.familias[fam]) return null;
   const prop = cab.proprios?.[fam]; // geometria em outra ordem nesta família
@@ -989,6 +996,7 @@ async function montarItem(c, id) {
   const uvB = b[fam + "_uv"] || b.uv, idxB = b[fam + "_idx"] || b.idx;
   const geo = new THREE.BufferGeometry();
   const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
+  let sobPele = null;
   if (cab.tipo === "pele") {
     const tri = b[fam + "_tri"], bar = b[fam + "_bar"], off = b[fam + "_off"], F = pele.fam;
     const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off);
@@ -1004,11 +1012,13 @@ async function montarItem(c, id) {
     }
     // pesos: os dos três vértices da pele, pelas baricêntricas; os 4 maiores
     const gi = corpo.geometry.attributes.skinIndex, gw = corpo.geometry.attributes.skinWeight, b2g = pele.b2g;
+    sobPele = new Uint32Array(nv * 3); // os três vértices do corpo embaixo de cada ponto da peça
     for (let j = 0; j < nv; j++) {
       const t = tri[j] * 3, w = [bar[j * 2] / 65535, bar[j * 2 + 1] / 65535]; w.push(1 - w[0] - w[1]);
       const acc = new Map();
       for (let q = 0; q < 3; q++) {
         const gv = b2g[F.T[t + q]];
+        sobPele[j * 3 + q] = gv;
         for (let k = 0; k < 4; k++) { const o = gi.getComponent(gv, k), x = gw.getComponent(gv, k) * w[q]; if (x > 0) acc.set(o, (acc.get(o) || 0) + x); }
       }
       const top = [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4), soma = top.reduce((s_, x) => s_ + x[1], 0) || 1;
@@ -1045,7 +1055,9 @@ async function montarItem(c, id) {
   geo.computeVertexNormals();
   const mesh = new THREE.SkinnedMesh(geo, mats);
   mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
-  if (CAT_ROUPA.itens.some((x) => x.id === id)) mesh.userData.roupa = id;
+  if (CAT_ROUPA.itens.some((x) => x.id === id) && !ladoForcado) mesh.userData.roupa = id;
+  if (cab.tipo === "mao") mesh.userData.mao = cab.mao;
+  if (sobPele) mesh.userData.sobPele = sobPele;
   corpo.parent.add(mesh);
   mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
   mesh.bind(corpo.skeleton, corpo.bindMatrix);
@@ -1056,7 +1068,7 @@ async function montarItem(c, id) {
   }
   if (ehCabelo) { c.cabelo.push(mesh); c.estilos[id] = mesh; }
   if (mesh.userData.roupa) (c.roupas[id] = [mesh]);
-  c.itens[id] = mesh;
+  c.itens[chave] = mesh;
   return mesh;
 }
 function aplicarRoupa() {
@@ -1073,8 +1085,116 @@ function aplicarRoupa() {
     for (const m of malhas) m.visible = ve;
     if (ve) aplicarCorRoupa(rid, malhas, estado.corRoupa[slot]);
   }
+  atualizaMaos();
   ocultarPele();
   if (par) copiarVisivel(atual.raiz, par.raiz);
+}
+// ---------------------------------------------------------------- objetos de mão e gestos
+// Nas animações em que uma mão sobe (acenar, apontar, telefone, bater palmas) ou segura um objeto da cena, o objeto
+// daquela mão passa para a outra, se ela estiver livre; senão, some enquanto durar a animação. A detecção toca cada
+// animação, uma vez, numa cópia do esqueleto: a mão acima de 70% da altura entre o quadril e o pescoço, ou as duas
+// mãos juntas na frente do peito.
+const _h = new THREE.Vector3(), _n = new THREE.Vector3(), _r = new THREE.Vector3(), _l = new THREE.Vector3();
+function maosOcupadas(c, nomeAnim) {
+  c.ocupadas ||= {};
+  if (c.ocupadas[nomeAnim]) return c.ocupadas[nomeAnim];
+  const acao = c.clips[nomeAnim];
+  const res = { dir: false, esq: false };
+  if (!acao) return res;
+  if (!c.copiaEsq) { c.copiaEsq = clonarEsqueleto(c.raiz); c.mixerCopia = new THREE.AnimationMixer(c.copiaEsq); }
+  const o = (n) => c.copiaEsq.getObjectByName(n);
+  const [hips, neck, rh, lh] = ["Hips", "Neck", "RightHand", "LeftHand"].map(o);
+  if (!hips || !neck || !rh || !lh) return res;
+  const clip = acao.getClip(), a2 = c.mixerCopia.clipAction(clip);
+  a2.reset().play();
+  const cont = { dir: 0, esq: 0, palmas: 0 }, N = 12;
+  for (let i = 0; i < N; i++) {
+    c.mixerCopia.setTime((clip.duration * (i + 0.5)) / N);
+    c.copiaEsq.updateMatrixWorld(true);
+    hips.getWorldPosition(_h); neck.getWorldPosition(_n); rh.getWorldPosition(_r); lh.getWorldPosition(_l);
+    const up = _n.clone().sub(_h), alt = up.length(); up.normalize();
+    const hr = _r.clone().sub(_h).dot(up) / alt, hl = _l.clone().sub(_h).dot(up) / alt;
+    if (hr > 0.7) cont.dir++;
+    if (hl > 0.7) cont.esq++;
+    if (_r.distanceTo(_l) < 0.3 * alt && hr > 0.35 && hl > 0.35) cont.palmas++;
+  }
+  a2.stop(); c.mixerCopia.uncacheClip(clip);
+  res.dir = cont.dir >= 2 || cont.palmas >= 2; res.esq = cont.esq >= 2 || cont.palmas >= 2;
+  c.ocupadas[nomeAnim] = res;
+  return res;
+}
+function atualizaMaos() {
+  const c = atual;
+  if (!c || semAnimacoes(c.id)) return;
+  const oc = maosOcupadas(c, estado.anim);
+  const cena_ = !!(dinamico || seguir); // objeto da cena nas mãos (vassoura, caixa...)
+  const ocup = { dir: oc.dir || cena_, esq: oc.esq || cena_ };
+  c.naMao = { dir: null, esq: null };
+  for (const m of Object.values(c.itens || {})) if (m.userData.mao && !m.userData.roupa) m.visible = false; // cópias
+  for (const lado of ["dir", "esq"]) {
+    const rid = estado.roupa["mao_" + lado], m = rid && c.roupas[rid]?.[0];
+    if (!m) continue;
+    const it = CAT_ROUPA.itens.find((x) => x.id === rid);
+    if (it?.pose || !ocup[lado]) { m.visible = true; c.naMao[lado] = { rid, mesh: m, pose: it?.pose }; continue; }
+    m.visible = false;
+    const outro = lado === "dir" ? "esq" : "dir";
+    if (estado.roupa["mao_" + outro] || ocup[outro]) continue; // as duas mãos ocupadas: o objeto some
+    const k = `${rid}@${outro}`;
+    if (c.itens[k]) {
+      c.itens[k].visible = true; c.naMao[outro] = { rid, mesh: c.itens[k] };
+      aplicarCorRoupa(rid, [c.itens[k]], estado.corRoupa[slotDe(rid)]);
+    } else montarItem(c, rid, outro).then(() => { if (atual === c) atualizaMaos(); }).catch(() => {});
+  }
+}
+// pose de segurar (guarda-chuva aberto, pau de selfie): o braço daquele lado vai até a posição do objeto (IK de dois
+// ossos, cotovelo para baixo e para fora) e a mão gira para o eixo do objeto (o eixo Y da mão) apontar como pedido.
+// Medidas em comprimentos de braço, a partir do ombro: frente, cima e para fora.
+const _S = new THREE.Vector3(), _E = new THREE.Vector3(), _W = new THREE.Vector3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+function giraOssoPara(osso, de, para) { // gira o osso no mundo para levar a direção "de" até "para"
+  osso.getWorldQuaternion(_q1);
+  _q2.setFromUnitVectors(de.clone().normalize(), para.clone().normalize()).multiply(_q1);
+  osso.parent.getWorldQuaternion(_q1);
+  osso.quaternion.copy(_q1.invert().multiply(_q2));
+  osso.updateMatrixWorld(true);
+}
+function poseSegurar(c) {
+  if (!c?.naMao) return;
+  for (const lado of ["dir", "esq"]) {
+    const nm = c.naMao[lado];
+    if (!nm?.pose || !nm.mesh.visible) continue;
+    const L = lado === "dir" ? "Right" : "Left", o = (n) => c.raiz.getObjectByName(n);
+    const braco = o(L + "Arm"), ante = o(L + "ForeArm"), mao = o(L + "Hand"), m1 = o(L + "HandMiddle1");
+    const i1 = o(L + "HandIndex1"), p1 = o(L + "HandPinky1"), hips = o("Hips"), neck = o("Neck");
+    const ra = o("RightArm"), la = o("LeftArm");
+    if (!braco || !ante || !mao || !m1 || !hips || !neck) continue;
+    c.raiz.updateMatrixWorld(true);
+    const up = neck.getWorldPosition(new THREE.Vector3()).sub(hips.getWorldPosition(new THREE.Vector3())).normalize();
+    const dirLado = ra.getWorldPosition(new THREE.Vector3()).sub(la.getWorldPosition(new THREE.Vector3())).normalize();
+    const frente = up.clone().cross(dirLado).normalize(), fora = lado === "dir" ? dirLado : dirLado.clone().negate();
+    braco.getWorldPosition(_S); ante.getWorldPosition(_E); mao.getWorldPosition(_W);
+    const a = _S.distanceTo(_E), b = _E.distanceTo(_W), Lb = a + b, ps = nm.pose;
+    const T = _S.clone().addScaledVector(frente, ps.alvo[0] * Lb).addScaledVector(up, ps.alvo[1] * Lb).addScaledVector(fora, ps.alvo[2] * Lb);
+    const d = Math.min(T.distanceTo(_S), Lb * 0.995), u = T.clone().sub(_S).normalize();
+    const polo = up.clone().negate().addScaledVector(fora, 0.6).addScaledVector(frente, -0.2);
+    const v = polo.clone().addScaledVector(u, -polo.dot(u)).normalize();
+    const cosA = Math.min(Math.max((a * a + d * d - b * b) / (2 * a * d), -1), 1);
+    const Enovo = _S.clone().addScaledVector(u, a * cosA).addScaledVector(v, a * Math.sqrt(1 - cosA * cosA));
+    giraOssoPara(braco, _E.clone().sub(_S), Enovo.clone().sub(_S));
+    ante.getWorldPosition(_E); mao.getWorldPosition(_W);
+    giraOssoPara(ante, _W.clone().sub(_E), _S.clone().addScaledVector(u, d).sub(_E));
+    // a mão: eixo Y (do objeto) para "aponta"; os dedos (X) para a frente
+    mao.getWorldPosition(_W);
+    const X = m1.getWorldPosition(new THREE.Vector3()).sub(_W).normalize();
+    const t = i1.getWorldPosition(new THREE.Vector3()).sub(p1.getWorldPosition(new THREE.Vector3()));
+    const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize(), Y = Z.clone().cross(X).normalize();
+    const Yd = frente.clone().multiplyScalar(ps.aponta[0]).addScaledVector(up, ps.aponta[1]).addScaledVector(fora, ps.aponta[2]).normalize();
+    const Xd = frente.clone().addScaledVector(Yd, -frente.dot(Yd)).normalize(), Zd = Xd.clone().cross(Yd).normalize();
+    const Mc = new THREE.Matrix4().makeBasis(X, Y, Z), Md = new THREE.Matrix4().makeBasis(Xd, Yd, Zd);
+    const qR = new THREE.Quaternion().setFromRotationMatrix(Md.multiply(Mc.transpose()));
+    mao.getWorldQuaternion(_q1); _q2.copy(qR).multiply(_q1);
+    mao.parent.getWorldQuaternion(_q1); mao.quaternion.copy(_q1.invert().multiply(_q2));
+    mao.updateMatrixWorld(true);
+  }
 }
 // pele embaixo da roupa: os triângulos do corpo cobertos por uma peça visível não são desenhados (a pele não atravessa
 // a roupa, nem onde o corpo não deixa espaço, como as coxas do plus, nem em movimento). Calculado uma vez por peça.
@@ -1142,7 +1262,8 @@ function ocultarPele() {
   const idx = c.indiceOriginal.slice();
   const cob = new Uint8Array(g.attributes.position.count);
   for (const [rid, malhas] of Object.entries(c.roupas || {})) {
-    if (!malhas[0]?.visible || CAT_ROUPA.itens.find((x) => x.id === rid)?.tipo !== "pele") continue;
+    const it_ = CAT_ROUPA.itens.find((x) => x.id === rid);
+    if (!malhas[0]?.visible || it_?.tipo !== "pele" || it_?.transparente) continue; // arrastão: a pele aparece nos furos
     const cv = coberturaDe(c, rid);
     for (let i = 0; i < cv.length; i++) if (cv[i]) cob[i] = 1;
   }
@@ -1151,6 +1272,23 @@ function ocultarPele() {
   }
   g.index.array.set(idx);
   g.index.needsUpdate = true;
+  // peça transparente (arrastão) embaixo de outra: some onde a de cima cobre a pele (a pele embaixo dos três vértices
+  // do triângulo coberta), para a trama não aparecer através da roupa
+  for (const [rid, malhas] of Object.entries(c.roupas || {})) {
+    if (!CAT_ROUPA.itens.find((x) => x.id === rid)?.transparente) continue;
+    for (const mm of malhas) {
+      const sob = mm.userData.sobPele, gi = mm.geometry.index;
+      if (!sob || !gi) continue;
+      mm.userData.indiceOriginal ||= gi.array.slice();
+      const ix = mm.userData.indiceOriginal.slice();
+      // na borda da peça de cima (barra, cava da perna) basta a maior parte: 2 de 3
+      const coberto = (v) => cob[sob[v * 3]] + cob[sob[v * 3 + 1]] + cob[sob[v * 3 + 2]] >= 2;
+      if (mm.visible) for (let t = 0; t < ix.length; t += 3) {
+        if (coberto(ix[t]) + coberto(ix[t + 1]) + coberto(ix[t + 2]) >= 2) { ix[t + 1] = ix[t]; ix[t + 2] = ix[t]; }
+      }
+      gi.array.set(ix); gi.needsUpdate = true;
+    }
+  }
 }
 // miniaturas dos itens (miniaturas_itens.json: id → WebP em base64), carregadas uma vez
 let MINIS = {};
@@ -1285,6 +1423,7 @@ function aplicarAnim(imediato) {
   for (const a of Object.values(atual.clips)) if (a !== nova && a !== atual.acao && a.isRunning()) a.stop(); // nenhuma sobra tocando
   atual.acao = nova;
   aplicarApoio();
+  atualizaMaos();
 }
 function aplicarApoio() {
   if (estado.anim.startsWith("bib:")) { apoioBiblioteca(estado.anim.slice(4)); return; }
@@ -1581,6 +1720,7 @@ renderer.setAnimationLoop(() => {
   const dt = relogio.getDelta();
   if (atual && !reduzido) atual.mixer.update(dt);
   if (par && !reduzido) par.mixer.update(dt);
+  poseSegurar(atual);
   fechaDedos(atual);
   atualizaDinamico();
   if (seguir && seguir.maos.length) { // a face de trás da caixa fica nas mãos

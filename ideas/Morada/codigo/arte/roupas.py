@@ -523,6 +523,14 @@ def garante_mascara(ob, item_id, tam=512):
         src = Image.open(arquivo).convert("RGB")
         W, H = src.size
         A = np.array(src).astype(float)
+        if m.name == "Roupa_Gen_arrastao":  # trama com furos: a máscara é a própria linha (o alfa), que se repete
+            al = np.array(Image.open(arquivo).convert("RGBA"))[:, :, 3] / 255.0
+            moda = A[al > 0.9].mean(0)
+            nome = f"{item_id}__{m.name}.png"
+            Image.fromarray((al * 255).astype(np.uint8)).save(os.path.join(PASTA_MASC, nome), optimize=True)
+            res[m.name] = {"mascara": nome, "lum": round(float(_lin(moda) @ lumv), 5),
+                           "cor": "#%02x%02x%02x" % tuple(int(x) for x in moda)}
+            continue
         if m.name == "Roupa_Gen_atlas":  # chapéus gerados: manchas de cor lisa; a principal é a de maior área na peça
             area = {}
             for poly in me.polygons:

@@ -11,6 +11,16 @@ scn.render.resolution_x = scn.render.resolution_y = 240
 w = bpy.data.worlds.new("w"); scn.world = w; w.use_nodes = True; w.node_tree.nodes["Background"].inputs[0].default_value = (0.86, 0.87, 0.9, 1)
 bpy.ops.object.light_add(type="SUN"); L = bpy.context.active_object; L.data.energy = 3.5
 cd = bpy.data.cameras.new("c"); cam = bpy.data.objects.new("c", cd); scn.collection.objects.link(cam); scn.camera = cam; cd.type = "ORTHO"
+
+def _com_chapeu(arm, ids):
+    """Com um chapéu visível, o cabelo vai para a forma sob_chapeu (tools/cabelo_chapeu.py)."""
+    import json as _j2
+    cat = _j2.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "morada-art", "roupas.json")))["itens"]
+    tem = any(x["id"] in ids and x.get("slot") == "cabeca" and x.get("achata") is not False for x in cat)
+    if "com_chapeu" in arm:
+        arm["com_chapeu"] = 1.0 if tem else 0.0
+        bpy.context.scene.frame_set(bpy.context.scene.frame_current)
+
 for c in CORPOS:
     arm = bpy.data.objects[c]
     for pb in arm.pose.bones: pb.matrix_basis.identity()
@@ -19,9 +29,10 @@ for c in CORPOS:
     corpo = bpy.data.objects[c + "_corpo"]; top = max((corpo.matrix_world @ v.co).z for v in corpo.data.vertices)
     alvo = Vector((h.x, h.y, (h.z + top) / 2 + 0.03)); cd.ortho_scale = (top - h.z) * 2.6
     for i in IDS:
-        quer = {c + "_" + i, c + "_corpo", c + "_rosto_neutro"}
+        quer = {c + "_" + i, c + "_corpo", c + "_rosto_neutro", c + "_cabelo"}
         for o in bpy.data.objects:
             if o.type == "MESH": o.hide_render = o.name not in quer
+        _com_chapeu(arm, [i])
         for v, az in (("f", 0), ("l", 55)):
             d = Vector((math.sin(math.radians(az)), -math.cos(math.radians(az)), 0.15)).normalized()
             cam.location = alvo + d * 4; cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler(); L.rotation_euler = cam.rotation_euler

@@ -61,6 +61,8 @@ def textura(nome):
     mat = bpy.data.materials.get(f"Roupa_Gen_{nome}")
     if mat:
         return mat
+    if nome == "arrastao":
+        return _textura_arrastao()
     S = 512
     A = np.full((S, S, 3), 255.0)
     yy, xx = np.mgrid[0:S, 0:S]
@@ -186,12 +188,64 @@ def textura(nome):
     return mat
 
 
+def _textura_arrastao():
+    """Trama de arrastão: um losango por ladrilho (128 px), a linha opaca e o furo transparente. O UV da peça passa de
+    0..1 (uv_repete) e a textura se repete; o material usa o alfa (a página: alphaTest)."""
+    from PIL import Image
+    S_ = 128
+    yy, xx = np.mgrid[0:S_, 0:S_]
+    d1 = np.abs(((xx - yy) % S_) - S_ / 2)  # distância às duas diagonais (com a volta do ladrilho)
+    d2 = np.abs(((xx + yy) % S_) - S_ / 2)
+    w = 6.5
+    a = np.clip(1.0 - (np.minimum(S_ / 2 - d1, S_ / 2 - d2) - w) / 1.5, 0, 1)
+    A = np.zeros((S_, S_, 4))
+    A[:, :, :3] = 200.0
+    A[:, :, 3] = a * 255
+    os.makedirs(PASTA_GEN, exist_ok=True)
+    caminho = os.path.join(PASTA_GEN, "Roupa_Gen_arrastao.png")
+    Image.fromarray(A.astype(np.uint8), "RGBA").save(caminho, optimize=True)
+    mat = bpy.data.materials.new("Roupa_Gen_arrastao")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    t = nt.nodes.new("ShaderNodeTexImage")
+    t.image = bpy.data.images.load(caminho, check_existing=True)
+    t.extension = "REPEAT"
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
+    try:
+        mat.surface_render_method = "DITHERED"
+    except AttributeError:
+        mat.blend_method = "CLIP"
+    return mat
+
+
 def _uv_corpo(ob, m, H, ombro):
     """UV pelo corpo: tronco e pernas em cima (volta em torno do corpo ou da perna; altura), braços embaixo."""
     me = ob.data
     mw = ob.matrix_world
     uvl = me.uv_layers.new(name="UVMap") if not me.uv_layers else me.uv_layers.active
     gancho = m["quadril"] - 0.04
+    # eixo de cada braço (centro da seção, em faixas de 2 cm ao longo do braço): a volta em torno do braço é medida
+    # a partir dele (antes era a partir do centro de cada polígono, e a trama que se repete ficava riscada)
+    Pw = np.array([mw @ v.co for v in me.vertices]) if len(me.vertices) else np.zeros((0, 3))
+    eixo = {}
+    if len(Pw):
+        br = (np.abs(Pw[:, 0]) > ombro * 1.05) & (Pw[:, 2] > m["quadril"] + 0.05)
+        for sg in (-1, 1):
+            Q = Pw[br & (np.sign(Pw[:, 0]) == sg)]
+            if len(Q):
+                kq = np.floor(np.abs(Q[:, 0]) / 0.02).astype(int)
+                for k_ in np.unique(kq):
+                    eixo[(sg, int(k_))] = Q[kq == k_][:, 1:].mean(0)
+
+    def centro_braco(p):
+        sg = 1 if p.x > 0 else -1
+        k_ = int(math.floor(abs(p.x) / 0.02))
+        for d_ in (0, -1, 1, -2, 2):
+            if (sg, k_ + d_) in eixo:
+                return eixo[(sg, k_ + d_)]
+        return np.array([0.0, p.z])
     for poly in me.polygons:
         # o polígono inteiro numa ilha só (sem costura no meio dele)
         cs = [mw @ me.vertices[me.loops[li].vertex_index].co for li in poly.loop_indices]
@@ -199,11 +253,16 @@ def _uv_corpo(ob, m, H, ombro):
         braco = abs(cen.x) > ombro * 1.05 and cen.z > m["quadril"] + 0.05
         cx = 0.0 if (cen.z > gancho or braco) else math.copysign(0.09 * H / 1.73, cen.x)
         ang0 = math.atan2(cen.x - cx, -cen.y)
+        if braco:
+            cy, cz = centro_braco(cen)
+            a0 = math.atan2(cen.y - cy, cen.z - cz)
         for li, p in zip(poly.loop_indices, cs):
             if braco:
                 v = 0.5 * min(max((abs(p.x) - ombro) / max(m["punho"] - ombro, 0.05), 0), 1)
-                a = math.atan2(p.y, p.z - cen.z)
-                uu = (a / (2 * math.pi)) % 1
+                a = math.atan2(p.y - cy, p.z - cz)
+                if abs(a - a0) > math.pi:  # sem dar a volta no meio do polígono
+                    a += -2 * math.pi if a > a0 else 2 * math.pi
+                uu = a / (2 * math.pi) + 0.5
                 uvl.data[li].uv = (uu, v * 0.999)
             else:
                 a = math.atan2(p.x - cx, -p.y)
@@ -433,6 +492,10 @@ def camada(S, spec):
     for f in me.polygons:
         f.use_smooth = True
     _uv_corpo(ob, m, H, m["ombro"])
+    if spec.get("uv_repete"):  # trama que se repete (arrastão): o UV passa de 0..1
+        ru, rv = spec["uv_repete"]
+        for d in me.uv_layers.active.data:
+            d.uv = (d.uv[0] * ru, d.uv[1] * rv)
     me.materials.append(textura(spec.get("padrao", "liso")))
     _faixas_cor(ob, spec, m, H)
     return ob
@@ -951,6 +1014,7 @@ def _boina(S, spec):
     for _ in range(3):
         base = 0.5 * base + 0.25 * (np.roll(base, 1) + np.roll(base, -1))
     L, A = b.get("largura", 1.0), b.get("alt", 1.0)
+    A = max(A, (hmax[2] - zb + 0.05 * Hc) / (0.316 * Hc))  # o alto da boina passa por cima do alto da cabeça
     perfil = [(0.985, -0.01), (1.0, 0.0), (1.05, 0.035), (1.0 + 0.24 * L, 0.10), (1.0 + 0.36 * L, 0.165),
               (1.0 + 0.36 * L, 0.215), (1.0 + 0.2 * L, 0.262), (0.88, 0.292), (0.5, 0.31), (0.0, 0.316)]
     lado = math.radians(b.get("lado", 12))
@@ -1378,6 +1442,66 @@ def _o_celular(bm, cor):
     c_ = _bm_prim(bm, "caixa", (0.1, 0, 0.35), (1.6, 0.8, 0.09))
     tela = _bm_prim(bm, "caixa", (0.1, 0, 0.3), (1.45, 0.7, 0.02))
     return [(c_, cor)], [(tela, "azul_escuro")]
+
+
+@_objeto("guarda_chuva_aberto")
+def _o_guarda_chuva_aberto(bm, cor, cores=None):
+    """Aberto, segurado pelo cabo (o eixo do guarda-chuva no eixo Y da mão): cabo em J embaixo da mão, haste e a cúpula
+    de 8 gomos com a borda recortada entre as varetas. cores: uma cor por gomo (o colorido)."""
+    cabo = _bm_prim(bm, "toro", (0.0, -1.35, 0.35), (0.35, 0.1, 0.5), rot=(math.pi / 2, 0, math.pi / 2))
+    haste = _bm_prim(bm, "cilindro", (0.0, 2.1, 0.35), (6.6, 0.07), rot=(0, 0, math.pi / 2), seg=8)
+    R_, ng, nr = 5.6, 8, 7
+    topo = Vector((0.0, 5.2, 0.35))  # a cúpula logo acima da cabeça (a mão fica na altura do ombro)
+    gomos = [[] for _ in range(ng)]
+    an = []
+    for i in range(nr + 1):
+        th = math.radians(78) * i / nr
+        anel = []
+        for j in range(ng * 4):
+            ph = 2 * math.pi * j / (ng * 4)
+            meio = abs(math.sin(ph * ng / 2))  # 0 nas varetas, 1 no meio do gomo
+            r = R_ * math.sin(th) * (1 - 0.06 * meio * (i == nr))
+            h = R_ * 0.55 * (math.cos(th) - 1) + (0.35 * meio * (i == nr))
+            anel.append(bm.verts.new(topo + Vector((r * math.cos(ph), h, r * math.sin(ph)))))
+        an.append(anel)
+    for i in range(nr):
+        for j in range(ng * 4):
+            k = (j + 1) % (ng * 4)
+            gomos[j // 4].append(bm.faces.new((an[i][j], an[i][k], an[i + 1][k], an[i + 1][j])))
+    # espessura da borda (para não sumir de lado)
+    baixo = [bm.verts.new(v.co + Vector((0, -0.05, 0))) for v in an[-1]]
+    borda = []
+    for j in range(ng * 4):
+        k = (j + 1) % (ng * 4)
+        borda.append(bm.faces.new((an[-1][j], baixo[j], baixo[k], an[-1][k])))
+        gomos[j // 4].append(borda[-1])
+    ponta = _bm_prim(bm, "cilindro", (0.0, 5.6, 0.35), (0.8, 0.08, 0.03), rot=(0, 0, math.pi / 2), seg=8)
+    pri = [(sum(gomos[0::2], []), cor)]
+    sec = (cores or ["branco"])
+    det = [(cabo, "marrom"), (haste + ponta, "cinza_escuro")]
+    if cores:
+        pri = [(gomos[0], cor)]
+        det += [(gomos[j], cores[(j - 1) % len(cores)]) for j in range(1, ng)]
+    else:
+        pri = [(sum(gomos, []), cor)]
+    return pri, det
+
+
+@_objeto("guarda_chuva_colorido")
+def _o_guarda_chuva_colorido(bm, cor):
+    return _o_guarda_chuva_aberto(bm, cor, cores=["laranja", "amarelo", "verde", "azul", "azul_escuro", "rosa", "vermelho"])
+
+
+@_objeto("pau_selfie")
+def _o_pau_selfie(bm, cor):
+    """Pau de selfie no eixo Y da mão: o cabo na mão, a haste e o celular na ponta, com a tela virada para quem segura
+    (para trás do eixo X da mão, que aponta para a frente na pose)."""
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.2, 0.35), (2.0, 0.2), rot=(0, 0, math.pi / 2), seg=12)
+    haste = _bm_prim(bm, "cilindro", (0.0, 2.9, 0.35), (3.6, 0.07), rot=(0, 0, math.pi / 2), seg=8)
+    suporte = _bm_prim(bm, "caixa", (0.12, 4.75, 0.35), (0.25, 0.3, 0.9))
+    cel = _bm_prim(bm, "caixa", (-0.05, 5.25, 0.35), (0.1, 1.6, 0.8))
+    tela = _bm_prim(bm, "caixa", (-0.11, 5.25, 0.35), (0.02, 1.45, 0.7))
+    return [(cabo, cor)], [(haste + suporte, "cinza_escuro"), (cel, "preto"), (tela, "azul_escuro")]
 
 
 def objeto(spec):

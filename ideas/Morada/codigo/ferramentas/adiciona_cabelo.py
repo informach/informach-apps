@@ -63,5 +63,8 @@ for arm in corpos:
         CAB.uv_faixa(ob, *cor)
         feitos += 1
         print("cabelo", c, item["id"], flush=True)
+for arm in corpos:  # os cabelos novos também ficam sob o chapéu (forma "sob_chapeu", "com_chapeu" no esqueleto)
+    if (arm.name + "_cabelo") in bpy.data.objects:
+        CAB.sob_chapeu(arm, bpy.data.objects[arm.name + "_corpo"])
 bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True)
 print("fim", feitos)

@@ -44,6 +44,7 @@ for k, ids in enumerate(CONJ):
     quer = {C + "_" + i for i in ids} | {C + "_corpo", C + "_rosto_neutro", C + "_cabelo"}
     for o in bpy.data.objects:
         if o.type == "MESH": o.hide_render = o.name not in quer
+    _com_chapeu(arm, ids)
     for v, az in vistas:
         d = Vector((math.sin(math.radians(az)), -math.cos(math.radians(az)), 0.12)).normalized()
         cam.location = alvo + d * 6; cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()

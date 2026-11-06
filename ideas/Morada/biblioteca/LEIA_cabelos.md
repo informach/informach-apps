@@ -44,6 +44,11 @@ Cada penteado tem as versões comprida, volumosa e para chapéu. Também existem
 
 Cada cabelo tem uma miniatura (`tools/miniaturas_itens.py`), e a página escolhe por ela.
 
+Com chapéu, o cabelo não atravessa a copa:
+- na página e no jogo, o cabelo acima da aba não é desenhado;
+- no arquivo-mestre, cada cabelo tem a forma `sob_chapeu`, ligada à propriedade `com_chapeu` do esqueleto
+  (`cabelos.sob_chapeu`, `tools/cabelo_chapeu.py`). Veja `LEIA_roupas.md`.
+
 ## Para acrescentar um cabelo
 
 1. Coloque o FBX na pasta dos pacotes e acrescente um item em `cabelos.json`.

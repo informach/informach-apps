@@ -2712,7 +2712,7 @@
        "desloca": 0.02,
        "abertura": 1.12,
        "abre_frente": 9,
-       "folga": 0.035
+       "folga": 0.046
       }
      }
     ],
@@ -2765,7 +2765,7 @@
        "desloca": -0.06,
        "abertura": 1.17,
        "abre_frente": 6,
-       "folga": 0.04
+       "folga": 0.052
       }
      }
     ],
@@ -5344,7 +5344,7 @@
        "ate": "joelho",
        "desloca": 0.0,
        "abertura": 1.12,
-       "folga": 0.04
+       "folga": 0.052
       }
      },
      {
@@ -6579,6 +6579,191 @@
    "variacao": {
     "cor": "#C9A46E"
    }
+  },
+  {
+   "id": "nov_guarda_chuva_aberto",
+   "slot": "mao_dir",
+   "rotulo": "Guarda-chuva aberto",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "guarda_chuva_aberto"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.02,
+     0.12
+    ],
+    "aponta": [
+     -0.08,
+     1.0,
+     -0.04
+    ]
+   }
+  },
+  {
+   "id": "nov_guarda_chuva_colorido",
+   "slot": "mao_dir",
+   "rotulo": "Guarda-chuva colorido",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "guarda_chuva_colorido"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.02,
+     0.12
+    ],
+    "aponta": [
+     -0.08,
+     1.0,
+     -0.04
+    ]
+   }
+  },
+  {
+   "id": "nov_pau_selfie",
+   "slot": "mao_dir",
+   "rotulo": "Pau de selfie",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pau_selfie"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "pose": {
+    "alvo": [
+     0.55,
+     0.3,
+     0.2
+    ],
+    "aponta": [
+     0.75,
+     0.6,
+     0.1
+    ]
+   }
+  },
+  {
+   "id": "nov_meia_arrastao",
+   "slot": "meias",
+   "rotulo": "Meia-calça arrastão",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "cortes": [
+     {
+      "marco": "quadril",
+      "acima": true,
+      "desloca": 0.01
+     }
+    ],
+    "regiao": "pernas",
+    "folga": 0.003,
+    "padrao": "arrastao",
+    "uv_repete": [
+     24,
+     230
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "transparente": true
+  },
+  {
+   "id": "nov_meia_arrastao_coxa",
+   "slot": "meias",
+   "rotulo": "Meia 7/8 arrastão",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "cortes": [
+     {
+      "marco": "coxa_meio",
+      "acima": true,
+      "desloca": 0.06
+     }
+    ],
+    "regiao": "pernas",
+    "folga": 0.003,
+    "padrao": "arrastao",
+    "uv_repete": [
+     24,
+     230
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "transparente": true
+  },
+  {
+   "id": "nov_luvas_arrastao",
+   "slot": "maos",
+   "rotulo": "Mangas arrastão",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "maos",
+    "folga": 0.004,
+    "subdivide": 0,
+    "padrao": "arrastao",
+    "uv_repete": [
+     16,
+     75
+    ],
+    "cortes": [
+     {
+      "marco": "cotovelo",
+      "acima": true,
+      "desloca": 0.03
+     },
+     {
+      "marco": "punho",
+      "desloca": -0.005
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "transparente": true
   }
  ],
  "texturas_padrao": {
@@ -8519,8 +8704,8 @@
      "cor": null
     },
     "mao_dir": {
-     "id": "nov_guarda_chuva",
-     "cor": null
+     "id": "nov_guarda_chuva_aberto",
+     "cor": "#3FC1B0"
     },
     "pes": {
      "id": "nov_galocha",
@@ -8611,7 +8796,7 @@
      "cor": null
     },
     "mao_dir": {
-     "id": "nov_celular",
+     "id": "nov_pau_selfie",
      "cor": null
     },
     "pes": {
@@ -8791,7 +8976,11 @@
      "cor": "#2B2B2B"
     },
     "meias": {
-     "id": "nov_meia_calca",
+     "id": "nov_meia_arrastao",
+     "cor": null
+    },
+    "maos": {
+     "id": "nov_luvas_arrastao",
      "cor": null
     },
     "cabeca": {
@@ -8872,6 +9061,52 @@
     "pes": {
      "id": "roupa_sapato_36",
      "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Passeio de sol",
+   "pecas": {
+    "inteira": {
+     "id": "nov_vestido_manga_curta",
+     "cor": "#3BAA5C"
+    },
+    "cabeca": {
+     "id": "nov_chapeu_praia",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_guarda_chuva_colorido",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_salto_showgirl",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Roqueira de arrastão",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_caveira",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_short_curto",
+     "cor": "#2B2B2B"
+    },
+    "meias": {
+     "id": "nov_meia_arrastao_coxa",
+     "cor": null
+    },
+    "maos": {
+     "id": "nov_luvas_arrastao",
+     "cor": null
+    },
+    "pes": {
+     "id": "nov_bota_alta",
+     "cor": "#2B2B2B"
     }
    }
   },

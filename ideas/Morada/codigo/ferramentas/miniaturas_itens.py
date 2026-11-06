@@ -184,7 +184,8 @@ for kind, item in itens:
             bpy.data.objects.remove(eo, do_unlink=True)
         elif it.get("gerar", {}).get("tipo") == "objeto":
             ob = GER.objeto(it["gerar"])
-            ob.rotation_euler = (0, math.radians(90), 0)  # x (para os dedos) vira para baixo: o objeto em pé
+            # em pé: x (para os dedos) para baixo; com pose de segurar, o eixo do objeto é o y da mão (para cima)
+            ob.rotation_euler = (math.radians(90), 0, 0) if it.get("pose") else (0, math.radians(90), 0)
             R.garante_mascara(ob, item["id"])
             tinge(ob, item["id"], it.get("variacao", {}).get("cor"))
             esconde_resto([ob])

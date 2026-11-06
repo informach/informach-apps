@@ -1,7 +1,7 @@
 # Roupas e acessórios
 
 Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), as variações feitas a partir delas e as peças
-geradas aqui (270 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
+geradas aqui (276 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
 três estágios de barriga.
 
 ## Onde fica cada coisa
@@ -82,6 +82,13 @@ O gerador está em `codigo/morada-art/geradores.py`:
     - `capuz_caido`: o capuz abaixado atrás do pescoço (moletom, capa de chuva) ou a almofada do salva-vidas;
     - `fivela`: fivela de cinto ou de alça.
     - Uma parte com `cor` fica numa cor fixa (alças, fivelas).
+  - `uv_repete` com `padrao: "arrastao"`: trama de arrastão.
+    - A textura é um losango com alfa (o furo é transparente) e se repete, com o UV multiplicado.
+    - Na página: `alphaTest`, as duas faces e a peça desenhada um pouco atrás (`polygonOffset`), para a roupa de cima
+      ganhar onde as duas se encostam.
+    - A máscara da cor livre é a própria linha da trama.
+    - A peça tem `"transparente": true` no catálogo, e a página não esconde a pele embaixo dela.
+  - A volta em torno do braço (o u do UV nas mangas) é medida a partir do eixo do braço.
   - Cores fixas: o material `Roupa_Gen_detalhe` (o mesmo atlas de cores) nunca recebe a cor livre (botões, fivelas,
     lentes, golas de outra cor).
   - Saias geradas: a seção é um pouco quadrada, para cobrir os cantos do quadril. O alto fica rente, sem degrau na
@@ -124,6 +131,20 @@ O gerador está em `codigo/morada-art/geradores.py`:
     `referencialMao` na página). O objeto acompanha o tamanho da mão: na criança fica menor.
   - Com um objeto na mão, a página fecha os dedos em volta dele a cada quadro (`fechaDedos`): cada falange gira de X
     para a palma, mais no mínimo e menos no polegar. O jogo deve fazer o mesmo.
+  - Gestos (`maosOcupadas`, `atualizaMaos`): cada animação é tocada uma vez numa cópia do esqueleto, em 12 instantes.
+    - A mão está ocupada quando sobe acima de 70% da altura entre o quadril e o pescoço em pelo menos 2 deles (acenar,
+      apontar, telefone).
+    - As duas estão ocupadas quando ficam juntas na frente do peito (palmas) ou quando a cena põe um objeto nas mãos
+      (vassoura, caixa).
+    - O objeto de uma mão ocupada passa para a outra, se ela estiver livre: o mesmo arquivo, montado no referencial da
+      outra mão. Se não estiver, some enquanto durar a animação e volta depois.
+  - Pose de segurar (`"pose"` no catálogo; `poseSegurar` na página): guarda-chuva aberto, guarda-chuva colorido e pau de
+    selfie.
+    - O objeto é feito no eixo Y da mão. A cada quadro, depois da animação, o braço daquele lado vai até `alvo`
+      (frente, cima e para fora do ombro, em comprimentos de braço), por IK de dois ossos, com o cotovelo para baixo
+      e para fora.
+    - A mão gira para o eixo Y apontar para `aponta` (frente, cima e fora), com os dedos para a frente.
+    - O resto do corpo segue a animação (andar, parado...). O jogo deve fazer igual.
 
 Slots novos:
 - `sobre`: casaco ou colete por cima da parte de cima (jaleco, casaco longo, cardigã, salva-vidas, paletó, capa de
@@ -188,10 +209,14 @@ Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa 
 
 - **Textura na barriga:** na barriga de grávida a textura da frente estica junto com a peça. Na camiseta fica natural.
   Em paletó aberto e cinto de fivela, a parte da frente aumenta.
-- **Chapéus e cabelo:** com chapéu, a página não desenha o cabelo acima da linha da aba e usa a versão "para chapéu"
-  do penteado. O que fica abaixo da aba aparece. No arquivo-mestre (Blender) o cabelo continua inteiro. Tiara, arco,
-  faixa e coroa ficam por cima do cabelo (`"achata": false`).
-- **Objetos de mão:** seguem a mão. Numa animação com a mão em outra posição (acenar, apontar), o objeto vai junto.
+- **Chapéus e cabelo:**
+  - Na página, com chapéu, o cabelo acima da linha da aba não é desenhado, e o penteado usa a versão "para chapéu". O
+    que fica abaixo da aba aparece. Tiara, arco, faixa, coroa e orelhas ficam por cima do cabelo (`"achata": false`).
+  - No arquivo-mestre, cada cabelo tem a forma `sob_chapeu`: o que fica acima da aba (58% da cabeça na frente, 12% mais
+    baixo na nuca) entra na cabeça. A forma é ligada (driver) à propriedade `com_chapeu` do esqueleto: com 1, o cabelo
+    não atravessa o chapéu.
+    - `veste.py` e `adiciona_cabelo.py` fazem isso nos corpos em que mexem, e `tools/cabelo_chapeu.py` em todos.
+    - Os scripts de render ligam `com_chapeu` sozinhos quando um chapéu aparece.
 - **Peças largas:** saia, fantasia e casaco comprido seguem a perna mais perto. Em passos largos, podem atravessar um
   pouco a outra perna.
 

@@ -52,6 +52,9 @@ for arm in corpos:
         ob["roupa"] = item["id"]
         ob["slot"] = item["slot"]
         feitos += 1
+    if c + "_cabelo" in bpy.data.objects:  # o cabelo do corpo fica sob o chapéu com "com_chapeu" = 1 no esqueleto
+        import cabelos as CAB
+        CAB.sob_chapeu(arm, corpo)
     print("vestido", c, f"{time.time() - t0:.0f}s", flush=True)
 R.limpa_fontes()  # as fontes importadas para medir não ficam no arquivo
 R.salva_mascaras()  # máscaras de cor livre (biblioteca/roupas_mascaras)
