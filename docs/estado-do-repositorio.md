@@ -1,6 +1,10 @@
 # Estado do trabalho no repositório
 
-Atualizado em 31/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+Atualizado em 06/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+
+## EdiPlayer, sexta ferramenta da suíte Edi (06/11/2026)
+
+Player de vídeo com edições simples (cortar sem recodificar, dividir, juntar, converter, GIF), aberto pelo Edi Hub e coberto pela assinatura única. Implementado no branch `feat/ediplayer` e integrado à `main` local, sem push nem release. Os contratos de licença e release passaram a derivar do catálogo de ferramentas (migration 0079 para o CHECK de artefatos); Hubs já instalados precisam ser reinstalados no primeiro release com o EdiPlayer. Escopo e lotes no [plano](../apps/ediplayer/PLANO-DE-IMPLEMENTACAO.md), uso no [README](../apps/ediplayer/README.md), verificação, desvios e o que falta verificar (instalador com o bundle de mídia) no [review](reviews/ediplayer-2026-11-06/review.md).
 
 ## Exportação web ediSVG em integração (31/10/2026)
 
