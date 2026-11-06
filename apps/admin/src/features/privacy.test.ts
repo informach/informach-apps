@@ -22,9 +22,10 @@ const CONTENT_SCHEMA_FILES = [
   "agenda-family.ts",
   "missao-saber.ts",
   "bora-treinar.ts",
+  "dia-de-estrela.ts",
 ];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
-const CONTENT_SQL_SCHEMAS = ["cozya", "agenda", "missao_saber", "bora_treinar"];
+const CONTENT_SQL_SCHEMAS = ["cozya", "agenda", "missao_saber", "bora_treinar", "dia_de_estrela"];
 
 /** Nome de coluna que nunca sai do banco, em qualquer tabela. */
 const FORBIDDEN_ANYWHERE = new Set([
@@ -70,6 +71,7 @@ const STRUCTURAL_COLUMNS = new Set([
   "createdByUserId",
   "profileId",
   "studentProfileId",
+  "childId",
   "turmaId",
   "memberId",
   "deviceId",
@@ -100,6 +102,8 @@ const TABLE_ALLOW_LIST: Record<string, Set<string>> = {
   cozyaProductEvents: new Set(["name", "occurredAt"]),
   // Idem na Agenda; `landingContext` (contexto de página) continua fora.
   agendaProductEvents: new Set(["event", "source"]),
+  // Quem marcou a tarefa no Dia de Estrela: só `child` ou `adult`, valor fixo, nunca a tarefa.
+  estrelaCompletions: new Set(["markedBy"]),
 };
 
 function tablesIn(file: string): string[] {

@@ -50,6 +50,10 @@ apps/bora-treinar/.next-e2e*/
 apps/bora-treinar/.next-isolated-*/
 apps/bora-treinar/test-results-*/
 apps/bora-treinar/public/mediapipe/
+apps/dia-de-estrela/tmp/
+apps/dia-de-estrela/.next-e2e*/
+apps/dia-de-estrela/.next-isolated-*/
+apps/dia-de-estrela/test-results-*/
 
 # Acervo de referência do estudo de olimpíadas (originais de terceiros)
 docs/propostas/missao-saber-2026-09-13/acervo/arquivos/

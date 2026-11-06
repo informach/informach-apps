@@ -53,6 +53,12 @@ export const REDIS_SESSION_APPS = [
     keyPrefix: "bora-treinar:auth:",
     cookieCacheMinutes: 0,
   },
+  {
+    app: "dia-de-estrela",
+    name: "Dia de Estrela",
+    keyPrefix: "dia-de-estrela:auth:",
+    cookieCacheMinutes: 0,
+  },
 ] as const;
 
 export type RedisSessionApp = (typeof REDIS_SESSION_APPS)[number]["app"];

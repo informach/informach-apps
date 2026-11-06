@@ -338,6 +338,31 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   ],
   "bora.pairing_connected": () => [t("Conectou o celular como câmera no Bora Treinar")],
   "bora.trial_started": () => [t("Começou o teste de 7 dias do Bora Treinar")],
+  // Dia de Estrela
+  "estrela.child_created": () => [t("Cadastrou uma criança no Dia de Estrela")],
+  "estrela.child_updated": () => [t("Mudou o perfil de uma criança no Dia de Estrela")],
+  "estrela.child_deleted": () => [t("Apagou o perfil de uma criança no Dia de Estrela")],
+  "estrela.settings_updated": () => [t("Mudou os ajustes da família no Dia de Estrela")],
+  "estrela.pin_set": () => [t("Definiu o PIN da área dos pais no Dia de Estrela")],
+  "estrela.pin_unlocked": () => [t("Abriu a área dos pais com o PIN no Dia de Estrela")],
+  "estrela.pin_locked": () => [t("Fechou a área dos pais no Dia de Estrela")],
+  "estrela.device_code_issued": () => [
+    t("Gerou um código para conectar o aparelho da criança no Dia de Estrela"),
+  ],
+  "estrela.device_connected": () => [t("Conectou o aparelho de uma criança no Dia de Estrela")],
+  "estrela.device_revoked": () => [t("Desconectou o aparelho de uma criança no Dia de Estrela")],
+  "estrela.guardian_invited": () => [t("Convidou um segundo responsável no Dia de Estrela")],
+  "estrela.guardian_joined": () => [
+    t("Entrou como segundo responsável numa família no Dia de Estrela"),
+  ],
+  "estrela.guardian_removed": () => [t("Tirou o segundo responsável da família no Dia de Estrela")],
+  "estrela.completion_undone": () => [t("Desfez uma tarefa marcada no Dia de Estrela")],
+  "estrela.bonus_given": () => [t("Deu estrelas de bônus a uma criança no Dia de Estrela")],
+  "estrela.redemption_resolved": () => [
+    t("Respondeu a um pedido da loja de recompensas no Dia de Estrela"),
+  ],
+  "estrela.voice_saved": () => [t("Gravou a voz de uma tarefa no Dia de Estrela")],
+  "estrela.goal_photo_saved": () => [t("Salvou a foto da meta de uma criança no Dia de Estrela")],
 };
 
 function categoryText(ctx: Context): string {

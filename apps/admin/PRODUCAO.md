@@ -44,11 +44,12 @@ No ar desde 17/10/2026, 22:01 UTC, com `ADMIN_LAUNCHED` aplicado, as migrações
   ```sql
   CREATE ROLE bastidores_leitura LOGIN PASSWORD '<gerada>';
   GRANT CONNECT ON DATABASE <banco, o valor de PGDATABASE> TO bastidores_leitura;
-  GRANT USAGE ON SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar TO bastidores_leitura;
-  GRANT SELECT ON ALL TABLES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar TO bastidores_leitura;
-  ALTER DEFAULT PRIVILEGES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar GRANT SELECT ON TABLES TO bastidores_leitura;
+  GRANT USAGE ON SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar, dia_de_estrela TO bastidores_leitura;
+  GRANT SELECT ON ALL TABLES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar, dia_de_estrela TO bastidores_leitura;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA core, billing, audit, ai, ops, edi, cozya, agenda, missao_saber, bora_treinar, dia_de_estrela GRANT SELECT ON TABLES TO bastidores_leitura;
   ```
 
   O `ALTER DEFAULT PRIVILEGES` vale para tabelas criadas pelo mesmo papel que roda as migrações.
   Se o papel já existia antes do schema `bora_treinar` (migração `0076_bora_treinar`), rodar as três linhas de novo só para ele (`GRANT USAGE ON SCHEMA bora_treinar`, `GRANT SELECT ON ALL TABLES IN SCHEMA bora_treinar`, `ALTER DEFAULT PRIVILEGES IN SCHEMA bora_treinar GRANT SELECT ON TABLES`); sem isso, a aba Bora Treinar de Produtos e a ficha das pessoas falham por permissão.
+  O mesmo vale para o schema `dia_de_estrela` (migração `0078_dia_de_estrela`, aplicada no primeiro deploy depois do merge, antes do lançamento do app): logo depois dessa migração, rodar em produção `GRANT USAGE ON SCHEMA dia_de_estrela`, `GRANT SELECT ON ALL TABLES IN SCHEMA dia_de_estrela` e `ALTER DEFAULT PRIVILEGES IN SCHEMA dia_de_estrela GRANT SELECT ON TABLES` para `bastidores_leitura`, depois da migração; sem isso, a aba Dia de Estrela de Produtos, o Painel e a ficha das pessoas falham por permissão.
 - **Sentry.** Projeto `admin` no Sentry e `SENTRY_DSN`. Para os links e a contagem de erros abertos por app em Operação: `SENTRY_ORG_SLUG` e `SENTRY_READ_TOKEN` (escopo `event:read`). Ao criar, acrescentar as três como `preserve()` no bloco do admin.

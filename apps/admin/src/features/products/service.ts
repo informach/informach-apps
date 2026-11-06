@@ -29,6 +29,7 @@ import {
   type BoraUsage,
   type CozyaUsage,
   type EdiUsage,
+  type EstrelaUsage,
   type MissaoUsage,
   usageFor,
 } from "./repository";
@@ -329,6 +330,34 @@ export async function getProductView(
       ],
       ai: "O Bora Treinar não usa IA: a contagem pela câmera roda no aparelho da pessoa.",
       note: "Nomes de perfil, treinos e números de repetição nunca aparecem aqui: só quantos treinos aconteceram.",
+    };
+  }
+
+  if (product === "dia-de-estrela") {
+    const estrela = usage as EstrelaUsage;
+    const done = Object.values(estrela.completions).reduce((sum, total) => sum + total, 0);
+    return {
+      ...base,
+      kpis: [
+        { value: formatNumber(estrela.accounts), label: "contas que usam o Dia de Estrela" },
+        {
+          value: formatNumber(estrela.active),
+          label: "famílias com tarefa feita nos últimos 7 dias",
+        },
+        { ...proPair, label: proPair.label.replace("assinantes Pro", "famílias assinantes") },
+        { value: formatNumber(estrela.children), label: "perfis de criança" },
+        ...revenue,
+      ],
+      usageTitle: "Rotina na semana",
+      usage: [
+        { label: "Tarefas feitas", value: formatNumber(done) },
+        { label: "Marcadas pela criança", value: formatNumber(estrela.completions.child ?? 0) },
+        { label: "Marcadas pelos pais", value: formatNumber(estrela.completions.adult ?? 0) },
+        { label: "Aparelhos das crianças conectados agora", value: formatNumber(estrela.devices) },
+        { label: "Famílias com segundo responsável", value: formatNumber(estrela.guardians) },
+      ],
+      ai: "O Dia de Estrela não usa IA.",
+      note: "Nomes das crianças, tarefas, metas, recompensas, vozes e fotos nunca aparecem aqui: só quantas tarefas foram feitas.",
     };
   }
 

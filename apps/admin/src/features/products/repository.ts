@@ -15,6 +15,11 @@ import {
   ediDevices,
   ediEntitlements,
   ediReleases,
+  estrelaChildren,
+  estrelaCompletions,
+  estrelaDevices,
+  estrelaFamilies,
+  estrelaGuardians,
   missaoFamilies,
   missaoProfiles,
   missaoReports,
@@ -216,6 +221,55 @@ export function boraUsage(since: Date): Promise<BoraUsage> {
   });
 }
 
+export type EstrelaUsage = Funnel & {
+  children: number;
+  /** Aparelhos das crianças conectados agora (sem desconexão e dentro da validade). */
+  devices: number;
+  /** Famílias com um segundo responsável. */
+  guardians: number;
+  /** Tarefas feitas na semana por quem marcou (`child` no aparelho, `adult` pelos pais). */
+  completions: Record<string, number>;
+};
+
+export function estrelaUsage(since: Date, now: Date): Promise<EstrelaUsage> {
+  return memo(`products:estrela:${since.toISOString().slice(0, 13)}`, TTL, async () => {
+    const db = readDb();
+    const [funnel, children, devices, guardians, completions] = await Promise.all([
+      funnelFor(
+        sql`select ${estrelaFamilies.userId} as user_id from ${estrelaFamilies}
+            union select ${estrelaGuardians.userId} from ${estrelaGuardians}`,
+        sql`select distinct ${estrelaChildren.userId} as user_id
+            from ${estrelaCompletions} join ${estrelaChildren} on ${estrelaChildren.id} = ${estrelaCompletions.childId}
+            where ${estrelaCompletions.completedAt} >= ${iso(since)}`,
+      ),
+      db.select({ total: count() }).from(estrelaChildren),
+      db
+        .select({ total: count() })
+        .from(estrelaDevices)
+        .where(
+          and(
+            isNotNull(estrelaDevices.connectedAt),
+            isNull(estrelaDevices.revokedAt),
+            gt(estrelaDevices.expiresAt, now),
+          ),
+        ),
+      db.select({ total: count() }).from(estrelaGuardians),
+      db
+        .select({ markedBy: estrelaCompletions.markedBy, total: count() })
+        .from(estrelaCompletions)
+        .where(gte(estrelaCompletions.completedAt, since))
+        .groupBy(estrelaCompletions.markedBy),
+    ]);
+    return {
+      ...funnel,
+      children: Number(children[0]?.total ?? 0),
+      devices: Number(devices[0]?.total ?? 0),
+      guardians: Number(guardians[0]?.total ?? 0),
+      completions: Object.fromEntries(completions.map((row) => [row.markedBy, Number(row.total)])),
+    };
+  });
+}
+
 export type EdiUsage = Funnel & {
   connectedDevices: number;
   devicesSeen: number;
@@ -261,6 +315,7 @@ export type UsageByProduct = {
   "agenda-da-turma": AgendaUsage;
   "missao-saber": MissaoUsage;
   "bora-treinar": BoraUsage;
+  "dia-de-estrela": EstrelaUsage;
   edi: EdiUsage;
 };
 
@@ -278,6 +333,8 @@ export async function usageFor<K extends ProductKey>(
           ? missaoUsage(since, now)
           : product === "bora-treinar"
             ? boraUsage(since)
-            : ediUsage(since, now);
+            : product === "dia-de-estrela"
+              ? estrelaUsage(since, now)
+              : ediUsage(since, now);
   return usage as Promise<UsageByProduct[K]>;
 }

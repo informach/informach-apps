@@ -29,6 +29,11 @@ import {
   ediDevices,
   ediEntitlements,
   emailDeliveries,
+  estrelaChildren,
+  estrelaCompletions,
+  estrelaDevices,
+  estrelaFamilies,
+  estrelaGuardians,
   events,
   missaoFamilies,
   missaoProfiles,
@@ -63,6 +68,7 @@ import {
  * - Agenda da Turma: tem perfil de criança, é adulto convidado numa família ou tem cliente de cobrança da Agenda.
  * - Missão Saber: tem `missao_saber.families` (criada no primeiro acesso) ou cliente de cobrança da Missão.
  * - Bora Treinar: tem `bora_treinar.families` (criada no primeiro acesso) ou cliente de cobrança do Bora.
+ * - Dia de Estrela: tem `dia_de_estrela.families` (criada no primeiro uso), é segundo responsável numa família ou tem cliente de cobrança do Dia de Estrela.
  * - Suíte Edi: tem computador conectado alguma vez, direito de uso em `edi.entitlements` ou cliente de cobrança do Edi.
  */
 
@@ -84,6 +90,10 @@ function usesProduct(app: ProductKey) {
       return sql`(exists (select 1 from ${missaoFamilies} where ${missaoFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
     case "bora-treinar":
       return sql`(exists (select 1 from ${boraFamilies} where ${boraFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
+    case "dia-de-estrela":
+      return sql`(exists (select 1 from ${estrelaFamilies} where ${estrelaFamilies.userId} = ${users.id})
+        or exists (select 1 from ${estrelaGuardians} where ${estrelaGuardians.userId} = ${users.id})
+        or ${hasCustomer(app)})`;
     case "edi":
       return sql`(exists (select 1 from ${ediDevices} where ${ediDevices.userId} = ${users.id})
         or exists (select 1 from ${ediEntitlements} where ${ediEntitlements.userId} = ${users.id})
@@ -223,41 +233,59 @@ export async function productPresenceFor(userIds: string[]) {
     set.add(app);
     presence.set(userId, set);
   };
-  const [cozya, agendaProfiles, agendaGuests, missao, bora, edi, entitlements, billingCustomers] =
-    await Promise.all([
-      readDb()
-        .select({ userId: cozyaProfiles.userId, trialStartedAt: cozyaProfiles.trialStartedAt })
-        .from(cozyaProfiles)
-        .where(inArray(cozyaProfiles.userId, userIds)),
-      readDb()
-        .selectDistinct({ userId: agendaStudentProfiles.userId })
-        .from(agendaStudentProfiles)
-        .where(inArray(agendaStudentProfiles.userId, userIds)),
-      readDb()
-        .selectDistinct({ userId: agendaFamilyMembers.userId })
-        .from(agendaFamilyMembers)
-        .where(inArray(agendaFamilyMembers.userId, userIds)),
-      readDb()
-        .select({ userId: missaoFamilies.userId })
-        .from(missaoFamilies)
-        .where(inArray(missaoFamilies.userId, userIds)),
-      readDb()
-        .select({ userId: boraFamilies.userId })
-        .from(boraFamilies)
-        .where(inArray(boraFamilies.userId, userIds)),
-      readDb()
-        .selectDistinct({ userId: ediDevices.userId })
-        .from(ediDevices)
-        .where(inArray(ediDevices.userId, userIds)),
-      readDb()
-        .select({ userId: ediEntitlements.userId })
-        .from(ediEntitlements)
-        .where(inArray(ediEntitlements.userId, userIds)),
-      readDb()
-        .selectDistinct({ userId: customers.subjectId, app: customers.app })
-        .from(customers)
-        .where(and(eq(customers.subjectType, "user"), inArray(customers.subjectId, userIds))),
-    ]);
+  const [
+    cozya,
+    agendaProfiles,
+    agendaGuests,
+    missao,
+    bora,
+    estrelaOwners,
+    estrelaSecond,
+    edi,
+    entitlements,
+    billingCustomers,
+  ] = await Promise.all([
+    readDb()
+      .select({ userId: cozyaProfiles.userId, trialStartedAt: cozyaProfiles.trialStartedAt })
+      .from(cozyaProfiles)
+      .where(inArray(cozyaProfiles.userId, userIds)),
+    readDb()
+      .selectDistinct({ userId: agendaStudentProfiles.userId })
+      .from(agendaStudentProfiles)
+      .where(inArray(agendaStudentProfiles.userId, userIds)),
+    readDb()
+      .selectDistinct({ userId: agendaFamilyMembers.userId })
+      .from(agendaFamilyMembers)
+      .where(inArray(agendaFamilyMembers.userId, userIds)),
+    readDb()
+      .select({ userId: missaoFamilies.userId })
+      .from(missaoFamilies)
+      .where(inArray(missaoFamilies.userId, userIds)),
+    readDb()
+      .select({ userId: boraFamilies.userId })
+      .from(boraFamilies)
+      .where(inArray(boraFamilies.userId, userIds)),
+    readDb()
+      .select({ userId: estrelaFamilies.userId })
+      .from(estrelaFamilies)
+      .where(inArray(estrelaFamilies.userId, userIds)),
+    readDb()
+      .select({ userId: estrelaGuardians.userId })
+      .from(estrelaGuardians)
+      .where(inArray(estrelaGuardians.userId, userIds)),
+    readDb()
+      .selectDistinct({ userId: ediDevices.userId })
+      .from(ediDevices)
+      .where(inArray(ediDevices.userId, userIds)),
+    readDb()
+      .select({ userId: ediEntitlements.userId })
+      .from(ediEntitlements)
+      .where(inArray(ediEntitlements.userId, userIds)),
+    readDb()
+      .selectDistinct({ userId: customers.subjectId, app: customers.app })
+      .from(customers)
+      .where(and(eq(customers.subjectType, "user"), inArray(customers.subjectId, userIds))),
+  ]);
   const cozyaTrials = new Map<string, Date>();
   for (const row of cozya) {
     add(row.userId, "cozya");
@@ -266,6 +294,7 @@ export async function productPresenceFor(userIds: string[]) {
   for (const row of [...agendaProfiles, ...agendaGuests]) add(row.userId, "agenda-da-turma");
   for (const row of missao) add(row.userId, "missao-saber");
   for (const row of bora) add(row.userId, "bora-treinar");
+  for (const row of [...estrelaOwners, ...estrelaSecond]) add(row.userId, "dia-de-estrela");
   for (const row of [...edi, ...entitlements]) add(row.userId, "edi");
   for (const row of billingCustomers) {
     if (
@@ -273,6 +302,7 @@ export async function productPresenceFor(userIds: string[]) {
       row.app === "agenda-da-turma" ||
       row.app === "missao-saber" ||
       row.app === "bora-treinar" ||
+      row.app === "dia-de-estrela" ||
       row.app === "edi"
     )
       add(row.userId, row.app);
@@ -321,6 +351,13 @@ export async function usageCounts(userId: string) {
     [boraFamily],
     [trainingProfiles],
     [trainings],
+    [estrelaFamily],
+    [estrelaKids],
+    [estrelaPausedKids],
+    [estrelaConnected],
+    [estrelaSecondIn],
+    [estrelaSecondHere],
+    [estrelaDone],
   ] = await Promise.all([
     readDb()
       .select({ trialStartedAt: cozyaProfiles.trialStartedAt })
@@ -391,6 +428,48 @@ export async function usageCounts(userId: string) {
       })
       .from(boraSessions)
       .where(eq(boraSessions.userId, userId)),
+    readDb()
+      .select({ userId: estrelaFamilies.userId })
+      .from(estrelaFamilies)
+      .where(eq(estrelaFamilies.userId, userId))
+      .limit(1),
+    readDb()
+      .select({ value: count() })
+      .from(estrelaChildren)
+      .where(eq(estrelaChildren.userId, userId)),
+    readDb()
+      .select({ value: count() })
+      .from(estrelaChildren)
+      .where(and(eq(estrelaChildren.userId, userId), eq(estrelaChildren.accessEnabled, false))),
+    readDb()
+      .select({ value: count() })
+      .from(estrelaDevices)
+      .where(
+        and(
+          eq(estrelaDevices.userId, userId),
+          isNull(estrelaDevices.revokedAt),
+          isNotNull(estrelaDevices.connectedAt),
+          gt(estrelaDevices.expiresAt, sql`now()`),
+        ),
+      ),
+    readDb()
+      .select({ value: count() })
+      .from(estrelaGuardians)
+      .where(eq(estrelaGuardians.userId, userId)),
+    readDb()
+      .select({ value: count() })
+      .from(estrelaGuardians)
+      .where(eq(estrelaGuardians.ownerUserId, userId)),
+    readDb()
+      .select({
+        value: count(),
+        last: sql<Date | null>`max(${estrelaCompletions.completedAt})`.mapWith((value) =>
+          value ? new Date(value) : null,
+        ),
+      })
+      .from(estrelaCompletions)
+      .innerJoin(estrelaChildren, eq(estrelaCompletions.childId, estrelaChildren.id))
+      .where(eq(estrelaChildren.userId, userId)),
   ]);
   return {
     cozya: {
@@ -416,6 +495,18 @@ export async function usageCounts(userId: string) {
       profiles: trainingProfiles?.value ?? 0,
       trainings: trainings?.value ?? 0,
       lastTrainedAt: trainings?.last ?? null,
+    },
+    estrela: {
+      present: Boolean(estrelaFamily),
+      children: estrelaKids?.value ?? 0,
+      pausedChildren: estrelaPausedKids?.value ?? 0,
+      devices: estrelaConnected?.value ?? 0,
+      /** É o segundo responsável na família de outra pessoa. */
+      guardianIn: estrelaSecondIn?.value ?? 0,
+      /** Tem um segundo responsável na própria família. */
+      hasGuardian: (estrelaSecondHere?.value ?? 0) > 0,
+      completions: estrelaDone?.value ?? 0,
+      lastCompletedAt: estrelaDone?.last ?? null,
     },
   };
 }

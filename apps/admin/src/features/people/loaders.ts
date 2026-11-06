@@ -277,6 +277,42 @@ export async function loadFicha(id: string, staff: Staff) {
     });
   }
 
+  if (usage.estrela.present || usage.estrela.guardianIn > 0 || hasSub("dia-de-estrela")) {
+    const { children, pausedChildren, devices, completions } = usage.estrela;
+    const facts: string[] = [];
+    if (usage.estrela.present) {
+      facts.push(
+        `${children === 1 ? "1 perfil de criança" : `${children} perfis de criança`} · ${
+          devices === 1
+            ? "1 aparelho de criança conectado"
+            : `${devices} aparelhos de criança conectados`
+        }`,
+      );
+      if (pausedChildren > 0)
+        facts.push(
+          pausedChildren === 1
+            ? "1 criança pausada porque o plano comporta menos"
+            : `${pausedChildren} crianças pausadas porque o plano comporta menos`,
+        );
+      facts.push(
+        completions === 0
+          ? "Nenhuma tarefa feita ainda"
+          : completions === 1
+            ? "1 tarefa feita"
+            : `${completions} tarefas feitas`,
+      );
+      if (usage.estrela.hasGuardian) facts.push("Tem um segundo responsável na família");
+    }
+    if (usage.estrela.guardianIn > 0)
+      facts.push("É o segundo responsável na família de outra pessoa");
+    add("dia-de-estrela", {
+      facts,
+      notes: [
+        "Das crianças, só a contagem. Nome, tarefas, metas, recompensas, voz e foto ficam fora.",
+      ],
+    });
+  }
+
   const ediConnected = edi.devices.filter((device) => device.connected).length;
   if (edi.devices.length || edi.entitlement || hasSub("edi")) {
     const facts = [
@@ -341,6 +377,8 @@ export async function loadFicha(id: string, staff: Staff) {
     activeSubscriptionProducts,
     /** Aparelhos de estudo da Missão Saber: têm acesso próprio, que encerrar sessões não alcança. */
     missaoStudyDevices: usage.missao.studyDevices,
+    /** Aparelhos das crianças no Dia de Estrela: também têm acesso próprio. */
+    estrelaDevices: usage.estrela.devices,
     // Conta sem confirmação quase nunca usou produto ainda: aí a equipe escolhe
     // entre todos, perguntando à pessoa onde ela se cadastrou.
     verificationProducts: products.length

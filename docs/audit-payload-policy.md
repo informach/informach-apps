@@ -67,6 +67,20 @@ Eventos `bora.*` registram o que o titular fez com os perfis, os treinos montado
 
 Finalidade: investigar mudanças na conta da família e atender pedidos de suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores. Esses eventos não são métricas de treino.
 
+## Eventos do Dia de Estrela
+
+Eventos `estrela.*` registram o que os adultos fizeram na família do app `dia-de-estrela`, com payload mínimo de IDs, nomes de campo e flags. As crianças são o centro do app: nunca gravar apelido, cor, nome de tarefa, passos, texto de bônus ou de item da loja, PIN, código de pareamento, token, nome do aparelho, áudio ou foto.
+
+- `estrela.child_created` e `estrela.child_deleted`: `{ childId }`. `estrela.child_updated`: `{ childId, fields }`, só os nomes (`name`, `color`, `accessEnabled`).
+- `estrela.settings_updated`: `{ fields }`, só os nomes dos ajustes alterados.
+- `estrela.pin_set`: `{ first }`. `estrela.pin_unlocked` e `estrela.pin_locked` (cinco erros no aparelho): `{ deviceId }`.
+- `estrela.device_code_issued`, `estrela.device_connected` (`{ deviceId, childIds }`) e `estrela.device_revoked` (`{ deviceId, via? }`).
+- `estrela.guardian_invited` (`{ invitationId }`), `estrela.guardian_joined` (`{ ownerId }`) e `estrela.guardian_removed` (`{ by }`, `owner` ou `guardian`). O e-mail convidado fica fora.
+- `estrela.completion_undone` (`{ childId, completionId, via }`), `estrela.bonus_given` (`{ childId, stars, via }`) e `estrela.redemption_resolved` (`{ redemptionId, childId, outcome, via }`). `via` é `adult` ou `pin`; pelo PIN no aparelho da criança, o ator registrado é o titular.
+- `estrela.voice_saved` (`{ taskId, via }`) e `estrela.goal_photo_saved` (`{ childId, via }`): o arquivo nunca entra no evento.
+
+Finalidade: investigar mudanças na conta da família e atender suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores.
+
 ## Eventos da Agenda da Turma
 
 Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com payload mínimo de IDs e flags operacionais. Não gravar nomes de estudantes, nomes de matérias, títulos, descrições ou conteúdo livre de atividades.
