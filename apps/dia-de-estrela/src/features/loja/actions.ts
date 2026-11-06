@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { estrelasDaMeta } from "@/domain/estrelas";
+import { estrelasDaMeta, META_MAX_ESTRELAS } from "@/domain/estrelas";
 import { ICONES_RECOMPENSA } from "@/domain/modelos";
 import { canCreateCustomRewards, canUseGoalPhoto } from "@/features/acesso/policy";
 import { bytesDeDataUrl, FOTO_MAX_BYTES, tipoDaImagem } from "@/features/arquivos/validacao";
@@ -93,9 +93,15 @@ export async function salvarMetaAction(raw: unknown) {
       assertAllowed(mime, "PHOTO", "Use uma foto JPG, PNG ou WebP.");
       foto = { mime, data: Buffer.from(bytes) };
     }
+    const stars = estrelasDaMeta(reais, family?.starsPerReal ?? 10);
+    assertAllowed(
+      stars <= META_MAX_ESTRELAS,
+      "GOAL",
+      `Com a taxa da casa, essa meta passa de ${META_MAX_ESTRELAS.toLocaleString("pt-BR")} estrelas. Escolha um valor menor.`,
+    );
     await setGoal(actor.ownerId, childId, {
       name,
-      stars: estrelasDaMeta(reais, family?.starsPerReal ?? 10),
+      stars,
       photo: foto,
     });
     if (foto)

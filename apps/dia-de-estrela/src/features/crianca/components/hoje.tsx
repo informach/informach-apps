@@ -63,7 +63,13 @@ export function Hoje({ dados, varias }: { dados: DiaDaCrianca; varias: boolean }
   const relogio = useMemo(() => relogioDa(agoraMs, dados.timezone), [agoraMs, dados.timezone]);
   const [comecou, setComecou] = useState(false);
   const [locais, setLocais] = useState<Record<string, RegistroLembrete>>({});
-  const [marcadasAqui, setMarcadasAqui] = useState<Set<string>>(() => new Set());
+  // Marcadas neste aparelho enquanto a resposta do servidor não chega. Valem só
+  // sobre os dados em que foram marcadas: dados novos do servidor (que já trazem
+  // a marcação, ou um "desfazer" dos pais) substituem o que ficou aqui.
+  const [marcadasAqui, setMarcadasAqui] = useState<{
+    base: DiaDaCrianca["feitas"];
+    ids: ReadonlySet<string>;
+  }>(() => ({ base: dados.feitas, ids: new Set() }));
   const [evento, setEvento] = useState<EventoLembrete | null>(null);
   const [passos, setPassos] = useState<TarefaDia | null>(null);
   const [conquista, setConquista] = useState<ResultadoConquista | null>(null);
@@ -81,7 +87,11 @@ export function Hoje({ dados, varias }: { dados: DiaDaCrianca; varias: boolean }
   }, [relogio.data, dados.relogio.data, router]);
 
   const feitas = useMemo(
-    () => new Set([...dados.feitas.map((f) => f.taskId), ...marcadasAqui]),
+    () =>
+      new Set([
+        ...dados.feitas.map((f) => f.taskId),
+        ...(marcadasAqui.base === dados.feitas ? marcadasAqui.ids : []),
+      ]),
     [dados.feitas, marcadasAqui],
   );
   const registros = useMemo(() => juntar(dados.registros, locais), [dados.registros, locais]);
@@ -148,6 +158,7 @@ export function Hoje({ dados, varias }: { dados: DiaDaCrianca; varias: boolean }
       marcando.current = true;
       setErro(null);
       pararVoz();
+      const base = dados.feitas;
       const r = await marcarTarefaAction({ childId: child.id, taskId: tarefa.id });
       marcando.current = false;
       setPassos(null);
@@ -156,7 +167,10 @@ export function Hoje({ dados, varias }: { dados: DiaDaCrianca; varias: boolean }
         setErro(r.error);
         return;
       }
-      setMarcadasAqui((s) => new Set(s).add(tarefa.id));
+      setMarcadasAqui((s) => ({
+        base,
+        ids: new Set([...(s.base === base ? s.ids : []), tarefa.id]),
+      }));
       if (ajustes.sound) {
         if (ajustes.calm) sino(true);
         else festa();
@@ -168,7 +182,7 @@ export function Hoje({ dados, varias }: { dados: DiaDaCrianca; varias: boolean }
         bau: r.data.chest?.stars ?? null,
       });
     },
-    [child.id, ajustes.sound, ajustes.calm],
+    [child.id, ajustes.sound, ajustes.calm, dados.feitas],
   );
 
   const abrir = (t: TarefaDia) => {
@@ -397,7 +411,12 @@ function CartaoAgora({
               </span>
             )}
             {tarefa.durationMin && (
-              <Cronometro minutos={tarefa.durationMin} agoraMs={agoraMs} som={som} />
+              <Cronometro
+                key={tarefa.id}
+                minutos={tarefa.durationMin}
+                agoraMs={agoraMs}
+                som={som}
+              />
             )}
           </div>
         </div>

@@ -55,7 +55,12 @@ export async function archiveReward(ownerId: string, rewardId: string) {
  * A criança pede um item. As estrelas não saem ainda: ficam guardadas até os
  * pais entregarem ou recusarem. Só com saldo livre suficiente.
  */
-export async function requestRedemption(ownerId: string, childId: string, rewardId: string) {
+export async function requestRedemption(
+  ownerId: string,
+  childId: string,
+  rewardId: string,
+  { customAllowed }: { customAllowed: boolean },
+) {
   return db.transaction(async (tx) => {
     await lockChild(tx, ownerId, childId);
     const [reward] = await tx
@@ -63,6 +68,13 @@ export async function requestRedemption(ownerId: string, childId: string, reward
       .from(rewards)
       .where(and(eq(rewards.id, rewardId), eq(rewards.userId, ownerId), eq(rewards.active, true)));
     assertAllowed(reward, "NOT_FOUND", "Esse item não está mais na loja.");
+    // Itens próprios são do plano Família: depois de rebaixar, continuam
+    // guardados (voltam se assinar de novo), mas não podem ser pedidos.
+    assertAllowed(
+      reward.kind === "money" || customAllowed,
+      "PLAN",
+      "Esse item não está na loja agora. Peça aos pais.",
+    );
     const [family] = await tx
       .select({ starsPerReal: families.starsPerReal })
       .from(families)
@@ -101,20 +113,26 @@ export async function resolveRedemption(
   outcome: "delivered" | "declined",
 ) {
   return db.transaction(async (tx) => {
-    const [r] = await tx
-      .select({
-        id: redemptions.id,
-        childId: redemptions.childId,
-        stars: redemptions.stars,
-        label: redemptions.label,
-        kind: redemptions.kind,
-        status: redemptions.status,
-      })
-      .from(redemptions)
-      .innerJoin(children, eq(redemptions.childId, children.id))
-      .where(and(eq(redemptions.id, redemptionId), eq(children.userId, ownerId)));
-    assertAllowed(r, "NOT_FOUND", "Pedido não encontrado.");
-    await lockChild(tx, ownerId, r.childId);
+    const ler = async () => {
+      const [row] = await tx
+        .select({
+          id: redemptions.id,
+          childId: redemptions.childId,
+          stars: redemptions.stars,
+          label: redemptions.label,
+          kind: redemptions.kind,
+          status: redemptions.status,
+        })
+        .from(redemptions)
+        .innerJoin(children, eq(redemptions.childId, children.id))
+        .where(and(eq(redemptions.id, redemptionId), eq(children.userId, ownerId)));
+      assertAllowed(row, "NOT_FOUND", "Pedido não encontrado.");
+      return row;
+    };
+    // Relê depois da trava: dois adultos resolvendo o mesmo pedido ao mesmo
+    // tempo não podem decidir os dois sobre o "pendente" lido antes.
+    await lockChild(tx, ownerId, (await ler()).childId);
+    const r = await ler();
     assertAllowed(r.status === "pending", "ALREADY", "Esse pedido já foi resolvido.");
     if (outcome === "delivered") {
       const { saldo } = await balanceIn(tx, r.childId);

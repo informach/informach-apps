@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { relogioDa } from "@/domain/relogio";
 import { criancaPodeMarcar, tarefasDoDia } from "@/domain/rotina";
+import { canCreateCustomRewards } from "@/features/acesso/policy";
 import { deviceCookieOptions } from "@/features/aparelho/http";
 import {
   conferirPin,
@@ -115,9 +116,11 @@ export async function pedirRecompensaAction(input: unknown) {
       .object({ childId: z.string().uuid(), rewardId: z.string().uuid() })
       .parse(input);
     const device = await requireChild(childId);
-    const { allowed } = await childOfDevice(device.ownerId, childId);
+    const { allowed, access } = await childOfDevice(device.ownerId, childId);
     assertAllowed(allowed, "PLAN", "Essa criança está fora do plano atual.");
-    const pedido = await requestRedemption(device.ownerId, childId, rewardId);
+    const pedido = await requestRedemption(device.ownerId, childId, rewardId, {
+      customAllowed: canCreateCustomRewards({ ...access, tier: access.paid ? "family" : "free" }),
+    });
     await avisarFamilia(device.ownerId, "loja");
     revalidatePath("/crianca", "layout");
     return pedido;
@@ -139,18 +142,17 @@ export async function desbloquearPinAction(raw: unknown) {
       PIN_TENTATIVAS,
       PIN_JANELA_MS,
       "Muitas tentativas. O PIN fica travado por 15 minutos neste aparelho.",
-    ).catch((error: unknown) => {
-      if (error instanceof AppError)
+    );
+    const family = await getFamily(device.ownerId);
+    if (!(await conferirPin(pin, family?.pinHash))) {
+      const restam = PIN_TENTATIVAS - (tentativa?.attempts ?? PIN_TENTATIVAS);
+      // Uma vez por trava: no erro que a fecha, não a cada toque durante ela.
+      if (restam <= 0)
         audit({
           eventType: "estrela.pin_locked",
           actorId: device.ownerId,
           payload: { deviceId: device.deviceId },
         });
-      throw error;
-    });
-    const family = await getFamily(device.ownerId);
-    if (!(await conferirPin(pin, family?.pinHash))) {
-      const restam = PIN_TENTATIVAS - (tentativa?.attempts ?? PIN_TENTATIVAS);
       throw new AppError(
         "PIN",
         restam > 0

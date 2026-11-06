@@ -117,11 +117,19 @@ export async function deleteVoice(ownerId: string, taskId: string) {
 }
 
 /** O áudio de uma tarefa, só para quem é da família dona dela. */
-export async function readVoice(ownerId: string, taskId: string) {
+export async function readVoice(ownerId: string, taskId: string, childIds?: string[] | null) {
+  if (childIds && !childIds.length) return null;
   const [row] = await db
     .select({ mime: voices.mime, data: voices.data, updatedAt: voices.updatedAt })
     .from(voices)
     .innerJoin(tasks, eq(voices.taskId, tasks.id))
-    .where(and(eq(voices.taskId, taskId), daFamilia(ownerId)));
+    .where(
+      and(
+        eq(voices.taskId, taskId),
+        daFamilia(ownerId),
+        // Um aparelho só ouve as tarefas das crianças conectadas a ele.
+        childIds ? inArray(tasks.childId, childIds) : undefined,
+      ),
+    );
   return row ?? null;
 }

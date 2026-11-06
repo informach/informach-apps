@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     return pagina("Link inválido", "<p>Este link de descadastro não é válido.</p>", 400);
   return pagina(
     "Deixar de receber este e-mail?",
-    `<p>Confirme para não receber mais este tipo de e-mail do Dia de Estrela, como lembretes de treino e o resumo semanal. Dá para reativar em Conta, no app. E-mails essenciais de acesso e cobrança continuam sendo enviados.</p><form method="post"><input type="hidden" name="t" value="${escapar(token)}"><button type="submit" style="font:inherit;font-weight:600;padding:12px 20px;border-radius:12px;border:2px solid #1f2933;background:#fff;cursor:pointer">Confirmar descadastro</button></form>`,
+    `<p>Confirme para não receber mais este tipo de e-mail do Dia de Estrela, como novidades e resumos. Dá para reativar em Conta, no app. E-mails essenciais de acesso e cobrança continuam sendo enviados.</p><form method="post"><input type="hidden" name="t" value="${escapar(token)}"><button type="submit" style="font:inherit;font-weight:600;padding:12px 20px;border-radius:12px;border:2px solid #1f2933;background:#fff;cursor:pointer">Confirmar descadastro</button></form>`,
     200,
   );
 }

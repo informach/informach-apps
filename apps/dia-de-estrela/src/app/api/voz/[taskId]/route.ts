@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tas
   if (!parsed.success) return new Response("Not found", { status: 404 });
   const quem = await requestFamily();
   if (!quem) return new Response("Unauthorized", { status: 401 });
-  const voz = await readVoice(quem.ownerId, parsed.data);
+  const voz = await readVoice(quem.ownerId, parsed.data, quem.childIds);
   if (!voz) return new Response("Not found", { status: 404 });
   return new Response(new Uint8Array(voz.data), {
     headers: {

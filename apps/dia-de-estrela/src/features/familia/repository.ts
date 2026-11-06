@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, db, eq, inArray, sql } from "@informach/db";
+import { and, asc, count, db, eq, inArray } from "@informach/db";
 import {
   estrelaChildren as children,
   estrelaGoals,
@@ -218,13 +218,4 @@ export async function familyExport(ownerId: string) {
     db.select().from(rewards).where(eq(rewards.userId, ownerId)),
   ]);
   return { family, children: kids, taskRows, ledgerRows, goalRows, redemptionRows, rewardRows };
-}
-
-/** Quantas crianças existem (para conferir o limite do plano sem carregar a lista). */
-export async function childCount(ownerId: string) {
-  const [row] = await db
-    .select({ value: sql<number>`count(*)::int` })
-    .from(children)
-    .where(eq(children.userId, ownerId));
-  return row?.value ?? 0;
 }

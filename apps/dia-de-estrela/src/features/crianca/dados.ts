@@ -1,6 +1,7 @@
 import "server-only";
 import { relogioDa } from "@/domain/relogio";
 import { type RegistroLembrete, type Tarefa, tarefasDoDia } from "@/domain/rotina";
+import { canCreateCustomRewards } from "@/features/acesso/policy";
 import { getAccess } from "@/features/billing/service";
 import { balances, dayState, earnedLastWeek, history } from "@/features/estrelas/repository";
 import { allowedChildIds } from "@/features/familia/acesso-criancas";
@@ -115,6 +116,11 @@ export async function childPiggy(ownerId: string, childId: string, now = Date.no
     history: hist,
     earnedLastWeek: semana,
     pending: pedidos,
-    rewards,
+    // Itens próprios só aparecem enquanto o plano os inclui.
+    rewards: rewards.filter(
+      (r) =>
+        r.kind === "money" ||
+        canCreateCustomRewards({ ...access, tier: access.paid ? "family" : "free" }),
+    ),
   };
 }

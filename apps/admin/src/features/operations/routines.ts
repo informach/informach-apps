@@ -133,7 +133,7 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     intervalMinutes: 60,
     schedule: "de hora em hora",
   },
-  // As duas do Dia de Estrela vêm do mesmo cron (`cron-dia-de-estrela`), nesta ordem.
+  // Dia de Estrela: `cron-dia-de-estrela-alertas` e `cron-dia-de-estrela-billing`.
   {
     app: "dia-de-estrela",
     job: "alertas",

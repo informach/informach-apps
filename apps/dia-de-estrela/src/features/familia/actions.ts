@@ -281,7 +281,7 @@ export async function ativarPushAction(raw: unknown) {
 
 export async function desativarPushAction(raw: unknown) {
   return runAction(async () => {
-    const endpoint = z.string().url().max(800).optional().parse(raw);
+    const endpoint = z.string().url().max(800).parse(raw);
     const user = await verifiedUser();
     await removePushSubscription(user.id, endpoint);
     atualizar();

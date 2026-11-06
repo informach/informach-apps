@@ -695,23 +695,32 @@ export default defineRailway((ctx) => {
     },
   });
 
-  // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
-  // app decide quem recebe pela hora local de cada família.
-  // Dia de Estrela, de 5 em 5 minutos: alertas "não marcou" aos pais (sensíveis
-  // ao horário) e, em seguida, a manutenção da cobrança.
-  const estrelaCron = service("cron-dia-de-estrela", {
+  // Dia de Estrela, de 5 em 5 minutos, em dois crons: os alertas "não marcou"
+  // aos pais (sensíveis ao horário) e a manutenção da cobrança, que pode demorar
+  // e não pode atrasar os alertas.
+  const estrelaEnv = {
+    APP_ORIGIN: preserve(),
+    CRON_SECRET: preserve(),
+    SENTRY_DSN: preserve(),
+    SENTRY_ENVELOPE_URL: preserve(),
+  };
+  const estrelaAlertas = service("cron-dia-de-estrela-alertas", {
+    source: image(CURL_IMAGE),
+    start: shellScript("apps/dia-de-estrela/scripts/alertas-cron.sh"),
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: estrelaEnv,
+  });
+  const estrelaBilling = service("cron-dia-de-estrela-billing", {
     source: image(CURL_IMAGE),
     start: shellScript("apps/dia-de-estrela/scripts/maintenance-cron.sh"),
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
-    env: {
-      APP_ORIGIN: preserve(),
-      CRON_SECRET: preserve(),
-      SENTRY_DSN: preserve(),
-      SENTRY_ENVELOPE_URL: preserve(),
-    },
+    env: estrelaEnv,
   });
 
+  // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
+  // app decide quem recebe pela hora local de cada família.
   const boraLembretes = service("cron-bora-treinar-lembretes", {
     source: image(CURL_IMAGE),
     start: shellScript("apps/bora-treinar/scripts/lembretes-cron.sh"),
@@ -765,7 +774,7 @@ export default defineRailway((ctx) => {
       missaoWeeklyReport,
       boraBilling,
       boraLembretes,
-      ...(ESTRELA_LAUNCHED ? [estrelaCron] : []),
+      ...(ESTRELA_LAUNCHED ? [estrelaAlertas, estrelaBilling] : []),
       ediReconcile,
     ],
   });
