@@ -42,9 +42,11 @@ export default async function ProfileExtrasPage({ params }: Props) {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="flex items-start gap-2">
+      {/* No celular o botão desce para baixo do texto: ao lado, ele espremia a
+          descrição numa coluna de três palavras e passava da borda. */}
+      <header className="flex flex-wrap items-start gap-2">
         <BackButton href="/familia" label="Voltar para as crianças" />
-        <div className="flex-1 space-y-1">
+        <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] space-y-1 sm:basis-0">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades extras</h1>
           <p className="text-sm text-muted-foreground">
             O que acontece fora da escola, como jazz, futebol, natação ou reforço. Aparece em Hoje
@@ -52,11 +54,13 @@ export default async function ProfileExtrasPage({ params }: Props) {
             o histórico.
           </p>
         </div>
-        <NewProfileSubjectButton
-          profileId={profileId}
-          disabled={reachedLimit}
-          disabledTitle={disabledTitle}
-        />
+        <div className="pl-[42px] sm:pl-0">
+          <NewProfileSubjectButton
+            profileId={profileId}
+            disabled={reachedLimit}
+            disabledTitle={disabledTitle}
+          />
+        </div>
       </header>
 
       {reachedLimit ? (

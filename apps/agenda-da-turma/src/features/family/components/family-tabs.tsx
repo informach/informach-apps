@@ -13,6 +13,9 @@ import Link from "next/link";
  * no servidor, então navegar de verdade evita carregar os quatro conjuntos de
  * uma vez. Mesmo padrão do filtro de criança da rotina, inclusive o alvo de
  * toque de 44 px.
+ *
+ * No celular as quatro dividem a largura (grade de quatro colunas): numa faixa
+ * que rola, "Ajustes" ficava cortado na borda em 360 px e parecia quebrado.
  */
 const SECTIONS = [
   { href: "/familia", label: "Crianças" },
@@ -27,7 +30,7 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
   return (
     <nav
       aria-label="Seções da família"
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 text-sm [scrollbar-width:none]"
+      className="grid grid-cols-4 gap-1.5 text-[13px] sm:flex sm:gap-2 sm:text-sm"
     >
       {SECTIONS.map(({ href, label }) => {
         const active = href === current;
@@ -37,7 +40,7 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] shrink-0 items-center rounded-full border px-3.5 font-bold transition-colors",
+              "relative inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border px-1 font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] sm:shrink-0 sm:px-3.5",
               active
                 ? "border-foreground bg-foreground text-background"
                 : "border-foreground/15 bg-background hover:bg-muted",

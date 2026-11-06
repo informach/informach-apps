@@ -21,6 +21,8 @@ import { StudentFormDialog } from "./student-form-dialog";
 type Props = {
   currentUserId: string;
   profile: StudentProfileWithActiveTurma;
+  /** O nome curto, para o botão da vez da criança (`shortChildNames`). */
+  shortName: string;
   /** "Natação às terças e sábados": no lugar da escola, quando a criança tem extras. */
   extras?: string | null;
   isPro: boolean;
@@ -28,7 +30,7 @@ type Props = {
 };
 
 const ghost =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] border border-foreground/15 bg-background px-3 text-sm font-bold hover:bg-muted";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] border border-foreground/15 bg-background px-3 py-1.5 text-center text-sm font-bold leading-tight hover:bg-muted";
 
 /**
  * Uma criança, uma folha: quem é (idade, turma e escola), "A vez de Clara" à
@@ -41,7 +43,14 @@ const ghost =
  * para ela. O horário e as extras são da conta de quem cadastrou (a turma é do
  * titular, ver o guia do app), então o adulto convidado vê as atividades.
  */
-export function StudentCard({ profile, extras = null, isPro, currentCount, currentUserId }: Props) {
+export function StudentCard({
+  profile,
+  shortName,
+  extras = null,
+  isPro,
+  currentCount,
+  currentUserId,
+}: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isOwner = profile.userId === currentUserId;
@@ -58,10 +67,15 @@ export function StudentCard({ profile, extras = null, isPro, currentCount, curre
         aria-labelledby={`crianca-${profile.id}`}
         className="space-y-3.5 rounded-[20px] border border-foreground/15 bg-background p-[18px]"
       >
-        <div className="flex items-center gap-3.5">
-          <StudentAvatar name={profile.name} size="lg" className="shrink-0" />
+        <div className="flex items-center gap-3 sm:gap-3.5">
+          <StudentAvatar name={profile.name} size="lg" className="shrink-0 max-sm:size-12" />
           <div className="min-w-0 flex-1">
-            <h2 id={`crianca-${profile.id}`} className="truncate text-xl font-bold">
+            {/* O nome inteiro, quebrando em linhas: é a folha da criança, e
+                cortá-lo deixava "Maria Eduarda …" no único lugar com espaço. */}
+            <h2
+              id={`crianca-${profile.id}`}
+              className="break-words text-lg font-bold leading-tight sm:text-xl"
+            >
               {profile.name}
             </h2>
             {/* A segunda linha é o que muda a semana: as extras quando há,
@@ -113,7 +127,8 @@ export function StudentCard({ profile, extras = null, isPro, currentCount, curre
           href={`/crianca/${profile.id}`}
           className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/35 bg-primary/5 px-3 text-[15px] font-bold hover:bg-primary/10"
         >
-          <Hand className="size-5" aria-hidden />A vez de {profile.name}
+          <Hand className="size-5 shrink-0" aria-hidden />
+          <span className="truncate">A vez de {shortName}</span>
         </Link>
 
         {isOwner ? (

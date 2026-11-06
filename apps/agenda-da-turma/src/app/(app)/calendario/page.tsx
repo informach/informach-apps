@@ -7,6 +7,7 @@ import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-butt
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
+import { shortChildNames, withShortChildName } from "@/features/students/utils";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
@@ -47,6 +48,8 @@ export default async function CalendarPage({ searchParams }: Props) {
   const profileFilter =
     params.perfil && profiles.some((p) => p.id === params.perfil) ? params.perfil : null;
 
+  // Os cards e as linhas da semana levam o nome curto de cada criança.
+  const childNames = shortChildNames(profiles);
   const snapshot = await getCalendarSnapshot(user.id, { view, anchorIso, profileFilter });
 
   // Todo endereço da tela leva a vista, a data e a criança que estão nela.
@@ -86,8 +89,8 @@ export default async function CalendarPage({ searchParams }: Props) {
         anchorIso={anchorIso}
         todayIso={todayIso}
         profileFilter={profileFilter}
-        items={snapshot.items}
-        undated={snapshot.undated}
+        items={snapshot.items.map((item) => withShortChildName(item, childNames))}
+        undated={snapshot.undated.map((item) => withShortChildName(item, childNames))}
         hrefs={hrefs}
       />
       {view === "week" ? (

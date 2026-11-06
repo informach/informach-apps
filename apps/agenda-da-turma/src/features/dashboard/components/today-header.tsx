@@ -56,7 +56,7 @@ export function TodayHeader({
     );
 
   return (
-    <header className="flex items-end justify-between gap-5">
+    <header className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
       <div className="space-y-1.5 lg:space-y-1">
         <p className="text-[15px] font-medium text-muted-foreground">{greeting}</p>
         <h1 className="text-[46px] font-extrabold leading-none tracking-[-0.05em] lg:text-[52px]">
@@ -64,7 +64,7 @@ export function TodayHeader({
           <span className="sr-only lg:not-sr-only"> de {month}</span>
         </h1>
       </div>
-      {filter ? <div className="hidden shrink-0 lg:block">{filter}</div> : null}
+      {filter ? <div className="hidden min-w-0 lg:block">{filter}</div> : null}
     </header>
   );
 }
