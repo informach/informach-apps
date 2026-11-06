@@ -2,6 +2,7 @@
 import { Clock, Flame, Lock, Play, Plus, Repeat, Trophy } from "lucide-react";
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
+import { Cadeado, usePlanos } from "@/features/billing/planos";
 import { CHAINS, exerciseById } from "../catalog/catalog";
 import { estimateMinutes, type Workout } from "../catalog/workouts";
 import type { ProgressMap } from "../engine/progression";
@@ -123,13 +124,13 @@ export function HomeScreen({
         </section>
 
         {!paid && (
-          <Link href="/conta" className="card upsell">
+          <Cadeado motivo="geral" className="card upsell">
             <strong>Você está no plano gratuito.</strong>
             <span className="muted">
               Assine para liberar todos os treinos, a contagem pela câmera, os níveis, os desafios
               em família e o celular como câmera da TV.
             </span>
-          </Link>
+          </Cadeado>
         )}
 
         <div className="section-title">
@@ -148,10 +149,14 @@ export function HomeScreen({
               <WorkoutTile key={w.ref} w={w} />
             ))}
           </div>
-        ) : (
-          <Link href={paid ? "/meus-treinos/novo" : "/conta"} className="card empty">
+        ) : paid ? (
+          <Link href="/meus-treinos/novo" className="card empty">
             Monte um treino do seu jeito, com séries, Tabata, EMOM ou AMRAP.
           </Link>
+        ) : (
+          <Cadeado motivo="editor" className="card empty">
+            Monte um treino do seu jeito, com séries, Tabata, EMOM ou AMRAP.
+          </Cadeado>
         )}
 
         <div className="section-title">
@@ -200,8 +205,18 @@ export function HomeScreen({
 }
 
 function WorkoutTile({ w }: { w: WorkoutCard }) {
+  const abrirPlanos = usePlanos();
   return (
-    <Link href={w.locked ? "/conta" : workoutHref(w.ref)} className="card workout-card">
+    <Link
+      href={workoutHref(w.ref)}
+      className="card workout-card"
+      onClick={(e) => {
+        // treino da assinatura: abre os planos aqui mesmo, em vez de levar a Conta
+        if (!w.locked) return;
+        e.preventDefault();
+        abrirPlanos("treino");
+      }}
+    >
       <span className="muted">{w.focus}</span>
       <h3>{w.name}</h3>
       <p className="muted">{w.subtitle}</p>

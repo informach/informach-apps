@@ -2,30 +2,35 @@ import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { otherAppWithData } from "@/features/account/other-apps";
+import { ehMotivo, ofertas, reais } from "@/features/billing/ofertas";
+import { Cadeado } from "@/features/billing/planos";
 import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import {
+  AbrirPlanosAoChegar,
   BillingButton,
   Lembretes,
   PlanChangeControls,
   PrivacyControls,
+  SairDaConta,
 } from "@/features/familia/conta";
 import { unsubscribedCategories } from "@/features/familia/repository";
 import { currentTrainer } from "@/features/familia/view";
+import { diasRestantes, TRIAL_DAYS } from "@/features/teste/regras";
 import { getSession } from "@/lib/auth";
 import { FUSO_PADRAO } from "@/lib/datas";
 
 export const metadata = { title: "Conta e plano" };
 
-const brl = (cents: number) =>
-  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const PLANO = { individual: "Individual", family: "Família" } as Record<string, string>;
 const BENEFICIOS = [
   "Todos os treinos prontos, do aquecimento ao HIIT",
   "Contagem pela câmera e celular como câmera da TV",
-  "Níveis que sobem quando a meta é batida",
-  "Treinos montados por vocês e desafios em família",
+  "Níveis que acompanham você e o histórico completo",
+  "Treinos montados por você e o desafio da semana",
 ];
+/** O que só a Família tem: a mesma assinatura para a casa, cada um no seu perfil. */
+const DA_FAMILIA = "Até 4 perfis na mesma assinatura, cada um com o seu treino";
 
 function ConfirmarAcesso({ para }: { para: string }) {
   return (
@@ -84,16 +89,24 @@ export default async function Conta({
         <h1 className="page-title">Conta e plano</h1>
       </header>
       <main className="scroll narrow" id="conteudo">
-        {params.motivo && !access.paid && (
+        {/* chegou por um cadeado: a folha de planos abre sozinha, com o motivo */}
+        {ehMotivo(params.motivo) && !access.subscribed && (
+          <AbrirPlanosAoChegar motivo={params.motivo} />
+        )}
+        {access.trial.active && (
           <div className="card notice">
-            {params.motivo === "editor"
-              ? "Montar treinos próprios faz parte da assinatura."
-              : "Este treino faz parte da assinatura. O Primeiro treino e a prática de cada exercício continuam gratuitos."}
+            <strong>
+              Teste grátis: {diasRestantes(access.trial)}{" "}
+              {diasRestantes(access.trial) === 1 ? "dia" : "dias"} com tudo liberado.
+            </strong>
+            <span className="muted">
+              Depois volta ao grátis, sem cobrança. Para continuar com tudo, assine abaixo.
+            </span>
           </div>
         )}
         {params.pagamento === "recebido" && (
           <div className="card notice">
-            {access.paid
+            {access.subscribed
               ? `Pagamento confirmado. O plano ${PLANO[access.tier] ?? ""} já está valendo.`
               : "Recebemos o retorno do pagamento. A assinatura fica ativa assim que a cobrança for confirmada; atualize a página em instantes."}
           </div>
@@ -102,11 +115,13 @@ export default async function Conta({
         <div className="section-title first">
           <h2>Seu plano</h2>
           <span className="muted">
-            {access.paid
+            {access.subscribed
               ? `${PLANO[access.tier] ?? ""} · até ${access.profileLimit} perfil(is)`
               : problema
                 ? "aguardando pagamento"
-                : "gratuito"}
+                : access.trial.active
+                  ? "teste grátis"
+                  : "gratuito"}
           </span>
         </div>
         {problema && (
@@ -137,50 +152,52 @@ export default async function Conta({
           </p>
         )}
         <p className="muted spaced">
-          Grátis: um perfil, o Primeiro treino, a biblioteca com o instrutor 3D e a prática de cada
-          exercício contando à mão. Sem anúncios.
+          Grátis: um perfil, o Primeiro treino e o Aquecimento, a biblioteca com o instrutor 3D e a
+          prática de cada exercício contando à mão ou pela voz. Sem anúncios.
         </p>
+        {!access.subscribed && !access.trial.started && (
+          <Cadeado motivo="geral" className="btn primary big spaced">
+            Testar {TRIAL_DAYS} dias grátis, sem cartão
+          </Cadeado>
+        )}
         <div className="grid plans">
-          {(["individual", "family"] as const).map((tier) => {
-            const mensal = products.find((p) => p.tier === tier && p.interval === "month");
-            const anual = products.find((p) => p.tier === tier && p.interval === "year");
-            if (!mensal || !anual) return null;
-            return (
-              <div className={`card plan ${access.tier === tier ? "current" : ""}`} key={tier}>
-                <span className="muted">
-                  {tier === "family" ? "Família · até quatro perfis" : "Individual · um perfil"}
-                </span>
-                <p className="num plan-price">
-                  {brl(mensal.listPrice?.amountCents ?? 0)}
-                  <small>/mês</small>
-                </p>
-                <p className="muted">
-                  ou {brl(anual.listPrice?.amountCents ?? 0)} por ano, cobrados de uma vez
-                </p>
-                <ul className="hint-list">
-                  {BENEFICIOS.map((b) => (
-                    <li key={b}>{b}</li>
-                  ))}
-                </ul>
-                {!bloqueia && acessoRecente && (
-                  <div className="row spaced">
-                    <BillingButton
-                      productId={mensal.id}
-                      primary
-                      disabled={!configuredPrice(mensal.id)}
-                    >
-                      Assinar mensal
-                    </BillingButton>
-                    <BillingButton productId={anual.id} disabled={!configuredPrice(anual.id)}>
-                      Assinar anual
-                    </BillingButton>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {ofertas(products).map((o) => (
+            <div className={`card plan ${access.tier === o.tier ? "current" : ""}`} key={o.tier}>
+              <span className="muted">
+                {o.tier === "family" ? "Família · até quatro perfis" : "Individual · para você"}
+              </span>
+              <p className="num plan-price">
+                {reais(o.mensal.centavos)}
+                <small>/mês</small>
+              </p>
+              <p className="muted">
+                ou {reais(o.anual.porMes)}/mês no anual ({reais(o.anual.centavos)} por ano
+                {o.anual.mesesGratis ? `, ${o.anual.mesesGratis} meses grátis` : ""})
+              </p>
+              <ul className="hint-list">
+                {(o.tier === "family" ? [DA_FAMILIA, ...BENEFICIOS] : BENEFICIOS).map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+              {/* assinar não pede login de novo: o pagamento acontece no Stripe */}
+              {!bloqueia && (
+                <div className="row spaced">
+                  <BillingButton
+                    productId={o.anual.id}
+                    primary
+                    disabled={!configuredPrice(o.anual.id)}
+                  >
+                    Assinar anual
+                  </BillingButton>
+                  <BillingButton productId={o.mensal.id} disabled={!configuredPrice(o.mensal.id)}>
+                    Assinar mensal
+                  </BillingButton>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-        {!acessoRecente && <ConfirmarAcesso para="assinar, mudar ou gerenciar o plano" />}
+        {bloqueia && !acessoRecente && <ConfirmarAcesso para="mudar ou gerenciar o plano" />}
         {todas.length > 0 && acessoRecente && (
           <div className="spaced">
             <BillingButton>Gerenciar plano, pagamentos ou cancelamento</BillingButton>
@@ -219,6 +236,7 @@ export default async function Conta({
         ) : (
           <ConfirmarAcesso para="exportar dados, encerrar o app ou excluir a conta" />
         )}
+        <SairDaConta />
         <p className="muted spaced">
           <a href={INFORMACH_CONTACT.directMessageUrl}>Suporte pelo direct do Instagram</a> ·{" "}
           <Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link>

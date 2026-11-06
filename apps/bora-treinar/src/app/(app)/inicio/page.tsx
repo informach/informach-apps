@@ -20,7 +20,7 @@ export default async function Inicio() {
       sessions={sessions}
       progress={progress}
       workouts={workouts}
-      paid={access.paid}
+      paid={access.unlocked}
       fuso={family?.timezone ?? FUSO_PADRAO}
     />
   );

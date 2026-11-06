@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Hand, Lock, Play, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Cadeado } from "@/features/billing/planos";
 import { voltar } from "@/lib/voltar";
 import { exerciseById } from "../catalog/catalog";
 import {
@@ -200,13 +201,16 @@ function ModeOption({
 }) {
   if (locked)
     return (
-      <Link href="/conta" className="card mode-option locked">
+      <Cadeado
+        motivo={title.includes("Celular") ? "tv" : "camera"}
+        className="card mode-option locked"
+      >
         <Lock size={28} />
         <span>
           <strong>{title}</strong>
           <span className="muted">Na assinatura. {text}</span>
         </span>
-      </Link>
+      </Cadeado>
     );
   return (
     <button type="button" className="card mode-option" aria-pressed={active} onClick={onClick}>

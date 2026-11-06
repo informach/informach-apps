@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TopNav } from "@/components/top-nav";
+import { Cadeado } from "@/features/billing/planos";
 import { voltar } from "@/lib/voltar";
 import { cadenceLabel } from "../body/cadence";
 import { CHAINS, exerciseById, type View } from "../catalog/catalog";
@@ -179,9 +180,9 @@ export function ExerciseScreen({
                   <Camera size={18} /> Praticar com câmera
                 </button>
               ) : (
-                <Link href="/conta" className="btn ghost">
+                <Cadeado motivo="camera" className="btn ghost">
                   <Lock size={18} /> Câmera na assinatura
-                </Link>
+                </Cadeado>
               )}
               <button
                 type="button"

@@ -8,7 +8,19 @@ import {
   parseWorkoutRef,
 } from "./policy";
 
-const paid: Access = { paid: true, tier: "individual", profileLimit: 1 };
+const paid: Access = {
+  subscribed: true,
+  unlocked: true,
+  trial: { active: false, endsAt: null, started: false },
+  tier: "individual",
+  profileLimit: 1,
+};
+const emTeste: Access = {
+  ...FREE_ACCESS,
+  unlocked: true,
+  trial: { active: true, endsAt: Date.now() + 86_400_000, started: true },
+  profileLimit: 4,
+};
 
 describe("referências de treino", () => {
   it("aceita só treinos e exercícios conhecidos", () => {
@@ -42,5 +54,13 @@ describe("o que cada plano libera", () => {
   it("a assinatura libera tudo", () => {
     expect(canStartWorkout(paid, { kind: "catalogo", id: "hiit-12" })).toBe(true);
     expect(canCountWithCamera(paid)).toBe(true);
+  });
+  it("o aquecimento também é gratuito", () => {
+    expect(canStartWorkout(FREE_ACCESS, { kind: "catalogo", id: "aquecimento-5" })).toBe(true);
+  });
+  it("o teste de 7 dias libera tudo, câmera inclusive, sem ser assinatura", () => {
+    expect(canStartWorkout(emTeste, { kind: "catalogo", id: "hiit-12" })).toBe(true);
+    expect(canCountWithCamera(emTeste)).toBe(true);
+    expect(emTeste.subscribed).toBe(false);
   });
 });

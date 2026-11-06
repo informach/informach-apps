@@ -8,7 +8,8 @@ A conta é do titular (adulto), com perfis familiares só de apelido e cor, como
 
 | Plano | Mensal | Anual | Perfis |
 | --- | --- | --- | --- |
-| Grátis | | | 1, com o "Primeiro treino", a biblioteca de exercícios com o instrutor 3D e contagem manual |
+| Grátis | | | 1, com o "Primeiro treino" e o "Aquecimento", a biblioteca de exercícios com o instrutor 3D e contagem manual ou pela voz |
+| Teste de 7 dias | | | até 4, com tudo liberado e sem cartão, um por e-mail |
 | Bora Treinar Individual | R$ 24,90 | R$ 249,00 | 1 |
 | Bora Treinar Família | R$ 34,90 | R$ 349,00 | até 4 |
 

@@ -81,6 +81,7 @@ export type AuditEventType =
   | "bora.preferences_updated"
   | "bora.pairing_started"
   | "bora.pairing_connected"
+  | "bora.trial_started"
   // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
   | "admin.user_viewed"
   | "admin.sessions_revoked"

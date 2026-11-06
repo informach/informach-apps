@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fmtTime } from "@/components/avatar";
+import { Cadeado } from "@/features/billing/planos";
 import type { Conquista } from "@/features/conquistas/catalogo";
 import { acceptSuggestionAction } from "@/features/sessoes/actions";
 import { useServerAction } from "@/lib/use-server-action";
@@ -151,9 +152,9 @@ export function SummaryScreen({
                         Aceitar
                       </button>
                     ) : (
-                      <Link href="/conta" className="btn ghost">
+                      <Cadeado motivo="niveis" className="btn ghost">
                         <Lock size={16} /> Na assinatura
-                      </Link>
+                      </Cadeado>
                     )}
                   </div>
                 ))}

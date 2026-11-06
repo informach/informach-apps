@@ -6,7 +6,7 @@ import type { WorkoutCard } from "./telas/inicio";
 
 /** Treinos do catálogo e da família, marcando os que o plano ainda não libera. */
 export async function workoutCards(userId: string, access: Access): Promise<WorkoutCard[]> {
-  const mine = access.paid ? await listCustomWorkouts(userId) : [];
+  const mine = access.unlocked ? await listCustomWorkouts(userId) : [];
   return [
     ...mine.map((w) => ({ ...w, ref: w.id, locked: false })),
     ...WORKOUTS.map((w) => ({

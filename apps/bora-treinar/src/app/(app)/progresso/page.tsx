@@ -23,7 +23,7 @@ export default async function Progresso() {
       progress={progress}
       achievements={earned.map((a) => a.achievementId)}
       allAchievements={CONQUISTAS}
-      paid={access.paid}
+      paid={access.unlocked}
       historyLimit={historyLimit(access)}
       fuso={family?.timezone ?? FUSO_PADRAO}
     />

@@ -257,7 +257,8 @@ export const WORKOUTS: Workout[] = [
 ];
 
 /** Treinos liberados no plano gratuito. */
-export const FREE_WORKOUT_IDS: readonly string[] = ["primeiro-treino"];
+/** Grátis: o Primeiro treino e o Aquecimento (decisão do titular em 06/11/2026). */
+export const FREE_WORKOUT_IDS: readonly string[] = ["primeiro-treino", "aquecimento-5"];
 
 export function workoutById(id: string) {
   const workout = WORKOUTS.find((w) => w.id === id);

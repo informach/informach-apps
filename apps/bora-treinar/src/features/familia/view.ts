@@ -22,7 +22,9 @@ export const familyView = cache(async (userId: string) => {
   ]);
   const allowed = new Set(allowedProfileIds(profiles, access.profileLimit));
   const plan: Access = {
-    paid: access.paid,
+    subscribed: access.subscribed,
+    unlocked: access.unlocked,
+    trial: access.trial,
     tier: access.tier as Tier,
     profileLimit: access.profileLimit,
   };

@@ -540,6 +540,13 @@
       "when": 1793451715186,
       "tag": "0076_bora_treinar",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793966768535,
+      "tag": "0077_bora_proposta",
+      "breakpoints": true
     }
   ]
 }

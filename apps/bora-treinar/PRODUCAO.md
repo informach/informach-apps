@@ -100,6 +100,9 @@ A migração `0076_bora_treinar` só cria o schema `bora_treinar` e as tabelas n
 
 ## Pendências fora da infraestrutura
 
+- [ ] Descrições dos produtos no Stripe: o catálogo (`packages/config/src/products.ts`) ganhou em 06/11/2026 a descrição completa do Individual (câmera e voz, celular como câmera, níveis, editor e desafio). Atualizar também no Stripe, pelo `scripts/provision-stripe.mjs` (é operação e não foi rodada).
+- [ ] Migração `0077_bora_proposta` (teste de 7 dias, preferências do perfil, "Como foi?", desafio por perfil): aplicar pelo migrator antes do deploy do app, como sempre.
+
 - [ ] Termos de uso e política do app (ou decisão de usar só os guarda-chuva de `informach.com.br`), e link na cláusula 3 dos Termos do site quando existirem.
 - [ ] Revisão do texto de privacidade sobre a câmera e o pareamento celular → TV antes de qualquer promessa pública sobre imagens.
 - [ ] Monitor de uptime: como na Missão, o monitor operacional é o próprio cron, que reporta ao Sentry.

@@ -2,6 +2,7 @@ import { Lock, Plus } from "lucide-react";
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
 import { canEditWorkouts } from "@/features/acesso/policy";
+import { Cadeado } from "@/features/billing/planos";
 import { requireTrainer } from "@/features/familia/view";
 import { listCustomWorkouts, MAX_CUSTOM_WORKOUTS } from "@/features/meus-treinos/repository";
 import { estimateMinutes } from "@/features/treino/catalog/workouts";
@@ -26,7 +27,7 @@ export default async function MeusTreinos() {
           )}
         </div>
         {!allowed ? (
-          <Link href="/conta" className="card upsell">
+          <Cadeado motivo="editor" className="card upsell">
             <strong>
               <Lock size={16} /> Monte treinos do seu jeito com a assinatura.
             </strong>
@@ -34,7 +35,7 @@ export default async function MeusTreinos() {
               Combine séries, Tabata, EMOM e AMRAP com os exercícios do catálogo ou com o nível
               atual de cada pessoa nas trilhas.
             </span>
-          </Link>
+          </Cadeado>
         ) : workouts.length ? (
           <div className="grid">
             {workouts.map((w) => (

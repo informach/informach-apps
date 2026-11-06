@@ -33,7 +33,8 @@ export type BoraAuditEvent = {
     | "bora.custom_workout_deleted"
     | "bora.preferences_updated"
     | "bora.pairing_started"
-    | "bora.pairing_connected";
+    | "bora.pairing_connected"
+    | "bora.trial_started";
   actorId: string;
   payload: Record<string, unknown>;
 };

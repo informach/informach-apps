@@ -1,6 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Motivo } from "@/features/billing/ofertas";
+import { usePlanos } from "@/features/billing/planos";
 import { authClient } from "@/lib/auth-client";
 import { FUSOS_DO_BRASIL } from "@/lib/datas";
 import { useServerAction } from "@/lib/use-server-action";
@@ -273,6 +275,44 @@ export function Lembretes({
   );
 }
 
+/**
+ * Sair da conta neste aparelho. Fica fora do bloco que pede login recente: sair nunca precisou
+ * provar quem é, e antes só aparecia depois de entrar de novo (para poder sair).
+ */
+export function SairDaConta() {
+  const [pending, start] = useServerAction();
+  const [message, setMessage] = useState("");
+  return (
+    <div>
+      <button
+        type="button"
+        className="btn ghost"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            await forgetProfileAction();
+            const result = await authClient.signOut();
+            if (result.error) return setMessage("Não foi possível sair agora.");
+            window.location.replace("/");
+          })
+        }
+      >
+        Sair da conta neste aparelho
+      </button>
+      <p role="status" className="form-message">
+        {message}
+      </p>
+    </div>
+  );
+}
+
+/** Chegou à Conta por um cadeado (ou pelo servidor, com `?motivo=`): abre a folha de planos. */
+export function AbrirPlanosAoChegar({ motivo }: { motivo: Motivo }) {
+  const abrir = usePlanos();
+  useEffect(() => abrir(motivo), [abrir, motivo]);
+  return null;
+}
+
 export function PrivacyControls({
   outrasAssinaturas,
   outroAppComDados,
@@ -291,21 +331,6 @@ export function PrivacyControls({
         <a className="btn ghost" href="/api/conta/exportar">
           Exportar dados em JSON
         </a>
-        <button
-          type="button"
-          className="btn ghost"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              await forgetProfileAction();
-              const result = await authClient.signOut();
-              if (result.error) return setMessage("Não foi possível sair agora.");
-              window.location.replace("/");
-            })
-          }
-        >
-          Sair da conta neste aparelho
-        </button>
       </div>
       <details className="card danger spaced">
         <summary>Encerrar o Bora Treinar e apagar os dados de treino</summary>

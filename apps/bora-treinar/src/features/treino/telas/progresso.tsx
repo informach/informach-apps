@@ -3,6 +3,7 @@ import { Award, Download, Lock } from "lucide-react";
 import Link from "next/link";
 import { fmtTime } from "@/components/avatar";
 import { TopNav } from "@/components/top-nav";
+import { Cadeado } from "@/features/billing/planos";
 import type { Conquista } from "@/features/conquistas/catalogo";
 import { CHAINS, exerciseById } from "../catalog/catalog";
 import { type ProgressMap, pendingSuggestions, SESSIONS_TO_ADVANCE } from "../engine/progression";
@@ -210,9 +211,9 @@ export function ProgressScreen({
               </Link>
             ))}
             {!paid && history.length > historyLimit && (
-              <Link className="history-row" href="/conta">
+              <Cadeado motivo="historico" className="history-row">
                 <Lock size={16} /> Ver o histórico completo com a assinatura
-              </Link>
+              </Cadeado>
             )}
           </div>
         ) : (

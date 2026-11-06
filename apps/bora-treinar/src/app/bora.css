@@ -844,3 +844,164 @@ a.chip {
     bottom: 1.5rem;
   }
 }
+
+/* ---------- folha de planos (abre de qualquer cadeado) ---------- */
+.folha-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(5 6 8 / 0.72);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.folha {
+  width: min(100%, 34rem);
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 1.75rem 1.75rem 0 0;
+  padding: 0.75rem 1.4rem calc(1.4rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 0.9rem;
+}
+@media (min-width: 761px) {
+  .folha-fundo {
+    align-items: center;
+  }
+  .folha {
+    border-radius: 1.75rem;
+  }
+}
+.folha-alca {
+  justify-self: center;
+  width: 2.5rem;
+  height: 0.3rem;
+  border-radius: 1rem;
+  background: var(--line);
+}
+.folha .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+.folha h2 {
+  font-family: var(--head);
+  font-weight: 800;
+  font-size: 1.75rem;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.folha-beneficios {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--muted);
+}
+.folha-beneficios li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.folha-beneficios svg {
+  color: var(--accent);
+  flex: none;
+  margin-top: 0.1rem;
+}
+.segmento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 1rem;
+  background: var(--bg);
+}
+.segmento,
+.planos-opcoes {
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+.segmento label {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+.segmento label:has(input:checked) {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+}
+.segmento label:has(input:focus-visible),
+.plano-opcao:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.planos-opcoes {
+  display: grid;
+  gap: 0.5rem;
+}
+.plano-opcao {
+  text-align: left;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1.2rem;
+  border: 1.5px solid var(--line);
+}
+.plano-opcao {
+  cursor: pointer;
+}
+.plano-opcao:has(input:checked) {
+  border: 2px solid var(--accent);
+  background: var(--surface-2);
+}
+.plano-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--head);
+  font-size: 1.1rem;
+}
+.plano-linha small {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.center {
+  text-align: center;
+}
+.hero-nota {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--on-accent);
+  opacity: 0.85;
+}
+
+/* fora da tela, mas ainda no leitor de tela e no teclado */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

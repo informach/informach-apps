@@ -13,6 +13,7 @@ import {
   portal,
   reactivate,
 } from "../billing/service";
+import { comecarTeste } from "../teste/service";
 import {
   clearFamily,
   createProfile,
@@ -50,6 +51,9 @@ export async function createProfileAction(name: string, color: string, fusoDoApa
     const id = await createProfile(user.id, input.name, input.color, access.profileLimit);
     if (!profiles.length && fusoDoAparelho && fusoValido(fusoDoAparelho))
       await setTimezone(user.id, fusoDoAparelho, true);
+    // O teste de 7 dias começa sozinho no primeiro perfil: a pessoa prova a câmera e os treinos
+    // antes de qualquer cobrança. Se o e-mail já usou o teste, segue no grátis, sem erro.
+    if (!profiles.length && !access.subscribed) await comecarTeste(user);
     audit({ eventType: "bora.profile_created", actorId: user.id, payload: { profileId: id } });
     await rememberProfile(id);
     revalidatePath("/", "layout");
@@ -100,6 +104,22 @@ export async function selectProfileAction(id: string) {
   });
 }
 
+/** "Começar 7 dias grátis": para quem já tinha conta no grátis antes de o teste existir. */
+export async function startTrialAction() {
+  return runAction(async () => {
+    const user = await verifiedUser();
+    const { access } = await familyView(user.id);
+    assertAllowed(!access.subscribed, "ALREADY_SUBSCRIBED", "Você já tem uma assinatura.");
+    const resultado = await comecarTeste(user);
+    assertAllowed(
+      resultado.ok,
+      resultado.ok ? "OK" : resultado.code,
+      "O teste de 7 dias já foi usado por este e-mail. Os planos continuam a um toque.",
+    );
+    revalidatePath("/", "layout");
+  });
+}
+
 export async function forgetProfileAction() {
   (await cookies()).delete(PROFILE_COOKIE);
 }
@@ -125,10 +145,15 @@ export async function preferencesAction(prefs: z.input<typeof preferencesSchema>
   });
 }
 
+/**
+ * Abre o pagamento de uma assinatura nova. Não pede login recente: o pagamento acontece no Stripe,
+ * com o cartão. Antes cada cadeado levava a Conta, que pedia o código de novo antes de mostrar o
+ * botão de assinar. O login recente continua para Portal, troca de plano, limpeza e exclusão.
+ */
 export async function checkoutAction(productId: string) {
   return runAction(async () => {
     z.string().max(80).parse(productId);
-    const user = await recentParent();
+    const user = await verifiedUser();
     return checkout(user.id, productId);
   });
 }

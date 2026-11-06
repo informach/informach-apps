@@ -57,7 +57,7 @@ async function enviarResumo(
   const resumo = montarResumo(
     ativos,
     sessoes.map((s) => ({ profileId: s.profileId, durationSeconds: s.duration, logs: s.logs })),
-    access.paid ? await challengeOf(f.userId, semana.anterior) : null,
+    access.unlocked ? await challengeOf(f.userId, semana.anterior) : null,
   );
   if (!ativos.length) return "ignorado";
   const unsubscribeUrl = buildUnsubscribeUrl(f.userId, "bora.weekly-summary");

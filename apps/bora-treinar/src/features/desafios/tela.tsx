@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { TopNav } from "@/components/top-nav";
+import { Cadeado } from "@/features/billing/planos";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
 import { useServerAction } from "@/lib/use-server-action";
 import { challengeAction } from "./actions";
@@ -65,7 +66,7 @@ export function DesafiosScreen({
           </span>
         </div>
         {!allowed ? (
-          <Link href="/conta" className="card upsell">
+          <Cadeado motivo="desafio" className="card upsell">
             <strong>
               <Lock size={16} /> Desafios em família fazem parte da assinatura.
             </strong>
@@ -73,7 +74,7 @@ export function DesafiosScreen({
               Escolham juntos uma meta para a semana e acompanhem quanto cada um somou, com
               conquistas pelo caminho.
             </span>
-          </Link>
+          </Cadeado>
         ) : (
           <>
             {desafio && placar && !editando && (

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { useConfirmar } from "@/components/confirmar";
+import { Cadeado, usePlanos } from "@/features/billing/planos";
 import {
   createProfileAction,
   deleteProfileAction,
@@ -32,6 +33,7 @@ export function ProfilesScreen({
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
   const [dialogo, confirmar] = useConfirmar();
+  const abrirPlanos = usePlanos();
   const showForm = creating || profiles.length === 0;
   const full = profiles.length >= limit;
 
@@ -147,7 +149,7 @@ export function ProfilesScreen({
             className={`profile-tile ${p.allowed ? "" : "locked"}`}
             data-autofocus={i === 0 ? true : undefined}
             disabled={pending}
-            onClick={() => (managing ? remove(p) : p.allowed ? enter(p.id) : router.push("/conta"))}
+            onClick={() => (managing ? remove(p) : p.allowed ? enter(p.id) : abrirPlanos("perfis"))}
             title={p.allowed ? undefined : "Perfil guardado: o plano atual libera menos perfis"}
           >
             <Avatar profile={p} />
@@ -166,14 +168,14 @@ export function ProfilesScreen({
         ))}
         {!managing &&
           (full ? (
-            <Link href="/conta" className="profile-tile">
+            <Cadeado motivo="perfis" className="profile-tile">
               <span className="avatar add">
                 <Lock size={34} />
               </span>
               <span className="muted">
                 {limit > 1 ? `Até ${limit} perfis` : "Mais perfis no plano Família"}
               </span>
-            </Link>
+            </Cadeado>
           ) : (
             <button type="button" className="profile-tile" onClick={() => setCreating(true)}>
               <span className="avatar add">

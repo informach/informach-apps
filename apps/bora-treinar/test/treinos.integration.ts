@@ -27,6 +27,7 @@ import {
 import { achievementsOf, sessionsOf } from "@/features/sessoes/repository";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { acceptSuggestion, saveSession } from "@/features/sessoes/service";
+import { comecarTeste } from "@/features/teste/service";
 import { pendingSuggestions } from "@/features/treino/engine/progression";
 import { relogioLocal } from "@/lib/datas";
 import { emails } from "@/lib/emails";
@@ -34,7 +35,13 @@ import { emails } from "@/lib/emails";
 const owner = randomUUID();
 let customerId = "";
 let subscriptionId = "";
-const family: Access = { paid: true, tier: "family", profileLimit: 4 };
+const family: Access = {
+  subscribed: true,
+  unlocked: true,
+  trial: { active: false, endsAt: null, started: false },
+  tier: "family",
+  profileLimit: 4,
+};
 const profiles: string[] = [];
 
 const sessao = (profileId: string, extra: Partial<SessionInput> = {}): SessionInput => ({
@@ -103,7 +110,12 @@ afterAll(async () => {
 describe("plano Família e perfis", () => {
   it("a assinatura ativa dá o plano Família com quatro perfis", async () => {
     const access = await getAccess(owner);
-    expect(access).toMatchObject({ paid: true, tier: "family", profileLimit: 4 });
+    expect(access).toMatchObject({
+      subscribed: true,
+      unlocked: true,
+      tier: "family",
+      profileLimit: 4,
+    });
   });
 
   it("cria até o limite, mesmo com pedidos simultâneos", async () => {
@@ -211,5 +223,106 @@ describe("lembrete de treino", () => {
     const antes = emails.getOutbox?.().length ?? 0;
     await rodarLembretes();
     expect((emails.getOutbox?.().length ?? 0) - antes).toBe(0);
+  });
+});
+
+describe("teste de 7 dias, sem cartão", () => {
+  const conta = (id: string, email: string) =>
+    db.insert(users).values({ id, email, name: "Teste", emailVerified: true });
+
+  it("libera tudo, com quatro perfis, sem ser assinatura", async () => {
+    const id = randomUUID();
+    const email = `${id}@example.test`;
+    await conta(id, email);
+    try {
+      expect((await getAccess(id)).unlocked).toBe(false);
+      expect((await comecarTeste({ id, email, emailVerified: true })).ok).toBe(true);
+      const access = await getAccess(id);
+      expect(access).toMatchObject({ subscribed: false, unlocked: true, profileLimit: 4 });
+      expect(access.trial.active).toBe(true);
+      // pedir de novo na mesma conta não recomeça nem falha
+      expect((await comecarTeste({ id, email, emailVerified: true })).ok).toBe(true);
+    } finally {
+      await db.delete(users).where(eq(users.id, id));
+    }
+  });
+
+  it("é um por e-mail, mesmo apagando a conta e criando outra", async () => {
+    const email = `${randomUUID()}@example.test`;
+    const primeira = randomUUID();
+    await conta(primeira, email);
+    expect((await comecarTeste({ id: primeira, email, emailVerified: true })).ok).toBe(true);
+    await db.delete(users).where(eq(users.id, primeira));
+    const segunda = randomUUID();
+    await conta(segunda, email.toUpperCase());
+    try {
+      expect(
+        await comecarTeste({ id: segunda, email: email.toUpperCase(), emailVerified: true }),
+      ).toEqual({
+        ok: false,
+        code: "TRIAL_USED",
+      });
+      expect((await getAccess(segunda)).unlocked).toBe(false);
+    } finally {
+      await db.delete(users).where(eq(users.id, segunda));
+    }
+  });
+
+  it("e-mail não confirmado não começa o teste", async () => {
+    expect(
+      await comecarTeste({ id: randomUUID(), email: "x@example.test", emailVerified: false }),
+    ).toEqual({ ok: false, code: "VERIFY" });
+  });
+});
+
+describe("pagamento atrasado", () => {
+  it("segue liberado por 7 dias depois do fim do período, e depois não", async () => {
+    const id = randomUUID();
+    await db
+      .insert(users)
+      .values({ id, email: `${id}@example.test`, name: "Atraso", emailVerified: true });
+    const [cliente] = await db
+      .insert(customers)
+      .values({
+        provider: "stripe",
+        providerCustomerId: `cus_atraso_${id}`,
+        subjectType: "user",
+        subjectId: id,
+        app: "bora-treinar",
+        email: `${id}@example.test`,
+      })
+      .returning();
+    if (!cliente) throw new Error("cliente");
+    const [assinatura] = await db
+      .insert(subscriptions)
+      .values({
+        customerId: cliente.id,
+        provider: "stripe",
+        providerSubscriptionId: `sub_atraso_${id}`,
+        productId: "bora_family_monthly",
+        providerPriceId: "price_bora_fixture",
+        status: "past_due",
+        currentPeriodStart: new Date(Date.now() - 32 * 86_400_000),
+        currentPeriodEnd: new Date(Date.now() - 2 * 86_400_000),
+      })
+      .returning();
+    if (!assinatura) throw new Error("assinatura");
+    try {
+      expect(await getAccess(id)).toMatchObject({
+        subscribed: true,
+        unlocked: true,
+        profileLimit: 4,
+        pagamentoAtrasado: true,
+      });
+      await db
+        .update(subscriptions)
+        .set({ currentPeriodEnd: new Date(Date.now() - 8 * 86_400_000) })
+        .where(eq(subscriptions.id, assinatura.id));
+      expect((await getAccess(id)).unlocked).toBe(false);
+    } finally {
+      await db.delete(subscriptions).where(eq(subscriptions.id, assinatura.id));
+      await db.delete(customers).where(eq(customers.id, cliente.id));
+      await db.delete(users).where(eq(users.id, id));
+    }
   });
 });
