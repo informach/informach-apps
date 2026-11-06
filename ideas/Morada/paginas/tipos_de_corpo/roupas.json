@@ -6215,6 +6215,47 @@
    }
   },
   {
+   "id": "nov_bone_helice",
+   "slot": "cabeca",
+   "rotulo": "Boné com hélice",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.01,
+     "corte": 0.66,
+     "inclina": 0.1,
+     "gomos": [
+      "vermelho",
+      "amarelo",
+      "azul",
+      "branco",
+      "vermelho",
+      "amarelo",
+      "azul",
+      "branco"
+     ]
+    },
+    "viseira": {
+     "comprimento": 0.5,
+     "abertura": 70,
+     "caida": 0.12
+    },
+    "helice": {
+     "pas": [
+      "vermelho",
+      "azul"
+     ]
+    }
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   }
+  },
+  {
    "id": "nov_oculos_redondos",
    "slot": "oculos",
    "rotulo": "Óculos redondos",
@@ -8453,6 +8494,43 @@
      -0.04
     ],
     "balanco": 0.15
+   }
+  },
+  {
+   "id": "nov_guia_retratil",
+   "slot": "mao_esq",
+   "rotulo": "Guia retrátil (de cachorro)",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "guia_retratil"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.22,
+     -0.72,
+     0.1
+    ],
+    "eixos": {
+     "y": [
+      1.0,
+      -0.3,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.3
    }
   }
  ],

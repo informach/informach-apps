@@ -19,16 +19,16 @@ As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equi
 
 ## Roupas
 
-As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 315:
+As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 317:
 - as 65 roupas e acessórios dos pacotes;
 - variações feitas a partir delas;
-- 207 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais):
+- 209 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais):
   - roupas: jaleco, paletós com lapela, smoking, jaqueta de aviador, moletom com capuz, capa de chuva, jeans rasgado,
     calça boca de sino, biquíni, vestidos, macacões, colete salva-vidas;
-  - acessórios: botas, luvas, cachecol, lenço, cintos com fivela e mais de 40 chapéus;
+  - acessórios: botas, luvas, cachecol, lenço, cintos com fivela e mais de 40 chapéus (o boné com hélice entre eles);
   - óculos gerados no rosto;
   - meia-calça, meia 7/8 e mangas de arrastão (trama com furos, a pele aparece);
-  - 57 objetos de mão, com a vitrine de props do pacote como norte: celular, café, microfone, sorvete, câmera, livro,
+  - 58 objetos de mão, com a vitrine de props do pacote como norte (e a guia retrátil de cachorro): celular, café, microfone, sorvete, câmera, livro,
     caderno, jornal, tablet, buquê, cartaz, rádio, lanterna, garrafa, 20 bolsas, malas e sacolas (de pérolas, academia,
     pastas, maletas, extintor, estojo de violão, caixa de ferramentas, sacola de papel com compras), frigideira,
     espátula, bandeja, 5 bolas, pincel e paleta, caixas de presente, ancinho, tesoura de poda, chave inglesa, bengala,
@@ -68,6 +68,12 @@ Doberman e Doberman marrom, Labrador, Rottweiler, dois Salsichas, Spitz branco, 
 gatos (preto, frajola e laranja). Cada um muda as proporções dos ossos (a malha vai junto e as animações continuam
 valendo), as cores, as orelhas, a cauda e, alguns, ganham pelo fofo, coleira ou bigode. As animações: parado, andar,
 correr, virar, latir (miar), pedir para brincar, dar a pata, cambalhota, deitar, barriga para cima e dormir.
+
+## Cena de exemplo
+
+`biblioteca/cenas/familia.png`: uma família reunida para a foto (doze pessoas e o labrador com a guia), montada só com
+corpos, roupas, cabelos, expressões, poses da biblioteca e um bicho, por `codigo/arte/cena_familia.py` (arquivo da cena:
+`biblioteca/cenas/familia.blend`; como foi feita em `biblioteca/cenas/LEIA.md`).
 
 ## Animações aprovadas
 

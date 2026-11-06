@@ -807,7 +807,17 @@ def chapeu(S, spec):
                    and f.calc_center_median().z < hmax[2] - 0.12 * Hc]
         bmesh.ops.delete(bm, geom=abertos, context="FACES_ONLY")
         copa_f = [f for f in copa_f if f.is_valid]
-    partes_cor.append((copa_f, cp.get("cor", "branco")))
+    if cp.get("gomos"):  # copa em gomos de cores fixas, em volta (boné de hélice); "branco" é a cor livre
+        gm = cp["gomos"]
+        por_cor = {}
+        for f in copa_f:
+            m_ = f.calc_center_median()
+            ang = (math.atan2(m_.x - c[0], -(m_.y - c[1])) + 2 * math.pi) % (2 * math.pi)
+            por_cor.setdefault(gm[int(ang / (2 * math.pi) * len(gm)) % len(gm)], []).append(f)
+        for cor_g, fs_g in por_cor.items():
+            partes_cor.append((fs_g, cor_g))
+    else:
+        partes_cor.append((copa_f, cp.get("cor", "branco")))
     borda = verts[-1]
     centro_b = sum((v.co for v in borda), Vector()) / nphi
 
@@ -933,6 +943,24 @@ def chapeu(S, spec):
     if spec.get("pompom") is not None:
         esfera((c[0], c[1], topo_z + spec["pompom"].get("raio", 0.18) * Hc * 0.7), spec["pompom"].get("raio", 0.18) * Hc,
                spec["pompom"].get("cor", "branco"))
+    if spec.get("helice") is not None:  # hélice no alto: haste curta e duas pás cruzadas, um pouco inclinadas
+        he = spec["helice"]
+        hz = topo_z - 0.01 * Hc
+        r_ = bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.035 * Hc, radius2=0.03 * Hc, depth=0.16 * Hc)
+        for v in r_["verts"]:
+            v.co = Vector((c[0], c[1], hz + 0.08 * Hc)) + v.co
+        partes_cor.append((list({f for v in r_["verts"] for f in v.link_faces}), he.get("haste", "amarelo")))
+        esfera((c[0], c[1], hz + 0.17 * Hc), 0.045 * Hc, he.get("haste", "amarelo"))
+        for k_, cor_p in enumerate(he.get("pas", ("vermelho", "azul"))):
+            ang = math.radians(25 + 90 * k_)
+            for s in (-1, 1):
+                r_ = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+                for v in r_["verts"]:
+                    q = Vector((v.co.x * 0.26 * Hc, v.co.y * 0.075 * Hc, v.co.z * 0.012 * Hc))
+                    q = Vector((q.x + s * 0.27 * Hc, q.y, q.z + s * q.y * 0.35))  # pá para um lado, torcida
+                    q = Vector((q.x * math.cos(ang) - q.y * math.sin(ang), q.x * math.sin(ang) + q.y * math.cos(ang), q.z))
+                    v.co = Vector((c[0], c[1], hz + 0.17 * Hc)) + q
+                partes_cor.append((list({f for v in r_["verts"] for f in v.link_faces}), cor_p))
     if spec.get("orelhas") is not None:
         for s in (-1, 1):
             # base dentro da copa e a ponta bem acima dela, um pouco para fora
@@ -1941,6 +1969,17 @@ def _o_lanterna(bm, cor):
     cabeca = _bm_prim(bm, "cilindro", (0.0, 1.85, 0.4), (0.6, 0.3, 0.45), rot=(0, 0, math.pi / 2), seg=14)
     lente = _bm_prim(bm, "cilindro", (0.0, 2.17, 0.4), (0.04, 0.4), rot=(0, 0, math.pi / 2), seg=14)
     return [(corpo + cabeca, cor)], [(lente, "creme")]
+
+
+@_objeto("guia_retratil")
+def _o_guia_retratil(bm, cor):
+    """Guia retrátil de cachorro: o cabo na mão (ao longo de Y, como a lanterna) e a caixa oval do carretel à frente
+    dele, um pouco acima (do lado das costas da mão); a guia sai pela frente da caixa (a cena desenha o fio)."""
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.25, 0.4), (1.45, 0.24), rot=(0, 0, math.pi / 2), seg=10)
+    caixa = _bm_prim(bm, "esfera", (-0.3, 1.55, 0.4), (0.95, 0.8, 0.34))
+    botao = _bm_prim(bm, "caixa", (-0.72, 0.95, 0.4), (0.22, 0.38, 0.2))
+    saida = _bm_prim(bm, "cilindro", (0.05, 2.32, 0.4), (0.16, 0.11), rot=(0, 0, math.pi / 2), seg=8)
+    return [(caixa, cor)], [(cabo, "cinza_escuro"), (botao, "cinza"), (saida, "cinza_escuro")]
 
 
 @_objeto("cartaz")

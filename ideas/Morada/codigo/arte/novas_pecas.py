@@ -427,6 +427,9 @@ hat("touca_urso", "Touca de urso", "#E27B3B", copa={"folga": 0.012, "corte": 0.5
 hat("orelhas_coelho", "Orelhas de coelho", "#2B2B2B", so_arco=True, arco={"largura": 0.05, "orelhas_longas": {"dentro": "rosa"}})
 hat("bone_duas_cores", "Boné de duas cores", "#F2F2F2", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
     viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.12, "cor": "azul"})
+hat("bone_helice", "Boné com hélice", "#3BAA5C", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1,
+                                                     "gomos": ["vermelho", "amarelo", "azul", "branco"] * 2},
+    viseira={"comprimento": 0.5, "abertura": 70, "caida": 0.12}, helice={"pas": ("vermelho", "azul")})
 # óculos
 oc("oculos_redondos", "Óculos redondos", "#D6A83A", forma="redondo", armacao="branco")
 oc("oculos_quadrados", "Óculos de grau quadrados", "#2B2B2B", forma="quadrado", armacao="branco", esp=0.006)
@@ -489,6 +492,10 @@ for id_, mao, rot, cor in [
         ("radio", "dir", "Rádio comunicador", "#2B2B2B"), ("lanterna", "dir", "Lanterna", "#F2C231"),
         ("cartaz", "dir", "Cartaz", "#E8B98A"), ("guarda_chuva_listrado", "dir", "Guarda-chuva listrado", "#EE70A9")]:
     obj(id_, mao, rot, cor, _pose=POSES.get(id_, GUARDA), objeto=id_)
+# sexta leva: o que a cena de exemplo da família pediu
+obj("guia_retratil", "esq", "Guia retrátil (de cachorro)", "#D9433B",
+    _pose={"alvo": [0.22, -0.72, 0.1], "eixos": {"y": [1.0, -0.3, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.3},
+    objeto="guia_retratil")
 
 # ================= conjuntos (profissões e estilos das imagens), feitos com as peças do catálogo
 CONJ = []

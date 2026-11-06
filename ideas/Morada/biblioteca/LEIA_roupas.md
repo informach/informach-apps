@@ -1,7 +1,7 @@
 # Roupas e acessórios
 
 Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), as variações feitas a partir delas e as peças
-geradas aqui (315 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
+geradas aqui (317 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
 três estágios de barriga.
 
 ## Onde fica cada coisa
@@ -111,7 +111,9 @@ O gerador está em `codigo/morada-art/geradores.py`:
     - na copa: `vinco` (fedora);
     - na aba: `sobe_tras` (fedora) e `ondas` (chapéu de praia);
     - `orelhas_redondas` (touca de urso);
-    - no `arco`: `orelhas_longas` (orelhas de coelho).
+    - no `arco`: `orelhas_longas` (orelhas de coelho);
+    - na copa: `gomos` (lista de cores fixas em volta, "branco" é a cor livre) e `helice` (haste e duas pás
+      cruzadas no alto, `pas` com as duas cores): o boné com hélice.
   - Formas próprias:
     - `boina`: faixa justa, corpo estufado mais largo que a cabeça, alto caído para um lado e um pininho;
     - `capuz`: envolve a cabeça, faz uma pontinha atrás, cai sobre os ombros, com a abertura do rosto oval e borda
@@ -123,7 +125,7 @@ O gerador está em `codigo/morada-art/geradores.py`:
   - A armação recebe a cor livre. As lentes têm cor fixa (`lente`: uma cor ou `[esquerda, direita]`, como nos óculos 3D;
     sem `lente`, só a armação).
 - **`objeto`** (`tipo: "mao"`, slots `mao_dir` e `mao_esq`): objetos de mão.
-  - São 57 objetos, feitos com a vitrine de props do pacote como norte (formas próprias, não cópias):
+  - São 58 objetos, feitos com a vitrine de props do pacote como norte (formas próprias, não cópias):
     - comida e bebida: copo de café, sorvete, picolé, garrafa d'água;
     - na frente do corpo: celular, microfone, câmera, livro, caderno, jornal, tablet, buquê, cartaz, rádio, lanterna;
     - bolsas e malas: bolsa, bolsa de alça, tote, bolsa de fecho, bolsa de pérolas, bolsa de academia, pasta de couro,
@@ -133,7 +135,8 @@ O gerador está em `codigo/morada-art/geradores.py`:
     - cozinha e serviço: frigideira, espátula, bandeja com tampa;
     - bolas: futebol (gomos pintados), basquete, vôlei, praia (seis gomos), tênis;
     - outros: pincel, paleta de pintor, caixas de presente, rolo de papel, cassetete, ancinho, tesoura de poda, chave
-      inglesa, bengala, guarda-chuva fechado, aberto (liso, colorido e listrado), pau de selfie.
+      inglesa, bengala, guarda-chuva fechado, aberto (liso, colorido e listrado), pau de selfie;
+    - guia retrátil de cachorro (cabo na mão e a caixa do carretel à frente; a cena de exemplo desenha o fio).
   - As caixas (`_bm_prim` "caixa") têm as quinas chanfradas (2 segmentos, 16% do lado menor); "caixa_reta" fica reta.
   - Alças (`_alca`, `_curva_alca`, `_tubo`): um tubo no plano da face do objeto, com as duas pontas entrando no alto
     dele (nunca soltas) e o meio reto, com cantos arredondados, passando por dentro da mão fechada. A mão fechada foi

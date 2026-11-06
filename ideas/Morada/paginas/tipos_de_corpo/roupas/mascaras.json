@@ -2218,5 +2218,19 @@
    "lum": 1.0,
    "cor": "#ffffff"
   }
+ },
+ "nov_bone_helice": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bone_helice__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_guia_retratil": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_guia_retratil__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
  }
 }
