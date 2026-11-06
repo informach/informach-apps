@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { relogioDa } from "@/domain/relogio";
 import { criancaPodeMarcar, tarefasDoDia } from "@/domain/rotina";
+import { canCreateCustomRewards } from "@/features/acesso/policy";
 import { deviceCookieOptions } from "@/features/aparelho/http";
 import {
   conferirPin,
@@ -115,9 +116,11 @@ export async function pedirRecompensaAction(input: unknown) {
       .object({ childId: z.string().uuid(), rewardId: z.string().uuid() })
       .parse(input);
     const device = await requireChild(childId);
-    const { allowed } = await childOfDevice(device.ownerId, childId);
+    const { allowed, access } = await childOfDevice(device.ownerId, childId);
     assertAllowed(allowed, "PLAN", "Essa criança está fora do plano atual.");
-    const pedido = await requestRedemption(device.ownerId, childId, rewardId);
+    const pedido = await requestRedemption(device.ownerId, childId, rewardId, {
+      customAllowed: canCreateCustomRewards({ ...access, tier: access.paid ? "family" : "free" }),
+    });
     await avisarFamilia(device.ownerId, "loja");
     revalidatePath("/crianca", "layout");
     return pedido;

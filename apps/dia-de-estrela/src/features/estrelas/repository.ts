@@ -209,10 +209,21 @@ async function completionOf(tx: Tx, ownerId: string, completionId: string) {
   return row;
 }
 
+/**
+ * A conclusão lida depois da trava da criança. Todo escritor de conclusões e do
+ * extrato trava a criança antes; reler depois da trava garante que aprovar,
+ * desfazer e marcar ao mesmo tempo decidem sobre o estado já gravado, e não
+ * sobre uma leitura velha (aprovar uma conclusão que acabou de ser desfeita).
+ */
+async function lockedCompletion(tx: Tx, ownerId: string, completionId: string) {
+  const antes = await completionOf(tx, ownerId, completionId);
+  await lockChild(tx, ownerId, antes.childId);
+  return completionOf(tx, ownerId, completionId);
+}
+
 export async function approveCompletion(ownerId: string, completionId: string) {
   return db.transaction(async (tx) => {
-    const c = await completionOf(tx, ownerId, completionId);
-    await lockChild(tx, ownerId, c.childId);
+    const c = await lockedCompletion(tx, ownerId, completionId);
     assertAllowed(c.status === "pending", "ALREADY", "Essa tarefa já foi aprovada.");
     await tx
       .update(completions)
@@ -239,8 +250,7 @@ export async function approveCompletion(ownerId: string, completionId: string) {
  */
 export async function undoCompletion(ownerId: string, completionId: string) {
   return db.transaction(async (tx) => {
-    const c = await completionOf(tx, ownerId, completionId);
-    await lockChild(tx, ownerId, c.childId);
+    const c = await lockedCompletion(tx, ownerId, completionId);
     if (c.status === "approved") {
       const { saldo, guardadas } = await balanceIn(tx, c.childId);
       assertAllowed(

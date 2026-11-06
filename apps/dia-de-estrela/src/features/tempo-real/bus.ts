@@ -51,9 +51,15 @@ function barramentoRedis(cliente: Redis): Barramento {
         void sub.subscribe(canal);
       }
       lista.add(aoReceber);
+      const minha = lista;
+      let saiu = false;
       return () => {
-        lista?.delete(aoReceber);
-        if (lista && !lista.size) {
+        // Idempotente e preso ao próprio conjunto: sair duas vezes (cancel e
+        // abort) não pode derrubar a assinatura nova de uma tela recarregada.
+        if (saiu) return;
+        saiu = true;
+        minha.delete(aoReceber);
+        if (!minha.size && ouvintes.get(canal) === minha) {
           ouvintes.delete(canal);
           void sub.unsubscribe(canal);
         }
@@ -113,7 +119,10 @@ export function fluxoDaFamilia(ownerId: string, sinal: AbortSignal) {
       enviar("retry: 5000\n\n");
       const desassinar = bus.assinar(canalDa(ownerId), (m) => enviar(`data: ${m}\n\n`));
       const batimento = setInterval(() => enviar(": ping\n\n"), 15_000);
+      let encerrado = false;
       encerrar = () => {
+        if (encerrado) return;
+        encerrado = true;
         clearInterval(batimento);
         desassinar();
         try {

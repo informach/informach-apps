@@ -11,7 +11,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { encode } from "uqr";
 import { Erro, useAcao } from "@/components/acao";
 import { brl } from "@/domain/estrelas";
@@ -725,6 +725,22 @@ export function Push({
   chavePublica: string;
 }) {
   const { pendente, erro, setErro, rodar } = useAcao();
+  // Ligado *neste* navegador: o servidor só sabe se há alerta em algum aparelho.
+  const [aqui, setAqui] = useState(false);
+  useEffect(() => {
+    if (!disponivel || !("serviceWorker" in navigator)) return;
+    let vivo = true;
+    void navigator.serviceWorker
+      .getRegistration()
+      .then((registro) => registro?.pushManager.getSubscription())
+      .then((sub) => {
+        if (vivo) setAqui(Boolean(sub));
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [disponivel]);
   async function ativar() {
     setErro(null);
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -743,13 +759,18 @@ export function Push({
       userVisibleOnly: true,
       applicationServerKey: base64ParaBytes(chavePublica),
     });
+    setAqui(true);
     rodar(() => ativarPushAction(sub.toJSON()));
   }
   async function desativar() {
     const registro = await navigator.serviceWorker?.getRegistration();
     const sub = await registro?.pushManager.getSubscription();
-    await sub?.unsubscribe();
-    rodar(() => desativarPushAction(sub?.endpoint));
+    setAqui(false);
+    if (!sub) return;
+    const { endpoint } = sub;
+    await sub.unsubscribe();
+    // Só a inscrição deste navegador sai; os outros aparelhos continuam recebendo.
+    rodar(() => desativarPushAction(endpoint));
   }
   return (
     <Secao
@@ -764,7 +785,7 @@ export function Push({
         <p className="text-sm font-bold text-tinta-suave">
           Os alertas no celular ainda não estão ligados neste servidor.
         </p>
-      ) : ativo ? (
+      ) : aqui ? (
         <button
           type="button"
           className="bp bp-claro"
@@ -782,6 +803,11 @@ export function Push({
         >
           <Bell className="size-4" aria-hidden="true" /> Ligar neste celular
         </button>
+      )}
+      {permitido && disponivel && ativo && !aqui && (
+        <p className="mt-2 text-sm font-bold text-tinta-suave">
+          Já estão ligados em outro aparelho da família.
+        </p>
       )}
       <Erro texto={erro} />
     </Secao>

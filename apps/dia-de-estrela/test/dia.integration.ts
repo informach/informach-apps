@@ -47,7 +47,7 @@ import {
   requestRedemption,
   resolveRedemption,
 } from "@/features/loja/repository";
-import { createTask, getTask, listTasks } from "@/features/rotina/repository";
+import { createTask, deleteTask, getTask, listTasks } from "@/features/rotina/repository";
 import { taskSchema } from "@/features/rotina/schemas";
 
 const dono = randomUUID();
@@ -59,6 +59,8 @@ let subscriptionId = "";
 const MEIO_DIA = Date.UTC(2026, 10, 4, 15, 0);
 const HOJE = "2026-11-04";
 const QUARTA = 3;
+
+const livre = { customAllowed: true };
 
 const tarefa = (title: string, time: string, extra: Record<string, unknown> = {}) =>
   taskSchema.parse({ title, icon: "star", time, days: 0b1111111, stars: 5, ...extra });
@@ -257,18 +259,18 @@ describe("tarefas, estrelas e baú", () => {
     const cinco = itens.find((r) => r.moneyCents === 500);
     const caro = itens.find((r) => r.name === "Passeio");
     if (!cinco || !caro) throw new Error("Missing rewards");
-    await expect(requestRedemption(dono, crianca, caro.id)).rejects.toMatchObject({
+    await expect(requestRedemption(dono, crianca, caro.id, livre)).rejects.toMatchObject({
       code: "BALANCE",
     });
     await giveBonus(dono, crianca, 50, "Bônus: teste");
     const saldo = (await balances([crianca])).get(crianca)?.saldo ?? 0;
     expect(saldo).toBeGreaterThanOrEqual(50);
-    const p1 = await requestRedemption(dono, crianca, cinco.id);
+    const p1 = await requestRedemption(dono, crianca, cinco.id, livre);
     expect(p1.stars).toBe(50);
     expect((await balances([crianca])).get(crianca)?.guardadas).toBe(50);
     await resolveRedemption(dono, p1.id, "declined");
     expect((await balances([crianca])).get(crianca)).toMatchObject({ saldo, guardadas: 0 });
-    const p2 = await requestRedemption(dono, crianca, cinco.id);
+    const p2 = await requestRedemption(dono, crianca, cinco.id, livre);
     await resolveRedemption(dono, p2.id, "delivered");
     expect((await balances([crianca])).get(crianca)).toMatchObject({
       saldo: saldo - 50,
@@ -276,6 +278,63 @@ describe("tarefas, estrelas e baú", () => {
     });
     await expect(resolveRedemption(dono, p2.id, "delivered")).rejects.toMatchObject({
       code: "ALREADY",
+    });
+  });
+
+  it("item próprio não pode ser pedido quando o plano não inclui", async () => {
+    const caro = (await listRewards(dono)).find((r) => r.name === "Passeio");
+    if (!caro) throw new Error("Missing reward");
+    await expect(
+      requestRedemption(dono, crianca, caro.id, { customAllowed: false }),
+    ).rejects.toMatchObject({ code: "PLAN" });
+  });
+
+  it("aprovar e desfazer ao mesmo tempo não deixam estrela órfã", async () => {
+    const extraId = await createTask(
+      dono,
+      crianca,
+      tarefa("Arrumar a mochila", "08:00", { requiresApproval: true }),
+    );
+    try {
+      const antes = (await balances([crianca])).get(crianca)?.saldo ?? 0;
+      const r = await completeTask({
+        ownerId: dono,
+        childId: crianca,
+        taskId: extraId,
+        date: HOJE,
+        diaDaSemana: QUARTA,
+        markedBy: "child",
+      });
+      expect(r.pending).toBe(true);
+      await Promise.allSettled([
+        undoCompletion(dono, r.completion.id),
+        approveCompletion(dono, r.completion.id),
+      ]);
+      // Desfazer sempre vence no fim (aprovada ou não, ela sai com as estrelas).
+      expect((await balances([crianca])).get(crianca)?.saldo).toBe(antes);
+      expect((await history(crianca, 100)).some((h) => h.label === "Arrumar a mochila")).toBe(
+        false,
+      );
+    } finally {
+      await deleteTask(dono, extraId);
+    }
+  });
+
+  it("dois adultos resolvendo o mesmo pedido: só uma decisão vale", async () => {
+    const cinco = (await listRewards(dono)).find((r) => r.moneyCents === 500);
+    if (!cinco) throw new Error("Missing reward");
+    await giveBonus(dono, crianca, 50, "Bônus: corrida");
+    const antes = (await balances([crianca])).get(crianca)?.saldo ?? 0;
+    const p = await requestRedemption(dono, crianca, cinco.id, livre);
+    const [a, b] = await Promise.allSettled([
+      resolveRedemption(dono, p.id, "declined"),
+      resolveRedemption(dono, p.id, "delivered"),
+    ]);
+    expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+    const venceu = a.status === "fulfilled" ? "declined" : "delivered";
+    expect((await balances([crianca])).get(crianca)).toMatchObject({
+      saldo: venceu === "delivered" ? antes - 50 : antes,
+      guardadas: 0,
     });
   });
 

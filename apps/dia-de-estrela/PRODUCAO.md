@@ -9,13 +9,13 @@ Destino previsto: `https://dia-de-estrela.informach.com.br`, no projeto Railway 
 | Recurso | Configuração | Estado |
 | --- | --- | --- |
 | Aplicação | `@informach/dia-de-estrela` em `.railway/railway.ts`: Railpack, `standaloneNext("dia-de-estrela")`, healthcheck `/api/ready` com 30 s, domínio `dia-de-estrela.informach.com.br`, rede privada `informachdia-de-estrela` | declarado; entra no projeto com `ESTRELA_LAUNCHED = true` |
-| Cron | `cron-dia-de-estrela`, imagem `alpine/curl` (`CURL_IMAGE`), `*/5 * * * *`, roda `scripts/maintenance-cron.sh`: `/api/jobs/alertas` e depois `/api/jobs/billing` | declarado; entra com `ESTRELA_LAUNCHED` |
+| Crons | `cron-dia-de-estrela-alertas` (`scripts/alertas-cron.sh`, `/api/jobs/alertas`) e `cron-dia-de-estrela-billing` (`scripts/maintenance-cron.sh`, `/api/jobs/billing`), imagem `alpine/curl` (`CURL_IMAGE`), `*/5 * * * *` cada. Separados para a cobrança, que pode levar até 20 minutos, não atrasar os alertas. A rotina dos alertas para em 50 s e guarda onde parou no Redis (`dia-de-estrela:jobs:alertas:cursor`) | declarados; entram com `ESTRELA_LAUNCHED` |
 | PostgreSQL | Compartilhado; schema `dia_de_estrela`, migração `0078_dia_de_estrela` | aplicada pelo migrator no primeiro deploy depois do merge |
 | Redis | Compartilhado; sessões `dia-de-estrela:auth:` (sem cache em cookie), tempo real `dia-de-estrela:familia:*` (pub/sub) e lease da cobrança `dia-de-estrela:jobs:billing:*` | `REDIS_URL` com `?family=0` |
 | Sentry | Projeto `dia-de-estrela` na organização `informach-nucleo-de-aprendizag` | a criar |
 | Cloudflare | CNAME `dia-de-estrela` para o domínio do Railway, proxy ligado | a criar antes do apply que cria o cron (gotcha 5 do runbook) |
 | SendGrid | Fila compartilhada; remetente `Dia de Estrela <nao-responda@informach.com.br>`; só códigos de acesso e cobrança | domínio já verificado |
-| Bastidores | `bastidores_leitura` precisa de `USAGE`/`SELECT` no schema `dia_de_estrela` (`apps/admin/PRODUCAO.md`) | rodar o GRANT no lançamento |
+| Bastidores | `bastidores_leitura` precisa de `USAGE`/`SELECT` no schema `dia_de_estrela` (`apps/admin/PRODUCAO.md`) | em 06/11/2026 o Bastidores usa o papel principal; GRANT só se `bastidores_leitura` passar a ser usado |
 
 ## Stripe
 
@@ -36,12 +36,12 @@ Produção também recusa chave Stripe de teste, e-mail sandbox, Redis ou Sentry
 
 ## Ordem do lançamento
 
-1. Merge na `main` com os gates do CI verdes (integração e E2E do app já estão no `ci.yml`). O migrator aplica a `0078` (só cria o schema `dia_de_estrela`); rodar logo depois o GRANT do Bastidores (passo 6), porque o Painel e a ficha das pessoas já leem o schema.
+1. Merge na `main` com os gates do CI verdes (integração e E2E do app já estão no `ci.yml`). O migrator aplica a `0078` (só cria o schema `dia_de_estrela`). Feito em 06/11/2026 (merge `10737dc9`); o Bastidores já lê o schema, e em produção usa o papel principal (sem `READONLY_DATABASE_URL`), então não precisou de GRANT.
 2. Stripe (teste e produção), Sentry, par VAPID.
 3. Criar o serviço vazio e registrar o domínio pela CLI (a IaC não registra domínio), CNAME no Cloudflare.
-4. `ESTRELA_LAUNCHED = true`, `railway config plan` (só adições do app e do cron), `railway config apply` com autorização. A partir daí a constante não volta para `false`.
+4. `ESTRELA_LAUNCHED = true`, `railway config plan` (só adições do app e dos dois crons), `railway config apply` com autorização. A partir daí a constante não volta para `false`.
 5. Gravar as variáveis, primeiro deploy, `/api/ready` 200.
-6. GRANT do Bastidores; cartão no site institucional (`apps/informach-site`), que ficou de fora para não anunciar antes.
+6. GRANT do Bastidores, se ele estiver com `READONLY_DATABASE_URL`; cartão no site institucional (`apps/informach-site`), que ficou de fora para não anunciar antes.
 
 ## Pendências fora da infraestrutura
 

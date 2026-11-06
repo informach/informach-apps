@@ -1,7 +1,6 @@
 #!/bin/sh
-# Rotina de 5 em 5 minutos do Dia de Estrela: primeiro os alertas aos pais
-# (sensíveis ao horário), depois a manutenção da cobrança. Uma falha numa não
-# impede a outra; o código de saída diz se alguma falhou.
+# Manutenção da cobrança do Dia de Estrela, de 5 em 5 minutos (lease no Redis
+# do app). Os alertas aos pais têm cron próprio (alertas-cron.sh).
 set -eu
 
 report_failure() {
@@ -15,17 +14,7 @@ if ! curl --fail --silent --show-error --connect-timeout 10 --max-time 20 "$APP_
   exit 1
 fi
 
-status=0
-if ! curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 240 \
-  -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_ORIGIN/api/jobs/alertas"; then
-  report_failure 'Dia de Estrela parent alerts request failed'
-  status=1
-fi
-
-if ! curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 1200 \
-  -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_ORIGIN/api/jobs/billing"; then
+if ! curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 1200   -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_ORIGIN/api/jobs/billing"; then
   report_failure 'Dia de Estrela billing maintenance request failed'
-  status=1
+  exit 1
 fi
-
-exit $status

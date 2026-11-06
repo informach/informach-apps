@@ -5,6 +5,7 @@ import {
   estrelaChildren as children,
   estrelaCompletions as completions,
   estrelaNotificationDeliveries as deliveries,
+  estrelaDevices as devices,
   estrelaFamilies as families,
   estrelaGuardians as guardians,
   estrelaPushSubscriptions as pushes,
@@ -122,7 +123,17 @@ export async function openAlerts(ownerId: string, date: string) {
 }
 
 /** Famílias que já começaram, em páginas, para a rotina dos alertas. */
-export async function familiesPage(afterUserId: string | null, limit: number) {
+/**
+ * Famílias que podem receber alerta: já fizeram o primeiro uso e têm ao menos
+ * um aparelho conectado (sem tablet, não há alerta). Assim a rotina não gasta o
+ * tempo dela com famílias que nunca conectaram um aparelho.
+ */
+export async function familiesPage(
+  afterUserId: string | null,
+  limit: number,
+  now = new Date(),
+  upToUserId: string | null = null,
+) {
   return db
     .select({
       userId: families.userId,
@@ -135,6 +146,8 @@ export async function familiesPage(afterUserId: string | null, limit: number) {
       and(
         isNotNull(families.onboardedAt),
         afterUserId ? gt(families.userId, afterUserId) : undefined,
+        upToUserId ? sql`${families.userId} <= ${upToUserId}` : undefined,
+        sql`exists (select 1 from ${devices} where ${devices.userId} = ${families.userId} and ${devices.revokedAt} is null and ${devices.expiresAt} > ${now})`,
       ),
     )
     .orderBy(asc(families.userId))
@@ -204,10 +217,9 @@ export async function savePushSubscription(
     });
 }
 
-export async function removePushSubscription(userId: string, endpoint?: string) {
-  await db
-    .delete(pushes)
-    .where(and(eq(pushes.userId, userId), endpoint ? eq(pushes.endpoint, endpoint) : undefined));
+/** Tira a inscrição de um navegador. Sempre por endpoint: nunca apaga as dos outros aparelhos. */
+export async function removePushSubscription(userId: string, endpoint: string) {
+  await db.delete(pushes).where(and(eq(pushes.userId, userId), eq(pushes.endpoint, endpoint)));
 }
 
 export async function hasPushSubscription(userId: string) {
