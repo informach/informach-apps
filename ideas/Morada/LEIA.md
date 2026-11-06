@@ -43,8 +43,9 @@ Na página:
 - com um objeto na mão, os dedos fecham em volta dele;
 - nos gestos (acenar, apontar, telefone, palmas), o objeto passa para a outra mão, se ela estiver livre; senão, some
   até o gesto acabar;
-- com guarda-chuva aberto ou pau de selfie, o braço daquele lado fica na pose de segurar (IK), e o resto do corpo
-  segue a animação.
+- cada objeto de mão tem a sua pose de segurar (IK do braço daquele lado): o café e o sorvete na frente do corpo, o
+  celular com a tela para o rosto, o microfone perto da boca, a câmera na altura dos olhos, o guarda-chuva aberto sobre
+  a cabeça, as bolsas e a bengala ao lado do corpo. O resto do corpo segue a animação.
 
 No arquivo-mestre (`blend/`), cada cabelo tem a forma `sob_chapeu`, ligada à propriedade `com_chapeu` do esqueleto:
 com chapéu (1), o cabelo não atravessa a copa.

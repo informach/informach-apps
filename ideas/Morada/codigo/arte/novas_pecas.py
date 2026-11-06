@@ -262,6 +262,22 @@ hat("chapeu_bruxa", "Chapéu pontudo", "#2B2B2B", copa={"folga": 0.015, "corte":
     aba={"largura": 0.55, "caida": 0.05, "cor": "preto"})
 
 
+# poses de segurar de todos os objetos de mão (frente, cima e fora do ombro, em comprimentos de braço):
+# "aponta" leva o eixo Y da mão (o do objeto em pé no punho); "eixos" dá X (dedos) e Z (palma) direto
+FRENTE_Y = {"alvo": [0.32, -0.42, 0.02], "aponta": [0.1, 1.0, 0.0]}  # café, sorvete, picolé: na frente da cintura
+AO_LADO = {"alvo": [0.04, -0.97, 0.07], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}}  # bolsas: braço solto
+POSES = {
+    "celular": {"alvo": [0.36, -0.3, -0.06], "eixos": {"x": [0.55, 0.45, -0.7], "z": [-0.55, 0.85, 0.0]}},
+    "cafe": FRENTE_Y, "sorvete": FRENTE_Y, "picole": FRENTE_Y,
+    "microfone": {"alvo": [0.3, -0.05, -0.12], "aponta": [-0.25, 1.0, 0.08]},
+    "buque": {"alvo": [0.28, -0.5, -0.04], "aponta": [0.15, 1.0, -0.1]},
+    "camera": {"alvo": [0.45, 0.2, -0.1], "eixos": {"x": [0.0, 1.0, 0.0], "z": [1.0, 0.0, 0.0]}},
+    "livro": {"alvo": [0.35, -0.3, -0.05], "eixos": {"x": [0.3, 0.9, -0.3], "z": [-0.9, 0.3, 0.0]}},
+    "bengala": {"alvo": [0.18, -0.88, 0.1], "eixos": {"x": [0.08, -1.0, 0.05], "z": [0.0, 0.0, -1.0]}},
+    "guarda_chuva": {"alvo": [0.12, -0.9, 0.08], "eixos": {"x": [0.05, -1.0, 0.04], "z": [0.0, 0.0, -1.0]}},
+    "bolsa": AO_LADO, "maleta": AO_LADO, "sacolas": AO_LADO, "sacola_papel": AO_LADO,
+    "mala_rodinha": {"alvo": [-0.12, -0.92, 0.08], "eixos": {"x": [-0.35, -0.94, 0.0], "z": [0.0, 0.0, -1.0]}},
+}
 # ================= terceira leva (imagens 24 a 28: casuais 151 a 300)
 CAMISA = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "quadril", "desloca": -0.04}, {"marco": "braco_meio"}]
 GOLA_CAMISA = {"altura": 0.022, "dobra": 0.9}
@@ -393,21 +409,21 @@ oc("oculos_sol_redondos", "Óculos de sol redondos", "#EE70A9", forma="redondo",
 oc("oculos_3d", "Óculos 3D", "#F2F2F2", forma="quadrado", armacao="branco", lente=["vermelho", "azul"], esp=0.007)
 oc("oculos_esportivos", "Óculos esportivos", "#F2F2F2", forma="viseira", armacao="branco", lente="azul")
 # objetos de mão
-obj("celular", "dir", "Celular", "#2B2B2B", objeto="celular")
-obj("cafe", "dir", "Copo de café", "#F2F2F2", objeto="cafe")
-obj("microfone", "dir", "Microfone", "#2B2B2B", objeto="microfone")
-obj("sorvete", "dir", "Sorvete", "#EE70A9", objeto="sorvete")
-obj("picole", "dir", "Picolé", "#D9433B", objeto="picole")
-obj("camera", "dir", "Câmera fotográfica", "#2B2B2B", objeto="camera")
-obj("livro", "dir", "Livro", "#3D7BD6", objeto="livro")
-obj("buque", "dir", "Buquê de flores", "#C9A0DC", objeto="buque")
-obj("bengala", "dir", "Bengala", "#7B4B2D", objeto="bengala")
-obj("guarda_chuva", "dir", "Guarda-chuva", "#2B2B2B", objeto="guarda_chuva")
-obj("bolsa", "esq", "Bolsa", "#EE70A9", objeto="bolsa")
-obj("maleta", "esq", "Maleta", "#2B2B2B", objeto="maleta")
-obj("mala_rodinha", "esq", "Mala de rodinhas", "#F2C231", objeto="mala_rodinha")
-obj("sacolas", "esq", "Sacolas de compras", "#EE70A9", objeto="sacolas")
-obj("sacola_papel", "esq", "Sacola de compras com pão", "#C9A46E", objeto="sacola_papel")
+obj("celular", "dir", "Celular", "#2B2B2B", _pose=POSES["celular"], objeto="celular")
+obj("cafe", "dir", "Copo de café", "#F2F2F2", _pose=POSES["cafe"], objeto="cafe")
+obj("microfone", "dir", "Microfone", "#2B2B2B", _pose=POSES["microfone"], objeto="microfone")
+obj("sorvete", "dir", "Sorvete", "#EE70A9", _pose=POSES["sorvete"], objeto="sorvete")
+obj("picole", "dir", "Picolé", "#D9433B", _pose=POSES["picole"], objeto="picole")
+obj("camera", "dir", "Câmera fotográfica", "#2B2B2B", _pose=POSES["camera"], objeto="camera")
+obj("livro", "dir", "Livro", "#3D7BD6", _pose=POSES["livro"], objeto="livro")
+obj("buque", "dir", "Buquê de flores", "#C9A0DC", _pose=POSES["buque"], objeto="buque")
+obj("bengala", "dir", "Bengala", "#7B4B2D", _pose=POSES["bengala"], objeto="bengala")
+obj("guarda_chuva", "dir", "Guarda-chuva", "#2B2B2B", _pose=POSES["guarda_chuva"], objeto="guarda_chuva")
+obj("bolsa", "esq", "Bolsa", "#EE70A9", _pose=POSES["bolsa"], objeto="bolsa")
+obj("maleta", "esq", "Maleta", "#2B2B2B", _pose=POSES["maleta"], objeto="maleta")
+obj("mala_rodinha", "esq", "Mala de rodinhas", "#F2C231", _pose=POSES["mala_rodinha"], objeto="mala_rodinha")
+obj("sacolas", "esq", "Sacolas de compras", "#EE70A9", _pose=POSES["sacolas"], objeto="sacolas")
+obj("sacola_papel", "esq", "Sacola de compras com pão", "#C9A46E", _pose=POSES["sacola_papel"], objeto="sacola_papel")
 
 # ================= quarta leva: objetos com pose de segurar e arrastão
 GUARDA = {"alvo": [0.32, -0.02, 0.12], "aponta": [-0.08, 1.0, -0.04]}  # na frente do ombro; a cúpula sobre a cabeça

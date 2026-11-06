@@ -1361,17 +1361,17 @@ def _o_sacola_papel(bm, cor):
 @_objeto("guarda_chuva")
 def _o_guarda_chuva(bm, cor):
     cabo = _bm_prim(bm, "toro", (0.2, 0, 0.55), (0.45, 0.1, 0.5), rot=(0, 0, 0))
-    haste = _bm_prim(bm, "cilindro", (3.2, 0, 0.1), (6.0, 0.07), seg=8)
-    pano = _bm_prim(bm, "cilindro", (4.4, 0, 0.1), (3.8, 0.12, 0.42), seg=12)
-    ponta = _bm_prim(bm, "cilindro", (6.4, 0, 0.1), (0.4, 0.07, 0.02), seg=8)
+    haste = _bm_prim(bm, "cilindro", (2.9, 0, 0.1), (5.4, 0.07), seg=8)
+    pano = _bm_prim(bm, "cilindro", (4.0, 0, 0.1), (3.4, 0.12, 0.42), seg=12)
+    ponta = _bm_prim(bm, "cilindro", (5.8, 0, 0.1), (0.4, 0.07, 0.02), seg=8)
     return [(pano, cor)], [(cabo, "marrom"), (haste + ponta, "cinza_escuro")]
 
 
 @_objeto("bengala")
 def _o_bengala(bm, cor):
     cabo = _bm_prim(bm, "toro", (0.1, 0.0, 0.5), (0.45, 0.11, 0.5))
-    haste = _bm_prim(bm, "cilindro", (4.6, 0, 0.05), (9.0, 0.1), seg=10)
-    pe = _bm_prim(bm, "cilindro", (9.1, 0, 0.05), (0.25, 0.13), seg=10)
+    haste = _bm_prim(bm, "cilindro", (4.1, 0, 0.05), (8.0, 0.1), seg=10)
+    pe = _bm_prim(bm, "cilindro", (8.1, 0, 0.05), (0.25, 0.13), seg=10)
     return [(cabo + haste, cor)], [(pe, "preto")]
 
 
@@ -1393,54 +1393,59 @@ def _o_camera(bm, cor):
 
 @_objeto("buque")
 def _o_buque(bm, cor):
-    papel = _bm_prim(bm, "cilindro", (-0.6, 0, 0.45), (2.6, 0.8, 0.12), seg=14)
+    """Em pé no punho: o papel em cone (fino embaixo) e as flores em cima."""
+    papel = _bm_prim(bm, "cilindro", (0.0, 0.5, 0.5), (2.6, 0.12, 0.8), rot=(0, 0, math.pi / 2), seg=14)
     flores = []
     import random
     rnd = random.Random(3)
     for i in range(9):
         a = 2 * math.pi * i / 9
         rr = 0.45 if i else 0.0
-        flores.append(_bm_prim(bm, "esfera", (-2.0 - rnd.uniform(0, 0.25), math.cos(a) * rr, 0.45 + math.sin(a) * rr),
+        flores.append(_bm_prim(bm, "esfera", (math.cos(a) * rr, 1.9 + rnd.uniform(0, 0.25), 0.5 + math.sin(a) * rr),
                                (0.32, 0.32, 0.32)))
-    folhas = [_bm_prim(bm, "esfera", (-1.8, math.cos(a) * 0.7, 0.45 + math.sin(a) * 0.7), (0.3, 0.12, 0.2), rot=(a, 0, 0))
+    folhas = [_bm_prim(bm, "esfera", (math.cos(a) * 0.7, 1.7, 0.5 + math.sin(a) * 0.7), (0.12, 0.3, 0.2), rot=(0, a, 0))
               for a in np.linspace(0, 2 * math.pi, 6, endpoint=False)]
     return [(papel, cor)], [(sum(flores[::2], []), "vermelho"), (sum(flores[1::2], []), "rosa"), (sum(folhas, []), "verde")]
 
 
 @_objeto("microfone")
 def _o_microfone(bm, cor):
-    cabo = _bm_prim(bm, "cilindro", (0.0, 0, 0.45), (1.9, 0.16, 0.22), seg=12)
-    bola = _bm_prim(bm, "esfera", (-1.15, 0, 0.45), (0.36, 0.36, 0.36))
+    """Em pé no punho (eixo Y da mão): o cabo na mão e a bola em cima."""
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.2, 0.5), (2.0, 0.24, 0.17), rot=(0, 0, math.pi / 2), seg=12)
+    bola = _bm_prim(bm, "esfera", (0.0, 1.45, 0.5), (0.38, 0.38, 0.38))
     return [(cabo, cor)], [(bola, "prata")]
 
 
 @_objeto("sorvete")
 def _o_sorvete(bm, cor):
-    casq = _bm_prim(bm, "cilindro", (0.3, 0, 0.5), (1.6, 0.04, 0.42), seg=12)
-    b1 = _bm_prim(bm, "esfera", (-0.65, 0, 0.5), (0.48, 0.48, 0.48))
-    b2 = _bm_prim(bm, "esfera", (-1.3, 0, 0.5), (0.42, 0.42, 0.42))
+    """Em pé no punho: a casquinha com a ponta para baixo e as bolas em cima."""
+    casq = _bm_prim(bm, "cilindro", (0.0, 0.1, 0.5), (1.7, 0.04, 0.42), rot=(0, 0, math.pi / 2), seg=12)
+    b1 = _bm_prim(bm, "esfera", (0.0, 1.15, 0.5), (0.48, 0.45, 0.48))
+    b2 = _bm_prim(bm, "esfera", (0.0, 1.75, 0.5), (0.4, 0.38, 0.4))
     return [(b1, cor)], [(casq, "bege"), (b2, "creme")]
 
 
 @_objeto("picole")
 def _o_picole(bm, cor):
-    pal = _bm_prim(bm, "caixa", (0.3, 0, 0.5), (1.0, 0.25, 0.06))
-    gelo = _bm_prim(bm, "caixa", (-0.8, 0, 0.5), (1.4, 0.7, 0.3))
+    """Em pé no punho: o palito na mão e o gelo em cima."""
+    pal = _bm_prim(bm, "caixa", (0.0, 0.0, 0.5), (0.25, 1.2, 0.06))
+    gelo = _bm_prim(bm, "caixa", (0.0, 1.35, 0.5), (0.7, 1.5, 0.32))
     return [(gelo, cor)], [(pal, "bege")]
 
 
 @_objeto("cafe")
 def _o_cafe(bm, cor):
-    copo = _bm_prim(bm, "cilindro", (0.0, 0, 0.55), (1.45, 0.42, 0.52), seg=16)
-    tampa = _bm_prim(bm, "cilindro", (-0.78, 0, 0.55), (0.14, 0.56), seg=16)
-    cinta = _bm_prim(bm, "cilindro", (0.05, 0, 0.55), (0.6, 0.5), seg=16)
+    """Em pé no punho: o copo com a tampa em cima e a cinta de papelão."""
+    copo = _bm_prim(bm, "cilindro", (0.0, 0.25, 0.6), (1.5, 0.42, 0.52), rot=(0, 0, math.pi / 2), seg=16)
+    tampa = _bm_prim(bm, "cilindro", (0.0, 1.05, 0.6), (0.14, 0.56), rot=(0, 0, math.pi / 2), seg=16)
+    cinta = _bm_prim(bm, "cilindro", (0.0, 0.2, 0.6), (0.6, 0.5), rot=(0, 0, math.pi / 2), seg=16)
     return [(copo, cor)], [(tampa, "marrom"), (cinta, "bege")]
 
 
 @_objeto("celular")
 def _o_celular(bm, cor):
     c_ = _bm_prim(bm, "caixa", (0.1, 0, 0.35), (1.6, 0.8, 0.09))
-    tela = _bm_prim(bm, "caixa", (0.1, 0, 0.3), (1.45, 0.7, 0.02))
+    tela = _bm_prim(bm, "caixa", (0.1, 0, 0.4), (1.45, 0.7, 0.02))  # do lado de fora da palma
     return [(c_, cor)], [(tela, "azul_escuro")]
 
 

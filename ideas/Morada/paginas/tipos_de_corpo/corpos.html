@@ -996,7 +996,6 @@ async function montarItem(c, id, ladoForcado) {
   const uvB = b[fam + "_uv"] || b.uv, idxB = b[fam + "_idx"] || b.idx;
   const geo = new THREE.BufferGeometry();
   const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
-  let sobPele = null;
   if (cab.tipo === "pele") {
     const tri = b[fam + "_tri"], bar = b[fam + "_bar"], off = b[fam + "_off"], F = pele.fam;
     const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off);
@@ -1012,13 +1011,11 @@ async function montarItem(c, id, ladoForcado) {
     }
     // pesos: os dos três vértices da pele, pelas baricêntricas; os 4 maiores
     const gi = corpo.geometry.attributes.skinIndex, gw = corpo.geometry.attributes.skinWeight, b2g = pele.b2g;
-    sobPele = new Uint32Array(nv * 3); // os três vértices do corpo embaixo de cada ponto da peça
     for (let j = 0; j < nv; j++) {
       const t = tri[j] * 3, w = [bar[j * 2] / 65535, bar[j * 2 + 1] / 65535]; w.push(1 - w[0] - w[1]);
       const acc = new Map();
       for (let q = 0; q < 3; q++) {
         const gv = b2g[F.T[t + q]];
-        sobPele[j * 3 + q] = gv;
         for (let k = 0; k < 4; k++) { const o = gi.getComponent(gv, k), x = gw.getComponent(gv, k) * w[q]; if (x > 0) acc.set(o, (acc.get(o) || 0) + x); }
       }
       const top = [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4), soma = top.reduce((s_, x) => s_ + x[1], 0) || 1;
@@ -1057,7 +1054,6 @@ async function montarItem(c, id, ladoForcado) {
   mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
   if (CAT_ROUPA.itens.some((x) => x.id === id) && !ladoForcado) mesh.userData.roupa = id;
   if (cab.tipo === "mao") mesh.userData.mao = cab.mao;
-  if (sobPele) mesh.userData.sobPele = sobPele;
   corpo.parent.add(mesh);
   mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
   mesh.bind(corpo.skeleton, corpo.bindMatrix);
@@ -1135,19 +1131,20 @@ function atualizaMaos() {
     const rid = estado.roupa["mao_" + lado], m = rid && c.roupas[rid]?.[0];
     if (!m) continue;
     const it = CAT_ROUPA.itens.find((x) => x.id === rid);
-    if (it?.pose || !ocup[lado]) { m.visible = true; c.naMao[lado] = { rid, mesh: m, pose: it?.pose }; continue; }
+    if (!ocup[lado]) { m.visible = true; c.naMao[lado] = { rid, mesh: m, pose: it?.pose }; continue; }
     m.visible = false;
     const outro = lado === "dir" ? "esq" : "dir";
     if (estado.roupa["mao_" + outro] || ocup[outro]) continue; // as duas mãos ocupadas: o objeto some
     const k = `${rid}@${outro}`;
     if (c.itens[k]) {
-      c.itens[k].visible = true; c.naMao[outro] = { rid, mesh: c.itens[k] };
+      c.itens[k].visible = true; c.naMao[outro] = { rid, mesh: c.itens[k], pose: it?.pose }; // a pose vai junto
       aplicarCorRoupa(rid, [c.itens[k]], estado.corRoupa[slotDe(rid)]);
     } else montarItem(c, rid, outro).then(() => { if (atual === c) atualizaMaos(); }).catch(() => {});
   }
 }
-// pose de segurar (guarda-chuva aberto, pau de selfie): o braço daquele lado vai até a posição do objeto (IK de dois
-// ossos, cotovelo para baixo e para fora) e a mão gira para o eixo do objeto (o eixo Y da mão) apontar como pedido.
+// pose de segurar (todos os objetos de mão): o braço daquele lado vai até a posição do objeto (IK de dois ossos,
+// cotovelo para baixo e para fora) e a mão gira: o eixo Y (o do objeto em pé no punho) para "aponta", ou X e Z
+// direto ("eixos").
 // Medidas em comprimentos de braço, a partir do ombro: frente, cima e para fora.
 const _S = new THREE.Vector3(), _E = new THREE.Vector3(), _W = new THREE.Vector3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 function giraOssoPara(osso, de, para) { // gira o osso no mundo para levar a direção "de" até "para"
@@ -1187,8 +1184,16 @@ function poseSegurar(c) {
     const X = m1.getWorldPosition(new THREE.Vector3()).sub(_W).normalize();
     const t = i1.getWorldPosition(new THREE.Vector3()).sub(p1.getWorldPosition(new THREE.Vector3()));
     const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize(), Y = Z.clone().cross(X).normalize();
-    const Yd = frente.clone().multiplyScalar(ps.aponta[0]).addScaledVector(up, ps.aponta[1]).addScaledVector(fora, ps.aponta[2]).normalize();
-    const Xd = frente.clone().addScaledVector(Yd, -frente.dot(Yd)).normalize(), Zd = Xd.clone().cross(Yd).normalize();
+    const corpoV = (v) => frente.clone().multiplyScalar(v[0]).addScaledVector(up, v[1]).addScaledVector(fora, v[2]);
+    let Xd, Yd, Zd;
+    if (ps.eixos) { // X (dedos) e Z (palma) pedidos direto: celular, livro, câmera, bolsas, bengala
+      Xd = corpoV(ps.eixos.x).normalize();
+      Zd = corpoV(ps.eixos.z); Zd.addScaledVector(Xd, -Zd.dot(Xd)).normalize();
+      Yd = Zd.clone().cross(Xd).normalize();
+    } else { // o eixo Y (o do objeto em pé no punho) para "aponta", os dedos para a frente
+      Yd = corpoV(ps.aponta).normalize();
+      Xd = frente.clone().addScaledVector(Yd, -frente.dot(Yd)).normalize(); Zd = Xd.clone().cross(Yd).normalize();
+    }
     const Mc = new THREE.Matrix4().makeBasis(X, Y, Z), Md = new THREE.Matrix4().makeBasis(Xd, Yd, Zd);
     const qR = new THREE.Quaternion().setFromRotationMatrix(Md.multiply(Mc.transpose()));
     mao.getWorldQuaternion(_q1); _q2.copy(qR).multiply(_q1);
@@ -1253,6 +1258,67 @@ function coberturaDe(c, rid) {
   }
   return (c.cobertura[rid] = cob);
 }
+// triângulos de uma peça (posições pelo esqueleto, na pose atual) numa grade de 5 cm, para os raios
+function gradeDaPeca(c, rid) {
+  c.grades ||= {};
+  if (c.grades[rid]) return c.grades[rid];
+  c.raiz.updateMatrixWorld(true);
+  const tam = 0.05, grade = new Map(), tris = [];
+  for (const m of c.roupas[rid]) {
+    const g = m.geometry, pa = g.attributes.position, ix = g.index, n = ix ? ix.count : pa.count;
+    for (let t = 0; t < n; t += 3) {
+      const tri = [0, 1, 2].map((k) => m.applyBoneTransform(ix ? ix.getX(t + k) : t + k,
+        new THREE.Vector3().fromBufferAttribute(pa, ix ? ix.getX(t + k) : t + k)).applyMatrix4(m.matrixWorld));
+      const id = tris.push(tri) - 1;
+      const mn = tri[0].clone().min(tri[1]).min(tri[2]), mx = tri[0].clone().max(tri[1]).max(tri[2]);
+      for (let x = Math.floor(mn.x / tam); x <= Math.floor(mx.x / tam); x++)
+        for (let y = Math.floor(mn.y / tam); y <= Math.floor(mx.y / tam); y++)
+          for (let z = Math.floor(mn.z / tam); z <= Math.floor(mx.z / tam); z++) {
+            const k = `${x},${y},${z}`;
+            if (!grade.has(k)) grade.set(k, []);
+            grade.get(k).push(id);
+          }
+    }
+  }
+  return (c.grades[rid] = { grade, tris, tam });
+}
+// vértices da trama com uma das peças de cima encostada (a até 2 cm pela normal, dos dois lados)
+function tramaCoberta(c, mm, rids) {
+  const chave = rids.slice().sort().join(",");
+  mm.userData.cobTrama ||= {};
+  if (mm.userData.cobTrama[chave]) return mm.userData.cobTrama[chave];
+  c.raiz.updateMatrixWorld(true);
+  const g = mm.geometry, pa = g.attributes.position, ix = g.index.array, nvt = pa.count;
+  const P = Array.from({ length: nvt }, (_, i) => mm.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(pa, i)).applyMatrix4(mm.matrixWorld));
+  const N = P.map(() => new THREE.Vector3());
+  for (let t = 0; t < ix.length; t += 3) {
+    const fn = new THREE.Vector3().subVectors(P[ix[t + 1]], P[ix[t]]).cross(new THREE.Vector3().subVectors(P[ix[t + 2]], P[ix[t]]));
+    N[ix[t]].add(fn); N[ix[t + 1]].add(fn); N[ix[t + 2]].add(fn);
+  }
+  N.forEach((n) => n.normalize());
+  const alc = 0.02 * Math.max(c.altura / 1.7, 0.4), res = new Uint8Array(nvt), ray = new THREE.Ray(), hit = new THREE.Vector3();
+  for (const rid of rids) {
+    const { grade, tris, tam } = gradeDaPeca(c, rid);
+    const ch = (v) => `${Math.floor(v.x / tam)},${Math.floor(v.y / tam)},${Math.floor(v.z / tam)}`;
+    for (let i = 0; i < nvt; i++) {
+      if (res[i]) continue;
+      for (const sg of [1, -1]) {
+        const d = N[i].clone().multiplyScalar(sg);
+        ray.set(P[i], d);
+        const fim = P[i].clone().addScaledVector(d, alc);
+        for (const k of new Set([ch(P[i]), ch(fim)])) {
+          for (const id of grade.get(k) || []) {
+            const [a, b, e] = tris[id];
+            if (ray.intersectTriangle(a, b, e, false, hit) && hit.distanceTo(P[i]) <= alc) { res[i] = 1; break; }
+          }
+          if (res[i]) break;
+        }
+        if (res[i]) break;
+      }
+    }
+  }
+  return (mm.userData.cobTrama[chave] = res);
+}
 function ocultarPele() {
   const c = atual, m = c?.corpoMesh;
   if (!m || !m.geometry.index) return;
@@ -1272,19 +1338,23 @@ function ocultarPele() {
   }
   g.index.array.set(idx);
   g.index.needsUpdate = true;
-  // peça transparente (arrastão) embaixo de outra: some onde a de cima cobre a pele (a pele embaixo dos três vértices
-  // do triângulo coberta), para a trama não aparecer através da roupa
+  // peça transparente (arrastão) embaixo de outra: some onde a de cima encosta nela (um raio pela normal da trama,
+  // para fora e para dentro, acerta a peça de cima a até 2 cm). Logo abaixo da barra não há peça perto: a trama vai
+  // até a borda.
+  const opacas = Object.entries(c.roupas || {}).filter(([rid, ms]) => ms[0]?.visible && (() => {
+    const it = CAT_ROUPA.itens.find((x) => x.id === rid); return it?.tipo === "pele" && !it.transparente; })()).map(([rid]) => rid);
   for (const [rid, malhas] of Object.entries(c.roupas || {})) {
     if (!CAT_ROUPA.itens.find((x) => x.id === rid)?.transparente) continue;
     for (const mm of malhas) {
-      const sob = mm.userData.sobPele, gi = mm.geometry.index;
-      if (!sob || !gi) continue;
+      const gi = mm.geometry.index;
+      if (!gi) continue;
       mm.userData.indiceOriginal ||= gi.array.slice();
       const ix = mm.userData.indiceOriginal.slice();
-      // na borda da peça de cima (barra, cava da perna) basta a maior parte: 2 de 3
-      const coberto = (v) => cob[sob[v * 3]] + cob[sob[v * 3 + 1]] + cob[sob[v * 3 + 2]] >= 2;
-      if (mm.visible) for (let t = 0; t < ix.length; t += 3) {
-        if (coberto(ix[t]) + coberto(ix[t + 1]) + coberto(ix[t + 2]) >= 2) { ix[t + 1] = ix[t]; ix[t + 2] = ix[t]; }
+      if (mm.visible && opacas.length) {
+        const cv = tramaCoberta(c, mm, opacas);
+        for (let t = 0; t < ix.length; t += 3) { // 2 de 3 vértices encostados: some (a borda da cava não aparece)
+          if (cv[ix[t]] + cv[ix[t + 1]] + cv[ix[t + 2]] >= 2) { ix[t + 1] = ix[t]; ix[t + 2] = ix[t]; }
+        }
       }
       gi.array.set(ix); gi.needsUpdate = true;
     }

@@ -185,7 +185,13 @@ for kind, item in itens:
         elif it.get("gerar", {}).get("tipo") == "objeto":
             ob = GER.objeto(it["gerar"])
             # em pé: x (para os dedos) para baixo; com pose de segurar, o eixo do objeto é o y da mão (para cima)
-            ob.rotation_euler = (math.radians(90), 0, 0) if it.get("pose") else (0, math.radians(90), 0)
+            ps = it.get("pose") or {}
+            if "aponta" in ps:  # em pé no punho: o eixo Y para cima
+                ob.rotation_euler = (math.radians(90), 0, 0)
+            elif ps.get("eixos", {}).get("x", [0, -1, 0])[1] < -0.5:  # pendurado (bolsa, bengala): X para baixo
+                ob.rotation_euler = (0, math.radians(90), 0)
+            else:  # celular, livro, câmera: X para cima
+                ob.rotation_euler = (0, math.radians(-90), 0)
             R.garante_mascara(ob, item["id"])
             tinge(ob, item["id"], it.get("variacao", {}).get("cor"))
             esconde_resto([ob])

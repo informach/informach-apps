@@ -88,6 +88,9 @@ O gerador está em `codigo/morada-art/geradores.py`:
       ganhar onde as duas se encostam.
     - A máscara da cor livre é a própria linha da trama.
     - A peça tem `"transparente": true` no catálogo, e a página não esconde a pele embaixo dela.
+    - Por baixo de outra peça, a trama some onde a de cima encosta nela: um raio pela normal da trama, para fora e para
+      dentro, acerta a peça de cima a até 2 cm, em 2 dos 3 vértices do triângulo. Logo abaixo da barra não há peça
+      perto, e a trama vai até a borda.
   - A volta em torno do braço (o u do UV nas mangas) é medida a partir do eixo do braço.
   - Cores fixas: o material `Roupa_Gen_detalhe` (o mesmo atlas de cores) nunca recebe a cor livre (botões, fivelas,
     lentes, golas de outra cor).
@@ -138,12 +141,15 @@ O gerador está em `codigo/morada-art/geradores.py`:
       (vassoura, caixa).
     - O objeto de uma mão ocupada passa para a outra, se ela estiver livre: o mesmo arquivo, montado no referencial da
       outra mão. Se não estiver, some enquanto durar a animação e volta depois.
-  - Pose de segurar (`"pose"` no catálogo; `poseSegurar` na página): guarda-chuva aberto, guarda-chuva colorido e pau de
-    selfie.
-    - O objeto é feito no eixo Y da mão. A cada quadro, depois da animação, o braço daquele lado vai até `alvo`
-      (frente, cima e para fora do ombro, em comprimentos de braço), por IK de dois ossos, com o cotovelo para baixo
-      e para fora.
-    - A mão gira para o eixo Y apontar para `aponta` (frente, cima e fora), com os dedos para a frente.
+  - Pose de segurar (`"pose"` no catálogo; `poseSegurar` na página): todos os objetos de mão têm a sua.
+    - A cada quadro, depois da animação, o braço daquele lado vai até `alvo` (frente, cima e para fora do ombro, em
+      comprimentos de braço), por IK de dois ossos, com o cotovelo para baixo e para fora.
+    - Depois a mão gira:
+      - `aponta` leva o eixo Y da mão (o do objeto em pé no punho) para essa direção, com os dedos para a frente:
+        café, sorvete, picolé, microfone, buquê, guarda-chuva aberto, pau de selfie;
+      - `eixos` dá direto X (os dedos) e Z (a palma): celular com a tela para o rosto, livro na frente do peito, câmera
+        na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo.
+    - Num gesto com aquela mão, o objeto passa para a outra junto com a pose.
     - O resto do corpo segue a animação (andar, parado...). O jogo deve fazer igual.
 
 Slots novos:
