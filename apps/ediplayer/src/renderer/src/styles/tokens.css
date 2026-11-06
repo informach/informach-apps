@@ -1,0 +1,29 @@
+/* EdiPlayer identity (canvas "EdiPlayer – telas finais"): a dark stage for the picture to shine,
+   amber as the projector light that marks what acts (play, cut, save). Same base and fonts as
+   EdiAula; the amber is EdiPlayer's own highlighter in the suite (packages/config edi-brand.ts). */
+:root {
+  --stage: #0e0f12;
+  --frame: #15171c;
+  --panel: #1b1e24;
+  --raised: #23272f;
+  --line: #2a2f38;
+  --line-strong: #343a45;
+  --text-1: #eceef2;
+  --text-2: #a3a9b6;
+  --text-3: #7d8494;
+  --accent: #ffb547;
+  --accent-hover: #ffc978;
+  --accent-soft: rgba(255, 181, 71, 0.14);
+  --on-accent: #1a1206;
+  --cut: #ff5c5c;
+  --cut-text: #ff8a8a;
+  --cut-soft: rgba(255, 92, 92, 0.22);
+  --paper: #f4f1ea;
+  --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", var(--font-ui);
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --titlebar: 44px;
+}

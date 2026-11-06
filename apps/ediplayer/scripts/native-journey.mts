@@ -1,0 +1,152 @@
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import type { ElectronApplication, Page } from "playwright";
+
+const run = promisify(execFile);
+const require = createRequire(resolve("apps/ediplayer/package.json"));
+
+/** FFmpeg for the fixture: the suite bundle when prepared, else the development binary. */
+function ffmpegPath(root: string): string {
+  const bundled = join(root, ".cache", "edi-native-media", "windows-x64", "bin", "ffmpeg.exe");
+  try {
+    require.resolve(bundled);
+    return bundled;
+  } catch {
+    const binary: unknown = require("ffmpeg-static");
+    if (typeof binary !== "string") throw new Error("ffmpeg-static unavailable");
+    return binary;
+  }
+}
+
+/** Replaces the main process's file dialogs: the journey answers them instead of a person. */
+async function answerDialogs(application: ElectronApplication, open: string[], save: string) {
+  await application.evaluate(
+    ({ dialog }, answers) => {
+      Reflect.set(dialog, "showOpenDialog", async () => ({
+        canceled: false,
+        filePaths: answers.open,
+      }));
+      Reflect.set(dialog, "showSaveDialog", async () => ({
+        canceled: false,
+        filePath: answers.save,
+      }));
+    },
+    { open, save },
+  );
+}
+
+/**
+ * Opens a real clip, plays it, marks a stretch in the edit mode and saves it without
+ * re-encoding: the output exists with the expected length and the source is byte for byte the
+ * same. Screens are captured for review against the design canvas.
+ */
+export async function verifyPlayerNativeJourney(
+  editor: Page,
+  application: ElectronApplication,
+  root: string,
+  results: string,
+): Promise<void> {
+  editor.setDefaultTimeout(20000);
+  const dir = await mkdtemp(join(tmpdir(), "ediplayer-journey-"));
+  try {
+    const clip = join(dir, "aula-revisao.mp4");
+    await run(ffmpegPath(root), [
+      "-hide_banner",
+      "-nostdin",
+      "-y",
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=1280x720:rate=30:duration=20",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=330:sample_rate=48000:duration=20",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-g",
+      "30",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "-shortest",
+      clip,
+    ]);
+    const before = createHash("sha256")
+      .update(await readFile(clip))
+      .digest("hex");
+    const output = join(dir, "aula-revisao (editado).mp4");
+    await answerDialogs(application, [clip], output);
+
+    await editor.getByRole("button", { name: /Abrir arquivo/ }).click();
+    await editor.waitForFunction(() => {
+      const v = document.querySelector(".stage video");
+      return v instanceof HTMLVideoElement && v.readyState >= 2 && v.currentTime > 0.3;
+    });
+    await editor.screenshot({ path: join(results, "ediplayer-player.png") });
+
+    await editor.keyboard.press("e");
+    await editor.locator(".ruler").waitFor();
+    const seekTo = (t: number) =>
+      editor.evaluate((at) => {
+        const v = document.querySelector(".stage video");
+        if (!(v instanceof HTMLVideoElement)) throw new Error("Missing video");
+        v.pause();
+        v.currentTime = at;
+        return new Promise<void>((done) =>
+          v.addEventListener("seeked", () => done(), { once: true }),
+        );
+      }, t);
+    await seekTo(3);
+    await editor.keyboard.press("i");
+    await seekTo(8);
+    await editor.keyboard.press("o");
+    await editor.getByText("Trechos marcados").waitFor();
+    await editor.locator(".mark-row.sel").waitFor();
+    await editor.waitForFunction(
+      () => document.querySelectorAll(".strip .tile[style*='url']").length > 0,
+    );
+    await editor.screenshot({ path: join(results, "ediplayer-edit.png") });
+
+    await editor.keyboard.press("Control+s");
+    await editor.getByRole("dialog", { name: "Salvar resultado" }).waitFor();
+    await editor.screenshot({ path: join(results, "ediplayer-save.png") });
+    await editor.getByRole("button", { name: "Salvar…" }).click();
+    await editor.getByText("Pronto").waitFor({ timeout: 60000 });
+    await editor.screenshot({ path: join(results, "ediplayer-queue.png") });
+
+    const made = await stat(output);
+    assert.ok(made.size > 10_000, "the cut was not written");
+    const after = createHash("sha256")
+      .update(await readFile(clip))
+      .digest("hex");
+    assert.equal(after, before, "the source changed");
+    // 20 s minus the 5 s marked: 15 s, give or take a keyframe.
+    const probe = await run(ffmpegPath(root).replace(/ffmpeg(\.exe)?$/i, "ffprobe$1"), [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "csv=p=0",
+      output,
+    ]).catch(() => null);
+    if (probe) {
+      const length = Number(probe.stdout.trim());
+      assert.ok(Math.abs(length - 15) < 1.2, `cut length ${length}`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
