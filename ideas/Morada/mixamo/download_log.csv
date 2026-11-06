@@ -1,0 +1,1318 @@
+seq,horario_utc,corpo,prioridade,id_interno,nome_mixamo,in_place,arquivo_destino
+1,2026-11-04T18:34:10Z,adulto,P0,resident.idle.neutral,Breathing Idle,false,adulto/P0/resident.idle.neutral__Breathing_Idle.fbx
+2,2026-11-04T18:36:55Z,adulto,P0,resident.idle.happy,Happy Idle,false,adulto/P0/resident.idle.happy__Happy_Idle.fbx
+3,2026-11-04T18:37:44Z,adulto,P0,resident.idle.sad,Sad Idle,false,adulto/P0/resident.idle.sad__Sad_Idle.fbx
+4,2026-11-04T18:38:19Z,adulto,P0,resident.idle.bored,Bored,false,adulto/P0/resident.idle.bored__Bored.fbx
+5,2026-11-04T18:38:58Z,adulto,P0,resident.idle.look_around,Looking Around,false,adulto/P0/resident.idle.look_around__Looking_Around.fbx
+6,2026-11-04T18:39:42Z,adulto,P0,resident.walk.normal,Walking,true,adulto/P0/resident.walk.normal__Walking.fbx
+7,2026-11-04T18:40:52Z,adulto,P0,resident.walk.happy,Happy Walk,true,adulto/P0/resident.walk.happy__Happy_Walk.fbx
+8,2026-11-04T18:40:58Z,adulto,P0,resident.walk.sad,Sad Walk,true,adulto/P0/resident.walk.sad__Sad_Walk.fbx
+9,2026-11-04T18:42:06Z,adulto,P0,resident.run.normal,Running,true,adulto/P0/resident.run.normal__Running.fbx
+10,2026-11-04T18:44:11Z,adulto,P0,resident.jog,Jogging,true,adulto/P0/resident.jog__Jogging.fbx
+11,2026-11-04T18:46:00Z,adulto,P0,resident.turn.left,Left Turn,false,adulto/P0/resident.turn.left__Left_Turn.fbx
+12,2026-11-04T18:46:07Z,adulto,P0,resident.turn.right,Right Turn,false,adulto/P0/resident.turn.right__Right_Turn.fbx
+13,2026-11-04T18:46:13Z,adulto,P0,resident.stairs.up,Ascending Stairs,false,adulto/P0/resident.stairs.up__Ascending_Stairs.fbx
+14,2026-11-04T18:46:22Z,adulto,P0,resident.stairs.up,Ascending Stairs,true,adulto/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+15,2026-11-04T18:46:28Z,adulto,P0,resident.stairs.down,Descending Stairs,false,adulto/P0/resident.stairs.down__Descending_Stairs.fbx
+16,2026-11-04T18:46:34Z,adulto,P0,resident.stairs.down,Descending Stairs,true,adulto/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+17,2026-11-04T18:48:40Z,adulto,P0,resident.crouch.enter,Crouching,false,adulto/P0/resident.crouch.enter__Crouching.fbx
+18,2026-11-04T18:48:49Z,adulto,P0,resident.crouch.idle,Crouching Idle,false,adulto/P0/resident.crouch.idle__Crouching_Idle.fbx
+19,2026-11-04T18:48:57Z,adulto,P0,resident.crouch.exit,Crouch To Stand,false,adulto/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+20,2026-11-04T18:49:56Z,adulto,P0,resident.pickup.floor,Picking Up,false,adulto/P0/resident.pickup.floor__Picking_Up.fbx
+21,2026-11-04T18:50:31Z,adulto,P0,resident.jump.small,Jump,false,adulto/P0/resident.jump.small__Jump.fbx
+22,2026-11-04T18:51:51Z,adulto,P0,resident.sit.chair.enter,Stand To Sit,false,adulto/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+23,2026-11-04T18:51:58Z,adulto,P0,resident.sit.chair.idle,Sitting Idle,false,adulto/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+24,2026-11-04T18:52:04Z,adulto,P0,resident.sit.chair.exit,Sit To Stand,false,adulto/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+25,2026-11-04T18:53:52Z,adulto,P0,resident.sit.toilet,Sitting,false,_descartado/adulto/P0/resident.sit.toilet__Sitting.fbx
+26,2026-11-04T18:55:13Z,adulto,P0,resident.sit.talk,Sitting Talking,false,adulto/P0/resident.sit.talk__Sitting_Talking.fbx
+27,2026-11-04T18:55:19Z,adulto,P0,resident.sit.clap,Sitting Clap,false,adulto/P0/resident.sit.clap__Sitting_Clap.fbx
+28,2026-11-04T18:55:26Z,adulto,P0,resident.sit.laugh,Sitting Laughing,false,adulto/P0/resident.sit.laugh__Sitting_Laughing.fbx
+29,2026-11-04T18:55:34Z,adulto,P0,resident.sit.angry,Sitting Angry,false,adulto/P0/resident.sit.angry__Sitting_Angry.fbx
+30,2026-11-04T18:57:38Z,adulto,P0,resident.lie.enter,Lying Down,false,adulto/P0/resident.lie.enter__Lying_Down.fbx
+31,2026-11-04T18:57:45Z,adulto,P0,resident.lie.idle,Laying Idle,false,adulto/P0/resident.lie.idle__Laying_Idle.fbx
+32,2026-11-04T18:57:51Z,adulto,P0,resident.sleep.idle,Laying Sleeping,false,adulto/P0/resident.sleep.idle__Laying_Sleeping.fbx
+33,2026-11-04T18:57:58Z,adulto,P0,resident.yawn,Yawn,false,adulto/P0/resident.yawn__Yawn.fbx
+34,2026-11-04T19:00:01Z,adulto,P0,resident.drink.stand,Drinking,false,adulto/P0/resident.drink.stand__Drinking.fbx
+35,2026-11-04T19:00:08Z,adulto,P0,resident.dizzy,Dizzy Idle,false,adulto/P0/resident.dizzy__Dizzy_Idle.fbx
+36,2026-11-04T19:00:14Z,adulto,P0,resident.stretch,Arm Stretching,false,adulto/P0/resident.stretch__Arm_Stretching.fbx
+37,2026-11-04T19:03:00Z,adulto,P0,resident.door.open_in,Opening Door Inwards,false,adulto/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+38,2026-11-04T19:03:10Z,adulto,P0,resident.door.open_out,Open Door Outwards,false,adulto/P0/resident.door.open_out__Open_Door_Outwards.fbx
+39,2026-11-04T19:03:20Z,adulto,P0,resident.cabinet.open,Opening,false,adulto/P0/resident.cabinet.open__Opening.fbx
+40,2026-11-04T19:03:30Z,adulto,P0,resident.cabinet.close,Closing,false,adulto/P0/resident.cabinet.close__Closing.fbx
+41,2026-11-04T19:03:40Z,adulto,P0,resident.button.push,Button Pushing,false,adulto/P0/resident.button.push__Button_Pushing.fbx
+42,2026-11-04T19:03:50Z,adulto,P0,resident.carry.box.idle,Box Idle,false,adulto/P0/resident.carry.box.idle__Box_Idle.fbx
+43,2026-11-04T19:04:00Z,adulto,P0,resident.push.start,Push Start,false,adulto/P0/resident.push.start__Push_Start.fbx
+44,2026-11-04T19:04:10Z,adulto,P0,resident.push.loop,Pushing,true,adulto/P0/resident.push.loop__Pushing.fbx
+45,2026-11-04T19:04:20Z,adulto,P0,resident.push.stop,Push Stop,false,adulto/P0/resident.push.stop__Push_Stop.fbx
+46,2026-11-04T19:04:40Z,adulto,P0,resident.search.pockets,Searching Pockets,false,adulto/P0/resident.search.pockets__Searching_Pockets.fbx
+47,2026-11-04T19:05:00Z,adulto,P0,resident.throw,Throw,false,adulto/P0/resident.throw__Throw.fbx
+48,2026-11-04T19:08:20Z,adulto,P0,resident.talk.a,Talking,false,adulto/P0/resident.talk.a__Talking.fbx
+49,2026-11-04T19:08:27Z,adulto,P0,resident.talk.b,Talking,false,adulto/P0/resident.talk.b__Talking_v2.fbx
+50,2026-11-04T19:08:34Z,adulto,P0,resident.talk.listen,Lengthy Head Nod,false,adulto/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+51,2026-11-04T19:08:40Z,adulto,P0,resident.wave,Waving,false,_descartado/adulto/P0/resident.wave__Waving.fbx
+52,2026-11-04T19:08:46Z,adulto,P0,resident.greet,Standing Greeting,false,adulto/P0/resident.greet__Standing_Greeting.fbx
+53,2026-11-04T19:08:53Z,adulto,P0,resident.agree,Head Nod Yes,false,adulto/P0/resident.agree__Head_Nod_Yes.fbx
+54,2026-11-04T19:09:00Z,adulto,P0,resident.disagree,Shaking Head No,false,adulto/P0/resident.disagree__Shaking_Head_No.fbx
+55,2026-11-04T19:09:07Z,adulto,P0,resident.phone.talk,Talking,false,adulto/P0/resident.phone.talk__Talking_v3.fbx
+56,2026-11-04T19:10:22Z,adulto,P0,resident.laugh,Laughing,false,adulto/P0/resident.laugh__Laughing.fbx
+57,2026-11-04T19:10:28Z,adulto,P0,resident.clap,Clapping,false,adulto/P0/resident.clap__Clapping.fbx
+58,2026-11-04T19:10:37Z,adulto,P0,resident.cheer,Cheering,false,adulto/P0/resident.cheer__Cheering.fbx
+59,2026-11-04T19:10:44Z,adulto,P0,resident.point,Pointing,false,adulto/P0/resident.point__Pointing.fbx
+60,2026-11-04T19:10:51Z,adulto,P0,resident.text,Texting,false,adulto/P0/resident.text__Texting.fbx
+61,2026-11-04T19:11:00Z,adulto,P0,resident.look_behind,Looking Behind,false,adulto/P0/resident.look_behind__Looking_Behind.fbx
+62,2026-11-04T19:11:06Z,adulto,P0,resident.handshake,Shaking Hands 1,false,adulto/P0/resident.handshake__Shaking_Hands_1.fbx
+63,2026-11-04T19:11:13Z,adulto,P0,resident.pat,Patting,false,adulto/P0/resident.pat__Patting.fbx
+64,2026-11-04T19:13:03Z,adulto,P0,resident.romance.kiss_taller,Kiss,false,adulto/P0/resident.romance.kiss_taller__Kiss.fbx
+65,2026-11-04T19:13:10Z,adulto,P0,resident.romance.kiss_shorter,Kiss,false,adulto/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+66,2026-11-04T19:13:16Z,adulto,P0,resident.romance.blow_kiss,Blow A Kiss,false,adulto/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+67,2026-11-04T19:13:23Z,adulto,P0,resident.romance.propose,Kneeling,false,adulto/P0/resident.romance.propose__Kneeling.fbx
+68,2026-11-04T19:13:31Z,adulto,P0,resident.romance.propose_exit,Standing,false,adulto/P0/resident.romance.propose_exit__Standing.fbx
+69,2026-11-04T19:13:38Z,adulto,P0,resident.care.reach_down,Lifting Object,false,_descartado/adulto/P0/resident.care.reach_down__Lifting_Object.fbx
+70,2026-11-04T19:54:15Z,adulto,P0,resident.handshake.partner,Shaking Hands 2,false,adulto/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+71,2026-11-04T19:56:53Z,adulto,P0,resident.wave,Waving,false,adulto/P0/resident.wave__Waving.fbx
+72,2026-11-04T20:01:25Z,adulta,P0,resident.idle.neutral,Breathing Idle,false,adulta/P0/resident.idle.neutral__Breathing_Idle.fbx
+73,2026-11-04T20:01:32Z,adulta,P0,resident.idle.happy,Happy Idle,false,adulta/P0/resident.idle.happy__Happy_Idle.fbx
+74,2026-11-04T20:01:38Z,adulta,P0,resident.idle.sad,Sad Idle,false,adulta/P0/resident.idle.sad__Sad_Idle.fbx
+75,2026-11-04T20:01:49Z,adulta,P0,resident.idle.bored,Bored,false,adulta/P0/resident.idle.bored__Bored.fbx
+76,2026-11-04T20:01:57Z,adulta,P0,resident.idle.look_around,Looking Around,false,adulta/P0/resident.idle.look_around__Looking_Around.fbx
+77,2026-11-04T20:02:05Z,adulta,P0,resident.walk.normal,Walking,true,adulta/P0/resident.walk.normal__Walking.fbx
+78,2026-11-04T20:02:11Z,adulta,P0,resident.walk.happy,Happy Walk,true,adulta/P0/resident.walk.happy__Happy_Walk.fbx
+79,2026-11-04T20:02:18Z,adulta,P0,resident.walk.sad,Sad Walk,true,adulta/P0/resident.walk.sad__Sad_Walk.fbx
+80,2026-11-04T20:02:24Z,adulta,P0,resident.run.normal,Running,true,adulta/P0/resident.run.normal__Running.fbx
+81,2026-11-04T20:02:31Z,adulta,P0,resident.jog,Jogging,true,adulta/P0/resident.jog__Jogging.fbx
+82,2026-11-04T20:02:37Z,adulta,P0,resident.turn.left,Left Turn,false,adulta/P0/resident.turn.left__Left_Turn.fbx
+83,2026-11-04T20:02:43Z,adulta,P0,resident.turn.right,Right Turn,false,adulta/P0/resident.turn.right__Right_Turn.fbx
+84,2026-11-04T20:02:50Z,adulta,P0,resident.stairs.up,Ascending Stairs,false,adulta/P0/resident.stairs.up__Ascending_Stairs.fbx
+85,2026-11-04T20:02:56Z,adulta,P0,resident.stairs.up,Ascending Stairs,true,adulta/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+86,2026-11-04T20:03:05Z,adulta,P0,resident.stairs.down,Descending Stairs,false,adulta/P0/resident.stairs.down__Descending_Stairs.fbx
+87,2026-11-04T20:03:12Z,adulta,P0,resident.stairs.down,Descending Stairs,true,adulta/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+88,2026-11-04T20:03:22Z,adulta,P0,resident.crouch.enter,Crouching,false,adulta/P0/resident.crouch.enter__Crouching.fbx
+89,2026-11-04T20:03:32Z,adulta,P0,resident.crouch.idle,Crouching Idle,false,adulta/P0/resident.crouch.idle__Crouching_Idle.fbx
+90,2026-11-04T20:03:38Z,adulta,P0,resident.crouch.exit,Crouch To Stand,false,adulta/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+91,2026-11-04T20:03:48Z,adulta,P0,resident.pickup.floor,Picking Up,false,adulta/P0/resident.pickup.floor__Picking_Up.fbx
+92,2026-11-04T20:03:57Z,adulta,P0,resident.jump.small,Jump,false,adulta/P0/resident.jump.small__Jump.fbx
+93,2026-11-04T20:04:04Z,adulta,P0,resident.sit.chair.enter,Stand To Sit,false,adulta/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+94,2026-11-04T20:04:11Z,adulta,P0,resident.sit.chair.idle,Sitting Idle,false,adulta/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+95,2026-11-04T20:04:19Z,adulta,P0,resident.sit.chair.exit,Sit To Stand,false,adulta/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+96,2026-11-04T20:04:30Z,adulta,P0,resident.sit.talk,Sitting Talking,false,adulta/P0/resident.sit.talk__Sitting_Talking.fbx
+97,2026-11-04T20:04:37Z,adulta,P0,resident.sit.clap,Sitting Clap,false,adulta/P0/resident.sit.clap__Sitting_Clap.fbx
+98,2026-11-04T20:04:46Z,adulta,P0,resident.sit.laugh,Sitting Laughing,false,adulta/P0/resident.sit.laugh__Sitting_Laughing.fbx
+99,2026-11-04T20:04:53Z,adulta,P0,resident.sit.angry,Sitting Angry,false,adulta/P0/resident.sit.angry__Sitting_Angry.fbx
+100,2026-11-04T20:04:59Z,adulta,P0,resident.lie.enter,Lying Down,false,adulta/P0/resident.lie.enter__Lying_Down.fbx
+101,2026-11-04T20:05:08Z,adulta,P0,resident.lie.idle,Laying Idle,false,adulta/P0/resident.lie.idle__Laying_Idle.fbx
+102,2026-11-04T20:05:14Z,adulta,P0,resident.sleep.idle,Laying Sleeping,false,adulta/P0/resident.sleep.idle__Laying_Sleeping.fbx
+103,2026-11-04T20:05:21Z,adulta,P0,resident.yawn,Yawn,false,adulta/P0/resident.yawn__Yawn.fbx
+104,2026-11-04T20:05:27Z,adulta,P0,resident.drink.stand,Drinking,false,adulta/P0/resident.drink.stand__Drinking.fbx
+105,2026-11-04T20:05:33Z,adulta,P0,resident.dizzy,Dizzy Idle,false,adulta/P0/resident.dizzy__Dizzy_Idle.fbx
+106,2026-11-04T20:05:40Z,adulta,P0,resident.stretch,Arm Stretching,false,adulta/P0/resident.stretch__Arm_Stretching.fbx
+107,2026-11-04T20:05:46Z,adulta,P0,resident.door.open_in,Opening Door Inwards,false,adulta/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+108,2026-11-04T20:05:53Z,adulta,P0,resident.door.open_out,Open Door Outwards,false,adulta/P0/resident.door.open_out__Open_Door_Outwards.fbx
+109,2026-11-04T20:05:59Z,adulta,P0,resident.cabinet.open,Opening,false,adulta/P0/resident.cabinet.open__Opening.fbx
+110,2026-11-04T20:06:05Z,adulta,P0,resident.cabinet.close,Closing,false,adulta/P0/resident.cabinet.close__Closing.fbx
+111,2026-11-04T20:06:14Z,adulta,P0,resident.button.push,Button Pushing,false,adulta/P0/resident.button.push__Button_Pushing.fbx
+112,2026-11-04T20:06:20Z,adulta,P0,resident.carry.box.idle,Box Idle,false,adulta/P0/resident.carry.box.idle__Box_Idle.fbx
+113,2026-11-04T20:06:27Z,adulta,P0,resident.push.start,Push Start,false,adulta/P0/resident.push.start__Push_Start.fbx
+114,2026-11-04T20:06:34Z,adulta,P0,resident.push.loop,Pushing,true,adulta/P0/resident.push.loop__Pushing.fbx
+115,2026-11-04T20:06:40Z,adulta,P0,resident.push.stop,Push Stop,false,adulta/P0/resident.push.stop__Push_Stop.fbx
+116,2026-11-04T20:06:47Z,adulta,P0,resident.search.pockets,Searching Pockets,false,adulta/P0/resident.search.pockets__Searching_Pockets.fbx
+117,2026-11-04T20:06:53Z,adulta,P0,resident.throw,Throw,false,adulta/P0/resident.throw__Throw.fbx
+118,2026-11-04T20:07:00Z,adulta,P0,resident.talk.a,Talking,false,adulta/P0/resident.talk.a__Talking.fbx
+119,2026-11-04T20:07:07Z,adulta,P0,resident.talk.b,Talking,false,adulta/P0/resident.talk.b__Talking_v2.fbx
+120,2026-11-04T20:07:13Z,adulta,P0,resident.talk.listen,Lengthy Head Nod,false,adulta/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+121,2026-11-04T20:07:20Z,adulta,P0,resident.wave,Waving,false,adulta/P0/resident.wave__Waving.fbx
+122,2026-11-04T20:07:26Z,adulta,P0,resident.greet,Standing Greeting,false,adulta/P0/resident.greet__Standing_Greeting.fbx
+123,2026-11-04T20:07:35Z,adulta,P0,resident.agree,Head Nod Yes,false,adulta/P0/resident.agree__Head_Nod_Yes.fbx
+124,2026-11-04T20:07:41Z,adulta,P0,resident.disagree,Shaking Head No,false,adulta/P0/resident.disagree__Shaking_Head_No.fbx
+125,2026-11-04T20:07:48Z,adulta,P0,resident.laugh,Laughing,false,adulta/P0/resident.laugh__Laughing.fbx
+126,2026-11-04T20:07:54Z,adulta,P0,resident.clap,Clapping,false,adulta/P0/resident.clap__Clapping.fbx
+127,2026-11-04T20:08:03Z,adulta,P0,resident.cheer,Cheering,false,adulta/P0/resident.cheer__Cheering.fbx
+128,2026-11-04T20:08:09Z,adulta,P0,resident.point,Pointing,false,adulta/P0/resident.point__Pointing.fbx
+129,2026-11-04T20:08:16Z,adulta,P0,resident.phone.talk,Talking,false,adulta/P0/resident.phone.talk__Talking_v3.fbx
+130,2026-11-04T20:08:23Z,adulta,P0,resident.text,Texting,false,adulta/P0/resident.text__Texting.fbx
+131,2026-11-04T20:08:29Z,adulta,P0,resident.look_behind,Looking Behind,false,adulta/P0/resident.look_behind__Looking_Behind.fbx
+132,2026-11-04T20:08:36Z,adulta,P0,resident.handshake,Shaking Hands 1,false,adulta/P0/resident.handshake__Shaking_Hands_1.fbx
+133,2026-11-04T20:08:42Z,adulta,P0,resident.pat,Patting,false,adulta/P0/resident.pat__Patting.fbx
+134,2026-11-04T20:08:48Z,adulta,P0,resident.romance.kiss_taller,Kiss,false,adulta/P0/resident.romance.kiss_taller__Kiss.fbx
+135,2026-11-04T20:08:55Z,adulta,P0,resident.romance.kiss_shorter,Kiss,false,adulta/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+136,2026-11-04T20:09:01Z,adulta,P0,resident.romance.blow_kiss,Blow A Kiss,false,adulta/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+137,2026-11-04T20:09:08Z,adulta,P0,resident.romance.propose,Kneeling,false,adulta/P0/resident.romance.propose__Kneeling.fbx
+138,2026-11-04T20:09:14Z,adulta,P0,resident.romance.propose_exit,Standing,false,adulta/P0/resident.romance.propose_exit__Standing.fbx
+139,2026-11-04T20:09:21Z,adulta,P0,resident.handshake.partner,Shaking Hands 2,false,adulta/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+140,2026-11-04T20:11:44Z,plus_m,P0,resident.idle.neutral,Breathing Idle,false,plus_m/P0/resident.idle.neutral__Breathing_Idle.fbx
+141,2026-11-04T20:11:50Z,plus_m,P0,resident.idle.happy,Happy Idle,false,plus_m/P0/resident.idle.happy__Happy_Idle.fbx
+142,2026-11-04T20:11:57Z,plus_m,P0,resident.idle.sad,Sad Idle,false,plus_m/P0/resident.idle.sad__Sad_Idle.fbx
+143,2026-11-04T20:12:04Z,plus_m,P0,resident.idle.bored,Bored,false,plus_m/P0/resident.idle.bored__Bored.fbx
+144,2026-11-04T20:12:11Z,plus_m,P0,resident.idle.look_around,Looking Around,false,plus_m/P0/resident.idle.look_around__Looking_Around.fbx
+145,2026-11-04T20:12:18Z,plus_m,P0,resident.walk.normal,Walking,true,plus_m/P0/resident.walk.normal__Walking.fbx
+146,2026-11-04T20:12:27Z,plus_m,P0,resident.walk.happy,Happy Walk,true,plus_m/P0/resident.walk.happy__Happy_Walk.fbx
+147,2026-11-04T20:12:33Z,plus_m,P0,resident.walk.sad,Sad Walk,true,plus_m/P0/resident.walk.sad__Sad_Walk.fbx
+148,2026-11-04T20:12:39Z,plus_m,P0,resident.run.normal,Running,true,plus_m/P0/resident.run.normal__Running.fbx
+149,2026-11-04T20:12:46Z,plus_m,P0,resident.turn.left,Left Turn,false,plus_m/P0/resident.turn.left__Left_Turn.fbx
+150,2026-11-04T20:12:54Z,plus_m,P0,resident.turn.right,Right Turn,false,plus_m/P0/resident.turn.right__Right_Turn.fbx
+151,2026-11-04T20:13:01Z,plus_m,P0,resident.stairs.up,Ascending Stairs,false,plus_m/P0/resident.stairs.up__Ascending_Stairs.fbx
+152,2026-11-04T20:13:07Z,plus_m,P0,resident.stairs.up,Ascending Stairs,true,plus_m/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+153,2026-11-04T20:13:16Z,plus_m,P0,resident.stairs.down,Descending Stairs,false,plus_m/P0/resident.stairs.down__Descending_Stairs.fbx
+154,2026-11-04T20:13:23Z,plus_m,P0,resident.stairs.down,Descending Stairs,true,plus_m/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+155,2026-11-04T20:13:29Z,plus_m,P0,resident.crouch.enter,Crouching,false,plus_m/P0/resident.crouch.enter__Crouching.fbx
+156,2026-11-04T20:13:36Z,plus_m,P0,resident.crouch.idle,Crouching Idle,false,plus_m/P0/resident.crouch.idle__Crouching_Idle.fbx
+157,2026-11-04T20:13:42Z,plus_m,P0,resident.crouch.exit,Crouch To Stand,false,plus_m/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+158,2026-11-04T20:13:49Z,plus_m,P0,resident.pickup.floor,Picking Up,false,plus_m/P0/resident.pickup.floor__Picking_Up.fbx
+159,2026-11-04T20:13:55Z,plus_m,P0,resident.jump.small,Jump,false,plus_m/P0/resident.jump.small__Jump.fbx
+160,2026-11-04T20:14:04Z,plus_m,P0,resident.sit.chair.enter,Stand To Sit,false,plus_m/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+161,2026-11-04T20:14:13Z,plus_m,P0,resident.sit.chair.idle,Sitting Idle,false,plus_m/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+162,2026-11-04T20:14:20Z,plus_m,P0,resident.sit.chair.exit,Sit To Stand,false,plus_m/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+163,2026-11-04T20:14:31Z,plus_m,P0,resident.sit.talk,Sitting Talking,false,plus_m/P0/resident.sit.talk__Sitting_Talking.fbx
+164,2026-11-04T20:14:37Z,plus_m,P0,resident.sit.laugh,Sitting Laughing,false,plus_m/P0/resident.sit.laugh__Sitting_Laughing.fbx
+165,2026-11-04T20:14:44Z,plus_m,P0,resident.sit.angry,Sitting Angry,false,plus_m/P0/resident.sit.angry__Sitting_Angry.fbx
+166,2026-11-04T20:14:50Z,plus_m,P0,resident.lie.enter,Lying Down,false,plus_m/P0/resident.lie.enter__Lying_Down.fbx
+167,2026-11-04T20:14:56Z,plus_m,P0,resident.lie.idle,Laying Idle,false,plus_m/P0/resident.lie.idle__Laying_Idle.fbx
+168,2026-11-04T20:15:03Z,plus_m,P0,resident.sleep.idle,Laying Sleeping,false,plus_m/P0/resident.sleep.idle__Laying_Sleeping.fbx
+169,2026-11-04T20:15:12Z,plus_m,P0,resident.yawn,Yawn,false,plus_m/P0/resident.yawn__Yawn.fbx
+170,2026-11-04T20:15:18Z,plus_m,P0,resident.drink.stand,Drinking,false,plus_m/P0/resident.drink.stand__Drinking.fbx
+171,2026-11-04T20:15:25Z,plus_m,P0,resident.dizzy,Dizzy Idle,false,plus_m/P0/resident.dizzy__Dizzy_Idle.fbx
+172,2026-11-04T20:15:31Z,plus_m,P0,resident.stretch,Arm Stretching,false,plus_m/P0/resident.stretch__Arm_Stretching.fbx
+173,2026-11-04T20:15:37Z,plus_m,P0,resident.door.open_in,Opening Door Inwards,false,plus_m/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+174,2026-11-04T20:15:44Z,plus_m,P0,resident.door.open_out,Open Door Outwards,false,plus_m/P0/resident.door.open_out__Open_Door_Outwards.fbx
+175,2026-11-04T20:15:50Z,plus_m,P0,resident.cabinet.open,Opening,false,plus_m/P0/resident.cabinet.open__Opening.fbx
+176,2026-11-04T20:15:59Z,plus_m,P0,resident.cabinet.close,Closing,false,plus_m/P0/resident.cabinet.close__Closing.fbx
+177,2026-11-04T20:16:06Z,plus_m,P0,resident.button.push,Button Pushing,false,plus_m/P0/resident.button.push__Button_Pushing.fbx
+178,2026-11-04T20:16:13Z,plus_m,P0,resident.push.start,Push Start,false,plus_m/P0/resident.push.start__Push_Start.fbx
+179,2026-11-04T20:16:19Z,plus_m,P0,resident.push.loop,Pushing,true,plus_m/P0/resident.push.loop__Pushing.fbx
+180,2026-11-04T20:16:26Z,plus_m,P0,resident.push.stop,Push Stop,false,plus_m/P0/resident.push.stop__Push_Stop.fbx
+181,2026-11-04T20:16:33Z,plus_m,P0,resident.throw,Throw,false,plus_m/P0/resident.throw__Throw.fbx
+182,2026-11-04T20:16:42Z,plus_m,P0,resident.talk.a,Talking,false,plus_m/P0/resident.talk.a__Talking.fbx
+183,2026-11-04T20:16:49Z,plus_m,P0,resident.talk.b,Talking,false,plus_m/P0/resident.talk.b__Talking_v2.fbx
+184,2026-11-04T20:16:55Z,plus_m,P0,resident.talk.listen,Lengthy Head Nod,false,plus_m/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+185,2026-11-04T20:17:02Z,plus_m,P0,resident.wave,Waving,false,plus_m/P0/resident.wave__Waving.fbx
+186,2026-11-04T20:17:08Z,plus_m,P0,resident.greet,Standing Greeting,false,plus_m/P0/resident.greet__Standing_Greeting.fbx
+187,2026-11-04T20:17:15Z,plus_m,P0,resident.agree,Head Nod Yes,false,plus_m/P0/resident.agree__Head_Nod_Yes.fbx
+188,2026-11-04T20:17:21Z,plus_m,P0,resident.disagree,Shaking Head No,false,plus_m/P0/resident.disagree__Shaking_Head_No.fbx
+189,2026-11-04T20:17:27Z,plus_m,P0,resident.laugh,Laughing,false,plus_m/P0/resident.laugh__Laughing.fbx
+190,2026-11-04T20:17:34Z,plus_m,P0,resident.cheer,Cheering,false,plus_m/P0/resident.cheer__Cheering.fbx
+191,2026-11-04T20:17:41Z,plus_m,P0,resident.point,Pointing,false,plus_m/P0/resident.point__Pointing.fbx
+192,2026-11-04T20:17:50Z,plus_m,P0,resident.phone.talk,Talking,false,plus_m/P0/resident.phone.talk__Talking_v3.fbx
+193,2026-11-04T20:17:56Z,plus_m,P0,resident.look_behind,Looking Behind,false,plus_m/P0/resident.look_behind__Looking_Behind.fbx
+194,2026-11-04T20:18:03Z,plus_m,P0,resident.handshake,Shaking Hands 1,false,plus_m/P0/resident.handshake__Shaking_Hands_1.fbx
+195,2026-11-04T20:18:09Z,plus_m,P0,resident.pat,Patting,false,plus_m/P0/resident.pat__Patting.fbx
+196,2026-11-04T20:18:16Z,plus_m,P0,resident.romance.kiss_taller,Kiss,false,plus_m/P0/resident.romance.kiss_taller__Kiss.fbx
+197,2026-11-04T20:18:26Z,plus_m,P0,resident.romance.kiss_shorter,Kiss,false,plus_m/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+198,2026-11-04T20:18:32Z,plus_m,P0,resident.romance.blow_kiss,Blow A Kiss,false,plus_m/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+199,2026-11-04T20:18:39Z,plus_m,P0,resident.romance.propose,Kneeling,false,plus_m/P0/resident.romance.propose__Kneeling.fbx
+200,2026-11-04T20:18:45Z,plus_m,P0,resident.romance.propose_exit,Standing,false,plus_m/P0/resident.romance.propose_exit__Standing.fbx
+201,2026-11-04T20:18:51Z,plus_m,P0,resident.handshake.partner,Shaking Hands 2,false,plus_m/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+202,2026-11-04T20:19:31Z,plus_m,P0,resident.jog,Jogging,true,plus_m/P0/resident.jog__Jogging.fbx
+203,2026-11-04T20:19:42Z,plus_m,P0,resident.search.pockets,Searching Pockets,false,plus_m/P0/resident.search.pockets__Searching_Pockets.fbx
+204,2026-11-04T20:19:48Z,plus_m,P0,resident.clap,Clapping,false,plus_m/P0/resident.clap__Clapping.fbx
+205,2026-11-04T20:19:55Z,plus_m,P0,resident.text,Texting,false,plus_m/P0/resident.text__Texting.fbx
+206,2026-11-04T20:20:01Z,plus_m,P0,resident.carry.box.idle,Box Idle,false,plus_m/P0/resident.carry.box.idle__Box_Idle.fbx
+207,2026-11-04T20:20:08Z,plus_m,P0,resident.sit.clap,Sitting Clap,false,plus_m/P0/resident.sit.clap__Sitting_Clap.fbx
+208,2026-11-04T20:22:06Z,plus_f,P0,resident.idle.neutral,Breathing Idle,false,plus_f/P0/resident.idle.neutral__Breathing_Idle.fbx
+209,2026-11-04T20:22:13Z,plus_f,P0,resident.idle.happy,Happy Idle,false,plus_f/P0/resident.idle.happy__Happy_Idle.fbx
+210,2026-11-04T20:22:20Z,plus_f,P0,resident.idle.sad,Sad Idle,false,plus_f/P0/resident.idle.sad__Sad_Idle.fbx
+211,2026-11-04T20:22:26Z,plus_f,P0,resident.idle.bored,Bored,false,plus_f/P0/resident.idle.bored__Bored.fbx
+212,2026-11-04T20:22:33Z,plus_f,P0,resident.idle.look_around,Looking Around,false,plus_f/P0/resident.idle.look_around__Looking_Around.fbx
+213,2026-11-04T20:22:39Z,plus_f,P0,resident.walk.normal,Walking,true,plus_f/P0/resident.walk.normal__Walking.fbx
+214,2026-11-04T20:22:45Z,plus_f,P0,resident.walk.happy,Happy Walk,true,plus_f/P0/resident.walk.happy__Happy_Walk.fbx
+215,2026-11-04T20:22:52Z,plus_f,P0,resident.walk.sad,Sad Walk,true,plus_f/P0/resident.walk.sad__Sad_Walk.fbx
+216,2026-11-04T20:22:59Z,plus_f,P0,resident.run.normal,Running,true,plus_f/P0/resident.run.normal__Running.fbx
+217,2026-11-04T20:23:05Z,plus_f,P0,resident.turn.left,Left Turn,false,plus_f/P0/resident.turn.left__Left_Turn.fbx
+218,2026-11-04T20:23:15Z,plus_f,P0,resident.turn.right,Right Turn,false,plus_f/P0/resident.turn.right__Right_Turn.fbx
+219,2026-11-04T20:23:21Z,plus_f,P0,resident.stairs.up,Ascending Stairs,false,plus_f/P0/resident.stairs.up__Ascending_Stairs.fbx
+220,2026-11-04T20:23:27Z,plus_f,P0,resident.stairs.up,Ascending Stairs,true,plus_f/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+221,2026-11-04T20:23:36Z,plus_f,P0,resident.stairs.down,Descending Stairs,false,plus_f/P0/resident.stairs.down__Descending_Stairs.fbx
+222,2026-11-04T20:23:42Z,plus_f,P0,resident.stairs.down,Descending Stairs,true,plus_f/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+223,2026-11-04T20:23:50Z,plus_f,P0,resident.crouch.enter,Crouching,false,plus_f/P0/resident.crouch.enter__Crouching.fbx
+224,2026-11-04T20:23:56Z,plus_f,P0,resident.crouch.idle,Crouching Idle,false,plus_f/P0/resident.crouch.idle__Crouching_Idle.fbx
+225,2026-11-04T20:24:04Z,plus_f,P0,resident.crouch.exit,Crouch To Stand,false,plus_f/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+226,2026-11-04T20:24:13Z,plus_f,P0,resident.pickup.floor,Picking Up,false,plus_f/P0/resident.pickup.floor__Picking_Up.fbx
+227,2026-11-04T20:24:20Z,plus_f,P0,resident.jump.small,Jump,false,plus_f/P0/resident.jump.small__Jump.fbx
+228,2026-11-04T20:24:29Z,plus_f,P0,resident.sit.chair.enter,Stand To Sit,false,plus_f/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+229,2026-11-04T20:24:35Z,plus_f,P0,resident.sit.chair.idle,Sitting Idle,false,plus_f/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+230,2026-11-04T20:24:42Z,plus_f,P0,resident.sit.chair.exit,Sit To Stand,false,plus_f/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+231,2026-11-04T20:24:50Z,plus_f,P0,resident.sit.talk,Sitting Talking,false,plus_f/P0/resident.sit.talk__Sitting_Talking.fbx
+232,2026-11-04T20:24:59Z,plus_f,P0,resident.sit.laugh,Sitting Laughing,false,plus_f/P0/resident.sit.laugh__Sitting_Laughing.fbx
+233,2026-11-04T20:25:05Z,plus_f,P0,resident.sit.angry,Sitting Angry,false,plus_f/P0/resident.sit.angry__Sitting_Angry.fbx
+234,2026-11-04T20:25:12Z,plus_f,P0,resident.lie.enter,Lying Down,false,plus_f/P0/resident.lie.enter__Lying_Down.fbx
+235,2026-11-04T20:25:19Z,plus_f,P0,resident.lie.idle,Laying Idle,false,plus_f/P0/resident.lie.idle__Laying_Idle.fbx
+236,2026-11-04T20:25:25Z,plus_f,P0,resident.sleep.idle,Laying Sleeping,false,plus_f/P0/resident.sleep.idle__Laying_Sleeping.fbx
+237,2026-11-04T20:25:32Z,plus_f,P0,resident.yawn,Yawn,false,plus_f/P0/resident.yawn__Yawn.fbx
+238,2026-11-04T20:25:38Z,plus_f,P0,resident.drink.stand,Drinking,false,plus_f/P0/resident.drink.stand__Drinking.fbx
+239,2026-11-04T20:25:45Z,plus_f,P0,resident.dizzy,Dizzy Idle,false,plus_f/P0/resident.dizzy__Dizzy_Idle.fbx
+240,2026-11-04T20:25:51Z,plus_f,P0,resident.stretch,Arm Stretching,false,plus_f/P0/resident.stretch__Arm_Stretching.fbx
+241,2026-11-04T20:25:58Z,plus_f,P0,resident.door.open_in,Opening Door Inwards,false,plus_f/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+242,2026-11-04T20:26:04Z,plus_f,P0,resident.door.open_out,Open Door Outwards,false,plus_f/P0/resident.door.open_out__Open_Door_Outwards.fbx
+243,2026-11-04T20:26:15Z,plus_f,P0,resident.cabinet.open,Opening,false,plus_f/P0/resident.cabinet.open__Opening.fbx
+244,2026-11-04T20:26:22Z,plus_f,P0,resident.cabinet.close,Closing,false,plus_f/P0/resident.cabinet.close__Closing.fbx
+245,2026-11-04T20:26:29Z,plus_f,P0,resident.button.push,Button Pushing,false,plus_f/P0/resident.button.push__Button_Pushing.fbx
+246,2026-11-04T20:26:35Z,plus_f,P0,resident.push.start,Push Start,false,plus_f/P0/resident.push.start__Push_Start.fbx
+247,2026-11-04T20:26:42Z,plus_f,P0,resident.push.loop,Pushing,true,plus_f/P0/resident.push.loop__Pushing.fbx
+248,2026-11-04T20:26:49Z,plus_f,P0,resident.push.stop,Push Stop,false,plus_f/P0/resident.push.stop__Push_Stop.fbx
+249,2026-11-04T20:26:57Z,plus_f,P0,resident.throw,Throw,false,plus_f/P0/resident.throw__Throw.fbx
+250,2026-11-04T20:27:19Z,plus_f,P0,resident.talk.a,Talking,false,plus_f/P0/resident.talk.a__Talking.fbx
+251,2026-11-04T20:27:39Z,plus_f,P0,resident.talk.b,Talking,false,plus_f/P0/resident.talk.b__Talking_v2.fbx
+252,2026-11-04T20:27:53Z,plus_f,P0,resident.talk.listen,Lengthy Head Nod,false,plus_f/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+253,2026-11-04T20:28:02Z,plus_f,P0,resident.wave,Waving,false,plus_f/P0/resident.wave__Waving.fbx
+254,2026-11-04T20:28:09Z,plus_f,P0,resident.greet,Standing Greeting,false,plus_f/P0/resident.greet__Standing_Greeting.fbx
+255,2026-11-04T20:28:15Z,plus_f,P0,resident.agree,Head Nod Yes,false,plus_f/P0/resident.agree__Head_Nod_Yes.fbx
+256,2026-11-04T20:28:22Z,plus_f,P0,resident.disagree,Shaking Head No,false,plus_f/P0/resident.disagree__Shaking_Head_No.fbx
+257,2026-11-04T20:28:29Z,plus_f,P0,resident.laugh,Laughing,false,plus_f/P0/resident.laugh__Laughing.fbx
+258,2026-11-04T20:28:35Z,plus_f,P0,resident.cheer,Cheering,false,plus_f/P0/resident.cheer__Cheering.fbx
+259,2026-11-04T20:28:42Z,plus_f,P0,resident.point,Pointing,false,plus_f/P0/resident.point__Pointing.fbx
+260,2026-11-04T20:28:51Z,plus_f,P0,resident.phone.talk,Talking,false,plus_f/P0/resident.phone.talk__Talking_v3.fbx
+261,2026-11-04T20:28:58Z,plus_f,P0,resident.look_behind,Looking Behind,false,plus_f/P0/resident.look_behind__Looking_Behind.fbx
+262,2026-11-04T20:29:04Z,plus_f,P0,resident.handshake,Shaking Hands 1,false,plus_f/P0/resident.handshake__Shaking_Hands_1.fbx
+263,2026-11-04T20:29:10Z,plus_f,P0,resident.pat,Patting,false,plus_f/P0/resident.pat__Patting.fbx
+264,2026-11-04T20:29:17Z,plus_f,P0,resident.romance.kiss_taller,Kiss,false,plus_f/P0/resident.romance.kiss_taller__Kiss.fbx
+265,2026-11-04T20:29:23Z,plus_f,P0,resident.romance.kiss_shorter,Kiss,false,plus_f/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+266,2026-11-04T20:29:30Z,plus_f,P0,resident.romance.blow_kiss,Blow A Kiss,false,plus_f/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+267,2026-11-04T20:29:36Z,plus_f,P0,resident.romance.propose,Kneeling,false,plus_f/P0/resident.romance.propose__Kneeling.fbx
+268,2026-11-04T20:29:43Z,plus_f,P0,resident.romance.propose_exit,Standing,false,plus_f/P0/resident.romance.propose_exit__Standing.fbx
+269,2026-11-04T20:29:49Z,plus_f,P0,resident.handshake.partner,Shaking Hands 2,false,plus_f/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+270,2026-11-04T20:29:57Z,plus_f,P0,resident.jog,Jogging,true,plus_f/P0/resident.jog__Jogging.fbx
+271,2026-11-04T20:30:06Z,plus_f,P0,resident.search.pockets,Searching Pockets,false,plus_f/P0/resident.search.pockets__Searching_Pockets.fbx
+272,2026-11-04T20:30:14Z,plus_f,P0,resident.clap,Clapping,false,plus_f/P0/resident.clap__Clapping.fbx
+273,2026-11-04T20:30:23Z,plus_f,P0,resident.text,Texting,false,plus_f/P0/resident.text__Texting.fbx
+274,2026-11-04T20:30:31Z,plus_f,P0,resident.carry.box.idle,Box Idle,false,plus_f/P0/resident.carry.box.idle__Box_Idle.fbx
+275,2026-11-04T20:30:40Z,plus_f,P0,resident.sit.clap,Sitting Clap,false,plus_f/P0/resident.sit.clap__Sitting_Clap.fbx
+276,2026-11-04T20:32:26Z,musculoso,P0,resident.idle.neutral,Breathing Idle,false,musculoso/P0/resident.idle.neutral__Breathing_Idle.fbx
+277,2026-11-04T20:32:32Z,musculoso,P0,resident.idle.happy,Happy Idle,false,musculoso/P0/resident.idle.happy__Happy_Idle.fbx
+278,2026-11-04T20:32:39Z,musculoso,P0,resident.idle.sad,Sad Idle,false,musculoso/P0/resident.idle.sad__Sad_Idle.fbx
+279,2026-11-04T20:32:45Z,musculoso,P0,resident.idle.bored,Bored,false,musculoso/P0/resident.idle.bored__Bored.fbx
+280,2026-11-04T20:32:51Z,musculoso,P0,resident.idle.look_around,Looking Around,false,musculoso/P0/resident.idle.look_around__Looking_Around.fbx
+281,2026-11-04T20:32:58Z,musculoso,P0,resident.walk.normal,Walking,true,musculoso/P0/resident.walk.normal__Walking.fbx
+282,2026-11-04T20:33:04Z,musculoso,P0,resident.walk.happy,Happy Walk,true,musculoso/P0/resident.walk.happy__Happy_Walk.fbx
+283,2026-11-04T20:33:11Z,musculoso,P0,resident.walk.sad,Sad Walk,true,musculoso/P0/resident.walk.sad__Sad_Walk.fbx
+284,2026-11-04T20:33:18Z,musculoso,P0,resident.run.normal,Running,true,musculoso/P0/resident.run.normal__Running.fbx
+285,2026-11-04T20:33:25Z,musculoso,P0,resident.turn.left,Left Turn,false,musculoso/P0/resident.turn.left__Left_Turn.fbx
+286,2026-11-04T20:33:32Z,musculoso,P0,resident.turn.right,Right Turn,false,musculoso/P0/resident.turn.right__Right_Turn.fbx
+287,2026-11-04T20:33:41Z,musculoso,P0,resident.stairs.up,Ascending Stairs,false,musculoso/P0/resident.stairs.up__Ascending_Stairs.fbx
+288,2026-11-04T20:33:48Z,musculoso,P0,resident.stairs.up,Ascending Stairs,true,musculoso/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+289,2026-11-04T20:33:54Z,musculoso,P0,resident.stairs.down,Descending Stairs,false,musculoso/P0/resident.stairs.down__Descending_Stairs.fbx
+290,2026-11-04T20:34:01Z,musculoso,P0,resident.stairs.down,Descending Stairs,true,musculoso/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+291,2026-11-04T20:34:08Z,musculoso,P0,resident.crouch.enter,Crouching,false,musculoso/P0/resident.crouch.enter__Crouching.fbx
+292,2026-11-04T20:34:15Z,musculoso,P0,resident.crouch.idle,Crouching Idle,false,musculoso/P0/resident.crouch.idle__Crouching_Idle.fbx
+293,2026-11-04T20:34:22Z,musculoso,P0,resident.crouch.exit,Crouch To Stand,false,musculoso/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+294,2026-11-04T20:34:30Z,musculoso,P0,resident.pickup.floor,Picking Up,false,musculoso/P0/resident.pickup.floor__Picking_Up.fbx
+295,2026-11-04T20:34:37Z,musculoso,P0,resident.jump.small,Jump,false,musculoso/P0/resident.jump.small__Jump.fbx
+296,2026-11-04T20:34:44Z,musculoso,P0,resident.sit.chair.enter,Stand To Sit,false,musculoso/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+297,2026-11-04T20:34:51Z,musculoso,P0,resident.sit.chair.idle,Sitting Idle,false,musculoso/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+298,2026-11-04T20:34:58Z,musculoso,P0,resident.sit.chair.exit,Sit To Stand,false,musculoso/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+299,2026-11-04T20:35:06Z,musculoso,P0,resident.sit.talk,Sitting Talking,false,musculoso/P0/resident.sit.talk__Sitting_Talking.fbx
+300,2026-11-04T20:35:13Z,musculoso,P0,resident.sit.laugh,Sitting Laughing,false,musculoso/P0/resident.sit.laugh__Sitting_Laughing.fbx
+301,2026-11-04T20:35:19Z,musculoso,P0,resident.sit.angry,Sitting Angry,false,musculoso/P0/resident.sit.angry__Sitting_Angry.fbx
+302,2026-11-04T20:35:26Z,musculoso,P0,resident.lie.enter,Lying Down,false,musculoso/P0/resident.lie.enter__Lying_Down.fbx
+303,2026-11-04T20:35:33Z,musculoso,P0,resident.lie.idle,Laying Idle,false,musculoso/P0/resident.lie.idle__Laying_Idle.fbx
+304,2026-11-04T20:35:42Z,musculoso,P0,resident.sleep.idle,Laying Sleeping,false,musculoso/P0/resident.sleep.idle__Laying_Sleeping.fbx
+305,2026-11-04T20:35:48Z,musculoso,P0,resident.yawn,Yawn,false,musculoso/P0/resident.yawn__Yawn.fbx
+306,2026-11-04T20:35:59Z,musculoso,P0,resident.drink.stand,Drinking,false,musculoso/P0/resident.drink.stand__Drinking.fbx
+307,2026-11-04T20:36:05Z,musculoso,P0,resident.dizzy,Dizzy Idle,false,musculoso/P0/resident.dizzy__Dizzy_Idle.fbx
+308,2026-11-04T20:36:12Z,musculoso,P0,resident.stretch,Arm Stretching,false,musculoso/P0/resident.stretch__Arm_Stretching.fbx
+309,2026-11-04T20:36:21Z,musculoso,P0,resident.door.open_in,Opening Door Inwards,false,musculoso/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+310,2026-11-04T20:36:27Z,musculoso,P0,resident.door.open_out,Open Door Outwards,false,musculoso/P0/resident.door.open_out__Open_Door_Outwards.fbx
+311,2026-11-04T20:36:34Z,musculoso,P0,resident.cabinet.open,Opening,false,musculoso/P0/resident.cabinet.open__Opening.fbx
+312,2026-11-04T20:36:43Z,musculoso,P0,resident.cabinet.close,Closing,false,musculoso/P0/resident.cabinet.close__Closing.fbx
+313,2026-11-04T20:36:50Z,musculoso,P0,resident.button.push,Button Pushing,false,musculoso/P0/resident.button.push__Button_Pushing.fbx
+314,2026-11-04T20:36:59Z,musculoso,P0,resident.push.start,Push Start,false,musculoso/P0/resident.push.start__Push_Start.fbx
+315,2026-11-04T20:37:06Z,musculoso,P0,resident.push.loop,Pushing,true,musculoso/P0/resident.push.loop__Pushing.fbx
+316,2026-11-04T20:37:12Z,musculoso,P0,resident.push.stop,Push Stop,false,musculoso/P0/resident.push.stop__Push_Stop.fbx
+317,2026-11-04T20:37:19Z,musculoso,P0,resident.throw,Throw,false,musculoso/P0/resident.throw__Throw.fbx
+318,2026-11-04T20:37:26Z,musculoso,P0,resident.talk.a,Talking,false,musculoso/P0/resident.talk.a__Talking.fbx
+319,2026-11-04T20:37:33Z,musculoso,P0,resident.talk.b,Talking,false,musculoso/P0/resident.talk.b__Talking_v2.fbx
+320,2026-11-04T20:37:39Z,musculoso,P0,resident.talk.listen,Lengthy Head Nod,false,musculoso/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+321,2026-11-04T20:37:46Z,musculoso,P0,resident.wave,Waving,false,musculoso/P0/resident.wave__Waving.fbx
+322,2026-11-04T20:37:53Z,musculoso,P0,resident.greet,Standing Greeting,false,musculoso/P0/resident.greet__Standing_Greeting.fbx
+323,2026-11-04T20:37:59Z,musculoso,P0,resident.agree,Head Nod Yes,false,musculoso/P0/resident.agree__Head_Nod_Yes.fbx
+324,2026-11-04T20:38:08Z,musculoso,P0,resident.disagree,Shaking Head No,false,musculoso/P0/resident.disagree__Shaking_Head_No.fbx
+325,2026-11-04T20:38:14Z,musculoso,P0,resident.laugh,Laughing,false,musculoso/P0/resident.laugh__Laughing.fbx
+326,2026-11-04T20:38:21Z,musculoso,P0,resident.cheer,Cheering,false,musculoso/P0/resident.cheer__Cheering.fbx
+327,2026-11-04T20:38:28Z,musculoso,P0,resident.point,Pointing,false,musculoso/P0/resident.point__Pointing.fbx
+328,2026-11-04T20:38:35Z,musculoso,P0,resident.phone.talk,Talking,false,musculoso/P0/resident.phone.talk__Talking_v3.fbx
+329,2026-11-04T20:38:43Z,musculoso,P0,resident.look_behind,Looking Behind,false,musculoso/P0/resident.look_behind__Looking_Behind.fbx
+330,2026-11-04T20:38:53Z,musculoso,P0,resident.handshake,Shaking Hands 1,false,musculoso/P0/resident.handshake__Shaking_Hands_1.fbx
+331,2026-11-04T20:39:00Z,musculoso,P0,resident.pat,Patting,false,musculoso/P0/resident.pat__Patting.fbx
+332,2026-11-04T20:39:06Z,musculoso,P0,resident.romance.kiss_taller,Kiss,false,musculoso/P0/resident.romance.kiss_taller__Kiss.fbx
+333,2026-11-04T20:39:13Z,musculoso,P0,resident.romance.kiss_shorter,Kiss,false,musculoso/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+334,2026-11-04T20:39:22Z,musculoso,P0,resident.romance.blow_kiss,Blow A Kiss,false,musculoso/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+335,2026-11-04T20:39:28Z,musculoso,P0,resident.romance.propose,Kneeling,false,musculoso/P0/resident.romance.propose__Kneeling.fbx
+336,2026-11-04T20:39:35Z,musculoso,P0,resident.romance.propose_exit,Standing,false,musculoso/P0/resident.romance.propose_exit__Standing.fbx
+337,2026-11-04T20:39:41Z,musculoso,P0,resident.handshake.partner,Shaking Hands 2,false,musculoso/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+338,2026-11-04T20:39:48Z,musculoso,P0,resident.jog,Jogging,true,musculoso/P0/resident.jog__Jogging.fbx
+339,2026-11-04T20:39:54Z,musculoso,P0,resident.search.pockets,Searching Pockets,false,musculoso/P0/resident.search.pockets__Searching_Pockets.fbx
+340,2026-11-04T20:40:01Z,musculoso,P0,resident.clap,Clapping,false,musculoso/P0/resident.clap__Clapping.fbx
+341,2026-11-04T20:40:10Z,musculoso,P0,resident.text,Texting,false,musculoso/P0/resident.text__Texting.fbx
+342,2026-11-04T20:40:16Z,musculoso,P0,resident.carry.box.idle,Box Idle,false,musculoso/P0/resident.carry.box.idle__Box_Idle.fbx
+343,2026-11-04T20:40:23Z,musculoso,P0,resident.sit.clap,Sitting Clap,false,musculoso/P0/resident.sit.clap__Sitting_Clap.fbx
+344,2026-11-04T20:42:12Z,atletica,P0,resident.idle.neutral,Breathing Idle,false,atletica/P0/resident.idle.neutral__Breathing_Idle.fbx
+345,2026-11-04T20:42:18Z,atletica,P0,resident.idle.happy,Happy Idle,false,atletica/P0/resident.idle.happy__Happy_Idle.fbx
+346,2026-11-04T20:42:24Z,atletica,P0,resident.idle.sad,Sad Idle,false,atletica/P0/resident.idle.sad__Sad_Idle.fbx
+347,2026-11-04T20:42:33Z,atletica,P0,resident.idle.bored,Bored,false,atletica/P0/resident.idle.bored__Bored.fbx
+348,2026-11-04T20:42:40Z,atletica,P0,resident.idle.look_around,Looking Around,false,atletica/P0/resident.idle.look_around__Looking_Around.fbx
+349,2026-11-04T20:42:46Z,atletica,P0,resident.walk.normal,Walking,true,atletica/P0/resident.walk.normal__Walking.fbx
+350,2026-11-04T20:42:53Z,atletica,P0,resident.walk.happy,Happy Walk,true,atletica/P0/resident.walk.happy__Happy_Walk.fbx
+351,2026-11-04T20:43:00Z,atletica,P0,resident.walk.sad,Sad Walk,true,atletica/P0/resident.walk.sad__Sad_Walk.fbx
+352,2026-11-04T20:43:10Z,atletica,P0,resident.run.normal,Running,true,atletica/P0/resident.run.normal__Running.fbx
+353,2026-11-04T20:43:23Z,atletica,P0,resident.turn.left,Left Turn,false,atletica/P0/resident.turn.left__Left_Turn.fbx
+354,2026-11-04T20:43:30Z,atletica,P0,resident.turn.right,Right Turn,false,atletica/P0/resident.turn.right__Right_Turn.fbx
+355,2026-11-04T20:43:36Z,atletica,P0,resident.stairs.up,Ascending Stairs,false,atletica/P0/resident.stairs.up__Ascending_Stairs.fbx
+356,2026-11-04T20:43:42Z,atletica,P0,resident.stairs.up,Ascending Stairs,true,atletica/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+357,2026-11-04T20:43:51Z,atletica,P0,resident.stairs.down,Descending Stairs,false,atletica/P0/resident.stairs.down__Descending_Stairs.fbx
+358,2026-11-04T20:43:57Z,atletica,P0,resident.stairs.down,Descending Stairs,true,atletica/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+359,2026-11-04T20:44:07Z,atletica,P0,resident.crouch.enter,Crouching,false,atletica/P0/resident.crouch.enter__Crouching.fbx
+360,2026-11-04T20:44:13Z,atletica,P0,resident.crouch.idle,Crouching Idle,false,atletica/P0/resident.crouch.idle__Crouching_Idle.fbx
+361,2026-11-04T20:44:20Z,atletica,P0,resident.crouch.exit,Crouch To Stand,false,atletica/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+362,2026-11-04T20:44:26Z,atletica,P0,resident.pickup.floor,Picking Up,false,atletica/P0/resident.pickup.floor__Picking_Up.fbx
+363,2026-11-04T20:44:35Z,atletica,P0,resident.jump.small,Jump,false,atletica/P0/resident.jump.small__Jump.fbx
+364,2026-11-04T20:44:42Z,atletica,P0,resident.sit.chair.enter,Stand To Sit,false,atletica/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+365,2026-11-04T20:44:50Z,atletica,P0,resident.sit.chair.idle,Sitting Idle,false,atletica/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+366,2026-11-04T20:44:59Z,atletica,P0,resident.sit.chair.exit,Sit To Stand,false,atletica/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+367,2026-11-04T20:45:10Z,atletica,P0,resident.sit.talk,Sitting Talking,false,atletica/P0/resident.sit.talk__Sitting_Talking.fbx
+368,2026-11-04T20:45:17Z,atletica,P0,resident.sit.laugh,Sitting Laughing,false,atletica/P0/resident.sit.laugh__Sitting_Laughing.fbx
+369,2026-11-04T20:45:23Z,atletica,P0,resident.sit.angry,Sitting Angry,false,atletica/P0/resident.sit.angry__Sitting_Angry.fbx
+370,2026-11-04T20:45:34Z,atletica,P0,resident.lie.enter,Lying Down,false,atletica/P0/resident.lie.enter__Lying_Down.fbx
+371,2026-11-04T20:45:43Z,atletica,P0,resident.lie.idle,Laying Idle,false,atletica/P0/resident.lie.idle__Laying_Idle.fbx
+372,2026-11-04T20:45:49Z,atletica,P0,resident.sleep.idle,Laying Sleeping,false,atletica/P0/resident.sleep.idle__Laying_Sleeping.fbx
+373,2026-11-04T20:45:58Z,atletica,P0,resident.yawn,Yawn,false,atletica/P0/resident.yawn__Yawn.fbx
+374,2026-11-04T20:46:04Z,atletica,P0,resident.drink.stand,Drinking,false,atletica/P0/resident.drink.stand__Drinking.fbx
+375,2026-11-04T20:46:13Z,atletica,P0,resident.dizzy,Dizzy Idle,false,atletica/P0/resident.dizzy__Dizzy_Idle.fbx
+376,2026-11-04T20:46:20Z,atletica,P0,resident.stretch,Arm Stretching,false,atletica/P0/resident.stretch__Arm_Stretching.fbx
+377,2026-11-04T20:46:26Z,atletica,P0,resident.door.open_in,Opening Door Inwards,false,atletica/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+378,2026-11-04T20:46:33Z,atletica,P0,resident.door.open_out,Open Door Outwards,false,atletica/P0/resident.door.open_out__Open_Door_Outwards.fbx
+379,2026-11-04T20:46:40Z,atletica,P0,resident.cabinet.open,Opening,false,atletica/P0/resident.cabinet.open__Opening.fbx
+380,2026-11-04T20:46:46Z,atletica,P0,resident.cabinet.close,Closing,false,atletica/P0/resident.cabinet.close__Closing.fbx
+381,2026-11-04T20:46:52Z,atletica,P0,resident.button.push,Button Pushing,false,atletica/P0/resident.button.push__Button_Pushing.fbx
+382,2026-11-04T20:46:59Z,atletica,P0,resident.push.start,Push Start,false,atletica/P0/resident.push.start__Push_Start.fbx
+383,2026-11-04T20:47:06Z,atletica,P0,resident.push.loop,Pushing,true,atletica/P0/resident.push.loop__Pushing.fbx
+384,2026-11-04T20:47:12Z,atletica,P0,resident.push.stop,Push Stop,false,atletica/P0/resident.push.stop__Push_Stop.fbx
+385,2026-11-04T20:47:19Z,atletica,P0,resident.throw,Throw,false,atletica/P0/resident.throw__Throw.fbx
+386,2026-11-04T20:47:28Z,atletica,P0,resident.talk.a,Talking,false,atletica/P0/resident.talk.a__Talking.fbx
+387,2026-11-04T20:47:34Z,atletica,P0,resident.talk.b,Talking,false,atletica/P0/resident.talk.b__Talking_v2.fbx
+388,2026-11-04T20:47:41Z,atletica,P0,resident.talk.listen,Lengthy Head Nod,false,atletica/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+389,2026-11-04T20:47:47Z,atletica,P0,resident.wave,Waving,false,atletica/P0/resident.wave__Waving.fbx
+390,2026-11-04T20:47:54Z,atletica,P0,resident.greet,Standing Greeting,false,atletica/P0/resident.greet__Standing_Greeting.fbx
+391,2026-11-04T20:48:00Z,atletica,P0,resident.agree,Head Nod Yes,false,atletica/P0/resident.agree__Head_Nod_Yes.fbx
+392,2026-11-04T20:48:07Z,atletica,P0,resident.disagree,Shaking Head No,false,atletica/P0/resident.disagree__Shaking_Head_No.fbx
+393,2026-11-04T20:48:13Z,atletica,P0,resident.laugh,Laughing,false,atletica/P0/resident.laugh__Laughing.fbx
+394,2026-11-04T20:48:22Z,atletica,P0,resident.cheer,Cheering,false,atletica/P0/resident.cheer__Cheering.fbx
+395,2026-11-04T20:48:30Z,atletica,P0,resident.point,Pointing,false,atletica/P0/resident.point__Pointing.fbx
+396,2026-11-04T20:48:37Z,atletica,P0,resident.phone.talk,Talking,false,atletica/P0/resident.phone.talk__Talking_v3.fbx
+397,2026-11-04T20:48:44Z,atletica,P0,resident.look_behind,Looking Behind,false,atletica/P0/resident.look_behind__Looking_Behind.fbx
+398,2026-11-04T20:48:50Z,atletica,P0,resident.handshake,Shaking Hands 1,false,atletica/P0/resident.handshake__Shaking_Hands_1.fbx
+399,2026-11-04T20:48:57Z,atletica,P0,resident.pat,Patting,false,atletica/P0/resident.pat__Patting.fbx
+400,2026-11-04T20:49:04Z,atletica,P0,resident.romance.kiss_taller,Kiss,false,atletica/P0/resident.romance.kiss_taller__Kiss.fbx
+401,2026-11-04T20:49:11Z,atletica,P0,resident.romance.kiss_shorter,Kiss,false,atletica/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+402,2026-11-04T20:49:17Z,atletica,P0,resident.romance.blow_kiss,Blow A Kiss,false,atletica/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+403,2026-11-04T20:49:24Z,atletica,P0,resident.romance.propose,Kneeling,false,atletica/P0/resident.romance.propose__Kneeling.fbx
+404,2026-11-04T20:49:30Z,atletica,P0,resident.romance.propose_exit,Standing,false,atletica/P0/resident.romance.propose_exit__Standing.fbx
+405,2026-11-04T20:49:37Z,atletica,P0,resident.handshake.partner,Shaking Hands 2,false,atletica/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+406,2026-11-04T20:49:43Z,atletica,P0,resident.jog,Jogging,true,atletica/P0/resident.jog__Jogging.fbx
+407,2026-11-04T20:49:50Z,atletica,P0,resident.search.pockets,Searching Pockets,false,atletica/P0/resident.search.pockets__Searching_Pockets.fbx
+408,2026-11-04T20:49:57Z,atletica,P0,resident.clap,Clapping,false,atletica/P0/resident.clap__Clapping.fbx
+409,2026-11-04T20:50:06Z,atletica,P0,resident.text,Texting,false,atletica/P0/resident.text__Texting.fbx
+410,2026-11-04T20:50:12Z,atletica,P0,resident.carry.box.idle,Box Idle,false,atletica/P0/resident.carry.box.idle__Box_Idle.fbx
+411,2026-11-04T20:50:21Z,atletica,P0,resident.sit.clap,Sitting Clap,false,atletica/P0/resident.sit.clap__Sitting_Clap.fbx
+412,2026-11-04T20:51:45Z,alto_magro,P0,resident.idle.neutral,Breathing Idle,false,alto_magro/P0/resident.idle.neutral__Breathing_Idle.fbx
+413,2026-11-04T20:51:52Z,alto_magro,P0,resident.idle.happy,Happy Idle,false,alto_magro/P0/resident.idle.happy__Happy_Idle.fbx
+414,2026-11-04T20:51:59Z,alto_magro,P0,resident.idle.sad,Sad Idle,false,alto_magro/P0/resident.idle.sad__Sad_Idle.fbx
+415,2026-11-04T20:52:05Z,alto_magro,P0,resident.idle.bored,Bored,false,alto_magro/P0/resident.idle.bored__Bored.fbx
+416,2026-11-04T20:52:16Z,alto_magro,P0,resident.idle.look_around,Looking Around,false,alto_magro/P0/resident.idle.look_around__Looking_Around.fbx
+417,2026-11-04T20:52:22Z,alto_magro,P0,resident.walk.normal,Walking,true,alto_magro/P0/resident.walk.normal__Walking.fbx
+418,2026-11-04T20:52:29Z,alto_magro,P0,resident.walk.happy,Happy Walk,true,alto_magro/P0/resident.walk.happy__Happy_Walk.fbx
+419,2026-11-04T20:52:35Z,alto_magro,P0,resident.walk.sad,Sad Walk,true,alto_magro/P0/resident.walk.sad__Sad_Walk.fbx
+420,2026-11-04T20:52:42Z,alto_magro,P0,resident.run.normal,Running,true,alto_magro/P0/resident.run.normal__Running.fbx
+421,2026-11-04T20:52:49Z,alto_magro,P0,resident.turn.left,Left Turn,false,alto_magro/P0/resident.turn.left__Left_Turn.fbx
+422,2026-11-04T20:52:55Z,alto_magro,P0,resident.turn.right,Right Turn,false,alto_magro/P0/resident.turn.right__Right_Turn.fbx
+423,2026-11-04T20:53:02Z,alto_magro,P0,resident.stairs.up,Ascending Stairs,false,alto_magro/P0/resident.stairs.up__Ascending_Stairs.fbx
+424,2026-11-04T20:53:09Z,alto_magro,P0,resident.stairs.up,Ascending Stairs,true,alto_magro/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+425,2026-11-04T20:53:15Z,alto_magro,P0,resident.stairs.down,Descending Stairs,false,alto_magro/P0/resident.stairs.down__Descending_Stairs.fbx
+426,2026-11-04T20:53:22Z,alto_magro,P0,resident.stairs.down,Descending Stairs,true,alto_magro/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+427,2026-11-04T20:53:29Z,alto_magro,P0,resident.crouch.enter,Crouching,false,alto_magro/P0/resident.crouch.enter__Crouching.fbx
+428,2026-11-04T20:53:35Z,alto_magro,P0,resident.crouch.idle,Crouching Idle,false,alto_magro/P0/resident.crouch.idle__Crouching_Idle.fbx
+429,2026-11-04T20:53:42Z,alto_magro,P0,resident.crouch.exit,Crouch To Stand,false,alto_magro/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+430,2026-11-04T20:53:48Z,alto_magro,P0,resident.pickup.floor,Picking Up,false,alto_magro/P0/resident.pickup.floor__Picking_Up.fbx
+431,2026-11-04T20:53:55Z,alto_magro,P0,resident.jump.small,Jump,false,alto_magro/P0/resident.jump.small__Jump.fbx
+432,2026-11-04T20:54:01Z,alto_magro,P0,resident.sit.chair.enter,Stand To Sit,false,alto_magro/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+433,2026-11-04T20:54:08Z,alto_magro,P0,resident.sit.chair.idle,Sitting Idle,false,alto_magro/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+434,2026-11-04T20:54:14Z,alto_magro,P0,resident.sit.chair.exit,Sit To Stand,false,alto_magro/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+435,2026-11-04T20:54:24Z,alto_magro,P0,resident.sit.talk,Sitting Talking,false,alto_magro/P0/resident.sit.talk__Sitting_Talking.fbx
+436,2026-11-04T20:54:32Z,alto_magro,P0,resident.sit.laugh,Sitting Laughing,false,alto_magro/P0/resident.sit.laugh__Sitting_Laughing.fbx
+437,2026-11-04T20:54:39Z,alto_magro,P0,resident.sit.angry,Sitting Angry,false,alto_magro/P0/resident.sit.angry__Sitting_Angry.fbx
+438,2026-11-04T20:54:48Z,alto_magro,P0,resident.lie.enter,Lying Down,false,alto_magro/P0/resident.lie.enter__Lying_Down.fbx
+439,2026-11-04T20:54:55Z,alto_magro,P0,resident.lie.idle,Laying Idle,false,alto_magro/P0/resident.lie.idle__Laying_Idle.fbx
+440,2026-11-04T20:55:02Z,alto_magro,P0,resident.sleep.idle,Laying Sleeping,false,alto_magro/P0/resident.sleep.idle__Laying_Sleeping.fbx
+441,2026-11-04T20:55:08Z,alto_magro,P0,resident.yawn,Yawn,false,alto_magro/P0/resident.yawn__Yawn.fbx
+442,2026-11-04T20:55:15Z,alto_magro,P0,resident.drink.stand,Drinking,false,alto_magro/P0/resident.drink.stand__Drinking.fbx
+443,2026-11-04T20:55:21Z,alto_magro,P0,resident.dizzy,Dizzy Idle,false,alto_magro/P0/resident.dizzy__Dizzy_Idle.fbx
+444,2026-11-04T20:55:28Z,alto_magro,P0,resident.stretch,Arm Stretching,false,alto_magro/P0/resident.stretch__Arm_Stretching.fbx
+445,2026-11-04T20:55:37Z,alto_magro,P0,resident.door.open_in,Opening Door Inwards,false,alto_magro/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+446,2026-11-04T20:55:43Z,alto_magro,P0,resident.door.open_out,Open Door Outwards,false,alto_magro/P0/resident.door.open_out__Open_Door_Outwards.fbx
+447,2026-11-04T20:55:52Z,alto_magro,P0,resident.cabinet.open,Opening,false,alto_magro/P0/resident.cabinet.open__Opening.fbx
+448,2026-11-04T20:55:58Z,alto_magro,P0,resident.cabinet.close,Closing,false,alto_magro/P0/resident.cabinet.close__Closing.fbx
+449,2026-11-04T20:56:05Z,alto_magro,P0,resident.button.push,Button Pushing,false,alto_magro/P0/resident.button.push__Button_Pushing.fbx
+450,2026-11-04T20:56:11Z,alto_magro,P0,resident.push.start,Push Start,false,alto_magro/P0/resident.push.start__Push_Start.fbx
+451,2026-11-04T20:56:18Z,alto_magro,P0,resident.push.loop,Pushing,true,alto_magro/P0/resident.push.loop__Pushing.fbx
+452,2026-11-04T20:56:27Z,alto_magro,P0,resident.push.stop,Push Stop,false,alto_magro/P0/resident.push.stop__Push_Stop.fbx
+453,2026-11-04T20:56:33Z,alto_magro,P0,resident.throw,Throw,false,alto_magro/P0/resident.throw__Throw.fbx
+454,2026-11-04T20:56:40Z,alto_magro,P0,resident.talk.a,Talking,false,alto_magro/P0/resident.talk.a__Talking.fbx
+455,2026-11-04T20:56:46Z,alto_magro,P0,resident.talk.b,Talking,false,alto_magro/P0/resident.talk.b__Talking_v2.fbx
+456,2026-11-04T20:56:53Z,alto_magro,P0,resident.talk.listen,Lengthy Head Nod,false,alto_magro/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+457,2026-11-04T20:56:59Z,alto_magro,P0,resident.wave,Waving,false,alto_magro/P0/resident.wave__Waving.fbx
+458,2026-11-04T20:57:05Z,alto_magro,P0,resident.greet,Standing Greeting,false,alto_magro/P0/resident.greet__Standing_Greeting.fbx
+459,2026-11-04T20:57:12Z,alto_magro,P0,resident.agree,Head Nod Yes,false,alto_magro/P0/resident.agree__Head_Nod_Yes.fbx
+460,2026-11-04T20:57:18Z,alto_magro,P0,resident.disagree,Shaking Head No,false,alto_magro/P0/resident.disagree__Shaking_Head_No.fbx
+461,2026-11-04T20:57:24Z,alto_magro,P0,resident.laugh,Laughing,false,alto_magro/P0/resident.laugh__Laughing.fbx
+462,2026-11-04T20:57:31Z,alto_magro,P0,resident.cheer,Cheering,false,alto_magro/P0/resident.cheer__Cheering.fbx
+463,2026-11-04T20:57:38Z,alto_magro,P0,resident.point,Pointing,false,alto_magro/P0/resident.point__Pointing.fbx
+464,2026-11-04T20:57:45Z,alto_magro,P0,resident.phone.talk,Talking,false,alto_magro/P0/resident.phone.talk__Talking_v3.fbx
+465,2026-11-04T20:57:51Z,alto_magro,P0,resident.look_behind,Looking Behind,false,alto_magro/P0/resident.look_behind__Looking_Behind.fbx
+466,2026-11-04T20:57:59Z,alto_magro,P0,resident.handshake,Shaking Hands 1,false,alto_magro/P0/resident.handshake__Shaking_Hands_1.fbx
+467,2026-11-04T20:58:06Z,alto_magro,P0,resident.pat,Patting,false,alto_magro/P0/resident.pat__Patting.fbx
+468,2026-11-04T20:58:12Z,alto_magro,P0,resident.romance.kiss_taller,Kiss,false,alto_magro/P0/resident.romance.kiss_taller__Kiss.fbx
+469,2026-11-04T20:58:19Z,alto_magro,P0,resident.romance.kiss_shorter,Kiss,false,alto_magro/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+470,2026-11-04T20:58:25Z,alto_magro,P0,resident.romance.blow_kiss,Blow A Kiss,false,alto_magro/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+471,2026-11-04T20:58:32Z,alto_magro,P0,resident.romance.propose,Kneeling,false,alto_magro/P0/resident.romance.propose__Kneeling.fbx
+472,2026-11-04T20:58:39Z,alto_magro,P0,resident.romance.propose_exit,Standing,false,alto_magro/P0/resident.romance.propose_exit__Standing.fbx
+473,2026-11-04T20:58:45Z,alto_magro,P0,resident.handshake.partner,Shaking Hands 2,false,alto_magro/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+474,2026-11-04T20:58:52Z,alto_magro,P0,resident.jog,Jogging,true,alto_magro/P0/resident.jog__Jogging.fbx
+475,2026-11-04T20:58:58Z,alto_magro,P0,resident.search.pockets,Searching Pockets,false,alto_magro/P0/resident.search.pockets__Searching_Pockets.fbx
+476,2026-11-04T20:59:08Z,alto_magro,P0,resident.clap,Clapping,false,alto_magro/P0/resident.clap__Clapping.fbx
+477,2026-11-04T20:59:17Z,alto_magro,P0,resident.text,Texting,false,alto_magro/P0/resident.text__Texting.fbx
+478,2026-11-04T20:59:23Z,alto_magro,P0,resident.carry.box.idle,Box Idle,false,alto_magro/P0/resident.carry.box.idle__Box_Idle.fbx
+479,2026-11-04T20:59:30Z,alto_magro,P0,resident.sit.clap,Sitting Clap,false,alto_magro/P0/resident.sit.clap__Sitting_Clap.fbx
+480,2026-11-04T21:01:41Z,idoso,P0,resident.idle.neutral,Breathing Idle,false,idoso/P0/resident.idle.neutral__Breathing_Idle.fbx
+481,2026-11-04T21:01:47Z,idoso,P0,resident.idle.happy,Happy Idle,false,idoso/P0/resident.idle.happy__Happy_Idle.fbx
+482,2026-11-04T21:01:57Z,idoso,P0,resident.idle.sad,Sad Idle,false,idoso/P0/resident.idle.sad__Sad_Idle.fbx
+483,2026-11-04T21:02:03Z,idoso,P0,resident.idle.bored,Bored,false,idoso/P0/resident.idle.bored__Bored.fbx
+484,2026-11-04T21:02:09Z,idoso,P0,resident.idle.look_around,Looking Around,false,idoso/P0/resident.idle.look_around__Looking_Around.fbx
+485,2026-11-04T21:02:16Z,idoso,P0,resident.walk.normal,Walking,true,idoso/P0/resident.walk.normal__Walking.fbx
+486,2026-11-04T21:02:24Z,idoso,P0,resident.walk.sad,Sad Walk,true,idoso/P0/resident.walk.sad__Sad_Walk.fbx
+487,2026-11-04T21:02:31Z,idoso,P0,resident.jog,Jogging,true,idoso/P0/resident.jog__Jogging.fbx
+488,2026-11-04T21:02:40Z,idoso,P0,resident.turn.left,Left Turn,false,idoso/P0/resident.turn.left__Left_Turn.fbx
+489,2026-11-04T21:02:47Z,idoso,P0,resident.turn.right,Right Turn,false,idoso/P0/resident.turn.right__Right_Turn.fbx
+490,2026-11-04T21:02:53Z,idoso,P0,resident.stairs.up,Ascending Stairs,false,idoso/P0/resident.stairs.up__Ascending_Stairs.fbx
+491,2026-11-04T21:03:02Z,idoso,P0,resident.stairs.up,Ascending Stairs,true,idoso/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+492,2026-11-04T21:03:09Z,idoso,P0,resident.stairs.down,Descending Stairs,false,idoso/P0/resident.stairs.down__Descending_Stairs.fbx
+493,2026-11-04T21:03:15Z,idoso,P0,resident.stairs.down,Descending Stairs,true,idoso/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+494,2026-11-04T21:03:25Z,idoso,P0,resident.crouch.enter,Crouching,false,idoso/P0/resident.crouch.enter__Crouching.fbx
+495,2026-11-04T21:03:31Z,idoso,P0,resident.crouch.exit,Crouch To Stand,false,idoso/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+496,2026-11-04T21:03:38Z,idoso,P0,resident.pickup.floor,Picking Up,false,idoso/P0/resident.pickup.floor__Picking_Up.fbx
+497,2026-11-04T21:03:44Z,idoso,P0,resident.sit.chair.enter,Stand To Sit,false,idoso/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+498,2026-11-04T21:03:50Z,idoso,P0,resident.sit.chair.idle,Sitting Idle,false,idoso/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+499,2026-11-04T21:03:57Z,idoso,P0,resident.sit.chair.exit,Sit To Stand,false,idoso/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+500,2026-11-04T21:04:05Z,idoso,P0,resident.sit.talk,Sitting Talking,false,idoso/P0/resident.sit.talk__Sitting_Talking.fbx
+501,2026-11-04T21:04:14Z,idoso,P0,resident.sit.clap,Sitting Clap,false,idoso/P0/resident.sit.clap__Sitting_Clap.fbx
+502,2026-11-04T21:04:21Z,idoso,P0,resident.sit.laugh,Sitting Laughing,false,idoso/P0/resident.sit.laugh__Sitting_Laughing.fbx
+503,2026-11-04T21:04:27Z,idoso,P0,resident.sit.angry,Sitting Angry,false,idoso/P0/resident.sit.angry__Sitting_Angry.fbx
+504,2026-11-04T21:04:34Z,idoso,P0,resident.lie.enter,Lying Down,false,idoso/P0/resident.lie.enter__Lying_Down.fbx
+505,2026-11-04T21:04:40Z,idoso,P0,resident.lie.idle,Laying Idle,false,idoso/P0/resident.lie.idle__Laying_Idle.fbx
+506,2026-11-04T21:04:47Z,idoso,P0,resident.sleep.idle,Laying Sleeping,false,idoso/P0/resident.sleep.idle__Laying_Sleeping.fbx
+507,2026-11-04T21:04:54Z,idoso,P0,resident.yawn,Yawn,false,idoso/P0/resident.yawn__Yawn.fbx
+508,2026-11-04T21:05:00Z,idoso,P0,resident.drink.stand,Drinking,false,idoso/P0/resident.drink.stand__Drinking.fbx
+509,2026-11-04T21:05:06Z,idoso,P0,resident.dizzy,Dizzy Idle,false,idoso/P0/resident.dizzy__Dizzy_Idle.fbx
+510,2026-11-04T21:05:13Z,idoso,P0,resident.stretch,Arm Stretching,false,idoso/P0/resident.stretch__Arm_Stretching.fbx
+511,2026-11-04T21:05:20Z,idoso,P0,resident.door.open_in,Opening Door Inwards,false,idoso/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+512,2026-11-04T21:05:28Z,idoso,P0,resident.door.open_out,Open Door Outwards,false,idoso/P0/resident.door.open_out__Open_Door_Outwards.fbx
+513,2026-11-04T21:05:35Z,idoso,P0,resident.cabinet.open,Opening,false,idoso/P0/resident.cabinet.open__Opening.fbx
+514,2026-11-04T21:05:41Z,idoso,P0,resident.cabinet.close,Closing,false,idoso/P0/resident.cabinet.close__Closing.fbx
+515,2026-11-04T21:05:48Z,idoso,P0,resident.button.push,Button Pushing,false,idoso/P0/resident.button.push__Button_Pushing.fbx
+516,2026-11-04T21:05:54Z,idoso,P0,resident.search.pockets,Searching Pockets,false,idoso/P0/resident.search.pockets__Searching_Pockets.fbx
+517,2026-11-04T21:06:01Z,idoso,P0,resident.talk.a,Talking,false,idoso/P0/resident.talk.a__Talking.fbx
+518,2026-11-04T21:06:08Z,idoso,P0,resident.talk.b,Talking,false,idoso/P0/resident.talk.b__Talking_v2.fbx
+519,2026-11-04T21:06:14Z,idoso,P0,resident.talk.listen,Lengthy Head Nod,false,idoso/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+520,2026-11-04T21:06:23Z,idoso,P0,resident.wave,Waving,false,idoso/P0/resident.wave__Waving.fbx
+521,2026-11-04T21:06:29Z,idoso,P0,resident.greet,Standing Greeting,false,idoso/P0/resident.greet__Standing_Greeting.fbx
+522,2026-11-04T21:06:35Z,idoso,P0,resident.agree,Head Nod Yes,false,idoso/P0/resident.agree__Head_Nod_Yes.fbx
+523,2026-11-04T21:06:42Z,idoso,P0,resident.disagree,Shaking Head No,false,idoso/P0/resident.disagree__Shaking_Head_No.fbx
+524,2026-11-04T21:06:50Z,idoso,P0,resident.laugh,Laughing,false,idoso/P0/resident.laugh__Laughing.fbx
+525,2026-11-04T21:07:00Z,idoso,P0,resident.clap,Clapping,false,idoso/P0/resident.clap__Clapping.fbx
+526,2026-11-04T21:07:06Z,idoso,P0,resident.point,Pointing,false,idoso/P0/resident.point__Pointing.fbx
+527,2026-11-04T21:07:13Z,idoso,P0,resident.phone.talk,Talking,false,idoso/P0/resident.phone.talk__Talking_v3.fbx
+528,2026-11-04T21:07:22Z,idoso,P0,resident.text,Texting,false,idoso/P0/resident.text__Texting.fbx
+529,2026-11-04T21:07:28Z,idoso,P0,resident.look_behind,Looking Behind,false,idoso/P0/resident.look_behind__Looking_Behind.fbx
+530,2026-11-04T21:07:35Z,idoso,P0,resident.handshake,Shaking Hands 1,false,idoso/P0/resident.handshake__Shaking_Hands_1.fbx
+531,2026-11-04T21:07:42Z,idoso,P0,resident.pat,Patting,false,idoso/P0/resident.pat__Patting.fbx
+532,2026-11-04T21:07:48Z,idoso,P0,resident.romance.kiss_taller,Kiss,false,idoso/P0/resident.romance.kiss_taller__Kiss.fbx
+533,2026-11-04T21:07:54Z,idoso,P0,resident.romance.kiss_shorter,Kiss,false,idoso/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+534,2026-11-04T21:08:01Z,idoso,P0,resident.romance.blow_kiss,Blow A Kiss,false,idoso/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+535,2026-11-04T21:08:07Z,idoso,P0,resident.romance.propose,Kneeling,false,idoso/P0/resident.romance.propose__Kneeling.fbx
+536,2026-11-04T21:08:16Z,idoso,P0,resident.romance.propose_exit,Standing,false,idoso/P0/resident.romance.propose_exit__Standing.fbx
+537,2026-11-04T21:08:23Z,idoso,P0,resident.handshake.partner,Shaking Hands 2,false,idoso/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+538,2026-11-04T21:08:31Z,idoso,P0,resident.walk.old,Old Man Walk,true,idoso/P0/resident.walk.old__Old_Man_Walk.fbx
+539,2026-11-04T21:08:40Z,idoso,P0,resident.idle.old,Old Man Idle,false,idoso/P0/resident.idle.old__Old_Man_Idle.fbx
+540,2026-11-04T21:10:44Z,idosa,P0,resident.idle.neutral,Breathing Idle,false,idosa/P0/resident.idle.neutral__Breathing_Idle.fbx
+541,2026-11-04T21:10:51Z,idosa,P0,resident.idle.happy,Happy Idle,false,idosa/P0/resident.idle.happy__Happy_Idle.fbx
+542,2026-11-04T21:10:58Z,idosa,P0,resident.idle.sad,Sad Idle,false,idosa/P0/resident.idle.sad__Sad_Idle.fbx
+543,2026-11-04T21:11:07Z,idosa,P0,resident.idle.bored,Bored,false,idosa/P0/resident.idle.bored__Bored.fbx
+544,2026-11-04T21:11:14Z,idosa,P0,resident.idle.look_around,Looking Around,false,idosa/P0/resident.idle.look_around__Looking_Around.fbx
+545,2026-11-04T21:11:23Z,idosa,P0,resident.walk.normal,Walking,true,idosa/P0/resident.walk.normal__Walking.fbx
+546,2026-11-04T21:11:30Z,idosa,P0,resident.walk.sad,Sad Walk,true,idosa/P0/resident.walk.sad__Sad_Walk.fbx
+547,2026-11-04T21:11:37Z,idosa,P0,resident.jog,Jogging,true,idosa/P0/resident.jog__Jogging.fbx
+548,2026-11-04T21:11:44Z,idosa,P0,resident.turn.left,Left Turn,false,idosa/P0/resident.turn.left__Left_Turn.fbx
+549,2026-11-04T21:11:51Z,idosa,P0,resident.turn.right,Right Turn,false,idosa/P0/resident.turn.right__Right_Turn.fbx
+550,2026-11-04T21:11:58Z,idosa,P0,resident.stairs.up,Ascending Stairs,false,idosa/P0/resident.stairs.up__Ascending_Stairs.fbx
+551,2026-11-04T21:12:05Z,idosa,P0,resident.stairs.up,Ascending Stairs,true,idosa/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+552,2026-11-04T21:12:11Z,idosa,P0,resident.stairs.down,Descending Stairs,false,idosa/P0/resident.stairs.down__Descending_Stairs.fbx
+553,2026-11-04T21:12:18Z,idosa,P0,resident.stairs.down,Descending Stairs,true,idosa/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+554,2026-11-04T21:12:25Z,idosa,P0,resident.crouch.enter,Crouching,false,idosa/P0/resident.crouch.enter__Crouching.fbx
+555,2026-11-04T21:12:36Z,idosa,P0,resident.crouch.exit,Crouch To Stand,false,idosa/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+556,2026-11-04T21:12:43Z,idosa,P0,resident.pickup.floor,Picking Up,false,idosa/P0/resident.pickup.floor__Picking_Up.fbx
+557,2026-11-04T21:12:49Z,idosa,P0,resident.sit.chair.enter,Stand To Sit,false,idosa/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+558,2026-11-04T21:12:57Z,idosa,P0,resident.sit.chair.idle,Sitting Idle,false,idosa/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+559,2026-11-04T21:13:05Z,idosa,P0,resident.sit.chair.exit,Sit To Stand,false,idosa/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+560,2026-11-04T21:13:16Z,idosa,P0,resident.sit.talk,Sitting Talking,false,idosa/P0/resident.sit.talk__Sitting_Talking.fbx
+561,2026-11-04T21:13:23Z,idosa,P0,resident.sit.clap,Sitting Clap,false,idosa/P0/resident.sit.clap__Sitting_Clap.fbx
+562,2026-11-04T21:13:29Z,idosa,P0,resident.sit.laugh,Sitting Laughing,false,idosa/P0/resident.sit.laugh__Sitting_Laughing.fbx
+563,2026-11-04T21:13:35Z,idosa,P0,resident.sit.angry,Sitting Angry,false,idosa/P0/resident.sit.angry__Sitting_Angry.fbx
+564,2026-11-04T21:13:42Z,idosa,P0,resident.lie.enter,Lying Down,false,idosa/P0/resident.lie.enter__Lying_Down.fbx
+565,2026-11-04T21:13:49Z,idosa,P0,resident.lie.idle,Laying Idle,false,idosa/P0/resident.lie.idle__Laying_Idle.fbx
+566,2026-11-04T21:13:55Z,idosa,P0,resident.sleep.idle,Laying Sleeping,false,idosa/P0/resident.sleep.idle__Laying_Sleeping.fbx
+567,2026-11-04T21:14:02Z,idosa,P0,resident.yawn,Yawn,false,idosa/P0/resident.yawn__Yawn.fbx
+568,2026-11-04T21:14:08Z,idosa,P0,resident.drink.stand,Drinking,false,idosa/P0/resident.drink.stand__Drinking.fbx
+569,2026-11-04T21:14:15Z,idosa,P0,resident.dizzy,Dizzy Idle,false,idosa/P0/resident.dizzy__Dizzy_Idle.fbx
+570,2026-11-04T21:14:24Z,idosa,P0,resident.stretch,Arm Stretching,false,idosa/P0/resident.stretch__Arm_Stretching.fbx
+571,2026-11-04T21:14:30Z,idosa,P0,resident.door.open_in,Opening Door Inwards,false,idosa/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+572,2026-11-04T21:14:37Z,idosa,P0,resident.door.open_out,Open Door Outwards,false,idosa/P0/resident.door.open_out__Open_Door_Outwards.fbx
+573,2026-11-04T21:14:43Z,idosa,P0,resident.cabinet.open,Opening,false,idosa/P0/resident.cabinet.open__Opening.fbx
+574,2026-11-04T21:14:50Z,idosa,P0,resident.cabinet.close,Closing,false,idosa/P0/resident.cabinet.close__Closing.fbx
+575,2026-11-04T21:14:56Z,idosa,P0,resident.button.push,Button Pushing,false,idosa/P0/resident.button.push__Button_Pushing.fbx
+576,2026-11-04T21:15:03Z,idosa,P0,resident.search.pockets,Searching Pockets,false,idosa/P0/resident.search.pockets__Searching_Pockets.fbx
+577,2026-11-04T21:15:12Z,idosa,P0,resident.talk.a,Talking,false,idosa/P0/resident.talk.a__Talking.fbx
+578,2026-11-04T21:15:21Z,idosa,P0,resident.talk.b,Talking,false,idosa/P0/resident.talk.b__Talking_v2.fbx
+579,2026-11-04T21:15:28Z,idosa,P0,resident.talk.listen,Lengthy Head Nod,false,idosa/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+580,2026-11-04T21:15:35Z,idosa,P0,resident.wave,Waving,false,idosa/P0/resident.wave__Waving.fbx
+581,2026-11-04T21:15:44Z,idosa,P0,resident.greet,Standing Greeting,false,idosa/P0/resident.greet__Standing_Greeting.fbx
+582,2026-11-04T21:15:55Z,idosa,P0,resident.agree,Head Nod Yes,false,idosa/P0/resident.agree__Head_Nod_Yes.fbx
+583,2026-11-04T21:16:01Z,idosa,P0,resident.disagree,Shaking Head No,false,idosa/P0/resident.disagree__Shaking_Head_No.fbx
+584,2026-11-04T21:16:08Z,idosa,P0,resident.laugh,Laughing,false,idosa/P0/resident.laugh__Laughing.fbx
+585,2026-11-04T21:16:14Z,idosa,P0,resident.clap,Clapping,false,idosa/P0/resident.clap__Clapping.fbx
+586,2026-11-04T21:16:21Z,idosa,P0,resident.point,Pointing,false,idosa/P0/resident.point__Pointing.fbx
+587,2026-11-04T21:16:30Z,idosa,P0,resident.phone.talk,Talking,false,idosa/P0/resident.phone.talk__Talking_v3.fbx
+588,2026-11-04T21:16:37Z,idosa,P0,resident.text,Texting,false,idosa/P0/resident.text__Texting.fbx
+589,2026-11-04T21:16:43Z,idosa,P0,resident.look_behind,Looking Behind,false,idosa/P0/resident.look_behind__Looking_Behind.fbx
+590,2026-11-04T21:16:50Z,idosa,P0,resident.handshake,Shaking Hands 1,false,idosa/P0/resident.handshake__Shaking_Hands_1.fbx
+591,2026-11-04T21:16:56Z,idosa,P0,resident.pat,Patting,false,idosa/P0/resident.pat__Patting.fbx
+592,2026-11-04T21:17:03Z,idosa,P0,resident.romance.kiss_taller,Kiss,false,idosa/P0/resident.romance.kiss_taller__Kiss.fbx
+593,2026-11-04T21:17:10Z,idosa,P0,resident.romance.kiss_shorter,Kiss,false,idosa/P0/resident.romance.kiss_shorter__Kiss_v2.fbx
+594,2026-11-04T21:17:16Z,idosa,P0,resident.romance.blow_kiss,Blow A Kiss,false,idosa/P0/resident.romance.blow_kiss__Blow_A_Kiss.fbx
+595,2026-11-04T21:17:23Z,idosa,P0,resident.romance.propose,Kneeling,false,idosa/P0/resident.romance.propose__Kneeling.fbx
+596,2026-11-04T21:17:29Z,idosa,P0,resident.romance.propose_exit,Standing,false,idosa/P0/resident.romance.propose_exit__Standing.fbx
+597,2026-11-04T21:17:35Z,idosa,P0,resident.handshake.partner,Shaking Hands 2,false,idosa/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+598,2026-11-04T21:17:42Z,idosa,P0,resident.walk.old,Old Man Walk,true,idosa/P0/resident.walk.old__Old_Man_Walk.fbx
+599,2026-11-04T21:17:48Z,idosa,P0,resident.idle.old,Old Man Idle,false,idosa/P0/resident.idle.old__Old_Man_Idle.fbx
+600,2026-11-04T21:19:48Z,adolescente_m,P0,resident.idle.neutral,Breathing Idle,false,adolescente_m/P0/resident.idle.neutral__Breathing_Idle.fbx
+601,2026-11-04T21:19:55Z,adolescente_m,P0,resident.idle.happy,Happy Idle,false,adolescente_m/P0/resident.idle.happy__Happy_Idle.fbx
+602,2026-11-04T21:20:01Z,adolescente_m,P0,resident.idle.sad,Sad Idle,false,adolescente_m/P0/resident.idle.sad__Sad_Idle.fbx
+603,2026-11-04T21:20:08Z,adolescente_m,P0,resident.idle.bored,Bored,false,adolescente_m/P0/resident.idle.bored__Bored.fbx
+604,2026-11-04T21:20:14Z,adolescente_m,P0,resident.idle.look_around,Looking Around,false,adolescente_m/P0/resident.idle.look_around__Looking_Around.fbx
+605,2026-11-04T21:20:21Z,adolescente_m,P0,resident.walk.normal,Walking,true,adolescente_m/P0/resident.walk.normal__Walking.fbx
+606,2026-11-04T21:20:27Z,adolescente_m,P0,resident.walk.happy,Happy Walk,true,adolescente_m/P0/resident.walk.happy__Happy_Walk.fbx
+607,2026-11-04T21:20:34Z,adolescente_m,P0,resident.walk.sad,Sad Walk,true,adolescente_m/P0/resident.walk.sad__Sad_Walk.fbx
+608,2026-11-04T21:20:40Z,adolescente_m,P0,resident.run.normal,Running,true,adolescente_m/P0/resident.run.normal__Running.fbx
+609,2026-11-04T21:20:46Z,adolescente_m,P0,resident.jog,Jogging,true,adolescente_m/P0/resident.jog__Jogging.fbx
+610,2026-11-04T21:20:54Z,adolescente_m,P0,resident.turn.left,Left Turn,false,adolescente_m/P0/resident.turn.left__Left_Turn.fbx
+611,2026-11-04T21:21:01Z,adolescente_m,P0,resident.turn.right,Right Turn,false,adolescente_m/P0/resident.turn.right__Right_Turn.fbx
+612,2026-11-04T21:21:09Z,adolescente_m,P0,resident.stairs.up,Ascending Stairs,false,adolescente_m/P0/resident.stairs.up__Ascending_Stairs.fbx
+613,2026-11-04T21:21:16Z,adolescente_m,P0,resident.stairs.up,Ascending Stairs,true,adolescente_m/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+614,2026-11-04T21:21:23Z,adolescente_m,P0,resident.stairs.down,Descending Stairs,false,adolescente_m/P0/resident.stairs.down__Descending_Stairs.fbx
+615,2026-11-04T21:21:29Z,adolescente_m,P0,resident.stairs.down,Descending Stairs,true,adolescente_m/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+616,2026-11-04T21:21:36Z,adolescente_m,P0,resident.crouch.enter,Crouching,false,adolescente_m/P0/resident.crouch.enter__Crouching.fbx
+617,2026-11-04T21:21:43Z,adolescente_m,P0,resident.crouch.idle,Crouching Idle,false,adolescente_m/P0/resident.crouch.idle__Crouching_Idle.fbx
+618,2026-11-04T21:21:49Z,adolescente_m,P0,resident.crouch.exit,Crouch To Stand,false,adolescente_m/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+619,2026-11-04T21:21:55Z,adolescente_m,P0,resident.pickup.floor,Picking Up,false,adolescente_m/P0/resident.pickup.floor__Picking_Up.fbx
+620,2026-11-04T21:22:02Z,adolescente_m,P0,resident.jump.small,Jump,false,adolescente_m/P0/resident.jump.small__Jump.fbx
+621,2026-11-04T21:22:09Z,adolescente_m,P0,resident.sit.chair.enter,Stand To Sit,false,adolescente_m/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+622,2026-11-04T21:22:15Z,adolescente_m,P0,resident.sit.chair.idle,Sitting Idle,false,adolescente_m/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+623,2026-11-04T21:22:22Z,adolescente_m,P0,resident.sit.chair.exit,Sit To Stand,false,adolescente_m/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+624,2026-11-04T21:22:33Z,adolescente_m,P0,resident.sit.talk,Sitting Talking,false,adolescente_m/P0/resident.sit.talk__Sitting_Talking.fbx
+625,2026-11-04T21:22:41Z,adolescente_m,P0,resident.sit.clap,Sitting Clap,false,adolescente_m/P0/resident.sit.clap__Sitting_Clap.fbx
+626,2026-11-04T21:22:48Z,adolescente_m,P0,resident.sit.laugh,Sitting Laughing,false,adolescente_m/P0/resident.sit.laugh__Sitting_Laughing.fbx
+627,2026-11-04T21:22:54Z,adolescente_m,P0,resident.sit.angry,Sitting Angry,false,adolescente_m/P0/resident.sit.angry__Sitting_Angry.fbx
+628,2026-11-04T21:23:01Z,adolescente_m,P0,resident.lie.enter,Lying Down,false,adolescente_m/P0/resident.lie.enter__Lying_Down.fbx
+629,2026-11-04T21:23:08Z,adolescente_m,P0,resident.lie.idle,Laying Idle,false,adolescente_m/P0/resident.lie.idle__Laying_Idle.fbx
+630,2026-11-04T21:23:14Z,adolescente_m,P0,resident.sleep.idle,Laying Sleeping,false,adolescente_m/P0/resident.sleep.idle__Laying_Sleeping.fbx
+631,2026-11-04T21:23:21Z,adolescente_m,P0,resident.yawn,Yawn,false,adolescente_m/P0/resident.yawn__Yawn.fbx
+632,2026-11-04T21:23:27Z,adolescente_m,P0,resident.drink.stand,Drinking,false,adolescente_m/P0/resident.drink.stand__Drinking.fbx
+633,2026-11-04T21:23:33Z,adolescente_m,P0,resident.dizzy,Dizzy Idle,false,adolescente_m/P0/resident.dizzy__Dizzy_Idle.fbx
+634,2026-11-04T21:23:42Z,adolescente_m,P0,resident.stretch,Arm Stretching,false,adolescente_m/P0/resident.stretch__Arm_Stretching.fbx
+635,2026-11-04T21:23:48Z,adolescente_m,P0,resident.door.open_in,Opening Door Inwards,false,adolescente_m/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+636,2026-11-04T21:23:55Z,adolescente_m,P0,resident.door.open_out,Open Door Outwards,false,adolescente_m/P0/resident.door.open_out__Open_Door_Outwards.fbx
+637,2026-11-04T21:24:01Z,adolescente_m,P0,resident.cabinet.open,Opening,false,adolescente_m/P0/resident.cabinet.open__Opening.fbx
+638,2026-11-04T21:24:08Z,adolescente_m,P0,resident.cabinet.close,Closing,false,adolescente_m/P0/resident.cabinet.close__Closing.fbx
+639,2026-11-04T21:24:14Z,adolescente_m,P0,resident.button.push,Button Pushing,false,adolescente_m/P0/resident.button.push__Button_Pushing.fbx
+640,2026-11-04T21:24:21Z,adolescente_m,P0,resident.carry.box.idle,Box Idle,false,adolescente_m/P0/resident.carry.box.idle__Box_Idle.fbx
+641,2026-11-04T21:24:27Z,adolescente_m,P0,resident.push.start,Push Start,false,adolescente_m/P0/resident.push.start__Push_Start.fbx
+642,2026-11-04T21:24:33Z,adolescente_m,P0,resident.push.loop,Pushing,true,adolescente_m/P0/resident.push.loop__Pushing.fbx
+643,2026-11-04T21:24:42Z,adolescente_m,P0,resident.push.stop,Push Stop,false,adolescente_m/P0/resident.push.stop__Push_Stop.fbx
+644,2026-11-04T21:24:49Z,adolescente_m,P0,resident.search.pockets,Searching Pockets,false,adolescente_m/P0/resident.search.pockets__Searching_Pockets.fbx
+645,2026-11-04T21:24:55Z,adolescente_m,P0,resident.throw,Throw,false,adolescente_m/P0/resident.throw__Throw.fbx
+646,2026-11-04T21:25:02Z,adolescente_m,P0,resident.talk.a,Talking,false,adolescente_m/P0/resident.talk.a__Talking.fbx
+647,2026-11-04T21:25:09Z,adolescente_m,P0,resident.talk.b,Talking,false,adolescente_m/P0/resident.talk.b__Talking_v2.fbx
+648,2026-11-04T21:25:15Z,adolescente_m,P0,resident.talk.listen,Lengthy Head Nod,false,adolescente_m/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+649,2026-11-04T21:25:24Z,adolescente_m,P0,resident.wave,Waving,false,adolescente_m/P0/resident.wave__Waving.fbx
+650,2026-11-04T21:25:31Z,adolescente_m,P0,resident.greet,Standing Greeting,false,adolescente_m/P0/resident.greet__Standing_Greeting.fbx
+651,2026-11-04T21:25:37Z,adolescente_m,P0,resident.agree,Head Nod Yes,false,adolescente_m/P0/resident.agree__Head_Nod_Yes.fbx
+652,2026-11-04T21:25:44Z,adolescente_m,P0,resident.disagree,Shaking Head No,false,adolescente_m/P0/resident.disagree__Shaking_Head_No.fbx
+653,2026-11-04T21:25:53Z,adolescente_m,P0,resident.laugh,Laughing,false,adolescente_m/P0/resident.laugh__Laughing.fbx
+654,2026-11-04T21:25:59Z,adolescente_m,P0,resident.clap,Clapping,false,adolescente_m/P0/resident.clap__Clapping.fbx
+655,2026-11-04T21:26:08Z,adolescente_m,P0,resident.cheer,Cheering,false,adolescente_m/P0/resident.cheer__Cheering.fbx
+656,2026-11-04T21:26:14Z,adolescente_m,P0,resident.point,Pointing,false,adolescente_m/P0/resident.point__Pointing.fbx
+657,2026-11-04T21:26:21Z,adolescente_m,P0,resident.phone.talk,Talking,false,adolescente_m/P0/resident.phone.talk__Talking_v3.fbx
+658,2026-11-04T21:26:27Z,adolescente_m,P0,resident.text,Texting,false,adolescente_m/P0/resident.text__Texting.fbx
+659,2026-11-04T21:26:36Z,adolescente_m,P0,resident.look_behind,Looking Behind,false,adolescente_m/P0/resident.look_behind__Looking_Behind.fbx
+660,2026-11-04T21:26:43Z,adolescente_m,P0,resident.handshake,Shaking Hands 1,false,adolescente_m/P0/resident.handshake__Shaking_Hands_1.fbx
+661,2026-11-04T21:26:50Z,adolescente_m,P0,resident.pat,Patting,false,adolescente_m/P0/resident.pat__Patting.fbx
+662,2026-11-04T21:26:57Z,adolescente_m,P0,resident.handshake.partner,Shaking Hands 2,false,adolescente_m/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+663,2026-11-04T21:28:26Z,adolescente_f,P0,resident.idle.neutral,Breathing Idle,false,adolescente_f/P0/resident.idle.neutral__Breathing_Idle.fbx
+664,2026-11-04T21:28:32Z,adolescente_f,P0,resident.idle.happy,Happy Idle,false,adolescente_f/P0/resident.idle.happy__Happy_Idle.fbx
+665,2026-11-04T21:28:39Z,adolescente_f,P0,resident.idle.sad,Sad Idle,false,adolescente_f/P0/resident.idle.sad__Sad_Idle.fbx
+666,2026-11-04T21:28:48Z,adolescente_f,P0,resident.idle.bored,Bored,false,adolescente_f/P0/resident.idle.bored__Bored.fbx
+667,2026-11-04T21:28:54Z,adolescente_f,P0,resident.idle.look_around,Looking Around,false,adolescente_f/P0/resident.idle.look_around__Looking_Around.fbx
+668,2026-11-04T21:29:03Z,adolescente_f,P0,resident.walk.normal,Walking,true,adolescente_f/P0/resident.walk.normal__Walking.fbx
+669,2026-11-04T21:29:09Z,adolescente_f,P0,resident.walk.happy,Happy Walk,true,adolescente_f/P0/resident.walk.happy__Happy_Walk.fbx
+670,2026-11-04T21:29:16Z,adolescente_f,P0,resident.walk.sad,Sad Walk,true,adolescente_f/P0/resident.walk.sad__Sad_Walk.fbx
+671,2026-11-04T21:29:22Z,adolescente_f,P0,resident.run.normal,Running,true,adolescente_f/P0/resident.run.normal__Running.fbx
+672,2026-11-04T21:29:29Z,adolescente_f,P0,resident.jog,Jogging,true,adolescente_f/P0/resident.jog__Jogging.fbx
+673,2026-11-04T21:29:35Z,adolescente_f,P0,resident.turn.left,Left Turn,false,adolescente_f/P0/resident.turn.left__Left_Turn.fbx
+674,2026-11-04T21:29:42Z,adolescente_f,P0,resident.turn.right,Right Turn,false,adolescente_f/P0/resident.turn.right__Right_Turn.fbx
+675,2026-11-04T21:29:48Z,adolescente_f,P0,resident.stairs.up,Ascending Stairs,false,adolescente_f/P0/resident.stairs.up__Ascending_Stairs.fbx
+676,2026-11-04T21:29:55Z,adolescente_f,P0,resident.stairs.up,Ascending Stairs,true,adolescente_f/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+677,2026-11-04T21:30:02Z,adolescente_f,P0,resident.stairs.down,Descending Stairs,false,adolescente_f/P0/resident.stairs.down__Descending_Stairs.fbx
+678,2026-11-04T21:30:08Z,adolescente_f,P0,resident.stairs.down,Descending Stairs,true,adolescente_f/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+679,2026-11-04T21:30:17Z,adolescente_f,P0,resident.crouch.enter,Crouching,false,adolescente_f/P0/resident.crouch.enter__Crouching.fbx
+680,2026-11-04T21:30:23Z,adolescente_f,P0,resident.crouch.idle,Crouching Idle,false,adolescente_f/P0/resident.crouch.idle__Crouching_Idle.fbx
+681,2026-11-04T21:30:32Z,adolescente_f,P0,resident.crouch.exit,Crouch To Stand,false,adolescente_f/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+682,2026-11-04T21:30:39Z,adolescente_f,P0,resident.pickup.floor,Picking Up,false,adolescente_f/P0/resident.pickup.floor__Picking_Up.fbx
+683,2026-11-04T21:30:45Z,adolescente_f,P0,resident.jump.small,Jump,false,adolescente_f/P0/resident.jump.small__Jump.fbx
+684,2026-11-04T21:30:51Z,adolescente_f,P0,resident.sit.chair.enter,Stand To Sit,false,adolescente_f/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+685,2026-11-04T21:30:58Z,adolescente_f,P0,resident.sit.chair.idle,Sitting Idle,false,adolescente_f/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+686,2026-11-04T21:31:04Z,adolescente_f,P0,resident.sit.chair.exit,Sit To Stand,false,adolescente_f/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+687,2026-11-04T21:31:15Z,adolescente_f,P0,resident.sit.talk,Sitting Talking,false,adolescente_f/P0/resident.sit.talk__Sitting_Talking.fbx
+688,2026-11-04T21:31:22Z,adolescente_f,P0,resident.sit.clap,Sitting Clap,false,adolescente_f/P0/resident.sit.clap__Sitting_Clap.fbx
+689,2026-11-04T21:31:28Z,adolescente_f,P0,resident.sit.laugh,Sitting Laughing,false,adolescente_f/P0/resident.sit.laugh__Sitting_Laughing.fbx
+690,2026-11-04T21:31:35Z,adolescente_f,P0,resident.sit.angry,Sitting Angry,false,adolescente_f/P0/resident.sit.angry__Sitting_Angry.fbx
+691,2026-11-04T21:31:46Z,adolescente_f,P0,resident.lie.enter,Lying Down,false,adolescente_f/P0/resident.lie.enter__Lying_Down.fbx
+692,2026-11-04T21:32:34Z,adolescente_f,P0,resident.lie.idle,Laying Idle,false,adolescente_f/P0/resident.lie.idle__Laying_Idle.fbx
+693,2026-11-04T21:33:12Z,adolescente_f,P0,resident.sleep.idle,Laying Sleeping,false,adolescente_f/P0/resident.sleep.idle__Laying_Sleeping.fbx
+694,2026-11-04T21:33:23Z,adolescente_f,P0,resident.yawn,Yawn,false,adolescente_f/P0/resident.yawn__Yawn.fbx
+695,2026-11-04T21:33:29Z,adolescente_f,P0,resident.drink.stand,Drinking,false,adolescente_f/P0/resident.drink.stand__Drinking.fbx
+696,2026-11-04T21:33:36Z,adolescente_f,P0,resident.dizzy,Dizzy Idle,false,adolescente_f/P0/resident.dizzy__Dizzy_Idle.fbx
+697,2026-11-04T21:33:43Z,adolescente_f,P0,resident.stretch,Arm Stretching,false,adolescente_f/P0/resident.stretch__Arm_Stretching.fbx
+698,2026-11-04T21:33:49Z,adolescente_f,P0,resident.door.open_in,Opening Door Inwards,false,adolescente_f/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+699,2026-11-04T21:33:56Z,adolescente_f,P0,resident.door.open_out,Open Door Outwards,false,adolescente_f/P0/resident.door.open_out__Open_Door_Outwards.fbx
+700,2026-11-04T21:34:04Z,adolescente_f,P0,resident.cabinet.open,Opening,false,adolescente_f/P0/resident.cabinet.open__Opening.fbx
+701,2026-11-04T21:34:11Z,adolescente_f,P0,resident.cabinet.close,Closing,false,adolescente_f/P0/resident.cabinet.close__Closing.fbx
+702,2026-11-04T21:34:17Z,adolescente_f,P0,resident.button.push,Button Pushing,false,adolescente_f/P0/resident.button.push__Button_Pushing.fbx
+703,2026-11-04T21:34:24Z,adolescente_f,P0,resident.carry.box.idle,Box Idle,false,adolescente_f/P0/resident.carry.box.idle__Box_Idle.fbx
+704,2026-11-04T21:34:30Z,adolescente_f,P0,resident.push.start,Push Start,false,adolescente_f/P0/resident.push.start__Push_Start.fbx
+705,2026-11-04T21:34:37Z,adolescente_f,P0,resident.push.loop,Pushing,true,adolescente_f/P0/resident.push.loop__Pushing.fbx
+706,2026-11-04T21:34:43Z,adolescente_f,P0,resident.push.stop,Push Stop,false,adolescente_f/P0/resident.push.stop__Push_Stop.fbx
+707,2026-11-04T21:34:50Z,adolescente_f,P0,resident.search.pockets,Searching Pockets,false,adolescente_f/P0/resident.search.pockets__Searching_Pockets.fbx
+708,2026-11-04T21:34:57Z,adolescente_f,P0,resident.throw,Throw,false,adolescente_f/P0/resident.throw__Throw.fbx
+709,2026-11-04T21:35:04Z,adolescente_f,P0,resident.talk.a,Talking,false,adolescente_f/P0/resident.talk.a__Talking.fbx
+710,2026-11-04T21:35:11Z,adolescente_f,P0,resident.talk.b,Talking,false,adolescente_f/P0/resident.talk.b__Talking_v2.fbx
+711,2026-11-04T21:35:17Z,adolescente_f,P0,resident.talk.listen,Lengthy Head Nod,false,adolescente_f/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+712,2026-11-04T21:35:23Z,adolescente_f,P0,resident.wave,Waving,false,adolescente_f/P0/resident.wave__Waving.fbx
+713,2026-11-04T21:35:30Z,adolescente_f,P0,resident.greet,Standing Greeting,false,adolescente_f/P0/resident.greet__Standing_Greeting.fbx
+714,2026-11-04T21:35:36Z,adolescente_f,P0,resident.agree,Head Nod Yes,false,adolescente_f/P0/resident.agree__Head_Nod_Yes.fbx
+715,2026-11-04T21:35:43Z,adolescente_f,P0,resident.disagree,Shaking Head No,false,adolescente_f/P0/resident.disagree__Shaking_Head_No.fbx
+716,2026-11-04T21:35:49Z,adolescente_f,P0,resident.laugh,Laughing,false,adolescente_f/P0/resident.laugh__Laughing.fbx
+717,2026-11-04T21:35:56Z,adolescente_f,P0,resident.clap,Clapping,false,adolescente_f/P0/resident.clap__Clapping.fbx
+718,2026-11-04T21:36:02Z,adolescente_f,P0,resident.cheer,Cheering,false,adolescente_f/P0/resident.cheer__Cheering.fbx
+719,2026-11-04T21:36:09Z,adolescente_f,P0,resident.point,Pointing,false,adolescente_f/P0/resident.point__Pointing.fbx
+720,2026-11-04T21:36:16Z,adolescente_f,P0,resident.phone.talk,Talking,false,adolescente_f/P0/resident.phone.talk__Talking_v3.fbx
+721,2026-11-04T21:36:25Z,adolescente_f,P0,resident.text,Texting,false,adolescente_f/P0/resident.text__Texting.fbx
+722,2026-11-04T21:36:31Z,adolescente_f,P0,resident.look_behind,Looking Behind,false,adolescente_f/P0/resident.look_behind__Looking_Behind.fbx
+723,2026-11-04T21:36:38Z,adolescente_f,P0,resident.handshake,Shaking Hands 1,false,adolescente_f/P0/resident.handshake__Shaking_Hands_1.fbx
+724,2026-11-04T21:36:46Z,adolescente_f,P0,resident.pat,Patting,false,adolescente_f/P0/resident.pat__Patting.fbx
+725,2026-11-04T21:36:55Z,adolescente_f,P0,resident.handshake.partner,Shaking Hands 2,false,adolescente_f/P0/resident.handshake.partner__Shaking_Hands_2.fbx
+726,2026-11-04T21:39:25Z,crianca_m,P0,resident.idle.neutral,Breathing Idle,false,crianca_m/P0/resident.idle.neutral__Breathing_Idle.fbx
+727,2026-11-04T21:39:37Z,crianca_m,P0,resident.idle.happy,Happy Idle,false,crianca_m/P0/resident.idle.happy__Happy_Idle.fbx
+728,2026-11-04T21:39:43Z,crianca_m,P0,resident.idle.sad,Sad Idle,false,crianca_m/P0/resident.idle.sad__Sad_Idle.fbx
+729,2026-11-04T21:39:50Z,crianca_m,P0,resident.idle.bored,Bored,false,crianca_m/P0/resident.idle.bored__Bored.fbx
+730,2026-11-04T21:39:59Z,crianca_m,P0,resident.idle.look_around,Looking Around,false,crianca_m/P0/resident.idle.look_around__Looking_Around.fbx
+731,2026-11-04T21:40:06Z,crianca_m,P0,resident.walk.normal,Walking,true,crianca_m/P0/resident.walk.normal__Walking.fbx
+732,2026-11-04T21:40:12Z,crianca_m,P0,resident.walk.happy,Happy Walk,true,crianca_m/P0/resident.walk.happy__Happy_Walk.fbx
+733,2026-11-04T21:40:18Z,crianca_m,P0,resident.walk.sad,Sad Walk,true,crianca_m/P0/resident.walk.sad__Sad_Walk.fbx
+734,2026-11-04T21:40:25Z,crianca_m,P0,resident.run.normal,Running,true,crianca_m/P0/resident.run.normal__Running.fbx
+735,2026-11-04T21:40:32Z,crianca_m,P0,resident.jog,Jogging,true,crianca_m/P0/resident.jog__Jogging.fbx
+736,2026-11-04T21:40:38Z,crianca_m,P0,resident.turn.left,Left Turn,false,crianca_m/P0/resident.turn.left__Left_Turn.fbx
+737,2026-11-04T21:40:45Z,crianca_m,P0,resident.turn.right,Right Turn,false,crianca_m/P0/resident.turn.right__Right_Turn.fbx
+738,2026-11-04T21:40:51Z,crianca_m,P0,resident.stairs.up,Ascending Stairs,false,crianca_m/P0/resident.stairs.up__Ascending_Stairs.fbx
+739,2026-11-04T21:40:58Z,crianca_m,P0,resident.stairs.up,Ascending Stairs,true,crianca_m/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+740,2026-11-04T21:41:04Z,crianca_m,P0,resident.stairs.down,Descending Stairs,false,crianca_m/P0/resident.stairs.down__Descending_Stairs.fbx
+741,2026-11-04T21:41:11Z,crianca_m,P0,resident.stairs.down,Descending Stairs,true,crianca_m/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+742,2026-11-04T21:41:18Z,crianca_m,P0,resident.crouch.enter,Crouching,false,crianca_m/P0/resident.crouch.enter__Crouching.fbx
+743,2026-11-04T21:41:24Z,crianca_m,P0,resident.crouch.idle,Crouching Idle,false,crianca_m/P0/resident.crouch.idle__Crouching_Idle.fbx
+744,2026-11-04T21:41:30Z,crianca_m,P0,resident.crouch.exit,Crouch To Stand,false,crianca_m/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+745,2026-11-04T21:41:37Z,crianca_m,P0,resident.pickup.floor,Picking Up,false,crianca_m/P0/resident.pickup.floor__Picking_Up.fbx
+746,2026-11-04T21:41:43Z,crianca_m,P0,resident.jump.small,Jump,false,crianca_m/P0/resident.jump.small__Jump.fbx
+747,2026-11-04T21:41:50Z,crianca_m,P0,resident.sit.chair.enter,Stand To Sit,false,crianca_m/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+748,2026-11-04T21:41:59Z,crianca_m,P0,resident.sit.chair.idle,Sitting Idle,false,crianca_m/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+749,2026-11-04T21:42:05Z,crianca_m,P0,resident.sit.chair.exit,Sit To Stand,false,crianca_m/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+750,2026-11-04T21:42:23Z,crianca_m,P0,resident.sit.talk,Sitting Talking,false,crianca_m/P0/resident.sit.talk__Sitting_Talking.fbx
+751,2026-11-04T21:42:32Z,crianca_m,P0,resident.sit.clap,Sitting Clap,false,crianca_m/P0/resident.sit.clap__Sitting_Clap.fbx
+752,2026-11-04T21:42:38Z,crianca_m,P0,resident.sit.laugh,Sitting Laughing,false,crianca_m/P0/resident.sit.laugh__Sitting_Laughing.fbx
+753,2026-11-04T21:42:45Z,crianca_m,P0,resident.sit.angry,Sitting Angry,false,crianca_m/P0/resident.sit.angry__Sitting_Angry.fbx
+754,2026-11-04T21:42:54Z,crianca_m,P0,resident.lie.enter,Lying Down,false,crianca_m/P0/resident.lie.enter__Lying_Down.fbx
+755,2026-11-04T21:43:01Z,crianca_m,P0,resident.lie.idle,Laying Idle,false,crianca_m/P0/resident.lie.idle__Laying_Idle.fbx
+756,2026-11-04T21:43:08Z,crianca_m,P0,resident.sleep.idle,Laying Sleeping,false,crianca_m/P0/resident.sleep.idle__Laying_Sleeping.fbx
+757,2026-11-04T21:43:17Z,crianca_m,P0,resident.yawn,Yawn,false,crianca_m/P0/resident.yawn__Yawn.fbx
+758,2026-11-04T21:43:23Z,crianca_m,P0,resident.drink.stand,Drinking,false,crianca_m/P0/resident.drink.stand__Drinking.fbx
+759,2026-11-04T21:43:30Z,crianca_m,P0,resident.dizzy,Dizzy Idle,false,crianca_m/P0/resident.dizzy__Dizzy_Idle.fbx
+760,2026-11-04T21:43:37Z,crianca_m,P0,resident.stretch,Arm Stretching,false,crianca_m/P0/resident.stretch__Arm_Stretching.fbx
+761,2026-11-04T21:43:43Z,crianca_m,P0,resident.door.open_in,Opening Door Inwards,false,crianca_m/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+762,2026-11-04T21:43:50Z,crianca_m,P0,resident.door.open_out,Open Door Outwards,false,crianca_m/P0/resident.door.open_out__Open_Door_Outwards.fbx
+763,2026-11-04T21:43:59Z,crianca_m,P0,resident.cabinet.open,Opening,false,crianca_m/P0/resident.cabinet.open__Opening.fbx
+764,2026-11-04T21:44:06Z,crianca_m,P0,resident.cabinet.close,Closing,false,crianca_m/P0/resident.cabinet.close__Closing.fbx
+765,2026-11-04T21:44:12Z,crianca_m,P0,resident.button.push,Button Pushing,false,crianca_m/P0/resident.button.push__Button_Pushing.fbx
+766,2026-11-04T21:44:19Z,crianca_m,P0,resident.carry.box.idle,Box Idle,false,crianca_m/P0/resident.carry.box.idle__Box_Idle.fbx
+767,2026-11-04T21:44:25Z,crianca_m,P0,resident.push.start,Push Start,false,crianca_m/P0/resident.push.start__Push_Start.fbx
+768,2026-11-04T21:44:34Z,crianca_m,P0,resident.push.loop,Pushing,true,crianca_m/P0/resident.push.loop__Pushing.fbx
+769,2026-11-04T21:44:43Z,crianca_m,P0,resident.push.stop,Push Stop,false,crianca_m/P0/resident.push.stop__Push_Stop.fbx
+770,2026-11-04T21:44:50Z,crianca_m,P0,resident.throw,Throw,false,crianca_m/P0/resident.throw__Throw.fbx
+771,2026-11-04T21:44:56Z,crianca_m,P0,resident.talk.a,Talking,false,crianca_m/P0/resident.talk.a__Talking.fbx
+772,2026-11-04T21:45:03Z,crianca_m,P0,resident.talk.b,Talking,false,crianca_m/P0/resident.talk.b__Talking_v2.fbx
+773,2026-11-04T21:45:10Z,crianca_m,P0,resident.talk.listen,Lengthy Head Nod,false,crianca_m/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+774,2026-11-04T21:45:18Z,crianca_m,P0,resident.wave,Waving,false,crianca_m/P0/resident.wave__Waving.fbx
+775,2026-11-04T21:45:25Z,crianca_m,P0,resident.greet,Standing Greeting,false,crianca_m/P0/resident.greet__Standing_Greeting.fbx
+776,2026-11-04T21:45:34Z,crianca_m,P0,resident.agree,Head Nod Yes,false,crianca_m/P0/resident.agree__Head_Nod_Yes.fbx
+777,2026-11-04T21:45:40Z,crianca_m,P0,resident.disagree,Shaking Head No,false,crianca_m/P0/resident.disagree__Shaking_Head_No.fbx
+778,2026-11-04T21:45:46Z,crianca_m,P0,resident.laugh,Laughing,false,crianca_m/P0/resident.laugh__Laughing.fbx
+779,2026-11-04T21:45:53Z,crianca_m,P0,resident.clap,Clapping,false,crianca_m/P0/resident.clap__Clapping.fbx
+780,2026-11-04T21:46:00Z,crianca_m,P0,resident.cheer,Cheering,false,crianca_m/P0/resident.cheer__Cheering.fbx
+781,2026-11-04T21:46:07Z,crianca_m,P0,resident.point,Pointing,false,crianca_m/P0/resident.point__Pointing.fbx
+782,2026-11-04T21:46:13Z,crianca_m,P0,resident.look_behind,Looking Behind,false,crianca_m/P0/resident.look_behind__Looking_Behind.fbx
+783,2026-11-04T21:46:20Z,crianca_m,P0,resident.pat,Patting,false,crianca_m/P0/resident.pat__Patting.fbx
+784,2026-11-04T21:46:27Z,crianca_m,P0,resident.sit.legs_swing,Sitting,false,crianca_m/P0/resident.sit.legs_swing__Sitting.fbx
+785,2026-11-04T21:48:20Z,crianca_f,P0,resident.idle.neutral,Breathing Idle,false,crianca_f/P0/resident.idle.neutral__Breathing_Idle.fbx
+786,2026-11-04T21:48:26Z,crianca_f,P0,resident.idle.happy,Happy Idle,false,crianca_f/P0/resident.idle.happy__Happy_Idle.fbx
+787,2026-11-04T21:48:35Z,crianca_f,P0,resident.idle.sad,Sad Idle,false,crianca_f/P0/resident.idle.sad__Sad_Idle.fbx
+788,2026-11-04T21:48:41Z,crianca_f,P0,resident.idle.bored,Bored,false,crianca_f/P0/resident.idle.bored__Bored.fbx
+789,2026-11-04T21:48:50Z,crianca_f,P0,resident.idle.look_around,Looking Around,false,crianca_f/P0/resident.idle.look_around__Looking_Around.fbx
+790,2026-11-04T21:48:56Z,crianca_f,P0,resident.walk.normal,Walking,true,crianca_f/P0/resident.walk.normal__Walking.fbx
+791,2026-11-04T21:49:03Z,crianca_f,P0,resident.walk.happy,Happy Walk,true,crianca_f/P0/resident.walk.happy__Happy_Walk.fbx
+792,2026-11-04T21:49:09Z,crianca_f,P0,resident.walk.sad,Sad Walk,true,crianca_f/P0/resident.walk.sad__Sad_Walk.fbx
+793,2026-11-04T21:49:15Z,crianca_f,P0,resident.run.normal,Running,true,crianca_f/P0/resident.run.normal__Running.fbx
+794,2026-11-04T21:49:22Z,crianca_f,P0,resident.jog,Jogging,true,crianca_f/P0/resident.jog__Jogging.fbx
+795,2026-11-04T21:49:29Z,crianca_f,P0,resident.turn.left,Left Turn,false,crianca_f/P0/resident.turn.left__Left_Turn.fbx
+796,2026-11-04T21:49:38Z,crianca_f,P0,resident.turn.right,Right Turn,false,crianca_f/P0/resident.turn.right__Right_Turn.fbx
+797,2026-11-04T21:49:45Z,crianca_f,P0,resident.stairs.up,Ascending Stairs,false,crianca_f/P0/resident.stairs.up__Ascending_Stairs.fbx
+798,2026-11-04T21:49:51Z,crianca_f,P0,resident.stairs.up,Ascending Stairs,true,crianca_f/P0/resident.stairs.up__Ascending_Stairs__inplace.fbx
+799,2026-11-04T21:49:57Z,crianca_f,P0,resident.stairs.down,Descending Stairs,false,crianca_f/P0/resident.stairs.down__Descending_Stairs.fbx
+800,2026-11-04T21:50:04Z,crianca_f,P0,resident.stairs.down,Descending Stairs,true,crianca_f/P0/resident.stairs.down__Descending_Stairs__inplace.fbx
+801,2026-11-04T21:50:11Z,crianca_f,P0,resident.crouch.enter,Crouching,false,crianca_f/P0/resident.crouch.enter__Crouching.fbx
+802,2026-11-04T21:50:19Z,crianca_f,P0,resident.crouch.idle,Crouching Idle,false,crianca_f/P0/resident.crouch.idle__Crouching_Idle.fbx
+803,2026-11-04T21:50:26Z,crianca_f,P0,resident.crouch.exit,Crouch To Stand,false,crianca_f/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+804,2026-11-04T21:50:35Z,crianca_f,P0,resident.pickup.floor,Picking Up,false,crianca_f/P0/resident.pickup.floor__Picking_Up.fbx
+805,2026-11-04T21:50:41Z,crianca_f,P0,resident.jump.small,Jump,false,crianca_f/P0/resident.jump.small__Jump.fbx
+806,2026-11-04T21:50:47Z,crianca_f,P0,resident.sit.chair.enter,Stand To Sit,false,crianca_f/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+807,2026-11-04T21:50:54Z,crianca_f,P0,resident.sit.chair.idle,Sitting Idle,false,crianca_f/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+808,2026-11-04T21:51:00Z,crianca_f,P0,resident.sit.chair.exit,Sit To Stand,false,crianca_f/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+809,2026-11-04T21:51:11Z,crianca_f,P0,resident.sit.talk,Sitting Talking,false,crianca_f/P0/resident.sit.talk__Sitting_Talking.fbx
+810,2026-11-04T21:51:18Z,crianca_f,P0,resident.sit.clap,Sitting Clap,false,crianca_f/P0/resident.sit.clap__Sitting_Clap.fbx
+811,2026-11-04T21:51:24Z,crianca_f,P0,resident.sit.laugh,Sitting Laughing,false,crianca_f/P0/resident.sit.laugh__Sitting_Laughing.fbx
+812,2026-11-04T21:51:30Z,crianca_f,P0,resident.sit.angry,Sitting Angry,false,crianca_f/P0/resident.sit.angry__Sitting_Angry.fbx
+813,2026-11-04T21:51:37Z,crianca_f,P0,resident.lie.enter,Lying Down,false,crianca_f/P0/resident.lie.enter__Lying_Down.fbx
+814,2026-11-04T21:51:43Z,crianca_f,P0,resident.lie.idle,Laying Idle,false,crianca_f/P0/resident.lie.idle__Laying_Idle.fbx
+815,2026-11-04T21:51:50Z,crianca_f,P0,resident.sleep.idle,Laying Sleeping,false,crianca_f/P0/resident.sleep.idle__Laying_Sleeping.fbx
+816,2026-11-04T21:51:57Z,crianca_f,P0,resident.yawn,Yawn,false,crianca_f/P0/resident.yawn__Yawn.fbx
+817,2026-11-04T21:52:04Z,crianca_f,P0,resident.drink.stand,Drinking,false,crianca_f/P0/resident.drink.stand__Drinking.fbx
+818,2026-11-04T21:52:10Z,crianca_f,P0,resident.dizzy,Dizzy Idle,false,crianca_f/P0/resident.dizzy__Dizzy_Idle.fbx
+819,2026-11-04T21:52:16Z,crianca_f,P0,resident.stretch,Arm Stretching,false,crianca_f/P0/resident.stretch__Arm_Stretching.fbx
+820,2026-11-04T21:52:23Z,crianca_f,P0,resident.door.open_in,Opening Door Inwards,false,crianca_f/P0/resident.door.open_in__Opening_Door_Inwards.fbx
+821,2026-11-04T21:52:30Z,crianca_f,P0,resident.door.open_out,Open Door Outwards,false,crianca_f/P0/resident.door.open_out__Open_Door_Outwards.fbx
+822,2026-11-04T21:52:39Z,crianca_f,P0,resident.cabinet.open,Opening,false,crianca_f/P0/resident.cabinet.open__Opening.fbx
+823,2026-11-04T21:52:47Z,crianca_f,P0,resident.cabinet.close,Closing,false,crianca_f/P0/resident.cabinet.close__Closing.fbx
+824,2026-11-04T21:52:54Z,crianca_f,P0,resident.button.push,Button Pushing,false,crianca_f/P0/resident.button.push__Button_Pushing.fbx
+825,2026-11-04T21:53:00Z,crianca_f,P0,resident.carry.box.idle,Box Idle,false,crianca_f/P0/resident.carry.box.idle__Box_Idle.fbx
+826,2026-11-04T21:53:07Z,crianca_f,P0,resident.push.start,Push Start,false,crianca_f/P0/resident.push.start__Push_Start.fbx
+827,2026-11-04T21:53:13Z,crianca_f,P0,resident.push.loop,Pushing,true,crianca_f/P0/resident.push.loop__Pushing.fbx
+828,2026-11-04T21:53:20Z,crianca_f,P0,resident.push.stop,Push Stop,false,crianca_f/P0/resident.push.stop__Push_Stop.fbx
+829,2026-11-04T21:53:26Z,crianca_f,P0,resident.throw,Throw,false,crianca_f/P0/resident.throw__Throw.fbx
+830,2026-11-04T21:53:33Z,crianca_f,P0,resident.talk.a,Talking,false,crianca_f/P0/resident.talk.a__Talking.fbx
+831,2026-11-04T21:53:40Z,crianca_f,P0,resident.talk.b,Talking,false,crianca_f/P0/resident.talk.b__Talking_v2.fbx
+832,2026-11-04T21:53:47Z,crianca_f,P0,resident.talk.listen,Lengthy Head Nod,false,crianca_f/P0/resident.talk.listen__Lengthy_Head_Nod.fbx
+833,2026-11-04T21:53:56Z,crianca_f,P0,resident.wave,Waving,false,crianca_f/P0/resident.wave__Waving.fbx
+834,2026-11-04T21:54:02Z,crianca_f,P0,resident.greet,Standing Greeting,false,crianca_f/P0/resident.greet__Standing_Greeting.fbx
+835,2026-11-04T21:54:08Z,crianca_f,P0,resident.agree,Head Nod Yes,false,crianca_f/P0/resident.agree__Head_Nod_Yes.fbx
+836,2026-11-04T21:54:15Z,crianca_f,P0,resident.disagree,Shaking Head No,false,crianca_f/P0/resident.disagree__Shaking_Head_No.fbx
+837,2026-11-04T21:54:23Z,crianca_f,P0,resident.laugh,Laughing,false,crianca_f/P0/resident.laugh__Laughing.fbx
+838,2026-11-04T21:54:30Z,crianca_f,P0,resident.clap,Clapping,false,crianca_f/P0/resident.clap__Clapping.fbx
+839,2026-11-04T21:54:39Z,crianca_f,P0,resident.cheer,Cheering,false,crianca_f/P0/resident.cheer__Cheering.fbx
+840,2026-11-04T21:54:45Z,crianca_f,P0,resident.point,Pointing,false,crianca_f/P0/resident.point__Pointing.fbx
+841,2026-11-04T21:54:51Z,crianca_f,P0,resident.look_behind,Looking Behind,false,crianca_f/P0/resident.look_behind__Looking_Behind.fbx
+842,2026-11-04T21:54:58Z,crianca_f,P0,resident.pat,Patting,false,crianca_f/P0/resident.pat__Patting.fbx
+843,2026-11-04T21:55:05Z,crianca_f,P0,resident.sit.legs_swing,Sitting,false,crianca_f/P0/resident.sit.legs_swing__Sitting.fbx
+844,2026-11-04T21:56:54Z,pequeno_m,P0,resident.idle.neutral,Breathing Idle,false,pequeno_m/P0/resident.idle.neutral__Breathing_Idle.fbx
+845,2026-11-04T21:57:01Z,pequeno_m,P0,resident.idle.happy,Happy Idle,false,pequeno_m/P0/resident.idle.happy__Happy_Idle.fbx
+846,2026-11-04T21:57:07Z,pequeno_m,P0,resident.idle.sad,Sad Idle,false,pequeno_m/P0/resident.idle.sad__Sad_Idle.fbx
+847,2026-11-04T21:57:15Z,pequeno_m,P0,resident.idle.look_around,Looking Around,false,pequeno_m/P0/resident.idle.look_around__Looking_Around.fbx
+848,2026-11-04T21:57:22Z,pequeno_m,P0,resident.walk.normal,Walking,true,pequeno_m/P0/resident.walk.normal__Walking.fbx
+849,2026-11-04T21:57:28Z,pequeno_m,P0,resident.walk.happy,Happy Walk,true,pequeno_m/P0/resident.walk.happy__Happy_Walk.fbx
+850,2026-11-04T21:57:35Z,pequeno_m,P0,resident.run.normal,Running,true,pequeno_m/P0/resident.run.normal__Running.fbx
+851,2026-11-04T21:57:41Z,pequeno_m,P0,resident.turn.left,Left Turn,false,pequeno_m/P0/resident.turn.left__Left_Turn.fbx
+852,2026-11-04T21:57:48Z,pequeno_m,P0,resident.turn.right,Right Turn,false,pequeno_m/P0/resident.turn.right__Right_Turn.fbx
+853,2026-11-04T21:57:55Z,pequeno_m,P0,resident.crouch.enter,Crouching,false,pequeno_m/P0/resident.crouch.enter__Crouching.fbx
+854,2026-11-04T21:58:03Z,pequeno_m,P0,resident.crouch.idle,Crouching Idle,false,pequeno_m/P0/resident.crouch.idle__Crouching_Idle.fbx
+855,2026-11-04T21:58:11Z,pequeno_m,P0,resident.crouch.exit,Crouch To Stand,false,pequeno_m/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+856,2026-11-04T21:58:18Z,pequeno_m,P0,resident.pickup.floor,Picking Up,false,pequeno_m/P0/resident.pickup.floor__Picking_Up.fbx
+857,2026-11-04T21:58:25Z,pequeno_m,P0,resident.jump.small,Jump,false,pequeno_m/P0/resident.jump.small__Jump.fbx
+858,2026-11-04T21:58:31Z,pequeno_m,P0,resident.sit.chair.enter,Stand To Sit,false,pequeno_m/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+859,2026-11-04T21:58:38Z,pequeno_m,P0,resident.sit.chair.idle,Sitting Idle,false,pequeno_m/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+860,2026-11-04T21:58:44Z,pequeno_m,P0,resident.sit.chair.exit,Sit To Stand,false,pequeno_m/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+861,2026-11-04T21:58:53Z,pequeno_m,P0,resident.sit.clap,Sitting Clap,false,pequeno_m/P0/resident.sit.clap__Sitting_Clap.fbx
+862,2026-11-04T21:59:00Z,pequeno_m,P0,resident.lie.enter,Lying Down,false,pequeno_m/P0/resident.lie.enter__Lying_Down.fbx
+863,2026-11-04T21:59:06Z,pequeno_m,P0,resident.lie.idle,Laying Idle,false,pequeno_m/P0/resident.lie.idle__Laying_Idle.fbx
+864,2026-11-04T21:59:12Z,pequeno_m,P0,resident.sleep.idle,Laying Sleeping,false,pequeno_m/P0/resident.sleep.idle__Laying_Sleeping.fbx
+865,2026-11-04T21:59:19Z,pequeno_m,P0,resident.drink.stand,Drinking,false,pequeno_m/P0/resident.drink.stand__Drinking.fbx
+866,2026-11-04T21:59:26Z,pequeno_m,P0,resident.wave,Waving,false,pequeno_m/P0/resident.wave__Waving.fbx
+867,2026-11-04T21:59:33Z,pequeno_m,P0,resident.agree,Head Nod Yes,false,pequeno_m/P0/resident.agree__Head_Nod_Yes.fbx
+868,2026-11-04T21:59:39Z,pequeno_m,P0,resident.disagree,Shaking Head No,false,pequeno_m/P0/resident.disagree__Shaking_Head_No.fbx
+869,2026-11-04T21:59:46Z,pequeno_m,P0,resident.laugh,Laughing,false,pequeno_m/P0/resident.laugh__Laughing.fbx
+870,2026-11-04T21:59:55Z,pequeno_m,P0,resident.clap,Clapping,false,pequeno_m/P0/resident.clap__Clapping.fbx
+871,2026-11-04T22:00:01Z,pequeno_m,P0,resident.cheer,Cheering,false,pequeno_m/P0/resident.cheer__Cheering.fbx
+872,2026-11-04T22:00:12Z,pequeno_m,P0,resident.sit.legs_swing,Sitting,false,pequeno_m/P0/resident.sit.legs_swing__Sitting.fbx
+873,2026-11-04T22:00:19Z,pequeno_m,P0,resident.baby.crawl,Crawling,true,pequeno_m/P0/resident.baby.crawl__Crawling.fbx
+874,2026-11-04T22:00:25Z,pequeno_m,P0,resident.baby.cry,Crying,false,pequeno_m/P0/resident.baby.cry__Crying.fbx
+875,2026-11-04T22:03:59Z,pequena_f,P0,resident.idle.neutral,Breathing Idle,false,pequena_f/P0/resident.idle.neutral__Breathing_Idle.fbx
+876,2026-11-04T22:04:08Z,pequena_f,P0,resident.idle.happy,Happy Idle,false,pequena_f/P0/resident.idle.happy__Happy_Idle.fbx
+877,2026-11-04T22:04:15Z,pequena_f,P0,resident.idle.sad,Sad Idle,false,pequena_f/P0/resident.idle.sad__Sad_Idle.fbx
+878,2026-11-04T22:04:21Z,pequena_f,P0,resident.idle.look_around,Looking Around,false,pequena_f/P0/resident.idle.look_around__Looking_Around.fbx
+879,2026-11-04T22:04:30Z,pequena_f,P0,resident.walk.normal,Walking,true,pequena_f/P0/resident.walk.normal__Walking.fbx
+880,2026-11-04T22:04:36Z,pequena_f,P0,resident.walk.happy,Happy Walk,true,pequena_f/P0/resident.walk.happy__Happy_Walk.fbx
+881,2026-11-04T22:04:46Z,pequena_f,P0,resident.run.normal,Running,true,pequena_f/P0/resident.run.normal__Running.fbx
+882,2026-11-04T22:04:53Z,pequena_f,P0,resident.turn.left,Left Turn,false,pequena_f/P0/resident.turn.left__Left_Turn.fbx
+883,2026-11-04T22:05:02Z,pequena_f,P0,resident.turn.right,Right Turn,false,pequena_f/P0/resident.turn.right__Right_Turn.fbx
+884,2026-11-04T22:05:09Z,pequena_f,P0,resident.crouch.enter,Crouching,false,pequena_f/P0/resident.crouch.enter__Crouching.fbx
+885,2026-11-04T22:05:18Z,pequena_f,P0,resident.crouch.idle,Crouching Idle,false,pequena_f/P0/resident.crouch.idle__Crouching_Idle.fbx
+886,2026-11-04T22:05:24Z,pequena_f,P0,resident.crouch.exit,Crouch To Stand,false,pequena_f/P0/resident.crouch.exit__Crouch_To_Stand.fbx
+887,2026-11-04T22:05:31Z,pequena_f,P0,resident.pickup.floor,Picking Up,false,pequena_f/P0/resident.pickup.floor__Picking_Up.fbx
+888,2026-11-04T22:05:40Z,pequena_f,P0,resident.jump.small,Jump,false,pequena_f/P0/resident.jump.small__Jump.fbx
+889,2026-11-04T22:05:46Z,pequena_f,P0,resident.sit.chair.enter,Stand To Sit,false,pequena_f/P0/resident.sit.chair.enter__Stand_To_Sit.fbx
+890,2026-11-04T22:05:53Z,pequena_f,P0,resident.sit.chair.idle,Sitting Idle,false,pequena_f/P0/resident.sit.chair.idle__Sitting_Idle.fbx
+891,2026-11-04T22:05:59Z,pequena_f,P0,resident.sit.chair.exit,Sit To Stand,false,pequena_f/P0/resident.sit.chair.exit__Sit_To_Stand.fbx
+892,2026-11-04T22:06:06Z,pequena_f,P0,resident.sit.clap,Sitting Clap,false,pequena_f/P0/resident.sit.clap__Sitting_Clap.fbx
+893,2026-11-04T22:06:12Z,pequena_f,P0,resident.lie.enter,Lying Down,false,pequena_f/P0/resident.lie.enter__Lying_Down.fbx
+894,2026-11-04T22:06:19Z,pequena_f,P0,resident.lie.idle,Laying Idle,false,pequena_f/P0/resident.lie.idle__Laying_Idle.fbx
+895,2026-11-04T22:06:25Z,pequena_f,P0,resident.sleep.idle,Laying Sleeping,false,pequena_f/P0/resident.sleep.idle__Laying_Sleeping.fbx
+896,2026-11-04T22:06:31Z,pequena_f,P0,resident.drink.stand,Drinking,false,pequena_f/P0/resident.drink.stand__Drinking.fbx
+897,2026-11-04T22:06:40Z,pequena_f,P0,resident.wave,Waving,false,pequena_f/P0/resident.wave__Waving.fbx
+898,2026-11-04T22:06:47Z,pequena_f,P0,resident.agree,Head Nod Yes,false,pequena_f/P0/resident.agree__Head_Nod_Yes.fbx
+899,2026-11-04T22:06:54Z,pequena_f,P0,resident.disagree,Shaking Head No,false,pequena_f/P0/resident.disagree__Shaking_Head_No.fbx
+900,2026-11-04T22:07:03Z,pequena_f,P0,resident.laugh,Laughing,false,pequena_f/P0/resident.laugh__Laughing.fbx
+901,2026-11-04T22:07:09Z,pequena_f,P0,resident.clap,Clapping,false,pequena_f/P0/resident.clap__Clapping.fbx
+902,2026-11-04T22:07:15Z,pequena_f,P0,resident.cheer,Cheering,false,pequena_f/P0/resident.cheer__Cheering.fbx
+903,2026-11-04T22:07:22Z,pequena_f,P0,resident.sit.legs_swing,Sitting,false,pequena_f/P0/resident.sit.legs_swing__Sitting.fbx
+904,2026-11-04T22:07:29Z,pequena_f,P0,resident.baby.crawl,Crawling,true,pequena_f/P0/resident.baby.crawl__Crawling.fbx
+905,2026-11-04T22:07:35Z,pequena_f,P0,resident.baby.cry,Crying,false,pequena_f/P0/resident.baby.cry__Crying.fbx
+906,2026-11-04T22:09:44Z,bebe_m,P0,resident.sit.clap,Sitting Clap,false,bebe_m/P0/resident.sit.clap__Sitting_Clap.fbx
+907,2026-11-04T22:09:52Z,bebe_m,P0,resident.lie.idle,Laying Idle,false,bebe_m/P0/resident.lie.idle__Laying_Idle.fbx
+908,2026-11-04T22:09:59Z,bebe_m,P0,resident.sleep.idle,Laying Sleeping,false,bebe_m/P0/resident.sleep.idle__Laying_Sleeping.fbx
+909,2026-11-04T22:10:06Z,bebe_m,P0,resident.sit.legs_swing,Sitting,false,bebe_m/P0/resident.sit.legs_swing__Sitting.fbx
+910,2026-11-04T22:10:13Z,bebe_m,P0,resident.baby.crawl,Crawling,true,bebe_m/P0/resident.baby.crawl__Crawling.fbx
+911,2026-11-04T22:10:19Z,bebe_m,P0,resident.baby.cry,Crying,false,bebe_m/P0/resident.baby.cry__Crying.fbx
+912,2026-11-04T22:10:26Z,bebe_m,P0,resident.baby.sit,Sitting Idle,false,bebe_m/P0/resident.baby.sit__Sitting_Idle.fbx
+913,2026-11-04T22:12:07Z,bebe_f,P0,resident.sit.clap,Sitting Clap,false,bebe_f/P0/resident.sit.clap__Sitting_Clap.fbx
+914,2026-11-04T22:12:15Z,bebe_f,P0,resident.lie.idle,Laying Idle,false,bebe_f/P0/resident.lie.idle__Laying_Idle.fbx
+915,2026-11-04T22:12:22Z,bebe_f,P0,resident.sleep.idle,Laying Sleeping,false,bebe_f/P0/resident.sleep.idle__Laying_Sleeping.fbx
+916,2026-11-04T22:12:28Z,bebe_f,P0,resident.sit.legs_swing,Sitting,false,bebe_f/P0/resident.sit.legs_swing__Sitting.fbx
+917,2026-11-04T22:12:35Z,bebe_f,P0,resident.baby.crawl,Crawling,true,bebe_f/P0/resident.baby.crawl__Crawling.fbx
+918,2026-11-04T22:12:41Z,bebe_f,P0,resident.baby.cry,Crying,false,bebe_f/P0/resident.baby.cry__Crying.fbx
+919,2026-11-04T22:12:48Z,bebe_f,P0,resident.baby.sit,Sitting Idle,false,bebe_f/P0/resident.baby.sit__Sitting_Idle.fbx
+920,2026-11-04T23:40:33Z,adulto,P1,resident.emote.cry,Crying,false,adulto/P1/resident.emote.cry__Crying.fbx
+921,2026-11-04T23:40:39Z,adulto,P1,resident.emote.angry,Angry Gesture,false,adulto/P1/resident.emote.angry__Angry_Gesture.fbx
+922,2026-11-04T23:40:46Z,adulto,P1,resident.emote.scared,Terrified,false,adulto/P1/resident.emote.scared__Terrified.fbx
+923,2026-11-04T23:40:52Z,adulto,P1,resident.emote.surprised,Surprised,false,adulto/P1/resident.emote.surprised__Surprised.fbx
+924,2026-11-04T23:40:59Z,adulto,P1,resident.emote.excited,Excited,false,adulto/P1/resident.emote.excited__Excited.fbx
+925,2026-11-04T23:41:05Z,adulto,P1,resident.emote.disappointed,Disappointed,false,adulto/P1/resident.emote.disappointed__Disappointed.fbx
+926,2026-11-04T23:41:11Z,adulto,P1,resident.emote.thinking,Thinking,false,adulto/P1/resident.emote.thinking__Thinking.fbx
+927,2026-11-04T23:41:18Z,adulto,P1,resident.emote.thankful,Thankful,false,adulto/P1/resident.emote.thankful__Thankful.fbx
+928,2026-11-04T23:41:24Z,adulto,P1,resident.emote.pain,Pain Gesture,false,adulto/P1/resident.emote.pain__Pain_Gesture.fbx
+929,2026-11-04T23:41:31Z,adulto,P1,resident.emote.reacting,Reacting,false,adulto/P1/resident.emote.reacting__Reacting.fbx
+930,2026-11-04T23:41:38Z,adulto,P1,resident.emote.relieved,Relieved Sigh,false,adulto/P1/resident.emote.relieved__Relieved_Sigh.fbx
+931,2026-11-04T23:41:44Z,adulto,P1,resident.emote.shoved,Shove Reaction,false,adulto/P1/resident.emote.shoved__Shove_Reaction.fbx
+932,2026-11-04T23:41:50Z,adulto,P1,resident.romance.kiss_long_taller,Kiss,false,adulto/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+933,2026-11-04T23:41:57Z,adulto,P1,resident.romance.kiss_long_shorter,Kiss,false,adulto/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+934,2026-11-04T23:42:03Z,adulto,P1,resident.romance.dance_rumba,Rumba Dancing,false,adulto/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+935,2026-11-04T23:42:10Z,adulto,P1,resident.romance.dance_salsa,Salsa Dancing,false,adulto/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+936,2026-11-04T23:42:16Z,adulto,P1,resident.desk.type,Typing,false,adulto/P1/resident.desk.type__Typing.fbx
+937,2026-11-04T23:42:22Z,adulto,P1,resident.desk.write,Writing,false,adulto/P1/resident.desk.write__Writing.fbx
+938,2026-11-04T23:42:29Z,adulto,P1,resident.desk.point,Sitting And Pointing,false,adulto/P1/resident.desk.point__Sitting_And_Pointing.fbx
+939,2026-11-04T23:43:59Z,plus_m,P1,resident.emote.cry,Crying,false,plus_m/P1/resident.emote.cry__Crying.fbx
+940,2026-11-04T23:44:05Z,plus_m,P1,resident.emote.angry,Angry Gesture,false,plus_m/P1/resident.emote.angry__Angry_Gesture.fbx
+941,2026-11-04T23:44:11Z,plus_m,P1,resident.emote.scared,Terrified,false,plus_m/P1/resident.emote.scared__Terrified.fbx
+942,2026-11-04T23:44:18Z,plus_m,P1,resident.emote.surprised,Surprised,false,plus_m/P1/resident.emote.surprised__Surprised.fbx
+943,2026-11-04T23:44:24Z,plus_m,P1,resident.emote.excited,Excited,false,plus_m/P1/resident.emote.excited__Excited.fbx
+944,2026-11-04T23:44:31Z,plus_m,P1,resident.emote.disappointed,Disappointed,false,plus_m/P1/resident.emote.disappointed__Disappointed.fbx
+945,2026-11-04T23:44:37Z,plus_m,P1,resident.emote.thinking,Thinking,false,plus_m/P1/resident.emote.thinking__Thinking.fbx
+946,2026-11-04T23:44:44Z,plus_m,P1,resident.emote.thankful,Thankful,false,plus_m/P1/resident.emote.thankful__Thankful.fbx
+947,2026-11-04T23:44:50Z,plus_m,P1,resident.emote.pain,Pain Gesture,false,plus_m/P1/resident.emote.pain__Pain_Gesture.fbx
+948,2026-11-04T23:44:57Z,plus_m,P1,resident.emote.reacting,Reacting,false,plus_m/P1/resident.emote.reacting__Reacting.fbx
+949,2026-11-04T23:45:03Z,plus_m,P1,resident.emote.relieved,Relieved Sigh,false,plus_m/P1/resident.emote.relieved__Relieved_Sigh.fbx
+950,2026-11-04T23:45:10Z,plus_m,P1,resident.emote.shoved,Shove Reaction,false,plus_m/P1/resident.emote.shoved__Shove_Reaction.fbx
+951,2026-11-04T23:45:16Z,plus_m,P1,resident.romance.kiss_long_taller,Kiss,false,plus_m/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+952,2026-11-04T23:45:23Z,plus_m,P1,resident.romance.kiss_long_shorter,Kiss,false,plus_m/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+953,2026-11-04T23:45:30Z,plus_m,P1,resident.romance.dance_rumba,Rumba Dancing,false,plus_m/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+954,2026-11-04T23:45:36Z,plus_m,P1,resident.romance.dance_salsa,Salsa Dancing,false,plus_m/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+955,2026-11-04T23:45:45Z,plus_m,P1,resident.desk.type,Typing,false,plus_m/P1/resident.desk.type__Typing.fbx
+956,2026-11-04T23:45:54Z,plus_m,P1,resident.desk.write,Writing,false,plus_m/P1/resident.desk.write__Writing.fbx
+957,2026-11-04T23:46:01Z,plus_m,P1,resident.desk.point,Sitting And Pointing,false,plus_m/P1/resident.desk.point__Sitting_And_Pointing.fbx
+958,2026-11-04T23:47:27Z,plus_f,P1,resident.emote.cry,Crying,false,plus_f/P1/resident.emote.cry__Crying.fbx
+959,2026-11-04T23:47:33Z,plus_f,P1,resident.emote.angry,Angry Gesture,false,plus_f/P1/resident.emote.angry__Angry_Gesture.fbx
+960,2026-11-04T23:47:42Z,plus_f,P1,resident.emote.scared,Terrified,false,plus_f/P1/resident.emote.scared__Terrified.fbx
+961,2026-11-04T23:47:49Z,plus_f,P1,resident.emote.surprised,Surprised,false,plus_f/P1/resident.emote.surprised__Surprised.fbx
+962,2026-11-04T23:47:55Z,plus_f,P1,resident.emote.excited,Excited,false,plus_f/P1/resident.emote.excited__Excited.fbx
+963,2026-11-04T23:48:04Z,plus_f,P1,resident.emote.disappointed,Disappointed,false,plus_f/P1/resident.emote.disappointed__Disappointed.fbx
+964,2026-11-04T23:48:10Z,plus_f,P1,resident.emote.thinking,Thinking,false,plus_f/P1/resident.emote.thinking__Thinking.fbx
+965,2026-11-04T23:48:17Z,plus_f,P1,resident.emote.thankful,Thankful,false,plus_f/P1/resident.emote.thankful__Thankful.fbx
+966,2026-11-04T23:48:25Z,plus_f,P1,resident.emote.pain,Pain Gesture,false,plus_f/P1/resident.emote.pain__Pain_Gesture.fbx
+967,2026-11-04T23:48:32Z,plus_f,P1,resident.emote.reacting,Reacting,false,plus_f/P1/resident.emote.reacting__Reacting.fbx
+968,2026-11-04T23:48:39Z,plus_f,P1,resident.emote.relieved,Relieved Sigh,false,plus_f/P1/resident.emote.relieved__Relieved_Sigh.fbx
+969,2026-11-04T23:48:45Z,plus_f,P1,resident.emote.shoved,Shove Reaction,false,plus_f/P1/resident.emote.shoved__Shove_Reaction.fbx
+970,2026-11-04T23:48:51Z,plus_f,P1,resident.romance.kiss_long_taller,Kiss,false,plus_f/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+971,2026-11-04T23:48:58Z,plus_f,P1,resident.romance.kiss_long_shorter,Kiss,false,plus_f/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+972,2026-11-04T23:49:04Z,plus_f,P1,resident.romance.dance_rumba,Rumba Dancing,false,plus_f/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+973,2026-11-04T23:49:11Z,plus_f,P1,resident.romance.dance_salsa,Salsa Dancing,false,plus_f/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+974,2026-11-04T23:49:17Z,plus_f,P1,resident.desk.type,Typing,false,plus_f/P1/resident.desk.type__Typing.fbx
+975,2026-11-04T23:49:23Z,plus_f,P1,resident.desk.write,Writing,false,plus_f/P1/resident.desk.write__Writing.fbx
+976,2026-11-04T23:49:30Z,plus_f,P1,resident.desk.point,Sitting And Pointing,false,plus_f/P1/resident.desk.point__Sitting_And_Pointing.fbx
+977,2026-11-04T23:50:45Z,musculoso,P1,resident.emote.cry,Crying,false,musculoso/P1/resident.emote.cry__Crying.fbx
+978,2026-11-04T23:50:51Z,musculoso,P1,resident.emote.angry,Angry Gesture,false,musculoso/P1/resident.emote.angry__Angry_Gesture.fbx
+979,2026-11-04T23:51:00Z,musculoso,P1,resident.emote.scared,Terrified,false,musculoso/P1/resident.emote.scared__Terrified.fbx
+980,2026-11-04T23:51:06Z,musculoso,P1,resident.emote.surprised,Surprised,false,musculoso/P1/resident.emote.surprised__Surprised.fbx
+981,2026-11-04T23:51:13Z,musculoso,P1,resident.emote.excited,Excited,false,musculoso/P1/resident.emote.excited__Excited.fbx
+982,2026-11-04T23:51:19Z,musculoso,P1,resident.emote.disappointed,Disappointed,false,musculoso/P1/resident.emote.disappointed__Disappointed.fbx
+983,2026-11-04T23:51:28Z,musculoso,P1,resident.emote.thinking,Thinking,false,musculoso/P1/resident.emote.thinking__Thinking.fbx
+984,2026-11-04T23:51:35Z,musculoso,P1,resident.emote.thankful,Thankful,false,musculoso/P1/resident.emote.thankful__Thankful.fbx
+985,2026-11-04T23:51:43Z,musculoso,P1,resident.emote.pain,Pain Gesture,false,musculoso/P1/resident.emote.pain__Pain_Gesture.fbx
+986,2026-11-04T23:51:50Z,musculoso,P1,resident.emote.reacting,Reacting,false,musculoso/P1/resident.emote.reacting__Reacting.fbx
+987,2026-11-04T23:51:56Z,musculoso,P1,resident.emote.relieved,Relieved Sigh,false,musculoso/P1/resident.emote.relieved__Relieved_Sigh.fbx
+988,2026-11-04T23:52:05Z,musculoso,P1,resident.emote.shoved,Shove Reaction,false,musculoso/P1/resident.emote.shoved__Shove_Reaction.fbx
+989,2026-11-04T23:52:11Z,musculoso,P1,resident.romance.kiss_long_taller,Kiss,false,musculoso/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+990,2026-11-04T23:52:18Z,musculoso,P1,resident.romance.kiss_long_shorter,Kiss,false,musculoso/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+991,2026-11-04T23:52:26Z,musculoso,P1,resident.romance.dance_rumba,Rumba Dancing,false,musculoso/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+992,2026-11-04T23:52:33Z,musculoso,P1,resident.romance.dance_salsa,Salsa Dancing,false,musculoso/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+993,2026-11-04T23:52:39Z,musculoso,P1,resident.desk.type,Typing,false,musculoso/P1/resident.desk.type__Typing.fbx
+994,2026-11-04T23:52:48Z,musculoso,P1,resident.desk.write,Writing,false,musculoso/P1/resident.desk.write__Writing.fbx
+995,2026-11-04T23:52:56Z,musculoso,P1,resident.desk.point,Sitting And Pointing,false,musculoso/P1/resident.desk.point__Sitting_And_Pointing.fbx
+996,2026-11-04T23:54:38Z,atletica,P1,resident.emote.cry,Crying,false,atletica/P1/resident.emote.cry__Crying.fbx
+997,2026-11-04T23:54:45Z,atletica,P1,resident.emote.angry,Angry Gesture,false,atletica/P1/resident.emote.angry__Angry_Gesture.fbx
+998,2026-11-04T23:54:54Z,atletica,P1,resident.emote.scared,Terrified,false,atletica/P1/resident.emote.scared__Terrified.fbx
+999,2026-11-04T23:55:00Z,atletica,P1,resident.emote.surprised,Surprised,false,atletica/P1/resident.emote.surprised__Surprised.fbx
+1000,2026-11-04T23:55:07Z,atletica,P1,resident.emote.excited,Excited,false,atletica/P1/resident.emote.excited__Excited.fbx
+1001,2026-11-04T23:55:16Z,atletica,P1,resident.emote.disappointed,Disappointed,false,atletica/P1/resident.emote.disappointed__Disappointed.fbx
+1002,2026-11-04T23:55:22Z,atletica,P1,resident.emote.thinking,Thinking,false,atletica/P1/resident.emote.thinking__Thinking.fbx
+1003,2026-11-04T23:55:28Z,atletica,P1,resident.emote.thankful,Thankful,false,atletica/P1/resident.emote.thankful__Thankful.fbx
+1004,2026-11-04T23:55:35Z,atletica,P1,resident.emote.pain,Pain Gesture,false,atletica/P1/resident.emote.pain__Pain_Gesture.fbx
+1005,2026-11-04T23:55:44Z,atletica,P1,resident.emote.reacting,Reacting,false,atletica/P1/resident.emote.reacting__Reacting.fbx
+1006,2026-11-04T23:55:50Z,atletica,P1,resident.emote.relieved,Relieved Sigh,false,atletica/P1/resident.emote.relieved__Relieved_Sigh.fbx
+1007,2026-11-04T23:55:56Z,atletica,P1,resident.emote.shoved,Shove Reaction,false,atletica/P1/resident.emote.shoved__Shove_Reaction.fbx
+1008,2026-11-04T23:56:05Z,atletica,P1,resident.romance.kiss_long_taller,Kiss,false,atletica/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+1009,2026-11-04T23:56:11Z,atletica,P1,resident.romance.kiss_long_shorter,Kiss,false,atletica/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+1010,2026-11-04T23:56:18Z,atletica,P1,resident.romance.dance_rumba,Rumba Dancing,false,atletica/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+1011,2026-11-04T23:56:24Z,atletica,P1,resident.romance.dance_salsa,Salsa Dancing,false,atletica/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+1012,2026-11-04T23:56:33Z,atletica,P1,resident.desk.type,Typing,false,atletica/P1/resident.desk.type__Typing.fbx
+1013,2026-11-04T23:56:39Z,atletica,P1,resident.desk.write,Writing,false,atletica/P1/resident.desk.write__Writing.fbx
+1014,2026-11-04T23:56:46Z,atletica,P1,resident.desk.point,Sitting And Pointing,false,atletica/P1/resident.desk.point__Sitting_And_Pointing.fbx
+1015,2026-11-04T23:57:59Z,alto_magro,P1,resident.emote.cry,Crying,false,alto_magro/P1/resident.emote.cry__Crying.fbx
+1016,2026-11-04T23:58:08Z,alto_magro,P1,resident.emote.angry,Angry Gesture,false,alto_magro/P1/resident.emote.angry__Angry_Gesture.fbx
+1017,2026-11-04T23:58:16Z,alto_magro,P1,resident.emote.scared,Terrified,false,alto_magro/P1/resident.emote.scared__Terrified.fbx
+1018,2026-11-04T23:58:23Z,alto_magro,P1,resident.emote.surprised,Surprised,false,alto_magro/P1/resident.emote.surprised__Surprised.fbx
+1019,2026-11-04T23:58:29Z,alto_magro,P1,resident.emote.excited,Excited,false,alto_magro/P1/resident.emote.excited__Excited.fbx
+1020,2026-11-04T23:58:36Z,alto_magro,P1,resident.emote.disappointed,Disappointed,false,alto_magro/P1/resident.emote.disappointed__Disappointed.fbx
+1021,2026-11-04T23:58:42Z,alto_magro,P1,resident.emote.thinking,Thinking,false,alto_magro/P1/resident.emote.thinking__Thinking.fbx
+1022,2026-11-04T23:58:49Z,alto_magro,P1,resident.emote.thankful,Thankful,false,alto_magro/P1/resident.emote.thankful__Thankful.fbx
+1023,2026-11-04T23:58:55Z,alto_magro,P1,resident.emote.pain,Pain Gesture,false,alto_magro/P1/resident.emote.pain__Pain_Gesture.fbx
+1024,2026-11-04T23:59:02Z,alto_magro,P1,resident.emote.reacting,Reacting,false,alto_magro/P1/resident.emote.reacting__Reacting.fbx
+1025,2026-11-04T23:59:09Z,alto_magro,P1,resident.emote.relieved,Relieved Sigh,false,alto_magro/P1/resident.emote.relieved__Relieved_Sigh.fbx
+1026,2026-11-04T23:59:17Z,alto_magro,P1,resident.emote.shoved,Shove Reaction,false,alto_magro/P1/resident.emote.shoved__Shove_Reaction.fbx
+1027,2026-11-04T23:59:24Z,alto_magro,P1,resident.romance.kiss_long_taller,Kiss,false,alto_magro/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+1028,2026-11-04T23:59:30Z,alto_magro,P1,resident.romance.kiss_long_shorter,Kiss,false,alto_magro/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+1029,2026-11-04T23:59:37Z,alto_magro,P1,resident.romance.dance_rumba,Rumba Dancing,false,alto_magro/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+1030,2026-11-04T23:59:43Z,alto_magro,P1,resident.romance.dance_salsa,Salsa Dancing,false,alto_magro/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+1031,2026-11-04T23:59:52Z,alto_magro,P1,resident.desk.type,Typing,false,alto_magro/P1/resident.desk.type__Typing.fbx
+1032,2026-11-04T23:59:59Z,alto_magro,P1,resident.desk.write,Writing,false,alto_magro/P1/resident.desk.write__Writing.fbx
+1033,2026-11-05T00:00:05Z,alto_magro,P1,resident.desk.point,Sitting And Pointing,false,alto_magro/P1/resident.desk.point__Sitting_And_Pointing.fbx
+1034,2026-11-05T00:01:45Z,idoso,P1,resident.emote.cry,Crying,false,idoso/P1/resident.emote.cry__Crying.fbx
+1035,2026-11-05T00:01:51Z,idoso,P1,resident.emote.angry,Angry Gesture,false,idoso/P1/resident.emote.angry__Angry_Gesture.fbx
+1036,2026-11-05T00:02:00Z,idoso,P1,resident.emote.scared,Terrified,false,idoso/P1/resident.emote.scared__Terrified.fbx
+1037,2026-11-05T00:02:06Z,idoso,P1,resident.emote.surprised,Surprised,false,idoso/P1/resident.emote.surprised__Surprised.fbx
+1038,2026-11-05T00:02:12Z,idoso,P1,resident.emote.disappointed,Disappointed,false,idoso/P1/resident.emote.disappointed__Disappointed.fbx
+1039,2026-11-05T00:02:19Z,idoso,P1,resident.emote.thinking,Thinking,false,idoso/P1/resident.emote.thinking__Thinking.fbx
+1040,2026-11-05T00:02:25Z,idoso,P1,resident.emote.thankful,Thankful,false,idoso/P1/resident.emote.thankful__Thankful.fbx
+1041,2026-11-05T00:02:32Z,idoso,P1,resident.emote.pain,Pain Gesture,false,idoso/P1/resident.emote.pain__Pain_Gesture.fbx
+1042,2026-11-05T00:02:39Z,idoso,P1,resident.emote.reacting,Reacting,false,idoso/P1/resident.emote.reacting__Reacting.fbx
+1043,2026-11-05T00:02:45Z,idoso,P1,resident.emote.relieved,Relieved Sigh,false,idoso/P1/resident.emote.relieved__Relieved_Sigh.fbx
+1044,2026-11-05T00:02:51Z,idoso,P1,resident.romance.kiss_long_taller,Kiss,false,idoso/P1/resident.romance.kiss_long_taller__Kiss_v3.fbx
+1045,2026-11-05T00:03:03Z,idoso,P1,resident.romance.kiss_long_shorter,Kiss,false,idoso/P1/resident.romance.kiss_long_shorter__Kiss_v4.fbx
+1046,2026-11-05T00:03:12Z,idoso,P1,resident.romance.dance_rumba,Rumba Dancing,false,idoso/P1/resident.romance.dance_rumba__Rumba_Dancing.fbx
+1047,2026-11-05T00:03:18Z,idoso,P1,resident.romance.dance_salsa,Salsa Dancing,false,idoso/P1/resident.romance.dance_salsa__Salsa_Dancing.fbx
+1048,2026-11-05T00:03:27Z,idoso,P1,resident.desk.type,Typing,false,idoso/P1/resident.desk.type__Typing.fbx
+1049,2026-11-05T00:03:33Z,idoso,P1,resident.desk.write,Writing,false,idoso/P1/resident.desk.write__Writing.fbx
+1050,2026-11-05T00:04:51Z,adolescente_m,P1,resident.emote.cry,Crying,false,adolescente_m/P1/resident.emote.cry__Crying.fbx
+1051,2026-11-05T00:04:58Z,adolescente_m,P1,resident.emote.angry,Angry Gesture,false,adolescente_m/P1/resident.emote.angry__Angry_Gesture.fbx
+1052,2026-11-05T00:05:04Z,adolescente_m,P1,resident.emote.scared,Terrified,false,adolescente_m/P1/resident.emote.scared__Terrified.fbx
+1053,2026-11-05T00:05:11Z,adolescente_m,P1,resident.emote.surprised,Surprised,false,adolescente_m/P1/resident.emote.surprised__Surprised.fbx
+1054,2026-11-05T00:05:20Z,adolescente_m,P1,resident.emote.excited,Excited,false,adolescente_m/P1/resident.emote.excited__Excited.fbx
+1055,2026-11-05T00:05:27Z,adolescente_m,P1,resident.emote.disappointed,Disappointed,false,adolescente_m/P1/resident.emote.disappointed__Disappointed.fbx
+1056,2026-11-05T00:05:34Z,adolescente_m,P1,resident.emote.thinking,Thinking,false,adolescente_m/P1/resident.emote.thinking__Thinking.fbx
+1057,2026-11-05T00:05:40Z,adolescente_m,P1,resident.emote.thankful,Thankful,false,adolescente_m/P1/resident.emote.thankful__Thankful.fbx
+1058,2026-11-05T00:05:47Z,adolescente_m,P1,resident.emote.pain,Pain Gesture,false,adolescente_m/P1/resident.emote.pain__Pain_Gesture.fbx
+1059,2026-11-05T00:05:53Z,adolescente_m,P1,resident.emote.reacting,Reacting,false,adolescente_m/P1/resident.emote.reacting__Reacting.fbx
+1060,2026-11-05T00:06:00Z,adolescente_m,P1,resident.emote.relieved,Relieved Sigh,false,adolescente_m/P1/resident.emote.relieved__Relieved_Sigh.fbx
+1061,2026-11-05T00:06:09Z,adolescente_m,P1,resident.emote.shoved,Shove Reaction,false,adolescente_m/P1/resident.emote.shoved__Shove_Reaction.fbx
+1062,2026-11-05T00:06:18Z,adolescente_m,P1,resident.desk.type,Typing,false,adolescente_m/P1/resident.desk.type__Typing.fbx
+1063,2026-11-05T00:06:26Z,adolescente_m,P1,resident.desk.write,Writing,false,adolescente_m/P1/resident.desk.write__Writing.fbx
+1064,2026-11-05T00:06:33Z,adolescente_m,P1,resident.desk.point,Sitting And Pointing,false,adolescente_m/P1/resident.desk.point__Sitting_And_Pointing.fbx
+1065,2026-11-05T00:08:04Z,crianca_m,P1,resident.emote.cry,Crying,false,crianca_m/P1/resident.emote.cry__Crying.fbx
+1066,2026-11-05T00:08:10Z,crianca_m,P1,resident.emote.angry,Angry Gesture,false,crianca_m/P1/resident.emote.angry__Angry_Gesture.fbx
+1067,2026-11-05T00:08:17Z,crianca_m,P1,resident.emote.tantrum,Stomping,false,crianca_m/P1/resident.emote.tantrum__Stomping.fbx
+1068,2026-11-05T00:08:26Z,crianca_m,P1,resident.emote.scared,Terrified,false,crianca_m/P1/resident.emote.scared__Terrified.fbx
+1069,2026-11-05T00:08:32Z,crianca_m,P1,resident.emote.surprised,Surprised,false,crianca_m/P1/resident.emote.surprised__Surprised.fbx
+1070,2026-11-05T00:08:39Z,crianca_m,P1,resident.emote.excited,Excited,false,crianca_m/P1/resident.emote.excited__Excited.fbx
+1071,2026-11-05T00:08:45Z,crianca_m,P1,resident.emote.disappointed,Disappointed,false,crianca_m/P1/resident.emote.disappointed__Disappointed.fbx
+1072,2026-11-05T00:08:51Z,crianca_m,P1,resident.emote.thinking,Thinking,false,crianca_m/P1/resident.emote.thinking__Thinking.fbx
+1073,2026-11-05T00:08:58Z,crianca_m,P1,resident.emote.thankful,Thankful,false,crianca_m/P1/resident.emote.thankful__Thankful.fbx
+1074,2026-11-05T00:09:04Z,crianca_m,P1,resident.emote.pain,Pain Gesture,false,crianca_m/P1/resident.emote.pain__Pain_Gesture.fbx
+1075,2026-11-05T00:09:11Z,crianca_m,P1,resident.emote.reacting,Reacting,false,crianca_m/P1/resident.emote.reacting__Reacting.fbx
+1076,2026-11-05T00:09:17Z,crianca_m,P1,resident.emote.shoved,Shove Reaction,false,crianca_m/P1/resident.emote.shoved__Shove_Reaction.fbx
+1077,2026-11-05T00:09:24Z,crianca_m,P1,resident.desk.type,Typing,false,crianca_m/P1/resident.desk.type__Typing.fbx
+1078,2026-11-05T00:09:32Z,crianca_m,P1,resident.desk.write,Writing,false,crianca_m/P1/resident.desk.write__Writing.fbx
+1079,2026-11-05T00:09:39Z,crianca_m,P1,resident.desk.point,Sitting And Pointing,false,crianca_m/P1/resident.desk.point__Sitting_And_Pointing.fbx
+1080,2026-11-05T00:11:01Z,pequeno_m,P1,resident.emote.cry,Crying,false,pequeno_m/P1/resident.emote.cry__Crying.fbx
+1081,2026-11-05T00:11:08Z,pequeno_m,P1,resident.emote.tantrum,Stomping,false,pequeno_m/P1/resident.emote.tantrum__Stomping.fbx
+1082,2026-11-05T00:11:16Z,pequeno_m,P1,resident.emote.scared,Terrified,false,pequeno_m/P1/resident.emote.scared__Terrified.fbx
+1083,2026-11-05T00:11:23Z,pequeno_m,P1,resident.emote.surprised,Surprised,false,pequeno_m/P1/resident.emote.surprised__Surprised.fbx
+1084,2026-11-05T00:11:29Z,pequeno_m,P1,resident.emote.excited,Excited,false,pequeno_m/P1/resident.emote.excited__Excited.fbx
+1085,2026-11-05T01:02:02Z,pequeno_m,P2,resident.dance.silly,Silly Dancing,false,pequeno_m/P2/resident.dance.silly__Silly_Dancing.fbx
+1086,2026-11-05T01:04:34Z,adulto,P2,resident.garden.water,Watering,false,adulto/P2/resident.garden.water__Watering.fbx
+1087,2026-11-05T01:04:41Z,adulto,P2,resident.garden.dig,Digging,false,adulto/P2/resident.garden.dig__Digging.fbx
+1088,2026-11-05T01:04:47Z,adulto,P2,resident.garden.plant,Dig And Plant Seeds,false,adulto/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1089,2026-11-05T01:04:54Z,adulto,P2,resident.garden.pick,Pick Fruit,false,adulto/P2/resident.garden.pick__Pick_Fruit.fbx
+1090,2026-11-05T01:05:00Z,adulto,P2,resident.garden.pull,Pull Plant,false,adulto/P2/resident.garden.pull__Pull_Plant.fbx
+1091,2026-11-05T01:05:07Z,adulto,P2,resident.music.piano,Piano Playing,false,adulto/P2/resident.music.piano__Piano_Playing.fbx
+1092,2026-11-05T01:05:13Z,adulto,P2,resident.music.guitar,Guitar Playing,false,adulto/P2/resident.music.guitar__Guitar_Playing.fbx
+1093,2026-11-05T01:05:22Z,adulto,P2,resident.dance.silly,Silly Dancing,false,adulto/P2/resident.dance.silly__Silly_Dancing.fbx
+1094,2026-11-05T01:05:29Z,adulto,P2,resident.dance.samba,Samba Dancing,false,adulto/P2/resident.dance.samba__Samba_Dancing.fbx
+1095,2026-11-05T01:05:38Z,adulto,P2,resident.dance.hiphop,Hip Hop Dancing,false,adulto/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1096,2026-11-05T01:05:44Z,adulto,P2,resident.swim,Swimming,true,adulto/P2/resident.swim__Swimming.fbx
+1097,2026-11-05T01:05:51Z,adulto,P2,resident.swim.tread,Treading Water,false,adulto/P2/resident.swim.tread__Treading_Water.fbx
+1098,2026-11-05T01:05:58Z,adulto,P2,resident.play.videogame,Gaming,false,adulto/P2/resident.play.videogame__Gaming.fbx
+1099,2026-11-05T01:06:05Z,adulto,P2,resident.play.ball_kick,Soccer Penalty Kick,false,adulto/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1100,2026-11-05T01:06:12Z,adulto,P2,resident.fit.squat,Air Squat,false,adulto/P2/resident.fit.squat__Air_Squat.fbx
+1101,2026-11-05T01:06:18Z,adulto,P2,resident.fit.jacks,Jumping Jacks,false,adulto/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1102,2026-11-05T01:06:25Z,adulto,P2,resident.fit.pushup,Push Up,false,adulto/P2/resident.fit.pushup__Push_Up.fbx
+1103,2026-11-05T01:06:31Z,adulto,P2,resident.fit.curl,Bicep Curl,false,adulto/P2/resident.fit.curl__Bicep_Curl.fbx
+1104,2026-11-05T01:06:38Z,adulto,P2,resident.fit.crunch,Bicycle Crunch,false,adulto/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1105,2026-11-05T01:06:45Z,adulto,P2,resident.fit.yoga,Arm Stretching,false,adulto/P2/resident.fit.yoga__Arm_Stretching.fbx
+1106,2026-11-05T01:06:51Z,adulto,P2,resident.car.enter,Entering Car,false,adulto/P2/resident.car.enter__Entering_Car.fbx
+1107,2026-11-05T01:07:00Z,adulto,P2,resident.car.exit,Exiting Car,false,adulto/P2/resident.car.exit__Exiting_Car.fbx
+1108,2026-11-05T01:07:07Z,adulto,P2,resident.car.drive,Driving,false,adulto/P2/resident.car.drive__Driving.fbx
+1109,2026-11-05T01:07:13Z,adulto,P2,resident.climb.ladder,Climbing Ladder,false,adulto/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1110,2026-11-05T01:07:20Z,adulto,P2,resident.climb.ladder,Climbing Ladder,true,adulto/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1111,2026-11-05T01:07:26Z,adulto,P2,resident.climb.rope,Climbing A Rope,false,adulto/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1112,2026-11-05T01:07:33Z,adulto,P2,resident.climb.rope,Climbing A Rope,true,adulto/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1113,2026-11-05T01:07:39Z,adulto,P2,resident.hang.enter,Stand To Freehang,false,adulto/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1114,2026-11-05T01:07:46Z,adulto,P2,resident.climb.top,Freehang Climb,false,adulto/P2/resident.climb.top__Freehang_Climb.fbx
+1115,2026-11-05T01:12:11Z,plus_m,P2,resident.garden.water,Watering,false,plus_m/P2/resident.garden.water__Watering.fbx
+1116,2026-11-05T01:12:18Z,plus_m,P2,resident.garden.dig,Digging,false,plus_m/P2/resident.garden.dig__Digging.fbx
+1117,2026-11-05T01:12:24Z,plus_m,P2,resident.garden.plant,Dig And Plant Seeds,false,plus_m/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1118,2026-11-05T01:12:31Z,plus_m,P2,resident.garden.pick,Pick Fruit,false,plus_m/P2/resident.garden.pick__Pick_Fruit.fbx
+1119,2026-11-05T01:12:38Z,plus_m,P2,resident.garden.pull,Pull Plant,false,plus_m/P2/resident.garden.pull__Pull_Plant.fbx
+1120,2026-11-05T01:12:44Z,plus_m,P2,resident.music.piano,Piano Playing,false,plus_m/P2/resident.music.piano__Piano_Playing.fbx
+1121,2026-11-05T01:12:51Z,plus_m,P2,resident.music.guitar,Guitar Playing,false,plus_m/P2/resident.music.guitar__Guitar_Playing.fbx
+1122,2026-11-05T01:12:57Z,plus_m,P2,resident.dance.silly,Silly Dancing,false,plus_m/P2/resident.dance.silly__Silly_Dancing.fbx
+1123,2026-11-05T01:13:04Z,plus_m,P2,resident.dance.samba,Samba Dancing,false,plus_m/P2/resident.dance.samba__Samba_Dancing.fbx
+1124,2026-11-05T01:13:11Z,plus_m,P2,resident.dance.hiphop,Hip Hop Dancing,false,plus_m/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1125,2026-11-05T01:13:19Z,plus_m,P2,resident.swim,Swimming,true,plus_m/P2/resident.swim__Swimming.fbx
+1126,2026-11-05T01:13:26Z,plus_m,P2,resident.swim.tread,Treading Water,false,plus_m/P2/resident.swim.tread__Treading_Water.fbx
+1127,2026-11-05T01:13:32Z,plus_m,P2,resident.play.videogame,Gaming,false,plus_m/P2/resident.play.videogame__Gaming.fbx
+1128,2026-11-05T01:13:39Z,plus_m,P2,resident.play.ball_kick,Soccer Penalty Kick,false,plus_m/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1129,2026-11-05T01:13:45Z,plus_m,P2,resident.fit.squat,Air Squat,false,plus_m/P2/resident.fit.squat__Air_Squat.fbx
+1130,2026-11-05T01:13:52Z,plus_m,P2,resident.fit.jacks,Jumping Jacks,false,plus_m/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1131,2026-11-05T01:13:58Z,plus_m,P2,resident.fit.pushup,Push Up,false,plus_m/P2/resident.fit.pushup__Push_Up.fbx
+1132,2026-11-05T01:14:05Z,plus_m,P2,resident.fit.curl,Bicep Curl,false,plus_m/P2/resident.fit.curl__Bicep_Curl.fbx
+1133,2026-11-05T01:14:11Z,plus_m,P2,resident.fit.crunch,Bicycle Crunch,false,plus_m/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1134,2026-11-05T01:14:18Z,plus_m,P2,resident.fit.yoga,Arm Stretching,false,plus_m/P2/resident.fit.yoga__Arm_Stretching.fbx
+1135,2026-11-05T01:14:24Z,plus_m,P2,resident.car.enter,Entering Car,false,plus_m/P2/resident.car.enter__Entering_Car.fbx
+1136,2026-11-05T01:14:30Z,plus_m,P2,resident.car.exit,Exiting Car,false,plus_m/P2/resident.car.exit__Exiting_Car.fbx
+1137,2026-11-05T01:14:37Z,plus_m,P2,resident.car.drive,Driving,false,plus_m/P2/resident.car.drive__Driving.fbx
+1138,2026-11-05T01:14:43Z,plus_m,P2,resident.climb.ladder,Climbing Ladder,false,plus_m/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1139,2026-11-05T01:14:50Z,plus_m,P2,resident.climb.ladder,Climbing Ladder,true,plus_m/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1140,2026-11-05T01:14:56Z,plus_m,P2,resident.climb.rope,Climbing A Rope,false,plus_m/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1141,2026-11-05T01:15:04Z,plus_m,P2,resident.climb.rope,Climbing A Rope,true,plus_m/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1142,2026-11-05T01:15:10Z,plus_m,P2,resident.hang.enter,Stand To Freehang,false,plus_m/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1143,2026-11-05T01:15:16Z,plus_m,P2,resident.climb.top,Freehang Climb,false,plus_m/P2/resident.climb.top__Freehang_Climb.fbx
+1144,2026-11-05T01:17:25Z,plus_f,P2,resident.garden.water,Watering,false,plus_f/P2/resident.garden.water__Watering.fbx
+1145,2026-11-05T01:17:32Z,plus_f,P2,resident.garden.dig,Digging,false,plus_f/P2/resident.garden.dig__Digging.fbx
+1146,2026-11-05T01:17:39Z,plus_f,P2,resident.garden.plant,Dig And Plant Seeds,false,plus_f/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1147,2026-11-05T01:17:46Z,plus_f,P2,resident.garden.pick,Pick Fruit,false,plus_f/P2/resident.garden.pick__Pick_Fruit.fbx
+1148,2026-11-05T01:17:54Z,plus_f,P2,resident.garden.pull,Pull Plant,false,plus_f/P2/resident.garden.pull__Pull_Plant.fbx
+1149,2026-11-05T01:18:01Z,plus_f,P2,resident.music.piano,Piano Playing,false,plus_f/P2/resident.music.piano__Piano_Playing.fbx
+1150,2026-11-05T01:18:07Z,plus_f,P2,resident.music.guitar,Guitar Playing,false,plus_f/P2/resident.music.guitar__Guitar_Playing.fbx
+1151,2026-11-05T01:18:14Z,plus_f,P2,resident.dance.silly,Silly Dancing,false,plus_f/P2/resident.dance.silly__Silly_Dancing.fbx
+1152,2026-11-05T01:18:20Z,plus_f,P2,resident.dance.samba,Samba Dancing,false,plus_f/P2/resident.dance.samba__Samba_Dancing.fbx
+1153,2026-11-05T01:18:27Z,plus_f,P2,resident.dance.hiphop,Hip Hop Dancing,false,plus_f/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1154,2026-11-05T01:18:33Z,plus_f,P2,resident.swim,Swimming,true,plus_f/P2/resident.swim__Swimming.fbx
+1155,2026-11-05T01:18:40Z,plus_f,P2,resident.swim.tread,Treading Water,false,plus_f/P2/resident.swim.tread__Treading_Water.fbx
+1156,2026-11-05T01:18:46Z,plus_f,P2,resident.play.videogame,Gaming,false,plus_f/P2/resident.play.videogame__Gaming.fbx
+1157,2026-11-05T01:18:55Z,plus_f,P2,resident.play.ball_kick,Soccer Penalty Kick,false,plus_f/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1158,2026-11-05T01:19:01Z,plus_f,P2,resident.fit.squat,Air Squat,false,plus_f/P2/resident.fit.squat__Air_Squat.fbx
+1159,2026-11-05T01:19:08Z,plus_f,P2,resident.fit.jacks,Jumping Jacks,false,plus_f/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1160,2026-11-05T01:19:17Z,plus_f,P2,resident.fit.pushup,Push Up,false,plus_f/P2/resident.fit.pushup__Push_Up.fbx
+1161,2026-11-05T01:19:23Z,plus_f,P2,resident.fit.curl,Bicep Curl,false,plus_f/P2/resident.fit.curl__Bicep_Curl.fbx
+1162,2026-11-05T01:19:29Z,plus_f,P2,resident.fit.crunch,Bicycle Crunch,false,plus_f/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1163,2026-11-05T01:19:36Z,plus_f,P2,resident.fit.yoga,Arm Stretching,false,plus_f/P2/resident.fit.yoga__Arm_Stretching.fbx
+1164,2026-11-05T01:19:43Z,plus_f,P2,resident.car.enter,Entering Car,false,plus_f/P2/resident.car.enter__Entering_Car.fbx
+1165,2026-11-05T01:19:52Z,plus_f,P2,resident.car.exit,Exiting Car,false,plus_f/P2/resident.car.exit__Exiting_Car.fbx
+1166,2026-11-05T01:19:58Z,plus_f,P2,resident.car.drive,Driving,false,plus_f/P2/resident.car.drive__Driving.fbx
+1167,2026-11-05T01:20:05Z,plus_f,P2,resident.climb.ladder,Climbing Ladder,false,plus_f/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1168,2026-11-05T01:20:11Z,plus_f,P2,resident.climb.ladder,Climbing Ladder,true,plus_f/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1169,2026-11-05T01:20:18Z,plus_f,P2,resident.climb.rope,Climbing A Rope,false,plus_f/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1170,2026-11-05T01:20:25Z,plus_f,P2,resident.climb.rope,Climbing A Rope,true,plus_f/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1171,2026-11-05T01:20:31Z,plus_f,P2,resident.hang.enter,Stand To Freehang,false,plus_f/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1172,2026-11-05T01:20:38Z,plus_f,P2,resident.climb.top,Freehang Climb,false,plus_f/P2/resident.climb.top__Freehang_Climb.fbx
+1173,2026-11-05T01:22:37Z,musculoso,P2,resident.garden.water,Watering,false,musculoso/P2/resident.garden.water__Watering.fbx
+1174,2026-11-05T01:22:44Z,musculoso,P2,resident.garden.dig,Digging,false,musculoso/P2/resident.garden.dig__Digging.fbx
+1175,2026-11-05T01:22:52Z,musculoso,P2,resident.garden.plant,Dig And Plant Seeds,false,musculoso/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1176,2026-11-05T01:23:01Z,musculoso,P2,resident.garden.pick,Pick Fruit,false,musculoso/P2/resident.garden.pick__Pick_Fruit.fbx
+1177,2026-11-05T01:23:07Z,musculoso,P2,resident.garden.pull,Pull Plant,false,musculoso/P2/resident.garden.pull__Pull_Plant.fbx
+1178,2026-11-05T01:23:14Z,musculoso,P2,resident.music.piano,Piano Playing,false,musculoso/P2/resident.music.piano__Piano_Playing.fbx
+1179,2026-11-05T01:23:20Z,musculoso,P2,resident.music.guitar,Guitar Playing,false,musculoso/P2/resident.music.guitar__Guitar_Playing.fbx
+1180,2026-11-05T01:23:27Z,musculoso,P2,resident.dance.silly,Silly Dancing,false,musculoso/P2/resident.dance.silly__Silly_Dancing.fbx
+1181,2026-11-05T01:23:33Z,musculoso,P2,resident.dance.samba,Samba Dancing,false,musculoso/P2/resident.dance.samba__Samba_Dancing.fbx
+1182,2026-11-05T01:23:40Z,musculoso,P2,resident.dance.hiphop,Hip Hop Dancing,false,musculoso/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1183,2026-11-05T01:23:47Z,musculoso,P2,resident.swim,Swimming,true,musculoso/P2/resident.swim__Swimming.fbx
+1184,2026-11-05T01:23:53Z,musculoso,P2,resident.swim.tread,Treading Water,false,musculoso/P2/resident.swim.tread__Treading_Water.fbx
+1185,2026-11-05T01:23:59Z,musculoso,P2,resident.play.videogame,Gaming,false,musculoso/P2/resident.play.videogame__Gaming.fbx
+1186,2026-11-05T01:24:08Z,musculoso,P2,resident.play.ball_kick,Soccer Penalty Kick,false,musculoso/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1187,2026-11-05T01:24:15Z,musculoso,P2,resident.fit.squat,Air Squat,false,musculoso/P2/resident.fit.squat__Air_Squat.fbx
+1188,2026-11-05T01:24:21Z,musculoso,P2,resident.fit.jacks,Jumping Jacks,false,musculoso/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1189,2026-11-05T01:24:28Z,musculoso,P2,resident.fit.pushup,Push Up,false,musculoso/P2/resident.fit.pushup__Push_Up.fbx
+1190,2026-11-05T01:24:35Z,musculoso,P2,resident.fit.curl,Bicep Curl,false,musculoso/P2/resident.fit.curl__Bicep_Curl.fbx
+1191,2026-11-05T01:24:41Z,musculoso,P2,resident.fit.crunch,Bicycle Crunch,false,musculoso/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1192,2026-11-05T01:24:48Z,musculoso,P2,resident.fit.yoga,Arm Stretching,false,musculoso/P2/resident.fit.yoga__Arm_Stretching.fbx
+1193,2026-11-05T01:24:54Z,musculoso,P2,resident.car.enter,Entering Car,false,musculoso/P2/resident.car.enter__Entering_Car.fbx
+1194,2026-11-05T01:25:01Z,musculoso,P2,resident.car.exit,Exiting Car,false,musculoso/P2/resident.car.exit__Exiting_Car.fbx
+1195,2026-11-05T01:25:07Z,musculoso,P2,resident.car.drive,Driving,false,musculoso/P2/resident.car.drive__Driving.fbx
+1196,2026-11-05T01:25:14Z,musculoso,P2,resident.climb.ladder,Climbing Ladder,false,musculoso/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1197,2026-11-05T01:25:20Z,musculoso,P2,resident.climb.ladder,Climbing Ladder,true,musculoso/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1198,2026-11-05T01:25:27Z,musculoso,P2,resident.climb.rope,Climbing A Rope,false,musculoso/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1199,2026-11-05T01:25:33Z,musculoso,P2,resident.climb.rope,Climbing A Rope,true,musculoso/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1200,2026-11-05T01:25:40Z,musculoso,P2,resident.hang.enter,Stand To Freehang,false,musculoso/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1201,2026-11-05T01:25:49Z,musculoso,P2,resident.climb.top,Freehang Climb,false,musculoso/P2/resident.climb.top__Freehang_Climb.fbx
+1202,2026-11-05T01:27:18Z,atletica,P2,resident.garden.water,Watering,false,atletica/P2/resident.garden.water__Watering.fbx
+1203,2026-11-05T01:27:24Z,atletica,P2,resident.garden.dig,Digging,false,atletica/P2/resident.garden.dig__Digging.fbx
+1204,2026-11-05T01:27:31Z,atletica,P2,resident.garden.plant,Dig And Plant Seeds,false,atletica/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1205,2026-11-05T01:27:40Z,atletica,P2,resident.garden.pick,Pick Fruit,false,atletica/P2/resident.garden.pick__Pick_Fruit.fbx
+1206,2026-11-05T01:27:48Z,atletica,P2,resident.garden.pull,Pull Plant,false,atletica/P2/resident.garden.pull__Pull_Plant.fbx
+1207,2026-11-05T01:27:55Z,atletica,P2,resident.music.piano,Piano Playing,false,atletica/P2/resident.music.piano__Piano_Playing.fbx
+1208,2026-11-05T01:28:04Z,atletica,P2,resident.music.guitar,Guitar Playing,false,atletica/P2/resident.music.guitar__Guitar_Playing.fbx
+1209,2026-11-05T01:28:11Z,atletica,P2,resident.dance.silly,Silly Dancing,false,atletica/P2/resident.dance.silly__Silly_Dancing.fbx
+1210,2026-11-05T01:28:17Z,atletica,P2,resident.dance.samba,Samba Dancing,false,atletica/P2/resident.dance.samba__Samba_Dancing.fbx
+1211,2026-11-05T01:28:24Z,atletica,P2,resident.dance.hiphop,Hip Hop Dancing,false,atletica/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1212,2026-11-05T01:28:31Z,atletica,P2,resident.swim,Swimming,true,atletica/P2/resident.swim__Swimming.fbx
+1213,2026-11-05T01:28:37Z,atletica,P2,resident.swim.tread,Treading Water,false,atletica/P2/resident.swim.tread__Treading_Water.fbx
+1214,2026-11-05T01:28:43Z,atletica,P2,resident.play.videogame,Gaming,false,atletica/P2/resident.play.videogame__Gaming.fbx
+1215,2026-11-05T01:28:50Z,atletica,P2,resident.play.ball_kick,Soccer Penalty Kick,false,atletica/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1216,2026-11-05T01:28:56Z,atletica,P2,resident.fit.squat,Air Squat,false,atletica/P2/resident.fit.squat__Air_Squat.fbx
+1217,2026-11-05T01:29:03Z,atletica,P2,resident.fit.jacks,Jumping Jacks,false,atletica/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1218,2026-11-05T01:29:10Z,atletica,P2,resident.fit.pushup,Push Up,false,atletica/P2/resident.fit.pushup__Push_Up.fbx
+1219,2026-11-05T01:29:16Z,atletica,P2,resident.fit.curl,Bicep Curl,false,atletica/P2/resident.fit.curl__Bicep_Curl.fbx
+1220,2026-11-05T01:29:22Z,atletica,P2,resident.fit.crunch,Bicycle Crunch,false,atletica/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1221,2026-11-05T01:29:29Z,atletica,P2,resident.fit.yoga,Arm Stretching,false,atletica/P2/resident.fit.yoga__Arm_Stretching.fbx
+1222,2026-11-05T01:29:35Z,atletica,P2,resident.car.enter,Entering Car,false,atletica/P2/resident.car.enter__Entering_Car.fbx
+1223,2026-11-05T01:29:44Z,atletica,P2,resident.car.exit,Exiting Car,false,atletica/P2/resident.car.exit__Exiting_Car.fbx
+1224,2026-11-05T01:29:51Z,atletica,P2,resident.car.drive,Driving,false,atletica/P2/resident.car.drive__Driving.fbx
+1225,2026-11-05T01:29:58Z,atletica,P2,resident.climb.ladder,Climbing Ladder,false,atletica/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1226,2026-11-05T01:30:04Z,atletica,P2,resident.climb.ladder,Climbing Ladder,true,atletica/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1227,2026-11-05T01:30:11Z,atletica,P2,resident.climb.rope,Climbing A Rope,false,atletica/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1228,2026-11-05T01:30:17Z,atletica,P2,resident.climb.rope,Climbing A Rope,true,atletica/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1229,2026-11-05T01:30:23Z,atletica,P2,resident.hang.enter,Stand To Freehang,false,atletica/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1230,2026-11-05T01:30:32Z,atletica,P2,resident.climb.top,Freehang Climb,false,atletica/P2/resident.climb.top__Freehang_Climb.fbx
+1231,2026-11-05T01:31:43Z,alto_magro,P2,resident.garden.water,Watering,false,alto_magro/P2/resident.garden.water__Watering.fbx
+1232,2026-11-05T01:31:50Z,alto_magro,P2,resident.garden.dig,Digging,false,alto_magro/P2/resident.garden.dig__Digging.fbx
+1233,2026-11-05T01:31:58Z,alto_magro,P2,resident.garden.plant,Dig And Plant Seeds,false,alto_magro/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1234,2026-11-05T01:32:07Z,alto_magro,P2,resident.garden.pick,Pick Fruit,false,alto_magro/P2/resident.garden.pick__Pick_Fruit.fbx
+1235,2026-11-05T01:32:14Z,alto_magro,P2,resident.garden.pull,Pull Plant,false,alto_magro/P2/resident.garden.pull__Pull_Plant.fbx
+1236,2026-11-05T01:32:20Z,alto_magro,P2,resident.music.piano,Piano Playing,false,alto_magro/P2/resident.music.piano__Piano_Playing.fbx
+1237,2026-11-05T01:32:31Z,alto_magro,P2,resident.music.guitar,Guitar Playing,false,alto_magro/P2/resident.music.guitar__Guitar_Playing.fbx
+1238,2026-11-05T01:32:40Z,alto_magro,P2,resident.dance.silly,Silly Dancing,false,alto_magro/P2/resident.dance.silly__Silly_Dancing.fbx
+1239,2026-11-05T01:32:47Z,alto_magro,P2,resident.dance.samba,Samba Dancing,false,alto_magro/P2/resident.dance.samba__Samba_Dancing.fbx
+1240,2026-11-05T01:32:56Z,alto_magro,P2,resident.dance.hiphop,Hip Hop Dancing,false,alto_magro/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1241,2026-11-05T01:33:07Z,alto_magro,P2,resident.swim,Swimming,true,alto_magro/P2/resident.swim__Swimming.fbx
+1242,2026-11-05T01:33:14Z,alto_magro,P2,resident.swim.tread,Treading Water,false,alto_magro/P2/resident.swim.tread__Treading_Water.fbx
+1243,2026-11-05T01:33:20Z,alto_magro,P2,resident.play.videogame,Gaming,false,alto_magro/P2/resident.play.videogame__Gaming.fbx
+1244,2026-11-05T01:33:27Z,alto_magro,P2,resident.play.ball_kick,Soccer Penalty Kick,false,alto_magro/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1245,2026-11-05T01:33:33Z,alto_magro,P2,resident.fit.squat,Air Squat,false,alto_magro/P2/resident.fit.squat__Air_Squat.fbx
+1246,2026-11-05T01:33:40Z,alto_magro,P2,resident.fit.jacks,Jumping Jacks,false,alto_magro/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1247,2026-11-05T01:33:46Z,alto_magro,P2,resident.fit.pushup,Push Up,false,alto_magro/P2/resident.fit.pushup__Push_Up.fbx
+1248,2026-11-05T01:33:53Z,alto_magro,P2,resident.fit.curl,Bicep Curl,false,alto_magro/P2/resident.fit.curl__Bicep_Curl.fbx
+1249,2026-11-05T01:33:59Z,alto_magro,P2,resident.fit.crunch,Bicycle Crunch,false,alto_magro/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1250,2026-11-05T01:34:06Z,alto_magro,P2,resident.fit.yoga,Arm Stretching,false,alto_magro/P2/resident.fit.yoga__Arm_Stretching.fbx
+1251,2026-11-05T01:34:13Z,alto_magro,P2,resident.car.enter,Entering Car,false,alto_magro/P2/resident.car.enter__Entering_Car.fbx
+1252,2026-11-05T01:34:19Z,alto_magro,P2,resident.car.exit,Exiting Car,false,alto_magro/P2/resident.car.exit__Exiting_Car.fbx
+1253,2026-11-05T01:34:26Z,alto_magro,P2,resident.car.drive,Driving,false,alto_magro/P2/resident.car.drive__Driving.fbx
+1254,2026-11-05T01:34:33Z,alto_magro,P2,resident.climb.ladder,Climbing Ladder,false,alto_magro/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1255,2026-11-05T01:34:42Z,alto_magro,P2,resident.climb.ladder,Climbing Ladder,true,alto_magro/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1256,2026-11-05T01:34:48Z,alto_magro,P2,resident.climb.rope,Climbing A Rope,false,alto_magro/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1257,2026-11-05T01:34:54Z,alto_magro,P2,resident.climb.rope,Climbing A Rope,true,alto_magro/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1258,2026-11-05T01:35:01Z,alto_magro,P2,resident.hang.enter,Stand To Freehang,false,alto_magro/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1259,2026-11-05T01:35:07Z,alto_magro,P2,resident.climb.top,Freehang Climb,false,alto_magro/P2/resident.climb.top__Freehang_Climb.fbx
+1260,2026-11-05T01:36:48Z,idoso,P2,resident.garden.water,Watering,false,idoso/P2/resident.garden.water__Watering.fbx
+1261,2026-11-05T01:36:54Z,idoso,P2,resident.garden.plant,Dig And Plant Seeds,false,idoso/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1262,2026-11-05T01:37:01Z,idoso,P2,resident.garden.pick,Pick Fruit,false,idoso/P2/resident.garden.pick__Pick_Fruit.fbx
+1263,2026-11-05T01:37:10Z,idoso,P2,resident.garden.pull,Pull Plant,false,idoso/P2/resident.garden.pull__Pull_Plant.fbx
+1264,2026-11-05T01:37:17Z,idoso,P2,resident.music.piano,Piano Playing,false,idoso/P2/resident.music.piano__Piano_Playing.fbx
+1265,2026-11-05T01:37:23Z,idoso,P2,resident.music.guitar,Guitar Playing,false,idoso/P2/resident.music.guitar__Guitar_Playing.fbx
+1266,2026-11-05T01:37:30Z,idoso,P2,resident.dance.samba,Samba Dancing,false,idoso/P2/resident.dance.samba__Samba_Dancing.fbx
+1267,2026-11-05T01:37:36Z,idoso,P2,resident.fit.yoga,Arm Stretching,false,idoso/P2/resident.fit.yoga__Arm_Stretching.fbx
+1268,2026-11-05T01:37:43Z,idoso,P2,resident.car.enter,Entering Car,false,idoso/P2/resident.car.enter__Entering_Car.fbx
+1269,2026-11-05T01:37:49Z,idoso,P2,resident.car.exit,Exiting Car,false,idoso/P2/resident.car.exit__Exiting_Car.fbx
+1270,2026-11-05T01:37:55Z,idoso,P2,resident.car.drive,Driving,false,idoso/P2/resident.car.drive__Driving.fbx
+1271,2026-11-05T01:39:19Z,adolescente_m,P2,resident.garden.water,Watering,false,adolescente_m/P2/resident.garden.water__Watering.fbx
+1272,2026-11-05T01:39:26Z,adolescente_m,P2,resident.garden.dig,Digging,false,adolescente_m/P2/resident.garden.dig__Digging.fbx
+1273,2026-11-05T01:39:33Z,adolescente_m,P2,resident.garden.plant,Dig And Plant Seeds,false,adolescente_m/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1274,2026-11-05T01:39:39Z,adolescente_m,P2,resident.garden.pick,Pick Fruit,false,adolescente_m/P2/resident.garden.pick__Pick_Fruit.fbx
+1275,2026-11-05T01:39:48Z,adolescente_m,P2,resident.garden.pull,Pull Plant,false,adolescente_m/P2/resident.garden.pull__Pull_Plant.fbx
+1276,2026-11-05T01:39:54Z,adolescente_m,P2,resident.music.piano,Piano Playing,false,adolescente_m/P2/resident.music.piano__Piano_Playing.fbx
+1277,2026-11-05T01:40:01Z,adolescente_m,P2,resident.music.guitar,Guitar Playing,false,adolescente_m/P2/resident.music.guitar__Guitar_Playing.fbx
+1278,2026-11-05T01:40:07Z,adolescente_m,P2,resident.dance.silly,Silly Dancing,false,adolescente_m/P2/resident.dance.silly__Silly_Dancing.fbx
+1279,2026-11-05T01:40:14Z,adolescente_m,P2,resident.dance.samba,Samba Dancing,false,adolescente_m/P2/resident.dance.samba__Samba_Dancing.fbx
+1280,2026-11-05T01:40:21Z,adolescente_m,P2,resident.dance.hiphop,Hip Hop Dancing,false,adolescente_m/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1281,2026-11-05T01:40:27Z,adolescente_m,P2,resident.swim,Swimming,true,adolescente_m/P2/resident.swim__Swimming.fbx
+1282,2026-11-05T01:40:34Z,adolescente_m,P2,resident.swim.tread,Treading Water,false,adolescente_m/P2/resident.swim.tread__Treading_Water.fbx
+1283,2026-11-05T01:40:40Z,adolescente_m,P2,resident.play.jump_rope,Jumping Rope,false,adolescente_m/P2/resident.play.jump_rope__Jumping_Rope.fbx
+1284,2026-11-05T01:40:46Z,adolescente_m,P2,resident.play.videogame,Gaming,false,adolescente_m/P2/resident.play.videogame__Gaming.fbx
+1285,2026-11-05T01:40:53Z,adolescente_m,P2,resident.play.ball_kick,Soccer Penalty Kick,false,adolescente_m/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1286,2026-11-05T01:40:59Z,adolescente_m,P2,resident.fit.squat,Air Squat,false,adolescente_m/P2/resident.fit.squat__Air_Squat.fbx
+1287,2026-11-05T01:41:06Z,adolescente_m,P2,resident.fit.jacks,Jumping Jacks,false,adolescente_m/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1288,2026-11-05T01:41:12Z,adolescente_m,P2,resident.fit.pushup,Push Up,false,adolescente_m/P2/resident.fit.pushup__Push_Up.fbx
+1289,2026-11-05T01:41:19Z,adolescente_m,P2,resident.fit.curl,Bicep Curl,false,adolescente_m/P2/resident.fit.curl__Bicep_Curl.fbx
+1290,2026-11-05T01:41:26Z,adolescente_m,P2,resident.fit.crunch,Bicycle Crunch,false,adolescente_m/P2/resident.fit.crunch__Bicycle_Crunch.fbx
+1291,2026-11-05T01:41:32Z,adolescente_m,P2,resident.fit.yoga,Arm Stretching,false,adolescente_m/P2/resident.fit.yoga__Arm_Stretching.fbx
+1292,2026-11-05T01:41:39Z,adolescente_m,P2,resident.climb.ladder,Climbing Ladder,false,adolescente_m/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1293,2026-11-05T01:41:46Z,adolescente_m,P2,resident.climb.ladder,Climbing Ladder,true,adolescente_m/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1294,2026-11-05T01:41:54Z,adolescente_m,P2,resident.climb.rope,Climbing A Rope,false,adolescente_m/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1295,2026-11-05T01:42:01Z,adolescente_m,P2,resident.climb.rope,Climbing A Rope,true,adolescente_m/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1296,2026-11-05T01:42:07Z,adolescente_m,P2,resident.hang.enter,Stand To Freehang,false,adolescente_m/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1297,2026-11-05T01:42:14Z,adolescente_m,P2,resident.climb.top,Freehang Climb,false,adolescente_m/P2/resident.climb.top__Freehang_Climb.fbx
+1298,2026-11-05T01:43:46Z,crianca_m,P2,resident.garden.water,Watering,false,crianca_m/P2/resident.garden.water__Watering.fbx
+1299,2026-11-05T01:43:52Z,crianca_m,P2,resident.garden.plant,Dig And Plant Seeds,false,crianca_m/P2/resident.garden.plant__Dig_And_Plant_Seeds.fbx
+1300,2026-11-05T01:43:59Z,crianca_m,P2,resident.garden.pick,Pick Fruit,false,crianca_m/P2/resident.garden.pick__Pick_Fruit.fbx
+1301,2026-11-05T01:44:05Z,crianca_m,P2,resident.garden.pull,Pull Plant,false,crianca_m/P2/resident.garden.pull__Pull_Plant.fbx
+1302,2026-11-05T01:44:12Z,crianca_m,P2,resident.music.piano,Piano Playing,false,crianca_m/P2/resident.music.piano__Piano_Playing.fbx
+1303,2026-11-05T01:44:18Z,crianca_m,P2,resident.dance.silly,Silly Dancing,false,crianca_m/P2/resident.dance.silly__Silly_Dancing.fbx
+1304,2026-11-05T01:44:25Z,crianca_m,P2,resident.dance.samba,Samba Dancing,false,crianca_m/P2/resident.dance.samba__Samba_Dancing.fbx
+1305,2026-11-05T01:44:31Z,crianca_m,P2,resident.dance.hiphop,Hip Hop Dancing,false,crianca_m/P2/resident.dance.hiphop__Hip_Hop_Dancing.fbx
+1306,2026-11-05T01:44:40Z,crianca_m,P2,resident.swim,Swimming,true,crianca_m/P2/resident.swim__Swimming.fbx
+1307,2026-11-05T01:44:47Z,crianca_m,P2,resident.swim.tread,Treading Water,false,crianca_m/P2/resident.swim.tread__Treading_Water.fbx
+1308,2026-11-05T01:44:53Z,crianca_m,P2,resident.play.jump_rope,Jumping Rope,false,crianca_m/P2/resident.play.jump_rope__Jumping_Rope.fbx
+1309,2026-11-05T01:45:00Z,crianca_m,P2,resident.play.videogame,Gaming,false,crianca_m/P2/resident.play.videogame__Gaming.fbx
+1310,2026-11-05T01:45:06Z,crianca_m,P2,resident.play.ball_kick,Soccer Penalty Kick,false,crianca_m/P2/resident.play.ball_kick__Soccer_Penalty_Kick.fbx
+1311,2026-11-05T01:45:13Z,crianca_m,P2,resident.fit.jacks,Jumping Jacks,false,crianca_m/P2/resident.fit.jacks__Jumping_Jacks.fbx
+1312,2026-11-05T01:45:19Z,crianca_m,P2,resident.climb.ladder,Climbing Ladder,false,crianca_m/P2/resident.climb.ladder__Climbing_Ladder.fbx
+1313,2026-11-05T01:45:26Z,crianca_m,P2,resident.climb.ladder,Climbing Ladder,true,crianca_m/P2/resident.climb.ladder__Climbing_Ladder__inplace.fbx
+1314,2026-11-05T01:45:32Z,crianca_m,P2,resident.climb.rope,Climbing A Rope,false,crianca_m/P2/resident.climb.rope__Climbing_A_Rope.fbx
+1315,2026-11-05T01:45:39Z,crianca_m,P2,resident.climb.rope,Climbing A Rope,true,crianca_m/P2/resident.climb.rope__Climbing_A_Rope__inplace.fbx
+1316,2026-11-05T01:45:45Z,crianca_m,P2,resident.hang.enter,Stand To Freehang,false,crianca_m/P2/resident.hang.enter__Stand_To_Freehang.fbx
+1317,2026-11-05T01:45:51Z,crianca_m,P2,resident.climb.top,Freehang Climb,false,crianca_m/P2/resident.climb.top__Freehang_Climb.fbx

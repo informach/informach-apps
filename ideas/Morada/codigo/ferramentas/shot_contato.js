@@ -1,0 +1,12 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader']});
+const p=await b.newPage({viewport:{width:1300,height:800}});const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+const pronto=()=>p.waitForFunction(()=>document.getElementById('status').textContent==='',{timeout:240000});
+await p.goto('http://localhost:8765/teste_local.html');await pronto();
+const ir=async(sexo,idade,corpo)=>{await p.click(`#sexo button[data-k="${sexo}"]`);await p.click(`#idade button[data-k="${idade}"]`);await pronto();if(corpo){await p.click(`#minis button[data-k="${corpo}"]`);await pronto();}};
+const sh=async(n,k,w)=>{await p.click(`button[data-k="${k}"]`);await p.waitForTimeout(w);await p.locator('#palco').screenshot({path:n});};
+await sh('k_adulto_sentado.png','sentado',2500);await sh('k_adulto_deitando.png','deitando',5600);await sh('k_adulto_irritado.png','irritado',2500);
+await ir('f','adulto','plus_f');await sh('k_plus_sentado.png','sentado',2500);await sh('k_plus_deitando.png','deitando',5600);
+await ir('m','crianca');await sh('k_crianca_sentado.png','sentado',2500);await sh('k_crianca_deitando.png','deitando',5600);
+await ir('m','colo');await sh('k_bebe_sentado.png','sentado',2500);
+console.log(errs);await b.close();})();

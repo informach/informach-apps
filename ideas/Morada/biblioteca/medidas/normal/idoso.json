@@ -1,0 +1,532 @@
+{
+ "corpo": "idoso",
+ "altura": 1.684,
+ "correcoes": {
+  "resident.phone.talk": {
+   "telefone": 145,
+   "dedos": {
+    "Left": "telefone"
+   }
+  },
+  "resident.car.enter": {
+   "chao": {
+    "quadros": 94,
+    "afundava_cm": 2.5
+   },
+   "antebraco": {
+    "quadros": 46,
+    "entrava_cm": 3.3
+   }
+  },
+  "resident.car.exit": {
+   "chao": {
+    "quadros": 111,
+    "afundava_cm": 2.2
+   },
+   "antebraco": {
+    "quadros": 29,
+    "entrava_cm": 2.1
+   }
+  },
+  "resident.crouch.enter": {
+   "chao": {
+    "quadros": 123,
+    "afundava_cm": 12.5
+   }
+  },
+  "resident.crouch.exit": {
+   "chao": {
+    "quadros": 38,
+    "afundava_cm": 3.6
+   },
+   "antebraco": {
+    "quadros": 20,
+    "entrava_cm": 1.2
+   }
+  },
+  "resident.dance.samba": {
+   "chao": {
+    "quadros": 324,
+    "afundava_cm": 4.3
+   }
+  },
+  "resident.door.open_in": {
+   "chao": {
+    "quadros": 185,
+    "afundava_cm": 2.5
+   },
+   "antebraco": {
+    "quadros": 80,
+    "entrava_cm": 4.6
+   }
+  },
+  "resident.door.open_out": {
+   "chao": {
+    "quadros": 124,
+    "afundava_cm": 2.8
+   }
+  },
+  "resident.emote.scared": {
+   "chao": {
+    "quadros": 601,
+    "afundava_cm": 2.3
+   },
+   "antebraco": {
+    "quadros": 32,
+    "entrava_cm": 2.2
+   }
+  },
+  "resident.emote.thinking": {
+   "chao": {
+    "quadros": 128,
+    "afundava_cm": 3.5
+   },
+   "antebraco": {
+    "quadros": 37,
+    "entrava_cm": 2.7
+   }
+  },
+  "resident.garden.plant": {
+   "chao": {
+    "quadros": 166,
+    "afundava_cm": 16.7
+   }
+  },
+  "resident.garden.pull": {
+   "chao": {
+    "quadros": 143,
+    "afundava_cm": 14.5
+   }
+  },
+  "resident.handshake": {
+   "chao": {
+    "quadros": 132,
+    "afundava_cm": 1.9
+   },
+   "antebraco": {
+    "quadros": 54,
+    "entrava_cm": 2.1
+   }
+  },
+  "resident.handshake.partner": {
+   "chao": {
+    "quadros": 132,
+    "afundava_cm": 1.6
+   }
+  },
+  "resident.idle.bored": {
+   "chao": {
+    "quadros": 299,
+    "afundava_cm": 3.5
+   }
+  },
+  "resident.idle.happy": {
+   "chao": {
+    "quadros": 89,
+    "afundava_cm": 1.8
+   },
+   "antebraco": {
+    "quadros": 57,
+    "entrava_cm": 2.0
+   }
+  },
+  "resident.jog": {
+   "chao": {
+    "quadros": 78,
+    "afundava_cm": 4.7
+   },
+   "antebraco": {
+    "quadros": 72,
+    "entrava_cm": 2.7
+   }
+  },
+  "resident.romance.dance_rumba": {
+   "chao": {
+    "quadros": 72,
+    "afundava_cm": 2.7
+   }
+  },
+  "resident.romance.dance_salsa": {
+   "chao": {
+    "quadros": 69,
+    "afundava_cm": 2.3
+   }
+  },
+  "resident.romance.kiss_long_taller": {
+   "chao": {
+    "quadros": 213,
+    "afundava_cm": 2.7
+   }
+  },
+  "resident.romance.kiss_taller": {
+   "chao": {
+    "quadros": 113,
+    "afundava_cm": 2.2
+   }
+  },
+  "resident.romance.propose": {
+   "chao": {
+    "quadros": 141,
+    "afundava_cm": 15.1
+   }
+  },
+  "resident.romance.propose_exit": {
+   "chao": {
+    "quadros": 82,
+    "afundava_cm": 13.7
+   }
+  },
+  "resident.sit.chair.enter": {
+   "chao": {
+    "quadros": 68,
+    "afundava_cm": 1.7
+   },
+   "antebraco": {
+    "quadros": 50,
+    "entrava_cm": 2.7
+   }
+  },
+  "resident.turn.left": {
+   "chao": {
+    "quadros": 29,
+    "afundava_cm": 2.0
+   }
+  },
+  "resident.turn.right": {
+   "chao": {
+    "quadros": 29,
+    "afundava_cm": 2.3
+   }
+  },
+  "resident.walk.normal": {
+   "chao": {
+    "quadros": 26,
+    "afundava_cm": 1.6
+   },
+   "antebraco": {
+    "quadros": 23,
+    "entrava_cm": 2.8
+   }
+  },
+  "resident.walk.sad": {
+   "chao": {
+    "quadros": 45,
+    "afundava_cm": 2.5
+   }
+  },
+  "resident.emote.cry": {
+   "antebraco": {
+    "quadros": 30,
+    "entrava_cm": 1.9
+   }
+  },
+  "resident.emote.thankful": {
+   "antebraco": {
+    "quadros": 53,
+    "entrava_cm": 1.9
+   }
+  },
+  "resident.laugh": {
+   "antebraco": {
+    "quadros": 33,
+    "entrava_cm": 1.4
+   }
+  },
+  "resident.lie.enter": {
+   "antebraco": {
+    "quadros": 70,
+    "entrava_cm": 3.6
+   }
+  },
+  "resident.romance.blow_kiss": {
+   "antebraco": {
+    "quadros": 42,
+    "entrava_cm": 1.3
+   }
+  },
+  "resident.romance.kiss_long_shorter": {
+   "antebraco": {
+    "quadros": 188,
+    "entrava_cm": 2.6
+   }
+  },
+  "resident.romance.kiss_shorter": {
+   "antebraco": {
+    "quadros": 50,
+    "entrava_cm": 1.3
+   }
+  },
+  "resident.sit.laugh": {
+   "antebraco": {
+    "quadros": 165,
+    "entrava_cm": 4.1
+   }
+  },
+  "resident.talk.b": {
+   "antebraco": {
+    "quadros": 22,
+    "entrava_cm": 2.7
+   }
+  },
+  "resident.text": {
+   "antebraco": {
+    "quadros": 557,
+    "entrava_cm": 3.6
+   }
+  },
+  "resident.yawn": {
+   "antebraco": {
+    "quadros": 113,
+    "entrava_cm": 6.3
+   }
+  },
+  "resident.device.use": {
+   "antebraco": {
+    "quadros": 557,
+    "entrava_cm": 4.8
+   }
+  },
+  "resident.drink.sit": {
+   "antebraco": {
+    "quadros": 71,
+    "entrava_cm": 1.1
+   },
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.read.sit": {
+   "antebraco": {
+    "quadros": 240,
+    "entrava_cm": 11.2
+   }
+  },
+  "resident.read.stand": {
+   "antebraco": {
+    "quadros": 240,
+    "entrava_cm": 11.5
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
+   }
+  }
+ },
+ "apoios": {
+  "resident.desk.type": {
+   "tipo": "assento",
+   "altura": 0.384,
+   "x": 0.003,
+   "y": -0.146
+  },
+  "resident.desk.write": {
+   "tipo": "assento",
+   "altura": 0.439,
+   "x": 0.031,
+   "y": -0.263
+  },
+  "resident.lie.enter": {
+   "tipo": "cama",
+   "altura": 0.588,
+   "x": 0.006,
+   "y": 0.517
+  },
+  "resident.lie.idle": {
+   "tipo": "cama",
+   "altura": 0.886,
+   "x": -0.001,
+   "y": 0.14
+  },
+  "resident.sit.angry": {
+   "tipo": "assento",
+   "altura": 0.409,
+   "x": 0.009,
+   "y": -0.136
+  },
+  "resident.sit.chair.enter": {
+   "tipo": "assento",
+   "altura": 0.384,
+   "x": 0.006,
+   "y": 0.306
+  },
+  "resident.sit.chair.exit": {
+   "tipo": "assento",
+   "altura": 0.384,
+   "x": 0.001,
+   "y": -0.147
+  },
+  "resident.sit.chair.idle": {
+   "tipo": "assento",
+   "altura": 0.409,
+   "x": 0.003,
+   "y": -0.137
+  },
+  "resident.sit.clap": {
+   "tipo": "assento",
+   "altura": 0.407,
+   "x": 0.003,
+   "y": -0.132
+  },
+  "resident.sit.laugh": {
+   "tipo": "assento",
+   "altura": 0.397,
+   "x": -0.004,
+   "y": -0.115
+  },
+  "resident.sit.talk": {
+   "tipo": "assento",
+   "altura": 0.383,
+   "x": -0.013,
+   "y": -0.144
+  },
+  "resident.sleep.idle": {
+   "tipo": "cama",
+   "altura": 0.882,
+   "x": 0.0,
+   "y": 0.142
+  },
+  "resident.drink.sit": {
+   "tipo": "assento",
+   "altura": 0.409,
+   "x": 0.003,
+   "y": -0.137
+  },
+  "resident.eat.sit": {
+   "tipo": "assento",
+   "altura": 0.409,
+   "x": 0.004,
+   "y": -0.136,
+   "mesa": {
+    "topo": 0.648,
+    "frente": 0.22,
+    "x": 0.002
+   }
+  },
+  "resident.read.sit": {
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.25,
+    0.024,
+    0.183
+   ]
+  },
+  "resident.sit.sofa.relaxed": {
+   "tipo": "assento",
+   "altura": 0.41,
+   "x": 0.003,
+   "y": -0.138
+  },
+  "resident.sleep.exit": {
+   "tipo": "cama",
+   "altura": 0.588,
+   "x": 0.006,
+   "y": 0.517
+  },
+  "resident.wash": {
+   "tipo": "pia",
+   "topo": 0.861,
+   "frente": 0.169,
+   "x": -0.002,
+   "largura": 1.059
+  },
+  "resident.care.hold_idle": {
+   "tipo": "entre_maos",
+   "objeto": "bebe",
+   "tam": [
+    0.433,
+    0.125,
+    0.135
+   ]
+  },
+  "resident.care.rock": {
+   "tipo": "entre_maos",
+   "objeto": "bebe",
+   "tam": [
+    0.433,
+    0.125,
+    0.135
+   ]
+  },
+  "resident.device.use": {
+   "tipo": "entre_maos",
+   "objeto": "tablet",
+   "tam": [
+    0.212,
+    0.012,
+    0.154
+   ]
+  },
+  "resident.read.stand": {
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.25,
+    0.024,
+    0.183
+   ]
+  },
+  "resident.kitchen.stir": {
+   "tipo": "bancada",
+   "topo": 0.919,
+   "frente": 0.197,
+   "x": -0.002,
+   "largura": 1.059
+  },
+  "resident.kitchen.chop": {
+   "tipo": "bancada",
+   "topo": 0.919,
+   "frente": 0.178,
+   "x": -0.002,
+   "largura": 1.059
+  },
+  "resident.clean.sweep": {
+   "tipo": "cabo",
+   "objeto": "vassoura"
+  },
+  "resident.clean.mop": {
+   "tipo": "cabo",
+   "objeto": "rodo"
+  },
+  "resident.clean.wipe": {
+   "tipo": "bancada",
+   "topo": 0.717,
+   "frente": 0.226,
+   "x": -0.002,
+   "largura": 1.059
+  },
+  "resident.clean.vacuum": {
+   "tipo": "cabo",
+   "objeto": "aspirador"
+  },
+  "resident.laundry.fold": {
+   "tipo": "bancada",
+   "topo": 0.784,
+   "frente": 0.197,
+   "x": -0.002,
+   "largura": 1.059
+  }
+ }
+}

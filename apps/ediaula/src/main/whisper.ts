@@ -5,7 +5,7 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { app } from "electron";
-import type { EngineStatus, WhisperModelInfo, WhisperVariant } from "../shared/types.ts";
+import type { EngineStatus, WhisperModelInfo, WhisperVariant, Word } from "../shared/types.ts";
 import {
   helpHasVad,
   isJobId,
@@ -14,13 +14,20 @@ import {
   whisperThreads,
 } from "../shared/whisperArgs.ts";
 import {
+  fillHoles,
   makeTranscript,
   parseSilences,
+  parseWhisper,
+  transcriptHoles,
   type VadSegment,
   vadOutcome,
   type WhisperJson,
   WhisperLog,
 } from "../shared/whisperParse.ts";
+
+/** Seconds of audio around a hole heard again, so its first and last words are whole. */
+const HOLE_PAD = 0.3;
+
 import { downloadVerified, removeStaleParts, verifyFile } from "./download.ts";
 import { cacheDir, detectEncoder, FFMPEG, run } from "./ffmpeg.ts";
 import { folderMatches, renameWhenFree, signature, swapFolder } from "./installCheck.ts";
@@ -529,8 +536,9 @@ export async function transcribe(
   const gl = terms.length
     ? `-${createHash("sha1").update(terms.join("|")).digest("hex").slice(0, 8)}`
     : "";
+  // "-b1": transcrições de antes dos buracos ouvidos de novo são refeitas na próxima vez.
   const outFor = (vad: boolean): string =>
-    join(dir, `transcript-${model.name}-${language}${gl}${vad ? "-vad" : ""}.json`);
+    join(dir, `transcript-${model.name}-${language}${gl}${vad ? "-vad" : ""}-b1.json`);
   if (existsSync(outFor(!!vadModel))) return outFor(!!vadModel);
 
   const run16k = randomUUID();
@@ -603,7 +611,7 @@ export async function transcribe(
     }
     result ??= await runOnce(null);
 
-    const transcript = makeTranscript(
+    let transcript = makeTranscript(
       result.json,
       silences,
       model.name,
@@ -611,6 +619,62 @@ export async function transcribe(
       duration,
       segments,
     );
+    // Whisper às vezes pula uma frase de um áudio longo (a Parte 2 da Aula 3 do Farol perdeu
+    // "Abra Programação e depois Variáveis"): cada buraco com voz é ouvido de novo sozinho.
+    const holes = transcriptHoles(transcript);
+    const heard: { hole: [number, number]; words: Word[] }[] = [];
+    for (const [k, hole] of holes.entries()) {
+      signal?.throwIfAborted();
+      const [a, b] = hole;
+      const from = Math.max(0, a - HOLE_PAD);
+      const piece = `${base}-buraco-${k}`;
+      try {
+        await run(FFMPEG, [
+          ...[
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            wav,
+            "-ss",
+            from.toFixed(3),
+            "-to",
+            (b + HOLE_PAD).toFixed(3),
+          ],
+          ...["-c:a", "pcm_s16le", `${piece}.wav`],
+        ]);
+        const args = whisperArgs({
+          modelPath: model.path,
+          modelName: model.name,
+          wav: `${piece}.wav`,
+          language,
+          out: piece,
+          terms,
+          threads,
+          cpu: variant === "cpu",
+          vadModel: null,
+        });
+        await runWhisper(jobId, bin, args, () => undefined, signal);
+        const json = JSON.parse(await readFile(`${piece}.json`, "utf8")) as WhisperJson;
+        const shifted = silences
+          .map(([s, e]): [number, number] => [s - from, e - from])
+          .filter(([, e]) => e > 0);
+        const words = parseWhisper(json, shifted).map((w) => ({
+          ...w,
+          start: Math.round((w.start + from) * 1000) / 1000,
+          end: Math.round((w.end + from) * 1000) / 1000,
+        }));
+        heard.push({ hole, words });
+      } catch (err) {
+        signal?.throwIfAborted();
+        // Um buraco que não se ouve de novo fica como estava.
+        console.warn("[whisper] não consegui ouvir de novo o trecho", hole, err);
+      } finally {
+        await rm(`${piece}.wav`, { force: true });
+        await rm(`${piece}.json`, { force: true });
+      }
+    }
+    transcript = fillHoles(transcript, heard);
     signal?.throwIfAborted();
     const out = outFor(ranVad);
     await writeFile(out, JSON.stringify(transcript));

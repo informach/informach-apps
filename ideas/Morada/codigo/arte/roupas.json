@@ -1,0 +1,745 @@
+{
+ "_leia": "Catálogo de roupas e acessórios. Lido por tools/veste.py (veste os corpos prontos) e pela página. 'slot': uma peça por slot (cima, baixo, inteira, pes, meias, maos, cabeca, oculos, orelhas, nariz, pescoco, pulso, costas); 'inteira' (fantasia) ocupa cima e baixo. 'tipo': pele (cada ponto preso à pele do corpo de origem e recolocado no mesmo lugar de cada corpo, acompanhando a barriga de gravidez), cabeca (preso ao osso da cabeça pela caixa da cabeça, como os cabelos) ou rosto (idem, empurrado para fora do rosto se afundar).",
+ "slots": {
+  "cima": "Parte de cima",
+  "baixo": "Parte de baixo",
+  "inteira": "Fantasia",
+  "pes": "Calçado",
+  "meias": "Meias",
+  "maos": "Luvas",
+  "cabeca": "Chapéu",
+  "oculos": "Óculos",
+  "orelhas": "Fones",
+  "nariz": "Nariz",
+  "pescoco": "Corrente",
+  "pulso": "Pulseira",
+  "costas": "Costas"
+ },
+ "pacotes_texturas": {
+  "Casino": "Casino/textures/textures",
+  "Apocalypse": "Apocalypse/textures/textures",
+  "Creative_Characters": "Creative_Characters/textures/textures",
+  "Christmas_Pack": "Christmas_Pack/Textures/Textures",
+  "Chess_Pack": "Chess_Pack/textures/textures"
+ },
+ "itens": [
+  {
+   "id": "roupa_camiseta_xadrez1",
+   "slot": "cima",
+   "rotulo": "Terno com gravata",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_01.fbx",
+   "corpo_origem": "ChessPlayer_01",
+   "pecas": [
+    "ChessPlayer_Top_01"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camiseta_xadrez2",
+   "slot": "cima",
+   "rotulo": "Colete com gravata",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_02.fbx",
+   "corpo_origem": "ChessPlayer_02",
+   "pecas": [
+    "ChessPlayer_Top_02"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camisa_caixa",
+   "slot": "cima",
+   "rotulo": "Colete com gravata-borboleta",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/1_Cashier.fbx",
+   "corpo_origem": "Adult_Female_Cashier_Body",
+   "pecas": [
+    "Adult_Female_Cashier_Shirt"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camisa_plus",
+   "slot": "cima",
+   "rotulo": "Camisa rosa",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Shirt_75"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camisa_seguranca",
+   "slot": "cima",
+   "rotulo": "Jaqueta preta",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/18_Security.fbx",
+   "corpo_origem": "Adult_Male__Security_Body",
+   "pecas": [
+    "Adult_Male_Security_Shirt"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_jaqueta_36",
+   "slot": "cima",
+   "rotulo": "Paletó roxo",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/36.fbx",
+   "corpo_origem": "Adult_Male_Body_36",
+   "pecas": [
+    "Adult_Male_Jacket_36"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_blusa_showgirl",
+   "slot": "cima",
+   "rotulo": "Casaca vermelha",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/20_Showgirl.fbx",
+   "corpo_origem": "Adult_Female_Showgirl_Body",
+   "pecas": [
+    "Adult_Female_Showgirl_Outwear"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camisa_lenhador",
+   "slot": "cima",
+   "rotulo": "Camisa xadrez",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Outwear_Adult_Male"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_jaqueta_sobrevivente",
+   "slot": "cima",
+   "rotulo": "Cropped laranja",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Outwear_Adult_Female"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_casaco_noel",
+   "slot": "cima",
+   "rotulo": "Casaco do Papai Noel",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Coat_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_camiseta_criativa",
+   "slot": "cima",
+   "rotulo": "Camiseta azul",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "T_Shirt_009"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_agasalho_029",
+   "slot": "cima",
+   "rotulo": "Moletom amarelo",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Outerwear_029"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_agasalho_036",
+   "slot": "cima",
+   "rotulo": "Suéter laranja",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Outerwear_036"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_xadrez1",
+   "slot": "baixo",
+   "rotulo": "Calça cinza",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_01.fbx",
+   "corpo_origem": "ChessPlayer_01",
+   "pecas": [
+    "ChessPlayer_Pants_01"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_xadrez2",
+   "slot": "baixo",
+   "rotulo": "Calça preta",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_02.fbx",
+   "corpo_origem": "ChessPlayer_02",
+   "pecas": [
+    "ChessPlayer_Pants_02"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_caixa",
+   "slot": "baixo",
+   "rotulo": "Calça social cinza",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/1_Cashier.fbx",
+   "corpo_origem": "Adult_Female_Cashier_Body",
+   "pecas": [
+    "Adult_Female_Cashier_Pants"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_seguranca",
+   "slot": "baixo",
+   "rotulo": "Calça social preta",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/18_Security.fbx",
+   "corpo_origem": "Adult_Male__Security_Body",
+   "pecas": [
+    "Adult_Male_Security_Pants"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_36",
+   "slot": "baixo",
+   "rotulo": "Calça roxa",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/36.fbx",
+   "corpo_origem": "Adult_Male_Body_36",
+   "pecas": [
+    "Adult_Male_Pants_36"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_bermuda_plus",
+   "slot": "baixo",
+   "rotulo": "Bermuda jeans",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Shorts_75"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_saia_showgirl",
+   "slot": "baixo",
+   "rotulo": "Saia listrada",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/20_Showgirl.fbx",
+   "corpo_origem": "Adult_Female_Showgirl_Body",
+   "pecas": [
+    "Adult_Female_Showgirl_Skirt"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_lenhador",
+   "slot": "baixo",
+   "rotulo": "Calça cáqui com binóculo",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Pants_Adult_Male"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_sobrevivente",
+   "slot": "baixo",
+   "rotulo": "Calça preta com joelheira",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Pants_Adult_Female"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_noel",
+   "slot": "baixo",
+   "rotulo": "Calça do Papai Noel",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Pants_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_010",
+   "slot": "baixo",
+   "rotulo": "Calça verde",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Pants_010"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_calca_014",
+   "slot": "baixo",
+   "rotulo": "Calça cargo preta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Pants_014"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_short_003",
+   "slot": "baixo",
+   "rotulo": "Short cinza",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Shorts_003"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_fantasia_6",
+   "slot": "inteira",
+   "rotulo": "Fantasia de casulo",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Costume_6_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_fantasia_10",
+   "slot": "inteira",
+   "rotulo": "Fantasia de palhaço",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Costume_10_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_tenis_xadrez1",
+   "slot": "pes",
+   "rotulo": "Sapato preto",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_01.fbx",
+   "corpo_origem": "ChessPlayer_01",
+   "pecas": [
+    "ChessPlayer_Shoes_01"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_tenis_xadrez2",
+   "slot": "pes",
+   "rotulo": "Sapato preto (outro)",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_02.fbx",
+   "corpo_origem": "ChessPlayer_02",
+   "pecas": [
+    "ChessPlayer_Shoes_02"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_sapato_caixa",
+   "slot": "pes",
+   "rotulo": "Sapato preto (bico fino)",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/1_Cashier.fbx",
+   "corpo_origem": "Adult_Female_Cashier_Body",
+   "pecas": [
+    "Adult_Female_Cashier_Shoes"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_sapato_seguranca",
+   "slot": "pes",
+   "rotulo": "Sapato social",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/18_Security.fbx",
+   "corpo_origem": "Adult_Male__Security_Body",
+   "pecas": [
+    "Adult_Male_Security_Shoes"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_sapato_36",
+   "slot": "pes",
+   "rotulo": "Sapato roxo",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/36.fbx",
+   "corpo_origem": "Adult_Male_Body_36",
+   "pecas": [
+    "Adult_Male_Shoes_36"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_tenis_plus",
+   "slot": "pes",
+   "rotulo": "Tênis vermelho",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Shoes_75"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_salto_showgirl",
+   "slot": "pes",
+   "rotulo": "Salto vermelho",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/20_Showgirl.fbx",
+   "corpo_origem": "Adult_Female_Showgirl_Body",
+   "pecas": [
+    "Adult_Female_Showgirl_HeelShoes"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_bota_lenhador",
+   "slot": "pes",
+   "rotulo": "Coturno amarelo",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Shoes"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_bota_sobrevivente",
+   "slot": "pes",
+   "rotulo": "Tênis preto (sobrevivente)",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Shoes"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_bota_noel",
+   "slot": "pes",
+   "rotulo": "Bota marrom",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Shoes_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_chinelo_002",
+   "slot": "pes",
+   "rotulo": "Chinelo azul",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Shoe_Slippers_002"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_chinelo_005",
+   "slot": "pes",
+   "rotulo": "Chinelo laranja",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Shoe_Slippers_005"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_tenis_009",
+   "slot": "pes",
+   "rotulo": "Tênis branco",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Shoe_Sneakers_009"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_meias_008",
+   "slot": "meias",
+   "rotulo": "Meias vermelhas",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Socks_008"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_luvas_sobrevivente",
+   "slot": "maos",
+   "rotulo": "Luvas sem dedos pretas",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Gloves"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_luvas_noel",
+   "slot": "maos",
+   "rotulo": "Luvas marrons",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Gloves_001"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_luvas_006",
+   "slot": "maos",
+   "rotulo": "Luvas verdes",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Gloves_006"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_luvas_014",
+   "slot": "maos",
+   "rotulo": "Luvas sem dedos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Gloves_014"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_chapeu_showgirl",
+   "slot": "cabeca",
+   "rotulo": "Cartola listrada",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/20_Showgirl.fbx",
+   "corpo_origem": "Adult_Female_Showgirl_Body",
+   "pecas": [
+    "Adult_Female_Showgirl_Hat"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_bone_36",
+   "slot": "cabeca",
+   "rotulo": "Cartola roxa",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/36.fbx",
+   "corpo_origem": "Adult_Male_Body_36",
+   "pecas": [
+    "Adult_Male_Hat_36"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_chapeu_sobrevivente",
+   "slot": "cabeca",
+   "rotulo": "Gorro com óculos de proteção",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Hat"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_gorro_noel",
+   "slot": "cabeca",
+   "rotulo": "Gorro do Papai Noel",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Hat_001"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_chapeu_010",
+   "slot": "cabeca",
+   "rotulo": "Chapéu de palha",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Hat_010"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_chapeu_049",
+   "slot": "cabeca",
+   "rotulo": "Gorro de coelho",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Hat_049"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_chapeu_057",
+   "slot": "cabeca",
+   "rotulo": "Capacete de aviador",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Hat_057"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_oculos_xadrez",
+   "slot": "oculos",
+   "rotulo": "Óculos de aviador azuis",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_02.fbx",
+   "corpo_origem": "ChessPlayer_02",
+   "pecas": [
+    "ChessPlayer_Glasses_01"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_oculos_seguranca",
+   "slot": "oculos",
+   "rotulo": "Óculos escuros",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/18_Security.fbx",
+   "corpo_origem": "Adult_Male__Security_Body",
+   "pecas": [
+    "Adult_Male_Security_Glasses"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_oculos_lenhador",
+   "slot": "oculos",
+   "rotulo": "Óculos quadrados laranja",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Glasses"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_oculos_noel",
+   "slot": "oculos",
+   "rotulo": "Óculos redondos",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Glasses_001"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_oculos_004",
+   "slot": "oculos",
+   "rotulo": "Óculos de grau vermelhos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Glasses_004"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_oculos_006",
+   "slot": "oculos",
+   "rotulo": "Óculos de aviador",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Glasses_006"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_fones_002",
+   "slot": "orelhas",
+   "rotulo": "Fones sem fio",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Headphones_002"
+   ],
+   "tipo": "cabeca"
+  },
+  {
+   "id": "roupa_nariz_palhaco",
+   "slot": "nariz",
+   "rotulo": "Nariz de palhaço",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Clown_nose_001"
+   ],
+   "tipo": "rosto"
+  },
+  {
+   "id": "roupa_corrente_plus",
+   "slot": "pescoco",
+   "rotulo": "Corrente",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Chain_75"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_pulseira_plus",
+   "slot": "pulso",
+   "rotulo": "Pulseira",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Bracelet_75"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_mochila",
+   "slot": "costas",
+   "rotulo": "Mochila",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Backpack"
+   ],
+   "tipo": "pele"
+  },
+  {
+   "id": "roupa_violao_costas",
+   "slot": "costas",
+   "rotulo": "Violão nas costas",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Back_Guitar"
+   ],
+   "tipo": "pele"
+  }
+ ],
+ "texturas_padrao": {
+  "Apocalypse": "Color2.png"
+ }
+}

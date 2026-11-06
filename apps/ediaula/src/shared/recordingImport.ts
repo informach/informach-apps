@@ -67,6 +67,8 @@ export const PRESENTER_TRACK = "Apresentador";
 /** The shortest clip worth placing. */
 const MIN = 1 / 30;
 const EPS = 1e-6;
+/** Seconds left empty between one part of a guided recording and the next on the timeline. */
+export const PART_GAP = 2;
 
 const round3 = (v: number): number => Math.round(v * 1000) / 1000;
 const round4 = (v: number): number => Math.round(v * 10000) / 10000;
@@ -145,10 +147,16 @@ export function layoutRecording(
   }
   if (main?.locked) main = undefined;
   const mainId = main?.id;
-  start ??= clips.reduce(
-    (last, c) => (c.trackId === mainId ? Math.max(last, clipEnd(c)) : last),
-    0,
-  );
+  if (start === undefined) {
+    const last = clips.reduce(
+      (end, c) => (c.trackId === mainId ? Math.max(end, clipEnd(c)) : end),
+      0,
+    );
+    // A part of a guided recording (a take with its narration) after what the lesson already
+    // has starts a little later: in the edit, the gap shows where one part ends and the next
+    // begins. A take that carries on an interrupted one gets its `at` and goes right there.
+    start = result.narration && last > EPS ? last + PART_GAP : last;
+  }
   const end = start + duration;
   const free = (track: Track): boolean =>
     !track.locked &&

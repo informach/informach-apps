@@ -1,0 +1,7 @@
+*.glb binary
+*.fbx binary
+*.blend binary
+*.zip binary
+*.xz binary
+*.parte* binary
+*.webp binary

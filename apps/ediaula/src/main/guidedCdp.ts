@@ -172,6 +172,11 @@ export type Found =
 
 /** The page took longer than this to answer a command: it counts as busy, not broken. */
 const SEND_TIMEOUT = 10000;
+/**
+ * Milliseconds the hand stays still on a drag's end before letting go: a few frames, so the page
+ * has applied the last movement (Blockly snaps by where it last saw the block).
+ */
+const SETTLE_BEFORE_RELEASE = 60;
 
 /** A command the page did not answer in time (it is loading, or a script holds it). */
 export class CdpTimeout extends Error {
@@ -1478,6 +1483,11 @@ export class WebDriver implements GuidedDriver {
     const pressed = this.pressing;
     this.pressing = null;
     await pressed;
+    // A mão para no destino antes de soltar, como uma pessoa: o Blockly só aplica o último
+    // movimento no quadro seguinte, e soltar logo depois dele encaixava o bloco pelo ponto de
+    // antes (no Verificar plano, sem pausa, o bloco caía solto ao lado do encaixe).
+    await this.cdp.mouse("mouseMoved", p, { button: "left", buttons: 1 });
+    await sleep(SETTLE_BEFORE_RELEASE, this.signal);
     await this.cdp.mouse("mouseReleased", p, { button: "left", buttons: 0, clickCount: 1 });
     this.log?.({ k: "up", t: at, x: p.x, y: p.y, b: 0 });
     this.noteShape(p, at);
