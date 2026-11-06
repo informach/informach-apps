@@ -21,7 +21,9 @@
   "cintura": "Cinto",
   "alcas": "Suspensório",
   "avental": "Avental",
-  "costas": "Costas"
+  "costas": "Costas",
+  "mao_dir": "Na mão direita",
+  "mao_esq": "Na mão esquerda"
  },
  "pacotes_texturas": {
   "Casino": "Casino/textures/textures",
@@ -2336,12 +2338,9 @@
    "tipo": "cabeca",
    "gerar": {
     "tipo": "chapeu",
-    "copa": {
-     "folga": 0.05,
-     "corte": 0.7,
-     "alt": 1.0,
-     "teto": 0.07,
-     "inclina": 0.03
+    "boina": {
+     "corte": 0.62,
+     "lado": 13
     }
    },
    "variacao": {
@@ -2859,21 +2858,88 @@
    "gerar": {
     "tipo": "camada",
     "regiao": "tronco",
-    "folga": 0.05,
-    "padrao": "refletivo",
-    "cortes": [
+    "folga": 0.03,
+    "partes": [
      {
-      "marco": "pescoco",
-      "acima": true,
-      "desloca": -0.05
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.05
+       },
+       {
+        "marco": "quadril",
+        "desloca": 0.02
+       },
+       {
+        "marco": "ombro",
+        "desloca": 0.01
+       }
+      ],
+      "inflar": {
+       "n": 10,
+       "amp": 0.016
+      }
      },
      {
-      "marco": "quadril",
-      "desloca": 0.02
+      "capuz_caido": {
+       "espessura": 0.034,
+       "altura": 0.08,
+       "abre": 62
+      }
      },
      {
-      "marco": "ombro",
-      "desloca": 0.01
+      "faixas_z": [
+       [
+        "cintura",
+        -0.02,
+        "cintura",
+        0.012
+       ],
+       [
+        "peito",
+        -0.045,
+        "peito",
+        -0.015
+       ]
+      ],
+      "folga": 0.058,
+      "cor": "preto",
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.05
+       },
+       {
+        "marco": "quadril",
+        "desloca": 0.02
+       },
+       {
+        "marco": "ombro",
+        "desloca": 0.01
+       }
+      ]
+     },
+     {
+      "fivela": {
+       "marco": "cintura",
+       "desloca": -0.004,
+       "folga": 0.062,
+       "largura": 0.045,
+       "altura": 0.03
+      },
+      "cor": "cinza_escuro"
+     },
+     {
+      "fivela": {
+       "marco": "peito",
+       "desloca": -0.03,
+       "folga": 0.062,
+       "largura": 0.045,
+       "altura": 0.03
+      },
+      "cor": "cinza_escuro"
      }
     ],
     "familia": "destino"
@@ -4168,12 +4234,8 @@
    "tipo": "cabeca",
    "gerar": {
     "tipo": "chapeu",
-    "copa": {
-     "folga": 0.03,
-     "corte": -0.15,
-     "alt": 1.05,
-     "inclina": 0.0,
-     "capuz": true
+    "capuz": {
+     "folga": 0.04
     }
    },
    "variacao": {
@@ -4362,6 +4424,2160 @@
    },
    "variacao": {
     "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_camiseta_faixa",
+   "slot": "cima",
+   "rotulo": "Camiseta com faixa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.012,
+    "padrao": "faixa_peito",
+    "gola": {
+     "altura": 0.012
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.015
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.03
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_camiseta_larga",
+   "slot": "cima",
+   "rotulo": "Camiseta larga",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.022,
+    "gola": {
+     "altura": 0.01
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.015
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.06
+     },
+     {
+      "marco": "braco_meio",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_regata_faixa",
+   "slot": "cima",
+   "rotulo": "Regata com faixa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.01,
+    "padrao": "faixa_peito",
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.05
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.03
+     },
+     {
+      "marco": "ombro",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "nov_camisa_caveira",
+   "slot": "cima",
+   "rotulo": "Camisa de caveirinhas",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.016,
+    "padrao": "caveiras",
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_camisa_folhas",
+   "slot": "cima",
+   "rotulo": "Camisa de folhas",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.016,
+    "padrao": "folhas",
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2E8B57"
+   }
+  },
+  {
+   "id": "nov_camisa_onca",
+   "slot": "cima",
+   "rotulo": "Camisa de oncinha",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.016,
+    "padrao": "onca",
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#E0447F"
+   }
+  },
+  {
+   "id": "nov_camisa_ziguezague",
+   "slot": "cima",
+   "rotulo": "Camisa ziguezague",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.016,
+    "padrao": "ziguezague",
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3FA7D6"
+   }
+  },
+  {
+   "id": "nov_camisa_listrada_vertical",
+   "slot": "cima",
+   "rotulo": "Camisa listrada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.016,
+    "padrao": "listras_verticais",
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_marinheiro",
+   "slot": "cima",
+   "rotulo": "Blusa de marinheiro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.012,
+    "partes": [
+     {
+      "padrao": "liso",
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.015
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.025
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ],
+      "faixas_cor": {
+       "punhos": "azul_escuro",
+       "largura_punho": 0.04
+      }
+     },
+     {
+      "tras": true,
+      "faixa_x": [
+       0.0,
+       0.14
+      ],
+      "faixas_z": [
+       [
+        "peito",
+        0.03,
+        "pescoco",
+        0.2
+       ]
+      ],
+      "folga": 0.022,
+      "cor": "azul_escuro",
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.015
+       }
+      ]
+     },
+     {
+      "frente": 0,
+      "faixa_x": [
+       0.0,
+       0.03
+      ],
+      "faixas_z": [
+       [
+        "peito",
+        -0.03,
+        "peito",
+        0.03
+       ]
+      ],
+      "folga": 0.024,
+      "cor": "vermelho",
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.015
+       }
+      ]
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_top_biquini",
+   "slot": "cima",
+   "rotulo": "Top de biquíni",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.005,
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.075
+     },
+     {
+      "marco": "peito",
+      "desloca": -0.075
+     },
+     {
+      "marco": "ombro",
+      "desloca": -0.01
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_jaqueta_aviador",
+   "slot": "cima",
+   "rotulo": "Jaqueta de aviador",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "gola": {
+     "altura": 0.04,
+     "dobra": 0.85,
+     "aba": 0.022,
+     "cor": "creme"
+    },
+    "faixas_cor": {
+     "punhos": "creme",
+     "largura_punho": 0.03
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.05
+     },
+     {
+      "marco": "punho",
+      "desloca": -0.01
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#7B4B2D"
+   }
+  },
+  {
+   "id": "nov_jaqueta_colegial",
+   "slot": "cima",
+   "rotulo": "Jaqueta colegial",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.026,
+    "gola": {
+     "altura": 0.02
+    },
+    "faixas_cor": {
+     "punhos": "branco",
+     "barra": "branco",
+     "gola": "branco"
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "punho",
+      "desloca": -0.01
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2E8B57"
+   }
+  },
+  {
+   "id": "nov_agasalho_listrado",
+   "slot": "cima",
+   "rotulo": "Jaqueta de agasalho listrada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.022,
+    "padrao": "duas_cores_lateral",
+    "gola": {
+     "altura": 0.03
+    },
+    "faixas_cor": {
+     "punhos": "branco",
+     "barra": "branco"
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.04
+     },
+     {
+      "marco": "punho",
+      "desloca": -0.01
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#B03A8C"
+   }
+  },
+  {
+   "id": "nov_moletom_capuz",
+   "slot": "cima",
+   "rotulo": "Moletom com capuz",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.024,
+    "padrao": "bolso_canguru",
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.015
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.05
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ],
+      "faixas_cor": {}
+     },
+     {
+      "capuz_caido": {
+       "espessura": 0.028,
+       "altura": 0.07,
+       "abre": 75
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "nov_acolchoada_capuz",
+   "slot": "cima",
+   "rotulo": "Jaqueta acolchoada com capuz",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.045,
+    "padrao": "acolchoado",
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": 0.0
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.05
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "capuz_caido": {
+       "espessura": 0.036,
+       "altura": 0.08,
+       "abre": 70
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3FA7D6"
+   }
+  },
+  {
+   "id": "nov_paleto",
+   "slot": "sobre",
+   "rotulo": "Paletó",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "abre_frente": 0.035,
+    "lapela": {
+     "largura": 0.06
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.02
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "quadril",
+       "desloca_topo": 0.05,
+       "ate": "quadril",
+       "desloca": -0.1,
+       "abertura": 1.06,
+       "abre_frente": 10,
+       "folga": 0.034
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#24346B"
+   }
+  },
+  {
+   "id": "nov_paleto_brilho",
+   "slot": "sobre",
+   "rotulo": "Paletó brilhante",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "padrao": "lantejoula",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "abre_frente": 0.035,
+    "lapela": {
+     "largura": 0.06
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.02
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "quadril",
+       "desloca_topo": 0.05,
+       "ate": "quadril",
+       "desloca": -0.1,
+       "abertura": 1.06,
+       "abre_frente": 10,
+       "folga": 0.034
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D6A83A"
+   }
+  },
+  {
+   "id": "nov_paleto_listrado",
+   "slot": "sobre",
+   "rotulo": "Paletó listrado",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "padrao": "listras_verticais",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "abre_frente": 0.035,
+    "lapela": {
+     "largura": 0.06
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.02
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "quadril",
+       "desloca_topo": 0.05,
+       "ate": "quadril",
+       "desloca": -0.1,
+       "abertura": 1.06,
+       "abre_frente": 10,
+       "folga": 0.034
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#7B4B2D"
+   }
+  },
+  {
+   "id": "nov_smoking",
+   "slot": "sobre",
+   "rotulo": "Smoking",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "abre_frente": 0.035,
+    "lapela": {
+     "largura": 0.06,
+     "cor": "preto"
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "quadril",
+        "desloca": -0.02
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "quadril",
+       "desloca_topo": 0.05,
+       "ate": "quadril",
+       "desloca": -0.1,
+       "abertura": 1.06,
+       "abre_frente": 10,
+       "folga": 0.034
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#C0392B"
+   }
+  },
+  {
+   "id": "nov_camisa_aberta",
+   "slot": "sobre",
+   "rotulo": "Camisa aberta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.03,
+    "abre_frente": 0.07,
+    "gola": {
+     "altura": 0.022,
+     "dobra": 0.9
+    },
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.05
+     },
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#7CC242"
+   }
+  },
+  {
+   "id": "nov_capa_chuva",
+   "slot": "sobre",
+   "rotulo": "Capa de chuva",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.04,
+    "gola": {
+     "altura": 0.02
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "quadril",
+        "desloca": 0.0
+       },
+       {
+        "marco": "punho",
+        "desloca": -0.01
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "cintura",
+       "desloca_topo": -0.03,
+       "ate": "joelho",
+       "desloca": 0.0,
+       "abertura": 1.12,
+       "folga": 0.04
+      }
+     },
+     {
+      "capuz_caido": {
+       "espessura": 0.03,
+       "altura": 0.075,
+       "abre": 70
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3FC1B0"
+   }
+  },
+  {
+   "id": "nov_biquini_baixo",
+   "slot": "baixo",
+   "rotulo": "Calcinha de biquíni",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.005,
+    "cortes": [
+     {
+      "marco": "quadril",
+      "acima": true,
+      "desloca": -0.005
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.075
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_bermuda_praia",
+   "slot": "baixo",
+   "rotulo": "Bermuda de praia",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.02,
+    "padrao": "listras_verticais",
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true,
+      "desloca": -0.03
+     },
+     {
+      "marco": "coxa_meio",
+      "desloca": -0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_short_praia",
+   "slot": "baixo",
+   "rotulo": "Short de praia",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.018,
+    "padrao": "duas_cores_lateral",
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true,
+      "desloca": -0.03
+     },
+     {
+      "marco": "coxa_meio",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#C0392B"
+   }
+  },
+  {
+   "id": "nov_calca_jeans",
+   "slot": "baixo",
+   "rotulo": "Calça jeans",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.016,
+    "padrao": "jeans",
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "tornozelo",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D5A8A"
+   }
+  },
+  {
+   "id": "nov_calca_rasgada",
+   "slot": "baixo",
+   "rotulo": "Calça jeans rasgada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.016,
+    "padrao": "jeans",
+    "furos": [
+     {
+      "marco": "joelho",
+      "desloca": 0.02,
+      "raio": 0.032
+     },
+     {
+      "marco": "coxa_meio",
+      "desloca": 0.0,
+      "raio": 0.02
+     }
+    ],
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "tornozelo",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_bermuda_rasgada",
+   "slot": "baixo",
+   "rotulo": "Bermuda jeans rasgada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.018,
+    "padrao": "jeans",
+    "furos": [
+     {
+      "marco": "coxa_meio",
+      "desloca": -0.01,
+      "raio": 0.026
+     }
+    ],
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true,
+      "desloca": -0.01
+     },
+     {
+      "marco": "joelho",
+      "desloca": 0.05
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_calca_listrada",
+   "slot": "baixo",
+   "rotulo": "Calça listrada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.018,
+    "padrao": "listras_verticais",
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true
+     },
+     {
+      "marco": "tornozelo",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_calca_agasalho_listrada",
+   "slot": "baixo",
+   "rotulo": "Calça de agasalho listrada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.018,
+    "padrao": "duas_cores_lateral",
+    "faixas_cor": {
+     "barra": "branco",
+     "largura_barra": 0.025
+    },
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true
+     },
+     {
+      "marco": "tornozelo",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#B03A8C"
+   }
+  },
+  {
+   "id": "nov_calca_boca_sino",
+   "slot": "baixo",
+   "rotulo": "Calça boca de sino",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.014,
+    "boca_sino": 0.05,
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true
+     },
+     {
+      "marco": "tornozelo",
+      "desloca": -0.005
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#C2185B"
+   }
+  },
+  {
+   "id": "nov_meia_calca",
+   "slot": "meias",
+   "rotulo": "Meia-calça",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "pernas",
+    "folga": 0.003,
+    "cortes": [
+     {
+      "marco": "cintura",
+      "acima": true
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_vestido_um_ombro",
+   "slot": "inteira",
+   "rotulo": "Vestido de um ombro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.01,
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.05
+       },
+       {
+        "marco": "cintura",
+        "desloca": -0.01
+       },
+       {
+        "marco": "ombro",
+        "desloca": 0.01
+       }
+      ],
+      "ombro_unico": 1
+     },
+     {
+      "saia": {
+       "desde": "cintura",
+       "ate": "joelho",
+       "desloca": 0.02,
+       "abertura": 1.15
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#8E55D6"
+   }
+  },
+  {
+   "id": "nov_vestido_tubinho",
+   "slot": "inteira",
+   "rotulo": "Vestido tubinho",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.008,
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.05
+       },
+       {
+        "marco": "cintura",
+        "desloca": -0.01
+       },
+       {
+        "marco": "ombro",
+        "desloca": 0.02
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "cintura",
+       "ate": "coxa_meio",
+       "desloca": -0.02,
+       "abertura": 1.03
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_vestido_gola",
+   "slot": "inteira",
+   "rotulo": "Vestido de gola branca",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.012,
+    "gola": {
+     "altura": 0.02,
+     "dobra": 0.95,
+     "aba": 0.02,
+     "cor": "branco"
+    },
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "cintura",
+        "desloca": -0.01
+       },
+       {
+        "marco": "braco_meio"
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "cintura",
+       "ate": "joelho",
+       "desloca": 0.0,
+       "abertura": 1.25
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3FC1B0"
+   }
+  },
+  {
+   "id": "nov_vestido_manga_curta",
+   "slot": "inteira",
+   "rotulo": "Vestido de manga curta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.012,
+    "partes": [
+     {
+      "cortes": [
+       {
+        "marco": "pescoco",
+        "acima": true,
+        "desloca": -0.01
+       },
+       {
+        "marco": "cintura",
+        "desloca": -0.01
+       },
+       {
+        "marco": "braco_meio",
+        "desloca": -0.03
+       }
+      ]
+     },
+     {
+      "saia": {
+       "desde": "cintura",
+       "ate": "joelho",
+       "desloca": -0.02,
+       "abertura": 1.2
+      }
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_macaquinho_listrado",
+   "slot": "inteira",
+   "rotulo": "Macaquinho listrado",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "corpo",
+    "folga": 0.008,
+    "padrao": "listras_marinheiro",
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.05
+     },
+     {
+      "marco": "coxa_meio",
+      "desloca": 0.05
+     },
+     {
+      "marco": "braco_meio",
+      "desloca": -0.03
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#8E55D6"
+   }
+  },
+  {
+   "id": "nov_maio_listrado",
+   "slot": "inteira",
+   "rotulo": "Maiô listrado",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "corpo",
+    "folga": 0.005,
+    "padrao": "listras_marinheiro",
+    "cortes": [
+     {
+      "marco": "pescoco",
+      "acima": true,
+      "desloca": -0.05
+     },
+     {
+      "marco": "quadril",
+      "desloca": -0.08
+     },
+     {
+      "marco": "ombro",
+      "desloca": 0.02
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_lenco",
+   "slot": "pescoco_peca",
+   "rotulo": "Lenço no pescoço",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "tronco",
+    "folga": 0.02,
+    "partes": [
+     {
+      "faixas_z": [
+       [
+        "pescoco",
+        -0.035,
+        "pescoco",
+        0.02
+       ]
+      ]
+     },
+     {
+      "frente": 0,
+      "faixa_x": [
+       0.0,
+       0.055
+      ],
+      "faixas_z": [
+       [
+        "peito",
+        0.04,
+        "pescoco",
+        -0.02
+       ]
+      ],
+      "folga": 0.024
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_cinto_fivela",
+   "slot": "cintura",
+   "rotulo": "Cinto com fivela",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "tipo": "camada",
+    "regiao": "corpo",
+    "folga": 0.014,
+    "partes": [
+     {
+      "faixas_z": [
+       [
+        "cintura",
+        -0.06,
+        "cintura",
+        -0.03
+       ]
+      ]
+     },
+     {
+      "fivela": {
+       "marco": "cintura",
+       "desloca": -0.045,
+       "folga": 0.02,
+       "largura": 0.05,
+       "altura": 0.036
+      },
+      "cor": "dourado"
+     }
+    ],
+    "familia": "destino"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_fedora",
+   "slot": "cabeca",
+   "rotulo": "Chapéu fedora",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.014,
+     "corte": 0.62,
+     "alt": 1.08,
+     "inclina": 0.02,
+     "vinco": 0.1
+    },
+    "faixa": {
+     "altura": 0.1,
+     "cor": "preto"
+    },
+    "aba": {
+     "largura": 0.34,
+     "caida": 0.06,
+     "sobe_tras": 0.5
+    }
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_palheta",
+   "slot": "cabeca",
+   "rotulo": "Chapéu palheta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.012,
+     "corte": 0.64,
+     "inclina": 0.0
+    },
+    "banda": {
+     "altura": 0.3,
+     "abre": 1.04
+    },
+    "topo": {
+     "raio": 1.0
+    },
+    "faixa": {
+     "altura": 0.12,
+     "cor": "azul_escuro"
+    },
+    "aba": {
+     "largura": 0.3,
+     "caida": 0.0
+    }
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   }
+  },
+  {
+   "id": "nov_chapeu_praia",
+   "slot": "cabeca",
+   "rotulo": "Chapéu de praia",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.015,
+     "corte": 0.67,
+     "alt": 1.0
+    },
+    "faixa": {
+     "altura": 0.1,
+     "cor": "branco"
+    },
+    "aba": {
+     "largura": 0.7,
+     "caida": 0.13,
+     "ondas": 0.06,
+     "n_ondas": 6
+    }
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "nov_abas_largas",
+   "slot": "cabeca",
+   "rotulo": "Chapéu de abas largas",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.015,
+     "corte": 0.62,
+     "alt": 1.08
+    },
+    "faixa": {
+     "altura": 0.1,
+     "cor": "preto"
+    },
+    "aba": {
+     "largura": 0.62,
+     "caida": 0.08
+    }
+   },
+   "variacao": {
+    "cor": "#3FA7D6"
+   }
+  },
+  {
+   "id": "nov_touca_urso",
+   "slot": "cabeca",
+   "rotulo": "Touca de urso",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.012,
+     "corte": 0.58,
+     "alt": 1.05
+    },
+    "enrolado": {
+     "altura": 0.14
+    },
+    "orelhas_redondas": {
+     "raio": 0.14,
+     "dentro": "bege"
+    }
+   },
+   "variacao": {
+    "cor": "#E27B3B"
+   }
+  },
+  {
+   "id": "nov_orelhas_coelho",
+   "slot": "cabeca",
+   "rotulo": "Orelhas de coelho",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "so_arco": true,
+    "arco": {
+     "largura": 0.05,
+     "orelhas_longas": {
+      "dentro": "rosa"
+     }
+    }
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "achata": false
+  },
+  {
+   "id": "nov_bone_duas_cores",
+   "slot": "cabeca",
+   "rotulo": "Boné de duas cores",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.01,
+     "corte": 0.66,
+     "inclina": 0.1
+    },
+    "viseira": {
+     "comprimento": 0.55,
+     "abertura": 70,
+     "caida": 0.12,
+     "cor": "azul"
+    }
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_oculos_redondos",
+   "slot": "oculos",
+   "rotulo": "Óculos redondos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "redondo",
+    "armacao": "branco"
+   },
+   "variacao": {
+    "cor": "#D6A83A"
+   }
+  },
+  {
+   "id": "nov_oculos_quadrados",
+   "slot": "oculos",
+   "rotulo": "Óculos de grau quadrados",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "quadrado",
+    "armacao": "branco",
+    "esp": 0.006
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_oculos_gatinho",
+   "slot": "oculos",
+   "rotulo": "Óculos gatinho",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "gatinho",
+    "armacao": "branco",
+    "lente": "preto"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_oculos_sol_redondos",
+   "slot": "oculos",
+   "rotulo": "Óculos de sol redondos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "redondo",
+    "armacao": "branco",
+    "lente": "cinza_escuro"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "nov_oculos_3d",
+   "slot": "oculos",
+   "rotulo": "Óculos 3D",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "quadrado",
+    "armacao": "branco",
+    "lente": [
+     "vermelho",
+     "azul"
+    ],
+    "esp": 0.007
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_oculos_esportivos",
+   "slot": "oculos",
+   "rotulo": "Óculos esportivos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "oculos",
+    "forma": "viseira",
+    "armacao": "branco",
+    "lente": "azul"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_celular",
+   "slot": "mao_dir",
+   "rotulo": "Celular",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "celular"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_cafe",
+   "slot": "mao_dir",
+   "rotulo": "Copo de café",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "cafe"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   }
+  },
+  {
+   "id": "nov_microfone",
+   "slot": "mao_dir",
+   "rotulo": "Microfone",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "microfone"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_sorvete",
+   "slot": "mao_dir",
+   "rotulo": "Sorvete",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "sorvete"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "nov_picole",
+   "slot": "mao_dir",
+   "rotulo": "Picolé",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "picole"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "nov_camera",
+   "slot": "mao_dir",
+   "rotulo": "Câmera fotográfica",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "camera"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_livro",
+   "slot": "mao_dir",
+   "rotulo": "Livro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "livro"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "nov_buque",
+   "slot": "mao_dir",
+   "rotulo": "Buquê de flores",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "buque"
+   },
+   "variacao": {
+    "cor": "#C9A0DC"
+   }
+  },
+  {
+   "id": "nov_bengala",
+   "slot": "mao_dir",
+   "rotulo": "Bengala",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "bengala"
+   },
+   "variacao": {
+    "cor": "#7B4B2D"
+   }
+  },
+  {
+   "id": "nov_guarda_chuva",
+   "slot": "mao_dir",
+   "rotulo": "Guarda-chuva",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "guarda_chuva"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_bolsa",
+   "slot": "mao_esq",
+   "rotulo": "Bolsa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "bolsa"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "nov_maleta",
+   "slot": "mao_esq",
+   "rotulo": "Maleta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "maleta"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "nov_mala_rodinha",
+   "slot": "mao_esq",
+   "rotulo": "Mala de rodinhas",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "mala_rodinha"
+   },
+   "variacao": {
+    "cor": "#F2C231"
+   }
+  },
+  {
+   "id": "nov_sacolas",
+   "slot": "mao_esq",
+   "rotulo": "Sacolas de compras",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "sacolas"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "nov_sacola_papel",
+   "slot": "mao_esq",
+   "rotulo": "Sacola de compras com pão",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "sacola_papel"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
    }
   }
  ],
@@ -5074,16 +7290,16 @@
    "nome": "Marinheiro(a)",
    "pecas": {
     "cima": {
-     "id": "nov_blusa_listrada",
-     "cor": "#24346B"
+     "id": "nov_marinheiro",
+     "cor": null
     },
     "baixo": {
      "id": "nov_calca_social",
      "cor": "#F2F2F2"
     },
     "cabeca": {
-     "id": "nov_boina",
-     "cor": "#24346B"
+     "id": "nov_quepe_capitao",
+     "cor": null
     },
     "pes": {
      "id": "roupa_sapato_seguranca",
@@ -5963,6 +8179,719 @@
     },
     "cabeca": {
      "id": "nov_gatinho",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Praia de biquíni",
+   "pecas": {
+    "cima": {
+     "id": "nov_top_biquini",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_biquini_baixo",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_chapeu_praia",
+     "cor": null
+    },
+    "oculos": {
+     "id": "nov_oculos_sol_redondos",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_chinelo_005",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Praia de bermuda",
+   "pecas": {
+    "baixo": {
+     "id": "nov_bermuda_praia",
+     "cor": null
+    },
+    "oculos": {
+     "id": "nov_oculos_esportivos",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_chinelo_002",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Turista",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_folhas",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_bermuda_folgada",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_chapeu_palha",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_camera",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Fotógrafo(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_justa",
+     "cor": "#F2F2F2"
+    },
+    "sobre": {
+     "id": "nov_jaqueta_aberta",
+     "cor": "#E27B3B"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#E27B3B"
+    },
+    "mao_dir": {
+     "id": "nov_camera",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Cantor(a) de palco",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_paleto_brilho",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#24346B"
+    },
+    "pescoco_peca": {
+     "id": "nov_gravata_borboleta",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_microfone",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Apresentador(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_paleto",
+     "cor": "#E0447F"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#E0447F"
+    },
+    "cabeca": {
+     "id": "nov_fedora",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_microfone",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Executivo(a) de maleta",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_paleto",
+     "cor": "#2B2B2B"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#2B2B2B"
+    },
+    "pescoco_peca": {
+     "id": "nov_gravata",
+     "cor": "#24346B"
+    },
+    "cabeca": {
+     "id": "nov_fedora",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_maleta",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Vovô de bengala",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_cardiga",
+     "cor": "#8A8F99"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#6B5B4B"
+    },
+    "cabeca": {
+     "id": "nov_palheta",
+     "cor": null
+    },
+    "alcas": {
+     "id": "nov_suspensorio",
+     "cor": "#2B2B2B"
+    },
+    "oculos": {
+     "id": "nov_oculos_redondos",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_bengala",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Vovó de bengala",
+   "pecas": {
+    "inteira": {
+     "id": "nov_vestido_gola",
+     "cor": null
+    },
+    "meias": {
+     "id": "nov_meia_calca",
+     "cor": "#5B4B3B"
+    },
+    "oculos": {
+     "id": "nov_oculos_redondos",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_bengala",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_caixa",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Viajante",
+   "pecas": {
+    "cima": {
+     "id": "nov_moletom_capuz",
+     "cor": "#8A8F99"
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_mala_rodinha",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Dia de compras",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_onca",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_boca_sino",
+     "cor": null
+    },
+    "oculos": {
+     "id": "nov_oculos_gatinho",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_sacolas",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_salto_showgirl",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Feira",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_larga",
+     "cor": "#F2C231"
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_balde",
+     "cor": "#F2F2F2"
+    },
+    "mao_esq": {
+     "id": "nov_sacola_papel",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Dia de chuva",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_justa",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_capa_chuva",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_guarda_chuva",
+     "cor": null
+    },
+    "pes": {
+     "id": "nov_galocha",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Encontro",
+   "pecas": {
+    "inteira": {
+     "id": "nov_vestido_um_ombro",
+     "cor": null
+    },
+    "cintura": {
+     "id": "nov_cinto_fivela",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_buque",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_salto_showgirl",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Sorveteria",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_faixa",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_short_curto",
+     "cor": "#F2F2F2"
+    },
+    "cabeca": {
+     "id": "nov_bone_duas_cores",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_sorvete",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Café",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_ziguezague",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#C9A46E"
+    },
+    "mao_dir": {
+     "id": "nov_cafe",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Selfie",
+   "pecas": {
+    "cima": {
+     "id": "nov_cropped_manga",
+     "cor": "#2B2B2B"
+    },
+    "baixo": {
+     "id": "nov_bermuda_rasgada",
+     "cor": null
+    },
+    "oculos": {
+     "id": "nov_oculos_sol_redondos",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_celular",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Aviador(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_jaqueta_aviador",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": "#2B2B2B"
+    },
+    "oculos": {
+     "id": "roupa_oculos_006",
+     "cor": null
+    },
+    "pes": {
+     "id": "nov_bota_alta",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Colegial",
+   "pecas": {
+    "cima": {
+     "id": "nov_jaqueta_colegial",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "costas": {
+     "id": "roupa_mochila",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Agasalho listrado",
+   "pecas": {
+    "cima": {
+     "id": "nov_agasalho_listrado",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_agasalho_listrada",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Smoking",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_smoking",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#2B2B2B"
+    },
+    "pescoco_peca": {
+     "id": "nov_gravata_borboleta",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_cartola",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Leitor(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_gola_alta",
+     "cor": "#F2F2F2"
+    },
+    "sobre": {
+     "id": "nov_cardiga",
+     "cor": "#7B4B2D"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#3D5A8A"
+    },
+    "oculos": {
+     "id": "nov_oculos_quadrados",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_livro",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_caixa",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Inverno de capuz",
+   "pecas": {
+    "cima": {
+     "id": "nov_acolchoada_capuz",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_legging",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_touca_urso",
+     "cor": null
+    },
+    "maos": {
+     "id": "nov_luvas_justas",
+     "cor": "#E27B3B"
+    },
+    "pes": {
+     "id": "nov_bota_alta",
+     "cor": "#F2F2F2"
+    }
+   }
+  },
+  {
+   "nome": "Roqueiro(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_caveira",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_rasgada",
+     "cor": "#2B2B2B"
+    },
+    "oculos": {
+     "id": "nov_oculos_sol_redondos",
+     "cor": "#2B2B2B"
+    },
+    "pes": {
+     "id": "roupa_bota_sobrevivente",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Festa à fantasia: coelho",
+   "pecas": {
+    "inteira": {
+     "id": "nov_maio",
+     "cor": "#2B2B2B"
+    },
+    "meias": {
+     "id": "nov_meia_calca",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_orelhas_coelho",
+     "cor": null
+    },
+    "pescoco_peca": {
+     "id": "nov_gravata_borboleta",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_salto_showgirl",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Festa à fantasia: urso",
+   "pecas": {
+    "cima": {
+     "id": "nov_moletom",
+     "cor": "#7B4B2D"
+    },
+    "baixo": {
+     "id": "nov_calca_moletom",
+     "cor": "#7B4B2D"
+    },
+    "cabeca": {
+     "id": "nov_touca_urso",
+     "cor": "#7B4B2D"
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Cinema 3D",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_justa",
+     "cor": "#3D7BD6"
+    },
+    "baixo": {
+     "id": "nov_short_curto",
+     "cor": "#F2C231"
+    },
+    "oculos": {
+     "id": "nov_oculos_3d",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_picole",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Retrô",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_listrada_vertical",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_boca_sino",
+     "cor": "#E27B3B"
+    },
+    "oculos": {
+     "id": "nov_oculos_redondos",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_36",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Boina e lenço",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_larga",
+     "cor": "#F2F2F2"
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_boina",
+     "cor": null
+    },
+    "pescoco_peca": {
+     "id": "nov_lenco",
      "cor": null
     },
     "pes": {

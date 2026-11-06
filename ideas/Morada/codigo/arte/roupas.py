@@ -389,16 +389,21 @@ def _saia_gerada(S_obj, spec, pasta_pacotes):
         z = z0 + (z1 - z0) * t
         c, rx, ry = fatia(z)
         flare = 1.0 + (abertura - 1.0) * t ** 1.3
-        an.append([z, *(c0 + (c - c0) * 0.3), max(rx * 1.05 + 0.008, rx0 * 1.04 * flare) + fg,
-                   max(ry * 1.05 + 0.008, ry0 * 1.04 * flare) + fg])
+        # o alto da saia fica rente (sem degrau na cintura do vestido) e vai soltando até o padrão
+        r_ = min(t / 0.18, 1.0)
+        kx, kb = 1.0 + 0.05 * r_, 0.004 + 0.004 * r_
+        an.append([z, *(c0 + (c - c0) * 0.3), max(rx * kx + kb, rx0 * (1.0 + 0.04 * r_) * flare) + fg,
+                   max(ry * kx + kb, ry0 * (1.0 + 0.04 * r_) * flare) + fg])
     an = np.array(an)
     if fg > 0:  # por cima: a largura só cresce para baixo (sem ondas das pernas)
         an[:, 3] = np.maximum.accumulate(an[:, 3])
         an[:, 4] = np.maximum.accumulate(an[:, 4])
     for col in (1, 2, 3, 4):  # suaviza ao longo da altura
         an[1:-1, col] = 0.25 * an[:-2, col] + 0.5 * an[1:-1, col] + 0.25 * an[2:, col]
+    ex = 2.0 / spec.get("quadrada", 2.6)  # seção um pouco quadrada: cobre os cantos do quadril e das coxas
+    sup = lambda t: np.sign(t) * np.abs(t) ** ex
     for z, cx, cy, rx_, ry_ in an:
-        anel_v.append([bm.verts.new((cx + rx_ * np.cos(2 * np.pi * k / seg), cy + ry_ * np.sin(2 * np.pi * k / seg), z))
+        anel_v.append([bm.verts.new((cx + rx_ * sup(np.cos(2 * np.pi * k / seg)), cy + ry_ * sup(np.sin(2 * np.pi * k / seg)), z))
                        for k in range(seg)])
     gap = spec.get("abre_frente", 0.0)  # jaleco e casacão: a frente aberta (ângulo em graus de cada lado)
     so = spec.get("so_frente", 0.0)  # avental: só o painel da frente (ângulo em graus de cada lado)
@@ -428,6 +433,8 @@ def _saia_gerada(S_obj, spec, pasta_pacotes):
     bm.free()
     for f in me.polygons:
         f.use_smooth = True
+    at = me.attributes.new("saia", "FLOAT", "POINT")
+    at.data.foreach_set("value", np.ones(len(me.vertices)))
     ob = bpy.data.objects.new("saia", me)
     bpy.context.scene.collection.objects.link(ob)
     if spec.get("padrao"):  # textura gerada (a mesma das camadas: jaleco e casaco longo, vestido de uniforme)
@@ -507,7 +514,7 @@ def garante_mascara(ob, item_id, tam=512):
     lumv = np.array([0.2126, 0.7152, 0.0722])
     res = {}
     for k, m in enumerate(me.materials):
-        if m is None or not m.node_tree or m.name in res:
+        if m is None or not m.node_tree or m.name in res or m.name == "Roupa_Gen_detalhe":  # detalhe: cor fixa
             continue
         img = next((n.image for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None)
         arquivo = _caminho_imagem(img) if img is not None else None
@@ -649,9 +656,10 @@ def _afasta(Pg, malha, folga):
         loc, nrm, _, d = malha.bvh.find_nearest(Vector(Pg[j]))
         if loc is None:
             continue
+        f_ = folga[j] if np.ndim(folga) else folga
         lado = (Vector(Pg[j]) - loc).dot(nrm)
-        if lado < folga:
-            Pg[j] = np.array(loc) + np.array(nrm) * folga
+        if lado < f_:
+            Pg[j] = np.array(loc) + np.array(nrm) * f_
     return Pg
 
 
@@ -707,6 +715,11 @@ def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
     Tc = tris_de(corpo.data)
     k = (Pc[:, 2].max() - Pc[:, 2].min()) / ALTURA_BASE
     folga = 0.005 * max(k, 0.4)
+    if "saia" in ob.data.attributes:  # saia (também a do vestido e a do casaco): mais solta, a meia-calça passa por dentro
+        sa = np.zeros(len(ob.data.vertices))
+        ob.data.attributes["saia"].data.foreach_get("value", sa)
+        if sa.any():
+            folga = np.where(sa > 0.5, 0.013 * max(k, 0.4), folga)
     mesma = fam_S == fam_destino
     if mesma:
         # mesma malha: cada ponto preso ao mesmo triângulo da pele, com o deslocamento inteiro no referencial do
@@ -735,6 +748,10 @@ def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
             vizinhos.append((np.array([ix for _, ix, _ in vz]), w / w.sum()))
 
     E = np.array([e.vertices[:] for e in ob.data.edges], dtype=np.int64)
+    # diagonais das faces também (o centro da face afunda como o meio da aresta)
+    E = np.concatenate([E, np.array([(p_.vertices[0], p_.vertices[2]) for p_ in ob.data.polygons if len(p_.vertices) == 4]
+                                    + [(p_.vertices[1], p_.vertices[3]) for p_ in ob.data.polygons if len(p_.vertices) == 4],
+                                    dtype=np.int64).reshape(-1, 2)])
 
     def posicoes(P_corpo):
         M = Malha(P_corpo, Tc)
@@ -749,8 +766,9 @@ def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
             D = alvo - S.P
             out = np.array([g + w @ D[ix] for g, (ix, w) in zip(G, vizinhos)])
         out = _afasta(out, M, folga)
-        # o meio de cada aresta também fica fora da pele (vincos e dobras para dentro afundam entre os vértices)
-        for _ in range(2):
+        # o meio de cada aresta também fica fora da pele (vincos e dobras para dentro afundam entre os vértices);
+        # nas formas (gravidez) a pele estica entre os pontos da peça: mais voltas
+        for _ in range(2 if P_corpo is Pc else 4):
             mov = np.zeros_like(out)
             cnt = np.zeros(len(out))
             for a_, b_ in E:
@@ -758,9 +776,10 @@ def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
                 loc, nrm, _, _ = M.bvh.find_nearest(Vector(q))
                 if loc is None:
                     continue
+                f_ = min(folga[a_], folga[b_]) if np.ndim(folga) else folga
                 lado = (Vector(q) - loc).dot(nrm)
-                if lado < folga:
-                    dv = np.array(nrm) * (folga - lado)
+                if lado < f_:
+                    dv = np.array(nrm) * (f_ - lado)
                     mov[a_] += dv
                     mov[b_] += dv
                     cnt[a_] += 1
@@ -826,11 +845,23 @@ def veste(item, arm, corpo, pasta_pacotes):
             bpy.ops.object.join()
         garante_mascara(ob, item["id"])
         return ob
-    if item.get("gerar", {}).get("tipo") == "chapeu":  # chapéu feito sobre a cabeça do corpo
+    tg = item.get("gerar", {}).get("tipo")
+    if tg in ("chapeu", "oculos"):  # chapéu e óculos feitos sobre a cabeça do corpo
         import geradores as GER
-        ob = GER.chapeu(corpo, item["gerar"])
+        ob = (GER.chapeu if tg == "chapeu" else GER.oculos)(corpo, item["gerar"])
         ob.parent = arm
         ob.matrix_parent_inverse = arm.matrix_world.inverted()
+    elif tg == "objeto":  # objeto de mão: no referencial da mão do corpo, preso ao osso da mão
+        import geradores as GER
+        ob = GER.objeto(item["gerar"])
+        O, X, Y, Z, s_ = GER.referencial_mao(arm, item["mao"])
+        for v in ob.data.vertices:
+            v.co = O + (X * v.co.x + Y * v.co.y + Z * v.co.z) * s_
+        ob.parent = arm
+        ob.matrix_parent_inverse = arm.matrix_world.inverted()
+        g = ob.vertex_groups.new(name=("Right" if item["mao"] == "dir" else "Left") + "Hand")
+        g.add(list(range(len(ob.data.vertices))), 1.0, "REPLACE")
+        ob.modifiers.new("Esqueleto", "ARMATURE").object = arm
     elif item["tipo"] in ("cabeca", "rosto"):
         ajuste = _ajuste_chapeu(var["forma"]) if var.get("forma") else None
         ob = CAB.encaixa({**item, "tipo": "rosto" if item["tipo"] == "rosto" else "cabelo"}, arm, corpo, pasta_pacotes,

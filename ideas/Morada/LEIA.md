@@ -7,7 +7,7 @@ Os personagens derivam dos pacotes gratuitos da ITHappy que estão em `ideas/` (
 
 | pasta | conteúdo |
 |---|---|
-| `biblioteca/` | **o resultado**: 14 bibliotecas de animação a 30 fps (`bibliotecas_30fps/`, 11 normais + 3 de grávida), os 19 corpos em GLB (`corpos/`: malha, esqueleto, expressões, barriga de grávida e recém-nascidos, sem as peças dos catálogos), as peças e os cabelos em arquivos separados (`itens/`: um por item, mais `familias.txt` e `peles.txt`, montados no corpo quando alguém escolhe), `info.json` (apoios de cena e correções), `rotulos.json` (nomes e categorias), `medidas/` (o json de cada biblioteca), `LEIA.md` com o uso no jogo, `LEIA_cabelos.md` e `LEIA_roupas.md` (catálogos, formato dos itens e como acrescentar um), `roupas_mascaras/` (cor livre) e `roupas_gen/` (texturas das peças geradas) |
+| `biblioteca/` | **o resultado**: 14 bibliotecas de animação a 30 fps (`bibliotecas_30fps/`, 11 normais + 3 de grávida), os 19 corpos em GLB (`corpos/`: malha, esqueleto, expressões, barriga de grávida e recém-nascidos, sem as peças dos catálogos), as peças e os cabelos em arquivos separados (`itens/`: um por item, mais `familias.txt` e `peles.txt`, montados no corpo quando alguém escolhe), `info.json` (apoios de cena e correções), `rotulos.json` (nomes e categorias), `medidas/` (o json de cada biblioteca), `LEIA.md` com o uso no jogo, `LEIA_cabelos.md` e `LEIA_roupas.md` (catálogos, formato dos itens e como acrescentar um), `roupas_mascaras/` (cor livre), `roupas_gen/` (texturas das peças geradas) e `miniaturas_itens/` (a imagem de cada item) |
 | `blend/` | `corpos.blend` (arquivo-mestre editável dos corpos, com os recém-nascidos e todos os cabelos) em 5 partes, e `mixamo_pacote.blend` (animações do Mixamo já no esqueleto do pacote, usado pelo gerador de corpos) |
 | `mixamo/` | os FBX baixados do Mixamo (P0 por corpo, P1, P2), o prompt usado para baixá-los, o log, os manifestos, `nao_encontrados.md`, o índice que liga cada arquivo a um ID e a um corpo, e o zip dos 17 corpos enviados ao Mixamo |
 | `codigo/arte/` | geradores: `corpos.py` (tipos de corpo), `cabelos.json` + `cabelos.py` (catálogo e encaixe de cabelos), `roupas.json` + `roupas.py` (catálogo e encaixe de roupas), `geradores.py` + `novas_pecas.py` (peças feitas aqui e conjuntos), `expressoes.py`, `contato.py`, `gravidez.py`, cena e páginas do Morada |
@@ -19,19 +19,29 @@ As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equi
 
 ## Roupas
 
-As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 203:
+As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 270:
 - as 65 roupas e acessórios dos pacotes;
 - variações feitas a partir delas;
-- 95 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais): jaleco, casaco longo,
-  jardineira, macacões com faixas refletivas, dólmã, uniformes, aventais, botas, luvas, cachecol, suspensório e mais de
-  30 chapéus.
+- 162 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais):
+  - roupas: jaleco, paletós com lapela, smoking, jaqueta de aviador, moletom com capuz, capa de chuva, jeans rasgado,
+    calça boca de sino, biquíni, vestidos, macacões, colete salva-vidas;
+  - acessórios: botas, luvas, cachecol, lenço, cintos com fivela e mais de 40 chapéus;
+  - óculos gerados no rosto;
+  - 15 objetos de mão: celular, café, microfone, sorvete, câmera, livro, buquê, bengala, guarda-chuva, bolsa, maleta,
+    mala de rodinhas, sacolas.
 
-Toda peça tem cor livre. Há 70 conjuntos prontos (profissões e estilos). São 59 cabelos, barbas e bigodes, com rabo de
-cavalo, coque, tranças, black power e moicano.
+Toda peça tem cor livre. Há 99 conjuntos prontos (profissões e estilos). São 64 cabelos, barbas e bigodes, com rabo de
+cavalo, coques, tranças, black power, moicano e espetado.
 
 Os corpos não carregam as peças. Cada peça é um arquivo próprio, montado no corpo pela página quando alguém escolhe, e
-o jogo deve fazer igual. Uma peça nova entra sem regerar os corpos. Com chapéu, a página não desenha o cabelo acima da
-aba. O catálogo, o encaixe, o formato dos arquivos e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`.
+o jogo deve fazer igual. Uma peça nova entra sem regerar os corpos.
+
+Na página:
+- cada item tem miniatura, e a escolha é por imagem;
+- com chapéu, o cabelo acima da aba não aparece;
+- com um objeto na mão, os dedos fecham em volta dele.
+
+O catálogo, o encaixe, o formato dos arquivos e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`.
 
 ## Animações aprovadas
 

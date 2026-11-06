@@ -28,6 +28,9 @@ Um item com `"base"` (outro penteado) e `"forma"`:
 - `rabo`: rabo de cavalo (comprimento em alturas de cabeça).
 - `coque`: coque no alto e atrás (raio).
 - `trancas`: duas tranças dos lados (comprimento).
+- `espetos`: espetado, com pontas cônicas no alto e na frente (altura; `n` pontas).
+- `coque_duplo`: dois coques no alto (raio).
+- `rabo_altura`: onde o rabo de cavalo prende (0 a 1 da cabeça; `rabo_alto` usa 0,95).
 - `crista`: moicano (altura). Com `so_crista`, o resto do cabelo sai, e os lados ficam raspados. `largura` controla a
   largura da crista.
 
@@ -36,7 +39,10 @@ Cada penteado tem as versões comprida, volumosa e para chapéu. Também existem
 - rabo de cavalo, rabo curto, coque, coque com franja;
 - duas tranças, maria-chiquinha;
 - black power, cacheado volumoso curto;
-- moicano e moicano baixo.
+- moicano e moicano baixo;
+- espetado, espetado alto, coque duplo, rabo alto, cacheado com coque.
+
+Cada cabelo tem uma miniatura (`tools/miniaturas_itens.py`), e a página escolhe por ela.
 
 ## Para acrescentar um cabelo
 

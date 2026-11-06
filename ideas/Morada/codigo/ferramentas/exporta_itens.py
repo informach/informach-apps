@@ -130,6 +130,21 @@ for kind, item in itens:
     cab = {"id": item["id"], "familias": {}}
     partes = []
     try:
+        if kind == "roupa" and R._resolve(item).get("gerar", {}).get("tipo") == "objeto":
+            # objeto de mão: a mesma geometria em todos os corpos, no referencial da mão (veja geradores.objeto)
+            import geradores as GER
+            ob = GER.objeto(R._resolve(item)["gerar"])
+            vert_de, uvs, idx, grupos = geometria(ob)
+            P = np.array([v.co[:] for v in ob.data.vertices], np.float32)
+            partes += [("loc", P[vert_de]), ("uv", np.round(uvs * 65535).astype(np.uint16)), ("idx", idx)]
+            cab.update({"tipo": "mao", "mao": item["mao"], "uv": True, "nv": len(vert_de), "ni": len(idx), "grupos": grupos,
+                        "familias": {f: True for f in FAMS}})
+            R.garante_mascara(ob, item["id"])
+            bpy.data.objects.remove(ob, do_unlink=True)
+            grava(os.path.join(SAIDA, "itens", item["id"] + ".txt"), cab, partes)
+            feitos += 1
+            print("item", item["id"], "mao", len(vert_de), flush=True)
+            continue
         for fam in FAMS:
             X, arm = base_obj(fam)
             for pb in arm.pose.bones:

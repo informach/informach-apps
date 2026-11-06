@@ -45,6 +45,12 @@ if os.path.isdir(_it):
         os.remove(_f)
     for _f in glob.glob(os.path.join(_it, "*.txt")) + glob.glob(os.path.join(_it, "itens", "*.txt")):
         shutil.copy(_f, os.path.join(V, "itens", os.path.basename(_f)))
+# miniaturas dos itens (tools/miniaturas_itens.py): num arquivo só, id → WebP em base64
+_mi = os.path.join(B, "miniaturas_itens")
+if os.path.isdir(_mi):
+    json.dump({os.path.basename(_f)[:-5]: base64.b64encode(open(_f, "rb").read()).decode()
+               for _f in sorted(glob.glob(os.path.join(_mi, "*.webp")))},
+              open(os.path.join(V, "miniaturas_itens.json"), "w"), separators=(",", ":"))
 # corpos: o GLB comprimido (Meshopt, tools/comprime_corpos.sh) → gzip → base64 (o artefato não serve .glb)
 for f in glob.glob(os.path.join(B, "corpos_glb", "*.glb")):
     open(os.path.join(V, "corpos", os.path.basename(f)[:-4] + ".txt"), "w").write(

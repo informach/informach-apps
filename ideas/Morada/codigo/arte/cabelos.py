@@ -134,7 +134,8 @@ def _forma_cabelo(forma):
             v_.co = mi @ Vector(p)
         cab.data.update()
         extras = []
-        if forma.get("rabo") or forma.get("coque") or forma.get("trancas") or forma.get("crista"):
+        if forma.get("rabo") or forma.get("coque") or forma.get("trancas") or forma.get("crista") or forma.get("espetos") \
+                or forma.get("coque_duplo"):
             import bmesh as _bm
             bm = _bm.new()
             bm.from_mesh(cab.data)
@@ -159,9 +160,43 @@ def _forma_cabelo(forma):
                 fim = bm.verts.new(mi @ Vector(pontos[-1]) + (mi.to_3x3() @ Vector((0, 0, -raios[-1]))))
                 for k in range(12):
                     novos.append(bm.faces.new((aneis[-1][k], aneis[-1][(k + 1) % 12], fim)))
+            if forma.get("espetos"):  # espetado: pontas cônicas saindo do alto e da frente do cabelo
+                import random
+                rnd = random.Random(5)
+                P0 = np.array([mw @ v.co for v in bm.verts])
+                alto = P0[P0[:, 2] > c[2] + 0.18 * H]
+                nesp = int(forma.get("n", 26))
+                ga = math.pi * (3 - math.sqrt(5))
+                for i in range(nesp):
+                    zf = 1 - (i + 0.5) / nesp * 0.75  # só o alto da cabeça (calota)
+                    rr = math.sqrt(max(1 - zf * zf, 0))
+                    d = np.array([math.cos(ga * i) * rr, math.sin(ga * i) * rr, zf])
+                    if d[1] > 0.55:  # nuca: sem pontas
+                        continue
+                    alvo = c + d * 2 * H
+                    p0 = alto[np.argmax(alto @ d)] if len(alto) else c + d * 0.5 * H
+                    nrm = (p0 - c) / max(np.linalg.norm(p0 - c), 1e-6)
+                    nrm = nrm + np.array([0, 0.35, 0.25])  # para trás e para cima
+                    nrm /= np.linalg.norm(nrm)
+                    hh = forma["espetos"] * H * rnd.uniform(0.75, 1.15)
+                    rb = 0.075 * H * rnd.uniform(0.85, 1.1)
+                    base_ = p0 - nrm * 0.05 * H
+                    t1 = np.cross(nrm, [1, 0, 0]) if abs(nrm[0]) < 0.9 else np.cross(nrm, [0, 1, 0])
+                    t1 /= np.linalg.norm(t1)
+                    t2 = np.cross(nrm, t1)
+                    anel = [bm.verts.new(mi @ Vector(base_ + (t1 * math.cos(a) + t2 * math.sin(a)) * rb)) for a in np.linspace(0, 2 * math.pi, 7, endpoint=False)]
+                    ponta = bm.verts.new(mi @ Vector(base_ + nrm * (hh + 0.05 * H)))
+                    for k in range(7):
+                        novos.append(bm.faces.new((anel[k], anel[(k + 1) % 7], ponta)))
+            if forma.get("coque_duplo"):  # dois coques no alto, um de cada lado
+                for sx in (-1, 1):
+                    r = _bm.ops.create_icosphere(bm, subdivisions=2, radius=forma["coque_duplo"] * H)
+                    for v in r["verts"]:
+                        v.co = mi @ (Vector((c[0] + sx * 0.3 * (hmax[0] - hmin[0]), c[1] + 0.05 * H, hmax[2] - 0.02 * H)) + v.co)
+                    novos += list({f for v in r["verts"] for f in v.link_faces})
             if forma.get("rabo"):  # rabo de cavalo: preso atrás, no alto, descendo até a nuca e o pescoço
                 comp = forma["rabo"] * H
-                base = np.array([c[0], hmax[1] + 0.02 * H, hmin[2] + 0.72 * H])
+                base = np.array([c[0], hmax[1] + 0.02 * H, hmin[2] + forma.get("rabo_altura", 0.72) * H])
                 pts = [base + np.array([0, 0.06 * H * t, -comp * t ** 1.2]) for t in np.linspace(0, 1, 7)]
                 tubo(pts, [0.13 * H * (1 - 0.65 * t) * (1.15 if 0 < t < 0.3 else 1) + 0.025 * H for t in np.linspace(0, 1, 7)])
             if forma.get("trancas"):  # duas tranças dos lados

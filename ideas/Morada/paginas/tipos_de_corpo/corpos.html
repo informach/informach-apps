@@ -74,6 +74,27 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 .roupa-slots select:disabled { opacity: 0.5; }
 .roupa-cores { grid-column: 1 / -1; margin: -2px 0 6px; }
 .roupa-cores .amostra { width: 22px; height: 22px; }
+/* seletor por imagem: o botão mostra a escolha atual; abre uma grade de miniaturas com o nome embaixo */
+.sel-img { display: grid; gap: 6px; grid-column: 1 / -1; min-width: 0; }
+.sel-img > .sel-atual { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; text-align: left;
+  padding: 4px 10px 4px 4px; border-radius: 10px; width: 100%; }
+.sel-img > .sel-atual[aria-pressed="true"] { background: var(--chip); color: var(--fg); }
+.sel-img > .sel-atual[aria-expanded="true"] { border-color: var(--acento); }
+.sel-img .sel-rot { display: grid; line-height: 1.2; min-width: 0; }
+.sel-img .sel-rot small { color: var(--suave); font-size: 12px; }
+.sel-img .sel-rot span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-img .sel-seta { color: var(--suave); font-size: 12px; }
+.sel-img .sel-thumb { width: 44px; height: 44px; border-radius: 8px; background: var(--mini); object-fit: contain; display: grid;
+  place-items: center; font-size: 18px; color: var(--suave); overflow: hidden; }
+.sel-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); grid-auto-rows: max-content;
+  align-content: start; gap: 6px; max-height: 300px; overflow-y: auto; padding: 2px; overscroll-behavior: contain; flex-shrink: 0; }
+.sel-grade[hidden] { display: none; }
+.sel-grade button { display: grid; justify-items: center; gap: 2px; padding: 4px 3px 6px; border-radius: 10px; font-size: 11.5px;
+  line-height: 1.15; text-align: center; align-content: start; }
+.sel-grade button[aria-pressed="true"] { background: var(--mini); color: var(--fg); border-color: var(--acento);
+  box-shadow: 0 0 0 1px var(--acento) inset; }
+.sel-grade .sel-thumb { width: 64px; height: 64px; }
+.sel-img.desligado > .sel-atual { opacity: 0.5; cursor: not-allowed; }
 select.lista { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
   background: var(--chip); color: var(--fg); width: 100%; }
 </style>
@@ -651,13 +672,14 @@ function desenharCabelo() {
     const nomes = penteadosDe(atual.id);
     const opcoes = Object.entries(nomes).filter(([k]) => k === "careca" || atual.estilos[k] || CAT.itens.some((x) => x.id === k));
     const atualK = opcoes.some(([k]) => k === estado.penteado) ? estado.penteado : "cabelo";
-    // muitos penteados: uma lista de escolha
+    // muitos penteados: escolha por imagem ("cabelo" é o original do corpo: a miniatura dele no catálogo)
     tipoEl.replaceChildren();
-    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Penteado");
-    for (const [k, rot] of opcoes) sel.append(new Option(rot, k));
-    sel.value = atualK;
-    sel.onchange = () => { estado.penteado = sel.value; aplicarCabelo(); desenharCabelo(); };
-    tipoEl.append(sel);
+    const orig = CAT.originais[atual.id === "plus_m" ? "p" : CORPOS.find((x) => x.id === atual.id).sexo === "f" ? "f" : "m"];
+    const ops = opcoes.map(([k, rot]) => ({ k, rotulo: rot, mini: k === "cabelo" ? orig : k, marca: k === "careca" ? "○" : undefined }));
+    tipoEl.append(seletorImagem("penteado", "Penteado", ops, atualK, (k) => {
+      if (k !== null) { estado.penteado = k; aplicarCabelo(); }
+      desenharCabelo();
+    }));
   }
   const rostoEl = document.getElementById("cabelo-rosto");
   const pelos = ehRecem() ? [] : pelosDoRosto().filter(([k]) => k === "nenhum" || atual.estilos[k] || permitidoCab(k, atual.id));
@@ -665,11 +687,11 @@ function desenharCabelo() {
   if (rostoEl.hidden) rostoEl.replaceChildren();
   else {
     rostoEl.replaceChildren();
-    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Barba e bigode");
-    for (const [k, rot] of pelos) sel.append(new Option(rot, k));
-    sel.value = pelos.some(([k]) => k === estado.barba) ? estado.barba : "nenhum";
-    sel.onchange = () => { estado.barba = sel.value; aplicarCabelo(); desenharCabelo(); };
-    rostoEl.append(sel);
+    const ops = pelos.map(([k, rot]) => ({ k, rotulo: rot, mini: k }));
+    rostoEl.append(seletorImagem("barba", "Barba e bigode", ops, pelos.some(([k]) => k === estado.barba) ? estado.barba : "nenhum", (k) => {
+      if (k !== null) { estado.barba = k; aplicarCabelo(); }
+      desenharCabelo();
+    }));
   }
   const el = document.getElementById("cabelo-cor");
   el.replaceChildren();
@@ -850,8 +872,74 @@ function normaisDe(P, T, nv) {
   for (let i = 0; i < nv; i++) { const l = Math.hypot(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]) || 1; N[i * 3] /= l; N[i * 3 + 1] /= l; N[i * 3 + 2] /= l; }
   return N;
 }
+// vizinhos de cada vértice da malha-base (uma vez por família): para a folga da peça contra a pele em volta
+function vizinhosDe(fam) {
+  if (fam.viz) return fam.viz;
+  const nv = fam.T.reduce((m, x) => Math.max(m, x), 0) + 1, viz = Array.from({ length: nv }, () => new Set());
+  for (let t = 0; t < fam.T.length; t += 3) for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) viz[fam.T[t + a]].add(fam.T[t + b]);
+  fam.viz = viz.map((x) => Int32Array.from(x));
+  return fam.viz;
+}
+// referencial da mão na pose de descanso, no espaço da malha do corpo: origem na base do dedo médio, X para os dedos,
+// Z para a palma, Y = Z × X; s = do punho até a base do dedo médio (igual a geradores.referencial_mao)
+function referencialMao(corpo, lado) {
+  const L = lado === "dir" ? "Right" : "Left", sk = corpo.skeleton;
+  const idx = (n) => sk.bones.findIndex((b) => b.name === n);
+  // a posição de cada junta no espaço da geometria (antes do esqueleto): a transformação de pele do osso da mão,
+  // desfeita, sobre a posição atual da junta no mundo (vale em qualquer pose e em qualquer convenção do arquivo)
+  corpo.updateMatrixWorld(true);
+  const ih = idx(L + "Hand");
+  const S = new THREE.Matrix4().multiplyMatrices(corpo.bindMatrixInverse,
+    new THREE.Matrix4().multiplyMatrices(sk.bones[ih].matrixWorld, sk.boneInverses[ih])).multiply(corpo.bindMatrix);
+  const desfaz = S.invert().multiply(new THREE.Matrix4().copy(corpo.matrixWorld).invert());
+  const pos = (n) => sk.bones[idx(n)].getWorldPosition(new THREE.Vector3()).applyMatrix4(desfaz);
+  const H = pos(L + "Hand"), M1 = pos(L + "HandMiddle1"), I1 = pos(L + "HandIndex1"), P1 = pos(L + "HandPinky1");
+  const X = M1.clone().sub(H).normalize(), t = I1.clone().sub(P1);
+  const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize(), Y = Z.clone().cross(X).normalize();
+  return { O: M1.toArray(), X: X.toArray(), Y: Y.toArray(), Z: Z.toArray(), s: M1.distanceTo(H), osso: idx(L + "Hand") };
+}
+// com um objeto na mão, os dedos fecham em volta dele (depois da animação, a cada quadro)
+const _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _ax = new THREE.Vector3(), _pa = new THREE.Vector3(),
+  _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pd = new THREE.Vector3();
+function fechaDedos(c) {
+  if (!c || !c.roupas) return;
+  for (const lado of ["dir", "esq"]) {
+    const rid = estado.roupa["mao_" + lado];
+    if (!rid || !c.roupas[rid]?.[0]?.visible) continue;
+    const L = lado === "dir" ? "Right" : "Left";
+    c.dedos ||= {};
+    if (!c.dedos[L]) {
+      const b = {};
+      c.raiz.traverse((o) => { if (o.isBone && o.name.startsWith(L + "Hand")) b[o.name.slice(L.length + 4)] = o; });
+      c.dedos[L] = b;
+    }
+    const b = c.dedos[L];
+    if (!b[""] || !b.Middle1 || !b.Index1 || !b.Pinky1) continue;
+    b[""].getWorldPosition(_pa); b.Middle1.getWorldPosition(_pb); b.Index1.getWorldPosition(_pc); b.Pinky1.getWorldPosition(_pd);
+    const X = _pb.clone().sub(_pa).normalize(), t = _pc.clone().sub(_pd);
+    const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize();
+    const eixo = X.clone().cross(Z).normalize(); // gira os dedos de X para a palma
+    const curva = { Index: [0.95, 1.0], Middle: [1.0, 1.05], Ring: [1.05, 1.05], Pinky: [1.1, 1.05], Thumb: [0.35, 0.4] };
+    for (const [dedo, ang] of Object.entries(curva)) {
+      for (let k = 1; k <= 2; k++) {
+        const o = b[dedo + k];
+        if (!o) continue;
+        // a animação que não mexe nos dedos deixa o valor do quadro anterior: volta ao de antes de fechar
+        if (o.userData.qDedo && o.quaternion.equals(o.userData.qDedo)) o.quaternion.copy(o.userData.qBase);
+        else o.userData.qBase = o.quaternion.clone();
+        o.updateMatrixWorld(true);
+        o.getWorldQuaternion(_qw);
+        _ax.copy(eixo).applyQuaternion(_qw.invert());
+        o.quaternion.multiply(_qd.setFromAxisAngle(_ax.normalize(), ang[k - 1]));
+        o.userData.qDedo = o.quaternion.clone();
+      }
+    }
+    b[""].updateMatrixWorld(true);
+  }
+}
 function posicoesPeca(P, fam, tri, bar, off) { // a peça sobre uma pele P (ordem do Blender)
   const T = fam.T, A = fam.A, nv = P.length / 3, N = normaisDe(P, T, nv), n = tri.length, out = new Float32Array(n * 3);
+  const viz = vizinhosDe(fam);
   for (let j = 0; j < n; j++) {
     const t = tri[j] * 3, ia = T[t] * 3, ib = T[t + 1] * 3, ic = T[t + 2] * 3;
     const b0 = bar[j * 2] / 65535, b1 = bar[j * 2 + 1] / 65535, b2 = 1 - b0 - b1;
@@ -866,7 +954,21 @@ function posicoesPeca(P, fam, tri, bar, off) { // a peça sobre uma pele P (orde
     const area = 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]);
     const s = Math.sqrt(area / Math.max(A[tri[j]], 1e-12));
     const o0 = off[j * 3] * 0.00005 * s, o1 = off[j * 3 + 1] * 0.00005 * s, o2 = off[j * 3 + 2] * 0.00005 * s;
-    for (let k = 0; k < 3; k++) out[j * 3 + k] = p[k] + e1[k] * o0 + e2[k] * o1 + nn[k] * o2;
+    const g = [0, 1, 2].map((k) => p[k] + e1[k] * o0 + e2[k] * o1 + nn[k] * o2);
+    // folga: nenhum vértice da pele em volta (o triângulo e os vizinhos) fica a menos de 4 mm da peça, medido pela
+    // normal. Na barriga de grávida a pele estica e sobe entre os pontos da peça (umbigo, parte de baixo da barriga).
+    if (o2 > 0) {
+      const c = Math.min(0.004 * s, 0.85 * o2), lmax = 2.5 * Math.sqrt(area);
+      for (const q of [T[t], T[t + 1], T[t + 2]]) for (const r of viz[q]) {
+        const dx = P[r * 3] - g[0], dy = P[r * 3 + 1] - g[1], dz = P[r * 3 + 2] - g[2];
+        const h = dx * nn[0] + dy * nn[1] + dz * nn[2];
+        if (h <= -c) continue;
+        const lx = dx - h * nn[0], ly = dy - h * nn[1], lz = dz - h * nn[2];
+        if (Math.hypot(lx, ly, lz) > lmax) continue;
+        for (let k = 0; k < 3; k++) g[k] += nn[k] * (h + c);
+      }
+    }
+    out[j * 3] = g[0]; out[j * 3 + 1] = g[1]; out[j * 3 + 2] = g[2];
   }
   return out;
 }
@@ -912,6 +1014,16 @@ async function montarItem(c, id) {
       const top = [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4), soma = top.reduce((s_, x) => s_ + x[1], 0) || 1;
       top.forEach(([o, x], k) => { si[j * 4 + k] = o; sw[j * 4 + k] = x / soma; });
     }
+  } else if (cab.tipo === "mao") {
+    // objeto de mão: no referencial da mão do corpo (x ao longo dos dedos, z para a palma), em unidades do tamanho
+    // da mão; preso ao osso da mão
+    const ref = referencialMao(corpo, cab.mao), loc = b.loc, out = new Float32Array(nv * 3);
+    for (let j = 0; j < nv; j++) {
+      const x = loc[j * 3] * ref.s, y = loc[j * 3 + 1] * ref.s, z = loc[j * 3 + 2] * ref.s;
+      for (let k = 0; k < 3; k++) out[j * 3 + k] = ref.O[k] + ref.X[k] * x + ref.Y[k] * y + ref.Z[k] * z;
+      si[j * 4] = ref.osso; sw[j * 4] = 1;
+    }
+    geo.setAttribute("position", new THREE.BufferAttribute(out, 3));
   } else {
     const nrm = b[fam + "_pos"], [hmin, hmax] = pele.pel.cabeca, M = pele.pel.afim, out = new Float32Array(nv * 3);
     for (let j = 0; j < nv; j++) {
@@ -1040,6 +1152,48 @@ function ocultarPele() {
   g.index.array.set(idx);
   g.index.needsUpdate = true;
 }
+// miniaturas dos itens (miniaturas_itens.json: id → WebP em base64), carregadas uma vez
+let MINIS = {};
+fetch("miniaturas_itens.json").then((r) => r.json()).then((j) => { MINIS = j; if (atual) { desenharRoupa(); desenharCabelo(); } }).catch(() => {});
+let seletorAberto = null;
+function miniatura(id, texto) {
+  if (id && MINIS[id]) {
+    const img = document.createElement("img"); img.className = "sel-thumb"; img.alt = ""; img.loading = "lazy";
+    img.src = `data:image/webp;base64,${MINIS[id]}`; return img;
+  }
+  const d = document.createElement("span"); d.className = "sel-thumb"; d.setAttribute("aria-hidden", "true");
+  d.textContent = texto ?? "–"; return d;
+}
+// opcoes: [{ k, rotulo, mini }]; mini é o id da miniatura (ou nada: um traço)
+function seletorImagem(chave, rotulo, opcoes, atualK, escolher, desligado, dica) {
+  const box = document.createElement("div"); box.className = "sel-img" + (desligado ? " desligado" : "");
+  const at = opcoes.find((o) => o.k === atualK) || opcoes[0];
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "sel-atual";
+  const aberto = seletorAberto === chave && !desligado;
+  btn.setAttribute("aria-expanded", String(aberto)); btn.disabled = !!desligado; if (dica) btn.title = dica;
+  const grade = document.createElement("div"); grade.className = "sel-grade"; grade.id = "grade-" + chave; grade.hidden = !aberto;
+  grade.setAttribute("role", "group"); grade.setAttribute("aria-label", rotulo);
+  btn.setAttribute("aria-controls", grade.id);
+  const rot = document.createElement("span"); rot.className = "sel-rot";
+  const sm = document.createElement("small"); sm.textContent = rotulo;
+  const nm = document.createElement("span"); nm.textContent = at?.rotulo ?? "Nenhum";
+  rot.append(sm, nm);
+  const seta = document.createElement("span"); seta.className = "sel-seta"; seta.textContent = aberto ? "▲" : "▼"; seta.setAttribute("aria-hidden", "true");
+  btn.append(miniatura(at?.mini, at?.marca), rot, seta);
+  btn.onclick = () => { seletorAberto = aberto ? null : chave; escolher(null); };
+  if (aberto) {
+    for (const o of opcoes) {
+      const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", String(o.k === atualK));
+      b.title = o.rotulo;
+      const t = document.createElement("span"); t.textContent = o.rotulo;
+      b.append(miniatura(o.mini, o.marca), t);
+      b.onclick = () => { seletorAberto = null; escolher(o.k); };
+      grade.append(b);
+    }
+  }
+  box.append(btn, grade);
+  return box;
+}
 function desenharRoupa() {
   const bloco = document.getElementById("roupa-bloco");
   bloco.hidden = semAnimacoes(atual.id) || !CAT_ROUPA.itens.length;
@@ -1067,22 +1221,19 @@ function desenharRoupa() {
   for (const [slot, rotulo] of Object.entries(CAT_ROUPA.slots)) {
     const itens = CAT_ROUPA.itens.filter((x) => x.slot === slot);
     if (!itens.length) continue;
-    const id = "roupa-" + slot;
-    const lab = document.createElement("label"); lab.htmlFor = id; lab.textContent = rotulo;
-    const sel = document.createElement("select"); sel.id = id;
-    sel.append(new Option("Nenhum", ""));
-    for (const x of itens) sel.append(new Option(x.rotulo, x.id));
-    sel.value = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
-    sel.disabled = slotsCobertos().includes(slot);
-    if (sel.disabled) sel.title = "A fantasia ocupa a parte de cima e a de baixo";
-    sel.onchange = () => {
-      estado.roupa[slot] = sel.value;
-      estado.corRoupa[slot] = CAT_ROUPA.itens.find((x) => x.id === sel.value)?.variacao?.cor || null; // a cor inicial da peça
-      aplicarRoupa(); desenharRoupa();
-    };
-    el.append(lab, sel);
+    const desligado = slotsCobertos().includes(slot);
+    const atualK = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
+    const opcoes = [{ k: "", rotulo: "Nenhum" }, ...itens.map((x) => ({ k: x.id, rotulo: x.rotulo, mini: x.id }))];
+    el.append(seletorImagem("roupa-" + slot, rotulo, opcoes, atualK, (k) => {
+      if (k !== null) {
+        estado.roupa[slot] = k;
+        estado.corRoupa[slot] = CAT_ROUPA.itens.find((x) => x.id === k)?.variacao?.cor || null; // a cor inicial da peça
+        aplicarRoupa();
+      }
+      desenharRoupa();
+    }, desligado, desligado ? "A peça inteira ocupa esta parte" : ""));
     const rid = estado.roupa[slot];
-    if (rid && MASC[rid] && !sel.disabled) { // cores da peça: amostras, original e cor livre
+    if (rid && MASC[rid] && !desligado) { // cores da peça: amostras, original e cor livre
       const cores = document.createElement("div"); cores.className = "grupo roupa-cores";
       const orig = document.createElement("button");
       orig.type = "button"; orig.textContent = "Original"; orig.setAttribute("aria-pressed", String(!estado.corRoupa[slot]));
@@ -1430,6 +1581,7 @@ renderer.setAnimationLoop(() => {
   const dt = relogio.getDelta();
   if (atual && !reduzido) atual.mixer.update(dt);
   if (par && !reduzido) par.mixer.update(dt);
+  fechaDedos(atual);
   atualizaDinamico();
   if (seguir && seguir.maos.length) { // a face de trás da caixa fica nas mãos
     let z = 0, x = 0;

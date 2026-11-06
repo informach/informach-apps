@@ -17,8 +17,18 @@ def cam(id_, slot, rot, cor=None, _cobre=None, **g):
 def hat(id_, rot, cor=None, slot="cabeca", **g):
     N.append({"id": "nov_" + id_, "slot": slot, "rotulo": rot, "arquivo": R, "corpo_origem": "", "pecas": [],
               "tipo": "cabeca", "gerar": {"tipo": "chapeu", **g}, "variacao": {"cor": cor} if cor else {}})
-    if id_ in ("faixa_cabeca", "viseira", "tiara", "arco", "coroa", "abafador"):  # sobre o cabelo: não achata
+    if id_ in ("faixa_cabeca", "viseira", "tiara", "arco", "coroa", "abafador", "orelhas_coelho"):  # sobre o cabelo: não achata
         N[-1]["achata"] = False
+
+
+def oc(id_, rot, cor=None, **g):  # óculos gerados no rosto
+    N.append({"id": "nov_" + id_, "slot": "oculos", "rotulo": rot, "arquivo": R, "corpo_origem": "", "pecas": [],
+              "tipo": "cabeca", "gerar": {"tipo": "oculos", **g}, "variacao": {"cor": cor} if cor else {}})
+
+
+def obj(id_, mao, rot, cor=None, **g):  # objeto de mão (mao: "dir" ou "esq")
+    N.append({"id": "nov_" + id_, "slot": "mao_" + mao, "rotulo": rot, "arquivo": R, "corpo_origem": "", "pecas": [],
+              "tipo": "mao", "mao": mao, "gerar": {"tipo": "objeto", **g}, "variacao": {"cor": cor} if cor else {}})
 
 
 def comp(id_, slot, rot, partes, cor=None):
@@ -99,7 +109,7 @@ hat("capacete_bike", "Capacete de bicicleta", "#3D7BD6", copa={"folga": 0.03, "c
     viseira={"comprimento": 0.2, "abertura": 60, "caida": 0.2, "cor": "preto"})
 hat("bone_novo", "Boné", "#D9433B", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
     viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.12})
-hat("boina", "Boina", "#D9433B", copa={"folga": 0.05, "corte": 0.7, "alt": 1.0, "teto": 0.07, "inclina": 0.03})
+hat("boina", "Boina", "#D9433B", boina={"corte": 0.62, "lado": 13})
 hat("touca", "Touca", "#3FC1B0", copa={"folga": 0.012, "corte": 0.6, "alt": 1.1}, enrolado={"altura": 0.16})
 hat("touca_pompom", "Touca com pompom", "#F2C231", copa={"folga": 0.012, "corte": 0.6, "alt": 1.15},
     enrolado={"altura": 0.16, "cor": "branco"}, pompom={"raio": 0.17, "cor": "branco"})
@@ -139,8 +149,13 @@ cam("cardiga", "sobre", "Cardigã", "#C9A46E", regiao="tronco", folga=0.03, abre
     cortes=[GOLA_V, QUAD(-0.04), PUNHO])
 cam("jaqueta_aberta", "sobre", "Jaqueta aberta", "#24346B", regiao="tronco", folga=0.034, abre_frente=0.04, gola={"altura": 0.03, "dobra": 0.8},
     cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.02), PUNHO])
-cam("salva_vidas", "sobre", "Colete salva-vidas", "#E27B3B", regiao="tronco", folga=0.05, padrao="refletivo",
-    cortes=[GOLA_V, QUAD(0.02), {"marco": "ombro", "desloca": 0.01}])
+cam("salva_vidas", "sobre", "Colete salva-vidas", "#E27B3B", regiao="tronco", folga=0.03,
+    partes=[{"cortes": [GOLA_V, QUAD(0.02), {"marco": "ombro", "desloca": 0.01}], "inflar": {"n": 10, "amp": 0.016}},
+            {"capuz_caido": {"espessura": 0.034, "altura": 0.08, "abre": 62}},
+            {"faixas_z": [["cintura", -0.02, "cintura", 0.012], ["peito", -0.045, "peito", -0.015]], "folga": 0.058, "cor": "preto",
+             "cortes": [GOLA_V, QUAD(0.02), {"marco": "ombro", "desloca": 0.01}]},
+            {"fivela": {"marco": "cintura", "desloca": -0.004, "folga": 0.062, "largura": 0.045, "altura": 0.03}, "cor": "cinza_escuro"},
+            {"fivela": {"marco": "peito", "desloca": -0.03, "folga": 0.062, "largura": 0.045, "altura": 0.03}, "cor": "cinza_escuro"}])
 cam("colete_utilidades", "sobre", "Colete de bolsos", "#6B7A3A", regiao="tronco", folga=0.04, abre_frente=0.02,
     cortes=[GOLA_V, QUAD(-0.01), {"marco": "ombro", "desloca": 0.01}])
 # --- parte de cima
@@ -229,7 +244,7 @@ hat("viseira", "Viseira", "#F2F2F2", copa={"folga": 0.006, "corte": 0.66, "alt":
     viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.1})
 hat("cauboi", "Chapéu de caubói", "#7B4B2D", copa={"folga": 0.015, "corte": 0.62, "alt": 1.25, "cor": "marrom"},
     faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.55, "caida": 0.0, "sobe_lados": 0.7, "cor": "marrom"})
-hat("capuz", "Capuz", "#8A8F99", copa={"folga": 0.03, "corte": -0.15, "alt": 1.05, "inclina": 0.0, "capuz": True})
+hat("capuz", "Capuz", "#8A8F99", capuz={"folga": 0.04})
 hat("touca_cirurgica", "Touca cirúrgica", "#7EC8E3", copa={"folga": 0.008, "corte": 0.6, "alt": 1.05, "inclina": 0.15, "cor": "azul"})
 hat("tiara", "Tiara de babado", "#F2F2F2", so_arco=True, arco={"largura": 0.07, "babado": True})
 hat("arco", "Arco de cabelo", "#D9433B", so_arco=True, arco={"largura": 0.06, "frente": 0.25})
@@ -242,6 +257,153 @@ hat("coroa", "Coroa", "#D6A83A", copa={"folga": 0.01, "corte": 0.8, "alt": 0.0},
 hat("chapeu_bruxa", "Chapéu pontudo", "#2B2B2B", copa={"folga": 0.015, "corte": 0.62, "alt": 3.2, "ponta": 0.25, "cor": "preto"},
     aba={"largura": 0.55, "caida": 0.05, "cor": "preto"})
 
+
+# ================= terceira leva (imagens 24 a 28: casuais 151 a 300)
+CAMISA = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "quadril", "desloca": -0.04}, {"marco": "braco_meio"}]
+GOLA_CAMISA = {"altura": 0.022, "dobra": 0.9}
+cam("camiseta_faixa", "cima", "Camiseta com faixa", "#3D7BD6", regiao="tronco", folga=0.012, padrao="faixa_peito",
+    gola={"altura": 0.012}, cortes=[PESC, QUAD(-0.03), {"marco": "braco_meio"}])
+cam("camiseta_larga", "cima", "Camiseta larga", "#F2F2F2", regiao="tronco", folga=0.022, gola={"altura": 0.01},
+    cortes=[PESC, QUAD(-0.06), {"marco": "braco_meio", "desloca": 0.02}])
+cam("regata_faixa", "cima", "Regata com faixa", "#3BAA5C", regiao="tronco", folga=0.01, padrao="faixa_peito",
+    cortes=[GOLA_V, QUAD(-0.03), {"marco": "ombro", "desloca": 0.02}])
+cam("camisa_caveira", "cima", "Camisa de caveirinhas", "#2B2B2B", regiao="tronco", folga=0.016, padrao="caveiras",
+    gola=GOLA_CAMISA, cortes=CAMISA)
+cam("camisa_folhas", "cima", "Camisa de folhas", "#2E8B57", regiao="tronco", folga=0.016, padrao="folhas", gola=GOLA_CAMISA,
+    cortes=CAMISA)
+cam("camisa_onca", "cima", "Camisa de oncinha", "#E0447F", regiao="tronco", folga=0.016, padrao="onca", gola=GOLA_CAMISA,
+    cortes=CAMISA)
+cam("camisa_ziguezague", "cima", "Camisa ziguezague", "#3FA7D6", regiao="tronco", folga=0.016, padrao="ziguezague",
+    gola=GOLA_CAMISA, cortes=CAMISA)
+cam("camisa_listrada_vertical", "cima", "Camisa listrada", "#D9433B", regiao="tronco", folga=0.016, padrao="listras_verticais",
+    gola=GOLA_CAMISA, cortes=CAMISA)
+cam("marinheiro", "cima", "Blusa de marinheiro", "#F2F2F2", regiao="tronco", folga=0.012,
+    partes=[{"padrao": "liso", "cortes": [PESC, QUAD(-0.025), PUNHO], "faixas_cor": {"punhos": "azul_escuro", "largura_punho": 0.04}},
+            {"tras": True, "faixa_x": [0.0, 0.14], "faixas_z": [["peito", 0.03, "pescoco", 0.2]], "folga": 0.022, "cor": "azul_escuro",
+             "cortes": [PESC]},
+            {"frente": 0, "faixa_x": [0.0, 0.03], "faixas_z": [["peito", -0.03, "peito", 0.03]], "folga": 0.024, "cor": "vermelho",
+             "cortes": [PESC]}])
+cam("top_biquini", "cima", "Top de biquíni", "#D9433B", regiao="tronco", folga=0.005,
+    cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.075}, {"marco": "peito", "desloca": -0.075},
+            {"marco": "ombro", "desloca": -0.01}])
+cam("jaqueta_aviador", "cima", "Jaqueta de aviador", "#7B4B2D", regiao="tronco", folga=0.03,
+    gola={"altura": 0.04, "dobra": 0.85, "aba": 0.022, "cor": "creme"}, faixas_cor={"punhos": "creme", "largura_punho": 0.03},
+    cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.05), PUNHO])
+cam("jaqueta_colegial", "cima", "Jaqueta colegial", "#2E8B57", regiao="tronco", folga=0.026, gola={"altura": 0.02},
+    faixas_cor={"punhos": "branco", "barra": "branco", "gola": "branco"},
+    cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.04), PUNHO])
+cam("agasalho_listrado", "cima", "Jaqueta de agasalho listrada", "#B03A8C", regiao="tronco", folga=0.022,
+    padrao="duas_cores_lateral", gola={"altura": 0.03}, faixas_cor={"punhos": "branco", "barra": "branco"},
+    cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.04), PUNHO])
+cam("moletom_capuz", "cima", "Moletom com capuz", "#3BAA5C", regiao="tronco", folga=0.024, padrao="bolso_canguru",
+    partes=[{"cortes": [PESC, QUAD(-0.05), PUNHO], "faixas_cor": {}},
+            {"capuz_caido": {"espessura": 0.028, "altura": 0.07, "abre": 75}}])
+cam("acolchoada_capuz", "cima", "Jaqueta acolchoada com capuz", "#3FA7D6", regiao="tronco", folga=0.045, padrao="acolchoado",
+    partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": 0.0}, QUAD(-0.05), PUNHO]},
+            {"capuz_caido": {"espessura": 0.036, "altura": 0.08, "abre": 70}}])
+# por cima: paletós com lapela, camisa aberta, capa de chuva
+PALETO = dict(regiao="tronco", folga=0.03, abre_frente=0.035, lapela={"largura": 0.06},
+              partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.02), PUNHO]},
+                      {"saia": {"desde": "quadril", "desloca_topo": 0.05, "ate": "quadril", "desloca": -0.1, "abertura": 1.06,
+                                "abre_frente": 10, "folga": 0.034}}])
+cam("paleto", "sobre", "Paletó", "#24346B", **PALETO)
+cam("paleto_brilho", "sobre", "Paletó brilhante", "#D6A83A", padrao="lantejoula", **PALETO)
+cam("paleto_listrado", "sobre", "Paletó listrado", "#7B4B2D", padrao="listras_verticais", **PALETO)
+cam("smoking", "sobre", "Smoking", "#C0392B", **{**PALETO, "lapela": {"largura": 0.06, "cor": "preto"}})
+cam("camisa_aberta", "sobre", "Camisa aberta", "#7CC242", regiao="tronco", folga=0.03, abre_frente=0.07,
+    gola={"altura": 0.022, "dobra": 0.9}, cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.05),
+                                                {"marco": "braco_meio"}])
+cam("capa_chuva", "sobre", "Capa de chuva", "#3FC1B0", regiao="tronco", folga=0.04, gola={"altura": 0.02},
+    partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(0.0), PUNHO]},
+            {"saia": {"desde": "cintura", "desloca_topo": -0.03, "ate": "joelho", "desloca": 0.0, "abertura": 1.12, "folga": 0.04}},
+            {"capuz_caido": {"espessura": 0.03, "altura": 0.075, "abre": 70}}])
+# parte de baixo
+cam("biquini_baixo", "baixo", "Calcinha de biquíni", "#D9433B", regiao="pernas", folga=0.005,
+    cortes=[{"marco": "quadril", "acima": True, "desloca": -0.005}, {"marco": "quadril", "desloca": -0.075}])
+cam("bermuda_praia", "baixo", "Bermuda de praia", "#D9433B", regiao="pernas", folga=0.02, padrao="listras_verticais",
+    cortes=[{"marco": "cintura", "acima": True, "desloca": -0.03}, {"marco": "coxa_meio", "desloca": -0.02}])
+cam("short_praia", "baixo", "Short de praia", "#C0392B", regiao="pernas", folga=0.018, padrao="duas_cores_lateral",
+    cortes=[{"marco": "cintura", "acima": True, "desloca": -0.03}, {"marco": "coxa_meio", "desloca": 0.02}])
+cam("calca_jeans", "baixo", "Calça jeans", "#3D5A8A", regiao="pernas", folga=0.016, padrao="jeans",
+    cortes=[{"marco": "cintura", "acima": True, "desloca": -0.01}, {"marco": "tornozelo", "desloca": 0.02}])
+cam("calca_rasgada", "baixo", "Calça jeans rasgada", "#3D7BD6", regiao="pernas", folga=0.016, padrao="jeans",
+    furos=[{"marco": "joelho", "desloca": 0.02, "raio": 0.032}, {"marco": "coxa_meio", "desloca": 0.0, "raio": 0.02}],
+    cortes=[{"marco": "cintura", "acima": True, "desloca": -0.01}, {"marco": "tornozelo", "desloca": 0.02}])
+cam("bermuda_rasgada", "baixo", "Bermuda jeans rasgada", "#3D7BD6", regiao="pernas", folga=0.018, padrao="jeans",
+    furos=[{"marco": "coxa_meio", "desloca": -0.01, "raio": 0.026}],
+    cortes=[{"marco": "cintura", "acima": True, "desloca": -0.01}, {"marco": "joelho", "desloca": 0.05}])
+cam("calca_listrada", "baixo", "Calça listrada", "#3D7BD6", regiao="pernas", folga=0.018, padrao="listras_verticais",
+    cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.02}])
+cam("calca_agasalho_listrada", "baixo", "Calça de agasalho listrada", "#B03A8C", regiao="pernas", folga=0.018,
+    padrao="duas_cores_lateral", faixas_cor={"barra": "branco", "largura_barra": 0.025},
+    cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.02}])
+cam("calca_boca_sino", "baixo", "Calça boca de sino", "#C2185B", regiao="pernas", folga=0.014, boca_sino=0.05,
+    cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": -0.005}])
+cam("meia_calca", "meias", "Meia-calça", "#2B2B2B", regiao="pernas", folga=0.003, cortes=[{"marco": "cintura", "acima": True}])
+# corpo inteiro
+TOPO_VEST = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "cintura", "desloca": -0.01}]
+cam("vestido_um_ombro", "inteira", "Vestido de um ombro", "#8E55D6", regiao="tronco", folga=0.01,
+    partes=[{"cortes": [GOLA_V, {"marco": "cintura", "desloca": -0.01}, {"marco": "ombro", "desloca": 0.01}], "ombro_unico": 1},
+            {"saia": {"desde": "cintura", "ate": "joelho", "desloca": 0.02, "abertura": 1.15}}])
+cam("vestido_tubinho", "inteira", "Vestido tubinho", "#3D7BD6", regiao="tronco", folga=0.008,
+    partes=[{"cortes": [GOLA_V, {"marco": "cintura", "desloca": -0.01}, {"marco": "ombro", "desloca": 0.02}]},
+            {"saia": {"desde": "cintura", "ate": "coxa_meio", "desloca": -0.02, "abertura": 1.03}}])
+cam("vestido_gola", "inteira", "Vestido de gola branca", "#3FC1B0", regiao="tronco", folga=0.012,
+    gola={"altura": 0.02, "dobra": 0.95, "aba": 0.02, "cor": "branco"},
+    partes=[{"cortes": TOPO_VEST + [{"marco": "braco_meio"}]},
+            {"saia": {"desde": "cintura", "ate": "joelho", "desloca": 0.0, "abertura": 1.25}}])
+cam("vestido_manga_curta", "inteira", "Vestido de manga curta", "#D9433B", regiao="tronco", folga=0.012,
+    partes=[{"cortes": TOPO_VEST + [{"marco": "braco_meio", "desloca": -0.03}]},
+            {"saia": {"desde": "cintura", "ate": "joelho", "desloca": -0.02, "abertura": 1.2}}])
+cam("macaquinho_listrado", "inteira", "Macaquinho listrado", "#8E55D6", regiao="corpo", folga=0.008, padrao="listras_marinheiro",
+    cortes=[GOLA_V, {"marco": "coxa_meio", "desloca": 0.05}, {"marco": "braco_meio", "desloca": -0.03}])
+cam("maio_listrado", "inteira", "Maiô listrado", "#3D7BD6", regiao="corpo", folga=0.005, padrao="listras_marinheiro",
+    cortes=[GOLA_V, {"marco": "quadril", "desloca": -0.08}, {"marco": "ombro", "desloca": 0.02}])
+# acessórios do corpo
+cam("lenco", "pescoco_peca", "Lenço no pescoço", "#D9433B", regiao="tronco", folga=0.02,
+    partes=[{"faixas_z": [["pescoco", -0.035, "pescoco", 0.02]]},
+            {"frente": 0, "faixa_x": [0.0, 0.055], "faixas_z": [["peito", 0.04, "pescoco", -0.02]], "folga": 0.024}])
+cam("cinto_fivela", "cintura", "Cinto com fivela", "#2B2B2B", regiao="corpo", folga=0.014,
+    partes=[{"faixas_z": [["cintura", -0.06, "cintura", -0.03]]},
+            {"fivela": {"marco": "cintura", "desloca": -0.045, "folga": 0.02, "largura": 0.05, "altura": 0.036}, "cor": "dourado"}])
+# chapéus
+hat("fedora", "Chapéu fedora", "#2B2B2B", copa={"folga": 0.014, "corte": 0.62, "alt": 1.08, "inclina": 0.02, "vinco": 0.1},
+    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.34, "caida": 0.06, "sobe_tras": 0.5})
+hat("palheta", "Chapéu palheta", "#C9A46E", copa={"folga": 0.012, "corte": 0.64, "inclina": 0.0},
+    banda={"altura": 0.3, "abre": 1.04}, topo={"raio": 1.0}, faixa={"altura": 0.12, "cor": "azul_escuro"},
+    aba={"largura": 0.3, "caida": 0.0})
+hat("chapeu_praia", "Chapéu de praia", "#EE70A9", copa={"folga": 0.015, "corte": 0.67, "alt": 1.0},
+    faixa={"altura": 0.1, "cor": "branco"}, aba={"largura": 0.7, "caida": 0.13, "ondas": 0.06, "n_ondas": 6})
+hat("abas_largas", "Chapéu de abas largas", "#3FA7D6", copa={"folga": 0.015, "corte": 0.62, "alt": 1.08},
+    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.62, "caida": 0.08})
+hat("touca_urso", "Touca de urso", "#E27B3B", copa={"folga": 0.012, "corte": 0.58, "alt": 1.05},
+    enrolado={"altura": 0.14}, orelhas_redondas={"raio": 0.14, "dentro": "bege"})
+hat("orelhas_coelho", "Orelhas de coelho", "#2B2B2B", so_arco=True, arco={"largura": 0.05, "orelhas_longas": {"dentro": "rosa"}})
+hat("bone_duas_cores", "Boné de duas cores", "#F2F2F2", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
+    viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.12, "cor": "azul"})
+# óculos
+oc("oculos_redondos", "Óculos redondos", "#D6A83A", forma="redondo", armacao="branco")
+oc("oculos_quadrados", "Óculos de grau quadrados", "#2B2B2B", forma="quadrado", armacao="branco", esp=0.006)
+oc("oculos_gatinho", "Óculos gatinho", "#D9433B", forma="gatinho", armacao="branco", lente="preto")
+oc("oculos_sol_redondos", "Óculos de sol redondos", "#EE70A9", forma="redondo", armacao="branco", lente="cinza_escuro")
+oc("oculos_3d", "Óculos 3D", "#F2F2F2", forma="quadrado", armacao="branco", lente=["vermelho", "azul"], esp=0.007)
+oc("oculos_esportivos", "Óculos esportivos", "#F2F2F2", forma="viseira", armacao="branco", lente="azul")
+# objetos de mão
+obj("celular", "dir", "Celular", "#2B2B2B", objeto="celular")
+obj("cafe", "dir", "Copo de café", "#F2F2F2", objeto="cafe")
+obj("microfone", "dir", "Microfone", "#2B2B2B", objeto="microfone")
+obj("sorvete", "dir", "Sorvete", "#EE70A9", objeto="sorvete")
+obj("picole", "dir", "Picolé", "#D9433B", objeto="picole")
+obj("camera", "dir", "Câmera fotográfica", "#2B2B2B", objeto="camera")
+obj("livro", "dir", "Livro", "#3D7BD6", objeto="livro")
+obj("buque", "dir", "Buquê de flores", "#C9A0DC", objeto="buque")
+obj("bengala", "dir", "Bengala", "#7B4B2D", objeto="bengala")
+obj("guarda_chuva", "dir", "Guarda-chuva", "#2B2B2B", objeto="guarda_chuva")
+obj("bolsa", "esq", "Bolsa", "#EE70A9", objeto="bolsa")
+obj("maleta", "esq", "Maleta", "#2B2B2B", objeto="maleta")
+obj("mala_rodinha", "esq", "Mala de rodinhas", "#F2C231", objeto="mala_rodinha")
+obj("sacolas", "esq", "Sacolas de compras", "#EE70A9", objeto="sacolas")
+obj("sacola_papel", "esq", "Sacola de compras com pão", "#C9A46E", objeto="sacola_papel")
 
 # ================= conjuntos (profissões e estilos das imagens), feitos com as peças do catálogo
 CONJ = []
@@ -306,7 +468,7 @@ conj("Piloto(a) de avião", cima=n("camisa_social"), baixo=n("calca_social", "#2
      cabeca=n("quepe_capitao", "#24346B"), oculos="roupa_oculos_006", pes="roupa_sapato_seguranca")
 conj("Capitão(ã) de navio", cima=n("camisa_social"), sobre=n("jaqueta_aberta", "#24346B"), baixo=n("calca_social", "#F2F2F2"),
      cabeca=n("quepe_capitao"), pes="roupa_sapato_seguranca")
-conj("Marinheiro(a)", cima=n("blusa_listrada", "#24346B"), baixo=n("calca_social", "#F2F2F2"), cabeca=n("boina", "#24346B"),
+conj("Marinheiro(a)", cima=n("marinheiro"), baixo=n("calca_social", "#F2F2F2"), cabeca=n("quepe_capitao"),
      pes="roupa_sapato_seguranca")
 conj("Salva-vidas", cima=n("regata_justa", "#D9433B"), baixo=n("short_curto", "#D9433B"), cabeca=n("viseira", "#F2C231"),
      oculos="roupa_oculos_seguranca", pes="roupa_chinelo_005")
@@ -367,15 +529,68 @@ conj("Cropped e saia", cima=n("cropped_manga"), baixo="gen_saia_rodada", cabeca=
 conj("Fantasia de sapo", cima=n("moletom", "#7CC242"), baixo=n("calca_moletom", "#7CC242"), cabeca=n("sapo"), pes=n("galocha", "#7CC242"))
 conj("Fantasia de gatinho", cima=n("manga_longa", "#EE70A9"), baixo=n("legging", "#EE70A9"), cabeca=n("gatinho"), pes="roupa_tenis_009")
 
+# casuais das imagens 24 a 28
+conj("Praia de biquíni", cima=n("top_biquini"), baixo=n("biquini_baixo"), cabeca=n("chapeu_praia"), oculos=n("oculos_sol_redondos"),
+     pes="roupa_chinelo_005")
+conj("Praia de bermuda", baixo=n("bermuda_praia"), oculos=n("oculos_esportivos"), pes="roupa_chinelo_002")
+conj("Turista", cima=n("camisa_folhas"), baixo=n("bermuda_folgada"), cabeca=n("chapeu_palha"), mao_dir=n("camera"),
+     pes="roupa_tenis_009")
+conj("Fotógrafo(a)", cima=n("camiseta_justa", "#F2F2F2"), sobre=n("jaqueta_aberta", "#E27B3B"), baixo=n("calca_social", "#E27B3B"),
+     mao_dir=n("camera"), pes="roupa_tenis_009")
+conj("Cantor(a) de palco", cima=n("camisa_social"), sobre=n("paleto_brilho"), baixo=n("calca_social", "#24346B"),
+     pescoco_peca=n("gravata_borboleta"), mao_dir=n("microfone"), pes="roupa_sapato_seguranca")
+conj("Apresentador(a)", cima=n("camisa_social"), sobre=n("paleto", "#E0447F"), baixo=n("calca_social", "#E0447F"),
+     cabeca=n("fedora", "#F2F2F2"), mao_dir=n("microfone"), pes="roupa_sapato_seguranca")
+conj("Executivo(a) de maleta", cima=n("camisa_social"), sobre=n("paleto", "#2B2B2B"), baixo=n("calca_social", "#2B2B2B"),
+     pescoco_peca=n("gravata", "#24346B"), cabeca=n("fedora"), mao_esq=n("maleta"), pes="roupa_sapato_seguranca")
+conj("Vovô de bengala", cima=n("camisa_social"), sobre=n("cardiga", "#8A8F99"), baixo=n("calca_social", "#6B5B4B"),
+     cabeca=n("palheta"), alcas=n("suspensorio", "#2B2B2B"), oculos=n("oculos_redondos"), mao_dir=n("bengala"), pes="roupa_sapato_seguranca")
+conj("Vovó de bengala", inteira=n("vestido_gola"), meias=n("meia_calca", "#5B4B3B"), oculos=n("oculos_redondos"), mao_dir=n("bengala"),
+     pes="roupa_sapato_caixa")
+conj("Viajante", cima=n("moletom_capuz", "#8A8F99"), baixo=n("calca_jeans"), mao_esq=n("mala_rodinha"), pes="roupa_tenis_009")
+conj("Dia de compras", cima=n("camisa_onca"), baixo=n("calca_boca_sino"), oculos=n("oculos_gatinho"), mao_esq=n("sacolas"),
+     pes="roupa_salto_showgirl")
+conj("Feira", cima=n("camiseta_larga", "#F2C231"), baixo=n("calca_jeans"), cabeca=n("balde", "#F2F2F2"), mao_esq=n("sacola_papel"),
+     pes="roupa_tenis_009")
+conj("Dia de chuva", cima=n("camiseta_justa"), sobre=n("capa_chuva"), baixo=n("calca_jeans"), mao_dir=n("guarda_chuva"),
+     pes=n("galocha"))
+conj("Encontro", inteira=n("vestido_um_ombro"), cintura=n("cinto_fivela"), mao_dir=n("buque"), pes="roupa_salto_showgirl")
+conj("Sorveteria", cima=n("camiseta_faixa"), baixo=n("short_curto", "#F2F2F2"), cabeca=n("bone_duas_cores"), mao_dir=n("sorvete"),
+     pes="roupa_tenis_009")
+conj("Café", cima=n("camisa_ziguezague"), baixo=n("calca_social", "#C9A46E"), mao_dir=n("cafe"), pes="roupa_sapato_seguranca")
+conj("Selfie", cima=n("cropped_manga", "#2B2B2B"), baixo=n("bermuda_rasgada"), oculos=n("oculos_sol_redondos"), mao_dir=n("celular"),
+     pes="roupa_tenis_009")
+conj("Aviador(a)", cima=n("jaqueta_aviador"), baixo=n("calca_jeans", "#2B2B2B"), oculos="roupa_oculos_006", pes=n("bota_alta"))
+conj("Colegial", cima=n("jaqueta_colegial"), baixo=n("calca_jeans"), costas="roupa_mochila", pes="roupa_tenis_009")
+conj("Agasalho listrado", cima=n("agasalho_listrado"), baixo=n("calca_agasalho_listrada"), pes="roupa_tenis_009")
+conj("Smoking", cima=n("camisa_social"), sobre=n("smoking"), baixo=n("calca_social", "#2B2B2B"), pescoco_peca=n("gravata_borboleta"),
+     cabeca=n("cartola"), pes="roupa_sapato_seguranca")
+conj("Leitor(a)", cima=n("gola_alta", "#F2F2F2"), sobre=n("cardiga", "#7B4B2D"), baixo=n("calca_social", "#3D5A8A"),
+     oculos=n("oculos_quadrados"), mao_dir=n("livro"), pes="roupa_sapato_caixa")
+conj("Inverno de capuz", cima=n("acolchoada_capuz"), baixo=n("legging"), cabeca=n("touca_urso"), maos=n("luvas_justas", "#E27B3B"),
+     pes=n("bota_alta", "#F2F2F2"))
+conj("Roqueiro(a)", cima=n("camisa_caveira"), baixo=n("calca_rasgada", "#2B2B2B"), oculos=n("oculos_sol_redondos", "#2B2B2B"),
+     pes="roupa_bota_sobrevivente")
+conj("Festa à fantasia: coelho", inteira=n("maio", "#2B2B2B"), meias=n("meia_calca"), cabeca=n("orelhas_coelho"),
+     pescoco_peca=n("gravata_borboleta"), pes="roupa_salto_showgirl")
+conj("Festa à fantasia: urso", cima=n("moletom", "#7B4B2D"), baixo=n("calca_moletom", "#7B4B2D"), cabeca=n("touca_urso", "#7B4B2D"),
+     pes="roupa_tenis_009")
+conj("Cinema 3D", cima=n("camiseta_justa", "#3D7BD6"), baixo=n("short_curto", "#F2C231"), oculos=n("oculos_3d"), mao_dir=n("picole"),
+     pes="roupa_tenis_009")
+conj("Retrô", cima=n("camisa_listrada_vertical"), baixo=n("calca_boca_sino", "#E27B3B"), oculos=n("oculos_redondos"),
+     pes="roupa_sapato_36")
+conj("Boina e lenço", cima=n("camiseta_larga", "#F2F2F2"), baixo=n("calca_jeans"), cabeca=n("boina"), pescoco_peca=n("lenco"),
+     pes="roupa_tenis_009")
+
 p = os.path.join(AQUI, "roupas.json")
 d = json.load(open(p))
 d["itens"] = [x for x in d["itens"] if not x["id"].startswith("nov_")] + N
-for s, r in {"sobre": "Casaco ou colete (por cima)", "joelhos": "Joelheiras", "cotovelos": "Cotoveleiras ou boias",
+for s, r in {"mao_dir": "Na mão direita", "mao_esq": "Na mão esquerda", "sobre": "Casaco ou colete (por cima)", "joelhos": "Joelheiras", "cotovelos": "Cotoveleiras ou boias",
              "cintura": "Cinto", "alcas": "Suspensório", "avental": "Avental", "pescoco_peca": "Gravata ou cachecol",
              "rosto_peca": "Máscara"}.items():
     d["slots"][s] = r
 ordem = ["cima", "sobre", "baixo", "inteira", "pes", "meias", "maos", "cabeca", "oculos", "rosto_peca", "orelhas", "nariz",
-         "pescoco_peca", "pescoco", "pulso", "cotovelos", "joelhos", "cintura", "alcas", "avental", "costas"]
+         "pescoco_peca", "pescoco", "pulso", "cotovelos", "joelhos", "cintura", "alcas", "avental", "costas", "mao_dir", "mao_esq"]
 d["slots"] = {k: d["slots"][k] for k in ordem + [k for k in d["slots"] if k not in ordem] if k in d["slots"]}
 ids = {x["id"] for x in d["itens"]}
 _b = {x["id"]: x for x in d["itens"]}

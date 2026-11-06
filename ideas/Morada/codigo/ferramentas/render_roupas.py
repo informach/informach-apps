@@ -23,7 +23,7 @@ def _tinge(o, rid):
         return
     rgb = [((int(cor[i:i + 2], 16) / 255) ** 2.2) for i in (1, 3, 5)]
     for k, m in enumerate(o.data.materials):
-        if not m or not m.name.startswith("Roupa_Gen_") or m.name.startswith("Roupa_Gen_atlas"):
+        if not m or not m.name.startswith("Roupa_Gen_") or m.name in ("Roupa_Gen_atlas", "Roupa_Gen_detalhe"):
             continue
         m2 = m.copy(); o.data.materials[k] = m2
         nt = m2.node_tree; bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
