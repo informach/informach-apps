@@ -284,6 +284,26 @@ POSES = {
     "mala_rodinha": {"alvo": [-0.12, -0.92, 0.08], "eixos": {"x": [-0.35, -0.94, 0.0], "z": [0.0, 0.0, -1.0]},
                      "balanco": 0.5, "pousa": True},
 }
+NA_PALMA = {"alvo": [0.34, -0.38, 0.0], "eixos": {"x": [0.9, 0.15, 0.1], "z": [0.0, 1.0, 0.0]}, "balanco": 0.15}  # bola, bandeja
+PAINEL = {"alvo": [0.35, -0.3, -0.05], "eixos": {"x": [0.3, 0.9, -0.3], "z": [-0.9, 0.3, 0.0]}, "balanco": 0.15}  # tablet, jornal
+ROLANDO = {"alvo": [-0.12, -0.92, 0.08], "eixos": {"x": [-0.35, -0.94, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.5, "pousa": True}
+AO_LADO_RETO = {"alvo": [0.06, -0.95, 0.07], "eixos": {"x": [0.1, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.7, "pousa": True}
+POSES.update({
+    "garrafa": FRENTE_Y, "espatula": FRENTE_Y, "chave_inglesa": FRENTE_Y, "radio": FRENTE_Y, "tesoura_poda": FRENTE_Y,
+    "pincel": {"alvo": [0.32, -0.3, 0.02], "aponta": [0.45, 0.9, 0.0], "balanco": 0.2},
+    "rolo_papel": {"alvo": [0.3, -0.42, 0.04], "aponta": [0.55, 0.85, 0.0], "balanco": 0.2},
+    "paleta": NA_PALMA, "bandeja_tampa": NA_PALMA, "caixas_presente": NA_PALMA, "bola_futebol": NA_PALMA,
+    "bola_basquete": NA_PALMA, "bola_volei": NA_PALMA, "bola_praia": NA_PALMA, "bola_tenis": NA_PALMA,
+    "tablet": PAINEL, "caderno": PAINEL, "jornal": PAINEL,
+    "frigideira": {"alvo": [0.3, -0.35, 0.05], "eixos": {"y": [1.0, 0.05, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.15},
+    "lanterna": {"alvo": [0.32, -0.3, 0.05], "eixos": {"y": [1.0, -0.25, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.2},
+    "cartaz": {"alvo": [0.42, 0.1, 0.08], "aponta": [0.05, 1.0, 0.0], "balanco": 0.1},
+    "cassetete": AO_LADO_RETO, "ancinho": dict(POSES["bengala"]),
+    "mala_frisos": ROLANDO,
+})
+for k_ in ("bolsa_alca", "bolsa_tote", "bolsa_fecho", "bolsa_perolas", "bolsa_academia", "pasta_couro", "maleta_cantos",
+           "maleta_rigida", "pasta_notebook", "sacola_loja", "kit_socorros", "extintor", "estojo_violao", "caixa_ferramentas"):
+    POSES[k_] = AO_LADO
 # ================= terceira leva (imagens 24 a 28: casuais 151 a 300)
 CAMISA = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "quadril", "desloca": -0.04}, {"marco": "braco_meio"}]
 GOLA_CAMISA = {"altura": 0.022, "dobra": 0.9}
@@ -445,6 +465,30 @@ cam("meia_arrastao_coxa", "meias", "Meia 7/8 arrastão", "#2B2B2B", cortes=[{"ma
 cam("luvas_arrastao", "maos", "Mangas arrastão", "#2B2B2B", regiao="maos", folga=0.004, subdivide=0, padrao="arrastao",
     uv_repete=[16, 75], _transparente=True, cortes=[{"marco": "cotovelo", "acima": True, "desloca": 0.03},
                                                     {"marco": "punho", "desloca": -0.005}])
+
+# ================= quinta leva: objetos da vitrine de objetos (bolsas, malas, ferramentas, bolas...)
+for id_, mao, rot, cor in [
+        ("bolsa_alca", "esq", "Bolsa de alça dourada", "#2B2B2B"), ("bolsa_tote", "esq", "Bolsa sacola", "#1F8A8A"),
+        ("bolsa_fecho", "esq", "Bolsa com fecho", "#3FA7D6"), ("bolsa_perolas", "esq", "Bolsa de pérolas", "#B57EDC"),
+        ("bolsa_academia", "esq", "Bolsa de academia", "#D9433B"), ("pasta_couro", "esq", "Pasta de couro", "#7B4B2D"),
+        ("maleta_cantos", "esq", "Maleta antiga", "#8B4A2B"), ("maleta_rigida", "esq", "Maleta executiva", "#5A5F66"),
+        ("pasta_notebook", "esq", "Pasta de notebook", "#2B2B2B"), ("mala_frisos", "esq", "Mala rígida com frisos", "#7FA9C9"),
+        ("sacola_loja", "esq", "Sacola de loja", "#E27B3B"), ("kit_socorros", "esq", "Kit de primeiros socorros", "#D9433B"),
+        ("extintor", "esq", "Extintor", "#D9433B"), ("estojo_violao", "esq", "Estojo de violão", "#3A3F46"),
+        ("caixa_ferramentas", "esq", "Caixa de ferramentas", "#D9433B"),
+        ("garrafa", "dir", "Garrafa térmica", "#3D7BD6"), ("pincel", "dir", "Pincel", "#C9A46E"),
+        ("paleta", "dir", "Paleta de pintor", "#D9A06A"), ("tablet", "dir", "Tablet", "#2B2B2B"),
+        ("caderno", "dir", "Bloco de notas", "#E27B3B"), ("jornal", "dir", "Jornal", "#F2F2F2"),
+        ("frigideira", "dir", "Frigideira", "#2B2B2B"), ("espatula", "dir", "Espátula", "#2B2B2B"),
+        ("bandeja_tampa", "dir", "Bandeja com tampa", "#AEB6C1"), ("bola_futebol", "dir", "Bola de futebol", "#F2F2F2"),
+        ("bola_basquete", "dir", "Bola de basquete", "#E27B3B"), ("bola_volei", "dir", "Bola de vôlei", "#F2F2F2"),
+        ("bola_praia", "dir", "Bola de praia", "#D9433B"), ("bola_tenis", "dir", "Bola de tênis", "#C8E04A"),
+        ("caixas_presente", "dir", "Caixas de presente", "#F2B8A0"), ("rolo_papel", "dir", "Rolo de papel", "#3D7BD6"),
+        ("cassetete", "dir", "Cassetete", "#2B2B2B"), ("ancinho", "dir", "Ancinho", "#C9A46E"),
+        ("tesoura_poda", "dir", "Tesoura de poda", "#F2C231"), ("chave_inglesa", "dir", "Chave inglesa", "#5A5F66"),
+        ("radio", "dir", "Rádio comunicador", "#2B2B2B"), ("lanterna", "dir", "Lanterna", "#F2C231"),
+        ("cartaz", "dir", "Cartaz", "#E8B98A"), ("guarda_chuva_listrado", "dir", "Guarda-chuva listrado", "#EE70A9")]:
+    obj(id_, mao, rot, cor, _pose=POSES.get(id_, GUARDA), objeto=id_)
 
 # ================= conjuntos (profissões e estilos das imagens), feitos com as peças do catálogo
 CONJ = []
@@ -624,6 +668,21 @@ conj("Passeio de sol", inteira=n("vestido_manga_curta", "#3BAA5C"), cabeca=n("ch
      mao_dir=n("guarda_chuva_colorido"), pes="roupa_salto_showgirl")
 conj("Roqueira de arrastão", cima=n("camisa_caveira"), baixo=n("short_curto", "#2B2B2B"), meias=n("meia_arrastao_coxa"),
      maos=n("luvas_arrastao"), pes=n("bota_alta", "#2B2B2B"))
+conj("Artista na praça", cima=n("blusa_listrada"), baixo=n("calca_social", "#2B2B2B"), cabeca=n("boina"),
+     mao_dir=n("pincel"), mao_esq=n("pasta_notebook", "#2B2B2B"), pes="roupa_sapato_caixa")
+conj("Bombeiro(a) com extintor", cima=n("jaqueta_bombeiro"), baixo=n("calca_refletiva", "#C9362E"), cabeca=n("capacete_bombeiro"),
+     mao_esq=n("extintor"), pes=n("galocha", "#2B2B2B"))
+conj("Turista com mala", cima=n("camisa_floral"), baixo=n("bermuda_folgada"), cabeca=n("chapeu_palha"), oculos=n("oculos_sol_redondos"),
+     mao_esq=n("mala_frisos", "#F2C231"), mao_dir=n("garrafa"), pes="roupa_chinelo_005")
+conj("Jogador(a) de vôlei", cima=n("regata_justa", "#3D7BD6"), baixo=n("short_curto", "#2B2B2B"), joelhos=n("joelheiras"),
+     mao_dir=n("bola_volei"), pes="roupa_tenis_009")
+conj("Músico de estojo", cima=n("camisa_caveira"), baixo=n("calca_jeans", "#2B2B2B"), mao_esq=n("estojo_violao"), pes="roupa_tenis_plus")
+conj("Jardineiro(a) com ancinho", cima=n("camisa_xadrez_folgada", "#3BAA5C"), inteira=n("jardineira", "#6B7A3A"),
+     cabeca=n("chapeu_palha"), mao_dir=n("ancinho"), pes=n("galocha", "#3BAA5C"))
+conj("Garçom com bandeja", cima=n("camisa_social"), baixo=n("calca_social", "#2B2B2B"), pescoco_peca=n("gravata_borboleta"),
+     mao_dir=n("bandeja_tampa"), pes="roupa_sapato_seguranca")
+conj("Repórter", cima=n("camisa_social", "#BFD7EA"), sobre=n("paleto", "#24346B"), baixo=n("calca_social", "#24346B"),
+     mao_dir=n("caderno"), mao_esq=n("bolsa_tote", "#7B4B2D"), pes="roupa_sapato_seguranca")
 conj("Boina e lenço", cima=n("camiseta_larga", "#F2F2F2"), baixo=n("calca_jeans"), cabeca=n("boina"), pescoco_peca=n("lenco"),
      pes="roupa_tenis_009")
 

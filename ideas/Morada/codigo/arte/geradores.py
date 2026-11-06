@@ -1261,11 +1261,16 @@ def oculos(S, spec):
 # x ao longo dos dedos (para baixo com o braço solto), z para o lado da palma, y = z × x. Origem: a base do dedo médio.
 # No corpo: ponto = base do dedo médio + s·(x·X + y·Y + z·Z), preso ao osso da mão (a página e o jogo fazem igual).
 def _bm_prim(bm, tipo, centro, tam, rot=None, seg=16):
-    if tipo == "caixa":
+    if tipo in ("caixa", "caixa_reta"):
+        antes = set(bm.faces)
         r = bmesh.ops.create_cube(bm, size=1.0)
         vs = r["verts"]
         for v in vs:
             v.co = Vector((v.co.x * tam[0], v.co.y * tam[1], v.co.z * tam[2]))
+        if tipo == "caixa" and min(tam) > 0.04:  # cantos arredondados (acabamento)
+            eds = list({e for v in vs for e in v.link_edges})
+            bmesh.ops.bevel(bm, geom=list(vs) + eds, offset=min(tam) * 0.16, segments=2, profile=0.5, affect="EDGES")
+            vs = list({v for f in set(bm.faces) - antes for v in f.verts})
     elif tipo == "cilindro":  # eixo x
         r = bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=tam[1], radius2=tam[2] if len(tam) > 2 else tam[1],
                                   depth=tam[0])
@@ -1314,10 +1319,10 @@ def _objeto(nome):
 
 @_objeto("bolsa")
 def _o_bolsa(bm, cor):
-    p = _bm_prim(bm, "caixa", (2.0, 0, 0.5), (1.9, 2.6, 0.95))
-    a = _bm_prim(bm, "toro", (0.55, 0, 0.5), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
-    a2 = _bm_prim(bm, "toro", (0.55, 0, 0.5), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, math.pi))
-    f = _bm_prim(bm, "caixa", (1.25, 0, 0.0), (0.18, 0.5, 0.06))
+    p = _bm_prim(bm, "caixa", (2.0, 0, 0.25), (1.9, 2.6, 0.95))
+    a = _bm_prim(bm, "toro", (0.55, 0, 0.25), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
+    a2 = _bm_prim(bm, "toro", (0.55, 0, 0.25), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, math.pi))
+    f = _bm_prim(bm, "caixa", (1.25, 0, -0.25), (0.18, 0.5, 0.06))
     return [(p, cor)], [(a + a2, "marrom"), (f, "dourado")]
 
 
@@ -1351,11 +1356,17 @@ def _o_sacolas(bm, cor):
 
 @_objeto("sacola_papel")
 def _o_sacola_papel(bm, cor):
-    s_ = _bm_prim(bm, "caixa", (1.5, 0, 1.0), (2.6, 2.2, 1.4))
-    pao = _bm_prim(bm, "cilindro", (-0.4, 0.5, 1.0), (1.8, 0.28), rot=(0, 0, 0.35), seg=10)
-    folhas = _bm_prim(bm, "cone" if False else "esfera", (-0.1, -0.5, 1.0), (0.6, 0.45, 0.45))
-    cen = _bm_prim(bm, "cilindro", (-0.5, -0.1, 0.8), (1.2, 0.18, 0.02), rot=(0, 0, -0.25), seg=8)
-    return [(s_, cor)], [(pao, "bege"), (folhas, "verde"), (cen, "laranja")]
+    """Sacola de papel da feira, segurada pela borda: pão, garrafa de leite, banana, folhas e cenoura saindo dela."""
+    s_ = _bm_prim(bm, "caixa", (1.6, 0, 0.6), (2.6, 2.2, 1.3))
+    borda = _bm_prim(bm, "caixa_reta", (0.32, 0, 0.6), (0.06, 2.24, 1.34))
+    pao = _bm_prim(bm, "cilindro", (-0.2, 0.55, 0.75), (2.0, 0.28, 0.24), rot=(0, 0, 0.3), seg=10)
+    garrafa = _bm_prim(bm, "cilindro", (-0.1, -0.55, 0.55), (1.3, 0.3), seg=12)
+    tampa = _bm_prim(bm, "cilindro", (-0.82, -0.55, 0.55), (0.18, 0.2), seg=10)
+    banana = _bm_prim(bm, "toro", (0.0, 0.05, 0.3), (0.55, 0.12, 0.38), rot=(0, 0, math.pi / 2))
+    folhas = [_bm_prim(bm, "esfera", (-0.15 - 0.15 * k, -0.15 + 0.25 * k, 0.95), (0.35, 0.28, 0.28)) for k in range(3)]
+    cen = _bm_prim(bm, "cilindro", (-0.35, 0.15, 0.95), (1.1, 0.16, 0.02), rot=(0, 0, -0.3), seg=8)
+    return [(s_, cor)], [(borda, "bege"), (pao, "bege"), (garrafa, "branco"), (tampa, "azul"), (banana, "amarelo"),
+                         (sum(folhas, []), "verde"), (cen, "laranja")]
 
 
 @_objeto("guarda_chuva")
@@ -1450,7 +1461,7 @@ def _o_celular(bm, cor):
 
 
 @_objeto("guarda_chuva_aberto")
-def _o_guarda_chuva_aberto(bm, cor, cores=None):
+def _o_guarda_chuva_aberto(bm, cor, cores=None, alterna=None):
     """Aberto, segurado pelo cabo (o eixo do guarda-chuva no eixo Y da mão): cabo em J embaixo da mão, haste e a cúpula
     de 8 gomos com a borda recortada entre as varetas. cores: uma cor por gomo (o colorido)."""
     cabo = _bm_prim(bm, "toro", (0.0, -1.35, 0.35), (0.35, 0.1, 0.5), rot=(math.pi / 2, 0, math.pi / 2))
@@ -1484,7 +1495,10 @@ def _o_guarda_chuva_aberto(bm, cor, cores=None):
     pri = [(sum(gomos[0::2], []), cor)]
     sec = (cores or ["branco"])
     det = [(cabo, "marrom"), (haste + ponta, "cinza_escuro")]
-    if cores:
+    if alterna:  # listrado: gomos pares na cor, ímpares na outra
+        pri = [(sum(gomos[0::2], []), cor)]
+        det += [(sum(gomos[1::2], []), alterna)]
+    elif cores:
         pri = [(gomos[0], cor)]
         det += [(gomos[j], cores[(j - 1) % len(cores)]) for j in range(1, ng)]
     else:
@@ -1507,6 +1521,384 @@ def _o_pau_selfie(bm, cor):
     cel = _bm_prim(bm, "caixa", (-0.05, 5.25, 0.35), (0.1, 1.6, 0.8))
     tela = _bm_prim(bm, "caixa", (-0.11, 5.25, 0.35), (0.02, 1.45, 0.7))
     return [(cabo, cor)], [(haste + suporte, "cinza_escuro"), (cel, "preto"), (tela, "azul_escuro")]
+
+
+
+# ---------- mais objetos (bolsas, malas, caixas, ferramentas, bolas...), feitos com a vitrine de objetos como norte
+def _alca(bm, x_topo, z, raio=0.6, esp=0.07, y=0.0):
+    """Alça em arco: do alto do objeto (x_topo) até a mão (perto de x = 0)."""
+    return _bm_prim(bm, "toro", (x_topo - raio * 0.6, y, z), (raio, esp, 0.5), rot=(0, math.pi / 2, 0))
+
+
+@_objeto("bolsa_alca")
+def _o_bolsa_alca(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (1.85, 0, 0.2), (1.5, 2.0, 0.9))
+    alca = _bm_prim(bm, "toro", (0.75, 0, 0.2), (0.55, 0.11, 0.5), rot=(0, math.pi / 2, 0))
+    fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.27), (0.22, 0.45, 0.06))
+    return [(corpo, cor)], [(alca, "dourado"), (fecho, "dourado")]
+
+
+@_objeto("bolsa_tote")
+def _o_bolsa_tote(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.0, 2.6, 1.0))
+    a1 = _bm_prim(bm, "toro", (0.85, -0.55, 0.2), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
+    a2 = _bm_prim(bm, "toro", (0.85, 0.55, 0.2), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
+    return [(corpo, cor)], [(a1 + a2, "marrom")]
+
+
+@_objeto("bolsa_fecho")
+def _o_bolsa_fecho(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (1.8, 0, 0.2), (1.4, 2.2, 0.85))
+    tampa = _bm_prim(bm, "caixa", (1.35, 0, 0.2), (0.6, 2.25, 0.9))
+    placa = _bm_prim(bm, "caixa", (1.55, 0, -0.27), (0.3, 0.5, 0.05))
+    alca = _bm_prim(bm, "toro", (0.6, 0, 0.2), (0.55, 0.08, 0.5), rot=(0, math.pi / 2, 0))
+    return [(corpo + tampa, cor)], [(placa, "dourado"), (alca, "preto")]
+
+
+@_objeto("bolsa_perolas")
+def _o_bolsa_perolas(bm, cor):
+    corpo = _bm_prim(bm, "esfera", (1.7, 0, 0.2), (0.75, 1.3, 0.5))
+    perolas = []
+    for i in range(13):
+        a = math.pi * (0.15 + 0.7 * i / 12)
+        perolas.append(_bm_prim(bm, "esfera", (1.3 - math.sin(a) * 1.1, -math.cos(a) * 1.1, 0.2), (0.13, 0.13, 0.13)))
+    return [(corpo, cor)], [(sum(perolas, []), "branco")]
+
+
+@_objeto("bolsa_academia")
+def _o_bolsa_academia(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (1.6, 0, 0.2), (3.4, 0.85), rot=(0, 0, math.pi / 2), seg=16)
+    faixas = [_bm_prim(bm, "cilindro", (1.6, y, 0.2), (0.25, 0.88), rot=(0, 0, math.pi / 2), seg=16) for y in (-1.0, 1.0)]
+    a1 = _alca(bm, 0.8, 0.2, 0.55, 0.07, -0.5)
+    a2 = _alca(bm, 0.8, 0.2, 0.55, 0.07, 0.5)
+    ziper = _bm_prim(bm, "caixa_reta", (0.77, 0, 0.2), (0.05, 2.8, 0.08))
+    return [(corpo, cor)], [(sum(faixas, []), "branco"), (a1 + a2, "preto"), (ziper, "cinza_escuro")]
+
+
+@_objeto("pasta_couro")
+def _o_pasta_couro(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.1, 0, 0.2), (2.3, 3.2, 0.9))
+    aba = _bm_prim(bm, "caixa", (1.45, 0, -0.27), (1.1, 3.25, 0.08))
+    fivelas = [_bm_prim(bm, "caixa", (1.9, y, -0.33), (0.35, 0.28, 0.06)) for y in (-0.9, 0.9)]
+    alca = _alca(bm, 0.95, 0.2, 0.5, 0.09)
+    return [(corpo + aba, cor)], [(sum(fivelas, []), "dourado"), (alca, "marrom")]
+
+
+@_objeto("maleta_cantos")
+def _o_maleta_cantos(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.4, 3.6, 0.95))
+    cantos = [_bm_prim(bm, "caixa", (2.3 + sx * 1.05, sy * 1.65, 0.2), (0.42, 0.42, 1.0)) for sx in (-1, 1) for sy in (-1, 1)]
+    alca = _alca(bm, 1.1, 0.2, 0.45, 0.1)
+    fechos = [_bm_prim(bm, "caixa", (1.25, y, 0.2), (0.2, 0.3, 1.0)) for y in (-0.9, 0.9)]
+    return [(corpo, cor)], [(sum(cantos, []) + sum(fechos, []), "dourado"), (alca, "preto")]
+
+
+@_objeto("maleta_rigida")
+def _o_maleta_rigida(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.5, 3.6, 0.8))
+    friso = _bm_prim(bm, "caixa_reta", (2.3, 0, 0.2), (2.52, 3.62, 0.08))
+    fechos = [_bm_prim(bm, "caixa", (1.07, y, 0.2), (0.12, 0.35, 0.86)) for y in (-1.1, 1.1)]
+    alca = _alca(bm, 1.05, 0.2, 0.45, 0.1)
+    return [(corpo, cor)], [(friso + sum(fechos, []), "prata"), (alca, "preto")]
+
+
+@_objeto("pasta_notebook")
+def _o_pasta_notebook(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.6, 3.8, 0.45))
+    bolso = _bm_prim(bm, "caixa", (2.6, 0, -0.04), (1.4, 3.0, 0.08))
+    a1 = _alca(bm, 1.0, 0.2, 0.5, 0.07, -0.45)
+    a2 = _alca(bm, 1.0, 0.2, 0.5, 0.07, 0.45)
+    return [(corpo + bolso, cor)], [(a1 + a2, "cinza_escuro")]
+
+
+@_objeto("mala_frisos")
+def _o_mala_frisos(bm, cor):
+    pri, det = _o_mala(bm, cor)
+    frisos = []
+    for z in (1.4 - 1.65, 1.4 + 1.65):
+        for y in (-0.55, 0.0, 0.55):
+            frisos.append(_bm_prim(bm, "caixa", (6.2, y, z), (4.2, 0.16, 0.12)))
+    return pri + [(sum(frisos, []), cor)], det
+
+
+@_objeto("sacola_loja")
+def _o_sacola_loja(bm, cor):
+    corpo = _bm_prim(bm, "caixa_reta", (2.3, 0, 0.2), (2.6, 2.4, 0.9))
+    etiqueta = _bm_prim(bm, "caixa_reta", (2.4, 0, -0.27), (1.2, 1.3, 0.02))
+    a1 = _bm_prim(bm, "toro", (1.0, -0.5, 0.2), (0.45, 0.04, 0.5), rot=(0, math.pi / 2, 0))
+    a2 = _bm_prim(bm, "toro", (1.0, 0.5, 0.2), (0.45, 0.04, 0.5), rot=(0, math.pi / 2, 0))
+    return [(corpo, cor)], [(etiqueta, "branco"), (a1 + a2, "cinza_escuro")]
+
+
+@_objeto("kit_socorros")
+def _o_kit_socorros(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.9, 2.7, 1.0))
+    cruz = [_bm_prim(bm, "caixa_reta", (2.05, 0, -0.32), tam) for tam in ((0.9, 0.3, 0.04), (0.3, 0.9, 0.04))]
+    alca = _alca(bm, 1.05, 0.2, 0.45, 0.09)
+    return [(corpo, cor)], [(sum(cruz, []), "branco"), (alca, "cinza_escuro")]
+
+
+@_objeto("extintor")
+def _o_extintor(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (2.6, 0, 0.2), (3.6, 0.55), seg=16)
+    topo = _bm_prim(bm, "esfera", (0.8, 0, 0.2), (0.3, 0.55, 0.55))
+    valvula = _bm_prim(bm, "cilindro", (0.45, 0, 0.2), (0.5, 0.18), seg=10)
+    alavanca = _bm_prim(bm, "caixa", (0.15, 0.3, 0.2), (0.12, 0.9, 0.15))
+    mangueira = _bm_prim(bm, "toro", (1.4, -0.75, 0.2), (0.9, 0.08, 0.45), rot=(0, 0, 0))
+    return [(corpo + topo, cor)], [(valvula + alavanca, "cinza"), (mangueira, "preto")]
+
+
+@_objeto("estojo_violao")
+def _o_estojo_violao(bm, cor):
+    caixa = _bm_prim(bm, "esfera", (1.3, 1.1, 0.2), (0.9, 1.3, 0.45))
+    caixa2 = _bm_prim(bm, "esfera", (1.25, -0.5, 0.2), (0.75, 1.0, 0.45))
+    braco = _bm_prim(bm, "caixa", (1.2, -2.2, 0.2), (0.5, 1.9, 0.38))
+    fechos = [_bm_prim(bm, "caixa", (0.42, y, 0.2), (0.12, 0.2, 0.5)) for y in (-0.2, 0.9)]
+    alca = _alca(bm, 0.45, 0.2, 0.35, 0.07, 0.3)
+    return [(caixa + caixa2 + braco, cor)], [(sum(fechos, []), "amarelo"), (alca, "preto")]
+
+
+@_objeto("caixa_ferramentas")
+def _o_caixa_ferramentas(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.6, 3.2, 1.2))
+    tampa = _bm_prim(bm, "caixa", (1.15, 0, 0.2), (0.25, 3.25, 1.25))
+    alca = _bm_prim(bm, "cilindro", (0.25, 0, 0.2), (0.12, 0.12), seg=8)
+    alca = _bm_prim(bm, "caixa", (0.25, 0, 0.2), (0.14, 1.6, 0.18))
+    pes = [_bm_prim(bm, "caixa", (0.65, y, 0.2), (0.8, 0.12, 0.14)) for y in (-0.8, 0.8)]
+    fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.43), (0.25, 0.4, 0.06))
+    return [(corpo + tampa, cor)], [(alca + sum(pes, []), "cinza_escuro"), (fecho, "prata")]
+
+
+@_objeto("garrafa")
+def _o_garrafa(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (0.0, 0.3, 0.55), (2.2, 0.42), rot=(0, 0, math.pi / 2), seg=16)
+    tampa = _bm_prim(bm, "cilindro", (0.0, 1.65, 0.55), (0.5, 0.36), rot=(0, 0, math.pi / 2), seg=14)
+    faixa = _bm_prim(bm, "cilindro", (0.0, 1.0, 0.55), (0.18, 0.44), rot=(0, 0, math.pi / 2), seg=16)
+    return [(corpo, cor)], [(tampa, "cinza_escuro"), (faixa, "cinza_escuro")]
+
+
+@_objeto("pincel")
+def _o_pincel(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (3.2, 0.08, 0.06), rot=(0, 0, math.pi / 2), seg=8)
+    virola = _bm_prim(bm, "cilindro", (0.0, 2.15, 0.4), (0.4, 0.09), rot=(0, 0, math.pi / 2), seg=8)
+    cerdas = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.4), (0.55, 0.1, 0.02), rot=(0, 0, math.pi / 2), seg=8)
+    return [(cabo, cor)], [(virola, "prata"), (cerdas, "vermelho")]
+
+
+@_objeto("paleta")
+def _o_paleta(bm, cor):
+    placa = _bm_prim(bm, "cilindro", (0.2, 0.0, 0.18), (0.1, 1.3, 1.3), rot=(0, math.pi / 2, 0), seg=20)
+    for v in {v for f in placa for v in f.verts}:
+        v.co.y *= 1.35
+    cores = ["vermelho", "azul", "amarelo", "verde", "branco", "rosa"]
+    tintas = [(_bm_prim(bm, "esfera", (0.2 + math.cos(a) * 0.85, math.sin(a) * 1.15, 0.26), (0.2, 0.2, 0.06)), c_)
+              for a, c_ in zip(np.linspace(0.3, 2 * math.pi - 0.6, 6), cores)]
+    return [(placa, cor)], tintas
+
+
+@_objeto("tablet")
+def _o_tablet(bm, cor):
+    c_ = _bm_prim(bm, "caixa", (0.4, 0, 0.35), (2.4, 1.7, 0.1))
+    tela = _bm_prim(bm, "caixa_reta", (0.4, 0, 0.405), (2.2, 1.5, 0.02))
+    return [(c_, cor)], [(tela, "azul")]
+
+
+@_objeto("caderno")
+def _o_caderno(bm, cor):
+    capa = _bm_prim(bm, "caixa", (0.4, 0, 0.35), (2.0, 1.5, 0.12))
+    folha = _bm_prim(bm, "caixa_reta", (0.45, 0, 0.42), (1.8, 1.4, 0.02))
+    linhas = [_bm_prim(bm, "caixa_reta", (-0.1 + 0.25 * k, 0, 0.432), (0.03, 1.2, 0.01)) for k in range(5)]
+    espiral = [_bm_prim(bm, "toro", (-0.62, y, 0.4), (0.09, 0.025, 1.0), rot=(math.pi / 2, 0, 0)) for y in np.linspace(-0.6, 0.6, 7)]
+    return [(capa, cor)], [(folha, "branco"), (sum(linhas, []), "cinza"), (sum(espiral, []), "prata")]
+
+
+@_objeto("jornal")
+def _o_jornal(bm, cor):
+    f1 = _bm_prim(bm, "caixa_reta", (0.4, -0.55, 0.35), (2.4, 1.1, 0.03), rot=(0.18, 0, 0))
+    f2 = _bm_prim(bm, "caixa_reta", (0.4, 0.55, 0.35), (2.4, 1.1, 0.03), rot=(-0.18, 0, 0))
+    txt = [_bm_prim(bm, "caixa_reta", (-0.4 + 0.3 * k, sy * 0.55, 0.39), (0.06, 0.8, 0.01), rot=(-sy * 0.18, 0, 0))
+           for k in range(6) for sy in (-1, 1)]
+    titulo = _bm_prim(bm, "caixa_reta", (-0.6, -0.55, 0.392), (0.25, 0.9, 0.012), rot=(0.18, 0, 0))
+    return [(f1 + f2, cor)], [(sum(txt, []), "cinza"), (titulo, "preto")]
+
+
+@_objeto("frigideira")
+def _o_frigideira(bm, cor):
+    """Pelo cabo, no eixo Y da mão: a frigideira à frente."""
+    fundo = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.4), (0.12, 1.3), rot=(0, math.pi / 2, 0), seg=24)
+    borda = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.6), (0.35, 1.38, 1.45), rot=(0, math.pi / 2, 0), seg=24)
+    dentro = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.62), (0.32, 1.22, 1.32), rot=(0, math.pi / 2, 0), seg=24)
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.3, 0.45), (2.4, 0.16), rot=(0, 0, math.pi / 2), seg=10)
+    return [(borda, cor)], [(fundo + dentro, "cinza_escuro"), (cabo, "preto")]
+
+
+@_objeto("espatula")
+def _o_espatula(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (2.2, 0.13), rot=(0, 0, math.pi / 2), seg=10)
+    haste = _bm_prim(bm, "caixa_reta", (0.0, 1.9, 0.4), (0.12, 1.2, 0.06))
+    pa = _bm_prim(bm, "caixa", (0.0, 2.9, 0.4), (0.75, 1.0, 0.06))
+    return [(cabo, cor)], [(haste + pa, "prata")]
+
+
+@_objeto("bandeja_tampa")
+def _o_bandeja_tampa(bm, cor):
+    """Na palma (aberta para cima): o prato e a tampa em cúpula."""
+    prato = _bm_prim(bm, "cilindro", (0.3, 0, 0.1), (0.1, 1.8), rot=(0, math.pi / 2, 0), seg=24)
+    an, fs = [], []
+    for i in range(7):
+        th = math.radians(90) * i / 6
+        an.append([bm.verts.new((0.3 + 1.5 * math.sin(th) * math.cos(2 * math.pi * k / 24), 1.5 * math.sin(th) * math.sin(2 * math.pi * k / 24),
+                                 0.15 + 1.1 * math.cos(th))) for k in range(24)])
+    for a_, b_ in zip(an, an[1:]):
+        for k in range(24):
+            fs.append(bm.faces.new((a_[k], a_[(k + 1) % 24], b_[(k + 1) % 24], b_[k])))
+    pegador = _bm_prim(bm, "esfera", (0.3, 0, 1.35), (0.18, 0.18, 0.14))
+    return [(fs, cor)], [(prato, "branco"), (pegador, "cinza_escuro")]
+
+
+def _bola(bm, r, z=None):
+    return _bm_prim(bm, "esfera", (0.3, 0, (z if z is not None else r + 0.15)), (r, r, r))
+
+
+@_objeto("bola_futebol")
+def _o_bola_futebol(bm, cor):
+    """Gomos pintados na própria esfera: as faces perto dos 12 vértices de um icosaedro ficam pretas."""
+    c0 = Vector((0.3, 0, 1.25))
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.1)
+    for v in r_["verts"]:
+        v.co += c0
+    fs = list({f for v in r_["verts"] for f in v.link_faces})
+    ico = bmesh.new()
+    dirs = [v.co.normalized() for v in bmesh.ops.create_icosphere(ico, subdivisions=1, radius=1.0)["verts"]][:12]
+    ico.free()
+    pretos, brancos = [], []
+    for f in fs:
+        n = (f.calc_center_median() - c0).normalized()
+        (pretos if max(n.dot(d) for d in dirs) > 0.93 else brancos).append(f)
+    return [(brancos, cor)], [(pretos, "preto")]
+
+
+@_objeto("bola_basquete")
+def _o_bola_basquete(bm, cor):
+    bola = _bola(bm, 1.2)
+    linhas = [_bm_prim(bm, "toro", (0.3, 0, 1.35), (1.21, 0.03, 1.0), rot=r) for r in ((0, 0, 0), (math.pi / 2, 0, 0), (0, 0, math.pi / 2))]
+    return [(bola, cor)], [(sum(linhas, []), "preto")]
+
+
+@_objeto("bola_volei")
+def _o_bola_volei(bm, cor):
+    """Painéis pintados na esfera, pelo eixo que domina cada face: um na cor, os outros em azul e amarelo."""
+    c0 = Vector((0.3, 0, 1.25))
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.1)
+    for v in r_["verts"]:
+        v.co += c0
+    grupos = {0: [], 1: [], 2: []}
+    for f in {f for v in r_["verts"] for f in v.link_faces}:
+        n = f.calc_center_median() - c0
+        grupos[max(range(3), key=lambda i: abs(n[i]))].append(f)
+    return [(grupos[0], cor)], [(grupos[1], "azul"), (grupos[2], "amarelo")]
+
+
+@_objeto("bola_praia")
+def _o_bola_praia(bm, cor):
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.4)
+    for v in r_["verts"]:
+        v.co += Vector((0.3, 0, 1.55))
+    fs = list({f for v in r_["verts"] for f in v.link_faces})
+    cores = [None, "amarelo", "azul", "branco", "laranja", "verde"]
+    grupos = {i: [] for i in range(6)}
+    for f in fs:
+        c = f.calc_center_median() - Vector((0.3, 0, 1.55))
+        if abs(c.z) > 1.3:
+            grupos[3].append(f)
+            continue
+        grupos[int(((math.atan2(c.y, c.x) + math.pi) / (2 * math.pi)) * 6) % 6].append(f)
+    return [(grupos[0], cor)], [(grupos[i], cores[i]) for i in range(1, 6)]
+
+
+@_objeto("bola_tenis")
+def _o_bola_tenis(bm, cor):
+    bola = _bola(bm, 0.36)
+    costura = _bm_prim(bm, "toro", (0.3, 0, 0.51), (0.365, 0.025, 1.0), rot=(0.6, 0.3, 0))
+    return [(bola, cor)], [(costura, "branco")]
+
+
+@_objeto("caixas_presente")
+def _o_caixas_presente(bm, cor):
+    c1 = _bm_prim(bm, "caixa", (0.3, 0, 0.75), (2.2, 2.2, 1.2))
+    c2 = _bm_prim(bm, "caixa", (0.35, 0.1, 1.85), (1.6, 1.6, 1.0), rot=(0, 0, 0.3))
+    fitas = [_bm_prim(bm, "caixa_reta", (0.3, 0, 0.75), (0.25, 2.24, 1.24)), _bm_prim(bm, "caixa_reta", (0.3, 0, 0.75), (2.24, 0.25, 1.24)),
+             _bm_prim(bm, "caixa_reta", (0.35, 0.1, 1.85), (0.22, 1.64, 1.04), rot=(0, 0, 0.3))]
+    laco = [_bm_prim(bm, "toro", (0.35 + sx * 0.25, 0.1, 2.45), (0.25, 0.06, 1.0), rot=(math.pi / 2, 0, 0)) for sx in (-1, 1)]
+    return [(c1 + c2, cor)], [(sum(fitas, []) + sum(laco, []), "vermelho")]
+
+
+@_objeto("rolo_papel")
+def _o_rolo_papel(bm, cor):
+    rolo = _bm_prim(bm, "cilindro", (0.0, 1.0, 0.45), (4.4, 0.35), rot=(0, 0, math.pi / 2), seg=14)
+    pontas = [_bm_prim(bm, "cilindro", (0.0, y, 0.45), (0.03, 0.3), rot=(0, 0, math.pi / 2), seg=14) for y in (-1.21, 3.21)]
+    return [(rolo, cor)], [(sum(pontas, []), "branco")]
+
+
+@_objeto("cassetete")
+def _o_cassetete(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (3.0, 0, 0.2), (5.6, 0.16, 0.13), seg=10)
+    cabo = _bm_prim(bm, "cilindro", (0.9, 0.0, 0.55), (0.9, 0.12), rot=(0, math.pi / 2, 0), seg=8)
+    return [(corpo + cabo, cor)], []
+
+
+@_objeto("ancinho")
+def _o_ancinho(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (4.0, 0, 0.1), (8.4, 0.11), seg=10)
+    barra = _bm_prim(bm, "caixa", (8.2, 0, 0.1), (0.25, 2.4, 0.2))
+    dentes = [_bm_prim(bm, "cilindro", (8.55, y, 0.35), (0.6, 0.05), rot=(0, math.pi / 2, 0), seg=6) for y in np.linspace(-1.05, 1.05, 9)]
+    return [(cabo, cor)], [(barra + sum(dentes, []), "verde")]
+
+
+@_objeto("tesoura_poda")
+def _o_tesoura_poda(bm, cor):
+    cabos = [_bm_prim(bm, "cilindro", (sx * 0.18, 0.2, 0.45), (2.0, 0.16), rot=(0, 0, math.pi / 2 + sx * 0.08), seg=10) for sx in (-1, 1)]
+    laminas = [_bm_prim(bm, "caixa", (sx * 0.1, 2.2, 0.45), (0.3, 2.0, 0.06), rot=(0, 0, sx * 0.06)) for sx in (-1, 1)]
+    eixo = _bm_prim(bm, "cilindro", (0.0, 1.25, 0.45), (0.2, 0.15), rot=(0, math.pi / 2, 0), seg=10)
+    return [(sum(cabos, []), cor)], [(sum(laminas, []) + eixo, "prata")]
+
+
+@_objeto("chave_inglesa")
+def _o_chave_inglesa(bm, cor):
+    cabo = _bm_prim(bm, "caixa", (0.0, 0.6, 0.4), (0.4, 2.8, 0.12))
+    cabeca = _bm_prim(bm, "caixa", (0.0, 2.3, 0.4), (0.9, 0.6, 0.14))
+    dente = _bm_prim(bm, "caixa", (0.3, 2.75, 0.4), (0.3, 0.5, 0.14))
+    return [(cabo, cor)], [(cabeca + dente, "prata")]
+
+
+@_objeto("radio")
+def _o_radio(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (0.0, 0.5, 0.45), (0.65, 1.6, 0.35))
+    antena = _bm_prim(bm, "cilindro", (0.15, 1.75, 0.45), (0.9, 0.06), rot=(0, 0, math.pi / 2), seg=8)
+    tela = _bm_prim(bm, "caixa_reta", (0.0, 0.8, 0.63), (0.45, 0.4, 0.02))
+    botoes = [_bm_prim(bm, "caixa", (0.0, 0.2 - 0.25 * k, 0.63), (0.4, 0.14, 0.04)) for k in range(2)]
+    return [(corpo, cor)], [(antena, "preto"), (tela, "verde"), (sum(botoes, []), "cinza")]
+
+
+@_objeto("lanterna")
+def _o_lanterna(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (2.4, 0.28), rot=(0, 0, math.pi / 2), seg=12)
+    cabeca = _bm_prim(bm, "cilindro", (0.0, 1.85, 0.4), (0.6, 0.3, 0.45), rot=(0, 0, math.pi / 2), seg=14)
+    lente = _bm_prim(bm, "cilindro", (0.0, 2.17, 0.4), (0.04, 0.4), rot=(0, 0, math.pi / 2), seg=14)
+    return [(corpo + cabeca, cor)], [(lente, "creme")]
+
+
+@_objeto("cartaz")
+def _o_cartaz(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 1.8, 0.35), (5.0, 0.1), rot=(0, 0, math.pi / 2), seg=8)
+    placa = _bm_prim(bm, "caixa", (0.0, 4.9, 0.55), (3.6, 2.2, 0.08))
+    letras = [_bm_prim(bm, "caixa_reta", (0.9 - 0.6 * k, 4.9, 0.6), (0.4, 1.4, 0.02)) for k in range(4)]
+    return [(placa, cor)], [(cabo, "bege"), (sum(letras, []), "vermelho")]
+
+
+@_objeto("guarda_chuva_listrado")
+def _o_guarda_chuva_listrado(bm, cor):
+    return _o_guarda_chuva_aberto(bm, cor, alterna="branco")
 
 
 def objeto(spec):

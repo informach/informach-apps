@@ -1799,6 +1799,27 @@
    "cor": "#ffffff"
   }
  },
+ "nov_meia_arrastao": {
+  "Roupa_Gen_arrastao": {
+   "mascara": "nov_meia_arrastao__Roupa_Gen_arrastao.png",
+   "lum": 0.57758,
+   "cor": "#c8c8c8"
+  }
+ },
+ "nov_meia_arrastao_coxa": {
+  "Roupa_Gen_arrastao": {
+   "mascara": "nov_meia_arrastao_coxa__Roupa_Gen_arrastao.png",
+   "lum": 0.57758,
+   "cor": "#c8c8c8"
+  }
+ },
+ "nov_luvas_arrastao": {
+  "Roupa_Gen_arrastao": {
+   "mascara": "nov_luvas_arrastao__Roupa_Gen_arrastao.png",
+   "lum": 0.57758,
+   "cor": "#c8c8c8"
+  }
+ },
  "nov_celular": {
   "Roupa_Gen_atlas": {
    "mascara": "nov_celular__Roupa_Gen_atlas.png",
@@ -1925,25 +1946,277 @@
    "cor": "#ffffff"
   }
  },
- "nov_meia_arrastao": {
-  "Roupa_Gen_arrastao": {
-   "mascara": "nov_meia_arrastao__Roupa_Gen_arrastao.png",
-   "lum": 0.57758,
-   "cor": "#c8c8c8"
+ "nov_bolsa_alca": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bolsa_alca__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
   }
  },
- "nov_meia_arrastao_coxa": {
-  "Roupa_Gen_arrastao": {
-   "mascara": "nov_meia_arrastao_coxa__Roupa_Gen_arrastao.png",
-   "lum": 0.57758,
-   "cor": "#c8c8c8"
+ "nov_bolsa_tote": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bolsa_tote__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
   }
  },
- "nov_luvas_arrastao": {
-  "Roupa_Gen_arrastao": {
-   "mascara": "nov_luvas_arrastao__Roupa_Gen_arrastao.png",
-   "lum": 0.57758,
-   "cor": "#c8c8c8"
+ "nov_bolsa_fecho": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bolsa_fecho__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bolsa_perolas": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bolsa_perolas__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bolsa_academia": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bolsa_academia__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pasta_couro": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pasta_couro__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_maleta_cantos": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_maleta_cantos__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_maleta_rigida": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_maleta_rigida__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pasta_notebook": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pasta_notebook__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_mala_frisos": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_mala_frisos__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_sacola_loja": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_sacola_loja__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_kit_socorros": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_kit_socorros__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_extintor": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_extintor__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_estojo_violao": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_estojo_violao__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_caixa_ferramentas": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_caixa_ferramentas__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_garrafa": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_garrafa__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pincel": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pincel__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_paleta": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_paleta__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_tablet": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_tablet__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_caderno": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_caderno__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_jornal": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_jornal__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_frigideira": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_frigideira__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_espatula": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_espatula__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bandeja_tampa": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bandeja_tampa__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bola_basquete": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bola_basquete__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bola_praia": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bola_praia__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bola_tenis": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bola_tenis__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_caixas_presente": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_caixas_presente__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_rolo_papel": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_rolo_papel__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_cassetete": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_cassetete__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_ancinho": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_ancinho__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_tesoura_poda": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_tesoura_poda__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_chave_inglesa": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_chave_inglesa__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_radio": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_radio__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_lanterna": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_lanterna__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_cartaz": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_cartaz__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_guarda_chuva_listrado": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_guarda_chuva_listrado__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bola_futebol": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bola_futebol__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bola_volei": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bola_volei__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
   }
  }
 }

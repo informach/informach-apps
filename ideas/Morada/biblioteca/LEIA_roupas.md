@@ -1,7 +1,7 @@
 # Roupas e acessórios
 
 Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), as variações feitas a partir delas e as peças
-geradas aqui (276 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
+geradas aqui (315 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
 três estágios de barriga.
 
 ## Onde fica cada coisa
@@ -123,8 +123,18 @@ O gerador está em `codigo/morada-art/geradores.py`:
   - A armação recebe a cor livre. As lentes têm cor fixa (`lente`: uma cor ou `[esquerda, direita]`, como nos óculos 3D;
     sem `lente`, só a armação).
 - **`objeto`** (`tipo: "mao"`, slots `mao_dir` e `mao_esq`): objetos de mão.
-  - Os objetos: celular, copo de café, microfone, sorvete, picolé, câmera, livro, buquê, bengala, guarda-chuva, bolsa,
-    maleta, mala de rodinhas e sacolas.
+  - São 57 objetos, feitos com a vitrine de props do pacote como norte (formas próprias, não cópias):
+    - comida e bebida: copo de café, sorvete, picolé, garrafa d'água;
+    - na frente do corpo: celular, microfone, câmera, livro, caderno, jornal, tablet, buquê, cartaz, rádio, lanterna;
+    - bolsas e malas: bolsa, bolsa de alça, tote, bolsa de fecho, bolsa de pérolas, bolsa de academia, pasta de couro,
+      pasta de notebook, maleta, maleta de cantos, maleta rígida, mala de rodinhas, mala de frisos, sacolas, sacola de
+      loja, sacola de papel (com pão, leite, banana, verduras e cenoura), kit de primeiros socorros, caixa de ferramentas,
+      estojo de violão, extintor;
+    - cozinha e serviço: frigideira, espátula, bandeja com tampa;
+    - bolas: futebol (gomos pintados), basquete, vôlei, praia (seis gomos), tênis;
+    - outros: pincel, paleta de pintor, caixas de presente, rolo de papel, cassetete, ancinho, tesoura de poda, chave
+      inglesa, bengala, guarda-chuva fechado, aberto (liso, colorido e listrado), pau de selfie.
+  - As caixas (`_bm_prim` "caixa") têm as quinas chanfradas (2 segmentos, 16% do lado menor); "caixa_reta" fica reta.
   - São feitos no referencial da mão, em unidades do tamanho da mão `s` (do punho até a base do dedo médio):
     - origem na base do dedo médio;
     - X ao longo dos dedos (para baixo com o braço solto);
@@ -148,18 +158,29 @@ O gerador está em `codigo/morada-art/geradores.py`:
       - `aponta` leva o eixo Y da mão (o do objeto em pé no punho) para essa direção, com os dedos para a frente:
         café, sorvete, picolé, microfone, buquê, guarda-chuva aberto, pau de selfie;
       - `eixos` dá direto X (os dedos) e Z (a palma): celular com a tela para o rosto, livro na frente do peito, câmera
-        na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo.
+        na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo;
+        as bolas e as caixas de presente na palma virada para cima (`NA_PALMA`), o tablet, o jornal e a paleta como um
+        painel na frente do peito;
+      - `eixos` com `y` e `z` (sem `x`) dá o eixo Y do objeto e a palma: frigideira e lanterna apontando para a frente,
+        com o cabo na mão.
     - Num gesto com aquela mão, o objeto passa para a outra junto com a pose.
-    - `balanco` (0 a 1): quanto do vaivém da mão na animação (para a frente e para trás do ombro) entra na pose. A
-      altura e o lado continuam os da pose, para os gestos não levantarem o objeto. Bolsas: 0,85; bengala e
+    - `balanco` (0 a 1): quanto do vaivém da mão na animação (para a frente e para trás do ombro) entra na pose; do
+      vaivém para o lado entra 40% disso, sem nunca puxar a mão mais de 3 cm para dentro. A altura continua a da pose,
+      para os gestos não levantarem o objeto. Bolsas: 0,85; bengala e
       guarda-chuva fechado: 0,6; mala: 0,5; o que vai na frente do corpo: 0,1 a 0,25.
     - `pendurado` (bolsa, maleta, sacolas): a direção dos dedos é a gravidade mais um desvio de um pêndulo amortecido,
       que reage à aceleração da mão. A bolsa fica para trás quando a mão acelera e vai e volta até parar.
+    - A bolsa pendurada não atravessa a perna (`penduloMao`): a coxa (UpLeg→Leg) e a canela (Leg→Foot) daquele lado
+      são cápsulas, com o raio medido na pele (percentil 60 da distância ao osso). O centro do objeto (raio até 8 cm,
+      `medidasObjeto`) é empurrado para fora da cápsula, e o pêndulo perde a velocidade que ia contra a perna.
   - Postura da animação (`maosOcupadas`, nas mesmas 12 amostras):
     - deitado, quando o tronco fica longe da vertical (eixo quadril–pescoço com y médio < 0,55): os objetos de mão
       saem de cena;
     - sentado, quando o quadril fica abaixo de 42% da altura: o que tem `pousa` (bolsas, mala, bengala, guarda-chuva
-      fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido;
+      fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido.
+      O lugar no chão é fixo no mundo (`posaNoChao`): o objeto não anda com o quadril; se a pessoa se afasta mais de
+      0,6 m (proporcional à altura), ele é posto de novo ao lado dela. É empurrado para fora da cadeira e da mesa da
+      cena;
     - sentado, a mão que se mexe bastante em volta do quadril (comer, digitar, dirigir) está ocupada: o objeto dela
       passa para a outra mão ou some;
     - de pé: só a mão que sobe (gesto) está ocupada.

@@ -19,19 +19,22 @@ As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equi
 
 ## Roupas
 
-As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 276:
+As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 315:
 - as 65 roupas e acessórios dos pacotes;
 - variações feitas a partir delas;
-- 162 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais):
+- 207 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais):
   - roupas: jaleco, paletós com lapela, smoking, jaqueta de aviador, moletom com capuz, capa de chuva, jeans rasgado,
     calça boca de sino, biquíni, vestidos, macacões, colete salva-vidas;
   - acessórios: botas, luvas, cachecol, lenço, cintos com fivela e mais de 40 chapéus;
   - óculos gerados no rosto;
   - meia-calça, meia 7/8 e mangas de arrastão (trama com furos, a pele aparece);
-  - 18 objetos de mão: celular, café, microfone, sorvete, câmera, livro, buquê, bengala, guarda-chuva fechado e aberto
-    (liso e colorido), pau de selfie, bolsa, maleta, mala de rodinhas, sacolas.
+  - 57 objetos de mão, com a vitrine de props do pacote como norte: celular, café, microfone, sorvete, câmera, livro,
+    caderno, jornal, tablet, buquê, cartaz, rádio, lanterna, garrafa, 20 bolsas, malas e sacolas (de pérolas, academia,
+    pastas, maletas, extintor, estojo de violão, caixa de ferramentas, sacola de papel com compras), frigideira,
+    espátula, bandeja, 5 bolas, pincel e paleta, caixas de presente, ancinho, tesoura de poda, chave inglesa, bengala,
+    guarda-chuvas (fechado, aberto, colorido, listrado) e pau de selfie.
 
-Toda peça tem cor livre. Há 101 conjuntos prontos (profissões e estilos). São 64 cabelos, barbas e bigodes, com rabo de
+Toda peça tem cor livre. Há 109 conjuntos prontos (profissões e estilos). São 64 cabelos, barbas e bigodes, com rabo de
 cavalo, coques, tranças, black power, moicano e espetado.
 
 Os corpos não carregam as peças. Cada peça é um arquivo próprio, montado no corpo pela página quando alguém escolhe, e
@@ -46,8 +49,9 @@ Na página:
 - cada objeto de mão tem a sua pose de segurar (IK do braço daquele lado): o café e o sorvete na frente do corpo, o
   celular com a tela para o rosto, o microfone perto da boca, a câmera na altura dos olhos, o guarda-chuva aberto sobre
   a cabeça, as bolsas e a bengala ao lado do corpo. O resto do corpo segue a animação, e o braço acompanha o vaivém
-  dela ao andar; a bolsa balança como um pêndulo;
-- sentado, a bolsa, a mala e a bengala vão para o chão ao lado da cadeira, e a mão que trabalha (comer, digitar)
+  dela ao andar, para a frente e um pouco para o lado; a bolsa balança como um pêndulo e não atravessa a perna;
+- sentado, a bolsa, a mala e a bengala vão para o chão ao lado da cadeira, num lugar fixo (se a pessoa se desloca
+  sentada, o objeto é posto de novo perto dela), e a mão que trabalha (comer, digitar)
   solta o objeto; deitado, os objetos de mão saem de cena.
 
 No arquivo-mestre (`blend/`), cada cabelo tem a forma `sob_chapeu`, ligada à propriedade `com_chapeu` do esqueleto:
