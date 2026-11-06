@@ -15,7 +15,19 @@ from mathutils.bvhtree import BVHTree
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 CATALOGO = json.load(open(os.path.join(AQUI, "cabelos.json")))
-ITENS = {x["id"]: x for x in CATALOGO["itens"]}
+_BRUTOS = {x["id"]: x for x in CATALOGO["itens"]}
+
+
+def _resolve(x):
+    """Variação ("base": outro penteado, "forma": comprido/volume/achatado/rente/corta_lados) herda arquivo, peças e tipo."""
+    if "base" not in x:
+        return x
+    b = _resolve(_BRUTOS[x["base"]])
+    return {**{k: v for k, v in b.items() if k not in ("id", "rotulo", "forma", "base")}, **x}
+
+
+ITENS = {k: _resolve(v) for k, v in _BRUTOS.items()}
+CATALOGO["itens"] = [ITENS[x["id"]] for x in CATALOGO["itens"]]
 
 
 def eh_pelo(papel):
@@ -87,8 +99,54 @@ def uv_faixa(o, u_alvo, v_alvo):
         d.uv = (u + du, v_alvo[0] + t * (v_alvo[1] - v_alvo[0]))
 
 
-def encaixa(item, arm, corpo, pasta_pacotes):
-    """Importa a peça do item, encaixa na cabeça de 'corpo' e prende ao osso Head de 'arm'. Devolve o objeto."""
+def _forma_cabelo(forma):
+    """Variações de penteado, no espaço de origem, pela caixa da cabeça: 'comprido' (o que está abaixo da metade da
+    cabeça desce), 'volume' (mais largo), 'achatado' (rente no alto, para caber debaixo de chapéu), 'rente' (barba mais
+    curta, junto do rosto) e 'corta_lados' (cavanhaque: só o meio)."""
+    def ajusta(cab, corpo_s):
+        import bmesh
+        hmin, hmax = caixa_cabeca(corpo_s)
+        c = (hmin + hmax) / 2
+        H = hmax[2] - hmin[2]
+        L = hmax[0] - hmin[0]
+        P = pos_mundo(cab)
+        if forma.get("comprido"):
+            z_meio = hmin[2] + 0.5 * H
+            ab = P[:, 2] < z_meio
+            P[ab, 2] = z_meio - (z_meio - P[ab, 2]) * forma["comprido"]
+            # a ponta abre um pouco para fora (não entra no pescoço e nos ombros)
+            t = np.clip((z_meio - P[:, 2]) / H, 0, None)
+            P[ab, :2] = c[:2] + (P[ab, :2] - c[:2]) * (1 + 0.12 * t[ab, None])
+        if forma.get("volume"):
+            v = forma["volume"]
+            P[:, :2] = c[:2] + (P[:, :2] - c[:2]) * v
+            alto = P[:, 2] > c[2]
+            P[alto, 2] = c[2] + (P[alto, 2] - c[2]) * (1 + (v - 1) * 0.6)
+        if forma.get("achatado"):
+            topo = hmax[2] + 0.01 * H
+            alto = P[:, 2] > topo
+            P[alto, 2] = topo + (P[alto, 2] - topo) * 0.25
+        if forma.get("rente"):
+            P = c + (P - c) * forma["rente"]
+        mi = cab.matrix_world.inverted()
+        for v_, p in zip(cab.data.vertices, P):
+            v_.co = mi @ Vector(p)
+        cab.data.update()
+        if forma.get("corta_lados"):
+            bm = bmesh.new()
+            bm.from_mesh(cab.data)
+            mw = cab.matrix_world
+            lim = forma["corta_lados"] * L / 2
+            bmesh.ops.delete(bm, geom=[v_ for v_ in bm.verts if abs((mw @ v_.co).x - c[0]) > lim], context="VERTS")
+            bm.to_mesh(cab.data)
+            bm.free()
+            cab.data.update()
+    return ajusta
+
+
+def encaixa(item, arm, corpo, pasta_pacotes, ajuste=None):
+    """Importa a peça do item, encaixa na cabeça de 'corpo' e prende ao osso Head de 'arm'. Devolve o objeto.
+    ajuste(peça, corpo de origem): muda a peça no espaço de origem antes do encaixe (variações de chapéu)."""
     antes, acoes_antes = set(bpy.data.objects), set(bpy.data.actions)
     bpy.ops.import_scene.fbx(filepath=os.path.join(pasta_pacotes, item["arquivo"]))
     objs = [o for o in bpy.data.objects if o not in antes]
@@ -108,6 +166,10 @@ def encaixa(item, arm, corpo, pasta_pacotes):
         objs = [o for o in objs if o.as_pointer() not in ptrs]
         with bpy.context.temp_override(active_object=cab, selected_editable_objects=juntar):
             bpy.ops.object.join()
+    if ajuste is None and item.get("forma"):
+        ajuste = _forma_cabelo(item["forma"])
+    if ajuste is not None:
+        ajuste(cab, corpo_s)
     s_min, s_max = caixa_cabeca(corpo_s)
     alvo_min, alvo_max = caixa_cabeca(corpo)
     esc = (alvo_max - alvo_min) / np.maximum(s_max - s_min, 1e-6)

@@ -3,7 +3,7 @@
  "slots": {
   "cima": "Parte de cima",
   "baixo": "Parte de baixo",
-  "inteira": "Fantasia",
+  "inteira": "Vestido ou fantasia",
   "pes": "Calçado",
   "meias": "Meias",
   "maos": "Luvas",
@@ -737,9 +737,900 @@
     "Back_Guitar"
    ],
    "tipo": "pele"
+  },
+  {
+   "id": "var_bermuda_cargo_bege",
+   "base": "roupa_calca_010",
+   "rotulo": "Bermuda cargo bege",
+   "variacao": {
+    "cor": "#C9A46E",
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bermuda_azul",
+   "base": "roupa_calca_xadrez1",
+   "rotulo": "Bermuda azul",
+   "variacao": {
+    "cor": "#2F6BD1",
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_short_vermelho",
+   "base": "roupa_calca_xadrez1",
+   "rotulo": "Short vermelho",
+   "variacao": {
+    "cor": "#D84A40",
+    "cortes": [
+     {
+      "marco": "coxa_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_short_verde",
+   "base": "roupa_calca_010",
+   "rotulo": "Short verde",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "coxa_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_regata_rosa",
+   "base": "roupa_camiseta_criativa",
+   "rotulo": "Regata rosa",
+   "variacao": {
+    "cor": "#EE70A9",
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_sueter_manga_curta",
+   "base": "roupa_agasalho_036",
+   "rotulo": "Suéter de manga curta amarelo",
+   "variacao": {
+    "cor": "#F2C231",
+    "cortes": [
+     {
+      "marco": "braco_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_chapeu_aba_larga",
+   "base": "roupa_chapeu_010",
+   "rotulo": "Chapéu de aba larga",
+   "variacao": {
+    "forma": {
+     "aba": 1.35
+    }
+   }
+  },
+  {
+   "id": "var_chapeu_marrom",
+   "base": "roupa_chapeu_010",
+   "rotulo": "Chapéu marrom",
+   "variacao": {
+    "cor": "#5B4737",
+    "forma": {
+     "aba": 0.85,
+     "copa": 1.1
+    }
+   }
+  },
+  {
+   "id": "var_capri_cargo",
+   "base": "roupa_calca_010",
+   "rotulo": "Calça capri cargo",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "canela_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bermuda_cargo_preta",
+   "base": "roupa_calca_014",
+   "rotulo": "Bermuda cargo preta",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_short_cargo_preto",
+   "base": "roupa_calca_014",
+   "rotulo": "Short cargo preto",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "coxa_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bermuda_social",
+   "base": "roupa_calca_caixa",
+   "rotulo": "Bermuda social",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bermuda_roxa",
+   "base": "roupa_calca_36",
+   "rotulo": "Bermuda",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ],
+    "cor": "#2F6BD1"
+   }
+  },
+  {
+   "id": "var_capri",
+   "base": "roupa_calca_36",
+   "rotulo": "Calça capri",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "canela_meio"
+     }
+    ],
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "var_short_36",
+   "base": "roupa_calca_36",
+   "rotulo": "Short",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "coxa_meio"
+     }
+    ],
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "var_bermuda_lenhador",
+   "base": "roupa_calca_lenhador",
+   "rotulo": "Bermuda cáqui com binóculo",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bermuda_sobrevivente",
+   "base": "roupa_calca_sobrevivente",
+   "rotulo": "Bermuda preta com joelheira",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "joelho",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_capri_xadrez",
+   "base": "roupa_calca_xadrez2",
+   "rotulo": "Calça capri preta",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "canela_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_cropped",
+   "base": "roupa_camiseta_criativa",
+   "rotulo": "Cropped",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "cintura"
+     }
+    ],
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "var_top",
+   "base": "roupa_camiseta_criativa",
+   "rotulo": "Top",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     },
+     {
+      "marco": "cintura"
+     }
+    ],
+    "cor": "#F1F1F1"
+   }
+  },
+  {
+   "id": "var_cropped_camisa",
+   "base": "roupa_camisa_plus",
+   "rotulo": "Camisa cropped",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "cintura"
+     }
+    ],
+    "cor": "#F3C443"
+   }
+  },
+  {
+   "id": "var_colete_social",
+   "base": "roupa_jaqueta_36",
+   "rotulo": "Colete social",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ],
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "var_colete_jaqueta",
+   "base": "roupa_camisa_seguranca",
+   "rotulo": "Colete preto",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_colete_acolchoado",
+   "base": "roupa_agasalho_029",
+   "rotulo": "Colete acolchoado",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ],
+    "cor": "#F1F1F1"
+   }
+  },
+  {
+   "id": "var_moletom_manga_curta",
+   "base": "roupa_agasalho_029",
+   "rotulo": "Moletom de manga curta",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "braco_meio"
+     }
+    ],
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "var_jaqueta_manga_curta",
+   "base": "roupa_camisa_seguranca",
+   "rotulo": "Camisa preta de manga curta",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "braco_meio"
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_camisa_xadrez_sem_manga",
+   "base": "roupa_camisa_lenhador",
+   "rotulo": "Camisa xadrez sem manga",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_casaca_colete",
+   "base": "roupa_blusa_showgirl",
+   "rotulo": "Colete de casaca",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "ombro",
+      "desloca": 0.03
+     }
+    ]
+   }
+  },
+  {
+   "id": "var_bone",
+   "base": "roupa_chapeu_010",
+   "rotulo": "Boné",
+   "variacao": {
+    "forma": {
+     "aba_frente": true,
+     "abertura": 60,
+     "aba_esc": 0.9
+    },
+    "cor": "#3D85D8"
+   }
+  },
+  {
+   "id": "var_chapeu_feltro",
+   "base": "roupa_chapeu_010",
+   "rotulo": "Chapéu de feltro",
+   "variacao": {
+    "forma": {
+     "aba": 0.8,
+     "copa": 1.15
+    },
+    "cor": "#5B4737"
+   }
+  },
+  {
+   "id": "var_chapeu_coco",
+   "base": "roupa_bone_36",
+   "rotulo": "Chapéu-coco",
+   "variacao": {
+    "forma": {
+     "copa": 0.55
+    },
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "var_bota_cano_curto",
+   "base": "roupa_bota_lenhador",
+   "rotulo": "Bota de cano curto",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "tornozelo",
+      "desloca": 0.05,
+      "acima": true
+     }
+    ],
+    "cor": "#7B4B2D"
+   }
+  },
+  {
+   "id": "var_bota_noel_curta",
+   "base": "roupa_bota_noel",
+   "rotulo": "Botina",
+   "variacao": {
+    "cortes": [
+     {
+      "marco": "tornozelo",
+      "desloca": 0.05,
+      "acima": true
+     }
+    ]
+   }
+  },
+  {
+   "id": "gen_minissaia",
+   "slot": "baixo",
+   "rotulo": "Minissaia",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "familia": "f",
+    "desde": "cintura",
+    "ate": "coxa_meio",
+    "desloca": 0.0,
+    "abertura": 1.25,
+    "cor_de": "roupa_camiseta_criativa"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   }
+  },
+  {
+   "id": "gen_saia_rodada",
+   "slot": "baixo",
+   "rotulo": "Saia rodada",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "familia": "f",
+    "desde": "cintura",
+    "ate": "joelho",
+    "desloca": 0.05,
+    "abertura": 1.5,
+    "cor_de": "roupa_camiseta_criativa"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "gen_saia_lapis",
+   "slot": "baixo",
+   "rotulo": "Saia lápis",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "familia": "f",
+    "desde": "cintura",
+    "ate": "joelho",
+    "desloca": 0.0,
+    "abertura": 1.0,
+    "cor_de": "roupa_camiseta_criativa"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   }
+  },
+  {
+   "id": "gen_saia_midi",
+   "slot": "baixo",
+   "rotulo": "Saia midi",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "familia": "f",
+    "desde": "cintura",
+    "ate": "canela_meio",
+    "desloca": 0.0,
+    "abertura": 1.35,
+    "cor_de": "roupa_camiseta_criativa"
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "gen_saia_longa",
+   "slot": "baixo",
+   "rotulo": "Saia longa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "pele",
+   "gerar": {
+    "familia": "f",
+    "desde": "cintura",
+    "ate": "tornozelo",
+    "desloca": 0.06,
+    "abertura": 1.4,
+    "cor_de": "roupa_camiseta_criativa"
+   },
+   "variacao": {
+    "cor": "#8E55D6"
+   }
+  },
+  {
+   "id": "gen_vestido_casual",
+   "slot": "inteira",
+   "rotulo": "Vestido casual",
+   "tipo": "pele",
+   "compoe": [
+    "roupa_camiseta_criativa",
+    "gen_saia_rodada"
+   ],
+   "variacao": {
+    "cor": "#EE70A9"
+   }
+  },
+  {
+   "id": "gen_vestido_justo",
+   "slot": "inteira",
+   "rotulo": "Vestido justo",
+   "tipo": "pele",
+   "compoe": [
+    "var_regata_rosa",
+    "gen_saia_lapis"
+   ],
+   "variacao": {
+    "cor": "#D9433B"
+   }
+  },
+  {
+   "id": "gen_vestido_longo",
+   "slot": "inteira",
+   "rotulo": "Vestido longo",
+   "tipo": "pele",
+   "compoe": [
+    "var_regata_rosa",
+    "gen_saia_longa"
+   ],
+   "variacao": {
+    "cor": "#8E55D6"
+   }
+  },
+  {
+   "id": "gen_vestido_midi",
+   "slot": "inteira",
+   "rotulo": "Vestido midi",
+   "tipo": "pele",
+   "compoe": [
+    "roupa_camiseta_criativa",
+    "gen_saia_midi"
+   ],
+   "variacao": {
+    "cor": "#3BAA5C"
+   }
+  },
+  {
+   "id": "gen_vestido_festa",
+   "slot": "inteira",
+   "rotulo": "Vestido de festa",
+   "tipo": "pele",
+   "compoe": [
+    "var_top",
+    "gen_minissaia"
+   ],
+   "variacao": {
+    "cor": "#D9A63A"
+   }
   }
  ],
  "texturas_padrao": {
   "Apocalypse": "Color2.png"
- }
+ },
+ "conjuntos": [
+  {
+   "nome": "Executivo",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camiseta_xadrez1",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_seguranca",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Médico(a)",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camiseta_criativa",
+     "cor": "#3FC1B0"
+    },
+    "baixo": {
+     "id": "roupa_calca_xadrez1",
+     "cor": "#3FC1B0"
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": "#F2F2F2"
+    }
+   }
+  },
+  {
+   "nome": "Chef",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camisa_plus",
+     "cor": "#F2F2F2"
+    },
+    "baixo": {
+     "id": "roupa_calca_xadrez1",
+     "cor": "#2B2B2B"
+    },
+    "pes": {
+     "id": "roupa_tenis_xadrez1",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Operário(a)",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camisa_lenhador",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_010",
+     "cor": "#C9A46E"
+    },
+    "pes": {
+     "id": "roupa_bota_lenhador",
+     "cor": "#7B4B2D"
+    },
+    "maos": {
+     "id": "roupa_luvas_sobrevivente",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Segurança",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camisa_seguranca",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_seguranca",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    },
+    "oculos": {
+     "id": "roupa_oculos_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Garçom/garçonete",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camisa_caixa",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_xadrez2",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_xadrez1",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Esportista",
+   "pecas": {
+    "cima": {
+     "id": "var_regata_rosa",
+     "cor": "#3D7BD6"
+    },
+    "baixo": {
+     "id": "var_short_vermelho",
+     "cor": "#2B2B2B"
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    },
+    "meias": {
+     "id": "roupa_meias_008",
+     "cor": "#F2F2F2"
+    }
+   }
+  },
+  {
+   "nome": "Papai Noel",
+   "pecas": {
+    "cima": {
+     "id": "roupa_casaco_noel",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_noel",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_bota_noel",
+     "cor": null
+    },
+    "maos": {
+     "id": "roupa_luvas_noel",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "roupa_gorro_noel",
+     "cor": null
+    },
+    "oculos": {
+     "id": "roupa_oculos_noel",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Fazendeiro(a)",
+   "pecas": {
+    "cima": {
+     "id": "roupa_camisa_lenhador",
+     "cor": "#3D6ECF"
+    },
+    "baixo": {
+     "id": "roupa_calca_xadrez1",
+     "cor": "#2F6BD1"
+    },
+    "pes": {
+     "id": "roupa_bota_lenhador",
+     "cor": "#7B4B2D"
+    },
+    "cabeca": {
+     "id": "roupa_chapeu_010",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Mágico(a)",
+   "pecas": {
+    "cima": {
+     "id": "roupa_jaqueta_36",
+     "cor": "#2B2B2B"
+    },
+    "baixo": {
+     "id": "roupa_calca_seguranca",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "roupa_bone_36",
+     "cor": "#2B2B2B"
+    }
+   }
+  },
+  {
+   "nome": "Palhaço",
+   "pecas": {
+    "inteira": {
+     "id": "roupa_fantasia_10",
+     "cor": null
+    },
+    "nariz": {
+     "id": "roupa_nariz_palhaco",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_plus",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Aventureiro(a)",
+   "pecas": {
+    "cima": {
+     "id": "roupa_jaqueta_sobrevivente",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_lenhador",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_bota_sobrevivente",
+     "cor": null
+    },
+    "costas": {
+     "id": "roupa_mochila",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "roupa_chapeu_sobrevivente",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Praia",
+   "pecas": {
+    "cima": {
+     "id": "var_regata_rosa",
+     "cor": "#F2C231"
+    },
+    "baixo": {
+     "id": "var_short_vermelho",
+     "cor": "#3FC1B0"
+    },
+    "pes": {
+     "id": "roupa_chinelo_002",
+     "cor": null
+    },
+    "oculos": {
+     "id": "roupa_oculos_seguranca",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "var_chapeu_aba_larga",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Inverno",
+   "pecas": {
+    "cima": {
+     "id": "roupa_agasalho_036",
+     "cor": "#7A1F35"
+    },
+    "baixo": {
+     "id": "roupa_calca_014",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_bota_noel",
+     "cor": "#7B4B2D"
+    },
+    "maos": {
+     "id": "roupa_luvas_006",
+     "cor": "#7A1F35"
+    },
+    "cabeca": {
+     "id": "roupa_gorro_noel",
+     "cor": "#7A1F35"
+    }
+   }
+  }
+ ]
 }

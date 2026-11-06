@@ -72,6 +72,10 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 .roupa-slots select { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
   background: var(--chip); color: var(--fg); min-width: 0; width: 100%; }
 .roupa-slots select:disabled { opacity: 0.5; }
+.roupa-cores { grid-column: 1 / -1; margin: -2px 0 6px; }
+.roupa-cores .amostra { width: 22px; height: 22px; }
+select.lista { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
+  background: var(--chip); color: var(--fg); width: 100%; }
 </style>
 
 <div class="app">
@@ -137,6 +141,7 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 <script type="module">
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as clonarEsqueleto } from "three/addons/utils/SkeletonUtils.js";
 
@@ -171,7 +176,13 @@ const CABELO_TIPOS = { careca: "Careca", baixinho: "Baixinho", gorro: "Com gorri
 // os outros corpos: o catálogo cabelos.json (o mesmo que gera os corpos) dá os nomes; a malha <id>_cabelo é o penteado
 // original do corpo e <id>_<item> é cada item do catálogo (tipo cabelo: um por vez; tipo rosto: barba e bigode)
 let CAT = { itens: [], originais: {}, gerados: {} };
-fetch("cabelos.json").then((r) => r.json()).then((j) => { CAT = j; if (atual) desenharCabelo(); }).catch(() => {});
+fetch("cabelos.json").then((r) => r.json()).then((j) => {
+  const por = Object.fromEntries(j.itens.map((x) => [x.id, x])); // variação herda o tipo da base
+  const resolve = (x) => (x.base ? { ...resolve(por[x.base]), ...x, id: x.id, rotulo: x.rotulo } : x);
+  j.itens = j.itens.map(resolve);
+  CAT = j;
+  if (atual) desenharCabelo();
+}).catch(() => {});
 const rotuloPelo = (k) => CAT.gerados[k] ?? CAT.itens.find((x) => x.id === k)?.rotulo ?? k;
 const ehRosto = (k) => k === "nenhum" || CAT.itens.find((x) => x.id === k)?.tipo === "rosto";
 const penteadosDe = (id) => {
@@ -212,7 +223,7 @@ const ROSTO = { "Clara": 1, "Média": 1, "Morena": 0.6, "Escura": 0.28 }; // tra
 
 const estado = { sexo: "m", idade: "adulto", corpo: "adulto", tom: "Média", expr: "neutro", anim: "parado", chupeta: true,
   cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0",
-  penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum", roupa: {} };
+  penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum", roupa: {}, corRoupa: {} };
 const GRAVIDEZ = { "0": "Não grávida", "1": "1º trimestre", "2": "2º trimestre", "3": "3º trimestre" };
 
 // ---------------------------------------------------------------- palco
@@ -399,6 +410,7 @@ function rostoPorLuz(hex) {
 
 // ---------------------------------------------------------------- carregamento (um corpo por vez, guardado depois de carregado)
 const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder); // os corpos vêm comprimidos (EXT_meshopt_compression)
 let paleta = null;
 const cache = new Map();
 let atual = null;
@@ -411,21 +423,22 @@ async function carregarCorpo(id) {
     paleta.flipY = false; paleta.colorSpace = THREE.SRGBColorSpace;
     paleta.magFilter = THREE.NearestFilter; paleta.minFilter = THREE.NearestFilter; paleta.generateMipmaps = false;
   }
-  const txt = await (await fetch(`corpos/${id}.txt`)).text();
-  const bin = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
-  const gltf = await new Promise((ok, erro) => loader.parse(bin.buffer, "", ok, erro));
+  const txt = await (await fetch(`corpos/${id}.txt`)).text(); // GLB comprimido (Meshopt) → gzip → base64
+  const gz = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
+  const buf = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  const gltf = await new Promise((ok, erro) => loader.parse(buf, "", ok, erro));
   const raiz = gltf.scene;
   const pele = [], rosto = [], rostos = {}, cabelo = [], tecido = [], estilos = {}, roupas = {};
   let gorro = null;
   const barriga = [];
-  let chupeta = null;
+  let chupeta = null, corpoMesh = null;
   raiz.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.frustumCulled = false;
     o.material = o.material.clone();
     o.material.roughness = 0.75; o.material.metalness = 0;
     o.material.map = paleta; o.material.color.set(0xffffff); o.material.needsUpdate = true;
-    if (o.material.name === "Pele") pele.push(o.material);
+    if (o.material.name === "Pele") { pele.push(o.material); if (!corpoMesh && !roupaDe(o)) corpoMesh = o; }
     if (o.material.name === "Rosto") rosto.push(o.material);
     if (o.material.name === "Cabelo") {
       o.material.map = null; o.material.roughness = 0.9; cabelo.push(o);
@@ -439,6 +452,7 @@ async function carregarCorpo(id) {
       const mat = o.material;
       mat.map = null;
       texturaRoupa(mat.name).then((t) => { if (t) { mat.map = t; mat.needsUpdate = true; } });
+      prepararCorRoupa(mat);
     }
     const rid = roupaDe(o);
     if (rid) { (roupas[rid] ||= []).push(o); o.visible = false; }
@@ -464,7 +478,7 @@ async function carregarCorpo(id) {
   const mixer = new THREE.AnimationMixer(raiz);
   const clips = {};
   for (const c of gltf.animations) clips[c.name] = mixer.clipAction(c);
-  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, estilos, roupas, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
+  const c = { id, raiz, pele, rosto, rostos, chupeta, cabelo, estilos, roupas, corpoMesh, tecido, gorro, moises, barriga, mixer, clips, anims: gltf.animations,
     altura: moises ? 0.5 : caixa.max.y - caixa.min.y, acao: null };
   cache.set(id, c);
   return c;
@@ -572,13 +586,26 @@ function desenharCabelo() {
     const nomes = penteadosDe(atual.id);
     const opcoes = Object.entries(nomes).filter(([k]) => k === "careca" || atual.estilos[k]);
     const atualK = opcoes.some(([k]) => k === estado.penteado) ? estado.penteado : "cabelo";
-    chips(tipoEl, opcoes, atualK, (k) => { estado.penteado = k; aplicarCabelo(); desenharCabelo(); });
+    // muitos penteados: uma lista de escolha
+    tipoEl.replaceChildren();
+    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Penteado");
+    for (const [k, rot] of opcoes) sel.append(new Option(rot, k));
+    sel.value = atualK;
+    sel.onchange = () => { estado.penteado = sel.value; aplicarCabelo(); desenharCabelo(); };
+    tipoEl.append(sel);
   }
   const rostoEl = document.getElementById("cabelo-rosto");
   const pelos = ehRecem() ? [] : pelosDoRosto().filter(([k]) => k === "nenhum" || atual.estilos[k]);
   rostoEl.hidden = pelos.length < 2;
   if (rostoEl.hidden) rostoEl.replaceChildren();
-  else chips(rostoEl, pelos, estado.barba, (k) => { estado.barba = k; aplicarCabelo(); desenharCabelo(); });
+  else {
+    rostoEl.replaceChildren();
+    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Barba e bigode");
+    for (const [k, rot] of pelos) sel.append(new Option(rot, k));
+    sel.value = pelos.some(([k]) => k === estado.barba) ? estado.barba : "nenhum";
+    sel.onchange = () => { estado.barba = sel.value; aplicarCabelo(); desenharCabelo(); };
+    rostoEl.append(sel);
+  }
   const el = document.getElementById("cabelo-cor");
   el.replaceChildren();
   if (ehRecem() && estado.cabeloTipo === "careca") return;
@@ -623,7 +650,14 @@ function desenharGravidez() {
 }
 // ---------------------------------------------------------------- roupas (catálogo roupas.json, uma peça por parte)
 let CAT_ROUPA = { itens: [], slots: {} };
-fetch("roupas.json").then((r) => r.json()).then((j) => { CAT_ROUPA = j; if (atual) { aplicarRoupa(); desenharRoupa(); } }).catch(() => {});
+fetch("roupas.json").then((r) => r.json()).then((j) => {
+  // variação ("base": outra peça) herda parte do corpo, tipo e arquivo da base
+  const por = Object.fromEntries(j.itens.map((x) => [x.id, x]));
+  const resolve = (x) => (x.base ? { ...resolve(por[x.base]), ...x, id: x.id, rotulo: x.rotulo } : x);
+  j.itens = j.itens.map(resolve);
+  CAT_ROUPA = j;
+  if (atual) { aplicarRoupa(); desenharRoupa(); }
+}).catch(() => {});
 const _texRoupa = new Map();
 function texturaRoupa(nome) {
   if (!_texRoupa.has(nome)) {
@@ -637,14 +671,133 @@ function roupaDe(o) {
   return null;
 }
 const slotDe = (rid) => CAT_ROUPA.itens.find((x) => x.id === rid)?.slot;
+// cor livre: cada peça tem uma máscara (roupas/mascaras.json) da parte da paleta com a cor principal; o shader pinta
+// essa parte com a cor escolhida, mantendo o sombreado (cor × luminância do pixel ÷ luminância da cor principal)
+const ROUPA_CORES = { "Branco": "#F2F2F2", "Preto": "#2B2B2B", "Cinza": "#8A8F99", "Vermelho": "#D9433B", "Vinho": "#7A1F35",
+  "Rosa": "#EE70A9", "Laranja": "#E27B3B", "Amarelo": "#F2C231", "Dourado": "#D9A63A", "Verde": "#3BAA5C",
+  "Verde-água": "#3FC1B0", "Azul": "#3D7BD6", "Azul-marinho": "#24346B", "Roxo": "#8E55D6", "Marrom": "#7B4B2D", "Bege": "#C9A46E" };
+let MASC = {};
+fetch("roupas/mascaras.json").then((r) => r.json()).then((j) => { MASC = j; if (atual) aplicarRoupa(); }).catch(() => {});
+const TEX_VAZIA = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); TEX_VAZIA.needsUpdate = true;
+const _texMasc = new Map();
+function texturaMascara(nome) {
+  if (!_texMasc.has(nome)) {
+    _texMasc.set(nome, new THREE.TextureLoader().loadAsync(`roupas/${nome}`)
+      .then((t) => { t.flipY = false; t.colorSpace = THREE.NoColorSpace; return t; }).catch(() => null));
+  }
+  return _texMasc.get(nome);
+}
+function prepararCorRoupa(mat) {
+  const u = { uMasc: { value: TEX_VAZIA }, uLum: { value: 0.5 }, uCor: { value: new THREE.Color(1, 1, 1) }, uUsa: { value: 0 } };
+  mat.userData.cor = u;
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.fragmentShader = "uniform sampler2D uMasc; uniform float uLum; uniform vec3 uCor; uniform float uUsa;\n" +
+      sh.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+#ifdef USE_MAP
+  { float mk = texture2D(uMasc, vMapUv).r;
+    float lp = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    diffuseColor.rgb = mix(diffuseColor.rgb, uCor * (lp / max(uLum, 0.001)), mk * uUsa); }
+#endif`);
+  };
+  mat.customProgramCacheKey = () => "roupa_cor";
+}
+function aplicarCorRoupa(rid, malhas, cor) {
+  for (const m of malhas) {
+    const u = m.material.userData.cor;
+    if (!u) continue;
+    const info = MASC[rid]?.[m.material.name];
+    if (!cor || !info) { u.uUsa.value = 0; continue; }
+    u.uCor.value.set(cor); u.uLum.value = info.lum;
+    texturaMascara(info.mascara).then((t) => { if (t) { u.uMasc.value = t; u.uUsa.value = 1; } });
+  }
+}
 function aplicarRoupa() {
   const inteira = !!estado.roupa.inteira;
   for (const [rid, malhas] of Object.entries(atual.roupas || {})) {
     const slot = slotDe(rid);
     const ve = !!slot && estado.roupa[slot] === rid && !(inteira && (slot === "cima" || slot === "baixo"));
     for (const m of malhas) m.visible = ve;
+    if (ve) aplicarCorRoupa(rid, malhas, estado.corRoupa[slot]);
   }
+  ocultarPele();
   if (par) copiarVisivel(atual.raiz, par.raiz);
+}
+// pele embaixo da roupa: os triângulos do corpo cobertos por uma peça visível não são desenhados (a pele não atravessa
+// a roupa, nem onde o corpo não deixa espaço, como as coxas do plus, nem em movimento). Calculado uma vez por peça.
+function coberturaDe(c, rid) {
+  c.cobertura ||= {};
+  if (c.cobertura[rid]) return c.cobertura[rid];
+  // posições pelo esqueleto (a compressão quantiza a malha e põe a escala de volta nas matrizes dos ossos), na pose atual:
+  // corpo e roupa ficam no mesmo espaço; as normais do corpo saem dessas posições
+  const corpo = c.corpoMesh, gp = corpo.geometry.attributes.position;
+  c.raiz.updateMatrixWorld(true);
+  const pele = (m, pa, i) => m.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(pa, i)).applyMatrix4(m.matrixWorld);
+  const Pc = Array.from({ length: gp.count }, (_, i) => pele(corpo, gp, i));
+  const Nc = Pc.map(() => new THREE.Vector3());
+  const ic = c.indiceOriginal || corpo.geometry.index.array;
+  for (let t = 0; t < ic.length; t += 3) {
+    const [a0, b0, d0] = [ic[t], ic[t + 1], ic[t + 2]];
+    const fn = new THREE.Vector3().subVectors(Pc[b0], Pc[a0]).cross(new THREE.Vector3().subVectors(Pc[d0], Pc[a0]));
+    Nc[a0].add(fn); Nc[b0].add(fn); Nc[d0].add(fn);
+  }
+  Nc.forEach((n) => n.normalize());
+  const tam = 0.05, grade = new Map(), tris = [];
+  const ch = (x, y, z) => `${Math.floor(x / tam)},${Math.floor(y / tam)},${Math.floor(z / tam)}`;
+  for (const m of c.roupas[rid]) {
+    const g = m.geometry, pa = g.attributes.position, ix = g.index;
+    const n = ix ? ix.count : pa.count;
+    for (let t = 0; t < n; t += 3) {
+      const tri = [0, 1, 2].map((k) => pele(m, pa, ix ? ix.getX(t + k) : t + k));
+      const id = tris.push(tri) - 1;
+      const mn = tri[0].clone().min(tri[1]).min(tri[2]), mx = tri[0].clone().max(tri[1]).max(tri[2]);
+      for (let x = Math.floor(mn.x / tam); x <= Math.floor(mx.x / tam); x++)
+        for (let y = Math.floor(mn.y / tam); y <= Math.floor(mx.y / tam); y++)
+          for (let z = Math.floor(mn.z / tam); z <= Math.floor(mx.z / tam); z++) {
+            const k = `${x},${y},${z}`;
+            if (!grade.has(k)) grade.set(k, []);
+            grade.get(k).push(id);
+          }
+    }
+  }
+  const alcance = 0.05 * Math.max(c.altura / 1.7, 0.4);
+  const cob = new Uint8Array(gp.count), p = new THREE.Vector3(), nv = new THREE.Vector3(), ray = new THREE.Ray(), alvo = new THREE.Vector3();
+  for (let i = 0; i < gp.count; i++) {
+    p.copy(Pc[i]);
+    nv.copy(Nc[i]);
+    ray.set(p, nv);
+    const fim = p.clone().addScaledVector(nv, alcance);
+    const vistos = new Set();
+    for (const k of new Set([ch(p.x, p.y, p.z), ch(fim.x, fim.y, fim.z)])) {
+      for (const id of grade.get(k) || []) {
+        if (vistos.has(id)) continue;
+        vistos.add(id);
+        const [a, b, d] = tris[id];
+        if (ray.intersectTriangle(a, b, d, false, alvo) && alvo.distanceTo(p) <= alcance) { cob[i] = 1; break; }
+      }
+      if (cob[i]) break;
+    }
+  }
+  return (c.cobertura[rid] = cob);
+}
+function ocultarPele() {
+  const c = atual, m = c?.corpoMesh;
+  if (!m || !m.geometry.index) return;
+  const g = m.geometry;
+  c.indiceOriginal ||= g.index.array.slice();
+  // um corpo do cache volta com o índice que tinha: recomeça do original
+  const idx = c.indiceOriginal.slice();
+  const cob = new Uint8Array(g.attributes.position.count);
+  for (const [rid, malhas] of Object.entries(c.roupas || {})) {
+    if (!malhas[0]?.visible || CAT_ROUPA.itens.find((x) => x.id === rid)?.tipo !== "pele") continue;
+    const cv = coberturaDe(c, rid);
+    for (let i = 0; i < cv.length; i++) if (cv[i]) cob[i] = 1;
+  }
+  for (let t = 0; t < idx.length; t += 3) {
+    if (cob[idx[t]] && cob[idx[t + 1]] && cob[idx[t + 2]]) { idx[t + 1] = idx[t]; idx[t + 2] = idx[t]; }
+  }
+  g.index.array.set(idx);
+  g.index.needsUpdate = true;
 }
 function desenharRoupa() {
   const bloco = document.getElementById("roupa-bloco");
@@ -653,6 +806,23 @@ function desenharRoupa() {
   if (bloco.hidden) return;
   const el = document.getElementById("roupa-slots");
   el.replaceChildren();
+  // conjuntos prontos (profissões e estilos): vestem várias partes de uma vez, já com as cores
+  if (CAT_ROUPA.conjuntos?.length) {
+    const lab = document.createElement("label"); lab.htmlFor = "roupa-conjunto"; lab.textContent = "Conjunto";
+    const sel = document.createElement("select"); sel.id = "roupa-conjunto";
+    sel.append(new Option("Escolher…", ""), new Option("Sem roupa", "__nada"));
+    CAT_ROUPA.conjuntos.forEach((c, i) => sel.append(new Option(c.nome, String(i))));
+    sel.onchange = () => {
+      estado.roupa = {}; estado.corRoupa = {};
+      if (sel.value !== "__nada" && sel.value !== "") {
+        for (const [slot, p] of Object.entries(CAT_ROUPA.conjuntos[+sel.value].pecas)) {
+          if (atual.roupas[p.id]) { estado.roupa[slot] = p.id; estado.corRoupa[slot] = p.cor || null; }
+        }
+      }
+      aplicarRoupa(); desenharRoupa();
+    };
+    el.append(lab, sel);
+  }
   for (const [slot, rotulo] of Object.entries(CAT_ROUPA.slots)) {
     const itens = CAT_ROUPA.itens.filter((x) => x.slot === slot && atual.roupas[x.id]);
     if (!itens.length) continue;
@@ -664,8 +834,33 @@ function desenharRoupa() {
     sel.value = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
     sel.disabled = !!estado.roupa.inteira && (slot === "cima" || slot === "baixo");
     if (sel.disabled) sel.title = "A fantasia ocupa a parte de cima e a de baixo";
-    sel.onchange = () => { estado.roupa[slot] = sel.value; aplicarRoupa(); desenharRoupa(); };
+    sel.onchange = () => {
+      estado.roupa[slot] = sel.value;
+      estado.corRoupa[slot] = CAT_ROUPA.itens.find((x) => x.id === sel.value)?.variacao?.cor || null; // a cor inicial da peça
+      aplicarRoupa(); desenharRoupa();
+    };
     el.append(lab, sel);
+    const rid = estado.roupa[slot];
+    if (rid && atual.roupas[rid] && MASC[rid] && !sel.disabled) { // cores da peça: amostras, original e cor livre
+      const cores = document.createElement("div"); cores.className = "grupo roupa-cores";
+      const orig = document.createElement("button");
+      orig.type = "button"; orig.textContent = "Original"; orig.setAttribute("aria-pressed", String(!estado.corRoupa[slot]));
+      orig.onclick = () => { estado.corRoupa[slot] = null; aplicarRoupa(); desenharRoupa(); };
+      cores.append(orig);
+      for (const [nome, hex] of Object.entries(ROUPA_CORES)) {
+        const b = document.createElement("button");
+        b.className = "amostra"; b.type = "button"; b.style.background = hex; b.title = nome;
+        b.setAttribute("aria-label", `${rotulo} ${nome.toLowerCase()}`); b.setAttribute("aria-pressed", String(estado.corRoupa[slot] === hex));
+        b.onclick = () => { estado.corRoupa[slot] = hex; aplicarRoupa(); desenharRoupa(); };
+        cores.append(b);
+      }
+      const livre = document.createElement("input");
+      livre.type = "color"; livre.title = "Outra cor"; livre.setAttribute("aria-label", `Escolher outra cor: ${rotulo.toLowerCase()}`);
+      livre.value = estado.corRoupa[slot] || MASC[rid][Object.keys(MASC[rid])[0]]?.cor || "#888888";
+      livre.oninput = () => { estado.corRoupa[slot] = livre.value; aplicarRoupa(); };
+      cores.append(livre);
+      el.append(cores);
+    }
   }
 }
 function desenharManta() {

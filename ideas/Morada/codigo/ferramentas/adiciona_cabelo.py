@@ -51,7 +51,7 @@ for arm in corpos:
         if velho is not None and not REFAZ:
             continue
         ob = CAB.encaixa(item, arm, corpo, PACOTES)
-        if base is None and len(ob.data.vertices) == len(original.data.vertices):
+        if base is None and not item.get("forma") and len(ob.data.vertices) == len(original.data.vertices):
             bpy.data.objects.remove(ob, do_unlink=True)  # sem a base gravada: é o próprio cabelo original do corpo
             continue
         if velho is not None:
