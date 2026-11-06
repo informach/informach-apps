@@ -45,7 +45,10 @@ Na página:
   até o gesto acabar;
 - cada objeto de mão tem a sua pose de segurar (IK do braço daquele lado): o café e o sorvete na frente do corpo, o
   celular com a tela para o rosto, o microfone perto da boca, a câmera na altura dos olhos, o guarda-chuva aberto sobre
-  a cabeça, as bolsas e a bengala ao lado do corpo. O resto do corpo segue a animação.
+  a cabeça, as bolsas e a bengala ao lado do corpo. O resto do corpo segue a animação, e o braço acompanha o vaivém
+  dela ao andar; a bolsa balança como um pêndulo;
+- sentado, a bolsa, a mala e a bengala vão para o chão ao lado da cadeira, e a mão que trabalha (comer, digitar)
+  solta o objeto; deitado, os objetos de mão saem de cena.
 
 No arquivo-mestre (`blend/`), cada cabelo tem a forma `sob_chapeu`, ligada à propriedade `com_chapeu` do esqueleto:
 com chapéu (1), o cabelo não atravessa a copa.

@@ -996,6 +996,7 @@ async function montarItem(c, id, ladoForcado) {
   const uvB = b[fam + "_uv"] || b.uv, idxB = b[fam + "_idx"] || b.idx;
   const geo = new THREE.BufferGeometry();
   const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
+  let locMao = null; // objeto de mão: os pontos no referencial da mão (para pousar no chão)
   if (cab.tipo === "pele") {
     const tri = b[fam + "_tri"], bar = b[fam + "_bar"], off = b[fam + "_off"], F = pele.fam;
     const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off);
@@ -1031,6 +1032,7 @@ async function montarItem(c, id, ladoForcado) {
       si[j * 4] = ref.osso; sw[j * 4] = 1;
     }
     geo.setAttribute("position", new THREE.BufferAttribute(out, 3));
+    locMao = { loc, s: ref.s };
   } else {
     const nrm = b[fam + "_pos"], [hmin, hmax] = pele.pel.cabeca, M = pele.pel.afim, out = new Float32Array(nv * 3);
     for (let j = 0; j < nv; j++) {
@@ -1053,7 +1055,7 @@ async function montarItem(c, id, ladoForcado) {
   const mesh = new THREE.SkinnedMesh(geo, mats);
   mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
   if (CAT_ROUPA.itens.some((x) => x.id === id) && !ladoForcado) mesh.userData.roupa = id;
-  if (cab.tipo === "mao") mesh.userData.mao = cab.mao;
+  if (cab.tipo === "mao") { mesh.userData.mao = cab.mao; mesh.userData.locMao = locMao; }
   corpo.parent.add(mesh);
   mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
   mesh.bind(corpo.skeleton, corpo.bindMatrix);
@@ -1095,7 +1097,7 @@ function maosOcupadas(c, nomeAnim) {
   c.ocupadas ||= {};
   if (c.ocupadas[nomeAnim]) return c.ocupadas[nomeAnim];
   const acao = c.clips[nomeAnim];
-  const res = { dir: false, esq: false };
+  const res = { dir: false, esq: false, postura: "pe" };
   if (!acao) return res;
   if (!c.copiaEsq) { c.copiaEsq = clonarEsqueleto(c.raiz); c.mixerCopia = new THREE.AnimationMixer(c.copiaEsq); }
   const o = (n) => c.copiaEsq.getObjectByName(n);
@@ -1103,21 +1105,56 @@ function maosOcupadas(c, nomeAnim) {
   if (!hips || !neck || !rh || !lh) return res;
   const clip = acao.getClip(), a2 = c.mixerCopia.clipAction(clip);
   a2.reset().play();
-  const cont = { dir: 0, esq: 0, palmas: 0 }, N = 12;
+  const cont = { dir: 0, esq: 0, palmas: 0 }, N = 12, alt = c.altura || 1.7;
+  let somaUp = 0, somaQuadril = 0;
+  const rel = { dir: [], esq: [] }; // a mão no referencial do tronco, para medir se ela trabalha
+  const chao = new THREE.Vector3();
   for (let i = 0; i < N; i++) {
     c.mixerCopia.setTime((clip.duration * (i + 0.5)) / N);
     c.copiaEsq.updateMatrixWorld(true);
+    c.copiaEsq.getWorldPosition(chao);
     hips.getWorldPosition(_h); neck.getWorldPosition(_n); rh.getWorldPosition(_r); lh.getWorldPosition(_l);
-    const up = _n.clone().sub(_h), alt = up.length(); up.normalize();
-    const hr = _r.clone().sub(_h).dot(up) / alt, hl = _l.clone().sub(_h).dot(up) / alt;
+    const up = _n.clone().sub(_h), tam = up.length(); up.normalize();
+    somaUp += up.y; somaQuadril += (_h.y - chao.y) / alt;
+    const hr = _r.clone().sub(_h).dot(up) / tam, hl = _l.clone().sub(_h).dot(up) / tam;
     if (hr > 0.7) cont.dir++;
     if (hl > 0.7) cont.esq++;
-    if (_r.distanceTo(_l) < 0.3 * alt && hr > 0.35 && hl > 0.35) cont.palmas++;
+    if (_r.distanceTo(_l) < 0.3 * tam && hr > 0.35 && hl > 0.35) cont.palmas++;
+    rel.dir.push(_r.clone().sub(_h)); rel.esq.push(_l.clone().sub(_h));
   }
   a2.stop(); c.mixerCopia.uncacheClip(clip);
-  res.dir = cont.dir >= 2 || cont.palmas >= 2; res.esq = cont.esq >= 2 || cont.palmas >= 2;
+  // postura: deitado (tronco longe da vertical), sentado (quadril baixo) ou de pé
+  const upMedio = somaUp / N, quadril = somaQuadril / N;
+  res.postura = upMedio < 0.55 ? "deitado" : quadril < 0.42 ? "sentado" : "pe";
+  // a mão trabalha quando se mexe bastante em volta do quadril (comer, digitar, dirigir); só vale sentado, porque de pé
+  // o balanço do andar também mexe as mãos
+  const mexe = (L) => { const m = L.reduce((a, v) => a.add(v), new THREE.Vector3()).divideScalar(L.length);
+    return Math.sqrt(L.reduce((a, v) => a + v.distanceToSquared(m), 0) / L.length) > 0.045 * alt; };
+  const trabalha = res.postura === "sentado" ? { dir: mexe(rel.dir), esq: mexe(rel.esq) } : { dir: false, esq: false };
+  res.dir = cont.dir >= 2 || cont.palmas >= 2 || trabalha.dir;
+  res.esq = cont.esq >= 2 || cont.palmas >= 2 || trabalha.esq;
   c.ocupadas[nomeAnim] = res;
   return res;
+}
+// objeto pousado no chão (sentado: a bolsa ao lado da cadeira): uma cópia sem esqueleto, montada no referencial do
+// objeto (X para baixo, como pendurado)
+const TODOS_POUSADOS = []; // de todos os corpos (ao trocar de corpo, os do anterior saem de cena)
+function pousado(c, rid, mesh) {
+  c.pousados ||= {};
+  if (c.pousados[rid]) return c.pousados[rid];
+  const lm = mesh.userData.locMao;
+  if (!lm) return null;
+  const g = new THREE.BufferGeometry(), n = lm.loc.length / 3, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i++) pos[i] = lm.loc[i] * lm.s;
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("uv", mesh.geometry.attributes.uv);
+  g.setIndex(mesh.geometry.index);
+  for (const gr of mesh.geometry.groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+  g.computeVertexNormals(); g.computeBoundingBox();
+  const m = new THREE.Mesh(g, mesh.material);
+  m.castShadow = true; m.visible = false; m.userData.pousado = rid;
+  cena.add(m); TODOS_POUSADOS.push(m);
+  return (c.pousados[rid] = m);
 }
 function atualizaMaos() {
   const c = atual;
@@ -1126,11 +1163,21 @@ function atualizaMaos() {
   const cena_ = !!(dinamico || seguir); // objeto da cena nas mãos (vassoura, caixa...)
   const ocup = { dir: oc.dir || cena_, esq: oc.esq || cena_ };
   c.naMao = { dir: null, esq: null };
+  c.chao = [];
   for (const m of Object.values(c.itens || {})) if (m.userData.mao && !m.userData.roupa) m.visible = false; // cópias
+  for (const m of TODOS_POUSADOS) m.visible = false;
   for (const lado of ["dir", "esq"]) {
     const rid = estado.roupa["mao_" + lado], m = rid && c.roupas[rid]?.[0];
     if (!m) continue;
     const it = CAT_ROUPA.itens.find((x) => x.id === rid);
+    // deitado: os objetos de mão saem de cena; sentado: o que vai pendurado (bolsa, mala, bengala) fica no chão
+    if (oc.postura === "deitado") { m.visible = false; continue; }
+    if (oc.postura === "sentado" && it?.pose?.pousa) {
+      m.visible = false;
+      const pm = pousado(c, rid, m);
+      if (pm) { pm.visible = true; c.chao.push({ mesh: pm, lado }); aplicarCorRoupa(rid, [pm], estado.corRoupa[slotDe(rid)]); }
+      continue;
+    }
     if (!ocup[lado]) { m.visible = true; c.naMao[lado] = { rid, mesh: m, pose: it?.pose }; continue; }
     m.visible = false;
     const outro = lado === "dir" ? "esq" : "dir";
@@ -1154,8 +1201,9 @@ function giraOssoPara(osso, de, para) { // gira o osso no mundo para levar a dir
   osso.quaternion.copy(_q1.invert().multiply(_q2));
   osso.updateMatrixWorld(true);
 }
-function poseSegurar(c) {
+function poseSegurar(c, dt) {
   if (!c?.naMao) return;
+  posaNoChao(c);
   for (const lado of ["dir", "esq"]) {
     const nm = c.naMao[lado];
     if (!nm?.pose || !nm.mesh.visible) continue;
@@ -1170,7 +1218,11 @@ function poseSegurar(c) {
     const frente = up.clone().cross(dirLado).normalize(), fora = lado === "dir" ? dirLado : dirLado.clone().negate();
     braco.getWorldPosition(_S); ante.getWorldPosition(_E); mao.getWorldPosition(_W);
     const a = _S.distanceTo(_E), b = _E.distanceTo(_W), Lb = a + b, ps = nm.pose;
-    const T = _S.clone().addScaledVector(frente, ps.alvo[0] * Lb).addScaledVector(up, ps.alvo[1] * Lb).addScaledVector(fora, ps.alvo[2] * Lb);
+    // balanço: o vaivém da mão na animação (para a frente e para trás) entra na pose, na medida de "balanco"; a altura
+    // e o lado ficam os da pose (os gestos da animação não levantam o objeto)
+    const k = ps.balanco ?? 0, fAnim = _W.clone().sub(_S).dot(frente) / Lb;
+    const f = ps.alvo[0] * (1 - k) + fAnim * k;
+    const T = _S.clone().addScaledVector(frente, f * Lb).addScaledVector(up, ps.alvo[1] * Lb).addScaledVector(fora, ps.alvo[2] * Lb);
     const d = Math.min(T.distanceTo(_S), Lb * 0.995), u = T.clone().sub(_S).normalize();
     const polo = up.clone().negate().addScaledVector(fora, 0.6).addScaledVector(frente, -0.2);
     const v = polo.clone().addScaledVector(u, -polo.dot(u)).normalize();
@@ -1188,6 +1240,7 @@ function poseSegurar(c) {
     let Xd, Yd, Zd;
     if (ps.eixos) { // X (dedos) e Z (palma) pedidos direto: celular, livro, câmera, bolsas, bengala
       Xd = corpoV(ps.eixos.x).normalize();
+      if (ps.pendurado) Xd = penduloMao(c, lado, mao, dt); // bolsa: pendurada pela gravidade, balançando
       Zd = corpoV(ps.eixos.z); Zd.addScaledVector(Xd, -Zd.dot(Xd)).normalize();
       Yd = Zd.clone().cross(Xd).normalize();
     } else { // o eixo Y (o do objeto em pé no punho) para "aponta", os dedos para a frente
@@ -1199,6 +1252,46 @@ function poseSegurar(c) {
     mao.getWorldQuaternion(_q1); _q2.copy(qR).multiply(_q1);
     mao.parent.getWorldQuaternion(_q1); mao.quaternion.copy(_q1.invert().multiply(_q2));
     mao.updateMatrixWorld(true);
+  }
+}
+// pêndulo amortecido do objeto pendurado: a direção dos dedos é a gravidade mais um desvio que reage à aceleração
+// da mão (a bolsa fica para trás quando a mão acelera e vai e volta até parar)
+function penduloMao(c, lado, mao, dt) {
+  c.pend ||= {};
+  const p = (c.pend[lado] ||= { o: new THREE.Vector3(), v: new THREE.Vector3(), x: null, vel: new THREE.Vector3() });
+  const h = mao.getWorldPosition(new THREE.Vector3()), d = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 20);
+  if (p.x) {
+    const vel = h.clone().sub(p.x).divideScalar(d), ac = vel.clone().sub(p.vel).divideScalar(d);
+    ac.y = 0; p.vel.copy(vel);
+    p.v.addScaledVector(p.o, -38 * d).addScaledVector(p.v, -5.5 * d).addScaledVector(ac, -0.07 * d);
+    p.o.addScaledVector(p.v, d); p.o.y = 0;
+    if (p.o.length() > 0.6) p.o.setLength(0.6);
+  }
+  p.x = h;
+  return new THREE.Vector3(0, -1, 0).add(p.o).normalize();
+}
+// sentado: o objeto pousado fica no chão ao lado do quadril, um pouco à frente, em pé (a bengala e o guarda-chuva,
+// deitados no chão)
+function posaNoChao(c) {
+  if (!c.chao?.length) return;
+  const o = (n) => c.raiz.getObjectByName(n), hips = o("Hips"), neck = o("Neck"), ra = o("RightArm"), la = o("LeftArm");
+  if (!hips || !neck || !ra || !la) return;
+  c.raiz.updateMatrixWorld(true);
+  const H = hips.getWorldPosition(new THREE.Vector3()), chaoY = c.raiz.getWorldPosition(new THREE.Vector3()).y;
+  const dirLado = ra.getWorldPosition(new THREE.Vector3()).sub(la.getWorldPosition(new THREE.Vector3())); dirLado.y = 0; dirLado.normalize();
+  const frente = new THREE.Vector3(0, 1, 0).cross(dirLado).normalize(), alt = c.altura || 1.7;
+  for (const { mesh, lado } of c.chao) {
+    const fora = lado === "dir" ? dirLado : dirLado.clone().negate();
+    const bb = mesh.geometry.boundingBox, deitado = (bb.max.x - bb.min.x) > alt * 0.4; // bengala, guarda-chuva
+    // X do objeto para baixo (em pé, como pendurado) ou ao longo da frente (deitado no chão)
+    const X = deitado ? frente.clone() : new THREE.Vector3(0, -1, 0);
+    const Z = deitado ? new THREE.Vector3(0, 1, 0) : fora.clone().negate();
+    const Y = Z.clone().cross(X).normalize();
+    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, Z));
+    const base = H.clone().addScaledVector(fora, 0.24 * alt / 1.7).addScaledVector(frente, (deitado ? -0.2 : 0.12) * alt / 1.7);
+    // a base do objeto no chão: o ponto mais baixo dele (o maior x em pé; a menor altura deitado)
+    const altura0 = deitado ? -bb.min.z : bb.max.x;
+    mesh.position.set(base.x, chaoY + altura0 + 0.002, base.z);
   }
 }
 // pele embaixo da roupa: os triângulos do corpo cobertos por uma peça visível não são desenhados (a pele não atravessa
@@ -1790,7 +1883,7 @@ renderer.setAnimationLoop(() => {
   const dt = relogio.getDelta();
   if (atual && !reduzido) atual.mixer.update(dt);
   if (par && !reduzido) par.mixer.update(dt);
-  poseSegurar(atual);
+  poseSegurar(atual, dt);
   fechaDedos(atual);
   atualizaDinamico();
   if (seguir && seguir.maos.length) { // a face de trás da caixa fica nas mãos

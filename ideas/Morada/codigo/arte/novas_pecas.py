@@ -264,19 +264,25 @@ hat("chapeu_bruxa", "Chapéu pontudo", "#2B2B2B", copa={"folga": 0.015, "corte":
 
 # poses de segurar de todos os objetos de mão (frente, cima e fora do ombro, em comprimentos de braço):
 # "aponta" leva o eixo Y da mão (o do objeto em pé no punho); "eixos" dá X (dedos) e Z (palma) direto
-FRENTE_Y = {"alvo": [0.32, -0.42, 0.02], "aponta": [0.1, 1.0, 0.0]}  # café, sorvete, picolé: na frente da cintura
-AO_LADO = {"alvo": [0.04, -0.97, 0.07], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}}  # bolsas: braço solto
+# "balanco": quanto do vaivém da mão na animação entra (ao andar); "pendurado": a gravidade e um pêndulo decidem a
+# direção dos dedos (bolsa balança); "pousa": sentado, o objeto vai para o chão ao lado da cadeira
+FRENTE_Y = {"alvo": [0.32, -0.42, 0.02], "aponta": [0.1, 1.0, 0.0], "balanco": 0.2}  # café, sorvete, picolé: na frente da cintura
+AO_LADO = {"alvo": [0.04, -0.97, 0.07], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.85,
+           "pendurado": True, "pousa": True}  # bolsas: braço solto
 POSES = {
-    "celular": {"alvo": [0.36, -0.3, -0.06], "eixos": {"x": [0.55, 0.45, -0.7], "z": [-0.55, 0.85, 0.0]}},
+    "celular": {"alvo": [0.36, -0.3, -0.06], "eixos": {"x": [0.55, 0.45, -0.7], "z": [-0.55, 0.85, 0.0]}, "balanco": 0.15},
     "cafe": FRENTE_Y, "sorvete": FRENTE_Y, "picole": FRENTE_Y,
-    "microfone": {"alvo": [0.3, -0.05, -0.12], "aponta": [-0.25, 1.0, 0.08]},
-    "buque": {"alvo": [0.28, -0.5, -0.04], "aponta": [0.15, 1.0, -0.1]},
-    "camera": {"alvo": [0.45, 0.2, -0.1], "eixos": {"x": [0.0, 1.0, 0.0], "z": [1.0, 0.0, 0.0]}},
-    "livro": {"alvo": [0.35, -0.3, -0.05], "eixos": {"x": [0.3, 0.9, -0.3], "z": [-0.9, 0.3, 0.0]}},
-    "bengala": {"alvo": [0.18, -0.88, 0.1], "eixos": {"x": [0.08, -1.0, 0.05], "z": [0.0, 0.0, -1.0]}},
-    "guarda_chuva": {"alvo": [0.12, -0.9, 0.08], "eixos": {"x": [0.05, -1.0, 0.04], "z": [0.0, 0.0, -1.0]}},
+    "microfone": {"alvo": [0.3, -0.05, -0.12], "aponta": [-0.25, 1.0, 0.08], "balanco": 0.15},
+    "buque": {"alvo": [0.28, -0.5, -0.04], "aponta": [0.15, 1.0, -0.1], "balanco": 0.25},
+    "camera": {"alvo": [0.45, 0.2, -0.1], "eixos": {"x": [0.0, 1.0, 0.0], "z": [1.0, 0.0, 0.0]}, "balanco": 0.1},
+    "livro": {"alvo": [0.35, -0.3, -0.05], "eixos": {"x": [0.3, 0.9, -0.3], "z": [-0.9, 0.3, 0.0]}, "balanco": 0.15},
+    "bengala": {"alvo": [0.18, -0.88, 0.1], "eixos": {"x": [0.08, -1.0, 0.05], "z": [0.0, 0.0, -1.0]}, "balanco": 0.6,
+                "pousa": True},
+    "guarda_chuva": {"alvo": [0.12, -0.9, 0.08], "eixos": {"x": [0.05, -1.0, 0.04], "z": [0.0, 0.0, -1.0]},
+                     "balanco": 0.6, "pousa": True},
     "bolsa": AO_LADO, "maleta": AO_LADO, "sacolas": AO_LADO, "sacola_papel": AO_LADO,
-    "mala_rodinha": {"alvo": [-0.12, -0.92, 0.08], "eixos": {"x": [-0.35, -0.94, 0.0], "z": [0.0, 0.0, -1.0]}},
+    "mala_rodinha": {"alvo": [-0.12, -0.92, 0.08], "eixos": {"x": [-0.35, -0.94, 0.0], "z": [0.0, 0.0, -1.0]},
+                     "balanco": 0.5, "pousa": True},
 }
 # ================= terceira leva (imagens 24 a 28: casuais 151 a 300)
 CAMISA = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "quadril", "desloca": -0.04}, {"marco": "braco_meio"}]
@@ -426,8 +432,8 @@ obj("sacolas", "esq", "Sacolas de compras", "#EE70A9", _pose=POSES["sacolas"], o
 obj("sacola_papel", "esq", "Sacola de compras com pão", "#C9A46E", _pose=POSES["sacola_papel"], objeto="sacola_papel")
 
 # ================= quarta leva: objetos com pose de segurar e arrastão
-GUARDA = {"alvo": [0.32, -0.02, 0.12], "aponta": [-0.08, 1.0, -0.04]}  # na frente do ombro; a cúpula sobre a cabeça
-SELFIE = {"alvo": [0.55, 0.3, 0.2], "aponta": [0.75, 0.6, 0.1]}  # braço esticado para a frente e para cima
+GUARDA = {"alvo": [0.32, -0.02, 0.12], "aponta": [-0.08, 1.0, -0.04], "balanco": 0.15}  # na frente do ombro; a cúpula sobre a cabeça
+SELFIE = {"alvo": [0.55, 0.3, 0.2], "aponta": [0.75, 0.6, 0.1], "balanco": 0.1}  # braço esticado para a frente e para cima
 obj("guarda_chuva_aberto", "dir", "Guarda-chuva aberto", "#EE70A9", _pose=GUARDA, objeto="guarda_chuva_aberto")
 obj("guarda_chuva_colorido", "dir", "Guarda-chuva colorido", "#D9433B", _pose=GUARDA, objeto="guarda_chuva_colorido")
 obj("pau_selfie", "dir", "Pau de selfie", "#2B2B2B", _pose=SELFIE, objeto="pau_selfie")

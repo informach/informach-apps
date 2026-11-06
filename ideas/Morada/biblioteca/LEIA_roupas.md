@@ -150,6 +150,19 @@ O gerador está em `codigo/morada-art/geradores.py`:
       - `eixos` dá direto X (os dedos) e Z (a palma): celular com a tela para o rosto, livro na frente do peito, câmera
         na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo.
     - Num gesto com aquela mão, o objeto passa para a outra junto com a pose.
+    - `balanco` (0 a 1): quanto do vaivém da mão na animação (para a frente e para trás do ombro) entra na pose. A
+      altura e o lado continuam os da pose, para os gestos não levantarem o objeto. Bolsas: 0,85; bengala e
+      guarda-chuva fechado: 0,6; mala: 0,5; o que vai na frente do corpo: 0,1 a 0,25.
+    - `pendurado` (bolsa, maleta, sacolas): a direção dos dedos é a gravidade mais um desvio de um pêndulo amortecido,
+      que reage à aceleração da mão. A bolsa fica para trás quando a mão acelera e vai e volta até parar.
+  - Postura da animação (`maosOcupadas`, nas mesmas 12 amostras):
+    - deitado, quando o tronco fica longe da vertical (eixo quadril–pescoço com y médio < 0,55): os objetos de mão
+      saem de cena;
+    - sentado, quando o quadril fica abaixo de 42% da altura: o que tem `pousa` (bolsas, mala, bengala, guarda-chuva
+      fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido;
+    - sentado, a mão que se mexe bastante em volta do quadril (comer, digitar, dirigir) está ocupada: o objeto dela
+      passa para a outra mão ou some;
+    - de pé: só a mão que sobe (gesto) está ocupada.
     - O resto do corpo segue a animação (andar, parado...). O jogo deve fazer igual.
 
 Slots novos:
