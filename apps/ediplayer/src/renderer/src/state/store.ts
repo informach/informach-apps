@@ -454,14 +454,24 @@ export function exitEdit(): void {
   set({ editing: false, pendingIn: null, save: null });
 }
 
+/**
+ * Where the video really is. The stored time follows timeupdate, a few times a second, so while
+ * playing (or right after a click on the ruler) it is behind: I, O, S and Delete read the video.
+ */
+function now(): number {
+  const v = video();
+  return v && Number.isFinite(v.currentTime) ? v.currentTime : get().time;
+}
+
 /** I always starts a new stretch; the handles on the ruler move an existing one. */
 export function markIn(): void {
-  set({ pendingIn: get().time, selected: null, part: null });
+  set({ pendingIn: now(), selected: null, part: null });
 }
 
 /** O ends the stretch started with I, or moves the end of the selected one. */
 export function markOut(): void {
-  const { pendingIn, selected, marks, time, duration } = get();
+  const { pendingIn, selected, marks, duration } = get();
+  const time = now();
   if (pendingIn !== null && time > pendingIn + 0.05) {
     const next = normalizeRanges([...marks, { start: pendingIn, end: time }], duration);
     const at = next.findIndex((m) => m.start <= pendingIn + 1e-6 && m.end >= time - 1e-6);
@@ -484,7 +494,8 @@ export function markOut(): void {
  * clicked, the part under the cursor), in any tool.
  */
 export function deleteSelected(): void {
-  const { selected, marks, part, splitPoints, duration, mode, time } = get();
+  const { selected, marks, part, splitPoints, duration, mode } = get();
+  const time = now();
   if (selected !== null && marks.at(selected)) {
     edit({ marks: marks.filter((_, i) => i !== selected), selected: null });
     return;
@@ -526,7 +537,8 @@ export function setPartGone(index: number, gone: boolean): void {
 }
 
 export function splitHere(): void {
-  const { time, splitPoints, duration } = get();
+  const { splitPoints, duration } = get();
+  const time = now();
   if (time < 0.5 || time > duration - 0.5) return;
   if (splitPoints.some((p) => Math.abs(p - time) < 0.25)) return;
   // The parts and their delete buttons live in Dividir.

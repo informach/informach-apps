@@ -86,6 +86,8 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
           const ab = useStore.getState().ab;
           if (ab?.b !== null && ab && v.currentTime >= ab.b) v.currentTime = ab.a;
         }}
+        // The needle moves on the click, not on the next timeupdate.
+        onSeeking={(e) => useStore.setState({ time: e.currentTarget.currentTime })}
         onPlay={() => useStore.setState({ playing: true })}
         onPause={() => useStore.setState({ playing: false })}
         onError={() => void playbackFailed().catch(fail)}

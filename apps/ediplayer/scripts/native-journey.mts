@@ -187,6 +187,25 @@ export async function verifyPlayerNativeJourney(
     // The finished queue covers the list of stretches; a person hides it the same way.
     await editor.getByRole("button", { name: "Ocultar" }).click();
     await editor.getByRole("button", { name: "Apagar trecho 1" }).click();
+    // S right after a click on the ruler, while playing, cuts where the click put the video
+    // (the stored time lags behind), and the ruler is not ringed as if all were selected.
+    const strip0 = await editor.locator(".strip").boundingBox();
+    assert.ok(strip0, "the ruler has no frames");
+    await editor.keyboard.press(" ");
+    await editor.mouse.click(strip0.x + strip0.width * 0.85, strip0.y + strip0.height / 2);
+    await editor.keyboard.press("s");
+    const cut = await editor.evaluate(() => {
+      const line = document.querySelector(".ruler .split-line");
+      const ruler = document.querySelector(".ruler");
+      return {
+        at: line instanceof HTMLElement ? Number.parseFloat(line.style.left) : -1,
+        ring: ruler ? getComputedStyle(ruler).outlineStyle : "",
+      };
+    });
+    assert.ok(Math.abs(cut.at - 85) < 3, `S cut at ${cut.at}% instead of 85%`);
+    assert.equal(cut.ring, "none", "the ruler is ringed after S");
+    await editor.keyboard.press("Control+z");
+    await editor.keyboard.press(" ");
     await seekTo(5);
     await editor.keyboard.press("s");
     await seekTo(12);
