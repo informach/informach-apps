@@ -1224,6 +1224,8 @@ function poseSegurar(c, dt) {
     const f = ps.alvo[0] * (1 - k) + fAnim * k, kl = k * 0.4; // de lado, menos que para a frente
     const l = Math.max(ps.alvo[2] * (1 - kl) + lAnim * kl, ps.alvo[2] - 0.03);
     const T = _S.clone().addScaledVector(frente, f * Lb).addScaledVector(up, ps.alvo[1] * Lb).addScaledVector(fora, l * Lb);
+    const zBase = ps.eixos?.z ? frente.clone().multiplyScalar(ps.eixos.z[0]).addScaledVector(up, ps.eixos.z[1]).addScaledVector(fora, ps.eixos.z[2]).normalize() : null;
+    if (ps.pendurado) afastaDoCorpo(c, T, fora, nm.mesh, zBase); // o alto da bolsa, logo abaixo da mão, não entra na coxa
     const d = Math.min(T.distanceTo(_S), Lb * 0.995), u = T.clone().sub(_S).normalize();
     const polo = up.clone().negate().addScaledVector(fora, 0.6).addScaledVector(frente, -0.2);
     const v = polo.clone().addScaledVector(u, -polo.dot(u)).normalize();
@@ -1245,7 +1247,7 @@ function poseSegurar(c, dt) {
       Xd = Yd.clone().cross(Zd).normalize();
     } else if (ps.eixos) { // X (dedos) e Z (palma) pedidos direto: celular, livro, câmera, bolsas, bengala
       Xd = corpoV(ps.eixos.x).normalize();
-      if (ps.pendurado) Xd = penduloMao(c, lado, mao, dt, nm.mesh); // bolsa: pendurada, balançando, sem entrar na perna
+      if (ps.pendurado) Xd = penduloMao(c, lado, mao, dt, nm.mesh, zBase); // bolsa: pendurada, balançando, sem entrar na perna
       Zd = corpoV(ps.eixos.z); Zd.addScaledVector(Xd, -Zd.dot(Xd)).normalize();
       Yd = Zd.clone().cross(Xd).normalize();
     } else { // o eixo Y (o do objeto em pé no punho) para "aponta", os dedos para a frente
@@ -1263,7 +1265,7 @@ function poseSegurar(c, dt) {
 }
 // pêndulo amortecido do objeto pendurado: a direção dos dedos é a gravidade mais um desvio que reage à aceleração
 // da mão (a bolsa fica para trás quando a mão acelera e vai e volta até parar)
-function penduloMao(c, lado, mao, dt, mesh) {
+function penduloMao(c, lado, mao, dt, mesh, zBase) {
   c.pend ||= {};
   const p = (c.pend[lado] ||= { o: new THREE.Vector3(), v: new THREE.Vector3(), x: null, vel: new THREE.Vector3() });
   const h = mao.getWorldPosition(new THREE.Vector3()), d = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 20);
@@ -1276,66 +1278,177 @@ function penduloMao(c, lado, mao, dt, mesh) {
   }
   p.x = h;
   let X = new THREE.Vector3(0, -1, 0).add(p.o).normalize();
-  // a bolsa bate na perna: o centro dela não entra na coxa nem na canela daquele lado (cápsulas pelos ossos)
-  const g = medidasObjeto(mesh), pernas = capsulasPerna(c, lado);
-  if (g && pernas) {
-    const C = h.clone().addScaledVector(X, g.centro);
-    for (const [A, B, r] of pernas) {
-      const AB = B.clone().sub(A), t = Math.min(Math.max(C.clone().sub(A).dot(AB) / AB.lengthSq(), 0), 1);
-      const P = A.clone().addScaledVector(AB, t), dv = C.clone().sub(P), need = r + g.raio;
-      if (dv.length() < need) {
-        if (dv.lengthSq() < 1e-8) dv.set(1, 0, 0);
-        C.copy(P).addScaledVector(dv.normalize(), need);
-      }
+  // a bolsa bate no corpo: os pontos da superfície dela (cantos, arestas e faces) não entram nas coxas e
+  // canelas das duas pernas nem no tronco (quadril, barriga, peito). A cada passo, o ponto que entra mais fundo gira a
+  // bolsa em volta da mão o quanto falta, até nenhum entrar (ou 16 passos)
+  const g = medidasObjeto(mesh), caps = capsulasCorpo(c);
+  if (g && caps.length && zBase) {
+    const livres = caps.filter((k) => penetracao(k, h, 0) <= 0); // a própria mão já encostada: essa não conta
+    let mexeu = false, resta = 0;
+    for (let it = 0; it < 16; it++) {
+      const { pior, E, Q } = pontoMaisFundo(g.amostras, livres, h, X, zBase, 0.015, g);
+      resta = pior;
+      if (!pior) break;
+      const ax = Q.clone().cross(E);
+      if (ax.lengthSq() < 1e-12) break;
+      ax.normalize();
+      const rq = Q.clone().addScaledVector(ax, -Q.dot(ax)).length();
+      X.applyAxisAngle(ax, Math.min((pior * 1.1) / Math.max(rq, 0.03), 0.5)).normalize();
+      mexeu = true;
     }
-    X = C.sub(h).normalize();
-    if (X.y < -0.2) { // o pêndulo continua dali (sem empurrar a bolsa para dentro da perna de novo)
+    if (resta > 0.02 && p.ultimoX) { // presa entre as duas pernas: fica onde estava no quadro anterior, se lá entra menos
+      const antes = pontoMaisFundo(g.amostras, livres, h, p.ultimoX, zBase, 0.015, g).pior;
+      if (antes < resta) X.copy(p.ultimoX);
+    }
+    p.ultimoX = X.clone();
+    if (mexeu && X.y < -0.2) { // o pêndulo continua dali (sem empurrar a bolsa para dentro do corpo de novo)
       p.o.set(X.x / -X.y, 0, X.z / -X.y);
       p.v.multiplyScalar(0.6);
     }
   }
   return X;
 }
-// centro do objeto pendurado (ao longo dos dedos) e a metade da espessura dele (para o lado do corpo), em metros
+// o ponto do objeto (amostras no referencial da mão, em metros: x nos dedos, y, z na palma) que entra mais fundo no corpo,
+// com a mão em h, os dedos em X e a palma o mais perto de zBase
+function pontoMaisFundo(amostras, caps, h, X, zBase, folga, esfera) {
+  const Zw = zBase.clone().addScaledVector(X, -zBase.dot(X)).normalize(), Yw = Zw.clone().cross(X);
+  let pior = 0, E = null, Q = null;
+  for (const k of caps) medeEixo(k);
+  if (esfera) { // só as cápsulas que podem tocar o objeto
+    const [cx, cy, cz] = esfera.centro, C = h.clone().addScaledVector(X, cx).addScaledVector(Yw, cy).addScaledVector(Zw, cz);
+    caps = caps.filter((k) => pontoEixo(k, C).distanceTo(C) < esfera.raio + (k.rmax ||= Math.max(...k.r)) + folga);
+    if (!caps.length) return { pior, E, Q };
+  }
+  for (const [x, y, z] of amostras) {
+    const q = X.clone().multiplyScalar(x).addScaledVector(Yw, y).addScaledVector(Zw, z), S = q.clone().add(h);
+    for (const k of caps) {
+      const r = penetracao(k, S, folga, false);
+      if (r > pior) { pior = r; E = k._n.clone().multiplyScalar(r); Q = q; }
+    }
+  }
+  return { pior, E, Q };
+}
+// a mão que leva uma bolsa passa rente à coxa ao andar e na frente da outra coxa ao correr: se a mão ou o alto da bolsa
+// (abaixo dela, na vertical) entraria numa perna ou no tronco, o alvo da mão vai para fora, na horizontal, o quanto
+// falta (antes do braço ser montado)
+function afastaDoCorpo(c, T, fora, mesh, zBase) {
+  const g = medidasObjeto(mesh), caps = capsulasCorpo(c);
+  if (!g || !caps.length || !zBase) return;
+  const baixo = new THREE.Vector3(0, -1, 0), alto = g.amostras.filter(([x]) => x <= g.topo + 0.05);
+  // a mão (punho e base dos dedos) e o alto da bolsa: nenhum entra numa perna ou no tronco
+  const mao = [[-g.s, 0, 0], [0, 0, 0], ...alto];
+  for (let it = 0; it < 6; it++) {
+    const h = T.clone().addScaledVector(baixo, g.s); // a base dos dedos, com a mão solta
+    const { pior, E } = pontoMaisFundo(mao, caps, h, baixo, zBase, 0.01);
+    if (!pior) break;
+    E.y = 0;
+    if (E.lengthSq() < 1e-10) break;
+    T.addScaledVector(E.normalize(), pior);
+  }
+}
+// pontos da superfície do objeto pendurado, no referencial da mão e em metros: para cada uma das 98 direções da casca
+// de uma grade 5×5×5 na caixa que o envolve (cantos, arestas e faces), o vértice mais longe do centro naquela direção,
+// mais uns 220 vértices espalhados; o centro e o raio da esfera que envolve tudo. Mais o alto
+// do corpo do objeto (abaixo da alça) e o tamanho da mão
 function medidasObjeto(mesh) {
   const lm = mesh?.userData?.locMao;
   if (!lm) return null;
   if (!mesh.userData.medidas) {
-    let xs = 0, zmin = Infinity, zmax = -Infinity;
-    const n = lm.loc.length / 3;
-    for (let i = 0; i < n; i++) { xs += lm.loc[i * 3]; zmin = Math.min(zmin, lm.loc[i * 3 + 2]); zmax = Math.max(zmax, lm.loc[i * 3 + 2]); }
-    mesh.userData.medidas = { centro: (xs / n) * lm.s, raio: Math.min(((zmax - zmin) / 2) * lm.s, 0.08) };
+    const s = lm.s, n = lm.loc.length / 3, vs = [];
+    for (let i = 0; i < n; i++) vs.push([lm.loc[i * 3], lm.loc[i * 3 + 1], lm.loc[i * 3 + 2]]);
+    const corpo = vs.filter((v) => v[0] > 0.6), usa = vs; // a alça entra nas amostras; o alto é o do corpo do objeto
+    const mn = [0, 1, 2].map((k) => Math.min(...usa.map((v) => v[k]))), mx = [0, 1, 2].map((k) => Math.max(...usa.map((v) => v[k])));
+    const topo = corpo.length ? Math.min(...corpo.map((v) => v[0])) : mn[0];
+    const ce = mn.map((a, k) => (a + mx[k]) / 2), ex = mn.map((a, k) => Math.max((mx[k] - a) / 2, 1e-3));
+    const amostras = [];
+    const niveis = [-1, -0.5, 0, 0.5, 1];
+    for (const dx of niveis) for (const dy of niveis) for (const dz of niveis) {
+      if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) < 1) continue; // só a casca (98 direções)
+      let melhor = null, bd = -Infinity;
+      for (const v of usa) {
+        const d = ((v[0] - ce[0]) / ex[0]) * dx + ((v[1] - ce[1]) / ex[1]) * dy + ((v[2] - ce[2]) / ex[2]) * dz;
+        if (d > bd) { bd = d; melhor = v; }
+      }
+      if (!amostras.some((q) => q.src === melhor)) { const q = melhor.map((a) => a * s); q.src = melhor; amostras.push(q); }
+    }
+    const passo = Math.max(1, Math.floor(usa.length / 220)); // e mais uns 220 vértices espalhados pela superfície
+    for (let i = 0; i < usa.length; i += passo) if (!amostras.some((q) => q.src === usa[i])) { const q = usa[i].map((a) => a * s); q.src = usa[i]; amostras.push(q); }
+    const cen = ce.map((a) => a * s), raio = Math.max(...amostras.map((q) => Math.hypot(q[0] - cen[0], q[1] - cen[1], q[2] - cen[2])));
+    mesh.userData.medidas = { amostras, s, topo: topo * s, centro: cen, raio };
   }
   return mesh.userData.medidas;
 }
-// coxa e canela de um lado, como cápsulas [início, fim, raio] no mundo; o raio sai da pele presa a cada osso (uma
-// vez por corpo, na pose de agora: a mediana da distância dos vértices até o osso)
-function capsulasPerna(c, lado) {
-  const L = lado === "dir" ? "Right" : "Left", o = (n) => c.raiz.getObjectByName(n);
-  const up = o(L + "UpLeg"), leg = o(L + "Leg"), foot = o(L + "Foot");
-  if (!up || !leg || !foot) return null;
-  c.raioPerna ||= {};
-  if (!c.raioPerna[L]) {
-    const corpo = c.corpoMesh, g = corpo.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, pa = g.attributes.position;
-    const bones = corpo.skeleton.bones, raio = (osso, fim) => {
-      const ib = bones.indexOf(osso), A = osso.getWorldPosition(new THREE.Vector3()), B = fim.getWorldPosition(new THREE.Vector3());
-      const ds = [];
-      for (let i = 0; i < pa.count && ds.length < 400; i += 3) {
-        let w = 0;
-        for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === ib) w += sw.getComponent(i, k);
-        if (w < 0.6) continue;
-        const v = corpo.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(pa, i)).applyMatrix4(corpo.matrixWorld);
-        const AB = B.clone().sub(A), t = Math.min(Math.max(v.clone().sub(A).dot(AB) / AB.lengthSq(), 0), 1);
-        ds.push(v.distanceTo(A.clone().addScaledVector(AB, t)));
-      }
-      ds.sort((a, b) => a - b);
-      return ds.length ? ds[Math.floor(ds.length * 0.6)] : 0.06;
-    };
-    c.raiz.updateMatrixWorld(true);
-    c.raioPerna[L] = [raio(up, leg), raio(leg, foot)];
+// o corpo em cápsulas pelos ossos: coxas e canelas das duas pernas e o tronco (quadril, barriga, peito). O raio muda com a
+// direção em volta do osso: 16 setores no referencial do próprio osso, cada um com o percentil 90 da distância da pele
+// presa a ele (com a forma da gravidez): o quadril é mais largo do que fundo, e a barriga fica na frente. Uma vez por
+// corpo e estágio de gravidez, na pose de agora.
+const OSSOS_CAPSULA = [["Hips", "Spine"], ["Spine", "Spine1"], ["Spine1", "Neck"], ["RightUpLeg", "RightLeg"], ["RightLeg", "RightFoot"],
+  ["LeftUpLeg", "LeftLeg"], ["LeftLeg", "LeftFoot"]];
+const SETORES = 16;
+function capsulasCorpo(c) {
+  const corpo = c.corpoMesh;
+  if (!corpo) return [];
+  const chave = corpo.uuid + "|" + (corpo.morphTargetInfluences || []).join(",");
+  if (c.capsulas?.chave === chave) return c.capsulas.lista;
+  const g = corpo.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, pa = g.attributes.position;
+  const bones = corpo.skeleton.bones, o = (n) => c.raiz.getObjectByName(n), lista = [];
+  c.raiz.updateMatrixWorld(true);
+  const pos = [];
+  const pele = (i) => (pos[i] ||= corpo.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(corpo.matrixWorld));
+  for (const [na, nb] of OSSOS_CAPSULA) {
+    const a = o(na), b = o(nb), ib = a ? bones.indexOf(a) : -1;
+    if (!a || !b || ib < 0) continue;
+    const k = { a, b, r: null, _n: new THREE.Vector3() };
+    medeEixo(k);
+    const setores = Array.from({ length: SETORES }, () => []);
+    for (let i = 0; i < pa.count; i++) {
+      let w = 0;
+      for (let j = 0; j < 4; j++) if (si.getComponent(i, j) === ib) w += sw.getComponent(i, j);
+      if (w < 0.5) continue;
+      const v = pele(i), P = pontoEixo(k, v);
+      setores[setorDe(k, v.clone().sub(P))].push(v.distanceTo(P));
+    }
+    const todos = setores.flat().sort((x, y) => x - y);
+    if (!todos.length) continue;
+    const med = todos[Math.floor(todos.length * 0.6)];
+    k.r = setores.map((s) => (s.length >= 3 ? s.sort((x, y) => x - y)[Math.floor(s.length * 0.9)] : med));
+    lista.push(k);
   }
-  const [rc, rk] = c.raioPerna[L], P = (b) => b.getWorldPosition(new THREE.Vector3());
-  return [[P(up), P(leg), rc], [P(leg), P(foot), rk]];
+  c.capsulas = { chave, lista };
+  return lista;
+}
+const _qc = new THREE.Quaternion(), _vA = new THREE.Vector3(), _vB = new THREE.Vector3();
+function medeEixo(k) { // pontas da cápsula no mundo agora e o referencial do osso para os setores
+  k.A = k.a.getWorldPosition(k.A || new THREE.Vector3());
+  k.B = k.b.getWorldPosition(k.B || new THREE.Vector3());
+  k.qi = k.a.getWorldQuaternion(k.qi || new THREE.Quaternion()).invert();
+  if (!k.u) { // eixo e duas perpendiculares, no referencial local do osso (fixos)
+    const e = k.B.clone().sub(k.A).normalize().applyQuaternion(k.qi);
+    const ref = Math.abs(e.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+    k.u = ref.addScaledVector(e, -ref.dot(e)).normalize();
+    k.w = e.clone().cross(k.u);
+  }
+}
+function pontoEixo(k, v) {
+  const AB = _vA.copy(k.B).sub(k.A), t = Math.min(Math.max(_vB.copy(v).sub(k.A).dot(AB) / AB.lengthSq(), 0), 1);
+  return k.A.clone().addScaledVector(AB, t);
+}
+function setorDe(k, d) {
+  const l = d.clone().applyQuaternion(k.qi), ang = Math.atan2(l.dot(k.w), l.dot(k.u));
+  return Math.floor(((ang + Math.PI) / (2 * Math.PI)) * SETORES) % SETORES;
+}
+// quanto a esfera (centro S, raio r) entra na cápsula k agora (0 se não entra); a direção para fora fica em k._n.
+// mede = false: usa o eixo já medido neste quadro (medeEixo), sem consultar o esqueleto de novo
+function penetracao(k, S, r, mede = true) {
+  if (mede) medeEixo(k);
+  const P = pontoEixo(k, S), d = S.clone().sub(P), L = d.length();
+  if (L < 1e-6) return 0;
+  const l = d.clone().applyQuaternion(k.qi), f = ((Math.atan2(l.dot(k.w), l.dot(k.u)) + Math.PI) / (2 * Math.PI)) * SETORES - 0.5;
+  const i0 = (Math.floor(f) + SETORES) % SETORES, i1 = (i0 + 1) % SETORES, fr = f - Math.floor(f);
+  const raio = k.r[i0] * (1 - fr) + k.r[i1] * fr, falta = raio + r - L;
+  if (falta <= 0) return 0;
+  k._n.copy(d).divideScalar(L);
+  return falta;
 }
 // sentado: o objeto pousado fica no chão ao lado do quadril, um pouco à frente, em pé (a bengala e o guarda-chuva,
 // deitados no chão)
@@ -1355,17 +1468,37 @@ function posaNoChao(c) {
     const Z = deitado ? new THREE.Vector3(0, 1, 0) : fora.clone().negate();
     const Y = Z.clone().cross(X).normalize();
     const altura0 = deitado ? -bb.min.z : bb.max.x; // o ponto mais baixo no chão
-    const perto = mesh.userData.pousadoEm && Math.hypot(mesh.userData.pousadoEm.x - H.x, mesh.userData.pousadoEm.z - H.z) < 0.6 * alt / 1.7;
-    if (!perto) { // pousa (ou pousa de novo, se a pessoa saiu de perto): ao lado do quadril, fora da cadeira e da mesa
-      const base = H.clone().addScaledVector(fora, 0.24 * alt / 1.7).addScaledVector(frente, (deitado ? -0.2 : 0.12) * alt / 1.7);
-      const caixas = [apoio, ...auxiliar.children].filter((x) => x?.visible).map((x) => new THREE.Box3().setFromObject(x));
-      const raio = Math.max(bb.max.y - bb.min.y, bb.max.z - bb.min.z) * 0.5;
-      for (let i = 0; i < 30 && caixas.some((b) => base.x > b.min.x - raio && base.x < b.max.x + raio && base.z > b.min.z - raio
-        && base.z < b.max.z + raio && b.min.y < chaoY + 0.6); i++) base.addScaledVector(fora, 0.04);
-      mesh.userData.pousadoEm = new THREE.Vector3(base.x, chaoY + altura0 + 0.002, base.z);
-      mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, Z));
+    // o lugar certo agora: ao lado do quadril, fora da cadeira e da mesa
+    const caixas = [apoio, ...auxiliar.children].filter((x) => x?.visible).map((x) => new THREE.Box3().setFromObject(x));
+    const raio = Math.max(bb.max.y - bb.min.y, bb.max.z - bb.min.z) * 0.5;
+    const foraDosMoveis = (q) => {
+      for (let i = 0; i < 30 && caixas.some((b) => q.x > b.min.x - raio && q.x < b.max.x + raio && q.z > b.min.z - raio
+        && q.z < b.max.z + raio && b.min.y < chaoY + 0.6); i++) q.addScaledVector(fora, 0.04);
+      return q;
+    };
+    const alvo = foraDosMoveis(H.clone().addScaledVector(fora, 0.24 * alt / 1.7).addScaledVector(frente, (deitado ? -0.2 : 0.12) * alt / 1.7));
+    alvo.y = chaoY + altura0 + 0.002;
+    const qAlvo = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, Z));
+    const ud = mesh.userData;
+    if (!ud.pousadoEm) { // acabou de sentar: pousa no lugar certo
+      ud.pousadoEm = alvo.clone();
+      mesh.quaternion.copy(qAlvo);
+    } else {
+      // fica parado enquanto a pessoa se mexe pouco (folga de 12 cm); se ela se desloca sentada, vem junto, arrastado,
+      // sem passar da folga
+      const folga = 0.12 * alt / 1.7, d = ud.pousadoEm.clone().sub(alvo);
+      d.y = 0;
+      if (d.length() > folga) {
+        const novo = alvo.clone().add(d.setLength(folga));
+        ud.pousadoEm.x = novo.x; ud.pousadoEm.z = novo.z;
+        foraDosMoveis(ud.pousadoEm);
+      }
+      ud.pousadoEm.y = alvo.y;
+      const ang = mesh.quaternion.angleTo(qAlvo); // só vira quando a pessoa já virou bastante (20°), até ficar alinhado
+      if (ang > 0.35) ud.girando = true;
+      if (ud.girando) { mesh.quaternion.slerp(qAlvo, 0.08); if (ang < 0.04) ud.girando = false; }
     }
-    mesh.position.copy(mesh.userData.pousadoEm);
+    mesh.position.copy(ud.pousadoEm);
   }
 }
 // pele embaixo da roupa: os triângulos do corpo cobertos por uma peça visível não são desenhados (a pele não atravessa

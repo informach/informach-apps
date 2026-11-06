@@ -135,6 +135,13 @@ O gerador está em `codigo/morada-art/geradores.py`:
     - outros: pincel, paleta de pintor, caixas de presente, rolo de papel, cassetete, ancinho, tesoura de poda, chave
       inglesa, bengala, guarda-chuva fechado, aberto (liso, colorido e listrado), pau de selfie.
   - As caixas (`_bm_prim` "caixa") têm as quinas chanfradas (2 segmentos, 16% do lado menor); "caixa_reta" fica reta.
+  - Alças (`_alca`, `_curva_alca`, `_tubo`): um tubo no plano da face do objeto, com as duas pontas entrando no alto
+    dele (nunca soltas) e o meio reto, com cantos arredondados, passando por dentro da mão fechada. A mão fechada foi
+    medida na página: a falange de baixo dobra quase 90° para a palma, e o vão da alça fica em x ≈ −0,03, z ≈ 0,22
+    (`MAO_X`, `MAO_Z`). A alça tem pelo menos 0,72 de meia largura (`MAO_LARG`), para as pernas dela descerem por fora
+    dos dedos nas duas mãos (o mesmo arquivo serve nas duas, espelhado). Sacolas com duas alças (uma em cada face)
+    juntam as duas na mão (`dz`, `y_mao`). As pérolas da bolsa de pérolas seguem a mesma curva, a partir da superfície
+    do corpo da bolsa; a mangueira do extintor sai da válvula.
   - São feitos no referencial da mão, em unidades do tamanho da mão `s` (do punho até a base do dedo médio):
     - origem na base do dedo médio;
     - X ao longo dos dedos (para baixo com o braço solto);
@@ -170,17 +177,29 @@ O gerador está em `codigo/morada-art/geradores.py`:
       guarda-chuva fechado: 0,6; mala: 0,5; o que vai na frente do corpo: 0,1 a 0,25.
     - `pendurado` (bolsa, maleta, sacolas): a direção dos dedos é a gravidade mais um desvio de um pêndulo amortecido,
       que reage à aceleração da mão. A bolsa fica para trás quando a mão acelera e vai e volta até parar.
-    - A bolsa pendurada não atravessa a perna (`penduloMao`): a coxa (UpLeg→Leg) e a canela (Leg→Foot) daquele lado
-      são cápsulas, com o raio medido na pele (percentil 60 da distância ao osso). O centro do objeto (raio até 8 cm,
-      `medidasObjeto`) é empurrado para fora da cápsula, e o pêndulo perde a velocidade que ia contra a perna.
+    - A bolsa pendurada não atravessa o corpo (`penduloMao`, `afastaDoCorpo`, `capsulasCorpo`):
+      - o corpo vira cápsulas pelos ossos: coxas e canelas das duas pernas e o tronco (Hips→Spine→Spine1→Neck). O
+        raio muda com a direção em volta do osso: 16 setores no referencial do osso, cada um com o percentil 90 da
+        distância da pele presa a ele (peso ≥ 0,5), com a forma da gravidez aplicada. Medido uma vez por corpo e
+        estágio de gravidez;
+      - o objeto é testado em pontos reais da superfície dele (`medidasObjeto`): o vértice mais longe do centro em cada
+        uma das 98 direções da casca de uma grade 5×5×5 da caixa que o envolve, mais uns 220 vértices espalhados (a
+        alça inclusive), no referencial exato da mão (dedos e palma da pose);
+      - antes do braço ser montado, se a mão ou o alto da bolsa entraria numa perna ou no tronco, o alvo da mão vai
+        para fora na horizontal (ao andar, a mão passa rente à coxa; ao correr, na frente da outra coxa);
+      - depois, a cada passo (até 16), o ponto que entra mais fundo gira a bolsa em volta da mão o quanto falta, com
+        1,5 cm de folga; o pêndulo continua dali e perde 40% da velocidade. Se a bolsa ficar presa entre as duas pernas,
+        fica onde estava no quadro anterior quando lá entra menos;
+      - só as cápsulas perto do objeto (esfera que o envolve) são testadas, e os ossos são lidos uma vez por passo:
+        cerca de 1 ms por quadro.
   - Postura da animação (`maosOcupadas`, nas mesmas 12 amostras):
     - deitado, quando o tronco fica longe da vertical (eixo quadril–pescoço com y médio < 0,55): os objetos de mão
       saem de cena;
     - sentado, quando o quadril fica abaixo de 42% da altura: o que tem `pousa` (bolsas, mala, bengala, guarda-chuva
       fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido.
-      O lugar no chão é fixo no mundo (`posaNoChao`): o objeto não anda com o quadril; se a pessoa se afasta mais de
-      0,6 m (proporcional à altura), ele é posto de novo ao lado dela. É empurrado para fora da cadeira e da mesa da
-      cena;
+      O lugar no chão é fixo no mundo (`posaNoChao`): fica parado enquanto a pessoa se mexe pouco (folga de 12 cm,
+      proporcional à altura). Se ela se desloca sentada, o objeto vem junto, arrastado, sem passar da folga, e só vira
+      para o lado dela quando ela já virou mais de 20°. Fica sempre fora da cadeira e da mesa da cena;
     - sentado, a mão que se mexe bastante em volta do quadril (comer, digitar, dirigir) está ocupada: o objeto dela
       passa para a outra mão ou some;
     - de pé: só a mão que sobe (gesto) está ocupada.

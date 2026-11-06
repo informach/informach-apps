@@ -1320,8 +1320,8 @@ def _objeto(nome):
 @_objeto("bolsa")
 def _o_bolsa(bm, cor):
     p = _bm_prim(bm, "caixa", (2.0, 0, 0.25), (1.9, 2.6, 0.95))
-    a = _bm_prim(bm, "toro", (0.55, 0, 0.25), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
-    a2 = _bm_prim(bm, "toro", (0.55, 0, 0.25), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, math.pi))
+    a = _alca(bm, 1.05, 0.25, 0.6, 0.075)
+    a2 = []
     f = _bm_prim(bm, "caixa", (1.25, 0, -0.25), (0.18, 0.5, 0.06))
     return [(p, cor)], [(a + a2, "marrom"), (f, "dourado")]
 
@@ -1329,7 +1329,7 @@ def _o_bolsa(bm, cor):
 @_objeto("maleta")
 def _o_maleta(bm, cor):
     p = _bm_prim(bm, "caixa", (2.4, 0, 0.3), (2.6, 3.6, 0.85))
-    a = _bm_prim(bm, "toro", (1.0, 0, 0.3), (0.45, 0.09, 0.5), rot=(0, math.pi / 2, 0))
+    a = _alca(bm, 1.1, 0.3, 0.5, 0.1)
     t = [_bm_prim(bm, "caixa", (1.15, sy * 0.9, 0.3), (0.14, 0.3, 0.9)) for sy in (-1, 1)]
     return [(p, cor)], [(a, "preto"), (t[0] + t[1], "prata")]
 
@@ -1349,8 +1349,8 @@ def _o_mala(bm, cor):
 def _o_sacolas(bm, cor):
     a = _bm_prim(bm, "caixa", (2.2, -0.35, 0.6), (2.6, 2.0, 0.8))
     b = _bm_prim(bm, "caixa", (2.4, 0.45, 1.2), (2.4, 1.7, 0.7), rot=(0, 0, 0.12))
-    al = _bm_prim(bm, "toro", (0.75, -0.35, 0.6), (0.6, 0.05, 0.5), rot=(0, math.pi / 2, 0))
-    bl = _bm_prim(bm, "toro", (0.95, 0.45, 1.2), (0.55, 0.05, 0.5), rot=(0, math.pi / 2, 0))
+    al = _alca(bm, 0.9, 0.35, 0.55, 0.05, -0.35, dz=0.25, y_mao=0.0)
+    bl = _alca(bm, 1.25, 0.35, 0.5, 0.05, 0.45, dz=0.85, y_mao=0.0)
     return [(a, cor)], [(b, "azul"), (al + bl, "preto")]
 
 
@@ -1525,15 +1525,60 @@ def _o_pau_selfie(bm, cor):
 
 
 # ---------- mais objetos (bolsas, malas, caixas, ferramentas, bolas...), feitos com a vitrine de objetos como norte
-def _alca(bm, x_topo, z, raio=0.6, esp=0.07, y=0.0):
-    """Alça em arco: do alto do objeto (x_topo) até a mão (perto de x = 0)."""
-    return _bm_prim(bm, "toro", (x_topo - raio * 0.6, y, z), (raio, esp, 0.5), rot=(0, math.pi / 2, 0))
+def _tubo(bm, pts, esp, m_=8, tampa=True):
+    """Tubo de raio esp ao longo dos pontos (referencial que acompanha a curva), com as pontas fechadas."""
+    pts = [Vector(p) for p in pts]
+    tg = [(pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized() for i in range(len(pts))]
+    ref = Vector((0, 0, 1)) if abs(tg[0].z) < 0.9 else Vector((0, 1, 0))
+    n_ = (ref - tg[0] * ref.dot(tg[0])).normalized()
+    aneis = []
+    for i, (p, t_) in enumerate(zip(pts, tg)):
+        n_ = (n_ - t_ * n_.dot(t_)).normalized()
+        b_ = t_.cross(n_)
+        aneis.append([bm.verts.new(p + (n_ * math.cos(2 * math.pi * k / m_) + b_ * math.sin(2 * math.pi * k / m_)) * esp)
+                      for k in range(m_)])
+    fs = []
+    for a_, c_ in zip(aneis, aneis[1:]):
+        for k in range(m_):
+            fs.append(bm.faces.new((a_[k], a_[(k + 1) % m_], c_[(k + 1) % m_], c_[k])))
+    if tampa:
+        fs.append(bm.faces.new(list(reversed(aneis[0]))))
+        fs.append(bm.faces.new(aneis[-1]))
+    return fs
+
+
+# a mão fechada (medido na página, em unidades de s): a falange de baixo dobra quase 90° para a palma (base do médio em
+# x 0,08, z 0,37) e a de cima volta para o punho; o vão onde a alça passa fica em x ≈ 0, z ≈ 0,22. Os dedos vão de
+# y −0,65 (mínimo) a +0,31 (indicador) numa mão e o espelho na outra (o mesmo arquivo serve nas duas).
+MAO_X, MAO_Z, MAO_LARG = -0.03, 0.22, 0.72
+
+
+def _curva_alca(x_topo, z, larg, y=0.0, x_mao=MAO_X, dz=0.0, entra=0.12, n=24, y_mao=None):
+    """Pontos de uma alça no plano da face do objeto (x ao longo dos dedos, y na largura): as duas pontas entram
+    `entra` no alto do objeto (x_topo, em y ± larg, z + dz) e o meio é reto, por dentro dos dedos fechados (x_mao,
+    z = MAO_Z), com cantos arredondados, para as pernas da alça descerem por fora da mão."""
+    pts, q = [], 0.4
+    xe = x_topo + entra
+    for i in range(n + 1):
+        u = math.pi * i / n
+        cu, su = math.cos(u), math.sin(u)
+        sy = math.copysign(abs(cu) ** q, cu)
+        s_ = abs(su) ** q
+        ym = y if y_mao is None else y + (y_mao - y) * s_
+        pts.append((xe - (xe - x_mao) * s_, ym - larg * sy, (z + dz) + (MAO_Z - (z + dz)) * s_))
+    return pts
+
+
+def _alca(bm, x_topo, z, larg=MAO_LARG, esp=0.07, y=0.0, x_mao=MAO_X, dz=0.0, entra=None, y_mao=None):
+    """Alça presa pelas duas pontas no alto do objeto (x_topo = face de cima, do lado da mão), larga o bastante para a
+    mão inteira caber nela."""
+    return _tubo(bm, _curva_alca(x_topo, z, max(larg, MAO_LARG), y, x_mao, dz, entra=entra or max(0.12, esp * 1.8), y_mao=y_mao), esp)
 
 
 @_objeto("bolsa_alca")
 def _o_bolsa_alca(bm, cor):
     corpo = _bm_prim(bm, "caixa", (1.85, 0, 0.2), (1.5, 2.0, 0.9))
-    alca = _bm_prim(bm, "toro", (0.75, 0, 0.2), (0.55, 0.11, 0.5), rot=(0, math.pi / 2, 0))
+    alca = _alca(bm, 1.1, 0.2, 0.5, 0.11)
     fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.27), (0.22, 0.45, 0.06))
     return [(corpo, cor)], [(alca, "dourado"), (fecho, "dourado")]
 
@@ -1541,8 +1586,8 @@ def _o_bolsa_alca(bm, cor):
 @_objeto("bolsa_tote")
 def _o_bolsa_tote(bm, cor):
     corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.0, 2.6, 1.0))
-    a1 = _bm_prim(bm, "toro", (0.85, -0.55, 0.2), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
-    a2 = _bm_prim(bm, "toro", (0.85, 0.55, 0.2), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
+    a1 = _alca(bm, 1.3, 0.2, 0.7, 0.07, dz=-0.38)
+    a2 = _alca(bm, 1.3, 0.2, 0.7, 0.07, dz=0.38)
     return [(corpo, cor)], [(a1 + a2, "marrom")]
 
 
@@ -1551,7 +1596,7 @@ def _o_bolsa_fecho(bm, cor):
     corpo = _bm_prim(bm, "caixa", (1.8, 0, 0.2), (1.4, 2.2, 0.85))
     tampa = _bm_prim(bm, "caixa", (1.35, 0, 0.2), (0.6, 2.25, 0.9))
     placa = _bm_prim(bm, "caixa", (1.55, 0, -0.27), (0.3, 0.5, 0.05))
-    alca = _bm_prim(bm, "toro", (0.6, 0, 0.2), (0.55, 0.08, 0.5), rot=(0, math.pi / 2, 0))
+    alca = _alca(bm, 1.05, 0.2, 0.55, 0.08)
     return [(corpo + tampa, cor)], [(placa, "dourado"), (alca, "preto")]
 
 
@@ -1559,9 +1604,17 @@ def _o_bolsa_fecho(bm, cor):
 def _o_bolsa_perolas(bm, cor):
     corpo = _bm_prim(bm, "esfera", (1.7, 0, 0.2), (0.75, 1.3, 0.5))
     perolas = []
-    for i in range(13):
-        a = math.pi * (0.15 + 0.7 * i / 12)
-        perolas.append(_bm_prim(bm, "esfera", (1.3 - math.sin(a) * 1.1, -math.cos(a) * 1.1, 0.2), (0.13, 0.13, 0.13)))
+    # pontas na superfície do corpo (elipsoide centro x 1.7, raios 0.75 x 1.3): em y = ±0.9, x = 1.7 - 0.75·√(1-(0.9/1.3)²)
+    xs = 1.7 - 0.75 * math.sqrt(1 - (0.9 / 1.3) ** 2) + 0.08
+    pts = _curva_alca(xs, 0.2, 0.9, entra=0.0, n=240)
+    acum, alvo, passo = 0.0, 0.0, 0.25
+    for p0, p1 in zip(pts, pts[1:]):
+        d = (Vector(p1) - Vector(p0)).length
+        while alvo <= acum + d:
+            q = Vector(p0).lerp(Vector(p1), (alvo - acum) / d)
+            perolas.append(_bm_prim(bm, "esfera", tuple(q), (0.13, 0.13, 0.13)))
+            alvo += passo
+        acum += d
     return [(corpo, cor)], [(sum(perolas, []), "branco")]
 
 
@@ -1569,8 +1622,8 @@ def _o_bolsa_perolas(bm, cor):
 def _o_bolsa_academia(bm, cor):
     corpo = _bm_prim(bm, "cilindro", (1.6, 0, 0.2), (3.4, 0.85), rot=(0, 0, math.pi / 2), seg=16)
     faixas = [_bm_prim(bm, "cilindro", (1.6, y, 0.2), (0.25, 0.88), rot=(0, 0, math.pi / 2), seg=16) for y in (-1.0, 1.0)]
-    a1 = _alca(bm, 0.8, 0.2, 0.55, 0.07, -0.5)
-    a2 = _alca(bm, 0.8, 0.2, 0.55, 0.07, 0.5)
+    a1 = _alca(bm, 0.8, 0.2, 0.9, 0.07, dz=-0.42)
+    a2 = _alca(bm, 0.8, 0.2, 0.9, 0.07, dz=0.42)
     ziper = _bm_prim(bm, "caixa_reta", (0.77, 0, 0.2), (0.05, 2.8, 0.08))
     return [(corpo, cor)], [(sum(faixas, []), "branco"), (a1 + a2, "preto"), (ziper, "cinza_escuro")]
 
@@ -1580,7 +1633,7 @@ def _o_pasta_couro(bm, cor):
     corpo = _bm_prim(bm, "caixa", (2.1, 0, 0.2), (2.3, 3.2, 0.9))
     aba = _bm_prim(bm, "caixa", (1.45, 0, -0.27), (1.1, 3.25, 0.08))
     fivelas = [_bm_prim(bm, "caixa", (1.9, y, -0.33), (0.35, 0.28, 0.06)) for y in (-0.9, 0.9)]
-    alca = _alca(bm, 0.95, 0.2, 0.5, 0.09)
+    alca = _alca(bm, 1.0, 0.2, 0.5, 0.09)
     return [(corpo + aba, cor)], [(sum(fivelas, []), "dourado"), (alca, "marrom")]
 
 
@@ -1606,8 +1659,8 @@ def _o_maleta_rigida(bm, cor):
 def _o_pasta_notebook(bm, cor):
     corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.6, 3.8, 0.45))
     bolso = _bm_prim(bm, "caixa", (2.6, 0, -0.04), (1.4, 3.0, 0.08))
-    a1 = _alca(bm, 1.0, 0.2, 0.5, 0.07, -0.45)
-    a2 = _alca(bm, 1.0, 0.2, 0.5, 0.07, 0.45)
+    a1 = _alca(bm, 1.0, 0.2, 0.6, 0.07, dz=-0.2)
+    a2 = _alca(bm, 1.0, 0.2, 0.6, 0.07, dz=0.2)
     return [(corpo + bolso, cor)], [(a1 + a2, "cinza_escuro")]
 
 
@@ -1625,8 +1678,8 @@ def _o_mala_frisos(bm, cor):
 def _o_sacola_loja(bm, cor):
     corpo = _bm_prim(bm, "caixa_reta", (2.3, 0, 0.2), (2.6, 2.4, 0.9))
     etiqueta = _bm_prim(bm, "caixa_reta", (2.4, 0, -0.27), (1.2, 1.3, 0.02))
-    a1 = _bm_prim(bm, "toro", (1.0, -0.5, 0.2), (0.45, 0.04, 0.5), rot=(0, math.pi / 2, 0))
-    a2 = _bm_prim(bm, "toro", (1.0, 0.5, 0.2), (0.45, 0.04, 0.5), rot=(0, math.pi / 2, 0))
+    a1 = _alca(bm, 1.0, 0.2, 0.5, 0.045, dz=-0.36)
+    a2 = _alca(bm, 1.0, 0.2, 0.5, 0.045, dz=0.36)
     return [(corpo, cor)], [(etiqueta, "branco"), (a1 + a2, "cinza_escuro")]
 
 
@@ -1634,7 +1687,7 @@ def _o_sacola_loja(bm, cor):
 def _o_kit_socorros(bm, cor):
     corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.9, 2.7, 1.0))
     cruz = [_bm_prim(bm, "caixa_reta", (2.05, 0, -0.32), tam) for tam in ((0.9, 0.3, 0.04), (0.3, 0.9, 0.04))]
-    alca = _alca(bm, 1.05, 0.2, 0.45, 0.09)
+    alca = _alca(bm, 1.1, 0.2, 0.45, 0.09)
     return [(corpo, cor)], [(sum(cruz, []), "branco"), (alca, "cinza_escuro")]
 
 
@@ -1644,8 +1697,11 @@ def _o_extintor(bm, cor):
     topo = _bm_prim(bm, "esfera", (0.8, 0, 0.2), (0.3, 0.55, 0.55))
     valvula = _bm_prim(bm, "cilindro", (0.45, 0, 0.2), (0.5, 0.18), seg=10)
     alavanca = _bm_prim(bm, "caixa", (0.15, 0.3, 0.2), (0.12, 0.9, 0.15))
-    mangueira = _bm_prim(bm, "toro", (1.4, -0.75, 0.2), (0.9, 0.08, 0.45), rot=(0, 0, 0))
-    return [(corpo + topo, cor)], [(valvula + alavanca, "cinza"), (mangueira, "preto")]
+    mp = [(0.45, -0.12, 0.2), (0.5, -0.4, 0.2), (0.7, -0.62, 0.22), (1.2, -0.68, 0.24), (2.0, -0.68, 0.26),
+          (2.6, -0.66, 0.26)]
+    mangueira = _tubo(bm, mp, 0.08)
+    bico = _bm_prim(bm, "cilindro", (2.8, -0.66, 0.26), (0.4, 0.1, 0.13), seg=10)
+    return [(corpo + topo, cor)], [(valvula + alavanca, "cinza"), (mangueira + bico, "preto")]
 
 
 @_objeto("estojo_violao")
@@ -1654,7 +1710,7 @@ def _o_estojo_violao(bm, cor):
     caixa2 = _bm_prim(bm, "esfera", (1.25, -0.5, 0.2), (0.75, 1.0, 0.45))
     braco = _bm_prim(bm, "caixa", (1.2, -2.2, 0.2), (0.5, 1.9, 0.38))
     fechos = [_bm_prim(bm, "caixa", (0.42, y, 0.2), (0.12, 0.2, 0.5)) for y in (-0.2, 0.9)]
-    alca = _alca(bm, 0.45, 0.2, 0.35, 0.07, 0.3)
+    alca = _alca(bm, 0.55, 0.2, 0.35, 0.07, 0.3, entra=0.3)
     return [(caixa + caixa2 + braco, cor)], [(sum(fechos, []), "amarelo"), (alca, "preto")]
 
 
@@ -1662,9 +1718,8 @@ def _o_estojo_violao(bm, cor):
 def _o_caixa_ferramentas(bm, cor):
     corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.6, 3.2, 1.2))
     tampa = _bm_prim(bm, "caixa", (1.15, 0, 0.2), (0.25, 3.25, 1.25))
-    alca = _bm_prim(bm, "cilindro", (0.25, 0, 0.2), (0.12, 0.12), seg=8)
-    alca = _bm_prim(bm, "caixa", (0.25, 0, 0.2), (0.14, 1.6, 0.18))
-    pes = [_bm_prim(bm, "caixa", (0.65, y, 0.2), (0.8, 0.12, 0.14)) for y in (-0.8, 0.8)]
+    alca = _bm_prim(bm, "caixa", (MAO_X, 0, MAO_Z), (0.14, 1.75, 0.18))
+    pes = [_bm_prim(bm, "caixa", (0.5, y, 0.21), (1.1, 0.13, 0.15)) for y in (-0.82, 0.82)]
     fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.43), (0.25, 0.4, 0.06))
     return [(corpo + tampa, cor)], [(alca + sum(pes, []), "cinza_escuro"), (fecho, "prata")]
 

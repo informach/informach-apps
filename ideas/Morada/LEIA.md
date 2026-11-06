@@ -49,9 +49,10 @@ Na página:
 - cada objeto de mão tem a sua pose de segurar (IK do braço daquele lado): o café e o sorvete na frente do corpo, o
   celular com a tela para o rosto, o microfone perto da boca, a câmera na altura dos olhos, o guarda-chuva aberto sobre
   a cabeça, as bolsas e a bengala ao lado do corpo. O resto do corpo segue a animação, e o braço acompanha o vaivém
-  dela ao andar, para a frente e um pouco para o lado; a bolsa balança como um pêndulo e não atravessa a perna;
-- sentado, a bolsa, a mala e a bengala vão para o chão ao lado da cadeira, num lugar fixo (se a pessoa se desloca
-  sentada, o objeto é posto de novo perto dela), e a mão que trabalha (comer, digitar)
+  dela ao andar, para a frente e um pouco para o lado; a bolsa balança como um pêndulo e não atravessa as pernas nem
+  o tronco (a barriga da gestante inclusive); as alças ficam presas no objeto e passam por dentro da mão fechada;
+- sentado, a bolsa, a mala e a bengala vão para o chão ao lado da cadeira, paradas enquanto a pessoa se mexe pouco
+  (se ela se desloca sentada, o objeto vem junto, arrastado), e a mão que trabalha (comer, digitar)
   solta o objeto; deitado, os objetos de mão saem de cena.
 
 No arquivo-mestre (`blend/`), cada cabelo tem a forma `sob_chapeu`, ligada à propriedade `com_chapeu` do esqueleto:
