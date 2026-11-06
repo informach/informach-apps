@@ -121,7 +121,18 @@ export const editJobSchema = z.discriminatedUnion("kind", [
     source: path,
     pieces: z.array(range).min(2).max(500),
     folder: path,
-    baseName: z.string().min(1).max(200),
+    // A plain file name: no folders, drive letters, streams or reserved device names.
+    baseName: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(/^[^<>:"/\\|?*]+$/)
+      .refine(
+        (name) =>
+          [...name].every((c) => c.charCodeAt(0) >= 32) &&
+          !/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/i.test(name) &&
+          !/[. ]$/.test(name),
+      ),
   }),
   z.strictObject({
     kind: z.literal("join"),
@@ -140,9 +151,17 @@ export const editJobSchema = z.discriminatedUnion("kind", [
 ]);
 export type EditJob = z.infer<typeof editJobSchema>;
 
-/** Whether an export can be done by copying the streams (fast, no quality loss). */
-export function canCopy(transform: Transform, preset: PresetId, precise: boolean): boolean {
-  return (
+/**
+ * Whether an export can copy the picture (fast, no quality loss). A sound-only file copies its
+ * sound when the codec has a container to go in and the sound itself is not changed.
+ */
+export function canCopy(
+  transform: Transform,
+  preset: PresetId,
+  precise: boolean,
+  facts?: Pick<MediaFacts, "hasVideo" | "audio">,
+): boolean {
+  const picture =
     preset === "original" &&
     !precise &&
     !transform.flipH &&
@@ -151,16 +170,26 @@ export function canCopy(transform: Transform, preset: PresetId, precise: boolean
     transform.speed === 1 &&
     transform.gain === 1 &&
     !transform.normalize &&
-    !transform.burnSubtitles
-  );
+    !transform.burnSubtitles;
+  if (!picture || !facts || facts.hasVideo) return picture;
+  const codec = (facts.audio.at(transform.audioIndex) ?? facts.audio.at(0))?.codec ?? "";
+  return !transform.removeAudio && !transform.replaceAudio && !!audioCopyExtension(codec);
 }
 
+// WebM takes no AAC: the cut's matching sound is AAC, so WebM results go in Matroska.
 const COPY_CONTAINERS: Record<string, string> = {
   mp4: "mp4",
   m4v: "mp4",
   mov: "mov",
   mkv: "mkv",
-  webm: "webm",
+  webm: "mkv",
+  mp3: "mp3",
+  m4a: "m4a",
+  aac: "m4a",
+  wav: "wav",
+  ogg: "ogg",
+  oga: "ogg",
+  opus: "ogg",
 };
 
 /** Extension of a copied (lossless) result: the source's own container, else Matroska. */
@@ -175,8 +204,11 @@ export function exportExtension(
   preset: PresetId,
   copy: boolean,
   hasVideo = true,
+  audioCodec = "",
 ): string {
-  if (preset === "mp3" || (!hasVideo && preset !== "original")) return "mp3";
+  if (!hasVideo)
+    return preset === "original" && copy ? (audioCopyExtension(audioCodec) ?? "mp3") : "mp3";
+  if (preset === "mp3") return "mp3";
   if (preset === "gif") return "gif";
   if (preset === "original" && copy) return copyExtension(sourcePath);
   return "mp4";

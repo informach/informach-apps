@@ -10,7 +10,13 @@ import {
   type PresetId,
 } from "@shared/edit";
 import { joinBlocker } from "@shared/media/compat";
-import { clock, keptRanges, piecesFromPoints, totalDuration } from "@shared/ranges";
+import {
+  clock,
+  keptRanges,
+  normalizeRanges,
+  piecesFromPoints,
+  totalDuration,
+} from "@shared/ranges";
 import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/media";
@@ -34,7 +40,7 @@ export function SaveDialog() {
       aria-label="Salvar resultado"
       onClose={() => useStore.setState({ save: null })}
     >
-      {save.kind === "export" && <ExportBody initial={save.preset} />}
+      {save.kind === "export" && <ExportBody initial={save.preset} marked={save.marked} />}
       {save.kind === "split" && <SplitBody />}
       {save.kind === "join" && <JoinBody initial={save.preset} />}
       {save.kind === "audio" && <AudioBody />}
@@ -94,7 +100,7 @@ async function enqueue(job: EditJob, label: string, openFolder: boolean): Promis
   toast("Na fila. Pode continuar assistindo enquanto salva.");
 }
 
-function ExportBody({ initial }: { initial: PresetId }) {
+function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean }) {
   const facts = useStore((s) => s.facts);
   const marks = useStore((s) => s.marks);
   const mode = useStore((s) => s.mode);
@@ -104,10 +110,15 @@ function ExportBody({ initial }: { initial: PresetId }) {
   const [openFolder, setOpenFolder] = useState(true);
   const [busy, setBusy] = useState(false);
   if (!facts) return null;
-  const ranges = keptRanges(marks, mode, facts.duration);
+  // A GIF is the marked stretches themselves; anything else follows the cut mode.
+  const ranges = marked
+    ? normalizeRanges(marks, facts.duration)
+    : keptRanges(marks, mode, facts.duration);
   const seconds = totalDuration(ranges) / transform.speed;
-  const copy = canCopy(transform, preset, precise);
-  const ext = exportExtension(facts.path, preset, copy, facts.hasVideo);
+  const copy = canCopy(transform, preset, precise, facts);
+  const codec = (facts.audio.at(transform.audioIndex) ?? facts.audio.at(0))?.codec ?? "";
+  const ext = exportExtension(facts.path, preset, copy, facts.hasVideo, codec);
+  const empty = ranges.length === 0;
   const bytes = estimateBytes(facts, seconds, preset, copy, transform.removeAudio);
   const presets = PRESETS.filter((p) => facts.hasVideo || ["original", "mp3"].includes(p.id));
   const run = async () => {
@@ -164,21 +175,26 @@ function ExportBody({ initial }: { initial: PresetId }) {
         </div>
         <div>
           <small>{copy ? "Qualidade" : "Tempo"}</small>
-          <span>{copy ? "Idêntica" : seconds > 600 ? "Alguns minutos" : "Menos de um minuto"}</span>
+          <span>{copy ? "Idêntica" : seconds > 120 ? "Alguns minutos" : "Um minuto ou menos"}</span>
         </div>
       </div>
       {preset === "gif" && seconds > GIF_LONG && (
         <span className="warn">GIF de {clock(seconds)} fica pesado. Marque um trecho curto.</span>
       )}
-      {copy && (
+      {empty && (
+        <span className="warn">Nada sobrou para salvar: todos os trechos foram removidos.</span>
+      )}
+      {copy && !empty && (
         <span className="info">
-          Sem recodificar: o arquivo sai em segundos, com a mesma qualidade do original.
+          {facts.hasVideo
+            ? "Sem recodificar a imagem: sai em segundos, com a mesma qualidade. O som é ajustado aos cortes."
+            : "Sem recodificar: sai em segundos, com a mesma qualidade do original."}
         </span>
       )}
       <Footer
         onSave={() => void run()}
         label="Salvar…"
-        busy={busy}
+        busy={busy || empty}
         openFolder={openFolder}
         setOpenFolder={setOpenFolder}
       />
@@ -231,8 +247,8 @@ function SplitBody() {
         ))}
       </div>
       <span className="info">
-        Sem recodificar: cada parte começa no quadro-chave mais próximo. Escolha a pasta onde
-        salvar.
+        Sem recodificar a imagem: cada parte começa no quadro-chave anterior ao corte. Escolha a
+        pasta onde salvar.
       </span>
       <Footer
         onSave={() => void run()}

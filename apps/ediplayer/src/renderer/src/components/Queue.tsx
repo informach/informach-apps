@@ -11,14 +11,38 @@ const STATUS: Record<string, string> = {
 /** The save queue in the corner: progress, cancel, and where finished files went. */
 export function Queue() {
   const queue = useStore((s) => s.queue);
-  if (!queue.length) return null;
+  const open = useStore((s) => s.queueOpen);
+  const mini = useStore((s) => s.mini);
+  // The mini player is only the picture; the queue comes back with the normal size.
+  if (!queue.length || mini) return null;
   const active = queue.filter((i) => i.status === "waiting" || i.status === "working").length;
+  const working = queue.find((i) => i.status === "working");
+  // Only the state is announced, not every tick of progress.
+  const summary = `Fila · ${active ? `${active} em andamento` : "concluída"}`;
+  if (!open)
+    return (
+      <button
+        type="button"
+        className="queue-pill"
+        onClick={() => useStore.setState({ queueOpen: true })}
+      >
+        <span role="status">{summary}</span>
+        {working && <span className="mono">{Math.round(working.ratio * 100)}%</span>}
+      </button>
+    );
   return (
-    <section className="queue" role="status" aria-label="Fila de salvamento">
+    <section className="queue" aria-label="Fila de salvamento">
       <div className="row">
-        <span className="label" style={{ flex: 1 }}>
-          Fila · {active ? `${active} em andamento` : "concluída"}
+        <span className="label" style={{ flex: 1 }} role="status">
+          {summary}
         </span>
+        <button
+          type="button"
+          className="link"
+          onClick={() => useStore.setState({ queueOpen: false })}
+        >
+          Ocultar
+        </button>
         {!active && (
           <button
             type="button"

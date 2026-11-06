@@ -9,8 +9,12 @@ import type { Range } from "../ranges.ts";
  */
 
 /** A path inside a filter argument (`subtitles=filename='…'`). */
-export const filterPath = (p: string): string =>
-  p.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
+export function filterPath(p: string): string {
+  // Two escaping levels, no quotes: first the option value (\ ' :), then the filter graph
+  // (\ ' [ ] , ;). A folder named D'Avila or x',[a];b stays a path and never becomes graph.
+  const option = p.replace(/\\/g, "/").replace(/[\\':]/g, (c) => `\\${c}`);
+  return option.replace(/[\\'[\],;]/g, (c) => `\\${c}`);
+}
 
 /** A concat demuxer list; single quotes are closed, escaped and reopened. */
 export const concatList = (files: readonly string[]): string =>
@@ -39,54 +43,58 @@ export const displayRotation = (clockwise: number): number => (360 - (clockwise 
 
 const BASE = ["-hide_banner", "-nostdin", "-y", "-v", "error", "-protocol_whitelist", "file,pipe"];
 
-/** One stretch copied as it is. The start falls on the keyframe at or before it. */
-export function copySegmentArgs(o: {
-  source: string;
-  start: number;
-  duration: number;
-  output: string;
-  /** Total clockwise rotation the copy must display, or null to keep the file's own. */
-  rotation: number | null;
-  removeAudio: boolean;
-  /** Keep only this audio stream; null keeps them all. */
-  audioIndex: number | null;
-  keepSubtitles: boolean;
-  videoOnly?: boolean;
-  audioOnly?: boolean;
-}): string[] {
-  const maps = o.audioOnly
-    ? ["-map", `0:a:${o.audioIndex ?? 0}`, "-vn"]
-    : [
-        "-map",
-        "0:V?",
-        ...(o.removeAudio || o.videoOnly
-          ? ["-an"]
-          : ["-map", o.audioIndex === null ? "0:a?" : `0:a:${o.audioIndex}?`]),
-        ...(o.keepSubtitles ? ["-map", "0:s?"] : ["-sn"]),
-      ];
-  return [
-    ...BASE,
-    ...(o.rotation === null ? [] : ["-display_rotation:v:0", n(displayRotation(o.rotation))]),
-    "-ss",
-    n(o.start),
-    "-i",
-    o.source,
-    "-t",
-    n(o.duration),
-    ...maps,
-    "-dn",
-    "-c",
-    "copy",
-    "-avoid_negative_ts",
-    "make_zero",
-    "-map_chapters",
-    "-1",
-    ...(/\.(mp4|mov|m4v|m4a)$/i.test(o.output) ? ["-movflags", "+faststart"] : []),
-    o.output,
-  ];
+/** Lets an input read only local files (no network, no nested protocols). */
+export const LOCAL_INPUT = ["-protocol_whitelist", "file,pipe"];
+
+export interface CutPoint {
+  /** Demuxer timestamps of the source (its start time included). */
+  inpoint: number;
+  outpoint: number;
 }
 
-/** Joins copied pieces listed in a concat file. */
+/**
+ * A concat demuxer list that cuts one source by points. Each stretch then lasts exactly
+ * outpoint − inpoint for every stream, so cuts never drift apart; with the inpoint on a keyframe
+ * the picture is copied without re-encoding.
+ */
+export function pointsList(source: string, points: readonly CutPoint[]): string {
+  const file = `file '${source.replace(/'/g, "'\\''")}'`;
+  const entries = points.map(
+    (p) => `${file}\ninpoint ${p.inpoint.toFixed(6)}\noutpoint ${p.outpoint.toFixed(6)}`,
+  );
+  return `ffconcat version 1.0\n${entries.join("\n")}\n`;
+}
+
+/**
+ * The chosen sound streams of input `input`, cut to the same stretches with sample accuracy and
+ * joined: labels [a0], [a1]… in the order of `tracks`. The copied picture keeps the exact stretch
+ * lengths, so the sound is cut (and encoded) to match instead of copied packet by packet.
+ */
+export function audioCutGraph(
+  input: number,
+  tracks: readonly number[],
+  ranges: readonly Range[],
+): string {
+  const parts: string[] = [];
+  for (const [k, track] of tracks.entries()) {
+    const label = `[${input}:a:${track}]`;
+    const trim = (r: Range) =>
+      `atrim=start=${r.start.toFixed(6)}:end=${r.end.toFixed(6)},asetpts=PTS-STARTPTS`;
+    const only = ranges.at(0);
+    if (ranges.length === 1 && only) {
+      parts.push(`${label}${trim(only)}[a${k}]`);
+      continue;
+    }
+    parts.push(`${label}asplit=${ranges.length}${ranges.map((_, i) => `[s${k}_${i}]`).join("")}`);
+    for (const [i, r] of ranges.entries()) parts.push(`[s${k}_${i}]${trim(r)}[c${k}_${i}]`);
+    parts.push(
+      `${ranges.map((_, i) => `[c${k}_${i}]`).join("")}concat=n=${ranges.length}:v=0:a=1[a${k}]`,
+    );
+  }
+  return parts.join(";\n");
+}
+
+/** Joins whole files listed in a concat file, picture and sound only (no data or timecode). */
 export function concatCopyArgs(list: string, output: string, faststart: boolean): string[] {
   return [
     ...BASE,
@@ -97,34 +105,14 @@ export function concatCopyArgs(list: string, output: string, faststart: boolean)
     "-i",
     list,
     "-map",
-    "0",
+    "0:V?",
+    "-map",
+    "0:a?",
+    "-dn",
+    "-sn",
     "-c",
     "copy",
     ...(faststart ? ["-movflags", "+faststart"] : []),
-    output,
-  ];
-}
-
-/** The picture copied, the sound taken from another file (converted to AAC). */
-export function replaceAudioArgs(video: string, audio: string, output: string): string[] {
-  return [
-    ...BASE,
-    "-i",
-    video,
-    "-i",
-    audio,
-    "-map",
-    "0:V",
-    "-map",
-    "1:a:0",
-    "-c:v",
-    "copy",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "192k",
-    "-shortest",
-    ...(/\.(mp4|mov|m4v)$/i.test(output) ? ["-movflags", "+faststart"] : []),
     output,
   ];
 }
@@ -248,7 +236,7 @@ export function exportGraph(o: GraphOptions): { graph: string; video: boolean; a
   const videoStreams: string[] = [];
   const audioStreams: string[] = [];
   if (o.video) {
-    const head = o.burn ? `[0:v:0]subtitles=filename='${filterPath(o.burn)}'` : "[0:v:0]null";
+    const head = o.burn ? `[0:v:0]subtitles=filename=${filterPath(o.burn)}` : "[0:v:0]null";
     if (count > 1) {
       parts.push(`${head},split=${count}${o.ranges.map((_, i) => `[vs${i}]`).join("")}`);
       o.ranges.forEach((r, i) => {

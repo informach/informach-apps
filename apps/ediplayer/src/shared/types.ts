@@ -27,6 +27,11 @@ export interface MediaFacts {
   /** Container names reported by FFmpeg (`mov,mp4,m4a,3gp,3g2,mj2`, `matroska,webm`, `avi`…). */
   container: string;
   duration: number;
+  /**
+   * Timestamp of the file's first packet (MPEG-TS and camera files rarely start at 0). Player and
+   * edit times are relative to it; FFmpeg's demuxer-level points (concat inpoint) are not.
+   */
+  startTime: number;
   size: number;
   bitRate: number;
   hasVideo: boolean;
@@ -123,7 +128,8 @@ export interface EdiPlayerApi {
   pickJoinFiles(): Promise<string[]>;
   pathForFile(file: File): string;
   probe(path: string): Promise<MediaFacts>;
-  open(path: string, audioIndex: number, fallback: boolean): Promise<PlaybackSource>;
+  /** `level`: 0 as planned, 1 at least a copy, 2 a converted preview (after <video> failures). */
+  open(path: string, audioIndex: number, level: number): Promise<PlaybackSource>;
   cancelPrepare(path: string): Promise<void>;
   frameSheet(path: string): Promise<FrameSheet>;
   waveform(path: string): Promise<number[]>;

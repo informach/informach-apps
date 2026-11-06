@@ -22,7 +22,13 @@ interface ProbeStream {
 }
 
 interface ProbeJson {
-  format?: { format_name?: string; duration?: string; size?: string; bit_rate?: string };
+  format?: {
+    format_name?: string;
+    duration?: string;
+    size?: string;
+    bit_rate?: string;
+    start_time?: string;
+  };
   streams?: ProbeStream[];
 }
 
@@ -90,6 +96,9 @@ export function factsFromProbe(
     name,
     container: probe.format?.format_name ?? "",
     duration,
+    startTime: Number.isFinite(Number(probe.format?.start_time))
+      ? Number(probe.format?.start_time)
+      : 0,
     size,
     bitRate: Number(probe.format?.bit_rate ?? 0) || 0,
     hasVideo: !!video,
@@ -107,13 +116,17 @@ export function factsFromProbe(
   };
 }
 
-/** Keyframe times from `ffprobe -show_entries packet=pts_time,flags -of csv=p=0` lines. */
-export function keyframesFromPackets(lines: readonly string[]): number[] {
+/**
+ * Keyframe times from `ffprobe -show_entries packet=pts_time,flags -of csv=p=0` lines, relative
+ * to the file's start time (the timeline the player and the edits use).
+ */
+export function keyframesFromPackets(lines: readonly string[], startTime = 0): number[] {
   const out: number[] = [];
   for (const line of lines) {
     const [pts = "", flags = ""] = line.split(",");
-    const t = Number(pts);
-    if (flags.includes("K") && Number.isFinite(t) && t >= 0) out.push(t);
+    const t = Number(pts) - startTime;
+    // A first keyframe a hair before the declared start still opens the file.
+    if (flags.includes("K") && Number.isFinite(t) && t >= -0.05) out.push(Math.max(0, t));
   }
   out.sort((a, b) => a - b);
   return out.filter((t, i) => i === 0 || t - (out.at(i - 1) ?? -1) > 1e-4);

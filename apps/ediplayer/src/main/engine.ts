@@ -4,7 +4,8 @@ import { mkdir, readdir, readFile, rename, rm, stat, utimes } from "node:fs/prom
 import { basename, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { NativeMedia, type NativeMediaPaths } from "@informach/edi-desktop/native-media";
-import { factsFromProbe, keyframesFromPackets, peaks } from "../shared/media/probe-parse.ts";
+import { LOCAL_INPUT } from "../shared/media/args.ts";
+import { factsFromProbe, keyframesFromPackets } from "../shared/media/probe-parse.ts";
 import type { FrameSheet, MediaFacts, PlaybackMode } from "../shared/types.ts";
 
 /** Frame sheets: 10 × 6 tiles of 160 px, enough for the bar preview and the ruler. */
@@ -13,6 +14,9 @@ const SHEET_ROWS = 6;
 const TILE_WIDTH = 160;
 /** Waveform bars kept per file, whatever its length. */
 const WAVE_BARS = 1200;
+const BACKGROUND_SLOTS = 3;
+/** Picture codecs an MP4 copy can carry as they are. */
+const MP4_PICTURES = new Set(["h264", "hevc", "av1", "vp9"]);
 /** Previews and copies kept on disk; the oldest go first. */
 export const CACHE_LIMIT = 6 * 1024 ** 3;
 
@@ -29,12 +33,20 @@ export class MediaEngine {
   private readonly facts = new Map<string, Promise<MediaFacts>>();
   private readonly keys = new Map<string, Promise<number[]>>();
   private readonly preparing = new Map<string, Promise<string>>();
+  private readonly sheets = new Map<string, Promise<SheetFile>>();
+  private readonly waves = new Map<string, Promise<number[]>>();
+  private readonly thumbs = new Map<string, Promise<string>>();
   private readonly cacheRoot: string;
+  /** Background work (sheets, waves, thumbnails, keyframes) waits its turn instead of failing. */
+  private busy = 0;
+  private readonly waiting: (() => void)[] = [];
 
   constructor(paths: NativeMediaPaths, cacheRoot: string) {
     this.cacheRoot = cacheRoot;
+    // No ceiling here: edits must never be refused because the window asked for thumbnails.
+    // Background work is queued by `background` instead.
     this.media = new NativeMedia(paths, {
-      maxRunning: 6,
+      maxRunning: Number.POSITIVE_INFINITY,
       maxTimeoutMs: null,
       maxStdoutBytes: 64 * 1024 ** 2,
       cancelledMessage: "Cancelado.",
@@ -43,6 +55,18 @@ export class MediaEngine {
 
   get ffmpeg(): string {
     return this.media.paths.ffmpeg;
+  }
+
+  /** At most BACKGROUND_SLOTS background jobs at once; the rest wait in order. */
+  private async background<T>(work: () => Promise<T>): Promise<T> {
+    if (this.busy >= BACKGROUND_SLOTS) await new Promise<void>((go) => this.waiting.push(go));
+    this.busy++;
+    try {
+      return await work();
+    } finally {
+      this.busy--;
+      this.waiting.shift()?.();
+    }
   }
 
   /** The cache folder of this version of the file. */
@@ -93,38 +117,45 @@ export class MediaEngine {
       if (!facts.hasVideo) return [];
       const lines: string[] = [];
       let tail = "";
-      await this.media.run(
-        this.media.paths.ffprobe,
-        [
-          "-v",
-          "error",
-          "-protocol_whitelist",
-          "file,pipe",
-          "-select_streams",
-          "v:0",
-          "-show_entries",
-          "packet=pts_time,flags",
-          "-of",
-          "csv=p=0",
-          path,
-        ],
-        {
-          timeoutMs: 600_000,
-          onStdout: (chunk) => {
-            tail += chunk.toString();
-            const parts = tail.split("\n");
-            tail = parts.pop() ?? "";
-            for (const line of parts) if (line.includes("K")) lines.push(line);
+      await this.background(() =>
+        this.media.run(
+          this.media.paths.ffprobe,
+          [
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "file,pipe",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=pts_time,flags",
+            "-of",
+            "csv=p=0",
+            path,
+          ],
+          {
+            timeoutMs: 600_000,
+            onStdout: (chunk) => {
+              tail += chunk.toString();
+              const parts = tail.split("\n");
+              tail = parts.pop() ?? "";
+              for (const line of parts) if (line.includes("K")) lines.push(line);
+            },
           },
-        },
+        ),
       );
       if (tail.includes("K")) lines.push(tail);
-      return keyframesFromPackets(lines);
+      return keyframesFromPackets(lines, facts.startTime);
     });
   }
 
   /** Tiles taken at even steps, from keyframes only (fast even for hours of video). */
-  async frameSheet(path: string, signal?: AbortSignal): Promise<SheetFile> {
+  frameSheet(path: string): Promise<SheetFile> {
+    // One run per file version: the bar and the ruler ask at the same time.
+    return this.memo(this.sheets, path, () => this.makeSheet(path));
+  }
+
+  private async makeSheet(path: string): Promise<SheetFile> {
     const facts = await this.probe(path);
     if (!facts.hasVideo) throw new Error("Arquivo sem imagem.");
     const count = SHEET_COLUMNS * SHEET_ROWS;
@@ -144,37 +175,44 @@ export class MediaEngine {
     const file = join(await this.cacheDir(path), "sheet.jpg");
     if (existsSync(file)) return { ...sheet, file };
     const partial = `${file}.part.jpg`;
-    await this.media.run(
-      this.ffmpeg,
-      [
-        "-hide_banner",
-        "-nostdin",
-        "-y",
-        "-v",
-        "error",
-        "-skip_frame",
-        "nokey",
-        "-i",
-        path,
-        "-map",
-        "0:V:0",
-        "-vf",
-        `tpad=stop_mode=clone:stop_duration=${(step * 2).toFixed(3)},fps=${count}/${Math.max(0.1, facts.duration).toFixed(3)},scale=${TILE_WIDTH}:${tileHeight}:force_original_aspect_ratio=decrease,pad=${TILE_WIDTH}:${tileHeight}:(ow-iw)/2:(oh-ih)/2,tile=${SHEET_COLUMNS}x${SHEET_ROWS}`,
-        "-frames:v",
-        "1",
-        "-q:v",
-        "5",
-        "-an",
-        partial,
-      ],
-      { signal, timeoutMs: 600_000 },
+    await this.background(() =>
+      this.media.run(
+        this.ffmpeg,
+        [
+          "-hide_banner",
+          "-nostdin",
+          "-y",
+          "-v",
+          "error",
+          "-skip_frame",
+          "nokey",
+          ...LOCAL_INPUT,
+          "-i",
+          path,
+          "-map",
+          "0:V:0",
+          "-vf",
+          `tpad=stop_mode=clone:stop_duration=${(step * 2).toFixed(3)},fps=${count}/${Math.max(0.1, facts.duration).toFixed(3)},scale=${TILE_WIDTH}:${tileHeight}:force_original_aspect_ratio=decrease,pad=${TILE_WIDTH}:${tileHeight}:(ow-iw)/2:(oh-ih)/2,tile=${SHEET_COLUMNS}x${SHEET_ROWS}`,
+          "-frames:v",
+          "1",
+          "-q:v",
+          "5",
+          "-an",
+          partial,
+        ],
+        { timeoutMs: 600_000 },
+      ),
     );
     await rename(partial, file);
     return { ...sheet, file };
   }
 
-  /** Peaks of the chosen sound, 0..1, at most WAVE_BARS bars. */
-  async waveform(path: string, signal?: AbortSignal): Promise<number[]> {
+  /** Peaks of the first sound, 0..1, at most WAVE_BARS bars, computed as the samples stream. */
+  waveform(path: string): Promise<number[]> {
+    return this.memo(this.waves, path, () => this.makeWave(path));
+  }
+
+  private async makeWave(path: string): Promise<number[]> {
     const facts = await this.probe(path);
     if (!facts.audio.length) return [];
     const file = join(await this.cacheDir(path), "waveform.json");
@@ -182,42 +220,50 @@ export class MediaEngine {
       const saved: unknown = JSON.parse(await readFile(file, "utf8"));
       if (Array.isArray(saved) && saved.every((v) => typeof v === "number")) return saved;
     }
-    const chunks: Buffer[] = [];
-    let bytes = 0;
-    await this.media.run(
-      this.ffmpeg,
-      [
-        "-hide_banner",
-        "-nostdin",
-        "-v",
-        "error",
-        "-i",
-        path,
-        "-map",
-        "0:a:0",
-        "-ac",
-        "1",
-        "-ar",
-        "2000",
-        "-f",
-        "s16le",
-        "-",
-      ],
-      {
-        signal,
-        timeoutMs: 600_000,
-        onStdout: (chunk) => {
-          bytes += chunk.length;
-          if (bytes > 2000 * 2 * 86400) throw new Error("Som longo demais para a onda.");
-          chunks.push(chunk);
+    const rate = 2000;
+    const bars = Math.min(WAVE_BARS, Math.max(1, Math.round(facts.duration * 4)));
+    const perBar = Math.max(1, Math.ceil((facts.duration * rate) / bars));
+    const out = new Array<number>(bars).fill(0);
+    let index = 0;
+    let carry: Buffer | null = null;
+    await this.background(() =>
+      this.media.run(
+        this.ffmpeg,
+        [
+          "-hide_banner",
+          "-nostdin",
+          "-v",
+          "error",
+          ...LOCAL_INPUT,
+          "-i",
+          path,
+          "-map",
+          "0:a:0",
+          "-ac",
+          "1",
+          "-ar",
+          String(rate),
+          "-f",
+          "s16le",
+          "-",
+        ],
+        {
+          timeoutMs: 600_000,
+          onStdout: (chunk) => {
+            const data: Buffer = carry ? Buffer.concat([carry, chunk]) : chunk;
+            const whole = data.length - (data.length % 2);
+            carry = whole < data.length ? data.subarray(whole) : null;
+            for (let i = 0; i < whole; i += 2, index++) {
+              const bar = Math.min(bars - 1, Math.floor(index / perBar));
+              const v = Math.abs(data.readInt16LE(i)) / 32768;
+              if (v > (out[bar] ?? 0)) out[bar] = Math.min(1, v);
+            }
+          },
         },
-      },
+      ),
     );
-    const all = Buffer.concat(chunks);
-    const samples = new Int16Array(all.buffer, all.byteOffset, Math.floor(all.length / 2));
-    const bars = peaks(samples, Math.min(WAVE_BARS, Math.max(1, Math.round(facts.duration * 4))));
-    await atomicJson(file, bars);
-    return bars;
+    await atomicJson(file, out);
+    return out;
   }
 
   /**
@@ -237,19 +283,25 @@ export class MediaEngine {
     if (running) return running;
     const job = (async () => {
       const facts = await this.probe(path);
+      // MP4 carries these pictures as they are; anything else (VP8, WMV, MPEG-4 Part 2...) is
+      // converted even when only a copy was asked.
+      const how =
+        plan === "remux" && facts.hasVideo && !MP4_PICTURES.has(facts.videoCodec ?? "")
+          ? "preview"
+          : plan;
       const dir = await this.cacheDir(path);
-      const file = join(dir, `${plan}-a${audioIndex}.mp4`);
+      const file = join(dir, `${how}-a${audioIndex}.mp4`);
       if (existsSync(file)) return file;
-      const partial = join(dir, `${plan}-a${audioIndex}.part.mp4`);
+      const partial = join(dir, `${how}-a${audioIndex}.part.mp4`);
       const audio = facts.audio.length
         ? ["-map", `0:a:${Math.min(audioIndex, facts.audio.length - 1)}`]
         : [];
       const sound =
-        plan === "remux" && audioPlayable && facts.audio.at(audioIndex)?.codec === "aac"
+        how === "remux" && audioPlayable && facts.audio.at(audioIndex)?.codec === "aac"
           ? ["-c:a", "copy"]
           : ["-c:a", "aac", "-b:a", "160k", "-ac", "2"];
       const picture =
-        plan === "remux"
+        how === "remux"
           ? ["-c:v", "copy"]
           : [
               "-vf",
@@ -271,6 +323,7 @@ export class MediaEngine {
           "-y",
           "-v",
           "error",
+          ...LOCAL_INPUT,
           "-i",
           path,
           ...(facts.hasVideo ? ["-map", "0:V:0", ...picture] : ["-vn"]),
@@ -312,6 +365,7 @@ export class MediaEngine {
         "-nostdin",
         "-v",
         "error",
+        ...LOCAL_INPUT,
         "-i",
         path,
         "-map",
@@ -325,7 +379,11 @@ export class MediaEngine {
   }
 
   /** A small JPEG of the file for the "Continuar assistindo" cards, cached. */
-  async thumbnail(path: string): Promise<string> {
+  thumbnail(path: string): Promise<string> {
+    return this.memo(this.thumbs, path, () => this.background(() => this.makeThumbnail(path)));
+  }
+
+  private async makeThumbnail(path: string): Promise<string> {
     const facts = await this.probe(path);
     if (!facts.hasVideo) throw new Error("Arquivo sem imagem.");
     const file = join(await this.cacheDir(path), "thumb.jpg");
@@ -340,6 +398,14 @@ export class MediaEngine {
   /** A full-resolution PNG of the frame at `at`. */
   async frame(path: string, at: number, output: string): Promise<void> {
     await this.media.frame(path, output, at);
+  }
+
+  /** Forgets everything derived from the person's files ("Limpar recentes"). */
+  async clearCache(): Promise<void> {
+    this.sheets.clear();
+    this.waves.clear();
+    this.thumbs.clear();
+    await rm(this.cacheRoot, { recursive: true, force: true });
   }
 
   /** Drops the oldest cache folders until the cache fits CACHE_LIMIT. */

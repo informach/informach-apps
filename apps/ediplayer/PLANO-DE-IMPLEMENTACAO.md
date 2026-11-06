@@ -18,4 +18,4 @@ Fora deste ciclo: timeline com várias faixas, transições e efeitos (são do E
 
 ## Execução
 
-Os cinco lotes foram implementados em 06/11/2026 no branch `feat/ediplayer`. Verificação, desvios e limites no [review](../../docs/reviews/ediplayer-2026-11-06/review.md). Desvio do plano: o corte preciso recodifica o resultado inteiro, não só as pontas (ver limites no README).
+Os cinco lotes foram implementados em 06/11/2026 no branch `feat/ediplayer`. Verificação, desvios e limites no [review](../../docs/reviews/ediplayer-2026-11-06/review.md); correções do [full review](../../docs/reviews/ediplayer-2026-11-06/full-review.md), incluindo o "Abrir com" retirado do instalador até haver um registro seguro. Desvio do plano: o corte preciso recodifica o resultado inteiro, não só as pontas (ver limites no README).

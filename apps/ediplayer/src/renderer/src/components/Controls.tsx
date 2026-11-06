@@ -98,6 +98,14 @@ export function Controls() {
       <button
         type="button"
         className={`pill hide-mini${ab ? " on" : ""}`}
+        aria-pressed={!!ab}
+        aria-label={
+          ab
+            ? ab.b === null
+              ? "Repetição: marque o fim"
+              : "Desligar a repetição"
+            : "Repetir um trecho"
+        }
         title="Repetir um trecho: marque o início, depois o fim (L)"
         onClick={toggleAb}
       >
@@ -107,7 +115,8 @@ export function Controls() {
       <button
         type="button"
         className={`icon-btn hide-mini${subtitle ? " on" : ""}`}
-        aria-label={subtitle ? `Legenda: ${subtitle.name}` : "Sem legenda"}
+        aria-pressed={!!subtitle}
+        aria-label={subtitle ? `Desligar a legenda ${subtitle.name}` : "Abrir uma legenda"}
         title="Legendas: escolha na lateral, ou arraste um .srt"
         onClick={() => {
           if (subtitle) useStore.setState({ subtitle: null });
@@ -144,6 +153,7 @@ export function Controls() {
       <button
         type="button"
         className={`pill hide-mini${prefs.boost ? " on" : ""}`}
+        aria-pressed={prefs.boost}
         title="Realça falas baixas"
         onClick={() => void savePrefs({ boost: !prefs.boost })}
       >
@@ -163,6 +173,7 @@ export function Controls() {
       <button
         type="button"
         className={`icon-btn hide-mini${onTop ? " on" : ""}`}
+        aria-pressed={onTop}
         aria-label="Sempre no topo"
         title="Sempre no topo"
         onClick={() => {
@@ -175,6 +186,7 @@ export function Controls() {
       <button
         type="button"
         className={`icon-btn${mini ? " on" : ""}`}
+        aria-pressed={mini}
         aria-label={mini ? "Voltar ao tamanho normal" : "Miniplayer"}
         title="Miniplayer"
         onClick={() => {

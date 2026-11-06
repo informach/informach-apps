@@ -24,6 +24,15 @@ function ffmpegPath(root: string): string {
   }
 }
 
+function ffprobePath(root: string): string {
+  const bundled = join(root, ".cache", "edi-native-media", "windows-x64", "bin", "ffprobe.exe");
+  if (ffmpegPath(root).startsWith(join(root, ".cache"))) return bundled;
+  const binary: unknown = require("@derhuerst/ffprobe-static");
+  const file = binary && typeof binary === "object" ? Reflect.get(binary, "path") : binary;
+  if (typeof file !== "string") throw new Error("ffprobe-static unavailable");
+  return file;
+}
+
 /** Replaces the main process's file dialogs: the journey answers them instead of a person. */
 async function answerDialogs(application: ElectronApplication, open: string[], save: string) {
   await application.evaluate(
@@ -95,9 +104,6 @@ export async function verifyPlayerNativeJourney(
       return v instanceof HTMLVideoElement && v.readyState >= 2 && v.currentTime > 0.3;
     });
     await editor.screenshot({ path: join(results, "ediplayer-player.png") });
-
-    await editor.keyboard.press("e");
-    await editor.locator(".ruler").waitFor();
     const seekTo = (t: number) =>
       editor.evaluate((at) => {
         const v = document.querySelector(".stage video");
@@ -108,6 +114,21 @@ export async function verifyPlayerNativeJourney(
           v.addEventListener("seeked", () => done(), { once: true }),
         );
       }, t);
+    const position = () =>
+      editor.evaluate(() => {
+        const v = document.querySelector(".stage video");
+        return v instanceof HTMLVideoElement ? { at: v.currentTime, paused: v.paused } : null;
+      });
+
+    // Entering edit mode keeps the same video where it was (it must not reload from 0).
+    await seekTo(6);
+    await editor.keyboard.press("e");
+    await editor.locator(".ruler").waitFor();
+    const kept = await position();
+    assert.ok(
+      kept && Math.abs(kept.at - 6) < 0.2 && kept.paused,
+      `edit mode moved the video: ${JSON.stringify(kept)}`,
+    );
     await seekTo(3);
     await editor.keyboard.press("i");
     await seekTo(8);
@@ -133,7 +154,7 @@ export async function verifyPlayerNativeJourney(
       .digest("hex");
     assert.equal(after, before, "the source changed");
     // 20 s minus the 5 s marked: 15 s, give or take a keyframe.
-    const probe = await run(ffmpegPath(root).replace(/ffmpeg(\.exe)?$/i, "ffprobe$1"), [
+    const probe = await run(ffprobePath(root), [
       "-v",
       "error",
       "-show_entries",
@@ -141,11 +162,9 @@ export async function verifyPlayerNativeJourney(
       "-of",
       "csv=p=0",
       output,
-    ]).catch(() => null);
-    if (probe) {
-      const length = Number(probe.stdout.trim());
-      assert.ok(Math.abs(length - 15) < 1.2, `cut length ${length}`);
-    }
+    ]);
+    const length = Number(probe.stdout.trim());
+    assert.ok(Math.abs(length - 15) < 1.2, `cut length ${length}`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
