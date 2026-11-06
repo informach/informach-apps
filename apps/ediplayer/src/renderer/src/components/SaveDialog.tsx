@@ -12,7 +12,10 @@ import {
 import { joinBlocker } from "@shared/media/compat";
 import {
   clock,
+  isPartRemoved,
   keptRanges,
+  keptWithin,
+  MIN_RANGE,
   normalizeRanges,
   piecesFromPoints,
   totalDuration,
@@ -207,10 +210,18 @@ const presetName = (id: PresetId) => PRESETS.find((p) => p.id === id)?.name ?? i
 function SplitBody() {
   const facts = useStore((s) => s.facts);
   const points = useStore((s) => s.splitPoints);
+  const marks = useStore((s) => s.marks);
+  const mode = useStore((s) => s.mode);
   const [openFolder, setOpenFolder] = useState(true);
   const [busy, setBusy] = useState(false);
   if (!facts) return null;
-  const pieces = piecesFromPoints(points, facts.duration);
+  // Deleted parts are left out; each part left is saved whole.
+  const pieces = piecesFromPoints(points, facts.duration).filter(
+    (p) => !isPartRemoved(p, marks, mode, facts.duration),
+  );
+  const trimmedInside = pieces.some(
+    (p) => p.end - p.start - keptWithin(p, keptRanges(marks, mode, facts.duration)) >= MIN_RANGE,
+  );
   const run = async () => {
     setBusy(true);
     try {
@@ -250,6 +261,12 @@ function SplitBody() {
         Sem recodificar a imagem: cada parte começa no quadro-chave anterior ao corte. Escolha a
         pasta onde salvar.
       </span>
+      {trimmedInside && (
+        <span className="warn">
+          Os trechos marcados com I e O dentro de uma parte valem só para salvar o vídeo inteiro:
+          aqui cada parte sai completa.
+        </span>
+      )}
       <Footer
         onSave={() => void run()}
         label="Escolher pasta…"

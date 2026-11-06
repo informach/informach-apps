@@ -1,6 +1,13 @@
 import { canCopy, GIF_LONG } from "@shared/edit";
 import { joinBlocker } from "@shared/media/compat";
-import { clock, evenSplitPoints, normalizeRanges, totalDuration } from "@shared/ranges";
+import {
+  clock,
+  evenSplitPoints,
+  isPartRemoved,
+  normalizeRanges,
+  piecesFromPoints,
+  totalDuration,
+} from "@shared/ranges";
 import {
   Crop,
   FlipHorizontal2,
@@ -14,17 +21,20 @@ import {
   RotateCw,
   Scissors,
   SquareSplitHorizontal,
+  Trash2,
   Type,
+  Undo2,
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { fileName } from "../lib/media";
+import { fileName, seek } from "../lib/media";
 import {
   beginTransformChange,
   changeTransformLive,
   edit,
   fail,
   openSave,
+  setPartGone,
   setTransform,
   splitHere,
   type ToolId,
@@ -155,7 +165,13 @@ function TrimTool() {
 function SplitTool() {
   const points = useStore((s) => s.splitPoints);
   const duration = useStore((s) => s.duration);
+  const marks = useStore((s) => s.marks);
+  const mode = useStore((s) => s.mode);
+  const time = useStore((s) => s.time);
   const [minutes, setMinutes] = useState(10);
+  const parts = piecesFromPoints(points, duration);
+  const gone = parts.map((p) => isPartRemoved(p, marks, mode, duration));
+  const left = gone.filter((g) => !g).length;
   return (
     <>
       <div className="row">
@@ -182,33 +198,67 @@ function SplitTool() {
           </button>
         </span>
       </label>
-      {points.length > 0 && (
-        <div className="list-mini">
-          {points.map((p, i) => (
-            <div key={p} className="li">
-              <span className="mono">
-                Corte {i + 1} em {clock(p)}
-              </span>
+      {parts.length > 1 ? (
+        <div className="marks">
+          <span className="label">Partes</span>
+          {parts.map((p, i) => {
+            const here = time >= p.start && time < p.end;
+            return (
+              <div key={p.start} className={`mark-row${here ? " sel" : ""}`}>
+                <button
+                  type="button"
+                  className="mark-row"
+                  style={{ padding: 0, height: "auto" }}
+                  onClick={() => seek(p.start)}
+                >
+                  <span className="n">{i + 1}</span>
+                  <span className="mono">
+                    {clock(p.start)} → {clock(p.end)}
+                  </span>
+                  {gone[i] && <span className="tag-out">apagada</span>}
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  style={{ width: 28, height: 28 }}
+                  aria-label={gone[i] ? `Voltar a parte ${i + 1}` : `Apagar a parte ${i + 1}`}
+                  title={gone[i] ? "Voltar a parte" : "Apagar a parte (Delete)"}
+                  onClick={() => setPartGone(i, !gone[i])}
+                >
+                  {gone[i] ? <Undo2 size={14} /> : <Trash2 size={14} />}
+                </button>
+              </div>
+            );
+          })}
+          <div className="row cuts">
+            {points.map((p, i) => (
               <button
+                key={p}
                 type="button"
-                className="icon-btn"
-                style={{ width: 24, height: 24 }}
+                className="cut-chip"
                 aria-label={`Tirar o corte em ${clock(p)}`}
                 onClick={() => edit({ splitPoints: points.filter((x) => x !== p) })}
               >
-                <X size={13} />
+                Corte {i + 1} · {clock(p)} <X size={12} />
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+      ) : (
+        <span className="info">
+          Aperte S nos pontos onde quer dividir. Depois clique numa parte e apague com Delete.
+        </span>
       )}
       <button
         type="button"
         className="btn primary"
-        disabled={!points.length}
-        onClick={() => openSave("split")}
+        disabled={!gone.some(Boolean)}
+        onClick={() => openSave("export")}
       >
-        Salvar {points.length + 1} partes…
+        Salvar o vídeo sem as partes apagadas…
+      </button>
+      <button type="button" className="btn" disabled={left < 2} onClick={() => openSave("split")}>
+        Salvar cada parte num arquivo ({left})…
       </button>
     </>
   );

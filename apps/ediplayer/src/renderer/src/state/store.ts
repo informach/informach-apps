@@ -1,5 +1,11 @@
 import { NO_TRANSFORM, type PresetId, type Transform } from "@shared/edit";
-import { type MarkMode, normalizeRanges, type Range } from "@shared/ranges";
+import {
+  type MarkMode,
+  normalizeRanges,
+  piecesFromPoints,
+  type Range,
+  setPartRemoved,
+} from "@shared/ranges";
 import { type Cue, parseSubtitles } from "@shared/subtitles";
 import type {
   FrameSheet,
@@ -464,10 +470,31 @@ export function markOut(): void {
   edit({ marks: next, selected: at < 0 ? null : at });
 }
 
+/** Delete takes out the selected stretch; in Dividir, with none selected, the part under the cursor. */
 export function deleteSelected(): void {
-  const { selected, marks } = get();
-  if (selected === null || !marks.at(selected)) return;
-  edit({ marks: marks.filter((_, i) => i !== selected), selected: null });
+  const { selected, marks, tool, splitPoints, duration, time } = get();
+  if (selected !== null && marks.at(selected)) {
+    edit({ marks: marks.filter((_, i) => i !== selected), selected: null });
+    return;
+  }
+  if (tool !== "split" || !splitPoints.length) return;
+  const at = piecesFromPoints(splitPoints, duration).findIndex(
+    (p) => time >= p.start && time < p.end,
+  );
+  if (at >= 0) setPartGone(at, true);
+}
+
+/** Deletes (or brings back) a whole part made by Dividir; the result is what Salvar saves. */
+export function setPartGone(index: number, gone: boolean): void {
+  const { splitPoints, duration, marks, mode } = get();
+  const part = piecesFromPoints(splitPoints, duration).at(index);
+  if (!part) return;
+  const next = setPartRemoved(part, gone, marks, mode, duration);
+  if (!next) {
+    toast("Pelo menos uma parte precisa ficar.");
+    return;
+  }
+  edit({ marks: next, selected: null });
 }
 
 export function splitHere(): void {

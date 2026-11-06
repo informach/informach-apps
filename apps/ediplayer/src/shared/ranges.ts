@@ -103,6 +103,57 @@ export function piecesFromPoints(points: readonly number[], duration: number): R
   return out;
 }
 
+/** The ranges with `cut` taken out of them. */
+export function subtractRange(ranges: readonly Range[], cut: Range, duration: number): Range[] {
+  const out: Range[] = [];
+  for (const r of normalizeRanges(ranges, duration)) {
+    if (cut.end <= r.start || cut.start >= r.end) out.push(r);
+    else {
+      if (cut.start - r.start >= MIN_RANGE) out.push({ start: r.start, end: cut.start });
+      if (r.end - cut.end >= MIN_RANGE) out.push({ start: cut.end, end: r.end });
+    }
+  }
+  return out;
+}
+
+/** How much of `part` the result keeps. */
+export function keptWithin(part: Range, kept: readonly Range[]): number {
+  return kept.reduce(
+    (sum, r) => sum + Math.max(0, Math.min(r.end, part.end) - Math.max(r.start, part.start)),
+    0,
+  );
+}
+
+/** A part made by Dividir is gone when the result keeps nothing of it. */
+export function isPartRemoved(
+  part: Range,
+  marks: readonly Range[],
+  mode: MarkMode,
+  duration: number,
+): boolean {
+  return keptWithin(part, keptRanges(marks, mode, duration)) < MIN_RANGE;
+}
+
+/**
+ * The marks after deleting (or bringing back) a whole part, written in the mode the person is
+ * using, so "Remover marcados" and "Manter só eles" both keep meaning what they say. `null` when
+ * deleting would leave nothing to save.
+ */
+export function setPartRemoved(
+  part: Range,
+  removed: boolean,
+  marks: readonly Range[],
+  mode: MarkMode,
+  duration: number,
+): Range[] | null {
+  const kept = keptRanges(marks, mode, duration);
+  const next = removed
+    ? subtractRange(kept, part, duration)
+    : normalizeRanges([...kept, part], duration);
+  if (!next.length) return null;
+  return mode === "keep" ? next : invertRanges(next, duration);
+}
+
 /** "12:04", "1:02:15"; tenths when asked ("12:04,3"). */
 export function clock(seconds: number, tenths = false): string {
   const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);

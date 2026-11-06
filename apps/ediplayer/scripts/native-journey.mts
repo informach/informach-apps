@@ -165,6 +165,57 @@ export async function verifyPlayerNativeJourney(
     ]);
     const length = Number(probe.stdout.trim());
     assert.ok(Math.abs(length - 15) < 1.2, `cut length ${length}`);
+
+    // Dividir e apagar: two cuts, the middle part deleted with Delete, the rest saved as one.
+    const parted = join(dir, "aula-revisao (partes).mp4");
+    await answerDialogs(application, [clip], parted);
+    // The finished queue covers the list of stretches; a person hides it the same way.
+    await editor.getByRole("button", { name: "Ocultar" }).click();
+    await editor.getByRole("button", { name: "Apagar trecho 1" }).click();
+    await editor.locator(".tool-grid").getByRole("button", { name: "Dividir" }).click();
+    await seekTo(5);
+    await editor.keyboard.press("s");
+    await seekTo(12);
+    await editor.keyboard.press("s");
+    await seekTo(7);
+    await editor.keyboard.press("Delete");
+    await editor.getByText("apagada", { exact: true }).waitFor();
+    await editor.screenshot({ path: join(results, "ediplayer-split.png") });
+    await editor.getByRole("button", { name: "Salvar o vídeo sem as partes apagadas…" }).click();
+    await editor.getByRole("dialog", { name: "Salvar resultado" }).waitFor();
+    await editor.getByRole("button", { name: "Salvar…" }).click();
+    // The finished file appears only when the job publishes it.
+    for (let waited = 0; ; waited += 250) {
+      if (
+        await stat(parted).then(
+          () => true,
+          () => false,
+        )
+      )
+        break;
+      if (waited > 60000) throw new Error("the parts were not saved");
+      await new Promise((done) => setTimeout(done, 250));
+    }
+    await editor.getByText("Fila · concluída").waitFor({ timeout: 60000 });
+    const partedProbe = await run(ffprobePath(root), [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "csv=p=0",
+      parted,
+    ]);
+    // 20 s minus the part from 5 to 12 s: 13 s, give or take a keyframe.
+    const partedLength = Number(partedProbe.stdout.trim());
+    assert.ok(Math.abs(partedLength - 13) < 1.2, `parts length ${partedLength}`);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(clip))
+        .digest("hex"),
+      before,
+      "the source changed",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

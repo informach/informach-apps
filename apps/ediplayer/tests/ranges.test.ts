@@ -4,12 +4,16 @@ import {
   clock,
   evenSplitPoints,
   invertRanges,
+  isPartRemoved,
   keptRanges,
   keyframeAtOrBefore,
   normalizeRanges,
   piecesFromPoints,
+  type Range,
+  setPartRemoved,
   snapDrift,
   snapToKeyframes,
+  subtractRange,
   totalDuration,
 } from "../src/shared/ranges.ts";
 
@@ -79,6 +83,38 @@ test("split points never leave a last piece under a second", () => {
     { start: 0, end: 10 },
     { start: 10, end: 300 },
     { start: 300, end: 600 },
+  ]);
+});
+
+test("deleting parts made by Dividir keeps the rest, in either mode", () => {
+  const [a, b, c] = piecesFromPoints([10, 20], 30) as [Range, Range, Range];
+  // Remover marcados: the part becomes a removed stretch, merged with what was marked.
+  const removed = setPartRemoved(b, true, [{ start: 2, end: 4 }], "remove", 30);
+  assert.deepEqual(removed, [
+    { start: 2, end: 4 },
+    { start: 10, end: 20 },
+  ]);
+  assert.equal(isPartRemoved(b, removed ?? [], "remove", 30), true);
+  assert.equal(isPartRemoved(a, removed ?? [], "remove", 30), false);
+  // Bringing it back leaves the earlier mark alone.
+  assert.deepEqual(setPartRemoved(b, false, removed ?? [], "remove", 30), [{ start: 2, end: 4 }]);
+  // Manter só eles: the part leaves the kept stretches; with no marks everything was kept.
+  const keep = setPartRemoved(c, true, [], "keep", 30);
+  assert.deepEqual(keep, [{ start: 0, end: 20 }]);
+  assert.equal(isPartRemoved(c, keep ?? [], "keep", 30), true);
+  assert.deepEqual(setPartRemoved(c, false, keep ?? [], "keep", 30), [{ start: 0, end: 30 }]);
+  // The last part left cannot go: there would be nothing to save.
+  const two = setPartRemoved(
+    a,
+    true,
+    setPartRemoved(b, true, [], "remove", 30) ?? [],
+    "remove",
+    30,
+  );
+  assert.equal(setPartRemoved(c, true, two ?? [], "remove", 30), null);
+  assert.deepEqual(subtractRange([{ start: 0, end: 30 }], { start: 10, end: 20 }, 30), [
+    { start: 0, end: 10 },
+    { start: 20, end: 30 },
   ]);
 });
 
