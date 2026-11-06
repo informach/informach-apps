@@ -101,5 +101,5 @@ Branch `feat/bora-proposta`, a partir da `main` local com a correção do microf
   - contagem de agachamento, flexão e polichinelo;
   - os limiares novos de forma (joelhos, pernas no polichinelo, tronco no afundo) com gente.
 - **Stripe:** atualizar a descrição dos produtos (está em `apps/bora-treinar/PRODUCAO.md`).
-- **Migração 0077:** o worktree `feat/dia-de-estrela` tem uma `0077_dia_de_estrela.sql` não commitada. Quem chegar à `main` depois apaga a sua e regenera; nenhuma das duas foi aplicada em produção.
+- **Migração 0077:** resolvido em 06/11/2026: o Dia de Estrela chegou depois e regenerou a sua como `0078_dia_de_estrela`.
 - **Publicação:** o push e o deploy ficam com o titular.

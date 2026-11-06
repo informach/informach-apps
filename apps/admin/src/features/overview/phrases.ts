@@ -13,6 +13,7 @@ export const SERVICE_SUBJECT: Record<
   "agenda-da-turma": { the: "A Agenda da Turma", inThe: "na Agenda da Turma", feminine: true },
   "missao-saber": { the: "A Missão Saber", inThe: "na Missão Saber", feminine: true },
   "bora-treinar": { the: "O Bora Treinar", inThe: "no Bora Treinar", feminine: false },
+  "dia-de-estrela": { the: "O Dia de Estrela", inThe: "no Dia de Estrela", feminine: false },
   edi: { the: "A Suíte Edi", inThe: "na Suíte Edi", feminine: true },
 };
 

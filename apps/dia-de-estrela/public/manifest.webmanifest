@@ -1,0 +1,15 @@
+{
+  "name": "Dia de Estrela · Rotina com estrelas",
+  "short_name": "Dia de Estrela",
+  "description": "Rotina visual para crianças, com passo a passo falado, lembretes gentis e estrelas que viram recompensa.",
+  "lang": "pt-BR",
+  "start_url": "/crianca",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#FFF8EC",
+  "background_color": "#EEF6FF",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -42,6 +42,8 @@ export type PersonActionsProps = {
   hasEdiComputer: boolean;
   /** Aparelhos de estudo da Missão Saber conectados pela família. */
   missaoStudyDevices: number;
+  /** Aparelhos das crianças conectados pela família no Dia de Estrela. */
+  estrelaDevices: number;
   activeSubscriptionNames: string[];
 };
 
@@ -58,6 +60,7 @@ export function PersonActions({
   verificationProductsDetected,
   hasEdiComputer,
   missaoStudyDevices,
+  estrelaDevices,
   activeSubscriptionNames,
 }: PersonActionsProps) {
   const router = useRouter();
@@ -219,6 +222,15 @@ export function PersonActions({
                   missaoStudyDevices === 1
                     ? "O aparelho de estudo da Missão Saber continua entrando: ele tem"
                     : `Os ${missaoStudyDevices} aparelhos de estudo da Missão Saber continuam entrando: eles têm`
+                } acesso próprio, que encerrar sessões não alcança. Para cortar esse acesso também, use "Banir conta".`,
+              ]
+            : []),
+          ...(estrelaDevices > 0
+            ? [
+                `${
+                  estrelaDevices === 1
+                    ? "O aparelho da criança no Dia de Estrela continua entrando: ele tem"
+                    : `Os ${estrelaDevices} aparelhos das crianças no Dia de Estrela continuam entrando: eles têm`
                 } acesso próprio, que encerrar sessões não alcança. Para cortar esse acesso também, use "Banir conta".`,
               ]
             : []),

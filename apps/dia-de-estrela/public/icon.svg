@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="titulo">
+  <title id="titulo">Dia de Estrela</title>
+  <rect width="512" height="512" rx="112" fill="#2462B0"/>
+  <g transform="translate(56 64) scale(2)">
+    <g transform="translate(0,8)">
+      <path d="M100 20 L124.7 71 L180.8 78.7 L140 118 L150 173.8 L100 147 L50 173.8 L60 118 L19.2 78.7 L75.3 71 Z" fill="#E5A300" stroke="#E5A300" stroke-width="22" stroke-linejoin="round"/>
+    </g>
+    <path d="M100 20 L124.7 71 L180.8 78.7 L140 118 L150 173.8 L100 147 L50 173.8 L60 118 L19.2 78.7 L75.3 71 Z" fill="#FFC22E" stroke="#FFC22E" stroke-width="22" stroke-linejoin="round"/>
+    <ellipse cx="84" cy="100" rx="8" ry="11" fill="#1F2D45"/>
+    <ellipse cx="116" cy="100" rx="8" ry="11" fill="#1F2D45"/>
+    <circle cx="87" cy="96" r="3" fill="#FFFFFF"/>
+    <circle cx="119" cy="96" r="3" fill="#FFFFFF"/>
+    <circle cx="70" cy="119" r="7" fill="#FF8A6B" opacity=".55"/>
+    <circle cx="130" cy="119" r="7" fill="#FF8A6B" opacity=".55"/>
+    <path d="M88 118 Q100 132 112 118" fill="none" stroke="#1F2D45" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

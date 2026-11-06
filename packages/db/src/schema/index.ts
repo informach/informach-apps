@@ -6,6 +6,7 @@ export * from "./billing";
 export * from "./bora-treinar";
 export * from "./core";
 export * from "./cozya";
+export * from "./dia-de-estrela";
 export * from "./edi";
 export * from "./missao-saber";
 export * from "./oauth";

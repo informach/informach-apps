@@ -1,0 +1,303 @@
+@import "tailwindcss" source(none);
+@import "@informach/ui/styles.css";
+
+@source "../**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* ============================================================
+   DIA DE ESTRELA — "energia de jogo, calma de rotina"
+   A área da criança usa cor viva, botões gordos com sombra embaixo e a
+   mascote Lumi. A área dos pais usa a mesma paleta em doses pequenas.
+   Nada pisca; o modo calmo e o prefers-reduced-motion tiram movimento.
+   Contraste medido em src/app/tema.test.ts.
+   ============================================================ */
+
+:root {
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-nunito), ui-serif, serif;
+  --font-display: var(--font-baloo), var(--font-nunito), ui-sans-serif, sans-serif;
+
+  /* paleta da marca (canvas "Identidade visual proposta") */
+  --de-folha: #27985a;
+  --de-folha-escura: #1c7343;
+  --de-folha-clara: #e8f6ee;
+  /* verde dos botões e textos sobre branco: o vivo (#27985A) dá 3,7:1 com branco */
+  --de-folha-botao: #1d8049;
+  --de-folha-sombra: #12552f;
+  --de-ceu: #2f7fe0;
+  --de-ceu-escuro: #2462b0;
+  --de-ceu-claro: #eef6ff;
+  --de-ceu-borda: #d6e6f8;
+  --de-estrela: #ffc22e;
+  --de-estrela-escura: #c98a00;
+  --de-estrela-clara: #fff1d6;
+  --de-estrela-texto: #3d2a00;
+  --de-laranja: #ff8a5c;
+  --de-laranja-escuro: #b04617;
+  --de-laranja-clara: #fff0e8;
+  --de-uva: #7c5ce0;
+  --de-uva-escura: #5a3fb8;
+  --de-uva-clara: #efeafb;
+  --de-tinta: #1f2d45;
+  --de-tinta-suave: #5d6b80;
+  --de-creme: #fff8ec;
+  --de-linha: #f0e6d6;
+  --de-linha-forte: #e3d9c8;
+  --de-branco: #ffffff;
+
+  /* os componentes de @informach/ui leem estes nomes */
+  --background: var(--de-creme);
+  --foreground: var(--de-tinta);
+  --card: var(--de-branco);
+  --card-foreground: var(--de-tinta);
+  --popover: var(--de-branco);
+  --popover-foreground: var(--de-tinta);
+  --primary: var(--de-ceu-escuro);
+  --primary-foreground: var(--de-branco);
+  --secondary: var(--de-ceu-claro);
+  --secondary-foreground: var(--de-ceu-escuro);
+  --muted: var(--de-linha);
+  --muted-foreground: var(--de-tinta-suave);
+  --accent: var(--de-estrela-clara);
+  --accent-foreground: var(--de-estrela-texto);
+  --destructive: #b42318;
+  --destructive-foreground: var(--de-branco);
+  --border: var(--de-linha-forte);
+  --input: var(--de-linha-forte);
+  --ring: var(--de-ceu);
+  --radius: 1rem;
+  color-scheme: light;
+}
+
+@theme {
+  --color-folha: var(--de-folha);
+  --color-folha-escura: var(--de-folha-escura);
+  --color-folha-clara: var(--de-folha-clara);
+  --color-folha-botao: var(--de-folha-botao);
+  --color-ceu: var(--de-ceu);
+  --color-ceu-escuro: var(--de-ceu-escuro);
+  --color-ceu-claro: var(--de-ceu-claro);
+  --color-ceu-borda: var(--de-ceu-borda);
+  --color-estrela: var(--de-estrela);
+  --color-estrela-escura: var(--de-estrela-escura);
+  --color-estrela-clara: var(--de-estrela-clara);
+  --color-estrela-texto: var(--de-estrela-texto);
+  --color-laranja: var(--de-laranja);
+  --color-laranja-escuro: var(--de-laranja-escuro);
+  --color-laranja-clara: var(--de-laranja-clara);
+  --color-uva: var(--de-uva);
+  --color-uva-escura: var(--de-uva-escura);
+  --color-uva-clara: var(--de-uva-clara);
+  --color-tinta: var(--de-tinta);
+  --color-tinta-suave: var(--de-tinta-suave);
+  --color-creme: var(--de-creme);
+  --color-linha: var(--de-linha);
+  --color-linha-forte: var(--de-linha-forte);
+  --font-display: var(--font-baloo), var(--font-nunito), ui-sans-serif, sans-serif;
+  --radius-controle: 1rem;
+  --radius-card: 1.5rem;
+  --radius-heroi: 2.25rem;
+}
+
+html,
+body {
+  background: var(--de-creme);
+  color: var(--de-tinta);
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--de-tinta);
+  color: var(--de-branco);
+  padding: 8px 14px;
+  border-radius: 12px;
+}
+.skip:focus {
+  left: 8px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--de-ceu);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* Botão 3D: sombra sólida embaixo que "afunda" no toque. */
+  .b3 {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3.25rem;
+    padding: 0 1.4rem;
+    border-radius: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 1rem;
+    border: 0;
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+    box-shadow: 0 5px 0 var(--b3-sombra, var(--de-linha-forte));
+    transform: translateY(0);
+    transition:
+      transform 0.08s ease,
+      box-shadow 0.08s ease;
+  }
+  .b3:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 var(--b3-sombra, var(--de-linha-forte));
+  }
+  .b3:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .b3-lg {
+    min-height: 4.5rem;
+    font-size: 1.25rem;
+    border-radius: 1.35rem;
+  }
+  .b3-folha {
+    background: var(--de-folha-botao);
+    color: var(--de-branco);
+    --b3-sombra: var(--de-folha-sombra);
+  }
+  .b3-ceu {
+    background: var(--de-ceu-escuro);
+    color: var(--de-branco);
+    --b3-sombra: #1a4a86;
+  }
+  .b3-estrela {
+    background: var(--de-estrela);
+    color: var(--de-estrela-texto);
+    --b3-sombra: var(--de-estrela-escura);
+  }
+  .b3-uva {
+    background: var(--de-uva-escura);
+    color: var(--de-branco);
+    --b3-sombra: #3f2a8a;
+  }
+  .b3-branco {
+    background: var(--de-branco);
+    color: var(--de-ceu-escuro);
+    border: 3px solid var(--de-ceu-borda);
+    --b3-sombra: var(--de-ceu-borda);
+  }
+  .b3-claro {
+    background: var(--de-branco);
+    color: var(--de-tinta);
+    border: 3px solid var(--de-linha-forte);
+    --b3-sombra: var(--de-linha-forte);
+  }
+
+  /* Cartão "chapa" da área da criança. */
+  .chapa {
+    background: var(--de-branco);
+    border: 3px solid var(--de-linha);
+    border-radius: 2rem;
+    box-shadow: 0 7px 0 var(--de-linha-forte);
+  }
+
+  /* Botão simples da área dos pais. */
+  .bp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border-radius: 0.85rem;
+    font-weight: 800;
+    font-size: 0.9rem;
+    border: 0;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .bp:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .bp-ceu {
+    background: var(--de-ceu-escuro);
+    color: var(--de-branco);
+  }
+  .bp-tinta {
+    background: var(--de-tinta);
+    color: var(--de-branco);
+  }
+  .bp-claro {
+    background: var(--de-branco);
+    color: var(--de-tinta);
+    border: 2px solid var(--de-linha-forte);
+  }
+  .bp-alerta {
+    background: var(--de-laranja-escuro);
+    color: var(--de-branco);
+  }
+  .bp-perigo {
+    background: #fde8e6;
+    color: #8f1d14;
+  }
+  .cartao {
+    background: var(--de-branco);
+    border: 2px solid var(--de-linha);
+    border-radius: 1.4rem;
+  }
+}
+
+/* Área da criança: tudo maior, fundo de céu. */
+[data-area="crianca"] {
+  background: var(--de-ceu-claro);
+  min-height: 100dvh;
+}
+
+/* Modo calmo e quem pede menos movimento: sem animação nem transição. */
+[data-calmo="true"] *,
+[data-calmo="true"] *::before,
+[data-calmo="true"] *::after {
+  /* biome-ignore lint/complexity/noImportantStyles: o modo calmo dos pais vence a animação do componente */
+  animation: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: o modo calmo dos pais vence a animação do componente */
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: preferência do sistema vence a animação do componente */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: preferência do sistema vence a animação do componente */
+    transition: none !important;
+  }
+}
+
+@keyframes estrela-sobe {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.entra {
+  animation: estrela-sobe 0.35s ease-out both;
+}
+@keyframes pulso-suave {
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--de-ceu) 18%, transparent);
+  }
+}
+.pulso {
+  animation: pulso-suave 2.4s ease-in-out infinite;
+}

@@ -192,6 +192,38 @@ export const PRODUCTS: readonly Product[] = [
     },
     listPrice: { amountCents: 34900, currency: "BRL" },
   },
+  // Dia de Estrela: o plano gratuito tem 1 criança e não é um produto. Os IDs
+  // do Stripe ficam como `price_TODO_*` até o provisionamento (PRODUCAO.md do app).
+  {
+    id: "estrela_family_monthly",
+    app: "dia-de-estrela",
+    kind: "subscription",
+    name: "Dia de Estrela Família",
+    description:
+      "Rotina visual com lembretes, passo a passo e estrelas para até quatro crianças, com alertas no celular dos pais, loja de recompensas e voz dos pais.",
+    tier: "family",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_estrela_family_monthly",
+      prod: "price_TODO_estrela_family_monthly",
+    },
+    listPrice: { amountCents: 2490, currency: "BRL" },
+  },
+  {
+    id: "estrela_family_annual",
+    app: "dia-de-estrela",
+    kind: "subscription",
+    name: "Dia de Estrela Família anual",
+    description:
+      "Rotina visual com lembretes, passo a passo e estrelas para até quatro crianças, com alertas no celular dos pais, loja de recompensas e voz dos pais, por um ano.",
+    tier: "family",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_estrela_family_annual",
+      prod: "price_TODO_estrela_family_annual",
+    },
+    listPrice: { amountCents: 24900, currency: "BRL" },
+  },
   {
     id: "cozya_pro_monthly",
     app: "cozya",

@@ -73,6 +73,12 @@ App web em `main` desde 31/10/2026 (merge `d5db8c1a`): treino guiado com o peso 
 
 Estado: provisionado em 31/10/2026. Stripe de teste e de produção (produtos com descrição e imagem, quatro preços, Portal e webhook), projeto `bora-treinar` no Sentry, serviço e crons no Railway pelo `railway config apply`, variáveis gravadas e primeiro deploy saudável (`f7e4818a`, `/api/ready` 200 pela borda do Railway). O domínio `bora-treinar.informach.com.br` responde pelo Cloudflare desde o mesmo dia. Falta a homologação do Stripe em teste, o smoke real e os termos próprios. Passo a passo e identificadores na [operação do Bora Treinar](../apps/bora-treinar/PRODUCAO.md).
 
+## Dia de Estrela (apps/dia-de-estrela)
+
+Em 06/11/2026 o titular pediu a engenharia reversa do protótipo Taskids (rotina visual para crianças, React/Vite sem servidor) e um redesenho com área da criança mais infantil; relatório, decisões e telas no canvas https://claude.ai/artifact/VotSYxs9k76uubPQAm5XGf. Decisões: projetado para autismo/TDAH e vendido a qualquer família, aprovação dos pais opcional por tarefa, só marca o que já chegou, loja de recompensas (dinheiro é um item), baú do dia sem ofensiva, tablet compartilhado no modelo de dados, Grátis com 1 criança e Família (até 4) por R$ 24,90/mês ou R$ 249/ano, voz e foto no Postgres com limite, nome "Dia de Estrela".
+
+Implementado na branch `feat/dia-de-estrela` e levado à `main` em 06/11/2026, com o serviço ainda fora do Railway: app `apps/dia-de-estrela` (porta 3008), schema `dia_de_estrela` (migração `0078_dia_de_estrela`), área dos pais (Início com "Esperando você" e alertas, Rotinas e editor com voz gravada, Cofrinho com metas, bônus e loja, Ajustes), área da criança (Quem está usando, Hoje com trilha e baú, lembrete em tela cheia, passo a passo, conquista, cofrinho, loja, PIN), pareamento por código, PIN com `scrypt` e limite, tempo real por SSE/Redis, alertas por rotina de 5 minutos com push, segundo responsável por convite, PWA. Registrado em `@informach/config`, auditoria, CI, Turbo, Bastidores e `.railway/railway.ts` atrás de `ESTRELA_LAUNCHED = false`. Verificado localmente com Postgres descartável: typecheck, Biome, 94 testes unitários, 11 de integração, 6 E2E (jornada e tablet compartilhado em computador, celular e tablet) e build de produção. Nada provisionado: Stripe, Sentry, VAPID, Railway, domínio e INPI ficam para o lançamento, na ordem da [operação do Dia de Estrela](../apps/dia-de-estrela/PRODUCAO.md). Regras em [`apps/dia-de-estrela/CLAUDE.md`](../apps/dia-de-estrela/CLAUDE.md). Próximo passo: revisão do titular, push e PR.
+
 ## EdiAula: o que falta para substituir o Camtasia
 
 Em 17/10/2026, a pedido da titular, foi feita uma análise de leitura do EdiAula (código igual ao de `origin/main` em `0415ff4`), com foco na gravação de aula e de tela: [análise](propostas/ediaula-2026-10-17/analise.md). Ela lista ajustes, melhorias e funcionalidades a implementar em gravação, editor, exportação e IA, com prioridade, referências no código e duas medições de exportação.
@@ -250,6 +256,7 @@ Pedido do titular, com canvas de proposta. Branch `feat/bora-proposta`, migraç�
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.
 - [Bora Treinar](../apps/bora-treinar/PRODUCAO.md): provisionado e com deploy saudável desde 31/10/2026; no ar em `bora-treinar.informach.com.br`; falta o smoke real.
+- [Dia de Estrela](../apps/dia-de-estrela/PRODUCAO.md): implementado e verificado localmente em 06/11/2026, na `main`; nada provisionado (a migração `0078` só cria o schema).
 - [Cozya](../apps/cozya/CLAUDE.md): produto, preços, acesso e referências da operação.
 - [Agenda da Turma](../apps/agenda-da-turma/CLAUDE.md): família, permissões e fluxos de atividades/recados.
 - [Runbook compartilhado](deploy-runbook.md): procedimentos gerais; conferir a configuração versionada e o guia atual de cada app antes de aplicar exemplos históricos.

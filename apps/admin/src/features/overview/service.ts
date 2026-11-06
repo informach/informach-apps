@@ -190,6 +190,7 @@ export async function getOverview(staff: Staff, now: Date = new Date()): Promise
     agenda,
     missao,
     bora,
+    estrela,
     edi,
   ] = await Promise.all([
     probeAll(),
@@ -210,6 +211,7 @@ export async function getOverview(staff: Staff, now: Date = new Date()): Promise
     usageFor("agenda-da-turma", since7, now),
     usageFor("missao-saber", since7, now),
     usageFor("bora-treinar", since7, now),
+    usageFor("dia-de-estrela", since7, now),
     usageFor("edi", since7, now),
   ]);
 
@@ -343,6 +345,20 @@ export async function getOverview(staff: Staff, now: Date = new Date()): Promise
         {
           value: formatNumber(Object.values(bora.sessions).reduce((sum, total) => sum + total, 0)),
           label: "treinos na semana",
+        },
+      ],
+    },
+    {
+      product: "dia-de-estrela",
+      stats: [
+        { value: formatNumber(pro("dia-de-estrela")), label: "famílias assinantes" },
+        { value: formatNumber(estrela.children), label: "perfis de criança" },
+        ...revenue("dia-de-estrela"),
+        {
+          value: formatNumber(
+            Object.values(estrela.completions).reduce((sum, total) => sum + total, 0),
+          ),
+          label: "tarefas feitas na semana",
         },
       ],
     },

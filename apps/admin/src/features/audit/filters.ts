@@ -33,7 +33,7 @@ export const GROUP_MATCH: Record<
   sessoes: { prefixes: ["session.", "auth."] },
   cobranca: { prefixes: ["billing."] },
   emails: { prefixes: ["email."], exclude: ["email.verified"] },
-  produtos: { prefixes: ["agenda.", "missao.", "bora."] },
+  produtos: { prefixes: ["agenda.", "missao.", "bora.", "estrela."] },
 };
 
 export function groupOf(eventType: string): Exclude<AuditGroupKey, "tudo"> | null {

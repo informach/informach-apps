@@ -29,6 +29,12 @@ import {
   ediDevices,
   ediEntitlements,
   emailDeliveries,
+  estrelaChildren,
+  estrelaCompletions,
+  estrelaDevices,
+  estrelaFamilies,
+  estrelaGuardians,
+  estrelaTasks,
   events,
   jobRuns,
   missaoFamilies,
@@ -257,6 +263,13 @@ async function main() {
       productId: "bora_family_monthly",
       status: "active",
       startedDaysAgo: 12,
+    },
+    {
+      userId: "demo-gabi",
+      app: "dia-de-estrela",
+      productId: "estrela_family_monthly",
+      status: "active",
+      startedDaysAgo: 1,
     },
   ];
   for (const plan of plans) {
@@ -543,6 +556,51 @@ async function main() {
       mode: "camera",
     });
   }
+  await db
+    .insert(estrelaFamilies)
+    .values({ userId: "demo-gabi", onboardedAt: ago(1 * DAY) })
+    .onConflictDoNothing();
+  await db
+    .insert(estrelaGuardians)
+    .values({ ownerUserId: "demo-gabi", userId: "demo-hugo" })
+    .onConflictDoNothing();
+  const [star] = await db
+    .insert(estrelaChildren)
+    .values({ userId: "demo-gabi", name: "SEGREDO-CRIANCA", color: "#FFC22E" })
+    .returning({ id: estrelaChildren.id });
+  if (star) {
+    const [task] = await db
+      .insert(estrelaTasks)
+      .values({
+        childId: star.id,
+        title: "SEGREDO-TAREFA",
+        icon: "tooth",
+        time: "07:30",
+        days: 127,
+        stars: 3,
+      })
+      .returning({ id: estrelaTasks.id });
+    if (task)
+      await db.insert(estrelaCompletions).values({
+        childId: star.id,
+        taskId: task.id,
+        date: ago(1 * DAY)
+          .toISOString()
+          .slice(0, 10),
+        completedAt: ago(1 * DAY),
+        markedBy: "child",
+        status: "approved",
+        stars: 3,
+      });
+    await db.insert(estrelaDevices).values({
+      userId: "demo-gabi",
+      tokenHash: randomBytes(32).toString("hex"),
+      label: "SEGREDO-APARELHO",
+      expiresAt: ahead(300 * DAY),
+      connectedAt: ago(1 * DAY),
+      lastSeenAt: ago(1 * HOUR),
+    });
+  }
   const [device] = await db
     .insert(ediDevices)
     .values({
@@ -568,6 +626,8 @@ async function main() {
     ["missao-saber", "billing", true, null],
     ["bora-treinar", "billing", true, null],
     ["bora-treinar", "lembretes", true, null],
+    ["dia-de-estrela", "alertas", true, null],
+    ["dia-de-estrela", "billing", true, null],
     ["admin", "admin-watch", true, null],
   ];
   await db.insert(jobRuns).values(
