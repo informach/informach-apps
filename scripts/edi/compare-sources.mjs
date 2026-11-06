@@ -16,7 +16,10 @@ async function run() {
   if (process.argv.length > 2) throw new Error("Comparison is read-only; no arguments accepted.");
   const origins = resolve("docs/migrations/edi/origins");
   const manifest = JSON.parse(await readFile(join(origins, "manifest.json"), "utf8"));
+  // Tools born in this repository have no external origin to compare against.
+  const native = new Set(manifest.repositoryNative ?? []);
   for (const tool of EDI_TOOLS) {
+    if (native.has(tool.id)) continue;
     const origin = manifest.tools.find((entry) => entry.id === tool.id);
     if (!origin) throw new Error(`Missing origin for ${tool.id}`);
     const archive = await readFile(join(origins, `${tool.id}.json.gz`));

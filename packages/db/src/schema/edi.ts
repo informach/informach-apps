@@ -142,6 +142,21 @@ export const ediReleases = edi.table(
   (t) => [check("edi_releases_channel_chk", sql`${t.channel} in ('stable', 'beta')`)],
 );
 
+/**
+ * Desktop apps a release may carry. Mirrors `EDI_DESKTOP_APPS` in `@informach/config/edi-tools`
+ * (this package does not depend on config); a parity test in `@informach/edi-licensing` keeps
+ * them equal. Changing it requires a new migration for `edi_artifacts_app_chk`.
+ */
+export const EDI_ARTIFACT_APP_IDS = [
+  "edi-hub",
+  "ediaula",
+  "edicaptura",
+  "edifoto",
+  "edipdf",
+  "edisvg",
+  "ediplayer",
+] as const;
+
 export const ediReleaseArtifacts = edi.table(
   "release_artifacts",
   {
@@ -163,7 +178,7 @@ export const ediReleaseArtifacts = edi.table(
     check("edi_artifacts_size_chk", sql`${t.size} > 0 and ${t.size} <= 9007199254740991`),
     check(
       "edi_artifacts_app_chk",
-      sql`${t.appId} in ('edi-hub', 'ediaula', 'edicaptura', 'edifoto', 'edipdf', 'edisvg')`,
+      sql`${t.appId} in (${sql.raw(EDI_ARTIFACT_APP_IDS.map((id) => `'${id}'`).join(", "))})`,
     ),
   ],
 );

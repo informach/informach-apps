@@ -1,6 +1,7 @@
 {
   "version": 1,
   "capturedAt": "2026-10-16T15:40:19.771Z",
+  "repositoryNative": ["ediplayer"],
   "tools": [
     {
       "id": "ediaula",

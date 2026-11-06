@@ -9,7 +9,7 @@
 # Códigos de saída: 0 fechou normalmente, 2 a ferramenta já estava aberta, outro valor falhou.
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("ediaula", "edicaptura", "edifoto", "edipdf", "edisvg")]
+  [ValidateSet("ediaula", "edicaptura", "edifoto", "edipdf", "edisvg", "ediplayer")]
   [string]$Ferramenta,
   [switch]$Avisar,
   # Repassa --oculto: o EdiCaptura com a bandeja ligada abre escondido, esperando o Print Screen

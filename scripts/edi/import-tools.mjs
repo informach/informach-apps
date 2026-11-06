@@ -7,6 +7,7 @@ import { EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const sourceRoot = resolve("C:/Users/julio/Desktop/CRIECOMHELENAEJULIO/APPS");
+const originsDirectory = join(workspace, "docs/migrations/edi/origins");
 const excludedDirectories = new Set([
   ".git",
   "node_modules",
@@ -58,6 +59,20 @@ export async function collect(root, subpath = "") {
   return result.sort((left, right) => left.path.localeCompare(right.path));
 }
 
+/**
+ * Tools born in this repository (`repositoryNative` in the origins manifest) have no external
+ * source or baseline archive, so the import tooling skips them.
+ */
+export async function repositoryNativeTools() {
+  try {
+    const manifest = JSON.parse(await readFile(join(originsDirectory, "manifest.json"), "utf8"));
+    return new Set(manifest.repositoryNative ?? []);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return new Set();
+    throw error;
+  }
+}
+
 async function exists(path) {
   try {
     await stat(path);
@@ -74,7 +89,9 @@ async function run() {
     throw new Error("Only --apply is accepted");
   const canonicalSource = await realpath(sourceRoot);
   const snapshots = [];
+  const native = await repositoryNativeTools();
   for (const tool of EDI_TOOLS) {
+    if (native.has(tool.id)) continue;
     const source = await realpath(join(sourceRoot, tool.sourceFolder));
     const sourceRelative = relative(canonicalSource, source);
     if (sourceRelative.startsWith("..") || isAbsolute(sourceRelative))
@@ -92,9 +109,14 @@ async function run() {
     console.log("Read-only inventory complete. Run with --apply to import.");
     return;
   }
-  const snapshotDirectory = join(workspace, "docs/migrations/edi/origins");
+  const snapshotDirectory = originsDirectory;
   await mkdir(snapshotDirectory, { recursive: true });
-  const manifest = { version: 1, capturedAt: new Date().toISOString(), tools: [] };
+  const manifest = {
+    version: 1,
+    capturedAt: new Date().toISOString(),
+    repositoryNative: [...native],
+    tools: [],
+  };
   for (const snapshot of snapshots) {
     const archive = [];
     for (const file of snapshot.files) {

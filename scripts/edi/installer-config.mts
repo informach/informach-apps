@@ -65,6 +65,41 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       output: resolve(".cache", "edi-release", version, app.id),
     },
     extraMetadata: { version, ediSourceCommit: process.env.EDI_SOURCE_COMMIT },
+    // EdiPlayer joins "Abrir com" for video and audio. Windows keeps the person's default player
+    // until they choose otherwise; the files arrive through argv / second-instance.
+    ...(appId === "ediplayer"
+      ? {
+          fileAssociations: [
+            {
+              ext: [
+                "mp4",
+                "m4v",
+                "mov",
+                "mkv",
+                "webm",
+                "avi",
+                "wmv",
+                "flv",
+                "ts",
+                "mts",
+                "m2ts",
+                "mpg",
+                "mpeg",
+                "3gp",
+              ],
+              name: "Vídeo",
+              description: "Vídeo (EdiPlayer)",
+              role: "Viewer",
+            },
+            {
+              ext: ["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma"],
+              name: "Áudio",
+              description: "Áudio (EdiPlayer)",
+              role: "Viewer",
+            },
+          ],
+        }
+      : {}),
     files: [
       "out/**/*",
       "resources/**/*",

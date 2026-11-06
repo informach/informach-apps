@@ -1,3 +1,4 @@
+import { EDI_TOOL_COUNT_WORD } from "@informach/config/edi-tools";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { ProductMark } from "@/components/marketing/product-mark";
@@ -228,7 +229,7 @@ export function StartChooser() {
         <Panel
           product={productBySlug("edi")}
           title="Tudo o que sua aula precisa, numa bancada só."
-          body="Cinco ferramentas para Windows: grave e edite a aula pelo texto da fala, explique com prints, crie a capa, organize o PDF e anime o mascote."
+          body={`Grave e edite a aula pelo texto da fala, explique com prints, crie a capa, organize o PDF, anime o mascote e corte os vídeos. São ${EDI_TOOL_COUNT_WORD} ferramentas para Windows.`}
           price={<strong>{productBySlug("edi").price}</strong>}
           cta={productBySlug("edi").cta}
           ctaClassName="bg-[#1F242A] text-[#F4F1EA] dark:ring-1 dark:ring-[#F4F1EA]/40"

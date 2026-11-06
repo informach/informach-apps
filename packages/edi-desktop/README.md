@@ -1,6 +1,6 @@
 # Edi Desktop
 
-Integração desktop compartilhada por Hub, EdiAula, EdiCaptura, EdiFoto, EdiPDF e EdiSVG. Consulte o [padrão desktop](../../docs/arquitetura-desktop.md) e o [guia de desenvolvimento](../../docs/desenvolvimento-edi.md). Código TypeScript fonte é consumido pelos subpaths explícitos de `package.json`; o package não publica `dist` próprio.
+Integração desktop compartilhada por Hub, EdiAula, EdiCaptura, EdiFoto, EdiPDF, EdiSVG e EdiPlayer. Consulte o [padrão desktop](../../docs/arquitetura-desktop.md) e o [guia de desenvolvimento](../../docs/desenvolvimento-edi.md). Código TypeScript fonte é consumido pelos subpaths explícitos de `package.json`; o package não publica `dist` próprio.
 
 ## Ponte Windows de captura
 

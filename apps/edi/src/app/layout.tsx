@@ -1,3 +1,4 @@
+import { EDI_TOOL_COUNT_WORD } from "@informach/config/edi-tools";
 import type { Metadata } from "next";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/bricolage-grotesque/opsz.css";
@@ -14,8 +15,7 @@ export const metadata: Metadata = {
     default: "Suíte Edi · Tudo o que sua aula precisa, numa bancada só",
     template: "%s · Suíte Edi",
   },
-  description:
-    "Grave e edite a aula pelo texto, capture a tela, trate imagens, organize PDFs e anime vetores. Cinco ferramentas para Windows numa assinatura.",
+  description: `Grave e edite a aula pelo texto, capture a tela, trate imagens, organize PDFs, anime vetores e corte vídeos. São ${EDI_TOOL_COUNT_WORD} ferramentas para Windows numa assinatura.`,
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

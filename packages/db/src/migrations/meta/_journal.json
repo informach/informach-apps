@@ -554,6 +554,13 @@
       "when": 1793971110768,
       "tag": "0078_dia_de_estrela",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793973408544,
+      "tag": "0079_edi_player",
+      "breakpoints": true
     }
   ]
 }

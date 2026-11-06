@@ -13,6 +13,7 @@ $EdiFerramentas = @(
   [pscustomobject]@{ Id = "edifoto"; Nome = "EdiFoto"; Descricao = "Edição de imagens" }
   [pscustomobject]@{ Id = "edipdf"; Nome = "EdiPDF"; Descricao = "Edição e organização de PDFs" }
   [pscustomobject]@{ Id = "edisvg"; Nome = "EdiSVG"; Descricao = "Criação e animação vetorial" }
+  [pscustomobject]@{ Id = "ediplayer"; Nome = "EdiPlayer"; Descricao = "Player de vídeo com cortes, junções e conversões" }
 )
 
 function Get-EdiIcone([string]$Id) {

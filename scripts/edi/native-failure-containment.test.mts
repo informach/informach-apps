@@ -9,6 +9,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { describe, it } from "vitest";
 import { z } from "zod";
+import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
 import {
   nativeStage,
   observeNativeStartup,
@@ -64,7 +65,8 @@ describe("native failure diagnostic containment", () => {
       assert.equal(reads, 0);
     });
 
-  for (const id of ["edifoto", "ediaula", "edisvg", "edipdf", "edi-hub"])
+  // Every app except EdiCaptura keeps its own diagnostic screenshot.
+  for (const id of EDI_DESKTOP_APPS.map((app) => app.id).filter((id) => id !== "edicaptura"))
     it(`preserves the owned error screenshot for ${id}`, async () => {
       const error = new Error("Synthetic verification failure");
       const paths: string[] = [];

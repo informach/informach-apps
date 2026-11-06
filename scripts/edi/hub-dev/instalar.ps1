@@ -71,7 +71,7 @@ $criados | ForEach-Object { Write-Host "  $_" }
 # Atalhos antigos que abrem outra cópia das ferramentas usam os mesmos perfis.
 $antigos = Get-ChildItem $areaDeTrabalho -Filter *.lnk | Where-Object { $nomes -notcontains $_.Name } | ForEach-Object {
   $alvo = $shell.CreateShortcut($_.FullName)
-  if ("$($alvo.TargetPath) $($alvo.Arguments)" -match "(?i)edi(aula|captura|foto|pdf|svg)") { $_.FullName }
+  if ("$($alvo.TargetPath) $($alvo.Arguments)" -match "(?i)edi(aula|captura|foto|pdf|svg|player)") { $_.FullName }
 }
 if ($antigos) {
   Write-Host ""

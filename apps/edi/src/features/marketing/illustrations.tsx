@@ -548,10 +548,52 @@ export function AssistantMock() {
   );
 }
 
+export function PlayerMock() {
+  return (
+    <div
+      className="mock player-mock"
+      role="img"
+      aria-label="EdiPlayer com uma aula pausada em 1:12 de 4:05, legenda ligada e um trecho marcado para corte na barra de progresso, com as ações Cortar sem recodificar, Juntar e Converter."
+    >
+      <div className="mock__bar">
+        <ToolIcon tool="ediplayer" size="xs" />
+        <span>fracoes-equivalentes.mp4</span>
+        <span className="mock__status">continua de 1:12</span>
+      </div>
+      <div className="player-screen">
+        <span className="player-screen__play">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" />
+          </svg>
+        </span>
+        <span className="player-screen__subtitle">
+          Duas fatias de quatro é a mesma coisa que uma de duas.
+        </span>
+      </div>
+      <div className="player-controls">
+        <div className="player-progress">
+          <i className="player-progress__played" style={{ width: "29%" }} />
+          <i className="player-progress__cut" style={{ left: "52%", width: "22%" }} />
+          <b className="player-progress__head" style={{ left: "29%" }} />
+        </div>
+        <div className="player-actions">
+          <span className="player-time">1:12 / 4:05</span>
+          <span className="mock-chip mock-chip--tool" style={toolStyle("ediplayer")}>
+            Cortar sem recodificar
+          </span>
+          <span className="mock-chip mock-chip--ghost">Juntar</span>
+          <span className="mock-chip mock-chip--ghost">Converter</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const TOOL_ILLUSTRATIONS = {
   ediaula: TranscriptMock,
   edicaptura: CaptureMock,
   edifoto: PhotoMock,
   edipdf: PdfMock,
   edisvg: VectorMock,
+  ediplayer: PlayerMock,
 } as const;

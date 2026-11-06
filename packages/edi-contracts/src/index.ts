@@ -1,4 +1,4 @@
-import { EDI_TOOLS } from "@informach/config/edi-tools";
+import { EDI_DESKTOP_APPS, EDI_TOOLS } from "@informach/config/edi-tools";
 import { z } from "zod";
 
 export const MAX_LEASE_SECONDS = 72 * 60 * 60;
@@ -16,14 +16,7 @@ export const releaseVersionSchema = z
   );
 
 export const toolIdSchema = z.enum(EDI_TOOLS.map((tool) => tool.id));
-export const desktopAppIdSchema = z.enum([
-  "edi-hub",
-  "ediaula",
-  "edicaptura",
-  "edifoto",
-  "edipdf",
-  "edisvg",
-]);
+export const desktopAppIdSchema = z.enum(EDI_DESKTOP_APPS.map((app) => app.id));
 export const environmentSchema = z.enum(["development", "production"]);
 export const channelSchema = z.enum(["stable", "beta"]);
 export const keyThumbprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -47,7 +40,7 @@ export const leaseClaimsSchema = z
     tools: z
       .array(toolIdSchema)
       .min(1)
-      .max(5)
+      .max(EDI_TOOLS.length)
       .refine((tools) => new Set(tools).size === tools.length),
     iat: z.int().positive(),
     nbf: z.int().positive(),
@@ -130,13 +123,14 @@ export const releaseManifestSchema = z
     publishedAt: z.iso.datetime(),
     sourceCommit: z.string().regex(/^[a-f0-9]{40}$/),
     notes: z.string().max(10000),
-    artifacts: z.array(artifactSchema).length(6),
+    artifacts: z.array(artifactSchema).length(EDI_DESKTOP_APPS.length),
   })
   .refine(
     (release) =>
-      new Set(release.artifacts.map((artifact) => artifact.appId)).size === 6 &&
+      new Set(release.artifacts.map((artifact) => artifact.appId)).size ===
+        EDI_DESKTOP_APPS.length &&
       (release.channel === "beta") === release.version.includes("-beta."),
-    { message: "Release must contain all six unique apps in the correct channel" },
+    { message: "Release must contain every suite app once, in the correct channel" },
   );
 export type ReleaseManifest = z.infer<typeof releaseManifestSchema>;
 export type DesktopAppId = z.infer<typeof desktopAppIdSchema>;

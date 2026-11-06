@@ -1,4 +1,5 @@
 "use client";
+import { EDI_TOOL_NAME_LIST } from "@informach/config/edi-tools";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState } from "react";
@@ -82,7 +83,7 @@ export function PricingSection({
         <ul className="check-list">
           <li>
             <CheckIcon size={18} />
-            EdiAula, EdiCaptura, EdiFoto, EdiPDF e EdiSVG
+            {EDI_TOOL_NAME_LIST}
           </li>
           <li>
             <CheckIcon size={18} />

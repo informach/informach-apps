@@ -27,7 +27,7 @@ O código fica no repositório privado `informach/informach-apps`. Os aplicativo
 | `apps/dia-de-estrela` | Rotina visual da criança com passo a passo falado, lembretes, estrelas, loja de recompensas e alertas aos pais; tablet da criança pareado por código e área dos pais com PIN; sem IA. Ainda não publicado | Porta 3008; guia em `apps/dia-de-estrela/CLAUDE.md` |
 | `apps/edi` | Portal, conta, cobrança, autenticação e licenças da suíte Edi; `edi.informach.com.br` no Railway | Porta 3006; estado comercial e distribuição no runbook |
 | `apps/edi-hub` | Central desktop de instalação, acesso e atualização da suíte | Electron, sem porta web fixa |
-| `apps/ediaula`, `apps/edicaptura`, `apps/edifoto`, `apps/edipdf`, `apps/edisvg` | Cinco ferramentas criativas em desenvolvimento | Electron, sem porta web fixa |
+| `apps/ediaula`, `apps/edicaptura`, `apps/edifoto`, `apps/edipdf`, `apps/edisvg`, `apps/ediplayer` | Seis ferramentas criativas em desenvolvimento; o EdiPlayer (player de vídeo com corte sem recodificar, junção e conversão) nasceu no próprio repositório | Electron, sem porta web fixa |
 
 O cadastro de apps web fica em `packages/config/src/apps.ts` e `domains.ts`. O catálogo desktop, as identidades Windows e a participação na suíte ficam em `packages/config/src/edi-tools.ts`. Não criar listas paralelas como fonte de verdade.
 
