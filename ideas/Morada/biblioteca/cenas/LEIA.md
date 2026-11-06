@@ -47,6 +47,11 @@ Expressão "confiante" nos adultos (olhos abertos e sorriso) e "feliz" em duas c
 blender-venv/bin/python -I codigo/arte/cena_familia.py -- blend/corpos.blend familia.png familia.blend
 ```
 
+O `familia.blend` guardado aqui passou por `codigo/ferramentas/limpa_cena.py` (as poses ficam congeladas nos ossos, as
+animações e as malhas escondidas saem: 9 MB em vez de 400 MB). As texturas dos pacotes ficam fora do repositório (em
+`ideias/`, nos zips): ao abrir em outra máquina, aponte as imagens para lá (Arquivo → Dados externos → Procurar arquivos
+faltando).
+
 Variáveis: `RES=1600x900` muda o tamanho, `--rapido` faz uma prévia (16 amostras), `CLOSE=pai,menino` grava closes de
 meio corpo para revisão, `SEMPOSE=1` deixa todos em descanso (para comparar o encaixe das peças).
 
