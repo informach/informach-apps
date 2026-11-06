@@ -142,18 +142,17 @@ export async function desbloquearPinAction(raw: unknown) {
       PIN_TENTATIVAS,
       PIN_JANELA_MS,
       "Muitas tentativas. O PIN fica travado por 15 minutos neste aparelho.",
-    ).catch((error: unknown) => {
-      if (error instanceof AppError)
+    );
+    const family = await getFamily(device.ownerId);
+    if (!(await conferirPin(pin, family?.pinHash))) {
+      const restam = PIN_TENTATIVAS - (tentativa?.attempts ?? PIN_TENTATIVAS);
+      // Uma vez por trava: no erro que a fecha, não a cada toque durante ela.
+      if (restam <= 0)
         audit({
           eventType: "estrela.pin_locked",
           actorId: device.ownerId,
           payload: { deviceId: device.deviceId },
         });
-      throw error;
-    });
-    const family = await getFamily(device.ownerId);
-    if (!(await conferirPin(pin, family?.pinHash))) {
-      const restam = PIN_TENTATIVAS - (tentativa?.attempts ?? PIN_TENTATIVAS);
       throw new AppError(
         "PIN",
         restam > 0

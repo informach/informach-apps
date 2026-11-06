@@ -79,10 +79,3 @@ export const parentPage = cache(async (): Promise<ParentContext> => {
   const next = safeDestination((await headers()).get("x-estrela-path"));
   redirect(`/entrar?next=${encodeURIComponent(next)}`);
 });
-
-/** Telas só de adulto com conta (assinatura, aparelhos, PIN, segundo responsável). */
-export async function adultPage() {
-  const context = await parentPage();
-  if (context.mode !== "adult") redirect("/ajustes?pin=1");
-  return context;
-}

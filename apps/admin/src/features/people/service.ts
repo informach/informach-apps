@@ -551,7 +551,8 @@ const SIMPLE: Record<string, string> = {
   "estrela.settings_updated": "Mudou os ajustes da família no Dia de Estrela",
   "estrela.pin_set": "Definiu o PIN da área dos pais no Dia de Estrela",
   "estrela.pin_unlocked": "Abriu a área dos pais com o PIN no Dia de Estrela",
-  "estrela.pin_locked": "Fechou a área dos pais no Dia de Estrela",
+  "estrela.pin_locked":
+    "O PIN dos pais travou num aparelho do Dia de Estrela depois de cinco erros",
   "estrela.device_code_issued":
     "Gerou um código para conectar o aparelho da criança no Dia de Estrela",
   "estrela.device_connected": "Conectou o aparelho de uma criança no Dia de Estrela",

@@ -18,6 +18,9 @@ export function precoEmEstrelas(centavos: number, estrelasPorReal: number): numb
 }
 
 /** Estrelas de uma meta a partir do preço em reais. */
+/** Teto da meta em estrelas (o mesmo do banco, `estrela_goals_stars`). */
+export const META_MAX_ESTRELAS = 1_000_000;
+
 export function estrelasDaMeta(reais: number, estrelasPorReal: number): number {
   return Math.max(1, Math.round(reais * estrelasPorReal));
 }

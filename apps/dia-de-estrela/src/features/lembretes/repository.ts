@@ -147,7 +147,7 @@ export async function familiesPage(
         isNotNull(families.onboardedAt),
         afterUserId ? gt(families.userId, afterUserId) : undefined,
         upToUserId ? sql`${families.userId} <= ${upToUserId}` : undefined,
-        sql`exists (select 1 from ${devices} where ${devices.userId} = ${families.userId} and ${devices.revokedAt} is null and ${devices.expiresAt} > ${now})`,
+        sql`exists (select 1 from ${devices} where ${devices.userId} = ${families.userId} and ${devices.revokedAt} is null and ${devices.expiresAt} > ${now.toISOString()}::timestamptz)`,
       ),
     )
     .orderBy(asc(families.userId))

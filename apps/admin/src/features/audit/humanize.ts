@@ -345,7 +345,9 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "estrela.settings_updated": () => [t("Mudou os ajustes da família no Dia de Estrela")],
   "estrela.pin_set": () => [t("Definiu o PIN da área dos pais no Dia de Estrela")],
   "estrela.pin_unlocked": () => [t("Abriu a área dos pais com o PIN no Dia de Estrela")],
-  "estrela.pin_locked": () => [t("Fechou a área dos pais no Dia de Estrela")],
+  "estrela.pin_locked": () => [
+    t("O PIN dos pais travou num aparelho do Dia de Estrela depois de cinco erros"),
+  ],
   "estrela.device_code_issued": () => [
     t("Gerou um código para conectar o aparelho da criança no Dia de Estrela"),
   ],
