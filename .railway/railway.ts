@@ -367,6 +367,8 @@ export default defineRailway((ctx) => {
       BORA_FAMILY_MONTHLY_PRICE: preserve(),
       BORA_INDIVIDUAL_ANNUAL_PRICE: preserve(),
       BORA_INDIVIDUAL_MONTHLY_PRICE: preserve(),
+      // chave do hash do e-mail no teste de 7 dias; mesmo valor do BETTER_AUTH_SECRET de 06/11/2026
+      BORA_TRIAL_KEY: preserve(),
       CRON_SECRET: preserve(),
       DATABASE_URL: preserve(),
       EMAIL_SANDBOX_MODE: preserve(),
