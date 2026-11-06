@@ -145,7 +145,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
     promise: "A aula inteira numa bancada só.",
     facts: [
       "Grave e edite a aula pelo texto da fala",
-      "Prints explicados, capas, PDFs e vetores",
+      "Prints explicados, capas, PDFs, vetores e cortes de vídeo",
       "Para Windows, arquivos no seu computador",
     ],
     price: `${monthlyPrice("edi_suite_monthly")} por mês`,

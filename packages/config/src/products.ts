@@ -1,3 +1,5 @@
+import { EDI_TOOL_COUNT_WORD } from "./edi-tools";
+
 export type ProductId = string;
 
 export type ProductKind = "subscription" | "credit_pack";
@@ -56,8 +58,7 @@ export const PRODUCTS: readonly Product[] = [
     app: "edi",
     kind: "subscription",
     name: "Suíte Edi",
-    description:
-      "Cinco ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.",
+    description: `${EDI_TOOL_COUNT_WORD.charAt(0).toUpperCase()}${EDI_TOOL_COUNT_WORD.slice(1)} ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.`,
     tier: "suite",
     interval: "month",
     stripePriceId: { dev: "", prod: "" },

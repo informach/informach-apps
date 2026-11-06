@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
-import { collect } from "./import-tools.mjs";
+import { collect, repositoryNativeTools } from "./import-tools.mjs";
 
 // Report paths only; never echo a potential credential into logs.
 const patterns = [
@@ -13,6 +13,7 @@ const patterns = [
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
 ];
 const flagged = new Set();
+const native = await repositoryNativeTools();
 function check(path, bytes) {
   if (patterns.some((pattern) => pattern.test(bytes.toString("utf8")))) flagged.add(path);
 }
@@ -20,6 +21,8 @@ for (const tool of EDI_TOOLS) {
   const root = join("apps", tool.id);
   for (const file of await collect(root))
     check(join(root, file.path), await readFile(join(root, file.path)));
+  // Tools born in this repository have no original snapshot.
+  if (native.has(tool.id)) continue;
   const archive = JSON.parse(
     gunzipSync(await readFile(`docs/migrations/edi/origins/${tool.id}.json.gz`)).toString("utf8"),
   );

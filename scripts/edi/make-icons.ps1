@@ -1,4 +1,4 @@
-# Windows icons for the Edi Hub and the five tools, in the suite's "bancada e
+# Windows icons for the Edi Hub and the six tools, in the suite's "bancada e
 # marca-texto" family: one highlighter colour per tool, ink glyph, same corner.
 # Colours and glyphs mirror packages/config/src/edi-brand.ts (24-unit SVG
 # coordinates); change both together. Run from any folder:
@@ -12,9 +12,11 @@ $designs = @(
   @{ Id = 'edicaptura'; Background = '#5ED3B3' },
   @{ Id = 'edifoto'; Background = '#FF8F7E' },
   @{ Id = 'edipdf'; Background = '#8CB6FF' },
-  @{ Id = 'edisvg'; Background = '#C2A5FF' }
+  @{ Id = 'edisvg'; Background = '#C2A5FF' },
+  @{ Id = 'ediplayer'; Background = '#FFB547' }
 )
-$hubBars = @('#C8E64A', '#5ED3B3', '#FF8F7E', '#8CB6FF', '#C2A5FF')
+# One Hub bar per tool, in catalog order.
+$hubBars = @($designs | Where-Object { $_.Id -ne 'edi-hub' } | ForEach-Object { $_.Background })
 $sizes = @(16, 24, 32, 48, 64, 128, 256)
 
 function New-RoundedRectangle([single]$x, [single]$y, [single]$width, [single]$height, [single]$radius) {
@@ -91,6 +93,10 @@ function Draw-Glyph($graphics, [string]$id) {
       Draw-Path $graphics $pen (New-RoundedRectangle 6 4 3 3 0.8)
       Draw-Path $graphics $pen (New-RoundedRectangle 15 4 3 3 0.8)
     }
+    'ediplayer' {
+      $graphics.DrawPolygon($pen, [Drawing.PointF[]]@((Point 8 5.5), (Point 8 18.5), (Point 18.5 12)))
+      $graphics.DrawLine($pen, 4.5, 15.5, 15.5, 4.5)
+    }
   }
   $pen.Dispose()
 }
@@ -109,8 +115,10 @@ foreach ($design in $designs) {
     $background = New-Object Drawing.SolidBrush ([Drawing.ColorTranslator]::FromHtml($design.Background))
     $graphics.FillPath($background, $tile)
     if ($design.Id -eq 'edi-hub') {
+      # The bars fill the same 189 px span whatever the tool count; gaps are half a bar.
+      $barWidth = 2 * 189 / (3 * $hubBars.Count - 1)
       for ($index = 0; $index -lt $hubBars.Count; $index++) {
-        $bar = New-RoundedRectangle (33.5 + $index * 40.5) 77.5 27 101 6
+        $bar = New-RoundedRectangle (33.5 + $index * 1.5 * $barWidth) 77.5 $barWidth 101 6
         $brush = New-Object Drawing.SolidBrush ([Drawing.ColorTranslator]::FromHtml($hubBars[$index]))
         $graphics.FillPath($brush, $bar)
         $brush.Dispose(); $bar.Dispose()

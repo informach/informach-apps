@@ -82,4 +82,11 @@ export const EDI_TOOL_BRAND = {
       { kind: "rect", x: 15, y: 4, width: 3, height: 3, rx: 0.8 },
     ],
   },
+  ediplayer: {
+    color: "#FFB547",
+    glyph: [
+      { kind: "path", d: "M8 5.5v13l10.5-6.5z" },
+      { kind: "path", d: "M4.5 15.5 15.5 4.5" },
+    ],
+  },
 } as const satisfies Record<EdiToolId, EdiToolBrand>;

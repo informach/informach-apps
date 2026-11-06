@@ -1,0 +1,2 @@
+ALTER TABLE "edi"."release_artifacts" DROP CONSTRAINT "edi_artifacts_app_chk";--> statement-breakpoint
+ALTER TABLE "edi"."release_artifacts" ADD CONSTRAINT "edi_artifacts_app_chk" CHECK ("edi"."release_artifacts"."app_id" in ('edi-hub', 'ediaula', 'edicaptura', 'edifoto', 'edipdf', 'edisvg', 'ediplayer'));

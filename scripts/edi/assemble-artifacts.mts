@@ -35,4 +35,4 @@ for (const app of EDI_DESKTOP_APPS) {
   await copyFile(descriptor, join(destination, `${app.id}.artifact.json`));
   await copyFile(installer, join(destination, name));
 }
-console.log(`Assembled all six application artifacts for ${version}`);
+console.log(`Assembled all ${EDI_DESKTOP_APPS.length} application artifacts for ${version}`);

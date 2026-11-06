@@ -6,7 +6,7 @@ As ferramentas estão em desenvolvimento. A disponibilidade de um instalador nã
 
 ## Instalação e atualizações
 
-Comece pelo **Edi Hub** na seção **Releases**. Uma versão completa contém o Hub, EdiAula, EdiCaptura, EdiFoto, EdiPDF, EdiSVG e `edi-release.json`.
+Comece pelo **Edi Hub** na seção **Releases**. Uma versão completa contém o Hub, EdiAula, EdiCaptura, EdiFoto, EdiPDF, EdiSVG, EdiPlayer e `edi-release.json`.
 
 O Hub e as ferramentas verificam o manifesto assinado com a chave Ed25519 da suíte, os hashes e os tamanhos dos arquivos antes de aceitar uma atualização. As chaves confiáveis são incorporadas aos aplicativos; eles não passam a confiar em uma chave nova apenas porque ela aparece neste repositório. Atualizações não encerram editores nem trabalhos abertos à força.
 

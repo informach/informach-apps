@@ -13,8 +13,9 @@ Este guia descreve o fluxo implementado no checkout em 17/10/2026. Os comandos p
 | EdiFoto | Edição de imagens | `pnpm --filter @informach/edifoto dev` |
 | EdiPDF | Edição e organização de PDFs | `pnpm --filter @informach/edipdf dev` |
 | EdiSVG | Criação e animação vetorial | `pnpm --filter @informach/edisvg dev` |
+| EdiPlayer | Player de vídeo com edições simples: corte sem recodificar, junção e conversão | `pnpm --filter @informach/ediplayer dev` |
 
-O Hub e os cinco editores são aplicativos Electron independentes. Para desenvolver o EdiFoto, execute seu próprio `dev`; não é preciso abrir o Hub primeiro. A abertura direta continua sujeita à mesma licença: o `dev` sozinho para na janela de acesso. Para abrir uma ferramenta já licenciada e testá-la manualmente, sem portal nem conta, use `pnpm edi:open <ferramenta>` (seção 5). Os botões de instalação do Hub trabalham com instaladores e releases assinados, não com os servidores `dev` dos outros workspaces.
+O Hub e as seis ferramentas são aplicativos Electron independentes. Para desenvolver o EdiFoto, execute seu próprio `dev`; não é preciso abrir o Hub primeiro. A abertura direta continua sujeita à mesma licença: o `dev` sozinho para na janela de acesso. Para abrir uma ferramenta já licenciada e testá-la manualmente, sem portal nem conta, use `pnpm edi:open <ferramenta>` (seção 5). Os botões de instalação do Hub trabalham com instaladores e releases assinados, não com os servidores `dev` dos outros workspaces.
 
 No portal, Next.js serve páginas e APIs por HTTP. No Electron, `electron-vite dev` inicia a aplicação nativa e o servidor de desenvolvimento do renderer. A URL interna desse renderer não substitui a aplicação: um navegador comum não possui o preload nem as operações de arquivo, captura e sistema do main. A interface recebe atualizações durante o desenvolvimento; alterações em main/preload exigem verificar o processo reiniciado e, em caso de dúvida, encerrar e executar `dev` novamente. Configuração pública da suíte é incorporada durante o build, portanto mudar essas variáveis também exige reinício/rebuild.
 
@@ -46,7 +47,8 @@ $env:EDICAPTURA_TEST_PROFILE = Join-Path $ediDevRoot 'edicaptura'
 $env:EDIFOTO_USER_DATA = Join-Path $ediDevRoot 'edifoto'
 $env:EDIPDF_USER_DATA = Join-Path $ediDevRoot 'edipdf'
 $env:EDISVG_USER_DATA = Join-Path $ediDevRoot 'edisvg'
-New-Item -ItemType Directory -Force -Path $env:EDI_SUITE_TEST_PROFILE, $env:EDIAULA_USER_DATA, $env:EDICAPTURA_TEST_PROFILE, $env:EDIFOTO_USER_DATA, $env:EDIPDF_USER_DATA, $env:EDISVG_USER_DATA | Out-Null
+$env:EDIPLAYER_USER_DATA = Join-Path $ediDevRoot 'ediplayer'
+New-Item -ItemType Directory -Force -Path $env:EDI_SUITE_TEST_PROFILE, $env:EDIAULA_USER_DATA, $env:EDICAPTURA_TEST_PROFILE, $env:EDIFOTO_USER_DATA, $env:EDIPDF_USER_DATA, $env:EDISVG_USER_DATA, $env:EDIPLAYER_USER_DATA | Out-Null
 ```
 
 O Hub usa uma subpasta `hub` do perfil compartilhado. Essas opções são aceitas apenas pelo app não empacotado; não são mecanismos de licença e não redirecionam o perfil de um instalador comercial. Os testes nativos já criam seus próprios perfis temporários. Use cópias de projetos e destinos descartáveis: um perfil isolado não impede que um diálogo de arquivo escolha um documento pessoal.
@@ -149,7 +151,7 @@ pnpm edi:open edisvg
 pnpm edi:open edipdf C:\caminho\copia.pdf   # argumentos depois do id vão para o app
 ```
 
-O id é qualquer valor de `desktopAppIdSchema` (`edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg`). O comando é `scripts/edi/open-licensed.mts`, que reaproveita o harness `scripts/edi/native-harness.mts` dos testes nativos, mas deixa a sessão aberta:
+O id é qualquer valor de `desktopAppIdSchema`, derivado de `EDI_DESKTOP_APPS` (`edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg`, `ediplayer`). O comando é `scripts/edi/open-licensed.mts`, que reaproveita o harness `scripts/edi/native-harness.mts` dos testes nativos, mas deixa a sessão aberta:
 
 1. Compila a ferramenta (`build`) com uma chave de licença Ed25519 efêmera, gerada a cada execução, e um "portal" loopback que sempre responde 503.
 2. Abre o Electron com perfil isolado numa pasta `edi-open-*` sob o temp do sistema e com `scripts/edi/fixtures/native-vault.cjs` pré-carregado.
@@ -284,9 +286,10 @@ pnpm --filter @informach/edicaptura test
 pnpm --filter @informach/edifoto test
 pnpm --filter @informach/edipdf test
 pnpm --filter @informach/edisvg test
+pnpm --filter @informach/ediplayer test
 ```
 
-Hub, SDK e licensing usam Vitest; os cinco editores usam `node:test`. Exemplos focados:
+Hub, SDK e licensing usam Vitest; as seis ferramentas usam `node:test`. Exemplos focados:
 
 ```powershell
 pnpm --filter @informach/edi-desktop exec vitest run src/controller.test.ts
@@ -358,7 +361,7 @@ Não instale pacotes de teste no perfil pessoal nem simule as variáveis do GitH
 
 O portal/backend é implantado no Railway. Os instaladores e o manifesto assinado vão para GitHub Releases em `informach/edi-releases`; o código permanece privado. Alterar o portal não atualiza automaticamente os executáveis, e publicar executáveis não implanta o backend.
 
-O workflow [edi-release.yml](../.github/workflows/edi-release.yml) parte de tag `edi-v*` ou execução manual com tag existente. Exige ancestralidade de `main`, ambiente protegido `edi-release`, configuração/portal prontos, qualidade, integração de banco e upgrade Windows. O encadeamento de mídia compila em Linux e verifica em Windows; os instaladores reutilizam o mesmo artefato aprovado. Depois são montados e publicados os seis instaladores e o manifesto da suíte.
+O workflow [edi-release.yml](../.github/workflows/edi-release.yml) parte de tag `edi-v*` ou execução manual com tag existente. Exige ancestralidade de `main`, ambiente protegido `edi-release`, configuração/portal prontos, qualidade, integração de banco e upgrade Windows. O encadeamento de mídia compila em Linux e verifica em Windows; os instaladores reutilizam o mesmo artefato aprovado. Depois são montados e publicados os instaladores de todos os apps do catálogo e o manifesto da suíte.
 
 `pnpm edi:installer <id>` e `pnpm edi:publish` são os scripts usados pelo pipeline, não atalhos de desenvolvimento. Exigem versão, commit, configuração pública e credenciais do ambiente protegido. As chaves privadas de atualização pertencem à publicação; a privada de licença pertence ao backend. O cliente recebe somente âncoras públicas e sua identidade local de dispositivo. Na distribuição atual, Ed25519 comprova a integridade da suíte, mas não equivale a Authenticode nem a um publicador certificado pelo Windows.
 
@@ -370,7 +373,7 @@ Uma alteração diária deve ter escopo, testes, documentação e revisão antes
 2. Registre o ID, nome, identidade Windows única e extensões em `packages/config/src/edi-tools.ts`. Esse é o catálogo da suíte; não crie uma segunda lista no Hub, no portal ou em scripts PowerShell. A identidade visual fica em `packages/config/src/edi-brand.ts`, cujo tipo exige uma entrada por ferramenta; o único espelho é o desenho dos ícones em `scripts/edi/make-icons.ps1`, que não importa TypeScript e deve mudar junto.
 3. Integre `ediBuildOptions`, `createEdiDesktop`, `exposeEdiBridge`/`protectEditor`, IPC autorizado e recuperação adequada. A ferramenta deve validar acesso quando aberta diretamente e compartilhar o contrato de sessão, licença, inventário e atualização.
 4. Implemente formato versionado, persistência segura e perfis isolados. Inclua cor e glifo em `edi-brand.ts`, o desenho em `make-icons.ps1` e rode o script para gerar `resources/icon.{png,ico}`; acrescente notices e recursos nativos físicos quando necessários. Declare os exports públicos de um package novo e identifique seus consumidores.
-5. Atualize contratos e testes afetados pelo novo catálogo. **O release atual valida explicitamente seis apps e sete assets** em `edi-contracts/src/index.ts` e `scripts/edi/github-publication.mts`; a ampliação exige revisar essa cardinalidade, o manifesto e sua compatibilidade com clientes já distribuídos. O schema `packages/db/src/schema/edi.ts` também mantém a constraint `edi_artifacts_app_chk` com os IDs permitidos: atualize a definição e gere uma nova migration compatível, sem editar a migration já aplicada. Apenas adicionar uma entrada ao catálogo ainda não basta.
+5. Atualize contratos e testes afetados pelo novo catálogo. Desde o EdiPlayer, as cardinalidades do release derivam do catálogo: `desktopAppIdSchema`, o limite de ferramentas da licença e o número de artefatos do manifesto em `edi-contracts/src/index.ts`, e o número de assets da publicação (um por app mais `edi-release.json`) em `scripts/edi/github-publication.mts`. As contagens e listas de nomes do portal, do gate desktop e da descrição do produto usam `EDI_TOOL_COUNT_WORD` e `EDI_TOOL_NAME_LIST`. Clientes já distribuídos validam o manifesto com a cardinalidade antiga: uma release com uma ferramenta a mais deixa de ser aceita por eles, que precisam ser reinstalados (aceito para o EdiPlayer porque ninguém havia comprado a suíte; depois de vendas, planeje a compatibilidade antes). O banco não depende de `@informach/config`: acrescente o ID em `EDI_ARTIFACT_APP_IDS` (`packages/db/src/schema/edi.ts`, que alimenta a constraint `edi_artifacts_app_chk`) e gere uma nova migration com `pnpm db:generate`, sem editar as já aplicadas; o teste de paridade de `@informach/edi-licensing` falha enquanto as duas listas divergirem. Continuam manuais: o desenho em `make-icons.ps1`, as listas do Hub de desenvolvimento (`scripts/edi/hub-dev/comum.ps1` e o `ValidateSet` de `abrir.ps1`), o `operations` e a variável `<ID>_USER_DATA` em `scripts/edi/test-native.mts` e `native-harness.mts`, as notas da próxima versão em `scripts/edi/release-notes.json` e, para ferramenta nascida no repositório, `repositoryNative` em `docs/migrations/edi/origins/manifest.json`, que faz as ferramentas de importação ignorarem a origem externa. Apenas adicionar uma entrada ao catálogo ainda não basta.
 6. Acrescente os cenários específicos da ferramenta ao harness nativo e valide bridge bloqueada, login/expiração, recuperação, arquivo existente, abertura direta, instalação e upgrade. As matrizes de workflow são derivadas do catálogo, mas os casos de comportamento não surgem automaticamente.
 7. Verifique o conjunto de consumidores, documentação, portal e pipeline antes de incluir a ferramenta numa release completa. Não publique uma suíte com parte dos instaladores ausente.
 

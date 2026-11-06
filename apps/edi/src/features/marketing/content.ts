@@ -78,6 +78,18 @@ export const TOOL_FEATURES: readonly ToolFeature[] = [
     limits:
       "As animações usam movimentos prontos. Deformação de malha, ossos e exportação Lottie ainda não existem.",
   },
+  {
+    tool: "ediplayer",
+    anchor: "player",
+    title: { before: "Assista, corte e envie ", highlight: "sem esperar", after: "." },
+    body: "Abra quase qualquer vídeo, continue de onde parou e ligue as legendas. Para editar, marque o trecho: o EdiPlayer corta sem recodificar, em segundos e sem perder qualidade.",
+    bullets: [
+      "Toca quase todo formato, retoma de onde você parou e mostra legendas",
+      "Corta sem recodificar, em segundos, sem perder qualidade",
+      "Junta vídeos, divide em partes e extrai o áudio",
+      "Converte para WhatsApp, e-mail, YouTube ou GIF",
+    ],
+  },
 ];
 
 export const JOURNEY: readonly { tool: EdiToolId; title: string; body: string }[] = [
@@ -94,6 +106,11 @@ export const JOURNEY: readonly { tool: EdiToolId; title: string; body: string }[
   { tool: "edifoto", title: "Crie a capa", body: "Miniatura do vídeo e imagens do curso." },
   { tool: "edipdf", title: "Entregue a apostila", body: "Junte, organize, compacte e envie." },
   { tool: "edisvg", title: "Anime o mascote", body: "Uma vinheta leve para a abertura." },
+  {
+    tool: "ediplayer",
+    title: "Divulgue os trechos",
+    body: "Corte o melhor da aula e converta para WhatsApp ou YouTube.",
+  },
 ];
 
 export const FAQ: readonly { question: string; answer: string }[] = [

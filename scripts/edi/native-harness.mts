@@ -197,6 +197,7 @@ export async function createNativeHarness(
         EDIFOTO_USER_DATA: userData,
         EDIPDF_USER_DATA: userData,
         EDISVG_USER_DATA: userData,
+        EDIPLAYER_USER_DATA: userData,
         EDICAPTURA_TEST_PROFILE: userData,
         ...extraEnvironment,
       },

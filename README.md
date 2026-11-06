@@ -38,7 +38,7 @@ mudança de arquitetura, integração ou operação.
 | `informach-site` | `@informach/informach-site` | `3004` | Site institucional, termos e privacidade |
 | `edi` | `@informach/edi` | `3006` | Portal da suíte; implantação Railway e homologação pendentes; [operação](apps/edi/PRODUCAO.md) |
 | `edi-hub` | `@informach/edi-hub` | — | Central desktop da suíte; [desenvolvimento e testes](docs/desenvolvimento-edi.md) |
-| `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg` | `@informach/<ferramenta>` | — | Cinco apps Electron em desenvolvimento; [padrão](docs/arquitetura-desktop.md) |
+| `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg`, `ediplayer` | `@informach/<ferramenta>` | — | Seis apps Electron em desenvolvimento; [padrão](docs/arquitetura-desktop.md) |
 
 ### Packages
 
@@ -208,7 +208,7 @@ O build de CI usa variáveis placeholder para validar compilação sem depender 
 serviços externos reais.
 
 Os workflows Edi acrescentam integração com PostgreSQL isolado, verificação
-nativa Windows e o pipeline de release dos seis aplicativos. O release desktop
+nativa Windows e o pipeline de release do Hub e das ferramentas do catálogo. O release desktop
 é disparado por tag/release `edi-v*`, não por qualquer push de código. Estado,
 limites e homologações pendentes estão no [registro Edi](docs/propostas/edi-suite-2026-10-16/implementacao.md).
 
