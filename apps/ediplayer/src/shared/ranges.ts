@@ -166,3 +166,34 @@ export function clock(seconds: number, tenths = false): string {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return tenths ? `${base},${Math.floor((safe - whole) * 10)}` : base;
 }
+
+/** How close two cuts may get, in seconds: a part shorter than this cannot be seen. */
+export const MIN_PART = 0.1;
+
+/**
+ * Moves the cut `index` to `to` (kept between its neighbours) and carries along the edges of the
+ * marked stretches that sat on it, so a deleted part stays exactly that part.
+ */
+export function moveCut(
+  points: readonly number[],
+  marks: readonly Range[],
+  index: number,
+  to: number,
+  duration: number,
+): { points: number[]; marks: Range[] } {
+  const sorted = [...points].sort((a, b) => a - b);
+  const from = sorted.at(index);
+  if (from === undefined) return { points: sorted, marks: [...marks] };
+  const low = (index > 0 ? (sorted.at(index - 1) ?? 0) : 0) + MIN_PART;
+  const high =
+    (index + 1 < sorted.length ? (sorted.at(index + 1) ?? duration) : duration) - MIN_PART;
+  const at = Math.max(low, Math.min(high, to));
+  const near = (t: number) => Math.abs(t - from) < 1e-3;
+  return {
+    points: sorted.map((p, i) => (i === index ? at : p)),
+    marks: normalizeRanges(
+      marks.map((m) => ({ start: near(m.start) ? at : m.start, end: near(m.end) ? at : m.end })),
+      duration,
+    ),
+  };
+}

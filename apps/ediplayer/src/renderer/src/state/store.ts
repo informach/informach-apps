@@ -506,7 +506,7 @@ export function deleteSelected(): void {
   const target = parts.at(at);
   if (!target) return;
   if (isPartRemoved(target, marks, mode, duration)) {
-    toast("Essa parte já foi apagada. Ctrl+Z ou a seta na lista de partes traz de volta.");
+    toast("Esse pedaço já foi apagado. Ctrl+Z ou a seta na lista traz de volta.");
     return;
   }
   setPartGone(at, true);
@@ -534,7 +534,7 @@ export function setPartGone(index: number, gone: boolean): void {
   if (!part) return;
   const next = setPartRemoved(part, gone, marks, mode, duration);
   if (!next) {
-    toast("Pelo menos uma parte precisa ficar.");
+    toast("Pelo menos um pedaço precisa ficar.");
     return;
   }
   edit({ marks: next, selected: null, part: index });

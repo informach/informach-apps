@@ -196,7 +196,7 @@ export async function verifyPlayerNativeJourney(
     await editor.mouse.click(strip0.x + strip0.width * 0.85, strip0.y + strip0.height / 2);
     await editor.keyboard.press("s");
     const cut = await editor.evaluate(() => {
-      const line = document.querySelector(".ruler .split-line");
+      const line = document.querySelector(".ruler .cut-handle");
       const ruler = document.querySelector(".ruler");
       return {
         at: line instanceof HTMLElement ? Number.parseFloat(line.style.left) : -1,
@@ -220,9 +220,9 @@ export async function verifyPlayerNativeJourney(
     await editor.keyboard.press("Delete");
     await editor.locator(".result .big").getByText("00:13").waitFor();
     await editor.locator(".tool-grid").getByRole("button", { name: "Dividir" }).click();
-    await editor.getByText("apagada", { exact: true }).waitFor();
+    await editor.getByText("apagado", { exact: true }).waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-split.png") });
-    await editor.getByRole("button", { name: "Salvar o vídeo sem as partes apagadas…" }).click();
+    await editor.keyboard.press("Control+s");
     await editor.getByRole("dialog", { name: "Salvar resultado" }).waitFor();
     await editor.getByRole("button", { name: "Salvar…" }).click();
     // The finished file appears only when the job publishes it.
@@ -266,7 +266,7 @@ export async function verifyPlayerNativeJourney(
     await editor.keyboard.press("s");
     await editor.locator(".ruler").waitFor();
     const lines = await editor.evaluate(() =>
-      [...document.querySelectorAll(".ruler .split-line")].map((l) =>
+      [...document.querySelectorAll(".ruler .cut-handle")].map((l) =>
         l instanceof HTMLElement ? Number.parseFloat(l.style.left) : -1,
       ),
     );
@@ -279,8 +279,53 @@ export async function verifyPlayerNativeJourney(
     await editor.mouse.click(strip1.x + strip1.width * 0.9, strip1.y + strip1.height / 2);
     await editor.locator(".part-flag").getByText("Del apaga").waitFor();
     await editor.keyboard.press("Delete");
-    await editor.locator(".part-flag").getByText("Apagada · Ctrl+Z volta").waitFor();
+    await editor.locator(".part-flag").getByText("Apagado · Ctrl+Z volta").waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-simple-split.png") });
+    // Zoom and handles: 8× makes the ruler eight panels wide with the cut in view; dragging the
+    // cut's knob moves the cut by the dragged time, and the deleted part follows it.
+    // The buttons zoom around the needle: put it by the cut first.
+    await seekTo(15.4);
+    for (let i = 0; i < 3; i++)
+      await editor.getByRole("button", { name: "Aproximar a régua" }).click();
+    const widths = await editor.evaluate(() => {
+      const view = document.querySelector(".ruler-scroll");
+      const ruler = document.querySelector(".ruler");
+      return { view: view?.clientWidth ?? 0, ruler: ruler?.getBoundingClientRect().width ?? 0 };
+    });
+    assert.ok(
+      Math.abs(widths.ruler / widths.view - 8) < 0.2,
+      `zoom 8× gave a ruler ${widths.ruler}px in ${widths.view}px`,
+    );
+    const knob = editor.locator(".cut-handle.start .cut-knob");
+    const knobBox = await knob.boundingBox();
+    const viewBox = await editor.locator(".ruler-scroll").boundingBox();
+    assert.ok(knobBox && viewBox, "the cut has no handle");
+    assert.ok(
+      knobBox.x > viewBox.x && knobBox.x < viewBox.x + viewBox.width,
+      "the zoomed ruler does not show the cut",
+    );
+    const dx = -60;
+    await knob.hover();
+    await editor.mouse.down();
+    await editor.mouse.move(knobBox.x + knobBox.width / 2 + dx / 2, knobBox.y + 4, { steps: 4 });
+    await editor.mouse.move(knobBox.x + knobBox.width / 2 + dx, knobBox.y + 4, { steps: 4 });
+    await editor.mouse.up();
+    const expected = 15 + (dx / widths.ruler) * 20;
+    const moved = await editor.evaluate(() => {
+      const left = (selector: string) =>
+        [...document.querySelectorAll(selector)].map((e) =>
+          e instanceof HTMLElement ? Number.parseFloat(e.style.left) : -1,
+        );
+      return { cuts: left(".ruler .cut-handle"), zones: left(".ruler .cut-zone") };
+    });
+    const cutAt = ((moved.cuts.at(-1) ?? 0) / 100) * 20;
+    assert.ok(Math.abs(cutAt - expected) < 0.05, `cut moved to ${cutAt}, expected ${expected}`);
+    assert.ok(
+      moved.zones.some((z) => Math.abs((z / 100) * 20 - cutAt) < 0.01),
+      `the deleted part did not follow the cut: ${moved.zones}`,
+    );
+    await editor.locator(".part-flag").getByText("Apagado · Ctrl+Z volta").waitFor();
+    await editor.screenshot({ path: join(results, "ediplayer-zoom-handles.png") });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

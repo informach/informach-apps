@@ -7,6 +7,7 @@ import {
   isPartRemoved,
   keptRanges,
   keyframeAtOrBefore,
+  moveCut,
   normalizeRanges,
   piecesFromPoints,
   type Range,
@@ -116,6 +117,19 @@ test("deleting parts made by Dividir keeps the rest, in either mode", () => {
     { start: 0, end: 10 },
     { start: 20, end: 30 },
   ]);
+});
+
+test("moving a cut keeps it between its neighbours and drags the deleted part's edge", () => {
+  const marks = [{ start: 10, end: 20 }];
+  assert.deepEqual(moveCut([10, 20], marks, 0, 12.5, 30), {
+    points: [12.5, 20],
+    marks: [{ start: 12.5, end: 20 }],
+  });
+  // Never past the next cut or the end: parts keep at least MIN_PART.
+  assert.deepEqual(moveCut([10, 20], [], 0, 25, 30).points, [19.9, 20]);
+  assert.deepEqual(moveCut([10, 20], [], 1, 40, 30).points, [10, 29.9]);
+  // A mark that does not touch the cut stays put.
+  assert.deepEqual(moveCut([10], [{ start: 2, end: 4 }], 0, 11, 30).marks, [{ start: 2, end: 4 }]);
 });
 
 test("clock formats minutes, hours and tenths", () => {

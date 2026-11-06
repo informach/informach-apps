@@ -970,13 +970,104 @@ kbd {
   background: var(--accent);
   pointer-events: none;
 }
-.split-line {
+.ruler-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.ruler-bar .hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ruler-bar .zoom {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ruler-bar .level {
+  min-width: 30px;
+  text-align: center;
+  font-size: 11.5px;
+}
+/* Zoomed in, the ruler is wider than the panel: it scrolls sideways. The padding below keeps the
+   needle's time inside the scroller; the negative margin keeps the old spacing. */
+.ruler-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 26px;
+  margin-bottom: -26px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.ruler-scroll .scale {
+  margin-bottom: 10px;
+}
+/* A cut, as the clip edges in EdiAula: the dashed line and its knob move the cut. The
+   needle's head (above the ruler) keeps moving the needle when both sit together. */
+.cut-handle {
   position: absolute;
   top: -6px;
   bottom: -6px;
   width: 0;
-  border-left: 2px dashed #fff;
+  z-index: 3;
   pointer-events: none;
+}
+.cut-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.cut-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  border-left: 2px dashed #fff;
+}
+/* On the edge between the frames and the sound: clear of the needle's head and its time. */
+.cut-knob {
+  position: absolute;
+  top: 55px;
+  left: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: #fff;
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.cut-handle.start .cut-knob {
+  background: #6ca939;
+}
+.cut-handle.start .cut-line::before {
+  border-left: 2px solid #6ca939;
+}
+.cut-handle.end .cut-knob {
+  background: #d55750;
+}
+.cut-handle.end .cut-line::before {
+  border-left: 2px solid #d55750;
+}
+.cut-line:hover + .cut-knob,
+.cut-knob:hover {
+  transform: scale(1.15);
 }
 .playhead {
   position: absolute;
@@ -1087,26 +1178,28 @@ kbd {
   background: rgba(255, 92, 92, 0.16);
   color: var(--cut-text);
 }
-.row.cuts {
-  flex-wrap: wrap;
+.steps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  margin-top: 4px;
-}
-.cut-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--raised);
+  font-size: 12.5px;
   color: var(--text-2);
-  cursor: pointer;
+  line-height: 1.45;
 }
-.cut-chip:hover {
-  color: var(--text-1);
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.more summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
+.more[open] > :not(summary) {
+  margin-top: 10px;
 }
 .tag-keep {
   font-size: 11.5px;

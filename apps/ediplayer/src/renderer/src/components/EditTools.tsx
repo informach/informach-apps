@@ -36,7 +36,6 @@ import {
   openSave,
   setPartGone,
   setTransform,
-  splitHere,
   type ToolId,
   toast,
   useStore,
@@ -167,7 +166,6 @@ function SplitTool() {
   const duration = useStore((s) => s.duration);
   const marks = useStore((s) => s.marks);
   const mode = useStore((s) => s.mode);
-  const time = useStore((s) => s.time);
   const clicked = useStore((s) => s.part);
   const [minutes, setMinutes] = useState(10);
   const parts = piecesFromPoints(points, duration);
@@ -175,96 +173,81 @@ function SplitTool() {
   const left = gone.filter((g) => !g).length;
   return (
     <>
-      <div className="row">
-        <button type="button" className="btn" onClick={splitHere}>
-          Dividir no ponto atual <kbd>S</kbd>
-        </button>
-      </div>
-      <label className="field">
-        A cada quantos minutos
-        <span className="row">
-          <input
-            type="number"
-            min={1}
-            max={600}
-            value={minutes}
-            onChange={(e) => setMinutes(Math.max(1, Number(e.target.value) || 1))}
-          />
-          <button
-            type="button"
-            className="btn"
-            onClick={() => edit({ splitPoints: evenSplitPoints(duration, minutes * 60) })}
-          >
-            Aplicar
-          </button>
-        </span>
-      </label>
-      {parts.length > 1 ? (
+      <ol className="steps">
+        <li>
+          Ponha a agulha onde quer cortar e aperte <kbd>S</kbd>.
+        </li>
+        <li>
+          Clique no pedaço que não quer e aperte <kbd>Del</kbd>.
+        </li>
+        <li>Para acertar o corte, arraste a alça dele. Aproxime a régua com Ctrl + roda.</li>
+      </ol>
+      {parts.length > 1 && (
         <div className="marks">
-          <span className="label">Partes</span>
-          {parts.map((p, i) => {
-            const here = clicked === null ? time >= p.start && time < p.end : clicked === i;
-            return (
-              <div key={p.start} className={`mark-row${here ? " sel" : ""}`}>
-                <button
-                  type="button"
-                  className="mark-row"
-                  style={{ padding: 0, height: "auto" }}
-                  onClick={() => {
-                    seek(p.start);
-                    useStore.setState({ part: i, selected: null });
-                  }}
-                >
-                  <span className="n">{i + 1}</span>
-                  <span className="mono">
-                    {clock(p.start)} → {clock(p.end)}
-                  </span>
-                  {gone[i] && <span className="tag-out">apagada</span>}
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  style={{ width: 28, height: 28 }}
-                  aria-label={gone[i] ? `Voltar a parte ${i + 1}` : `Apagar a parte ${i + 1}`}
-                  title={gone[i] ? "Voltar a parte" : "Apagar a parte (Delete)"}
-                  onClick={() => setPartGone(i, !gone[i])}
-                >
-                  {gone[i] ? <Undo2 size={14} /> : <Trash2 size={14} />}
-                </button>
-              </div>
-            );
-          })}
-          <div className="row cuts">
-            {points.map((p, i) => (
+          {parts.map((p, i) => (
+            <div key={p.start} className={`mark-row${clicked === i ? " sel" : ""}`}>
               <button
-                key={p}
                 type="button"
-                className="cut-chip"
-                aria-label={`Tirar o corte em ${clock(p)}`}
-                onClick={() => edit({ splitPoints: points.filter((x) => x !== p) })}
+                className="mark-row"
+                style={{ padding: 0, height: "auto" }}
+                onClick={() => {
+                  seek(p.start);
+                  useStore.setState({ part: i, selected: null });
+                }}
               >
-                Corte {i + 1} · {clock(p)} <X size={12} />
+                <span className="n">{i + 1}</span>
+                <span className="mono">
+                  {clock(p.start, true)} → {clock(p.end, true)}
+                </span>
+                {gone[i] && <span className="tag-out">apagado</span>}
               </button>
-            ))}
-          </div>
+              <button
+                type="button"
+                className="icon-btn"
+                style={{ width: 28, height: 28 }}
+                aria-label={gone[i] ? `Voltar o pedaço ${i + 1}` : `Apagar o pedaço ${i + 1}`}
+                title={gone[i] ? "Voltar o pedaço" : "Apagar o pedaço (Del)"}
+                onClick={() => setPartGone(i, !gone[i])}
+              >
+                {gone[i] ? <Undo2 size={14} /> : <Trash2 size={14} />}
+              </button>
+            </div>
+          ))}
         </div>
-      ) : (
-        <span className="info">
-          Aperte S nos pontos onde quer dividir. Depois clique numa parte na régua e apague com
-          Delete.
-        </span>
       )}
-      <button
-        type="button"
-        className="btn primary"
-        disabled={!gone.some(Boolean)}
-        onClick={() => openSave("export")}
-      >
-        Salvar o vídeo sem as partes apagadas…
+      <button type="button" className="btn primary" onClick={() => openSave("export")}>
+        Salvar <kbd>Ctrl+S</kbd>
       </button>
-      <button type="button" className="btn" disabled={left < 2} onClick={() => openSave("split")}>
-        Salvar cada parte num arquivo ({left})…
-      </button>
+      <details className="more">
+        <summary>Mais opções</summary>
+        <label className="field">
+          Dividir a cada quantos minutos
+          <span className="row">
+            <input
+              type="number"
+              min={1}
+              max={600}
+              value={minutes}
+              onChange={(e) => setMinutes(Math.max(1, Number(e.target.value) || 1))}
+            />
+            <button
+              type="button"
+              className="btn"
+              onClick={() => edit({ splitPoints: evenSplitPoints(duration, minutes * 60) })}
+            >
+              Aplicar
+            </button>
+          </span>
+        </label>
+        {points.length > 0 && (
+          <button type="button" className="btn" onClick={() => edit({ splitPoints: [] })}>
+            Tirar todos os cortes
+          </button>
+        )}
+        <button type="button" className="btn" disabled={left < 2} onClick={() => openSave("split")}>
+          Salvar cada pedaço num arquivo ({left})…
+        </button>
+      </details>
     </>
   );
 }
