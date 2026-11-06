@@ -1,5 +1,6 @@
 import { NO_TRANSFORM, type PresetId, type Transform } from "@shared/edit";
 import {
+  isPartRemoved,
   type MarkMode,
   normalizeRanges,
   piecesFromPoints,
@@ -71,6 +72,8 @@ interface State {
   tool: ToolId;
   marks: Range[];
   selected: number | null;
+  /** The part made by Dividir that was clicked on the ruler; Delete deletes it. */
+  part: number | null;
   pendingIn: number | null;
   mode: MarkMode;
   precise: boolean;
@@ -121,6 +124,7 @@ export const useStore = create<State>(() => ({
   tool: "trim",
   marks: [],
   selected: null,
+  part: null,
   pendingIn: null,
   mode: "remove",
   precise: false,
@@ -238,6 +242,7 @@ function resetEdit(): Partial<State> {
     tool: "trim",
     marks: [],
     selected: null,
+    part: null,
     pendingIn: null,
     splitPoints: [],
     transform: NO_TRANSFORM,
@@ -384,9 +389,11 @@ function snapshot(): Snapshot {
 
 /** Records the edit state before a change, for Desfazer. */
 export function edit(
-  change: Partial<Pick<State, "marks" | "splitPoints" | "transform" | "selected">>,
+  change: Partial<Pick<State, "marks" | "splitPoints" | "transform" | "selected" | "part">>,
 ): void {
-  set({ past: [...get().past.slice(-99), snapshot()], future: [], ...change });
+  // New cut points renumber the parts: the clicked one is no longer the same.
+  const part = change.splitPoints ? { part: null } : {};
+  set({ past: [...get().past.slice(-99), snapshot()], future: [], ...part, ...change });
 }
 
 /** A snapshot is restored without changing the audio track that is playing. */
@@ -403,6 +410,7 @@ export function undo(): void {
     future: [snapshot(), ...get().future],
     ...restore(last),
     selected: null,
+    part: null,
   });
 }
 
@@ -415,6 +423,7 @@ export function redo(): void {
     past: [...get().past, snapshot()],
     ...restore(next),
     selected: null,
+    part: null,
   });
 }
 
@@ -447,7 +456,7 @@ export function exitEdit(): void {
 
 /** I always starts a new stretch; the handles on the ruler move an existing one. */
 export function markIn(): void {
-  set({ pendingIn: get().time, selected: null });
+  set({ pendingIn: get().time, selected: null, part: null });
 }
 
 /** O ends the stretch started with I, or moves the end of the selected one. */
@@ -470,18 +479,37 @@ export function markOut(): void {
   edit({ marks: next, selected: at < 0 ? null : at });
 }
 
-/** Delete takes out the selected stretch; in Dividir, with none selected, the part under the cursor. */
+/**
+ * Delete takes out the selected stretch; otherwise the part clicked on the ruler (or, with none
+ * clicked, the part under the cursor), in any tool.
+ */
 export function deleteSelected(): void {
-  const { selected, marks, tool, splitPoints, duration, time } = get();
+  const { selected, marks, part, splitPoints, duration, mode, time } = get();
   if (selected !== null && marks.at(selected)) {
     edit({ marks: marks.filter((_, i) => i !== selected), selected: null });
     return;
   }
-  if (tool !== "split" || !splitPoints.length) return;
-  const at = piecesFromPoints(splitPoints, duration).findIndex(
-    (p) => time >= p.start && time < p.end,
-  );
-  if (at >= 0) setPartGone(at, true);
+  const parts = piecesFromPoints(splitPoints, duration);
+  if (parts.length < 2) return;
+  const at = part ?? parts.findIndex((p) => time >= p.start && time < p.end);
+  const target = parts.at(at);
+  if (!target) return;
+  if (isPartRemoved(target, marks, mode, duration)) {
+    toast("Essa parte já foi apagada. Ctrl+Z ou a seta na lista de partes traz de volta.");
+    return;
+  }
+  setPartGone(at, true);
+}
+
+/** A click on the ruler: a marked stretch when it lands on one, else the part made by Dividir. */
+export function selectOnRuler(t: number): void {
+  const { marks, splitPoints, duration, tool } = get();
+  const parts = piecesFromPoints(splitPoints, duration);
+  const part = parts.length > 1 ? parts.findIndex((p) => t >= p.start && t < p.end) : -1;
+  const mark = marks.findIndex((m) => m.start <= t && m.end >= t);
+  // In Dividir the click is always about parts; elsewhere a marked stretch comes first.
+  if (mark >= 0 && !(tool === "split" && part >= 0)) set({ selected: mark, part: null });
+  else set({ selected: null, part: part < 0 ? null : part });
 }
 
 /** Deletes (or brings back) a whole part made by Dividir; the result is what Salvar saves. */
@@ -494,14 +522,16 @@ export function setPartGone(index: number, gone: boolean): void {
     toast("Pelo menos uma parte precisa ficar.");
     return;
   }
-  edit({ marks: next, selected: null });
+  edit({ marks: next, selected: null, part: index });
 }
 
 export function splitHere(): void {
   const { time, splitPoints, duration } = get();
   if (time < 0.5 || time > duration - 0.5) return;
   if (splitPoints.some((p) => Math.abs(p - time) < 0.25)) return;
+  // The parts and their delete buttons live in Dividir.
   edit({ splitPoints: [...splitPoints, time].sort((a, b) => a - b) });
+  set({ tool: "split" });
 }
 
 export function setTransform(change: Partial<Transform>): void {
@@ -518,7 +548,7 @@ export function changeTransformLive(change: Partial<Transform>): void {
 
 export function selectMark(i: number): void {
   const mark = get().marks.at(i);
-  set({ selected: i });
+  set({ selected: i, part: null });
   if (mark) seek(mark.start);
 }
 

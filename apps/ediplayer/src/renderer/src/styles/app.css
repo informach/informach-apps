@@ -939,6 +939,16 @@ kbd {
   white-space: nowrap;
   pointer-events: none;
 }
+/* The part clicked on the ruler: Delete deletes it. */
+.part-sel {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(255, 181, 71, 0.1);
+  pointer-events: none;
+}
 .pending-in {
   position: absolute;
   top: -6px;

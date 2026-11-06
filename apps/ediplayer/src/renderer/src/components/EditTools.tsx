@@ -168,6 +168,7 @@ function SplitTool() {
   const marks = useStore((s) => s.marks);
   const mode = useStore((s) => s.mode);
   const time = useStore((s) => s.time);
+  const clicked = useStore((s) => s.part);
   const [minutes, setMinutes] = useState(10);
   const parts = piecesFromPoints(points, duration);
   const gone = parts.map((p) => isPartRemoved(p, marks, mode, duration));
@@ -202,14 +203,17 @@ function SplitTool() {
         <div className="marks">
           <span className="label">Partes</span>
           {parts.map((p, i) => {
-            const here = time >= p.start && time < p.end;
+            const here = clicked === null ? time >= p.start && time < p.end : clicked === i;
             return (
               <div key={p.start} className={`mark-row${here ? " sel" : ""}`}>
                 <button
                   type="button"
                   className="mark-row"
                   style={{ padding: 0, height: "auto" }}
-                  onClick={() => seek(p.start)}
+                  onClick={() => {
+                    seek(p.start);
+                    useStore.setState({ part: i, selected: null });
+                  }}
                 >
                   <span className="n">{i + 1}</span>
                   <span className="mono">
@@ -246,7 +250,8 @@ function SplitTool() {
         </div>
       ) : (
         <span className="info">
-          Aperte S nos pontos onde quer dividir. Depois clique numa parte e apague com Delete.
+          Aperte S nos pontos onde quer dividir. Depois clique numa parte na régua e apague com
+          Delete.
         </span>
       )}
       <button

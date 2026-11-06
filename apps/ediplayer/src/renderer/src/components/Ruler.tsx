@@ -3,13 +3,14 @@ import {
   invertRanges,
   keptRanges,
   normalizeRanges,
+  piecesFromPoints,
   snapDrift,
   totalDuration,
 } from "@shared/ranges";
 import { X } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { seek } from "../lib/media";
-import { edit, selectMark, useStore } from "../state/store";
+import { edit, selectMark, selectOnRuler, useStore } from "../state/store";
 
 const TILES = 12;
 const BARS = 240;
@@ -25,6 +26,7 @@ export function Ruler() {
   const pendingIn = useStore((s) => s.pendingIn);
   const mode = useStore((s) => s.mode);
   const splitPoints = useStore((s) => s.splitPoints);
+  const part = useStore((s) => s.part);
   const ref = useRef<HTMLDivElement>(null);
   const pct = (t: number) => `${duration > 0 ? (t / duration) * 100 : 0}%`;
   const at = (clientX: number) => {
@@ -59,6 +61,7 @@ export function Ruler() {
     );
   }, [duration]);
   const sel = selected === null ? undefined : marks.at(selected);
+  const clicked = part === null ? undefined : piecesFromPoints(splitPoints, duration).at(part);
   const dragHandle = (e: React.PointerEvent<HTMLElement>, side: "start" | "end") => {
     e.stopPropagation();
     if (selected === null) return;
@@ -136,8 +139,7 @@ export function Ruler() {
           e.currentTarget.setPointerCapture(e.pointerId);
           const t = at(e.clientX);
           seek(t);
-          const hit = marks.findIndex((m) => m.start <= t && m.end >= t);
-          useStore.setState({ selected: hit < 0 ? null : hit });
+          selectOnRuler(t);
         }}
         onPointerMove={(e) => {
           if (e.buttons === 1) seek(at(e.clientX));
@@ -199,6 +201,12 @@ export function Ruler() {
               O {clock(sel.end)}
             </span>
           </>
+        )}
+        {clicked && (
+          <span
+            className="part-sel"
+            style={{ left: pct(clicked.start), width: pct(clicked.end - clicked.start) }}
+          />
         )}
         {pendingIn !== null && <span className="pending-in" style={{ left: pct(pendingIn) }} />}
         {splitPoints.map((p) => (

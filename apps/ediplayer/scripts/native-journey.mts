@@ -187,13 +187,19 @@ export async function verifyPlayerNativeJourney(
     // The finished queue covers the list of stretches; a person hides it the same way.
     await editor.getByRole("button", { name: "Ocultar" }).click();
     await editor.getByRole("button", { name: "Apagar trecho 1" }).click();
-    await editor.locator(".tool-grid").getByRole("button", { name: "Dividir" }).click();
     await seekTo(5);
     await editor.keyboard.press("s");
     await seekTo(12);
     await editor.keyboard.press("s");
-    await seekTo(7);
+    // A click on the middle part selects it in any tool, and Delete deletes it.
+    await editor.locator(".tool-grid").getByRole("button", { name: "Aparar e cortar" }).click();
+    const strip = await editor.locator(".strip").boundingBox();
+    assert.ok(strip, "the ruler has no frames");
+    await editor.mouse.click(strip.x + strip.width * 0.4, strip.y + strip.height / 2);
+    await editor.locator(".part-sel").waitFor();
     await editor.keyboard.press("Delete");
+    await editor.locator(".result .big").getByText("00:13").waitFor();
+    await editor.locator(".tool-grid").getByRole("button", { name: "Dividir" }).click();
     await editor.getByText("apagada", { exact: true }).waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-split.png") });
     await editor.getByRole("button", { name: "Salvar o vídeo sem as partes apagadas…" }).click();
