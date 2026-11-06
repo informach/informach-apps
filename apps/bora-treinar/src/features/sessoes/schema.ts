@@ -32,6 +32,10 @@ export const sessionInputSchema = z.object({
   durationSeconds: z.number().int().min(1).max(14400),
   mode: z.enum(["camera", "manual", "pareado"]),
   logs: z.array(setLogSchema).min(1).max(300),
+  /** "Como foi?" no fim do treino; pular deixa nulo */
+  feeling: z.enum(["facil", "na_medida", "dificil"]).nullish(),
+  /** a pessoa tocou em "Parar" (neutro: não guarda motivo, dor ou dado de saúde) */
+  endedEarly: z.boolean().optional(),
 });
 
 export type SessionInput = z.infer<typeof sessionInputSchema>;

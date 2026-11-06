@@ -6,6 +6,10 @@ Leia antes o `AGENTS.md` da raiz, o [README](README.md) (como rodar e verificar)
 
 Calistenia guiada para a família. A aparência das telas de treino está em `src/app/globals.css`; telas novas usam as mesmas classes e o que faltar entra em `src/app/bora.css`. Não há Tailwind nem `@informach/ui` neste app, de propósito.
 
+**Portão "Pronto?"** (`telas/pronto.tsx`): o treino não começa no primeiro passo. O portão mostra o primeiro exercício e confere, com a câmera, o detector baixado (barra de progresso), a luz, o corpo inteiro na imagem e a posição de partida (`vision/enquadramento.ts`, funções puras testadas); no pareado, o celular manda as mesmas checagens no `sinal`. Com tudo certo por 1 s, começa sozinho com 3-2-1; "Começar" e "Começar sem câmera" ficam à mão. No portão também ficam a voz (aviso de privacidade e o teste "Diga 'um'"), o aquecimento e o alongamento (ajustes do aparelho, ligados por padrão) e, no primeiro treino de cada perfil, os cuidados antes de começar. Não existe mais o "Prepare-se" de 8 s no começo dos passos (`buildSteps`).
+
+O fim do treino pergunta "Como foi?" (fácil, na medida, difícil ou pular) antes de salvar; a resposta vai no próprio envio e funciona offline. "Parar e salvar" (no X do player) grava `ended_early`, sem motivo nem dado de saúde, e não pesa a trilha.
+
 O player tem três arranjos no mesmo componente, escolhidos só por CSS: TV e computador (instrutor e contador lado a lado), celular deitado (o mesmo, compacto) e celular em pé (`@media (orientation: portrait)`, desenho "Player — Mobile"). Em pé, o cabeçalho mostra o passo embaixo do nome e a barra de progresso em largura total, sem o botão de tela cheia; o contador põe o número à esquerda e a série à direita; e, com câmera ou celular pareado, as parciais da série viram um card no lugar de "Repetições no treino".
 
 - **O centro é o treino individual; a família é a mesma assinatura** (decisão do titular em 06/11/2026, "como na Netflix"): cada pessoa da casa tem o seu perfil e treina no próprio ritmo, onde tiver (celular, tablet, computador ou TV). Treinar junto é um modo a mais, não o centro.
@@ -41,7 +45,12 @@ Cada exercício (`catalog/catalog.ts`) tem uma pose procedural (`body/poses.ts`)
   - A profundidade sai do valor bruto (mediana de 3 quadros), não do filtrado, que atrasa e achata o fundo.
   - Durante o movimento a visibilidade mínima cai de 0,5 para 0,3, porque no fundo da flexão ou do agachamento o detector baixa a confiança de cotovelo, punho e joelho.
   - A barra de acompanhamento e o instrutor que segue a pessoa chegam ao fundo no ponto em que a repetição já conta.
-- O modelo é o `pose_landmarker_full` (≈9 MB), mais preciso que o lite, principalmente na profundidade (eixo z), de que dependem os agachamentos vistos de frente. Ao trocar o modelo, mude também o nome do cache `DETECTOR` em `public/sw.js`.
+- O modelo é o `pose_landmarker_full` (≈9 MB), mais preciso que o lite, principalmente na profundidade (eixo z), de que dependem os agachamentos vistos de frente. O `lite` existe como modo reduzido: o portão mede os quadros por segundo e, abaixo de 14 com o completo, troca para o leve e guarda a escolha no aparelho (`modelo` nos ajustes). Ao trocar ou acrescentar modelo, mude também o nome do cache `DETECTOR` em `public/sw.js` e confira o SHA-256 a partir de um download real.
+- **Avisos de forma** (`Check`): a métrica `spread` compara a distância horizontal entre os lados de uma parte com a de outra (joelhos contra tornozelos no agachamento, tornozelos contra quadril no polichinelo), e `at: "peak"` confere só o quadro mais fundo da repetição. Os avisos aparecem na tela e são falados no máximo a cada 10 s, na frente do número.
+- **Tempo mínimo de repetição:** `minRepMsFor(cadência)` (38% de descida + subida) vai aos três lugares que criam o `RepCounter` (player, celular pareado, laboratório): um pico de 2 quadros não conta. Sem a pessoa por mais de 0,5 s, a repetição pela metade zera; por mais de 3 s numa série, o player sugere a voz.
+- **Gravações reais** (`test/gravacoes/`): sequências de pontos exportadas pelo laboratório viram testes de regressão do contador. O formato está no README da pasta.
+- **Alongamentos** (regra `timed`): só cronômetro, na volta à calma. Não geram registro de série e ficam fora da prática, dos desafios e das trilhas (`contavel` em `catalog.ts`). Cada lugar que olha `rule.kind` precisa tratar os três tipos.
+- **Instrutor 3D:** em aparelho fraco (`aparelhoFraco()`: até 4 núcleos ou até 3 GB) desenha sem sombra e antialias, a 30 fps; parado ou com a aba escondida, para de desenhar.
 - Exercícios alternados (`alternating`) trocam de lado pelo `cycle` do `PoseState`.
 - Em desenvolvimento, `/dev/poses?ex=<id>&d=<0..1>` mostra o instrutor parado numa profundidade, para conferir poses. Em produção essa rota é 404.
 - **Playground** (`pnpm playground:bora-treinar`, `/dev/playground`, 404 em produção): laboratório de calibração da câmera e o player sem conta nem banco (`features/playground`). O player recebe `onFinish` para entregar o treino em vez de salvar; só o playground usa. Para recalibrar um exercício com gente de verdade, meça no laboratório e leve a regra copiada ao catálogo, sem quebrar os testes do instrutor.
@@ -53,6 +62,8 @@ Cada exercício (`catalog/catalog.ts`) tem uma pose procedural (`body/poses.ts`)
 - Sessões têm o id gerado no aparelho, para que a fila offline (`features/sessoes/fila.ts`, IndexedDB) reenvie sem duplicar.
 - O nome do treino é decidido no servidor a partir da referência (`catalogo:`, `meu:`, `pratica:`).
 - Sugestões de avanço não ficam guardadas: elas derivam de `chain_progress` (`pendingSuggestions`). Aceitar reconfere no servidor.
+- **Progressão honesta:** o servidor remonta os passos com `buildSteps(treino, níveis, intensidade do perfil)` e confere cada série contra o planejado: a meta de cada série é a do servidor (a do aparelho é descartada) e série que faltou num exercício começado é meta não batida (exercício pulado inteiro não conta). "Fácil" com a meta batida avança mais rápido; "difícil" e metas não batidas somam `struggle`, e a partir de 3 o app sugere descer (primeiro o bônus, depois o nível).
+- **Intensidade do perfil** (`leve`/`normal`/`forte`): "leve" troca o que tem salto por versões sem impacto (`SEM_IMPACTO`) e reduz as metas a 70%; "forte" aumenta 15%.
 - **Datas** ("hoje", "semana", "sequência") seguem o fuso da família (`lib/datas.ts`), nunca o UTC do servidor.
 
 ## E-mails e rotinas

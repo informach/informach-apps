@@ -8,6 +8,7 @@ import {
 } from "@/features/acesso/policy";
 import { progressOf } from "@/features/familia/repository";
 import { requireTrainer } from "@/features/familia/view";
+import { jaTreinou } from "@/features/sessoes/repository";
 import { resolveWorkout } from "@/features/sessoes/service";
 import { PlayerLoader } from "@/features/treino/telas/player-loader";
 
@@ -30,15 +31,22 @@ export default async function Treinar({
     (pedido === "pareado" && canPairPhone(access))
       ? pedido
       : "manual";
-  const [{ workout, name }, levels] = await Promise.all([
+  const [{ workout, name }, levels, treinou] = await Promise.all([
     resolveWorkout(user.id, access, ref),
     progressOf(profile.id),
+    jaTreinou(profile.id),
   ]);
   return (
     <PlayerLoader
       // outro treino ou outro modo é outra montagem: o executor nasce uma vez por montagem
       key={`${formatWorkoutRef(ref)}:${mode}`}
-      profile={{ id: profile.id, name: profile.name, color: profile.color }}
+      profile={{
+        id: profile.id,
+        name: profile.name,
+        color: profile.color,
+        intensity: profile.intensity,
+      }}
+      primeiroTreino={!treinou}
       workout={workout}
       practiceExerciseId={ref.kind === "pratica" ? ref.exerciseId : null}
       workoutRef={formatWorkoutRef(ref)}

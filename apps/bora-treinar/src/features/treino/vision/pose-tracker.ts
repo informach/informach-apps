@@ -110,7 +110,8 @@ export class PoseTracker {
     };
   }
 
-  async start(facingMode: "user" | "environment" = "user") {
+  /** `aoProgresso`: quanto do modelo já baixou (0 a 1), para a barra do portão "Pronto?" */
+  async start(facingMode: "user" | "environment" = "user", aoProgresso?: (p: number) => void) {
     if (!navigator.mediaDevices?.getUserMedia)
       // fora de HTTPS (e de localhost) o navegador esconde a câmera de propósito
       throw new Error(
@@ -119,7 +120,7 @@ export class PoseTracker {
           : "A câmera só liga em conexão segura (https://).",
       );
     const [lm, stream] = await Promise.all([
-      carregarDetector(this.modelo),
+      carregarDetector(this.modelo, aoProgresso),
       navigator.mediaDevices.getUserMedia({
         // 30 quadros e mais resolução quando o aparelho dá: repetição rápida (polichinelo) some
         // entre quadros a 15 fps, e o corpo inteiro de longe fica com poucos pixels a 640×480

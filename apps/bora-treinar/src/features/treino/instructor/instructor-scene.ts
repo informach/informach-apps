@@ -4,8 +4,25 @@ import { POSES, type PoseId, PROPS } from "../body/poses";
 import { JOINTS, type Joint, type Skeleton } from "../body/skeleton";
 import type { V3 } from "../body/vec";
 import type { Joint3D, View } from "../catalog/catalog";
+import { aparelhoFraco } from "./instructor-3d";
 
 export type InstructorMode = "cadence" | "follow" | "hold" | "idle" | "celebrate";
+
+/**
+ * "alta": antialias, sombras suaves, pixel ratio até 2 e 60 fps.
+ * "baixa": sem antialias nem sombras, pixel ratio 1 e no máximo ~30 fps, para
+ * sobrar processador para a câmera (MediaPipe) em aparelho fraco.
+ */
+export type InstructorQuality = "alta" | "baixa";
+
+export interface InstructorSceneOptions {
+  /** o antialias só é escolhido ao criar o renderer: "baixa" cria sem ele */
+  qualidade?: InstructorQuality;
+}
+
+/** intervalo mínimo entre quadros na qualidade baixa (~30 fps, com folga para o vsync) */
+const BAIXA_FRAME_MS = 1000 / 30 - 3;
+const SETTLE_EPS = 1e-3;
 
 const BODY_COLOR = "#59616B";
 const HIGHLIGHT_COLOR = "#9DBF2A";
@@ -87,8 +104,13 @@ export class InstructorScene {
   });
   /** sofá/cadeira da flexão inclinada e parede da cadeira na parede */
   private props: Record<keyof typeof PROPS, THREE.Mesh>;
+  private key: THREE.DirectionalLight;
+  private floor: THREE.Mesh;
+  private quality: InstructorQuality;
+  /** 0 = laço parado (pausado e assentado, aba oculta ou descartado) */
   private raf = 0;
   private last = performance.now();
+  private disposed = false;
   private resize: ResizeObserver;
 
   private pose: PoseId = "idle";
@@ -111,14 +133,18 @@ export class InstructorScene {
   private radius = 1.1;
   private radiusTarget = 1.1;
 
-  constructor(private host: HTMLElement) {
+  constructor(
+    private host: HTMLElement,
+    options: InstructorSceneOptions = {},
+  ) {
+    this.quality = options.qualidade ?? "alta";
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: this.quality === "alta",
       alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.setPixelRatio(this.pixelRatio());
+    this.renderer.shadowMap.enabled = this.quality === "alta";
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -132,8 +158,9 @@ export class InstructorScene {
 
     this.scene.add(new THREE.HemisphereLight("#dfe7f2", "#0b0d10", 1.6));
     const key = new THREE.DirectionalLight("#ffffff", 2.6);
+    this.key = key;
     key.position.set(2.2, 4, 3);
-    key.castShadow = true;
+    key.castShadow = this.quality === "alta";
     key.shadow.mapSize.set(1024, 1024);
     Object.assign(key.shadow.camera, {
       left: -2,
@@ -157,6 +184,9 @@ export class InstructorScene {
     );
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
+    // sem sombras o ShadowMaterial não desenha nada: nem entra no quadro
+    floor.visible = this.quality === "alta";
+    this.floor = floor;
     this.scene.add(floor);
     for (const [r, o] of [
       [0.9, 0.22],
@@ -223,11 +253,46 @@ export class InstructorScene {
     };
     this.props = { apoio: makeProp(PROPS.apoio), parede: makeProp(PROPS.parede) };
 
-    this.resize = new ResizeObserver(() => this.onResize());
+    this.resize = new ResizeObserver(() => {
+      this.onResize();
+      this.wake();
+    });
     this.resize.observe(host);
     this.onResize();
     this.bindDrag();
-    this.loop();
+    document.addEventListener("visibilitychange", this.onVisibility);
+    this.wake();
+  }
+
+  /**
+   * Heurística para escolher a qualidade inicial: poucos núcleos ou pouca memória.
+   * Quem não carrega a cena importa `aparelhoFraco` de `instructor-3d.tsx`, sem three.js.
+   */
+  static aparelhoFraco(): boolean {
+    return aparelhoFraco();
+  }
+
+  /**
+   * Troca a qualidade em tempo de execução. O antialias fica como foi criado:
+   * voltar para "alta" numa cena criada em "baixa" religa sombras, pixel ratio e
+   * 60 fps, mas não o antialias.
+   */
+  setQuality(q: InstructorQuality) {
+    if (q === this.quality) return;
+    this.quality = q;
+    const alta = q === "alta";
+    this.renderer.setPixelRatio(this.pixelRatio());
+    this.renderer.shadowMap.enabled = alta;
+    this.key.castShadow = alta;
+    this.floor.visible = alta;
+    // ligar/desligar o shadow map muda os shaders: os materiais precisam recompilar
+    this.scene.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) m.needsUpdate = true;
+      }
+    });
+    this.wake();
   }
 
   setExercise(
@@ -250,6 +315,7 @@ export class InstructorScene {
       s.mesh.material = s.seg.group && highlight.includes(s.seg.group) ? this.hiMat : this.bodyMat;
     this.chestMesh.material = highlight.includes("chest") ? this.hiMat : this.bodyMat;
     this.setView(view);
+    this.wake();
   }
 
   setMode(mode: InstructorMode) {
@@ -267,30 +333,71 @@ export class InstructorScene {
     if (mode === "cadence") this.cycleT = 0;
     if (mode === "idle" || mode === "celebrate") this.frame("idle");
     else this.frame(this.pose);
+    this.wake();
   }
 
   /** profundidade 0..1 vinda da câmera, para o boneco acompanhar a pessoa */
   setFollowDepth(d: number) {
     this.followTarget = d;
+    this.wake();
   }
 
+  /**
+   * Pausado, o tempo congela; quando a transição de pose e a câmera assentam, a
+   * cena desenha um último quadro e para o laço até algo mudar.
+   */
   setPaused(p: boolean) {
     this.paused = p;
+    this.wake();
   }
 
   setView(view: View) {
     this.azimuthTarget = VIEW_AZIMUTH[view];
     this.dragOffset = 0;
+    this.wake();
   }
 
   dispose() {
+    this.disposed = true;
     cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.resize.disconnect();
     this.renderer.dispose();
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
     this.renderer.domElement.remove();
+  }
+
+  private pixelRatio() {
+    return this.quality === "baixa" ? 1 : Math.min(2, window.devicePixelRatio);
+  }
+
+  /** (re)inicia o laço de desenho se estiver parado e a aba estiver visível */
+  private wake() {
+    if (this.raf || this.disposed || document.hidden) return;
+    // o primeiro quadro depois de acordar sai já, com um dt de um quadro só
+    this.last = performance.now() - (this.quality === "baixa" ? BAIXA_FRAME_MS : 1000 / 60);
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
+  private onVisibility = () => {
+    if (document.hidden) {
+      cancelAnimationFrame(this.raf);
+      this.raf = 0;
+    } else this.wake();
+  };
+
+  /** pausado, sem transição de pose e com a câmera parada: nada mais muda na tela */
+  private settled() {
+    return (
+      this.paused &&
+      (!this.blendFrom || this.blendT >= 1) &&
+      Math.abs(this.azimuthTarget + this.dragOffset - this.azimuth) < SETTLE_EPS * 10 &&
+      this.focus.distanceToSquared(this.focusTarget) < SETTLE_EPS * SETTLE_EPS &&
+      Math.abs(this.radiusTarget - this.radius) < SETTLE_EPS
+    );
   }
 
   private startBlend() {
@@ -333,6 +440,7 @@ export class InstructorScene {
       if (x0 === null) return;
       this.dragOffset += (e.clientX - x0) * 0.4;
       x0 = e.clientX;
+      this.wake();
     });
     el.addEventListener("pointerup", () => (x0 = null));
     el.addEventListener("pointercancel", () => (x0 = null));
@@ -361,8 +469,13 @@ export class InstructorScene {
   }
 
   private loop = () => {
-    this.raf = requestAnimationFrame(this.loop);
+    this.raf = 0;
+    if (this.disposed || document.hidden) return;
     const now = performance.now();
+    if (this.quality === "baixa" && now - this.last < BAIXA_FRAME_MS) {
+      this.raf = requestAnimationFrame(this.loop);
+      return;
+    }
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     if (!this.paused) this.time += dt;
@@ -384,6 +497,13 @@ export class InstructorScene {
     this.azimuth += (this.azimuthTarget + this.dragOffset - this.azimuth) * ease;
     this.focus.lerp(this.focusTarget, ease);
     this.radius += (this.radiusTarget - this.radius) * ease;
+    const rest = this.settled();
+    if (rest) {
+      // último quadro exato antes de parar
+      this.azimuth = this.azimuthTarget + this.dragOffset;
+      this.focus.copy(this.focusTarget);
+      this.radius = this.radiusTarget;
+    }
     const vfov = (this.camera.fov * Math.PI) / 180;
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * this.camera.aspect);
     const distance = this.radius / Math.sin(Math.min(vfov, hfov) / 2);
@@ -396,6 +516,7 @@ export class InstructorScene {
     );
     this.camera.lookAt(this.focus);
     this.renderer.render(this.scene, this.camera);
+    if (!rest) this.raf = requestAnimationFrame(this.loop);
   };
 
   private place(sk: Skeleton) {

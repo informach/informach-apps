@@ -155,6 +155,37 @@ describe("treinos salvos", () => {
     );
   });
 
+  it("a meta é a do servidor, e o 'como foi' e o 'parar' ficam gravados", async () => {
+    const profileId = profiles[2] ?? "";
+    // o aparelho manda meta 3 (adulterada): vale a planejada (10), e 5 repetições não batem
+    const baixa = sessao(profileId, {
+      logs: sessao(profileId).logs.map((l) => ({ ...l, target: 3, reps: 5 })),
+      feeling: "dificil",
+    });
+    await saveSession(owner, family, profiles, baixa, "America/Sao_Paulo");
+    const [gravada] = await sessionsOf(profileId);
+    expect(gravada?.logs[0]?.target).toBe(10);
+    expect(gravada?.feeling).toBe("dificil");
+    expect((await progressOf(profileId)).pernas).toMatchObject({ streak: 0, struggle: 2 });
+    // 1 de 3 séries, encerrado antes: guarda a marca e não pesa a trilha
+    const parou = sessao(profileId, { logs: sessao(profileId).logs.slice(0, 1), endedEarly: true });
+    await saveSession(owner, family, profiles, parou, "America/Sao_Paulo");
+    const ultima = (await sessionsOf(profileId)).at(-1);
+    expect(ultima?.endedEarly).toBe(true);
+    expect((await progressOf(profileId)).pernas).toMatchObject({ struggle: 2 });
+    // 1 de 3 séries sem parar: a série que faltou é meta não batida e o peso chega a 3
+    await saveSession(
+      owner,
+      family,
+      profiles,
+      sessao(profileId, { logs: sessao(profileId).logs.slice(0, 1) }),
+      "America/Sao_Paulo",
+    );
+    const [descer] = pendingSuggestions(await progressOf(profileId));
+    expect(descer).toBeUndefined(); // nível 0, sem bônus: não há para onde descer
+    expect((await progressOf(profileId)).pernas?.struggle).toBe(3);
+  });
+
   it("o plano gratuito recusa treino da assinatura e contagem pela câmera", async () => {
     const profileId = profiles[1] ?? "";
     await expect(

@@ -3,7 +3,7 @@ import { Camera, Mic, MicOff, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MP_BONES } from "@/features/treino/body/landmarks";
 import { exerciseById } from "@/features/treino/catalog/catalog";
-import { HoldTracker, RepCounter } from "@/features/treino/engine/counter";
+import { HoldTracker, minRepMsFor, RepCounter } from "@/features/treino/engine/counter";
 import {
   contagemPelaVoz,
   type Dito,
@@ -14,6 +14,7 @@ import {
   vozDisponivel,
 } from "@/features/treino/engine/voz";
 import { ajudaDaVoz, navegadorDe } from "@/features/treino/permissoes";
+import { corpoInteiro, naPosicaoInicial } from "@/features/treino/vision/enquadramento";
 import { type PoseFrame, PoseTracker } from "@/features/treino/vision/pose-tracker";
 import { presenca } from "@/features/treino/vision/presenca";
 import { type EstadoTv, type EventoCelular, estadoTvSchema } from "./protocolo";
@@ -49,6 +50,8 @@ export function CameraCelular({ codigo }: { codigo: string }) {
   const ultimoSinal = useRef(0);
   const ultimaIsometria = useRef("");
   const confAtual = useRef(0);
+  /** última checagem do portão "Pronto?", também no batimento */
+  const portao = useRef<{ corpo: boolean; posicao: boolean } | null>(null);
   const progressoAtual = useRef(0);
   /** quantas repetições este celular contou no passo atual (câmera e voz juntas) */
   const contadas = useRef(0);
@@ -125,22 +128,45 @@ export function CameraCelular({ codigo }: { codigo: string }) {
       }
     }
     const atual = estadoRef.current;
+    // perda de rastreio: o contador zera a repetição pela metade depois de 0,5 s sem ninguém
+    if (!f) contadores.current?.rep?.update([], performance.now());
     if (!f || !atual?.exerciseId || atual.pausado || atual.fim) {
       // no descanso e na pausa o enquadramento continua valendo (e chega à TV pelo batimento)
       const c = f ? presenca(f.image) : 0;
       confAtual.current = c;
       progressoAtual.current = 0;
       setConfianca(Math.round(c * 10) / 10);
+      // portão "Pronto?" na TV: corpo inteiro e posição de partida do primeiro exercício
+      if (atual?.pronto) {
+        const corpo = !!f && corpoInteiro(f.image);
+        const posicao = !!f && naPosicaoInicial(exerciseById(atual.pronto).rule, f.world);
+        portao.current = { corpo, posicao };
+        const t = f?.t ?? performance.now();
+        if (t - ultimoSinal.current > 250) {
+          ultimoSinal.current = t;
+          enviar({
+            tipo: "sinal",
+            confianca: c,
+            progresso: 0,
+            ouvindo: ouvindoRef.current,
+            corpo,
+            posicao,
+          });
+        }
+      } else portao.current = null;
       return;
     }
     const chave = `${atual.passo}:${atual.exerciseId}`;
     if (contadores.current?.chave !== chave) {
-      const regra = exerciseById(atual.exerciseId).rule;
+      const exercicio = exerciseById(atual.exerciseId);
+      const regra = exercicio.rule;
       contadores.current = {
         chave,
         ...(regra.kind === "reps"
-          ? { rep: new RepCounter(regra) }
-          : { hold: new HoldTracker(regra) }),
+          ? { rep: new RepCounter(regra, { minRepMs: minRepMsFor(exercicio.cadence) }) }
+          : regra.kind === "hold"
+            ? { hold: new HoldTracker(regra) }
+            : {}),
       };
     }
     const c = contadores.current;
@@ -193,6 +219,7 @@ export function CameraCelular({ codigo }: { codigo: string }) {
         confianca: confAtual.current,
         progresso: progressoAtual.current,
         ouvindo: ouvindoRef.current,
+        ...(portao.current ?? {}),
       });
     }, 2000);
     return () => window.clearInterval(t);

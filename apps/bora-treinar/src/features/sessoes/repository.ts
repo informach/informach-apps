@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, db, desc, eq, gte, inArray, lt, sql } from "@informach/db";
 import { boraAchievements, boraSessions, boraSetLogs } from "@informach/db/schema";
+import type { Feeling } from "@/features/treino/engine/progression";
 import type { SetLog } from "@/features/treino/engine/runner";
 import type { Tx } from "../familia/repository";
 
@@ -14,6 +15,8 @@ export interface SessionRecord {
   duration: number;
   mode: "camera" | "manual" | "pareado";
   logs: SetLog[];
+  feeling?: Feeling | null;
+  endedEarly?: boolean;
 }
 
 const toLog = (l: typeof boraSetLogs.$inferSelect): SetLog => ({
@@ -51,6 +54,8 @@ async function withLogs(
     duration: r.durationSeconds,
     mode: r.mode as SessionRecord["mode"],
     logs: logs.filter((l) => l.sessionId === r.id).map(toLog),
+    feeling: (r.feeling as Feeling | null) ?? null,
+    endedEarly: r.endedEarly,
   }));
 }
 
@@ -116,6 +121,16 @@ export async function familySessionsSince(userId: string, since: Date, until?: D
   return withLogs(rows);
 }
 
+/** O perfil já tem algum treino salvo? (o primeiro mostra os cuidados no portão) */
+export async function jaTreinou(profileId: string) {
+  const rows = await db
+    .select({ id: boraSessions.id })
+    .from(boraSessions)
+    .where(eq(boraSessions.profileId, profileId))
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function sessionById(userId: string, id: string) {
   const rows = await db
     .select()
@@ -141,6 +156,8 @@ export async function insertSession(
       startedAt: new Date(session.startedAt),
       durationSeconds: session.duration,
       mode: session.mode,
+      feeling: session.feeling ?? null,
+      endedEarly: session.endedEarly ?? false,
     })
     .onConflictDoNothing()
     .returning({ id: boraSessions.id });

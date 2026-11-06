@@ -80,7 +80,7 @@ export function ProgressScreen({
   const recs = records(sessions);
   const totalReps = sessions.reduce((t, s) => t + s.logs.reduce((u, l) => u + l.reps, 0), 0);
   const minutes = Math.round(sessions.reduce((t, s) => t + s.duration, 0) / 60);
-  const pending = new Set(pendingSuggestions(progress).map((s) => s.chainId));
+  const pending = new Map(pendingSuggestions(progress).map((s) => [s.chainId, s]));
   const history = [...sessions].reverse();
 
   return (
@@ -174,11 +174,13 @@ export function ProgressScreen({
                 <span className="muted">{c.name}</span>
                 <h3 className="level-name">{exerciseById(c.levels[level] ?? "").name}</h3>
                 <span className="muted">
-                  {pending.has(c.id)
-                    ? "Pronto para evoluir: aceite no resumo do próximo treino"
-                    : st.streak > 0
-                      ? `${st.streak} de ${SESSIONS_TO_ADVANCE} sessões para evoluir`
-                      : "Bata a meta em todas as séries"}
+                  {pending.get(c.id)?.type === "down"
+                    ? "Pesou nas últimas vezes: dá para ajustar a meta no resumo do próximo treino"
+                    : pending.has(c.id)
+                      ? "Pronto para evoluir: aceite no resumo do próximo treino"
+                      : st.streak > 0
+                        ? `${st.streak} de ${SESSIONS_TO_ADVANCE} sessões para evoluir`
+                        : "Bata a meta em todas as séries"}
                 </span>
                 <div className="track">
                   {c.levels.map((l, i) => (

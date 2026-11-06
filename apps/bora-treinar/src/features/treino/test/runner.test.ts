@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { buildSteps, WORKOUTS, type Workout, workoutById } from "../catalog/workouts";
-import { applySuggestion, evaluateSession, initialProgress } from "../engine/progression";
+import {
+  buildSteps,
+  seriesPlanejadas,
+  WORKOUTS,
+  type Workout,
+  workoutById,
+} from "../catalog/workouts";
+import {
+  applySuggestion,
+  evaluateSession,
+  initialProgress,
+  PESO_PARA_DESCER,
+  pendingSuggestions,
+} from "../engine/progression";
 import { WorkoutRunner } from "../engine/runner";
 import { newRecords, streakDays } from "../engine/stats";
 
@@ -30,18 +42,40 @@ const simple: Workout = {
 };
 
 describe("passos do treino", () => {
-  it("séries com descanso e preparo inicial, sem descanso no fim", () => {
+  it("começa no exercício (o portão prepara) e não termina com descanso", () => {
     const steps = buildSteps(simple);
-    expect(steps.map((s) => s.kind)).toEqual([
-      "rest",
-      "exercise",
-      "rest",
-      "exercise",
-      "rest",
-      "exercise",
-    ]);
-    expect(steps[0]).toMatchObject({ label: "Prepare-se", next: "agachamento" });
-    expect(steps[4]).toMatchObject({ seconds: 20, next: "prancha" });
+    expect(steps.map((s) => s.kind)).toEqual(["exercise", "rest", "exercise", "rest", "exercise"]);
+    expect(steps[0]).toMatchObject({ exerciseId: "agachamento", target: 3 });
+    expect(steps[3]).toMatchObject({ seconds: 20, next: "prancha" });
+  });
+  it("leve troca o salto por versão sem impacto e reduz a meta; forte aumenta", () => {
+    const w: Workout = {
+      ...simple,
+      blocks: [{ type: "sets", slot: "agachamento-salto", sets: 1, target: 10, rest: 20 }],
+    };
+    expect(buildSteps(w, {}, { intensidade: "leve" })[0]).toMatchObject({
+      exerciseId: "agachamento-sumo",
+      target: 7,
+    });
+    expect(buildSteps(w, {}, { intensidade: "forte" })[0]).toMatchObject({
+      exerciseId: "agachamento-salto",
+      target: 12,
+    });
+    expect(buildSteps(w)[0]).toMatchObject({ exerciseId: "agachamento-salto", target: 10 });
+  });
+  it("aquecimento vem antes, sem meta, e não entra nas séries planejadas", () => {
+    const steps = buildSteps(simple, {}, { aquecimento: true });
+    const aquec = steps.filter((st) => st.kind === "exercise" && st.label === "Aquecimento");
+    expect(aquec).toHaveLength(4);
+    expect(aquec.every((st) => st.kind === "exercise" && st.target === undefined)).toBe(true);
+    expect(steps[0]).toMatchObject({ label: "Aquecimento" });
+    const { contagem, metas } = seriesPlanejadas(steps);
+    expect(contagem.get("agachamento")).toBe(2);
+    expect(metas.get("agachamento")).toEqual([3]);
+    expect(contagem.has("corrida-estacionaria")).toBe(false);
+    // o treino de aquecimento não ganha outro aquecimento
+    const so = buildSteps(workoutById("aquecimento-5"), {}, { aquecimento: true });
+    expect(so).toEqual(buildSteps(workoutById("aquecimento-5")));
   });
   it("trilhas usam o nível e o bônus do perfil", () => {
     const w = workoutById("primeiro-treino");
@@ -50,7 +84,12 @@ describe("passos do treino", () => {
     expect(push).toMatchObject({ exerciseId: "flexao", target: 10 });
   });
   it("todos os treinos prontos geram passos válidos", () => {
-    for (const w of WORKOUTS) expect(buildSteps(w).length).toBeGreaterThan(1);
+    for (const w of WORKOUTS) {
+      const steps = buildSteps(w);
+      expect(steps.length).toBeGreaterThan(0);
+      expect(steps[0]?.kind).not.toBe("rest");
+      expect(steps[steps.length - 1]?.kind).not.toBe("rest");
+    }
   });
 });
 
@@ -118,13 +157,16 @@ describe("executor", () => {
     const c = clock();
     const r = new WorkoutRunner(buildSteps(simple), c.now);
     r.start();
-    run(r, c, 3);
+    for (let i = 0; i < 3; i++) r.addRep();
+    run(r, c, 1);
+    expect(r.step?.kind).toBe("rest");
+    const antes = Math.round(r.remaining ?? -1);
     r.pause();
     run(r, c, 30);
     expect(r.step?.kind).toBe("rest");
-    expect(Math.round(r.remaining ?? -1)).toBe(5);
+    expect(Math.round(r.remaining ?? -1)).toBe(antes);
     r.resume();
-    run(r, c, 5.2);
+    run(r, c, antes + 0.2);
     expect(r.step?.kind).toBe("exercise");
   });
 
@@ -178,9 +220,12 @@ describe("executor", () => {
     const steps = buildSteps(simple);
     const r = new WorkoutRunner(steps, c.now);
     r.start();
-    const before = steps[0]?.kind === "rest" ? steps[0].seconds : -1;
+    for (let i = 0; i < 3; i++) r.addRep();
+    run(r, c, 1);
+    expect(r.step?.kind).toBe("rest");
+    const before = Math.round(r.remaining ?? -1);
     r.extendRest(15);
-    expect(steps[0]?.kind === "rest" ? steps[0].seconds : -2).toBe(before);
+    expect(steps[1]?.kind === "rest" ? steps[1].seconds : -2).toBe(20);
     expect(Math.round(r.remaining ?? -1)).toBe(before + 15);
   });
 
@@ -255,6 +300,48 @@ describe("progressão e recordes", () => {
     r = evaluateSession(evaluateSession(p, logs(8)).progress, logs(8));
     expect(r.suggestions[0]).toMatchObject({ type: "level", to: "flexao-joelhos" });
     expect(evaluateSession(p, logs(5)).progress.empurrar?.streak).toBe(0);
+  });
+  it("série planejada e não feita é meta não batida", () => {
+    const planejadas = new Map([["flexao-inclinada", 3]]);
+    const r = evaluateSession(initialProgress(), logs(8).slice(0, 1), { planejadas });
+    expect(r.progress.empurrar).toMatchObject({ streak: 0, struggle: 1 });
+    const cheio = evaluateSession(initialProgress(), logs(8), { planejadas });
+    expect(cheio.progress.empurrar).toMatchObject({ streak: 1, struggle: 0 });
+  });
+  it("fácil avança mais rápido; difícil não avança e pesa", () => {
+    const facil = evaluateSession(initialProgress(), logs(8), { feeling: "facil" });
+    expect(facil.progress.empurrar?.streak).toBe(2);
+    expect(facil.suggestions[0]).toMatchObject({ type: "bonus" });
+    const dificil = evaluateSession(initialProgress(), logs(8), { feeling: "dificil" });
+    expect(dificil.progress.empurrar).toMatchObject({ streak: 0, struggle: 2 });
+    expect(dificil.suggestions).toHaveLength(0);
+  });
+  it("sugere descer: primeiro tira o bônus, depois volta um nível", () => {
+    let p = initialProgress();
+    p.empurrar = { level: 1, bonus: 2, streak: 0, struggle: 0 };
+    let r = evaluateSession(
+      p,
+      logs(5).map((l) => ({ ...l, exerciseId: "flexao-joelhos" })),
+    );
+    r = evaluateSession(
+      r.progress,
+      logs(5).map((l) => ({ ...l, exerciseId: "flexao-joelhos" })),
+      { feeling: "dificil" },
+    );
+    expect(r.progress.empurrar?.struggle).toBeGreaterThanOrEqual(PESO_PARA_DESCER);
+    const desce = r.suggestions[0];
+    expect(desce).toMatchObject({ type: "down", bonusFrom: 2, bonusTo: 0 });
+    if (!desce) throw new Error("sem sugestão");
+    p = applySuggestion(r.progress, desce);
+    expect(p.empurrar).toMatchObject({ level: 1, bonus: 0, struggle: 0 });
+    p.empurrar = { level: 1, bonus: 0, streak: 0, struggle: PESO_PARA_DESCER };
+    const volta = pendingSuggestions(p)[0];
+    expect(volta).toMatchObject({ type: "down", from: "flexao-joelhos", to: "flexao-inclinada" });
+    if (!volta) throw new Error("sem sugestão");
+    expect(applySuggestion(p, volta).empurrar).toMatchObject({ level: 0, bonus: 0 });
+    // no primeiro nível sem bônus não há para onde descer
+    p.empurrar = { level: 0, bonus: 0, streak: 0, struggle: 9 };
+    expect(pendingSuggestions(p).filter((x) => x.chainId === "empurrar")).toEqual([]);
   });
   it("recordes e sequência de dias", () => {
     const day = 86_400_000;

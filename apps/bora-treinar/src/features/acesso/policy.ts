@@ -1,4 +1,4 @@
-import { EXERCISES } from "@/features/treino/catalog/catalog";
+import { contavel, EXERCISES } from "@/features/treino/catalog/catalog";
 import { FREE_WORKOUT_IDS, WORKOUTS } from "@/features/treino/catalog/workouts";
 
 export type Tier = "free" | "individual" | "family";
@@ -38,7 +38,9 @@ export function parseWorkoutRef(value: string): WorkoutRef | null {
   if (!id || rest.length) return null;
   if (kind === "catalogo" && WORKOUTS.some((w) => w.id === id)) return { kind, id };
   if (kind === "meu" && UUID.test(id)) return { kind, id };
-  if (kind === "pratica" && EXERCISES.some((e) => e.id === id)) return { kind, exerciseId: id };
+  // alongamento é só cronômetro: não tem prática
+  if (kind === "pratica" && EXERCISES.some((e) => e.id === id && contavel(e)))
+    return { kind, exerciseId: id };
   return null;
 }
 

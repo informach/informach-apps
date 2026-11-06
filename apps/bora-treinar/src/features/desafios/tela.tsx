@@ -1,6 +1,5 @@
 "use client";
 import { Lock, Trophy } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";

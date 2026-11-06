@@ -24,13 +24,20 @@ import { usePareamentoTv } from "@/features/pareamento/use-pareamento-tv";
 import { saveSessionAction } from "@/features/sessoes/actions";
 import { GUARDAR_NA_FILA, guardarPendente } from "@/features/sessoes/fila";
 import type { SessionInput } from "@/features/sessoes/schema";
-import { useAjustes } from "../ajustes";
+import { lerAjustes, useAjustes } from "../ajustes";
 import { cadenceLabel } from "../body/cadence";
 import { MP_BONES } from "../body/landmarks";
 import { exerciseById, type View } from "../catalog/catalog";
-import { buildSteps, type LevelMap, type Step, type Workout } from "../catalog/workouts";
-import { HoldTracker, RepCounter } from "../engine/counter";
+import {
+  buildSteps,
+  type Intensidade,
+  type LevelMap,
+  type Step,
+  type Workout,
+} from "../catalog/workouts";
+import { HoldTracker, minRepMsFor, RepCounter } from "../engine/counter";
 import { definirMusica } from "../engine/musica";
+import type { Feeling } from "../engine/progression";
 import { WorkoutRunner } from "../engine/runner";
 import {
   beep,
@@ -49,11 +56,21 @@ import {
   pedirMicrofone,
   vozDisponivel,
 } from "../engine/voz";
-import { Instructor3D } from "../instructor/instructor-3d";
+import { aparelhoFraco, Instructor3D } from "../instructor/instructor-3d";
 import type { InstructorMode } from "../instructor/instructor-scene";
 import { ajudaDaCamera, ajudaDaVoz, navegadorDe } from "../permissoes";
+import {
+  CHECAGEM_VAZIA,
+  type Checagem,
+  corpoInteiro,
+  LUZ_MINIMA,
+  luzDoVideo,
+  naPosicaoInicial,
+  tudoPronto,
+} from "../vision/enquadramento";
 import { type PoseFrame, PoseTracker } from "../vision/pose-tracker";
 import { presenca } from "../vision/presenca";
+import { Pronto } from "./pronto";
 import type { CountMode } from "./treino";
 
 type CamStatus =
@@ -66,10 +83,37 @@ const VIEWS: [View, string][] = [
   ["three4", "3/4"],
 ];
 
+// sem "Prepare-se": quem prepara é o portão "Pronto?"
 const practiceSteps = (exerciseId: string): Step[] => [
-  { kind: "rest", seconds: 6, label: "Prepare-se", next: exerciseId },
   { kind: "exercise", exerciseId, set: 1, sets: 1, label: "Prática livre" },
 ];
+
+/** Exercício de um passo (no AMRAP, o primeiro do circuito). */
+const exercicioDo = (st: Step | undefined) =>
+  !st || st.kind === "rest"
+    ? undefined
+    : st.kind === "amrap"
+      ? st.circuit[0]?.exerciseId
+      : st.exerciseId;
+
+/** A vista da câmera muda do exercício anterior para o próximo? (no descanso, a dica aparece) */
+function vistaMuda(steps: readonly Step[], index: number, proximo: string) {
+  const anterior = exercicioDo(
+    steps
+      .slice(0, index)
+      .reverse()
+      .find((x) => x.kind !== "rest"),
+  );
+  const prox = exerciseById(proximo);
+  return prox.rule.kind !== "timed" && (!anterior || exerciseById(anterior).view !== prox.view);
+}
+
+/** Um aviso de forma falado a cada 10 s, no máximo; ele cala o número da repetição por 2,5 s. */
+const INTERVALO_DA_DICA = 10_000;
+/** Sem a pessoa na imagem por 3 s numa série, o app sugere a voz. */
+const PERDIDO_PARA_SUGERIR_VOZ = 3000;
+/** O aparelho não passa disso com o detector completo: o portão troca para o leve. */
+const FPS_MINIMO = 14;
 
 const stepAnnouncement = (s: Step) => {
   if (s.kind === "rest")
@@ -104,7 +148,9 @@ async function microfoneNegado() {
 }
 
 export interface PlayerProps {
-  profile: { id: string; name: string; color: string };
+  profile: { id: string; name: string; color: string; intensity?: Intensidade };
+  /** primeiro treino do perfil: o portão mostra os cuidados antes */
+  primeiroTreino?: boolean;
   workout: Workout | null;
   practiceExerciseId: string | null;
   workoutRef: string;
@@ -130,18 +176,20 @@ export function PlayerScreen({
   levels,
   saidaHref,
   onFinish,
+  primeiroTreino = false,
 }: PlayerProps) {
   const router = useRouter();
   const [settings, setSettings, ajustesCarregados] = useAjustes();
   // O treino é montado uma vez por entrada no player. Não depende da identidade das props: um
   // refresh do servidor (a fila offline salvando outro treino) mandava objetos novos e recriava o
   // executor, zerando o treino no meio. Outro treino é outra montagem (a página usa `key`).
-  const [runner] = useState(
-    () =>
-      new WorkoutRunner(
-        workout ? buildSteps(workout, levels) : practiceSteps(practiceExerciseId ?? "agachamento"),
-      ),
-  );
+  const passosDo = (o: { aquecimento: boolean; voltaACalma: boolean }) =>
+    workout
+      ? buildSteps(workout, levels, { intensidade: profile.intensity, ...o })
+      : practiceSteps(practiceExerciseId ?? "agachamento");
+  const [runner] = useState(() => new WorkoutRunner(passosDo(lerAjustes())));
+  // aparelho fraco: o instrutor desenha sem sombra e a 30 fps, sobrando para o detector
+  const [qualidade] = useState(() => (aparelhoFraco() ? ("baixa" as const) : ("alta" as const)));
   const [mode, setMode] = useState<CountMode>(modoInicial);
   const saida =
     saidaHref ??
@@ -172,6 +220,29 @@ export function PlayerScreen({
   const pausouParaVoz = useRef(false);
   const ouvinte = useRef<OuvinteDeVoz | null>(null);
   const [saveError, setSaveError] = useState("");
+  // portão "Pronto?" e largada
+  const [largada, setLargada] = useState(0);
+  const [seguranca, setSeguranca] = useState(primeiroTreino);
+  const [checagem, setChecagem] = useState<Checagem>(CHECAGEM_VAZIA);
+  const [detector, setDetector] = useState<number | null>(mode === "camera" ? 0 : null);
+  const [vozTestada, setVozTestada] = useState(false);
+  /** "Como foi?" depois da última série, antes de salvar */
+  const [comoFoi, setComoFoi] = useState(false);
+  /** a pessoa tocou em "Parar e salvar" */
+  const encerrouAntes = useRef(false);
+  const largadaRef = useRef(0);
+  largadaRef.current = largada;
+  const segurancaRef = useRef(seguranca);
+  segurancaRef.current = seguranca;
+  const prontoDesde = useRef(0);
+  const trocouModelo = useRef(false);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const ouvindoRef = useRef(false);
+  const ultimaDica = useRef(0);
+  const silencioAte = useRef(0);
+  const perdidoDesde = useRef(0);
+  const sugeriuVozNoPasso = useRef(-2);
   const [cam, setCam] = useState<CamStatus>({ state: mode === "camera" ? "loading" : "off" });
   const [conf, setConf] = useState(0);
   const [follow, setFollow] = useState(0);
@@ -186,12 +257,68 @@ export function PlayerScreen({
   followRef.current = settings.follow;
   const countAloud = useRef(settings.countAloud);
   countAloud.current = settings.countAloud;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  ouvindoRef.current = ouvindo;
 
   const flash = useCallback((text: string, good = false) => {
     setToast({ text, good });
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 1700);
   }, []);
+
+  /** Aviso de forma: na tela sempre; falado no máximo a cada 10 s, na frente do número. */
+  const dica = useCallback(
+    (texto: string) => {
+      flash(texto);
+      const agora = performance.now();
+      if (agora - ultimaDica.current < INTERVALO_DA_DICA) return;
+      ultimaDica.current = agora;
+      silencioAte.current = agora + 2500;
+      say(texto, { interrupt: true });
+    },
+    [flash],
+  );
+
+  /** Largada com 3-2-1 (pelo botão ou sozinha, quando o portão vê tudo certo por 1 s). */
+  const iniciar = useCallback(() => {
+    if (runner.started || largadaRef.current) return;
+    unlockAudio();
+    setLargada(3);
+  }, [runner]);
+  useEffect(() => {
+    if (!largada) return;
+    beep("tick");
+    say(numberWord(largada), { interrupt: true });
+    const t = window.setTimeout(() => {
+      if (largada > 1) return setLargada(largada - 1);
+      setLargada(0);
+      runner.start();
+      render();
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [largada, runner]);
+
+  /** Portão: guarda a checagem e começa sozinho com tudo certo por 1 s. */
+  const avaliarPortao = useRef((_: Checagem) => {});
+  avaliarPortao.current = (c: Checagem) => {
+    setChecagem((a) =>
+      a.camera === c.camera && a.luz === c.luz && a.corpo === c.corpo && a.posicao === c.posicao
+        ? a
+        : c,
+    );
+    if (runner.started || segurancaRef.current || largadaRef.current || !tudoPronto(c)) {
+      prontoDesde.current = 0;
+      return;
+    }
+    const agora = performance.now();
+    if (!prontoDesde.current) prontoDesde.current = agora;
+    else if (agora - prontoDesde.current > 1000) {
+      prontoDesde.current = 0;
+      iniciar();
+    }
+  };
+  const primeiroId = exercicioDo(runner.steps[0]);
 
   useEffect(() => setAudioEnabled(settings.audio), [settings.audio]);
 
@@ -205,6 +332,13 @@ export function PlayerScreen({
         return;
       }
       if (e.tipo === "sinal") {
+        if (!runner.started)
+          avaliarPortao.current({
+            camera: true,
+            luz: null,
+            corpo: !!e.corpo,
+            posicao: !!e.posicao,
+          });
         setConf(Math.round(e.confianca * 10) / 10);
         if (followRef.current) setFollow(Math.round(e.progresso * 50) / 50);
         setCelularOuvindo(!!e.ouvindo);
@@ -213,20 +347,21 @@ export function PlayerScreen({
       if (e.passo !== runner.index || runner.paused || runner.done) return;
       if (e.tipo === "rep") {
         if (junta.current.camera(performance.now())) runner.addRep(1, e.issues);
-        if (e.issues[0]) flash(e.issues[0]);
+        if (e.issues[0]) dica(e.issues[0]);
       } else if (e.tipo === "parcial") {
         runner.addPartial(e.issues);
-        flash(e.issues[0] ?? "Quase! Vá até o fim do movimento");
+        if (e.issues[0]) dica(e.issues[0]);
+        else flash("Quase! Vá até o fim do movimento");
       } else if (e.segurando !== runner.holding) {
         runner.setHolding(e.segurando);
         if (!e.segurando && e.dica) flash(e.dica);
       }
     },
-    [runner, flash],
+    [runner, flash, dica],
   );
   const par = usePareamentoTv(mode === "pareado", aoEventoCelular);
 
-  async function save() {
+  async function save(feeling: Feeling | null = null) {
     if (saving.current) return;
     saving.current = true;
     const logs = runner.logs.filter((l) => l.reps > 0 || l.holdSeconds > 0);
@@ -245,9 +380,9 @@ export function PlayerScreen({
       durationSeconds: duration,
       mode: camOn.current ? (mode === "pareado" ? "pareado" : "camera") : "manual",
       logs: logs.map((l) => ({ ...l, holdSeconds: Math.round(l.holdSeconds) })),
+      feeling,
+      ...(encerrouAntes.current ? { endedEarly: true } : {}),
     };
-    say("Treino concluído! Mandou bem.", { interrupt: true });
-    beep("done");
     if (onFinish) {
       onFinish(input);
       return;
@@ -281,7 +416,15 @@ export function PlayerScreen({
       if (e.type === "step") {
         const s = runner.step;
         if (s) {
-          say(stepAnnouncement(s), { interrupt: true });
+          // no descanso, quando a câmera precisa mudar de lugar, a dica vem junto do próximo
+          const dicaDaVista =
+            s.kind === "rest" &&
+            s.next &&
+            modeRef.current !== "manual" &&
+            vistaMuda(runner.steps, runner.index, s.next)
+              ? ` ${exerciseById(s.next).cameraHint}`
+              : "";
+          say(`${stepAnnouncement(s)}${dicaDaVista}`, { interrupt: true });
           if (s.kind !== "rest") beep("go");
         }
         counters.current = null;
@@ -293,7 +436,8 @@ export function PlayerScreen({
         if (e.delta > 0) {
           setPop((p) => p + 1);
           beep("rep");
-          if (countAloud.current && e.count > 0)
+          // o aviso de forma falado agora há pouco tem a vez
+          if (countAloud.current && e.count > 0 && performance.now() > silencioAte.current)
             say(numberWord(e.count), { interrupt: true, rate: 1.25 });
         }
         if (
@@ -308,20 +452,27 @@ export function PlayerScreen({
         if (countAloud.current) say(numberWord(e.seconds), { interrupt: true, rate: 1.25 });
       } else if (e.type === "countdown") beep("tick");
       else if (e.type === "round") say(`Volta ${e.rounds} completa`, { interrupt: true });
-      else if (e.type === "finish") void saveRef.current();
+      else if (e.type === "finish") {
+        say("Treino concluído! Mandou bem.", { interrupt: true });
+        beep("done");
+        // "Como foi?" só em treino de verdade com algo feito (a prática salva direto)
+        const feito = runner.logs.some((l) => l.reps > 0 || l.holdSeconds > 0);
+        if (workout && feito) setComoFoi(true);
+        else void saveRef.current();
+      }
       render();
     });
-    runner.start();
+    // o start é da largada, depois do portão "Pronto?"
     return () => {
       off();
     };
-  }, [runner, flash]);
+  }, [runner, flash, workout]);
 
   // Aba escondida (outro app, tela bloqueada) pausa o treino: o cronômetro seguia correndo e o
   // descanso acabava sem ninguém ver. A volta é com 3-2-1.
   useEffect(() => {
     const aoMudar = () => {
-      if (document.hidden && !runner.done && !runner.paused) {
+      if (document.hidden && runner.started && !runner.done && !runner.paused) {
         runner.pause();
         setRetomando(0);
         render();
@@ -370,6 +521,7 @@ export function PlayerScreen({
   // a TV conta ao celular pareado qual exercício está valendo
   const exerciseNow = runner.step?.kind === "rest" ? null : (runner.exerciseId ?? null);
   const { publicar } = par;
+  const prontoNoCelular = runner.started ? null : (primeiroId ?? null);
   useEffect(() => {
     publicar({
       tipo: "estado",
@@ -378,8 +530,17 @@ export function PlayerScreen({
       pausado: runner.paused,
       fim: runner.done,
       titulo: workoutName,
+      pronto: prontoNoCelular,
     });
-  }, [publicar, exerciseNow, runner.index, runner.paused, runner.done, workoutName]);
+  }, [
+    publicar,
+    exerciseNow,
+    runner.index,
+    runner.paused,
+    runner.done,
+    workoutName,
+    prontoNoCelular,
+  ]);
 
   // tela sempre acesa durante o treino
   useEffect(() => {
@@ -407,8 +568,14 @@ export function PlayerScreen({
   // biome-ignore lint/correctness/useExhaustiveDependencies: `camTentativa` religa a câmera de propósito ("Tentar de novo")
   useEffect(() => {
     if (mode !== "camera") return;
-    const tracker = new PoseTracker();
+    const modelo = settingsRef.current.modelo ?? "full";
+    const tracker = new PoseTracker(modelo);
     let alive = true;
+    // portão: luz medida 1 vez por segundo num quadro reduzido; fps medido depois de 4 s ligada
+    const telaDaLuz = document.createElement("canvas");
+    let luz: boolean | null = null;
+    let ultimaLuz = 0;
+    let ligadaEm = 0;
     const drawOverlay = (f: PoseFrame | null) => {
       const cv = overlay.current;
       if (!cv) return;
@@ -433,13 +600,73 @@ export function PlayerScreen({
         g.stroke();
       }
     };
+    const portao = (f: PoseFrame | null) => {
+      const agora = performance.now();
+      if (agora - ultimaLuz > 1000) {
+        ultimaLuz = agora;
+        const l = luzDoVideo(tracker.video, telaDaLuz);
+        if (l !== null) luz = l >= LUZ_MINIMA;
+      }
+      // aparelho lento com o detector completo: troca para o leve e lembra neste aparelho
+      if (
+        modelo === "full" &&
+        !trocouModelo.current &&
+        ligadaEm &&
+        agora - ligadaEm > 4000 &&
+        tracker.fps > 0 &&
+        tracker.fps < FPS_MINIMO
+      ) {
+        trocouModelo.current = true;
+        setSettings({ modelo: "lite" });
+        flash("Aparelho mais lento: usando o detector leve.");
+        setCam({ state: "loading" });
+        setCamTentativa((n) => n + 1);
+        return;
+      }
+      const primeiro = exercicioDo(runner.steps[0]);
+      avaliarPortao.current({
+        camera: true,
+        luz,
+        corpo: !!f && corpoInteiro(f.image),
+        posicao: !!f && (!primeiro || naPosicaoInicial(exerciseById(primeiro).rule, f.world)),
+      });
+    };
+    /** Sem a pessoa por 3 s numa série: sugere a voz, uma vez por passo. */
+    const sugerirVoz = () => {
+      const agora = performance.now();
+      if (!perdidoDesde.current) perdidoDesde.current = agora;
+      const st = runner.step;
+      if (
+        agora - perdidoDesde.current < PERDIDO_PARA_SUGERIR_VOZ ||
+        !st ||
+        st.kind === "rest" ||
+        runner.paused ||
+        runner.done ||
+        runner.isTimed ||
+        ouvindoRef.current ||
+        !vozDisponivel() ||
+        sugeriuVozNoPasso.current === runner.index
+      )
+        return;
+      sugeriuVozNoPasso.current = runner.index;
+      flash("Não estou vendo você. Toque no microfone para contar pela voz.");
+    };
     const onFrame = (f: PoseFrame | null) => {
       drawOverlay(f);
+      if (!runner.started) {
+        setConf(f ? Math.round(presenca(f.image) * 10) / 10 : 0);
+        portao(f);
+        return;
+      }
       if (!f) {
         setConf(0);
         if (runner.isHold) runner.setHolding(false);
+        // perda longa zera a repetição pela metade (o contador decide pelo tempo)
+        counters.current?.rep?.update([], performance.now());
+        sugerirVoz();
         return;
       }
+      perdidoDesde.current = 0;
       const exId = runner.exerciseId;
       const s = runner.step;
       if (!exId || !s || s.kind === "rest" || runner.paused || runner.done) {
@@ -449,12 +676,15 @@ export function PlayerScreen({
       }
       const key = `${runner.index}:${exId}`;
       if (counters.current?.key !== key) {
-        const rule = exerciseById(exId).rule;
+        const exercicio = exerciseById(exId);
+        const rule = exercicio.rule;
         counters.current = {
           key,
           ...(rule.kind === "reps"
-            ? { rep: new RepCounter(rule) }
-            : { hold: new HoldTracker(rule) }),
+            ? { rep: new RepCounter(rule, { minRepMs: minRepMsFor(exercicio.cadence) }) }
+            : rule.kind === "hold"
+              ? { hold: new HoldTracker(rule) }
+              : {}),
         };
       }
       const c = counters.current;
@@ -465,10 +695,11 @@ export function PlayerScreen({
         for (const ev of u.events) {
           if (ev.type === "rep") {
             if (junta.current.camera(performance.now())) runner.addRep(1, ev.issues);
-            if (ev.issues[0]) flash(ev.issues[0]);
+            if (ev.issues[0]) dica(ev.issues[0]);
           } else {
             runner.addPartial(ev.issues);
-            flash(ev.issues[0] ?? "Quase! Vá até o fim do movimento");
+            if (ev.issues[0]) dica(ev.issues[0]);
+            else flash("Quase! Vá até o fim do movimento");
           }
         }
       } else if (c.hold) {
@@ -478,7 +709,7 @@ export function PlayerScreen({
           runner.setHolding(u.holding);
           if (!u.holding && u.cue) flash(u.cue);
         }
-      }
+      } else setConf(Math.round(presenca(f.image) * 10) / 10);
     };
     const off = tracker.on(onFrame);
     tracker.aoParar(() => {
@@ -487,11 +718,13 @@ export function PlayerScreen({
       runner.setHolding(true);
     });
     tracker
-      .start()
+      .start("user", (p) => alive && setDetector(p))
       .then(() => {
         if (!alive) return tracker.stop();
         camHost.current?.prepend(tracker.video);
         camOn.current = true;
+        ligadaEm = performance.now();
+        setDetector(1);
         if (runner.isHold) runner.setHolding(false);
         setCam({ state: "on" });
       })
@@ -512,7 +745,7 @@ export function PlayerScreen({
       tracker.video.remove();
       camOn.current = false;
     };
-  }, [mode, runner, flash, camTentativa]);
+  }, [mode, runner, flash, dica, setSettings, camTentativa]);
 
   // atalhos: espaço = +1, P = pausa; Voltar/Esc pergunta antes de sair
   useEffect(() => {
@@ -522,12 +755,12 @@ export function PlayerScreen({
         e.preventDefault();
         e.stopImmediatePropagation();
         if (!quitting) {
-          runner.pause();
+          if (runner.started) runner.pause();
           setQuitting(true);
         }
         return;
       }
-      if (quitting) return;
+      if (quitting || !runner.started) return;
       if (e.code === "Space") {
         e.preventDefault();
         runner.addRep(1);
@@ -548,6 +781,8 @@ export function PlayerScreen({
   const aoOuvirVoz = useCallback(
     (novos: Dito[], texto: string) => {
       setOuvido(texto.trim().split(/\s+/).slice(-3).join(" "));
+      // no portão, qualquer número dito prova que o microfone está ouvindo
+      if (!runner.started && novos.length) setVozTestada(true);
       const st = runner.step;
       if (
         !novos.length ||
@@ -574,7 +809,7 @@ export function PlayerScreen({
   }, []);
   // pergunta pelo microfone com o treino pausado, para o "Prepare-se" não correr por baixo
   const perguntarVoz = useCallback(() => {
-    if (!runner.paused && !runner.done) {
+    if (runner.started && !runner.paused && !runner.done) {
       runner.pause();
       pausouParaVoz.current = true;
     }
@@ -623,27 +858,16 @@ export function PlayerScreen({
       void ligarVoz();
     }
   };
-  // Ao abrir o treino no modo manual: pergunta uma vez; depois liga sozinho ou não pergunta mais.
-  // Com a câmera, a voz é escolha do botão do microfone (e fica lembrada do mesmo jeito).
+  // Ao abrir o treino: quem já escolheu a voz tem o microfone ligado sozinho; os demais escolhem
+  // no portão "Pronto?" (com o aviso de privacidade e o teste "Diga 'um'").
   useEffect(() => {
     if (!ajustesCarregados || !vozSuportada || decidiuVoz.current) return;
     decidiuVoz.current = true;
     void microfoneNegado().then((negado) => {
       if (negado) setFalhaVoz("negado");
-      const perguntar =
-        mode === "manual" && (settings.vozAoIniciar === null || (settings.vozAoIniciar && negado));
-      if (perguntar) perguntarVoz();
-      else if (settings.vozAoIniciar && settings.vozAceita && !negado) void ligarVoz();
+      else if (settings.vozAoIniciar && settings.vozAceita) void ligarVoz();
     });
-  }, [
-    ajustesCarregados,
-    vozSuportada,
-    settings.vozAoIniciar,
-    settings.vozAceita,
-    ligarVoz,
-    perguntarVoz,
-    mode,
-  ]);
+  }, [ajustesCarregados, vozSuportada, settings.vozAoIniciar, settings.vozAceita, ligarVoz]);
   // o celular pareado ouvindo a voz: a TV não fala os números (o microfone dele os contaria)
   useEffect(() => {
     if (ouvindo) return;
@@ -678,7 +902,8 @@ export function PlayerScreen({
   useEffect(() => definirMusica(music), [music]);
   useEffect(() => () => definirMusica("parado"), []);
 
-  const s = runner.step;
+  const emPronto = !runner.started;
+  const s = runner.step ?? (emPronto ? runner.steps[0] : undefined);
   if (saveError)
     return (
       <div className="player">
@@ -723,6 +948,55 @@ export function PlayerScreen({
         </div>
       </div>
     );
+  if (comoFoi)
+    return (
+      <div className="player">
+        <div className="overlay-msg static">
+          <div className="como-foi">
+            <h2>Como foi?</h2>
+            <p className="muted">
+              {encerrouAntes.current
+                ? "Parar também é treino. Se sentiu dor, tontura ou falta de ar, descanse e, se não passar, procure atendimento."
+                : `${profile.name}, a resposta ajusta as próximas metas.`}
+            </p>
+            <div className="como-foi-opcoes">
+              {(
+                [
+                  ["facil", "Fácil", "dá para mais"],
+                  ["na_medida", "Na medida", "cansou do jeito certo"],
+                  ["dificil", "Difícil", "pesou demais"],
+                ] as const
+              ).map(([valor, titulo, sub], i) => (
+                <button
+                  key={valor}
+                  type="button"
+                  className="btn big"
+                  // biome-ignore lint/a11y/noAutofocus: no controle da TV o foco precisa cair numa resposta
+                  autoFocus={i === 1}
+                  onClick={() => {
+                    setComoFoi(false);
+                    void save(valor);
+                  }}
+                >
+                  <strong>{titulo}</strong>
+                  <small className="muted">{sub}</small>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setComoFoi(false);
+                void save(null);
+              }}
+            >
+              Pular
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   if (!s)
     return (
       <div className="player">
@@ -735,10 +1009,11 @@ export function PlayerScreen({
       </div>
     );
 
-  const exId = s.kind === "rest" ? s.next : runner.exerciseId;
+  const exId = s.kind === "rest" ? s.next : emPronto ? primeiroId : runner.exerciseId;
   const ex = exId ? exerciseById(exId) : undefined;
   const isRest = s.kind === "rest";
   const isHold = runner.isHold;
+  const isTimed = runner.isTimed;
   const remaining = runner.remaining;
   const sensing = cam.state === "on" || par.fase === "conectado";
   const following = settings.follow && sensing;
@@ -746,7 +1021,7 @@ export function PlayerScreen({
   if (runner.done) instructorMode = "celebrate";
   // pausado, o boneco volta à pose de repouso em vez de congelar no meio da repetição
   else if (!ex || runner.paused) instructorMode = "idle";
-  else if (isHold) instructorMode = "hold";
+  else if (isHold || isTimed) instructorMode = "hold";
   else if (following && !isRest) instructorMode = "follow";
 
   const fullscreen = typeof document !== "undefined" && !!document.fullscreenElement;
@@ -767,7 +1042,7 @@ export function PlayerScreen({
   };
 
   const askQuit = () => {
-    runner.pause();
+    if (runner.started) runner.pause();
     setQuitting(true);
   };
 
@@ -786,6 +1061,11 @@ export function PlayerScreen({
     big = runner.amrapItemReps;
     of = `/ ${runner.target}`;
     dots = { n: s.circuit.length, on: runner.amrapPos + 1 };
+  } else if (isTimed) {
+    label = "Alongamento · respire fundo";
+    big = Math.ceil(remaining ?? 0);
+    of = "s";
+    dots = s.sets > 1 ? { n: s.sets, on: s.set } : undefined;
   } else if (isHold) {
     label = runner.holding ? "Segurando" : "Entre na posição";
     big = Math.floor(runner.holdSeconds);
@@ -802,13 +1082,17 @@ export function PlayerScreen({
   const upcoming = isRest
     ? runner.steps.slice(runner.index + 1).find((x) => x.kind !== "rest")
     : undefined;
+  const mudaVista =
+    isRest && !!s.next && mode !== "manual" && vistaMuda(runner.steps, runner.index, s.next);
   const setInfo =
     s.kind === "exercise"
       ? !workout
         ? "Prática livre"
-        : s.window
-          ? `Rodada ${s.set} de ${s.sets}`
-          : `Série ${s.set} de ${s.sets}`
+        : s.label === "Aquecimento" || s.label === "Volta à calma"
+          ? `${s.label} · ${s.set} de ${s.sets}`
+          : s.window
+            ? `Rodada ${s.set} de ${s.sets}`
+            : `Série ${s.set} de ${s.sets}`
       : s.kind === "amrap"
         ? `Voltas completas: ${runner.amrapRounds}`
         : "";
@@ -837,18 +1121,18 @@ export function PlayerScreen({
     // qualquer toque libera o áudio no celular, se o navegador o suspendeu
     <div className="player" onPointerDownCapture={unlockAudio}>
       <header className="player-top">
-        <button type="button" className="icon-btn" onClick={askQuit} aria-label="Sair do treino">
+        <button type="button" className="icon-btn" onClick={askQuit} aria-label="Parar o treino">
           <X size={20} />
         </button>
         <span className="title">
           {workoutName}{" "}
           <small className="muted">
-            <span className="sep">· </span>passo {Math.min(runner.index + 1, runner.steps.length)}{" "}
-            de {runner.steps.length}
+            <span className="sep">· </span>passo{" "}
+            {Math.max(1, Math.min(runner.index + 1, runner.steps.length))} de {runner.steps.length}
           </small>
         </span>
         <div className="progress">
-          <div style={{ width: `${(runner.index / runner.steps.length) * 100}%` }} />
+          <div style={{ width: `${(Math.max(0, runner.index) / runner.steps.length) * 100}%` }} />
         </div>
         {typeof document !== "undefined" && document.fullscreenEnabled && (
           <button
@@ -904,12 +1188,13 @@ export function PlayerScreen({
             view={view}
             followDepth={follow}
             paused={runner.paused}
+            qualidade={qualidade}
           />
           <div className="inst-overlay">
             <div className="inst-head">
               <div>
                 <span className={`muted strong ${isRest ? "" : "set-info"}`}>
-                  {isRest ? "A seguir" : setInfo}
+                  {emPronto ? "Primeiro exercício" : isRest ? "A seguir" : setInfo}
                 </span>
                 <h1>{ex?.name ?? "Prepare-se"}</h1>
                 {ex && <p>{ex.cue}</p>}
@@ -929,7 +1214,7 @@ export function PlayerScreen({
               </div>
             </div>
             <div className="inst-foot">
-              {ex && !isHold ? (
+              {ex && !isHold && ex.rule.kind !== "timed" ? (
                 <button
                   type="button"
                   className="pill"
@@ -951,7 +1236,7 @@ export function PlayerScreen({
                 </span>
               )}
               {mode === "camera" && (
-                <div className="cam-pip" ref={camHost}>
+                <div className={`cam-pip ${emPronto ? "grande" : ""}`} ref={camHost}>
                   <canvas ref={overlay} />
                   {/* enquanto a câmera liga, a miniatura fica sem selo */}
                   {badge && (
@@ -963,7 +1248,7 @@ export function PlayerScreen({
                 </div>
               )}
               {mode === "pareado" && (
-                <div className="cam-pip pair-pip">
+                <div className={`cam-pip pair-pip ${emPronto ? "grande" : ""}`}>
                   {(par.fase === "aguardando" || par.fase === "desconectado") &&
                   par.codigo &&
                   par.url ? (
@@ -1059,141 +1344,199 @@ export function PlayerScreen({
           )}
         </section>
 
-        <aside className="side">
-          <div
-            className={`counter ${counterClass} ${pop ? "pop" : ""}`}
-            key={isRest ? "rest" : `c${pop}`}
-          >
-            <div className="label">
-              <span>{label}</span>
-              {mode !== "manual" && !isRest && runner.partials > 0 && (
-                <span className="partials">
-                  {runner.partials} parcia{runner.partials > 1 ? "is" : "l"}
-                </span>
-              )}
-            </div>
-            <div className="big num">
-              <span className="value" aria-live="polite">
-                {big}
-              </span>
-              {of && <span className="of">{of}</span>}
-            </div>
-            {isRest ? (
-              <div className="next-up">
-                <span className="muted">Próximo</span>
-                <strong>{upcoming ? stepTitle(upcoming) : "Fim do treino"}</strong>
-              </div>
-            ) : (
-              <div className="sets">
-                <strong>{setInfo}</strong>
-                {dots && (
-                  <div className="set-dots">
-                    {Array.from({ length: dots.n }, (_, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: bolinhas fixas por posição
-                      <span key={i} className={i < dots.on ? "on" : ""} />
-                    ))}
-                  </div>
+        {emPronto && ex ? (
+          <Pronto
+            modo={mode}
+            primeiro={ex}
+            detalhe={
+              s.kind === "exercise" && s.label === "Aquecimento"
+                ? "Começa com 2 minutos de aquecimento leve"
+                : s.kind === "exercise" && s.target
+                  ? `${setInfo} · meta de ${s.target}${ex.rule.kind === "hold" ? " s" : " repetições"}`
+                  : setInfo || stepTitle(s)
+            }
+            checagem={checagem}
+            detector={mode === "camera" ? detector : null}
+            cameraFalhou={cam.state === "error"}
+            celularConectado={par.fase === "conectado"}
+            largada={largada}
+            seguranca={seguranca}
+            nomeDoPerfil={profile.name}
+            voz={{
+              suportada: vozSuportada,
+              ouvindo,
+              testada: vozTestada,
+              aceita: settings.vozAceita,
+              falhou: !!falhaVoz,
+            }}
+            opcoes={
+              workout
+                ? { aquecimento: settings.aquecimento, voltaACalma: settings.voltaACalma }
+                : null
+            }
+            aoMudarOpcoes={(o) => {
+              const novo = {
+                aquecimento: o.aquecimento ?? settings.aquecimento,
+                voltaACalma: o.voltaACalma ?? settings.voltaACalma,
+              };
+              setSettings(novo);
+              runner.trocarPassos(passosDo(novo));
+              render();
+            }}
+            aoEntenderSeguranca={() => setSeguranca(false)}
+            aoComecar={iniciar}
+            aoComecarSemCamera={() => {
+              setCam({ state: "off" });
+              setMode("manual");
+              iniciar();
+            }}
+            aoLigarVoz={() => {
+              setSettings({ vozAceita: true, vozAoIniciar: true });
+              void ligarVoz();
+            }}
+            aoAjudaDaVoz={perguntarVoz}
+          />
+        ) : (
+          <aside className="side">
+            <div
+              className={`counter ${counterClass} ${pop ? "pop" : ""}`}
+              key={isRest ? "rest" : `c${pop}`}
+            >
+              <div className="label">
+                <span>{label}</span>
+                {mode !== "manual" && !isRest && runner.partials > 0 && (
+                  <span className="partials">
+                    {runner.partials} parcia{runner.partials > 1 ? "is" : "l"}
+                  </span>
                 )}
               </div>
-            )}
-          </div>
+              <div className="big num">
+                <span className="value" aria-live="polite">
+                  {big}
+                </span>
+                {of && <span className="of">{of}</span>}
+              </div>
+              {isRest ? (
+                <div className="next-up">
+                  <span className="muted">Próximo</span>
+                  <strong>{upcoming ? stepTitle(upcoming) : "Fim do treino"}</strong>
+                  {mudaVista && ex && <p className="dica-vista">{ex.cameraHint}</p>}
+                </div>
+              ) : (
+                <div className="sets">
+                  <strong>{setInfo}</strong>
+                  {dots && (
+                    <div className="set-dots">
+                      {Array.from({ length: dots.n }, (_, i) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: bolinhas fixas por posição
+                        <span key={i} className={i < dots.on ? "on" : ""} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-          {/* No celular em pé, as parciais da série tomam o lugar do total do treino. */}
-          <div className="stats-row" data-partials={mode !== "manual" && !isRest ? "" : undefined}>
-            <div className="stat">
-              <span className="label">
-                {isRest ? "Séries feitas" : remaining !== null ? "Restante" : "Tempo da série"}
-              </span>
-              <span className="value num">
-                {isRest ? runner.logs.length : fmtTime(remaining ?? runner.elapsed)}
-              </span>
+            {/* No celular em pé, as parciais da série tomam o lugar do total do treino. */}
+            <div
+              className="stats-row"
+              data-partials={mode !== "manual" && !isRest ? "" : undefined}
+            >
+              <div className="stat">
+                <span className="label">
+                  {isRest ? "Séries feitas" : remaining !== null ? "Restante" : "Tempo da série"}
+                </span>
+                <span className="value num">
+                  {isRest ? runner.logs.length : fmtTime(remaining ?? runner.elapsed)}
+                </span>
+              </div>
+              <div className="stat total-stat">
+                <span className="label">Repetições no treino</span>
+                <span className="value num accent">
+                  {runner.totalReps + (isRest ? 0 : runner.reps)}
+                </span>
+              </div>
+              <div className="stat partials-stat">
+                <span className="label">Parciais</span>
+                <span className="value num warn">{runner.partials}</span>
+              </div>
             </div>
-            <div className="stat total-stat">
-              <span className="label">Repetições no treino</span>
-              <span className="value num accent">
-                {runner.totalReps + (isRest ? 0 : runner.reps)}
-              </span>
-            </div>
-            <div className="stat partials-stat">
-              <span className="label">Parciais</span>
-              <span className="value num warn">{runner.partials}</span>
-            </div>
-          </div>
 
-          <div className="controls">
-            {isRest ? (
+            <div className="controls">
+              {isRest ? (
+                <button
+                  type="button"
+                  className="ctrl"
+                  onClick={() => {
+                    runner.prev();
+                    render();
+                  }}
+                >
+                  <ChevronLeft size={20} />
+                  Voltar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ctrl"
+                  onClick={() => runner.addRep(-1)}
+                  disabled={isHold || isTimed}
+                >
+                  <Minus size={20} />
+                  −1
+                </button>
+              )}
               <button
                 type="button"
                 className="ctrl"
                 onClick={() => {
-                  runner.prev();
+                  if (runner.paused) retomar();
+                  else runner.pause();
                   render();
                 }}
               >
-                <ChevronLeft size={20} />
-                Voltar
+                {runner.paused ? <Play size={20} /> : <Pause size={20} />}
+                {runner.paused ? "Continuar" : "Pausar"}
               </button>
-            ) : (
+              {isRest ? (
+                <button
+                  type="button"
+                  className="ctrl main"
+                  data-autofocus
+                  onClick={() => {
+                    runner.extendRest(15);
+                    render();
+                  }}
+                >
+                  <Plus size={20} />
+                  +15 s
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ctrl main"
+                  data-autofocus
+                  onClick={() => runner.addRep(1)}
+                  disabled={isHold || isTimed}
+                >
+                  <Plus size={20} />
+                  +1
+                </button>
+              )}
               <button
                 type="button"
                 className="ctrl"
-                onClick={() => runner.addRep(-1)}
-                disabled={isHold}
-              >
-                <Minus size={20} />
-                −1
-              </button>
-            )}
-            <button
-              type="button"
-              className="ctrl"
-              onClick={() => {
-                if (runner.paused) retomar();
-                else runner.pause();
-                render();
-              }}
-            >
-              {runner.paused ? <Play size={20} /> : <Pause size={20} />}
-              {runner.paused ? "Continuar" : "Pausar"}
-            </button>
-            {isRest ? (
-              <button
-                type="button"
-                className="ctrl main"
-                data-autofocus
                 onClick={() => {
-                  runner.extendRest(15);
+                  runner.next();
                   render();
                 }}
               >
-                <Plus size={20} />
-                +15 s
+                <SkipForward size={20} />
+                {isRest ? "Pular" : "Concluir"}
               </button>
-            ) : (
-              <button
-                type="button"
-                className="ctrl main"
-                data-autofocus
-                onClick={() => runner.addRep(1)}
-                disabled={isHold}
-              >
-                <Plus size={20} />
-                +1
-              </button>
-            )}
-            <button
-              type="button"
-              className="ctrl"
-              onClick={() => {
-                runner.next();
-                render();
-              }}
-            >
-              <SkipForward size={20} />
-              {isRest ? "Pular" : "Concluir"}
-            </button>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        )}
       </div>
 
       {pedindoVoz && (
@@ -1250,8 +1593,12 @@ export function PlayerScreen({
       {quitting && (
         <div className="overlay-msg fixed" data-modal>
           <div>
-            <h2>Sair do treino?</h2>
-            <p className="muted">As séries já concluídas podem ser salvas no seu histórico.</p>
+            <h2>Parar o treino?</h2>
+            <p className="muted">
+              {runner.started
+                ? "As séries já feitas podem ser salvas no seu histórico. Se sentiu dor, tontura ou falta de ar, pare e descanse."
+                : "O treino ainda não começou."}
+            </p>
             <button
               type="button"
               className="btn primary big"
@@ -1262,16 +1609,25 @@ export function PlayerScreen({
                 retomar();
               }}
             >
-              Continuar treinando
+              {runner.started ? "Continuar treinando" : "Voltar"}
             </button>
             {/* a série em andamento também conta: antes o botão só aparecia com uma série fechada */}
             {(runner.logs.length > 0 || runner.reps > 0 || runner.holdSeconds >= 1) && (
-              <button type="button" className="btn" onClick={() => runner.finish()}>
-                Encerrar e salvar
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setQuitting(false);
+                  // terminou antes do fim planejado: salva marcado, sem perder a sequência
+                  if (runner.index < runner.steps.length - 1) encerrouAntes.current = true;
+                  runner.finish();
+                }}
+              >
+                Parar e salvar
               </button>
             )}
             <button type="button" className="btn ghost" onClick={() => router.replace(saida)}>
-              Sair sem salvar
+              {runner.started ? "Sair sem salvar" : "Sair"}
             </button>
           </div>
         </div>

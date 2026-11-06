@@ -9,6 +9,7 @@ import {
   boraProfiles,
   emailUnsubscribes,
 } from "@informach/db/schema";
+import type { Intensidade } from "@/features/treino/catalog/workouts";
 import type { ProgressMap } from "@/features/treino/engine/progression";
 import { assertAllowed } from "@/lib/errors";
 
@@ -35,6 +36,10 @@ export function listProfiles(userId: string) {
       name: boraProfiles.name,
       color: boraProfiles.color,
       accessEnabled: boraProfiles.accessEnabled,
+      intensity: sql<Intensidade>`${boraProfiles.intensity}`,
+      weeklyGoal: boraProfiles.weeklyGoal,
+      minutesPref: boraProfiles.minutesPref,
+      onboardedAt: boraProfiles.onboardedAt,
     })
     .from(boraProfiles)
     .where(eq(boraProfiles.userId, userId))
@@ -97,8 +102,12 @@ export async function deleteProfile(userId: string, id: string) {
  * um avanço) passa por aqui antes: dois envios ao mesmo tempo (a fila offline em duas abas, a TV e
  * o celular) liam o mesmo progresso e um apagava a sequência do outro.
  */
-export async function lockProfile(tx: Tx, profileId: string) {
-  await tx.execute(sql`SELECT id FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`);
+export async function lockProfile(tx: Tx, profileId: string): Promise<{ intensity: Intensidade }> {
+  const rows = await tx.execute<{ intensity: string }>(
+    sql`SELECT intensity FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`,
+  );
+  const intensity = rows[0]?.intensity;
+  return { intensity: intensity === "leve" || intensity === "forte" ? intensity : "normal" };
 }
 
 export async function progressOf(profileId: string, tx: Tx | typeof db = db): Promise<ProgressMap> {
@@ -107,7 +116,10 @@ export async function progressOf(profileId: string, tx: Tx | typeof db = db): Pr
     .from(boraChainProgress)
     .where(eq(boraChainProgress.profileId, profileId));
   return Object.fromEntries(
-    rows.map((r) => [r.chainId, { level: r.level, bonus: r.bonus, streak: r.streak }]),
+    rows.map((r) => [
+      r.chainId,
+      { level: r.level, bonus: r.bonus, streak: r.streak, struggle: r.struggle },
+    ]),
   );
 }
 
@@ -118,6 +130,7 @@ export async function saveProgress(profileId: string, progress: ProgressMap, tx:
     level: st.level,
     bonus: st.bonus,
     streak: st.streak,
+    struggle: st.struggle ?? 0,
   }));
   if (!rows.length) return;
   await tx
@@ -129,6 +142,7 @@ export async function saveProgress(profileId: string, progress: ProgressMap, tx:
         level: sql`excluded.level`,
         bonus: sql`excluded.bonus`,
         streak: sql`excluded.streak`,
+        struggle: sql`excluded.struggle`,
         updatedAt: sql`now()`,
       },
     });

@@ -5,6 +5,7 @@ CREATE TABLE "bora_treinar"."trial_claims" (
 );
 --> statement-breakpoint
 ALTER TABLE "bora_treinar"."challenges" DROP CONSTRAINT "challenges_user_id_week_start_pk";--> statement-breakpoint
+ALTER TABLE "bora_treinar"."chain_progress" ADD COLUMN "struggle" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "bora_treinar"."challenges" ADD COLUMN "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL;--> statement-breakpoint
 ALTER TABLE "bora_treinar"."challenges" ADD COLUMN "profile_id" uuid;--> statement-breakpoint
 ALTER TABLE "bora_treinar"."families" ADD COLUMN "trial_started_at" timestamp with time zone;--> statement-breakpoint

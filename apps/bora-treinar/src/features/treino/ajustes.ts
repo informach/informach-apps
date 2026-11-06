@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import type { ModeloPose } from "./vision/assets";
 
 export interface Ajustes {
   audio: boolean;
@@ -15,6 +16,15 @@ export interface Ajustes {
   vozAoIniciar: boolean | null;
   /** instrutor acompanha a pessoa (câmera) em vez de ditar o ritmo */
   follow: boolean;
+  /** 2 minutos de aquecimento antes dos treinos */
+  aquecimento: boolean;
+  /** alongamentos no fim dos treinos */
+  voltaACalma: boolean;
+  /**
+   * modelo do detector neste aparelho: null usa o completo; o portão troca para o reduzido quando
+   * o aparelho não passa de ~14 quadros por segundo com o completo
+   */
+  modelo: ModeloPose | null;
 }
 
 const CHAVE = "bora:ajustes";
@@ -25,7 +35,23 @@ const PADRAO: Ajustes = {
   vozAceita: false,
   vozAoIniciar: null,
   follow: false,
+  aquecimento: true,
+  voltaACalma: true,
+  modelo: null,
 };
+
+/**
+ * Leitura direta, para quem monta algo uma vez na entrada (os passos do treino). Só no navegador;
+ * fora dele, ou sem armazenamento, valem os padrões.
+ */
+export function lerAjustes(): Ajustes {
+  try {
+    const salvo = typeof localStorage === "undefined" ? null : localStorage.getItem(CHAVE);
+    return salvo ? { ...PADRAO, ...(JSON.parse(salvo) as Partial<Ajustes>) } : PADRAO;
+  } catch {
+    return PADRAO;
+  }
+}
 
 /** Preferências do player neste aparelho. Sem armazenamento local, valem os padrões. */
 export function useAjustes() {

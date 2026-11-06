@@ -16,6 +16,11 @@ export const estadoTvSchema = z.object({
   pausado: z.boolean(),
   fim: z.boolean(),
   titulo: z.string().max(80),
+  /**
+   * Portão "Pronto?": o primeiro exercício, antes de o treino começar. O celular confere o
+   * enquadramento e a posição de partida dele e manda no sinal.
+   */
+  pronto: z.string().max(40).nullish(),
 });
 
 const issues = z.array(z.string().max(80)).max(5);
@@ -40,6 +45,9 @@ export const eventoCelularSchema = z.discriminatedUnion("tipo", [
      * microfone do celular ouviria a TV e contaria. Também é o batimento (a cada 2 s, sempre).
      */
     ouvindo: z.boolean().optional(),
+    /** no portão: corpo inteiro na imagem e na posição de partida do primeiro exercício */
+    corpo: z.boolean().optional(),
+    posicao: z.boolean().optional(),
   }),
 ]);
 

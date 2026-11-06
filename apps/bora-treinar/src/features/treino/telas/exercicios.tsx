@@ -7,7 +7,7 @@ import { TopNav } from "@/components/top-nav";
 import { Cadeado } from "@/features/billing/planos";
 import { voltar } from "@/lib/voltar";
 import { cadenceLabel } from "../body/cadence";
-import { CHAINS, exerciseById, type View } from "../catalog/catalog";
+import { CHAINS, contavel, EXERCISES, exerciseById, type View } from "../catalog/catalog";
 import type { ProgressMap } from "../engine/progression";
 import { unlockAudio } from "../engine/voice";
 import { Instructor3D } from "../instructor/instructor-3d";
@@ -80,6 +80,21 @@ export function LibraryScreen({
             </section>
           );
         })}
+        <section>
+          <div className="section-title">
+            <h2>Volta à calma</h2>
+            <span className="muted">entram sozinhos no fim dos treinos</span>
+          </div>
+          <div className="grid">
+            {EXERCISES.filter((e) => !contavel(e)).map((ex) => (
+              <Link key={ex.id} href={`/exercicios/${ex.id}`} className="card ex-card">
+                <h3>{ex.name}</h3>
+                <span className="muted">{ex.cue}</span>
+                <span className="muscles">{ex.muscles.join(" · ")}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );
@@ -98,6 +113,7 @@ export function ExerciseScreen({
   const ex = exerciseById(id);
   const [view, setView] = useState<View>(ex.view);
   const hold = ex.rule.kind === "hold";
+  const alongamento = !contavel(ex);
 
   const practice = (mode: "camera" | "manual") => {
     unlockAudio();
@@ -123,7 +139,7 @@ export function ExerciseScreen({
             <Instructor3D
               className="canvas"
               exerciseId={id}
-              mode={hold ? "hold" : "cadence"}
+              mode={hold || alongamento ? "hold" : "cadence"}
               view={view}
             />
             <div className="view-toggle stage-corner">
@@ -134,7 +150,12 @@ export function ExerciseScreen({
               ))}
             </div>
             <span className="pill stage-foot">
-              Arraste para girar · {hold ? "isometria" : `cadência ${cadenceLabel(ex.cadence)} s`}
+              Arraste para girar ·{" "}
+              {alongamento
+                ? "alongamento"
+                : hold
+                  ? "isometria"
+                  : `cadência ${cadenceLabel(ex.cadence)} s`}
             </span>
           </div>
           <div className="info-list">
@@ -169,30 +190,37 @@ export function ExerciseScreen({
                 </span>
               </div>
             )}
-            <div className="row">
-              {cameraAllowed ? (
+            {alongamento ? (
+              <p className="muted">
+                Este alongamento entra sozinho na volta à calma, no fim dos treinos: 30 segundos, só
+                com o cronômetro. Dá para desligar a volta à calma no próprio treino.
+              </p>
+            ) : (
+              <div className="row">
+                {cameraAllowed ? (
+                  <button
+                    type="button"
+                    className="btn primary"
+                    data-autofocus
+                    onClick={() => practice("camera")}
+                  >
+                    <Camera size={18} /> Praticar com câmera
+                  </button>
+                ) : (
+                  <Cadeado motivo="camera" className="btn ghost">
+                    <Lock size={18} /> Câmera na assinatura
+                  </Cadeado>
+                )}
                 <button
                   type="button"
-                  className="btn primary"
-                  data-autofocus
-                  onClick={() => practice("camera")}
+                  className={`btn ${cameraAllowed ? "" : "primary"}`}
+                  data-autofocus={cameraAllowed ? undefined : true}
+                  onClick={() => practice("manual")}
                 >
-                  <Camera size={18} /> Praticar com câmera
+                  <Hand size={18} /> Praticar sem câmera
                 </button>
-              ) : (
-                <Cadeado motivo="camera" className="btn ghost">
-                  <Lock size={18} /> Câmera na assinatura
-                </Cadeado>
-              )}
-              <button
-                type="button"
-                className={`btn ${cameraAllowed ? "" : "primary"}`}
-                data-autofocus={cameraAllowed ? undefined : true}
-                onClick={() => practice("manual")}
-              >
-                <Hand size={18} /> Praticar sem câmera
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

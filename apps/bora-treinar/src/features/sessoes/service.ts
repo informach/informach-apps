@@ -10,12 +10,18 @@ import {
 } from "@/features/acesso/policy";
 import { conquistasMerecidas } from "@/features/conquistas/catalogo";
 import { exerciseById } from "@/features/treino/catalog/catalog";
-import { type Workout, workoutById } from "@/features/treino/catalog/workouts";
+import {
+  buildSteps,
+  seriesPlanejadas,
+  type Workout,
+  workoutById,
+} from "@/features/treino/catalog/workouts";
 import {
   applySuggestion,
   evaluateSession,
   suggestionFor,
 } from "@/features/treino/engine/progression";
+import type { SetLog } from "@/features/treino/engine/runner";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { inTransaction, lockProfile, progressOf, saveProgress } from "../familia/repository";
 import { customWorkout } from "../meus-treinos/repository";
@@ -82,7 +88,7 @@ export async function saveSession(
   );
   const ref = parseWorkoutRef(input.workoutRef);
   assertAllowed(ref, "WORKOUT", "Treino não encontrado.");
-  const { name } = await resolveWorkout(userId, access, ref);
+  const { name, workout } = await resolveWorkout(userId, access, ref);
   if (input.mode === "camera")
     assertAllowed(canCountWithCamera(access), "PLAN", "A contagem pela câmera é da assinatura.");
   if (input.mode === "pareado")
@@ -91,14 +97,21 @@ export async function saveSession(
     const rule = exerciseById(log.exerciseId).rule.kind;
     assertAllowed(rule === log.kind, "INPUT", "Série com tipo diferente do exercício.");
   }
-  const logs = input.logs.filter((l) => l.reps > 0 || l.holdSeconds > 0);
-  assertAllowed(logs.length, "EMPTY", "Nenhuma série registrada neste treino.");
+  const feitos = input.logs.filter((l) => l.reps > 0 || l.holdSeconds > 0);
+  assertAllowed(feitos.length, "EMPTY", "Nenhuma série registrada neste treino.");
   // o aparelho pode estar com o relógio errado: o início nunca fica no futuro
   const startedAt = Math.min(input.startedAt, Date.now());
 
   return inTransaction(async (tx) => {
     // o perfil fica travado até o fim: o progresso é lido e regravado aqui dentro
-    await lockProfile(tx, input.profileId);
+    const { intensity } = await lockProfile(tx, input.profileId);
+    const progress = await progressOf(input.profileId, tx);
+    // o servidor remonta o treino com os níveis e a intensidade do perfil: a meta de cada série e
+    // quantas séries havia saem daqui, não do aparelho
+    const plano = seriesPlanejadas(
+      workout ? buildSteps(workout, levelMap(progress), { intensidade: intensity }) : [],
+    );
+    const logs = feitos.map((l) => conferirMeta(l, plano.metas));
     const created = await insertSession(tx, userId, {
       id: input.id,
       profileId: input.profileId,
@@ -108,10 +121,18 @@ export async function saveSession(
       duration: input.durationSeconds,
       mode: input.mode,
       logs,
+      feeling: input.feeling ?? null,
+      endedEarly: input.endedEarly ?? false,
     });
     if (!created) return { sessionId: input.id, achievements: [] as string[] };
-    const progress = await progressOf(input.profileId, tx);
-    await saveProgress(input.profileId, evaluateSession(progress, logs).progress, tx);
+    // quem parou antes não perde a sequência pelas séries que não fez; só o "difícil" pesa
+    if (!input.endedEarly || input.feeling === "dificil") {
+      const avaliado = evaluateSession(progress, logs, {
+        planejadas: input.endedEarly ? undefined : plano.contagem,
+        feeling: input.feeling,
+      });
+      await saveProgress(input.profileId, avaliado.progress, tx);
+    }
     const history = await resumosDoPerfil(input.profileId, tx);
     const achievements = await grantAchievements(
       tx,
@@ -121,4 +142,21 @@ export async function saveSession(
     );
     return { sessionId: input.id, achievements };
   });
+}
+
+const levelMap = (progress: Awaited<ReturnType<typeof progressOf>>) =>
+  Object.fromEntries(
+    Object.entries(progress).map(([k, v]) => [k, { level: v.level, bonus: v.bonus }]),
+  );
+
+/**
+ * A meta de cada série é a que o servidor planejou. Uma meta que o plano não tem (aparelho com
+ * nível velho, envio adulterado, prática ou aquecimento) deixa de existir: a série fica guardada,
+ * mas não conta para subir de nível.
+ */
+function conferirMeta(l: SetLog, metas: ReadonlyMap<string, readonly number[]>): SetLog {
+  if (l.target === undefined) return l;
+  const planejadas = metas.get(l.exerciseId);
+  if (!planejadas?.length) return { ...l, target: undefined };
+  return planejadas.includes(l.target) ? l : { ...l, target: Math.max(...planejadas) };
 }

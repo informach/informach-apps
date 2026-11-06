@@ -50,7 +50,7 @@ export class WorkoutRunner {
   /** pausas somadas no treino inteiro (ms) */
   private pausedAll = 0;
   private lastTick = 0;
-  private completedAt = 0;
+  private completedAt: number | null = null;
   private lastCountdown = -1;
   private lastHoldSecond = 0;
   /** segundos somados ao descanso atual (+15 s), sem mexer no passo, que é compartilhado */
@@ -64,10 +64,20 @@ export class WorkoutRunner {
   private listeners = new Set<(e: RunnerEvent) => void>();
 
   constructor(
-    readonly steps: Step[],
+    public steps: Step[],
     private now: () => number = () => performance.now(),
     private wallNow: () => number = () => Date.now(),
   ) {}
+
+  /**
+   * Troca os passos antes do começo (o portão "Pronto?" liga ou desliga o aquecimento e a volta à
+   * calma). Depois do start não muda nada: o treino em andamento é o que foi planejado.
+   */
+  trocarPassos(steps: Step[]) {
+    if (this.started || !steps.length) return false;
+    this.steps = steps;
+    return true;
+  }
 
   on(fn: (e: RunnerEvent) => void) {
     this.listeners.add(fn);
@@ -102,6 +112,12 @@ export class WorkoutRunner {
     return s?.kind === "exercise" && exerciseById(s.exerciseId).rule.kind === "hold";
   }
 
+  /** alongamento: só o cronômetro corre, sem contagem e sem registro de série */
+  get isTimed() {
+    const s = this.step;
+    return s?.kind === "exercise" && exerciseById(s.exerciseId).rule.kind === "timed";
+  }
+
   /** exercício em execução (no AMRAP, o item atual do circuito) */
   get exerciseId(): string | undefined {
     const s = this.step;
@@ -117,7 +133,7 @@ export class WorkoutRunner {
 
   /** a meta da série foi cumprida (no EMOM a pessoa espera o minuto acabar) */
   get targetReached() {
-    return this.completedAt > 0;
+    return this.completedAt !== null;
   }
 
   get started() {
@@ -191,7 +207,7 @@ export class WorkoutRunner {
   /** acrescenta (ou corrige, com valor negativo) repetições na série atual */
   addRep(n = 1, issues: string[] = []) {
     const s = this.step;
-    if (!s || s.kind === "rest" || this.done || this.isHold) return;
+    if (!s || s.kind === "rest" || this.done || this.isHold || this.isTimed) return;
     for (const i of issues) this.issues[i] = (this.issues[i] ?? 0) + 1;
     if (s.kind === "amrap") {
       const item = s.circuit[this.amrapPos];
@@ -219,8 +235,9 @@ export class WorkoutRunner {
     const delta = this.reps - before;
     if (!delta) return;
     this.emit({ type: "rep", count: this.reps, target: s.target, delta });
-    if (s.target && this.reps >= s.target && !this.completedAt) this.completedAt = this.now();
-    if (s.target && this.reps < s.target) this.completedAt = 0;
+    if (s.target && this.reps >= s.target && this.completedAt === null)
+      this.completedAt = this.now();
+    if (s.target && this.reps < s.target) this.completedAt = null;
   }
 
   addPartial(issues: string[] = []) {
@@ -265,7 +282,7 @@ export class WorkoutRunner {
     if (s.kind !== "exercise") return;
     if (this.isHold && s.target && this.holdSeconds >= s.target && !s.window) return this.next();
     // deixa o número final na tela por um instante antes de seguir
-    if (this.completedAt && !s.window && now - this.completedAt > 900) return this.next();
+    if (this.completedAt !== null && !s.window && now - this.completedAt > 900) return this.next();
   }
 
   private finishStep() {
@@ -285,6 +302,7 @@ export class WorkoutRunner {
         });
       return;
     }
+    if (this.isTimed) return;
     this.pushLog({
       exerciseId: s.exerciseId,
       kind: this.isHold ? "hold" : "reps",
@@ -318,7 +336,7 @@ export class WorkoutRunner {
     this.partials = 0;
     this.holdSeconds = 0;
     this.lastHoldSecond = 0;
-    this.completedAt = 0;
+    this.completedAt = null;
     this.issues = {};
     this.amrapPos = 0;
     this.amrapRounds = 0;

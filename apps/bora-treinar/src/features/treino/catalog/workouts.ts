@@ -305,7 +305,47 @@ export function resolveSlot(slot: Slot, levels: LevelMap): { exerciseId: string;
   };
 }
 
-const PREPARE = 8;
+/** Jeito de treinar do perfil (primeiro acesso): muda as trocas sem salto e as metas. */
+export type Intensidade = "leve" | "normal" | "forte";
+
+/**
+ * "Leve" troca o que tem salto por uma versão sem impacto (crianças, apartamento, quem está
+ * voltando a treinar). Só exercícios que existem no catálogo.
+ */
+export const SEM_IMPACTO: Readonly<Record<string, string>> = {
+  "agachamento-salto": "agachamento-sumo",
+  polichinelo: "escalador",
+  "corrida-estacionaria": "escalador",
+};
+
+const FATOR: Record<Intensidade, number> = { leve: 0.7, normal: 1, forte: 1.15 };
+const meta = (n: number, intensidade: Intensidade) =>
+  Math.max(1, Math.round(n * FATOR[intensidade]));
+
+/** Aquecimento automático: 2 minutos leves antes do treino, sem meta (não conta em trilha). */
+export const AQUECIMENTO = ["corrida-estacionaria", "agachamento", "ponte", "polichinelo"] as const;
+const AQUECIMENTO_TRABALHO = 25;
+const AQUECIMENTO_PAUSA = 5;
+
+/**
+ * Volta à calma automática: alongamentos só de cronômetro (regra `timed`), sem câmera e sem
+ * meta. Preenchida pelo catálogo quando os alongamentos existem.
+ */
+export const VOLTA_A_CALMA: readonly string[] = [
+  "alongamento-quadriceps",
+  "alongamento-posterior",
+  "alongamento-peitoral",
+  "postura-da-crianca",
+];
+const ALONGAMENTO = 30;
+
+export interface OpcoesDoTreino {
+  intensidade?: Intensidade;
+  /** 2 minutos de aquecimento antes (padrão: não; o player liga pelo ajuste do aparelho) */
+  aquecimento?: boolean;
+  /** alongamentos no fim (padrão: não; o player liga pelo ajuste do aparelho) */
+  voltaACalma?: boolean;
+}
 
 /** Item `i` de uma lista circular; blocos sempre têm ao menos um exercício. */
 function pick<T>(items: readonly T[], i: number): T {
@@ -314,25 +354,53 @@ function pick<T>(items: readonly T[], i: number): T {
   return item;
 }
 
-/** Transforma o treino em passos lineares para o player, já com os níveis do perfil. */
-export function buildSteps(w: Workout, levels: LevelMap = {}): Step[] {
+/**
+ * Transforma o treino em passos lineares para o player, já com os níveis do perfil.
+ *
+ * Não há mais "Prepare-se" no começo: o portão "Pronto?" do player espera a câmera (ou o celular)
+ * e a pessoa na posição antes do primeiro passo. Antes, os 8 s corriam enquanto o detector
+ * ainda baixava ou o celular lia o QR, e o primeiro exercício se perdia.
+ */
+export function buildSteps(w: Workout, levels: LevelMap = {}, opcoes: OpcoesDoTreino = {}): Step[] {
+  const intensidade = opcoes.intensidade ?? "normal";
+  const troca = (id: string) => (intensidade === "leve" ? (SEM_IMPACTO[id] ?? id) : id);
+  const resolver = (slot: Slot) => {
+    const r = resolveSlot(slot, levels);
+    return { ...r, exerciseId: troca(r.exerciseId) };
+  };
   const steps: Step[] = [];
   const rest = (seconds: number, label: string, next?: string) => {
+    // o primeiro passo é sempre exercício: quem prepara é o portão "Pronto?"
+    if (!steps.length) return;
     const last = steps[steps.length - 1];
     if (last?.kind === "rest") {
       last.seconds = Math.max(last.seconds, seconds);
       last.next = next;
     } else steps.push({ kind: "rest", seconds, label, next });
   };
+  if (opcoes.aquecimento && w.id !== "aquecimento-5" && w.focus !== "Mobilidade") {
+    const ids = AQUECIMENTO.map(troca);
+    ids.forEach((id, i) => {
+      steps.push({
+        kind: "exercise",
+        exerciseId: id,
+        window: AQUECIMENTO_TRABALHO,
+        set: i + 1,
+        sets: ids.length,
+        label: "Aquecimento",
+      });
+      rest(AQUECIMENTO_PAUSA, "Aquecimento", ids[i + 1]);
+    });
+  }
   for (const b of w.blocks) {
     if (b.type === "sets") {
-      const { exerciseId, bonus } = resolveSlot(b.slot, levels);
-      rest(steps.length ? b.rest : PREPARE, steps.length ? "Descanso" : "Prepare-se", exerciseId);
+      const { exerciseId, bonus } = resolver(b.slot);
+      rest(b.rest, "Descanso", exerciseId);
       for (let s = 1; s <= b.sets; s++) {
         steps.push({
           kind: "exercise",
           exerciseId,
-          target: b.target + bonus,
+          target: meta(b.target + bonus, intensidade),
           set: s,
           sets: b.sets,
           label: exerciseById(exerciseId).name,
@@ -341,8 +409,8 @@ export function buildSteps(w: Workout, levels: LevelMap = {}): Step[] {
       }
       rest(b.rest, "Descanso");
     } else if (b.type === "interval") {
-      const ids = b.slots.map((s) => resolveSlot(s, levels).exerciseId);
-      rest(steps.length ? 30 : PREPARE, steps.length ? "Descanso" : "Prepare-se", pick(ids, 0));
+      const ids = b.slots.map((s) => resolver(s).exerciseId);
+      rest(30, "Descanso", pick(ids, 0));
       for (let r = 1; r <= b.rounds; r++) {
         const id = pick(ids, r - 1);
         const isHold = exerciseById(id).rule.kind === "hold";
@@ -359,18 +427,14 @@ export function buildSteps(w: Workout, levels: LevelMap = {}): Step[] {
       }
       rest(30, "Descanso");
     } else if (b.type === "emom") {
-      const items = b.slots.map((s) => ({ ...resolveSlot(s.slot, levels), reps: s.reps }));
-      rest(
-        steps.length ? 30 : PREPARE,
-        steps.length ? "Descanso" : "Prepare-se",
-        pick(items, 0).exerciseId,
-      );
+      const items = b.slots.map((s) => ({ ...resolver(s.slot), reps: s.reps }));
+      rest(30, "Descanso", pick(items, 0).exerciseId);
       for (let m = 1; m <= b.minutes; m++) {
         const it = pick(items, m - 1);
         steps.push({
           kind: "exercise",
           exerciseId: it.exerciseId,
-          target: it.reps + it.bonus,
+          target: meta(it.reps + it.bonus, intensidade),
           window: 60,
           set: m,
           sets: b.minutes,
@@ -380,21 +444,49 @@ export function buildSteps(w: Workout, levels: LevelMap = {}): Step[] {
       rest(30, "Descanso");
     } else {
       const circuit = b.slots.map((s) => {
-        const r = resolveSlot(s.slot, levels);
-        return { exerciseId: r.exerciseId, reps: s.reps + r.bonus };
+        const r = resolver(s.slot);
+        return { exerciseId: r.exerciseId, reps: meta(s.reps + r.bonus, intensidade) };
       });
-      rest(
-        steps.length ? 30 : PREPARE,
-        steps.length ? "Descanso" : "Prepare-se",
-        pick(circuit, 0).exerciseId,
-      );
+      rest(30, "Descanso", pick(circuit, 0).exerciseId);
       steps.push({ kind: "amrap", seconds: b.minutes * 60, circuit, label: b.label });
       rest(30, "Descanso");
     }
   }
   // não termina com descanso
   while (steps[steps.length - 1]?.kind === "rest") steps.pop();
+  if (opcoes.voltaACalma && VOLTA_A_CALMA.length) {
+    rest(10, "Volta à calma", VOLTA_A_CALMA[0]);
+    VOLTA_A_CALMA.forEach((id, i) => {
+      steps.push({
+        kind: "exercise",
+        exerciseId: id,
+        window: ALONGAMENTO,
+        set: i + 1,
+        sets: VOLTA_A_CALMA.length,
+        label: "Volta à calma",
+      });
+      if (i < VOLTA_A_CALMA.length - 1) rest(5, "Volta à calma", VOLTA_A_CALMA[i + 1]);
+    });
+  }
   return steps;
+}
+
+/**
+ * Quantas séries com meta o treino planeja para cada exercício. O servidor usa para saber se a
+ * pessoa fez todas as séries do nível (série que faltou é meta não batida) e para conferir a meta
+ * de cada série, em vez de confiar na que o aparelho mandou.
+ */
+export function seriesPlanejadas(steps: readonly Step[]) {
+  const contagem = new Map<string, number>();
+  const metas = new Map<string, number[]>();
+  for (const st of steps) {
+    if (st.kind !== "exercise" || st.target === undefined) continue;
+    contagem.set(st.exerciseId, (contagem.get(st.exerciseId) ?? 0) + 1);
+    const lista = metas.get(st.exerciseId) ?? [];
+    if (!lista.includes(st.target)) lista.push(st.target);
+    metas.set(st.exerciseId, lista);
+  }
+  return { contagem, metas };
 }
 
 export function estimateMinutes(w: Workout) {

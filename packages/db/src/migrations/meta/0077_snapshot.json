@@ -1,5 +1,5 @@
 {
-  "id": "c918ef98-6993-403b-a881-8448ba87bb07",
+  "id": "75a4e359-267e-48aa-8d26-56eff44f386c",
   "prevId": "a8a799b8-2c2c-43ac-b3b0-9df5a41d486a",
   "version": "7",
   "dialect": "postgresql",
@@ -5199,6 +5199,13 @@
         },
         "streak": {
           "name": "streak",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "struggle": {
+          "name": "struggle",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

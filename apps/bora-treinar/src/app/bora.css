@@ -1005,3 +1005,214 @@ a.chip {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------- player: portão "Pronto?" ---------- */
+/* a imagem da câmera inteira, sem cortar: é por ela que a pessoa confere se está toda no quadro */
+.cam-pip video,
+.cam-pip canvas {
+  object-fit: contain;
+}
+.cam-pip.grande {
+  width: clamp(16rem, 36vw, 34rem);
+}
+.pair-pip.grande .qr {
+  width: clamp(9rem, 16vw, 15rem);
+  height: clamp(9rem, 16vw, 15rem);
+}
+.pair-pip.grande .pair-code {
+  gap: 1.2rem;
+  padding: 1.2rem 1.2rem 3rem;
+}
+.pair-pip.grande .pair-code > div {
+  font-size: 1rem;
+}
+.pair-pip.grande .pair-code .code {
+  font-size: 2rem;
+}
+.side.pronto {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 1.5rem;
+  overflow: auto;
+  gap: 0.9rem;
+}
+.side.pronto .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+.side.pronto h2 {
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  line-height: 1.1;
+}
+.checklist,
+.cuidados {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+.checklist li.ok {
+  color: var(--text);
+}
+.checklist .marca {
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+}
+.checklist li.ok .marca {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.checklist li.espera .marca {
+  border-color: transparent;
+}
+.gira {
+  animation: gira 1s linear infinite;
+}
+@keyframes gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cuidados li {
+  padding-left: 1rem;
+  border-left: 3px solid var(--warn);
+  line-height: 1.4;
+}
+.detector .barra {
+  height: 0.5rem;
+  border-radius: 1rem;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+.detector .barra > .barra-feito {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.dica-camera,
+.dica-vista {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 0.75rem 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.counter.rest .dica-vista {
+  margin-top: 0.6rem;
+  font-size: 1.1rem;
+  color: var(--warn);
+}
+.voz-teste p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.voz-teste p.ok {
+  color: var(--accent);
+}
+.opcoes-treino {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.opcoes-treino label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+}
+.opcoes-treino input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+.side.pronto .acoes {
+  margin-top: auto;
+  display: grid;
+  gap: 0.6rem;
+}
+.largada {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  gap: 0.4rem;
+}
+.largada strong {
+  font-size: clamp(6rem, 24vmin, 14rem);
+  line-height: 1;
+  color: var(--accent);
+}
+.largada span:last-child {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* ---------- "Como foi?" ---------- */
+.como-foi {
+  max-width: 34rem;
+}
+.como-foi-opcoes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+}
+.como-foi-opcoes .btn {
+  flex-direction: column;
+  gap: 0.2rem;
+  height: auto;
+  padding: 1rem 0.5rem;
+}
+@media (max-width: 30rem) {
+  .como-foi-opcoes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- player legível de longe (celular em pé) ---------- */
+@media (orientation: portrait) {
+  .cam-pip:not(.pair-pip) {
+    width: 7.5rem;
+  }
+  .cam-pip:not(.pair-pip) .cam-badge {
+    font-size: 0.75rem;
+  }
+  .cam-pip.grande:not(.pair-pip) {
+    width: min(60%, 16rem);
+  }
+  .counter .big .value {
+    font-size: min(8rem, 26vw);
+  }
+  .inst-head p {
+    font-size: 1rem;
+  }
+  .side.pronto {
+    padding: 1.1rem;
+  }
+}

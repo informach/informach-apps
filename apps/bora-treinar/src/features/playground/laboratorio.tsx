@@ -3,12 +3,13 @@ import { ArrowLeft, Copy, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MP_BONES } from "@/features/treino/body/landmarks";
-import { EXERCISES, exerciseById } from "@/features/treino/catalog/catalog";
+import { contavel, EXERCISES, exerciseById } from "@/features/treino/catalog/catalog";
 import {
   type Check,
   type CountRule,
   evalMetric,
   HoldTracker,
+  minRepMsFor,
   RepCounter,
   type RepRule,
 } from "@/features/treino/engine/counter";
@@ -64,8 +65,12 @@ const clone = (rule: CountRule): CountRule => structuredClone(rule);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const graus = (x: number | null) => (x === null ? "–" : `${x.toFixed(0)}°`);
 
-function novoContador(rule: CountRule) {
-  return rule.kind === "reps" ? new RepCounter(rule) : new HoldTracker(rule);
+/** O mesmo tempo mínimo de repetição do player, pela cadência do exercício. */
+function novoContador(rule: CountRule, exerciseId: string) {
+  const minRepMs = minRepMsFor(exerciseById(exerciseId).cadence);
+  if (rule.kind === "reps") return new RepCounter(rule, { minRepMs });
+  // alongamento não chega aqui (a lista só tem exercícios que contam): um contador sem condição
+  return new HoldTracker(rule.kind === "hold" ? rule : { kind: "hold", conditions: [] });
 }
 
 /**
@@ -87,17 +92,18 @@ export function Laboratorio({ exerciseId }: { exerciseId: string }) {
   const host = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
   const regraRef = useRef(regra);
-  const contador = useRef(novoContador(regra));
+  const exIdRef = useRef(exId);
+  const contador = useRef(novoContador(regra, exId));
   const ultimoQuadro = useRef(0);
 
   function aplicar(nova: CountRule) {
     regraRef.current = nova;
-    contador.current = novoContador(nova);
+    contador.current = novoContador(nova, exIdRef.current);
     setRegra(nova);
   }
 
   function zerar() {
-    contador.current = novoContador(regraRef.current);
+    contador.current = novoContador(regraRef.current, exIdRef.current);
     setRegistros([]);
     setSegundos(0);
   }
@@ -105,6 +111,7 @@ export function Laboratorio({ exerciseId }: { exerciseId: string }) {
   function trocarExercicio(id: string) {
     window.history.replaceState(null, "", `?ex=${id}`);
     setExId(id);
+    exIdRef.current = id;
     aplicar(clone(exerciseById(id).rule));
     setRegistros([]);
     setSegundos(0);
@@ -228,7 +235,7 @@ export function Laboratorio({ exerciseId }: { exerciseId: string }) {
             onChange={(e) => trocarExercicio(e.target.value)}
             aria-label="Exercício"
           >
-            {EXERCISES.map((e) => (
+            {EXERCISES.filter(contavel).map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
               </option>
@@ -297,9 +304,9 @@ export function Laboratorio({ exerciseId }: { exerciseId: string }) {
         <div className="card">
           {regra.kind === "reps" ? (
             <AjusteRepeticoes regra={regra} aoMudar={aplicar} />
-          ) : (
+          ) : regra.kind === "hold" ? (
             <AjusteIsometria regra={regra} aoMudar={aplicar} />
-          )}
+          ) : null}
           <div className="row spaced">
             <button type="button" className="btn" onClick={zerar}>
               Zerar contagem

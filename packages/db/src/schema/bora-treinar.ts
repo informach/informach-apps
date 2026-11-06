@@ -115,6 +115,11 @@ export const boraChainProgress = boraTreinar.table(
     bonus: integer("bonus").notNull().default(0),
     /** Sessões seguidas batendo a meta em todas as séries do nível atual. */
     streak: integer("streak").notNull().default(0),
+    /**
+     * Quanto o nível atual está pesando: sobe com treino sem a meta batida (+1) ou marcado como
+     * "difícil" (+2), e zera com a meta batida. A partir de 3, o app sugere descer.
+     */
+    struggle: integer("struggle").notNull().default(0),
     updatedAt: time("updated_at"),
   },
   (t) => [
