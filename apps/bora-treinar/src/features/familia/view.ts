@@ -31,6 +31,8 @@ export const familyView = cache(async (userId: string) => {
   return {
     access: plan,
     subscription: access.subscription,
+    /** pagamento atrasado, ainda liberado pela tolerância de 7 dias */
+    pagamentoAtrasado: access.pagamentoAtrasado,
     family,
     profiles: profiles.map((p) => ({ ...p, allowed: allowed.has(p.id) })) as ProfileView[],
   };

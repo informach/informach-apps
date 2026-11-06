@@ -2,7 +2,7 @@ import "server-only";
 import { type Access, canUseChallenges } from "@/features/acesso/policy";
 import { allowedProfileIds } from "@/features/familia/profile-access";
 import { listProfiles } from "@/features/familia/repository";
-import { familySessionsSince } from "@/features/sessoes/repository";
+import { volumeDaFamiliaDesde } from "@/features/sessoes/repository";
 import { inicioDaSemana, inicioDoDiaLocal, relogioLocal, somarDias } from "@/lib/datas";
 import { AppError } from "@/lib/errors";
 import type { Desafio, SessaoDaSemana } from "./placar";
@@ -80,7 +80,7 @@ export async function dadosDoDesafio(
   const semana = inicioDaSemana(agora, fuso);
   const inicioHistorico = somarDias(semana, -7 * SEMANAS_DE_HISTORICO);
   const [sessoes, registrosPessoais] = await Promise.all([
-    familySessionsSince(userId, inicioDoDiaLocal(inicioHistorico, fuso)),
+    volumeDaFamiliaDesde(userId, inicioDoDiaLocal(inicioHistorico, fuso)),
     challengesBetween(userId, profileId, inicioHistorico, somarDias(semana, 7)),
   ]);
   const daFamilia: SessaoComSemana[] = sessoes

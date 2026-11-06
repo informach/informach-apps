@@ -52,6 +52,12 @@ export interface Avaliacao {
    */
   planejadas?: ReadonlyMap<string, number>;
   feeling?: Feeling | null;
+  /**
+   * O exercício que o perfil fez no lugar do nível da trilha ("leve" troca o que tem salto por
+   * uma versão sem impacto: polichinelo vira escalador). Sem isso as séries do perfil leve nunca
+   * eram achadas e a trilha não subia nem descia.
+   */
+  troca?: (exerciseId: string) => string;
 }
 
 /**
@@ -71,11 +77,12 @@ export function evaluateSession(progress: ProgressMap, logs: SetLog[], av: Avali
     st.level = Math.min(st.level, chain.levels.length - 1);
     const current = chain.levels[st.level];
     if (!current) continue;
-    const sets = logs.filter((l) => l.exerciseId === current && l.target !== undefined);
+    const feito = av.troca?.(current) ?? current;
+    const sets = logs.filter((l) => l.exerciseId === feito && l.target !== undefined);
     // exercício pulado inteiro não pesa a trilha (pode ter sido o tempo, o espaço, a vez de outro);
     // série que faltou num exercício começado é meta não batida
     if (!sets.length) continue;
-    const planejadas = av.planejadas?.get(current) ?? sets.length;
+    const planejadas = av.planejadas?.get(feito) ?? sets.length;
     const bateu = sets.length >= planejadas && sets.every(hit);
     const dificil = av.feeling === "dificil";
     if (bateu && !dificil) {

@@ -32,6 +32,10 @@ export function diasRestantes(teste: Teste, agora = Date.now()) {
 }
 
 /** O pagamento atrasado ainda está dentro da tolerância? */
+/** Até quando a tolerância do pagamento atrasado mantém tudo liberado. */
+export const fimDaTolerancia = (fimDoPeriodo: Date | number) =>
+  new Date(new Date(fimDoPeriodo).getTime() + GRACE_DAYS * 86_400_000);
+
 export function emTolerancia(fimDoPeriodo: Date | number, agora = Date.now()) {
   return new Date(fimDoPeriodo).getTime() + GRACE_DAYS * DIA > agora;
 }

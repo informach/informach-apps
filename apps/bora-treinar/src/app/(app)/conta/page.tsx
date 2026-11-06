@@ -16,7 +16,7 @@ import {
 } from "@/features/familia/conta";
 import { unsubscribedCategories } from "@/features/familia/repository";
 import { currentTrainer } from "@/features/familia/view";
-import { diasRestantes, TRIAL_DAYS } from "@/features/teste/regras";
+import { diasRestantes, fimDaTolerancia, TRIAL_DAYS } from "@/features/teste/regras";
 import { getSession } from "@/lib/auth";
 import { FUSO_PADRAO } from "@/lib/datas";
 
@@ -46,16 +46,17 @@ function ConfirmarAcesso({ para }: { para: string }) {
   );
 }
 
+/** "14 de novembro", no fuso da família */
+const dataCurta = (data: Date, fuso: string) =>
+  new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", timeZone: fuso }).format(data);
+
 export default async function Conta({
   searchParams,
 }: {
   searchParams: Promise<{ pagamento?: string; motivo?: string }>;
 }) {
-  const [{ user, access, subscription, family, profiles }, session, params] = await Promise.all([
-    currentTrainer(),
-    getSession(),
-    searchParams,
-  ]);
+  const [{ user, access, subscription, family, profiles, pagamentoAtrasado }, session, params] =
+    await Promise.all([currentTrainer(), getSession(), searchParams]);
   const acessoRecente =
     !!session && Date.now() - new Date(session.session.createdAt).getTime() < 10 * 60_000;
   const [todas, descadastros] = await Promise.all([
@@ -132,8 +133,9 @@ export default async function Conta({
                 : "Pagamento pendente."}
             </strong>
             <p className="muted spaced">
-              Os treinos da assinatura ficam pausados até a forma de pagamento ser atualizada. O
-              histórico continua guardado.
+              {pagamentoAtrasado && subscription
+                ? `Tudo continua liberado até ${dataCurta(fimDaTolerancia(subscription.currentPeriodEnd), family?.timezone ?? FUSO_PADRAO)}. Atualize a forma de pagamento para não perder o acesso; a troca de plano volta depois disso.`
+                : "Os treinos da assinatura ficam pausados até a forma de pagamento ser atualizada. O histórico continua guardado."}
             </p>
             {acessoRecente ? (
               <BillingButton primary>Atualizar forma de pagamento</BillingButton>
@@ -203,7 +205,8 @@ export default async function Conta({
             <BillingButton>Gerenciar plano, pagamentos ou cancelamento</BillingButton>
           </div>
         )}
-        {atual && acessoRecente && (
+        {/* com o pagamento atrasado, trocar de plano esbarraria no cartão recusado */}
+        {atual && acessoRecente && !pagamentoAtrasado && (
           <PlanChangeControls
             options={opcoes}
             profiles={profiles.map(({ id, name, accessEnabled }) => ({ id, name, accessEnabled }))}

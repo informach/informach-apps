@@ -1,5 +1,5 @@
 import { familyExport } from "@/features/familia/repository";
-import { sessionsOf } from "@/features/sessoes/repository";
+import { todasAsSessoes } from "@/features/sessoes/repository";
 import { getCurrentUser, getSession } from "@/lib/auth";
 
 /** Mesma janela da Conta: exportar os dados da família pede um login recente. */
@@ -22,9 +22,9 @@ export async function GET() {
       headers: { Location: "/entrar?next=%2Fconta" },
     });
   const dados = await familyExport(user.id);
-  const sessions = await Promise.all(
-    dados.profiles.map((p) => sessionsOf(p.id, { limit: 1_000_000 })),
-  );
+  // um perfil por vez e em páginas: um histórico longo não estoura a consulta
+  const sessions: Awaited<ReturnType<typeof todasAsSessoes>>[] = [];
+  for (const p of dados.profiles) sessions.push(await todasAsSessoes(p.id));
   const corpo = {
     app: "bora-treinar",
     exportedAt: new Date().toISOString(),
@@ -40,6 +40,9 @@ export async function GET() {
       id: p.id,
       name: p.name,
       color: p.color,
+      intensity: p.intensity,
+      weeklyGoal: p.weeklyGoal,
+      minutesPref: p.minutesPref,
       createdAt: p.createdAt,
       progress: dados.progress.filter((r) => r.profileId === p.id),
       achievements: dados.achievements.filter((a) => a.profileId === p.id),

@@ -561,3 +561,11 @@ export function buildGroupSteps(w: Workout, gente: readonly Participante[]): Ste
   }
   return steps;
 }
+
+/**
+ * Ainda falta trabalho de verdade a partir deste passo? Descanso e volta à calma não contam: quem
+ * para nos alongamentos terminou o treino (antes, parar ali marcava o treino como interrompido e a
+ * trilha não subia).
+ */
+export const faltaTrabalho = (steps: readonly Step[], desde: number) =>
+  steps.slice(Math.max(0, desde)).some((st) => st.kind !== "rest" && st.label !== "Volta à calma");
