@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("release artifact catalog", () => {
   it("lets the database accept exactly the suite's desktop apps", () => {
     // A new tool must also reach edi_artifacts_app_chk through a new migration.
-    expect([...EDI_ARTIFACT_APP_IDS]).toEqual(EDI_DESKTOP_APPS.map((app) => app.id));
+    // Compared as sets: reordering the catalog needs no migration.
+    expect([...EDI_ARTIFACT_APP_IDS].sort()).toEqual(EDI_DESKTOP_APPS.map((app) => app.id).sort());
   });
 });

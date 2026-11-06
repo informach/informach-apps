@@ -117,9 +117,9 @@ export default function Home() {
               Uma aula passa por {EDI_TOOL_COUNT_WORD} mesas. Agora elas ficam lado a lado.
             </h2>
             <p className="lede">
-              Você não precisa mais de {EDI_TOOL_COUNT_WORD} programas, {EDI_TOOL_COUNT_WORD} contas
-              e {EDI_TOOL_COUNT_WORD} jeitos de salvar. Cada ferramenta cuida de uma etapa e todas
-              se instalam e se atualizam pelo mesmo lugar.
+              Você não precisa mais de um programa, uma conta e um jeito de salvar para cada etapa.
+              Cada ferramenta cuida de uma etapa e todas se instalam e se atualizam pelo mesmo
+              lugar.
             </p>
           </div>
           <ol className="journey">

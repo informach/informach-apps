@@ -89,6 +89,8 @@ export const TOOL_FEATURES: readonly ToolFeature[] = [
       "Junta vídeos, divide em partes e extrai o áudio",
       "Converte para WhatsApp, e-mail, YouTube ou GIF",
     ],
+    limits:
+      "Sem recodificar, cada trecho começa no quadro-chave anterior à marca; o corte exato recodifica. Formatos antigos tocam por uma prévia convertida.",
   },
 ];
 

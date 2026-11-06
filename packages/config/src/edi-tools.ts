@@ -59,6 +59,9 @@ export const EDI_TOOLS = [
     description: "Assista e corte vídeos",
     projectExtensions: [],
     nativeMedia: { testScript: "test:media-native" },
+    // First suite version that knows this tool: older clients refuse a lease naming an
+    // unknown tool, so the server leaves it out of their leases.
+    since: "0.5.0",
   },
 ] as const;
 
@@ -87,10 +90,10 @@ const COUNT_WORDS: readonly string[] = [
 export const EDI_TOOL_COUNT_WORD = COUNT_WORDS[EDI_TOOLS.length] ?? String(EDI_TOOLS.length);
 
 /** Tool names as a Portuguese list: "EdiAula, EdiCaptura, … e EdiPlayer". */
-export const EDI_TOOL_NAME_LIST = new Intl.ListFormat("pt-BR", {
-  style: "long",
-  type: "conjunction",
-}).format(EDI_TOOLS.map((tool) => tool.name));
+export const EDI_TOOL_NAME_LIST = (() => {
+  const names = EDI_TOOLS.map((tool) => tool.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} e ${names.at(-1)}` : (names[0] ?? "");
+})();
 
 export const EDI_HUB = {
   id: "edi-hub",
