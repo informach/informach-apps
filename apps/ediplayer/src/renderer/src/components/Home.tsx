@@ -1,7 +1,7 @@
 import { clock } from "@shared/ranges";
 import { Film, FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fail, openPaths, refreshRecents, useStore } from "../state/store";
+import { fail, openPaths, refreshRecents, toast, useStore } from "../state/store";
 import { Logo } from "./Logo";
 
 export function Home() {
@@ -14,7 +14,10 @@ export function Home() {
     e.preventDefault();
     setOver(false);
     const paths = [...e.dataTransfer.files].map((f) => window.api.pathForFile(f)).filter(Boolean);
-    void openPaths(paths).catch(fail);
+    // A subtitle needs a video first; a folder is opened with "Abrir pasta como lista".
+    const media = paths.filter((p) => !/\.(srt|vtt)$/i.test(p));
+    if (media.length < paths.length) toast("Abra o vídeo primeiro; depois arraste a legenda.");
+    void openPaths(media).catch(fail);
   };
   return (
     <main className="home">

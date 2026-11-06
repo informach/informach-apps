@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { withStagedFiles } from "@informach/edi-desktop/files";
 import { MediaProcessError } from "@informach/edi-desktop/native-media";
@@ -14,14 +15,16 @@ import {
   type Transform,
 } from "../shared/edit.ts";
 import {
+  audioCutGraph,
   concatCopyArgs,
   concatList,
-  copySegmentArgs,
+  displayRotation,
   exportGraph,
+  LOCAL_INPUT,
   type Loudness,
   loudnormFilter,
   parseLoudness,
-  replaceAudioArgs,
+  pointsList,
   type VideoEncoder,
   videoEncodeArgs,
 } from "../shared/media/args.ts";
@@ -60,10 +63,7 @@ export async function runJob(
   ctx: RunContext,
 ): Promise<string[]> {
   const outputs = jobOutputs(job);
-  const sources = job.kind === "join" ? job.sources : [job.source];
-  const own = new Set(sources.map((s) => s.toLowerCase()));
-  if (outputs.some((o) => own.has(o.toLowerCase())))
-    throw new Error("O resultado não pode substituir o arquivo original. Escolha outro nome.");
+  await assertOutputsSafe(job, outputs);
   await withStagedFiles(outputs, async (staged) => {
     if (job.kind === "export") await runExport(engine, job, staged.get(job.output) as string, ctx);
     else if (job.kind === "split") await runSplit(engine, job, outputs, staged, ctx);
@@ -75,6 +75,39 @@ export async function runJob(
 }
 
 const extensionOf = (path: string) => extname(path).slice(1).toLowerCase();
+
+/** Every file a job reads: sources, a new sound, a subtitle to burn. */
+function jobInputs(job: EditJob): string[] {
+  if (job.kind === "join") return job.sources;
+  if (job.kind !== "export") return [job.source];
+  return [job.source, job.transform.replaceAudio, job.transform.burnSubtitles].filter(
+    (p): p is string => !!p,
+  );
+}
+
+/**
+ * A result never replaces a file the job reads, compared by identity on disk (volume + file id),
+ * not by spelling: a mapped drive, a short 8.3 name, a junction or a hard link is the same file.
+ * Split parts never replace existing files at all.
+ */
+async function assertOutputsSafe(job: EditJob, outputs: readonly string[]): Promise<void> {
+  const inputs = await Promise.all(jobInputs(job).map((p) => stat(p, { bigint: true })));
+  for (const output of outputs) {
+    let found: Awaited<ReturnType<typeof stat>> | null = null;
+    try {
+      found = await stat(output, { bigint: true });
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
+    if (!found) continue;
+    if (inputs.some((i) => i.dev === found.dev && i.ino === found.ino))
+      throw new Error(
+        "O resultado não pode substituir um arquivo usado na edição. Escolha outro nome.",
+      );
+    if (job.kind === "split")
+      throw new Error(`Já existe ${basename(output)} nesta pasta. Escolha outra pasta.`);
+  }
+}
 
 async function filterOption(engine: MediaEngine): Promise<string> {
   const text = await engine.media.run(engine.ffmpeg, ["-hide_banner", "-version"], {
@@ -124,7 +157,13 @@ async function verify(
     );
 }
 
-/** Copies stretches (cut on keyframes) and joins them, all without re-encoding. */
+/**
+ * A cut without re-encoding the picture. A concat list cuts the source by points (the inpoint on
+ * the keyframe at or before each mark, the outpoint half a frame before its end, so no extra
+ * frame slips in); every stretch then lasts the same for picture and sound, so cuts do not drift
+ * apart. The sound is cut with sample accuracy and encoded to AAC to match those exact lengths.
+ * A sound-only cut copies its packets: one stream cannot drift against another.
+ */
 async function copyStretches(
   engine: MediaEngine,
   facts: MediaFacts,
@@ -134,62 +173,128 @@ async function copyStretches(
   opts: {
     rotation: number | null;
     removeAudio: boolean;
+    replaceAudio: string | null;
     audioOnly: boolean;
+    /** One sound stream to keep, or null for all of them. */
     audioIndex: number | null;
   },
 ): Promise<number> {
-  const keys = facts.hasVideo && !opts.audioOnly ? await engine.keyframes(facts.path) : [];
-  const pieces = ranges.map((r) => {
-    const start = keys.length ? keyframeAtOrBefore(r.start, keys) : r.start;
-    return { start, duration: r.end - start };
-  });
-  const keepSubtitles = /matroska/.test(facts.container) && extensionOf(output) === "mkv";
-  const segment = (start: number, duration: number, file: string) =>
-    copySegmentArgs({
-      source: facts.path,
-      start,
-      duration,
-      output: file,
-      rotation: opts.rotation,
-      removeAudio: opts.removeAudio,
-      audioIndex: opts.audioIndex,
-      keepSubtitles,
-      audioOnly: opts.audioOnly,
-    });
-  const only = pieces.at(0);
-  if (pieces.length === 1 && only) {
-    await engine.media.run(engine.ffmpeg, segment(only.start, only.duration, output), {
+  const work = dirname(output);
+  const tag = randomUUID().slice(0, 8);
+  const list = join(work, `.cut-${tag}.txt`);
+  const faststart = /\.(mp4|mov|m4a)$/i.test(output) ? ["-movflags", "+faststart"] : [];
+  const head = ["-hide_banner", "-nostdin", "-y", "-v", "error"];
+  const run = (args: string[], duration: number) =>
+    engine.media.run(engine.ffmpeg, args, {
       jobId: `${ctx.jobId}:copy`,
       signal: ctx.signal,
-      duration: only.duration,
+      duration,
       onProgress: ctx.onProgress,
     });
-    return only.duration;
+  if (opts.audioOnly) {
+    const points = ranges.map((r) => ({
+      inpoint: facts.startTime + r.start,
+      outpoint: facts.startTime + r.end,
+    }));
+    await writeFile(list, pointsList(facts.path, points));
+    const length = totalDuration(ranges);
+    await run(
+      [
+        ...head,
+        ...LOCAL_INPUT,
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        list,
+        "-map",
+        `0:a:${opts.audioIndex ?? 0}`,
+        "-vn",
+        "-c",
+        "copy",
+        ...faststart,
+        output,
+      ],
+      length,
+    );
+    return length;
   }
-  const dir = dirname(output),
-    ext = extname(output);
-  const files: string[] = [];
-  for (const [i, p] of pieces.entries()) {
-    ctx.signal.throwIfAborted();
-    const file = join(dir, `piece-${i}${ext}`);
-    await engine.media.run(engine.ffmpeg, segment(p.start, p.duration, file), {
-      jobId: `${ctx.jobId}:piece-${i}`,
-      signal: ctx.signal,
-    });
-    files.push(file);
-    ctx.onProgress(((i + 1) / (pieces.length + 1)) * 0.9);
-  }
-  const list = join(dir, "pieces.txt");
-  await writeFile(list, concatList(files));
-  await engine.media.run(
-    engine.ffmpeg,
-    concatCopyArgs(list, output, /\.(mp4|mov|m4a)$/i.test(output)),
-    {
-      jobId: `${ctx.jobId}:join`,
-      signal: ctx.signal,
-    },
+  const keys = await engine.keyframes(facts.path);
+  const frame = 1 / (facts.fps > 0 ? facts.fps : 30);
+  const cut = ranges.map((r) => ({
+    start: keys.length ? keyframeAtOrBefore(r.start, keys) : r.start,
+    end: r.end,
+  }));
+  await writeFile(
+    list,
+    pointsList(
+      facts.path,
+      cut.map((r) => ({
+        inpoint: facts.startTime + r.start,
+        outpoint: facts.startTime + Math.max(r.start + frame, r.end - frame / 2),
+      })),
+    ),
   );
-  return pieces.reduce((s, p) => s + p.duration, 0);
+  const length = totalDuration(cut);
+  const tracks =
+    opts.removeAudio || opts.replaceAudio
+      ? []
+      : opts.audioIndex === null
+        ? facts.audio.map((a) => a.index)
+        : [opts.audioIndex];
+  const inputs = [
+    ...(opts.rotation === null
+      ? []
+      : ["-display_rotation:v:0", String(displayRotation(opts.rotation))]),
+    ...LOCAL_INPUT,
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    list,
+  ];
+  let graph: string[] = [];
+  if (tracks.length) {
+    const script = join(work, `.cut-${tag}-sound.txt`);
+    await writeFile(script, audioCutGraph(1, tracks, cut));
+    inputs.push(...LOCAL_INPUT, "-i", facts.path);
+    graph = [await filterOption(engine), script];
+  } else if (opts.replaceAudio) inputs.push(...LOCAL_INPUT, "-i", opts.replaceAudio);
+  // A new sound ends the file with the shorter of picture and sound, said explicitly.
+  const expected = opts.replaceAudio
+    ? Math.min(length, (await engine.probe(opts.replaceAudio)).duration)
+    : length;
+  const keepSubtitles = /matroska/.test(facts.container) && extensionOf(output) === "mkv";
+  await run(
+    [
+      ...head,
+      ...inputs,
+      ...graph,
+      "-map",
+      "0:V",
+      ...(tracks.length
+        ? tracks.flatMap((_, k) => ["-map", `[a${k}]`])
+        : opts.replaceAudio
+          ? ["-map", "1:a:0"]
+          : ["-an"]),
+      ...(keepSubtitles ? ["-map", "0:s?", "-c:s", "copy"] : ["-sn"]),
+      "-c:v",
+      "copy",
+      ...(tracks.length || opts.replaceAudio ? ["-c:a", "aac", "-b:a", "192k"] : []),
+      ...(opts.replaceAudio ? ["-t", expected.toFixed(3)] : []),
+      "-dn",
+      "-map_chapters",
+      "-1",
+      "-avoid_negative_ts",
+      "make_zero",
+      ...faststart,
+      output,
+    ],
+    expected,
+  );
+  return expected;
 }
 
 async function runExport(
@@ -204,30 +309,16 @@ async function runExport(
   const t = job.transform;
   if (t.replaceAudio && !(await engine.probe(t.replaceAudio)).audio.length)
     throw new Error("O arquivo escolhido para o novo som não tem som.");
-  if (canCopy(t, job.preset, job.precise) && facts.hasVideo) {
-    if (t.replaceAudio && extensionOf(out) === "webm")
-      throw new Error(
-        "Para trocar o som de um WebM, salve como MP4 (escolha WhatsApp ou YouTube).",
-      );
-    const rotation = t.rotate ? (facts.rotation + t.rotate) % 360 : null;
-    const target = t.replaceAudio ? join(dirname(out), `picture${extname(out)}`) : out;
-    const length = await copyStretches(engine, facts, ranges, target, ctx, {
-      rotation,
-      removeAudio: t.removeAudio || !!t.replaceAudio,
-      audioOnly: false,
-      audioIndex: null,
+  if (canCopy(t, job.preset, job.precise, facts)) {
+    const length = await copyStretches(engine, facts, ranges, out, ctx, {
+      rotation: t.rotate && facts.hasVideo ? (facts.rotation + t.rotate) % 360 : null,
+      removeAudio: t.removeAudio,
+      replaceAudio: t.replaceAudio,
+      audioOnly: !facts.hasVideo,
+      audioIndex: facts.hasVideo ? null : t.audioIndex,
     });
-    let expected = length;
-    if (t.replaceAudio) {
-      await engine.media.run(engine.ffmpeg, replaceAudioArgs(target, t.replaceAudio, out), {
-        jobId: `${ctx.jobId}:sound`,
-        signal: ctx.signal,
-      });
-      // -shortest: the file ends with the shorter of picture and sound.
-      expected = Math.min(length, (await engine.probe(t.replaceAudio)).duration);
-    }
     ctx.onProgress(1);
-    await verify(engine, out, expected, 1.5);
+    await verify(engine, out, length, 1.5);
     return;
   }
   await recodeExport(engine, facts, ranges, job.preset, t, out, ctx);
@@ -263,7 +354,8 @@ async function recodeExport(
   const first = ranges.at(0) as Range;
   const length = totalDuration(ranges) / t.speed;
   const replacement = t.replaceAudio && !soundOnly ? await engine.probe(t.replaceAudio) : null;
-  // With a new sound the file ends with the shorter of picture and sound (-shortest).
+  // With a new sound the file ends with the shorter of picture and sound, said with -t (the
+  // -shortest flag overshoots by up to its 10 s buffer).
   const expected = replacement ? Math.min(length, replacement.duration) : length;
   const work = dirname(out);
   let burn: string | null = null;
@@ -291,10 +383,11 @@ async function recodeExport(
       : `0:a:${Math.min(t.audioIndex, facts.audio.length - 1)}`;
   if (soundOnly && !audioLabel) throw new Error("Este arquivo não tem som para salvar em MP3.");
   const inputs = [
+    ...LOCAL_INPUT,
     ...(seeked ? ["-ss", first.start.toFixed(3), "-t", (first.end - first.start).toFixed(3)] : []),
     "-i",
     facts.path,
-    ...(t.replaceAudio ? ["-i", t.replaceAudio] : []),
+    ...(t.replaceAudio ? [...LOCAL_INPUT, "-i", t.replaceAudio] : []),
   ];
   const option = await filterOption(engine);
   const base = {
@@ -315,9 +408,12 @@ async function recodeExport(
   } as const;
   let measured: Loudness | null = null;
   if (t.normalize && audioLabel) {
-    const probe = exportGraph({ ...base, video: false, loudnorm: loudnormFilter(null) });
+    // A new sound is measured whole: it is not cut with the picture.
+    const measure = t.replaceAudio
+      ? `[${audioLabel}]${loudnormFilter(null)}[a]`
+      : exportGraph({ ...base, video: false, loudnorm: loudnormFilter(null) }).graph;
     const script = join(work, "measure.txt");
-    await writeFile(script, probe.graph);
+    await writeFile(script, measure);
     const said = await engine.media.run(
       engine.ffmpeg,
       ["-hide_banner", "-nostdin", ...inputs, option, script, "-map", "[a]", "-f", "null", "-"],
@@ -350,7 +446,7 @@ async function recodeExport(
         : [
             ...videoEncodeArgs(encoder, quality),
             ...(graph.audio ? ["-c:a", "aac", "-b:a", `${audioKbps}k`] : ["-an"]),
-            ...(t.replaceAudio ? ["-shortest"] : []),
+            ...(t.replaceAudio ? ["-t", expected.toFixed(3)] : []),
             "-movflags",
             "+faststart",
           ]),
@@ -400,8 +496,9 @@ async function runSplit(
     const length = await copyStretches(engine, facts, [piece], out, part, {
       rotation: null,
       removeAudio: false,
-      audioOnly: false,
-      audioIndex: null,
+      replaceAudio: null,
+      audioOnly: !facts.hasVideo,
+      audioIndex: facts.hasVideo ? null : 0,
     });
     await verify(engine, out, length, 1.5);
   }
@@ -507,6 +604,7 @@ async function runAudio(
     const length = await copyStretches(engine, facts, ranges, out, ctx, {
       rotation: null,
       removeAudio: false,
+      replaceAudio: null,
       audioOnly: true,
       audioIndex: job.audioIndex,
     });

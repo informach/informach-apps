@@ -13,13 +13,14 @@ import {
 } from "../src/shared/edit.ts";
 import {
   atempoChain,
+  audioCutGraph,
   concatList,
-  copySegmentArgs,
   displayRotation,
   exportGraph,
   filterPath,
   loudnormFilter,
   parseLoudness,
+  pointsList,
 } from "../src/shared/media/args.ts";
 import { concatCompatible, joinBlocker, playbackPlan } from "../src/shared/media/compat.ts";
 import { factsFromProbe, keyframesFromPackets, peaks } from "../src/shared/media/probe-parse.ts";
@@ -31,6 +32,7 @@ const facts = (over: Partial<MediaFacts> = {}): MediaFacts => ({
   name: "a.mp4",
   container: "mov,mp4,m4a,3gp,3g2,mj2",
   duration: 60,
+  startTime: 0,
   size: 60_000_000,
   bitRate: 8_000_000,
   hasVideo: true,
@@ -163,6 +165,19 @@ test("export choices: copy only without picture or sound changes", () => {
   assert.equal(canCopy(NO_TRANSFORM, "whatsapp", false), false);
   assert.equal(copyExtension("C:\\a\\b.MOV"), "mov");
   assert.equal(copyExtension("C:\\a\\b.avi"), "mkv");
+  // WebM takes no AAC (the cut's matching sound): Matroska instead.
+  assert.equal(copyExtension("x.webm"), "mkv");
+  assert.equal(copyExtension("x.mp3"), "mp3");
+  // A sound-only file trimmed as "Original" keeps its own format, or becomes MP3.
+  assert.equal(exportExtension("x.mp3", "original", true, false, "mp3"), "mp3");
+  assert.equal(exportExtension("x.flac", "original", false, false, "flac"), "mp3");
+  assert.equal(
+    canCopy(NO_TRANSFORM, "original", false, {
+      hasVideo: false,
+      audio: [{ index: 0, codec: "flac", channels: 2, sampleRate: 48000 }],
+    }),
+    false,
+  );
   assert.equal(exportExtension("x.mkv", "original", true), "mkv");
   assert.equal(exportExtension("x.mkv", "whatsapp", false), "mp4");
   assert.equal(exportExtension("x.mkv", "gif", false), "gif");
@@ -200,7 +215,9 @@ test("job schema refuses extra fields and impossible values", () => {
 });
 
 test("FFmpeg argument builders", () => {
-  assert.equal(filterPath("C:\\Users\\it's\\a.srt"), "C\\:/Users/it\\'s/a.srt");
+  // Option level escapes \ ' :, the graph level escapes those backslashes and ' [ ] , ; again.
+  assert.equal(filterPath("C:\\Users\\it's\\a.srt"), "C\\\\:/Users/it\\\\\\'s/a.srt");
+  assert.equal(filterPath("C:\\x',[a];b\\l.srt"), "C\\\\:/x\\\\\\'\\,\\[a\\]\\;b/l.srt");
   assert.equal(concatList(["C:\\a'b.mp4"]), "ffconcat version 1.0\nfile 'C:\\a'\\''b.mp4'\n");
   assert.deepEqual(atempoChain(4), ["atempo=2", "atempo=2"]);
   assert.deepEqual(atempoChain(0.5), ["atempo=0.5"]);
@@ -208,18 +225,25 @@ test("FFmpeg argument builders", () => {
   assert.deepEqual(atempoChain(1), []);
   assert.equal(displayRotation(90), 270);
   assert.equal(displayRotation(0), 0);
-  const seg = copySegmentArgs({
-    source: "in.mp4",
-    start: 4,
-    duration: 3,
-    output: "out.mp4",
-    rotation: 90,
-    removeAudio: true,
-    audioIndex: null,
-    keepSubtitles: false,
-  });
-  assert.ok(seg.indexOf("-display_rotation:v:0") < seg.indexOf("-i"));
-  assert.ok(seg.includes("-an") && seg.includes("copy"));
+  assert.equal(
+    pointsList("C:\\v\\a'b.mkv", [{ inpoint: 1.445, outpoint: 4.5 }]),
+    "ffconcat version 1.0\nfile 'C:\\v\\a'\\''b.mkv'\ninpoint 1.445000\noutpoint 4.500000\n",
+  );
+  const sound = audioCutGraph(
+    1,
+    [0, 2],
+    [
+      { start: 1, end: 2 },
+      { start: 5, end: 7 },
+    ],
+  );
+  assert.match(sound, /\[1:a:0\]asplit=2\[s0_0\]\[s0_1\]/);
+  assert.match(sound, /\[s1_1\]atrim=start=5\.000000:end=7\.000000,asetpts=PTS-STARTPTS\[c1_1\]/);
+  assert.match(sound, /\[c1_0\]\[c1_1\]concat=n=2:v=0:a=1\[a1\]/);
+  assert.equal(
+    audioCutGraph(1, [0], [{ start: 0, end: 3 }]),
+    "[1:a:0]atrim=start=0.000000:end=3.000000,asetpts=PTS-STARTPTS[a0]",
+  );
   const measured = parseLoudness(
     'junk\n{\n "input_i" : "-27.1", "input_tp" : "-9.0", "input_lra" : "5.2", "input_thresh" : "-37.5", "target_offset" : "0.3"\n}\n',
   );
@@ -248,7 +272,7 @@ test("export graph cuts, joins and transforms in order", () => {
     size: [720, 1280],
     gif: null,
   });
-  assert.match(g.graph, /subtitles=filename='C\\:\/s\.srt',split=2\[vs0\]\[vs1\]/);
+  assert.match(g.graph, /subtitles=filename=C\\\\:\/s\.srt,split=2\[vs0\]\[vs1\]/);
   assert.match(g.graph, /\[vt0\]\[at0\]\[vt1\]\[at1\]concat=n=2:v=1:a=1\[vc\]\[ac\]/);
   assert.match(
     g.graph,

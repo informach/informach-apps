@@ -54,6 +54,21 @@ describe("signed offline licenses", () => {
     expect(result.claims.exp - result.claims.iat).toBe(MAX_LEASE_SECONDS);
     expect(result.claims.tools).toEqual(EDI_TOOLS.map((tool) => tool.id));
   });
+  it("names only the tools the requesting client knows", () => {
+    const old = verifyLicense(
+      signer({ ...binding, now, paidThrough, clientVersion: "0.4.2" }),
+      context,
+    );
+    if (!old.valid) throw new Error("Expected valid lease");
+    expect(old.claims.tools).not.toContain("ediplayer");
+    expect(old.claims.tools).toContain("edipdf");
+    const fresh = verifyLicense(
+      signer({ ...binding, now, paidThrough, clientVersion: "0.5.0" }),
+      context,
+    );
+    if (!fresh.valid) throw new Error("Expected valid lease");
+    expect(fresh.claims.tools).toContain("ediplayer");
+  });
   it("never extends past the paid end, including clock tolerance", () => {
     const end = new Date(now.getTime() + 60000);
     const token = signer({ ...binding, now, paidThrough: end });

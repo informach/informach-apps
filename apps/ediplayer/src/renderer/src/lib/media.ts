@@ -35,35 +35,48 @@ export function playbackCaps(): PlaybackCaps {
  * Volume up to 200% and "Realçar volume" go through Web Audio: the element's sound passes a
  * gain and, when boosted, a compressor that lifts quiet speech. The element itself stays at 1.
  */
-let graph: {
+interface AudioGraph {
   context: AudioContext;
   gain: GainNode;
   compressor: DynamicsCompressorNode;
-  source: MediaElementAudioSourceNode;
-} | null = null;
+}
+/**
+ * One graph per <video> for its whole life: an element can be routed into Web Audio only once,
+ * so the graph is never closed and rebuilt (React's development double mount would leave the
+ * element routed into a closed context, silent).
+ */
+const graphs = new WeakMap<HTMLVideoElement, AudioGraph>();
+
+function graphOf(v: HTMLVideoElement): AudioGraph | null {
+  const known = graphs.get(v);
+  if (known) return known;
+  try {
+    const context = new AudioContext();
+    const source = context.createMediaElementSource(v);
+    const gain = context.createGain();
+    const compressor = context.createDynamicsCompressor();
+    compressor.threshold.value = -36;
+    compressor.knee.value = 24;
+    compressor.ratio.value = 4;
+    source.connect(gain);
+    const graph = { context, gain, compressor };
+    graphs.set(v, graph);
+    return graph;
+  } catch {
+    return null;
+  }
+}
 
 export function applyVolume(volume: number, muted: boolean, boost: boolean): void {
   const v = element;
   if (!v) return;
-  if (!graph) {
-    try {
-      const context = new AudioContext();
-      const source = context.createMediaElementSource(v);
-      const gain = context.createGain();
-      const compressor = context.createDynamicsCompressor();
-      compressor.threshold.value = -36;
-      compressor.knee.value = 24;
-      compressor.ratio.value = 4;
-      source.connect(gain);
-      graph = { context, gain, compressor, source };
-    } catch {
-      // Without Web Audio the element's own volume still works up to 100%.
-      v.volume = Math.min(1, volume);
-      v.muted = muted;
-      return;
-    }
+  const g = graphOf(v);
+  if (!g) {
+    // Without Web Audio the element's own volume still works up to 100%.
+    v.volume = Math.min(1, volume);
+    v.muted = muted;
+    return;
   }
-  const g = graph;
   g.gain.disconnect();
   g.compressor.disconnect();
   if (boost) {
@@ -72,12 +85,6 @@ export function applyVolume(volume: number, muted: boolean, boost: boolean): voi
   } else g.gain.connect(g.context.destination);
   g.gain.gain.value = muted ? 0 : volume * (boost ? 1.6 : 1);
   if (g.context.state === "suspended") void g.context.resume();
-}
-
-/** The element changed (new window load): the audio graph belongs to the old one. */
-export function resetAudio(): void {
-  if (graph) void graph.context.close();
-  graph = null;
 }
 
 export function formatBytes(bytes: number): string {

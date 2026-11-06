@@ -1,7 +1,7 @@
 import { shiftCues } from "@shared/subtitles";
 import { Music } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyVolume, resetAudio, setVideo } from "../lib/media";
+import { applyVolume, setVideo } from "../lib/media";
 import {
   fail,
   playbackFailed,
@@ -18,8 +18,6 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
   const error = useStore((s) => s.error);
   const prefs = useStore((s) => s.prefs);
   const rate = useStore((s) => s.rate);
-  const zoom = useStore((s) => s.zoom);
-  const viewRotate = useStore((s) => s.viewRotate);
   const editing = useStore((s) => s.editing);
   const transform = useStore((s) => s.transform);
   const tool = useStore((s) => s.tool);
@@ -27,10 +25,7 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
 
   useEffect(() => {
     setVideo(ref.current);
-    return () => {
-      setVideo(null);
-      resetAudio();
-    };
+    return () => setVideo(null);
   }, []);
 
   useEffect(() => {
@@ -56,12 +51,18 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
     };
   }, []);
 
-  // The preview of the edit: turn and mirror the picture as the export will.
-  const turn = editing ? transform.rotate : viewRotate;
-  const flips = editing
+  // The preview of the edit: turned and mirrored as the export will be. While cropping the
+  // picture is shown as it is, because the crop applies before turning and mirroring.
+  const facts = source?.facts;
+  const preview = editing && tool !== "crop";
+  const turn = preview ? transform.rotate : 0;
+  const flips = preview
     ? `${transform.flipH ? " scaleX(-1)" : ""}${transform.flipV ? " scaleY(-1)" : ""}`
     : "";
-  const style = { transform: `scale(${zoom}) rotate(${turn}deg)${flips}` };
+  // A quarter turn swaps the sides: shrink so the turned picture still fits the stage.
+  const aspect = facts && facts.height ? facts.width / facts.height : 1;
+  const fit = turn === 90 || turn === 270 ? Math.min(aspect, 1 / aspect) : 1;
+  const style = { transform: `scale(${fit}) rotate(${turn}deg)${flips}` };
   const audioOnly = !!source && !source.facts.hasVideo;
 
   return (
@@ -92,7 +93,7 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
           const v = ref.current;
           if (v) v.paused ? void v.play().catch(() => undefined) : v.pause();
         }}
-        onDoubleClick={() => void toggleFullscreen()}
+        onDoubleClick={() => void toggleFullscreen().catch(fail)}
       />
       {audioOnly && (
         <div className="audio-card">
@@ -151,10 +152,11 @@ function TimeTag() {
   );
 }
 
+/** Full screen takes the picture with its controls (the `.screen` column), not the bare video. */
 export async function toggleFullscreen(): Promise<void> {
-  const stage = document.querySelector(".stage");
+  const screen = document.querySelector(".screen");
   if (document.fullscreenElement) await document.exitFullscreen();
-  else if (stage instanceof HTMLElement) await stage.requestFullscreen();
+  else if (screen instanceof HTMLElement) await screen.requestFullscreen();
 }
 
 /** The subtitle on screen, read from the video's own clock every frame (smooth with delays). */
@@ -210,9 +212,11 @@ function CropFrame({
   onChange: (c: Crop | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [draft, setDraft] = useState<Crop>(crop ?? { x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
+  const whole = { x: 0, y: 0, w: 1, h: 1 };
+  // Without a crop the frame covers the whole picture: what is shown is what is applied.
+  const [draft, setDraft] = useState<Crop>(crop ?? whole);
   useEffect(() => {
-    if (crop) setDraft(crop);
+    setDraft(crop ?? { x: 0, y: 0, w: 1, h: 1 });
   }, [crop]);
   const [frame, setFrame] = useState({ left: 0, top: 0, width: 0, height: 0 });
   useEffect(() => {
@@ -256,10 +260,12 @@ function CropFrame({
     const up = () => {
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
       onChange(latest);
     };
     target.addEventListener("pointermove", move);
     target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
   };
   return (
     <div

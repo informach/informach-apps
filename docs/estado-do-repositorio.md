@@ -4,7 +4,7 @@ Atualizado em 06/11/2026. Este é o índice de continuidade entre sessões. As r
 
 ## EdiPlayer, sexta ferramenta da suíte Edi (06/11/2026)
 
-Player de vídeo com edições simples (cortar sem recodificar, dividir, juntar, converter, GIF), aberto pelo Edi Hub e coberto pela assinatura única. Implementado no branch `feat/ediplayer` e integrado à `main` local, sem push nem release. Os contratos de licença e release passaram a derivar do catálogo de ferramentas (migration 0079 para o CHECK de artefatos); Hubs já instalados precisam ser reinstalados no primeiro release com o EdiPlayer. Escopo e lotes no [plano](../apps/ediplayer/PLANO-DE-IMPLEMENTACAO.md), uso no [README](../apps/ediplayer/README.md), verificação, desvios e o que falta verificar (instalador com o bundle de mídia) no [review](reviews/ediplayer-2026-11-06/review.md).
+Player de vídeo com edições simples (cortar sem recodificar, dividir, juntar, converter, GIF), aberto pelo Edi Hub e coberto pela assinatura única. Implementado no branch `feat/ediplayer` e integrado à `main` local, sem push nem release. Os contratos de licença e release passaram a aceitar ferramentas futuras e a licença só nomeia as ferramentas que a versão do cliente conhece (migration 0079 para o CHECK de artefatos). Hubs 0.4.x precisam reinstalar uma vez para ler o release 0.5.0; as licenças deles seguem válidas. Full review de 06/11 com correções no [registro](reviews/ediplayer-2026-11-06/full-review.md). Escopo e lotes no [plano](../apps/ediplayer/PLANO-DE-IMPLEMENTACAO.md), uso no [README](../apps/ediplayer/README.md), verificação, desvios e o que falta verificar (instalador com o bundle de mídia) no [review](reviews/ediplayer-2026-11-06/review.md).
 
 ## Exportação web ediSVG em integração (31/10/2026)
 

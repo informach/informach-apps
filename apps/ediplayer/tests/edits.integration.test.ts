@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -103,6 +103,185 @@ before(async () => {
     clip("fala.srt"),
     "1\n00:00:00,500 --> 00:00:03,000\nOlá, turma\n\n2\n00:00:04,000 --> 00:00:06,000\nFrações\n",
   );
+  // Files the full review found breaking cuts: B-frames in Matroska (OBS), a stream that does not
+  // start at 0 (cameras, MPEG-TS), long picture, VP8 and a timecode track.
+  const bframes = [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-g",
+    "60",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-shortest",
+  ];
+  await make("obs.mkv", [...lavfi("640x360", 20), ...bframes]);
+  await make("camera.ts", [
+    ...lavfi("640x360", 20),
+    ...bframes,
+    "-output_ts_offset",
+    "1.445",
+    "-f",
+    "mpegts",
+  ]);
+  await make("longo.mp4", [...lavfi("320x240", 28), ...h264]);
+  await make("vp8.webm", [...lavfi("320x240", 3), "-c:v", "libvpx", "-b:v", "300k", "-an"]);
+  await make("tc1.mov", [...lavfi("320x240", 3), ...h264, "-timecode", "00:00:00:00"]);
+  await make("tc2.mov", [...lavfi("320x240", 3), ...h264, "-timecode", "00:00:10:00"]);
+  await make("musica.mp3", [
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=330:sample_rate=44100:duration=12",
+    "-c:a",
+    "libmp3lame",
+  ]);
+});
+
+/** Picture and sound lengths of a file: a cut must keep them together. */
+async function streamLengths(file: string): Promise<{ video: number; audio: number }> {
+  const text = await engine.media.run(paths.ffprobe, [
+    "-v",
+    "error",
+    "-show_entries",
+    "stream=codec_type,duration",
+    "-of",
+    "json",
+    file,
+  ]);
+  const data: unknown = JSON.parse(text);
+  const streams = data && typeof data === "object" ? Reflect.get(data, "streams") : [];
+  const of = (type: string) => {
+    const s = Array.isArray(streams)
+      ? streams.find((x) => x && Reflect.get(x, "codec_type") === type)
+      : undefined;
+    return Number(s ? Reflect.get(s, "duration") : Number.NaN);
+  };
+  return { video: of("video"), audio: of("audio") };
+}
+
+const cut = (
+  source: string,
+  output: string,
+  ranges: { start: number; end: number }[],
+): EditJob => ({
+  kind: "export",
+  source: clip(source),
+  ranges,
+  precise: false,
+  transform: NO_TRANSFORM,
+  preset: "original",
+  output: clip(output),
+});
+
+test("lossless cuts of B-frame Matroska and of a stream that starts late", async () => {
+  for (const source of ["obs.mkv", "camera.ts"]) {
+    const output = `${source}-cut.mkv`;
+    await runJob(
+      engine,
+      cut(source, output, [
+        { start: 4.5, end: 8 },
+        { start: 10.2, end: 14 },
+      ]),
+      ctx(`cut-${source}`),
+    );
+    const f = await engine.probe(clip(output));
+    // Starts snap to the keyframes at 4 s and 10 s: (8 - 4) + (14 - 10).
+    assert.ok(Math.abs(f.duration - 8) < 0.35, `${source}: ${f.duration}`);
+  }
+});
+
+test("many lossless cuts keep picture and sound together", async () => {
+  const output = "quatro.mp4";
+  await runJob(
+    engine,
+    cut("obs.mkv", output, [
+      { start: 1.4, end: 4.6 },
+      { start: 6.3, end: 9.2 },
+      { start: 11, end: 14.5 },
+      { start: 16.2, end: 19 },
+    ]),
+    ctx("four"),
+  );
+  const { video, audio } = await streamLengths(clip(output));
+  assert.ok(Math.abs(video - audio) < 0.1, `video ${video} vs audio ${audio}`);
+});
+
+test("a short new sound ends the file, in copies and in conversions", async () => {
+  for (const preset of ["original", "whatsapp"] as const) {
+    const output = `curto-${preset}.mp4`;
+    await runJob(
+      engine,
+      {
+        ...cut("longo.mp4", output, [{ start: 0, end: 28 }]),
+        preset,
+        transform: { ...NO_TRANSFORM, replaceAudio: clip("voz.m4a") },
+      },
+      ctx(`short-${preset}`),
+    );
+    assert.ok(Math.abs((await engine.probe(clip(output))).duration - 6) < 0.3, preset);
+  }
+  await runJob(
+    engine,
+    {
+      ...cut("longo.mp4", "normalizado.mp4", [
+        { start: 2, end: 12 },
+        { start: 14, end: 28 },
+      ]),
+      preset: "whatsapp",
+      transform: { ...NO_TRANSFORM, replaceAudio: clip("voz.m4a"), normalize: true },
+    },
+    ctx("normalize-replace"),
+  );
+});
+
+test("burned subtitles work in folders with quotes and graph characters", async () => {
+  for (const folder of ["D'Avila", "x',[a];b"]) {
+    await mkdir(join(dir, folder), { recursive: true });
+    const output = join(dir, folder, "legendado.mp4");
+    await runJob(
+      engine,
+      {
+        ...cut("a.mp4", "unused.mp4", [{ start: 0, end: 5 }]),
+        output,
+        preset: "whatsapp",
+        transform: { ...NO_TRANSFORM, burnSubtitles: clip("fala.srt") },
+      },
+      ctx(`burn-${folder.length}`),
+    );
+    assert.ok(Math.abs((await engine.probe(output)).duration - 5) < 0.3, folder);
+  }
+});
+
+test("VP8 plays through a preview; timecode tracks do not stop a join; MP3 stays MP3", async () => {
+  const preview = await engine.prepare(
+    clip("vp8.webm"),
+    "remux",
+    0,
+    () => {},
+    new AbortController().signal,
+    true,
+  );
+  assert.equal((await engine.probe(preview)).videoCodec, "h264");
+  const joined = clip("tc.mov");
+  await runJob(
+    engine,
+    {
+      kind: "join",
+      sources: [clip("tc1.mov"), clip("tc2.mov")],
+      preset: "original",
+      output: joined,
+    },
+    ctx("tc"),
+  );
+  assert.ok(Math.abs((await engine.probe(joined)).duration - 6) < 0.3);
+  await runJob(engine, cut("musica.mp3", "musica-cortada.mp3", [{ start: 2, end: 9 }]), ctx("mp3"));
+  const m = await engine.probe(clip("musica-cortada.mp3"));
+  assert.equal(m.audio.at(0)?.codec, "mp3");
+  assert.ok(Math.abs(m.duration - 7) < 0.2, `mp3 ${m.duration}`);
 });
 
 after(async () => {
@@ -344,7 +523,33 @@ test("the result never replaces its source", async () => {
       },
       ctx("self"),
     ),
-    /original/,
+    /arquivo usado na edição/,
+  );
+  // A hard link is the same file under another name: still refused.
+  const { link } = await import("node:fs/promises");
+  await link(clip("a.mp4"), clip("outro-nome.mp4"));
+  await assert.rejects(
+    runJob(engine, cut("a.mp4", "outro-nome.mp4", [{ start: 0, end: 2 }]), ctx("link")),
+    /arquivo usado na edição/,
+  );
+  // Split parts never replace files already in the folder.
+  await writeFile(join(dir, "partes (parte 1).mp4"), "existing");
+  await assert.rejects(
+    runJob(
+      engine,
+      {
+        kind: "split",
+        source: clip("a.mp4"),
+        pieces: [
+          { start: 0, end: 5 },
+          { start: 5, end: 10 },
+        ],
+        folder: dir,
+        baseName: "partes",
+      },
+      ctx("split-existing"),
+    ),
+    /Já existe/,
   );
 });
 

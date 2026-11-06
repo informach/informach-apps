@@ -43,7 +43,11 @@ export function App() {
       .then((queue) => useStore.setState({ queue }))
       .catch(fail);
     const offQueue = window.api.onQueue((queue) => useStore.setState({ queue }));
-    const offOpen = window.api.onOpenFiles((paths) => void openPaths(paths).catch(fail));
+    const offOpen = window.api.onOpenFiles((paths) => void openPaths(paths, "outside").catch(fail));
+    // A file dropped outside a drop area must not be opened by Chromium as a page.
+    const block = (e: DragEvent) => e.preventDefault();
+    document.addEventListener("dragover", block);
+    document.addEventListener("drop", block);
     const offProgress = window.api.onProgress((event) => {
       const current = useStore.getState().list.at(useStore.getState().index)?.path;
       if (event.id === current && useStore.getState().loading)
@@ -56,6 +60,8 @@ export function App() {
       offQueue();
       offOpen();
       offProgress();
+      document.removeEventListener("dragover", block);
+      document.removeEventListener("drop", block);
       window.removeEventListener("keydown", onKey);
     };
   }, []);
@@ -64,38 +70,35 @@ export function App() {
     <div className={`app${mini ? " mini" : ""}`}>
       <TitleBar />
       {view === "home" && <Home />}
-      {view === "player" && !editing && (
-        <div className="player">
-          <main className="player-main">
-            <Stage />
-            <SeekBar />
-            <Controls />
+      {view === "player" && (
+        // One Stage at the same place in both layouts: pressing E must not reload the video.
+        <div className={`player${editing ? " editing" : ""}`}>
+          <main className="player-main screen">
+            <Stage showTime={editing} />
+            {editing ? (
+              <EditKeys />
+            ) : (
+              <>
+                <SeekBar />
+                <Controls />
+              </>
+            )}
           </main>
-          <Sidebar />
+          {editing ? <EditTools /> : <Sidebar />}
         </div>
       )}
       {view === "player" && editing && (
-        <>
-          <div className="edit-top">
-            <div className="edit-preview">
-              <Stage showTime />
-              <EditKeys />
-            </div>
-            <EditTools />
-          </div>
-          <section className="ruler-panel" aria-label="Régua de corte">
-            <Ruler />
-            <MarksAndResult />
-          </section>
-        </>
+        <section className="ruler-panel" aria-label="Régua de corte">
+          <Ruler />
+          <MarksAndResult />
+        </section>
       )}
       <SaveDialog />
       <Queue />
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
+      {/* Mounted always, so screen readers announce each new message. */}
+      <div className={toast ? "toast" : "toast-idle"} role="status">
+        {toast}
+      </div>
     </div>
   );
 }
@@ -153,12 +156,16 @@ function frameStep(direction: 1 | -1): void {
 /** Keys of the window only (never global): VLC's where they exist, plus the edit keys. */
 function onKey(e: KeyboardEvent): void {
   const target = e.target;
-  if (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLSelectElement ||
-    target instanceof HTMLTextAreaElement
-  )
-    return;
+  // Typing fields keep every key. Sliders and menus keep only the arrows (they move them); the
+  // player's keys keep working after the volume or a menu was used.
+  const typing =
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLInputElement && !["range", "checkbox", "radio"].includes(target.type));
+  if (typing) return;
+  const widget = target instanceof HTMLSelectElement || target instanceof HTMLInputElement;
+  if (widget && e.key.startsWith("Arrow")) return;
+  // Space and Enter on a focused button press that button.
+  if (target instanceof HTMLButtonElement && (e.key === " " || e.key === "Enter")) return;
   const state = useStore.getState();
   if (state.save) return;
   const key = e.key;

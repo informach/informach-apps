@@ -38,13 +38,16 @@ export function Ruler() {
   );
   const bars = useMemo(() => {
     if (!wave?.length) return [];
-    const per = wave.length / BARS;
+    // Never more bars than samples: every bar takes at least one, so short clips span the ruler.
+    const count = Math.min(BARS, wave.length);
+    const per = wave.length / count;
     // Each bar is keyed by where it sits on the ruler.
-    return Array.from({ length: Math.min(BARS, wave.length) }, (_, i) => {
+    return Array.from({ length: count }, (_, i) => {
       let peak = 0;
-      for (let j = Math.floor(i * per); j < Math.floor((i + 1) * per); j++)
-        peak = Math.max(peak, wave.at(j) ?? 0);
-      return { at: `bar-${i / BARS}`, peak };
+      const from = Math.floor(i * per);
+      const to = Math.max(from + 1, Math.floor((i + 1) * per));
+      for (let j = from; j < to; j++) peak = Math.max(peak, wave.at(j) ?? 0);
+      return { at: `bar-${i / count}`, peak };
     });
   }, [wave]);
   const ticks = useMemo(() => {
@@ -78,11 +81,19 @@ export function Ruler() {
     const up = () => {
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
       useStore.setState({ marks: base });
-      edit({ marks: normalizeRanges(moved, duration) });
+      const dragged = moved.at(selected);
+      const next = normalizeRanges(moved, duration);
+      // Merging may renumber the stretches: keep the selection on the one that was dragged.
+      const at = dragged
+        ? next.findIndex((m) => m.start <= dragged.start + 1e-6 && m.end >= dragged.end - 1e-6)
+        : -1;
+      edit({ marks: next, selected: at < 0 ? null : at });
     };
     target.addEventListener("pointermove", move);
     target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
   };
   return (
     <>

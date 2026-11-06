@@ -1,6 +1,6 @@
 import { canCopy, GIF_LONG } from "@shared/edit";
 import { joinBlocker } from "@shared/media/compat";
-import { clock, evenSplitPoints, keptRanges, totalDuration } from "@shared/ranges";
+import { clock, evenSplitPoints, normalizeRanges, totalDuration } from "@shared/ranges";
 import {
   Crop,
   FlipHorizontal2,
@@ -20,6 +20,8 @@ import {
 import { useState } from "react";
 import { fileName } from "../lib/media";
 import {
+  beginTransformChange,
+  changeTransformLive,
   edit,
   fail,
   openSave,
@@ -105,10 +107,12 @@ export function EditTools() {
         {tool === "subtitle" && <SubtitleTool />}
         {tool === "convert" && <ConvertTool />}
         {tool === "gif" && <GifTool />}
-        <span className={canCopy(t, "original", precise) ? "info" : "warn"}>
-          {canCopy(t, "original", precise)
-            ? "Sem recodificar: salva em segundos, sem perder qualidade."
-            : "Com estas edições o vídeo é recodificado em alta qualidade: leva mais tempo."}
+        <span className={canCopy(t, "original", precise, facts ?? undefined) ? "info" : "warn"}>
+          {canCopy(t, "original", precise, facts ?? undefined)
+            ? hasVideo
+              ? "Sem recodificar a imagem: salva em segundos, sem perder qualidade."
+              : "Sem recodificar: salva em segundos."
+            : "Com estas edições o resultado é recodificado em alta qualidade: leva mais tempo."}
         </span>
       </div>
     </aside>
@@ -142,7 +146,7 @@ function TrimTool() {
         on={precise}
         onChange={(v) => useStore.setState({ precise: v })}
         title="Corte preciso"
-        detail="Desligado: sem recodificar, o corte cai no quadro-chave mais próximo. Ligado: corta no quadro exato e recodifica o resultado."
+        detail="Desligado: sem recodificar a imagem, cada trecho começa no quadro-chave anterior à marca. Ligado: corta no quadro exato e recodifica o resultado."
       />
     </>
   );
@@ -360,7 +364,9 @@ function SpeedTool() {
         max={4}
         step={0.25}
         value={t.speed}
-        onChange={(e) => setTransform({ speed: Number(e.target.value) })}
+        onPointerDown={beginTransformChange}
+        onKeyDown={beginTransformChange}
+        onChange={(e) => changeTransformLive({ speed: Number(e.target.value) })}
       />
       <span className="info">
         O som acompanha sem ficar fino ou grosso. Para só assistir mais rápido, use a velocidade do
@@ -385,7 +391,9 @@ function AudioTool() {
           step={0.05}
           value={t.gain}
           disabled={t.removeAudio}
-          onChange={(e) => setTransform({ gain: Number(e.target.value) })}
+          onPointerDown={beginTransformChange}
+          onKeyDown={beginTransformChange}
+          onChange={(e) => changeTransformLive({ gain: Number(e.target.value) })}
         />
       </label>
       <Toggle
@@ -500,17 +508,16 @@ function ConvertTool() {
 
 function GifTool() {
   const marks = useStore((s) => s.marks);
-  const mode = useStore((s) => s.mode);
   const duration = useStore((s) => s.duration);
-  const length = totalDuration(keptRanges(marks, mode, duration));
+  // A GIF is made of the marked stretches themselves, whatever the cut mode.
+  const length = totalDuration(normalizeRanges(marks, duration));
   return (
     <>
       <span className="info">Marque o trecho com I e O. O GIF fica sem som e em loop.</span>
       <span className="mono">Duração do GIF: {clock(length)}</span>
       {length > GIF_LONG && (
         <span className="warn">
-          GIF de {clock(length)} fica pesado. Marque um trecho curto (até 30 s) e use "Manter só
-          eles".
+          GIF de {clock(length)} fica pesado. Marque um trecho curto (até 30 s).
         </span>
       )}
       <button
@@ -518,11 +525,7 @@ function GifTool() {
         className="btn primary"
         onClick={() => {
           if (!marks.length) toast("Marque o trecho do GIF com I e O.");
-          else {
-            // A GIF is the marked stretch itself.
-            useStore.setState({ mode: "keep" });
-            openSave("export", "gif");
-          }
+          else openSave("export", "gif", true);
         }}
       >
         Salvar GIF…

@@ -2,6 +2,7 @@ import { clock } from "@shared/ranges";
 import { GraduationCap, Plus, Upload, X } from "lucide-react";
 import { useState } from "react";
 import {
+  confirmLeave,
   fail,
   loadSubtitleFile,
   loadSubtitleTrack,
@@ -79,7 +80,10 @@ export function Sidebar() {
             type="button"
             className="item"
             style={{ padding: 0, background: "none" }}
-            onClick={() => void playIndex(i).catch(fail)}
+            onClick={() => {
+              if (i !== index && !confirmLeave()) return;
+              void playIndex(i).catch(fail);
+            }}
           >
             <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
               <span className="name">{item.name}</span>
@@ -103,7 +107,7 @@ export function Sidebar() {
       ))}
       <div className={`side-drop${over ? " over" : ""}`}>
         <Upload size={18} />
-        Arraste vídeos, uma pasta ou uma legenda .srt
+        Arraste vídeos ou uma legenda .srt / .vtt
       </div>
       <span className="spacer" />
       {facts && source && (
@@ -137,7 +141,15 @@ export function Sidebar() {
           <div className="fact">
             <span>Legenda</span>
             <select
-              value={subtitle ? (subtitle.path ? "file" : subtitle.name) : "none"}
+              value={
+                subtitle
+                  ? subtitle.path
+                    ? "file"
+                    : subtitle.track !== null
+                      ? `track:${subtitle.track}`
+                      : "none"
+                  : "none"
+              }
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === "none") useStore.setState({ subtitle: null });

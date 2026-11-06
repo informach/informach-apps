@@ -89,13 +89,17 @@ const engine = new MediaEngine(
     developmentBinary: (name) =>
       requireDev(name === "ffmpeg" ? "ffmpeg-static" : "@derhuerst/ffprobe-static"),
   }),
-  join(app.getPath("userData"), "cache"),
+  // Local, not roaming: previews of videos must not travel with school roaming profiles.
+  !app.isPackaged && process.env.EDIPLAYER_USER_DATA
+    ? join(app.getPath("userData"), "cache")
+    : join(process.env.LOCALAPPDATA ?? app.getPath("temp"), "EdiPlayer", "cache"),
 );
 const streams = new MediaStreams();
 const state = new PlayerState(join(app.getPath("userData"), "ediplayer-state.json"));
 let caps: PlaybackCaps = { hevc: false, av1: false, mkvH264: false };
 let win: BrowserWindow | null = null;
 let normalBounds: Electron.Rectangle | null = null;
+let pinned = false;
 
 const pathValue = z.string().min(1).max(32768);
 const send = (channel: string, ...args: unknown[]) => {
@@ -114,6 +118,10 @@ const queue = new EditQueue(
   },
   (items) => {
     send("queue:changed", items);
+    if (items.some((i) => i.status === "done" && !opened.has(`${i.id}:trim`))) {
+      for (const i of items) if (i.status === "done") opened.add(`${i.id}:trim`);
+      void engine.trimCache().catch(() => undefined);
+    }
     for (const item of items)
       if (item.status === "done" && item.openFolder && !opened.has(item.id)) {
         opened.add(item.id);
@@ -165,6 +173,12 @@ function createWindow(): void {
     },
   });
   win.once("ready-to-show", () => win?.show());
+  // A file dropped outside a drop area must not replace the app with that file.
+  win.webContents.on("will-navigate", (event) => event.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.session.setPermissionRequestHandler((_wc, permission, done) =>
+    done(permission === "fullscreen"),
+  );
   win.webContents.once("did-finish-load", () => void openReceived(mediaFiles(process.argv)));
   win.on("closed", () => {
     queue.cancelAll();
@@ -230,43 +244,41 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle("media:probe", async (_e, raw: unknown) => engine.probe(await readable(raw)));
-  ipcMain.handle(
-    "player:open",
-    async (_e, raw: unknown, rawAudio: unknown, rawFallback: unknown) => {
-      const path = await readable(raw);
-      const audioIndex = z.int().min(0).max(63).parse(rawAudio);
-      const fallback = z.boolean().parse(rawFallback);
-      const facts = await engine.probe(path);
-      let mode = playbackPlan(facts, caps, audioIndex);
-      if (fallback && mode === "native") mode = "remux";
-      else if (fallback && mode === "remux") mode = "preview";
-      let file = path;
-      if (mode !== "native") {
-        jobsOf.get(path)?.abort();
-        const controller = new AbortController();
-        jobsOf.set(path, controller);
-        const label = mode === "remux" ? "Preparando o vídeo" : "Convertendo para uma prévia";
-        const playableSound = PLAYABLE_AUDIO.has(facts.audio.at(audioIndex)?.codec ?? "");
-        try {
-          file = await engine.prepare(
-            path,
-            mode,
-            audioIndex,
-            (ratio) => send("progress", { id: path, ratio, label }),
-            controller.signal,
-            playableSound,
-          );
-        } finally {
-          if (jobsOf.get(path) === controller) jobsOf.delete(path);
-          send("progress", { id: path, ratio: 1, label });
-        }
+  ipcMain.handle("player:open", async (_e, raw: unknown, rawAudio: unknown, rawLevel: unknown) => {
+    const path = await readable(raw);
+    const audioIndex = z.int().min(0).max(63).parse(rawAudio);
+    // 0: as planned; 1: the <video> failed once, at least a copy; 2: failed again, a preview.
+    const level = z.int().min(0).max(2).parse(rawLevel);
+    const facts = await engine.probe(path);
+    const order = ["native", "remux", "preview"] as const;
+    const planned = order.indexOf(playbackPlan(facts, caps, audioIndex));
+    const mode = order[Math.max(planned, level)] ?? "preview";
+    let file = path;
+    if (mode !== "native") {
+      // Opening the same file again joins the preparation already running.
+      const controller = jobsOf.get(path) ?? new AbortController();
+      jobsOf.set(path, controller);
+      const label = mode === "remux" ? "Preparando o vídeo" : "Convertendo para uma prévia";
+      const playableSound = PLAYABLE_AUDIO.has(facts.audio.at(audioIndex)?.codec ?? "");
+      try {
+        file = await engine.prepare(
+          path,
+          mode,
+          audioIndex,
+          (ratio) => send("progress", { id: path, ratio, label }),
+          controller.signal,
+          playableSound,
+        );
+      } finally {
+        if (jobsOf.get(path) === controller) jobsOf.delete(path);
+        send("progress", { id: path, ratio: 1, label });
       }
-      const source: PlaybackSource = { url: await streams.grant(file), mode, facts, audioIndex };
-      return source;
-    },
-  );
+    }
+    const source: PlaybackSource = { url: await streams.grant(file), mode, facts, audioIndex };
+    return source;
+  });
   ipcMain.handle("player:cancelPrepare", async (_e, raw: unknown) => {
-    const path = pathValue.parse(raw);
+    const path = await readable(raw);
     jobsOf.get(path)?.abort();
     engine.cancelPrepare(path);
   });
@@ -352,7 +364,10 @@ function registerIpc(): void {
     await readable(item.path);
     await state.remember(item);
   });
-  ipcMain.handle("player:forget", () => state.forget());
+  ipcMain.handle("player:forget", async () => {
+    await state.forget();
+    await engine.clearCache();
+  });
   ipcMain.handle("player:prefs", () => state.prefs());
   ipcMain.handle("player:savePrefs", (_e, raw: unknown) => state.savePrefs(prefsSchema.parse(raw)));
   // "dialog:save" makes the suite grant write access to the chosen path.
@@ -387,12 +402,17 @@ function registerIpc(): void {
     const job = editJobSchema.parse(rawJob);
     z.string().max(300).parse(rawLabel);
     const openFolder = z.boolean().parse(rawOpen);
-    const sources = job.kind === "join" ? job.sources : [job.source];
-    for (const s of sources) await readable(s);
+    if (job.kind === "join") job.sources = await Promise.all(job.sources.map(readable));
+    else job.source = await readable(job.source);
     if (job.kind === "export") {
-      if (job.transform.replaceAudio) await readable(job.transform.replaceAudio);
-      if (job.transform.burnSubtitles) await readable(job.transform.burnSubtitles);
+      if (job.transform.replaceAudio)
+        job.transform.replaceAudio = await readable(job.transform.replaceAudio);
+      if (job.transform.burnSubtitles)
+        job.transform.burnSubtitles = await readable(job.transform.burnSubtitles);
+      job.output = await desktopFiles.assertWrite(job.output);
     }
+    if (job.kind === "join" || job.kind === "audio")
+      job.output = await desktopFiles.assertWrite(job.output);
     const outputs = jobOutputs(job);
     for (const o of outputs) await desktopFiles.assertWrite(o);
     return queue.add(job, jobLabel(job), outputs, openFolder);
@@ -402,11 +422,14 @@ function registerIpc(): void {
   ipcMain.handle("queue:clear", () => queue.clearFinished());
   ipcMain.handle("shell:showItem", async (_e, raw: unknown) => {
     const path = pathValue.parse(raw);
-    if (!desktopFiles.canRead(path) && !desktopFiles.canWrite(path))
+    if (!(await desktopFiles.canRead(path)) && !(await desktopFiles.canWrite(path)))
       throw new Error("Arquivo desconhecido.");
     shell.showItemInFolder(path);
   });
-  ipcMain.handle("window:onTop", (_e, raw: unknown) => win?.setAlwaysOnTop(z.boolean().parse(raw)));
+  ipcMain.handle("window:onTop", (_e, raw: unknown) => {
+    pinned = z.boolean().parse(raw);
+    win?.setAlwaysOnTop(pinned);
+  });
   ipcMain.handle("window:mini", (_e, raw: unknown) => {
     if (!win) return;
     if (z.boolean().parse(raw)) {
@@ -415,7 +438,7 @@ function registerIpc(): void {
       win.setAlwaysOnTop(true, "floating");
       win.setBounds({ ...normalBounds, width: 480, height: 300 });
     } else {
-      win.setAlwaysOnTop(false);
+      win.setAlwaysOnTop(pinned);
       if (normalBounds) win.setBounds(normalBounds);
       normalBounds = null;
     }

@@ -27,4 +27,4 @@ Capturas da jornada (player, edição, salvar, fila) foram comparadas com o canv
 
 - Instalador do EdiPlayer com o bundle `native-media` 9.0.2 e as associações de arquivo (`scripts/edi/installer-config.mts`): exige `pnpm edi:media:build` e o fluxo de pacote da suíte. Em desenvolvimento os testes usaram o FFmpeg 6.1.1 do `ffmpeg-static`.
 - Vídeos reais de celular (HEVC), MKV com várias faixas e arquivos de horas: os fluxos estão cobertos por testes sintéticos, não por uma sessão manual com arquivos pessoais.
-- Hubs já instalados validam exatamente seis apps no manifesto: precisam ser reinstalados ao chegar o primeiro release com o EdiPlayer (decisão do titular: ninguém comprou a suíte ainda).
+- Hubs já instalados validam exatamente seis apps no manifesto: precisam ser reinstalados ao chegar o primeiro release com o EdiPlayer (decisão do titular: ninguém comprou a suíte ainda). O [full review](full-review.md) corrigiu os contratos para que isso não se repita.

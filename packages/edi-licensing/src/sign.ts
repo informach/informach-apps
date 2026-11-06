@@ -5,6 +5,7 @@ import {
   leaseClaimsSchema,
   leaseHeaderSchema,
   MAX_LEASE_SECONDS,
+  toolsForClient,
 } from "@informach/edi-contracts";
 
 export function createLicenseSigner(config: {
@@ -21,6 +22,8 @@ export function createLicenseSigner(config: {
       paidThrough: Date;
       now: Date;
       minimumClientVersion: string;
+      /** The requesting client's version: tools it does not know stay out of its lease. */
+      clientVersion?: string;
     },
   ): string => {
     const iat = Math.floor(input.now.getTime() / 1000);
@@ -36,7 +39,9 @@ export function createLicenseSigner(config: {
       activationId: input.activationId,
       revision: input.revision,
       minimumClientVersion: input.minimumClientVersion,
-      tools: EDI_TOOLS.map((tool) => tool.id),
+      tools: input.clientVersion
+        ? toolsForClient(input.clientVersion)
+        : EDI_TOOLS.map((tool) => tool.id),
       iat,
       nbf: iat,
       exp: Math.min(iat + MAX_LEASE_SECONDS, paidThrough),

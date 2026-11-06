@@ -45,18 +45,18 @@ interface State {
   facts: MediaFacts | null;
   loading: { label: string; ratio: number } | null;
   error: string | null;
-  fallbackTried: number;
+  /** 0 as planned; 1 and 2 after the <video> failed (a copy, then a preview). */
+  fallbackLevel: number;
   time: number;
   duration: number;
   playing: boolean;
   rate: number;
   ab: { a: number; b: number | null } | null;
-  zoom: number;
-  viewRotate: number;
   mini: boolean;
   onTop: boolean;
   prefs: PlayerPrefs;
-  subtitle: { name: string; cues: Cue[]; path: string | null } | null;
+  /** `track`: the file's own subtitle stream it came from, for the Legenda menu. */
+  subtitle: { name: string; cues: Cue[]; path: string | null; track: number | null } | null;
   subtitleDelay: number;
   sheet: FrameSheet | null;
   wave: number[] | null;
@@ -73,8 +73,10 @@ interface State {
   past: Snapshot[];
   future: Snapshot[];
   joinFiles: MediaFacts[];
-  save: { kind: SaveKind; preset: PresetId } | null;
+  /** `marked`: the result is the marked stretches themselves (a GIF), whatever the mode. */
+  save: { kind: SaveKind; preset: PresetId; marked: boolean } | null;
   queue: QueueItem[];
+  queueOpen: boolean;
   recents: RecentItem[];
   toast: string | null;
 }
@@ -95,14 +97,12 @@ export const useStore = create<State>(() => ({
   facts: null,
   loading: null,
   error: null,
-  fallbackTried: 0,
+  fallbackLevel: 0,
   time: 0,
   duration: 0,
   playing: false,
   rate: 1,
   ab: null,
-  zoom: 1,
-  viewRotate: 0,
   mini: false,
   onTop: false,
   prefs: DEFAULT_PREFS,
@@ -125,6 +125,7 @@ export const useStore = create<State>(() => ({
   joinFiles: [],
   save: null,
   queue: [],
+  queueOpen: true,
   recents: [],
   toast: null,
 }));
@@ -150,36 +151,85 @@ export async function refreshRecents(): Promise<void> {
   set({ recents: await api().recents() });
 }
 
-/** Saves where the current file stopped (called every few seconds and when leaving it). */
+/** Watched means it reached its last stretch (the final 10 s, less for short clips). */
+const watchedAt = (time: number, duration: number) =>
+  time >= duration - Math.min(10, duration * 0.05);
+
+/**
+ * Saves where the current file stopped (every few seconds, when leaving it) and keeps the local
+ * list in step, so going back to a file resumes where it really stopped.
+ */
 export async function rememberPosition(): Promise<void> {
-  const { source, time, duration } = get();
-  if (!source || !(duration > 0)) return;
+  const { source, time, duration, loading } = get();
+  // While another file is loading the clock still belongs to the previous one.
+  if (!source || loading || !(duration > 0)) return;
+  const item = {
+    path: source.facts.path,
+    name: source.facts.name,
+    duration,
+    position: time,
+    watched: watchedAt(time, duration),
+  };
+  const key = item.path.toLowerCase();
+  set({
+    recents: [
+      { ...item, updatedAt: Date.now() },
+      ...get().recents.filter((r) => r.path.toLowerCase() !== key),
+    ],
+  });
   await api()
-    .remember({
-      path: source.facts.path,
-      name: source.facts.name,
-      duration,
-      position: time,
-      watched: time > duration - 10,
-    })
+    .remember(item)
     .catch(() => undefined);
 }
 
-export async function openPaths(paths: string[]): Promise<void> {
+/** Edit work that switching files would throw away. */
+export function hasEdits(): boolean {
+  const { marks, splitPoints, transform, joinFiles } = get();
+  const { audioIndex: _a, ...changed } = transform;
+  const { audioIndex: _b, ...plain } = NO_TRANSFORM;
+  return (
+    marks.length > 0 ||
+    splitPoints.length > 0 ||
+    joinFiles.length > 0 ||
+    JSON.stringify(changed) !== JSON.stringify(plain)
+  );
+}
+
+/** Asks before discarding edits; true when it is fine to leave the current file. */
+export function confirmLeave(): boolean {
+  return !hasEdits() || window.confirm("Descartar as edições deste vídeo?");
+}
+
+/**
+ * Adds files to the list. From the person (dialog, drop, list) the first one plays; from
+ * outside (Explorer, "Abrir com") while editing, they only join the list.
+ */
+export async function openPaths(
+  paths: string[],
+  from: "person" | "outside" = "person",
+): Promise<void> {
   if (!paths.length) return;
   const known = new Set(get().list.map((i) => i.path.toLowerCase()));
   const fresh = paths
     .filter((p) => !known.has(p.toLowerCase()))
     .map((path) => ({ path, name: fileName(path) }));
   const list = [...get().list, ...fresh];
-  const first = list.findIndex((i) => i.path.toLowerCase() === (paths.at(0) ?? "").toLowerCase());
   set({ list });
-  await playIndex(first < 0 ? list.length - 1 : first);
+  if (from === "outside" && get().editing && hasEdits()) {
+    toast("Adicionado à lista. Termine a edição para abrir.");
+    return;
+  }
+  const first = list.findIndex((i) => i.path.toLowerCase() === (paths.at(0) ?? "").toLowerCase());
+  const target = first < 0 ? list.length - 1 : first;
+  if (list.at(target)?.path !== get().source?.facts.path && from === "person" && !confirmLeave())
+    return;
+  await playIndex(target);
 }
 
 function resetEdit(): Partial<State> {
   return {
     editing: false,
+    tool: "trim",
     marks: [],
     selected: null,
     pendingIn: null,
@@ -192,41 +242,69 @@ function resetEdit(): Partial<State> {
     sheet: null,
     wave: null,
     keyframes: null,
+    joinFiles: [],
+    save: null,
     ab: null,
     subtitle: null,
     subtitleDelay: 0,
-    viewRotate: 0,
-    zoom: 1,
   };
 }
 
-export async function playIndex(index: number, audioIndex = 0, fallback = false): Promise<void> {
+/** Silences and unloads the <video>: removing src alone keeps the old media playing. */
+function unloadVideo(): void {
+  const v = video();
+  if (!v) return;
+  v.pause();
+  v.removeAttribute("src");
+  v.load();
+}
+
+/**
+ * Opens list item `index`. The same file again (another audio track, a fallback) keeps the edits
+ * and the position; another file starts clean and resumes where it last stopped.
+ */
+export async function playIndex(index: number, audioIndex = 0, level = 0): Promise<void> {
   const item = get().list.at(index);
   if (!item) return;
   const leaving = get().source;
-  if (leaving && leaving.facts.path !== item.path) await rememberPosition();
+  const same = leaving?.facts.path === item.path;
+  if (leaving && !same) {
+    await rememberPosition();
+    // A preparation of the file being left would keep converting for nothing.
+    if (get().loading)
+      void api()
+        .cancelPrepare(leaving.facts.path)
+        .catch(() => undefined);
+  }
+  const keepAt = same ? get().time : 0;
+  if (!same) unloadVideo();
   set({
     view: "player",
     index,
     error: null,
     loading: { label: "Abrindo", ratio: 0 },
-    ...(fallback || leaving?.facts.path === item.path
+    ...(same
       ? {}
-      : { ...resetEdit(), fallbackTried: 0, source: null, facts: null }),
+      : { ...resetEdit(), fallbackLevel: 0, source: null, facts: null, time: 0, duration: 0 }),
   });
   try {
-    const source = await api().open(item.path, audioIndex, fallback);
+    const source = await api().open(item.path, audioIndex, level);
     if (get().list.at(get().index)?.path !== item.path) return;
     const recent = get().recents.find((r) => r.path.toLowerCase() === item.path.toLowerCase());
+    pendingResume = same
+      ? keepAt
+      : recent && !recent.watched && recent.position > 5
+        ? recent.position
+        : 0;
     set({
       source,
       facts: source.facts,
       loading: null,
       duration: source.facts.duration,
       list: get().list.map((i) => (i.path === item.path ? { ...i, mode: source.mode } : i)),
+      // The track playing is the track saved; not an edit step of its own.
       transform: { ...get().transform, audioIndex },
     });
-    pendingResume = recent && !recent.watched && recent.position > 5 ? recent.position : 0;
   } catch (error) {
     set({ loading: null, error: message(error) });
   }
@@ -242,13 +320,13 @@ export function takeResume(): number {
 
 /** The <video> could not decode what it got: try a copied file, then a converted preview. */
 export async function playbackFailed(): Promise<void> {
-  const { fallbackTried, index, source } = get();
-  if (!source || fallbackTried >= 2) {
+  const { fallbackLevel, index, source } = get();
+  if (!source || fallbackLevel >= 2) {
     set({ error: "Este arquivo não pôde ser reproduzido, nem convertido para uma prévia." });
     return;
   }
-  set({ fallbackTried: fallbackTried + 1 });
-  await playIndex(index, source.audioIndex, true);
+  set({ fallbackLevel: fallbackLevel + 1 });
+  await playIndex(index, source.audioIndex, fallbackLevel + 1);
 }
 
 export function removeFromList(path: string): void {
@@ -256,11 +334,14 @@ export function removeFromList(path: string): void {
   const at = list.findIndex((i) => i.path === path);
   const next = list.filter((i) => i.path !== path);
   if (at === index) {
+    if (!confirmLeave()) return;
+    unloadVideo();
     set({
       list: next,
       index: -1,
       source: null,
       facts: null,
+      ...resetEdit(),
       view: next.length ? "player" : "home",
     });
     if (next.length) void playIndex(Math.min(at, next.length - 1));
@@ -270,14 +351,14 @@ export function removeFromList(path: string): void {
 export async function loadSubtitleFile(path: string): Promise<void> {
   const cues = parseSubtitles(await api().readSubtitle(path));
   if (!cues.length) throw new Error("A legenda não tem falas legíveis.");
-  set({ subtitle: { name: fileName(path), cues, path } });
+  set({ subtitle: { name: fileName(path), cues, path, track: null } });
 }
 
 export async function loadSubtitleTrack(index: number): Promise<void> {
   const { source } = get();
   if (!source) return;
   const cues = parseSubtitles(await api().extractSubtitle(source.facts.path, index));
-  set({ subtitle: { name: `Faixa ${index + 1}`, cues, path: null } });
+  set({ subtitle: { name: `Faixa ${index + 1}`, cues, path: null, track: index } });
 }
 
 export async function savePrefs(change: Partial<PlayerPrefs>): Promise<void> {
@@ -302,24 +383,44 @@ export function edit(
   set({ past: [...get().past.slice(-99), snapshot()], future: [], ...change });
 }
 
+/** A snapshot is restored without changing the audio track that is playing. */
+function restore(snap: Snapshot): Partial<State> {
+  return { ...snap, transform: { ...snap.transform, audioIndex: get().transform.audioIndex } };
+}
+
 export function undo(): void {
   const { past } = get();
   const last = past.at(-1);
   if (!last) return;
-  set({ past: past.slice(0, -1), future: [snapshot(), ...get().future], ...last, selected: null });
+  set({
+    past: past.slice(0, -1),
+    future: [snapshot(), ...get().future],
+    ...restore(last),
+    selected: null,
+  });
 }
 
 export function redo(): void {
   const { future } = get();
   const next = future.at(0);
   if (!next) return;
-  set({ future: future.slice(1), past: [...get().past, snapshot()], ...next, selected: null });
+  set({
+    future: future.slice(1),
+    past: [...get().past, snapshot()],
+    ...restore(next),
+    selected: null,
+  });
 }
 
 export async function enterEdit(): Promise<void> {
-  const { source } = get();
+  const { source, mini } = get();
   if (!source) return;
-  set({ editing: true });
+  if (mini) {
+    set({ mini: false });
+    void api().setMiniPlayer(false);
+  }
+  // A loop the ruler does not show would keep jumping back while marking.
+  set({ editing: true, ab: null });
   const path = source.facts.path;
   const [keys, wave, sheet] = await Promise.allSettled([
     api().keyframes(path),
@@ -338,16 +439,12 @@ export function exitEdit(): void {
   set({ editing: false, pendingIn: null, save: null });
 }
 
+/** I always starts a new stretch; the handles on the ruler move an existing one. */
 export function markIn(): void {
-  const { selected, marks, time } = get();
-  const mark = selected === null ? undefined : marks.at(selected);
-  if (mark && time < mark.end) {
-    edit({ marks: marks.map((m, i) => (i === selected ? { ...m, start: time } : m)) });
-    return;
-  }
-  set({ pendingIn: time, selected: null });
+  set({ pendingIn: get().time, selected: null });
 }
 
+/** O ends the stretch started with I, or moves the end of the selected one. */
 export function markOut(): void {
   const { pendingIn, selected, marks, time, duration } = get();
   if (pendingIn !== null && time > pendingIn + 0.05) {
@@ -358,13 +455,18 @@ export function markOut(): void {
     return;
   }
   const mark = selected === null ? undefined : marks.at(selected);
-  if (mark && time > mark.start)
-    edit({ marks: marks.map((m, i) => (i === selected ? { ...m, end: time } : m)) });
+  if (!mark || time <= mark.start) return;
+  const next = normalizeRanges(
+    marks.map((m, i) => (i === selected ? { ...m, end: time } : m)),
+    duration,
+  );
+  const at = next.findIndex((m) => m.start <= mark.start + 1e-6 && m.end >= time - 1e-6);
+  edit({ marks: next, selected: at < 0 ? null : at });
 }
 
 export function deleteSelected(): void {
   const { selected, marks } = get();
-  if (selected === null) return;
+  if (selected === null || !marks.at(selected)) return;
   edit({ marks: marks.filter((_, i) => i !== selected), selected: null });
 }
 
@@ -379,13 +481,21 @@ export function setTransform(change: Partial<Transform>): void {
   edit({ transform: { ...get().transform, ...change } });
 }
 
+/** For sliders: one undo step when the drag starts, then live changes without steps. */
+export function beginTransformChange(): void {
+  edit({});
+}
+export function changeTransformLive(change: Partial<Transform>): void {
+  set({ transform: { ...get().transform, ...change } });
+}
+
 export function selectMark(i: number): void {
   const mark = get().marks.at(i);
   set({ selected: i });
   if (mark) seek(mark.start);
 }
 
-export function openSave(kind: SaveKind, preset: PresetId = "original"): void {
+export function openSave(kind: SaveKind, preset: PresetId = "original", marked = false): void {
   video()?.pause();
-  set({ save: { kind, preset } });
+  set({ save: { kind, preset, marked } });
 }
