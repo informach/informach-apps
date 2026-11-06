@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatBirthDate, getAgeFromBirthDate, getAvatarColorIndex, getInitials } from "./utils";
+import {
+  formatBirthDate,
+  getAgeFromBirthDate,
+  getAvatarColorIndex,
+  getInitials,
+  shortChildNames,
+} from "./utils";
 
 describe("getAgeFromBirthDate", () => {
   it("returns the completed years before the birthday", () => {
@@ -61,5 +67,41 @@ describe("getAvatarColorIndex", () => {
       expect(idx).toBeGreaterThanOrEqual(1);
       expect(idx).toBeLessThanOrEqual(5);
     }
+  });
+});
+
+describe("shortChildNames", () => {
+  const names = (...list: string[]) => [
+    ...shortChildNames(list.map((name, i) => ({ id: String(i), name }))).values(),
+  ];
+
+  it("uses the first name when it already tells the children apart", () => {
+    expect(
+      names(
+        "Maria Eduarda Albuquerque Santos",
+        "João Pedro Cavalcanti de Oliveira",
+        "Ana Clara Bittencourt",
+      ),
+    ).toEqual(["Maria", "João", "Ana"]);
+  });
+
+  it("adds names only to the siblings that start the same way", () => {
+    expect(names("Maria Eduarda Santos", "Maria Clara Santos", "Pedro Santos")).toEqual([
+      "Maria Eduarda",
+      "Maria Clara",
+      "Pedro",
+    ]);
+  });
+
+  it("never stops on a particle", () => {
+    expect(names("Maria de Fátima", "Maria Luísa")).toEqual(["Maria de Fátima", "Maria Luísa"]);
+  });
+
+  it("compares without case and keeps a single-word name", () => {
+    expect(names("Maria", "maria Eduarda")).toEqual(["Maria", "maria Eduarda"]);
+  });
+
+  it("gives up gracefully on identical names and trims spaces", () => {
+    expect(names("  Ana   Clara ", "Ana Clara")).toEqual(["Ana Clara", "Ana Clara"]);
   });
 });

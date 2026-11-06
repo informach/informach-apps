@@ -241,14 +241,16 @@ export function KidModeScreen({ profile, todayIso, todo, ahead }: Props) {
     router.refresh();
   }, [router, profile.id]);
 
+  // "Oi, Clara!": a tela fala com a criança pelo primeiro nome, como o canvas.
+  // Com o nome inteiro o título cortava em "Oi, Mari…".
+  const firstName = profile.name.trim().split(/s+/)[0] || profile.name;
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-[18px] px-5 pb-6 pt-5">
       <header className="flex items-center gap-3">
         <StudentAvatar name={profile.name} size="lg" className="shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[26px] font-extrabold tracking-[-0.02em]">
-            Oi, {profile.name}!
-          </p>
+          <p className="truncate text-[26px] font-extrabold tracking-[-0.02em]">Oi, {firstName}!</p>
           {!finished && list.length > 0 ? (
             <ProgressDots list={list} doneIds={doneIds} currentIndex={safeIndex} />
           ) : null}
@@ -258,7 +260,7 @@ export function KidModeScreen({ profile, todayIso, todo, ahead }: Props) {
 
       {finished || !current ? (
         <FinishedCard
-          name={profile.name}
+          name={firstName}
           doneCount={doneIds.size}
           aheadLeft={mode === "todo" ? aheadLeft : 0}
           onAhead={startAhead}

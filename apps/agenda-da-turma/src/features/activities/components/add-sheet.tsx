@@ -18,6 +18,7 @@ import { PRO_READS_PER_MONTH } from "@/features/billing/plans-content";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import { readLastChild, rememberLastChild } from "@/features/notices/last-child";
 import { handOffPhoto } from "@/features/notices/photo-handoff";
+import { shortChildNames } from "@/features/students/utils";
 
 /**
  * O gesto único de trazer uma atividade para dentro: "O que chegou?".
@@ -110,6 +111,7 @@ export function AddSheet({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
+  const shortNames = shortChildNames(profiles);
   const known = (id: string | null | undefined) =>
     id && profiles.some((p) => p.id === id) ? id : null;
   // A escolha desta abertura, depois a criança da tela, depois a última deste
@@ -179,14 +181,15 @@ export function AddSheet({
                     type="button"
                     aria-pressed={on}
                     onClick={() => setChosen(p.id)}
+                    title={p.name}
                     className={cn(
-                      "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] items-center rounded-full px-4 text-sm font-bold",
+                      "relative inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full px-4 text-sm font-bold after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-['']",
                       on
                         ? "bg-foreground text-background"
                         : "border border-foreground/20 bg-background hover:bg-muted",
                     )}
                   >
-                    {p.name}
+                    <span className="truncate">{shortNames.get(p.id)}</span>
                   </button>
                 );
               })}

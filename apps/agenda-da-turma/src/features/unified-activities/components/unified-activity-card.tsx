@@ -162,12 +162,15 @@ export function UnifiedActivityCard({
     >
       <div className="overflow-hidden">
         <article className="border-t border-foreground/15 py-2.5 pl-2 pr-3.5 lg:pl-3 lg:pr-5">
-          <div className="flex min-h-11 items-center gap-3 lg:gap-3.5">
+          {/* Grade, e não flex: abaixo de 380 px o chip do prazo desce para
+              baixo do texto. Ao lado, ele deixava o título numa coluna de
+              noventa pixels e o ponto da matéria sozinho numa linha. */}
+          <div className="grid min-h-11 grid-cols-[44px_minmax(0,1fr)] items-center gap-x-3 min-[380px]:grid-cols-[44px_minmax(0,1fr)_auto] lg:gap-x-3.5">
             {view.toggle ? (
               <button
                 type="button"
                 className={cn(
-                  "flex size-11 shrink-0 items-center justify-center rounded-full outline-none",
+                  "row-span-2 flex size-11 shrink-0 items-center justify-center rounded-full outline-none min-[380px]:row-span-1",
                   "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
                 )}
                 aria-label={`${isDone ? "Reabrir" : "Marcar como feito"}: ${view.title}`}
@@ -183,12 +186,15 @@ export function UnifiedActivityCard({
                 )}
               </button>
             ) : (
-              <span className="flex size-11 shrink-0 items-center justify-center" aria-hidden>
+              <span
+                className="row-span-2 flex size-11 shrink-0 items-center justify-center min-[380px]:row-span-1"
+                aria-hidden
+              >
                 <X className="size-4 text-muted-foreground" />
               </span>
             )}
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
               <Link
                 href={view.detailHref}
                 className={cn(
@@ -232,7 +238,12 @@ export function UnifiedActivityCard({
               ) : null}
             </div>
 
-            {hideChip ? null : <DueChip due={due} />}
+            {hideChip ? null : (
+              <DueChip
+                due={due}
+                className="col-start-2 mt-1.5 justify-self-start min-[380px]:col-start-3 min-[380px]:row-start-1 min-[380px]:mt-0"
+              />
+            )}
           </div>
 
           {error ? (

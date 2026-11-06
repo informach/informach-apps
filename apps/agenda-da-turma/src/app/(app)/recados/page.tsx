@@ -9,6 +9,7 @@ import { listAccessibleProfiles } from "@/features/family/access";
 import { DiscardDraftButton } from "@/features/notices/components/discard-draft-button";
 import { listNoticeOriginals, listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
+import { shortChildNames } from "@/features/students/utils";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = { title: "Recados guardados" };
@@ -29,6 +30,7 @@ export default async function NoticesPage({
     listReadyNotices(user.id),
     listAccessibleProfiles(user.id),
   ]);
+  const shortNames = shortChildNames(profiles);
   const href = (nextPage: number, child = profileId) =>
     `/recados?${new URLSearchParams({ pagina: String(nextPage), ...(child ? { perfil: child } : {}) })}`;
   return (
@@ -81,12 +83,12 @@ export default async function NoticesPage({
               href={href(1, p.id)}
               aria-current={profileId === p.id ? "page" : undefined}
             >
-              {p.name}
+              {shortNames.get(p.id)}
             </Link>
           ))}
         </nav>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {rows.slice(0, 30).map((row) => (
           <article key={row.id} className="flex flex-col gap-3 rounded-xl border bg-card p-5">
             <div className="flex items-center gap-2 text-primary-ink">
