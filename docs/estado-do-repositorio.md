@@ -112,6 +112,18 @@ Em 01/11/2026 ela pediu a gravação automatizada das aulas do Sistema Zero ([re
 
 Em 01/11/2026, a pedido do titular, o EdiAula ganhou **efeitos sonoros**: 13 sons feitos pelo próprio app (cliques, wooshes e destaques), a escolha do clique do cursor, a categoria e os sons prontos na biblioteca de todas as aulas (ouvir, colocar no cursor da timeline, arrastar) e o **woosh automático** nos zooms e nas transições, igual na prévia e na exportação. Comportamento e arquivos no [README do EdiAula](../apps/ediaula/README.md#efeitos-sonoros). Typecheck e testes automáticos passaram (`tests/sound-effects.test.ts`, com o FFmpeg real); falta ouvir os sons e testar a interface no app aberto.
 
+Em 04/11/2026, a pedido do titular, foi feito um full review do EdiAula sobre `bbf799f9` ([registro](reviews/ediaula-2026-11-04/full-review.md)). Foram corrigidos, cada um com teste:
+- `place_inserts` misturando linhas kids e falas do avatar, que apagava as linhas kids;
+- o cancelamento da exportação ignorado durante "Preparando…";
+- a finalização que mantinha um arquivo com duração errada e deixava as partes sem referência;
+- a aula entrando nos recentes antes da permissão de arquivos, o que vazava a autenticação do Windows por uma miniatura em caminho de rede;
+- a pergunta de permissão que escondia caminhos depois dos 20 primeiros;
+- faixas magnéticas e realinhamento nas ferramentas da IA;
+- o abaixamento dos cliques diferente entre prévia e exportação;
+- a anotação arrastada para a faixa da voz, que ficava atrás da tela.
+
+Typecheck e os 1.079 testes passaram, com 16 testes físicos pulados. Achados menores e plausíveis ficaram pendentes no registro. Não houve teste manual no app aberto.
+
 Em 24/10/2026 a publicação da suíte `edi-v0.4.1` parou no `pnpm audit --prod` do workflow, antes dos instaladores: alertas novos em `zod` 3 (alto, sem correção na linha 3), `body-parser` 2.3 e `fast-uri` 3.1.8, todos de apps web. A titular decidiu migrar tudo para o Zod 4 antes de publicar: branch `chore/zod-4`, com overrides de `body-parser` e `fast-uri`. A suíte sai como `edi-v0.4.2`; a tag `edi-v0.4.1` existe mas não publicou nada.
 
 ## Home institucional e contato público

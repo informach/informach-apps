@@ -838,6 +838,7 @@ export const exportSpecSchema = z
     platform: platformInput.optional(),
     thumbnailAt: time.optional(),
     audioOnly: z.boolean().optional(),
+    gif: z.strictObject({ fps: z.int().min(1).max(30) }).optional(),
     vertical: z.enum(["blur", "crop"]).optional(),
     cursors: z
       .record(
@@ -892,6 +893,10 @@ export const exportSpecSchema = z
   .refine((spec) => spec.videoBitrate > 0 || spec.audioOnly === true, {
     message: "Video exports need a bitrate",
     path: ["videoBitrate"],
+  })
+  .refine((spec) => !spec.gif || (!spec.audioOnly && !spec.stems), {
+    message: "A GIF has no sound",
+    path: ["gif"],
   })
   .refine((spec) => !spec.range || spec.range.to > spec.range.from, {
     message: "The range must end after it starts",

@@ -283,3 +283,17 @@ test("get_frame: the boxes are the part left after the crop, around the same cen
   const center = (b: { x: number; width: number }) => b.x + b.width / 2;
   assert.ok(Math.abs(center(cut.box) - center(whole.box)) < 0.002, "same center");
 });
+
+test("placing: a magnetic track asked for is not used, as it would pack the clip away from `at`", () => {
+  const p = base();
+  const magnetic = {
+    ...p,
+    tracks: p.tracks.map((t) => (t.id === "v2" ? { ...t, magnetic: true } : t)),
+  };
+  // 4:20 on v2 is empty, but v2 is magnetic: the clip goes to v (free there) and the answer says why.
+  const r = placeWithoutRipple(magnetic, p.assets[0], 260, { trackId: "v2", in: 10, out: 15 });
+  assert.ok(r.ok);
+  assert.equal(r.trackId, "v");
+  assert.match(r.note, /v2 é magnética/);
+  assert.equal(r.project.clips.find((c) => c.id === r.clipId)?.start, 260);
+});

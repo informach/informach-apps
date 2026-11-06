@@ -901,6 +901,34 @@
   position: absolute;
   z-index: 502;
 }
+/* An annotation's text typed on it (AnnotationTextEditor): laid out in picture pixels, scaled. */
+.ann-text-edit {
+  position: absolute;
+  inset: 0;
+  z-index: 503;
+  pointer-events: none;
+}
+.ann-text-cover,
+.ann-text-field {
+  position: absolute;
+  box-sizing: content-box;
+  transform-origin: 0 0;
+  pointer-events: auto;
+}
+.ann-text-cover {
+  cursor: text;
+}
+.ann-text-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  overflow-wrap: anywhere;
+  caret-color: currentColor;
+}
 
 /* Zoom layer being edited: the part of the frame that will fill the screen. */
 .zoom-target-shade {
@@ -914,6 +942,16 @@
   border: 2px dashed var(--accent);
   box-shadow: 0 0 0 9999px rgba(13, 14, 17, 0.45);
   cursor: move;
+}
+/* Corner handles: how close the zoom gets, the opposite corner staying put (gizmo-* place them). */
+.zoom-target-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -1px;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
 }
 .zoom-target span {
   position: absolute;

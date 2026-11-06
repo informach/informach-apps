@@ -70,6 +70,8 @@ export interface FinalizeInput {
   suspect?: ReadonlySet<string> | "all";
   /** Removes a part that is no longer needed (rm with retries; tests make it fail). */
   remove?: (path: string) => Promise<void>;
+  /** Seconds a file written here holds (FFprobe; tests make it come out short). */
+  held?: (path: string) => Promise<number>;
 }
 
 /** Free space needed to join the parts, against their size. */
@@ -105,24 +107,71 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
   if (!segments.length) throw new Error("Nada foi gravado.");
   const offsets = segmentOffsets(segments);
   const duration = segments.reduce((sum, g) => sum + g.duration, 0);
-  /** Files written here, what they should hold, and the parts they replace once they do. */
-  const outputs: { path: string; expected: number; parts: string[]; label: string }[] = [];
+  /** Parts that a file written here replaces, removed once the take is finalized. */
+  const superseded: string[] = [];
+  const measure =
+    input.held ??
+    ((path: string) =>
+      probe(path).then(
+        (info) => info.duration,
+        () => Number.NaN,
+      ));
+  /** A part whose process did not end cleanly: its length may be the header's, not the truth. */
+  const suspect = (path: string): boolean =>
+    input.suspect === "all" || !!input.suspect?.has(basename(path));
+  /**
+   * Whether the take uses a file written here: when it holds what it should, it replaces its
+   * parts and goes to the disk. When not, and the parts' lengths are sure (they ended cleanly),
+   * the file is what went wrong: it is dropped and the take keeps those parts, placed as they were
+   * recorded, so the result never points at a short file while the good parts sit unreferenced.
+   * After a crash a part's length can be its header's promise (an MKV killed at 2 s of a planned
+   * 20 s says 20 s) while the file written from it is right: that file is used, and the parts stay.
+   */
+  const holds = async (output: {
+    path: string;
+    expected: number;
+    parts: string[];
+    label: string;
+  }): Promise<boolean> => {
+    const held = await measure(output.path);
+    const measured = Number.isFinite(held) ? `${held.toFixed(2)} s` : "duração ilegível";
+    if (Math.abs(held - output.expected) <= LENGTH_TOLERANCE) {
+      superseded.push(...output.parts);
+      await syncFile(output.path);
+      return true;
+    }
+    if (Number.isFinite(held) && held > 0 && output.parts.some(suspect)) {
+      warnings.push(
+        `${output.label} ficou com ${measured} em vez de ${output.expected.toFixed(2)} s; as partes originais foram mantidas.`,
+      );
+      await syncFile(output.path);
+      return true;
+    }
+    warnings.push(
+      `${output.label} ficou com ${measured} em vez de ${output.expected.toFixed(2)} s; ele ficou nas partes em que foi gravado.`,
+    );
+    await rm(output.path, { force: true }).catch(() => undefined);
+    return false;
+  };
 
   // Screen.
   let screen: string | undefined;
   let screenParts: Measured[] | undefined;
   if (parts.screen.length) {
     const joined = await joinScreen(dir, parts.screen);
-    if (joined.file) {
-      screen = joined.file;
-      if (joined.copied)
-        outputs.push({
+    if (
+      joined.file &&
+      (!joined.copied ||
+        (await holds({
           path: joined.file,
           expected: parts.screen.reduce((sum, p) => sum + p.duration, 0),
           parts: parts.screen.map((p) => p.path),
           label: "O vídeo da tela",
-        });
-    } else {
+        })))
+    )
+      screen = joined.file;
+    else if (joined.file) screenParts = parts.screen;
+    else {
       screenParts = parts.screen;
       warnings.push(
         "Faltou espaço para juntar as partes da tela: elas ficaram separadas, como foram gravadas.",
@@ -141,12 +190,17 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     if (await roomFor(dir, parts.mic)) {
       microphone = join(dir, voice ? "voz.wav" : "microfone.m4a");
       await alignAudio(parts.mic, segments, microphone, undefined, voice ? "pcm" : "aac");
-      outputs.push({
-        path: microphone,
-        expected: duration,
-        parts: parts.mic.map((p) => p.path),
-        label: "O som do microfone",
-      });
+      if (
+        !(await holds({
+          path: microphone,
+          expected: duration,
+          parts: parts.mic.map((p) => p.path),
+          label: "O som do microfone",
+        }))
+      ) {
+        microphone = undefined;
+        microphoneParts = placeParts(parts.mic, segments, offsets);
+      }
     } else {
       microphoneParts = placeParts(parts.mic, segments, offsets);
       warnings.push(
@@ -164,12 +218,17 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     if (await roomFor(dir, systemList)) {
       systemAudio = join(dir, "sistema.m4a");
       await alignAudio(systemList, segments, systemAudio);
-      outputs.push({
-        path: systemAudio,
-        expected: duration,
-        parts: systemList.map((p) => p.path),
-        label: "O áudio do PC",
-      });
+      if (
+        !(await holds({
+          path: systemAudio,
+          expected: duration,
+          parts: systemList.map((p) => p.path),
+          label: "O áudio do PC",
+        }))
+      ) {
+        systemAudio = undefined;
+        systemParts = placeParts(systemList, segments, offsets);
+      }
     } else {
       systemParts = placeParts(systemList, segments, offsets);
       warnings.push("Faltou espaço para alinhar o áudio do PC: ele ficou como foi gravado.");
@@ -190,12 +249,17 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     if (await roomFor(dir, [system])) {
       systemAudio = join(dir, "sistema.m4a");
       await alignAudio([{ ...system, duration: length }], segments, systemAudio, tempo);
-      outputs.push({
-        path: systemAudio,
-        expected: duration,
-        parts: [system.path],
-        label: "O áudio do PC",
-      });
+      if (
+        !(await holds({
+          path: systemAudio,
+          expected: duration,
+          parts: [system.path],
+          label: "O áudio do PC",
+        }))
+      ) {
+        systemAudio = undefined;
+        systemParts = placeParts([system], segments, offsets);
+      }
     } else {
       systemParts = placeParts([system], segments, offsets);
       warnings.push("Faltou espaço para alinhar o áudio do PC: ele ficou como foi gravado.");
@@ -269,21 +333,6 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
       }
       pageSound = await alignPageSound(dir, log, duration, warnings);
     }
-  }
-
-  // A file that does not hold what it should keeps its parts, and is flushed to the disk.
-  const superseded: string[] = [];
-  for (const output of outputs) {
-    const held = await probe(output.path).then(
-      (info) => info.duration,
-      () => Number.NaN,
-    );
-    if (Math.abs(held - output.expected) <= LENGTH_TOLERANCE) superseded.push(...output.parts);
-    else
-      warnings.push(
-        `${output.label} ficou com ${Number.isFinite(held) ? `${held.toFixed(2)} s` : "duração ilegível"} em vez de ${output.expected.toFixed(2)} s; as partes originais foram mantidas.`,
-      );
-    await syncFile(output.path);
   }
 
   const narration =

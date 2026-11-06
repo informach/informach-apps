@@ -68,13 +68,15 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 - **Qualidade:** Rascunho, Padrão, Alta e Máxima usam qualidade constante pela resolução (CRF no x264, CQ com AQ e lookahead no NVENC); o valor em Mbps é o teto.
 - **Montagem:** os trechos são juntados sem recodificar (quando dois trechos do cache vêm de versões diferentes do codificador, com cabeçalhos H.264 diferentes, a imagem é refeita na montagem), com o título e os capítulos (os marcadores de capítulo, ou os de `publish`) no MP4, `+faststart` e a miniatura; a barra só chega a 100% depois disso. As legendas `.srt` e `.vtt` saem dos mesmos cues da legenda gravada (no máximo duas linhas de 42 caracteres, sem sobreposição), só com as falas ouvidas e cada palavra uma vez, mesmo quando o vídeo do apresentador e a voz extraída dele estão transcritos.
 - **Vertical e podcast:** a resolução é escolhida pelo lado menor, então um projeto vertical sai em 1080 × 1920; o layout vertical (fundo desfocado ou corte) fica para projetos horizontais. **Só áudio (podcast)** sai em MP3.
+- **GIF animado:** sem som e em loop, em 360, 480 ou 720 px no lado menor e 10, 15 ou 20 quadros por segundo. A imagem é feita pelos mesmos trechos do vídeo (em qualidade alta) e a montagem a transforma em GIF com uma paleta só para ele, feita do trecho inteiro, e redesenhando só o retângulo que muda de um quadro para o outro, para uma gravação de tela ficar leve e sem tremer (`gifArgs` em `src/main/export/pipeline.ts`). O som não é mixado; a legenda gravada na imagem entra, e nada sai ao lado (legendas, miniatura, traduções, pacote). Com um intervalo marcado, o preset já liga "Só o intervalo marcado", e o diálogo avisa quando o GIF passa de 30 s. A IA também exporta GIF (`export_video` com `preset: gif`).
 - **Limpeza:** ao abrir, o app apaga as pastas `.edi-output-*` que uma exportação interrompida deixou ao lado do destino e as pastas `work/export-*` dela, só as de antes da abertura; as que guardam cópias de segurança ficam. Uma exportação espera essa limpeza terminar.
-- **Retomar:** um item da fila cuja pasta de destino ou mídia sumiu aparece como "não dá para retomar", com o motivo, e nada dele é liberado; um item cuja aula foi editada depois de entrar na fila avisa disso. Só destinos `.mp4` (ou `.mp3` no podcast) são guardados.
+- **Retomar:** um item da fila cuja pasta de destino ou mídia sumiu aparece como "não dá para retomar", com o motivo, e nada dele é liberado; um item cuja aula foi editada depois de entrar na fila avisa disso. Só destinos `.mp4` (`.gif` no GIF animado, `.mp3` no podcast) são guardados.
 
 ## Salvamento e mídias ausentes
 
 - Se o salvamento falhar, o aviso fica fixo na barra de cima até um salvamento dar certo, com **Tentar de novo** e **Salvar cópia…**. A cópia ganha o nome do arquivo escolhido e a edição continua nela. Voltar ao início, abrir ou criar outro projeto e fechar a janela (pelo X ou Alt+F4) esperam o texto que está sendo digitado, as anotações sendo redesenhadas e o salvamento, com o aviso "Salvando antes de fechar…" quando demora; se o salvamento falhar ou passar de 20 s, uma janela pergunta o que fazer: tentar de novo, salvar uma cópia, sair sem salvar ou cancelar. Com exportações na fila, a janela continua aberta e nada é descartado.
 - Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura. O arquivo é gravado compacto e o teto vale sobre ele; perto de 80% do teto, o app avisa uma vez por aula, e os desenhos feitos na tela (o que mais ocupa) têm um teto de pontos para a aula inteira, além do teto de cada take (`src/shared/projectSize.ts`). Abrir e salvar só aceitam um `.ediaula` escolhido pela pessoa (diálogo, lista de recentes, aula criada, copiada ou tirada de um pacote pelo app; `src/main/lessonFile.ts`); as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
+- Um `.ediaula` aberto de fora pergunta antes de liberar os arquivos que ele usa ("Permitir acesso aos N arquivos"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos fora da pasta da aula, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
 - Os zooms pertencem à gravação, no tempo dela, como o cursor: cada clipe mostra os do seu trecho. Cortar, aparar e desfazer o aparo pela borda nunca perde nem duplica um zoom, e um zoom tirado fica fora. Projetos antigos, com os zooms copiados em cada pedaço, são convertidos ao abrir.
 - Cada pedaço de um clipe cortado (dividir, sobrescrever, aparar, estender quadro, cortes da transcrição) mostra exatamente o mesmo movimento e a mesma vista da camada de zoom do original (`src/shared/pieces.ts`): o pedaço guarda todas as posições do movimento, então aumentá-lo pela borda traz o movimento de volta, e a camada de zoom mantém o tempo da entrada e da saída mesmo num pedaço curto. Um corte no meio tira a entrada e a saída das bordas de dentro; cortar a cabeça ou o rabo de um clipe só move aquela borda, com a transição, o fade e a animação dela.
 - Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente, taxa de quadros e transparência do arquivo) e o tempo de edição medido não voltam com o desfazer.
@@ -338,12 +340,14 @@ faixa só, a IA tem três ferramentas (`src/shared/clipMoves.ts`):
   termina, com a velocidade considerada; a entrada fica na primeira e a saída na segunda.
 - `move_clips` move clipes no tempo sem empurrar os outros: `clip_ids` com `delta` (ou `start`, para um
   clipe só), ou `moves` com um deslocamento por clipe numa chamada. Grupos andam juntos. Só o estado
-  final é conferido: se um clipe ficaria sobre outro na mesma faixa ou antes do 0, nada se move e a
-  resposta diz qual e onde.
+  final é conferido: se um clipe ficaria sobre outro na mesma faixa ou antes do 0, ou numa faixa
+  magnética (que o juntaria de novo aos outros desde 0:00), nada se move e a resposta diz qual e onde.
 - `align_track_to` trata a faixa como a referência emendada sem pausas (um avatar renderizado com a
   narração inteira) e devolve as pausas: divide onde termina cada clipe da faixa de referência e põe cada
   pedaço no início do clipe correspondente. Avisa quando a soma da referência e o conteúdo diferem em
-  mais de 0,2 s. Por padrão é rascunho.
+  mais de 0,2 s. Uma faixa que já tem mais de 0,2 s de pausas entre os clipes (já alinhada) é recusada, para
+  uma segunda chamada não cortá-la de novo nos lugares errados; uma faixa magnética também. Por padrão é
+  rascunho.
 
 As três pedem a revisão do projeto lida (como `cut_ranges`), conferem todos os ids antes, deixam de fora
 (e nomeiam) faixas travadas, são recusadas com um rascunho de estrutura esperando, viram um passo só do
@@ -401,6 +405,8 @@ mexer sem som); dá para escolher **congelar** no quadro em que ela para ou **de
   da tabela kids ("No kids, silenciar … e substituir pelo áudio do personagem"): a fala do personagem, já
   achada no vídeo dele (Edição kids), entra sobre a fala marcada da professora, onde o avatar dela está, numa
   faixa do personagem logo acima, sem procurar pausa e sem mover nada (`src/shared/substitutionPlace.ts`).
+  Pedidas junto com falas do avatar, as linhas kids entram primeiro e as falas do avatar são planejadas sobre a
+  aula já com elas, num passo só.
   Testes em `tests/voice-rule.test.ts` e `tests/l15-ai-tools.test.ts`.
 
 **Barra de revisão.** Junta o rascunho, as propostas de corte e a revisão dos cortes. Em cada corte
@@ -504,6 +510,22 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   **Não exportar** selecionado. O destino é sempre você quem escolhe, na janela de salvar; a IA nunca escolhe. A
   exportação entra na fila e a IA acompanha com `get_export_status`. Com `range`, sai só o trecho, com legenda e
   miniatura: as legendas traduzidas e o pacote da plataforma descrevem a aula inteira e são recusados num trecho.
+- **Várias partes de uma vez** (`src/shared/exportParts.ts`): no lugar de `range`, `split: "clips"` com `track_id`
+  dá uma parte por clipe ou grupo de clipes da faixa, do início ao fim do que ele cobre.
+  - Numa faixa de gravações, os pedaços que a limpeza cortou de uma mesma gravação são uma parte só, e o quadro
+    estendido fica com a gravação dele. Um b-roll vai com a parte de antes (antes da primeira gravação, com a
+    primeira).
+  - A primeira parte começa em 0:00, cada parte vai até a seguinte começar e a última termina no fim do seu último
+    clipe.
+  - Numa faixa sem gravações, cada clipe (ou grupo) é uma parte.
+  - Uma janela só, de escolher pasta, vale para todas as partes. Cada arquivo é `<título da aula> - Parte N.mp4`.
+  - Se algum arquivo já está na pasta, a pergunta vem uma vez só: **Substituir todos**, **Acrescentar sufixo**
+    (`(2)`, `(3)`…) ou **Não exportar**, que é o selecionado. Um arquivo que a fila já está exportando sempre
+    ganha sufixo.
+  - Todas as partes entram na fila de uma vez, cada uma com o seu id em `get_export_status`. Seguem o preset e os
+    formatos como um trecho: legenda e miniatura sim, legendas traduzidas e pacote da plataforma não.
+  - Na "Aula02 gravação automática", `split: "clips"` na faixa da tela dá 5 partes: 0:00–0:30.7, 0:30.7–1:21.0,
+    1:21.0–3:59.1, 3:59.1–6:41.6 e 6:41.6–7:49.2 (`tests/export-parts.test.ts`).
 
 ## Regravar falas, narração pelo roteiro e lote por curso
 
@@ -1046,7 +1068,10 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   `sistema.m4a` começando no segundo 0 da tela; a câmera fica como foi gravada; o `cursor.json` (versão 2, com as
   pausas, os trechos sobre os controles e as lacunas do auxiliar) e `gravacao.json` são escritos. Cada arquivo
   novo é conferido pela duração e gravado no disco antes da linha `finalized`, e só então as partes copiadas
-  saem; uma parte que não sai (arquivo preso) vira aviso e o take não se perde. Sem espaço para alinhar o som,
+  saem; uma parte que não sai (arquivo preso) vira aviso e o take não se perde. Um arquivo novo com duração
+  diferente da das partes (fora de 0,25 s), num take que terminou limpo, é descartado: o take fica nas partes
+  em que foi gravado, colocadas pedaço a pedaço, e o aviso diz isso. Depois de uma queda, a duração de uma parte
+  pode ser a prometida no cabeçalho, e não a gravada; aí o arquivo novo é usado e as partes ficam na pasta. Sem espaço para alinhar o som,
   o microfone e o áudio do PC ficam nas partes em que foram gravados, colocados pedaço a pedaço. O editor lê
   `cursor.json` da versão 1 como versão 2.
 - **Gravação interrompida:** se o app ou o computador caírem durante uma gravação, ao abrir o EdiAula de novo
@@ -1130,8 +1155,29 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 ## Anotações, memes e animações
 
 - **Anotações** (barra lateral › Anotações): seta, balão de fala, nota, rótulo, título, destaque e número de
-  passo. Entram no ponto do cursor, numa faixa livre acima da aula; arraste no vídeo para posicionar.
-  Propriedades: texto, cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
+  passo. Com um clique, entram no ponto do cursor, numa faixa livre acima da aula; arrastadas para uma faixa
+  da timeline, entram nessa faixa e nesse tempo, encurtadas até o próximo clipe (no mínimo 0,5 s). Soltas
+  sobre um clipe, vão para a faixa livre mais próxima acima, ou uma nova logo acima. Soltas numa faixa de som
+  (a da voz, por exemplo), vão para a frente da imagem daquele momento, nunca atrás da tela; uma faixa
+  magnética não recebe a anotação (`src/shared/dropSpot.ts`). Arraste no vídeo para posicionar.
+  Propriedades: cor (paleta do curso), direção da seta, rabinho do balão, largura, tamanho da letra. No balão a cor é o preenchimento (o texto fica claro em fundos escuros); a moldura fica como está, e só muda se você quiser, na seção Contorno.
+  O texto se edita na própria anotação (balão, nota, rótulo, título, passo, faixa de nome e cartelas):
+  duplo clique nela na prévia abre um campo sobre o texto, com a mesma letra, cores e quebra de linha do
+  desenho (`editor/AnnotationTextEditor.tsx`). O campo usa os mesmos números do desenho:
+  `textLayout` em `lib/annotations.ts` diz onde cada texto fica, e o desenho e o campo partem das mesmas
+  funções de geometria. Na faixa de nome e na cartela, abre o texto em que se clicou (nome, linha de
+  cima, linha de baixo). Clicar fora ou Ctrl + Enter redesenha a anotação num passo de desfazer (num
+  texto de uma linha só, Enter); Enter quebra a linha nos textos que quebram; Esc descarta. O título,
+  que não tem fundo, some enquanto se digita por cima. O campo fica onde a anotação repousa, mesmo no
+  instante em que a entrada ainda a esconde; faixa travada não abre. Duplo clique fora de uma anotação
+  com texto continua abrindo a tela cheia. O painel Propriedades não tem campo de texto: tem botões
+  ("Editar texto"; na faixa de nome, "Nome" e "Linha de baixo"; na cartela, "Linha de cima", "Título" e
+  "Linha de baixo") que levam a agulha para onde a anotação já entrou e abrem o texto na prévia, também
+  uma linha ainda vazia.
+  Rabinho do balão no estilo de balão de HQ (Camtasia): base larga, que cresce com o comprimento, sai
+  do balão em ângulo reto e curva até a ponta afiada (`balloonPath`/`balloonTail` em
+  `src/shared/annotation.ts`, os mesmos no desenho e na prévia do arrasto). Sem arrastar, a ponta sai
+  em diagonal com `BALLOON_TAIL` (40 px em 1080p); arrastada, vai aonde foi solta, até a borda do quadro.
   Cada anotação é desenhada como imagem transparente (`lib/annotations.ts`), a mesma na prévia e na exportação.
 - **Meme**: imagem que entra com pop por 2,5 s no canto, sem cobrir o centro da tela.
 - **Entrada e saída** de qualquer clipe: dissolver, pop, aproximar, deslizar (4 direções), com duração.
@@ -1153,7 +1199,7 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   imagem de antes, inclusive o movimento por keyframes e o ponto das camadas de zoom (`reframeProject` em
   `src/shared/compose.ts`), num único Ctrl+Z.
 - **Exportar** para Reels/Shorts 9:16 (aula inteira sobre fundo desfocado, ou cortada no centro) e
-  **só áudio** em MP3 (podcast).
+  **só áudio** em MP3 (podcast), e GIF animado.
 - IA: `set_transition`, `add_card`.
 
 ## Legenda gravada, movimento, áudio do PC, teclas e modelos
@@ -1417,10 +1463,15 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 ## Camada de zoom
 
 - Barra lateral › Zoom › "Adicionar camada de zoom": um clipe que aproxima **tudo que está nas faixas abaixo dele**
-  enquanto dura, com entrada e saída suaves; o que está acima (anotações, legenda) fica como está. Entra numa faixa
-  nova no topo; arraste para uma faixa mais baixa para deixar camadas de fora.
+  enquanto dura, com entrada e saída suaves; o que está acima (anotações, legenda) fica como está. Com um clique,
+  entra numa faixa nova no topo, no ponto do cursor; arrastado para uma faixa da timeline, o botão põe a camada
+  nessa faixa e nesse tempo, com a mesma regra das anotações (`src/shared/dropSpot.ts`): encurtada até o próximo
+  clipe, acima do clipe em que caiu, ou na frente da imagem daquele momento quando solta numa faixa de som. O que
+  fica acima dela fica de fora do zoom.
 - Com a camada selecionada, a prévia mostra o quadro sem zoom e um retângulo com a área que vai encher a tela:
-  arraste para mover, rodinha do mouse para aproximar mais ou menos. Propriedades: força, ponto (atalhos de
+  arraste para mover; as alças dos cantos mudam o quanto aproxima, com o canto oposto parado e a proporção do
+  quadro mantida (`resizeFocus` em `src/shared/zoomLayer.ts`), e a rodinha do mouse faz o mesmo em volta do
+  centro. Propriedades: força, ponto (atalhos de
   posição) e suavidade. Os zooms das gravações usam o mesmo painel e o mesmo retângulo (`FocusBox` em
   `ZoomTarget.tsx`, `ZoomPointControls` em `ZoomLayerPanel.tsx`); a camada continua sendo o jeito de aproximar tudo
   o que está nas faixas abaixo dela.
@@ -1465,7 +1516,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   trechos acelerados; acima de 2× toca no máximo um clique a cada 0,15 s, sem rajada. Dá para escolher o que
   soa: clique, clique duplo, início e fim de arrasto, digitação (padrão: clique, clique duplo e início de
   arrasto). Os cliques aparecem como marquinhas na faixa **Cliques**, criada embaixo quando o som é ligado;
-  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música, e
+  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música,
+  sob as mesmas palavras na prévia, na exportação e na medição de volume, com ou sem música (`needsSpeech` em
+  `src/shared/audio.ts`), e
   saem de lado quando outra faixa está destacada (`src/shared/clickEvents.ts`; a exportação recebe uma faixa
   FLAC só, `spec.clicks`).
 - **Pela IA** (MCP e assistente do painel lateral): `list_library` lista as mídias do projeto, os efeitos do

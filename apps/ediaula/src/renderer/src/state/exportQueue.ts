@@ -1,3 +1,4 @@
+import { needsSpeech } from "@shared/audio";
 import { autoSoundEvents, autoSoundsEnd } from "@shared/autoSounds";
 import {
   buildAss,
@@ -137,23 +138,27 @@ export const exportQueue = new ExportQueue(
         throw new Error(
           `${noCursor.map((a) => a.name).join(", ")}: ${CURSOR_MISSING} Para exportar assim mesmo, use Exportar sem o cursor na verificação antes de exportar.`,
         );
-      await prepareCaptions(project, spec, item.captions, check);
+      // A GIF has no sound and nothing beside it: only the picture is prepared.
+      const silent = !!spec.gif;
+      await prepareCaptions(project, spec, item.captions && !silent, check);
       // The translated captions still up to date, and the package for the platform.
-      if (item.extras?.translations) {
+      if (item.extras?.translations && !silent) {
         const translations = await exportTranslations(project);
         if (translations.length) spec.translations = translations;
       }
-      if (item.extras?.platform && !spec.audioOnly) spec.platform = platformInput(project);
+      if (item.extras?.platform && !spec.audioOnly && !silent)
+        spec.platform = platformInput(project);
       if (spec.thumbnail && spec.thumbnailAt === undefined && project.publish?.thumbnail)
         spec.thumbnailAt = project.publish.thumbnail.time;
       check();
-      if (project.tracks.some((t) => t.music)) spec.speech = await projectSpeech(project);
+      // The words heard, as the preview lowers the music and the clicks under them.
+      if (!silent && needsSpeech(project)) spec.speech = await projectSpeech(project);
       check();
       // A voice whose treatment is not ready yet (or whose file is gone) is treated now: the
       // export plays what the preview plays (shared/voiceChain.ts).
       for (const a of project.assets) {
         const preset = a.voicePreset ?? "off";
-        if (!used.has(a.id) || !a.hasAudio || preset === "off") continue;
+        if (silent || !used.has(a.id) || !a.hasAudio || preset === "off") continue;
         // A treated file that the cache cleanup took is made again (the same file comes back).
         const ready = treatedPath(a);
         if (ready && (await window.api.exists([ready]))[0]) continue;
@@ -181,7 +186,7 @@ export const exportQueue = new ExportQueue(
         check();
       }
       // The automatic whooshes of the zooms and transitions, as one track of the lesson.
-      const effects = autoSoundEvents(project);
+      const effects = silent ? [] : autoSoundEvents(project);
       if (effects.length) {
         status("preparing", "Preparando os efeitos sonoros…");
         spec.effects = await window.api.sounds.track(
@@ -191,7 +196,7 @@ export const exportQueue = new ExportQueue(
         check();
       }
       // The automatic clicks of the screen recordings, as the track "Cliques" of the lesson.
-      const clicks = await loadClickEvents(project);
+      const clicks = silent ? [] : await loadClickEvents(project);
       if (clicks.length) {
         status("preparing", "Preparando o som dos cliques…");
         spec.clicks = await window.api.sounds.track(
@@ -200,6 +205,9 @@ export const exportQueue = new ExportQueue(
         );
         check();
       }
+      // Last chance before main writes the file: a cancel during any step above (one that found
+      // nothing to do skips its own check) stops here, since main has no export job to cancel yet.
+      check();
       status("exporting", "Exportando…");
       useApp.getState().startJob(id, `Exportando: ${project.name}`);
       // The teacher silent and away while a character speaks (shared/voiceRule.ts), as in the preview.

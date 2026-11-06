@@ -680,6 +680,12 @@ export interface ExportSpec {
   fontsDir?: string;
   /** Podcast: only the mixed sound, as MP3. */
   audioOnly?: boolean;
+  /**
+   * Animated GIF: the picture of width × height, without sound, looping, at `fps` frames per
+   * second (fewer than the lesson's: the picture is rendered as a video and turned into a GIF
+   * with its own palette). Nothing goes beside it (captions, thumbnail, package).
+   */
+  gif?: { fps: number };
   /** Reels/Shorts: width × height is the vertical frame; the lesson goes over a blurred copy of itself ('blur') or is cropped to fill it ('crop'). */
   vertical?: "blur" | "crop";
   /** Pre-rendered pointer of screen recordings, by asset id (see shared/cursor.ts). */
