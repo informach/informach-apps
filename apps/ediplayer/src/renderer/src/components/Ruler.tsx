@@ -95,6 +95,24 @@ export function Ruler() {
     target.addEventListener("pointerup", up);
     target.addEventListener("pointercancel", up);
   };
+  /** The needle's head: dragging it only moves through the video, never changes the selection. */
+  const scrub = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    target.classList.add("dragging");
+    const move = (ev: PointerEvent) => seek(at(ev.clientX));
+    const up = () => {
+      target.classList.remove("dragging");
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  };
   return (
     <>
       <div className="scale" aria-hidden="true">
@@ -187,6 +205,13 @@ export function Ruler() {
           <span key={p} className="split-line" style={{ left: pct(p) }} />
         ))}
         <span className="playhead" style={{ left: pct(time) }} />
+        <span
+          className="playhead-grip"
+          role="presentation"
+          title="Arraste para andar pelo vídeo"
+          style={{ left: pct(time) }}
+          onPointerDown={scrub}
+        />
         <span className="playhead-tag" style={{ left: pct(time) }}>
           {clock(time)}
         </span>

@@ -138,6 +138,21 @@ export async function verifyPlayerNativeJourney(
     await editor.waitForFunction(
       () => document.querySelectorAll(".strip .tile[style*='url']").length > 0,
     );
+    // Dragging the needle's head moves through the video and keeps the selected stretch.
+    const grip = await editor.locator(".playhead-grip").boundingBox();
+    const ruler = await editor.locator(".ruler").boundingBox();
+    assert.ok(grip && ruler, "the needle has no head");
+    await editor.mouse.move(grip.x + grip.width / 2, grip.y + 6);
+    await editor.mouse.down();
+    await editor.mouse.move(ruler.x + ruler.width * 0.5, grip.y + 6, { steps: 8 });
+    await editor.mouse.move(ruler.x + ruler.width * 0.8, grip.y + 6, { steps: 8 });
+    await editor.mouse.up();
+    const scrubbed = await position();
+    assert.ok(
+      scrubbed && Math.abs(scrubbed.at - 16) < 0.6,
+      `head drag: ${JSON.stringify(scrubbed)}`,
+    );
+    await editor.locator(".mark-row.sel").waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-edit.png") });
 
     await editor.keyboard.press("Control+s");
