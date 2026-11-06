@@ -1,70 +1,57 @@
 "use client";
-import { Clock, Flame, Lock, Play, Plus, Repeat, Trophy } from "lucide-react";
+import { CalendarCheck, Clock, Flame, Lock, Play, Repeat, Shuffle } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { TopNav } from "@/components/top-nav";
 import { Cadeado, usePlanos } from "@/features/billing/planos";
 import { CHAINS, exerciseById } from "../catalog/catalog";
 import { estimateMinutes, type Workout } from "../catalog/workouts";
-import type { ProgressMap } from "../engine/progression";
-import { type SessionLike, streakDays, weeklyReps } from "../engine/stats";
+import type { ProgressMap, Suggestion } from "../engine/progression";
 import { Instructor3D } from "../instructor/instructor-3d";
+import { SugestoesDeNivel } from "./sugestoes";
 
 export type WorkoutCard = Workout & { ref: string; locked: boolean };
 
 export const workoutHref = (ref: string) => `/treino?ref=${encodeURIComponent(ref)}`;
 
-/** Sugere o próximo treino: o primeiro para quem está começando, depois alterna foco. */
-function recommend(sessions: { workoutRef: string }[], workouts: WorkoutCard[]) {
-  const open = workouts.filter((w) => !w.locked && w.ref.startsWith("catalogo:"));
-  const first = open[0] ?? workouts[0];
-  if (!sessions.length || open.length < 2) return first;
-  const order = [
-    "aquecimento-5",
-    "primeiro-treino",
-    "core-rapido",
-    "corpo-todo",
-    "cardio-sem-pulo",
-    "pernas-gluteos",
-    "tabata-pernas",
-    "core-10",
-    "emom-6",
-    "isometria-total",
-    "hiit-12",
-    "amrap-8",
-    "forca-avancada",
-    "emom-10",
-  ];
-  const beginner = sessions.length < 3;
-  const pool = (beginner ? ["primeiro-treino", "core-rapido", "aquecimento-5"] : order).filter(
-    (id) => open.some((w) => w.id === id),
-  );
-  const last = sessions[sessions.length - 1]?.workoutRef.replace("catalogo:", "") ?? "";
-  const next = pool[(pool.indexOf(last) + 1) % pool.length] ?? pool[0];
-  return open.find((w) => w.id === next) ?? first;
+const DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+
+export interface SemanaDoPerfil {
+  dias: number;
+  meta: number;
+  cumprida: boolean;
+  /** seg..dom: treinou naquele dia */
+  diasDaSemana: boolean[];
+  /** semanas cumpridas seguidas */
+  seguidas: number;
+  reps: number;
+  minutos: number;
 }
 
+/**
+ * Início do perfil: o treino do dia (escolhido pelo recomendador, com o porquê), a semana contra
+ * a meta, o que está pronto para subir e os níveis. A lista de treinos mora em Treinos.
+ */
 export function HomeScreen({
   profile,
-  sessions,
+  hoje,
+  semana,
+  sugestoes,
   progress,
-  workouts,
   paid,
-  fuso,
+  desafio,
 }: {
-  profile: { name: string; color: string };
-  sessions: (SessionLike & { workoutRef: string })[];
+  profile: { id: string; name: string; color: string };
+  hoje: { card: WorkoutCard; motivo: string } | null;
+  semana: SemanaDoPerfil;
+  sugestoes: Suggestion[];
   progress: ProgressMap;
-  workouts: WorkoutCard[];
   paid: boolean;
-  /** fuso da família: sem ele, servidor e navegador contavam a semana em relógios diferentes */
-  fuso: string;
+  /** cartão do desafio da semana, quando houver (montado no servidor) */
+  desafio?: ReactNode;
 }) {
-  const rec = recommend(sessions, workouts);
-  const week = weeklyReps(sessions, 1, Date.now(), fuso)[0] ?? { reps: 0, minutes: 0 };
-  const streak = streakDays(sessions, Date.now(), fuso);
   const firstName = profile.name.split(" ")[0];
-  const mine = workouts.filter((w) => w.ref.startsWith("meu:"));
-  const catalog = workouts.filter((w) => w.ref.startsWith("catalogo:"));
+  const faltam = Math.max(0, semana.meta - semana.dias);
 
   return (
     <div className="screen">
@@ -78,47 +65,72 @@ export function HomeScreen({
               mode="cadence"
               view="three4"
             />
-            <span className="eyebrow">Treino de hoje · {firstName}</span>
-            {rec && (
+            <span className="eyebrow">Hoje é dia de · {firstName}</span>
+            {hoje && (
               <>
-                <h1>{rec.name}</h1>
+                <h1>{hoje.card.name}</h1>
+                <p className="hero-motivo">{hoje.motivo}</p>
                 <div className="meta">
-                  <span>{rec.subtitle}</span>
-                  <span>~{estimateMinutes(rec)} min</span>
+                  <span>{hoje.card.level}</span>
+                  <span>~{estimateMinutes(hoje.card)} min</span>
                 </div>
-                <Link href={workoutHref(rec.ref)} className="btn big" data-autofocus>
-                  <Play size={20} fill="currentColor" /> Começar
-                </Link>
+                <div className="hero-acoes">
+                  <Link href={workoutHref(hoje.card.ref)} className="btn big" data-autofocus>
+                    <Play size={20} fill="currentColor" /> Começar
+                  </Link>
+                  <Link href="/treinos" className="btn big ghost-on-accent">
+                    <Shuffle size={18} /> Outro
+                  </Link>
+                </div>
               </>
             )}
           </div>
           <div className="stat-stack">
-            <div className="stat">
+            <div className="stat semana-card">
               <span className="label">
-                <Flame size={16} /> Sequência
+                <CalendarCheck size={16} /> Sua semana
               </span>
               <span className="value num">
-                {streak}
-                <small>{streak === 1 ? "dia" : "dias"}</small>
+                {semana.dias}
+                <small> de {semana.meta} dias</small>
+              </span>
+              <div
+                className="semana-dias"
+                role="img"
+                aria-label={`${semana.dias} de ${semana.meta} dias`}
+              >
+                {DIAS.map((d, i) => (
+                  <span key={d} className={semana.diasDaSemana[i] ? "on" : ""}>
+                    {d}
+                  </span>
+                ))}
+              </div>
+              <span className="muted small">
+                {semana.cumprida
+                  ? "Meta da semana cumprida!"
+                  : `Falta${faltam > 1 ? "m" : ""} ${faltam} dia${faltam > 1 ? "s" : ""}`}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="label">
+                <Flame size={16} /> Semanas cumpridas
+              </span>
+              <span className="value num">
+                {semana.seguidas}
+                <small>{semana.seguidas === 1 ? " seguida" : " seguidas"}</small>
               </span>
             </div>
             <div className="stat">
               <span className="label">
                 <Repeat size={16} /> Repetições na semana
               </span>
-              <span className="value num">{week.reps}</span>
-            </div>
-            <div className="stat">
-              <span className="label">
-                <Trophy size={16} /> Treinos feitos
-              </span>
-              <span className="value num">{sessions.length}</span>
+              <span className="value num">{semana.reps}</span>
             </div>
             <div className="stat">
               <span className="label">
                 <Clock size={16} /> Minutos na semana
               </span>
-              <span className="value num">{week.minutes}</span>
+              <span className="value num">{semana.minutos}</span>
             </div>
           </div>
         </section>
@@ -127,47 +139,22 @@ export function HomeScreen({
           <Cadeado motivo="geral" className="card upsell">
             <strong>Você está no plano gratuito.</strong>
             <span className="muted">
-              Assine para liberar todos os treinos, a contagem pela câmera, os níveis, os desafios
-              em família e o celular como câmera da TV.
+              Teste ou assine para liberar todos os treinos, a câmera contando e os níveis.
             </span>
           </Cadeado>
         )}
 
-        <div className="section-title">
-          <h2>Meus treinos</h2>
-          {paid ? (
-            <Link href="/meus-treinos/novo" className="chip">
-              <Plus size={16} /> Montar treino
-            </Link>
-          ) : (
-            <span className="muted">na assinatura</span>
-          )}
-        </div>
-        {mine.length ? (
-          <div className="grid">
-            {mine.map((w) => (
-              <WorkoutTile key={w.ref} w={w} />
-            ))}
-          </div>
-        ) : paid ? (
-          <Link href="/meus-treinos/novo" className="card empty">
-            Monte um treino do seu jeito, com séries, Tabata, EMOM ou AMRAP.
-          </Link>
-        ) : (
-          <Cadeado motivo="editor" className="card empty">
-            Monte um treino do seu jeito, com séries, Tabata, EMOM ou AMRAP.
-          </Cadeado>
+        {sugestoes.length > 0 && (
+          <>
+            <div className="section-title">
+              <h2>Pronta para subir</h2>
+              <span className="muted">aceite aqui, vale no próximo treino</span>
+            </div>
+            <SugestoesDeNivel profileId={profile.id} sugestoes={sugestoes} permitido={paid} />
+          </>
         )}
 
-        <div className="section-title">
-          <h2>Treinos</h2>
-          <span className="muted">{catalog.length} prontos</span>
-        </div>
-        <div className="grid">
-          {catalog.map((w) => (
-            <WorkoutTile key={w.ref} w={w} />
-          ))}
-        </div>
+        {desafio}
 
         <div className="section-title">
           <h2>Seus níveis</h2>
@@ -204,7 +191,7 @@ export function HomeScreen({
   );
 }
 
-function WorkoutTile({ w }: { w: WorkoutCard }) {
+export function WorkoutTile({ w }: { w: WorkoutCard }) {
   const abrirPlanos = usePlanos();
   return (
     <Link

@@ -18,7 +18,7 @@ export default async function Privacidade() {
         </Link>
       </header>
       <main id="conteudo" className="scroll narrow prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 31/10/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 06/11/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
           O Bora Treinar é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
@@ -37,20 +37,23 @@ export default async function Privacidade() {
         </p>
         <h2>Contagem pela voz (opcional)</h2>
         <p>
-          No modo manual, quem ligar o microfone pode contar as repetições dizendo os números em voz
-          alta. O reconhecimento é feito pelo navegador: no Google Chrome o áudio é processado pelo
-          Google e no Safari pela Apple, conforme as políticas desses serviços, e só enquanto o
-          microfone estiver ligado. O Bora Treinar usa apenas o texto reconhecido para achar os
-          números e não grava nem guarda o áudio ou o texto. O aviso aparece antes da primeira
-          ativação, e o microfone pode ser desligado a qualquer momento.
+          Em qualquer modo (contando à mão, com a câmera ou com o celular pareado), quem ligar o
+          microfone pode contar as repetições dizendo os números em voz alta. Com o celular pareado,
+          quem ouve é o microfone do celular. O reconhecimento é feito pelo navegador: no Google
+          Chrome o áudio é processado pelo Google e no Safari pela Apple, conforme as políticas
+          desses serviços, e só enquanto o microfone estiver ligado. O Bora Treinar usa apenas o
+          texto reconhecido para achar os números e não grava nem guarda o áudio ou o texto. O aviso
+          aparece antes da primeira ativação, e o microfone pode ser desligado a qualquer momento.
         </p>
         <h2>Conta do titular e perfis</h2>
         <p>
           A conta Informach usa nome do titular, e-mail, credenciais de autenticação e registros de
-          segurança. Cada perfil guarda apenas um apelido e uma cor. Não pedimos nome completo, data
-          de nascimento, peso, altura, fotos ou dados de saúde de quem treina. O titular confirma a
-          criação dos perfis; o tratamento de dados de crianças e adolescentes atende ao seu melhor
-          interesse.
+          segurança. Cada perfil guarda apenas um apelido, uma cor e as preferências de treino que a
+          própria família escolhe (o ritmo, o tempo de cada treino e quantos dias por semana), além
+          de uma resposta opcional de "como foi" depois de cada treino (fácil, na medida ou
+          difícil). Não pedimos nome completo, data de nascimento, peso, altura, fotos ou dados de
+          saúde de quem treina. O titular confirma a criação dos perfis; o tratamento de dados de
+          crianças e adolescentes atende ao seu melhor interesse.
         </p>
         <h2>O que guardamos</h2>
         <p>

@@ -36,6 +36,29 @@ export const sessionInputSchema = z.object({
   feeling: z.enum(["facil", "na_medida", "dificil"]).nullish(),
   /** a pessoa tocou em "Parar" (neutro: não guarda motivo, dor ou dado de saúde) */
   endedEarly: z.boolean().optional(),
+  /** treinar junto: o mesmo id em todos os treinos do grupo */
+  groupId: z.uuid().optional(),
 });
 
 export type SessionInput = z.infer<typeof sessionInputSchema>;
+
+/**
+ * Treinar junto: um treino por perfil, salvos juntos numa transação só (ou nenhum). Todos com o
+ * mesmo treino, o mesmo groupId e perfis diferentes.
+ */
+export const groupInputSchema = z
+  .object({
+    groupId: z.uuid(),
+    sessoes: z.array(sessionInputSchema).min(2).max(4),
+  })
+  .refine((g) => g.sessoes.every((s) => s.groupId === g.groupId), "Grupo inconsistente.")
+  .refine(
+    (g) => new Set(g.sessoes.map((s) => s.profileId)).size === g.sessoes.length,
+    "Perfis repetidos.",
+  )
+  .refine(
+    (g) => new Set(g.sessoes.map((s) => s.workoutRef)).size === 1,
+    "Treinos diferentes no grupo.",
+  );
+
+export type GroupInput = z.infer<typeof groupInputSchema>;

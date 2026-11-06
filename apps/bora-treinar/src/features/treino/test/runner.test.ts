@@ -359,3 +359,40 @@ describe("progressão e recordes", () => {
     expect(newRecords([s(1, 9)], logs(9))).toEqual([]);
   });
 });
+
+describe("treinar junto", () => {
+  it("rodízio por série, cada um com o seu nível, intensidade e meta", async () => {
+    const { buildGroupSteps, soSeries } = await import("../catalog/workouts");
+    const w = workoutById("primeiro-treino");
+    expect(soSeries(w)).toBe(true);
+    expect(soSeries(workoutById("amrap-8"))).toBe(false);
+    const steps = buildGroupSteps(w, [
+      { profileId: "a", name: "Ana", levels: {}, intensidade: "normal" },
+      {
+        profileId: "b",
+        name: "Beto",
+        levels: { pernas: { level: 1, bonus: 0 } },
+        intensidade: "leve",
+      },
+    ]);
+    const ex = steps.filter((s) => s.kind === "exercise");
+    expect(ex).toHaveLength(2 * (3 + 3 + 3 + 2));
+    expect(ex[0]).toMatchObject({ profileId: "a", exerciseId: "agachamento", target: 10, set: 1 });
+    expect(ex[1]).toMatchObject({
+      profileId: "b",
+      exerciseId: "agachamento-sumo",
+      target: 7,
+      set: 1,
+    });
+    expect(ex[2]).toMatchObject({ profileId: "a", set: 2 });
+    expect(steps[0]?.kind).toBe("exercise");
+    expect(steps[1]).toMatchObject({ kind: "rest", seconds: 5, label: "Vez de Beto" });
+    // o registro da série guarda de quem é
+    const c = clock();
+    const r = new WorkoutRunner(steps, c.now);
+    r.start();
+    r.addRep();
+    r.next();
+    expect(r.logs[0]?.profileId).toBe("a");
+  });
+});

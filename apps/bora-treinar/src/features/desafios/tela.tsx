@@ -1,21 +1,15 @@
 "use client";
-import { Lock, Trophy } from "lucide-react";
+import { CircleCheck, CircleDashed } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Avatar } from "@/components/avatar";
 import { TopNav } from "@/components/top-nav";
-import { Cadeado } from "@/features/billing/planos";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
 import { useServerAction } from "@/lib/use-server-action";
 import { challengeAction } from "./actions";
+import { CartaoDoDesafio } from "./cartao";
 import { type Desafio, descreverDesafio, type Metrica, SUGESTOES } from "./placar";
-
-type Placar = {
-  total: number;
-  concluido: boolean;
-  progresso: number;
-  linhas: { id: string; name: string; color: string; valor: number }[];
-};
+import { conferirMeta } from "./regras";
+import type { DadosDoDesafio, SemanaPassada } from "./service";
 
 const METRICA_NOME: Record<Metrica, string> = {
   treinos: "Treinos na semana",
@@ -24,26 +18,52 @@ const METRICA_NOME: Record<Metrica, string> = {
   exercicio: "Repetições de um exercício",
 };
 
+const diaMes = (data: string) => {
+  const [, mes, dia] = data.split("-");
+  return `${dia}/${mes}`;
+};
+
 export function DesafiosScreen({
   profile,
-  allowed,
-  desafio,
-  placar,
-  semana,
+  dados,
 }: {
   profile: { name: string; color: string };
-  allowed: boolean;
-  desafio: Desafio | null;
-  placar: Placar | null;
-  semana: string;
+  dados: DadosDoDesafio;
 }) {
-  const router = useRouter();
-  const [editando, setEditando] = useState(!desafio);
-  const [rascunho, setRascunho] = useState<Desafio>(
-    desafio ?? { metric: "treinos", exerciseId: null, target: 6 },
+  return (
+    <div className="screen">
+      <TopNav profile={profile} />
+      <main className="scroll" id="conteudo">
+        <div className="section-title first">
+          <h2>Desafio da semana</h2>
+          {dados.liberado && <span className="muted">semana de {diaMes(dados.semana)}</span>}
+        </div>
+        <CartaoDoDesafio dados={dados} comLink={false} />
+        {dados.liberado && (
+          <>
+            <DesafioDaFamilia dados={dados} />
+            <Historico titulo="Seus desafios" semanas={dados.historico.pessoal} pessoal />
+            <Historico titulo="Desafios da família" semanas={dados.historico.familia} />
+          </>
+        )}
+      </main>
+    </div>
   );
+}
+
+/** Criar, trocar ou encerrar o desafio cooperativo da família desta semana. */
+function DesafioDaFamilia({ dados }: { dados: Extract<DadosDoDesafio, { liberado: true }> }) {
+  const router = useRouter();
+  const atual = dados.familia?.desafio ?? null;
+  const inicial = atual ??
+    dados.ultimoDaFamilia ?? { metric: "treinos", exerciseId: null, target: 6 };
+  const [editando, setEditando] = useState(false);
+  const [rascunho, setRascunho] = useState<Omit<Desafio, "target">>(inicial);
+  // o campo guarda o texto como foi digitado; a conferência é só ao salvar
+  const [metaTexto, setMetaTexto] = useState(String(inicial.target));
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
+
   const salvar = (d: Desafio | null) =>
     start(async () => {
       const result = await challengeAction(d);
@@ -52,171 +72,189 @@ export function DesafiosScreen({
       setEditando(false);
       router.refresh();
     });
-  const [ano, mes, dia] = semana.split("-");
+  const enviar = () => {
+    const meta = conferirMeta(metaTexto);
+    if (!meta.ok) return setMessage(meta.erro);
+    salvar({ ...rascunho, target: meta.valor });
+  };
+
+  if (dados.perfisLiberados < 2 && !atual) return null;
 
   return (
-    <div className="screen">
-      <TopNav profile={profile} />
-      <main className="scroll" id="conteudo">
-        <div className="section-title first">
-          <h2>Desafio da semana</h2>
-          <span className="muted">
-            semana de {dia}/{mes}/{ano}
-          </span>
+    <>
+      <div className="section-title">
+        <h2>Desafio da família</h2>
+        <span className="muted">opcional</span>
+      </div>
+      {!editando ? (
+        <div className="card block">
+          <p className="muted">
+            {atual
+              ? "Todo mundo soma junto. Cada perfil tem a sua parte, do tamanho da sua intensidade, e ninguém compete com ninguém."
+              : "Se quiserem, escolham uma meta para somar juntos nesta semana. É um extra: o desafio de cada um continua valendo."}
+          </p>
+          <div className="row spaced">
+            <button
+              type="button"
+              className={atual ? "btn ghost" : "btn primary"}
+              onClick={() => setEditando(true)}
+            >
+              {atual ? "Trocar a meta" : "Criar desafio da família"}
+            </button>
+            {atual && (
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={pending}
+                onClick={() => salvar(null)}
+              >
+                Encerrar desafio
+              </button>
+            )}
+          </div>
         </div>
-        {!allowed ? (
-          <Cadeado motivo="desafio" className="card upsell">
-            <strong>
-              <Lock size={16} /> Desafios em família fazem parte da assinatura.
-            </strong>
-            <span className="muted">
-              Escolham juntos uma meta para a semana e acompanhem quanto cada um somou, com
-              conquistas pelo caminho.
+      ) : (
+        <form
+          className="card form-grid"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            enviar();
+          }}
+        >
+          <p className="lead full">Escolham uma meta para esta semana:</p>
+          <div className="row full">
+            {SUGESTOES.map((s) => (
+              <button
+                type="button"
+                key={`${s.metric}-${s.exerciseId}-${s.target}`}
+                className="chip"
+                aria-pressed={
+                  s.metric === rascunho.metric &&
+                  s.exerciseId === rascunho.exerciseId &&
+                  String(s.target) === metaTexto.trim()
+                }
+                onClick={() => {
+                  setRascunho({ metric: s.metric, exerciseId: s.exerciseId });
+                  setMetaTexto(String(s.target));
+                  setMessage("");
+                }}
+              >
+                {descreverDesafio(s)}
+              </button>
+            ))}
+          </div>
+          <label>
+            <span className="muted">Tipo de meta</span>
+            <select
+              className="field"
+              value={rascunho.metric}
+              onChange={(e) => {
+                const metric = e.target.value as Metrica;
+                setRascunho({
+                  metric,
+                  exerciseId:
+                    metric === "exercicio" ? (rascunho.exerciseId ?? "agachamento") : null,
+                });
+              }}
+            >
+              {Object.entries(METRICA_NOME).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+          {rascunho.metric === "exercicio" && (
+            <label>
+              <span className="muted">Exercício</span>
+              <select
+                className="field"
+                value={rascunho.exerciseId ?? ""}
+                onChange={(e) => setRascunho({ ...rascunho, exerciseId: e.target.value })}
+              >
+                {EXERCISES.filter((e) => e.rule.kind === "reps").map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span className="muted">Meta</span>
+            <input
+              className="field"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={metaTexto}
+              aria-invalid={message ? true : undefined}
+              onChange={(e) => {
+                setMetaTexto(e.target.value);
+                if (message) setMessage("");
+              }}
+            />
+          </label>
+          <div className="row full">
+            <button type="submit" className="btn primary" disabled={pending} data-autofocus>
+              Valendo!
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setEditando(false);
+                setMessage("");
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+      <p role="status" className="form-message">
+        {message}
+      </p>
+    </>
+  );
+}
+
+function Historico({
+  titulo,
+  semanas,
+  pessoal = false,
+}: {
+  titulo: string;
+  semanas: SemanaPassada[];
+  pessoal?: boolean;
+}) {
+  if (!semanas.length) return null;
+  return (
+    <>
+      <div className="section-title">
+        <h2>{titulo}</h2>
+        <span className="muted">últimas semanas</span>
+      </div>
+      <div className="card list-card">
+        {semanas.map((s) => (
+          <div className="history-row" key={s.weekStart}>
+            {s.cumprido ? (
+              <CircleCheck size={22} className="desafio-ok" aria-label="Cumprido" />
+            ) : (
+              <CircleDashed size={22} className="muted" aria-label="Não cumprido" />
+            )}
+            <div className="grow block">
+              <span>{descreverDesafio(s.desafio, { pessoal })}</span>
+              <span className="muted small">semana de {diaMes(s.weekStart)}</span>
+            </div>
+            <span className="num">
+              {s.feito}
+              <small className="muted"> / {s.desafio.target}</small>
             </span>
-          </Cadeado>
-        ) : (
-          <>
-            {desafio && placar && !editando && (
-              <div className={`card challenge ${placar.concluido ? "done" : ""}`}>
-                <div className="challenge-head">
-                  <Trophy size={32} />
-                  <div className="grow">
-                    <span className="muted">Meta da família</span>
-                    <h3>{descreverDesafio(desafio)}</h3>
-                  </div>
-                  <span className="num challenge-total">
-                    {placar.total}
-                    <small>/ {desafio.target}</small>
-                  </span>
-                </div>
-                <div className="bar-track" aria-hidden="true">
-                  <div style={{ width: `${placar.progresso * 100}%` }} />
-                </div>
-                <p className="muted spaced">
-                  {placar.concluido
-                    ? "Meta batida! A semana que vem começa com uma nova."
-                    : "Cada treino de qualquer perfil da família soma para a meta."}
-                </p>
-                <div className="scoreboard">
-                  {placar.linhas.map((l, i) => (
-                    <div className="score-row" key={l.id}>
-                      <span className="idx">{i + 1}</span>
-                      <Avatar profile={l} size="2.4rem" />
-                      <span className="grow">{l.name}</span>
-                      <span className="num">{l.valor}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="row spaced">
-                  <button type="button" className="btn ghost" onClick={() => setEditando(true)}>
-                    Trocar a meta
-                  </button>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    disabled={pending}
-                    onClick={() => salvar(null)}
-                  >
-                    Encerrar desafio
-                  </button>
-                </div>
-              </div>
-            )}
-            {editando && (
-              <div className="card form-grid">
-                <p className="lead full">Escolham uma meta para esta semana:</p>
-                <div className="row full">
-                  {SUGESTOES.map((s) => (
-                    <button
-                      type="button"
-                      key={`${s.metric}-${s.exerciseId}-${s.target}`}
-                      className="chip"
-                      aria-pressed={
-                        s.metric === rascunho.metric &&
-                        s.exerciseId === rascunho.exerciseId &&
-                        s.target === rascunho.target
-                      }
-                      onClick={() => setRascunho(s)}
-                    >
-                      {descreverDesafio(s)}
-                    </button>
-                  ))}
-                </div>
-                <label>
-                  <span className="muted">Tipo de meta</span>
-                  <select
-                    className="field"
-                    value={rascunho.metric}
-                    onChange={(e) => {
-                      const metric = e.target.value as Metrica;
-                      setRascunho({
-                        ...rascunho,
-                        metric,
-                        exerciseId:
-                          metric === "exercicio" ? (rascunho.exerciseId ?? "agachamento") : null,
-                      });
-                    }}
-                  >
-                    {Object.entries(METRICA_NOME).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {rascunho.metric === "exercicio" && (
-                  <label>
-                    <span className="muted">Exercício</span>
-                    <select
-                      className="field"
-                      value={rascunho.exerciseId ?? ""}
-                      onChange={(e) => setRascunho({ ...rascunho, exerciseId: e.target.value })}
-                    >
-                      {EXERCISES.filter((e) => e.rule.kind === "reps").map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <label>
-                  <span className="muted">Meta</span>
-                  <input
-                    className="field"
-                    type="number"
-                    min={1}
-                    max={100000}
-                    value={rascunho.target}
-                    onChange={(e) =>
-                      setRascunho({ ...rascunho, target: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                  />
-                </label>
-                <div className="row full">
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={pending}
-                    onClick={() => salvar(rascunho)}
-                    data-autofocus
-                  >
-                    Valendo!
-                  </button>
-                  {desafio && (
-                    <button type="button" className="btn ghost" onClick={() => setEditando(false)}>
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-            <p role="status" className="form-message">
-              {message}
-            </p>
-          </>
-        )}
-      </main>
-    </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

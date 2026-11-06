@@ -80,6 +80,26 @@ export async function setChallenge(
     );
 }
 
+/**
+ * Cria os desafios pessoais que faltam, sem trocar os que já existem. Duas telas abertas ao mesmo
+ * tempo tentam criar a mesma semana: o índice único do perfil segura a segunda, que segue em
+ * frente e relê o que a primeira gravou.
+ */
+export async function createMissingProfileChallenges(
+  userId: string,
+  profileId: string,
+  semanas: { weekStart: string; desafio: Desafio }[],
+) {
+  if (!semanas.length) return;
+  await db
+    .insert(boraChallenges)
+    .values(semanas.map((s) => ({ userId, profileId, weekStart: s.weekStart, ...s.desafio })))
+    .onConflictDoNothing({
+      target: [boraChallenges.profileId, boraChallenges.weekStart],
+      where: isNotNull(boraChallenges.profileId),
+    });
+}
+
 export async function clearChallenge(
   userId: string,
   weekStart: string,

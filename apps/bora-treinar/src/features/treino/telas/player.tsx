@@ -21,14 +21,15 @@ import { encode } from "uqr";
 import { Avatar, fmtTime } from "@/components/avatar";
 import type { EventoCelular } from "@/features/pareamento/protocolo";
 import { usePareamentoTv } from "@/features/pareamento/use-pareamento-tv";
-import { saveSessionAction } from "@/features/sessoes/actions";
-import { GUARDAR_NA_FILA, guardarPendente } from "@/features/sessoes/fila";
+import { saveGroupAction, saveSessionAction } from "@/features/sessoes/actions";
+import { type Envio, GUARDAR_NA_FILA, guardarPendente } from "@/features/sessoes/fila";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { lerAjustes, useAjustes } from "../ajustes";
 import { cadenceLabel } from "../body/cadence";
 import { MP_BONES } from "../body/landmarks";
 import { exerciseById, type View } from "../catalog/catalog";
 import {
+  buildGroupSteps,
   buildSteps,
   type Intensidade,
   type LevelMap,
@@ -151,6 +152,17 @@ export interface PlayerProps {
   profile: { id: string; name: string; color: string; intensity?: Intensidade };
   /** primeiro treino do perfil: o portão mostra os cuidados antes */
   primeiroTreino?: boolean;
+  /**
+   * Treinar junto: 2 a 4 perfis em rodízio. Cada um faz a sua série com o seu nível e ganha o
+   * próprio treino salvo (o mesmo groupId); `profile` é quem abriu o treino.
+   */
+  grupo?: {
+    profileId: string;
+    name: string;
+    color: string;
+    levels: LevelMap;
+    intensidade: Intensidade;
+  }[];
   workout: Workout | null;
   practiceExerciseId: string | null;
   workoutRef: string;
@@ -177,6 +189,7 @@ export function PlayerScreen({
   saidaHref,
   onFinish,
   primeiroTreino = false,
+  grupo,
 }: PlayerProps) {
   const router = useRouter();
   const [settings, setSettings, ajustesCarregados] = useAjustes();
@@ -184,9 +197,11 @@ export function PlayerScreen({
   // refresh do servidor (a fila offline salvando outro treino) mandava objetos novos e recriava o
   // executor, zerando o treino no meio. Outro treino é outra montagem (a página usa `key`).
   const passosDo = (o: { aquecimento: boolean; voltaACalma: boolean }) =>
-    workout
-      ? buildSteps(workout, levels, { intensidade: profile.intensity, ...o })
-      : practiceSteps(practiceExerciseId ?? "agachamento");
+    workout && grupo
+      ? buildGroupSteps(workout, grupo)
+      : workout
+        ? buildSteps(workout, levels, { intensidade: profile.intensity, ...o })
+        : practiceSteps(practiceExerciseId ?? "agachamento");
   const [runner] = useState(() => new WorkoutRunner(passosDo(lerAjustes())));
   // aparelho fraco: o instrutor desenha sem sombra e a 30 fps, sobrando para o detector
   const [qualidade] = useState(() => (aparelhoFraco() ? ("baixa" as const) : ("alta" as const)));
@@ -222,12 +237,14 @@ export function PlayerScreen({
   const [saveError, setSaveError] = useState("");
   // portão "Pronto?" e largada
   const [largada, setLargada] = useState(0);
-  const [seguranca, setSeguranca] = useState(primeiroTreino);
+  const [seguranca, setSeguranca] = useState(primeiroTreino && !grupo);
   const [checagem, setChecagem] = useState<Checagem>(CHECAGEM_VAZIA);
   const [detector, setDetector] = useState<number | null>(mode === "camera" ? 0 : null);
   const [vozTestada, setVozTestada] = useState(false);
   /** "Como foi?" depois da última série, antes de salvar */
   const [comoFoi, setComoFoi] = useState(false);
+  /** treinar junto: a resposta de cada um ao "Como foi?" */
+  const [sensacoes, setSensacoes] = useState<Record<string, Feeling>>({});
   /** a pessoa tocou em "Parar e salvar" */
   const encerrouAntes = useRef(false);
   const largadaRef = useRef(0);
@@ -371,26 +388,64 @@ export function PlayerScreen({
       return;
     }
     const duration = Math.max(1, Math.round(runner.totalElapsed));
-    const input: SessionInput = {
-      id: crypto.randomUUID(),
-      profileId: profile.id,
+    const base = {
       workoutRef,
       // o início de verdade, marcado no start (descontar a duração errava quando havia pausa)
       startedAt: runner.startedWallAt || Date.now() - duration * 1000,
       durationSeconds: duration,
       mode: camOn.current ? (mode === "pareado" ? "pareado" : "camera") : "manual",
-      logs: logs.map((l) => ({ ...l, holdSeconds: Math.round(l.holdSeconds) })),
-      feeling,
       ...(encerrouAntes.current ? { endedEarly: true } : {}),
-    };
+    } as const;
+    // o servidor não recebe de quem é cada série: cada perfil manda só as suas
+    const limpar = (ls: typeof logs) =>
+      ls.map(({ profileId: _, ...l }) => ({ ...l, holdSeconds: Math.round(l.holdSeconds) }));
+    let envio: Envio;
+    if (grupo) {
+      const groupId = crypto.randomUUID();
+      const sessoes: SessionInput[] = grupo.flatMap((p) => {
+        const meus = logs.filter((l) => l.profileId === p.profileId);
+        return meus.length
+          ? [
+              {
+                ...base,
+                id: crypto.randomUUID(),
+                profileId: p.profileId,
+                logs: limpar(meus),
+                feeling: sensacoes[p.profileId] ?? null,
+                groupId,
+              },
+            ]
+          : [];
+      });
+      // só uma pessoa fez alguma coisa: vira um treino comum dela
+      envio =
+        sessoes.length >= 2
+          ? { groupId, sessoes }
+          : { ...(sessoes[0] as SessionInput), groupId: undefined };
+    } else
+      envio = {
+        ...base,
+        id: crypto.randomUUID(),
+        profileId: profile.id,
+        logs: limpar(logs),
+        feeling,
+      };
     if (onFinish) {
-      onFinish(input);
+      onFinish("sessoes" in envio ? (envio.sessoes[0] as SessionInput) : envio);
       return;
     }
+    const input = envio;
     try {
-      const result = await saveSessionAction(input);
+      const result =
+        "sessoes" in input
+          ? await saveGroupAction(input).then((r) =>
+              r.ok ? { ...r, data: { destino: `/resumo/grupo/${r.data.groupId}` } } : r,
+            )
+          : await saveSessionAction(input).then((r) =>
+              r.ok ? { ...r, data: { destino: `/resumo/${r.data.sessionId}` } } : r,
+            );
       if (result.ok) {
-        router.replace(`/resumo/${result.data.sessionId}`);
+        router.replace(result.data.destino);
         return;
       }
       // Recusas que podem mudar (plano, perfil, login) ficam guardadas no aparelho, com o motivo:
@@ -904,6 +959,10 @@ export function PlayerScreen({
 
   const emPronto = !runner.started;
   const s = runner.step ?? (emPronto ? runner.steps[0] : undefined);
+  /** treinar junto: de quem é a vez (no descanso, de quem vem a seguir) */
+  const daVez = grupo?.find(
+    (p) => s && s.kind !== "amrap" && "profileId" in s && s.profileId === p.profileId,
+  );
   if (saveError)
     return (
       <div className="player">
@@ -943,6 +1002,53 @@ export function PlayerScreen({
             </button>
             <button type="button" className="btn ghost" onClick={() => router.replace(saida)}>
               Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  if (comoFoi && grupo)
+    return (
+      <div className="player">
+        <div className="overlay-msg static">
+          <div className="como-foi">
+            <h2>Como foi para cada um?</h2>
+            <p className="muted">A resposta ajusta as próximas metas de cada perfil.</p>
+            {grupo.map((p) => (
+              <fieldset className="como-foi-pessoa" key={p.profileId}>
+                <legend className="como-foi-nome">
+                  <Avatar profile={{ name: p.name, color: p.color }} size="1.75rem" /> {p.name}
+                </legend>
+                <div className="como-foi-opcoes">
+                  {(
+                    [
+                      ["facil", "Fácil"],
+                      ["na_medida", "Na medida"],
+                      ["dificil", "Difícil"],
+                    ] as const
+                  ).map(([valor, titulo]) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      className="btn"
+                      aria-pressed={sensacoes[p.profileId] === valor}
+                      onClick={() => setSensacoes((a) => ({ ...a, [p.profileId]: valor }))}
+                    >
+                      {titulo}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+            <button
+              type="button"
+              className="btn primary big"
+              onClick={() => {
+                setComoFoi(false);
+                void save();
+              }}
+            >
+              Salvar os treinos
             </button>
           </div>
         </div>
@@ -1088,7 +1194,7 @@ export function PlayerScreen({
     s.kind === "exercise"
       ? !workout
         ? "Prática livre"
-        : s.label === "Aquecimento" || s.label === "Volta à calma"
+        : s.label === "Aquecimento" || s.label === "Volta à calma" || grupo
           ? `${s.label} · ${s.set} de ${s.sets}`
           : s.window
             ? `Rodada ${s.set} de ${s.sets}`
@@ -1176,7 +1282,7 @@ export function PlayerScreen({
           </button>
         )}
         <span className="num elapsed">{fmtTime(runner.totalElapsed)}</span>
-        <Avatar profile={profile} />
+        <Avatar profile={daVez ?? profile} />
       </header>
 
       <div className="player-stage">
@@ -1370,7 +1476,7 @@ export function PlayerScreen({
               falhou: !!falhaVoz,
             }}
             opcoes={
-              workout
+              workout && !grupo
                 ? { aquecimento: settings.aquecimento, voltaACalma: settings.voltaACalma }
                 : null
             }

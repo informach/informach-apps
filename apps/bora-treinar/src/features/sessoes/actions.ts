@@ -5,8 +5,8 @@ import { CHAINS } from "@/features/treino/catalog/catalog";
 import { runAction, verifiedUser } from "@/lib/action";
 import { FUSO_PADRAO } from "@/lib/datas";
 import { familyView } from "../familia/view";
-import { sessionInputSchema } from "./schema";
-import { acceptSuggestion, saveSession } from "./service";
+import { groupInputSchema, sessionInputSchema } from "./schema";
+import { acceptSuggestion, saveGroupSession, saveSession } from "./service";
 
 /**
  * As telas que mostram o resultado de um treino. Nada de `revalidatePath("/", "layout")`: ele
@@ -29,6 +29,24 @@ export async function saveSessionAction(input: unknown) {
       view.access,
       view.profiles.filter((p) => p.allowed).map((p) => p.id),
       session,
+      view.family?.timezone ?? FUSO_PADRAO,
+    );
+    revalidarTelasDoTreino();
+    return result;
+  });
+}
+
+/** Treinar junto: grava o treino de cada perfil do grupo, todos ou nenhum. */
+export async function saveGroupAction(input: unknown) {
+  return runAction(async () => {
+    const grupo = groupInputSchema.parse(input);
+    const user = await verifiedUser();
+    const view = await familyView(user.id);
+    const result = await saveGroupSession(
+      user.id,
+      view.access,
+      view.profiles.filter((p) => p.allowed).map((p) => p.id),
+      grupo,
       view.family?.timezone ?? FUSO_PADRAO,
     );
     revalidarTelasDoTreino();

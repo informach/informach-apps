@@ -242,6 +242,10 @@ Pós-publicação, o CI do PR documental #26 falhou duas vezes no benchmark de t
 
 Pedido da titular, com canvas de proposta aprovado no mesmo dia. Branch `feat/missao-saber-competicao`: competição coordenada pelo responsável (vezes cronometradas, correção no servidor, som, pódio privado) e 15 desafios de peças em 3D no laboratório, sorteados também na competição. Migração aditiva `0075`. Decisões, regras, verificação e pendências no [registro da frente](propostas/missao-saber-competicao-2026-10-31/PROPOSTA.md); levantamento dos quebra-cabeças em [desafios.md](propostas/missao-saber-competicao-2026-10-31/desafios.md). Próximo passo: PR, CI e o teste da titular com as crianças em tablet e TV; o merge em `main` fica com ela.
 
+## Bora Treinar: treino que guia, perfis como na Netflix (06/11/2026)
+
+Pedido do titular, com canvas de proposta. Branch `feat/bora-proposta`, migração aditiva `0077_bora_proposta`, merge na `main` local sem push. Treino individual no centro e treinar junto como extra; portão "Pronto?", contagem pela voz que funciona (o microfone estava proibido pelo cabeçalho), progressão honesta que também desce, teste de 7 dias sem cartão, primeiro acesso, recomendador, meta semanal e desafio pessoal. Decisões no [registro da proposta](propostas/bora-treinar-2026-11-06/PROPOSTA.md); o que entrou, a verificação e as pendências (teste em aparelho real, descrição no Stripe, conflito de número com a 0077 do dia-de-estrela) na [implementação](propostas/bora-treinar-2026-11-06/IMPLEMENTACAO.md).
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.

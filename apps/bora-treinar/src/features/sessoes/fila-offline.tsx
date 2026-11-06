@@ -2,8 +2,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { saveSessionAction } from "./actions";
-import { descartarPendente, enviarPendentes, listarPendentes, type Pendente } from "./fila";
+import { saveGroupAction, saveSessionAction } from "./actions";
+import {
+  descartarPendente,
+  ehGrupo,
+  enviarPendentes,
+  listarPendentes,
+  type Pendente,
+} from "./fila";
 
 /** O que fazer com um treino que o servidor recusou por um motivo que pode mudar. */
 function oQueFazer(motivo?: string): { texto: string; acao?: { href: string; label: string } } {
@@ -44,7 +50,9 @@ export function FilaOffline() {
   useEffect(() => {
     let ativo = true;
     const enviar = async () => {
-      const enviados = await enviarPendentes((payload) => saveSessionAction(payload));
+      const enviados = await enviarPendentes((payload) =>
+        ehGrupo(payload) ? saveGroupAction(payload) : saveSessionAction(payload),
+      );
       if (!ativo) return;
       await atualizar();
       if (enviados) {

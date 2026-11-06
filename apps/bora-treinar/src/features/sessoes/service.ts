@@ -13,6 +13,7 @@ import { exerciseById } from "@/features/treino/catalog/catalog";
 import {
   buildSteps,
   seriesPlanejadas,
+  soSeries,
   type Workout,
   workoutById,
 } from "@/features/treino/catalog/workouts";
@@ -23,10 +24,21 @@ import {
 } from "@/features/treino/engine/progression";
 import type { SetLog } from "@/features/treino/engine/runner";
 import { AppError, assertAllowed } from "@/lib/errors";
-import { inTransaction, lockProfile, progressOf, saveProgress } from "../familia/repository";
+import {
+  inTransaction,
+  lockProfile,
+  progressOf,
+  saveProgress,
+  type Tx,
+} from "../familia/repository";
 import { customWorkout } from "../meus-treinos/repository";
-import { grantAchievements, insertSession, resumosDoPerfil } from "./repository";
-import type { SessionInput } from "./schema";
+import {
+  grantAchievements,
+  insertSession,
+  melhoresAnteriores,
+  resumosDoPerfil,
+} from "./repository";
+import type { GroupInput, SessionInput } from "./schema";
 
 /** Aceita o avanço de uma trilha, conferindo de novo se ele ainda vale. */
 export async function acceptSuggestion(
@@ -70,16 +82,12 @@ export async function resolveWorkout(
   return { workout, name: workout.name };
 }
 
-/**
- * Grava um treino concluído, atualiza a sequência de cada trilha e as
- * conquistas do perfil. Reenviar a mesma sessão (fila offline) não duplica nada.
- */
-export async function saveSession(
+/** As checagens de um treino antes de gravar (plano, perfil, modo, séries): sem banco aberto. */
+async function validarSessao(
   userId: string,
   access: Access,
   allowedProfileIds: string[],
   input: SessionInput,
-  timezone: string,
 ) {
   assertAllowed(
     allowedProfileIds.includes(input.profileId),
@@ -101,10 +109,20 @@ export async function saveSession(
   assertAllowed(feitos.length, "EMPTY", "Nenhuma série registrada neste treino.");
   // o aparelho pode estar com o relógio errado: o início nunca fica no futuro
   const startedAt = Math.min(input.startedAt, Date.now());
+  return { input, name, workout, feitos, startedAt };
+}
 
-  return inTransaction(async (tx) => {
+type Validada = Awaited<ReturnType<typeof validarSessao>>;
+
+/**
+ * Grava um treino validado dentro da transação: trava o perfil, confere as metas pelo plano do
+ * servidor, atualiza as trilhas e as conquistas.
+ */
+async function gravarSessao(tx: Tx, userId: string, v: Validada, timezone: string) {
+  const { input, name, workout, feitos, startedAt } = v;
+  {
     // o perfil fica travado até o fim: o progresso é lido e regravado aqui dentro
-    const { intensity } = await lockProfile(tx, input.profileId);
+    const { intensity, weeklyGoal } = await lockProfile(tx, input.profileId);
     const progress = await progressOf(input.profileId, tx);
     // o servidor remonta o treino com os níveis e a intensidade do perfil: a meta de cada série e
     // quantas séries havia saem daqui, não do aparelho
@@ -123,6 +141,7 @@ export async function saveSession(
       logs,
       feeling: input.feeling ?? null,
       endedEarly: input.endedEarly ?? false,
+      groupId: input.groupId ?? null,
     });
     if (!created) return { sessionId: input.id, achievements: [] as string[] };
     // quem parou antes não perde a sequência pelas séries que não fez; só o "difícil" pesa
@@ -133,14 +152,65 @@ export async function saveSession(
       });
       await saveProgress(input.profileId, avaliado.progress, tx);
     }
+    // dois agregados no banco: o histórico resumido e as melhores marcas sem esta sessão
     const history = await resumosDoPerfil(input.profileId, tx);
+    const anteriores = await melhoresAnteriores(input.profileId, input.id, tx);
     const achievements = await grantAchievements(
       tx,
       input.profileId,
-      conquistasMerecidas(history, Date.now(), timezone),
+      conquistasMerecidas(history, Date.now(), timezone, weeklyGoal, {
+        duration: input.durationSeconds,
+        logs,
+        melhoresAnteriores: anteriores,
+      }),
       input.id,
     );
     return { sessionId: input.id, achievements };
+  }
+}
+
+/**
+ * Grava um treino concluído, atualiza a sequência de cada trilha e as
+ * conquistas do perfil. Reenviar a mesma sessão (fila offline) não duplica nada.
+ */
+export async function saveSession(
+  userId: string,
+  access: Access,
+  allowedProfileIds: string[],
+  input: SessionInput,
+  timezone: string,
+) {
+  assertAllowed(!input.groupId, "INPUT", "Treino em grupo vai junto com o grupo.");
+  const v = await validarSessao(userId, access, allowedProfileIds, input);
+  return inTransaction((tx) => gravarSessao(tx, userId, v, timezone));
+}
+
+/**
+ * Treinar junto: um treino por perfil, gravados numa transação só (ou nenhum). Os perfis são
+ * travados em ordem de id, para dois grupos com as mesmas pessoas não se travarem um ao outro.
+ */
+export async function saveGroupSession(
+  userId: string,
+  access: Access,
+  allowedProfileIds: string[],
+  grupo: GroupInput,
+  timezone: string,
+) {
+  assertAllowed(access.unlocked, "PLAN", "Treinar junto é do plano Família.");
+  const validadas: Validada[] = [];
+  for (const s of [...grupo.sessoes].sort((a, b) => a.profileId.localeCompare(b.profileId))) {
+    const v = await validarSessao(userId, access, allowedProfileIds, s);
+    assertAllowed(
+      v.workout && soSeries(v.workout),
+      "WORKOUT",
+      "Treinar junto é só com treino de séries.",
+    );
+    validadas.push(v);
+  }
+  return inTransaction(async (tx) => {
+    const sessoes = [];
+    for (const v of validadas) sessoes.push(await gravarSessao(tx, userId, v, timezone));
+    return { groupId: grupo.groupId, sessoes };
   });
 }
 

@@ -1,6 +1,8 @@
 import "server-only";
-import { and, asc, db, desc, eq, gte, inArray, lt, sql } from "@informach/db";
+import { and, asc, db, desc, eq, gte, inArray, lt, ne, sql } from "@informach/db";
 import { boraAchievements, boraSessions, boraSetLogs } from "@informach/db/schema";
+import type { SessaoResumo } from "@/features/conquistas/catalogo";
+import type { MelhorMarca } from "@/features/treino/engine/habito";
 import type { Feeling } from "@/features/treino/engine/progression";
 import type { SetLog } from "@/features/treino/engine/runner";
 import type { Tx } from "../familia/repository";
@@ -17,6 +19,8 @@ export interface SessionRecord {
   logs: SetLog[];
   feeling?: Feeling | null;
   endedEarly?: boolean;
+  /** treinar junto: o mesmo id nos treinos de cada perfil do grupo */
+  groupId?: string | null;
 }
 
 const toLog = (l: typeof boraSetLogs.$inferSelect): SetLog => ({
@@ -56,6 +60,7 @@ async function withLogs(
     logs: logs.filter((l) => l.sessionId === r.id).map(toLog),
     feeling: (r.feeling as Feeling | null) ?? null,
     endedEarly: r.endedEarly,
+    groupId: r.groupId,
   }));
 }
 
@@ -80,17 +85,24 @@ export async function sessionsOf(
 }
 
 /**
- * O resumo de cada treino do perfil (quando, modo, repetições, maior isometria), somado no banco.
- * As conquistas precisam do histórico inteiro, mas não das séries: carregar até 2000 sessões com
- * todas as séries dentro da transação de cada treino salvo deixava o save cada vez mais lento.
+ * O resumo de cada treino do perfil (quando, duração, modo, repetições, isometria, avisos de forma),
+ * somado no banco. As conquistas precisam do histórico inteiro, mas não das séries: carregar até
+ * 2000 sessões com todas as séries dentro da transação de cada treino salvo deixava o save cada vez
+ * mais lento.
  */
-export async function resumosDoPerfil(profileId: string, tx: Tx | typeof db = db) {
+export async function resumosDoPerfil(
+  profileId: string,
+  tx: Tx | typeof db = db,
+): Promise<SessaoResumo[]> {
   const rows = await tx
     .select({
       startedAt: boraSessions.startedAt,
+      duration: boraSessions.durationSeconds,
       mode: boraSessions.mode,
       reps: sql<number>`coalesce(sum(${boraSetLogs.reps}), 0)::int`,
+      holdSeconds: sql<number>`coalesce(sum(${boraSetLogs.holdSeconds}), 0)::int`,
       bestHold: sql<number>`coalesce(max(${boraSetLogs.holdSeconds}), 0)::int`,
+      semAvisos: sql<boolean>`coalesce(bool_and(${boraSetLogs.issues} = '{}'::jsonb), true)`,
     })
     .from(boraSessions)
     .leftJoin(boraSetLogs, eq(boraSetLogs.sessionId, boraSessions.id))
@@ -99,10 +111,37 @@ export async function resumosDoPerfil(profileId: string, tx: Tx | typeof db = db
     .orderBy(asc(boraSessions.startedAt));
   return rows.map((r) => ({
     startedAt: r.startedAt.getTime(),
+    duration: r.duration,
     mode: r.mode as SessionRecord["mode"],
     reps: Number(r.reps),
+    holdSeconds: Number(r.holdSeconds),
     bestHold: Number(r.bestHold),
+    semAvisos: Boolean(r.semAvisos),
   }));
+}
+
+/**
+ * Melhor série e maior isometria de cada exercício do perfil em todas as outras sessões, somadas
+ * no banco (o recorde pessoal compara a sessão salva com isto).
+ */
+export async function melhoresAnteriores(
+  profileId: string,
+  excetoSessao: string,
+  tx: Tx | typeof db = db,
+): Promise<Map<string, MelhorMarca>> {
+  const rows = await tx
+    .select({
+      exerciseId: boraSetLogs.exerciseId,
+      bestSet: sql<number>`max(${boraSetLogs.reps})::int`,
+      bestHold: sql<number>`max(${boraSetLogs.holdSeconds})::int`,
+    })
+    .from(boraSetLogs)
+    .innerJoin(boraSessions, eq(boraSessions.id, boraSetLogs.sessionId))
+    .where(and(eq(boraSessions.profileId, profileId), ne(boraSessions.id, excetoSessao)))
+    .groupBy(boraSetLogs.exerciseId);
+  return new Map(
+    rows.map((r) => [r.exerciseId, { bestSet: Number(r.bestSet), bestHold: Number(r.bestHold) }]),
+  );
 }
 
 /** Sessões de toda a família desde um instante (desafios e resumo semanal). */
@@ -158,6 +197,7 @@ export async function insertSession(
       mode: session.mode,
       feeling: session.feeling ?? null,
       endedEarly: session.endedEarly ?? false,
+      groupId: session.groupId ?? null,
     })
     .onConflictDoNothing()
     .returning({ id: boraSessions.id });
@@ -200,4 +240,14 @@ export async function grantAchievements(
     .onConflictDoNothing()
     .returning({ achievementId: boraAchievements.achievementId });
   return rows.map((r) => r.achievementId);
+}
+
+/** Os treinos de um grupo (treinar junto), na ordem dos perfis. */
+export async function sessoesDoGrupo(userId: string, groupId: string) {
+  const rows = await db
+    .select()
+    .from(boraSessions)
+    .where(and(eq(boraSessions.userId, userId), eq(boraSessions.groupId, groupId)))
+    .orderBy(asc(boraSessions.profileId));
+  return withLogs(rows);
 }

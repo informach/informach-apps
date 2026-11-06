@@ -1,6 +1,6 @@
 "use client";
 import Dexie, { type EntityTable } from "dexie";
-import type { SessionInput } from "./schema";
+import type { GroupInput, SessionInput } from "./schema";
 
 /**
  * Treinos concluídos sem rede (ou recusados por um motivo que pode mudar) esperam aqui até
@@ -8,9 +8,13 @@ import type { SessionInput } from "./schema";
  * da fila quando o servidor confirma, quando a recusa é sobre o conteúdo (repetir não muda a
  * resposta) ou quando a pessoa descarta.
  */
+/** Um treino, ou um treino em grupo (que só vale inteiro: um item só na fila). */
+export type Envio = SessionInput | GroupInput;
+export const ehGrupo = (e: Envio): e is GroupInput => "sessoes" in e;
+
 export interface Pendente {
   id: string;
-  payload: SessionInput;
+  payload: Envio;
   criadoEm: number;
   /** a última recusa do servidor, para dizer o que fazer; vazio = só faltou rede */
   motivo?: string;
@@ -33,12 +37,15 @@ function abrir() {
     banco.version(1).stores({ pendentes: "id, criadoEm" });
     // v2: o motivo da última recusa (campo não indexado; a versão marca a mudança de formato)
     banco.version(2).stores({ pendentes: "id, criadoEm" });
+    // v3: o item pode ser um grupo (treinar junto), com o id do grupo
+    banco.version(3).stores({ pendentes: "id, criadoEm" });
   }
   return banco;
 }
 
-export async function guardarPendente(payload: SessionInput, motivo?: string) {
-  await abrir().pendentes.put({ id: payload.id, payload, criadoEm: Date.now(), motivo });
+export async function guardarPendente(payload: Envio, motivo?: string) {
+  const id = ehGrupo(payload) ? payload.groupId : payload.id;
+  await abrir().pendentes.put({ id, payload, criadoEm: Date.now(), motivo });
 }
 
 export async function listarPendentes(): Promise<Pendente[]> {
@@ -65,7 +72,7 @@ export async function descartarPendente(id: string) {
   }
 }
 
-type Envio = (payload: SessionInput) => Promise<{ ok: boolean; code?: string }>;
+type Enviar = (payload: Envio) => Promise<{ ok: boolean; code?: string }>;
 
 /** O que fazer com o item depois da resposta do servidor. Pura, para ser testada. */
 export function destino(resultado: { ok: boolean; code?: string }): "sai" | "fica" {
@@ -77,7 +84,7 @@ export function destino(resultado: { ok: boolean; code?: string }): "sai" | "fic
  * Reenvia a fila. Falha de rede para no primeiro item e deixa tudo para a próxima vez; recusa
  * definitiva tira o item; recusa que pode mudar (plano, perfil, login) guarda o motivo.
  */
-export async function enviarPendentes(enviar: Envio) {
+export async function enviarPendentes(enviar: Enviar) {
   let enviados = 0;
   const pendentes = await listarPendentes();
   for (const item of pendentes) {

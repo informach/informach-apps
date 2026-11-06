@@ -102,12 +102,18 @@ export async function deleteProfile(userId: string, id: string) {
  * um avanço) passa por aqui antes: dois envios ao mesmo tempo (a fila offline em duas abas, a TV e
  * o celular) liam o mesmo progresso e um apagava a sequência do outro.
  */
-export async function lockProfile(tx: Tx, profileId: string): Promise<{ intensity: Intensidade }> {
-  const rows = await tx.execute<{ intensity: string }>(
-    sql`SELECT intensity FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`,
+export async function lockProfile(
+  tx: Tx,
+  profileId: string,
+): Promise<{ intensity: Intensidade; weeklyGoal: number }> {
+  const rows = await tx.execute<{ intensity: string; weekly_goal: number }>(
+    sql`SELECT intensity, weekly_goal FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`,
   );
   const intensity = rows[0]?.intensity;
-  return { intensity: intensity === "leve" || intensity === "forte" ? intensity : "normal" };
+  return {
+    intensity: intensity === "leve" || intensity === "forte" ? intensity : "normal",
+    weeklyGoal: Number(rows[0]?.weekly_goal ?? 3),
+  };
 }
 
 export async function progressOf(profileId: string, tx: Tx | typeof db = db): Promise<ProgressMap> {

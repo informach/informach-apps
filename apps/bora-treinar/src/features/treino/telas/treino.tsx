@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Hand, Lock, Play, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Avatar } from "@/components/avatar";
 import { Cadeado } from "@/features/billing/planos";
 import { voltar } from "@/lib/voltar";
 import { exerciseById } from "../catalog/catalog";
@@ -10,8 +11,11 @@ import {
   type Block,
   buildSteps,
   estimateMinutes,
+  type Intensidade,
   type LevelMap,
+  metaDaIntensidade,
   resolveSlot,
+  trocaDaIntensidade,
   type Workout,
 } from "../catalog/workouts";
 import { unlockAudio } from "../engine/voice";
@@ -21,22 +25,31 @@ const MODE_KEY = "bora:modo";
 
 const unitOf = (id: string) => (exerciseById(id).rule.kind === "hold" ? "s" : "");
 
-export function describeBlock(b: Block, levels: LevelMap): { name: string; detail: string } {
+/** Um bloco como o perfil vai fazer: com os níveis dele e a intensidade (trocas e metas). */
+export function describeBlock(
+  b: Block,
+  levels: LevelMap,
+  intensidade: Intensidade = "normal",
+): { name: string; detail: string } {
+  const resolver = (slot: Parameters<typeof resolveSlot>[0]) => {
+    const r = resolveSlot(slot, levels);
+    return { ...r, exerciseId: trocaDaIntensidade(r.exerciseId, intensidade) };
+  };
   if (b.type === "sets") {
-    const { exerciseId, bonus } = resolveSlot(b.slot, levels);
+    const { exerciseId, bonus } = resolver(b.slot);
     return {
       name: exerciseById(exerciseId).name,
-      detail: `${b.sets} × ${b.target + bonus}${unitOf(exerciseId)}`,
+      detail: `${b.sets} × ${metaDaIntensidade(b.target + bonus, intensidade)}${unitOf(exerciseId)}`,
     };
   }
   if (b.type === "interval")
     return {
-      name: `${b.label}: ${b.slots.map((s) => exerciseById(resolveSlot(s, levels).exerciseId).name).join(" / ")}`,
+      name: `${b.label}: ${b.slots.map((s) => exerciseById(resolver(s).exerciseId).name).join(" / ")}`,
       detail: `${b.rounds} × ${b.work}s/${b.rest}s`,
     };
   const items = b.slots.map((s) => {
-    const r = resolveSlot(s.slot, levels);
-    return `${s.reps + r.bonus} ${exerciseById(r.exerciseId).name.toLowerCase()}`;
+    const r = resolver(s.slot);
+    return `${metaDaIntensidade(s.reps + r.bonus, intensidade)} ${exerciseById(r.exerciseId).name.toLowerCase()}`;
   });
   return { name: `${b.label}: ${items.join(", ")}`, detail: `${b.minutes} min` };
 }
@@ -47,12 +60,15 @@ export function WorkoutScreen({
   levels,
   cameraAllowed,
   editHref,
+  perfil,
 }: {
   workout: Workout;
   workoutRef: string;
   levels: LevelMap;
   cameraAllowed: boolean;
   editHref?: string;
+  /** de quem é o treino: os níveis, a intensidade e o histórico são deste perfil */
+  perfil: { name: string; color: string; intensity: Intensidade };
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<CountMode>(cameraAllowed ? "camera" : "manual");
@@ -64,7 +80,7 @@ export function WorkoutScreen({
       // sem armazenamento local: fica o padrão
     }
   }, [cameraAllowed]);
-  const steps = buildSteps(workout, levels);
+  const steps = buildSteps(workout, levels, { intensidade: perfil.intensity });
   const hints = [
     ...new Set(
       steps.flatMap((s) => (s.kind === "exercise" ? [exerciseById(s.exerciseId).cameraHint] : [])),
@@ -118,6 +134,10 @@ export function WorkoutScreen({
             </span>
             <h1>{workout.name}</h1>
             <p className="muted lead">{workout.subtitle}</p>
+            <p className="quem-treina">
+              <Avatar profile={perfil} size="1.75rem" /> Treinando como {perfil.name} ·{" "}
+              <Link href="/perfis">trocar</Link>
+            </p>
           </div>
           <button type="button" className="btn primary big" onClick={start} data-autofocus>
             <Play size={20} fill="currentColor" /> Começar treino
@@ -126,7 +146,7 @@ export function WorkoutScreen({
 
         <div className="block-list">
           {workout.blocks
-            .map((b) => describeBlock(b, levels))
+            .map((b) => describeBlock(b, levels, perfil.intensity))
             .map((row, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: o mesmo bloco pode se repetir; a posição é a identidade
               <div className="block-row" key={`${i}-${row.name}`}>

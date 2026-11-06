@@ -41,25 +41,39 @@ test("da conta nova ao primeiro treino salvo, contando à mão", async ({ page }
   await expect(page.getByRole("heading", { name: "Quem vai treinar?" })).toBeVisible();
   await page.getByLabel("Nome ou apelido").fill("Helena");
   await page.getByRole("button", { name: "Criar perfil" }).click();
-  await expect(page).toHaveURL(/\/inicio$/);
-  await expect(page.getByText("Treino de hoje · Helena")).toBeVisible();
 
-  // gratuito: o Primeiro treino abre; os outros pedem assinatura
+  // primeiro acesso: ritmo, tempo e dias por semana
+  await expect(page.getByRole("heading", { name: "Oi, Helena!" })).toBeVisible();
+  await page.getByText("Já treino às vezes").click();
+  await page.getByText("10 min", { exact: true }).click();
+  await page.getByRole("button", { name: "Começar", exact: true }).click();
+  await expect(page).toHaveURL(/\/inicio$/);
+  await expect(page.getByText("Hoje é dia de · Helena")).toBeVisible();
+  await expect(page.getByText("de 3 dias")).toBeVisible();
+
+  // conta nova com e-mail confirmado ganha o teste de 7 dias: os treinos da assinatura abrem
   await page.goto(`/treino?ref=${encodeURIComponent("catalogo:hiit-12")}`);
-  await expect(page).toHaveURL(/\/conta\?motivo=treino$/);
+  await expect(page.getByRole("heading", { name: "HIIT 12" })).toBeVisible();
+  await expect(page.getByText("Treinando como Helena")).toBeVisible();
+
   await page.goto(`/treino?ref=${encodeURIComponent("catalogo:primeiro-treino")}`);
   await expect(page.getByRole("heading", { name: "Primeiro treino" })).toBeVisible();
+  await page.getByRole("button", { name: /Contar manualmente/ }).click();
   await page.getByRole("button", { name: "Começar treino" }).click();
 
+  // portão: cuidados do primeiro treino, depois começar à mão
   await expect(page).toHaveURL(/\/treinar\?/);
-  await page.getByRole("button", { name: "Pular" }).click();
-  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "+1" }).click();
-  await page.getByRole("button", { name: "Concluir" }).click();
-  await page.getByRole("button", { name: "Sair do treino" }).click();
-  await page.getByRole("button", { name: "Encerrar e salvar" }).click();
+  await page.getByRole("button", { name: "Entendi" }).click();
+  await page.getByRole("button", { name: "Começar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "+1" })).toBeEnabled({ timeout: 8000 });
+  for (let i = 0; i < 6; i++) await page.getByRole("button", { name: "+1" }).click();
+  await page.getByRole("button", { name: "Parar o treino" }).click();
+  await page.getByRole("button", { name: "Parar e salvar" }).click();
 
-  await expect(page.getByRole("heading", { name: "Treino concluído!" })).toBeVisible();
-  await expect(page.getByText("Primeiro passo")).toBeVisible();
+  // como foi? e o resumo no perfil certo
+  await page.getByRole("button", { name: /Na medida/ }).click();
+  await expect(page.getByRole("heading", { name: "Treino salvo" })).toBeVisible();
+  await expect(page.getByText("Salvo no perfil de Helena")).toBeVisible();
   await page.getByRole("link", { name: "Voltar ao início" }).click();
   await page.getByRole("link", { name: "Progresso" }).first().click();
   await expect(page.getByText("Primeiro treino").first()).toBeVisible();

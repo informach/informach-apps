@@ -7,6 +7,7 @@ import { getAccess } from "@/features/billing/service";
 import {
   createProfile,
   getFamily,
+  listProfiles,
   progressOf,
   setPreferences,
   unsubscribedCategories,
@@ -24,14 +25,15 @@ import {
   entrarComCodigo,
   lerCredencial,
 } from "@/features/pareamento/servidor";
-import { achievementsOf, sessionsOf } from "@/features/sessoes/repository";
+import { achievementsOf, sessionsOf, sessoesDoGrupo } from "@/features/sessoes/repository";
 import type { SessionInput } from "@/features/sessoes/schema";
-import { acceptSuggestion, saveSession } from "@/features/sessoes/service";
+import { acceptSuggestion, saveGroupSession, saveSession } from "@/features/sessoes/service";
 import { comecarTeste } from "@/features/teste/service";
 import { pendingSuggestions } from "@/features/treino/engine/progression";
-import { relogioLocal } from "@/lib/datas";
+import { inicioDaSemana, inicioDoDiaLocal, relogioLocal, somarDias } from "@/lib/datas";
 import { emails } from "@/lib/emails";
 
+const SP = "America/Sao_Paulo";
 const owner = randomUUID();
 let customerId = "";
 let subscriptionId = "";
@@ -241,7 +243,7 @@ describe("pareamento celular ↔ TV", () => {
 });
 
 describe("lembrete de treino", () => {
-  it("sai na hora escolhida só se ninguém treinou hoje, uma vez por dia", async () => {
+  it("sai na hora escolhida para quem ainda não treinou hoje, uma vez por dia", async () => {
     const agora = relogioLocal(new Date(), "America/Sao_Paulo");
     await setPreferences(owner, {
       reminderDays: 127,
@@ -250,10 +252,39 @@ describe("lembrete de treino", () => {
     });
     expect((await getFamily(owner))?.reminderDays).toBe(127);
     expect([...(await unsubscribedCategories(owner))]).toEqual(["bora.weekly-summary"]);
-    // já treinou hoje (sessões acima): nenhum lembrete
+    // o primeiro e o terceiro perfis já treinaram hoje (sessões acima); o segundo e o quarto, não:
+    // o lembrete lista só os dois que faltam, com a meta da semana (3 dias, o padrão)
+    const nomes = new Map((await listProfiles(owner)).map((p) => [p.id, p.name]));
+    const nome = (i: number) => nomes.get(profiles[i] ?? "") ?? "?";
     const antes = emails.getOutbox?.().length ?? 0;
     await rodarLembretes();
-    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(0);
+    const novos = (emails.getOutbox?.() ?? []).slice(antes);
+    expect(novos).toHaveLength(1);
+    expect(novos[0]?.text).toContain(`${nome(1)}: 0 de 3 dias nesta semana.`);
+    expect(novos[0]?.text).toContain(`${nome(3)}: 0 de 3 dias nesta semana.`);
+    expect(novos[0]?.text).not.toContain(`${nome(0)}:`);
+    expect(novos[0]?.text).not.toContain(`${nome(2)}:`);
+    // a chave da mensagem (família + dia) segura o segundo envio
+    await rodarLembretes();
+    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(1);
+  });
+});
+
+describe("resumo da semana", () => {
+  it("traz a meta da semana de cada perfil e sai uma vez por semana", async () => {
+    await setPreferences(owner, { reminderDays: 0, reminderHour: 18, weeklySummary: true });
+    // segunda que vem, 9h em São Paulo: o resumo é desta semana, com as sessões acima
+    const segunda = inicioDoDiaLocal(somarDias(inicioDaSemana(Date.now(), SP), 7), SP);
+    const agora = new Date(segunda.getTime() + 9 * 3_600_000);
+    const nomes = new Map((await listProfiles(owner)).map((p) => [p.id, p.name]));
+    const antes = emails.getOutbox?.().length ?? 0;
+    await rodarLembretes(agora);
+    const novos = (emails.getOutbox?.() ?? []).slice(antes);
+    expect(novos.map((e) => e.category)).toEqual(["bora.weekly-summary"]);
+    expect(novos[0]?.text).toContain(nomes.get(profiles[0] ?? ""));
+    expect(novos[0]?.text).toContain("Meta da semana: 1 de 3 dias.");
+    await rodarLembretes(agora);
+    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(1);
   });
 });
 
@@ -355,5 +386,46 @@ describe("pagamento atrasado", () => {
       await db.delete(customers).where(eq(customers.id, cliente.id));
       await db.delete(users).where(eq(users.id, id));
     }
+  });
+});
+
+describe("treinar junto", () => {
+  it("grava um treino por perfil, com o mesmo grupo, e recusa treino que não é de séries", async () => {
+    const [a = "", , , d = ""] = profiles;
+    const groupId = randomUUID();
+    const grupo = {
+      groupId,
+      sessoes: [d, a].map((profileId) => ({ ...sessao(profileId), groupId })),
+    };
+    const r = await saveGroupSession(owner, family, profiles, grupo, "America/Sao_Paulo");
+    expect(r.sessoes).toHaveLength(2);
+    const salvas = await sessoesDoGrupo(owner, groupId);
+    expect(salvas.map((s) => s.profileId).sort()).toEqual([a, d].sort());
+    expect(salvas.every((s) => s.groupId === groupId)).toBe(true);
+    // reenviar o mesmo grupo (fila offline) não duplica
+    await saveGroupSession(owner, family, profiles, grupo, "America/Sao_Paulo");
+    expect(await sessoesDoGrupo(owner, groupId)).toHaveLength(2);
+    // AMRAP tem um relógio só: não vale para treinar junto
+    const outro = randomUUID();
+    await expect(
+      saveGroupSession(
+        owner,
+        family,
+        profiles,
+        {
+          groupId: outro,
+          sessoes: [a, d].map((profileId) => ({
+            ...sessao(profileId),
+            workoutRef: "catalogo:amrap-8",
+            groupId: outro,
+          })),
+        },
+        "America/Sao_Paulo",
+      ),
+    ).rejects.toThrow("só com treino de séries");
+    // um treino do grupo não entra sozinho
+    await expect(
+      saveSession(owner, family, profiles, { ...sessao(a), groupId: outro }, "America/Sao_Paulo"),
+    ).rejects.toThrow("vai junto com o grupo");
   });
 });

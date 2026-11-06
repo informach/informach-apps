@@ -277,8 +277,10 @@ export type Step =
       set: number;
       sets: number;
       label: string;
+      /** treinar junto: de quem é a vez (só no aparelho; o servidor recebe um treino por perfil) */
+      profileId?: string;
     }
-  | { kind: "rest"; seconds: number; label: string; next?: string }
+  | { kind: "rest"; seconds: number; label: string; next?: string; profileId?: string }
   | {
       kind: "amrap";
       seconds: number;
@@ -318,9 +320,15 @@ export const SEM_IMPACTO: Readonly<Record<string, string>> = {
   "corrida-estacionaria": "escalador",
 };
 
-const FATOR: Record<Intensidade, number> = { leve: 0.7, normal: 1, forte: 1.15 };
-const meta = (n: number, intensidade: Intensidade) =>
+/** Fator das metas por intensidade (também o peso de cada perfil no desafio da família). */
+export const FATOR: Readonly<Record<Intensidade, number>> = { leve: 0.7, normal: 1, forte: 1.15 };
+/** A meta ajustada à intensidade do perfil (nunca abaixo de 1). */
+export const metaDaIntensidade = (n: number, intensidade: Intensidade = "normal") =>
   Math.max(1, Math.round(n * FATOR[intensidade]));
+const meta = metaDaIntensidade;
+/** O exercício que o perfil faz no lugar deste ("leve" troca o que tem salto). */
+export const trocaDaIntensidade = (id: string, intensidade: Intensidade = "normal") =>
+  intensidade === "leve" ? (SEM_IMPACTO[id] ?? id) : id;
 
 /** Aquecimento automático: 2 minutos leves antes do treino, sem meta (não conta em trilha). */
 export const AQUECIMENTO = ["corrida-estacionaria", "agachamento", "ponte", "polichinelo"] as const;
@@ -363,7 +371,7 @@ function pick<T>(items: readonly T[], i: number): T {
  */
 export function buildSteps(w: Workout, levels: LevelMap = {}, opcoes: OpcoesDoTreino = {}): Step[] {
   const intensidade = opcoes.intensidade ?? "normal";
-  const troca = (id: string) => (intensidade === "leve" ? (SEM_IMPACTO[id] ?? id) : id);
+  const troca = (id: string) => trocaDaIntensidade(id, intensidade);
   const resolver = (slot: Slot) => {
     const r = resolveSlot(slot, levels);
     return { ...r, exerciseId: troca(r.exerciseId) };
@@ -501,4 +509,55 @@ export function estimateMinutes(w: Workout) {
     return t + (st.target ?? 10) * (c.down + c.bottom + c.up + c.top);
   }, 0);
   return Math.max(1, Math.round(s / 60));
+}
+
+/** Treinar junto só vale para treinos de séries (AMRAP, EMOM e intervalo têm um relógio só). */
+export const soSeries = (w: Workout) => w.blocks.every((b) => b.type === "sets");
+
+export interface Participante {
+  profileId: string;
+  name: string;
+  levels: LevelMap;
+  intensidade: Intensidade;
+}
+
+/**
+ * Treinar junto: as séries de cada bloco em rodízio ("Vez de Ana", "Vez de Beto"), cada um com o
+ * seu nível, a sua intensidade e a sua meta. A vez de um é o descanso do outro: entre as pessoas,
+ * só a troca (5 s); depois da rodada, o descanso do bloco dividido pelo número de pessoas.
+ */
+export function buildGroupSteps(w: Workout, gente: readonly Participante[]): Step[] {
+  const steps: Step[] = [];
+  for (const b of w.blocks) {
+    if (b.type !== "sets") continue;
+    const porPessoa = gente.map((p) => {
+      const r = resolveSlot(b.slot, p.levels);
+      return {
+        p,
+        exerciseId: trocaDaIntensidade(r.exerciseId, p.intensidade),
+        target: metaDaIntensidade(b.target + r.bonus, p.intensidade),
+      };
+    });
+    for (let set = 1; set <= b.sets; set++)
+      porPessoa.forEach((x, i) => {
+        if (steps.length)
+          steps.push({
+            kind: "rest",
+            seconds: i === 0 ? Math.max(10, Math.round(b.rest / gente.length)) : 5,
+            label: `Vez de ${x.p.name}`,
+            next: x.exerciseId,
+            profileId: x.p.profileId,
+          });
+        steps.push({
+          kind: "exercise",
+          exerciseId: x.exerciseId,
+          target: x.target,
+          set,
+          sets: b.sets,
+          label: `Vez de ${x.p.name}`,
+          profileId: x.p.profileId,
+        });
+      });
+  }
+  return steps;
 }

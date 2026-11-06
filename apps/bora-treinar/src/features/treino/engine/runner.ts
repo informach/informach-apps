@@ -11,6 +11,8 @@ export interface SetLog {
   seconds: number;
   /** problemas de execução detectados pela câmera, com contagem */
   issues: Record<string, number>;
+  /** treinar junto: de quem é a série (só no aparelho) */
+  profileId?: string;
 }
 
 export type RunnerEvent =
@@ -304,6 +306,7 @@ export class WorkoutRunner {
     }
     if (this.isTimed) return;
     this.pushLog({
+      ...(s.profileId ? { profileId: s.profileId } : {}),
       exerciseId: s.exerciseId,
       kind: this.isHold ? "hold" : "reps",
       target: s.target,

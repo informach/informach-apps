@@ -63,7 +63,7 @@ Eventos `bora.*` registram o que o titular fez com os perfis, os treinos montado
 - `bora.preferences_updated`: `{ fields }`, só os nomes das preferências alteradas (dias e hora do lembrete, fuso, resumo semanal), sem os valores.
 - `bora.pairing_started` e `bora.pairing_connected` (celular como câmera da TV): nunca incluir o código de pareamento, token, nome do aparelho, IP ou imagem. Ao implementar o emissor, registrar aqui os campos, só IDs técnicos.
 - `bora.trial_started` (o teste de 7 dias começou): payload vazio `{}`. O teste é um por e-mail, controlado pelo hash HMAC do e-mail em `bora_treinar.trial_claims`; nem o e-mail nem o hash entram no evento.
-- `bora.profile_updated` também cobre as preferências de treino do perfil (`intensity`, `weeklyGoal`, `minutesPref`): `fields` lista os nomes, nunca os valores.
+- `bora.profile_updated` também cobre as preferências de treino do perfil (`intensity`, `weeklyGoal`, `minutesPref`) e, no primeiro acesso, os níveis de partida (`levels`): `fields` lista os nomes, nunca os valores.
 
 Finalidade: investigar mudanças na conta da família e atender pedidos de suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores. Esses eventos não são métricas de treino.
 

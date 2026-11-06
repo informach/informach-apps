@@ -19,7 +19,7 @@ export function ResumoSemanalEmail({
     <EmailLayout
       appName="Bora Treinar"
       title="A semana da família"
-      preheader="Treinos, minutos e repetições de cada perfil"
+      preheader="A meta da semana, os treinos e os recordes de cada perfil"
       cta={{ href: `${appUrl}/perfis`, label: "Treinar agora" }}
       unsubscribeUrl={unsubscribeUrl}
     >
@@ -41,9 +41,14 @@ export function ResumoSemanalEmail({
 }
 
 export function LembreteEmail({
+  linhas,
+  sugestao,
   appUrl,
   unsubscribeUrl,
 }: {
+  /** um perfil por linha: "Helena: 1 de 3 dias nesta semana." */
+  linhas: string[];
+  sugestao: string;
   appUrl: string;
   unsubscribeUrl?: string;
 }) {
@@ -51,14 +56,17 @@ export function LembreteEmail({
     <EmailLayout
       appName="Bora Treinar"
       title="Hora de treinar!"
-      preheader="Ninguém da família treinou ainda hoje"
+      preheader={linhas[0] ?? "Ainda falta o treino de hoje"}
       cta={{ href: `${appUrl}/perfis`, label: "Bora treinar" }}
       unsubscribeUrl={unsubscribeUrl}
     >
-      <p style={paragrafo}>
-        Ninguém da família treinou ainda hoje. Dez minutinhos já contam: o Aquecimento 5 minutos ou
-        o Primeiro treino são um bom começo.
-      </p>
+      <p style={paragrafo}>Ainda falta o treino de hoje:</p>
+      {linhas.map((l) => (
+        <p key={l} style={{ ...paragrafo, fontWeight: 600 }}>
+          {l}
+        </p>
+      ))}
+      <p style={{ ...paragrafo, marginTop: "16px" }}>{sugestao}</p>
     </EmailLayout>
   );
 }

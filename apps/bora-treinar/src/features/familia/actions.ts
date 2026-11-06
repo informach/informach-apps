@@ -13,6 +13,9 @@ import {
   portal,
   reactivate,
 } from "../billing/service";
+import { MINUTOS, RITMO_IDS, ritmoPorId } from "../perfil/regras";
+import { salvarPreferencias } from "../perfil/repository";
+import { comecarPerfil } from "../perfil/service";
 import { comecarTeste } from "../teste/service";
 import {
   clearFamily,
@@ -27,6 +30,16 @@ import { familyView, PROFILE_COLORS, PROFILE_COOKIE } from "./view";
 const profileSchema = z.object({
   name: z.string().trim().min(1).max(24),
   color: z.enum(PROFILE_COLORS),
+});
+
+/** Primeiro acesso e edição do jeito de treinar: só preferências de treino, nada de saúde. */
+const respostasSchema = z.object({
+  ritmo: z.enum(RITMO_IDS),
+  minutos: z
+    .number()
+    .refine((m) => (MINUTOS as readonly number[]).includes(m), "Tempo inválido.")
+    .nullable(),
+  dias: z.number().int().min(1, "Pelo menos 1 dia.").max(7, "No máximo 7 dias."),
 });
 
 async function rememberProfile(id: string) {
@@ -61,17 +74,50 @@ export async function createProfileAction(name: string, color: string, fusoDoApa
   });
 }
 
-export async function updateProfileAction(id: string, name: string, color: string) {
+/** Edita o perfil em "Gerenciar": apelido, cor e o jeito de treinar (sem mexer nos níveis). */
+export async function updateProfileAction(
+  id: string,
+  dados: { name: string; color: string } & z.input<typeof respostasSchema>,
+) {
   return runAction(async () => {
     const profileId = z.uuid().parse(id);
-    const input = profileSchema.parse({ name, color });
+    const input = profileSchema.parse({ name: dados.name, color: dados.color });
+    const respostas = respostasSchema.parse(dados);
     const user = await verifiedUser();
     await updateProfile(user.id, profileId, input.name, input.color);
+    await salvarPreferencias(user.id, profileId, {
+      intensity: ritmoPorId(respostas.ritmo).intensidade,
+      weeklyGoal: respostas.dias,
+      minutesPref: respostas.minutos,
+    });
     audit({
       eventType: "bora.profile_updated",
       actorId: user.id,
-      payload: { profileId, fields: ["name", "color"] },
+      payload: { profileId, fields: ["name", "color", "intensity", "weeklyGoal", "minutesPref"] },
     });
+    revalidatePath("/", "layout");
+  });
+}
+
+/** Primeiro acesso do perfil: ritmo, tempo e dias por semana. */
+export async function comecarPerfilAction(id: string, respostas: z.input<typeof respostasSchema>) {
+  return runAction(async () => {
+    const profileId = z.uuid().parse(id);
+    const r = respostasSchema.parse(respostas);
+    const user = await verifiedUser();
+    const { profiles } = await familyView(user.id);
+    await comecarPerfil(
+      user.id,
+      profiles.filter((p) => p.allowed).map((p) => p.id),
+      profileId,
+      r,
+    );
+    audit({
+      eventType: "bora.profile_updated",
+      actorId: user.id,
+      payload: { profileId, fields: ["intensity", "weeklyGoal", "minutesPref", "levels"] },
+    });
+    await rememberProfile(profileId);
     revalidatePath("/", "layout");
   });
 }
