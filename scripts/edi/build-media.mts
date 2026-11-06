@@ -39,6 +39,27 @@ if (!version) throw new Error("FFmpeg source is missing from the media recipe");
 assertCachePath(join(context, "sources"));
 await rm(join(context, "sources"), { recursive: true, force: true });
 await mkdir(join(context, "sources"), { recursive: true });
+/**
+ * A pinned source, retried on network failures only: upstream hosts (ffmpeg.org) sometimes time
+ * out from CI runners. An HTTP error such as 404 is final, and the checksum below still decides.
+ */
+async function download(name: string, url: string): Promise<Buffer> {
+  const attempts = 4;
+  for (let attempt = 1; ; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.warn(`Download of ${name} failed (${attempt}/${attempts}); trying again.`);
+      await new Promise((done) => setTimeout(done, 15000 * attempt));
+      continue;
+    }
+    if (!response.ok) throw new Error(`Cannot download ${name}: HTTP ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
+  }
+}
+
 for (const source of sources) {
   const path = resolve(".cache/edi-media-source-downloads", source.file);
   let bytes: Buffer | undefined;
@@ -48,9 +69,7 @@ for (const source of sources) {
     if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
   }
   if (!bytes) {
-    const response = await fetch(source.url, { signal: AbortSignal.timeout(120000) });
-    if (!response.ok) throw new Error(`Cannot download ${source.name}: HTTP ${response.status}`);
-    bytes = Buffer.from(await response.arrayBuffer());
+    bytes = await download(source.name, source.url);
     await mkdir(resolve(".cache/edi-media-source-downloads"), { recursive: true });
     await writeFile(path, bytes);
   }
