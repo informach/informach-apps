@@ -1,7 +1,7 @@
 # Roupas e acessórios
 
-Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), mais variações feitas a partir delas, servem em todos os corpos, menos no
-recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
+Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), as variações feitas a partir delas e as peças
+geradas aqui (270 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
 três estágios de barriga.
 
 ## Onde fica cada coisa
@@ -46,6 +46,94 @@ Peças feitas aqui:
   na barra. A cor é lisa, no mesmo lugar da paleta da peça de referência.
 - **Vestidos** (`"compoe"`): uma blusa e uma saia, encaixadas e juntadas numa malha só, de uma cor.
 
+## Peças geradas (`"gerar"`)
+
+Feitas aqui, tendo as imagens da vitrine do pacote (personagens de profissões e casuais) como norte. A lista fica em
+`codigo/morada-art/novas_pecas.py`, que reescreve os itens `nov_` e os conjuntos do catálogo:
+```bash
+python3 novas_pecas.py
+```
+O gerador está em `codigo/morada-art/geradores.py`:
+- **`camada`**: roupa feita sobre a própria pele da malha-base da família do corpo.
+  - A região sai dos ossos: tronco, pernas, pés, mãos, cabeça ou corpo.
+  - A camada fica afastada da pele pela `folga` e é cortada nos marcos, com bainha.
+  - Recortes opcionais:
+    - `frente`: só a metade da frente;
+    - `faixa_x`: gravata e alças;
+    - `faixas_x` (pelos marcos do braço): cotoveleira e boia;
+    - `faixas_z` (pelos marcos de altura): cinto, joelheira e cachecol;
+    - `abre_frente`: casaco aberto;
+    - `tras`: só a metade de trás (gola de marinheiro);
+    - `ombro_unico` (1 ou -1): vestido de um ombro, o outro lado vira tomara que caia;
+    - `furos`: rasgados na frente das pernas, em marcos (a pele aparece pelo buraco).
+  - `gola`: a borda do pescoço sobe e, com `dobra`, vira para fora (polo, camisa, jaleco). `cor` deixa a gola de outra
+    cor (jaqueta de aviador, vestido de gola branca).
+  - `lapela`: com `abre_frente`, a borda da abertura dobra para fora, larga em cima (paletó). `cor` faz a lapela de cetim
+    (smoking).
+  - `faixas_cor`: punhos, barra e gola de outra cor (jaqueta colegial, agasalho).
+  - `inflar`: gomos estufados entre costuras (colete salva-vidas).
+  - `boca_sino`: a calça abre do joelho para baixo.
+  - A barra da parte de cima não desce abaixo do gancho. Para uma peça mais comprida, use uma parte `saia` (paletó,
+    casaco).
+  - Nas partes de baixo, o cós fica rente na cintura, para a parte de cima passar por fora (`sem_cos` desliga).
+  - `partes`: várias camadas numa malha só, como a jardineira (calça + peitilho + alças). Uma parte `saia` faz uma saia
+    com a mesma textura: jaleco e casaco longo (`abre_frente`, `folga`), vestido de uniforme, avental (`so_frente`).
+    Outras partes possíveis:
+    - `capuz_caido`: o capuz abaixado atrás do pescoço (moletom, capa de chuva) ou a almofada do salva-vidas;
+    - `fivela`: fivela de cinto ou de alça.
+    - Uma parte com `cor` fica numa cor fixa (alças, fivelas).
+  - Cores fixas: o material `Roupa_Gen_detalhe` (o mesmo atlas de cores) nunca recebe a cor livre (botões, fivelas,
+    lentes, golas de outra cor).
+  - Saias geradas: a seção é um pouco quadrada, para cobrir os cantos do quadril. O alto fica rente, sem degrau na
+    cintura do vestido. Os pontos da saia ficam a pelo menos 13 mm da pele, para a meia-calça passar por dentro.
+  - `padrao`: textura própria, com UV pelo corpo (`biblioteca/roupas_gen/Roupa_Gen_<padrão>.png`). Padrões: liso,
+    listras, listras largas, refletivo, refletivo de bombeiro, faixa lateral, xadrez, poá, floral, acolchoado, botões
+    duplos, faixa no peito, listras verticais, listras de marinheiro, duas cores na lateral, ziguezague, caveiras,
+    folhas, oncinha, lantejoula, jeans e bolso canguru.
+    - Nos padrões com detalhes brancos, o fundo é cinza: a cor livre pinta o fundo e o branco continua branco.
+- **`chapeu`**: feito sobre a cabeça do corpo.
+  - A copa segue a forma da cabeça medida por raios. Opções da copa: `alt`, `inclina`, `teto` (boina), `ponta`
+    (chapéu pontudo) e `capuz`.
+  - Partes que podem ser somadas: `aba` (com `sobe_lados` para o caubói), `viseira` (`atras` para o boné virado),
+    `banda` (com `pontas` para a coroa), `topo`, `puff`, `faixa`, `enrolado`, `pompom`, `orelhas`, `olhos`,
+    `protetores` e `arco` (tiara, com `babado`).
+  - Copa e partes ganharam mais opções:
+    - na copa: `vinco` (fedora);
+    - na aba: `sobe_tras` (fedora) e `ondas` (chapéu de praia);
+    - `orelhas_redondas` (touca de urso);
+    - no `arco`: `orelhas_longas` (orelhas de coelho).
+  - Formas próprias:
+    - `boina`: faixa justa, corpo estufado mais largo que a cabeça, alto caído para um lado e um pininho;
+    - `capuz`: envolve a cabeça, faz uma pontinha atrás, cai sobre os ombros, com a abertura do rosto oval e borda
+      dobrada.
+  - As cores lisas ficam num atlas (`Roupa_Gen_atlas`). A cor livre pinta a parte de maior área.
+- **`oculos`**: feitos no rosto.
+  - Partes: duas lentes (`forma`: redondo, quadrado, gatinho ou aviador) ou uma `viseira` esportiva, a ponte e as
+    hastes até as orelhas.
+  - A armação recebe a cor livre. As lentes têm cor fixa (`lente`: uma cor ou `[esquerda, direita]`, como nos óculos 3D;
+    sem `lente`, só a armação).
+- **`objeto`** (`tipo: "mao"`, slots `mao_dir` e `mao_esq`): objetos de mão.
+  - Os objetos: celular, copo de café, microfone, sorvete, picolé, câmera, livro, buquê, bengala, guarda-chuva, bolsa,
+    maleta, mala de rodinhas e sacolas.
+  - São feitos no referencial da mão, em unidades do tamanho da mão `s` (do punho até a base do dedo médio):
+    - origem na base do dedo médio;
+    - X ao longo dos dedos (para baixo com o braço solto);
+    - Z para o lado da palma: direita `Z = (Indicador1 − Mínimo1) × X`, esquerda `Z = X × (Indicador1 − Mínimo1)`;
+    - Y = Z × X.
+  - No corpo: ponto = base do dedo médio + s·(x·X + y·Y + z·Z), preso só ao osso da mão (`geradores.referencial_mao`,
+    `referencialMao` na página). O objeto acompanha o tamanho da mão: na criança fica menor.
+  - Com um objeto na mão, a página fecha os dedos em volta dele a cada quadro (`fechaDedos`): cada falange gira de X
+    para a palma, mais no mínimo e menos no polegar. O jogo deve fazer o mesmo.
+
+Slots novos:
+- `sobre`: casaco ou colete por cima da parte de cima (jaleco, casaco longo, cardigã, salva-vidas, paletó, capa de
+  chuva);
+- `mao_dir` e `mao_esq`: objetos de mão;
+- `cotovelos`, `joelhos`, `cintura`, `alcas`, `avental`, `pescoco_peca` e `rosto_peca`.
+
+Uma peça `inteira` esconde a parte de cima e a de baixo. Com `"cobre": ["baixo"]`, esconde só a de baixo, e a blusa
+continua à mostra (jardineira).
+
 ## Cor livre
 
 Toda peça tem uma máscara (`roupas_mascaras/<id>__<material>.png`, cinza, 512 px) da parte da paleta com a cor
@@ -60,9 +148,11 @@ Por isso não existem cópias de peças só para mudar a cor: qualquer cor serve
 
 ## Conjuntos
 
-`conjuntos` no catálogo: profissões e estilos prontos (executivo, médico, chef, operário, segurança, garçom,
-esportista, Papai Noel, fazendeiro, mágico, palhaço, aventureiro, praia, inverno). Cada um diz a peça e a cor de cada
-slot.
+`conjuntos` no catálogo: 70 profissões e estilos prontos. Exemplos: médico, cirurgião, enfermeiro, cientista, chef,
+garçom, policial, bombeiro, socorrista, gari, operário, eletricista, mecânico, jardineiro, fazendeiro, caubói, professor,
+carteiro, piloto, capitão, salva-vidas, ciclista, skatista, tenista, detento, paciente, camareira, detetive, mágico,
+rei, bruxo e Papai Noel, mais os casuais (praia, inverno, chuva, academia, social, piquenique...). Cada um diz a peça e
+a cor de cada slot. Ficam em `novas_pecas.py`, que confere se cada peça existe e está no slot certo.
 
 ## Pele embaixo da roupa
 
@@ -89,7 +179,8 @@ cobertos. O cálculo usa as posições pelo esqueleto. O jogo deve fazer o mesmo
    python veste.py -- corpos.blend <id>
    ```
    Para refazer uma peça que já existe, use `REFAZ=1`.
-3. Exporte os corpos (`corpo_exporta.py`) e rode `biblioteca_pacote.py`.
+3. Exporte o item (`exporta_itens.py -- <saida> <id>`) e rode `biblioteca_pacote.py`. Os corpos não mudam.
+   Peça gerada: acrescente em `novas_pecas.py` (não direto no `roupas.json`) e rode `python3 novas_pecas.py` antes.
 
 Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa vestida, na mesma pose da malha.
 
@@ -97,14 +188,59 @@ Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa 
 
 - **Textura na barriga:** na barriga de grávida a textura da frente estica junto com a peça. Na camiseta fica natural.
   Em paletó aberto e cinto de fivela, a parte da frente aumenta.
-- **Chapéus e cabelo:** os chapéus não escondem o cabelo. Com cabelo volumoso, escolha um penteado curto ou raspado.
+- **Chapéus e cabelo:** com chapéu, a página não desenha o cabelo acima da linha da aba e usa a versão "para chapéu"
+  do penteado. O que fica abaixo da aba aparece. No arquivo-mestre (Blender) o cabelo continua inteiro. Tiara, arco,
+  faixa e coroa ficam por cima do cabelo (`"achata": false`).
+- **Objetos de mão:** seguem a mão. Numa animação com a mão em outra posição (acenar, apontar), o objeto vai junto.
 - **Peças largas:** saia, fantasia e casaco comprido seguem a perna mais perto. Em passos largos, podem atravessar um
   pouco a outra perna.
 
-## Para o jogo (recomendado)
+## Peças em arquivos separados (a página já usa; recomendado para o jogo)
 
-Como no cabelo:
-- uma malha por peça, carregada só quando alguém escolhe;
-- por corpo, a ligação da peça com a pele (triângulo, posição e distância).
+Os corpos não carregam mais as peças: cada peça e cada cabelo é um arquivo próprio, carregado quando alguém escolhe, e
+montado no corpo na hora. Uma peça nova entra sem regerar os corpos.
 
-Assim uma peça nova entra sem regerar os corpos.
+- `tools/exporta_itens.py -- <saida> todos`: encaixa cada item uma vez em cada malha-base (famílias m, f e p) e grava
+  `itens/<id>.txt`. Grava também `familias.txt`, com os triângulos e as áreas de cada família e a caixa da cabeça.
+  - Formato do item: gzip + base64 de `"MIT1"`, u32 com o tamanho do cabeçalho, cabeçalho JSON e blocos binários.
+  - Peças `pele`, por ponto e por família: triângulo da malha-base (`<fam>_tri`, u16), baricêntricas (`<fam>_bar`, u16
+    ÷ 65535) e deslocamento no referencial do triângulo (`<fam>_off`, i16 × 0,05 mm).
+  - Peças `cabeca`: posição na caixa da cabeça (`<fam>_pos`, de 0 a 1).
+  - UV (`uv`) e triângulos (`idx`) entram uma vez. Quando a geometria sai em outra ordem numa família, essa família
+    ganha os próprios (`proprios`).
+- `tools/peles.py -- <corpos.blend> <pasta dos GLB> <saida peles.txt>`: diz, para cada corpo, a família, a ordem dos
+  vértices do GLB, a transformação para o espaço do GLB e a caixa da cabeça.
+- `tools/corpo_exporta.py` com `SEM_ITENS=1`: os corpos sem as peças dos catálogos. Ficam o cabelo do corpo e o
+  raspado.
+- Montagem no corpo, peça `pele`, para cada ponto:
+  ```
+  ponto = p + s·(e1·o₀ + e2·o₁ + n·o₂)
+  ```
+  - p e n são interpolados no triângulo do corpo. As normais dos vértices são somadas pelas áreas.
+  - e1 é a aresta 0→1 tirada a parte na direção de n; e2 = n × e1.
+  - s = √(área no corpo ÷ área na malha-base).
+  - Pesos: os dos três vértices da pele, pelas baricêntricas (os quatro maiores).
+  - Grávida: a mesma conta com as formas `gravidez_1..3` aplicadas no corpo dá as formas da peça.
+  - Folga contra a pele em volta: para cada ponto (com o₂ > 0), cada vértice q do triângulo e dos vizinhos dele, com
+    h = (q − ponto)·n e distância lateral até 2,5·√(área), empurra o ponto pela normal até h ficar ≤ −c. Aqui
+    c = mín(4 mm·s, 0,85·o₂). Assim a pele que estica e sobe entre os pontos da peça (umbigo, parte de baixo da barriga)
+    não atravessa a roupa justa. No arquivo-mestre, a peça é afastada da pele de verdade (o ponto, o meio das arestas e
+    o centro das faces) em cada forma.
+- Montagem no corpo, peça `cabeca`: a posição volta da caixa da cabeça da família para a caixa da cabeça do corpo, presa
+  só ao osso Head.
+- Objetos de mão (`tipo: "mao"`): um bloco `loc` (f32) com os pontos no referencial da mão, igual em todas as famílias.
+  O cabeçalho diz `mao` (dir ou esq).
+
+## Miniaturas
+
+Cada item tem uma imagem (192 px, fundo transparente), e a página escolhe as peças, os cabelos e as barbas por ela,
+com o nome embaixo.
+- Feita por `tools/miniaturas_itens.py -- <saida> todos`:
+  - o item é encaixado na malha-base feminina, na cor inicial do catálogo;
+  - cabelos, barbas e bigodes aparecem numa cabeça lisa;
+  - objetos de mão aparecem em pé.
+- Ficam em `biblioteca/miniaturas_itens/<id>.webp`. Para a página, `biblioteca_pacote.py` junta todas em
+  `miniaturas_itens.json`. As máscaras de cor também vão num arquivo só (`roupas/mascaras_png.json`).
+
+No jogo, faça igual: a mesma conta, os mesmos arquivos. A página (`corpos.html`, funções `montarItem`, `prepararPele`
+e `posicoesPeca`) é a referência.

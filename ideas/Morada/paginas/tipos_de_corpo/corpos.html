@@ -74,6 +74,27 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 .roupa-slots select:disabled { opacity: 0.5; }
 .roupa-cores { grid-column: 1 / -1; margin: -2px 0 6px; }
 .roupa-cores .amostra { width: 22px; height: 22px; }
+/* seletor por imagem: o botão mostra a escolha atual; abre uma grade de miniaturas com o nome embaixo */
+.sel-img { display: grid; gap: 6px; grid-column: 1 / -1; min-width: 0; }
+.sel-img > .sel-atual { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; text-align: left;
+  padding: 4px 10px 4px 4px; border-radius: 10px; width: 100%; }
+.sel-img > .sel-atual[aria-pressed="true"] { background: var(--chip); color: var(--fg); }
+.sel-img > .sel-atual[aria-expanded="true"] { border-color: var(--acento); }
+.sel-img .sel-rot { display: grid; line-height: 1.2; min-width: 0; }
+.sel-img .sel-rot small { color: var(--suave); font-size: 12px; }
+.sel-img .sel-rot span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-img .sel-seta { color: var(--suave); font-size: 12px; }
+.sel-img .sel-thumb { width: 44px; height: 44px; border-radius: 8px; background: var(--mini); object-fit: contain; display: grid;
+  place-items: center; font-size: 18px; color: var(--suave); overflow: hidden; }
+.sel-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); grid-auto-rows: max-content;
+  align-content: start; gap: 6px; max-height: 300px; overflow-y: auto; padding: 2px; overscroll-behavior: contain; flex-shrink: 0; }
+.sel-grade[hidden] { display: none; }
+.sel-grade button { display: grid; justify-items: center; gap: 2px; padding: 4px 3px 6px; border-radius: 10px; font-size: 11.5px;
+  line-height: 1.15; text-align: center; align-content: start; }
+.sel-grade button[aria-pressed="true"] { background: var(--mini); color: var(--fg); border-color: var(--acento);
+  box-shadow: 0 0 0 1px var(--acento) inset; }
+.sel-grade .sel-thumb { width: 64px; height: 64px; }
+.sel-img.desligado > .sel-atual { opacity: 0.5; cursor: not-allowed; }
 select.lista { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
   background: var(--chip); color: var(--fg); width: 100%; }
 </style>
@@ -191,6 +212,7 @@ const penteadosDe = (id) => {
   return Object.fromEntries([["cabelo", rotuloPelo(orig)], ...itens, ["cabelo_raspado", rotuloPelo("cabelo_raspado")],
     ["careca", rotuloPelo("careca")]]);
 };
+const permitidoCab = (k, corpo) => { const x = CAT.itens.find((y) => y.id === k); if (!x) return false; const so = x.so && (CAT.grupos[x.so] || [x.so]); return !so || so.includes(corpo); };
 const pelosDoRosto = () => [["nenhum", rotuloPelo("nenhum")], ...CAT.itens.filter((x) => x.tipo === "rosto").map((x) => [x.id, x.rotulo])];
 const MANTA_CORES = { "Creme": "#f6efe2", "Branco": "#fbfbf8", "Rosa-bebê": "#f4cfd6", "Azul-bebê": "#c9dcf0", "Verde-água": "#c4e4dc",
   "Amarelo-claro": "#f5e7b8", "Cinza": "#cfcfcf" };
@@ -562,15 +584,79 @@ function copiarVisivel(de, para) {
 }
 const ehRecem = () => semAnimacoes(atual.id);
 const corCabelo = () => (ehRecem() ? estado.cabeloCor : estado.corCabeloAdulto ?? COR_PADRAO[atual.id] ?? "Castanho");
+// com chapéu, o penteado vira a versão achatada dele ("_chapeu"), para o cabelo não atravessar a copa;
+// faixa, viseira, tiara, arco e coroa ficam sobre o cabelo ("achata": false no catálogo)
+function penteadoEfetivo() {
+  const k = estado.penteado || "cabelo";
+  const ch = estado.roupa?.cabeca && CAT_ROUPA.itens.find((x) => x.id === estado.roupa.cabeca);
+  if (!ch || ch.achata === false || k === "careca" || k === "cabelo_raspado" || k.endsWith("_chapeu")) return k;
+  const base = k === "cabelo" ? CAT.originais[atual.id === "plus_m" ? "p" : CORPOS.find((x) => x.id === atual.id).sexo === "f" ? "f" : "m"] : k;
+  return CAT.itens.some((x) => x.id === base + "_chapeu") ? base + "_chapeu" : k;
+}
+// chapéu que cobre a cabeça: o cabelo acima da linha da aba não é desenhado (o que fica abaixo dela aparece). O plano
+// sai da caixa da cabeça do corpo (peles.txt) e do corte da copa no catálogo, inclinado como a aba (nuca mais baixa).
+function corteChapeu() {
+  const it = estado.roupa?.cabeca && CAT_ROUPA.itens.find((x) => x.id === estado.roupa.cabeca);
+  if (!it || it.achata === false) return null;
+  const cp = it.gerar?.tipo === "chapeu" ? it.gerar.copa || {} : { corte: 0.62, inclina: 0.1 };
+  return { f: Math.max((cp.corte ?? 0.55) - 0.02, 0.4), inc: cp.inclina ?? 0.12 };
+}
+function prepararCorteCabelo(mat) {
+  if (mat.userData.corte) return mat.userData.corte;
+  const u = { uCorteP: { value: new THREE.Vector3() }, uCorteN: { value: new THREE.Vector3(0, 1, 0) }, uCorteUsa: { value: 0 } };
+  mat.userData.corte = u;
+  const antes = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (antes) antes.call(mat, sh, r);
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = "uniform vec3 uCorteP; uniform vec3 uCorteN; varying float vCorte;\n" + sh.vertexShader.replace(
+      "#include <begin_vertex>", "#include <begin_vertex>\n vCorte = dot(position - uCorteP, uCorteN);");
+    sh.fragmentShader = "uniform float uCorteUsa; varying float vCorte;\n" + sh.fragmentShader.replace(
+      "#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\n if (uCorteUsa > 0.5 && vCorte > 0.0) discard;");
+  };
+  mat.customProgramCacheKey = () => "corteCabelo";
+  mat.needsUpdate = true;
+  return u;
+}
+function aplicarCorteCabelo() {
+  const c = atual, ct = corteChapeu();
+  if (ct && !c.ligPele) { baseItens().then((b) => { prepararPele(c, b); if (atual === c) aplicarCorteCabelo(); }); return; }
+  const barbas = new Set(Object.entries(c.estilos || {}).filter(([k]) => ehRosto(k)).map(([, o]) => o));
+  let P = null, N = null;
+  if (ct) {
+    const [hmin, hmax] = c.ligPele.pel.cabeca, M = c.ligPele.pel.afim, H = hmax[2] - hmin[2], L = hmax[1] - hmin[1];
+    const ap = (q) => new THREE.Vector3(...[0, 1, 2].map((r) => M[r][0] * q[0] + M[r][1] * q[1] + M[r][2] * q[2] + M[r][3]));
+    const dir = (q) => new THREE.Vector3(...[0, 1, 2].map((r) => M[r][0] * q[0] + M[r][1] * q[1] + M[r][2] * q[2]));
+    const cx = (hmin[0] + hmax[0]) / 2, zf = hmin[2] + ct.f * H, zb = zf - ct.inc * H;
+    P = ap([cx, hmin[1], zf]);
+    N = new THREE.Vector3().crossVectors(dir([1, 0, 0]), dir([0, L, zb - zf])).normalize();
+    if (N.dot(dir([0, 0, 1])) < 0) N.negate();
+  }
+  for (const o of c.cabelo) {
+    if (barbas.has(o)) continue;
+    for (const m of [].concat(o.material)) {
+      const u = prepararCorteCabelo(m);
+      u.uCorteUsa.value = ct ? 1 : 0;
+      if (ct) { u.uCorteP.value.copy(P); u.uCorteN.value.copy(N); }
+    }
+  }
+}
 function aplicarCabelo() {
   const cor = corCabelo(), hex = CABELO_CORES[cor] ?? cor;
-  for (const o of atual.cabelo) o.material.color.set(hex);
+  for (const o of atual.cabelo) for (const m of [].concat(o.material)) m.color.set(hex);
   if (ehRecem()) {
     for (const o of atual.cabelo) o.visible = estado.cabeloTipo !== "careca";
     if (atual.gorro) atual.gorro.visible = estado.cabeloTipo === "gorro";
   } else {
-    const est = atual.estilos[estado.penteado] || estado.penteado === "careca" ? estado.penteado : "cabelo";
+    const c = atual, pent = penteadoEfetivo(), faltam = [pent, estado.barba].filter((k) => k && k !== "careca" && k !== "nenhum" && k !== "cabelo"
+      && !c.estilos[k] && CAT.itens.some((x) => x.id === k));
+    c.tentados ||= new Set();
+    const novos = faltam.filter((k) => !c.tentados.has(k));
+    novos.forEach((k) => c.tentados.add(k));
+    if (novos.length) { Promise.all(novos.map((k) => montarItem(c, k).catch(() => null))).then(() => { if (atual === c) aplicarCabelo(); }); }
+    const est = atual.estilos[pent] || pent === "careca" ? pent : "cabelo";
     for (const [k, o] of Object.entries(atual.estilos)) o.visible = ehRosto(k) ? k === estado.barba : k === est;
+    aplicarCorteCabelo();
   }
   for (const o of atual.tecido) o.material.color.set(MANTA_CORES[estado.manta] ?? estado.manta);
   if (par) copiarVisivel(atual.raiz, par.raiz);
@@ -584,27 +670,28 @@ function desenharCabelo() {
     chips(tipoEl, Object.entries(CABELO_TIPOS), estado.cabeloTipo, (k) => { estado.cabeloTipo = k; aplicarCabelo(); desenharCabelo(); });
   } else {
     const nomes = penteadosDe(atual.id);
-    const opcoes = Object.entries(nomes).filter(([k]) => k === "careca" || atual.estilos[k]);
+    const opcoes = Object.entries(nomes).filter(([k]) => k === "careca" || atual.estilos[k] || CAT.itens.some((x) => x.id === k));
     const atualK = opcoes.some(([k]) => k === estado.penteado) ? estado.penteado : "cabelo";
-    // muitos penteados: uma lista de escolha
+    // muitos penteados: escolha por imagem ("cabelo" é o original do corpo: a miniatura dele no catálogo)
     tipoEl.replaceChildren();
-    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Penteado");
-    for (const [k, rot] of opcoes) sel.append(new Option(rot, k));
-    sel.value = atualK;
-    sel.onchange = () => { estado.penteado = sel.value; aplicarCabelo(); desenharCabelo(); };
-    tipoEl.append(sel);
+    const orig = CAT.originais[atual.id === "plus_m" ? "p" : CORPOS.find((x) => x.id === atual.id).sexo === "f" ? "f" : "m"];
+    const ops = opcoes.map(([k, rot]) => ({ k, rotulo: rot, mini: k === "cabelo" ? orig : k, marca: k === "careca" ? "○" : undefined }));
+    tipoEl.append(seletorImagem("penteado", "Penteado", ops, atualK, (k) => {
+      if (k !== null) { estado.penteado = k; aplicarCabelo(); }
+      desenharCabelo();
+    }));
   }
   const rostoEl = document.getElementById("cabelo-rosto");
-  const pelos = ehRecem() ? [] : pelosDoRosto().filter(([k]) => k === "nenhum" || atual.estilos[k]);
+  const pelos = ehRecem() ? [] : pelosDoRosto().filter(([k]) => k === "nenhum" || atual.estilos[k] || permitidoCab(k, atual.id));
   rostoEl.hidden = pelos.length < 2;
   if (rostoEl.hidden) rostoEl.replaceChildren();
   else {
     rostoEl.replaceChildren();
-    const sel = document.createElement("select"); sel.className = "lista"; sel.setAttribute("aria-label", "Barba e bigode");
-    for (const [k, rot] of pelos) sel.append(new Option(rot, k));
-    sel.value = pelos.some(([k]) => k === estado.barba) ? estado.barba : "nenhum";
-    sel.onchange = () => { estado.barba = sel.value; aplicarCabelo(); desenharCabelo(); };
-    rostoEl.append(sel);
+    const ops = pelos.map(([k, rot]) => ({ k, rotulo: rot, mini: k }));
+    rostoEl.append(seletorImagem("barba", "Barba e bigode", ops, pelos.some(([k]) => k === estado.barba) ? estado.barba : "nenhum", (k) => {
+      if (k !== null) { estado.barba = k; aplicarCabelo(); }
+      desenharCabelo();
+    }));
   }
   const el = document.getElementById("cabelo-cor");
   el.replaceChildren();
@@ -670,6 +757,11 @@ function roupaDe(o) {
   for (let x = o; x; x = x.parent) if (x.userData?.roupa) return x.userData.roupa;
   return null;
 }
+// a peça inteira esconde a parte de cima e a de baixo (a jardineira, só a de baixo: "cobre" no catálogo)
+const slotsCobertos = () => {
+  const it = estado.roupa.inteira && CAT_ROUPA.itens.find((x) => x.id === estado.roupa.inteira);
+  return it ? (it.cobre || ["cima", "baixo"]) : [];
+};
 const slotDe = (rid) => CAT_ROUPA.itens.find((x) => x.id === rid)?.slot;
 // cor livre: cada peça tem uma máscara (roupas/mascaras.json) da parte da paleta com a cor principal; o shader pinta
 // essa parte com a cor escolhida, mantendo o sombreado (cor × luminância do pixel ÷ luminância da cor principal)
@@ -680,9 +772,12 @@ let MASC = {};
 fetch("roupas/mascaras.json").then((r) => r.json()).then((j) => { MASC = j; if (atual) aplicarRoupa(); }).catch(() => {});
 const TEX_VAZIA = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); TEX_VAZIA.needsUpdate = true;
 const _texMasc = new Map();
+// as máscaras vêm todas num arquivo só (roupas/mascaras_png.json: nome → PNG em base64), carregado uma vez
+let MASC_PNG = null;
 function texturaMascara(nome) {
+  MASC_PNG ||= fetch("roupas/mascaras_png.json").then((r) => r.json()).catch(() => ({}));
   if (!_texMasc.has(nome)) {
-    _texMasc.set(nome, new THREE.TextureLoader().loadAsync(`roupas/${nome}`)
+    _texMasc.set(nome, MASC_PNG.then((j) => new THREE.TextureLoader().loadAsync(j[nome] ? `data:image/png;base64,${j[nome]}` : `roupas/${nome}`))
       .then((t) => { t.flipY = false; t.colorSpace = THREE.NoColorSpace; return t; }).catch(() => null));
   }
   return _texMasc.get(nome);
@@ -703,20 +798,278 @@ function prepararCorRoupa(mat) {
   mat.customProgramCacheKey = () => "roupa_cor";
 }
 function aplicarCorRoupa(rid, malhas, cor) {
-  for (const m of malhas) {
-    const u = m.material.userData.cor;
+  for (const mat of malhas.flatMap((m) => (Array.isArray(m.material) ? m.material : [m.material]))) {
+    const u = mat.userData.cor;
     if (!u) continue;
-    const info = MASC[rid]?.[m.material.name];
+    const info = MASC[rid]?.[mat.name];
     if (!cor || !info) { u.uUsa.value = 0; continue; }
     u.uCor.value.set(cor); u.uLum.value = info.lum;
     texturaMascara(info.mascara).then((t) => { if (t) { u.uMasc.value = t; u.uUsa.value = 1; } });
   }
 }
+// ---------------------------------------------------------------- peças montadas na hora (tools/exporta_itens.py)
+// Cada peça do catálogo vem num arquivo próprio, ligada à pele das três malhas-base (m, f, p). Aqui ela é montada no
+// corpo escolhido: o ponto da peça fica no mesmo triângulo da pele, com o deslocamento no referencial do triângulo
+// (proporcional ao tamanho dele), recalculado com as formas de gravidez; os pesos do esqueleto são os da pele embaixo.
+// Chapéus, óculos e cabelos vão para a caixa da cabeça do corpo, presos ao osso Head.
+async function txtGz(url) {
+  const txt = await (await fetch(url)).text();
+  const gz = Uint8Array.from(atob(txt.trim()), (ch) => ch.charCodeAt(0));
+  return new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+let BASE_ITENS = null;
+function baseItens() {
+  BASE_ITENS ||= Promise.all([txtGz("itens/familias.txt"), txtGz("itens/peles.txt")]).then(([f, p]) => {
+    const dec = new TextDecoder();
+    const fam = JSON.parse(dec.decode(f)), pel = JSON.parse(dec.decode(p));
+    for (const k of Object.keys(fam)) { fam[k].T = Uint32Array.from(fam[k].tris); fam[k].A = Float64Array.from(fam[k].areas); }
+    return { fam, pel };
+  });
+  return BASE_ITENS;
+}
+const _itens = new Map();
+function dadosItem(id) {
+  if (!_itens.has(id)) {
+    _itens.set(id, txtGz(`itens/${id}.txt`).then((buf) => {
+      const dv = new DataView(buf);
+      const hl = dv.getUint32(4, true);
+      const cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
+      const ini = 8 + hl, tipos = { uint16: Uint16Array, int16: Int16Array, uint32: Uint32Array, float32: Float32Array };
+      const b = {};
+      for (const [nome, [o, n, t]] of Object.entries(cab.blocos)) b[nome] = new tipos[t](buf.slice(ini + o, ini + o + n));
+      return { cab, b };
+    }));
+  }
+  return _itens.get(id);
+}
+function prepararPele(c, base) {
+  if (c.ligPele) return c.ligPele;
+  const pel = base.pel[c.id], fam = base.fam[pel.familia];
+  const g = c.corpoMesh.geometry, pos = g.attributes.position;
+  const b2g = Uint32Array.from(pel.b2g), nv = b2g.length;
+  const posicoes = (delta) => { // posições na ordem do Blender (espaço da malha no GLB), com uma forma do corpo
+    const P = new Float64Array(nv * 3);
+    for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) P[i * 3 + k] = pos.array[b2g[i] * 3 + k] + (delta ? delta.array[b2g[i] * 3 + k] : 0);
+    return P;
+  };
+  const formas = {};
+  if (g.morphAttributes.position && c.corpoMesh.morphTargetDictionary) {
+    for (const [nome, k] of Object.entries(c.corpoMesh.morphTargetDictionary)) formas[nome] = g.morphAttributes.position[k];
+  }
+  const bones = c.corpoMesh.skeleton.bones.map((b) => b.name);
+  c.ligPele = { pel, fam, b2g, posicoes, formas, cabecaOsso: bones.indexOf("Head") };
+  return c.ligPele;
+}
+function normaisDe(P, T, nv) {
+  const N = new Float64Array(nv * 3);
+  for (let t = 0; t < T.length; t += 3) {
+    const a = T[t] * 3, b = T[t + 1] * 3, d = T[t + 2] * 3;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+    const vx = P[d] - P[a], vy = P[d + 1] - P[a + 1], vz = P[d + 2] - P[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const q of [a, b, d]) { N[q] += nx; N[q + 1] += ny; N[q + 2] += nz; }
+  }
+  for (let i = 0; i < nv; i++) { const l = Math.hypot(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]) || 1; N[i * 3] /= l; N[i * 3 + 1] /= l; N[i * 3 + 2] /= l; }
+  return N;
+}
+// vizinhos de cada vértice da malha-base (uma vez por família): para a folga da peça contra a pele em volta
+function vizinhosDe(fam) {
+  if (fam.viz) return fam.viz;
+  const nv = fam.T.reduce((m, x) => Math.max(m, x), 0) + 1, viz = Array.from({ length: nv }, () => new Set());
+  for (let t = 0; t < fam.T.length; t += 3) for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) viz[fam.T[t + a]].add(fam.T[t + b]);
+  fam.viz = viz.map((x) => Int32Array.from(x));
+  return fam.viz;
+}
+// referencial da mão na pose de descanso, no espaço da malha do corpo: origem na base do dedo médio, X para os dedos,
+// Z para a palma, Y = Z × X; s = do punho até a base do dedo médio (igual a geradores.referencial_mao)
+function referencialMao(corpo, lado) {
+  const L = lado === "dir" ? "Right" : "Left", sk = corpo.skeleton;
+  const idx = (n) => sk.bones.findIndex((b) => b.name === n);
+  // a posição de cada junta no espaço da geometria (antes do esqueleto): a transformação de pele do osso da mão,
+  // desfeita, sobre a posição atual da junta no mundo (vale em qualquer pose e em qualquer convenção do arquivo)
+  corpo.updateMatrixWorld(true);
+  const ih = idx(L + "Hand");
+  const S = new THREE.Matrix4().multiplyMatrices(corpo.bindMatrixInverse,
+    new THREE.Matrix4().multiplyMatrices(sk.bones[ih].matrixWorld, sk.boneInverses[ih])).multiply(corpo.bindMatrix);
+  const desfaz = S.invert().multiply(new THREE.Matrix4().copy(corpo.matrixWorld).invert());
+  const pos = (n) => sk.bones[idx(n)].getWorldPosition(new THREE.Vector3()).applyMatrix4(desfaz);
+  const H = pos(L + "Hand"), M1 = pos(L + "HandMiddle1"), I1 = pos(L + "HandIndex1"), P1 = pos(L + "HandPinky1");
+  const X = M1.clone().sub(H).normalize(), t = I1.clone().sub(P1);
+  const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize(), Y = Z.clone().cross(X).normalize();
+  return { O: M1.toArray(), X: X.toArray(), Y: Y.toArray(), Z: Z.toArray(), s: M1.distanceTo(H), osso: idx(L + "Hand") };
+}
+// com um objeto na mão, os dedos fecham em volta dele (depois da animação, a cada quadro)
+const _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _ax = new THREE.Vector3(), _pa = new THREE.Vector3(),
+  _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pd = new THREE.Vector3();
+function fechaDedos(c) {
+  if (!c || !c.roupas) return;
+  for (const lado of ["dir", "esq"]) {
+    const rid = estado.roupa["mao_" + lado];
+    if (!rid || !c.roupas[rid]?.[0]?.visible) continue;
+    const L = lado === "dir" ? "Right" : "Left";
+    c.dedos ||= {};
+    if (!c.dedos[L]) {
+      const b = {};
+      c.raiz.traverse((o) => { if (o.isBone && o.name.startsWith(L + "Hand")) b[o.name.slice(L.length + 4)] = o; });
+      c.dedos[L] = b;
+    }
+    const b = c.dedos[L];
+    if (!b[""] || !b.Middle1 || !b.Index1 || !b.Pinky1) continue;
+    b[""].getWorldPosition(_pa); b.Middle1.getWorldPosition(_pb); b.Index1.getWorldPosition(_pc); b.Pinky1.getWorldPosition(_pd);
+    const X = _pb.clone().sub(_pa).normalize(), t = _pc.clone().sub(_pd);
+    const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize();
+    const eixo = X.clone().cross(Z).normalize(); // gira os dedos de X para a palma
+    const curva = { Index: [0.95, 1.0], Middle: [1.0, 1.05], Ring: [1.05, 1.05], Pinky: [1.1, 1.05], Thumb: [0.35, 0.4] };
+    for (const [dedo, ang] of Object.entries(curva)) {
+      for (let k = 1; k <= 2; k++) {
+        const o = b[dedo + k];
+        if (!o) continue;
+        // a animação que não mexe nos dedos deixa o valor do quadro anterior: volta ao de antes de fechar
+        if (o.userData.qDedo && o.quaternion.equals(o.userData.qDedo)) o.quaternion.copy(o.userData.qBase);
+        else o.userData.qBase = o.quaternion.clone();
+        o.updateMatrixWorld(true);
+        o.getWorldQuaternion(_qw);
+        _ax.copy(eixo).applyQuaternion(_qw.invert());
+        o.quaternion.multiply(_qd.setFromAxisAngle(_ax.normalize(), ang[k - 1]));
+        o.userData.qDedo = o.quaternion.clone();
+      }
+    }
+    b[""].updateMatrixWorld(true);
+  }
+}
+function posicoesPeca(P, fam, tri, bar, off) { // a peça sobre uma pele P (ordem do Blender)
+  const T = fam.T, A = fam.A, nv = P.length / 3, N = normaisDe(P, T, nv), n = tri.length, out = new Float32Array(n * 3);
+  const viz = vizinhosDe(fam);
+  for (let j = 0; j < n; j++) {
+    const t = tri[j] * 3, ia = T[t] * 3, ib = T[t + 1] * 3, ic = T[t + 2] * 3;
+    const b0 = bar[j * 2] / 65535, b1 = bar[j * 2 + 1] / 65535, b2 = 1 - b0 - b1;
+    const p = [0, 1, 2].map((k) => b0 * P[ia + k] + b1 * P[ib + k] + b2 * P[ic + k]);
+    let nn = [0, 1, 2].map((k) => b0 * N[ia + k] + b1 * N[ib + k] + b2 * N[ic + k]);
+    const ln = Math.hypot(...nn) || 1; nn = nn.map((x) => x / ln);
+    let e1 = [0, 1, 2].map((k) => P[ib + k] - P[ia + k]);
+    const d1 = e1[0] * nn[0] + e1[1] * nn[1] + e1[2] * nn[2]; e1 = e1.map((x, k) => x - nn[k] * d1);
+    const l1 = Math.hypot(...e1) || 1; e1 = e1.map((x) => x / l1);
+    const e2 = [nn[1] * e1[2] - nn[2] * e1[1], nn[2] * e1[0] - nn[0] * e1[2], nn[0] * e1[1] - nn[1] * e1[0]];
+    const u = [0, 1, 2].map((k) => P[ib + k] - P[ia + k]), v = [0, 1, 2].map((k) => P[ic + k] - P[ia + k]);
+    const area = 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]);
+    const s = Math.sqrt(area / Math.max(A[tri[j]], 1e-12));
+    const o0 = off[j * 3] * 0.00005 * s, o1 = off[j * 3 + 1] * 0.00005 * s, o2 = off[j * 3 + 2] * 0.00005 * s;
+    const g = [0, 1, 2].map((k) => p[k] + e1[k] * o0 + e2[k] * o1 + nn[k] * o2);
+    // folga: nenhum vértice da pele em volta (o triângulo e os vizinhos) fica a menos de 4 mm da peça, medido pela
+    // normal. Na barriga de grávida a pele estica e sobe entre os pontos da peça (umbigo, parte de baixo da barriga).
+    if (o2 > 0) {
+      const c = Math.min(0.004 * s, 0.85 * o2), lmax = 2.5 * Math.sqrt(area);
+      for (const q of [T[t], T[t + 1], T[t + 2]]) for (const r of viz[q]) {
+        const dx = P[r * 3] - g[0], dy = P[r * 3 + 1] - g[1], dz = P[r * 3 + 2] - g[2];
+        const h = dx * nn[0] + dy * nn[1] + dz * nn[2];
+        if (h <= -c) continue;
+        const lx = dx - h * nn[0], ly = dy - h * nn[1], lz = dz - h * nn[2];
+        if (Math.hypot(lx, ly, lz) > lmax) continue;
+        for (let k = 0; k < 3; k++) g[k] += nn[k] * (h + c);
+      }
+    }
+    out[j * 3] = g[0]; out[j * 3 + 1] = g[1]; out[j * 3 + 2] = g[2];
+  }
+  return out;
+}
+function materialItem(c, nome) {
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0, name: nome });
+  if (nome === "Cabelo") { mat.roughness = 0.9; mat.color.set(CABELO_CORES[corCabelo()] ?? corCabelo()); }
+  else if (nome.startsWith("Roupa_")) { texturaRoupa(nome).then((t) => { if (t) { mat.map = t; mat.needsUpdate = true; } }); prepararCorRoupa(mat); }
+  return mat;
+}
+async function montarItem(c, id) {
+  c.itens ||= {};
+  if (c.itens[id]) return c.itens[id];
+  const [base, { cab, b }] = await Promise.all([baseItens(), dadosItem(id)]);
+  const pele = prepararPele(c, base), fam = pele.pel.familia, corpo = c.corpoMesh;
+  if (!cab.familias[fam]) return null;
+  const prop = cab.proprios?.[fam]; // geometria em outra ordem nesta família
+  const nv = prop ? prop.nv : cab.nv, grupos = prop ? prop.grupos : cab.grupos;
+  const uvB = b[fam + "_uv"] || b.uv, idxB = b[fam + "_idx"] || b.idx;
+  const geo = new THREE.BufferGeometry();
+  const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
+  if (cab.tipo === "pele") {
+    const tri = b[fam + "_tri"], bar = b[fam + "_bar"], off = b[fam + "_off"], F = pele.fam;
+    const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off);
+    geo.setAttribute("position", new THREE.BufferAttribute(pos0, 3));
+    const formas = Object.entries(pele.formas);
+    if (formas.length) {
+      geo.morphAttributes.position = formas.map(([, d]) => {
+        const pk = posicoesPeca(pele.posicoes(d), F, tri, bar, off);
+        for (let i = 0; i < pk.length; i++) pk[i] -= pos0[i];
+        return new THREE.BufferAttribute(pk, 3);
+      });
+      geo.morphTargetsRelative = true;
+    }
+    // pesos: os dos três vértices da pele, pelas baricêntricas; os 4 maiores
+    const gi = corpo.geometry.attributes.skinIndex, gw = corpo.geometry.attributes.skinWeight, b2g = pele.b2g;
+    for (let j = 0; j < nv; j++) {
+      const t = tri[j] * 3, w = [bar[j * 2] / 65535, bar[j * 2 + 1] / 65535]; w.push(1 - w[0] - w[1]);
+      const acc = new Map();
+      for (let q = 0; q < 3; q++) {
+        const gv = b2g[F.T[t + q]];
+        for (let k = 0; k < 4; k++) { const o = gi.getComponent(gv, k), x = gw.getComponent(gv, k) * w[q]; if (x > 0) acc.set(o, (acc.get(o) || 0) + x); }
+      }
+      const top = [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4), soma = top.reduce((s_, x) => s_ + x[1], 0) || 1;
+      top.forEach(([o, x], k) => { si[j * 4 + k] = o; sw[j * 4 + k] = x / soma; });
+    }
+  } else if (cab.tipo === "mao") {
+    // objeto de mão: no referencial da mão do corpo (x ao longo dos dedos, z para a palma), em unidades do tamanho
+    // da mão; preso ao osso da mão
+    const ref = referencialMao(corpo, cab.mao), loc = b.loc, out = new Float32Array(nv * 3);
+    for (let j = 0; j < nv; j++) {
+      const x = loc[j * 3] * ref.s, y = loc[j * 3 + 1] * ref.s, z = loc[j * 3 + 2] * ref.s;
+      for (let k = 0; k < 3; k++) out[j * 3 + k] = ref.O[k] + ref.X[k] * x + ref.Y[k] * y + ref.Z[k] * z;
+      si[j * 4] = ref.osso; sw[j * 4] = 1;
+    }
+    geo.setAttribute("position", new THREE.BufferAttribute(out, 3));
+  } else {
+    const nrm = b[fam + "_pos"], [hmin, hmax] = pele.pel.cabeca, M = pele.pel.afim, out = new Float32Array(nv * 3);
+    for (let j = 0; j < nv; j++) {
+      const q = [0, 1, 2].map((k) => hmin[k] + nrm[j * 3 + k] * (hmax[k] - hmin[k]));
+      for (let r = 0; r < 3; r++) out[j * 3 + r] = M[r][0] * q[0] + M[r][1] * q[1] + M[r][2] * q[2] + M[r][3];
+      si[j * 4] = pele.cabecaOsso; sw[j * 4] = 1;
+    }
+    geo.setAttribute("position", new THREE.BufferAttribute(out, 3));
+  }
+  // UV do Blender (v para cima) → glTF (v para baixo), como as texturas são carregadas
+  const uv = uvB instanceof Uint16Array ? Float32Array.from(uvB, (x) => x / 65535) : Float32Array.from(uvB);
+  for (let i = 1; i < uv.length; i += 2) uv[i] = 1 - uv[i];
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute("skinIndex", new THREE.BufferAttribute(si, 4));
+  geo.setAttribute("skinWeight", new THREE.BufferAttribute(sw, 4));
+  geo.setIndex(new THREE.BufferAttribute(idxB, 1));
+  const ehCabelo = CAT.itens.some((x) => x.id === id); // cabelo, barba e bigode: material de cabelo (cor livre)
+  const mats = grupos.map(([ini, n, nome], k) => { geo.addGroup(ini, n, k); return materialItem(c, ehCabelo ? "Cabelo" : nome); });
+  geo.computeVertexNormals();
+  const mesh = new THREE.SkinnedMesh(geo, mats);
+  mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
+  if (CAT_ROUPA.itens.some((x) => x.id === id)) mesh.userData.roupa = id;
+  corpo.parent.add(mesh);
+  mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
+  mesh.bind(corpo.skeleton, corpo.bindMatrix);
+  if (geo.morphAttributes.position) {
+    mesh.morphTargetDictionary = { ...corpo.morphTargetDictionary };
+    mesh.morphTargetInfluences = corpo.morphTargetInfluences.slice();
+    c.barriga.push(mesh);
+  }
+  if (ehCabelo) { c.cabelo.push(mesh); c.estilos[id] = mesh; }
+  if (mesh.userData.roupa) (c.roupas[id] = [mesh]);
+  c.itens[id] = mesh;
+  return mesh;
+}
 function aplicarRoupa() {
-  const inteira = !!estado.roupa.inteira;
+  if (!ehRecem()) aplicarCabelo(); // o chapéu muda o penteado (versão achatada)
+  const c = atual, cobertos = slotsCobertos();
+  const faltam = Object.values(estado.roupa).filter((rid) => rid && !c.roupas[rid] && !semAnimacoes(c.id));
+  c.tentados ||= new Set();
+  const novos = faltam.filter((k) => !c.tentados.has(k));
+  novos.forEach((k) => c.tentados.add(k));
+  if (novos.length) { Promise.all(novos.map((rid) => montarItem(c, rid).catch(() => null))).then(() => { if (atual === c) aplicarRoupa(); }); }
   for (const [rid, malhas] of Object.entries(atual.roupas || {})) {
     const slot = slotDe(rid);
-    const ve = !!slot && estado.roupa[slot] === rid && !(inteira && (slot === "cima" || slot === "baixo"));
+    const ve = !!slot && estado.roupa[slot] === rid && !cobertos.includes(slot);
     for (const m of malhas) m.visible = ve;
     if (ve) aplicarCorRoupa(rid, malhas, estado.corRoupa[slot]);
   }
@@ -799,10 +1152,51 @@ function ocultarPele() {
   g.index.array.set(idx);
   g.index.needsUpdate = true;
 }
+// miniaturas dos itens (miniaturas_itens.json: id → WebP em base64), carregadas uma vez
+let MINIS = {};
+fetch("miniaturas_itens.json").then((r) => r.json()).then((j) => { MINIS = j; if (atual) { desenharRoupa(); desenharCabelo(); } }).catch(() => {});
+let seletorAberto = null;
+function miniatura(id, texto) {
+  if (id && MINIS[id]) {
+    const img = document.createElement("img"); img.className = "sel-thumb"; img.alt = ""; img.loading = "lazy";
+    img.src = `data:image/webp;base64,${MINIS[id]}`; return img;
+  }
+  const d = document.createElement("span"); d.className = "sel-thumb"; d.setAttribute("aria-hidden", "true");
+  d.textContent = texto ?? "–"; return d;
+}
+// opcoes: [{ k, rotulo, mini }]; mini é o id da miniatura (ou nada: um traço)
+function seletorImagem(chave, rotulo, opcoes, atualK, escolher, desligado, dica) {
+  const box = document.createElement("div"); box.className = "sel-img" + (desligado ? " desligado" : "");
+  const at = opcoes.find((o) => o.k === atualK) || opcoes[0];
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "sel-atual";
+  const aberto = seletorAberto === chave && !desligado;
+  btn.setAttribute("aria-expanded", String(aberto)); btn.disabled = !!desligado; if (dica) btn.title = dica;
+  const grade = document.createElement("div"); grade.className = "sel-grade"; grade.id = "grade-" + chave; grade.hidden = !aberto;
+  grade.setAttribute("role", "group"); grade.setAttribute("aria-label", rotulo);
+  btn.setAttribute("aria-controls", grade.id);
+  const rot = document.createElement("span"); rot.className = "sel-rot";
+  const sm = document.createElement("small"); sm.textContent = rotulo;
+  const nm = document.createElement("span"); nm.textContent = at?.rotulo ?? "Nenhum";
+  rot.append(sm, nm);
+  const seta = document.createElement("span"); seta.className = "sel-seta"; seta.textContent = aberto ? "▲" : "▼"; seta.setAttribute("aria-hidden", "true");
+  btn.append(miniatura(at?.mini, at?.marca), rot, seta);
+  btn.onclick = () => { seletorAberto = aberto ? null : chave; escolher(null); };
+  if (aberto) {
+    for (const o of opcoes) {
+      const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", String(o.k === atualK));
+      b.title = o.rotulo;
+      const t = document.createElement("span"); t.textContent = o.rotulo;
+      b.append(miniatura(o.mini, o.marca), t);
+      b.onclick = () => { seletorAberto = null; escolher(o.k); };
+      grade.append(b);
+    }
+  }
+  box.append(btn, grade);
+  return box;
+}
 function desenharRoupa() {
   const bloco = document.getElementById("roupa-bloco");
-  const tem = Object.keys(atual.roupas || {});
-  bloco.hidden = !tem.length || !CAT_ROUPA.itens.length;
+  bloco.hidden = semAnimacoes(atual.id) || !CAT_ROUPA.itens.length;
   if (bloco.hidden) return;
   const el = document.getElementById("roupa-slots");
   el.replaceChildren();
@@ -816,7 +1210,8 @@ function desenharRoupa() {
       estado.roupa = {}; estado.corRoupa = {};
       if (sel.value !== "__nada" && sel.value !== "") {
         for (const [slot, p] of Object.entries(CAT_ROUPA.conjuntos[+sel.value].pecas)) {
-          if (atual.roupas[p.id]) { estado.roupa[slot] = p.id; estado.corRoupa[slot] = p.cor || null; }
+          // sem cor no conjunto: a cor inicial da peça (as geradas são brancas na textura)
+          estado.roupa[slot] = p.id; estado.corRoupa[slot] = p.cor || CAT_ROUPA.itens.find((x) => x.id === p.id)?.variacao?.cor || null;
         }
       }
       aplicarRoupa(); desenharRoupa();
@@ -824,24 +1219,21 @@ function desenharRoupa() {
     el.append(lab, sel);
   }
   for (const [slot, rotulo] of Object.entries(CAT_ROUPA.slots)) {
-    const itens = CAT_ROUPA.itens.filter((x) => x.slot === slot && atual.roupas[x.id]);
+    const itens = CAT_ROUPA.itens.filter((x) => x.slot === slot);
     if (!itens.length) continue;
-    const id = "roupa-" + slot;
-    const lab = document.createElement("label"); lab.htmlFor = id; lab.textContent = rotulo;
-    const sel = document.createElement("select"); sel.id = id;
-    sel.append(new Option("Nenhum", ""));
-    for (const x of itens) sel.append(new Option(x.rotulo, x.id));
-    sel.value = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
-    sel.disabled = !!estado.roupa.inteira && (slot === "cima" || slot === "baixo");
-    if (sel.disabled) sel.title = "A fantasia ocupa a parte de cima e a de baixo";
-    sel.onchange = () => {
-      estado.roupa[slot] = sel.value;
-      estado.corRoupa[slot] = CAT_ROUPA.itens.find((x) => x.id === sel.value)?.variacao?.cor || null; // a cor inicial da peça
-      aplicarRoupa(); desenharRoupa();
-    };
-    el.append(lab, sel);
+    const desligado = slotsCobertos().includes(slot);
+    const atualK = itens.some((x) => x.id === estado.roupa[slot]) ? estado.roupa[slot] : "";
+    const opcoes = [{ k: "", rotulo: "Nenhum" }, ...itens.map((x) => ({ k: x.id, rotulo: x.rotulo, mini: x.id }))];
+    el.append(seletorImagem("roupa-" + slot, rotulo, opcoes, atualK, (k) => {
+      if (k !== null) {
+        estado.roupa[slot] = k;
+        estado.corRoupa[slot] = CAT_ROUPA.itens.find((x) => x.id === k)?.variacao?.cor || null; // a cor inicial da peça
+        aplicarRoupa();
+      }
+      desenharRoupa();
+    }, desligado, desligado ? "A peça inteira ocupa esta parte" : ""));
     const rid = estado.roupa[slot];
-    if (rid && atual.roupas[rid] && MASC[rid] && !sel.disabled) { // cores da peça: amostras, original e cor livre
+    if (rid && MASC[rid] && !desligado) { // cores da peça: amostras, original e cor livre
       const cores = document.createElement("div"); cores.className = "grupo roupa-cores";
       const orig = document.createElement("button");
       orig.type = "button"; orig.textContent = "Original"; orig.setAttribute("aria-pressed", String(!estado.corRoupa[slot]));
@@ -1189,6 +1581,7 @@ renderer.setAnimationLoop(() => {
   const dt = relogio.getDelta();
   if (atual && !reduzido) atual.mixer.update(dt);
   if (par && !reduzido) par.mixer.update(dt);
+  fechaDedos(atual);
   atualizaDinamico();
   if (seguir && seguir.maos.length) { // a face de trás da caixa fica nas mãos
     let z = 0, x = 0;

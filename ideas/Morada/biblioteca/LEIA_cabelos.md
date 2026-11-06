@@ -25,19 +25,36 @@ Um item com `"base"` (outro penteado) e `"forma"`:
 - `rente`: barba mais curta, junto do rosto.
 - `corta_lados`: só o meio, como no cavanhaque.
 
-Cada penteado tem as versões comprida, volumosa e para chapéu. Também existem barba rente, cavanhaque e barba cheia
-curta.
+- `rabo`: rabo de cavalo (comprimento em alturas de cabeça).
+- `coque`: coque no alto e atrás (raio).
+- `trancas`: duas tranças dos lados (comprimento).
+- `espetos`: espetado, com pontas cônicas no alto e na frente (altura; `n` pontas).
+- `coque_duplo`: dois coques no alto (raio).
+- `rabo_altura`: onde o rabo de cavalo prende (0 a 1 da cabeça; `rabo_alto` usa 0,95).
+- `crista`: moicano (altura). Com `so_crista`, o resto do cabelo sai, e os lados ficam raspados. `largura` controla a
+  largura da crista.
+
+Cada penteado tem as versões comprida, volumosa e para chapéu. Também existem:
+- barba rente, cavanhaque e barba cheia curta;
+- rabo de cavalo, rabo curto, coque, coque com franja;
+- duas tranças, maria-chiquinha;
+- black power, cacheado volumoso curto;
+- moicano e moicano baixo;
+- espetado, espetado alto, coque duplo, rabo alto, cacheado com coque.
+
+Cada cabelo tem uma miniatura (`tools/miniaturas_itens.py`), e a página escolhe por ela.
 
 ## Para acrescentar um cabelo
 
 1. Coloque o FBX na pasta dos pacotes e acrescente um item em `cabelos.json`.
-2. Encaixe nos corpos:
+2. Exporte o item:
    ```bash
-   python adiciona_cabelo.py -- corpos.blend <id>
+   python exporta_itens.py -- <saida> <id>
    ```
-   Para um grupo de corpos, passe os nomes depois do id. Para trocar um item que já existe, rode com `REFAZ=1`.
-3. Exporte os corpos de novo (`corpo_exporta.py`) e rode `biblioteca_pacote.py`. A página já mostra o botão novo com o
-   nome do catálogo.
+3. Rode `biblioteca_pacote.py`. A página já mostra o item novo com o nome do catálogo. Os corpos não mudam.
+
+Para pôr o item dentro do arquivo-mestre (render no Blender, por exemplo), use `adiciona_cabelo.py -- corpos.blend
+<id>`. Para um grupo de corpos, passe os nomes depois do id. Para trocar um item que já existe, rode com `REFAZ=1`.
 
 Qualquer FBX serve, desde que traga o corpo do personagem com o grupo de vértices `Head`. É ele que permite medir a
 cabeça de origem. Uma peça avulsa, sem corpo, precisaria de uma cabeça de referência.
@@ -51,14 +68,15 @@ cabeça de origem. Uma peça avulsa, sem corpo, precisaria de uma cabeça de ref
 - O esqueleto de cada corpo guarda a base (`base`: m, f, fm ou p), que diz qual item é o original dele.
 - No recém-nascido o cabelo é outro: rente ou com gorrinho, sem catálogo.
 
-## Para o jogo (recomendado)
+## Em arquivos separados (a página já usa; recomendado para o jogo)
 
-Hoje cada corpo carrega todos os penteados no próprio arquivo. Com muitos itens fica pesado. Como o cabelo só acompanha
-o osso da cabeça, no jogo basta:
+Cada cabelo é um arquivo próprio (`itens/<id>.txt`, feito por `tools/exporta_itens.py`), carregado só quando alguém
+escolhe. O arquivo leva a posição de cada ponto na caixa da cabeça da malha-base de cada família. No corpo, a posição
+vai para a caixa da cabeça dele e fica presa ao osso `Head`. O formato está em `LEIA_roupas.md`.
 
-- uma malha por item;
-- por corpo, o ajuste do encaixe (escala e posição em relação ao osso `Head`, poucos números);
-- carregar o item só quando alguém escolhe.
+Um cabelo novo, de qualquer fonte, entra sem mexer nos corpos:
+1. Acrescente o item em `cabelos.json`.
+2. Rode `exporta_itens.py -- <saida> <id>`.
+3. Rode `biblioteca_pacote.py`.
 
-Assim um cabelo novo, de qualquer fonte, entra sem mexer nos corpos. O mesmo vale para chapéus, óculos e outros
-acessórios.
+O mesmo vale para chapéus, óculos e outros acessórios.
