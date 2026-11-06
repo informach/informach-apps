@@ -243,7 +243,7 @@ export function KidModeScreen({ profile, todayIso, todo, ahead }: Props) {
 
   // "Oi, Clara!": a tela fala com a criança pelo primeiro nome, como o canvas.
   // Com o nome inteiro o título cortava em "Oi, Mari…".
-  const firstName = profile.name.trim().split(/s+/)[0] || profile.name;
+  const firstName = profile.name.trim().split(/\s+/)[0] || profile.name;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-[18px] px-5 pb-6 pt-5">
