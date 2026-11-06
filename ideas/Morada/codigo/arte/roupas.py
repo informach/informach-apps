@@ -248,10 +248,16 @@ def _marcos(S_obj):
         return w > 0.5
     braco, ante, perna, coxa = grupo("LeftArm"), grupo("LeftForeArm"), grupo("LeftLeg"), grupo("LeftUpLeg")
     pe = grupo("LeftFoot")
+    pesc, mao = grupo("Neck"), grupo("LeftHand")
     m = {"ombro": float(np.abs(P[braco, 0]).min()), "cotovelo": float(np.abs(P[ante, 0]).min()),
          "axila": float(P[braco, 2].min()),
          "joelho": float(P[perna, 2].max()), "quadril": float(P[coxa, 2].max()), "tornozelo": float(P[pe, 2].max())}
     m["braco_meio"] = (m["ombro"] + m["cotovelo"]) / 2
+    m["pescoco"] = float(P[pesc, 2].min()) if pesc.any() else m["axila"] + 0.12
+    m["punho"] = float(np.abs(P[mao, 0]).min()) if mao.any() else m["cotovelo"] + 0.2
+    m["antebraco_meio"] = (m["cotovelo"] + m["punho"]) / 2
+    m["peito"] = m["axila"] + 0.35 * (m["pescoco"] - m["axila"])
+    m["altura"] = float(P[:, 2].max())
     m["cintura"] = m["quadril"] + 0.45 * (m["axila"] - m["quadril"])
     m["coxa_meio"] = (m["joelho"] + m["quadril"]) / 2
     m["canela_meio"] = (m["joelho"] + m["tornozelo"]) / 2
@@ -272,9 +278,13 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
     planos = []
     for c in cortes:
         valor = m[c["marco"]] + c.get("desloca", 0.0)
-        if c["marco"] in ("ombro", "cotovelo", "braco_meio"):  # braços: planos verticais, um de cada lado
-            planos += [(Vector((valor, 0, 0)), Vector((1, 0, 0)), "braco"),
-                       (Vector((-valor, 0, 0)), Vector((-1, 0, 0)), "braco")]
+        if c["marco"] in ("ombro", "cotovelo", "braco_meio", "punho", "antebraco_meio"):  # braços: planos verticais
+            # só o corte no ombro precisa se limitar à altura acima da axila (perto do tronco); os outros ficam além dele
+            pt = "braco" if c["marco"] == "ombro" else "braco_livre"
+            if c.get("acima"):  # "acima" nos braços: tira o lado do tronco (luva fica só na mão e no antebraço)
+                planos += [(Vector((valor, 0, 0)), Vector((-1, 0, 0)), "lado+"), (Vector((-valor, 0, 0)), Vector((1, 0, 0)), "lado-")]
+            else:
+                planos += [(Vector((valor, 0, 0)), Vector((1, 0, 0)), pt), (Vector((-valor, 0, 0)), Vector((-1, 0, 0)), pt)]
         elif c.get("acima"):  # tira o que fica acima (cano de bota)
             planos.append((Vector((0, 0, valor)), Vector((0, 0, 1)), "perna"))
         else:  # pernas e barra: plano horizontal, tira o que fica abaixo
@@ -283,7 +293,15 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
     for p, n, parte in planos:
         if parte == "braco":
             # o plano da manga só vale acima da axila: abaixo dela é a lateral do tronco, que não se corta
-            fs = [f for f in bm.faces if any((mw @ v.co).z > z_axila for v in f.verts)]
+            # (nos braços caídos da pose, o antebraço fica abaixo da axila: o que está bem além do ombro sai também)
+            fs = [f for f in bm.faces if any((mw @ v.co).z > z_axila or abs((mw @ v.co).x) > p.length + 0.06
+                                             for v in f.verts)]
+            vs = list({v for f in fs for v in f.verts})
+            es = list({e for f in fs for e in f.edges})
+            geom = vs + es + fs
+        elif parte.startswith("lado"):  # só o braço daquele lado
+            sg = 1 if parte == "lado+" else -1
+            fs = [f for f in bm.faces if all(sg * (mw @ v.co).x > 0 for v in f.verts)]
             vs = list({v for f in fs for v in f.verts})
             es = list({e for f in fs for e in f.edges})
             geom = vs + es + fs
@@ -298,7 +316,7 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
         grupos = {}
         for v in vs:
             w = mw @ v.co
-            chave = ("x+" if w.x > 0 else "x-") if any(pt == "braco" for _, _, pt in planos) and abs(w.x) > m["ombro"] * 0.9 \
+            chave = ("x+" if w.x > 0 else "x-") if any(pt.startswith("braco") for _, _, pt in planos) and abs(w.x) > m["ombro"] * 0.9 \
                 else ("p+" if w.x > 0 else "p-")
             grupos.setdefault(chave, []).append(v)
         centro = {k: sum((v.co for v in g), Vector()) / len(g) for k, g in grupos.items()}
@@ -364,18 +382,35 @@ def _saia_gerada(S_obj, spec, pasta_pacotes):
     c0, rx0, ry0 = fatia(z0)
     bm = bmesh.new()
     anel_v = []
+    fg = spec.get("folga", 0.0)  # casaco e avental por cima da roupa: mais afastados
+    an = []
     for a_ in range(aneis + 1):
         t = a_ / aneis
         z = z0 + (z1 - z0) * t
         c, rx, ry = fatia(z)
         flare = 1.0 + (abertura - 1.0) * t ** 1.3
-        rx_ = max(rx * 1.05 + 0.008, rx0 * 1.04 * flare)
-        ry_ = max(ry * 1.05 + 0.008, ry0 * 1.04 * flare)
-        cx, cy = c0 + (c - c0) * 0.3
+        an.append([z, *(c0 + (c - c0) * 0.3), max(rx * 1.05 + 0.008, rx0 * 1.04 * flare) + fg,
+                   max(ry * 1.05 + 0.008, ry0 * 1.04 * flare) + fg])
+    an = np.array(an)
+    if fg > 0:  # por cima: a largura só cresce para baixo (sem ondas das pernas)
+        an[:, 3] = np.maximum.accumulate(an[:, 3])
+        an[:, 4] = np.maximum.accumulate(an[:, 4])
+    for col in (1, 2, 3, 4):  # suaviza ao longo da altura
+        an[1:-1, col] = 0.25 * an[:-2, col] + 0.5 * an[1:-1, col] + 0.25 * an[2:, col]
+    for z, cx, cy, rx_, ry_ in an:
         anel_v.append([bm.verts.new((cx + rx_ * np.cos(2 * np.pi * k / seg), cy + ry_ * np.sin(2 * np.pi * k / seg), z))
                        for k in range(seg)])
+    gap = spec.get("abre_frente", 0.0)  # jaleco e casacão: a frente aberta (ângulo em graus de cada lado)
+    so = spec.get("so_frente", 0.0)  # avental: só o painel da frente (ângulo em graus de cada lado)
+
+    def fora(ang):
+        d = abs(((ang - 1.5 * np.pi + np.pi) % (2 * np.pi)) - np.pi)  # distância angular até a frente
+        return (gap and d < np.radians(gap)) or (so and d > np.radians(so))
     for a_ in range(aneis):
         for k in range(seg):
+            ang = 2 * np.pi * (k + 0.5) / seg  # -y (frente) em 3π/2
+            if fora(ang):
+                continue
             v1, v2 = anel_v[a_][k], anel_v[a_][(k + 1) % seg]
             v3, v4 = anel_v[a_ + 1][(k + 1) % seg], anel_v[a_ + 1][k]
             bm.faces.new((v1, v4, v3, v2))
@@ -383,20 +418,28 @@ def _saia_gerada(S_obj, spec, pasta_pacotes):
     barra = anel_v[-1]
     dentro = [bm.verts.new((v.co.x * 0.97, v.co.y * 0.97, v.co.z + 0.006)) for v in barra]
     for k in range(seg):
+        if fora(2 * np.pi * (k + 0.5) / seg):
+            continue
         bm.faces.new((barra[k], barra[(k + 1) % seg], dentro[(k + 1) % seg], dentro[k]))
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     me = bpy.data.meshes.new("saia")
     bm.to_mesh(me)
     bm.free()
+    for f in me.polygons:
+        f.use_smooth = True
+    ob = bpy.data.objects.new("saia", me)
+    bpy.context.scene.collection.objects.link(ob)
+    if spec.get("padrao"):  # textura gerada (a mesma das camadas: jaleco e casaco longo, vestido de uniforme)
+        import geradores as GER
+        GER._uv_corpo(ob, m_, m_["altura"], m_["ombro"])
+        me.materials.append(GER.textura(spec["padrao"]))
+        return ob, None
     mat, uvp = _uv_da_cor_principal(spec.get("cor_de", "roupa_camiseta_criativa"), pasta_pacotes)
     me.materials.append(mat)
     uvl = me.uv_layers.new(name="UVMap")
     for d in uvl.data:
         d.uv = uvp
-    for f in me.polygons:
-        f.use_smooth = True
-    ob = bpy.data.objects.new("saia", me)
-    bpy.context.scene.collection.objects.link(ob)
     return ob, ITENS[spec.get("cor_de", "roupa_camiseta_criativa")]["arquivo"]
 
 
@@ -472,13 +515,32 @@ def garante_mascara(ob, item_id, tam=512):
             continue
         src = Image.open(arquivo).convert("RGB")
         W, H = src.size
+        A = np.array(src).astype(float)
+        if m.name == "Roupa_Gen_atlas":  # chapéus gerados: manchas de cor lisa; a principal é a de maior área na peça
+            area = {}
+            for poly in me.polygons:
+                if poly.material_index == k:
+                    u0, v0 = uv[poly.loop_indices[0]].uv
+                    chave_m = (int(u0 * 8), int((1 - v0) * 16))
+                    area[chave_m] = area.get(chave_m, 0.0) + poly.area
+            if not area:
+                continue
+            ci, cj = max(area, key=area.get)
+            val = np.zeros((H, W))
+            val[cj * H // 16:(cj + 1) * H // 16, ci * W // 8:(ci + 1) * W // 8] = 1.0
+            moda = A[(cj * 2 + 1) * H // 32, (ci * 2 + 1) * W // 16]
+            nome = f"{item_id}__{m.name}.png"
+            Image.fromarray((val * 255).astype(np.uint8)).resize((tam, round(tam * H / W)), Image.NEAREST).save(
+                os.path.join(PASTA_MASC, nome), optimize=True)
+            res[m.name] = {"mascara": nome, "lum": round(float(_lin(moda) @ lumv), 5),
+                           "cor": "#%02x%02x%02x" % tuple(int(x) for x in moda)}
+            continue
         cob = Image.new("L", (W, H), 0)
         dr = ImageDraw.Draw(cob)
         for poly in me.polygons:
             if poly.material_index == k:
                 dr.polygon([(uv[li].uv[0] * W, (1 - uv[li].uv[1]) * H) for li in poly.loop_indices], fill=255)
         M = np.array(cob.filter(ImageFilter.MaxFilter(5))) > 0
-        A = np.array(src).astype(float)
         px = A[M]
         if not len(px):
             continue
@@ -594,10 +656,16 @@ def _afasta(Pg, malha, folga):
 
 
 def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
-    if "gerar" in item:  # peça feita aqui (saia), em volta da malha-base de uma família
-        arq_b, nome_b = BASES[item["gerar"].get("familia", "f")]
+    if "gerar" in item:  # peça feita aqui, sobre a malha-base de uma família ("destino": a do corpo)
+        g = item["gerar"]
+        fam_g = fam_destino if g.get("familia", "f") == "destino" else g.get("familia", "f")
+        arq_b, nome_b = BASES[fam_g]
         S_obj = importa(arq_b, pasta_pacotes)[nome_b]
-        ob, item = _saia_gerada(S_obj, item["gerar"], pasta_pacotes)[0], {**item, "arquivo": item["arquivo"]}
+        if g.get("tipo", "saia") == "camada":
+            import geradores as GER
+            ob = GER.camada(S_obj, g)
+        else:
+            ob = _saia_gerada(S_obj, g, pasta_pacotes)[0]
     else:
         fonte = importa(item["arquivo"], pasta_pacotes)
         S_obj = fonte[item["corpo_origem"]]
@@ -758,7 +826,12 @@ def veste(item, arm, corpo, pasta_pacotes):
             bpy.ops.object.join()
         garante_mascara(ob, item["id"])
         return ob
-    if item["tipo"] in ("cabeca", "rosto"):
+    if item.get("gerar", {}).get("tipo") == "chapeu":  # chapéu feito sobre a cabeça do corpo
+        import geradores as GER
+        ob = GER.chapeu(corpo, item["gerar"])
+        ob.parent = arm
+        ob.matrix_parent_inverse = arm.matrix_world.inverted()
+    elif item["tipo"] in ("cabeca", "rosto"):
         ajuste = _ajuste_chapeu(var["forma"]) if var.get("forma") else None
         ob = CAB.encaixa({**item, "tipo": "rosto" if item["tipo"] == "rosto" else "cabelo"}, arm, corpo, pasta_pacotes,
                          ajuste=ajuste)

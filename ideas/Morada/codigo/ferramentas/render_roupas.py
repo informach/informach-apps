@@ -14,6 +14,26 @@ scn.render.resolution_x, scn.render.resolution_y = 300, 420
 w = bpy.data.worlds.new("w"); scn.world = w; w.use_nodes = True; w.node_tree.nodes["Background"].inputs[0].default_value = (0.86, 0.87, 0.9, 1)
 bpy.ops.object.light_add(type="SUN"); L = bpy.context.active_object; L.data.energy = 3.5
 cd = bpy.data.cameras.new("c"); cam = bpy.data.objects.new("c", cd); scn.collection.objects.link(cam); scn.camera = cam; cd.type = "ORTHO"
+# peças geradas: a cor inicial do catálogo multiplicada na textura (na página é a máscara; aqui só para revisão)
+import json as _j
+_cat = {x["id"]: x for x in _j.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "morada-art", "roupas.json")))["itens"]}
+def _tinge(o, rid):
+    cor = (_cat.get(rid, {}).get("variacao") or {}).get("cor")
+    if not cor:
+        return
+    rgb = [((int(cor[i:i + 2], 16) / 255) ** 2.2) for i in (1, 3, 5)]
+    for k, m in enumerate(o.data.materials):
+        if not m or not m.name.startswith("Roupa_Gen_") or m.name.startswith("Roupa_Gen_atlas"):
+            continue
+        m2 = m.copy(); o.data.materials[k] = m2
+        nt = m2.node_tree; bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+        tex = next(n for n in nt.nodes if n.type == "TEX_IMAGE")
+        mix = nt.nodes.new("ShaderNodeMix"); mix.data_type = "RGBA"; mix.blend_type = "MULTIPLY"
+        mix.inputs[0].default_value = 1.0; mix.inputs[7].default_value = (*rgb, 1)
+        nt.links.new(tex.outputs["Color"], mix.inputs[6]); nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+for o in list(bpy.data.objects):
+    if o.type == "MESH" and "_nov_" in o.name:
+        _tinge(o, "nov_" + o.name.split("_nov_", 1)[1])
 for c in CORPOS:
     arm = bpy.data.objects[c]
     if arm.animation_data: arm.animation_data.action = None

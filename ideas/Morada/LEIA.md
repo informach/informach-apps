@@ -7,22 +7,31 @@ Os personagens derivam dos pacotes gratuitos da ITHappy que estão em `ideas/` (
 
 | pasta | conteúdo |
 |---|---|
-| `biblioteca/` | **o resultado**: 14 bibliotecas de animação a 30 fps (`bibliotecas_30fps/`, 11 normais + 3 de grávida), os 19 corpos em GLB (`corpos/`: malha, esqueleto, expressões, barriga de grávida, recém-nascidos e todos os cabelos, barbas e bigodes dos pacotes), `info.json` (apoios de cena e correções), `rotulos.json` (nomes e categorias), `medidas/` (o json de cada biblioteca), `LEIA.md` com o uso no jogo e `LEIA_cabelos.md` (catálogo de cabelos e como acrescentar um) |
+| `biblioteca/` | **o resultado**: 14 bibliotecas de animação a 30 fps (`bibliotecas_30fps/`, 11 normais + 3 de grávida), os 19 corpos em GLB (`corpos/`: malha, esqueleto, expressões, barriga de grávida e recém-nascidos, sem as peças dos catálogos), as peças e os cabelos em arquivos separados (`itens/`: um por item, mais `familias.txt` e `peles.txt`, montados no corpo quando alguém escolhe), `info.json` (apoios de cena e correções), `rotulos.json` (nomes e categorias), `medidas/` (o json de cada biblioteca), `LEIA.md` com o uso no jogo, `LEIA_cabelos.md` e `LEIA_roupas.md` (catálogos, formato dos itens e como acrescentar um), `roupas_mascaras/` (cor livre) e `roupas_gen/` (texturas das peças geradas) |
 | `blend/` | `corpos.blend` (arquivo-mestre editável dos corpos, com os recém-nascidos e todos os cabelos) em 5 partes, e `mixamo_pacote.blend` (animações do Mixamo já no esqueleto do pacote, usado pelo gerador de corpos) |
 | `mixamo/` | os FBX baixados do Mixamo (P0 por corpo, P1, P2), o prompt usado para baixá-los, o log, os manifestos, `nao_encontrados.md`, o índice que liga cada arquivo a um ID e a um corpo, e o zip dos 17 corpos enviados ao Mixamo |
-| `codigo/arte/` | geradores: `corpos.py` (tipos de corpo), `cabelos.json` + `cabelos.py` (catálogo e encaixe de cabelos), `expressoes.py`, `contato.py`, `gravidez.py`, cena e páginas do Morada |
-| `codigo/ferramentas/` | conversão do Mixamo (`biblioteca_bake.py`), correções (`biblioteca_corrige.py`, `biblioteca_chao.py`, `biblioteca_antebraco.py`, `pequeno_corrige.py`, `biblioteca_dedos.py`: pegada dos dedos nos objetos), cabelos novos em corpos prontos (`adiciona_cabelo.py`), reconstrução completa (`_rebuild_all.sh` e os `_rb_*.sh`), animações compostas (`compor.py`, `compor_gravida.py`), biblioteca de grávida (`gravida_biblioteca.py`), exportação (`biblioteca_exporta.py`, `corpo_exporta.py`), pacote da página (`biblioteca_pacote.py`) e testes de página (`teste_*.js`) |
-| `paginas/` | `morada.html` e `recreio.html` (propostas), as fontes delas (`v4/`, `rv2/`) e a página Tipos de corpo (`tipos_de_corpo/corpos.html`, que carrega `corpos/*.txt` e `biblioteca/*.txt`: base64 dos GLB, gerados por `biblioteca_pacote.py`) |
+| `codigo/arte/` | geradores: `corpos.py` (tipos de corpo), `cabelos.json` + `cabelos.py` (catálogo e encaixe de cabelos), `roupas.json` + `roupas.py` (catálogo e encaixe de roupas), `geradores.py` + `novas_pecas.py` (peças feitas aqui e conjuntos), `expressoes.py`, `contato.py`, `gravidez.py`, cena e páginas do Morada |
+| `codigo/ferramentas/` | conversão do Mixamo (`biblioteca_bake.py`), correções (`biblioteca_corrige.py`, `biblioteca_chao.py`, `biblioteca_antebraco.py`, `pequeno_corrige.py`, `biblioteca_dedos.py`: pegada dos dedos nos objetos), cabelos novos em corpos prontos (`adiciona_cabelo.py`), reconstrução completa (`_rebuild_all.sh` e os `_rb_*.sh`), animações compostas (`compor.py`, `compor_gravida.py`), biblioteca de grávida (`gravida_biblioteca.py`), exportação (`biblioteca_exporta.py`, `corpo_exporta.py`, `exporta_itens.py` e `peles.py` para as peças em arquivos separados), pacote da página (`biblioteca_pacote.py`) e testes de página (`teste_*.js`) |
+| `paginas/` | `morada.html` e `recreio.html` (propostas), as fontes delas (`v4/`, `rv2/`) e a página Tipos de corpo (`tipos_de_corpo/corpos.html`, que carrega `corpos/*.txt`, `biblioteca/*.txt` e `itens/*.txt`, gerados por `biblioteca_pacote.py`) |
 
 Não estão aqui (dá para regenerar a partir do que está): blends intermediários das bibliotecas, renders de revisão, testes.
 As bibliotecas a 30 fps têm uma chave por quadro: reimportadas no Blender, equivalem às ações originais.
 
 ## Roupas
 
-As 65 roupas e acessórios dos pacotes, mais variações feitas a partir delas (bermudas, shorts, capris, regatas, croppeds, coletes, saias, vestidos, boné e chapéus), estão em todos os corpos (menos o recém-nascido), também nas grávidas. Toda peça tem cor livre, e há conjuntos prontos (profissões e estilos). Cada penteado tem as versões comprida, volumosa e para chapéu. O catálogo,
-o encaixe e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`. O arquivo-mestre em `blend/` é o de antes
-das roupas. Para ter o mestre vestido, rode `codigo/ferramentas/veste.py -- corpos.blend todos` (uns 45 minutos) e `adiciona_cabelo.py` com os ids das variações de cabelo; o
-resultado é o mesmo.
+As peças estão em todos os corpos, menos no recém-nascido, inclusive nas grávidas nos três estágios. São 203:
+- as 65 roupas e acessórios dos pacotes;
+- variações feitas a partir delas;
+- 95 peças geradas aqui, com as imagens da vitrine do pacote como norte (profissões e casuais): jaleco, casaco longo,
+  jardineira, macacões com faixas refletivas, dólmã, uniformes, aventais, botas, luvas, cachecol, suspensório e mais de
+  30 chapéus.
+
+Toda peça tem cor livre. Há 70 conjuntos prontos (profissões e estilos). São 59 cabelos, barbas e bigodes, com rabo de
+cavalo, coque, tranças, black power e moicano.
+
+Os corpos não carregam as peças. Cada peça é um arquivo próprio, montado no corpo pela página quando alguém escolhe, e
+o jogo deve fazer igual. Uma peça nova entra sem regerar os corpos. Com chapéu, a página não desenha o cabelo acima da
+aba. O catálogo, o encaixe, o formato dos arquivos e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`.
 
 ## Animações aprovadas
 

@@ -447,6 +447,93 @@
    "forma": {
     "rente": 0.9
    }
+  },
+  {
+   "id": "rabo_cavalo",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "rabo": 1.1
+   },
+   "rotulo": "Rabo de cavalo"
+  },
+  {
+   "id": "rabo_curto",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "rabo": 0.75
+   },
+   "rotulo": "Rabo curto"
+  },
+  {
+   "id": "coque",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "coque": 0.15
+   },
+   "rotulo": "Coque"
+  },
+  {
+   "id": "coque_franja",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "coque": 0.17
+   },
+   "rotulo": "Coque com franja"
+  },
+  {
+   "id": "trancas",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "trancas": 1.7
+   },
+   "rotulo": "Duas tranças"
+  },
+  {
+   "id": "maria_chiquinha",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "trancas": 1.0
+   },
+   "rotulo": "Maria-chiquinha"
+  },
+  {
+   "id": "afro",
+   "base": "cabelo_criativo10",
+   "forma": {
+    "volume": 1.4
+   },
+   "rotulo": "Black power"
+  },
+  {
+   "id": "afro_curto",
+   "base": "cabelo_criativo10",
+   "forma": {
+    "volume": 1.2
+   },
+   "rotulo": "Cacheado volumoso curto"
+  },
+  {
+   "id": "moicano",
+   "base": "cabelo_lenhador",
+   "forma": {
+    "crista": 0.22,
+    "so_crista": true,
+    "largura": 0.075
+   },
+   "rotulo": "Moicano"
+  },
+  {
+   "id": "topete_moicano",
+   "base": "cabelo_lenhador",
+   "forma": {
+    "crista": 0.12,
+    "so_crista": true,
+    "largura": 0.06
+   },
+   "rotulo": "Moicano baixo"
   }
  ]
 }

@@ -8,9 +8,14 @@ open(os.path.join(V, "cabelos.json"), "w").write(open(os.path.join(S, "morada-ar
 # máscaras de cor livre das roupas
 _mdir = os.path.join(B, "roupas_mascaras")
 if os.path.isdir(_mdir):
+    # num arquivo só (o artefato tem limite de arquivos): mascaras.json e mascaras_png.json (nome → PNG em base64)
     os.makedirs(os.path.join(V, "roupas"), exist_ok=True)
-    for _f in glob.glob(os.path.join(_mdir, "*")):
-        shutil.copy(_f, os.path.join(V, "roupas", os.path.basename(_f)))
+    for _f in glob.glob(os.path.join(V, "roupas", "*__*.png")):
+        os.remove(_f)
+    shutil.copy(os.path.join(_mdir, "mascaras.json"), os.path.join(V, "roupas", "mascaras.json"))
+    json.dump({os.path.basename(_f): base64.b64encode(open(_f, "rb").read()).decode()
+               for _f in sorted(glob.glob(os.path.join(_mdir, "*.png")))},
+              open(os.path.join(V, "roupas", "mascaras_png.json"), "w"))
 # catálogo de roupas e as texturas delas (no máximo 1024 px; são paletas de cores)
 open(os.path.join(V, "roupas.json"), "w").write(open(os.path.join(S, "morada-art", "roupas.json")).read())
 _tj = os.path.join(B, "corpos_glb", "roupas_texturas.json")
@@ -28,6 +33,18 @@ if os.path.exists(_tj):
             if max(_im.size) > 1024:
                 _im = _im.resize((1024, round(1024 * _im.size[1] / _im.size[0])), Image.LANCZOS)
             _im.save(os.path.join(V, "roupas", _m + ".png"), optimize=True)
+# texturas das peças geradas (camadas e chapéus: Roupa_Gen_<padrão>)
+for _f in glob.glob(os.path.join(B, "roupas_gen", "Roupa_Gen_*.png")):
+    shutil.copy(_f, os.path.join(V, "roupas", os.path.basename(_f)))
+# peças montadas no corpo pela página (tools/exporta_itens.py e tools/peles.py): um arquivo por item, mais as tabelas
+# das famílias e a ligação de cada corpo com a malha-base
+_it = os.path.join(B, "itens")
+if os.path.isdir(_it):
+    os.makedirs(os.path.join(V, "itens"), exist_ok=True)
+    for _f in glob.glob(os.path.join(V, "itens", "*.txt")):
+        os.remove(_f)
+    for _f in glob.glob(os.path.join(_it, "*.txt")) + glob.glob(os.path.join(_it, "itens", "*.txt")):
+        shutil.copy(_f, os.path.join(V, "itens", os.path.basename(_f)))
 # corpos: o GLB comprimido (Meshopt, tools/comprime_corpos.sh) → gzip → base64 (o artefato não serve .glb)
 for f in glob.glob(os.path.join(B, "corpos_glb", "*.glb")):
     open(os.path.join(V, "corpos", os.path.basename(f)[:-4] + ".txt"), "w").write(

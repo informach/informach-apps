@@ -5,6 +5,17 @@ BLEND, SAIDA = a[0], a[1]
 CORPOS = a[2:]
 PACOTE = ["parado", "olhando", "andando", "correndo", "comemorando", "triste", "aplaudindo", "conversando", "telefone", "carregando"]
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+# SEM_ITENS=1: sem as peças dos catálogos (roupas, acessórios e cabelos de outros corpos): a página e o jogo montam
+# cada peça no corpo quando ela é escolhida (tools/exporta_itens.py). Ficam o cabelo do corpo e o raspado.
+SEM_ITENS = os.environ.get("SEM_ITENS") == "1"
+_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import json as _json  # noqa: E402
+_CAB = {x["id"] for x in _json.load(open(os.path.join(_raiz, "morada-art", "cabelos.json")))["itens"]}
+
+
+def dinamico(o, c):
+    papel = o.name[len(c) + 1:] if o.name.startswith(c + "_") else ""
+    return bool(o.get("roupa")) or papel in _CAB
 for c in CORPOS:
     arm = bpy.data.objects[c]
     lugar = arm.parent; loc = lugar.location.copy(); lugar.location = (0, 0, lugar.location.z)
@@ -21,7 +32,7 @@ for c in CORPOS:
     for o in bpy.context.selected_objects: o.select_set(False)
     arm.select_set(True)
     for o in bpy.data.objects:
-        if o.parent is arm and o.type == "MESH": o.select_set(True)
+        if o.parent is arm and o.type == "MESH" and not (SEM_ITENS and dinamico(o, c)): o.select_set(True)
     bpy.context.view_layer.objects.active = arm
     out = os.path.join(SAIDA, f"{c}.glb")
     bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=True, export_animation_mode="NLA_TRACKS",

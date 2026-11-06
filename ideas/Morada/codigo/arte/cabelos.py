@@ -6,6 +6,7 @@ preciso para não afundar no rosto. A peça fica presa só ao osso Head, com o m
 Usado por corpos.py (ao gerar os corpos) e por tools/adiciona_cabelo.py (para acrescentar itens a corpos prontos).
 """
 import json
+import math
 import os
 
 import bpy
@@ -132,6 +133,79 @@ def _forma_cabelo(forma):
         for v_, p in zip(cab.data.vertices, P):
             v_.co = mi @ Vector(p)
         cab.data.update()
+        extras = []
+        if forma.get("rabo") or forma.get("coque") or forma.get("trancas") or forma.get("crista"):
+            import bmesh as _bm
+            bm = _bm.new()
+            bm.from_mesh(cab.data)
+            uvl = bm.loops.layers.uv.active
+            uv0 = None
+            if uvl:
+                for f in bm.faces:
+                    uv0 = f.loops[0][uvl].uv.copy()
+                    break
+            mw = cab.matrix_world
+            mi = mw.inverted()
+            novos = []
+
+            def tubo(pontos, raios):
+                aneis = []
+                for (p, r) in zip(pontos, raios):
+                    aneis.append([bm.verts.new(mi @ Vector((p[0] + r * math.cos(t), p[1] + r * math.sin(t) * 0.9, p[2])))
+                                  for t in np.linspace(0, 2 * math.pi, 12, endpoint=False)])
+                for a_, b_ in zip(aneis, aneis[1:]):
+                    for k in range(12):
+                        novos.append(bm.faces.new((a_[k], a_[(k + 1) % 12], b_[(k + 1) % 12], b_[k])))
+                fim = bm.verts.new(mi @ Vector(pontos[-1]) + (mi.to_3x3() @ Vector((0, 0, -raios[-1]))))
+                for k in range(12):
+                    novos.append(bm.faces.new((aneis[-1][k], aneis[-1][(k + 1) % 12], fim)))
+            if forma.get("rabo"):  # rabo de cavalo: preso atrás, no alto, descendo até a nuca e o pescoço
+                comp = forma["rabo"] * H
+                base = np.array([c[0], hmax[1] + 0.02 * H, hmin[2] + 0.72 * H])
+                pts = [base + np.array([0, 0.06 * H * t, -comp * t ** 1.2]) for t in np.linspace(0, 1, 7)]
+                tubo(pts, [0.13 * H * (1 - 0.65 * t) * (1.15 if 0 < t < 0.3 else 1) + 0.025 * H for t in np.linspace(0, 1, 7)])
+            if forma.get("trancas"):  # duas tranças dos lados
+                comp = forma["trancas"] * H
+                for sx in (-1, 1):
+                    base = np.array([c[0] + sx * (hmax[0] - c[0]) * 0.85, c[1] + 0.05 * H, hmin[2] + 0.45 * H])
+                    pts = [base + np.array([sx * 0.02 * H * t, 0.03 * H * t, -comp * t]) for t in np.linspace(0, 1, 8)]
+                    tubo(pts, [0.085 * H * (1 - 0.4 * t) * (1 + 0.18 * math.sin(t * 25)) for t in np.linspace(0, 1, 8)])
+            if forma.get("crista"):  # moicano: crista do alto da testa até a nuca (os lados raspados)
+                if forma.get("so_crista"):
+                    _bm.ops.delete(bm, geom=[v for v in bm.verts], context="VERTS")
+                hc = forma["crista"] * H
+                larg = forma.get("largura", 0.05) * H
+                ry_, rz_ = (hmax[1] - hmin[1]) / 2 * 0.93, (hmax[2] - c[2]) * 0.95
+                aneis = []
+                angs = np.linspace(math.radians(25), math.radians(165), 15)
+                for a in angs:
+                    p0 = np.array([c[0], c[1] - ry_ * math.cos(a), c[2] + rz_ * math.sin(a)])
+                    n = np.array([0, -math.cos(a), math.sin(a)])
+                    h = hc * (0.55 + 0.45 * math.sin(a))
+                    anel = []
+                    for t in np.linspace(0, 2 * math.pi, 12, endpoint=False):
+                        q = p0 + np.array([larg * math.cos(t) * (1 - 0.6 * max(math.sin(t), 0)), 0, 0]) \
+                            + n * (h * (0.5 + 0.5 * math.sin(t)) - 0.02 * H)
+                        anel.append(bm.verts.new(mi @ Vector(q)))
+                    aneis.append(anel)
+                for a_, b_ in zip(aneis, aneis[1:]):
+                    for k in range(12):
+                        novos.append(bm.faces.new((a_[k], a_[(k + 1) % 12], b_[(k + 1) % 12], b_[k])))
+                for anel in (aneis[0], aneis[-1]):
+                    novos.append(bm.faces.new(anel))
+            if forma.get("coque"):  # coque no alto e atrás
+                r = _bm.ops.create_icosphere(bm, subdivisions=2, radius=forma["coque"] * H)
+                for v in r["verts"]:
+                    v.co = mi @ (Vector((c[0], c[1] + 0.25 * (hmax[1] - c[1]), hmax[2] + 0.05 * H)) + v.co)
+                novos += list({f for v in r["verts"] for f in v.link_faces})
+            if uvl and uv0 is not None:
+                for f in novos:
+                    for lo in f.loops:
+                        lo[uvl].uv = uv0
+            _bm.ops.recalc_face_normals(bm, faces=novos)
+            bm.to_mesh(cab.data)
+            bm.free()
+            cab.data.update()
         if forma.get("corta_lados"):
             bm = bmesh.new()
             bm.from_mesh(cab.data)
