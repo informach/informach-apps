@@ -104,6 +104,28 @@ export async function verifyPlayerNativeJourney(
       return v instanceof HTMLVideoElement && v.readyState >= 2 && v.currentTime > 0.3;
     });
     await editor.screenshot({ path: join(results, "ediplayer-player.png") });
+    // The whole picture shows: the video's box never grows past the stage (it used to take the
+    // video's natural height and the overflow was cut off).
+    const fitsStage = async (where: string) => {
+      const boxes = await editor.evaluate(() => {
+        const box = (selector: string) => {
+          const r = document.querySelector(selector)?.getBoundingClientRect();
+          return r ? { top: r.top, left: r.left, bottom: r.bottom, right: r.right } : null;
+        };
+        return { stage: box(".stage"), video: box(".stage video") };
+      });
+      const { stage, video } = boxes;
+      assert.ok(
+        stage &&
+          video &&
+          video.top >= stage.top - 1 &&
+          video.left >= stage.left - 1 &&
+          video.bottom <= stage.bottom + 1 &&
+          video.right <= stage.right + 1,
+        `${where}: the video is cut off ${JSON.stringify(boxes)}`,
+      );
+    };
+    await fitsStage("player");
     const seekTo = (t: number) =>
       editor.evaluate((at) => {
         const v = document.querySelector(".stage video");
@@ -124,6 +146,7 @@ export async function verifyPlayerNativeJourney(
     await seekTo(6);
     await editor.keyboard.press("e");
     await editor.locator(".ruler").waitFor();
+    await fitsStage("edit mode");
     const kept = await position();
     assert.ok(
       kept && Math.abs(kept.at - 6) < 0.2 && kept.paused,
@@ -327,6 +350,9 @@ export async function verifyPlayerNativeJourney(
     await editor.locator(".part-flag").getByText("Apagado · Ctrl+Z volta").waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-zoom-handles.png") });
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    // The app may still hold the clip open: a failed cleanup must not hide why the journey failed.
+    await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 }).catch(
+      (error: unknown) => console.warn(`journey cleanup: ${String(error)}`),
+    );
   }
 }

@@ -331,7 +331,12 @@ kbd {
   display: grid;
   place-items: center;
 }
+/* The video fills the stage box itself, never its own size: as a grid item its row grew to the
+   video's natural height (1080 px in a 400 px stage) and the overflow was cut off. Contained,
+   the whole picture shows, with black bars where the shapes differ. */
 .stage video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
