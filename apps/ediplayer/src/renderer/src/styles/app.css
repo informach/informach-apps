@@ -949,6 +949,19 @@ kbd {
   background: rgba(255, 181, 71, 0.1);
   pointer-events: none;
 }
+.part-flag {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  z-index: 1;
+  font: 600 11px var(--font-ui);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  white-space: nowrap;
+  pointer-events: none;
+}
 .pending-in {
   position: absolute;
   top: -6px;

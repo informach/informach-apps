@@ -142,7 +142,8 @@ export async function verifyPlayerNativeJourney(
     const grip = await editor.locator(".playhead-grip").boundingBox();
     const ruler = await editor.locator(".ruler").boundingBox();
     assert.ok(grip && ruler, "the needle has no head");
-    await editor.mouse.move(grip.x + grip.width / 2, grip.y + 6);
+    // hover waits for the head to be still and to be what the pointer would hit.
+    await editor.locator(".playhead-grip").hover({ position: { x: grip.width / 2, y: 6 } });
     await editor.mouse.down();
     await editor.mouse.move(ruler.x + ruler.width * 0.5, grip.y + 6, { steps: 8 });
     await editor.mouse.move(ruler.x + ruler.width * 0.8, grip.y + 6, { steps: 8 });
@@ -256,6 +257,30 @@ export async function verifyPlayerNativeJourney(
       before,
       "the source changed",
     );
+
+    // The simple way, from the player: needle somewhere, S divides there (opening the edit
+    // mode), a click picks the clip, Delete deletes it.
+    await editor.getByRole("button", { name: "Sair da edição" }).click();
+    await editor.locator(".ruler").waitFor({ state: "detached" });
+    await seekTo(15);
+    await editor.keyboard.press("s");
+    await editor.locator(".ruler").waitFor();
+    const lines = await editor.evaluate(() =>
+      [...document.querySelectorAll(".ruler .split-line")].map((l) =>
+        l instanceof HTMLElement ? Number.parseFloat(l.style.left) : -1,
+      ),
+    );
+    assert.ok(
+      lines.some((l) => Math.abs(l - 75) < 2),
+      `S from the player did not cut at the needle: ${lines}`,
+    );
+    const strip1 = await editor.locator(".strip").boundingBox();
+    assert.ok(strip1, "the ruler has no frames");
+    await editor.mouse.click(strip1.x + strip1.width * 0.9, strip1.y + strip1.height / 2);
+    await editor.locator(".part-flag").getByText("Del apaga").waitFor();
+    await editor.keyboard.press("Delete");
+    await editor.locator(".part-flag").getByText("Apagada · Ctrl+Z volta").waitFor();
+    await editor.screenshot({ path: join(results, "ediplayer-simple-split.png") });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

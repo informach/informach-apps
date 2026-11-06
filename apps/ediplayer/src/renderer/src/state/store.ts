@@ -514,13 +514,17 @@ export function deleteSelected(): void {
 
 /** A click on the ruler: a marked stretch when it lands on one, else the part made by Dividir. */
 export function selectOnRuler(t: number): void {
-  const { marks, splitPoints, duration, tool } = get();
+  const { marks, splitPoints, duration } = get();
   const parts = piecesFromPoints(splitPoints, duration);
-  const part = parts.length > 1 ? parts.findIndex((p) => t >= p.start && t < p.end) : -1;
+  // Once the video is divided, a click always picks the clip under it (marked stretches are
+  // still picked in their list and moved by their handles).
+  if (parts.length > 1) {
+    const part = parts.findIndex((p) => t >= p.start && t < p.end);
+    set({ selected: null, part: part < 0 ? null : part });
+    return;
+  }
   const mark = marks.findIndex((m) => m.start <= t && m.end >= t);
-  // In Dividir the click is always about parts; elsewhere a marked stretch comes first.
-  if (mark >= 0 && !(tool === "split" && part >= 0)) set({ selected: mark, part: null });
-  else set({ selected: null, part: part < 0 ? null : part });
+  set({ selected: mark < 0 ? null : mark, part: null });
 }
 
 /** Deletes (or brings back) a whole part made by Dividir; the result is what Salvar saves. */
@@ -539,8 +543,14 @@ export function setPartGone(index: number, gone: boolean): void {
 export function splitHere(): void {
   const { splitPoints, duration } = get();
   const time = now();
-  if (time < 0.5 || time > duration - 0.5) return;
-  if (splitPoints.some((p) => Math.abs(p - time) < 0.25)) return;
+  if (time < 0.5 || time > duration - 0.5) {
+    toast("Muito perto do começo ou do fim para dividir.");
+    return;
+  }
+  if (splitPoints.some((p) => Math.abs(p - time) < 0.25)) {
+    toast("Já tem um corte aqui.");
+    return;
+  }
   // The parts and their delete buttons live in Dividir.
   edit({ splitPoints: [...splitPoints, time].sort((a, b) => a - b) });
   set({ tool: "split" });

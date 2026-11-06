@@ -260,8 +260,13 @@ function onKey(e: KeyboardEvent): void {
       break;
     case "s":
     case "S":
-      if (state.editing) splitHere();
-      else if (e.shiftKey) void captureFrame("file").catch(fail);
+      if (e.shiftKey && !state.editing) void captureFrame("file").catch(fail);
+      else if (state.editing) splitHere();
+      else if (state.source) {
+        // S divides where the needle is, from the player too: it opens the edit mode first.
+        void enterEdit().catch(fail);
+        splitHere();
+      }
       break;
     case "Delete":
     case "Backspace":

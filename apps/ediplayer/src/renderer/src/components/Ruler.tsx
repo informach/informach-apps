@@ -1,6 +1,7 @@
 import {
   clock,
   invertRanges,
+  isPartRemoved,
   keptRanges,
   normalizeRanges,
   piecesFromPoints,
@@ -203,10 +204,17 @@ export function Ruler() {
           </>
         )}
         {clicked && (
-          <span
-            className="part-sel"
-            style={{ left: pct(clicked.start), width: pct(clicked.end - clicked.start) }}
-          />
+          <>
+            <span
+              className="part-sel"
+              style={{ left: pct(clicked.start), width: pct(clicked.end - clicked.start) }}
+            />
+            <span className="part-flag" style={{ left: pct((clicked.start + clicked.end) / 2) }}>
+              {isPartRemoved(clicked, marks, mode, duration)
+                ? "Apagada · Ctrl+Z volta"
+                : "Del apaga"}
+            </span>
+          </>
         )}
         {pendingIn !== null && <span className="pending-in" style={{ left: pct(pendingIn) }} />}
         {splitPoints.map((p) => (
