@@ -14,6 +14,7 @@ import {
   setPartRemoved,
   snapDrift,
   snapToKeyframes,
+  startsOffKeyframes,
   subtractRange,
   totalDuration,
 } from "../src/shared/ranges.ts";
@@ -130,6 +131,19 @@ test("moving a cut keeps it between its neighbours and drags the deleted part's 
   assert.deepEqual(moveCut([10, 20], [], 1, 40, 30).points, [10, 29.9]);
   // A mark that does not touch the cut stays put.
   assert.deepEqual(moveCut([10], [{ start: 2, end: 4 }], 0, 11, 30).marks, [{ start: 2, end: 4 }]);
+});
+
+test("the exact cut re-encodes only when a stretch starts off a keyframe", () => {
+  const keys = [0, 2, 4, 6, 8];
+  const at = (start: number) => [{ start, end: start + 1 }];
+  assert.equal(startsOffKeyframes(at(0), keys, 30), false);
+  assert.equal(startsOffKeyframes(at(6), keys, 30), false);
+  // Within half a frame of the keyframe is the keyframe.
+  assert.equal(startsOffKeyframes(at(6.01), keys, 30), false);
+  assert.equal(startsOffKeyframes(at(7.3), keys, 30), true);
+  // Unknown keyframes: only a start at 0 is known to be exact.
+  assert.equal(startsOffKeyframes(at(0), null, 30), false);
+  assert.equal(startsOffKeyframes(at(4), null, 30), true);
 });
 
 test("clock formats minutes, hours and tenths", () => {

@@ -197,3 +197,21 @@ export function moveCut(
     ),
   };
 }
+
+/**
+ * Whether saving the stretches exactly needs re-encoding: without it a stretch can only start on
+ * the keyframe at or before its start (measured: a cut at 7.3 s with keyframes every 2 s came
+ * out starting at 6.0 s). Half a frame is close enough; unknown keyframes count as off.
+ */
+export function startsOffKeyframes(
+  ranges: readonly Range[],
+  keyframes: readonly number[] | null,
+  fps: number,
+): boolean {
+  const tolerance = 0.5 / (fps > 0 ? fps : 30);
+  return ranges.some(
+    (r) =>
+      r.start > tolerance &&
+      (!keyframes?.length || r.start - keyframeAtOrBefore(r.start, keyframes) > tolerance),
+  );
+}

@@ -410,7 +410,9 @@ export function MarksAndResult() {
   const pendingIn = useStore((s) => s.pendingIn);
   const kept = keptRanges(marks, mode, duration);
   const result = totalDuration(kept);
-  const drift = keyframes?.length ? snapDrift(kept, keyframes) : 0;
+  const precise = useStore((s) => s.precise);
+  // Only when the person chose to never re-encode: by default the cut is exact.
+  const drift = !precise && keyframes?.length ? snapDrift(kept, keyframes) : 0;
   return (
     <div className="below-ruler">
       <div className="marks">

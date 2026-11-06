@@ -6,6 +6,7 @@ import {
   piecesFromPoints,
   type Range,
   setPartRemoved,
+  startsOffKeyframes,
 } from "@shared/ranges";
 import { type Cue, parseSubtitles } from "@shared/subtitles";
 import type {
@@ -127,7 +128,7 @@ export const useStore = create<State>(() => ({
   part: null,
   pendingIn: null,
   mode: "remove",
-  precise: false,
+  precise: true,
   transform: NO_TRANSFORM,
   splitPoints: [],
   past: [],
@@ -248,7 +249,7 @@ function resetEdit(): Partial<State> {
     transform: NO_TRANSFORM,
     past: [],
     future: [],
-    precise: false,
+    precise: true,
     mode: "remove",
     sheet: null,
     wave: null,
@@ -577,4 +578,14 @@ export function selectMark(i: number): void {
 export function openSave(kind: SaveKind, preset: PresetId = "original", marked = false): void {
   video()?.pause();
   set({ save: { kind, preset, marked } });
+}
+
+/**
+ * Whether these stretches are saved re-encoded to start on the exact frame: only when the person
+ * keeps "Corte no quadro exato" on and a stretch starts off a keyframe. Otherwise the copy is
+ * already exact (or the person chose speed).
+ */
+export function exactNeedsEncode(ranges: readonly Range[]): boolean {
+  const { precise, keyframes, facts } = get();
+  return precise && startsOffKeyframes(ranges, keyframes, facts?.fps ?? 30);
 }

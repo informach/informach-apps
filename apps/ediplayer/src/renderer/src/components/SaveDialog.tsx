@@ -18,12 +18,13 @@ import {
   MIN_RANGE,
   normalizeRanges,
   piecesFromPoints,
+  snapDrift,
   totalDuration,
 } from "@shared/ranges";
 import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/media";
-import { fail, toast, useStore } from "../state/store";
+import { exactNeedsEncode, fail, toast, useStore } from "../state/store";
 
 /** Salvar: the format, what it costs (size, time, quality), then the person's own save dialog. */
 export function SaveDialog() {
@@ -108,6 +109,7 @@ function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean })
   const marks = useStore((s) => s.marks);
   const mode = useStore((s) => s.mode);
   const precise = useStore((s) => s.precise);
+  const keyframes = useStore((s) => s.keyframes);
   const transform = useStore((s) => s.transform);
   const [preset, setPreset] = useState<PresetId>(initial);
   const [openFolder, setOpenFolder] = useState(true);
@@ -118,7 +120,10 @@ function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean })
     ? normalizeRanges(marks, facts.duration)
     : keptRanges(marks, mode, facts.duration);
   const seconds = totalDuration(ranges) / transform.speed;
-  const copy = canCopy(transform, preset, precise, facts);
+  // Exact by default: re-encoded only when a stretch starts off a keyframe.
+  const exact = exactNeedsEncode(ranges);
+  const copy = canCopy(transform, preset, exact, facts);
+  const offBy = keyframes?.length && preset === "original" ? snapDrift(ranges, keyframes) : 0;
   const codec = (facts.audio.at(transform.audioIndex) ?? facts.audio.at(0))?.codec ?? "";
   const ext = exportExtension(facts.path, preset, copy, facts.hasVideo, codec);
   const empty = ranges.length === 0;
@@ -134,7 +139,7 @@ function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean })
       );
       if (!output) return;
       await enqueue(
-        { kind: "export", source: facts.path, ranges, precise, transform, preset, output },
+        { kind: "export", source: facts.path, ranges, precise: exact, transform, preset, output },
         "",
         openFolder,
       );
@@ -167,6 +172,32 @@ function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean })
           ))}
         </div>
       </div>
+      {exact && offBy > 0 && (
+        <span className="info">
+          Um corte cai entre quadros-chave: para o vídeo sair no quadro exato, ele é recodificado em
+          alta qualidade (leva mais tempo).{" "}
+          <button
+            type="button"
+            className="link"
+            onClick={() => useStore.setState({ precise: false })}
+          >
+            Salvar rápido, sem recodificar
+          </button>{" "}
+          (um pedaço pode começar até {seconds1(offBy)} s antes do corte).
+        </span>
+      )}
+      {!precise && offBy > 0.05 && (
+        <span className="warn">
+          Sem recodificar, um pedaço pode começar até {seconds1(offBy)} s antes do corte.{" "}
+          <button
+            type="button"
+            className="link"
+            onClick={() => useStore.setState({ precise: true })}
+          >
+            Cortar no quadro exato
+          </button>
+        </span>
+      )}
       <div className="summary">
         <div>
           <small>Duração</small>
@@ -204,6 +235,8 @@ function ExportBody({ initial, marked }: { initial: PresetId; marked: boolean })
     </div>
   );
 }
+
+const seconds1 = (s: number) => s.toFixed(1).replace(".", ",");
 
 const presetName = (id: PresetId) => PRESETS.find((p) => p.id === id)?.name ?? id;
 

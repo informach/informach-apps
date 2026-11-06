@@ -169,7 +169,7 @@ export async function verifyPlayerNativeJourney(
       .update(await readFile(clip))
       .digest("hex");
     assert.equal(after, before, "the source changed");
-    // 20 s minus the 5 s marked: 15 s, give or take a keyframe.
+    // 20 s minus the 5 s marked: exactly 15 s.
     const probe = await run(ffprobePath(root), [
       "-v",
       "error",
@@ -180,7 +180,7 @@ export async function verifyPlayerNativeJourney(
       output,
     ]);
     const length = Number(probe.stdout.trim());
-    assert.ok(Math.abs(length - 15) < 1.2, `cut length ${length}`);
+    assert.ok(Math.abs(length - 15) < 0.15, `cut length ${length}`);
 
     // Dividir e apagar: two cuts, the middle part deleted with Delete, the rest saved as one.
     const parted = join(dir, "aula-revisao (partes).mp4");
@@ -247,9 +247,9 @@ export async function verifyPlayerNativeJourney(
       "csv=p=0",
       parted,
     ]);
-    // 20 s minus the part from 5 to 12 s: 13 s, give or take a keyframe.
+    // 20 s minus the part from 5 to 12 s: exactly 13 s (the cut is exact by default).
     const partedLength = Number(partedProbe.stdout.trim());
-    assert.ok(Math.abs(partedLength - 13) < 1.2, `parts length ${partedLength}`);
+    assert.ok(Math.abs(partedLength - 13) < 0.15, `parts length ${partedLength}`);
     assert.equal(
       createHash("sha256")
         .update(await readFile(clip))

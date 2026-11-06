@@ -572,3 +572,59 @@ test("playable copies: Matroska by copy, AVI through a preview", async () => {
   assert.equal(p.audio.at(0)?.codec, "aac");
   assert.ok(last > 0);
 });
+
+test("deleting a stretch that ends off a keyframe: exact when re-encoded, early by copy", async () => {
+  // Screen and phone recordings: a keyframe every 2 s. Deleting 5 to 7.3 s keeps 0-5 and 7.3-20.
+  await make("gop2.mp4", [
+    "-f",
+    "lavfi",
+    "-i",
+    "testsrc2=size=640x360:rate=30:duration=20",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:sample_rate=48000:duration=20",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-g",
+    "60",
+    "-keyint_min",
+    "60",
+    "-sc_threshold",
+    "0",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-shortest",
+  ]);
+  const ranges = [
+    { start: 0, end: 5 },
+    { start: 7.3, end: 20 },
+  ];
+  const lengths: Record<string, number> = {};
+  for (const precise of [true, false]) {
+    const output = clip(`gop2-${precise}.mp4`);
+    await runJob(
+      engine,
+      {
+        kind: "export",
+        source: clip("gop2.mp4"),
+        ranges,
+        precise,
+        transform: NO_TRANSFORM,
+        preset: "original",
+        output,
+      },
+      ctx(`gop2-${precise}`),
+    );
+    lengths[String(precise)] = (await engine.probe(output)).duration;
+  }
+  // What the person asked for: 5 + 12.7 s.
+  assert.ok(Math.abs((lengths.true ?? 0) - 17.7) < 0.05, `exact: ${lengths.true}`);
+  // By copy the second stretch starts on the keyframe at 6 s: 1.3 s of the deleted part stays.
+  // This is why the exact cut is the default.
+  assert.ok(Math.abs((lengths.false ?? 0) - 19) < 0.1, `copy: ${lengths.false}`);
+});

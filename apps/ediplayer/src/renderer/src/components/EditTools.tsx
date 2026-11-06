@@ -4,6 +4,7 @@ import {
   clock,
   evenSplitPoints,
   isPartRemoved,
+  keptRanges,
   normalizeRanges,
   piecesFromPoints,
   totalDuration,
@@ -32,6 +33,7 @@ import {
   beginTransformChange,
   changeTransformLive,
   edit,
+  exactNeedsEncode,
   fail,
   openSave,
   setPartGone,
@@ -86,8 +88,19 @@ export function EditTools() {
   const tool = useStore((s) => s.tool);
   const facts = useStore((s) => s.facts);
   const t = useStore((s) => s.transform);
-  const precise = useStore((s) => s.precise);
+  const marks = useStore((s) => s.marks);
+  const mode = useStore((s) => s.mode);
+  const duration = useStore((s) => s.duration);
+  // Re-read on these changes: whether the exact cut needs re-encoding depends on them.
+  useStore((s) => s.precise);
+  useStore((s) => s.keyframes);
   const hasVideo = facts?.hasVideo ?? false;
+  const copies = canCopy(
+    t,
+    "original",
+    exactNeedsEncode(keptRanges(marks, mode, duration)),
+    facts ?? undefined,
+  );
   return (
     <aside className="tools">
       <h2>Edições</h2>
@@ -116,8 +129,8 @@ export function EditTools() {
         {tool === "subtitle" && <SubtitleTool />}
         {tool === "convert" && <ConvertTool />}
         {tool === "gif" && <GifTool />}
-        <span className={canCopy(t, "original", precise, facts ?? undefined) ? "info" : "warn"}>
-          {canCopy(t, "original", precise, facts ?? undefined)
+        <span className={copies ? "info" : "warn"}>
+          {copies
             ? hasVideo
               ? "Sem recodificar a imagem: salva em segundos, sem perder qualidade."
               : "Sem recodificar: salva em segundos."
@@ -154,8 +167,8 @@ function TrimTool() {
       <Toggle
         on={precise}
         onChange={(v) => useStore.setState({ precise: v })}
-        title="Corte preciso"
-        detail="Desligado: sem recodificar a imagem, cada trecho começa no quadro-chave anterior à marca. Ligado: corta no quadro exato e recodifica o resultado."
+        title="Corte no quadro exato"
+        detail="Ligado: o vídeo salvo começa e termina exatamente nos cortes, recodificando só quando um corte não cai num quadro-chave. Desligado: nunca recodifica, e cada pedaço começa no quadro-chave anterior ao corte."
       />
     </>
   );
