@@ -101,8 +101,16 @@ O gerador está em `codigo/morada-art/geradores.py`:
     duplos, faixa no peito, listras verticais, listras de marinheiro, duas cores na lateral, ziguezague, caveiras,
     folhas, oncinha, lantejoula, jeans e bolso canguru.
     - Nos padrões com detalhes brancos, o fundo é cinza: a cor livre pinta o fundo e o branco continua branco.
+- Acabamento das peças geradas por camada (`geradores.camada`):
+  - parte de cima: a barra fica 2 cm acima da junta do quadril (longe do gancho) e cai reta (`_barra_reta`): abaixo da
+    parte mais larga do quadril, cada ponto vai para fora até o contorno dessa altura, em vez de seguir a pele para
+    dentro da virilha (antes, de frente, a barra fazia um V, como um body);
+  - parte de baixo e peça inteira: o lado de dentro da perna (virado para a outra) fica quase rente (3 mm, proporcional
+    à altura); com a folga toda, as duas coxas da bermuda folgada se cruzavam no gancho e faziam dobras.
 - **`chapeu`**: feito sobre a cabeça do corpo.
-  - A copa segue a forma da cabeça medida por raios. Opções da copa: `alt`, `inclina`, `teto` (boina), `ponta`
+  - A copa segue a forma da cabeça medida por raios. Cada meridiano para exatamente onde cruza a altura do corte (antes,
+    os pontos abaixo subiam com o raio que tinham e, onde o raio não achava a cabeça, a borda virava um disco).
+  - A viseira afina até quase nada nas pontas (expoente 1,15) e os bonés abrem 58°: de frente, o boné não vira chapéu. Opções da copa: `alt`, `inclina`, `teto` (boina), `ponta`
     (chapéu pontudo) e `capuz`.
   - Partes que podem ser somadas: `aba` (com `sobe_lados` para o caubói), `viseira` (`atras` para o boné virado),
     `banda` (com `pontas` para a coroa), `topo`, `puff`, `faixa`, `enrolado`, `pompom`, `orelhas`, `olhos`,

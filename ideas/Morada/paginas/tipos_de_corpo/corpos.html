@@ -1692,7 +1692,7 @@ function seletorImagem(chave, rotulo, opcoes, atualK, escolher, desligado, dica)
   if (aberto) {
     for (const o of opcoes) {
       const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", String(o.k === atualK));
-      b.title = o.rotulo;
+      b.title = o.rotulo; b.dataset.k = o.k;
       const t = document.createElement("span"); t.textContent = o.rotulo;
       b.append(miniatura(o.mini, o.marca), t);
       b.onclick = () => { seletorAberto = null; escolher(o.k); };

@@ -13,9 +13,9 @@ labrador, num fundo azul-noite sem horizonte. Gerada por `codigo/arte/cena_famil
 | rapaz | adolescente_m | boné vermelho, jaqueta de agasalho, jeans, tênis | topete loiro (para chapéu) | parado |
 | mãe | adulta | vestido justo verde, corrente, tênis | franja de lado (comprido) | parado |
 | pai | adulto (pele morena) | boné cinza, camisa social clara, calça social preta, tênis | curto, barba cheia | parado; a menina no braço esquerdo |
-| menina no colo | pequena_f | camiseta rosa, calça de moletom amarela, tênis rosa | maria-chiquinha | sentada no antebraço dele, abanando, a outra mão no ombro dele |
+| menina no colo | pequena_f | camiseta rosa, calça de moletom amarela, tênis rosa | maria-chiquinha | sentada no antebraço dele, abanando, a outra mão no peito dele |
 | avô | idoso | camisa social de manga curta roxa, calça marrom, sapato, **guia retrátil** | branco, bigode de pontas | parado, um pouco inclinado; a mão direita na cabeça do cachorro |
-| avó | idosa | moletom verde-água, cachecol rosa, jeans, tênis rosa | grisalho | parada; de braço dado com o avô, a mão no ombro dele |
+| avó | idosa | moletom verde-água, cachecol rosa, jeans, tênis rosa | grisalho | parada; a mão direita pousada no ombro dele |
 | menino | crianca_m | **boné com hélice**, jaqueta de agasalho listrada verde, calça de moletom, tênis roxo | curto (para chapéu) | parado; a mão no peito |
 | vovó | plus_f | vestido de gola branca verde-água, legging, tênis verde | coque branco | ajoelhada (pedido); segura a menina |
 | menina | crianca_f | camisa polo azul-clara, short amarelo, tênis | chanel de lado | sentada no joelho da vovó |
@@ -30,11 +30,16 @@ Expressão "confiante" nos adultos (olhos abertos e sorriso) e "feliz" em duas c
   usa as máscaras de `roupas_mascaras/` (a mesma conta da página); cabelo, barba e bigode ganham uma cor lisa.
 - **Pesos da pele**: cada peça passa a usar os pesos da pele logo embaixo dela (transferência de pesos, face mais perto,
   em descanso). Com os pesos que vêm da malha do pacote, o cós descola e abre em funil quando a coluna dobra.
+- **Blusas**: além dos pesos da pele, a parte de cima perde os pesos das pernas (vão para o quadril): a barra segue o
+  quadril e não abre em leque quando as pernas se mexem.
+- **Cabelo e chapéu**: do centro da cabeça, cada ponto do cabelo que passaria da copa volta para dentro dela (o raio até
+  ele cruza o chapéu antes); abaixo da aba nada muda. Assim o cabelo não vaza pelo alto nem por trás do boné.
 - **Pele coberta**: como na página, a pele embaixo da roupa não é desenhada (modificador de máscara). Em descanso, cada
   vértice procura uma peça pela normal (até 3,5 cm); a pele fica onde a peça está a menos de 7 cm da borda aberta dela
   (barra, cós, gola), senão o avesso aparece por cima.
 - **Poses**: um quadro de uma animação da biblioteca (`biblioteca/corrigido_todos/<fonte>.blend`) congelado no esqueleto
-  (parado, sentado, ajoelhado). Os gestos são IK de dois ossos no braço (mão no ombro, no peito, na cabeça do cachorro,
+  (parado, sentado, ajoelhado). O giro da palma é dividido: o antebraço gira em volta do próprio eixo 70% do que falta e
+  a mão faz o resto (o punho sozinho torceria). Os gestos são IK de dois ossos no braço (mão no ombro, no peito, na cabeça do cachorro,
   criança no braço), mais o giro da mão (dedos e palma) e os dedos dobrados. A menina do colo e a do joelho são postas
   pelo quadril no antebraço do pai e na coxa levantada da vovó.
 - **Cachorro e guia**: o labrador vem do `bichos.blend` (gerado por `bichos.py`), parado num quadro de "parado". A guia é

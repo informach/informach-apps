@@ -112,7 +112,7 @@ hat("capacete_obra", "Capacete de obra", "#F2C231", copa={"folga": 0.022, "corte
 hat("capacete_bike", "Capacete de bicicleta", "#3D7BD6", copa={"folga": 0.03, "corte": 0.6, "alt": 1.0, "cor": "branco"},
     viseira={"comprimento": 0.2, "abertura": 60, "caida": 0.2, "cor": "preto"})
 hat("bone_novo", "Boné", "#D9433B", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
-    viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.12})
+    viseira={"comprimento": 0.5, "abertura": 58, "caida": 0.1})
 hat("boina", "Boina", "#D9433B", boina={"corte": 0.62, "lado": 13})
 hat("touca", "Touca", "#3FC1B0", copa={"folga": 0.012, "corte": 0.6, "alt": 1.1}, enrolado={"altura": 0.16})
 hat("touca_pompom", "Touca com pompom", "#F2C231", copa={"folga": 0.012, "corte": 0.6, "alt": 1.15},
@@ -426,10 +426,10 @@ hat("touca_urso", "Touca de urso", "#E27B3B", copa={"folga": 0.012, "corte": 0.5
     enrolado={"altura": 0.14}, orelhas_redondas={"raio": 0.14, "dentro": "bege"})
 hat("orelhas_coelho", "Orelhas de coelho", "#2B2B2B", so_arco=True, arco={"largura": 0.05, "orelhas_longas": {"dentro": "rosa"}})
 hat("bone_duas_cores", "Boné de duas cores", "#F2F2F2", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
-    viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.12, "cor": "azul"})
+    viseira={"comprimento": 0.5, "abertura": 58, "caida": 0.1, "cor": "azul"})
 hat("bone_helice", "Boné com hélice", "#3BAA5C", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1,
                                                      "gomos": ["vermelho", "amarelo", "azul", "branco"] * 2},
-    viseira={"comprimento": 0.5, "abertura": 70, "caida": 0.12}, helice={"pas": ("vermelho", "azul")})
+    viseira={"comprimento": 0.5, "abertura": 58, "caida": 0.1}, helice={"pas": ("vermelho", "azul")})
 # óculos
 oc("oculos_redondos", "Óculos redondos", "#D6A83A", forma="redondo", armacao="branco")
 oc("oculos_quadrados", "Óculos de grau quadrados", "#2B2B2B", forma="quadrado", armacao="branco", esp=0.006)

@@ -29,7 +29,7 @@ TONS = {"clara": "#FFB69F", "media": "#FEA679", "morena": "#BA6953", "escura": "
 PESSOAS = [
     dict(id="magro", corpo="alto_magro", pose=("resident.idle.neutral", 40), lugar=(-1.62, 0.28, -12),
          cabelo=None, pelos=["bigode_2"], cor_pelos="#6B4A32",
-         roupa=[("nov_touca", "#9C8C7A"), ("nov_regata_justa", "#EEF0F3"), ("nov_bermuda_folgada", "#7A4E35"),
+         roupa=[("nov_touca", "#857A6C"), ("nov_regata_justa", "#EEF0F3"), ("nov_bermuda_folgada", "#7A4E35"),
                 ("roupa_chinelo_005", None)]),
     dict(id="moca", corpo="adolescente_f", pose=("resident.idle.neutral", 20), lugar=(-1.2, 0.08, -8),
          cabelo=("cabelo_sobrevivente_comprido", "#8A4A2C"),
@@ -46,7 +46,7 @@ PESSOAS = [
          roupa=[("gen_vestido_justo", "#1E9E52"), ("roupa_corrente_plus", None), ("roupa_tenis_009", "#F2EEE8")]),
     dict(id="pai", corpo="adulto", pose=("resident.idle.neutral", 20), lugar=(0.86, 0.3, 8), tom="morena",
          cabelo=("cabelo_seguranca_chapeu", "#2B1D16"), pelos=["barba_2"],
-         roupa=[("nov_bone_novo", "#4A4D55"), ("nov_camisa_social", "#D8E2EC"), ("nov_calca_social", "#1E2024"),
+         roupa=[("nov_bone_novo", "#3A3D44"), ("nov_camisa_social", "#D8E2EC"), ("nov_calca_social", "#1E2024"),
                 ("roupa_tenis_009", None)]),
     dict(id="menina_colo", corpo="pequena_f", pose=("resident.sit.chair.idle", 30), lugar=(1.12, 0.1, -10), expr="feliz",
          cabelo=("maria_chiquinha", "#5A3424"),
@@ -250,6 +250,20 @@ def orienta_mao(arm, lado, dedos, palma):
     """Gira a mão para os dedos irem para 'dedos' e a palma olhar para 'palma' (direções no mundo)."""
     L = "Left" if lado == "esq" else "Right"
     pb = arm.pose.bones[L + "Hand"]
+    fa = arm.pose.bones[L + "ForeArm"]
+    # primeiro o antebraço gira em volta do próprio eixo boa parte do giro que a palma precisa (como um braço de
+    # verdade: o punho sozinho não torce 180°); depois a mão faz o resto
+    X, Z = referencial_mao(arm, lado)
+    eixo = (_w(arm, fa.tail) - _w(arm, fa.head)).normalized()
+    Zd0 = Vector(palma)
+    Zp = (Z - eixo * Z.dot(eixo))
+    Zq = (Zd0 - eixo * Zd0.dot(eixo))
+    if Zp.length > 1e-4 and Zq.length > 1e-4:
+        Zp.normalize()
+        Zq.normalize()
+        ang = math.atan2(eixo.dot(Zp.cross(Zq)), Zp.dot(Zq))
+        e_a = (arm.matrix_world.to_3x3().normalized().inverted() @ eixo).normalized()
+        gira_osso(arm, fa, Quaternion(e_a, ang * 0.7))
     X, Z = referencial_mao(arm, lado)
     Xd = Vector(dedos).normalized()
     Zd = Vector(palma)
@@ -273,6 +287,30 @@ def fecha_dedos(arm, lado, quanto=0.6, polegar=0.3):
     bpy.context.view_layer.update()
 
 
+PERNAS = ("LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg", "LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase")
+
+
+def sem_pernas(ob):
+    """Parte de cima: a barra segue o quadril, não as coxas (senão abre em leque quando as pernas se mexem)."""
+    import numpy as np_
+    n = len(ob.data.vertices)
+    W = {g.name: np_.zeros(n) for g in ob.vertex_groups}
+    idx = {g.index: g.name for g in ob.vertex_groups}
+    for v in ob.data.vertices:
+        for g in v.groups:
+            W[idx[g.group]][v.index] = g.weight
+    perna = sum((W[nm] for nm in PERNAS if nm in W), np_.zeros(n))
+    resto = sum((W[nm] for nm in W if nm not in PERNAS), np_.zeros(n))
+    quadril = W.get("Hips", np_.zeros(n))
+    for nm in PERNAS:
+        if nm in ob.vertex_groups:
+            ob.vertex_groups[nm].remove(list(range(n)))
+    if "Hips" in ob.vertex_groups:  # o peso que era das pernas vai para o quadril
+        g = ob.vertex_groups["Hips"]
+        for i in np_.nonzero(perna > 0)[0]:
+            g.add([int(i)], float(quadril[i] + perna[i]), "REPLACE")
+
+
 def pesos_da_pele(ob, corpo):
     """A peça passa a usar os pesos da pele logo embaixo dela (interpolados na face mais perto), em descanso: assim ela
     dobra igual ao corpo em qualquer pose (os pesos que vêm da malha do pacote descolam o cós quando a coluna dobra)."""
@@ -289,6 +327,35 @@ def pesos_da_pele(ob, corpo):
     ob.modifiers.move(ob.modifiers.find(dt.name), 0)
     with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob]):
         bpy.ops.object.modifier_apply(modifier=dt.name)
+
+
+def cabelo_sob_chapeu(cabelos, chapeu, arm, folga=0.006):
+    """O cabelo não atravessa o chapéu: do centro da cabeça, cada ponto do cabelo que passaria da copa (o raio até ele
+    cruza o chapéu antes) volta para dentro dela. Abaixo da aba o raio não cruza a copa e o cabelo fica como está."""
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = chapeu.evaluated_get(dg)
+    me = ev.to_mesh()
+    vs = [ev.matrix_world @ v.co for v in me.vertices]
+    arv = BVHTree.FromPolygons(vs, [list(pl.vertices) for pl in me.polygons])
+    ev.to_mesh_clear()
+    hb = arm.pose.bones["Head"]
+    c = arm.matrix_world @ hb.head.lerp(hb.tail, 0.35)
+    n = 0
+    for cab in cabelos:
+        mw, mi = cab.matrix_world, cab.matrix_world.inverted()
+        for v in cab.data.vertices:
+            p = mw @ v.co
+            d = p - c
+            L = d.length
+            if L < 1e-6:
+                continue
+            hit = arv.ray_cast(c, d / L, 1.0)
+            if hit[0] is not None and L > hit[3] - folga:
+                v.co = mi @ (c + d / L * max(hit[3] - folga, 0.0))
+                n += 1
+        cab.data.update()
+    print("cabelo sob o chapéu", chapeu.name, n, flush=True)
 
 
 def esconde_pele_coberta(corpo, roupas, alcance=0.035):
@@ -417,8 +484,15 @@ def monta_pessoa(p):
             ob.modifiers.new("Esqueleto", "ARMATURE").object = arm
         elif item.get("tipo") == "pele" or item.get("compoe") or R._resolve(item).get("tipo") == "pele":
             pesos_da_pele(ob, corpo)
+            if R._resolve(item).get("slot") in ("cima", "sobre"):
+                sem_pernas(ob)
         tinge(ob, rid, cor or (item.get("variacao") or {}).get("cor"))
         malhas.append(ob)
+    chapeus = [m for m in malhas if m.name in {f"{c}_{r}" for r, _ in p["roupa"]}
+               and R.ITENS[m.name[len(c) + 1:]].get("slot") == "cabeca" and R.ITENS[m.name[len(c) + 1:]].get("achata") is not False]
+    cabelos = [m for m in malhas if m.name.startswith(c + "_cabelo")]
+    for ch in chapeus:
+        cabelo_sob_chapeu(cabelos, ch, arm)
     if p.get("tom"):
         tom_de_pele(corpo, p["tom"])
         for o in [o for o in bpy.data.objects if o.name.startswith(c + "_rosto_")]:
@@ -525,8 +599,11 @@ def ajustes(ps):
     assento = cot.lerp(osso(pai, "LeftHand"), 0.45) + V((0.0, 0.02, 0.07))
     mc.parent.location += assento - osso(mc, "Hips")
     bpy.context.view_layer.update()
-    ik_braco(mc, "dir", osso(pai, "Neck").lerp(osso(pai, "LeftArm"), 0.55) + V((0, -0.02, 0.04)), osso(mc, "RightArm") + V((0, 0.2, -0.3)))
-    orienta_mao(mc, "dir", V((-0.3, 0.6, -0.4)), V((0, 0.4, -1)))
+    # a mão direita dela na frente do ombro dele (sem entrar no pescoço nem na barba), o cotovelo para baixo
+    peito_pai = osso(pai, "LeftShoulder").lerp(osso(pai, "LeftArm"), 0.5) + V((-0.01, -0.09, -0.02))
+    ik_braco(mc, "dir", peito_pai, osso(mc, "RightArm") + V((0.05, -0.15, -0.35)))
+    orienta_mao(mc, "dir", V((-0.4, 0.1, 0.9)), V((-0.2, 1.0, 0.1)))
+    fecha_dedos(mc, "dir", 0.35, 0.1)
     ik_braco(mc, "esq", osso(mc, "LeftArm") + V((0.12, -0.08, 0.2)), osso(mc, "LeftArm") + V((0.4, 0.2, -0.2)))
     orienta_mao(mc, "esq", V((0.1, 0, 1)), V((0, -1, 0)))
     cao = cachorro("labrador", (1.02, -0.3, 8), "parado", 30)
@@ -538,13 +615,11 @@ def ajustes(ps):
     Zd = V((-1, 0, 0))
     orienta_mao(avo, "esq", Yd.cross(Zd), Zd)
     fecha_dedos(avo, "esq", 0.9, 0.5)
-    ik_braco(avoa, "dir", osso(avo, "LeftArm") + V((0.02, 0.03, 0.07)), osso(avoa, "RightArm") + V((0.1, 0.4, -0.5)))
-    orienta_mao(avoa, "dir", V((-0.6, -0.3, -0.7)), V((0, 0, -1)))
-    fecha_dedos(avoa, "dir", 0.35, 0.15)
-    ik_braco(avoa, "esq", osso(avo, "LeftArm").lerp(osso(avo, "LeftForeArm"), 0.45) + V((0.05, -0.06, 0.0)),
-             osso(avoa, "LeftArm") + V((0.3, 0.2, -0.6)))
-    orienta_mao(avoa, "esq", V((-0.8, -0.2, -0.3)), V((-0.6, 0.5, 0)))
-    fecha_dedos(avoa, "esq", 0.4, 0.2)
+    # ela: a mão direita pousada no ombro dele, o cotovelo para baixo e um pouco para trás; o outro braço solto
+    ombro_avo = osso(avo, "LeftArm").lerp(osso(avo, "LeftShoulder"), 0.35) + V((0.0, 0.0, 0.06))
+    ik_braco(avoa, "dir", ombro_avo + V((0.03, 0.0, 0.02)), osso(avoa, "RightArm") + V((-0.05, 0.25, -0.55)))
+    orienta_mao(avoa, "dir", V((-0.75, -0.35, -0.55)), V((0.1, 0.15, -1)))
+    fecha_dedos(avoa, "dir", 0.3, 0.1)
     # a mão direita dele no alto da cabeça do cachorro (o tronco inclina um pouco para a frente e para o cachorro)
     R3 = avo.matrix_world.to_3x3().normalized()
     for nome_o, ang in (("Spine", 9), ("Spine1", 6)):
@@ -715,13 +790,19 @@ def estudio(saida, rapido):
     if os.environ.get("CLOSE"):  # closes para revisão: CLOSE=pai,menino (meio corpo de frente)
         scn.render.resolution_x, scn.render.resolution_y = 640, 640
         lens0, loc0, rot0 = cd.lens, cam.location.copy(), cam.rotation_euler.copy()
-        for id_ in os.environ["CLOSE"].split(","):
+        for pedido in os.environ["CLOSE"].split(","):
+            id_, _, parte = pedido.partition(":")  # parte: cabeca, tronco, quadril, perna (padrão: meio corpo)
             arm = P(id_)["arm"]
-            alvo = (arm.matrix_world @ arm.pose.bones["Spine1"].head).lerp(arm.matrix_world @ arm.pose.bones["Head"].head, 0.5)
-            cam.location = alvo + Vector((0.25, -2.6, 0.25))
+            pts = {"cabeca": ("Head", "Head", 1.0, 0.25), "tronco": ("Spine1", "Spine1", 1.0, 0.6), "ombro": ("Neck", "Neck", 1.0, 0.45),
+                   "quadril": ("Hips", "Hips", 1.0, 0.6), "perna": ("LeftLeg", "RightLeg", 0.5, 0.8)}
+            a_, b_, k_, dist = pts.get(parte, ("Spine1", "Head", 0.5, 1.0))
+            alvo = (arm.matrix_world @ arm.pose.bones[a_].head).lerp(arm.matrix_world @ arm.pose.bones[b_].head, k_)
+            if parte == "cabeca":
+                alvo = alvo + Vector((0, 0, 0.08))
+            cam.location = alvo + Vector((0.25, -2.6, 0.25)) * dist
             cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()
             cd.lens = 70
-            scn.render.filepath = os.path.join(os.path.dirname(saida), f"close_{id_}.png")
+            scn.render.filepath = os.path.join(os.path.dirname(saida), f"close_{id_}_{parte or 'meio'}.png")
             bpy.ops.render.render(write_still=True)
         cd.lens, cam.location, cam.rotation_euler = lens0, loc0, rot0
 

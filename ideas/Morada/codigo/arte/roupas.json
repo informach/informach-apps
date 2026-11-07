@@ -2319,9 +2319,9 @@
      "inclina": 0.1
     },
     "viseira": {
-     "comprimento": 0.55,
-     "abertura": 70,
-     "caida": 0.12
+     "comprimento": 0.5,
+     "abertura": 58,
+     "caida": 0.1
     }
    },
    "variacao": {
@@ -6204,9 +6204,9 @@
      "inclina": 0.1
     },
     "viseira": {
-     "comprimento": 0.55,
-     "abertura": 70,
-     "caida": 0.12,
+     "comprimento": 0.5,
+     "abertura": 58,
+     "caida": 0.1,
      "cor": "azul"
     }
    },
@@ -6241,8 +6241,8 @@
     },
     "viseira": {
      "comprimento": 0.5,
-     "abertura": 70,
-     "caida": 0.12
+     "abertura": 58,
+     "caida": 0.1
     },
     "helice": {
      "pas": [

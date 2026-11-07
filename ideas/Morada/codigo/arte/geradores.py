@@ -279,6 +279,46 @@ def _peso_vertices(S, nomes):
     return np.array([sum(x.weight for x in v.groups if x.group in idx) for v in S.data.vertices])
 
 
+def _barra_reta(ob, m):
+    """A barra da parte de cima cai reta: abaixo da parte mais larga do quadril, cada ponto vai para fora até o contorno
+    dessa altura (em 48 direções em volta do centro), em vez de seguir a pele para dentro da virilha."""
+    me = ob.data
+    mw = ob.matrix_world
+    mi = mw.inverted()
+    P = np.array([tuple(mw @ v.co) for v in me.vertices])
+    if not len(P):
+        return
+    z_ref = m["quadril"] + 0.05
+    tronco = np.abs(P[:, 0]) < m["ombro"] * 0.95  # longe dos braços
+    faixa = tronco & (np.abs(P[:, 2] - z_ref) < 0.015)
+    if faixa.sum() < 8:
+        return
+    cx, cy = P[faixa, 0].mean(), P[faixa, 1].mean()
+    nb = 48
+    ang = np.arctan2(P[:, 1] - cy, P[:, 0] - cx)
+    rad = np.hypot(P[:, 0] - cx, P[:, 1] - cy)
+    k = ((ang + math.pi) / (2 * math.pi) * nb).astype(int) % nb
+    contorno = np.zeros(nb)
+    for i in range(nb):
+        s = faixa & (k == i)
+        contorno[i] = rad[s].max() if s.any() else 0.0
+    for _ in range(2):  # direções sem ponto: a média das vizinhas; e uma suavizada
+        vazio = contorno == 0
+        contorno[vazio] = ((np.roll(contorno, 1) + np.roll(contorno, -1)) / 2)[vazio]
+    contorno = np.maximum(contorno, (np.roll(contorno, 1) + contorno + np.roll(contorno, -1)) / 3)
+    baixo = tronco & (P[:, 2] < z_ref)
+    for i in np.nonzero(baixo)[0]:
+        alvo = contorno[k[i]]
+        if rad[i] < alvo:  # nunca para dentro
+            t_ = min((z_ref - P[i, 2]) / 0.03, 1.0)  # transição suave logo abaixo da faixa
+            r_ = rad[i] + (alvo - rad[i]) * t_
+            P[i, 0] = cx + math.cos(ang[i]) * r_
+            P[i, 1] = cy + math.sin(ang[i]) * r_
+    for v, p in zip(me.vertices, P):
+        v.co = mi @ Vector(p)
+    me.update()
+
+
 def camada(S, spec):
     """Roupa sobre a pele da malha S (no mundo). spec: regiao, folga (m), cortes (marcos), frente (só faces de frente,
     0..1), faixa_x ([min, max] de |x| para gravata e alças), faixas_z (lista de [z0, z1] em marcos: só essas alturas),
@@ -329,7 +369,13 @@ def camada(S, spec):
             # cós rente: na cintura a parte de baixo fica junto da pele, para a parte de cima passar por fora
             t = min(max((v.co.z - (m["quadril"] - 0.06)) / 0.05, 0), 1)
             fv = folga + (min(folga, 0.0035 * H / 1.73) - folga) * t
-        v.co += v.normal * (fv + extra)
+        d_ = v.normal * (fv + extra)
+        if spec.get("regiao") in ("pernas", "corpo") and v.co.z < m["quadril"] + 0.02 and v.co.x * d_.x < 0:
+            # o lado de dentro da perna (virado para a outra) fica quase rente: com a folga toda, as duas coxas se
+            # cruzam no gancho e a bermuda folgada faz dobras entre as pernas
+            lim = 0.003 * H / 1.73
+            d_.x = math.copysign(min(abs(d_.x), lim), d_.x)
+        v.co += d_
     if spec.get("boca_sino"):  # calça boca de sino: abre do joelho para baixo
         import roupas as R_
         m_ = R_._marcos(S)
@@ -349,10 +395,12 @@ def camada(S, spec):
     if spec.get("cortes"):
         cortes = spec["cortes"]
         if spec.get("regiao", "tronco") == "tronco":
-            # a barra da parte de cima não desce abaixo do gancho (senão vira body entre as pernas): mais comprida,
-            # só com uma parte "saia" (paletó, casaco)
-            cortes = [{**c_, "desloca": max(c_.get("desloca", 0.0), -0.025)} if c_["marco"] == "quadril" and not c_.get("acima")
+            # a barra da parte de cima fica um pouco acima da junta do quadril (bem longe do gancho: senão vira body
+            # entre as pernas e, de frente, um V); mais comprida, só com uma parte "saia" (paletó, casaco)
+            cortes = [{**c_, "desloca": max(c_.get("desloca", 0.0), 0.02)} if c_["marco"] == "quadril" and not c_.get("acima")
                       else c_ for c_ in cortes]
+            if any(c_["marco"] == "quadril" and not c_.get("acima") for c_ in cortes):
+                _barra_reta(ob, m)
         R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004))
     # recortes que não são planos de marco: só a frente, faixas em x (gravata, alças), faixas de altura
     if spec.get("frente") is not None or spec.get("faixa_x") or spec.get("faixas_z") or spec.get("faixas_x") \
@@ -782,14 +830,22 @@ def chapeu(S, spec):
     fi = np.array([2 * math.pi * j / nphi for j in range(nphi)])
     zc = z_corte - inclina * (1 + np.cos(fi)) / 2 * -1 + inclina * 0  # frente (fi=0) em z_corte, nuca mais baixa
     zc = z_corte - inclina * (1 - np.cos(fi)) / 2
+    # cada meridiano para onde cruza a altura do corte (o ponto exato, interpolado): os pontos abaixo ficam nele. Antes
+    # subiam até o corte com o raio que tinham, e onde o raio não achava a cabeça (pescoço) a borda virava um disco
+    for j in range(nphi):
+        for i in range(1, nth + 1):
+            if G[i, j, 2] < zc[j]:
+                a_, b_ = G[i - 1, j], G[i, j]
+                tt = (a_[2] - zc[j]) / max(a_[2] - b_[2], 1e-9) if a_[2] >= zc[j] else 0.0
+                x_ = a_ + (b_ - a_) * tt if a_[2] >= zc[j] else a_.copy()
+                x_[2] = zc[j]
+                G[i:, j] = x_
+                break
     verts = []
     for i in range(nth + 1):
         linha = []
         for j in range(nphi):
             p = G[i, j].copy()
-            if p[2] < zc[j]:
-                # desce até o corte pela linha do meridiano
-                p[2] = zc[j]
             linha.append(bm.verts.new(p))
         verts.append(linha)
     copa_f = []
@@ -918,8 +974,9 @@ def chapeu(S, spec):
         novos = []
         for j in frente:
             p = borda[j].co.copy()
-            k = max(0.0, (math.cos(fi[j] - desl) - math.cos(abert)) / (1 - math.cos(abert))) ** 0.6
-            novos.append(bm.verts.new(p + radial(p) * comp * (0.25 + 0.75 * k) - Vector((0, 0, vs.get("caida", 0.15) * comp * k))))
+            k = max(0.0, (math.cos(fi[j] - desl) - math.cos(abert)) / (1 - math.cos(abert))) ** 1.15
+            # afina até quase nada nas pontas (de frente, os lados do boné não viram aba de chapéu) e curva para baixo
+            novos.append(bm.verts.new(p + radial(p) * comp * (0.04 + 0.96 * k) - Vector((0, 0, vs.get("caida", 0.15) * comp * k ** 0.8))))
         fs = []
         for a in range(len(base) - 1):
             try:
