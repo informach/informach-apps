@@ -1,0 +1,4194 @@
+{
+ "categoria": "camas",
+ "rotulo": "Camas",
+ "itens": [
+  {
+   "id": "cama_solteiro_classica_terracota_pacote",
+   "rotulo": "Cama de solteiro clássica (terracota, pacote)",
+   "categoria": "camas",
+   "grupo": "classica_solteiro_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.329,
+    2.176,
+    0.765
+   ],
+   "arquivo": "glb/cama_solteiro_classica_terracota_pacote.glb",
+   "miniatura": "miniaturas/cama_solteiro_classica_terracota_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.53806
+     ],
+     "tamanho": [
+      0.75,
+      0.4,
+      0.8
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      1.329,
+      0.56,
+      2.176
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.38251,
+      -1.02806
+     ],
+     "tamanho": [
+      1.329,
+      0.765,
+      0.12
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.345,
+      1.02806
+     ],
+     "tamanho": [
+      1.329,
+      0.69,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "madeira_rosada",
+    "rosa",
+    "rosa_bebe",
+    "rosa_escuro",
+    "terracota",
+    "terracota_escura",
+    "tijolo",
+    "vermelho_claro"
+   ],
+   "tris": 2562,
+   "pacote": true,
+   "tags": [
+    "solteiro",
+    "classica",
+    "pacote"
+   ]
+  },
+  {
+   "id": "cama_solteiro_classica_rosa",
+   "rotulo": "Cama de solteiro clássica (rosa)",
+   "categoria": "camas",
+   "grupo": "classica_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.109,
+    2.098,
+    0.999
+   ],
+   "arquivo": "glb/cama_solteiro_classica_rosa.glb",
+   "miniatura": "miniaturas/cama_solteiro_classica_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.11,
+      0.53,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0
+     ],
+     "tamanho": [
+      1.11,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.37,
+      1.0
+     ],
+     "tamanho": [
+      1.11,
+      0.74,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja",
+    "laranja_claro",
+    "rosa",
+    "rosa_escuro",
+    "salmao"
+   ],
+   "tris": 6792,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "classica"
+   ]
+  },
+  {
+   "id": "cama_solteiro_classica_azul",
+   "rotulo": "Cama de solteiro clássica (azul)",
+   "categoria": "camas",
+   "grupo": "classica_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.109,
+    2.098,
+    0.999
+   ],
+   "arquivo": "glb/cama_solteiro_classica_azul.glb",
+   "miniatura": "miniaturas/cama_solteiro_classica_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.11,
+      0.53,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0
+     ],
+     "tamanho": [
+      1.11,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.37,
+      1.0
+     ],
+     "tamanho": [
+      1.11,
+      0.74,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "azul_escuro"
+   ],
+   "tris": 6792,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "classica"
+   ]
+  },
+  {
+   "id": "cama_casal_classica_terracota",
+   "rotulo": "Cama de casal clássica (terracota)",
+   "categoria": "camas",
+   "grupo": "classica_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.609,
+    2.098,
+    0.999
+   ],
+   "arquivo": "glb/cama_casal_classica_terracota.glb",
+   "miniatura": "miniaturas/cama_casal_classica_terracota.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      1.26,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.61,
+      0.53,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0
+     ],
+     "tamanho": [
+      1.61,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.37,
+      1.0
+     ],
+     "tamanho": [
+      1.61,
+      0.74,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "rosa",
+    "rosa_claro",
+    "rosa_escuro",
+    "terracota",
+    "terracota_escura",
+    "vermelho_claro"
+   ],
+   "tris": 7224,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "classica"
+   ]
+  },
+  {
+   "id": "cama_casal_classica_madeira",
+   "rotulo": "Cama de casal clássica (madeira)",
+   "categoria": "camas",
+   "grupo": "classica_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.609,
+    2.098,
+    0.999
+   ],
+   "arquivo": "glb/cama_casal_classica_madeira.glb",
+   "miniatura": "miniaturas/cama_casal_classica_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      1.26,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.61,
+      0.53,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0
+     ],
+     "tamanho": [
+      1.61,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.37,
+      1.0
+     ],
+     "tamanho": [
+      1.61,
+      0.74,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "madeira",
+    "madeira_mel",
+    "turquesa",
+    "turquesa_claro",
+    "verde_lima"
+   ],
+   "tris": 7224,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "classica",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cama_solteiro_grade_arco_laranja",
+   "rotulo": "Cama de solteiro com cabeceira de grade em arco (laranja)",
+   "categoria": "camas",
+   "grupo": "grade_arco_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.026,
+    2.051,
+    1.04
+   ],
+   "arquivo": "glb/cama_solteiro_grade_arco_laranja.glb",
+   "miniatura": "miniaturas/cama_solteiro_grade_arco_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.53,
+      0.43931
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.245,
+      0.03531
+     ],
+     "tamanho": [
+      1.0,
+      0.49,
+      1.98
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.515,
+      -0.98469
+     ],
+     "tamanho": [
+      1.0,
+      1.03,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro",
+    "salmao"
+   ],
+   "tris": 3760,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade"
+   ]
+  },
+  {
+   "id": "cama_solteiro_grade_arco_verde",
+   "rotulo": "Cama de solteiro com cabeceira de grade em arco (verde)",
+   "categoria": "camas",
+   "grupo": "grade_arco_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.026,
+    2.051,
+    1.04
+   ],
+   "arquivo": "glb/cama_solteiro_grade_arco_verde.glb",
+   "miniatura": "miniaturas/cama_solteiro_grade_arco_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.53,
+      0.43931
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.245,
+      0.03531
+     ],
+     "tamanho": [
+      1.0,
+      0.49,
+      1.98
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.515,
+      -0.98469
+     ],
+     "tamanho": [
+      1.0,
+      1.03,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 3760,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade"
+   ]
+  },
+  {
+   "id": "cama_casal_grade_arco_laranja",
+   "rotulo": "Cama de casal com cabeceira de grade em arco (laranja)",
+   "categoria": "camas",
+   "grupo": "grade_arco_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.526,
+    2.051,
+    1.04
+   ],
+   "arquivo": "glb/cama_casal_grade_arco_laranja.glb",
+   "miniatura": "miniaturas/cama_casal_grade_arco_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.53,
+      0.43931
+     ],
+     "tamanho": [
+      1.28,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.245,
+      0.03531
+     ],
+     "tamanho": [
+      1.5,
+      0.49,
+      1.98
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.515,
+      -0.98469
+     ],
+     "tamanho": [
+      1.5,
+      1.03,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro",
+    "salmao"
+   ],
+   "tris": 4292,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "grade"
+   ]
+  },
+  {
+   "id": "cama_casal_grade_arco_madeira",
+   "rotulo": "Cama de casal com cabeceira de grade em arco (madeira)",
+   "categoria": "camas",
+   "grupo": "grade_arco_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.526,
+    2.051,
+    1.04
+   ],
+   "arquivo": "glb/cama_casal_grade_arco_madeira.glb",
+   "miniatura": "miniaturas/cama_casal_grade_arco_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.53,
+      0.43931
+     ],
+     "tamanho": [
+      1.28,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.245,
+      0.03531
+     ],
+     "tamanho": [
+      1.5,
+      0.49,
+      1.98
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.515,
+      -0.98469
+     ],
+     "tamanho": [
+      1.5,
+      1.03,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "cinza_claro",
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 4292,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "grade",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cama_casal_gavetas_verde_pacote",
+   "rotulo": "Cama de casal com gavetas (verde, pacote)",
+   "categoria": "camas",
+   "grupo": "gavetas_casal_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.635,
+    2.14,
+    0.801
+   ],
+   "arquivo": "glb/cama_casal_gavetas_verde_pacote.glb",
+   "miniatura": "miniaturas/cama_casal_gavetas_verde_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_esq_1",
+     "pivo": [
+      -0.7225,
+      0.1305,
+      -0.58422
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_dir_1",
+     "pivo": [
+      0.7225,
+      0.1305,
+      -0.58422
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_esq_2",
+     "pivo": [
+      -0.7225,
+      0.1305,
+      0.03103
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_dir_2",
+     "pivo": [
+      0.7225,
+      0.1305,
+      0.03103
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_esq_3",
+     "pivo": [
+      -0.7225,
+      0.1305,
+      0.64627
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.468,
+     "nome": "gaveta_dir_3",
+     "pivo": [
+      0.7225,
+      0.1305,
+      0.64627
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_esq_1",
+     "centro": [
+      -0.4205,
+      0.1425,
+      -0.58422
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_esq_1"
+    },
+    {
+     "nome": "slot_gaveta_dir_1",
+     "centro": [
+      0.4205,
+      0.1425,
+      -0.58422
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_dir_1"
+    },
+    {
+     "nome": "slot_gaveta_esq_2",
+     "centro": [
+      -0.4205,
+      0.1425,
+      0.03103
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_esq_2"
+    },
+    {
+     "nome": "slot_gaveta_dir_2",
+     "centro": [
+      0.4205,
+      0.1425,
+      0.03103
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_dir_2"
+    },
+    {
+     "nome": "slot_gaveta_esq_3",
+     "centro": [
+      -0.4205,
+      0.1425,
+      0.64627
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_esq_3"
+    },
+    {
+     "nome": "slot_gaveta_dir_3",
+     "centro": [
+      0.4205,
+      0.1425,
+      0.64627
+     ],
+     "tamanho": [
+      0.576,
+      0.128,
+      0.541
+     ],
+     "em": "gaveta_dir_3"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0,
+      0.56,
+      0.47
+     ],
+     "tamanho": [
+      1.2,
+      0.4,
+      0.8
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.275,
+      -0.0
+     ],
+     "tamanho": [
+      1.598,
+      0.55,
+      2.14
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      0.40039,
+      -1.02
+     ],
+     "tamanho": [
+      1.598,
+      0.801,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "amarelo_escuro",
+    "bege",
+    "creme",
+    "fogo",
+    "turquesa",
+    "verde_escuro",
+    "verde_lima"
+   ],
+   "tris": 4788,
+   "pacote": true,
+   "tags": [
+    "casal",
+    "gavetas",
+    "pacote"
+   ]
+  },
+  {
+   "id": "cama_casal_gavetas_azul",
+   "rotulo": "Cama de casal com gavetas (azul-marinho)",
+   "categoria": "camas",
+   "grupo": "gavetas_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.619,
+    2.03,
+    1.0
+   ],
+   "arquivo": "glb/cama_casal_gavetas_azul.glb",
+   "miniatura": "miniaturas/cama_casal_gavetas_azul.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.75,
+      0.08,
+      0.68033
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_2",
+     "pivo": [
+      -0.75,
+      0.08,
+      0.035
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      -1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_3",
+     "pivo": [
+      -0.75,
+      0.08,
+      -0.61033
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_4",
+     "pivo": [
+      0.75,
+      0.08,
+      0.68033
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_5",
+     "pivo": [
+      0.75,
+      0.08,
+      0.035
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.5148,
+     "nome": "gaveta_6",
+     "pivo": [
+      0.75,
+      0.08,
+      -0.61033
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.418,
+      0.092,
+      0.68033
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      -0.418,
+      0.092,
+      0.035
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_gaveta_3",
+     "centro": [
+      -0.418,
+      0.092,
+      -0.61033
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_3"
+    },
+    {
+     "nome": "slot_gaveta_4",
+     "centro": [
+      0.418,
+      0.092,
+      0.68033
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_4"
+    },
+    {
+     "nome": "slot_gaveta_5",
+     "centro": [
+      0.418,
+      0.092,
+      0.035
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_5"
+    },
+    {
+     "nome": "slot_gaveta_6",
+     "centro": [
+      0.418,
+      0.092,
+      -0.61033
+     ],
+     "tamanho": [
+      0.636,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_6"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.588,
+      0.429
+     ],
+     "tamanho": [
+      1.28,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      0.0
+     ],
+     "tamanho": [
+      1.52,
+      0.54,
+      2.03
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.98
+     ],
+     "tamanho": [
+      1.52,
+      1.0,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "azul_acinzentado",
+    "azul_marinho",
+    "bege",
+    "verde_lima"
+   ],
+   "tris": 10888,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_solteiro_gavetas_verde",
+   "rotulo": "Cama de solteiro com gavetas (verde)",
+   "categoria": "camas",
+   "grupo": "gavetas_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.07,
+    2.03,
+    1.0
+   ],
+   "arquivo": "glb/cama_solteiro_gavetas_verde.glb",
+   "miniatura": "miniaturas/cama_solteiro_gavetas_verde.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4752,
+      0.08,
+      0.68033
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.4752,
+      0.08,
+      0.035
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_3",
+     "pivo": [
+      0.4752,
+      0.08,
+      -0.61033
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0182,
+      0.092,
+      0.68033
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.0182,
+      0.092,
+      0.035
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_gaveta_3",
+     "centro": [
+      0.0182,
+      0.092,
+      -0.61033
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_3"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0248,
+      0.588,
+      0.429
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0248,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.54,
+      2.03
+     ]
+    },
+    {
+     "centro": [
+      -0.0248,
+      0.5,
+      -0.98
+     ],
+     "tamanho": [
+      1.02,
+      1.0,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme",
+    "ouro",
+    "turquesa",
+    "turquesa_claro",
+    "verde_escuro",
+    "verde_lima"
+   ],
+   "tris": 8728,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_solteiro_gavetas_vinho",
+   "rotulo": "Cama de solteiro com gavetas (vinho)",
+   "categoria": "camas",
+   "grupo": "gavetas_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.07,
+    2.03,
+    1.0
+   ],
+   "arquivo": "glb/cama_solteiro_gavetas_vinho.glb",
+   "miniatura": "miniaturas/cama_solteiro_gavetas_vinho.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4752,
+      0.08,
+      0.68033
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.4752,
+      0.08,
+      0.035
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.7098,
+     "nome": "gaveta_3",
+     "pivo": [
+      0.4752,
+      0.08,
+      -0.61033
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0182,
+      0.092,
+      0.68033
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.0182,
+      0.092,
+      0.035
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_gaveta_3",
+     "centro": [
+      0.0182,
+      0.092,
+      -0.61033
+     ],
+     "tamanho": [
+      0.886,
+      0.193,
+      0.567
+     ],
+     "em": "gaveta_3"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0248,
+      0.588,
+      0.429
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0248,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.54,
+      2.03
+     ]
+    },
+    {
+     "centro": [
+      -0.0248,
+      0.5,
+      -0.98
+     ],
+     "tamanho": [
+      1.02,
+      1.0,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme_claro",
+    "ouro",
+    "pessego",
+    "salmao",
+    "vermelho_claro",
+    "vinho"
+   ],
+   "tris": 8728,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_casal_estofada_verde",
+   "rotulo": "Cama de casal estofada (verde)",
+   "categoria": "camas",
+   "grupo": "estofada_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.58,
+    2.135,
+    1.0
+   ],
+   "arquivo": "glb/cama_casal_estofada_verde.glb",
+   "miniatura": "miniaturas/cama_casal_estofada_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.4515
+     ],
+     "tamanho": [
+      1.28,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      0.0
+     ],
+     "tamanho": [
+      1.58,
+      0.53,
+      2.135
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0025
+     ],
+     "tamanho": [
+      1.58,
+      1.0,
+      0.13
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "grafite",
+    "verde",
+    "verde_lima"
+   ],
+   "tris": 4333,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "estofada",
+    "moderna"
+   ]
+  },
+  {
+   "id": "cama_casal_estofada_cinza",
+   "rotulo": "Cama de casal estofada (cinza)",
+   "categoria": "camas",
+   "grupo": "estofada_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.58,
+    2.135,
+    1.0
+   ],
+   "arquivo": "glb/cama_casal_estofada_cinza.glb",
+   "miniatura": "miniaturas/cama_casal_estofada_cinza.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.4515
+     ],
+     "tamanho": [
+      1.28,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      0.0
+     ],
+     "tamanho": [
+      1.58,
+      0.53,
+      2.135
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0025
+     ],
+     "tamanho": [
+      1.58,
+      1.0,
+      0.13
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "rosa",
+    "rosa_claro",
+    "rosa_escuro",
+    "tecido_cinza",
+    "vermelho_claro"
+   ],
+   "tris": 4333,
+   "pacote": false,
+   "tags": [
+    "casal",
+    "estofada",
+    "moderna"
+   ]
+  },
+  {
+   "id": "cama_solteiro_estofada_verde",
+   "rotulo": "Cama de solteiro estofada (verde)",
+   "categoria": "camas",
+   "grupo": "estofada_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.08,
+    2.135,
+    1.0
+   ],
+   "arquivo": "glb/cama_solteiro_estofada_verde.glb",
+   "miniatura": "miniaturas/cama_solteiro_estofada_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.4515
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      0.0
+     ],
+     "tamanho": [
+      1.08,
+      0.53,
+      2.135
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0025
+     ],
+     "tamanho": [
+      1.08,
+      1.0,
+      0.13
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "grafite",
+    "verde",
+    "verde_lima"
+   ],
+   "tris": 3899,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "estofada",
+    "moderna"
+   ]
+  },
+  {
+   "id": "cama_solteiro_estofada_azul",
+   "rotulo": "Cama de solteiro estofada (azul)",
+   "categoria": "camas",
+   "grupo": "estofada_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.08,
+    2.135,
+    1.0
+   ],
+   "arquivo": "glb/cama_solteiro_estofada_azul.glb",
+   "miniatura": "miniaturas/cama_solteiro_estofada_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.4515
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      1.02
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      0.0
+     ],
+     "tamanho": [
+      1.08,
+      0.53,
+      2.135
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -1.0025
+     ],
+     "tamanho": [
+      1.08,
+      1.0,
+      0.13
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul",
+    "azul_acinzentado",
+    "azul_celeste",
+    "azul_claro",
+    "grafite"
+   ],
+   "tris": 3899,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "estofada",
+    "moderna"
+   ]
+  },
+  {
+   "id": "cama_infantil_gavetas_lilas",
+   "rotulo": "Cama infantil com gavetas (lilás)",
+   "categoria": "camas",
+   "grupo": "infantil_friso",
+   "fixacao": "chao",
+   "dims": [
+    1.06,
+    2.047,
+    0.86
+   ],
+   "arquivo": "glb/cama_infantil_gavetas_lilas.glb",
+   "miniatura": "miniaturas/cama_infantil_gavetas_lilas.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4702,
+      0.08,
+      0.47875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.4702,
+      0.08,
+      -0.48525
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0232,
+      0.092,
+      0.47875
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.0232,
+      0.092,
+      -0.48525
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0198,
+      0.548,
+      0.38675
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0198,
+      0.255,
+      -0.00325
+     ],
+     "tamanho": [
+      1.02,
+      0.51,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.43,
+      -0.99825
+     ],
+     "tamanho": [
+      1.02,
+      0.86,
+      0.05
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.31,
+      0.99175
+     ],
+     "tamanho": [
+      1.02,
+      0.62,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "bege",
+    "lilas",
+    "lilas_claro",
+    "rosa_bebe",
+    "roxo"
+   ],
+   "tris": 8156,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_infantil_gavetas_verde",
+   "rotulo": "Cama infantil com gavetas (verde)",
+   "categoria": "camas",
+   "grupo": "infantil_friso",
+   "fixacao": "chao",
+   "dims": [
+    1.06,
+    2.047,
+    0.86
+   ],
+   "arquivo": "glb/cama_infantil_gavetas_verde.glb",
+   "miniatura": "miniaturas/cama_infantil_gavetas_verde.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4702,
+      0.08,
+      0.47875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.4702,
+      0.08,
+      -0.48525
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0232,
+      0.092,
+      0.47875
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.0232,
+      0.092,
+      -0.48525
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0198,
+      0.548,
+      0.38675
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0198,
+      0.255,
+      -0.00325
+     ],
+     "tamanho": [
+      1.02,
+      0.51,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.43,
+      -0.99825
+     ],
+     "tamanho": [
+      1.02,
+      0.86,
+      0.05
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.31,
+      0.99175
+     ],
+     "tamanho": [
+      1.02,
+      0.62,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "bege",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 8156,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_infantil_gavetas_coral",
+   "rotulo": "Cama infantil com gavetas (coral)",
+   "categoria": "camas",
+   "grupo": "infantil_friso",
+   "fixacao": "chao",
+   "dims": [
+    1.06,
+    2.047,
+    0.86
+   ],
+   "arquivo": "glb/cama_infantil_gavetas_coral.glb",
+   "miniatura": "miniaturas/cama_infantil_gavetas_coral.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4702,
+      0.08,
+      0.47875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.6942,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.4702,
+      0.08,
+      -0.48525
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0232,
+      0.092,
+      0.47875
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.0232,
+      0.092,
+      -0.48525
+     ],
+     "tamanho": [
+      0.866,
+      0.163,
+      0.888
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0198,
+      0.548,
+      0.38675
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0198,
+      0.255,
+      -0.00325
+     ],
+     "tamanho": [
+      1.02,
+      0.51,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.43,
+      -0.99825
+     ],
+     "tamanho": [
+      1.02,
+      0.86,
+      0.05
+     ]
+    },
+    {
+     "centro": [
+      -0.0198,
+      0.31,
+      0.99175
+     ],
+     "tamanho": [
+      1.02,
+      0.62,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "laranja_escuro",
+    "pessego",
+    "rosa",
+    "rosa_claro",
+    "rosa_escuro",
+    "vermelho_claro"
+   ],
+   "tris": 8156,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_infantil_gaveta_laranja",
+   "rotulo": "Cama infantil com gavetão (laranja)",
+   "categoria": "camas",
+   "grupo": "infantil_moldura",
+   "fixacao": "chao",
+   "dims": [
+    1.08,
+    2.04,
+    0.86
+   ],
+   "arquivo": "glb/cama_infantil_gaveta_laranja.glb",
+   "miniatura": "miniaturas/cama_infantil_gaveta_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.702,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4802,
+      0.07,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0282,
+      0.082,
+      -0.0
+     ],
+     "tamanho": [
+      0.876,
+      0.168,
+      1.846
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0098,
+      0.538,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0098,
+      0.25,
+      -0.0
+     ],
+     "tamanho": [
+      1.06,
+      0.5,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0098,
+      0.43,
+      -0.99
+     ],
+     "tamanho": [
+      1.06,
+      0.86,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      -0.0098,
+      0.3,
+      0.99
+     ],
+     "tamanho": [
+      1.06,
+      0.6,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "bege",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro"
+   ],
+   "tris": 5448,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_infantil_gaveta_azul",
+   "rotulo": "Cama infantil com gavetão (azul)",
+   "categoria": "camas",
+   "grupo": "infantil_moldura",
+   "fixacao": "chao",
+   "dims": [
+    1.08,
+    2.04,
+    0.86
+   ],
+   "arquivo": "glb/cama_infantil_gaveta_azul.glb",
+   "miniatura": "miniaturas/cama_infantil_gaveta_azul.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.702,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.4802,
+      0.07,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0282,
+      0.082,
+      -0.0
+     ],
+     "tamanho": [
+      0.876,
+      0.168,
+      1.846
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.0098,
+      0.538,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0098,
+      0.25,
+      -0.0
+     ],
+     "tamanho": [
+      1.06,
+      0.5,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0098,
+      0.43,
+      -0.99
+     ],
+     "tamanho": [
+      1.06,
+      0.86,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      -0.0098,
+      0.3,
+      0.99
+     ],
+     "tamanho": [
+      1.06,
+      0.6,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "azul_claro",
+    "bege",
+    "rosa",
+    "vermelho_claro"
+   ],
+   "tris": 5448,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "solteiro",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "cama_solteiro_painel_azul",
+   "rotulo": "Cama de solteiro de painel (azul-clara)",
+   "categoria": "camas",
+   "grupo": "painel_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.02,
+    2.047,
+    0.88
+   ],
+   "arquivo": "glb/cama_solteiro_painel_azul.glb",
+   "miniatura": "miniaturas/cama_solteiro_painel_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.38675
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.00325
+     ],
+     "tamanho": [
+      1.02,
+      0.52,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.44,
+      -0.99325
+     ],
+     "tamanho": [
+      1.02,
+      0.88,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.3,
+      0.98675
+     ],
+     "tamanho": [
+      1.02,
+      0.6,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro"
+   ],
+   "tris": 4104,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "painel"
+   ]
+  },
+  {
+   "id": "cama_solteiro_painel_amarela",
+   "rotulo": "Cama de solteiro de painel (amarela)",
+   "categoria": "camas",
+   "grupo": "painel_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.02,
+    2.047,
+    0.88
+   ],
+   "arquivo": "glb/cama_solteiro_painel_amarela.glb",
+   "miniatura": "miniaturas/cama_solteiro_painel_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.38675
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.00325
+     ],
+     "tamanho": [
+      1.02,
+      0.52,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.44,
+      -0.99325
+     ],
+     "tamanho": [
+      1.02,
+      0.88,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.3,
+      0.98675
+     ],
+     "tamanho": [
+      1.02,
+      0.6,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "amarelo_escuro",
+    "creme_claro",
+    "menta",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 4104,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "painel"
+   ]
+  },
+  {
+   "id": "cama_solteiro_ripas_arco_laranja",
+   "rotulo": "Cama de solteiro de grade em arco (laranja)",
+   "categoria": "camas",
+   "grupo": "ripas_arco_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.06,
+    2.05,
+    0.95
+   ],
+   "arquivo": "glb/cama_solteiro_ripas_arco_laranja.glb",
+   "miniatura": "miniaturas/cama_solteiro_ripas_arco_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.06,
+      0.53,
+      2.05
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.475,
+      -0.995
+     ],
+     "tamanho": [
+      1.06,
+      0.95,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.35,
+      0.995
+     ],
+     "tamanho": [
+      1.06,
+      0.7,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja_claro",
+    "menta",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 5888,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cama_solteiro_ripas_arco_madeira",
+   "rotulo": "Cama de solteiro de grade em arco (madeira)",
+   "categoria": "camas",
+   "grupo": "ripas_arco_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.06,
+    2.05,
+    0.95
+   ],
+   "arquivo": "glb/cama_solteiro_ripas_arco_madeira.glb",
+   "miniatura": "miniaturas/cama_solteiro_ripas_arco_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.0
+     ],
+     "tamanho": [
+      1.06,
+      0.53,
+      2.05
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.475,
+      -0.995
+     ],
+     "tamanho": [
+      1.06,
+      0.95,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.35,
+      0.995
+     ],
+     "tamanho": [
+      1.06,
+      0.7,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "madeira_mel"
+   ],
+   "tris": 5888,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cama_solteiro_tubo_azul",
+   "rotulo": "Cama de solteiro de grade (azul)",
+   "categoria": "camas",
+   "grupo": "tubo_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.068,
+    2.048,
+    0.945
+   ],
+   "arquivo": "glb/cama_solteiro_tubo_azul.glb",
+   "miniatura": "miniaturas/cama_solteiro_tubo_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.58,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.05,
+      0.54,
+      2.03
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.475,
+      -0.985
+     ],
+     "tamanho": [
+      1.05,
+      0.95,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.345,
+      0.985
+     ],
+     "tamanho": [
+      1.05,
+      0.69,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "rosa",
+    "vermelho_claro"
+   ],
+   "tris": 5872,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade"
+   ]
+  },
+  {
+   "id": "cama_solteiro_tubo_vermelha",
+   "rotulo": "Cama de solteiro de grade (vermelha)",
+   "categoria": "camas",
+   "grupo": "tubo_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.068,
+    2.048,
+    0.945
+   ],
+   "arquivo": "glb/cama_solteiro_tubo_vermelha.glb",
+   "miniatura": "miniaturas/cama_solteiro_tubo_vermelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.58,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.05,
+      0.54,
+      2.03
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.475,
+      -0.985
+     ],
+     "tamanho": [
+      1.05,
+      0.95,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.345,
+      0.985
+     ],
+     "tamanho": [
+      1.05,
+      0.69,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul",
+    "azul_celeste",
+    "azul_claro",
+    "vermelho"
+   ],
+   "tris": 5872,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "grade"
+   ]
+  },
+  {
+   "id": "cama_solteiro_friso_vermelho",
+   "rotulo": "Cama de solteiro branca com friso (vermelho)",
+   "categoria": "camas",
+   "grupo": "friso_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.034,
+    2.046,
+    0.9
+   ],
+   "arquivo": "glb/cama_solteiro_friso_vermelho.glb",
+   "miniatura": "miniaturas/cama_solteiro_friso_vermelho.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.387
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.003
+     ],
+     "tamanho": [
+      1.02,
+      0.53,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.45,
+      -0.993
+     ],
+     "tamanho": [
+      1.02,
+      0.9,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.33,
+      0.987
+     ],
+     "tamanho": [
+      1.02,
+      0.66,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "rosa",
+    "vermelho_claro"
+   ],
+   "tris": 6456,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "branca"
+   ]
+  },
+  {
+   "id": "cama_solteiro_friso_azul",
+   "rotulo": "Cama de solteiro branca com friso (azul)",
+   "categoria": "camas",
+   "grupo": "friso_solteiro",
+   "fixacao": "chao",
+   "dims": [
+    1.034,
+    2.046,
+    0.9
+   ],
+   "arquivo": "glb/cama_solteiro_friso_azul.glb",
+   "miniatura": "miniaturas/cama_solteiro_friso_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.57,
+      0.387
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.265,
+      -0.003
+     ],
+     "tamanho": [
+      1.02,
+      0.53,
+      2.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.45,
+      -0.993
+     ],
+     "tamanho": [
+      1.02,
+      0.9,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.33,
+      0.987
+     ],
+     "tamanho": [
+      1.02,
+      0.66,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "branco"
+   ],
+   "tris": 6456,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "branca"
+   ]
+  },
+  {
+   "id": "cama_solteiro_bicama_marrom",
+   "rotulo": "Cama de solteiro com bicama (marrom)",
+   "categoria": "camas",
+   "grupo": "bicama",
+   "fixacao": "chao",
+   "dims": [
+    1.114,
+    2.077,
+    1.095
+   ],
+   "arquivo": "glb/cama_solteiro_bicama_marrom.glb",
+   "miniatura": "miniaturas/cama_solteiro_bicama_marrom.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.88,
+     "nome": "bicama",
+     "pivo": [
+      0.49645,
+      0.047,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.01355,
+      0.65,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_bicama",
+     "centro": [
+      0.07445,
+      0.179,
+      0.25
+     ],
+     "tamanho": [
+      0.7,
+      0.3,
+      0.92
+     ],
+     "em": "bicama"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.01355,
+      0.305,
+      -0.0
+     ],
+     "tamanho": [
+      1.07,
+      0.61,
+      2.06
+     ]
+    },
+    {
+     "centro": [
+      -0.01355,
+      0.55,
+      -0.995
+     ],
+     "tamanho": [
+      1.07,
+      1.1,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.01355,
+      0.43,
+      0.995
+     ],
+     "tamanho": [
+      1.07,
+      0.86,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul",
+    "azul_celeste",
+    "azul_claro",
+    "creme_claro",
+    "grafite",
+    "marrom",
+    "marrom_claro",
+    "menta",
+    "ouro",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 8683,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "bicama",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cama_solteiro_bicama_branca",
+   "rotulo": "Cama de solteiro com bicama (branca)",
+   "categoria": "camas",
+   "grupo": "bicama",
+   "fixacao": "chao",
+   "dims": [
+    1.114,
+    2.077,
+    1.095
+   ],
+   "arquivo": "glb/cama_solteiro_bicama_branca.glb",
+   "miniatura": "miniaturas/cama_solteiro_bicama_branca.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      1,
+      0,
+      0
+     ],
+     "curso": 0.88,
+     "nome": "bicama",
+     "pivo": [
+      0.49645,
+      0.047,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -0.01355,
+      0.65,
+      0.39
+     ],
+     "tamanho": [
+      0.76,
+      0.4,
+      1.008
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_bicama",
+     "centro": [
+      0.07445,
+      0.179,
+      0.25
+     ],
+     "tamanho": [
+      0.7,
+      0.3,
+      0.92
+     ],
+     "em": "bicama"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.01355,
+      0.305,
+      -0.0
+     ],
+     "tamanho": [
+      1.07,
+      0.61,
+      2.06
+     ]
+    },
+    {
+     "centro": [
+      -0.01355,
+      0.55,
+      -0.995
+     ],
+     "tamanho": [
+      1.07,
+      1.1,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.01355,
+      0.43,
+      0.995
+     ],
+     "tamanho": [
+      1.07,
+      0.86,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "grafite",
+    "lilas",
+    "lilas_claro",
+    "ouro",
+    "rosa",
+    "rosa_bebe",
+    "rosa_claro",
+    "rosa_escuro",
+    "roxo",
+    "vermelho_claro"
+   ],
+   "tris": 8683,
+   "pacote": false,
+   "tags": [
+    "solteiro",
+    "bicama"
+   ]
+  },
+  {
+   "id": "beliche_madeira_mel",
+   "rotulo": "Beliche de madeira (mel)",
+   "categoria": "camas",
+   "grupo": "beliche_madeira",
+   "fixacao": "chao",
+   "dims": [
+    1.475,
+    2.085,
+    1.66
+   ],
+   "arquivo": "glb/beliche_madeira_mel.glb",
+   "miniatura": "miniaturas/beliche_madeira_mel.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_cama_baixo",
+     "centro": [
+      -0.19521,
+      0.47,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.3,
+      0.95
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cama_cima",
+     "centro": [
+      -0.19521,
+      1.33,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.25,
+      0.95
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.19521,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      1.085,
+      0.46,
+      2.085
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      1.34,
+      -0.0
+     ],
+     "tamanho": [
+      1.085,
+      0.64,
+      2.085
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      0.83,
+      -1.005
+     ],
+     "tamanho": [
+      1.085,
+      1.66,
+      0.075
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      0.83,
+      1.005
+     ],
+     "tamanho": [
+      1.085,
+      1.66,
+      0.075
+     ]
+    },
+    {
+     "centro": [
+      0.51429,
+      0.765,
+      0.745
+     ],
+     "tamanho": [
+      0.469,
+      1.53,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "branco",
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 9360,
+   "pacote": false,
+   "tags": [
+    "beliche",
+    "infantil",
+    "madeira"
+   ]
+  },
+  {
+   "id": "beliche_madeira_laranja",
+   "rotulo": "Beliche de madeira (laranja)",
+   "categoria": "camas",
+   "grupo": "beliche_madeira",
+   "fixacao": "chao",
+   "dims": [
+    1.475,
+    2.085,
+    1.66
+   ],
+   "arquivo": "glb/beliche_madeira_laranja.glb",
+   "miniatura": "miniaturas/beliche_madeira_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_cama_baixo",
+     "centro": [
+      -0.19521,
+      0.47,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.3,
+      0.95
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cama_cima",
+     "centro": [
+      -0.19521,
+      1.33,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.25,
+      0.95
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.19521,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      1.085,
+      0.46,
+      2.085
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      1.34,
+      -0.0
+     ],
+     "tamanho": [
+      1.085,
+      0.64,
+      2.085
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      0.83,
+      -1.005
+     ],
+     "tamanho": [
+      1.085,
+      1.66,
+      0.075
+     ]
+    },
+    {
+     "centro": [
+      -0.19521,
+      0.83,
+      1.005
+     ],
+     "tamanho": [
+      1.085,
+      1.66,
+      0.075
+     ]
+    },
+    {
+     "centro": [
+      0.51429,
+      0.765,
+      0.745
+     ],
+     "tamanho": [
+      0.469,
+      1.53,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "creme_claro",
+    "laranja_claro",
+    "menta",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 9360,
+   "pacote": false,
+   "tags": [
+    "beliche",
+    "infantil"
+   ]
+  },
+  {
+   "id": "beliche_painel_branco",
+   "rotulo": "Beliche de painel (branco)",
+   "categoria": "camas",
+   "grupo": "beliche_painel",
+   "fixacao": "chao",
+   "dims": [
+    1.092,
+    2.055,
+    1.62
+   ],
+   "arquivo": "glb/beliche_painel_branco.glb",
+   "miniatura": "miniaturas/beliche_painel_branco.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_cama_baixo",
+     "centro": [
+      -0.03625,
+      0.54,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.3,
+      0.95
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cama_cima",
+     "centro": [
+      -0.03625,
+      1.36,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.25,
+      0.95
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.03625,
+      0.25,
+      0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.5,
+      2.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      1.315,
+      0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.61,
+      2.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      0.81,
+      -1.0
+     ],
+     "tamanho": [
+      1.02,
+      1.62,
+      0.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      0.81,
+      1.0
+     ],
+     "tamanho": [
+      1.02,
+      1.62,
+      0.055
+     ]
+    },
+    {
+     "centro": [
+      0.52375,
+      0.74,
+      0.75
+     ],
+     "tamanho": [
+      0.08,
+      1.48,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "azul_claro",
+    "branco",
+    "verde_lima"
+   ],
+   "tris": 8808,
+   "pacote": false,
+   "tags": [
+    "beliche",
+    "infantil"
+   ]
+  },
+  {
+   "id": "beliche_painel_rosa",
+   "rotulo": "Beliche de painel (rosa)",
+   "categoria": "camas",
+   "grupo": "beliche_painel",
+   "fixacao": "chao",
+   "dims": [
+    1.092,
+    2.055,
+    1.62
+   ],
+   "arquivo": "glb/beliche_painel_rosa.glb",
+   "miniatura": "miniaturas/beliche_painel_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_cama_baixo",
+     "centro": [
+      -0.03625,
+      0.54,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.3,
+      0.95
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cama_cima",
+     "centro": [
+      -0.03625,
+      1.36,
+      0.2
+     ],
+     "tamanho": [
+      0.78,
+      0.25,
+      0.95
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.03625,
+      0.25,
+      0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.5,
+      2.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      1.315,
+      0.0
+     ],
+     "tamanho": [
+      1.02,
+      0.61,
+      2.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      0.81,
+      -1.0
+     ],
+     "tamanho": [
+      1.02,
+      1.62,
+      0.055
+     ]
+    },
+    {
+     "centro": [
+      -0.03625,
+      0.81,
+      1.0
+     ],
+     "tamanho": [
+      1.02,
+      1.62,
+      0.055
+     ]
+    },
+    {
+     "centro": [
+      0.52375,
+      0.74,
+      0.75
+     ],
+     "tamanho": [
+      0.08,
+      1.48,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "lilas",
+    "lilas_claro",
+    "rosa",
+    "rosa_bebe",
+    "rosa_claro",
+    "rosa_escuro",
+    "roxo",
+    "vermelho_claro"
+   ],
+   "tris": 8808,
+   "pacote": false,
+   "tags": [
+    "beliche",
+    "infantil"
+   ]
+  },
+  {
+   "id": "berco_painel_azul",
+   "rotulo": "Berço de painel (azul)",
+   "categoria": "camas",
+   "grupo": "berco_painel",
+   "fixacao": "chao",
+   "dims": [
+    0.74,
+    1.357,
+    0.94
+   ],
+   "arquivo": "glb/berco_painel_azul.glb",
+   "miniatura": "miniaturas/berco_painel_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.28075
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.47,
+      -0.00325
+     ],
+     "tamanho": [
+      0.74,
+      0.94,
+      1.35
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul_bebe",
+    "azul_celeste",
+    "branco"
+   ],
+   "tris": 5942,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe"
+   ]
+  },
+  {
+   "id": "berco_painel_amarelo",
+   "rotulo": "Berço de painel (amarelo)",
+   "categoria": "camas",
+   "grupo": "berco_painel",
+   "fixacao": "chao",
+   "dims": [
+    0.74,
+    1.357,
+    0.94
+   ],
+   "arquivo": "glb/berco_painel_amarelo.glb",
+   "miniatura": "miniaturas/berco_painel_amarelo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.28075
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.47,
+      -0.00325
+     ],
+     "tamanho": [
+      0.74,
+      0.94,
+      1.35
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul_bebe",
+    "azul_claro",
+    "branco",
+    "mostarda"
+   ],
+   "tris": 5942,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe"
+   ]
+  },
+  {
+   "id": "berco_redondo_rosa",
+   "rotulo": "Berço de grade redonda (rosa)",
+   "categoria": "camas",
+   "grupo": "berco_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.772,
+    1.36,
+    0.946
+   ],
+   "arquivo": "glb/berco_redondo_rosa.glb",
+   "miniatura": "miniaturas/berco_redondo_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -2e-05,
+      0.54,
+      0.284
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -2e-05,
+      0.475,
+      0.0
+     ],
+     "tamanho": [
+      0.77,
+      0.95,
+      1.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "rosa_bebe",
+    "rosa_claro"
+   ],
+   "tris": 6622,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe"
+   ]
+  },
+  {
+   "id": "berco_redondo_menta",
+   "rotulo": "Berço de grade redonda (menta)",
+   "categoria": "camas",
+   "grupo": "berco_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.772,
+    1.36,
+    0.946
+   ],
+   "arquivo": "glb/berco_redondo_menta.glb",
+   "miniatura": "miniaturas/berco_redondo_menta.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      -2e-05,
+      0.54,
+      0.284
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -2e-05,
+      0.475,
+      0.0
+     ],
+     "tamanho": [
+      0.77,
+      0.95,
+      1.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "menta",
+    "verde_agua"
+   ],
+   "tris": 6622,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe"
+   ]
+  },
+  {
+   "id": "berco_classico_branco",
+   "rotulo": "Berço clássico (branco)",
+   "categoria": "camas",
+   "grupo": "berco_classico",
+   "fixacao": "chao",
+   "dims": [
+    0.776,
+    1.376,
+    0.959
+   ],
+   "arquivo": "glb/berco_classico_branco.glb",
+   "miniatura": "miniaturas/berco_classico_branco.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.284
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.76,
+      1.0,
+      1.36
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_claro",
+    "branco",
+    "verde_lima"
+   ],
+   "tris": 8806,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe"
+   ]
+  },
+  {
+   "id": "berco_classico_madeira",
+   "rotulo": "Berço clássico (madeira)",
+   "categoria": "camas",
+   "grupo": "berco_classico",
+   "fixacao": "chao",
+   "dims": [
+    0.776,
+    1.376,
+    0.959
+   ],
+   "arquivo": "glb/berco_classico_madeira.glb",
+   "miniatura": "miniaturas/berco_classico_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.56,
+      0.284
+     ],
+     "tamanho": [
+      0.48,
+      0.4,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.76,
+      1.0,
+      1.36
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul_bebe",
+    "branco",
+    "madeira_clara",
+    "pinus"
+   ],
+   "tris": 8806,
+   "pacote": false,
+   "tags": [
+    "berco",
+    "bebe",
+    "madeira"
+   ]
+  }
+ ]
+}

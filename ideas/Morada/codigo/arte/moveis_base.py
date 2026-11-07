@@ -426,7 +426,7 @@ def superelipsoide(l, p, a, x=0.0, y=0.0, z=0.0, cor="branco", e=0.3, e_v=None, 
             py = f(fi, e_v) * g(th, e) * p / 2
             pz = g(fi, e_v) * a / 2
             if estufa:
-                k = max(abs(px) / (l / 2), abs(py) / (p / 2)) ** 3
+                k = ((abs(px) / (l / 2)) ** 4 + (abs(py) / (p / 2)) ** 4) ** 0.75 / 2 ** 0.75 * 1.0  # liso, sem vinco
                 pz *= 1 - estufa * k
             linha.append(bm.verts.new((px + x, py + y, pz + a / 2 + z)))
         grade.append(linha)
@@ -511,7 +511,9 @@ def junta(objs, nome="peca"):
 
 def bbox(objs):
     objs = objs if isinstance(objs, (list, tuple)) else [objs]
-    pts = [o.matrix_world @ V(c) for o in objs for c in o.bound_box]
+    # pelos vértices (o bound_box pode estar velho depois de mexer na malha)
+    pts = [o.matrix_world @ v.co for o in objs if o.type == "MESH" for v in o.data.vertices] or \
+          [o.matrix_world @ V(c) for o in objs for c in o.bound_box]
     lo = V([min(p[i] for p in pts) for i in range(3)])
     hi = V([max(p[i] for p in pts) for i in range(3)])
     return lo, hi
@@ -640,7 +642,7 @@ def puxador(tipo="bola", x=0.0, y=0.0, z=0.0, cor="ouro", tam=1.0, vertical=True
     s = tam
     if tipo == "bola":
         ps = [cilindro(0.008 * s, 0.014 * s, x=x, y=y - 0.007 * s, z=z, cor=cor, eixo="y", seg=12),
-              esfera(0.017 * s, x=x, y=y - 0.024 * s, z=z, cor=cor, esc=(1, 0.8, 1))]
+              esfera(0.017 * s, x=x, y=y - 0.024 * s, z=z, cor=cor, esc=(1, 0.8, 1), seg=14)]
         return junta(ps, nome)
     if tipo == "botao":
         return cilindro(0.016 * s, 0.012 * s, x=x, y=y - 0.006 * s, z=z, cor=cor, eixo="y", seg=16, bisel=0.004 * s,
@@ -656,14 +658,13 @@ def puxador(tipo="bola", x=0.0, y=0.0, z=0.0, cor="ouro", tam=1.0, vertical=True
     if tipo == "concha":
         ob = superelipsoide(0.08 * s, 0.02 * s, 0.03 * s, x=x, y=y - 0.008 * s, z=z - 0.015 * s, cor=cor, e=0.5)
         return ob
-    if tipo == "argola":
-        bm = bmesh.new()
-        bmesh.ops.create_cone(bm, cap_ends=False, segments=20, radius1=0.022 * s, radius2=0.022 * s, depth=0.006 * s)
-        ob = _obj(nome, bm, cor)
-        sol = ob.modifiers.new("s", "SOLIDIFY")
-        sol.thickness = 0.005 * s
-        transforma(ob, loc=(x, y - 0.02 * s, z - 0.02 * s), rot=("X", 90))
-        return junta([ob, esfera(0.008 * s, x=x, y=y - 0.006 * s, z=z, cor=cor)], nome)
+    if tipo == "argola":  # anel pendurado num botão (toro feito por torno de um círculo pequeno)
+        R, r = 0.02 * s, 0.0045 * s
+        perfil = [(R + r * math.cos(math.radians(a_)), r * math.sin(math.radians(a_))) for a_ in range(-90, 271, 30)]
+        anel = torno(perfil, cor=cor, seg=20, nome=nome)
+        transforma(anel, rot=("X", 90))
+        transforma(anel, loc=(x, y - 0.012 * s, z - R))
+        return junta([anel, esfera(0.008 * s, x=x, y=y - 0.006 * s, z=z, cor=cor, seg=12)], nome)
     raise ValueError(tipo)
 
 
@@ -1017,7 +1018,7 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
                     ax = V((ax[0], -ax[2], ax[1]))
                     o.rotation_mode = "AXIS_ANGLE"
                     o.rotation_axis_angle = (o["angulo"] * 0.75, *ax)
-                elif o.get("interativo") == "gaveta":
+                elif o.get("interativo") in ("gaveta", "correr"):
                     dd = V(o["direcao"])
                     o.location += V((dd[0], -dd[2], dd[1])) * o["curso"] * 0.6
         bpy.context.view_layer.update()
@@ -1042,8 +1043,9 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     for raiz, px, py in pos:
         larg[py] = max(larg.get(py, 0), px)
     pos = [(r, px - larg[py] / 2, py) for r, px, py in pos]
-    for raiz, px, py in pos:
-        raiz.location = (px, py, 0)
+    alt = {id(g[0]): (g[2]["dims"][2] if g[2].get("fixacao") == "teto" else 0.0) for g in grupos}
+    for raiz, px, py in pos:  # peça de teto: a origem fica no alto, então sobe a altura dela para ficar no chão
+        raiz.location = (px, py, alt[id(raiz)])
     bpy.context.view_layer.update()
     scn = bpy.context.scene
     scn.render.engine = "CYCLES"

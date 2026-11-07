@@ -1,0 +1,994 @@
+{
+ "categoria": "quadros",
+ "rotulo": "Quadros",
+ "itens": [
+  {
+   "id": "quadro_montanhas_entardecer",
+   "rotulo": "Quadro de montanhas ao entardecer",
+   "categoria": "quadros",
+   "grupo": "montanhas_entardecer",
+   "fixacao": "parede",
+   "dims": [
+    0.734,
+    0.04,
+    0.542
+   ],
+   "arquivo": "glb/quadro_montanhas_entardecer.glb",
+   "miniatura": "miniaturas/quadro_montanhas_entardecer.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27079,
+      0.02
+     ],
+     "tamanho": [
+      0.734,
+      0.542,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "papel"
+   ],
+   "tris": 1312,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "grande"
+   ],
+   "altura_instalacao": 1.23
+  },
+  {
+   "id": "quadro_mar_ilha",
+   "rotulo": "Quadro de mar com ilha e sol",
+   "categoria": "quadros",
+   "grupo": "mar_ilha_sol",
+   "fixacao": "parede",
+   "dims": [
+    0.734,
+    0.04,
+    0.542
+   ],
+   "arquivo": "glb/quadro_mar_ilha.glb",
+   "miniatura": "miniaturas/quadro_mar_ilha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27079,
+      0.02
+     ],
+     "tamanho": [
+      0.734,
+      0.542,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "papel"
+   ],
+   "tris": 1312,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "grande"
+   ],
+   "altura_instalacao": 1.23
+  },
+  {
+   "id": "quadro_estrada_campo",
+   "rotulo": "Quadro panorâmico de estrada no campo",
+   "categoria": "quadros",
+   "grupo": "estrada_campo",
+   "fixacao": "parede",
+   "dims": [
+    0.82,
+    0.045,
+    0.46
+   ],
+   "arquivo": "glb/quadro_estrada_campo.glb",
+   "miniatura": "miniaturas/quadro_estrada_campo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      0.0225
+     ],
+     "tamanho": [
+      0.82,
+      0.46,
+      0.045
+     ]
+    }
+   ],
+   "cores": [
+    "nogueira",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "grande"
+   ],
+   "altura_instalacao": 1.27
+  },
+  {
+   "id": "quadro_formas_contorno",
+   "rotulo": "Quadro abstrato de formas (magenta)",
+   "categoria": "quadros",
+   "grupo": "formas_contorno",
+   "fixacao": "parede",
+   "dims": [
+    0.444,
+    0.04,
+    0.584
+   ],
+   "arquivo": "glb/quadro_formas_contorno.glb",
+   "miniatura": "miniaturas/quadro_formas_contorno.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.292,
+      0.02
+     ],
+     "tamanho": [
+      0.444,
+      0.584,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "magenta",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.21
+  },
+  {
+   "id": "quadro_letras_lar",
+   "rotulo": "Quadro com letras LAR (roxo)",
+   "categoria": "quadros",
+   "grupo": "letras_lar",
+   "fixacao": "parede",
+   "dims": [
+    0.604,
+    0.05,
+    0.473
+   ],
+   "arquivo": "glb/quadro_letras_lar.glb",
+   "miniatura": "miniaturas/quadro_letras_lar.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23629,
+      0.025
+     ],
+     "tamanho": [
+      0.604,
+      0.473,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "papel",
+    "roxo"
+   ],
+   "tris": 1312,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "letras",
+    "grande"
+   ],
+   "altura_instalacao": 1.26
+  },
+  {
+   "id": "quadro_pedras_empilhadas",
+   "rotulo": "Quadro de pedras empilhadas",
+   "categoria": "quadros",
+   "grupo": "pedras_equilibrio",
+   "fixacao": "parede",
+   "dims": [
+    0.372,
+    0.035,
+    0.501
+   ],
+   "arquivo": "glb/quadro_pedras_empilhadas.glb",
+   "miniatura": "miniaturas/quadro_pedras_empilhadas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.25029,
+      0.0175
+     ],
+     "tamanho": [
+      0.372,
+      0.501,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.25
+  },
+  {
+   "id": "quadro_arcos_boho",
+   "rotulo": "Quadro de arcos",
+   "categoria": "quadros",
+   "grupo": "arcos_boho",
+   "fixacao": "parede",
+   "dims": [
+    0.372,
+    0.035,
+    0.489
+   ],
+   "arquivo": "glb/quadro_arcos_boho.glb",
+   "miniatura": "miniaturas/quadro_arcos_boho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.24433,
+      0.0175
+     ],
+     "tamanho": [
+      0.372,
+      0.489,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_cinza",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.26
+  },
+  {
+   "id": "quadro_silhueta",
+   "rotulo": "Quadro de silhueta",
+   "categoria": "quadros",
+   "grupo": "silhueta_retrato",
+   "fixacao": "parede",
+   "dims": [
+    0.372,
+    0.035,
+    0.489
+   ],
+   "arquivo": "glb/quadro_silhueta.glb",
+   "miniatura": "miniaturas/quadro_silhueta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.24433,
+      0.0175
+     ],
+     "tamanho": [
+      0.372,
+      0.489,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "retrato"
+   ],
+   "altura_instalacao": 1.26
+  },
+  {
+   "id": "quadro_galhos_frutos",
+   "rotulo": "Quadro de galhos com frutos (laranja)",
+   "categoria": "quadros",
+   "grupo": "galhos_frutos",
+   "fixacao": "parede",
+   "dims": [
+    0.372,
+    0.035,
+    0.489
+   ],
+   "arquivo": "glb/quadro_galhos_frutos.glb",
+   "miniatura": "miniaturas/quadro_galhos_frutos.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.24433,
+      0.0175
+     ],
+     "tamanho": [
+      0.372,
+      0.489,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "papel"
+   ],
+   "tris": 652,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.26
+  },
+  {
+   "id": "quadro_dois_sois",
+   "rotulo": "Quadro estreito de dois sóis",
+   "categoria": "quadros",
+   "grupo": "dois_sois",
+   "fixacao": "parede",
+   "dims": [
+    0.244,
+    0.032,
+    0.424
+   ],
+   "arquivo": "glb/quadro_dois_sois.glb",
+   "miniatura": "miniaturas/quadro_dois_sois.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.212,
+      0.016
+     ],
+     "tamanho": [
+      0.244,
+      0.424,
+      0.032
+     ]
+    }
+   ],
+   "cores": [
+    "nogueira",
+    "papel"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "estreito"
+   ],
+   "altura_instalacao": 1.29
+  },
+  {
+   "id": "quadro_sol_dividido",
+   "rotulo": "Quadrinho de sol dividido",
+   "categoria": "quadros",
+   "grupo": "sol_dividido",
+   "fixacao": "parede",
+   "dims": [
+    0.372,
+    0.035,
+    0.316
+   ],
+   "arquivo": "glb/quadro_sol_dividido.glb",
+   "miniatura": "miniaturas/quadro_sol_dividido.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.158,
+      0.0175
+     ],
+     "tamanho": [
+      0.372,
+      0.316,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "papel"
+   ],
+   "tris": 1312,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato"
+   ],
+   "altura_instalacao": 1.26
+  },
+  {
+   "id": "quadro_colinas_douradas",
+   "rotulo": "Quadrinho de colinas douradas",
+   "categoria": "quadros",
+   "grupo": "colinas_douradas",
+   "fixacao": "parede",
+   "dims": [
+    0.304,
+    0.03,
+    0.26
+   ],
+   "arquivo": "glb/quadro_colinas_douradas.glb",
+   "miniatura": "miniaturas/quadro_colinas_douradas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13,
+      0.015
+     ],
+     "tamanho": [
+      0.304,
+      0.26,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "papel"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.29
+  },
+  {
+   "id": "quadro_pico_aurora",
+   "rotulo": "Quadrinho de montanha e sol",
+   "categoria": "quadros",
+   "grupo": "pico_aurora",
+   "fixacao": "parede",
+   "dims": [
+    0.304,
+    0.03,
+    0.267
+   ],
+   "arquivo": "glb/quadro_pico_aurora.glb",
+   "miniatura": "miniaturas/quadro_pico_aurora.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13367,
+      0.015
+     ],
+     "tamanho": [
+      0.304,
+      0.267,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "papel"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.29
+  },
+  {
+   "id": "quadro_estrela",
+   "rotulo": "Quadrinho de estrela",
+   "categoria": "quadros",
+   "grupo": "estrela",
+   "fixacao": "parede",
+   "dims": [
+    0.304,
+    0.03,
+    0.275
+   ],
+   "arquivo": "glb/quadro_estrela.glb",
+   "miniatura": "miniaturas/quadro_estrela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13765,
+      0.015
+     ],
+     "tamanho": [
+      0.304,
+      0.275,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "papel"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "infantil",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.28
+  },
+  {
+   "id": "quadro_faixa_mar",
+   "rotulo": "Quadrinho comprido de mar",
+   "categoria": "quadros",
+   "grupo": "faixa_mar",
+   "fixacao": "parede",
+   "dims": [
+    0.376,
+    0.028,
+    0.17
+   ],
+   "arquivo": "glb/quadro_faixa_mar.glb",
+   "miniatura": "miniaturas/quadro_faixa_mar.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.08488,
+      0.014
+     ],
+     "tamanho": [
+      0.376,
+      0.17,
+      0.028
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "papel"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.34
+  },
+  {
+   "id": "quadro_faixa_duna",
+   "rotulo": "Quadrinho comprido de dunas",
+   "categoria": "quadros",
+   "grupo": "faixa_duna",
+   "fixacao": "parede",
+   "dims": [
+    0.376,
+    0.028,
+    0.17
+   ],
+   "arquivo": "glb/quadro_faixa_duna.glb",
+   "miniatura": "miniaturas/quadro_faixa_duna.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.08488,
+      0.014
+     ],
+     "tamanho": [
+      0.376,
+      0.17,
+      0.028
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "papel"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.34
+  },
+  {
+   "id": "quadro_campo_faixas",
+   "rotulo": "Quadrinho de campo",
+   "categoria": "quadros",
+   "grupo": "campo_faixas",
+   "fixacao": "parede",
+   "dims": [
+    0.296,
+    0.03,
+    0.216
+   ],
+   "arquivo": "glb/quadro_campo_faixas.glb",
+   "miniatura": "miniaturas/quadro_campo_faixas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.108,
+      0.015
+     ],
+     "tamanho": [
+      0.296,
+      0.216,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "papel"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.31
+  },
+  {
+   "id": "quadro_borboleta",
+   "rotulo": "Quadrinho de borboleta",
+   "categoria": "quadros",
+   "grupo": "borboleta",
+   "fixacao": "parede",
+   "dims": [
+    0.284,
+    0.032,
+    0.284
+   ],
+   "arquivo": "glb/quadro_borboleta.glb",
+   "miniatura": "miniaturas/quadro_borboleta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.142,
+      0.016
+     ],
+     "tamanho": [
+      0.284,
+      0.284,
+      0.032
+     ]
+    }
+   ],
+   "cores": [
+    "nogueira",
+    "papel"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "infantil",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.28
+  },
+  {
+   "id": "quadro_verde_moldurado",
+   "rotulo": "Quadrinho verde moldurado",
+   "categoria": "quadros",
+   "grupo": "quadro_no_quadro",
+   "fixacao": "parede",
+   "dims": [
+    0.26,
+    0.03,
+    0.214
+   ],
+   "arquivo": "glb/quadro_verde_moldurado.glb",
+   "miniatura": "miniaturas/quadro_verde_moldurado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.10692,
+      0.015
+     ],
+     "tamanho": [
+      0.26,
+      0.214,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "papel"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.31
+  },
+  {
+   "id": "quadro_nascer_colina",
+   "rotulo": "Quadrinho de sol nascendo na colina",
+   "categoria": "quadros",
+   "grupo": "nascer_colina",
+   "fixacao": "parede",
+   "dims": [
+    0.296,
+    0.03,
+    0.206
+   ],
+   "arquivo": "glb/quadro_nascer_colina.glb",
+   "miniatura": "miniaturas/quadro_nascer_colina.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.103,
+      0.015
+     ],
+     "tamanho": [
+      0.296,
+      0.206,
+      0.03
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "papel"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "quadro",
+    "paisagem",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.32
+  },
+  {
+   "id": "quadro_flores_abstratas_pacote",
+   "rotulo": "Quadro de flores abstratas",
+   "categoria": "quadros",
+   "grupo": "picture_08",
+   "fixacao": "parede",
+   "dims": [
+    0.397,
+    0.041,
+    0.566
+   ],
+   "arquivo": "glb/quadro_flores_abstratas_pacote.glb",
+   "miniatura": "miniaturas/quadro_flores_abstratas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28306,
+      0.02048
+     ],
+     "tamanho": [
+      0.397,
+      0.566,
+      0.041
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "amarelo_escuro",
+    "cinza_claro",
+    "couro",
+    "creme",
+    "creme_claro",
+    "cromo",
+    "folha_escura",
+    "madeira_escura",
+    "marrom",
+    "metal_claro",
+    "papel_amarelado",
+    "terra_escura",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_medio"
+   ],
+   "tris": 272,
+   "pacote": true,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.22
+  },
+  {
+   "id": "quadro_circulos_pacote",
+   "rotulo": "Quadro de círculos",
+   "categoria": "quadros",
+   "grupo": "picture_17",
+   "fixacao": "parede",
+   "dims": [
+    0.384,
+    0.036,
+    0.66
+   ],
+   "arquivo": "glb/quadro_circulos_pacote.glb",
+   "miniatura": "miniaturas/quadro_circulos_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.33,
+      0.018
+     ],
+     "tamanho": [
+      0.384,
+      0.66,
+      0.036
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "madeira_escura",
+    "marrom",
+    "salmao",
+    "terracota_escura"
+   ],
+   "tris": 420,
+   "pacote": true,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "retrato"
+   ],
+   "altura_instalacao": 1.17
+  },
+  {
+   "id": "quadro_piramide_pacote",
+   "rotulo": "Quadro de pirâmide",
+   "categoria": "quadros",
+   "grupo": "picture_21",
+   "fixacao": "parede",
+   "dims": [
+    0.296,
+    0.036,
+    0.291
+   ],
+   "arquivo": "glb/quadro_piramide_pacote.glb",
+   "miniatura": "miniaturas/quadro_piramide_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14531,
+      0.01814
+     ],
+     "tamanho": [
+      0.296,
+      0.291,
+      0.036
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "couro",
+    "madeira_escura",
+    "magenta",
+    "marrom",
+    "metal_claro",
+    "terra_escura"
+   ],
+   "tris": 218,
+   "pacote": true,
+   "tags": [
+    "quadro",
+    "abstrato",
+    "pequeno"
+   ],
+   "altura_instalacao": 1.27
+  }
+ ]
+}

@@ -1,0 +1,3232 @@
+{
+ "categoria": "objetos",
+ "rotulo": "Objetos",
+ "itens": [
+  {
+   "id": "espelho_chao_madeira",
+   "rotulo": "Espelho de chão (madeira)",
+   "categoria": "objetos",
+   "grupo": "espelho_chao",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.522,
+    1.604
+   ],
+   "arquivo": "glb/espelho_chao_madeira.glb",
+   "miniatura": "miniaturas/espelho_chao_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.8,
+      0
+     ],
+     "tamanho": [
+      0.64,
+      1.6,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "madeira_media"
+   ],
+   "tris": 1560,
+   "pacote": false,
+   "tags": [
+    "quarto"
+   ]
+  },
+  {
+   "id": "espelho_chao_branco",
+   "rotulo": "Espelho de chão (branco)",
+   "categoria": "objetos",
+   "grupo": "espelho_chao",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.522,
+    1.604
+   ],
+   "arquivo": "glb/espelho_chao_branco.glb",
+   "miniatura": "miniaturas/espelho_chao_branco.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.8,
+      0
+     ],
+     "tamanho": [
+      0.64,
+      1.6,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco"
+   ],
+   "tris": 1560,
+   "pacote": false,
+   "tags": [
+    "quarto"
+   ]
+  },
+  {
+   "id": "espelho_parede_recortado",
+   "rotulo": "Espelho de parede recortado",
+   "categoria": "objetos",
+   "grupo": "espelho_recortado",
+   "fixacao": "parede",
+   "dims": [
+    0.52,
+    0.045,
+    0.74
+   ],
+   "arquivo": "glb/espelho_parede_recortado.glb",
+   "miniatura": "miniaturas/espelho_parede_recortado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.37,
+      0.0225
+     ],
+     "tamanho": [
+      0.52,
+      0.74,
+      0.045
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media"
+   ],
+   "tris": 1688,
+   "pacote": false,
+   "tags": [
+    "banheiro",
+    "quarto"
+   ],
+   "altura_instalacao": 1.15
+  },
+  {
+   "id": "espelho_parede_oval",
+   "rotulo": "Espelho oval",
+   "categoria": "objetos",
+   "grupo": "espelho_oval",
+   "fixacao": "parede",
+   "dims": [
+    0.45,
+    0.05,
+    0.61
+   ],
+   "arquivo": "glb/espelho_parede_oval.glb",
+   "miniatura": "miniaturas/espelho_parede_oval.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.305,
+      0.025
+     ],
+     "tamanho": [
+      0.45,
+      0.61,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "ouro"
+   ],
+   "tris": 2232,
+   "pacote": false,
+   "tags": [
+    "banheiro",
+    "quarto"
+   ],
+   "altura_instalacao": 1.2
+  },
+  {
+   "id": "espelho_camarim",
+   "rotulo": "Espelho de camarim com lâmpadas",
+   "categoria": "objetos",
+   "grupo": "espelho_camarim",
+   "fixacao": "apoio",
+   "dims": [
+    0.6,
+    0.17,
+    0.795
+   ],
+   "arquivo": "glb/espelho_camarim.glb",
+   "miniatura": "miniaturas/espelho_camarim.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3975,
+      -0.0
+     ],
+     "tamanho": [
+      0.6,
+      0.795,
+      0.17
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "petroleo",
+    "turquesa_escuro"
+   ],
+   "tris": 5780,
+   "pacote": false,
+   "tags": [
+    "quarto",
+    "penteadeira"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     0.415,
+     0.15
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.0
+   }
+  },
+  {
+   "id": "relogio_parede_pendulo",
+   "rotulo": "Relógio de parede com pêndulo",
+   "categoria": "objetos",
+   "grupo": "relogio_parede_pendulo",
+   "fixacao": "parede",
+   "dims": [
+    0.24,
+    0.093,
+    0.618
+   ],
+   "arquivo": "glb/relogio_parede_pendulo.glb",
+   "miniatura": "miniaturas/relogio_parede_pendulo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.309,
+      0.0465
+     ],
+     "tamanho": [
+      0.24,
+      0.618,
+      0.093
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "creme_claro",
+    "marrom",
+    "marrom_claro",
+    "marrom_escuro",
+    "ouro"
+   ],
+   "tris": 3768,
+   "pacote": false,
+   "tags": [
+    "sala"
+   ],
+   "altura_instalacao": 1.45
+  },
+  {
+   "id": "relogio_parede_redondo_vermelho",
+   "rotulo": "Relógio de parede redondo (vermelho)",
+   "categoria": "objetos",
+   "grupo": "relogio_parede_redondo",
+   "fixacao": "parede",
+   "dims": [
+    0.312,
+    0.056,
+    0.312
+   ],
+   "arquivo": "glb/relogio_parede_redondo_vermelho.glb",
+   "miniatura": "miniaturas/relogio_parede_redondo_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.156,
+      0.02779
+     ],
+     "tamanho": [
+      0.312,
+      0.312,
+      0.056
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul",
+    "branco",
+    "vermelho"
+   ],
+   "tris": 1916,
+   "pacote": false,
+   "tags": [
+    "cozinha",
+    "sala"
+   ],
+   "altura_instalacao": 1.8
+  },
+  {
+   "id": "relogio_parede_redondo_azul",
+   "rotulo": "Relógio de parede redondo (azul)",
+   "categoria": "objetos",
+   "grupo": "relogio_parede_redondo",
+   "fixacao": "parede",
+   "dims": [
+    0.312,
+    0.056,
+    0.312
+   ],
+   "arquivo": "glb/relogio_parede_redondo_azul.glb",
+   "miniatura": "miniaturas/relogio_parede_redondo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.156,
+      0.02779
+     ],
+     "tamanho": [
+      0.312,
+      0.312,
+      0.056
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "branco",
+    "verde",
+    "verde_medio"
+   ],
+   "tris": 1916,
+   "pacote": false,
+   "tags": [
+    "cozinha",
+    "sala"
+   ],
+   "altura_instalacao": 1.8
+  },
+  {
+   "id": "ar_condicionado",
+   "rotulo": "Ar-condicionado de parede",
+   "categoria": "objetos",
+   "grupo": "ar_condicionado",
+   "fixacao": "parede",
+   "dims": [
+    0.86,
+    0.237,
+    0.29
+   ],
+   "arquivo": "glb/ar_condicionado.glb",
+   "miniatura": "miniaturas/ar_condicionado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.145,
+      0.1185
+     ],
+     "tamanho": [
+      0.86,
+      0.29,
+      0.237
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "tela_azul"
+   ],
+   "tris": 1176,
+   "pacote": false,
+   "tags": [
+    "eletro",
+    "quarto"
+   ],
+   "altura_instalacao": 2.05
+  },
+  {
+   "id": "tabua_passar_ferro",
+   "rotulo": "Tábua de passar com ferro",
+   "categoria": "objetos",
+   "grupo": "tabua_passar",
+   "fixacao": "chao",
+   "dims": [
+    1.12,
+    0.35,
+    0.979
+   ],
+   "arquivo": "glb/tabua_passar_ferro.glb",
+   "miniatura": "miniaturas/tabua_passar_ferro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00012,
+      0.842,
+      -0.0
+     ],
+     "tamanho": [
+      1.12,
+      0.06,
+      0.36
+     ]
+    },
+    {
+     "centro": [
+      0.00012,
+      0.407,
+      -0.0
+     ],
+     "tamanho": [
+      0.7,
+      0.81,
+      0.3
+     ]
+    },
+    {
+     "centro": [
+      0.12012,
+      0.922,
+      -0.0
+     ],
+     "tamanho": [
+      0.26,
+      0.12,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "branco",
+    "cinza_claro",
+    "laranja_escuro",
+    "mostarda",
+    "pessego",
+    "vermelho"
+   ],
+   "tris": 3844,
+   "pacote": false,
+   "tags": [
+    "lavanderia"
+   ]
+  },
+  {
+   "id": "supino_barra",
+   "rotulo": "Supino com barra",
+   "categoria": "objetos",
+   "grupo": "supino",
+   "fixacao": "chao",
+   "dims": [
+    1.98,
+    1.37,
+    1.315
+   ],
+   "arquivo": "glb/supino_barra.glb",
+   "miniatura": "miniaturas/supino_barra.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.665,
+      -0.39
+     ],
+     "tamanho": [
+      1.95,
+      1.33,
+      0.56
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.25,
+      0.16
+     ],
+     "tamanho": [
+      0.4,
+      0.5,
+      1.05
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "marrom_escuro",
+    "metal_claro"
+   ],
+   "tris": 7932,
+   "pacote": false,
+   "tags": [
+    "academia",
+    "exercicio"
+   ]
+  },
+  {
+   "id": "esteira",
+   "rotulo": "Esteira",
+   "categoria": "objetos",
+   "grupo": "esteira",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    1.694,
+    1.413
+   ],
+   "arquivo": "glb/esteira.glb",
+   "miniatura": "miniaturas/esteira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11,
+      0.02222
+     ],
+     "tamanho": [
+      0.78,
+      0.22,
+      1.66
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.83,
+      -0.67778
+     ],
+     "tamanho": [
+      0.8,
+      1.22,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "borracha",
+    "cinza",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "menta",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3064,
+   "pacote": false,
+   "tags": [
+    "academia",
+    "exercicio"
+   ]
+  },
+  {
+   "id": "tv_tela_plana_100",
+   "rotulo": "TV de tela plana (1 m)",
+   "categoria": "objetos",
+   "grupo": "tv_tela_plana",
+   "fixacao": "apoio",
+   "dims": [
+    1.0,
+    0.214,
+    0.645
+   ],
+   "arquivo": "glb/tv_tela_plana_100.glb",
+   "miniatura": "miniaturas/tv_tela_plana_100.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3225,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.645,
+      0.214
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "tela",
+    "vermelho"
+   ],
+   "tris": 1008,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala"
+   ]
+  },
+  {
+   "id": "tv_tela_plana_120",
+   "rotulo": "TV de tela plana grande (1,2 m)",
+   "categoria": "objetos",
+   "grupo": "tv_tela_plana",
+   "fixacao": "apoio",
+   "dims": [
+    1.2,
+    0.214,
+    0.759
+   ],
+   "arquivo": "glb/tv_tela_plana_120.glb",
+   "miniatura": "miniaturas/tv_tela_plana_120.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3795,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.759,
+      0.214
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "tela",
+    "vermelho"
+   ],
+   "tris": 1008,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala"
+   ]
+  },
+  {
+   "id": "tv_cavalete",
+   "rotulo": "TV no cavalete",
+   "categoria": "objetos",
+   "grupo": "tv_cavalete",
+   "fixacao": "chao",
+   "dims": [
+    0.96,
+    0.46,
+    1.104
+   ],
+   "arquivo": "glb/tv_cavalete.glb",
+   "miniatura": "miniaturas/tv_cavalete.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.55175,
+      -0.0
+     ],
+     "tamanho": [
+      0.96,
+      1.104,
+      0.46
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "laranja",
+    "laranja_claro",
+    "madeira_mel",
+    "tela"
+   ],
+   "tris": 1936,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala"
+   ]
+  },
+  {
+   "id": "tv_parede",
+   "rotulo": "TV de parede",
+   "categoria": "objetos",
+   "grupo": "tv_parede",
+   "fixacao": "parede",
+   "dims": [
+    1.1,
+    0.043,
+    0.63
+   ],
+   "arquivo": "glb/tv_parede.glb",
+   "miniatura": "miniaturas/tv_parede.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.315,
+      0.0215
+     ],
+     "tamanho": [
+      1.1,
+      0.63,
+      0.043
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "grafite",
+    "tela"
+   ],
+   "tris": 444,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala"
+   ],
+   "altura_instalacao": 1.1
+  },
+  {
+   "id": "tv_tubo_pes_marrom",
+   "rotulo": "TV de tubo com pés (marrom e verde)",
+   "categoria": "objetos",
+   "grupo": "tv_tubo_pes",
+   "fixacao": "apoio",
+   "dims": [
+    0.56,
+    0.452,
+    0.517
+   ],
+   "arquivo": "glb/tv_tubo_pes_marrom.glb",
+   "miniatura": "miniaturas/tv_tubo_pes_marrom.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2585,
+      -0.0
+     ],
+     "tamanho": [
+      0.56,
+      0.517,
+      0.452
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "laranja",
+    "marrom_claro",
+    "tela",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 2944,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala",
+    "retro"
+   ]
+  },
+  {
+   "id": "tv_tubo_pes_rosa",
+   "rotulo": "TV de tubo com pés (rosa e turquesa)",
+   "categoria": "objetos",
+   "grupo": "tv_tubo_pes",
+   "fixacao": "apoio",
+   "dims": [
+    0.56,
+    0.452,
+    0.517
+   ],
+   "arquivo": "glb/tv_tubo_pes_rosa.glb",
+   "miniatura": "miniaturas/tv_tubo_pes_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2585,
+      -0.0
+     ],
+     "tamanho": [
+      0.56,
+      0.517,
+      0.452
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "madeira_mel",
+    "rosa",
+    "tela",
+    "turquesa",
+    "turquesa_claro"
+   ],
+   "tris": 2944,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala",
+    "retro"
+   ]
+  },
+  {
+   "id": "tv_tubo_cinza",
+   "rotulo": "TV de tubo cinza e laranja",
+   "categoria": "objetos",
+   "grupo": "tv_tubo_cinza",
+   "fixacao": "apoio",
+   "dims": [
+    0.52,
+    0.467,
+    0.48
+   ],
+   "arquivo": "glb/tv_tubo_cinza.glb",
+   "miniatura": "miniaturas/tv_tubo_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.24,
+      -0.0
+     ],
+     "tamanho": [
+      0.52,
+      0.48,
+      0.467
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "cinza_azulado",
+    "grafite",
+    "laranja",
+    "laranja_escuro",
+    "tela",
+    "verde_claro",
+    "vermelho"
+   ],
+   "tris": 2664,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "sala",
+    "retro"
+   ]
+  },
+  {
+   "id": "tv_tubo_agua",
+   "rotulo": "TV de tubo azul e verde",
+   "categoria": "objetos",
+   "grupo": "tv_tubo_agua",
+   "fixacao": "apoio",
+   "dims": [
+    0.56,
+    0.474,
+    0.45
+   ],
+   "arquivo": "glb/tv_tubo_agua.glb",
+   "miniatura": "miniaturas/tv_tubo_agua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.56,
+      0.45,
+      0.474
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "cinza_claro",
+    "rosa",
+    "tela",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 4204,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "quarto",
+    "retro"
+   ]
+  },
+  {
+   "id": "tv_pequena",
+   "rotulo": "TV pequena retrô",
+   "categoria": "objetos",
+   "grupo": "tv_pequena",
+   "fixacao": "apoio",
+   "dims": [
+    0.362,
+    0.286,
+    0.295
+   ],
+   "arquivo": "glb/tv_pequena.glb",
+   "miniatura": "miniaturas/tv_pequena.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1475,
+      -0.0
+     ],
+     "tamanho": [
+      0.362,
+      0.295,
+      0.286
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "tela",
+    "terracota_clara"
+   ],
+   "tris": 1764,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "quarto",
+    "retro"
+   ]
+  },
+  {
+   "id": "caixa_som_torre_vermelha",
+   "rotulo": "Caixa de som torre (vermelha)",
+   "categoria": "objetos",
+   "grupo": "caixa_som_torre",
+   "fixacao": "chao",
+   "dims": [
+    0.32,
+    0.328,
+    0.625
+   ],
+   "arquivo": "glb/caixa_som_torre_vermelha.glb",
+   "miniatura": "miniaturas/caixa_som_torre_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3125,
+      -0.0
+     ],
+     "tamanho": [
+      0.32,
+      0.625,
+      0.328
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_azulado",
+    "grafite",
+    "vermelho_claro"
+   ],
+   "tris": 2848,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica"
+   ]
+  },
+  {
+   "id": "caixa_som_torre_azul",
+   "rotulo": "Caixa de som torre (azul)",
+   "categoria": "objetos",
+   "grupo": "caixa_som_torre",
+   "fixacao": "chao",
+   "dims": [
+    0.32,
+    0.328,
+    0.625
+   ],
+   "arquivo": "glb/caixa_som_torre_azul.glb",
+   "miniatura": "miniaturas/caixa_som_torre_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3125,
+      -0.0
+     ],
+     "tamanho": [
+      0.32,
+      0.625,
+      0.328
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "cinza_azulado",
+    "grafite"
+   ],
+   "tris": 2848,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica"
+   ]
+  },
+  {
+   "id": "som_micro_system",
+   "rotulo": "Micro system com duas caixas",
+   "categoria": "objetos",
+   "grupo": "som_micro_system",
+   "fixacao": "apoio",
+   "dims": [
+    0.73,
+    0.263,
+    0.38
+   ],
+   "arquivo": "glb/som_micro_system.glb",
+   "miniatura": "miniaturas/som_micro_system.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19,
+      -0.0
+     ],
+     "tamanho": [
+      0.73,
+      0.38,
+      0.263
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "menta",
+    "turquesa_claro"
+   ],
+   "tris": 3492,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica"
+   ]
+  },
+  {
+   "id": "som_boombox",
+   "rotulo": "Som portátil (boombox)",
+   "categoria": "objetos",
+   "grupo": "som_boombox",
+   "fixacao": "apoio",
+   "dims": [
+    0.5,
+    0.152,
+    0.361
+   ],
+   "arquivo": "glb/som_boombox.glb",
+   "miniatura": "miniaturas/som_boombox.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18049,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.361,
+      0.152
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "azul",
+    "azul_celeste",
+    "branco",
+    "roxo",
+    "roxo_escuro",
+    "tela",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 3028,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica",
+    "retro"
+   ]
+  },
+  {
+   "id": "teclado_suporte",
+   "rotulo": "Teclado com suporte",
+   "categoria": "objetos",
+   "grupo": "teclado_suporte",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.56,
+    0.912
+   ],
+   "arquivo": "glb/teclado_suporte.glb",
+   "miniatura": "miniaturas/teclado_suporte.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.822,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.14,
+      0.33
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.377,
+      -0.0
+     ],
+     "tamanho": [
+      0.7,
+      0.75,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "borracha",
+    "branco",
+    "cinza_azulado",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "rosa",
+    "verde_claro"
+   ],
+   "tris": 4856,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "quarto"
+   ]
+  },
+  {
+   "id": "alvo_dardos",
+   "rotulo": "Alvo de dardos",
+   "categoria": "objetos",
+   "grupo": "alvo_dardos",
+   "fixacao": "parede",
+   "dims": [
+    0.52,
+    0.205,
+    0.52
+   ],
+   "arquivo": "glb/alvo_dardos.glb",
+   "miniatura": "miniaturas/alvo_dardos.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      0.10225
+     ],
+     "tamanho": [
+      0.52,
+      0.52,
+      0.205
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "cinza_claro",
+    "creme",
+    "marrom_escuro",
+    "preto",
+    "rosa",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 2308,
+   "pacote": false,
+   "tags": [
+    "jogo",
+    "sala"
+   ],
+   "altura_instalacao": 1.47
+  },
+  {
+   "id": "halteres_par",
+   "rotulo": "Par de halteres",
+   "categoria": "objetos",
+   "grupo": "halteres",
+   "fixacao": "chao",
+   "dims": [
+    0.356,
+    0.368,
+    0.148
+   ],
+   "arquivo": "glb/halteres_par.glb",
+   "miniatura": "miniaturas/halteres_par.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07386,
+      -0.0
+     ],
+     "tamanho": [
+      0.356,
+      0.148,
+      0.368
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite",
+    "laranja",
+    "metal_claro"
+   ],
+   "tris": 2504,
+   "pacote": false,
+   "tags": [
+    "academia",
+    "exercicio"
+   ]
+  },
+  {
+   "id": "barra_anilhas",
+   "rotulo": "Barra com anilhas",
+   "categoria": "objetos",
+   "grupo": "barra_anilhas",
+   "fixacao": "chao",
+   "dims": [
+    1.66,
+    0.4,
+    0.4
+   ],
+   "arquivo": "glb/barra_anilhas.glb",
+   "miniatura": "miniaturas/barra_anilhas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      -0.0
+     ],
+     "tamanho": [
+      1.66,
+      0.4,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "metal_claro"
+   ],
+   "tris": 3332,
+   "pacote": false,
+   "tags": [
+    "academia",
+    "exercicio"
+   ]
+  },
+  {
+   "id": "halter_pequeno_magenta",
+   "rotulo": "Halter pequeno (magenta)",
+   "categoria": "objetos",
+   "grupo": "halter_pequeno",
+   "fixacao": "apoio",
+   "dims": [
+    0.19,
+    0.083,
+    0.078
+   ],
+   "arquivo": "glb/halter_pequeno_magenta.glb",
+   "miniatura": "miniaturas/halter_pequeno_magenta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03897,
+      -0.0
+     ],
+     "tamanho": [
+      0.19,
+      0.078,
+      0.083
+     ]
+    }
+   ],
+   "cores": [
+    "magenta"
+   ],
+   "tris": 732,
+   "pacote": false,
+   "tags": [
+    "academia"
+   ]
+  },
+  {
+   "id": "halter_pequeno_lima",
+   "rotulo": "Halter pequeno (verde-lima)",
+   "categoria": "objetos",
+   "grupo": "halter_pequeno",
+   "fixacao": "apoio",
+   "dims": [
+    0.19,
+    0.083,
+    0.078
+   ],
+   "arquivo": "glb/halter_pequeno_lima.glb",
+   "miniatura": "miniaturas/halter_pequeno_lima.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03897,
+      -0.0
+     ],
+     "tamanho": [
+      0.19,
+      0.078,
+      0.083
+     ]
+    }
+   ],
+   "cores": [
+    "verde_lima"
+   ],
+   "tris": 732,
+   "pacote": false,
+   "tags": [
+    "academia"
+   ]
+  },
+  {
+   "id": "cabideiro_pe_amarelo",
+   "rotulo": "Cabideiro de pé amarelo",
+   "categoria": "objetos",
+   "grupo": "cabideiro_pe",
+   "fixacao": "chao",
+   "dims": [
+    0.475,
+    0.476,
+    1.775
+   ],
+   "arquivo": "glb/cabideiro_pe_amarelo.glb",
+   "miniatura": "miniaturas/cabideiro_pe_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.102,
+      -0.0
+     ],
+     "tamanho": [
+      0.6,
+      0.2,
+      0.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.992,
+      -0.0
+     ],
+     "tamanho": [
+      0.35,
+      1.58,
+      0.35
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro"
+   ],
+   "tris": 5716,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "quarto"
+   ]
+  },
+  {
+   "id": "cabideiro_galho",
+   "rotulo": "Cabideiro de galhos",
+   "categoria": "objetos",
+   "grupo": "cabideiro_galho",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.434,
+    1.745
+   ],
+   "arquivo": "glb/cabideiro_galho.glb",
+   "miniatura": "miniaturas/cabideiro_galho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07439,
+      0.04506
+     ],
+     "tamanho": [
+      0.5,
+      0.15,
+      0.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.94939,
+      0.04506
+     ],
+     "tamanho": [
+      0.38,
+      1.6,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "grafite_escuro"
+   ],
+   "tris": 3028,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "quarto"
+   ]
+  },
+  {
+   "id": "cabideiro_parede",
+   "rotulo": "Cabideiro de parede",
+   "categoria": "objetos",
+   "grupo": "cabideiro_parede",
+   "fixacao": "parede",
+   "dims": [
+    0.52,
+    0.106,
+    0.092
+   ],
+   "arquivo": "glb/cabideiro_parede.glb",
+   "miniatura": "miniaturas/cabideiro_parede.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.046,
+      0.053
+     ],
+     "tamanho": [
+      0.52,
+      0.092,
+      0.106
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota_clara"
+   ],
+   "tris": 1788,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banheiro"
+   ],
+   "altura_instalacao": 1.6
+  },
+  {
+   "id": "aquecedor_oleo",
+   "rotulo": "Aquecedor a óleo",
+   "categoria": "objetos",
+   "grupo": "aquecedor_oleo",
+   "fixacao": "chao",
+   "dims": [
+    0.499,
+    0.3,
+    0.639
+   ],
+   "arquivo": "glb/aquecedor_oleo.glb",
+   "miniatura": "miniaturas/aquecedor_oleo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.31969,
+      -0.0
+     ],
+     "tamanho": [
+      0.499,
+      0.639,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "creme",
+    "creme_claro",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 5796,
+   "pacote": false,
+   "tags": [
+    "eletro",
+    "quarto"
+   ]
+  },
+  {
+   "id": "camera_tripe",
+   "rotulo": "Câmera no tripé",
+   "categoria": "objetos",
+   "grupo": "camera_tripe",
+   "fixacao": "chao",
+   "dims": [
+    0.56,
+    0.517,
+    1.325
+   ],
+   "arquivo": "glb/camera_tripe.glb",
+   "miniatura": "miniaturas/camera_tripe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.523,
+      0.06144
+     ],
+     "tamanho": [
+      0.55,
+      1.05,
+      0.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.213,
+      0.08144
+     ],
+     "tamanho": [
+      0.28,
+      0.33,
+      0.32
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "borracha",
+    "grafite",
+    "marrom",
+    "marrom_claro",
+    "metal",
+    "metal_claro",
+    "tela",
+    "vermelho"
+   ],
+   "tris": 3320,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "foto"
+   ]
+  },
+  {
+   "id": "brinquedo_argolas",
+   "rotulo": "Argolas de empilhar",
+   "categoria": "objetos",
+   "grupo": "brinquedo_argolas",
+   "fixacao": "apoio",
+   "dims": [
+    0.162,
+    0.162,
+    0.248
+   ],
+   "arquivo": "glb/brinquedo_argolas.glb",
+   "miniatura": "miniaturas/brinquedo_argolas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.124,
+      -0.0
+     ],
+     "tamanho": [
+      0.162,
+      0.248,
+      0.162
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "laranja",
+    "laranja_claro",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 1552,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "brinquedo_blocos",
+   "rotulo": "Blocos de montar",
+   "categoria": "objetos",
+   "grupo": "brinquedo_blocos",
+   "fixacao": "apoio",
+   "dims": [
+    0.213,
+    0.079,
+    0.207
+   ],
+   "arquivo": "glb/brinquedo_blocos.glb",
+   "miniatura": "miniaturas/brinquedo_blocos.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1035,
+      -0.0
+     ],
+     "tamanho": [
+      0.213,
+      0.207,
+      0.079
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "laranja",
+    "verde",
+    "verde_claro",
+    "vermelho"
+   ],
+   "tris": 1386,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "brinquedo_bola_azul",
+   "rotulo": "Bola listrada (azul e amarela)",
+   "categoria": "objetos",
+   "grupo": "brinquedo_bola",
+   "fixacao": "apoio",
+   "dims": [
+    0.24,
+    0.24,
+    0.24
+   ],
+   "arquivo": "glb/brinquedo_bola_azul.glb",
+   "miniatura": "miniaturas/brinquedo_bola_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11988,
+      -0.0
+     ],
+     "tamanho": [
+      0.24,
+      0.24,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste"
+   ],
+   "tris": 960,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "brinquedo_bola_vermelha",
+   "rotulo": "Bola listrada (vermelha e branca)",
+   "categoria": "objetos",
+   "grupo": "brinquedo_bola",
+   "fixacao": "apoio",
+   "dims": [
+    0.24,
+    0.24,
+    0.24
+   ],
+   "arquivo": "glb/brinquedo_bola_vermelha.glb",
+   "miniatura": "miniaturas/brinquedo_bola_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11988,
+      -0.0
+     ],
+     "tamanho": [
+      0.24,
+      0.24,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "vermelho"
+   ],
+   "tris": 960,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "brinquedo_tambor",
+   "rotulo": "Tamborzinho",
+   "categoria": "objetos",
+   "grupo": "brinquedo_tambor",
+   "fixacao": "apoio",
+   "dims": [
+    0.228,
+    0.228,
+    0.225
+   ],
+   "arquivo": "glb/brinquedo_tambor.glb",
+   "miniatura": "miniaturas/brinquedo_tambor.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11228,
+      -0.0
+     ],
+     "tamanho": [
+      0.228,
+      0.225,
+      0.228
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "creme_claro",
+    "madeira_clara",
+    "vermelho"
+   ],
+   "tris": 1600,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil",
+    "musica"
+   ]
+  },
+  {
+   "id": "brinquedo_chocalho",
+   "rotulo": "Chocalho",
+   "categoria": "objetos",
+   "grupo": "brinquedo_chocalho",
+   "fixacao": "apoio",
+   "dims": [
+    0.21,
+    0.1,
+    0.102
+   ],
+   "arquivo": "glb/brinquedo_chocalho.glb",
+   "miniatura": "miniaturas/brinquedo_chocalho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.05081,
+      -0.0
+     ],
+     "tamanho": [
+      0.21,
+      0.102,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "madeira_clara",
+    "vermelho"
+   ],
+   "tris": 796,
+   "pacote": false,
+   "tags": [
+    "brinquedo",
+    "infantil",
+    "musica"
+   ]
+  },
+  {
+   "id": "almofada_chao_turquesa",
+   "rotulo": "Almofada de chão (turquesa)",
+   "categoria": "objetos",
+   "grupo": "almofada_chao",
+   "fixacao": "chao",
+   "dims": [
+    0.52,
+    0.52,
+    0.17
+   ],
+   "arquivo": "glb/almofada_chao_turquesa.glb",
+   "miniatura": "miniaturas/almofada_chao_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.085,
+      -0.0
+     ],
+     "tamanho": [
+      0.52,
+      0.17,
+      0.52
+     ]
+    }
+   ],
+   "cores": [
+    "turquesa"
+   ],
+   "tris": 960,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "quarto",
+    "macio"
+   ]
+  },
+  {
+   "id": "almofada_chao_verde",
+   "rotulo": "Almofada de chão (verde-água)",
+   "categoria": "objetos",
+   "grupo": "almofada_chao",
+   "fixacao": "chao",
+   "dims": [
+    0.52,
+    0.52,
+    0.17
+   ],
+   "arquivo": "glb/almofada_chao_verde.glb",
+   "miniatura": "miniaturas/almofada_chao_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.085,
+      -0.0
+     ],
+     "tamanho": [
+      0.52,
+      0.17,
+      0.52
+     ]
+    }
+   ],
+   "cores": [
+    "verde_agua"
+   ],
+   "tris": 960,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "quarto",
+    "macio"
+   ]
+  },
+  {
+   "id": "videogame_console",
+   "rotulo": "Videogame com cartucho",
+   "categoria": "objetos",
+   "grupo": "videogame_console",
+   "fixacao": "apoio",
+   "dims": [
+    0.36,
+    0.223,
+    0.14
+   ],
+   "arquivo": "glb/videogame_console.glb",
+   "miniatura": "miniaturas/videogame_console.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07,
+      -0.0
+     ],
+     "tamanho": [
+      0.36,
+      0.14,
+      0.223
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "cinza_azulado",
+    "grafite",
+    "laranja"
+   ],
+   "tris": 1576,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "jogo",
+    "retro"
+   ]
+  },
+  {
+   "id": "videogame_joystick",
+   "rotulo": "Joystick",
+   "categoria": "objetos",
+   "grupo": "videogame_joystick",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.12,
+    0.169
+   ],
+   "arquivo": "glb/videogame_joystick.glb",
+   "miniatura": "miniaturas/videogame_joystick.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0845,
+      -0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.169,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 940,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "jogo",
+    "retro"
+   ]
+  },
+  {
+   "id": "videogame_cartucho_verde",
+   "rotulo": "Cartucho de videogame (verde)",
+   "categoria": "objetos",
+   "grupo": "videogame_cartucho",
+   "fixacao": "apoio",
+   "dims": [
+    0.09,
+    0.1,
+    0.026
+   ],
+   "arquivo": "glb/videogame_cartucho_verde.glb",
+   "miniatura": "miniaturas/videogame_cartucho_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.013,
+      -0.0
+     ],
+     "tamanho": [
+      0.09,
+      0.026,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "verde_claro"
+   ],
+   "tris": 364,
+   "pacote": false,
+   "tags": [
+    "jogo",
+    "retro"
+   ]
+  },
+  {
+   "id": "videogame_cartucho_amarelo",
+   "rotulo": "Cartucho de videogame (amarelo)",
+   "categoria": "objetos",
+   "grupo": "videogame_cartucho",
+   "fixacao": "apoio",
+   "dims": [
+    0.09,
+    0.1,
+    0.026
+   ],
+   "arquivo": "glb/videogame_cartucho_amarelo.glb",
+   "miniatura": "miniaturas/videogame_cartucho_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.013,
+      -0.0
+     ],
+     "tamanho": [
+      0.09,
+      0.026,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite",
+    "limao"
+   ],
+   "tris": 364,
+   "pacote": false,
+   "tags": [
+    "jogo",
+    "retro"
+   ]
+  },
+  {
+   "id": "porta_retrato_rosa",
+   "rotulo": "Porta-retrato (rosa)",
+   "categoria": "objetos",
+   "grupo": "porta_retrato",
+   "fixacao": "apoio",
+   "dims": [
+    0.19,
+    0.105,
+    0.238
+   ],
+   "arquivo": "glb/porta_retrato_rosa.glb",
+   "miniatura": "miniaturas/porta_retrato_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11924,
+      -0.0
+     ],
+     "tamanho": [
+      0.19,
+      0.238,
+      0.105
+     ]
+    }
+   ],
+   "cores": [
+    "rosa_escuro",
+    "tela"
+   ],
+   "tris": 980,
+   "pacote": false,
+   "tags": [
+    "decoracao"
+   ]
+  },
+  {
+   "id": "porta_retrato_azul",
+   "rotulo": "Porta-retrato (azul)",
+   "categoria": "objetos",
+   "grupo": "porta_retrato",
+   "fixacao": "apoio",
+   "dims": [
+    0.19,
+    0.105,
+    0.238
+   ],
+   "arquivo": "glb/porta_retrato_azul.glb",
+   "miniatura": "miniaturas/porta_retrato_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11924,
+      -0.0
+     ],
+     "tamanho": [
+      0.19,
+      0.238,
+      0.105
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "tela"
+   ],
+   "tris": 980,
+   "pacote": false,
+   "tags": [
+    "decoracao"
+   ]
+  },
+  {
+   "id": "microfone_roxo",
+   "rotulo": "Microfone (roxo)",
+   "categoria": "objetos",
+   "grupo": "microfone",
+   "fixacao": "apoio",
+   "dims": [
+    0.233,
+    0.084,
+    0.085
+   ],
+   "arquivo": "glb/microfone_roxo.glb",
+   "miniatura": "miniaturas/microfone_roxo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.04272,
+      -0.0
+     ],
+     "tamanho": [
+      0.233,
+      0.085,
+      0.084
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "violeta"
+   ],
+   "tris": 848,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "festa"
+   ]
+  },
+  {
+   "id": "microfone_preto",
+   "rotulo": "Microfone (preto)",
+   "categoria": "objetos",
+   "grupo": "microfone",
+   "fixacao": "apoio",
+   "dims": [
+    0.233,
+    0.084,
+    0.085
+   ],
+   "arquivo": "glb/microfone_preto.glb",
+   "miniatura": "miniaturas/microfone_preto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.04272,
+      -0.0
+     ],
+     "tamanho": [
+      0.233,
+      0.085,
+      0.084
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite_escuro",
+    "vermelho"
+   ],
+   "tris": 848,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "festa"
+   ]
+  },
+  {
+   "id": "radio_portatil",
+   "rotulo": "Rádio portátil",
+   "categoria": "objetos",
+   "grupo": "radio_portatil",
+   "fixacao": "apoio",
+   "dims": [
+    0.4,
+    0.136,
+    0.213
+   ],
+   "arquivo": "glb/radio_portatil.glb",
+   "miniatura": "miniaturas/radio_portatil.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1065,
+      -0.0
+     ],
+     "tamanho": [
+      0.4,
+      0.213,
+      0.136
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "laranja",
+    "tela",
+    "vermelho"
+   ],
+   "tris": 2048,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica",
+    "retro"
+   ]
+  },
+  {
+   "id": "radio_antigo",
+   "rotulo": "Rádio antigo",
+   "categoria": "objetos",
+   "grupo": "radio_antigo",
+   "fixacao": "apoio",
+   "dims": [
+    0.408,
+    0.196,
+    0.312
+   ],
+   "arquivo": "glb/radio_antigo.glb",
+   "miniatura": "miniaturas/radio_antigo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15599,
+      -0.0
+     ],
+     "tamanho": [
+      0.408,
+      0.312,
+      0.196
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "branco_gelo",
+    "cinza_azulado",
+    "cinza_claro",
+    "madeira_cinza",
+    "terracota",
+    "vermelho"
+   ],
+   "tris": 2524,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica",
+    "retro"
+   ]
+  },
+  {
+   "id": "fita_cassete",
+   "rotulo": "Fita cassete",
+   "categoria": "objetos",
+   "grupo": "fita_cassete",
+   "fixacao": "apoio",
+   "dims": [
+    0.1,
+    0.064,
+    0.015
+   ],
+   "arquivo": "glb/fita_cassete.glb",
+   "miniatura": "miniaturas/fita_cassete.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00745,
+      -0.0
+     ],
+     "tamanho": [
+      0.1,
+      0.015,
+      0.064
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "tela",
+    "turquesa",
+    "turquesa_escuro"
+   ],
+   "tris": 312,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "retro"
+   ]
+  },
+  {
+   "id": "walkman_fone",
+   "rotulo": "Walkman com fone e fita",
+   "categoria": "objetos",
+   "grupo": "walkman",
+   "fixacao": "apoio",
+   "dims": [
+    0.521,
+    0.435,
+    0.035
+   ],
+   "arquivo": "glb/walkman_fone.glb",
+   "miniatura": "miniaturas/walkman_fone.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01775,
+      -0.0
+     ],
+     "tamanho": [
+      0.521,
+      0.035,
+      0.435
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "branco_gelo",
+    "grafite",
+    "laranja",
+    "rosa",
+    "rosa_escuro",
+    "roxo",
+    "tela",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 2608,
+   "pacote": false,
+   "tags": [
+    "eletronico",
+    "musica",
+    "retro"
+   ]
+  },
+  {
+   "id": "relogio_pe_pacote",
+   "rotulo": "Relógio de pé (pacote)",
+   "categoria": "objetos",
+   "grupo": "relogio_pe_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.68,
+    0.38,
+    1.55
+   ],
+   "arquivo": "glb/relogio_pe_pacote.glb",
+   "miniatura": "miniaturas/relogio_pe_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.77487,
+      -0.0
+     ],
+     "tamanho": [
+      0.68,
+      1.55,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "cinza_azulado",
+    "cinza_claro",
+    "marrom",
+    "metal_escuro",
+    "terra"
+   ],
+   "tris": 1636,
+   "pacote": true,
+   "tags": [
+    "sala",
+    "classico"
+   ]
+  },
+  {
+   "id": "computador_pacote",
+   "rotulo": "Computador com teclado e mouse (pacote)",
+   "categoria": "objetos",
+   "grupo": "computador",
+   "fixacao": "apoio",
+   "dims": [
+    0.813,
+    0.484,
+    0.521
+   ],
+   "arquivo": "glb/computador_pacote.glb",
+   "miniatura": "miniaturas/computador_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26033,
+      -0.0
+     ],
+     "tamanho": [
+      0.813,
+      0.521,
+      0.484
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "cinza",
+    "cinza_azulado",
+    "grafite",
+    "lilas",
+    "metal",
+    "roxo",
+    "tecido_cinza",
+    "turquesa"
+   ],
+   "tris": 1404,
+   "pacote": true,
+   "tags": [
+    "eletronico",
+    "escritorio"
+   ]
+  },
+  {
+   "id": "bicicleta_ergometrica_pacote",
+   "rotulo": "Bicicleta ergométrica (pacote)",
+   "categoria": "objetos",
+   "grupo": "bicicleta_ergometrica",
+   "fixacao": "chao",
+   "dims": [
+    0.936,
+    0.593,
+    1.411
+   ],
+   "arquivo": "glb/bicicleta_ergometrica_pacote.glb",
+   "miniatura": "miniaturas/bicicleta_ergometrica_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.70547,
+      -0.0
+     ],
+     "tamanho": [
+      0.936,
+      1.411,
+      0.593
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "ferro",
+    "grafite",
+    "metal",
+    "metal_escuro",
+    "verde_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 4512,
+   "pacote": true,
+   "tags": [
+    "academia",
+    "exercicio"
+   ]
+  },
+  {
+   "id": "videogame_controle_pacote",
+   "rotulo": "Controle de videogame (pacote)",
+   "categoria": "objetos",
+   "grupo": "videogame_controle",
+   "fixacao": "apoio",
+   "dims": [
+    0.159,
+    0.099,
+    0.047
+   ],
+   "arquivo": "glb/videogame_controle_pacote.glb",
+   "miniatura": "miniaturas/videogame_controle_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02346,
+      -0.0
+     ],
+     "tamanho": [
+      0.159,
+      0.047,
+      0.099
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_medio",
+    "cromo",
+    "folha",
+    "grafite",
+    "metal_claro",
+    "vermelho"
+   ],
+   "tris": 1100,
+   "pacote": true,
+   "tags": [
+    "eletronico",
+    "jogo"
+   ]
+  },
+  {
+   "id": "violao_pacote",
+   "rotulo": "Violão (pacote)",
+   "categoria": "objetos",
+   "grupo": "violao",
+   "fixacao": "chao",
+   "dims": [
+    0.451,
+    0.902,
+    0.182
+   ],
+   "arquivo": "glb/violao_pacote.glb",
+   "miniatura": "miniaturas/violao_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.09117,
+      -0.0
+     ],
+     "tamanho": [
+      0.451,
+      0.182,
+      0.902
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "cinza_azulado",
+    "cinzas",
+    "couro_preto",
+    "grafite",
+    "laranja_claro",
+    "marrom",
+    "marrom_claro",
+    "metal_escuro",
+    "terra",
+    "terra_escura",
+    "terracota"
+   ],
+   "tris": 2610,
+   "pacote": true,
+   "tags": [
+    "musica"
+   ]
+  },
+  {
+   "id": "brinquedo_carrinho_pacote",
+   "rotulo": "Carrinho (pacote)",
+   "categoria": "objetos",
+   "grupo": "brinquedo_carrinho",
+   "fixacao": "apoio",
+   "dims": [
+    0.235,
+    0.149,
+    0.122
+   ],
+   "arquivo": "glb/brinquedo_carrinho_pacote.glb",
+   "miniatura": "miniaturas/brinquedo_carrinho_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06121,
+      -0.0
+     ],
+     "tamanho": [
+      0.235,
+      0.122,
+      0.149
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "tecido_cinza",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 1068,
+   "pacote": true,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "brinquedo_piao_pacote",
+   "rotulo": "Pião (pacote)",
+   "categoria": "objetos",
+   "grupo": "brinquedo_piao",
+   "fixacao": "apoio",
+   "dims": [
+    0.288,
+    0.267,
+    0.279
+   ],
+   "arquivo": "glb/brinquedo_piao_pacote.glb",
+   "miniatura": "miniaturas/brinquedo_piao_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1394,
+      -0.0
+     ],
+     "tamanho": [
+      0.288,
+      0.279,
+      0.267
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "folha",
+    "laranja_claro",
+    "metal",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 1022,
+   "pacote": true,
+   "tags": [
+    "brinquedo",
+    "infantil"
+   ]
+  },
+  {
+   "id": "piano_armario_chocolate",
+   "rotulo": "Piano de armário (chocolate)",
+   "categoria": "objetos",
+   "grupo": "piano_armario",
+   "fixacao": "chao",
+   "dims": [
+    1.49,
+    0.65,
+    1.215
+   ],
+   "arquivo": "glb/piano_armario_chocolate.glb",
+   "miniatura": "miniaturas/piano_armario_chocolate.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4312,
+     "nome": "tampa_teclado",
+     "pivo": [
+      0.0,
+      0.795,
+      0.055
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.6075,
+      -0.125
+     ],
+     "tamanho": [
+      1.47,
+      1.215,
+      0.41
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.42,
+      0.16
+     ],
+     "tamanho": [
+      1.47,
+      0.84,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "chocolate",
+    "marrom_escuro",
+    "ouro",
+    "preto"
+   ],
+   "tris": 9508,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "sala"
+   ]
+  },
+  {
+   "id": "piano_armario_branco",
+   "rotulo": "Piano de armário (branco)",
+   "categoria": "objetos",
+   "grupo": "piano_armario",
+   "fixacao": "chao",
+   "dims": [
+    1.49,
+    0.65,
+    1.215
+   ],
+   "arquivo": "glb/piano_armario_branco.glb",
+   "miniatura": "miniaturas/piano_armario_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4312,
+     "nome": "tampa_teclado",
+     "pivo": [
+      0.0,
+      0.795,
+      0.055
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.6075,
+      -0.125
+     ],
+     "tamanho": [
+      1.47,
+      1.215,
+      0.41
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.42,
+      0.16
+     ],
+     "tamanho": [
+      1.47,
+      0.84,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "ouro",
+    "preto"
+   ],
+   "tris": 9508,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "sala"
+   ]
+  },
+  {
+   "id": "relogio_pe_verde",
+   "rotulo": "Relógio de pé verde",
+   "categoria": "objetos",
+   "grupo": "relogio_pe_verde",
+   "fixacao": "chao",
+   "dims": [
+    0.51,
+    0.344,
+    1.665
+   ],
+   "arquivo": "glb/relogio_pe_verde.glb",
+   "miniatura": "miniaturas/relogio_pe_verde.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.1638,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.0,
+      0.072,
+      0.11808
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.18,
+      0.0,
+      0.11808
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0,
+      0.084,
+      0.01108
+     ],
+     "tamanho": [
+      0.366,
+      0.138,
+      0.186
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_relogio_dentro",
+     "centro": [
+      0.0,
+      0.357,
+      -0.01692
+     ],
+     "tamanho": [
+      0.356,
+      0.2,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.8325,
+      -0.01692
+     ],
+     "tamanho": [
+      0.51,
+      1.665,
+      0.31
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco_gelo",
+    "creme",
+    "grafite",
+    "ouro",
+    "verde",
+    "verde_claro",
+    "verde_escuro"
+   ],
+   "tris": 9172,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "classico"
+   ]
+  },
+  {
+   "id": "relogio_pe_madeira",
+   "rotulo": "Relógio de pé de madeira",
+   "categoria": "objetos",
+   "grupo": "relogio_pe_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.56,
+    0.344,
+    1.745
+   ],
+   "arquivo": "glb/relogio_pe_madeira.glb",
+   "miniatura": "miniaturas/relogio_pe_madeira.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      0.215,
+      0.0,
+      0.13027
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_baixo",
+     "centro": [
+      0.0,
+      0.082,
+      -0.01473
+     ],
+     "tamanho": [
+      0.456,
+      0.44,
+      0.21
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.8725,
+      -0.01473
+     ],
+     "tamanho": [
+      0.56,
+      1.745,
+      0.315
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco_gelo",
+    "grafite",
+    "madeira_escura",
+    "nogueira",
+    "ouro"
+   ],
+   "tris": 6072,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "classico"
+   ]
+  },
+  {
+   "id": "toca_discos",
+   "rotulo": "Toca-discos com tampa",
+   "categoria": "objetos",
+   "grupo": "toca_discos",
+   "fixacao": "apoio",
+   "dims": [
+    0.46,
+    0.366,
+    0.193
+   ],
+   "arquivo": "glb/toca_discos.glb",
+   "miniatura": "miniaturas/toca_discos.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.309,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.193,
+      -0.172
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0725,
+      -0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.145,
+      0.366
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "marrom",
+    "marrom_claro",
+    "preto",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 3364,
+   "pacote": false,
+   "tags": [
+    "musica",
+    "retro",
+    "sala"
+   ]
+  }
+ ]
+}

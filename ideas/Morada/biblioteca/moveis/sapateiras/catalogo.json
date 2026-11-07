@@ -1,0 +1,1398 @@
+{
+ "categoria": "sapateiras",
+ "rotulo": "Sapateiras",
+ "itens": [
+  {
+   "id": "banco_entrada_verde",
+   "rotulo": "Banco de entrada (verde)",
+   "categoria": "sapateiras",
+   "grupo": "banco_entrada",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.34,
+    0.45
+   ],
+   "arquivo": "glb/banco_entrada_verde.glb",
+   "miniatura": "miniaturas/banco_entrada_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      0.96,
+      0.5,
+      0.3
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos",
+     "centro": [
+      0,
+      0.0,
+      0
+     ],
+     "tamanho": [
+      0.78,
+      0.11,
+      0.24
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.42,
+      0
+     ],
+     "tamanho": [
+      1.0,
+      0.06,
+      0.34
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.195,
+      0
+     ],
+     "tamanho": [
+      0.88,
+      0.39,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_escuro",
+    "verde"
+   ],
+   "tris": 1616,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco"
+   ]
+  },
+  {
+   "id": "banco_entrada_mel",
+   "rotulo": "Banco de entrada (mel)",
+   "categoria": "sapateiras",
+   "grupo": "banco_entrada",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.34,
+    0.45
+   ],
+   "arquivo": "glb/banco_entrada_mel.glb",
+   "miniatura": "miniaturas/banco_entrada_mel.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      0.96,
+      0.5,
+      0.3
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos",
+     "centro": [
+      0,
+      0.0,
+      0
+     ],
+     "tamanho": [
+      0.78,
+      0.11,
+      0.24
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.42,
+      0
+     ],
+     "tamanho": [
+      1.0,
+      0.06,
+      0.34
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.195,
+      0
+     ],
+     "tamanho": [
+      0.88,
+      0.39,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_mel"
+   ],
+   "tris": 1616,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco"
+   ]
+  },
+  {
+   "id": "banco_sapateira_nichos_branco",
+   "rotulo": "Banco sapateira de nichos (branco)",
+   "categoria": "sapateiras",
+   "grupo": "banco_sapateira_nichos",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.38,
+    0.508
+   ],
+   "arquivo": "glb/banco_sapateira_nichos_branco.glb",
+   "miniatura": "miniaturas/banco_sapateira_nichos_branco.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo_1",
+     "centro": [
+      -0.30933,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_1",
+     "centro": [
+      -0.30933,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_baixo_2",
+     "centro": [
+      0.0,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_2",
+     "centro": [
+      0.0,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_baixo_3",
+     "centro": [
+      0.30933,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_3",
+     "centro": [
+      0.30933,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.5,
+      0
+     ],
+     "tamanho": [
+      0.94,
+      0.4,
+      0.32
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.482,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.44,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.482,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.44,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.018,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.036,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.422,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.036,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.18
+     ],
+     "tamanho": [
+      1.0,
+      0.44,
+      0.02
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.47,
+      0
+     ],
+     "tamanho": [
+      1.0,
+      0.08,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "branco",
+    "branco_gelo"
+   ],
+   "tris": 3048,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco",
+    "nichos"
+   ]
+  },
+  {
+   "id": "banco_sapateira_nichos_madeira",
+   "rotulo": "Banco sapateira de nichos (madeira)",
+   "categoria": "sapateiras",
+   "grupo": "banco_sapateira_nichos",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.38,
+    0.508
+   ],
+   "arquivo": "glb/banco_sapateira_nichos_madeira.glb",
+   "miniatura": "miniaturas/banco_sapateira_nichos_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo_1",
+     "centro": [
+      -0.30933,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_1",
+     "centro": [
+      -0.30933,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_baixo_2",
+     "centro": [
+      0.0,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_2",
+     "centro": [
+      0.0,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_baixo_3",
+     "centro": [
+      0.30933,
+      0.036,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima_3",
+     "centro": [
+      0.30933,
+      0.23,
+      0.0075
+     ],
+     "tamanho": [
+      0.277,
+      0.169,
+      0.345
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.5,
+      0
+     ],
+     "tamanho": [
+      0.94,
+      0.4,
+      0.32
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.482,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.44,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.482,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.44,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.018,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.036,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.422,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.036,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.18
+     ],
+     "tamanho": [
+      1.0,
+      0.44,
+      0.02
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.47,
+      0
+     ],
+     "tamanho": [
+      1.0,
+      0.08,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "terracota_clara"
+   ],
+   "tris": 3048,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco",
+    "nichos"
+   ]
+  },
+  {
+   "id": "banco_bau_azul",
+   "rotulo": "Banco baú (azul)",
+   "categoria": "sapateiras",
+   "grupo": "banco_bau",
+   "fixacao": "chao",
+   "dims": [
+    0.94,
+    0.44,
+    0.48
+   ],
+   "arquivo": "glb/banco_bau_azul.glb",
+   "miniatura": "miniaturas/banco_bau_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.3963,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.4,
+      -0.22
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_bau",
+     "centro": [
+      0,
+      0.09,
+      0
+     ],
+     "tamanho": [
+      0.84,
+      0.28,
+      0.34
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.48,
+      0
+     ],
+     "tamanho": [
+      0.86,
+      0.4,
+      0.36
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19,
+      0.005
+     ],
+     "tamanho": [
+      0.92,
+      0.38,
+      0.43
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "branco",
+    "madeira_clara"
+   ],
+   "tris": 3904,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco",
+    "tampa"
+   ]
+  },
+  {
+   "id": "sapateira_basculante_branca_2",
+   "rotulo": "Sapateira basculante de 2 níveis (branca)",
+   "categoria": "sapateiras",
+   "grupo": "sapateira_basculante_2",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.293,
+    0.93
+   ],
+   "arquivo": "glb/sapateira_basculante_branca_2.glb",
+   "miniatura": "miniaturas/sapateira_basculante_branca_2.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.5585,
+     "nome": "basculante_1",
+     "pivo": [
+      0.0,
+      0.091,
+      0.122
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.5585,
+     "nome": "basculante_2",
+     "pivo": [
+      0.0,
+      0.499,
+      0.122
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_sapatos_1",
+     "centro": [
+      0.0,
+      0.107,
+      -0.02
+     ],
+     "tamanho": [
+      0.68,
+      0.358,
+      0.12
+     ],
+     "em": "basculante_1"
+    },
+    {
+     "nome": "slot_sapatos_2",
+     "centro": [
+      0.0,
+      0.515,
+      -0.02
+     ],
+     "tamanho": [
+      0.68,
+      0.358,
+      0.12
+     ],
+     "em": "basculante_2"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.93,
+      0
+     ],
+     "tamanho": [
+      0.78,
+      0.5,
+      0.24
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.465,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.93,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_mel"
+   ],
+   "tris": 5224,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "basculante"
+   ]
+  },
+  {
+   "id": "sapateira_basculante_cinza_3",
+   "rotulo": "Sapateira basculante de 3 níveis (cinza)",
+   "categoria": "sapateiras",
+   "grupo": "sapateira_basculante_3",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.293,
+    1.33
+   ],
+   "arquivo": "glb/sapateira_basculante_cinza_3.glb",
+   "miniatura": "miniaturas/sapateira_basculante_cinza_3.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.5585,
+     "nome": "basculante_1",
+     "pivo": [
+      0.0,
+      0.091,
+      0.122
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.5585,
+     "nome": "basculante_2",
+     "pivo": [
+      0.0,
+      0.49633,
+      0.122
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.5585,
+     "nome": "basculante_3",
+     "pivo": [
+      0.0,
+      0.90167,
+      0.122
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_sapatos_1",
+     "centro": [
+      0.0,
+      0.107,
+      -0.02
+     ],
+     "tamanho": [
+      0.68,
+      0.355,
+      0.12
+     ],
+     "em": "basculante_1"
+    },
+    {
+     "nome": "slot_sapatos_2",
+     "centro": [
+      0.0,
+      0.51233,
+      -0.02
+     ],
+     "tamanho": [
+      0.68,
+      0.355,
+      0.12
+     ],
+     "em": "basculante_2"
+    },
+    {
+     "nome": "slot_sapatos_3",
+     "centro": [
+      0.0,
+      0.91767,
+      -0.02
+     ],
+     "tamanho": [
+      0.68,
+      0.355,
+      0.12
+     ],
+     "em": "basculante_3"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      1.33,
+      0
+     ],
+     "tamanho": [
+      0.78,
+      0.5,
+      0.24
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.665,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      1.33,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "cromo",
+    "porcelana_azul"
+   ],
+   "tris": 6980,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "basculante"
+   ]
+  },
+  {
+   "id": "sapateira_alta_ripada_mel",
+   "rotulo": "Sapateira alta ripada (mel)",
+   "categoria": "sapateiras",
+   "grupo": "sapateira_alta_ripada",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    0.369,
+    1.22
+   ],
+   "arquivo": "glb/sapateira_alta_ripada_mel.glb",
+   "miniatura": "miniaturas/sapateira_alta_ripada_mel.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.323,
+      0.094,
+      0.177
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.323,
+      0.094,
+      0.177
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_sapatos_1",
+     "centro": [
+      0.0,
+      0.169,
+      -0.005
+     ],
+     "tamanho": [
+      0.632,
+      0.193,
+      0.29
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_2",
+     "centro": [
+      0.0,
+      0.442,
+      -0.005
+     ],
+     "tamanho": [
+      0.632,
+      0.193,
+      0.29
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_3",
+     "centro": [
+      0.0,
+      0.715,
+      -0.005
+     ],
+     "tamanho": [
+      0.632,
+      0.193,
+      0.29
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_4",
+     "centro": [
+      0.0,
+      0.988,
+      -0.005
+     ],
+     "tamanho": [
+      0.632,
+      0.193,
+      0.29
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      1.22,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      0.5,
+      0.34
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.61,
+      -0.0
+     ],
+     "tamanho": [
+      0.72,
+      1.22,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_escura",
+    "madeira_mel",
+    "metal_claro"
+   ],
+   "tris": 5396,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "ripado"
+   ]
+  },
+  {
+   "id": "sapateira_aberta_tubos",
+   "rotulo": "Sapateira aberta de tubos",
+   "categoria": "sapateiras",
+   "grupo": "sapateira_aberta",
+   "fixacao": "chao",
+   "dims": [
+    0.82,
+    0.3,
+    0.7
+   ],
+   "arquivo": "glb/sapateira_aberta_tubos.glb",
+   "miniatura": "miniaturas/sapateira_aberta_tubos.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_sapatos_1",
+     "centro": [
+      0,
+      0.1,
+      0
+     ],
+     "tamanho": [
+      0.74,
+      0.18,
+      0.26
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_2",
+     "centro": [
+      0,
+      0.32,
+      0
+     ],
+     "tamanho": [
+      0.74,
+      0.18,
+      0.26
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_3",
+     "centro": [
+      0,
+      0.54,
+      0
+     ],
+     "tamanho": [
+      0.74,
+      0.18,
+      0.26
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.7,
+      0
+     ],
+     "tamanho": [
+      0.78,
+      0.4,
+      0.28
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.35,
+      -0.0
+     ],
+     "tamanho": [
+      0.82,
+      0.7,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_clara"
+   ],
+   "tris": 2552,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "aberta"
+   ]
+  },
+  {
+   "id": "banco_cabideiro_branco",
+   "rotulo": "Banco de entrada com cabideiro (branco)",
+   "categoria": "sapateiras",
+   "grupo": "banco_cabideiro",
+   "fixacao": "chao",
+   "dims": [
+    0.92,
+    0.4,
+    1.8
+   ],
+   "arquivo": "glb/banco_cabideiro_branco.glb",
+   "miniatura": "miniaturas/banco_cabideiro_branco.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_sapatos_baixo",
+     "centro": [
+      0.0,
+      0.034,
+      0.0075
+     ],
+     "tamanho": [
+      0.822,
+      0.161,
+      0.365
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_sapatos_cima",
+     "centro": [
+      0.0,
+      0.22,
+      0.0075
+     ],
+     "tamanho": [
+      0.822,
+      0.191,
+      0.365
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira",
+     "centro": [
+      0,
+      1.8,
+      -0.07
+     ],
+     "tamanho": [
+      0.88,
+      0.35,
+      0.24
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.52,
+      0.03
+     ],
+     "tamanho": [
+      0.82,
+      0.4,
+      0.28
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.26,
+      0
+     ],
+     "tamanho": [
+      0.9,
+      0.52,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.12,
+      -0.16
+     ],
+     "tamanho": [
+      0.9,
+      1.36,
+      0.08
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.78,
+      -0.07
+     ],
+     "tamanho": [
+      0.92,
+      0.04,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "mostarda",
+    "ouro"
+   ],
+   "tris": 5720,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "cabideiro",
+    "banco"
+   ]
+  },
+  {
+   "id": "banco_estofado_gavetas_rosa",
+   "rotulo": "Banco estofado com gavetas (rosa)",
+   "categoria": "sapateiras",
+   "grupo": "banco_estofado_gavetas",
+   "fixacao": "chao",
+   "dims": [
+    1.11,
+    0.435,
+    0.454
+   ],
+   "arquivo": "glb/banco_estofado_gavetas_rosa.glb",
+   "miniatura": "miniaturas/banco_estofado_gavetas_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2574,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.2655,
+      0.133,
+      0.172
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2574,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.2655,
+      0.133,
+      0.172
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.2655,
+      0.145,
+      0.005
+     ],
+     "tamanho": [
+      0.471,
+      0.153,
+      0.306
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.2655,
+      0.145,
+      0.005
+     ],
+     "tamanho": [
+      0.471,
+      0.153,
+      0.306
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      1.04,
+      0.4,
+      0.34
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22594,
+      -0.0
+     ],
+     "tamanho": [
+      1.11,
+      0.454,
+      0.41
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "creme",
+    "madeira_clara",
+    "ouro",
+    "rosa"
+   ],
+   "tris": 6176,
+   "pacote": false,
+   "tags": [
+    "entrada",
+    "banco",
+    "gavetas",
+    "estofado"
+   ]
+  }
+ ]
+}

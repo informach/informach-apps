@@ -1,0 +1,505 @@
+{
+ "categoria": "tapetes",
+ "rotulo": "Tapetes",
+ "itens": [
+  {
+   "id": "tapete_zigue_zague_rosa",
+   "rotulo": "Tapete rosa com zigue-zague",
+   "categoria": "tapetes",
+   "grupo": "zigue_zague",
+   "fixacao": "chao",
+   "dims": [
+    1.8,
+    1.2,
+    0.012
+   ],
+   "arquivo": "glb/tapete_zigue_zague_rosa.glb",
+   "miniatura": "miniaturas/tapete_zigue_zague_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0058,
+      -0.0
+     ],
+     "tamanho": [
+      1.8,
+      0.012,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "rosa",
+    "rosa_bebe"
+   ],
+   "tris": 3016,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala",
+    "quarto"
+   ]
+  },
+  {
+   "id": "tapete_molduras_azuis",
+   "rotulo": "Tapete amarelo com molduras azuis",
+   "categoria": "tapetes",
+   "grupo": "molduras",
+   "fixacao": "chao",
+   "dims": [
+    1.8,
+    1.2,
+    0.016
+   ],
+   "arquivo": "glb/tapete_molduras_azuis.glb",
+   "miniatura": "miniaturas/tapete_molduras_azuis.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0082,
+      -0.0
+     ],
+     "tamanho": [
+      1.8,
+      0.016,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste"
+   ],
+   "tris": 1772,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala"
+   ]
+  },
+  {
+   "id": "tapete_persa_medalhao",
+   "rotulo": "Tapete persa com medalhão",
+   "categoria": "tapetes",
+   "grupo": "persa_medalhao",
+   "fixacao": "chao",
+   "dims": [
+    2.06,
+    1.2,
+    0.016
+   ],
+   "arquivo": "glb/tapete_persa_medalhao.glb",
+   "miniatura": "miniaturas/tapete_persa_medalhao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0082,
+      -0.0
+     ],
+     "tamanho": [
+      2.06,
+      0.016,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "terracota"
+   ],
+   "tris": 4780,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala",
+    "persa",
+    "franjas"
+   ]
+  },
+  {
+   "id": "tapete_persa_losango_terracota",
+   "rotulo": "Tapete persa com losango (terracota)",
+   "categoria": "tapetes",
+   "grupo": "persa_losango",
+   "fixacao": "chao",
+   "dims": [
+    1.76,
+    1.0,
+    0.016
+   ],
+   "arquivo": "glb/tapete_persa_losango_terracota.glb",
+   "miniatura": "miniaturas/tapete_persa_losango_terracota.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0082,
+      -0.0
+     ],
+     "tamanho": [
+      1.76,
+      0.016,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "terracota"
+   ],
+   "tris": 4060,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala",
+    "persa",
+    "franjas"
+   ]
+  },
+  {
+   "id": "tapete_persa_losango_azul",
+   "rotulo": "Tapete persa com losango azul",
+   "categoria": "tapetes",
+   "grupo": "persa_losango_cheio",
+   "fixacao": "chao",
+   "dims": [
+    1.76,
+    1.0,
+    0.013
+   ],
+   "arquivo": "glb/tapete_persa_losango_azul.glb",
+   "miniatura": "miniaturas/tapete_persa_losango_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0066,
+      -0.0
+     ],
+     "tamanho": [
+      1.76,
+      0.013,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul"
+   ],
+   "tris": 3524,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala",
+    "persa",
+    "franjas"
+   ]
+  },
+  {
+   "id": "tapete_verde_quadrado",
+   "rotulo": "Tapete verde com quadrado turquesa",
+   "categoria": "tapetes",
+   "grupo": "quadrado_central",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    1.0,
+    0.015
+   ],
+   "arquivo": "glb/tapete_verde_quadrado.glb",
+   "miniatura": "miniaturas/tapete_verde_quadrado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0074,
+      -0.0
+     ],
+     "tamanho": [
+      1.3,
+      0.015,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "turquesa_claro",
+    "verde_medio"
+   ],
+   "tris": 1344,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "quarto",
+    "sala"
+   ]
+  },
+  {
+   "id": "tapete_redondo_aneis_turquesa",
+   "rotulo": "Tapete redondo com anéis turquesa",
+   "categoria": "tapetes",
+   "grupo": "redondo_aneis",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    1.3,
+    0.015
+   ],
+   "arquivo": "glb/tapete_redondo_aneis_turquesa.glb",
+   "miniatura": "miniaturas/tapete_redondo_aneis_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0074,
+      -0.0
+     ],
+     "tamanho": [
+      1.3,
+      0.015,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "turquesa_claro"
+   ],
+   "tris": 2896,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "redondo",
+    "sala"
+   ]
+  },
+  {
+   "id": "tapete_pequeno_vinho",
+   "rotulo": "Tapete pequeno vinho",
+   "categoria": "tapetes",
+   "grupo": "pequeno_moldura",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.6,
+    0.013
+   ],
+   "arquivo": "glb/tapete_pequeno_vinho.glb",
+   "miniatura": "miniaturas/tapete_pequeno_vinho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0066,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.013,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_rosada",
+    "salmao",
+    "vinho"
+   ],
+   "tris": 1108,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "pequeno",
+    "banheiro",
+    "quarto"
+   ]
+  },
+  {
+   "id": "tapete_amarelo_moldura_azul",
+   "rotulo": "Tapete amarelo com moldura azul",
+   "categoria": "tapetes",
+   "grupo": "molduras",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    0.8,
+    0.013
+   ],
+   "arquivo": "glb/tapete_amarelo_moldura_azul.glb",
+   "miniatura": "miniaturas/tapete_amarelo_moldura_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0066,
+      -0.0
+     ],
+     "tamanho": [
+      1.3,
+      0.013,
+      0.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste"
+   ],
+   "tris": 1108,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "sala",
+    "corredor"
+   ]
+  },
+  {
+   "id": "tapete_persa_pequeno",
+   "rotulo": "Tapete persa pequeno",
+   "categoria": "tapetes",
+   "grupo": "persa_losango",
+   "fixacao": "chao",
+   "dims": [
+    1.13,
+    0.65,
+    0.016
+   ],
+   "arquivo": "glb/tapete_persa_pequeno.glb",
+   "miniatura": "miniaturas/tapete_persa_pequeno.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0082,
+      -0.0
+     ],
+     "tamanho": [
+      1.13,
+      0.016,
+      0.65
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "terracota"
+   ],
+   "tris": 3068,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "pequeno",
+    "persa",
+    "franjas"
+   ]
+  },
+  {
+   "id": "tapete_redondo_rosa",
+   "rotulo": "Tapete redondo rosa com anel",
+   "categoria": "tapetes",
+   "grupo": "redondo_aneis",
+   "fixacao": "chao",
+   "dims": [
+    1.1,
+    1.1,
+    0.013
+   ],
+   "arquivo": "glb/tapete_redondo_rosa.glb",
+   "miniatura": "miniaturas/tapete_redondo_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0066,
+      -0.0
+     ],
+     "tamanho": [
+      1.1,
+      0.013,
+      1.1
+     ]
+    }
+   ],
+   "cores": [
+    "pessego",
+    "rosa"
+   ],
+   "tris": 2228,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "redondo",
+    "quarto",
+    "infantil"
+   ]
+  },
+  {
+   "id": "tapete_redondo_pessego",
+   "rotulo": "Tapete redondo pêssego",
+   "categoria": "tapetes",
+   "grupo": "redondo_liso",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    1.0,
+    0.012
+   ],
+   "arquivo": "glb/tapete_redondo_pessego.glb",
+   "miniatura": "miniaturas/tapete_redondo_pessego.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0058,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.012,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "pessego",
+    "terracota_clara"
+   ],
+   "tris": 1560,
+   "pacote": false,
+   "tags": [
+    "tapete",
+    "redondo",
+    "quarto"
+   ]
+  }
+ ]
+}
