@@ -1995,13 +1995,6 @@
    "cor": "#ffffff"
   }
  },
- "nov_short_curto": {
-  "Roupa_Gen_liso": {
-   "mascara": "nov_short_curto__Roupa_Gen_liso.png",
-   "lum": 1.0,
-   "cor": "#ffffff"
-  }
- },
  "nov_calca_moletom": {
   "Roupa_Gen_faixa_lateral": {
    "mascara": "nov_calca_moletom__Roupa_Gen_faixa_lateral.png",
@@ -2184,13 +2177,6 @@
    "cor": "#bebebe"
   }
  },
- "nov_calca_boca_sino": {
-  "Roupa_Gen_liso": {
-   "mascara": "nov_calca_boca_sino__Roupa_Gen_liso.png",
-   "lum": 1.0,
-   "cor": "#ffffff"
-  }
- },
  "nov_meia_calca": {
   "Roupa_Gen_liso": {
    "mascara": "nov_meia_calca__Roupa_Gen_liso.png",
@@ -2231,6 +2217,20 @@
    "mascara": "nov_meia_arrastao_coxa__Roupa_Gen_arrastao.png",
    "lum": 0.57758,
    "cor": "#c8c8c8"
+  }
+ },
+ "nov_short_curto": {
+  "Roupa_Gen_liso": {
+   "mascara": "nov_short_curto__Roupa_Gen_liso.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_calca_boca_sino": {
+  "Roupa_Gen_liso": {
+   "mascara": "nov_calca_boca_sino__Roupa_Gen_liso.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
   }
  }
 }
