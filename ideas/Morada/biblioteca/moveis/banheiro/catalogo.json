@@ -901,7 +901,7 @@
    "dims": [
     1.74,
     0.955,
-    1.121
+    1.107
    ],
    "arquivo": "glb/banheira_vitoriana_branca.glb",
    "miniatura": "miniaturas/banheira_vitoriana_branca.webp",
@@ -955,7 +955,7 @@
     "ouro",
     "porcelana_azul"
    ],
-   "tris": 8468,
+   "tris": 7612,
    "pacote": false,
    "tags": [
     "banheira",
@@ -972,7 +972,7 @@
    "dims": [
     1.74,
     0.81,
-    0.801
+    0.788
    ],
    "arquivo": "glb/banheira_vitoriana_vermelha.glb",
    "miniatura": "miniaturas/banheira_vitoriana_vermelha.webp",
@@ -997,12 +997,12 @@
     {
      "centro": [
       0.0,
-      0.38734,
+      0.39402,
       -0.0
      ],
      "tamanho": [
       1.74,
-      0.801,
+      0.788,
       0.81
      ]
     }
@@ -4744,7 +4744,7 @@
    ]
   },
   {
-   "id": "tapete_redondo_turquesa",
+   "id": "tapete_banheiro_redondo_turquesa",
    "rotulo": "Tapete redondo (turquesa)",
    "categoria": "banheiro",
    "grupo": "tapete_redondo",
@@ -4754,8 +4754,8 @@
     0.8,
     0.023
    ],
-   "arquivo": "glb/tapete_redondo_turquesa.glb",
-   "miniatura": "miniaturas/tapete_redondo_turquesa.webp",
+   "arquivo": "glb/tapete_banheiro_redondo_turquesa.glb",
+   "miniatura": "miniaturas/tapete_banheiro_redondo_turquesa.webp",
    "interativos": [],
    "slots": [],
    "colisao": [
@@ -4784,7 +4784,7 @@
    ]
   },
   {
-   "id": "tapete_redondo_rosa",
+   "id": "tapete_banheiro_redondo_rosa",
    "rotulo": "Tapete redondo (rosa)",
    "categoria": "banheiro",
    "grupo": "tapete_redondo",
@@ -4794,8 +4794,8 @@
     0.8,
     0.023
    ],
-   "arquivo": "glb/tapete_redondo_rosa.glb",
-   "miniatura": "miniaturas/tapete_redondo_rosa.webp",
+   "arquivo": "glb/tapete_banheiro_redondo_rosa.glb",
+   "miniatura": "miniaturas/tapete_banheiro_redondo_rosa.webp",
    "interativos": [],
    "slots": [],
    "colisao": [

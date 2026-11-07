@@ -876,10 +876,10 @@ def _prepara_render(res=192, amostras=None):
         scn.world = w
         w.use_nodes = True
         w.node_tree.nodes["Background"].inputs[0].default_value = (0.80, 0.85, 0.95, 1)
-        w.node_tree.nodes["Background"].inputs[1].default_value = 0.85
+        w.node_tree.nodes["Background"].inputs[1].default_value = float(os.environ.get("MINI_MUNDO", "0.7"))
     if "sol_moveis" not in bpy.data.objects:
         ld = bpy.data.lights.new("sol_moveis", "SUN")
-        ld.energy = 3.2
+        ld.energy = float(os.environ.get("MINI_SOL", "2.4"))
         ld.angle = math.radians(8)
         sol = bpy.data.objects.new("sol_moveis", ld)
         scn.collection.objects.link(sol)

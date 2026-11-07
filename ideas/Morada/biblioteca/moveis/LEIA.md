@@ -15,27 +15,27 @@ Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gir
 | `sofas`: sofás, divãs e espreguiçadeiras | 33 | 19 | 0 |
 | `pufes` | 8 | 8 | 1 |
 | `cadeiras`: cadeiras, poltronas e banquetas | 59 | 53 | 0 |
-| `mesas`: jantar, centro, laterais, escrivaninhas e balcões | 46 | 39 | 11 |
+| `mesas`: jantar, centro, laterais, escrivaninhas, infantis, de jardim e balcões | 51 | 43 | 12 |
 | `racks_tv` | 18 | 12 | 30 |
 | `estantes`: estantes, nichos e prateleiras de parede | 14 | 14 | 1 |
-| `lareiras` | 15 | 15 | 5 |
+| `lareiras`: lareiras, fogareiros e tubos de chaminé | 18 | 16 | 5 |
 | `camas` | 42 | 22 | 28 |
 | `criados`: criados-mudos | 34 | 18 | 31 |
 | `armarios`: guarda-roupas, armários e cômodas | 34 | 16 | 111 |
 | `sapateiras` | 11 | 9 | 10 |
 | `cozinha_moveis`: módulos de 7 linhas e fogões | 220 | 129 | 417 |
-| `cozinha_eletros`: eletrodomésticos, utensílios e louça | 132 | 73 | 87 |
+| `cozinha_eletros`: eletrodomésticos, grills, utensílios e louça | 138 | 76 | 90 |
 | `banheiro` | 112 | 82 | 61 |
 | `luminarias` | 18 | 18 | 0 |
 | `quadros` | 23 | 23 | 0 |
 | `tapetes` | 12 | 9 | 0 |
 | `plantas` | 23 | 23 | 0 |
 | `livros` | 16 | 14 | 0 |
-| `objetos`: piano, TVs, som, ginástica, brinquedos etc. | 68 | 56 | 6 |
-| **Total** | **938** | **799** | **799** |
+| `objetos`: piano, TVs, som, computadores, ginástica, brinquedos etc. | 70 | 57 | 7 |
+| **Total** | **954** | **661** | **804** |
 
-A coluna "Interativos" conta as portas, gavetas, tampas e portas de correr. Os espaços internos (`slots`) são 1.488
-no total. Com as 115 peças de construção, a biblioteca passa de 1.050 peças.
+A coluna "Interativos" conta as portas, gavetas, tampas e portas de correr. Os espaços internos (`slots`) são 1.497
+no total. Com as 124 peças de construção, a biblioteca chega a 1.078 peças.
 
 ## Arquivos de cada categoria (`<categoria>/`)
 
@@ -101,6 +101,25 @@ blender-venv/bin/python -I codigo/ferramentas/miniaturas_moveis.py -- codigo/art
 ```bash
 python3 -I codigo/ferramentas/moveis_pacote.py <SP>
 ```
+
+Para conferir a biblioteca inteira lendo os GLB (interativos, espaços, colisão, apoio no chão, miniaturas, ids):
+
+```bash
+python3 -I codigo/ferramentas/audita_moveis.py <saida> <saida>/auditoria.json
+```
+
+Na última rodada, a auditoria não acusou nenhum erro. Ficaram 21 avisos, todos conferidos à vista e intencionais:
+
+- as portas dos boxes curvos deslizam pela curva;
+- as miniaturas dos chuveiros e dos cabideiros são finas porque a peça é fina;
+- a torneira do canto com pia fica acima da colisão;
+- a colisão das plantas grandes é o vaso e o tronco.
+
+`moveis_complementos.py` gera as peças que completaram a lista: mesas infantis e de jardim, tubos de chaminé, grills,
+saleiro e pimenteiro, notebook e computador de mesa.
+
+A página também troca as cores de cada peça (escolha uma cor da peça e outra no seletor). Isso funciona porque tudo usa
+o mesmo atlas de 16 × 16.
 
 O empacotador junta os GLB de cada categoria num pacote em gzip e base64 e as miniaturas num sprite. Ele para com erro se
 faltar a miniatura de alguma peça.

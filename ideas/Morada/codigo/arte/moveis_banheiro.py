@@ -708,7 +708,9 @@ def banheira_vitoriana(it, cor="louca", pes="ouro", coluna=None, cor_dentro=None
             p = mb.torno([(0, 0), (0.05, 0), (0.055, 0.015), (0.04, 0.035), (0.026, 0.07), (0.024, 0.1), (0.04, 0.13),
                           (0.05, 0.155), (0, 0.16)], cor=pes, seg=16)
             mb.transforma(p, rot=[("Y", -sx * 12), ("X", sy * 10)])
-            mb.transforma(p, loc=(sx * 0.52, sy * 0.19, 0.0))
+            p.data.update()
+            z_min = min(v.co.z for v in p.data.vertices)  # o pé inclinado não pode afundar no chão
+            mb.transforma(p, loc=(sx * 0.52, sy * 0.19, -z_min))
             it.add(p)
             it.add(mb.esfera(0.035, x=sx * 0.56, y=sy * 0.22, z=0.025, cor=pes, esc=(1.2, 1.0, 0.7), seg=14))
     it.add(mb.esfera(0.022, x=-0.72, y=0, z=zb + 0.36, cor=pes, seg=12, esc=(0.6, 1, 1)))
@@ -1375,8 +1377,8 @@ reg("cesto_roupa_tampa_verde_agua", "C", "cesto_roupa", cesto, "Cesto de roupa c
 reg("cesto_roupa_tampa_lilas", "C", "cesto_roupa", cesto, "Cesto de roupa com tampa (lilás)", cor="lilas",
     cor2="roxo")
 reg("tapete_listras_amarelo_verde", "C", "tapete_listras", tapete_listras, "Tapete de listras (amarelo e verde)")
-reg("tapete_redondo_turquesa", "C", "tapete_redondo", tapete_redondo, "Tapete redondo (turquesa)")
-reg("tapete_redondo_rosa", "C", "tapete_redondo", tapete_redondo, "Tapete redondo (rosa)", cor="rosa_bebe",
+reg("tapete_banheiro_redondo_turquesa", "C", "tapete_redondo", tapete_redondo, "Tapete redondo (turquesa)")
+reg("tapete_banheiro_redondo_rosa", "C", "tapete_redondo", tapete_redondo, "Tapete redondo (rosa)", cor="rosa_bebe",
     cor2="rosa_escuro")
 reg("tapete_retangular_lilas", "C", "tapete_retangular", tapete_retangular, "Tapete retangular com borda (lilás)")
 reg("tapete_tiras_rosa", "C", "tapete_tiras", tapete_tiras, "Tapete de tiras (rosa)")

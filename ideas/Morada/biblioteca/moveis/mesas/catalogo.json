@@ -1,6 +1,6 @@
 {
  "categoria": "mesas",
- "rotulo": "Mesas",
+ "rotulo": "mesas",
  "itens": [
   {
    "id": "mesa_jantar_redonda_pedestal_amarela",
@@ -4506,6 +4506,530 @@
     "redonda",
     "pedestal",
     "classica"
+   ]
+  },
+  {
+   "id": "mesa_infantil_redonda_amarela",
+   "rotulo": "Mesa infantil redonda (amarela)",
+   "categoria": "mesas",
+   "grupo": "mesa_infantil_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.6,
+    0.6,
+    0.503
+   ],
+   "arquivo": "glb/mesa_infantil_redonda_amarela.glb",
+   "miniatura": "miniaturas/mesa_infantil_redonda_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.503,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.4,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.47,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.06,
+      0.6
+     ]
+    },
+    {
+     "centro": [
+      0.14142,
+      0.22,
+      -0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.14142,
+      0.22,
+      -0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.14142,
+      0.22,
+      0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      0.14142,
+      0.22,
+      0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_celeste",
+    "laranja",
+    "roxo",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 2840,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "redonda"
+   ]
+  },
+  {
+   "id": "mesa_infantil_redonda_verde",
+   "rotulo": "Mesa infantil redonda (verde)",
+   "categoria": "mesas",
+   "grupo": "mesa_infantil_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.6,
+    0.6,
+    0.503
+   ],
+   "arquivo": "glb/mesa_infantil_redonda_verde.glb",
+   "miniatura": "miniaturas/mesa_infantil_redonda_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.503,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.4,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.47,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.06,
+      0.6
+     ]
+    },
+    {
+     "centro": [
+      0.14142,
+      0.22,
+      -0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.14142,
+      0.22,
+      -0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      -0.14142,
+      0.22,
+      0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    },
+    {
+     "centro": [
+      0.14142,
+      0.22,
+      0.14142
+     ],
+     "tamanho": [
+      0.07,
+      0.44,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "laranja",
+    "laranja_escuro",
+    "roxo",
+    "verde",
+    "verde_claro",
+    "vermelho"
+   ],
+   "tris": 2840,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "redonda"
+   ]
+  },
+  {
+   "id": "mesa_infantil_gaveta_rosa",
+   "rotulo": "Mesa infantil com gaveta (rosa)",
+   "categoria": "mesas",
+   "grupo": "mesa_infantil_gaveta",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.558,
+    0.522
+   ],
+   "arquivo": "glb/mesa_infantil_gaveta_rosa.glb",
+   "miniatura": "miniaturas/mesa_infantil_gaveta_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.273,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.0,
+      0.401,
+      0.205
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0,
+      0.413,
+      0.028
+     ],
+     "tamanho": [
+      0.346,
+      0.058,
+      0.326
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.523,
+      0
+     ],
+     "tamanho": [
+      0.74,
+      0.4,
+      0.49
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4575,
+      0
+     ],
+     "tamanho": [
+      0.8,
+      0.125,
+      0.55
+     ]
+    },
+    {
+     "centro": [
+      -0.335,
+      0.1975,
+      0.21
+     ],
+     "tamanho": [
+      0.06,
+      0.395,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      -0.335,
+      0.1975,
+      -0.21
+     ],
+     "tamanho": [
+      0.06,
+      0.395,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.335,
+      0.1975,
+      0.21
+     ],
+     "tamanho": [
+      0.06,
+      0.395,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.335,
+      0.1975,
+      -0.21
+     ],
+     "tamanho": [
+      0.06,
+      0.395,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "creme",
+    "rosa",
+    "rosa_escuro"
+   ],
+   "tris": 3520,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "mesa_jardim_redonda_branca",
+   "rotulo": "Mesa de jardim redonda (branca)",
+   "categoria": "mesas",
+   "grupo": "mesa_jardim_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.9,
+    0.9,
+    0.723
+   ],
+   "arquivo": "glb/mesa_jardim_redonda_branca.glb",
+   "miniatura": "miniaturas/mesa_jardim_redonda_branca.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.722,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.4,
+      0.6
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.69,
+      0
+     ],
+     "tamanho": [
+      0.9,
+      0.06,
+      0.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.33,
+      0
+     ],
+     "tamanho": [
+      0.8,
+      0.66,
+      0.8
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 3184,
+   "pacote": false,
+   "tags": [
+    "externa",
+    "jardim",
+    "plastico"
+   ]
+  },
+  {
+   "id": "mesa_piquenique_madeira",
+   "rotulo": "Mesa de piquenique com bancos",
+   "categoria": "mesas",
+   "grupo": "mesa_piquenique",
+   "fixacao": "chao",
+   "dims": [
+    1.6,
+    1.465,
+    0.74
+   ],
+   "arquivo": "glb/mesa_piquenique_madeira.glb",
+   "miniatura": "miniaturas/mesa_piquenique_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.742,
+      0
+     ],
+     "tamanho": [
+      1.5,
+      0.4,
+      0.62
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.695,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      0.09,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.422,
+      -0.6
+     ],
+     "tamanho": [
+      1.6,
+      0.084,
+      0.28
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.422,
+      0.6
+     ],
+     "tamanho": [
+      1.6,
+      0.084,
+      0.28
+     ]
+    },
+    {
+     "centro": [
+      -0.58,
+      0.19,
+      0
+     ],
+     "tamanho": [
+      0.08,
+      0.38,
+      1.0
+     ]
+    },
+    {
+     "centro": [
+      0.58,
+      0.19,
+      0
+     ],
+     "tamanho": [
+      0.08,
+      0.38,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "madeira_clara"
+   ],
+   "tris": 3196,
+   "pacote": false,
+   "tags": [
+    "externa",
+    "jardim",
+    "bancos",
+    "madeira"
    ]
   }
  ]

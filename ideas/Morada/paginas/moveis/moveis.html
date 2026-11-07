@@ -55,6 +55,11 @@ h1 { font-family: var(--f-titulo); font-stretch: 78%; font-weight: 800; font-siz
 .cores { display: flex; flex-wrap: wrap; gap: 6px }
 .cor { width: 46px; height: 46px; border-radius: 8px; border: 1px solid var(--linha); background-color: var(--mini); background-repeat: no-repeat; cursor: pointer; padding: 0 }
 .cor[aria-pressed="true"] { outline: 3px solid var(--azul); outline-offset: 1px }
+.trocas { display: flex; flex-wrap: wrap; gap: 6px }
+.troca { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--linha); overflow: hidden; cursor: pointer }
+.troca input { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); border: 0; padding: 0; cursor: pointer; opacity: 0 }
+.troca span { position: absolute; inset: 0; pointer-events: none }
+.troca:focus-within { outline: 2px solid var(--azul); outline-offset: 2px }
 .catalogo { max-width: 1400px; margin: 22px auto 0; display: flex; flex-direction: column; gap: 12px }
 .catalogo-topo { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between }
 h3 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-size: 1.25rem; margin: 0 }
@@ -96,6 +101,11 @@ h3 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
     <div id="bloco-cores" hidden>
       <p class="rotulo">Outras cores</p>
       <div class="cores" id="cores"></div>
+    </div>
+    <div id="bloco-trocas" hidden>
+      <p class="rotulo">Trocar cores</p>
+      <div class="trocas" id="trocas"></div>
+      <p class="nota" id="trocas-nota">Clique numa cor da peça e escolha outra. <button class="botao" id="restaura" type="button" hidden>Voltar às cores originais</button></p>
     </div>
     <div id="bloco-abre" hidden>
       <p class="rotulo">Portas e gavetas</p>
@@ -210,6 +220,44 @@ function modelo(id) {
   return _modelos.get(id).then((s) => s.clone(true));
 }
 
+// ---------------------------------------------------------------- troca de cores (atlas 16 × 16: uma célula por cor)
+const PAL_NOMES = DADOS.paleta_nomes || [], PAL_HEX = DADOS.paleta_hex || [];
+const paletaImg = new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = DADOS.paleta; });
+let trocaTex = null, trocaCanvas = null;
+async function preparaTroca(obj, it) {
+  trocaTex = null;
+  const im = await paletaImg;
+  const usadas = (it.cores || []).filter((n) => PAL_NOMES.includes(n));
+  $("bloco-trocas").hidden = !im || !usadas.length;
+  $("restaura").hidden = true;
+  if (!im || !usadas.length) { $("trocas").replaceChildren(); return; }
+  trocaCanvas = document.createElement("canvas");
+  trocaCanvas.width = trocaCanvas.height = 16;
+  const ctx = trocaCanvas.getContext("2d");
+  ctx.drawImage(im, 0, 0);
+  trocaTex = new THREE.CanvasTexture(trocaCanvas);
+  trocaTex.flipY = false; trocaTex.colorSpace = THREE.SRGBColorSpace;
+  trocaTex.magFilter = trocaTex.minFilter = THREE.NearestFilter; trocaTex.generateMipmaps = false;
+  obj.traverse((o) => {
+    if (o.isMesh && o.material && o.material.name === "atlas") { o.material = o.material.clone(); o.material.map = trocaTex; }
+  });
+  $("trocas").replaceChildren(...usadas.map((nome) => {
+    const i = PAL_NOMES.indexOf(nome);
+    const lab = document.createElement("label");
+    lab.className = "troca"; lab.title = nome.replaceAll("_", " ");
+    const amostra = document.createElement("span"); amostra.style.background = PAL_HEX[i];
+    const inp = document.createElement("input"); inp.type = "color"; inp.value = PAL_HEX[i].toLowerCase();
+    inp.setAttribute("aria-label", "Trocar a cor " + nome.replaceAll("_", " "));
+    inp.addEventListener("input", () => {
+      ctx.fillStyle = inp.value; ctx.fillRect(i % 16, Math.floor(i / 16), 1, 1);
+      trocaTex.needsUpdate = true; amostra.style.background = inp.value; $("restaura").hidden = false;
+    });
+    lab.append(amostra, inp);
+    return lab;
+  }));
+  $("restaura").onclick = () => { ctx.clearRect(0, 0, 16, 16); ctx.drawImage(im, 0, 0); trocaTex.needsUpdate = true; preparaTroca(obj, it); };
+}
+
 // ---------------------------------------------------------------- peça no palco
 let atual = null, raiz = null, interativos = [], espacos = [], colisoes = [], luz = null, cheios = [];
 const anim = new Set();
@@ -286,6 +334,7 @@ async function mostra(id, { camera: enquadra = true } = {}) {
     parede.position.set(0, h / 2, -0.002);
   }
   preparaInterativos(obj);
+  preparaTroca(obj, it);
   // espaços e colisão
   espacos = [];
   obj.traverse((o) => { if (o.userData && o.userData.slot) espacos.push(o); });

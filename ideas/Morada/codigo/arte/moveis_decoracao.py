@@ -1083,7 +1083,7 @@ def p_jiboia(cat):
         p.M.folha(pts[-1], fr, ci, tam, tam * 0.66, "coracao", nt=10, ns=3, recuo=0.06, dobra=0.22, curva=35,
                   cor="folha_clara", cor_baixo="folha", nervura="verde_lima", torce=rnd.uniform(-15, 15))
     # dois ramos caindo pela borda
-    for g, L in ((300, 0.2), (200, 0.15)):
+    for g, L in ((300, 0.1), (200, 0.08)):  # os ramos param acima da base (a jiboia vai em prateleira)
         gx, gy = math.cos(rad(g)), math.sin(rad(g))
         r0 = 0.09
         pts = [V((gx * 0.04, gy * 0.04, zt - 0.01)), V((gx * (r0 - 0.005), gy * (r0 - 0.005), 0.142)),

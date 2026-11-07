@@ -398,7 +398,7 @@
    "dims": [
     0.43,
     0.403,
-    0.445
+    0.38
    ],
    "arquivo": "glb/planta_jiboia.glb",
    "miniatura": "miniaturas/planta_jiboia.webp",
@@ -408,12 +408,12 @@
     {
      "centro": [
       0.01371,
-      0.15784,
+      0.19019,
       -0.00879
      ],
      "tamanho": [
       0.43,
-      0.445,
+      0.38,
       0.403
      ]
     }

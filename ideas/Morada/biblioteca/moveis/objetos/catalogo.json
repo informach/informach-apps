@@ -1,6 +1,6 @@
 {
  "categoria": "objetos",
- "rotulo": "Objetos",
+ "rotulo": "objetos",
  "itens": [
   {
    "id": "espelho_chao_madeira",
@@ -3226,6 +3226,115 @@
     "musica",
     "retro",
     "sala"
+   ]
+  },
+  {
+   "id": "notebook_azul",
+   "rotulo": "Notebook (azul)",
+   "categoria": "objetos",
+   "grupo": "notebook",
+   "fixacao": "apoio",
+   "dims": [
+    0.34,
+    0.24,
+    0.032
+   ],
+   "arquivo": "glb/notebook_azul.glb",
+   "miniatura": "miniaturas/notebook_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.885,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.022,
+      -0.116
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0105,
+      -0.0
+     ],
+     "tamanho": [
+      0.34,
+      0.021,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "preto",
+    "tela_azul"
+   ],
+   "tris": 2664,
+   "pacote": false,
+   "tags": [
+    "computador",
+    "notebook",
+    "tampa"
+   ]
+  },
+  {
+   "id": "computador_mesa",
+   "rotulo": "Computador de mesa",
+   "categoria": "objetos",
+   "grupo": "computador",
+   "fixacao": "apoio",
+   "dims": [
+    0.86,
+    0.386,
+    0.44
+   ],
+   "arquivo": "glb/computador_mesa.glb",
+   "miniatura": "miniaturas/computador_mesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.11,
+      0.22,
+      0.003
+     ],
+     "tamanho": [
+      0.86,
+      0.44,
+      0.386
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "ferro",
+    "grafite",
+    "preto",
+    "tela_azul"
+   ],
+   "tris": 4824,
+   "pacote": false,
+   "tags": [
+    "computador",
+    "monitor",
+    "teclado"
    ]
   }
  ]

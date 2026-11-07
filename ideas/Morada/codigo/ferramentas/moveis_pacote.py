@@ -91,6 +91,14 @@ for cat in cats:
 if faltam:
     sys.exit("falta miniatura: " + ", ".join(faltam[:30]))
 shutil.copy(os.path.join(O, "paleta_moveis.png"), os.path.join(V, "paleta_moveis.png"))
+# nomes e cores da paleta (para a troca de cores na página), lidos da base sem importar o Blender
+import ast
+src = open(os.path.join(SP, "morada-art", "moveis_base.py")).read()
+ini = src.index("CORES = {")
+fim = src.index("}", ini) + 1
+cores = ast.literal_eval(src[ini + len("CORES = "):fim])
+saida["paleta_nomes"] = list(cores)
+saida["paleta_hex"] = list(cores.values())
 json.dump(saida, open(os.path.join(V, "moveis.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 tot = sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(V) for f in fs)
 nfiles = sum(len(fs) for _, _, fs in os.walk(V))

@@ -1,6 +1,6 @@
 {
  "categoria": "lareiras",
- "rotulo": "Lareiras",
+ "rotulo": "lareiras",
  "itens": [
   {
    "id": "lareira_tijolo_chamine",
@@ -876,6 +876,129 @@
     "lareira",
     "terracota",
     "arco"
+   ]
+  },
+  {
+   "id": "tubo_chamine_reto",
+   "rotulo": "Tubo de chaminé reto (1 m)",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.146,
+    0.146,
+    1.0
+   ],
+   "arquivo": "glb/tubo_chamine_reto.glb",
+   "miniatura": "miniaturas/tubo_chamine_reto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.146,
+      1.0,
+      0.146
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
+   ]
+  },
+  {
+   "id": "tubo_chamine_cotovelo",
+   "rotulo": "Cotovelo de chaminé (90°)",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.146,
+    0.393,
+    0.393
+   ],
+   "arquivo": "glb/tubo_chamine_cotovelo.glb",
+   "miniatura": "miniaturas/tubo_chamine_cotovelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.2,
+      -0.08
+     ],
+     "tamanho": [
+      0.16,
+      0.4,
+      0.32
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 912,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
+   ]
+  },
+  {
+   "id": "tubo_chamine_chapeu",
+   "rotulo": "Chapéu de chaminé",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.35,
+    0.35,
+    0.463
+   ],
+   "arquivo": "glb/tubo_chamine_chapeu.glb",
+   "miniatura": "miniaturas/tubo_chamine_chapeu.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2315,
+      -0.0
+     ],
+     "tamanho": [
+      0.35,
+      0.463,
+      0.35
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 1300,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
    ]
   }
  ]
