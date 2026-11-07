@@ -32,6 +32,8 @@ REGIOES = {
     "cabeca": ("Head",),
 }
 REGIOES["corpo"] = tuple(dict.fromkeys(REGIOES["tronco"] + REGIOES["pernas"]))
+# só o tronco, sem os braços (faixa do biquíni: dá a volta inteira e para onde começa o braço)
+REGIOES["torso"] = ("Hips", "Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder")
 # atlas de cores lisas para chapéus e acessórios: (u, v) do centro de cada mancha (8 × 2)
 CORES_ATLAS = ["branco", "preto", "cinza", "dourado", "prata", "vermelho", "azul_escuro", "amarelo",
                "verde", "marrom", "laranja", "rosa", "azul", "bege", "cinza_escuro", "creme"]
@@ -226,6 +228,7 @@ def _uv_corpo(ob, m, H, ombro):
     mw = ob.matrix_world
     uvl = me.uv_layers.new(name="UVMap") if not me.uv_layers else me.uv_layers.active
     gancho = m["quadril"] - 0.04
+    eh_saia = "saia" in me.attributes
     # eixo de cada braço (centro da seção, em faixas de 2 cm ao longo do braço): a volta em torno do braço é medida
     # a partir dele (antes era a partir do centro de cada polígono, e a trama que se repete ficava riscada)
     Pw = np.array([mw @ v.co for v in me.vertices]) if len(me.vertices) else np.zeros((0, 3))
@@ -239,19 +242,31 @@ def _uv_corpo(ob, m, H, ombro):
                 for k_ in np.unique(kq):
                     eixo[(sg, int(k_))] = Q[kq == k_][:, 1:].mean(0)
 
+    # o eixo de cada braço como curva contínua (interpolada entre as faixas e suavizada): antes cada polígono pegava o
+    # centro da faixa dele, e onde a faixa mudava a trama do braço (faixa lateral do agasalho) saía em degraus
+    curva = {}
+    for sg in (-1, 1):
+        ks = sorted(k for (s_, k) in eixo if s_ == sg)
+        if ks:
+            xs = np.array([(k + 0.5) * 0.02 for k in ks])
+            yz = np.array([eixo[(sg, k)] for k in ks])
+            if len(yz) >= 3:
+                yz = np.vstack([yz[:1], (yz[:-2] + 2 * yz[1:-1] + yz[2:]) / 4, yz[-1:]])
+            curva[sg] = (xs, yz)
+
     def centro_braco(p):
         sg = 1 if p.x > 0 else -1
-        k_ = int(math.floor(abs(p.x) / 0.02))
-        for d_ in (0, -1, 1, -2, 2):
-            if (sg, k_ + d_) in eixo:
-                return eixo[(sg, k_ + d_)]
-        return np.array([0.0, p.z])
+        if sg not in curva:
+            return np.array([0.0, p.z])
+        xs, yz = curva[sg]
+        return np.array([np.interp(abs(p.x), xs, yz[:, 0]), np.interp(abs(p.x), xs, yz[:, 1])])
     for poly in me.polygons:
         # o polígono inteiro numa ilha só (sem costura no meio dele)
         cs = [mw @ me.vertices[me.loops[li].vertex_index].co for li in poly.loop_indices]
         cen = sum(cs, Vector()) / len(cs)
-        braco = abs(cen.x) > ombro * 1.05 and cen.z > m["quadril"] + 0.05
-        cx = 0.0 if (cen.z > gancho or braco) else math.copysign(0.09 * H / 1.73, cen.x)
+        braco = abs(cen.x) > ombro * 1.05 and cen.z > m["quadril"] + 0.05 and not eh_saia  # (a saia larga não é braço)
+        # (saia: um tubo só em volta das duas pernas, a volta é medida do meio do corpo)
+        cx = 0.0 if (cen.z > gancho or braco or eh_saia) else math.copysign(0.09 * H / 1.73, cen.x)
         ang0 = math.atan2(cen.x - cx, -cen.y)
         if braco:
             cy, cz = centro_braco(cen)
@@ -259,6 +274,7 @@ def _uv_corpo(ob, m, H, ombro):
         for li, p in zip(poly.loop_indices, cs):
             if braco:
                 v = 0.5 * min(max((abs(p.x) - ombro) / max(m["punho"] - ombro, 0.05), 0), 1)
+                cy, cz = centro_braco(p)  # o centro no ponto (não no polígono): a volta é contínua entre vizinhos
                 a = math.atan2(p.y - cy, p.z - cz)
                 if abs(a - a0) > math.pi:  # sem dar a volta no meio do polígono
                     a += -2 * math.pi if a > a0 else 2 * math.pi
@@ -330,7 +346,10 @@ def camada(S, spec):
         obs = []
         for p in spec["partes"]:
             if "saia" in p:
-                o = R._saia_gerada(S, {**p["saia"], "padrao": base_.get("padrao", "liso")}, None)[0]
+                # a saia nasce um pouco por fora da barra do corpo da peça (sem folga própria, ela começava rente à pele,
+                # por dentro do corpo, e na cintura aparecia uma fresta)
+                ex_ = {} if "folga" in p["saia"] else {"folga": base_.get("folga", 0.006) * 1.2 + 0.002}
+                o = R._saia_gerada(S, {**p["saia"], **ex_, "padrao": base_.get("padrao", "liso")}, None)[0]
             elif "capuz_caido" in p:
                 o = _capuz_caido(S, {**base_, **p["capuz_caido"]})
             elif "fivela" in p:
@@ -389,6 +408,27 @@ def camada(S, spec):
             lim = 0.003 * H / 1.73
             d_.x = math.copysign(min(abs(d_.x), lim), d_.x)
         v.co += d_
+    if spec.get("regiao") in ("pernas", "corpo"):
+        # fundilho: a pele faz um vinco fundo entre as pernas e a calça copiava esse vinco (na página, um nó escuro no
+        # meio da virilha). Na região do gancho os pontos vão para a média dos vizinhos (várias voltas, mais no centro):
+        # o pano faz uma ponte lisa de uma perna para a outra, sem entrar no vinco
+        bm.verts.ensure_lookup_table()
+        cx_ = 0.0
+        larg_ = 0.07 * H / 1.73
+        z0_, z1_ = m["quadril"] - 0.16 * H / 1.73, m["quadril"] + 0.02 * H / 1.73
+        zona = [v for v in bm.verts if abs(v.co.x - cx_) < larg_ and z0_ < v.co.z < z1_]
+        peso_ = {v: max(0.0, 1 - abs(v.co.x - cx_) / larg_) * min(1.0, (z1_ - v.co.z) / (0.04 * H / 1.73), (v.co.z - z0_) / (0.04 * H / 1.73))
+                 for v in zona}
+        for _ in range(12):
+            novo = {}
+            for v in zona:
+                viz_ = [e.other_vert(v) for e in v.link_edges]
+                if not viz_:
+                    continue
+                med = sum((u.co for u in viz_), Vector()) / len(viz_)
+                novo[v] = v.co + (med - v.co) * 0.6 * peso_[v]
+            for v, c_ in novo.items():
+                v.co = c_
     if spec.get("boca_sino"):  # calça boca de sino: abre do joelho para baixo
         import roupas as R_
         m_ = R_._marcos(S)
@@ -414,7 +454,7 @@ def camada(S, spec):
                       else c_ for c_ in cortes]
             if any(c_["marco"] == "quadril" and not c_.get("acima") for c_ in cortes) and not spec.get("_tem_saia"):
                 _barra_reta(ob, m)  # (com saia, a barra não abre: a saia continua dela, sem degrau)
-        R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004))
+        R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004), um_anel=spec.get("regiao", "tronco") == "tronco")
     # recortes que não são planos de marco: só a frente, faixas em x (gravata, alças), faixas de altura
     if spec.get("frente") is not None or spec.get("faixa_x") or spec.get("faixas_z") or spec.get("faixas_x") \
             or spec.get("abre_frente") or spec.get("tras") or spec.get("furos") or spec.get("ombro_unico") \
@@ -566,6 +606,32 @@ def _faixas_cor(ob, spec, m, H):
     """Partes de outra cor, fixa (material de detalhe): gola (marcada ao fazer a gola), punhos e barra."""
     me = ob.data
     fc = spec.get("faixas_cor") or {}
+    if fc.get("punhos") or fc.get("barra"):
+        # a malha é cortada na borda de cada faixa antes de pintar: a faixa sai com a borda reta (antes cada face
+        # inteira ficava de uma cor e a borda saía em degraus)
+        P0 = np.array([v.co[:] for v in me.vertices])
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        e_braco = lambda f: abs(f.calc_center_median().x) > m["ombro"] * 1.05 and f.calc_center_median().z > m["quadril"] - 0.1
+        if fc.get("punhos"):
+            larg = fc.get("largura_punho", 0.035) * H / 1.73
+            lado_b = np.abs(P0[:, 0]) > m["ombro"] * 1.05
+            if lado_b.any():
+                xmax = np.abs(P0[lado_b, 0]).max()
+                for s in (-1, 1):
+                    fs = [f for f in bm.faces if e_braco(f) and f.calc_center_median().x * s > 0]
+                    g = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+                    bmesh.ops.bisect_plane(bm, geom=g, plane_co=(s * (xmax - larg), 0, 0), plane_no=(1, 0, 0))
+        if fc.get("barra"):
+            larg = fc.get("largura_barra", 0.04) * H / 1.73
+            fs = [f for f in bm.faces if not e_braco(f)]
+            if fs:
+                zmin = min(v.co.z for f in fs for v in f.verts)
+                g = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+                bmesh.ops.bisect_plane(bm, geom=g, plane_co=(0, 0, zmin + larg), plane_no=(0, 0, 1))
+        bm.to_mesh(me)
+        bm.free()
+        me.update()
     cores = np.zeros(len(me.polygons), int)
     if "cor" in me.attributes:
         me.attributes["cor"].data.foreach_get("value", cores)
@@ -579,7 +645,8 @@ def _faixas_cor(ob, spec, m, H):
     if fc.get("barra"):
         larg = fc.get("largura_barra", 0.04) * H / 1.73
         corpo = ~braco
-        zmin = C[corpo, 2].min() if corpo.any() else 0
+        zmin = P[np.isin(np.arange(len(P)), [i for k_, pl in enumerate(me.polygons) if corpo[k_] for i in pl.vertices]), 2].min() \
+            if corpo.any() else 0
         cores[corpo & (C[:, 2] < zmin + larg)] = CORES_ATLAS.index(fc["barra"]) + 1
     if not cores.any():
         return

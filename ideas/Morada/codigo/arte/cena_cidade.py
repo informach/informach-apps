@@ -61,7 +61,7 @@ PESSOAS = [
          roupa=[("nov_camisa_floral", "#F2D9C6"), ("nov_calca_social", "#F0A7B8"), ("nov_oculos_redondos", "#3D7BD6"),
                 ("roupa_sapato_seguranca", "#2B2B2B")]),
     # meio
-    dict(id="capitao", corpo="idoso", pose=("resident.idle.neutral", 30), lugar=(-3.85, 1.25, 20),
+    dict(id="capitao", corpo="idoso", pose=("resident.idle.neutral", 30), lugar=(-3.85, 1.25, 20), cabeca_sobe=16,
          cabelo=("cabelo", "#E9E9E6"), pelos=["barba_2_curta"], cor_pelos="#E9E9E6",
          roupa=[("nov_camisa_social", "#F2F2F2"), ("nov_calca_listrada", "#3D7BD6"), ("nov_quepe_capitao", "#F2F2F2"),
                 ("roupa_sapato_seguranca", "#2B2B2B")]),
@@ -81,7 +81,7 @@ PESSOAS = [
          roupa=[("nov_manga_longa", "#F2F2F2"), ("var_colete_acolchoado", "#8A8F96"), ("nov_calca_jeans", "#2F6FD0"),
                 ("roupa_tenis_plus", "#D9433B"), ("nov_cafe", "#F2F2F2")], segura=["nov_cafe"]),
     dict(id="terno_maleta", corpo="adulto", pose=("resident.walk.normal", 4), lugar=(1.05, 1.8, -25),
-         cabelo=("cabelo_seguranca_chapeu", "#3A2A20"), pelos=["barba_2_curta"],
+         cabelo=("cabelo_seguranca_chapeu", "#3A2A20"), pelos=["barba_2_curta"], cor_pelos="#6B4A32", cabeca_sobe=16,
          roupa=[("nov_camisa_social", "#F2F2F2"), ("nov_paleto", "#2B2D33"), ("nov_calca_social", "#2B2D33"),
                 ("nov_fedora", "#2B2D33"), ("roupa_sapato_seguranca", "#2B2B2B"), ("nov_pasta_couro", "#7A4B2D")],
          segura=["nov_pasta_couro"]),

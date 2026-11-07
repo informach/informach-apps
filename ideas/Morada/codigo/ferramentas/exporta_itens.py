@@ -188,6 +188,10 @@ for kind, item in itens:
             vert_de, uvs, idx, grupos = geometria(ob)
             if "saia" in ob.data.attributes:
                 cab["solta"] = True  # tem saia (a página esconde a pele das pernas embaixo dela de mais longe)
+                g_ = R._resolve(item).get("gerar", {})
+                saias = [q["saia"] for q in g_.get("partes", []) if "saia" in q] or ([g_] if g_.get("tipo", "saia") == "saia" else [])
+                if saias and not any(s.get("abre_frente") or s.get("so_frente") for s in saias):
+                    cab["saia_fechada"] = True  # saia fechada em volta: toda a perna entre a barra e o cós fica dentro
             pesos = pesos_proprios(ob, item) if tipo == "pele" else None
             if pesos is not None:
                 # pesos próprios (saia como pano, barra da blusa inteira): a página usa estes em vez dos da pele

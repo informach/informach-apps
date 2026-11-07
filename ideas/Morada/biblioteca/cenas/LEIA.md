@@ -96,7 +96,9 @@ pele, pele coberta, cabelo dentro do chapéu, poses e IK).
   três luzes de área, fundo e chão azul-noite (#1B1D2B / #1D1F2D).
 - **Acabamento (segunda versão)**: as peças passaram pela revisão da biblioteca (barra reta, saias de pano, faixa,
   quepe e chapéu balde refeitos); quem olha o celular levanta um pouco a cabeça (`cabeca_sobe`, para o chapéu não
-  esconder o rosto de cima); o deitado se apoia mais nos braços (58°); o capitão fica parado.
+  esconder o rosto de cima); o deitado se apoia mais nos braços (58°); o capitão fica parado. Terceira versão: o capitão e o homem de terno levantam a cabeça (`cabeca_sobe`), a barba dele
+  ficou castanha (a preta, de cima, escondia o rosto), a aba da fedora e a pala dos quepes encolheram, e as blusas têm o
+  decote novo (sem ombro aberto).
 
 ```bash
 blender-venv/bin/python -I codigo/arte/cena_cidade.py -- blend/corpos.blend cidade.png cidade.blend

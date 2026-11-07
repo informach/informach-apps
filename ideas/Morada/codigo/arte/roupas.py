@@ -11,6 +11,7 @@ menos de alguns milímetros da pele.
 Tipos "cabeca" e "rosto": presos ao osso da cabeça pela caixa da cabeça, como os cabelos (cabelos.encaixa).
 """
 import json
+import math
 import os
 
 import bpy
@@ -273,7 +274,7 @@ def _marcos(S_obj):
     return m
 
 
-def _corta(ob, S_obj, cortes, bainha=0.004):
+def _corta(ob, S_obj, cortes, bainha=0.004, um_anel=False):
     """Corta a peça em marcos do corpo (calça vira bermuda ou short, manga encurta ou some) e dá uma bainha: a borda
     nova ganha uma volta para dentro, em direção ao centro da abertura."""
     import bmesh
@@ -285,8 +286,12 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
     n3 = mi.to_3x3()
     bordas = set()
     planos = []
+    gola = None
     for c in cortes:
         valor = m[c["marco"]] + c.get("desloca", 0.0)
+        if c["marco"] == "pescoco" and c.get("acima"):
+            gola = c.get("desloca", 0.0)  # decote: corte em volta do pescoço (abaixo), não um plano
+            continue
         if c["marco"] in ("ombro", "cotovelo", "braco_meio", "punho", "antebraco_meio"):  # braços: planos verticais
             # só o corte no ombro precisa se limitar à altura acima da axila (perto do tronco); os outros ficam além dele
             pt = "braco" if c["marco"] == "ombro" else "braco_livre"
@@ -318,6 +323,8 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
             geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
         res = bmesh.ops.bisect_plane(bm, geom=geom, plane_co=mi @ p, plane_no=(n3 @ n).normalized(), clear_outer=True)
         bordas |= {e for e in res["geom_cut"] if isinstance(e, bmesh.types.BMEdge)}
+    if gola is not None:
+        bordas |= _decote(bm, S_obj, m, gola, mw)
     bordas = [e for e in bordas if e.is_valid and e.is_boundary]
     if bordas and bainha > 0:
         # cada abertura (perna, braço) em separado: o centro dela é a média dos pontos da borda
@@ -325,8 +332,11 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
         grupos = {}
         for v in vs:
             w = mw @ v.co
-            chave = ("x+" if w.x > 0 else "x-") if any(pt.startswith("braco") for _, _, pt in planos) and abs(w.x) > m["ombro"] * 0.9 \
-                else ("p+" if w.x > 0 else "p-")
+            if gola is not None and w.z > m["axila"] and abs(w.x) < m["ombro"]:
+                chave = "gola"  # o decote é uma abertura só (e não se mistura com a barra)
+            else:
+                chave = ("x+" if w.x > 0 else "x-") if any(pt.startswith("braco") for _, _, pt in planos) and abs(w.x) > m["ombro"] * 0.9 \
+                    else ("p" if um_anel else ("p+" if w.x > 0 else "p-"))  # tronco: a barra é uma volta só
             grupos.setdefault(chave, []).append(v)
         centro = {k: sum((v.co for v in g), Vector()) / len(g) for k, g in grupos.items()}
         lado = {v: k for k, g in grupos.items() for v in g}
@@ -342,6 +352,69 @@ def _corta(ob, S_obj, cortes, bainha=0.004):
     bm.to_mesh(ob.data)
     bm.free()
     ob.data.update()
+
+
+def _decote(bm, S_obj, m, desloca, mw):
+    """Decote em volta do pescoço. Antes era um plano horizontal na base do pescoço: o alto do ombro, que sobe em
+    direção ao pescoço, ficava acima do plano e saía junto (o ombro ficava aberto, com a pele à mostra). Agora sai só
+    o que está acima da altura do decote E perto do eixo do pescoço (no raio dele, mais uma folga; na frente, o decote
+    fundo abre mais). O corte é feito nas arestas (onde a conta troca de sinal), com a borda lisa. Devolve as arestas
+    da borda nova."""
+    import bmesh
+    P = pos_mundo(S_obj)
+    if "Neck" not in S_obj.vertex_groups:
+        return set()
+    gi = S_obj.vertex_groups["Neck"].index
+    w = np.array([next((g.weight for g in v.groups if g.group == gi), 0.0) for v in S_obj.data.vertices])
+    Q = P[(w > 0.5)]
+    if len(Q) < 8:
+        return set()
+    z0 = m["pescoco"] + desloca
+    banda = Q[(Q[:, 2] > m["pescoco"]) & (Q[:, 2] < m["pescoco"] + 0.05)]
+    banda = banda if len(banda) >= 8 else Q
+    cx, cy = banda[:, 0].mean(), banda[:, 1].mean()
+    nb = 24
+    ang = np.arctan2(banda[:, 1] - cy, banda[:, 0] - cx)
+    rad = np.hypot(banda[:, 0] - cx, banda[:, 1] - cy)
+    k = ((ang + math.pi) / (2 * math.pi) * nb).astype(int) % nb
+    r = np.array([np.percentile(rad[k == i], 80) if (k == i).sum() else np.nan for i in range(nb)])
+    r[np.isnan(r)] = np.nanmedian(r)
+    for _ in range(2):
+        r = 0.5 * r + 0.25 * (np.roll(r, 1) + np.roll(r, -1))
+    fundo = max(0.0, -desloca - 0.015)  # decote fundo (gola V): a frente abre mais
+
+    def nivel(co):
+        p = mw @ co
+        dx, dy = p.x - cx, p.y - cy
+        d = math.hypot(dx, dy)
+        a = math.atan2(dy, dx)
+        t = (a + math.pi) / (2 * math.pi) * nb - 0.5
+        i0 = int(math.floor(t)) % nb
+        f_ = t - math.floor(t)
+        R = r[i0] * (1 - f_) + r[(i0 + 1) % nb] * f_
+        frente = max(0.0, -dy / max(d, 1e-6))  # a frente é -y
+        R = R * 1.12 + 0.008 + fundo * 1.8 * frente ** 1.5
+        return max(z0 - p.z, d - R)  # fica onde > 0
+    fv = {v: nivel(v.co) for v in bm.verts}
+    novos = set()
+    for e in list(bm.edges):
+        a, b = e.verts
+        fa, fb = fv[a], fv[b]
+        if (fa > 0) != (fb > 0) and abs(fa - fb) > 1e-12:
+            ne, nv = bmesh.utils.edge_split(e, a, fa / (fa - fb))
+            fv[nv] = 0.0
+            novos.add(nv)
+    for f in list({f for v in novos for f in v.link_faces}):
+        vs = [v for v in f.verts if v in novos]
+        if len(vs) == 2:
+            try:
+                bmesh.ops.connect_verts(bm, verts=vs)
+            except Exception:
+                pass
+    apagar = [f for f in bm.faces if sum(fv.get(v, 0.0) for v in f.verts) / len(f.verts) < 0]
+    bmesh.ops.delete(bm, geom=apagar, context="FACES_ONLY")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    return {e for e in bm.edges if e.is_valid and all(v in novos for v in e.verts)}
 
 
 def _uv_da_cor_principal(item_ref, pasta_pacotes):
@@ -565,8 +638,10 @@ def garante_mascara(ob, item_id, tam=512):
             if poly.material_index == k:
                 dr.polygon([(uv[li].uv[0] * W, (1 - uv[li].uv[1]) * H) for li in poly.loop_indices], fill=255)
         M = np.array(cob.filter(ImageFilter.MaxFilter(5))) > 0
-        if m.name.startswith("Roupa_Gen_"):  # padrões gerados: a máscara vale na imagem toda (pela cor), não só onde a
-            M = np.ones_like(M)              # malha de hoje tem UV; assim a barra refeita não fica de fora (faixa branca)
+        # padrões gerados: a máscara vale na imagem toda (pela cor), não só onde a malha de hoje tem UV; assim a barra
+        # refeita não fica de fora (faixa branca). A cor principal continua saindo só da parte que a peça usa (na
+        # imagem toda, as listras saíam com a cor errada)
+        M_val = np.ones_like(M) if m.name.startswith("Roupa_Gen_") else M
         px = A[M]
         if not len(px):
             continue
@@ -579,7 +654,7 @@ def garante_mascara(ob, item_id, tam=512):
         vals, cont = np.unique(chave, return_counts=True)
         moda = base_px[chave == vals[cont.argmax()]].mean(0)
         dist = np.linalg.norm(A - moda, axis=2)
-        val = np.clip(1.0 - (dist - 55.0) / 30.0, 0, 1) * M  # borda suave entre a cor principal e os detalhes
+        val = np.clip(1.0 - (dist - 55.0) / 30.0, 0, 1) * M_val  # borda suave entre a cor principal e os detalhes
         nome = f"{item_id}__{m.name}.png"
         Image.fromarray((val * 255).astype(np.uint8)).resize((tam, round(tam * H / W)), Image.BILINEAR).save(
             os.path.join(PASTA_MASC, nome), optimize=True)

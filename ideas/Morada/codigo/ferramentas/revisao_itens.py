@@ -131,10 +131,13 @@ for item in itens:
         hi = Vector([max(p[i] for p in pts) for i in range(3)])
         alvo = (lo + hi) / 2
         tam = max(0.5, (hi - lo).length * 1.4)
+    elif os.environ.get("TRONCO"):  # TRONCO=1: close do tronco e do quadril (barra, punhos, gancho)
+        alvo = Vector((0, 0, 1.05))
+        tam = 0.95
     else:
         alvo = Vector((0, 0, 0.9))
         tam = 1.95
-    for k, az in enumerate((25, 205)):
+    for k, az in enumerate(tuple(int(x) for x in os.environ.get("AZS", "25,205").split(","))):  # AZS=25,205,90: ângulos
         d = Vector((math.sin(math.radians(az)), -math.cos(math.radians(az)), 0.25)).normalized()
         cam.location = alvo + d * 6
         cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()

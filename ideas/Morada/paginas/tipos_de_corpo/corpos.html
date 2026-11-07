@@ -940,8 +940,9 @@ function fechaDedos(c) {
     b[""].updateMatrixWorld(true);
   }
 }
-function posicoesPeca(P, fam, tri, bar, off) { // a peça sobre uma pele P (ordem do Blender)
+function posicoesPeca(P, fam, tri, bar, off, idx) { // a peça sobre uma pele P (ordem do Blender)
   const T = fam.T, A = fam.A, nv = P.length / 3, N = normaisDe(P, T, nv), n = tri.length, out = new Float32Array(n * 3);
+  const empurra = new Float32Array(n * 3); // quanto a folga empurrou cada ponto (suavizado no fim)
   const viz = vizinhosDe(fam);
   for (let j = 0; j < n; j++) {
     const t = tri[j] * 3, ia = T[t] * 3, ib = T[t + 1] * 3, ic = T[t + 2] * 3;
@@ -968,10 +969,53 @@ function posicoesPeca(P, fam, tri, bar, off) { // a peça sobre uma pele P (orde
         if (h <= -c) continue;
         const lx = dx - h * nn[0], ly = dy - h * nn[1], lz = dz - h * nn[2];
         if (Math.hypot(lx, ly, lz) > lmax) continue;
-        for (let k = 0; k < 3; k++) g[k] += nn[k] * (h + c);
+        for (let k = 0; k < 3; k++) { g[k] += nn[k] * (h + c); empurra[j * 3 + k] += nn[k] * (h + c); }
       }
     }
     out[j * 3] = g[0]; out[j * 3 + 1] = g[1]; out[j * 3 + 2] = g[2];
+  }
+  // o empurrão da folga se espalha entre os vizinhos (a peça se afasta como um pano): ponto a ponto, na virilha cada
+  // ponto ia para um lado e a bermuda embolava. As cópias de um ponto (costura de UV) andam juntas.
+  if (idx && n) {
+    const chave = new Map(), grupo = new Int32Array(n);
+    for (let j = 0; j < n; j++) { const k = tri[j] * 4294967296 + bar[j * 2] * 65536 + bar[j * 2 + 1]; if (!chave.has(k)) chave.set(k, chave.size); grupo[j] = chave.get(k); }
+    const ng = chave.size, viz = Array.from({ length: ng }, () => new Set());
+    for (let i = 0; i < idx.length; i += 3) for (let a = 0; a < 3; a++) { const x = grupo[idx[i + a]], y = grupo[idx[i + (a + 1) % 3]]; if (x !== y) { viz[x].add(y); viz[y].add(x); } }
+    let E = new Float32Array(ng * 3), cnt = new Float32Array(ng);
+    for (let j = 0; j < n; j++) { for (let k = 0; k < 3; k++) E[grupo[j] * 3 + k] += empurra[j * 3 + k]; cnt[grupo[j]]++; }
+    for (let q = 0; q < ng; q++) for (let k = 0; k < 3; k++) E[q * 3 + k] /= cnt[q] || 1;
+    for (let it = 0; it < 8; it++) {
+      const E2 = new Float32Array(ng * 3);
+      for (let q = 0; q < ng; q++) {
+        const vs = viz[q];
+        if (!vs.size) { for (let k = 0; k < 3; k++) E2[q * 3 + k] = E[q * 3 + k]; continue; }
+        const m = [0, 0, 0];
+        for (const r of vs) for (let k = 0; k < 3; k++) m[k] += E[r * 3 + k];
+        for (let k = 0; k < 3; k++) E2[q * 3 + k] = 0.5 * E[q * 3 + k] + 0.5 * m[k] / vs.size;
+      }
+      E = E2;
+    }
+    for (let j = 0; j < n; j++) for (let k = 0; k < 3; k++) out[j * 3 + k] += E[grupo[j] * 3 + k] - empurra[j * 3 + k];
+    // pontos dobrados (na virilha a pele tem triângulos pequenos e muito curvos, e um ponto da peça podia cair para
+    // dentro dos vizinhos e fazer um nó): só quem está longe da média dos vizinhos, em relação ao tamanho das arestas,
+    // vai para perto dela; o pano liso não muda
+    const G = new Float32Array(ng * 3);
+    for (let j = 0; j < n; j++) for (let k = 0; k < 3; k++) G[grupo[j] * 3 + k] = out[j * 3 + k];
+    for (let it = 0; it < 3; it++) {
+      const G2 = G.slice();
+      for (let q = 0; q < ng; q++) {
+        const vs = viz[q];
+        if (vs.size < 3) continue;
+        const m = [0, 0, 0]; let el = 0;
+        for (const r of vs) { for (let k = 0; k < 3; k++) m[k] += G[r * 3 + k]; el += Math.hypot(G[r * 3] - G[q * 3], G[r * 3 + 1] - G[q * 3 + 1], G[r * 3 + 2] - G[q * 3 + 2]); }
+        for (let k = 0; k < 3; k++) m[k] /= vs.size;
+        el /= vs.size;
+        const L = [m[0] - G[q * 3], m[1] - G[q * 3 + 1], m[2] - G[q * 3 + 2]], lL = Math.hypot(...L);
+        if (lL > 0.45 * el) { const f = 0.8 * (lL - 0.45 * el) / lL; for (let k = 0; k < 3; k++) G2[q * 3 + k] += L[k] * f; }
+      }
+      G.set(G2);
+    }
+    for (let j = 0; j < n; j++) for (let k = 0; k < 3; k++) out[j * 3 + k] = G[grupo[j] * 3 + k];
   }
   return out;
 }
@@ -997,14 +1041,15 @@ async function montarItem(c, id, ladoForcado) {
   const geo = new THREE.BufferGeometry();
   const si = new Uint16Array(nv * 4), sw = new Float32Array(nv * 4);
   let locMao = null; // objeto de mão: os pontos no referencial da mão (para pousar no chão)
+  let pesosGuardados = null; // peça com saia: os pesos da pele e os próprios (de pano), trocados pela pose
   if (cab.tipo === "pele") {
     const tri = b[fam + "_tri"], bar = b[fam + "_bar"], off = b[fam + "_off"], F = pele.fam;
-    const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off);
+    const P0 = pele.posicoes(null), pos0 = posicoesPeca(P0, F, tri, bar, off, idxB);
     geo.setAttribute("position", new THREE.BufferAttribute(pos0, 3));
     const formas = Object.entries(pele.formas);
     if (formas.length) {
       geo.morphAttributes.position = formas.map(([, d]) => {
-        const pk = posicoesPeca(pele.posicoes(d), F, tri, bar, off);
+        const pk = posicoesPeca(pele.posicoes(d), F, tri, bar, off, idxB);
         for (let i = 0; i < pk.length; i++) pk[i] -= pos0[i];
         return new THREE.BufferAttribute(pk, 3);
       });
@@ -1015,11 +1060,8 @@ async function montarItem(c, id, ladoForcado) {
     const gi = corpo.geometry.attributes.skinIndex, gw = corpo.geometry.attributes.skinWeight, b2g = pele.b2g;
     const po = b[fam + "_osso"], pp = b[fam + "_peso"];
     const ossosSk = corpo.skeleton.bones.map((x) => x.name), mapaO = (cab.ossos || []).map((nm) => ossosSk.indexOf(nm));
+    const proprios = po && mapaO.every((x) => x >= 0);
     for (let j = 0; j < nv; j++) {
-      if (po && mapaO.every((x) => x >= 0)) {
-        for (let k = 0; k < 4; k++) { si[j * 4 + k] = mapaO[po[j * 4 + k]]; sw[j * 4 + k] = pp[j * 4 + k] / 255; }
-        continue;
-      }
       const t = tri[j] * 3, w = [bar[j * 2] / 65535, bar[j * 2 + 1] / 65535]; w.push(1 - w[0] - w[1]);
       const acc = new Map();
       for (let q = 0; q < 3; q++) {
@@ -1028,6 +1070,14 @@ async function montarItem(c, id, ladoForcado) {
       }
       const top = [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4), soma = top.reduce((s_, x) => s_ + x[1], 0) || 1;
       top.forEach(([o, x], k) => { si[j * 4 + k] = o; sw[j * 4 + k] = x / soma; });
+    }
+    if (proprios) {
+      // os da pele ficam guardados: com saia, sentado, ajoelhado ou deitado a coxa sobe e o pano de meio a meio ficaria
+      // para trás (a perna sai pela frente); nessas poses a saia volta a seguir a pele (pesosDaPose)
+      const pele_ = [si.slice(), sw.slice()], prop_ = [new Uint16Array(nv * 4), new Float32Array(nv * 4)];
+      for (let j = 0; j < nv * 4; j++) { prop_[0][j] = mapaO[po[j]]; prop_[1][j] = pp[j] / 255; }
+      si.set(prop_[0]); sw.set(prop_[1]);
+      if (cab.solta) pesosGuardados = { pele: pele_, proprio: prop_ };
     }
   } else if (cab.tipo === "mao") {
     // objeto de mão: no referencial da mão do corpo (x ao longo dos dedos, z para a palma), em unidades do tamanho
@@ -1063,7 +1113,9 @@ async function montarItem(c, id, ladoForcado) {
   mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
   if (CAT_ROUPA.itens.some((x) => x.id === id) && !ladoForcado) mesh.userData.roupa = id;
   if (cab.tipo === "mao") { mesh.userData.mao = cab.mao; mesh.userData.locMao = locMao; }
-  if (cab.solta) mesh.userData.solta = true; // tem saia: a pele das pernas embaixo dela some de mais longe
+  if (cab.solta) mesh.userData.solta = true;
+  if (cab.saia_fechada) mesh.userData.saiaFechada = true; // tem saia: a pele das pernas embaixo dela some de mais longe
+  if (pesosGuardados) { mesh.userData.pesos = pesosGuardados; pesosDaPose(mesh); }
   corpo.parent.add(mesh);
   mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
   mesh.bind(corpo.skeleton, corpo.bindMatrix);
@@ -1553,6 +1605,19 @@ function coberturaDe(c, rid) {
   // peça com saia (solta): a saia fica longe das pernas (evasê) e, no passo, a coxa da frente chega nela; nas pernas o
   // alcance vai a 16 cm (só nos vértices das pernas: a mão e o braço ao lado da saia continuam aparecendo)
   const solta = c.roupas[rid][0]?.userData.solta, perna = solta ? ossosDePerna(corpo) : null;
+  let eixoSaia = null, faixaSaia = null;
+  if (perna && c.roupas[rid][0]?.userData.saiaFechada) {
+    // saia fechada: a pele das pernas e do quadril entre a barra e o cós (a parte de baixo da peça) está dentro dela
+    let mn = Infinity, mx = -Infinity;
+    for (const m of c.roupas[rid]) { const pa = m.geometry.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pele(m, pa, i).y; if (y < mn) mn = y; if (y > mx) mx = y; } }
+    const esc_ = Math.max(c.altura / 1.7, 0.4);
+    faixaSaia = [mn + 0.02 * esc_, mx];
+  }
+  if (perna) { // eixo vertical do corpo: o meio das pernas
+    let sx = 0, sz = 0, nn = 0;
+    for (let i = 0; i < gp.count; i++) if (perna[i]) { sx += Pc[i].x; sz += Pc[i].z; nn++; }
+    if (nn) eixoSaia = { x: sx / nn, z: sz / nn };
+  }
   const cob = new Uint8Array(gp.count), p = new THREE.Vector3(), nv = new THREE.Vector3(), ray = new THREE.Ray(), alvo = new THREE.Vector3();
   for (let i = 0; i < gp.count; i++) {
     p.copy(Pc[i]);
@@ -1561,6 +1626,19 @@ function coberturaDe(c, rid) {
     const alcance = perna && perna[i] ? 0.16 * esc : alcance0;
     const vistos = new Set(), celulas = new Set();
     for (let s = 0; s <= alcance + 1e-6; s += tam / 2) { const q = p.clone().addScaledVector(nv, s); celulas.add(ch(q.x, q.y, q.z)); }
+    if (faixaSaia && perna[i] && p.y > faixaSaia[0] && p.y < faixaSaia[1]) { cob[i] = 1; continue; }
+    if (perna && perna[i] && eixoSaia) {
+      // dentro do tubo da saia: um raio na horizontal, do eixo do corpo para fora, passando pelo ponto, acerta a saia
+      // (o lado de dentro da coxa olha para a outra perna e o raio pela normal não chegava ao pano)
+      const h = new THREE.Vector3(p.x - eixoSaia.x, 0, p.z - eixoSaia.z);
+      if (h.lengthSq() > 1e-8) {
+        h.normalize();
+        const r2 = new THREE.Ray(p.clone(), h), alvo2 = new THREE.Vector3(), cel2 = new Set();
+        for (let s = 0; s <= 0.4 * esc; s += tam / 2) { const q = p.clone().addScaledVector(h, s); cel2.add(ch(q.x, q.y, q.z)); }
+        for (const k of cel2) { for (const id of grade.get(k) || []) { const [a, b, d] = tris[id]; if (r2.intersectTriangle(a, b, d, false, alvo2)) { cob[i] = 1; break; } } if (cob[i]) break; }
+        if (cob[i]) continue;
+      }
+    }
     for (const k of celulas) {
       for (const id of grade.get(k) || []) {
         if (vistos.has(id)) continue;
@@ -1579,7 +1657,7 @@ function coberturaDe(c, rid) {
 function ossosDePerna(corpo) {
   if (corpo.userData.perna) return corpo.userData.perna;
   const nomes = corpo.skeleton.bones.map((x) => x.name), si = corpo.geometry.attributes.skinIndex, sw = corpo.geometry.attributes.skinWeight;
-  const ehPerna = nomes.map((n) => /(UpLeg|Leg|Foot|ToeBase)$/.test(n));
+  const ehPerna = nomes.map((n) => /(UpLeg|Leg|Foot|ToeBase|Hips)$/.test(n)); // pernas e quadril (não os braços)
   const out = new Uint8Array(si.count);
   for (let i = 0; i < si.count; i++) {
     let mk = 0, mw = -1;
@@ -1611,6 +1689,51 @@ function gradeDaPeca(c, rid) {
     }
   }
   return (c.grades[rid] = { grade, tris, tam });
+}
+// vértices de uma peça cobertos pelas de cima, na pose de descanso: um raio pela normal (para fora) acerta uma delas a
+// até 4 cm, ou para dentro a até 1 cm
+function camadaCoberta(c, mm, rids) {
+  const chave = rids.slice().sort().join(",");
+  mm.userData.cobCamada ||= {};
+  if (mm.userData.cobCamada[chave]) return mm.userData.cobCamada[chave];
+  const sk = mm.skeleton, guardada = sk.bones.map((o) => [o.position.clone(), o.quaternion.clone(), o.scale.clone()]);
+  sk.pose(); c.raiz.updateMatrixWorld(true);
+  const pos = (m, i) => m.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position, i)).applyMatrix4(m.matrixWorld);
+  const g = mm.geometry, nvt = g.attributes.position.count, ix = g.index.array;
+  const P = Array.from({ length: nvt }, (_, i) => pos(mm, i));
+  const N = P.map(() => new THREE.Vector3());
+  for (let t = 0; t < ix.length; t += 3) {
+    const fn = new THREE.Vector3().subVectors(P[ix[t + 1]], P[ix[t]]).cross(new THREE.Vector3().subVectors(P[ix[t + 2]], P[ix[t]]));
+    N[ix[t]].add(fn); N[ix[t + 1]].add(fn); N[ix[t + 2]].add(fn);
+  }
+  N.forEach((n) => n.normalize());
+  const tam = 0.05, grade = new Map(), tris = [];
+  const ch = (v) => `${Math.floor(v.x / tam)},${Math.floor(v.y / tam)},${Math.floor(v.z / tam)}`;
+  for (const rid of rids) for (const m of c.roupas[rid]) {
+    const gi = m.geometry.index, n = gi ? gi.count : m.geometry.attributes.position.count;
+    for (let t = 0; t < n; t += 3) {
+      const tri = [0, 1, 2].map((k) => pos(m, gi ? gi.getX(t + k) : t + k));
+      const id = tris.push(tri) - 1;
+      const mn = tri[0].clone().min(tri[1]).min(tri[2]), mx = tri[0].clone().max(tri[1]).max(tri[2]);
+      for (let x = Math.floor(mn.x / tam); x <= Math.floor(mx.x / tam); x++)
+        for (let y = Math.floor(mn.y / tam); y <= Math.floor(mx.y / tam); y++)
+          for (let z = Math.floor(mn.z / tam); z <= Math.floor(mx.z / tam); z++) { const k = `${x},${y},${z}`; if (!grade.has(k)) grade.set(k, []); grade.get(k).push(id); }
+    }
+  }
+  sk.bones.forEach((o, k) => { o.position.copy(guardada[k][0]); o.quaternion.copy(guardada[k][1]); o.scale.copy(guardada[k][2]); });
+  c.raiz.updateMatrixWorld(true);
+  const esc = Math.max(c.altura / 1.7, 0.4), res = new Uint8Array(nvt), ray = new THREE.Ray(), hit = new THREE.Vector3();
+  for (let i = 0; i < nvt; i++) {
+    for (const [sg, alc] of [[1, 0.04 * esc], [-1, 0.01 * esc]]) {
+      const d = N[i].clone().multiplyScalar(sg);
+      ray.set(P[i], d);
+      const cel = new Set();
+      for (let s = 0; s <= alc + 1e-6; s += tam / 2) cel.add(ch(P[i].clone().addScaledVector(d, s)));
+      for (const k of cel) { for (const id of grade.get(k) || []) { const [a, b, e] = tris[id]; if (ray.intersectTriangle(a, b, e, false, hit) && hit.distanceTo(P[i]) <= alc) { res[i] = 1; break; } } if (res[i]) break; }
+      if (res[i]) break;
+    }
+  }
+  return (mm.userData.cobCamada[chave] = res);
 }
 // vértices da trama com uma das peças de cima encostada (a até 2 cm pela normal, dos dois lados)
 function tramaCoberta(c, mm, rids) {
@@ -1668,6 +1791,29 @@ function ocultarPele() {
   }
   g.index.array.set(idx);
   g.index.needsUpdate = true;
+  // camadas: a peça de baixo some onde a de cima a cobre (parte de baixo sob a de cima, a inteira ou a de por cima;
+  // a de cima sob a de por cima). Calculado na pose de descanso: andando, o quadril do short não fura mais a blusa
+  const nivel = { baixo: 0, meias: 0, cima: 1, inteira: 1, sobre: 2 };
+  const vis = Object.entries(c.roupas || {}).filter(([rid, ms]) => ms[0]?.visible).map(([rid]) => [rid, CAT_ROUPA.itens.find((x) => x.id === rid)])
+    .filter(([, it]) => it?.tipo === "pele" && !it.transparente && nivel[it.slot] !== undefined);
+  for (const [rid, it] of vis) {
+    const acima = vis.filter(([r2, it2]) => r2 !== rid && nivel[it2.slot] > nivel[it.slot] && !(it.slot === "baixo" && it2.slot === "inteira" && it2.cobre)).map(([r2]) => r2);
+    for (const mm of c.roupas[rid]) {
+      const gi = mm.geometry.index;
+      if (!gi) continue;
+      mm.userData.indiceOriginal ||= gi.array.slice();
+      const ix = mm.userData.indiceOriginal.slice();
+      if (acima.length) {
+        const cv = camadaCoberta(c, mm, acima);
+        for (let t = 0; t < ix.length; t += 3) if (cv[ix[t]] && cv[ix[t + 1]] && cv[ix[t + 2]]) { ix[t + 1] = ix[t]; ix[t + 2] = ix[t]; }
+      }
+      gi.array.set(ix); gi.needsUpdate = true;
+    }
+  }
+  for (const [rid, ms] of Object.entries(c.roupas || {})) if (!ms[0]?.visible || !vis.some(([r]) => r === rid)) {
+    for (const mm of ms) if (mm.userData.indiceOriginal && !CAT_ROUPA.itens.find((x) => x.id === rid)?.transparente) {
+      mm.geometry.index.array.set(mm.userData.indiceOriginal); mm.geometry.index.needsUpdate = true; }
+  }
   // peça transparente (arrastão) embaixo de outra: some onde a de cima encosta nela (um raio pela normal da trama,
   // para fora e para dentro, acerta a peça de cima a até 2 cm). Logo abaixo da barra não há peça perto: a trama vai
   // até a borda.
@@ -1813,6 +1959,18 @@ function desenharManta() {
   el.append(livre);
 }
 function aplicarChupeta() { if (atual.chupeta) atual.chupeta.visible = estado.chupeta; if (par) copiarVisivel(atual.raiz, par.raiz); }
+// sentado, ajoelhado, agachado ou deitado: a saia segue a pele; nas outras poses, os pesos de pano
+const POSE_DOBRADA = /(^|[._])(sit|lie|crouch|kneel|squat|propose)([._]|$)/;
+function pesosDaPose(mesh) {
+  const ps = mesh.userData.pesos;
+  if (!ps) return;
+  const qual = POSE_DOBRADA.test(estado.anim || "") ? ps.pele : ps.proprio;
+  if (mesh.userData.pesosAtuais === qual) return;
+  const g = mesh.geometry;
+  g.attributes.skinIndex.array.set(qual[0]); g.attributes.skinIndex.needsUpdate = true;
+  g.attributes.skinWeight.array.set(qual[1]); g.attributes.skinWeight.needsUpdate = true;
+  mesh.userData.pesosAtuais = qual;
+}
 function aplicarAnim(imediato) {
   const nova = atual.clips[estado.anim];
   if (!nova) return;
@@ -1822,6 +1980,7 @@ function aplicarAnim(imediato) {
   } else nova.play();
   for (const a of Object.values(atual.clips)) if (a !== nova && a !== atual.acao && a.isRunning()) a.stop(); // nenhuma sobra tocando
   atual.acao = nova;
+  for (const malhas of Object.values(atual.roupas || {})) for (const m of malhas) pesosDaPose(m);
   aplicarApoio();
   atualizaMaos();
 }

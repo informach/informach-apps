@@ -258,6 +258,30 @@ O que a revisão de todas as 317 peças corrigiu:
   passo. A conta da pele coberta passou a ser feita na pose de descanso (antes, na pose do quadro em que a peça foi
   escolhida: escolhida no meio do passo, a perna já atravessava e a pele não sumia).
 
+### Segunda revisão (na página, homem e mulher)
+
+`tools/revisao_pagina.js <saída> [slots] [sexos]` veste cada peça sozinha na própria página e fotografa de frente e de
+costas; `tools/folha_pagina.py` monta as folhas. O que ela e as conversas acharam, e foi corrigido:
+- **Gola aberta / ombro aberto:** o decote era um plano horizontal na base do pescoço, e o alto do ombro (que sobe para
+  o pescoço) saía junto. Agora o decote é um corte em volta do pescoço (`roupas._decote`: sai só o que está acima da
+  altura do decote e perto do eixo do pescoço, no raio dele mais uma folga; o decote fundo abre mais na frente), com a
+  borda lisa, feito nas arestas.
+- **Faixas de cor em degraus** (punhos, barra, faixa lateral do agasalho): a malha é cortada na borda de cada faixa
+  antes de pintar, e o eixo do braço do UV é uma curva contínua (antes, uma faixa de 2 cm por polígono).
+- **Calça com "nó" entre as pernas:** a calça copiava o vinco da virilha. No gerador, o fundilho é alisado (ponte lisa
+  de uma perna à outra); na página, o empurrão de folga se espalha entre os vizinhos e pontos dobrados vão para a média
+  deles (`posicoesPeca`).
+- **Short aparecendo pela blusa:** a página esconde a peça de baixo onde a de cima a cobre (camadas: baixo < cima e
+  inteira < por cima; `camadaCoberta`, na pose de descanso).
+- **Pele pela saia:** em saias fechadas (`saia_fechada` no cabeçalho), toda pele de perna e quadril entre a barra e o
+  cós some; sentado, ajoelhado, agachado ou deitado (`POSE_DOBRADA`) a saia troca para os pesos da pele (a coxa sobe e
+  o pano vai junto); em pé, volta aos de pano.
+- **Vestidos:** a saia nasce um pouco por fora da barra do corpo (fechou a fresta da cintura), o UV da saia é um tubo
+  só (o xadrez não se embaralha mais atrás) e as laterais largas da saia não são mais tomadas por braço.
+- **Listradas** (blusa, presídio): a cor inicial é a da listra escura (a que a cor livre pinta).
+- **Biquíni:** a calcinha cresce 4,5 cm para cima (embaixo igual); o top tem faixa fechada em volta (região `torso`, só
+  os ossos do tronco) e alcinhas por dentro, presas na faixa na frente e atrás.
+
 ## Cor livre
 
 Toda peça tem uma máscara (`roupas_mascaras/<id>__<material>.png`, cinza, 512 px) da parte da paleta com a cor
@@ -322,8 +346,7 @@ Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa 
     - Os scripts de render ligam `com_chapeu` sozinhos quando um chapéu aparece.
 - **Peças largas:** a parte de saia (saias, vestidos, casaco comprido, jaleco, paletó) segue o quadril e as duas coxas
   misturadas (veja "Pesos próprios"); em passos muito largos a coxa da frente ainda pode encostar no pano (a página
-  esconde a pele dela). Sentado, ajoelhado ou deitado, a coxa sobe e sai pela frente da saia: nas cenas do Blender a
-  saia passa a seguir a pele nessas poses; na página ainda não (a pele some, mas o pano fica para trás). Fantasias do
+  esconde a pele dela). Sentado, ajoelhado ou deitado, a saia passa a seguir a pele (Blender e página). Fantasias do
   pacote seguem a perna mais perto.
 
 ## Peças em arquivos separados (a página já usa; recomendado para o jogo)

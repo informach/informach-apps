@@ -53,7 +53,7 @@ cam("regata_justa", "cima", "Regata justa", "#F2C231", regiao="tronco", folga=0.
     cortes=[GOLA_V, {"marco": "quadril", "desloca": -0.02}, {"marco": "ombro", "desloca": 0.02}])
 cam("top_esportivo", "cima", "Top esportivo", "#EE70A9", regiao="tronco", folga=0.006,
     cortes=[GOLA_V, {"marco": "cintura", "desloca": 0.06}, {"marco": "ombro", "desloca": 0.02}])
-cam("blusa_listrada", "cima", "Blusa listrada", "#F2F2F2", regiao="tronco", folga=0.009, padrao="listras_largas",
+cam("blusa_listrada", "cima", "Blusa listrada", "#2B2B2B", regiao="tronco", folga=0.009, padrao="listras_largas",
     cortes=[PESC, {"marco": "quadril", "desloca": -0.03}, {"marco": "punho", "desloca": -0.01}])
 cam("camisa_floral", "cima", "Camisa havaiana", "#E25B4B", regiao="tronco", folga=0.014, padrao="floral",
     cortes=[GOLA_V, {"marco": "quadril", "desloca": -0.04}, {"marco": "braco_meio"}])
@@ -65,7 +65,7 @@ cam("jaqueta_bombeiro", "cima", "Jaqueta de bombeiro", "#C9362E", regiao="tronco
     cortes=[{"marco": "pescoco", "acima": True, "desloca": 0.02}, {"marco": "quadril", "desloca": -0.08}, {"marco": "punho", "desloca": -0.01}])
 cam("jaleco_curto", "cima", "Blusa de uniforme", "#3FC1B0", regiao="tronco", folga=0.016,
     cortes=[GOLA_V, {"marco": "quadril", "desloca": -0.05}, {"marco": "braco_meio"}])
-cam("prisioneiro_cima", "cima", "Blusa listrada (presídio)", "#F2F2F2", regiao="tronco", folga=0.013, padrao="listras",
+cam("prisioneiro_cima", "cima", "Blusa listrada (presídio)", "#2B2B2B", regiao="tronco", folga=0.013, padrao="listras",
     cortes=[PESC, {"marco": "quadril", "desloca": -0.04}, {"marco": "punho", "desloca": -0.01}])
 cam("ciclista_cima", "cima", "Camisa de ciclista", "#3FC1B0", regiao="tronco", folga=0.006, padrao="duas_cores",
     cortes=[PESC, {"marco": "quadril", "desloca": -0.02}, {"marco": "braco_meio"}])
@@ -80,7 +80,7 @@ cam("calca_moletom", "baixo", "Calça de moletom", "#24346B", regiao="pernas", f
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.03}])
 cam("calca_refletiva", "baixo", "Calça com faixas refletivas", "#24346B", regiao="pernas", folga=0.016, padrao="refletivo",
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.03}])
-cam("prisioneiro_baixo", "baixo", "Calça listrada (presídio)", "#F2F2F2", regiao="pernas", folga=0.016, padrao="listras",
+cam("prisioneiro_baixo", "baixo", "Calça listrada (presídio)", "#2B2B2B", regiao="pernas", folga=0.016, padrao="listras",
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.03}])
 cam("sunga", "baixo", "Sunga", "#3D7BD6", regiao="pernas", folga=0.005,
     cortes=[{"marco": "quadril", "acima": True, "desloca": 0.03}, {"marco": "quadril", "desloca": -0.09}])
@@ -330,9 +330,13 @@ cam("marinheiro", "cima", "Blusa de marinheiro", "#F2F2F2", regiao="tronco", fol
              "cortes": [PESC]},
             {"frente": 0, "faixa_x": [0.0, 0.03], "faixas_z": [["peito", -0.03, "peito", 0.03]], "folga": 0.024, "cor": "vermelho",
              "cortes": [PESC]}])
-cam("top_biquini", "cima", "Top de biquíni", "#D9433B", regiao="tronco", folga=0.005,
-    cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.075}, {"marco": "peito", "desloca": -0.075},
-            {"marco": "ombro", "desloca": -0.01}])
+# top de biquíni: bojo na frente, faixa em volta (por baixo do braço, ligando frente e costas) e alcinhas por cima dos ombros
+cam("top_biquini", "cima", "Top de biquíni", "#D9433B", regiao="tronco", folga=0.006,
+    # a faixa dá a volta inteira com a mesma altura (fechada dos lados, embaixo do braço; os braços ficam fora pelos
+    # ossos: região "torso"); a alça fica mais rente que a faixa (por dentro dela) e desce até dentro da faixa na
+    # frente e nas costas (presa dos dois lados)
+    partes=[{"regiao": "torso", "faixas_z": [["peito", -0.07, "peito", 0.035]]},
+            {"faixa_x": [0.066, 0.084], "faixas_z": [["peito", -0.03, "pescoco", 0.2]], "folga": 0.0035}])
 cam("jaqueta_aviador", "cima", "Jaqueta de aviador", "#7B4B2D", regiao="tronco", folga=0.03,
     gola={"altura": 0.04, "dobra": 0.85, "aba": 0.022, "cor": "creme"}, faixas_cor={"punhos": "creme", "largura_punho": 0.03},
     cortes=[{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.05), PUNHO])
@@ -366,7 +370,7 @@ cam("capa_chuva", "sobre", "Capa de chuva", "#3FC1B0", regiao="tronco", folga=0.
             {"capuz_caido": {"espessura": 0.03, "altura": 0.075, "abre": 70}}])
 # parte de baixo
 cam("biquini_baixo", "baixo", "Calcinha de biquíni", "#D9433B", regiao="pernas", folga=0.005,
-    cortes=[{"marco": "quadril", "acima": True, "desloca": -0.005}, {"marco": "quadril", "desloca": -0.075}])
+    cortes=[{"marco": "quadril", "acima": True, "desloca": 0.04}, {"marco": "quadril", "desloca": -0.075}])
 cam("bermuda_praia", "baixo", "Bermuda de praia", "#D9433B", regiao="pernas", folga=0.02, padrao="listras_verticais",
     cortes=[{"marco": "cintura", "acima": True, "desloca": -0.03}, {"marco": "coxa_meio", "desloca": -0.02}])
 cam("short_praia", "baixo", "Short de praia", "#C0392B", regiao="pernas", folga=0.018, padrao="duas_cores_lateral",
@@ -415,7 +419,7 @@ cam("cinto_fivela", "cintura", "Cinto com fivela", "#2B2B2B", regiao="corpo", fo
             {"fivela": {"marco": "cintura", "desloca": -0.045, "folga": 0.02, "largura": 0.05, "altura": 0.036}, "cor": "dourado"}])
 # chapéus
 hat("fedora", "Chapéu fedora", "#2B2B2B", copa={"folga": 0.014, "corte": 0.62, "alt": 1.08, "inclina": 0.02, "vinco": 0.06},
-    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.34, "caida": 0.06, "sobe_tras": 0.5})
+    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.28, "caida": 0.03, "sobe_tras": 0.5})
 hat("palheta", "Chapéu palheta", "#C9A46E", copa={"folga": 0.012, "corte": 0.64, "inclina": 0.0},
     banda={"altura": 0.3, "abre": 1.04}, topo={"raio": 1.0}, faixa={"altura": 0.12, "cor": "azul_escuro"},
     aba={"largura": 0.3, "caida": 0.0})

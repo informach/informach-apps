@@ -1698,7 +1698,7 @@
     "familia": "destino"
    },
    "variacao": {
-    "cor": "#F2F2F2"
+    "cor": "#2B2B2B"
    }
   },
   {
@@ -1899,7 +1899,7 @@
     "familia": "destino"
    },
    "variacao": {
-    "cor": "#F2F2F2"
+    "cor": "#2B2B2B"
    }
   },
   {
@@ -2104,7 +2104,7 @@
     "familia": "destino"
    },
    "variacao": {
-    "cor": "#F2F2F2"
+    "cor": "#2B2B2B"
    }
   },
   {
@@ -4983,20 +4983,33 @@
    "gerar": {
     "tipo": "camada",
     "regiao": "tronco",
-    "folga": 0.005,
-    "cortes": [
+    "folga": 0.006,
+    "partes": [
      {
-      "marco": "pescoco",
-      "acima": true,
-      "desloca": -0.075
+      "regiao": "torso",
+      "faixas_z": [
+       [
+        "peito",
+        -0.07,
+        "peito",
+        0.035
+       ]
+      ]
      },
      {
-      "marco": "peito",
-      "desloca": -0.075
-     },
-     {
-      "marco": "ombro",
-      "desloca": -0.01
+      "faixa_x": [
+       0.066,
+       0.084
+      ],
+      "faixas_z": [
+       [
+        "peito",
+        -0.03,
+        "pescoco",
+        0.2
+       ]
+      ],
+      "folga": 0.0035
      }
     ],
     "familia": "destino"
@@ -5542,7 +5555,7 @@
      {
       "marco": "quadril",
       "acima": true,
-      "desloca": -0.005
+      "desloca": 0.04
      },
      {
       "marco": "quadril",
@@ -6201,8 +6214,8 @@
      "cor": "preto"
     },
     "aba": {
-     "largura": 0.34,
-     "caida": 0.06,
+     "largura": 0.28,
+     "caida": 0.03,
      "sobe_tras": 0.5
     }
    },
