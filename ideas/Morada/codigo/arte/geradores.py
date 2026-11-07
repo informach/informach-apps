@@ -336,7 +336,8 @@ def camada(S, spec):
             elif "fivela" in p:
                 o = _fivela(S, p["fivela"])
             else:
-                o = camada(S, {**base_, **{k: v for k, v in p.items() if k != "cor"}})
+                tem_saia = any("saia" in q for q in spec["partes"])
+                o = camada(S, {**base_, **{k: v for k, v in p.items() if k != "cor"}, "_tem_saia": tem_saia})
             if p.get("cor"):
                 _pinta(o, p["cor"])
             obs.append(o)
@@ -352,7 +353,19 @@ def camada(S, spec):
     bm.from_mesh(S.data)
     bm.transform(S.matrix_world)
     bm.verts.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if min(w[v.index] for v in f.verts) < 0.5], context="FACES_ONLY")
+    barra_quadril = spec.get("regiao", "tronco") == "tronco" and any(
+        c_["marco"] == "quadril" and not c_.get("acima") for c_ in spec.get("cortes", []))
+
+    def fica(f):
+        if min(w[v.index] for v in f.verts) >= 0.5:
+            return True
+        # parte de cima com barra no quadril: a lateral do quadril (que tem peso da coxa) também entra até a barra,
+        # senão a barra sobe nos lados e fica serrilhada
+        zs = [v.co.z for v in f.verts]
+        # (os braços, abertos na pose da malha, ficam acima da axila; o quadril da mulher é mais largo que o ombro)
+        return barra_quadril and min(zs) > m["quadril"] - 0.03 and max(zs) < m["axila"] and \
+            all(abs(v.co.x) < 2 * m["ombro"] for v in f.verts)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not fica(f)], context="FACES_ONLY")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     if spec.get("subdivide", 1):
         bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=1, use_grid_fill=True, smooth=1.0)
@@ -399,8 +412,8 @@ def camada(S, spec):
             # entre as pernas e, de frente, um V); mais comprida, só com uma parte "saia" (paletó, casaco)
             cortes = [{**c_, "desloca": max(c_.get("desloca", 0.0), 0.02)} if c_["marco"] == "quadril" and not c_.get("acima")
                       else c_ for c_ in cortes]
-            if any(c_["marco"] == "quadril" and not c_.get("acima") for c_ in cortes):
-                _barra_reta(ob, m)
+            if any(c_["marco"] == "quadril" and not c_.get("acima") for c_ in cortes) and not spec.get("_tem_saia"):
+                _barra_reta(ob, m)  # (com saia, a barra não abre: a saia continua dela, sem degrau)
         R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004))
     # recortes que não são planos de marco: só a frente, faixas em x (gravata, alças), faixas de altura
     if spec.get("frente") is not None or spec.get("faixa_x") or spec.get("faixas_z") or spec.get("faixas_x") \
@@ -745,16 +758,22 @@ def chapeu(S, spec):
                 d = np.array([math.sin(a), 0.0, math.cos(a)])
                 cc = c + np.array([0, -yfr + lado * larg, 0])
                 r = _raio(bvh, cc, d, max(rx, ry))
-                linha.append(bm.verts.new(cc + d * (r + fol)))
+                linha.append(bm.verts.new(cc + d * (r + fol * (0.35 + 0.65 * math.cos(a) ** 2))))  # nos lados, rente
             tiras.append(linha)
         fs = []
         for k in range(24):
             fs.append(bm.faces.new((tiras[0][k], tiras[0][k + 1], tiras[1][k + 1], tiras[1][k])))
+        fs_arco = list(fs)
         if ar.get("babado"):  # babado: a frente da tiara sobe em ondas
-            topo = [bm.verts.new(v.co + Vector((0, -0.2 * larg, 0)) + (v.co - Vector(c)).normalized() * larg * (0.6 + 0.4 * math.sin(k * 1.9)))
+            # ondas regulares (uma a cada 3 segmentos), mais altas no alto da cabeça e sumindo nas pontas
+            topo = [bm.verts.new(v.co + Vector((0, -0.25 * larg, 0)) + (v.co - Vector(c)).normalized() * larg
+                                 * (0.45 + 0.55 * abs(math.sin(k * math.pi / 3))) * math.sin(math.pi * k / 24) ** 0.6)
                     for k, v in enumerate(tiras[0])]
             for k in range(24):
                 fs.append(bm.faces.new((tiras[0][k], topo[k], topo[k + 1], tiras[0][k + 1])))
+        # espessura (antes uma fita de papel): o arco engrossa para fora (depois do babado, que usa os vértices dele)
+        sol = bmesh.ops.solidify(bm, geom=fs_arco, thickness=-0.012 * Hc)
+        fs = list({f for f in sol["geom"] if isinstance(f, bmesh.types.BMFace)} | set(fs))
         partes_cor.append((fs, ar.get("cor", "branco")))
         if ar.get("orelhas_longas"):  # orelhas de coelho em pé no arco
             ol = ar["orelhas_longas"]
@@ -830,6 +849,18 @@ def chapeu(S, spec):
     fi = np.array([2 * math.pi * j / nphi for j in range(nphi)])
     zc = z_corte - inclina * (1 + np.cos(fi)) / 2 * -1 + inclina * 0  # frente (fi=0) em z_corte, nuca mais baixa
     zc = z_corte - inclina * (1 - np.cos(fi)) / 2
+    sem_copa = alt == 0  # faixa, viseira e coroa: só um anel em volta da cabeça (antes a copa achatava até um ponto)
+    folga_tras = cp.get("folga_tras", cp.get("folga", 0.012)) * Hc / 0.27  # atrás e nos lados o anel passa sobre o cabelo
+    fol_j = folga + (folga_tras - folga) * np.clip((1 - np.cos(fi)) * 0.75, 0, 1)  # testa justa, lados e nuca com folga
+
+    def raio_em(j, z):
+        d = np.array([math.sin(fi[j]), -math.cos(fi[j]), 0.0])
+        return _raio(bvh, np.array([c[0], c[1], z]), d, max(rx, ry))
+
+    def suave(r, n=4):
+        for _ in range(n):
+            r = 0.5 * r + 0.25 * (np.roll(r, 1) + np.roll(r, -1))
+        return r
     # cada meridiano para onde cruza a altura do corte (o ponto exato, interpolado): os pontos abaixo ficam nele. Antes
     # subiam até o corte com o raio que tinham, e onde o raio não achava a cabeça (pescoço) a borda virava um disco
     for j in range(nphi):
@@ -842,14 +873,18 @@ def chapeu(S, spec):
                 G[i:, j] = x_
                 break
     verts = []
-    for i in range(nth + 1):
-        linha = []
-        for j in range(nphi):
-            p = G[i, j].copy()
-            linha.append(bm.verts.new(p))
-        verts.append(linha)
+    if sem_copa:
+        r0 = suave(np.array([raio_em(j, zc[j]) for j in range(nphi)])) + fol_j
+        verts = [[bm.verts.new((c[0] + math.sin(fi[j]) * r0[j], c[1] - math.cos(fi[j]) * r0[j], zc[j])) for j in range(nphi)]]
+    else:
+        for i in range(nth + 1):
+            linha = []
+            for j in range(nphi):
+                p = G[i, j].copy()
+                linha.append(bm.verts.new(p))
+            verts.append(linha)
     copa_f = []
-    for i in range(nth):
+    for i in range(len(verts) - 1):
         for j in range(nphi):
             a, b_ = verts[i][j], verts[i][(j + 1) % nphi]
             cc, d = verts[i + 1][(j + 1) % nphi], verts[i + 1][j]
@@ -898,6 +933,7 @@ def chapeu(S, spec):
         b1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.012 * Hc / 0.27, e.get("cor", "branco"))
         b2 = anel_extra(b1, lambda j, p: p + Vector((0, 0, h)), e.get("cor", "branco"))
         anel_extra(b2, lambda j, p: p - radial(p) * 0.012 * Hc / 0.27, e.get("cor", "branco"))
+    pontas_coroa = []
     if spec.get("banda") is not None:
         bd = spec["banda"]
         h = bd.get("altura", 0.4) * Hc
@@ -912,6 +948,11 @@ def chapeu(S, spec):
             return h * 0.7 * (1 - abs(2 * f - 1))
         topo_banda = anel_extra(borda, lambda j, p: centro_b + (p - centro_b) * abre + Vector((0, 0, h + onda(j) + (zc.max() - p.z))),
                                 bd.get("cor", "branco"))
+        if npt:  # coroa: uma bolinha em cada ponta e um aro mais grosso embaixo
+            # (as bolinhas entram no fim: as operações de esfera invalidam as referências aos vértices já feitos)
+            pontas_coroa[:] = [topo_banda[j].co.copy() for j in range(nphi) if abs((j * npt / nphi) % 1 - 0.5) < 1e-6]
+            aro1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.02 * Hc, bd.get("cor", "branco"))
+            anel_extra(aro1, lambda j, p: p + Vector((0, 0, 0.07 * Hc)), bd.get("cor", "branco"))
         borda_sup = topo_banda
         if spec.get("topo") is not None:
             tp = spec["topo"]
@@ -944,7 +985,32 @@ def chapeu(S, spec):
                 except ValueError:
                     pass
             partes_cor.append((fs, pf.get("cor", "branco")))
-    if spec.get("faixa") is not None:
+    if spec.get("faixa") is not None and sem_copa:
+        fx = spec["faixa"]
+        h = fx.get("altura", 0.12) * Hc
+        esp = fx.get("espessura", 0.022) * Hc
+        aneis = [borda]
+        n_ = 5
+        for k in range(n_ + 1):
+            t_ = k / n_
+            zz = zc + t_ * h
+            r_ = suave(np.array([raio_em(j, zz[j]) for j in range(nphi)])) + fol_j
+            # o lado de fora arredondado: mais grosso no meio da faixa
+            r_ = r_ + esp * (0.55 + 0.45 * math.sin(math.pi * t_))
+            aneis.append([bm.verts.new((c[0] + math.sin(fi[j]) * r_[j], c[1] - math.cos(fi[j]) * r_[j], zz[j])) for j in range(nphi)])
+        r_ = suave(np.array([raio_em(j, zc[j] + h) for j in range(nphi)])) + fol_j
+        aneis.append([bm.verts.new((c[0] + math.sin(fi[j]) * r_[j], c[1] - math.cos(fi[j]) * r_[j], zc[j] + h)) for j in range(nphi)])
+        aneis.append(borda)  # fecha por dentro
+        fs = []
+        for A_, B_ in zip(aneis, aneis[1:]):
+            for j in range(nphi):
+                k = (j + 1) % nphi
+                try:
+                    fs.append(bm.faces.new((A_[j], B_[j], B_[k], A_[k])))
+                except ValueError:
+                    pass
+        partes_cor.append((fs, fx.get("cor", "preto")))
+    elif spec.get("faixa") is not None:
         fx = spec["faixa"]
         h = fx.get("altura", 0.12) * Hc
         f1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.004, fx.get("cor", "preto"))
@@ -997,6 +1063,8 @@ def chapeu(S, spec):
             v.co = Vector(centro) + Vector((v.co.x * esc[0], v.co.y * esc[1], v.co.z * esc[2]))
         partes_cor.append((list({f for v in r["verts"] for f in v.link_faces}), cor))
     topo_z = max(v.co.z for v in bm.verts)
+    for pt_ in pontas_coroa:
+        esfera(pt_, 0.035 * Hc, spec["banda"].get("cor", "branco"))
     if spec.get("pompom") is not None:
         esfera((c[0], c[1], topo_z + spec["pompom"].get("raio", 0.18) * Hc * 0.7), spec["pompom"].get("raio", 0.18) * Hc,
                spec["pompom"].get("cor", "branco"))
@@ -1173,6 +1241,10 @@ def _capuz(S, spec):
     V = [[bm.verts.new(G[i, j]) for j in range(nphi)] for i in range(nth + 1)]
     fs = []
     zr = hmin[2] + 0.45 * Hc
+
+    def oval(p):  # < 1 dentro da abertura do rosto: oval em cima, mais comprida para baixo (abre sob o queixo)
+        bz = 0.47 * Hc if p.z > zr else 0.8 * Hc
+        return ((p.x - c[0]) / (rx * 0.74)) ** 2 + ((p.z - zr) / bz) ** 2
     for i in range(nth):
         for j in range(nphi):
             k = (j + 1) % nphi
@@ -1181,15 +1253,26 @@ def _capuz(S, spec):
                 continue
             m_ = sum((v.co for v in q), Vector()) / 4
             frente = m_.y < c[1]
-            rosto = ((m_.x - c[0]) / (rx * 0.74)) ** 2 + ((m_.z - zr) / (0.47 * Hc)) ** 2 < 1
-            queixo = m_.z < hmin[2] + 0.15 * Hc and abs(m_.x - c[0]) < rx * 0.72 and m_.y < c[1] - 0.3 * ry
-            if frente and (rosto or queixo):
+            if frente and oval(m_) < 1:
                 continue
             try:
                 fs.append(bm.faces.new((q[0], q[3], q[2], q[1])))
             except ValueError:
                 pass
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    # a borda do rosto vai para a oval (sem degraus): cada ponto da borda, na frente, desliza no plano x-z até ela
+    for _ in range(2):
+        for v in [v for v in bm.verts if v.is_boundary and v.co.y < c[1]]:
+            e = oval(v.co)
+            if 0.2 < e < 4:
+                s = 1 / math.sqrt(e)
+                v.co.x = c[0] + (v.co.x - c[0]) * s
+                v.co.z = zr + (v.co.z - zr) * s
+        bm.verts.ensure_lookup_table()
+        for v in [v for v in bm.verts if v.is_boundary and v.co.y < c[1]]:  # suaviza ao longo da borda
+            viz = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(viz) == 2:
+                v.co = v.co * 0.5 + (viz[0].co + viz[1].co) * 0.25
     # espessura: a borda dobra para dentro e a do rosto fica mais grossa
     bm.normal_update()
     bordas = [e for e in bm.edges if e.is_boundary]

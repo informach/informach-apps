@@ -838,7 +838,7 @@ function dadosItem(id) {
       const dv = new DataView(buf);
       const hl = dv.getUint32(4, true);
       const cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
-      const ini = 8 + hl, tipos = { uint16: Uint16Array, int16: Int16Array, uint32: Uint32Array, float32: Float32Array };
+      const ini = 8 + hl, tipos = { uint8: Uint8Array, uint16: Uint16Array, int16: Int16Array, uint32: Uint32Array, float32: Float32Array };
       const b = {};
       for (const [nome, [o, n, t]] of Object.entries(cab.blocos)) b[nome] = new tipos[t](buf.slice(ini + o, ini + o + n));
       return { cab, b };
@@ -1010,9 +1010,16 @@ async function montarItem(c, id, ladoForcado) {
       });
       geo.morphTargetsRelative = true;
     }
-    // pesos: os dos três vértices da pele, pelas baricêntricas; os 4 maiores
+    // pesos: os dos três vértices da pele, pelas baricêntricas; os 4 maiores. Peças com pesos próprios (saia como
+    // pano: quadril e as duas coxas misturadas; barra da blusa sem as coxas) trazem os delas
     const gi = corpo.geometry.attributes.skinIndex, gw = corpo.geometry.attributes.skinWeight, b2g = pele.b2g;
+    const po = b[fam + "_osso"], pp = b[fam + "_peso"];
+    const ossosSk = corpo.skeleton.bones.map((x) => x.name), mapaO = (cab.ossos || []).map((nm) => ossosSk.indexOf(nm));
     for (let j = 0; j < nv; j++) {
+      if (po && mapaO.every((x) => x >= 0)) {
+        for (let k = 0; k < 4; k++) { si[j * 4 + k] = mapaO[po[j * 4 + k]]; sw[j * 4 + k] = pp[j * 4 + k] / 255; }
+        continue;
+      }
       const t = tri[j] * 3, w = [bar[j * 2] / 65535, bar[j * 2 + 1] / 65535]; w.push(1 - w[0] - w[1]);
       const acc = new Map();
       for (let q = 0; q < 3; q++) {
@@ -1056,6 +1063,7 @@ async function montarItem(c, id, ladoForcado) {
   mesh.name = `${c.id}_${id}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.visible = false;
   if (CAT_ROUPA.itens.some((x) => x.id === id) && !ladoForcado) mesh.userData.roupa = id;
   if (cab.tipo === "mao") { mesh.userData.mao = cab.mao; mesh.userData.locMao = locMao; }
+  if (cab.solta) mesh.userData.solta = true; // tem saia: a pele das pernas embaixo dela some de mais longe
   corpo.parent.add(mesh);
   mesh.position.copy(corpo.position); mesh.quaternion.copy(corpo.quaternion); mesh.scale.copy(corpo.scale);
   mesh.bind(corpo.skeleton, corpo.bindMatrix);
@@ -1506,9 +1514,12 @@ function posaNoChao(c) {
 function coberturaDe(c, rid) {
   c.cobertura ||= {};
   if (c.cobertura[rid]) return c.cobertura[rid];
-  // posições pelo esqueleto (a compressão quantiza a malha e põe a escala de volta nas matrizes dos ossos), na pose atual:
-  // corpo e roupa ficam no mesmo espaço; as normais do corpo saem dessas posições
+  // posições pelo esqueleto (a compressão quantiza a malha e põe a escala de volta nas matrizes dos ossos), na pose de
+  // descanso (a de quando as peças foram feitas): o resultado não depende do quadro da animação em que a peça foi
+  // escolhida (no meio do passo, a perna já atravessava a saia e a pele dela não sumia). A animação volta no quadro seguinte.
   const corpo = c.corpoMesh, gp = corpo.geometry.attributes.position;
+  const guardada = corpo.skeleton.bones.map((o) => [o.position.clone(), o.quaternion.clone(), o.scale.clone()]);
+  corpo.skeleton.pose();
   c.raiz.updateMatrixWorld(true);
   const pele = (m, pa, i) => m.applyBoneTransform(i, new THREE.Vector3().fromBufferAttribute(pa, i)).applyMatrix4(m.matrixWorld);
   const Pc = Array.from({ length: gp.count }, (_, i) => pele(corpo, gp, i));
@@ -1538,15 +1549,19 @@ function coberturaDe(c, rid) {
           }
     }
   }
-  const alcance = 0.05 * Math.max(c.altura / 1.7, 0.4);
+  const esc = Math.max(c.altura / 1.7, 0.4), alcance0 = 0.05 * esc;
+  // peça com saia (solta): a saia fica longe das pernas (evasê) e, no passo, a coxa da frente chega nela; nas pernas o
+  // alcance vai a 16 cm (só nos vértices das pernas: a mão e o braço ao lado da saia continuam aparecendo)
+  const solta = c.roupas[rid][0]?.userData.solta, perna = solta ? ossosDePerna(corpo) : null;
   const cob = new Uint8Array(gp.count), p = new THREE.Vector3(), nv = new THREE.Vector3(), ray = new THREE.Ray(), alvo = new THREE.Vector3();
   for (let i = 0; i < gp.count; i++) {
     p.copy(Pc[i]);
     nv.copy(Nc[i]);
     ray.set(p, nv);
-    const fim = p.clone().addScaledVector(nv, alcance);
-    const vistos = new Set();
-    for (const k of new Set([ch(p.x, p.y, p.z), ch(fim.x, fim.y, fim.z)])) {
+    const alcance = perna && perna[i] ? 0.16 * esc : alcance0;
+    const vistos = new Set(), celulas = new Set();
+    for (let s = 0; s <= alcance + 1e-6; s += tam / 2) { const q = p.clone().addScaledVector(nv, s); celulas.add(ch(q.x, q.y, q.z)); }
+    for (const k of celulas) {
       for (const id of grade.get(k) || []) {
         if (vistos.has(id)) continue;
         vistos.add(id);
@@ -1556,7 +1571,22 @@ function coberturaDe(c, rid) {
       if (cob[i]) break;
     }
   }
+  corpo.skeleton.bones.forEach((o, k) => { o.position.copy(guardada[k][0]); o.quaternion.copy(guardada[k][1]); o.scale.copy(guardada[k][2]); });
+  c.raiz.updateMatrixWorld(true);
   return (c.cobertura[rid] = cob);
+}
+// vértices do corpo que são das pernas (o osso de maior peso é coxa, perna ou pé)
+function ossosDePerna(corpo) {
+  if (corpo.userData.perna) return corpo.userData.perna;
+  const nomes = corpo.skeleton.bones.map((x) => x.name), si = corpo.geometry.attributes.skinIndex, sw = corpo.geometry.attributes.skinWeight;
+  const ehPerna = nomes.map((n) => /(UpLeg|Leg|Foot|ToeBase)$/.test(n));
+  const out = new Uint8Array(si.count);
+  for (let i = 0; i < si.count; i++) {
+    let mk = 0, mw = -1;
+    for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > mw) { mw = w; mk = si.getComponent(i, k); } }
+    out[i] = ehPerna[mk] ? 1 : 0;
+  }
+  return (corpo.userData.perna = out);
 }
 // triângulos de uma peça (posições pelo esqueleto, na pose atual) numa grade de 5 cm, para os raios
 function gradeDaPeca(c, rid) {

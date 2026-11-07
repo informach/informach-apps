@@ -105,7 +105,7 @@ cam("avental", "avental", "Avental", "#2B2B2B", regiao="tronco", folga=0.03,
 cam("gravata", "pescoco_peca", "Gravata", "#D9433B", regiao="tronco", folga=0.022, faixa_x=[0.0, 0.03],
     frente=0.3, faixas_z=[["cintura", 0.04, "pescoco", -0.02]])
 cam("mascara", "rosto_peca", "Máscara cirúrgica", "#7EC8E3", regiao="cabeca", folga=0.006, frente=0.15, subdivide=1,
-    faixas_z=[["pescoco", 0.03, "pescoco", 0.1]])
+    faixas_z=[["queixo", -0.012, "nariz", 0.012]])
 # ---------------- chapéus
 hat("capacete_obra", "Capacete de obra", "#F2C231", copa={"folga": 0.022, "corte": 0.62, "alt": 1.05},
     aba={"largura": 0.12, "frente": 1.6, "tras": 0.8, "caida": 0.15})
@@ -119,23 +119,24 @@ hat("touca_pompom", "Touca com pompom", "#F2C231", copa={"folga": 0.012, "corte"
     enrolado={"altura": 0.16, "cor": "branco"}, pompom={"raio": 0.17, "cor": "branco"})
 hat("chapeu_cozinheiro", "Chapéu de cozinheiro", "#F2F2F2", copa={"folga": 0.01, "corte": 0.62, "inclina": 0.0},
     banda={"altura": 0.25, "abre": 1.04}, puff={"altura": 0.55})
-hat("quepe", "Quepe de polícia", "#24346B", copa={"folga": 0.01, "corte": 0.62, "inclina": 0.0},
+hat("quepe", "Quepe de polícia", "#24346B", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.0},
     banda={"altura": 0.3, "abre": 1.05, "cor": "preto"}, topo={"raio": 1.3},
-    viseira={"comprimento": 0.38, "abertura": 70, "caida": 0.25, "cor": "preto"})
-hat("quepe_capitao", "Quepe de capitão", "#F2F2F2", copa={"folga": 0.01, "corte": 0.62, "inclina": 0.0},
+    viseira={"comprimento": 0.3, "abertura": 62, "caida": 0.1, "cor": "preto"})
+hat("quepe_capitao", "Quepe de capitão", "#F2F2F2", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.0},
     banda={"altura": 0.22, "abre": 1.03, "cor": "azul_escuro"}, topo={"raio": 1.3},
-    viseira={"comprimento": 0.38, "abertura": 70, "caida": 0.25, "cor": "preto"})
+    viseira={"comprimento": 0.3, "abertura": 62, "caida": 0.1, "cor": "preto"})
 hat("capacete_bombeiro", "Capacete de bombeiro", "#F2C231", copa={"folga": 0.025, "corte": 0.6, "alt": 1.1},
     aba={"largura": 0.3, "frente": 0.6, "tras": 1.8, "caida": 0.35})
-hat("balde", "Chapéu balde", "#3BAA5C", copa={"folga": 0.015, "corte": 0.6, "alt": 1.0},
-    aba={"largura": 0.3, "caida": 0.6})
+hat("balde", "Chapéu balde", "#3BAA5C", copa={"folga": 0.015, "corte": 0.64, "alt": 1.0},
+    aba={"largura": 0.26, "caida": 0.45})
 hat("sapo", "Chapéu de sapo", "#7CC242", copa={"folga": 0.015, "corte": 0.6, "alt": 1.0},
     aba={"largura": 0.25, "caida": 0.5}, olhos={})
 hat("gatinho", "Touca de gatinho", "#EE70A9", copa={"folga": 0.012, "corte": 0.58, "alt": 1.05},
     enrolado={"altura": 0.15, "cor": "branco"}, orelhas={})
-hat("aviador_inverno", "Touca com protetor de orelha", "#7B4B2D", copa={"folga": 0.015, "corte": 0.5, "alt": 1.05},
-    enrolado={"altura": 0.2, "cor": "creme"}, protetores={"cor": "creme"})
-hat("faixa_cabeca", "Faixa de cabeça", "#D9433B", copa={"folga": 0.006, "corte": 0.66, "alt": 0.0}, faixa={"altura": 0.14, "cor": "branco"})
+hat("aviador_inverno", "Touca com protetor de orelha", "#7B4B2D", copa={"folga": 0.015, "corte": 0.62, "alt": 1.05},
+    enrolado={"altura": 0.13, "cor": "creme"}, protetores={"cor": "creme"})
+hat("faixa_cabeca", "Faixa de cabeça", "#D9433B", copa={"folga": 0.008, "folga_tras": 0.024, "corte": 0.64, "alt": 0.0},
+    faixa={"altura": 0.15, "cor": "branco"})
 hat("abafador", "Protetor auricular", "#D9433B", slot="orelhas", copa={"folga": 0.005, "corte": 0.97, "alt": 1.0},
     protetores={"cor": "vermelho"})
 
@@ -244,20 +245,20 @@ cam("faixa_cintura", "cintura", "Faixa na cintura", "#D9433B", regiao="corpo", f
 # --- chapéus e cabeça
 hat("bone_tras", "Boné virado para trás", "#2B2B2B", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
     viseira={"comprimento": 0.45, "abertura": 70, "caida": 0.05, "atras": True})
-hat("viseira", "Viseira", "#F2F2F2", copa={"folga": 0.006, "corte": 0.66, "alt": 0.0}, faixa={"altura": 0.14, "cor": "branco"},
-    viseira={"comprimento": 0.55, "abertura": 70, "caida": 0.1})
+hat("viseira", "Viseira", "#F2F2F2", copa={"folga": 0.008, "folga_tras": 0.024, "corte": 0.7, "alt": 0.0}, faixa={"altura": 0.12, "cor": "branco"},
+    viseira={"comprimento": 0.36, "abertura": 58, "caida": 0.02})
 hat("cauboi", "Chapéu de caubói", "#7B4B2D", copa={"folga": 0.015, "corte": 0.62, "alt": 1.25, "cor": "marrom"},
     faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.55, "caida": 0.0, "sobe_lados": 0.7, "cor": "marrom"})
 hat("capuz", "Capuz", "#8A8F99", capuz={"folga": 0.04})
 hat("touca_cirurgica", "Touca cirúrgica", "#7EC8E3", copa={"folga": 0.008, "corte": 0.6, "alt": 1.05, "inclina": 0.15, "cor": "azul"})
-hat("tiara", "Tiara de babado", "#F2F2F2", so_arco=True, arco={"largura": 0.07, "babado": True})
-hat("arco", "Arco de cabelo", "#D9433B", so_arco=True, arco={"largura": 0.06, "frente": 0.25})
+hat("tiara", "Tiara de babado", "#F2F2F2", so_arco=True, arco={"largura": 0.07, "babado": True, "folga": 0.028})
+hat("arco", "Arco de cabelo", "#D9433B", so_arco=True, arco={"largura": 0.06, "frente": 0.25, "folga": 0.028})
 hat("cartola", "Cartola", "#2B2B2B", copa={"folga": 0.012, "corte": 0.64, "inclina": 0.0, "cor": "preto"},
     banda={"altura": 0.6, "abre": 1.05, "cor": "preto"}, topo={"raio": 1.0, "cor": "preto"},
     aba={"largura": 0.3, "caida": 0.0, "sobe_lados": 0.3, "cor": "preto"})
 hat("chapeu_palha", "Chapéu de palha", "#D6A83A", copa={"folga": 0.015, "corte": 0.62, "alt": 1.1, "cor": "bege"},
     faixa={"altura": 0.1, "cor": "vermelho"}, aba={"largura": 0.6, "caida": 0.25, "cor": "bege"})
-hat("coroa", "Coroa", "#D6A83A", copa={"folga": 0.01, "corte": 0.8, "alt": 0.0}, banda={"altura": 0.22, "abre": 1.08, "cor": "dourado", "pontas": 8})
+hat("coroa", "Coroa", "#D6A83A", copa={"folga": 0.02, "folga_tras": 0.03, "corte": 0.8, "alt": 0.0}, banda={"altura": 0.15, "abre": 1.06, "cor": "dourado", "pontas": 8})
 hat("chapeu_bruxa", "Chapéu pontudo", "#2B2B2B", copa={"folga": 0.015, "corte": 0.62, "alt": 3.2, "ponta": 0.25, "cor": "preto"},
     aba={"largura": 0.55, "caida": 0.05, "cor": "preto"})
 
@@ -350,8 +351,8 @@ cam("acolchoada_capuz", "cima", "Jaqueta acolchoada com capuz", "#3FA7D6", regia
 # por cima: paletós com lapela, camisa aberta, capa de chuva
 PALETO = dict(regiao="tronco", folga=0.03, abre_frente=0.035, lapela={"largura": 0.06},
               partes=[{"cortes": [{"marco": "pescoco", "acima": True, "desloca": -0.01}, QUAD(-0.02), PUNHO]},
-                      {"saia": {"desde": "quadril", "desloca_topo": 0.05, "ate": "quadril", "desloca": -0.1, "abertura": 1.06,
-                                "abre_frente": 10, "folga": 0.034}}])
+                      {"saia": {"desde": "quadril", "desloca_topo": 0.04, "ate": "quadril", "desloca": -0.1, "abertura": 1.1,
+                                "abre_frente": 10, "folga": 0.012}}])
 cam("paleto", "sobre", "Paletó", "#24346B", **PALETO)
 cam("paleto_brilho", "sobre", "Paletó brilhante", "#D6A83A", padrao="lantejoula", **PALETO)
 cam("paleto_listrado", "sobre", "Paletó listrado", "#7B4B2D", padrao="listras_verticais", **PALETO)
@@ -413,18 +414,18 @@ cam("cinto_fivela", "cintura", "Cinto com fivela", "#2B2B2B", regiao="corpo", fo
     partes=[{"faixas_z": [["cintura", -0.06, "cintura", -0.03]]},
             {"fivela": {"marco": "cintura", "desloca": -0.045, "folga": 0.02, "largura": 0.05, "altura": 0.036}, "cor": "dourado"}])
 # chapéus
-hat("fedora", "Chapéu fedora", "#2B2B2B", copa={"folga": 0.014, "corte": 0.62, "alt": 1.08, "inclina": 0.02, "vinco": 0.1},
+hat("fedora", "Chapéu fedora", "#2B2B2B", copa={"folga": 0.014, "corte": 0.62, "alt": 1.08, "inclina": 0.02, "vinco": 0.06},
     faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.34, "caida": 0.06, "sobe_tras": 0.5})
 hat("palheta", "Chapéu palheta", "#C9A46E", copa={"folga": 0.012, "corte": 0.64, "inclina": 0.0},
     banda={"altura": 0.3, "abre": 1.04}, topo={"raio": 1.0}, faixa={"altura": 0.12, "cor": "azul_escuro"},
     aba={"largura": 0.3, "caida": 0.0})
-hat("chapeu_praia", "Chapéu de praia", "#EE70A9", copa={"folga": 0.015, "corte": 0.67, "alt": 1.0},
-    faixa={"altura": 0.1, "cor": "branco"}, aba={"largura": 0.7, "caida": 0.13, "ondas": 0.06, "n_ondas": 6})
-hat("abas_largas", "Chapéu de abas largas", "#3FA7D6", copa={"folga": 0.015, "corte": 0.62, "alt": 1.08},
-    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.62, "caida": 0.08})
+hat("chapeu_praia", "Chapéu de praia", "#EE70A9", copa={"folga": 0.015, "corte": 0.7, "alt": 1.0},
+    faixa={"altura": 0.1, "cor": "branco"}, aba={"largura": 0.56, "caida": 0.06, "ondas": 0.04, "n_ondas": 6})
+hat("abas_largas", "Chapéu de abas largas", "#3FA7D6", copa={"folga": 0.015, "corte": 0.66, "alt": 1.08},
+    faixa={"altura": 0.1, "cor": "preto"}, aba={"largura": 0.5, "caida": 0.03})
 hat("touca_urso", "Touca de urso", "#E27B3B", copa={"folga": 0.012, "corte": 0.58, "alt": 1.05},
     enrolado={"altura": 0.14}, orelhas_redondas={"raio": 0.14, "dentro": "bege"})
-hat("orelhas_coelho", "Orelhas de coelho", "#2B2B2B", so_arco=True, arco={"largura": 0.05, "orelhas_longas": {"dentro": "rosa"}})
+hat("orelhas_coelho", "Orelhas de coelho", "#2B2B2B", so_arco=True, arco={"largura": 0.05, "folga": 0.028, "orelhas_longas": {"dentro": "rosa"}})
 hat("bone_duas_cores", "Boné de duas cores", "#F2F2F2", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1},
     viseira={"comprimento": 0.5, "abertura": 58, "caida": 0.1, "cor": "azul"})
 hat("bone_helice", "Boné com hélice", "#3BAA5C", copa={"folga": 0.01, "corte": 0.66, "inclina": 0.1,

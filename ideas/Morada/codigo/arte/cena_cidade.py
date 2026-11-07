@@ -61,7 +61,7 @@ PESSOAS = [
          roupa=[("nov_camisa_floral", "#F2D9C6"), ("nov_calca_social", "#F0A7B8"), ("nov_oculos_redondos", "#3D7BD6"),
                 ("roupa_sapato_seguranca", "#2B2B2B")]),
     # meio
-    dict(id="capitao", corpo="idoso", pose=("resident.idle.old", 30), lugar=(-3.85, 1.25, 20),
+    dict(id="capitao", corpo="idoso", pose=("resident.idle.neutral", 30), lugar=(-3.85, 1.25, 20),
          cabelo=("cabelo", "#E9E9E6"), pelos=["barba_2_curta"], cor_pelos="#E9E9E6",
          roupa=[("nov_camisa_social", "#F2F2F2"), ("nov_calca_listrada", "#3D7BD6"), ("nov_quepe_capitao", "#F2F2F2"),
                 ("roupa_sapato_seguranca", "#2B2B2B")]),
@@ -103,7 +103,7 @@ PESSOAS = [
          cabelo=("cabelo_seguranca_chapeu", "#3A2A20"),
          roupa=[("nov_camiseta_justa", "#F2F2F2"), ("nov_jaqueta_aberta", "#8A4A2C"), ("nov_calca_social", "#6E737B"),
                 ("nov_palheta", "#E8C9A8"), ("nov_oculos_sol_redondos", "#2B2B2B"), ("roupa_sapato_seguranca", "#3A2216")]),
-    dict(id="balde_celular", corpo="adolescente_f", pose=("resident.text", 20), lugar=(-2.2, -0.3, 15),
+    dict(id="balde_celular", corpo="adolescente_f", pose=("resident.text", 20), lugar=(-2.2, -0.3, 15), cabeca_sobe=30,
          cabelo=("cabelo_caixa_chapeu", "#2B1D16"),
          roupa=[("nov_agasalho_listrado", "#F2F2F2"), ("var_colete_acolchoado", "#3D7BD6"), ("nov_calca_jeans", "#3D7BD6"),
                 ("nov_balde", "#F2F2F2"), ("roupa_tenis_009", "#3D7BD6"), ("nov_celular", "#2B2B2B")]),
@@ -396,6 +396,35 @@ def sentar_no_banco(p, raiz, assento_z, desloc_x):
     bpy.context.view_layer.update()
 
 
+def reclina(p, graus=42):
+    """Deitado de costas, apoiado nos braços: o tronco sobe (a coluna gira em volta do eixo lateral) e as mãos vão ao
+    chão, atrás e ao lado do quadril."""
+    arm = p["arm"]
+    hips, neck = CF.osso(arm, "Hips"), CF.osso(arm, "Neck")
+    v = (neck - hips)
+    eixo = v.cross(V((0, 0, 1))).normalized()
+    R3 = arm.matrix_world.to_3x3().normalized()
+    from mathutils import Quaternion
+    for nome, frac in (("Spine", 0.6), ("Spine1", 0.4)):
+        e_a = (R3.inverted() @ eixo).normalized()
+        CF.gira_osso(arm, arm.pose.bones[nome], Quaternion(e_a, math.radians(graus * frac)))
+    hb = arm.pose.bones["Head"]  # a cabeça olha para a frente (desfaz parte do giro)
+    CF.gira_osso(arm, hb, Quaternion((R3.inverted() @ eixo).normalized(), math.radians(-graus * 0.35)))
+    hips = CF.osso(arm, "Hips")
+    dir_t = (CF.osso(arm, "Neck") - hips)
+    dir_t.z = 0
+    dir_t.normalize()
+    lat = dir_t.cross(V((0, 0, 1))).normalized()
+    for lado in ("esq", "dir"):
+        L = "Left" if lado == "esq" else "Right"
+        s = 1 if (CF.osso(arm, L + "Arm") - hips).dot(lat) > 0 else -1
+        alvo = hips + lat * s * 0.24 + dir_t * 0.02
+        alvo.z = 0.06
+        CF.ik_braco(arm, lado, alvo, CF.osso(arm, L + "Arm") + lat * s * 0.3 - dir_t * 0.3)
+        CF.orienta_mao(arm, lado, lat * s * 0.3 - dir_t * 0.9, V((0, 0, -1)))
+    bpy.context.view_layer.update()
+
+
 def main():
     a = sys.argv[sys.argv.index("--") + 1:]
     blend, saida = a[0], a[1]
@@ -422,6 +451,17 @@ def main():
             arm.parent.rotation_euler = (0, 0, math.radians(g))
             bpy.context.view_layer.update()
             CF.no_chao(arm, [m for m in p["malhas"] if m.name.endswith("_corpo")])
+    from mathutils import Quaternion
+    for p in PESSOAS:  # quem olha o celular levanta um pouco a cabeça (de cima, o chapéu escondia o rosto)
+        if p.get("cabeca_sobe"):
+            arm = p["arm"]
+            R3 = arm.matrix_world.to_3x3().normalized()
+            lado = (R3.inverted() @ (arm.parent.matrix_world.to_3x3() @ V((1, 0, 0)))).normalized()
+            for nome, fr in (("Neck", 0.35), ("Head", 0.65)):
+                CF.gira_osso(arm, arm.pose.bones[nome], Quaternion(lado, -math.radians(p["cabeca_sobe"] * fr)))
+    pd = next(p for p in PESSOAS if p["id"] == "deitado")
+    reclina(pd, 58)
+    CF.no_chao(pd["arm"], [m for m in pd["malhas"] if m.name.endswith("_corpo")])
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_chapeu"), raiz_banco, assento, -0.45)
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_ruivo"), raiz_banco, assento, 0.42)
     for p in PESSOAS:  # objetos de mão segurados como na página
@@ -472,11 +512,11 @@ def estudio(saida, rapido):
     w = bpy.data.worlds.new("fundo")
     scn.world = w
     w.use_nodes = True
-    w.node_tree.nodes["Background"].inputs[0].default_value = (*CF._rgb("#1E2030"), 1)
+    w.node_tree.nodes["Background"].inputs[0].default_value = (*CF._rgb("#1B1D2B"), 1)
     w.node_tree.nodes["Background"].inputs[1].default_value = 1.0
     bpy.ops.mesh.primitive_plane_add(size=80)
     chao = bpy.context.active_object
-    chao.data.materials.append(_material("chao", "#262938", 0.9))
+    chao.data.materials.append(_material("chao", "#1D1F2D", 0.95))
     bpy.ops.object.light_add(type="AREA", location=(-4.0, -6.0, 8.0))
     k = bpy.context.active_object
     k.data.energy = 4500
@@ -496,9 +536,9 @@ def estudio(saida, rapido):
     cam = bpy.data.objects.new("camera", cd)
     scn.collection.objects.link(cam)
     scn.camera = cam
-    cd.lens = 42
-    alvo = V((0.3, 1.2, 0.55))
-    cam.location = alvo + V((0, -11.0, 7.4))
+    cd.lens = 47
+    alvo = V((0.35, 1.3, 0.62))
+    cam.location = alvo + V((0, -11.3, 6.2))  # perto o bastante para a multidão encher o quadro, como na imagem-norte
     cam.rotation_euler = (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()
     scn.render.filepath = saida
     bpy.ops.render.render(write_still=True)

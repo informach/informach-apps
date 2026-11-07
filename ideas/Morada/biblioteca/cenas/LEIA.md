@@ -30,13 +30,19 @@ Expressão "confiante" nos adultos (olhos abertos e sorriso) e "feliz" em duas c
   usa as máscaras de `roupas_mascaras/` (a mesma conta da página); cabelo, barba e bigode ganham uma cor lisa.
 - **Pesos da pele**: cada peça passa a usar os pesos da pele logo embaixo dela (transferência de pesos, face mais perto,
   em descanso). Com os pesos que vêm da malha do pacote, o cós descola e abre em funil quando a coluna dobra.
-- **Blusas**: além dos pesos da pele, a parte de cima perde os pesos das pernas (vão para o quadril): a barra segue o
-  quadril e não abre em leque quando as pernas se mexem.
+- **Blusas**: além dos pesos da pele, a parte de cima perde os pesos das pernas (vão para o quadril) e os últimos 14 cm
+  misturam os pesos com a volta inteira: a barra segue o quadril, anda inteira e não abre em leque nem cai em aba atrás.
+- **Saias e vestidos**: a parte de saia guarda os pesos de pano do encaixe (quadril e as duas coxas misturadas pela
+  posição em volta do corpo); a transferência da pele não mexe neles. Em quem está sentado, ajoelhado ou deitado
+  (a vovó), a saia segue a pele como o resto da peça: com a coxa levantada, o pano de meio a meio ficava para trás.
+- **Folga**: depois dos pesos, as peças de cima, de baixo e inteiras ganham 2,5 mm a mais pela normal (4 mm as de por
+  cima), para a pele não atravessar onde o corpo dobra.
 - **Cabelo e chapéu**: do centro da cabeça, cada ponto do cabelo que passaria da copa volta para dentro dela (o raio até
-  ele cruza o chapéu antes); abaixo da aba nada muda. Assim o cabelo não vaza pelo alto nem por trás do boné.
+  ele cruza o chapéu antes). Logo abaixo da borda, os pontos entram aos poucos (até 14° abaixo) e a volta em volta dos
+  que entraram é alisada: o cabelo não vaza pelo alto nem por trás do boné, e a linha embaixo da borda sai lisa.
 - **Pele coberta**: como na página, a pele embaixo da roupa não é desenhada (modificador de máscara). Em descanso, cada
-  vértice procura uma peça pela normal (até 3,5 cm); a pele fica onde a peça está a menos de 7 cm da borda aberta dela
-  (barra, cós, gola), senão o avesso aparece por cima.
+  vértice procura uma peça pela normal (até 3,5 cm); a pele fica onde a peça está a menos de 2,5 cm da borda aberta
+  dela (barra, cós, gola), senão o avesso aparece por cima.
 - **Poses**: um quadro de uma animação da biblioteca (`biblioteca/corrigido_todos/<fonte>.blend`) congelado no esqueleto
   (parado, sentado, ajoelhado). O giro da palma é dividido: o antebraço gira em volta do próprio eixo 70% do que falta e
   a mão faz o resto (o punho sozinho torceria). Os gestos são IK de dois ossos no braço (mão no ombro, no peito, na cabeça do cachorro,
@@ -86,7 +92,11 @@ pele, pele coberta, cabelo dentro do chapéu, poses e IK).
 - **Feitos para a cena**: banco de praça (ripas de madeira e pés de ferro, assento a 45 cm; quem senta é posto pelo
   quadril, com o fundo das nádegas no assento) e carrinho de bebê (cesto rosa com borda verde-água, capota, armação e
   rodas), com a alça nas duas mãos de quem empurra (IK, andando).
-- **Câmera e luz**: de cima, 42 mm, três luzes de área, chão azul-escuro.
+- **Câmera e luz**: 47 mm, a uns 29° de cima e perto o bastante para a multidão encher o quadro (como na imagem-norte),
+  três luzes de área, fundo e chão azul-noite (#1B1D2B / #1D1F2D).
+- **Acabamento (segunda versão)**: as peças passaram pela revisão da biblioteca (barra reta, saias de pano, faixa,
+  quepe e chapéu balde refeitos); quem olha o celular levanta um pouco a cabeça (`cabeca_sobe`, para o chapéu não
+  esconder o rosto de cima); o deitado se apoia mais nos braços (58°); o capitão fica parado.
 
 ```bash
 blender-venv/bin/python -I codigo/arte/cena_cidade.py -- blend/corpos.blend cidade.png cidade.blend

@@ -225,6 +225,39 @@ Slots novos:
 Uma peça `inteira` esconde a parte de cima e a de baixo. Com `"cobre": ["baixo"]`, esconde só a de baixo, e a blusa
 continua à mostra (jardineira).
 
+## Acabamento (revisão peça por peça)
+
+`tools/revisao_itens.py -- <corpos.blend> <saída> [ids | slots | todos]` veste cada peça num adulto (ou adulta) parado,
+com o acabamento das cenas, e renderiza de frente e de costas; `tools/folha_revisao.py <saída>` monta as folhas por slot.
+O que a revisão de todas as 317 peças corrigiu:
+- **Barra das blusas:** a lateral do quadril (que tem peso da coxa) ficava fora da região do tronco e a barra subia nos
+  lados, serrilhada (no corpo de mulher, com o quadril mais largo, aparecia como um degrau atrás). Agora a camada de
+  cima com barra no quadril inclui essa lateral até a barra, que sai reta.
+- **Pesos herdados:** a camada nasce da malha-base e trazia os pesos dela (com índices de grupos que a peça não tem);
+  o encaixe agora limpa esses pesos antes de pôr os da pele.
+- **Faixa branca na barra:** a máscara de cor livre só valia onde a malha antiga tinha UV. Nos padrões gerados
+  (`Roupa_Gen_*`) a máscara agora vale na imagem toda, pela cor.
+- **Saias e vestidos:** pesos de pano (veja "Pesos próprios"). Os vestidos `gen_vestido_*` viraram uma peça só (corpo
+  e saia na mesma malha e textura); antes eram a camiseta de um pacote por cima da saia, com a barra azul aparecendo.
+- **Faixa, viseira e coroa** (`copa.alt = 0`): a copa achatava até um ponto e a peça virava uma linha ou sumia. Agora
+  é um anel justo na cabeça na altura do corte (`folga` na testa, `folga_tras` atrás e nos lados, para passar por cima
+  do cabelo); a faixa tem espessura e acompanha a cabeça ao subir; a coroa tem aro e uma bolinha em cada ponta.
+- **Capuz:** a abertura do rosto era recortada em degraus; agora é uma oval lisa (a borda desliza até ela).
+- **Tiara, arco e orelhas:** o arco tem espessura, passa por cima do cabelo no alto e fica rente nos lados; o babado
+  da tiara tem ondas regulares.
+- **Máscara cirúrgica:** ficava pendurada no queixo; agora vai do queixo à base do nariz (marcos `queixo` e `nariz`).
+- **Touca de aviador, viseira, chapéu de praia e de abas largas:** cobriam os olhos; subiram e as abas encolheram.
+- **Paletó:** a barra do corpo não abre quando a peça tem saia, e a saia começa por dentro do paletó e sai por baixo
+  da barra (antes ficava um anel saliente no quadril).
+- **Quepes:** a pala é mais curta e menos caída (de cima, escondia o rosto).
+- **Cabelo sob o chapéu (cenas no Blender):** logo abaixo da borda, os pontos do cabelo entram aos poucos (o raio um
+  pouco mais para cima acerta o chapéu: todo a 0°, nada a 14°) e a volta de vértices em volta dos que entraram fica
+  na média dos vizinhos. A linha do cabelo sai lisa embaixo da borda, sem serrilhado.
+- **Pele embaixo da saia (página):** peças com saia trazem `solta` no cabeçalho; nos vértices das pernas, a pele
+  some se a saia estiver a até 16 cm (nas outras peças, 5 cm). Assim a coxa da frente não aparece pelo vestido no
+  passo. A conta da pele coberta passou a ser feita na pose de descanso (antes, na pose do quadro em que a peça foi
+  escolhida: escolhida no meio do passo, a perna já atravessava e a pele não sumia).
+
 ## Cor livre
 
 Toda peça tem uma máscara (`roupas_mascaras/<id>__<material>.png`, cinza, 512 px) da parte da paleta com a cor
@@ -287,8 +320,11 @@ Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa 
     não atravessa o chapéu.
     - `veste.py` e `adiciona_cabelo.py` fazem isso nos corpos em que mexem, e `tools/cabelo_chapeu.py` em todos.
     - Os scripts de render ligam `com_chapeu` sozinhos quando um chapéu aparece.
-- **Peças largas:** saia, fantasia e casaco comprido seguem a perna mais perto. Em passos largos, podem atravessar um
-  pouco a outra perna.
+- **Peças largas:** a parte de saia (saias, vestidos, casaco comprido, jaleco, paletó) segue o quadril e as duas coxas
+  misturadas (veja "Pesos próprios"); em passos muito largos a coxa da frente ainda pode encostar no pano (a página
+  esconde a pele dela). Sentado, ajoelhado ou deitado, a coxa sobe e sai pela frente da saia: nas cenas do Blender a
+  saia passa a seguir a pele nessas poses; na página ainda não (a pele some, mas o pano fica para trás). Fantasias do
+  pacote seguem a perna mais perto.
 
 ## Peças em arquivos separados (a página já usa; recomendado para o jogo)
 
@@ -314,7 +350,8 @@ montado no corpo na hora. Uma peça nova entra sem regerar os corpos.
   - p e n são interpolados no triângulo do corpo. As normais dos vértices são somadas pelas áreas.
   - e1 é a aresta 0→1 tirada a parte na direção de n; e2 = n × e1.
   - s = √(área no corpo ÷ área na malha-base).
-  - Pesos: os dos três vértices da pele, pelas baricêntricas (os quatro maiores).
+  - Pesos: os dos três vértices da pele, pelas baricêntricas (os quatro maiores), a não ser que a peça traga pesos
+    próprios (abaixo).
   - Grávida: a mesma conta com as formas `gravidez_1..3` aplicadas no corpo dá as formas da peça.
   - Folga contra a pele em volta: para cada ponto (com o₂ > 0), cada vértice q do triângulo e dos vizinhos dele, com
     h = (q − ponto)·n e distância lateral até 2,5·√(área), empurra o ponto pela normal até h ficar ≤ −c. Aqui
@@ -325,6 +362,15 @@ montado no corpo na hora. Uma peça nova entra sem regerar os corpos.
   só ao osso Head.
 - Objetos de mão (`tipo: "mao"`): um bloco `loc` (f32) com os pontos no referencial da mão, igual em todas as famílias.
   O cabeçalho diz `mao` (dir ou esq).
+- **Pesos próprios** (peças com parte de saia e partes de cima/por cima): por família, `<fam>_osso` (u8, 4 por ponto,
+  índice na lista `ossos` do cabeçalho) e `<fam>_peso` (u8, 4 por ponto, ÷ 255). Quando existem, a página usa estes em
+  vez dos da pele. Saem do encaixe no Blender:
+  - parte de saia: logo abaixo do quadril o ponto passa a seguir o quadril e as duas coxas, pela posição em volta do
+    corpo (o lado esquerdo mais a coxa esquerda; frente e costas, metade de cada). A parte das coxas vai de 35% a 60%
+    até o joelho. Antes, cada ponto seguia a perna mais perto e a saia se partia e embolava entre as pernas;
+  - partes de cima e por cima: a barra não segue as coxas (`sem_pernas`), e os últimos 14 cm da peça misturam os pesos
+    com os vizinhos e, perto da borda, com a volta inteira (`alisa_pesos_barra`). Assim a barra anda inteira, sem cair
+    em aba atrás.
 
 ## Miniaturas
 

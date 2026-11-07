@@ -259,6 +259,15 @@ def _marcos(S_obj):
     m["peito"] = m["axila"] + 0.35 * (m["pescoco"] - m["axila"])
     m["altura"] = float(P[:, 2].max())
     m["cintura"] = m["quadril"] + 0.45 * (m["axila"] - m["quadril"])
+    cab = grupo("Head")
+    if cab.any():  # rosto: queixo (o ponto mais baixo da cabeça, na frente) e a base do nariz
+        Q = P[cab]
+        fr = Q[Q[:, 1] < np.median(Q[:, 1])]
+        m["queixo"] = float(fr[:, 2].min())
+        m["nariz"] = m["queixo"] + 0.4 * (m["altura"] - m["queixo"])
+    else:
+        m["queixo"] = m["pescoco"] + 0.05
+        m["nariz"] = m["queixo"] + 0.1
     m["coxa_meio"] = (m["joelho"] + m["quadril"]) / 2
     m["canela_meio"] = (m["joelho"] + m["tornozelo"]) / 2
     return m
@@ -556,6 +565,8 @@ def garante_mascara(ob, item_id, tam=512):
             if poly.material_index == k:
                 dr.polygon([(uv[li].uv[0] * W, (1 - uv[li].uv[1]) * H) for li in poly.loop_indices], fill=255)
         M = np.array(cob.filter(ImageFilter.MaxFilter(5))) > 0
+        if m.name.startswith("Roupa_Gen_"):  # padrões gerados: a máscara vale na imagem toda (pela cor), não só onde a
+            M = np.ones_like(M)              # malha de hoje tem UV; assim a barra refeita não fica de fora (faixa branca)
         px = A[M]
         if not len(px):
             continue
@@ -645,6 +656,45 @@ def _pesos(corpo, b_list, t_list, T_corpo):
             W[v.index, g.group] = g.weight
     Wg = np.array([b @ W[T_corpo[t]] for b, t in zip(b_list, t_list)])
     return nomes, Wg
+
+
+def _pesos_saia(ob, arm, nomes, Wg, Pg):
+    """Saia (e a saia do vestido e do casaco) cai como pano: abaixo do quadril, em vez de cada ponto seguir a perna
+    mais perto (a saia se partia entre as pernas e embolava), o ponto segue o quadril e as duas coxas misturadas pela
+    posição em volta do corpo (o lado esquerdo mais a coxa esquerda; a frente e as costas, metade de cada), e a parte
+    das coxas cresce para baixo."""
+    if "saia" not in ob.data.attributes:
+        return Wg
+    sa = np.zeros(len(ob.data.vertices))
+    ob.data.attributes["saia"].data.foreach_get("value", sa)
+    if not sa.any() or not all(n in nomes for n in ("Hips", "LeftUpLeg", "RightUpLeg")):
+        return Wg
+    mw = arm.matrix_world
+    bones = arm.data.bones
+    pl, pr = mw @ bones["LeftUpLeg"].head_local, mw @ bones["RightUpLeg"].head_local
+    jl, jr = mw @ bones["LeftLeg"].head_local, mw @ bones["RightLeg"].head_local
+    zq = (pl.z + pr.z) / 2
+    zj = (jl.z + jr.z) / 2
+    cx = (pl.x + pr.x) / 2
+    meia = max(abs(pl.x - pr.x) / 2, 0.02)
+    sl = 1.0 if pl.x > cx else -1.0
+    ih, il, ir = nomes.index("Hips"), nomes.index("LeftUpLeg"), nomes.index("RightUpLeg")
+    W = Wg.copy()
+    for j in np.nonzero(sa > 0.5)[0]:
+        z = Pg[j][2]
+        s = min(max((zq + 0.04 - z) / 0.1, 0.0), 1.0)  # transição logo abaixo do quadril
+        if s <= 0:
+            continue
+        t_ = min(max((zq - z) / max(zq - zj, 0.05), 0.0), 1.3)
+        a_ = 0.35 + 0.25 * min(t_, 1.0)  # quanto das coxas
+        x_ = (Pg[j][0] - cx) * sl / (meia * 2.2)
+        wl = min(max(0.5 + 0.5 * x_, 0.0), 1.0)
+        alvo = np.zeros(len(nomes))
+        alvo[ih] = 1 - a_
+        alvo[il] = a_ * wl
+        alvo[ir] = a_ * (1 - wl)
+        W[j] = (1 - s) * Wg[j] + s * alvo
+    return W
 
 
 def _suaviza_pesos(me, Wg, vezes=4):
@@ -821,8 +871,17 @@ def encaixa_pele(item, arm, corpo, pasta_pacotes, fam_destino):
     sob = [M0.perto(p_)[:2] for p_ in Pg]
     nomes, Wg = _pesos(corpo, [b for _, b in sob], [i for i, _ in sob], Tc)
     Wg = _suaviza_pesos(ob.data, Wg)
+    Wg = _pesos_saia(ob, arm, nomes, Wg, Pg)
     for vg in list(ob.vertex_groups):
         ob.vertex_groups.remove(vg)
+    # a camada gerada nasce da malha-base e herda os pesos dela (com índices de grupos que esta peça não tem): limpa
+    import bmesh as _bm
+    bm_ = _bm.new()
+    bm_.from_mesh(ob.data)
+    for dl in list(bm_.verts.layers.deform.values()):
+        bm_.verts.layers.deform.remove(dl)
+    bm_.to_mesh(ob.data)
+    bm_.free()
     top = np.argsort(-Wg, axis=1)[:, :4]
     grupos = {}
     for j in range(len(Wg)):

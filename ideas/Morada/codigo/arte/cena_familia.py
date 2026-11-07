@@ -292,8 +292,10 @@ PERNAS = ("LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg", "LeftFoot", "RightFo
 
 
 def sem_pernas(ob):
-    """Parte de cima: a barra segue o quadril, não as coxas (senão abre em leque quando as pernas se mexem)."""
+    """Parte de cima: a barra segue o quadril, não as coxas (senão abre em leque quando as pernas se mexem). A parte de
+    saia (casaco longo, jaleco) mantém os pesos de pano dela."""
     import numpy as np_
+    guarda = _pesos_da_saia(ob)
     n = len(ob.data.vertices)
     W = {g.name: np_.zeros(n) for g in ob.vertex_groups}
     idx = {g.index: g.name for g in ob.vertex_groups}
@@ -310,11 +312,74 @@ def sem_pernas(ob):
         g = ob.vertex_groups["Hips"]
         for i in np_.nonzero(perna > 0)[0]:
             g.add([int(i)], float(quadril[i] + perna[i]), "REPLACE")
+    if not guarda:  # com saia, a barra é a da saia
+        alisa_pesos_barra(ob)
+    _volta_pesos_da_saia(ob, guarda)
 
 
-def pesos_da_pele(ob, corpo):
+def alisa_pesos_barra(ob, faixa=0.14, voltas=24):
+    """A barra da parte de cima anda inteira: nos últimos 14 cm da peça (em descanso), os pesos se misturam com os dos
+    vizinhos (várias voltas) e, por fim, cada altura fica com a média da sua volta inteira. Antes, atrás, a barra
+    pegava o peso do quadril sozinho e, na pose, caía em aba sobre o bumbum."""
+    import numpy as np_
+    me = ob.data
+    n = len(me.vertices)
+    if not n:
+        return
+    P = np_.array([v.co[:] for v in me.vertices])
+    mw = np_.array(ob.matrix_world)
+    Pw = P @ mw[:3, :3].T + mw[:3, 3]
+    tronco = np_.abs(Pw[:, 0]) < 0.6 * (Pw[:, 0].max() - Pw[:, 0].min()) / 2 + 0.05
+    z0 = Pw[tronco, 2].min() if tronco.any() else Pw[:, 2].min()
+    zona = tronco & (Pw[:, 2] < z0 + faixa)
+    if zona.sum() < 4:
+        return
+    nomes = [g.name for g in ob.vertex_groups]
+    W = np_.zeros((n, len(nomes)))
+    for v in me.vertices:
+        for g in v.groups:
+            W[v.index, g.group] = g.weight
+    viz = [[] for _ in range(n)]
+    for e in me.edges:
+        a_, b_ = e.vertices
+        viz[a_].append(b_)
+        viz[b_].append(a_)
+    idx = np_.nonzero(zona)[0]
+    for _ in range(voltas):
+        W2 = W.copy()
+        for i in idx:
+            if viz[i]:
+                W2[i] = 0.5 * W[i] + 0.5 * W[viz[i]].mean(0)
+        W = W2
+    # perto da borda, a mesma mistura em toda a volta (por faixas de 1 cm), indo aos poucos até a mistura local
+    fx = np_.floor((Pw[:, 2] - z0) / 0.01).astype(int)
+    for k in np_.unique(fx[zona]):
+        sel = zona & (fx == k)
+        t_ = min(max((Pw[sel, 2].mean() - z0) / faixa, 0.0), 1.0)
+        W[sel] = (1 - t_) * W[sel].mean(0) + t_ * W[sel]
+    W /= np_.maximum(W.sum(1, keepdims=True), 1e-6)
+    for j, nm in enumerate(nomes):
+        g = ob.vertex_groups[nm]
+        for i in idx:
+            if W[i, j] > 1e-4:
+                g.add([int(i)], float(W[i, j]), "REPLACE")
+            else:
+                g.remove([int(i)])
+
+
+def folga_extra(ob, quanto=0.0025):
+    """Um pouco de folga a mais em toda a peça (pela normal): nas poses, onde o corpo dobra, a pele não atravessa."""
+    me = ob.data
+    me.update()
+    for v in me.vertices:
+        v.co += v.normal * quanto
+    me.update()
+
+
+def pesos_da_pele(ob, corpo, manter_saia=True):
     """A peça passa a usar os pesos da pele logo embaixo dela (interpolados na face mais perto), em descanso: assim ela
     dobra igual ao corpo em qualquer pose (os pesos que vêm da malha do pacote descolam o cós quando a coluna dobra)."""
+    guarda = _pesos_da_saia(ob) if manter_saia else {}
     for g in corpo.vertex_groups:
         if g.name not in ob.vertex_groups:
             ob.vertex_groups.new(name=g.name)
@@ -328,6 +393,26 @@ def pesos_da_pele(ob, corpo):
     ob.modifiers.move(ob.modifiers.find(dt.name), 0)
     with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob]):
         bpy.ops.object.modifier_apply(modifier=dt.name)
+    _volta_pesos_da_saia(ob, guarda)
+
+
+def _pesos_da_saia(ob):
+    """Os pesos da parte de saia (feitos no encaixe, como pano: quadril e as duas coxas), guardados por vértice."""
+    if "saia" not in ob.data.attributes:
+        return {}
+    import numpy as np_
+    sa = np_.zeros(len(ob.data.vertices))
+    ob.data.attributes["saia"].data.foreach_get("value", sa)
+    nomes = {g.index: g.name for g in ob.vertex_groups}
+    return {i: [(nomes[g.group], g.weight) for g in ob.data.vertices[int(i)].groups] for i in np_.nonzero(sa > 0.5)[0]}
+
+
+def _volta_pesos_da_saia(ob, guarda):
+    for i, gs in guarda.items():
+        for g in ob.vertex_groups:
+            g.remove([int(i)])
+        for nm, w in gs:
+            (ob.vertex_groups.get(nm) or ob.vertex_groups.new(name=nm)).add([int(i)], w, "REPLACE")
 
 
 def cabelo_sob_chapeu(cabelos, chapeu, arm, folga=0.006):
@@ -345,6 +430,7 @@ def cabelo_sob_chapeu(cabelos, chapeu, arm, folga=0.006):
     n = 0
     for cab in cabelos:
         mw, mi = cab.matrix_world, cab.matrix_world.inverted()
+        presos = set()
         for v in cab.data.vertices:
             p = mw @ v.co
             d = p - c
@@ -354,7 +440,46 @@ def cabelo_sob_chapeu(cabelos, chapeu, arm, folga=0.006):
             hit = arv.ray_cast(c, d / L, 1.0)
             if hit[0] is not None and L > hit[3] - folga:
                 v.co = mi @ (c + d / L * max(hit[3] - folga, 0.0))
+                presos.add(v.index)
                 n += 1
+            elif hit[0] is None:
+                # logo abaixo da borda: o raio um pouco mais para cima acerta o chapéu; o ponto entra aos poucos (todo a
+                # 0°, nada a 14°), para a linha do cabelo sair lisa embaixo da borda em vez de serrilhada
+                u = d / L
+                lado = Vector((0, 0, 1)) - u * u.z
+                if lado.length < 1e-6:
+                    continue
+                lado.normalize()
+                for graus in (3, 6, 9, 12):
+                    ang = math.radians(graus)
+                    h2 = arv.ray_cast(c, (u * math.cos(ang) + lado * math.sin(ang)).normalized(), 1.0)
+                    if h2[0] is not None:
+                        w = 1 - graus / 14
+                        dentro = min(L, h2[3] - folga)
+                        if dentro < L:
+                            v.co = mi @ (c + u * (L * (1 - w) + dentro * w))
+                        break
+        # logo abaixo da borda do chapéu, uns pontos entravam e os vizinhos não: a linha do cabelo ficava serrilhada.
+        # Nas duas voltas de vértices em volta dos que entraram, a distância ao centro da cabeça vira a média dos vizinhos
+        viz = [[] for _ in cab.data.vertices]
+        for e in cab.data.edges:
+            a_, b_ = e.vertices
+            viz[a_].append(b_)
+            viz[b_].append(a_)
+        faixa = {j for i in presos for j in viz[i]} - presos
+        faixa |= {k for j in faixa for k in viz[j]} - presos
+        for _ in range(3):
+            dist = {i: ((mw @ cab.data.vertices[i].co) - c).length for i in faixa | presos | {k for j in faixa for k in viz[j]}}
+            for i in faixa:
+                if not viz[i]:
+                    continue
+                p = mw @ cab.data.vertices[i].co
+                d = p - c
+                if d.length < 1e-6:
+                    continue
+                alvo = sum(dist[k] for k in viz[i]) / len(viz[i])
+                if alvo < d.length:  # só para dentro
+                    cab.data.vertices[i].co = mi @ (c + d.normalized() * (0.5 * d.length + 0.5 * alvo))
         cab.data.update()
     print("cabelo sob o chapéu", chapeu.name, n, flush=True)
 
@@ -398,7 +523,7 @@ def esconde_pele_coberta(corpo, roupas, alcance=0.035):
         n = (n3 @ v.normal).normalized()
         for t_, kd, tem_borda in arvores:
             hit = t_.ray_cast(p - n * 0.003, n, alcance)
-            if hit[0] is not None and (not tem_borda or kd.find(hit[0])[2] > 0.07):
+            if hit[0] is not None and (not tem_borda or kd.find(hit[0])[2] > 0.025):
                 coberto[v.index] = True
                 break
     viz = [[] for _ in me.vertices]
@@ -484,9 +609,15 @@ def monta_pessoa(p):
             g.add(list(range(len(ob.data.vertices))), 1.0, "REPLACE")
             ob.modifiers.new("Esqueleto", "ARMATURE").object = arm
         elif item.get("tipo") == "pele" or item.get("compoe") or R._resolve(item).get("tipo") == "pele":
-            pesos_da_pele(ob, corpo)
-            if R._resolve(item).get("slot") in ("cima", "sobre"):
+            # sentado, ajoelhado ou deitado: a coxa sobe e a saia de pano (meio de cada coxa) ficaria para trás com a perna
+            # atravessando; nessas poses a saia segue a pele embaixo dela, como o resto da peça
+            dobra = any(k in (p.get("pose") or ("",))[0] for k in (".sit", ".kneel", ".lie", "propose", ".crouch"))
+            pesos_da_pele(ob, corpo, manter_saia=not dobra)
+            slot_ = R._resolve(item).get("slot")
+            if slot_ in ("cima", "sobre"):
                 sem_pernas(ob)
+            if slot_ in ("cima", "baixo", "inteira", "sobre"):
+                folga_extra(ob, 0.004 if slot_ == "sobre" else 0.0025)
         tinge(ob, rid, cor or (item.get("variacao") or {}).get("cor"))
         malhas.append(ob)
     chapeus = [m for m in malhas if m.name in {f"{c}_{r}" for r, _ in p["roupa"]}
