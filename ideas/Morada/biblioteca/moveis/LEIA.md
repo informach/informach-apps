@@ -1,7 +1,7 @@
 # Móveis
 
 Segunda parte da biblioteca de móveis e ambientes (a primeira é `construcao/`: chão, paredes, portas e janelas). São
-**938 peças em 20 categorias**, todas com miniatura. Foram feitas aqui tendo como norte as imagens da vitrine do pacote
+**954 peças em 20 categorias**, todas com miniatura. Foram feitas aqui tendo como norte as imagens da vitrine do pacote
 de móveis (não são cópias). Entram também as 47 peças do pacote gratuito Cute Furniture, com o selo `pacote`: **uso
 interno, não distribuir**. Algumas aparecem em mais de uma cor, e por isso são 51 itens marcados.
 
