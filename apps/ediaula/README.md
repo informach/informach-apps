@@ -233,6 +233,26 @@ texto, e roteiros longos cabem. Atalhos `.cmd` do npm e `.bunx` do bun são lido
 Codex, o `codex.exe` nativo); um atalho que não for reconhecido, ou que aponte para fora da própria pasta, não é aberto.
 **Parar** revoga o token e encerra o programa com todos os processos que ele abriu.
 
+**Memória do chat:** quando a pessoa pede para lembrar uma preferência ("lembre que ao exportar eu quero só o MP4"),
+o chat grava com `remember`. Ele apaga com `forget` e consulta com `list_memories`. Essas três ferramentas só existem
+no chat de dentro do EdiAula: clientes conectados por fora e a janela do Claude Code só com o EdiAula não as recebem.
+Elas rodam no processo principal, nunca no editor (`src/main/aiMemory.ts`).
+
+Cada memória é um arquivo `<tipo>_<nome>.md` com frontmatter (name, description, metadata.type), e o índice fica em
+`MEMORY.md`, com uma linha por memória. Tudo isso fica em `ai-memory` no perfil do EdiAula. Gravar de novo com o mesmo
+nome atualiza a memória, mesmo que mude o tipo.
+
+As proteções da pasta:
+- nomes só em kebab-case (`../`, caminhos e maiúsculas são recusados com uma mensagem clara);
+- pasta ou arquivo que seja um link é recusado;
+- até 8 KB por memória e até 100 memórias;
+- cada arquivo é gravado ao lado e depois renomeado, uma operação por vez.
+
+Antes de cada turno (Claude Code, Codex ou chave da API), o EdiAula lê essas memórias e as põe nas instruções do chat.
+A memória automática do próprio Claude Code fica desligada no chat (`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`). Ela é
+guardada pela raiz do git da pasta, e um `C:\.git` solto faz qualquer pasta do C: cair na memória global da pessoa.
+Além disso, ela manda gravar com ferramentas que o chat não tem. Assim, o que o chat lê é o que ele grava.
+
 **Caminhos de arquivo vindos da IA** (`import_media`, `add_image`, `set_audio`, `open_project`) são conferidos antes de
 qualquer arquivo ser aberto (`src/shared/aiPaths.ts`, `src/main/aiPaths.ts`): caminhos de rede (`\\servidor`),
 `\\?\`, `\\.\`, `file:`, `C:arquivo` e fluxos alternativos (`arquivo:fluxo`) são recusados, assim como atalhos que

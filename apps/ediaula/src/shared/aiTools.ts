@@ -43,6 +43,10 @@ const ANNOTATION_KINDS = [
   "lowerthird",
 ] as const;
 
+/** Kinds of memory the chat keeps (main/aiMemory.ts). */
+export const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
+export type MemoryType = (typeof MEMORY_TYPES)[number];
+
 export const AI_TOOLS = {
   export_editing_template: {
     title: "Salvar modelo de edição em Markdown",
@@ -949,6 +953,37 @@ export const AI_TOOLS = {
         .optional(),
     }),
   },
+  remember: {
+    title: "Lembrar uma preferência",
+    permission: "write",
+    description:
+      'Saves a durable preference the person asked you to remember ("lembre que ao exportar eu quero só o MP4") in the EdiAula memory, which every later turn of this chat reads. One memory per subject: when one on the same subject exists (see the memory in your instructions or list_memories), send its name to update it instead of adding another. name: kebab-case, e.g. ediaula-export-mp4-only. type: user (who the person is), feedback (how they want the work done), project (an ongoing goal or constraint) or reference (where something is). body: the preference in a few lines; for feedback and project, add a "Why:" line and a "How to apply:" line. Keep durable preferences only, never details of a single lesson. Available only in the chat inside EdiAula.',
+    input: z.object({
+      name: z.string().min(1).max(200).describe("kebab-case id, e.g. ediaula-export-mp4-only"),
+      description: z.string().min(1).max(300).describe("One line saying what the memory is"),
+      type: z.enum(MEMORY_TYPES),
+      body: z.string().min(1).max(20_000),
+      title: z
+        .string()
+        .max(80)
+        .optional()
+        .describe("Short title for the index (default: from the name)"),
+    }),
+  },
+  forget: {
+    title: "Esquecer uma preferência",
+    permission: "write",
+    description:
+      "Deletes a memory saved with remember, by its name, when the person asks to forget it. Available only in the chat inside EdiAula.",
+    input: z.object({ name: z.string().min(1).max(200) }),
+  },
+  list_memories: {
+    title: "Ver as preferências lembradas",
+    permission: "read",
+    description:
+      "Lists the memories saved with remember (name, type and description); with name, returns that memory whole. Available only in the chat inside EdiAula.",
+    input: z.object({ name: z.string().max(200).optional() }),
+  },
   list_projects: {
     title: "Listar projetos",
     permission: "read",
@@ -1025,6 +1060,15 @@ export function callPermission(name: AiToolName, input: unknown): ToolPermission
 }
 
 export const isAiToolName = (name: string): name is AiToolName => Object.hasOwn(AI_TOOLS, name);
+
+/**
+ * The chat's memory (main/aiMemory.ts): run by the main process, never by the editor, and
+ * offered only to the chat inside EdiAula, whose turns read it back.
+ */
+export const MEMORY_TOOLS = new Set(["remember", "forget", "list_memories"] as const);
+export type MemoryToolName = typeof MEMORY_TOOLS extends Set<infer N> ? N : never;
+export const isMemoryTool = (name: AiToolName): name is MemoryToolName =>
+  (MEMORY_TOOLS as ReadonlySet<string>).has(name);
 
 /** Tools never run inside a turn of the chat inside EdiAula (they would change the open lesson). */
 export const PANEL_FORBIDDEN = new Set<AiToolName>(["open_project", "create_project"]);

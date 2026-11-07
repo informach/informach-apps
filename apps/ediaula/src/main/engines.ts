@@ -6,6 +6,7 @@ import { AI_TOOLS, EDITOR_GUIDE, isAiToolName } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
 import { launchOptions, MCP_SERVER, mcpUrl } from "./aiSettings.ts";
 import { loadEngineState, saveEngineState, withRecap } from "./conversations.ts";
+import { memory } from "./memory.ts";
 
 /**
  * In-app chat through the user's own Claude Code or Codex install, signed in with their own
@@ -28,6 +29,8 @@ const engines = createAssistantEngines({
   appName: "EdiAula",
   server: MCP_SERVER,
   systemPrompt: `${EDITOR_GUIDE}\n\n${PANEL_PROMPT}`,
+  // Read before each turn; Claude Code's own auto memory is off, so this is the only memory.
+  memory: () => memory.prompt(),
   workspace,
   toolTitle: (name) => (isAiToolName(name) ? AI_TOOLS[name].title : name),
   launchOptions,

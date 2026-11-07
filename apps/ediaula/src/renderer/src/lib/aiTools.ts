@@ -4,6 +4,8 @@ import {
   AI_TOOLS,
   type AiToolName,
   isAiToolName,
+  isMemoryTool,
+  type MemoryToolName,
   PANEL_FORBIDDEN,
   writesDraft,
 } from "@shared/aiTools";
@@ -838,8 +840,9 @@ function annotationStyle(
   return out;
 }
 
+/** The memory tools run in the main process (main/aiMemory.ts), never here. */
 const handlers: {
-  [K in AiToolName]: (
+  [K in Exclude<AiToolName, MemoryToolName>]: (
     input: import("zod").infer<(typeof AI_TOOLS)[K]["input"]>,
     ctx: ToolContext,
   ) => Promise<Answer>;
@@ -2813,6 +2816,7 @@ ${r.message}`);
 export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
   const { name, source } = call;
   if (!isAiToolName(name)) return { ok: false, text: `Ferramenta desconhecida: ${name}` };
+  if (isMemoryTool(name)) return { ok: false, text: "A memória do chat não passa pelo editor." };
   const tool = AI_TOOLS[name];
   const parsed = tool.input.safeParse(call.input ?? {});
   if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };

@@ -17,10 +17,13 @@ import {
   callPaths,
   callPermission,
   isAiToolName,
+  isMemoryTool,
 } from "../shared/aiTools.ts";
 import type { AiToolCall } from "../shared/types.ts";
+import { runMemoryTool } from "./aiMemory.ts";
 import { checkAiPath } from "./aiPaths.ts";
 import type { CallMeta, ToolOutcome } from "./mcpGuard.ts";
+import { memory } from "./memory.ts";
 
 export type { CallMeta, ToolOutcome } from "./mcpGuard.ts";
 
@@ -123,6 +126,11 @@ export async function callTool(
   const parsed = AI_TOOLS[name].input.safeParse(input ?? {});
   if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
   if (!allowed()) return { ok: false, text: NOT_ALLOWED };
+  // The chat's memory lives in the main process; it never touches the lesson nor the editor.
+  if (isMemoryTool(name))
+    return meta.source === "assistant"
+      ? runMemoryTool(memory, name, parsed.data as Record<string, unknown>)
+      : { ok: false, text: "A memória do EdiAula é só do chat dentro do EdiAula." };
   const checked = await checkPaths(win, name, parsed.data as Record<string, unknown>);
   if (!("input" in checked)) return checked;
   const window = win;

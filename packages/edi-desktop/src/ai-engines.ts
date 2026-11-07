@@ -7,6 +7,7 @@ import { createInterface } from "node:readline";
 import { type McpScope, mintRunToken, redactMcpCredentials } from "./access.ts";
 import {
   actionName,
+  CLAUDE_NO_AUTO_MEMORY,
   CODEX_DISABLED_FEATURES,
   claudeArgs,
   claudeBilledOnApi,
@@ -63,6 +64,12 @@ export interface AssistantEnginesConfig {
   server: McpServerRef;
   /** The editor's guide and the panel's instructions (Claude's system prompt; Codex's first message). */
   systemPrompt: string;
+  /**
+   * The application's own memory for the assistant (durable preferences the person asked it to
+   * keep), read before each turn and added to the system prompt. With it, Claude Code's auto
+   * memory is off for the panel's runs (CLAUDE_NO_AUTO_MEMORY).
+   */
+  memory?(): Promise<string>;
   /** Empty working folder: no project files, no CLAUDE.md, nothing for the agent to read. */
   workspace(): string;
   /** Title of a tool for the panel, from its bare name. */
@@ -170,6 +177,17 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
   const warn = (event: string, err: unknown): void =>
     (config.warn ?? ((e, d) => console.warn(`[edi] ${e}`, d)))(event, errorText(err));
   const key = (engine: EngineKind, conversationId: string): string => `${engine}:${conversationId}`;
+  /** The guide, with the application's memory as it is now (a memory that cannot be read is left out). */
+  const systemPrompt = async (): Promise<string> => {
+    if (!config.memory) return config.systemPrompt;
+    try {
+      const memory = await config.memory();
+      return memory ? `${config.systemPrompt}\n\n${memory}` : config.systemPrompt;
+    } catch (err) {
+      warn("memory_unreadable", err);
+      return config.systemPrompt;
+    }
+  };
   const toolTitle = (name: string): string => {
     const prefix = `mcp__${server.name}__`;
     const bare = name.startsWith(prefix)
@@ -324,7 +342,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       model: request.model,
       effort: request.effort,
       mcpConfig: claudeMcpConfig(request.url, server),
-      systemPrompt: config.systemPrompt,
+      systemPrompt: await systemPrompt(),
     });
     let failed = false;
     const env = engineEnv(process.env, {
@@ -334,6 +352,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       claude: true,
       personalOnly: config.personalOnly,
     });
+    if (config.memory) Object.assign(env, CLAUDE_NO_AUTO_MEMORY);
     // With ANTHROPIC_API_KEY set, the turn is charged on the API, not on the subscription.
     const onApi = claudeBilledOnApi(env);
     await startRun({
@@ -534,7 +553,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     // Codex has no separate system prompt in exec mode: the guide goes with the first message.
     const prompt = thread
       ? request.text
-      : `${config.systemPrompt}\n\n---\n\n${await firstMessage(conversationId, request.text)}`;
+      : `${await systemPrompt()}\n\n---\n\n${await firstMessage(conversationId, request.text)}`;
     const disabledFeatures = await codexFeatures(launch);
     request.check?.();
     // Codex reads attached images from files: a folder of their own, gone when the run ends.

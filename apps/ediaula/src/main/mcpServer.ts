@@ -1,7 +1,13 @@
 import type { Server } from "node:http";
 import { startLocalMcpServer } from "@informach/edi-desktop/mcp-server";
 import { app } from "electron";
-import { AI_TOOLS, type AiToolName, EDITOR_GUIDE, PANEL_FORBIDDEN } from "../shared/aiTools.ts";
+import {
+  AI_TOOLS,
+  type AiToolName,
+  EDITOR_GUIDE,
+  isMemoryTool,
+  PANEL_FORBIDDEN,
+} from "../shared/aiTools.ts";
 import { MCP_SERVER } from "./aiSettings.ts";
 import { type GuardDeps, guarded, PANEL_CLIENT } from "./mcpGuard.ts";
 
@@ -24,7 +30,9 @@ export function startMcpServer(port: number, deps: McpDeps): Promise<Server> {
     instructions: MCP_INSTRUCTIONS,
     tools: AI_TOOLS,
     // The chat's own runs stay on their lesson: they are not offered opening or creating one.
-    offered: (grant, name) => !(grant.client === PANEL_CLIENT && PANEL_FORBIDDEN.has(name)),
+    // The memory tools are the chat's only: its turns are the ones that read the memory back.
+    offered: (grant, name) =>
+      grant.client === PANEL_CLIENT ? !PANEL_FORBIDDEN.has(name) : !isMemoryTool(name),
     call: (grant, name, args) => guarded(grant, name, args, deps),
   });
 }

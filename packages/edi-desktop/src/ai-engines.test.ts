@@ -81,6 +81,8 @@ const reportSchema = z.object({
   apiKey: z.boolean(),
   resume: z.string().nullable(),
   personal: z.boolean(),
+  system: z.string().nullable(),
+  autoMemoryOff: z.boolean(),
   tool: z.string().nullable(),
 });
 
@@ -103,7 +105,13 @@ function turn() {
   };
 }
 
-const engines = (options: { sessions?: SessionStore | false; personalOnly?: boolean } = {}) =>
+const engines = (
+  options: {
+    sessions?: SessionStore | false;
+    personalOnly?: boolean;
+    memory?: () => Promise<string>;
+  } = {},
+) =>
   createAssistantEngines({
     appName: "EdiTeste",
     server,
@@ -126,6 +134,29 @@ const tokenWorks = async (token: string | null): Promise<boolean> =>
   ).status !== 403;
 
 describe.skipIf(notWindows)("the panel's turns", () => {
+  it("reads the application's memory before each turn and turns Claude Code's own off", async () => {
+    let memory = "MEMÓRIA 1";
+    const ai = engines({ sessions: false, memory: async () => memory });
+    const first = turn();
+    await ai.runClaudeCode({ conversationId: "m1", text: "oi", url, emit: first.emit });
+    expect(first.report().system).toBe("Guia do editor.\n\nMEMÓRIA 1");
+    expect(first.report().autoMemoryOff).toBe(true);
+    memory = "MEMÓRIA 2";
+    const second = turn();
+    await ai.runClaudeCode({ conversationId: "m1", text: "oi", url, emit: second.emit });
+    expect(second.report().system).toBe("Guia do editor.\n\nMEMÓRIA 2");
+    // Without a memory of its own, the application keeps Claude Code's as it is.
+    const plain = turn();
+    await engines({ sessions: false }).runClaudeCode({
+      conversationId: "m2",
+      text: "oi",
+      url,
+      emit: plain.emit,
+    });
+    expect(plain.report().system).toBe("Guia do editor.");
+    expect(plain.report().autoMemoryOff).toBe(false);
+  });
+
   it("runs Claude Code with the message on stdin and a token that lives only for the run", async () => {
     const ai = engines();
     const t = turn();
