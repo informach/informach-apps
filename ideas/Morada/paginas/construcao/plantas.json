@@ -32,7 +32,7 @@
     "pecas": [
      [
       "janela_2m",
-      "janela_quadrada_natal"
+      "janela_quadrada_cruz_branca"
      ],
      [
       "parede_1m",
@@ -40,7 +40,7 @@
      ],
      [
       "porta_1m",
-      null
+      "porta_vidro_6_branca"
      ],
      [
       "parede_2m",
@@ -48,7 +48,7 @@
      ],
      [
       "janela_2m",
-      "janela_quadrada_natal"
+      "janela_quadrada_cruz_branca"
      ]
     ],
     "dentro": "degrade_roxo",
@@ -68,7 +68,7 @@
      ],
      [
       "janela_arco_2m",
-      "janela_arco_natal"
+      "janela_arco_2x3_branca"
      ],
      [
       "parede_2m",
@@ -112,7 +112,7 @@
     "pecas": [
      [
       "janela_2m",
-      "janela_quadrada_natal"
+      "janela_quadrada_folhas_branca"
      ],
      [
       "parede_2m",
@@ -180,7 +180,7 @@
      ],
      [
       "porta_lateral_2m",
-      null
+      "porta_classica_2_branca"
      ]
     ],
     "dentro": "degrade_mostarda",
@@ -246,19 +246,19 @@
      ],
      [
       "janela_quadrada_1m",
-      null
+      "janela_oculo_branca"
      ],
      [
       "arco_2m",
-      "porta_arco_natal"
+      "porta_arco_madeira"
      ],
      [
       "parede_1m",
       null
      ],
      [
-      "janela_2m",
-      "janela_quadrada_natal"
+      "janela_larga_2m",
+      "janela_larga_bandeira_branca"
      ],
      [
       "parede_1m",
@@ -282,7 +282,7 @@
      ],
      [
       "janela_2m",
-      "janela_quadrada_natal"
+      "janela_quadrada_cruz_branca"
      ],
      [
       "parede_2m",
@@ -325,8 +325,8 @@
     "dir": "O",
     "pecas": [
      [
-      "janela_2m",
-      "janela_quadrada_natal"
+      "janela_arco_2m",
+      "janela_arco_folhas_branca"
      ],
      [
       "parede_2m",
@@ -366,7 +366,7 @@
     "pecas": [
      [
       "janela_2m",
-      "janela_quadrada_natal"
+      "janela_quadrada_bandeira_branca"
      ],
      [
       "parede_2m",
@@ -390,7 +390,7 @@
      ],
      [
       "porta_2m",
-      null
+      "porta_classica_4_madeira"
      ]
     ],
     "dentro": "papel_nuvens",

@@ -50,6 +50,44 @@ isso qualquer textura serve em qualquer peça.
 As pontas de cada peça (onde ela encosta na vizinha) têm o material e o UV da face do mesmo lado. Assim, a fresta de um
 pixel que sobra na emenda mostra a mesma cor da face. Antes aparecia uma linha clara pontilhada em cada emenda.
 
+## Portas e janelas (`portas_janelas.json`, `codigo/arte/portas_janelas.py`)
+
+Feitas aqui com as imagens da vitrine de portas e janelas como norte. Todas vêm em três cores, branca, preta e madeira.
+O material `cor` aceita qualquer cor, e a página tem cor livre para ele. Os outros materiais são `vidro` (azul
+brilhante), `metal` (maçanetas) e `friso` (os frisos escuros das portas modernas). A origem de cada peça é o meio do
+vão, no chão, no plano do meio da parede. Cada uma diz em que vão encaixa (`vao`: a peça de parede e o índice do vão).
+
+**Janelas (38):** 12 desenhos em 3 cores, mais o óculo redondo em branco e preto.
+
+| desenho | vão | parede |
+|---|---|---|
+| larga inteira, grade 6 × 2, grade 3 × 2, com bandeira | 1,60 × 0,80 a 1,10 m | `janela_larga_2m` |
+| em arco de duas folhas, inteira, 2 × 3, 2 × 5 | 0,80 × 1,20 a 1,00 m | `janela_arco_2m` |
+| quadrada inteira, com bandeira, em cruz, de duas folhas | 1,20 × 1,10 a 0,90 m | `janela_2m` |
+| óculo | 0,60 × 0,60 a 1,20 m | `janela_quadrada_1m` |
+
+Cada janela é uma moldura funda (passa 3 cm de cada face da parede e 3,5 cm da borda do vão, cobrindo o recorte). Ela
+tem um batente fino no meio, o vidro recuado e travessas com bisel. No arco, as travessas acompanham a curva.
+
+**Portas e acabamentos (57):**
+
+- **Portas (30):** 10 desenhos em 3 cores, numa folha de 0,86 × 2,07 m e 4,2 cm de espessura, com maçaneta de
+  alavanca, roseta e espelho de chave dos dois lados:
+  - clássicas: com 6 vidros e almofada, de 2, de 4 e de 5 almofadas (almofadas rebaixadas com o miolo chanfrado);
+  - de vidro: vidro inteiro e 10 vidros;
+  - modernas: lisa com frisos horizontais, com visores de vidro e lisa com faixa escura e frisos curtos;
+  - em arco: vidro com grade em cima e almofadas embaixo, para o `arco_2m`.
+- **Portas duplas (9):** com vidros, clássica e de vidro, em 3 cores, para a `porta_dupla_2m`.
+- **Batentes (9):** simples, duplo e em arco, em 3 cores. O forro cobre a espessura da parede, e a guarnição de 7 cm
+  com 1,5 cm de saliência emoldura o vão nas duas faces. Cada porta indica o batente que leva (`batente`).
+- **Lambris coloridos (6):** 1 m e 0,5 m, em 3 cores.
+- **Cantoneiras de lambri (3):** em 3 cores, para o canto de fora.
+
+Também ficam disponíveis os encaixes do pacote de Natal: porta em arco e janelas em arco, quadrada e redonda.
+
+Os cômodos de exemplo já usam as peças novas, e as portas levam o batente. `portas_janelas_cena.py` faz as folhas
+`janelas.png` e `portas.png` (com `CLOSE=1`, também um close para conferir o acabamento).
+
 ## Texturas (`texturas/<id>.png`, 1024 px, sem emenda)
 
 São 46 no total. As 18 de piso e as 24 de parede têm os mesmos grupos da vitrine:
@@ -110,6 +148,9 @@ blender-venv/bin/python -I codigo/arte/construcao_cena.py -- <saida> <saida>/ren
 ```bash
 python3 -I codigo/ferramentas/construcao_pacote.py <SP>
 ```
+
+Depois das peças, rode `blender-venv/bin/python -I codigo/arte/portas_janelas.py -- <saida>` para as portas e
+janelas (`portas_janelas.blend` e `.json`).
 
 A primeira gera as texturas, a segunda as peças, os GLB, o `construcao.blend` e o `construcao.json`, a terceira os
 renders da vitrine (`comodos.png` e `pecas.png`), e a quarta empacota para a página. A variável `AMOSTRAS=16` faz uma

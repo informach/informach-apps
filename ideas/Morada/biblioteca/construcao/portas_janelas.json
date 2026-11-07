@@ -1,0 +1,1130 @@
+{
+ "cores": {
+  "branca": {
+   "rotulo": "Branca",
+   "hex": "#F3F4F6"
+  },
+  "preta": {
+   "rotulo": "Preta",
+   "hex": "#2B2E34"
+  },
+  "madeira": {
+   "rotulo": "Madeira",
+   "hex": "#7A4A31"
+  }
+ },
+ "janelas": [
+  {
+   "id": "janela_larga_inteira_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_larga_inteira_branca.glb",
+   "desenho": "larga_inteira",
+   "rotulo": "Janela larga inteira (branca)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_6x2_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_larga_grade_6x2_branca.glb",
+   "desenho": "larga_grade_6x2",
+   "rotulo": "Janela larga 6 × 2 (branca)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_3x2_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_larga_grade_3x2_branca.glb",
+   "desenho": "larga_grade_3x2",
+   "rotulo": "Janela larga 3 × 2 (branca)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_bandeira_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_larga_bandeira_branca.glb",
+   "desenho": "larga_bandeira",
+   "rotulo": "Janela larga com bandeira (branca)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_folhas_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_arco_folhas_branca.glb",
+   "desenho": "arco_folhas",
+   "rotulo": "Janela em arco de duas folhas (branca)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_inteira_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_arco_inteira_branca.glb",
+   "desenho": "arco_inteira",
+   "rotulo": "Janela em arco inteira (branca)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x3_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_arco_2x3_branca.glb",
+   "desenho": "arco_2x3",
+   "rotulo": "Janela em arco 2 × 3 (branca)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x5_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_arco_2x5_branca.glb",
+   "desenho": "arco_2x5",
+   "rotulo": "Janela em arco 2 × 5 (branca)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_inteira_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_quadrada_inteira_branca.glb",
+   "desenho": "quadrada_inteira",
+   "rotulo": "Janela quadrada inteira (branca)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_bandeira_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_quadrada_bandeira_branca.glb",
+   "desenho": "quadrada_bandeira",
+   "rotulo": "Janela quadrada com bandeira (branca)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_cruz_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_quadrada_cruz_branca.glb",
+   "desenho": "quadrada_cruz",
+   "rotulo": "Janela quadrada em cruz (branca)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_folhas_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_quadrada_folhas_branca.glb",
+   "desenho": "quadrada_folhas",
+   "rotulo": "Janela quadrada de duas folhas (branca)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_inteira_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_larga_inteira_preta.glb",
+   "desenho": "larga_inteira",
+   "rotulo": "Janela larga inteira (preta)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_6x2_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_larga_grade_6x2_preta.glb",
+   "desenho": "larga_grade_6x2",
+   "rotulo": "Janela larga 6 × 2 (preta)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_3x2_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_larga_grade_3x2_preta.glb",
+   "desenho": "larga_grade_3x2",
+   "rotulo": "Janela larga 3 × 2 (preta)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_bandeira_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_larga_bandeira_preta.glb",
+   "desenho": "larga_bandeira",
+   "rotulo": "Janela larga com bandeira (preta)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_folhas_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_arco_folhas_preta.glb",
+   "desenho": "arco_folhas",
+   "rotulo": "Janela em arco de duas folhas (preta)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_inteira_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_arco_inteira_preta.glb",
+   "desenho": "arco_inteira",
+   "rotulo": "Janela em arco inteira (preta)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x3_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_arco_2x3_preta.glb",
+   "desenho": "arco_2x3",
+   "rotulo": "Janela em arco 2 × 3 (preta)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x5_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_arco_2x5_preta.glb",
+   "desenho": "arco_2x5",
+   "rotulo": "Janela em arco 2 × 5 (preta)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_inteira_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_quadrada_inteira_preta.glb",
+   "desenho": "quadrada_inteira",
+   "rotulo": "Janela quadrada inteira (preta)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_bandeira_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_quadrada_bandeira_preta.glb",
+   "desenho": "quadrada_bandeira",
+   "rotulo": "Janela quadrada com bandeira (preta)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_cruz_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_quadrada_cruz_preta.glb",
+   "desenho": "quadrada_cruz",
+   "rotulo": "Janela quadrada em cruz (preta)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_folhas_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_quadrada_folhas_preta.glb",
+   "desenho": "quadrada_folhas",
+   "rotulo": "Janela quadrada de duas folhas (preta)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_inteira_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_larga_inteira_madeira.glb",
+   "desenho": "larga_inteira",
+   "rotulo": "Janela larga inteira (madeira)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_6x2_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_larga_grade_6x2_madeira.glb",
+   "desenho": "larga_grade_6x2",
+   "rotulo": "Janela larga 6 × 2 (madeira)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_grade_3x2_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_larga_grade_3x2_madeira.glb",
+   "desenho": "larga_grade_3x2",
+   "rotulo": "Janela larga 3 × 2 (madeira)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_larga_bandeira_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_larga_bandeira_madeira.glb",
+   "desenho": "larga_bandeira",
+   "rotulo": "Janela larga com bandeira (madeira)",
+   "vao": {
+    "peca": "janela_larga_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_folhas_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_arco_folhas_madeira.glb",
+   "desenho": "arco_folhas",
+   "rotulo": "Janela em arco de duas folhas (madeira)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_inteira_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_arco_inteira_madeira.glb",
+   "desenho": "arco_inteira",
+   "rotulo": "Janela em arco inteira (madeira)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x3_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_arco_2x3_madeira.glb",
+   "desenho": "arco_2x3",
+   "rotulo": "Janela em arco 2 × 3 (madeira)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_arco_2x5_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_arco_2x5_madeira.glb",
+   "desenho": "arco_2x5",
+   "rotulo": "Janela em arco 2 × 5 (madeira)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_inteira_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_quadrada_inteira_madeira.glb",
+   "desenho": "quadrada_inteira",
+   "rotulo": "Janela quadrada inteira (madeira)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_bandeira_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_quadrada_bandeira_madeira.glb",
+   "desenho": "quadrada_bandeira",
+   "rotulo": "Janela quadrada com bandeira (madeira)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_cruz_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_quadrada_cruz_madeira.glb",
+   "desenho": "quadrada_cruz",
+   "rotulo": "Janela quadrada em cruz (madeira)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_quadrada_folhas_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/janela_quadrada_folhas_madeira.glb",
+   "desenho": "quadrada_folhas",
+   "rotulo": "Janela quadrada de duas folhas (madeira)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0,
+    "cx": 1.0
+   }
+  },
+  {
+   "id": "janela_oculo_branca",
+   "cor": "branca",
+   "arquivo": "pecas/janela_oculo_branca.glb",
+   "desenho": "oculo",
+   "rotulo": "Óculo redondo (branca)",
+   "vao": {
+    "peca": "janela_quadrada_1m",
+    "indice": 0,
+    "cx": 0.5
+   }
+  },
+  {
+   "id": "janela_oculo_preta",
+   "cor": "preta",
+   "arquivo": "pecas/janela_oculo_preta.glb",
+   "desenho": "oculo",
+   "rotulo": "Óculo redondo (preta)",
+   "vao": {
+    "peca": "janela_quadrada_1m",
+    "indice": 0,
+    "cx": 0.5
+   }
+  }
+ ],
+ "portas": [
+  {
+   "id": "porta_vidro_6_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_vidro_6_branca.glb",
+   "desenho": "vidro_6",
+   "rotulo": "Porta clássica com 6 vidros (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_classica_2_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_classica_2_branca.glb",
+   "desenho": "classica_2",
+   "rotulo": "Porta clássica de 2 almofadas (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_classica_4_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_classica_4_branca.glb",
+   "desenho": "classica_4",
+   "rotulo": "Porta clássica de 4 almofadas (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_classica_5_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_classica_5_branca.glb",
+   "desenho": "classica_5",
+   "rotulo": "Porta clássica de 5 almofadas (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_vidro_inteiro_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_vidro_inteiro_branca.glb",
+   "desenho": "vidro_inteiro",
+   "rotulo": "Porta de vidro inteiro (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_vidro_10_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_vidro_10_branca.glb",
+   "desenho": "vidro_10",
+   "rotulo": "Porta com 10 vidros (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_ripas_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_ripas_branca.glb",
+   "desenho": "ripas",
+   "rotulo": "Porta moderna com frisos (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_frisos_vidro_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_frisos_vidro_branca.glb",
+   "desenho": "frisos_vidro",
+   "rotulo": "Porta moderna com visores (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_faixa_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_faixa_branca.glb",
+   "desenho": "faixa",
+   "rotulo": "Porta moderna com faixa (branca)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_branca"
+  },
+  {
+   "id": "porta_arco_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_arco_branca.glb",
+   "desenho": "arco",
+   "rotulo": "Porta em arco (branca)",
+   "vao": {
+    "peca": "arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_arco_branca"
+  },
+  {
+   "id": "porta_dupla_vidro_6_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_dupla_vidro_6_branca.glb",
+   "desenho": "dupla_vidro_6",
+   "rotulo": "Porta dupla com vidros (branca)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_branca"
+  },
+  {
+   "id": "porta_dupla_classica_2_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_dupla_classica_2_branca.glb",
+   "desenho": "dupla_classica_2",
+   "rotulo": "Porta dupla clássica (branca)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_branca"
+  },
+  {
+   "id": "porta_dupla_vidro_inteiro_branca",
+   "cor": "branca",
+   "arquivo": "pecas/porta_dupla_vidro_inteiro_branca.glb",
+   "desenho": "dupla_vidro_inteiro",
+   "rotulo": "Porta dupla de vidro (branca)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_branca"
+  },
+  {
+   "id": "porta_vidro_6_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_vidro_6_preta.glb",
+   "desenho": "vidro_6",
+   "rotulo": "Porta clássica com 6 vidros (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_classica_2_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_classica_2_preta.glb",
+   "desenho": "classica_2",
+   "rotulo": "Porta clássica de 2 almofadas (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_classica_4_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_classica_4_preta.glb",
+   "desenho": "classica_4",
+   "rotulo": "Porta clássica de 4 almofadas (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_classica_5_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_classica_5_preta.glb",
+   "desenho": "classica_5",
+   "rotulo": "Porta clássica de 5 almofadas (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_vidro_inteiro_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_vidro_inteiro_preta.glb",
+   "desenho": "vidro_inteiro",
+   "rotulo": "Porta de vidro inteiro (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_vidro_10_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_vidro_10_preta.glb",
+   "desenho": "vidro_10",
+   "rotulo": "Porta com 10 vidros (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_ripas_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_ripas_preta.glb",
+   "desenho": "ripas",
+   "rotulo": "Porta moderna com frisos (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_frisos_vidro_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_frisos_vidro_preta.glb",
+   "desenho": "frisos_vidro",
+   "rotulo": "Porta moderna com visores (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_faixa_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_faixa_preta.glb",
+   "desenho": "faixa",
+   "rotulo": "Porta moderna com faixa (preta)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_preta"
+  },
+  {
+   "id": "porta_arco_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_arco_preta.glb",
+   "desenho": "arco",
+   "rotulo": "Porta em arco (preta)",
+   "vao": {
+    "peca": "arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_arco_preta"
+  },
+  {
+   "id": "porta_dupla_vidro_6_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_dupla_vidro_6_preta.glb",
+   "desenho": "dupla_vidro_6",
+   "rotulo": "Porta dupla com vidros (preta)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_preta"
+  },
+  {
+   "id": "porta_dupla_classica_2_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_dupla_classica_2_preta.glb",
+   "desenho": "dupla_classica_2",
+   "rotulo": "Porta dupla clássica (preta)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_preta"
+  },
+  {
+   "id": "porta_dupla_vidro_inteiro_preta",
+   "cor": "preta",
+   "arquivo": "pecas/porta_dupla_vidro_inteiro_preta.glb",
+   "desenho": "dupla_vidro_inteiro",
+   "rotulo": "Porta dupla de vidro (preta)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_preta"
+  },
+  {
+   "id": "porta_vidro_6_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_vidro_6_madeira.glb",
+   "desenho": "vidro_6",
+   "rotulo": "Porta clássica com 6 vidros (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_classica_2_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_classica_2_madeira.glb",
+   "desenho": "classica_2",
+   "rotulo": "Porta clássica de 2 almofadas (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_classica_4_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_classica_4_madeira.glb",
+   "desenho": "classica_4",
+   "rotulo": "Porta clássica de 4 almofadas (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_classica_5_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_classica_5_madeira.glb",
+   "desenho": "classica_5",
+   "rotulo": "Porta clássica de 5 almofadas (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_vidro_inteiro_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_vidro_inteiro_madeira.glb",
+   "desenho": "vidro_inteiro",
+   "rotulo": "Porta de vidro inteiro (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_vidro_10_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_vidro_10_madeira.glb",
+   "desenho": "vidro_10",
+   "rotulo": "Porta com 10 vidros (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_ripas_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_ripas_madeira.glb",
+   "desenho": "ripas",
+   "rotulo": "Porta moderna com frisos (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_frisos_vidro_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_frisos_vidro_madeira.glb",
+   "desenho": "frisos_vidro",
+   "rotulo": "Porta moderna com visores (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_faixa_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_faixa_madeira.glb",
+   "desenho": "faixa",
+   "rotulo": "Porta moderna com faixa (madeira)",
+   "vao": {
+    "peca": "porta_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_simples_madeira"
+  },
+  {
+   "id": "porta_arco_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_arco_madeira.glb",
+   "desenho": "arco",
+   "rotulo": "Porta em arco (madeira)",
+   "vao": {
+    "peca": "arco_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_arco_madeira"
+  },
+  {
+   "id": "porta_dupla_vidro_6_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_dupla_vidro_6_madeira.glb",
+   "desenho": "dupla_vidro_6",
+   "rotulo": "Porta dupla com vidros (madeira)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_madeira"
+  },
+  {
+   "id": "porta_dupla_classica_2_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_dupla_classica_2_madeira.glb",
+   "desenho": "dupla_classica_2",
+   "rotulo": "Porta dupla clássica (madeira)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_madeira"
+  },
+  {
+   "id": "porta_dupla_vidro_inteiro_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/porta_dupla_vidro_inteiro_madeira.glb",
+   "desenho": "dupla_vidro_inteiro",
+   "rotulo": "Porta dupla de vidro (madeira)",
+   "vao": {
+    "peca": "porta_dupla_2m",
+    "indice": 0,
+    "cx": 1.0
+   },
+   "batente": "batente_duplo_madeira"
+  }
+ ],
+ "batentes": [
+  {
+   "id": "batente_simples_branca",
+   "cor": "branca",
+   "arquivo": "pecas/batente_simples_branca.glb",
+   "desenho": "simples",
+   "rotulo": "Batente (branca)",
+   "larg": 0.9,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_duplo_branca",
+   "cor": "branca",
+   "arquivo": "pecas/batente_duplo_branca.glb",
+   "desenho": "duplo",
+   "rotulo": "Batente duplo (branca)",
+   "larg": 1.6,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_arco_branca",
+   "cor": "branca",
+   "arquivo": "pecas/batente_arco_branca.glb",
+   "desenho": "arco",
+   "rotulo": "Batente em arco (branca)",
+   "larg": 1.2,
+   "alt": 2.4
+  },
+  {
+   "id": "batente_simples_preta",
+   "cor": "preta",
+   "arquivo": "pecas/batente_simples_preta.glb",
+   "desenho": "simples",
+   "rotulo": "Batente (preta)",
+   "larg": 0.9,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_duplo_preta",
+   "cor": "preta",
+   "arquivo": "pecas/batente_duplo_preta.glb",
+   "desenho": "duplo",
+   "rotulo": "Batente duplo (preta)",
+   "larg": 1.6,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_arco_preta",
+   "cor": "preta",
+   "arquivo": "pecas/batente_arco_preta.glb",
+   "desenho": "arco",
+   "rotulo": "Batente em arco (preta)",
+   "larg": 1.2,
+   "alt": 2.4
+  },
+  {
+   "id": "batente_simples_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/batente_simples_madeira.glb",
+   "desenho": "simples",
+   "rotulo": "Batente (madeira)",
+   "larg": 0.9,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_duplo_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/batente_duplo_madeira.glb",
+   "desenho": "duplo",
+   "rotulo": "Batente duplo (madeira)",
+   "larg": 1.6,
+   "alt": 2.1
+  },
+  {
+   "id": "batente_arco_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/batente_arco_madeira.glb",
+   "desenho": "arco",
+   "rotulo": "Batente em arco (madeira)",
+   "larg": 1.2,
+   "alt": 2.4
+  }
+ ],
+ "lambris": [
+  {
+   "id": "lambri_1m_branca",
+   "cor": "branca",
+   "arquivo": "pecas/lambri_1m_branca.glb",
+   "comp": 1.0,
+   "rotulo": "Lambri 1 m (branca)"
+  },
+  {
+   "id": "lambri_0_5m_branca",
+   "cor": "branca",
+   "arquivo": "pecas/lambri_0_5m_branca.glb",
+   "comp": 0.5,
+   "rotulo": "Lambri 0,5 m (branca)"
+  },
+  {
+   "id": "lambri_1m_preta",
+   "cor": "preta",
+   "arquivo": "pecas/lambri_1m_preta.glb",
+   "comp": 1.0,
+   "rotulo": "Lambri 1 m (preta)"
+  },
+  {
+   "id": "lambri_0_5m_preta",
+   "cor": "preta",
+   "arquivo": "pecas/lambri_0_5m_preta.glb",
+   "comp": 0.5,
+   "rotulo": "Lambri 0,5 m (preta)"
+  },
+  {
+   "id": "lambri_1m_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/lambri_1m_madeira.glb",
+   "comp": 1.0,
+   "rotulo": "Lambri 1 m (madeira)"
+  },
+  {
+   "id": "lambri_0_5m_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/lambri_0_5m_madeira.glb",
+   "comp": 0.5,
+   "rotulo": "Lambri 0,5 m (madeira)"
+  }
+ ],
+ "cantos": [
+  {
+   "id": "canto_lambri_branca",
+   "cor": "branca",
+   "arquivo": "pecas/canto_lambri_branca.glb",
+   "rotulo": "Cantoneira de lambri (branca)"
+  },
+  {
+   "id": "canto_lambri_preta",
+   "cor": "preta",
+   "arquivo": "pecas/canto_lambri_preta.glb",
+   "rotulo": "Cantoneira de lambri (preta)"
+  },
+  {
+   "id": "canto_lambri_madeira",
+   "cor": "madeira",
+   "arquivo": "pecas/canto_lambri_madeira.glb",
+   "rotulo": "Cantoneira de lambri (madeira)"
+  }
+ ]
+}

@@ -61,6 +61,25 @@ def monta(pasta, planta):
     enc_por_peca = {}
     for e in cat["encaixes"]:
         enc_por_peca.setdefault(e["vao"]["peca"], []).append(e["id"])
+    # portas e janelas da biblioteca (portas_janelas.blend): trazidas para a cena na primeira vez
+    pj_cat = {}
+    f_pj = os.path.join(pasta, "portas_janelas.json")
+    if os.path.exists(f_pj):
+        pj = json.load(open(f_pj))
+        pj_cat = {x["id"]: x for g in ("janelas", "portas", "batentes") for x in pj[g]}
+        pedidos = set()
+        for t_ in planta.get("paredes", []):
+            for q in t_[2]:
+                if isinstance(q, tuple) and q[1] in pj_cat:
+                    pedidos.add(q[1])
+                    if pj_cat[q[1]].get("batente"):
+                        pedidos.add(pj_cat[q[1]]["batente"])
+        faltam = [n for n in pedidos if n not in bpy.data.objects]
+        if faltam:
+            with bpy.data.libraries.load(os.path.join(pasta, "portas_janelas.blend"), link=False) as (de, para):
+                para.objects = [n for n in de.objects if n in faltam]
+            for o in para.objects:
+                o.hide_render = True
     fontes = {o.name: o for o in bpy.data.objects}
     borda = bpy.data.materials["borda"]
     esp = cat["espessura"]
@@ -93,7 +112,12 @@ def monta(pasta, planta):
                         while x1_ - xx_ >= 0.5 - 1e-6:
                             instancia(fontes[lambri_ok[0.5]], f"lambri_{k}_{j}_{xx_}", p + dv * xx_ + lado * (esp / 2 + 0.001), ang)
                             xx_ += 0.5
-            if encaixe:
+            if encaixe and encaixe in pj_cat:  # da biblioteca: a origem é o meio do vão
+                cx = vaos_de[pid][0]["cx"]
+                instancia(fontes[encaixe], f"{encaixe}_{k}_{j}", p + dv * cx, ang).hide_render = False
+                if pj_cat[encaixe].get("batente"):
+                    instancia(fontes[pj_cat[encaixe]["batente"]], f"bat_{k}_{j}", p + dv * cx, ang).hide_render = False
+            elif encaixe:
                 instancia(fontes[encaixe], f"{encaixe}_{k}_{j}", p.copy(), ang)
             p += dv * comp[pid]
         ch = (round(p.x, 3), round(p.y, 3))
@@ -124,32 +148,31 @@ def monta(pasta, planta):
 
 
 # plantas de exemplo (8 × 8 m: quatro placas de chão)
-COMODO_A = {  # azul por fora; sala em L roxa e quarto amarelo, com lambri; chão xadrez verde
+COMODO_A = {  # azul por fora; sala em L roxa e quarto amarelo, com lambri; chão xadrez verde; tudo branco
     "chaos": [(0, 0, "xadrez_verde"), (4, 0, "xadrez_verde"), (0, 4, "xadrez_verde"), (4, 4, "xadrez_verde")],
     "paredes": [
-        ((0, 0), "L", [("janela_2m", "janela_quadrada_natal"), "parede_1m", ("porta_1m", None), "parede_2m",
-                       ("janela_2m", "janela_quadrada_natal")], "degrade_roxo", "degrade_azul", True),
-        ((8, 0), "N", ["parede_2m", ("janela_arco_2m", "janela_arco_natal"), "parede_2m", "parede_2m"], "degrade_roxo", "degrade_azul", True),
+        ((0, 0), "L", [("janela_2m", "janela_quadrada_cruz_branca"), "parede_1m", ("porta_1m", "porta_vidro_6_branca"), "parede_2m",
+                       ("janela_2m", "janela_quadrada_cruz_branca")], "degrade_roxo", "degrade_azul", True),
+        ((8, 0), "N", ["parede_2m", ("janela_arco_2m", "janela_arco_2x3_branca"), "parede_2m", "parede_2m"], "degrade_roxo", "degrade_azul", True),
         ((8, 8), "O", ["parede_2m", "parede_2m"], "degrade_roxo", "degrade_azul", True),
-        ((4, 8), "O", [("janela_2m", "janela_quadrada_natal"), "parede_2m"], "degrade_mostarda", "degrade_azul", True),
+        ((4, 8), "O", [("janela_2m", "janela_quadrada_folhas_branca"), "parede_2m"], "degrade_mostarda", "degrade_azul", True),
         ((0, 8), "S", ["parede_2m", "parede_1m"], "degrade_mostarda", "degrade_azul", True),
         ((0, 5), "S", ["parede_2m", ("janela_quadrada_1m", "janela_redonda_natal"), "parede_2m"], "degrade_roxo", "degrade_azul", True),
-        # quarto (canto de cima à esquerda, 4 × 3 m)
-        ((0, 5), "L", ["parede_2m", ("porta_lateral_2m", None)], "degrade_mostarda", "degrade_roxo", True),
+        ((0, 5), "L", ["parede_2m", ("porta_lateral_2m", "porta_classica_2_branca")], "degrade_mostarda", "degrade_roxo", True),
         ((4, 5), "N", ["parede_2m", "parede_1m"], "degrade_mostarda", "degrade_roxo", True),
     ],
 }
-COMODO_B = {  # tijolo por fora; listras verdes por dentro e quarto de nuvens, com lambri; madeira
+COMODO_B = {  # tijolo por fora; listras verdes e quarto de nuvens, com lambri; madeira; portas e janelas de madeira
     "chaos": [(0, 0, "madeira_mel"), (4, 0, "madeira_mel"), (0, 4, "madeira_mel"), (4, 4, "madeira_mel")],
     "paredes": [
-        ((0, 0), "L", ["parede_1m", ("janela_quadrada_1m", None), ("arco_2m", "porta_arco_natal"), "parede_1m",
-                       ("janela_2m", "janela_quadrada_natal"), "parede_1m"], "listra_verde", "tijolo_terracota", True),
-        ((8, 0), "N", ["parede_2m", ("janela_2m", "janela_quadrada_natal"), "parede_2m", "parede_2m"], "listra_verde", "tijolo_terracota", True),
+        ((0, 0), "L", ["parede_1m", ("janela_quadrada_1m", "janela_oculo_branca"), ("arco_2m", "porta_arco_madeira"), "parede_1m",
+                       ("janela_larga_2m", "janela_larga_bandeira_branca"), "parede_1m"], "listra_verde", "tijolo_terracota", True),
+        ((8, 0), "N", ["parede_2m", ("janela_2m", "janela_quadrada_cruz_branca"), "parede_2m", "parede_2m"], "listra_verde", "tijolo_terracota", True),
         ((8, 8), "O", ["parede_2m", "parede_2m"], "listra_verde", "tijolo_terracota", True),
-        ((4, 8), "O", [("janela_2m", "janela_quadrada_natal"), "parede_2m"], "papel_nuvens", "tijolo_terracota", True),
+        ((4, 8), "O", [("janela_arco_2m", "janela_arco_folhas_branca"), "parede_2m"], "papel_nuvens", "tijolo_terracota", True),
         ((0, 8), "S", ["parede_2m", "parede_2m"], "papel_nuvens", "tijolo_terracota", True),
-        ((0, 4), "S", [("janela_2m", "janela_quadrada_natal"), "parede_2m"], "listra_verde", "tijolo_terracota", True),
-        ((0, 4), "L", ["parede_2m", ("porta_2m", None)], "papel_nuvens", "listra_verde", True),
+        ((0, 4), "S", [("janela_2m", "janela_quadrada_bandeira_branca"), "parede_2m"], "listra_verde", "tijolo_terracota", True),
+        ((0, 4), "L", ["parede_2m", ("porta_2m", "porta_classica_4_madeira")], "papel_nuvens", "listra_verde", True),
         ((4, 4), "N", ["parede_2m", "parede_2m"], "papel_nuvens", "listra_verde", True),
     ],
 }

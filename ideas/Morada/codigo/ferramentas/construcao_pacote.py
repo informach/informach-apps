@@ -13,6 +13,15 @@ for grupo in ("chaos", "paredes", "lambris", "encaixes"):
         open(os.path.join(V, "pecas", p["id"] + ".txt"), "w").write(base64.b64encode(gzip.compress(dados, 9)).decode())
         p["arquivo"] = "pecas/" + p["id"] + ".txt"
 json.dump(cat, open(os.path.join(V, "construcao.json"), "w"), ensure_ascii=False, indent=1)
+fpj = os.path.join(C, "portas_janelas.json")
+if os.path.exists(fpj):  # portas, janelas, batentes, lambris coloridos e cantoneiras
+    pj = json.load(open(fpj))
+    for g in ("janelas", "portas", "batentes", "lambris", "cantos"):
+        for p in pj[g]:
+            dados = open(os.path.join(C, p["arquivo"]), "rb").read()
+            open(os.path.join(V, "pecas", p["id"] + ".txt"), "w").write(base64.b64encode(gzip.compress(dados, 9)).decode())
+            p["arquivo"] = "pecas/" + p["id"] + ".txt"
+    json.dump(pj, open(os.path.join(V, "portas_janelas.json"), "w"), ensure_ascii=False, indent=1)
 tex = json.load(open(os.path.join(C, "texturas", "texturas.json")))
 for uso in ("piso", "parede"):
     for t in tex[uso]:
@@ -32,7 +41,7 @@ def conv(pl):
             "paredes": [{"ini": list(t[0]), "dir": t[1], "pecas": [list(q) if isinstance(q, tuple) else [q, None] for q in t[2]],
                          "dentro": t[3], "fora": t[4], "lambri": bool(len(t) > 5 and t[5])} for t in pl["paredes"]]}
 json.dump({"A": conv(ns["COMODO_A"]), "B": conv(ns["COMODO_B"])}, open(os.path.join(V, "plantas.json"), "w"), ensure_ascii=False, indent=1)
-for n in ("comodos", "pecas"):
+for n in ("comodos", "pecas", "janelas", "portas"):
     f = os.path.join(C, "render", n + ".png")
     if os.path.exists(f):
         Image.open(f).convert("RGB").save(os.path.join(V, "vitrine", n + ".jpg"), quality=86, optimize=True)
