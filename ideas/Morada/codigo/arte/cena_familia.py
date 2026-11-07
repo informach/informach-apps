@@ -367,6 +367,175 @@ def alisa_pesos_barra(ob, faixa=0.14, voltas=24):
                 g.remove([int(i)])
 
 
+def _pesos(ob):
+    import numpy as np_
+    nomes = [g.name for g in ob.vertex_groups]
+    W = np_.zeros((len(ob.data.vertices), len(nomes)))
+    for v in ob.data.vertices:
+        for g in v.groups:
+            W[v.index, g.group] = g.weight
+    return nomes, W
+
+
+def barra_no_colo(ob, corpo, faixa=0.13):
+    """Sentado: a frente da barra da parte de cima deita no colo (segue o quadril e as duas coxas misturadas, pelo lado);
+    sem isso ela ficava pendurada na frente da virilha e, de cima, a camisa parecia um colan entre as coxas. Atrás
+    (onde a pessoa senta) segue o quadril."""
+    import numpy as np_
+    nomes, W = _pesos(ob)
+    for nm in ("Hips", "LeftUpLeg", "RightUpLeg"):
+        if nm not in ob.vertex_groups:
+            ob.vertex_groups.new(name=nm)
+            nomes.append(nm)
+            W = np_.hstack([W, np_.zeros((W.shape[0], 1))])
+    ih, il, ir = (nomes.index(n) for n in ("Hips", "LeftUpLeg", "RightUpLeg"))
+    mw = ob.matrix_world
+    P = np_.array([mw @ v.co for v in ob.data.vertices])
+    arm = next(m.object for m in ob.modifiers if m.type == "ARMATURE")
+    pl = arm.matrix_world @ arm.data.bones["LeftUpLeg"].head_local
+    pr = arm.matrix_world @ arm.data.bones["RightUpLeg"].head_local
+    cx, cy = (pl.x + pr.x) / 2, (pl.y + pr.y) / 2
+    sl = 1.0 if pl.x > cx else -1.0
+    meia = max(abs(pl.x - pr.x) / 2, 0.02)
+    tronco = np_.abs(P[:, 0] - cx) < 0.3
+    if not tronco.any():
+        return
+    z0 = P[tronco, 2].min()
+    for j in np_.nonzero(tronco & (P[:, 2] < z0 + faixa))[0]:
+        t_ = 1 - (P[j, 2] - z0) / faixa
+        frente = min(max((cy - P[j, 1]) / 0.06, 0.0), 1.0)  # a frente é -y
+        a = t_ * frente
+        if a <= 0:
+            continue
+        wl = min(max(0.5 + 0.5 * (P[j, 0] - cx) * sl / (meia * 2.0), 0.0), 1.0)
+        alvo = np_.zeros(len(nomes))
+        alvo[ih], alvo[il], alvo[ir] = 0.35, 0.65 * wl, 0.65 * (1 - wl)
+        W[j] = (1 - a) * W[j] + a * alvo
+    for k, nm in enumerate(nomes):
+        g = ob.vertex_groups[nm]
+        for j in np_.nonzero(tronco & (P[:, 2] < z0 + faixa))[0]:
+            if W[j, k] > 1e-4:
+                g.add([int(j)], float(W[j, k]), "REPLACE")
+            else:
+                g.remove([int(j)])
+
+
+def barra_enfiada(ob, quanto=0.055):
+    """Sentado: a parte de cima fica por dentro da calça (os últimos centímetros do tronco saem). Pendurada, a barra
+    caía entre as coxas e, de cima, parecia um colan."""
+    import bmesh
+    mw = ob.matrix_world
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    zs = [(mw @ v.co).z for v in bm.verts]
+    if not zs:
+        bm.free()
+        return
+    xs = [(mw @ v.co).x for v in bm.verts]
+    cx = (max(xs) + min(xs)) / 2
+    tronco = [v for v in bm.verts if abs((mw @ v.co).x - cx) < 0.25]
+    z0 = min((mw @ v.co).z for v in tronco) if tronco else min(zs)
+    corte = z0 + quanto
+    apagar = [f for f in bm.faces if all((mw @ v.co).z < corte for v in f.verts) and all(abs((mw @ v.co).x - cx) < 0.25 for v in f.verts)]
+    bmesh.ops.delete(bm, geom=apagar, context="FACES")
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+
+
+def alisa_fundilho_posado(p, raio=0.17, voltas=24):
+    """Foto parada, pernas abertas (deitado, sentado): a calça já na pose (o esqueleto aplicado na malha) tem o gancho
+    alisado (cada ponto perto do meio das virilhas vai para a média dos vizinhos, mais no centro) e depois volta para
+    fora da pele (3 mm). Tira a "barbatana" de pano que o cruzamento das coxas fazia entre as pernas."""
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    arm = p["arm"]
+    c = p["corpo"]
+    corpo = bpy.data.objects[c + "_corpo"]
+    centro = (osso(arm, "LeftUpLeg") + osso(arm, "RightUpLeg")) / 2
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = corpo.evaluated_get(dg)
+    me_c = ev.to_mesh()
+    Pc = [ev.matrix_world @ v.co for v in me_c.vertices]
+    arv = BVHTree.FromPolygons(Pc, [list(pl.vertices) for pl in me_c.polygons])
+    ev.to_mesh_clear()
+    for rid, _ in p["roupa"]:
+        it = R._resolve(R.ITENS[rid])
+        if it.get("slot") not in ("baixo", "inteira") or it.get("tipo") != "pele":
+            continue
+        ob = bpy.data.objects.get(f"{c}_{rid}")
+        if ob is None or ob.data.shape_keys:
+            continue
+        mod = next((m for m in ob.modifiers if m.type == "ARMATURE"), None)
+        if mod is None:
+            continue
+        with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob]):
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+        mw, mi = ob.matrix_world, ob.matrix_world.inverted()
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        P = {v: mw @ v.co for v in bm.verts}
+        zona = {v: max(0.0, 1 - (P[v] - centro).length / raio) for v in bm.verts if (P[v] - centro).length < raio}
+        for _ in range(voltas):
+            novo = {}
+            for v, w in zona.items():
+                viz = [e.other_vert(v) for e in v.link_edges]
+                if viz:
+                    m_ = sum((P[u] for u in viz), Vector()) / len(viz)
+                    novo[v] = P[v] + (m_ - P[v]) * 0.6 * min(1.0, w * 1.6)
+            P.update(novo)
+        for v in zona:
+            loc, nrm, _, _ = arv.find_nearest(P[v])
+            if loc is not None and (P[v] - loc).dot(nrm) < 0.003:
+                P[v] = loc + nrm * 0.003
+            v.co = mi @ P[v]
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+        print("fundilho alisado", p["id"], rid, len(zona), flush=True)
+
+
+def fundilho_no_quadril(ob, corpo):
+    """Calça: o fundilho (entre as pernas, perto do gancho) segue mais o quadril que as coxas. Com as pernas abertas
+    (deitado, sentado no chão) os pontos do meio, puxados por uma coxa e pela outra, faziam uma dobra esquisita."""
+    import numpy as np_
+    nomes, W = _pesos(ob)
+    if "Hips" not in nomes:
+        return
+    arm = next((m.object for m in ob.modifiers if m.type == "ARMATURE"), None)
+    if arm is None or "LeftUpLeg" not in arm.data.bones:
+        return
+    ih = nomes.index("Hips")
+    pernas = [nomes.index(n) for n in nomes if n.endswith("UpLeg")]
+    pl = arm.matrix_world @ arm.data.bones["LeftUpLeg"].head_local
+    pr = arm.matrix_world @ arm.data.bones["RightUpLeg"].head_local
+    cx = (pl.x + pr.x) / 2
+    zq = (pl.z + pr.z) / 2
+    larg = max(abs(pl.x - pr.x) * 0.6, 0.03)
+    mw = ob.matrix_world
+    P = np_.array([mw @ v.co for v in ob.data.vertices])
+    sel = (np_.abs(P[:, 0] - cx) < larg) & (P[:, 2] < zq + 0.03) & (P[:, 2] > zq - 0.16)
+    mud = []
+    for j in np_.nonzero(sel)[0]:
+        a = (1 - abs(P[j, 0] - cx) / larg) * min(1.0, (P[j, 2] - (zq - 0.16)) / 0.06) * 0.7
+        if a <= 0:
+            continue
+        q = W[j, pernas].sum() * a
+        if q <= 0:
+            continue
+        for k in pernas:
+            W[j, k] *= (1 - a)
+        W[j, ih] += q
+        mud.append(j)
+    for k, nm in enumerate(nomes):
+        g = ob.vertex_groups[nm]
+        for j in mud:
+            if W[j, k] > 1e-4:
+                g.add([int(j)], float(W[j, k]), "REPLACE")
+            else:
+                g.remove([int(j)])
+
+
 def folga_extra(ob, quanto=0.0025):
     """Um pouco de folga a mais em toda a peça (pela normal): nas poses, onde o corpo dobra, a pele não atravessa."""
     me = ob.data
@@ -616,6 +785,10 @@ def monta_pessoa(p):
             slot_ = R._resolve(item).get("slot")
             if slot_ in ("cima", "sobre"):
                 sem_pernas(ob)
+                if dobra and slot_ == "cima":
+                    barra_enfiada(ob)
+            if slot_ in ("baixo", "inteira"):
+                fundilho_no_quadril(ob, corpo)
             if slot_ in ("cima", "baixo", "inteira", "sobre"):
                 folga_extra(ob, 0.004 if slot_ == "sobre" else 0.0025)
         tinge(ob, rid, cor or (item.get("variacao") or {}).get("cor"))

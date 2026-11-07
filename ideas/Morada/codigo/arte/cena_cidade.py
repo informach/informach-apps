@@ -18,6 +18,7 @@ AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(AQUI, "morada-art"))
 import roupas as R  # noqa: E402
 import cena_familia as CF  # noqa: E402
+import props as PR  # noqa: E402
 
 V = Vector
 # corpo, animação (id da biblioteca, quadro), lugar (x, y, giro em graus: 0 = de frente para a câmera), cabelo, pelos,
@@ -84,7 +85,7 @@ PESSOAS = [
          cabelo=("cabelo_seguranca_chapeu", "#3A2A20"), pelos=["barba_2_curta"], cor_pelos="#6B4A32", cabeca_sobe=16,
          roupa=[("nov_camisa_social", "#F2F2F2"), ("nov_paleto", "#2B2D33"), ("nov_calca_social", "#2B2D33"),
                 ("nov_fedora", "#2B2D33"), ("roupa_sapato_seguranca", "#2B2B2B"), ("nov_pasta_couro", "#7A4B2D")],
-         segura=["nov_pasta_couro"]),
+         segura={"nov_pasta_couro": {"alvo": [0.06, -0.9, 0.24], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}}}),
     dict(id="gatinho_acena", corpo="idosa", pose=("resident.wave", 26), lugar=(2.05, 1.55, -5), expr="feliz",
          cabelo=("cabelo_caixa_chapeu", "#4A3226"),
          roupa=[("nov_agasalho_listrado", "#7EC8F0"), ("nov_short_curto", "#3D8FE0"), ("nov_gatinho", "#F07AA6"),
@@ -121,11 +122,12 @@ PESSOAS = [
     dict(id="carrinho", corpo="adulta", pose=("resident.walk.normal", 4), lugar=(1.75, 0.1, 20),
          cabelo=("cabelo_caixa", "#2B2B2E"),
          roupa=[("nov_vestido_tubinho", "#F2F2F2"), ("nov_faixa_cintura", "#D9433B"), ("roupa_tenis_009", None)]),
-    dict(id="bengala", corpo="idoso", pose=("resident.walk.old", 12), lugar=(3.0, -0.2, -15),
+    dict(id="bengala", corpo="idoso", pose=("resident.walk.old", 12), lugar=(3.45, -0.3, -20),
          cabelo=("cabelo", "#D6D6D2"),
          roupa=[("nov_camisa_social", "#2FA84F"), ("nov_calca_social", "#6B5242"), ("nov_suspensorio", "#5A3A26"),
-                ("nov_gravata", "#D9433B"), ("roupa_chinelo_005", "#5A3A26"), ("nov_bengala", "#5A3A26")],
-         segura=["nov_bengala"]),
+                ("nov_gravata", "#D9433B"), ("roupa_chinelo_005", "#5A3A26"), ("nov_bengala", "#2E1E14")],
+         segura={"nov_bengala": {"alvo": [0.32, -0.62, 0.3], "eixos": {"x": [0.08, -1.0, 0.06], "z": [0.0, 0.0, -1.0]},
+                                 "vertical": True}}),
     dict(id="menina", corpo="crianca_f", pose=("resident.idle.happy", 30), lugar=(3.85, -0.55, -10), expr="feliz",
          cabelo=("cabelo_showgirl", "#8A4A2C"),
          roupa=[("nov_manga_longa", "#F07AA6"), ("nov_calca_jeans", "#3DC4D8"), ("roupa_tenis_plus", "#E8559A")]),
@@ -136,13 +138,15 @@ PESSOAS = [
     dict(id="sacola", corpo="plus_f", pose=("resident.walk.normal", 18), lugar=(5.1, 0.3, -25),
          cabelo=("coque", "#B5532A"),
          roupa=[("nov_camisa_uniforme", "#E8E85A"), ("nov_calca_agasalho_listrada", "#F0A7B8"),
-                ("roupa_tenis_009", "#F29A22"), ("nov_bolsa_fecho", "#D9433B")], segura=["nov_bolsa_fecho"]),
+                ("roupa_tenis_009", "#F29A22"), ("nov_bolsa_fecho", "#D9433B")], abre_bracos=14,
+         segura={"nov_bolsa_fecho": {"alvo": [0.06, -0.88, 0.32], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}}}),
     dict(id="chao", corpo="alto_magro", pose=("resident.sit.floor.crossed", 40), lugar=(4.4, -1.35, -35), tom="morena",
          cabelo=None,
          roupa=[("nov_camiseta_justa", "#8A6AD6"), ("nov_calca_moletom", "#8A8F96"), ("nov_touca", "#C8BCB0"),
                 ("roupa_tenis_009", "#3D7BD6")]),
 ]
 BANCO = (4.0, 3.75, -12)  # x, y, giro
+BEBE = "recem_f"  # o recém-nascido deitado no carrinho
 
 
 # ------------------------------------------------------------------ cópias de corpos
@@ -196,7 +200,8 @@ def ponta_no_chao(p, rid):
     dg = bpy.context.evaluated_depsgraph_get()
     ev = o.evaluated_get(dg)
     zmin = min((ev.matrix_world @ v.co).z for v in ev.data.vertices)
-    if zmin >= 0.005:
+    apoia = "bengala" in rid or "mala_rodinha" in rid  # estes encostam no chão também se forem curtos
+    if zmin >= 0.005 and not apoia:
         return
     k = (mao.z - 0.005) / max(mao.z - zmin, 1e-3)
     # a peça está presa à mão pelo esqueleto: a escala vai na malha de descanso, em volta do ponto de descanso da mão
@@ -222,6 +227,11 @@ def segura(p, rid, pose=None):
     lado = item.get("mao", "dir")
     L = "Left" if lado == "esq" else "Right"
     frente, up, fora = referencial_corpo(arm, lado)
+    if ps.get("vertical"):  # bengala: a vertical do mundo (com o corpo inclinado, a da coluna punha a ponta para trás)
+        up = V((0, 0, 1))
+        frente = V((frente.x, frente.y, 0)).normalized()
+        fora = V((fora.x, fora.y, 0))
+        fora = (fora - frente * fora.dot(frente)).normalized()
     corpoV = lambda v: (frente * v[0] + up * v[1] + fora * v[2])  # noqa: E731
     S = CF.osso(arm, L + "Arm")
     Lb = (CF.osso(arm, L + "ForeArm") - S).length + (CF.osso(arm, L + "Hand") - CF.osso(arm, L + "ForeArm")).length
@@ -432,7 +442,7 @@ def main():
     rapido = "--rapido" in a
     bpy.ops.wm.open_mainfile(filepath=blend)
     CF.acha_texturas()
-    usados = {p["corpo"] for p in PESSOAS}
+    usados = {p["corpo"] for p in PESSOAS} | {BEBE}
     for o in list(bpy.data.objects):  # só os corpos da cena
         dono = next((c for c in usados if o.name == c or o.name.startswith(c + "_")), None)
         if o.type in ("LIGHT", "CAMERA") or (dono is None and o.type in ("MESH", "ARMATURE", "EMPTY")):
@@ -452,6 +462,16 @@ def main():
             bpy.context.view_layer.update()
             CF.no_chao(arm, [m for m in p["malhas"] if m.name.endswith("_corpo")])
     from mathutils import Quaternion
+    for p in PESSOAS:  # corpos largos: os braços abrem um pouco (senão a mão entra na barriga)
+        if p.get("abre_bracos"):
+            arm = p["arm"]
+            R3 = arm.matrix_world.to_3x3().normalized()
+            fr_ = (R3.inverted() @ (arm.parent.matrix_world.to_3x3() @ V((0, -1, 0)))).normalized()
+            lx = arm.parent.matrix_world.to_3x3() @ V((1, 0, 0))  # o lado +x da pessoa (ela olha para -y)
+            for nome in ("LeftArm", "RightArm"):
+                s = 1 if (CF.osso(arm, nome) - CF.osso(arm, "Spine1")).dot(lx) > 0 else -1
+                # giro em volta da frente: positivo levanta o braço do lado +x (para fora)
+                CF.gira_osso(arm, arm.pose.bones[nome], Quaternion(fr_, math.radians(p["abre_bracos"]) * s))
     for p in PESSOAS:  # quem olha o celular levanta um pouco a cabeça (de cima, o chapéu escondia o rosto)
         if p.get("cabeca_sobe"):
             arm = p["arm"]
@@ -464,6 +484,9 @@ def main():
     CF.no_chao(pd["arm"], [m for m in pd["malhas"] if m.name.endswith("_corpo")])
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_chapeu"), raiz_banco, assento, -0.45)
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_ruivo"), raiz_banco, assento, 0.42)
+    for p in PESSOAS:  # deitado e sentados: o gancho da calça alisado já na pose
+        if any(k in p["pose"][0] for k in (".lie", ".sit")):
+            CF.alisa_fundilho_posado(p)
     for p in PESSOAS:  # objetos de mão segurados como na página
         seg = p.get("segura") or []
         for rid in seg:
@@ -490,7 +513,8 @@ def main():
         CF.ik_braco(arm, lado, alvo - fr * 0.03, CF.osso(arm, L + "Arm") + dl * s * 0.4 - up * 0.4)
         CF.orienta_mao(arm, lado, fr * 0.6 - up * 0.2 - dl * s * 0.3, -up)
         CF.fecha_dedos(arm, lado, 0.8, 0.4)
-    carrinho(alca - dl * 0.21, alca + dl * 0.21, fr)
+    _, berco = PR.carrinho_bebe(alca - dl * 0.21, alca + dl * 0.21, fr)
+    PR.deita_recem(BEBE, berco)
     CF.acha_texturas()
     estudio(saida, rapido)
     CF.R.limpa_fontes()

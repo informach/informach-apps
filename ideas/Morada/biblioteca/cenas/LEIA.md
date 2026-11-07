@@ -107,5 +107,20 @@ blender-venv/bin/python -I codigo/arte/cena_cidade.py -- blend/corpos.blend cida
 Mesmas variáveis da cena da família (`RES`, `--rapido`, `CLOSE=selfie,carrinho`); `DIAG=1` lista onde ficou cada
 objeto de mão. O `cidade.blend` guardado também passou por `limpa_cena.py`.
 
+Quarta versão:
+- **Carrinho de bebê novo** (`codigo/arte/props.py`, `carrinho_bebe`): moisés oco (casca rosa, forro claro, borda com
+  espessura, faixa verde-água e colchão), capota na ponta da cabeça com friso, armação de tubos com juntas, eixos,
+  cestinha embaixo e rodas com pneu, cubo e seis raios. Devolve o "berço" (onde e como o bebê deita) e `deita_recem`
+  põe a recém-nascida do arquivo-mestre deitada nele, de costas, a cabeça embaixo da capota. Também sai como peça da
+  biblioteca: `biblioteca/props/carrinho_bebe.glb` (`codigo/ferramentas/exporta_props.py`), com o vazio `berco`.
+- **Bengala** apoiada no chão e de pé: a pose de segurar pode usar a vertical do mundo (`vertical`), porque com o idoso
+  inclinado a vertical da coluna punha a ponta para trás, escondida atrás da perna; a bengala estica ou encolhe até o
+  chão.
+- **Bolsas e pasta** afastadas do corpo (a pose "ao lado" do catálogo agora abre 15% do braço, não 7%) e, na mulher de
+  corpo plus, os braços abrem 14° (`abre_bracos`): a mão não entra mais na barriga.
+- **Sentados:** a parte de cima fica por dentro da calça (`barra_enfiada`), em vez de cair entre as coxas como um colan.
+- **Calça de quem deita ou senta:** o fundilho segue mais o quadril (`fundilho_no_quadril`) e, já na pose, o gancho é
+  alisado e volta para fora da pele (`alisa_fundilho_posado`), sem a "barbatana" de pano entre as pernas.
+
 Limites: cada pessoa está num quadro só da animação (a cena não anda); quem anda tem o pé parado no meio do passo; a
 mala e a bengala encolhem um pouco para caber na mão de quem segura.

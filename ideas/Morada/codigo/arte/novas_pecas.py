@@ -268,7 +268,7 @@ hat("chapeu_bruxa", "Chapéu pontudo", "#2B2B2B", copa={"folga": 0.015, "corte":
 # "balanco": quanto do vaivém da mão na animação entra (ao andar); "pendurado": a gravidade e um pêndulo decidem a
 # direção dos dedos (bolsa balança); "pousa": sentado, o objeto vai para o chão ao lado da cadeira
 FRENTE_Y = {"alvo": [0.32, -0.42, 0.02], "aponta": [0.1, 1.0, 0.0], "balanco": 0.2}  # café, sorvete, picolé: na frente da cintura
-AO_LADO = {"alvo": [0.04, -0.97, 0.07], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.85,
+AO_LADO = {"alvo": [0.05, -0.95, 0.15], "eixos": {"x": [0.0, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.85,
            "pendurado": True, "pousa": True}  # bolsas: braço solto
 POSES = {
     "celular": {"alvo": [0.36, -0.3, -0.06], "eixos": {"x": [0.55, 0.45, -0.7], "z": [-0.55, 0.85, 0.0]}, "balanco": 0.15},
@@ -277,7 +277,7 @@ POSES = {
     "buque": {"alvo": [0.28, -0.5, -0.04], "aponta": [0.15, 1.0, -0.1], "balanco": 0.25},
     "camera": {"alvo": [0.45, 0.2, -0.1], "eixos": {"x": [0.0, 1.0, 0.0], "z": [1.0, 0.0, 0.0]}, "balanco": 0.1},
     "livro": {"alvo": [0.35, -0.3, -0.05], "eixos": {"x": [0.3, 0.9, -0.3], "z": [-0.9, 0.3, 0.0]}, "balanco": 0.15},
-    "bengala": {"alvo": [0.18, -0.88, 0.1], "eixos": {"x": [0.08, -1.0, 0.05], "z": [0.0, 0.0, -1.0]}, "balanco": 0.6,
+    "bengala": {"alvo": [0.3, -0.76, 0.26], "eixos": {"x": [0.06, -1.0, 0.04], "z": [0.0, 0.0, -1.0]}, "balanco": 0.6,
                 "pousa": True},
     "guarda_chuva": {"alvo": [0.12, -0.9, 0.08], "eixos": {"x": [0.05, -1.0, 0.04], "z": [0.0, 0.0, -1.0]},
                      "balanco": 0.6, "pousa": True},
