@@ -1,6 +1,6 @@
 {
  "categoria": "estantes",
- "rotulo": "Estantes",
+ "rotulo": "estantes",
  "itens": [
   {
    "id": "estante_nichos_8_azul",
@@ -1525,6 +1525,118 @@
     "pacote",
     "gaveta"
    ]
+  },
+  {
+   "id": "prateleira_maos_francesas_verde",
+   "rotulo": "Prateleira de parede com mãos-francesas (verde)",
+   "categoria": "estantes",
+   "grupo": "prateleira_maos_francesas",
+   "fixacao": "parede",
+   "dims": [
+    0.6,
+    0.22,
+    0.239
+   ],
+   "arquivo": "glb/prateleira_maos_francesas_verde.glb",
+   "miniatura": "miniaturas/prateleira_maos_francesas_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.24,
+      0.11
+     ],
+     "tamanho": [
+      0.56,
+      0.4,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1207,
+      0.11
+     ],
+     "tamanho": [
+      0.6,
+      0.239,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "terracota",
+    "verde"
+   ],
+   "tris": 724,
+   "pacote": false,
+   "tags": [
+    "prateleira",
+    "parede"
+   ],
+   "altura_instalacao": 1.6
+  },
+  {
+   "id": "prateleira_maos_francesas_turquesa",
+   "rotulo": "Prateleira de parede com mãos-francesas (turquesa)",
+   "categoria": "estantes",
+   "grupo": "prateleira_maos_francesas",
+   "fixacao": "parede",
+   "dims": [
+    0.6,
+    0.22,
+    0.239
+   ],
+   "arquivo": "glb/prateleira_maos_francesas_turquesa.glb",
+   "miniatura": "miniaturas/prateleira_maos_francesas_turquesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.24,
+      0.11
+     ],
+     "tamanho": [
+      0.56,
+      0.4,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1207,
+      0.11
+     ],
+     "tamanho": [
+      0.6,
+      0.239,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "turquesa_claro"
+   ],
+   "tris": 724,
+   "pacote": false,
+   "tags": [
+    "prateleira",
+    "parede"
+   ],
+   "altura_instalacao": 1.4
   }
  ]
 }

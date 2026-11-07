@@ -1,7 +1,7 @@
 # Móveis
 
 Segunda parte da biblioteca de móveis e ambientes (a primeira é `construcao/`: chão, paredes, portas e janelas). São
-**954 peças em 20 categorias**, todas com miniatura. Foram feitas aqui tendo como norte as imagens da vitrine do pacote
+**958 peças em 20 categorias**, todas com miniatura. Foram feitas aqui tendo como norte as imagens da vitrine do pacote
 de móveis (não são cópias). Entram também as 47 peças do pacote gratuito Cute Furniture, com o selo `pacote`: **uso
 interno, não distribuir**. Algumas aparecem em mais de uma cor, e por isso são 51 itens marcados.
 
@@ -17,7 +17,7 @@ Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gir
 | `cadeiras`: cadeiras, poltronas e banquetas | 59 | 53 | 0 |
 | `mesas`: jantar, centro, laterais, escrivaninhas, infantis, de jardim e balcões | 51 | 43 | 12 |
 | `racks_tv` | 18 | 12 | 30 |
-| `estantes`: estantes, nichos e prateleiras de parede | 14 | 14 | 1 |
+| `estantes`: estantes, nichos e prateleiras de parede | 16 | 15 | 1 |
 | `lareiras`: lareiras, fogareiros e tubos de chaminé | 18 | 16 | 5 |
 | `camas` | 42 | 22 | 28 |
 | `criados`: criados-mudos | 34 | 18 | 31 |
@@ -31,11 +31,11 @@ Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gir
 | `tapetes` | 12 | 9 | 0 |
 | `plantas` | 23 | 23 | 0 |
 | `livros` | 16 | 14 | 0 |
-| `objetos`: piano, TVs, som, computadores, ginástica, brinquedos etc. | 70 | 57 | 7 |
-| **Total** | **954** | **661** | **804** |
+| `objetos`: piano, TVs, som, computadores, ginástica, brinquedos, notas adesivas etc. | 72 | 58 | 7 |
+| **Total** | **958** | **663** | **804** |
 
 A coluna "Interativos" conta as portas, gavetas, tampas e portas de correr. Os espaços internos (`slots`) são 1.497
-no total. Com as 124 peças de construção, a biblioteca chega a 1.078 peças.
+no total. Com as 124 peças de construção, a biblioteca chega a 1.082 peças.
 
 ## Arquivos de cada categoria (`<categoria>/`)
 
@@ -51,6 +51,27 @@ no total. Com as 124 peças de construção, a biblioteca chega a 1.078 peças.
 
 `paleta_moveis.png` é o atlas de 16 × 16 cores que todas as peças usam. `vitrines/` tem as vitrines renderizadas no
 Blender, fechadas e com portas e gavetas abertas.
+
+## Cena de exemplo (`cenas/`)
+
+`quarto_azul.png` é um quarto azul cheio de objetos, montado só com peças da biblioteca: as paredes e o chão da
+construção (com a textura degradê azul) e 71 móveis e objetos dos catálogos (a lista está em `quarto_azul.json`). A
+cena foi feita para mostrar a biblioteca, seguindo uma imagem de referência da vitrine.
+
+Para ela, entraram 4 peças que faltavam:
+
+- as notas adesivas (uma e um grupo);
+- a prateleira de parede com mãos-francesas, em verde e em turquesa.
+
+O script `codigo/arte/cena_sala_moveis.py` monta e renderiza a cena. Cada peça entra com posição e giro, e os objetos
+pequenos pousam sozinhos na superfície de baixo (um raio acha o tampo, a prateleira ou o nicho). Ele também grava o
+`.blend`.
+
+```bash
+AMOSTRAS=128 RES=2000 blender-venv/bin/python -I codigo/arte/cena_sala_moveis.py -- <moveis_out> <construcao> <saida.png> [saida.blend]
+```
+
+A página mostra a cena com as 71 peças em miniatura, e clicar numa delas abre a peça no visor.
 
 ## Convenções
 

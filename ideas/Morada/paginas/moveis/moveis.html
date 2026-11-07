@@ -70,6 +70,12 @@ h3 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
 .mini span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100% }
 .mini[aria-pressed="true"] { border-color: var(--azul); background: var(--azul-suave) }
 .mini .pac { font: 600 .6rem var(--f-medida); color: var(--suave) }
+.cena { max-width: 1400px; margin: 22px auto 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start }
+@media (max-width: 900px) { .cena { grid-template-columns: minmax(0, 1fr) } }
+.cena img { width: 100%; border-radius: 10px; display: block; background: var(--palco) }
+.cena-texto { display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.cena-texto p { margin: 0; color: var(--suave); font-size: .9rem; max-width: 60ch }
+.cena-pecas { display: flex; flex-wrap: wrap; gap: 6px }
 .vitrine { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
 @media (max-width: 700px) { .vitrine { grid-template-columns: minmax(0, 1fr) } }
 .vitrine figure { margin: 0 }
@@ -121,6 +127,15 @@ h3 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
     <p class="nota">PAC = peça do pacote gratuito (uso interno). As peças de parede aparecem numa parede, na altura de instalação.</p>
   </aside>
 </main>
+
+<section class="cena" aria-label="Cena de exemplo">
+  <img src="cena/quarto_azul.jpg" alt="Quarto azul cheio de objetos montado com as peças da biblioteca: piano com som e cafeteira em cima, nichos hexagonais, quadros, ar-condicionado, alvo de dardos, cama, bicicleta ergométrica, banquinho roxo, mesa com batedeira, TV de tubo, cadeira de escritório rosa e armário de cozinha" loading="lazy">
+  <div class="cena-texto">
+    <h3>Cena de exemplo</h3>
+    <p>Um quarto azul montado só com peças da biblioteca: as paredes e o chão da construção e <span id="cena-n">72</span> móveis e objetos dos catálogos. Clique numa peça abaixo para abri-la no visor.</p>
+    <div class="cena-pecas" id="cena-pecas"></div>
+  </div>
+</section>
 
 <section class="catalogo" aria-label="Catálogo">
   <div class="catalogo-topo">
@@ -551,6 +566,20 @@ function marcaGrade() {
   for (const b of $("grade").querySelectorAll(".mini")) b.setAttribute("aria-pressed", atual && b.dataset.id === atual.id ? "true" : "false");
 }
 $("busca").addEventListener("input", grade);
+
+// ---------------------------------------------------------------- peças da cena de exemplo
+fetch("cena/quarto_azul.json").then((r) => r.ok ? r.json() : null).then((ids) => {
+  if (!ids) return;
+  const unicos = [...new Set(ids)].filter((id) => POR_ID[id]);
+  $("cena-n").textContent = unicos.length;
+  $("cena-pecas").replaceChildren(...unicos.map((id) => {
+    const b = document.createElement("button");
+    b.className = "cor"; b.type = "button"; b.title = POR_ID[id].rotulo; b.setAttribute("aria-label", POR_ID[id].rotulo);
+    sprite(b, POR_ID[id], 46);
+    b.onclick = () => { catAtual = POR_ID[id].cat; $("busca").value = ""; grade(); mostra(id); $("tela").scrollIntoView({ behavior: "smooth", block: "center" }); };
+    return b;
+  }));
+}).catch(() => {});
 
 // ---------------------------------------------------------------- início
 const doHash = decodeURIComponent(location.hash.slice(1)).replaceAll("-", "_");

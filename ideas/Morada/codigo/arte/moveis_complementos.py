@@ -384,6 +384,62 @@ def _():
                     tags=["computador", "monitor", "teclado"])
 
 
+# ------------------------------------------------------------------------------------- notas adesivas e prateleiras
+def nota(x, z, cor, rot=0.0, tam=0.075):
+    n = mb.caixa(tam, 0.0016, tam, x=0, y=-0.0008, z=-tam / 2, cor=cor, bisel=0.0006, seg=1)
+    # canto de baixo levemente descolado (a nota "levanta" um pouco)
+    for v in n.data.vertices:
+        if v.co.z < -tam * 0.8:
+            v.co.y -= (-tam * 0.8 - v.co.z) * 0.25
+    mb.transforma(n, rot=("Y", rot), loc=(x, 0, z))
+    return n
+
+
+@peca("objetos", "nota_adesiva_amarela")
+def _():
+    it = mb.Item("nota_adesiva_amarela")
+    it.add(nota(0, 0.075, "papel_amarelado", 4))
+    return it, dict(rotulo="Nota adesiva (amarela)", grupo="notas_adesivas", fixacao="parede",
+                    altura_instalacao=1.4, tags=["papel", "bilhete"], miniatura_dir=(0.3, -1, 0.15))
+
+
+@peca("objetos", "notas_adesivas_grupo")
+def _():
+    it = mb.Item("notas_adesivas_grupo")
+    it.add(nota(-0.05, 0.16, "papel_amarelado", -6), nota(0.045, 0.14, "papel", 8), nota(0.0, 0.075, "pessego", -3))
+    return it, dict(rotulo="Notas adesivas (grupo)", grupo="notas_adesivas", fixacao="parede", altura_instalacao=1.4,
+                    tags=["papel", "bilhete"], miniatura_dir=(0.3, -1, 0.15))
+
+
+def prateleira_suportes(id_, tampo, suporte, L=0.6, P=0.22):
+    it = mb.Item(id_)
+    esp = 0.04
+    it.add(mb.caixa(L, P, esp, y=-P / 2, z=0.2, cor=tampo, bisel=0.012))
+    for sx in (-1, 1):  # mãos-francesas em perfil curvo
+        cont = [(0.0, 0.0), (0.0, 0.2), (-0.18, 0.2)] + [(-0.18 + 0.18 * math.sin(math.radians(a)),
+                                                           0.2 - 0.2 * (1 - math.cos(math.radians(a)))) for a in
+                                                          range(10, 90, 10)]
+        sup = mb.extrudado(mb._ccw([(y_, z_) for y_, z_ in cont]), 0.035, cor=suporte, bisel=0.008, plano="yz")
+        mb.transforma(sup, loc=(sx * (L / 2 - 0.1) - 0.0175, 0, 0))
+        it.add(sup)
+    it.slot("tampo", (0, -P / 2, 0.2 + esp), (L - 0.04, P - 0.02, 0.4))
+    return it
+
+
+@peca("estantes", "prateleira_maos_francesas_verde")
+def _():
+    return prateleira_suportes("prateleira_maos_francesas_verde", "verde", "terracota"), dict(
+        rotulo="Prateleira de parede com mãos-francesas (verde)", grupo="prateleira_maos_francesas",
+        fixacao="parede", altura_instalacao=1.6, tags=["prateleira", "parede"])
+
+
+@peca("estantes", "prateleira_maos_francesas_turquesa")
+def _():
+    return prateleira_suportes("prateleira_maos_francesas_turquesa", "turquesa_claro", "azul"), dict(
+        rotulo="Prateleira de parede com mãos-francesas (turquesa)", grupo="prateleira_maos_francesas",
+        fixacao="parede", altura_instalacao=1.4, tags=["prateleira", "parede"])
+
+
 for c, id_, f in PECAS:
     if SO and id_ not in SO:
         continue

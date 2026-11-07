@@ -3336,6 +3336,88 @@
     "monitor",
     "teclado"
    ]
+  },
+  {
+   "id": "nota_adesiva_amarela",
+   "rotulo": "Nota adesiva (amarela)",
+   "categoria": "objetos",
+   "grupo": "notas_adesivas",
+   "fixacao": "parede",
+   "dims": [
+    0.08,
+    0.002,
+    0.08
+   ],
+   "arquivo": "glb/nota_adesiva_amarela.glb",
+   "miniatura": "miniaturas/nota_adesiva_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.075,
+      0.0008
+     ],
+     "tamanho": [
+      0.08,
+      0.08,
+      0.002
+     ]
+    }
+   ],
+   "cores": [
+    "papel_amarelado"
+   ],
+   "tris": 44,
+   "pacote": false,
+   "tags": [
+    "papel",
+    "bilhete"
+   ],
+   "altura_instalacao": 1.4
+  },
+  {
+   "id": "notas_adesivas_grupo",
+   "rotulo": "Notas adesivas (grupo)",
+   "categoria": "objetos",
+   "grupo": "notas_adesivas",
+   "fixacao": "parede",
+   "dims": [
+    0.178,
+    0.002,
+    0.166
+   ],
+   "arquivo": "glb/notas_adesivas_grupo.glb",
+   "miniatura": "miniaturas/notas_adesivas_grupo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00194,
+      0.11839,
+      0.0008
+     ],
+     "tamanho": [
+      0.178,
+      0.166,
+      0.002
+     ]
+    }
+   ],
+   "cores": [
+    "papel",
+    "papel_amarelado",
+    "pessego"
+   ],
+   "tris": 132,
+   "pacote": false,
+   "tags": [
+    "papel",
+    "bilhete"
+   ],
+   "altura_instalacao": 1.4
   }
  ]
 }
