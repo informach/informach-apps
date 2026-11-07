@@ -53,6 +53,8 @@ h1 { font-family: var(--f-titulo); font-stretch: 78%; font-weight: 800; font-siz
 .cor-livre input { width: 38px; height: 30px; border: 1px solid var(--linha); border-radius: 6px; background: none; padding: 2px }
 .pecas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 300px; overflow: auto }
 .peca { text-align: left; border: 1px solid var(--linha); border-radius: 8px; background: transparent; color: var(--tinta); padding: 6px 8px; cursor: pointer; font: 500 .84rem var(--f-texto) }
+.peca { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 8px; align-items: center }
+.peca img { grid-row: span 2; width: 44px; height: 44px; object-fit: contain; background: var(--azul-suave); border-radius: 6px }
 .peca small { display: block; font-family: var(--f-medida); font-size: .7rem; color: var(--suave) }
 .peca[aria-pressed="true"] { border-color: var(--azul); background: var(--azul-suave) }
 .alterna { display: flex; align-items: center; gap: 8px; font-size: .88rem }
@@ -343,14 +345,14 @@ function desenhaPecas() {
     const b = document.createElement("button");
     b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === e.id));
     const it = PJ_POR_ID[idPj(e.id)];
-    b.innerHTML = `${e.rotulo}<small>${it.vao ? "vão da " + it.vao.peca.replace(/_/g, " ") : it.comp ? String(it.comp).replace(".", ",") + " m" : e.desenho.cores.length + " cores"}</small>`;
+    b.innerHTML = `<img src="miniaturas/${idPj(e.id)}.webp" alt="" loading="lazy"><span>${e.rotulo}</span><small>${it.vao ? "vão da " + it.vao.peca.replace(/_/g, " ") : it.comp ? String(it.comp).replace(".", ",") + " m" : e.desenho.cores.length + " cores"}</small>`;
     b.onclick = () => { estado.peca = e.id; estado.sup = "pj"; atualiza(true); };
     botoesPj.push(b);
   }
   el.replaceChildren(titulo("Chão e paredes"), ...todas.map((p) => {
     const b = document.createElement("button");
     b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === p.id));
-    b.innerHTML = `${p.rotulo}${p.pacote ? " <span class=\"medidas\">PAC</span>" : ""}<small>${p.vao ? "encaixa em " + p.vao.peca.replace(/_/g, " ") : medidas(p)}</small>`;
+    b.innerHTML = `<img src="miniaturas/${p.id}.webp" alt="" loading="lazy"><span>${p.rotulo}${p.pacote ? " <span class=\"medidas\">PAC</span>" : ""}</span><small>${p.vao ? "encaixa em " + p.vao.peca.replace(/_/g, " ") : medidas(p)}</small>`;
     b.onclick = () => { estado.peca = p.id; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
     return b;
   }), ...botoesPj);

@@ -1,10 +1,10 @@
 """Empacota a biblioteca de construção para a página: peças (GLB → gzip → base64 .txt), texturas em JPG (1024 e
-miniatura de 160), as plantas de exemplo (plantas.json) e as imagens da vitrine. Uso: python construcao_pacote.py <SP>"""
+miniatura de 160), a miniatura de cada item, as plantas de exemplo (plantas.json) e as imagens da vitrine. Uso: python construcao_pacote.py <SP>"""
 import base64, gzip, json, os, shutil, sys
 from PIL import Image
 SP = sys.argv[1]
 C = os.path.join(SP, "construcao"); V = os.path.join(SP, "construcao_viewer")
-for d in ("pecas", "texturas", "mini", "vitrine"):
+for d in ("pecas", "texturas", "mini", "vitrine", "miniaturas"):
     os.makedirs(os.path.join(V, d), exist_ok=True)
 cat = json.load(open(os.path.join(C, "construcao.json")))
 for grupo in ("chaos", "paredes", "lambris", "encaixes"):
@@ -45,5 +45,14 @@ for n in ("comodos", "pecas", "janelas", "portas"):
     f = os.path.join(C, "render", n + ".png")
     if os.path.exists(f):
         Image.open(f).convert("RGB").save(os.path.join(V, "vitrine", n + ".jpg"), quality=86, optimize=True)
+# miniatura de cada item (obrigatória): construcao/miniaturas/<id>.webp, feita por miniaturas_construcao.py
+ids = [p["id"] for g in ("chaos", "paredes", "lambris", "encaixes") for p in cat[g]]
+if os.path.exists(fpj):
+    ids += [p["id"] for g in ("janelas", "portas", "batentes", "lambris", "cantos") for p in pj[g]]
+faltam = [i for i in ids if not os.path.exists(os.path.join(C, "miniaturas", i + ".webp"))]
+if faltam:
+    sys.exit("falta miniatura: " + ", ".join(faltam))
+for i in ids:
+    shutil.copy(os.path.join(C, "miniaturas", i + ".webp"), os.path.join(V, "miniaturas", i + ".webp"))
 tot = sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(V) for f in fs)
 print("ok", round(tot / 1e6, 1), "MB")

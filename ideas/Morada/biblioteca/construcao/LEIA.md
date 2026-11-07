@@ -88,6 +88,16 @@ Também ficam disponíveis os encaixes do pacote de Natal: porta em arco e janel
 Os cômodos de exemplo já usam as peças novas, e as portas levam o batente. `portas_janelas_cena.py` faz as folhas
 `janelas.png` e `portas.png` (com `CLOSE=1`, também um close para conferir o acabamento).
 
+## Miniaturas (`miniaturas/<id>.webp`)
+
+Todo item da biblioteca tem miniatura, sem exceção. São 124 hoje: o chão, as paredes, os lambris, os encaixes, as
+janelas, as portas, os batentes e as cantoneiras. Cada uma mostra a peça sozinha, de três quartos, em fundo
+transparente, com 192 px. As paredes aparecem com o degradê azul e o chão com o pínus. A página mostra a miniatura em
+cada botão da lista.
+
+`codigo/ferramentas/miniaturas_construcao.py` renderiza todas. O empacotador para com erro se faltar a miniatura de
+algum item.
+
 ## Texturas (`texturas/<id>.png`, 1024 px, sem emenda)
 
 São 46 no total. As 18 de piso e as 24 de parede têm os mesmos grupos da vitrine:
@@ -146,6 +156,10 @@ blender-venv/bin/python -I codigo/arte/construcao_cena.py -- <saida> <saida>/ren
 ```
 
 ```bash
+blender-venv/bin/python -I codigo/ferramentas/miniaturas_construcao.py -- <saida> <saida>/mini_png
+```
+
+```bash
 python3 -I codigo/ferramentas/construcao_pacote.py <SP>
 ```
 
@@ -153,5 +167,5 @@ Depois das peças, rode `blender-venv/bin/python -I codigo/arte/portas_janelas.p
 janelas (`portas_janelas.blend` e `.json`).
 
 A primeira gera as texturas, a segunda as peças, os GLB, o `construcao.blend` e o `construcao.json`, a terceira os
-renders da vitrine (`comodos.png` e `pecas.png`), e a quarta empacota para a página. A variável `AMOSTRAS=16` faz uma
+renders da vitrine (`comodos.png` e `pecas.png`), a quarta as miniaturas (PNG de 256 px, que viram `miniaturas/<id>.webp` de 192 px) e a quinta empacota para a página. A variável `AMOSTRAS=16` faz uma
 prévia rápida dos renders.
