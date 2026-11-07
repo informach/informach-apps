@@ -1,0 +1,400 @@
+<title>Morada: Pisos e Paredes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: prancheta de obra — visor 3D grande à esquerda (a planta montada), à direita a ficha da superfície escolhida
+   e o mostruário de texturas; embaixo, a vitrine renderizada no Blender. */
+:root {
+  --papel: #EEF2F6; --painel: #FFFFFF; --tinta: #18212E; --suave: #5A6779; --linha: #D5DCE5;
+  --azul: #2E63D9; --azul-suave: #E3EBFB; --cal: #FFFFFF; --palco: #1E2E4B;
+  --f-titulo: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-texto: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-medida: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --papel: #121823; --painel: #1A2230; --tinta: #E6ECF4; --suave: #9AA8BA; --linha: #2C3748;
+  --azul: #7FA3F2; --azul-suave: #22304A; --cal: #F4F6F9; --palco: #16233A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --papel: #121823; --painel: #1A2230; --tinta: #E6ECF4; --suave: #9AA8BA; --linha: #2C3748;
+  --azul: #7FA3F2; --azul-suave: #22304A; --cal: #F4F6F9; --palco: #16233A; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--papel); color: var(--tinta); font-family: var(--f-texto); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 32px }
+.topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; max-width: 1400px; margin: 0 auto 14px }
+h1 { font-family: var(--f-titulo); font-stretch: 78%; font-weight: 800; font-size: clamp(1.6rem, 3vw, 2.3rem); letter-spacing: .01em; margin: 0; text-wrap: balance }
+.topo p { margin: 0; color: var(--suave); max-width: 62ch }
+.medidas { font-family: var(--f-medida); font-size: .78rem; color: var(--suave); letter-spacing: .02em }
+.mesa { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; max-width: 1400px; margin: 0 auto }
+@media (max-width: 900px) { .mesa { grid-template-columns: minmax(0, 1fr) } }
+.palco { position: relative; background: var(--palco); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 11; max-width: 100%; min-height: 320px }
+.palco canvas { display: block; width: 100%; height: 100% }
+.legenda { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; pointer-events: none;
+  font-family: var(--f-medida); font-size: .75rem; color: #DCE6F5 }
+.legenda b { font-weight: 500; color: #FFFFFF }
+.carregando { position: absolute; inset: 0; display: grid; place-items: center; color: #DCE6F5; font-family: var(--f-medida); font-size: .85rem }
+.ficha { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.rotulo { font-family: var(--f-titulo); font-stretch: 85%; font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); margin: 0 0 6px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip { font: 500 .86rem var(--f-texto); color: var(--tinta); background: transparent; border: 1px solid var(--linha); border-radius: 999px; padding: 5px 12px; cursor: pointer }
+.chip[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #FFFFFF }
+.chip:focus-visible, .amostra:focus-visible, .peca:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px }
+.superficie { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left }
+.superficie .bolinha { width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--linha); background-size: cover; flex: none }
+.superficies { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px }
+.superficies .chip { border-radius: 8px; padding: 6px 8px }
+.grupo-amostras { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px }
+.amostra { aspect-ratio: 1; border-radius: 6px; border: 1px solid var(--linha); background-size: cover; background-position: center; cursor: pointer; padding: 0; position: relative }
+.amostra[aria-pressed="true"] { outline: 3px solid var(--azul); outline-offset: 1px }
+.amostra .pac { position: absolute; right: 2px; bottom: 2px; font: 600 .6rem var(--f-medida); background: rgba(24,33,46,.8); color: #fff; border-radius: 3px; padding: 0 3px }
+.subgrupo { font-size: .8rem; color: var(--suave); margin: 8px 0 4px }
+.cor-livre { display: flex; align-items: center; gap: 8px; font-size: .86rem }
+.cor-livre input { width: 38px; height: 30px; border: 1px solid var(--linha); border-radius: 6px; background: none; padding: 2px }
+.pecas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 300px; overflow: auto }
+.peca { text-align: left; border: 1px solid var(--linha); border-radius: 8px; background: transparent; color: var(--tinta); padding: 6px 8px; cursor: pointer; font: 500 .84rem var(--f-texto) }
+.peca small { display: block; font-family: var(--f-medida); font-size: .7rem; color: var(--suave) }
+.peca[aria-pressed="true"] { border-color: var(--azul); background: var(--azul-suave) }
+.alterna { display: flex; align-items: center; gap: 8px; font-size: .88rem }
+.nota { font-size: .8rem; color: var(--suave); margin: 0 }
+.vitrine { max-width: 1400px; margin: 22px auto 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
+@media (max-width: 700px) { .vitrine { grid-template-columns: minmax(0, 1fr) } }
+.vitrine figure { margin: 0 }
+.vitrine img { width: 100%; border-radius: 10px; display: block; background: var(--palco) }
+.vitrine figcaption { font-size: .82rem; color: var(--suave); margin-top: 6px }
+h2 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-size: 1.25rem; margin: 26px auto 0; max-width: 1400px }
+</style>
+
+<header class="topo">
+  <h1>Pisos e paredes</h1>
+  <p>Chão modular de 4 × 4 m e 20 peças de parede para montar qualquer planta. Escolha uma superfície e troque a textura ou a cor.</p>
+  <span class="medidas">grade 0,50 m · parede 3,00 × 0,15 m · porta 0,90 × 2,10 m</span>
+</header>
+
+<main class="mesa">
+  <section class="palco" aria-label="Visor 3D">
+    <canvas id="tela"></canvas>
+    <div class="carregando" id="carregando">carregando peças…</div>
+    <div class="legenda" id="legenda"></div>
+  </section>
+
+  <aside class="ficha">
+    <div>
+      <p class="rotulo">Mostrar</p>
+      <div class="chips" id="modos"></div>
+    </div>
+    <div id="bloco-pecas" hidden>
+      <p class="rotulo">Peça</p>
+      <div class="pecas" id="pecas"></div>
+    </div>
+    <div>
+      <p class="rotulo">Superfície</p>
+      <div class="superficies" id="superficies"></div>
+    </div>
+    <div>
+      <p class="rotulo" id="rotulo-amostras">Texturas</p>
+      <div id="amostras"></div>
+      <label class="cor-livre" for="cor"><input type="color" id="cor" value="#5B95E5"> Cor lisa (qualquer cor)</label>
+    </div>
+    <label class="alterna" for="lambri"><input type="checkbox" id="lambri" checked> Lambri branco na parte de baixo</label>
+    <p class="nota">PAC = textura ou encaixe dos pacotes gratuitos (uso interno). Uma imagem de piso cobre 2 × 2 m; uma de parede, 3 × 3 m (a parede inteira).</p>
+  </aside>
+</main>
+
+<h2>Vitrine (render no Blender)</h2>
+<section class="vitrine">
+  <figure><img src="vitrine/comodos.jpg" alt="Dois cômodos montados com as peças: um azul com xadrez verde e quarto amarelo, outro de tijolo com madeira, listras verdes e quarto de nuvens" loading="lazy"><figcaption>Dois cômodos de 8 × 8 m montados só com as peças, as texturas e as janelas e a porta dos pacotes.</figcaption></figure>
+  <figure><img src="vitrine/pecas.jpg" alt="As 20 peças de parede em azul com acabamento branco" loading="lazy"><figcaption>As 20 peças de parede: lisas, insertos, muretas, portas, passagem, arcos e janelas.</figcaption></figure>
+</section>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const [CAT, TEX, PLANTAS] = await Promise.all(["construcao.json", "texturas.json", "plantas.json"].map((f) => fetch(f).then((r) => r.json())));
+const TEXS = Object.fromEntries([...TEX.piso, ...TEX.parede].map((t) => [t.id, t]));
+const GRUPOS = { madeira: "Madeira", ceramica: "Cerâmica", degrade: "Degradê", papel: "Papel de parede", tijolo: "Tijolo", listras: "Listras", pacote: "Dos pacotes" };
+const ESP = CAT.espessura;
+
+// ---------------------------------------------------------------- cena
+const tela = document.getElementById("tela");
+const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const cena = new THREE.Scene();
+cena.background = new THREE.Color("#22355A");
+cena.fog = new THREE.Fog("#22355A", 30, 90);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.3, 200);
+const orbita = new OrbitControls(camera, tela);
+orbita.enableDamping = true;
+orbita.maxPolarAngle = Math.PI * 0.49;
+cena.add(new THREE.HemisphereLight("#DCE7FF", "#2A3550", 1.2));
+const sol = new THREE.DirectionalLight("#FFFFFF", 2.2);
+sol.position.set(-8, 16, 10);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+Object.assign(sol.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 60 });
+sol.shadow.bias = -0.0004;
+cena.add(sol, sol.target);
+const fundo = new THREE.Mesh(new THREE.CircleGeometry(200, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#22355A", roughness: 1 }));
+fundo.position.y = -0.045;
+fundo.receiveShadow = true;
+cena.add(fundo);
+const grupo = new THREE.Group();
+cena.add(grupo);
+
+function redimensiona() {
+  const r = tela.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(redimensiona).observe(tela.parentElement);
+
+// ---------------------------------------------------------------- peças (GLB → gzip → base64)
+const loader = new GLTFLoader();
+const _fontes = new Map();
+async function fonte(id) {
+  if (!_fontes.has(id)) _fontes.set(id, (async () => {
+    const p = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes].find((x) => x.id === id);
+    const txt = await (await fetch(p.arquivo)).text();
+    const gz = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
+    const buf = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const g = await new Promise((ok, erro) => loader.parse(buf, "", ok, erro));
+    g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    return g.scene;
+  })());
+  return _fontes.get(id);
+}
+const texLoader = new THREE.TextureLoader();
+const _texturas = new Map();
+function textura(id) {
+  if (!_texturas.has(id)) {
+    const t = texLoader.load(TEXS[id].arquivo);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.flipY = false; // o UV do glTF já vem com v para baixo
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    _texturas.set(id, t);
+  }
+  return _texturas.get(id);
+}
+// um material por superfície (trocar a textura de uma superfície troca em todas as peças dela)
+const superficie = new Map();
+function material(chave, valor) {
+  if (!superficie.has(chave)) superficie.set(chave, new THREE.MeshStandardMaterial({ roughness: 0.75 }));
+  const m = superficie.get(chave);
+  if (valor !== undefined) {
+    m.userData.valor = valor;
+    if (valor.startsWith("#")) { m.map = null; m.color.set(valor); }
+    else { m.map = textura(valor); m.color.set("#FFFFFF"); }
+    m.needsUpdate = true;
+  }
+  return m;
+}
+const BORDA = new THREE.MeshStandardMaterial({ color: "#F2F3F2", roughness: 0.6 });
+
+async function coloca(id, x, y, ang, mats) {
+  // Blender (z para cima) → three (y para cima): (x, y, z) → (x, z, −y); giro em z ↔ giro em y
+  const f = await fonte(id);
+  const o = f.clone(true);
+  o.position.set(x, 0, -y);
+  o.rotation.y = THREE.MathUtils.degToRad(ang);
+  if (mats) o.traverse((m) => {
+    if (!m.isMesh) return;
+    const nomes = Array.isArray(m.material) ? m.material : [m.material];
+    const novos = nomes.map((mt) => mats[mt.name] ?? (mt.name === "borda" ? BORDA : mt));
+    m.material = Array.isArray(m.material) ? novos : novos[0];
+  });
+  grupo.add(o);
+  return o;
+}
+
+// ---------------------------------------------------------------- montagem de uma planta (a mesma regra do Blender)
+const DIR = { L: 0, N: 90, O: 180, S: 270 };
+const OPOSTO = { L: "O", O: "L", N: "S", S: "N" };
+const compDe = Object.fromEntries(CAT.paredes.map((p) => [p.id, p.comp]));
+const vaosDe = Object.fromEntries(CAT.paredes.map((p) => [p.id, p.vaos]));
+const altDe = Object.fromEntries(CAT.paredes.map((p) => [p.id, p.alt]));
+const lambriDe = Object.fromEntries(CAT.lambris.map((l) => [l.comp, l.id]));
+async function monta(planta, lambri) {
+  const tarefas = [];
+  for (const [x, y, tex] of planta.chaos) tarefas.push(coloca("chao_4m", x, y, 0, { piso: material("chao", estado.valores.chao ?? tex) }));
+  const cantos = new Map(), pontas = new Map(), retas = new Set();
+  const k = (x, y) => `${Math.round(x * 1000) / 1000},${Math.round(y * 1000) / 1000}`;
+  for (const t of planta.paredes) {
+    const ang = DIR[t.dir], dx = Math.round(Math.cos(ang * Math.PI / 180)), dy = Math.round(Math.sin(ang * Math.PI / 180));
+    const ma = material("s:" + t.dentro, estado.valores["s:" + t.dentro] ?? t.dentro), mb = material("s:" + t.fora, estado.valores["s:" + t.fora] ?? t.fora);
+    let [x, y] = t.ini;
+    const L = t.pecas.reduce((s, [p]) => s + compDe[p], 0);
+    (pontas.get(k(x, y)) ?? pontas.set(k(x, y), []).get(k(x, y))).push(t.dir);
+    const fx = x + dx * L, fy = y + dy * L;
+    (pontas.get(k(fx, fy)) ?? pontas.set(k(fx, fy), []).get(k(fx, fy))).push(OPOSTO[t.dir]);
+    for (let s = 1; s < Math.round(L / 0.5); s++) retas.add(k(x + dx * s * 0.5, y + dy * s * 0.5));
+    cantos.set(k(x, y), Math.max(cantos.get(k(x, y)) ?? 0, altDe[t.pecas[0][0]]));
+    const lx = -dy, ly = dx; // a face de dentro fica à esquerda de quem percorre
+    for (const [pid, enc] of t.pecas) {
+      tarefas.push(coloca(pid, x, y, ang, { face_a: ma, face_b: mb }));
+      if (enc) tarefas.push(coloca(enc, x, y, ang));
+      if (lambri && t.lambri) {
+        const porta = vaosDe[pid].filter((v) => v.peitoril < 0.01);
+        const off = ESP / 2 + 0.001;
+        if (!porta.length && lambriDe[compDe[pid]]) tarefas.push(coloca(lambriDe[compDe[pid]], x + lx * off, y + ly * off, ang, { lambri: material("lambri", "#F3F3F1") }));
+        else for (const v of porta) for (const [a, b] of [[0, v.cx - v.larg / 2], [v.cx + v.larg / 2, compDe[pid]]])
+          for (let s = a; b - s >= 0.5 - 1e-6; s += 0.5) tarefas.push(coloca(lambriDe[0.5], x + dx * s + lx * off, y + dy * s + ly * off, ang, { lambri: material("lambri", "#F3F3F1") }));
+      }
+      x += dx * compDe[pid]; y += dy * compDe[pid];
+    }
+    cantos.set(k(x, y), Math.max(cantos.get(k(x, y)) ?? 0, altDe[t.pecas.at(-1)[0]]));
+  }
+  for (const [pt, ds] of pontas) if ((ds.includes("L") && ds.includes("O")) || (ds.includes("N") && ds.includes("S"))) retas.add(pt);
+  for (const [pt, h] of cantos) {
+    if (retas.has(pt)) continue;
+    const [x, y] = pt.split(",").map(Number);
+    tarefas.push(coloca("pilar", x, y, 0).then((o) => { o.scale.y = (h + 0.004) / (CAT.altura + 0.004); }));
+  }
+  await Promise.all(tarefas);
+}
+
+// ---------------------------------------------------------------- estado e interface
+const estado = { modo: "A", peca: "porta_2m", sup: "chao", valores: {}, lambri: true };
+const NOMES_SUP = { chao: "Chão" };
+function superficiesDoModo() {
+  if (estado.modo === "peca") {
+    const ehChao = estado.peca === "chao_4m";
+    return ehChao ? [["chao", "Chão", "piso"]] : estado.peca.startsWith("lambri") ? [] : [["peca_a", "Face de dentro", "parede"], ["peca_b", "Face de fora", "parede"]];
+  }
+  const pl = PLANTAS[estado.modo], lista = [["chao", "Chão", "piso"]], vistos = new Set();
+  for (const t of pl.paredes) for (const [tex, papel] of [[t.dentro, "dentro"], [t.fora, "fora"]]) {
+    if (vistos.has(tex)) continue;
+    vistos.add(tex);
+    const fora = pl.paredes.some((q) => q.fora === tex && !pl.paredes.some((r) => r.dentro === tex));
+    lista.push(["s:" + tex, (fora ? "Lado de fora · " : "Dentro · ") + TEXS[tex].rotulo.replace(/^Degradê |^Papel |^Listras |^Tijolo /, ""), "parede"]);
+  }
+  return lista;
+}
+function valorDe(chave) {
+  return superficie.get(chave)?.userData.valor ?? estado.valores[chave];
+}
+function desenhaModos() {
+  const el = document.getElementById("modos");
+  el.replaceChildren(...[["A", "Cômodo azul"], ["B", "Cômodo de tijolo"], ["peca", "Peça avulsa"]].map(([k, r]) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button"; b.textContent = r; b.setAttribute("aria-pressed", String(estado.modo === k));
+    b.onclick = () => { estado.modo = k; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
+    return b;
+  }));
+  document.getElementById("bloco-pecas").hidden = estado.modo !== "peca";
+}
+function medidas(p) {
+  const f = (n) => n.toFixed(2).replace(".", ",");
+  if (p.tam) return `${f(p.tam[0])} × ${f(p.tam[1])} m`;
+  const v = (p.vaos || []).map((q) => `vão ${f(q.larg)} × ${f(q.alt)}${q.peitoril ? " a " + f(q.peitoril) : ""}`).join(" · ");
+  return `${f(p.comp)} × ${f(p.alt)} m${v ? " · " + v : ""}`;
+}
+function desenhaPecas() {
+  const todas = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes];
+  document.getElementById("pecas").replaceChildren(...todas.map((p) => {
+    const b = document.createElement("button");
+    b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === p.id));
+    b.innerHTML = `${p.rotulo}${p.pacote ? " <span class=\"medidas\">PAC</span>" : ""}<small>${p.vao ? "encaixa em " + p.vao.peca.replace(/_/g, " ") : medidas(p)}</small>`;
+    b.onclick = () => { estado.peca = p.id; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
+    return b;
+  }));
+}
+function desenhaSuperficies() {
+  const lista = superficiesDoModo();
+  document.getElementById("superficies").replaceChildren(...lista.map(([ch, rot]) => {
+    const b = document.createElement("button");
+    b.className = "chip superficie"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.sup === ch));
+    const v = valorDe(ch), bol = document.createElement("span");
+    bol.className = "bolinha";
+    if (v) bol.style.background = v.startsWith("#") ? v : `center / cover url(${TEXS[v].mini})`;
+    b.append(bol, document.createTextNode(rot));
+    b.onclick = () => { estado.sup = ch; desenhaSuperficies(); desenhaAmostras(); };
+    return b;
+  }));
+}
+function desenhaAmostras() {
+  const tipo = superficiesDoModo().find(([c]) => c === estado.sup)?.[2];
+  const el = document.getElementById("amostras");
+  document.getElementById("rotulo-amostras").textContent = tipo === "piso" ? "Texturas de piso" : tipo === "parede" ? "Texturas de parede" : "Texturas";
+  if (!tipo) { el.replaceChildren(); return; }
+  const lista = TEX[tipo], atual = valorDe(estado.sup);
+  const grupos = [...new Set(lista.map((t) => t.grupo))];
+  el.replaceChildren(...grupos.flatMap((g) => {
+    const tit = document.createElement("p"); tit.className = "subgrupo"; tit.textContent = GRUPOS[g] ?? g;
+    const grade = document.createElement("div"); grade.className = "grupo-amostras";
+    grade.append(...lista.filter((t) => t.grupo === g).map((t) => {
+      const b = document.createElement("button");
+      b.className = "amostra"; b.type = "button"; b.title = t.rotulo; b.setAttribute("aria-label", t.rotulo);
+      b.style.backgroundImage = `url(${t.mini})`; b.setAttribute("aria-pressed", String(atual === t.id));
+      if (t.pacote) { const s = document.createElement("span"); s.className = "pac"; s.textContent = "PAC"; b.append(s); }
+      b.onclick = () => aplica(t.id);
+      return b;
+    }));
+    return [tit, grade];
+  }));
+}
+function aplica(valor) {
+  if (!estado.sup) return;
+  estado.valores[estado.sup] = valor;
+  material(estado.sup, valor);
+  desenhaSuperficies(); desenhaAmostras(); legenda();
+}
+document.getElementById("cor").addEventListener("input", (e) => aplica(e.target.value));
+document.getElementById("lambri").addEventListener("change", (e) => { estado.lambri = e.target.checked; atualiza(false); });
+
+function legenda() {
+  const el = document.getElementById("legenda");
+  if (estado.modo === "peca") {
+    const p = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes].find((x) => x.id === estado.peca);
+    el.innerHTML = `<b>${p.rotulo}</b><span>${p.vao ? "encaixe do pacote" : medidas(p)}</span>`;
+  } else {
+    el.innerHTML = `<b>${estado.modo === "A" ? "Cômodo azul" : "Cômodo de tijolo"}</b><span>8,00 × 8,00 m · 4 placas de chão</span><span>arraste para girar · role para aproximar</span>`;
+  }
+}
+
+let montando = 0;
+async function atualiza(enquadra) {
+  const id = ++montando;
+  desenhaModos(); desenhaPecas(); desenhaSuperficies(); desenhaAmostras(); legenda();
+  document.getElementById("carregando").hidden = false;
+  const antigos = [...grupo.children];
+  if (estado.modo === "peca") {
+    const p = estado.peca;
+    const mats = p === "chao_4m" ? { piso: material("chao", valorDe("chao") ?? "madeira_pinus") }
+      : { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul"),
+          lambri: material("lambri", "#F3F3F1") };
+    const enc = CAT.encaixes.find((e) => e.id === p);
+    if (enc) { await coloca(enc.vao.peca, 0, 0, 0, { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul") }); }
+    await coloca(p, 0, 0, 0, mats);
+    const pc = CAT.paredes.find((q) => q.id === p);  // peça avulsa: as cantoneiras das pontas
+    if (pc && !pc.centrada) for (const xx of [0, pc.comp]) await coloca("pilar", xx, 0, 0).then((o) => { o.scale.y = (pc.alt + 0.004) / (CAT.altura + 0.004); });
+  } else {
+    await monta(PLANTAS[estado.modo], estado.lambri);
+  }
+  if (id !== montando) return;
+  for (const o of antigos) grupo.remove(o);
+  desenhaSuperficies();
+  document.getElementById("carregando").hidden = true;
+  if (enquadra) {
+    const caixa = new THREE.Box3().setFromObject(grupo), c = caixa.getCenter(new THREE.Vector3()), r = caixa.getSize(new THREE.Vector3()).length();
+    orbita.target.copy(c);
+    const dir = estado.modo === "peca" ? new THREE.Vector3(0.55, 0.45, 1) : new THREE.Vector3(-0.45, 1.05, 0.95);
+    camera.position.copy(c).add(dir.normalize().multiplyScalar(r * (estado.modo === "peca" ? 1.25 : 1.05)));
+    orbita.update();
+  }
+}
+estado.sup = "chao";
+redimensiona();
+await atualiza(true);
+renderer.setAnimationLoop(() => { orbita.update(); renderer.render(cena, camera); });
+</script>

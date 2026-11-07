@@ -1,0 +1,382 @@
+{
+ "piso": [
+  {
+   "id": "madeira_nogueira",
+   "rotulo": "Madeira nogueira",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_nogueira.jpg",
+   "media": "#594033",
+   "mini": "mini/madeira_nogueira.jpg"
+  },
+  {
+   "id": "madeira_rosada",
+   "rotulo": "Madeira rosada",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_rosada.jpg",
+   "media": "#a5897f",
+   "mini": "mini/madeira_rosada.jpg"
+  },
+  {
+   "id": "madeira_pinus",
+   "rotulo": "Madeira pínus",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_pinus.jpg",
+   "media": "#e49859",
+   "mini": "mini/madeira_pinus.jpg"
+  },
+  {
+   "id": "madeira_acinzentada",
+   "rotulo": "Madeira acinzentada",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_acinzentada.jpg",
+   "media": "#a4968d",
+   "mini": "mini/madeira_acinzentada.jpg"
+  },
+  {
+   "id": "madeira_mel",
+   "rotulo": "Madeira mel",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_mel.jpg",
+   "media": "#e7a05e",
+   "mini": "mini/madeira_mel.jpg"
+  },
+  {
+   "id": "madeira_clara",
+   "rotulo": "Madeira clara",
+   "grupo": "madeira",
+   "arquivo": "texturas/madeira_clara.jpg",
+   "media": "#c8c2bc",
+   "mini": "mini/madeira_clara.jpg"
+  },
+  {
+   "id": "mosaico_cinza",
+   "rotulo": "Mosaico cinza",
+   "grupo": "ceramica",
+   "arquivo": "texturas/mosaico_cinza.jpg",
+   "media": "#c6cbd2",
+   "mini": "mini/mosaico_cinza.jpg"
+  },
+  {
+   "id": "xadrez_laranja",
+   "rotulo": "Xadrez laranja",
+   "grupo": "ceramica",
+   "arquivo": "texturas/xadrez_laranja.jpg",
+   "media": "#ef8f58",
+   "mini": "mini/xadrez_laranja.jpg"
+  },
+  {
+   "id": "xadrez_pb_pequeno",
+   "rotulo": "Xadrez preto e branco",
+   "grupo": "ceramica",
+   "arquivo": "texturas/xadrez_pb_pequeno.jpg",
+   "media": "#959698",
+   "mini": "mini/xadrez_pb_pequeno.jpg"
+  },
+  {
+   "id": "mosaico_cinza_branco",
+   "rotulo": "Mosaico cinza e branco",
+   "grupo": "ceramica",
+   "arquivo": "texturas/mosaico_cinza_branco.jpg",
+   "media": "#d7dce0",
+   "mini": "mini/mosaico_cinza_branco.jpg"
+  },
+  {
+   "id": "mosaico_grafite",
+   "rotulo": "Mosaico grafite",
+   "grupo": "ceramica",
+   "arquivo": "texturas/mosaico_grafite.jpg",
+   "media": "#454b53",
+   "mini": "mini/mosaico_grafite.jpg"
+  },
+  {
+   "id": "xadrez_cinza",
+   "rotulo": "Xadrez cinza",
+   "grupo": "ceramica",
+   "arquivo": "texturas/xadrez_cinza.jpg",
+   "media": "#c0c4c8",
+   "mini": "mini/xadrez_cinza.jpg"
+  },
+  {
+   "id": "xadrez_azul",
+   "rotulo": "Xadrez azul",
+   "grupo": "ceramica",
+   "arquivo": "texturas/xadrez_azul.jpg",
+   "media": "#a8c1ec",
+   "mini": "mini/xadrez_azul.jpg"
+  },
+  {
+   "id": "xadrez_verde",
+   "rotulo": "Xadrez verde",
+   "grupo": "ceramica",
+   "arquivo": "texturas/xadrez_verde.jpg",
+   "media": "#aad4aa",
+   "mini": "mini/xadrez_verde.jpg"
+  },
+  {
+   "id": "piscina",
+   "rotulo": "Pastilha de piscina",
+   "grupo": "ceramica",
+   "arquivo": "texturas/piscina.jpg",
+   "media": "#79c4f1",
+   "mini": "mini/piscina.jpg"
+  },
+  {
+   "id": "octogono_laranja",
+   "rotulo": "Octógono laranja",
+   "grupo": "ceramica",
+   "arquivo": "texturas/octogono_laranja.jpg",
+   "media": "#f8b96a",
+   "mini": "mini/octogono_laranja.jpg"
+  },
+  {
+   "id": "octogono_grafite",
+   "rotulo": "Octógono grafite com ponto",
+   "grupo": "ceramica",
+   "arquivo": "texturas/octogono_grafite.jpg",
+   "media": "#434348",
+   "mini": "mini/octogono_grafite.jpg"
+  },
+  {
+   "id": "octogono_branco",
+   "rotulo": "Octógono branco com ponto",
+   "grupo": "ceramica",
+   "arquivo": "texturas/octogono_branco.jpg",
+   "media": "#eef3f4",
+   "mini": "mini/octogono_branco.jpg"
+  },
+  {
+   "id": "carpete_cassino",
+   "rotulo": "Carpete (Cassino)",
+   "grupo": "pacote",
+   "arquivo": "texturas/carpete_cassino.jpg",
+   "media": "#333036",
+   "pacote": true,
+   "mini": "mini/carpete_cassino.jpg"
+  },
+  {
+   "id": "pedra_cidade",
+   "rotulo": "Piso de pedra (Cidade)",
+   "grupo": "pacote",
+   "arquivo": "texturas/pedra_cidade.jpg",
+   "media": "#b5b4b3",
+   "pacote": true,
+   "mini": "mini/pedra_cidade.jpg"
+  },
+  {
+   "id": "tabuas_escuras",
+   "rotulo": "Tábuas escuras (Xadrez)",
+   "grupo": "pacote",
+   "arquivo": "texturas/tabuas_escuras.jpg",
+   "media": "#77411e",
+   "pacote": true,
+   "mini": "mini/tabuas_escuras.jpg"
+  }
+ ],
+ "parede": [
+  {
+   "id": "degrade_mostarda",
+   "rotulo": "Degradê mostarda",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_mostarda.jpg",
+   "media": "#d7b34b",
+   "mini": "mini/degrade_mostarda.jpg"
+  },
+  {
+   "id": "degrade_gelo",
+   "rotulo": "Degradê gelo",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_gelo.jpg",
+   "media": "#e0e0e1",
+   "mini": "mini/degrade_gelo.jpg"
+  },
+  {
+   "id": "degrade_vermelho",
+   "rotulo": "Degradê vermelho",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_vermelho.jpg",
+   "media": "#d14c47",
+   "mini": "mini/degrade_vermelho.jpg"
+  },
+  {
+   "id": "degrade_roxo",
+   "rotulo": "Degradê roxo",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_roxo.jpg",
+   "media": "#8652ca",
+   "mini": "mini/degrade_roxo.jpg"
+  },
+  {
+   "id": "degrade_verde",
+   "rotulo": "Degradê verde",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_verde.jpg",
+   "media": "#54c24b",
+   "mini": "mini/degrade_verde.jpg"
+  },
+  {
+   "id": "degrade_azul",
+   "rotulo": "Degradê azul",
+   "grupo": "degrade",
+   "arquivo": "texturas/degrade_azul.jpg",
+   "media": "#467ed7",
+   "mini": "mini/degrade_azul.jpg"
+  },
+  {
+   "id": "papel_confete",
+   "rotulo": "Papel confete",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_confete.jpg",
+   "media": "#f3f2f5",
+   "mini": "mini/papel_confete.jpg"
+  },
+  {
+   "id": "papel_nuvens",
+   "rotulo": "Papel nuvens",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_nuvens.jpg",
+   "media": "#4bbae7",
+   "mini": "mini/papel_nuvens.jpg"
+  },
+  {
+   "id": "papel_estrelas",
+   "rotulo": "Papel estrelas",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_estrelas.jpg",
+   "media": "#3b4350",
+   "mini": "mini/papel_estrelas.jpg"
+  },
+  {
+   "id": "papel_melao",
+   "rotulo": "Papel melão",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_melao.jpg",
+   "media": "#dcd99a",
+   "mini": "mini/papel_melao.jpg"
+  },
+  {
+   "id": "papel_laranja",
+   "rotulo": "Papel laranja",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_laranja.jpg",
+   "media": "#f79e3c",
+   "mini": "mini/papel_laranja.jpg"
+  },
+  {
+   "id": "papel_melancia",
+   "rotulo": "Papel melancia",
+   "grupo": "papel",
+   "arquivo": "texturas/papel_melancia.jpg",
+   "media": "#ce5a48",
+   "mini": "mini/papel_melancia.jpg"
+  },
+  {
+   "id": "tijolo_grafite",
+   "rotulo": "Tijolo grafite",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_grafite.jpg",
+   "media": "#606467",
+   "mini": "mini/tijolo_grafite.jpg"
+  },
+  {
+   "id": "tijolo_marrom",
+   "rotulo": "Tijolo marrom",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_marrom.jpg",
+   "media": "#6b4e43",
+   "mini": "mini/tijolo_marrom.jpg"
+  },
+  {
+   "id": "tijolo_branco",
+   "rotulo": "Tijolo branco",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_branco.jpg",
+   "media": "#d8d4d0",
+   "mini": "mini/tijolo_branco.jpg"
+  },
+  {
+   "id": "tijolo_terracota",
+   "rotulo": "Tijolo terracota",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_terracota.jpg",
+   "media": "#8c4c3a",
+   "mini": "mini/tijolo_terracota.jpg"
+  },
+  {
+   "id": "tijolo_vermelho",
+   "rotulo": "Tijolo vermelho",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_vermelho.jpg",
+   "media": "#a14f36",
+   "mini": "mini/tijolo_vermelho.jpg"
+  },
+  {
+   "id": "tijolo_rustico",
+   "rotulo": "Tijolo rústico",
+   "grupo": "tijolo",
+   "arquivo": "texturas/tijolo_rustico.jpg",
+   "media": "#9a6350",
+   "mini": "mini/tijolo_rustico.jpg"
+  },
+  {
+   "id": "listra_laranja",
+   "rotulo": "Listras laranja",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_laranja.jpg",
+   "media": "#f9af64",
+   "mini": "mini/listra_laranja.jpg"
+  },
+  {
+   "id": "listra_azul_fina",
+   "rotulo": "Listras azuis finas",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_azul_fina.jpg",
+   "media": "#82b9ef",
+   "mini": "mini/listra_azul_fina.jpg"
+  },
+  {
+   "id": "listra_turquesa",
+   "rotulo": "Listras turquesa",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_turquesa.jpg",
+   "media": "#63bbbd",
+   "mini": "mini/listra_turquesa.jpg"
+  },
+  {
+   "id": "listra_cinza",
+   "rotulo": "Listras cinza",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_cinza.jpg",
+   "media": "#afb5bc",
+   "mini": "mini/listra_cinza.jpg"
+  },
+  {
+   "id": "listra_celeste",
+   "rotulo": "Listras celeste",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_celeste.jpg",
+   "media": "#6fc0f1",
+   "mini": "mini/listra_celeste.jpg"
+  },
+  {
+   "id": "listra_verde",
+   "rotulo": "Listras verdes",
+   "grupo": "listras",
+   "arquivo": "texturas/listra_verde.jpg",
+   "media": "#6ea34d",
+   "mini": "mini/listra_verde.jpg"
+  },
+  {
+   "id": "biscoito",
+   "rotulo": "Biscoito (Natal)",
+   "grupo": "pacote",
+   "arquivo": "texturas/biscoito.jpg",
+   "media": "#cf6703",
+   "pacote": true,
+   "mini": "mini/biscoito.jpg"
+  }
+ ],
+ "escala_m": {
+  "piso": 2.0,
+  "parede": 3.0
+ }
+}
