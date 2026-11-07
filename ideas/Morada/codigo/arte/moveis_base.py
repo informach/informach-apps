@@ -83,6 +83,11 @@ CORES = {
     "papel": "#FBF7EB", "papel_amarelado": "#F3E6C5", "colchao": "#F5F2EB", "lencol": "#FAFAF7",
     "tecido_cinza": "#BABDC5", "couro": "#8B502F", "couro_preto": "#302C2C", "borracha": "#2B2E34",
     "plastico_branco": "#F2F2EE", "louca": "#F9FBFC",
+    # cidade (acrescentadas no fim: as células antigas não mudam)
+    "asfalto": "#3D424A", "asfalto_claro": "#4F555E", "concreto": "#BAC0C8", "concreto_escuro": "#8F96A0",
+    "calcada": "#D4D8DE", "grama": "#7ACB4C", "grama_escura": "#56A63B", "brita": "#918A80", "dormente": "#6B4F3C",
+    "trilho": "#7D838B", "agua_rio": "#3C99D5", "agua_funda": "#2B70A9", "neon_ciano": "#44E4FF",
+    "piso_rosado": "#E3BFB0", "terra_seca": "#B98E62",
 }
 NOMES = list(CORES)
 assert len(NOMES) <= 256 and len(set(NOMES)) == len(NOMES)
@@ -134,7 +139,7 @@ def imagem_paleta(caminho=None):
 # ---------------------------------------------------------------------------------------------------------------------
 # Materiais (a ordem é fixa: índice de material igual em todas as malhas, para juntar sem remapear)
 # ---------------------------------------------------------------------------------------------------------------------
-MAT_NOMES = ["atlas", "vidro", "espelho", "luz"]
+MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon"]
 _ESTAMPAS = {}
 
 
@@ -163,6 +168,15 @@ def materiais():
     b.inputs["Base Color"].default_value = (*_lin("#D6ECF7"), 1)
     b.inputs["Roughness"].default_value = 0.03
     b.inputs["Metallic"].default_value = 1.0
+    ag, b = _principled("agua")
+    b.inputs["Base Color"].default_value = (*_lin("#3C99D5"), 1)
+    b.inputs["Roughness"].default_value = 0.04
+    b.inputs["Alpha"].default_value = 0.86
+    ag.surface_render_method = "BLENDED"
+    ne, b = _principled("neon")
+    b.inputs["Base Color"].default_value = (*_lin("#7FEFFF"), 1)
+    b.inputs["Emission Color"].default_value = (*_lin("#44E4FF"), 1)
+    b.inputs["Emission Strength"].default_value = 3.0
     lz, b = _principled("luz")
     b.inputs["Base Color"].default_value = (*_lin("#FFF2C8"), 1)
     b.inputs["Emission Color"].default_value = (*_lin("#FFE3A0"), 1)
@@ -1043,7 +1057,10 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     for raiz, px, py in pos:
         larg[py] = max(larg.get(py, 0), px)
     pos = [(r, px - larg[py] / 2, py) for r, px, py in pos]
-    alt = {id(g[0]): (g[2]["dims"][2] if g[2].get("fixacao") == "teto" else 0.0) for g in grupos}
+    alt = {}
+    for raiz, novos, it in grupos:  # o que desce abaixo de z = 0 (teto, asfalto, laje da cidade) sobe até o chão
+        zs = [(o.matrix_world @ V(c)).z for o in novos if o.type == "MESH" for c in o.bound_box]
+        alt[id(raiz)] = max(0.0, -min(zs)) if zs else 0.0
     for raiz, px, py in pos:  # peça de teto: a origem fica no alto, então sobe a altura dela para ficar no chão
         raiz.location = (px, py, alt[id(raiz)])
     bpy.context.view_layer.update()
