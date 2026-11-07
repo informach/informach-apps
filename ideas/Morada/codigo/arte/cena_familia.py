@@ -154,7 +154,8 @@ def tom_de_pele(ob, tom):
 # ------------------------------------------------------------------ poses
 def pose_da_biblioteca(arm, corpo, acao, quadro):
     """Põe o esqueleto no quadro de uma animação da biblioteca e congela esse quadro na pose (sem ação ligada)."""
-    fonte = FONTE.get(corpo, corpo)
+    base = corpo.split("__")[0]  # cópia de um corpo (cena com o mesmo corpo mais de uma vez)
+    fonte = FONTE.get(base, base)
     nome = acao
     with bpy.data.libraries.load(os.path.join(BIB, fonte + ".blend"), link=False) as (src, dst):
         dst.actions = [nome] if nome in src.actions else []

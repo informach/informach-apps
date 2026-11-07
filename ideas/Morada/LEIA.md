@@ -75,6 +75,10 @@ correr, virar, latir (miar), pedir para brincar, dar a pata, cambalhota, deitar,
 corpos, roupas, cabelos, expressões, poses da biblioteca e um bicho, por `codigo/arte/cena_familia.py` (arquivo da cena:
 `biblioteca/cenas/familia.blend`; como foi feita em `biblioteca/cenas/LEIA.md`).
 
+`biblioteca/cenas/cidade.png`: uma praça vista de cima com 29 pessoas no dia a dia (andando, ao telefone, de selfie, no
+banco, deitado, empurrando carrinho, de bengala...), por `codigo/arte/cena_cidade.py`; o banco e o carrinho de bebê são
+feitos pela cena.
+
 ## Animações aprovadas
 
 As animações marcadas como boas na página ficam congeladas: corrigir outra animação nunca muda uma delas. O procedimento

@@ -66,3 +66,34 @@ meio corpo para revisão, `SEMPOSE=1` deixa todos em descanso (para comparar o e
   ombro ou no braço do outro).
 - A menina do colo e a do joelho usam a pose de sentada na cadeira; as pernas não abraçam o braço nem a coxa.
 - A guia é uma curva fixa (não é física).
+
+## Praça da cidade (`cidade.png`, `cidade.blend`)
+
+Uma praça vista de cima com 29 pessoas fazendo coisas do dia a dia, com uma imagem de vitrine como norte. Gerada por
+`codigo/arte/cena_cidade.py`, que reusa as funções da cena da família (`cena_familia.py`: peças, cor livre, pesos da
+pele, pele coberta, cabelo dentro do chapéu, poses e IK).
+
+- **Quem e o quê** (animação da biblioteca, um quadro): acenando, andando (normal, feliz, de idoso), apontando, ao
+  telefone, mexendo no celular, selfie, café, sorvete, comemorando, deitado, sentado no chão, dois largados no banco,
+  empurrando um carrinho de bebê, de bengala, puxando mala, com bolsa, pasta e sacola. Corpos: os do mestre, vários
+  repetidos (a cena copia esqueleto, corpo, rostos, cabelos e pelos do corpo com o nome `<corpo>__<n>`). Peças só do
+  catálogo, com cor livre, inclusive quepe de capitão, touca de gatinho, chapéu balde, fedora, palheta, chapéu de praia,
+  camisas de caveira, oncinha e havaiana, colete social e acolchoado, suspensório e óculos.
+- **Objetos de mão como na página**: a pose de segurar do catálogo (`pose` do item: alvo do braço em comprimentos de
+  braço e eixos da mão) vale também no Blender (`segura`), por cima da animação; a selfie usa uma pose própria (braço
+  para cima e para a frente, tela para o rosto). Objeto mais comprido que a altura da mão (bengala, mala de rodinhas)
+  encolhe em volta da mão até encostar no chão (`ponta_no_chao`).
+- **Feitos para a cena**: banco de praça (ripas de madeira e pés de ferro, assento a 45 cm; quem senta é posto pelo
+  quadril, com o fundo das nádegas no assento) e carrinho de bebê (cesto rosa com borda verde-água, capota, armação e
+  rodas), com a alça nas duas mãos de quem empurra (IK, andando).
+- **Câmera e luz**: de cima, 42 mm, três luzes de área, chão azul-escuro.
+
+```bash
+blender-venv/bin/python -I codigo/arte/cena_cidade.py -- blend/corpos.blend cidade.png cidade.blend
+```
+
+Mesmas variáveis da cena da família (`RES`, `--rapido`, `CLOSE=selfie,carrinho`); `DIAG=1` lista onde ficou cada
+objeto de mão. O `cidade.blend` guardado também passou por `limpa_cena.py`.
+
+Limites: cada pessoa está num quadro só da animação (a cena não anda); quem anda tem o pé parado no meio do passo; a
+mala e a bengala encolhem um pouco para caber na mão de quem segura.
