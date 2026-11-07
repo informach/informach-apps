@@ -476,23 +476,79 @@ def alisa_fundilho_posado(p, raio=0.17, voltas=24):
         bm.from_mesh(ob.data)
         P = {v: mw @ v.co for v in bm.verts}
         zona = {v: max(0.0, 1 - (P[v] - centro).length / raio) for v in bm.verts if (P[v] - centro).length < raio}
-        for _ in range(voltas):
+        # como um tecido justo (shrinkwrap): em cada volta o pano alisa (média dos vizinhos) e volta a encostar na pele
+        # embaixo dele (4 mm); o pano solto entre as coxas some, porque cada ponto acaba na coxa mais perto. No meio da
+        # região vale tudo; para a borda, cada vez menos (a calça de fora não muda)
+        for _ in range(12):
             novo = {}
             for v, w in zona.items():
                 viz = [e.other_vert(v) for e in v.link_edges]
+                q = P[v]
                 if viz:
                     m_ = sum((P[u] for u in viz), Vector()) / len(viz)
-                    novo[v] = P[v] + (m_ - P[v]) * 0.6 * min(1.0, w * 1.6)
+                    q = q + (m_ - q) * 0.5 * min(1.0, w * 1.5)
+                loc, nrm, _, _ = arv.find_nearest(q)
+                if loc is not None:
+                    d = (q - loc).dot(nrm)
+                    alvo = 0.004 if d > 0.004 else max(d, 0.003)
+                    k_ = min(1.0, w * 1.5)
+                    q = q + ((loc + nrm * alvo) - q) * k_ if (d > 0.004 or d < 0.003) else q
+                novo[v] = q
             P.update(novo)
         for v in zona:
-            loc, nrm, _, _ = arv.find_nearest(P[v])
-            if loc is not None and (P[v] - loc).dot(nrm) < 0.003:
-                P[v] = loc + nrm * 0.003
             v.co = mi @ P[v]
         bm.to_mesh(ob.data)
         bm.free()
         ob.data.update()
         print("fundilho alisado", p["id"], rid, len(zona), flush=True)
+
+
+def pernas_do_lado(ob, costura=0.008):
+    """Calça: cada lado segue só a própria perna. Em pé as coxas se encostam e a transferência de pesos dava à parte de
+    dentro de uma coxa o peso da outra; com as pernas abertas (deitado, sentado no chão, no passo) esse pano esticava de
+    uma coxa à outra. Abaixo do quadril, cada ponto perde o peso da corrente da outra perna (coxa, perna, pé), que vai
+    para a do próprio lado; só uma costura fina no meio (8 mm) mistura as duas."""
+    import numpy as np_
+    nomes, W = _pesos(ob)
+    arm = next((m.object for m in ob.modifiers if m.type == "ARMATURE"), None)
+    if arm is None or "LeftUpLeg" not in arm.data.bones:
+        return
+    pl = arm.matrix_world @ arm.data.bones["LeftUpLeg"].head_local
+    pr = arm.matrix_world @ arm.data.bones["RightUpLeg"].head_local
+    cx, zq = (pl.x + pr.x) / 2, (pl.z + pr.z) / 2
+    sl = 1.0 if pl.x > cx else -1.0
+    cadeia = ("UpLeg", "Leg", "Foot", "ToeBase")
+    idx = {lado: [nomes.index(lado + c) if lado + c in nomes else None for c in cadeia] for lado in ("Left", "Right")}
+    for lado in ("Left", "Right"):
+        for k, c in enumerate(cadeia):
+            if idx[lado][k] is None:
+                ob.vertex_groups.new(name=lado + c)
+                nomes.append(lado + c)
+                W = np_.hstack([W, np_.zeros((W.shape[0], 1))])
+                idx[lado][k] = len(nomes) - 1
+    mw = ob.matrix_world
+    P = np_.array([mw @ v.co for v in ob.data.vertices])
+    mud = []
+    for j in np_.nonzero(P[:, 2] < zq + 0.03)[0]:
+        dx = (P[j, 0] - cx) * sl  # > 0: lado esquerdo
+        f = min(abs(dx) / costura, 1.0)
+        if f <= 0:
+            continue
+        meu, outro = ("Left", "Right") if dx > 0 else ("Right", "Left")
+        for k in range(len(cadeia)):
+            a_, b_ = idx[outro][k], idx[meu][k]
+            q = W[j, a_] * f
+            if q > 1e-6:
+                W[j, a_] -= q
+                W[j, b_] += q
+                mud.append(j)
+    for j in set(mud):
+        for k, nm in enumerate(nomes):
+            g = ob.vertex_groups[nm]
+            if W[j, k] > 1e-4:
+                g.add([int(j)], float(W[j, k]), "REPLACE")
+            else:
+                g.remove([int(j)])
 
 
 def fundilho_no_quadril(ob, corpo):
@@ -692,7 +748,7 @@ def esconde_pele_coberta(corpo, roupas, alcance=0.035):
         n = (n3 @ v.normal).normalized()
         for t_, kd, tem_borda in arvores:
             hit = t_.ray_cast(p - n * 0.003, n, alcance)
-            if hit[0] is not None and (not tem_borda or kd.find(hit[0])[2] > 0.025):
+            if hit[0] is not None and (not tem_borda or kd.find(hit[0])[2] > 0.015):
                 coberto[v.index] = True
                 break
     viz = [[] for _ in me.vertices]
@@ -788,7 +844,7 @@ def monta_pessoa(p):
                 if dobra and slot_ == "cima":
                     barra_enfiada(ob)
             if slot_ in ("baixo", "inteira"):
-                fundilho_no_quadril(ob, corpo)
+                pernas_do_lado(ob)
             if slot_ in ("cima", "baixo", "inteira", "sobre"):
                 folga_extra(ob, 0.004 if slot_ == "sobre" else 0.0025)
         tinge(ob, rid, cor or (item.get("variacao") or {}).get("cor"))

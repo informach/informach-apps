@@ -3,7 +3,7 @@
 carrinho_bebe: carrinho com moisés para recém-nascido. Alça na altura das mãos de quem empurra; o moisés é oco (casca
 por fora, forro por dentro, borda com espessura e colchão no fundo), com capota na ponta da cabeça (lado da alça), e
 devolve o "berço": o lugar e a orientação em que o recém-nascido deita dentro dele (deita_recem faz isso com um corpo
-recem_* do arquivo-mestre). Armação de tubos, quatro rodas com pneu, cubo e raios, e uma cestinha embaixo.
+recem_* do arquivo-mestre): capota na frente, o bebê de frente para quem empurra. Armação de tubos, quatro rodas com pneu, cubo e raios, e uma cestinha embaixo.
 """
 import math
 
@@ -69,8 +69,9 @@ def _superelipse(t, a, b, n=3.2):
 
 def carrinho_bebe(alca_esq, alca_dir, frente, cores=None):
     """Carrinho com moisés. alca_esq/alca_dir: pontas da alça (onde as mãos seguram); frente: para onde ele anda.
-    Devolve (objetos, berco), berco = Matrix 4x4 do colchão: origem no meio da superfície do colchão, x para a frente
-    (pés do bebê), y para o lado, z para cima. A cabeça fica na ponta da alça, embaixo da capota."""
+    Devolve (objetos, berco), berco = Matrix 4x4 do colchão: origem no meio da superfície do colchão, x para os pés do
+    bebê (o lado da alça), y para o lado, z para cima. A cabeça fica na ponta da frente, embaixo da capota, e o bebê
+    olha para quem empurra."""
     cor = {"casca": "#F07AB0", "forro": "#FFD1E3", "faixa": "#3FC1C9", "colchao": "#FFF6EC", "armacao": "#3E5A72",
            "pneu": "#26282E", "cubo": "#C9CED6", "cesta": "#2B2D33", **(cores or {})}
     meio = (alca_esq + alca_dir) / 2
@@ -157,32 +158,35 @@ def carrinho_bebe(alca_esq, alca_dir, frente, cores=None):
     bmesh.ops.bevel(bm, geom=bm.edges[:], offset=0.012, segments=3, affect="EDGES")
     colchao = _objeto("carrinho_colchao", bm, material("carrinho_colchao", cor["colchao"], 0.85))
 
-    # ---- capota: meia cúpula na ponta da alça (cabeça do bebê), aberta para a frente, com três gomos
+    # ---- capota: meia cúpula na ponta da frente (cabeça do bebê), aberta para quem empurra: o bebê olha para ele
     bm = bmesh.new()
-    nth, nph = 10, 24
-    fc = f0 - L2 * 0.98  # base da capota (ponta de trás do moisés)
-    comp, alt = 0.36, 0.26
+    nth, nph = 16, 12
+    Wc = W2 * aneis[-1][1] * 1.02
+    Rx, alt = 0.24, 0.27
+    Cx = f0 + L2 * 0.98 - Rx  # meia cúpula: o arco aberto (virado para a alça) em Cx, a ponta fechada na frente
     grade = []
     for i in range(nth + 1):
         th = math.pi * i / nth  # de um lado ao outro, por cima
         linha = []
         for j in range(nph + 1):
-            ph = (math.pi / 2) * j / nph  # da ponta de trás (0) até a frente (90°)
-            x = fc + comp * (1 - math.cos(ph)) * 0.95
-            raio = math.sin(ph) * 0.15 + 0.85
-            y = -math.cos(th) * W2 * aneis[-1][1] * raio
-            z = zb + math.sin(th) * alt * (0.35 + 0.65 * math.sin(ph))
+            ph = (math.pi / 2) * j / nph  # do arco aberto (0) até a ponta da frente (90°)
+            x = Cx + Rx * math.sin(ph)
+            y = -math.cos(th) * Wc * math.cos(ph) ** 0.6
+            z = zb + math.sin(th) * alt * math.cos(ph) ** 0.8
             linha.append(bm.verts.new(P(x, y, z)))
         grade.append(linha)
     fs = []
     for i in range(nth):
         for j in range(nph):
-            fs.append(bm.faces.new((grade[i][j], grade[i + 1][j], grade[i + 1][j + 1], grade[i][j + 1])))
-    bmesh.ops.solidify(bm, geom=fs, thickness=0.012)
+            try:
+                fs.append(bm.faces.new((grade[i][j], grade[i + 1][j], grade[i + 1][j + 1], grade[i][j + 1])))
+            except ValueError:
+                pass
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.012)
     capota = _objeto("carrinho_capota", bm, material("carrinho_casca", cor["casca"], 0.5))
-    bm = bmesh.new()  # friso da capota (verde-água na beira da frente)
-    pts = [P(fc + comp * 0.95, -math.cos(math.pi * i / 16) * W2 * aneis[-1][1], zb + math.sin(math.pi * i / 16) * alt)
-           for i in range(17)]
+    bm = bmesh.new()  # friso verde-água na beira do arco aberto
+    pts = [P(Cx, -math.cos(math.pi * i / 16) * Wc, zb + math.sin(math.pi * i / 16) * alt) for i in range(17)]
     _curva(bm, pts, 0.014)
     friso = _objeto("carrinho_friso", bm, material("carrinho_faixa", cor["faixa"], 0.45))
 
@@ -239,12 +243,13 @@ def carrinho_bebe(alca_esq, alca_dir, frente, cores=None):
     cubos = _objeto("carrinho_cubos", bm_c, material("carrinho_cubo", cor["cubo"], 0.3, 0.7))
 
     objetos = [casca, forro, borda, faixa, colchao, capota, friso, armacao, cesta, pneus, cubos]
-    lateral = up.cross(fr).normalized()
+    pes = -fr  # os pés do bebê para o lado da alça, a cabeça embaixo da capota (na frente)
+    lateral = up.cross(pes).normalized()
     berco = Matrix.Identity(4)
-    berco.col[0] = (*fr, 0)
+    berco.col[0] = (*pes, 0)
     berco.col[1] = (*lateral, 0)
     berco.col[2] = (*up, 0)
-    berco.translation = P(f0 + 0.02, 0, z_col + 0.012)
+    berco.translation = P(f0 - 0.02, 0, z_col + 0.012)
     return objetos, berco
 
 

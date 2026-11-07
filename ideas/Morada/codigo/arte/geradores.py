@@ -433,13 +433,23 @@ def camada(S, spec):
         import roupas as R_
         m_ = R_._marcos(S)
         zj, zt = m_["joelho"], m_["tornozelo"]
+        # abre a partir do eixo de cada perna (centro da seção, em faixas de 2 cm), e pouco do lado de dentro: pela
+        # normal, os lados de dentro das duas pernas avançavam um para o outro e se juntavam no chão entre os pés
+        eixo_ = {}
+        for v in bm.verts:
+            if v.co.z < zj:
+                eixo_.setdefault((v.co.x > 0, int(v.co.z / 0.02)), []).append(v.co)
+        eixo_ = {k: (sum(c_.x for c_ in vs) / len(vs), sum(c_.y for c_ in vs) / len(vs)) for k, vs in eixo_.items()}
         for v in bm.verts:
             if v.co.z < zj:
                 t = min((zj - v.co.z) / max(zj - zt, 0.05), 1.2)
-                perto = v.normal.copy()
-                perto.z = 0
+                cx_, cy_ = eixo_[(v.co.x > 0, int(v.co.z / 0.02))]
+                perto = Vector((v.co.x - cx_, v.co.y - cy_, 0))
                 if perto.length:
-                    v.co += perto.normalized() * spec["boca_sino"] * H / 1.73 * t ** 1.5
+                    perto.normalize()
+                    dentro = perto.x * (1 if v.co.x > 0 else -1) < 0  # virado para a outra perna
+                    k_ = 0.25 if dentro else 1.0
+                    v.co += perto * spec["boca_sino"] * H / 1.73 * t ** 1.5 * k_
     me = bpy.data.meshes.new("camada")
     bm.to_mesh(me)
     bm.free()

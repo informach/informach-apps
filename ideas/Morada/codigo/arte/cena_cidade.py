@@ -98,7 +98,8 @@ PESSOAS = [
          cabelo=("cabelo_plus", "#3A2A20"),
          roupa=[("nov_camisa_onca", "#E8559A"), ("nov_calca_boca_sino", "#B8237A"), ("nov_oculos_sol_redondos", "#3D7BD6"),
                 ("roupa_sapato_36", "#C8963C"), ("nov_celular", "#2B2B2B")],
-         segura={"nov_celular": {"alvo": [0.45, 0.42, 0.18], "eixos": {"x": [0.1, 1.0, 0.1], "z": [-1.0, 0.0, 0.0]}}}),
+         # selfie: braço esticado para a frente e um pouco para cima e para fora, a tela virada para o rosto
+         segura={"nov_celular": {"alvo": [0.62, 0.42, 0.12], "eixos": {"x": [0.0, 1.0, 0.0], "z": [-1.0, 0.0, -0.15]}}}),
     # frente
     dict(id="deitado", corpo="musculoso", pose=("resident.lie.idle", 60), lugar=(-3.5, -0.75, 35),
          cabelo=("cabelo_seguranca_chapeu", "#3A2A20"),
@@ -239,6 +240,9 @@ def segura(p, rid, pose=None):
     T = S + corpoV((f, a, l)) * Lb
     polo = S + corpoV((-0.2, -0.6, 0.7))
     CF.ik_braco(arm, lado, T, polo)
+    if os.environ.get("DIAG"):
+        print("DIAG segura", p["id"], rid, "ombro", [round(x, 2) for x in S], "alvo", [round(x, 2) for x in T],
+              "mao", [round(x, 2) for x in CF.osso(arm, L + "Hand")], "frente", [round(x, 2) for x in frente], flush=True)
     ex = ps.get("eixos")
     if ex and ex.get("y") is not None:
         Yd = corpoV(ex["y"]).normalized()
@@ -418,6 +422,13 @@ def reclina(p, graus=42):
     for nome, frac in (("Spine", 0.6), ("Spine1", 0.4)):
         e_a = (R3.inverted() @ eixo).normalized()
         CF.gira_osso(arm, arm.pose.bones[nome], Quaternion(e_a, math.radians(graus * frac)))
+    # as pernas fecham um pouco (35% menos abertas): muito abertas, as coxas cruzavam o pano da calça no gancho
+    lat = (CF.osso(arm, "LeftUpLeg") - CF.osso(arm, "RightUpLeg")).normalized()
+    for nome, joelho in (("LeftUpLeg", "LeftLeg"), ("RightUpLeg", "RightLeg")):
+        v0 = CF.osso(arm, joelho) - CF.osso(arm, nome)
+        v1 = v0 - lat * v0.dot(lat) * 0.35
+        q = v0.rotation_difference(v1)
+        CF.gira_osso(arm, arm.pose.bones[nome], Quaternion((R3.inverted() @ q.axis).normalized(), q.angle))
     hb = arm.pose.bones["Head"]  # a cabeça olha para a frente (desfaz parte do giro)
     CF.gira_osso(arm, hb, Quaternion((R3.inverted() @ eixo).normalized(), math.radians(-graus * 0.35)))
     hips = CF.osso(arm, "Hips")
@@ -485,7 +496,7 @@ def main():
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_chapeu"), raiz_banco, assento, -0.45)
     sentar_no_banco(next(p for p in PESSOAS if p["id"] == "banco_ruivo"), raiz_banco, assento, 0.42)
     for p in PESSOAS:  # deitado e sentados: o gancho da calça alisado já na pose
-        if any(k in p["pose"][0] for k in (".lie", ".sit")):
+        if any(k in p["pose"][0] for k in (".lie", ".sit")) and os.environ.get("ALISA"):
             CF.alisa_fundilho_posado(p)
     for p in PESSOAS:  # objetos de mão segurados como na página
         seg = p.get("segura") or []

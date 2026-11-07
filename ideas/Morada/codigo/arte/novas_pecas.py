@@ -74,7 +74,7 @@ cam("legging", "baixo", "Legging", "#2B2B2B", regiao="pernas", folga=0.006,
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.02}])
 cam("bermuda_ciclista", "baixo", "Bermuda de ciclista", "#2B2B2B", regiao="pernas", folga=0.006,
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "coxa_meio", "desloca": -0.05}])
-cam("short_curto", "baixo", "Short curto", "#3D7BD6", regiao="pernas", folga=0.012,
+cam("short_curto", "baixo", "Short curto", "#3D7BD6", regiao="pernas", folga=0.017,
     cortes=[{"marco": "cintura", "acima": True, "desloca": -0.02}, {"marco": "coxa_meio", "desloca": 0.03}])
 cam("calca_moletom", "baixo", "Calça de moletom", "#24346B", regiao="pernas", folga=0.016, padrao="faixa_lateral",
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.03}])
@@ -389,7 +389,7 @@ cam("calca_agasalho_listrada", "baixo", "Calça de agasalho listrada", "#B03A8C"
     padrao="duas_cores_lateral", faixas_cor={"barra": "branco", "largura_barra": 0.025},
     cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.02}])
 cam("calca_boca_sino", "baixo", "Calça boca de sino", "#C2185B", regiao="pernas", folga=0.014, boca_sino=0.05,
-    cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": -0.005}])
+    cortes=[{"marco": "cintura", "acima": True}, {"marco": "tornozelo", "desloca": 0.015}])
 cam("meia_calca", "meias", "Meia-calça", "#2B2B2B", regiao="pernas", folga=0.003, cortes=[{"marco": "cintura", "acima": True}])
 # corpo inteiro
 TOPO_VEST = [{"marco": "pescoco", "acima": True, "desloca": -0.01}, {"marco": "cintura", "desloca": -0.01}]

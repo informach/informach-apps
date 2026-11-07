@@ -2002,7 +2002,7 @@
    "gerar": {
     "tipo": "camada",
     "regiao": "pernas",
-    "folga": 0.012,
+    "folga": 0.017,
     "cortes": [
      {
       "marco": "cintura",
@@ -5819,7 +5819,7 @@
      },
      {
       "marco": "tornozelo",
-      "desloca": -0.005
+      "desloca": 0.015
      }
     ],
     "familia": "destino"

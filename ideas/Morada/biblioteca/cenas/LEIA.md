@@ -111,7 +111,9 @@ Quarta versão:
 - **Carrinho de bebê novo** (`codigo/arte/props.py`, `carrinho_bebe`): moisés oco (casca rosa, forro claro, borda com
   espessura, faixa verde-água e colchão), capota na ponta da cabeça com friso, armação de tubos com juntas, eixos,
   cestinha embaixo e rodas com pneu, cubo e seis raios. Devolve o "berço" (onde e como o bebê deita) e `deita_recem`
-  põe a recém-nascida do arquivo-mestre deitada nele, de costas, a cabeça embaixo da capota. Também sai como peça da
+  põe a recém-nascida do arquivo-mestre deitada nele, de costas, a cabeça embaixo da capota. A capota é uma meia
+  cúpula na ponta da frente, aberta para quem empurra: o bebê, com a cabeça embaixo dela, olha para a mãe
+  (`biblioteca/props/carrinho_bebe.png`). Também sai como peça da
   biblioteca: `biblioteca/props/carrinho_bebe.glb` (`codigo/ferramentas/exporta_props.py`), com o vazio `berco`.
 - **Bengala** apoiada no chão e de pé: a pose de segurar pode usar a vertical do mundo (`vertical`), porque com o idoso
   inclinado a vertical da coluna punha a ponta para trás, escondida atrás da perna; a bengala estica ou encolhe até o
@@ -120,7 +122,14 @@ Quarta versão:
   corpo plus, os braços abrem 14° (`abre_bracos`): a mão não entra mais na barriga.
 - **Sentados:** a parte de cima fica por dentro da calça (`barra_enfiada`), em vez de cair entre as coxas como um colan.
 - **Calça de quem deita ou senta:** o fundilho segue mais o quadril (`fundilho_no_quadril`) e, já na pose, o gancho é
-  alisado e volta para fora da pele (`alisa_fundilho_posado`), sem a "barbatana" de pano entre as pernas.
+  O que resolveu de vez: **cada lado da calça segue só a própria perna** (`pernas_do_lado`). Em pé as coxas se
+  encostam e a parte de dentro de uma coxa da calça ganhava peso da outra perna; abertas, o pano esticava de uma coxa
+  à outra (o "triângulo"). Só uma costura de 8 mm no meio mistura as duas. O alisamento na pose (`alisa_fundilho_posado`)
+  ficou desligado (`ALISA=1` liga): ele estragava o cós. O deitado fecha um pouco as pernas (35% menos abertas).
+- **Selfie:** o celular na frente do rosto, a tela virada para ele (antes o braço torcia).
+- **Calça boca de sino** abre a partir do eixo de cada perna e pouco do lado de dentro (antes as duas barras se
+  juntavam no chão entre os pés), e acaba 2 cm mais alto; **short curto** mais folgado (a coxa não atravessa no passo)
+  e a faixa de pele guardada junto da barra das peças caiu de 2,5 para 1,5 cm.
 
 Limites: cada pessoa está num quadro só da animação (a cena não anda); quem anda tem o pé parado no meio do passo; a
 mala e a bengala encolhem um pouco para caber na mão de quem segura.
