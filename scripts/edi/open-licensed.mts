@@ -1,9 +1,10 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { desktopAppIdSchema, MAX_LEASE_SECONDS } from "../../packages/edi-contracts/src/index.ts";
 import { createNativeHarness, nativeTooling, waitForStatus } from "./native-harness.mts";
 import { type OpenMode, resolveOpenProfile } from "./open-profile.mts";
+import { watchBuildSources } from "./work-freshness.mts";
 
 /**
  * Opens one desktop tool licensed, without a portal, an account or a subscription. It is the
@@ -22,7 +23,10 @@ import { type OpenMode, resolveOpenProfile } from "./open-profile.mts";
  *
  * Every run rebuilds the tool from the current source, so a `git pull` or an edit shows up on
  * the next opening. One run per tool at a time (a lock under `.cache/edi-open`): a second build
- * would rewrite `out/` under the open app.
+ * would rewrite `out/` under the open app. In work mode, while the tool is open, a change to its
+ * sources marks it stale for the development Hub, which then offers to restart it
+ * (`work-freshness.mts`). A test session is never offered: the Hub reopens in work mode, on the
+ * real profile.
  */
 const argv = process.argv.slice(2);
 const mode: OpenMode = argv[0] === "--work" ? "work" : "test";
@@ -57,9 +61,21 @@ try {
   }
 }
 writeFileSync(lock, String(process.pid));
+// Beside the lock, for the development Hub (scripts/edi/hub-dev), in work mode only: `<id>.stale`
+// names the first source file changed since this build, and `<id>.stop`, written by the Hub,
+// asks the tool to quit through its normal path (an editor may still ask to save first). Both
+// are cleared in either mode, so a test session never inherits them.
+const stale = join(locks, `${id}.stale`);
+const stop = join(locks, `${id}.stop`);
+rmSync(stale, { force: true });
+rmSync(stop, { force: true });
 process.once("exit", () => {
   try {
-    if (readFileSync(lock, "utf8") === String(process.pid)) rmSync(lock);
+    if (readFileSync(lock, "utf8") === String(process.pid)) {
+      rmSync(lock);
+      rmSync(stale, { force: true });
+      rmSync(stop, { force: true });
+    }
   } catch {
     // Already gone.
   }
@@ -67,6 +83,8 @@ process.once("exit", () => {
 
 const harness = await createNativeHarness("edi-open-", packageManager);
 let renewal: ReturnType<typeof setInterval> | undefined;
+let stopRequests: ReturnType<typeof setInterval> | undefined;
+let stopWatching: (() => void) | undefined;
 let finished = false;
 // Kept outside the try: a failure after launch must close the app before the profile goes.
 let application: Awaited<ReturnType<typeof harness.launch>> | undefined;
@@ -74,6 +92,8 @@ async function finish(code: number) {
   if (finished) return;
   finished = true;
   if (renewal) clearInterval(renewal);
+  if (stopRequests) clearInterval(stopRequests);
+  stopWatching?.();
   await application
     ?.close()
     .catch((error: unknown) => console.error(`[${command}] closing the app failed:`, error));
@@ -83,6 +103,17 @@ async function finish(code: number) {
 }
 // Registered before the (possibly long) build, so Ctrl+C at any point still cleans up.
 process.once("SIGINT", () => void finish(0));
+if (mode === "work") {
+  stopRequests = setInterval(() => {
+    if (!existsSync(stop)) return;
+    rmSync(stop, { force: true });
+    log("closing at the development Hub's request");
+    if (!application) return void finish(0);
+    // app.quit(), as the tool's own menu or tray does, so its normal closing path runs.
+    application.evaluate(({ app }) => app.quit()).catch(() => undefined);
+  }, 1000);
+  stopRequests.unref();
+}
 try {
   const profile = resolveOpenProfile({
     mode,
@@ -94,7 +125,28 @@ try {
     harnessRoot: harness.root,
   });
   log(`building ${id} with an ephemeral license key`);
+  const buildStarted = Date.now();
   await harness.build(id);
+  // From the build's start, so an edit made while it compiled counts. Only a convenience: a
+  // failure to watch never keeps the tool from opening.
+  if (mode === "work")
+    try {
+      stopWatching = watchBuildSources(
+        resolve("."),
+        id,
+        (path) => {
+          log(`${path} changed after this build; close ${id} and open it again to use it`);
+          try {
+            writeFileSync(stale, path);
+          } catch (error) {
+            console.error(`[${command}] marking ${id} as stale failed:`, error);
+          }
+        },
+        buildStarted,
+      );
+    } catch (error) {
+      console.error(`[${command}] watching the source for changes failed:`, error);
+    }
   if (profile.kept) log(`the tool's data stays in ${profile.userData}`);
   if (profile.environment.EDIAULA_REAL_DOCUMENTS)
     log("EdiAula saves projects and recordings in Documents\\EdiAula, as the installed app does");

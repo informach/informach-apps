@@ -1,6 +1,7 @@
 ﻿# Hub de desenvolvimento da suíte Edi: uma janela com as ferramentas. "Abrir" compila o código
 # deste computador e abre a ferramenta no modo de trabalho (abrir.ps1 -> `pnpm edi:work`), com
-# os perfis e as pastas de sempre. Os atalhos vêm de `pnpm edi:work:instalar`.
+# os perfis e as pastas de sempre. Quando o código muda com a ferramenta aberta, o botão vira
+# "Reiniciar" (abrir.ps1 -Reiniciar). Os atalhos vêm de `pnpm edi:work:instalar`.
 . (Join-Path $PSScriptRoot "comum.ps1")
 $abrirScript = Join-Path $PSScriptRoot "abrir.ps1"
 Add-Type -AssemblyName System.Windows.Forms
@@ -31,7 +32,7 @@ $titulo.AutoSize = $true
 $janela.Controls.Add($titulo)
 
 $explicacao = New-Object System.Windows.Forms.Label
-$explicacao.Text = "Cada abertura compila o código atual deste computador. Depois de editar ou de puxar atualizações, feche a ferramenta e abra de novo. Os arquivos ficam nas pastas de sempre, com backup diário em $EdiBackups."
+$explicacao.Text = "Cada abertura compila o código atual deste computador. Se o código mudar com uma ferramenta aberta, o botão dela vira Reiniciar. Os arquivos ficam nas pastas de sempre, com backup diário em $EdiBackups."
 $explicacao.Location = New-Object System.Drawing.Point(20, 48)
 $explicacao.Size = New-Object System.Drawing.Size(560, 58)
 $explicacao.ForeColor = $cinza
@@ -99,6 +100,15 @@ foreach ($ferramenta in $EdiFerramentas) {
       $alvo = $origem.Tag
       $linha = $linhas[$alvo]
       $argumentos = "-NoProfile -ExecutionPolicy Bypass -File `"$abrirScript`" -Ferramenta $alvo"
+      if ($origem.Text -eq "Reiniciar") {
+        $nomeAlvo = ($EdiFerramentas | Where-Object Id -eq $alvo).Nome
+        $resposta = [System.Windows.Forms.MessageBox]::Show(
+          "$nomeAlvo está aberto com o código de antes da última mudança ($(Get-EdiDesatualizada $alvo)).`r`n`r`nFechar e abrir de novo com o código atual? Se houver trabalho sem salvar, salve antes.",
+          "Reiniciar", "YesNo", "Question")
+        if ($resposta -ne "Yes") { return }
+        $argumentos += " -Reiniciar"
+        $linha.Reiniciando = $true
+      }
       $linha.Processo = Start-Process powershell.exe -ArgumentList $argumentos -WindowStyle Hidden -PassThru
       # Sem guardar o handle agora, o ExitCode não fica disponível quando o processo termina.
       [void]$linha.Processo.Handle
@@ -108,7 +118,7 @@ foreach ($ferramenta in $EdiFerramentas) {
   $painel.Controls.Add($botao)
 
   $janela.Controls.Add($painel)
-  $linhas[$id] = [pscustomobject]@{ Botao = $botao; Situacao = $situacao; Processo = $null; Resultado = $null }
+  $linhas[$id] = [pscustomobject]@{ Botao = $botao; Situacao = $situacao; Processo = $null; Resultado = $null; Reiniciando = $false }
   $y += 72
 }
 
@@ -145,16 +155,34 @@ function Atualizar-Situacao {
       $linha.Resultado = switch ($linha.Processo.ExitCode) {
         0 { "Fechada" }
         2 { "Já estava aberta" }
+        3 { "Não fechou" }
         default { "Falhou: ver registro" }
       }
       $linha.Processo = $null
+      $linha.Reiniciando = $false
     }
     if (-not $ocupada) {
-      if (Get-EdiAberta $id) { $ocupada = $true; $texto = "Aberta" }
+      if (Get-EdiAberta $id) {
+        $ocupada = $true
+        # Um Reiniciar que não fechou a ferramenta fica avisado enquanto ela estiver aberta.
+        $texto = if ($linha.Resultado -eq "Não fechou") { "Não fechou" } else { "Aberta" }
+      }
+      elseif ($linha.Resultado -eq "Não fechou") { $linha.Resultado = $null }
       elseif ($linha.Resultado) { $texto = $linha.Resultado }
     }
+    # Aberta, mas compilada antes da última mudança no código: o botão reinicia. Ao fechar, a
+    # marca de código antigo some e o andamento volta a vir do registro da nova abertura.
+    $antiga = Get-EdiDesatualizada $id
+    if ($linha.Reiniciando -and -not $antiga) { $linha.Reiniciando = $false }
+    $reiniciar = $false
+    if ($linha.Reiniciando) { $texto = "Reiniciando..."; $ocupada = $true }
+    elseif ($antiga -and ($texto -eq "Aberta" -or $texto -eq "Não fechou")) {
+      if ($texto -eq "Aberta") { $texto = "Código mudou" }
+      $reiniciar = $true
+    }
     $linha.Situacao.Text = $texto
-    $linha.Botao.Enabled = -not $ocupada
+    $linha.Botao.Text = if ($reiniciar) { "Reiniciar" } else { "Abrir" }
+    $linha.Botao.Enabled = $reiniciar -or -not $ocupada
   }
 }
 
@@ -183,7 +211,7 @@ $puxar.Add_Click({
     $texto = ($saida | Select-Object -Last 20) -join "`r`n"
     if ($codigo -eq 0) {
       [void][System.Windows.Forms.MessageBox]::Show(
-        "$texto`r`n`r`nAs ferramentas abertas continuam na versão anterior até serem fechadas e abertas de novo. Se houver pacotes novos, a próxima abertura instala sozinha.",
+        "$texto`r`n`r`nAs ferramentas abertas que mudaram mostram o botão Reiniciar. Se houver pacotes novos, a próxima abertura instala sozinha.",
         "Atualizações", "OK", "Information")
     }
     else {

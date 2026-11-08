@@ -33,6 +33,29 @@ function Get-EdiAberta([string]$Id) {
   Get-Process -Id $processo -ErrorAction SilentlyContinue
 }
 
+# Arquivo de código mudado depois que a ferramenta aberta foi compilada (o `pnpm edi:work`
+# grava em .cache\edi-open\<ferramenta>.stale), ou $null quando ela está em dia.
+function Get-EdiDesatualizada([string]$Id) {
+  $marca = Join-Path $EdiRepo ".cache\edi-open\$Id.stale"
+  if (-not (Test-Path $marca)) { return $null }
+  try { (Get-Content $marca -Raw).Trim() } catch { $null }
+}
+
+# Pede ao `pnpm edi:work` que feche a ferramenta pelo caminho normal (app.quit) e espera até
+# $Segundos. Devolve $false se ela continuar aberta: pedindo para salvar, por exemplo, ou aberta
+# por uma versão do `edi:work` anterior a este pedido.
+function Close-EdiFerramenta([string]$Id, [int]$Segundos = 60) {
+  if (-not (Get-EdiAberta $Id)) { return $true }
+  Set-Content -Path (Join-Path $EdiRepo ".cache\edi-open\$Id.stop") -Value "" -Encoding ascii
+  $limite = (Get-Date).AddSeconds($Segundos)
+  while ((Get-Date) -lt $limite) {
+    if (-not (Get-EdiAberta $Id)) { return $true }
+    Start-Sleep -Milliseconds 500
+  }
+  Remove-Item (Join-Path $EdiRepo ".cache\edi-open\$Id.stop") -ErrorAction SilentlyContinue
+  $false
+}
+
 # Cópia do perfil da ferramenta (e dos projetos do EdiAula), no máximo uma por dia e as 10
 # mais recentes. Ficam de fora os caches do Chromium, o motor de transcrição, que é baixado de
 # novo, e arquivos acima de 200 MB (vídeos), para o backup continuar pequeno.
