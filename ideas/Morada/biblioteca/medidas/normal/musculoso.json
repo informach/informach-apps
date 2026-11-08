@@ -433,6 +433,27 @@
    "dedos": {
     "Right": "pinca"
    }
+  },
+  "resident.selfie": {
+   "mao_no_corpo": 36
+  },
+  "resident.bike.idle": {
+   "chao": {
+    "quadros": 180,
+    "afundava_cm": 3.4
+   }
+  },
+  "resident.scooter.ride": {
+   "chao": {
+    "quadros": 34,
+    "afundava_cm": 3.0
+   }
+  },
+  "resident.skate.ride": {
+   "chao": {
+    "quadros": 28,
+    "afundava_cm": 2.7
+   }
   }
  },
  "apoios": {
@@ -676,6 +697,296 @@
     0.753,
     0.553
    ]
+  },
+  "resident.bike.ride": {
+   "tipo": "bicicleta",
+   "veiculo": [
+    "bicicleta_amarela",
+    "bicicleta_azul"
+   ],
+   "escala": 0.92,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.215
+   },
+   "gira_graus": 0.0,
+   "inclina_graus": 0.0,
+   "selim": {
+    "x": 0.0,
+    "altura": 0.938,
+    "frente": 0.031
+   },
+   "guidao": {
+    "esq": {
+     "x": 0.285,
+     "altura": 1.003,
+     "frente": 0.463
+    },
+    "dir": {
+     "x": -0.285,
+     "altura": 1.003,
+     "frente": 0.463
+    }
+   },
+   "pedivela": {
+    "eixo": {
+     "x": 0.0,
+     "altura": 0.276,
+     "frente": 0.215
+    },
+    "raio": 0.142,
+    "pedal_x": 0.138,
+    "ciclo_s": 1.0,
+    "angulo_inicial_graus": 0.0,
+    "sentido": "pedal direito embaixo no quadro 1, indo para trás"
+   },
+   "velocidade_m_s": 4.23,
+   "rodas_rad_s": 13.53
+  },
+  "resident.bike.idle": {
+   "tipo": "bicicleta",
+   "veiculo": [
+    "bicicleta_amarela",
+    "bicicleta_azul"
+   ],
+   "escala": 0.92,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.215
+   },
+   "gira_graus": 0.0,
+   "inclina_graus": 14.0,
+   "selim": {
+    "x": 0.227,
+    "altura": 0.911,
+    "frente": 0.031
+   },
+   "guidao": {
+    "esq": {
+     "x": 0.519,
+     "altura": 0.904,
+     "frente": 0.463
+    },
+    "dir": {
+     "x": -0.034,
+     "altura": 1.042,
+     "frente": 0.463
+    }
+   },
+   "pedivela": {
+    "eixo": {
+     "x": 0.067,
+     "altura": 0.268,
+     "frente": 0.215
+    },
+    "raio": 0.142,
+    "pedal_x": 0.138,
+    "angulo_graus": 235.0
+   },
+   "velocidade_m_s": 0.0,
+   "pe_no_chao": "esquerdo"
+  },
+  "resident.skate.ride": {
+   "tipo": "skate",
+   "veiculo": [
+    "skate_laranja"
+   ],
+   "escala": 1.0,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.03
+   },
+   "gira_graus": 90.0,
+   "nota": "de lado, pé esquerdo na frente: anda para a esquerda do personagem; o skate gira 90° em torno do eixo vertical (a frente dele aponta para +x)",
+   "shape": {
+    "altura": 0.1,
+    "comprimento": 0.82,
+    "largura": 0.22
+   },
+   "pes": {
+    "esq": {
+     "x": 0.18,
+     "altura": 0.1,
+     "frente": 0.03
+    },
+    "dir": {
+     "x": -0.18,
+     "altura": 0.1,
+     "frente": 0.03
+    }
+   },
+   "velocidade_m_s": 3.0,
+   "direcao": "+x (esquerda do personagem)",
+   "ciclo_s": 4.0,
+   "impulso_s": [
+    2.7,
+    3.35
+   ],
+   "rodas_rad_s": 93.8
+  },
+  "resident.skate.idle": {
+   "tipo": "skate",
+   "veiculo": [
+    "skate_laranja"
+   ],
+   "escala": 1.0,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.03
+   },
+   "gira_graus": 90.0,
+   "nota": "de lado, pé esquerdo na frente: anda para a esquerda do personagem; o skate gira 90° em torno do eixo vertical (a frente dele aponta para +x)",
+   "shape": {
+    "altura": 0.1,
+    "comprimento": 0.82,
+    "largura": 0.22
+   },
+   "pes": {
+    "esq": {
+     "x": 0.18,
+     "altura": 0.1,
+     "frente": 0.03
+    },
+    "dir": {
+     "x": -0.18,
+     "altura": 0.1,
+     "frente": 0.03
+    }
+   },
+   "velocidade_m_s": 0.0,
+   "direcao": "+x (esquerda do personagem)"
+  },
+  "resident.scooter.ride": {
+   "tipo": "patinete",
+   "veiculo": null,
+   "medidas": "reais (a cidade não tem patinete de empurrar)",
+   "escala": 1.0,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.061
+   },
+   "gira_graus": 0.0,
+   "plataforma": {
+    "altura": 0.1,
+    "largura": 0.13,
+    "comprimento": 0.5
+   },
+   "coluna": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.361
+   },
+   "guidao": {
+    "altura": 1.002,
+    "largura": 0.42,
+    "esq": {
+     "x": 0.21,
+     "altura": 1.002,
+     "frente": 0.341
+    },
+    "dir": {
+     "x": -0.21,
+     "altura": 1.002,
+     "frente": 0.341
+    }
+   },
+   "rodas": {
+    "raio": 0.1,
+    "dianteira": {
+     "x": 0.0,
+     "altura": 0.1,
+     "frente": 0.421
+    },
+    "traseira": {
+     "x": 0.0,
+     "altura": 0.1,
+     "frente": -0.239
+    }
+   },
+   "velocidade_m_s": 3.0,
+   "direcao": "frente (−y do Blender, +z do glTF)",
+   "ciclo_s": 3.0,
+   "impulso_s": [
+    1.45,
+    2.3
+   ],
+   "rodas_rad_s": 30.0
+  },
+  "resident.scooter.idle": {
+   "tipo": "patinete",
+   "veiculo": null,
+   "medidas": "reais (a cidade não tem patinete de empurrar)",
+   "escala": 1.0,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.061
+   },
+   "gira_graus": 0.0,
+   "plataforma": {
+    "altura": 0.1,
+    "largura": 0.13,
+    "comprimento": 0.5
+   },
+   "coluna": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.361
+   },
+   "guidao": {
+    "altura": 1.002,
+    "largura": 0.42,
+    "esq": {
+     "x": 0.21,
+     "altura": 1.002,
+     "frente": 0.341
+    },
+    "dir": {
+     "x": -0.21,
+     "altura": 1.002,
+     "frente": 0.341
+    }
+   },
+   "rodas": {
+    "raio": 0.1,
+    "dianteira": {
+     "x": 0.0,
+     "altura": 0.1,
+     "frente": 0.421
+    },
+    "traseira": {
+     "x": 0.0,
+     "altura": 0.1,
+     "frente": -0.239
+    }
+   },
+   "velocidade_m_s": 0.0,
+   "direcao": "frente (−y do Blender, +z do glTF)"
+  },
+  "resident.photo.take": {
+   "tipo": "entre_maos",
+   "objeto": "camera",
+   "tam": [
+    0.131,
+    0.08,
+    0.08
+   ]
+  },
+  "resident.selfie": {
+   "tipo": "objeto_mao",
+   "objeto": "celular",
+   "mao": "direita"
   }
  }
 }

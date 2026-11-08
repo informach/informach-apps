@@ -16,7 +16,8 @@ import contato  # noqa: E402
 a = sys.argv[sys.argv.index("--") + 1:]
 CORPOS, CORPO, FONTE, SAIDA = a[:4]
 TIRA = ("fit.pushup", "fit.crunch", "fit.jacks", "jump.small", "run.normal", "jog", "climb.", "hang.enter",
-        "play.ball_kick", "dance.hiphop", "dance.silly", "sit.floor.crossed", "baby.", "care.")
+        "play.ball_kick", "dance.hiphop", "dance.silly", "sit.floor.crossed", "baby.", "care.",
+        "bike.", "skate.", "scooter.")  # veículos: fora no fim da gravidez, como correr e pular
 SEM_POSTURA = ("lie.", "sleep.", "swim", "car.", "sit.", "desk.", "drink.sit", "eat.sit", "read.sit", "crouch.",
                "pickup.floor", "garden.plant", "garden.pull", "romance.propose", "music.piano", "play.videogame")
 
