@@ -909,6 +909,565 @@ def _empurra():
                  lambda: {"tipo": "entre_maos", "objeto": "caixote", "tam": [round(0.7 * K, 3), round(0.75 * K, 3), round(0.55 * K, 3)]})
 
 
+# ---------------------------------------------------------------- bicicleta, skate e patinete
+# Medidas dos veículos da cidade (cidade_out/carros/catalogo.json e os GLB; gerador morada-art/cidade_carros.py), em
+# metros, no espaço do veículo: frente −y, esquerda +x, z para cima, origem no chão. O patinete (de empurrar com o pé)
+# não existe na cidade: as medidas dele são as de um patinete real (rodas de 200 mm).
+BICI = {"selim": (0.0, 0.20, 1.02), "movimento": (0.0, 0.0, 0.30), "pedivela": 0.154, "pedal_x": 0.15,
+        "pedal_esp": 0.01, "manopla": (0.31, -0.27, 1.09), "roda": 0.34, "rodas_y": (-0.56, 0.52)}
+SKATE = {"shape_altura": 0.10, "comprimento": 0.82, "largura": 0.22, "eixos": 0.27, "roda": 0.032}
+PATINETE = {"plataforma_altura": 0.10, "plataforma": (0.13, 0.50), "coluna_y": -0.30, "guidao_largura": 0.42,
+            "roda": 0.10, "rodas_y": (-0.36, 0.30)}
+ESCORREGA = (0.08, 0.035)  # no parado montado, o quadril escorrega para a esquerda do selim e desce (× altura/1,75)
+PONTA_PE = 28.0  # graus: no parado montado, o pé do chão apoia na ponta
+CICLO_PEDAL = 1.0  # segundos por volta do pedivela (60 rpm)
+# velocidade de deslocamento esperada (m/s) por faixa: bicicleta (por unidade de escala), skate, patinete
+VEL = {"AD": (4.6, 3.0, 3.0), "ID": (3.8, 2.2, 2.4), "TE": (4.6, 3.0, 3.0), "CR": (4.6, 2.0, 2.2), "PQ": (4.6, 1.0, 1.2)}
+
+
+def _r3(v):
+    return round(float(v), 3)
+
+
+def _pt(p):
+    """Ponto do Blender → {x, altura, frente} (frente = −y, como no resto do info.json)."""
+    return {"x": _r3(p.x), "altura": _r3(p.z), "frente": _r3(-p.y)}
+
+
+_PE0 = {}
+
+
+def pe0(lado):
+    """Do parado (quadro 0): tornozelo relativo à bola do pé na sola, rotação do pé, para onde a ponta aponta (graus) e
+    comprimento da perna (coxa + canela)."""
+    if not _PE0:
+        guarda = {pb.name: pb.matrix_basis.copy() for pb in PB}
+        pose((quadro(PARADO, 0), None))
+        for l_ in ("Left", "Right"):
+            tb, ft = W(l_ + "ToeBase"), W(l_ + "Foot")
+            bola = Vector((tb.x, tb.y, 0.0))
+            d = tb - ft
+            _PE0[l_] = (ft - bola, rot_mundo(l_ + "Foot"), math.degrees(math.atan2(d.x, -d.y)),
+                        (W(l_ + "Leg") - W(l_ + "UpLeg")).length + (ft - W(l_ + "Leg")).length,
+                        (W(l_ + "ForeArm") - W(l_ + "Arm")).length + (W(l_ + "Hand") - W(l_ + "ForeArm")).length,
+                        (W(l_ + "HandMiddle2", True) - W(l_ + "Hand")).length, W(l_ + "UpLeg"))
+        for nb, m in guarda.items():
+            PB[nb].matrix_basis = m
+        bpy.context.view_layer.update()
+    return _PE0[lado]
+
+
+def dir_pe(alfa):
+    a_ = math.radians(alfa)
+    return Vector((math.sin(a_), -math.cos(a_), 0.0))
+
+
+def pe_em(lado, bola, alfa=0.0, pitch=0.0, giro=None):
+    """Tornozelo e rotação do pé (mundo) para a sola, na bola do pé, ficar em 'bola'. alfa: para onde a ponta aponta
+    (graus; 0 = frente −y, + = para a esquerda do personagem); pitch: + = ponta para baixo; giro: rotação do veículo
+    (bicicleta inclinada), aplicada por cima."""
+    d0, r0, a0 = pe0(lado)[:3]
+    qy = Quaternion(UP, math.radians(alfa - a0))
+    qp = Quaternion(UP.cross(dir_pe(alfa)).normalized(), math.radians(pitch))
+    Q = qp @ qy
+    if giro is not None:
+        Q = giro @ Q
+    return Vector(bola) + Q @ d0, Q @ r0
+
+
+def pe_no(lado, bola, alfa=0.0, pitch=0.0, giro=None, polo=None):
+    """Perna por IK com a bola do pé em 'bola' (pedal, shape, plataforma ou chão); o joelho aponta para onde o pé aponta."""
+    tz, rot = pe_em(lado, bola, alfa, pitch, giro)
+    up = giro @ UP if giro is not None else UP
+    if polo is None:
+        d_ = giro @ dir_pe(alfa) if giro is not None else dir_pe(alfa)
+        polo = W(lado + "UpLeg") + d_ * 0.6 * K + up * 0.15 * K
+    perna(lado, tz, polo, rot)
+
+
+def mao_manopla(lado, g, frente, giro=None):
+    """Mão fechada num punho de guidão em 'g' (mundo): palma para baixo, dedos para a frente envolvendo o tubo."""
+    s = 1 if lado == "Left" else -1
+    up = giro @ UP if giro is not None else UP
+    esq = up.cross(frente).normalized()
+    hl = pe0(lado)[5]
+    dd = (frente * 0.9 - up * 0.3 + esq * s * 0.12).normalized()
+    palma = (-up * 0.9 + frente * 0.25 - esq * s * 0.15).normalized()
+    pulso = Vector(g) - dd * 0.42 * hl + up * 0.03 * K
+    mao(lado, pulso, W(lado + "Arm") + esq * s * 0.18 * K - up * 0.35 * K - frente * 0.3 * K, rot_palma(lado, palma, dd))
+    dedos(lado, "punho")
+
+
+def ajusta_altura(pernas):
+    """Sobe ou desce o quadril para cada perna apoiada ficar com 'frac' do comprimento entre o quadril e o tornozelo
+    (1 = esticada; 0,93 = joelho uns 40° dobrado). pernas: [(lado, tornozelo, frac, peso 0–1)]; vale a que pede o
+    quadril mais baixo, pesada pelo quanto ela está apoiada (sem saltos quando um pé sai do apoio)."""
+    zs, pesos = [], []
+    for lado, tz, frac, w_ in pernas:
+        H = W(lado + "UpLeg")
+        d2 = (frac * pe0(lado)[3]) ** 2 - ((H.x - tz.x) ** 2 + (H.y - tz.y) ** 2)
+        zs.append(tz.z + math.sqrt(max(d2, 1e-4)) - H.z)
+        pesos.append(w_)
+    base = sum(z * w_ for z, w_ in zip(zs, pesos)) / max(sum(pesos), 1e-6)
+    dz = base
+    for z, w_ in zip(zs, pesos):  # a perna que pede mais baixo puxa o quadril, na medida em que está apoiada
+        if z < dz:
+            dz = dz + (z - dz) * w_
+    move("Hips", (0, 0, dz))
+
+
+def mexe_quadril(dest):
+    """Leva o meio das articulações do quadril a 'dest' (mundo)."""
+    m = (W("LeftUpLeg") + W("RightUpLeg")) / 2
+    move("Hips", Vector(dest) - m)
+
+
+def trecho(t, chaves):
+    """Interpola chaves [(t, valor)] com suavização (valor: número ou Vector)."""
+    if t <= chaves[0][0]:
+        return chaves[0][1]
+    for (t0, v0), (t1, v1) in zip(chaves, chaves[1:]):
+        if t <= t1:
+            u = suave((t - t0) / max(t1 - t0, 1e-6))
+            return v0 + (v1 - v0) * u
+    return chaves[-1][1]
+
+
+# ------------------------------------------------ bicicleta
+_BICI_CAL = {}
+
+
+def _bici_cal():
+    """Escala da bicicleta para este corpo (a perna fica uns 30° dobrada com o pedal embaixo), onde fica a bicicleta,
+    quanto o tronco inclina para as mãos chegarem ao guidão e quanto a bicicleta deita para o pé esquerdo chegar ao chão
+    no parado."""
+    if _BICI_CAL:
+        return _BICI_CAL
+    hj = 0.074 * K  # articulação do quadril acima de onde os ossos do bumbum apoiam
+    L = (pe0("Left")[3] + pe0("Right")[3]) / 2
+    yq = (pe0("Left")[6].y + pe0("Right")[6].y) / 2
+    hx = {"Left": pe0("Left")[6].x, "Right": pe0("Right")[6].x}
+
+    def montagem(s):
+        oy = yq - 0.23 * s
+        pior = 0.0
+        for k_ in range(24):
+            ph = 2 * math.pi * k_ / 24
+            for lado, side in (("Right", -1), ("Left", 1)):
+                bola = Vector((side * BICI["pedal_x"] * s, oy + BICI["pedivela"] * s * math.sin(ph),
+                               (BICI["movimento"][2] - BICI["pedivela"] * math.cos(ph) + BICI["pedal_esp"]) * s))
+                tz, _ = pe_em(lado, bola, 0.0, 6 + 10 * math.cos(ph - 0.8))
+                H = Vector((hx[lado], yq, 1.01 * s + hj))
+                pior = max(pior, (tz - H).length)
+        return pior
+
+    lo, hi = 0.25, 1.4
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if montagem(mid) > 0.965 * L:
+            hi = mid
+        else:
+            lo = mid
+    s = round(lo, 3)
+    _BICI_CAL.update(s=s, oy=yq - 0.23 * s, hj=hj, L=L)
+    # inclinação da bicicleta no parado: o pé esquerdo, chapado, chega ao chão ao lado
+    _, _, _, Ll, _, _, hipL = pe0("Left")
+    # (até 14°: mais que isso a bicicleta pareceria caindo; se não alcançar, o pé fica na ponta e o quadril escorrega
+    # um pouco para a esquerda do selim)
+    melhor = (1e9, 0.0)
+    for g10 in range(0, 141, 5):
+        g = g10 / 10
+        giro = Quaternion((0, 1, 0), math.radians(g))
+        H = giro @ Vector((hipL.x + ESCORREGA[0] * K, yq, 1.01 * s + hj - ESCORREGA[1] * K))
+        bola = Vector((H.x + 0.08 * K, H.y - 0.12 * K, 0.0))
+        tz, _ = pe_em("Left", bola, 8.0, PONTA_PE)
+        d = (tz - H).length - 0.95 * Ll
+        if abs(d) < melhor[0]:
+            melhor = (abs(d), g, d)
+    _BICI_CAL["tilt"] = melhor[1]
+    print("bici", CORPO, "escala", s, "inclina", melhor[1], "falta", round(melhor[2], 3), flush=True)
+    # tronco: inclinação que deixa o ombro a 92% do comprimento do braço do punho do guidão
+    for parado in (False, True):
+        melhor = (1e9, 20.0)
+        for lean in range(0, 62, 2):
+            _bici_corpo(0.0, parado, lean)
+            braco = pe0("Left")[4]
+            d = 0.0
+            for lado, side in (("Left", 1), ("Right", -1)):
+                g = _bici_ponto((side * BICI["manopla"][0], BICI["manopla"][1], BICI["manopla"][2]), parado)
+                d += abs((g - W(lado + "Arm")).length - 0.92 * braco)
+            if d < melhor[0]:
+                melhor = (d, float(lean))
+        _BICI_CAL["lean_parado" if parado else "lean"] = melhor[1]
+    print("bici", CORPO, _BICI_CAL, flush=True)
+    return _BICI_CAL
+
+
+def _bici_giro(parado):
+    return Quaternion((0, 1, 0), math.radians(_BICI_CAL["tilt"])) if parado else Quaternion()
+
+
+def _bici_ponto(v, parado=False):
+    """Ponto da bicicleta (espaço do veículo, sem escala) → mundo."""
+    c = _BICI_CAL
+    return _bici_giro(parado) @ (Vector((0, c["oy"], 0)) + Vector(v) * c["s"])
+
+
+def _bici_corpo(t, parado, lean):
+    """Quadril no selim, bicicleta inclinada (parado) e tronco inclinado; devolve a fase do pedivela."""
+    c = _BICI_CAL
+    pose((quadro(PARADO, 0), None))
+    ph = 2 * math.pi * t / CICLO_PEDAL
+    giro = _bici_giro(parado)
+    up = giro @ UP
+    mexe_quadril(_bici_ponto((ESCORREGA[0] * K / c["s"] if parado else 0.0, 0.23, 1.01), parado) + up * (c["hj"] - (ESCORREGA[1] * K if parado else 0)))
+    H = (W("LeftUpLeg") + W("RightUpLeg")) / 2
+    if parado:
+        gira("Hips", Vector((0, 1, 0)), c["tilt"], H)
+    else:  # o quadril balança um pouco com as pedaladas (a perna que desce leva o lado dela)
+        gira("Hips", Vector((0, -1, 0)), 1.6 * math.sin(ph), H)
+    inclina(lean * 0.55, lean * 0.45, -lean * 0.35, -lean * 0.3)
+    if parado:
+        gira("Spine", Vector((0, 1, 0)), -c["tilt"] * 0.6)  # o tronco se endireita sobre a bicicleta deitada
+        vira(12 * math.sin(2 * math.pi * t / 6.0), "Neck")  # olha em volta
+        vira(6 * math.sin(2 * math.pi * t / 6.0 + 0.6), "Head")
+    else:
+        gira("Spine1", Vector((0, -1, 0)), -2.2 * math.sin(ph))  # vaivém dos ombros, contrário ao quadril
+        vira(2.5 * math.sin(ph))
+        gira("Head", Vector((0, -1, 0)), 1.0 * math.sin(ph))
+    return ph
+
+
+def _bici(t, parado):
+    c = _bici_cal()
+    ph = _bici_corpo(t, parado, c["lean_parado" if parado else "lean"])
+    giro = _bici_giro(parado)
+    frente = giro @ Vector((0, -1, 0))
+    for lado, side in (("Left", 1), ("Right", -1)):
+        mao_manopla(lado, _bici_ponto((side * BICI["manopla"][0], BICI["manopla"][1], BICI["manopla"][2]), parado),
+                    frente, giro)
+    s = c["s"]
+    if parado:
+        fases = (("Right", -1, math.radians(235)),)  # pé direito no pedal da frente, pronto para sair
+    else:
+        fases = (("Right", -1, ph), ("Left", 1, ph + math.pi))
+    for lado, side, f in fases:
+        bola = _bici_ponto((side * BICI["pedal_x"], BICI["pedivela"] * math.sin(f),
+                            BICI["movimento"][2] - BICI["pedivela"] * math.cos(f) + BICI["pedal_esp"]), parado)
+        pe_no(lado, bola, 0.0, 6 + 10 * math.cos(f - 0.8), giro)
+    if parado:  # pé esquerdo chapado no chão, ao lado
+        H = W("LeftUpLeg")
+        pe_no("Left", Vector((H.x + 0.08 * K, H.y - 0.12 * K, 0.0)), 8.0, PONTA_PE)
+
+
+def _bici_apoio(parado):
+    c = _BICI_CAL
+    s = c["s"]
+    giro = _bici_giro(parado)
+    mov = _bici_ponto(BICI["movimento"], parado)
+    v = VEL[GRUPO][0] * s * (0 if parado else 1)
+    ap = {"tipo": "bicicleta", "veiculo": ["bicicleta_amarela", "bicicleta_azul"], "escala": s,
+          "fixacao": "Root", "origem": _pt(_bici_ponto((0, 0, 0), parado)), "gira_graus": 0.0,
+          "inclina_graus": c["tilt"] if parado else 0.0,
+          "selim": _pt(_bici_ponto(BICI["selim"], parado)),
+          "guidao": {"esq": _pt(_bici_ponto(BICI["manopla"], parado)),
+                     "dir": _pt(_bici_ponto((-BICI["manopla"][0],) + BICI["manopla"][1:], parado))},
+          "pedivela": {"eixo": _pt(mov), "raio": _r3(BICI["pedivela"] * s), "pedal_x": _r3(BICI["pedal_x"] * s)},
+          "velocidade_m_s": round(v, 2)}
+    if parado:
+        ap["pedivela"]["angulo_graus"] = 235.0
+        ap["pe_no_chao"] = "esquerdo"
+    else:
+        ap["pedivela"].update(ciclo_s=CICLO_PEDAL, angulo_inicial_graus=0.0,
+                              sentido="pedal direito embaixo no quadro 1, indo para trás")
+        ap["rodas_rad_s"] = round(v / (BICI["roda"] * s), 2)
+    return ap
+
+
+@receita("bike.ride", "AD ID TE CR PQ")
+def _bici_pedala():
+    _bici_cal()
+    compor("resident.bike.ride", CICLO_PEDAL * 2, lambda i, t: _bici(t, False),
+           "sentado no selim, mãos no guidão e pés nos pedais girando (IK), vaivém do tronco", lambda: _bici_apoio(False))
+
+
+@receita("bike.idle", "AD ID TE CR PQ")
+def _bici_parado():
+    _bici_cal()
+    compor("resident.bike.idle", 6.0, lambda i, t: _bici(t, True),
+           "montado e parado, bicicleta deitada para a esquerda, pé esquerdo no chão (IK)", lambda: _bici_apoio(True))
+
+
+# ------------------------------------------------ skate (de lado, pé esquerdo na frente; anda para a esquerda, +x)
+def _skate_med():
+    e = max(0.5, min(1.0, K))
+    dz = SKATE["shape_altura"] * e
+    yd = -0.03 * K  # linha do meio do shape
+    xL, xR = 0.18 * e, -0.18 * e  # pés sobre os parafusos dos eixos
+    return e, dz, yd, xL, xR
+
+
+def _bracos_soltos(frente, esq, balanco=0.0):
+    for lado, s in (("Left", 1), ("Right", -1)):
+        alvo = W(lado + "Arm") + esq * s * 0.17 * K - UP * 0.46 * K + frente * (0.04 + s * balanco) * K
+        mao(lado, alvo, W(lado + "Arm") + esq * s * 0.4 * K - frente * 0.15 * K)
+
+
+SK_CICLO = 4.0
+
+
+def _skate(t, parado):
+    e, dz, yd, xL, xR = _skate_med()
+    pose((quadro(PARADO, 0), None))
+    bolaL = Vector((xL, yd - 0.04 * K, dz))
+    if parado:
+        alfaL, bolaR, alfaR, pitR = 40.0, Vector((xR + 0.06 * e, yd - 0.24 * K, 0.0)), 30.0, 0.0
+        w, yaw = 0.0, 35.0
+        tzL, _ = pe_em("Left", bolaL, alfaL)
+        tzR, _ = pe_em("Right", bolaR, alfaR)
+        q = W("Hips")
+        alvo = tzL * 0.4 + tzR * 0.6
+        move("Hips", (alvo.x - q.x, alvo.y - q.y + 0.03 * K, 0.0))
+        apoio_pes = (1.0, 0.0, 0.985, 1.0)
+    else:
+        u = t % SK_CICLO
+        w = suave((u - 2.2) / 0.35) * suave((3.95 - u) / 0.35) if 2.2 <= u <= 3.95 else 0.0
+        yaw = 12 + 50 * w
+        alfaL = 10 + 70 * w
+        D = Vector((xR, yd - 0.04 * K, dz))
+        P1 = Vector((xL - 0.08 * K, yd - 0.21 * K, 0.0))
+        P2 = Vector((xR - 0.30 * K, yd - 0.17 * K, 0.0))
+        bolaR = trecho(u, [(2.35, D), (2.72, P1), (3.35, P2), (3.8, D)])
+        if 2.35 < u < 2.72:  # sai do shape por cima
+            bolaR = bolaR + UP * 0.07 * K * math.sin((u - 2.35) / 0.37 * math.pi)
+        elif 3.35 < u < 3.8:  # volta para o tail
+            bolaR = bolaR + UP * 0.11 * K * math.sin((u - 3.35) / 0.45 * math.pi)
+        alfaR = trecho(u, [(2.35, -8.0), (2.65, 75.0), (3.45, 75.0), (3.75, -8.0)])
+        pitR = trecho(u, [(2.72, 0.0), (3.35, 22.0), (3.6, 0.0)])
+        balanco = 0.008 * K * math.sin(2 * math.pi * u / 2.0) * (1 - w)
+        move("Hips", (0.10 * e * w + balanco, 0.0, 0.0))
+        # pé de trás apoiado: no shape (antes de 2,35 s e depois de 3,8 s) ou no chão (2,72 a 3,35 s)
+        cR = max(1 - suave((u - 2.3) / 0.12), suave((u - 3.75) / 0.1), suave((u - 2.68) / 0.08) * (1 - suave((u - 3.3) / 0.1)))
+        apoio_pes = (0.93 - 0.06 * w, 1.0, 0.93 + 0.06 * w, cR)
+    q = W("Hips")
+    gira("Hips", UP, yaw, q)
+    vira(8 * (1 - w) + 4)
+    vira(18 * (1 - w) + (6 if parado else 4) + (14 * math.sin(2 * math.pi * t / 5.0) if parado else 0), "Neck")
+    vira(22 * (1 - w) + 4, "Head")
+    inclina(3 + 9 * w, 2, -2 - 4 * w, -2 - 3 * w)
+    ajusta_altura([("Left", pe_em("Left", bolaL, alfaL)[0], apoio_pes[0], apoio_pes[1]),
+                   ("Right", pe_em("Right", bolaR, alfaR, pitR)[0], apoio_pes[2], apoio_pes[3])])
+    frente, esq, C = eixos()
+    pe_no("Left", bolaL, alfaL)
+    pe_no("Right", bolaR, alfaR, pitR)
+    bal = 0.1 * w * math.sin(2 * math.pi * ((t % SK_CICLO) - 2.7) / 1.3) if not parado else 0.0
+    _bracos_soltos(frente, esq, bal)
+
+
+def _skate_apoio(parado):
+    e, dz, yd, xL, xR = _skate_med()
+    v = 0.0 if parado else VEL[GRUPO][1]
+    return {"tipo": "skate", "veiculo": ["skate_laranja"], "escala": _r3(e), "fixacao": "Root",
+            "origem": _pt(Vector((0.0, yd, 0.0))), "gira_graus": 90.0,
+            "nota": "de lado, pé esquerdo na frente: anda para a esquerda do personagem; o skate gira 90° em torno do "
+                    "eixo vertical (a frente dele aponta para +x)",
+            "shape": {"altura": _r3(dz), "comprimento": _r3(SKATE["comprimento"] * e),
+                      "largura": _r3(SKATE["largura"] * e)},
+            "pes": {"esq": _pt(Vector((xL, yd, dz))), "dir": _pt(Vector((xR, yd, dz)))},
+            "velocidade_m_s": v, "direcao": "+x (esquerda do personagem)",
+            **({} if parado else {"ciclo_s": SK_CICLO, "impulso_s": [2.7, 3.35],
+                                  "rodas_rad_s": round(v / (SKATE["roda"] * e), 1)})}
+
+
+@receita("skate.ride", "AD ID TE CR PQ")
+def _skate_anda():
+    compor("resident.skate.ride", SK_CICLO, lambda i, t: _skate(t, False),
+           "em pé no shape, de lado, deslizando; a cada 4 s o pé de trás desce e dá um impulso (IK)",
+           lambda: _skate_apoio(False))
+
+
+@receita("skate.idle", "AD ID TE CR PQ")
+def _skate_parado():
+    compor("resident.skate.idle", 5.0, lambda i, t: _skate(t, True),
+           "parado com o pé esquerdo no shape e o direito no chão (IK), olhando em volta", lambda: _skate_apoio(True))
+
+
+# ------------------------------------------------ patinete (anda para a frente, −y; pé esquerdo na plataforma)
+PT_CICLO = 3.0
+
+
+def _pat_med():
+    sp = max(0.55, min(1.0, K))
+    dz = PATINETE["plataforma_altura"] * sp
+    hb = max(0.45, min(1.05, 0.57 * dados["altura"]))
+    yc = -0.12 * K + 0.06 * sp  # meio da plataforma
+    return sp, dz, hb, yc
+
+
+def _pat_manoplas(sp, hb, yc):
+    y = yc + (PATINETE["coluna_y"] + 0.02) * sp
+    m = PATINETE["guidao_largura"] / 2 * sp
+    return Vector((m, y, hb)), Vector((-m, y, hb))
+
+
+def _patinete(t, parado):
+    sp, dz, hb, yc = _pat_med()
+    pose((quadro(PARADO, 0), None))
+    bolaL = Vector((0.035 * K, yc - 0.06 * sp, dz))
+    noD = Vector((-0.035 * K, yc + 0.17 * sp, dz))
+    if parado:
+        w = 0.0
+        bolaR, alfaR, pitR = Vector((-0.19 * K, yc + 0.02 * sp, 0.0)), -10.0, 0.0
+        tzL, _ = pe_em("Left", bolaL, 12.0)
+        tzR, _ = pe_em("Right", bolaR, alfaR)
+        q = W("Hips")
+        alvo = tzL * 0.45 + tzR * 0.55
+        move("Hips", (alvo.x - q.x, alvo.y - q.y - 0.02 * K, 0.0))
+        apoio_pes = (1.0, 0.0, 0.985, 1.0)
+        inclina(5, 2, -2, -2)
+        vira(14 * math.sin(2 * math.pi * t / 5.0), "Neck")
+        vira(6 * math.sin(2 * math.pi * t / 5.0 + 0.5), "Head")
+    else:
+        u = t % PT_CICLO
+        w = suave((u - 1.1) / 0.3) * suave((2.9 - u) / 0.3) if 1.1 <= u <= 2.9 else 0.0
+        P1 = Vector((-0.16 * K, yc - 0.10 * sp, 0.0))
+        P2 = Vector((-0.15 * K, yc + 0.55 * K, 0.0))
+        bolaR = trecho(u, [(1.15, noD), (1.45, P1), (2.3, P2), (2.85, noD)])
+        if 1.15 < u < 1.45:
+            bolaR = bolaR + UP * 0.06 * K * math.sin((u - 1.15) / 0.3 * math.pi)
+        elif 2.3 < u < 2.85:
+            bolaR = bolaR + UP * 0.12 * K * math.sin((u - 2.3) / 0.55 * math.pi)
+        alfaR = trecho(u, [(1.15, -20.0), (1.4, -5.0), (2.55, -5.0), (2.85, -20.0)])
+        pitR = trecho(u, [(1.45, 0.0), (2.3, 25.0), (2.55, 0.0)])
+        move("Hips", (0.01 * K * w, -0.03 * K * w, 0.0))
+        cR = max(1 - suave((u - 1.1) / 0.1), suave((u - 2.8) / 0.08), suave((u - 1.4) / 0.08) * (1 - suave((u - 2.25) / 0.1)))
+        apoio_pes = (0.955 - 0.06 * w, 1.0, 0.955 + 0.04 * w, cR)
+        inclina(6 + 6 * w, 2, -3 - 3 * w, -2 - 2 * w)
+        vira(-4 * w)
+    ajusta_altura([("Left", pe_em("Left", bolaL, 12.0)[0], apoio_pes[0], apoio_pes[1]),
+                   ("Right", pe_em("Right", bolaR, alfaR, pitR)[0], apoio_pes[2], apoio_pes[3])])
+    frente, esq, C = eixos()
+    gL, gR = _pat_manoplas(sp, hb, yc)
+    mao_manopla("Left", gL, Vector((0, -1, 0)))
+    mao_manopla("Right", gR, Vector((0, -1, 0)))
+    pe_no("Left", bolaL, 12.0)
+    pe_no("Right", bolaR, alfaR, pitR)
+
+
+def _pat_apoio(parado):
+    sp, dz, hb, yc = _pat_med()
+    gL, gR = _pat_manoplas(sp, hb, yc)
+    v = 0.0 if parado else VEL[GRUPO][2]
+    return {"tipo": "patinete", "veiculo": None, "medidas": "reais (a cidade não tem patinete de empurrar)",
+            "escala": _r3(sp), "fixacao": "Root", "origem": _pt(Vector((0.0, yc, 0.0))), "gira_graus": 0.0,
+            "plataforma": {"altura": _r3(dz), "largura": _r3(PATINETE["plataforma"][0] * sp),
+                           "comprimento": _r3(PATINETE["plataforma"][1] * sp)},
+            "coluna": _pt(Vector((0.0, yc + PATINETE["coluna_y"] * sp, 0.0))),
+            "guidao": {"altura": _r3(hb), "largura": _r3(PATINETE["guidao_largura"] * sp), "esq": _pt(gL), "dir": _pt(gR)},
+            "rodas": {"raio": _r3(PATINETE["roda"] * sp),
+                      "dianteira": _pt(Vector((0.0, yc + PATINETE["rodas_y"][0] * sp, PATINETE["roda"] * sp))),
+                      "traseira": _pt(Vector((0.0, yc + PATINETE["rodas_y"][1] * sp, PATINETE["roda"] * sp)))},
+            "velocidade_m_s": v, "direcao": "frente (−y do Blender, +z do glTF)",
+            **({} if parado else {"ciclo_s": PT_CICLO, "impulso_s": [1.45, 2.3],
+                                  "rodas_rad_s": round(v / (PATINETE["roda"] * sp), 1)})}
+
+
+@receita("scooter.ride", "AD ID TE CR PQ")
+def _pat_anda():
+    compor("resident.scooter.ride", PT_CICLO, lambda i, t: _patinete(t, False),
+           "pé esquerdo na plataforma, mãos no guidão; o direito desce e dá um impulso a cada 3 s (IK)",
+           lambda: _pat_apoio(False))
+
+
+@receita("scooter.idle", "AD ID TE CR PQ")
+def _pat_parado():
+    compor("resident.scooter.idle", 5.0, lambda i, t: _patinete(t, True),
+           "parado com o pé esquerdo na plataforma, o direito no chão e as mãos no guidão (IK)", lambda: _pat_apoio(True))
+
+
+# ---------------------------------------------------------------- gestos que faltavam
+@receita("wave.big", "AD ID TE CR PQ")
+def _acena_grande():
+    dur = 3.6
+
+    def passo(i, t):
+        pose((quadro(PARADO, 0), None))
+        w = envelope(t, dur, 0.45, 0.45)
+        ang = math.sin(2 * math.pi * t / 0.9)
+        vira(4 * ang * w)
+        inclina(-3 * w, -2 * w, 0, -4 * w)
+        frente, esq, C = eixos()
+        for lado, s in (("Left", 1), ("Right", -1)):
+            alto = W(lado + "Arm") + UP * 0.40 * K + esq * s * 0.17 * K + esq * 0.13 * K * ang + frente * 0.06 * K
+            mao(lado, mistura(W(lado + "Hand"), alto, w), W(lado + "Arm") + esq * s * 0.45 * K - UP * 0.05 * K - frente * 0.1 * K)
+            _junta_rot(lado, rot_palma(lado, frente, UP * 0.9 - esq * 0.25 * ang), w)
+            dedos(lado, "aberta", w)
+    compor("resident.wave.big", dur, passo, "parado + os dois braços para o alto, acenando de um lado para o outro (IK)")
+
+
+def _olhos_mundo():
+    Mc = mw @ PB["Head"].matrix
+    if len(OLHO) == 2:
+        return (Mc @ OLHO["Left"] + Mc @ OLHO["Right"]) / 2
+    return boca_mundo() + UP * 0.06 * K
+
+
+@receita("photo.take", "AD ID TE CR")
+def _foto():
+    dur = 5.0
+
+    def passo(i, t):
+        pose((quadro(PARADO, 0), None))
+        w1 = suave(t / 0.8) * (1 - suave((t - 3.0) / 0.6))  # câmera nos olhos
+        w2 = suave((t - 3.0) / 0.6) * (1 - suave((t - 4.3) / 0.6))  # olhando a foto na tela
+        inclina(2 * w1 + 3 * w2, 1 * w1, 0, 2 * w1 + 16 * w2)
+        frente, esq, C = eixos()
+        olho = _olhos_mundo()
+        cam1 = olho + frente * 0.17 * K - UP * 0.015 * K
+        cam2 = C + frente * 0.30 * K - UP * 0.16 * K
+        w = max(w1, w2)
+        if w < 1e-3:
+            return
+        cam = mistura(cam2, cam1, w1 / max(w, 1e-6))
+        for lado, s in (("Left", 1), ("Right", -1)):
+            alvo = cam + esq * s * 0.085 * K - UP * 0.02 * K - frente * 0.01 * K  # nas laterais da câmera
+            mao(lado, mistura(W(lado + "Hand"), alvo, w), W(lado + "Arm") + esq * s * 0.3 * K - UP * 0.35 * K)
+            _junta_rot(lado, rot_palma(lado, -esq * s + UP * 0.25, frente * 0.75 + UP * 0.35), w)
+            dedos(lado, "apoio", w)
+        if 1.9 <= t <= 2.25 and "RightHandIndex1" in PB:  # o indicador aperta o botão
+            pb = PB["RightHandIndex1"]
+            gira("RightHandIndex1", esq, -25 * math.sin((t - 1.9) / 0.35 * math.pi), mw @ pb.head)
+    compor("resident.photo.take", dur, passo,
+           "parado + câmera nos olhos com as duas mãos (IK), aperta o botão e olha a foto na tela",
+           lambda: {"tipo": "entre_maos", "objeto": "camera", "tam": [round(0.13 * K, 3), round(0.08 * K, 3), round(0.08 * K, 3)]})
+
+
+@receita("selfie", "AD ID TE CR")
+def _selfie():
+    dur = 4.5
+
+    def passo(i, t):
+        pose((quadro(PARADO, 0), None))
+        w = envelope(t, dur, 0.7, 0.6)
+        frente, esq, C = eixos()
+        gira("Head", frente, 7 * w)  # a cabeça deita um pouco para o lado do celular
+        vira(-8 * w, "Head")
+        if 2.3 <= t <= 2.7:
+            gira("Head", esq, 4 * math.sin((t - 2.3) / 0.4 * math.pi) * w)
+        cabeca = W("Head")
+        cel = cabeca + frente * 0.44 * K + UP * 0.10 * K - esq * 0.12 * K
+        m = mistura(W("RightHand"), cel - frente * 0.02 * K, w)
+        mao("Right", m, W("RightArm") - esq * 0.4 * K - UP * 0.25 * K)
+        _junta_rot("Right", rot_palma("Right", (_olhos_mundo() - m).normalized(), UP * 0.8 - esq * 0.3), w)
+        dedos("Right", "apoio", w)
+        cint = W("LeftUpLeg") + esq * 0.10 * K + UP * 0.13 * K - frente * 0.01 * K  # outra mão na cintura
+        mao("Left", mistura(W("LeftHand"), cint, w), W("LeftArm") + esq * 0.45 * K - frente * 0.1 * K)
+        _junta_rot("Left", rot_palma("Left", -esq, -UP * 0.6 + frente * 0.4), w)
+        dedos("Left", "concha", w)
+    compor("resident.selfie", dur, passo, "parado + braço direito esticado com o celular virado para o rosto (IK), "
+           "outra mão na cintura", lambda: {"tipo": "objeto_mao", "objeto": "celular", "mao": "direita"})
+
+
 # ---------------------------------------------------------------- roda as receitas deste corpo
 antes = set(bpy.data.actions)
 feitos = []

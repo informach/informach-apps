@@ -56,36 +56,49 @@ if t_anim is not None:
     bpy.context.view_layer.update()
     for o in bpy.data.objects:
         if o.get("anima") == "percurso":
+            # como a página: referenciais que acompanham o trilho, giro do fechamento repartido
             P = [gl2b(p) for p in o["pontos"]]
-            P.append(P[0])
+            P.append(P[0].copy())
+            n = len(P)
             L = [0.0]
-            for i in range(1, len(P)):
+            for i in range(1, n):
                 L.append(L[-1] + (P[i] - P[i - 1]).length)
+            T = [(P[min(n - 1, i + 1)] - P[max(0, i - 1)]).normalized() for i in range(n)]
+            Zb = V((0, 0, 1))
+            U = [(Zb - T[0] * T[0].dot(Zb)).normalized()]
+            for i in range(1, n):
+                u = U[-1] - T[i] * U[-1].dot(T[i])
+                U.append(u.normalized())
+            ini = (U[0] - T[-1] * U[0].dot(T[-1])).normalized()
+            err = math.acos(max(-1, min(1, U[-1].dot(ini))))
+            if U[-1].cross(ini).dot(T[-1]) < 0:
+                err = -err
+            U = [Matrix.Rotation(err * L[i] / L[-1], 3, T[i]) @ U[i] for i in range(n)]
             tot = L[-1]
-
-            def em(s):
-                s = s % tot
-                i = 1
-                while i < len(L) - 1 and L[i] < s:
-                    i += 1
-                f = (s - L[i - 1]) / max(1e-6, L[i] - L[i - 1])
-                return P[i - 1].lerp(P[i], f)
-
-            s = t_anim * o["velocidade"] - o["atraso"]
-            p, q = em(s), em(s + 0.6)
-            pai = o.parent.matrix_world
-            pw, qw = pai @ p, pai @ q
-            f = (qw - pw).normalized()
-            up = V((0, 0, 1))
-            x = up.cross(f)
-            if x.length < 1e-6:
-                x = V((1, 0, 0))
-            x.normalize()
-            # frente local −Y aponta para f; cima local Z ~ up
-            yl = -f
-            zl = x.cross(yl).normalized()
-            M = Matrix(((x.x, yl.x, zl.x, pw.x), (x.y, yl.y, zl.y, pw.y), (x.z, yl.z, zl.z, pw.z), (0, 0, 0, 1)))
-            o.matrix_world = M
+            s_ = (t_anim * o["velocidade"] - o["atraso"]) % tot
+            i = 1
+            while i < n - 1 and L[i] < s_:
+                i += 1
+            f = (s_ - L[i - 1]) / max(1e-6, L[i] - L[i - 1])
+            p = P[i - 1].lerp(P[i], f)
+            t = T[i - 1].lerp(T[i], f).normalized()
+            u = U[i - 1].lerp(U[i], f)
+            u = (u - t * u.dot(t)).normalized()
+            x = u.cross(t)
+            M = Matrix(((x.x, -t.x, u.x, p.x), (x.y, -t.y, u.y, p.y), (x.z, -t.z, u.z, p.z), (0, 0, 0, 1)))
+            o.matrix_world = o.parent.matrix_world @ M
+        elif o.get("anima") == "deslizar":
+            per = o["periodo"]
+            uu = (t_anim % per) / per
+            if uu < 0.5:
+                k = 0.5 - 0.5 * math.cos(math.pi * uu / 0.5)
+            elif uu < 0.62:
+                k = 1
+            elif uu < 0.7:
+                k = 1 - ((uu - 0.62) / 0.08) ** 2
+            else:
+                k = 0
+            o.location = o.location + V((0, 0, o["curso"] * k))
     bpy.context.view_layer.update()
 pts = [o.matrix_world @ V(c) for o in objs if not o.get("colisao") for c in o.bound_box]
 lo = V([min(p[i] for p in pts) for i in range(3)])

@@ -29,6 +29,15 @@ animação por ID, com o nome do ID (`resident.walk.normal`, `resident.sit.chair
   - `escada`, `corda`, `parapeito`: onde ficam a escada, a corda ou a borda.
   - `bancada`, `pia`, `mesa`: altura do tampo e distância até a frente do corpo.
   - `entre_maos` (caixa, bebê, livro, tablet) e `cabo` (vassoura, rodo, aspirador): objeto preso às mãos.
+  - `bicicleta`, `skate`, `patinete`: o veículo que a animação espera, medido no próprio corpo. Ele vai preso ao osso
+    `Root` (`fixacao`): `origem` (onde fica a origem do veículo, no chão), `escala` (a bicicleta e o skate da cidade
+    encolhem para crianças e pequenos), `gira_graus` (em torno do eixo vertical; o skate vai de lado, 90°) e
+    `inclina_graus` (a bicicleta parada deita para o lado do pé no chão). Também: `selim`, `guidao` (punhos
+    esquerdo e direito), `pedivela` (eixo, raio, ciclo), `shape`, `pes`, `plataforma`, `coluna`, `rodas`, e
+    `velocidade_m_s` (o deslocamento que o jogo dá à raiz enquanto a animação toca no lugar) com `rodas_rad_s`. A
+    bicicleta é a `bicicleta_amarela`/`bicicleta_azul` e o skate é o `skate_laranja` (`cidade/carros`); a cidade não
+    tem patinete de empurrar, e as medidas dele são de um patinete real. Os pedais da bicicleta da cidade são fixos no
+    modelo: no jogo, o pedivela precisa girar com os pés (uma volta por `ciclo_s`).
 - `correcoes[corpo][id]`: ajustes feitos sobre o clipe do Mixamo (telefone, mão no corpo, antebraço, chão, cabeça do
   engatinhar, mãos nos olhos, tronco menos curvado, `dedos`).
   - `dedos`: a pegada dos dedos de cada mão que segura algo (copo, telefone, cabo, corda, controle, caixa, caneta). A
@@ -48,7 +57,10 @@ Os corpos (`corpos/*.glb`) trazem todos os penteados e barbas do catálogo, cada
 
 ## Animações feitas por nós
 
-O Mixamo não tem 23 delas: estão em `rotulos.json`, campo `compostas`, com uma frase sobre como cada uma foi feita.
+O Mixamo não tem 39 delas: estão em `rotulos.json`, campo `compostas`, com uma frase sobre como cada uma foi feita.
+Entre elas, a categoria "Bicicleta, skate e patinete" (`resident.bike.ride`/`idle`, `resident.skate.ride`/`idle`,
+`resident.scooter.ride`/`idle`, em todos os corpos menos o bebê; não entram na biblioteca de grávida) e os gestos
+`resident.wave.big`, `resident.photo.take` e `resident.selfie`.
 
 ## Gravidez (adulta, plus_f, atletica)
 

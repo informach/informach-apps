@@ -2232,5 +2232,313 @@
    "lum": 1.0,
    "cor": "#ffffff"
   }
+ },
+ "nov_martelo": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_martelo__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_chave_fenda": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_chave_fenda__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_furadeira": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_furadeira__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_rolo_pintura": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_rolo_pintura__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_spray": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_spray__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_trena": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_trena__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_prancheta": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_prancheta__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_planta_enrolada": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_planta_enrolada__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_balde_mao": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_balde_mao__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_espanador": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_espanador__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_regador": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_regador__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pa_jardim": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pa_jardim__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_esguicho": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_esguicho__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_megafone": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_megafone__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_cardapio": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_cardapio__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_caneta": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_caneta__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_apito": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_apito__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_tesoura_cabelo": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_tesoura_cabelo__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_secador": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_secador__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pente": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pente__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_lupa": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_lupa__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_envelope": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_envelope__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_skate": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_skate__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_raquete": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_raquete__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_halter": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_halter__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_taco": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_taco__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_vara_pescar": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_vara_pescar__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_garrafa_agua": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_garrafa_agua__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_controle": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_controle__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_saco_pipoca": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_saco_pipoca__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_algodao_doce": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_algodao_doce__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_balao": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_balao__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pirulito": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pirulito__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_ingresso": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_ingresso__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_mapa": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_mapa__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_placa_socorro": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_placa_socorro__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_caixa_pizza": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_caixa_pizza__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pacote": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pacote__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_cesta_piquenique": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_cesta_piquenique__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_varinha": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_varinha__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_bandeira": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_bandeira__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_trofeu": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_trofeu__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_pandeiro": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_pandeiro__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
+ },
+ "nov_chapeu_comissaria": {
+  "Roupa_Gen_atlas": {
+   "mascara": "nov_chapeu_comissaria__Roupa_Gen_atlas.png",
+   "lum": 1.0,
+   "cor": "#ffffff"
+  }
  }
 }

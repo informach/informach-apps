@@ -194,6 +194,8 @@ for kind, item in itens:
                 ob.rotation_euler = (0, math.radians(90), 0)
             else:  # celular, livro, câmera: X para cima
                 ob.rotation_euler = (0, math.radians(-90), 0)
+            if it.get("mini_rot"):  # o catálogo pede a face que importa (folha, texto, cordas) de frente para a câmera
+                ob.rotation_euler = tuple(math.radians(a_) for a_ in it["mini_rot"])
             R.garante_mascara(ob, item["id"])
             tinge(ob, item["id"], it.get("variacao", {}).get("cor"))
             esconde_resto([ob])

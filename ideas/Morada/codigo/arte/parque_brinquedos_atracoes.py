@@ -63,7 +63,7 @@ def roda_gigante(it):
     est = []
     # base branca com sapatas amarelas, escada e plataforma de embarque
     est.append(mb.caixa(27.4, 10.4, 0.36, cor="branco", bisel=0.08, seg=2, nome="base"))
-    est.append(mb.caixa(27.7, 10.7, 0.12, z=-0.02, cor="concreto", bisel=0.03, seg=1, nome="rodape"))
+    est.append(mb.caixa(27.7, 10.7, 0.12, z=0.0, cor="concreto", bisel=0.03, seg=1, nome="rodape"))
     # canteiros, bancos e fila nas pontas da base (a roda passa por cima)
     for sx in (-1, 1):
         xc = sx * 10.6
@@ -175,6 +175,7 @@ def roda_gigante(it):
         it.slot(f"assento_{k + 1}", (pv.x, pv.y + 0.25, pv.z - 2.0), (0.5, 0.5, 0.9), pai=nm)
     it.add(luz_fixa)
     it.colisao([((0, 0, 0), (27.4, 10.4, 0.36)), ((0, 0.2, 0.36), (4.4, 3.4, 1.0)), ((bx, by, 0.36), (2.6, 1.9, 2.3)),
+                ((0, 0, 3.0), (26.0, 2.6, 26.2)),
                 ((-5.6, -3.9, 0.3), (1.1, 1.1, 0.55)), ((5.6, -3.9, 0.3), (1.1, 1.1, 0.55)),
                 ((-5.6, 3.9, 0.3), (1.1, 1.1, 0.55)), ((5.6, 3.9, 0.3), (1.1, 1.1, 0.55))])
 
@@ -396,7 +397,7 @@ def bule(z0=0.0, cor="rosa", cor2="branco"):
 def xicaras(it):
     Rb, Rp = 7.1, 6.3
     est = [mb.cilindro(Rb, 0.3, cor="lilas_claro", seg=48, bisel=0.06, nome="base"),
-           mb.cilindro(Rb + 0.1, 0.1, z=-0.02, cor="concreto", seg=48, bisel=0.02),
+           mb.cilindro(Rb + 0.1, 0.1, z=0.0, cor="concreto", seg=48, bisel=0.02),
            mb.cilindro(1.45, 1.2, z=0.3, cor="branco", seg=24, bisel=0.06, nome="pedestal"),
            mb.cilindro(1.55, 0.14, z=1.36, cor="ouro", seg=24, bisel=0.03)]
     est += bule(1.5, "rosa", "branco")
@@ -484,7 +485,7 @@ def casco(L=12.6, B=4.1, prof=2.1, n=24, m=12):
 def barco_viking(it):
     zp = 11.2
     est = [mb.caixa(14.4, 8.6, 0.36, cor="concreto", bisel=0.08, seg=2, nome="base"),
-           mb.caixa(14.6, 8.8, 0.1, z=-0.02, cor="concreto_escuro", bisel=0.03, seg=1),
+           mb.caixa(14.6, 8.8, 0.1, z=0.0, cor="concreto_escuro", bisel=0.03, seg=1),
            mb.caixa(5.0, 3.2, 0.06, z=0.36, cor="madeira_mel", bisel=0.02, seg=1, nome="piso_embarque")]
     for k in range(8):
         est.append(mb.caixa(0.04, 3.2, 0.02, x=-2.2 + k * 0.63, z=0.42, cor="madeira", bisel=0.0, liso=False))
@@ -592,7 +593,8 @@ def barco_viking(it):
         h = 0.5 + 0.12 * abs(x)
         for j, y in enumerate((-0.6, 0.6)):
             it.slot(f"assento_{2 * k + j + 1}", (x, y, zb - 1.12 + h), (0.5, 0.5, 0.9), pai=nome_b)
-    it.colisao([((0, 0, 0), (14.4, 8.6, 0.36)), ((-6.2, -3.5, 0.3), (0.9, 0.9, 0.4)), ((6.2, -3.5, 0.3), (0.9, 0.9, 0.4)),
+    it.colisao([((0, 0, 0), (14.4, 8.6, 0.36)), ((0, 0, 0.36), (13.4, 5.0, 11.5)), ((0, -4.7, 0), (2.4, 0.8, 0.36)),
+                ((-6.2, -3.5, 0.3), (0.9, 0.9, 0.4)), ((6.2, -3.5, 0.3), (0.9, 0.9, 0.4)),
                 ((-6.2, 3.5, 0.3), (0.9, 0.9, 0.4)), ((6.2, 3.5, 0.3), (0.9, 0.9, 0.4))])
 
 
@@ -629,25 +631,34 @@ def torre_queda(it):
     est.append(pb.grade([((3.7) * math.cos(math.radians(a)), 3.7 * math.sin(math.radians(a)), 0.52)
                          for a in range(-60, 241, 15)], alt=1.0, passo=1.4, cor="branco", r=0.035))
     it.add(est)
-    # gôndola em anel (gira devagar)
+    # elevador (sobe pela torre e despenca: "deslizar" com perfil de queda) levando a gôndola em anel, que gira devagar
     zg = 2.5
-    g = [pb.anel_extrudado(mb.circulo(2.55, 32), mb.circulo(1.15, 32), zg - 0.2, zg + 0.15, "amarelo", bisel=0.06,
-                           nome="anel"),
-         pb.anel_extrudado(mb.circulo(1.25, 24), mb.circulo(1.1, 24), zg + 0.15, zg + 2.8, "amarelo_escuro",
-                           nome="luva")]
+    curso = round(H - 4.6 - zg, 2)  # do pé até perto do topo (a luva para abaixo do chapéu)
+    elev = [pb.anel_extrudado(mb.circulo(1.25, 24), mb.circulo(1.1, 24), zg + 0.15, zg + 2.8, "amarelo_escuro",
+                              nome="luva"),
+            pb.anel_extrudado(mb.circulo(1.4, 24), mb.circulo(1.1, 24), zg + 2.6, zg + 2.9, "roxo_escuro", nome="freio")]
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + math.pi / 6
+        elev.append(mb.caixa(0.36, 0.36, 0.5, x=1.18 * math.cos(a), y=1.18 * math.sin(a), z=zg + 2.3, cor="cinza_medio",
+                             bisel=0.04, seg=1, nome="patim"))
+    nome_e = "elevador"
+    it.anima(elev, {"anima": "deslizar", "eixo": "y", "curso": curso, "periodo": 16, "perfil": "queda"}, nome_e,
+             pivo=(0, 0, zg))
+    g = [pb.anel_extrudado(mb.circulo(2.55, 32), mb.circulo(1.28, 32), zg - 0.2, zg + 0.15, "amarelo", bisel=0.06,
+                           nome="anel")]
     for k in range(12):
         a = 2 * math.pi * k / 12
-        c, s = math.cos(a), math.sin(a)
+        c, s_ = math.cos(a), math.sin(a)
         assento = [mb.superelipsoide(0.56, 0.5, 0.16, x=0, y=0, z=0, cor="azul", e=0.35, nu=10, nv=4),
                    mb.superelipsoide(0.56, 0.16, 0.95, x=0, y=0.27, z=0.05, cor="azul", e=0.35, nu=10, nv=4),
                    pb.tubo([(-0.24, -0.1, 0.95), (-0.26, -0.3, 0.62), (0.26, -0.3, 0.62), (0.24, -0.1, 0.95)], 0.045,
                            "amarelo", 6)]
         for o in assento:
             mb.transforma(o, rot=("Z", math.degrees(a) + 90))
-            mb.transforma(o, loc=(2.0 * c, 2.0 * s, zg + 0.15))
+            mb.transforma(o, loc=(2.0 * c, 2.0 * s_, zg + 0.15))
         g += assento
     nome_g = "gondola"
-    it.anima(g, {"anima": "girar", "eixo": "y", "velocidade": 12}, nome_g, pivo=(0, 0, zg))
+    it.anima(g, {"anima": "girar", "eixo": "y", "velocidade": 12}, nome_g, pivo=(0, 0, zg), pai=nome_e)
     for k in range(12):
         a = 2 * math.pi * k / 12
         it.slot(f"assento_{k + 1}", (2.0 * math.cos(a) * 1.02, 2.0 * math.sin(a) * 1.02, zg + 0.31), (0.5, 0.5, 0.9),
@@ -660,7 +671,8 @@ def torre_queda(it):
             luzes.append(conta((1.95 * math.cos(a), 1.95 * math.sin(a), H + 0.82), 0.1))
     luzes.append(mb.esfera(0.16, z=H + 4.85, cor=None, mat="luz_vermelha", seg=8))
     it.anima(luzes, {"anima": "piscar", "periodo": 0.7}, "lampadas", pivo=(0, 0, H))
-    it.colisao([((0, 0, 0), (8.4, 8.4, 0.52)), ((0, 0, 0.52), (3.2, 3.2, 1.6)), ((0, 0, 2.1), (2.0, 2.0, H - 2.1))])
+    it.colisao([((0, 0, 0), (8.4, 8.4, 0.52)), ((0, 0, 0.52), (3.2, 3.2, 1.6)), ((0, 0, 2.1), (2.0, 2.0, H - 2.1)),
+                ((0, 0, H - 0.6), (4.4, 4.4, 4.8))])
 
 
 # ======================================================================================================================
@@ -947,6 +959,7 @@ def trenzinho(it):
             for j, y in enumerate((0.3, -0.3)):
                 it.slot_local(f"assento_{2 * (i - 1) + j + 1}", (0, y, 0.56), (0.5, 0.5, 0.9), nm)
     it.colisao([((0, 0, cb.Z_FUNDO), (S, S, -cb.Z_FUNDO)), ((0, ye, 0), (4.4, 1.4, 0.32)),
+                ((0, ye + 0.1, 2.55), (5.0, 2.2, 1.95)),
                 ((a_ * math.cos(math.radians(50)), b_ * math.sin(math.radians(50)), 0), (3.6, 3.6, 2.5))])
 
 

@@ -162,7 +162,7 @@ def p_taxi(it):
 
     def faixa(s, y0, y1, ctx):
         return decal_lado(ctx, s, (y0 + y1) / 2, 0.66, (y1 - y0) - 0.1, 0.1, xd)
-    c = sedan("amarelo", cor_banco="grafite", extras=[placa_taxi])
+    c = sedan("amarelo", cor_banco="grafite", extras=[placa_taxi], z_col=1.66)
     c["portas"] = [dict(y0=-0.54, y1=0.27, extra=faixa), dict(y0=0.27, y1=0.84, extra=faixa)]
     vb.carro(it, c, PASTA)
 
@@ -171,11 +171,10 @@ def barra_sirene(it, ctx):
     cab = ctx["cab"]
     zr = cab.k["zr"] + 0.01
     yc = (cab.k["yf1"] + cab.k["yr1"]) / 2 - 0.05
-    it.add(mb.caixa(1.0, 0.26, 0.07, y=yc, z=zr - 0.02, cor="grafite_escuro", bisel=0.03, seg=2))
+    it.add(mb.caixa(1.0, 0.26, 0.07, y=yc, z=zr - 0.02, cor="grafite_escuro", bisel=0.03, seg=1))
     luzes = []
     for s, mat in ((-1, "luz_azul"), (1, "luz_vermelha")):
-        luzes.append(mb.superelipsoide(0.42, 0.22, 0.13, x=s * 0.24, y=yc, z=zr + 0.04, cor=None, mat=mat, e=0.35,
-                                       nu=12, nv=6))
+        luzes.append(mb.caixa(0.42, 0.22, 0.13, x=s * 0.24, y=yc, z=zr + 0.04, cor=None, mat=mat, bisel=0.05, seg=1))
     it.anima(luzes, {"anima": "piscar", "periodo": 0.8}, "sirene")
 
 
@@ -201,7 +200,7 @@ def p_policia(it):
         ps.append(mb.caixa(0.9, 0.07, 0.07, y=cas.yF - 0.14, z=0.36, cor="preto", bisel=0.025, seg=1))
         it.add(mb.junta(ps, "empurra"))
     c = sedan("preto", pinta=pinta, extras=[barra_sirene, empurra], roda="raios", cor_aro="grafite",
-              cor_cubo="preto", cor_espelho="preto")
+              cor_cubo="preto", cor_espelho="preto", z_col=1.64)
     c["portas"] = [dict(y0=-0.54, y1=0.27, extra=texto), dict(y0=0.27, y1=0.84)]
     c["para_choques"] = [dict(lado="frente", z=0.42, r=0.07, cor="preto"), dict(lado="tras", z=0.46, r=0.07,
                                                                                  cor="preto")]
@@ -294,7 +293,7 @@ def bagageiro_trilhos(it, ctx):
         x = s * (cab.k["wc1"] - 0.12)
         y0, y1 = cab.k["yf1"] + 0.2, cab.k["yr1"] - 0.15
         it.add(mb.tubo([(x, y0, zr - 0.01), (x, y0 + 0.05, zr + 0.06), (x, y1 - 0.05, zr + 0.06), (x, y1, zr - 0.01)],
-                       0.022, cor="metal_escuro", seg=8))
+                       0.022, cor="metal_escuro", seg=6, raio_curva=0))
 
 
 @peca("suv_roxo", "SUV (roxo)", "suv", tags=["carro", "suv", "passeio"])
@@ -331,14 +330,15 @@ def bagageiro_grade(it, ctx):
     w = cab.k["wc1"] - 0.06
     ps = []
     for s in (-1, 1):
-        ps.append(mb.tubo([(s * w, y0, zr + 0.1), (s * w, y1, zr + 0.1)], 0.025, cor="grafite", seg=8))
+        ps.append(mb.caixa(0.05, y1 - y0, 0.05, x=s * w, y=(y0 + y1) / 2, z=zr + 0.075, cor="grafite", bisel=0,
+                           liso=False))
         for y in (y0 + 0.1, (y0 + y1) / 2, y1 - 0.1):
-            ps.append(mb.caixa(0.05, 0.05, 0.1, x=s * (w - 0.02), y=y, z=zr - 0.06, cor="grafite", bisel=0.015, seg=1))
-    for k in range(9):
-        y = y0 + (y1 - y0) * k / 8
-        ps.append(mb.tubo([(-w, y, zr + 0.1), (w, y, zr + 0.1)], 0.016, cor="metal_escuro", seg=6))
-    ps.append(mb.tubo([(-w, y0, zr + 0.1), (w, y0, zr + 0.1)], 0.025, cor="grafite", seg=8))
-    ps.append(mb.tubo([(-w, y1, zr + 0.1), (w, y1, zr + 0.1)], 0.025, cor="grafite", seg=8))
+            ps.append(mb.caixa(0.05, 0.05, 0.1, x=s * (w - 0.02), y=y, z=zr - 0.06, cor="grafite", bisel=0, liso=False))
+    for k in range(1, 7):
+        y = y0 + (y1 - y0) * k / 7
+        ps.append(mb.caixa(2 * w, 0.03, 0.025, y=y, z=zr + 0.088, cor="metal_escuro", bisel=0, liso=False))
+    for y in (y0, y1):
+        ps.append(mb.caixa(2 * w + 0.05, 0.05, 0.05, y=y, z=zr + 0.075, cor="grafite", bisel=0, liso=False))
     it.add(mb.junta(ps, "bagageiro"))
 
 
@@ -347,11 +347,11 @@ def snorkel_guincho(it, ctx):
     x = cab.k["wc0"] + 0.06
     yb = cab.k["yf0"] - 0.05
     it.add(mb.tubo([(x, yb - 0.2, 0.9), (x + 0.04, yb, 1.0), (x, yb + 0.12, 1.75), (x - 0.02, yb + 0.05, 1.86)],
-                   0.045, cor="preto", seg=10))
+                   0.045, cor="preto", seg=6, raio_curva=0))
     hit, n = ctx["sup"].raio((0, cas.yF - 2, 0.55), (0, 1, 0))
     if hit is not None:
-        g = mb.cilindro(0.09, 0.42, eixo="x", x=0, y=hit.y - 0.07, z=hit.z, cor="grafite", seg=12, bisel=0.01)
-        cabo = mb.cilindro(0.075, 0.2, eixo="x", x=0, y=hit.y - 0.07, z=hit.z, cor="laranja", seg=12, bisel=0.01)
+        g = mb.cilindro(0.09, 0.42, eixo="x", x=0, y=hit.y - 0.07, z=hit.z, cor="grafite", seg=8, bisel=0)
+        cabo = mb.cilindro(0.075, 0.2, eixo="x", x=0, y=hit.y - 0.07, z=hit.z, cor="laranja", seg=8, bisel=0)
         it.add(g, cabo)
     hit, n = ctx["sup"].raio((0, cas.yF - 2, 0.86), (0, 1, 0))
     if hit is not None:
@@ -362,7 +362,7 @@ def snorkel_guincho(it, ctx):
 
 def estepe(ctx):
     cas = ctx["cas"]
-    rd = vb.roda(0.34, 0.24, estilo="raios", cor_aro="metal_claro", cor_cubo="grafite")
+    rd = vb.roda(0.34, 0.24, estilo="raios", cor_aro="metal_claro", cor_cubo="grafite", lado=1, seg=10)
     mb.transforma(rd, rot=("Z", 90))
     mb.transforma(rd, loc=(0, cas.yR + 0.14, 1.12))
     return [rd, mb.caixa(0.12, 0.2, 0.12, y=cas.yR + 0.02, z=1.06, cor="grafite", bisel=0.02, seg=1)]
@@ -384,13 +384,13 @@ def p_jipe(it):
                dict(lado="tras", x=0.82, z=0.92, l=0.12, h=0.24, raio=0.03)],
         grade=dict(z=0.84, l=0.62, h=0.3, cor="grafite_escuro", raio=0.04, barras=6, vertical=True,
                    cor_barras="verde_lima"),
-        para_choques=[dict(lado="frente", z=0.52, r=0.1, cor="grafite", amax=60),
-                      dict(lado="tras", z=0.56, r=0.1, cor="grafite", amax=60)],
+        para_choques=[dict(lado="frente", z=0.52, r=0.1, cor="grafite", reto=True),
+                      dict(lado="tras", z=0.56, r=0.1, cor="grafite", reto=True)],
         placas=(("frente", 0.52, "branco"), ("tras", 0.74, "branco")),
         bancos=[(-0.4, -0.08, 0.52, "assento_motorista"), (0.4, -0.08, 0.52, "assento_1"), (0.0, 0.85, 1.36, None)],
         slots_extra=[("assento_2", -0.38, 0.85), ("assento_3", 0.38, 0.85)],
         cor_banco="marrom", interior="grafite", roda="raios", cor_aro="metal_claro", cor_cubo="grafite",
-        extras=[bagageiro_grade, snorkel_guincho], z_piso=0.6, cor_arco="preto",
+        extras=[bagageiro_grade, snorkel_guincho], z_piso=0.6, cor_arco="preto", seg_roda=10, z_col=2.0,
     )
     vb.carro(it, c, PASTA)
 
@@ -455,6 +455,7 @@ def p_esp_conv(it):
                   banheira=dict(y0=-0.5, y1=0.75, w=0.74, z=0.32, r=0.16), cor_banco="preto")
     c["portas"] = [dict(y0=-0.47, y1=0.62)]
     c["bancos"] = [(-0.36, 0.28, 0.5, "assento_motorista"), (0.36, 0.28, 0.5, "assento_1")]
+    c["colisao"] = [((0, 0, 0), (2.11, 4.5, 0.8)), ((0, 0.2, 0.8), (1.6, 1.6, 0.34))]
     vb.carro(it, c, PASTA)
 
 
@@ -492,7 +493,8 @@ def cupe(cor, cab_cor=None, capo=None):
             vb.bm_pinta(bm, [f for f in bm.faces if f.material_index == 0 and vb.centro(f).y < -0.5 and
                              f.normal.z > 0.45 and abs(vb.centro(f).x) < 0.62], cor=capo)
         c["pinta"] = pinta
-        c["planos"] = [((0.62, 0, 0), (1, 0, 0)), ((-0.62, 0, 0), (1, 0, 0))]
+        fc = (lambda q, n: q.y < -0.4 and n.z > 0.3)
+        c["planos"] = [((0.62, 0, 0), (1, 0, 0), fc), ((-0.62, 0, 0), (1, 0, 0), fc)]
     return c
 
 
@@ -570,15 +572,15 @@ def redondo(cor, faixas=None):
         for s in (-1, 1):  # faróis em cima dos para-lamas
             hit, n = ctx["sup"].raio((s * 0.6, cas.yF - 2, 0.74), (0, 1, 0))
             if hit is not None:
-                cone = mb.cilindro(0.12, 0.12, r2=0.1, cor="cromo", seg=14, bisel=0.01)
+                cone = mb.cilindro(0.12, 0.12, r2=0.1, cor="cromo", seg=10, bisel=0)
                 mb.transforma(cone, rot=("X", 90))
                 mb.transforma(cone, loc=(hit.x, hit.y + 0.06, hit.z))
-                vid = mb.cilindro(0.1, 0.03, cor=None, mat="luz", seg=14, bisel=0.008)
+                vid = mb.cilindro(0.1, 0.03, cor=None, mat="luz", seg=10, bisel=0)
                 mb.transforma(vid, rot=("X", 90))
                 mb.transforma(vid, loc=(hit.x, hit.y - 0.05, hit.z))
                 it.add(cone, vid)
         for s in (-1, 1):  # estribo
-            it.add(mb.caixa(0.12, 1.1, 0.05, x=s * 0.86, y=0.0, z=0.3, cor="grafite", bisel=0.02, seg=2))
+            it.add(mb.caixa(0.12, 1.1, 0.05, x=s * 0.86, y=0.0, z=0.3, cor="grafite", bisel=0.02, seg=1))
         for k in range(4):  # grelha do motor atrás
             hit, n = ctx["sup"].raio((0, cas.yR + 2, 0.82 - k * 0.07), (0, -1, 0))
             if hit is not None:
@@ -641,7 +643,8 @@ def p_minivan(it):
                 (0.0, 1.2, 1.4, None)],
         slots_extra=[("assento_2", -0.4, 0.05), ("assento_3", 0.4, 0.05), ("assento_4", -0.4, 1.2),
                      ("assento_5", 0.4, 1.2)],
-        cor_banco="lilas", interior="cinza_medio", roda="calota", cor_aro="metal_claro", z_piso=0.5,
+        cor_banco="lilas", interior="cinza_medio", roda="calota", cor_aro="metal_claro", z_piso=0.5, seg_roda=10,
+        passo=0.56,
         extras=[bagageiro_trilhos],
     )
     vb.carro(it, c, PASTA)
@@ -671,16 +674,17 @@ def picape(cor, motor=False):
                                sai=0.035))
         if motor:
             zt = cas.topo(-1.32) - 0.02  # (o raio cairia no buraco do capô)
-            it.add(mb.caixa(0.62, 0.62, 0.5, y=-1.32, z=zt - 0.38, cor="grafite", bisel=0.05, seg=2))
+            it.add(mb.caixa(0.62, 0.62, 0.5, y=-1.32, z=zt - 0.38, cor="grafite", bisel=0.05, seg=1))
             for s in (-1, 1):
-                it.add(mb.caixa(0.16, 0.56, 0.12, x=s * 0.2, y=-1.32, z=zt + 0.08, cor="cromo", bisel=0.04, seg=2))
-                for k in range(3):
-                    it.add(mb.tubo([(s * 0.32, -1.5 + k * 0.17, zt - 0.05), (s * 0.5, -1.45 + k * 0.17, zt - 0.08),
-                                    (s * 0.62, -1.2 + k * 0.1, zt - 0.22)], 0.025, cor="cromo", seg=8))
-            it.add(mb.cilindro(0.2, 0.12, x=0, y=-1.32, z=zt + 0.16, cor="cromo", seg=16, bisel=0.02))
-            it.add(mb.cilindro(0.1, 0.08, x=0, y=-1.32, z=zt + 0.28, cor="metal_escuro", seg=12, bisel=0.01))
+                it.add(mb.caixa(0.16, 0.56, 0.12, x=s * 0.2, y=-1.32, z=zt + 0.08, cor="cromo", bisel=0.04, seg=1))
+                for k in range(2):
+                    it.add(mb.tubo([(s * 0.32, -1.48 + k * 0.26, zt - 0.05), (s * 0.5, -1.43 + k * 0.26, zt - 0.08),
+                                    (s * 0.62, -1.2 + k * 0.14, zt - 0.22)], 0.028, cor="cromo", seg=6,
+                                   raio_curva=0.04))
+            it.add(mb.cilindro(0.2, 0.12, x=0, y=-1.32, z=zt + 0.16, cor="cromo", seg=12, bisel=0.015))
+            it.add(mb.cilindro(0.1, 0.08, x=0, y=-1.32, z=zt + 0.28, cor="metal_escuro", seg=8, bisel=0))
             for s in (-1, 1):
-                it.add(mb.cilindro(0.06, 0.16, x=s * 0.15, y=-1.6, z=zt - 0.08, cor="cromo", seg=10, bisel=0.01))
+                it.add(mb.cilindro(0.06, 0.16, x=s * 0.15, y=-1.6, z=zt - 0.08, cor="cromo", seg=8, bisel=0))
     cortes = [lambda cas: mb.extrudado(mb.ret_arredondado(1.68, 3.0, 0.08, seg=3), 2.0, y=yb0 + 1.5, z=0.66,
                                        cor=cor, bisel=0)]
     if motor:
@@ -861,7 +865,7 @@ def p_bugue(it):
         bancos=[(-0.34, 0.2, 0.5, "assento_motorista"), (0.34, 0.2, 0.5, "assento_1")],
         cor_banco="turquesa", interior="grafite", roda="raios", cor_aro="metal_claro", cor_cubo="grafite",
         extras=[acab], banco_dz=0.04,
-        colisao=[((0, 0, 0), (2.3, 3.6, 0.9)), ((0, 0.1, 0.9), (1.5, 1.4, 0.75))],
+        colisao=[((0, 0.2, 0), (2.3, 4.05, 0.9)), ((0, 0.1, 0.9), (1.5, 1.4, 0.76))],
     )
     vb.carro(it, c, PASTA)
 
@@ -1143,14 +1147,23 @@ def importa_carro_pacote(fbx, tex, escala=ESCALA_PACOTE, fora=(), recolore=None)
         roda = "wheel" in o.name.lower()
         ys_ = [v.co.y for v in bm.verts]
         y_frente = min(ys_) + 0.2 * (max(ys_) - min(ys_))
+        y_tras = max(ys_) - 0.15 * (max(ys_) - min(ys_))
+        zs_ = [v.co.z for v in bm.verts]
+        z_farol = min(zs_) + 0.5 * (max(zs_) - min(zs_))  # faróis ficam embaixo (o para-brisa da van também é Glossy)
         bm.normal_update()
         for f in bm.faces:
             nm = mats[f.material_index] if f.material_index < len(mats) else ""
-            if nm == "color_glossy" and not roda and f.calc_center_median().y < y_frente and f.normal.y < -0.3:
+            cf_ = f.calc_center_median()
+            if nm == "color_glossy" and not roda and cf_.y < y_frente and cf_.z < z_farol and f.normal.y < -0.3:
                 f.material_index = mb.MAT_NOMES.index("luz")  # as lentes dos faróis do Cartoon City são "Glossy"
                 continue
-            if "glass" in nm:
-                f.material_index = mb.MAT_NOMES.index("janela_apagada")
+            if "glass" in nm:  # no Cartoon City o vidro também cobre faróis e lanternas: esses acendem
+                if not roda and cf_.z < 0.85 and cf_.y < y_frente and f.normal.y < -0.3:
+                    f.material_index = mb.MAT_NOMES.index("luz")
+                elif not roda and cf_.z < 0.95 and cf_.y > y_tras and f.normal.y > 0.3:
+                    f.material_index = mb.MAT_NOMES.index("luz_vermelha")
+                else:
+                    f.material_index = mb.MAT_NOMES.index("janela_apagada")
                 continue
             if "headlight" in nm:
                 f.material_index = mb.MAT_NOMES.index("luz")
@@ -1172,6 +1185,10 @@ def importa_carro_pacote(fbx, tex, escala=ESCALA_PACOTE, fora=(), recolore=None)
                 if rgb not in cache:
                     cache[rgb] = mb.cor_mais_proxima(rgb)
                 cor = cache[rgb]
+                if cor in ("azul_claro", "azul_celeste", "azul_bebe", "turquesa_claro") and not roda and \
+                        cf_.y < y_frente and cf_.z < min(z_farol, 1.0) and f.normal.y < -0.3:
+                    f.material_index = mb.MAT_NOMES.index("luz")  # lente azulada de farol (a van não tem material
+                    continue  # próprio de farol)
                 if recolore:
                     cor = recolore(o.name, f, rgb, cor)
                     if cor in mb.MAT_NOMES:
@@ -1204,14 +1221,84 @@ def importa_carro_pacote(fbx, tex, escala=ESCALA_PACOTE, fora=(), recolore=None)
     return out
 
 
+def tris_de(obs):
+    return sum(len(p.vertices) - 2 for o in obs for p in o.data.polygons)
+
+
+def _aplica(ob):
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    velho = ob.data
+    ob.modifiers.clear()
+    ob.data = me
+    if velho.users == 0:
+        bpy.data.meshes.remove(velho)
+
+
+def _uv_na_celula(ob):
+    """Depois do colapso, cada face volta a apontar o UV para o centro de uma célula da paleta (cor chapada)."""
+    me = ob.data
+    uv = me.uv_layers["UVMap"].data
+    for p in me.polygons:
+        if mb.MAT_NOMES[p.material_index] != "atlas":
+            continue
+        u = sum(uv[i].uv[0] for i in p.loop_indices) / p.loop_total
+        v = sum(uv[i].uv[1] for i in p.loop_indices) / p.loop_total
+        cx, cy = min(15, max(0, int(u * 16))), min(15, max(0, int((1 - v) * 16)))
+        q = ((cx + 0.5) / 16, 1 - (cy + 0.5) / 16)
+        for i in p.loop_indices:
+            uv[i].uv = q
+
+
+def decima(obs, alvo):
+    """Malha mais leve sem perder as cores: primeiro junta faces coplanares (dissolve planar com limite de UV,
+    material e arestas vivas), depois, se ainda passar do alvo, colapsa as maiores partes e devolve cada face ao
+    centro da sua célula de cor."""
+    for o in obs:
+        md = o.modifiers.new("d", "DECIMATE")
+        md.decimate_type = "DISSOLVE"
+        md.angle_limit = math.radians(6)
+        md.delimit = {"UV", "MATERIAL", "SHARP"}
+        _aplica(o)
+    t = tris_de(obs)
+    print("dissolve planar:", [(o.name, tris_de([o])) for o in obs], flush=True)
+    if t > alvo:  # colapso igual em todas as partes médias e grandes (nenhuma fica estragada sozinha)
+        cand = [o for o in obs if tris_de([o]) >= 150]
+        tc = tris_de(cand)
+        ratio = max(0.2, 1 - (t - alvo) * 1.06 / tc)
+        for o in cand:
+            md = o.modifiers.new("c", "DECIMATE")
+            md.decimate_type = "COLLAPSE"
+            md.ratio = ratio
+            md.use_collapse_triangulate = True
+            _aplica(o)
+            _uv_na_celula(o)
+    for o in obs:
+        o.data.shade_smooth()
+        o.data.set_sharp_from_angle(angle=math.radians(40))
+    print("decimado:", t, "->", tris_de(obs), flush=True)
+
+
 def carro_pacote(it, fbx, tex, lugares=4, escala=ESCALA_PACOTE, portas=False, fora=(), recolore=None,
-                 motorista=-1):
+                 motorista=-1, alvo=None, farois=()):
     pc = importa_carro_pacote(fbx, tex, escala, fora, recolore)
+    if alvo:
+        decima(list(pc.values()), alvo)
     def e_roda(n):
         return "wheel" in n.lower() and "steering" not in n.lower()
     corpo = [o for n, o in pc.items() if not e_roda(n) and "door" not in n.lower()]
-    it.add(*corpo)
     lo, hi = mb.bbox(corpo)
+    if farois:  # faróis que o pacote não marca como farol: lentes "luz" coladas na frente
+        bm = vb.bm_de(corpo[0], apaga=False)
+        sup = vb.Sup(bm)
+        bm.free()
+        for x, z, l, h in farois:
+            for xx in (x, -x):
+                hit, n = sup.raio((xx, lo.y - 1, z), (0, 1, 0))
+                if hit is not None:
+                    it.add(vb.cola(vb.lente(l, h, 0.03, cor=None, mat="luz", raio=0.03), hit, n, sai=0.012))
+        sup.livra()
+    it.add(*corpo)
     yc = (lo.y + hi.y) / 2
     for n, o in sorted((n, o) for n, o in pc.items() if e_roda(n)):
         a, b = mb.bbox(o)
@@ -1245,7 +1332,8 @@ for _nome, _rot, _lug in (("Car_06", "Carrinho do pacote", 4), ("Car_13", "Espor
                           ("Car_16", "Sedã do pacote", 4), ("Car_19", "Carro antigo do pacote", 2),
                           ("Futuristic_Car_1", "Carro futurista do pacote", 2), ("Van", "Van do pacote", 6)):
     def _fn(it, _nome=_nome, _lug=_lug):
-        carro_pacote(it, os.path.join(CC_DIR, _nome + ".fbx"), CC_TEX, _lug)
+        carro_pacote(it, os.path.join(CC_DIR, _nome + ".fbx"), CC_TEX, _lug,
+                     )
     peca(_nome.lower() + "_pacote", _rot, _nome.lower() + "_pacote", tags=["carro", "pacote"], pacote=True)(_fn)
 
 
@@ -1255,7 +1343,7 @@ def p_apoc(it):
     # o motorista do pacote fica em +X (lado esquerdo de quem olha para −Y, como nos nossos)
     # O atlas "Color" do pacote não veio no grátis; o Color2.png que veio casa com o UV e dá a lataria cinza-azulada
     # gasta, a blindagem e as estacas enferrujadas (sem as manchas da máscara de sangue, que ficam de fora).
-    carro_pacote(it, APOC_FBX, APOC_TEX, 2, escala=0.85, portas=True, fora=("Needle",), motorista=1)
+    carro_pacote(it, APOC_FBX, APOC_TEX, 2, escala=0.85, portas=True, fora=("Needle",), motorista=1, alvo=5800)
 
 
 # ======================================================================================================================
