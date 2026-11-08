@@ -8,11 +8,12 @@ fs.writeFileSync(DIR + '/_teste_elenco.html', '<meta charset="utf-8">\n' + fs.re
   await p.route(/cdn\.jsdelivr\.net\/npm\/three@[^/]+\/(.*)$/, (r) => r.fulfill({ path: T + r.request().url().replace(/^.*three@[^/]+\//, ''), contentType: 'application/javascript' }));
   await p.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ body: '', contentType: 'text/css' }));
   p.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); }); p.on('pageerror', (e) => erros.push(String(e)));
+  await p.route(/\/itens\/nov_[a-z_]+\.txt$/, (r) => { if (/nov_(skate|chapeu_comissaria|prancheta|megafone)/.test(r.request().url())) return r.fulfill({ status: 404, body: '' }); return r.continue(); });
   await p.goto('http://localhost:8766/corpos_viewer/_teste_elenco.html');
   await p.waitForFunction(() => /animações/.test(document.getElementById('bib-status').textContent), undefined, { timeout: 300000 });
   console.log('botões', await p.locator('#elenco-grade button').count());
   await p.locator('#elenco-bloco').screenshot({ path: SP + '/_teste_veic/elenco_grade.png' });
-  for (const nome of ['Leandro', 'Maitê']) {
+  for (const nome of ['Comissária', 'Kauã']) {
     await p.fill('#elenco-busca', nome); await p.waitForTimeout(300);
     await p.locator('#elenco-grade button').first().click(); await p.waitForTimeout(9000);
     console.log(nome, await p.evaluate(() => document.querySelector('#bib button[aria-pressed="true"]')?.textContent));

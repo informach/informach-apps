@@ -957,10 +957,16 @@ function aplicarCorRoupa(rid, malhas, cor) {
 // corpo escolhido: o ponto da peça fica no mesmo triângulo da pele, com o deslocamento no referencial do triângulo
 // (proporcional ao tamanho dele), recalculado com as formas de gravidez; os pesos do esqueleto são os da pele embaixo.
 // Chapéus, óculos e cabelos vão para a caixa da cabeça do corpo, presos ao osso Head.
-async function txtGz(url) {
-  const txt = await (await fetch(url)).text();
+function gzB64(txt) {
   const gz = Uint8Array.from(atob(txt.trim()), (ch) => ch.charCodeAt(0));
   return new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+async function txtGz(url) { return gzB64(await (await fetch(url)).text()); }
+// itens novos vêm juntos em itens/_novos.json ({id: texto}, tools/itens_pacote.py); os outros, um arquivo por item
+let PACOTE_ITENS = null;
+function textoItem(id) {
+  PACOTE_ITENS ||= fetch("itens/_novos.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  return PACOTE_ITENS.then((p) => (p[id] ? gzB64(p[id]) : txtGz(`itens/${id}.txt`)));
 }
 let BASE_ITENS = null;
 function baseItens() {
@@ -975,7 +981,7 @@ function baseItens() {
 const _itens = new Map();
 function dadosItem(id) {
   if (!_itens.has(id)) {
-    _itens.set(id, txtGz(`itens/${id}.txt`).then((buf) => {
+    _itens.set(id, textoItem(id).then((buf) => {
       const dv = new DataView(buf);
       const hl = dv.getUint32(4, true);
       const cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
@@ -2839,10 +2845,18 @@ function desenharRecentes(lista = lerLS(LS_RECENTES, [])) {
     el.append(b);
   }
 }
-function baixarPersonagem() {
+async function baixarPersonagem() {
   const p = personagemAtual();
-  const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2) + "\n"], { type: "application/json" }));
-  const a = document.createElement("a"); a.href = url; a.download = `personagem_${p.corpo}.json`;
+  const texto = JSON.stringify(p, null, 2) + "\n", nomeArq = `personagem_${p.corpo}.json`;
+  // publicada no claude.ai, a página salva pelo capability "downloads" (o visualizador pede confirmação)
+  const dl = window.claude?.use ? await window.claude.use("downloads").catch(() => null) : null;
+  if (dl) {
+    try { await dl.save({ filename: nomeArq, data: texto }); lembrar(Number($el("semente").value) || null); aviso("Personagem salvo como arquivo JSON."); }
+    catch (e) { aviso(e?.code === "declined" ? "Download cancelado. Você pode copiar o texto em “Ver ou colar o JSON”." : "Não deu para baixar aqui. Use “Ver ou colar o JSON”."); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([texto], { type: "application/json" }));
+  const a = document.createElement("a"); a.href = url; a.download = nomeArq;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   lembrar(Number($el("semente").value) || null);
