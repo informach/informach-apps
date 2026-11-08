@@ -521,7 +521,7 @@ def cor_grama(x, y):
 
 
 def terreno_caminho(it, rede, x0=-H, y0=-H, x1=H, y1=H, passo=0.5, extra_cor=None, extra_z=None, campos=(),
-                    nome="chao"):
+                    nome="chao", z_fundo=ZF):
     """Chão de grama com a rede de caminhos (ladrilho rosado, guias baixas)."""
     t = Terreno(x0, y0, x1, y1, passo)
     t.campo("cam", rede.f, NIVEIS_GUIA)
@@ -546,7 +546,7 @@ def terreno_caminho(it, rede, x0=-H, y0=-H, x1=H, y1=H, passo=0.5, extra_cor=Non
             zz += extra_z(c, x, y)
         return zz
 
-    it.add(t.gera(cor, z, nome=nome))
+    it.add(t.gera(cor, z, nome=nome, z_fundo=z_fundo))
     return t
 
 

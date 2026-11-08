@@ -184,7 +184,8 @@ def p_lago(it):
     def ez(c, x, y):
         return z_lago(c["lago"])
 
-    terreno_caminho(it, r, -HL, -HL, HL, HL, 0.5, extra_cor=ec, extra_z=ez, campos=[("lago", d_lago, LV)])
+    terreno_caminho(it, r, -HL, -HL, HL, HL, 0.5, extra_cor=ec, extra_z=ez, campos=[("lago", d_lago, LV)],
+                    z_fundo=ZV[0] - 0.1)
     it.add(r.juntas())
     # água
     ag = [(p[0], p[1]) for p in contorno_radial(lambda X, Y: d_lago(X, Y) + 0.02, 0.0, 0.0, n=112)]
@@ -603,7 +604,7 @@ def p_skate(it):
         return None
 
     terreno_caminho(it, r, -H, -H, H, H, 0.4, extra_cor=ec, extra_z=lambda c, x, y: z_bowl(c["bowl"]),
-                    campos=[("bowl", d_bowl, niv), ("deck", deck, [0.0])])
+                    campos=[("bowl", d_bowl, niv), ("deck", deck, [0.0])], z_fundo=-D - 0.12)
     # juntas de dilatação no deck (fora do bowl) e ralo no fundo
     jm = []
     for x in (-4.0, 4.0):

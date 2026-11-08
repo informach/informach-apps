@@ -357,7 +357,7 @@ function passoAnimados(dt) {
         const f = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(2 * Math.PI * a.t / per) * Math.sin(2 * Math.PI * a.t / (per * 0.37)));
         for (const m of a.mats) m.emissiveIntensity = intensidade(m) * f;
       } else {
-        const liga = (a.t % per) < per * 0.5;
+        const liga = ((a.t + (d.fase || 0)) % per) < per * 0.5; // fase (s): sirenes alternando
         for (const m of a.mats) m.emissiveIntensity = liga ? intensidade(m) : 0;
       }
     } else if (d.anima === "percurso" && a.P) {
@@ -372,8 +372,12 @@ function passoAnimados(dt) {
       const s = a.t * (d.velocidade ?? 6) - (d.atraso ?? 0);
       const p = em(s), q = em(s + 0.6);
       a.o.position.copy(p);
-      const alvo = a.o.parent ? a.o.parent.localToWorld(q.clone()) : q;
-      a.o.lookAt(alvo);
+      const dir = q.clone().sub(p);
+      // caminho quase vertical (torre de queda): só sobe e desce, mantendo a orientação que tinha
+      if (dir.lengthSq() > 1e-8 && Math.abs(dir.normalize().y) < 0.97) {
+        const alvo = a.o.parent ? a.o.parent.localToWorld(q.clone()) : q;
+        a.o.lookAt(alvo);
+      }
     } else if (d.anima === "girar" || d.anima === "balancar") {
       const eixo = new THREE.Vector3(...(Array.isArray(d.eixo) ? d.eixo : EIXOS[d.eixo || "y"]));
       const ang = d.anima === "girar" ? THREE.MathUtils.degToRad((d.velocidade ?? 30) * a.t)

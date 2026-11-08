@@ -881,7 +881,7 @@ def main():
     for k, id_ in enumerate(ids):
         r = faz(base, id_)
         arm, ob = objeto(base, r, id_)
-        nomes = acoes(base, arm, r, id_)
+        acoes(base, arm, r, id_)
         novas = acoes_novas(base, arm, r, id_, so)
         exporta(arm, ob, os.path.join(saida, id_ + ".glb"))
         b = r["b"]

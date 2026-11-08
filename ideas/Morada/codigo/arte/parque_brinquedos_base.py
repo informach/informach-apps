@@ -626,7 +626,7 @@ class Trilho:
         return idx
 
     def malha(self, bitola=0.9, r_trilho=0.085, cor_trilho="magenta", cor_espinha="vinho", cor_dormente="vinho",
-              r_espinha=0.15, prof_espinha=0.42, passo_dormente=1.6, lados=6, espinha=True):
+              r_espinha=0.15, prof_espinha=0.42, passo_dormente=1.6, lados=6, espinha=True, neon=None):
         idx = self.amostras_geo()
         P = [self.P[i] for i in idx]
         U = [self.U[i] for i in idx]
@@ -638,6 +638,13 @@ class Trilho:
         if espinha:
             Pe = [p - u * prof_espinha for p, u in zip(P, U)]
             objs.append(varre(Pe, U, circulo_perfil(r_espinha, 5), cor_espinha, True, nome="espinha", T=T))
+        if neon:  # filete luminoso dos dois lados da espinha (contorno do brinquedo à noite)
+            for sg in (-1, 1):
+                Pn = [p - u * (prof_espinha - 0.02) + t.cross(u) * (sg * (r_espinha + 0.03)) for p, t, u in zip(P, T, U)]
+                tn = varre(Pn, U, [(0.0, -0.05), (0.0, 0.05)], None, True, perfil_fechado=False, nome="neon", T=T,
+                           liso=False)
+                mb.pinta(tn, None, mat=neon)
+                objs.append(tn)
         ndorm = int(self.tot / passo_dormente)
         for k in range(ndorm):
             p, t, u, _ = self.em(k * self.tot / ndorm)

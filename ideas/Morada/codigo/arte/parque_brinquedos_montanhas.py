@@ -468,7 +468,8 @@ def montanha_dragao(it):
     it.add(dg)
     # trilho, pilares, estação e trem
     tr = pb.Trilho(rota_dragao())
-    it.add(tr.malha(cor_trilho="magenta", cor_espinha="vinho", cor_dormente="vinho", passo_dormente=1.9))
+    it.add(tr.malha(cor_trilho="magenta", cor_espinha="vinho", cor_dormente="vinho", passo_dormente=1.9,
+                    neon="neon_rosa"))
 
     def terreno(x, y):
         h = vul.altura(x, y)
@@ -553,7 +554,7 @@ def montanha_azul(it):
             it.add(pb.caminho_reto(x0, y0, x1, y1))
     tr = pb.Trilho(rota_azul(), inclina=1.2)
     it.add(tr.malha(bitola=0.9, cor_trilho="azul", cor_espinha="azul_medio", cor_dormente="azul_medio", r_espinha=0.13,
-                    prof_espinha=0.38, passo_dormente=0.9))
+                    prof_espinha=0.38, passo_dormente=0.9, neon="neon"))
     # pilares em A brancos com capitel azul; nos loopings, um pilar alto no topo
     n = int(tr.tot / 4.6)
     feitos = []

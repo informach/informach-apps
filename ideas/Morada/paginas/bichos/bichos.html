@@ -33,6 +33,10 @@ h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height
 .modos { display: grid; grid-template-columns: 1fr 1fr; background: var(--noite); border-radius: 12px; padding: 4px; gap: 4px; }
 .modos button { font: 600 14px var(--texto); color: var(--apagada); background: transparent; border: 0; border-radius: 9px; padding: 9px; cursor: pointer; }
 .modos button[aria-pressed="true"] { background: var(--mel); color: #2a1d05; }
+.grupos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.grupos button { font: 600 13.5px var(--texto); color: var(--tinta); background: var(--noite); border: 1px solid var(--risco); border-radius: 10px;
+  padding: 8px 6px; cursor: pointer; }
+.grupos button[aria-pressed="true"] { background: var(--rosa); border-color: var(--rosa); color: #3a0e1d; }
 .grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .bicho { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--noite); border: 2px solid transparent;
   border-radius: 12px; padding: 6px 4px 8px; cursor: pointer; color: var(--tinta); font: 500 12.5px var(--texto); text-align: center; line-height: 1.2; }
@@ -73,13 +77,17 @@ button:focus-visible { outline: 2px solid var(--mel); outline-offset: 2px; }
   <aside class="ficha">
     <header>
       <h1>Bichos do Morada</h1>
-      <p class="sub">Treze bichos feitos a partir do Doberman, com as onze animações dele ajustadas ao tamanho e ao jeito de cada um.</p>
+      <p class="sub" id="sub">Bichos de estimação, do zoológico e da cidade, cada um com as suas animações.</p>
     </header>
+    <div>
+      <p class="rotulo">Grupo</p>
+      <div class="grupos" id="grupos" role="group" aria-label="Grupo de bichos"></div>
+    </div>
     <div>
       <p class="rotulo">Ver</p>
       <div class="modos" role="group" aria-label="Ver um bicho ou todos">
         <button id="modo-um" aria-pressed="true">Um bicho</button>
-        <button id="modo-todos" aria-pressed="false">Todos juntos</button>
+        <button id="modo-todos" aria-pressed="false">Todo o grupo</button>
       </div>
     </div>
     <div>
@@ -91,7 +99,7 @@ button:focus-visible { outline: 2px solid var(--mel); outline-offset: 2px; }
       <div class="anims" id="anims"></div>
     </div>
     <dl class="dados" id="dados"></dl>
-    <p class="nota">Base: o Doberman do pacote grátis Apocalypse (uso interno, não distribuir). As formas, as cores, as orelhas, as caudas e as coleiras foram feitas aqui.</p>
+    <p class="nota">Bases: o Doberman do pacote grátis Apocalypse e os bichos do pacote grátis Animals (uso interno, não distribuir). As formas, as cores, as peças novas (trombas, jubas, asas, bicos, cascos) e a maior parte das animações foram feitas aqui.</p>
   </aside>
 </div>
 
@@ -100,16 +108,27 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-const ORDEM = ["doberman", "doberman_marrom", "labrador", "rottweiler", "salsicha", "salsicha_marrom", "spitz", "lulu", "lulu_rosa",
-  "lulu_azul", "gato", "gato_frajola", "gato_laranja"];
-// "todos juntos": três fileiras, como uma vitrine (x, z, giro em graus)
-const VITRINE = {
-  doberman_marrom: [-2.3, -1.2, 25], labrador: [-0.9, -1.3, -15], rottweiler: [0.8, -1.35, 10], doberman: [2.3, -1.2, -30],
-  spitz: [-2.4, 0.1, 30], salsicha: [-1.0, 0.0, 20], gato: [0.25, -0.15, -10], lulu_rosa: [1.2, 0.15, -25], gato_laranja: [2.0, 0.05, -40],
-  salsicha_marrom: [2.9, 0.25, -50], gato_frajola: [-1.9, 1.1, 20], lulu: [-0.55, 1.15, 10], lulu_azul: [0.75, 1.2, -15],
-};
+let GRUPOS = [];
+const ordem = () => (GRUPOS.find((g) => g.id === estado.grupo) || GRUPOS[0]).bichos;
+// "todo o grupo": fileiras como numa vitrine, com o espaço de cada bicho pelo tamanho dele (maiores atrás)
+function vitrine(ids) {
+  const lista = ids.map((id) => ({ id, b: bichos[id] })).sort((p, q) => q.b.altura * q.b.comprimento - p.b.altura * p.b.comprimento);
+  const porFila = Math.ceil(Math.sqrt(lista.length * 1.6)), out = {};
+  let z = 0;
+  for (let i = 0; i < lista.length; i += porFila) {
+    const fila = lista.slice(i, i + porFila);
+    const larg = fila.map((p) => Math.max(p.b.comprimento * 0.8, p.b.altura * 0.5) + 0.25);
+    const fundo = Math.max(...fila.map((p) => Math.max(p.b.comprimento * 0.7, 0.3)));
+    let x = -larg.reduce((a, v) => a + v, 0) / 2;
+    fila.forEach((p, k) => { out[p.id] = [x + larg[k] / 2, z, (k % 2 ? -1 : 1) * (20 + 10 * (k % 3))]; x += larg[k]; });
+    z += fundo + 0.3;
+  }
+  const zs = Object.values(out).map((v) => v[1]), meio = (Math.max(...zs) + Math.min(...zs)) / 2;
+  for (const v of Object.values(out)) v[1] = v[1] - meio;
+  return out;
+}
 const palco = document.getElementById("palco"), carregando = document.getElementById("carregando");
-const estado = { modo: "um", bicho: "labrador", anim: "parado" };
+const estado = { grupo: "estimacao", modo: "um", bicho: "labrador", anim: "parado" };
 let INFO = {}, MINIS = {};
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -168,6 +187,15 @@ function toca(b, anim) {
   if (b.acao) b.acao.crossFadeTo(nova, 0.25, false);
   b.acao = nova;
 }
+// sombra e névoa acompanham o tamanho do que está no palco (do lulu ao elefante)
+function luzes(tam) {
+  const r = Math.max(tam, 1.5);
+  Object.assign(sol.shadow.camera, { left: -r * 1.2, right: r * 1.2, top: r * 1.2, bottom: -r * 1.2, near: 0.5, far: r * 8 });
+  sol.position.set(-r * 0.6, r * 1.6, r * 0.9);
+  sol.shadow.camera.updateProjectionMatrix();
+  cena.fog.near = r * 3; cena.fog.far = r * 9;
+  camera.far = r * 20; camera.updateProjectionMatrix();
+}
 function enquadra(alvoY, raio, cx = 0, cz = 0) {
   const meia = THREE.MathUtils.degToRad(camera.fov / 2), horiz = Math.atan(Math.tan(meia) * camera.aspect);
   const d = raio / Math.sin(Math.min(meia, horiz)) * 0.95;
@@ -186,31 +214,36 @@ async function mostra() {
     cena.add(b.raiz);
     toca(b, estado.anim);
     enquadra(b.altura * 0.45, Math.max(b.altura, b.comprimento) * 0.75);
+    luzes(Math.max(b.altura, b.comprimento));
     carregando.hidden = true;
   } else {
     let n = 0;
+    const ids = ordem(), grupo = estado.grupo;
     carregando.hidden = false;
-    await Promise.all(ORDEM.map((id) => carrega(id).then((b) => {
-      carregando.textContent = `Carregando os bichos (${++n} de ${ORDEM.length})…`;
-      if (estado.modo !== "todos") return;
-      const [x, z, g] = VITRINE[id];
+    await Promise.all(ids.map((id) => carrega(id).then(() => {
+      carregando.textContent = `Carregando os bichos (${++n} de ${ids.length})…`;
+    })));
+    if (estado.modo !== "todos" || estado.grupo !== grupo) return;
+    const pos = vitrine(ids);
+    for (const id of ids) {
+      const b = bichos[id], [x, z, g] = pos[id];
       b.raiz.position.set(x, 0, z); b.raiz.rotation.y = THREE.MathUtils.degToRad(g);
       cena.add(b.raiz);
       toca(b, estado.anim);
-    })));
-    if (estado.modo === "todos") { // centro e tamanho da vitrine
-      const xs = Object.values(VITRINE).map((v) => v[0]), zs = Object.values(VITRINE).map((v) => v[1]);
-      const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cz = (Math.max(...zs) + Math.min(...zs)) / 2;
-      enquadra(0.25, ((Math.max(...xs) - Math.min(...xs)) / 2 + 0.6) * 0.82, cx, cz);
-      carregando.hidden = true;
     }
+    const xs = Object.values(pos).map((v) => v[0]), zs = Object.values(pos).map((v) => v[1]);
+    const alto = Math.max(...ids.map((id) => bichos[id].altura));
+    const raio = Math.max((Math.max(...xs) - Math.min(...xs)) / 2, (Math.max(...zs) - Math.min(...zs)) / 2) + alto * 0.5 + 0.4;
+    enquadra(alto * 0.3, raio * 0.85, 0, 0);
+    luzes(raio * 2);
+    carregando.hidden = true;
   }
   desenhaDados();
 }
 
 function desenhaGrade() {
   const grade = document.getElementById("grade");
-  grade.replaceChildren(...ORDEM.map((id) => {
+  grade.replaceChildren(...ordem().map((id) => {
     const bt = document.createElement("button");
     bt.className = "bicho"; bt.id = "bicho-" + id; bt.setAttribute("aria-pressed", String(id === estado.bicho && estado.modo === "um"));
     const img = document.createElement("img"); img.alt = ""; img.src = "data:image/webp;base64," + MINIS[id];
@@ -220,10 +253,17 @@ function desenhaGrade() {
     return bt;
   }));
 }
+function animacoesDaVez() {
+  if (estado.modo === "um") return INFO[estado.bicho].animacoes;
+  const vistas = new Map(); // todo o grupo: a união das animações; quem não tem uma fica parado
+  for (const id of ordem()) for (const a of INFO[id].animacoes) if (!vistas.has(a.id)) vistas.set(a.id, a);
+  return [...vistas.values()];
+}
 function desenhaAnims() {
-  const info = INFO[estado.modo === "um" ? estado.bicho : "doberman"];
+  const lista = animacoesDaVez();
+  if (!lista.some((a) => a.id === estado.anim)) estado.anim = "parado";
   const el = document.getElementById("anims");
-  el.replaceChildren(...info.animacoes.map((a) => {
+  el.replaceChildren(...lista.map((a) => {
     const bt = document.createElement("button");
     bt.id = "anim-" + a.id; bt.textContent = estado.modo === "todos" && a.id === "latir" ? "Latir / miar" : a.rotulo;
     bt.setAttribute("aria-pressed", String(a.id === estado.anim));
@@ -237,16 +277,28 @@ function desenhaAnims() {
 function desenhaDados() {
   const el = document.getElementById("dados");
   if (estado.modo === "todos") {
-    el.innerHTML = `<dt>Bichos</dt><dd>${ORDEM.length}: 10 cachorros e 3 gatos</dd><dt>Animações</dt><dd>11 em cada um</dd>`;
+    const ids = ordem(), ns = ids.map((id) => INFO[id].animacoes.length);
+    el.innerHTML = `<dt>Bichos</dt><dd>${ids.length}</dd><dt>Animações</dt><dd>de ${Math.min(...ns)} a ${Math.max(...ns)} em cada um, ${animacoesDaVez().length} diferentes no grupo</dd>`;
     return;
   }
   const i = INFO[estado.bicho], b = bichos[estado.bicho];
-  const cm = (v) => (v ? Math.round(v * 100) + " cm" : "…");
-  el.innerHTML = `<dt>Espécie</dt><dd>${i.especie === "gato" ? "Gato" : "Cachorro"}</dd><dt>Altura</dt><dd>${cm(b?.cernelha)} na cernelha</dd>`
-    + `<dt>Comprimento</dt><dd>${cm(b?.comprimento)}, do focinho à cauda</dd>`
-    + `<dt>Animações</dt><dd>${i.animacoes.length}</dd>`;
+  const med = (v) => (!v ? "…" : v >= 1 ? v.toFixed(2).replace(".", ",") + " m" : Math.round(v * 100) + " cm");
+  const esp = i.especie ? i.especie[0].toUpperCase() + i.especie.slice(1).replaceAll("_", " ") : "";
+  el.innerHTML = `<dt>Espécie</dt><dd>${esp}</dd><dt>Altura</dt><dd>${med(b?.altura)}</dd>`
+    + `<dt>Comprimento</dt><dd>${med(b?.comprimento)}</dd>`
+    + `<dt>Animações</dt><dd>${i.animacoes.length}</dd>`
+    + (i.base ? `<dt>Base</dt><dd>${i.base}</dd>` : "");
+}
+function desenhaGrupos() {
+  document.getElementById("grupos").replaceChildren(...GRUPOS.map((g) => {
+    const bt = document.createElement("button");
+    bt.textContent = g.rotulo; bt.setAttribute("aria-pressed", String(g.id === estado.grupo));
+    bt.onclick = () => { estado.grupo = g.id; if (!g.bichos.includes(estado.bicho)) estado.bicho = g.bichos[0]; atualiza(); };
+    return bt;
+  }));
 }
 function atualiza() {
+  desenhaGrupos();
   document.getElementById("modo-um").setAttribute("aria-pressed", String(estado.modo === "um"));
   document.getElementById("modo-todos").setAttribute("aria-pressed", String(estado.modo === "todos"));
   desenhaGrade(); desenhaAnims(); mostra();
@@ -271,7 +323,9 @@ renderer.setAnimationLoop(() => {
 });
 
 try {
-  [INFO, MINIS] = await Promise.all([fetch("bichos/bichos.json").then((r) => r.json()), fetch("bichos/miniaturas.json").then((r) => r.json())]);
+  [INFO, MINIS, GRUPOS] = await Promise.all(["bichos.json", "miniaturas.json", "grupos.json"].map((f) => fetch("bichos/" + f).then((r) => r.json())));
+  const total = Object.keys(INFO).length;
+  document.getElementById("sub").textContent = `${total} bichos em ${GRUPOS.length} grupos (${GRUPOS.map((g) => g.bichos.length + " " + g.rotulo.toLowerCase()).join(", ")}), cada um com as suas animações.`;
   tamanho();
   atualiza();
 } catch (e) {
