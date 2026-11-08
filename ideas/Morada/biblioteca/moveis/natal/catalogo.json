@@ -1,0 +1,5296 @@
+{
+ "categoria": "natal",
+ "rotulo": "Natal",
+ "itens": [
+  {
+   "id": "poltrona_natal_estofada_marrom_pacote",
+   "rotulo": "Poltrona estofada marrom de Natal",
+   "categoria": "natal",
+   "grupo": "poltrona_natal_estofada",
+   "fixacao": "chao",
+   "dims": [
+    1.113,
+    1.016,
+    0.921
+   ],
+   "arquivo": "glb/poltrona_natal_estofada_marrom_pacote.glb",
+   "miniatura": "miniaturas/poltrona_natal_estofada_marrom_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      -0.0,
+      0.46276,
+      0.18933
+     ],
+     "tamanho": [
+      0.586,
+      0.5,
+      0.573
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.46065,
+      -0.0
+     ],
+     "tamanho": [
+      1.113,
+      0.921,
+      1.016
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "couro",
+    "madeira_escura",
+    "mostarda",
+    "terracota_escura"
+   ],
+   "tris": 1916,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "poltrona",
+    "sala",
+    "estofado"
+   ],
+   "pacote_fbx": "Armchair_001"
+  },
+  {
+   "id": "poltrona_natal_bracos_madeira_pacote",
+   "rotulo": "Poltrona de braços de madeira com almofada laranja",
+   "categoria": "natal",
+   "grupo": "poltrona_natal_bracos_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.804,
+    0.885,
+    0.914
+   ],
+   "arquivo": "glb/poltrona_natal_bracos_madeira_pacote.glb",
+   "miniatura": "miniaturas/poltrona_natal_bracos_madeira_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0.0,
+      0.42992,
+      0.18874
+     ],
+     "tamanho": [
+      0.518,
+      0.5,
+      0.381
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.45693,
+      -0.0
+     ],
+     "tamanho": [
+      0.804,
+      0.914,
+      0.885
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "laranja",
+    "madeira_escura",
+    "nogueira"
+   ],
+   "tris": 1540,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "poltrona",
+    "sala",
+    "madeira"
+   ],
+   "pacote_fbx": "Armchair_002"
+  },
+  {
+   "id": "sofa_natal_dois_lugares_laranja_pacote",
+   "rotulo": "Sofá de dois lugares laranja",
+   "categoria": "natal",
+   "grupo": "sofa_natal_dois_lugares",
+   "fixacao": "chao",
+   "dims": [
+    1.606,
+    0.765,
+    0.862
+   ],
+   "arquivo": "glb/sofa_natal_dois_lugares_laranja_pacote.glb",
+   "miniatura": "miniaturas/sofa_natal_dois_lugares_laranja_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.28553,
+      0.4808,
+      0.08492
+     ],
+     "tamanho": [
+      0.551,
+      0.5,
+      0.526
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.28553,
+      0.4808,
+      0.08492
+     ],
+     "tamanho": [
+      0.551,
+      0.5,
+      0.526
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43107,
+      -0.0
+     ],
+     "tamanho": [
+      1.606,
+      0.862,
+      0.765
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "couro",
+    "laranja",
+    "laranja_claro",
+    "madeira_escura",
+    "marrom",
+    "nogueira"
+   ],
+   "tris": 2476,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "sofa",
+    "sala",
+    "estofado"
+   ],
+   "pacote_fbx": "Couch_001"
+  },
+  {
+   "id": "pufe_natal_saco_vermelho_pacote",
+   "rotulo": "Pufe saco vermelho",
+   "categoria": "natal",
+   "grupo": "pufe_natal_saco",
+   "fixacao": "chao",
+   "dims": [
+    1.042,
+    1.109,
+    0.919
+   ],
+   "arquivo": "glb/pufe_natal_saco_vermelho_pacote.glb",
+   "miniatura": "miniaturas/pufe_natal_saco_vermelho_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      -0.04155,
+      0.46968,
+      0.20207
+     ],
+     "tamanho": [
+      0.553,
+      0.5,
+      0.377
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.45945,
+      -0.0
+     ],
+     "tamanho": [
+      1.042,
+      0.919,
+      1.109
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 412,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "pufe",
+    "sala",
+    "macio"
+   ],
+   "pacote_fbx": "Pouf_001"
+  },
+  {
+   "id": "mesa_centro_natal_redonda_pacote",
+   "rotulo": "Mesa de centro redonda cinza",
+   "categoria": "natal",
+   "grupo": "mesa_centro_natal_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.804,
+    0.804,
+    0.423
+   ],
+   "arquivo": "glb/mesa_centro_natal_redonda_pacote.glb",
+   "miniatura": "miniaturas/mesa_centro_natal_redonda_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.42106,
+      -0.0
+     ],
+     "tamanho": [
+      0.762,
+      0.4,
+      0.762
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.39837,
+      -0.0
+     ],
+     "tamanho": [
+      0.804,
+      0.05,
+      0.804
+     ]
+    },
+    {
+     "centro": [
+      -0.26207,
+      0.18668,
+      0.26207
+     ],
+     "tamanho": [
+      0.06,
+      0.373,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      -0.26207,
+      0.18668,
+      -0.26207
+     ],
+     "tamanho": [
+      0.06,
+      0.373,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.26207,
+      0.18668,
+      0.26207
+     ],
+     "tamanho": [
+      0.06,
+      0.373,
+      0.06
+     ]
+    },
+    {
+     "centro": [
+      0.26207,
+      0.18668,
+      -0.26207
+     ],
+     "tamanho": [
+      0.06,
+      0.373,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "cinzas",
+    "couro",
+    "madeira_cinza",
+    "metal"
+   ],
+   "tris": 436,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "mesa",
+    "sala",
+    "centro"
+   ],
+   "pacote_fbx": "Coffee_Table_001"
+  },
+  {
+   "id": "cabideiro_natal_madeira_pacote",
+   "rotulo": "Cabideiro de pé de madeira",
+   "categoria": "natal",
+   "grupo": "cabideiro_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.704,
+    0.704,
+    1.776
+   ],
+   "arquivo": "glb/cabideiro_natal_madeira_pacote.glb",
+   "miniatura": "miniaturas/cabideiro_natal_madeira_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06,
+      -0.0
+     ],
+     "tamanho": [
+      0.563,
+      0.12,
+      0.563
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.72285,
+      0.0
+     ],
+     "tamanho": [
+      0.274,
+      1.206,
+      0.274
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.55071,
+      -0.0
+     ],
+     "tamanho": [
+      0.415,
+      0.45,
+      0.415
+     ]
+    }
+   ],
+   "cores": [
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 3222,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cabideiro",
+    "entrada",
+    "madeira"
+   ],
+   "pacote_fbx": "Hanger_001"
+  },
+  {
+   "id": "luminaria_natal_chao_cupula_pacote",
+   "rotulo": "Luminária de chão com cúpula",
+   "categoria": "natal",
+   "grupo": "luminaria_natal_chao",
+   "fixacao": "chao",
+   "dims": [
+    0.482,
+    0.482,
+    1.477
+   ],
+   "arquivo": "glb/luminaria_natal_chao_cupula_pacote.glb",
+   "miniatura": "miniaturas/luminaria_natal_chao_cupula_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03,
+      0.0
+     ],
+     "tamanho": [
+      0.314,
+      0.06,
+      0.313
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.54328,
+      0.0
+     ],
+     "tamanho": [
+      0.088,
+      0.967,
+      0.082
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.25156,
+      -0.0
+     ],
+     "tamanho": [
+      0.482,
+      0.45,
+      0.482
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "laranja",
+    "laranja_claro",
+    "papel_amarelado",
+    "pessego"
+   ],
+   "tris": 512,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "luminaria",
+    "luz",
+    "sala"
+   ],
+   "luz": {
+    "posicao": [
+     -0.0,
+     1.32989,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 4.0
+   },
+   "pacote_fbx": "Light_001"
+  },
+  {
+   "id": "luminaria_natal_mesa_cogumelo_pacote",
+   "rotulo": "Luminária de mesa cogumelo",
+   "categoria": "natal",
+   "grupo": "luminaria_natal_mesa",
+   "fixacao": "apoio",
+   "dims": [
+    0.334,
+    0.334,
+    0.389
+   ],
+   "arquivo": "glb/luminaria_natal_mesa_cogumelo_pacote.glb",
+   "miniatura": "miniaturas/luminaria_natal_mesa_cogumelo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.19458,
+      0.0
+     ],
+     "tamanho": [
+      0.334,
+      0.389,
+      0.334
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "laranja_escuro",
+    "pessego"
+   ],
+   "tris": 780,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "luminaria",
+    "luz",
+    "mesa"
+   ],
+   "luz": {
+    "posicao": [
+     -0.0,
+     0.29037,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 3.0
+   },
+   "pacote_fbx": "Light_002"
+  },
+  {
+   "id": "lustre_natal_tres_bracos_pacote",
+   "rotulo": "Lustre de três braços com pratos vermelhos",
+   "categoria": "natal",
+   "grupo": "lustre_natal",
+   "fixacao": "teto",
+   "dims": [
+    1.536,
+    1.428,
+    0.704
+   ],
+   "arquivo": "glb/lustre_natal_tres_bracos_pacote.glb",
+   "miniatura": "miniaturas/lustre_natal_tres_bracos_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      -0.35188,
+      -0.0
+     ],
+     "tamanho": [
+      1.536,
+      0.704,
+      1.428
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "fogo",
+    "laranja_claro",
+    "vermelho"
+   ],
+   "tris": 2586,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "luminaria",
+    "luz",
+    "teto",
+    "lustre"
+   ],
+   "luz": {
+    "posicao": [
+     0.0023,
+     -0.60758,
+     -0.11822
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 5.0
+   },
+   "pacote_fbx": "Light_003"
+  },
+  {
+   "id": "cama_natal_casal_laranja_pacote",
+   "rotulo": "Cama de casal laranja com cabeceira de grade",
+   "categoria": "natal",
+   "grupo": "cama_natal_casal",
+   "fixacao": "chao",
+   "dims": [
+    1.86,
+    2.14,
+    1.076
+   ],
+   "arquivo": "glb/cama_natal_casal_laranja_pacote.glb",
+   "miniatura": "miniaturas/cama_natal_casal_laranja_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_colchao",
+     "centro": [
+      0.0,
+      0.62822,
+      0.04
+     ],
+     "tamanho": [
+      1.526,
+      0.4,
+      1.834
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.53816,
+      -0.0
+     ],
+     "tamanho": [
+      1.86,
+      1.076,
+      2.14
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro",
+    "salmao",
+    "terracota_clara"
+   ],
+   "tris": 2586,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cama",
+    "quarto",
+    "casal"
+   ],
+   "pacote_fbx": "Bed_001"
+  },
+  {
+   "id": "criado_natal_gaveta_nicho_pacote",
+   "rotulo": "Criado-mudo com gaveta e nicho",
+   "categoria": "natal",
+   "grupo": "criado_natal_gaveta",
+   "fixacao": "chao",
+   "dims": [
+    0.58,
+    0.49,
+    0.574
+   ],
+   "arquivo": "glb/criado_natal_gaveta_nicho_pacote.glb",
+   "miniatura": "miniaturas/criado_natal_gaveta_nicho_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.0,
+      0.17318,
+      0.24489
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0,
+      0.2091,
+      0.0641
+     ],
+     "tamanho": [
+      0.258,
+      0.1,
+      0.182
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      0.00135,
+      0.3526,
+      0.00334
+     ],
+     "tamanho": [
+      0.352,
+      0.18,
+      0.296
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      1e-05,
+      0.56999,
+      -0.00506
+     ],
+     "tamanho": [
+      0.52,
+      0.4,
+      0.42
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28683,
+      -0.00489
+     ],
+     "tamanho": [
+      0.58,
+      0.574,
+      0.48
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "creme",
+    "laranja_claro",
+    "madeira_media",
+    "papel_amarelado",
+    "tijolo"
+   ],
+   "tris": 908,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "criado",
+    "quarto",
+    "gaveta"
+   ],
+   "pacote_fbx": "Nightstand_001"
+  },
+  {
+   "id": "aparador_natal_duas_portas_pacote",
+   "rotulo": "Aparador com duas portas creme",
+   "categoria": "natal",
+   "grupo": "aparador_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    0.49,
+    0.797
+   ],
+   "arquivo": "glb/aparador_natal_duas_portas_pacote.glb",
+   "miniatura": "miniaturas/aparador_natal_duas_portas_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.49,
+      0.22765,
+      0.19
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.49,
+      0.22765,
+      0.19
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0.0,
+      0.22964,
+      0.01791
+     ],
+     "tamanho": [
+      0.951,
+      0.42,
+      0.326
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.7931,
+      -0.00489
+     ],
+     "tamanho": [
+      1.14,
+      0.4,
+      0.42
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.39832,
+      -0.00489
+     ],
+     "tamanho": [
+      1.2,
+      0.797,
+      0.48
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "creme",
+    "madeira_media",
+    "marrom",
+    "pessego",
+    "pinus",
+    "terracota_escura"
+   ],
+   "tris": 1227,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "aparador",
+    "sala",
+    "portas"
+   ],
+   "pacote_fbx": "Cabinet_001"
+  },
+  {
+   "id": "armario_cozinha_natal_balcao_pacote",
+   "rotulo": "Balcão de cozinha vermelho com duas portas",
+   "categoria": "natal",
+   "grupo": "armario_cozinha_natal_balcao",
+   "fixacao": "chao",
+   "dims": [
+    1.063,
+    0.751,
+    0.85
+   ],
+   "arquivo": "glb/armario_cozinha_natal_balcao_pacote.glb",
+   "miniatura": "miniaturas/armario_cozinha_natal_balcao_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.49953,
+      0.13817,
+      0.26215
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.49953,
+      0.13817,
+      0.26215
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_baixo",
+     "centro": [
+      0.0,
+      0.186,
+      -0.00356
+     ],
+     "tamanho": [
+      0.883,
+      0.17,
+      0.511
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_cima",
+     "centro": [
+      0.0,
+      0.37427,
+      -0.01567
+     ],
+     "tamanho": [
+      0.9,
+      0.27,
+      0.487
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_bancada",
+     "centro": [
+      0.0,
+      0.8465,
+      -0.0567
+     ],
+     "tamanho": [
+      1.0,
+      0.45,
+      0.575
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.42513,
+      -0.0567
+     ],
+     "tamanho": [
+      1.063,
+      0.85,
+      0.638
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "fogo",
+    "laranja",
+    "laranja_claro",
+    "ouro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 1092,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "armario",
+    "balcao",
+    "portas"
+   ],
+   "pacote_fbx": "Kitchen_Cabinet_001"
+  },
+  {
+   "id": "armario_cozinha_natal_aereo_pacote",
+   "rotulo": "Armário aéreo de cozinha vermelho com duas portas",
+   "categoria": "natal",
+   "grupo": "armario_cozinha_natal_aereo",
+   "fixacao": "parede",
+   "dims": [
+    0.638,
+    0.432,
+    0.797
+   ],
+   "arquivo": "glb/armario_cozinha_natal_aereo_pacote.glb",
+   "miniatura": "miniaturas/armario_cozinha_natal_aereo_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.28696,
+      0.03189,
+      0.32
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.28696,
+      0.03189,
+      0.32
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_baixo",
+     "centro": [
+      0.0,
+      0.07284,
+      0.22495
+     ],
+     "tamanho": [
+      0.481,
+      0.29,
+      0.155
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_cima",
+     "centro": [
+      -0.0067,
+      0.38123,
+      0.21432
+     ],
+     "tamanho": [
+      0.498,
+      0.37,
+      0.134
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_topo",
+     "centro": [
+      -0.0,
+      0.7931,
+      0.1592
+     ],
+     "tamanho": [
+      0.575,
+      0.3,
+      0.256
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.39856,
+      0.15942
+     ],
+     "tamanho": [
+      0.638,
+      0.797,
+      0.319
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "fogo",
+    "laranja",
+    "laranja_claro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 814,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "armario",
+    "aereo",
+    "portas"
+   ],
+   "altura_instalacao": 1.45,
+   "pacote_fbx": "Kitchen_Cabinet_002"
+  },
+  {
+   "id": "nicho_cozinha_natal_aberto_pacote",
+   "rotulo": "Nicho de cozinha aberto com duas prateleiras",
+   "categoria": "natal",
+   "grupo": "nicho_cozinha_natal",
+   "fixacao": "parede",
+   "dims": [
+    0.503,
+    0.319,
+    0.797
+   ],
+   "arquivo": "glb/nicho_cozinha_natal_aberto_pacote.glb",
+   "miniatura": "miniaturas/nicho_cozinha_natal_aberto_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prateleira_baixo",
+     "centro": [
+      0.0,
+      0.07284,
+      0.22495
+     ],
+     "tamanho": [
+      0.346,
+      0.29,
+      0.155
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_cima",
+     "centro": [
+      -0.0067,
+      0.39288,
+      0.21432
+     ],
+     "tamanho": [
+      0.363,
+      0.37,
+      0.134
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_topo",
+     "centro": [
+      -0.0,
+      0.7931,
+      0.1592
+     ],
+     "tamanho": [
+      0.44,
+      0.3,
+      0.256
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.39856,
+      0.15942
+     ],
+     "tamanho": [
+      0.503,
+      0.797,
+      0.319
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "laranja_claro"
+   ],
+   "tris": 234,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "nicho",
+    "prateleiras"
+   ],
+   "altura_instalacao": 1.45,
+   "pacote_fbx": "Kitchen_Shelf_001"
+  },
+  {
+   "id": "prateleira_cozinha_natal_pacote",
+   "rotulo": "Prateleira de parede de cozinha",
+   "categoria": "natal",
+   "grupo": "prateleira_cozinha_natal",
+   "fixacao": "parede",
+   "dims": [
+    0.744,
+    0.213,
+    0.085
+   ],
+   "arquivo": "glb/prateleira_cozinha_natal_pacote.glb",
+   "miniatura": "miniaturas/prateleira_cozinha_natal_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prateleira",
+     "centro": [
+      0.0,
+      0.08306,
+      0.10628
+     ],
+     "tamanho": [
+      0.697,
+      0.35,
+      0.166
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04271,
+      0.10628
+     ],
+     "tamanho": [
+      0.744,
+      0.085,
+      0.213
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "laranja_claro"
+   ],
+   "tris": 172,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "prateleira"
+   ],
+   "altura_instalacao": 1.5,
+   "pacote_fbx": "Kitchen_Shelf_002"
+  },
+  {
+   "id": "pia_cozinha_natal_cuba_pacote",
+   "rotulo": "Pia de cozinha com cuba, torneira dourada e duas portas",
+   "categoria": "natal",
+   "grupo": "pia_cozinha_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.85,
+    0.751,
+    1.306
+   ],
+   "arquivo": "glb/pia_cozinha_natal_cuba_pacote.glb",
+   "miniatura": "miniaturas/pia_cozinha_natal_cuba_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.39325,
+      0.13817,
+      0.26215
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.39325,
+      0.13817,
+      0.26215
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_baixo",
+     "centro": [
+      0.0,
+      0.17005,
+      -0.00356
+     ],
+     "tamanho": [
+      0.703,
+      0.18,
+      0.511
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_cima",
+     "centro": [
+      0.0,
+      0.37427,
+      -0.01567
+     ],
+     "tamanho": [
+      0.729,
+      0.15,
+      0.487
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cuba",
+     "centro": [
+      0.00011,
+      0.66628,
+      -0.00682
+     ],
+     "tamanho": [
+      0.648,
+      0.25,
+      0.336
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_bancada",
+     "centro": [
+      0.0,
+      0.84839,
+      -0.05691
+     ],
+     "tamanho": [
+      0.788,
+      0.4,
+      0.575
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.65284,
+      -0.0567
+     ],
+     "tamanho": [
+      0.85,
+      1.306,
+      0.638
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "fogo",
+    "laranja",
+    "laranja_claro",
+    "metal",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 2150,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "pia",
+    "torneira",
+    "portas"
+   ],
+   "pacote_fbx": "Kitchen_sink_001"
+  },
+  {
+   "id": "fogao_natal_forno_pacote",
+   "rotulo": "Fogão com forno e duas bocas",
+   "categoria": "natal",
+   "grupo": "fogao_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.744,
+    0.699,
+    0.874
+   ],
+   "arquivo": "glb/fogao_natal_forno_pacote.glb",
+   "miniatura": "miniaturas/fogao_natal_forno_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "porta_forno",
+     "pivo": [
+      -0.0,
+      0.10628,
+      0.2759
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_forno",
+     "centro": [
+      0.0,
+      0.15956,
+      0.02853
+     ],
+     "tamanho": [
+      0.617,
+      0.2,
+      0.393
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_forno_grade",
+     "centro": [
+      -0.00099,
+      0.37427,
+      -0.04143
+     ],
+     "tamanho": [
+      0.639,
+      0.22,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cooktop",
+     "centro": [
+      0.0,
+      0.85251,
+      -0.03072
+     ],
+     "tamanho": [
+      0.681,
+      0.35,
+      0.575
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43678,
+      -0.0
+     ],
+     "tamanho": [
+      0.744,
+      0.874,
+      0.699
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_claro",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "laranja",
+    "laranja_claro",
+    "verde_medio",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 1356,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "fogao",
+    "forno"
+   ],
+   "pacote_fbx": "Kitchen_stove_001"
+  },
+  {
+   "id": "geladeira_natal_retro_pacote",
+   "rotulo": "Geladeira retrô pêssego de duas portas",
+   "categoria": "natal",
+   "grupo": "geladeira_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.782,
+    0.803,
+    1.61
+   ],
+   "arquivo": "glb/geladeira_natal_retro_pacote.glb",
+   "miniatura": "miniaturas/geladeira_natal_retro_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      0.39038,
+      1.09581,
+      0.14
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.3909,
+      0.05868,
+      0.14
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      -0.0,
+      0.1377,
+      -0.03632
+     ],
+     "tamanho": [
+      0.555,
+      0.241,
+      0.33
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0.0,
+      0.40497,
+      -0.10971
+     ],
+     "tamanho": [
+      0.647,
+      0.368,
+      0.358
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_3",
+     "centro": [
+      0.0,
+      0.79459,
+      -0.10971
+     ],
+     "tamanho": [
+      0.647,
+      0.345,
+      0.358
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador",
+     "centro": [
+      0.0,
+      1.1606,
+      -0.03632
+     ],
+     "tamanho": [
+      0.555,
+      0.391,
+      0.33
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.805,
+      -0.13137
+     ],
+     "tamanho": [
+      0.782,
+      1.61,
+      0.541
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "laranja_claro",
+    "mostarda"
+   ],
+   "tris": 1686,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "geladeira",
+    "portas",
+    "retro"
+   ],
+   "pacote_fbx": "Fridge_001"
+  },
+  {
+   "id": "mesa_jantar_natal_madeira_pacote",
+   "rotulo": "Mesa de jantar de madeira escura com pés torneados",
+   "categoria": "natal",
+   "grupo": "mesa_jantar_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.6,
+    0.75,
+    0.753
+   ],
+   "arquivo": "glb/mesa_jantar_natal_madeira_pacote.glb",
+   "miniatura": "miniaturas/mesa_jantar_natal_madeira_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.75004,
+      -0.0
+     ],
+     "tamanho": [
+      1.55,
+      0.45,
+      0.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.7277,
+      -0.0
+     ],
+     "tamanho": [
+      1.6,
+      0.05,
+      0.75
+     ]
+    },
+    {
+     "centro": [
+      -0.72,
+      0.35135,
+      0.295
+     ],
+     "tamanho": [
+      0.08,
+      0.703,
+      0.08
+     ]
+    },
+    {
+     "centro": [
+      -0.72,
+      0.35135,
+      -0.295
+     ],
+     "tamanho": [
+      0.08,
+      0.703,
+      0.08
+     ]
+    },
+    {
+     "centro": [
+      0.72,
+      0.35135,
+      0.295
+     ],
+     "tamanho": [
+      0.08,
+      0.703,
+      0.08
+     ]
+    },
+    {
+     "centro": [
+      0.72,
+      0.35135,
+      -0.295
+     ],
+     "tamanho": [
+      0.08,
+      0.703,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "nogueira"
+   ],
+   "tris": 1626,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "mesa",
+    "cozinha",
+    "jantar"
+   ],
+   "pacote_fbx": "Kitchen_Table_001"
+  },
+  {
+   "id": "mesa_natal_redonda_toalha_pacote",
+   "rotulo": "Mesa redonda com toalha creme",
+   "categoria": "natal",
+   "grupo": "mesa_natal_redonda_toalha",
+   "fixacao": "chao",
+   "dims": [
+    0.867,
+    0.867,
+    0.75
+   ],
+   "arquivo": "glb/mesa_natal_redonda_toalha_pacote.glb",
+   "miniatura": "miniaturas/mesa_natal_redonda_toalha_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      6e-05,
+      0.74849,
+      0.00014
+     ],
+     "tamanho": [
+      0.685,
+      0.45,
+      0.685
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.67481,
+      -0.0
+     ],
+     "tamanho": [
+      0.867,
+      0.15,
+      0.867
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.29991,
+      -0.0
+     ],
+     "tamanho": [
+      0.39,
+      0.6,
+      0.39
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "laranja_claro",
+    "pessego",
+    "terracota_clara"
+   ],
+   "tris": 1402,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "mesa",
+    "cozinha",
+    "toalha"
+   ],
+   "pacote_fbx": "Kitchen_Table_002"
+  },
+  {
+   "id": "mesa_natal_bancada_pes_x_pacote",
+   "rotulo": "Mesa-bancada com pés em X",
+   "categoria": "natal",
+   "grupo": "mesa_natal_bancada",
+   "fixacao": "chao",
+   "dims": [
+    1.029,
+    0.716,
+    0.817
+   ],
+   "arquivo": "glb/mesa_natal_bancada_pes_x_pacote.glb",
+   "miniatura": "miniaturas/mesa_natal_bancada_pes_x_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.81272,
+      0.0
+     ],
+     "tamanho": [
+      0.988,
+      0.4,
+      0.675
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.78691,
+      0
+     ],
+     "tamanho": [
+      1.029,
+      0.06,
+      0.716
+     ]
+    },
+    {
+     "centro": [
+      -0.35458,
+      0.37845,
+      0
+     ],
+     "tamanho": [
+      0.22,
+      0.757,
+      0.616
+     ]
+    },
+    {
+     "centro": [
+      0.35458,
+      0.37845,
+      0
+     ],
+     "tamanho": [
+      0.22,
+      0.757,
+      0.616
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "laranja_claro"
+   ],
+   "tris": 558,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "mesa",
+    "cozinha",
+    "bancada"
+   ],
+   "pacote_fbx": "Kitchen_Table_003"
+  },
+  {
+   "id": "banqueta_natal_pes_madeira_pacote",
+   "rotulo": "Banqueta de assento creme e pés de madeira",
+   "categoria": "natal",
+   "grupo": "banqueta_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.455,
+    0.465,
+    0.464
+   ],
+   "arquivo": "glb/banqueta_natal_pes_madeira_pacote.glb",
+   "miniatura": "miniaturas/banqueta_natal_pes_madeira_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento",
+     "centro": [
+      0.01066,
+      0.46289,
+      0.02328
+     ],
+     "tamanho": [
+      0.367,
+      0.5,
+      0.367
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23202,
+      -0.0
+     ],
+     "tamanho": [
+      0.455,
+      0.464,
+      0.465
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "laranja_claro",
+    "pessego",
+    "terracota_clara"
+   ],
+   "tris": 474,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "banqueta",
+    "cozinha",
+    "assento"
+   ],
+   "pacote_fbx": "Kitchen_stool_003"
+  },
+  {
+   "id": "lareira_natal_acesa_chamine_pacote",
+   "rotulo": "Lareira de Natal acesa com chaminé (lenha, brasas e fogo)",
+   "categoria": "natal",
+   "grupo": "lareira_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.26,
+    0.708,
+    2.924
+   ],
+   "arquivo": "glb/lareira_natal_acesa_chamine_pacote.glb",
+   "miniatura": "miniaturas/lareira_natal_acesa_chamine_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_cornija",
+     "centro": [
+      0.0,
+      1.13355,
+      -0.0586
+     ],
+     "tamanho": [
+      1.209,
+      0.4,
+      0.571
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.46184,
+      -0.0
+     ],
+     "tamanho": [
+      1.26,
+      2.924,
+      0.708
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "couro",
+    "creme",
+    "fogo",
+    "laranja",
+    "laranja_claro",
+    "madeira_escura",
+    "pessego",
+    "pinus",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 2361,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "lareira",
+    "sala",
+    "fogo",
+    "luz",
+    "chamine"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     0.4866,
+     0.04538
+    ],
+    "cor": "#FF9A3C",
+    "alcance": 4.5
+   },
+   "animacoes": [
+    {
+     "nome": "fogo",
+     "anima": "piscar",
+     "periodo": 0.6,
+     "pivo": [
+      0.0,
+      0.4866,
+      0.04538
+     ]
+    }
+   ],
+   "pacote_fbx": "Fireplace_001"
+  },
+  {
+   "id": "fogo_lareira_natal_pacote",
+   "rotulo": "Fogo de lareira (pisca)",
+   "categoria": "natal",
+   "grupo": "fogo_lareira_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.324,
+    0.324,
+    0.325
+   ],
+   "arquivo": "glb/fogo_lareira_natal_pacote.glb",
+   "miniatura": "miniaturas/fogo_lareira_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.16251,
+      0
+     ],
+     "tamanho": [
+      0.324,
+      0.325,
+      0.324
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "fogo",
+    "laranja"
+   ],
+   "tris": 566,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "lareira",
+    "fogo",
+    "luz"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     0.16851,
+     -0.0
+    ],
+    "cor": "#FF9A3C",
+    "alcance": 3.5
+   },
+   "animacoes": [
+    {
+     "nome": "fogo",
+     "anima": "piscar",
+     "periodo": 0.6,
+     "pivo": [
+      0.0,
+      0.16851,
+      -0.0
+     ]
+    }
+   ],
+   "pacote_fbx": "Fireplace_fire_001"
+  },
+  {
+   "id": "brasas_lareira_natal_pacote",
+   "rotulo": "Brasas de carvão de lareira",
+   "categoria": "natal",
+   "grupo": "brasas_lareira_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.539,
+    0.384,
+    0.172
+   ],
+   "arquivo": "glb/brasas_lareira_natal_pacote.glb",
+   "miniatura": "miniaturas/brasas_lareira_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.08582,
+      -0.0
+     ],
+     "tamanho": [
+      0.539,
+      0.172,
+      0.384
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "fogo"
+   ],
+   "tris": 260,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "lareira",
+    "brasas",
+    "carvao"
+   ],
+   "pacote_fbx": "Fireplace_coal_001"
+  },
+  {
+   "id": "lenha_lareira_natal_pacote",
+   "rotulo": "Lenha cruzada de lareira",
+   "categoria": "natal",
+   "grupo": "lenha_lareira_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.398,
+    0.397,
+    0.213
+   ],
+   "arquivo": "glb/lenha_lareira_natal_pacote.glb",
+   "miniatura": "miniaturas/lenha_lareira_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.10674,
+      -0.0
+     ],
+     "tamanho": [
+      0.398,
+      0.213,
+      0.397
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "pinus",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 480,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "lareira",
+    "lenha",
+    "madeira"
+   ],
+   "pacote_fbx": "Fireplace_firewood_001"
+  },
+  {
+   "id": "chamine_telhado_natal_neve_pacote",
+   "rotulo": "Chaminé de telhado com neve",
+   "categoria": "natal",
+   "grupo": "chamine_telhado_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.525,
+    1.52,
+    3.088
+   ],
+   "arquivo": "glb/chamine_telhado_natal_neve_pacote.glb",
+   "miniatura": "miniaturas/chamine_telhado_natal_neve_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.54377,
+      -0.0
+     ],
+     "tamanho": [
+      1.525,
+      3.088,
+      1.52
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "cinza_claro",
+    "couro",
+    "cromo",
+    "madeira_escura",
+    "marrom",
+    "nogueira",
+    "tecido_cinza"
+   ],
+   "tris": 1346,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "chamine",
+    "telhado",
+    "neve",
+    "construcao"
+   ],
+   "pacote_fbx": "Fireplace_pipe_001",
+   "construcao": true,
+   "nota": "Chaminé de fora, para pôr em cima do telhado da casa de biscoito; a base fica no chão da peça."
+  },
+  {
+   "id": "arvore_natal_interna_enfeitada_pacote",
+   "rotulo": "Árvore de Natal enfeitada com estrela, bolas e pisca-pisca",
+   "categoria": "natal",
+   "grupo": "arvore_natal_interna",
+   "fixacao": "chao",
+   "dims": [
+    1.27,
+    1.292,
+    2.297
+   ],
+   "arquivo": "glb/arvore_natal_interna_enfeitada_pacote.glb",
+   "miniatura": "miniaturas/arvore_natal_interna_enfeitada_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.51686,
+      -0.0
+     ],
+     "tamanho": [
+      1.016,
+      1.034,
+      1.034
+     ]
+    },
+    {
+     "centro": [
+      -0.00121,
+      1.43572,
+      -0.00027
+     ],
+     "tamanho": [
+      0.588,
+      0.804,
+      0.556
+     ]
+    },
+    {
+     "centro": [
+      0.01427,
+      2.06744,
+      0.01473
+     ],
+     "tamanho": [
+      0.175,
+      0.459,
+      0.047
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "azul",
+    "azul_medio",
+    "couro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "laranja_claro",
+    "lilas",
+    "magenta",
+    "mostarda",
+    "rosa_escuro",
+    "roxo",
+    "terracota_escura",
+    "turquesa",
+    "turquesa_claro",
+    "turquesa_escuro",
+    "verde_agua",
+    "vermelho",
+    "vermelho_escuro",
+    "violeta"
+   ],
+   "tris": 4373,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "arvore",
+    "sala",
+    "luz",
+    "enfeites"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     1.14858,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.5
+   },
+   "pacote_fbx": "Christmass_tree_indoor_001"
+  },
+  {
+   "id": "arvore_natal_externa_neve_grande_pacote",
+   "rotulo": "Pinheiro grande com neve e luzes (externo)",
+   "categoria": "natal",
+   "grupo": "arvore_natal_externa_grande",
+   "fixacao": "chao",
+   "dims": [
+    2.665,
+    2.865,
+    4.109
+   ],
+   "arquivo": "glb/arvore_natal_externa_neve_grande_pacote.glb",
+   "miniatura": "miniaturas/arvore_natal_externa_neve_grande_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.92442,
+      -0.0
+     ],
+     "tamanho": [
+      2.132,
+      1.849,
+      2.292
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      2.56784,
+      -0.0
+     ],
+     "tamanho": [
+      1.401,
+      1.438,
+      1.437
+     ]
+    },
+    {
+     "centro": [
+      -0.0007,
+      3.69769,
+      -0.01083
+     ],
+     "tamanho": [
+      0.456,
+      0.822,
+      0.446
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "couro",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "plastico_branco",
+    "terracota_escura",
+    "vermelho_escuro"
+   ],
+   "tris": 3438,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "arvore",
+    "jardim",
+    "neve",
+    "luz"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     2.05427,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 5.0
+   },
+   "pacote_fbx": "Christmass_tree_outdoor_001"
+  },
+  {
+   "id": "arvore_natal_externa_neve_pacote",
+   "rotulo": "Pinheiro com neve e luzes (externo)",
+   "categoria": "natal",
+   "grupo": "arvore_natal_externa",
+   "fixacao": "chao",
+   "dims": [
+    1.877,
+    2.026,
+    2.455
+   ],
+   "arquivo": "glb/arvore_natal_externa_neve_pacote.glb",
+   "miniatura": "miniaturas/arvore_natal_externa_neve_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5523,
+      -0.0
+     ],
+     "tamanho": [
+      1.502,
+      1.105,
+      1.621
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.53417,
+      -0.0
+     ],
+     "tamanho": [
+      0.849,
+      0.859,
+      0.963
+     ]
+    },
+    {
+     "centro": [
+      -0.01309,
+      2.2092,
+      0.01391
+     ],
+     "tamanho": [
+      0.293,
+      0.491,
+      0.29
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "couro",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "plastico_branco",
+    "terracota_escura",
+    "vermelho_escuro"
+   ],
+   "tris": 2319,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "arvore",
+    "jardim",
+    "neve",
+    "luz"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     1.22734,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 4.0
+   },
+   "pacote_fbx": "Christmass_tree_outdoor_002"
+  },
+  {
+   "id": "guirlanda_natal_redonda_laco_pacote",
+   "rotulo": "Guirlanda redonda com laço vermelho e luzinhas",
+   "categoria": "natal",
+   "grupo": "guirlanda_natal_redonda",
+   "fixacao": "parede",
+   "dims": [
+    0.527,
+    0.227,
+    0.623
+   ],
+   "arquivo": "glb/guirlanda_natal_redonda_laco_pacote.glb",
+   "miniatura": "miniaturas/guirlanda_natal_redonda_laco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.31143,
+      0.11362
+     ],
+     "tamanho": [
+      0.527,
+      0.623,
+      0.227
+     ]
+    }
+   ],
+   "cores": [
+    "fogo",
+    "folha",
+    "folha_clara",
+    "vermelho_escuro"
+   ],
+   "tris": 2682,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "guirlanda",
+    "porta",
+    "parede",
+    "luz"
+   ],
+   "altura_instalacao": 1.45,
+   "pacote_fbx": "Advent_Wreath_001"
+  },
+  {
+   "id": "guirlanda_natal_festao_laco_pacote",
+   "rotulo": "Festão de folhas com laço vermelho e luzinhas",
+   "categoria": "natal",
+   "grupo": "guirlanda_natal_festao",
+   "fixacao": "parede",
+   "dims": [
+    0.745,
+    0.209,
+    0.395
+   ],
+   "arquivo": "glb/guirlanda_natal_festao_laco_pacote.glb",
+   "miniatura": "miniaturas/guirlanda_natal_festao_laco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19726,
+      0.10451
+     ],
+     "tamanho": [
+      0.745,
+      0.395,
+      0.209
+     ]
+    }
+   ],
+   "cores": [
+    "fogo",
+    "folha",
+    "folha_clara",
+    "vermelho_escuro"
+   ],
+   "tris": 2992,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "guirlanda",
+    "festao",
+    "parede",
+    "luz"
+   ],
+   "altura_instalacao": 1.9,
+   "pacote_fbx": "Advent_Wreath_002"
+  },
+  {
+   "id": "pisca_pisca_natal_cordao_pacote",
+   "rotulo": "Cordão de pisca-pisca de parede (3,4 m)",
+   "categoria": "natal",
+   "grupo": "pisca_pisca_natal",
+   "fixacao": "parede",
+   "dims": [
+    3.417,
+    0.069,
+    0.318
+   ],
+   "arquivo": "glb/pisca_pisca_natal_cordao_pacote.glb",
+   "miniatura": "miniaturas/pisca_pisca_natal_cordao_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15917,
+      0.03443
+     ],
+     "tamanho": [
+      3.417,
+      0.318,
+      0.069
+     ]
+    }
+   ],
+   "cores": [
+    "marrom_escuro"
+   ],
+   "tris": 1372,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "pisca-pisca",
+    "luz",
+    "parede",
+    "cordao"
+   ],
+   "altura_instalacao": 1.9,
+   "luz": {
+    "posicao": [
+     0.00019,
+     0.09696,
+     0.03443
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.5
+   },
+   "pacote_fbx": "Garland_001"
+  },
+  {
+   "id": "luz_estaca_natal_jardim_pacote",
+   "rotulo": "Lâmpada decorativa de estaca (jardim e beiral)",
+   "categoria": "natal",
+   "grupo": "luz_estaca_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.159,
+    0.159,
+    0.315
+   ],
+   "arquivo": "glb/luz_estaca_natal_jardim_pacote.glb",
+   "miniatura": "miniaturas/luz_estaca_natal_jardim_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15735,
+      -0.0
+     ],
+     "tamanho": [
+      0.159,
+      0.315,
+      0.159
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media"
+   ],
+   "tris": 56,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "luz",
+    "jardim",
+    "beiral",
+    "estaca"
+   ],
+   "luz": {
+    "posicao": [
+     0.0,
+     0.2354,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.0
+   },
+   "pacote_fbx": "Garland_002"
+  },
+  {
+   "id": "meia_natal_vermelha_pacote",
+   "rotulo": "Meia de Natal vermelha",
+   "categoria": "natal",
+   "grupo": "meia_natal",
+   "fixacao": "parede",
+   "dims": [
+    0.325,
+    0.162,
+    0.41
+   ],
+   "arquivo": "glb/meia_natal_vermelha_pacote.glb",
+   "miniatura": "miniaturas/meia_natal_vermelha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.20498,
+      0.08108
+     ],
+     "tamanho": [
+      0.325,
+      0.41,
+      0.162
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "madeira_cinza",
+    "vermelho_escuro"
+   ],
+   "tris": 432,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "meia",
+    "lareira",
+    "parede"
+   ],
+   "altura_instalacao": 0.95,
+   "pacote_fbx": "Christmass_sock_001"
+  },
+  {
+   "id": "presente_natal_roxo_fita_azul_pacote",
+   "rotulo": "Presente com laço (roxo com fita azul, 45 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "chao",
+   "dims": [
+    0.446,
+    0.347,
+    0.45
+   ],
+   "arquivo": "glb/presente_natal_roxo_fita_azul_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_roxo_fita_azul_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.446,
+      0.45,
+      0.347
+     ]
+    }
+   ],
+   "cores": [
+    "roxo_escuro",
+    "turquesa",
+    "turquesa_escuro",
+    "violeta"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_001"
+  },
+  {
+   "id": "presente_natal_verde_fita_amarela_pacote",
+   "rotulo": "Presente com laço (verde com fita amarela, 40 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "chao",
+   "dims": [
+    0.397,
+    0.308,
+    0.4
+   ],
+   "arquivo": "glb/presente_natal_verde_fita_amarela_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_verde_fita_amarela_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      -0.0
+     ],
+     "tamanho": [
+      0.397,
+      0.4,
+      0.308
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_002"
+  },
+  {
+   "id": "presente_natal_vermelho_fita_verde_pacote",
+   "rotulo": "Presente com laço (vermelho com fita verde, 36 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "chao",
+   "dims": [
+    0.357,
+    0.278,
+    0.36
+   ],
+   "arquivo": "glb/presente_natal_vermelho_fita_verde_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_vermelho_fita_verde_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.357,
+      0.36,
+      0.278
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "verde_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_003"
+  },
+  {
+   "id": "presente_natal_laranja_fita_vermelha_pacote",
+   "rotulo": "Presente com laço (laranja com fita vermelha, 30 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "apoio",
+   "dims": [
+    0.298,
+    0.231,
+    0.3
+   ],
+   "arquivo": "glb/presente_natal_laranja_fita_vermelha_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_laranja_fita_vermelha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15,
+      -0.0
+     ],
+     "tamanho": [
+      0.298,
+      0.3,
+      0.231
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_004"
+  },
+  {
+   "id": "presente_natal_azul_fita_amarela_pacote",
+   "rotulo": "Presente com laço (azul com fita amarela, 25 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "apoio",
+   "dims": [
+    0.248,
+    0.193,
+    0.25
+   ],
+   "arquivo": "glb/presente_natal_azul_fita_amarela_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_azul_fita_amarela_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.125,
+      -0.0
+     ],
+     "tamanho": [
+      0.248,
+      0.25,
+      0.193
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_medio",
+    "brasa",
+    "turquesa",
+    "turquesa_escuro"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_005"
+  },
+  {
+   "id": "presente_natal_verde_fita_laranja_pacote",
+   "rotulo": "Presente com laço (verde com fita laranja, 20 cm)",
+   "categoria": "natal",
+   "grupo": "presente_natal_laco",
+   "fixacao": "apoio",
+   "dims": [
+    0.198,
+    0.154,
+    0.2
+   ],
+   "arquivo": "glb/presente_natal_verde_fita_laranja_pacote.glb",
+   "miniatura": "miniaturas/presente_natal_verde_fita_laranja_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1,
+      -0.0
+     ],
+     "tamanho": [
+      0.198,
+      0.2,
+      0.154
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "laranja_escuro",
+    "terracota",
+    "tijolo"
+   ],
+   "tris": 694,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "presente",
+    "arvore"
+   ],
+   "pacote_fbx": "Present_006"
+  },
+  {
+   "id": "boneco_neve_natal_cachecol_pacote",
+   "rotulo": "Boneco de neve com cachecol e chapéu de casquinha",
+   "categoria": "natal",
+   "grupo": "boneco_neve_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.217,
+    0.814,
+    1.642
+   ],
+   "arquivo": "glb/boneco_neve_natal_cachecol_pacote.glb",
+   "miniatura": "miniaturas/boneco_neve_natal_cachecol_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.07688,
+      0.32836,
+      -0.02015
+     ],
+     "tamanho": [
+      0.732,
+      0.657,
+      0.58
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.14927,
+      0.04509
+     ],
+     "tamanho": [
+      0.609,
+      0.985,
+      0.362
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "chocolate",
+    "cromo",
+    "laranja_claro",
+    "laranja_escuro",
+    "madeira_escura",
+    "magenta",
+    "marrom",
+    "plastico_branco",
+    "porcelana",
+    "rosa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3458,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "boneco de neve",
+    "jardim",
+    "neve"
+   ],
+   "pacote_fbx": "Snowman_001"
+  },
+  {
+   "id": "papai_noel_boneco_natal_pacote",
+   "rotulo": "Boneco de Papai Noel (decoração, 1,2 m)",
+   "categoria": "natal",
+   "grupo": "papai_noel_boneco",
+   "fixacao": "chao",
+   "dims": [
+    0.519,
+    0.384,
+    1.2
+   ],
+   "arquivo": "glb/papai_noel_boneco_natal_pacote.glb",
+   "miniatura": "miniaturas/papai_noel_boneco_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.6,
+      -0.0
+     ],
+     "tamanho": [
+      0.519,
+      1.2,
+      0.384
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cinzas",
+    "cromo",
+    "grafite",
+    "madeira_cinza",
+    "madeira_media",
+    "marrom",
+    "marrom_escuro",
+    "metal",
+    "metal_escuro",
+    "nogueira",
+    "pessego",
+    "plastico_branco",
+    "porcelana",
+    "salmao",
+    "tecido_cinza",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 11020,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "papai noel",
+    "boneco",
+    "decoracao"
+   ],
+   "pacote_fbx": "Santa"
+  },
+  {
+   "id": "poste_doce_listrado_natal_pacote",
+   "rotulo": "Poste listrado de doce (jardim, 1,2 m)",
+   "categoria": "natal",
+   "grupo": "poste_doce_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.108,
+    0.108,
+    1.2
+   ],
+   "arquivo": "glb/poste_doce_listrado_natal_pacote.glb",
+   "miniatura": "miniaturas/poste_doce_listrado_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.6,
+      -0.0
+     ],
+     "tamanho": [
+      0.108,
+      1.2,
+      0.108
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cromo",
+    "terracota"
+   ],
+   "tris": 288,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "doce",
+    "jardim",
+    "bengala"
+   ],
+   "pacote_fbx": "Shugar_cane_001"
+  },
+  {
+   "id": "bengala_doce_natal_jardim_pacote",
+   "rotulo": "Bengala de doce listrada (jardim, 1 m)",
+   "categoria": "natal",
+   "grupo": "bengala_doce_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.119,
+    0.331,
+    1.0
+   ],
+   "arquivo": "glb/bengala_doce_natal_jardim_pacote.glb",
+   "miniatura": "miniaturas/bengala_doce_natal_jardim_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.119,
+      1.0,
+      0.331
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cromo",
+    "plastico_branco",
+    "porcelana",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 440,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "doce",
+    "jardim",
+    "bengala"
+   ],
+   "pacote_fbx": "Shugar_cane_002"
+  },
+  {
+   "id": "cerca_natal_listrada_pacote",
+   "rotulo": "Cerca de madeira com postes listrados",
+   "categoria": "natal",
+   "grupo": "cerca_natal",
+   "fixacao": "chao",
+   "dims": [
+    1.951,
+    0.351,
+    1.103
+   ],
+   "arquivo": "glb/cerca_natal_listrada_pacote.glb",
+   "miniatura": "miniaturas/cerca_natal_listrada_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55162,
+      -0.0
+     ],
+     "tamanho": [
+      1.951,
+      1.103,
+      0.16
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "laranja_claro",
+    "madeira_escura",
+    "pinus",
+    "terracota",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 696,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cerca",
+    "jardim"
+   ],
+   "pacote_fbx": "Fence_001"
+  },
+  {
+   "id": "monte_neve_natal_1_pacote",
+   "rotulo": "Monte de neve 1",
+   "categoria": "natal",
+   "grupo": "monte_neve_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.659,
+    0.721,
+    0.46
+   ],
+   "arquivo": "glb/monte_neve_natal_1_pacote.glb",
+   "miniatura": "miniaturas/monte_neve_natal_1_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23007,
+      -0.0
+     ],
+     "tamanho": [
+      0.659,
+      0.46,
+      0.721
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 258,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "neve",
+    "jardim"
+   ],
+   "pacote_fbx": "Snow_001"
+  },
+  {
+   "id": "monte_neve_natal_2_pacote",
+   "rotulo": "Monte de neve 2",
+   "categoria": "natal",
+   "grupo": "monte_neve_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.754,
+    0.815,
+    0.534
+   ],
+   "arquivo": "glb/monte_neve_natal_2_pacote.glb",
+   "miniatura": "miniaturas/monte_neve_natal_2_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26718,
+      -0.0
+     ],
+     "tamanho": [
+      0.754,
+      0.534,
+      0.815
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 250,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "neve",
+    "jardim"
+   ],
+   "pacote_fbx": "Snow_002"
+  },
+  {
+   "id": "monte_neve_natal_3_pacote",
+   "rotulo": "Monte de neve 3",
+   "categoria": "natal",
+   "grupo": "monte_neve_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.58,
+    0.688,
+    0.658
+   ],
+   "arquivo": "glb/monte_neve_natal_3_pacote.glb",
+   "miniatura": "miniaturas/monte_neve_natal_3_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.32912,
+      -0.0
+     ],
+     "tamanho": [
+      0.58,
+      0.658,
+      0.688
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 200,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "neve",
+    "jardim"
+   ],
+   "pacote_fbx": "Snow_003"
+  },
+  {
+   "id": "monte_neve_natal_4_pacote",
+   "rotulo": "Monte de neve 4",
+   "categoria": "natal",
+   "grupo": "monte_neve_natal",
+   "fixacao": "chao",
+   "dims": [
+    0.653,
+    0.673,
+    0.45
+   ],
+   "arquivo": "glb/monte_neve_natal_4_pacote.glb",
+   "miniatura": "miniaturas/monte_neve_natal_4_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22486,
+      -0.0
+     ],
+     "tamanho": [
+      0.653,
+      0.45,
+      0.673
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 236,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "neve",
+    "jardim"
+   ],
+   "pacote_fbx": "Snow_004"
+  },
+  {
+   "id": "quadro_natal_pinheiro_pacote",
+   "rotulo": "Quadro de pinheiro na moldura de madeira",
+   "categoria": "natal",
+   "grupo": "quadro_natal_pinheiro",
+   "fixacao": "parede",
+   "dims": [
+    0.512,
+    0.048,
+    0.88
+   ],
+   "arquivo": "glb/quadro_natal_pinheiro_pacote.glb",
+   "miniatura": "miniaturas/quadro_natal_pinheiro_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.44,
+      0.024
+     ],
+     "tamanho": [
+      0.512,
+      0.88,
+      0.048
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_claro",
+    "couro_preto",
+    "folha",
+    "folha_escura",
+    "grafite",
+    "madeira_escura",
+    "marrom",
+    "marrom_escuro",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 376,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "quadro",
+    "parede"
+   ],
+   "altura_instalacao": 1.15,
+   "pacote_fbx": "Painting_001"
+  },
+  {
+   "id": "relogio_natal_pendulo_parede_pacote",
+   "rotulo": "Relógio de parede com pêndulo dourado",
+   "categoria": "natal",
+   "grupo": "relogio_natal_pendulo",
+   "fixacao": "parede",
+   "dims": [
+    0.437,
+    0.142,
+    0.971
+   ],
+   "arquivo": "glb/relogio_natal_pendulo_parede_pacote.glb",
+   "miniatura": "miniaturas/relogio_natal_pendulo_parede_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.48568,
+      0.07113
+     ],
+     "tamanho": [
+      0.437,
+      0.971,
+      0.142
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco_gelo",
+    "cromo",
+    "madeira_media",
+    "marrom",
+    "marrom_escuro",
+    "metal_claro",
+    "nogueira"
+   ],
+   "tris": 1166,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "relogio",
+    "parede"
+   ],
+   "altura_instalacao": 1.3,
+   "pacote_fbx": "Clock_001"
+  },
+  {
+   "id": "tapete_natal_oval_pacote",
+   "rotulo": "Tapete oval rosa",
+   "categoria": "natal",
+   "grupo": "tapete_natal_oval",
+   "fixacao": "chao",
+   "dims": [
+    2.051,
+    1.55,
+    0.037
+   ],
+   "arquivo": "glb/tapete_natal_oval_pacote.glb",
+   "miniatura": "miniaturas/tapete_natal_oval_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01832,
+      -0.0
+     ],
+     "tamanho": [
+      2.051,
+      0.037,
+      1.55
+     ]
+    }
+   ],
+   "cores": [
+    "pessego",
+    "vermelho_claro"
+   ],
+   "tris": 412,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "tapete"
+   ],
+   "pacote_fbx": "Carpet_001"
+  },
+  {
+   "id": "tapete_natal_retangular_pacote",
+   "rotulo": "Tapete retangular vermelho",
+   "categoria": "natal",
+   "grupo": "tapete_natal_retangular",
+   "fixacao": "chao",
+   "dims": [
+    2.8,
+    1.8,
+    0.03
+   ],
+   "arquivo": "glb/tapete_natal_retangular_pacote.glb",
+   "miniatura": "miniaturas/tapete_natal_retangular_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.015,
+      -0.0
+     ],
+     "tamanho": [
+      2.8,
+      0.03,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "vermelho"
+   ],
+   "tris": 116,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "tapete"
+   ],
+   "pacote_fbx": "Carpet_002"
+  },
+  {
+   "id": "almofada_natal_verde_pacote",
+   "rotulo": "Almofada verde",
+   "categoria": "natal",
+   "grupo": "almofada_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.462,
+    0.336,
+    0.143
+   ],
+   "arquivo": "glb/almofada_natal_verde_pacote.glb",
+   "miniatura": "miniaturas/almofada_natal_verde_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07148,
+      -0.0
+     ],
+     "tamanho": [
+      0.462,
+      0.143,
+      0.336
+     ]
+    }
+   ],
+   "cores": [
+    "folha"
+   ],
+   "tris": 274,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "almofada",
+    "sofa",
+    "cama"
+   ],
+   "pacote_fbx": "Pillow_001"
+  },
+  {
+   "id": "almofada_natal_vermelha_pacote",
+   "rotulo": "Almofada vermelha",
+   "categoria": "natal",
+   "grupo": "almofada_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.462,
+    0.336,
+    0.143
+   ],
+   "arquivo": "glb/almofada_natal_vermelha_pacote.glb",
+   "miniatura": "miniaturas/almofada_natal_vermelha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07148,
+      -0.0
+     ],
+     "tamanho": [
+      0.462,
+      0.143,
+      0.336
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho"
+   ],
+   "tris": 274,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "almofada",
+    "sofa",
+    "cama"
+   ],
+   "pacote_fbx": "Pillow_002"
+  },
+  {
+   "id": "livros_natal_fileira_grande_pacote",
+   "rotulo": "Fileira de livros coloridos (grande)",
+   "categoria": "natal",
+   "grupo": "livros_natal_fileira_grande",
+   "fixacao": "apoio",
+   "dims": [
+    0.558,
+    0.183,
+    0.256
+   ],
+   "arquivo": "glb/livros_natal_fileira_grande_pacote.glb",
+   "miniatura": "miniaturas/livros_natal_fileira_grande_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.12791,
+      -0.0
+     ],
+     "tamanho": [
+      0.558,
+      0.256,
+      0.183
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco_gelo",
+    "brasa",
+    "cinza_claro",
+    "creme",
+    "folha",
+    "folha_clara",
+    "laranja_claro",
+    "laranja_escuro",
+    "madeira_escura",
+    "madeira_media",
+    "marrom",
+    "marrom_claro",
+    "pessego",
+    "pinus",
+    "rosa",
+    "rosa_bebe",
+    "tecido_cinza",
+    "turquesa_escuro",
+    "verde_escuro",
+    "verde_medio",
+    "verde_oliva",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 1714,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "livros",
+    "estante"
+   ],
+   "pacote_fbx": "Book_001"
+  },
+  {
+   "id": "livros_natal_fileira_pacote",
+   "rotulo": "Fileira de livros coloridos",
+   "categoria": "natal",
+   "grupo": "livros_natal_fileira",
+   "fixacao": "apoio",
+   "dims": [
+    0.357,
+    0.176,
+    0.253
+   ],
+   "arquivo": "glb/livros_natal_fileira_pacote.glb",
+   "miniatura": "miniaturas/livros_natal_fileira_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.12655,
+      -0.0
+     ],
+     "tamanho": [
+      0.357,
+      0.253,
+      0.176
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "azul",
+    "azul_acinzentado",
+    "azul_medio",
+    "branco_gelo",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cinza_medio",
+    "cinzas",
+    "creme",
+    "folha",
+    "grafite",
+    "laranja_claro",
+    "lilas",
+    "lilas_claro",
+    "madeira_cinza",
+    "metal_escuro",
+    "papel_amarelado",
+    "pessego",
+    "pinus",
+    "rosa",
+    "roxo_escuro",
+    "tecido_cinza",
+    "turquesa_escuro",
+    "verde_claro",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 1348,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "livros",
+    "estante"
+   ],
+   "pacote_fbx": "Book_002"
+  },
+  {
+   "id": "livros_natal_pilha_pacote",
+   "rotulo": "Pilha de livros",
+   "categoria": "natal",
+   "grupo": "livros_natal_pilha",
+   "fixacao": "apoio",
+   "dims": [
+    0.237,
+    0.329,
+    0.143
+   ],
+   "arquivo": "glb/livros_natal_pilha_pacote.glb",
+   "miniatura": "miniaturas/livros_natal_pilha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07149,
+      -0.0
+     ],
+     "tamanho": [
+      0.237,
+      0.143,
+      0.329
+     ]
+    }
+   ],
+   "cores": [
+    "fogo",
+    "laranja_escuro",
+    "marrom",
+    "pessego",
+    "turquesa_claro",
+    "vermelho"
+   ],
+   "tris": 624,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "livros",
+    "estante"
+   ],
+   "pacote_fbx": "Book_003"
+  },
+  {
+   "id": "livros_natal_dois_deitados_pacote",
+   "rotulo": "Dois livros deitados",
+   "categoria": "natal",
+   "grupo": "livros_natal_dois_deitados",
+   "fixacao": "apoio",
+   "dims": [
+    0.192,
+    0.24,
+    0.03
+   ],
+   "arquivo": "glb/livros_natal_dois_deitados_pacote.glb",
+   "miniatura": "miniaturas/livros_natal_dois_deitados_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01493,
+      -0.0
+     ],
+     "tamanho": [
+      0.192,
+      0.03,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "azul_medio",
+    "cinza_claro",
+    "metal",
+    "metal_claro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho"
+   ],
+   "tris": 330,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "livros",
+    "estante"
+   ],
+   "pacote_fbx": "Book_004"
+  },
+  {
+   "id": "cartas_natal_papel_pacote",
+   "rotulo": "Cartas de papel (para o Papai Noel)",
+   "categoria": "natal",
+   "grupo": "cartas_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.377,
+    0.279,
+    0.014
+   ],
+   "arquivo": "glb/cartas_natal_papel_pacote.glb",
+   "miniatura": "miniaturas/cartas_natal_papel_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00695,
+      -0.0
+     ],
+     "tamanho": [
+      0.377,
+      0.014,
+      0.279
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "bege",
+    "creme"
+   ],
+   "tris": 56,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "papel",
+    "carta",
+    "escrivaninha"
+   ],
+   "pacote_fbx": "Paper_001"
+  },
+  {
+   "id": "tigela_natal_terracota_pacote",
+   "rotulo": "Tigela de terracota",
+   "categoria": "natal",
+   "grupo": "tigela_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.218,
+    0.218,
+    0.071
+   ],
+   "arquivo": "glb/tigela_natal_terracota_pacote.glb",
+   "miniatura": "miniaturas/tigela_natal_terracota_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03567,
+      -0.0
+     ],
+     "tamanho": [
+      0.218,
+      0.071,
+      0.218
+     ]
+    }
+   ],
+   "cores": [
+    "cobre",
+    "terracota",
+    "tijolo"
+   ],
+   "tris": 796,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha"
+   ],
+   "pacote_fbx": "Bowl_001"
+  },
+  {
+   "id": "pote_natal_barro_pacote",
+   "rotulo": "Pote de barro",
+   "categoria": "natal",
+   "grupo": "pote_natal_barro",
+   "fixacao": "apoio",
+   "dims": [
+    0.174,
+    0.174,
+    0.148
+   ],
+   "arquivo": "glb/pote_natal_barro_pacote.glb",
+   "miniatura": "miniaturas/pote_natal_barro_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.074,
+      0.0
+     ],
+     "tamanho": [
+      0.174,
+      0.148,
+      0.174
+     ]
+    }
+   ],
+   "cores": [
+    "terracota_escura"
+   ],
+   "tris": 764,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha",
+    "pote"
+   ],
+   "pacote_fbx": "Bowl_002"
+  },
+  {
+   "id": "pote_natal_barro_pequeno_pacote",
+   "rotulo": "Pote de barro pequeno",
+   "categoria": "natal",
+   "grupo": "pote_natal_barro",
+   "fixacao": "apoio",
+   "dims": [
+    0.114,
+    0.114,
+    0.099
+   ],
+   "arquivo": "glb/pote_natal_barro_pequeno_pacote.glb",
+   "miniatura": "miniaturas/pote_natal_barro_pequeno_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04933,
+      -0.0
+     ],
+     "tamanho": [
+      0.114,
+      0.099,
+      0.114
+     ]
+    }
+   ],
+   "cores": [
+    "terracota_escura"
+   ],
+   "tris": 716,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha",
+    "pote"
+   ],
+   "pacote_fbx": "Bowl_003"
+  },
+  {
+   "id": "xicara_natal_grafite_pacote",
+   "rotulo": "Xícara grafite",
+   "categoria": "natal",
+   "grupo": "xicara_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.107,
+    0.095,
+    0.055
+   ],
+   "arquivo": "glb/xicara_natal_grafite_pacote.glb",
+   "miniatura": "miniaturas/xicara_natal_grafite_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02764,
+      -0.0
+     ],
+     "tamanho": [
+      0.107,
+      0.055,
+      0.095
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "couro_preto",
+    "grafite"
+   ],
+   "tris": 952,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha",
+    "cafe"
+   ],
+   "pacote_fbx": "Cup_001"
+  },
+  {
+   "id": "escorredor_natal_pratos_pacote",
+   "rotulo": "Escorredor de pratos com pratos",
+   "categoria": "natal",
+   "grupo": "escorredor_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.409,
+    0.251,
+    0.233
+   ],
+   "arquivo": "glb/escorredor_natal_pratos_pacote.glb",
+   "miniatura": "miniaturas/escorredor_natal_pratos_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11674,
+      -0.0
+     ],
+     "tamanho": [
+      0.409,
+      0.233,
+      0.251
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "papel_amarelado",
+    "terracota_clara",
+    "turquesa"
+   ],
+   "tris": 3634,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha",
+    "pratos"
+   ],
+   "pacote_fbx": "Plate_001"
+  },
+  {
+   "id": "prato_natal_fundo_pacote",
+   "rotulo": "Prato fundo creme",
+   "categoria": "natal",
+   "grupo": "prato_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.247,
+    0.247,
+    0.061
+   ],
+   "arquivo": "glb/prato_natal_fundo_pacote.glb",
+   "miniatura": "miniaturas/prato_natal_fundo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03044,
+      -0.0
+     ],
+     "tamanho": [
+      0.247,
+      0.061,
+      0.247
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "papel_amarelado"
+   ],
+   "tris": 788,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "louca",
+    "cozinha",
+    "prato"
+   ],
+   "pacote_fbx": "Plate_002"
+  },
+  {
+   "id": "moedor_natal_pimenta_pacote",
+   "rotulo": "Moedor de pimenta de madeira",
+   "categoria": "natal",
+   "grupo": "moedor_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.064,
+    0.064,
+    0.145
+   ],
+   "arquivo": "glb/moedor_natal_pimenta_pacote.glb",
+   "miniatura": "miniaturas/moedor_natal_pimenta_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.07231,
+      -0.0
+     ],
+     "tamanho": [
+      0.064,
+      0.145,
+      0.064
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "laranja_claro",
+    "terracota",
+    "terracota_clara",
+    "tijolo"
+   ],
+   "tris": 614,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "tempero"
+   ],
+   "pacote_fbx": "Salt_shaker_001"
+  },
+  {
+   "id": "porta_temperos_natal_pacote",
+   "rotulo": "Porta-temperos com três potes",
+   "categoria": "natal",
+   "grupo": "porta_temperos_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.256,
+    0.095,
+    0.118
+   ],
+   "arquivo": "glb/porta_temperos_natal_pacote.glb",
+   "miniatura": "miniaturas/porta_temperos_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05888,
+      -0.0
+     ],
+     "tamanho": [
+      0.256,
+      0.118,
+      0.095
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja_claro",
+    "terracota_clara",
+    "verde",
+    "vermelho",
+    "violeta"
+   ],
+   "tris": 702,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "tempero"
+   ],
+   "pacote_fbx": "Spices_001"
+  },
+  {
+   "id": "chaleira_natal_pacote",
+   "rotulo": "Chaleira azul com alça amarela",
+   "categoria": "natal",
+   "grupo": "chaleira_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.192,
+    0.192,
+    0.235
+   ],
+   "arquivo": "glb/chaleira_natal_pacote.glb",
+   "miniatura": "miniaturas/chaleira_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.11728,
+      -0.0
+     ],
+     "tamanho": [
+      0.192,
+      0.235,
+      0.192
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_medio",
+    "laranja",
+    "laranja_claro",
+    "metal",
+    "metal_escuro",
+    "mostarda"
+   ],
+   "tris": 1598,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "cha",
+    "louca"
+   ],
+   "pacote_fbx": "Teapot_001"
+  },
+  {
+   "id": "colher_pau_natal_pacote",
+   "rotulo": "Colher de cozinha",
+   "categoria": "natal",
+   "grupo": "colher_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.057,
+    0.22,
+    0.025
+   ],
+   "arquivo": "glb/colher_pau_natal_pacote.glb",
+   "miniatura": "miniaturas/colher_pau_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01241,
+      -0.0
+     ],
+     "tamanho": [
+      0.057,
+      0.025,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_escuro",
+    "terracota"
+   ],
+   "tris": 512,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "utensilio"
+   ],
+   "pacote_fbx": "Utensils_002"
+  },
+  {
+   "id": "garfo_salada_natal_pacote",
+   "rotulo": "Garfo de salada",
+   "categoria": "natal",
+   "grupo": "garfo_salada_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.063,
+    0.205,
+    0.011
+   ],
+   "arquivo": "glb/garfo_salada_natal_pacote.glb",
+   "miniatura": "miniaturas/garfo_salada_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00529,
+      0.0
+     ],
+     "tamanho": [
+      0.063,
+      0.011,
+      0.205
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_escuro",
+    "terracota"
+   ],
+   "tris": 300,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "utensilio"
+   ],
+   "pacote_fbx": "Utensils_003"
+  },
+  {
+   "id": "rolo_massa_natal_pacote",
+   "rotulo": "Rolo de massa",
+   "categoria": "natal",
+   "grupo": "rolo_massa_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.389,
+    0.107,
+    0.107
+   ],
+   "arquivo": "glb/rolo_massa_natal_pacote.glb",
+   "miniatura": "miniaturas/rolo_massa_natal_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05328,
+      -0.0
+     ],
+     "tamanho": [
+      0.389,
+      0.107,
+      0.107
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota",
+    "terracota_clara"
+   ],
+   "tris": 560,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "utensilio",
+    "biscoito"
+   ],
+   "pacote_fbx": "Utensils_004"
+  },
+  {
+   "id": "biscoito_natal_palito_pacote",
+   "rotulo": "Biscoito palito",
+   "categoria": "natal",
+   "grupo": "biscoito_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.037,
+    0.008
+   ],
+   "arquivo": "glb/biscoito_natal_palito_pacote.glb",
+   "miniatura": "miniaturas/biscoito_natal_palito_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00403,
+      -0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.008,
+      0.037
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "madeira_escura",
+    "terracota_escura"
+   ],
+   "tris": 244,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "biscoito",
+    "doce"
+   ],
+   "pacote_fbx": "Cookie_001"
+  },
+  {
+   "id": "biscoitos_natal_dois_pacote",
+   "rotulo": "Dois biscoitos empilhados",
+   "categoria": "natal",
+   "grupo": "biscoito_natal",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.057,
+    0.022
+   ],
+   "arquivo": "glb/biscoitos_natal_dois_pacote.glb",
+   "miniatura": "miniaturas/biscoitos_natal_dois_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01124,
+      0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.022,
+      0.057
+     ]
+    }
+   ],
+   "cores": [
+    "terracota_escura"
+   ],
+   "tris": 612,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "biscoito",
+    "doce"
+   ],
+   "pacote_fbx": "Cookie_002"
+  },
+  {
+   "id": "porta_utensilios_natal_parede_pacote",
+   "rotulo": "Barra de utensílios de parede (conchas, espátula, batedor)",
+   "categoria": "natal",
+   "grupo": "porta_utensilios_natal",
+   "fixacao": "parede",
+   "dims": [
+    0.619,
+    0.121,
+    0.295
+   ],
+   "arquivo": "glb/porta_utensilios_natal_parede_pacote.glb",
+   "miniatura": "miniaturas/porta_utensilios_natal_parede_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14744,
+      0.06049
+     ],
+     "tamanho": [
+      0.619,
+      0.295,
+      0.121
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "laranja_escuro",
+    "lilas",
+    "metal",
+    "roxo",
+    "terracota",
+    "violeta"
+   ],
+   "tris": 3422,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "cozinha",
+    "utensilio",
+    "parede"
+   ],
+   "altura_instalacao": 1.35,
+   "pacote_fbx": "Utensils_001"
+  },
+  {
+   "id": "parede_biscoito_empena_porta_janelas_pacote",
+   "rotulo": "Parede de biscoito com empena, vão de porta e janelas",
+   "categoria": "natal",
+   "grupo": "parede_biscoito_empena",
+   "fixacao": "chao",
+   "dims": [
+    5.4,
+    0.275,
+    6.542
+   ],
+   "arquivo": "glb/parede_biscoito_empena_porta_janelas_pacote.glb",
+   "miniatura": "miniaturas/parede_biscoito_empena_porta_janelas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [],
+   "tris": 896,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Wall_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Parede da frente/fundo da casa (6 m × 6,5 m até a cumeeira, 27 cm), com vão de porta, óculo e duas janelas."
+  },
+  {
+   "id": "parede_biscoito_empena_porta_pacote",
+   "rotulo": "Parede de biscoito com empena e vão de porta",
+   "categoria": "natal",
+   "grupo": "parede_biscoito_empena_simples",
+   "fixacao": "chao",
+   "dims": [
+    5.4,
+    0.275,
+    6.542
+   ],
+   "arquivo": "glb/parede_biscoito_empena_porta_pacote.glb",
+   "miniatura": "miniaturas/parede_biscoito_empena_porta_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [],
+   "tris": 982,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Wall_002",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Parede de empena (6 m × 6,5 m) com vão de porta e óculo."
+  },
+  {
+   "id": "parede_biscoito_lateral_duas_janelas_pacote",
+   "rotulo": "Parede lateral de biscoito com duas janelas",
+   "categoria": "natal",
+   "grupo": "parede_biscoito_lateral_2",
+   "fixacao": "chao",
+   "dims": [
+    4.612,
+    0.275,
+    3.269
+   ],
+   "arquivo": "glb/parede_biscoito_lateral_duas_janelas_pacote.glb",
+   "miniatura": "miniaturas/parede_biscoito_lateral_duas_janelas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [],
+   "tris": 416,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Wall_003",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Parede lateral (4,6 m × 3,15 m, 27 cm) com dois vãos de janela."
+  },
+  {
+   "id": "parede_biscoito_lateral_janela_pacote",
+   "rotulo": "Parede lateral de biscoito com uma janela",
+   "categoria": "natal",
+   "grupo": "parede_biscoito_lateral_1",
+   "fixacao": "chao",
+   "dims": [
+    4.599,
+    0.275,
+    3.258
+   ],
+   "arquivo": "glb/parede_biscoito_lateral_janela_pacote.glb",
+   "miniatura": "miniaturas/parede_biscoito_lateral_janela_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [],
+   "tris": 476,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Wall_004",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Parede lateral (4,6 m × 3,15 m, 27 cm) com um vão de janela."
+  },
+  {
+   "id": "telhado_natal_waffle_glace_pacote",
+   "rotulo": "Telhado de waffle com glacê (duas águas)",
+   "categoria": "natal",
+   "grupo": "telhado_waffle",
+   "fixacao": "chao",
+   "dims": [
+    7.211,
+    6.148,
+    4.656
+   ],
+   "arquivo": "glb/telhado_natal_waffle_glace_pacote.glb",
+   "miniatura": "miniaturas/telhado_natal_waffle_glace_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "branco_gelo",
+    "cromo",
+    "plastico_branco"
+   ],
+   "tris": 2216,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Roof_inner_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Telhado inteiro (forro de waffle e beirais de glacê); vai em cima das paredes de empena."
+  },
+  {
+   "id": "telhado_natal_telhas_chocolate_pacote",
+   "rotulo": "Água de telhado com telhas de chocolate",
+   "categoria": "natal",
+   "grupo": "telhado_telhas_chocolate",
+   "fixacao": "chao",
+   "dims": [
+    3.402,
+    5.448,
+    4.341
+   ],
+   "arquivo": "glb/telhado_natal_telhas_chocolate_pacote.glb",
+   "miniatura": "miniaturas/telhado_natal_telhas_chocolate_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "couro",
+    "madeira_escura",
+    "marrom",
+    "nogueira"
+   ],
+   "tris": 1936,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Roof_outer_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Uma água do telhado, com telhas de chocolate; espelhe para a outra água."
+  },
+  {
+   "id": "telhado_natal_neve_cumeeira_pacote",
+   "rotulo": "Neve de cumeeira de telhado",
+   "categoria": "natal",
+   "grupo": "telhado_neve",
+   "fixacao": "chao",
+   "dims": [
+    2.513,
+    6.195,
+    1.378
+   ],
+   "arquivo": "glb/telhado_natal_neve_cumeeira_pacote.glb",
+   "miniatura": "miniaturas/telhado_natal_neve_cumeeira_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "branco_gelo",
+    "cromo",
+    "plastico_branco"
+   ],
+   "tris": 848,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Roof_snow_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Manta de neve que cobre a cumeeira do telhado."
+  },
+  {
+   "id": "base_natal_bolo_neve_pacote",
+   "rotulo": "Base de bolo coberta de neve (ilha de 15,5 m)",
+   "categoria": "natal",
+   "grupo": "base_bolo_neve",
+   "fixacao": "chao",
+   "dims": [
+    15.533,
+    15.535,
+    2.972
+   ],
+   "arquivo": "glb/base_natal_bolo_neve_pacote.glb",
+   "miniatura": "miniaturas/base_natal_bolo_neve_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "branco_gelo",
+    "cromo",
+    "plastico_branco"
+   ],
+   "tris": 3512,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Plantform_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). A base inteira da cena do pacote: um bolo redondo de 15,5 m com neve em cima, onde a casa fica."
+  },
+  {
+   "id": "piso_natal_biscoito_glace_pacote",
+   "rotulo": "Piso de biscoito com glacê rosa e confeitos",
+   "categoria": "natal",
+   "grupo": "piso_biscoito_glace",
+   "fixacao": "chao",
+   "dims": [
+    5.4,
+    4.5,
+    0.28
+   ],
+   "arquivo": "glb/piso_natal_biscoito_glace_pacote.glb",
+   "miniatura": "miniaturas/piso_natal_biscoito_glace_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14004,
+      -0.0
+     ],
+     "tamanho": [
+      5.4,
+      0.28,
+      4.5
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 768,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "piso",
+    "casa de biscoito"
+   ],
+   "pacote_fbx": "Floor_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Piso da casa (5,4 m × 4,5 m, 28 cm de altura), um biscoito retangular com glacê."
+  },
+  {
+   "id": "portal_natal_porta_biscoito_pacote",
+   "rotulo": "Portal de glacê com porta de madeira",
+   "categoria": "natal",
+   "grupo": "portal_porta_biscoito",
+   "fixacao": "chao",
+   "dims": [
+    1.471,
+    0.599,
+    2.199
+   ],
+   "arquivo": "glb/portal_natal_porta_biscoito_pacote.glb",
+   "miniatura": "miniaturas/portal_natal_porta_biscoito_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "porta",
+     "pivo": [
+      -0.55376,
+      0.0,
+      0.08567
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "couro",
+    "cromo",
+    "laranja",
+    "madeira_escura",
+    "marrom",
+    "plastico_branco"
+   ],
+   "tris": 1436,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "porta",
+    "casa de biscoito"
+   ],
+   "colisao_malha": [
+    "colisao_malha"
+   ],
+   "pacote_fbx": "Doorway_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Portal com a porta (abre para fora, dobradiça à esquerda); vai no vão de porta das paredes de empena."
+  },
+  {
+   "id": "janela_natal_arco_glace_pacote",
+   "rotulo": "Janela em arco com moldura de glacê",
+   "categoria": "natal",
+   "grupo": "janela_natal_arco_glace",
+   "fixacao": "parede",
+   "dims": [
+    0.956,
+    0.484,
+    1.219
+   ],
+   "arquivo": "glb/janela_natal_arco_glace_pacote.glb",
+   "miniatura": "miniaturas/janela_natal_arco_glace_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.60928,
+      -0.0
+     ],
+     "tamanho": [
+      0.956,
+      1.219,
+      0.484
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "couro",
+    "cromo",
+    "plastico_branco"
+   ],
+   "tris": 888,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "janela",
+    "casa de biscoito"
+   ],
+   "pacote_fbx": "Window_001",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Janela para os vãos das paredes de biscoito: a origem fica no meio da espessura (y = 0 no meio), não no fundo."
+  },
+  {
+   "id": "janela_natal_redonda_glace_pacote",
+   "rotulo": "Janela redonda (óculo) com moldura de glacê",
+   "categoria": "natal",
+   "grupo": "janela_natal_redonda_glace",
+   "fixacao": "parede",
+   "dims": [
+    1.469,
+    0.702,
+    1.51
+   ],
+   "arquivo": "glb/janela_natal_redonda_glace_pacote.glb",
+   "miniatura": "miniaturas/janela_natal_redonda_glace_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.75522,
+      -0.0
+     ],
+     "tamanho": [
+      1.469,
+      1.51,
+      0.702
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "couro",
+    "cromo",
+    "plastico_branco"
+   ],
+   "tris": 1168,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "janela",
+    "casa de biscoito"
+   ],
+   "pacote_fbx": "Window_002",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Janela para os vãos das paredes de biscoito: a origem fica no meio da espessura (y = 0 no meio), não no fundo."
+  },
+  {
+   "id": "janela_natal_quadrada_pacote",
+   "rotulo": "Janela quadrada com moldura de glacê",
+   "categoria": "natal",
+   "grupo": "janela_natal_quadrada",
+   "fixacao": "parede",
+   "dims": [
+    1.098,
+    0.501,
+    1.258
+   ],
+   "arquivo": "glb/janela_natal_quadrada_pacote.glb",
+   "miniatura": "miniaturas/janela_natal_quadrada_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.62888,
+      -0.0
+     ],
+     "tamanho": [
+      1.098,
+      1.258,
+      0.501
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "porcelana"
+   ],
+   "tris": 700,
+   "pacote": true,
+   "tags": [
+    "natal",
+    "pacote",
+    "construcao",
+    "janela",
+    "casa de biscoito"
+   ],
+   "pacote_fbx": "Window_003",
+   "construcao": true,
+   "nota": "Peça de cenário da casa de biscoito do pacote, em escala de casa (porta de 2 m). Janela para os vãos das paredes de biscoito: a origem fica no meio da espessura (y = 0 no meio), não no fundo."
+  }
+ ]
+}

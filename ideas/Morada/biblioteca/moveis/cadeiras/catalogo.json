@@ -3027,6 +3027,313 @@
     "escritório",
     "ergonômica"
    ]
+  },
+  {
+   "id": "poltrona_leitura_xadrez_pacote",
+   "rotulo": "Poltrona de leitura com almofada",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_leitura_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.933,
+    0.864,
+    0.919
+   ],
+   "arquivo": "glb/poltrona_leitura_xadrez_pacote.glb",
+   "miniatura": "miniaturas/poltrona_leitura_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      0.933,
+      0.43,
+      0.864
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.67447,
+      -0.29399
+     ],
+     "tamanho": [
+      0.933,
+      0.489,
+      0.276
+     ]
+    },
+    {
+     "centro": [
+      -0.28531,
+      0.58349,
+      0.13086
+     ],
+     "tamanho": [
+      0.32,
+      0.307,
+      0.56
+     ]
+    },
+    {
+     "centro": [
+      0.28877,
+      0.61317,
+      0.13084
+     ],
+     "tamanho": [
+      0.313,
+      0.366,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cromo",
+    "madeira_cinza",
+    "marrom_claro",
+    "marrom_escuro",
+    "nogueira",
+    "piso_rosado",
+    "plastico_branco",
+    "porcelana"
+   ],
+   "tris": 642,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "poltrona_capitone_vermelha_cassino_pacote",
+   "rotulo": "Poltrona capitonê (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_capitone_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.047,
+    0.854,
+    0.866
+   ],
+   "arquivo": "glb/poltrona_capitone_vermelha_cassino_pacote.glb",
+   "miniatura": "miniaturas/poltrona_capitone_vermelha_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      1.047,
+      0.43,
+      0.854
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.64793,
+      -0.29711
+     ],
+     "tamanho": [
+      1.047,
+      0.436,
+      0.26
+     ]
+    },
+    {
+     "centro": [
+      -0.35593,
+      0.55811,
+      0.14639
+     ],
+     "tamanho": [
+      0.333,
+      0.256,
+      0.56
+     ]
+    },
+    {
+     "centro": [
+      0.35593,
+      0.55811,
+      0.14639
+     ],
+     "tamanho": [
+      0.333,
+      0.256,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "marrom_claro",
+    "terra",
+    "vermelho_escuro"
+   ],
+   "tris": 676,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "capitone",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "cadeira_alta_cassino_pacote",
+   "rotulo": "Cadeira alta giratória (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_alta_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.633,
+    0.786,
+    1.099
+   ],
+   "arquivo": "glb/cadeira_alta_cassino_pacote.glb",
+   "miniatura": "miniaturas/cadeira_alta_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.285,
+      -0.0
+     ],
+     "tamanho": [
+      0.633,
+      0.57,
+      0.786
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.83465,
+      -0.29319
+     ],
+     "tamanho": [
+      0.633,
+      0.529,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "carvao",
+    "concreto_escuro",
+    "couro_preto",
+    "grafite",
+    "metal_escuro",
+    "trilho",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 832,
+   "pacote": true,
+   "tags": [
+    "cadeira",
+    "alta",
+    "bar",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "cadeira_escritorio_preta_cassino_pacote",
+   "rotulo": "Cadeira de escritório giratória (preta)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_cassino_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.643,
+    0.65,
+    1.018
+   ],
+   "arquivo": "glb/cadeira_escritorio_preta_cassino_pacote.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_preta_cassino_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "giro_assento",
+     "pivo": [
+      1e-05,
+      0.30151,
+      0.01664
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1e-05,
+      0.225,
+      -0.00832
+     ],
+     "tamanho": [
+      0.643,
+      0.45,
+      0.667
+     ]
+    },
+    {
+     "centro": [
+      -1e-05,
+      0.58327,
+      -0.27112
+     ],
+     "tamanho": [
+      0.432,
+      0.267,
+      0.141
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "borracha",
+    "concreto",
+    "ferro",
+    "preto"
+   ],
+   "tris": 858,
+   "pacote": true,
+   "tags": [
+    "cadeira",
+    "escritorio",
+    "rodinhas",
+    "giratoria",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }

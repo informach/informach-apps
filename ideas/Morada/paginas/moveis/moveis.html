@@ -366,6 +366,7 @@ async function mostra(id, { camera: enquadra = true } = {}) {
   $("acender").setAttribute("aria-pressed", "false");
   ceu.intensity = 1.25; sol.intensity = 2.3;
   // enquadra
+  raiz.updateMatrixWorld(true); // a peça já subiu para a altura de instalação: a caixa precisa ver isso
   const caixa = new THREE.Box3().setFromObject(obj);
   const tam = caixa.getSize(new THREE.Vector3()), centro = caixa.getCenter(new THREE.Vector3());
   const r = Math.max(tam.length() / 2, 0.08);

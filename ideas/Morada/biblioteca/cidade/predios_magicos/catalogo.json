@@ -2246,6 +2246,286 @@
    ],
    "andares": 2,
    "estilo": "magico"
+  },
+  {
+   "id": "casa_cogumelo_fantasia_pacote",
+   "rotulo": "Casa-cogumelo laranja (pacote)",
+   "categoria": "predios_magicos",
+   "grupo": "casa_cogumelo_fantasia",
+   "fixacao": "chao",
+   "dims": [
+    5.89,
+    5.149,
+    6.749
+   ],
+   "arquivo": "glb/casa_cogumelo_fantasia_pacote.glb",
+   "miniatura": "miniaturas/casa_cogumelo_fantasia_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.16518,
+      1.417,
+      0.35713
+     ],
+     "tamanho": [
+      5.073,
+      2.834,
+      3.236
+     ]
+    },
+    {
+     "centro": [
+      -0.18667,
+      3.8469,
+      0.06442
+     ],
+     "tamanho": [
+      4.441,
+      2.025,
+      4.251
+     ]
+    },
+    {
+     "centro": [
+      -1.06789,
+      5.80397,
+      0.06081
+     ],
+     "tamanho": [
+      2.62,
+      1.89,
+      2.532
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.83175,
+      -1.75
+     ],
+     "tamanho": [
+      2.0,
+      1.663,
+      0.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      2.75,
+      1.07907,
+      0.25
+     ],
+     "tamanho": [
+      0.5,
+      2.158,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "branco_gelo",
+    "dormente",
+    "laranja_escuro",
+    "madeira_cinza",
+    "magenta",
+    "rosa_escuro"
+   ],
+   "tris": 680,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "magico",
+    "casa",
+    "natureza",
+    "cogumelo",
+    "pacote"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "magico",
+   "pacote_origem": "Fantasy"
+  },
+  {
+   "id": "casa_telhas_rosa_fantasia_pacote",
+   "rotulo": "Casa de telhas rosa com sacada (pacote)",
+   "categoria": "predios_magicos",
+   "grupo": "casa_telhas_rosa_fantasia",
+   "fixacao": "chao",
+   "dims": [
+    6.625,
+    9.735,
+    8.968
+   ],
+   "arquivo": "glb/casa_telhas_rosa_fantasia_pacote.glb",
+   "miniatura": "miniaturas/casa_telhas_rosa_fantasia_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.11189,
+      1.8835,
+      -0.08652
+     ],
+     "tamanho": [
+      6.001,
+      3.767,
+      8.97
+     ]
+    },
+    {
+     "centro": [
+      0.07958,
+      5.11151,
+      -0.28604
+     ],
+     "tamanho": [
+      6.021,
+      2.69,
+      8.787
+     ]
+    },
+    {
+     "centro": [
+      0.3981,
+      7.71238,
+      -0.53874
+     ],
+     "tamanho": [
+      3.532,
+      2.511,
+      4.527
+     ]
+    }
+   ],
+   "cores": [
+    "colchao",
+    "couro_preto",
+    "dormente",
+    "grama_escura",
+    "lilas",
+    "madeira_cinza",
+    "madeira_rosada",
+    "magenta",
+    "marrom_claro",
+    "metal_escuro",
+    "piso_rosado",
+    "rosa_claro",
+    "rosa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 4524,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "magico",
+    "casa",
+    "conto_de_fadas",
+    "chamine",
+    "pacote"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "magico",
+   "pacote_origem": "Fantasy"
+  },
+  {
+   "id": "casa_vila_fantasia_pacote",
+   "rotulo": "Casinha da vila (pacote)",
+   "categoria": "predios_magicos",
+   "grupo": "casa_vila_fantasia",
+   "fixacao": "chao",
+   "dims": [
+    5.543,
+    9.175,
+    6.455
+   ],
+   "arquivo": "glb/casa_vila_fantasia_pacote.glb",
+   "miniatura": "miniaturas/casa_vila_fantasia_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00458,
+      1.3555,
+      0.05859
+     ],
+     "tamanho": [
+      4.539,
+      2.711,
+      7.131
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.67892,
+      -0.00345
+     ],
+     "tamanho": [
+      5.436,
+      1.936,
+      7.425
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      5.55079,
+      -0.10688
+     ],
+     "tamanho": [
+      2.134,
+      1.807,
+      6.924
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "concreto_escuro",
+    "couro_preto",
+    "dormente",
+    "laranja",
+    "madeira_cinza",
+    "madeira_rosada",
+    "metal_escuro",
+    "nogueira",
+    "pessego",
+    "plastico_branco",
+    "tecido_cinza",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2405,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "magico",
+    "casa",
+    "conto_de_fadas",
+    "pacote"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "magico",
+   "pacote_origem": "Fantasy"
   }
  ]
 }

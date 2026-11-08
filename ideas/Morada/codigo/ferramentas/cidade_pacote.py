@@ -31,7 +31,12 @@ ORDEM = [
     ("arranha_ceus", "Arranha-céus"), ("predios_regulares", "Prédios regulares"),
     ("predios_ecologicos", "Prédios ecológicos"), ("predios_chinatown", "Prédios de Chinatown"),
     ("predios_futuristas", "Prédios futuristas"), ("predios_tropicais", "Prédios tropicais"),
-    ("predios_magicos", "Prédios mágicos"), ("teste_cidade", "Teste"), ("teste_predios", "Teste: prédios"),
+    ("predios_magicos", "Prédios mágicos"), ("sinalizacao", "Outdoors e letreiros"), ("grafites", "Grafites"),
+    ("vegetacao", "Vegetação"), ("mobiliario_urbano", "Mobiliário urbano"),
+    ("parque_areas", "Parque: áreas e atrações"), ("parque_brinquedos", "Parque: brinquedos"),
+    ("fantasia", "Vila de fantasia"), ("carros", "Carros"), ("utilitarios", "Utilitários e trens"),
+    ("barcos", "Barcos e navio"), ("aeronaves", "Aeronaves"),
+    ("teste_cidade", "Teste"), ("teste_predios", "Teste: prédios"),
 ]
 ROT = dict(ORDEM)
 CEL, COLS = 128, 16
@@ -77,7 +82,7 @@ for cat in cats:
     sp.save(os.path.join(V, "sprites", cat + ".webp"), quality=88, method=6)
     # vitrines
     vits = []
-    for f in sorted(glob.glob(os.path.join(O, cat, "encaixe*.png"))) + sorted(glob.glob(os.path.join(O, cat, "quarteirao*.png"))) + sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
+    for f in sorted(glob.glob(os.path.join(O, cat, "encaixe*.png"))) + sorted(glob.glob(os.path.join(O, cat, "quarteirao*.png"))) + sorted(glob.glob(os.path.join(O, cat, "teste_rua*.png"))) + sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
         if f.endswith("_topo.png"):
             continue
         nome = f"vitrine/{cat}_{os.path.basename(f)[:-4]}.jpg"

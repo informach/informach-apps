@@ -1,0 +1,2395 @@
+{
+ "categoria": "mobiliario_urbano",
+ "rotulo": "Mobiliário urbano",
+ "itens": [
+  {
+   "id": "banco_praca_madeira",
+   "rotulo": "Banco de praça de madeira com encosto",
+   "categoria": "mobiliario_urbano",
+   "grupo": "banco_praca",
+   "fixacao": "chao",
+   "dims": [
+    1.8,
+    0.56,
+    0.885
+   ],
+   "arquivo": "glb/banco_praca_madeira.glb",
+   "miniatura": "miniaturas/banco_praca_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.58,
+      0.46,
+      0.04
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.46,
+      0.04
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.58,
+      0.46,
+      0.04
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.23,
+      0.02
+     ],
+     "tamanho": [
+      1.8,
+      0.46,
+      0.52
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.68,
+      -0.25
+     ],
+     "tamanho": [
+      1.8,
+      0.44,
+      0.16
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_media"
+   ],
+   "tris": 1772,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "banco",
+    "parque",
+    "rua"
+   ]
+  },
+  {
+   "id": "banco_sem_encosto",
+   "rotulo": "Banco de praça sem encosto",
+   "categoria": "mobiliario_urbano",
+   "grupo": "banco_sem_encosto",
+   "fixacao": "chao",
+   "dims": [
+    1.8,
+    0.46,
+    0.452
+   ],
+   "arquivo": "glb/banco_sem_encosto.glb",
+   "miniatura": "miniaturas/banco_sem_encosto.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.58,
+      0.452,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.452,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.58,
+      0.452,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      1.8,
+      0.45,
+      0.46
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "grafite",
+    "madeira_mel"
+   ],
+   "tris": 1184,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "banco",
+    "parque",
+    "rua"
+   ]
+  },
+  {
+   "id": "banco_curvo",
+   "rotulo": "Banco curvo de praça",
+   "categoria": "mobiliario_urbano",
+   "grupo": "banco_curvo",
+   "fixacao": "chao",
+   "dims": [
+    3.005,
+    0.875,
+    0.885
+   ],
+   "arquivo": "glb/banco_curvo.glb",
+   "miniatura": "miniaturas/banco_curvo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.79417,
+      0.46,
+      0.15578
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.46,
+      0.03
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.79417,
+      0.46,
+      0.15578
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.98919,
+      0.25,
+      0.14179
+     ],
+     "tamanho": [
+      1.159,
+      0.5,
+      0.914
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.25,
+      -0.01959
+     ],
+     "tamanho": [
+      1.028,
+      0.5,
+      0.591
+     ]
+    },
+    {
+     "centro": [
+      -0.98919,
+      0.25,
+      0.14179
+     ],
+     "tamanho": [
+      1.159,
+      0.5,
+      0.914
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_media"
+   ],
+   "tris": 2464,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "banco",
+    "parque"
+   ]
+  },
+  {
+   "id": "mesa_praca",
+   "rotulo": "Mesa de piquenique de praça",
+   "categoria": "mobiliario_urbano",
+   "grupo": "mesa_praca",
+   "fixacao": "chao",
+   "dims": [
+    1.8,
+    1.5,
+    0.771
+   ],
+   "arquivo": "glb/mesa_praca.glb",
+   "miniatura": "miniaturas/mesa_praca.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.45,
+      0.445,
+      0.555
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.45,
+      0.445,
+      -0.555
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.45,
+      0.445,
+      0.555
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.45,
+      0.445,
+      -0.555
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.765,
+      0
+     ],
+     "tamanho": [
+      1.7,
+      0.5,
+      0.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.3825,
+      0
+     ],
+     "tamanho": [
+      1.8,
+      0.765,
+      0.76
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.2225,
+      0.555
+     ],
+     "tamanho": [
+      1.8,
+      0.445,
+      0.28
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.2225,
+      -0.555
+     ],
+     "tamanho": [
+      1.8,
+      0.445,
+      0.28
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_clara",
+    "madeira_mel",
+    "preto"
+   ],
+   "tris": 2684,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "mesa",
+    "parque",
+    "piquenique"
+   ]
+  },
+  {
+   "id": "guarda_sol",
+   "rotulo": "Guarda-sol listrado de praça",
+   "categoria": "mobiliario_urbano",
+   "grupo": "guarda_sol",
+   "fixacao": "chao",
+   "dims": [
+    2.68,
+    2.68,
+    2.68
+   ],
+   "arquivo": "glb/guarda_sol.glb",
+   "miniatura": "miniaturas/guarda_sol.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.1,
+      0
+     ],
+     "tamanho": [
+      0.52,
+      0.2,
+      0.52
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.15,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.3,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto_escuro",
+    "vermelho"
+   ],
+   "tris": 1584,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "guarda_sol",
+    "parque",
+    "praia",
+    "mesa"
+   ]
+  },
+  {
+   "id": "poste_rua",
+   "rotulo": "Poste de rua com braço",
+   "categoria": "mobiliario_urbano",
+   "grupo": "poste_rua",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    2.95,
+    8.2
+   ],
+   "arquivo": "glb/poste_rua.glb",
+   "miniatura": "miniaturas/poste_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.85,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      7.7,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto_escuro"
+   ],
+   "tris": 1080,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "poste",
+    "luz",
+    "rua"
+   ]
+  },
+  {
+   "id": "poste_praca_4_lanternas",
+   "rotulo": "Poste de praça com 4 lanternas",
+   "categoria": "mobiliario_urbano",
+   "grupo": "poste_praca",
+   "fixacao": "chao",
+   "dims": [
+    1.177,
+    1.177,
+    4.52
+   ],
+   "arquivo": "glb/poste_praca_4_lanternas.glb",
+   "miniatura": "miniaturas/poste_praca_4_lanternas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.8,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      3.6,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "grafite_escuro"
+   ],
+   "tris": 2632,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "poste",
+    "luz",
+    "parque"
+   ]
+  },
+  {
+   "id": "luminaria_jardim",
+   "rotulo": "Luminária baixa de jardim",
+   "categoria": "mobiliario_urbano",
+   "grupo": "luminaria_jardim",
+   "fixacao": "chao",
+   "dims": [
+    0.3,
+    0.3,
+    0.9
+   ],
+   "arquivo": "glb/luminaria_jardim.glb",
+   "miniatura": "miniaturas/luminaria_jardim.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      0.22,
+      0.9,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "grafite_escuro"
+   ],
+   "tris": 800,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "luminaria",
+    "luz",
+    "parque",
+    "jardim"
+   ]
+  },
+  {
+   "id": "relogio_rua",
+   "rotulo": "Relógio de rua",
+   "categoria": "mobiliario_urbano",
+   "grupo": "relogio_rua",
+   "fixacao": "chao",
+   "dims": [
+    0.87,
+    0.6,
+    4.29
+   ],
+   "arquivo": "glb/relogio_rua.glb",
+   "miniatura": "miniaturas/relogio_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.5,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      3.0,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "ouro",
+    "verde_floresta",
+    "vermelho"
+   ],
+   "tris": 2928,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "relogio",
+    "parque",
+    "rua",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "ponteiro_segundos_frente",
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": -6,
+     "pivo": [
+      0.0,
+      3.46,
+      0.158
+     ]
+    },
+    {
+     "nome": "ponteiro_segundos_tras",
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 6,
+     "pivo": [
+      0.0,
+      3.46,
+      -0.158
+     ]
+    }
+   ]
+  },
+  {
+   "id": "lixeira_reciclagem",
+   "rotulo": "Lixeiras de reciclagem (4 cores)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_reciclagem",
+   "fixacao": "chao",
+   "dims": [
+    1.86,
+    0.505,
+    0.81
+   ],
+   "arquivo": "glb/lixeira_reciclagem.glb",
+   "miniatura": "miniaturas/lixeira_reciclagem.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.41,
+      0
+     ],
+     "tamanho": [
+      1.86,
+      0.82,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "grafite",
+    "grafite_escuro",
+    "metal",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 2604,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "reciclagem",
+    "parque",
+    "rua"
+   ]
+  },
+  {
+   "id": "lixeira_comum",
+   "rotulo": "Lixeira de praça",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_comum",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.5,
+    0.82
+   ],
+   "arquivo": "glb/lixeira_comum.glb",
+   "miniatura": "miniaturas/lixeira_comum.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.41,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.82,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_medio",
+    "grafite_escuro"
+   ],
+   "tris": 752,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "parque",
+    "rua"
+   ]
+  },
+  {
+   "id": "bebedouro",
+   "rotulo": "Bebedouro de praça com cuia de cachorro",
+   "categoria": "mobiliario_urbano",
+   "grupo": "bebedouro",
+   "fixacao": "chao",
+   "dims": [
+    0.78,
+    0.545,
+    1.028
+   ],
+   "arquivo": "glb/bebedouro.glb",
+   "miniatura": "miniaturas/bebedouro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.475,
+      0
+     ],
+     "tamanho": [
+      0.52,
+      0.95,
+      0.52
+     ]
+    },
+    {
+     "centro": [
+      0.36,
+      0.05,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.32
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "concreto",
+    "cromo",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 1412,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "bebedouro",
+    "agua",
+    "parque"
+   ]
+  },
+  {
+   "id": "hidrante",
+   "rotulo": "Hidrante",
+   "categoria": "mobiliario_urbano",
+   "grupo": "hidrante",
+   "fixacao": "chao",
+   "dims": [
+    0.52,
+    0.43,
+    0.79
+   ],
+   "arquivo": "glb/hidrante.glb",
+   "miniatura": "miniaturas/hidrante.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.38,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      0.76,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2280,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "hidrante",
+    "rua",
+    "calcada"
+   ]
+  },
+  {
+   "id": "caixa_correio",
+   "rotulo": "Caixa de correio",
+   "categoria": "mobiliario_urbano",
+   "grupo": "caixa_correio",
+   "fixacao": "chao",
+   "dims": [
+    0.49,
+    0.444,
+    1.28
+   ],
+   "arquivo": "glb/caixa_correio.glb",
+   "miniatura": "miniaturas/caixa_correio.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.64,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      1.28,
+      0.44
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "grafite",
+    "metal_claro",
+    "preto"
+   ],
+   "tris": 1556,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "correio",
+    "rua",
+    "calcada"
+   ]
+  },
+  {
+   "id": "bicicletario",
+   "rotulo": "Bicicletário de calçada",
+   "categoria": "mobiliario_urbano",
+   "grupo": "bicicletario",
+   "fixacao": "chao",
+   "dims": [
+    2.3,
+    0.9,
+    0.746
+   ],
+   "arquivo": "glb/bicicletario.glb",
+   "miniatura": "miniaturas/bicicletario.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.38,
+      0
+     ],
+     "tamanho": [
+      2.0,
+      0.76,
+      0.72
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "concreto",
+    "grafite"
+   ],
+   "tris": 2528,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "bicicletario",
+    "rua",
+    "parque"
+   ]
+  },
+  {
+   "id": "telefone_publico",
+   "rotulo": "Telefone público (orelhão)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "telefone_publico",
+   "fixacao": "chao",
+   "dims": [
+    0.953,
+    0.768,
+    2.581
+   ],
+   "arquivo": "glb/telefone_publico.glb",
+   "miniatura": "miniaturas/telefone_publico.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.2,
+      -0.52
+     ],
+     "tamanho": [
+      0.22,
+      2.4,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "cinza_claro",
+    "grafite",
+    "laranja",
+    "laranja_claro",
+    "preto",
+    "tela"
+   ],
+   "tris": 2372,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "telefone",
+    "rua",
+    "calcada"
+   ]
+  },
+  {
+   "id": "ponto_onibus",
+   "rotulo": "Ponto de ônibus coberto",
+   "categoria": "mobiliario_urbano",
+   "grupo": "ponto_onibus",
+   "fixacao": "chao",
+   "dims": [
+    3.9,
+    1.661,
+    2.92
+   ],
+   "arquivo": "glb/ponto_onibus.glb",
+   "miniatura": "miniaturas/ponto_onibus.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.85,
+      0.46,
+      -0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.46,
+      -0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.85,
+      0.46,
+      -0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.3,
+      -0.5
+     ],
+     "tamanho": [
+      3.6,
+      2.6,
+      0.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.23,
+      -0.3
+     ],
+     "tamanho": [
+      2.6,
+      0.46,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      1.87,
+      1.1,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.2,
+      1.14
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "cinza_medio",
+    "grafite",
+    "madeira_mel",
+    "turquesa"
+   ],
+   "tris": 4272,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "ponto_onibus",
+    "rua",
+    "calcada",
+    "banco"
+   ]
+  },
+  {
+   "id": "placa_pare",
+   "rotulo": "Placa de PARE",
+   "categoria": "mobiliario_urbano",
+   "grupo": "placa_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.14,
+    2.66
+   ],
+   "arquivo": "glb/placa_pare.glb",
+   "miniatura": "miniaturas/placa_pare.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.299,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.598,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "metal_claro"
+   ],
+   "tris": 996,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "placa",
+    "transito",
+    "rua"
+   ]
+  },
+  {
+   "id": "placa_preferencia",
+   "rotulo": "Placa de Dê a preferência",
+   "categoria": "mobiliario_urbano",
+   "grupo": "placa_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.7,
+    0.14,
+    2.7
+   ],
+   "arquivo": "glb/placa_preferencia.glb",
+   "miniatura": "miniaturas/placa_preferencia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.315,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.63,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "metal_claro"
+   ],
+   "tris": 836,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "placa",
+    "transito",
+    "rua"
+   ]
+  },
+  {
+   "id": "placa_faixa_pedestres",
+   "rotulo": "Placa de passagem de pedestres",
+   "categoria": "mobiliario_urbano",
+   "grupo": "placa_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    0.14,
+    2.76
+   ],
+   "arquivo": "glb/placa_faixa_pedestres.glb",
+   "miniatura": "miniaturas/placa_faixa_pedestres.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.344,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.688,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "metal_claro"
+   ],
+   "tris": 868,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "placa",
+    "transito",
+    "rua"
+   ]
+  },
+  {
+   "id": "placa_velocidade",
+   "rotulo": "Placa de velocidade máxima 40 km/h",
+   "categoria": "mobiliario_urbano",
+   "grupo": "placa_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.6,
+    0.14,
+    2.65
+   ],
+   "arquivo": "glb/placa_velocidade.glb",
+   "miniatura": "miniaturas/placa_velocidade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.295,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.59,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "metal_claro"
+   ],
+   "tris": 1188,
+   "pacote": false,
+   "tags": [
+    "mobiliario_urbano",
+    "placa",
+    "transito",
+    "rua"
+   ]
+  },
+  {
+   "id": "traffic_light_001_pacote",
+   "rotulo": "Semáforo de braço (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "semaforo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    3.992,
+    0.403,
+    5.876
+   ],
+   "arquivo": "glb/traffic_light_001_pacote.glb",
+   "miniatura": "miniaturas/traffic_light_001_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.5,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      5.0,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "concreto_escuro"
+   ],
+   "tris": 122,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "semaforo",
+    "rua",
+    "luz",
+    "pacote",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "luz_amarela",
+     "anima": "piscar",
+     "periodo": 1.0,
+     "pivo": [
+      3.69194,
+      5.37495,
+      0.2026
+     ]
+    }
+   ]
+  },
+  {
+   "id": "traffic_light_002_pacote",
+   "rotulo": "Semáforo de braço com pedestre (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "semaforo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    4.735,
+    0.739,
+    5.876
+   ],
+   "arquivo": "glb/traffic_light_002_pacote.glb",
+   "miniatura": "miniaturas/traffic_light_002_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.5,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      5.0,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "concreto_escuro",
+    "metal_escuro"
+   ],
+   "tris": 314,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "semaforo",
+    "rua",
+    "luz",
+    "pacote",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "luz_amarela",
+     "anima": "piscar",
+     "periodo": 1.0,
+     "pivo": [
+      -2.03537,
+      4.34239,
+      -0.00054
+     ]
+    },
+    {
+     "nome": "pedestre_vermelho",
+     "anima": "piscar",
+     "periodo": 0.8,
+     "pivo": [
+      -0.00422,
+      2.45067,
+      -0.33343
+     ]
+    }
+   ]
+  },
+  {
+   "id": "traffic_light_003_pacote",
+   "rotulo": "Semáforo de pedestre (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "semaforo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.885,
+    0.195,
+    3.683
+   ],
+   "arquivo": "glb/traffic_light_003_pacote.glb",
+   "miniatura": "miniaturas/traffic_light_003_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.8,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      3.6,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "concreto_escuro",
+    "metal_escuro"
+   ],
+   "tris": 120,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "semaforo",
+    "rua",
+    "luz",
+    "pacote",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "pedestre_vermelho",
+     "anima": "piscar",
+     "periodo": 0.8,
+     "pivo": [
+      0.33342,
+      2.45067,
+      -0.00421
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spotlight_01_pacote",
+   "rotulo": "Poste refletor (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "refletor_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.443,
+    3.188,
+    8.305
+   ],
+   "arquivo": "glb/spotlight_01_pacote.glb",
+   "miniatura": "miniaturas/spotlight_01_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.9,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      7.8,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "concreto_escuro",
+    "metal_escuro"
+   ],
+   "tris": 120,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "refletor",
+    "luz",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "spotlight_02_pacote",
+   "rotulo": "Torre de refletores (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "refletor_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.759,
+    2.759,
+    7.103
+   ],
+   "arquivo": "glb/spotlight_02_pacote.glb",
+   "miniatura": "miniaturas/spotlight_02_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.0,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      6.0,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "metal_escuro",
+    "trilho"
+   ],
+   "tris": 664,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "refletor",
+    "luz",
+    "parque",
+    "pacote"
+   ]
+  },
+  {
+   "id": "bus_stop_02_pacote",
+   "rotulo": "Ponto de ônibus (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "ponto_onibus_pacote",
+   "fixacao": "chao",
+   "dims": [
+    4.664,
+    1.985,
+    2.499
+   ],
+   "arquivo": "glb/bus_stop_02_pacote.glb",
+   "miniatura": "miniaturas/bus_stop_02_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.59458,
+      0.65078,
+      0.05629
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.53153,
+      0.65078,
+      0.05629
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.53153,
+      0.65078,
+      0.05629
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      1.59458,
+      0.65078,
+      0.05629
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.25,
+      -0.05
+     ],
+     "tamanho": [
+      4.6,
+      2.5,
+      0.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.25,
+      0.3
+     ],
+     "tamanho": [
+      3.0,
+      0.5,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "branco_gelo",
+    "carvao",
+    "cinza",
+    "couro_preto",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "rosa_escuro",
+    "tecido_cinza",
+    "trilho",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho"
+   ],
+   "tris": 310,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "ponto_onibus",
+    "rua",
+    "banco",
+    "pacote"
+   ]
+  },
+  {
+   "id": "churrasqueira_tambor_pacote",
+   "rotulo": "Churrasqueira de tambor (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "churrasqueira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.514,
+    0.518,
+    0.729
+   ],
+   "arquivo": "glb/churrasqueira_tambor_pacote.glb",
+   "miniatura": "miniaturas/churrasqueira_tambor_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.37,
+      0
+     ],
+     "tamanho": [
+      0.52,
+      0.74,
+      0.52
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "brasa",
+    "carvao",
+    "cinza",
+    "cinza_medio",
+    "cinzas",
+    "concreto_escuro",
+    "couro_preto",
+    "metal_escuro",
+    "trilho",
+    "vermelho_escuro"
+   ],
+   "tris": 1603,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "churrasqueira",
+    "parque",
+    "quintal",
+    "pacote"
+   ]
+  },
+  {
+   "id": "barricada_sucata_pacote",
+   "rotulo": "Barricada de sucata e tábuas (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "barricada_pacote",
+   "fixacao": "chao",
+   "dims": [
+    3.548,
+    1.585,
+    1.406
+   ],
+   "arquivo": "glb/barricada_sucata_pacote.glb",
+   "miniatura": "miniaturas/barricada_sucata_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.13,
+      0.7,
+      0.22
+     ],
+     "tamanho": [
+      3.5,
+      1.4,
+      1.5
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "brita",
+    "carvao",
+    "chocolate",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cinzas",
+    "concreto",
+    "concreto_escuro",
+    "couro",
+    "couro_preto",
+    "dormente",
+    "grafite",
+    "madeira_escura",
+    "madeira_media",
+    "madeira_rosada",
+    "marrom",
+    "marrom_claro",
+    "marrom_escuro",
+    "metal",
+    "metal_escuro",
+    "nogueira",
+    "piso_rosado",
+    "preto",
+    "tecido_cinza",
+    "terra",
+    "terra_escura",
+    "terra_seca",
+    "terracota",
+    "terracota_escura",
+    "tijolo",
+    "trilho",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_escuro",
+    "vermelho"
+   ],
+   "tris": 4003,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "barreira",
+    "obra",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "defensa_metalica_pacote",
+   "rotulo": "Defensa metálica (guard-rail) (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "barreira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.5,
+    0.471,
+    1.205
+   ],
+   "arquivo": "glb/defensa_metalica_pacote.glb",
+   "miniatura": "miniaturas/defensa_metalica_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.6,
+      0.13
+     ],
+     "tamanho": [
+      2.5,
+      1.2,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "concreto",
+    "metal",
+    "tecido_cinza",
+    "trilho"
+   ],
+   "tris": 432,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "barreira",
+    "obra",
+    "rua",
+    "evento",
+    "pacote"
+   ]
+  },
+  {
+   "id": "placa_escudo_pacote",
+   "rotulo": "Placa de rua avulsa: Aeroporto (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "placa_escudo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.782,
+    0.158,
+    1.44
+   ],
+   "arquivo": "glb/placa_escudo_pacote.glb",
+   "miniatura": "miniaturas/placa_escudo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.725,
+      0.06
+     ],
+     "tamanho": [
+      0.8,
+      1.45,
+      0.18
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "calcada",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "tecido_cinza",
+    "trilho"
+   ],
+   "tris": 1216,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "placa",
+    "transito",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_02_pacote",
+   "rotulo": "Lixeira amarela (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.51,
+    0.51,
+    0.876
+   ],
+   "arquivo": "glb/trash_02_pacote.glb",
+   "miniatura": "miniaturas/trash_02_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43786,
+      -0.0
+     ],
+     "tamanho": [
+      0.51,
+      0.876,
+      0.51
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "asfalto",
+    "mostarda"
+   ],
+   "tris": 162,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_03_pacote",
+   "rotulo": "Lixeira vermelha (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.51,
+    0.51,
+    0.876
+   ],
+   "arquivo": "glb/trash_03_pacote.glb",
+   "miniatura": "miniaturas/trash_03_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43786,
+      -0.0
+     ],
+     "tamanho": [
+      0.51,
+      0.876,
+      0.51
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "rosa_escuro",
+    "vermelho"
+   ],
+   "tris": 162,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_04_pacote",
+   "rotulo": "Lixeira azul (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.51,
+    0.51,
+    0.876
+   ],
+   "arquivo": "glb/trash_04_pacote.glb",
+   "miniatura": "miniaturas/trash_04_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43786,
+      -0.0
+     ],
+     "tamanho": [
+      0.51,
+      0.876,
+      0.51
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "asfalto",
+    "azul",
+    "azul_medio"
+   ],
+   "tris": 162,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_05_pacote",
+   "rotulo": "Lixeira verde (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.51,
+    0.51,
+    0.876
+   ],
+   "arquivo": "glb/trash_05_pacote.glb",
+   "miniatura": "miniaturas/trash_05_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43786,
+      -0.0
+     ],
+     "tamanho": [
+      0.51,
+      0.876,
+      0.51
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "folha_clara",
+    "grama_escura",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 162,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_06_pacote",
+   "rotulo": "Lixeiras de reciclagem (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "lixeira_reciclagem_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.163,
+    0.592,
+    1.242
+   ],
+   "arquivo": "glb/trash_06_pacote.glb",
+   "miniatura": "miniaturas/trash_06_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.6209,
+      2e-05
+     ],
+     "tamanho": [
+      2.163,
+      1.242,
+      0.592
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "azul_celeste",
+    "cinza",
+    "limao",
+    "madeira_cinza",
+    "metal",
+    "terra_escura",
+    "verde_claro",
+    "vermelho"
+   ],
+   "tris": 356,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "reciclagem",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_can_04_pacote",
+   "rotulo": "Contêiner de lixo vermelho (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "conteiner_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.085,
+    1.195,
+    1.645
+   ],
+   "arquivo": "glb/trash_can_04_pacote.glb",
+   "miniatura": "miniaturas/trash_can_04_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.81723,
+      0.001
+     ],
+     "tamanho": [
+      2.085,
+      1.645,
+      1.195
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "folha",
+    "tecido_cinza",
+    "trilho",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_can_05_pacote",
+   "rotulo": "Contêiner de lixo laranja (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "conteiner_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.085,
+    1.195,
+    1.645
+   ],
+   "arquivo": "glb/trash_can_05_pacote.glb",
+   "miniatura": "miniaturas/trash_can_05_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.81723,
+      0.001
+     ],
+     "tamanho": [
+      2.085,
+      1.645,
+      1.195
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "brasa",
+    "folha",
+    "laranja",
+    "tecido_cinza",
+    "trilho"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_can_06_pacote",
+   "rotulo": "Contêiner redondo com tampa (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "conteiner_redondo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.146,
+    1.162,
+    1.213
+   ],
+   "arquivo": "glb/trash_can_06_pacote.glb",
+   "miniatura": "miniaturas/trash_can_06_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.05528,
+      0.60663,
+      -0.06322
+     ],
+     "tamanho": [
+      1.146,
+      1.213,
+      1.162
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "cinza",
+    "cinza_medio",
+    "concreto_escuro",
+    "ferro",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "trilho"
+   ],
+   "tris": 108,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_can_07_pacote",
+   "rotulo": "Contêiner de lixo cinza (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "conteiner_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.096,
+    1.12,
+    1.645
+   ],
+   "arquivo": "glb/trash_can_07_pacote.glb",
+   "miniatura": "miniaturas/trash_can_07_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.81723,
+      0.00017
+     ],
+     "tamanho": [
+      2.096,
+      1.645,
+      1.12
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "cinza",
+    "cinza_azulado",
+    "concreto_escuro",
+    "metal_escuro",
+    "trilho"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "trash_can_08_pacote",
+   "rotulo": "Contêiner redondo de concreto (pacote)",
+   "categoria": "mobiliario_urbano",
+   "grupo": "conteiner_redondo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.14,
+    1.14,
+    1.21
+   ],
+   "arquivo": "glb/trash_can_08_pacote.glb",
+   "miniatura": "miniaturas/trash_can_08_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00023,
+      0.60493,
+      -0.0
+     ],
+     "tamanho": [
+      1.14,
+      1.21,
+      1.14
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "cinza",
+    "concreto_escuro",
+    "metal_escuro",
+    "trilho"
+   ],
+   "tris": 76,
+   "pacote": true,
+   "tags": [
+    "mobiliario_urbano",
+    "lixeira",
+    "rua",
+    "pacote"
+   ]
+  }
+ ]
+}

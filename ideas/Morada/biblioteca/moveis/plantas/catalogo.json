@@ -1153,6 +1153,114 @@
     "grande",
     "sala"
    ]
+  },
+  {
+   "id": "planta_costela_adao_vaso_pe_pacote",
+   "rotulo": "Costela-de-adão no vaso com pés",
+   "categoria": "plantas",
+   "grupo": "planta_costela_adao_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.144,
+    1.271,
+    2.37
+   ],
+   "arquivo": "glb/planta_costela_adao_vaso_pe_pacote.glb",
+   "miniatura": "miniaturas/planta_costela_adao_vaso_pe_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.18498,
+      -0.0
+     ],
+     "tamanho": [
+      1.144,
+      2.37,
+      1.271
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "brasa",
+    "cinzas",
+    "dormente",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama_escura",
+    "metal_escuro",
+    "terracota_escura",
+    "verde",
+    "verde_escuro",
+    "verde_floresta",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 6000,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "grande",
+    "vaso",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "planta_palmeira_vaso_cassino_pacote",
+   "rotulo": "Palmeira no vaso de barro",
+   "categoria": "plantas",
+   "grupo": "planta_palmeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.758,
+    1.744,
+    2.356
+   ],
+   "arquivo": "glb/planta_palmeira_vaso_cassino_pacote.glb",
+   "miniatura": "miniaturas/planta_palmeira_vaso_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.1779,
+      -0.0
+     ],
+     "tamanho": [
+      1.758,
+      2.356,
+      1.744
+     ]
+    }
+   ],
+   "cores": [
+    "cobre",
+    "folha_clara",
+    "grama_escura",
+    "madeira_escura",
+    "madeira_rosada",
+    "marrom",
+    "marrom_escuro",
+    "nogueira",
+    "terra",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 1918,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "grande",
+    "vaso",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }

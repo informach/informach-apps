@@ -31,7 +31,8 @@ ORDEM = [
     ("sapateiras", "Sapateiras"), ("cozinha_moveis", "Cozinha: módulos"),
     ("cozinha_eletros", "Cozinha: eletros e utensílios"), ("banheiro", "Banheiro"), ("luminarias", "Luminárias"),
     ("quadros", "Quadros"), ("tapetes", "Tapetes"), ("plantas", "Plantas"), ("livros", "Livros"),
-    ("objetos", "Objetos"), ("teste", "Teste"), ("teste_frentes", "Teste: frentes"),
+    ("objetos", "Objetos"), ("jogos", "Jogos e brinquedos"), ("natal", "Natal"),
+    ("teste", "Teste"), ("teste_frentes", "Teste: frentes"),
 ]
 ROT = dict(ORDEM)
 CEL, COLS = 128, 16

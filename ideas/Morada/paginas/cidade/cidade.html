@@ -273,20 +273,25 @@ async function preparaTroca(obj, it) {
 let noite = false;
 function tipoMat(m) {
   const n = (m.name || "").split(".")[0];
-  if (n === "janela" || n === "janela_fria") return "janela";
-  if (n === "neon" || n === "luz") return n;
+  // janelas (quentes, frias e coloridas) e brilhos (cristais): acesos só à noite; "janela_apagada" fica escura
+  if ((n.startsWith("janela") && n !== "janela_apagada") || n.startsWith("brilho_")) return "janela";
+  if (n.startsWith("neon")) return "neon"; // neon, neon_rosa, neon_roxo: fracos de dia
+  if (n === "luz" || n === "luz_vermelha" || n === "luz_azul") return "luz";
   if (n.startsWith("estampa_") && m.emissiveMap) return "neon"; // letreiro com estampa luminosa
   return null;
 }
+function intensidade(m) {
+  const t = tipoMat(m);
+  if (!t) return m.emissiveIntensity;
+  const e0 = m.userData.emis0 ?? 1;
+  if (t === "janela") return noite ? e0 * 1.3 : 0;
+  if (t === "neon") return noite ? e0 * 1.2 : e0 * 0.35;
+  return noite ? e0 * 1.4 : e0 * 0.3;
+}
 function aplicaNoite(raizObj) {
   raizObj.traverse((o) => {
-    if (!o.isMesh) return;
-    const m = o.material, t = tipoMat(m);
-    if (!t) return;
-    const e0 = m.userData.emis0 ?? 1;
-    if (t === "janela") m.emissiveIntensity = noite ? e0 * 1.3 : 0;
-    else if (t === "neon") m.emissiveIntensity = noite ? e0 * 1.2 : e0 * 0.35;
-    else m.emissiveIntensity = noite ? e0 * 1.4 : e0 * 0.3;
+    if (!o.isMesh || !tipoMat(o.material)) return;
+    o.material.emissiveIntensity = intensidade(o.material);
   });
 }
 function cenaNoite() {
@@ -304,6 +309,79 @@ $("noite").onclick = () => { noite = !noite; cenaNoite(); };
 // ---------------------------------------------------------------- peça no palco
 let atual = null, raiz = null, interativos = [], espacos = [], colisoes = [], luz = null, cheios = [];
 const anim = new Set();
+// animações de letreiros (extras "anima" nos nós do GLB): rolar e trocar (textura), piscar (brilho), girar e balançar
+let animados = [];
+const NOMES_ANIMA = { rolar: "texto correndo", trocar: "troca de imagem", piscar: "pisca", girar: "gira", balancar: "balança", percurso: "anda no trilho" };
+const EIXOS = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+function preparaAnimados(obj) {
+  animados = [];
+  obj.traverse((o) => {
+    const d = o.userData;
+    if (!d || !d.anima) return;
+    const malhas = [];
+    o.traverse((m) => { if (m.isMesh) malhas.push(m); });
+    const mats = [];
+    for (const m of malhas) {
+      m.material = m.material.clone();
+      for (const k of ["map", "emissiveMap"]) {
+        if (!m.material[k]) continue;
+        const tx = m.material[k] = m.material[k].clone();
+        tx.wrapS = THREE.RepeatWrapping; tx.needsUpdate = true; // a malha já mostra só um trecho (ou um quadro) em U
+      }
+      mats.push(m.material);
+    }
+    const a = { o, d, mats, q0: o.quaternion.clone(), p0: o.position.clone(), t: 0 };
+    if (d.anima === "percurso" && Array.isArray(d.pontos) && d.pontos.length > 1) {
+      // trilho: lista de pontos (glTF, no espaço do pai); o objeto anda por ele com a frente (+Z) na direção do caminho
+      const P = d.pontos.map((q) => new THREE.Vector3(...q));
+      if (d.fechado !== false) P.push(P[0].clone());
+      const L = [0];
+      for (let i = 1; i < P.length; i++) L.push(L[i - 1] + P[i].distanceTo(P[i - 1]));
+      a.P = P; a.L = L;
+    }
+    animados.push(a);
+  });
+}
+function passoAnimados(dt) {
+  for (const a of animados) {
+    const d = a.d;
+    a.t += dt;
+    if (d.anima === "rolar") {
+      for (const m of a.mats) for (const k of ["map", "emissiveMap"]) if (m[k]) m[k].offset.x = (a.t * (d.velocidade ?? 0.1)) % 1;
+    } else if (d.anima === "trocar") {
+      const q = d.quadros || 2, f = Math.floor(a.t / (d.periodo || 3)) % q;
+      for (const m of a.mats) for (const k of ["map", "emissiveMap"]) if (m[k]) m[k].offset.x = f / q;
+    } else if (d.anima === "piscar") {
+      const per = d.periodo || 1.2;
+      if (d.suave) { // chama: tremula entre 55 % e 100 %, sem apagar
+        const f = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(2 * Math.PI * a.t / per) * Math.sin(2 * Math.PI * a.t / (per * 0.37)));
+        for (const m of a.mats) m.emissiveIntensity = intensidade(m) * f;
+      } else {
+        const liga = (a.t % per) < per * 0.5;
+        for (const m of a.mats) m.emissiveIntensity = liga ? intensidade(m) : 0;
+      }
+    } else if (d.anima === "percurso" && a.P) {
+      const tot = a.L[a.L.length - 1];
+      const em = (s) => {
+        s = ((s % tot) + tot) % tot;
+        let i = 1;
+        while (i < a.L.length - 1 && a.L[i] < s) i++;
+        const f = (s - a.L[i - 1]) / Math.max(1e-6, a.L[i] - a.L[i - 1]);
+        return a.P[i - 1].clone().lerp(a.P[i], f);
+      };
+      const s = a.t * (d.velocidade ?? 6) - (d.atraso ?? 0);
+      const p = em(s), q = em(s + 0.6);
+      a.o.position.copy(p);
+      const alvo = a.o.parent ? a.o.parent.localToWorld(q.clone()) : q;
+      a.o.lookAt(alvo);
+    } else if (d.anima === "girar" || d.anima === "balancar") {
+      const eixo = new THREE.Vector3(...(Array.isArray(d.eixo) ? d.eixo : EIXOS[d.eixo || "y"]));
+      const ang = d.anima === "girar" ? THREE.MathUtils.degToRad((d.velocidade ?? 30) * a.t)
+        : THREE.MathUtils.degToRad(d.angulo ?? 6) * Math.sin(2 * Math.PI * a.t / (d.periodo || 2.5));
+      a.o.quaternion.copy(a.q0).multiply(new THREE.Quaternion().setFromAxisAngle(eixo, ang));
+    }
+  }
+}
 function preparaInterativos(obj) {
   interativos = [];
   obj.traverse((o) => {
@@ -370,7 +448,7 @@ async function mostra(id, { camera: enquadra = true } = {}) {
   if (it.fixacao === "parede") y0 = it.altura_instalacao ?? 1.2;
   if (it.fixacao === "teto") y0 = Math.max(it.dims[2] + 0.6, 2.2);
   raiz.position.y = y0;
-  parede.visible = it.fixacao === "parede";
+  parede.visible = it.fixacao === "parede" && !it.quina; // par de esquina: dobra a quina, sem parede plana atrás
   if (parede.visible) {
     const w = Math.max(2.4, it.dims[0] + 1.6), h = Math.max(2.6, y0 + it.dims[2] + 0.6);
     parede.scale.set(w, h, 1);
@@ -378,6 +456,7 @@ async function mostra(id, { camera: enquadra = true } = {}) {
   }
   preparaInterativos(obj);
   preparaTroca(obj, it);
+  preparaAnimados(obj);
   // espaços e colisão
   espacos = [];
   obj.traverse((o) => { if (o.userData && o.userData.slot) espacos.push(o); });
@@ -394,6 +473,7 @@ async function mostra(id, { camera: enquadra = true } = {}) {
   $("acender").setAttribute("aria-pressed", "false");
   cenaNoite();
   // enquadra
+  raiz.updateMatrixWorld(true); // a peça já subiu para a altura de instalação: a caixa precisa ver isso
   const caixa = new THREE.Box3().setFromObject(obj);
   const tam = caixa.getSize(new THREE.Vector3()), centro = caixa.getCenter(new THREE.Vector3());
   const r = Math.max(tam.length() / 2, 0.08);
@@ -426,6 +506,7 @@ function ficha(it) {
   $("selos").replaceChildren(...selos.map((s) => Object.assign(document.createElement("span"), { className: "selo", textContent: s })));
   const linhas = [["Medidas", `${m(it.dims[0])} × ${m(it.dims[1])} × ${m(it.dims[2])} m`]];
   if (it.altura_instalacao != null) linhas.push(["Instalação", `a ${m(it.altura_instalacao)} m do chão`]);
+  if (animados.length) linhas.push(["Animação", [...new Set(animados.map((a) => a.d.roda ? "rodas" : a.d.helice ? "hélices" : NOMES_ANIMA[a.d.anima] || a.d.anima))].join(", ")]);
   linhas.push(["Interativos", it.interativos.length ? it.interativos.map((x) => NOMES_INT[x.interativo] || x.interativo).reduce((a, n) => (a[n] = (a[n] || 0) + 1, a), {}) : "nenhum"]);
   linhas[linhas.length - 1][1] = typeof linhas[linhas.length - 1][1] === "string" ? linhas[linhas.length - 1][1] : Object.entries(linhas[linhas.length - 1][1]).map(([n, q]) => `${q} ${n.toLowerCase()}${q > 1 ? "s" : ""}`).join(", ");
   linhas.push(["Espaços", it.slots.length ? `${it.slots.length}` : "nenhum"]);
@@ -613,6 +694,7 @@ renderer.setAnimationLoop(() => {
     if ((d.alvo === 1 && d.t >= 1) || (d.alvo === 0 && d.t <= 0)) { d.t = d.alvo; anim.delete(o); }
     aplica(o);
   }
+  passoAnimados(dt);
   orbita.update();
   renderer.render(cena, camera);
 });

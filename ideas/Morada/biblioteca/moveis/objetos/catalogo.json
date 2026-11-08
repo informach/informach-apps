@@ -1,6 +1,6 @@
 {
  "categoria": "objetos",
- "rotulo": "objetos",
+ "rotulo": "Objetos",
  "itens": [
   {
    "id": "espelho_chao_madeira",
@@ -3418,6 +3418,1736 @@
     "bilhete"
    ],
    "altura_instalacao": 1.4
+  },
+  {
+   "id": "cofre_pacote",
+   "rotulo": "Cofre com segredo",
+   "categoria": "objetos",
+   "grupo": "cofre_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.871,
+    0.884,
+    1.151
+   ],
+   "arquivo": "glb/cofre_pacote.glb",
+   "miniatura": "miniaturas/cofre_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_cofre",
+     "pivo": [
+      -0.38948,
+      0.0,
+      0.24478
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_chao",
+     "centro": [
+      0.00052,
+      0.15,
+      -0.08022
+     ],
+     "tamanho": [
+      0.7,
+      0.27,
+      0.54
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.00052,
+      0.44,
+      -0.08022
+     ],
+     "tamanho": [
+      0.7,
+      0.32,
+      0.54
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0.00052,
+      0.79,
+      -0.08022
+     ],
+     "tamanho": [
+      0.7,
+      0.3,
+      0.54
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.57544,
+      -0.09859
+     ],
+     "tamanho": [
+      0.871,
+      1.151,
+      0.687
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "ferro",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro"
+   ],
+   "tris": 314,
+   "pacote": true,
+   "tags": [
+    "cofre",
+    "porta",
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "kit_primeiros_socorros_pacote",
+   "rotulo": "Kit de primeiros socorros",
+   "categoria": "objetos",
+   "grupo": "kit_primeiros_socorros_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.197,
+    0.123,
+    0.274
+   ],
+   "arquivo": "glb/kit_primeiros_socorros_pacote.glb",
+   "miniatura": "miniaturas/kit_primeiros_socorros_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13704,
+      -0.0
+     ],
+     "tamanho": [
+      0.197,
+      0.274,
+      0.123
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "carvao",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "couro_preto",
+    "grafite_escuro",
+    "metal_escuro",
+    "tecido_cinza",
+    "trilho",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 668,
+   "pacote": true,
+   "tags": [
+    "saude",
+    "banheiro",
+    "emergencia",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
+  },
+  {
+   "id": "caneca_azul_xadrez_pacote",
+   "rotulo": "Caneca azul",
+   "categoria": "objetos",
+   "grupo": "caneca_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.115,
+    0.08,
+    0.1
+   ],
+   "arquivo": "glb/caneca_azul_xadrez_pacote.glb",
+   "miniatura": "miniaturas/caneca_azul_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04981,
+      -0.0
+     ],
+     "tamanho": [
+      0.115,
+      0.1,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "creme"
+   ],
+   "tris": 1112,
+   "pacote": true,
+   "tags": [
+    "caneca",
+    "cozinha",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "caneca_amarela_xadrez_pacote",
+   "rotulo": "Caneca amarela",
+   "categoria": "objetos",
+   "grupo": "caneca_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.122,
+    0.091,
+    0.099
+   ],
+   "arquivo": "glb/caneca_amarela_xadrez_pacote.glb",
+   "miniatura": "miniaturas/caneca_amarela_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0493,
+      -0.0
+     ],
+     "tamanho": [
+      0.122,
+      0.099,
+      0.091
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "creme",
+    "fogo"
+   ],
+   "tris": 1016,
+   "pacote": true,
+   "tags": [
+    "caneca",
+    "cozinha",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "copo_papel_vermelho_pacote",
+   "rotulo": "Copo de papel vermelho",
+   "categoria": "objetos",
+   "grupo": "copo_papel_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.101,
+    0.101,
+    0.121
+   ],
+   "arquivo": "glb/copo_papel_vermelho_pacote.glb",
+   "miniatura": "miniaturas/copo_papel_vermelho_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06036,
+      -0.0
+     ],
+     "tamanho": [
+      0.101,
+      0.121,
+      0.101
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "calcada",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 764,
+   "pacote": true,
+   "tags": [
+    "copo",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "copo_papel_laranja_pacote",
+   "rotulo": "Copo de papel laranja",
+   "categoria": "objetos",
+   "grupo": "copo_papel_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.101,
+    0.101,
+    0.121
+   ],
+   "arquivo": "glb/copo_papel_laranja_pacote.glb",
+   "miniatura": "miniaturas/copo_papel_laranja_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06036,
+      -0.0
+     ],
+     "tamanho": [
+      0.101,
+      0.121,
+      0.101
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "fogo",
+    "mostarda"
+   ],
+   "tris": 572,
+   "pacote": true,
+   "tags": [
+    "copo",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "trofeu_taca_dourada_pacote",
+   "rotulo": "Troféu de taça dourada",
+   "categoria": "objetos",
+   "grupo": "trofeu_taca_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.338,
+    0.291,
+    0.313
+   ],
+   "arquivo": "glb/trofeu_taca_dourada_pacote.glb",
+   "miniatura": "miniaturas/trofeu_taca_dourada_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15667,
+      -0.0
+     ],
+     "tamanho": [
+      0.338,
+      0.313,
+      0.291
+     ]
+    }
+   ],
+   "cores": [
+    "ouro"
+   ],
+   "tris": 1416,
+   "pacote": true,
+   "tags": [
+    "trofeu",
+    "estante",
+    "decoracao",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "bloco_notas_amarelo_pacote",
+   "rotulo": "Bloco de notas amarelo",
+   "categoria": "objetos",
+   "grupo": "bloco_notas_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.061,
+    0.06,
+    0.066
+   ],
+   "arquivo": "glb/bloco_notas_amarelo_pacote.glb",
+   "miniatura": "miniaturas/bloco_notas_amarelo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03305,
+      -0.0
+     ],
+     "tamanho": [
+      0.061,
+      0.066,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "limao"
+   ],
+   "tris": 256,
+   "pacote": true,
+   "tags": [
+    "papelaria",
+    "escritorio",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "caderno_amarelo_pacote",
+   "rotulo": "Caderno amarelo",
+   "categoria": "objetos",
+   "grupo": "caderno_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.168,
+    0.208,
+    0.005
+   ],
+   "arquivo": "glb/caderno_amarelo_pacote.glb",
+   "miniatura": "miniaturas/caderno_amarelo_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      0,
+      -1
+     ],
+     "angulo": -2.618,
+     "nome": "capa",
+     "pivo": [
+      -0.08385,
+      0.00507,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00127,
+      -0.0
+     ],
+     "tamanho": [
+      0.168,
+      0.003,
+      0.208
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "borracha",
+    "calcada",
+    "cromo"
+   ],
+   "tris": 192,
+   "pacote": true,
+   "tags": [
+    "papelaria",
+    "escritorio",
+    "caderno",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "lapis_azul_pacote",
+   "rotulo": "Lápis azul",
+   "categoria": "objetos",
+   "grupo": "lapis_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.152,
+    0.011,
+    0.012
+   ],
+   "arquivo": "glb/lapis_azul_pacote.glb",
+   "miniatura": "miniaturas/lapis_azul_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00608,
+      -0.0
+     ],
+     "tamanho": [
+      0.152,
+      0.012,
+      0.011
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "asfalto_claro",
+    "turquesa",
+    "turquesa_escuro"
+   ],
+   "tris": 334,
+   "pacote": true,
+   "tags": [
+    "papelaria",
+    "escritorio",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "base_escrivaninha_pacote",
+   "rotulo": "Base de mesa para escrivaninha (desk mat)",
+   "categoria": "objetos",
+   "grupo": "base_escrivaninha_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    1.115,
+    0.691,
+    0.003
+   ],
+   "arquivo": "glb/base_escrivaninha_pacote.glb",
+   "miniatura": "miniaturas/base_escrivaninha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00159,
+      -0.0
+     ],
+     "tamanho": [
+      1.115,
+      0.003,
+      0.691
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "cinza_azulado",
+    "cinzas",
+    "concreto_escuro",
+    "grafite",
+    "metal_escuro",
+    "trilho"
+   ],
+   "tris": 332,
+   "pacote": true,
+   "tags": [
+    "escritorio",
+    "papelaria",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "dinheiro_nota_pacote",
+   "rotulo": "Nota de dinheiro",
+   "categoria": "objetos",
+   "grupo": "dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.076,
+    0.157,
+    0.003
+   ],
+   "arquivo": "glb/dinheiro_nota_pacote.glb",
+   "miniatura": "miniaturas/dinheiro_nota_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00158,
+      -0.0
+     ],
+     "tamanho": [
+      0.076,
+      0.003,
+      0.157
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 12,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "dinheiro_nota_curvada_pacote",
+   "rotulo": "Nota de dinheiro curvada",
+   "categoria": "objetos",
+   "grupo": "dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.076,
+    0.15,
+    0.016
+   ],
+   "arquivo": "glb/dinheiro_nota_curvada_pacote.glb",
+   "miniatura": "miniaturas/dinheiro_nota_curvada_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00788,
+      -0.0
+     ],
+     "tamanho": [
+      0.076,
+      0.016,
+      0.15
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 28,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "dinheiro_maco_pacote",
+   "rotulo": "Maço de dinheiro com cinta",
+   "categoria": "objetos",
+   "grupo": "dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.082,
+    0.157,
+    0.035
+   ],
+   "arquivo": "glb/dinheiro_maco_pacote.glb",
+   "miniatura": "miniaturas/dinheiro_maco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01752,
+      -0.0
+     ],
+     "tamanho": [
+      0.082,
+      0.035,
+      0.157
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "vermelho"
+   ],
+   "tris": 80,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "dinheiro_pilha_pacote",
+   "rotulo": "Pilha de dinheiro",
+   "categoria": "objetos",
+   "grupo": "dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.099,
+    0.189,
+    0.085
+   ],
+   "arquivo": "glb/dinheiro_pilha_pacote.glb",
+   "miniatura": "miniaturas/dinheiro_pilha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04255,
+      -0.0
+     ],
+     "tamanho": [
+      0.099,
+      0.085,
+      0.189
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 112,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "dinheiro_rolo_pacote",
+   "rotulo": "Rolo de dinheiro",
+   "categoria": "objetos",
+   "grupo": "dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.059,
+    0.061,
+    0.076
+   ],
+   "arquivo": "glb/dinheiro_rolo_pacote.glb",
+   "miniatura": "miniaturas/dinheiro_rolo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0378,
+      -0.0
+     ],
+     "tamanho": [
+      0.059,
+      0.076,
+      0.061
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho"
+   ],
+   "tris": 122,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "maquina_contar_dinheiro_pacote",
+   "rotulo": "Máquina de contar dinheiro",
+   "categoria": "objetos",
+   "grupo": "maquina_contar_dinheiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.327,
+    0.295,
+    0.263
+   ],
+   "arquivo": "glb/maquina_contar_dinheiro_pacote.glb",
+   "miniatura": "miniaturas/maquina_contar_dinheiro_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13133,
+      -0.0
+     ],
+     "tamanho": [
+      0.327,
+      0.263,
+      0.295
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "borracha",
+    "carvao",
+    "cinza_azulado",
+    "cinza_claro",
+    "concreto",
+    "couro_preto",
+    "grafite_escuro",
+    "metal",
+    "metal_claro",
+    "preto",
+    "tecido_cinza"
+   ],
+   "tris": 196,
+   "pacote": true,
+   "tags": [
+    "dinheiro",
+    "escritorio",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "barra_ouro_grande_pacote",
+   "rotulo": "Barra de ouro grande",
+   "categoria": "objetos",
+   "grupo": "barra_ouro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.125,
+    0.26,
+    0.079
+   ],
+   "arquivo": "glb/barra_ouro_grande_pacote.glb",
+   "miniatura": "miniaturas/barra_ouro_grande_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0395,
+      -0.0
+     ],
+     "tamanho": [
+      0.125,
+      0.079,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "ouro"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "ouro",
+    "tesouro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "barra_ouro_pequena_pacote",
+   "rotulo": "Barra de ouro pequena",
+   "categoria": "objetos",
+   "grupo": "barra_ouro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.118,
+    0.189,
+    0.03
+   ],
+   "arquivo": "glb/barra_ouro_pequena_pacote.glb",
+   "miniatura": "miniaturas/barra_ouro_pequena_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01518,
+      -0.0
+     ],
+     "tamanho": [
+      0.118,
+      0.03,
+      0.189
+     ]
+    }
+   ],
+   "cores": [
+    "ouro"
+   ],
+   "tris": 92,
+   "pacote": true,
+   "tags": [
+    "ouro",
+    "tesouro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "caixa_eletronico_azul_pacote",
+   "rotulo": "Caixa eletrônico azul",
+   "categoria": "objetos",
+   "grupo": "caixa_eletronico_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.792,
+    1.0,
+    1.73
+   ],
+   "arquivo": "glb/caixa_eletronico_azul_pacote.glb",
+   "miniatura": "miniaturas/caixa_eletronico_azul_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86491,
+      -0.0
+     ],
+     "tamanho": [
+      0.792,
+      1.73,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "amarelo_escuro",
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "carvao",
+    "cinza_medio",
+    "concreto",
+    "ferro",
+    "metal",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 316,
+   "pacote": true,
+   "tags": [
+    "caixa_eletronico",
+    "dinheiro",
+    "cassino",
+    "tela",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "caixa_eletronico_totem_pacote",
+   "rotulo": "Caixa eletrônico de totem",
+   "categoria": "objetos",
+   "grupo": "caixa_eletronico_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.668,
+    0.696,
+    1.565
+   ],
+   "arquivo": "glb/caixa_eletronico_totem_pacote.glb",
+   "miniatura": "miniaturas/caixa_eletronico_totem_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.78273,
+      -0.0
+     ],
+     "tamanho": [
+      0.668,
+      1.565,
+      0.696
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "agua_funda",
+    "agua_rio",
+    "asfalto",
+    "asfalto_claro",
+    "azul_medio",
+    "brasa",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "concreto_escuro",
+    "metal",
+    "metal_claro",
+    "turquesa"
+   ],
+   "tris": 326,
+   "pacote": true,
+   "tags": [
+    "caixa_eletronico",
+    "dinheiro",
+    "cassino",
+    "tela",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "monitor_cassino_pacote",
+   "rotulo": "Monitor de computador",
+   "categoria": "objetos",
+   "grupo": "monitor_cassino_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.71,
+    0.23,
+    0.521
+   ],
+   "arquivo": "glb/monitor_cassino_pacote.glb",
+   "miniatura": "miniaturas/monitor_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26038,
+      -0.0
+     ],
+     "tamanho": [
+      0.71,
+      0.521,
+      0.23
+     ]
+    }
+   ],
+   "cores": [
+    "borracha"
+   ],
+   "tris": 178,
+   "pacote": true,
+   "tags": [
+    "computador",
+    "escritorio",
+    "tela",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "teclado_cassino_pacote",
+   "rotulo": "Teclado de computador",
+   "categoria": "objetos",
+   "grupo": "teclado_cassino_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.445,
+    0.208,
+    0.061
+   ],
+   "arquivo": "glb/teclado_cassino_pacote.glb",
+   "miniatura": "miniaturas/teclado_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03067,
+      -0.0
+     ],
+     "tamanho": [
+      0.445,
+      0.061,
+      0.208
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "borracha",
+    "concreto_escuro"
+   ],
+   "tris": 308,
+   "pacote": true,
+   "tags": [
+    "computador",
+    "escritorio",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "mouse_cassino_pacote",
+   "rotulo": "Mouse de computador",
+   "categoria": "objetos",
+   "grupo": "mouse_cassino_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.083,
+    0.111,
+    0.039
+   ],
+   "arquivo": "glb/mouse_cassino_pacote.glb",
+   "miniatura": "miniaturas/mouse_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01932,
+      -0.0
+     ],
+     "tamanho": [
+      0.083,
+      0.039,
+      0.111
+     ]
+    }
+   ],
+   "cores": [
+    "borracha"
+   ],
+   "tris": 46,
+   "pacote": true,
+   "tags": [
+    "computador",
+    "escritorio",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "coluna_listrada_cassino_pacote",
+   "rotulo": "Coluna listrada (pé-direito de casa)",
+   "categoria": "objetos",
+   "grupo": "coluna_cassino_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.498,
+    0.498,
+    2.7
+   ],
+   "arquivo": "glb/coluna_listrada_cassino_pacote.glb",
+   "miniatura": "miniaturas/coluna_listrada_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.35,
+      -0.0
+     ],
+     "tamanho": [
+      0.498,
+      2.7,
+      0.498
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "carvao",
+    "cinza_claro",
+    "cromo",
+    "laranja",
+    "plastico_branco",
+    "porcelana",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 506,
+   "pacote": true,
+   "tags": [
+    "coluna",
+    "decoracao",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "pedestal_fila_laranja_pacote",
+   "rotulo": "Pedestal de fila (laranja)",
+   "categoria": "objetos",
+   "grupo": "pedestal_fila_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.425,
+    0.425,
+    1.025
+   ],
+   "arquivo": "glb/pedestal_fila_laranja_pacote.glb",
+   "miniatura": "miniaturas/pedestal_fila_laranja_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.51247,
+      -0.0
+     ],
+     "tamanho": [
+      0.425,
+      1.025,
+      0.425
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "laranja",
+    "laranja_claro",
+    "mostarda"
+   ],
+   "tris": 142,
+   "pacote": true,
+   "tags": [
+    "divisoria",
+    "fila",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "divisoria_corda_curta_pacote",
+   "rotulo": "Divisória de corda curta (1 m)",
+   "categoria": "objetos",
+   "grupo": "divisoria_corda_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.368,
+    0.425,
+    1.025
+   ],
+   "arquivo": "glb/divisoria_corda_curta_pacote.glb",
+   "miniatura": "miniaturas/divisoria_corda_curta_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.4715,
+      0.515,
+      0
+     ],
+     "tamanho": [
+      0.43,
+      1.03,
+      0.43
+     ]
+    },
+    {
+     "centro": [
+      0.4715,
+      0.515,
+      0
+     ],
+     "tamanho": [
+      0.43,
+      1.03,
+      0.43
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.665,
+      0
+     ],
+     "tamanho": [
+      0.943,
+      0.43,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "concreto_escuro",
+    "laranja",
+    "laranja_claro",
+    "mostarda",
+    "vermelho_escuro"
+   ],
+   "tris": 376,
+   "pacote": true,
+   "tags": [
+    "divisoria",
+    "fila",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "divisoria_corda_longa_pacote",
+   "rotulo": "Divisória de corda longa (2 m)",
+   "categoria": "objetos",
+   "grupo": "divisoria_corda_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.343,
+    0.425,
+    1.025
+   ],
+   "arquivo": "glb/divisoria_corda_longa_pacote.glb",
+   "miniatura": "miniaturas/divisoria_corda_longa_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.959,
+      0.515,
+      0
+     ],
+     "tamanho": [
+      0.43,
+      1.03,
+      0.43
+     ]
+    },
+    {
+     "centro": [
+      0.959,
+      0.515,
+      0
+     ],
+     "tamanho": [
+      0.43,
+      1.03,
+      0.43
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.665,
+      0
+     ],
+     "tamanho": [
+      1.918,
+      0.43,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "concreto_escuro",
+    "laranja",
+    "laranja_claro",
+    "mostarda",
+    "vermelho_escuro"
+   ],
+   "tris": 376,
+   "pacote": true,
+   "tags": [
+    "divisoria",
+    "fila",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "fruteira_cheia_pacote",
+   "rotulo": "Fruteira cheia",
+   "categoria": "objetos",
+   "grupo": "fruteira_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.454,
+    0.45,
+    0.262
+   ],
+   "arquivo": "glb/fruteira_cheia_pacote.glb",
+   "miniatura": "miniaturas/fruteira_cheia_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13093,
+      -0.0
+     ],
+     "tamanho": [
+      0.454,
+      0.262,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "amarelo_escuro",
+    "branco",
+    "brasa",
+    "dormente",
+    "grafite",
+    "marrom_claro",
+    "verde",
+    "vermelho_escuro"
+   ],
+   "tris": 2318,
+   "pacote": true,
+   "tags": [
+    "frutas",
+    "cozinha",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "telao_jackpot_pacote",
+   "rotulo": "Telão de jackpot de teto",
+   "categoria": "objetos",
+   "grupo": "telao_jackpot_pacote",
+   "fixacao": "teto",
+   "dims": [
+    2.0,
+    2.0,
+    0.624
+   ],
+   "arquivo": "glb/telao_jackpot_pacote.glb",
+   "miniatura": "miniaturas/telao_jackpot_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      -0.31186,
+      -0.0
+     ],
+     "tamanho": [
+      2.0,
+      0.624,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "couro_preto"
+   ],
+   "tris": 284,
+   "pacote": true,
+   "tags": [
+    "tela",
+    "neon",
+    "teto",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "lanterna_pacote",
+   "rotulo": "Lanterna de mão",
+   "categoria": "objetos",
+   "grupo": "lanterna_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.172,
+    0.309,
+    0.229
+   ],
+   "arquivo": "glb/lanterna_pacote.glb",
+   "miniatura": "miniaturas/lanterna_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1143,
+      -0.0
+     ],
+     "tamanho": [
+      0.172,
+      0.229,
+      0.309
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "asfalto",
+    "asfalto_claro",
+    "brasa",
+    "cinza_azulado",
+    "couro_preto",
+    "grafite",
+    "laranja_escuro"
+   ],
+   "tris": 251,
+   "pacote": true,
+   "tags": [
+    "ferramenta",
+    "emergencia",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
+  },
+  {
+   "id": "galao_combustivel_pacote",
+   "rotulo": "Galão de combustível",
+   "categoria": "objetos",
+   "grupo": "galao_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.203,
+    0.382,
+    0.501
+   ],
+   "arquivo": "glb/galao_combustivel_pacote.glb",
+   "miniatura": "miniaturas/galao_combustivel_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.25029,
+      -0.0
+     ],
+     "tamanho": [
+      0.203,
+      0.501,
+      0.382
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "carvao",
+    "cinza",
+    "cinza_medio",
+    "preto",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 444,
+   "pacote": true,
+   "tags": [
+    "garagem",
+    "ferramenta",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
+  },
+  {
+   "id": "fogareiro_macarico_pacote",
+   "rotulo": "Fogareiro a gás (maçarico)",
+   "categoria": "objetos",
+   "grupo": "fogareiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.166,
+    0.08,
+    0.277
+   ],
+   "arquivo": "glb/fogareiro_macarico_pacote.glb",
+   "miniatura": "miniaturas/fogareiro_macarico_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.13853,
+      -0.0
+     ],
+     "tamanho": [
+      0.166,
+      0.277,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "cinza",
+    "concreto",
+    "concreto_escuro",
+    "couro_preto",
+    "dormente",
+    "madeira_cinza",
+    "metal",
+    "metal_escuro",
+    "tecido_cinza",
+    "trilho",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 414,
+   "pacote": true,
+   "tags": [
+    "cozinha",
+    "camping",
+    "ferramenta",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
+  },
+  {
+   "id": "radio_comunicador_pacote",
+   "rotulo": "Rádio comunicador",
+   "categoria": "objetos",
+   "grupo": "radio_comunicador_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.104,
+    0.05,
+    0.327
+   ],
+   "arquivo": "glb/radio_comunicador_pacote.glb",
+   "miniatura": "miniaturas/radio_comunicador_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16333,
+      -0.0
+     ],
+     "tamanho": [
+      0.104,
+      0.327,
+      0.05
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "ferro",
+    "grafite_escuro",
+    "preto",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 370,
+   "pacote": true,
+   "tags": [
+    "eletronico",
+    "emergencia",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
+  },
+  {
+   "id": "mapa_dobrado_pacote",
+   "rotulo": "Mapa aberto",
+   "categoria": "objetos",
+   "grupo": "mapa_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.743,
+    0.556,
+    0.074
+   ],
+   "arquivo": "glb/mapa_dobrado_pacote.glb",
+   "miniatura": "miniaturas/mapa_dobrado_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03679,
+      -0.0
+     ],
+     "tamanho": [
+      0.743,
+      0.074,
+      0.556
+     ]
+    }
+   ],
+   "cores": [
+    "brita",
+    "calcada",
+    "cinza_claro",
+    "cinzas",
+    "madeira_cinza",
+    "metal",
+    "tecido_cinza"
+   ],
+   "tris": 104,
+   "pacote": true,
+   "tags": [
+    "mapa",
+    "papelaria",
+    "escritorio",
+    "pacote"
+   ],
+   "pacote_origem": "Apocalypse"
   }
  ]
 }

@@ -117,7 +117,7 @@ def audita_item(cat, it):
             elif i in raizes:
                 corpo_lo, corpo_hi = l, h
     mats = {m.get("name", "") for m in g.get("materials", [])}
-    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith(("estampa_", "janela_", "neon_", "brilho_"))]
+    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith(("estampa_", "janela_", "neon_", "brilho_", "luz_"))]
     if ruins:
         prob.append(f"materiais fora do padrão: {ruins}")
     dims = [hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]]  # l, p, a
@@ -126,7 +126,7 @@ def audita_item(cat, it):
         prob.append(f"dims do catálogo {cd} ≠ GLB {[round(x, 3) for x in dims]}")
     fix = it.get("fixacao", "chao")
     INFRA = {"ruas", "pisos", "estacionamentos", "ferrovia", "pontes", "agua", "estruturas"}
-    if it.get("categoria") in INFRA:
+    if it.get("categoria") in INFRA or "linha_dagua" in it:
         pass  # lajes, água e fundações descem abaixo da calçada de propósito
     elif "lote" in it:
         if lo[1] > 0.012 or lo[1] < -0.15:
@@ -206,7 +206,8 @@ def audita_item(cat, it):
     # colisão
     col = it.get("colisao", [])
     if not col:
-        prob.append("sem colisão")
+        if it.get("fixacao") != "parede" and not it.get("decalque"):  # placas de parede e decalques não colidem
+            prob.append("sem colisão")
     else:
         clo = [min(c["centro"][k] - c["tamanho"][k] / 2 for c in col) for k in range(3)]
         chi = [max(c["centro"][k] + c["tamanho"][k] / 2 for c in col) for k in range(3)]
