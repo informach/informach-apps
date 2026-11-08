@@ -1,0 +1,3445 @@
+{
+ "categoria": "props_praia",
+ "rotulo": "Praia",
+ "itens": [
+  {
+   "id": "piso_areia",
+   "rotulo": "Areia de praia",
+   "categoria": "props_praia",
+   "grupo": "piso_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.982
+   ],
+   "arquivo": "glb/piso_areia.glb",
+   "miniatura": "miniaturas/piso_areia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "cinza",
+    "creme",
+    "creme_claro",
+    "laranja",
+    "pessego",
+    "rosa_claro",
+    "salmao"
+   ],
+   "tris": 1914,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "modular",
+    "piso",
+    "areia"
+   ]
+  },
+  {
+   "id": "piso_areia_calcadao",
+   "rotulo": "Areia com calçadão em ondas",
+   "categoria": "props_praia",
+   "grupo": "piso_areia_calcadao",
+   "fixacao": "chao",
+   "dims": [
+    15.066,
+    15.0,
+    2.38
+   ],
+   "arquivo": "glb/piso_areia_calcadao.glb",
+   "miniatura": "miniaturas/piso_areia_calcadao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.95,
+      -0.0
+     ],
+     "tamanho": [
+      15.0,
+      1.9,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      -4.45,
+      0.24,
+      2.15
+     ],
+     "tamanho": [
+      6.1,
+      0.48,
+      0.3
+     ]
+    },
+    {
+     "centro": [
+      4.45,
+      0.24,
+      2.15
+     ],
+     "tamanho": [
+      6.1,
+      0.48,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "calcada",
+    "cinza_claro",
+    "concreto",
+    "creme",
+    "creme_claro",
+    "grafite",
+    "laranja",
+    "pessego",
+    "rosa_claro",
+    "salmao"
+   ],
+   "tris": 2874,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "modular",
+    "piso",
+    "areia",
+    "calcadao",
+    "orla"
+   ]
+  },
+  {
+   "id": "piso_areia_mar",
+   "rotulo": "Beira-mar (areia e rebentação)",
+   "categoria": "props_praia",
+   "grupo": "piso_areia_mar",
+   "fixacao": "chao",
+   "dims": [
+    15.393,
+    15.0,
+    1.978
+   ],
+   "arquivo": "glb/piso_areia_mar.glb",
+   "miniatura": "miniaturas/piso_areia_mar.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.95,
+      5.0
+     ],
+     "tamanho": [
+      15.0,
+      1.9,
+      5.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -1.225,
+      0.25
+     ],
+     "tamanho": [
+      15.0,
+      1.35,
+      4.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -1.8,
+      -4.75
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      5.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "areia",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "creme",
+    "creme_claro",
+    "laranja",
+    "rosa_claro",
+    "salmao",
+    "verde_oliva"
+   ],
+   "tris": 6266,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "modular",
+    "piso",
+    "areia",
+    "agua",
+    "mar",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "espuma",
+     "anima": "deslizar",
+     "eixo": "z",
+     "curso": 0.45,
+     "periodo": 6.0,
+     "pivo": [
+      0.0,
+      -1.0,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "posto_salva_vidas_azul",
+   "rotulo": "Posto de salva-vidas (azul)",
+   "categoria": "props_praia",
+   "grupo": "posto_salva_vidas",
+   "fixacao": "chao",
+   "dims": [
+    4.622,
+    6.536,
+    6.005
+   ],
+   "arquivo": "glb/posto_salva_vidas_azul.glb",
+   "miniatura": "miniaturas/posto_salva_vidas_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      1.07,
+      2.225,
+      0.25
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.0,
+      2.895,
+      1.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cabine",
+     "centro": [
+      -0.4,
+      2.225,
+      -0.95
+     ],
+     "tamanho": [
+      1.4,
+      1.9,
+      1.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.11,
+      0
+     ],
+     "tamanho": [
+      3.8,
+      0.22,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.375,
+      -0.725
+     ],
+     "tamanho": [
+      2.4,
+      2.3,
+      1.95
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.725,
+      1.75
+     ],
+     "tamanho": [
+      3.8,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      -1.7,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      2.0,
+      3.4
+     ]
+    },
+    {
+     "centro": [
+      1.7,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      2.0,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "azul_celeste",
+    "branco",
+    "creme",
+    "grafite",
+    "laranja",
+    "madeira_clara",
+    "madeira_mel",
+    "metal_claro",
+    "salmao",
+    "turquesa",
+    "vermelho"
+   ],
+   "tris": 8030,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "salva_vidas",
+    "torre",
+    "porta",
+    "animado",
+    "luz"
+   ],
+   "colisao_malha": [
+    "colisao_escada"
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 16,
+     "periodo": 2.6,
+     "pivo": [
+      1.78,
+      5.525,
+      -1.68
+     ]
+    }
+   ]
+  },
+  {
+   "id": "posto_salva_vidas_amarelo",
+   "rotulo": "Posto de salva-vidas (amarelo)",
+   "categoria": "props_praia",
+   "grupo": "posto_salva_vidas",
+   "fixacao": "chao",
+   "dims": [
+    4.622,
+    6.536,
+    6.005
+   ],
+   "arquivo": "glb/posto_salva_vidas_amarelo.glb",
+   "miniatura": "miniaturas/posto_salva_vidas_amarelo.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      1.07,
+      2.225,
+      0.25
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.0,
+      2.895,
+      1.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cabine",
+     "centro": [
+      -0.4,
+      2.225,
+      -0.95
+     ],
+     "tamanho": [
+      1.4,
+      1.9,
+      1.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.11,
+      0
+     ],
+     "tamanho": [
+      3.8,
+      0.22,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.375,
+      -0.725
+     ],
+     "tamanho": [
+      2.4,
+      2.3,
+      1.95
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.725,
+      1.75
+     ],
+     "tamanho": [
+      3.8,
+      1.0,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      -1.7,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      2.0,
+      3.4
+     ]
+    },
+    {
+     "centro": [
+      1.7,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      2.0,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "areia",
+    "branco",
+    "creme",
+    "grafite",
+    "laranja",
+    "madeira_clara",
+    "madeira_mel",
+    "metal_claro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 8030,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "salva_vidas",
+    "torre",
+    "porta",
+    "animado",
+    "luz"
+   ],
+   "colisao_malha": [
+    "colisao_escada"
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 16,
+     "periodo": 2.6,
+     "pivo": [
+      1.78,
+      5.525,
+      -1.68
+     ]
+    }
+   ]
+  },
+  {
+   "id": "guarda_sol_praia_azul",
+   "rotulo": "Guarda-sol de praia listrado (azul e branco)",
+   "categoria": "props_praia",
+   "grupo": "guarda_sol_praia",
+   "fixacao": "chao",
+   "dims": [
+    2.168,
+    2.147,
+    2.409
+   ],
+   "arquivo": "glb/guarda_sol_praia_azul.glb",
+   "miniatura": "miniaturas/guarda_sol_praia_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.15,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.3,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "azul",
+    "branco",
+    "cinza_medio",
+    "metal_claro"
+   ],
+   "tris": 1604,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "guarda_sol",
+    "sombra"
+   ]
+  },
+  {
+   "id": "guarda_sol_praia_roxo",
+   "rotulo": "Guarda-sol de praia em gomos (roxo e branco)",
+   "categoria": "props_praia",
+   "grupo": "guarda_sol_praia_gomos",
+   "fixacao": "chao",
+   "dims": [
+    2.007,
+    1.996,
+    2.379
+   ],
+   "arquivo": "glb/guarda_sol_praia_roxo.glb",
+   "miniatura": "miniaturas/guarda_sol_praia_roxo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.15,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.3,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "branco",
+    "cinza_medio",
+    "metal_claro",
+    "roxo"
+   ],
+   "tris": 1408,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "guarda_sol",
+    "sombra"
+   ]
+  },
+  {
+   "id": "guarda_sol_praia_laranja",
+   "rotulo": "Guarda-sol de praia de 12 gomos (laranja e amarelo)",
+   "categoria": "props_praia",
+   "grupo": "guarda_sol_praia_12",
+   "fixacao": "chao",
+   "dims": [
+    2.267,
+    2.233,
+    2.416
+   ],
+   "arquivo": "glb/guarda_sol_praia_laranja.glb",
+   "miniatura": "miniaturas/guarda_sol_praia_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.15,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.3,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "branco",
+    "cinza_medio",
+    "laranja",
+    "madeira_clara",
+    "metal_claro"
+   ],
+   "tris": 2116,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "guarda_sol",
+    "sombra"
+   ]
+  },
+  {
+   "id": "guarda_sol_praia_arco_iris",
+   "rotulo": "Guarda-sol arco-íris que gira ao vento",
+   "categoria": "props_praia",
+   "grupo": "guarda_sol_praia_giratorio",
+   "fixacao": "chao",
+   "dims": [
+    2.227,
+    2.228,
+    2.45
+   ],
+   "arquivo": "glb/guarda_sol_praia_arco_iris.glb",
+   "miniatura": "miniaturas/guarda_sol_praia_arco_iris.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.15,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.3,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "azul_celeste",
+    "branco",
+    "cinza_medio",
+    "laranja",
+    "metal_claro",
+    "rosa",
+    "roxo",
+    "turquesa",
+    "verde_claro",
+    "vermelho"
+   ],
+   "tris": 1604,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "guarda_sol",
+    "sombra",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "copa_gira",
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 14,
+     "pivo": [
+      0.0,
+      1.95,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "guarda_sol_praia_estrela",
+   "rotulo": "Guarda-sol branco em estrela",
+   "categoria": "props_praia",
+   "grupo": "guarda_sol_praia_estrela",
+   "fixacao": "chao",
+   "dims": [
+    3.154,
+    2.736,
+    2.91
+   ],
+   "arquivo": "glb/guarda_sol_praia_estrela.glb",
+   "miniatura": "miniaturas/guarda_sol_praia_estrela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.4,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.8,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "madeira",
+    "madeira_clara",
+    "metal_claro"
+   ],
+   "tris": 2392,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "guarda_sol",
+    "sombra",
+    "lona"
+   ]
+  },
+  {
+   "id": "espreguicadeira_madeira",
+   "rotulo": "Espreguiçadeira de madeira",
+   "categoria": "props_praia",
+   "grupo": "espreguicadeira_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.785,
+    1.95,
+    0.919
+   ],
+   "arquivo": "glb/espreguicadeira_madeira.glb",
+   "miniatura": "miniaturas/espreguicadeira_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.0,
+      0.37,
+      0.25
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.205,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      0.41,
+      1.95
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.61,
+      -0.5
+     ],
+     "tamanho": [
+      0.7,
+      0.5,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira",
+    "madeira_mel",
+    "turquesa_claro"
+   ],
+   "tris": 2516,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "espreguicadeira",
+    "assento"
+   ]
+  },
+  {
+   "id": "espreguicadeira_lona",
+   "rotulo": "Espreguiçadeira de lona listrada",
+   "categoria": "props_praia",
+   "grupo": "espreguicadeira_lona",
+   "fixacao": "chao",
+   "dims": [
+    0.68,
+    1.896,
+    0.957
+   ],
+   "arquivo": "glb/espreguicadeira_lona.glb",
+   "miniatura": "miniaturas/espreguicadeira_lona.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.0,
+      0.3,
+      0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.16,
+      0.05
+     ],
+     "tamanho": [
+      0.66,
+      0.32,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.625,
+      -0.62
+     ],
+     "tamanho": [
+      0.66,
+      0.65,
+      0.35
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_medio",
+    "metal_claro",
+    "verde"
+   ],
+   "tris": 4176,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "espreguicadeira",
+    "assento"
+   ]
+  },
+  {
+   "id": "espreguicadeira_reclinavel",
+   "rotulo": "Espreguiçadeira reclinável com colchonete",
+   "categoria": "props_praia",
+   "grupo": "espreguicadeira_reclinavel",
+   "fixacao": "chao",
+   "dims": [
+    0.75,
+    1.826,
+    0.808
+   ],
+   "arquivo": "glb/espreguicadeira_reclinavel.glb",
+   "miniatura": "miniaturas/espreguicadeira_reclinavel.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.0,
+      0.4,
+      0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.2,
+      0.3
+     ],
+     "tamanho": [
+      0.72,
+      0.4,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.57,
+      -0.6
+     ],
+     "tamanho": [
+      0.68,
+      0.5,
+      0.65
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "plastico_branco",
+    "turquesa"
+   ],
+   "tris": 3976,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "espreguicadeira",
+    "assento"
+   ]
+  },
+  {
+   "id": "cadeira_praia_dobravel",
+   "rotulo": "Cadeira de praia dobrável",
+   "categoria": "props_praia",
+   "grupo": "cadeira_praia_dobravel",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.659,
+    0.805
+   ],
+   "arquivo": "glb/cadeira_praia_dobravel.glb",
+   "miniatura": "miniaturas/cadeira_praia_dobravel.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.0,
+      0.2,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0.05
+     ],
+     "tamanho": [
+      0.61,
+      0.45,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.625,
+      -0.24
+     ],
+     "tamanho": [
+      0.56,
+      0.35,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "branco",
+    "cinza_medio",
+    "madeira_mel",
+    "metal_claro"
+   ],
+   "tris": 2124,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "cadeira",
+    "assento"
+   ]
+  },
+  {
+   "id": "toalha_praia_listras",
+   "rotulo": "Toalha de praia listrada (com óculos e chinelos)",
+   "categoria": "props_praia",
+   "grupo": "toalha_praia",
+   "fixacao": "chao",
+   "dims": [
+    1.238,
+    1.75,
+    0.045
+   ],
+   "arquivo": "glb/toalha_praia_listras.glb",
+   "miniatura": "miniaturas/toalha_praia_listras.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_toalha",
+     "centro": [
+      0,
+      0.01,
+      0
+     ],
+     "tamanho": [
+      0.85,
+      0.4,
+      1.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [],
+   "cores": [
+    "amarelo",
+    "azul",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1000,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "toalha"
+   ]
+  },
+  {
+   "id": "toalha_praia_melancia",
+   "rotulo": "Toalha de praia de melancia (com livro)",
+   "categoria": "props_praia",
+   "grupo": "toalha_praia",
+   "fixacao": "chao",
+   "dims": [
+    0.9,
+    1.75,
+    0.046
+   ],
+   "arquivo": "glb/toalha_praia_melancia.glb",
+   "miniatura": "miniaturas/toalha_praia_melancia.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_toalha",
+     "centro": [
+      0,
+      0.01,
+      0
+     ],
+     "tamanho": [
+      0.85,
+      0.4,
+      1.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [],
+   "cores": [
+    "azul",
+    "branco",
+    "laranja",
+    "papel"
+   ],
+   "tris": 540,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "toalha"
+   ]
+  },
+  {
+   "id": "toalha_praia_ondas",
+   "rotulo": "Toalha de praia de ondas (com chapéu de palha)",
+   "categoria": "props_praia",
+   "grupo": "toalha_praia",
+   "fixacao": "chao",
+   "dims": [
+    0.9,
+    1.75,
+    0.149
+   ],
+   "arquivo": "glb/toalha_praia_ondas.glb",
+   "miniatura": "miniaturas/toalha_praia_ondas.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_toalha",
+     "centro": [
+      0,
+      0.01,
+      0
+     ],
+     "tamanho": [
+      0.85,
+      0.4,
+      1.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "azul_celeste",
+    "vermelho"
+   ],
+   "tris": 952,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "toalha"
+   ]
+  },
+  {
+   "id": "suporte_pranchas_surfe",
+   "rotulo": "Suporte com quatro pranchas de surfe",
+   "categoria": "props_praia",
+   "grupo": "suporte_pranchas",
+   "fixacao": "chao",
+   "dims": [
+    2.56,
+    1.2,
+    2.782
+   ],
+   "arquivo": "glb/suporte_pranchas_surfe.glb",
+   "miniatura": "miniaturas/suporte_pranchas_surfe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.8,
+      -0.05
+     ],
+     "tamanho": [
+      2.6,
+      1.6,
+      1.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.175,
+      0.15
+     ],
+     "tamanho": [
+      2.4,
+      1.15,
+      0.85
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "azul_marinho",
+    "branco",
+    "laranja",
+    "laranja_claro",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "rosa",
+    "rosa_bebe",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho"
+   ],
+   "tris": 2420,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "surfe",
+    "prancha"
+   ]
+  },
+  {
+   "id": "prancha_surfe_deitada_azul",
+   "rotulo": "Prancha de surfe deitada (azul)",
+   "categoria": "props_praia",
+   "grupo": "prancha_surfe",
+   "fixacao": "chao",
+   "dims": [
+    0.665,
+    2.08,
+    0.195
+   ],
+   "arquivo": "glb/prancha_surfe_deitada_azul.glb",
+   "miniatura": "miniaturas/prancha_surfe_deitada_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.07,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.14,
+      2.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "branco"
+   ],
+   "tris": 1172,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "surfe",
+    "prancha"
+   ]
+  },
+  {
+   "id": "prancha_surfe_longboard_verde",
+   "rotulo": "Prancha longboard deitada (verde)",
+   "categoria": "props_praia",
+   "grupo": "prancha_surfe",
+   "fixacao": "chao",
+   "dims": [
+    0.844,
+    2.58,
+    0.275
+   ],
+   "arquivo": "glb/prancha_surfe_longboard_verde.glb",
+   "miniatura": "miniaturas/prancha_surfe_longboard_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.07,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.14,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_clara",
+    "verde",
+    "verde_lima"
+   ],
+   "tris": 1084,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "surfe",
+    "prancha"
+   ]
+  },
+  {
+   "id": "bodyboard_azul",
+   "rotulo": "Bodyboard com cordinha",
+   "categoria": "props_praia",
+   "grupo": "bodyboard",
+   "fixacao": "chao",
+   "dims": [
+    1.094,
+    1.18,
+    0.062
+   ],
+   "arquivo": "glb/bodyboard_azul.glb",
+   "miniatura": "miniaturas/bodyboard_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.035,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      0.07,
+      1.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_marinho",
+    "branco",
+    "preto"
+   ],
+   "tris": 904,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "surfe",
+    "bodyboard"
+   ]
+  },
+  {
+   "id": "boia_pato",
+   "rotulo": "Boia de patinho",
+   "categoria": "props_praia",
+   "grupo": "boia_inflavel",
+   "fixacao": "chao",
+   "dims": [
+    1.077,
+    1.221,
+    0.734
+   ],
+   "arquivo": "glb/boia_pato.glb",
+   "miniatura": "miniaturas/boia_pato.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.16,
+      0.05
+     ],
+     "tamanho": [
+      1.14,
+      0.32,
+      1.24
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco",
+    "laranja",
+    "preto"
+   ],
+   "tris": 1858,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "boia",
+    "brinquedo"
+   ]
+  },
+  {
+   "id": "boia_rosquinha",
+   "rotulo": "Boia de rosquinha com confeitos",
+   "categoria": "props_praia",
+   "grupo": "boia_inflavel",
+   "fixacao": "chao",
+   "dims": [
+    1.04,
+    1.04,
+    0.298
+   ],
+   "arquivo": "glb/boia_rosquinha.glb",
+   "miniatura": "miniaturas/boia_rosquinha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.15,
+      0
+     ],
+     "tamanho": [
+      1.04,
+      0.3,
+      1.04
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "branco",
+    "caramelo",
+    "laranja",
+    "rosa",
+    "roxo",
+    "verde_lima"
+   ],
+   "tris": 2168,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "boia",
+    "brinquedo"
+   ]
+  },
+  {
+   "id": "castelo_areia_pequeno",
+   "rotulo": "Castelinho de areia com baldinho e pá",
+   "categoria": "props_praia",
+   "grupo": "castelo_areia",
+   "fixacao": "chao",
+   "dims": [
+    1.46,
+    1.24,
+    0.65
+   ],
+   "arquivo": "glb/castelo_areia_pequeno.glb",
+   "miniatura": "miniaturas/castelo_areia_pequeno.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.25,
+      0
+     ],
+     "tamanho": [
+      0.9,
+      0.5,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "madeira_clara",
+    "rosa_claro",
+    "vermelho"
+   ],
+   "tris": 3612,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "areia",
+    "brinquedo"
+   ]
+  },
+  {
+   "id": "castelo_areia_gigante",
+   "rotulo": "Castelo de areia gigante (marco da praia)",
+   "categoria": "props_praia",
+   "grupo": "castelo_areia_gigante",
+   "fixacao": "chao",
+   "dims": [
+    14.029,
+    13.8,
+    15.484
+   ],
+   "arquivo": "glb/castelo_areia_gigante.glb",
+   "miniatura": "miniaturas/castelo_areia_gigante.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      13.0,
+      1.25,
+      13.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.1,
+      0
+     ],
+     "tamanho": [
+      10.9,
+      3.7,
+      10.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.1,
+      -0.4
+     ],
+     "tamanho": [
+      6.0,
+      11.7,
+      6.0
+     ]
+    },
+    {
+     "centro": [
+      6.1,
+      0.6,
+      4.6
+     ],
+     "tamanho": [
+      1.6,
+      1.2,
+      1.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "azul",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "laranja",
+    "madeira_clara",
+    "marrom_escuro",
+    "rosa_claro",
+    "salmao",
+    "turquesa_claro",
+    "vermelho"
+   ],
+   "tris": 14178,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "areia",
+    "marco",
+    "monumento",
+    "animado"
+   ],
+   "quadras": [
+    1,
+    1
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 14,
+     "periodo": 3.0,
+     "pivo": [
+      0.0,
+      14.05,
+      -0.4
+     ]
+    }
+   ]
+  },
+  {
+   "id": "piscina_inflavel",
+   "rotulo": "Piscina inflável redonda",
+   "categoria": "props_praia",
+   "grupo": "piscina_inflavel",
+   "fixacao": "chao",
+   "dims": [
+    2.128,
+    2.159,
+    0.69
+   ],
+   "arquivo": "glb/piscina_inflavel.glb",
+   "miniatura": "miniaturas/piscina_inflavel.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_agua",
+     "centro": [
+      0,
+      0.05,
+      0
+     ],
+     "tamanho": [
+      1.4,
+      0.6,
+      1.4
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.33,
+      0
+     ],
+     "tamanho": [
+      2.14,
+      0.66,
+      2.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "branco",
+    "rosa",
+    "vermelho"
+   ],
+   "tris": 3614,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "piscina",
+    "agua",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "bola",
+     "anima": "balancar",
+     "eixo": "x",
+     "angulo": 6,
+     "periodo": 3.2,
+     "pivo": [
+      0.3,
+      0.47,
+      -0.2
+     ]
+    }
+   ]
+  },
+  {
+   "id": "chuveirinho_praia",
+   "rotulo": "Chuveirinho de praia",
+   "categoria": "props_praia",
+   "grupo": "chuveirinho",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    1.22,
+    2.468
+   ],
+   "arquivo": "glb/chuveirinho_praia.glb",
+   "miniatura": "miniaturas/chuveirinho_praia.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_ducha",
+     "centro": [
+      0,
+      0.08,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      1.9,
+      0.8
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.04,
+      0
+     ],
+     "tamanho": [
+      1.2,
+      0.08,
+      1.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.25,
+      -0.45
+     ],
+     "tamanho": [
+      0.34,
+      2.5,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "concreto",
+    "cromo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_mel",
+    "vermelho"
+   ],
+   "tris": 2186,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "chuveiro",
+    "ducha"
+   ]
+  },
+  {
+   "id": "quiosque_coco_palha",
+   "rotulo": "Quiosque de coco com telhado de palha",
+   "categoria": "props_praia",
+   "grupo": "quiosque_praia",
+   "fixacao": "chao",
+   "dims": [
+    4.996,
+    4.29,
+    4.54
+   ],
+   "arquivo": "glb/quiosque_coco_palha.glb",
+   "miniatura": "miniaturas/quiosque_coco_palha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.9,
+      0.75,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.75,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.9,
+      0.75,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0.0,
+      1.05,
+      0.9
+     ],
+     "tamanho": [
+      2.7,
+      0.4,
+      0.45
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.525,
+      0.9
+     ],
+     "tamanho": [
+      3.0,
+      1.05,
+      0.55
+     ]
+    },
+    {
+     "centro": [
+      -1.2,
+      0.525,
+      -0.1
+     ],
+     "tamanho": [
+      0.55,
+      1.05,
+      1.8
+     ]
+    },
+    {
+     "centro": [
+      1.75,
+      0.525,
+      0.1
+     ],
+     "tamanho": [
+      1.15,
+      1.05,
+      2.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.475,
+      -0.9
+     ],
+     "tamanho": [
+      2.7,
+      0.95,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "bege",
+    "branco",
+    "caramelo",
+    "creme_claro",
+    "grafite",
+    "laranja",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "madeira_mel",
+    "mostarda",
+    "pinus",
+    "rosa",
+    "roxo",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 8484,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "quiosque",
+    "comida",
+    "letreiro",
+    "luz",
+    "assento"
+   ]
+  },
+  {
+   "id": "quiosque_sucos_coco_gigante",
+   "rotulo": "Quiosque de sucos com coco gigante",
+   "categoria": "props_praia",
+   "grupo": "quiosque_praia",
+   "fixacao": "chao",
+   "dims": [
+    6.301,
+    5.821,
+    7.081
+   ],
+   "arquivo": "glb/quiosque_sucos_coco_gigante.glb",
+   "miniatura": "miniaturas/quiosque_sucos_coco_gigante.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.491,
+      0.75,
+      2.13
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.75,
+      2.6
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      1.491,
+      0.75,
+      2.13
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      2.443,
+      0.75,
+      0.889
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0,
+      1.05,
+      1.85
+     ],
+     "tamanho": [
+      1.2,
+      0.4,
+      0.35
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.525,
+      0
+     ],
+     "tamanho": [
+      4.4,
+      1.05,
+      4.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      4.8,
+      0
+     ],
+     "tamanho": [
+      4.2,
+      3.6,
+      4.2
+     ]
+    },
+    {
+     "centro": [
+      2.55,
+      1.1,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      2.2,
+      1.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_celeste",
+    "azul_marinho",
+    "branco",
+    "grafite",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "madeira_mel",
+    "marrom",
+    "marrom_claro",
+    "rosa",
+    "roxo",
+    "turquesa",
+    "turquesa_claro",
+    "verde",
+    "verde_agua",
+    "verde_lima",
+    "vermelho_claro"
+   ],
+   "tris": 11090,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "quiosque",
+    "comida",
+    "letreiro",
+    "neon",
+    "luz",
+    "assento"
+   ]
+  },
+  {
+   "id": "quiosque_estacao_surfe",
+   "rotulo": "Estação de surfe com prancha no telhado",
+   "categoria": "props_praia",
+   "grupo": "quiosque_praia",
+   "fixacao": "chao",
+   "dims": [
+    4.4,
+    4.135,
+    4.172
+   ],
+   "arquivo": "glb/quiosque_estacao_surfe.glb",
+   "miniatura": "miniaturas/quiosque_estacao_surfe.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.9,
+      0.75,
+      1.9
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.9,
+      0.75,
+      1.9
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0,
+      1.07,
+      1.35
+     ],
+     "tamanho": [
+      3.4,
+      0.4,
+      0.4
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.7,
+      0
+     ],
+     "tamanho": [
+      3.6,
+      3.4,
+      2.6
+     ]
+    },
+    {
+     "centro": [
+      2.1,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.55,
+      2.0,
+      1.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "azul_marinho",
+    "branco",
+    "branco_gelo",
+    "creme",
+    "grafite",
+    "laranja",
+    "laranja_claro",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_mel",
+    "petroleo",
+    "rosa",
+    "rosa_bebe",
+    "turquesa",
+    "turquesa_claro",
+    "turquesa_escuro",
+    "vermelho"
+   ],
+   "tris": 8558,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "quiosque",
+    "surfe",
+    "letreiro",
+    "neon",
+    "luz",
+    "assento"
+   ]
+  },
+  {
+   "id": "barraca_acai_abacaxi",
+   "rotulo": "Barraca de açaí com abacaxi gigante",
+   "categoria": "props_praia",
+   "grupo": "quiosque_praia",
+   "fixacao": "chao",
+   "dims": [
+    4.199,
+    3.0,
+    6.075
+   ],
+   "arquivo": "glb/barraca_acai_abacaxi.glb",
+   "miniatura": "miniaturas/barraca_acai_abacaxi.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.8,
+      0.75,
+      1.55
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.8,
+      0.75,
+      1.55
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0,
+      1.05,
+      0.7
+     ],
+     "tamanho": [
+      2.9,
+      0.4,
+      0.45
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.525,
+      0
+     ],
+     "tamanho": [
+      3.3,
+      1.05,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.8,
+      0
+     ],
+     "tamanho": [
+      3.6,
+      2.2,
+      2.4
+     ]
+    },
+    {
+     "centro": [
+      -2.05,
+      0.225,
+      0.15
+     ],
+     "tamanho": [
+      0.6,
+      0.45,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco",
+    "creme",
+    "laranja",
+    "lilas",
+    "lilas_claro",
+    "madeira",
+    "madeira_mel",
+    "roxo",
+    "roxo_escuro",
+    "verde",
+    "verde_escuro",
+    "vermelho"
+   ],
+   "tris": 12046,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "quiosque",
+    "comida",
+    "letreiro",
+    "neon",
+    "luz",
+    "assento"
+   ]
+  },
+  {
+   "id": "carrinho_picole",
+   "rotulo": "Carrinho de picolé",
+   "categoria": "props_praia",
+   "grupo": "carrinho_picole",
+   "fixacao": "chao",
+   "dims": [
+    2.094,
+    1.667,
+    2.46
+   ],
+   "arquivo": "glb/carrinho_picole.glb",
+   "miniatura": "miniaturas/carrinho_picole.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.12,
+      0.945,
+      -0.27
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_caixa",
+     "centro": [
+      0.0,
+      0.38,
+      -0.0
+     ],
+     "tamanho": [
+      0.88,
+      0.48,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.46,
+      0
+     ],
+     "tamanho": [
+      1.1,
+      0.92,
+      0.87
+     ]
+    },
+    {
+     "centro": [
+      0.7,
+      0.8,
+      0
+     ],
+     "tamanho": [
+      0.35,
+      0.4,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "branco",
+    "cromo",
+    "grafite_escuro",
+    "metal",
+    "metal_claro",
+    "preto"
+   ],
+   "tris": 3792,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "carrinho",
+    "comida",
+    "tampa"
+   ]
+  },
+  {
+   "id": "barraca_praia_mesa",
+   "rotulo": "Barraca de praia com mesa e cadeiras",
+   "categoria": "props_praia",
+   "grupo": "barraca_praia",
+   "fixacao": "chao",
+   "dims": [
+    3.307,
+    3.307,
+    3.091
+   ],
+   "arquivo": "glb/barraca_praia_mesa.glb",
+   "miniatura": "miniaturas/barraca_praia_mesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.46,
+      0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.72,
+      0.46,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0,
+      0.46,
+      -0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.72,
+      0.46,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_mesa",
+     "centro": [
+      0,
+      0.74,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      0.4,
+      0.7
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.375,
+      0
+     ],
+     "tamanho": [
+      1.9,
+      0.75,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      -1.5,
+      1.125,
+      1.5
+     ],
+     "tamanho": [
+      0.1,
+      2.25,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      -1.5,
+      1.125,
+      -1.5
+     ],
+     "tamanho": [
+      0.1,
+      2.25,
+      0.1
+     ]
+    },
+    {
+     "centro": [
+      1.5,
+      1.125,
+      1.5
+     ],
+     "tamanho": [
+      0.1,
+      2.25,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "areia",
+    "azul",
+    "branco",
+    "creme_claro",
+    "metal_claro",
+    "rosa",
+    "verde",
+    "verde_escuro"
+   ],
+   "tris": 7536,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "barraca",
+    "mesa",
+    "assento"
+   ]
+  },
+  {
+   "id": "rede_volei_praia",
+   "rotulo": "Rede de vôlei de praia",
+   "categoria": "props_praia",
+   "grupo": "rede_volei",
+   "fixacao": "chao",
+   "dims": [
+    12.443,
+    1.416,
+    3.23
+   ],
+   "arquivo": "glb/rede_volei_praia.glb",
+   "miniatura": "miniaturas/rede_volei_praia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -4.65,
+      1.325,
+      0
+     ],
+     "tamanho": [
+      0.2,
+      2.65,
+      0.2
+     ]
+    },
+    {
+     "centro": [
+      4.65,
+      1.325,
+      0
+     ],
+     "tamanho": [
+      0.2,
+      2.65,
+      0.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.93,
+      0
+     ],
+     "tamanho": [
+      8.5,
+      1.0,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "azul",
+    "branco",
+    "creme",
+    "grafite",
+    "grafite_escuro",
+    "madeira",
+    "vermelho"
+   ],
+   "tris": 2940,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "esporte",
+    "volei"
+   ]
+  },
+  {
+   "id": "cesta_piquenique",
+   "rotulo": "Cesta de piquenique",
+   "categoria": "props_praia",
+   "grupo": "cesta_piquenique",
+   "fixacao": "chao",
+   "dims": [
+    0.54,
+    0.362,
+    0.51
+   ],
+   "arquivo": "glb/cesta_piquenique.glb",
+   "miniatura": "miniaturas/cesta_piquenique.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "tampa_frente",
+     "pivo": [
+      0.0,
+      0.265,
+      0.004
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.7453,
+     "nome": "tampa_tras",
+     "pivo": [
+      0.0,
+      0.265,
+      -0.004
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesta",
+     "centro": [
+      0,
+      0.02,
+      0
+     ],
+     "tamanho": [
+      0.48,
+      0.19,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.26,
+      0
+     ],
+     "tamanho": [
+      0.52,
+      0.52,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "caramelo",
+    "madeira_escura",
+    "madeira_media",
+    "madeira_mel",
+    "vermelho"
+   ],
+   "tris": 1264,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "piquenique",
+    "tampa"
+   ]
+  },
+  {
+   "id": "caixa_termica_praia",
+   "rotulo": "Caixa térmica",
+   "categoria": "props_praia",
+   "grupo": "caixa_termica",
+   "fixacao": "chao",
+   "dims": [
+    0.654,
+    0.445,
+    0.419
+   ],
+   "arquivo": "glb/caixa_termica_praia.glb",
+   "miniatura": "miniaturas/caixa_termica_praia.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.37,
+      -0.21
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_caixa",
+     "centro": [
+      0,
+      0.045,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.28,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.205,
+      0
+     ],
+     "tamanho": [
+      0.64,
+      0.41,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_medio",
+    "branco",
+    "cinza_claro"
+   ],
+   "tris": 1612,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "tampa"
+   ]
+  },
+  {
+   "id": "tenda_lona_estrela",
+   "rotulo": "Tenda de lona em estrela",
+   "categoria": "props_praia",
+   "grupo": "tenda_estrela",
+   "fixacao": "chao",
+   "dims": [
+    13.558,
+    13.569,
+    6.7
+   ],
+   "arquivo": "glb/tenda_lona_estrela.glb",
+   "miniatura": "miniaturas/tenda_lona_estrela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.3,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      6.6,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "grafite",
+    "metal",
+    "metal_claro"
+   ],
+   "tris": 7304,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "tenda",
+    "lona",
+    "sombra",
+    "luz"
+   ]
+  },
+  {
+   "id": "deque_madeira_praia",
+   "rotulo": "Deque de madeira modular (passarela de 15 m)",
+   "categoria": "props_praia",
+   "grupo": "deque_praia",
+   "fixacao": "chao",
+   "dims": [
+    2.583,
+    14.998,
+    0.558
+   ],
+   "arquivo": "glb/deque_madeira_praia.glb",
+   "miniatura": "miniaturas/deque_madeira_praia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.085,
+      0
+     ],
+     "tamanho": [
+      2.1,
+      0.17,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "caramelo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "madeira_mel"
+   ],
+   "tris": 6828,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "modular",
+    "deque",
+    "passarela",
+    "luz"
+   ]
+  },
+  {
+   "id": "bandeira_aviso_verde",
+   "rotulo": "Bandeira de aviso verde (mar calmo)",
+   "categoria": "props_praia",
+   "grupo": "bandeira_aviso",
+   "fixacao": "chao",
+   "dims": [
+    1.341,
+    0.461,
+    3.71
+   ],
+   "arquivo": "glb/bandeira_aviso_verde.glb",
+   "miniatura": "miniaturas/bandeira_aviso_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.85,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      3.7,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "branco",
+    "cinza",
+    "metal",
+    "verde"
+   ],
+   "tris": 822,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "bandeira",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 14,
+     "periodo": 2.4,
+     "pivo": [
+      0.0,
+      3.2,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bandeira_aviso_amarela",
+   "rotulo": "Bandeira de aviso amarela (atenção)",
+   "categoria": "props_praia",
+   "grupo": "bandeira_aviso",
+   "fixacao": "chao",
+   "dims": [
+    1.341,
+    0.461,
+    3.71
+   ],
+   "arquivo": "glb/bandeira_aviso_amarela.glb",
+   "miniatura": "miniaturas/bandeira_aviso_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.85,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      3.7,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "branco",
+    "cinza",
+    "metal",
+    "vermelho"
+   ],
+   "tris": 822,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "bandeira",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 14,
+     "periodo": 2.4,
+     "pivo": [
+      0.0,
+      3.2,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bandeira_aviso_vermelha",
+   "rotulo": "Bandeira de aviso vermelha (perigo)",
+   "categoria": "props_praia",
+   "grupo": "bandeira_aviso",
+   "fixacao": "chao",
+   "dims": [
+    1.341,
+    0.461,
+    3.71
+   ],
+   "arquivo": "glb/bandeira_aviso_vermelha.glb",
+   "miniatura": "miniaturas/bandeira_aviso_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.85,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      3.7,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "branco",
+    "cinza",
+    "metal",
+    "vermelho"
+   ],
+   "tris": 822,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "bandeira",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "bandeira",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 14,
+     "periodo": 2.4,
+     "pivo": [
+      0.0,
+      3.2,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "lixeira_praia",
+   "rotulo": "Lixeira de praia (tambor)",
+   "categoria": "props_praia",
+   "grupo": "lixeira_praia",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.78,
+    1.0
+   ],
+   "arquivo": "glb/lixeira_praia.glb",
+   "miniatura": "miniaturas/lixeira_praia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.5,
+      0
+     ],
+     "tamanho": [
+      0.8,
+      1.0,
+      0.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_marinho",
+    "azul_medio",
+    "grafite",
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 1388,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "lixeira"
+   ]
+  },
+  {
+   "id": "placa_praia",
+   "rotulo": "Placa de praia",
+   "categoria": "props_praia",
+   "grupo": "placa_praia",
+   "fixacao": "chao",
+   "dims": [
+    2.184,
+    0.384,
+    2.77
+   ],
+   "arquivo": "glb/placa_praia.glb",
+   "miniatura": "miniaturas/placa_praia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.45,
+      0.04
+     ],
+     "tamanho": [
+      1.9,
+      2.9,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "laranja",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura"
+   ],
+   "tris": 930,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "placa"
+   ]
+  },
+  {
+   "id": "placa_praia_direcao",
+   "rotulo": "Placa de direção da praia",
+   "categoria": "props_praia",
+   "grupo": "placa_praia_direcao",
+   "fixacao": "chao",
+   "dims": [
+    2.357,
+    0.706,
+    2.595
+   ],
+   "arquivo": "glb/placa_praia_direcao.glb",
+   "miniatura": "miniaturas/placa_praia_direcao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.3,
+      0
+     ],
+     "tamanho": [
+      0.2,
+      2.6,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "madeira",
+    "madeira_clara",
+    "madeira_escura"
+   ],
+   "tris": 406,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "placa"
+   ]
+  },
+  {
+   "id": "mastro_biruta",
+   "rotulo": "Mastro com biruta",
+   "categoria": "props_praia",
+   "grupo": "biruta",
+   "fixacao": "chao",
+   "dims": [
+    2.082,
+    0.6,
+    6.29
+   ],
+   "arquivo": "glb/mastro_biruta.glb",
+   "miniatura": "miniaturas/mastro_biruta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.15,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      6.3,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_medio",
+    "concreto",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 1540,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "vento",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "biruta",
+     "anima": "balancar",
+     "eixo": "y",
+     "angulo": 28,
+     "periodo": 7.0,
+     "pivo": [
+      0.0,
+      5.9,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "poste_boia_salva_vidas",
+   "rotulo": "Poste com boia salva-vidas",
+   "categoria": "props_praia",
+   "grupo": "poste_boia",
+   "fixacao": "chao",
+   "dims": [
+    0.73,
+    0.519,
+    2.08
+   ],
+   "arquivo": "glb/poste_boia_salva_vidas.glb",
+   "miniatura": "miniaturas/poste_boia_salva_vidas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.05,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      2.1,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "branco",
+    "creme",
+    "grafite",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 1436,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "salva_vidas",
+    "boia"
+   ]
+  },
+  {
+   "id": "varal_luzes_praia",
+   "rotulo": "Varal de luzes coloridas (festa na praia)",
+   "categoria": "props_praia",
+   "grupo": "varal_luzes",
+   "fixacao": "chao",
+   "dims": [
+    10.013,
+    0.384,
+    3.28
+   ],
+   "arquivo": "glb/varal_luzes_praia.glb",
+   "miniatura": "miniaturas/varal_luzes_praia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -4.0,
+      1.6,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      3.2,
+      0.16
+     ]
+    },
+    {
+     "centro": [
+      4.0,
+      1.6,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      3.2,
+      0.16
+     ]
+    }
+   ],
+   "cores": [
+    "areia",
+    "creme",
+    "grafite",
+    "madeira",
+    "madeira_clara"
+   ],
+   "tris": 3220,
+   "pacote": false,
+   "tags": [
+    "praia",
+    "luz",
+    "festa",
+    "animado",
+    "neon"
+   ],
+   "animacoes": [
+    {
+     "nome": "lampadas_1",
+     "anima": "piscar",
+     "periodo": 2.4,
+     "suave": true,
+     "pivo": [
+      0.0,
+      2.6,
+      -0.0
+     ]
+    },
+    {
+     "nome": "lampadas_2",
+     "anima": "piscar",
+     "periodo": 3.1,
+     "suave": true,
+     "pivo": [
+      0.0,
+      2.6,
+      -0.0
+     ]
+    }
+   ]
+  }
+ ]
+}
