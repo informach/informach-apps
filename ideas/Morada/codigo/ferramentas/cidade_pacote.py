@@ -27,7 +27,11 @@ for d in ("pacotes", "sprites", "vitrine"):
 ORDEM = [
     ("ruas", "Ruas e avenidas"), ("pisos", "Calçadas e pisos"), ("estacionamentos", "Estacionamentos"),
     ("ferrovia", "Ferrovia e trem"), ("pontes", "Pontes"), ("agua", "Água e represa"),
-    ("estruturas", "Viadutos e estruturas"), ("teste_cidade", "Teste"),
+    ("estruturas", "Viadutos e estruturas"),
+    ("arranha_ceus", "Arranha-céus"), ("predios_regulares", "Prédios regulares"),
+    ("predios_ecologicos", "Prédios ecológicos"), ("predios_chinatown", "Prédios de Chinatown"),
+    ("predios_futuristas", "Prédios futuristas"), ("predios_tropicais", "Prédios tropicais"),
+    ("predios_magicos", "Prédios mágicos"), ("teste_cidade", "Teste"), ("teste_predios", "Teste: prédios"),
 ]
 ROT = dict(ORDEM)
 CEL, COLS = 128, 16
@@ -73,7 +77,7 @@ for cat in cats:
     sp.save(os.path.join(V, "sprites", cat + ".webp"), quality=88, method=6)
     # vitrines
     vits = []
-    for f in sorted(glob.glob(os.path.join(O, cat, "encaixe*.png"))) + sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
+    for f in sorted(glob.glob(os.path.join(O, cat, "encaixe*.png"))) + sorted(glob.glob(os.path.join(O, cat, "quarteirao*.png"))) + sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
         if f.endswith("_topo.png"):
             continue
         nome = f"vitrine/{cat}_{os.path.basename(f)[:-4]}.jpg"

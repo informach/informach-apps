@@ -1,7 +1,9 @@
 """Teste de encaixe da infraestrutura de ruas: dois trechos de bairro de 4 × 4 quadras montados com os GLB exportados
 (ruas, pisos, estacionamentos e peças do pacote), mais uma conferência numérica das emendas.
 
-Uso: blender-venv/bin/python -I morada-art/cidade_ruas_encaixe.py -- SP/cidade_out [a|b ...] [--topo]
+Uso: blender-venv/bin/python -I morada-art/cidade_ruas_encaixe.py -- SP/cidade_out [a|b|asfalto ...] [--topo]
+       [--sufixo=_antes]
+O trecho "asfalto" sai de perto (encaixe_asfalto.png) e inteiro (encaixe_asfalto_geral.png).
 Grava SP/cidade_out/ruas/encaixe_<x>.png (três quartos) e encaixe_<x>_topo.png (de cima, com --topo), e imprime as
 emendas com degrau (> 2 cm) entre quadras vizinhas.
 """
@@ -53,7 +55,26 @@ TRECHOS = {
         ("estacionamentos", "estacionamento_grande", 0, 0, 0, (2, 1)),
         ("estacionamentos", "estacionamento_inclinado", 0, 2, 180, (2, 1)),
     ],
+    # asfalto: as ruas do pacote entre as nossas retas (rua à esquerda, avenida no meio), para conferir de perto
+    # se o tom do asfalto da textura do pacote bate com a cor "asfalto" nas emendas; à direita o T de rua com
+    # avenida do pacote (girado: a avenida sai para leste) entre retas de rua e uma reta de avenida.
+    "asfalto": [
+        ("ruas", "rua_reta", 0, 0, 0, (1, 1)),
+        ("ruas", "road_009_pacote", 0, 1, 0, (1, 1)),
+        ("ruas", "rua_reta", 0, 2, 0, (1, 1)),
+        ("ruas", "road_022_pacote", 0, 3, 0, (1, 1)),
+        ("ruas", "avenida_reta", 1, 0, 0, (1, 1)),
+        ("ruas", "road_001_pacote", 1, 1, 0, (1, 1)),
+        ("ruas", "avenida_reta", 1, 2, 0, (1, 1)),
+        ("ruas", "road_020_pacote", 1, 3, 0, (1, 1)),
+        ("ruas", "rua_reta", 3, 0, 0, (1, 1)),
+        ("ruas", "road_019_pacote", 3, 1, 180, (1, 1)),
+        ("ruas", "rua_reta", 3, 2, 0, (1, 1)),
+        ("ruas", "avenida_reta", 4, 1, 90, (1, 1)),
+    ],
 }
+# vista de perto de cada trecho: (centro x, centro y, escala ortográfica); sem entrada = o trecho inteiro
+PERTO = {"asfalto": (-7.5, -15.0, 34.0)}
 
 
 def monta(saida, chave):
@@ -70,6 +91,9 @@ def monta(saida, chave):
         raiz.rotation_mode = "XYZ"
         raiz.rotation_euler = (raiz.rotation_euler.x, raiz.rotation_euler.y, math.radians(giro))
         pecas.append((id_, i, j, nx, ny, novos))
+        for o in novos:  # malhas de colisão (invisíveis no jogo) não entram no render
+            if o.get("colisao"):
+                o.hide_render = True
     bpy.context.view_layer.update()
     return pecas
 
@@ -125,7 +149,7 @@ def confere(pecas):
     return problemas
 
 
-def render(arquivo, topo=False, res=(1800, 1400), amostras=40):
+def render(arquivo, topo=False, res=(1800, 1400), amostras=40, perto=None):
     scn = bpy.context.scene
     scn.render.engine = "CYCLES"
     scn.cycles.samples = int(os.environ.get("AMOSTRAS", amostras))
@@ -134,7 +158,11 @@ def render(arquivo, topo=False, res=(1800, 1400), amostras=40):
     scn.render.threads = int(os.environ.get("MOVEIS_THREADS", "1"))
     scn.render.resolution_x, scn.render.resolution_y = res
     scn.view_settings.view_transform = "Standard"
-    w = bpy.data.worlds.new("w")
+    for nome in ("chao", "sol", "c"):  # segunda vista na mesma cena: refaz chão, sol e câmera (um sol só)
+        ob = bpy.data.objects.get(nome)
+        if ob:
+            bpy.data.objects.remove(ob)
+    w = bpy.data.worlds.get("w") or bpy.data.worlds.new("w")
     scn.world = w
     w.use_nodes = True
     w.node_tree.nodes["Background"].inputs[0].default_value = (*mb._lin("#9DB4D9"), 1)
@@ -165,9 +193,10 @@ def render(arquivo, topo=False, res=(1800, 1400), amostras=40):
     scn.collection.objects.link(cam)
     scn.camera = cam
     d = V((0.0, 0.0, 1.0)) if topo else V((0.45, -1.0, 1.05)).normalized()
-    cam.location = d * 150
-    cam.rotation_euler = (0, 0, 0) if topo else (-cam.location).to_track_quat("-Z", "Y").to_euler()
-    cd.ortho_scale = 62 if topo else 92
+    alvo = V((perto[0], perto[1], 0.0)) if perto else V((0, 0, 0))
+    cam.location = alvo + d * 150
+    cam.rotation_euler = (0, 0, 0) if topo else (alvo - cam.location).to_track_quat("-Z", "Y").to_euler()
+    cd.ortho_scale = perto[2] if perto else (62 if topo else 92)
     cd.clip_end = 400
     scn.render.image_settings.file_format = "PNG"
     scn.render.filepath = arquivo
@@ -185,7 +214,11 @@ if __name__ == "__main__":
         print(f"trecho {ch}: {len(prob)} emendas com degrau", flush=True)
         for p in prob:
             print("  DEGRAU", p, flush=True)
-        if "--sem-render" not in args:
+        suf = next((a.split("=", 1)[1] for a in args if a.startswith("--sufixo=")), "")
+        if "--sem-render" not in args and ch in PERTO:
+            render(os.path.join(saida, "ruas", f"encaixe_{ch}{suf}.png"), res=(1800, 1100), perto=PERTO[ch])
+            render(os.path.join(saida, "ruas", f"encaixe_{ch}{suf}_geral.png"))
+        elif "--sem-render" not in args:
             render(os.path.join(saida, "ruas", f"encaixe_{ch}.png"))
             if "--topo" in args:
                 render(os.path.join(saida, "ruas", f"encaixe_{ch}_topo.png"), topo=True, res=(1400, 1400))

@@ -364,3 +364,67 @@ def importa_cidade(nome):
     for o in novos:
         _b.data.objects.remove(o)
     return out
+
+
+# ------------------------------------------------------------------------------------------------ prédios
+ANDAR = 3.2  # pé-direito de um andar de prédio (térreo comercial: 4,2)
+
+
+def janelas(face, u0, u1, z0, z1, colunas, linhas, larg=0.62, alt=0.58, moldura="branco", recuo=0.0, saliente=0.04,
+            semente=1, apagadas=0.35, frias=0.25, peitoril=True, nome="janelas"):
+    """Grade de janelas numa fachada plana. face = ("y", y_plano, sinal) para fachada que olha para sinal·Y (−1 =
+    frente) ou ("x", x_plano, sinal) para fachada que olha para sinal·X. u é a coordenada ao longo da fachada (x na
+    fachada y, y na fachada x). Cada célula da grade recebe um vidro (larg × alt da célula) com moldura de 6 cm saindo
+    'saliente' da parede. O vidro sorteia o material: janela_apagada (fração 'apagadas'), janela_fria ('frias') ou
+    janela (quente), para a noite ter um desenho variado. Devolve um objeto só."""
+    import random
+    rnd = random.Random(semente)
+    eixo, plano, sinal = face
+    cw = (u1 - u0) / colunas
+    ch = (z1 - z0) / linhas
+    w, h = cw * larg, ch * alt
+    objs = []
+    for i in range(colunas):
+        for j in range(linhas):
+            uc = u0 + cw * (i + 0.5)
+            zc = z0 + ch * (j + 0.5)
+            r = rnd.random()
+            mat = "janela_apagada" if r < apagadas else ("janela_fria" if r < apagadas + frias else "janela")
+            e = 0.06
+            if eixo == "y":
+                y = plano + sinal * (saliente / 2 - recuo)
+                objs.append(mb.caixa(w + 2 * e, saliente, h + 2 * e, x=uc, y=y, z=zc - h / 2 - e, cor=moldura,
+                                     bisel=0, liso=False))
+                objs.append(mb.caixa(w, 0.02, h, x=uc, y=plano + sinal * (saliente + 0.002 - recuo), z=zc - h / 2,
+                                     cor=None, mat=mat, bisel=0, liso=False))
+                if peitoril:
+                    objs.append(mb.caixa(w + 0.2, saliente + 0.06, 0.06, x=uc, y=plano + sinal * ((saliente + 0.06) / 2
+                                         - recuo), z=zc - h / 2 - e - 0.06, cor=moldura, bisel=0, liso=False))
+            else:
+                x = plano + sinal * (saliente / 2 - recuo)
+                objs.append(mb.caixa(saliente, w + 2 * e, h + 2 * e, x=x, y=uc, z=zc - h / 2 - e, cor=moldura,
+                                     bisel=0, liso=False))
+                objs.append(mb.caixa(0.02, w, h, x=plano + sinal * (saliente + 0.002 - recuo), y=uc, z=zc - h / 2,
+                                     cor=None, mat=mat, bisel=0, liso=False))
+                if peitoril:
+                    objs.append(mb.caixa(saliente + 0.06, w + 0.2, 0.06, x=plano + sinal * ((saliente + 0.06) / 2
+                                         - recuo), y=uc, z=zc - h / 2 - e - 0.06, cor=moldura, bisel=0, liso=False))
+    return mb.junta(objs, nome)
+
+
+def janelas_caixa(l, p, z0, z1, andares, colunas_x, colunas_y, x=0.0, y=0.0, **k):
+    """Janelas nas quatro fachadas de um bloco l × p (centrado em x, y), de z0 a z1, com 'andares' linhas."""
+    s = k.pop("semente", 1)
+    return mb.junta([
+        janelas(("y", y - p / 2, -1), x - l / 2, x + l / 2, z0, z1, colunas_x, andares, semente=s, **k),
+        janelas(("y", y + p / 2, 1), x - l / 2, x + l / 2, z0, z1, colunas_x, andares, semente=s + 1, **k),
+        janelas(("x", x - l / 2, -1), y - p / 2, y + p / 2, z0, z1, colunas_y, andares, semente=s + 2, **k),
+        janelas(("x", x + l / 2, 1), y - p / 2, y + p / 2, z0, z1, colunas_y, andares, semente=s + 3, **k)], "janelas")
+
+
+def letreiro_neon(texto_largura, altura, x, y, z, cor="neon", face=-1, nome="letreiro"):
+    """Placa luminosa simples (retângulo de neon com moldura escura) presa na fachada da frente."""
+    caixa_ = mb.caixa(texto_largura + 0.2, 0.12, altura + 0.2, x=x, y=y + face * 0.06, z=z - 0.1, cor="grafite_escuro",
+                      bisel=0.03)
+    luz_ = mb.caixa(texto_largura, 0.04, altura, x=x, y=y + face * 0.14, z=z, cor=None, mat=cor, bisel=0.02)
+    return mb.junta([caixa_, luz_], nome)

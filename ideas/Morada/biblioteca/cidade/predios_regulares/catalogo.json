@@ -1,0 +1,2005 @@
+{
+ "categoria": "predios_regulares",
+ "rotulo": "Prédios regulares",
+ "itens": [
+  {
+   "id": "escritorio_branco_abobada",
+   "rotulo": "Escritório branco com abóbada",
+   "categoria": "predios_regulares",
+   "grupo": "escritorio_branco_abobada",
+   "fixacao": "chao",
+   "dims": [
+    12.64,
+    12.08,
+    19.68
+   ],
+   "arquivo": "glb/escritorio_branco_abobada.glb",
+   "miniatura": "miniaturas/escritorio_branco_abobada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      8.5,
+      -0.16
+     ],
+     "tamanho": [
+      11.8,
+      17.0,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      18.35,
+      -0.16
+     ],
+     "tamanho": [
+      11.8,
+      2.7,
+      9.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo"
+   ],
+   "tris": 9376,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "escritorio"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular"
+  },
+  {
+   "id": "torre_faixas_vermelhas",
+   "rotulo": "Torre de faixas vermelhas",
+   "categoria": "predios_regulares",
+   "grupo": "torre_faixas_vermelhas",
+   "fixacao": "chao",
+   "dims": [
+    12.4,
+    13.0,
+    55.21
+   ],
+   "arquivo": "glb/torre_faixas_vermelhas.glb",
+   "miniatura": "miniaturas/torre_faixas_vermelhas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.0,
+      -0.3
+     ],
+     "tamanho": [
+      12.2,
+      6.0,
+      12.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      27.325,
+      -0.3
+     ],
+     "tamanho": [
+      9.8,
+      45.45,
+      9.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "folha",
+    "grafite",
+    "grafite_escuro",
+    "pessego",
+    "vermelho"
+   ],
+   "tris": 9348,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "escritorio",
+    "torre"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 14,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_baia_vermelho",
+   "rotulo": "Prédio de apartamentos com baia (vermelho)",
+   "categoria": "predios_regulares",
+   "grupo": "apto_baia",
+   "fixacao": "chao",
+   "dims": [
+    10.19,
+    10.095,
+    22.65
+   ],
+   "arquivo": "glb/apto_baia_vermelho.glb",
+   "miniatura": "miniaturas/apto_baia_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      10.4,
+      -0.4525
+     ],
+     "tamanho": [
+      9.2,
+      20.8,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      11.9,
+      3.9475
+     ],
+     "tamanho": [
+      3.8,
+      16.2,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 7040,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_baia_azul",
+   "rotulo": "Prédio de apartamentos com baia (azul)",
+   "categoria": "predios_regulares",
+   "grupo": "apto_baia",
+   "fixacao": "chao",
+   "dims": [
+    10.19,
+    10.095,
+    22.65
+   ],
+   "arquivo": "glb/apto_baia_azul.glb",
+   "miniatura": "miniaturas/apto_baia_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      10.4,
+      -0.4525
+     ],
+     "tamanho": [
+      9.2,
+      20.8,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      11.9,
+      3.9475
+     ],
+     "tamanho": [
+      3.8,
+      16.2,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo"
+   ],
+   "tris": 7040,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "regular"
+  },
+  {
+   "id": "boliche",
+   "rotulo": "Boliche com pino gigante",
+   "categoria": "predios_regulares",
+   "grupo": "boliche",
+   "fixacao": "chao",
+   "dims": [
+    13.0,
+    11.5,
+    9.6
+   ],
+   "arquivo": "glb/boliche.glb",
+   "miniatura": "miniaturas/boliche.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.55,
+      -0.35
+     ],
+     "tamanho": [
+      12.8,
+      7.1,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      1.8,
+      8.0,
+      -2.35
+     ],
+     "tamanho": [
+      6,
+      3.2,
+      2.5
+     ]
+    },
+    {
+     "centro": [
+      -3.8,
+      7.7,
+      0.65
+     ],
+     "tamanho": [
+      2.6,
+      2.6,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "grafite_escuro",
+    "rosa",
+    "vermelho"
+   ],
+   "tris": 6656,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "lazer",
+    "comercio"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "regular"
+  },
+  {
+   "id": "casas_geminadas_pastel",
+   "rotulo": "Casas geminadas (tons pastel)",
+   "categoria": "predios_regulares",
+   "grupo": "casas_geminadas",
+   "fixacao": "chao",
+   "dims": [
+    12.95,
+    9.77,
+    8.5
+   ],
+   "arquivo": "glb/casas_geminadas_pastel.glb",
+   "miniatura": "miniaturas/casas_geminadas_pastel.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.9,
+      -0.315
+     ],
+     "tamanho": [
+      12.0,
+      5.8,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      6.95,
+      -0.315
+     ],
+     "tamanho": [
+      12.0,
+      2.3,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "creme",
+    "cromo",
+    "folha",
+    "pessego",
+    "terracota",
+    "tijolo"
+   ],
+   "tris": 4828,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "casa",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "casas_geminadas_tijolo",
+   "rotulo": "Casas geminadas (tijolo e bege)",
+   "categoria": "predios_regulares",
+   "grupo": "casas_geminadas",
+   "fixacao": "chao",
+   "dims": [
+    12.95,
+    9.77,
+    8.5
+   ],
+   "arquivo": "glb/casas_geminadas_tijolo.glb",
+   "miniatura": "miniaturas/casas_geminadas_tijolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.9,
+      -0.315
+     ],
+     "tamanho": [
+      12.0,
+      5.8,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      6.95,
+      -0.315
+     ],
+     "tamanho": [
+      12.0,
+      2.3,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "cromo",
+    "folha",
+    "grafite",
+    "terracota_clara",
+    "tijolo"
+   ],
+   "tris": 4828,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "casa",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "escritorio_moldura_oval",
+   "rotulo": "Escritório de vidro com moldura em arco",
+   "categoria": "predios_regulares",
+   "grupo": "escritorio_moldura_oval",
+   "fixacao": "chao",
+   "dims": [
+    11.6,
+    11.0,
+    39.01
+   ],
+   "arquivo": "glb/escritorio_moldura_oval.glb",
+   "miniatura": "miniaturas/escritorio_moldura_oval.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      17.15,
+      -0.9
+     ],
+     "tamanho": [
+      11.6,
+      34.3,
+      9.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "azul_escuro",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo"
+   ],
+   "tris": 3688,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "escritorio"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "regular"
+  },
+  {
+   "id": "torre_curva_empresarial",
+   "rotulo": "Torre azul curva com letreiro",
+   "categoria": "predios_regulares",
+   "grupo": "torre_curva_empresarial",
+   "fixacao": "chao",
+   "dims": [
+    12.632,
+    10.705,
+    51.01
+   ],
+   "arquivo": "glb/torre_curva_empresarial.glb",
+   "miniatura": "miniaturas/torre_curva_empresarial.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      23.25,
+      -0.75273
+     ],
+     "tamanho": [
+      13.0,
+      46.5,
+      9.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "grafite"
+   ],
+   "tris": 6452,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "escritorio",
+    "torre",
+    "letreiro"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 14,
+   "estilo": "regular"
+  },
+  {
+   "id": "predio_cilindrico_faixas",
+   "rotulo": "Prédio cilíndrico de faixas",
+   "categoria": "predios_regulares",
+   "grupo": "predio_cilindrico_faixas",
+   "fixacao": "chao",
+   "dims": [
+    12.763,
+    11.681,
+    29.55
+   ],
+   "arquivo": "glb/predio_cilindrico_faixas.glb",
+   "miniatura": "miniaturas/predio_cilindrico_faixas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.30046,
+      13.8,
+      -0.75941
+     ],
+     "tamanho": [
+      9.8,
+      27.6,
+      9.8
+     ]
+    },
+    {
+     "centro": [
+      2.39954,
+      13.8,
+      0.84059
+     ],
+     "tamanho": [
+      7.6,
+      27.6,
+      7.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "pessego"
+   ],
+   "tris": 8928,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "escritorio"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 8,
+   "estilo": "regular"
+  },
+  {
+   "id": "predio_tijolo_comprido",
+   "rotulo": "Prédio comprido de tijolo com varandas",
+   "categoria": "predios_regulares",
+   "grupo": "predio_tijolo_comprido",
+   "fixacao": "chao",
+   "dims": [
+    26.99,
+    11.855,
+    19.65
+   ],
+   "arquivo": "glb/predio_tijolo_comprido.glb",
+   "miniatura": "miniaturas/predio_tijolo_comprido.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      8.9,
+      -0.4325
+     ],
+     "tamanho": [
+      26.0,
+      17.8,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      10.6,
+      5.2175
+     ],
+     "tamanho": [
+      21.4,
+      12.8,
+      1.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "folha",
+    "grafite",
+    "pessego",
+    "terracota",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 10280,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial",
+    "misto",
+    "lojas"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular"
+  },
+  {
+   "id": "predio_cinza_varandas",
+   "rotulo": "Prédio comprido de varandas de vidro",
+   "categoria": "predios_regulares",
+   "grupo": "predio_cinza_varandas",
+   "fixacao": "chao",
+   "dims": [
+    25.24,
+    12.32,
+    16.38
+   ],
+   "arquivo": "glb/predio_cinza_varandas.glb",
+   "miniatura": "miniaturas/predio_cinza_varandas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.3,
+      -0.84
+     ],
+     "tamanho": [
+      25.0,
+      14.6,
+      10.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "grafite",
+    "madeira"
+   ],
+   "tris": 9104,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 4,
+   "estilo": "regular"
+  },
+  {
+   "id": "hotel",
+   "rotulo": "Hotel com letreiro",
+   "categoria": "predios_regulares",
+   "grupo": "hotel",
+   "fixacao": "chao",
+   "dims": [
+    11.96,
+    11.98,
+    36.515
+   ],
+   "arquivo": "glb/hotel.glb",
+   "miniatura": "miniaturas/hotel.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      17.05,
+      -1.21
+     ],
+     "tamanho": [
+      11.6,
+      34.1,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      2.2,
+      4.59
+     ],
+     "tamanho": [
+      6.4,
+      4.4,
+      2.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "azul_marinho",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "grafite",
+    "ouro",
+    "vermelho"
+   ],
+   "tris": 10320,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "hotel",
+    "letreiro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_lilas_sacadas",
+   "rotulo": "Prédio lilás de sacadas",
+   "categoria": "predios_regulares",
+   "grupo": "apto_lilas_sacadas",
+   "fixacao": "chao",
+   "dims": [
+    12.455,
+    11.695,
+    22.56
+   ],
+   "arquivo": "glb/apto_lilas_sacadas.glb",
+   "miniatura": "miniaturas/apto_lilas_sacadas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.1675,
+      10.35,
+      -0.0525
+     ],
+     "tamanho": [
+      12.0,
+      20.7,
+      10.8
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo",
+    "laranja_claro",
+    "lilas",
+    "lilas_claro",
+    "roxo_escuro"
+   ],
+   "tris": 8240,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_cinza_l",
+   "rotulo": "Prédio cinza em L com escada",
+   "categoria": "predios_regulares",
+   "grupo": "apto_cinza_l",
+   "fixacao": "chao",
+   "dims": [
+    12.955,
+    10.495,
+    22.91
+   ],
+   "arquivo": "glb/apto_cinza_l.glb",
+   "miniatura": "miniaturas/apto_cinza_l.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -2.3825,
+      10.3,
+      -0.4525
+     ],
+     "tamanho": [
+      7.6,
+      20.6,
+      8.6
+     ]
+    },
+    {
+     "centro": [
+      3.8175,
+      7.1,
+      -1.3525
+     ],
+     "tamanho": [
+      5.4,
+      14.2,
+      6.8
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo",
+    "grafite"
+   ],
+   "tris": 7916,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_marrom_baias",
+   "rotulo": "Prédio marrom de baias com floreiras",
+   "categoria": "predios_regulares",
+   "grupo": "apto_marrom_baias",
+   "fixacao": "chao",
+   "dims": [
+    10.655,
+    10.125,
+    19.26
+   ],
+   "arquivo": "glb/apto_marrom_baias.glb",
+   "miniatura": "miniaturas/apto_marrom_baias.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.1675,
+      8.675,
+      -0.0675
+     ],
+     "tamanho": [
+      10.0,
+      17.35,
+      9.1
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "creme",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "marrom",
+    "marrom_claro",
+    "rosa",
+    "tijolo",
+    "verde_medio"
+   ],
+   "tris": 7028,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial",
+    "tijolo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_laranja_telhado",
+   "rotulo": "Prédio laranja de telhado vermelho",
+   "categoria": "predios_regulares",
+   "grupo": "apto_laranja_telhado",
+   "fixacao": "chao",
+   "dims": [
+    9.3,
+    10.25,
+    21.09
+   ],
+   "arquivo": "glb/apto_laranja_telhado.glb",
+   "miniatura": "miniaturas/apto_laranja_telhado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      8.35,
+      -0.475
+     ],
+     "tamanho": [
+      8.4,
+      16.7,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      18.2,
+      -0.475
+     ],
+     "tamanho": [
+      8.4,
+      3.0,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "creme",
+    "cromo",
+    "folha",
+    "laranja",
+    "rosa",
+    "tijolo",
+    "verde_medio",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 5092,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_verde_azul_sorveteria",
+   "rotulo": "Prédio verde e azul com sorveteria",
+   "categoria": "predios_regulares",
+   "grupo": "apto_verde_azul",
+   "fixacao": "chao",
+   "dims": [
+    12.655,
+    10.16,
+    16.45
+   ],
+   "arquivo": "glb/apto_verde_azul_sorveteria.glb",
+   "miniatura": "miniaturas/apto_verde_azul_sorveteria.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.1675,
+      7.25,
+      -0.62
+     ],
+     "tamanho": [
+      12.0,
+      14.5,
+      8.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "rosa",
+    "verde"
+   ],
+   "tris": 5504,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial",
+    "misto",
+    "lojas"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_tijolo_pequeno",
+   "rotulo": "Prédio pequeno de tijolo com escadinha",
+   "categoria": "predios_regulares",
+   "grupo": "apto_tijolo_pequeno",
+   "fixacao": "chao",
+   "dims": [
+    8.99,
+    10.055,
+    15.22
+   ],
+   "arquivo": "glb/apto_tijolo_pequeno.glb",
+   "miniatura": "miniaturas/apto_tijolo_pequeno.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.275,
+      -0.7325
+     ],
+     "tamanho": [
+      8.0,
+      14.55,
+      7.6
+     ]
+    },
+    {
+     "centro": [
+      -2.3,
+      0.6,
+      4.0675
+     ],
+     "tamanho": [
+      1.6,
+      1.2,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "cromo",
+    "grafite",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 5592,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial",
+    "tijolo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "regular"
+  },
+  {
+   "id": "apto_bege_8_andares",
+   "rotulo": "Prédio bege de 8 andares",
+   "categoria": "predios_regulares",
+   "grupo": "apto_bege_8_andares",
+   "fixacao": "chao",
+   "dims": [
+    11.99,
+    11.895,
+    30.21
+   ],
+   "arquivo": "glb/apto_bege_8_andares.glb",
+   "miniatura": "miniaturas/apto_bege_8_andares.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      13.7,
+      -0.4525
+     ],
+     "tamanho": [
+      11.0,
+      27.4,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      15.4,
+      5.1975
+     ],
+     "tamanho": [
+      11.0,
+      22.4,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "bege",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "grafite"
+   ],
+   "tris": 9268,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 8,
+   "estilo": "regular"
+  },
+  {
+   "id": "salao_musica_violino",
+   "rotulo": "Salão de música com violino gigante",
+   "categoria": "predios_regulares",
+   "grupo": "salao_musica",
+   "fixacao": "chao",
+   "dims": [
+    12.7,
+    10.501,
+    12.05
+   ],
+   "arquivo": "glb/salao_musica_violino.glb",
+   "miniatura": "miniaturas/salao_musica_violino.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      4.6,
+      0
+     ],
+     "tamanho": [
+      11.8,
+      9.2,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      10.3,
+      -1.9
+     ],
+     "tamanho": [
+      7.4,
+      3.4,
+      4.2
+     ]
+    },
+    {
+     "centro": [
+      4.2,
+      5.3,
+      4.3
+     ],
+     "tamanho": [
+      3.4,
+      10.0,
+      1.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "caramelo",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "madeira_mel",
+    "ouro",
+    "preto",
+    "vinho"
+   ],
+   "tris": 8484,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "lazer",
+    "musica"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "cinema",
+   "rotulo": "Cinema com marquise",
+   "categoria": "predios_regulares",
+   "grupo": "cinema",
+   "fixacao": "chao",
+   "dims": [
+    12.96,
+    12.38,
+    14.92
+   ],
+   "arquivo": "glb/cinema.glb",
+   "miniatura": "miniaturas/cinema.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      5.175,
+      -1.14
+     ],
+     "tamanho": [
+      12.6,
+      10.35,
+      9.8
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      4.65,
+      4.91
+     ],
+     "tamanho": [
+      11.6,
+      1.3,
+      2.3
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      7.3,
+      4.26
+     ],
+     "tamanho": [
+      2.8,
+      14.6,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "grafite",
+    "ouro",
+    "vermelho_escuro"
+   ],
+   "tris": 5592,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "lazer",
+    "letreiro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "loja_esquina_padaria",
+   "rotulo": "Loja de esquina com padaria",
+   "categoria": "predios_regulares",
+   "grupo": "loja_esquina_padaria",
+   "fixacao": "chao",
+   "dims": [
+    12.543,
+    12.448,
+    10.05
+   ],
+   "arquivo": "glb/loja_esquina_padaria.glb",
+   "miniatura": "miniaturas/loja_esquina_padaria.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.37336,
+      4.1,
+      -0.42097
+     ],
+     "tamanho": [
+      10.8,
+      8.2,
+      10.8
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "folha",
+    "grafite",
+    "marrom",
+    "rosa",
+    "verde_medio",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 5900,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas",
+    "esquina"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "loja_esquina_cafe",
+   "rotulo": "Esquina com café e torreão",
+   "categoria": "predios_regulares",
+   "grupo": "loja_esquina_cafe",
+   "fixacao": "chao",
+   "dims": [
+    12.845,
+    11.94,
+    17.37
+   ],
+   "arquivo": "glb/loja_esquina_cafe.glb",
+   "miniatura": "miniaturas/loja_esquina_cafe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0775,
+      5.65,
+      -0.375
+     ],
+     "tamanho": [
+      10.2,
+      11.3,
+      10.2
+     ]
+    },
+    {
+     "centro": [
+      2.2775,
+      13.1,
+      1.825
+     ],
+     "tamanho": [
+      5.8,
+      5.0,
+      5.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "ouro"
+   ],
+   "tris": 7364,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas",
+    "esquina"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "regular"
+  },
+  {
+   "id": "mercadinho",
+   "rotulo": "Mercadinho com toldo",
+   "categoria": "predios_regulares",
+   "grupo": "mercadinho",
+   "fixacao": "chao",
+   "dims": [
+    12.82,
+    12.305,
+    7.5
+   ],
+   "arquivo": "glb/mercadinho.glb",
+   "miniatura": "miniaturas/mercadinho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.0,
+      -0.7425
+     ],
+     "tamanho": [
+      12.5,
+      6.0,
+      10.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.55,
+      5.3075
+     ],
+     "tamanho": [
+      12.5,
+      1.1,
+      1.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "laranja",
+    "madeira_clara",
+    "roxo",
+    "verde_lima",
+    "verde_medio",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 4628,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "regular"
+  },
+  {
+   "id": "sobrado_tijolo",
+   "rotulo": "Sobrado de tijolo",
+   "categoria": "predios_regulares",
+   "grupo": "sobrado",
+   "fixacao": "chao",
+   "dims": [
+    10.0,
+    10.977,
+    9.45
+   ],
+   "arquivo": "glb/sobrado_tijolo.glb",
+   "miniatura": "miniaturas/sobrado_tijolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.15,
+      -0.80656
+     ],
+     "tamanho": [
+      9.0,
+      6.3,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      7.6,
+      -0.80656
+     ],
+     "tamanho": [
+      9.0,
+      2.6,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      -2.4,
+      1.55,
+      4.24344
+     ],
+     "tamanho": [
+      3.6,
+      3.1,
+      1.9
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "terracota_escura",
+    "tijolo",
+    "verde_medio"
+   ],
+   "tris": 4192,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "casa",
+    "residencial",
+    "tijolo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "sobrado_bege",
+   "rotulo": "Sobrado bege",
+   "categoria": "predios_regulares",
+   "grupo": "sobrado",
+   "fixacao": "chao",
+   "dims": [
+    10.0,
+    10.977,
+    9.45
+   ],
+   "arquivo": "glb/sobrado_bege.glb",
+   "miniatura": "miniaturas/sobrado_bege.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.15,
+      -0.80656
+     ],
+     "tamanho": [
+      9.0,
+      6.3,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      7.6,
+      -0.80656
+     ],
+     "tamanho": [
+      9.0,
+      2.6,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      -2.4,
+      1.55,
+      4.24344
+     ],
+     "tamanho": [
+      3.6,
+      3.1,
+      1.9
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "bege",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "terracota",
+    "tijolo"
+   ],
+   "tris": 4192,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "casa",
+    "residencial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "lojas_2andares_flores",
+   "rotulo": "Lojas de dois andares (flores e livraria)",
+   "categoria": "predios_regulares",
+   "grupo": "lojas_2andares",
+   "fixacao": "chao",
+   "dims": [
+    12.72,
+    10.64,
+    9.75
+   ],
+   "arquivo": "glb/lojas_2andares_flores.glb",
+   "miniatura": "miniaturas/lojas_2andares_flores.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.075,
+      -0.325
+     ],
+     "tamanho": [
+      12.4,
+      8.15,
+      9.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.05,
+      4.725
+     ],
+     "tamanho": [
+      12.4,
+      0.9,
+      1.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "marrom",
+    "rosa"
+   ],
+   "tris": 5068,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas",
+    "misto"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "lojas_2andares_pizza",
+   "rotulo": "Lojas de dois andares (pizza e bazar)",
+   "categoria": "predios_regulares",
+   "grupo": "lojas_2andares",
+   "fixacao": "chao",
+   "dims": [
+    12.72,
+    10.64,
+    9.75
+   ],
+   "arquivo": "glb/lojas_2andares_pizza.glb",
+   "miniatura": "miniaturas/lojas_2andares_pizza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.075,
+      -0.325
+     ],
+     "tamanho": [
+      12.4,
+      8.15,
+      9.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.05,
+      4.725
+     ],
+     "tamanho": [
+      12.4,
+      0.9,
+      1.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_claro",
+    "azul_marinho",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "cromo",
+    "vermelho"
+   ],
+   "tris": 5068,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas",
+    "misto"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular"
+  },
+  {
+   "id": "predio_farmacia",
+   "rotulo": "Prédio de três andares com farmácia",
+   "categoria": "predios_regulares",
+   "grupo": "predio_farmacia",
+   "fixacao": "chao",
+   "dims": [
+    11.81,
+    11.525,
+    13.25
+   ],
+   "arquivo": "glb/predio_farmacia.glb",
+   "miniatura": "miniaturas/predio_farmacia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.545,
+      5.65,
+      -0.2675
+     ],
+     "tamanho": [
+      10.4,
+      11.3,
+      10.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "cromo",
+    "grafite",
+    "tijolo",
+    "verde_medio"
+   ],
+   "tris": 5604,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "comercio",
+    "lojas",
+    "misto"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "regular"
+  }
+ ]
+}

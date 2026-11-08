@@ -273,376 +273,6 @@
    "vao_livre": 6.2
   },
   {
-   "id": "rampa_viaduto_rua",
-   "rotulo": "Rampa de viaduto (rua)",
-   "categoria": "estruturas",
-   "grupo": "rampa_viaduto",
-   "fixacao": "chao",
-   "dims": [
-    15.0,
-    30.0,
-    9.034
-   ],
-   "arquivo": "glb/rampa_viaduto_rua.glb",
-   "miniatura": "miniaturas/rampa_viaduto_rua.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0,
-      -0.15789,
-      13.125
-     ],
-     "tamanho": [
-      15.0,
-      0.484,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      0.14607,
-      9.375
-     ],
-     "tamanho": [
-      15.0,
-      1.092,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      0.66975,
-      5.625
-     ],
-     "tamanho": [
-      15.0,
-      2.14,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      1.32527,
-      1.875
-     ],
-     "tamanho": [
-      15.0,
-      3.451,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      2.02473,
-      -1.875
-     ],
-     "tamanho": [
-      15.0,
-      4.849,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      2.68025,
-      -5.625
-     ],
-     "tamanho": [
-      15.0,
-      6.16,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      3.20393,
-      -9.375
-     ],
-     "tamanho": [
-      15.0,
-      7.208,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      3.50789,
-      -13.125
-     ],
-     "tamanho": [
-      15.0,
-      7.816,
-      3.75
-     ]
-    }
-   ],
-   "cores": [
-    "asfalto",
-    "branco",
-    "calcada",
-    "concreto",
-    "concreto_escuro",
-    "metal"
-   ],
-   "tris": 4956,
-   "pacote": false,
-   "tags": [
-    "modular",
-    "rua",
-    "viaduto",
-    "rampa"
-   ],
-   "z_elevado": 7.5,
-   "perfil_altura_y": [
-    [
-     -15.0,
-     0.0
-    ],
-    [
-     -12.5,
-     0.148
-    ],
-    [
-     -10.0,
-     0.556
-    ],
-    [
-     -7.5,
-     1.172
-    ],
-    [
-     -5.0,
-     1.944
-    ],
-    [
-     -2.5,
-     2.821
-    ],
-    [
-     0.0,
-     3.75
-    ],
-    [
-     2.5,
-     4.679
-    ],
-    [
-     5.0,
-     5.556
-    ],
-    [
-     7.5,
-     6.328
-    ],
-    [
-     10.0,
-     6.944
-    ],
-    [
-     12.5,
-     7.352
-    ],
-    [
-     15.0,
-     7.5
-    ]
-   ]
-  },
-  {
-   "id": "rampa_viaduto_avenida",
-   "rotulo": "Rampa de viaduto (avenida)",
-   "categoria": "estruturas",
-   "grupo": "rampa_viaduto",
-   "fixacao": "chao",
-   "dims": [
-    15.0,
-    30.0,
-    9.034
-   ],
-   "arquivo": "glb/rampa_viaduto_avenida.glb",
-   "miniatura": "miniaturas/rampa_viaduto_avenida.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0,
-      -0.15789,
-      13.125
-     ],
-     "tamanho": [
-      15.0,
-      0.484,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      0.14607,
-      9.375
-     ],
-     "tamanho": [
-      15.0,
-      1.092,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      0.66975,
-      5.625
-     ],
-     "tamanho": [
-      15.0,
-      2.14,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      1.32527,
-      1.875
-     ],
-     "tamanho": [
-      15.0,
-      3.451,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      2.02473,
-      -1.875
-     ],
-     "tamanho": [
-      15.0,
-      4.849,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      2.68025,
-      -5.625
-     ],
-     "tamanho": [
-      15.0,
-      6.16,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      3.20393,
-      -9.375
-     ],
-     "tamanho": [
-      15.0,
-      7.208,
-      3.75
-     ]
-    },
-    {
-     "centro": [
-      0,
-      3.50789,
-      -13.125
-     ],
-     "tamanho": [
-      15.0,
-      7.816,
-      3.75
-     ]
-    }
-   ],
-   "cores": [
-    "asfalto",
-    "branco",
-    "calcada",
-    "concreto",
-    "concreto_escuro",
-    "metal"
-   ],
-   "tris": 5544,
-   "pacote": false,
-   "tags": [
-    "modular",
-    "avenida",
-    "viaduto",
-    "rampa"
-   ],
-   "z_elevado": 7.5,
-   "perfil_altura_y": [
-    [
-     -15.0,
-     0.0
-    ],
-    [
-     -12.5,
-     0.148
-    ],
-    [
-     -10.0,
-     0.556
-    ],
-    [
-     -7.5,
-     1.172
-    ],
-    [
-     -5.0,
-     1.944
-    ],
-    [
-     -2.5,
-     2.821
-    ],
-    [
-     0.0,
-     3.75
-    ],
-    [
-     2.5,
-     4.679
-    ],
-    [
-     5.0,
-     5.556
-    ],
-    [
-     7.5,
-     6.328
-    ],
-    [
-     10.0,
-     6.944
-    ],
-    [
-     12.5,
-     7.352
-    ],
-    [
-     15.0,
-     7.5
-    ]
-   ]
-  },
-  {
    "id": "pilar_viaduto",
    "rotulo": "Pilar de viaduto (martelo)",
    "categoria": "estruturas",
@@ -761,148 +391,6 @@
    ],
    "z_elevado": 7.5,
    "altura_apoio": 6.2
-  },
-  {
-   "id": "trevo",
-   "rotulo": "Trevo com avenida elevada e alças em laço",
-   "categoria": "estruturas",
-   "grupo": "trevo",
-   "fixacao": "chao",
-   "dims": [
-    45.0,
-    45.0,
-    13.58
-   ],
-   "arquivo": "glb/trevo.glb",
-   "miniatura": "miniaturas/trevo.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0,
-      -0.2,
-      0
-     ],
-     "tamanho": [
-      45.0,
-      0.4,
-      45.0
-     ]
-    },
-    {
-     "centro": [
-      0,
-      6.8,
-      0
-     ],
-     "tamanho": [
-      45.0,
-      1.4,
-      15.0
-     ]
-    },
-    {
-     "centro": [
-      3.5,
-      6.8,
-      9.7
-     ],
-     "tamanho": [
-      15.0,
-      1.4,
-      4.4
-     ]
-    },
-    {
-     "centro": [
-      -3.5,
-      6.8,
-      -9.7
-     ],
-     "tamanho": [
-      15.0,
-      1.4,
-      4.4
-     ]
-    },
-    {
-     "centro": [
-      16.25,
-      3.05,
-      0
-     ],
-     "tamanho": [
-      9.0,
-      6.1,
-      1.6
-     ]
-    },
-    {
-     "centro": [
-      -16.25,
-      3.05,
-      0
-     ],
-     "tamanho": [
-      9.0,
-      6.1,
-      1.6
-     ]
-    },
-    {
-     "centro": [
-      16.5,
-      1.0,
-      16.0
-     ],
-     "tamanho": [
-      11.0,
-      2.0,
-      11.0
-     ]
-    },
-    {
-     "centro": [
-      -16.5,
-      1.0,
-      -16.0
-     ],
-     "tamanho": [
-      11.0,
-      2.0,
-      11.0
-     ]
-    }
-   ],
-   "cores": [
-    "asfalto",
-    "branco",
-    "calcada",
-    "cinza_azulado",
-    "concreto",
-    "concreto_escuro",
-    "folha",
-    "folha_clara",
-    "folha_escura",
-    "grafite",
-    "grama",
-    "madeira",
-    "metal"
-   ],
-   "tris": 19762,
-   "pacote": false,
-   "tags": [
-    "avenida",
-    "viaduto",
-    "trevo",
-    "grande"
-   ],
-   "z_elevado": 7.5,
-   "quadras": [
-    3,
-    3
-   ]
   },
   {
    "id": "tunel_rua",
@@ -1619,6 +1107,414 @@
     "energia",
     "interativo"
    ]
+  },
+  {
+   "id": "rampa_viaduto_rua",
+   "rotulo": "Rampa de viaduto (rua)",
+   "categoria": "estruturas",
+   "grupo": "rampa_viaduto",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    30.0,
+    9.034
+   ],
+   "arquivo": "glb/rampa_viaduto_rua.glb",
+   "miniatura": "miniaturas/rampa_viaduto_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "concreto",
+    "concreto_escuro",
+    "metal"
+   ],
+   "tris": 4956,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "viaduto",
+    "rampa"
+   ],
+   "colisao_malha": [
+    "colisao_rampa"
+   ],
+   "z_elevado": 7.5,
+   "perfil_altura_y": [
+    [
+     -15.0,
+     0.0
+    ],
+    [
+     -12.5,
+     0.148
+    ],
+    [
+     -10.0,
+     0.556
+    ],
+    [
+     -7.5,
+     1.172
+    ],
+    [
+     -5.0,
+     1.944
+    ],
+    [
+     -2.5,
+     2.821
+    ],
+    [
+     0.0,
+     3.75
+    ],
+    [
+     2.5,
+     4.679
+    ],
+    [
+     5.0,
+     5.556
+    ],
+    [
+     7.5,
+     6.328
+    ],
+    [
+     10.0,
+     6.944
+    ],
+    [
+     12.5,
+     7.352
+    ],
+    [
+     15.0,
+     7.5
+    ]
+   ]
+  },
+  {
+   "id": "rampa_viaduto_avenida",
+   "rotulo": "Rampa de viaduto (avenida)",
+   "categoria": "estruturas",
+   "grupo": "rampa_viaduto",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    30.0,
+    9.034
+   ],
+   "arquivo": "glb/rampa_viaduto_avenida.glb",
+   "miniatura": "miniaturas/rampa_viaduto_avenida.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "concreto",
+    "concreto_escuro",
+    "metal"
+   ],
+   "tris": 5544,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "viaduto",
+    "rampa"
+   ],
+   "colisao_malha": [
+    "colisao_rampa"
+   ],
+   "z_elevado": 7.5,
+   "perfil_altura_y": [
+    [
+     -15.0,
+     0.0
+    ],
+    [
+     -12.5,
+     0.148
+    ],
+    [
+     -10.0,
+     0.556
+    ],
+    [
+     -7.5,
+     1.172
+    ],
+    [
+     -5.0,
+     1.944
+    ],
+    [
+     -2.5,
+     2.821
+    ],
+    [
+     0.0,
+     3.75
+    ],
+    [
+     2.5,
+     4.679
+    ],
+    [
+     5.0,
+     5.556
+    ],
+    [
+     7.5,
+     6.328
+    ],
+    [
+     10.0,
+     6.944
+    ],
+    [
+     12.5,
+     7.352
+    ],
+    [
+     15.0,
+     7.5
+    ]
+   ]
+  },
+  {
+   "id": "trevo",
+   "rotulo": "Trevo com avenida elevada e alças em laço (5 × 5)",
+   "categoria": "estruturas",
+   "grupo": "trevo",
+   "fixacao": "chao",
+   "dims": [
+    75.0,
+    75.0,
+    13.58
+   ],
+   "arquivo": "glb/trevo.glb",
+   "miniatura": "miniaturas/trevo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      75.0,
+      0.4,
+      75.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      6.8,
+      0
+     ],
+     "tamanho": [
+      75.0,
+      1.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      1.0,
+      6.8,
+      9.675
+     ],
+     "tamanho": [
+      11.0,
+      1.4,
+      4.35
+     ]
+    },
+    {
+     "centro": [
+      15.0,
+      2.55,
+      0
+     ],
+     "tamanho": [
+      1.2,
+      5.1,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      15.0,
+      5.475,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      1.25,
+      13.0
+     ]
+    },
+    {
+     "centro": [
+      28.0,
+      2.55,
+      0
+     ],
+     "tamanho": [
+      1.2,
+      5.1,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      28.0,
+      5.475,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      1.25,
+      13.0
+     ]
+    },
+    {
+     "centro": [
+      -1.0,
+      6.8,
+      -9.675
+     ],
+     "tamanho": [
+      11.0,
+      1.4,
+      4.35
+     ]
+    },
+    {
+     "centro": [
+      -15.0,
+      2.55,
+      0
+     ],
+     "tamanho": [
+      1.2,
+      5.1,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      -15.0,
+      5.475,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      1.25,
+      13.0
+     ]
+    },
+    {
+     "centro": [
+      -28.0,
+      2.55,
+      0
+     ],
+     "tamanho": [
+      1.2,
+      5.1,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      -28.0,
+      5.475,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      1.25,
+      13.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "cinza_azulado",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite",
+    "grama",
+    "madeira",
+    "metal"
+   ],
+   "tris": 21064,
+   "pacote": false,
+   "tags": [
+    "avenida",
+    "viaduto",
+    "trevo",
+    "grande",
+    "5x5"
+   ],
+   "colisao_malha": [
+    "colisao_alca_sudeste",
+    "colisao_alca_noroeste"
+   ],
+   "z_elevado": 7.5,
+   "quadras": [
+    5,
+    5
+   ],
+   "alca": {
+    "comprimento": 79.74,
+    "inclinacao_max": 0.1017,
+    "inclinacao_borda_interna": 0.1197
+   }
   }
  ]
 }

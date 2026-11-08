@@ -15,6 +15,8 @@ Convenções próprias desta parte (além das do guia):
 - Perfil do rio: grama de |x| 5,6 a 7,5 em z = 0, margem em degrau de terra até a água, fundo agua_funda.
 - Viadutos: o tabuleiro tem o perfil da rua (cb.RUA ou cb.AVENIDA) com a calçada em z = 7,5 (asfalto em 7,40, a
   altura das pontes) e o tabuleiro de 1,3 m (vão livre de 6,2 m). As rampas sobem de z = 0 a 7,5 em 30 m e encaixam no viaduto e na rua da base.
+- Trevo de 5 × 5 quadras (75 m): alças de ~80 m com rampa máxima de ~10 % no eixo (ver p_trevo).
+- Partes inclinadas (rampas, alças do trevo) colidem por malha (Item.colisao_malha); o resto, por caixas.
 """
 import math
 import os
@@ -1247,6 +1249,24 @@ def h_rampa(y, y0=-Q, y1=Q):
     return Z_VIA * smooth((y - y0) / (y1 - y0))
 
 
+def colisao_rampa(perfil, passo=2.5):
+    """Malha de colisão da rampa: o aterro com o topo inclinado (calçadas e o asfalto 0,10 abaixo) até o fundo da
+    laje, em estações de 2,5 m, e as duas muretas com guarda-corpo (1,10 m) onde a rampa já saiu do chão."""
+    m_ = perfil["mf"]
+    ys = [-Q + passo * k for k in range(int(round(2 * Q / passo)) + 1)]
+    zs = [h_rampa(y) for y in ys]
+    cam = [(0.0, y) for y in ys]
+    m = Malha()
+    topo = [(-H, 0.0), (-m_, 0.0), (-m_, -0.10), (m_, -0.10), (m_, 0.0), (H, 0.0)]
+    varre(cam, zs, topo, ["asfalto"] * 5, fundo=ZF, lado="asfalto", base="asfalto", tang=(0, 1), m=m)
+    i0 = next(i for i, z in enumerate(zs) if z >= 0.06)
+    for lado in (-1, 1):
+        x0, x1 = sorted((lado * (H - 0.3), lado * H))
+        varre(cam[i0:], zs[i0:], [(x0, 1.1), (x1, 1.1)], ["asfalto"], fundo=zs[i0:], lado="asfalto", base="asfalto",
+              tang=(0, 1), m=m)
+    return m.obj("colisao_rampa")
+
+
 def p_rampa(perfil):
     it = mb.Item("rampa_viaduto_" + perfil["nome"])
     ys = [-Q + 0.5 * k for k in range(61)]
@@ -1272,10 +1292,9 @@ def p_rampa(perfil):
         if zt > 0.4:
             for sx in (-1, 1):
                 it.add(mb.caixa(0.02, 0.12, zt - ZF, x=sx * (H - 0.012), y=y, z=ZF, cor="concreto", bisel=0.0, seg=1))
-    col = []
-    for k in range(8):
-        ya, yb = -Q + 3.75 * k, -Q + 3.75 * (k + 1)
-        col.append(((0, (ya + yb) / 2, ZF), (Q, 3.75, h_rampa((ya + yb) / 2) - ZF)))
+    # colisão: a laje até a calçada (z = 0) em caixa; o aterro inclinado em malha (sem degraus)
+    it.colisao_malha(colisao_rampa(perfil), "colisao_rampa")
+    col = [((0, 0, ZF), (Q, 2 * Q, -ZF))]
     perfil_alt = [[round(y, 2), round(h_rampa(y), 3)] for y in [-Q + 2.5 * k for k in range(13)]]
     return it, dict(rotulo=f"Rampa de viaduto ({'rua' if perfil['nome'] == 'rua' else 'avenida'})",
                     grupo="rampa_viaduto", tags=["modular", perfil["nome"], "viaduto", "rampa"], colisao=col,
@@ -1300,101 +1319,191 @@ def p_pilar_redondo():
 
 
 # ---------------------------------------------------------------------------------------------------- trevo
-TRV = 22.5            # meia largura do trevo (3 × 3 quadras)
-LC = (15.0, -15.0)    # centro do laço do quadrante sudeste
-LR = 5.2              # raio do eixo do laço
-LA, LB = 1.8, 2.05    # meia largura do asfalto do laço e da borda externa da barreira
-Y_S1 = LC[1] + LR     # −9,8: eixo do trecho reto que sai do tabuleiro
-X_S1 = 11.0           # onde o laço se separa do tabuleiro
-A_FIM = 213.0         # a partir daqui (até 180°) o laço já está no chão
+# 5 × 5 quadras (75 × 75 m). A avenida do chão (em Y) e a elevada (em X, calçada em z = 7,5) se cruzam no centro da
+# peça, na quadra do meio: num 4 × 4 o centro cai na divisa entre quadras e as pontas sairiam da grade de 15 m.
+# Dois laços em rotação de 180°: o do quadrante sudeste leva quem segue para leste na elevada até a pista norte do
+# chão (o do noroeste, quem segue para oeste até a pista sul). A alça desce 7,5 m em ~80 m de eixo: reta para leste
+# junto do tabuleiro, laço de 270° de raio 12 m e reta para o norte até pousar no chão, com rampa constante e
+# concordâncias parabólicas nas pontas (inclinação máxima no eixo ~10 %).
+TRV = 37.5            # meia largura do trevo (5 × 5 quadras)
+LR = 12.0             # raio do eixo do laço
+LA, LB = 1.8, 2.05    # meia largura do asfalto da alça e da borda externa da barreira
+Y_S1 = -9.8           # eixo do trecho reto que sai do tabuleiro, correndo para leste
+X_S1 = 6.5            # onde a alça se separa do tabuleiro (logo depois da avenida do chão)
+X_N = 9.4             # eixo do trecho que volta para o norte e vira a faixa do chão
+LC = (X_N + LR, Y_S1 - LR)   # centro do laço do quadrante sudeste (21,4; −21,8)
+Y_POUSO = -13.5       # a alça chega ao chão (asfalto em −0,10) aqui
+L_TRANS = 6.0         # comprimento das concordâncias verticais (no alto e no pé)
+X_TAPER = -10.0       # o tabuleiro começa a alargar aqui (faixa de desaceleração até a saída)
+Z_ALCA0, Z_ALCA1 = Z_VIA - 0.10, cb.Z_ASF
 
 
-def laco_caminho():
-    s1 = reamostra([(X_S1, Y_S1), (LC[0], Y_S1)], 0.8)
-    n = 44
+def faixa_reta(p0, p1, larg=cb.LARG_FAIXA, z=cb.Z_ASF, tracejada=None, fase=0.0, cor="branco"):
+    """Faixa pintada reta com um quadrilátero por traço (o cb.faixa reamostra a cada 0,25 m, o que pesa nas linhas
+    de 75 m do trevo). Tracejado igual ao do cb.faixa: traço centrado em s = −fase + k·período."""
+    a, b = V((p0[0], p0[1])), V((p1[0], p1[1]))
+    L = (b - a).length
+    d = (b - a) / L
+    n = V((-d.y, d.x)) * (larg / 2)
+    if tracejada:
+        tr, vao = tracejada
+        per = tr + vao
+        k0 = math.floor((fase - tr) / per)
+        trechos = [(max(0.0, -fase + k * per - tr / 2), min(L, -fase + k * per + tr / 2))
+                   for k in range(k0, k0 + int(L / per) + 3)]
+        trechos = [(u, v) for u, v in trechos if v - u > 0.05]
+    else:
+        trechos = [(0.0, L)]
+    m = Malha()
+    for u, v in trechos:
+        q = [a + d * u - n, a + d * v - n, a + d * v + n, a + d * u + n]
+        m.f([m.v((p.x, p.y, z + cb.ALT_TINTA)) for p in q], cor)
+    return m.obj("faixa")
+
+
+def alca_greide(L):
+    """Rampa constante (m/m) do trecho do meio da alça, para descer de Z_ALCA0 a Z_ALCA1 em L metros."""
+    return (Z_ALCA0 - Z_ALCA1) / (L - L_TRANS)
+
+
+def alca_z(s, L):
+    """Altura do asfalto da alça a s metros da saída: parábola, rampa constante, parábola."""
+    g, D = alca_greide(L), Z_ALCA0 - Z_ALCA1
+    if s < L_TRANS:
+        d = g * s * s / (2 * L_TRANS)
+    elif s > L - L_TRANS:
+        d = D - g * (L - s) ** 2 / (2 * L_TRANS)
+    else:
+        d = g * (s - L_TRANS / 2)
+    return Z_ALCA0 - d
+
+
+def alca_caminho(passo=0.8):
+    """Eixo da alça do quadrante sudeste: (caminho, tangentes, z do asfalto, s)."""
+    s1 = reamostra([(X_S1, Y_S1), (LC[0], Y_S1)], passo)
+    n = max(8, int(math.ceil(LR * 1.5 * math.pi / passo)))
     arc = cb.arco(LC[0], LC[1], LR, 90, -180, n)
     ta = tang_arco(90, -180, n)
-    cam = s1 + arc[1:]
-    tang = [(1.0, 0.0)] * len(s1) + ta[1:]
+    s3 = reamostra([(X_N, LC[1]), (X_N, Y_POUSO)], passo)
+    cam = s1 + arc[1:] + s3[1:]
+    tang = [(1.0, 0.0)] * len(s1) + ta[1:] + [(0.0, 1.0)] * (len(s3) - 1)
     s = comprimentos(cam)
-    s_desc = s[-1] - LR * math.radians(A_FIM - 180)
-    za = [Z_VIA - 0.10 - (Z_VIA - 0.10 + 0.09) * min(1.0, si / s_desc) for si in s]
+    za = [alca_z(si, s[-1]) for si in s]
     return cam, tang, za, s
 
 
-def laco_obj(it):
-    cam, tang, za, s = laco_caminho()
+def alca_fundo(z):
+    """Fundo da alça: laje de E_LACO quando alta; aterro com muros até −0,30 quando baixa."""
+    return z - E_LACO if z > 2.2 else -0.3
+
+
+def alca_colunas(cam, za, s):
+    """Colunas sob o trecho alto, a cada ~8,5 m, fora da faixa do chão que passa por baixo da reta de saída."""
+    out = []
+    si = 5.0
+    while si < s[-1]:
+        i = min(range(len(s)), key=lambda k: abs(s[k] - si))
+        x, y = cam[i]
+        zb = alca_fundo(za[i])
+        livre = not (X_N - LB - 1.2 < x < X_N + LB + 1.2 and y > Y_POUSO)
+        if zb > 1.2 and za[i] > 2.2 and livre:
+            out.append((x, y, zb))
+        si += 8.5
+    return out
+
+
+def alca_obj(it):
+    cam, tang, za, s = alca_caminho(passo=1.4)
     barreira_e = [(-LB, 0.0), (-LB, 0.62), (-LB + 0.06, 0.78), (-LB + 0.17, 0.8), (-LA, 0.7), (-LA, 0.0)]
     barreira_d = [(-o, z) for o, z in barreira_e[::-1]]
     topo = barreira_e + barreira_d
     ct = ["concreto"] * 5 + ["asfalto"] + ["concreto"] * 5
 
     def pf(i):
-        zb = (za[i] - E_LACO) if za[i] > 2.2 else -0.3
+        zb = alca_fundo(za[i])
         return topo + [(LB, zb - za[i]), (-LB, zb - za[i])]
 
-    it.add(varre(cam, za, pf, ct + ["concreto", "concreto_escuro", "concreto"], anel=True, tang=tang, nome="laco"))
+    it.add(varre(cam, za, pf, ct + ["concreto", "concreto_escuro", "concreto"], anel=True, tang=tang, nome="alca"))
     for o in (-LA + 0.3, LA - 0.3):
-        it.add(tira(cam, za, o, 0.12))
-    # colunas sob o trecho alto
-    for si in (2.5, 7.5, 12.5):
-        i = min(range(len(s)), key=lambda k: abs(s[k] - si))
-        zb = za[i] - E_LACO
-        if zb > 1.2:
-            x, y = cam[i]
-            it.add(mb.cilindro(0.5, zb - 0.5, x=x, y=y, z=-0.1, cor="concreto", seg=16, bisel=0.0),
-                   mb.torno([(0.5, 0.0), (0.62, 0.3), (1.1, 0.55), (0.0, 0.55)], x=x, y=y, z=zb - 0.53, cor="concreto",
-                            seg=16),
-                   mb.cilindro(0.85, 0.2, x=x, y=y, z=-0.1, cor="concreto_escuro", seg=16, bisel=0.04))
+        it.add(tira(cam, za, o, 0.12, passo=1.0))
+    for x, y, zb in alca_colunas(cam, za, s):
+        it.add(mb.cilindro(0.5, zb - 0.5, x=x, y=y, z=-0.1, cor="concreto", seg=12, bisel=0.0),
+               mb.torno([(0.5, 0.0), (0.62, 0.3), (1.1, 0.55), (0.0, 0.55)], x=x, y=y, z=zb - 0.53, cor="concreto",
+                        seg=12),
+               mb.cilindro(0.85, 0.2, x=x, y=y, z=-0.1, cor="concreto_escuro", seg=12, bisel=0.03))
+    # encontro: onde a laje vira aterro, um bloco de concreto atravessado esconde a mudança do fundo
+    i = next(k for k in range(1, len(za)) if za[k] <= 2.2 < za[k - 1])
+    (x0, y0), (x1, y1) = cam[i - 1], cam[i]
+    ang = math.degrees(math.atan2(y1 - y0, x1 - x0))
+    zt = (za[i - 1] + za[i]) / 2 - 0.15
+    bloco = mb.caixa(math.hypot(x1 - x0, y1 - y0) + 0.5, 2 * LB + 0.16, zt + 0.3, z=-0.3, cor="concreto", bisel=0.05,
+                     seg=1)
+    it.add(mb.transforma(bloco, loc=((x0 + x1) / 2, (y0 + y1) / 2, 0.0), rot=("Z", ang)))
 
 
-def trevo_pontos():
-    ang = math.radians(A_FIM)
-    P1 = (6.25, -21.5)
-    P2 = (LC[0] + (LR + LB) * math.cos(ang), LC[1] + (LR + LB) * math.sin(ang))
-    P3 = (LC[0] + (LR - LB) * math.cos(ang), LC[1] + (LR - LB) * math.sin(ang))
-    arco_int = cb.arco(LC[0], LC[1], LR - LB, A_FIM, 180, 8)  # P3 → (11,85, −15)
-    curva = bezier((11.75, -9.0), (11.75, -3.0), (6.25, 0.0), (6.25, 6.0), 14)
-    return P1, P2, P3, arco_int, curva
+def alca_colisao():
+    """Malha de colisão da alça: o tabuleiro inclinado com as duas barreiras (seção em U fechada até o fundo da laje
+    ou do aterro), em estações de ~2,5 m, mais as colunas como prismas quadrados."""
+    cam, tang, za, s = alca_caminho(passo=2.5)
+    m = Malha()
+    perfil = [(-LB, 0.8), (-LA, 0.8), (-LA, 0.0), (LA, 0.0), (LA, 0.8), (LB, 0.8)]
+    varre(cam, za, perfil, ["asfalto"] * 5, fundo=[alca_fundo(z) for z in za], lado="asfalto", base="asfalto",
+          tang=tang, m=m)
+    cf, _, zf, sf = alca_caminho(passo=1.4)
+    for x, y, zb in alca_colunas(cf, zf, sf):
+        prisma([cb.quadrado(x - 0.5, y - 0.5, x + 0.5, y + 0.5)], -0.1, zb, "asfalto", m=m)
+    return m.obj("colisao_alca")
 
 
 def p_trevo():
     it = mb.Item("trevo")
-    P1, P2, P3, arco_int, curva = trevo_pontos()
+    cam, _, _, s = alca_caminho()
+    L = s[-1]
+    g = alca_greide(L)
+    e = X_N + LB                      # meio-fio leste da faixa do chão (continua a barreira da alça)
+    P1 = (6.25, Y_POUSO - 6.0)        # a pista do chão começa a alargar aqui (bico até a barreira da alça)
+    P2 = (X_N - LB, Y_POUSO)
+    curva = bezier((e, -9.0), (e, -3.0), (6.25, 0.0), (6.25, 6.0), 14)
     # ------------------------------------------------------------------ chão (metade leste; a oeste é a rotação)
     G = [(6.25, -TRV), (TRV, -TRV), (TRV, TRV), (6.25, TRV), (6.25, 6.0)] + curva[::-1][1:] + \
-        [(11.75, -15.0)] + arco_int[::-1][:-1] + [P3, P2, P1]
-    ilha = [(LC[0] + 2.9 * math.cos(2 * math.pi * k / 28), LC[1] + 2.9 * math.sin(2 * math.pi * k / 28)) for k in range(28)]
-    M = [P1, P2, P3] + arco_int[1:] + [(11.75, -15.0)] + curva + [(6.25, -15.0)]
-    meia = [prisma([G, ilha], ZF, 0.0, "calcada", "calcada", nome="chao"),
+        [(e, Y_POUSO), (X_N + LB, Y_POUSO - 6.0), (X_N - LB, Y_POUSO - 6.0), P2, P1]
+    ilha = [(LC[0] + 8.6 * math.cos(2 * math.pi * k / 40), LC[1] + 8.6 * math.sin(2 * math.pi * k / 40))
+            for k in range(40)]
+    can = [(22.5 + x, 22.5 + y) for x, y in mb.ret_arredondado(24.0, 24.0, 3.0, seg=6)]
+    M = [P1, P2, (e, Y_POUSO)] + curva
+    meia = [prisma([G, ilha, can], ZF, 0.0, "calcada", "calcada", nome="chao"),
             cb.laje(ilha, 0.0, "grama", nome="ilha"),
-            cb.laje(M, cb.Z_ASF, "asfalto", nome="alca")]
+            cb.laje(M, cb.Z_ASF, "asfalto", nome="faixa_chao")]
     meia.append(cb.meio_fio([(6.25, -TRV), P1, P2]))
-    meia.append(cb.meio_fio([(11.75, -15.0)] + curva + [(6.25, TRV)]))
-    meia.append(arvore(LC[0], LC[1], 0.0, esc=1.0))
-    meia.append(moita(LC[0] + 1.4, LC[1] - 1.3, 0.0, esc=0.7))
+    meia.append(cb.meio_fio([(e, Y_POUSO)] + curva + [(6.25, TRV)]))
+    # faixa de bordo da pista do chão que sai da alça
+    meia.append(cb.faixa([(e - 0.3, Y_POUSO), (e - 0.3, -9.0)] + desloca(curva, -0.3)[1:], larg=0.12))
+    # ilha do laço: gramado com árvores e moitas
+    for dx, dy, e_ in ((0.0, 0.0, 1.3), (-4.4, 3.6, 0.9), (4.4, -3.4, 1.0)):
+        meia.append(arvore(LC[0] + dx, LC[1] + dy, 0.0, esc=e_))
+    for dx, dy, e_ in ((1.6, -1.4, 0.7), (-5.2, -2.6, 0.65)):
+        meia.append(moita(LC[0] + dx, LC[1] + dy, 0.0, esc=e_))
     # canteiro gramado no quadrante livre (nordeste), com meio-fio, árvores e moitas
-    can = [(15.3 + x, 15.3 + y) for x, y in mb.ret_arredondado(11.0, 11.0, 2.2, seg=6)]
     meia.append(cb.laje(can, 0.16, "concreto", z_fundo=-0.05, nome="canteiro_borda"))
-    meia.append(cb.laje([(15.3 + x, 15.3 + y) for x, y in mb.ret_arredondado(10.5, 10.5, 1.95, seg=6)], 0.18, "grama",
-                        z_fundo=0.1, nome="canteiro"))
-    for x, y, e_ in ((13.0, 17.6, 1.1), (18.0, 13.2, 0.9)):
+    meia.append(cb.laje([(22.5 + x, 22.5 + y) for x, y in mb.ret_arredondado(23.5, 23.5, 2.75, seg=6)], 0.18,
+                        "grama", z_fundo=0.1, nome="canteiro"))
+    for x, y, e_ in ((16.5, 27.0, 1.2), (28.0, 17.0, 1.0), (22.5, 22.0, 1.35)):
         meia.append(arvore(x, y, 0.18, esc=e_))
-    for x, y in ((12.4, 12.6), (18.4, 18.0)):
-        meia.append(moita(x, y, 0.18, esc=0.7))
+    for x, y in ((18.0, 15.0), (30.0, 28.5)):
+        meia.append(moita(x, y, 0.18, esc=0.8))
     # faixas do chão (só a borda leste da avenida; o resto é da rotação)
     x = cb.AVENIDA["asf"] - 0.3
-    meia += [cb.faixa([(x, -TRV), (x, -21.5)], larg=0.12), cb.faixa([(x, 6.0), (x, TRV)], larg=0.12),
-             cb.faixa([(x, -21.5), (x, 6.0)], larg=0.12, tracejada=(1.0, 1.0), fase=-21.5)]
-    # ------------------------------------------------------------------ tabuleiro alargado (lado sul) e laço
-    alarg = [(-4.0, -7.5), (4.0, Y_S1 - LB), (X_S1, Y_S1 - LB), (X_S1, -7.5)]
+    meia += [faixa_reta((x, -TRV), (x, P1[1]), larg=0.12), faixa_reta((x, 6.0), (x, TRV), larg=0.12),
+             faixa_reta((x, P1[1]), (x, 6.0), larg=0.12, tracejada=(1.0, 1.0), fase=P1[1])]
+    # ------------------------------------------------------------------ tabuleiro alargado (lado sul) e alça
+    alarg = [(X_TAPER, -7.5), (1.0, Y_S1 - LB), (X_S1, Y_S1 - LB), (X_S1, -7.5)]
     sul = [(-TRV, -7.5)] + alarg + [(TRV, -7.5)]
     norte = [(-px, -py) for px, py in sul]
     contorno = sul + norte
     laje = prisma([contorno], Z_VIA - 0.10 - E_LAJE, Z_VIA - 0.10, "asfalto", "concreto", "concreto_escuro",
                   nome="tabuleiro")
     meia_t = []
-    for xa, xb in ((-TRV, -4.0), (X_S1, TRV)):
+    for xa, xb in ((-TRV, X_TAPER), (X_S1, TRV)):
         meia_t.append(cb.laje(cb.quadrado(xa, -7.5, xb, -6.25), Z_VIA, "calcada", z_fundo=Z_VIA - 0.12))
         meia_t.append(sobe(cb.meio_fio([(xa, -6.25), (xb, -6.25)]), Z_VIA))
         c = [(xa + 0.02, -7.5), (xb - 0.02, -7.5)]
@@ -1402,41 +1511,55 @@ def p_trevo():
                             ["concreto"] * 5, fundo=Z_VIA - 0.03, tang=(1, 0), nome="mureta"))
         meia_t.append(guarda_corpo([(xa + 0.1, -7.35, Z_VIA + 0.35), (xb - 0.1, -7.35, Z_VIA + 0.35)], alt=0.75,
                                    passo=1.5, fase=0.6, travessas=(0.38,), fim=True, r_post=0.035, r_tubo=0.04))
-    # barreira no contorno alargado (até onde o laço começa)
-    cb_ = [(-4.0, -7.5), (4.0, Y_S1 - LB), (X_S1, Y_S1 - LB)]
-    cb_ = reamostra(cb_, 1.0)
+    # barreira no contorno alargado (até onde a alça começa)
+    cb_ = reamostra([(X_TAPER, -7.5), (1.0, Y_S1 - LB), (X_S1, Y_S1 - LB)], 1.0)
     bar = [(-0.25, 0.0), (-0.25, 0.62), (-0.19, 0.78), (-0.08, 0.8), (0.0, 0.7), (0.0, 0.0)]
     meia_t.append(varre(cb_, Z_VIA - 0.10, bar, ["concreto"] * 5, fundo=Z_VIA - 0.12, nome="barreira"))
     a = cb.AVENIDA["asf"]
     yb = -(a - 0.3)
-    meia_t += [cb.faixa([(-TRV, yb), (-4.0, yb)], larg=0.12, z=Z_VIA - 0.10),
-               cb.faixa([(X_S1, yb), (TRV, yb)], larg=0.12, z=Z_VIA - 0.10),
-               cb.faixa([(-4.0, yb), (X_S1, yb)], larg=0.12, z=Z_VIA - 0.10, tracejada=(1.0, 1.0), fase=-4.0)]
-    meia_t.append(poste(16.5, -6.9, z0=Z_VIA, ang=90, braco=1.8))
-    laco_obj_tmp = mb.Item("tmp")
-    laco_obj(laco_obj_tmp)
-    meia += meia_t + laco_obj_tmp.partes
-    for xp in (12.5, 20.0):
+    meia_t += [faixa_reta((-TRV, yb), (X_TAPER, yb), larg=0.12, z=Z_VIA - 0.10),
+               faixa_reta((X_S1, yb), (TRV, yb), larg=0.12, z=Z_VIA - 0.10),
+               faixa_reta((X_TAPER, yb), (X_S1, yb), larg=0.12, z=Z_VIA - 0.10, tracejada=(1.0, 1.0), fase=X_TAPER)]
+    for xp in (24.0,):
+        meia_t.append(poste(xp, -6.9, z0=Z_VIA, ang=90, braco=1.8))
+    tmp = mb.Item("tmp")
+    alca_obj(tmp)
+    meia += meia_t + tmp.partes
+    XP = (15.0, 28.0)  # pilares da elevada (fora da avenida e da faixa do chão que passa por baixo)
+    for xp in XP:
         meia.append(pilar_martelo(xp, 0.0, z_topo=Z_VIA - 0.10 - E_LAJE, larg=13.0, ang=90))
     it.add(meia, copia_girada(meia, 180))
     it.add(laje)
     # ------------------------------------------------------------------ avenida do chão e do alto (simétricas)
     it.add(cb.laje(cb.quadrado(-6.25, -TRV, 6.25, TRV), cb.Z_ASF, "asfalto", nome="avenida"))
     for o in (-0.12, 0.12):
-        it.add(cb.faixa([(o, -TRV), (o, TRV)]))
-        it.add(cb.faixa([(-TRV, o), (TRV, o)], z=Z_VIA - 0.10))
+        it.add(faixa_reta((o, -TRV), (o, TRV)))
+        it.add(faixa_reta((-TRV, o), (TRV, o), z=Z_VIA - 0.10))
     for o in (-a / 2 + 0.06, a / 2 - 0.06):
-        it.add(cb.faixa([(o, -TRV), (o, TRV)], tracejada=(2.5, 2.5), fase=-TRV))
-        it.add(cb.faixa([(-TRV, o), (TRV, o)], tracejada=(2.5, 2.5), fase=-TRV, z=Z_VIA - 0.10))
-    col = [((0, 0, ZF), (2 * TRV, 2 * TRV, -ZF)),
-           ((0, 0, Z_VIA - 0.10 - E_LAJE), (2 * TRV, Q, E_LAJE + 0.1)),
-           ((3.5, -9.7, Z_VIA - 0.1 - E_LAJE), (15.0, 4.4, E_LAJE + 0.1)),
-           ((-3.5, 9.7, Z_VIA - 0.1 - E_LAJE), (15.0, 4.4, E_LAJE + 0.1)),
-           ((16.25, 0, 0.0), (9.0, 1.6, Z_VIA - 0.1 - E_LAJE)), ((-16.25, 0, 0.0), (9.0, 1.6, Z_VIA - 0.1 - E_LAJE)),
-           ((LC[0] + 1.5, LC[1] - 1.0, 0.0), (11.0, 11.0, 2.0)), ((-LC[0] - 1.5, -LC[1] + 1.0, 0.0), (11.0, 11.0, 2.0))]
-    return it, dict(rotulo="Trevo com avenida elevada e alças em laço", grupo="trevo",
-                    tags=["avenida", "viaduto", "trevo", "grande"], colisao=col, dir_mini=(0.75, -1.0, 0.95),
-                    extra={**EXTRA_ELEV, "quadras": [3, 3]})
+        it.add(faixa_reta((o, -TRV), (o, TRV), tracejada=(2.5, 2.5), fase=-TRV))
+        it.add(faixa_reta((-TRV, o), (TRV, o), tracejada=(2.5, 2.5), fase=-TRV, z=Z_VIA - 0.10))
+    # ------------------------------------------------------------------ colisão
+    # caixas para o chão, o tabuleiro e os pilares; as alças (inclinadas e curvas) vão em malha de colisão
+    col_se = alca_colisao()
+    col_no = copia_girada([col_se], 180)[0]
+    it.colisao_malha(col_se, "colisao_alca_sudeste")
+    it.colisao_malha(col_no, "colisao_alca_noroeste")
+    za = Z_VIA - 0.10 - E_LAJE  # fundo do tabuleiro
+    col = [((0, 0, ZF), (2 * TRV, 2 * TRV, -ZF)), ((0, 0, za), (2 * TRV, Q, E_LAJE + 0.1))]
+    w = -7.5 - (Y_S1 - LB)  # largura do alargamento (4,35)
+    for sg in (1, -1):
+        col.append(((sg * 1.0, sg * (-7.5 - w / 2), za), (11.0, w, E_LAJE + 0.1)))
+        for xp in XP:
+            col += [((sg * xp, 0, 0.0), (1.2, 2.0, za - 1.0)), ((sg * xp, 0, za - 1.25), (1.6, 13.0, 1.25))]
+    gi = max(abs(b - a_) / max(1e-9, s2 - s1) for (a_, b, s1, s2) in
+             zip([alca_z(si, L) for si in s], [alca_z(si, L) for si in s[1:]], s, s[1:]))
+    print(f"trevo: alça de {L:.1f} m, rampa máxima no eixo {100 * gi:.1f} % (greide {100 * g:.1f} %), "
+          f"na borda interna do laço {100 * g * LR / (LR - LA):.1f} %", flush=True)
+    return it, dict(rotulo="Trevo com avenida elevada e alças em laço (5 × 5)", grupo="trevo",
+                    tags=["avenida", "viaduto", "trevo", "grande", "5x5"], colisao=col, dir_mini=(0.75, -1.0, 0.95),
+                    extra={**EXTRA_ELEV, "quadras": [5, 5],
+                           "alca": {"comprimento": round(L, 2), "inclinacao_max": round(g, 4),
+                                    "inclinacao_borda_interna": round(g * LR / (LR - LA), 4)}})
 
 
 # ---------------------------------------------------------------------------------------------------- túnel

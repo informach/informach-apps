@@ -25,6 +25,9 @@ def importa(cat, id_):
     antes = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(OUT, cat, "glb", id_ + ".glb"))
     novos = [o for o in bpy.data.objects if o not in antes]
+    for o in novos:  # malhas de colisão (invisíveis no jogo) ficam fora do render
+        if o.get("colisao"):
+            o.hide_render = True
     return [o for o in novos if o.parent is None][0]
 
 
@@ -154,13 +157,19 @@ def cena_estruturas():
 
 
 def cena_trevo():
+    """Trevo (5 × 5) no meio; nas pontas do alto, um viaduto de avenida e, a leste, a rampa descendo até a avenida
+    do chão; nas pontas de baixo, a avenida da base; quadras de grama e calçada em volta."""
     poe(importa("estruturas", "trevo"), 0.0, 0.0)
     for s in (-1, 1):
-        poe(importa("estruturas", "viaduto_avenida"), s * 30.0, 0.0, 90)
-        poe(base(cb.rua_reta, cb.AVENIDA), 0.0, s * 30.0)
-        for t in (-1, 1):
-            poe(quadra("grama"), s * 30.0, t * 15.0)
-            poe(quadra("calcada"), s * 15.0, t * 30.0)
+        poe(importa("estruturas", "viaduto_avenida"), s * 45.0, 0.0, 90)
+        poe(base(cb.rua_reta, cb.AVENIDA), 0.0, s * 45.0)
+        for t in (1, 2):
+            poe(quadra("grama"), s * 45.0, t * 15.0)
+            poe(quadra("grama"), s * 45.0, -t * 15.0)
+            poe(quadra("calcada"), t * 15.0, s * 45.0)
+            poe(quadra("calcada"), -t * 15.0, s * 45.0)
+    poe(importa("estruturas", "rampa_viaduto_avenida"), 67.5, 0.0, 90)
+    poe(base(cb.rua_reta, cb.AVENIDA), 90.0, 0.0, 90)
     return "estruturas"
 
 

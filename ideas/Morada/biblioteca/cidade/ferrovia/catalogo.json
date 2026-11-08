@@ -296,6 +296,9 @@
     "rua",
     "modular",
     "cancela"
+   ],
+   "colisao_malha": [
+    "colisao_passagem"
    ]
   },
   {
@@ -435,6 +438,107 @@
     "trilho",
     "rua",
     "modular"
+   ]
+  },
+  {
+   "id": "bonde_rua_curva",
+   "rotulo": "Curva da rua com trilhos de bonde (2 × 2)",
+   "categoria": "ferrovia",
+   "grupo": "bonde_rua_curva",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    3.562
+   ],
+   "arquivo": "glb/bonde_rua_curva.glb",
+   "miniatura": "miniaturas/bonde_rua_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira",
+    "preto",
+    "trilho"
+   ],
+   "tris": 8134,
+   "pacote": false,
+   "tags": [
+    "bonde",
+    "rua",
+    "trilho",
+    "modular",
+    "curva",
+    "2x2"
+   ]
+  },
+  {
+   "id": "bonde_grama_curva",
+   "rotulo": "Curva de bonde na grama (2 × 2)",
+   "categoria": "ferrovia",
+   "grupo": "bonde_grama_curva",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    3.562
+   ],
+   "arquivo": "glb/bonde_grama_curva.glb",
+   "miniatura": "miniaturas/bonde_grama_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "concreto",
+    "folha",
+    "folha_clara",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "preto",
+    "trilho"
+   ],
+   "tris": 10044,
+   "pacote": false,
+   "tags": [
+    "bonde",
+    "trilho",
+    "modular",
+    "curva",
+    "2x2"
    ]
   },
   {
@@ -623,6 +727,69 @@
     "elevado",
     "tubo",
     "modular"
+   ],
+   "z_elevado": 7.5
+  },
+  {
+   "id": "trem_tubo_curva",
+   "rotulo": "Trem em tubo: curva com pilares (2 × 2)",
+   "categoria": "ferrovia",
+   "grupo": "trem_tubo_curva",
+   "fixacao": "chao",
+   "dims": [
+    25.3,
+    25.3,
+    12.4
+   ],
+   "arquivo": "glb/trem_tubo_curva.glb",
+   "miniatura": "miniaturas/trem_tubo_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -5.78693,
+      3.075,
+      6.38881
+     ],
+     "tamanho": [
+      2.6,
+      6.95,
+      2.6
+     ]
+    },
+    {
+     "centro": [
+      6.39211,
+      3.075,
+      -5.78825
+     ],
+     "tamanho": [
+      2.6,
+      6.95,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "piso_rosado",
+    "trilho"
+   ],
+   "tris": 17160,
+   "pacote": false,
+   "tags": [
+    "trilho",
+    "elevado",
+    "tubo",
+    "modular",
+    "curva",
+    "2x2"
+   ],
+   "colisao_malha": [
+    "colisao_tubo"
    ],
    "z_elevado": 7.5
   },

@@ -12,6 +12,10 @@ Convenções próprias desta parte (além das da cidade_base):
   6,2 m sob a viga. As pontas das pontes usam o perfil cb.RUA (ou cb.AVENIDA) nessa altura.
 - Bonde: dois trilhos de bonde (um por faixa, no centro de cada faixa, x = ±1,825), embutidos no asfalto (z = −0,10)
   ou na grama no mesmo nível, então o bonde passa da rua para a grama sem degrau.
+- Curvas de 2 × 2 quadras (trilho, bonde na rua, bonde na grama, trem em tubo): raio de 22,5 m, centro no canto
+  (+15, −15), entram pelo sul em x = −7,5 e saem pelo leste em y = +7,5. O tracejado da rua na curva tem o período
+  ajustado para um número inteiro de traços, com as bordas no meio de um vão, como nas retas.
+- Rampas (passagem de nível) ganham malha de colisão (Item.colisao_malha) em vez de caixas em degrau.
 """
 import math
 import os
@@ -551,6 +555,48 @@ def p_trilho_cruzamento_rua(it):
     cancela(it, -1)
     sinal(it, 1)
     sinal(it, -1)
+    # colisão: a laje plana da quadra (caixa do cb.exporta, até z = 0) e, por cima, a lombada da passagem em malha:
+    # rampas da rua e das calçadas até o painel, sem degraus
+    it.colisao_malha(colisao_passagem(), "colisao_passagem")
+
+
+def relevo_fechado(xs, ys, zf, z_fundo, cor="asfalto", nome="relevo"):
+    """Sólido com o topo numa grade de estações dadas (xs, ys) e altura zf(x, y), laterais e fundo plano."""
+    bm = bmesh.new()
+    g = [[bm.verts.new((x, y, zf(x, y))) for x in xs] for y in ys]
+    nx, ny = len(xs) - 1, len(ys) - 1
+    for j in range(ny):
+        for i in range(nx):
+            bm.faces.new((g[j][i], g[j][i + 1], g[j + 1][i + 1], g[j + 1][i]))
+    borda = [g[0][i] for i in range(nx + 1)] + [g[j][nx] for j in range(1, ny + 1)] + \
+            [g[ny][i] for i in range(nx - 1, -1, -1)] + [g[j][0] for j in range(ny - 1, 0, -1)]
+    baixo = [bm.verts.new((v.co.x, v.co.y, z_fundo)) for v in borda]
+    k = len(borda)
+    for i in range(k):
+        bm.faces.new((borda[i], baixo[i], baixo[(i + 1) % k], borda[(i + 1) % k]))
+    f = bm.faces.new(baixo[::-1])
+    bmesh.ops.triangulate(bm, faces=[f])
+    return mb._obj(nome, bm, cor, liso=False)
+
+
+def colisao_passagem():
+    """Malha de colisão da passagem de nível: a rua (asfalto em z_asf) e as calçadas (z_calc, voltando ao nível
+    perto da brita) entre x = ±XP, onde sobem acima da laje (|y| < 4,7); topo nunca abaixo de z = 0."""
+    m = cb.RUA["mf"]
+    xs = [-XP, -(XP - 1.1), -m, m, XP - 1.1, XP]
+    ys = [-4.7, -4.3, -3.9, -3.5, -3.1, -2.7, -2.35, -YP, YP, 2.35, 2.7, 3.1, 3.5, 3.9, 4.3, 4.7]
+
+    def zf(x, y):
+        ax = abs(x)
+        if abs(y) <= YP + 1e-6:
+            z = Z_PAINEL
+        elif ax <= m + 1e-6:
+            z = z_asf(y)
+        else:
+            z = z_calc(y) * (1.0 if ax <= XP - 1.1 + 1e-6 else 0.0)
+        return max(z, 0.0)
+
+    return relevo_fechado(xs, ys, zf, -0.10, nome="colisao_passagem")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -607,6 +653,115 @@ def p_bonde_piso(it):
         for y in (-5.0, 0.0, 5.0):
             it.add(cilindro(0.11, 0.75, x=s * (m + 0.45), y=y, z=0.0, cor="grafite", seg=10, bisel=0.03),
                    cilindro(0.115, 0.06, x=s * (m + 0.45), y=y, z=0.58, cor="amarelo", seg=10, bisel=0.01))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# curvas de 2 × 2 quadras (a mesma geometria do trilho_curva): entram pelo sul no meio da quadra sudoeste (x = −7,5)
+# e saem pelo leste no meio da quadra nordeste (y = +7,5); eixo em arco de raio 22,5 m com centro no canto (+15, −15).
+# Um deslocamento lateral x (positivo para a direita de quem entra, como nas retas) vira o raio R_CURVA − x.
+# ---------------------------------------------------------------------------------------------------------------------
+R_CURVA = 22.5
+C_CURVA = (Q, -Q)
+
+
+def eixo_curva(n=40, desloc=0.0):
+    """Linha paralela ao eixo da curva, deslocada 'desloc' para a direita (de quem entra pelo sul)."""
+    return cb.arco(C_CURVA[0], C_CURVA[1], R_CURVA - desloc, 180, 90, n)
+
+
+def pontas_exatas(e):
+    """Linha da curva com um ponto a 1 cm de cada ponta, na tangente exata (norte na entrada, leste na saída): o
+    cb.meio_fio e o cb.faixa tiram a direção da ponta da corda, e a ponta sairia ~1 mm da quadra."""
+    return [e[0], (e[0][0], e[0][1] + 0.01)] + e[1:-1] + [(e[-1][0] - 0.01, e[-1][1]), e[-1]]
+
+
+def faixa_curva(x0, x1, z, cor, n=40, nome="faixa"):
+    """Laje (z até o fundo) entre os deslocamentos laterais x0 < x1 ao longo da curva."""
+    return cb.laje(eixo_curva(n, x0) + eixo_curva(n, x1)[::-1], z, cor, nome=nome)
+
+
+def fita_curva(x, larg, z0, z1, cor, n=40, mat="atlas", nome="fita"):
+    """Perfil retangular (largura larg, de z0 a z1) varrido ao longo da curva no deslocamento x (trilhos embutidos,
+    faixas de concreto, canteiro). Na varredura u aponta para a esquerda: u = −x."""
+    return varre(p3(eixo_curva(n)), sec_ret(larg, z1 - z0, cu=-x, cv=(z0 + z1) / 2), cor=cor if mat == "atlas" else None,
+                 mat=mat, liso=False, nome=nome)
+
+
+def tracejado_curva(comprimento, traco=2.5):
+    """Tracejado da linha central que cabe inteiro na curva: período ajustado a um número inteiro de traços, com as
+    duas bordas no meio de um vão, como nas retas (traço centrado em y = 0, ±5 da quadra)."""
+    per = comprimento / max(1, round(comprimento / (2 * traco)))
+    return (per / 2, per / 2), per / 2
+
+
+def rua_curva_2x2(it, leito="asfalto", lote="grama", faixas=True):
+    """O perfil cb.RUA ao longo da curva: leito (asfalto, grama...) em z = −0,10 até os meios-fios, calçadas de
+    3,75 m até a borda da quadra (|x| = 7,5) e, fora disso (no miolo da curva e no canto de fora), lote gramado."""
+    a, m = cb.RUA["asf"], cb.RUA["mf"]
+    n = 40
+    it.add(faixa_curva(-m, m, cb.Z_ASF, leito, n, nome="leito"))
+    it.add(faixa_curva(-H, -m, 0.0, "calcada", n, nome="calcada"), faixa_curva(m, H, 0.0, "calcada", n, nome="calcada"))
+    miolo = [C_CURVA] + cb.arco(C_CURVA[0], C_CURVA[1], R_CURVA - H, 90, 180, 24)
+    canto = eixo_curva(n, -H) + [(-Q, Q)]
+    it.add(cb.laje(miolo, 0.0, lote, nome="lote"), cb.laje(canto, 0.0, lote, nome="lote"))
+    it.add(cb.meio_fio(pontas_exatas(eixo_curva(2 * n, -m))), cb.meio_fio(pontas_exatas(eixo_curva(2 * n, m))))
+    if faixas:
+        L = R_CURVA * math.pi / 2
+        tr, fase = tracejado_curva(L)
+        it.add(cb.faixa(eixo_curva(n * 2), tracejada=tr, fase=fase))
+        it.add(cb.faixa(pontas_exatas(eixo_curva(n * 2, -(a - 0.3))), larg=0.12),
+               cb.faixa(pontas_exatas(eixo_curva(n * 2, a - 0.3)), larg=0.12))
+
+
+def trilhos_bonde_curva(it, z=cb.Z_ASF, beira=None):
+    """Os mesmos trilhos de bonde das retas (um par por faixa, centrado em x = ±1,825), embutidos, ao longo da curva:
+    faixa de concreto opcional, boleto no nível do leito e o sulco escuro do lado de dentro de cada par."""
+    for xc in (-X_BONDE, X_BONDE):
+        for s in (-1, 1):
+            x = xc + s * X_TR
+            if beira:
+                it.add(fita_curva(x, 0.30, z - 0.004, z + 0.002, beira, nome="beira"))
+            it.add(fita_curva(x, 0.075, z - 0.024, z + 0.006, "trilho", nome="trilho"))
+            it.add(fita_curva(x - s * 0.058, 0.035, z + 0.0015, z + 0.0055, "preto", nome="sulco"))
+
+
+def arvore_lote(x, y, esc=1.0):
+    """Árvore baixa dos lotes gramados das curvas (tronco e copa em duas bolas)."""
+    return [cilindro(0.12 * esc, 1.4 * esc, x=x, y=y, z=0.0, cor="madeira", seg=8, r2=0.09 * esc, bisel=0.0),
+            mb.superelipsoide(1.9 * esc, 1.9 * esc, 1.6 * esc, x=x, y=y, z=1.15 * esc, cor="folha", e=0.85, e_v=0.8,
+                              nu=12, nv=6),
+            mb.superelipsoide(1.2 * esc, 1.2 * esc, 1.0 * esc, x=x + 0.5 * esc, y=y - 0.3 * esc, z=1.0 * esc,
+                              cor="folha_clara", e=0.85, e_v=0.8, nu=10, nv=5)]
+
+
+def enfeites_lotes(it):
+    """Lotes gramados da curva: miolo (perto do centro) e canto de fora, com árvores e moitas."""
+    for x, y, e in ((9.5, -9.5, 1.15), (4.0, -12.0, 0.85), (12.0, -3.5, 0.9)):
+        it.add(arvore_lote(x, y, e))
+    for x, y, e in ((-12.0, 12.0, 1.05), (-13.2, 7.0, 0.8), (-7.5, 13.2, 0.85)):
+        it.add(arvore_lote(x, y, e))
+    it.add(arbusto(6.8, -6.0, 0.55), arbusto(-10.0, 9.6, 0.5))
+
+
+def p_bonde_rua_curva(it):
+    """Curva da rua com os trilhos de bonde acompanhando as faixas (2 × 2, raio de 22,5 m)."""
+    rua_curva_2x2(it)
+    trilhos_bonde_curva(it)
+    enfeites_lotes(it)
+
+
+def p_bonde_grama_curva(it):
+    """Curva do bonde na grama: o leito gramado no nível do asfalto, faixas de concreto sob os trilhos, canteiro do
+    meio em grama mais escura com tufos (2 × 2, raio de 22,5 m)."""
+    rua_curva_2x2(it, leito="grama", faixas=False)
+    trilhos_bonde_curva(it, beira="concreto")
+    it.add(fita_curva(0.0, 0.7, cb.Z_ASF - 0.002, cb.Z_ASF + 0.002, "grama_escura", nome="canteiro"))
+    for k in range(7):
+        ang = math.radians(180 - 90 * (k + 0.5) / 7)
+        x, y = C_CURVA[0] + R_CURVA * math.cos(ang), C_CURVA[1] + R_CURVA * math.sin(ang)
+        it.add(mb.superelipsoide(0.55, 0.55, 0.32, x=x, y=y, z=cb.Z_ASF - 0.04, cor="folha", e=0.8, e_v=0.7, nu=12,
+                                 nv=6))
+    enfeites_lotes(it)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -823,6 +978,105 @@ def p_trem_tabuleiro_aberto(it):
 def p_trem_pilar(it):
     pilar_coluna(it)
     it.colisao([((0, 0, -0.4), (2.7, 2.3, ZT_B + 0.4))])
+
+
+def tabuleiro_trem_cam(it, pts2d, guarda=False):
+    """tabuleiro_trem ao longo de uma linha 2D qualquer (as curvas): a mesma seção, dormentes de concreto a cada
+    0,6 m pelo eixo, trilhos e frisos de luz no topo das muretas."""
+    z = Z_EL
+    sec = [(-XT_D, z + 0.5), (-XT_D, z - 0.35), (-XT_D + 0.25, z - 0.62), (-1.6, ZT_B + 0.05), (-1.3, ZT_B),
+           (1.3, ZT_B), (1.6, ZT_B + 0.05), (XT_D - 0.25, z - 0.62), (XT_D, z - 0.35), (XT_D, z + 0.5),
+           (XT_D - 0.32, z + 0.5), (XT_D - 0.32, z), (-XT_D + 0.32, z), (-XT_D + 0.32, z + 0.5)]
+    cam = p3(pts2d)
+    it.add(varre(cam, [(-u, v) for u, v in sec], cor="concreto", nome="tabuleiro", angulo=35))
+    it.add(varre(cam, sec_ret(2 * XT_D - 0.66, 0.004, cv=z + 0.002), cor="concreto_escuro", liso=False, nome="piso"))
+    zd0, zd1 = z, z + 0.12
+    for c, t in amostra(pts2d, 0.6):
+        ang = math.degrees(math.atan2(t.y, t.x)) - 90
+        it.add(caixa_rot(2.3, 0.2, zd1 - zd0, c.x, c.y, zd0 - 0.002, ang, "concreto", bisel=0.02, seg=1))
+    for s in (-1, 1):
+        it.add(varre(cam, [(u + s * X_TR, v + zd1) for u, v in SEC_TRILHO], cor="trilho", angulo=50, nome="trilho"))
+        it.add(varre(cam, sec_ret(0.06, 0.03, cu=s * (XT_D - 0.16), cv=z + 0.515), cor=None, mat="neon", liso=False,
+                     nome="friso"))
+
+
+def tubo_vidro_cam(it, pts2d, aneis_s=()):
+    """tubo_vidro ao longo de uma linha 2D: meia-cana de vidro, linha de luz no alto e anéis nas distâncias aneis_s
+    (metros pelo eixo), cada anel perpendicular ao eixo naquele ponto."""
+    zc = Z_EL + 0.5
+    r = 2.66
+    n = 36
+    a0, a1 = -2.0, 182.0
+    sec = [((r + 0.03) * math.cos(math.radians(a0 + (a1 - a0) * k / n)),
+            (r + 0.03) * math.sin(math.radians(a0 + (a1 - a0) * k / n))) for k in range(n + 1)]
+    sec += [((r - 0.03) * math.cos(math.radians(a1 - (a1 - a0) * k / n)),
+             (r - 0.03) * math.sin(math.radians(a1 - (a1 - a0) * k / n))) for k in range(n + 1)]
+    cam = p3(pts2d, zc)
+    it.add(varre(cam, [(-u, v) for u, v in sec], cor=None, mat="vidro", nome="tubo", angulo=20))
+    it.add(varre(cam, sec_ret(0.16, 0.05, cv=r + 0.05), cor=None, mat="neon", nome="luz_tubo"))
+    m = 24
+    s1 = [((r + 0.03) * math.cos(math.radians(a0 + (a1 - a0) * k / m)),
+           (r + 0.03) * math.sin(math.radians(a0 + (a1 - a0) * k / m))) for k in range(m + 1)]
+    s2 = [((r + 0.20) * math.cos(math.radians(a1 - (a1 - a0) * k / m)),
+           (r + 0.20) * math.sin(math.radians(a1 - (a1 - a0) * k / m))) for k in range(m + 1)]
+    for p, t in ponto_no_eixo(pts2d, aneis_s):
+        q = V((p.x, p.y, zc))
+        tt = V((t.x, t.y, 0))
+        it.add(varre([q - tt * 0.16, q + tt * 0.16], s1 + s2, cor="grafite", nome="anel", angulo=30))
+
+
+def ponto_no_eixo(pts2d, distancias):
+    """(posição, tangente) nas distâncias dadas (metros) ao longo de uma polilinha 2D."""
+    pts = [V((p[0], p[1])) for p in pts2d]
+    s = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        s.append(s[-1] + (b - a).length)
+    out = []
+    for d in distancias:
+        j = max(0, min(len(s) - 2, next((k for k in range(len(s) - 1) if s[k + 1] >= d), len(s) - 2)))
+        u = (d - s[j]) / max(1e-9, s[j + 1] - s[j])
+        out.append((pts[j].lerp(pts[j + 1], u), (pts[j + 1] - pts[j]).normalized()))
+    return out
+
+
+def garfo_em(it, p, t):
+    """O pilar em garfo do trecho reto, girado para ficar perpendicular ao eixo no ponto p (tangente t)."""
+    tmp = mb.Item("tmp")
+    garfo(tmp, 0.0)
+    ang = math.degrees(math.atan2(t.y, t.x)) - 90
+    for o in tmp.partes:
+        mb.transforma(o, loc=(p.x, p.y, 0.0), rot=("Z", ang))
+    it.add(tmp.partes)
+    return ang
+
+
+def caixa_orientada(c, t, l, p, z0, z1):
+    """Caixa sem boleado de l (através do eixo) × p (ao longo) × (z1 − z0), centrada em c e alinhada à tangente t."""
+    ob = mb.caixa(l, p, z1 - z0, z=z0, cor="concreto", bisel=0.0, liso=False)
+    return mb.transforma(ob, loc=(c.x, c.y, 0.0), rot=("Z", math.degrees(math.atan2(t.y, t.x)) - 90))
+
+
+def p_trem_tubo_curva(it):
+    """Curva do trem em tubo de vidro (2 × 2, raio de 22,5 m como o trilho_curva): tabuleiro, tubo e dois pilares em
+    garfo; elevado na altura das retas (trilho sobre o tabuleiro em z = 7,5)."""
+    eixo = eixo_curva(32)
+    L = R_CURVA * math.pi / 2
+    tabuleiro_trem_cam(it, eixo)
+    tubo_vidro_cam(it, eixo, aneis_s=(3.3, L / 2, L - 3.3))
+    pilares = ponto_no_eixo(eixo, (L / 4, 3 * L / 4))
+    for p, t in pilares:
+        garfo_em(it, p, t)
+    # colisão: o tabuleiro curvo (com as muretas) e os braços e o arco dos garfos em malha; os troncos em caixas
+    sec = [(-XT_D, Z_EL + 0.5), (-XT_D + 0.32, Z_EL + 0.5), (-XT_D + 0.32, Z_EL), (XT_D - 0.32, Z_EL),
+           (XT_D - 0.32, Z_EL + 0.5), (XT_D, Z_EL + 0.5), (XT_D, ZT_B), (-XT_D, ZT_B)]
+    partes = [varre(p3(eixo_curva(16)), [(-u, v) for u, v in sec], cor="concreto", liso=False, nome="col")]
+    for p, t in pilares:
+        n = V((t.y, -t.x))  # para a direita do eixo
+        for sx in (-1, 1):
+            partes.append(caixa_orientada(p + n * (sx * 3.5), t, 1.0, 1.8, 4.4, 9.4))
+        partes.append(caixa_orientada(p, t, 7.2, 1.8, Z_EL + 3.0, Z_EL + 4.5))
+    it.colisao_malha(mb.junta(partes, "colisao_tubo"), "colisao_tubo")
+    it.colisao([((p.x, p.y, -0.4), (2.6, 2.6, ZT_B + 0.4)) for p, _ in pilares])
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1198,10 +1452,16 @@ PECAS = {
          TOPO, None),
         ("bonde_piso", p_bonde_piso, "Trilhos de bonde em piso rosado", "bonde_piso",
          ["bonde", "trilho", "rua", "modular"], TOPO, None),
+        ("bonde_rua_curva", p_bonde_rua_curva, "Curva da rua com trilhos de bonde (2 × 2)", "bonde_rua_curva",
+         ["bonde", "rua", "trilho", "modular", "curva", "2x2"], TOPO, [((0, 0, -0.4), (2 * Q, 2 * Q, 0.4))]),
+        ("bonde_grama_curva", p_bonde_grama_curva, "Curva de bonde na grama (2 × 2)", "bonde_grama_curva",
+         ["bonde", "trilho", "modular", "curva", "2x2"], TOPO, [((0, 0, -0.4), (2 * Q, 2 * Q, 0.4))]),
         ("plataforma_estacao", p_plataforma_estacao, "Plataforma de estação", "plataforma",
          ["trilho", "estacao", "modular"], ALTO, None),
         ("trem_tubo_reto", p_trem_tubo_reto, "Trem em tubo: trecho reto com pilar", "trem_tubo",
          ["trilho", "elevado", "tubo", "modular"], ALTO, None),
+        ("trem_tubo_curva", p_trem_tubo_curva, "Trem em tubo: curva com pilares (2 × 2)", "trem_tubo_curva",
+         ["trilho", "elevado", "tubo", "modular", "curva", "2x2"], ALTO, None),
         ("trem_tabuleiro_aberto", p_trem_tabuleiro_aberto, "Trem: tabuleiro elevado aberto", "trem_tabuleiro",
          ["trilho", "elevado", "modular"], ALTO, None),
         ("trem_pilar", p_trem_pilar, "Trem: pilar avulso", "trem_pilar", ["trilho", "elevado", "pilar"], ALTO, None),

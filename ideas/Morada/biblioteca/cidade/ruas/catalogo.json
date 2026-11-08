@@ -824,6 +824,49 @@
    ]
   },
   {
+   "id": "rua_transicao_avenida",
+   "rotulo": "Transição de rua para avenida",
+   "categoria": "ruas",
+   "grupo": "rua_transicao_avenida",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.003,
+    0.5
+   ],
+   "arquivo": "glb/rua_transicao_avenida.glb",
+   "miniatura": "miniaturas/rua_transicao_avenida.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1652,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "avenida",
+    "transicao"
+   ]
+  },
+  {
    "id": "road_001_pacote",
    "rotulo": "Avenida reta (pacote)",
    "categoria": "ruas",
@@ -1108,49 +1151,6 @@
     "modular",
     "rua",
     "pacote"
-   ]
-  },
-  {
-   "id": "rua_transicao_avenida",
-   "rotulo": "Transição de rua para avenida",
-   "categoria": "ruas",
-   "grupo": "rua_transicao_avenida",
-   "fixacao": "chao",
-   "dims": [
-    15.0,
-    15.003,
-    0.5
-   ],
-   "arquivo": "glb/rua_transicao_avenida.glb",
-   "miniatura": "miniaturas/rua_transicao_avenida.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0,
-      -0.2,
-      0
-     ],
-     "tamanho": [
-      15.0,
-      0.4,
-      15.0
-     ]
-    }
-   ],
-   "cores": [
-    "asfalto",
-    "branco",
-    "calcada"
-   ],
-   "tris": 1652,
-   "pacote": false,
-   "tags": [
-    "modular",
-    "rua",
-    "avenida",
-    "transicao"
    ]
   }
  ]

@@ -18,7 +18,7 @@ from PIL import Image
 
 O = sys.argv[1]
 SAIDA = sys.argv[2] if len(sys.argv) > 2 else None
-PERMITIDOS = {"atlas", "vidro", "espelho", "luz", "agua", "neon"}
+PERMITIDOS = {"atlas", "vidro", "espelho", "luz", "agua", "neon", "janela", "janela_fria", "janela_apagada"}
 
 
 def le_glb(caminho):
@@ -125,7 +125,13 @@ def audita_item(cat, it):
     if any(abs(dims[k] - cd[k]) > 0.03 for k in range(3)):
         prob.append(f"dims do catálogo {cd} ≠ GLB {[round(x, 3) for x in dims]}")
     fix = it.get("fixacao", "chao")
-    if fix in ("chao", "apoio") and abs(lo[1]) > 0.012:
+    INFRA = {"ruas", "pisos", "estacionamentos", "ferrovia", "pontes", "agua", "estruturas"}
+    if it.get("categoria") in INFRA:
+        pass  # lajes, água e fundações descem abaixo da calçada de propósito
+    elif "lote" in it:
+        if lo[1] > 0.012 or lo[1] < -0.15:
+            prob.append(f"base em y={lo[1]:.3f} (prédio deve assentar na calçada)")
+    elif fix in ("chao", "apoio") and abs(lo[1]) > 0.012:
         prob.append(f"base em y={lo[1]:.3f} (deveria tocar o chão)")
     if fix == "parede" and abs(hi[2] - 0) > 0.02 and abs(lo[2]) > 0.02:
         # glTF z = −y do Blender; o fundo da peça de parede fica em y=0 (Blender) → z=0 no glTF, corpo em z>0
@@ -207,7 +213,9 @@ def audita_item(cat, it):
         # o corpo (sem portas) deve estar coberto, com folga para puxadores e pés finos
         ref_lo, ref_hi = (corpo_lo, corpo_hi) if corpo_lo else (lo, hi)
         for k, eixo in enumerate("xyz"):
-            if clo[k] > ref_lo[k] + 0.12 or chi[k] < ref_hi[k] - 0.12:
+            # peças de cidade (prédios, viadutos): folga proporcional para beirais, antenas e enfeites
+            folga = max(0.12, 0.08 * (ref_hi[k] - ref_lo[k])) if (hi[k] - lo[k]) > 4 else 0.12
+            if clo[k] > ref_lo[k] + folga or chi[k] < ref_hi[k] - folga:
                 prob.append(f"colisão não cobre a peça no eixo {eixo} ({clo[k]:.2f}..{chi[k]:.2f} x {ref_lo[k]:.2f}..{ref_hi[k]:.2f})")
                 break
             if clo[k] < lo[k] - 0.1 or chi[k] > hi[k] + 0.1:

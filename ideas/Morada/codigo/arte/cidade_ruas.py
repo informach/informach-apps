@@ -1202,8 +1202,21 @@ def _cor_da_face(me, p):
     return "calcada"
 
 
+TEX_RUAS = None  # definida no gera(): <saida>/ruas/estampas/ruas_pacote_asfalto.png
+
+
+def textura_ruas():
+    """Caminho da cópia ajustada do Roads.png; gera com PIL (python3 -I) se ainda não existir."""
+    if not os.path.exists(TEX_RUAS):
+        import subprocess
+        os.makedirs(os.path.dirname(TEX_RUAS), exist_ok=True)
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cidade_ruas_textura.py")
+        subprocess.run(["python3", "-I", script, os.path.join(cb.CC_TEXTURAS, "Roads.png"), TEX_RUAS], check=True)
+    return TEX_RUAS
+
+
 def importa_pacote_cidade(nome):
-    """cb.importa_cidade com duas correções:
+    """cb.importa_cidade com três correções (a terceira, a textura ajustada, está no corpo):
     1) os materiais do FBX anterior ("Roads", "Tile_1"...) ficam na cena depois do mb.limpa(); o importador do FBX
        então cria "Roads.001" e o importa_cidade não reconhece o nome, tratando a pista como cor do atlas (a UV da
        textura de ruas cai na célula amarela da paleta: era o laranja no meio do road_009). Apagamos esses materiais
@@ -1213,6 +1226,9 @@ def importa_pacote_cidade(nome):
     for m in list(bpy.data.materials):
         if m.name not in mb.MAT_NOMES and not m.name.startswith("estampa_") and m.users == 0:
             bpy.data.materials.remove(m)
+    # 3) a textura de faixas é a nossa cópia com o asfalto no tom da cor "asfalto" (cidade_ruas_textura.py): criada
+    #    aqui antes, o material_estampa do importa_cidade reaproveita o material e não carrega o Roads.png original
+    mb.material_estampa("ruas_pacote", textura_ruas())
     pc = cb.importa_cidade(nome)
     objs = list(pc.values())
     for img in bpy.data.images:  # as texturas do pacote têm 2048²: 1024² bastam e o GLB fica 4 × menor
@@ -1372,6 +1388,8 @@ for _n, _r in PACOTE_PISOS:
 
 
 def gera(saida, sel):
+    global TEX_RUAS
+    TEX_RUAS = os.path.join(saida, "ruas", "estampas", "ruas_pacote_asfalto.png")
     cats = {"ruas", "pisos", "estacionamentos"}
     pedidas_cat = [s for s in sel if s in cats]
     pedidas_id = [s for s in sel if s not in cats]

@@ -1,6 +1,6 @@
 """Teste de encaixe da ferrovia e das pontes: monta as peças encostadas (com as ruas da base) e renderiza.
 
-  blender-venv/bin/python -I morada-art/cidade_ferrovia_pontes_encaixe.py -- SP/cidade_out ferrovia|pontes saida.png
+  blender-venv/bin/python -I morada-art/cidade_ferrovia_pontes_encaixe.py -- SP/cidade_out ferrovia|curvas|pontes saida.png
       [alvo=x,y,z,raio] [dir=x,y,z] [res=L,A]
 """
 import math
@@ -43,6 +43,22 @@ MONTAGENS = {
         ("ferrovia", "trem_tubo_reto", 60, 0, 0, 0),
         ("ferrovia", "trem_pilar", 60, -7.5, 0, 0),
     ],
+    # curvas de 2 × 2 entre as retas: bonde na rua, bonde na grama e trem em tubo (centro da curva em (+15, +15)
+    # de cada trio: entra pelo sul em x = +7,5 e sai pelo leste em y = +22,5)
+    "curvas": [
+        ("ferrovia", "bonde_rua", 7.5, -7.5, 0, 0),
+        ("ferrovia", "bonde_rua_curva", 15, 15, 0, 0),
+        ("ferrovia", "bonde_rua", 37.5, 22.5, 0, 90),
+        ("ferrovia", "bonde_grama", 7.5, 37.5, 0, 0),
+        ("ferrovia", "bonde_grama_curva", 15, 60, 0, 0),
+        ("ferrovia", "bonde_grama", 37.5, 67.5, 0, 90),
+        ("ferrovia", "trem_tubo_reto", 67.5, -7.5, 0, 0),
+        ("ferrovia", "trem_tubo_curva", 75, 15, 0, 0),
+        ("ferrovia", "trem_tubo_reto", 97.5, 22.5, 0, 90),
+        ("ferrovia", "trilho_reto", 67.5, 37.5, 0, 0),
+        ("ferrovia", "trilho_curva", 75, 60, 0, 0),
+        ("ferrovia", "trilho_reto", 97.5, 67.5, 0, 90),
+    ],
     "vitrine_pontes": [
         ("pontes", "ponte_estaiada_agulha", 0, 75, 0, 90),
         ("pontes", "ponte_estaiada_v", 0, 45, 0, 90),
@@ -80,6 +96,9 @@ def importa(cat, ident, x, y, z, rot):
     raiz.location = (x, y, z)
     raiz.rotation_mode = "XYZ"
     raiz.rotation_euler = (0, 0, math.radians(rot))
+    for o in novos:  # malhas de colisão (invisíveis no jogo) não entram no render
+        if o.get("colisao"):
+            o.hide_render = True
     return novos
 
 
@@ -88,7 +107,7 @@ todos = []
 for p in MONTAGENS[MONTAGEM]:
     todos += importa(*p)
 bpy.context.view_layer.update()
-pts = [o.matrix_world @ V(c) for o in todos if o.type == "MESH" for c in o.bound_box]
+pts = [o.matrix_world @ V(c) for o in todos if o.type == "MESH" and not o.get("colisao") for c in o.bound_box]
 lo = V([min(p[i] for p in pts) for i in range(3)])
 hi = V([max(p[i] for p in pts) for i in range(3)])
 c = (lo + hi) / 2

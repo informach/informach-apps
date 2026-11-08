@@ -139,7 +139,8 @@ def imagem_paleta(caminho=None):
 # ---------------------------------------------------------------------------------------------------------------------
 # Materiais (a ordem é fixa: índice de material igual em todas as malhas, para juntar sem remapear)
 # ---------------------------------------------------------------------------------------------------------------------
-MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon"]
+JANELA_FORCA = 1.6  # emissão das janelas acesas à noite (vai no GLB)
+MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon", "janela", "janela_fria", "janela_apagada"]
 _ESTAMPAS = {}
 
 
@@ -178,6 +179,16 @@ def materiais():
     b.inputs["Base Color"].default_value = (*_lin("#7FEFFF"), 1)
     b.inputs["Emission Color"].default_value = (*_lin("#44E4FF"), 1)
     b.inputs["Emission Strength"].default_value = 3.0
+    # janelas de prédio: o mesmo vidro azulado de dia; à noite "janela" acende quente, "janela_fria" acende
+    # branco-azulado e "janela_apagada" fica escura. O GLB leva a emissão da noite; de dia o motor zera a emissão.
+    for nome, emis, forca in (("janela", "#FFD27A", JANELA_FORCA), ("janela_fria", "#CFEFFF", JANELA_FORCA),
+                              ("janela_apagada", "#000000", 0.0)):
+        jm, b = _principled(nome)
+        b.inputs["Base Color"].default_value = (*_lin("#8FC4EA"), 1)
+        b.inputs["Roughness"].default_value = 0.3
+        b.inputs["Metallic"].default_value = 0.25
+        b.inputs["Emission Color"].default_value = (*_lin(emis), 1)
+        b.inputs["Emission Strength"].default_value = forca
     lz, b = _principled("luz")
     b.inputs["Base Color"].default_value = (*_lin("#FFF2C8"), 1)
     b.inputs["Emission Color"].default_value = (*_lin("#FFE3A0"), 1)
@@ -185,7 +196,7 @@ def materiais():
     return [bpy.data.materials[n] for n in MAT_NOMES]
 
 
-def material_estampa(nome, png):
+def material_estampa(nome, png, emissao=0.0):
     """Material com uma textura própria (quadros, tapetes, capas). nome vira "estampa_<nome>". Cada categoria cria o seu.
     Retorna o índice do material para usar em pinta_estampa / mat=."""
     chave = "estampa_" + nome
@@ -196,6 +207,9 @@ def material_estampa(nome, png):
         tx.image.pack()
         m.node_tree.links.new(tx.outputs["Color"], b.inputs["Base Color"])
         b.inputs["Roughness"].default_value = 0.6
+        if emissao:  # letreiro que brilha à noite: a própria estampa vira a emissão
+            m.node_tree.links.new(tx.outputs["Color"], b.inputs["Emission Color"])
+            b.inputs["Emission Strength"].default_value = emissao
         MAT_NOMES.append(chave)
     return MAT_NOMES.index(chave)
 
@@ -801,17 +815,35 @@ class Item:
         """Espaço onde se pode pôr objetos: centro_base = (x, y, z da superfície de apoio), tamanho = (l, p, a livre)."""
         self.slots.append((f"slot_{nome}", tuple(centro_base), tuple(tamanho), pai))
 
+    def colisao_malha(self, obj, nome="colisao_malha"):
+        """Malha de colisão (invisível) para formas que caixas não descrevem: rampa, alça inclinada, terreno. Vai no
+        GLB como filho da peça, com extras {"colisao": 1}; a página e a miniatura não a mostram, o motor usa como
+        collider de malha. Pode chamar mais de uma vez."""
+        obj.name = nome
+        self.malhas_colisao = getattr(self, "malhas_colisao", []) + [obj]
+        return obj
+
     def colisao(self, caixas):
         """caixas: [((x, y, z_base), (l, p, a)), ...] em coordenadas do Blender."""
         self.colisores = caixas
 
     # ---- montagem final
     def monta(self):
+        for mc in getattr(self, "malhas_colisao", []):
+            if mc in self.partes:
+                self.partes.remove(mc)
         corpo = junta(self.partes, self.id)
+        for mc in getattr(self, "malhas_colisao", []):
+            mc.parent = corpo
+            mc["colisao"] = 1
+            mc.hide_render = True
         for ob, dados in self.interativos:
             ob.parent = corpo
             for k, v in dados.items():
                 ob[k] = v
+        for mc in getattr(self, "malhas_colisao", []):
+            if mc in self.partes:
+                self.partes.remove(mc)
         vaz = {}
         for nome, c, t, pai in self.slots:
             e = bpy.data.objects.new(nome, None)
@@ -908,10 +940,29 @@ def _prepara_render(res=192, amostras=None):
     return scn
 
 
+def emissao_janelas(forca_janela, materiais_=None):
+    """Liga (noite) ou desliga (dia) a emissão das janelas: forca_janela = 0 de dia, JANELA_FORCA à noite.
+    Vale para os materiais criados aqui e para os importados de GLB (nome começando por "janela")."""
+    antes = {}
+    for m in (materiais_ or bpy.data.materials):
+        if m.name.split(".")[0] == "luz" and m.use_nodes:  # lâmpadas e lanternas: brilho baixo de dia
+            b = m.node_tree.nodes.get("Principled BSDF")
+            if b:
+                antes[m.name] = b.inputs["Emission Strength"].default_value
+                b.inputs["Emission Strength"].default_value = 2.0 if forca_janela > 0 else 0.6
+            continue
+        if m.name.startswith("janela") and not m.name.startswith("janela_apagada") and m.use_nodes:
+            b = m.node_tree.nodes.get("Principled BSDF")
+            if b:
+                antes[m.name] = b.inputs["Emission Strength"].default_value
+                b.inputs["Emission Strength"].default_value = forca_janela
+    return antes
+
+
 def miniatura(corpo, caminho, res=192, direcao=(0.55, -1.0, 0.5), margem=1.1):
     """Miniatura da peça sozinha: três quartos pela frente, fundo transparente, WEBP."""
     scn = _prepara_render(res)
-    objs = [o for o in _hierarquia(corpo) if o.type == "MESH"]
+    objs = [o for o in _hierarquia(corpo) if o.type == "MESH" and not o.get("colisao")]
     pts = [o.matrix_world @ V(c) for o in objs for c in o.bound_box]
     lo = V([min(p[i] for p in pts) for i in range(3)])
     hi = V([max(p[i] for p in pts) for i in range(3)])
@@ -931,14 +982,17 @@ def miniatura(corpo, caminho, res=192, direcao=(0.55, -1.0, 0.5), margem=1.1):
     scn.render.image_settings.quality = 90
     scn.render.filepath = caminho
     os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    da_peca = set(_hierarquia(corpo))
+    da_peca = {o for o in _hierarquia(corpo) if not o.get("colisao")}
     escondidos = [o for o in scn.objects if o.type in ("MESH", "CURVE", "EMPTY") and o not in da_peca
                   and not o.hide_render]
     for o in escondidos:  # sobras na cena não aparecem na miniatura (e avisam: não vão para o GLB)
         o.hide_render = True
     if any(o.type != "EMPTY" for o in escondidos):
         print("aviso: objetos fora da peca na cena:", [o.name for o in escondidos if o.type != "EMPTY"][:8], flush=True)
+    antes = emissao_janelas(0.0)  # miniatura sempre de dia
     bpy.ops.render.render(write_still=True)
+    for nome, f in antes.items():
+        bpy.data.materials[nome].node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = f
     for o in escondidos:
         o.hide_render = False
 
@@ -960,7 +1014,7 @@ class Catalogo:
     def exporta(self, item, rotulo, grupo="", fixacao="chao", altura_instalacao=None, pacote=False, tags=(),
                 miniatura_dir=(0.55, -1.0, 0.5), extra=None):
         corpo = item.monta()
-        lo, hi = bbox([o for o in _hierarquia(corpo) if o.type == "MESH"])
+        lo, hi = bbox([o for o in _hierarquia(corpo) if o.type == "MESH" and not o.get("colisao")])
         dims = [round(hi.x - lo.x, 3), round(hi.y - lo.y, 3), round(hi.z - lo.z, 3)]
         if item.colisores:
             col = [{"centro": _gl((c[0], c[1], c[2] + t[2] / 2)), "tamanho": [round(t[0], 3), round(t[2], 3),
@@ -981,7 +1035,7 @@ class Catalogo:
                   "em": pai} for n, c, t, pai in item.slots]
         usados = set()
         for o in _hierarquia(corpo):
-            if o.type == "MESH":
+            if o.type == "MESH" and not o.get("colisao") and "UVMap" in o.data.uv_layers:
                 uv = o.data.uv_layers["UVMap"].data
                 for p in o.data.polygons:
                     if MAT_NOMES[p.material_index] == "atlas":
@@ -989,7 +1043,8 @@ class Catalogo:
                         i = int(u[0] * 16) + 16 * int((1 - u[1]) * 16)
                         if 0 <= i < len(NOMES):
                             usados.add(NOMES[i])
-        tris = sum(len(p.vertices) - 2 for o in _hierarquia(corpo) if o.type == "MESH" for p in o.data.polygons)
+        tris = sum(len(p.vertices) - 2 for o in _hierarquia(corpo) if o.type == "MESH" and not o.get("colisao")
+                   for p in o.data.polygons)
         glb = os.path.join(self.pasta, "glb", item.id + ".glb")
         exporta_glb(corpo, glb)
         mini = os.path.join(self.pasta, "miniaturas", item.id + ".webp")
@@ -998,6 +1053,8 @@ class Catalogo:
              "dims": dims, "arquivo": f"glb/{item.id}.glb", "miniatura": f"miniaturas/{item.id}.webp",
              "interativos": inter, "slots": slots, "colisao": col, "cores": sorted(usados), "tris": tris,
              "pacote": bool(pacote), "tags": list(tags)}
+        if getattr(item, "malhas_colisao", None):
+            e["colisao_malha"] = [o.name for o in item.malhas_colisao]
         if altura_instalacao is not None:
             e["altura_instalacao"] = altura_instalacao
         if extra:
@@ -1014,9 +1071,11 @@ class Catalogo:
 # ---------------------------------------------------------------------------------------------------------------------
 # Vitrine: todas as peças de uma categoria no fundo azul, como nas imagens de referência
 # ---------------------------------------------------------------------------------------------------------------------
-def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), abertos=False, amostras=48):
+def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), abertos=False, amostras=48,
+            noite=False):
     """Importa os GLB (o que também confere a exportação), arruma em fileiras e renderiza com fundo azul-noite.
-    abertos=True mostra portas e gavetas abertas pela metade (para conferir o interior)."""
+    abertos=True mostra portas e gavetas abertas pela metade (para conferir o interior). noite=True: céu escuro,
+    luar fraco e as janelas, neons e luzes acesos."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     cat = json.load(open(os.path.join(pasta_categoria, "catalogo.json")))
     itens = [i for i in cat["itens"] if ids is None or i["id"] in ids]
@@ -1026,6 +1085,10 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
         bpy.ops.import_scene.gltf(filepath=os.path.join(pasta_categoria, it["arquivo"]))
         novos = [o for o in bpy.data.objects if o not in antes]
         raiz = [o for o in novos if o.parent is None][0]
+        for o in novos:  # malha de colisão: não aparece na vitrine nem conta no enquadramento
+            if o.get("colisao"):
+                o.hide_render = True
+        novos = [o for o in novos if not o.get("colisao")]
         if abertos:
             for o in novos:
                 if o.get("interativo") == "porta":
@@ -1076,8 +1139,9 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     w = bpy.data.worlds.new("w")
     scn.world = w
     w.use_nodes = True
-    w.node_tree.nodes["Background"].inputs[0].default_value = (*_lin("#9DB4D9"), 1)
-    w.node_tree.nodes["Background"].inputs[1].default_value = 0.6
+    w.node_tree.nodes["Background"].inputs[0].default_value = (*_lin("#1B2A4A" if noite else "#9DB4D9"), 1)
+    w.node_tree.nodes["Background"].inputs[1].default_value = 0.45 if noite else 0.6
+    emissao_janelas(JANELA_FORCA * 1.4 if noite else 0.0)
     pts = [o.matrix_world @ V(c) for _, novos, _ in grupos for o in novos if o.type == "MESH" for c in o.bound_box]
     lo = V([min(p[i] for p in pts) for i in range(3)])
     hi = V([max(p[i] for p in pts) for i in range(3)])
@@ -1088,14 +1152,16 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     bm.to_mesh(chao)
     bm.free()
     m, b = _principled("chao_vitrine")
-    b.inputs["Base Color"].default_value = (*_lin("#2A3D63"), 1)
+    b.inputs["Base Color"].default_value = (*_lin("#141E36" if noite else "#2A3D63"), 1)
     b.inputs["Roughness"].default_value = 0.9
     chao.materials.append(m)
     ob = bpy.data.objects.new("chao", chao)
     scn.collection.objects.link(ob)
     ob.location = (c.x, c.y, 0)
     ld = bpy.data.lights.new("sol", "SUN")
-    ld.energy = 3.0
+    ld.energy = 0.6 if noite else 3.0
+    if noite:
+        ld.color = (0.6, 0.7, 1.0)
     ld.angle = math.radians(6)
     sol = bpy.data.objects.new("sol", ld)
     scn.collection.objects.link(sol)
@@ -1106,7 +1172,8 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     scn.collection.objects.link(cam)
     scn.camera = cam
     d = V((0.45, -1.0, 0.95)).normalized()
-    cam.location = c + d * 60
+    dist_cam = max(60.0, (hi - lo).length * 2.5 + 20)  # cenas altas ou largas: a câmera recua junto
+    cam.location = c + d * dist_cam
     cam.rotation_euler = (c - cam.location).to_track_quat("-Z", "Y").to_euler()
     R = cam.rotation_euler.to_matrix().inverted()
     proj = [R @ (p - c) for p in pts]
@@ -1115,7 +1182,7 @@ def vitrine(pasta_categoria, arquivo, ids=None, colunas=None, res=(1800, 1000), 
     cd.ortho_scale = max(ex, ey * res[0] / res[1]) * 1.08
     cam.location += cam.matrix_world.to_3x3() @ V(((max(q.x for q in proj) + min(q.x for q in proj)) / 2,
                                                    (max(q.y for q in proj) + min(q.y for q in proj)) / 2, 0))
-    cd.clip_end = 200
+    cd.clip_end = dist_cam * 3 + 200
     scn.render.image_settings.file_format = "PNG"
     scn.render.filepath = arquivo
     bpy.ops.render.render(write_still=True)
