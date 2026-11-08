@@ -126,7 +126,7 @@ def audita_item(cat, it):
         prob.append(f"dims do catálogo {cd} ≠ GLB {[round(x, 3) for x in dims]}")
     fix = it.get("fixacao", "chao")
     INFRA = {"ruas", "pisos", "estacionamentos", "ferrovia", "pontes", "agua", "estruturas"}
-    if it.get("categoria") in INFRA or "linha_dagua" in it:
+    if it.get("categoria") in INFRA or "linha_dagua" in it or "quadras" in it or "trilho" in it:  # lajes, água, trilhos
         pass  # lajes, água e fundações descem abaixo da calçada de propósito
     elif "lote" in it:
         if lo[1] > 0.012 or lo[1] < -0.15:
@@ -167,7 +167,8 @@ def audita_item(cat, it):
                 # entrar no corpo: centro aberto bem dentro da caixa do corpo
                 dentro = corpo_lo and all(corpo_lo[k] + 0.04 < cn[k] < corpo_hi[k] - 0.04 for k in range(3))
                 if not frente_ok:
-                    prob.append(f"{nome}: porta abre para trás (centro aberto z={cn[2]:.2f}, pivô z={piv[2]:.2f})")
+                    if it.get("categoria") not in ("carros", "utilitarios", "barcos", "aeronaves"):  # portas laterais de veículo
+                        prob.append(f"{nome}: porta abre para trás (centro aberto z={cn[2]:.2f}, pivô z={piv[2]:.2f})")
                 elif dentro and abs(e[1]) > 0.9:
                     prob.append(f"{nome}: porta aberta entra no corpo")
                 if corpo_lo and not all(corpo_lo[k] - 0.25 < piv[k] < corpo_hi[k] + 0.25 for k in range(3)):
