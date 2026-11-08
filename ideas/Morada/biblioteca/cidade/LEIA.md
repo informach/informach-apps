@@ -44,14 +44,26 @@ Variações de cor do mesmo desenho têm o mesmo `grupo` e aparecem em "Outras c
   fica no centro da projeção, a base em z = 0 (a calçada) e a frente para −Y. O catálogo grava `lote`, `andares` e
   `estilo`.
 - **Altura:** andar de 3,2 m, térreo comercial de 4,2 m, arranha-céus de 60 a 160 m.
-- **Dia e noite:** todo prédio tem vidros com três materiais misturados, `janela` (acende quente), `janela_fria`
-  (acende branco-azulado) e `janela_apagada` (fica escura), com cerca de 40 % apagadas. De dia os três são o mesmo vidro
-  azulado. O GLB traz a emissão da noite; a página (e o motor) zeram as janelas de dia e diminuem `neon`, `luz` e os
-  letreiros com estampa luminosa (`estampa_*` com emissão).
+- **Dia e noite:**
+  - **Janelas:** todo prédio tem vidros com `janela` (acende quente), `janela_fria` (acende branco-azulado) e
+    `janela_apagada` (fica escura), com cerca de 40 % apagadas. Parte das acesas vira `janela_laranja`, `janela_rosa`,
+    `janela_lilas`, `janela_ciano` ou `janela_verde`, conforme o estilo:
+    - futuristas: muito rosa, lilás e ciano;
+    - Chinatown e regulares: mais laranja;
+    - mágicos: rosa e lilás.
+
+    De dia todas são o mesmo vidro azul.
+  - **Neon e brilho:** `neon`, `neon_rosa` e `neon_roxo` brilham sempre, fracos de dia. `brilho_roxo` (os cristais) tem
+    cor própria e só brilha à noite.
+  - **Motor e página:** o GLB traz a emissão da noite. De dia, a página (e o motor) zeram janelas e brilhos e diminuem
+    neons, `luz` e letreiros com estampa luminosa (`estampa_*` com emissão).
 - **Letreiros:** palavras genéricas em português (HOTEL, BAR, CAFÉ, CINEMA, DANÇA, SUSHI, DOCES...), sem nomes de
   marca.
 - **Malha:** de 3 a 16 mil triângulos, conforme o porte. Nos prédios altos os andares viram faixas de vidro contínuas.
-- **Colisão:** de 1 a 6 caixas que contornam o corpo. Beirais, toldos, antenas e enfeites ficam de fora de propósito.
+- **Colisão:** de 1 a 6 caixas que contornam o corpo, mais até 6 caixas do térreo (`"terreo": 1`). Estas são calculadas na
+  exportação para o que fica na altura de quem anda (0,4 a 2,2 m) e escapava das caixas: varandas térreas, decks,
+  floreiras, torres de canto e pilares. Beirais, toldos e marquises acima de 2,2 m, antenas e degraus baixos ficam de fora
+  de propósito: não atrapalham quem anda.
 - **Quarteirões:** cada estilo tem um teste de quarteirão de dia e de noite, com as ruas e calçadas da biblioteca.
 
 ## Convenções da infraestrutura (as mesmas do pacote Cartoon City, para encaixar nas peças dele)

@@ -29,7 +29,11 @@ SP = `/tmp/claude-0/-home-user-informach-apps/4b0c5cb8-e6f3-54e3-8b85-cd31fc21bb
   Escala real, mas com o charme "fofo": molduras gordas, cantos boleados, telhados e marquises generosos.
 - **Janelas (dia e noite, obrigatório):** todo prédio tem janelas com os materiais `janela` (acende quente à noite),
   `janela_fria` (acende branco-azulado) e `janela_apagada` (fica escura), misturados (≈ 35–45 % apagadas).
-  - de dia os três são o mesmo vidro azulado;
+  - de dia todos são o mesmo vidro azul (`mb.VIDRO_JANELA`);
+  - não pinte janelas coloridas à mão: na exportação (`Catalogo.exporta` com `lote` no extra), a base troca parte das
+    janelas acesas por `janela_laranja`, `janela_rosa`, `janela_lilas`, `janela_ciano` e `janela_verde`, por ilha de
+    vidro e conforme o estilo (`mb.JANELAS_ESTILO`). Nos futuristas, tropicais e arranha-céus, parte do `neon` vira
+    `neon_rosa` ou `neon_roxo` (`mb.NEON_ESTILO`);
   - use `cb.janelas`, `cb.janelas_caixa` ou escreva a sua função para fachadas curvas, torcidas ou em degraus. O
     importante é cada vidro ser uma face própria com um desses materiais.
 - **Neon e letreiros:**
@@ -44,7 +48,12 @@ SP = `/tmp/claude-0/-home-user-informach-apps/4b0c5cb8-e6f3-54e3-8b85-cd31fc21bb
 - **Malha:** casa ou prédio pequeno de 2 a 5 mil triângulos, médio de 5 a 10 mil, arranha-céu de 8 a 16 mil. Janelas em
   excesso pesam: em prédio alto, agrupe andares em faixas de vidro contínuas (uma face por faixa e por material) em vez
   de uma moldura por janela.
-- **Colisão:** de 1 a 6 caixas que contornem o volume.
+- **Colisão:** de 1 a 6 caixas que contornem o volume. Na exportação, a base acrescenta até 6 caixas para o que fica na
+  altura de quem anda (de 0,4 a 2,2 m) e escapou das suas caixas por mais de 45 cm: varandas térreas, decks, floreiras,
+  torres de canto. Essas caixas sobem até o alto do que está em cima delas e levam `"terreo": 1` no catálogo. Beirais,
+  toldos e marquises (acima de 2,2 m), degraus baixos e postes ficam de fora de propósito.
+- **Brilho noturno colorido:** `brilho_roxo` tem cor própria de dia e brilha só à noite (cristais, gemas). `neon`,
+  `neon_rosa` e `neon_roxo` brilham sempre, fracos de dia.
 - **Cores:** as da paleta, vivas como na referência. Cada estilo tem a sua família de cores:
   - ecológicos: branco, verde e madeira;
   - Chinatown: vermelho, verde-jade, dourado e telhas azuis;

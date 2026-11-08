@@ -117,7 +117,7 @@ def audita_item(cat, it):
             elif i in raizes:
                 corpo_lo, corpo_hi = l, h
     mats = {m.get("name", "") for m in g.get("materials", [])}
-    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith("estampa_")]
+    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith(("estampa_", "janela_", "neon_", "brilho_"))]
     if ruins:
         prob.append(f"materiais fora do padrão: {ruins}")
     dims = [hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]]  # l, p, a

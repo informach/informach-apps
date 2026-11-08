@@ -1303,7 +1303,7 @@ def casa_estreita_enxaimel(it, parede="lilas_claro", viga="roxo", tel="laranja",
 # =====================================================================================================================
 def _cristal(r, h, ponta, cores, x=0.0, y=0.0, z=0.0, incl=(0.0, 0.0), giro=0.0, fenda=False, nome="cristal"):
     """Cristal hexagonal facetado (prisma afinando um pouco, ponta em pirâmide), faces alternando as cores da lista.
-    fenda=True: duas faces da parte de baixo viram frestas de luz (neon) para brilhar por dentro à noite."""
+    fenda=True: duas faces da parte de baixo viram frestas de luz roxa (brilho_roxo), que brilham só à noite."""
     bm = bmesh.new()
     n = 6
     b = [bm.verts.new((r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n), -0.6)) for k in range(n)]
@@ -1328,7 +1328,7 @@ def _cristal(r, h, ponta, cores, x=0.0, y=0.0, z=0.0, incl=(0.0, 0.0), giro=0.0,
     if fenda:
         alvo = [p.index for p in ob.data.polygons if h * 0.05 < p.center.z < h * 0.45 and
                 abs(math.atan2(p.center.y, p.center.x) + math.pi / 2) < 1.2]
-        mb.pinta(ob, None, alvo[:1], mat="neon")
+        mb.pinta(ob, None, alvo[:1], mat="brilho_roxo")
     M = Matrix.Translation((x, y, z)) @ Matrix.Rotation(RAD(giro), 4, "Z") @ \
         Matrix.Rotation(RAD(incl[0]), 4, "X") @ Matrix.Rotation(RAD(incl[1]), 4, "Y")
     ob.data.transform(M)
@@ -1337,7 +1337,7 @@ def _cristal(r, h, ponta, cores, x=0.0, y=0.0, z=0.0, incl=(0.0, 0.0), giro=0.0,
 
 def cristais_roxos(it):
     """Aglomerado de cristais roxos gigantes sobre uma gruta de pedra com porta, janelinhas e placa: uma loja de
-    cristais. Fendas e lascas de luz ciano brilham por dentro à noite."""
+    cristais. Fendas e lascas de luz roxa brilham por dentro à noite (brilho_roxo: de dia são só cristais lilás)."""
     o = [mb.extrudado(blob_contorno(5.9, 30, 0.08, 21), 0.2, cor="terra_seca", bisel=0.08, seg=2)]
     # gruta (cúpula de pedra) com pedras em volta
     pg = [(0.0, 0.15), (4.7, 0.15), (4.85, 0.6), (4.6, 1.6), (4.0, 2.7), (3.0, 3.5), (1.6, 3.95), (0.0, 4.1)]
@@ -1372,12 +1372,12 @@ def cristais_roxos(it):
                                          (-4.8, -2.0, 0.85, -30), (2.4, 4.4, 0.7, 90))):
         o.append(_cristal(0.45 * s, 2.2 * s, 0.9 * s, roxos if k % 2 else azuis, x=x, y=y, z=0.1,
                           incl=(10 * (-1) ** k, 18), giro=ang_))
-    # lascas de luz (neon) entre as pedras
+    # lascas de luz roxa entre as pedras
     for k, (x, y, s) in enumerate(((3.6, -3.5, 0.6), (-3.2, -3.9, 0.55), (5.2, 0.6, 0.5), (-5.2, 0.4, 0.5),
                                    (-1.8, -4.8, 0.4), (2.0, -4.9, 0.42))):
         c = _cristal(0.22 * s / 0.5, 1.0 * s / 0.5, 0.45 * s / 0.5, ["lilas"], x=x, y=y, z=0.1,
                      incl=(14 * (-1) ** k, 10), giro=k * 40)
-        mb.pinta(c, None, mat="neon")
+        mb.pinta(c, None, mat="brilho_roxo")
         o.append(c)
     # porta, janelinhas e placa
     o += poe(porta(1.35, 2.4, "roxo_escuro", "lilas", macaneta="neon_ciano"), 0, -4.72, 0.15)
@@ -1490,7 +1490,7 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
             n_ = -n_
         off = n_ * (E / 2 - 0.25)
         o += ameias_lin((a + off) + (b - a).normalized() * 2.6, (b + off) - (b - a).normalized() * 2.6,
-                        0.25 + Hm + 0.2, parede, w=0.8, h=0.8, esp=0.5, passo=1.75)
+                        0.25 + Hm + 0.2, parede, w=0.8, h=0.8, esp=0.5, passo=2.0)
     # janelinhas na muralha (de fora)
     for x in (-7.0, -4.2, 4.2, 7.0):
         jn = janela("arco", w=0.75, h=1.4, cor=jan, f=0.12, cruz=False)
@@ -1503,11 +1503,11 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
     for sx in (-1, 1):
         for sy in (-1, 1):
             tx, ty, r, h = sx * W / 2, sy * D / 2, 2.4, 12.5
-            o.append(cil(r + 0.25, 0.8, x=tx, y=ty, z=0.2, cor=base, seg=20, bisel=0.1))
-            o.append(cil(r, h, x=tx, y=ty, z=0.25, cor=torre, seg=20, bisel=0.0))
-            o.append(cil(r + 0.35, 0.5, x=tx, y=ty, z=h - 0.2, cor=borda, seg=20, bisel=0.1))
-            o += cone(r + 0.35, 7.5, h + 0.55, tel, borda, x=tx, y=ty, ponta="lanca", seg=20)
-            for zz in (3.0, 7.6):
+            o.append(cil(r + 0.25, 0.8, x=tx, y=ty, z=0.2, cor=base, seg=15, bisel=0.1))
+            o.append(cil(r, h, x=tx, y=ty, z=0.25, cor=torre, seg=15, bisel=0.0))
+            o.append(cil(r + 0.35, 0.5, x=tx, y=ty, z=h - 0.2, cor=borda, seg=15, bisel=0.1))
+            o += cone(r + 0.35, 7.5, h + 0.55, tel, borda, x=tx, y=ty, ponta="lanca", seg=15)
+            for zz in (5.2,):  # uma fileira de janelas por torre (malha abaixo de 16 mil)
                 a = math.atan2(-1 if sy < 0 else 1, sx * 1.0) if sy > 0 else -math.pi / 2 + sx * 0.6
                 for da in (-0.55, 0.55):
                     aa = a + da
@@ -1517,9 +1517,9 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
     # portão com duas torrinhas
     for sx in (-1, 1):
         tx, ty, r, h = sx * 2.9, -D / 2 - 0.3, 1.7, 10.5
-        o.append(cil(r, h, x=tx, y=ty, z=0.25, cor=torre, seg=16, bisel=0.0))
-        o.append(cil(r + 0.3, 0.42, x=tx, y=ty, z=h - 0.15, cor=borda, seg=16, bisel=0.08))
-        o += cone(r + 0.3, 5.2, h + 0.4, tel, borda, x=tx, y=ty, seg=16)
+        o.append(cil(r, h, x=tx, y=ty, z=0.25, cor=torre, seg=13, bisel=0.0))
+        o.append(cil(r + 0.3, 0.42, x=tx, y=ty, z=h - 0.15, cor=borda, seg=13, bisel=0.08))
+        o += cone(r + 0.3, 5.2, h + 0.4, tel, borda, x=tx, y=ty, seg=13)
         jn = janela("arco", w=0.65, h=1.2, cor=jan, f=0.1, cruz=False)
         o += poe(jn, tx, ty - r, 6.0)
     o.append(mb.caixa(4.4, 2.2, 8.2, y=-D / 2 - 0.2, z=0.25, cor=parede, bisel=0.12, seg=2))
@@ -1538,7 +1538,7 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
     o.append(mb.caixa(KL + 0.5, KP + 0.5, 0.4, x=kx, y=ky, z=KH + 0.1, cor=borda, bisel=0.1, seg=1))
     for (x0, y0), (x1, y1) in (((-KL / 2, -KP / 2), (KL / 2, -KP / 2)), ((KL / 2, -KP / 2), (KL / 2, KP / 2)),
                                ((KL / 2, KP / 2), (-KL / 2, KP / 2)), ((-KL / 2, KP / 2), (-KL / 2, -KP / 2))):
-        o += ameias_lin((kx + x0, ky + y0), (kx + x1, ky + y1), KH + 0.5, parede, w=0.75, h=0.8, esp=0.5, passo=1.7)
+        o += ameias_lin((kx + x0, ky + y0), (kx + x1, ky + y1), KH + 0.5, parede, w=0.75, h=0.8, esp=0.5, passo=2.0)
     for k in range(3):
         z = 1.6 + k * 5.0
         fachada_jan = dict(forma="arco", w=0.9, h=1.7 if k else 2.0, cor=jan)
@@ -1557,9 +1557,9 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
     o.append(mb.caixa(4.2, 0.16, 0.14, x=kx, y=ky - KP / 2 - 1.25, z=11.85, cor=borda, bisel=0.04, seg=1))
     # torres altas sobre a menagem
     for tx, ty, r, h, hc in ((-3.0, ky + 1.6, 2.4, 25.0, 9.0), (3.2, ky - 1.2, 1.9, 21.0, 7.0)):
-        o.append(cil(r, h - KH, x=tx, y=ty, z=KH + 0.2, cor=torre, seg=20, bisel=0.0))
-        o.append(cil(r + 0.35, 0.45, x=tx, y=ty, z=h - 0.2, cor=borda, seg=20, bisel=0.08))
-        o += cone(r + 0.35, hc, h + 0.45, tel, borda, x=tx, y=ty, ponta="esfera", seg=20)
+        o.append(cil(r, h - KH, x=tx, y=ty, z=KH + 0.2, cor=torre, seg=15, bisel=0.0))
+        o.append(cil(r + 0.35, 0.45, x=tx, y=ty, z=h - 0.2, cor=borda, seg=15, bisel=0.08))
+        o += cone(r + 0.35, hc, h + 0.45, tel, borda, x=tx, y=ty, ponta="esfera", seg=15)
         o += bandeira(tx, ty, h + 0.45 + hc - 0.2, "lilas", alt=2.4, ang=-20)
         for aa in (-110, -60, 30):
             a = RAD(aa)
@@ -1568,8 +1568,8 @@ def castelo_rosa(it, parede="rosa", torre="rosa_bebe", tel="rosa_escuro", borda=
             o += jn
     # torrinha pendurada no canto da menagem
     tx, ty = kx + KL / 2, ky - KP / 2
-    o.append(mb.torno([(0.0, 9.4), (0.5, 9.5), (1.25, 10.6), (1.25, 13.6), (0.0, 13.6)], x=tx, y=ty, cor=torre, seg=16))
-    o.append(cil(1.55, 0.3, x=tx, y=ty, z=13.5, cor=borda, seg=16, bisel=0.06))
+    o.append(mb.torno([(0.0, 9.4), (0.5, 9.5), (1.25, 10.6), (1.25, 13.6), (0.0, 13.6)], x=tx, y=ty, cor=torre, seg=13))
+    o.append(cil(1.55, 0.3, x=tx, y=ty, z=13.5, cor=borda, seg=13, bisel=0.06))
     o += cone(1.5, 4.0, 13.8, tel, None, x=tx, y=ty)
     it.add(o)
     it.colisao([((0, 0, 0), (25.0, 24.0, 0.4)), ((0, D / 2, 0), (W + E, E, Hm + 1.2)), ((W / 2, 0, 0), (E, D, Hm + 1.2)),

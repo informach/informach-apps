@@ -714,6 +714,19 @@
       4.2,
       5.336
      ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.65,
+      5.25
+     ],
+     "tamanho": [
+      4.0,
+      3.3,
+      0.5
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -792,6 +805,19 @@
       4.2,
       5.336
      ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.65,
+      5.25
+     ],
+     "tamanho": [
+      4.0,
+      3.3,
+      0.5
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -918,6 +944,58 @@
       2.6,
       2.6
      ]
+    },
+    {
+     "centro": [
+      -6.5,
+      1.77996,
+      5.0
+     ],
+     "tamanho": [
+      4.0,
+      3.56,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      7.5,
+      1.77996,
+      4.0
+     ],
+     "tamanho": [
+      4.0,
+      3.56,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      1.0,
+      0.85,
+      3.5
+     ],
+     "tamanho": [
+      1.0,
+      1.7,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      3.0,
+      0.85,
+      3.5
+     ],
+     "tamanho": [
+      1.0,
+      1.7,
+      1.0
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -1369,6 +1447,19 @@
       3.3,
       3.0
      ]
+    },
+    {
+     "centro": [
+      -0.25,
+      1.33201,
+      5.75
+     ],
+     "tamanho": [
+      1.5,
+      2.664,
+      1.5
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -1839,6 +1930,166 @@
    "estilo": "futurista"
   },
   {
+   "id": "predio_vidro_marquise_azul",
+   "rotulo": "Prédio de vidro com marquise flutuante (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_vidro_marquise",
+   "fixacao": "chao",
+   "dims": [
+    12.7,
+    12.89,
+    16.36
+   ],
+   "arquivo": "glb/predio_vidro_marquise_azul.glb",
+   "miniatura": "miniaturas/predio_vidro_marquise_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.15,
+      -0.595
+     ],
+     "tamanho": [
+      10.9,
+      14.3,
+      9.7
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      16.01,
+      -0.595
+     ],
+     "tamanho": [
+      12.6,
+      0.62,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.92,
+      5.105
+     ],
+     "tamanho": [
+      6.4,
+      0.34,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 7576,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "vidro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_vidro_marquise_lilas",
+   "rotulo": "Prédio de vidro com marquise flutuante (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_vidro_marquise",
+   "fixacao": "chao",
+   "dims": [
+    12.7,
+    12.89,
+    16.36
+   ],
+   "arquivo": "glb/predio_vidro_marquise_lilas.glb",
+   "miniatura": "miniaturas/predio_vidro_marquise_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.15,
+      -0.595
+     ],
+     "tamanho": [
+      10.9,
+      14.3,
+      9.7
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      16.01,
+      -0.595
+     ],
+     "tamanho": [
+      12.6,
+      0.62,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.92,
+      5.105
+     ],
+     "tamanho": [
+      6.4,
+      0.34,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "lilas",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 7576,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "vidro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
    "id": "casa_modular_cubos_branca",
    "rotulo": "Casa modular de cubos com neon (branca e azul)",
    "categoria": "predios_futuristas",
@@ -1877,6 +2128,45 @@
       3.5,
       5.8
      ]
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.75,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.25,
+      0.625,
+      -4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -1947,6 +2237,45 @@
       3.5,
       5.8
      ]
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.75,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.25,
+      0.625,
+      -4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -2030,6 +2359,45 @@
       3.5,
       3.2
      ]
+    },
+    {
+     "centro": [
+      5.5,
+      0.625,
+      -3.75
+     ],
+     "tamanho": [
+      1.0,
+      1.25,
+      1.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      -3.5
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -5.5,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.0,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
     }
    ],
    "cores": [
@@ -2214,166 +2582,6 @@
     "predio",
     "futurista",
     "medio",
-    "neon"
-   ],
-   "lote": [
-    1,
-    1
-   ],
-   "andares": 4,
-   "estilo": "futurista"
-  },
-  {
-   "id": "predio_vidro_marquise_azul",
-   "rotulo": "Prédio de vidro com marquise flutuante (azul)",
-   "categoria": "predios_futuristas",
-   "grupo": "predio_vidro_marquise",
-   "fixacao": "chao",
-   "dims": [
-    12.7,
-    12.89,
-    16.36
-   ],
-   "arquivo": "glb/predio_vidro_marquise_azul.glb",
-   "miniatura": "miniaturas/predio_vidro_marquise_azul.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0.0,
-      7.15,
-      -0.595
-     ],
-     "tamanho": [
-      10.9,
-      14.3,
-      9.7
-     ]
-    },
-    {
-     "centro": [
-      0.0,
-      16.01,
-      -0.595
-     ],
-     "tamanho": [
-      12.6,
-      0.62,
-      11.6
-     ]
-    },
-    {
-     "centro": [
-      0.0,
-      3.92,
-      5.105
-     ],
-     "tamanho": [
-      6.4,
-      0.34,
-      2.6
-     ]
-    }
-   ],
-   "cores": [
-    "azul_celeste",
-    "azul_escuro",
-    "branco",
-    "cinza",
-    "cinza_claro",
-    "cromo",
-    "grafite",
-    "madeira_clara",
-    "verde_claro"
-   ],
-   "tris": 7576,
-   "pacote": false,
-   "tags": [
-    "predio",
-    "futurista",
-    "medio",
-    "vidro",
-    "neon"
-   ],
-   "lote": [
-    1,
-    1
-   ],
-   "andares": 4,
-   "estilo": "futurista"
-  },
-  {
-   "id": "predio_vidro_marquise_lilas",
-   "rotulo": "Prédio de vidro com marquise flutuante (lilás)",
-   "categoria": "predios_futuristas",
-   "grupo": "predio_vidro_marquise",
-   "fixacao": "chao",
-   "dims": [
-    12.7,
-    12.89,
-    16.36
-   ],
-   "arquivo": "glb/predio_vidro_marquise_lilas.glb",
-   "miniatura": "miniaturas/predio_vidro_marquise_lilas.webp",
-   "interativos": [],
-   "slots": [],
-   "colisao": [
-    {
-     "centro": [
-      0.0,
-      7.15,
-      -0.595
-     ],
-     "tamanho": [
-      10.9,
-      14.3,
-      9.7
-     ]
-    },
-    {
-     "centro": [
-      0.0,
-      16.01,
-      -0.595
-     ],
-     "tamanho": [
-      12.6,
-      0.62,
-      11.6
-     ]
-    },
-    {
-     "centro": [
-      0.0,
-      3.92,
-      5.105
-     ],
-     "tamanho": [
-      6.4,
-      0.34,
-      2.6
-     ]
-    }
-   ],
-   "cores": [
-    "azul_escuro",
-    "branco",
-    "cinza",
-    "cinza_claro",
-    "cromo",
-    "grafite",
-    "lilas",
-    "madeira_clara",
-    "verde_claro"
-   ],
-   "tris": 7576,
-   "pacote": false,
-   "tags": [
-    "predio",
-    "futurista",
-    "medio",
-    "vidro",
     "neon"
    ],
    "lote": [

@@ -140,7 +140,13 @@ def imagem_paleta(caminho=None):
 # Materiais (a ordem é fixa: índice de material igual em todas as malhas, para juntar sem remapear)
 # ---------------------------------------------------------------------------------------------------------------------
 JANELA_FORCA = 1.6  # emissão das janelas acesas à noite (vai no GLB)
-MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon", "janela", "janela_fria", "janela_apagada"]
+MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon", "janela", "janela_fria", "janela_apagada",
+             "janela_laranja", "janela_rosa", "janela_lilas", "janela_ciano", "janela_verde",
+             "neon_rosa", "neon_roxo", "brilho_roxo"]
+# janelas acesas à noite (cor da luz). De dia todas são o mesmo vidro azul (VIDRO_JANELA).
+JANELAS_COR = {"janela": "#FFD27A", "janela_fria": "#CFEFFF", "janela_laranja": "#FF9F4A", "janela_rosa": "#FF7ACB",
+               "janela_lilas": "#B48CFF", "janela_ciano": "#74F2FF", "janela_verde": "#9DFF8C"}
+VIDRO_JANELA = "#5F9AD3"
 _ESTAMPAS = {}
 
 
@@ -181,14 +187,26 @@ def materiais():
     b.inputs["Emission Strength"].default_value = 3.0
     # janelas de prédio: o mesmo vidro azulado de dia; à noite "janela" acende quente, "janela_fria" acende
     # branco-azulado e "janela_apagada" fica escura. O GLB leva a emissão da noite; de dia o motor zera a emissão.
-    for nome, emis, forca in (("janela", "#FFD27A", JANELA_FORCA), ("janela_fria", "#CFEFFF", JANELA_FORCA),
-                              ("janela_apagada", "#000000", 0.0)):
+    # as coloridas (laranja, rosa, lilás, ciano, verde) dão os quadradinhos de cores da referência noturna.
+    for nome, emis, forca in [(n, c, JANELA_FORCA) for n, c in JANELAS_COR.items()] + [("janela_apagada", "#000000", 0.0)]:
         jm, b = _principled(nome)
-        b.inputs["Base Color"].default_value = (*_lin("#8FC4EA"), 1)
-        b.inputs["Roughness"].default_value = 0.3
-        b.inputs["Metallic"].default_value = 0.25
+        b.inputs["Base Color"].default_value = (*_lin(VIDRO_JANELA), 1)
+        b.inputs["Roughness"].default_value = 0.22
+        b.inputs["Metallic"].default_value = 0.3
         b.inputs["Emission Color"].default_value = (*_lin(emis), 1)
         b.inputs["Emission Strength"].default_value = forca
+    # neons coloridos: acesos sempre (fracos de dia, como o "neon")
+    for nome, base, emis in (("neon_rosa", "#FF8FE0", "#FF3FD0"), ("neon_roxo", "#C49BFF", "#9A4DFF")):
+        nm, b = _principled(nome)
+        b.inputs["Base Color"].default_value = (*_lin(base), 1)
+        b.inputs["Emission Color"].default_value = (*_lin(emis), 1)
+        b.inputs["Emission Strength"].default_value = 3.0
+    # brilho noturno: cor própria de dia (sem emissão no motor) e brilho à noite, como as janelas (cristais)
+    bm_, b = _principled("brilho_roxo")
+    b.inputs["Base Color"].default_value = (*_lin("#8F5BEA"), 1)
+    b.inputs["Roughness"].default_value = 0.2
+    b.inputs["Emission Color"].default_value = (*_lin("#B070FF"), 1)
+    b.inputs["Emission Strength"].default_value = 2.4
     lz, b = _principled("luz")
     b.inputs["Base Color"].default_value = (*_lin("#FFF2C8"), 1)
     b.inputs["Emission Color"].default_value = (*_lin("#FFE3A0"), 1)
@@ -951,11 +969,12 @@ def emissao_janelas(forca_janela, materiais_=None):
                 antes[m.name] = b.inputs["Emission Strength"].default_value
                 b.inputs["Emission Strength"].default_value = 2.0 if forca_janela > 0 else 0.6
             continue
-        if m.name.startswith("janela") and not m.name.startswith("janela_apagada") and m.use_nodes:
+        brilho = m.name.startswith("brilho_")
+        if (brilho or (m.name.startswith("janela") and not m.name.startswith("janela_apagada"))) and m.use_nodes:
             b = m.node_tree.nodes.get("Principled BSDF")
             if b:
                 antes[m.name] = b.inputs["Emission Strength"].default_value
-                b.inputs["Emission Strength"].default_value = forca_janela
+                b.inputs["Emission Strength"].default_value = forca_janela * (1.5 if brilho else 1.0)
     return antes
 
 
@@ -995,6 +1014,177 @@ def miniatura(corpo, caminho, res=192, direcao=(0.55, -1.0, 0.5), margem=1.1):
         bpy.data.materials[nome].node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = f
     for o in escondidos:
         o.hide_render = False
+
+
+# Janelas coloridas: em cada estilo, parte das janelas acesas troca a luz quente/fria por uma cor. A troca é feita por
+# "ilha" (vidros de mesmo material encostados: uma janela, um painel ou um trecho de faixa), sorteada pelo id da peça.
+JANELAS_ESTILO = {
+    "predios_futuristas": {"janela_rosa": .18, "janela_lilas": .15, "janela_ciano": .13, "janela_verde": .05},
+    "arranha_ceus": {"janela_laranja": .14, "janela_rosa": .10, "janela_verde": .07, "janela_ciano": .08,
+                     "janela_lilas": .05},
+    "predios_tropicais": {"janela_laranja": .14, "janela_rosa": .10, "janela_ciano": .08, "janela_verde": .04},
+    "predios_magicos": {"janela_laranja": .12, "janela_rosa": .10, "janela_lilas": .10, "janela_verde": .06},
+    "predios_regulares": {"janela_laranja": .20, "janela_rosa": .04, "janela_verde": .04, "janela_ciano": .04},
+    "predios_ecologicos": {"janela_laranja": .16, "janela_verde": .08, "janela_ciano": .04},
+    "predios_chinatown": {"janela_laranja": .22, "janela_rosa": .08, "janela_verde": .04},
+}
+NEON_ESTILO = {"predios_futuristas": {"neon_rosa": .35, "neon_roxo": .30}, "predios_tropicais": {"neon_rosa": .30},
+               "arranha_ceus": {"neon_rosa": .20, "neon_roxo": .20}}
+
+
+def _ilhas(bm, idxs):
+    """Grupos de faces encostadas (pela aresta) com o mesmo material, entre os materiais idxs."""
+    vistos, out = set(), []
+    for f in bm.faces:
+        if f.index in vistos or f.material_index not in idxs:
+            continue
+        pilha, ilha = [f], []
+        vistos.add(f.index)
+        while pilha:
+            g = pilha.pop()
+            ilha.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in vistos and h.material_index == g.material_index:
+                        vistos.add(h.index)
+                        pilha.append(h)
+        out.append(ilha)
+    return out
+
+
+def _troca_ilhas(corpo, origem, pesos, semente, area_max):
+    import random
+    import zlib
+    rng = random.Random(zlib.crc32(semente.encode()))
+    alvo = list(pesos.items())
+    idxs = {MAT_NOMES.index(n) for n in origem}
+    for o in _hierarquia(corpo):
+        if o.type != "MESH" or o.get("colisao"):
+            continue
+        mats = o.data.materials
+        if [m.name.split(".")[0] for m in mats] != MAT_NOMES[:len(mats)]:
+            continue  # malha com materiais fora da ordem padrão: não mexe
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bm.faces.ensure_lookup_table()
+        mudou = False
+        for ilha in _ilhas(bm, idxs):
+            r = rng.random()
+            if sum(f.calc_area() for f in ilha) > area_max:
+                continue  # fachada inteira de vidro não vira uma cor só
+            for nome, p in alvo:
+                if r < p:
+                    for f in ilha:
+                        f.material_index = MAT_NOMES.index(nome)
+                    mudou = True
+                    break
+                r -= p
+        if mudou:
+            for n in MAT_NOMES[len(mats):]:
+                mats.append(bpy.data.materials[n])
+            bm.to_mesh(o.data)
+        bm.free()
+
+
+def colore_janelas(corpo, categoria, semente):
+    if categoria in JANELAS_ESTILO:
+        _troca_ilhas(corpo, ("janela", "janela_fria"), JANELAS_ESTILO[categoria], semente + "/j", 45.0)
+    if categoria in NEON_ESTILO:
+        _troca_ilhas(corpo, ("neon",), NEON_ESTILO[categoria], semente + "/n", 1e9)
+
+
+def colisao_terreo(corpo, col, z0=0.4, z1=2.2, cel=0.5, area_min=0.75, folga=0.45, max_caixas=6):
+    """Caixas extras para o que fica na altura de quem anda (z0..z1) e não está dentro das caixas de colisão: varandas
+    térreas, decks, muretas, floreiras, bancadas. Beirais, toldos e marquises (acima de z1), degraus baixos (abaixo de
+    z0), postes e enfeites finos (área menor que area_min) ficam de fora. O que sai até `folga` (45 cm) das caixas conta
+    como coberto: paredes e molduras um pouco para fora da caixa do corpo não viram lascas de colisão.
+    col está nos eixos do glTF; devolve no mesmo."""
+    caixas = []
+    for c in col:  # glTF (x, y-cima, z = -y do Blender) -> Blender
+        cx, cy, cz = c["centro"][0], -c["centro"][2], c["centro"][1]
+        tx, ty, tz = c["tamanho"][0], c["tamanho"][2], c["tamanho"][1]
+        caixas.append((cx - tx / 2 - folga, cx + tx / 2 + folga, cy - ty / 2 - folga, cy + ty / 2 + folga,
+                       cz - tz / 2 - folga, cz + tz / 2 + folga))
+
+    def dentro(p):
+        return any(a <= p.x <= b and c_ <= p.y <= d and e <= p.z <= f for a, b, c_, d, e, f in caixas)
+
+    cels = {}
+    passo = cel / 2
+    todos = []
+    for o in _hierarquia(corpo):
+        if o.type != "MESH" or o.get("colisao"):
+            continue
+        M = o.matrix_world
+        vs = [M @ v.co for v in o.data.vertices]
+        todos += vs
+        o.data.calc_loop_triangles()
+        for t in o.data.loop_triangles:
+            a, b, c3 = (vs[i] for i in t.vertices)
+            if max(a.z, b.z, c3.z) < z0 or min(a.z, b.z, c3.z) > z1:
+                continue
+            n = max(1, int(max((a - b).length, (b - c3).length, (c3 - a).length) / passo) + 1)
+            for i in range(n + 1):
+                for j in range(n + 1 - i):
+                    p = a + (b - a) * (i / n) + (c3 - a) * (j / n)
+                    if z0 <= p.z <= z1 and not dentro(p):
+                        k = (math.floor(p.x / cel), math.floor(p.y / cel))
+                        cels[k] = max(cels.get(k, 0.0), p.z)
+    # componentes (vizinhança de 8)
+    comps, vistos = [], set()
+    for k in cels:
+        if k in vistos:
+            continue
+        pilha, comp = [k], []
+        vistos.add(k)
+        while pilha:
+            q = pilha.pop()
+            comp.append(q)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    r = (q[0] + dx, q[1] + dy)
+                    if r in cels and r not in vistos:
+                        vistos.add(r)
+                        pilha.append(r)
+        comps.append(comp)
+
+    def caixas_de(comp):
+        xs = [q[0] for q in comp]
+        ys = [q[1] for q in comp]
+        nx, ny = max(xs) - min(xs) + 1, max(ys) - min(ys) + 1
+        if len(comp) >= 0.5 * nx * ny or len(comp) < 4:
+            return [comp]
+        if nx >= ny:  # divide ao meio pelo lado maior até as caixas ficarem cheias
+            m = min(xs) + nx // 2
+            partes = [[q for q in comp if q[0] < m], [q for q in comp if q[0] >= m]]
+        else:
+            m = min(ys) + ny // 2
+            partes = [[q for q in comp if q[1] < m], [q for q in comp if q[1] >= m]]
+        return [c for p in partes if p for c in caixas_de(p)]
+
+    novas = []
+    for comp in comps:
+        for sub in caixas_de(comp):
+            area = len(sub) * cel * cel
+            if area < area_min:
+                continue
+            x0 = min(q[0] for q in sub) * cel
+            x1 = (max(q[0] for q in sub) + 1) * cel
+            y0 = min(q[1] for q in sub) * cel
+            y1 = (max(q[1] for q in sub) + 1) * cel
+            zt = max(cels[q] for q in sub)
+            # a caixa sobe até o alto do que está em cima dela (torre, pilar, parede), não só até a altura de quem anda
+            m_ = 0.1
+            zt = max([zt] + [v.z for v in todos if x0 + m_ <= v.x <= x1 - m_ and y0 + m_ <= v.y <= y1 - m_])
+            novas.append((area, (x0, x1, y0, y1, zt)))
+    novas.sort(key=lambda a: -a[0])
+    out = []
+    for _, (x0, x1, y0, y1, zt) in novas[:max_caixas]:
+        out.append({"centro": _gl(((x0 + x1) / 2, (y0 + y1) / 2, zt / 2)),
+                    "tamanho": [round(x1 - x0, 3), round(zt, 3), round(y1 - y0, 3)], "terreo": 1})
+    if out:
+        print("colisao do terreo:", len(out), "caixas", flush=True)
+    return out
 
 
 class Catalogo:
@@ -1045,6 +1235,10 @@ class Catalogo:
                             usados.add(NOMES[i])
         tris = sum(len(p.vertices) - 2 for o in _hierarquia(corpo) if o.type == "MESH" and not o.get("colisao")
                    for p in o.data.polygons)
+        if extra and "lote" in extra:  # prédio: janelas coloridas do estilo e colisão do térreo
+            colore_janelas(corpo, self.cat, item.id)
+            extras_col = colisao_terreo(corpo, col)
+            col = col + extras_col
         glb = os.path.join(self.pasta, "glb", item.id + ".glb")
         exporta_glb(corpo, glb)
         mini = os.path.join(self.pasta, "miniaturas", item.id + ".webp")
