@@ -174,7 +174,7 @@ def y_contorno(x, z_alvo):
     return (a + b) / 2
 
 
-def faixa_relevo(z_hi, z_lo, cor, dz=0.006, n=60, nj=4, nome="faixa"):
+def faixa_relevo(z_hi, z_lo, cor, dz=0.012, n=60, nj=4, nome="faixa"):
     """Faixa colada no relevo da beira-mar entre as curvas de nível z_hi e z_lo (bordas lisas)."""
     xs = [-H + Q * i / n for i in range(n + 1)]
     P = []
@@ -187,7 +187,7 @@ def faixa_relevo(z_hi, z_lo, cor, dz=0.006, n=60, nj=4, nome="faixa"):
 
 
 def p_piso_areia_mar(it):
-    nx = 30
+    nx = 45  # passo de 1/3 m: o relevo segue a curva sem furar as faixas coladas
     ys = [-H, -6.75, -6.0, -5.25] + [round(-4.5 + k * 0.3, 4) for k in range(41)]
     xs = [-H + Q * i / nx for i in range(nx + 1)]
     m = Malha()
@@ -213,8 +213,8 @@ def p_piso_areia_mar(it):
     m.poligono([(-H, -H, Z_BASE), (-H, H, Z_BASE), (H, H, Z_BASE), (H, -H, Z_BASE)], "agua_funda", normal=(0, 0, -1))
     it.add(m.obj("areia_mar", liso=True, angulo=30, recalc=False))
     it.add(faixa_relevo(-0.40, -1.03, AREIA_ESC, nome="areia_molhada"))
-    it.add(faixa_relevo(-0.40, -0.47, "bege", dz=0.008, n=60, nj=1, nome="linha_seca"))
-    it.add(faixa_relevo(-1.38, Z_FUNDO_MAR + 0.002, "agua_funda", dz=0.004, nome="fundo"))
+    it.add(faixa_relevo(-0.40, -0.47, "bege", dz=0.015, n=60, nj=1, nome="linha_seca"))
+    it.add(faixa_relevo(-1.38, Z_FUNDO_MAR + 0.002, "agua_funda", dz=0.01, nome="fundo"))
     # lâmina d'água (a parte por baixo da areia fica escondida)
     y_min = min(y_contorno(x, Z_AGUA) for x in xs) - 0.6
     ma = Malha()
