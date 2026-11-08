@@ -297,7 +297,6 @@ const api: EdiAulaApi = {
         ok: boolean;
         text: string;
         images?: ToolImage[];
-        structured?: Record<string, unknown>;
       };
       try {
         result = await runTool(call);

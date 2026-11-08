@@ -84,6 +84,7 @@ import {
   removeEmptyTrack,
   renameTrack,
   setTrackFlags,
+  withTrackIds,
 } from "@shared/trackOps";
 import { DEFAULT_TRANSITION, previousClip } from "@shared/transitions";
 import type {
@@ -170,12 +171,10 @@ export interface ToolOutcome {
   text: string;
   /** Pictures for the model, after the text (get_frame). */
   images?: ToolImage[];
-  /** The same facts as data for MCP clients (get_overview's selection). */
-  structured?: Record<string, unknown>;
 }
 
 /** A handler's answer: its text, or its text with pictures. */
-type Answer = string | { text: string; images?: ToolImage[]; structured?: Record<string, unknown> };
+type Answer = string | { text: string; images?: ToolImage[] };
 
 /** m:ss.s — compact and unambiguous for the model. */
 const t = (s: number): string => {
@@ -954,11 +953,9 @@ const handlers: {
         `Glossário do curso (entre parênteses, como o nome sai na transcrição): ${formatGlossary(glossary)}`,
       );
     lines.push(revisionLine());
-    const picked = selectionOf(p);
-    return {
-      text: lines.join("\n"),
-      structured: { selection: { track_id: picked.trackId, clip_ids: picked.clipIds } },
-    };
+    // Text only, the selection on its first line: a client given a structured copy reads that
+    // alone, and the assistant once saw only {"selection": ...}, never the tracks.
+    return lines.join("\n");
   },
 
   async get_transcript({ from, to, with_word_times, summary }) {
@@ -2822,9 +2819,14 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
   if (!isAiToolName(name)) return { ok: false, text: `Ferramenta desconhecida: ${name}` };
   if (isMemoryTool(name)) return { ok: false, text: "A memória do chat não passa pelo editor." };
   const tool = AI_TOOLS[name];
-  const parsed = tool.input.safeParse(call.input ?? {});
-  if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
+  const checked = tool.input.safeParse(call.input ?? {});
+  if (!checked.success)
+    return { ok: false, text: `Parâmetros inválidos: ${checked.error.message}` };
   const state = useProject.getState();
+  // A track named as the timeline shows it ("F1") or by its name works like its id.
+  const parsed = {
+    data: state.project ? withTrackIds(state.project.tracks, checked.data) : checked.data,
+  };
   if (call.projectId && state.project?.id !== call.projectId)
     return {
       ok: false,

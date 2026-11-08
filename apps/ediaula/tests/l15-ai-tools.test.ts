@@ -1151,7 +1151,9 @@ test("faixas: com a Faixa 4 selecionada, add_track abaixo e acima; get_overview 
   assert.match(none.text, /Nenhuma faixa selecionada/);
   const first = await call("get_overview", {});
   assert.match(first.text, /^Seleção: nenhuma\n/);
-  assert.deepEqual(first.structured, { selection: { track_id: null, clip_ids: [] } });
+  // The tracks come in the same answer, never in a structured copy that a client reads alone.
+  assert.match(first.text, /\nFaixas:\n/);
+  assert.equal("structured" in first, false);
 
   useProject.getState().selectTrack("tw8hjtowq0mpy");
   const steps = history();
@@ -1174,9 +1176,7 @@ test("faixas: com a Faixa 4 selecionada, add_track abaixo e acima; get_overview 
   assert.match(overview.text, /^Seleção: faixa \[tw8hjtowq0mpy\] Faixa 4\n/);
   assert.match(overview.text, new RegExp(`\\[${id2}\\] F6 Faixa 8: vazia`));
   assert.match(overview.text, new RegExp(`\\[${id}\\] F4 Faixa 7: vazia`));
-  assert.deepEqual(overview.structured, {
-    selection: { track_id: "tw8hjtowq0mpy", clip_ids: [] },
-  });
+  assert.equal("structured" in overview, false);
 
   // Só clipes selecionados: a faixa é a do primeiro clipe.
   useProject.getState().select(["prof2", "pag1"]);

@@ -1396,7 +1396,6 @@ export interface EdiAulaApi {
       ok: boolean;
       text: string;
       images?: ToolImage[];
-      structured?: Record<string, unknown>;
     }>,
   ): () => void;
 }

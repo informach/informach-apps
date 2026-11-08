@@ -7,6 +7,8 @@ import {
   removeEmptyTrack,
   renameTrack,
   setTrackFlags,
+  trackIdOf,
+  withTrackIds,
 } from "../src/shared/trackOps.ts";
 import type { Project, Track } from "../src/shared/types.ts";
 
@@ -81,5 +83,36 @@ test("move, rename, remove (empty only) and set_track, as the editor does", () =
   assert.deepEqual(
     [quiet.track.locked, quiet.track.muted, quiet.track.hidden],
     [false, true, false],
+  );
+});
+
+test("a track named by its id, its label on the timeline (F1 at the bottom) or its exact name", () => {
+  const { tracks } = lesson();
+  assert.equal(trackIdOf(tracks, "f4"), "f4");
+  assert.equal(trackIdOf(tracks, "F1"), "a", "F1 is the bottom track");
+  assert.equal(trackIdOf(tracks, "f 4"), "f5");
+  assert.equal(trackIdOf(tracks, "narração"), "a");
+  assert.equal(trackIdOf(tracks, "F9"), "F9", "unknown stays as it came, to be refused");
+  const twice = [...tracks, track("b", "audio", { name: "Narração" })];
+  assert.equal(
+    trackIdOf(twice, "Narração"),
+    "Narração",
+    "two with that name: refused, not guessed",
+  );
+  assert.deepEqual(
+    withTrackIds(tracks, {
+      split: "clips",
+      track_id: "F1",
+      reference_track_id: "Faixa 4",
+      music_tracks: [{ track_id: "F2", music: true }],
+      range: { start: 1, end: 2 },
+    }),
+    {
+      split: "clips",
+      track_id: "a",
+      reference_track_id: "f4",
+      music_tracks: [{ track_id: "f3", music: true }],
+      range: { start: 1, end: 2 },
+    },
   );
 });
