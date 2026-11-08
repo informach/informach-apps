@@ -1,0 +1,4885 @@
+{
+ "categoria": "cenario",
+ "rotulo": "Cenário",
+ "itens": [
+  {
+   "id": "areia",
+   "rotulo": "Areia",
+   "categoria": "cenario",
+   "grupo": "areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.518
+   ],
+   "arquivo": "glb/areia.glb",
+   "miniatura": "miniaturas/areia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "cinza",
+    "cinza_claro",
+    "creme_claro",
+    "laranja",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 664,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "piso",
+    "areia",
+    "praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "grama_areia_reta",
+   "rotulo": "Grama e areia (reta)",
+   "categoria": "cenario",
+   "grupo": "grama_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.818
+   ],
+   "arquivo": "glb/grama_areia_reta.glb",
+   "miniatura": "miniaturas/grama_areia_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "creme_claro",
+    "grama",
+    "grama_escura",
+    "laranja",
+    "laranja_claro",
+    "pessego",
+    "verde_claro",
+    "verde_oliva"
+   ],
+   "tris": 2159,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "piso",
+    "areia",
+    "grama",
+    "praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "grama_areia_canto_ext",
+   "rotulo": "Grama e areia (canto externo)",
+   "categoria": "cenario",
+   "grupo": "grama_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.818
+   ],
+   "arquivo": "glb/grama_areia_canto_ext.glb",
+   "miniatura": "miniaturas/grama_areia_canto_ext.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "cinza",
+    "cinza_claro",
+    "creme_claro",
+    "grama",
+    "grama_escura",
+    "laranja_claro",
+    "pessego",
+    "salmao",
+    "verde_claro",
+    "verde_oliva"
+   ],
+   "tris": 1737,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "piso",
+    "areia",
+    "grama",
+    "praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "grama_areia_canto_int",
+   "rotulo": "Grama e areia (canto interno)",
+   "categoria": "cenario",
+   "grupo": "grama_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.818
+   ],
+   "arquivo": "glb/grama_areia_canto_int.glb",
+   "miniatura": "miniaturas/grama_areia_canto_int.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "cinza",
+    "cinza_claro",
+    "grama",
+    "grama_escura",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "verde_claro",
+    "verde_oliva",
+    "vermelho_claro"
+   ],
+   "tris": 2207,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "piso",
+    "areia",
+    "grama",
+    "praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "mar",
+   "rotulo": "Mar aberto",
+   "categoria": "cenario",
+   "grupo": "mar",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.9
+   ],
+   "arquivo": "glb/mar.glb",
+   "miniatura": "miniaturas/mar.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda"
+   ],
+   "tris": 14,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "mar"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "mar_grande",
+   "rotulo": "Mar aberto grande (4 × 4)",
+   "categoria": "cenario",
+   "grupo": "mar",
+   "fixacao": "chao",
+   "dims": [
+    60.0,
+    60.0,
+    0.9
+   ],
+   "arquivo": "glb/mar_grande.glb",
+   "miniatura": "miniaturas/mar_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      60.0,
+      0.2,
+      60.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda"
+   ],
+   "tris": 14,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "mar",
+    "grande",
+    "4x4"
+   ],
+   "quadras": [
+    4,
+    4
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "plato_topo",
+   "rotulo": "Platô (topo)",
+   "categoria": "cenario",
+   "grupo": "plato",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    4.442
+   ],
+   "arquivo": "glb/plato_topo.glb",
+   "miniatura": "miniaturas/plato_topo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.675,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      4.15,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grama",
+    "grama_escura",
+    "verde_claro"
+   ],
+   "tris": 656,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "plato",
+    "grama",
+    "elevado"
+   ],
+   "z_topo": 3.75,
+   "cenario": "terreno"
+  },
+  {
+   "id": "plato_borda",
+   "rotulo": "Platô com muro de arrimo (borda)",
+   "categoria": "cenario",
+   "grupo": "plato",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    5.6
+   ],
+   "arquivo": "glb/plato_borda.glb",
+   "miniatura": "miniaturas/plato_borda.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      4.05
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      6.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.675,
+      -3.45
+     ],
+     "tamanho": [
+      15.0,
+      4.15,
+      8.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      4.475,
+      0.3
+     ],
+     "tamanho": [
+      15.0,
+      1.45,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite_escuro",
+    "grama",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 1756,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "plato",
+    "muro",
+    "elevado"
+   ],
+   "z_topo": 3.75,
+   "cenario": "terreno"
+  },
+  {
+   "id": "plato_canto_ext",
+   "rotulo": "Platô (canto externo)",
+   "categoria": "cenario",
+   "grupo": "plato",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    5.6
+   ],
+   "arquivo": "glb/plato_canto_ext.glb",
+   "miniatura": "miniaturas/plato_canto_ext.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      3.45,
+      2.6,
+      -3.45
+     ],
+     "tamanho": [
+      8.1,
+      5.2,
+      8.1
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "grafite_escuro",
+    "grama",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 1152,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "plato",
+    "muro",
+    "elevado"
+   ],
+   "z_topo": 3.75,
+   "cenario": "terreno"
+  },
+  {
+   "id": "plato_canto_int",
+   "rotulo": "Platô (canto interno)",
+   "categoria": "cenario",
+   "grupo": "plato",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    5.6
+   ],
+   "arquivo": "glb/plato_canto_int.glb",
+   "miniatura": "miniaturas/plato_canto_int.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -4.05,
+      -0.2,
+      4.05
+     ],
+     "tamanho": [
+      6.9,
+      0.4,
+      6.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.675,
+      -3.75
+     ],
+     "tamanho": [
+      15.0,
+      4.15,
+      7.5
+     ]
+    },
+    {
+     "centro": [
+      3.75,
+      1.675,
+      3.75
+     ],
+     "tamanho": [
+      7.5,
+      4.15,
+      7.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "grafite_escuro",
+    "grama",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 1126,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "plato",
+    "muro",
+    "elevado"
+   ],
+   "z_topo": 3.75,
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_areia_reta",
+   "rotulo": "Costa de areia (reta)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.99
+   ],
+   "arquivo": "glb/costa_areia_reta.glb",
+   "miniatura": "miniaturas/costa_areia_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      4.25
+     ],
+     "tamanho": [
+      15.0,
+      1.7,
+      6.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 2726,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_areia_canto_ext",
+   "rotulo": "Costa de areia (canto externo)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.991
+   ],
+   "arquivo": "glb/costa_areia_canto_ext.glb",
+   "miniatura": "miniaturas/costa_areia_canto_ext.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      -4.75,
+      -0.85,
+      4.75
+     ],
+     "tamanho": [
+      5.5,
+      1.7,
+      5.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "creme_claro",
+    "laranja_claro",
+    "pessego",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 2710,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_areia_canto_int",
+   "rotulo": "Costa de areia (canto interno)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.986
+   ],
+   "arquivo": "glb/costa_areia_canto_int.glb",
+   "miniatura": "miniaturas/costa_areia_canto_int.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      3.75
+     ],
+     "tamanho": [
+      15.0,
+      1.7,
+      7.5
+     ]
+    },
+    {
+     "centro": [
+      -3.75,
+      -0.85,
+      -3.75
+     ],
+     "tamanho": [
+      7.5,
+      1.7,
+      7.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "creme_claro",
+    "laranja_claro",
+    "pessego",
+    "salmao",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro"
+   ],
+   "tris": 2804,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_areia_faixa",
+   "rotulo": "Costa de areia (faixa estreita)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.985
+   ],
+   "arquivo": "glb/costa_areia_faixa.glb",
+   "miniatura": "miniaturas/costa_areia_faixa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      0
+     ],
+     "tamanho": [
+      4.0,
+      1.7,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "laranja",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro"
+   ],
+   "tris": 5044,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_areia_ponta",
+   "rotulo": "Costa de areia (ponta)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.994
+   ],
+   "arquivo": "glb/costa_areia_ponta.glb",
+   "miniatura": "miniaturas/costa_areia_ponta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      5.5
+     ],
+     "tamanho": [
+      4.0,
+      1.7,
+      4.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 2684,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "observatorio",
+   "rotulo": "Observatório (3 × 2)",
+   "categoria": "cenario",
+   "grupo": "observatorio",
+   "fixacao": "chao",
+   "dims": [
+    45.0,
+    30.0,
+    13.32
+   ],
+   "arquivo": "glb/observatorio.glb",
+   "miniatura": "miniaturas/observatorio.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      45.0,
+      0.4,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      -10.5,
+      5.4,
+      -0.5
+     ],
+     "tamanho": [
+      12.4,
+      10.8,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      10.5,
+      6.2,
+      -0.5
+     ],
+     "tamanho": [
+      14.0,
+      12.4,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.5,
+      -1.0
+     ],
+     "tamanho": [
+      8.0,
+      7.0,
+      9.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "branco_gelo",
+    "calcada",
+    "cinza_claro",
+    "concreto",
+    "folha",
+    "folha_clara",
+    "grafite",
+    "grafite_escuro",
+    "grama",
+    "madeira",
+    "madeira_mel",
+    "metal",
+    "verde_claro"
+   ],
+   "tris": 21366,
+   "pacote": false,
+   "tags": [
+    "marco",
+    "observatorio",
+    "3x2",
+    "animado"
+   ],
+   "quadras": [
+    3,
+    2
+   ],
+   "animacoes": [
+    {
+     "nome": "domo_1_domo",
+     "pivo": [
+      -10.5,
+      5.2,
+      -0.5
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 3.0
+    },
+    {
+     "nome": "domo_2_domo",
+     "pivo": [
+      10.5,
+      6.0,
+      -0.5
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 3.0
+    }
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "estadio",
+   "rotulo": "Estádio (2 × 2)",
+   "categoria": "cenario",
+   "grupo": "estadio",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    18.737
+   ],
+   "arquivo": "glb/estadio.glb",
+   "miniatura": "miniaturas/estadio.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      6.15,
+      0
+     ],
+     "tamanho": [
+      27.8,
+      12.3,
+      22.34
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "azul_noite",
+    "branco",
+    "branco_gelo",
+    "calcada",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "grafite"
+   ],
+   "tris": 12016,
+   "pacote": false,
+   "tags": [
+    "marco",
+    "estadio",
+    "neon",
+    "2x2"
+   ],
+   "quadras": [
+    2,
+    2
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "pier_cruzeiro_acesso",
+   "rotulo": "Acesso do píer do cruzeiro",
+   "categoria": "cenario",
+   "grupo": "pier_cruzeiro",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    7.58
+   ],
+   "arquivo": "glb/pier_cruzeiro_acesso.glb",
+   "miniatura": "miniaturas/pier_cruzeiro_acesso.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.95,
+      4.9
+     ],
+     "tamanho": [
+      15.0,
+      1.9,
+      5.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.3,
+      -2.6
+     ],
+     "tamanho": [
+      15.0,
+      0.6,
+      9.8
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "branco",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite",
+    "madeira_mel"
+   ],
+   "tris": 2238,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "orla",
+    "pier",
+    "cruzeiro"
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "pier_cruzeiro_acesso_areia",
+   "rotulo": "Acesso do píer do cruzeiro pela praia",
+   "categoria": "cenario",
+   "grupo": "pier_cruzeiro",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    10.432
+   ],
+   "arquivo": "glb/pier_cruzeiro_acesso_areia.glb",
+   "miniatura": "miniaturas/pier_cruzeiro_acesso_areia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      4.25
+     ],
+     "tamanho": [
+      15.0,
+      1.7,
+      6.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.3,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.6,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "amarelo",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 4282,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "pier",
+    "cruzeiro"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "pier_cruzeiro_ponta",
+   "rotulo": "Ponta do píer do cruzeiro (2 × 1)",
+   "categoria": "cenario",
+   "grupo": "pier_cruzeiro",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    10.402
+   ],
+   "arquivo": "glb/pier_cruzeiro_ponta.glb",
+   "miniatura": "miniaturas/pier_cruzeiro_ponta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.3,
+      3.75
+     ],
+     "tamanho": [
+      30.0,
+      0.6,
+      7.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.3,
+      -3.75
+     ],
+     "tamanho": [
+      15.0,
+      0.6,
+      7.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "amarelo",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "ferro",
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 6916,
+   "pacote": false,
+   "tags": [
+    "agua",
+    "pier",
+    "cruzeiro",
+    "2x1",
+    "animado"
+   ],
+   "quadras": [
+    2,
+    1
+   ],
+   "animacoes": [
+    {
+     "nome": "farolete",
+     "pivo": [
+      0.0,
+      3.65,
+      1.4
+     ],
+     "anima": "piscar",
+     "periodo": 2.0
+    }
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "represa_grande_trecho",
+   "rotulo": "Represa grande: trecho em curva (16°)",
+   "categoria": "cenario",
+   "grupo": "represa_grande",
+   "fixacao": "chao",
+   "dims": [
+    69.587,
+    58.891,
+    45.88
+   ],
+   "arquivo": "glb/represa_grande_trecho.glb",
+   "miniatura": "miniaturas/represa_grande_trecho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -22.996,
+      19.8,
+      1.205
+     ],
+     "tamanho": [
+      15.356,
+      40.4,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      -21.846,
+      10.6,
+      12.145
+     ],
+     "tamanho": [
+      14.588,
+      22.0,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      -20.801,
+      3.6,
+      22.09
+     ],
+     "tamanho": [
+      13.89,
+      8.0,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      -7.678,
+      19.8,
+      0.134
+     ],
+     "tamanho": [
+      15.356,
+      40.4,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      -7.294,
+      10.6,
+      11.127
+     ],
+     "tamanho": [
+      14.588,
+      22.0,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      -6.945,
+      3.6,
+      21.121
+     ],
+     "tamanho": [
+      13.89,
+      8.0,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      7.678,
+      19.8,
+      0.134
+     ],
+     "tamanho": [
+      15.356,
+      40.4,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      7.294,
+      10.6,
+      11.127
+     ],
+     "tamanho": [
+      14.588,
+      22.0,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      6.945,
+      3.6,
+      21.121
+     ],
+     "tamanho": [
+      13.89,
+      8.0,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      22.996,
+      19.8,
+      1.205
+     ],
+     "tamanho": [
+      15.356,
+      40.4,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      21.846,
+      10.6,
+      12.145
+     ],
+     "tamanho": [
+      14.588,
+      22.0,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      20.801,
+      3.6,
+      22.09
+     ],
+     "tamanho": [
+      13.89,
+      8.0,
+      10.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "amarelo",
+    "asfalto",
+    "branco",
+    "branco_gelo",
+    "concreto",
+    "grafite"
+   ],
+   "tris": 9038,
+   "pacote": false,
+   "tags": [
+    "agua",
+    "represa",
+    "grande",
+    "modular",
+    "curva"
+   ],
+   "r_crista": 220.0,
+   "angulo": 16.0,
+   "z_crista": 40.0,
+   "z_agua": 37.0,
+   "montagem": [
+    {
+     "i": "represa_grande_trecho",
+     "p": [
+      -89.482,
+      -19.02,
+      0.0
+     ],
+     "r": 24.0
+    },
+    {
+     "i": "represa_grande_trecho",
+     "p": [
+      -30.618,
+      -2.141,
+      0.0
+     ],
+     "r": 8.0
+    },
+    {
+     "i": "represa_grande_trecho",
+     "p": [
+      30.618,
+      -2.141,
+      0.0
+     ],
+     "r": -8.0
+    },
+    {
+     "i": "represa_grande_trecho",
+     "p": [
+      89.482,
+      -19.02,
+      0.0
+     ],
+     "r": -24.0
+    },
+    {
+     "i": "represa_grande_torre",
+     "p": [
+      -126.989,
+      -40.351,
+      0.0
+     ],
+     "r": 35.255
+    },
+    {
+     "i": "represa_grande_torre",
+     "p": [
+      126.989,
+      -40.351,
+      0.0
+     ],
+     "r": -35.255
+    }
+   ],
+   "encaixe": "trecho k: p = (R·sen a, R·cos a − R), r = −a, com R = 220.0 e a = ±8°, ±24°…; a origem de cada trecho fica no meio da crista dele (o centro da curva está em (0, −R)); torre em a = ±(32° + 3.255°)",
+   "cenario": "marcos"
+  },
+  {
+   "id": "represa_grande_torre",
+   "rotulo": "Represa grande: torre redonda",
+   "categoria": "cenario",
+   "grupo": "represa_grande",
+   "fixacao": "chao",
+   "dims": [
+    33.0,
+    33.23,
+    47.8
+   ],
+   "arquivo": "glb/represa_grande_torre.glb",
+   "miniatura": "miniaturas/represa_grande_torre.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      23.5,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      47.8,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.3,
+      0
+     ],
+     "tamanho": [
+      33.0,
+      1.4,
+      33.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "azul_noite",
+    "branco",
+    "branco_gelo"
+   ],
+   "tris": 9694,
+   "pacote": false,
+   "tags": [
+    "agua",
+    "represa",
+    "grande",
+    "torre"
+   ],
+   "raio": 15.0,
+   "z_topo": 47.4,
+   "cenario": "marcos"
+  },
+  {
+   "id": "farol",
+   "rotulo": "Farol de costa",
+   "categoria": "cenario",
+   "grupo": "farol",
+   "fixacao": "chao",
+   "dims": [
+    10.876,
+    9.608,
+    23.47
+   ],
+   "arquivo": "glb/farol.glb",
+   "miniatura": "miniaturas/farol.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.25,
+      0
+     ],
+     "tamanho": [
+      10.4,
+      1.3,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.4,
+      0
+     ],
+     "tamanho": [
+      4.4,
+      17.0,
+      4.4
+     ]
+    },
+    {
+     "centro": [
+      3.6,
+      3.1,
+      -0.5
+     ],
+     "tamanho": [
+      4.4,
+      4.4,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "grafite",
+    "latao",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 8816,
+   "pacote": false,
+   "tags": [
+    "marco",
+    "farol",
+    "costa",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "lanterna",
+     "pivo": [
+      0.0,
+      19.0,
+      -0.0
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 60.0
+    }
+   ],
+   "cenario": "marcos"
+  },
+  {
+   "id": "delegacia",
+   "rotulo": "Delegacia de bairro",
+   "categoria": "cenario",
+   "grupo": "delegacia",
+   "fixacao": "chao",
+   "dims": [
+    12.84,
+    11.52,
+    14.85
+   ],
+   "arquivo": "glb/delegacia.glb",
+   "miniatura": "miniaturas/delegacia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.7,
+      -1.2
+     ],
+     "tamanho": [
+      12.4,
+      11.4,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      2.41585,
+      4.5
+     ],
+     "tamanho": [
+      5.0,
+      4.832,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -5.0,
+      4.5,
+      4.75
+     ],
+     "tamanho": [
+      1.0,
+      9.0,
+      1.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.0,
+      0.239,
+      4.5
+     ],
+     "tamanho": [
+      1.0,
+      0.478,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite",
+    "metal",
+    "metal_claro",
+    "ouro"
+   ],
+   "tris": 6858,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "delegacia",
+    "policia"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "giroflex_azul",
+     "pivo": [
+      3.05,
+      11.1,
+      2.4
+     ],
+     "anima": "piscar",
+     "periodo": 0.8
+    },
+    {
+     "nome": "giroflex_vermelho",
+     "pivo": [
+      3.95,
+      11.1,
+      2.4
+     ],
+     "anima": "piscar",
+     "periodo": 0.8,
+     "atraso": 0.4
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "quartel_bombeiros",
+   "rotulo": "Quartel de bombeiros (2 × 1)",
+   "categoria": "cenario",
+   "grupo": "bombeiros",
+   "fixacao": "chao",
+   "dims": [
+    27.3,
+    13.75,
+    14.53
+   ],
+   "arquivo": "glb/quartel_bombeiros.glb",
+   "miniatura": "miniaturas/quartel_bombeiros.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.5708,
+     "nome": "portao_1",
+     "pivo": [
+      -8.0,
+      4.46,
+      5.35
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.5708,
+     "nome": "portao_2",
+     "pivo": [
+      -2.8,
+      4.46,
+      5.35
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.5708,
+     "nome": "portao_3",
+     "pivo": [
+      2.4,
+      4.46,
+      5.35
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_garagem_1",
+     "centro": [
+      -8.0,
+      0.03,
+      1.4
+     ],
+     "tamanho": [
+      4.2,
+      4.4,
+      7.0
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_garagem_2",
+     "centro": [
+      -2.8,
+      0.03,
+      1.4
+     ],
+     "tamanho": [
+      4.2,
+      4.4,
+      7.0
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_garagem_3",
+     "centro": [
+      2.4,
+      0.03,
+      1.4
+     ],
+     "tamanho": [
+      4.2,
+      4.4,
+      7.0
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -2.8,
+      2.6,
+      5.4
+     ],
+     "tamanho": [
+      18.36,
+      5.2,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      -2.8,
+      2.6,
+      -6.0
+     ],
+     "tamanho": [
+      17.6,
+      5.2,
+      1.6
+     ]
+    },
+    {
+     "centro": [
+      8.25,
+      2.6,
+      -0.6
+     ],
+     "tamanho": [
+      9.0,
+      5.2,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      -12.3,
+      2.6,
+      -0.6
+     ],
+     "tamanho": [
+      2.4,
+      5.2,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.4,
+      -0.6
+     ],
+     "tamanho": [
+      27.0,
+      4.4,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      -4.0,
+      11.55,
+      -1.6
+     ],
+     "tamanho": [
+      2.8,
+      5.9,
+      2.8
+     ]
+    },
+    {
+     "centro": [
+      13.5,
+      4.825,
+      -0.25
+     ],
+     "tamanho": [
+      1.0,
+      9.65,
+      13.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -3.75,
+      6.8975,
+      -2.25
+     ],
+     "tamanho": [
+      14.5,
+      13.795,
+      0.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "cinza_claro",
+    "concreto_escuro",
+    "grafite",
+    "laranja",
+    "metal",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 7076,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "bombeiros",
+    "garagem",
+    "interativo",
+    "2x1"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "sirene",
+     "pivo": [
+      12.2,
+      8.95,
+      4.8
+     ],
+     "anima": "piscar",
+     "periodo": 0.7
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "lanchonete_24h",
+   "rotulo": "Lanchonete 24 horas",
+   "categoria": "cenario",
+   "grupo": "lanchonete",
+   "fixacao": "chao",
+   "dims": [
+    14.131,
+    13.86,
+    13.407
+   ],
+   "arquivo": "glb/lanchonete_24h.glb",
+   "miniatura": "miniaturas/lanchonete_24h.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.0,
+      0
+     ],
+     "tamanho": [
+      13.0,
+      6.0,
+      13.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.0,
+      -0.5
+     ],
+     "tamanho": [
+      3.6,
+      6.0,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      -4.8,
+      4.0,
+      6.6
+     ],
+     "tamanho": [
+      0.5,
+      8.0,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_celeste",
+    "azul_noite",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "grafite",
+    "rosa",
+    "rosa_claro",
+    "rosa_escuro",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 11196,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "lanchonete",
+    "neon",
+    "animado"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "numero_24",
+     "pivo": [
+      -4.8,
+      9.0,
+      7.1
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "academia_azul",
+   "rotulo": "Academia azul de fachada curva",
+   "categoria": "cenario",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    12.978,
+    8.754,
+    10.64
+   ],
+   "arquivo": "glb/academia_azul.glb",
+   "miniatura": "miniaturas/academia_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      4.25,
+      -0.6
+     ],
+     "tamanho": [
+      12.6,
+      8.5,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.3,
+      -2.0
+     ],
+     "tamanho": [
+      4.6,
+      2.6,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro"
+   ],
+   "tris": 6185,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "academia"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "regular",
+   "cenario": "predios"
+  },
+  {
+   "id": "apartamentos_tijolo_u",
+   "rotulo": "Apartamentos de tijolo em U (2 × 1)",
+   "categoria": "cenario",
+   "grupo": "apartamentos_u",
+   "fixacao": "chao",
+   "dims": [
+    27.36,
+    12.96,
+    18.15
+   ],
+   "arquivo": "glb/apartamentos_tijolo_u.glb",
+   "miniatura": "miniaturas/apartamentos_tijolo_u.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -9.8,
+      8.8,
+      -0.9
+     ],
+     "tamanho": [
+      7.4,
+      17.6,
+      12.6
+     ]
+    },
+    {
+     "centro": [
+      9.8,
+      8.8,
+      -0.9
+     ],
+     "tamanho": [
+      7.4,
+      17.6,
+      12.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.8,
+      -4.5
+     ],
+     "tamanho": [
+      12.2,
+      17.6,
+      5.4
+     ]
+    },
+    {
+     "centro": [
+      -2.5,
+      1.465,
+      3.0
+     ],
+     "tamanho": [
+      4.0,
+      2.93,
+      3.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      2.5,
+      1.465,
+      3.0
+     ],
+     "tamanho": [
+      4.0,
+      2.93,
+      3.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "branco",
+    "concreto",
+    "folha",
+    "grafite",
+    "madeira",
+    "madeira_mel",
+    "nogueira",
+    "piso_rosado",
+    "tijolo"
+   ],
+   "tris": 13662,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "apartamentos",
+    "tijolo",
+    "2x1"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular",
+   "cenario": "predios"
+  },
+  {
+   "id": "torre_basquete",
+   "rotulo": "Torre com quadra de basquete no telhado",
+   "categoria": "cenario",
+   "grupo": "torre_basquete",
+   "fixacao": "chao",
+   "dims": [
+    13.2,
+    13.2,
+    21.65
+   ],
+   "arquivo": "glb/torre_basquete.glb",
+   "miniatura": "miniaturas/torre_basquete.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.4,
+      0
+     ],
+     "tamanho": [
+      12.4,
+      16.8,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.5,
+      0
+     ],
+     "tamanho": [
+      13.2,
+      1.4,
+      13.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "cinza_azulado",
+    "concreto",
+    "folha",
+    "grafite",
+    "laranja",
+    "laranja_escuro",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 17404,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "ecologico",
+    "basquete"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular",
+   "cenario": "predios"
+  },
+  {
+   "id": "sala_enigmas",
+   "rotulo": "Sala de enigmas (neon)",
+   "categoria": "cenario",
+   "grupo": "sala_enigmas",
+   "fixacao": "chao",
+   "dims": [
+    12.58,
+    11.254,
+    13.03
+   ],
+   "arquivo": "glb/sala_enigmas.glb",
+   "miniatura": "miniaturas/sala_enigmas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.2,
+      -1.0
+     ],
+     "tamanho": [
+      10.4,
+      4.4,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.7,
+      -1.0
+     ],
+     "tamanho": [
+      12.0,
+      8.6,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_noite",
+    "cinza_claro",
+    "grafite",
+    "magenta",
+    "rosa_escuro",
+    "vinho"
+   ],
+   "tris": 3306,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "futurista",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "regular",
+   "cenario": "predios"
+  },
+  {
+   "id": "placa_quebra_cabeca",
+   "rotulo": "Placa flutuante de quebra-cabeça",
+   "categoria": "cenario",
+   "grupo": "placa_quebra_cabeca",
+   "fixacao": "chao",
+   "dims": [
+    4.381,
+    1.94,
+    10.725
+   ],
+   "arquivo": "glb/placa_quebra_cabeca.glb",
+   "miniatura": "miniaturas/placa_quebra_cabeca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.28,
+      0
+     ],
+     "tamanho": [
+      1.8,
+      0.56,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "grafite"
+   ],
+   "tris": 5988,
+   "pacote": false,
+   "tags": [
+    "futurista",
+    "placa",
+    "neon",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "peca_flutuante",
+     "pivo": [
+      0.0,
+      9.0,
+      -0.0
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 20.0
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "praca_cristal",
+   "rotulo": "Praça do cristal (2 × 2)",
+   "categoria": "cenario",
+   "grupo": "praca_cristal",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    26.6
+   ],
+   "arquivo": "glb/praca_cristal.glb",
+   "miniatura": "miniaturas/praca_cristal.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.6,
+      0
+     ],
+     "tamanho": [
+      11.2,
+      1.2,
+      11.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      13.2,
+      0
+     ],
+     "tamanho": [
+      4.4,
+      24.0,
+      4.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "folha",
+    "grafite",
+    "grama",
+    "grama_escura",
+    "laranja",
+    "laranja_escuro",
+    "lilas",
+    "madeira",
+    "madeira_mel",
+    "ouro",
+    "ouro_escuro",
+    "piso_rosado",
+    "roxo",
+    "roxo_escuro",
+    "verde_claro",
+    "verde_lima",
+    "violeta"
+   ],
+   "tris": 21812,
+   "pacote": false,
+   "tags": [
+    "praca",
+    "marco",
+    "cristal",
+    "modular",
+    "2x2"
+   ],
+   "quadras": [
+    2,
+    2
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "efeito_fumaca_fogo",
+   "rotulo": "Fumaça e fogo de churrasqueira (efeito)",
+   "categoria": "cenario",
+   "grupo": "efeito_fumaca",
+   "fixacao": "chao",
+   "dims": [
+    2.443,
+    2.519,
+    6.946
+   ],
+   "arquivo": "glb/efeito_fumaca_fogo.glb",
+   "miniatura": "miniaturas/efeito_fumaca_fogo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "brasa",
+    "cinza",
+    "cinza_medio",
+    "fogo",
+    "grafite"
+   ],
+   "tris": 4280,
+   "pacote": false,
+   "tags": [
+    "efeito",
+    "fumaca",
+    "fogo",
+    "animado",
+    "apoio"
+   ],
+   "apoio": "por em cima da churrasqueira (mobiliario_urbano/churrasqueira_tambor_pacote: z = 0,73)",
+   "animacoes": [
+    {
+     "nome": "chama",
+     "pivo": [
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 0.5,
+     "suave": 1
+    },
+    {
+     "nome": "fumaca",
+     "pivo": [
+      0.0,
+      0.6,
+      -0.0
+     ],
+     "anima": "balancar",
+     "angulo": 4,
+     "periodo": 5.0,
+     "eixo": "z"
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "pier_cruzeiro",
+   "rotulo": "Píer do navio de cruzeiro (2 × 3)",
+   "categoria": "cenario",
+   "grupo": "pier_cruzeiro",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    45.0,
+    12.2
+   ],
+   "arquivo": "glb/pier_cruzeiro.glb",
+   "miniatura": "miniaturas/pier_cruzeiro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.2,
+      45.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.3,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.6,
+      45.0
+     ]
+    },
+    {
+     "centro": [
+      -1.0,
+      2.7,
+      17.5
+     ],
+     "tamanho": [
+      22.0,
+      5.4,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      9.5,
+      4.65,
+      -11.0
+     ],
+     "tamanho": [
+      3.2,
+      9.3,
+      3.2
+     ]
+    },
+    {
+     "centro": [
+      12.95,
+      8.95,
+      -11.0
+     ],
+     "tamanho": [
+      4.0,
+      2.7,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "amarelo",
+    "azul_medio",
+    "borracha",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "ferro",
+    "grafite",
+    "turquesa_claro",
+    "turquesa_escuro"
+   ],
+   "tris": 13852,
+   "pacote": false,
+   "tags": [
+    "agua",
+    "pier",
+    "cruzeiro",
+    "2x3"
+   ],
+   "quadras": [
+    2,
+    3
+   ],
+   "atracacao": {
+    "lado": "x+",
+    "x_casco": 15.0,
+    "z_agua": -1.0
+   },
+   "cenario": "marcos"
+  },
+  {
+   "id": "predio_aquario",
+   "rotulo": "Prédio-aquário",
+   "categoria": "cenario",
+   "grupo": "aquario",
+   "fixacao": "chao",
+   "dims": [
+    12.84,
+    14.57,
+    18.45
+   ],
+   "arquivo": "glb/predio_aquario.glb",
+   "miniatura": "miniaturas/predio_aquario.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      9.15,
+      -1.6
+     ],
+     "tamanho": [
+      12.4,
+      18.3,
+      11.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      10.6,
+      5.0
+     ],
+     "tamanho": [
+      9.2,
+      12.0,
+      2.2
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "amarelo",
+    "amarelo_claro",
+    "amarelo_escuro",
+    "areia",
+    "azul",
+    "azul_celeste",
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "laranja",
+    "laranja_claro",
+    "metal",
+    "metal_escuro",
+    "preto",
+    "rosa",
+    "verde",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 15756,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "aquario",
+    "animado"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "alga_1",
+     "pivo": [
+      -3.7,
+      5.3,
+      4.35
+     ],
+     "anima": "balancar",
+     "angulo": 9,
+     "periodo": 2.6,
+     "eixo": "z"
+    },
+    {
+     "nome": "alga_2",
+     "pivo": [
+      -1.8,
+      5.3,
+      4.6
+     ],
+     "anima": "balancar",
+     "angulo": 9,
+     "periodo": 3.0,
+     "eixo": "z"
+    },
+    {
+     "nome": "alga_3",
+     "pivo": [
+      0.6,
+      5.3,
+      4.35
+     ],
+     "anima": "balancar",
+     "angulo": 9,
+     "periodo": 3.4000000000000004,
+     "eixo": "z"
+    },
+    {
+     "nome": "alga_4",
+     "pivo": [
+      2.4,
+      5.3,
+      4.6
+     ],
+     "anima": "balancar",
+     "angulo": 9,
+     "periodo": 3.8000000000000003,
+     "eixo": "z"
+    },
+    {
+     "nome": "alga_5",
+     "pivo": [
+      3.9,
+      5.3,
+      4.35
+     ],
+     "anima": "balancar",
+     "angulo": 9,
+     "periodo": 4.2,
+     "eixo": "z"
+    },
+    {
+     "nome": "peixe_1",
+     "pivo": [
+      3.2,
+      10.15,
+      4.45
+     ],
+     "anima": "percurso",
+     "pontos": [
+      [
+       3.2,
+       10.15,
+       4.45
+      ],
+      [
+       3.139,
+       10.782,
+       4.45
+      ],
+      [
+       2.956,
+       11.603,
+       4.45
+      ],
+      [
+       2.661,
+       12.466,
+       4.45
+      ],
+      [
+       2.263,
+       13.191,
+       4.45
+      ],
+      [
+       1.778,
+       13.616,
+       4.45
+      ],
+      [
+       1.225,
+       13.657,
+       4.45
+      ],
+      [
+       0.624,
+       13.326,
+       4.45
+      ],
+      [
+       0.0,
+       12.73,
+       4.45
+      ],
+      [
+       -0.624,
+       12.035,
+       4.45
+      ],
+      [
+       -1.225,
+       11.41,
+       4.45
+      ],
+      [
+       -1.778,
+       10.974,
+       4.45
+      ],
+      [
+       -2.263,
+       10.758,
+       4.45
+      ],
+      [
+       -2.661,
+       10.701,
+       4.45
+      ],
+      [
+       -2.956,
+       10.672,
+       4.45
+      ],
+      [
+       -3.139,
+       10.525,
+       4.45
+      ],
+      [
+       -3.2,
+       10.15,
+       4.45
+      ],
+      [
+       -3.139,
+       9.518,
+       4.45
+      ],
+      [
+       -2.956,
+       8.697,
+       4.45
+      ],
+      [
+       -2.661,
+       7.834,
+       4.45
+      ],
+      [
+       -2.263,
+       7.109,
+       4.45
+      ],
+      [
+       -1.778,
+       6.684,
+       4.45
+      ],
+      [
+       -1.225,
+       6.643,
+       4.45
+      ],
+      [
+       -0.624,
+       6.974,
+       4.45
+      ],
+      [
+       -0.0,
+       7.57,
+       4.45
+      ],
+      [
+       0.624,
+       8.265,
+       4.45
+      ],
+      [
+       1.225,
+       8.89,
+       4.45
+      ],
+      [
+       1.778,
+       9.326,
+       4.45
+      ],
+      [
+       2.263,
+       9.542,
+       4.45
+      ],
+      [
+       2.661,
+       9.599,
+       4.45
+      ],
+      [
+       2.956,
+       9.628,
+       4.45
+      ],
+      [
+       3.139,
+       9.775,
+       4.45
+      ]
+     ],
+     "velocidade": 0.7,
+     "atraso": 0.0,
+     "fechado": true
+    },
+    {
+     "nome": "peixe_2",
+     "pivo": [
+      2.9,
+      10.45,
+      4.8
+     ],
+     "anima": "percurso",
+     "pontos": [
+      [
+       2.9,
+       10.45,
+       4.8
+      ],
+      [
+       2.844,
+       10.11,
+       4.8
+      ],
+      [
+       2.679,
+       9.977,
+       4.8
+      ],
+      [
+       2.411,
+       9.951,
+       4.8
+      ],
+      [
+       2.051,
+       9.898,
+       4.8
+      ],
+      [
+       1.611,
+       9.703,
+       4.8
+      ],
+      [
+       1.11,
+       9.307,
+       4.8
+      ],
+      [
+       0.566,
+       8.74,
+       4.8
+      ],
+      [
+       0.0,
+       8.11,
+       4.8
+      ],
+      [
+       -0.566,
+       7.569,
+       4.8
+      ],
+      [
+       -1.11,
+       7.269,
+       4.8
+      ],
+      [
+       -1.611,
+       7.306,
+       4.8
+      ],
+      [
+       -2.051,
+       7.692,
+       4.8
+      ],
+      [
+       -2.411,
+       8.349,
+       4.8
+      ],
+      [
+       -2.679,
+       9.132,
+       4.8
+      ],
+      [
+       -2.844,
+       9.877,
+       4.8
+      ],
+      [
+       -2.9,
+       10.45,
+       4.8
+      ],
+      [
+       -2.844,
+       10.79,
+       4.8
+      ],
+      [
+       -2.679,
+       10.923,
+       4.8
+      ],
+      [
+       -2.411,
+       10.949,
+       4.8
+      ],
+      [
+       -2.051,
+       11.002,
+       4.8
+      ],
+      [
+       -1.611,
+       11.197,
+       4.8
+      ],
+      [
+       -1.11,
+       11.593,
+       4.8
+      ],
+      [
+       -0.566,
+       12.16,
+       4.8
+      ],
+      [
+       -0.0,
+       12.79,
+       4.8
+      ],
+      [
+       0.566,
+       13.331,
+       4.8
+      ],
+      [
+       1.11,
+       13.631,
+       4.8
+      ],
+      [
+       1.611,
+       13.594,
+       4.8
+      ],
+      [
+       2.051,
+       13.208,
+       4.8
+      ],
+      [
+       2.411,
+       12.551,
+       4.8
+      ],
+      [
+       2.679,
+       11.768,
+       4.8
+      ],
+      [
+       2.844,
+       11.023,
+       4.8
+      ]
+     ],
+     "velocidade": 0.85,
+     "atraso": 0.0,
+     "fechado": true
+    },
+    {
+     "nome": "peixe_3",
+     "pivo": [
+      2.6,
+      10.75,
+      5.15
+     ],
+     "anima": "percurso",
+     "pontos": [
+      [
+       2.6,
+       10.75,
+       5.15
+      ],
+      [
+       2.55,
+       11.382,
+       5.15
+      ],
+      [
+       2.402,
+       12.203,
+       5.15
+      ],
+      [
+       2.162,
+       13.066,
+       5.15
+      ],
+      [
+       1.838,
+       13.791,
+       5.15
+      ],
+      [
+       1.444,
+       14.216,
+       5.15
+      ],
+      [
+       0.995,
+       14.257,
+       5.15
+      ],
+      [
+       0.507,
+       13.926,
+       5.15
+      ],
+      [
+       0.0,
+       13.33,
+       5.15
+      ],
+      [
+       -0.507,
+       12.635,
+       5.15
+      ],
+      [
+       -0.995,
+       12.01,
+       5.15
+      ],
+      [
+       -1.444,
+       11.574,
+       5.15
+      ],
+      [
+       -1.838,
+       11.358,
+       5.15
+      ],
+      [
+       -2.162,
+       11.301,
+       5.15
+      ],
+      [
+       -2.402,
+       11.272,
+       5.15
+      ],
+      [
+       -2.55,
+       11.125,
+       5.15
+      ],
+      [
+       -2.6,
+       10.75,
+       5.15
+      ],
+      [
+       -2.55,
+       10.118,
+       5.15
+      ],
+      [
+       -2.402,
+       9.297,
+       5.15
+      ],
+      [
+       -2.162,
+       8.434,
+       5.15
+      ],
+      [
+       -1.838,
+       7.709,
+       5.15
+      ],
+      [
+       -1.444,
+       7.284,
+       5.15
+      ],
+      [
+       -0.995,
+       7.243,
+       5.15
+      ],
+      [
+       -0.507,
+       7.574,
+       5.15
+      ],
+      [
+       -0.0,
+       8.17,
+       5.15
+      ],
+      [
+       0.507,
+       8.865,
+       5.15
+      ],
+      [
+       0.995,
+       9.49,
+       5.15
+      ],
+      [
+       1.444,
+       9.926,
+       5.15
+      ],
+      [
+       1.838,
+       10.142,
+       5.15
+      ],
+      [
+       2.162,
+       10.199,
+       5.15
+      ],
+      [
+       2.402,
+       10.228,
+       5.15
+      ],
+      [
+       2.55,
+       10.375,
+       5.15
+      ]
+     ],
+     "velocidade": 1.0,
+     "atraso": 0.0,
+     "fechado": true
+    },
+    {
+     "nome": "peixe_4",
+     "pivo": [
+      2.3,
+      11.05,
+      4.45
+     ],
+     "anima": "percurso",
+     "pontos": [
+      [
+       2.3,
+       11.05,
+       4.45
+      ],
+      [
+       2.256,
+       10.71,
+       4.45
+      ],
+      [
+       2.125,
+       10.577,
+       4.45
+      ],
+      [
+       1.912,
+       10.551,
+       4.45
+      ],
+      [
+       1.626,
+       10.498,
+       4.45
+      ],
+      [
+       1.278,
+       10.303,
+       4.45
+      ],
+      [
+       0.88,
+       9.907,
+       4.45
+      ],
+      [
+       0.449,
+       9.34,
+       4.45
+      ],
+      [
+       0.0,
+       8.71,
+       4.45
+      ],
+      [
+       -0.449,
+       8.169,
+       4.45
+      ],
+      [
+       -0.88,
+       7.869,
+       4.45
+      ],
+      [
+       -1.278,
+       7.906,
+       4.45
+      ],
+      [
+       -1.626,
+       8.292,
+       4.45
+      ],
+      [
+       -1.912,
+       8.949,
+       4.45
+      ],
+      [
+       -2.125,
+       9.732,
+       4.45
+      ],
+      [
+       -2.256,
+       10.477,
+       4.45
+      ],
+      [
+       -2.3,
+       11.05,
+       4.45
+      ],
+      [
+       -2.256,
+       11.39,
+       4.45
+      ],
+      [
+       -2.125,
+       11.523,
+       4.45
+      ],
+      [
+       -1.912,
+       11.549,
+       4.45
+      ],
+      [
+       -1.626,
+       11.602,
+       4.45
+      ],
+      [
+       -1.278,
+       11.797,
+       4.45
+      ],
+      [
+       -0.88,
+       12.193,
+       4.45
+      ],
+      [
+       -0.449,
+       12.76,
+       4.45
+      ],
+      [
+       -0.0,
+       13.39,
+       4.45
+      ],
+      [
+       0.449,
+       13.931,
+       4.45
+      ],
+      [
+       0.88,
+       14.231,
+       4.45
+      ],
+      [
+       1.278,
+       14.194,
+       4.45
+      ],
+      [
+       1.626,
+       13.808,
+       4.45
+      ],
+      [
+       1.912,
+       13.151,
+       4.45
+      ],
+      [
+       2.125,
+       12.368,
+       4.45
+      ],
+      [
+       2.256,
+       11.623,
+       4.45
+      ]
+     ],
+     "velocidade": 1.15,
+     "atraso": 0.0,
+     "fechado": true
+    },
+    {
+     "nome": "gondola",
+     "pivo": [
+      1.6,
+      4.6,
+      6.8
+     ],
+     "anima": "deslizar",
+     "eixo": "y",
+     "curso": 10.0,
+     "periodo": 22.0,
+     "perfil": "vaivem"
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "hospital",
+   "rotulo": "Hospital (2 × 1)",
+   "categoria": "cenario",
+   "grupo": "hospital",
+   "fixacao": "chao",
+   "dims": [
+    29.45,
+    14.78,
+    28.65
+   ],
+   "arquivo": "glb/hospital.glb",
+   "miniatura": "miniaturas/hospital.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -4.6,
+      9.15,
+      -1.2
+     ],
+     "tamanho": [
+      20.0,
+      18.3,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      10.0,
+      4.9,
+      1.3
+     ],
+     "tamanho": [
+      9.2,
+      0.6,
+      11.8
+     ]
+    },
+    {
+     "centro": [
+      14.1,
+      2.3,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      4.6,
+      11.0
+     ]
+    },
+    {
+     "centro": [
+      14.0,
+      2.3,
+      6.5
+     ],
+     "tamanho": [
+      1.0,
+      4.6,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_celeste",
+    "azul_medio",
+    "branco",
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 11390,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "hospital",
+    "animado",
+    "2x1"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 5,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "pino_hospital",
+     "pivo": [
+      -0.1,
+      26.2,
+      -1.2
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 25.0
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "shopping",
+   "rotulo": "Shopping colorido (2 × 1)",
+   "categoria": "cenario",
+   "grupo": "shopping",
+   "fixacao": "chao",
+   "dims": [
+    27.5,
+    14.65,
+    14.4
+   ],
+   "arquivo": "glb/shopping.glb",
+   "miniatura": "miniaturas/shopping.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      6.65,
+      -0.9
+     ],
+     "tamanho": [
+      27.0,
+      13.3,
+      12.6
+     ]
+    },
+    {
+     "centro": [
+      -2.0,
+      4.05,
+      6.3
+     ],
+     "tamanho": [
+      7.0,
+      0.3,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "laranja",
+    "rosa",
+    "roxo",
+    "roxo_escuro",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 7490,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "shopping",
+    "2x1"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 3,
+   "estilo": "regular",
+   "cenario": "predios"
+  },
+  {
+   "id": "torre_telao_sorriso",
+   "rotulo": "Torre do telão sorridente",
+   "categoria": "cenario",
+   "grupo": "torre_telao",
+   "fixacao": "chao",
+   "dims": [
+    13.4,
+    12.2,
+    32.8
+   ],
+   "arquivo": "glb/torre_telao_sorriso.glb",
+   "miniatura": "miniaturas/torre_telao_sorriso.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      4.3,
+      -1.0
+     ],
+     "tamanho": [
+      12.6,
+      8.6,
+      11.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      20.7,
+      -1.4
+     ],
+     "tamanho": [
+      8.6,
+      24.2,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "azul_medio",
+    "branco",
+    "cinza_claro",
+    "grafite_escuro"
+   ],
+   "tris": 4802,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "regular",
+    "futurista",
+    "telao",
+    "animado"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 8,
+   "estilo": "regular",
+   "animacoes": [
+    {
+     "nome": "faixa_rolante",
+     "pivo": [
+      0.0,
+      13.9,
+      -1.4
+     ],
+     "anima": "rolar",
+     "velocidade": 0.05
+    }
+   ],
+   "cenario": "predios"
+  },
+  {
+   "id": "costa_areia_faixa_base",
+   "rotulo": "Costa de areia (começo da faixa estreita)",
+   "categoria": "cenario",
+   "grupo": "costa_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.99
+   ],
+   "arquivo": "glb/costa_areia_faixa_base.glb",
+   "miniatura": "miniaturas/costa_areia_faixa_base.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      4.25
+     ],
+     "tamanho": [
+      15.0,
+      1.7,
+      6.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      -0.85,
+      -3.75
+     ],
+     "tamanho": [
+      4.0,
+      1.7,
+      7.5
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "agua_rio",
+    "bege",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "laranja_claro",
+    "pessego",
+    "rosa_claro",
+    "terra_seca",
+    "turquesa",
+    "turquesa_claro",
+    "vermelho_claro"
+   ],
+   "tris": 5020,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "praia",
+    "areia",
+    "costa"
+   ],
+   "colisao_malha": [
+    "colisao_praia"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_rocha_reta",
+   "rotulo": "Costa de rocha (reta)",
+   "categoria": "cenario",
+   "grupo": "costa_rocha",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    2.738
+   ],
+   "arquivo": "glb/costa_rocha_reta.glb",
+   "miniatura": "miniaturas/costa_rocha_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grama",
+    "grama_escura"
+   ],
+   "tris": 1266,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "costa",
+    "rocha"
+   ],
+   "colisao_malha": [
+    "colisao_rocha"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_rocha_canto_ext",
+   "rotulo": "Costa de rocha (canto externo)",
+   "categoria": "cenario",
+   "grupo": "costa_rocha",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    3.341
+   ],
+   "arquivo": "glb/costa_rocha_canto_ext.glb",
+   "miniatura": "miniaturas/costa_rocha_canto_ext.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grama",
+    "grama_escura"
+   ],
+   "tris": 1486,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "costa",
+    "rocha"
+   ],
+   "colisao_malha": [
+    "colisao_rocha"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "costa_rocha_canto_int",
+   "rotulo": "Costa de rocha (canto interno)",
+   "categoria": "cenario",
+   "grupo": "costa_rocha",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    3.341
+   ],
+   "arquivo": "glb/costa_rocha_canto_int.glb",
+   "miniatura": "miniaturas/costa_rocha_canto_int.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -1.8,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.2,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grama",
+    "grama_escura"
+   ],
+   "tris": 1804,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "agua",
+    "costa",
+    "rocha"
+   ],
+   "colisao_malha": [
+    "colisao_rocha"
+   ],
+   "cenario": "terreno"
+  },
+  {
+   "id": "plato_rampa_rua",
+   "rotulo": "Rampa de rua para o platô",
+   "categoria": "cenario",
+   "grupo": "plato",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    7.456
+   ],
+   "arquivo": "glb/plato_rampa_rua.glb",
+   "miniatura": "miniaturas/plato_rampa_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -7.325,
+      1.875,
+      0
+     ],
+     "tamanho": [
+      0.35,
+      4.55,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      7.325,
+      1.875,
+      0
+     ],
+     "tamanho": [
+      0.35,
+      4.55,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "terra_seca"
+   ],
+   "tris": 3370,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "plato",
+    "rua",
+    "rampa",
+    "elevado"
+   ],
+   "colisao_malha": [
+    "colisao_rampa"
+   ],
+   "z_baixo": 0.0,
+   "z_alto": 3.75,
+   "perfil": "rua",
+   "cenario": "terreno"
+  },
+  {
+   "id": "montanha_pequena",
+   "rotulo": "Montanha pequena (2 × 2)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    16.145
+   ],
+   "arquivo": "glb/montanha_pequena.glb",
+   "miniatura": "miniaturas/montanha_pequena.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.15,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      7.5,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "folha",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 1238,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "relevo",
+    "cordilheira",
+    "2x2"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    2,
+    2
+   ],
+   "altura": 15,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "montanha_media",
+   "rotulo": "Montanha média (3 × 3)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    45.0,
+    45.0,
+    27.306
+   ],
+   "arquivo": "glb/montanha_media.glb",
+   "miniatura": "miniaturas/montanha_media.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.9,
+      0
+     ],
+     "tamanho": [
+      22.5,
+      13.0,
+      22.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "madeira_escura",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 2258,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "relevo",
+    "cordilheira",
+    "3x3"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    3,
+    3
+   ],
+   "altura": 26,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "montanha_grande",
+   "rotulo": "Montanha grande (4 × 4)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    60.0,
+    60.0,
+    37.378
+   ],
+   "arquivo": "glb/montanha_grande.glb",
+   "miniatura": "miniaturas/montanha_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.9,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      19.0,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "madeira_escura",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 3830,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "relevo",
+    "cordilheira",
+    "4x4"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    4,
+    4
+   ],
+   "altura": 38,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "montanha_enorme",
+   "rotulo": "Montanha enorme (6 × 6)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    90.0,
+    90.0,
+    53.735
+   ],
+   "arquivo": "glb/montanha_enorme.glb",
+   "miniatura": "miniaturas/montanha_enorme.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      13.9,
+      0
+     ],
+     "tamanho": [
+      45.0,
+      29.0,
+      45.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "madeira_escura",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 7254,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "relevo",
+    "cordilheira",
+    "6x6"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    6,
+    6
+   ],
+   "altura": 58,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "montanha_crista",
+   "rotulo": "Crista de montanha (4 × 2)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    60.0,
+    30.0,
+    26.135
+   ],
+   "arquivo": "glb/montanha_crista.glb",
+   "miniatura": "miniaturas/montanha_crista.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.9,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      13.0,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "folha",
+    "folha_escura",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "madeira_escura",
+    "verde_claro"
+   ],
+   "tris": 1090,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "relevo",
+    "cordilheira",
+    "4x2"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    4,
+    2
+   ],
+   "altura": 26,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "morro_verde",
+   "rotulo": "Morro verde",
+   "categoria": "cenario",
+   "grupo": "morro",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    14.276
+   ],
+   "arquivo": "glb/morro_verde.glb",
+   "miniatura": "miniaturas/morro_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.4,
+      0
+     ],
+     "tamanho": [
+      14,
+      6.0,
+      14
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "folha",
+    "folha_clara",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 4494,
+   "pacote": false,
+   "tags": [
+    "morro",
+    "relevo",
+    "grama",
+    "2x2"
+   ],
+   "colisao_malha": [
+    "colisao_morro"
+   ],
+   "quadras": [
+    2,
+    2
+   ],
+   "altura": 10.0,
+   "cenario": "montanhas"
+  },
+  {
+   "id": "montanha_tunel",
+   "rotulo": "Montanha com túnel de rua (3 × 2)",
+   "categoria": "cenario",
+   "grupo": "montanha",
+   "fixacao": "chao",
+   "dims": [
+    45.0,
+    30.0,
+    27.749
+   ],
+   "arquivo": "glb/montanha_tunel.glb",
+   "miniatura": "miniaturas/montanha_tunel.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      5.5
+     ],
+     "tamanho": [
+      10.0,
+      0.4,
+      19.0
+     ]
+    },
+    {
+     "centro": [
+      -18.75,
+      5.4,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      12.0,
+      18.0
+     ]
+    },
+    {
+     "centro": [
+      18.75,
+      5.4,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      12.0,
+      18.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.3,
+      1.0
+     ],
+     "tamanho": [
+      10.0,
+      2.6,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      -7.0,
+      4.3,
+      1.0
+     ],
+     "tamanho": [
+      4.0,
+      8.6,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      7.0,
+      4.3,
+      1.0
+     ],
+     "tamanho": [
+      4.0,
+      8.6,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      6.4,
+      -9.5
+     ],
+     "tamanho": [
+      18.0,
+      14.0,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "branco_gelo",
+    "calcada",
+    "cinza_azulado",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite",
+    "grama",
+    "grama_escura",
+    "madeira",
+    "madeira_escura",
+    "preto",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 4425,
+   "pacote": false,
+   "tags": [
+    "montanha",
+    "tunel",
+    "rua",
+    "3x2"
+   ],
+   "colisao_malha": [
+    "colisao_montanha"
+   ],
+   "quadras": [
+    3,
+    2
+   ],
+   "rua": {
+    "perfil": "rua",
+    "borda": "y-",
+    "x": 0.0
+   },
+   "cenario": "montanhas"
+  },
+  {
+   "id": "aeroporto_hangar",
+   "rotulo": "Aeroporto com hangar e pátio (2 × 2)",
+   "categoria": "cenario",
+   "grupo": "aeroporto",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    21.89
+   ],
+   "arquivo": "glb/aeroporto_hangar.glb",
+   "miniatura": "miniaturas/aeroporto_hangar.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      1.0,
+      0.0,
+      -0.0
+     ],
+     "curso": 8.6,
+     "nome": "portao_esq",
+     "pivo": [
+      -6.5,
+      2.8,
+      0.7235
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_aeronave",
+     "centro": [
+      5.5,
+      0.0,
+      8.0
+     ],
+     "tamanho": [
+      14.0,
+      6.0,
+      12.0
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      -2.0,
+      5.3,
+      -6.5
+     ],
+     "tamanho": [
+      20.0,
+      10.6,
+      14.0
+     ]
+    },
+    {
+     "centro": [
+      11.0,
+      2.35,
+      -8.0
+     ],
+     "tamanho": [
+      6.0,
+      4.7,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      11.4,
+      11.9,
+      -10.5
+     ],
+     "tamanho": [
+      3.4,
+      15.0,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_medio",
+    "branco",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "creme",
+    "grafite_escuro",
+    "laranja",
+    "laranja_claro",
+    "metal",
+    "turquesa",
+    "turquesa_claro"
+   ],
+   "tris": 6320,
+   "pacote": false,
+   "tags": [
+    "marco",
+    "aeroporto",
+    "hangar",
+    "2x2",
+    "interativo"
+   ],
+   "quadras": [
+    2,
+    2
+   ],
+   "cenario": "marcos"
+  }
+ ]
+}

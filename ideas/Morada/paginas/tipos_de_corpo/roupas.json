@@ -8711,6 +8711,1786 @@
     },
     "balanco": 0.3
    }
+  },
+  {
+   "id": "nov_martelo",
+   "slot": "mao_dir",
+   "rotulo": "Martelo",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "martelo"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_chave_fenda",
+   "slot": "mao_dir",
+   "rotulo": "Chave de fenda",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "chave_fenda"
+   },
+   "variacao": {
+    "cor": "#E27B3B"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.36,
+     0.03
+    ],
+    "aponta": [
+     0.4,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_furadeira",
+   "slot": "mao_dir",
+   "rotulo": "Furadeira",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "furadeira"
+   },
+   "variacao": {
+    "cor": "#F2C231"
+   },
+   "pose": {
+    "alvo": [
+     0.38,
+     -0.32,
+     0.06
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.15
+   }
+  },
+  {
+   "id": "nov_rolo_pintura",
+   "slot": "mao_dir",
+   "rotulo": "Rolo de pintura",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "rolo_pintura"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.3,
+     0.02
+    ],
+    "aponta": [
+     0.45,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_spray",
+   "slot": "mao_dir",
+   "rotulo": "Tinta spray",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "spray"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_trena",
+   "slot": "mao_dir",
+   "rotulo": "Trena",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "trena"
+   },
+   "variacao": {
+    "cor": "#F2C231"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_prancheta",
+   "slot": "mao_dir",
+   "rotulo": "Prancheta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "prancheta"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   },
+   "pose": {
+    "alvo": [
+     0.35,
+     -0.3,
+     -0.05
+    ],
+    "eixos": {
+     "x": [
+      0.3,
+      0.9,
+      -0.3
+     ],
+     "z": [
+      -0.9,
+      0.3,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "apoio",
+    "dedos": [
+     18,
+     22
+    ],
+    "polegar": [
+     8,
+     10
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_planta_enrolada",
+   "slot": "mao_dir",
+   "rotulo": "Planta enrolada (arquiteto)",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "planta_enrolada"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   },
+   "pose": {
+    "alvo": [
+     0.3,
+     -0.42,
+     0.04
+    ],
+    "aponta": [
+     0.55,
+     0.85,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_balde_mao",
+   "slot": "mao_esq",
+   "rotulo": "Balde",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "balde_mao"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.05,
+     -0.95,
+     0.15
+    ],
+    "eixos": {
+     "x": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.85,
+    "pendurado": true,
+    "pousa": true
+   }
+  },
+  {
+   "id": "nov_espanador",
+   "slot": "mao_dir",
+   "rotulo": "Espanador",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "espanador"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.3,
+     0.02
+    ],
+    "aponta": [
+     0.45,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_regador",
+   "slot": "mao_esq",
+   "rotulo": "Regador",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "regador"
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   },
+   "pose": {
+    "alvo": [
+     0.05,
+     -0.95,
+     0.15
+    ],
+    "eixos": {
+     "x": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.85,
+    "pendurado": true,
+    "pousa": true
+   }
+  },
+  {
+   "id": "nov_pa_jardim",
+   "slot": "mao_dir",
+   "rotulo": "Pá de jardim",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pa_jardim"
+   },
+   "variacao": {
+    "cor": "#3BAA5C"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.36,
+     0.03
+    ],
+    "aponta": [
+     0.4,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_esguicho",
+   "slot": "mao_dir",
+   "rotulo": "Mangueira de bombeiro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "esguicho"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   },
+   "pose": {
+    "alvo": [
+     0.36,
+     -0.3,
+     0.05
+    ],
+    "aponta": [
+     1.0,
+     0.12,
+     0.0
+    ],
+    "balanco": 0.15
+   }
+  },
+  {
+   "id": "nov_megafone",
+   "slot": "mao_dir",
+   "rotulo": "Megafone",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "megafone"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   },
+   "pose": {
+    "alvo": [
+     0.33,
+     0.1,
+     -0.22
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.1
+   }
+  },
+  {
+   "id": "nov_cardapio",
+   "slot": "mao_dir",
+   "rotulo": "Cardápio",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "cardapio"
+   },
+   "variacao": {
+    "cor": "#7B2D2D"
+   },
+   "pose": {
+    "alvo": [
+     0.35,
+     -0.3,
+     -0.05
+    ],
+    "eixos": {
+     "x": [
+      0.3,
+      0.9,
+      -0.3
+     ],
+     "z": [
+      -0.9,
+      0.3,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "apoio",
+    "dedos": [
+     18,
+     22
+    ],
+    "polegar": [
+     8,
+     10
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_caneta",
+   "slot": "mao_dir",
+   "rotulo": "Caneta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "caneta"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.36,
+     0.03
+    ],
+    "aponta": [
+     0.4,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_apito",
+   "slot": "mao_dir",
+   "rotulo": "Apito",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "apito"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.33,
+     0.1,
+     -0.22
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.1
+   }
+  },
+  {
+   "id": "nov_tesoura_cabelo",
+   "slot": "mao_dir",
+   "rotulo": "Tesoura de cabeleireiro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "tesoura_cabelo"
+   },
+   "variacao": {
+    "cor": "#5A5F66"
+   },
+   "pose": {
+    "alvo": [
+     0.33,
+     -0.3,
+     0.02
+    ],
+    "aponta": [
+     0.2,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_secador",
+   "slot": "mao_dir",
+   "rotulo": "Secador de cabelo",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "secador"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   },
+   "pose": {
+    "alvo": [
+     0.38,
+     -0.32,
+     0.06
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.15
+   }
+  },
+  {
+   "id": "nov_pente",
+   "slot": "mao_esq",
+   "rotulo": "Pente",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pente"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.36,
+     0.03
+    ],
+    "aponta": [
+     0.4,
+     0.9,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_lupa",
+   "slot": "mao_dir",
+   "rotulo": "Lupa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "lupa"
+   },
+   "variacao": {
+    "cor": "#7B4B2D"
+   },
+   "pose": {
+    "alvo": [
+     0.4,
+     -0.2,
+     0.0
+    ],
+    "aponta": [
+     0.5,
+     0.85,
+     0.0
+    ],
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_envelope",
+   "slot": "mao_dir",
+   "rotulo": "Carta",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "envelope"
+   },
+   "variacao": {
+    "cor": "#F5ECD6"
+   },
+   "pose": {
+    "alvo": [
+     0.36,
+     -0.3,
+     -0.06
+    ],
+    "eixos": {
+     "x": [
+      0.55,
+      0.45,
+      -0.7
+     ],
+     "z": [
+      -0.55,
+      0.85,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "pinca",
+    "dedos": [
+     40,
+     48
+    ],
+    "polegar": [
+     22,
+     28
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_skate",
+   "slot": "mao_dir",
+   "rotulo": "Skate",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "skate"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.06,
+     -0.95,
+     0.07
+    ],
+    "eixos": {
+     "x": [
+      0.1,
+      -1.0,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.7,
+    "pousa": true
+   },
+   "mini_rot": [
+    0,
+    -90,
+    -60
+   ]
+  },
+  {
+   "id": "nov_raquete",
+   "slot": "mao_dir",
+   "rotulo": "Raquete de tênis",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "raquete"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   },
+   "pose": {
+    "alvo": [
+     0.1,
+     -0.92,
+     0.12
+    ],
+    "aponta": [
+     0.3,
+     -1.0,
+     0.05
+    ],
+    "balanco": 0.5
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_halter",
+   "slot": "mao_dir",
+   "rotulo": "Halter",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "halter"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "pose": {
+    "alvo": [
+     0.04,
+     -0.95,
+     0.16
+    ],
+    "eixos": {
+     "x": [
+      0.1,
+      -1.0,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.6,
+    "pousa": true
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_taco",
+   "slot": "mao_dir",
+   "rotulo": "Taco de beisebol",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "taco"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   },
+   "pose": {
+    "alvo": [
+     0.28,
+     -0.3,
+     0.02
+    ],
+    "aponta": [
+     -0.55,
+     0.8,
+     0.25
+    ],
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_vara_pescar",
+   "slot": "mao_dir",
+   "rotulo": "Vara de pescar",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "vara_pescar"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   },
+   "pose": {
+    "alvo": [
+     0.33,
+     -0.35,
+     0.05
+    ],
+    "aponta": [
+     0.55,
+     0.8,
+     0.05
+    ],
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    45,
+    30
+   ]
+  },
+  {
+   "id": "nov_garrafa_agua",
+   "slot": "mao_dir",
+   "rotulo": "Garrafa d'água",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "garrafa_agua"
+   },
+   "variacao": {
+    "cor": "#7EC8E3"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_controle",
+   "slot": "mao_dir",
+   "rotulo": "Controle de videogame",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "controle"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "pose": {
+    "alvo": [
+     0.35,
+     -0.3,
+     -0.05
+    ],
+    "eixos": {
+     "x": [
+      0.3,
+      0.9,
+      -0.3
+     ],
+     "z": [
+      -0.9,
+      0.3,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "apoio",
+    "dedos": [
+     18,
+     22
+    ],
+    "polegar": [
+     8,
+     10
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_saco_pipoca",
+   "slot": "mao_dir",
+   "rotulo": "Pipoca",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "saco_pipoca"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   }
+  },
+  {
+   "id": "nov_algodao_doce",
+   "slot": "mao_dir",
+   "rotulo": "Algodão-doce",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "algodao_doce"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_balao",
+   "slot": "mao_esq",
+   "rotulo": "Balão de festa",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "balao"
+   },
+   "variacao": {
+    "cor": "#D9433B"
+   },
+   "pose": {
+    "alvo": [
+     0.2,
+     -0.75,
+     0.12
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.3
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_pirulito",
+   "slot": "mao_dir",
+   "rotulo": "Pirulito",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pirulito"
+   },
+   "variacao": {
+    "cor": "#EE70A9"
+   },
+   "pose": {
+    "alvo": [
+     0.32,
+     -0.42,
+     0.02
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.2
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_ingresso",
+   "slot": "mao_dir",
+   "rotulo": "Ingresso",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "ingresso"
+   },
+   "variacao": {
+    "cor": "#F2C231"
+   },
+   "pose": {
+    "alvo": [
+     0.36,
+     -0.3,
+     -0.06
+    ],
+    "eixos": {
+     "x": [
+      0.55,
+      0.45,
+      -0.7
+     ],
+     "z": [
+      -0.55,
+      0.85,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "pinca",
+    "dedos": [
+     40,
+     48
+    ],
+    "polegar": [
+     22,
+     28
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_mapa",
+   "slot": "mao_dir",
+   "rotulo": "Mapa aberto",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "mapa"
+   },
+   "variacao": {
+    "cor": "#F2E6C9"
+   },
+   "pose": {
+    "alvo": [
+     0.42,
+     -0.6,
+     0.0
+    ],
+    "eixos": {
+     "x": [
+      0.55,
+      0.75,
+      -0.3
+     ],
+     "z": [
+      -0.75,
+      0.6,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "apoio",
+    "dedos": [
+     18,
+     22
+    ],
+    "polegar": [
+     8,
+     10
+    ]
+   },
+   "mini_rot": [
+    0,
+    -90,
+    120
+   ]
+  },
+  {
+   "id": "nov_placa_socorro",
+   "slot": "mao_dir",
+   "rotulo": "Placa \"Socorro!\"",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "placa_socorro"
+   },
+   "variacao": {
+    "cor": "#F2B8A0"
+   },
+   "pose": {
+    "alvo": [
+     0.42,
+     0.1,
+     0.08
+    ],
+    "aponta": [
+     0.05,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.1
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_caixa_pizza",
+   "slot": "mao_dir",
+   "rotulo": "Caixa de pizza",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "caixa_pizza"
+   },
+   "variacao": {
+    "cor": "#F2F2F2"
+   },
+   "pose": {
+    "alvo": [
+     0.34,
+     -0.38,
+     0.0
+    ],
+    "eixos": {
+     "x": [
+      0.9,
+      0.15,
+      0.1
+     ],
+     "z": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "concha",
+    "dedos": [
+     14,
+     18
+    ],
+    "polegar": [
+     6,
+     8
+    ]
+   },
+   "mini_rot": [
+    0,
+    0,
+    120
+   ]
+  },
+  {
+   "id": "nov_pacote",
+   "slot": "mao_dir",
+   "rotulo": "Pacote de encomenda",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pacote"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   },
+   "pose": {
+    "alvo": [
+     0.34,
+     -0.38,
+     0.0
+    ],
+    "eixos": {
+     "x": [
+      0.9,
+      0.15,
+      0.1
+     ],
+     "z": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "concha",
+    "dedos": [
+     14,
+     18
+    ],
+    "polegar": [
+     6,
+     8
+    ]
+   }
+  },
+  {
+   "id": "nov_cesta_piquenique",
+   "slot": "mao_esq",
+   "rotulo": "Cesta de piquenique",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "esq",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "cesta_piquenique"
+   },
+   "variacao": {
+    "cor": "#C9A46E"
+   },
+   "pose": {
+    "alvo": [
+     0.05,
+     -0.95,
+     0.15
+    ],
+    "eixos": {
+     "x": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "z": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    },
+    "balanco": 0.85,
+    "pendurado": true,
+    "pousa": true
+   }
+  },
+  {
+   "id": "nov_varinha",
+   "slot": "mao_dir",
+   "rotulo": "Varinha de mágico",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "varinha"
+   },
+   "variacao": {
+    "cor": "#2B2B2B"
+   },
+   "pose": {
+    "alvo": [
+     0.4,
+     -0.25,
+     0.05
+    ],
+    "aponta": [
+     0.55,
+     0.8,
+     0.0
+    ],
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   }
+  },
+  {
+   "id": "nov_bandeira",
+   "slot": "mao_dir",
+   "rotulo": "Bandeirinha",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "bandeira"
+   },
+   "variacao": {
+    "cor": "#3D7BD6"
+   },
+   "pose": {
+    "alvo": [
+     0.35,
+     -0.15,
+     0.1
+    ],
+    "aponta": [
+     0.05,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.15
+   },
+   "pegada": {
+    "tipo": "punho",
+    "dedos": [
+     62,
+     80
+    ],
+    "polegar": [
+     28,
+     34
+    ]
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_trofeu",
+   "slot": "mao_dir",
+   "rotulo": "Troféu",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "trofeu"
+   },
+   "variacao": {
+    "cor": "#D6A83A"
+   },
+   "pose": {
+    "alvo": [
+     0.15,
+     0.82,
+     0.12
+    ],
+    "aponta": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.05
+   }
+  },
+  {
+   "id": "nov_pandeiro",
+   "slot": "mao_dir",
+   "rotulo": "Pandeiro",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "mao",
+   "mao": "dir",
+   "gerar": {
+    "tipo": "objeto",
+    "objeto": "pandeiro"
+   },
+   "variacao": {
+    "cor": "#7B4B2D"
+   },
+   "pose": {
+    "alvo": [
+     0.33,
+     -0.25,
+     0.05
+    ],
+    "aponta": [
+     0.1,
+     1.0,
+     0.0
+    ],
+    "balanco": 0.15
+   },
+   "mini_rot": [
+    90,
+    0,
+    -60
+   ]
+  },
+  {
+   "id": "nov_chapeu_comissaria",
+   "slot": "cabeca",
+   "rotulo": "Chapéu de comissária",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "",
+   "pecas": [],
+   "tipo": "cabeca",
+   "gerar": {
+    "tipo": "chapeu",
+    "copa": {
+     "folga": 0.012,
+     "corte": 0.74,
+     "inclina": 0.18
+    },
+    "banda": {
+     "altura": 0.26,
+     "abre": 1.02
+    },
+    "topo": {
+     "raio": 1.0
+    },
+    "faixa": {
+     "altura": 0.07,
+     "cor": "dourado"
+    }
+   },
+   "variacao": {
+    "cor": "#24346B"
+   }
   }
  ],
  "texturas_padrao": {
@@ -11290,6 +13070,375 @@
     },
     "pes": {
      "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Arquiteto(a) com planta",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": "#BFD7EA"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#6B5B4B"
+    },
+    "cabeca": {
+     "id": "nov_capacete_obra",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_planta_enrolada",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Pintor(a) com rolo",
+   "pecas": {
+    "inteira": {
+     "id": "nov_jardineira",
+     "cor": "#F2F2F2"
+    },
+    "cima": {
+     "id": "nov_camiseta_justa",
+     "cor": "#F2F2F2"
+    },
+    "cabeca": {
+     "id": "nov_bone_novo",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_rolo_pintura",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_balde_mao",
+     "cor": "#F2F2F2"
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Carteiro(a) com encomenda",
+   "pecas": {
+    "cima": {
+     "id": "nov_polo",
+     "cor": "#F2C231"
+    },
+    "baixo": {
+     "id": "nov_bermuda_folgada",
+     "cor": "#3D7BD6"
+    },
+    "cabeca": {
+     "id": "nov_bone_novo",
+     "cor": "#3D7BD6"
+    },
+    "mao_dir": {
+     "id": "nov_pacote",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Skatista com skate",
+   "pecas": {
+    "cima": {
+     "id": "nov_moletom",
+     "cor": "#3BAA5C"
+    },
+    "baixo": {
+     "id": "nov_bermuda_folgada",
+     "cor": "#2B2B2B"
+    },
+    "cabeca": {
+     "id": "nov_bone_tras",
+     "cor": null
+    },
+    "joelhos": {
+     "id": "nov_joelheiras",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_skate",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_plus",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Tenista com raquete",
+   "pecas": {
+    "cima": {
+     "id": "nov_polo",
+     "cor": null
+    },
+    "baixo": {
+     "id": "gen_minissaia",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_viseira",
+     "cor": null
+    },
+    "meias": {
+     "id": "nov_meias_altas",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_raquete",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Detetive com lupa",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_casaco_longo",
+     "cor": "#C9A46E"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#6B5B4B"
+    },
+    "cabeca": {
+     "id": "var_chapeu_feltro",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_lupa",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Mágico(a) com varinha",
+   "pecas": {
+    "cima": {
+     "id": "roupa_blusa_showgirl",
+     "cor": null
+    },
+    "baixo": {
+     "id": "roupa_calca_seguranca",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_cartola",
+     "cor": null
+    },
+    "maos": {
+     "id": "nov_luvas_justas",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_varinha",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_sapato_seguranca",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Cabeleireiro(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_justa",
+     "cor": "#2B2B2B"
+    },
+    "baixo": {
+     "id": "nov_calca_social",
+     "cor": "#2B2B2B"
+    },
+    "avental": {
+     "id": "nov_avental",
+     "cor": "#2B2B2B"
+    },
+    "mao_dir": {
+     "id": "nov_tesoura_cabelo",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_pente",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Torcedor(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_larga",
+     "cor": "#3D7BD6"
+    },
+    "baixo": {
+     "id": "nov_calca_jeans",
+     "cor": null
+    },
+    "cabeca": {
+     "id": "nov_bone_novo",
+     "cor": "#F2F2F2"
+    },
+    "mao_dir": {
+     "id": "nov_bandeira",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Dia de parque",
+   "pecas": {
+    "cima": {
+     "id": "nov_camiseta_faixa",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_short_curto",
+     "cor": "#3D7BD6"
+    },
+    "cabeca": {
+     "id": "nov_bone_duas_cores",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_balao",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_algodao_doce",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_tenis_009",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Piquenique com cesta",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_xadrez_folgada",
+     "cor": "#D9433B"
+    },
+    "baixo": {
+     "id": "nov_bermuda_folgada",
+     "cor": "#C9A46E"
+    },
+    "cabeca": {
+     "id": "nov_chapeu_palha",
+     "cor": null
+    },
+    "mao_esq": {
+     "id": "nov_cesta_piquenique",
+     "cor": null
+    },
+    "pes": {
+     "id": "roupa_chinelo_005",
+     "cor": null
+    }
+   }
+  },
+  {
+   "nome": "Pescador(a)",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_xadrez_folgada",
+     "cor": "#3BAA5C"
+    },
+    "sobre": {
+     "id": "nov_colete_utilidades",
+     "cor": null
+    },
+    "baixo": {
+     "id": "nov_calca_cargo",
+     "cor": "#6B7A3A"
+    },
+    "cabeca": {
+     "id": "nov_chapeu_palha",
+     "cor": null
+    },
+    "mao_dir": {
+     "id": "nov_vara_pescar",
+     "cor": null
+    },
+    "pes": {
+     "id": "nov_galocha",
+     "cor": "#3BAA5C"
+    }
+   }
+  },
+  {
+   "nome": "Comissário(a) de bordo",
+   "pecas": {
+    "cima": {
+     "id": "nov_camisa_social",
+     "cor": null
+    },
+    "sobre": {
+     "id": "nov_paleto",
+     "cor": "#24346B"
+    },
+    "baixo": {
+     "id": "gen_saia_lapis",
+     "cor": null
+    },
+    "pescoco_peca": {
+     "id": "nov_lenco",
+     "cor": "#D9433B"
+    },
+    "cabeca": {
+     "id": "nov_chapeu_comissaria",
+     "cor": null
+    },
+    "meias": {
+     "id": "nov_meia_calca",
+     "cor": "#5A4A44"
+    },
+    "mao_esq": {
+     "id": "nov_mala_rodinha",
+     "cor": "#24346B"
+    },
+    "pes": {
+     "id": "roupa_sapato_caixa",
      "cor": null
     }
    }

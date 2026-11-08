@@ -524,13 +524,81 @@ def looping(inicio, direcao, R, w, n=24):
     lat = V((-d.y, d.x, 0))
     p0 = V(inicio)
     out = []
+    def sm(x):
+        x = max(0.0, min(1.0, x))
+        return x * x * (3 - 2 * x)
+
+    jan = 0.75  # o desvio lateral acontece só no alto (trilho de cabeça para baixo, quase plano): sem torção
     for k in range(n + 1):
         th = 2 * math.pi * k / n
-        dd = lat * (w * th / (2 * math.pi))
+        dd = lat * (w * sm((th - (math.pi - jan)) / (2 * jan)))
         p = p0 + d * (R * math.sin(th)) + Z * (R * (1 - math.cos(th))) + dd
         c = p0 + Z * R + dd
         out.append((tuple(p), tuple(c)))
     return out
+
+
+class Rota:
+    """Monta o caminho de uma montanha-russa por trechos: retas (onde sobe e desce, com a inclinação começando e
+    terminando em zero) e curvas planas (sem subir), mais loopings. Curva feita subindo ou descendo faz o referencial
+    que acompanha o trilho (o da página) tombar de lado; assim o carrinho fica sempre em pé fora dos loopings."""
+
+    def __init__(self, x, y, z, rumo):
+        self.p = V((x, y, z))
+        self.a = math.radians(rumo)  # graus a partir de +X, anti-horário
+        self.pts = [(x, y, z)]
+
+    def d(self):
+        return V((math.cos(self.a), math.sin(self.a), 0))
+
+    def reta(self, L, z1=None, passo=1.0, lombada=0.0):
+        z0 = self.p.z
+        z1 = z0 if z1 is None else z1
+        n = max(1, int(round(L / passo)))
+        d = self.d()
+        for k in range(1, n + 1):
+            f = k / n
+            sm = f * f * (3 - 2 * f)
+            z = z0 + (z1 - z0) * sm + lombada * math.sin(math.pi * f) ** 2
+            q = self.p + d * (L * f)
+            self.pts.append((q.x, q.y, z))
+        self.p = self.p + d * L
+        self.p.z = z1
+        return self
+
+    def curva(self, r, graus, passo=1.0, dz=0.0):
+        """Curva de raio r; graus > 0 vira à esquerda. dz: sobe (ou desce) durante a curva — curva inclinada faz o
+        referencial tombar; usada de propósito para desfazer a torção que cada looping deixa."""
+        sg = 1 if graus > 0 else -1
+        d = self.d()
+        c = self.p + V((-d.y, d.x, 0)) * (sg * r)
+        a0 = math.atan2(self.p.y - c.y, self.p.x - c.x)
+        ang = math.radians(abs(graus))
+        n = max(2, int(r * ang / passo))
+        z0 = self.p.z
+        for k in range(1, n + 1):
+            t = a0 + sg * ang * k / n
+            f = k / n
+            self.pts.append((c.x + r * math.cos(t), c.y + r * math.sin(t), z0 + dz * f * f * (3 - 2 * f)))
+        t = a0 + sg * ang
+        self.p = V((c.x + r * math.cos(t), c.y + r * math.sin(t), z0 + dz))
+        self.a += sg * ang
+        return self
+
+    def looping(self, R, w, n=24):
+        d = self.d()
+        lp = looping(tuple(self.p), (d.x, d.y), R, w, n)
+        self.pts += lp[1:]
+        q = V(lp[-1][0])
+        self.p = q
+        return self
+
+    def fecha(self):
+        """Pontos de controle (o último, igual ao primeiro, sai: o trilho é fechado)."""
+        out = list(self.pts)
+        if (V(out[-1][0] if isinstance(out[-1][0], tuple) else out[-1]) - V(self.pts[0])).length < 0.3:
+            out.pop()
+        return out
 
 
 class Trilho:
@@ -562,35 +630,22 @@ class Trilho:
         self.L = comprimentos(P2, True)
         self.tot = self.L[-1]
         self.T = tangentes(P2, True)
-        # inclinação nas curvas (curvatura horizontal suavizada)
+        # referenciais que acompanham o trilho, iguais aos que a página usa no percurso: o "em cima" começa em Z e vai
+        # sendo projetado de ponto a ponto (no looping fica de cabeça para baixo no alto); o giro que sobra ao fechar a
+        # volta é repartido pelo comprimento. Assim o trilho desenhado e o carrinho animado têm a mesma inclinação.
         n = self.n
-        kap = []
-        for i in range(n):
-            a, b = self.T[(i - 3) % n], self.T[(i + 3) % n]
-            ds = 0.6
-            ah, bh = V((a.x, a.y)), V((b.x, b.y))
-            if ah.length < 0.2 or bh.length < 0.2:
-                kap.append(0.0)
-                continue
-            ah.normalize()
-            bh.normalize()
-            kap.append((ah.x * bh.y - ah.y * bh.x) / ds)
-        jan = 25
-        sk = [sum(kap[(i + k) % n] for k in range(-jan, jan + 1)) / (2 * jan + 1) for i in range(n)]
-        self.U = []
-        for i in range(n):
-            t = self.T[i]
-            if self.tag[i] is not None:
-                u = self.tag[i] - self.P[i]
-                u = u - t * u.dot(t)
-                self.U.append(u.normalized())
-                continue
-            u = Z - t * t.z
-            if u.length < 1e-4:
-                u = self.U[-1] if self.U else V((1, 0, 0))
-            u.normalize()
-            ang = max(-inclina_max, min(inclina_max, -inclina * sk[i]))
-            self.U.append((Matrix.Rotation(ang, 3, t) @ u).normalized())
+        T = self.T
+        U = [(Z - T[0] * T[0].z).normalized()]
+        for i in range(1, n):
+            u = U[-1] - T[i] * U[-1].dot(T[i])
+            U.append(u.normalized() if u.length > 1e-6 else U[-1].copy())
+        fim = U[-1]
+        ini = (U[0] - T[-1] * U[0].dot(T[-1])).normalized()
+        erro = math.acos(max(-1.0, min(1.0, fim.dot(ini))))
+        if fim.cross(ini).dot(T[-1]) < 0:
+            erro = -erro
+        self.erro_fechamento = math.degrees(erro)
+        self.U = [(Matrix.Rotation(erro * self.L[i] / self.tot, 3, T[i]) @ U[i]).normalized() for i in range(n)]
 
     def idx(self, s):
         s = s % self.tot
@@ -614,7 +669,7 @@ class Trilho:
         tg = self.tag[i] if (self.tag[i] is not None and self.tag[j] is not None) else None
         return p, t, u, tg
 
-    def amostras_geo(self, passo_max=3.0, ang_max=6.5):
+    def amostras_geo(self, passo_max=4.0, ang_max=8.0):
         """Índices densos para os anéis: mais onde curva."""
         idx = [0]
         for i in range(1, self.n):
@@ -634,7 +689,7 @@ class Trilho:
         objs = []
         for sg in (-1, 1):
             Pl = [p + t.cross(u) * (sg * bitola / 2) for p, t, u in zip(P, T, U)]
-            objs.append(varre(Pl, U, circulo_perfil(r_trilho, lados), cor_trilho, True, nome="trilho", T=T))
+            objs.append(varre(Pl, U, circulo_perfil(r_trilho, lados), cor_trilho, True, nome="trilho", T=T, angulo=75))
         if espinha:
             Pe = [p - u * prof_espinha for p, u in zip(P, U)]
             objs.append(varre(Pe, U, circulo_perfil(r_espinha, 5), cor_espinha, True, nome="espinha", T=T))
@@ -656,7 +711,7 @@ class Trilho:
                                         (0.1, 0.1, prof_espinha - 0.05), cor_dormente, nome="dormente"))
         return mb.junta(objs, "trilho")
 
-    def pontos_percurso(self, passo=0.6, alto=0.09):
+    def pontos_percurso(self, passo=0.5, alto=0.09):
         """Pontos do percurso (topo do trilho) a cada 'passo', nos eixos do glTF."""
         n = max(4, int(round(self.tot / passo)))
         out = []
@@ -668,13 +723,14 @@ class Trilho:
 
     def matriz_carro(self, s, alto=0.09):
         p, t, u, _ = self.em(s)
-        return matriz_frente(p + u * alto, t, Z)
+        return matriz_frente(p + u * alto, t, u)
 
 
 def pilar(topo, z_chao, r=0.14, cor="cinza_claro", cor_sapata="concreto_escuro", lados=8, sapata=True):
     """Pilar vertical do topo até o chão, com sapata."""
     x, y, zt = topo
-    objs = [mb.cilindro(r, zt - z_chao + 0.05, x=x, y=y, z=z_chao - 0.05, cor=cor, seg=lados, bisel=0.0, nome="pilar")]
+    objs = [mb.cilindro(r, zt - z_chao + 0.05, x=x, y=y, z=z_chao - 0.05, cor=cor, seg=lados, bisel=0.0, nome="pilar",
+                        tampas=False)]
     if sapata:
         objs.append(mb.caixa(r * 4.2, r * 4.2, 0.32, x=x, y=y, z=z_chao - 0.08, cor=cor_sapata, bisel=0.0,
                              nome="sapata", liso=False))
@@ -813,8 +869,8 @@ def caminho_anel(centro_linha, larg=2.6, z=0.0, juntas=0.6, nome="caminho"):
     for d in (larg / 2 + 0.1, -larg / 2 - 0.1):
         lin = desloca_contorno(centro_linha, d)
         P2 = [V((p[0], p[1], 0)) for p in lin]
-        objs.append(varre(P2, [Z] * len(P2), [(-0.1, -0.05), (0.1, -0.05), (0.1, 0.02), (0.06, 0.035), (-0.06, 0.035),
-                                               (-0.1, 0.02)], "concreto", True, nome="guia", liso=False))
+        objs.append(varre(P2, [Z] * len(P2), [(-0.1, -0.05), (0.1, -0.05), (0.08, 0.035), (-0.08, 0.035)], "concreto",
+                          True, nome="guia", liso=False))
     ob = mb.junta(objs, nome)
     for p in ob.data.polygons:
         if p.normal.z < -0.5 and p.center.z > z - 0.01 and p.center.z < z + 0.01:
@@ -926,9 +982,9 @@ def poste_parque(x, y, z=0.0, alt=4.4, cor="grafite", bracos=2, ang=0.0):
         p0 = V((x, y, z + alt - 0.1))
         p1 = V((x + dx * 0.55, y + dy * 0.55, z + alt + 0.05))
         est.append(barra(p0, p1, 0.035, cor, 6, nome="braco"))
-        est.append(mb.cilindro(0.13, 0.06, x=p1.x, y=p1.y, z=p1.z - 0.06, cor=cor, seg=8, bisel=0.01))
+        est.append(mb.cilindro(0.13, 0.06, x=p1.x, y=p1.y, z=p1.z - 0.06, cor=cor, seg=6, bisel=0.0))
         luz.append(bola(p1.x, p1.y, p1.z - 0.24, 0.17, None, mat="luz", sub=1, esc=(1, 1, 1.15)))
-        est.append(mb.cilindro(0.07, 0.08, x=p1.x, y=p1.y, z=p1.z - 0.46, cor=cor, seg=8, bisel=0.01))
+        est.append(mb.cilindro(0.07, 0.08, x=p1.x, y=p1.y, z=p1.z - 0.46, cor=cor, seg=6, bisel=0.0))
     return est, luz
 
 

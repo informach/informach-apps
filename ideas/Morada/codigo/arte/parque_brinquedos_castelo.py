@@ -33,10 +33,10 @@ def pedras_parede(x0, x1, z0, z1, y, sinal, n, semente, eixo="y"):
         d = rnd.uniform(0.06, 0.09)
         cor = rnd.choice([PEDRA2, PEDRA3])
         if eixo == "y":
-            out.append(mb.caixa(l, d, a, x=u, y=y + sinal * (d / 2 - 0.01), z=z, cor=cor, bisel=0.025, seg=1,
+            out.append(mb.caixa(l, d, a, x=u, y=y + sinal * (d / 2 - 0.01), z=z, cor=cor, bisel=0.0, liso=False,
                                 nome="pedra"))
         else:
-            out.append(mb.caixa(d, l, a, x=y + sinal * (d / 2 - 0.01), y=u, z=z, cor=cor, bisel=0.025, seg=1,
+            out.append(mb.caixa(d, l, a, x=y + sinal * (d / 2 - 0.01), y=u, z=z, cor=cor, bisel=0.0, liso=False,
                                 nome="pedra"))
     return out
 
@@ -47,8 +47,8 @@ def pedras_cilindro(r, z0, z1, n, semente, cx=0.0, cy=0.0):
     for _ in range(n):
         a = rnd.uniform(0, 2 * math.pi)
         z = rnd.uniform(z0 + 0.3, z1 - 0.3)
-        p = mb.caixa(rnd.uniform(0.35, 0.55), 0.1, rnd.uniform(0.2, 0.28), cor=rnd.choice([PEDRA2, PEDRA3]), bisel=0.03,
-                     seg=1, nome="pedra")
+        p = mb.caixa(rnd.uniform(0.35, 0.55), 0.1, rnd.uniform(0.2, 0.28), cor=rnd.choice([PEDRA2, PEDRA3]), bisel=0.0,
+                     liso=False, nome="pedra")
         mb.transforma(p, loc=(0, -r + 0.02, z))
         mb.transforma(p, rot=("Z", math.degrees(a)))
         mb.transforma(p, loc=(cx, cy, 0))
@@ -66,7 +66,7 @@ def janela_arco(x, y, z, larg, alt, frente=(0, -1, 0), mat="janela", moldura=ARR
                                                                   alt - larg / 2 + (larg / 2 + 0.1) * math.sin(math.pi * k / 8))
                                                                  for k in range(9)]
     fr = [p for i, p in enumerate(fr) if i != 2]
-    mol = mb.extrudado(mb._ccw(fr), 0.06, plano="xz", cor=moldura, bisel=0.015, seg=1, nome="moldura")
+    mol = mb.extrudado(mb._ccw(fr), 0.06, plano="xz", cor=moldura, bisel=0.0, nome="moldura")
     mb.transforma(vid, loc=(0, -0.1, 0))
     mb.transforma(mol, loc=(0, -0.04, 0))
     ang = math.degrees(math.atan2(frente[0], -frente[1]))
@@ -216,7 +216,7 @@ def portao(it):
     o.append(mb.cilindro(0.04, 0.5, z=H + 2.4, cor="ouro", seg=6, bisel=0.0))
     it.add(o)
     it.colisao([((-L / 2 + 0.5, 0, 0), (1.3, W + 0.3, H + 0.2)), ((L / 2 - 0.5, 0, 0), (1.3, W + 0.3, H + 0.2)),
-                ((0, 0, ph), (L, W, H + 2.4 - ph))])
+                ((0, -0.2, ph), (L + 0.8, W + 1.1, H + 2.5 - ph))])
 
 
 def mureta_pecas(pts_centro, alt=1.8, esp=0.7, semente=1):
@@ -226,7 +226,7 @@ def mureta_pecas(pts_centro, alt=1.8, esp=0.7, semente=1):
     U = [Z] * len(P)
     corpo = pb.varre(P, U, [(-esp / 2, 0), (esp / 2, 0), (esp / 2, alt), (-esp / 2, alt)], PEDRA, False, tampas=True,
                      nome="mureta", liso=False, T=T)
-    rod = pb.varre(P, U, [(-esp / 2 - 0.08, -0.02), (esp / 2 + 0.08, -0.02), (esp / 2 + 0.08, 0.35),
+    rod = pb.varre(P, U, [(-esp / 2 - 0.08, 0.0), (esp / 2 + 0.08, 0.0), (esp / 2 + 0.08, 0.35),
                           (-esp / 2 - 0.08, 0.35)], PEDRA3, False, tampas=True, nome="rodape", liso=False, T=T)
     cap = []
     perfil = [(-esp / 2 - 0.14, alt - 0.05), (esp / 2 + 0.14, alt - 0.05), (esp / 2 + 0.17, alt + 0.06),
@@ -297,14 +297,15 @@ def cone_telhado(it):
     for k, (z0, r0, r1, h) in enumerate(camadas):
         o.append(mb.cilindro(r0, h, z=z0, r2=r1, cor=TELHA if k % 2 == 0 else TELHA2, seg=24, bisel=0.05,
                              nome="camada"))
-        o.append(mb.torno([(r0 + 0.02, z0 - 0.02), (r0 + 0.1, z0 + 0.04), (r0 + 0.02, z0 + 0.12)], cor=BASE, seg=24))
+        o.append(mb.torno([(r0 + 0.02, max(0.0, z0 - 0.02)), (r0 + 0.1, z0 + 0.04), (r0 + 0.02, z0 + 0.12)], cor=BASE,
+                          seg=24))
     o.append(mb.cilindro(0.05, 0.9, z=3.7, cor="ouro", seg=6, bisel=0.0))
     o.append(mb.esfera(0.2, z=3.85, cor="ouro", seg=12))
     band = mb.extrudado(mb._ccw([(0, 0), (0.6, 0.1), (0, 0.36)]), 0.03, plano="xz", cor="rosa", bisel=0.005, seg=1)
     mb.transforma(band, loc=(0.04, 0, 4.18))
     o.append(band)
     it.add(o)
-    it.colisao([((0, 0, 0), (3.9, 3.9, 2.8))])
+    it.colisao([((0, 0, 0), (3.9, 3.9, 2.8)), ((0, 0, 2.8), (1.3, 1.3, 1.8))])
 
 
 # ======================================================================================================================
@@ -347,22 +348,22 @@ def estatua_menina(it):
     pele, cabelo, vest, vest2, vest3 = "pessego", "madeira_media", "azul", "azul_celeste", "azul_bebe"
     o = []
     # pedestal redondo
-    o.append(mb.cilindro(2.55, 0.45, cor="concreto", seg=36, bisel=0.06, nome="pedestal"))
-    o.append(mb.cilindro(2.3, 0.35, z=0.45, cor="branco", seg=36, bisel=0.05))
-    o.append(mb.cilindro(2.36, 0.08, z=0.62, cor="ouro", seg=36, bisel=0.02))
+    o.append(mb.cilindro(2.55, 0.45, cor="concreto", seg=28, bisel=0.05, nome="pedestal"))
+    o.append(mb.cilindro(2.3, 0.35, z=0.45, cor="branco", seg=28, bisel=0.0))
+    o.append(mb.cilindro(2.36, 0.08, z=0.62, cor="ouro", seg=28, bisel=0.0, tampas=False))
     rnd = random.Random(9)
-    for k in range(14):
-        a = 2 * math.pi * k / 14
+    for k in range(12):
+        a = 2 * math.pi * k / 12
         o.append(pb.bola(2.42 * math.cos(a), 2.42 * math.sin(a), 0.5, 0.2, rnd.choice(["rosa", "amarelo", "lilas",
-                                                                                         "branco"]), sub=1,
+                                                                                         "branco"]), sub=0,
                          esc=(1, 1, 0.8)))
         o.append(pb.bola(2.5 * math.cos(a + 0.22), 2.5 * math.sin(a + 0.22), 0.42, 0.22, "folha", sub=0))
     z0 = 0.8
     # sapatinhos e pernas
     for sx in (-1, 1):
-        o.append(mb.superelipsoide(0.55, 0.85, 0.42, x=sx * 0.42, y=-0.25, z=z0, cor="rosa", e=0.6, e_v=0.6, nu=12,
-                                   nv=6, nome="sapato"))
-        o.append(mb.cilindro(0.2, 0.6, x=sx * 0.4, y=-0.05, z=z0 + 0.3, cor=pele, seg=10, bisel=0.0))
+        o.append(mb.superelipsoide(0.55, 0.85, 0.42, x=sx * 0.42, y=-0.25, z=z0, cor="rosa", e=0.6, e_v=0.6, nu=10,
+                                   nv=5, nome="sapato"))
+        o.append(mb.cilindro(0.2, 0.6, x=sx * 0.4, y=-0.05, z=z0 + 0.3, cor=pele, seg=8, bisel=0.0, tampas=False))
     # saia em três babados
     saia = [((2.05, 0.0), (2.0, 0.25), (1.85, 0.75), (1.6, 1.15)),
             ((1.75, 0.95), (1.68, 1.2), (1.45, 1.75), (1.25, 2.05)),
@@ -370,18 +371,19 @@ def estatua_menina(it):
     zs = z0 + 0.75
     for k, (perfil, cor) in enumerate(zip(saia, (vest3, vest2, vest))):
         pr = [(r, zs + z) for r, z in perfil]
-        o.append(revolucao_babado(pr, ondas=14 - 2 * k, amp=0.045, seg=42, cor=cor, z_onda=zs + perfil[1][1],
-                                  nome="saia"))
-        o.append(revolucao_babado([(perfil[0][0] * 1.005, zs + perfil[0][1] + 0.0), (perfil[0][0] * 1.012, zs + perfil[0][1] + 0.08)],
-                                  ondas=14 - 2 * k, amp=0.045, seg=42, cor="branco", z_onda=99, nome="renda"))
+        pr = [pr[0], (pr[0][0] * 0.99, pr[0][1] + 0.09)] + pr[1:]
+        sa = revolucao_babado(pr, ondas=12 - 2 * k, amp=0.045, seg=30, cor=cor, z_onda=zs + perfil[1][1], nome="saia")
+        zr = zs + perfil[0][1] + 0.1
+        mb.pinta_onde(sa, "branco", lambda c, n, zr=zr: c.z < zr and abs(n.z) < 0.9)  # barrado de renda
+        o.append(sa)
     # corpete, faixa rosa com laço nas costas, gola e mangas bufantes
     zc = zs + 2.85
     o.append(mb.torno([(0.86, zc - 0.1), (0.9, zc + 0.25), (0.82, zc + 0.8), (0.66, zc + 1.2), (0.3, zc + 1.32),
-                       (0, zc + 1.33)], cor=vest, seg=24, nome="corpete"))
-    o.append(mb.torno([(0.92, zc + 0.08), (0.95, zc + 0.16), (0.95, zc + 0.36), (0.9, zc + 0.42)], cor="rosa", seg=24,
+                       (0, zc + 1.33)], cor=vest, seg=18, nome="corpete"))
+    o.append(mb.torno([(0.92, zc + 0.08), (0.95, zc + 0.16), (0.95, zc + 0.36), (0.9, zc + 0.42)], cor="rosa", seg=18,
                       nome="faixa"))
     for sx in (-1, 1):
-        laco = mb.superelipsoide(0.75, 0.3, 0.55, cor="rosa", e=0.7, e_v=0.7, nu=12, nv=6)
+        laco = mb.superelipsoide(0.75, 0.3, 0.55, cor="rosa", e=0.7, e_v=0.7, nu=8, nv=4)
         mb.transforma(laco, rot=("Y", sx * 25))
         mb.transforma(laco, loc=(sx * 0.42, 0.98, zc + 0.05))
         o.append(laco)
@@ -389,26 +391,26 @@ def estatua_menina(it):
         mb.transforma(fita, rot=("Y", sx * 15))
         mb.transforma(fita, loc=(sx * 0.22, 1.0, zc - 0.75))
         o.append(fita)
-    o.append(pb.bola(0, 1.0, zc + 0.3, 0.2, "rosa_escuro", sub=1))
+    o.append(pb.bola(0, 1.0, zc + 0.3, 0.2, "rosa_escuro", sub=0))
     o.append(mb.torno([(0.35, zc + 1.12), (0.9, zc + 1.18), (0.95, zc + 1.24), (0.4, zc + 1.36)], cor="branco",
-                      seg=24, nome="gola"))
+                      seg=18, nome="gola"))
     for sx in (-1, 1):
         o.append(mb.superelipsoide(0.95, 0.9, 0.85, x=sx * 0.9, y=0.05, z=zc + 0.62, cor=vest2, e=0.85, e_v=0.85,
-                                   nu=14, nv=7, nome="manga"))
+                                   nu=12, nv=6, nome="manga"))
         # braços abertos, mãozinhas para a frente
         o.append(pb.tubo([(sx * 1.2, 0.02, zc + 0.62), (sx * 1.55, -0.15, zc + 0.05), (sx * 1.62, -0.55, zc - 0.32)],
-                         0.21, pele, 10, escalas=[1.0, 0.95, 0.9], suave=3, nome="braco"))
-        o.append(pb.bola(sx * 1.62, -0.66, zc - 0.4, 0.27, pele, sub=2, esc=(0.9, 1.0, 1.1), nome="mao"))
+                         0.21, pele, 8, escalas=[1.0, 0.95, 0.9], suave=2, nome="braco"))
+        o.append(pb.bola(sx * 1.62, -0.66, zc - 0.4, 0.27, pele, sub=1, esc=(0.9, 1.0, 1.1), nome="mao"))
     # pescoço e cabeça grande
     zh = zc + 2.55
-    o.append(mb.cilindro(0.3, 0.5, z=zc + 1.25, cor=pele, seg=12, bisel=0.0))
+    o.append(mb.cilindro(0.3, 0.5, z=zc + 1.25, cor=pele, seg=10, bisel=0.0, tampas=False))
     R = 1.32
-    o.append(mb.esfera(R, z=zh, cor=pele, esc=(1.06, 1.0, 0.97), seg=32, nome="cabeca"))
+    o.append(mb.esfera(R, z=zh, cor=pele, esc=(1.06, 1.0, 0.97), seg=24, nome="cabeca"))
     # rosto
     for sx in (-1, 1):
         ex, ez = sx * 0.48, zh - 0.08
         ey = -math.sqrt(max(0.0, R * R - (ex / 1.06) ** 2 - ((ez - zh) / 0.97) ** 2)) * 1.0
-        olho = mb.esfera(0.27, cor="chocolate", esc=(0.85, 0.4, 1.12), seg=16)
+        olho = mb.esfera(0.27, cor="chocolate", esc=(0.85, 0.4, 1.12), seg=12)
         mb.transforma(olho, rot=("Z", sx * 18))
         mb.transforma(olho, loc=(ex, ey + 0.06, ez))
         o.append(olho)
@@ -419,7 +421,7 @@ def estatua_menina(it):
             o.append(pb.barra(c0, c0 + V((sx * 0.14, 0.02, 0.08 - 0.04 * j)), 0.025, "chocolate", 5, nome="cilio"))
         bx = sx * 0.78
         by = -math.sqrt(max(0.0, R * R - (bx / 1.06) ** 2 - (0.42 / 0.97) ** 2)) + 0.05
-        bo = mb.esfera(0.25, cor="rosa_bebe", esc=(1.0, 0.35, 0.65), seg=12)
+        bo = pb.bola(0, 0, 0, 0.25, "rosa_bebe", sub=1, esc=(1.0, 0.35, 0.65))
         mb.transforma(bo, rot=("Z", sx * 35))
         mb.transforma(bo, loc=(bx, by, zh - 0.42))
         o.append(bo)
@@ -430,31 +432,31 @@ def estatua_menina(it):
     def corte(c, n):
         return c.y < -0.25 and c.z < 0.62 * R
 
-    o.append(esfera_cortada(R + 0.07, V((0, 0.05, zh + 0.03)), (1.07, 1.02, 1.0), corte, cabelo, seg=28))
+    o.append(esfera_cortada(R + 0.07, V((0, 0.05, zh + 0.03)), (1.07, 1.02, 1.0), corte, cabelo, seg=20))
     for k in range(5):
         f = -1 + 2 * k / 4
-        m = mb.superelipsoide(0.62, 0.42, 0.6, cor=cabelo, e=0.8, e_v=0.8, nu=10, nv=6, nome="franja")
+        m = mb.superelipsoide(0.62, 0.42, 0.6, cor=cabelo, e=0.8, e_v=0.8, nu=8, nv=4, nome="franja")
         mb.transforma(m, rot=[("Z", f * 28), ("X", 28)])
         mb.transforma(m, loc=(f * 0.62, -R * 0.84 + abs(f) * 0.22, zh + 0.72 - abs(f) * 0.18))
         o.append(m)
     for sx in (-1, 1):  # mechas dos lados do rosto (cobrem a borda da calota)
         for k, (dy, dz, h_) in enumerate(((-0.55, 0.05, 1.5), (-0.15, 0.1, 1.6))):
-            m = mb.superelipsoide(0.42, 0.55, h_, cor=cabelo, e=0.8, e_v=0.75, nu=10, nv=6, nome="mecha")
+            m = mb.superelipsoide(0.42, 0.55, h_, cor=cabelo, e=0.8, e_v=0.75, nu=8, nv=4, nome="mecha")
             mb.transforma(m, loc=(0, 0, -h_ / 2))
             mb.transforma(m, rot=[("Y", sx * 8), ("Z", sx * (20 - 10 * k))])
             mb.transforma(m, loc=(sx * (1.2 + 0.05 * k), dy, zh + dz + 0.25))
             o.append(m)
     for sx in (-1, 1):
         ch = pb.tubo([(sx * 1.25, 0.25, zh + 0.25), (sx * 1.75, 0.35, zh - 0.25), (sx * 1.82, 0.3, zh - 1.05),
-                      (sx * 1.6, 0.2, zh - 1.55)], 0.42, cabelo, 12, escalas=[0.8, 1.0, 0.85, 0.35], suave=3,
+                      (sx * 1.6, 0.2, zh - 1.55)], 0.42, cabelo, 8, escalas=[0.8, 1.0, 0.85, 0.35], suave=3,
                      nome="chiquinha")
         o.append(ch)
         for j in (-1, 1):
-            lc = mb.superelipsoide(0.55, 0.22, 0.4, cor="rosa", e=0.7, e_v=0.7, nu=10, nv=5)
+            lc = mb.superelipsoide(0.55, 0.22, 0.4, cor="rosa", e=0.7, e_v=0.7, nu=8, nv=4)
             mb.transforma(lc, rot=[("Y", j * 30), ("Z", sx * 20)])
             mb.transforma(lc, loc=(sx * 1.32 + j * 0.25, 0.1, zh + 0.38))
             o.append(lc)
-        o.append(pb.bola(sx * 1.32, 0.08, zh + 0.38, 0.13, "rosa_escuro", sub=1))
+        o.append(pb.bola(sx * 1.32, 0.08, zh + 0.38, 0.13, "rosa_escuro", sub=0))
     # tiara com estrelinha
     o.append(pb.tubo([(R * 1.05 * math.cos(math.radians(a)), 0.15 + 0.1 * math.sin(math.radians(a)) * 0,
                        zh + R * 0.98 * math.sin(math.radians(a))) for a in range(20, 161, 20)], 0.07, "amarelo", 6,

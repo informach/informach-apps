@@ -502,6 +502,90 @@ obj("guia_retratil", "esq", "Guia retrátil (de cachorro)", "#D9433B",
     _pose={"alvo": [0.22, -0.72, 0.1], "eixos": {"y": [1.0, -0.3, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.3},
     objeto="guia_retratil")
 
+# ================= sétima leva: mais 43 objetos de mão (ferramentas, serviço, esporte, festa...), com a vitrine de props
+# como norte (formas próprias, textos em português, sem marcas). Cada um com a sua pose de segurar e, quando a mão não
+# fecha como num copo, a "pegada" dos dedos: graus no 1º e no 2º segmento dos quatro dedos (somando 4° e 3° a cada dedo,
+# do indicador ao mínimo, como em tools/compor.py) e do polegar. Sem "pegada", a página fecha a mão como hoje.
+PEGADAS = {
+    "punho": {"tipo": "punho", "dedos": [62, 80], "polegar": [28, 34]},   # cabo fino (martelo, taco, raquete)
+    "apoio": {"tipo": "apoio", "dedos": [18, 22], "polegar": [8, 10]},    # placa na frente do peito (prancheta, mapa)
+    "concha": {"tipo": "concha", "dedos": [14, 18], "polegar": [6, 8]},   # na palma aberta (caixa de pizza, pacote)
+    "pinca": {"tipo": "pinca", "dedos": [40, 48], "polegar": [22, 28]},   # papel fino entre o polegar e os dedos
+}
+FERRAMENTA = {"alvo": [0.32, -0.36, 0.03], "aponta": [0.4, 0.9, 0.0], "balanco": 0.2}  # chave de fenda, caneta, pente
+PISTOLA = {"alvo": [0.38, -0.32, 0.06], "aponta": [0.0, 1.0, 0.0], "balanco": 0.15}  # furadeira, secador: o corpo para a frente
+NA_BOCA = {"alvo": [0.33, 0.1, -0.22], "aponta": [0.0, 1.0, 0.0], "balanco": 0.1}  # megafone e apito na frente da boca
+PARA_BAIXO = {"alvo": [0.1, -0.92, 0.12], "aponta": [0.3, -1.0, 0.05], "balanco": 0.5}  # raquete com a cabeça para baixo
+OMBRO = {"alvo": [0.28, -0.3, 0.02], "aponta": [-0.55, 0.8, 0.25], "balanco": 0.15}  # taco apoiado no ombro
+PESCANDO = {"alvo": [0.33, -0.35, 0.05], "aponta": [0.55, 0.8, 0.05], "balanco": 0.15}  # vara para a frente e para cima
+BALAO = {"alvo": [0.2, -0.75, 0.12], "aponta": [0.0, 1.0, 0.0], "balanco": 0.3}  # o fio sobe reto da mão baixa
+ERGUIDO = {"alvo": [0.15, 0.82, 0.12], "aponta": [0.0, 1.0, 0.0], "balanco": 0.05}  # troféu acima da cabeça
+ERGUIDA = {"alvo": [0.35, -0.15, 0.1], "aponta": [0.05, 1.0, 0.0], "balanco": 0.15}  # bandeirinha na altura do peito
+HALTER = {"alvo": [0.04, -0.95, 0.16], "eixos": {"x": [0.1, -1.0, 0.0], "z": [0.0, 0.0, -1.0]}, "balanco": 0.6, "pousa": True}
+ESGUICHO = {"alvo": [0.36, -0.3, 0.05], "aponta": [1.0, 0.12, 0.0], "balanco": 0.15}  # o jato para a frente
+LUPA = {"alvo": [0.4, -0.2, 0.0], "aponta": [0.5, 0.85, 0.0], "balanco": 0.15}  # a lente olhando para a frente e para baixo
+MAPA = {"alvo": [0.42, -0.6, 0.0], "eixos": {"x": [0.55, 0.75, -0.3], "z": [-0.75, 0.6, 0.0]}, "balanco": 0.15}  # mais baixo e deitado que o tablet:
+# o mapa é grande e, na altura do peito, tapava o rosto
+VARINHA = {"alvo": [0.4, -0.25, 0.05], "aponta": [0.55, 0.8, 0.0], "balanco": 0.15}
+# miniatura (tools/miniaturas_itens.py): graus (Euler XYZ) para a face que importa ficar de frente para a câmera
+MINI_PAINEL, MINI_PLACA, MINI_TAMPA = [0, -90, 120], [90, 0, -60], [0, 0, 120]
+for id_, mao, rot, cor, pose, peg, mini in [
+        # ferramentas e obra
+        ("martelo", "dir", "Martelo", "#C9A46E", FRENTE_Y, "punho", None),
+        ("chave_fenda", "dir", "Chave de fenda", "#E27B3B", FERRAMENTA, "punho", None),
+        ("furadeira", "dir", "Furadeira", "#F2C231", PISTOLA, None, None),
+        ("rolo_pintura", "dir", "Rolo de pintura", "#3D7BD6", dict(POSES["pincel"]), None, None),
+        ("spray", "dir", "Tinta spray", "#D9433B", FRENTE_Y, None, None),
+        ("trena", "dir", "Trena", "#F2C231", FRENTE_Y, None, None),
+        ("prancheta", "dir", "Prancheta", "#C9A46E", PAINEL, "apoio", MINI_PAINEL),
+        ("planta_enrolada", "dir", "Planta enrolada (arquiteto)", "#F2F2F2", dict(POSES["rolo_papel"]), None, None),
+        # limpeza e jardim
+        ("balde_mao", "esq", "Balde", "#D9433B", AO_LADO, None, None),
+        ("espanador", "dir", "Espanador", "#EE70A9", dict(POSES["pincel"]), "punho", None),
+        ("regador", "esq", "Regador", "#3BAA5C", AO_LADO, None, None),
+        ("pa_jardim", "dir", "Pá de jardim", "#3BAA5C", FERRAMENTA, None, None),
+        ("esguicho", "dir", "Mangueira de bombeiro", "#F2F2F2", ESGUICHO, None, None),
+        # serviço e profissões
+        ("megafone", "dir", "Megafone", "#F2F2F2", NA_BOCA, None, None),
+        ("cardapio", "dir", "Cardápio", "#7B2D2D", PAINEL, "apoio", MINI_PAINEL),
+        ("caneta", "dir", "Caneta", "#3D7BD6", FERRAMENTA, "punho", None),
+        ("apito", "dir", "Apito", "#D9433B", NA_BOCA, None, None),
+        ("tesoura_cabelo", "dir", "Tesoura de cabeleireiro", "#5A5F66", {"alvo": [0.33, -0.3, 0.02], "aponta": [0.2, 1.0, 0.0],
+                                                                         "balanco": 0.2}, "punho", MINI_PLACA),
+        ("secador", "dir", "Secador de cabelo", "#EE70A9", PISTOLA, None, None),
+        ("pente", "esq", "Pente", "#2B2B2B", FERRAMENTA, "punho", MINI_PLACA),
+        ("lupa", "dir", "Lupa", "#7B4B2D", LUPA, "punho", MINI_PLACA),
+        ("envelope", "dir", "Carta", "#F5ECD6", dict(POSES["celular"]), "pinca", MINI_PAINEL),
+        # esporte
+        ("skate", "dir", "Skate", "#D9433B", AO_LADO_RETO, None, [0, -90, -60]),
+        ("raquete", "dir", "Raquete de tênis", "#3D7BD6", PARA_BAIXO, "punho", MINI_PLACA),
+        ("halter", "dir", "Halter", "#2B2B2B", HALTER, "punho", None),
+        ("taco", "dir", "Taco de beisebol", "#C9A46E", OMBRO, "punho", None),
+        ("vara_pescar", "dir", "Vara de pescar", "#3D7BD6", PESCANDO, "punho", [90, 45, 30]),
+        ("garrafa_agua", "dir", "Garrafa d'água", "#7EC8E3", FRENTE_Y, None, None),
+        # lazer, festa e comida
+        ("controle", "dir", "Controle de videogame", "#2B2B2B", PAINEL, "apoio", MINI_PAINEL),
+        ("saco_pipoca", "dir", "Pipoca", "#D9433B", FRENTE_Y, None, None),
+        ("algodao_doce", "dir", "Algodão-doce", "#EE70A9", FRENTE_Y, "punho", None),
+        ("balao", "esq", "Balão de festa", "#D9433B", BALAO, "punho", None),
+        ("pirulito", "dir", "Pirulito", "#EE70A9", FRENTE_Y, "punho", MINI_PLACA),
+        ("ingresso", "dir", "Ingresso", "#F2C231", dict(POSES["celular"]), "pinca", MINI_PAINEL),
+        ("mapa", "dir", "Mapa aberto", "#F2E6C9", MAPA, "apoio", MINI_PAINEL),
+        ("placa_socorro", "dir", "Placa \"Socorro!\"", "#F2B8A0", dict(POSES["cartaz"]), "punho", MINI_PLACA),
+        ("caixa_pizza", "dir", "Caixa de pizza", "#F2F2F2", NA_PALMA, "concha", MINI_TAMPA),
+        ("pacote", "dir", "Pacote de encomenda", "#C9A46E", NA_PALMA, "concha", None),
+        ("cesta_piquenique", "esq", "Cesta de piquenique", "#C9A46E", AO_LADO, None, None),
+        ("varinha", "dir", "Varinha de mágico", "#2B2B2B", VARINHA, "punho", None),
+        ("bandeira", "dir", "Bandeirinha", "#3D7BD6", ERGUIDA, "punho", MINI_PLACA),
+        ("trofeu", "dir", "Troféu", "#D6A83A", ERGUIDO, None, None),
+        ("pandeiro", "dir", "Pandeiro", "#7B4B2D", {"alvo": [0.33, -0.25, 0.05], "aponta": [0.1, 1.0, 0.0], "balanco": 0.15},
+         None, MINI_PLACA)]:
+    obj(id_, mao, rot, cor, _pose=pose, objeto=id_)
+    if peg:
+        N[-1]["pegada"] = PEGADAS[peg]
+    if mini:
+        N[-1]["mini_rot"] = mini
+
 # ================= conjuntos (profissões e estilos das imagens), feitos com as peças do catálogo
 CONJ = []
 
@@ -697,6 +781,40 @@ conj("Repórter", cima=n("camisa_social", "#BFD7EA"), sobre=n("paleto", "#24346B
      mao_dir=n("caderno"), mao_esq=n("bolsa_tote", "#7B4B2D"), pes="roupa_sapato_seguranca")
 conj("Boina e lenço", cima=n("camiseta_larga", "#F2F2F2"), baixo=n("calca_jeans"), cabeca=n("boina"), pescoco_peca=n("lenco"),
      pes="roupa_tenis_009")
+
+# conjuntos com os objetos da sétima leva
+conj("Arquiteto(a) com planta", cima=n("camisa_social", "#BFD7EA"), baixo=n("calca_social", "#6B5B4B"), cabeca=n("capacete_obra", "#F2F2F2"),
+     mao_dir=n("planta_enrolada"), pes="roupa_sapato_seguranca")
+conj("Pintor(a) com rolo", inteira=n("jardineira", "#F2F2F2"), cima=n("camiseta_justa", "#F2F2F2"), cabeca=n("bone_novo", "#F2F2F2"),
+     mao_dir=n("rolo_pintura"), mao_esq=n("balde_mao", "#F2F2F2"), pes="roupa_tenis_009")
+conj("Carteiro(a) com encomenda", cima=n("polo", "#F2C231"), baixo=n("bermuda_folgada", "#3D7BD6"), cabeca=n("bone_novo", "#3D7BD6"),
+     mao_dir=n("pacote"), pes="roupa_tenis_009")
+conj("Skatista com skate", cima=n("moletom", "#3BAA5C"), baixo=n("bermuda_folgada", "#2B2B2B"), cabeca=n("bone_tras"),
+     joelhos=n("joelheiras"), mao_dir=n("skate"), pes="roupa_tenis_plus")
+conj("Tenista com raquete", cima=n("polo"), baixo="gen_minissaia", cabeca=n("viseira"), meias=n("meias_altas"), mao_dir=n("raquete"),
+     pes="roupa_tenis_009")
+conj("Detetive com lupa", cima=n("camisa_social"), sobre=n("casaco_longo", "#C9A46E"), baixo=n("calca_social", "#6B5B4B"),
+     cabeca="var_chapeu_feltro", mao_dir=n("lupa"), pes="roupa_sapato_seguranca")
+conj("Mágico(a) com varinha", cima="roupa_blusa_showgirl", baixo="roupa_calca_seguranca", cabeca=n("cartola"),
+     maos=n("luvas_justas", "#F2F2F2"), mao_dir=n("varinha"), pes="roupa_sapato_seguranca")
+conj("Cabeleireiro(a)", cima=n("camiseta_justa", "#2B2B2B"), baixo=n("calca_social", "#2B2B2B"), avental=n("avental", "#2B2B2B"),
+     mao_dir=n("tesoura_cabelo"), mao_esq=n("pente"), pes="roupa_tenis_009")
+conj("Torcedor(a)", cima=n("camiseta_larga", "#3D7BD6"), baixo=n("calca_jeans"), cabeca=n("bone_novo", "#F2F2F2"),
+     mao_dir=n("bandeira"), pes="roupa_tenis_009")
+conj("Dia de parque", cima=n("camiseta_faixa"), baixo=n("short_curto", "#3D7BD6"), cabeca=n("bone_duas_cores"), mao_esq=n("balao"),
+     mao_dir=n("algodao_doce"), pes="roupa_tenis_009")
+conj("Piquenique com cesta", cima=n("camisa_xadrez_folgada", "#D9433B"), baixo=n("bermuda_folgada", "#C9A46E"),
+     cabeca=n("chapeu_palha"), mao_esq=n("cesta_piquenique"), pes="roupa_chinelo_005")
+conj("Pescador(a)", cima=n("camisa_xadrez_folgada", "#3BAA5C"), sobre=n("colete_utilidades"), baixo=n("calca_cargo", "#6B7A3A"),
+     cabeca=n("chapeu_palha"), mao_dir=n("vara_pescar"), pes=n("galocha", "#3BAA5C"))
+
+# ================= oitava leva: o que o Elenco (elenco_define.py) pediu
+# chapéu de comissária de bordo: copa baixa e reta (casquete), inclinada para a frente, com faixa dourada
+hat("chapeu_comissaria", "Chapéu de comissária", "#24346B", copa={"folga": 0.012, "corte": 0.74, "inclina": 0.18},
+    banda={"altura": 0.26, "abre": 1.02}, topo={"raio": 1.0}, faixa={"altura": 0.07, "cor": "dourado"})
+conj("Comissário(a) de bordo", cima=n("camisa_social"), sobre=n("paleto", "#24346B"), baixo="gen_saia_lapis",
+     pescoco_peca=n("lenco", "#D9433B"), cabeca=n("chapeu_comissaria"), meias=n("meia_calca", "#5A4A44"),
+     mao_esq=n("mala_rodinha", "#24346B"), pes="roupa_sapato_caixa")
 
 p = os.path.join(AQUI, "roupas.json")
 d = json.load(open(p))

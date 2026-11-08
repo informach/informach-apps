@@ -15,6 +15,7 @@
   "Música, dança e brincadeira",
   "Exercícios",
   "Carro",
+  "Bicicleta, skate e patinete",
   "Escalar"
  ],
  "rotulos": {
@@ -633,6 +634,42 @@
   "resident.parto.contracao_deitada": [
    "Gravidez e parto",
    "Trabalho de parto (deitada)"
+  ],
+  "resident.bike.ride": [
+   "Bicicleta, skate e patinete",
+   "Pedalando"
+  ],
+  "resident.bike.idle": [
+   "Bicicleta, skate e patinete",
+   "Parado na bicicleta (pé no chão)"
+  ],
+  "resident.skate.ride": [
+   "Bicicleta, skate e patinete",
+   "Andando de skate"
+  ],
+  "resident.skate.idle": [
+   "Bicicleta, skate e patinete",
+   "Parado com o skate (pé no shape)"
+  ],
+  "resident.scooter.ride": [
+   "Bicicleta, skate e patinete",
+   "Andando de patinete"
+  ],
+  "resident.scooter.idle": [
+   "Bicicleta, skate e patinete",
+   "Parado no patinete (pé no chão)"
+  ],
+  "resident.wave.big": [
+   "Conversa e convívio",
+   "Acenando com os dois braços"
+  ],
+  "resident.photo.take": [
+   "Conversa e convívio",
+   "Tirando foto com a câmera"
+  ],
+  "resident.selfie": [
+   "Conversa e convívio",
+   "Tirando selfie"
   ]
  },
  "compostas": {
@@ -665,6 +702,15 @@
   "resident.gravida.stand_slow": "o levantando da cadeira uma vez e meia mais devagar, com a mão na barriga",
   "resident.gravida.lie_side": "o deitado rolado de lado, com os joelhos dobrados e a mão na barriga",
   "resident.parto.contracao_pe": "o parado com contrações: tronco curva, joelhos dobram, respiração, mãos na lombar e na barriga",
-  "resident.parto.contracao_deitada": "o deitado com os joelhos para cima e contrações, segurando nas laterais da cama"
+  "resident.parto.contracao_deitada": "o deitado com os joelhos para cima e contrações, segurando nas laterais da cama",
+  "resident.bike.ride": "o parado sentado no selim da bicicleta da cidade, com as mãos no guidão e os pés nos pedais girando por IK e um vaivém leve do tronco",
+  "resident.bike.idle": "o parado montado na bicicleta deitada um pouco para a esquerda, com as mãos no guidão, o pé direito no pedal e o esquerdo no chão por IK",
+  "resident.skate.ride": "o parado em pé no shape, de lado, deslizando, com o pé de trás descendo para dar um impulso a cada 4 s (pés por IK)",
+  "resident.skate.idle": "o parado com o pé esquerdo no shape e o direito no chão por IK, olhando em volta",
+  "resident.scooter.ride": "o parado com o pé esquerdo na plataforma do patinete e as mãos no guidão, com o pé direito dando um impulso a cada 3 s (IK)",
+  "resident.scooter.idle": "o parado com o pé esquerdo na plataforma, o direito no chão e as mãos no guidão do patinete por IK",
+  "resident.wave.big": "o parado com os dois braços para o alto, acenando de um lado para o outro por IK",
+  "resident.photo.take": "o parado com a câmera nos olhos, segura pelas duas mãos por IK, apertando o botão e depois olhando a foto na tela",
+  "resident.selfie": "o parado com o braço direito esticado e o celular virado para o rosto por IK, a outra mão na cintura"
  }
 }

@@ -97,6 +97,46 @@ input[type="color"] { width: 36px; height: 36px; padding: 0; border: 2px solid v
 .sel-img.desligado > .sel-atual { opacity: 0.5; cursor: not-allowed; }
 select.lista { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
   background: var(--chip); color: var(--fg); width: 100%; }
+/* ferramentas do personagem: aleatório, filtros do sorteio, salvar/carregar, últimos personagens */
+.ferramentas { display: grid; gap: 8px; padding: 10px; border-radius: 12px; border: 1px solid var(--linha);
+  background: color-mix(in srgb, var(--acento) 6%, var(--chip)); margin: 4px 0 2px; min-width: 0; }
+button.primario { background: var(--acento); color: var(--acento-fg); border-color: var(--acento); font-weight: 700; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.semente { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
+.semente input { font: inherit; font-size: 14px; width: 10ch; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--linha);
+  background: var(--chip); color: var(--fg); }
+.ferramentas details > summary { cursor: pointer; font-size: 13.5px; color: var(--fg); }
+.ferramentas details[open] > summary { margin-bottom: 4px; }
+.filtros fieldset { border: 0; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }
+.filtros legend { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); padding: 0; margin-bottom: 2px; }
+.filtros label { font-size: 13.5px; display: inline-flex; gap: 5px; align-items: center; }
+.mini-btn { font-size: 12px; padding: 3px 10px; }
+.recentes { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; }
+.recentes button { display: grid; justify-items: center; gap: 2px; padding: 4px 2px 5px; border-radius: 10px; font-size: 11px; line-height: 1.1; }
+.recentes img, .recentes .sem-img { width: 46px; height: 62px; object-fit: cover; border-radius: 6px; background: var(--palco); display: block; }
+.json-caixa textarea { width: 100%; box-sizing: border-box; min-height: 150px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  border-radius: 8px; border: 1px solid var(--linha); background: var(--chip); color: var(--fg); padding: 6px; resize: vertical; }
+.formato { font-size: 12.5px; color: var(--suave); white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 0; font-family: inherit; }
+/* modo passeio: botão no palco, dica, joystick do celular */
+.palco-btn { position: absolute; right: 12px; top: 12px; z-index: 2; background: rgba(255, 255, 255, 0.94); color: #1E2633; border: 0;
+  font-weight: 700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+.app.passeando .palco-btn { background: #1E2633; color: #FFFFFF; }
+.passeio-dica { position: absolute; left: 50%; transform: translateX(-50%); top: 58px; z-index: 1; transition: opacity 0.6s; background: rgba(20, 28, 40, 0.62);
+  color: #FFFFFF; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; max-width: calc(100% - 24px); box-sizing: border-box;
+  text-align: center; pointer-events: none; }
+.joystick { position: absolute; left: 18px; bottom: 18px; width: 124px; height: 124px; border-radius: 50%; z-index: 2; touch-action: none;
+  background: rgba(255, 255, 255, 0.22); border: 2px solid rgba(255, 255, 255, 0.6); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15); }
+.joy-pino { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); pointer-events: none; }
+.app.passeando #bloco-anim, .app.passeando .status, .app.passeando .dica { display: none; }
+.app.passeando .nome { color: #1E2633; }
+.passeio-dica.some { opacity: 0; }
+.nota-passeio { display: none; }
+.app.passeando .nota-passeio { display: block; }
+.palco canvas:focus { outline: none; }
+@media (max-width: 760px) {
+  .app.passeando .palco { height: 74vh; }
+}
 </style>
 
 <div class="app">
@@ -104,9 +144,54 @@ select.lista { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 
     <div class="nome" id="nome"></div>
     <div class="status" id="status">Carregando…</div>
     <div class="dica">Arraste para girar · pinça ou roda para aproximar</div>
+    <button type="button" class="palco-btn" id="btn-passeio" aria-pressed="false">Passear</button>
+    <div class="joystick" id="joystick" hidden aria-hidden="true"><div class="joy-pino" id="joy-pino"></div></div>
+    <div class="passeio-dica" id="passeio-dica" hidden></div>
   </div>
   <aside>
     <h1>Tipos de corpo do Morada</h1>
+    <section class="ferramentas" aria-label="Personagem">
+      <div class="grupo">
+        <button type="button" class="primario" id="btn-aleatorio">Aleatório</button>
+        <button type="button" id="btn-padrao">Voltar ao padrão</button>
+      </div>
+      <div class="semente">
+        <label for="semente">Semente</label>
+        <input id="semente" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="—">
+        <button type="button" id="btn-repetir">Repetir</button>
+      </div>
+      <details class="filtros" id="filtros">
+        <summary>O que o aleatório pode sortear</summary>
+        <div id="filtros-campos"></div>
+        <p class="nota" id="filtros-conta"></p>
+      </details>
+      <div class="grupo">
+        <button type="button" id="btn-baixar">Salvar (JSON)</button>
+        <button type="button" id="btn-abrir">Carregar arquivo</button>
+        <button type="button" id="btn-guardar">Guardar aqui</button>
+        <input type="file" id="arquivo" accept=".json,application/json" hidden>
+      </div>
+      <p class="nota" id="ferr-aviso" role="status"></p>
+      <div id="recentes-bloco" hidden>
+        <div class="grupo" style="justify-content: space-between"><p class="rotulo" style="margin:0">Últimos personagens</p><button type="button" id="btn-limpar" class="mini-btn">Limpar</button></div>
+        <div class="recentes" id="recentes"></div>
+      </div>
+      <details class="json-caixa" id="json-caixa">
+        <summary>Ver ou colar o JSON</summary>
+        <textarea id="json-texto" aria-label="JSON do personagem" spellcheck="false"></textarea>
+        <div class="grupo"><button type="button" id="btn-json-aplicar">Aplicar este JSON</button><button type="button" id="btn-json-copiar">Copiar</button></div>
+        <pre class="formato">Formato: { "formato": "morada-personagem", "versao": 1,
+  "corpo": id do corpo (adulto, adulta, plus_f, idoso, crianca_m, bebe_f, recem_m…),
+  "pele": Clara | Média | Morena | Escura | "#rrggbb",
+  "expressao": neutro, feliz, triste, bravo, confiante, serio, surpreso, assustado, aborrecido, confuso, dormindo, chorando,
+  "cabelo": { "penteado": id do catálogo de cabelos, "cabelo" (o do corpo), "cabelo_raspado" ou "careca", "cor": nome ou "#rrggbb", "barba": id ou "nenhum" },
+  "roupa": { parte: { "id": peça do roupas.json, "cor": "#rrggbb" ou null (a original) } }, uma peça por parte,
+  "objetos": { "dir": { "id", "cor" }, "esq": { "id", "cor" } }, objetos de mão,
+  "gravidez": 0 a 3 (adulta, plus_f, atletica) }
+Recém-nascido: "cabelo": { "tipo": careca | baixinho | gorro, "cor" }, "manta": cor, "chupeta": true/false.</pre>
+      </details>
+    </section>
+    <p class="nota nota-passeio">No passeio, a animação segue o movimento. Roupas, objetos de mão e o resto continuam mudando aqui.</p>
     <p class="rotulo">Sexo</p>
     <div class="grupo" id="sexo"></div>
     <p class="rotulo">Idade</p>
@@ -197,7 +282,7 @@ const CABELO_TIPOS = { careca: "Careca", baixinho: "Baixinho", gorro: "Com gorri
 // os outros corpos: o catálogo cabelos.json (o mesmo que gera os corpos) dá os nomes; a malha <id>_cabelo é o penteado
 // original do corpo e <id>_<item> é cada item do catálogo (tipo cabelo: um por vez; tipo rosto: barba e bigode)
 let CAT = { itens: [], originais: {}, gerados: {} };
-fetch("cabelos.json").then((r) => r.json()).then((j) => {
+const P_CABELOS = fetch("cabelos.json").then((r) => r.json()).then((j) => {
   const por = Object.fromEntries(j.itens.map((x) => [x.id, x])); // variação herda o tipo da base
   const resolve = (x) => (x.base ? { ...resolve(por[x.base]), ...x, id: x.id, rotulo: x.rotulo } : x);
   j.itens = j.itens.map(resolve);
@@ -232,7 +317,7 @@ const GEMEO = { adulta: "adulto", idosa: "idoso", adolescente_f: "adolescente_m"
 // grávida (2º e 3º trimestre): biblioteca própria, com a postura e as correções contra a barriga
 const COM_GRAVIDA = new Set(["adulta", "plus_f", "atletica"]);
 const fonteDe = (id) => (COM_GRAVIDA.has(id) && (estado.gravidez === "2" || estado.gravidez === "3")) ? id + "_gravida" : (GEMEO[id] || id);
-const BIB = {"categorias":["Parado e andando","Sentar, deitar e dormir","Necessidades","Casa e objetos","Conversa e convívio","Emoções","Afeto e romance","Gravidez e parto","Bebês","Cozinha e limpeza","Escola e trabalho","Jardinagem","Música, dança e brincadeira","Exercícios","Carro","Escalar"],"rotulos":{"resident.idle.neutral":["Parado e andando","Parado"],"resident.idle.happy":["Parado e andando","Parado feliz"],"resident.idle.sad":["Parado e andando","Parado triste"],"resident.idle.bored":["Parado e andando","Entediado"],"resident.idle.look_around":["Parado e andando","Olhando em volta"],"resident.idle.old":["Parado e andando","Parado (idoso)"],"resident.walk.normal":["Parado e andando","Andando"],"resident.walk.happy":["Parado e andando","Andando feliz"],"resident.walk.sad":["Parado e andando","Andando triste"],"resident.walk.old":["Parado e andando","Andando (idoso)"],"resident.run.normal":["Parado e andando","Correndo"],"resident.jog":["Parado e andando","Trotando"],"resident.turn.left":["Parado e andando","Virando à esquerda"],"resident.turn.right":["Parado e andando","Virando à direita"],"resident.stairs.up":["Parado e andando","Subindo degraus"],"resident.stairs.up.rm":["Parado e andando","Subindo degraus (com deslocamento)"],"resident.stairs.down":["Parado e andando","Descendo degraus"],"resident.stairs.down.rm":["Parado e andando","Descendo degraus (com deslocamento)"],"resident.crouch.enter":["Parado e andando","Agachando"],"resident.crouch.idle":["Parado e andando","Agachado"],"resident.crouch.exit":["Parado e andando","Levantando do agachado"],"resident.pickup.floor":["Parado e andando","Pegando do chão"],"resident.jump.small":["Parado e andando","Pulinho"],"resident.sit.chair.enter":["Sentar, deitar e dormir","Sentando na cadeira"],"resident.sit.chair.idle":["Sentar, deitar e dormir","Sentado na cadeira"],"resident.sit.chair.exit":["Sentar, deitar e dormir","Levantando da cadeira"],"resident.sit.legs_swing":["Sentar, deitar e dormir","Sentado balançando as pernas"],"resident.sit.talk":["Sentar, deitar e dormir","Conversando sentado"],"resident.sit.clap":["Sentar, deitar e dormir","Aplaudindo sentado"],"resident.sit.laugh":["Sentar, deitar e dormir","Rindo sentado"],"resident.sit.angry":["Sentar, deitar e dormir","Bravo sentado"],"resident.lie.enter":["Sentar, deitar e dormir","Deitando na cama"],"resident.lie.idle":["Sentar, deitar e dormir","Deitado"],"resident.sleep.idle":["Sentar, deitar e dormir","Dormindo"],"resident.yawn":["Sentar, deitar e dormir","Bocejando"],"resident.drink.stand":["Necessidades","Bebendo"],"resident.dizzy":["Necessidades","Tonto"],"resident.stretch":["Necessidades","Alongando o braço"],"resident.door.open_in":["Casa e objetos","Abrindo porta (puxando)"],"resident.door.open_out":["Casa e objetos","Abrindo porta (empurrando)"],"resident.cabinet.open":["Casa e objetos","Abrindo armário"],"resident.cabinet.close":["Casa e objetos","Fechando armário"],"resident.button.push":["Casa e objetos","Apertando botão"],"resident.carry.box.idle":["Casa e objetos","Segurando caixa"],"resident.push.start":["Casa e objetos","Começando a empurrar"],"resident.push.loop":["Casa e objetos","Empurrando"],"resident.push.stop":["Casa e objetos","Parando de empurrar"],"resident.search.pockets":["Casa e objetos","Procurando nos bolsos"],"resident.throw":["Casa e objetos","Jogando algo"],"resident.talk.a":["Conversa e convívio","Conversando"],"resident.talk.b":["Conversa e convívio","Explicando"],"resident.talk.listen":["Conversa e convívio","Escutando"],"resident.wave":["Conversa e convívio","Dando tchau"],"resident.greet":["Conversa e convívio","Cumprimentando"],"resident.agree":["Conversa e convívio","Concordando"],"resident.disagree":["Conversa e convívio","Discordando"],"resident.laugh":["Conversa e convívio","Rindo"],"resident.clap":["Conversa e convívio","Aplaudindo"],"resident.cheer":["Conversa e convívio","Comemorando"],"resident.point":["Conversa e convívio","Apontando"],"resident.phone.talk":["Conversa e convívio","Ao telefone"],"resident.text":["Conversa e convívio","Mexendo no celular"],"resident.look_behind":["Conversa e convívio","Olhando para trás"],"resident.handshake":["Conversa e convívio","Aperto de mão"],"resident.handshake.partner":["Conversa e convívio","Aperto de mão (a outra pessoa)"],"resident.pat":["Conversa e convívio","Tapinha carinhoso"],"resident.romance.kiss_taller":["Afeto e romance","Beijo (pessoa mais alta)"],"resident.romance.kiss_shorter":["Afeto e romance","Beijo (pessoa mais baixa)"],"resident.romance.blow_kiss":["Afeto e romance","Mandando beijo"],"resident.romance.propose":["Afeto e romance","Ajoelhado (pedido)"],"resident.romance.propose_exit":["Afeto e romance","Levantando do ajoelhado"],"resident.romance.kiss_long_taller":["Afeto e romance","Beijo longo (mais alta)"],"resident.romance.kiss_long_shorter":["Afeto e romance","Beijo longo (mais baixa)"],"resident.romance.dance_rumba":["Afeto e romance","Dançando rumba"],"resident.romance.dance_salsa":["Afeto e romance","Dançando salsa"],"resident.baby.crawl":["Bebês","Engatinhando"],"resident.baby.cry":["Bebês","Chorando"],"resident.baby.sit":["Bebês","Sentado no chão"],"resident.emote.cry":["Emoções","Chorando"],"resident.emote.angry":["Emoções","Bravo"],"resident.emote.tantrum":["Emoções","Birra"],"resident.emote.scared":["Emoções","Assustado"],"resident.emote.surprised":["Emoções","Surpreso"],"resident.emote.excited":["Emoções","Empolgado"],"resident.emote.disappointed":["Emoções","Decepcionado"],"resident.emote.thinking":["Emoções","Pensando"],"resident.emote.thankful":["Emoções","Agradecendo"],"resident.emote.pain":["Emoções","Dor nas costas"],"resident.emote.reacting":["Emoções","Reagindo"],"resident.emote.relieved":["Emoções","Aliviado"],"resident.emote.shoved":["Emoções","Levando esbarrão"],"resident.desk.type":["Escola e trabalho","Digitando"],"resident.desk.write":["Escola e trabalho","Escrevendo"],"resident.desk.point":["Escola e trabalho","Apontando sentado"],"resident.garden.water":["Jardinagem","Regando"],"resident.garden.dig":["Jardinagem","Cavando"],"resident.garden.plant":["Jardinagem","Plantando"],"resident.garden.pick":["Jardinagem","Colhendo fruta"],"resident.garden.pull":["Jardinagem","Arrancando mato"],"resident.music.piano":["Música, dança e brincadeira","Tocando piano"],"resident.music.guitar":["Música, dança e brincadeira","Tocando violão"],"resident.dance.silly":["Música, dança e brincadeira","Dança engraçada"],"resident.dance.samba":["Música, dança e brincadeira","Sambando"],"resident.dance.hiphop":["Música, dança e brincadeira","Dançando hip hop"],"resident.swim":["Música, dança e brincadeira","Nadando"],"resident.swim.tread":["Música, dança e brincadeira","Boiando"],"resident.play.jump_rope":["Música, dança e brincadeira","Pulando corda"],"resident.play.videogame":["Música, dança e brincadeira","Jogando videogame"],"resident.play.ball_kick":["Música, dança e brincadeira","Chutando a bola"],"resident.fit.squat":["Exercícios","Agachamento"],"resident.fit.jacks":["Exercícios","Polichinelo"],"resident.fit.pushup":["Exercícios","Flexão"],"resident.fit.curl":["Exercícios","Rosca com haltere"],"resident.fit.crunch":["Exercícios","Abdominal"],"resident.fit.yoga":["Exercícios","Alongamento"],"resident.car.enter":["Carro","Entrando no carro"],"resident.car.exit":["Carro","Saindo do carro"],"resident.car.drive":["Carro","Dirigindo"],"resident.climb.ladder":["Escalar","Subindo escada de mão"],"resident.climb.ladder.rm":["Escalar","Subindo escada de mão (com deslocamento)"],"resident.climb.rope":["Escalar","Subindo na corda"],"resident.climb.rope.rm":["Escalar","Subindo na corda (com deslocamento)"],"resident.hang.enter":["Escalar","Pulando para pendurar"],"resident.climb.top":["Escalar","Subindo na borda"],"resident.sit.sofa.relaxed":["Sentar, deitar e dormir","Largado no sofá"],"resident.sit.floor.crossed":["Sentar, deitar e dormir","Sentado no chão, pernas cruzadas"],"resident.sleep.exit":["Sentar, deitar e dormir","Levantando da cama"],"resident.drink.sit":["Necessidades","Bebendo sentado"],"resident.eat.sit":["Necessidades","Comendo à mesa"],"resident.wash":["Necessidades","Lavando as mãos e o rosto"],"resident.carry.box.walk":["Casa e objetos","Andando com caixa"],"resident.hug":["Afeto e romance","Abraço"],"resident.romance.dance_slow":["Afeto e romance","Dança lenta a dois"],"resident.care.hold_idle":["Bebês","Segurando bebê no colo"],"resident.care.rock":["Bebês","Ninando bebê"],"resident.baby.cry_sit":["Bebês","Chorando sentado"],"resident.device.use":["Escola e trabalho","Usando tablet"],"resident.read.sit":["Escola e trabalho","Lendo sentado"],"resident.read.stand":["Escola e trabalho","Lendo de pé"],"resident.present":["Escola e trabalho","Explicando para um grupo"],"resident.kitchen.stir":["Cozinha e limpeza","Mexendo a panela"],"resident.kitchen.chop":["Cozinha e limpeza","Picando na tábua"],"resident.clean.sweep":["Cozinha e limpeza","Varrendo"],"resident.clean.mop":["Cozinha e limpeza","Passando pano no chão"],"resident.clean.wipe":["Cozinha e limpeza","Limpando a mesa"],"resident.clean.vacuum":["Cozinha e limpeza","Aspirando"],"resident.laundry.fold":["Cozinha e limpeza","Dobrando roupa"],"resident.gravida.belly_hold":["Gravidez e parto","Mão na barriga"],"resident.gravida.back_hold":["Gravidez e parto","Mão na lombar"],"resident.gravida.sit_slow":["Gravidez e parto","Sentando devagar"],"resident.gravida.stand_slow":["Gravidez e parto","Levantando devagar"],"resident.gravida.lie_side":["Gravidez e parto","Deitada de lado"],"resident.parto.contracao_pe":["Gravidez e parto","Contração (em pé)"],"resident.parto.contracao_deitada":["Gravidez e parto","Trabalho de parto (deitada)"]},"compostas":{"resident.sit.sofa.relaxed":"o sentado na cadeira do Mixamo, recostado, com os braços no braço do sofá","resident.sit.floor.crossed":"o tronco do sentado na cadeira, com o quadril no chão e as pernas cruzadas por IK","resident.sleep.exit":"o deitar na cama tocado de trás para a frente","resident.drink.sit":"as pernas do sentado na cadeira com o tronco e os braços do bebendo de pé","resident.eat.sit":"o sentado na cadeira com a mão indo do prato à boca por IK","resident.wash":"o parado, inclinado na pia, com as mãos esfregando e jogando água no rosto por IK","resident.carry.box.walk":"o andar com as mãos nas laterais de uma caixa por IK","resident.hug":"o parado com os braços envolvendo alguém à frente por IK","resident.romance.dance_slow":"o parado com as mãos no par por IK e balanço de lado com os pés no lugar","resident.care.hold_idle":"o parado com os braços em berço por IK","resident.care.rock":"os braços em berço com balanço de lado","resident.baby.cry_sit":"as pernas do bebê sentado com o tronco e os braços do bebê chorando","resident.device.use":"o corpo do mexendo no celular, com o tablet seguro pelas duas mãos à frente do peito por IK","resident.read.sit":"o sentado com o tronco do celular e o livro seguro pelas duas mãos à frente do peito por IK, virando a página","resident.read.stand":"o corpo do celular de pé com o livro seguro pelas duas mãos à frente do peito por IK, virando a página","resident.present":"o explicando com as duas mãos, com o tronco e o olhar varrendo o grupo","resident.kitchen.stir":"o parado na bancada com a mão mexendo em círculo por IK","resident.kitchen.chop":"o parado na bancada com a faca subindo e descendo por IK","resident.clean.sweep":"o parado segurando o cabo por IK, varrendo de lado","resident.clean.mop":"o parado segurando o cabo por IK, passando o rodo para a frente e de lado","resident.clean.wipe":"o inclinado na mesa com o pano em círculo por IK","resident.clean.vacuum":"o parado empurrando e puxando o aspirador por IK","resident.laundry.fold":"o parado na mesa pegando, dobrando e alisando a roupa por IK","resident.gravida.belly_hold":"o parado com as duas mãos na barriga (IK na pele), uma acariciando","resident.gravida.back_hold":"o parado com uma mão na lombar e a outra na barriga (IK na pele)","resident.gravida.sit_slow":"o sentando na cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.stand_slow":"o levantando da cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.lie_side":"o deitado rolado de lado, com os joelhos dobrados e a mão na barriga","resident.parto.contracao_pe":"o parado com contrações: tronco curva, joelhos dobram, respiração, mãos na lombar e na barriga","resident.parto.contracao_deitada":"o deitado com os joelhos para cima e contrações, segurando nas laterais da cama"}};
+const BIB = {"categorias":["Parado e andando","Sentar, deitar e dormir","Necessidades","Casa e objetos","Conversa e convívio","Emoções","Afeto e romance","Gravidez e parto","Bebês","Cozinha e limpeza","Escola e trabalho","Jardinagem","Música, dança e brincadeira","Exercícios","Carro","Bicicleta, skate e patinete","Escalar"],"rotulos":{"resident.idle.neutral":["Parado e andando","Parado"],"resident.idle.happy":["Parado e andando","Parado feliz"],"resident.idle.sad":["Parado e andando","Parado triste"],"resident.idle.bored":["Parado e andando","Entediado"],"resident.idle.look_around":["Parado e andando","Olhando em volta"],"resident.idle.old":["Parado e andando","Parado (idoso)"],"resident.walk.normal":["Parado e andando","Andando"],"resident.walk.happy":["Parado e andando","Andando feliz"],"resident.walk.sad":["Parado e andando","Andando triste"],"resident.walk.old":["Parado e andando","Andando (idoso)"],"resident.run.normal":["Parado e andando","Correndo"],"resident.jog":["Parado e andando","Trotando"],"resident.turn.left":["Parado e andando","Virando à esquerda"],"resident.turn.right":["Parado e andando","Virando à direita"],"resident.stairs.up":["Parado e andando","Subindo degraus"],"resident.stairs.up.rm":["Parado e andando","Subindo degraus (com deslocamento)"],"resident.stairs.down":["Parado e andando","Descendo degraus"],"resident.stairs.down.rm":["Parado e andando","Descendo degraus (com deslocamento)"],"resident.crouch.enter":["Parado e andando","Agachando"],"resident.crouch.idle":["Parado e andando","Agachado"],"resident.crouch.exit":["Parado e andando","Levantando do agachado"],"resident.pickup.floor":["Parado e andando","Pegando do chão"],"resident.jump.small":["Parado e andando","Pulinho"],"resident.sit.chair.enter":["Sentar, deitar e dormir","Sentando na cadeira"],"resident.sit.chair.idle":["Sentar, deitar e dormir","Sentado na cadeira"],"resident.sit.chair.exit":["Sentar, deitar e dormir","Levantando da cadeira"],"resident.sit.legs_swing":["Sentar, deitar e dormir","Sentado balançando as pernas"],"resident.sit.talk":["Sentar, deitar e dormir","Conversando sentado"],"resident.sit.clap":["Sentar, deitar e dormir","Aplaudindo sentado"],"resident.sit.laugh":["Sentar, deitar e dormir","Rindo sentado"],"resident.sit.angry":["Sentar, deitar e dormir","Bravo sentado"],"resident.lie.enter":["Sentar, deitar e dormir","Deitando na cama"],"resident.lie.idle":["Sentar, deitar e dormir","Deitado"],"resident.sleep.idle":["Sentar, deitar e dormir","Dormindo"],"resident.yawn":["Sentar, deitar e dormir","Bocejando"],"resident.drink.stand":["Necessidades","Bebendo"],"resident.dizzy":["Necessidades","Tonto"],"resident.stretch":["Necessidades","Alongando o braço"],"resident.door.open_in":["Casa e objetos","Abrindo porta (puxando)"],"resident.door.open_out":["Casa e objetos","Abrindo porta (empurrando)"],"resident.cabinet.open":["Casa e objetos","Abrindo armário"],"resident.cabinet.close":["Casa e objetos","Fechando armário"],"resident.button.push":["Casa e objetos","Apertando botão"],"resident.carry.box.idle":["Casa e objetos","Segurando caixa"],"resident.push.start":["Casa e objetos","Começando a empurrar"],"resident.push.loop":["Casa e objetos","Empurrando"],"resident.push.stop":["Casa e objetos","Parando de empurrar"],"resident.search.pockets":["Casa e objetos","Procurando nos bolsos"],"resident.throw":["Casa e objetos","Jogando algo"],"resident.talk.a":["Conversa e convívio","Conversando"],"resident.talk.b":["Conversa e convívio","Explicando"],"resident.talk.listen":["Conversa e convívio","Escutando"],"resident.wave":["Conversa e convívio","Dando tchau"],"resident.greet":["Conversa e convívio","Cumprimentando"],"resident.agree":["Conversa e convívio","Concordando"],"resident.disagree":["Conversa e convívio","Discordando"],"resident.laugh":["Conversa e convívio","Rindo"],"resident.clap":["Conversa e convívio","Aplaudindo"],"resident.cheer":["Conversa e convívio","Comemorando"],"resident.point":["Conversa e convívio","Apontando"],"resident.phone.talk":["Conversa e convívio","Ao telefone"],"resident.text":["Conversa e convívio","Mexendo no celular"],"resident.look_behind":["Conversa e convívio","Olhando para trás"],"resident.handshake":["Conversa e convívio","Aperto de mão"],"resident.handshake.partner":["Conversa e convívio","Aperto de mão (a outra pessoa)"],"resident.pat":["Conversa e convívio","Tapinha carinhoso"],"resident.romance.kiss_taller":["Afeto e romance","Beijo (pessoa mais alta)"],"resident.romance.kiss_shorter":["Afeto e romance","Beijo (pessoa mais baixa)"],"resident.romance.blow_kiss":["Afeto e romance","Mandando beijo"],"resident.romance.propose":["Afeto e romance","Ajoelhado (pedido)"],"resident.romance.propose_exit":["Afeto e romance","Levantando do ajoelhado"],"resident.romance.kiss_long_taller":["Afeto e romance","Beijo longo (mais alta)"],"resident.romance.kiss_long_shorter":["Afeto e romance","Beijo longo (mais baixa)"],"resident.romance.dance_rumba":["Afeto e romance","Dançando rumba"],"resident.romance.dance_salsa":["Afeto e romance","Dançando salsa"],"resident.baby.crawl":["Bebês","Engatinhando"],"resident.baby.cry":["Bebês","Chorando"],"resident.baby.sit":["Bebês","Sentado no chão"],"resident.emote.cry":["Emoções","Chorando"],"resident.emote.angry":["Emoções","Bravo"],"resident.emote.tantrum":["Emoções","Birra"],"resident.emote.scared":["Emoções","Assustado"],"resident.emote.surprised":["Emoções","Surpreso"],"resident.emote.excited":["Emoções","Empolgado"],"resident.emote.disappointed":["Emoções","Decepcionado"],"resident.emote.thinking":["Emoções","Pensando"],"resident.emote.thankful":["Emoções","Agradecendo"],"resident.emote.pain":["Emoções","Dor nas costas"],"resident.emote.reacting":["Emoções","Reagindo"],"resident.emote.relieved":["Emoções","Aliviado"],"resident.emote.shoved":["Emoções","Levando esbarrão"],"resident.desk.type":["Escola e trabalho","Digitando"],"resident.desk.write":["Escola e trabalho","Escrevendo"],"resident.desk.point":["Escola e trabalho","Apontando sentado"],"resident.garden.water":["Jardinagem","Regando"],"resident.garden.dig":["Jardinagem","Cavando"],"resident.garden.plant":["Jardinagem","Plantando"],"resident.garden.pick":["Jardinagem","Colhendo fruta"],"resident.garden.pull":["Jardinagem","Arrancando mato"],"resident.music.piano":["Música, dança e brincadeira","Tocando piano"],"resident.music.guitar":["Música, dança e brincadeira","Tocando violão"],"resident.dance.silly":["Música, dança e brincadeira","Dança engraçada"],"resident.dance.samba":["Música, dança e brincadeira","Sambando"],"resident.dance.hiphop":["Música, dança e brincadeira","Dançando hip hop"],"resident.swim":["Música, dança e brincadeira","Nadando"],"resident.swim.tread":["Música, dança e brincadeira","Boiando"],"resident.play.jump_rope":["Música, dança e brincadeira","Pulando corda"],"resident.play.videogame":["Música, dança e brincadeira","Jogando videogame"],"resident.play.ball_kick":["Música, dança e brincadeira","Chutando a bola"],"resident.fit.squat":["Exercícios","Agachamento"],"resident.fit.jacks":["Exercícios","Polichinelo"],"resident.fit.pushup":["Exercícios","Flexão"],"resident.fit.curl":["Exercícios","Rosca com haltere"],"resident.fit.crunch":["Exercícios","Abdominal"],"resident.fit.yoga":["Exercícios","Alongamento"],"resident.car.enter":["Carro","Entrando no carro"],"resident.car.exit":["Carro","Saindo do carro"],"resident.car.drive":["Carro","Dirigindo"],"resident.climb.ladder":["Escalar","Subindo escada de mão"],"resident.climb.ladder.rm":["Escalar","Subindo escada de mão (com deslocamento)"],"resident.climb.rope":["Escalar","Subindo na corda"],"resident.climb.rope.rm":["Escalar","Subindo na corda (com deslocamento)"],"resident.hang.enter":["Escalar","Pulando para pendurar"],"resident.climb.top":["Escalar","Subindo na borda"],"resident.sit.sofa.relaxed":["Sentar, deitar e dormir","Largado no sofá"],"resident.sit.floor.crossed":["Sentar, deitar e dormir","Sentado no chão, pernas cruzadas"],"resident.sleep.exit":["Sentar, deitar e dormir","Levantando da cama"],"resident.drink.sit":["Necessidades","Bebendo sentado"],"resident.eat.sit":["Necessidades","Comendo à mesa"],"resident.wash":["Necessidades","Lavando as mãos e o rosto"],"resident.carry.box.walk":["Casa e objetos","Andando com caixa"],"resident.hug":["Afeto e romance","Abraço"],"resident.romance.dance_slow":["Afeto e romance","Dança lenta a dois"],"resident.care.hold_idle":["Bebês","Segurando bebê no colo"],"resident.care.rock":["Bebês","Ninando bebê"],"resident.baby.cry_sit":["Bebês","Chorando sentado"],"resident.device.use":["Escola e trabalho","Usando tablet"],"resident.read.sit":["Escola e trabalho","Lendo sentado"],"resident.read.stand":["Escola e trabalho","Lendo de pé"],"resident.present":["Escola e trabalho","Explicando para um grupo"],"resident.kitchen.stir":["Cozinha e limpeza","Mexendo a panela"],"resident.kitchen.chop":["Cozinha e limpeza","Picando na tábua"],"resident.clean.sweep":["Cozinha e limpeza","Varrendo"],"resident.clean.mop":["Cozinha e limpeza","Passando pano no chão"],"resident.clean.wipe":["Cozinha e limpeza","Limpando a mesa"],"resident.clean.vacuum":["Cozinha e limpeza","Aspirando"],"resident.laundry.fold":["Cozinha e limpeza","Dobrando roupa"],"resident.gravida.belly_hold":["Gravidez e parto","Mão na barriga"],"resident.gravida.back_hold":["Gravidez e parto","Mão na lombar"],"resident.gravida.sit_slow":["Gravidez e parto","Sentando devagar"],"resident.gravida.stand_slow":["Gravidez e parto","Levantando devagar"],"resident.gravida.lie_side":["Gravidez e parto","Deitada de lado"],"resident.parto.contracao_pe":["Gravidez e parto","Contração (em pé)"],"resident.parto.contracao_deitada":["Gravidez e parto","Trabalho de parto (deitada)"],"resident.bike.ride":["Bicicleta, skate e patinete","Pedalando"],"resident.bike.idle":["Bicicleta, skate e patinete","Parado na bicicleta (pé no chão)"],"resident.skate.ride":["Bicicleta, skate e patinete","Andando de skate"],"resident.skate.idle":["Bicicleta, skate e patinete","Parado com o skate (pé no shape)"],"resident.scooter.ride":["Bicicleta, skate e patinete","Andando de patinete"],"resident.scooter.idle":["Bicicleta, skate e patinete","Parado no patinete (pé no chão)"],"resident.wave.big":["Conversa e convívio","Acenando com os dois braços"],"resident.photo.take":["Conversa e convívio","Tirando foto com a câmera"],"resident.selfie":["Conversa e convívio","Tirando selfie"]},"compostas":{"resident.sit.sofa.relaxed":"o sentado na cadeira do Mixamo, recostado, com os braços no braço do sofá","resident.sit.floor.crossed":"o tronco do sentado na cadeira, com o quadril no chão e as pernas cruzadas por IK","resident.sleep.exit":"o deitar na cama tocado de trás para a frente","resident.drink.sit":"as pernas do sentado na cadeira com o tronco e os braços do bebendo de pé","resident.eat.sit":"o sentado na cadeira com a mão indo do prato à boca por IK","resident.wash":"o parado, inclinado na pia, com as mãos esfregando e jogando água no rosto por IK","resident.carry.box.walk":"o andar com as mãos nas laterais de uma caixa por IK","resident.hug":"o parado com os braços envolvendo alguém à frente por IK","resident.romance.dance_slow":"o parado com as mãos no par por IK e balanço de lado com os pés no lugar","resident.care.hold_idle":"o parado com os braços em berço por IK","resident.care.rock":"os braços em berço com balanço de lado","resident.baby.cry_sit":"as pernas do bebê sentado com o tronco e os braços do bebê chorando","resident.device.use":"o corpo do mexendo no celular, com o tablet seguro pelas duas mãos à frente do peito por IK","resident.read.sit":"o sentado com o tronco do celular e o livro seguro pelas duas mãos à frente do peito por IK, virando a página","resident.read.stand":"o corpo do celular de pé com o livro seguro pelas duas mãos à frente do peito por IK, virando a página","resident.present":"o explicando com as duas mãos, com o tronco e o olhar varrendo o grupo","resident.kitchen.stir":"o parado na bancada com a mão mexendo em círculo por IK","resident.kitchen.chop":"o parado na bancada com a faca subindo e descendo por IK","resident.clean.sweep":"o parado segurando o cabo por IK, varrendo de lado","resident.clean.mop":"o parado segurando o cabo por IK, passando o rodo para a frente e de lado","resident.clean.wipe":"o inclinado na mesa com o pano em círculo por IK","resident.clean.vacuum":"o parado empurrando e puxando o aspirador por IK","resident.laundry.fold":"o parado na mesa pegando, dobrando e alisando a roupa por IK","resident.gravida.belly_hold":"o parado com as duas mãos na barriga (IK na pele), uma acariciando","resident.gravida.back_hold":"o parado com uma mão na lombar e a outra na barriga (IK na pele)","resident.gravida.sit_slow":"o sentando na cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.stand_slow":"o levantando da cadeira uma vez e meia mais devagar, com a mão na barriga","resident.gravida.lie_side":"o deitado rolado de lado, com os joelhos dobrados e a mão na barriga","resident.parto.contracao_pe":"o parado com contrações: tronco curva, joelhos dobram, respiração, mãos na lombar e na barriga","resident.parto.contracao_deitada":"o deitado com os joelhos para cima e contrações, segurando nas laterais da cama","resident.bike.ride":"o parado sentado no selim da bicicleta da cidade, com as mãos no guidão e os pés nos pedais girando por IK e um vaivém leve do tronco","resident.bike.idle":"o parado montado na bicicleta deitada um pouco para a esquerda, com as mãos no guidão, o pé direito no pedal e o esquerdo no chão por IK","resident.skate.ride":"o parado em pé no shape, de lado, deslizando, com o pé de trás descendo para dar um impulso a cada 4 s (pés por IK)","resident.skate.idle":"o parado com o pé esquerdo no shape e o direito no chão por IK, olhando em volta","resident.scooter.ride":"o parado com o pé esquerdo na plataforma do patinete e as mãos no guidão, com o pé direito dando um impulso a cada 3 s (IK)","resident.scooter.idle":"o parado com o pé esquerdo na plataforma, o direito no chão e as mãos no guidão do patinete por IK","resident.wave.big":"o parado com os dois braços para o alto, acenando de um lado para o outro por IK","resident.photo.take":"o parado com a câmera nos olhos, segura pelas duas mãos por IK, apertando o botão e depois olhando a foto na tela","resident.selfie":"o parado com o braço direito esticado e o celular virado para o rosto por IK, a outra mão na cintura"}};
 const PARES = { "resident.handshake": "resident.handshake.partner", "resident.romance.kiss_taller": "resident.romance.kiss_shorter",
   "resident.romance.kiss_shorter": "resident.romance.kiss_taller", "resident.romance.kiss_long_taller": "resident.romance.kiss_long_shorter",
   "resident.romance.kiss_long_shorter": "resident.romance.kiss_long_taller",
@@ -246,6 +331,7 @@ const ROSTO = { "Clara": 1, "Média": 1, "Morena": 0.6, "Escura": 0.28 }; // tra
 const estado = { sexo: "m", idade: "adulto", corpo: "adulto", tom: "Média", expr: "neutro", anim: "parado", chupeta: true,
   cabeloTipo: "baixinho", cabeloCor: "Castanho claro", manta: "Creme", gravidez: "0",
   penteado: "cabelo", corCabeloAdulto: null, barba: "nenhum", roupa: {}, corRoupa: {} };
+const ESTADO_PADRAO = JSON.parse(JSON.stringify(estado)); // "Voltar ao padrão"
 const GRAVIDEZ = { "0": "Não grávida", "1": "1º trimestre", "2": "2º trimestre", "3": "3º trimestre" };
 
 // ---------------------------------------------------------------- palco
@@ -505,6 +591,34 @@ async function carregarCorpo(id) {
   cache.set(id, c);
   return c;
 }
+// veículos da cidade para as animações de bicicleta e skate (veiculos/<id>.txt: GLB → gzip → base64)
+const cacheVeiculo = new Map();
+async function carregarVeiculo(id) {
+  if (!cacheVeiculo.has(id)) cacheVeiculo.set(id, (async () => {
+    const txt = await (await fetch(`veiculos/${id}.txt`)).text();
+    const gz = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
+    const buf = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const cena_ = (await new Promise((ok, erro) => loader.parse(buf, "", ok, erro))).scene;
+    cena_.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    return cena_;
+  })());
+  return (await cacheVeiculo.get(id)).clone(true);
+}
+// a cidade não tem patinete de empurrar: um simples, com as medidas do apoio (já no referencial do personagem)
+function patineteAuxiliar(m) {
+  const azul = new THREE.MeshStandardMaterial({ color: 0x3d8bd0, roughness: 0.5 });
+  const preto = new THREE.MeshStandardMaterial({ color: 0x222428, roughness: 0.8 });
+  const p = m.plataforma, o = m.origem, g = m.guidao, r = m.rodas;
+  peca(new THREE.BoxGeometry(p.largura, 0.03, p.comprimento), azul, o.x, p.altura - 0.015, o.frente);
+  const base = new THREE.Vector3(m.coluna.x, r.raio, m.coluna.frente), topo = new THREE.Vector3(0, g.altura, g.esq.frente);
+  const col = peca(new THREE.CylinderGeometry(0.018, 0.018, base.distanceTo(topo), 12), azul, 0, 0, 0);
+  col.position.addVectors(base, topo).multiplyScalar(0.5);
+  col.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), topo.clone().sub(base).normalize());
+  peca(new THREE.CylinderGeometry(0.014, 0.014, g.largura + 0.1, 10), preto, 0, g.altura, g.esq.frente).rotation.z = Math.PI / 2;
+  for (const k of ["dianteira", "traseira"]) {
+    peca(new THREE.CylinderGeometry(r.raio, r.raio, 0.04, 20), preto, r[k].x, r[k].altura, r[k].frente).rotation.z = Math.PI / 2;
+  }
+}
 
 const bibCache = new Map();
 async function carregarBiblioteca(fonte) {
@@ -546,6 +660,7 @@ async function mostrar(id) {
   document.getElementById("nome").textContent = CORPOS.find((x) => x.id === id).rotulo;
   status.textContent = "";
   desenharExpr(); desenharExtras(); desenharCabelo(); desenharRoupa(); desenharManta(); desenharGravidez(); desenharAnims();
+  atualizaBotaoPasseio();
   if (!c.bib && !recem) {
     document.getElementById("bib-status").textContent = "Carregando a biblioteca…";
     try { await ligarBiblioteca(c); } catch (e) { document.getElementById("bib-status").textContent = "Não consegui carregar a biblioteca: " + e.message; return; }
@@ -737,7 +852,7 @@ function desenharGravidez() {
 }
 // ---------------------------------------------------------------- roupas (catálogo roupas.json, uma peça por parte)
 let CAT_ROUPA = { itens: [], slots: {} };
-fetch("roupas.json").then((r) => r.json()).then((j) => {
+const P_ROUPA = fetch("roupas.json").then((r) => r.json()).then((j) => {
   // variação ("base": outra peça) herda parte do corpo, tipo e arquivo da base
   const por = Object.fromEntries(j.itens.map((x) => [x.id, x]));
   const resolve = (x) => (x.base ? { ...resolve(por[x.base]), ...x, id: x.id, rotulo: x.rotulo } : x);
@@ -772,7 +887,7 @@ const ROUPA_CORES = { "Branco": "#F2F2F2", "Preto": "#2B2B2B", "Cinza": "#8A8F99
   "Rosa": "#EE70A9", "Laranja": "#E27B3B", "Amarelo": "#F2C231", "Dourado": "#D9A63A", "Verde": "#3BAA5C",
   "Verde-água": "#3FC1B0", "Azul": "#3D7BD6", "Azul-marinho": "#24346B", "Roxo": "#8E55D6", "Marrom": "#7B4B2D", "Bege": "#C9A46E" };
 let MASC = {};
-fetch("roupas/mascaras.json").then((r) => r.json()).then((j) => { MASC = j; if (atual) aplicarRoupa(); }).catch(() => {});
+const P_MASC = fetch("roupas/mascaras.json").then((r) => r.json()).then((j) => { MASC = j; if (atual) aplicarRoupa(); }).catch(() => {});
 const TEX_VAZIA = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); TEX_VAZIA.needsUpdate = true;
 const _texMasc = new Map();
 // as máscaras vêm todas num arquivo só (roupas/mascaras_png.json: nome → PNG em base64), carregado uma vez
@@ -905,6 +1020,14 @@ function referencialMao(corpo, lado) {
 // com um objeto na mão, os dedos fecham em volta dele (depois da animação, a cada quadro)
 const _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _ax = new THREE.Vector3(), _pa = new THREE.Vector3(),
   _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pd = new THREE.Vector3();
+// pegada do objeto (catálogo, "pegada"): graus no 1º e no 2º segmento dos quatro dedos (somando 4° e 3° a cada dedo,
+// do indicador ao mínimo, como em tools/compor.py) e do polegar. Sem ela, a mão fecha como num copo (a curva de antes).
+function curvaPegada(pg) {
+  const r = Math.PI / 180, o = {};
+  ["Index", "Middle", "Ring", "Pinky"].forEach((d, k) => { o[d] = [(pg.dedos[0] + 4 * k) * r, (pg.dedos[1] + 3 * k) * r]; });
+  o.Thumb = [pg.polegar[0] * r, pg.polegar[1] * r];
+  return o;
+}
 function fechaDedos(c) {
   if (!c || !c.roupas) return;
   for (const lado of ["dir", "esq"]) {
@@ -922,7 +1045,10 @@ function fechaDedos(c) {
     const X = _pb.clone().sub(_pa).normalize(), t = _pc.clone().sub(_pd);
     const Z = (lado === "dir" ? t.clone().cross(X) : X.clone().cross(t)).normalize();
     const eixo = X.clone().cross(Z).normalize(); // gira os dedos de X para a palma
-    const curva = { Index: [0.95, 1.0], Middle: [1.0, 1.05], Ring: [1.05, 1.05], Pinky: [1.1, 1.05], Thumb: [0.35, 0.4] };
+    const nm = c.naMao[lado];
+    if (nm.pegada === undefined) nm.pegada = CAT_ROUPA.itens.find((x) => x.id === nm.rid)?.pegada || null;
+    const curva = nm.pegada ? curvaPegada(nm.pegada)
+      : { Index: [0.95, 1.0], Middle: [1.0, 1.05], Ring: [1.05, 1.05], Pinky: [1.1, 1.05], Thumb: [0.35, 0.4] };
     for (const [dedo, ang] of Object.entries(curva)) {
       for (let k = 1; k <= 2; k++) {
         const o = b[dedo + k];
@@ -1220,7 +1346,9 @@ function atualizaMaos() {
   const c = atual;
   if (!c || semAnimacoes(c.id)) return;
   const oc = maosOcupadas(c, estado.anim);
-  const cena_ = !!(dinamico || seguir); // objeto da cena nas mãos (vassoura, caixa...)
+  const ap_ = APOIOS[fonteDe(c.id)]?.[estado.anim.replace(/^bib:/, "")];
+  const guidao = ap_ && (ap_.tipo === "bicicleta" || ap_.tipo === "patinete"); // as duas mãos no guidão
+  const cena_ = !!(dinamico || seguir || guidao); // objeto da cena nas mãos (vassoura, caixa...)
   const ocup = { dir: oc.dir || cena_, esq: oc.esq || cena_ };
   c.naMao = { dir: null, esq: null };
   c.chao = [];
@@ -2030,8 +2158,25 @@ function apoioBiblioteca(nome) {
     peca(new THREE.BoxGeometry(m.largura, m.topo, prof), MAT_AUX.bloco, m.x, m.topo / 2, m.frente + prof / 2);
     if (m.tipo === "pia") peca(new THREE.BoxGeometry(m.largura * 0.45, 0.012, prof * 0.55), MAT_AUX.metal, m.x, m.topo + 0.004, m.frente + prof * 0.4);
     notas.push(m.tipo === "pia" ? "A pia é só um auxiliar desta cena de teste." : "A bancada é só um auxiliar desta cena de teste.");
+  } else if (m && (m.tipo === "bicicleta" || m.tipo === "skate" || m.tipo === "patinete")) {
+    // o veículo vai preso à raiz do personagem (no jogo, ao osso Root): origem, escala, giro em torno do eixo vertical
+    // e, na bicicleta parada, a inclinação para o lado do pé no chão. info.json usa x, altura e frente (three: x, y, z)
+    if (m.veiculo) {
+      const g = new THREE.Group(); auxiliar.add(g);
+      g.position.set(m.origem.x, m.origem.altura, m.origem.frente);
+      g.rotation.set(0, THREE.MathUtils.degToRad(m.gira_graus || 0), -THREE.MathUtils.degToRad(m.inclina_graus || 0), "YXZ");
+      g.scale.setScalar(m.escala);
+      const quer = estado.anim;
+      carregarVeiculo(m.veiculo[0]).then((v) => { if (estado.anim === quer) g.add(v); }).catch(() => {});
+      notas.push(m.tipo === "bicicleta"
+        ? `Bicicleta da cidade na escala ${String(m.escala).replace(".", ",")} deste corpo; anda a ${String(m.velocidade_m_s).replace(".", ",")} m/s. Os pedais do modelo são fixos: no jogo, o pedivela gira com os pés.`
+        : `Skate da cidade de lado (anda para a esquerda do personagem), a ${String(m.velocidade_m_s).replace(".", ",")} m/s.`);
+    } else {
+      patineteAuxiliar(m);
+      notas.push(`A cidade não tem patinete: este é feito com medidas reais, só para a cena de teste; anda a ${String(m.velocidade_m_s).replace(".", ",")} m/s.`);
+    }
   } else if (m && m.tipo === "entre_maos") {
-    const cor = { caixa: MAT_AUX.madeira, caixote: MAT_AUX.madeira, bebe: MAT_AUX.bloco, tablet: MAT_AUX.metal, livro: MAT_AUX.saco }[m.objeto];
+    const cor = { caixa: MAT_AUX.madeira, caixote: MAT_AUX.madeira, bebe: MAT_AUX.bloco, tablet: MAT_AUX.metal, livro: MAT_AUX.saco , camera: MAT_AUX.metal }[m.objeto];
     const geo = m.objeto === "bebe" ? new THREE.CapsuleGeometry(m.tam[1] / 2, m.tam[0] - m.tam[1], 6, 16) : new THREE.BoxGeometry(...m.tam);
     const mesh = peca(geo, cor, 0, 0, 0);
     if (m.objeto === "bebe") mesh.geometry.rotateZ(Math.PI / 2);
@@ -2053,7 +2198,7 @@ function apoioBiblioteca(nome) {
         mesh.visible = false; d0.bebe = g;
       }).catch(() => {});
     }
-    notas.push({ caixa: "A caixa é", caixote: "O caixote é", bebe: "O recém-nascido no colo é", tablet: "O tablet é", livro: "O livro é" }[m.objeto] + " só um auxiliar desta cena de teste.");
+    notas.push({ caixa: "A caixa é", caixote: "O caixote é", bebe: "O recém-nascido no colo é", tablet: "O tablet é", livro: "O livro é", camera: "A câmera é" }[m.objeto] + " só um auxiliar desta cena de teste.");
   } else if (m && m.tipo === "cabo") {
     const pau = peca(new THREE.CylinderGeometry(0.012, 0.012, 1, 10), MAT_AUX.madeira, 0, 0, 0);
     const cabeca = peca(m.objeto === "aspirador" ? new THREE.BoxGeometry(0.28, 0.07, 0.18) : new THREE.BoxGeometry(m.objeto === "rodo" ? 0.4 : 0.28, 0.05, 0.07),
@@ -2274,10 +2419,734 @@ function desenharAnims() {
   desenharAvaliar(fonte, nomes);
 }
 
+// ---------------------------------------------------------------- personagem: aleatório, salvar, carregar e voltar ao padrão
+// O personagem vira um JSON simples (o mesmo que "Salvar" baixa e "Carregar arquivo" lê):
+//   { "formato": "morada-personagem", "versao": 1,
+//     "corpo": id do corpo (CORPOS),
+//     "pele": nome do tom (TONS) ou "#rrggbb",
+//     "expressao": chave de EXPR,
+//     "cabelo": { "penteado": id do cabelos.json, "cabelo" (o penteado do corpo), "cabelo_raspado" ou "careca",
+//                 "cor": nome (CABELO_CORES) ou "#rrggbb", "barba": id do cabelos.json ou "nenhum" },
+//     "roupa": { <parte do roupas.json>: { "id": peça, "cor": "#rrggbb" ou null = a cor original } },
+//     "objetos": { "dir": { "id", "cor" }, "esq": { "id", "cor" } },   (as partes mao_dir e mao_esq)
+//     "gravidez": 0 a 3 (só adulta, plus_f e atletica) }
+//   Recém-nascido: "cabelo": { "tipo": careca | baixinho | gorro, "cor" }, "manta": cor, "chupeta": true/false.
+// O sorteio monta esse mesmo objeto, a partir de uma semente (a mesma semente com os mesmos filtros repete o personagem).
+const HEX = /^#[0-9a-f]{6}$/i;
+function lerLS(k, padrao) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : padrao; } catch { return padrao; } }
+function gravarLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
+const itemRoupa = (k) => CAT_ROUPA.itens.find((x) => x.id === k);
+function personagemAtual() {
+  const id = estado.corpo;
+  const p = { formato: "morada-personagem", versao: 1, corpo: id, pele: estado.tom, expressao: estado.expr };
+  if (semAnimacoes(id)) {
+    p.cabelo = { tipo: estado.cabeloTipo, cor: estado.cabeloCor }; p.manta = estado.manta; p.chupeta = !!estado.chupeta;
+    return p;
+  }
+  const b = estado.barba && estado.barba !== "nenhum" && permitidoCab(estado.barba, id) ? estado.barba : "nenhum";
+  p.cabelo = { penteado: estado.penteado || "cabelo", cor: estado.corCabeloAdulto ?? COR_PADRAO[id] ?? "Castanho", barba: b };
+  p.roupa = {}; p.objetos = {};
+  const cob = slotsCobertos();
+  for (const [slot, rid] of Object.entries(estado.roupa)) {
+    if (!rid || cob.includes(slot)) continue; // a peça escondida pela inteira não entra
+    const v = { id: rid, cor: estado.corRoupa[slot] ?? null };
+    if (slot === "mao_dir") p.objetos.dir = v; else if (slot === "mao_esq") p.objetos.esq = v; else p.roupa[slot] = v;
+  }
+  if (COM_GRAVIDA.has(id)) p.gravidez = Number(estado.gravidez) || 0;
+  return p;
+}
+function validarPersonagem(p) {
+  if (!p || typeof p !== "object" || !CORPOS.some((c) => c.id === p.corpo)) throw new Error("Isto não é um personagem do Morada (falta um corpo conhecido).");
+  return p;
+}
+async function aplicarPersonagem(p) {
+  validarPersonagem(p);
+  await Promise.all([P_CABELOS, P_ROUPA]);
+  const c = CORPOS.find((x) => x.id === p.corpo), recem = c.idade === "recem";
+  estado.corpo = c.id; estado.sexo = c.sexo; estado.idade = c.idade;
+  estado.tom = typeof p.pele === "string" && (TONS[p.pele] || HEX.test(p.pele)) ? p.pele : "Média";
+  estado.expr = EXPR[p.expressao] ? p.expressao : "neutro";
+  const corCab = (v, padrao) => (typeof v === "string" && (CABELO_CORES[v] || HEX.test(v)) ? v : padrao);
+  if (recem) {
+    estado.cabeloTipo = CABELO_TIPOS[p.cabelo?.tipo] ? p.cabelo.tipo : "baixinho";
+    estado.cabeloCor = corCab(p.cabelo?.cor, "Castanho claro");
+    estado.manta = typeof p.manta === "string" && (MANTA_CORES[p.manta] || HEX.test(p.manta)) ? p.manta : "Creme";
+    estado.chupeta = p.chupeta !== false;
+  } else {
+    const pent = p.cabelo?.penteado;
+    estado.penteado = pent === "cabelo" || pent === "careca" || pent === "cabelo_raspado" || CAT.itens.some((x) => x.id === pent && x.tipo === "cabelo") ? pent : "cabelo";
+    estado.corCabeloAdulto = corCab(p.cabelo?.cor, null);
+    const b = p.cabelo?.barba;
+    estado.barba = b && b !== "nenhum" && permitidoCab(b, c.id) ? b : "nenhum";
+  }
+  estado.roupa = {}; estado.corRoupa = {};
+  const poe = (slot, v) => {
+    const rid = typeof v === "string" ? v : v?.id, it = rid && itemRoupa(rid);
+    if (!it || it.slot !== slot) return; // peça desconhecida ou na parte errada: fica de fora
+    const cor = typeof v === "object" ? v.cor : undefined;
+    estado.roupa[slot] = rid;
+    estado.corRoupa[slot] = typeof cor === "string" && HEX.test(cor) ? cor : cor === null ? null : it.variacao?.cor || null;
+  };
+  if (!recem) {
+    for (const [slot, v] of Object.entries(p.roupa || {})) if (CAT_ROUPA.slots[slot] && !slot.startsWith("mao_")) poe(slot, v);
+    for (const lado of ["dir", "esq"]) if (p.objetos?.[lado]) poe("mao_" + lado, p.objetos[lado]);
+  }
+  estado.gravidez = COM_GRAVIDA.has(c.id) && [1, 2, 3].includes(Number(p.gravidez)) ? String(Number(p.gravidez)) : "0";
+  seletorAberto = null;
+  desenharFiltros(); desenharMinis(); desenharTons();
+  await mostrar(c.id);
+}
+async function voltarAoPadrao() {
+  const anim = estado.anim;
+  Object.assign(estado, JSON.parse(JSON.stringify(ESTADO_PADRAO)));
+  if (passeio.ativo) estado.anim = anim; // no passeio, a animação é a do movimento
+  seletorAberto = null;
+  desenharFiltros(); desenharMinis(); desenharTons();
+  await mostrar(estado.corpo);
+  aviso("De volta ao personagem padrão.");
+}
+
+// ---- sorteio
+function geradorDe(semente) { // mulberry32: a mesma semente dá a mesma sequência
+  let a = semente >>> 0;
+  return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function sementeDe(txt) { // número, ou qualquer texto (vira número)
+  const s = String(txt ?? "").trim();
+  if (/^\d{1,9}$/.test(s)) return Number(s);
+  let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.codePointAt(0), 16777619);
+  return (h >>> 0) % 1000000000;
+}
+const TIPO_CORPO = { plus_m: "plus", plus_f: "plus", musculoso: "musculoso", atletica: "musculoso", alto_magro: "alto" }; // os outros: padrão
+const OPC_FILTRO = {
+  faixas: [["recem", "Recém-nascido"], ["colo", "Bebê de colo"], ["pequeno", "2–3 anos"], ["crianca", "Criança"], ["adolescente", "Jovem"], ["adulto", "Adulto"], ["idoso", "Idoso"]],
+  sexos: [["m", "Masculino"], ["f", "Feminino"]],
+  tipos: [["padrao", "Padrão"], ["plus", "Plus-size"], ["musculoso", "Musculoso ou atlética"], ["alto", "Alto e magro"]],
+};
+const FILTRO_PADRAO = { faixas: ["colo", "pequeno", "crianca", "adolescente", "adulto", "idoso"], sexos: ["m", "f"], tipos: ["padrao", "plus", "musculoso", "alto"],
+  soltas: true, conjuntos: true, extras: true, gravidez: true };
+let FILTRO = { ...FILTRO_PADRAO, ...lerLS("morada.filtros", {}) };
+const corposDoSorteio = () => CORPOS.filter((c) => FILTRO.faixas.includes(c.idade) && FILTRO.sexos.includes(c.sexo)
+  && (c.idade !== "adulto" || FILTRO.tipos.includes(TIPO_CORPO[c.id] || "padrao")));
+// peças que só saem em conjunto pronto (profissões, fantasias, praia)
+const SO_CONJUNTO = new Set(("nov_prisioneiro_cima nov_prisioneiro_baixo nov_camisola_hospital nov_jaleco nov_jaleco_curto nov_dolma " +
+  "nov_macacao_socorrista nov_macacao_refletivo nov_colete_refletivo nov_calca_refletiva nov_jaqueta_bombeiro nov_capacete_bombeiro " +
+  "nov_capacete_obra nov_quepe nov_quepe_capitao nov_touca_cirurgica nov_mascara nov_chapeu_cozinheiro roupa_casaco_noel roupa_calca_noel " +
+  "roupa_gorro_noel roupa_luvas_noel roupa_fantasia_10 roupa_fantasia_6 roupa_nariz_palhaco nov_boias_braco nov_salva_vidas nov_avental " +
+  "nov_avental_cintura nov_luvas_borracha nov_cinto_ferramentas nov_cotoveleiras nov_joelheiras nov_abafador nov_vestido_uniforme " +
+  "nov_colete_utilidades roupa_chapeu_sobrevivente roupa_chapeu_057 nov_chapeu_bruxa nov_orelhas_coelho roupa_chapeu_049 " +
+  "roupa_blusa_showgirl roupa_saia_showgirl roupa_chapeu_showgirl roupa_bone_36 nov_coroa nov_oculos_3d nov_luvas_arrastao " +
+  "nov_meia_arrastao nov_meia_arrastao_coxa nov_paleto_brilho nov_smoking nov_top_biquini nov_biquini_baixo nov_sunga nov_maio " +
+  "nov_maio_listrado nov_bermuda_praia nov_short_praia nov_capacete_bike nov_ciclista_cima nov_bermuda_ciclista roupa_violao_costas " +
+  "nov_cassetete nov_extintor nov_kit_socorros nov_radio nov_ancinho nov_tesoura_poda nov_chave_inglesa nov_frigideira nov_espatula " +
+  "nov_bandeja_tampa nov_caixa_ferramentas nov_paleta nov_pincel nov_rolo_papel nov_microfone nov_lanterna nov_cartaz nov_luvas_longas " +
+  "roupa_calca_sobrevivente var_bermuda_sobrevivente roupa_calca_lenhador var_bermuda_lenhador").split(" "));
+const SO_F = /^(gen_(minissaia|saia_\w+|vestido_\w+)|nov_(vestido_\w+|biquini_baixo|top_biquini|tomara_que_caia|top_esportivo|cropped_manga|maio\w*|macaquinho_listrado|meia_arrastao\w*|meia_calca|luvas_longas|luvas_arrastao|tiara|arco|bolsa|bolsa_alca|bolsa_fecho|bolsa_perolas|oculos_gatinho|legging|calca_boca_sino|jardineira_short)|var_(top|cropped\w*|regata_rosa)|roupa_(saia_showgirl|salto_showgirl|sapato_caixa|jaqueta_sobrevivente|blusa_showgirl))$/;
+const SO_M = /^nov_(sunga|bermuda_praia)$/;
+// fora da roupa de criança (2–3 anos e criança)
+const ADULTO = /^(nov_(smoking|paleto\w*|gravata\w*|casaco_longo|cartola|fedora|palheta|maleta\w*|pasta_\w+|bolsa_perolas|bolsa_alca|jornal|cafe|bengala|tomara_que_caia|vestido_(um_ombro|tubinho)|meia_calca|cinto_fivela|celular|mala_\w+|sacola_papel|sacolas|pau_selfie|camera|guia_retratil|garrafa|top_esportivo|cropped_manga|camisa_onca|camisa_caveira|suspensorio|cauboi)|gen_(saia_lapis|minissaia|vestido_(justo|festa|longo))|roupa_(camiseta_xadrez1|camiseta_xadrez2|camisa_caixa|jaqueta_36|salto_showgirl|sapato_caixa|corrente_plus|camisa_seguranca|sapato_seguranca|pulseira_plus|jaqueta_sobrevivente)|var_(casaca_colete|colete_social|chapeu_coco|top|cropped\w*))$/;
+const JOVEM_NAO = /^(nov_(bengala|smoking|paleto\w*|maleta\w*|pasta_\w+|cartola|fedora|palheta|jornal|bolsa_perolas|suspensorio)|var_chapeu_coco|roupa_camiseta_xadrez1)$/;
+const IDOSO_NAO = /^(nov_(cropped_manga|top_esportivo|tomara_que_caia|bermuda_rasgada|calca_rasgada|bone_helice|bone_tras|gatinho|touca_urso|sapo|regata_justa|camisa_caveira|pau_selfie|legging|short_curto|oculos_3d|jardineira_short|macaquinho_listrado|camisa_onca)|gen_minissaia|var_(top|cropped\w*)|roupa_(jaqueta_sobrevivente|salto_showgirl|fones_002))$/;
+// bebê de colo: só estas peças
+const BEBE = {
+  cima: ["nov_camiseta_larga", "nov_moletom", "nov_moletom_capuz", "nov_blusa_listrada", "nov_manga_longa", "nov_marinheiro", "var_moletom_manga_curta", "nov_polo", "roupa_camiseta_criativa"],
+  baixo: ["nov_calca_moletom", "var_short_verde", "nov_bermuda_folgada", "nov_legging", "var_short_vermelho", "var_bermuda_azul"],
+  inteira: ["nov_jardineira", "nov_jardineira_short", "nov_macacao", "gen_vestido_casual", "nov_vestido_manga_curta", "nov_vestido_gola", "nov_macaquinho_listrado"],
+  pes: ["nov_tenis_meia", "roupa_tenis_009", "nov_galocha", "roupa_tenis_plus"], meias: ["nov_meias_altas"],
+  cabeca: ["nov_touca_urso", "nov_gatinho", "nov_touca_pompom", "nov_sapo", "nov_balde", "nov_touca", "nov_chapeu_praia", "nov_bone_novo"],
+};
+const MAO_SORTEIO = {
+  pequeno: ["nov_sorvete", "nov_picole", "nov_bola_praia", "nov_bola_futebol", "nov_livro"],
+  crianca: ["nov_sorvete", "nov_picole", "nov_bola_futebol", "nov_bola_praia", "nov_bola_basquete", "nov_bola_volei", "nov_bola_tenis", "nov_livro",
+    "nov_caderno", "nov_tablet", "nov_caixas_presente", "nov_buque", "nov_guarda_chuva_colorido", "nov_sacola_loja", "nov_bolsa"],
+  adolescente: ["nov_celular", "nov_celular", "nov_livro", "nov_caderno", "nov_tablet", "nov_sorvete", "nov_picole", "nov_bola_futebol", "nov_bola_basquete",
+    "nov_bola_volei", "nov_camera", "nov_pau_selfie", "nov_garrafa", "nov_bolsa_academia", "nov_bolsa", "nov_bolsa_fecho", "nov_bolsa_tote",
+    "nov_guarda_chuva_colorido", "nov_guarda_chuva_listrado", "nov_sacola_loja", "nov_estojo_violao", "nov_cafe"],
+  adulto: ["nov_celular", "nov_celular", "nov_cafe", "nov_cafe", "nov_jornal", "nov_livro", "nov_tablet", "nov_buque", "nov_caixas_presente", "nov_guarda_chuva",
+    "nov_guarda_chuva_aberto", "nov_guarda_chuva_colorido", "nov_guarda_chuva_listrado", "nov_garrafa", "nov_camera", "nov_sorvete", "nov_guia_retratil",
+    "nov_sacolas", "nov_sacola_loja", "nov_sacola_papel", "nov_bolsa", "nov_bolsa_alca", "nov_bolsa_fecho", "nov_bolsa_perolas", "nov_bolsa_tote",
+    "nov_bolsa_academia", "nov_maleta", "nov_maleta_rigida", "nov_maleta_cantos", "nov_pasta_couro", "nov_pasta_notebook", "nov_mala_rodinha",
+    "nov_mala_frisos", "nov_estojo_violao", "nov_caderno"],
+  idoso: ["nov_bengala", "nov_bengala", "nov_bengala", "nov_bengala", "nov_jornal", "nov_livro", "nov_sacola_papel", "nov_guarda_chuva", "nov_buque", "nov_bolsa",
+    "nov_bolsa_perolas", "nov_bolsa_fecho", "nov_cafe", "nov_garrafa", "nov_maleta_cantos", "nov_guia_retratil"],
+};
+const CONJ_CRIANCA = /^(Estudante|Skatista|Jogador\(a\) de (futebol|basquete|vôlei)|Fantasia de (sapo|gatinho)|Festa à fantasia: urso|Praia$|Inverno|Chuva|Esporte|Casual|Fim de semana|Sorveteria|Cinema 3D|Colegial|Agasalho listrado|Piquenique|Palhaço|Rei\/rainha|Bruxo\(a\)|Turista$|Feira|Boina e lenço|Dia de chuva)/;
+const CONJ_JOVEM_NAO = /Executiv|Médic|Cirurgi|Enfermeir|Cientista|Policial|Seguran|Piloto|Capitão|Detento|Detetive|Smoking|Vov|Repórter|Apresentador|Professor|Bibliotec|Encontro|coelho|Paciente|Camareir|Eletricista|Encanador/;
+const CONJ_IDOSO_NAO = /Selfie|Cropped|Roqueir|coelho|Academia|biquíni|Skatista|Colegial|DJ|Corredor|Estudante|Cinema 3D|gatinho|sapo|urso|Detento/;
+const CAB_CURTOS = ["cabelo_xadrez1", "cabelo_plus", "cabelo_lenhador", "cabelo_seguranca", "cabelo_xadrez2", "cabelo_criativo10", "cabelo_criativo12",
+  "cabelo_xadrez1_volume", "cabelo_seguranca_volume", "cabelo_xadrez2_volume", "cabelo_criativo10_volume", "cabelo_lenhador_volume", "cabelo_plus_volume",
+  "afro_curto", "espetado", "espetado_alto", "moicano", "topete_moicano"];
+const CAB_LONGOS = ["cabelo_caixa", "cabelo_caixa_comprido", "cabelo_caixa_volume", "cabelo_showgirl", "cabelo_showgirl_comprido", "cabelo_showgirl_volume",
+  "cabelo_sobrevivente", "cabelo_sobrevivente_comprido", "cabelo_sobrevivente_volume", "cabelo_criativo12_comprido", "cabelo_noel", "rabo_cavalo", "rabo_curto",
+  "rabo_alto", "coque", "coque_franja", "coque_duplo", "trancas", "maria_chiquinha", "afro", "afro_coque", "cabelo_criativo10_comprido", "cabelo_xadrez2_comprido"];
+const CAB_LONGOS_M = ["rabo_curto", "coque", "cabelo_noel", "afro", "cabelo_criativo12_comprido", "cabelo_sobrevivente", "cabelo_criativo10_comprido"];
+const CAB_CURTOS_F = ["cabelo_seguranca", "afro_curto", "cabelo_xadrez2", "cabelo_criativo12", "cabelo_seguranca_volume", "espetado", "cabelo_criativo10"];
+const CAB_IDOSO_NAO = new Set(["moicano", "topete_moicano", "espetado", "espetado_alto", "maria_chiquinha", "trancas", "coque_duplo"]);
+const NEUTRAS = ["#2B2B2B", "#F2F2F2", "#8A8F99", "#24346B", "#C9A46E", "#7B4B2D", "#3D5A8A", "#5B6370", "#E8E0D0"];
+function paletaSorteada(r, um, faixa) { // cores que combinam: análogas, complementares, tríade ou uma cor com neutras
+  const pastel = faixa === "colo" || faixa === "pequeno", sobrio = faixa === "idoso";
+  const h = r() * 360, esquema = um(["analoga", "complementar", "triade", "neutra"]);
+  const s = pastel ? 0.42 + r() * 0.2 : sobrio ? 0.16 + r() * 0.26 : 0.38 + r() * 0.42;
+  const l = pastel ? 0.72 + r() * 0.1 : 0.36 + r() * 0.2;
+  const cor = (hh, ss = s, ll = l) => "#" + new THREE.Color().setHSL((((hh % 360) + 360) % 360) / 360, Math.min(ss, 1),
+    Math.min(Math.max(ll, 0.1), 0.92), THREE.SRGBColorSpace).getHexString(THREE.SRGBColorSpace);
+  const neutras = pastel ? ["#F2F2F2", "#E8E0D0", "#C9D6E3", "#D8CFC4"] : NEUTRAS;
+  const neutra = um(neutras);
+  let neutra2 = um(neutras); if (neutra2 === neutra) neutra2 = neutras[(neutras.indexOf(neutra) + 1) % neutras.length];
+  const principal = cor(h);
+  const secundaria = esquema === "analoga" ? cor(h + 35, s * 0.9, l + 0.08) : esquema === "complementar" ? cor(h + 180, s * 0.8, l + 0.05)
+    : esquema === "triade" ? cor(h + 120, s * 0.85, l) : neutra2;
+  const acento = cor(h + (esquema === "complementar" ? 180 : 150), Math.min(s + 0.25, 0.9), pastel ? 0.7 : 0.5);
+  return { principal, secundaria, acento, neutra, neutra2 };
+}
+function pecaPode(it, faixa, sexo, solta) {
+  if (!it?.slot) return false;
+  const k = it.id;
+  if (sexo === "m" && SO_F.test(k)) return false;
+  if (sexo === "f" && SO_M.test(k)) return false;
+  if (k === "nov_bengala" && faixa !== "idoso") return false;
+  if (faixa === "colo") return (BEBE[it.slot] || []).includes(k);
+  if ((faixa === "pequeno" || faixa === "crianca") && ADULTO.test(k)) return false;
+  if (faixa === "pequeno" && ["oculos", "sobre", "pescoco_peca", "cintura", "orelhas"].includes(it.slot)) return false;
+  if (faixa === "adolescente" && JOVEM_NAO.test(k)) return false;
+  if (faixa === "idoso" && IDOSO_NAO.test(k)) return false;
+  if (solta && SO_CONJUNTO.has(k)) return false;
+  return true;
+}
+function sortearPersonagem(semente, pool) {
+  const r = geradorDe(semente);
+  const um = (l) => l[Math.floor(r() * l.length)];
+  const chance = (q) => r() < q;
+  const pesado = (pares) => { const tot = pares.reduce((s, [, w]) => s + w, 0); let x = r() * tot; for (const [v, w] of pares) if ((x -= w) < 0) return v; return pares[pares.length - 1][0]; };
+  const corpo = um(pool), id = corpo.id, faixa = corpo.idade, sexo = corpo.sexo;
+  const p = { formato: "morada-personagem", versao: 1, corpo: id };
+  // pele: um dos tons, ou um meio-termo entre dois tons vizinhos
+  const tons = Object.keys(TONS);
+  if (chance(0.75)) p.pele = um(tons);
+  else { const i = Math.floor(r() * (tons.length - 1)); p.pele = "#" + new THREE.Color(TONS[tons[i]]).lerp(new THREE.Color(TONS[tons[i + 1]]), 0.3 + r() * 0.4).getHexString(); }
+  const ct = new THREE.Color(TONS[p.pele] ?? p.pele), escura = 0.2126 * ct.r + 0.7152 * ct.g + 0.0722 * ct.b < 0.2;
+  const corNatural = () => pesado(escura ? [["Preto", 50], ["Castanho", 34], ["Castanho claro", 9], ["Loiro", 4], ["Ruivo", 3]]
+    : [["Preto", 18], ["Castanho", 30], ["Castanho claro", 20], ["Loiro", 20], ["Ruivo", 12]]);
+  if (faixa === "recem") {
+    p.cabelo = { tipo: pesado([["baixinho", 5], ["careca", 2], ["gorro", 3]]), cor: chance(0.5) ? "Castanho claro" : corNatural() };
+    p.manta = um(Object.keys(MANTA_CORES)); p.chupeta = chance(0.5);
+    p.expressao = pesado([["dormindo", 4], ["neutro", 3], ["feliz", 3], ["chorando", 1]]);
+    return p;
+  }
+  // cabelo (penteado coerente com a idade; barba e bigode só nos corpos adultos masculinos do catálogo)
+  const tem = (k) => k === "cabelo" || k === "careca" || k === "cabelo_raspado" || CAT.itens.some((x) => x.id === k && x.tipo === "cabelo");
+  const lista = (l) => { const f = l.filter((k) => tem(k) && (faixa !== "idoso" || !CAB_IDOSO_NAO.has(k))); return f.length ? f : ["cabelo"]; };
+  let penteado = "cabelo";
+  if (faixa === "colo") penteado = chance(sexo === "m" ? 0.7 : 0.5) ? "cabelo"
+    : um(lista(sexo === "m" ? ["cabelo_seguranca", "cabelo_criativo10", "afro_curto"] : ["maria_chiquinha", "rabo_curto", "afro_curto", "cabelo_criativo12", "coque_duplo"]));
+  else if (sexo === "m") {
+    const careca = faixa === "idoso" ? 0.28 : faixa === "adulto" ? 0.07 : 0;
+    const raspado = faixa === "idoso" ? 0.1 : faixa === "adulto" ? 0.06 : 0.03, x = r();
+    if (x < careca) penteado = "careca";
+    else if (x < careca + raspado) penteado = "cabelo_raspado";
+    else if (!chance(0.12)) penteado = um(lista(chance(0.1) ? CAB_LONGOS_M : CAB_CURTOS));
+  } else if (!chance(0.12)) penteado = um(lista(chance(0.13) ? CAB_CURTOS_F : CAB_LONGOS));
+  let cor;
+  if (faixa === "idoso") cor = pesado([["Grisalho", 70], ["#E6E2DA", 14], ["nat", 16]]);
+  else if ((faixa === "adolescente" || faixa === "adulto") && chance(0.05)) cor = um(["#C2185B", "#3D7BD6", "#7A4FC4", "#2E9C80", "#E07A2E"]);
+  else cor = faixa === "adulto" && chance(0.04) ? "Grisalho" : "nat";
+  if (cor === "nat") cor = corNatural();
+  let barba = "nenhum";
+  const barbas = CAT.itens.filter((x) => x.tipo === "rosto" && permitidoCab(x.id, id)).map((x) => x.id);
+  if (barbas.length && chance(faixa === "idoso" ? 0.45 : 0.35)) barba = um(barbas);
+  p.cabelo = { penteado, cor, barba };
+  p.expressao = faixa === "colo" ? pesado([["feliz", 5], ["neutro", 3], ["surpreso", 1], ["chorando", 0.5], ["dormindo", 0.3]])
+    : pesado([["feliz", 4], ["neutro", 3], ["confiante", 2], ["serio", 1.5], ["surpreso", 0.6], ["aborrecido", 0.4], ["confuso", 0.4], ["triste", 0.3], ["bravo", 0.2], ["assustado", 0.2]]);
+  if (COM_GRAVIDA.has(id)) p.gravidez = FILTRO.gravidez && chance(0.22) ? 1 + Math.floor(r() * 3) : 0;
+  // roupa: um conjunto pronto ou uma peça por parte, com cores que combinam
+  const pal = paletaSorteada(r, um, faixa), roupa = {};
+  const corPara = (it, c) => (c === undefined || !MASC[it.id] ? it.variacao?.cor ?? null : it.id.startsWith("roupa_") && chance(0.4) ? null : c);
+  const opcoes = (slot) => CAT_ROUPA.itens.filter((x) => x.slot === slot && pecaPode(x, faixa, sexo, true));
+  const pega = (slot, c, l = opcoes(slot)) => { if (!l.length) return null; const it = um(l); roupa[slot] = { id: it.id, cor: corPara(it, c) }; return it; };
+  const conjuntos = FILTRO.conjuntos ? (CAT_ROUPA.conjuntos || []).filter((cj) => {
+    if (faixa === "colo") return false;
+    if ((faixa === "pequeno" || faixa === "crianca") && !CONJ_CRIANCA.test(cj.nome)) return false;
+    if (faixa === "adolescente" && CONJ_JOVEM_NAO.test(cj.nome)) return false;
+    if (faixa === "idoso" && CONJ_IDOSO_NAO.test(cj.nome)) return false;
+    return Object.values(cj.pecas).every((pc) => pecaPode(itemRoupa(pc.id), faixa, sexo, false));
+  }) : [];
+  if (conjuntos.length && (!FILTRO.soltas || chance(0.38))) {
+    const cj = um(conjuntos);
+    for (const [slot, pc] of Object.entries(cj.pecas)) roupa[slot] = { id: pc.id, cor: pc.cor ?? itemRoupa(pc.id)?.variacao?.cor ?? null };
+    if (FILTRO.extras && !roupa.oculos && faixa !== "pequeno" && chance(faixa === "idoso" ? 0.3 : 0.08)) pega("oculos", undefined);
+  } else {
+    const f = sexo === "f";
+    let inteira = null;
+    if (chance(faixa === "colo" ? 0.4 : f ? 0.28 : 0.05)) {
+      const l = opcoes("inteira").filter((x) => f || /macacao|jardineira/.test(x.id));
+      if (l.length) inteira = pega("inteira", pal.principal, l);
+    }
+    const cobre = inteira ? inteira.cobre || ["cima", "baixo"] : [];
+    if (!cobre.includes("cima")) pega("cima", chance(0.65) ? pal.principal : pal.secundaria);
+    let saia = false;
+    if (!cobre.includes("baixo")) {
+      let l = opcoes("baixo");
+      if (f && faixa !== "colo") { const saias = l.filter((x) => /saia/.test(x.id)); saia = saias.length > 0 && chance(0.3); l = saia ? saias : l.filter((x) => !/saia/.test(x.id)); }
+      pega("baixo", chance(0.7) ? pal.neutra : pal.secundaria, l);
+    }
+    if (faixa !== "colo" && faixa !== "pequeno" && !inteira && chance(faixa === "idoso" ? 0.35 : 0.2)) pega("sobre", chance(0.5) ? pal.neutra2 : pal.secundaria);
+    if (chance(faixa === "colo" ? 0.45 : 0.94)) {
+      const l = opcoes("pes"), it = l.length ? um(l) : null;
+      if (it) roupa.pes = { id: it.id, cor: corPara(it, /tenis/.test(it.id) ? um(["#F2F2F2", "#2B2B2B", pal.acento, pal.neutra]) : um(["#2B2B2B", "#2B2B2B", "#7B4B2D", "#5B4737"])) };
+    }
+    if ((inteira || saia || faixa === "colo") && chance(f ? 0.25 : 0.1)) pega("meias", chance(0.6) ? pal.neutra2 : pal.acento);
+    if (FILTRO.extras) {
+      if (chance(faixa === "colo" ? 0.35 : faixa === "idoso" ? 0.28 : 0.18)) pega("cabeca", chance(0.5) ? pal.acento : pal.secundaria);
+      if (chance(faixa === "idoso" ? 0.45 : faixa === "adulto" ? 0.16 : faixa === "adolescente" ? 0.12 : faixa === "crianca" ? 0.06 : 0)) pega("oculos", chance(0.3) ? pal.neutra : undefined);
+      if (faixa !== "colo" && faixa !== "pequeno" && faixa !== "crianca" && chance(0.08)) pega("pescoco_peca", pal.acento);
+      if (roupa.baixo && /calca|bermuda/.test(roupa.baixo.id) && faixa !== "colo" && chance(0.08)) pega("cintura", um(["#2B2B2B", "#6E482E"]));
+      if ((faixa === "crianca" || faixa === "adolescente") && chance(0.18)) pega("costas", pal.secundaria);
+      if ((faixa === "adolescente" || faixa === "adulto") && chance(0.04)) pega("orelhas", undefined);
+    }
+  }
+  // objeto de mão, às vezes (a bengala, quase sempre no idoso que leva algo)
+  if (FILTRO.extras && !roupa.mao_dir && !roupa.mao_esq) {
+    const objs = (MAO_SORTEIO[faixa] || []).map(itemRoupa).filter((it) => it && pecaPode(it, faixa, sexo, false) && it.slot?.startsWith("mao_"));
+    const q = { idoso: 0.55, adulto: 0.35, adolescente: 0.3, crianca: 0.25, pequeno: 0.12 }[faixa] || 0;
+    if (objs.length && chance(q)) {
+      const it = um(objs); roupa[it.slot] = { id: it.id, cor: corPara(it, chance(0.5) ? pal.acento : undefined) };
+      const outros = objs.filter((x) => x.slot !== it.slot);
+      if (outros.length && chance(0.12)) { const o = um(outros); roupa[o.slot] = { id: o.id, cor: corPara(o, undefined) }; }
+    }
+  }
+  p.roupa = {}; p.objetos = {};
+  for (const [slot, v] of Object.entries(roupa)) { if (slot === "mao_dir") p.objetos.dir = v; else if (slot === "mao_esq") p.objetos.esq = v; else p.roupa[slot] = v; }
+  return p;
+}
+
+// ---- painel das ferramentas
+const $el = (id) => document.getElementById(id);
+let _avisoT = 0;
+function aviso(txt) { const el = $el("ferr-aviso"); el.textContent = txt; clearTimeout(_avisoT); if (txt) _avisoT = setTimeout(() => { el.textContent = ""; }, 6000); }
+function desenharFiltrosSorteio() {
+  const box = $el("filtros-campos");
+  box.replaceChildren();
+  const grupo = (titulo, chave, opcoes) => {
+    const fs = document.createElement("fieldset"), lg = document.createElement("legend"); lg.textContent = titulo; fs.append(lg);
+    for (const [k, rot] of opcoes) {
+      const lb = document.createElement("label"), cb = document.createElement("input");
+      cb.type = "checkbox"; cb.dataset.filtro = chave; cb.value = k; cb.checked = FILTRO[chave].includes(k);
+      cb.onchange = () => { FILTRO[chave] = cb.checked ? [...new Set([...FILTRO[chave], k])] : FILTRO[chave].filter((x) => x !== k); gravarLS("morada.filtros", FILTRO); contarFiltro(); };
+      lb.append(cb, " " + rot); fs.append(lb);
+    }
+    box.append(fs);
+  };
+  grupo("Faixa", "faixas", OPC_FILTRO.faixas);
+  grupo("Sexo", "sexos", OPC_FILTRO.sexos);
+  grupo("Corpo (adultos)", "tipos", OPC_FILTRO.tipos);
+  const fs = document.createElement("fieldset"), lg = document.createElement("legend"); lg.textContent = "Roupa e extras"; fs.append(lg);
+  for (const [k, rot] of [["soltas", "Peças soltas"], ["conjuntos", "Conjuntos prontos (profissões e estilos)"], ["extras", "Chapéu, óculos e objeto de mão às vezes"], ["gravidez", "Gestante às vezes"]]) {
+    const lb = document.createElement("label"), cb = document.createElement("input");
+    cb.type = "checkbox"; cb.dataset.filtro = k; cb.checked = !!FILTRO[k];
+    cb.onchange = () => { FILTRO[k] = cb.checked; gravarLS("morada.filtros", FILTRO); contarFiltro(); };
+    lb.append(cb, " " + rot); fs.append(lb);
+  }
+  box.append(fs);
+  const volta = document.createElement("button"); volta.type = "button"; volta.textContent = "Marcar tudo de novo"; volta.style.marginTop = "8px";
+  volta.onclick = () => { FILTRO = JSON.parse(JSON.stringify(FILTRO_PADRAO)); gravarLS("morada.filtros", FILTRO); desenharFiltrosSorteio(); };
+  box.append(volta);
+  contarFiltro();
+}
+function contarFiltro() {
+  const n = corposDoSorteio().length;
+  $el("filtros-conta").textContent = n ? `${n} ${n === 1 ? "corpo pode" : "corpos podem"} sair no sorteio.` : "Nenhum corpo com esses filtros: marque pelo menos uma faixa e um sexo.";
+  $el("btn-aleatorio").disabled = !n; $el("btn-repetir").disabled = !n;
+}
+let sorteando = false;
+async function sortear(semente) {
+  if (sorteando) return;
+  const pool = corposDoSorteio();
+  if (!pool.length) { aviso("Nenhum corpo com esses filtros."); return; }
+  sorteando = true;
+  try {
+    await Promise.all([P_CABELOS, P_ROUPA, P_MASC]);
+    $el("semente").value = String(semente);
+    const p = sortearPersonagem(semente, pool);
+    await aplicarPersonagem(p);
+    aviso(`Sorteado com a semente ${semente}.`);
+    lembrar(semente);
+  } catch (e) { aviso("Não consegui sortear: " + (e?.message || e)); }
+  finally { sorteando = false; }
+}
+// últimos personagens, neste navegador (com miniatura); a página funciona igual sem o armazenamento
+const LS_RECENTES = "morada.personagens.recentes", MAX_RECENTES = 12;
+function miniaturaDoPalco() {
+  try {
+    renderer.render(cena, camera);
+    const src = renderer.domElement, w = 92, h = 124, cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    const g = cv.getContext("2d"), sh = src.height * 0.92, sw = sh * w / h;
+    g.fillStyle = getComputedStyle(palco).backgroundColor || "#3D5A92"; g.fillRect(0, 0, w, h);
+    g.drawImage(src, (src.width - sw) / 2, src.height * 0.04, sw, sh, 0, 0, w, h);
+    return cv.toDataURL("image/webp", 0.7);
+  } catch { return null; }
+}
+function lembrar(semente) {
+  const p = personagemAtual(), chave = JSON.stringify(p);
+  setTimeout(() => { // depois de montar as peças e cabelos novos
+    const igual = JSON.stringify(personagemAtual()) === chave;
+    const img = igual ? miniaturaDoPalco() : null;
+    const lista = lerLS(LS_RECENTES, []).filter((x) => x && JSON.stringify(x.p) !== chave);
+    lista.unshift({ p, img, semente: semente ?? null, em: new Date().toISOString() });
+    gravarLS(LS_RECENTES, lista.slice(0, MAX_RECENTES));
+    desenharRecentes(lista.slice(0, MAX_RECENTES));
+  }, 1400);
+}
+function desenharRecentes(lista = lerLS(LS_RECENTES, [])) {
+  const el = $el("recentes");
+  el.replaceChildren();
+  $el("recentes-bloco").hidden = !lista.length;
+  for (const r of lista) {
+    if (!r?.p) continue;
+    const b = document.createElement("button"); b.type = "button";
+    const nome = CORPOS.find((c) => c.id === r.p.corpo)?.rotulo || r.p.corpo;
+    b.title = nome + (r.semente != null ? ` · semente ${r.semente}` : "");
+    if (r.img) { const im = document.createElement("img"); im.src = r.img; im.alt = ""; b.append(im); }
+    else { const s = document.createElement("span"); s.className = "sem-img"; s.setAttribute("aria-hidden", "true"); b.append(s); }
+    const t = document.createElement("span"); t.textContent = nome; b.append(t);
+    b.onclick = () => { if (r.semente != null) $el("semente").value = String(r.semente); aplicarPersonagem(r.p).catch((e) => aviso(e.message)); };
+    el.append(b);
+  }
+}
+function baixarPersonagem() {
+  const p = personagemAtual();
+  const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2) + "\n"], { type: "application/json" }));
+  const a = document.createElement("a"); a.href = url; a.download = `personagem_${p.corpo}.json`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  lembrar(Number($el("semente").value) || null);
+  aviso("Personagem salvo como arquivo JSON. Se o navegador não baixar, use “Ver ou colar o JSON”.");
+}
+async function carregarTexto(txt, origem) {
+  let p;
+  try { p = JSON.parse(txt); } catch { aviso("Esse arquivo não é um JSON válido."); return; }
+  try { await aplicarPersonagem(p); aviso(`Personagem carregado ${origem}.`); lembrar(null); }
+  catch (e) { aviso(e.message); }
+}
+function montarFerramentas() {
+  $el("btn-aleatorio").onclick = () => sortear(1 + Math.floor(Math.random() * 999999));
+  $el("btn-repetir").onclick = () => { const s = $el("semente").value.trim(); sortear(s ? sementeDe(s) : 1 + Math.floor(Math.random() * 999999)); };
+  $el("semente").onkeydown = (e) => { if (e.key === "Enter") $el("btn-repetir").click(); };
+  $el("btn-padrao").onclick = () => voltarAoPadrao().catch((e) => aviso(e.message));
+  $el("btn-baixar").onclick = baixarPersonagem;
+  $el("btn-guardar").onclick = () => { lembrar(Number($el("semente").value) || null); aviso(gravarLS("morada.teste", 1) ? "Guardado em “Últimos personagens”, neste navegador." : "Este navegador não deixa guardar; use “Salvar (JSON)”."); };
+  $el("btn-abrir").onclick = () => $el("arquivo").click();
+  $el("arquivo").onchange = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (f) carregarTexto(await f.text(), "do arquivo");
+  };
+  const jc = $el("json-caixa");
+  jc.addEventListener("toggle", () => { if (jc.open) $el("json-texto").value = JSON.stringify(personagemAtual(), null, 2); });
+  $el("btn-json-aplicar").onclick = () => carregarTexto($el("json-texto").value, "do texto");
+  $el("btn-json-copiar").onclick = async () => {
+    const t = $el("json-texto"); t.value = JSON.stringify(personagemAtual(), null, 2);
+    try { await navigator.clipboard.writeText(t.value); aviso("JSON copiado."); } catch { t.select(); aviso("Selecionei o JSON: copie com Ctrl+C."); }
+  };
+  $el("btn-limpar").onclick = () => { gravarLS(LS_RECENTES, []); desenharRecentes([]); };
+  desenharFiltrosSorteio();
+  desenharRecentes();
+}
+
+// ---------------------------------------------------------------- modo passeio
+// Uma praça grande; o personagem anda com WASD/setas (Shift corre) ou com o joystick na tela, e a câmera segue atrás.
+// Parado, andando e correndo são as animações da biblioteca (as de idoso no idoso, engatinhar no bebê de colo), com
+// crossfade. O deslocamento é a velocidade do passo de cada animação, medida no próprio corpo (o pé de apoio quase
+// não desliza), vezes a velocidade com que a animação toca.
+const passeio = { ativo: false, pos: new THREE.Vector3(), yaw: 0, vel: 0, camYaw: 0, camPitch: 0.3, zoom: 1, modo: null,
+  teclas: new Set(), joy: { x: 0, y: 0, ativo: false, id: null }, animAntes: "parado", mundo: null, colisores: [],
+  camAlvo: new THREE.Vector3(), arraste: null, ultimoArraste: -10 };
+const toque = { visto: matchMedia("(pointer: coarse)").matches };
+addEventListener("touchstart", () => { if (!toque.visto) { toque.visto = true; if (passeio.ativo) mostrarJoystick(); } }, { passive: true, once: true });
+function montarMundo() {
+  const g = new THREE.Group(), cols = passeio.colisores;
+  const mat = (cor, rough = 0.9) => new THREE.MeshStandardMaterial({ color: cor, roughness: rough });
+  const malha = (geo, m, x, y, z, sombra = true) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = sombra; o.receiveShadow = true; g.add(o); return o; };
+  const grama = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), mat(0x9cc47e, 1));
+  grama.rotation.x = -Math.PI / 2; grama.position.y = -0.012; grama.receiveShadow = true; g.add(grama);
+  // piso da praça: placas de 1 m (textura desenhada aqui, 2 × 2 placas)
+  const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+  const x = cv.getContext("2d");
+  x.fillStyle = "#b9b1a3"; x.fillRect(0, 0, 256, 256);
+  const tons = ["#ddd6c9", "#d4cdbf", "#e2dbce", "#d0c8b9"];
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { x.fillStyle = tons[i * 2 + j]; x.fillRect(i * 128 + 3, j * 128 + 3, 122, 122); }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
+  const R = 26;
+  tex.repeat.set(R, R); // o círculo tem 2R de diâmetro no UV 0..1: R texturas de 2 m
+  const piso = new THREE.Mesh(new THREE.CircleGeometry(R, 96), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+  piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; g.add(piso);
+  const meioFio = new THREE.Mesh(new THREE.RingGeometry(R, R + 0.4, 96), mat(0xa9a395));
+  meioFio.rotation.x = -Math.PI / 2; meioFio.position.y = 0.004; meioFio.receiveShadow = true; g.add(meioFio);
+  // chafariz à frente de quem chega
+  const pedra = mat(0xc8c2b6), agua = new THREE.MeshStandardMaterial({ color: 0x6fb2d9, roughness: 0.2, metalness: 0.1 });
+  malha(new THREE.CylinderGeometry(2.3, 2.4, 0.3, 48), pedra, 0, 0.15, 10);
+  const borda = malha(new THREE.TorusGeometry(2.2, 0.12, 10, 64), pedra, 0, 0.36, 10);
+  borda.rotation.x = Math.PI / 2;
+  malha(new THREE.CircleGeometry(2.15, 48), agua, 0, 0.34, 10, false).rotation.x = -Math.PI / 2;
+  malha(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 20), pedra, 0, 0.7, 10);
+  malha(new THREE.CylinderGeometry(0.75, 0.45, 0.18, 32), pedra, 0, 1.4, 10);
+  cols.push({ x: 0, z: 10, r: 2.4 });
+  // bancos em volta do chafariz
+  const madeira = mat(0xa9774f), ferro = mat(0x4a4f57, 0.6);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + (i * Math.PI) / 2, bx = Math.sin(a) * 5.2, bz = 10 + Math.cos(a) * 5.2;
+    const banco = new THREE.Group(); banco.position.set(bx, 0, bz); banco.rotation.y = a + Math.PI;
+    const tab = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.45), madeira); tab.position.y = 0.45; banco.add(tab);
+    const enc = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.05), madeira); enc.position.set(0, 0.72, -0.2); banco.add(enc);
+    for (const s of [-0.7, 0.7]) { const pe = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.4), ferro); pe.position.set(s, 0.225, 0); banco.add(pe); }
+    banco.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.add(banco); cols.push({ x: bx, z: bz, r: 0.8 });
+  }
+  // árvores e postes num anel
+  const tronco = mat(0x7a5638), copa = [mat(0x5f9e4f), mat(0x6eaa55), mat(0x548f47)];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + 0.26, tx = Math.sin(a) * 19, tz = Math.cos(a) * 19, k = 0.85 + ((i * 37) % 10) / 25;
+    malha(new THREE.CylinderGeometry(0.16 * k, 0.22 * k, 2.2 * k, 10), tronco, tx, 1.1 * k, tz);
+    malha(new THREE.IcosahedronGeometry(1.5 * k, 1), copa[i % 3], tx, 2.9 * k, tz);
+    cols.push({ x: tx, z: tz, r: 0.35 });
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2, lx = Math.sin(a) * 12.5, lz = Math.cos(a) * 12.5;
+    malha(new THREE.CylinderGeometry(0.06, 0.08, 3.4, 10), ferro, lx, 1.7, lz);
+    malha(new THREE.SphereGeometry(0.22, 16, 10), new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0x5a5030, roughness: 0.4 }), lx, 3.5, lz);
+    cols.push({ x: lx, z: lz, r: 0.18 });
+  }
+  return g;
+}
+// parado, andar e correr de cada corpo (biblioteca; as do pacote enquanto a biblioteca carrega)
+function clipesPasseio(c) {
+  const b = (n) => (c.clips["bib:" + n] ? "bib:" + n : null), pac = (n) => (c.clips[n] ? n : null);
+  if (c.id.startsWith("bebe")) return { parado: b("resident.baby.sit") || pac("parado"), andar: b("resident.baby.crawl") || pac("andando"), correr: null };
+  const idoso = c.id === "idoso" || c.id === "idosa";
+  return {
+    parado: (idoso && b("resident.idle.old")) || b("resident.idle.neutral") || pac("parado"),
+    andar: (idoso && b("resident.walk.old")) || b("resident.walk.normal") || pac("andando"),
+    correr: (idoso ? b("resident.jog") : b("resident.run.normal") || b("resident.jog")) || (c.bib ? null : pac("correndo")),
+  };
+}
+// velocidade do passo de uma animação no lugar: o ponto mais baixo do corpo (o pé de apoio; no engatinhar, joelho ou
+// mão) anda para trás, em relação ao corpo, na velocidade com que o corpo deveria andar para a frente
+const OSSOS_APOIO = ["LeftToeBase", "RightToeBase", "LeftFoot", "RightFoot", "LeftLeg", "RightLeg", "LeftHand", "RightHand"];
+function velocidadeClipe(c, nome) {
+  const acao = nome && c.clips[nome];
+  if (!acao) return null;
+  const clip = acao.getClip();
+  c.velClip ||= {};
+  if (c.velClip[clip.uuid]) return c.velClip[clip.uuid];
+  if (!c.copiaEsq) { c.copiaEsq = clonarEsqueleto(c.raiz); c.mixerCopia = new THREE.AnimationMixer(c.copiaEsq); }
+  // engatinhando, os pés vão arrastando junto com o corpo: o apoio são os joelhos e as mãos
+  const ossos = (/crawl/.test(nome) ? OSSOS_APOIO.slice(4) : OSSOS_APOIO).map((n) => c.copiaEsq.getObjectByName(n)).filter(Boolean);
+  const alt = c.altura || 1.7, padrao = alt * (/run|jog|correndo/.test(nome) ? 1.6 : 0.62);
+  if (ossos.length < 2) return (c.velClip[clip.uuid] = padrao);
+  const a2 = c.mixerCopia.clipAction(clip);
+  a2.reset().play();
+  const N = 48, D = clip.duration, h = D / (4 * N), frente = new THREE.Vector3();
+  const amostra = (t) => { c.mixerCopia.setTime(t); c.copiaEsq.updateMatrixWorld(true); return ossos.map((o) => o.getWorldPosition(new THREE.Vector3())); };
+  c.copiaEsq.updateMatrixWorld(true);
+  c.copiaEsq.getWorldDirection(frente); frente.y = 0; frente.normalize();
+  const am = [];
+  for (let i = 0; i < N; i++) {
+    const t = (D * (i + 0.5)) / N, P = amostra(t), A = amostra(t - h), B = amostra(t + h);
+    let k = 0; for (let j = 1; j < P.length; j++) if (P[j].y < P[k].y) k = j;
+    am.push({ y: P[k].y, v: -B[k].clone().sub(A[k]).dot(frente) / (2 * h) });
+  }
+  a2.stop(); c.mixerCopia.uncacheClip(clip);
+  const corte = am.map((q) => q.y).sort((p, q) => p - q)[Math.floor(N * 0.5)];
+  const vs = am.filter((q) => q.y <= corte).map((q) => q.v).sort((p, q) => p - q);
+  let v = vs[Math.floor(vs.length / 2)];
+  if (!(v > alt * 0.12 && v < alt * 4)) v = padrao; // animação sem passo claro: um valor proporcional à altura
+  return (c.velClip[clip.uuid] = v);
+}
+function trocarAnimPasseio(c, nome) {
+  const nova = c.clips[nome];
+  if (!nova || c.acao === nova) return;
+  nova.reset(); nova.setEffectiveTimeScale(1); nova.setEffectiveWeight(1); nova.play();
+  if (c.acao) c.acao.crossFadeTo(nova, 0.3, false);
+  c.acao = nova; estado.anim = nome;
+  for (const malhas of Object.values(c.roupas || {})) for (const m of malhas) pesosDaPose(m);
+  atualizaMaos();
+}
+const _pf = new THREE.Vector3(), _pr = new THREE.Vector3(), _pd2 = new THREE.Vector3(), _pc2 = new THREE.Vector3(), CIMA = new THREE.Vector3(0, 1, 0);
+const angDif = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+function atualizaPasseio(dt) {
+  const c = atual;
+  if (!c) return;
+  if (semAnimacoes(c.id)) { sairPasseio(); return; }
+  dt = Math.min(dt, 0.1);
+  const T = passeio.teclas, J = passeio.joy;
+  let ix = (T.has("d") || T.has("arrowright") ? 1 : 0) - (T.has("a") || T.has("arrowleft") ? 1 : 0);
+  let iy = (T.has("w") || T.has("arrowup") ? 1 : 0) - (T.has("s") || T.has("arrowdown") ? 1 : 0);
+  let correr = T.has("shift"), fator = 1;
+  if (J.ativo) { ix += J.x; iy += J.y; const m = Math.hypot(J.x, J.y); if (m > 0.9) correr = true; else fator = Math.min(1, Math.max(0.35, m / 0.85)); }
+  const mag = Math.min(1, Math.hypot(ix, iy));
+  const cl = clipesPasseio(c);
+  const vA = velocidadeClipe(c, cl.andar) || c.altura * 0.62;
+  const vC = cl.correr ? velocidadeClipe(c, cl.correr) || vA * 2 : vA * 1.35; // sem correr (gestante, bebê): o andar mais depressa
+  const alvo = mag < 0.08 ? 0 : correr ? vC : vA * fator;
+  passeio.vel += (alvo - passeio.vel) * (1 - Math.exp(-dt * (alvo > passeio.vel ? 3.5 : 5)));
+  if (alvo === 0 && passeio.vel < vA * 0.04) passeio.vel = 0;
+  if (mag >= 0.08) { // vira para a direção do movimento, relativa à câmera
+    _pf.set(Math.sin(passeio.camYaw), 0, Math.cos(passeio.camYaw)); _pr.crossVectors(_pf, CIMA);
+    _pd2.copy(_pf).multiplyScalar(iy).addScaledVector(_pr, ix);
+    const yawAlvo = Math.atan2(_pd2.x, _pd2.z);
+    passeio.yaw += angDif(yawAlvo, passeio.yaw) * (1 - Math.exp(-dt * 9));
+    // andando para a frente, a câmera volta devagar para trás do personagem (se ninguém girou a câmera agora há pouco)
+    if (iy > 0.2 && performance.now() / 1000 - passeio.ultimoArraste > 1.5)
+      passeio.camYaw += angDif(passeio.yaw, passeio.camYaw) * (1 - Math.exp(-dt * 1.1 * iy)) * Math.min(1, passeio.vel / vA);
+  }
+  const P = passeio.pos, x0 = P.x, z0 = P.z;
+  P.x += Math.sin(passeio.yaw) * passeio.vel * dt; P.z += Math.cos(passeio.yaw) * passeio.vel * dt;
+  const raio = 0.2 * Math.max(c.altura, 0.6);
+  for (const o of passeio.colisores) {
+    const dx = P.x - o.x, dz = P.z - o.z, d = Math.hypot(dx, dz), m = o.r + raio;
+    if (d < m && d > 1e-6) { P.x = o.x + (dx / d) * m; P.z = o.z + (dz / d) * m; }
+  }
+  const lim = 70, dd = Math.hypot(P.x, P.z); if (dd > lim) { P.x *= lim / dd; P.z *= lim / dd; }
+  // de frente para um obstáculo, a pessoa para (os pés não ficam andando no lugar); de lado, escorrega por ele, no passo
+  // da distância que andou de fato
+  if (dt > 0 && passeio.vel > 0) passeio.vel = Math.min(passeio.vel, Math.hypot(P.x - x0, P.z - z0) / dt * 1.02);
+  c.raiz.position.x = P.x; c.raiz.position.z = P.z; c.raiz.rotation.y = passeio.yaw;
+  // parado ↔ andar ↔ correr (com folga para não ficar trocando na fronteira)
+  let modo = "parado";
+  if (passeio.vel > vA * (passeio.modo === "parado" || !passeio.modo ? 0.14 : 0.08)) {
+    modo = "andar";
+    if (cl.correr && passeio.vel > vA * (passeio.modo === "correr" ? 1.12 : 1.3)) modo = "correr";
+  }
+  const nome = cl[modo] || cl.andar || cl.parado;
+  if (nome) trocarAnimPasseio(c, nome);
+  passeio.modo = modo;
+  const acao = nome && c.clips[nome];
+  if (acao) acao.setEffectiveTimeScale(modo === "andar" ? THREE.MathUtils.clamp(passeio.vel / vA, 0.55, 1.4)
+    : modo === "correr" ? THREE.MathUtils.clamp(passeio.vel / vC, 0.7, 1.3) : 1);
+  // câmera em terceira pessoa: o ponto de mira segue suave; a distância acompanha a altura do corpo
+  const alt = Math.max(c.altura, 0.45), dist = (alt * 2.2 + 1.5) * passeio.zoom;
+  _pc2.set(P.x, alt * 0.6, P.z);
+  passeio.camAlvo.lerp(_pc2, 1 - Math.exp(-dt * 6));
+  const cp = Math.cos(passeio.camPitch), sp = Math.sin(passeio.camPitch);
+  camera.position.set(passeio.camAlvo.x - Math.sin(passeio.camYaw) * cp * dist, passeio.camAlvo.y + sp * dist, passeio.camAlvo.z - Math.cos(passeio.camYaw) * cp * dist);
+  camera.lookAt(passeio.camAlvo);
+  sol.position.set(P.x + 2, 6, P.z + 4); sol.target.position.set(P.x, 0, P.z); sol.target.updateMatrixWorld();
+}
+function mostrarJoystick() {
+  $el("joystick").hidden = !(passeio.ativo && toque.visto);
+  const d = $el("passeio-dica");
+  d.textContent = toque.visto ? "Joystick anda · na borda, corre · arraste a tela para girar"
+    : "WASD ou setas para andar · Shift corre · arraste para girar a câmera · roda aproxima · Esc sai";
+  d.classList.remove("some"); clearTimeout(passeio.dicaT);
+  passeio.dicaT = setTimeout(() => d.classList.add("some"), 9000); // a dica some sozinha depois de um tempo
+}
+async function entrarPasseio() {
+  if (!atual || semAnimacoes(atual.id) || passeio.ativo) return;
+  const c = atual;
+  passeio.ativo = true; passeio.animAntes = estado.anim;
+  passeio.pos.set(0, 0, 0); passeio.yaw = 0; passeio.vel = 0; passeio.camYaw = 0; passeio.camPitch = 0.3; passeio.zoom = 1; passeio.modo = null;
+  passeio.camAlvo.set(0, c.altura * 0.6, 0);
+  passeio.mundo ||= montarMundo();
+  cena.add(passeio.mundo);
+  chao.visible = false; apoio.visible = false; auxiliar.clear(); seguir = null; dinamico = null;
+  if (par) { cena.remove(par.raiz); par = null; }
+  orbita.enabled = false;
+  cena.background = new THREE.Color(0xc4dcf0); cena.fog = new THREE.Fog(0xc4dcf0, 30, 90);
+  camera.fov = 50; camera.far = 200; camera.updateProjectionMatrix();
+  Object.assign(sol.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 20 }); sol.shadow.camera.updateProjectionMatrix();
+  if (!sol.target.parent) cena.add(sol.target);
+  document.querySelector(".app").classList.add("passeando");
+  const b = $el("btn-passeio"); b.textContent = "Sair do passeio"; b.setAttribute("aria-pressed", "true");
+  $el("passeio-dica").hidden = false; mostrarJoystick();
+  renderer.domElement.tabIndex = -1; renderer.domElement.focus({ preventScroll: true });
+  if (!c.bib) { try { await ligarBiblioteca(c); } catch { /* sem biblioteca: anda com as animações do pacote */ } }
+}
+function sairPasseio() {
+  if (!passeio.ativo) return;
+  passeio.ativo = false;
+  cena.remove(passeio.mundo);
+  chao.visible = true; cena.background = null; cena.fog = null;
+  camera.fov = 30; camera.far = 100; camera.updateProjectionMatrix();
+  Object.assign(sol.shadow.camera, { left: -2, right: 2, top: 3, bottom: -1, near: 0.5, far: 500 }); sol.shadow.camera.updateProjectionMatrix();
+  sol.position.set(2, 5, 4); sol.target.position.set(0, 0, 0); sol.target.updateMatrixWorld();
+  for (const c of cache.values()) {
+    if (!c?.raiz || semAnimacoes(c.id)) continue;
+    c.raiz.position.x = 0; c.raiz.position.z = 0; c.raiz.rotation.y = 0;
+    for (const a of Object.values(c.clips)) a.setEffectiveTimeScale(1);
+  }
+  passeio.teclas.clear(); Object.assign(passeio.joy, { x: 0, y: 0, ativo: false, id: null }); $el("joy-pino").style.transform = "";
+  document.querySelector(".app").classList.remove("passeando");
+  const b = $el("btn-passeio"); b.textContent = "Passear"; b.setAttribute("aria-pressed", "false");
+  $el("passeio-dica").hidden = true; $el("joystick").hidden = true;
+  orbita.enabled = true;
+  if (atual && !semAnimacoes(atual.id)) {
+    estado.anim = atual.clips[passeio.animAntes] ? passeio.animAntes : "parado";
+    atual.mixer.stopAllAction(); atual.acao = null;
+    aplicarAnim(true); enquadrar(); desenharAnims();
+  }
+}
+function atualizaBotaoPasseio() {
+  const b = $el("btn-passeio"), recem = !atual || semAnimacoes(atual.id);
+  b.disabled = recem && !passeio.ativo;
+  b.title = recem ? "O recém-nascido não anda" : passeio.ativo ? "Voltar ao editor (Esc)" : "Andar pela praça com este personagem";
+}
+function montarControlesPasseio() {
+  $el("btn-passeio").onclick = () => (passeio.ativo ? sairPasseio() : entrarPasseio());
+  const TECLAS = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"]);
+  addEventListener("keydown", (e) => {
+    if (!passeio.ativo || e.target.closest?.("input, select, textarea")) return;
+    const k = e.key.toLowerCase();
+    if (k === "escape") { sairPasseio(); return; }
+    if (e.shiftKey) passeio.teclas.add("shift");
+    if (TECLAS.has(k)) { passeio.teclas.add(k); e.preventDefault(); }
+  });
+  addEventListener("keyup", (e) => { passeio.teclas.delete(e.key.toLowerCase()); if (!e.shiftKey) passeio.teclas.delete("shift"); });
+  addEventListener("blur", () => passeio.teclas.clear());
+  // arrastar no palco gira a câmera; a roda aproxima
+  const cv = renderer.domElement;
+  cv.addEventListener("pointerdown", (e) => {
+    if (!passeio.ativo) return;
+    passeio.arraste = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    try { cv.setPointerCapture(e.pointerId); } catch { /* sem captura: segue sem ela */ }
+  });
+  cv.addEventListener("pointermove", (e) => {
+    const a = passeio.arraste;
+    if (!passeio.ativo || !a || a.id !== e.pointerId) return;
+    passeio.camYaw -= (e.clientX - a.x) * 0.006;
+    passeio.camPitch = THREE.MathUtils.clamp(passeio.camPitch + (e.clientY - a.y) * 0.004, 0.04, 1.1);
+    a.x = e.clientX; a.y = e.clientY; passeio.ultimoArraste = performance.now() / 1000;
+  });
+  const solta = (e) => { if (passeio.arraste?.id === e.pointerId) passeio.arraste = null; };
+  cv.addEventListener("pointerup", solta); cv.addEventListener("pointercancel", solta);
+  cv.addEventListener("wheel", (e) => { if (!passeio.ativo) return; e.preventDefault(); passeio.zoom = THREE.MathUtils.clamp(passeio.zoom * Math.exp(e.deltaY * 0.001), 0.45, 2.2); }, { passive: false });
+  // joystick: o pino segue o dedo até a borda; empurrado até o fim, corre
+  const js = $el("joystick"), pino = $el("joy-pino");
+  const move = (e) => {
+    const r = js.getBoundingClientRect(), R = r.width / 2 - 8;
+    let x = (e.clientX - (r.left + r.width / 2)) / R, y = (e.clientY - (r.top + r.height / 2)) / R;
+    const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    passeio.joy.x = x; passeio.joy.y = -y;
+    pino.style.transform = `translate(${x * R}px, ${y * R}px)`;
+  };
+  js.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); passeio.joy.ativo = true; passeio.joy.id = e.pointerId;
+    try { js.setPointerCapture(e.pointerId); } catch { /* idem */ }
+    move(e);
+  });
+  js.addEventListener("pointermove", (e) => { if (passeio.joy.ativo && e.pointerId === passeio.joy.id) move(e); });
+  const fim = (e) => { if (e.pointerId !== passeio.joy.id) return; Object.assign(passeio.joy, { x: 0, y: 0, ativo: false, id: null }); pino.style.transform = ""; };
+  js.addEventListener("pointerup", fim); js.addEventListener("pointercancel", fim);
+}
+// para testes e para quem quiser montar personagens pelo console
+window.moradaPersonagem = { atual: personagemAtual, aplicar: aplicarPersonagem, sortear, sorteio: (s) => sortearPersonagem(s, corposDoSorteio()),
+  passeio, corpo: () => atual, velocidadeClipe, clipesPasseio,
+  passo: (dt) => { atualizaPasseio(dt); atual.mixer.update(dt); poseSegurar(atual, dt); fechaDedos(atual); atual.raiz.updateMatrixWorld(true); } };
+
 const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
 renderer.setAnimationLoop(() => {
   const dt = relogio.getDelta();
-  if (atual && !reduzido) atual.mixer.update(dt);
+  if (passeio.ativo) atualizaPasseio(dt);
+  if (atual && (!reduzido || passeio.ativo)) atual.mixer.update(dt); // no passeio, quem anda é a pessoa: a animação toca
   if (par && !reduzido) par.mixer.update(dt);
   poseSegurar(atual, dt);
   fechaDedos(atual);
@@ -2287,10 +3156,11 @@ renderer.setAnimationLoop(() => {
     for (const m of seguir.maos) { m.getWorldPosition(_v); z += _v.z; x += _v.x; }
     seguir.mesh.position.set(x / seguir.maos.length, 0.4, z / seguir.maos.length + 0.37);
   }
-  orbita.update();
+  if (!passeio.ativo) orbita.update();
   renderer.render(cena, camera);
 });
 aoMudarTamanho();
+montarFerramentas(); montarControlesPasseio();
 desenharFiltros(); desenharMinis(); desenharTons();
 mostrar(estado.corpo).catch((e) => { status.textContent = "Não consegui carregar o corpo: " + e.message; });
 </script>

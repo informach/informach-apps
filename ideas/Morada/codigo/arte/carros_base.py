@@ -311,7 +311,7 @@ class Casca:
         ys += [a + (b - a) * k / n for k in range(n + 1)]
         ra = self.c["r"] + self.c.get("folga_arco", 0.05)
         for ya in self.c.get("eixos", ()):  # mais seções nos arcos das rodas (o recorte fica limpo)
-            for d in (-1.05, -0.6, 0.0, 0.6, 1.05):
+            for d in (-1.0, 0.0, 1.0):
                 y = ya + d * ra
                 if a < y < b:
                     ys.append(y)
@@ -327,11 +327,11 @@ class Casca:
 
     def bm(self):
         c = self.c
-        n = c.get("n", 22)
+        n = c.get("n", 20)
         et, eb = c.get("et", 0.35), c.get("eb", 0.22)
         cint = c.get("cint", 0.45)
         aneis = []
-        for y in self.estacoes(c.get("passo", 0.4)):
+        for y in self.estacoes(c.get("passo", 0.46)):
             f = self.arred(y)
             zt, zb = self.topo(y), self.base(y)
             zm = zb + (zt - zb) * cint
@@ -356,7 +356,7 @@ class Cabine:
         k.setdefault("rr", 0.1)
         k.setdefault("gb", 0.05)
         k.setdefault("gt", 0.045)
-        k.setdefault("seg", 3)
+        k.setdefault("seg", 2)
         self.zlo = k["zb"] + k["gb"]
         self.zhi = k["zr"] - k["rr"] - k["gt"]
 
@@ -457,7 +457,7 @@ def base_de(n, cima=V((0, 0, 1))):
 def lente(l, h, esp=0.04, raio=None, cor=None, mat="atlas", forma="ret", seg=3, nome="lente", bisel=0.0):
     """Placa fina no plano XY local (espessura em Z, centrada), cantos boleados; forma "ret" ou "redonda"."""
     if forma == "redonda":
-        pts = mb.circulo(0, seg=14, rx=l / 2, ry=h / 2)
+        pts = mb.circulo(0, seg=12, rx=l / 2, ry=h / 2)
     else:
         pts = mb.ret_arredondado(l, h, raio if raio is not None else min(l, h) * 0.3, seg=2)
     return mb.extrudado(pts, esp, z=-esp / 2, cor=cor, mat=mat, bisel=bisel, seg=1, nome=nome)
@@ -486,10 +486,12 @@ def quad_estampa(mat_idx, w, h, uv=((0, 0), (1, 0), (1, 1), (0, 1)), nome="estam
 # ======================================================================================================================
 # Rodas
 # ======================================================================================================================
-def roda(r, larg, cor_pneu="borracha", cor_aro="cromo", estilo="calota", seg=14, cor_cubo=None, mat_aro="atlas",
-         nome="roda"):
+def roda(r, larg, cor_pneu="borracha", cor_aro="cromo", estilo="calota", seg=12, cor_cubo=None, mat_aro="atlas",
+         nome="roda", lado=None):
     """Roda com eixo em X e centro na origem: pneu boleado (torno), aro e cubo. estilos: calota, raios, esporte,
-    neon (aro aceso), branca (faixa branca no pneu), moto (aro fino com raios)."""
+    neon (aro aceso), branca (faixa branca no pneu), moto (aro fino com raios). lado = +1/−1: a face de fora (raios e
+    aro aceso só nela; a de dentro fica escondida no arco); None: as duas."""
+    lados = (-1, 1) if lado is None else (lado,)
     t = larg / 2
     partes = []
     if estilo == "bici":
@@ -531,10 +533,10 @@ def roda(r, larg, cor_pneu="borracha", cor_aro="cromo", estilo="calota", seg=14,
                                   nome="aro"))
         if estilo in ("calota", "branca"):
             partes.append(mb.cilindro(ra * 0.38, larg * 0.9, z=-larg * 0.45, cor=cor_cubo or "metal_escuro", seg=8,
-                                      bisel=0.01))
+                                      bisel=0))
         elif estilo in ("raios", "esporte"):
             nr = 5
-            for lado in (-1, 1):  # raios dos dois lados (a roda é simétrica: serve dos dois lados do carro)
+            for lado in lados:
                 for k in range(nr):
                     a = 360 * k / nr
                     sp = mb.caixa(ra * 0.2, ra * 0.78, 0.02, cor=cor_cubo or "metal_escuro", bisel=0, liso=False)
@@ -544,12 +546,12 @@ def roda(r, larg, cor_pneu="borracha", cor_aro="cromo", estilo="calota", seg=14,
                     partes.append(sp)
             partes.append(mb.cilindro(ra * 0.24, larg * 0.92, z=-larg * 0.46, cor=cor_aro, seg=8, bisel=0))
         elif estilo == "neon":
-            for lado in (-1, 1):
+            for lado in lados:
                 partes.append(mb.cilindro(ra * 0.82, 0.012, z=lado * larg * 0.4 - 0.006 + lado * 0.004, cor=None,
                                           mat=mat_aro if mat_aro != "atlas" else "neon", seg=seg, bisel=0))
             partes.append(mb.cilindro(ra * 0.6, larg * 0.86, z=-larg * 0.43, cor=cor_cubo or "branco", seg=seg,
-                                      bisel=0.01))
-            partes.append(mb.cilindro(ra * 0.22, larg * 0.92, z=-larg * 0.46, cor="grafite", seg=10, bisel=0.008))
+                                      bisel=0))
+            partes.append(mb.cilindro(ra * 0.22, larg * 0.92, z=-larg * 0.46, cor="grafite", seg=8, bisel=0))
     ob = mb.junta(partes, nome)
     mb.transforma(ob, rot=("Y", 90))
     return ob
@@ -557,6 +559,8 @@ def roda(r, larg, cor_pneu="borracha", cor_aro="cromo", estilo="calota", seg=14,
 
 def poe_roda(it, r, larg, x, y, nome, **op):
     """Roda animada (filho) com o eixo em (x, y, r)."""
+    if "lado" not in op and abs(x) > 0.01:
+        op["lado"] = 1 if x > 0 else -1
     ob = roda(r, larg, **op)
     mb.transforma(ob, loc=(x, y, r))
     return it.anima(ob, {"anima": "girar", "eixo": "x", "velocidade": VEL_RODA, "roda": 1, "raio": round(r, 3)},
@@ -568,26 +572,19 @@ def poe_roda(it, r, larg, x, y, nome, **op):
 # ======================================================================================================================
 def banco(x, y, z, larg=0.48, cor="grafite", prof=0.46, enc=0.55, incl=14, cabeca=True):
     """Banco com a frente para −Y: assento em z (base), encosto inclinado para trás."""
-    ps = [mb.superelipsoide(larg, prof, 0.14, x=x, y=y, z=z, cor=cor, e=0.35, nu=8, nv=4, nome="assento")]
-    enc_ = mb.superelipsoide(larg * 0.94, 0.13, enc, cor=cor, e=0.35, nu=8, nv=4, nome="encosto")
+    ps = [mb.caixa(larg, prof, 0.14, x=x, y=y, z=z, cor=cor, bisel=0.045, seg=1, nome="assento")]
+    enc_ = mb.caixa(larg * 0.94, 0.13, enc, cor=cor, bisel=0.045, seg=1, nome="encosto")
     mb.transforma(enc_, rot=("X", -incl))
     mb.transforma(enc_, loc=(x, y + prof / 2 - 0.06, z + 0.08))
     ps.append(enc_)
-    if cabeca and larg < 0.7:
-        cb_ = mb.superelipsoide(larg * 0.55, 0.1, 0.16, cor=cor, e=0.4, nu=8, nv=4, nome="cabeca")
-        dz = enc + 0.1
-        mb.transforma(cb_, loc=(x, y + prof / 2 - 0.06 + math.sin(math.radians(incl)) * dz, z + 0.08 +
-                                math.cos(math.radians(incl)) * dz - 0.02))
-        ps.append(cb_)
     return mb.junta(ps, "banco")
 
 
 def volante(x, y, z, r=0.17, cor="preto", incl=-60):
     perfil = [(r + 0.022 * math.cos(math.radians(a)), 0.022 * math.sin(math.radians(a))) for a in range(-90, 271, 90)]
-    aro = mb.torno(perfil, cor=cor, seg=10, angulo=80, nome="volante")
-    cubo = mb.cilindro(0.05, 0.04, z=-0.02, cor=cor, seg=8, bisel=0)
-    raio_ = mb.caixa(2 * r, 0.03, 0.02, z=-0.01, cor=cor, bisel=0.006, seg=1)
-    ob = mb.junta([aro, cubo, raio_], "volante")
+    aro = mb.torno(perfil, cor=cor, seg=8, angulo=80, nome="volante")
+    raio_ = mb.caixa(2 * r, 0.04, 0.02, z=-0.01, cor=cor, bisel=0, liso=False)
+    ob = mb.junta([aro, raio_], "volante")
     mb.transforma(ob, rot=("X", incl))
     mb.transforma(ob, loc=(x, y, z))
     return ob
@@ -656,11 +653,9 @@ def aerofolio(sup, y, z, larg, corda=0.34, esp=0.06, cor="preto", x_sup=0.42, co
 
 
 def espelho(x, y, z, s, cor):
-    haste = mb.caixa(0.12, 0.05, 0.04, x=x + s * 0.05, y=y, z=z, cor=cor, bisel=0.012, seg=1)
-    casco = mb.superelipsoide(0.11, 0.17, 0.12, x=x + s * 0.13, y=y + 0.03, z=z - 0.02, cor=cor, e=0.45, nu=8, nv=4)
-    vid = lente(0.13, 0.08, esp=0.012, cor="azul_claro", raio=0.03)
-    mb.transforma(vid, rot=("X", -90))
-    mb.transforma(vid, loc=(x + s * 0.13, y + 0.12, z + 0.04))
+    haste = mb.caixa(0.12, 0.05, 0.04, x=x + s * 0.05, y=y, z=z, cor=cor, bisel=0, liso=False)
+    casco = mb.caixa(0.11, 0.17, 0.12, x=x + s * 0.13, y=y + 0.03, z=z - 0.02, cor=cor, bisel=0.035, seg=1)
+    vid = mb.caixa(0.08, 0.01, 0.07, x=x + s * 0.13, y=y + 0.117, z=z - 0.005, cor="azul_claro", bisel=0, liso=False)
     return mb.junta([haste, casco, vid], "espelho")
 
 
@@ -687,7 +682,7 @@ def carro(it, c, pasta=""):
             for s in (-1, 1):
                 cortes.append(mb.cilindro(r + folga, w_ + 0.4 - x_in, x=s * (x_in + w_ + 0.4) / 2, y=ya,
                                           z=r + c.get("arco_dz", 0.0), eixo="x", cor=c.get("cor_arco", "grafite_escuro"),
-                                          seg=20, bisel=0))
+                                          seg=16, bisel=0))
     ban = c.get("banheira")
     if ban is None and cab:
         k = cab.k
@@ -695,7 +690,7 @@ def carro(it, c, pasta=""):
     if ban:
         ban.setdefault("z", c.get("z_piso", cas.base(0.0) + 0.14))
         ban.setdefault("r", 0.08)
-        cortes.append(mb.extrudado(mb.ret_arredondado(2 * ban["w"], ban["y1"] - ban["y0"], ban["r"], seg=3), 3.0,
+        cortes.append(mb.extrudado(mb.ret_arredondado(2 * ban["w"], ban["y1"] - ban["y0"], ban["r"], seg=2), 3.0,
                                    y=(ban["y0"] + ban["y1"]) / 2, z=ban["z"], cor=c.get("cor_banheira", interior),
                                    bisel=0))
     for fn in c.get("cortes", ()):
@@ -720,12 +715,13 @@ def carro(it, c, pasta=""):
         corta(bm, (0, 0, tampa["z"]), (0, 0, 1), fr)
         for s in (-1, 1):
             corta(bm, (s * tampa["w"], 0, 0), (1, 0, 0), fr)
-    for x0, x1, _ in c.get("faixas", ()):
+    zfx = c.get("faixa_zmin", 0.5) - 0.05
+    for x0, x1, _ in c.get("faixas", ()):  # só por cima (as faixas não descem pelas laterais)
         for xx in (x0, x1):
             for s in (-1, 1):
-                corta(bm, (s * xx, 0, 0), (1, 0, 0))
-    for co, no in c.get("planos", ()):
-        corta(bm, co, no)
+                corta(bm, (s * xx, 0, 0), (1, 0, 0), lambda q, n: q.z > zfx and (n.z > 0.2 or abs(n.y) > 0.45))
+    for pl in c.get("planos", ()):
+        corta(bm, pl[0], pl[1], pl[2] if len(pl) > 2 else None)
     # ---- cabine
     bmc = None
     if cab:
@@ -743,7 +739,7 @@ def carro(it, c, pasta=""):
         for x0, x1, _ in c.get("faixas", ()):
             for xx in (x0, x1):
                 for s in (-1, 1):
-                    corta(bmc, (s * xx, 0, 0), (1, 0, 0))
+                    corta(bmc, (s * xx, 0, 0), (1, 0, 0), lambda q, n: n.z > 0.2 or abs(n.y) > 0.45)
         bmc.normal_update()
         vid = [f for f in bmc.faces if cab.vidro(f, tras=c.get("vidro_tras", True), faixas_fora=fora)]
         envidraca(bmc, vid, moldura=c.get("moldura", "preto"))
@@ -807,18 +803,28 @@ def carro(it, c, pasta=""):
             nb = g.get("barras", 0)
             for k in range(nb):
                 if g.get("vertical"):
-                    bx = lente(0.025, g["h"] * 0.9, 0.03, cor=g.get("cor_barras", "cromo"), raio=0.008)
+                    bx = mb.caixa(0.025, g["h"] * 0.9, 0.03, z=-0.015, cor=g.get("cor_barras", "cromo"), bisel=0,
+                                  liso=False)
                     mb.transforma(bx, loc=(-g["l"] / 2 + g["l"] * (k + 0.5) / nb, 0, 0))
                 else:
-                    bx = lente(g["l"] * 0.92, 0.022, 0.03, cor=g.get("cor_barras", "cromo"), raio=0.008)
+                    bx = mb.caixa(g["l"] * 0.92, 0.022, 0.03, z=-0.015, cor=g.get("cor_barras", "cromo"), bisel=0,
+                                  liso=False)
                     mb.transforma(bx, loc=(0, -g["h"] / 2 + g["h"] * (k + 0.5) / nb, 0))
                 it.add(cola(bx, hit, n, sai=0.03))
     for pc in c.get("para_choques", ()):
         fr = pc["lado"] == "frente"
+        if pc.get("reto"):  # para-choque reto de jipe: um bloco boleado
+            hit, n = sup.raio((0, cas.yF - 1.5 if fr else cas.yR + 1.5, pc["z"]), (0, 1 if fr else -1, 0))
+            if hit is not None:
+                rr = pc.get("r", 0.08)
+                it.add(mb.caixa(cas.W * 0.96, 2 * rr, 2 * rr, y=hit.y + (-rr * 0.7 if fr else rr * 0.7),
+                                z=pc["z"] - rr, cor=pc.get("cor", "grafite"), bisel=rr * 0.5, seg=1,
+                                nome="para_choque"))
+            continue
         y0 = cas.yF + cas.rF * 1.4 if fr else cas.yR - cas.rR * 1.4
         pts = []
         am = pc.get("amax", 72)
-        nn = 11
+        nn = 9
         for k in range(nn):
             a = math.radians(-am + 2 * am * k / (nn - 1))
             d = V((math.sin(a), -math.cos(a) if fr else math.cos(a), 0))
@@ -826,7 +832,7 @@ def carro(it, c, pasta=""):
             if hit is not None:
                 pts.append(hit + d * pc.get("sai", pc.get("r", 0.07) * 0.55))
         if len(pts) > 3:
-            it.add(mb.tubo(pts, pc.get("r", 0.07), cor=pc.get("cor", "grafite"), raio_curva=0, seg=8,
+            it.add(mb.tubo(pts, pc.get("r", 0.07), cor=pc.get("cor", "grafite"), raio_curva=0, seg=6,
                            nome="para_choque"))
     for lado, z, corp in c.get("placas", (("frente", 0.42, "branco"), ("tras", 0.5, "branco"))):
         fr = lado == "frente"
@@ -939,7 +945,7 @@ def carro(it, c, pasta=""):
         if c.get("painel", True):
             yp = ban["y0"] + 0.05
             it.add(mb.caixa(2 * ban["w"] - 0.02, 0.32, 0.26, y=yp + 0.16, z=zb - 0.3, cor=c.get("cor_painel", "grafite_escuro"),
-                            bisel=0.05, seg=2))
+                            bisel=0.05, seg=1))
             bancos = c.get("bancos", ())
             if bancos and c.get("volante", True):
                 x, y = bancos[0][0], bancos[0][1]
@@ -952,13 +958,14 @@ def carro(it, c, pasta=""):
             x = s * (c.get("x_roda") or (cas.w(ya) - lr / 2 - c.get("recuo_roda", 0.03)))
             poe_roda(it, r, lr, x, ya, f"roda_{nome_e}_{'dir' if s > 0 else 'esq'}", estilo=c.get("roda", "calota"),
                      cor_aro=c.get("cor_aro", "cromo"), cor_cubo=c.get("cor_cubo"), mat_aro=c.get("mat_aro", "atlas"),
-                     cor_pneu=c.get("cor_pneu", "borracha"))
+                     cor_pneu=c.get("cor_pneu", "borracha"), seg=c.get("seg_roda", 12))
     # ---- colisão
     xw = max(cas.W / 2, (c.get("x_roda") or 0) + lr / 2)
     cx = [((0, (cas.yF + cas.yR) / 2, 0), (2 * xw, cas.yR - cas.yF, zb))]
     if cab:
         k = cab.k
-        cx.append(((0, (k["yf0"] + k["yr0"]) / 2, zb), (2 * k["wc0"], k["yr0"] - k["yf0"], k["zr"] - zb)))
+        zt = c.get("z_col", k["zr"] + k.get("bombe", 0.02))  # o que vai no teto (placa, sirene, bagageiro) conta
+        cx.append(((0, (k["yf0"] + k["yr0"]) / 2, zb), (2 * k["wc0"], k["yr0"] - k["yf0"], zt - zb)))
     it.colisao(c.get("colisao") or cx)
     sup.livra()
     return ctx
