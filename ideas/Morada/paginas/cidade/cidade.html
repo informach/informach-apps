@@ -551,7 +551,7 @@ function grade() {
   $("vitrine").replaceChildren(...vits.map((v) => {
     const f = document.createElement("figure");
     const img = Object.assign(document.createElement("img"), { src: v, loading: "lazy", alt: `Vitrine de ${CATS[catAtual].rotulo.toLowerCase()} renderizada no Blender` + (v.includes("aberto") ? ", com portas e gavetas abertas" : "") });
-    f.append(img, Object.assign(document.createElement("figcaption"), { textContent: v.includes("aberto") ? "Vitrine com portas e gavetas abertas (render no Blender)." : "Vitrine (render no Blender)." }));
+    f.append(img, Object.assign(document.createElement("figcaption"), { textContent: v.includes("encaixe") ? "Teste de encaixe: peças encostadas formando um trecho de cidade (render no Blender)." : v.includes("aberto") ? "Vitrine com portas e cancelas abertas (render no Blender)." : "Vitrine (render no Blender)." }));
     return f;
   }));
 }

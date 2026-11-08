@@ -29,6 +29,7 @@ V = Vector
 Q = 15.0  # quadra
 H = Q / 2
 Z_CALC, Z_ASF, Z_FUNDO = 0.0, -0.10, -0.40
+Z_ELEVADO = 7.50  # topo da calçada da rua elevada (pontes, tabuleiros, viadutos, rampas, trevo); asfalto em 7,40
 RUA = {"nome": "rua", "asf": 3.65, "mf": 3.75, "faixas": 2}
 AVENIDA = {"nome": "avenida", "asf": 6.15, "mf": 6.25, "faixas": 4}
 LARG_FAIXA = 0.15
@@ -226,7 +227,7 @@ def rua_cruzamento(it, perfil=RUA, bracos=(True, True, True, True), r=2.5, calca
             sub = marcacoes_reta(perfil, y0, y1)
             it.add([o for o in sub])
             if pare:  # linha de retenção na mão que chega ao cruzamento
-                xa = (0, a - 0.3) if sg > 0 else (-(a - 0.3), 0)
+                xa = (-(a - 0.3), 0) if sg > 0 else (0, a - 0.3)  # mão brasileira: pista de quem chega
                 it.add(mb.caixa(xa[1] - xa[0], 0.4, ALT_TINTA, x=sum(xa) / 2, y=sg * (lim + 0.2), z=Z_ASF, cor="branco",
                                 bisel=0, liso=False))
         else:
@@ -234,7 +235,7 @@ def rua_cruzamento(it, perfil=RUA, bracos=(True, True, True, True), r=2.5, calca
             x0, x1 = sorted((sg * lim, sg * H))
             it.add(marcacoes_reta(perfil, x0, x1, eixo="x"))
             if pare:
-                ya = (-(a - 0.3), 0) if sg > 0 else (0, a - 0.3)
+                ya = (0, a - 0.3) if sg > 0 else (-(a - 0.3), 0)
                 it.add(mb.caixa(0.4, ya[1] - ya[0], ALT_TINTA, x=sg * (lim + 0.2), y=sum(ya) / 2, z=Z_ASF, cor="branco",
                                 bisel=0, liso=False))
 
@@ -317,7 +318,7 @@ def importa_cidade(nome):
             continue
         me = o.data.copy()
         me.transform(o.matrix_world)
-        mats = [m.name.lower() if m else "" for m in me.materials]
+        mats = [m.name.lower().split(".")[0] if m else "" for m in me.materials]  # "Roads.001" → "roads"
         bm = bmesh.new()
         bm.from_mesh(me)
         _b.data.meshes.remove(me)

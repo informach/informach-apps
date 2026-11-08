@@ -1,0 +1,1157 @@
+{
+ "categoria": "ruas",
+ "rotulo": "ruas",
+ "itens": [
+  {
+   "id": "rua_reta",
+   "rotulo": "Rua reta",
+   "categoria": "ruas",
+   "grupo": "rua_reta",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_reta.glb",
+   "miniatura": "miniaturas/rua_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 374,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua"
+   ]
+  },
+  {
+   "id": "rua_reta_faixa_pedestres",
+   "rotulo": "Rua com faixa de pedestres",
+   "categoria": "ruas",
+   "grupo": "rua_reta_faixa",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_reta_faixa_pedestres.glb",
+   "miniatura": "miniaturas/rua_reta_faixa_pedestres.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 340,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "faixa_pedestres"
+   ]
+  },
+  {
+   "id": "rua_cruzamento_x",
+   "rotulo": "Cruzamento em X",
+   "categoria": "ruas",
+   "grupo": "rua_cruzamento_x",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_cruzamento_x.glb",
+   "miniatura": "miniaturas/rua_cruzamento_x.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1396,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "cruzamento"
+   ]
+  },
+  {
+   "id": "rua_cruzamento_x_faixas",
+   "rotulo": "Cruzamento em X com faixas",
+   "categoria": "ruas",
+   "grupo": "rua_cruzamento_x_faixas",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_cruzamento_x_faixas.glb",
+   "miniatura": "miniaturas/rua_cruzamento_x_faixas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1348,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "cruzamento",
+    "faixa_pedestres"
+   ]
+  },
+  {
+   "id": "rua_cruzamento_t",
+   "rotulo": "Cruzamento em T",
+   "categoria": "ruas",
+   "grupo": "rua_cruzamento_t",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_cruzamento_t.glb",
+   "miniatura": "miniaturas/rua_cruzamento_t.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 794,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "cruzamento"
+   ]
+  },
+  {
+   "id": "rua_cruzamento_t_faixas",
+   "rotulo": "Cruzamento em T com faixas",
+   "categoria": "ruas",
+   "grupo": "rua_cruzamento_t_faixas",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_cruzamento_t_faixas.glb",
+   "miniatura": "miniaturas/rua_cruzamento_t_faixas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 758,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "cruzamento",
+    "faixa_pedestres"
+   ]
+  },
+  {
+   "id": "rua_curva",
+   "rotulo": "Rua em curva",
+   "categoria": "ruas",
+   "grupo": "rua_curva",
+   "fixacao": "chao",
+   "dims": [
+    15.002,
+    15.002,
+    0.5
+   ],
+   "arquivo": "glb/rua_curva.glb",
+   "miniatura": "miniaturas/rua_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1632,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "curva"
+   ]
+  },
+  {
+   "id": "rua_fim",
+   "rotulo": "Fim de rua (balão)",
+   "categoria": "ruas",
+   "grupo": "rua_fim",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/rua_fim.glb",
+   "miniatura": "miniaturas/rua_fim.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1038,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "balao"
+   ]
+  },
+  {
+   "id": "rua_lombada",
+   "rotulo": "Rua com lombada",
+   "categoria": "ruas",
+   "grupo": "rua_lombada",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    2.595
+   ],
+   "arquivo": "glb/rua_lombada.glb",
+   "miniatura": "miniaturas/rua_lombada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "asfalto",
+    "branco",
+    "calcada",
+    "metal",
+    "preto"
+   ],
+   "tris": 2746,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "lombada"
+   ]
+  },
+  {
+   "id": "rua_ponto_onibus",
+   "rotulo": "Rua com baia de ônibus",
+   "categoria": "ruas",
+   "grupo": "rua_ponto_onibus",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    2.95
+   ],
+   "arquivo": "glb/rua_ponto_onibus.glb",
+   "miniatura": "miniaturas/rua_ponto_onibus.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "asfalto",
+    "azul_medio",
+    "branco",
+    "calcada",
+    "ferro",
+    "madeira_mel",
+    "metal"
+   ],
+   "tris": 3316,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "onibus",
+    "baia"
+   ]
+  },
+  {
+   "id": "avenida_reta",
+   "rotulo": "Avenida reta",
+   "categoria": "ruas",
+   "grupo": "avenida_reta",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/avenida_reta.glb",
+   "miniatura": "miniaturas/avenida_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 668,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida"
+   ]
+  },
+  {
+   "id": "avenida_reta_faixa_pedestres",
+   "rotulo": "Avenida com faixa de pedestres",
+   "categoria": "ruas",
+   "grupo": "avenida_reta_faixa",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/avenida_reta_faixa_pedestres.glb",
+   "miniatura": "miniaturas/avenida_reta_faixa_pedestres.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 594,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "faixa_pedestres"
+   ]
+  },
+  {
+   "id": "avenida_cruzamento_x",
+   "rotulo": "Cruzamento de avenidas em X",
+   "categoria": "ruas",
+   "grupo": "avenida_cruzamento_x",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/avenida_cruzamento_x.glb",
+   "miniatura": "miniaturas/avenida_cruzamento_x.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1292,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "cruzamento"
+   ]
+  },
+  {
+   "id": "avenida_cruzamento_t",
+   "rotulo": "Cruzamento de avenidas em T",
+   "categoria": "ruas",
+   "grupo": "avenida_cruzamento_t",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/avenida_cruzamento_t.glb",
+   "miniatura": "miniaturas/avenida_cruzamento_t.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 716,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "cruzamento"
+   ]
+  },
+  {
+   "id": "avenida_curva",
+   "rotulo": "Avenida em curva",
+   "categoria": "ruas",
+   "grupo": "avenida_curva",
+   "fixacao": "chao",
+   "dims": [
+    15.002,
+    15.002,
+    0.5
+   ],
+   "arquivo": "glb/avenida_curva.glb",
+   "miniatura": "miniaturas/avenida_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1944,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "curva"
+   ]
+  },
+  {
+   "id": "avenida_canteiro",
+   "rotulo": "Avenida com canteiro central",
+   "categoria": "ruas",
+   "grupo": "avenida_canteiro",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.92
+   ],
+   "arquivo": "glb/avenida_canteiro.glb",
+   "miniatura": "miniaturas/avenida_canteiro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "asfalto",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "grama"
+   ],
+   "tris": 1216,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "canteiro"
+   ]
+  },
+  {
+   "id": "avenida_canteiro_inicio",
+   "rotulo": "Início do canteiro central",
+   "categoria": "ruas",
+   "grupo": "avenida_canteiro",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.001,
+    0.92
+   ],
+   "arquivo": "glb/avenida_canteiro_inicio.glb",
+   "miniatura": "miniaturas/avenida_canteiro_inicio.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "grama"
+   ],
+   "tris": 1334,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "canteiro"
+   ]
+  },
+  {
+   "id": "avenida_cruzamento_rua",
+   "rotulo": "Cruzamento de avenida com rua",
+   "categoria": "ruas",
+   "grupo": "avenida_cruzamento_rua",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/avenida_cruzamento_rua.glb",
+   "miniatura": "miniaturas/avenida_cruzamento_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1492,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "avenida",
+    "rua",
+    "cruzamento"
+   ]
+  },
+  {
+   "id": "rotatoria_grande",
+   "rotulo": "Rotatória (3 × 3 quadras)",
+   "categoria": "ruas",
+   "grupo": "rotatoria_grande",
+   "fixacao": "chao",
+   "dims": [
+    45.0,
+    45.0,
+    8.014
+   ],
+   "arquivo": "glb/rotatoria_grande.glb",
+   "miniatura": "miniaturas/rotatoria_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      45.0,
+      0.4,
+      45.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "rosa"
+   ],
+   "tris": 7904,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "rotatoria",
+    "3x3"
+   ]
+  },
+  {
+   "id": "road_001_pacote",
+   "rotulo": "Avenida reta (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_001",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_001_pacote.glb",
+   "miniatura": "miniaturas/road_001_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 48,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_003_pacote",
+   "rotulo": "Cruzamento de avenidas em T (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_003",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_003_pacote.glb",
+   "miniatura": "miniaturas/road_003_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 100,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_009_pacote",
+   "rotulo": "Rua reta (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_009",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_009_pacote.glb",
+   "miniatura": "miniaturas/road_009_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_013_pacote",
+   "rotulo": "Rua em curva aberta (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_013",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_013_pacote.glb",
+   "miniatura": "miniaturas/road_013_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 182,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_019_pacote",
+   "rotulo": "Rua com avenida em T (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_019",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_019_pacote.glb",
+   "miniatura": "miniaturas/road_019_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 112,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_020_pacote",
+   "rotulo": "Avenida com linha de retenção (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_020",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_020_pacote.glb",
+   "miniatura": "miniaturas/road_020_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 48,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "road_022_pacote",
+   "rotulo": "Rua com linha de retenção (pacote)",
+   "categoria": "ruas",
+   "grupo": "road_022",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.5
+   ],
+   "arquivo": "glb/road_022_pacote.glb",
+   "miniatura": "miniaturas/road_022_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "calcada"
+   ],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "modular",
+    "rua",
+    "pacote"
+   ]
+  },
+  {
+   "id": "rua_transicao_avenida",
+   "rotulo": "Transição de rua para avenida",
+   "categoria": "ruas",
+   "grupo": "rua_transicao_avenida",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.003,
+    0.5
+   ],
+   "arquivo": "glb/rua_transicao_avenida.glb",
+   "miniatura": "miniaturas/rua_transicao_avenida.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "branco",
+    "calcada"
+   ],
+   "tris": 1652,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "rua",
+    "avenida",
+    "transicao"
+   ]
+  }
+ ]
+}

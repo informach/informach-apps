@@ -150,7 +150,8 @@ def _principled(nome):
 
 
 def materiais():
-    if bpy.data.materials.get("atlas") and bpy.data.materials["atlas"].get("ok"):
+    if bpy.data.materials.get("atlas") and bpy.data.materials["atlas"].get("ok") and \
+            all(bpy.data.materials.get(n) for n in MAT_NOMES):
         return [bpy.data.materials[n] for n in MAT_NOMES]
     m, b = _principled("atlas")
     tx = m.node_tree.nodes.new("ShaderNodeTexImage")

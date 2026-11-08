@@ -18,7 +18,7 @@ from PIL import Image
 
 O = sys.argv[1]
 SAIDA = sys.argv[2] if len(sys.argv) > 2 else None
-PERMITIDOS = {"atlas", "vidro", "espelho", "luz"}
+PERMITIDOS = {"atlas", "vidro", "espelho", "luz", "agua", "neon"}
 
 
 def le_glb(caminho):

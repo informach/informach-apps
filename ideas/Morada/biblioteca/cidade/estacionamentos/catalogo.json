@@ -1,0 +1,379 @@
+{
+ "categoria": "estacionamentos",
+ "rotulo": "estacionamentos",
+ "itens": [
+  {
+   "id": "estacionamento_grande",
+   "rotulo": "Estacionamento grande (2 × 1)",
+   "categoria": "estacionamentos",
+   "grupo": "estacionamento_grande",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    2.8
+   ],
+   "arquivo": "glb/estacionamento_grande.glb",
+   "miniatura": "miniaturas/estacionamento_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "azul",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "grama",
+    "metal",
+    "metal_escuro"
+   ],
+   "tris": 6274,
+   "pacote": false,
+   "tags": [
+    "estacionamento",
+    "2x1"
+   ]
+  },
+  {
+   "id": "estacionamento_quadra",
+   "rotulo": "Estacionamento de 1 quadra",
+   "categoria": "estacionamentos",
+   "grupo": "estacionamento_quadra",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    2.8
+   ],
+   "arquivo": "glb/estacionamento_quadra.glb",
+   "miniatura": "miniaturas/estacionamento_quadra.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "azul",
+    "branco",
+    "calcada",
+    "metal",
+    "metal_escuro"
+   ],
+   "tris": 2730,
+   "pacote": false,
+   "tags": [
+    "modular",
+    "estacionamento"
+   ]
+  },
+  {
+   "id": "estacionamento_vagas_rua",
+   "rotulo": "Vagas na beira da rua",
+   "categoria": "estacionamentos",
+   "grupo": "estacionamento_vagas_rua",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    30.0,
+    4.08
+   ],
+   "arquivo": "glb/estacionamento_vagas_rua.glb",
+   "miniatura": "miniaturas/estacionamento_vagas_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      30.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "azul",
+    "branco",
+    "calcada",
+    "folha",
+    "folha_clara",
+    "madeira_media",
+    "metal",
+    "metal_escuro",
+    "terra"
+   ],
+   "tris": 6494,
+   "pacote": false,
+   "tags": [
+    "rua",
+    "estacionamento",
+    "1x2"
+   ]
+  },
+  {
+   "id": "estacionamento_inclinado",
+   "rotulo": "Estacionamento de vagas inclinadas",
+   "categoria": "estacionamentos",
+   "grupo": "estacionamento_inclinado",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    2.8
+   ],
+   "arquivo": "glb/estacionamento_inclinado.glb",
+   "miniatura": "miniaturas/estacionamento_inclinado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "azul",
+    "branco",
+    "calcada",
+    "metal",
+    "metal_escuro"
+   ],
+   "tris": 4585,
+   "pacote": false,
+   "tags": [
+    "estacionamento",
+    "2x1"
+   ]
+  },
+  {
+   "id": "edificio_garagem",
+   "rotulo": "Edifício-garagem",
+   "categoria": "estacionamentos",
+   "grupo": "edificio_garagem",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    30.0,
+    12.65
+   ],
+   "arquivo": "glb/edificio_garagem.glb",
+   "miniatura": "miniaturas/edificio_garagem.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      0,
+      -1
+     ],
+     "angulo": -1.4312,
+     "nome": "cancela_entrada",
+     "pivo": [
+      -9.95,
+      0.96,
+      14.5
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      0,
+      -1
+     ],
+     "angulo": 1.4312,
+     "nome": "cancela_saida",
+     "pivo": [
+      -1.65,
+      0.96,
+      14.5
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      30.0
+     ]
+    },
+    {
+     "centro": [
+      1.85,
+      2.85,
+      0
+     ],
+     "tamanho": [
+      24.3,
+      0.3,
+      28.0
+     ]
+    },
+    {
+     "centro": [
+      -12.15,
+      2.85,
+      -11.35
+     ],
+     "tamanho": [
+      3.7,
+      0.3,
+      5.3
+     ]
+    },
+    {
+     "centro": [
+      1.85,
+      5.85,
+      0
+     ],
+     "tamanho": [
+      24.3,
+      0.3,
+      28.0
+     ]
+    },
+    {
+     "centro": [
+      -12.15,
+      5.85,
+      -11.35
+     ],
+     "tamanho": [
+      3.7,
+      0.3,
+      5.3
+     ]
+    },
+    {
+     "centro": [
+      1.85,
+      8.85,
+      0
+     ],
+     "tamanho": [
+      24.3,
+      0.3,
+      28.0
+     ]
+    },
+    {
+     "centro": [
+      -12.15,
+      8.85,
+      -11.35
+     ],
+     "tamanho": [
+      3.7,
+      0.3,
+      5.3
+     ]
+    },
+    {
+     "centro": [
+      12.25,
+      6.125,
+      12.25
+     ],
+     "tamanho": [
+      2.9,
+      12.25,
+      2.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.55,
+      13.85
+     ],
+     "tamanho": [
+      28.0,
+      1.1,
+      0.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.55,
+      -13.85
+     ],
+     "tamanho": [
+      28.0,
+      1.1,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "asfalto_claro",
+    "azul",
+    "branco",
+    "calcada",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 11822,
+   "pacote": false,
+   "tags": [
+    "estacionamento",
+    "garagem",
+    "2x2",
+    "interativo"
+   ]
+  }
+ ]
+}

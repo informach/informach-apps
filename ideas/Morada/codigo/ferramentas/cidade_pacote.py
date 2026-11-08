@@ -73,7 +73,9 @@ for cat in cats:
     sp.save(os.path.join(V, "sprites", cat + ".webp"), quality=88, method=6)
     # vitrines
     vits = []
-    for f in sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
+    for f in sorted(glob.glob(os.path.join(O, cat, "encaixe*.png"))) + sorted(glob.glob(os.path.join(O, cat, "vitrine*.png"))):
+        if f.endswith("_topo.png"):
+            continue
         nome = f"vitrine/{cat}_{os.path.basename(f)[:-4]}.jpg"
         Image.open(f).convert("RGB").save(os.path.join(V, nome), quality=84, optimize=True)
         vits.append(nome)
