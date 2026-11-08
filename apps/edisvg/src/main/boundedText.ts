@@ -2,6 +2,8 @@ import { readBoundedBytes } from "./boundedBytes";
 
 export { PROJECT_BYTES } from "../shared/projectPolicy";
 export const SVG_BYTES = 1_500_000;
+/** A game studio project (.szproject.json) keeps its images inline. */
+export const SZPROJECT_BYTES = 30_000_000;
 
 /** Read the selected file through one descriptor, including a sentinel byte.
  * The bound holds even if the file grows after stat; invalid UTF-8 is rejected. */

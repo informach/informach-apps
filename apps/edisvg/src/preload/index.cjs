@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("desktop", {
   projectInitialize: (legacy) => ipcRenderer.invoke("project:initialize", legacy),
   projectNew: () => ipcRenderer.invoke("project:new"),
   importSvg: () => ipcRenderer.invoke("svg:import"),
+  importGameProject: () => ipcRenderer.invoke("game:import"),
   importAsset: () => ipcRenderer.invoke("asset:import"),
   projectOpen: () => ipcRenderer.invoke("project:open"),
   projectSave: (project, as = false) => ipcRenderer.invoke("project:save", project, as),

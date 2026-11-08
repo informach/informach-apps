@@ -16,6 +16,34 @@ instalado uma vez por aplicativo, sem Electron, conta ou serviço do editor. O f
 exclusivo do Sistema Zero e não está publicado no npm. O projeto `.edisvg` continua sendo o
 arquivo editável; guarde-o para futuras revisões.
 
+## Importar um projeto do Estúdio (`.szproject.json`)
+
+Para montar motion das aulas com a arte dos jogos do Estúdio, use **Arquivo → Importar projeto
+do Estúdio…** ou o botão **↥ Importar projeto do Estúdio** na barra lateral, ou arraste o
+`.szproject.json` para a tela. Funciona com projetos no formato 2, com a extensão game-2d.
+
+O que é criado:
+- **Uma prancheta por imagem SVG** do projeto, inclusive as que o jogo não usa. Num projeto como "A
+  Chave do Farol", entram cenários, personagens, chaves, faróis acesos e apagados e barcos. Cada
+  uma é editável e pode ser reutilizada como componente.
+- **A prancheta "Cena"**, com o começo do jogo ampliado 3 vezes (480×360 vira 1440×1080). Ela
+  traz a cor do palco, o cenário e os sprites onde começam, na ordem em que o jogo os desenha, além
+  das caixas coloridas e dos textos com o valor inicial. Os sprites de imagem são instâncias das
+  pranchetas acima: trocar o aventureiro pela marinheira é trocar a prancheta da instância.
+
+A cena vem do programa estruturado do projeto (`ir`). O JavaScript do jogo nunca é executado nem
+lido.
+
+O que fica de fora e é avisado no resumo:
+- **Movimento e regras.** Eventos, controles, velocidades e o que muda a cada quadro ficam para
+  animar no EdiSVG.
+- **Imagens que não são SVG.** Por exemplo, um PNG enviado ao Estúdio não é importado e aparece
+  no resumo.
+
+A importação é uma edição só, que Ctrl+Z desfaz inteira; projetos com mais de 99 imagens vão em
+partes. Código em `src/renderer/src/szProjectImport.ts`. Testes em
+`tests/e2e/szproject-import.test.ts`, que confere a cena por pixels no navegador.
+
 ## Recursos em evolução
 
 ### Fontes WOFF/coleções e imagens na Lottie — incremento 5.36

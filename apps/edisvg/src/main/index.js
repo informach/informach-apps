@@ -14,7 +14,7 @@ import { app, BrowserWindow, dialog, Menu } from "electron";
 import { newProject, parseProject } from "../shared/project.js";
 import { createBridge } from "./aiBridge.js";
 import { readBoundedBytes } from "./boundedBytes";
-import { readBoundedText, SVG_BYTES } from "./boundedText.ts";
+import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
@@ -85,6 +85,10 @@ function menu() {
             label: "Importar SVG…",
             accelerator: "CmdOrCtrl+I",
             click: () => win.webContents.send("app:command", "import-svg"),
+          },
+          {
+            label: "Importar projeto do Estúdio…",
+            click: () => win.webContents.send("app:command", "import-game"),
           },
           {
             label: "Abrir projeto…",
@@ -358,6 +362,20 @@ else {
         if (result.canceled) return null;
         const source = await readBoundedText(result.filePaths[0], SVG_BYTES);
         return source;
+      });
+      handle("game:import", async () => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        const result = await dialog.showOpenDialog(win, {
+          defaultPath: app.getPath("downloads"),
+          filters: [{ name: "Projeto do Estúdio (.szproject.json)", extensions: ["json"] }],
+          properties: ["openFile", "dontAddToRecent"],
+        });
+        if (result.canceled) return null;
+        const path = result.filePaths[0];
+        return {
+          source: await readBoundedText(path, SZPROJECT_BYTES),
+          name: basename(path),
+        };
       });
       handle("asset:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");

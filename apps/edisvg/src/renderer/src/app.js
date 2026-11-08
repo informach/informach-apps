@@ -19,6 +19,12 @@ import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
+import {
+  isSzProjectName,
+  parseSzProject,
+  planSzProjectImport,
+  SZPROJECT_BYTES,
+} from "./szProjectImport";
 import "./sceneEditor.css";
 import "./resourceControls.css";
 import "./paint-controls.css";
@@ -1709,6 +1715,7 @@ function action(id) {
   }
   if (id === "edit-demo") return editDemo();
   if (id === "import-svg") return importArtwork();
+  if (id === "import-game") return importGameProject();
   if (state.scene && id === "add-shape") {
     try {
       changeScene("add", "rect");
@@ -1885,10 +1892,68 @@ function importArtwork(initial) {
     },
   });
 }
+/**
+ * A game studio project (.szproject.json): every SVG image an artboard and one more, "Cena",
+ * with the game's starting picture built from them (szProjectImport.ts). One edit: Ctrl+Z undoes
+ * the whole import. `value` comes from the file dialog when absent.
+ */
+async function importGameProject(value) {
+  const session = state.sessionId;
+  try {
+    const file = value ?? (window.desktop ? await window.desktop.importGameProject() : null);
+    if (!file) return;
+    if (state.sessionId !== session) {
+      notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+      return;
+    }
+    const plan = planSzProjectImport(parseSzProject(file.source), (svg) => importSvg(svg));
+    // A transaction takes 100 commands: a bigger project goes in parts, the scene (which uses
+    // the images) in the last one.
+    const parts = [];
+    for (let at = 0; at < plan.commands.length; at += 100)
+      parts.push(plan.commands.slice(at, at + 100));
+    for (const part of parts) transact(part);
+    if (plan.sceneArtboardId) bindActiveArtboard(state, plan.sceneArtboardId);
+    chooseObject(state, null);
+    state.view = "design";
+    state.playing = false;
+    state.frame = 0;
+    render();
+    notify(
+      `Projeto do Estúdio importado. ${plan.summary} ${
+        parts.length === 1 ? "Ctrl+Z desfaz tudo." : `Ctrl+Z desfaz em ${parts.length} passos.`
+      }`,
+    );
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Não foi possível importar o projeto.");
+  }
+}
+/** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
+async function readGameProjectFile(file) {
+  if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");
+  return {
+    source: new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()),
+    name: file.name,
+  };
+}
 bindSvgIngress(
   (source, name) => importArtwork({ source, name }),
   (file) => {
     const session = state.sessionId;
+    if (isSzProjectName(file.name)) {
+      void readGameProjectFile(file)
+        .then((value) => {
+          if (state.sessionId !== session) {
+            notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+            return;
+          }
+          return importGameProject(value);
+        })
+        .catch((error) =>
+          notify(error instanceof Error ? error.message : "Não foi possível ler o projeto."),
+        );
+      return;
+    }
     void readSvgFile(file)
       .then((value) => {
         if (state.sessionId !== session) {
@@ -2496,6 +2561,7 @@ const assistant = setupAssistant({
     ],
   }),
   importSvg: importArtwork,
+  importGameProject: () => importGameProject(),
   fileStatus: updateFileStatus,
   restore(value) {
     applyProject(value);
