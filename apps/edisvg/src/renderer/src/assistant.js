@@ -306,6 +306,7 @@ export function setupAssistant(editor) {
       if (command === "new") void createNew();
       else if (command === "import-svg") void editor.importSvg();
       else if (command === "import-game") void editor.importGameProject();
+      else if (command === "pipelines") editor.openPipelines();
       else if (command === "assistant") toggle();
       else if (command === "open") void openProject();
       else if (command === "save" || command === "save-as") void saveProject(command === "save-as");

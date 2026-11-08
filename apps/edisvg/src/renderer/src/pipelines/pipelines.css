@@ -1,0 +1,143 @@
+/* Pipelines (receitas): the dialog opened by Arquivo → Pipelines… */
+dialog.pipelines-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(92dvh - 2px);
+  display: flex;
+  flex-direction: column;
+}
+dialog.pipelines-dialog > .help-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.pipeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pipeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pipeline-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+}
+.pipeline-list > li > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pipeline-list small {
+  color: var(--muted);
+}
+.pipeline-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pipeline-recipe-line {
+  margin: 0;
+  color: var(--muted);
+}
+.pipeline-recipe-line strong {
+  color: var(--text);
+}
+.pipeline-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipeline-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pipeline-file {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pipeline-palette {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  margin: 0;
+}
+.pipeline-palette legend {
+  padding: 0 4px;
+  color: var(--muted);
+}
+.pipeline-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.pipeline-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pipeline-swatch input[type="color"] {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+}
+.pipeline-swatch code {
+  color: var(--muted);
+}
+.pipeline-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipeline-steps li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pipeline-step-state {
+  color: var(--muted);
+  text-align: right;
+}
+.pipeline-steps li.is-done .pipeline-step-state {
+  color: var(--mint);
+}
+.pipeline-steps li.is-failed .pipeline-step-state {
+  color: #ff7a7a;
+}
+.pipeline-outcome {
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+}
+.pipeline-outcome.is-ok {
+  border-color: color-mix(in srgb, var(--mint) 55%, transparent);
+}
+.pipeline-outcome.is-failed {
+  border-color: #ff7a7a;
+}
+.pipeline-outcome p {
+  margin: 6px 0 0;
+}

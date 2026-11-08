@@ -17,6 +17,7 @@ import {
 } from "./toolbar.js";
 import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
+import { mountPipelines } from "./pipelines/pipelines-panel";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
 import {
@@ -1716,6 +1717,7 @@ function action(id) {
   if (id === "edit-demo") return editDemo();
   if (id === "import-svg") return importArtwork();
   if (id === "import-game") return importGameProject();
+  if (id === "pipelines") return openPipelines();
   if (state.scene && id === "add-shape") {
     try {
       changeScene("add", "rect");
@@ -1906,27 +1908,62 @@ async function importGameProject(value) {
       notify("O projeto foi substituído; nenhuma importação foi aplicada.");
       return;
     }
-    const plan = planSzProjectImport(parseSzProject(file.source), (svg) => importSvg(svg));
-    // A transaction takes 100 commands: a bigger project goes in parts, the scene (which uses
-    // the images) in the last one.
-    const parts = [];
-    for (let at = 0; at < plan.commands.length; at += 100)
-      parts.push(plan.commands.slice(at, at + 100));
-    for (const part of parts) transact(part);
-    if (plan.sceneArtboardId) bindActiveArtboard(state, plan.sceneArtboardId);
-    chooseObject(state, null);
-    state.view = "design";
-    state.playing = false;
-    state.frame = 0;
-    render();
+    const result = applyGameProject(file.source);
     notify(
-      `Projeto do Estúdio importado. ${plan.summary} ${
-        parts.length === 1 ? "Ctrl+Z desfaz tudo." : `Ctrl+Z desfaz em ${parts.length} passos.`
+      `Projeto do Estúdio importado. ${result.summary} ${
+        result.parts === 1 ? "Ctrl+Z desfaz tudo." : `Ctrl+Z desfaz em ${result.parts} passos.`
       }`,
     );
   } catch (error) {
     notify(error instanceof Error ? error.message : "Não foi possível importar o projeto.");
   }
+}
+/**
+ * Applies a studio project to the open file and opens its scene; throws when nothing comes in.
+ * Used by the import and by the pipelines.
+ */
+function applyGameProject(source) {
+  const plan = planSzProjectImport(parseSzProject(source), (svg) => importSvg(svg));
+  // A transaction takes 100 commands: a bigger project goes in parts, the scene (which uses
+  // the images) in the last one.
+  const parts = [];
+  for (let at = 0; at < plan.commands.length; at += 100)
+    parts.push(plan.commands.slice(at, at + 100));
+  for (const part of parts) transact(part);
+  if (plan.sceneArtboardId) bindActiveArtboard(state, plan.sceneArtboardId);
+  chooseObject(state, null);
+  state.view = "design";
+  state.playing = false;
+  state.frame = 0;
+  render();
+  return { summary: plan.summary, sceneArtboardId: plan.sceneArtboardId, parts: parts.length };
+}
+/**
+ * Arquivo → Pipelines…: the recipes, and running one on the open file. Its dialog lives outside
+ * the editor's markup: a run edits the document, and every render rebuilds that markup (the
+ * #clip-dialog with it), which would close the dialog in the middle of the run.
+ */
+let disposePipelines = null;
+function openPipelines() {
+  let dialog = document.querySelector("#pipelines-dialog");
+  if (!(dialog instanceof HTMLDialogElement)) {
+    dialog = document.createElement("dialog");
+    dialog.id = "pipelines-dialog";
+    document.body.append(dialog);
+  }
+  if (dialog.open || document.querySelector("dialog[open]")) return;
+  if (!window.desktop) {
+    notify("Os pipelines precisam do aplicativo desktop (escolher arquivos e guardar receitas).");
+    return;
+  }
+  disposePipelines?.();
+  disposePipelines = mountPipelines(dialog, {
+    desktop: window.desktop,
+    editor: {
+      importStudioProject: (source) => applyGameProject(source),
+    },
+    report: notify,
+  });
 }
 /** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
 async function readGameProjectFile(file) {
@@ -2562,6 +2599,7 @@ const assistant = setupAssistant({
   }),
   importSvg: importArtwork,
   importGameProject: () => importGameProject(),
+  openPipelines: () => openPipelines(),
   fileStatus: updateFileStatus,
   restore(value) {
     applyProject(value);

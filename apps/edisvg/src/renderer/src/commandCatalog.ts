@@ -38,6 +38,12 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
     },
     { id: "import-svg", label: "Importar SVG em nova prancheta", group: "Arquivo" },
     {
+      id: "pipelines",
+      label: "Pipelines (receitas)",
+      group: "Arquivo",
+      shortcut: "Ctrl/Cmd+Shift+P",
+    },
+    {
       id: "import-game",
       label: "Importar projeto do Estúdio (.szproject.json)",
       group: "Arquivo",

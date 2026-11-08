@@ -18,6 +18,12 @@ import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
+import {
+  pickPipelineFile,
+  readPickedProject,
+  readRecipeStore,
+  writeRecipeStore,
+} from "./pipelines.ts";
 import { createProjectFiles } from "./projectFiles.js";
 import { createRecoveryStore } from "./recoveryStore.ts";
 import { smoke } from "./smoke.js";
@@ -89,6 +95,11 @@ function menu() {
           {
             label: "Importar projeto do Estúdio…",
             click: () => win.webContents.send("app:command", "import-game"),
+          },
+          {
+            label: "Pipelines…",
+            accelerator: "CmdOrCtrl+Shift+P",
+            click: () => win.webContents.send("app:command", "pipelines"),
           },
           {
             label: "Abrir projeto…",
@@ -377,6 +388,16 @@ else {
           name: basename(path),
         };
       });
+      handle("pipelines:read", () => readRecipeStore(app.getPath("userData")));
+      handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
+      handle("pipeline:pick", (kind) =>
+        pickPipelineFile(
+          win,
+          kind,
+          kind === "lesson" ? app.getPath("documents") : app.getPath("downloads"),
+        ),
+      );
+      handle("pipeline:read-project", (token) => readPickedProject(token));
       handle("asset:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {
