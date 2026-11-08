@@ -7,6 +7,8 @@ import {
   createMemoryStore,
   MEMORY_INDEX,
   MEMORY_MAX_BYTES,
+  MEMORY_MAX_COUNT,
+  PROMPT_MAX_BYTES,
   parseMemory,
   runMemoryTool,
 } from "../src/main/aiMemory.ts";
@@ -182,6 +184,33 @@ test("the prompt carries every memory whole, and says how to save one", async ()
   assert.equal(listed.text, `- ediaula-export-mp4-only (feedback): ${mp4.description}`);
   const one = await runMemoryTool(store, "list_memories", { name: "ediaula-export-mp4-only" });
   assert.ok(one.text.includes(mp4.body));
+});
+
+test("the prompt stays within its size with the most and largest memories", async () => {
+  const { store } = fresh();
+  const body = "x".repeat(MEMORY_MAX_BYTES - 1200);
+  const description = `Preferência longa ${"y".repeat(900)}`;
+  await Promise.all(
+    Array.from({ length: MEMORY_MAX_COUNT }, (_, i) =>
+      store.remember({ name: `pref-${i}`, description, type: "user", body }),
+    ),
+  );
+  const prompt = await store.prompt();
+  assert.ok(Buffer.byteLength(prompt, "utf8") <= PROMPT_MAX_BYTES, "within the cap");
+  assert.ok(prompt.includes('<memory name="pref-0"'), "the first ones go whole");
+  assert.match(prompt, /- pref-\d+ \(user\): Preferência longa y+…/);
+  assert.match(prompt, /…and \d+ more; list_memories lists them all\./);
+});
+
+test("a memory whose name was edited by hand keeps the file's name for the tools", async () => {
+  const { dir, store } = fresh();
+  await store.remember(mp4);
+  const file = join(dir, "feedback_ediaula_export_mp4_only.md");
+  const text = await readFile(file, "utf8");
+  await writeFile(file, text.replace(`name: ${mp4.name}`, "name: Exportar MP4"));
+  assert.ok((await store.prompt()).includes(`<memory name="${mp4.name}"`));
+  assert.equal(await store.forget(mp4.name), true);
+  assert.deepEqual((await readdir(dir)).sort(), [MEMORY_INDEX]);
 });
 
 test("the memory tools are known tools, and the only ones run outside the editor", () => {

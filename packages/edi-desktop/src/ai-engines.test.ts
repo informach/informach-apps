@@ -6,7 +6,12 @@ import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { configureDesktopAccess } from "./access.ts";
-import { createAssistantEngines, type EngineKind, type SessionStore } from "./ai-engines.ts";
+import {
+  commandLineLength,
+  createAssistantEngines,
+  type EngineKind,
+  type SessionStore,
+} from "./ai-engines.ts";
 import { PANEL_CLIENT } from "./ai-grants.ts";
 import type { EngineEvent } from "./ai-run.ts";
 import { startLocalMcpServer } from "./mcp-server.ts";
@@ -110,6 +115,7 @@ const engines = (
     sessions?: SessionStore | false;
     personalOnly?: boolean;
     memory?: () => Promise<string>;
+    warn?: (event: string, detail: string) => void;
   } = {},
 ) =>
   createAssistantEngines({
@@ -155,6 +161,40 @@ describe.skipIf(notWindows)("the panel's turns", () => {
     });
     expect(plain.report().system).toBe("Guia do editor.");
     expect(plain.report().autoMemoryOff).toBe(false);
+  });
+
+  it("runs Claude Code without the memory when it would pass Windows' command line limit", async () => {
+    const warnings: string[] = [];
+    const ai = engines({
+      sessions: false,
+      memory: async () => `MEMÓRIA ${'"'.repeat(16_000)}`,
+      warn: (event) => warnings.push(event),
+    });
+    const t = turn();
+    await ai.runClaudeCode({ conversationId: "m3", text: "oi", url, emit: t.emit });
+    expect(t.report().system).toBe("Guia do editor.");
+    expect(t.done()).toBe(1);
+    expect(warnings).toContain("memory_too_long");
+    // Each argument with its quotes and a space, plus one escape per quote or backslash.
+    expect(commandLineLength("a.exe", ['x"y\\'])).toBe(5 + 3 + (4 + 3 + 2));
+  });
+
+  it("gives a Codex thread the memory again only when it changed", async () => {
+    let memory = "MEMÓRIA 1";
+    const ai = engines({ memory: async () => memory });
+    const first = turn();
+    await ai.runCodex({ conversationId: "m4", text: "oi", url, emit: first.emit });
+    expect(first.report().prompt).toBe("Guia do editor.\n\nMEMÓRIA 1\n\n---\n\nRESUMO\n\noi");
+    const same = turn();
+    await ai.runCodex({ conversationId: "m4", text: "de novo", url, emit: same.emit });
+    expect(same.report()).toMatchObject({ resume: "fio-1", prompt: "de novo" });
+    memory = "MEMÓRIA 2";
+    const changed = turn();
+    await ai.runCodex({ conversationId: "m4", text: "e agora", url, emit: changed.emit });
+    expect(changed.report().resume).toBe("fio-1");
+    expect(changed.report().prompt).toBe(
+      "The application's memory now reads as below; it replaces any memory given earlier in this conversation.\n\nMEMÓRIA 2\n\n---\n\ne agora",
+    );
   });
 
   it("runs Claude Code with the message on stdin and a token that lives only for the run", async () => {

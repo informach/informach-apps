@@ -17,8 +17,13 @@ export const MEMORY_INDEX = "MEMORY.md";
 export const MEMORY_MAX_BYTES = 8 * 1024;
 /** Most memories kept: past this, forget one first. */
 export const MEMORY_MAX_COUNT = 100;
-/** How much of the memories goes whole into the system prompt; the rest goes as index lines. */
-const PROMPT_MAX_BYTES = 24 * 1024;
+/**
+ * Most of the system prompt the memories take, whole or as index lines. Claude Code receives it
+ * on the command line, which Windows caps at 32,767 characters with the editor's guide in it.
+ */
+export const PROMPT_MAX_BYTES = 12 * 1024;
+/** Longest description an index line of the prompt carries. */
+const PROMPT_DESCRIPTION_MAX = 160;
 
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
@@ -86,7 +91,11 @@ export function parseMemory(file: string, text: string): Memory | null {
     const field = /^\s*(name|description|type):\s*(.*)$/.exec(line);
     if (field?.[1] && !fields.has(field[1])) fields.set(field[1], readYamlValue(field[2] ?? ""));
   }
-  const name = fields.get("name") ?? "";
+  // The name the tools take: a hand-edited one they would refuse ("Exportar MP4") gives way to
+  // the file's, so the memory can still be updated and forgotten from the chat.
+  const written = fields.get("name") ?? "";
+  const fromFile = FILE.exec(file)?.[2]?.replaceAll("_", "-");
+  const name = written.length <= NAME_MAX && NAME.test(written) ? written : (fromFile ?? written);
   const type = fields.get("type") ?? FILE.exec(file)?.[1] ?? "";
   if (!name || !(MEMORY_TYPES as readonly string[]).includes(type)) return null;
   return {
@@ -205,13 +214,15 @@ export function createMemoryStore(folder: () => string) {
 
   async function all(dir: string | null): Promise<Memory[]> {
     if (!dir) return [];
-    const out: Memory[] = [];
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      if (!entry.isFile() || !FILE.test(entry.name)) continue;
-      const memory = parseMemory(entry.name, await readText(dir, entry.name));
-      if (memory) out.push(memory);
-    }
-    return out.sort((a, b) => a.file.localeCompare(b.file));
+    const files = (await readdir(dir, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && FILE.test(entry.name))
+      .map((entry) => entry.name);
+    const read = await Promise.all(
+      files.map(async (file) => parseMemory(file, await readText(dir, file))),
+    );
+    return read
+      .filter((memory): memory is Memory => memory !== null)
+      .sort((a, b) => a.file.localeCompare(b.file));
   }
 
   /** Saves a memory; one with the same name is updated (even when its type changes), never doubled. */
@@ -274,18 +285,35 @@ export function createMemoryStore(folder: () => string) {
 
 Durable preferences the person asked you to keep, saved with remember. Follow them without asking again; a request in this conversation that says otherwise wins for that request. When the person asks you to remember a preference ("lembre que…", "sempre…", "nunca…"), save it with remember: one memory per subject, and reuse the name of a memory below on the same subject to update it instead of adding another. forget deletes one when the person asks. Memories are durable preferences about how the person works in EdiAula, never details of a single lesson.`;
     if (!memories.length) return `${head}\n\nNo memories saved yet.`;
+    // Whole while they fit, then index lines while those fit, then only how many were left out.
     const whole: string[] = [];
     const short: string[] = [];
-    let used = 0;
+    let used = Buffer.byteLength(head, "utf8") + 200;
+    let left = 0;
     for (const m of memories) {
       const block = `<memory name="${m.name}" type="${m.type}" description=${JSON.stringify(m.description)}>\n${m.body}\n</memory>`;
-      used += Buffer.byteLength(block, "utf8");
-      if (used <= PROMPT_MAX_BYTES) whole.push(block);
-      else short.push(`- ${m.name} (${m.type}): ${m.description}`);
+      const size = Buffer.byteLength(block, "utf8") + 2;
+      if (!short.length && !left && used + size <= PROMPT_MAX_BYTES) {
+        whole.push(block);
+        used += size;
+        continue;
+      }
+      const description =
+        m.description.length > PROMPT_DESCRIPTION_MAX
+          ? `${m.description.slice(0, PROMPT_DESCRIPTION_MAX - 1)}…`
+          : m.description;
+      const line = `- ${m.name} (${m.type}): ${description}`;
+      const lineSize = Buffer.byteLength(line, "utf8") + 1;
+      if (!left && used + lineSize <= PROMPT_MAX_BYTES) {
+        short.push(line);
+        used += lineSize;
+      } else left++;
     }
-    const rest = short.length
-      ? `\n\nMore memories (read one whole with list_memories and its name):\n${short.join("\n")}`
-      : "";
+    const more = left ? `\n…and ${left} more; list_memories lists them all.` : "";
+    const rest =
+      short.length || left
+        ? `\n\nMore memories (read one whole with list_memories and its name):\n${short.join("\n")}${more}`
+        : "";
     return `${head}\n\n${whole.join("\n\n")}${rest}`;
   }
 

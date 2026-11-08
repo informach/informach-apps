@@ -243,12 +243,17 @@ Cada memória é um arquivo `<tipo>_<nome>.md` com frontmatter (name, descriptio
 nome atualiza a memória, mesmo que mude o tipo.
 
 As proteções da pasta:
-- nomes só em kebab-case (`../`, caminhos e maiúsculas são recusados com uma mensagem clara);
+- nomes só em kebab-case (`../`, caminhos e maiúsculas são recusados com uma mensagem clara); um `name` editado à mão
+  fora desse formato dá lugar ao nome do arquivo, para a memória continuar atualizável e apagável pelo chat;
 - pasta ou arquivo que seja um link é recusado;
 - até 8 KB por memória e até 100 memórias;
 - cada arquivo é gravado ao lado e depois renomeado, uma operação por vez.
 
-Antes de cada turno (Claude Code, Codex ou chave da API), o EdiAula lê essas memórias e as põe nas instruções do chat.
+Antes de cada turno (Claude Code, Codex ou chave da API), o EdiAula lê essas memórias e as põe nas instruções do chat:
+inteiras enquanto cabem, depois só a linha de cada uma, até 12 KB no total (o Claude Code recebe as instruções na linha
+de comando, que o Windows limita). Se ainda assim a linha de comando passar do limite, o turno roda sem as memórias, em
+vez de não rodar. O Codex recebe as instruções na primeira mensagem do fio; quando as memórias mudam, a mensagem
+seguinte leva a versão nova.
 A memória automática do próprio Claude Code fica desligada no chat (`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`). Ela é
 guardada pela raiz do git da pasta, e um `C:\.git` solto faz qualquer pasta do C: cair na memória global da pessoa.
 Além disso, ela manda gravar com ferramentas que o chat não tem. Assim, o que o chat lê é o que ele grava.
