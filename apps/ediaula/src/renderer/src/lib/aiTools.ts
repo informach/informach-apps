@@ -1652,7 +1652,11 @@ ${r.message}`);
       }),
     );
     if (useProject.getState().selectedTrack === track_id) useProject.getState().selectTrack(null);
-    return trackAnswer(`Faixa vazia ${r.track.name} [${track_id}] removida.`);
+    return trackAnswer(
+      r.track.clicks
+        ? `Faixa ${r.track.name} [${track_id}] removida e o clique automático desligado em todas as gravações.`
+        : `Faixa vazia ${r.track.name} [${track_id}] removida.`,
+    );
   },
 
   async set_track({ track_id, locked, muted, hidden, revision }, { commit }) {
@@ -2450,7 +2454,7 @@ ${r.message}`);
     requireNoStructuralDraft();
     const target = editableClips(p, clip_ids);
     const still = p.clips.filter((c) => target.ids.includes(c.id) && !hasSpeed(p, c));
-    const n = applySpeed(target.ids, speed, ripple ?? true, commit);
+    const n = applySpeed(target.ids, speed, ripple ?? false, commit);
     if (!n)
       throw new ToolError(
         "Esses clipes não têm velocidade (imagens, anotações e camadas de zoom) ou estão em faixas travadas.",

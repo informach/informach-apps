@@ -187,6 +187,37 @@ export function withClicksTrack(p: Project): Project {
   };
 }
 
+/**
+ * The lesson without its automatic clicks: the click sound off on every recording, on its
+ * stretches too, and the track "Cliques" gone. Removing that track is how the person deletes the
+ * clicks; taking only the track away would leave them sounding with nothing on the timeline.
+ */
+export function withoutClickSound(p: Project): Project {
+  return {
+    ...p,
+    tracks: p.tracks.filter((t) => !t.clicks),
+    assets: p.assets.map((a) => {
+      const fx = a.cursorFx;
+      const stretches = fx?.ranges?.some((r) => r.fx.clickSound !== undefined);
+      if (!fx || (!fx.clickSound && !stretches)) return a;
+      const ranges = stretches
+        ? fx.ranges?.flatMap((r) => {
+            if (r.fx.clickSound === undefined) return [r];
+            const rest = Object.fromEntries(
+              Object.entries(r.fx).filter(([key]) => key !== "clickSound"),
+            );
+            // A stretch that only turned the click on has nothing left to do.
+            return Object.keys(rest).length ? [{ ...r, fx: rest }] : [];
+          })
+        : fx.ranges;
+      return {
+        ...a,
+        cursorFx: { ...fx, clickSound: false, ranges: ranges?.length ? ranges : undefined },
+      };
+    }),
+  };
+}
+
 /** More than this many sound effects starting within CROWD_WINDOW seconds is a crowd. */
 export const CROWD_COUNT = 3;
 export const CROWD_WINDOW = 2;

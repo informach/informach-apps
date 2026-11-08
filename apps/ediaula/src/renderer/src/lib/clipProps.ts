@@ -92,7 +92,8 @@ export async function pasteProps(ids: string[], groups: Set<PropGroup>): Promise
       if (timed.length)
         store.commit((q) => ({
           ...q,
-          clips: timed.reduce((clips, c) => setClipSpeed(clips, c.id, s, true), q.clips),
+          // The other clips stay put, as in the speed dialog (shared/timeline.ts setClipSpeed).
+          clips: timed.reduce((clips, c) => setClipSpeed(clips, c.id, s, false), q.clips),
         }));
     }
     if (groups.has("background")) {

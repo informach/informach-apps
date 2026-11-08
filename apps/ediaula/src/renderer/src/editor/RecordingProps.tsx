@@ -28,8 +28,19 @@ import {
   type Zoom,
   zoomsIn,
 } from "@shared/zoom";
-import { Crosshair, MousePointer2, Plus, ScanSearch, Trash2, Wand2, X, ZoomIn } from "lucide-react";
+import {
+  Crosshair,
+  MousePointer2,
+  Plus,
+  RotateCcw,
+  ScanSearch,
+  Trash2,
+  Wand2,
+  X,
+  ZoomIn,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { actions } from "@/lib/actions";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { type Commit, personCommit } from "@/state/project";
@@ -219,6 +230,21 @@ export function CursorSection({ asset, clip }: { asset: Asset; clip: Clip }): Re
                 format={percent}
                 onCommit={(v) => set({ clickVolume: v })}
               />
+              <p className="props-hint muted">
+                Para tirar um clique só, clique na marquinha dele na faixa Cliques e aperte Delete.
+              </p>
+              {!!fx.clickRemoved?.length && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={RotateCcw}
+                  onClick={() => actions.restoreClicks(asset.id)}
+                >
+                  {fx.clickRemoved.length === 1
+                    ? "Restaurar o clique removido"
+                    : `Restaurar os ${fx.clickRemoved.length} cliques removidos`}
+                </Button>
+              )}
             </>
           )}
           <ToggleRow
@@ -235,7 +261,7 @@ export function CursorSection({ asset, clip }: { asset: Asset; clip: Clip }): Re
             target="cursor"
             name="Cursor"
             value={() => {
-              const { path: _path, pathEdits: _edits, ...look } = fx;
+              const { path: _path, pathEdits: _edits, clickRemoved: _removed, ...look } = fx;
               return look;
             }}
           />

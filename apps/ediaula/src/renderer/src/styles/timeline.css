@@ -781,7 +781,30 @@ body.is-resizing-track * {
   width: 2px;
   margin-left: -1px;
   border-radius: 1px;
+  padding: 0;
+  border: 0;
   background: var(--accent);
   opacity: 0.75;
-  pointer-events: none;
+  cursor: pointer;
+}
+/* A wider target than the 2 px line: a tick is picked to remove that click (Delete). */
+.click-tick::before {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
+}
+.click-tick:hover,
+.click-tick:focus-visible {
+  opacity: 1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.click-tick.is-picked {
+  width: 4px;
+  margin-left: -2px;
+  opacity: 1;
+  background: var(--text-1);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.click-tick:disabled {
+  cursor: default;
 }

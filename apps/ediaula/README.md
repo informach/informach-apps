@@ -1388,8 +1388,12 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   texto fica) e remoção de fundo (vale para a mídia inteira). Começa marcado o que o clipe copiado mudou do
   padrão (de uma anotação, sem a posição) e depois lembra a última escolha. Tudo num único Ctrl+Z.
 - **Velocidade do clipe** (0,25× a 8×, pelo menu, pelas Propriedades ou pelo assistente com `set_speed`): mantém
-  o mesmo trecho do original, então mais rápido encurta e mais lento alonga; por padrão o que vem depois na
-  faixa anda junto. A voz mantém o tom (atempo na exportação, o mesmo no navegador na prévia). Transcrição,
+  o mesmo trecho do original, então mais rápido encurta e mais lento alonga. Por padrão os outros clipes ficam
+  onde estão: mais rápido deixa um espaço vazio depois do clipe (para estender à mão), mais lento usa o espaço
+  livre e só empurra o que vem depois na faixa pelo que não couber, sem cobrir nada (`setClipSpeed` sem ripple).
+  "Mover o que vem depois", na janela de Velocidade, fecha o espaço; a escolha fica lembrada. Colar a velocidade
+  e o `set_speed` do assistente (sem `ripple`) seguem o mesmo padrão. Numa faixa magnética os clipes continuam
+  encostados. A voz mantém o tom (atempo na exportação, o mesmo no navegador na prévia). Transcrição,
   legendas, cortes por texto, zooms da gravação e o cursor seguem a velocidade. Imagens, anotações e camadas de
   zoom não têm velocidade (mude a duração pela borda).
 
@@ -1541,7 +1545,13 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   trechos acelerados; acima de 2× toca no máximo um clique a cada 0,15 s, sem rajada. Dá para escolher o que
   soa: clique, clique duplo, início e fim de arrasto, digitação (padrão: clique, clique duplo e início de
   arrasto). Os cliques aparecem como marquinhas na faixa **Cliques**, criada embaixo quando o som é ligado;
-  silenciar a faixa cala todos, na prévia e na exportação. Eles abaixam enquanto alguém fala, como a música,
+  silenciar a faixa cala todos, na prévia e na exportação. Um clique só se apaga pela marquinha dele: clicar
+  nela a seleciona, e Delete (ou o botão direito › Remover este clique) deixa só aquele momento em silêncio,
+  num passo de desfazer. Ele fica guardado na gravação pelo segundo dela (`cursorFx.clickRemoved`), então
+  continua apagado depois de cortes e mudanças de velocidade; as Propriedades da gravação têm "Restaurar os
+  cliques removidos". Remover a faixa (o X ou o menu dela) apaga todos: desliga o som de clique em todas as
+  gravações, também nos trechos (`withoutClickSound` em `src/shared/soundPlacement.ts`; `remove_track` faz o
+  mesmo pela IA). Antes, tirar a faixa deixava os cliques tocando sem nada na linha do tempo. Eles abaixam enquanto alguém fala, como a música,
   sob as mesmas palavras na prévia, na exportação e na medição de volume, com ou sem música (`needsSpeech` em
   `src/shared/audio.ts`), e
   saem de lado quando outra faixa está destacada (`src/shared/clickEvents.ts`; a exportação recebe uma faixa

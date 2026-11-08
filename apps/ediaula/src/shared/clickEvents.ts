@@ -36,6 +36,13 @@ export const clicksTrack = (p: Pick<Project, "tracks">): Track | undefined =>
 export const clickKindsOf = (fx: Pick<CursorFx, "clickInclude">): readonly ClickKind[] =>
   fx.clickInclude?.length ? fx.clickInclude : DEFAULT_CLICK_KINDS;
 
+/** Two moments this close (source seconds) are the same one: how a removed click is found. */
+const SAME_MOMENT = 1e-4;
+
+/** Whether the person removed this moment of the recording (`clickRemoved`, by its source second). */
+export const isRemovedClick = (fx: Pick<CursorFx, "clickRemoved">, t: number): boolean =>
+  !!fx.clickRemoved?.some((r) => Math.abs(r - t) < SAME_MOMENT);
+
 /** One moment of a recording that can sound, in its own seconds. */
 export interface ClickMoment {
   t: number;
@@ -64,16 +71,26 @@ export function clickMoments(
   }
   for (const t of data.typing ?? []) out.push({ t, kind: "typing" });
   // Each moment with the effects of its own stretch: the sound on, the pointer shown (a click of
-  // a moment the pointer is hidden makes no sound, as it makes no ripple), the kind asked.
+  // a moment the pointer is hidden makes no sound, as it makes no ripple), the kind asked, and
+  // not one the person removed from the track "Cliques".
   return out
     .filter((m) => {
       const f = fxAt(fx, m.t);
-      return !!f.clickSound && !f.hidden && clickKindsOf(f).includes(m.kind);
+      return (
+        !!f.clickSound && !f.hidden && clickKindsOf(f).includes(m.kind) && !isRemovedClick(fx, m.t)
+      );
     })
     .sort((a, b) => a.t - b.t);
 }
 
 type ClickProject = Pick<Project, "clips" | "tracks" | "assets">;
+
+/** A click of the lesson and where it comes from: its recording and its second there. */
+export interface ClickMark extends SoundEvent {
+  assetId: string;
+  /** Source seconds of the recording: what `clickRemoved` keeps. */
+  source: number;
+}
 
 /**
  * Every click sound of the lesson on its clock, from the recordings' saved clicks (`cursors`,
@@ -85,11 +102,20 @@ export function clickEvents(
   project: ClickProject,
   cursors: ReadonlyMap<string, Pick<CursorData, "clicks" | "typing">>,
 ): SoundEvent[] {
+  // Only what the export takes (main/soundTrack.ts refuses anything else).
+  return clickMarks(project, cursors).map(({ at, sound, volume }) => ({ at, sound, volume }));
+}
+
+/** clickEvents with where each click comes from (the ticks of the timeline, to remove one). */
+export function clickMarks(
+  project: ClickProject,
+  cursors: ReadonlyMap<string, Pick<CursorData, "clicks" | "typing">>,
+): ClickMark[] {
   const track = clicksTrack(project);
   if (track?.muted) return [];
   const tracks = new Map(project.tracks.map((t) => [t.id, t]));
   const assets = new Map(project.assets.map((a) => [a.id, a]));
-  const raw: (SoundEvent & { fast: boolean })[] = [];
+  const raw: (ClickMark & { fast: boolean })[] = [];
   const moments = new Map<string, ClickMoment[]>();
   for (const c of project.clips) {
     const owner = tracks.get(c.trackId);
@@ -110,17 +136,17 @@ export function clickEvents(
       const at = timelineAt(c, m.t);
       if (at < c.start - 1e-6 || at >= clipEnd(c)) continue;
       const sound: SoundEffectId = f.clickSoundKind ?? CURSOR_EFFECT_DEFAULTS.clickSoundKind;
-      raw.push({ at, sound, volume, fast });
+      raw.push({ at, sound, volume, fast, assetId: asset.id, source: m.t });
     }
   }
   raw.sort((a, b) => a.at - b.at);
-  const out: SoundEvent[] = [];
+  const out: ClickMark[] = [];
   let last = Number.NEGATIVE_INFINITY;
-  for (const e of raw) {
+  for (const { fast, ...e } of raw) {
     // A sped-up stretch would turn its clicks into a burst: one every FAST_GAP at most.
-    if (e.fast && e.at - last < FAST_GAP) continue;
+    if (fast && e.at - last < FAST_GAP) continue;
     last = e.at;
-    out.push({ at: e.at, sound: e.sound, volume: e.volume });
+    out.push(e);
   }
   return out;
 }

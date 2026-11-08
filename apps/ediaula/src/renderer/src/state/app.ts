@@ -71,6 +71,8 @@ interface AppStore {
   textCut: [number, number] | null;
   /** The cut selected on the timeline (id of the clip that starts there), for transitions. */
   junction: string | null;
+  /** The automatic click picked on the track "Cliques" (Delete removes that one alone). */
+  pickedClick: { assetId: string; source: number } | null;
   /** The interval marked on the timeline ruler (narrate, record again, delete on every track). */
   interval: { start: number; end: number } | null;
   /**
@@ -125,6 +127,7 @@ export const useApp = create<AppStore>((set, get) => ({
   cleanupMarks: [],
   textCut: null,
   junction: null,
+  pickedClick: null,
   interval: null,
   solo: [],
   cursorRange: null,

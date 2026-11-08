@@ -412,7 +412,7 @@ export const AI_TOOLS = {
     title: "Remover faixa vazia",
     permission: "write",
     description:
-      "Removes an empty track. A track with clips is refused and the answer says how many it has (move or delete them first); a locked one too. One undo step.",
+      'Removes an empty track. A track with clips is refused and the answer says how many it has (move or delete them first); a locked one too. Removing the track "Cliques" also turns the automatic click sound off on every recording (as set_click_sound with enabled false). One undo step.',
     input: z.object({
       track_id: z.string(),
       revision: z
@@ -807,7 +807,7 @@ export const AI_TOOLS = {
     title: "Velocidade do clipe",
     permission: "write",
     description:
-      "Changes the playback speed of video or sound clips (clip_ids from get_overview): 2 = twice as fast (the clip gets shorter), 0.5 = half speed (longer), 1 = normal; 0.25 to 8. The voice keeps its pitch. ripple (default true) moves what follows on the same track by the difference, so nothing is covered and no gap is left. Pictures, annotations and zoom layers have no speed. Undoable.",
+      "Changes the playback speed of video or sound clips (clip_ids from get_overview): 2 = twice as fast (the clip gets shorter), 0.5 = half speed (longer), 1 = normal; 0.25 to 8. The voice keeps its pitch. By default (ripple false) the other clips stay where they are: faster leaves a gap after the clip (the person may fill it), slower uses the free room after it and pushes what follows on its track only by what does not fit, never covering anything. ripple true moves what follows on the same track by the whole difference (no gap left); use it only when the person asks to close the gap. Pictures, annotations and zoom layers have no speed. Undoable.",
     input: z.object({
       clip_ids: z.array(z.string()).min(1),
       speed: z.number().min(0.25).max(8),

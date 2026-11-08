@@ -1,4 +1,5 @@
 import { newId } from "./clipTime.ts";
+import { withoutClickSound } from "./soundPlacement.ts";
 import { moveTrack, newTrackName } from "./timeline.ts";
 import type { Project, Track } from "./types.ts";
 
@@ -97,7 +98,10 @@ export function removeEmptyTrack(p: Project, id: string): TrackResult {
     );
   return {
     ok: true,
-    project: { ...p, tracks: p.tracks.filter((t) => t.id !== id) },
+    // The track "Cliques" goes with the clicks it shows: the click sound is turned off.
+    project: track.clicks
+      ? withoutClickSound(p)
+      : { ...p, tracks: p.tracks.filter((t) => t.id !== id) },
     track,
     index: p.tracks.indexOf(track),
   };

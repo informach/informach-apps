@@ -189,7 +189,7 @@ export function applyStyle(style: LibraryStyle): boolean {
   }
   const look = cursorFxSchema.partial().safeParse(style.value);
   if (!look.success) return false;
-  const { path: _path, pathEdits: _edits, ...changes } = look.data;
+  const { path: _path, pathEdits: _edits, clickRemoved: _removed, ...changes } = look.data;
   for (const id of recordings) setCursorFx(id, changes);
   return true;
 }

@@ -60,6 +60,11 @@ export interface CursorFx {
    * end of a drag, the typing. Absent: every press, as the click always did.
    */
   clickInclude?: ClickKind[];
+  /**
+   * Clicks the person removed one by one on the track "Cliques" (shared/clickEvents.ts), by their
+   * source second: they stay silent whatever the cuts, the speed or the other settings.
+   */
+  clickRemoved?: number[];
   /** Effects turned on or off for a stretch of the recording (source seconds); the last wins. */
   ranges?: CursorRange[];
 }

@@ -116,6 +116,7 @@ export const cursorFxSchema = z.looseObject({
   clickVolume: z.number().min(0).max(1).optional(),
   clickSoundKind: z.enum(SOUND_EFFECT_IDS).optional(),
   clickInclude: z.array(z.enum(CLICK_KINDS)).max(CLICK_KINDS.length).optional(),
+  clickRemoved: z.array(time).max(20000).optional(),
   ranges: z
     .array(
       z.looseObject({

@@ -61,12 +61,38 @@ test("setClipSpeed keeps the same stretch of the source and moves what follows",
   assert.equal(back.duration, 6);
   assert.equal("speed" in back, false);
 
-  // Slower without ripple covers what follows instead of moving it.
+  // Slower without ripple never covers what follows: it is pushed by what does not fit.
   const slow = setClipSpeed([clip(), next], "c", 0.5, false);
   assert.equal(slow.find((x) => x.id === "c")!.duration, 12);
   const n = slow.find((x) => x.id === "n")!;
   assert.equal(n.start, 22);
-  assert.equal(n.in, 36);
+  assert.equal(n.in, 30, "nothing of the next clip is cut");
+});
+
+test("setClipSpeed without ripple keeps the other clips where they are", () => {
+  const next = clip({ id: "n", start: 20, in: 30, duration: 10 });
+  const later = clip({ id: "l", start: 35, in: 0, duration: 5 });
+  const other = clip({ id: "o", trackId: "u", start: 16 });
+  // Faster: the room after it stays empty, to be filled by hand.
+  const fast = setClipSpeed([clip(), next, later, other], "c", 2, false);
+  assert.equal(fast.find((x) => x.id === "c")!.duration, 3);
+  assert.deepEqual(
+    ["n", "l", "o"].map((id) => fast.find((x) => x.id === id)!.start),
+    [20, 35, 16],
+  );
+  // Slower within the free room (10 to 16 now ends at 18, the next starts at 20): nothing moves.
+  const fits = setClipSpeed([clip(), next, later, other], "c", 0.75, false);
+  assert.equal(fits.find((x) => x.id === "c")!.duration, 8);
+  assert.deepEqual(
+    ["n", "l", "o"].map((id) => fits.find((x) => x.id === id)!.start),
+    [20, 35, 16],
+  );
+  // Slower than the room: what follows on its track goes by the rest only, gaps between kept.
+  const pushed = setClipSpeed([clip(), next, later, other], "c", 0.5, false);
+  assert.deepEqual(
+    ["n", "l", "o"].map((id) => pushed.find((x) => x.id === id)!.start),
+    [22, 37, 16],
+  );
 });
 
 test("split and trim honour the speed", () => {

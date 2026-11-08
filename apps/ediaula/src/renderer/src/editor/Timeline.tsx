@@ -180,6 +180,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   // The track picked by its header (the AI reads it as the selected track).
   const selectedTrack = useProject((s) => s.selectedTrack);
   const junction = useApp((s) => s.junction);
+  const pickedClick = useApp((s) => s.pickedClick);
   const zoom = useApp((s) => s.zoom);
   const tool = useApp((s) => s.tool);
   const snapping = useApp((s) => s.snapping);
@@ -522,6 +523,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const [menu, setMenu] = useState<{ x: number; y: number; clipId: string } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  /** The right-click menu of a tick on the track "Cliques". */
+  const [clickMenu, setClickMenu] = useState<{
+    x: number;
+    y: number;
+    click: { assetId: string; source: number };
+  } | null>(null);
   const [trackMenu, setTrackMenu] = useState<{ x: number; y: number; trackId: string } | null>(
     null,
   );
@@ -769,7 +776,10 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setMarquee(null);
-        if (!moved && !additive) useProject.getState().select([]);
+        if (!moved && !additive) {
+          useProject.getState().select([]);
+          useApp.getState().set({ pickedClick: null });
+        }
       },
     );
   };
@@ -1043,15 +1053,44 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                     !t.muted &&
                     clickTicks
                       .filter((e) => e.at >= visibleFrom && e.at <= visibleTo)
-                      .map((e, i) => (
-                        <span
-                          // biome-ignore lint/suspicious/noArrayIndexKey: ticks have no identity of their own
-                          key={i}
-                          className="click-tick"
-                          style={{ left: e.at * zoom }}
-                          title={`Clique automático em ${timecode(e.at, project.settings.fps)}`}
-                        />
-                      ))}
+                      .map((e) => {
+                        const picked =
+                          pickedClick?.assetId === e.assetId &&
+                          Math.abs(pickedClick.source - e.source) < 1e-6;
+                        const pick = (): void => {
+                          useProject.getState().select([]);
+                          useApp
+                            .getState()
+                            .set({ pickedClick: { assetId: e.assetId, source: e.source } });
+                        };
+                        return (
+                          <button
+                            type="button"
+                            key={`${e.assetId}:${e.source}:${e.at}`}
+                            className={`click-tick ${picked ? "is-picked" : ""}`}
+                            style={{ left: e.at * zoom }}
+                            aria-pressed={picked}
+                            disabled={t.locked}
+                            title={`Clique automático em ${timecode(e.at, project.settings.fps)}. Clique para selecionar e aperte Delete para remover só este.`}
+                            onPointerDown={(ev) => {
+                              if (ev.button !== 0) return;
+                              // A tick is not the background: no marquee, nothing else unselected.
+                              ev.stopPropagation();
+                              pick();
+                            }}
+                            onContextMenu={(ev) => {
+                              ev.preventDefault();
+                              ev.stopPropagation();
+                              pick();
+                              setClickMenu({
+                                x: ev.clientX,
+                                y: ev.clientY,
+                                click: { assetId: e.assetId, source: e.source },
+                              });
+                            }}
+                          />
+                        );
+                      })}
                 </div>
               );
             })}
@@ -1294,6 +1333,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         </div>
       </div>
       {menu && <ClipMenu x={menu.x} y={menu.y} clipId={menu.clipId} onClose={closeMenu} />}
+      {clickMenu && (
+        <ContextMenu
+          x={clickMenu.x}
+          y={clickMenu.y}
+          onClose={() => setClickMenu(null)}
+          items={[
+            {
+              icon: Trash2,
+              label: "Remover este clique",
+              hint: "Só este clique fica em silêncio; os outros continuam (Ctrl+Z desfaz)",
+              onSelect: () => actions.removeClick(clickMenu.click),
+            },
+          ]}
+        />
+      )}
       {trackMenu && (
         <ContextMenu
           x={trackMenu.x}
@@ -1358,6 +1412,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               hint: "Enquanto esta faixa toca, as outras abaixam (como a música abaixa para a voz)",
               onSelect: () => actions.toggleSpotlight(trackMenu.trackId),
             },
+            ...(tracks.find((t) => t.id === trackMenu.trackId)?.clicks
+              ? [
+                  { separator: true, label: "" },
+                  {
+                    icon: Trash2,
+                    label: "Remover os cliques automáticos",
+                    hint: "Desliga o som de clique de todas as gravações e tira esta faixa (Ctrl+Z desfaz)",
+                    onSelect: () => actions.removeTrack(trackMenu.trackId),
+                  },
+                ]
+              : []),
             { separator: true, label: "" },
             {
               icon: FoldHorizontal,
@@ -1638,12 +1703,16 @@ function TrackHeader({
           onClick={() => actions.updateTrack(track.id, { locked: !track.locked })}
         />
       </span>
-      {empty && (
+      {(empty || track.clicks) && (
         // Over the corner, outside the row: it never takes the room of the track's name.
         <IconButton
           icon={X}
           size={11}
-          label="Remover faixa vazia"
+          label={
+            track.clicks
+              ? "Remover os cliques automáticos (desliga o som de clique das gravações)"
+              : "Remover faixa vazia"
+          }
           className="track-remove"
           onClick={() => actions.removeTrack(track.id)}
         />

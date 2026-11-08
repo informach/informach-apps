@@ -203,7 +203,8 @@ export function extendFrame(
 /**
  * Changes a clip's speed keeping the same stretch of the source: faster makes it shorter, slower
  * longer. With `ripple` the clips after it on its track move by the difference (nothing is covered
- * and no gap is left); without it, a longer clip covers what follows. Movement keyframes stretch along.
+ * and no gap is left); without it the others stay put: a shorter clip leaves a gap, a longer one
+ * fills the free room after it and pushes what follows only by the rest. Movement keyframes stretch along.
  */
 export function setClipSpeed(clips: Clip[], id: string, speed: number, ripple: boolean): Clip[] {
   const c = clips.find((x) => x.id === id);
@@ -222,16 +223,20 @@ export function setClipSpeed(clips: Clip[], id: string, speed: number, ripple: b
     ...(c.gain?.length ? { gain: scaleGain(c, k) } : {}),
   };
   const others = clips.filter((x) => x.id !== id);
+  const following = (x: Clip): boolean => x.trackId === c.trackId && x.start >= clipEnd(c) - EPS;
   if (ripple)
     return [
-      ...others.map((x) =>
-        x.trackId === c.trackId && x.start >= clipEnd(c) - EPS
-          ? { ...x, start: Math.max(0, x.start + delta) }
-          : x,
-      ),
+      ...others.map((x) => (following(x) ? { ...x, start: Math.max(0, x.start + delta) } : x)),
       changed,
     ];
-  return placeClips(others, [changed]);
+  // Without ripple the others stay where they are: faster leaves the room empty (to be filled by
+  // hand), slower takes the free room after the clip and pushes what follows only by what does
+  // not fit there, so nothing is ever covered.
+  let next = Number.POSITIVE_INFINITY;
+  for (const x of others) if (following(x)) next = Math.min(next, x.start);
+  const excess = clipEnd(changed) - next;
+  if (excess <= EPS) return [...others, changed];
+  return [...others.map((x) => (following(x) ? { ...x, start: x.start + excess } : x)), changed];
 }
 
 export function projectDuration(p: Pick<Project, "clips">): number {

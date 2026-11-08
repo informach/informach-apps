@@ -250,15 +250,17 @@ function handleKey(e: KeyboardEvent): void {
       // Words selected in the transcript take priority over selected clips.
       const textCut = useApp.getState().textCut;
       const junction = useApp.getState().junction;
+      const pickedClick = useApp.getState().pickedClick;
       if (junction) setTransition(junction, null);
       else if (textCut) {
         cutRangesInteractive([textCut]);
         useApp.getState().set({ textCut: null });
-      } else actions.deleteSelection(e.shiftKey);
+      } else if (pickedClick) actions.removeClick(pickedClick);
+      else actions.deleteSelection(e.shiftKey);
       break;
     }
     case "Escape":
-      useApp.getState().set({ junction: null });
+      useApp.getState().set({ junction: null, pickedClick: null });
       useProject.getState().select([]);
       useApp.getState().set({ tool: "select" });
       break;

@@ -387,8 +387,11 @@ export const useProject = create<ProjectStore>((set, get) => {
 
     select: (ids) => {
       set({ selection: ids, selectedTrack: null });
-      // The last selection made is the one Delete acts on: picking clips drops selected words.
-      if (ids.length && useApp.getState().textCut) useApp.getState().set({ textCut: null });
+      // The last selection made is the one Delete acts on: picking clips drops selected words
+      // and the click picked on the track "Cliques".
+      const app = useApp.getState();
+      if (ids.length && (app.textCut || app.pickedClick))
+        app.set({ textCut: null, pickedClick: null });
     },
 
     saveNow: () => {
