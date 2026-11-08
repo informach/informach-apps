@@ -1,0 +1,2233 @@
+{
+ "categoria": "predios_ecologicos",
+ "rotulo": "Prédios ecológicos",
+ "itens": [
+  {
+   "id": "torre_degraus_inclinada",
+   "rotulo": "Torre em degraus inclinada",
+   "categoria": "predios_ecologicos",
+   "grupo": "torre_degraus",
+   "fixacao": "chao",
+   "dims": [
+    11.73,
+    26.4,
+    49.8
+   ],
+   "arquivo": "glb/torre_degraus_inclinada.glb",
+   "miniatura": "miniaturas/torre_degraus_inclinada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.8,
+      0
+     ],
+     "tamanho": [
+      12.0,
+      11.6,
+      26.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.0,
+      -5.05703
+     ],
+     "tamanho": [
+      12.0,
+      12.8,
+      15.886
+     ]
+    },
+    {
+     "centro": [
+      0,
+      29.8,
+      -7.7
+     ],
+     "tamanho": [
+      12.0,
+      12.8,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      43.1,
+      -9.5
+     ],
+     "tamanho": [
+      12.0,
+      13.8,
+      7.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_clara",
+    "madeira_media",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 15420,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "terracos",
+    "plantas"
+   ],
+   "lote": [
+    1,
+    2
+   ],
+   "andares": 15,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "torre_lajes_arredondadas",
+   "rotulo": "Torre de lajes arredondadas",
+   "categoria": "predios_ecologicos",
+   "grupo": "torre_lajes",
+   "fixacao": "chao",
+   "dims": [
+    12.104,
+    11.632,
+    41.43
+   ],
+   "arquivo": "glb/torre_lajes_arredondadas.glb",
+   "miniatura": "miniaturas/torre_lajes_arredondadas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      20.5,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      41.0,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul",
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "folha_clara",
+    "folha_escura",
+    "madeira_media",
+    "metal",
+    "metal_claro",
+    "terracota"
+   ],
+   "tris": 11504,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "floreiras"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 12,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_trelica_verde",
+   "rotulo": "Prédio alto com treliça verde",
+   "categoria": "predios_ecologicos",
+   "grupo": "trelica_verde",
+   "fixacao": "chao",
+   "dims": [
+    12.23,
+    11.33,
+    53.235
+   ],
+   "arquivo": "glb/predio_trelica_verde.glb",
+   "miniatura": "miniaturas/predio_trelica_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      24.7,
+      0
+     ],
+     "tamanho": [
+      12.3,
+      49.4,
+      10.0
+     ]
+    },
+    {
+     "centro": [
+      3.5,
+      23.835,
+      5.5
+     ],
+     "tamanho": [
+      4.0,
+      47.67,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -3.25,
+      23.835,
+      5.5
+     ],
+     "tamanho": [
+      3.5,
+      47.67,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "madeira_mel",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 6152,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "fachada_verde"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 15,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "escritorio_jardim_telhado",
+   "rotulo": "Escritórios com jardim no telhado",
+   "categoria": "predios_ecologicos",
+   "grupo": "escritorio_jardim",
+   "fixacao": "chao",
+   "dims": [
+    12.8,
+    10.4,
+    24.93
+   ],
+   "arquivo": "glb/escritorio_jardim_telhado.glb",
+   "miniatura": "miniaturas/escritorio_jardim_telhado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.55,
+      0
+     ],
+     "tamanho": [
+      12.8,
+      21.1,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      22.9,
+      -2.6
+     ],
+     "tamanho": [
+      11.6,
+      3.8,
+      5.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "concreto",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "madeira_mel",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 4972,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "escritorio",
+    "jardim",
+    "solar"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_curvo_sinuoso_s",
+   "rotulo": "Prédio curvo sinuoso com torre redonda",
+   "categoria": "predios_ecologicos",
+   "grupo": "curvo_sinuoso_s",
+   "fixacao": "chao",
+   "dims": [
+    25.829,
+    12.46,
+    27.765
+   ],
+   "arquivo": "glb/predio_curvo_sinuoso_s.glb",
+   "miniatura": "miniaturas/predio_curvo_sinuoso_s.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.5,
+      0
+     ],
+     "tamanho": [
+      26.0,
+      11.0,
+      12.6
+     ]
+    },
+    {
+     "centro": [
+      7.4,
+      17.45,
+      -0.6
+     ],
+     "tamanho": [
+      8.4,
+      13.7,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 13748,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "curvo",
+    "jardim"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 7,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_curvo_ondas",
+   "rotulo": "Prédio curvo de lajes em ondas",
+   "categoria": "predios_ecologicos",
+   "grupo": "curvo_ondas",
+   "fixacao": "chao",
+   "dims": [
+    25.4,
+    11.195,
+    24.485
+   ],
+   "arquivo": "glb/predio_curvo_ondas.glb",
+   "miniatura": "miniaturas/predio_curvo_ondas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.3,
+      0
+     ],
+     "tamanho": [
+      25.6,
+      20.6,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama",
+    "madeira_media",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 14680,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "curvo",
+    "jardim",
+    "floreiras"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 6,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "pavilhao_cobertura_ondulada",
+   "rotulo": "Pavilhão de cobertura ondulada",
+   "categoria": "predios_ecologicos",
+   "grupo": "pavilhao_ondulado",
+   "fixacao": "chao",
+   "dims": [
+    26.0,
+    12.7,
+    10.63
+   ],
+   "arquivo": "glb/pavilhao_cobertura_ondulada.glb",
+   "miniatura": "miniaturas/pavilhao_cobertura_ondulada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.6,
+      0
+     ],
+     "tamanho": [
+      25.4,
+      7.2,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.0,
+      0
+     ],
+     "tamanho": [
+      26.0,
+      3.6,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      -5.0,
+      3.88149,
+      6.0
+     ],
+     "tamanho": [
+      5.0,
+      7.763,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.5,
+      5.02857,
+      6.0
+     ],
+     "tamanho": [
+      5.0,
+      10.057,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      11.5,
+      3.57946,
+      6.0
+     ],
+     "tamanho": [
+      2.0,
+      7.159,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -11.5,
+      4.79814,
+      6.0
+     ],
+     "tamanho": [
+      2.0,
+      9.596,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "branco",
+    "folha_clara",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 5438,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pavilhao",
+    "vidro"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 2,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_terracos_escadaria",
+   "rotulo": "Prédio em terraços com tetos verdes",
+   "categoria": "predios_ecologicos",
+   "grupo": "terracos_escadaria",
+   "fixacao": "chao",
+   "dims": [
+    12.4,
+    12.6,
+    20.159
+   ],
+   "arquivo": "glb/predio_terracos_escadaria.glb",
+   "miniatura": "miniaturas/predio_terracos_escadaria.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.55,
+      3.7,
+      -0.0
+     ],
+     "tamanho": [
+      10.9,
+      7.4,
+      12.4
+     ]
+    },
+    {
+     "centro": [
+      -0.55,
+      10.6,
+      -2.0
+     ],
+     "tamanho": [
+      10.9,
+      6.4,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      -0.55,
+      15.65,
+      -4.0
+     ],
+     "tamanho": [
+      10.9,
+      3.7,
+      4.4
+     ]
+    },
+    {
+     "centro": [
+      5.65,
+      5.1,
+      0
+     ],
+     "tamanho": [
+      1.5,
+      10.2,
+      12.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_clara",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 9558,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "terracos",
+    "teto_verde"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "torre_redonda_heliponto",
+   "rotulo": "Torre redonda com heliponto verde",
+   "categoria": "predios_ecologicos",
+   "grupo": "torre_redonda",
+   "fixacao": "chao",
+   "dims": [
+    11.8,
+    12.2,
+    30.57
+   ],
+   "arquivo": "glb/torre_redonda_heliponto.glb",
+   "miniatura": "miniaturas/torre_redonda_heliponto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      15.25,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      30.5,
+      10.8
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "folha_clara",
+    "grama_escura",
+    "madeira_media",
+    "metal_claro",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 11198,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "heliponto",
+    "jardim"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 9,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_turbina_eolica",
+   "rotulo": "Prédio com turbina eólica",
+   "categoria": "predios_ecologicos",
+   "grupo": "turbina_eolica",
+   "fixacao": "chao",
+   "dims": [
+    10.5,
+    9.92,
+    31.415
+   ],
+   "arquivo": "glb/predio_turbina_eolica.glb",
+   "miniatura": "miniaturas/predio_turbina_eolica.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.7,
+      0
+     ],
+     "tamanho": [
+      10.5,
+      17.4,
+      9.9
+     ]
+    },
+    {
+     "centro": [
+      0.8,
+      21.9,
+      -1.2
+     ],
+     "tamanho": [
+      1.0,
+      9.8,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "metal_claro",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 9380,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "energia",
+    "turbina",
+    "jardim"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_cascata",
+   "rotulo": "Prédio com cascata na fachada",
+   "categoria": "predios_ecologicos",
+   "grupo": "cascata",
+   "fixacao": "chao",
+   "dims": [
+    11.6,
+    10.887,
+    16.105
+   ],
+   "arquivo": "glb/predio_cascata.glb",
+   "miniatura": "miniaturas/predio_cascata.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.9,
+      -1.2
+     ],
+     "tamanho": [
+      11.5,
+      7.8,
+      9.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      10.8,
+      -2.2
+     ],
+     "tamanho": [
+      9.3,
+      6.8,
+      7.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.275,
+      3.8
+     ],
+     "tamanho": [
+      6.0,
+      0.55,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "branco",
+    "folha_clara",
+    "grama",
+    "metal_claro",
+    "turquesa",
+    "turquesa_claro",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 5808,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "agua",
+    "cascata",
+    "piscina"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "academia_curva",
+   "rotulo": "Academia curva",
+   "categoria": "predios_ecologicos",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    25.9,
+    12.8,
+    12.798
+   ],
+   "arquivo": "glb/academia_curva.glb",
+   "miniatura": "miniaturas/academia_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -7.1,
+      4.6,
+      0
+     ],
+     "tamanho": [
+      11.4,
+      9.2,
+      12.6
+     ]
+    },
+    {
+     "centro": [
+      5.6,
+      3.1,
+      0
+     ],
+     "tamanho": [
+      14.4,
+      6.2,
+      12.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 8304,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "academia",
+    "letreiro",
+    "neon",
+    "solar"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 2,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_tetos_lima",
+   "rotulo": "Prédio de tetos verde-limão",
+   "categoria": "predios_ecologicos",
+   "grupo": "tetos_lima",
+   "fixacao": "chao",
+   "dims": [
+    12.701,
+    11.596,
+    23.57
+   ],
+   "arquivo": "glb/predio_tetos_lima.glb",
+   "miniatura": "miniaturas/predio_tetos_lima.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.4,
+      0
+     ],
+     "tamanho": [
+      11.8,
+      20.8,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "folha",
+    "folha_clara",
+    "madeira_media",
+    "metal_claro",
+    "terracota",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 10400,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "terracos",
+    "teto_verde"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "casa_telhado_verde",
+   "rotulo": "Casa com teto-jardim e escotilhas",
+   "categoria": "predios_ecologicos",
+   "grupo": "casa_teto_jardim",
+   "fixacao": "chao",
+   "dims": [
+    10.0,
+    9.329,
+    9.391
+   ],
+   "arquivo": "glb/casa_telhado_verde.glb",
+   "miniatura": "miniaturas/casa_telhado_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.65,
+      0
+     ],
+     "tamanho": [
+      9.0,
+      3.3,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      5.25,
+      0.25
+     ],
+     "tamanho": [
+      9.8,
+      3.9,
+      8.5
+     ]
+    },
+    {
+     "centro": [
+      -2.75,
+      0.56466,
+      5.0
+     ],
+     "tamanho": [
+      4.5,
+      1.129,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.25,
+      3.45,
+      4.75
+     ],
+     "tamanho": [
+      1.5,
+      6.9,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira",
+    "madeira_media",
+    "madeira_mel",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 5496,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "casa",
+    "teto_verde",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predinho_varandas_solar",
+   "rotulo": "Predinho com varandas e telhado solar",
+   "categoria": "predios_ecologicos",
+   "grupo": "predinho_varandas",
+   "fixacao": "chao",
+   "dims": [
+    8.8,
+    9.512,
+    16.235
+   ],
+   "arquivo": "glb/predinho_varandas_solar.glb",
+   "miniatura": "miniaturas/predinho_varandas_solar.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      6.6,
+      0
+     ],
+     "tamanho": [
+      8.3,
+      13.2,
+      7.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.1,
+      4.45
+     ],
+     "tamanho": [
+      8.0,
+      10.2,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      14.35,
+      0
+     ],
+     "tamanho": [
+      8.8,
+      2.3,
+      8.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "branco",
+    "cinza_azulado",
+    "cinza_medio",
+    "folha",
+    "folha_clara",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 3956,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pequeno",
+    "varandas",
+    "solar"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predinho_madeira_floreiras",
+   "rotulo": "Predinho de madeira com floreiras",
+   "categoria": "predios_ecologicos",
+   "grupo": "predinho_madeira",
+   "fixacao": "chao",
+   "dims": [
+    9.18,
+    9.27,
+    12.86
+   ],
+   "arquivo": "glb/predinho_madeira_floreiras.glb",
+   "miniatura": "miniaturas/predinho_madeira_floreiras.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.35,
+      0
+     ],
+     "tamanho": [
+      8.9,
+      10.7,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "concreto",
+    "folha",
+    "grama",
+    "lilas",
+    "madeira",
+    "madeira_clara",
+    "madeira_media",
+    "madeira_mel",
+    "metal_claro",
+    "rosa",
+    "verde_claro",
+    "verde_lima",
+    "vermelho_claro"
+   ],
+   "tris": 4894,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pequeno",
+    "madeira",
+    "floreiras",
+    "pergola"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "casa_paineis_solares",
+   "rotulo": "Casa com painéis solares",
+   "categoria": "predios_ecologicos",
+   "grupo": "casa_solar",
+   "fixacao": "chao",
+   "dims": [
+    11.408,
+    9.96,
+    6.511
+   ],
+   "arquivo": "glb/casa_paineis_solares.glb",
+   "miniatura": "miniaturas/casa_paineis_solares.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.65,
+      0
+     ],
+     "tamanho": [
+      9.0,
+      3.3,
+      7.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      4.6,
+      0
+     ],
+     "tamanho": [
+      9.8,
+      2.6,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.5,
+      4.45
+     ],
+     "tamanho": [
+      7.8,
+      3.0,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      -5.25,
+      0.31,
+      -1.25
+     ],
+     "tamanho": [
+      0.5,
+      0.62,
+      4.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.25,
+      0.5,
+      1.5
+     ],
+     "tamanho": [
+      1.5,
+      1.0,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.5,
+      0.4095,
+      5.25
+     ],
+     "tamanho": [
+      1.0,
+      0.819,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_azulado",
+    "cinza_medio",
+    "concreto",
+    "ferro",
+    "folha_clara",
+    "madeira",
+    "madeira_clara",
+    "madeira_mel",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 4308,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "casa",
+    "solar",
+    "horta",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "cafe_ecologico",
+   "rotulo": "Café com xícara no telhado",
+   "categoria": "predios_ecologicos",
+   "grupo": "cafe",
+   "fixacao": "chao",
+   "dims": [
+    9.8,
+    10.45,
+    9.03
+   ],
+   "arquivo": "glb/cafe_ecologico.glb",
+   "miniatura": "miniaturas/cafe_ecologico.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.625,
+      0
+     ],
+     "tamanho": [
+      9.8,
+      5.25,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      -0.6,
+      6.45,
+      -0.6
+     ],
+     "tamanho": [
+      3.6,
+      3.4,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      -3.25,
+      1.41842,
+      5.75
+     ],
+     "tamanho": [
+      2.5,
+      2.837,
+      1.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      3.25,
+      1.41842,
+      5.75
+     ],
+     "tamanho": [
+      2.5,
+      2.837,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_azulado",
+    "cinza_claro",
+    "creme_claro",
+    "folha_clara",
+    "madeira_mel",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "rosa_claro",
+    "terra",
+    "terracota",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 5128,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "loja",
+    "cafe",
+    "letreiro",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_creme_varandas_verdes",
+   "rotulo": "Prédio creme com varandas verdes",
+   "categoria": "predios_ecologicos",
+   "grupo": "varandas_verdes",
+   "fixacao": "chao",
+   "dims": [
+    12.15,
+    10.87,
+    21.859
+   ],
+   "arquivo": "glb/predio_creme_varandas_verdes.glb",
+   "miniatura": "miniaturas/predio_creme_varandas_verdes.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.5,
+      0
+     ],
+     "tamanho": [
+      10.6,
+      17.0,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.75,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      1.5,
+      10.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      10.6,
+      5.05
+     ],
+     "tamanho": [
+      10.4,
+      12.8,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_medio",
+    "creme",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde",
+    "verde_claro",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 7244,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "varandas",
+    "floreiras"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "casa_madeira_horta",
+   "rotulo": "Casa de madeira com horta no telhado",
+   "categoria": "predios_ecologicos",
+   "grupo": "casa_horta",
+   "fixacao": "chao",
+   "dims": [
+    9.9,
+    9.0,
+    5.935
+   ],
+   "arquivo": "glb/casa_madeira_horta.glb",
+   "miniatura": "miniaturas/casa_madeira_horta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.2,
+      0
+     ],
+     "tamanho": [
+      9.9,
+      4.4,
+      8.1
+     ]
+    },
+    {
+     "centro": [
+      1.6,
+      5.05,
+      -1.8
+     ],
+     "tamanho": [
+      3.6,
+      2.4,
+      2.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "concreto",
+    "folha",
+    "folha_clara",
+    "laranja",
+    "madeira",
+    "madeira_clara",
+    "madeira_mel",
+    "metal_claro",
+    "terra",
+    "terracota",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 4828,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "casa",
+    "horta",
+    "estufa",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "quitanda_horta",
+   "rotulo": "Quitanda da horta",
+   "categoria": "predios_ecologicos",
+   "grupo": "quitanda",
+   "fixacao": "chao",
+   "dims": [
+    10.4,
+    9.7,
+    6.046
+   ],
+   "arquivo": "glb/quitanda_horta.glb",
+   "miniatura": "miniaturas/quitanda_horta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.6,
+      0
+     ],
+     "tamanho": [
+      10.4,
+      5.2,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.425,
+      4.9
+     ],
+     "tamanho": [
+      9.6,
+      0.85,
+      1.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "cinza_azulado",
+    "folha_clara",
+    "laranja",
+    "madeira_clara",
+    "madeira_mel",
+    "metal",
+    "metal_escuro",
+    "roxo",
+    "terra",
+    "verde",
+    "verde_claro",
+    "verde_lima",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 4966,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "loja",
+    "horta",
+    "letreiro",
+    "solar",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "casa_estufa",
+   "rotulo": "Casa com estufa",
+   "categoria": "predios_ecologicos",
+   "grupo": "casa_estufa",
+   "fixacao": "chao",
+   "dims": [
+    11.32,
+    9.95,
+    8.12
+   ],
+   "arquivo": "glb/casa_estufa.glb",
+   "miniatura": "miniaturas/casa_estufa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -2.6,
+      4.0,
+      0
+     ],
+     "tamanho": [
+      6.4,
+      8.0,
+      7.2
+     ]
+    },
+    {
+     "centro": [
+      2.85,
+      1.7,
+      -0.5
+     ],
+     "tamanho": [
+      4.5,
+      3.4,
+      5.2
+     ]
+    },
+    {
+     "centro": [
+      -4.5,
+      2.77774,
+      5.0
+     ],
+     "tamanho": [
+      4.0,
+      5.555,
+      2.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      3.0,
+      0.35556,
+      4.75
+     ],
+     "tamanho": [
+      3.0,
+      0.711,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto",
+    "folha_clara",
+    "madeira_clara",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 4064,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "casa",
+    "estufa",
+    "horta",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predinho_redondo_varandas",
+   "rotulo": "Predinho redondo com varandas de madeira",
+   "categoria": "predios_ecologicos",
+   "grupo": "predinho_redondo",
+   "fixacao": "chao",
+   "dims": [
+    9.802,
+    9.943,
+    16.371
+   ],
+   "arquivo": "glb/predinho_redondo_varandas.glb",
+   "miniatura": "miniaturas/predinho_redondo_varandas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      6.9,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      13.8,
+      9.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "folha_clara",
+    "grama",
+    "madeira_clara",
+    "madeira_media",
+    "madeira_mel",
+    "metal_claro",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 6088,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pequeno",
+    "redondo",
+    "varandas"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predinho_jardim_vertical",
+   "rotulo": "Predinho com jardim vertical",
+   "categoria": "predios_ecologicos",
+   "grupo": "jardim_vertical",
+   "fixacao": "chao",
+   "dims": [
+    8.916,
+    9.293,
+    16.367
+   ],
+   "arquivo": "glb/predinho_jardim_vertical.glb",
+   "miniatura": "miniaturas/predinho_jardim_vertical.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      6.9,
+      0
+     ],
+     "tamanho": [
+      9.0,
+      13.8,
+      8.6
+     ]
+    },
+    {
+     "centro": [
+      -1.25,
+      0.52165,
+      5.0
+     ],
+     "tamanho": [
+      5.5,
+      1.043,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama",
+    "madeira_clara",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 7822,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pequeno",
+    "fachada_verde"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "torre_lajes_arredondadas_turquesa",
+   "rotulo": "Torre de lajes arredondadas (turquesa)",
+   "categoria": "predios_ecologicos",
+   "grupo": "torre_lajes",
+   "fixacao": "chao",
+   "dims": [
+    12.104,
+    11.632,
+    41.43
+   ],
+   "arquivo": "glb/torre_lajes_arredondadas_turquesa.glb",
+   "miniatura": "miniaturas/torre_lajes_arredondadas_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      20.5,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      41.0,
+      11.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_azulado",
+    "folha_escura",
+    "madeira_media",
+    "menta",
+    "metal",
+    "metal_claro",
+    "turquesa",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 11504,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "floreiras"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 12,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "casa_telhado_verde_madeira",
+   "rotulo": "Casa com teto-jardim e escotilhas (madeira)",
+   "categoria": "predios_ecologicos",
+   "grupo": "casa_teto_jardim",
+   "fixacao": "chao",
+   "dims": [
+    10.0,
+    9.329,
+    9.391
+   ],
+   "arquivo": "glb/casa_telhado_verde_madeira.glb",
+   "miniatura": "miniaturas/casa_telhado_verde_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.65,
+      0
+     ],
+     "tamanho": [
+      9.0,
+      3.3,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      5.25,
+      0.25
+     ],
+     "tamanho": [
+      9.8,
+      3.9,
+      8.5
+     ]
+    },
+    {
+     "centro": [
+      -2.75,
+      0.56466,
+      5.0
+     ],
+     "tamanho": [
+      4.5,
+      1.129,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.25,
+      3.45,
+      4.75
+     ],
+     "tamanho": [
+      1.5,
+      6.9,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira",
+    "madeira_clara",
+    "madeira_media",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 5496,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "casa",
+    "teto_verde",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predinho_varandas_solar_menta",
+   "rotulo": "Predinho com varandas e telhado solar (menta)",
+   "categoria": "predios_ecologicos",
+   "grupo": "predinho_varandas",
+   "fixacao": "chao",
+   "dims": [
+    8.8,
+    9.512,
+    16.235
+   ],
+   "arquivo": "glb/predinho_varandas_solar_menta.glb",
+   "miniatura": "miniaturas/predinho_varandas_solar_menta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      6.6,
+      0
+     ],
+     "tamanho": [
+      8.3,
+      13.2,
+      7.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.1,
+      4.45
+     ],
+     "tamanho": [
+      8.0,
+      10.2,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      14.35,
+      0
+     ],
+     "tamanho": [
+      8.8,
+      2.3,
+      8.8
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_azulado",
+    "folha",
+    "folha_clara",
+    "madeira_media",
+    "metal",
+    "metal_claro",
+    "terra",
+    "verde_agua",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 3956,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "pequeno",
+    "varandas",
+    "solar"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_menta_varandas_madeira",
+   "rotulo": "Prédio menta com varandas de madeira",
+   "categoria": "predios_ecologicos",
+   "grupo": "varandas_verdes",
+   "fixacao": "chao",
+   "dims": [
+    12.15,
+    10.87,
+    21.859
+   ],
+   "arquivo": "glb/predio_menta_varandas_madeira.glb",
+   "miniatura": "miniaturas/predio_menta_varandas_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.5,
+      0
+     ],
+     "tamanho": [
+      10.6,
+      17.0,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.75,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      1.5,
+      10.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      10.6,
+      5.05
+     ],
+     "tamanho": [
+      10.4,
+      12.8,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "folha",
+    "folha_clara",
+    "grama",
+    "madeira_media",
+    "madeira_mel",
+    "menta",
+    "metal_claro",
+    "terra",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 7244,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "ecologico",
+    "varandas",
+    "floreiras"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "ecologico"
+  }
+ ]
+}

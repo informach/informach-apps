@@ -1,0 +1,2536 @@
+{
+ "categoria": "racks_tv",
+ "rotulo": "Racks de TV",
+ "itens": [
+  {
+   "id": "rack_porta_nicho_madeira",
+   "rotulo": "Rack com porta e nicho (madeira)",
+   "categoria": "racks_tv",
+   "grupo": "rack_porta_nicho",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    0.455,
+    0.52
+   ],
+   "arquivo": "glb/rack_porta_nicho_madeira.glb",
+   "miniatura": "miniaturas/rack_porta_nicho_madeira.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.557,
+      0.1,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      0.2687,
+      0.1,
+      -0.01
+     ],
+     "tamanho": [
+      0.573,
+      0.165,
+      0.35
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      0.2687,
+      0.29,
+      -0.01
+     ],
+     "tamanho": [
+      0.573,
+      0.185,
+      0.35
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_baixo",
+     "centro": [
+      -0.3023,
+      0.1,
+      -0.005
+     ],
+     "tamanho": [
+      0.505,
+      0.165,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_cima",
+     "centro": [
+      -0.3023,
+      0.29,
+      -0.005
+     ],
+     "tamanho": [
+      0.505,
+      0.185,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.16,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.52,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "madeira_escura",
+    "madeira_media",
+    "ouro"
+   ],
+   "tris": 2964,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos"
+   ]
+  },
+  {
+   "id": "rack_porta_nicho_branco",
+   "rotulo": "Rack com porta e nicho (branco)",
+   "categoria": "racks_tv",
+   "grupo": "rack_porta_nicho",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    0.455,
+    0.52
+   ],
+   "arquivo": "glb/rack_porta_nicho_branco.glb",
+   "miniatura": "miniaturas/rack_porta_nicho_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.557,
+      0.1,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      0.2687,
+      0.1,
+      -0.01
+     ],
+     "tamanho": [
+      0.573,
+      0.165,
+      0.35
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      0.2687,
+      0.29,
+      -0.01
+     ],
+     "tamanho": [
+      0.573,
+      0.185,
+      0.35
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_baixo",
+     "centro": [
+      -0.3023,
+      0.1,
+      -0.005
+     ],
+     "tamanho": [
+      0.505,
+      0.165,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_cima",
+     "centro": [
+      -0.3023,
+      0.29,
+      -0.005
+     ],
+     "tamanho": [
+      0.505,
+      0.185,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.16,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.52,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 2964,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos"
+   ]
+  },
+  {
+   "id": "rack_nichos_abertos_madeira",
+   "rotulo": "Rack de nichos abertos (madeira)",
+   "categoria": "racks_tv",
+   "grupo": "rack_nichos_abertos",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    0.42,
+    0.5
+   ],
+   "arquivo": "glb/rack_nichos_abertos_madeira.glb",
+   "miniatura": "miniaturas/rack_nichos_abertos_madeira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_nicho_esq",
+     "centro": [
+      -0.3415,
+      0.1,
+      0.0075
+     ],
+     "tamanho": [
+      0.427,
+      0.355,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_dir_baixo",
+     "centro": [
+      0.2295,
+      0.1,
+      0.0075
+     ],
+     "tamanho": [
+      0.651,
+      0.173,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_dir_cima",
+     "centro": [
+      0.2295,
+      0.298,
+      0.0075
+     ],
+     "tamanho": [
+      0.651,
+      0.157,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.5,
+      0
+     ],
+     "tamanho": [
+      1.16,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.58,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.44,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.58,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.44,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.08,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.04,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.48,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.04,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.28,
+      -0.2
+     ],
+     "tamanho": [
+      1.2,
+      0.44,
+      0.02
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.03,
+      0
+     ],
+     "tamanho": [
+      1.14,
+      0.06,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "madeira_escura",
+    "madeira_media"
+   ],
+   "tris": 2276,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos"
+   ]
+  },
+  {
+   "id": "rack_nichos_abertos_cinza",
+   "rotulo": "Rack de nichos abertos (cinza)",
+   "categoria": "racks_tv",
+   "grupo": "rack_nichos_abertos",
+   "fixacao": "chao",
+   "dims": [
+    1.2,
+    0.42,
+    0.5
+   ],
+   "arquivo": "glb/rack_nichos_abertos_cinza.glb",
+   "miniatura": "miniaturas/rack_nichos_abertos_cinza.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_nicho_esq",
+     "centro": [
+      -0.3415,
+      0.1,
+      0.0075
+     ],
+     "tamanho": [
+      0.427,
+      0.355,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_dir_baixo",
+     "centro": [
+      0.2295,
+      0.1,
+      0.0075
+     ],
+     "tamanho": [
+      0.651,
+      0.173,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_dir_cima",
+     "centro": [
+      0.2295,
+      0.298,
+      0.0075
+     ],
+     "tamanho": [
+      0.651,
+      0.157,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.5,
+      0
+     ],
+     "tamanho": [
+      1.16,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.58,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.44,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.58,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.44,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.08,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.04,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.48,
+      -0.0
+     ],
+     "tamanho": [
+      1.2,
+      0.04,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.28,
+      -0.2
+     ],
+     "tamanho": [
+      1.2,
+      0.44,
+      0.02
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.03,
+      0
+     ],
+     "tamanho": [
+      1.14,
+      0.06,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "madeira_clara"
+   ],
+   "tris": 2276,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos"
+   ]
+  },
+  {
+   "id": "rack_longo_rodape_laranja",
+   "rotulo": "Rack longo com rodapé (laranja)",
+   "categoria": "racks_tv",
+   "grupo": "rack_longo_rodape",
+   "fixacao": "chao",
+   "dims": [
+    1.66,
+    0.507,
+    0.54
+   ],
+   "arquivo": "glb/rack_longo_rodape_laranja.glb",
+   "miniatura": "miniaturas/rack_longo_rodape_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.757,
+      0.125,
+      0.222
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2886,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.5375,
+      0.348,
+      0.202
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.757,
+      0.125,
+      0.222
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      -0.0,
+      0.125,
+      0.0075
+     ],
+     "tamanho": [
+      0.576,
+      0.135,
+      0.415
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      -0.0,
+      0.285,
+      0.0075
+     ],
+     "tamanho": [
+      0.576,
+      0.155,
+      0.415
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario",
+     "centro": [
+      -0.5375,
+      0.125,
+      -0.005
+     ],
+     "tamanho": [
+      0.435,
+      0.315,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_dir",
+     "centro": [
+      0.5375,
+      0.125,
+      -0.005
+     ],
+     "tamanho": [
+      0.435,
+      0.195,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.5375,
+      0.36,
+      0.015
+     ],
+     "tamanho": [
+      0.407,
+      0.063,
+      0.346
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.54,
+      0
+     ],
+     "tamanho": [
+      1.58,
+      1.0,
+      0.43
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.66,
+      0.54,
+      0.495
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "laranja",
+    "laranja_claro",
+    "madeira_escura"
+   ],
+   "tris": 4220,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "rack_longo_rodape_verde_agua",
+   "rotulo": "Rack longo com rodapé (verde_agua)",
+   "categoria": "racks_tv",
+   "grupo": "rack_longo_rodape",
+   "fixacao": "chao",
+   "dims": [
+    1.66,
+    0.507,
+    0.54
+   ],
+   "arquivo": "glb/rack_longo_rodape_verde_agua.glb",
+   "miniatura": "miniaturas/rack_longo_rodape_verde_agua.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.757,
+      0.125,
+      0.222
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2886,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.5375,
+      0.348,
+      0.202
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.757,
+      0.125,
+      0.222
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      -0.0,
+      0.125,
+      0.0075
+     ],
+     "tamanho": [
+      0.576,
+      0.135,
+      0.415
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      -0.0,
+      0.285,
+      0.0075
+     ],
+     "tamanho": [
+      0.576,
+      0.155,
+      0.415
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario",
+     "centro": [
+      -0.5375,
+      0.125,
+      -0.005
+     ],
+     "tamanho": [
+      0.435,
+      0.315,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_dir",
+     "centro": [
+      0.5375,
+      0.125,
+      -0.005
+     ],
+     "tamanho": [
+      0.435,
+      0.195,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.5375,
+      0.36,
+      0.015
+     ],
+     "tamanho": [
+      0.407,
+      0.063,
+      0.346
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.54,
+      0
+     ],
+     "tamanho": [
+      1.58,
+      1.0,
+      0.43
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      -0.0
+     ],
+     "tamanho": [
+      1.66,
+      0.54,
+      0.495
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "creme_claro",
+    "madeira_escura",
+    "turquesa",
+    "verde_agua"
+   ],
+   "tris": 4220,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "nichos",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "rack_pes_2portas_vermelho",
+   "rotulo": "Rack de pés com 2 portas (vermelho)",
+   "categoria": "racks_tv",
+   "grupo": "rack_pes_2portas",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    0.455,
+    0.56
+   ],
+   "arquivo": "glb/rack_pes_2portas_vermelho.glb",
+   "miniatura": "miniaturas/rack_pes_2portas_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.18184,
+      0.168,
+      0.207
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.609,
+      0.168,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      -0.40942,
+      0.168,
+      0.0075
+     ],
+     "tamanho": [
+      0.395,
+      0.349,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario",
+     "centro": [
+      0.21358,
+      0.168,
+      -0.005
+     ],
+     "tamanho": [
+      0.787,
+      0.349,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.56,
+      0
+     ],
+     "tamanho": [
+      1.26,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      1.3,
+      0.56,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3088,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv"
+   ]
+  },
+  {
+   "id": "rack_pes_2portas_azul",
+   "rotulo": "Rack de pés com 2 portas (azul)",
+   "categoria": "racks_tv",
+   "grupo": "rack_pes_2portas",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    0.455,
+    0.56
+   ],
+   "arquivo": "glb/rack_pes_2portas_azul.glb",
+   "miniatura": "miniaturas/rack_pes_2portas_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.18184,
+      0.168,
+      0.207
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.609,
+      0.168,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      -0.40942,
+      0.168,
+      0.0075
+     ],
+     "tamanho": [
+      0.395,
+      0.349,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario",
+     "centro": [
+      0.21358,
+      0.168,
+      -0.005
+     ],
+     "tamanho": [
+      0.787,
+      0.349,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.56,
+      0
+     ],
+     "tamanho": [
+      1.26,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28,
+      -0.0
+     ],
+     "tamanho": [
+      1.3,
+      0.56,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_escuro"
+   ],
+   "tris": 3088,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv"
+   ]
+  },
+  {
+   "id": "rack_baixo_gavetas_coral",
+   "rotulo": "Rack baixo com gavetas (coral)",
+   "categoria": "racks_tv",
+   "grupo": "rack_baixo_gavetas",
+   "fixacao": "chao",
+   "dims": [
+    1.39,
+    0.555,
+    0.453
+   ],
+   "arquivo": "glb/rack_baixo_gavetas_coral.glb",
+   "miniatura": "miniaturas/rack_baixo_gavetas_coral.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3276,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.328,
+      0.273,
+      0.227
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3276,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.328,
+      0.273,
+      0.227
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      0.0,
+      0.15,
+      0.0075
+     ],
+     "tamanho": [
+      1.28,
+      0.095,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.328,
+      0.285,
+      0.015
+     ],
+     "tamanho": [
+      0.596,
+      0.083,
+      0.396
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.328,
+      0.285,
+      0.015
+     ],
+     "tamanho": [
+      0.596,
+      0.083,
+      0.396
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.453,
+      0
+     ],
+     "tamanho": [
+      1.35,
+      1.0,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2265,
+      -0.0
+     ],
+     "tamanho": [
+      1.39,
+      0.453,
+      0.54
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "vermelho_claro",
+    "vermelho_escuro"
+   ],
+   "tris": 4016,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "rack_baixo_gavetas_menta",
+   "rotulo": "Rack baixo com gavetas (menta)",
+   "categoria": "racks_tv",
+   "grupo": "rack_baixo_gavetas",
+   "fixacao": "chao",
+   "dims": [
+    1.39,
+    0.555,
+    0.453
+   ],
+   "arquivo": "glb/rack_baixo_gavetas_menta.glb",
+   "miniatura": "miniaturas/rack_baixo_gavetas_menta.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3276,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.328,
+      0.273,
+      0.227
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3276,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.328,
+      0.273,
+      0.227
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_baixo",
+     "centro": [
+      0.0,
+      0.15,
+      0.0075
+     ],
+     "tamanho": [
+      1.28,
+      0.095,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.328,
+      0.285,
+      0.015
+     ],
+     "tamanho": [
+      0.596,
+      0.083,
+      0.396
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.328,
+      0.285,
+      0.015
+     ],
+     "tamanho": [
+      0.596,
+      0.083,
+      0.396
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.453,
+      0
+     ],
+     "tamanho": [
+      1.35,
+      1.0,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2265,
+      -0.0
+     ],
+     "tamanho": [
+      1.39,
+      0.453,
+      0.54
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "menta",
+    "verde_medio"
+   ],
+   "tris": 4016,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "rack_gavetas_brancas_turquesa",
+   "rotulo": "Rack de 2 gavetas e nicho (turquesa)",
+   "categoria": "racks_tv",
+   "grupo": "rack_gavetas_nicho",
+   "fixacao": "chao",
+   "dims": [
+    1.05,
+    0.45,
+    0.52
+   ],
+   "arquivo": "glb/rack_gavetas_brancas_turquesa.glb",
+   "miniatura": "miniaturas/rack_gavetas_brancas_turquesa.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2652,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.248,
+      0.113,
+      0.182
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2652,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.248,
+      0.113,
+      0.182
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      0.0,
+      0.295,
+      0.0075
+     ],
+     "tamanho": [
+      0.96,
+      0.18,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.248,
+      0.125,
+      0.01
+     ],
+     "tamanho": [
+      0.436,
+      0.128,
+      0.316
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.248,
+      0.125,
+      0.01
+     ],
+     "tamanho": [
+      0.436,
+      0.128,
+      0.316
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.01,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.0
+     ],
+     "tamanho": [
+      1.05,
+      0.52,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco",
+    "creme",
+    "turquesa"
+   ],
+   "tris": 5220,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "rack_gavetas_brancas_rosa",
+   "rotulo": "Rack de 2 gavetas e nicho (rosa)",
+   "categoria": "racks_tv",
+   "grupo": "rack_gavetas_nicho",
+   "fixacao": "chao",
+   "dims": [
+    1.05,
+    0.45,
+    0.52
+   ],
+   "arquivo": "glb/rack_gavetas_brancas_rosa.glb",
+   "miniatura": "miniaturas/rack_gavetas_brancas_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2652,
+     "nome": "gaveta_1",
+     "pivo": [
+      -0.248,
+      0.113,
+      0.182
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2652,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.248,
+      0.113,
+      0.182
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho_cima",
+     "centro": [
+      0.0,
+      0.295,
+      0.0075
+     ],
+     "tamanho": [
+      0.96,
+      0.18,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      -0.248,
+      0.125,
+      0.01
+     ],
+     "tamanho": [
+      0.436,
+      0.128,
+      0.316
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.248,
+      0.125,
+      0.01
+     ],
+     "tamanho": [
+      0.436,
+      0.128,
+      0.316
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.01,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.0
+     ],
+     "tamanho": [
+      1.05,
+      0.52,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "madeira_clara",
+    "ouro",
+    "rosa_claro",
+    "rosa_escuro"
+   ],
+   "tris": 5220,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "rack_retro_turquesa",
+   "rotulo": "Rack retrô arredondado (turquesa)",
+   "categoria": "racks_tv",
+   "grupo": "rack_retro",
+   "fixacao": "chao",
+   "dims": [
+    0.95,
+    0.455,
+    0.621
+   ],
+   "arquivo": "glb/rack_retro_turquesa.glb",
+   "miniatura": "miniaturas/rack_retro_turquesa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.422,
+      0.22,
+      0.207
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.422,
+      0.22,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_baixo",
+     "centro": [
+      0.0,
+      0.24,
+      -0.005
+     ],
+     "tamanho": [
+      0.84,
+      0.13,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cima",
+     "centro": [
+      0.0,
+      0.395,
+      -0.005
+     ],
+     "tamanho": [
+      0.84,
+      0.17,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.62,
+      0
+     ],
+     "tamanho": [
+      0.85,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.30926,
+      -0.0
+     ],
+     "tamanho": [
+      0.95,
+      0.621,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "rosa_escuro",
+    "turquesa_claro"
+   ],
+   "tris": 2992,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "retrô"
+   ]
+  },
+  {
+   "id": "painel_tv_parede_nogueira",
+   "rotulo": "Painel de TV de parede (nogueira)",
+   "categoria": "racks_tv",
+   "grupo": "painel_tv_parede",
+   "fixacao": "parede",
+   "dims": [
+    1.8,
+    0.27,
+    1.05
+   ],
+   "arquivo": "glb/painel_tv_parede_nogueira.glb",
+   "miniatura": "miniaturas/painel_tv_parede_nogueira.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prateleira",
+     "centro": [
+      0.08,
+      0.12,
+      0.14
+     ],
+     "tamanho": [
+      1.46,
+      0.22,
+      0.22
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      0.65,
+      0.63,
+      0.14
+     ],
+     "tamanho": [
+      0.33,
+      0.19,
+      0.22
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_topo",
+     "centro": [
+      0.65,
+      0.86,
+      0.14
+     ],
+     "tamanho": [
+      0.38,
+      0.08,
+      0.22
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_alta",
+     "centro": [
+      0.6,
+      0.98,
+      0.1
+     ],
+     "tamanho": [
+      0.46,
+      0.3,
+      0.14
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tv",
+     "centro": [
+      -0.15,
+      0.32,
+      0.075
+     ],
+     "tamanho": [
+      1.0,
+      0.65,
+      0.06
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      0.135
+     ],
+     "tamanho": [
+      1.8,
+      1.05,
+      0.27
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "nogueira"
+   ],
+   "tris": 2872,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "parede",
+    "painel"
+   ],
+   "altura_instalacao": 0.55
+  },
+  {
+   "id": "rack_suspenso_branco",
+   "rotulo": "Rack suspenso (branco)",
+   "categoria": "racks_tv",
+   "grupo": "rack_suspenso",
+   "fixacao": "parede",
+   "dims": [
+    1.4,
+    0.393,
+    0.32
+   ],
+   "arquivo": "glb/rack_suspenso_branco.glb",
+   "miniatura": "miniaturas/rack_suspenso_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "porta_1",
+     "pivo": [
+      0.24598,
+      0.035,
+      0.357
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      -0.43302,
+      0.032,
+      0.1875
+     ],
+     "tamanho": [
+      0.46,
+      0.251,
+      0.325
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario",
+     "centro": [
+      0.24598,
+      0.032,
+      0.175
+     ],
+     "tamanho": [
+      0.834,
+      0.251,
+      0.3
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.32,
+      0.18
+     ],
+     "tamanho": [
+      1.36,
+      1.0,
+      0.32
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16,
+      0.18
+     ],
+     "tamanho": [
+      1.4,
+      0.32,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "grafite",
+    "madeira_clara"
+   ],
+   "tris": 1776,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "parede"
+   ],
+   "altura_instalacao": 0.35
+  },
+  {
+   "id": "rack_ripado_mel",
+   "rotulo": "Rack ripado de pés palito (mel)",
+   "categoria": "racks_tv",
+   "grupo": "rack_ripado",
+   "fixacao": "chao",
+   "dims": [
+    1.6,
+    0.42,
+    0.521
+   ],
+   "arquivo": "glb/rack_ripado_mel.glb",
+   "miniatura": "miniaturas/rack_ripado_mel.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.762,
+      0.175,
+      0.207
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.762,
+      0.175,
+      0.207
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      -0.0,
+      0.175,
+      0.0075
+     ],
+     "tamanho": [
+      0.58,
+      0.305,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_esq",
+     "centro": [
+      -0.541,
+      0.175,
+      -0.005
+     ],
+     "tamanho": [
+      0.438,
+      0.305,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_dir",
+     "centro": [
+      0.541,
+      0.175,
+      -0.005
+     ],
+     "tamanho": [
+      0.438,
+      0.305,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.56,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.25944,
+      -0.0
+     ],
+     "tamanho": [
+      1.6,
+      0.521,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 5188,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "ripado"
+   ]
+  },
+  {
+   "id": "rack_vidro_grafite",
+   "rotulo": "Rack com portas de vidro (grafite)",
+   "categoria": "racks_tv",
+   "grupo": "rack_vidro",
+   "fixacao": "chao",
+   "dims": [
+    1.45,
+    0.455,
+    0.52
+   ],
+   "arquivo": "glb/rack_vidro_grafite.glb",
+   "miniatura": "miniaturas/rack_vidro_grafite.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.686,
+      0.106,
+      0.202
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.686,
+      0.106,
+      0.202
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2652,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.0,
+      0.109,
+      0.187
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_vitrine_esq_baixo",
+     "centro": [
+      -0.47402,
+      0.106,
+      -0.005
+     ],
+     "tamanho": [
+      0.42,
+      0.164,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_vitrine_esq_cima",
+     "centro": [
+      -0.47402,
+      0.295,
+      -0.005
+     ],
+     "tamanho": [
+      0.42,
+      0.184,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_vitrine_dir_baixo",
+     "centro": [
+      0.47402,
+      0.106,
+      -0.005
+     ],
+     "tamanho": [
+      0.42,
+      0.164,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_vitrine_dir_cima",
+     "centro": [
+      0.47402,
+      0.295,
+      -0.005
+     ],
+     "tamanho": [
+      0.42,
+      0.184,
+      0.36
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      0.0,
+      0.3139,
+      0.0075
+     ],
+     "tamanho": [
+      0.464,
+      0.165,
+      0.385
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.0,
+      0.121,
+      0.015
+     ],
+     "tamanho": [
+      0.436,
+      0.141,
+      0.316
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.52,
+      0
+     ],
+     "tamanho": [
+      1.41,
+      1.0,
+      0.38
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.26,
+      -0.0
+     ],
+     "tamanho": [
+      1.45,
+      0.52,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "grafite",
+    "grafite_escuro",
+    "ouro"
+   ],
+   "tris": 6004,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "vidro",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "rack_com_painel_madeira",
+   "rotulo": "Rack com painel alto (madeira)",
+   "categoria": "racks_tv",
+   "grupo": "rack_com_painel",
+   "fixacao": "chao",
+   "dims": [
+    1.72,
+    0.485,
+    1.845
+   ],
+   "arquivo": "glb/rack_com_painel_madeira.glb",
+   "miniatura": "miniaturas/rack_com_painel_madeira.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.811,
+      0.096,
+      0.217
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_2",
+     "pivo": [
+      0.811,
+      0.096,
+      0.217
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_nicho",
+     "centro": [
+      0.0,
+      0.096,
+      0.0075
+     ],
+     "tamanho": [
+      0.522,
+      0.343,
+      0.415
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_esq",
+     "centro": [
+      -0.55088,
+      0.096,
+      -0.005
+     ],
+     "tamanho": [
+      0.516,
+      0.343,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_armario_dir",
+     "centro": [
+      0.55088,
+      0.096,
+      -0.005
+     ],
+     "tamanho": [
+      0.516,
+      0.343,
+      0.39
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_esq_45",
+     "centro": [
+      -0.67,
+      0.96,
+      -0.085
+     ],
+     "tamanho": [
+      0.3,
+      0.3,
+      0.18
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_esq_85",
+     "centro": [
+      -0.67,
+      1.36,
+      -0.085
+     ],
+     "tamanho": [
+      0.3,
+      0.3,
+      0.18
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_dir_45",
+     "centro": [
+      0.67,
+      0.96,
+      -0.085
+     ],
+     "tamanho": [
+      0.3,
+      0.3,
+      0.18
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_dir_85",
+     "centro": [
+      0.67,
+      1.36,
+      -0.085
+     ],
+     "tamanho": [
+      0.3,
+      0.3,
+      0.18
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0,
+      0.48,
+      0.02
+     ],
+     "tamanho": [
+      1.66,
+      0.9,
+      0.37
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.24,
+      0
+     ],
+     "tamanho": [
+      1.7,
+      0.48,
+      0.45
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.155,
+      -0.205
+     ],
+     "tamanho": [
+      1.7,
+      1.35,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_clara",
+    "madeira_media"
+   ],
+   "tris": 5456,
+   "pacote": false,
+   "tags": [
+    "sala",
+    "tv",
+    "painel"
+   ]
+  }
+ ]
+}

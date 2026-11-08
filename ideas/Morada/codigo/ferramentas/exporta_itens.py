@@ -109,6 +109,32 @@ def liga_pele(Pg, X):
     return tri, bar, off
 
 
+def pesos_proprios(ob, item):
+    """Pesos do esqueleto que a página não tira da pele embaixo: a parte de saia (quadril e as duas coxas misturadas,
+    como pano, feitos no encaixe) e, nas partes de cima e por cima, a barra sem as coxas e andando inteira
+    (cena_familia.sem_pernas). Devolve (índice do osso [nv, 4], peso 0-255 [nv, 4], nomes) ou None."""
+    import cena_familia as CF
+    it = R._resolve(item)
+    slot = it.get("slot")
+    tem_saia = "saia" in ob.data.attributes
+    if not tem_saia and slot not in ("cima", "sobre"):
+        return None
+    if slot in ("cima", "sobre"):
+        CF.sem_pernas(ob)
+    nomes = [g.name for g in ob.vertex_groups]
+    n = len(ob.data.vertices)
+    W = np.zeros((n, len(nomes)))
+    for v in ob.data.vertices:
+        for g in v.groups:
+            W[v.index, g.group] = g.weight
+    top = np.argsort(-W, axis=1)[:, :4]
+    w = np.take_along_axis(W, top, axis=1)
+    w /= np.maximum(w.sum(1, keepdims=True), 1e-9)
+    q = np.round(w * 255).astype(np.int32)
+    q[:, 0] += 255 - q.sum(1)  # soma exata 255
+    return top.astype(np.int64), np.clip(q, 0, 255).astype(np.uint8), nomes
+
+
 # tabela das famílias (a página usa a mesma ordem de triângulos e as mesmas áreas)
 fam_info = {}
 for fam in FAMS:
@@ -160,6 +186,21 @@ for kind, item in itens:
                 ob.modifiers.remove(m)
             Pg = R.pos_mundo(ob)
             vert_de, uvs, idx, grupos = geometria(ob)
+            if "saia" in ob.data.attributes:
+                cab["solta"] = True  # tem saia (a página esconde a pele das pernas embaixo dela de mais longe)
+                g_ = R._resolve(item).get("gerar", {})
+                saias = [q["saia"] for q in g_.get("partes", []) if "saia" in q] or ([g_] if g_.get("tipo", "saia") == "saia" else [])
+                if saias and not any(s.get("abre_frente") or s.get("so_frente") for s in saias):
+                    cab["saia_fechada"] = True  # saia fechada em volta: toda a perna entre a barra e o cós fica dentro
+            pesos = pesos_proprios(ob, item) if tipo == "pele" else None
+            if pesos is not None:
+                # pesos próprios (saia como pano, barra da blusa inteira): a página usa estes em vez dos da pele
+                osso_i, peso_q, nomes_o = pesos
+                for nm in nomes_o:
+                    if nm not in cab.setdefault("ossos", []):
+                        cab["ossos"].append(nm)
+                mapa = np.array([cab["ossos"].index(nm) for nm in nomes_o], np.uint8)
+                partes += [(f"{fam}_osso", mapa[osso_i[vert_de]].ravel()), (f"{fam}_peso", peso_q[vert_de].ravel())]
             if tipo == "pele":
                 tri, bar, off = liga_pele(Pg, X)
                 # quantizado: baricêntricas em 1/65535, deslocamento em 0,05 mm

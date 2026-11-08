@@ -1,0 +1,281 @@
+<title>Bichos do Morada</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Palco azul-noite à esquerda (o bicho no chão, como numa vitrine); à direita, a ficha: escolher bicho e animação */
+:root {
+  --noite: #1e2247;      /* palco e fundo */
+  --painel: #262b57;     /* ficha */
+  --risco: #3a4078;      /* bordas e divisórias */
+  --tinta: #eef0ff;      /* texto */
+  --apagada: #a9aed8;    /* texto secundário */
+  --mel: #f2b84b;        /* destaque (pelo do labrador) */
+  --rosa: #f4a3bf;       /* segundo destaque (lulu rosa) */
+  --display: "Fredoka", "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --texto: "Figtree", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--noite); color: var(--tinta); font-family: var(--texto); font-size: 15px; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 360px; height: 100%; }
+.palco { position: relative; min-width: 0; min-height: 0; }
+.palco canvas { display: block; width: 100%; height: 100%; outline: none; }
+.carregando { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: 16px; font-size: 13px; color: var(--apagada);
+  background: color-mix(in srgb, var(--noite) 80%, transparent); padding: 6px 10px; border-radius: 8px; }
+.dica { position: absolute; right: 16px; bottom: 16px; font-size: 12px; color: var(--apagada); }
+.ficha { background: var(--painel); border-left: 1px solid var(--risco); overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+  padding-block: 22px 28px; padding-left: 20px; padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.05; margin: 0; letter-spacing: 0.2px; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--apagada); line-height: 1.45; font-size: 14px; }
+.rotulo { font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--apagada); margin: 0 0 8px; font-weight: 600; }
+.modos { display: grid; grid-template-columns: 1fr 1fr; background: var(--noite); border-radius: 12px; padding: 4px; gap: 4px; }
+.modos button { font: 600 14px var(--texto); color: var(--apagada); background: transparent; border: 0; border-radius: 9px; padding: 9px; cursor: pointer; }
+.modos button[aria-pressed="true"] { background: var(--mel); color: #2a1d05; }
+.grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bicho { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--noite); border: 2px solid transparent;
+  border-radius: 12px; padding: 6px 4px 8px; cursor: pointer; color: var(--tinta); font: 500 12.5px var(--texto); text-align: center; line-height: 1.2; }
+.bicho img { width: 100%; max-width: 92px; aspect-ratio: 1; object-fit: contain; }
+.bicho[aria-pressed="true"] { border-color: var(--mel); }
+.bicho:hover { border-color: var(--risco); }
+.bicho[aria-pressed="true"]:hover { border-color: var(--mel); }
+.anims { display: flex; flex-wrap: wrap; gap: 6px; }
+.anims button { font: 500 13.5px var(--texto); color: var(--tinta); background: var(--noite); border: 1px solid var(--risco); border-radius: 999px;
+  padding: 7px 12px; cursor: pointer; }
+.anims button[aria-pressed="true"] { background: var(--rosa); border-color: var(--rosa); color: #3a0e1d; }
+button:focus-visible { outline: 2px solid var(--mel); outline-offset: 2px; }
+.dados { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.dados dt { color: var(--apagada); }
+.dados dd { margin: 0; font-variant-numeric: tabular-nums; }
+.nota { font-size: 12.5px; color: var(--apagada); line-height: 1.5; margin: 0; border-top: 1px solid var(--risco); padding-top: 14px; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 52vh auto; height: auto; min-height: 100%; }
+  .ficha { border-left: 0; border-top: 1px solid var(--risco); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dica { display: none; }
+}
+@media (max-width: 420px) { .grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<div class="app">
+  <div class="palco" id="palco">
+    <div class="carregando" id="carregando">Carregando…</div>
+    <div class="dica">Arraste para girar · pinça ou roda para aproximar</div>
+  </div>
+  <aside class="ficha">
+    <header>
+      <h1>Bichos do Morada</h1>
+      <p class="sub">Treze bichos feitos a partir do Doberman, com as onze animações dele ajustadas ao tamanho e ao jeito de cada um.</p>
+    </header>
+    <div>
+      <p class="rotulo">Ver</p>
+      <div class="modos" role="group" aria-label="Ver um bicho ou todos">
+        <button id="modo-um" aria-pressed="true">Um bicho</button>
+        <button id="modo-todos" aria-pressed="false">Todos juntos</button>
+      </div>
+    </div>
+    <div>
+      <p class="rotulo">Bicho</p>
+      <div class="grade" id="grade"></div>
+    </div>
+    <div>
+      <p class="rotulo">Animação</p>
+      <div class="anims" id="anims"></div>
+    </div>
+    <dl class="dados" id="dados"></dl>
+    <p class="nota">Base: o Doberman do pacote grátis Apocalypse (uso interno, não distribuir). As formas, as cores, as orelhas, as caudas e as coleiras foram feitas aqui.</p>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const ORDEM = ["doberman", "doberman_marrom", "labrador", "rottweiler", "salsicha", "salsicha_marrom", "spitz", "lulu", "lulu_rosa",
+  "lulu_azul", "gato", "gato_frajola", "gato_laranja"];
+// "todos juntos": três fileiras, como uma vitrine (x, z, giro em graus)
+const VITRINE = {
+  doberman_marrom: [-2.3, -1.2, 25], labrador: [-0.9, -1.3, -15], rottweiler: [0.8, -1.35, 10], doberman: [2.3, -1.2, -30],
+  spitz: [-2.4, 0.1, 30], salsicha: [-1.0, 0.0, 20], gato: [0.25, -0.15, -10], lulu_rosa: [1.2, 0.15, -25], gato_laranja: [2.0, 0.05, -40],
+  salsicha_marrom: [2.9, 0.25, -50], gato_frajola: [-1.9, 1.1, 20], lulu: [-0.55, 1.15, 10], lulu_azul: [0.75, 1.2, -15],
+};
+const palco = document.getElementById("palco"), carregando = document.getElementById("carregando");
+const estado = { modo: "um", bicho: "labrador", anim: "parado" };
+let INFO = {}, MINIS = {};
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+palco.prepend(renderer.domElement);
+const cena = new THREE.Scene();
+cena.background = new THREE.Color("#1e2247");
+cena.fog = new THREE.Fog("#1e2247", 9, 22);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 60);
+const orbita = new OrbitControls(camera, renderer.domElement);
+orbita.enableDamping = true;
+orbita.maxPolarAngle = Math.PI * 0.49;
+cena.add(new THREE.HemisphereLight("#d8dcff", "#2a2f5c", 1.15));
+const sol = new THREE.DirectionalLight("#fff4e6", 2.7);
+sol.position.set(-3, 6, 4);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+Object.assign(sol.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 0.5, far: 20 });
+sol.shadow.bias = -0.0005;
+cena.add(sol);
+const chao = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.MeshStandardMaterial({ color: "#252a55", roughness: 0.95 }));
+chao.rotation.x = -Math.PI / 2;
+chao.receiveShadow = true;
+cena.add(chao);
+
+const carregador = new GLTFLoader();
+const bichos = {}; // id → { raiz, mixer, clips, altura, acao }
+function carrega(id) {
+  if (bichos[id]) return bichos[id].pronto;
+  const b = (bichos[id] = {});
+  // cada bicho é um GLB → gzip → base64 (bichos/<id>.txt)
+  const glb = fetch(`bichos/${id}.txt`).then((r) => { if (!r.ok) throw new Error(`bichos/${id}.txt: ${r.status}`); return r.text(); })
+    .then((txt) => new Response(new Blob([Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0))]).stream()
+      .pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+  b.pronto = glb.then((buf) => new Promise((ok, erro) => carregador.parse(buf, "", (g) => {
+    const raiz = new THREE.Group();
+    raiz.add(g.scene);
+    g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    g.scene.updateMatrixWorld(true);
+    const caixa = new THREE.Box3().setFromObject(g.scene, true); // pelos vértices já deformados pelo esqueleto
+    const cernelha = (g.scene.getObjectByName("Neck")?.getWorldPosition(new THREE.Vector3()).y ?? 0) * 1.08; // base do pescoço, mais o dorso
+    Object.assign(b, { raiz, mixer: new THREE.AnimationMixer(g.scene), clips: Object.fromEntries(g.animations.map((c) => [c.name, c])),
+      altura: caixa.max.y - caixa.min.y, cernelha, comprimento: Math.max(caixa.max.x - caixa.min.x, caixa.max.z - caixa.min.z) });
+    ok(b);
+  }, erro)));
+  return b.pronto;
+}
+function toca(b, anim) {
+  const clip = b.clips[anim] || b.clips.parado;
+  if (!clip || b.acao?.getClip() === clip) return;
+  const nova = b.mixer.clipAction(clip);
+  nova.reset().play();
+  if (b.acao) b.acao.crossFadeTo(nova, 0.25, false);
+  b.acao = nova;
+}
+function enquadra(alvoY, raio, cx = 0, cz = 0) {
+  const meia = THREE.MathUtils.degToRad(camera.fov / 2), horiz = Math.atan(Math.tan(meia) * camera.aspect);
+  const d = raio / Math.sin(Math.min(meia, horiz)) * 0.95;
+  orbita.target.set(cx, alvoY, cz);
+  camera.position.set(cx + d * 0.45, alvoY + d * 0.62, cz + d * 0.65);
+  orbita.update();
+}
+
+async function mostra() {
+  for (const b of Object.values(bichos)) if (b.raiz) cena.remove(b.raiz);
+  if (estado.modo === "um") {
+    carregando.hidden = false; carregando.textContent = "Carregando " + INFO[estado.bicho].nome + "…";
+    const b = await carrega(estado.bicho);
+    if (estado.modo !== "um") return;
+    b.raiz.position.set(0, 0, 0); b.raiz.rotation.y = THREE.MathUtils.degToRad(-30);
+    cena.add(b.raiz);
+    toca(b, estado.anim);
+    enquadra(b.altura * 0.45, Math.max(b.altura, b.comprimento) * 0.75);
+    carregando.hidden = true;
+  } else {
+    let n = 0;
+    carregando.hidden = false;
+    await Promise.all(ORDEM.map((id) => carrega(id).then((b) => {
+      carregando.textContent = `Carregando os bichos (${++n} de ${ORDEM.length})…`;
+      if (estado.modo !== "todos") return;
+      const [x, z, g] = VITRINE[id];
+      b.raiz.position.set(x, 0, z); b.raiz.rotation.y = THREE.MathUtils.degToRad(g);
+      cena.add(b.raiz);
+      toca(b, estado.anim);
+    })));
+    if (estado.modo === "todos") { // centro e tamanho da vitrine
+      const xs = Object.values(VITRINE).map((v) => v[0]), zs = Object.values(VITRINE).map((v) => v[1]);
+      const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cz = (Math.max(...zs) + Math.min(...zs)) / 2;
+      enquadra(0.25, ((Math.max(...xs) - Math.min(...xs)) / 2 + 0.6) * 0.82, cx, cz);
+      carregando.hidden = true;
+    }
+  }
+  desenhaDados();
+}
+
+function desenhaGrade() {
+  const grade = document.getElementById("grade");
+  grade.replaceChildren(...ORDEM.map((id) => {
+    const bt = document.createElement("button");
+    bt.className = "bicho"; bt.id = "bicho-" + id; bt.setAttribute("aria-pressed", String(id === estado.bicho && estado.modo === "um"));
+    const img = document.createElement("img"); img.alt = ""; img.src = "data:image/webp;base64," + MINIS[id];
+    const nome = document.createElement("span"); nome.textContent = INFO[id].nome;
+    bt.append(img, nome);
+    bt.onclick = () => { estado.bicho = id; estado.modo = "um"; atualiza(); };
+    return bt;
+  }));
+}
+function desenhaAnims() {
+  const info = INFO[estado.modo === "um" ? estado.bicho : "doberman"];
+  const el = document.getElementById("anims");
+  el.replaceChildren(...info.animacoes.map((a) => {
+    const bt = document.createElement("button");
+    bt.id = "anim-" + a.id; bt.textContent = estado.modo === "todos" && a.id === "latir" ? "Latir / miar" : a.rotulo;
+    bt.setAttribute("aria-pressed", String(a.id === estado.anim));
+    bt.onclick = () => {
+      estado.anim = a.id; desenhaAnims();
+      for (const b of Object.values(bichos)) if (b.raiz?.parent) toca(b, a.id);
+    };
+    return bt;
+  }));
+}
+function desenhaDados() {
+  const el = document.getElementById("dados");
+  if (estado.modo === "todos") {
+    el.innerHTML = `<dt>Bichos</dt><dd>${ORDEM.length}: 10 cachorros e 3 gatos</dd><dt>Animações</dt><dd>11 em cada um</dd>`;
+    return;
+  }
+  const i = INFO[estado.bicho], b = bichos[estado.bicho];
+  const cm = (v) => (v ? Math.round(v * 100) + " cm" : "…");
+  el.innerHTML = `<dt>Espécie</dt><dd>${i.especie === "gato" ? "Gato" : "Cachorro"}</dd><dt>Altura</dt><dd>${cm(b?.cernelha)} na cernelha</dd>`
+    + `<dt>Comprimento</dt><dd>${cm(b?.comprimento)}, do focinho à cauda</dd>`
+    + `<dt>Animações</dt><dd>${i.animacoes.length}</dd>`;
+}
+function atualiza() {
+  document.getElementById("modo-um").setAttribute("aria-pressed", String(estado.modo === "um"));
+  document.getElementById("modo-todos").setAttribute("aria-pressed", String(estado.modo === "todos"));
+  desenhaGrade(); desenhaAnims(); mostra();
+}
+document.getElementById("modo-um").onclick = () => { estado.modo = "um"; atualiza(); };
+document.getElementById("modo-todos").onclick = () => { estado.modo = "todos"; atualiza(); };
+
+function tamanho() {
+  const r = palco.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(r.height, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(tamanho).observe(palco);
+const relogio = new THREE.Clock();
+const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+renderer.setAnimationLoop(() => {
+  const dt = relogio.getDelta();
+  if (!reduzido) for (const b of Object.values(bichos)) if (b.raiz?.parent) b.mixer.update(dt);
+  orbita.update();
+  renderer.render(cena, camera);
+});
+
+try {
+  [INFO, MINIS] = await Promise.all([fetch("bichos/bichos.json").then((r) => r.json()), fetch("bichos/miniaturas.json").then((r) => r.json())]);
+  tamanho();
+  atualiza();
+} catch (e) {
+  carregando.textContent = "Não consegui carregar os bichos: " + e.message;
+}
+window.__bichos = { bichos, estado, cena };
+</script>

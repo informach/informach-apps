@@ -32,6 +32,8 @@ REGIOES = {
     "cabeca": ("Head",),
 }
 REGIOES["corpo"] = tuple(dict.fromkeys(REGIOES["tronco"] + REGIOES["pernas"]))
+# só o tronco, sem os braços (faixa do biquíni: dá a volta inteira e para onde começa o braço)
+REGIOES["torso"] = ("Hips", "Spine", "Spine1", "Spine2", "Neck", "LeftShoulder", "RightShoulder")
 # atlas de cores lisas para chapéus e acessórios: (u, v) do centro de cada mancha (8 × 2)
 CORES_ATLAS = ["branco", "preto", "cinza", "dourado", "prata", "vermelho", "azul_escuro", "amarelo",
                "verde", "marrom", "laranja", "rosa", "azul", "bege", "cinza_escuro", "creme"]
@@ -226,6 +228,7 @@ def _uv_corpo(ob, m, H, ombro):
     mw = ob.matrix_world
     uvl = me.uv_layers.new(name="UVMap") if not me.uv_layers else me.uv_layers.active
     gancho = m["quadril"] - 0.04
+    eh_saia = "saia" in me.attributes
     # eixo de cada braço (centro da seção, em faixas de 2 cm ao longo do braço): a volta em torno do braço é medida
     # a partir dele (antes era a partir do centro de cada polígono, e a trama que se repete ficava riscada)
     Pw = np.array([mw @ v.co for v in me.vertices]) if len(me.vertices) else np.zeros((0, 3))
@@ -239,19 +242,31 @@ def _uv_corpo(ob, m, H, ombro):
                 for k_ in np.unique(kq):
                     eixo[(sg, int(k_))] = Q[kq == k_][:, 1:].mean(0)
 
+    # o eixo de cada braço como curva contínua (interpolada entre as faixas e suavizada): antes cada polígono pegava o
+    # centro da faixa dele, e onde a faixa mudava a trama do braço (faixa lateral do agasalho) saía em degraus
+    curva = {}
+    for sg in (-1, 1):
+        ks = sorted(k for (s_, k) in eixo if s_ == sg)
+        if ks:
+            xs = np.array([(k + 0.5) * 0.02 for k in ks])
+            yz = np.array([eixo[(sg, k)] for k in ks])
+            if len(yz) >= 3:
+                yz = np.vstack([yz[:1], (yz[:-2] + 2 * yz[1:-1] + yz[2:]) / 4, yz[-1:]])
+            curva[sg] = (xs, yz)
+
     def centro_braco(p):
         sg = 1 if p.x > 0 else -1
-        k_ = int(math.floor(abs(p.x) / 0.02))
-        for d_ in (0, -1, 1, -2, 2):
-            if (sg, k_ + d_) in eixo:
-                return eixo[(sg, k_ + d_)]
-        return np.array([0.0, p.z])
+        if sg not in curva:
+            return np.array([0.0, p.z])
+        xs, yz = curva[sg]
+        return np.array([np.interp(abs(p.x), xs, yz[:, 0]), np.interp(abs(p.x), xs, yz[:, 1])])
     for poly in me.polygons:
         # o polígono inteiro numa ilha só (sem costura no meio dele)
         cs = [mw @ me.vertices[me.loops[li].vertex_index].co for li in poly.loop_indices]
         cen = sum(cs, Vector()) / len(cs)
-        braco = abs(cen.x) > ombro * 1.05 and cen.z > m["quadril"] + 0.05
-        cx = 0.0 if (cen.z > gancho or braco) else math.copysign(0.09 * H / 1.73, cen.x)
+        braco = abs(cen.x) > ombro * 1.05 and cen.z > m["quadril"] + 0.05 and not eh_saia  # (a saia larga não é braço)
+        # (saia: um tubo só em volta das duas pernas, a volta é medida do meio do corpo)
+        cx = 0.0 if (cen.z > gancho or braco or eh_saia) else math.copysign(0.09 * H / 1.73, cen.x)
         ang0 = math.atan2(cen.x - cx, -cen.y)
         if braco:
             cy, cz = centro_braco(cen)
@@ -259,6 +274,7 @@ def _uv_corpo(ob, m, H, ombro):
         for li, p in zip(poly.loop_indices, cs):
             if braco:
                 v = 0.5 * min(max((abs(p.x) - ombro) / max(m["punho"] - ombro, 0.05), 0), 1)
+                cy, cz = centro_braco(p)  # o centro no ponto (não no polígono): a volta é contínua entre vizinhos
                 a = math.atan2(p.y - cy, p.z - cz)
                 if abs(a - a0) > math.pi:  # sem dar a volta no meio do polígono
                     a += -2 * math.pi if a > a0 else 2 * math.pi
@@ -279,6 +295,46 @@ def _peso_vertices(S, nomes):
     return np.array([sum(x.weight for x in v.groups if x.group in idx) for v in S.data.vertices])
 
 
+def _barra_reta(ob, m):
+    """A barra da parte de cima cai reta: abaixo da parte mais larga do quadril, cada ponto vai para fora até o contorno
+    dessa altura (em 48 direções em volta do centro), em vez de seguir a pele para dentro da virilha."""
+    me = ob.data
+    mw = ob.matrix_world
+    mi = mw.inverted()
+    P = np.array([tuple(mw @ v.co) for v in me.vertices])
+    if not len(P):
+        return
+    z_ref = m["quadril"] + 0.05
+    tronco = np.abs(P[:, 0]) < m["ombro"] * 0.95  # longe dos braços
+    faixa = tronco & (np.abs(P[:, 2] - z_ref) < 0.015)
+    if faixa.sum() < 8:
+        return
+    cx, cy = P[faixa, 0].mean(), P[faixa, 1].mean()
+    nb = 48
+    ang = np.arctan2(P[:, 1] - cy, P[:, 0] - cx)
+    rad = np.hypot(P[:, 0] - cx, P[:, 1] - cy)
+    k = ((ang + math.pi) / (2 * math.pi) * nb).astype(int) % nb
+    contorno = np.zeros(nb)
+    for i in range(nb):
+        s = faixa & (k == i)
+        contorno[i] = rad[s].max() if s.any() else 0.0
+    for _ in range(2):  # direções sem ponto: a média das vizinhas; e uma suavizada
+        vazio = contorno == 0
+        contorno[vazio] = ((np.roll(contorno, 1) + np.roll(contorno, -1)) / 2)[vazio]
+    contorno = np.maximum(contorno, (np.roll(contorno, 1) + contorno + np.roll(contorno, -1)) / 3)
+    baixo = tronco & (P[:, 2] < z_ref)
+    for i in np.nonzero(baixo)[0]:
+        alvo = contorno[k[i]]
+        if rad[i] < alvo:  # nunca para dentro
+            t_ = min((z_ref - P[i, 2]) / 0.03, 1.0)  # transição suave logo abaixo da faixa
+            r_ = rad[i] + (alvo - rad[i]) * t_
+            P[i, 0] = cx + math.cos(ang[i]) * r_
+            P[i, 1] = cy + math.sin(ang[i]) * r_
+    for v, p in zip(me.vertices, P):
+        v.co = mi @ Vector(p)
+    me.update()
+
+
 def camada(S, spec):
     """Roupa sobre a pele da malha S (no mundo). spec: regiao, folga (m), cortes (marcos), frente (só faces de frente,
     0..1), faixa_x ([min, max] de |x| para gravata e alças), faixas_z (lista de [z0, z1] em marcos: só essas alturas),
@@ -290,13 +346,17 @@ def camada(S, spec):
         obs = []
         for p in spec["partes"]:
             if "saia" in p:
-                o = R._saia_gerada(S, {**p["saia"], "padrao": base_.get("padrao", "liso")}, None)[0]
+                # a saia nasce um pouco por fora da barra do corpo da peça (sem folga própria, ela começava rente à pele,
+                # por dentro do corpo, e na cintura aparecia uma fresta)
+                ex_ = {} if "folga" in p["saia"] else {"folga": base_.get("folga", 0.006) * 1.2 + 0.002}
+                o = R._saia_gerada(S, {**p["saia"], **ex_, "padrao": base_.get("padrao", "liso")}, None)[0]
             elif "capuz_caido" in p:
                 o = _capuz_caido(S, {**base_, **p["capuz_caido"]})
             elif "fivela" in p:
                 o = _fivela(S, p["fivela"])
             else:
-                o = camada(S, {**base_, **{k: v for k, v in p.items() if k != "cor"}})
+                tem_saia = any("saia" in q for q in spec["partes"])
+                o = camada(S, {**base_, **{k: v for k, v in p.items() if k != "cor"}, "_tem_saia": tem_saia})
             if p.get("cor"):
                 _pinta(o, p["cor"])
             obs.append(o)
@@ -312,7 +372,19 @@ def camada(S, spec):
     bm.from_mesh(S.data)
     bm.transform(S.matrix_world)
     bm.verts.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if min(w[v.index] for v in f.verts) < 0.5], context="FACES_ONLY")
+    barra_quadril = spec.get("regiao", "tronco") == "tronco" and any(
+        c_["marco"] == "quadril" and not c_.get("acima") for c_ in spec.get("cortes", []))
+
+    def fica(f):
+        if min(w[v.index] for v in f.verts) >= 0.5:
+            return True
+        # parte de cima com barra no quadril: a lateral do quadril (que tem peso da coxa) também entra até a barra,
+        # senão a barra sobe nos lados e fica serrilhada
+        zs = [v.co.z for v in f.verts]
+        # (os braços, abertos na pose da malha, ficam acima da axila; o quadril da mulher é mais largo que o ombro)
+        return barra_quadril and min(zs) > m["quadril"] - 0.03 and max(zs) < m["axila"] and \
+            all(abs(v.co.x) < 2 * m["ombro"] for v in f.verts)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not fica(f)], context="FACES_ONLY")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     if spec.get("subdivide", 1):
         bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=1, use_grid_fill=True, smooth=1.0)
@@ -329,18 +401,55 @@ def camada(S, spec):
             # cós rente: na cintura a parte de baixo fica junto da pele, para a parte de cima passar por fora
             t = min(max((v.co.z - (m["quadril"] - 0.06)) / 0.05, 0), 1)
             fv = folga + (min(folga, 0.0035 * H / 1.73) - folga) * t
-        v.co += v.normal * (fv + extra)
+        d_ = v.normal * (fv + extra)
+        if spec.get("regiao") in ("pernas", "corpo") and v.co.z < m["quadril"] + 0.02 and v.co.x * d_.x < 0:
+            # o lado de dentro da perna (virado para a outra) fica quase rente: com a folga toda, as duas coxas se
+            # cruzam no gancho e a bermuda folgada faz dobras entre as pernas
+            lim = 0.003 * H / 1.73
+            d_.x = math.copysign(min(abs(d_.x), lim), d_.x)
+        v.co += d_
+    if spec.get("regiao") in ("pernas", "corpo"):
+        # fundilho: a pele faz um vinco fundo entre as pernas e a calça copiava esse vinco (na página, um nó escuro no
+        # meio da virilha). Na região do gancho os pontos vão para a média dos vizinhos (várias voltas, mais no centro):
+        # o pano faz uma ponte lisa de uma perna para a outra, sem entrar no vinco
+        bm.verts.ensure_lookup_table()
+        cx_ = 0.0
+        larg_ = 0.07 * H / 1.73
+        z0_, z1_ = m["quadril"] - 0.16 * H / 1.73, m["quadril"] + 0.02 * H / 1.73
+        zona = [v for v in bm.verts if abs(v.co.x - cx_) < larg_ and z0_ < v.co.z < z1_]
+        peso_ = {v: max(0.0, 1 - abs(v.co.x - cx_) / larg_) * min(1.0, (z1_ - v.co.z) / (0.04 * H / 1.73), (v.co.z - z0_) / (0.04 * H / 1.73))
+                 for v in zona}
+        for _ in range(12):
+            novo = {}
+            for v in zona:
+                viz_ = [e.other_vert(v) for e in v.link_edges]
+                if not viz_:
+                    continue
+                med = sum((u.co for u in viz_), Vector()) / len(viz_)
+                novo[v] = v.co + (med - v.co) * 0.6 * peso_[v]
+            for v, c_ in novo.items():
+                v.co = c_
     if spec.get("boca_sino"):  # calça boca de sino: abre do joelho para baixo
         import roupas as R_
         m_ = R_._marcos(S)
         zj, zt = m_["joelho"], m_["tornozelo"]
+        # abre a partir do eixo de cada perna (centro da seção, em faixas de 2 cm), e pouco do lado de dentro: pela
+        # normal, os lados de dentro das duas pernas avançavam um para o outro e se juntavam no chão entre os pés
+        eixo_ = {}
+        for v in bm.verts:
+            if v.co.z < zj:
+                eixo_.setdefault((v.co.x > 0, int(v.co.z / 0.02)), []).append(v.co)
+        eixo_ = {k: (sum(c_.x for c_ in vs) / len(vs), sum(c_.y for c_ in vs) / len(vs)) for k, vs in eixo_.items()}
         for v in bm.verts:
             if v.co.z < zj:
                 t = min((zj - v.co.z) / max(zj - zt, 0.05), 1.2)
-                perto = v.normal.copy()
-                perto.z = 0
+                cx_, cy_ = eixo_[(v.co.x > 0, int(v.co.z / 0.02))]
+                perto = Vector((v.co.x - cx_, v.co.y - cy_, 0))
                 if perto.length:
-                    v.co += perto.normalized() * spec["boca_sino"] * H / 1.73 * t ** 1.5
+                    perto.normalize()
+                    dentro = perto.x * (1 if v.co.x > 0 else -1) < 0  # virado para a outra perna
+                    k_ = 0.25 if dentro else 1.0
+                    v.co += perto * spec["boca_sino"] * H / 1.73 * t ** 1.5 * k_
     me = bpy.data.meshes.new("camada")
     bm.to_mesh(me)
     bm.free()
@@ -349,11 +458,13 @@ def camada(S, spec):
     if spec.get("cortes"):
         cortes = spec["cortes"]
         if spec.get("regiao", "tronco") == "tronco":
-            # a barra da parte de cima não desce abaixo do gancho (senão vira body entre as pernas): mais comprida,
-            # só com uma parte "saia" (paletó, casaco)
-            cortes = [{**c_, "desloca": max(c_.get("desloca", 0.0), -0.025)} if c_["marco"] == "quadril" and not c_.get("acima")
+            # a barra da parte de cima fica um pouco acima da junta do quadril (bem longe do gancho: senão vira body
+            # entre as pernas e, de frente, um V); mais comprida, só com uma parte "saia" (paletó, casaco)
+            cortes = [{**c_, "desloca": max(c_.get("desloca", 0.0), 0.02)} if c_["marco"] == "quadril" and not c_.get("acima")
                       else c_ for c_ in cortes]
-        R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004))
+            if any(c_["marco"] == "quadril" and not c_.get("acima") for c_ in cortes) and not spec.get("_tem_saia"):
+                _barra_reta(ob, m)  # (com saia, a barra não abre: a saia continua dela, sem degrau)
+        R._corta(ob, S, cortes, bainha=spec.get("bainha", 0.004), um_anel=spec.get("regiao", "tronco") == "tronco")
     # recortes que não são planos de marco: só a frente, faixas em x (gravata, alças), faixas de altura
     if spec.get("frente") is not None or spec.get("faixa_x") or spec.get("faixas_z") or spec.get("faixas_x") \
             or spec.get("abre_frente") or spec.get("tras") or spec.get("furos") or spec.get("ombro_unico") \
@@ -505,6 +616,32 @@ def _faixas_cor(ob, spec, m, H):
     """Partes de outra cor, fixa (material de detalhe): gola (marcada ao fazer a gola), punhos e barra."""
     me = ob.data
     fc = spec.get("faixas_cor") or {}
+    if fc.get("punhos") or fc.get("barra"):
+        # a malha é cortada na borda de cada faixa antes de pintar: a faixa sai com a borda reta (antes cada face
+        # inteira ficava de uma cor e a borda saía em degraus)
+        P0 = np.array([v.co[:] for v in me.vertices])
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        e_braco = lambda f: abs(f.calc_center_median().x) > m["ombro"] * 1.05 and f.calc_center_median().z > m["quadril"] - 0.1
+        if fc.get("punhos"):
+            larg = fc.get("largura_punho", 0.035) * H / 1.73
+            lado_b = np.abs(P0[:, 0]) > m["ombro"] * 1.05
+            if lado_b.any():
+                xmax = np.abs(P0[lado_b, 0]).max()
+                for s in (-1, 1):
+                    fs = [f for f in bm.faces if e_braco(f) and f.calc_center_median().x * s > 0]
+                    g = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+                    bmesh.ops.bisect_plane(bm, geom=g, plane_co=(s * (xmax - larg), 0, 0), plane_no=(1, 0, 0))
+        if fc.get("barra"):
+            larg = fc.get("largura_barra", 0.04) * H / 1.73
+            fs = [f for f in bm.faces if not e_braco(f)]
+            if fs:
+                zmin = min(v.co.z for f in fs for v in f.verts)
+                g = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+                bmesh.ops.bisect_plane(bm, geom=g, plane_co=(0, 0, zmin + larg), plane_no=(0, 0, 1))
+        bm.to_mesh(me)
+        bm.free()
+        me.update()
     cores = np.zeros(len(me.polygons), int)
     if "cor" in me.attributes:
         me.attributes["cor"].data.foreach_get("value", cores)
@@ -518,7 +655,8 @@ def _faixas_cor(ob, spec, m, H):
     if fc.get("barra"):
         larg = fc.get("largura_barra", 0.04) * H / 1.73
         corpo = ~braco
-        zmin = C[corpo, 2].min() if corpo.any() else 0
+        zmin = P[np.isin(np.arange(len(P)), [i for k_, pl in enumerate(me.polygons) if corpo[k_] for i in pl.vertices]), 2].min() \
+            if corpo.any() else 0
         cores[corpo & (C[:, 2] < zmin + larg)] = CORES_ATLAS.index(fc["barra"]) + 1
     if not cores.any():
         return
@@ -697,16 +835,22 @@ def chapeu(S, spec):
                 d = np.array([math.sin(a), 0.0, math.cos(a)])
                 cc = c + np.array([0, -yfr + lado * larg, 0])
                 r = _raio(bvh, cc, d, max(rx, ry))
-                linha.append(bm.verts.new(cc + d * (r + fol)))
+                linha.append(bm.verts.new(cc + d * (r + fol * (0.35 + 0.65 * math.cos(a) ** 2))))  # nos lados, rente
             tiras.append(linha)
         fs = []
         for k in range(24):
             fs.append(bm.faces.new((tiras[0][k], tiras[0][k + 1], tiras[1][k + 1], tiras[1][k])))
+        fs_arco = list(fs)
         if ar.get("babado"):  # babado: a frente da tiara sobe em ondas
-            topo = [bm.verts.new(v.co + Vector((0, -0.2 * larg, 0)) + (v.co - Vector(c)).normalized() * larg * (0.6 + 0.4 * math.sin(k * 1.9)))
+            # ondas regulares (uma a cada 3 segmentos), mais altas no alto da cabeça e sumindo nas pontas
+            topo = [bm.verts.new(v.co + Vector((0, -0.25 * larg, 0)) + (v.co - Vector(c)).normalized() * larg
+                                 * (0.45 + 0.55 * abs(math.sin(k * math.pi / 3))) * math.sin(math.pi * k / 24) ** 0.6)
                     for k, v in enumerate(tiras[0])]
             for k in range(24):
                 fs.append(bm.faces.new((tiras[0][k], topo[k], topo[k + 1], tiras[0][k + 1])))
+        # espessura (antes uma fita de papel): o arco engrossa para fora (depois do babado, que usa os vértices dele)
+        sol = bmesh.ops.solidify(bm, geom=fs_arco, thickness=-0.012 * Hc)
+        fs = list({f for f in sol["geom"] if isinstance(f, bmesh.types.BMFace)} | set(fs))
         partes_cor.append((fs, ar.get("cor", "branco")))
         if ar.get("orelhas_longas"):  # orelhas de coelho em pé no arco
             ol = ar["orelhas_longas"]
@@ -782,18 +926,42 @@ def chapeu(S, spec):
     fi = np.array([2 * math.pi * j / nphi for j in range(nphi)])
     zc = z_corte - inclina * (1 + np.cos(fi)) / 2 * -1 + inclina * 0  # frente (fi=0) em z_corte, nuca mais baixa
     zc = z_corte - inclina * (1 - np.cos(fi)) / 2
+    sem_copa = alt == 0  # faixa, viseira e coroa: só um anel em volta da cabeça (antes a copa achatava até um ponto)
+    folga_tras = cp.get("folga_tras", cp.get("folga", 0.012)) * Hc / 0.27  # atrás e nos lados o anel passa sobre o cabelo
+    fol_j = folga + (folga_tras - folga) * np.clip((1 - np.cos(fi)) * 0.75, 0, 1)  # testa justa, lados e nuca com folga
+
+    def raio_em(j, z):
+        d = np.array([math.sin(fi[j]), -math.cos(fi[j]), 0.0])
+        return _raio(bvh, np.array([c[0], c[1], z]), d, max(rx, ry))
+
+    def suave(r, n=4):
+        for _ in range(n):
+            r = 0.5 * r + 0.25 * (np.roll(r, 1) + np.roll(r, -1))
+        return r
+    # cada meridiano para onde cruza a altura do corte (o ponto exato, interpolado): os pontos abaixo ficam nele. Antes
+    # subiam até o corte com o raio que tinham, e onde o raio não achava a cabeça (pescoço) a borda virava um disco
+    for j in range(nphi):
+        for i in range(1, nth + 1):
+            if G[i, j, 2] < zc[j]:
+                a_, b_ = G[i - 1, j], G[i, j]
+                tt = (a_[2] - zc[j]) / max(a_[2] - b_[2], 1e-9) if a_[2] >= zc[j] else 0.0
+                x_ = a_ + (b_ - a_) * tt if a_[2] >= zc[j] else a_.copy()
+                x_[2] = zc[j]
+                G[i:, j] = x_
+                break
     verts = []
-    for i in range(nth + 1):
-        linha = []
-        for j in range(nphi):
-            p = G[i, j].copy()
-            if p[2] < zc[j]:
-                # desce até o corte pela linha do meridiano
-                p[2] = zc[j]
-            linha.append(bm.verts.new(p))
-        verts.append(linha)
+    if sem_copa:
+        r0 = suave(np.array([raio_em(j, zc[j]) for j in range(nphi)])) + fol_j
+        verts = [[bm.verts.new((c[0] + math.sin(fi[j]) * r0[j], c[1] - math.cos(fi[j]) * r0[j], zc[j])) for j in range(nphi)]]
+    else:
+        for i in range(nth + 1):
+            linha = []
+            for j in range(nphi):
+                p = G[i, j].copy()
+                linha.append(bm.verts.new(p))
+            verts.append(linha)
     copa_f = []
-    for i in range(nth):
+    for i in range(len(verts) - 1):
         for j in range(nphi):
             a, b_ = verts[i][j], verts[i][(j + 1) % nphi]
             cc, d = verts[i + 1][(j + 1) % nphi], verts[i + 1][j]
@@ -807,7 +975,17 @@ def chapeu(S, spec):
                    and f.calc_center_median().z < hmax[2] - 0.12 * Hc]
         bmesh.ops.delete(bm, geom=abertos, context="FACES_ONLY")
         copa_f = [f for f in copa_f if f.is_valid]
-    partes_cor.append((copa_f, cp.get("cor", "branco")))
+    if cp.get("gomos"):  # copa em gomos de cores fixas, em volta (boné de hélice); "branco" é a cor livre
+        gm = cp["gomos"]
+        por_cor = {}
+        for f in copa_f:
+            m_ = f.calc_center_median()
+            ang = (math.atan2(m_.x - c[0], -(m_.y - c[1])) + 2 * math.pi) % (2 * math.pi)
+            por_cor.setdefault(gm[int(ang / (2 * math.pi) * len(gm)) % len(gm)], []).append(f)
+        for cor_g, fs_g in por_cor.items():
+            partes_cor.append((fs_g, cor_g))
+    else:
+        partes_cor.append((copa_f, cp.get("cor", "branco")))
     borda = verts[-1]
     centro_b = sum((v.co for v in borda), Vector()) / nphi
 
@@ -832,6 +1010,7 @@ def chapeu(S, spec):
         b1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.012 * Hc / 0.27, e.get("cor", "branco"))
         b2 = anel_extra(b1, lambda j, p: p + Vector((0, 0, h)), e.get("cor", "branco"))
         anel_extra(b2, lambda j, p: p - radial(p) * 0.012 * Hc / 0.27, e.get("cor", "branco"))
+    pontas_coroa = []
     if spec.get("banda") is not None:
         bd = spec["banda"]
         h = bd.get("altura", 0.4) * Hc
@@ -846,6 +1025,11 @@ def chapeu(S, spec):
             return h * 0.7 * (1 - abs(2 * f - 1))
         topo_banda = anel_extra(borda, lambda j, p: centro_b + (p - centro_b) * abre + Vector((0, 0, h + onda(j) + (zc.max() - p.z))),
                                 bd.get("cor", "branco"))
+        if npt:  # coroa: uma bolinha em cada ponta e um aro mais grosso embaixo
+            # (as bolinhas entram no fim: as operações de esfera invalidam as referências aos vértices já feitos)
+            pontas_coroa[:] = [topo_banda[j].co.copy() for j in range(nphi) if abs((j * npt / nphi) % 1 - 0.5) < 1e-6]
+            aro1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.02 * Hc, bd.get("cor", "branco"))
+            anel_extra(aro1, lambda j, p: p + Vector((0, 0, 0.07 * Hc)), bd.get("cor", "branco"))
         borda_sup = topo_banda
         if spec.get("topo") is not None:
             tp = spec["topo"]
@@ -878,7 +1062,32 @@ def chapeu(S, spec):
                 except ValueError:
                     pass
             partes_cor.append((fs, pf.get("cor", "branco")))
-    if spec.get("faixa") is not None:
+    if spec.get("faixa") is not None and sem_copa:
+        fx = spec["faixa"]
+        h = fx.get("altura", 0.12) * Hc
+        esp = fx.get("espessura", 0.022) * Hc
+        aneis = [borda]
+        n_ = 5
+        for k in range(n_ + 1):
+            t_ = k / n_
+            zz = zc + t_ * h
+            r_ = suave(np.array([raio_em(j, zz[j]) for j in range(nphi)])) + fol_j
+            # o lado de fora arredondado: mais grosso no meio da faixa
+            r_ = r_ + esp * (0.55 + 0.45 * math.sin(math.pi * t_))
+            aneis.append([bm.verts.new((c[0] + math.sin(fi[j]) * r_[j], c[1] - math.cos(fi[j]) * r_[j], zz[j])) for j in range(nphi)])
+        r_ = suave(np.array([raio_em(j, zc[j] + h) for j in range(nphi)])) + fol_j
+        aneis.append([bm.verts.new((c[0] + math.sin(fi[j]) * r_[j], c[1] - math.cos(fi[j]) * r_[j], zc[j] + h)) for j in range(nphi)])
+        aneis.append(borda)  # fecha por dentro
+        fs = []
+        for A_, B_ in zip(aneis, aneis[1:]):
+            for j in range(nphi):
+                k = (j + 1) % nphi
+                try:
+                    fs.append(bm.faces.new((A_[j], B_[j], B_[k], A_[k])))
+                except ValueError:
+                    pass
+        partes_cor.append((fs, fx.get("cor", "preto")))
+    elif spec.get("faixa") is not None:
         fx = spec["faixa"]
         h = fx.get("altura", 0.12) * Hc
         f1 = anel_extra(borda, lambda j, p: p + radial(p) * 0.004, fx.get("cor", "preto"))
@@ -908,8 +1117,9 @@ def chapeu(S, spec):
         novos = []
         for j in frente:
             p = borda[j].co.copy()
-            k = max(0.0, (math.cos(fi[j] - desl) - math.cos(abert)) / (1 - math.cos(abert))) ** 0.6
-            novos.append(bm.verts.new(p + radial(p) * comp * (0.25 + 0.75 * k) - Vector((0, 0, vs.get("caida", 0.15) * comp * k))))
+            k = max(0.0, (math.cos(fi[j] - desl) - math.cos(abert)) / (1 - math.cos(abert))) ** 1.15
+            # afina até quase nada nas pontas (de frente, os lados do boné não viram aba de chapéu) e curva para baixo
+            novos.append(bm.verts.new(p + radial(p) * comp * (0.04 + 0.96 * k) - Vector((0, 0, vs.get("caida", 0.15) * comp * k ** 0.8))))
         fs = []
         for a in range(len(base) - 1):
             try:
@@ -930,9 +1140,29 @@ def chapeu(S, spec):
             v.co = Vector(centro) + Vector((v.co.x * esc[0], v.co.y * esc[1], v.co.z * esc[2]))
         partes_cor.append((list({f for v in r["verts"] for f in v.link_faces}), cor))
     topo_z = max(v.co.z for v in bm.verts)
+    for pt_ in pontas_coroa:
+        esfera(pt_, 0.035 * Hc, spec["banda"].get("cor", "branco"))
     if spec.get("pompom") is not None:
         esfera((c[0], c[1], topo_z + spec["pompom"].get("raio", 0.18) * Hc * 0.7), spec["pompom"].get("raio", 0.18) * Hc,
                spec["pompom"].get("cor", "branco"))
+    if spec.get("helice") is not None:  # hélice no alto: haste curta e duas pás cruzadas, um pouco inclinadas
+        he = spec["helice"]
+        hz = topo_z - 0.01 * Hc
+        r_ = bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.035 * Hc, radius2=0.03 * Hc, depth=0.16 * Hc)
+        for v in r_["verts"]:
+            v.co = Vector((c[0], c[1], hz + 0.08 * Hc)) + v.co
+        partes_cor.append((list({f for v in r_["verts"] for f in v.link_faces}), he.get("haste", "amarelo")))
+        esfera((c[0], c[1], hz + 0.17 * Hc), 0.045 * Hc, he.get("haste", "amarelo"))
+        for k_, cor_p in enumerate(he.get("pas", ("vermelho", "azul"))):
+            ang = math.radians(25 + 90 * k_)
+            for s in (-1, 1):
+                r_ = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+                for v in r_["verts"]:
+                    q = Vector((v.co.x * 0.26 * Hc, v.co.y * 0.075 * Hc, v.co.z * 0.012 * Hc))
+                    q = Vector((q.x + s * 0.27 * Hc, q.y, q.z + s * q.y * 0.35))  # pá para um lado, torcida
+                    q = Vector((q.x * math.cos(ang) - q.y * math.sin(ang), q.x * math.sin(ang) + q.y * math.cos(ang), q.z))
+                    v.co = Vector((c[0], c[1], hz + 0.17 * Hc)) + q
+                partes_cor.append((list({f for v in r_["verts"] for f in v.link_faces}), cor_p))
     if spec.get("orelhas") is not None:
         for s in (-1, 1):
             # base dentro da copa e a ponta bem acima dela, um pouco para fora
@@ -1088,6 +1318,10 @@ def _capuz(S, spec):
     V = [[bm.verts.new(G[i, j]) for j in range(nphi)] for i in range(nth + 1)]
     fs = []
     zr = hmin[2] + 0.45 * Hc
+
+    def oval(p):  # < 1 dentro da abertura do rosto: oval em cima, mais comprida para baixo (abre sob o queixo)
+        bz = 0.47 * Hc if p.z > zr else 0.8 * Hc
+        return ((p.x - c[0]) / (rx * 0.74)) ** 2 + ((p.z - zr) / bz) ** 2
     for i in range(nth):
         for j in range(nphi):
             k = (j + 1) % nphi
@@ -1096,15 +1330,26 @@ def _capuz(S, spec):
                 continue
             m_ = sum((v.co for v in q), Vector()) / 4
             frente = m_.y < c[1]
-            rosto = ((m_.x - c[0]) / (rx * 0.74)) ** 2 + ((m_.z - zr) / (0.47 * Hc)) ** 2 < 1
-            queixo = m_.z < hmin[2] + 0.15 * Hc and abs(m_.x - c[0]) < rx * 0.72 and m_.y < c[1] - 0.3 * ry
-            if frente and (rosto or queixo):
+            if frente and oval(m_) < 1:
                 continue
             try:
                 fs.append(bm.faces.new((q[0], q[3], q[2], q[1])))
             except ValueError:
                 pass
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    # a borda do rosto vai para a oval (sem degraus): cada ponto da borda, na frente, desliza no plano x-z até ela
+    for _ in range(2):
+        for v in [v for v in bm.verts if v.is_boundary and v.co.y < c[1]]:
+            e = oval(v.co)
+            if 0.2 < e < 4:
+                s = 1 / math.sqrt(e)
+                v.co.x = c[0] + (v.co.x - c[0]) * s
+                v.co.z = zr + (v.co.z - zr) * s
+        bm.verts.ensure_lookup_table()
+        for v in [v for v in bm.verts if v.is_boundary and v.co.y < c[1]]:  # suaviza ao longo da borda
+            viz = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(viz) == 2:
+                v.co = v.co * 0.5 + (viz[0].co + viz[1].co) * 0.25
     # espessura: a borda dobra para dentro e a do rosto fica mais grossa
     bm.normal_update()
     bordas = [e for e in bm.edges if e.is_boundary]
@@ -1261,11 +1506,16 @@ def oculos(S, spec):
 # x ao longo dos dedos (para baixo com o braço solto), z para o lado da palma, y = z × x. Origem: a base do dedo médio.
 # No corpo: ponto = base do dedo médio + s·(x·X + y·Y + z·Z), preso ao osso da mão (a página e o jogo fazem igual).
 def _bm_prim(bm, tipo, centro, tam, rot=None, seg=16):
-    if tipo == "caixa":
+    if tipo in ("caixa", "caixa_reta"):
+        antes = set(bm.faces)
         r = bmesh.ops.create_cube(bm, size=1.0)
         vs = r["verts"]
         for v in vs:
             v.co = Vector((v.co.x * tam[0], v.co.y * tam[1], v.co.z * tam[2]))
+        if tipo == "caixa" and min(tam) > 0.04:  # cantos arredondados (acabamento)
+            eds = list({e for v in vs for e in v.link_edges})
+            bmesh.ops.bevel(bm, geom=list(vs) + eds, offset=min(tam) * 0.16, segments=2, profile=0.5, affect="EDGES")
+            vs = list({v for f in set(bm.faces) - antes for v in f.verts})
     elif tipo == "cilindro":  # eixo x
         r = bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=tam[1], radius2=tam[2] if len(tam) > 2 else tam[1],
                                   depth=tam[0])
@@ -1314,17 +1564,17 @@ def _objeto(nome):
 
 @_objeto("bolsa")
 def _o_bolsa(bm, cor):
-    p = _bm_prim(bm, "caixa", (2.0, 0, 0.5), (1.9, 2.6, 0.95))
-    a = _bm_prim(bm, "toro", (0.55, 0, 0.5), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, 0))
-    a2 = _bm_prim(bm, "toro", (0.55, 0, 0.5), (0.75, 0.07, 0.5), rot=(0, math.pi / 2, math.pi))
-    f = _bm_prim(bm, "caixa", (1.25, 0, 0.0), (0.18, 0.5, 0.06))
+    p = _bm_prim(bm, "caixa", (2.0, 0, 0.25), (1.9, 2.6, 0.95))
+    a = _alca(bm, 1.05, 0.25, 0.6, 0.075)
+    a2 = []
+    f = _bm_prim(bm, "caixa", (1.25, 0, -0.25), (0.18, 0.5, 0.06))
     return [(p, cor)], [(a + a2, "marrom"), (f, "dourado")]
 
 
 @_objeto("maleta")
 def _o_maleta(bm, cor):
     p = _bm_prim(bm, "caixa", (2.4, 0, 0.3), (2.6, 3.6, 0.85))
-    a = _bm_prim(bm, "toro", (1.0, 0, 0.3), (0.45, 0.09, 0.5), rot=(0, math.pi / 2, 0))
+    a = _alca(bm, 1.1, 0.3, 0.5, 0.1)
     t = [_bm_prim(bm, "caixa", (1.15, sy * 0.9, 0.3), (0.14, 0.3, 0.9)) for sy in (-1, 1)]
     return [(p, cor)], [(a, "preto"), (t[0] + t[1], "prata")]
 
@@ -1344,18 +1594,24 @@ def _o_mala(bm, cor):
 def _o_sacolas(bm, cor):
     a = _bm_prim(bm, "caixa", (2.2, -0.35, 0.6), (2.6, 2.0, 0.8))
     b = _bm_prim(bm, "caixa", (2.4, 0.45, 1.2), (2.4, 1.7, 0.7), rot=(0, 0, 0.12))
-    al = _bm_prim(bm, "toro", (0.75, -0.35, 0.6), (0.6, 0.05, 0.5), rot=(0, math.pi / 2, 0))
-    bl = _bm_prim(bm, "toro", (0.95, 0.45, 1.2), (0.55, 0.05, 0.5), rot=(0, math.pi / 2, 0))
+    al = _alca(bm, 0.9, 0.35, 0.55, 0.05, -0.35, dz=0.25, y_mao=0.0)
+    bl = _alca(bm, 1.25, 0.35, 0.5, 0.05, 0.45, dz=0.85, y_mao=0.0)
     return [(a, cor)], [(b, "azul"), (al + bl, "preto")]
 
 
 @_objeto("sacola_papel")
 def _o_sacola_papel(bm, cor):
-    s_ = _bm_prim(bm, "caixa", (1.5, 0, 1.0), (2.6, 2.2, 1.4))
-    pao = _bm_prim(bm, "cilindro", (-0.4, 0.5, 1.0), (1.8, 0.28), rot=(0, 0, 0.35), seg=10)
-    folhas = _bm_prim(bm, "cone" if False else "esfera", (-0.1, -0.5, 1.0), (0.6, 0.45, 0.45))
-    cen = _bm_prim(bm, "cilindro", (-0.5, -0.1, 0.8), (1.2, 0.18, 0.02), rot=(0, 0, -0.25), seg=8)
-    return [(s_, cor)], [(pao, "bege"), (folhas, "verde"), (cen, "laranja")]
+    """Sacola de papel da feira, segurada pela borda: pão, garrafa de leite, banana, folhas e cenoura saindo dela."""
+    s_ = _bm_prim(bm, "caixa", (1.6, 0, 0.6), (2.6, 2.2, 1.3))
+    borda = _bm_prim(bm, "caixa_reta", (0.32, 0, 0.6), (0.06, 2.24, 1.34))
+    pao = _bm_prim(bm, "cilindro", (-0.2, 0.55, 0.75), (2.0, 0.28, 0.24), rot=(0, 0, 0.3), seg=10)
+    garrafa = _bm_prim(bm, "cilindro", (-0.1, -0.55, 0.55), (1.3, 0.3), seg=12)
+    tampa = _bm_prim(bm, "cilindro", (-0.82, -0.55, 0.55), (0.18, 0.2), seg=10)
+    banana = _bm_prim(bm, "toro", (0.0, 0.05, 0.3), (0.55, 0.12, 0.38), rot=(0, 0, math.pi / 2))
+    folhas = [_bm_prim(bm, "esfera", (-0.15 - 0.15 * k, -0.15 + 0.25 * k, 0.95), (0.35, 0.28, 0.28)) for k in range(3)]
+    cen = _bm_prim(bm, "cilindro", (-0.35, 0.15, 0.95), (1.1, 0.16, 0.02), rot=(0, 0, -0.3), seg=8)
+    return [(s_, cor)], [(borda, "bege"), (pao, "bege"), (garrafa, "branco"), (tampa, "azul"), (banana, "amarelo"),
+                         (sum(folhas, []), "verde"), (cen, "laranja")]
 
 
 @_objeto("guarda_chuva")
@@ -1450,7 +1706,7 @@ def _o_celular(bm, cor):
 
 
 @_objeto("guarda_chuva_aberto")
-def _o_guarda_chuva_aberto(bm, cor, cores=None):
+def _o_guarda_chuva_aberto(bm, cor, cores=None, alterna=None):
     """Aberto, segurado pelo cabo (o eixo do guarda-chuva no eixo Y da mão): cabo em J embaixo da mão, haste e a cúpula
     de 8 gomos com a borda recortada entre as varetas. cores: uma cor por gomo (o colorido)."""
     cabo = _bm_prim(bm, "toro", (0.0, -1.35, 0.35), (0.35, 0.1, 0.5), rot=(math.pi / 2, 0, math.pi / 2))
@@ -1484,7 +1740,10 @@ def _o_guarda_chuva_aberto(bm, cor, cores=None):
     pri = [(sum(gomos[0::2], []), cor)]
     sec = (cores or ["branco"])
     det = [(cabo, "marrom"), (haste + ponta, "cinza_escuro")]
-    if cores:
+    if alterna:  # listrado: gomos pares na cor, ímpares na outra
+        pri = [(sum(gomos[0::2], []), cor)]
+        det += [(sum(gomos[1::2], []), alterna)]
+    elif cores:
         pri = [(gomos[0], cor)]
         det += [(gomos[j], cores[(j - 1) % len(cores)]) for j in range(1, ng)]
     else:
@@ -1507,6 +1766,450 @@ def _o_pau_selfie(bm, cor):
     cel = _bm_prim(bm, "caixa", (-0.05, 5.25, 0.35), (0.1, 1.6, 0.8))
     tela = _bm_prim(bm, "caixa", (-0.11, 5.25, 0.35), (0.02, 1.45, 0.7))
     return [(cabo, cor)], [(haste + suporte, "cinza_escuro"), (cel, "preto"), (tela, "azul_escuro")]
+
+
+
+# ---------- mais objetos (bolsas, malas, caixas, ferramentas, bolas...), feitos com a vitrine de objetos como norte
+def _tubo(bm, pts, esp, m_=8, tampa=True):
+    """Tubo de raio esp ao longo dos pontos (referencial que acompanha a curva), com as pontas fechadas."""
+    pts = [Vector(p) for p in pts]
+    tg = [(pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized() for i in range(len(pts))]
+    ref = Vector((0, 0, 1)) if abs(tg[0].z) < 0.9 else Vector((0, 1, 0))
+    n_ = (ref - tg[0] * ref.dot(tg[0])).normalized()
+    aneis = []
+    for i, (p, t_) in enumerate(zip(pts, tg)):
+        n_ = (n_ - t_ * n_.dot(t_)).normalized()
+        b_ = t_.cross(n_)
+        aneis.append([bm.verts.new(p + (n_ * math.cos(2 * math.pi * k / m_) + b_ * math.sin(2 * math.pi * k / m_)) * esp)
+                      for k in range(m_)])
+    fs = []
+    for a_, c_ in zip(aneis, aneis[1:]):
+        for k in range(m_):
+            fs.append(bm.faces.new((a_[k], a_[(k + 1) % m_], c_[(k + 1) % m_], c_[k])))
+    if tampa:
+        fs.append(bm.faces.new(list(reversed(aneis[0]))))
+        fs.append(bm.faces.new(aneis[-1]))
+    return fs
+
+
+# a mão fechada (medido na página, em unidades de s): a falange de baixo dobra quase 90° para a palma (base do médio em
+# x 0,08, z 0,37) e a de cima volta para o punho; o vão onde a alça passa fica em x ≈ 0, z ≈ 0,22. Os dedos vão de
+# y −0,65 (mínimo) a +0,31 (indicador) numa mão e o espelho na outra (o mesmo arquivo serve nas duas).
+MAO_X, MAO_Z, MAO_LARG = -0.03, 0.22, 0.72
+
+
+def _curva_alca(x_topo, z, larg, y=0.0, x_mao=MAO_X, dz=0.0, entra=0.12, n=24, y_mao=None):
+    """Pontos de uma alça no plano da face do objeto (x ao longo dos dedos, y na largura): as duas pontas entram
+    `entra` no alto do objeto (x_topo, em y ± larg, z + dz) e o meio é reto, por dentro dos dedos fechados (x_mao,
+    z = MAO_Z), com cantos arredondados, para as pernas da alça descerem por fora da mão."""
+    pts, q = [], 0.4
+    xe = x_topo + entra
+    for i in range(n + 1):
+        u = math.pi * i / n
+        cu, su = math.cos(u), math.sin(u)
+        sy = math.copysign(abs(cu) ** q, cu)
+        s_ = abs(su) ** q
+        ym = y if y_mao is None else y + (y_mao - y) * s_
+        pts.append((xe - (xe - x_mao) * s_, ym - larg * sy, (z + dz) + (MAO_Z - (z + dz)) * s_))
+    return pts
+
+
+def _alca(bm, x_topo, z, larg=MAO_LARG, esp=0.07, y=0.0, x_mao=MAO_X, dz=0.0, entra=None, y_mao=None):
+    """Alça presa pelas duas pontas no alto do objeto (x_topo = face de cima, do lado da mão), larga o bastante para a
+    mão inteira caber nela."""
+    return _tubo(bm, _curva_alca(x_topo, z, max(larg, MAO_LARG), y, x_mao, dz, entra=entra or max(0.12, esp * 1.8), y_mao=y_mao), esp)
+
+
+@_objeto("bolsa_alca")
+def _o_bolsa_alca(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (1.85, 0, 0.2), (1.5, 2.0, 0.9))
+    alca = _alca(bm, 1.1, 0.2, 0.5, 0.11)
+    fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.27), (0.22, 0.45, 0.06))
+    return [(corpo, cor)], [(alca, "dourado"), (fecho, "dourado")]
+
+
+@_objeto("bolsa_tote")
+def _o_bolsa_tote(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.0, 2.6, 1.0))
+    a1 = _alca(bm, 1.3, 0.2, 0.7, 0.07, dz=-0.38)
+    a2 = _alca(bm, 1.3, 0.2, 0.7, 0.07, dz=0.38)
+    return [(corpo, cor)], [(a1 + a2, "marrom")]
+
+
+@_objeto("bolsa_fecho")
+def _o_bolsa_fecho(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (1.8, 0, 0.2), (1.4, 2.2, 0.85))
+    tampa = _bm_prim(bm, "caixa", (1.35, 0, 0.2), (0.6, 2.25, 0.9))
+    placa = _bm_prim(bm, "caixa", (1.55, 0, -0.27), (0.3, 0.5, 0.05))
+    alca = _alca(bm, 1.05, 0.2, 0.55, 0.08)
+    return [(corpo + tampa, cor)], [(placa, "dourado"), (alca, "preto")]
+
+
+@_objeto("bolsa_perolas")
+def _o_bolsa_perolas(bm, cor):
+    corpo = _bm_prim(bm, "esfera", (1.7, 0, 0.2), (0.75, 1.3, 0.5))
+    perolas = []
+    # pontas na superfície do corpo (elipsoide centro x 1.7, raios 0.75 x 1.3): em y = ±0.9, x = 1.7 - 0.75·√(1-(0.9/1.3)²)
+    xs = 1.7 - 0.75 * math.sqrt(1 - (0.9 / 1.3) ** 2) + 0.08
+    pts = _curva_alca(xs, 0.2, 0.9, entra=0.0, n=240)
+    acum, alvo, passo = 0.0, 0.0, 0.25
+    for p0, p1 in zip(pts, pts[1:]):
+        d = (Vector(p1) - Vector(p0)).length
+        while alvo <= acum + d:
+            q = Vector(p0).lerp(Vector(p1), (alvo - acum) / d)
+            perolas.append(_bm_prim(bm, "esfera", tuple(q), (0.13, 0.13, 0.13)))
+            alvo += passo
+        acum += d
+    return [(corpo, cor)], [(sum(perolas, []), "branco")]
+
+
+@_objeto("bolsa_academia")
+def _o_bolsa_academia(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (1.6, 0, 0.2), (3.4, 0.85), rot=(0, 0, math.pi / 2), seg=16)
+    faixas = [_bm_prim(bm, "cilindro", (1.6, y, 0.2), (0.25, 0.88), rot=(0, 0, math.pi / 2), seg=16) for y in (-1.0, 1.0)]
+    a1 = _alca(bm, 0.8, 0.2, 0.9, 0.07, dz=-0.42)
+    a2 = _alca(bm, 0.8, 0.2, 0.9, 0.07, dz=0.42)
+    ziper = _bm_prim(bm, "caixa_reta", (0.77, 0, 0.2), (0.05, 2.8, 0.08))
+    return [(corpo, cor)], [(sum(faixas, []), "branco"), (a1 + a2, "preto"), (ziper, "cinza_escuro")]
+
+
+@_objeto("pasta_couro")
+def _o_pasta_couro(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.1, 0, 0.2), (2.3, 3.2, 0.9))
+    aba = _bm_prim(bm, "caixa", (1.45, 0, -0.27), (1.1, 3.25, 0.08))
+    fivelas = [_bm_prim(bm, "caixa", (1.9, y, -0.33), (0.35, 0.28, 0.06)) for y in (-0.9, 0.9)]
+    alca = _alca(bm, 1.0, 0.2, 0.5, 0.09)
+    return [(corpo + aba, cor)], [(sum(fivelas, []), "dourado"), (alca, "marrom")]
+
+
+@_objeto("maleta_cantos")
+def _o_maleta_cantos(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.4, 3.6, 0.95))
+    cantos = [_bm_prim(bm, "caixa", (2.3 + sx * 1.05, sy * 1.65, 0.2), (0.42, 0.42, 1.0)) for sx in (-1, 1) for sy in (-1, 1)]
+    alca = _alca(bm, 1.1, 0.2, 0.45, 0.1)
+    fechos = [_bm_prim(bm, "caixa", (1.25, y, 0.2), (0.2, 0.3, 1.0)) for y in (-0.9, 0.9)]
+    return [(corpo, cor)], [(sum(cantos, []) + sum(fechos, []), "dourado"), (alca, "preto")]
+
+
+@_objeto("maleta_rigida")
+def _o_maleta_rigida(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.5, 3.6, 0.8))
+    friso = _bm_prim(bm, "caixa_reta", (2.3, 0, 0.2), (2.52, 3.62, 0.08))
+    fechos = [_bm_prim(bm, "caixa", (1.07, y, 0.2), (0.12, 0.35, 0.86)) for y in (-1.1, 1.1)]
+    alca = _alca(bm, 1.05, 0.2, 0.45, 0.1)
+    return [(corpo, cor)], [(friso + sum(fechos, []), "prata"), (alca, "preto")]
+
+
+@_objeto("pasta_notebook")
+def _o_pasta_notebook(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.3, 0, 0.2), (2.6, 3.8, 0.45))
+    bolso = _bm_prim(bm, "caixa", (2.6, 0, -0.04), (1.4, 3.0, 0.08))
+    a1 = _alca(bm, 1.0, 0.2, 0.6, 0.07, dz=-0.2)
+    a2 = _alca(bm, 1.0, 0.2, 0.6, 0.07, dz=0.2)
+    return [(corpo + bolso, cor)], [(a1 + a2, "cinza_escuro")]
+
+
+@_objeto("mala_frisos")
+def _o_mala_frisos(bm, cor):
+    pri, det = _o_mala(bm, cor)
+    frisos = []
+    for z in (1.4 - 1.65, 1.4 + 1.65):
+        for y in (-0.55, 0.0, 0.55):
+            frisos.append(_bm_prim(bm, "caixa", (6.2, y, z), (4.2, 0.16, 0.12)))
+    return pri + [(sum(frisos, []), cor)], det
+
+
+@_objeto("sacola_loja")
+def _o_sacola_loja(bm, cor):
+    corpo = _bm_prim(bm, "caixa_reta", (2.3, 0, 0.2), (2.6, 2.4, 0.9))
+    etiqueta = _bm_prim(bm, "caixa_reta", (2.4, 0, -0.27), (1.2, 1.3, 0.02))
+    a1 = _alca(bm, 1.0, 0.2, 0.5, 0.045, dz=-0.36)
+    a2 = _alca(bm, 1.0, 0.2, 0.5, 0.045, dz=0.36)
+    return [(corpo, cor)], [(etiqueta, "branco"), (a1 + a2, "cinza_escuro")]
+
+
+@_objeto("kit_socorros")
+def _o_kit_socorros(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.9, 2.7, 1.0))
+    cruz = [_bm_prim(bm, "caixa_reta", (2.05, 0, -0.32), tam) for tam in ((0.9, 0.3, 0.04), (0.3, 0.9, 0.04))]
+    alca = _alca(bm, 1.1, 0.2, 0.45, 0.09)
+    return [(corpo, cor)], [(sum(cruz, []), "branco"), (alca, "cinza_escuro")]
+
+
+@_objeto("extintor")
+def _o_extintor(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (2.6, 0, 0.2), (3.6, 0.55), seg=16)
+    topo = _bm_prim(bm, "esfera", (0.8, 0, 0.2), (0.3, 0.55, 0.55))
+    valvula = _bm_prim(bm, "cilindro", (0.45, 0, 0.2), (0.5, 0.18), seg=10)
+    alavanca = _bm_prim(bm, "caixa", (0.15, 0.3, 0.2), (0.12, 0.9, 0.15))
+    mp = [(0.45, -0.12, 0.2), (0.5, -0.4, 0.2), (0.7, -0.62, 0.22), (1.2, -0.68, 0.24), (2.0, -0.68, 0.26),
+          (2.6, -0.66, 0.26)]
+    mangueira = _tubo(bm, mp, 0.08)
+    bico = _bm_prim(bm, "cilindro", (2.8, -0.66, 0.26), (0.4, 0.1, 0.13), seg=10)
+    return [(corpo + topo, cor)], [(valvula + alavanca, "cinza"), (mangueira + bico, "preto")]
+
+
+@_objeto("estojo_violao")
+def _o_estojo_violao(bm, cor):
+    caixa = _bm_prim(bm, "esfera", (1.3, 1.1, 0.2), (0.9, 1.3, 0.45))
+    caixa2 = _bm_prim(bm, "esfera", (1.25, -0.5, 0.2), (0.75, 1.0, 0.45))
+    braco = _bm_prim(bm, "caixa", (1.2, -2.2, 0.2), (0.5, 1.9, 0.38))
+    fechos = [_bm_prim(bm, "caixa", (0.42, y, 0.2), (0.12, 0.2, 0.5)) for y in (-0.2, 0.9)]
+    alca = _alca(bm, 0.55, 0.2, 0.35, 0.07, 0.3, entra=0.3)
+    return [(caixa + caixa2 + braco, cor)], [(sum(fechos, []), "amarelo"), (alca, "preto")]
+
+
+@_objeto("caixa_ferramentas")
+def _o_caixa_ferramentas(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (2.0, 0, 0.2), (1.6, 3.2, 1.2))
+    tampa = _bm_prim(bm, "caixa", (1.15, 0, 0.2), (0.25, 3.25, 1.25))
+    alca = _bm_prim(bm, "caixa", (MAO_X, 0, MAO_Z), (0.14, 1.75, 0.18))
+    pes = [_bm_prim(bm, "caixa", (0.5, y, 0.21), (1.1, 0.13, 0.15)) for y in (-0.82, 0.82)]
+    fecho = _bm_prim(bm, "caixa", (1.35, 0, -0.43), (0.25, 0.4, 0.06))
+    return [(corpo + tampa, cor)], [(alca + sum(pes, []), "cinza_escuro"), (fecho, "prata")]
+
+
+@_objeto("garrafa")
+def _o_garrafa(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (0.0, 0.3, 0.55), (2.2, 0.42), rot=(0, 0, math.pi / 2), seg=16)
+    tampa = _bm_prim(bm, "cilindro", (0.0, 1.65, 0.55), (0.5, 0.36), rot=(0, 0, math.pi / 2), seg=14)
+    faixa = _bm_prim(bm, "cilindro", (0.0, 1.0, 0.55), (0.18, 0.44), rot=(0, 0, math.pi / 2), seg=16)
+    return [(corpo, cor)], [(tampa, "cinza_escuro"), (faixa, "cinza_escuro")]
+
+
+@_objeto("pincel")
+def _o_pincel(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (3.2, 0.08, 0.06), rot=(0, 0, math.pi / 2), seg=8)
+    virola = _bm_prim(bm, "cilindro", (0.0, 2.15, 0.4), (0.4, 0.09), rot=(0, 0, math.pi / 2), seg=8)
+    cerdas = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.4), (0.55, 0.1, 0.02), rot=(0, 0, math.pi / 2), seg=8)
+    return [(cabo, cor)], [(virola, "prata"), (cerdas, "vermelho")]
+
+
+@_objeto("paleta")
+def _o_paleta(bm, cor):
+    placa = _bm_prim(bm, "cilindro", (0.2, 0.0, 0.18), (0.1, 1.3, 1.3), rot=(0, math.pi / 2, 0), seg=20)
+    for v in {v for f in placa for v in f.verts}:
+        v.co.y *= 1.35
+    cores = ["vermelho", "azul", "amarelo", "verde", "branco", "rosa"]
+    tintas = [(_bm_prim(bm, "esfera", (0.2 + math.cos(a) * 0.85, math.sin(a) * 1.15, 0.26), (0.2, 0.2, 0.06)), c_)
+              for a, c_ in zip(np.linspace(0.3, 2 * math.pi - 0.6, 6), cores)]
+    return [(placa, cor)], tintas
+
+
+@_objeto("tablet")
+def _o_tablet(bm, cor):
+    c_ = _bm_prim(bm, "caixa", (0.4, 0, 0.35), (2.4, 1.7, 0.1))
+    tela = _bm_prim(bm, "caixa_reta", (0.4, 0, 0.405), (2.2, 1.5, 0.02))
+    return [(c_, cor)], [(tela, "azul")]
+
+
+@_objeto("caderno")
+def _o_caderno(bm, cor):
+    capa = _bm_prim(bm, "caixa", (0.4, 0, 0.35), (2.0, 1.5, 0.12))
+    folha = _bm_prim(bm, "caixa_reta", (0.45, 0, 0.42), (1.8, 1.4, 0.02))
+    linhas = [_bm_prim(bm, "caixa_reta", (-0.1 + 0.25 * k, 0, 0.432), (0.03, 1.2, 0.01)) for k in range(5)]
+    espiral = [_bm_prim(bm, "toro", (-0.62, y, 0.4), (0.09, 0.025, 1.0), rot=(math.pi / 2, 0, 0)) for y in np.linspace(-0.6, 0.6, 7)]
+    return [(capa, cor)], [(folha, "branco"), (sum(linhas, []), "cinza"), (sum(espiral, []), "prata")]
+
+
+@_objeto("jornal")
+def _o_jornal(bm, cor):
+    f1 = _bm_prim(bm, "caixa_reta", (0.4, -0.55, 0.35), (2.4, 1.1, 0.03), rot=(0.18, 0, 0))
+    f2 = _bm_prim(bm, "caixa_reta", (0.4, 0.55, 0.35), (2.4, 1.1, 0.03), rot=(-0.18, 0, 0))
+    txt = [_bm_prim(bm, "caixa_reta", (-0.4 + 0.3 * k, sy * 0.55, 0.39), (0.06, 0.8, 0.01), rot=(-sy * 0.18, 0, 0))
+           for k in range(6) for sy in (-1, 1)]
+    titulo = _bm_prim(bm, "caixa_reta", (-0.6, -0.55, 0.392), (0.25, 0.9, 0.012), rot=(0.18, 0, 0))
+    return [(f1 + f2, cor)], [(sum(txt, []), "cinza"), (titulo, "preto")]
+
+
+@_objeto("frigideira")
+def _o_frigideira(bm, cor):
+    """Pelo cabo, no eixo Y da mão: a frigideira à frente."""
+    fundo = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.4), (0.12, 1.3), rot=(0, math.pi / 2, 0), seg=24)
+    borda = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.6), (0.35, 1.38, 1.45), rot=(0, math.pi / 2, 0), seg=24)
+    dentro = _bm_prim(bm, "cilindro", (0.0, 2.6, 0.62), (0.32, 1.22, 1.32), rot=(0, math.pi / 2, 0), seg=24)
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.3, 0.45), (2.4, 0.16), rot=(0, 0, math.pi / 2), seg=10)
+    return [(borda, cor)], [(fundo + dentro, "cinza_escuro"), (cabo, "preto")]
+
+
+@_objeto("espatula")
+def _o_espatula(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (2.2, 0.13), rot=(0, 0, math.pi / 2), seg=10)
+    haste = _bm_prim(bm, "caixa_reta", (0.0, 1.9, 0.4), (0.12, 1.2, 0.06))
+    pa = _bm_prim(bm, "caixa", (0.0, 2.9, 0.4), (0.75, 1.0, 0.06))
+    return [(cabo, cor)], [(haste + pa, "prata")]
+
+
+@_objeto("bandeja_tampa")
+def _o_bandeja_tampa(bm, cor):
+    """Na palma (aberta para cima): o prato e a tampa em cúpula."""
+    prato = _bm_prim(bm, "cilindro", (0.3, 0, 0.1), (0.1, 1.8), rot=(0, math.pi / 2, 0), seg=24)
+    an, fs = [], []
+    for i in range(7):
+        th = math.radians(90) * i / 6
+        an.append([bm.verts.new((0.3 + 1.5 * math.sin(th) * math.cos(2 * math.pi * k / 24), 1.5 * math.sin(th) * math.sin(2 * math.pi * k / 24),
+                                 0.15 + 1.1 * math.cos(th))) for k in range(24)])
+    for a_, b_ in zip(an, an[1:]):
+        for k in range(24):
+            fs.append(bm.faces.new((a_[k], a_[(k + 1) % 24], b_[(k + 1) % 24], b_[k])))
+    pegador = _bm_prim(bm, "esfera", (0.3, 0, 1.35), (0.18, 0.18, 0.14))
+    return [(fs, cor)], [(prato, "branco"), (pegador, "cinza_escuro")]
+
+
+def _bola(bm, r, z=None):
+    return _bm_prim(bm, "esfera", (0.3, 0, (z if z is not None else r + 0.15)), (r, r, r))
+
+
+@_objeto("bola_futebol")
+def _o_bola_futebol(bm, cor):
+    """Gomos pintados na própria esfera: as faces perto dos 12 vértices de um icosaedro ficam pretas."""
+    c0 = Vector((0.3, 0, 1.25))
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.1)
+    for v in r_["verts"]:
+        v.co += c0
+    fs = list({f for v in r_["verts"] for f in v.link_faces})
+    ico = bmesh.new()
+    dirs = [v.co.normalized() for v in bmesh.ops.create_icosphere(ico, subdivisions=1, radius=1.0)["verts"]][:12]
+    ico.free()
+    pretos, brancos = [], []
+    for f in fs:
+        n = (f.calc_center_median() - c0).normalized()
+        (pretos if max(n.dot(d) for d in dirs) > 0.93 else brancos).append(f)
+    return [(brancos, cor)], [(pretos, "preto")]
+
+
+@_objeto("bola_basquete")
+def _o_bola_basquete(bm, cor):
+    bola = _bola(bm, 1.2)
+    linhas = [_bm_prim(bm, "toro", (0.3, 0, 1.35), (1.21, 0.03, 1.0), rot=r) for r in ((0, 0, 0), (math.pi / 2, 0, 0), (0, 0, math.pi / 2))]
+    return [(bola, cor)], [(sum(linhas, []), "preto")]
+
+
+@_objeto("bola_volei")
+def _o_bola_volei(bm, cor):
+    """Painéis pintados na esfera, pelo eixo que domina cada face: um na cor, os outros em azul e amarelo."""
+    c0 = Vector((0.3, 0, 1.25))
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.1)
+    for v in r_["verts"]:
+        v.co += c0
+    grupos = {0: [], 1: [], 2: []}
+    for f in {f for v in r_["verts"] for f in v.link_faces}:
+        n = f.calc_center_median() - c0
+        grupos[max(range(3), key=lambda i: abs(n[i]))].append(f)
+    return [(grupos[0], cor)], [(grupos[1], "azul"), (grupos[2], "amarelo")]
+
+
+@_objeto("bola_praia")
+def _o_bola_praia(bm, cor):
+    r_ = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.4)
+    for v in r_["verts"]:
+        v.co += Vector((0.3, 0, 1.55))
+    fs = list({f for v in r_["verts"] for f in v.link_faces})
+    cores = [None, "amarelo", "azul", "branco", "laranja", "verde"]
+    grupos = {i: [] for i in range(6)}
+    for f in fs:
+        c = f.calc_center_median() - Vector((0.3, 0, 1.55))
+        if abs(c.z) > 1.3:
+            grupos[3].append(f)
+            continue
+        grupos[int(((math.atan2(c.y, c.x) + math.pi) / (2 * math.pi)) * 6) % 6].append(f)
+    return [(grupos[0], cor)], [(grupos[i], cores[i]) for i in range(1, 6)]
+
+
+@_objeto("bola_tenis")
+def _o_bola_tenis(bm, cor):
+    bola = _bola(bm, 0.36)
+    costura = _bm_prim(bm, "toro", (0.3, 0, 0.51), (0.365, 0.025, 1.0), rot=(0.6, 0.3, 0))
+    return [(bola, cor)], [(costura, "branco")]
+
+
+@_objeto("caixas_presente")
+def _o_caixas_presente(bm, cor):
+    c1 = _bm_prim(bm, "caixa", (0.3, 0, 0.75), (2.2, 2.2, 1.2))
+    c2 = _bm_prim(bm, "caixa", (0.35, 0.1, 1.85), (1.6, 1.6, 1.0), rot=(0, 0, 0.3))
+    fitas = [_bm_prim(bm, "caixa_reta", (0.3, 0, 0.75), (0.25, 2.24, 1.24)), _bm_prim(bm, "caixa_reta", (0.3, 0, 0.75), (2.24, 0.25, 1.24)),
+             _bm_prim(bm, "caixa_reta", (0.35, 0.1, 1.85), (0.22, 1.64, 1.04), rot=(0, 0, 0.3))]
+    laco = [_bm_prim(bm, "toro", (0.35 + sx * 0.25, 0.1, 2.45), (0.25, 0.06, 1.0), rot=(math.pi / 2, 0, 0)) for sx in (-1, 1)]
+    return [(c1 + c2, cor)], [(sum(fitas, []) + sum(laco, []), "vermelho")]
+
+
+@_objeto("rolo_papel")
+def _o_rolo_papel(bm, cor):
+    rolo = _bm_prim(bm, "cilindro", (0.0, 1.0, 0.45), (4.4, 0.35), rot=(0, 0, math.pi / 2), seg=14)
+    pontas = [_bm_prim(bm, "cilindro", (0.0, y, 0.45), (0.03, 0.3), rot=(0, 0, math.pi / 2), seg=14) for y in (-1.21, 3.21)]
+    return [(rolo, cor)], [(sum(pontas, []), "branco")]
+
+
+@_objeto("cassetete")
+def _o_cassetete(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (3.0, 0, 0.2), (5.6, 0.16, 0.13), seg=10)
+    cabo = _bm_prim(bm, "cilindro", (0.9, 0.0, 0.55), (0.9, 0.12), rot=(0, math.pi / 2, 0), seg=8)
+    return [(corpo + cabo, cor)], []
+
+
+@_objeto("ancinho")
+def _o_ancinho(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (4.0, 0, 0.1), (8.4, 0.11), seg=10)
+    barra = _bm_prim(bm, "caixa", (8.2, 0, 0.1), (0.25, 2.4, 0.2))
+    dentes = [_bm_prim(bm, "cilindro", (8.55, y, 0.35), (0.6, 0.05), rot=(0, math.pi / 2, 0), seg=6) for y in np.linspace(-1.05, 1.05, 9)]
+    return [(cabo, cor)], [(barra + sum(dentes, []), "verde")]
+
+
+@_objeto("tesoura_poda")
+def _o_tesoura_poda(bm, cor):
+    cabos = [_bm_prim(bm, "cilindro", (sx * 0.18, 0.2, 0.45), (2.0, 0.16), rot=(0, 0, math.pi / 2 + sx * 0.08), seg=10) for sx in (-1, 1)]
+    laminas = [_bm_prim(bm, "caixa", (sx * 0.1, 2.2, 0.45), (0.3, 2.0, 0.06), rot=(0, 0, sx * 0.06)) for sx in (-1, 1)]
+    eixo = _bm_prim(bm, "cilindro", (0.0, 1.25, 0.45), (0.2, 0.15), rot=(0, math.pi / 2, 0), seg=10)
+    return [(sum(cabos, []), cor)], [(sum(laminas, []) + eixo, "prata")]
+
+
+@_objeto("chave_inglesa")
+def _o_chave_inglesa(bm, cor):
+    cabo = _bm_prim(bm, "caixa", (0.0, 0.6, 0.4), (0.4, 2.8, 0.12))
+    cabeca = _bm_prim(bm, "caixa", (0.0, 2.3, 0.4), (0.9, 0.6, 0.14))
+    dente = _bm_prim(bm, "caixa", (0.3, 2.75, 0.4), (0.3, 0.5, 0.14))
+    return [(cabo, cor)], [(cabeca + dente, "prata")]
+
+
+@_objeto("radio")
+def _o_radio(bm, cor):
+    corpo = _bm_prim(bm, "caixa", (0.0, 0.5, 0.45), (0.65, 1.6, 0.35))
+    antena = _bm_prim(bm, "cilindro", (0.15, 1.75, 0.45), (0.9, 0.06), rot=(0, 0, math.pi / 2), seg=8)
+    tela = _bm_prim(bm, "caixa_reta", (0.0, 0.8, 0.63), (0.45, 0.4, 0.02))
+    botoes = [_bm_prim(bm, "caixa", (0.0, 0.2 - 0.25 * k, 0.63), (0.4, 0.14, 0.04)) for k in range(2)]
+    return [(corpo, cor)], [(antena, "preto"), (tela, "verde"), (sum(botoes, []), "cinza")]
+
+
+@_objeto("lanterna")
+def _o_lanterna(bm, cor):
+    corpo = _bm_prim(bm, "cilindro", (0.0, 0.4, 0.4), (2.4, 0.28), rot=(0, 0, math.pi / 2), seg=12)
+    cabeca = _bm_prim(bm, "cilindro", (0.0, 1.85, 0.4), (0.6, 0.3, 0.45), rot=(0, 0, math.pi / 2), seg=14)
+    lente = _bm_prim(bm, "cilindro", (0.0, 2.17, 0.4), (0.04, 0.4), rot=(0, 0, math.pi / 2), seg=14)
+    return [(corpo + cabeca, cor)], [(lente, "creme")]
+
+
+@_objeto("guia_retratil")
+def _o_guia_retratil(bm, cor):
+    """Guia retrátil de cachorro: o cabo na mão (ao longo de Y, como a lanterna) e a caixa oval do carretel à frente
+    dele, um pouco acima (do lado das costas da mão); a guia sai pela frente da caixa (a cena desenha o fio)."""
+    cabo = _bm_prim(bm, "cilindro", (0.0, 0.25, 0.4), (1.45, 0.24), rot=(0, 0, math.pi / 2), seg=10)
+    caixa = _bm_prim(bm, "esfera", (-0.3, 1.55, 0.4), (0.95, 0.8, 0.34))
+    botao = _bm_prim(bm, "caixa", (-0.72, 0.95, 0.4), (0.22, 0.38, 0.2))
+    saida = _bm_prim(bm, "cilindro", (0.05, 2.32, 0.4), (0.16, 0.11), rot=(0, 0, math.pi / 2), seg=8)
+    return [(caixa, cor)], [(cabo, "cinza_escuro"), (botao, "cinza"), (saida, "cinza_escuro")]
+
+
+@_objeto("cartaz")
+def _o_cartaz(bm, cor):
+    cabo = _bm_prim(bm, "cilindro", (0.0, 1.8, 0.35), (5.0, 0.1), rot=(0, 0, math.pi / 2), seg=8)
+    placa = _bm_prim(bm, "caixa", (0.0, 4.9, 0.55), (3.6, 2.2, 0.08))
+    letras = [_bm_prim(bm, "caixa_reta", (0.9 - 0.6 * k, 4.9, 0.6), (0.4, 1.4, 0.02)) for k in range(4)]
+    return [(placa, cor)], [(cabo, "bege"), (sum(letras, []), "vermelho")]
+
+
+@_objeto("guarda_chuva_listrado")
+def _o_guarda_chuva_listrado(bm, cor):
+    return _o_guarda_chuva_aberto(bm, cor, alterna="branco")
 
 
 def objeto(spec):

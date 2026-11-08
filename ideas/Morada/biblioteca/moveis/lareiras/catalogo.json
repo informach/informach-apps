@@ -1,0 +1,1005 @@
+{
+ "categoria": "lareiras",
+ "rotulo": "lareiras",
+ "itens": [
+  {
+   "id": "lareira_tijolo_chamine",
+   "rotulo": "Lareira de tijolo com chaminé",
+   "categoria": "lareiras",
+   "grupo": "lareira_tijolo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    0.78,
+    2.444
+   ],
+   "arquivo": "glb/lareira_tijolo_chamine.glb",
+   "miniatura": "miniaturas/lareira_tijolo_chamine.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.222,
+      0.08
+     ],
+     "tamanho": [
+      1.3,
+      2.444,
+      0.78
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "terracota",
+    "tijolo"
+   ],
+   "tris": 5184,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "tijolo",
+    "chamine"
+   ]
+  },
+  {
+   "id": "lareira_canto_coifa",
+   "rotulo": "Lareira de canto com coifa (branca)",
+   "categoria": "lareiras",
+   "grupo": "lareira_canto_coifa",
+   "fixacao": "chao",
+   "dims": [
+    1.338,
+    0.847,
+    2.304
+   ],
+   "arquivo": "glb/lareira_canto_coifa.glb",
+   "miniatura": "miniaturas/lareira_canto_coifa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.152,
+      -0.0
+     ],
+     "tamanho": [
+      1.338,
+      2.304,
+      0.847
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "marrom"
+   ],
+   "tris": 3288,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "canto",
+    "coifa"
+   ]
+  },
+  {
+   "id": "lareira_simples_chamine",
+   "rotulo": "Lareira simples com chaminé",
+   "categoria": "lareiras",
+   "grupo": "lareira_simples_chamine",
+   "fixacao": "chao",
+   "dims": [
+    1.22,
+    0.64,
+    2.354
+   ],
+   "arquivo": "glb/lareira_simples_chamine.glb",
+   "miniatura": "miniaturas/lareira_simples_chamine.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.177,
+      0.01
+     ],
+     "tamanho": [
+      1.22,
+      2.354,
+      0.64
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 4098,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "chamine"
+   ]
+  },
+  {
+   "id": "lareira_branca_tampo_amarelo",
+   "rotulo": "Lareira branca com tampo amarelo",
+   "categoria": "lareiras",
+   "grupo": "lareira_branca_tampo",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.62,
+    2.224
+   ],
+   "arquivo": "glb/lareira_branca_tampo_amarelo.glb",
+   "miniatura": "miniaturas/lareira_branca_tampo_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.112,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      2.224,
+      0.62
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco_gelo",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_media",
+    "marrom"
+   ],
+   "tris": 4046,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "chamine"
+   ]
+  },
+  {
+   "id": "lareira_tijolo_coifa_rosada",
+   "rotulo": "Lareira de tijolo com coifa rosada",
+   "categoria": "lareiras",
+   "grupo": "lareira_tijolo_coifa",
+   "fixacao": "chao",
+   "dims": [
+    1.32,
+    0.72,
+    1.849
+   ],
+   "arquivo": "glb/lareira_tijolo_coifa_rosada.glb",
+   "miniatura": "miniaturas/lareira_tijolo_coifa_rosada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.9245,
+      0.05
+     ],
+     "tamanho": [
+      1.32,
+      1.849,
+      0.72
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "madeira_rosada",
+    "marrom",
+    "salmao",
+    "terracota",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 5796,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "tijolo",
+    "coifa"
+   ]
+  },
+  {
+   "id": "lareira_fogareiro_cilindro",
+   "rotulo": "Fogareiro de ferro cilíndrico",
+   "categoria": "lareiras",
+   "grupo": "lareira_fogareiro_cilindro",
+   "fixacao": "chao",
+   "dims": [
+    0.44,
+    0.44,
+    2.0
+   ],
+   "arquivo": "glb/lareira_fogareiro_cilindro.glb",
+   "miniatura": "miniaturas/lareira_fogareiro_cilindro.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.105,
+      0.0,
+      0.162
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fornalha",
+     "centro": [
+      0,
+      0.405,
+      0.03
+     ],
+     "tamanho": [
+      0.16,
+      0.1,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.0,
+      -0.0
+     ],
+     "tamanho": [
+      0.44,
+      2.0,
+      0.44
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "ferro",
+    "fogo",
+    "grafite",
+    "metal"
+   ],
+   "tris": 5624,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "fogareiro",
+    "ferro",
+    "porta de vidro"
+   ]
+  },
+  {
+   "id": "lareira_fogareiro_caixa",
+   "rotulo": "Fogareiro de ferro de caixa com pés",
+   "categoria": "lareiras",
+   "grupo": "lareira_fogareiro_caixa",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.494,
+    2.05
+   ],
+   "arquivo": "glb/lareira_fogareiro_caixa.glb",
+   "miniatura": "miniaturas/lareira_fogareiro_caixa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.24,
+      0.0,
+      0.217
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fornalha",
+     "centro": [
+      0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.42,
+      0.2,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.0252,
+      -0.0
+     ],
+     "tamanho": [
+      0.66,
+      2.05,
+      0.48
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "ferro",
+    "fogo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "metal"
+   ],
+   "tris": 6364,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "fogareiro",
+    "ferro",
+    "porta de vidro"
+   ]
+  },
+  {
+   "id": "lareira_fogareiro_conico",
+   "rotulo": "Fogareiro de ferro cônico",
+   "categoria": "lareiras",
+   "grupo": "lareira_fogareiro_conico",
+   "fixacao": "chao",
+   "dims": [
+    0.67,
+    0.655,
+    2.05
+   ],
+   "arquivo": "glb/lareira_fogareiro_conico.glb",
+   "miniatura": "miniaturas/lareira_fogareiro_conico.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.025,
+      -0.00755
+     ],
+     "tamanho": [
+      0.67,
+      2.05,
+      0.655
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite"
+   ],
+   "tris": 5480,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "fogareiro",
+    "ferro"
+   ]
+  },
+  {
+   "id": "lareira_fogareiro_bola",
+   "rotulo": "Fogareiro de ferro em bola",
+   "categoria": "lareiras",
+   "grupo": "lareira_fogareiro_bola",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.657,
+    2.05
+   ],
+   "arquivo": "glb/lareira_fogareiro_bola.glb",
+   "miniatura": "miniaturas/lareira_fogareiro_bola.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      1.025,
+      -0.00147
+     ],
+     "tamanho": [
+      0.66,
+      2.05,
+      0.657
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite"
+   ],
+   "tris": 5066,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "fogareiro",
+    "ferro"
+   ]
+  },
+  {
+   "id": "lareira_moderna_rosada",
+   "rotulo": "Lareira moderna rosada com vidro",
+   "categoria": "lareiras",
+   "grupo": "lareira_moderna_rosada",
+   "fixacao": "chao",
+   "dims": [
+    0.63,
+    0.456,
+    1.5
+   ],
+   "arquivo": "glb/lareira_moderna_rosada.glb",
+   "miniatura": "miniaturas/lareira_moderna_rosada.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.297,
+      0.0,
+      0.214
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fornalha",
+     "centro": [
+      -0.045,
+      0.505,
+      0.065
+     ],
+     "tamanho": [
+      0.45,
+      0.34,
+      0.26
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.015,
+      0.75,
+      0.015
+     ],
+     "tamanho": [
+      0.63,
+      1.5,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "rosa_claro"
+   ],
+   "tris": 2956,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "moderna",
+    "porta de vidro"
+   ]
+  },
+  {
+   "id": "lareira_caixa_vidro_canto",
+   "rotulo": "Lareira moderna com vidro de canto",
+   "categoria": "lareiras",
+   "grupo": "lareira_caixa_vidro_canto",
+   "fixacao": "chao",
+   "dims": [
+    0.975,
+    0.543,
+    1.3
+   ],
+   "arquivo": "glb/lareira_caixa_vidro_canto.glb",
+   "miniatura": "miniaturas/lareira_caixa_vidro_canto.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      0.085,
+      0.0,
+      0.256
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fornalha",
+     "centro": [
+      -0.1905,
+      0.305,
+      0.08
+     ],
+     "tamanho": [
+      0.511,
+      0.38,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0125,
+      0.65,
+      0.015
+     ],
+     "tamanho": [
+      0.975,
+      1.3,
+      0.53
+     ]
+    }
+   ],
+   "cores": [
+    "bege_escuro",
+    "branco",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom"
+   ],
+   "tris": 4688,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "moderna",
+    "porta de vidro",
+    "vidro de canto"
+   ]
+  },
+  {
+   "id": "lareira_caixa_vidro_larga",
+   "rotulo": "Lareira moderna larga com vidro de canto",
+   "categoria": "lareiras",
+   "grupo": "lareira_caixa_vidro_larga",
+   "fixacao": "chao",
+   "dims": [
+    1.275,
+    0.593,
+    1.45
+   ],
+   "arquivo": "glb/lareira_caixa_vidro_larga.glb",
+   "miniatura": "miniaturas/lareira_caixa_vidro_larga.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_1",
+     "pivo": [
+      -0.155,
+      0.0,
+      0.281
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fornalha",
+     "centro": [
+      0.2305,
+      0.325,
+      0.08
+     ],
+     "tamanho": [
+      0.731,
+      0.42,
+      0.35
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0125,
+      0.725,
+      0.015
+     ],
+     "tamanho": [
+      1.275,
+      1.45,
+      0.58
+     ]
+    }
+   ],
+   "cores": [
+    "bege_escuro",
+    "branco",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom"
+   ],
+   "tris": 4968,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "moderna",
+    "porta de vidro",
+    "vidro de canto"
+   ]
+  },
+  {
+   "id": "lareira_classica_colunas",
+   "rotulo": "Lareira clássica com colunas (branca)",
+   "categoria": "lareiras",
+   "grupo": "lareira_classica_colunas",
+   "fixacao": "chao",
+   "dims": [
+    1.5,
+    0.54,
+    1.125
+   ],
+   "arquivo": "glb/lareira_classica_colunas.glb",
+   "miniatura": "miniaturas/lareira_classica_colunas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5625,
+      0.02
+     ],
+     "tamanho": [
+      1.5,
+      1.125,
+      0.54
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "porcelana_azul"
+   ],
+   "tris": 4744,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "classica",
+    "colunas"
+   ]
+  },
+  {
+   "id": "lareira_classica_verde",
+   "rotulo": "Lareira clássica (verde)",
+   "categoria": "lareiras",
+   "grupo": "lareira_classica_verde",
+   "fixacao": "chao",
+   "dims": [
+    1.4,
+    0.53,
+    1.09
+   ],
+   "arquivo": "glb/lareira_classica_verde.glb",
+   "miniatura": "miniaturas/lareira_classica_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.545,
+      0.025
+     ],
+     "tamanho": [
+      1.4,
+      1.09,
+      0.53
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "turquesa_escuro",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 4352,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "classica"
+   ]
+  },
+  {
+   "id": "lareira_terracota_arco",
+   "rotulo": "Lareira de terracota com boca em arco",
+   "categoria": "lareiras",
+   "grupo": "lareira_terracota_arco",
+   "fixacao": "chao",
+   "dims": [
+    1.12,
+    0.66,
+    0.98
+   ],
+   "arquivo": "glb/lareira_terracota_arco.glb",
+   "miniatura": "miniaturas/lareira_terracota_arco.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.49,
+      0.05
+     ],
+     "tamanho": [
+      1.12,
+      0.98,
+      0.66
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "carvao",
+    "cinzas",
+    "fogo",
+    "grafite",
+    "madeira_clara",
+    "madeira_escura",
+    "marrom",
+    "marrom_claro",
+    "metal_escuro",
+    "terracota_clara"
+   ],
+   "tris": 5544,
+   "pacote": false,
+   "tags": [
+    "lareira",
+    "terracota",
+    "arco"
+   ]
+  },
+  {
+   "id": "tubo_chamine_reto",
+   "rotulo": "Tubo de chaminé reto (1 m)",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.146,
+    0.146,
+    1.0
+   ],
+   "arquivo": "glb/tubo_chamine_reto.glb",
+   "miniatura": "miniaturas/tubo_chamine_reto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.146,
+      1.0,
+      0.146
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 1328,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
+   ]
+  },
+  {
+   "id": "tubo_chamine_cotovelo",
+   "rotulo": "Cotovelo de chaminé (90°)",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.146,
+    0.393,
+    0.393
+   ],
+   "arquivo": "glb/tubo_chamine_cotovelo.glb",
+   "miniatura": "miniaturas/tubo_chamine_cotovelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.2,
+      -0.08
+     ],
+     "tamanho": [
+      0.16,
+      0.4,
+      0.32
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 912,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
+   ]
+  },
+  {
+   "id": "tubo_chamine_chapeu",
+   "rotulo": "Chapéu de chaminé",
+   "categoria": "lareiras",
+   "grupo": "tubo_chamine",
+   "fixacao": "chao",
+   "dims": [
+    0.35,
+    0.35,
+    0.463
+   ],
+   "arquivo": "glb/tubo_chamine_chapeu.glb",
+   "miniatura": "miniaturas/tubo_chamine_chapeu.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2315,
+      -0.0
+     ],
+     "tamanho": [
+      0.35,
+      0.463,
+      0.35
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite"
+   ],
+   "tris": 1300,
+   "pacote": false,
+   "tags": [
+    "tubo",
+    "chaminé",
+    "modular"
+   ]
+  }
+ ]
+}

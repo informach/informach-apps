@@ -1,0 +1,2305 @@
+{
+ "categoria": "predios_chinatown",
+ "rotulo": "Prédios de Chinatown",
+ "itens": [
+  {
+   "id": "pagode_pequeno_roxo",
+   "rotulo": "Pagode pequeno (roxo)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_pequeno",
+   "fixacao": "chao",
+   "dims": [
+    9.531,
+    9.557,
+    16.845
+   ],
+   "arquivo": "glb/pagode_pequeno_roxo.glb",
+   "miniatura": "miniaturas/pagode_pequeno_roxo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.175,
+      0
+     ],
+     "tamanho": [
+      8.2,
+      0.35,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.06333,
+      0
+     ],
+     "tamanho": [
+      5.8,
+      15.427,
+      5.8
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "lilas",
+    "ouro",
+    "roxo",
+    "roxo_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6432,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_pequeno_laranja",
+   "rotulo": "Pagode pequeno (laranja)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_pequeno",
+   "fixacao": "chao",
+   "dims": [
+    9.531,
+    9.557,
+    16.845
+   ],
+   "arquivo": "glb/pagode_pequeno_laranja.glb",
+   "miniatura": "miniaturas/pagode_pequeno_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.175,
+      0
+     ],
+     "tamanho": [
+      8.2,
+      0.35,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.06333,
+      0
+     ],
+     "tamanho": [
+      5.8,
+      15.427,
+      5.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "azul_medio",
+    "concreto",
+    "ferro",
+    "laranja",
+    "laranja_escuro",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6432,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "pequeno"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_hexagonal_azul",
+   "rotulo": "Pagode hexagonal (azul)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_hexagonal",
+   "fixacao": "chao",
+   "dims": [
+    10.193,
+    8.889,
+    14.36
+   ],
+   "arquivo": "glb/pagode_hexagonal_azul.glb",
+   "miniatura": "miniaturas/pagode_hexagonal_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.175,
+      0
+     ],
+     "tamanho": [
+      8.0,
+      0.35,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.375,
+      0
+     ],
+     "tamanho": [
+      5.6,
+      14.05,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "azul_medio",
+    "concreto",
+    "ferro",
+    "ouro",
+    "rosa",
+    "turquesa",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6052,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "pequeno",
+    "hexagonal"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_hexagonal_verde",
+   "rotulo": "Pagode hexagonal (verde)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_hexagonal",
+   "fixacao": "chao",
+   "dims": [
+    10.193,
+    8.889,
+    14.36
+   ],
+   "arquivo": "glb/pagode_hexagonal_verde.glb",
+   "miniatura": "miniaturas/pagode_hexagonal_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.175,
+      0
+     ],
+     "tamanho": [
+      8.0,
+      0.35,
+      8.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.375,
+      0
+     ],
+     "tamanho": [
+      5.6,
+      14.05,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "madeira_escura",
+    "madeira_mel",
+    "ouro",
+    "verde_escuro",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6052,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "pequeno",
+    "hexagonal"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_alto_5_vermelho",
+   "rotulo": "Pagode alto de 5 andares (vermelho)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_alto",
+   "fixacao": "chao",
+   "dims": [
+    11.858,
+    11.883,
+    23.856
+   ],
+   "arquivo": "glb/pagode_alto_5_vermelho.glb",
+   "miniatura": "miniaturas/pagode_alto_5_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      0.45,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      11.49102,
+      0
+     ],
+     "tamanho": [
+      8.0,
+      22.082,
+      8.0
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "creme",
+    "ferro",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 8974,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "torre"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 5,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_alto_7_jade",
+   "rotulo": "Pagode alto de 7 andares (jade)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_alto",
+   "fixacao": "chao",
+   "dims": [
+    12.458,
+    12.483,
+    30.773
+   ],
+   "arquivo": "glb/pagode_alto_7_jade.glb",
+   "miniatura": "miniaturas/pagode_alto_7_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      11.4,
+      0.45,
+      11.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      14.9977,
+      0
+     ],
+     "tamanho": [
+      8.6,
+      29.095,
+      8.6
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 12094,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "torre"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 7,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "pagode_octogonal_9_jade",
+   "rotulo": "Pagode octogonal de 9 andares (jade)",
+   "categoria": "predios_chinatown",
+   "grupo": "pagode_octogonal",
+   "fixacao": "chao",
+   "dims": [
+    11.833,
+    12.279,
+    37.884
+   ],
+   "arquivo": "glb/pagode_octogonal_9_jade.glb",
+   "miniatura": "miniaturas/pagode_octogonal_9_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.25,
+      0
+     ],
+     "tamanho": [
+      12.0,
+      0.5,
+      12.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      19.225,
+      0
+     ],
+     "tamanho": [
+      8.4,
+      37.45,
+      8.4
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "ouro",
+    "verde_agua",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 15978,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "pagode",
+    "torre"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 9,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_vidro_coroa_cinza",
+   "rotulo": "Prédio de vidro com coroa de pagode (telha cinza-azul)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_vidro_coroa",
+   "fixacao": "chao",
+   "dims": [
+    12.358,
+    12.892,
+    34.495
+   ],
+   "arquivo": "glb/predio_vidro_coroa_cinza.glb",
+   "miniatura": "miniaturas/predio_vidro_coroa_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.1,
+      0
+     ],
+     "tamanho": [
+      12,
+      4.2,
+      12
+     ]
+    },
+    {
+     "centro": [
+      0,
+      15.65,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      22.9,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      30.75,
+      0
+     ],
+     "tamanho": [
+      11,
+      7.3,
+      11
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_acinzentado",
+    "azul_escuro",
+    "branco",
+    "cinza_azulado",
+    "ferro",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 4520,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "vidro",
+    "hotel"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 9,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_vidro_coroa_jade",
+   "rotulo": "Prédio de vidro com coroa de pagode (telha jade)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_vidro_coroa",
+   "fixacao": "chao",
+   "dims": [
+    12.358,
+    12.892,
+    34.495
+   ],
+   "arquivo": "glb/predio_vidro_coroa_jade.glb",
+   "miniatura": "miniaturas/predio_vidro_coroa_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.1,
+      0
+     ],
+     "tamanho": [
+      12,
+      4.2,
+      12
+     ]
+    },
+    {
+     "centro": [
+      0,
+      15.65,
+      0
+     ],
+     "tamanho": [
+      11.6,
+      22.9,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      30.75,
+      0
+     ],
+     "tamanho": [
+      11,
+      7.3,
+      11
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 4520,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "vidro",
+    "hotel"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 9,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "edificio_beirais_vermelho",
+   "rotulo": "Edifício de vários beirais (vermelho)",
+   "categoria": "predios_chinatown",
+   "grupo": "edificio_beirais",
+   "fixacao": "chao",
+   "dims": [
+    12.758,
+    11.583,
+    26.745
+   ],
+   "arquivo": "glb/edificio_beirais_vermelho.glb",
+   "miniatura": "miniaturas/edificio_beirais_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.1,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      20.2,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      23.425,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      6.45,
+      8.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "ferro",
+    "ouro",
+    "terracota_clara",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 7196,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "beirais"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 7,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "edificio_beirais_jade",
+   "rotulo": "Edifício de vários beirais (jade)",
+   "categoria": "predios_chinatown",
+   "grupo": "edificio_beirais",
+   "fixacao": "chao",
+   "dims": [
+    12.758,
+    11.583,
+    26.745
+   ],
+   "arquivo": "glb/edificio_beirais_jade.glb",
+   "miniatura": "miniaturas/edificio_beirais_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.1,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      20.2,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      23.425,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      6.45,
+      8.0
+     ]
+    }
+   ],
+   "cores": [
+    "bege_escuro",
+    "branco",
+    "cinza",
+    "creme",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 7196,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "beirais"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 7,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "torre_onda_azul",
+   "rotulo": "Torre curva com recorte ondulado (azul)",
+   "categoria": "predios_chinatown",
+   "grupo": "torre_onda",
+   "fixacao": "chao",
+   "dims": [
+    12.96,
+    9.564,
+    46.15
+   ],
+   "arquivo": "glb/torre_onda_azul.glb",
+   "miniatura": "miniaturas/torre_onda_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      19.1,
+      0
+     ],
+     "tamanho": [
+      11.4,
+      38.2,
+      7.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      40.1,
+      -0.6
+     ],
+     "tamanho": [
+      6.2,
+      3.8,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      21.39,
+      -4.25
+     ],
+     "tamanho": [
+      13.0,
+      42.78,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "azul_escuro",
+    "branco",
+    "cinza_claro",
+    "ouro",
+    "vermelho"
+   ],
+   "tris": 6142,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "torre",
+    "arranha_ceu"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 11,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "torre_onda_turquesa",
+   "rotulo": "Torre curva com recorte ondulado (turquesa)",
+   "categoria": "predios_chinatown",
+   "grupo": "torre_onda",
+   "fixacao": "chao",
+   "dims": [
+    12.96,
+    9.564,
+    46.15
+   ],
+   "arquivo": "glb/torre_onda_turquesa.glb",
+   "miniatura": "miniaturas/torre_onda_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      19.1,
+      0
+     ],
+     "tamanho": [
+      11.4,
+      38.2,
+      7.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      40.1,
+      -0.6
+     ],
+     "tamanho": [
+      6.2,
+      3.8,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      21.39,
+      -4.25
+     ],
+     "tamanho": [
+      13.0,
+      42.78,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "branco",
+    "cinza_claro",
+    "turquesa_claro",
+    "turquesa_escuro",
+    "vermelho"
+   ],
+   "tris": 6142,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "torre",
+    "arranha_ceu"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 11,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_colorido_beirais_laranja",
+   "rotulo": "Prédio colorido de beirais (laranja)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_colorido_beirais",
+   "fixacao": "chao",
+   "dims": [
+    12.558,
+    12.583,
+    24.777
+   ],
+   "arquivo": "glb/predio_colorido_beirais_laranja.glb",
+   "miniatura": "miniaturas/predio_colorido_beirais_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.5,
+      0
+     ],
+     "tamanho": [
+      8.8,
+      17.0,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.65,
+      0
+     ],
+     "tamanho": [
+      10.4,
+      1.3,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      21.325,
+      0
+     ],
+     "tamanho": [
+      6.2,
+      6.15,
+      6.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "cinza",
+    "ferro",
+    "laranja",
+    "laranja_escuro",
+    "ouro",
+    "roxo",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6534,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "beirais",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_colorido_beirais_jade",
+   "rotulo": "Prédio colorido de beirais (jade)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_colorido_beirais",
+   "fixacao": "chao",
+   "dims": [
+    12.558,
+    12.583,
+    24.777
+   ],
+   "arquivo": "glb/predio_colorido_beirais_jade.glb",
+   "miniatura": "miniaturas/predio_colorido_beirais_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      8.5,
+      0
+     ],
+     "tamanho": [
+      8.8,
+      17.0,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.65,
+      0
+     ],
+     "tamanho": [
+      10.4,
+      1.3,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      21.325,
+      0
+     ],
+     "tamanho": [
+      6.2,
+      6.15,
+      6.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho_escuro"
+   ],
+   "tris": 6534,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "beirais",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "torre_pagode_sobre_predio",
+   "rotulo": "Torre com pagode azul no alto",
+   "categoria": "predios_chinatown",
+   "grupo": "torre_pagode_sobre_predio",
+   "fixacao": "chao",
+   "dims": [
+    11.795,
+    12.538,
+    50.453
+   ],
+   "arquivo": "glb/torre_pagode_sobre_predio.glb",
+   "miniatura": "miniaturas/torre_pagode_sobre_predio.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      18.35,
+      0
+     ],
+     "tamanho": [
+      11.3,
+      36.7,
+      11.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      43.00441,
+      0
+     ],
+     "tamanho": [
+      7.2,
+      12.609,
+      7.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "ferro",
+    "ouro",
+    "verde",
+    "verde_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 13906,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "torre",
+    "pagode",
+    "arranha_ceu"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 11,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "torre_vidro_pagode_jade",
+   "rotulo": "Pódio de vidro com pagode jade",
+   "categoria": "predios_chinatown",
+   "grupo": "torre_vidro_pagode",
+   "fixacao": "chao",
+   "dims": [
+    12.877,
+    12.902,
+    35.707
+   ],
+   "arquivo": "glb/torre_vidro_pagode_jade.glb",
+   "miniatura": "miniaturas/torre_vidro_pagode_jade.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      7.1,
+      0
+     ],
+     "tamanho": [
+      11.0,
+      14.2,
+      11.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      15.2,
+      0
+     ],
+     "tamanho": [
+      11.9,
+      2.0,
+      11.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      25.425,
+      0
+     ],
+     "tamanho": [
+      6.6,
+      18.55,
+      6.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_acinzentado",
+    "azul_escuro",
+    "branco",
+    "cinza_azulado",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 9254,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "vidro",
+    "pagode",
+    "torre"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 9,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_estreito_pagode_verde",
+   "rotulo": "Prédio estreito com pagode (verde)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_estreito_pagode",
+   "fixacao": "chao",
+   "dims": [
+    11.058,
+    11.083,
+    27.899
+   ],
+   "arquivo": "glb/predio_estreito_pagode_verde.glb",
+   "miniatura": "miniaturas/predio_estreito_pagode_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.1,
+      0
+     ],
+     "tamanho": [
+      7.2,
+      20.2,
+      7.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      20.9,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      1.4,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      24.575,
+      0
+     ],
+     "tamanho": [
+      5.6,
+      6.05,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "concreto",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 5252,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "estreito",
+    "pagode"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "predio_estreito_pagode_azul",
+   "rotulo": "Prédio estreito com pagode (azul)",
+   "categoria": "predios_chinatown",
+   "grupo": "predio_estreito_pagode",
+   "fixacao": "chao",
+   "dims": [
+    11.058,
+    11.083,
+    27.899
+   ],
+   "arquivo": "glb/predio_estreito_pagode_azul.glb",
+   "miniatura": "miniaturas/predio_estreito_pagode_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      10.1,
+      0
+     ],
+     "tamanho": [
+      7.2,
+      20.2,
+      7.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      20.9,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      1.4,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      24.575,
+      0
+     ],
+     "tamanho": [
+      5.6,
+      6.05,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_claro",
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "concreto",
+    "ferro",
+    "laranja",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 5252,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "predio",
+    "estreito",
+    "pagode"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "templo_comprido_cinza",
+   "rotulo": "Templo comprido (telha cinza)",
+   "categoria": "predios_chinatown",
+   "grupo": "templo_comprido",
+   "fixacao": "chao",
+   "dims": [
+    25.558,
+    12.952,
+    9.895
+   ],
+   "arquivo": "glb/templo_comprido_cinza.glb",
+   "miniatura": "miniaturas/templo_comprido_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.3,
+      0
+     ],
+     "tamanho": [
+      25.0,
+      0.6,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.9,
+      0
+     ],
+     "tamanho": [
+      20.0,
+      4.6,
+      6.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.5,
+      0
+     ],
+     "tamanho": [
+      24.0,
+      4.6,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      -4.5,
+      2.6,
+      5.0
+     ],
+     "tamanho": [
+      2.0,
+      5.2,
+      2.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.5,
+      2.6,
+      5.0
+     ],
+     "tamanho": [
+      2.0,
+      5.2,
+      2.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "cinza_azulado",
+    "cinza_medio",
+    "concreto",
+    "ferro",
+    "ouro",
+    "ouro_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6064,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "templo",
+    "baixo"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 1,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "templo_comprido_verde",
+   "rotulo": "Templo comprido (telha verde)",
+   "categoria": "predios_chinatown",
+   "grupo": "templo_comprido",
+   "fixacao": "chao",
+   "dims": [
+    25.558,
+    12.952,
+    9.895
+   ],
+   "arquivo": "glb/templo_comprido_verde.glb",
+   "miniatura": "miniaturas/templo_comprido_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.3,
+      0
+     ],
+     "tamanho": [
+      25.0,
+      0.6,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.9,
+      0
+     ],
+     "tamanho": [
+      20.0,
+      4.6,
+      6.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.5,
+      0
+     ],
+     "tamanho": [
+      24.0,
+      4.6,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      -4.5,
+      2.6,
+      5.0
+     ],
+     "tamanho": [
+      2.0,
+      5.2,
+      2.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.5,
+      2.6,
+      5.0
+     ],
+     "tamanho": [
+      2.0,
+      5.2,
+      2.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "ouro",
+    "ouro_escuro",
+    "verde_escuro",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6064,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "templo",
+    "baixo"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 1,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "restaurante_sushi",
+   "rotulo": "Restaurante de sushi",
+   "categoria": "predios_chinatown",
+   "grupo": "restaurante_sushi",
+   "fixacao": "chao",
+   "dims": [
+    12.858,
+    11.283,
+    9.63
+   ],
+   "arquivo": "glb/restaurante_sushi.glb",
+   "miniatura": "miniaturas/restaurante_sushi.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      4.06,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      8.12,
+      7.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.92,
+      0
+     ],
+     "tamanho": [
+      6.4,
+      1.6,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "creme",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "madeira_clara",
+    "madeira_escura",
+    "ouro",
+    "salmao",
+    "terracota_clara",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 5384,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "restaurante",
+    "baixo",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "restaurante_macarrao",
+   "rotulo": "Casa de macarrão",
+   "categoria": "predios_chinatown",
+   "grupo": "restaurante_macarrao",
+   "fixacao": "chao",
+   "dims": [
+    12.858,
+    12.883,
+    9.532
+   ],
+   "arquivo": "glb/restaurante_macarrao.glb",
+   "miniatura": "miniaturas/restaurante_macarrao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      2.71,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      5.42,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      6.47,
+      0
+     ],
+     "tamanho": [
+      5.2,
+      2.1,
+      5.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco",
+    "creme",
+    "ferro",
+    "laranja_claro",
+    "madeira_clara",
+    "ouro",
+    "terracota_clara",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_claro",
+    "verde_floresta",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3914,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "restaurante",
+    "baixo",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "casa_de_cha",
+   "rotulo": "Casa de chá",
+   "categoria": "predios_chinatown",
+   "grupo": "casa_de_cha",
+   "fixacao": "chao",
+   "dims": [
+    11.858,
+    11.883,
+    9.35
+   ],
+   "arquivo": "glb/casa_de_cha.glb",
+   "miniatura": "miniaturas/casa_de_cha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.15,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      0.3,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.15,
+      0
+     ],
+     "tamanho": [
+      7.8,
+      3.7,
+      7.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      6.7,
+      0
+     ],
+     "tamanho": [
+      6.0,
+      5.4,
+      6.0
+     ]
+    },
+    {
+     "centro": [
+      3.75,
+      2.0,
+      4.75
+     ],
+     "tamanho": [
+      0.5,
+      4.0,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto",
+    "creme",
+    "ferro",
+    "ouro",
+    "terracota_clara",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_floresta",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 5176,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "restaurante",
+    "baixo",
+    "cha"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "loja_2_andares_vermelha",
+   "rotulo": "Loja de 2 andares (vermelha)",
+   "categoria": "predios_chinatown",
+   "grupo": "loja_2_andares",
+   "fixacao": "chao",
+   "dims": [
+    12.858,
+    11.083,
+    10.795
+   ],
+   "arquivo": "glb/loja_2_andares_vermelha.glb",
+   "miniatura": "miniaturas/loja_2_andares_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.7,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      7.4,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.05,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      3.3,
+      9.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "ferro",
+    "ouro",
+    "turquesa",
+    "turquesa_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3350,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "loja",
+    "baixo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "loja_2_andares_rosa",
+   "rotulo": "Doceria de 2 andares (rosa)",
+   "categoria": "predios_chinatown",
+   "grupo": "loja_2_andares",
+   "fixacao": "chao",
+   "dims": [
+    12.858,
+    11.083,
+    10.795
+   ],
+   "arquivo": "glb/loja_2_andares_rosa.glb",
+   "miniatura": "miniaturas/loja_2_andares_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      3.7,
+      0
+     ],
+     "tamanho": [
+      9.2,
+      7.4,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      9.05,
+      0
+     ],
+     "tamanho": [
+      10.8,
+      3.3,
+      9.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "ferro",
+    "ouro",
+    "rosa",
+    "rosa_escuro",
+    "roxo",
+    "roxo_escuro",
+    "vermelho_escuro"
+   ],
+   "tris": 3350,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "loja",
+    "baixo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "loja_3_andares_verde",
+   "rotulo": "Mercado de 3 andares (verde)",
+   "categoria": "predios_chinatown",
+   "grupo": "loja_3_andares",
+   "fixacao": "chao",
+   "dims": [
+    12.358,
+    12.383,
+    14.195
+   ],
+   "arquivo": "glb/loja_3_andares_verde.glb",
+   "miniatura": "miniaturas/loja_3_andares_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.3,
+      0
+     ],
+     "tamanho": [
+      8.4,
+      10.6,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      12.35,
+      0
+     ],
+     "tamanho": [
+      10.2,
+      3.5,
+      10.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "ferro",
+    "ouro",
+    "verde_claro",
+    "verde_floresta",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3874,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "loja",
+    "baixo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "loja_3_andares_laranja",
+   "rotulo": "Pastelaria de 3 andares (laranja)",
+   "categoria": "predios_chinatown",
+   "grupo": "loja_3_andares",
+   "fixacao": "chao",
+   "dims": [
+    12.358,
+    12.383,
+    14.195
+   ],
+   "arquivo": "glb/loja_3_andares_laranja.glb",
+   "miniatura": "miniaturas/loja_3_andares_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      5.3,
+      0
+     ],
+     "tamanho": [
+      8.4,
+      10.6,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0,
+      12.35,
+      0
+     ],
+     "tamanho": [
+      10.2,
+      3.5,
+      10.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "ferro",
+    "laranja",
+    "ouro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 3874,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "loja",
+    "baixo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "portal_decorado",
+   "rotulo": "Portal decorado de Chinatown",
+   "categoria": "predios_chinatown",
+   "grupo": "portal_decorado",
+   "fixacao": "chao",
+   "dims": [
+    12.887,
+    4.312,
+    9.845
+   ],
+   "arquivo": "glb/portal_decorado.glb",
+   "miniatura": "miniaturas/portal_decorado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -4.3,
+      2.35,
+      0
+     ],
+     "tamanho": [
+      2.6,
+      4.7,
+      2.6
+     ]
+    },
+    {
+     "centro": [
+      4.3,
+      2.35,
+      0
+     ],
+     "tamanho": [
+      2.6,
+      4.7,
+      2.6
+     ]
+    },
+    {
+     "centro": [
+      -2.7,
+      2.5,
+      0
+     ],
+     "tamanho": [
+      1.1,
+      5.0,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      2.7,
+      2.5,
+      0
+     ],
+     "tamanho": [
+      1.1,
+      5.0,
+      2.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      7.375,
+      0
+     ],
+     "tamanho": [
+      8.0,
+      4.75,
+      3.0
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "ferro",
+    "ouro",
+    "verde_escuro",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6152,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "portal",
+    "baixo"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "chinatown"
+  },
+  {
+   "id": "restaurante_jardim",
+   "rotulo": "Restaurante com jardim de bambu",
+   "categoria": "predios_chinatown",
+   "grupo": "restaurante_jardim",
+   "fixacao": "chao",
+   "dims": [
+    12.958,
+    12.583,
+    8.908
+   ],
+   "arquivo": "glb/restaurante_jardim.glb",
+   "miniatura": "miniaturas/restaurante_jardim.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.15,
+      0
+     ],
+     "tamanho": [
+      11.0,
+      0.3,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.95,
+      -0.4
+     ],
+     "tamanho": [
+      9.8,
+      5.3,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.6,
+      4.8
+     ],
+     "tamanho": [
+      9.8,
+      4.6,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "creme",
+    "ferro",
+    "folha",
+    "folha_clara",
+    "grama_escura",
+    "ouro",
+    "terracota",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 6674,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "chinatown",
+    "restaurante",
+    "baixo",
+    "jardim"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "chinatown"
+  }
+ ]
+}

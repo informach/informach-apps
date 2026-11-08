@@ -1,0 +1,2595 @@
+{
+ "categoria": "predios_futuristas",
+ "rotulo": "Prédios futuristas",
+ "itens": [
+  {
+   "id": "boate_torre_anel_azul",
+   "rotulo": "Boate futurista com torre e anel de entrada (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "boate_torre_anel",
+   "fixacao": "chao",
+   "dims": [
+    12.8,
+    11.92,
+    36.9
+   ],
+   "arquivo": "glb/boate_torre_anel_azul.glb",
+   "miniatura": "miniaturas/boate_torre_anel_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.35,
+      -0.46
+     ],
+     "tamanho": [
+      12.6,
+      4.7,
+      10.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      19.25,
+      -1.46
+     ],
+     "tamanho": [
+      10.8,
+      30.5,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      6.9,
+      3.19
+     ],
+     "tamanho": [
+      8.3,
+      8.1,
+      4.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "azul_medio",
+    "azul_noite",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 14254,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "boate",
+    "lazer",
+    "neon",
+    "grande"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "boate_torre_anel_lilas",
+   "rotulo": "Boate futurista com torre e anel de entrada (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "boate_torre_anel",
+   "fixacao": "chao",
+   "dims": [
+    12.8,
+    11.92,
+    36.9
+   ],
+   "arquivo": "glb/boate_torre_anel_lilas.glb",
+   "miniatura": "miniaturas/boate_torre_anel_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.35,
+      -0.46
+     ],
+     "tamanho": [
+      12.6,
+      4.7,
+      10.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      19.25,
+      -1.46
+     ],
+     "tamanho": [
+      10.8,
+      30.5,
+      8.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      6.9,
+      3.19
+     ],
+     "tamanho": [
+      8.3,
+      8.1,
+      4.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul_noite",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "roxo",
+    "roxo_escuro"
+   ],
+   "tris": 14254,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "boate",
+    "lazer",
+    "neon",
+    "grande"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_escalonado_neon_azul",
+   "rotulo": "Prédio escalonado com neon nas quinas (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_escalonado_neon",
+   "fixacao": "chao",
+   "dims": [
+    12.66,
+    12.28,
+    37.2
+   ],
+   "arquivo": "glb/predio_escalonado_neon_azul.glb",
+   "miniatura": "miniaturas/predio_escalonado_neon_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      3.7,
+      -0.56
+     ],
+     "tamanho": [
+      12.0,
+      7.4,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      12.2,
+      -0.91
+     ],
+     "tamanho": [
+      10.2,
+      9.6,
+      9.0
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      21.8,
+      -1.26
+     ],
+     "tamanho": [
+      8.4,
+      9.6,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      30.4,
+      -1.56
+     ],
+     "tamanho": [
+      6.4,
+      7.6,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal_claro",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 12906,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "escalonado",
+    "neon",
+    "grande"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_escalonado_neon_lilas",
+   "rotulo": "Prédio escalonado com neon nas quinas (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_escalonado_neon",
+   "fixacao": "chao",
+   "dims": [
+    12.66,
+    12.28,
+    37.2
+   ],
+   "arquivo": "glb/predio_escalonado_neon_lilas.glb",
+   "miniatura": "miniaturas/predio_escalonado_neon_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      3.7,
+      -0.56
+     ],
+     "tamanho": [
+      12.0,
+      7.4,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      12.2,
+      -0.91
+     ],
+     "tamanho": [
+      10.2,
+      9.6,
+      9.0
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      21.8,
+      -1.26
+     ],
+     "tamanho": [
+      8.4,
+      9.6,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      30.4,
+      -1.56
+     ],
+     "tamanho": [
+      6.4,
+      7.6,
+      5.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "roxo",
+    "verde_claro"
+   ],
+   "tris": 12906,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "escalonado",
+    "neon",
+    "grande"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_sacadas_laranja",
+   "rotulo": "Prédio caixa com sacadas e neon (laranja)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_sacadas",
+   "fixacao": "chao",
+   "dims": [
+    10.1,
+    8.7,
+    11.91
+   ],
+   "arquivo": "glb/predio_caixa_sacadas_laranja.glb",
+   "miniatura": "miniaturas/predio_caixa_sacadas_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.1,
+      5.75,
+      -0.3
+     ],
+     "tamanho": [
+      9.5,
+      11.5,
+      8.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "creme",
+    "cromo",
+    "grafite",
+    "laranja"
+   ],
+   "tris": 5048,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_sacadas_azul",
+   "rotulo": "Prédio caixa com sacadas e neon (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_sacadas",
+   "fixacao": "chao",
+   "dims": [
+    10.1,
+    8.7,
+    11.91
+   ],
+   "arquivo": "glb/predio_caixa_sacadas_azul.glb",
+   "miniatura": "miniaturas/predio_caixa_sacadas_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.1,
+      5.75,
+      -0.3
+     ],
+     "tamanho": [
+      9.5,
+      11.5,
+      8.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "lilas"
+   ],
+   "tris": 5048,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 3,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_u_ondulado_azul",
+   "rotulo": "Prédio em U ondulado com faixas de neon (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_u_ondulado",
+   "fixacao": "chao",
+   "dims": [
+    25.14,
+    10.906,
+    36.2
+   ],
+   "arquivo": "glb/predio_u_ondulado_azul.glb",
+   "miniatura": "miniaturas/predio_u_ondulado_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      5.3,
+      -0.71776
+     ],
+     "tamanho": [
+      24.4,
+      10.6,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      -9.7,
+      22.1,
+      -0.01776
+     ],
+     "tamanho": [
+      5.6,
+      23.0,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      9.7,
+      22.1,
+      -0.01776
+     ],
+     "tamanho": [
+      5.6,
+      23.0,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      25.0,
+      -0.71776
+     ],
+     "tamanho": [
+      11.68,
+      3.2,
+      3.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "magenta",
+    "metal_claro",
+    "metal_escuro",
+    "roxo",
+    "turquesa",
+    "turquesa_claro",
+    "verde_claro",
+    "violeta"
+   ],
+   "tris": 15812,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "neon",
+    "hotel"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_u_ondulado_lilas",
+   "rotulo": "Prédio em U ondulado com faixas de neon (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_u_ondulado",
+   "fixacao": "chao",
+   "dims": [
+    25.14,
+    10.906,
+    36.2
+   ],
+   "arquivo": "glb/predio_u_ondulado_lilas.glb",
+   "miniatura": "miniaturas/predio_u_ondulado_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      5.3,
+      -0.71776
+     ],
+     "tamanho": [
+      24.4,
+      10.6,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      -9.7,
+      22.1,
+      -0.01776
+     ],
+     "tamanho": [
+      5.6,
+      23.0,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      9.7,
+      22.1,
+      -0.01776
+     ],
+     "tamanho": [
+      5.6,
+      23.0,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      25.0,
+      -0.71776
+     ],
+     "tamanho": [
+      11.68,
+      3.2,
+      3.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "lilas_claro",
+    "magenta",
+    "metal_claro",
+    "metal_escuro",
+    "rosa",
+    "rosa_escuro",
+    "roxo",
+    "verde_claro",
+    "violeta"
+   ],
+   "tris": 15812,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "neon",
+    "hotel"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "capsula_ovo_azul",
+   "rotulo": "Cápsula futurista em forma de ovo (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "capsula_ovo",
+   "fixacao": "chao",
+   "dims": [
+    12.202,
+    12.673,
+    22.7
+   ],
+   "arquivo": "glb/capsula_ovo_azul.glb",
+   "miniatura": "miniaturas/capsula_ovo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.725,
+      -0.69973
+     ],
+     "tamanho": [
+      11.6,
+      9.45,
+      10.672
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      13.125,
+      -0.69973
+     ],
+     "tamanho": [
+      9.28,
+      7.35,
+      8.538
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      18.9,
+      -0.69973
+     ],
+     "tamanho": [
+      5.8,
+      4.2,
+      5.336
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.65,
+      5.25
+     ],
+     "tamanho": [
+      4.0,
+      3.3,
+      0.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 7148,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "cupula",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "futurista"
+  },
+  {
+   "id": "capsula_ovo_lilas",
+   "rotulo": "Cápsula futurista em forma de ovo (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "capsula_ovo",
+   "fixacao": "chao",
+   "dims": [
+    12.202,
+    12.673,
+    22.7
+   ],
+   "arquivo": "glb/capsula_ovo_lilas.glb",
+   "miniatura": "miniaturas/capsula_ovo_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.725,
+      -0.69973
+     ],
+     "tamanho": [
+      11.6,
+      9.45,
+      10.672
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      13.125,
+      -0.69973
+     ],
+     "tamanho": [
+      9.28,
+      7.35,
+      8.538
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      18.9,
+      -0.69973
+     ],
+     "tamanho": [
+      5.8,
+      4.2,
+      5.336
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      1.65,
+      5.25
+     ],
+     "tamanho": [
+      4.0,
+      3.3,
+      0.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "lilas",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 7148,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "cupula",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "futurista"
+  },
+  {
+   "id": "capsula_ovo_dupla",
+   "rotulo": "Cápsulas em ovo duplas com passarela de vidro",
+   "categoria": "predios_futuristas",
+   "grupo": "capsula_ovo_dupla",
+   "fixacao": "chao",
+   "dims": [
+    26.08,
+    12.024,
+    19.6
+   ],
+   "arquivo": "glb/capsula_ovo_dupla.glb",
+   "miniatura": "miniaturas/capsula_ovo_dupla.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -6.6,
+      4.05,
+      -0.472
+     ],
+     "tamanho": [
+      10.4,
+      8.1,
+      9.568
+     ]
+    },
+    {
+     "centro": [
+      -6.6,
+      11.25,
+      -0.472
+     ],
+     "tamanho": [
+      8.32,
+      6.3,
+      7.654
+     ]
+    },
+    {
+     "centro": [
+      -6.6,
+      16.2,
+      -0.472
+     ],
+     "tamanho": [
+      5.2,
+      3.6,
+      4.784
+     ]
+    },
+    {
+     "centro": [
+      7.6,
+      3.0375,
+      -0.472
+     ],
+     "tamanho": [
+      8.2,
+      6.075,
+      7.544
+     ]
+    },
+    {
+     "centro": [
+      7.6,
+      8.4375,
+      -0.472
+     ],
+     "tamanho": [
+      6.56,
+      4.725,
+      6.035
+     ]
+    },
+    {
+     "centro": [
+      7.6,
+      12.15,
+      -0.472
+     ],
+     "tamanho": [
+      4.1,
+      2.7,
+      3.772
+     ]
+    },
+    {
+     "centro": [
+      1.0,
+      6.0,
+      -0.472
+     ],
+     "tamanho": [
+      6.0,
+      2.6,
+      2.6
+     ]
+    },
+    {
+     "centro": [
+      -6.5,
+      1.77996,
+      5.0
+     ],
+     "tamanho": [
+      4.0,
+      3.56,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      7.5,
+      1.77996,
+      4.0
+     ],
+     "tamanho": [
+      4.0,
+      3.56,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      1.0,
+      0.85,
+      3.5
+     ],
+     "tamanho": [
+      1.0,
+      1.7,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      3.0,
+      0.85,
+      3.5
+     ],
+     "tamanho": [
+      1.0,
+      1.7,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "cromo",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 14244,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "cupula",
+    "neon"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 5,
+   "estilo": "futurista"
+  },
+  {
+   "id": "torre_podio_chanfrado",
+   "rotulo": "Torre futurista sobre pódio chanfrado com jardins",
+   "categoria": "predios_futuristas",
+   "grupo": "torre_podio_chanfrado",
+   "fixacao": "chao",
+   "dims": [
+    26.24,
+    12.32,
+    39.8
+   ],
+   "arquivo": "glb/torre_podio_chanfrado.glb",
+   "miniatura": "miniaturas/torre_podio_chanfrado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      5.6,
+      -0.54
+     ],
+     "tamanho": [
+      25.4,
+      11.2,
+      10.4
+     ]
+    },
+    {
+     "centro": [
+      -6.6,
+      23.4,
+      -1.04
+     ],
+     "tamanho": [
+      9.4,
+      25.6,
+      8.2
+     ]
+    },
+    {
+     "centro": [
+      6.6,
+      12.45,
+      -1.14
+     ],
+     "tamanho": [
+      6.4,
+      3.7,
+      5.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "turquesa",
+    "verde_claro"
+   ],
+   "tris": 15416,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "neon",
+    "comercial"
+   ],
+   "lote": [
+    2,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "torre_cilindro_hotel",
+   "rotulo": "Torre cilíndrica de hotel com anéis de neon",
+   "categoria": "predios_futuristas",
+   "grupo": "torre_cilindro_hotel",
+   "fixacao": "chao",
+   "dims": [
+    11.451,
+    11.441,
+    41.1
+   ],
+   "arquivo": "glb/torre_cilindro_hotel.glb",
+   "miniatura": "miniaturas/torre_cilindro_hotel.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.28432,
+      16.8,
+      -0.27932
+     ],
+     "tamanho": [
+      10.6,
+      33.6,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      3.71568,
+      17.3,
+      2.72068
+     ],
+     "tamanho": [
+      3.4,
+      34.6,
+      3.2
+     ]
+    },
+    {
+     "centro": [
+      -0.28432,
+      34.9,
+      -0.27932
+     ],
+     "tamanho": [
+      6.8,
+      3.8,
+      6.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 12430,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "grande",
+    "hotel",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 10,
+   "estilo": "futurista"
+  },
+  {
+   "id": "discoteca_globo_roxa",
+   "rotulo": "Discoteca com globo espelhado (roxa)",
+   "categoria": "predios_futuristas",
+   "grupo": "discoteca_globo",
+   "fixacao": "chao",
+   "dims": [
+    11.902,
+    12.955,
+    12.209
+   ],
+   "arquivo": "glb/discoteca_globo_roxa.glb",
+   "miniatura": "miniaturas/discoteca_globo_roxa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.7,
+      -0.52662
+     ],
+     "tamanho": [
+      11.2,
+      5.4,
+      11.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.65,
+      -0.82662
+     ],
+     "tamanho": [
+      7.0,
+      7.0,
+      7.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas_claro",
+    "magenta",
+    "metal_escuro",
+    "roxo_escuro"
+   ],
+   "tris": 8062,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "boate",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "futurista"
+  },
+  {
+   "id": "discoteca_globo_magenta",
+   "rotulo": "Discoteca com globo espelhado (magenta)",
+   "categoria": "predios_futuristas",
+   "grupo": "discoteca_globo",
+   "fixacao": "chao",
+   "dims": [
+    11.902,
+    12.955,
+    12.209
+   ],
+   "arquivo": "glb/discoteca_globo_magenta.glb",
+   "miniatura": "miniaturas/discoteca_globo_magenta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.7,
+      -0.52662
+     ],
+     "tamanho": [
+      11.2,
+      5.4,
+      11.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.65,
+      -0.82662
+     ],
+     "tamanho": [
+      7.0,
+      7.0,
+      7.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "lilas_claro",
+    "magenta",
+    "metal_escuro"
+   ],
+   "tris": 8062,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "boate",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "futurista"
+  },
+  {
+   "id": "clube_vr",
+   "rotulo": "Clube de realidade virtual com óculos gigantes",
+   "categoria": "predios_futuristas",
+   "grupo": "clube_vr",
+   "fixacao": "chao",
+   "dims": [
+    12.28,
+    11.14,
+    13.66
+   ],
+   "arquivo": "glb/clube_vr.glb",
+   "miniatura": "miniaturas/clube_vr.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.0,
+      -0.53
+     ],
+     "tamanho": [
+      11.6,
+      8.0,
+      9.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      10.1,
+      0.37
+     ],
+     "tamanho": [
+      8.8,
+      5.4,
+      3.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_noite",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "magenta",
+    "rosa"
+   ],
+   "tris": 8855,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "fliperama_controle",
+   "rotulo": "Fliperama com controle e joystick gigantes",
+   "categoria": "predios_futuristas",
+   "grupo": "fliperama_controle",
+   "fixacao": "chao",
+   "dims": [
+    11.302,
+    12.449,
+    11.39
+   ],
+   "arquivo": "glb/fliperama_controle.glb",
+   "miniatura": "miniaturas/fliperama_controle.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00038,
+      3.1,
+      -0.57381
+     ],
+     "tamanho": [
+      10.6,
+      6.2,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      1.39962,
+      8.5,
+      -1.97381
+     ],
+     "tamanho": [
+      2.8,
+      5.8,
+      2.8
+     ]
+    },
+    {
+     "centro": [
+      3.39962,
+      1.65,
+      4.32619
+     ],
+     "tamanho": [
+      5.0,
+      3.3,
+      3.0
+     ]
+    },
+    {
+     "centro": [
+      -0.25,
+      1.33201,
+      5.75
+     ],
+     "tamanho": [
+      1.5,
+      2.664,
+      1.5
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_celeste",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "magenta",
+    "metal_escuro",
+    "rosa",
+    "roxo",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 9702,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 1,
+   "estilo": "futurista"
+  },
+  {
+   "id": "cyber_loja_telas_azul",
+   "rotulo": "Cyber-loja com telas (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "cyber_loja_telas",
+   "fixacao": "chao",
+   "dims": [
+    12.6,
+    11.16,
+    10.8
+   ],
+   "arquivo": "glb/cyber_loja_telas_azul.glb",
+   "miniatura": "miniaturas/cyber_loja_telas_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.0,
+      -0.68
+     ],
+     "tamanho": [
+      12.0,
+      8.0,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.7,
+      4.77
+     ],
+     "tamanho": [
+      12.0,
+      0.4,
+      1.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 8666,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "loja",
+    "telas",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "cyber_loja_telas_lilas",
+   "rotulo": "Cyber-loja com telas (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "cyber_loja_telas",
+   "fixacao": "chao",
+   "dims": [
+    12.6,
+    11.16,
+    10.8
+   ],
+   "arquivo": "glb/cyber_loja_telas_lilas.glb",
+   "miniatura": "miniaturas/cyber_loja_telas_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.0,
+      -0.68
+     ],
+     "tamanho": [
+      12.0,
+      8.0,
+      9.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.7,
+      4.77
+     ],
+     "tamanho": [
+      12.0,
+      0.4,
+      1.7
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "roxo"
+   ],
+   "tris": 8666,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "lazer",
+    "loja",
+    "telas",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "cyber_torre_telas",
+   "rotulo": "Torre de telas gigantes sobre base ondulada",
+   "categoria": "predios_futuristas",
+   "grupo": "cyber_torre_telas",
+   "fixacao": "chao",
+   "dims": [
+    12.76,
+    12.58,
+    28.5
+   ],
+   "arquivo": "glb/cyber_torre_telas.glb",
+   "miniatura": "miniaturas/cyber_torre_telas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      4.0,
+      -0.51
+     ],
+     "tamanho": [
+      12.2,
+      8.0,
+      11.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      16.4,
+      -1.21
+     ],
+     "tamanho": [
+      9.0,
+      18.0,
+      8.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_claro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal_claro",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 9888,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "telas",
+    "neon",
+    "comercial"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 7,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_listras_cores",
+   "rotulo": "Prédio caixa listrado colorido com neon",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_listras",
+   "fixacao": "chao",
+   "dims": [
+    9.1,
+    8.97,
+    16.2
+   ],
+   "arquivo": "glb/predio_caixa_listras_cores.glb",
+   "miniatura": "miniaturas/predio_caixa_listras_cores.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.0,
+      -0.335
+     ],
+     "tamanho": [
+      9.0,
+      14.0,
+      8.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal_claro",
+    "metal_escuro",
+    "verde",
+    "verde_agua",
+    "vermelho_claro"
+   ],
+   "tris": 6736,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "neon",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_listras_lilas",
+   "rotulo": "Prédio caixa listrado lilás com neon",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_listras",
+   "fixacao": "chao",
+   "dims": [
+    9.1,
+    8.97,
+    16.2
+   ],
+   "arquivo": "glb/predio_caixa_listras_lilas.glb",
+   "miniatura": "miniaturas/predio_caixa_listras_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.0,
+      -0.335
+     ],
+     "tamanho": [
+      9.0,
+      14.0,
+      8.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "lilas",
+    "magenta",
+    "metal_claro",
+    "metal_escuro",
+    "rosa",
+    "turquesa"
+   ],
+   "tris": 6736,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "neon",
+    "loja"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_tela_rosa",
+   "rotulo": "Prédio com tela vertical e escotilhas (rosa)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_tela",
+   "fixacao": "chao",
+   "dims": [
+    8.84,
+    9.02,
+    14.64
+   ],
+   "arquivo": "glb/predio_caixa_tela_rosa.glb",
+   "miniatura": "miniaturas/predio_caixa_tela_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.0,
+      -0.39
+     ],
+     "tamanho": [
+      8.7,
+      14.0,
+      8.1
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "magenta",
+    "rosa_claro"
+   ],
+   "tris": 6754,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "telas",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_caixa_tela_azul",
+   "rotulo": "Prédio com tela vertical e escotilhas (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_caixa_tela",
+   "fixacao": "chao",
+   "dims": [
+    8.84,
+    9.02,
+    14.64
+   ],
+   "arquivo": "glb/predio_caixa_tela_azul.glb",
+   "miniatura": "miniaturas/predio_caixa_tela_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.0,
+      -0.39
+     ],
+     "tamanho": [
+      8.7,
+      14.0,
+      8.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "porcelana_azul"
+   ],
+   "tris": 6754,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "pequeno",
+    "telas",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_vidro_marquise_azul",
+   "rotulo": "Prédio de vidro com marquise flutuante (azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_vidro_marquise",
+   "fixacao": "chao",
+   "dims": [
+    12.7,
+    12.89,
+    16.36
+   ],
+   "arquivo": "glb/predio_vidro_marquise_azul.glb",
+   "miniatura": "miniaturas/predio_vidro_marquise_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.15,
+      -0.595
+     ],
+     "tamanho": [
+      10.9,
+      14.3,
+      9.7
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      16.01,
+      -0.595
+     ],
+     "tamanho": [
+      12.6,
+      0.62,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.92,
+      5.105
+     ],
+     "tamanho": [
+      6.4,
+      0.34,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 7576,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "vidro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_vidro_marquise_lilas",
+   "rotulo": "Prédio de vidro com marquise flutuante (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_vidro_marquise",
+   "fixacao": "chao",
+   "dims": [
+    12.7,
+    12.89,
+    16.36
+   ],
+   "arquivo": "glb/predio_vidro_marquise_lilas.glb",
+   "miniatura": "miniaturas/predio_vidro_marquise_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.15,
+      -0.595
+     ],
+     "tamanho": [
+      10.9,
+      14.3,
+      9.7
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      16.01,
+      -0.595
+     ],
+     "tamanho": [
+      12.6,
+      0.62,
+      11.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.92,
+      5.105
+     ],
+     "tamanho": [
+      6.4,
+      0.34,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "lilas",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 7576,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "vidro",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  },
+  {
+   "id": "casa_modular_cubos_branca",
+   "rotulo": "Casa modular de cubos com neon (branca e azul)",
+   "categoria": "predios_futuristas",
+   "grupo": "casa_modular_cubos",
+   "fixacao": "chao",
+   "dims": [
+    12.0,
+    10.2,
+    7.164
+   ],
+   "arquivo": "glb/casa_modular_cubos_branca.glb",
+   "miniatura": "miniaturas/casa_modular_cubos_branca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.9,
+      1.7,
+      -0.6
+     ],
+     "tamanho": [
+      8.4,
+      3.4,
+      6.6
+     ]
+    },
+    {
+     "centro": [
+      1.6,
+      5.15,
+      0.1
+     ],
+     "tamanho": [
+      7.0,
+      3.5,
+      5.8
+     ]
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.75,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.25,
+      0.625,
+      -4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "azul_marinho",
+    "branco",
+    "calcada",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grama",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 5118,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "casa",
+    "pequeno",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "casa_modular_cubos_lilas",
+   "rotulo": "Casa modular de cubos com neon (lilás)",
+   "categoria": "predios_futuristas",
+   "grupo": "casa_modular_cubos",
+   "fixacao": "chao",
+   "dims": [
+    12.0,
+    10.2,
+    7.164
+   ],
+   "arquivo": "glb/casa_modular_cubos_lilas.glb",
+   "miniatura": "miniaturas/casa_modular_cubos_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.9,
+      1.7,
+      -0.6
+     ],
+     "tamanho": [
+      8.4,
+      3.4,
+      6.6
+     ]
+    },
+    {
+     "centro": [
+      1.6,
+      5.15,
+      0.1
+     ],
+     "tamanho": [
+      7.0,
+      3.5,
+      5.8
+     ]
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      4.75,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      5.25,
+      0.625,
+      -4.0
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "branco",
+    "branco_gelo",
+    "calcada",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "grama",
+    "lilas",
+    "madeira_clara",
+    "verde_claro"
+   ],
+   "tris": 5118,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "casa",
+    "pequeno",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "casa_modular_capsulas",
+   "rotulo": "Casa modular de cápsulas",
+   "categoria": "predios_futuristas",
+   "grupo": "casa_modular_capsulas",
+   "fixacao": "chao",
+   "dims": [
+    12.0,
+    10.0,
+    8.2
+   ],
+   "arquivo": "glb/casa_modular_capsulas.glb",
+   "miniatura": "miniaturas/casa_modular_capsulas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.0,
+      1.95,
+      -0.6
+     ],
+     "tamanho": [
+      7.6,
+      3.9,
+      4.6
+     ]
+    },
+    {
+     "centro": [
+      1.4,
+      4.95,
+      -0.9
+     ],
+     "tamanho": [
+      4.6,
+      3.1,
+      6.0
+     ]
+    },
+    {
+     "centro": [
+      4.1,
+      1.75,
+      1.6
+     ],
+     "tamanho": [
+      3.2,
+      3.5,
+      3.2
+     ]
+    },
+    {
+     "centro": [
+      5.5,
+      0.625,
+      -3.75
+     ],
+     "tamanho": [
+      1.0,
+      1.25,
+      1.5
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -5.25,
+      0.625,
+      -3.5
+     ],
+     "tamanho": [
+      1.5,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    },
+    {
+     "centro": [
+      -5.5,
+      0.625,
+      4.0
+     ],
+     "tamanho": [
+      1.0,
+      1.25,
+      1.0
+     ],
+     "terreo": 1
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_celeste",
+    "branco",
+    "cinza_claro",
+    "cromo",
+    "grama",
+    "lilas",
+    "lilas_claro",
+    "metal_claro",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 7392,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "casa",
+    "pequeno",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 2,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_colmeia",
+   "rotulo": "Prédio com painel de LED em favos",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_colmeia",
+   "fixacao": "chao",
+   "dims": [
+    12.94,
+    10.12,
+    24.4
+   ],
+   "arquivo": "glb/predio_colmeia.glb",
+   "miniatura": "miniaturas/predio_colmeia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      1.55,
+      10.4,
+      -0.44
+     ],
+     "tamanho": [
+      9.7,
+      20.8,
+      9.1
+     ]
+    },
+    {
+     "centro": [
+      -4.75,
+      3.95,
+      -0.84
+     ],
+     "tamanho": [
+      3.2,
+      7.9,
+      6.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal_claro",
+    "metal_escuro",
+    "verde_claro"
+   ],
+   "tris": 8724,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "telas",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 6,
+   "estilo": "futurista"
+  },
+  {
+   "id": "predio_balanco_magenta",
+   "rotulo": "Prédio com balanço magenta e terraço-jardim",
+   "categoria": "predios_futuristas",
+   "grupo": "predio_balanco_magenta",
+   "fixacao": "chao",
+   "dims": [
+    11.66,
+    10.92,
+    17.8
+   ],
+   "arquivo": "glb/predio_balanco_magenta.glb",
+   "miniatura": "miniaturas/predio_balanco_magenta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.21,
+      4.0,
+      -0.44
+     ],
+     "tamanho": [
+      10.6,
+      8.0,
+      9.4
+     ]
+    },
+    {
+     "centro": [
+      -0.21,
+      9.0,
+      -1.04
+     ],
+     "tamanho": [
+      8.0,
+      3.2,
+      6.8
+     ]
+    },
+    {
+     "centro": [
+      0.39,
+      11.0,
+      -0.34
+     ],
+     "tamanho": [
+      10.8,
+      0.8,
+      8.8
+     ]
+    },
+    {
+     "centro": [
+      0.79,
+      13.3,
+      -1.04
+     ],
+     "tamanho": [
+      7.0,
+      3.8,
+      6.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "magenta",
+    "metal_claro",
+    "metal_escuro",
+    "turquesa",
+    "verde_claro"
+   ],
+   "tris": 7922,
+   "pacote": false,
+   "tags": [
+    "predio",
+    "futurista",
+    "medio",
+    "neon"
+   ],
+   "lote": [
+    1,
+    1
+   ],
+   "andares": 4,
+   "estilo": "futurista"
+  }
+ ]
+}

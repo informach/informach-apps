@@ -1,7 +1,7 @@
 # Roupas e acessórios
 
 Todas as peças de roupa e os acessórios dos pacotes gratuitos (65 peças), as variações feitas a partir delas e as peças
-geradas aqui (276 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
+geradas aqui (317 no total: roupas, acessórios, chapéus, óculos e objetos de mão) servem em todos os corpos, menos no recém-nascido, que usa a manta. Isso vale para a criança, o bebê, o plus e o idoso. Na grávida, a peça acompanha os
 três estágios de barriga.
 
 ## Onde fica cada coisa
@@ -101,8 +101,16 @@ O gerador está em `codigo/morada-art/geradores.py`:
     duplos, faixa no peito, listras verticais, listras de marinheiro, duas cores na lateral, ziguezague, caveiras,
     folhas, oncinha, lantejoula, jeans e bolso canguru.
     - Nos padrões com detalhes brancos, o fundo é cinza: a cor livre pinta o fundo e o branco continua branco.
+- Acabamento das peças geradas por camada (`geradores.camada`):
+  - parte de cima: a barra fica 2 cm acima da junta do quadril (longe do gancho) e cai reta (`_barra_reta`): abaixo da
+    parte mais larga do quadril, cada ponto vai para fora até o contorno dessa altura, em vez de seguir a pele para
+    dentro da virilha (antes, de frente, a barra fazia um V, como um body);
+  - parte de baixo e peça inteira: o lado de dentro da perna (virado para a outra) fica quase rente (3 mm, proporcional
+    à altura); com a folga toda, as duas coxas da bermuda folgada se cruzavam no gancho e faziam dobras.
 - **`chapeu`**: feito sobre a cabeça do corpo.
-  - A copa segue a forma da cabeça medida por raios. Opções da copa: `alt`, `inclina`, `teto` (boina), `ponta`
+  - A copa segue a forma da cabeça medida por raios. Cada meridiano para exatamente onde cruza a altura do corte (antes,
+    os pontos abaixo subiam com o raio que tinham e, onde o raio não achava a cabeça, a borda virava um disco).
+  - A viseira afina até quase nada nas pontas (expoente 1,15) e os bonés abrem 58°: de frente, o boné não vira chapéu. Opções da copa: `alt`, `inclina`, `teto` (boina), `ponta`
     (chapéu pontudo) e `capuz`.
   - Partes que podem ser somadas: `aba` (com `sobe_lados` para o caubói), `viseira` (`atras` para o boné virado),
     `banda` (com `pontas` para a coroa), `topo`, `puff`, `faixa`, `enrolado`, `pompom`, `orelhas`, `olhos`,
@@ -111,7 +119,9 @@ O gerador está em `codigo/morada-art/geradores.py`:
     - na copa: `vinco` (fedora);
     - na aba: `sobe_tras` (fedora) e `ondas` (chapéu de praia);
     - `orelhas_redondas` (touca de urso);
-    - no `arco`: `orelhas_longas` (orelhas de coelho).
+    - no `arco`: `orelhas_longas` (orelhas de coelho);
+    - na copa: `gomos` (lista de cores fixas em volta, "branco" é a cor livre) e `helice` (haste e duas pás
+      cruzadas no alto, `pas` com as duas cores): o boné com hélice.
   - Formas próprias:
     - `boina`: faixa justa, corpo estufado mais largo que a cabeça, alto caído para um lado e um pininho;
     - `capuz`: envolve a cabeça, faz uma pontinha atrás, cai sobre os ombros, com a abertura do rosto oval e borda
@@ -123,8 +133,26 @@ O gerador está em `codigo/morada-art/geradores.py`:
   - A armação recebe a cor livre. As lentes têm cor fixa (`lente`: uma cor ou `[esquerda, direita]`, como nos óculos 3D;
     sem `lente`, só a armação).
 - **`objeto`** (`tipo: "mao"`, slots `mao_dir` e `mao_esq`): objetos de mão.
-  - Os objetos: celular, copo de café, microfone, sorvete, picolé, câmera, livro, buquê, bengala, guarda-chuva, bolsa,
-    maleta, mala de rodinhas e sacolas.
+  - São 58 objetos, feitos com a vitrine de props do pacote como norte (formas próprias, não cópias):
+    - comida e bebida: copo de café, sorvete, picolé, garrafa d'água;
+    - na frente do corpo: celular, microfone, câmera, livro, caderno, jornal, tablet, buquê, cartaz, rádio, lanterna;
+    - bolsas e malas: bolsa, bolsa de alça, tote, bolsa de fecho, bolsa de pérolas, bolsa de academia, pasta de couro,
+      pasta de notebook, maleta, maleta de cantos, maleta rígida, mala de rodinhas, mala de frisos, sacolas, sacola de
+      loja, sacola de papel (com pão, leite, banana, verduras e cenoura), kit de primeiros socorros, caixa de ferramentas,
+      estojo de violão, extintor;
+    - cozinha e serviço: frigideira, espátula, bandeja com tampa;
+    - bolas: futebol (gomos pintados), basquete, vôlei, praia (seis gomos), tênis;
+    - outros: pincel, paleta de pintor, caixas de presente, rolo de papel, cassetete, ancinho, tesoura de poda, chave
+      inglesa, bengala, guarda-chuva fechado, aberto (liso, colorido e listrado), pau de selfie;
+    - guia retrátil de cachorro (cabo na mão e a caixa do carretel à frente; a cena de exemplo desenha o fio).
+  - As caixas (`_bm_prim` "caixa") têm as quinas chanfradas (2 segmentos, 16% do lado menor); "caixa_reta" fica reta.
+  - Alças (`_alca`, `_curva_alca`, `_tubo`): um tubo no plano da face do objeto, com as duas pontas entrando no alto
+    dele (nunca soltas) e o meio reto, com cantos arredondados, passando por dentro da mão fechada. A mão fechada foi
+    medida na página: a falange de baixo dobra quase 90° para a palma, e o vão da alça fica em x ≈ −0,03, z ≈ 0,22
+    (`MAO_X`, `MAO_Z`). A alça tem pelo menos 0,72 de meia largura (`MAO_LARG`), para as pernas dela descerem por fora
+    dos dedos nas duas mãos (o mesmo arquivo serve nas duas, espelhado). Sacolas com duas alças (uma em cada face)
+    juntam as duas na mão (`dz`, `y_mao`). As pérolas da bolsa de pérolas seguem a mesma curva, a partir da superfície
+    do corpo da bolsa; a mangueira do extintor sai da válvula.
   - São feitos no referencial da mão, em unidades do tamanho da mão `s` (do punho até a base do dedo médio):
     - origem na base do dedo médio;
     - X ao longo dos dedos (para baixo com o braço solto);
@@ -148,18 +176,41 @@ O gerador está em `codigo/morada-art/geradores.py`:
       - `aponta` leva o eixo Y da mão (o do objeto em pé no punho) para essa direção, com os dedos para a frente:
         café, sorvete, picolé, microfone, buquê, guarda-chuva aberto, pau de selfie;
       - `eixos` dá direto X (os dedos) e Z (a palma): celular com a tela para o rosto, livro na frente do peito, câmera
-        na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo.
+        na altura dos olhos, bolsas, maleta, sacolas, mala de rodinhas, bengala e guarda-chuva fechado ao lado do corpo;
+        as bolas e as caixas de presente na palma virada para cima (`NA_PALMA`), o tablet, o jornal e a paleta como um
+        painel na frente do peito;
+      - `eixos` com `y` e `z` (sem `x`) dá o eixo Y do objeto e a palma: frigideira e lanterna apontando para a frente,
+        com o cabo na mão.
     - Num gesto com aquela mão, o objeto passa para a outra junto com a pose.
-    - `balanco` (0 a 1): quanto do vaivém da mão na animação (para a frente e para trás do ombro) entra na pose. A
-      altura e o lado continuam os da pose, para os gestos não levantarem o objeto. Bolsas: 0,85; bengala e
+    - `balanco` (0 a 1): quanto do vaivém da mão na animação (para a frente e para trás do ombro) entra na pose; do
+      vaivém para o lado entra 40% disso, sem nunca puxar a mão mais de 3 cm para dentro. A altura continua a da pose,
+      para os gestos não levantarem o objeto. Bolsas: 0,85; bengala e
       guarda-chuva fechado: 0,6; mala: 0,5; o que vai na frente do corpo: 0,1 a 0,25.
     - `pendurado` (bolsa, maleta, sacolas): a direção dos dedos é a gravidade mais um desvio de um pêndulo amortecido,
       que reage à aceleração da mão. A bolsa fica para trás quando a mão acelera e vai e volta até parar.
+    - A bolsa pendurada não atravessa o corpo (`penduloMao`, `afastaDoCorpo`, `capsulasCorpo`):
+      - o corpo vira cápsulas pelos ossos: coxas e canelas das duas pernas e o tronco (Hips→Spine→Spine1→Neck). O
+        raio muda com a direção em volta do osso: 16 setores no referencial do osso, cada um com o percentil 90 da
+        distância da pele presa a ele (peso ≥ 0,5), com a forma da gravidez aplicada. Medido uma vez por corpo e
+        estágio de gravidez;
+      - o objeto é testado em pontos reais da superfície dele (`medidasObjeto`): o vértice mais longe do centro em cada
+        uma das 98 direções da casca de uma grade 5×5×5 da caixa que o envolve, mais uns 220 vértices espalhados (a
+        alça inclusive), no referencial exato da mão (dedos e palma da pose);
+      - antes do braço ser montado, se a mão ou o alto da bolsa entraria numa perna ou no tronco, o alvo da mão vai
+        para fora na horizontal (ao andar, a mão passa rente à coxa; ao correr, na frente da outra coxa);
+      - depois, a cada passo (até 16), o ponto que entra mais fundo gira a bolsa em volta da mão o quanto falta, com
+        1,5 cm de folga; o pêndulo continua dali e perde 40% da velocidade. Se a bolsa ficar presa entre as duas pernas,
+        fica onde estava no quadro anterior quando lá entra menos;
+      - só as cápsulas perto do objeto (esfera que o envolve) são testadas, e os ossos são lidos uma vez por passo:
+        cerca de 1 ms por quadro.
   - Postura da animação (`maosOcupadas`, nas mesmas 12 amostras):
     - deitado, quando o tronco fica longe da vertical (eixo quadril–pescoço com y médio < 0,55): os objetos de mão
       saem de cena;
     - sentado, quando o quadril fica abaixo de 42% da altura: o que tem `pousa` (bolsas, mala, bengala, guarda-chuva
-      fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido;
+      fechado) vai para o chão, ao lado do quadril. Fica em pé, como pendurado, ou deitado no chão, se for comprido.
+      O lugar no chão é fixo no mundo (`posaNoChao`): fica parado enquanto a pessoa se mexe pouco (folga de 12 cm,
+      proporcional à altura). Se ela se desloca sentada, o objeto vem junto, arrastado, sem passar da folga, e só vira
+      para o lado dela quando ela já virou mais de 20°. Fica sempre fora da cadeira e da mesa da cena;
     - sentado, a mão que se mexe bastante em volta do quadril (comer, digitar, dirigir) está ocupada: o objeto dela
       passa para a outra mão ou some;
     - de pé: só a mão que sobe (gesto) está ocupada.
@@ -173,6 +224,63 @@ Slots novos:
 
 Uma peça `inteira` esconde a parte de cima e a de baixo. Com `"cobre": ["baixo"]`, esconde só a de baixo, e a blusa
 continua à mostra (jardineira).
+
+## Acabamento (revisão peça por peça)
+
+`tools/revisao_itens.py -- <corpos.blend> <saída> [ids | slots | todos]` veste cada peça num adulto (ou adulta) parado,
+com o acabamento das cenas, e renderiza de frente e de costas; `tools/folha_revisao.py <saída>` monta as folhas por slot.
+O que a revisão de todas as 317 peças corrigiu:
+- **Barra das blusas:** a lateral do quadril (que tem peso da coxa) ficava fora da região do tronco e a barra subia nos
+  lados, serrilhada (no corpo de mulher, com o quadril mais largo, aparecia como um degrau atrás). Agora a camada de
+  cima com barra no quadril inclui essa lateral até a barra, que sai reta.
+- **Pesos herdados:** a camada nasce da malha-base e trazia os pesos dela (com índices de grupos que a peça não tem);
+  o encaixe agora limpa esses pesos antes de pôr os da pele.
+- **Faixa branca na barra:** a máscara de cor livre só valia onde a malha antiga tinha UV. Nos padrões gerados
+  (`Roupa_Gen_*`) a máscara agora vale na imagem toda, pela cor.
+- **Saias e vestidos:** pesos de pano (veja "Pesos próprios"). Os vestidos `gen_vestido_*` viraram uma peça só (corpo
+  e saia na mesma malha e textura); antes eram a camiseta de um pacote por cima da saia, com a barra azul aparecendo.
+- **Faixa, viseira e coroa** (`copa.alt = 0`): a copa achatava até um ponto e a peça virava uma linha ou sumia. Agora
+  é um anel justo na cabeça na altura do corte (`folga` na testa, `folga_tras` atrás e nos lados, para passar por cima
+  do cabelo); a faixa tem espessura e acompanha a cabeça ao subir; a coroa tem aro e uma bolinha em cada ponta.
+- **Capuz:** a abertura do rosto era recortada em degraus; agora é uma oval lisa (a borda desliza até ela).
+- **Tiara, arco e orelhas:** o arco tem espessura, passa por cima do cabelo no alto e fica rente nos lados; o babado
+  da tiara tem ondas regulares.
+- **Máscara cirúrgica:** ficava pendurada no queixo; agora vai do queixo à base do nariz (marcos `queixo` e `nariz`).
+- **Touca de aviador, viseira, chapéu de praia e de abas largas:** cobriam os olhos; subiram e as abas encolheram.
+- **Paletó:** a barra do corpo não abre quando a peça tem saia, e a saia começa por dentro do paletó e sai por baixo
+  da barra (antes ficava um anel saliente no quadril).
+- **Quepes:** a pala é mais curta e menos caída (de cima, escondia o rosto).
+- **Cabelo sob o chapéu (cenas no Blender):** logo abaixo da borda, os pontos do cabelo entram aos poucos (o raio um
+  pouco mais para cima acerta o chapéu: todo a 0°, nada a 14°) e a volta de vértices em volta dos que entraram fica
+  na média dos vizinhos. A linha do cabelo sai lisa embaixo da borda, sem serrilhado.
+- **Pele embaixo da saia (página):** peças com saia trazem `solta` no cabeçalho; nos vértices das pernas, a pele
+  some se a saia estiver a até 16 cm (nas outras peças, 5 cm). Assim a coxa da frente não aparece pelo vestido no
+  passo. A conta da pele coberta passou a ser feita na pose de descanso (antes, na pose do quadro em que a peça foi
+  escolhida: escolhida no meio do passo, a perna já atravessava e a pele não sumia).
+
+### Segunda revisão (na página, homem e mulher)
+
+`tools/revisao_pagina.js <saída> [slots] [sexos]` veste cada peça sozinha na própria página e fotografa de frente e de
+costas; `tools/folha_pagina.py` monta as folhas. O que ela e as conversas acharam, e foi corrigido:
+- **Gola aberta / ombro aberto:** o decote era um plano horizontal na base do pescoço, e o alto do ombro (que sobe para
+  o pescoço) saía junto. Agora o decote é um corte em volta do pescoço (`roupas._decote`: sai só o que está acima da
+  altura do decote e perto do eixo do pescoço, no raio dele mais uma folga; o decote fundo abre mais na frente), com a
+  borda lisa, feito nas arestas.
+- **Faixas de cor em degraus** (punhos, barra, faixa lateral do agasalho): a malha é cortada na borda de cada faixa
+  antes de pintar, e o eixo do braço do UV é uma curva contínua (antes, uma faixa de 2 cm por polígono).
+- **Calça com "nó" entre as pernas:** a calça copiava o vinco da virilha. No gerador, o fundilho é alisado (ponte lisa
+  de uma perna à outra); na página, o empurrão de folga se espalha entre os vizinhos e pontos dobrados vão para a média
+  deles (`posicoesPeca`).
+- **Short aparecendo pela blusa:** a página esconde a peça de baixo onde a de cima a cobre (camadas: baixo < cima e
+  inteira < por cima; `camadaCoberta`, na pose de descanso).
+- **Pele pela saia:** em saias fechadas (`saia_fechada` no cabeçalho), toda pele de perna e quadril entre a barra e o
+  cós some; sentado, ajoelhado, agachado ou deitado (`POSE_DOBRADA`) a saia troca para os pesos da pele (a coxa sobe e
+  o pano vai junto); em pé, volta aos de pano.
+- **Vestidos:** a saia nasce um pouco por fora da barra do corpo (fechou a fresta da cintura), o UV da saia é um tubo
+  só (o xadrez não se embaralha mais atrás) e as laterais largas da saia não são mais tomadas por braço.
+- **Listradas** (blusa, presídio): a cor inicial é a da listra escura (a que a cor livre pinta).
+- **Biquíni:** a calcinha cresce 4,5 cm para cima (embaixo igual); o top tem faixa fechada em volta (região `torso`, só
+  os ossos do tronco) e alcinhas por dentro, presas na faixa na frente e atrás.
 
 ## Cor livre
 
@@ -236,8 +344,10 @@ Qualquer FBX serve, desde que traga o corpo do personagem de origem com a roupa 
     não atravessa o chapéu.
     - `veste.py` e `adiciona_cabelo.py` fazem isso nos corpos em que mexem, e `tools/cabelo_chapeu.py` em todos.
     - Os scripts de render ligam `com_chapeu` sozinhos quando um chapéu aparece.
-- **Peças largas:** saia, fantasia e casaco comprido seguem a perna mais perto. Em passos largos, podem atravessar um
-  pouco a outra perna.
+- **Peças largas:** a parte de saia (saias, vestidos, casaco comprido, jaleco, paletó) segue o quadril e as duas coxas
+  misturadas (veja "Pesos próprios"); em passos muito largos a coxa da frente ainda pode encostar no pano (a página
+  esconde a pele dela). Sentado, ajoelhado ou deitado, a saia passa a seguir a pele (Blender e página). Fantasias do
+  pacote seguem a perna mais perto.
 
 ## Peças em arquivos separados (a página já usa; recomendado para o jogo)
 
@@ -263,7 +373,8 @@ montado no corpo na hora. Uma peça nova entra sem regerar os corpos.
   - p e n são interpolados no triângulo do corpo. As normais dos vértices são somadas pelas áreas.
   - e1 é a aresta 0→1 tirada a parte na direção de n; e2 = n × e1.
   - s = √(área no corpo ÷ área na malha-base).
-  - Pesos: os dos três vértices da pele, pelas baricêntricas (os quatro maiores).
+  - Pesos: os dos três vértices da pele, pelas baricêntricas (os quatro maiores), a não ser que a peça traga pesos
+    próprios (abaixo).
   - Grávida: a mesma conta com as formas `gravidez_1..3` aplicadas no corpo dá as formas da peça.
   - Folga contra a pele em volta: para cada ponto (com o₂ > 0), cada vértice q do triângulo e dos vizinhos dele, com
     h = (q − ponto)·n e distância lateral até 2,5·√(área), empurra o ponto pela normal até h ficar ≤ −c. Aqui
@@ -274,6 +385,15 @@ montado no corpo na hora. Uma peça nova entra sem regerar os corpos.
   só ao osso Head.
 - Objetos de mão (`tipo: "mao"`): um bloco `loc` (f32) com os pontos no referencial da mão, igual em todas as famílias.
   O cabeçalho diz `mao` (dir ou esq).
+- **Pesos próprios** (peças com parte de saia e partes de cima/por cima): por família, `<fam>_osso` (u8, 4 por ponto,
+  índice na lista `ossos` do cabeçalho) e `<fam>_peso` (u8, 4 por ponto, ÷ 255). Quando existem, a página usa estes em
+  vez dos da pele. Saem do encaixe no Blender:
+  - parte de saia: logo abaixo do quadril o ponto passa a seguir o quadril e as duas coxas, pela posição em volta do
+    corpo (o lado esquerdo mais a coxa esquerda; frente e costas, metade de cada). A parte das coxas vai de 35% a 60%
+    até o joelho. Antes, cada ponto seguia a perna mais perto e a saia se partia e embolava entre as pernas;
+  - partes de cima e por cima: a barra não segue as coxas (`sem_pernas`), e os últimos 14 cm da peça misturam os pesos
+    com os vizinhos e, perto da borda, com a volta inteira (`alisa_pesos_barra`). Assim a barra anda inteira, sem cair
+    em aba atrás.
 
 ## Miniaturas
 
