@@ -1,31 +1,9 @@
+import { type SpeakerRole, strip, type TimelineWord } from "@informach/edi-speech/words";
 import { clipEnd, overwriteRange, sourceAt, sourceEnd, timelineAt } from "./timeline.ts";
 import type { Asset, Clip, Project, Transcript } from "./types.ts";
 
-/**
- * Who speaks: the teacher (the narration and the microphone), the presenter (an avatar or a
- * person in a video with the background removed or recorded on a solid screen, a presenter's
- * video placed by the voice, a script insert) or something else (the computer's own sound, a music bed). Only the teacher's words
- * are cleaned of hesitations and repeats: the avatar's lines are acted and the computer's sound
- * is what it is.
- */
-export type SpeakerRole = "teacher" | "avatar" | "other";
-
-/** A transcribed word placed on the timeline. */
-export interface TimelineWord {
-  /** Stable key: asset + index in that asset's transcript. */
-  key: string;
-  clipId: string;
-  text: string;
-  start: number;
-  end: number;
-  p: number;
-  /** Media it was said in (asset id); absent counts as one source. Repeats are looked for within one. */
-  source?: string;
-  /** Absent counts as the teacher. */
-  role?: SpeakerRole;
-  /** Not heard in the lesson (muted track, volume 0, under the presenter's own sound). */
-  silent?: boolean;
-}
+// Shared with EdiSVG through @informach/edi-speech; used here as before.
+export { type SpeakerRole, strip, type TimelineWord } from "@informach/edi-speech/words";
 
 export type IssueKind = "filler" | "silence" | "repeat";
 
@@ -115,13 +93,6 @@ export interface Silence {
   /** The clip the pause is anchored in: each part of it gets its own id from its media seconds. */
   ref?: Pick<Clip, "assetId" | "start" | "in" | "speed">;
 }
-
-export const strip = (s: string): string =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]/g, "");
 
 /** Words that are hesitations in any context ("né" included: it is almost always a verbal tic). */
 const ALWAYS_FILLER = new Set([

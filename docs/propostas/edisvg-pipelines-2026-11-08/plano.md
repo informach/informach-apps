@@ -55,8 +55,8 @@ duas receitas prontas. Plano aprovado em 08/11/2026, com todos os lotes e um com
 | Lote | Estado | Commit |
 | --- | --- | --- |
 | 0. Importar projeto do Estúdio | feito, base da receita 1 | |
-| 1. Transcrição compartilhada | em andamento | |
-| 2. Receitas | | |
+| 1. Transcrição compartilhada | feito | |
+| 2. Receitas | em andamento | |
 | 3. Parte comum | | |
 | 4. Receita 1 | | |
 | 5. Receita 2 | | |

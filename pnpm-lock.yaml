@@ -721,6 +721,9 @@ importers:
       '@informach/edi-desktop':
         specifier: workspace:*
         version: link:../../packages/edi-desktop
+      '@informach/edi-speech':
+        specifier: workspace:*
+        version: link:../../packages/edi-speech
       '@mediapipe/tasks-vision':
         specifier: 1.0.1
         version: 1.0.1
@@ -1017,6 +1020,9 @@ importers:
       '@informach/edi-motion':
         specifier: workspace:*
         version: link:../../packages/edi-motion
+      '@informach/edi-speech':
+        specifier: workspace:*
+        version: link:../../packages/edi-speech
       '@modelcontextprotocol/sdk':
         specifier: 1.32.1
         version: 1.32.1(zod@4.6.7)
@@ -1576,6 +1582,15 @@ importers:
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))
+
+  packages/edi-speech:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/emails:
     dependencies:

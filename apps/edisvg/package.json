@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@informach/edi-desktop": "workspace:*",
+    "@informach/edi-speech": "workspace:*",
     "@informach/edi-motion": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
     "fflate": "0.8.3",
