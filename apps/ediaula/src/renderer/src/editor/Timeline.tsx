@@ -446,6 +446,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const targets = cutTargets(project);
     let result: Clip[] | null = null;
     let ripplePlan: RippleTrim | null = null;
+    // Where the edge was asked to go and what held it, said on release (a silent stop looked
+    // like the drag did not work).
+    let held: "neighbour" | "source" | null = null;
     listen(
       (ev) => {
         const s = snapAt(index, xToTime(ev.clientX));
@@ -465,8 +468,18 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           });
           return;
         }
+        const wanted = t;
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
         const trimmed = trimClip(clip, edge, t, asset);
+        // More than a few pixels short of the pointer, outward: a neighbour or the media's end.
+        const reached = edge === "start" ? trimmed.start : clipEnd(trimmed);
+        const short = edge === "start" ? reached - wanted : wanted - reached;
+        held =
+          short * zoom <= 6
+            ? null
+            : Math.abs(reached - (edge === "start" ? lower : upper)) < 1e-6
+              ? "neighbour"
+              : "source";
         // The clips of its group with the same edge there follow (Alt trims this one alone).
         result = alone
           ? project.clips.map((c) => (c.id === trimmed.id ? trimmed : c))
@@ -488,6 +501,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setPreview(null);
+        if (held) heldEdgeHint(edge, held, asset);
         const next = result;
         // The lesson changed under the drag (an AI edit): only a plain trim of this clip is
         // still meaningful; a ripple would move clips that are no longer where they were.
@@ -1588,6 +1602,24 @@ function scaleTracks(k: number): void {
       height: Math.round(Math.min(TRACK_MAX, Math.max(TRACK_MIN, trackH(t) * k))),
     })),
   }));
+}
+
+/** Says why a dragged edge stopped short of the pointer, and how to go further. */
+function heldEdgeHint(
+  edge: "start" | "end",
+  by: "neighbour" | "source",
+  asset: Asset | undefined,
+): void {
+  const media = asset?.kind === "audio" ? "O áudio" : "O vídeo";
+  const text =
+    by === "neighbour"
+      ? edge === "end"
+        ? "A borda parou no próximo clipe da faixa. Para alongar empurrando o que vem depois, arraste segurando Shift."
+        : "A borda parou no clipe anterior da faixa. Para alongar abrindo espaço, arraste segurando Shift."
+      : edge === "end"
+        ? `${media} de origem acaba aqui. Para continuar depois do fim, use "Estender quadro…" no botão direito do clipe: o último quadro fica parado.`
+        : `Aqui é o começo do ${asset?.kind === "audio" ? "áudio" : "vídeo"} de origem: não há nada antes para mostrar.`;
+  useApp.getState().toast(text, "info");
 }
 
 function TrackHeader({

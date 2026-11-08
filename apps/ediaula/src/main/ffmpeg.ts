@@ -645,21 +645,51 @@ export function audioSnippet(
 export async function stillFrame(path: string, t: number, alpha = false): Promise<string> {
   const out = join(cacheDir(path), `still-${alpha ? "alpha-" : ""}${Math.round(t * 1000)}.png`);
   if (existsSync(out)) return out;
+  const decoder = alpha ? ["-c:v", "libvpx-vp9"] : [];
   await run(FFMPEG, [
     "-y",
     "-v",
     "error",
     "-ss",
     String(Math.max(0, t)),
-    ...(alpha ? ["-c:v", "libvpx-vp9"] : []),
+    ...decoder,
     "-i",
     path,
     "-frames:v",
     "1",
     out,
   ]);
+  // Past the last frame FFmpeg ends without an error and writes nothing: the copy without
+  // background is 25 fps and ends before the source's last frame, where Estender quadro asks.
+  // The last frame before `t` then (each frame of the stretch overwrites the file).
+  if (!existsSync(out)) {
+    const from = Math.max(0, t - STILL_LOOKBACK);
+    await run(FFMPEG, [
+      "-y",
+      "-v",
+      "error",
+      "-ss",
+      String(from),
+      ...decoder,
+      "-i",
+      path,
+      "-t",
+      String(Math.max(0.05, t - from)),
+      "-update",
+      "1",
+      out,
+    ]);
+  }
+  // Never the path of a picture that is not there: the clip would be an empty box.
+  if (!existsSync(out))
+    throw new Error(
+      `Não saiu nenhum quadro em ${t.toFixed(2)} s deste vídeo. Tente um ponto antes.`,
+    );
   return out;
 }
+
+/** How far back a still looks for a frame when `t` is past the video's last one. */
+const STILL_LOOKBACK = 2;
 
 export async function writeFilterScript(text: string, ext = "txt"): Promise<string> {
   const dir = join(app.getPath("temp"), "ediaula");
