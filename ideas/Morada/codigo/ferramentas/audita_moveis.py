@@ -117,7 +117,7 @@ def audita_item(cat, it):
             elif i in raizes:
                 corpo_lo, corpo_hi = l, h
     mats = {m.get("name", "") for m in g.get("materials", [])}
-    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith(("estampa_", "janela_", "neon_", "brilho_"))]
+    ruins = [m for m in mats if m not in PERMITIDOS and not m.startswith(("estampa_", "janela_", "neon_", "brilho_", "luz_"))]
     if ruins:
         prob.append(f"materiais fora do padrão: {ruins}")
     dims = [hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]]  # l, p, a
@@ -126,7 +126,7 @@ def audita_item(cat, it):
         prob.append(f"dims do catálogo {cd} ≠ GLB {[round(x, 3) for x in dims]}")
     fix = it.get("fixacao", "chao")
     INFRA = {"ruas", "pisos", "estacionamentos", "ferrovia", "pontes", "agua", "estruturas"}
-    if it.get("categoria") in INFRA:
+    if it.get("categoria") in INFRA or "linha_dagua" in it or "quadras" in it or "trilho" in it:  # lajes, água, trilhos
         pass  # lajes, água e fundações descem abaixo da calçada de propósito
     elif "lote" in it:
         if lo[1] > 0.012 or lo[1] < -0.15:
@@ -167,7 +167,8 @@ def audita_item(cat, it):
                 # entrar no corpo: centro aberto bem dentro da caixa do corpo
                 dentro = corpo_lo and all(corpo_lo[k] + 0.04 < cn[k] < corpo_hi[k] - 0.04 for k in range(3))
                 if not frente_ok:
-                    prob.append(f"{nome}: porta abre para trás (centro aberto z={cn[2]:.2f}, pivô z={piv[2]:.2f})")
+                    if it.get("categoria") not in ("carros", "utilitarios", "barcos", "aeronaves"):  # portas laterais de veículo
+                        prob.append(f"{nome}: porta abre para trás (centro aberto z={cn[2]:.2f}, pivô z={piv[2]:.2f})")
                 elif dentro and abs(e[1]) > 0.9:
                     prob.append(f"{nome}: porta aberta entra no corpo")
                 if corpo_lo and not all(corpo_lo[k] - 0.25 < piv[k] < corpo_hi[k] + 0.25 for k in range(3)):
@@ -206,7 +207,8 @@ def audita_item(cat, it):
     # colisão
     col = it.get("colisao", [])
     if not col:
-        prob.append("sem colisão")
+        if it.get("fixacao") != "parede" and not it.get("decalque"):  # placas de parede e decalques não colidem
+            prob.append("sem colisão")
     else:
         clo = [min(c["centro"][k] - c["tamanho"][k] / 2 for c in col) for k in range(3)]
         chi = [max(c["centro"][k] + c["tamanho"][k] / 2 for c in col) for k in range(3)]

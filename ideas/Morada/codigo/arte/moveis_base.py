@@ -142,7 +142,7 @@ def imagem_paleta(caminho=None):
 JANELA_FORCA = 1.6  # emissão das janelas acesas à noite (vai no GLB)
 MAT_NOMES = ["atlas", "vidro", "espelho", "luz", "agua", "neon", "janela", "janela_fria", "janela_apagada",
              "janela_laranja", "janela_rosa", "janela_lilas", "janela_ciano", "janela_verde",
-             "neon_rosa", "neon_roxo", "brilho_roxo"]
+             "neon_rosa", "neon_roxo", "brilho_roxo", "luz_vermelha", "luz_azul"]
 # janelas acesas à noite (cor da luz). De dia todas são o mesmo vidro azul (VIDRO_JANELA).
 JANELAS_COR = {"janela": "#FFD27A", "janela_fria": "#CFEFFF", "janela_laranja": "#FF9F4A", "janela_rosa": "#FF7ACB",
                "janela_lilas": "#B48CFF", "janela_ciano": "#74F2FF", "janela_verde": "#9DFF8C"}
@@ -211,6 +211,12 @@ def materiais():
     b.inputs["Base Color"].default_value = (*_lin("#FFF2C8"), 1)
     b.inputs["Emission Color"].default_value = (*_lin("#FFE3A0"), 1)
     b.inputs["Emission Strength"].default_value = 2.0
+    # lanternas traseiras e sirenes: como "luz" (fracas de dia, fortes à noite), em vermelho e em azul
+    for nome, base, emis in (("luz_vermelha", "#FF6B6B", "#FF2A2A"), ("luz_azul", "#7FB2FF", "#2F6BFF")):
+        lm, b = _principled(nome)
+        b.inputs["Base Color"].default_value = (*_lin(base), 1)
+        b.inputs["Emission Color"].default_value = (*_lin(emis), 1)
+        b.inputs["Emission Strength"].default_value = 2.0
     return [bpy.data.materials[n] for n in MAT_NOMES]
 
 
@@ -558,6 +564,7 @@ def junta(objs, nome="peca"):
 
 def bbox(objs):
     objs = objs if isinstance(objs, (list, tuple)) else [objs]
+    bpy.context.view_layer.update()  # matrix_world fica velha depois de mudar location/rotation sem atualizar
     # pelos vértices (o bound_box pode estar velho depois de mexer na malha)
     pts = [o.matrix_world @ v.co for o in objs if o.type == "MESH" for v in o.data.vertices] or \
           [o.matrix_world @ V(c) for o in objs for c in o.bound_box]
@@ -963,7 +970,7 @@ def emissao_janelas(forca_janela, materiais_=None):
     Vale para os materiais criados aqui e para os importados de GLB (nome começando por "janela")."""
     antes = {}
     for m in (materiais_ or bpy.data.materials):
-        if m.name.split(".")[0] == "luz" and m.use_nodes:  # lâmpadas e lanternas: brilho baixo de dia
+        if m.name.split(".")[0] in ("luz", "luz_vermelha", "luz_azul") and m.use_nodes:  # lâmpadas: fracas de dia
             b = m.node_tree.nodes.get("Principled BSDF")
             if b:
                 antes[m.name] = b.inputs["Emission Strength"].default_value
@@ -1199,6 +1206,8 @@ class Catalogo:
         if os.path.exists(self.arq):
             antigo = json.load(open(self.arq))
             self.dados["itens"] = antigo.get("itens", [])
+            if not rotulo and antigo.get("rotulo"):  # mantém o rótulo da categoria (não vira o nome da pasta)
+                self.dados["rotulo"] = antigo["rotulo"]
         imagem_paleta(os.path.join(saida, "paleta_moveis.png"))
 
     def exporta(self, item, rotulo, grupo="", fixacao="chao", altura_instalacao=None, pacote=False, tags=(),
@@ -1206,7 +1215,9 @@ class Catalogo:
         corpo = item.monta()
         lo, hi = bbox([o for o in _hierarquia(corpo) if o.type == "MESH" and not o.get("colisao")])
         dims = [round(hi.x - lo.x, 3), round(hi.y - lo.y, 3), round(hi.z - lo.z, 3)]
-        if item.colisores:
+        if item.colisores is not None and len(item.colisores) == 0:
+            col = []  # it.colisao([]): sem colisão de propósito (decalques, placas de parede, touceiras)
+        elif item.colisores:
             col = [{"centro": _gl((c[0], c[1], c[2] + t[2] / 2)), "tamanho": [round(t[0], 3), round(t[2], 3),
                                                                               round(t[1], 3)]}
                    for c, t in item.colisores]

@@ -725,6 +725,204 @@
     "mesa",
     "papel"
    ]
+  },
+  {
+   "id": "livro_xadrez_pacote",
+   "rotulo": "Livro de xadrez deitado",
+   "categoria": "livros",
+   "grupo": "livro_xadrez_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.211,
+    0.258,
+    0.059
+   ],
+   "arquivo": "glb/livro_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livro_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02959,
+      -0.0
+     ],
+     "tamanho": [
+      0.211,
+      0.059,
+      0.258
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "piso_rosado"
+   ],
+   "tris": 330,
+   "pacote": true,
+   "tags": [
+    "livro",
+    "xadrez",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livros_em_pe_xadrez_pacote",
+   "rotulo": "Livros coloridos em pé",
+   "categoria": "livros",
+   "grupo": "livros_em_pe_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.337,
+    0.254,
+    0.323
+   ],
+   "arquivo": "glb/livros_em_pe_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livros_em_pe_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16135,
+      -0.0
+     ],
+     "tamanho": [
+      0.337,
+      0.323,
+      0.254
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco_gelo",
+    "calcada",
+    "fogo",
+    "laranja_claro",
+    "menta",
+    "mostarda",
+    "rosa",
+    "rosa_bebe",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_claro",
+    "verde_escuro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 730,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "estante",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livros_em_pe_2_xadrez_pacote",
+   "rotulo": "Livros coloridos em pé (verdes e azuis)",
+   "categoria": "livros",
+   "grupo": "livros_em_pe_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.355,
+    0.224,
+    0.317
+   ],
+   "arquivo": "glb/livros_em_pe_2_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livros_em_pe_2_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15863,
+      -0.0
+     ],
+     "tamanho": [
+      0.355,
+      0.317,
+      0.224
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "fogo",
+    "laranja_claro",
+    "mostarda",
+    "terracota_escura",
+    "tijolo",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_agua",
+    "verde_claro",
+    "verde_escuro",
+    "verde_floresta",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 1044,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "estante",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livro_cassino_pacote",
+   "rotulo": "Livro \"How to win at the casino\"",
+   "categoria": "livros",
+   "grupo": "livro_cassino_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.179,
+    0.256,
+    0.041
+   ],
+   "arquivo": "glb/livro_cassino_pacote.glb",
+   "miniatura": "miniaturas/livro_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0203,
+      -0.0
+     ],
+     "tamanho": [
+      0.179,
+      0.041,
+      0.256
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "carvao",
+    "concreto_escuro",
+    "tecido_cinza",
+    "vermelho"
+   ],
+   "tris": 279,
+   "pacote": true,
+   "tags": [
+    "livro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }

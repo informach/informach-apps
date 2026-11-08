@@ -1,6 +1,6 @@
 {
  "categoria": "mesas",
- "rotulo": "mesas",
+ "rotulo": "Mesas",
  "itens": [
   {
    "id": "mesa_jantar_redonda_pedestal_amarela",
@@ -5031,6 +5031,493 @@
     "bancos",
     "madeira"
    ]
+  },
+  {
+   "id": "escrivaninha_gaveteiro_cassino_pacote",
+   "rotulo": "Escrivaninha grande com gaveteiro",
+   "categoria": "mesas",
+   "grupo": "escrivaninha_gaveteiro_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.543,
+    1.371,
+    0.749
+   ],
+   "arquivo": "glb/escrivaninha_gaveteiro_cassino_pacote.glb",
+   "miniatura": "miniaturas/escrivaninha_gaveteiro_cassino_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.6468,
+     "nome": "gaveta_1",
+     "pivo": [
+      0.82253,
+      0.05943,
+      0.44374
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.6468,
+     "nome": "gaveta_2",
+     "pivo": [
+      0.82253,
+      0.27403,
+      0.44374
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.6468,
+     "nome": "gaveta_3",
+     "pivo": [
+      0.82253,
+      0.48863,
+      0.44374
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_1",
+     "centro": [
+      0.82253,
+      0.07143,
+      0.02714
+     ],
+     "tamanho": [
+      0.31,
+      0.173,
+      0.805
+     ],
+     "em": "gaveta_1"
+    },
+    {
+     "nome": "slot_gaveta_2",
+     "centro": [
+      0.82253,
+      0.28603,
+      0.02714
+     ],
+     "tamanho": [
+      0.31,
+      0.173,
+      0.805
+     ],
+     "em": "gaveta_2"
+    },
+    {
+     "nome": "slot_gaveta_3",
+     "centro": [
+      0.82253,
+      0.50063,
+      0.02714
+     ],
+     "tamanho": [
+      0.31,
+      0.173,
+      0.805
+     ],
+     "em": "gaveta_3"
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      -0.282,
+      0.74918,
+      -1e-05
+     ],
+     "tamanho": [
+      1.88,
+      0.423,
+      1.222
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.71914,
+      -0.0
+     ],
+     "tamanho": [
+      2.543,
+      0.06,
+      1.371
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.34459,
+      -1e-05
+     ],
+     "tamanho": [
+      2.133,
+      0.689,
+      0.923
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_azulado",
+    "cinza_claro",
+    "metal",
+    "preto"
+   ],
+   "tris": 3058,
+   "pacote": true,
+   "tags": [
+    "mesa",
+    "escrivaninha",
+    "escritorio",
+    "gavetas",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "mesa_jantar_madeira_escura_xadrez_pacote",
+   "rotulo": "Mesa de madeira escura",
+   "categoria": "mesas",
+   "grupo": "mesa_madeira_escura_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.743,
+    1.032,
+    0.729
+   ],
+   "arquivo": "glb/mesa_jantar_madeira_escura_xadrez_pacote.glb",
+   "miniatura": "miniaturas/mesa_jantar_madeira_escura_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.729,
+      0.0
+     ],
+     "tamanho": [
+      1.66,
+      0.45,
+      0.95
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.69925,
+      -0.0
+     ],
+     "tamanho": [
+      1.743,
+      0.06,
+      1.032
+     ]
+    },
+    {
+     "centro": [
+      0.72467,
+      0.3345,
+      0.38651
+     ],
+     "tamanho": [
+      0.057,
+      0.669,
+      0.057
+     ]
+    },
+    {
+     "centro": [
+      0.72467,
+      0.3345,
+      -0.38651
+     ],
+     "tamanho": [
+      0.057,
+      0.669,
+      0.057
+     ]
+    },
+    {
+     "centro": [
+      -0.72467,
+      0.3345,
+      0.38651
+     ],
+     "tamanho": [
+      0.057,
+      0.669,
+      0.057
+     ]
+    },
+    {
+     "centro": [
+      -0.72467,
+      0.3345,
+      -0.38651
+     ],
+     "tamanho": [
+      0.057,
+      0.669,
+      0.057
+     ]
+    }
+   ],
+   "cores": [
+    "couro"
+   ],
+   "tris": 204,
+   "pacote": true,
+   "tags": [
+    "mesa",
+    "jantar",
+    "madeira",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "mesa_redonda_alta_cassino_pacote",
+   "rotulo": "Mesa redonda alta (branca)",
+   "categoria": "mesas",
+   "grupo": "mesa_redonda_alta_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.966,
+    0.966,
+    0.852
+   ],
+   "arquivo": "glb/mesa_redonda_alta_cassino_pacote.glb",
+   "miniatura": "miniaturas/mesa_redonda_alta_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      -0.0,
+      0.852,
+      -0.0
+     ],
+     "tamanho": [
+      0.82,
+      0.45,
+      0.82
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.82209,
+      0.0
+     ],
+     "tamanho": [
+      0.966,
+      0.06,
+      0.966
+     ]
+    },
+    {
+     "centro": [
+      0.46514,
+      0.396,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.792,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      0.396,
+      -0.46514
+     ],
+     "tamanho": [
+      0.04,
+      0.792,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.396,
+      0.46514
+     ],
+     "tamanho": [
+      0.04,
+      0.792,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      -0.46514,
+      0.396,
+      0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.792,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "dormente",
+    "marrom",
+    "marrom_claro",
+    "porcelana"
+   ],
+   "tris": 400,
+   "pacote": true,
+   "tags": [
+    "mesa",
+    "redonda",
+    "bistro",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "mesa_redonda_alta_toalha_cassino_pacote",
+   "rotulo": "Mesa redonda alta com toalha vermelha",
+   "categoria": "mesas",
+   "grupo": "mesa_redonda_alta_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.038,
+    1.038,
+    0.865
+   ],
+   "arquivo": "glb/mesa_redonda_alta_toalha_cassino_pacote.glb",
+   "miniatura": "miniaturas/mesa_redonda_alta_toalha_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.865,
+      -0.0
+     ],
+     "tamanho": [
+      0.82,
+      0.45,
+      0.82
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.83518,
+      -0.0
+     ],
+     "tamanho": [
+      0.999,
+      0.06,
+      0.999
+     ]
+    },
+    {
+     "centro": [
+      0.46514,
+      0.4025,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.805,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.4025,
+      -0.46514
+     ],
+     "tamanho": [
+      0.04,
+      0.805,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.4025,
+      0.46514
+     ],
+     "tamanho": [
+      0.04,
+      0.805,
+      0.04
+     ]
+    },
+    {
+     "centro": [
+      -0.46514,
+      0.4025,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.805,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "dormente",
+    "marrom",
+    "marrom_claro",
+    "porcelana",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 494,
+   "pacote": true,
+   "tags": [
+    "mesa",
+    "redonda",
+    "toalha",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }

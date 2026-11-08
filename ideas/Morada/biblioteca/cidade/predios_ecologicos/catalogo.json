@@ -1,6 +1,6 @@
 {
  "categoria": "predios_ecologicos",
- "rotulo": "Prédios ecológicos",
+ "rotulo": "predios_ecologicos",
  "itens": [
   {
    "id": "torre_degraus_inclinada",
@@ -2227,6 +2227,315 @@
     1
    ],
    "andares": 5,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_eco_grade_verde_pacote",
+   "rotulo": "Prédio ecológico de painéis verdes (pacote)",
+   "categoria": "predios_ecologicos",
+   "grupo": "eco_grade_verde_pacote",
+   "fixacao": "chao",
+   "dims": [
+    28.0,
+    16.771,
+    46.949
+   ],
+   "arquivo": "glb/predio_eco_grade_verde_pacote.glb",
+   "miniatura": "miniaturas/predio_eco_grade_verde_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      7.82486,
+      -0.0
+     ],
+     "tamanho": [
+      28.0,
+      15.65,
+      16.771
+     ]
+    },
+    {
+     "centro": [
+      -2e-05,
+      23.47457,
+      0.04499
+     ],
+     "tamanho": [
+      26.595,
+      15.65,
+      16.607
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      39.12428,
+      -0.07972
+     ],
+     "tamanho": [
+      28.0,
+      15.65,
+      16.612
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "azul_claro",
+    "branco_gelo",
+    "calcada",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "couro",
+    "cromo",
+    "ferro",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama_escura",
+    "laranja_claro",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "nogueira",
+    "porcelana",
+    "tecido_cinza",
+    "verde_floresta",
+    "verde_lima",
+    "verde_oliva"
+   ],
+   "tris": 7056,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "ecologico",
+    "jardim_vertical",
+    "pacote",
+    "2x2"
+   ],
+   "lote": [
+    2,
+    2
+   ],
+   "andares": 12,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "torre_eco_rampa_jardim_pacote",
+   "rotulo": "Torre ecológica em rampa com jardins (pacote)",
+   "categoria": "predios_ecologicos",
+   "grupo": "eco_rampa_pacote",
+   "fixacao": "chao",
+   "dims": [
+    13.992,
+    28.0,
+    41.739
+   ],
+   "arquivo": "glb/torre_eco_rampa_jardim_pacote.glb",
+   "miniatura": "miniaturas/torre_eco_rampa_jardim_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.05466,
+      4.17395,
+      -1.36074
+     ],
+     "tamanho": [
+      13.883,
+      8.348,
+      24.898
+     ]
+    },
+    {
+     "centro": [
+      0.3595,
+      12.52184,
+      0.01951
+     ],
+     "tamanho": [
+      13.085,
+      8.348,
+      27.961
+     ]
+    },
+    {
+     "centro": [
+      1.2402,
+      20.86974,
+      -3.41437
+     ],
+     "tamanho": [
+      11.512,
+      8.348,
+      21.132
+     ]
+    },
+    {
+     "centro": [
+      1.23274,
+      29.21764,
+      -7.85215
+     ],
+     "tamanho": [
+      11.429,
+      8.348,
+      12.122
+     ]
+    },
+    {
+     "centro": [
+      1.18646,
+      37.56553,
+      -9.99949
+     ],
+     "tamanho": [
+      11.336,
+      8.348,
+      8.001
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "asfalto_claro",
+    "branco_gelo",
+    "calcada",
+    "cinza_azulado",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite_escuro",
+    "grama_escura",
+    "laranja",
+    "laranja_claro",
+    "menta",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "pessego",
+    "porcelana",
+    "trilho",
+    "verde_floresta"
+   ],
+   "tris": 8586,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "ecologico",
+    "torre",
+    "terracos",
+    "plantas",
+    "pacote",
+    "2x2"
+   ],
+   "lote": [
+    2,
+    2
+   ],
+   "andares": 10,
+   "estilo": "ecologico"
+  },
+  {
+   "id": "predio_eco_terracos_pacote",
+   "rotulo": "Prédio ecológico de terraços com telhado verde (pacote)",
+   "categoria": "predios_ecologicos",
+   "grupo": "eco_terracos_pacote",
+   "fixacao": "chao",
+   "dims": [
+    13.989,
+    28.0,
+    17.891
+   ],
+   "arquivo": "glb/predio_eco_terracos_pacote.glb",
+   "miniatura": "miniaturas/predio_eco_terracos_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      2.98182,
+      -0.94153
+     ],
+     "tamanho": [
+      13.989,
+      5.964,
+      23.989
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.94547,
+      -0.73049
+     ],
+     "tamanho": [
+      13.989,
+      5.964,
+      26.539
+     ]
+    },
+    {
+     "centro": [
+      -0.00074,
+      14.90911,
+      3.55942
+     ],
+     "tamanho": [
+      12.348,
+      5.964,
+      20.881
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "asfalto_claro",
+    "branco_gelo",
+    "calcada",
+    "cinza_claro",
+    "concreto_escuro",
+    "cromo",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama_escura",
+    "laranja_claro",
+    "marrom",
+    "menta",
+    "metal_claro",
+    "metal_escuro",
+    "porcelana",
+    "trilho",
+    "verde_floresta",
+    "verde_lima",
+    "verde_oliva"
+   ],
+   "tris": 4942,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "ecologico",
+    "terracos",
+    "telhado_verde",
+    "pacote",
+    "2x2"
+   ],
+   "lote": [
+    2,
+    2
+   ],
+   "andares": 4,
    "estilo": "ecologico"
   }
  ]

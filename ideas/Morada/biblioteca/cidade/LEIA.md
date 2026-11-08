@@ -1,12 +1,22 @@
-# Cidade: infraestrutura e prédios
+# Cidade
 
-A biblioteca de cidade tem **271 peças em 14 categorias**, todas com miniatura:
+A biblioteca de cidade tem **590 peças em 25 categorias**, todas com miniatura:
 
 - **infraestrutura:** 88 peças em 7 categorias;
-- **prédios:** 183 peças em 7 categorias (6 estilos e os arranha-céus), todos com janelas que acendem à noite.
+- **prédios:** 190 peças em 7 categorias (6 estilos e os arranha-céus), todos com janelas que acendem à noite;
+- **sinalização e grafites:** 72 peças, parte delas animada;
+- **vegetação e mobiliário urbano:** 64 peças;
+- **transportes:** 94 peças (carros, utilitários e trens, barcos e aeronaves);
+- **parque:** 44 peças (brinquedos, áreas e atrações);
+- **vila de fantasia:** 38 peças.
 
-As peças foram feitas aqui tendo como norte as imagens de referência, sem copiá-las. Entram também 12 peças do pacote
-gratuito Cartoon City (ruas e calçadas, com o selo `pacote`: **uso interno, não distribuir**).
+As peças próprias foram feitas aqui tendo como norte as imagens de referência, sem copiá-las. Entram também **96 peças de
+pacotes gratuitos**, com o selo `pacote` (**uso interno, não distribuir**):
+
+- do Cartoon City: ruas, calçadas, 4 prédios, outdoors, placa, grafite, 6 carros, arbustos, palmeira, chafariz,
+  lixeiras, refletores, ponto de ônibus e semáforos;
+- do Fantasy: as 3 casinhas (em `predios_magicos`) e as 38 peças da vila;
+- do Apocalypse: o carro, pinheiro, barricada, defensa, placa e churrasqueira.
 
 Página: `paginas/cidade/cidade.html`. Tem o catálogo por categoria, o visor 3D, a troca de cores, o botão **Noite**,
 as cancelas e comportas que abrem e as vitrines. Os "testes de encaixe" e os "quarteirões" são trechos de cidade
@@ -28,12 +38,12 @@ montados com as peças encostadas.
 
 | Categoria | Peças | Desenhos | O que tem |
 |---|---:|---:|---|
-| `predios_regulares` | 30 | 26 | sobrados e prédios de tijolo, bege e azul, de 2 a 15 andares; lojas de esquina (padaria, café, farmácia, sorveteria), mercadinho, cinema, hotel, boliche e salão de música com letreiros; escritórios e duas torres |
-| `predios_ecologicos` | 28 | 24 | casas e prédios brancos, verdes e de madeira, com tetos-jardim, hortas, painéis solares, jardim vertical, cascata e turbina eólica; café, quitanda, academia e pavilhão |
+| `predios_regulares` | 31 | 27 | sobrados e prédios de tijolo, bege e azul, de 2 a 15 andares; lojas de esquina (padaria, café, farmácia, sorveteria), mercadinho, cinema, hotel, boliche e salão de música com letreiros; escritórios e duas torres |
+| `predios_ecologicos` | 31 | 27 | casas e prédios brancos, verdes e de madeira, com tetos-jardim, hortas, painéis solares, jardim vertical, cascata e turbina eólica; café, quitanda, academia e pavilhão |
 | `predios_chinatown` | 30 | 19 | pagodes (pequeno, hexagonal, de 5 e de 9 andares), templo, portal, casa de chá, restaurantes, lojas e mercado de beirais, e prédios de vidro com coroa de pagode, em vermelho, jade, dourado e telhas azuis |
 | `predios_futuristas` | 31 | 20 | boate, discoteca com globo, fliperama, clube de realidade virtual, cyber-lojas com telas, cápsulas em ovo, casas modulares e torres com anéis de neon, em branco, azul, lilás e neon |
 | `predios_tropicais` | 24 | 18 | hotéis e pousadas art déco, torres de varandas onduladas, cinema, boate, bares de praia, quiosque, sorveteria e loja de surfe, em tons pastel com coral e turquesa |
-| `predios_magicos` | 24 | 17 | 4 marcos (cristais, castelo de areia, castelo rosa de 2 × 2 quadras e casa na árvore) e 20 casas fofas (cubo mágico, casas tortas, casa de doce, cogumelo, abóbora e outras), em cores de bala |
+| `predios_magicos` | 27 | 20 | 4 marcos (cristais, castelo de areia, castelo rosa de 2 × 2 quadras e casa na árvore) e 20 casas fofas (cubo mágico, casas tortas, casa de doce, cogumelo, abóbora e outras), em cores de bala |
 | `arranha_ceus` | 16 | 16 | torres de 71 a 154 m (gema, S, torcida com heliponto, cilindro, coroa, cintura fina, escalonada, lança de costelas, prisma, ovo, blocos, par de arcos, espiral, trevo e art déco) |
 
 Variações de cor do mesmo desenho têm o mesmo `grupo` e aparecem em "Outras cores" na página.
@@ -65,6 +75,121 @@ Variações de cor do mesmo desenho têm o mesmo `grupo` e aparecem em "Outras c
   floreiras, torres de canto e pilares. Beirais, toldos e marquises acima de 2,2 m, antenas e degraus baixos ficam de fora
   de propósito: não atrapalham quem anda.
 - **Quarteirões:** cada estilo tem um teste de quarteirão de dia e de noite, com as ruas e calçadas da biblioteca.
+
+## Sinalização e grafites
+
+| Categoria | Peças | O que tem |
+|---|---:|---|
+| `sinalizacao` | 51 | <ul><li>outdoors de poste (5 estruturas);</li><li>faixas, letreiros de LED e faixa de bandeira;</li><li>painéis de fachada e pares de esquina;</li><li>verticais de chão e de parede e totens de 3 × 8 m;</li><li>letreiros de letras soltas em 3D;</li><li>placas pequenas;</li><li>5 peças do pacote.</li></ul> |
+| `grafites` | 21 | 16 decalques transparentes (PAZ, AMOR, LEGAL, ARTE...), 4 muros grafitados e o grafite do pacote |
+
+- As telas são estampas desenhadas com PIL, com texto genérico em português e sem marcas. Elas brilham à noite.
+- **Decalques:** são um quad 2 mm à frente da parede, com `alphaMode` MASK, `"decalque": true` e sem colisão.
+- **Pares de esquina:** têm `"quina": [0, 0, 0]`. A origem fica na quina do prédio: a frente olha para −Y e a lateral
+  para +X.
+
+## Animações (extras glTF)
+
+O nó que anima é um filho com a origem no pivô. Os extras dele (eixos do glTF) dizem como tocar, e o catálogo repete a
+lista em `"animacoes": [{"nome", ...}]`. A página toca todas.
+
+| `anima` | Parâmetros | O que faz |
+|---|---|---|
+| `rolar` | `velocidade` (UV/s) | a textura corre em U (LED); a malha mostra só um trecho |
+| `trocar` | `quadros`, `periodo` | a malha mostra um quadro (u de 0 a 1/n), e o `offset.x` pula para k/n a cada período |
+| `piscar` | `periodo`, `suave` | a emissão liga e desliga pela metade do período; com `suave`, tremula sem apagar (chama) |
+| `girar` | `eixo`, `velocidade` (graus/s) | gira em volta da origem. Rodas levam `"roda": 1, "raio"`, e hélices levam `"helice": 1` |
+| `balancar` | `angulo`, `periodo`, `eixo` | oscila em seno (bandeiras, balanços) |
+| `percurso` | `pontos`, `velocidade` (m/s), `atraso` (m), `fechado` | anda pela lista de pontos com a frente (+Z do glTF) na direção do caminho (carrinhos no trilho) |
+
+Para um objeto ficar em pé dentro de outro que gira (as cabines da roda-gigante), ele é filho do que gira e gira ao
+contrário.
+
+## Vegetação e mobiliário urbano
+
+| Categoria | Peças | O que tem |
+|---|---:|---|
+| `vegetacao` | 23 | <ul><li>árvores de bolotas (3 tamanhos), oval, cônica, pinheiro, florida, de outono e a árvore enorme de praça;</li><li>palmeira, arbustos, topiarias, cerca-viva, canteiro, floreira, vaso e touceira;</li><li>do pacote: palmeira, 3 arbustos e o pinheiro do Apocalypse.</li></ul> |
+| `mobiliario_urbano` | 41 | <ul><li>bancos (com assentos), mesa de piquenique, guarda-sol;</li><li>postes de rua e de praça, luminária de jardim, relógio com o ponteiro de segundos girando;</li><li>lixeiras de reciclagem, bebedouro, hidrante, correio, bicicletário, orelhão, ponto de ônibus, placas de trânsito;</li><li>do pacote: lixeiras, refletores, ponto de ônibus e 3 semáforos com as luzes acesas, mais barricada, defensa, placa e churrasqueira do Apocalypse.</li></ul> |
+
+As lâmpadas usam `luz`. Nos semáforos, o vermelho usa `luz_vermelha` e o verde usa `neon`. Árvores, postes e placas
+colidem só no tronco ou na haste.
+
+## Aeronaves
+
+São 15 peças, todas com `"voa": true` e z = 0 no pé do trem de pouso ou no fundo da cesta:
+- 2 dirigíveis;
+- 2 aviões de passageiros;
+- 2 helicópteros;
+- 2 balões listrados;
+- os balões de polvo pirata, lua com estrelas, dragão e abelha;
+- teco-teco, hidroavião e ultraleve.
+
+Hélices, rotores e rodas giram, e a chama dos balões tremula. Os aviões, helicópteros e aviões pequenos têm a porta da
+cabine que abre. Todas têm assentos, luzes de navegação e janelas que acendem à noite.
+
+## Transportes
+
+| Categoria | Peças | O que tem |
+|---|---:|---|
+| `carros` | 40 | <ul><li>sedãs, táxi, viatura com sirene;</li><li>sedãs de luxo, compactos, SUV, jipe, esportivos (um conversível), cupês, carro de corrida, antigo listrado, carrinho redondo, minivan de 6 rodas, picapes, 3 futuristas, bugue e kart;</li><li>scooter, moto, bicicleta, carrinho de bebê e skate;</li><li>os 6 carros do Cartoon City e o carro do Apocalypse (pacote).</li></ul> |
+| `utilitarios` | 23 | <ul><li>kombis, furgão, ambulância, food truck de sorvete;</li><li>bombeiros, caminhão-baú, caminhão de som, caminhão de lixo;</li><li>4 ônibus (turismo, rosa, urbano e escolar);</li><li>3 carros antigos;</li><li>trem (locomotiva, vagão e cauda), bonde, VLT e trem do tubo (frente e vagão).</li></ul> |
+| `barcos` | 16 | veleiros, iates, veleiros de madeira, barcos de passeio, lanchas, barco de pesca, barca de passageiros, caiaque, pedalinho, bote e o navio de cruzeiro de 78 m |
+| `aeronaves` | 15 | veja abaixo |
+
+- **Eixos e origem:** a frente fica para −Y, com origem no centro, embaixo. Os veículos de chão tocam z = 0. Nos
+  barcos, z = 0 é a linha d'água (`linha_dagua`).
+- **Rodas, hélices e sirenes:**
+  - rodas e hélices são filhos que giram (`"roda": 1, "raio"` ou `"helice": 1`);
+  - sirenes piscam, e a segunda leva `fase` para alternar.
+- **Portas, assentos e carga:**
+  - portas, tampas, caçambas e rampas abrem (`Item.porta`); portas de correr usam `Item.correr`;
+  - cada lugar tem um slot (`assento_motorista`, `assento_1`...);
+  - há também slots de carga: `cacamba`, `bau`, `carga`.
+- **Noite:** faróis em `luz`, lanternas em `luz_vermelha`. Os vidros de carro usam `janela_apagada`; as janelas de
+  ônibus, trem e navio acendem.
+- **Trilhos:** trem, bonde e trem do tubo casam com a bitola e a altura de `ferrovia`. O catálogo grava `trilho` e
+  `engate`.
+
+## Parque
+
+| Categoria | Peças | O que tem |
+|---|---:|---|
+| `parque_brinquedos` | 17 | <ul><li>montanha-russa do dragão com vulcão (3 × 2 quadras);</li><li>montanha-russa de loopings (2 × 2);</li><li>roda-gigante de 29 m (2 × 1);</li><li>parque aquático (2 × 2);</li><li>carrossel, xícaras, barco viking, torre de queda, bate-bate e trenzinho;</li><li>6 peças do castelo do parque e a estátua da menina.</li></ul> |
+| `parque_areas` | 27 | <ul><li>9 placas de caminho de parque (reta, curva, cruz, T, rotatória, fim, dupla, canto e praça redonda) que casam com `pisos`;</li><li>lago com caminho e zoológico com 8 recintos (2 × 2 cada; slots `recinto_*` para os bichos);</li><li>pista de skate, palco de festival, 3 tendas de circo, 4 quiosques, playground;</li><li>chafariz (e o do pacote), obelisco, arco de treliça, coreto e banco.</li></ul> |
+
+- Os carrinhos das montanhas-russas, do bate-bate e do trenzinho, os pedalinhos e os cavalos do carrossel andam com
+  `percurso`.
+- A roda-gigante, o carrossel, as xícaras e o gira-gira giram. O barco viking, os balanços e a gangorra balançam.
+- As lâmpadas, os refletores do palco e o telão piscam ou trocam de imagem.
+- As áreas usam `"quadras": [nx, ny]` (não `lote`, que é dos prédios).
+
+## Vila de fantasia
+
+`fantasia` reúne as 38 peças do pacote Fantasy: árvores fabulosas, pinheiro, cacto, cogumelos fabulosos (o gigante e a
+touceira têm pintas que brilham à noite, em `brilho_roxo`), barraca e bancada de feira, carroça, guindaste, barril,
+caixas, sacos, balde, jarros, pratos, toras, mesa, suporte e placa indicativa. As 3 casinhas do pacote estão em
+`predios_magicos`.
+
+> Alguns geradores apagam do catálogo, ao rodar de novo, o que não está na lista deles. Depois de cada um, rode o que
+> repõe as peças do pacote:
+>
+> | Gerador | Depois rode |
+> |---|---|
+> | `predios_magicos.py` | `cidade_fantasia.py -- <saida> casas` |
+> | `predios_ecologicos.py` ou `predios_regulares.py` | `predios_pacote.py` |
+> | `cidade_sinalizacao.py` ou `cidade_grafites.py` | `cidade_sinalizacao_pacote.py` |
+
+## Materiais de luz
+
+Além de `luz`, `neon`, `vidro` e `agua`:
+- janelas: `janela`, `janela_fria` e `janela_apagada`, mais as coloridas `janela_laranja`, `janela_rosa`,
+  `janela_lilas`, `janela_ciano` e `janela_verde`;
+- neons: `neon_rosa` e `neon_roxo`;
+- `brilho_roxo`, que só brilha à noite;
+- `luz_vermelha` e `luz_azul` (lanternas e sirenes).
+
+A página e o motor apagam janelas e brilhos de dia e diminuem neons e luzes.
 
 ## Convenções da infraestrutura (as mesmas do pacote Cartoon City, para encaixar nas peças dele)
 
@@ -121,6 +246,14 @@ e pelo teste de quarteirão.
   `codigo/arte/GUIA_CIDADE.md`.
 - **Geradores:** `cidade_ruas.py` (ruas, pisos e estacionamentos), `cidade_ferrovia_pontes.py` e
   `cidade_agua_estruturas.py`, cada um com o seu script `_encaixe.py`.
+- **Sinalização e grafites:** `cidade_sinalizacao.py`, `cidade_grafites.py` e `cidade_sinalizacao_pacote.py`, com os
+  guias `GUIA_SINALIZACAO.md`.
+- **Vegetação e mobiliário:** `cidade_vegetacao.py` e `cidade_mobiliario.py`.
+- **Transportes:** `cidade_carros.py`, `cidade_utilitarios.py`, `cidade_barcos.py` e `cidade_aeronaves.py` (guia
+  `GUIA_TRANSPORTE.md`).
+- **Parque:** `cidade_parque_brinquedos.py` e `cidade_parque_areas.py` (guia `GUIA_PARQUE.md`).
+- **Fantasia:** `cidade_fantasia.py` (`-- <saida> [casas|fantasia|ids]`). Os 4 prédios do Cartoon City vêm de
+  `predios_pacote.py`.
 - **Prédios:** o guia é `codigo/arte/GUIA_PREDIOS.md`. Cada estilo tem `predios_<estilo>.py` (e `predios_arranha_ceus.py`),
   com `_estampas.py` (letreiros em PIL), `_vitrines.py` e `_quarteirao.py`. Rodam com
   `MOVEIS_THREADS=1 blender-venv/bin/python -I codigo/arte/predios_<estilo>.py -- <saida> [ids]`.

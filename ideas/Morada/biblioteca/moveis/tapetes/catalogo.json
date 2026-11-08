@@ -500,6 +500,91 @@
     "redondo",
     "quarto"
    ]
+  },
+  {
+   "id": "tapete_oval_cinza_xadrez_pacote",
+   "rotulo": "Tapete oval cinza",
+   "categoria": "tapetes",
+   "grupo": "tapete_oval_cinza_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.634,
+    3.729,
+    0.04
+   ],
+   "arquivo": "glb/tapete_oval_cinza_xadrez_pacote.glb",
+   "miniatura": "miniaturas/tapete_oval_cinza_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02016,
+      -0.0
+     ],
+     "tamanho": [
+      2.634,
+      0.04,
+      3.729
+     ]
+    }
+   ],
+   "cores": [
+    "dormente",
+    "madeira_cinza"
+   ],
+   "tris": 836,
+   "pacote": true,
+   "tags": [
+    "tapete",
+    "sala",
+    "oval",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "tapete_carpete_cassino_pacote",
+   "rotulo": "Carpete de ondas escuras (3 × 3 m)",
+   "categoria": "tapetes",
+   "grupo": "tapete_carpete_pacote",
+   "fixacao": "chao",
+   "dims": [
+    3.0,
+    3.0,
+    0.005
+   ],
+   "arquivo": "glb/tapete_carpete_cassino_pacote.glb",
+   "miniatura": "miniaturas/tapete_carpete_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00275,
+      -0.0
+     ],
+     "tamanho": [
+      3.0,
+      0.005,
+      3.0
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro"
+   ],
+   "tris": 190,
+   "pacote": true,
+   "tags": [
+    "tapete",
+    "carpete",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }

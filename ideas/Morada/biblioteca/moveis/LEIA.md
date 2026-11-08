@@ -1,9 +1,15 @@
 # Móveis
 
 Segunda parte da biblioteca de móveis e ambientes (a primeira é `construcao/`: chão, paredes, portas e janelas). São
-**958 peças em 20 categorias**, todas com miniatura. Foram feitas aqui tendo como norte as imagens da vitrine do pacote
-de móveis (não são cópias). Entram também as 47 peças do pacote gratuito Cute Furniture, com o selo `pacote`: **uso
-interno, não distribuir**. Algumas aparecem em mais de uma cor, e por isso são 51 itens marcados.
+**1.152 peças em 22 categorias**, todas com miniatura. As peças próprias foram feitas aqui tendo como norte as imagens da
+vitrine do pacote de móveis (não são cópias). Entram também **245 peças de pacotes gratuitos**, com o selo `pacote`
+(**uso interno, não distribuir**):
+
+- as 47 do Cute Furniture (algumas em mais de uma cor);
+- as 90 do pacote de Natal (categoria `natal`);
+- as dos pacotes Chess, Casino e Claw Machine (categoria `jogos` e móveis e objetos espalhados nas categorias);
+- os objetos de casa do pacote Apocalypse (primeiros socorros, lanterna, galão, fogareiro, rádio e mapa);
+- os tacos de beisebol e de hóquei do pacote Weapons. As armas ficam de fora.
 
 Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gira com o mouse, abre portas e gavetas
 (clicando nelas ou pelos botões), põe objetos da própria biblioteca nos espaços internos e mostra os espaços e a colisão.
@@ -12,12 +18,12 @@ Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gir
 
 | Categoria | Peças | Desenhos | Interativos |
 |---|---:|---:|---:|
-| `sofas`: sofás, divãs e espreguiçadeiras | 33 | 19 | 0 |
+| `sofas`: sofás, divãs e espreguiçadeiras | 34 | 20 | 0 |
 | `pufes` | 8 | 8 | 1 |
-| `cadeiras`: cadeiras, poltronas e banquetas | 59 | 53 | 0 |
-| `mesas`: jantar, centro, laterais, escrivaninhas, infantis, de jardim e balcões | 51 | 43 | 12 |
+| `cadeiras`: cadeiras, poltronas e banquetas | 63 | 57 | 1 |
+| `mesas`: jantar, centro, laterais, escrivaninhas, infantis, de jardim e balcões | 55 | 46 | 15 |
 | `racks_tv` | 18 | 12 | 30 |
-| `estantes`: estantes, nichos e prateleiras de parede | 16 | 15 | 1 |
+| `estantes`: estantes, nichos e prateleiras de parede | 17 | 16 | 1 |
 | `lareiras`: lareiras, fogareiros e tubos de chaminé | 18 | 16 | 5 |
 | `camas` | 42 | 22 | 28 |
 | `criados`: criados-mudos | 34 | 18 | 31 |
@@ -26,16 +32,18 @@ Página: `paginas/moveis/moveis.html`. Nela se escolhe a peça no catálogo, gir
 | `cozinha_moveis`: módulos de 7 linhas e fogões | 220 | 129 | 417 |
 | `cozinha_eletros`: eletrodomésticos, grills, utensílios e louça | 138 | 76 | 90 |
 | `banheiro` | 112 | 82 | 61 |
-| `luminarias` | 18 | 18 | 0 |
+| `luminarias` | 22 | 22 | 0 |
 | `quadros` | 23 | 23 | 0 |
-| `tapetes` | 12 | 9 | 0 |
-| `plantas` | 23 | 23 | 0 |
-| `livros` | 16 | 14 | 0 |
-| `objetos`: piano, TVs, som, computadores, ginástica, brinquedos, notas adesivas etc. | 72 | 58 | 7 |
-| **Total** | **958** | **663** | **804** |
+| `tapetes` | 14 | 11 | 0 |
+| `plantas` | 25 | 25 | 0 |
+| `livros` | 20 | 17 | 0 |
+| `objetos`: piano, TVs, som, computadores, ginástica, brinquedos, notas adesivas, dinheiro, cofre, caixa eletrônico e objetos de sobrevivência | 107 | 84 | 9 |
+| `jogos`: xadrez, damas, cartas, caça-níqueis, máquina de pelúcia, pelúcias e tacos esportivos | 47 | 20 | 24 |
+| `natal`: móveis, lareira, árvores, enfeites, louça e a casa de biscoito do pacote de Natal | 90 | 79 | 13 |
+| **Total** | **1.152** | **808** | **847** |
 
 A coluna "Interativos" conta as portas, gavetas, tampas e portas de correr. Os espaços internos (`slots`) são 1.497
-no total. Com as 124 peças de construção, a biblioteca chega a 1.082 peças.
+no total. Com as 124 peças de construção, a biblioteca chega a 1.276 peças.
 
 ## Arquivos de cada categoria (`<categoria>/`)
 
@@ -108,6 +116,8 @@ grupo de categorias tem um gerador em `codigo/arte/`:
 | `moveis_cozinha_eletros.py` | eletros |
 | `moveis_decoracao.py` | quadros, tapetes e plantas (as estampas vêm de `moveis_decoracao_estampas.py`) |
 | `moveis_objetos.py` | objetos, livros e luminárias |
+| `moveis_natal.py` | o pacote de Natal (vitrines em `moveis_natal_vitrines.py`, cena em `moveis_natal_cena.py`) |
+| `moveis_pacotes_extras.py` | Chess, Casino, Claw Machine, objetos do Apocalypse e os tacos (modos `pecas` e `vitrines`) |
 
 ```bash
 MOVEIS_THREADS=2 MOVEIS_PACOTE_FBX=<pacote>/Separate_Assets_fbx MOVEIS_PACOTE_TEX=<pacote>/Textures_4.png blender-venv/bin/python -I codigo/arte/moveis_<grupo>.py -- <saida> [categoria|ids]

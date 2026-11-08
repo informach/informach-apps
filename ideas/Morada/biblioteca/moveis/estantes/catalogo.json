@@ -1,6 +1,6 @@
 {
  "categoria": "estantes",
- "rotulo": "estantes",
+ "rotulo": "Estantes e prateleiras",
  "itens": [
   {
    "id": "estante_nichos_8_azul",
@@ -1637,6 +1637,169 @@
     "parede"
    ],
    "altura_instalacao": 1.4
+  },
+  {
+   "id": "estante_nichos_xadrez_pacote",
+   "rotulo": "Estante baixa com quatro nichos (grafite)",
+   "categoria": "estantes",
+   "grupo": "estante_nichos_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.999,
+    0.521,
+    0.856
+   ],
+   "arquivo": "glb/estante_nichos_xadrez_pacote.glb",
+   "miniatura": "miniaturas/estante_nichos_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_nicho_1",
+     "centro": [
+      -0.225,
+      0.07102,
+      0.00229
+     ],
+     "tamanho": [
+      0.4,
+      0.38,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_2",
+     "centro": [
+      0.225,
+      0.07102,
+      0.00229
+     ],
+     "tamanho": [
+      0.4,
+      0.38,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_3",
+     "centro": [
+      -0.225,
+      0.47102,
+      0.00229
+     ],
+     "tamanho": [
+      0.4,
+      0.34,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_nicho_4",
+     "centro": [
+      0.225,
+      0.47102,
+      0.00229
+     ],
+     "tamanho": [
+      0.4,
+      0.34,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tampo",
+     "centro": [
+      0.0,
+      0.85702,
+      0.00229
+     ],
+     "tamanho": [
+      0.98,
+      0.4,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.48217,
+      0.42808,
+      -0.0
+     ],
+     "tamanho": [
+      0.035,
+      0.856,
+      0.521
+     ]
+    },
+    {
+     "centro": [
+      0.48217,
+      0.42808,
+      -0.0
+     ],
+     "tamanho": [
+      0.035,
+      0.856,
+      0.521
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.83867,
+      -0.0
+     ],
+     "tamanho": [
+      0.999,
+      0.035,
+      0.521
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.035,
+      -0.0
+     ],
+     "tamanho": [
+      0.999,
+      0.07,
+      0.521
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.42808,
+      -0.24295
+     ],
+     "tamanho": [
+      0.999,
+      0.856,
+      0.035
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "couro_preto"
+   ],
+   "tris": 486,
+   "pacote": true,
+   "tags": [
+    "estante",
+    "nichos",
+    "baixa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
   }
  ]
 }

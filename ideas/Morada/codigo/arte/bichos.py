@@ -1,5 +1,8 @@
-"""Bichos de estimação do Morada: 13 animais feitos a partir do Doberman do pacote Apocalypse (grátis, uso interno),
-com as 11 animações dele ajustadas a cada um. A imagem da vitrine de bichos serve de norte; as formas são próprias.
+"""Cachorros de estimação do Morada: 16 cachorros feitos a partir do Doberman do pacote Apocalypse (grátis, uso interno),
+com as 11 animações dele ajustadas a cada um e mais 10 compostas (bichos_estimacao_clipes.py: sentar, abanar o rabo,
+coçar a orelha, cavar, uivar, farejar, buscar, pular de alegria, beber e comer), resolvidas no esqueleto de cada um.
+A imagem da vitrine de bichos serve de norte; as formas são próprias. Os gatos agora nascem do Kitty_001 do pacote
+Animals (bichos_estimacao_animals.py), com movimentos de gato.
 
 Como cada bicho nasce do Doberman:
 - proporções: cada osso ganha um fator de comprimento e de espessura (e, se preciso, um giro no lugar de descanso). O
@@ -13,7 +16,8 @@ Como cada bicho nasce do Doberman:
 - animações: o deslocamento do quadril (Spine1) cresce ou diminui com a altura do quadril; o resto, com o tamanho.
 
 Uso: python bichos.py -- <saida> [ids separados por vírgula | todos] [--blend arquivo.blend]
-Saída: <saida>/<id>.glb (malha com cor por vértice, esqueleto e as 11 animações em trilhas NLA) e bichos.json.
+Saída: <saida>/<id>.glb (malha com cor por vértice, esqueleto e as 21 animações em trilhas NLA) e bichos.json
+(ou --json <arquivo>). --clipes a,b só faz esses clipes novos (para testar).
 """
 import json
 import math
@@ -128,21 +132,60 @@ BICHOS = {
                       zonas=[("cauda_toda", "#f07aa6")]),
     "lulu_azul": dict(base="lulu", nome="Lulu azul",
                       cores={"pelo": "#9fd0f2", "marca": "#9fd0f2", "nariz": "#1a1c24", "olho": "#141010"}),
-    "gato": dict(nome="Gato preto", especie="gato", escala=0.6,
-                 esqueleto={"tronco": (0.82, 0.95, 0.85), "pescoco": (0.85, 0.6, 0.85), "cabeca": (1.32, 0.88, 1.22),
-                            "pernas": (0.82, 0.8, 0.82), "dedos": (0.85, 0.85, 0.85), "dedos_frente": (0.85, 0.85, 0.85)},
-                 focinho=0.3, focinho_larg=0.8, nariz=0.55, orelha=dict(tipo="gato", larg=0.075, comp=0.08),
-                 cauda=dict(tipo="gato", comp=0.62, raio=0.03),
-                 cores={"pelo": "#2b2b2e", "marca": "#2b2b2e", "nariz": "#1a1a1c", "olho": "#7fc04a",
-                        "dentro_orelha": "#e89aa6"}, bigode=True),
-    "gato_frajola": dict(base="gato", nome="Gato frajola",
-                         cores={"pelo": "#232325", "marca": "#232325", "nariz": "#e89aa6", "olho": "#e8a62a",
-                                "dentro_orelha": "#e89aa6"},
-                         zonas=[("peito", "#f4f2ee"), ("focinho_baixo", "#f4f2ee"), ("patas", "#f4f2ee")]),
-    "gato_laranja": dict(base="gato", nome="Gato laranja",
-                         cores={"pelo": "#f09a2a", "marca": "#f09a2a", "nariz": "#e88a96", "olho": "#7fc04a",
-                                "dentro_orelha": "#f2b0b8"},
-                         zonas=[("peito", "#f6f0e6"), ("focinho_baixo", "#f6f0e6"), ("patas", "#f6f0e6")]),
+    # os gatos (gato, gato_frajola, gato_laranja) agora nascem do Kitty_001: bichos_estimacao_animals.py
+    "golden": dict(nome="Golden retriever", especie="cachorro", escala=0.92,
+                   esqueleto={"tronco": (1.1, 1.02, 1.08), "pescoco": (1.12, 0.95, 1.08), "cabeca": (1.06, 1.0, 1.04),
+                              "pernas": (1.1, 0.95, 1.1), "dedos": (1.12, 1.0, 1.1), "dedos_frente": (1.12, 1.0, 1.1)},
+                   focinho=0.95, orelha=dict(tipo="caida", larg=0.08, comp=0.13),
+                   fofo={"Neck": 0.03, "Neck1": 0.02, "Spine2": 0.03, "Spine1": 0.015, "Thigh": 0.015,
+                         "Front_Thigh": 0.012},
+                   cauda=dict(tipo="longa", comp=0.34, raio=0.038, curva=-0.15),
+                   cores={"pelo": "#e0a24a", "marca": "#e0a24a", "nariz": "#3a2420", "olho": "#2a1a12"},
+                   zonas=[("peito", "#efc27c"), ("focinho_baixo", "#ebb868")]),
+    "pastor": dict(nome="Pastor alemão", especie="cachorro", escala=0.97,
+                   esqueleto={"tronco": (1.05, 1.1, 1.05), "pescoco": (1.1, 1.0, 1.05), "cabeca": (1.02, 1.05, 1.0),
+                              "pernas_frente": (1.05, 0.98, 1.05), "pernas_tras": (1.05, 0.95, 1.05)},
+                   focinho=1.02, orelha=dict(tipo="pontuda", larg=0.085, comp=0.13),
+                   fofo={"Neck": 0.025, "Neck1": 0.02, "Spine2": 0.02},
+                   cauda=dict(tipo="longa", comp=0.36, raio=0.04, curva=-0.35),
+                   cores={"pelo": "#c8843e", "marca": "#c8843e", "nariz": "#151515", "olho": "#2a1a12",
+                          "orelha": "#2a2426", "cauda": "#3a3032"},
+                   zonas=[("costas", "#262224"), ("focinho_todo", "#2a2426")]),
+    "husky": dict(nome="Husky siberiano", especie="cachorro", escala=0.88,
+                  esqueleto={"tronco": (1.08, 0.98, 1.05), "pescoco": (1.1, 0.95, 1.05), "cabeca": (1.04, 0.95, 1.02),
+                             "pernas": (1.05, 0.95, 1.05)},
+                  focinho=0.88, orelha=dict(tipo="pontuda", larg=0.075, comp=0.095),
+                  fofo={"Neck": 0.04, "Neck1": 0.03, "Spine2": 0.035, "Spine1": 0.02, "Head": 0.008},
+                  cauda=dict(tipo="enrolada", comp=0.3, raio=0.06),
+                  cores={"pelo": "#f2f2f4", "marca": "#f2f2f4", "nariz": "#1a1a1c", "olho": "#4aa6ee",
+                         "orelha": "#5b6068", "cauda": "#5b6068"},
+                  zonas=[("costas", "#5b6068"), ("cabeca_topo", "#5b6068")]),
+    "poodle": dict(nome="Poodle", especie="cachorro", escala=0.55,
+                   esqueleto={"tronco": (1.1, 0.88, 1.1), "pescoco": (1.0, 1.05, 1.0), "cabeca": (1.0, 1.0, 1.0),
+                              "pernas": (1.0, 1.02, 1.0)},
+                   focinho=1.05, focinho_larg=0.78, nariz=0.8, orelha=dict(tipo="caida", larg=0.1, comp=0.14),
+                   fofo={"Spine2": 0.07, "Neck": 0.07, "Neck1": 0.06, "Spine1": 0.06, "Spine": 0.06, "Head": 0.02,
+                         "Thigh": 0.045, "Front_Shoulder": 0.045, "Front_Thigh": 0.03, "Shin": 0.02, "Front_Shin": 0.02},
+                   cauda=dict(tipo="pompom", comp=0.15, raio=0.075), topete=0.075,
+                   cores={"pelo": "#e9b98a", "marca": "#e9b98a", "nariz": "#2a1a14", "olho": "#1a1210"}),
+    "buldogue": dict(nome="Buldogue inglês", especie="cachorro", escala=0.6,
+                     esqueleto={"tronco": (1.4, 0.82, 1.18), "pescoco": (1.45, 0.6, 1.25), "cabeca": (1.3, 0.92, 1.18),
+                                "coxas": (1.3, 0.7, 1.3), "canelas": (1.3, 0.7, 1.3), "pes": (1.25, 0.75, 1.25),
+                                "bracos": (1.35, 0.7, 1.35), "antebracos": (1.35, 0.72, 1.35), "maos": (1.25, 0.8, 1.25),
+                                "ombros": (1.25, 0.85, 1.25), "dedos": (1.3, 1.0, 1.3), "dedos_frente": (1.3, 1.0, 1.3)},
+                     focinho=0.32, focinho_larg=1.1, nariz=0.8, orelha=dict(tipo="caida", larg=0.055, comp=0.05),
+                     fofo={"Jaw": 0.03, "Head": 0.012, "Neck": 0.04, "Neck1": 0.03, "Spine2": 0.03},
+                     cauda=dict(tipo="longa", comp=0.08, raio=0.03, curva=-0.5),
+                     cores={"pelo": "#f2ebe0", "marca": "#f2ebe0", "nariz": "#1a1414", "olho": "#2a1a12",
+                            "orelha": "#c98a52"},
+                     zonas=[("costas", "#c98a52"), ("cabeca_topo", "#c98a52")]),
+    "caramelo": dict(nome="Vira-lata caramelo", especie="cachorro", escala=0.8,
+                     esqueleto={"tronco": (0.98, 1.0, 1.0), "pescoco": (1.0, 0.95, 1.0), "cabeca": (1.04, 0.95, 1.02),
+                                "pernas": (1.0, 0.95, 1.0)},
+                     focinho=0.9, orelha=dict(tipo="caida", larg=0.07, comp=0.085),
+                     cauda=dict(tipo="longa", comp=0.32, raio=0.026, curva=0.55),
+                     cores={"pelo": "#c97d36", "marca": "#c97d36", "nariz": "#2a1a14", "olho": "#2a1a12"},
+                     zonas=[("peito", "#e6b47c"), ("focinho_baixo", "#e2ab70"), ("patas_ponta", "#e6b47c")]),
 }
 
 
@@ -257,6 +300,15 @@ class Base:
             return frente & ((Fn[:, 2] < -0.25) | ((Fn[:, 1] < -0.45) & (Fc[:, 2] < 0.7)))
         if nome == "focinho_baixo":  # a boca e o queixo, abaixo dos olhos
             return cab & (Fc[:, 2] < self.H[self.idx["Head"], 2] - 0.0) & (Fc[:, 1] < self.olho_y + 0.01)
+        if nome == "costas":  # a sela: o alto do tronco e do pescoço
+            tr = np.isin(dom, ["Spine", "Spine1", "Spine2", "Neck", "Tail", "Thigh.L", "Thigh.R"])
+            return tr & (Fn[:, 2] > 0.1) & (Fc[:, 2] > self.H[self.idx["Spine1"], 2] - 0.07)
+        if nome == "cabeca_topo":  # o alto da cabeça e a nuca (acima dos olhos)
+            alto = cab & (Fc[:, 2] > self.H[self.idx["Head"], 2] + 0.005)
+            nuca = np.isin(dom, ["Neck1"]) & (Fn[:, 2] > -0.2) & (Fn[:, 1] > -0.3)
+            return alto | nuca
+        if nome == "focinho_todo":  # à frente dos olhos
+            return cab & (Fc[:, 1] < self.olho_y - 0.015)
         if nome == "cauda_toda":
             return np.zeros(len(self.F), bool)  # a cauda trocada é pintada na própria peça
         raise KeyError(nome)
@@ -276,8 +328,9 @@ def fatores(base, b):
     return S, Q
 
 
-def monta(base, S, Q, raiz_extra=0.0):
-    """Esqueleto novo, do quadril para as pontas: cabeça de cada osso, referencial e comprimento."""
+def monta(base, S, Q, raiz_extra=0.0, raiz="Bone"):
+    """Esqueleto novo, do quadril para as pontas: cabeça de cada osso, referencial e comprimento. O osso `raiz` (a raiz
+    no chão) cresce `raiz_extra` para o quadril subir ou descer."""
     n = len(base.nomes)
     H2, R2 = np.zeros((n, 3)), np.zeros((n, 3, 3))
     for i in range(n):
@@ -288,7 +341,7 @@ def monta(base, S, Q, raiz_extra=0.0):
         else:
             off = base.H[i] - base.H[p]
             sp = S[p].copy()
-            if p == base.idx["Bone"]:
+            if p == base.idx[raiz]:
                 sp = np.array([1, (base.L[p] * S[p][1] + raiz_extra) / base.L[p], 1])
             H2[i] = H2[p] + R2[p] @ (sp * (base.R[p].T @ off))
             R2[i] = R2[p] @ base.R[p].T @ base.R[i]
@@ -494,7 +547,7 @@ def faz(base, id_):
             i = base.idx["Ear." + lado]
             h = H2[i]
             larg, comp = ore["larg"] * esc * 1.0, ore["comp"] * esc
-            corpo_c = _cor(cores.get("pelo")); dentro = _cor(cores.get("dentro_orelha", cores.get("marca", cores["pelo"])), 0.85)
+            corpo_c = _cor(cores.get("orelha", cores["pelo"])); dentro = _cor(cores.get("dentro_orelha", cores.get("marca", cores["pelo"])), 0.85)
             if ore["tipo"] == "caida":
                 # presa no alto da cabeça, de lado, caindo pela lateral (um pouco para a frente)
                 orig = h + np.array([sx * 0.006, 0.004, 0.006]) * esc
@@ -514,8 +567,8 @@ def faz(base, id_):
     if cau:
         i = base.idx["Tail"]
         h = H2[i] + np.array([0, -0.01, 0]) * esc
-        cc = _cor(cores["pelo"])
-        ponta = _cor(dict(b.get("zonas", [])).get("cauda_toda", cores["pelo"]))
+        cc = _cor(cores.get("cauda", cores["pelo"]))
+        ponta = _cor(dict(b.get("zonas", [])).get("cauda_toda", cores.get("cauda", cores["pelo"])))
         comp, r0 = cau["comp"] * esc, cau["raio"] * esc
         if cau["tipo"] in ("longa", "gato"):
             n = 7
@@ -595,6 +648,14 @@ def faz(base, id_):
         dirp = (pf - c) / np.linalg.norm(pf - c)
         pp, ff = esfera(pf + dirp * 0.006 * esc + np.array([0, 0, -0.008 * esc]), (0.009 * esc, 0.004 * esc, 0.011 * esc), sub=1)
         ex.add(pp, ff, [_cor("#e8c040")] * len(ff), "@pele")
+    # topete (poodle): bola de pelo no alto da cabeça
+    if b.get("topete"):
+        cabv = np.nonzero(base.dom == iH)[0]
+        alto = cabv[V2[cabv, 2] >= np.percentile(V2[cabv, 2], 80)]
+        c = V2[alto].mean(0)
+        rt = b["topete"] * esc
+        pts, fs = esfera(c + np.array([0, 0.25 * rt, 0.35 * rt]), (rt * 0.95, rt * 1.05, rt * 0.85), sub=2)
+        ex.add(pts, fs, [_cor(cores["pelo"], 1.04)] * len(fs), "Head")
     # bigode (gato): três fios finos de cada lado do focinho
     if b.get("bigode"):
         nariz = V2[[v for i in range(len(base.F)) if base.Fcls[i] == "nariz" for v in base.F[i]]].mean(0)
@@ -608,6 +669,29 @@ def faz(base, id_):
 
 
 # ---------------------------------------------------------------- monta no Blender e exporta
+def malha_pesos(base, r):
+    """Os vértices do bicho (os do Doberman usados + os das peças) e os pesos de cada osso, na ordem da malha final.
+    A coleira leva a média dos pesos dos 8 vértices do pescoço mais perto (dobra junto com ele)."""
+    V, ex = r["V"], r["ex"]
+    usados = sorted({v for i in r["manter"] for v in base.F[i]})
+    pts = np.array([V[v] for v in usados] + [tuple(p) for p in ex.V])
+    Wt = np.zeros((len(pts), len(base.nomes)))
+    Wt[:len(usados)] = base.W[usados]
+    pesc = np.nonzero(np.isin(base.dom, [base.idx[n] for n in ("Spine2", "Neck", "Neck1")]))[0]
+    for k, osso in enumerate(ex.osso):
+        j = len(usados) + k
+        if osso == "@pele":
+            p = np.array(ex.V[k])
+            dist = np.linalg.norm(V[pesc] - p, axis=1)
+            viz = pesc[np.argsort(dist)[:8]]
+            w = base.W[viz].mean(0)
+            w = np.where(w > 0.01, w, 0)
+            Wt[j] = w / w.sum()
+        else:
+            Wt[j, base.idx[osso]] = 1.0
+    return pts, Wt
+
+
 def objeto(base, r, id_):
     """Esqueleto (cópia do Doberman com o descanso novo) e malha com cor por face e pesos."""
     arm0 = base.arm
@@ -655,18 +739,11 @@ def objeto(base, r, id_):
     for k, v in enumerate(usados):
         for i in np.nonzero(base.W[v])[0]:
             ob.vertex_groups[base.nomes[i]].add([k], float(base.W[v, i]), "REPLACE")
-    pesc = np.nonzero(np.isin(base.dom, [base.idx[n] for n in ("Spine2", "Neck", "Neck1")]))[0]
-    for k, osso in enumerate(ex.osso):
-        if osso == "@pele":  # coleira: a média dos pesos dos 8 vértices do pescoço mais perto (dobra junto com ele)
-            p = np.array(ex.V[k])
-            dist = np.linalg.norm(V[pesc] - p, axis=1)
-            viz = pesc[np.argsort(dist)[:8]]
-            w = base.W[viz].mean(0)
-            w /= w.sum()
-            for i in np.nonzero(w > 0.01)[0]:
-                ob.vertex_groups[base.nomes[i]].add([o_ex + k], float(w[i]), "REPLACE")
-        else:
-            ob.vertex_groups[osso].add([o_ex + k], 1.0, "REPLACE")
+    _, Wx = malha_pesos(base, r)
+    for k in range(len(ex.V)):
+        w = Wx[o_ex + k]
+        for i in np.nonzero(w > 0)[0]:
+            ob.vertex_groups[base.nomes[i]].add([o_ex + k], float(w[i]), "REPLACE")
     mod = ob.modifiers.new("Armature", "ARMATURE")
     mod.object = arm
     ca = mesh.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
@@ -728,6 +805,55 @@ def acoes(base, arm, r, id_):
     return feitas
 
 
+def _anim():
+    """O motor e os clipes compostos (em módulos ao lado; importados só aqui, para quem importa o bichos.py)."""
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    if aqui not in sys.path:
+        sys.path.insert(0, aqui)
+    import bichos_estimacao_anim as anim
+    import bichos_estimacao_clipes as clipes
+    return anim, clipes
+
+
+def rig_do_bicho(base, r):
+    """O esqueleto do bicho (descanso novo) com a malha e os pesos, para o motor das animações compostas."""
+    anim, _ = _anim()
+    V, Wt = malha_pesos(base, r)
+    return anim.Rig(base.nomes, base.pai, r["H2"], r["R2"], anim.PAPEIS["doberman"], V, Wt)
+
+
+def acoes_novas(base, arm, r, id_, so=None):
+    """Os clipes compostos (sentar, abanar, coçar, cavar, uivar, farejar, buscar, pular, beber, comer), resolvidos no
+    esqueleto deste bicho (as patas plantadas não deslizam e nada passa do chão), em trilhas NLA."""
+    anim, clipes = _anim()
+    rig = rig_do_bicho(base, r)
+    esc, kq = r["b"].get("escala", 1.0), r["alt_quadril"]
+    corrida = bpy.data.actions["Doberman_Rig|Doberman_Run"]
+
+    def amostra(acao, f):  # a corrida do Doberman com o deslocamento ajustado ao tamanho
+        d = anim.amostra_acao(acao, f)
+        return {k: (qq, lc * (kq if k == "Spine1" else esc)) for k, (qq, lc) in d.items()}
+    ad = arm.animation_data
+    feitas = []
+    for cid, rot, laco, seg, fn in clipes.CLIPES_CACHORRO:
+        if so and cid not in so:
+            continue
+        base_fn = None
+        if cid == "buscar":
+            fn = clipes.c_buscar_fn(seg)
+            base_fn = clipes.base_corrida(corrida, (1, 17), seg, amostra)
+        poses, zmin = anim.faz_poses(rig, fn, seg, base_fn)
+        act = anim.grava_acao(arm, rig, id_ + "|" + cid, poses)
+        t = ad.nla_tracks.new()
+        t.name = cid
+        st = t.strips.new(act.name, 1, act)
+        st.action_slot = act.slots[0]
+        t.mute = True
+        feitas.append(cid)
+        print("  clipe", id_, cid, "zmin %.3f" % zmin, flush=True)
+    return feitas
+
+
 def exporta(arm, ob, caminho):
     for o in bpy.context.selected_objects:
         o.select_set(False)
@@ -745,6 +871,8 @@ def main():
     saida = a[0]
     ids = list(BICHOS) if len(a) < 2 or a[1] == "todos" else a[1].split(",")
     blend = a[a.index("--blend") + 1] if "--blend" in a else None
+    so = a[a.index("--clipes") + 1].split(",") if "--clipes" in a else None  # só estes clipes novos (para testar)
+    arq_json = a[a.index("--json") + 1] if "--json" in a else os.path.join(saida, "bichos.json")
     os.makedirs(saida, exist_ok=True)
     arm0, me0 = carrega()
     base = Base(arm0, me0)
@@ -753,16 +881,23 @@ def main():
     for k, id_ in enumerate(ids):
         r = faz(base, id_)
         arm, ob = objeto(base, r, id_)
-        nomes = acoes(base, arm, r, id_)
+        acoes(base, arm, r, id_)
+        novas = acoes_novas(base, arm, r, id_, so)
         exporta(arm, ob, os.path.join(saida, id_ + ".glb"))
         b = r["b"]
-        info[id_] = dict(nome=b["nome"], especie=b["especie"], escala=b.get("escala", 1.0),
-                         animacoes=[dict(id=ANIMACOES[c][0], rotulo=ANIMACOES[c][1 if b["especie"] == "cachorro" else 2])
-                                    for c in ANIMACOES])
+        durs = {ANIMACOES[a0.name.split("_")[-1]][0]: (a0.frame_range[1] - a0.frame_range[0]) / 24
+                for a0 in bpy.data.actions if a0.name.startswith("Doberman_Rig|") and a0.name.split("_")[-1] in ANIMACOES}
+        _, clipes = _anim()
+        anims = [dict(id=ANIMACOES[c][0], rotulo=ANIMACOES[c][1 if b["especie"] == "cachorro" else 2], laco=True,
+                      segundos=round(durs[ANIMACOES[c][0]], 2)) for c in ANIMACOES]
+        anims += [dict(id=cid, rotulo=rot, laco=laco, segundos=seg) for cid, rot, laco, seg, _ in clipes.CLIPES_CACHORRO
+                  if cid in novas]
+        info[id_] = dict(id=id_, nome=b["nome"], especie=b["especie"], grupo="estimacao", escala=b.get("escala", 1.0),
+                         pacote=True, base="Doberman (Apocalypse)", animacoes=anims)
         print("bicho", id_, len(ob.data.vertices), "vértices", os.path.getsize(os.path.join(saida, id_ + ".glb")) // 1024, "KB",
               "quadril", round(r["alt_quadril"], 3), flush=True)
         feitos.append((arm, ob))
-    json.dump(info, open(os.path.join(saida, "bichos.json"), "w"), ensure_ascii=False, indent=1)
+    json.dump(info, open(arq_json, "w"), ensure_ascii=False, indent=1)
     if blend:  # arquivo-mestre: os bichos lado a lado, cada um com as suas trilhas
         bpy.data.objects.remove(me0, do_unlink=True)
         arm0.hide_set(True)

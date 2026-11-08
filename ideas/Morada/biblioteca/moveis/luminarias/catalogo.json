@@ -942,6 +942,232 @@
     "cor": "#FFE3A0",
     "alcance": 4.0
    }
+  },
+  {
+   "id": "luminaria_pintinho_ovo_pacote",
+   "rotulo": "Luminária de pintinho no ovo",
+   "categoria": "luminarias",
+   "grupo": "luminaria_pintinho_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.126,
+    0.126,
+    0.153
+   ],
+   "arquivo": "glb/luminaria_pintinho_ovo_pacote.glb",
+   "miniatura": "miniaturas/luminaria_pintinho_ovo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07638,
+      -0.0
+     ],
+     "tamanho": [
+      0.126,
+      0.153,
+      0.126
+     ]
+    }
+   ],
+   "cores": [
+    "dormente",
+    "madeira_media",
+    "madeira_rosada",
+    "marrom",
+    "marrom_claro",
+    "preto"
+   ],
+   "tris": 1054,
+   "pacote": true,
+   "tags": [
+    "luminaria",
+    "luz",
+    "infantil",
+    "quarto",
+    "mesa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack",
+   "luz": {
+    "posicao": [
+     0.0,
+     0.11525,
+     0.01009
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.5
+   }
+  },
+  {
+   "id": "luminaria_arvore_bolinhas_pacote",
+   "rotulo": "Luminária árvore de bolinhas coloridas",
+   "categoria": "luminarias",
+   "grupo": "luminaria_arvore_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.252,
+    0.301,
+    0.569
+   ],
+   "arquivo": "glb/luminaria_arvore_bolinhas_pacote.glb",
+   "miniatura": "miniaturas/luminaria_arvore_bolinhas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.28433,
+      -0.0
+     ],
+     "tamanho": [
+      0.252,
+      0.569,
+      0.301
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "cinzas",
+    "laranja",
+    "laranja_claro",
+    "madeira_cinza",
+    "pessego",
+    "tecido_cinza"
+   ],
+   "tris": 3500,
+   "pacote": true,
+   "tags": [
+    "luminaria",
+    "luz",
+    "mesa",
+    "quarto",
+    "decoracao",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack",
+   "luz": {
+    "posicao": [
+     0.00909,
+     0.36156,
+     -0.00454
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 2.5
+   }
+  },
+  {
+   "id": "luminaria_pendente_sino_vermelho_pacote",
+   "rotulo": "Pendente de sino vermelho",
+   "categoria": "luminarias",
+   "grupo": "luminaria_pendente_sino_pacote",
+   "fixacao": "teto",
+   "dims": [
+    0.492,
+    0.492,
+    0.9
+   ],
+   "arquivo": "glb/luminaria_pendente_sino_vermelho_pacote.glb",
+   "miniatura": "miniaturas/luminaria_pendente_sino_vermelho_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      -0.45,
+      -0.0
+     ],
+     "tamanho": [
+      0.492,
+      0.9,
+      0.492
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "metal_escuro",
+    "pessego",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 226,
+   "pacote": true,
+   "tags": [
+    "luminaria",
+    "luz",
+    "teto",
+    "pendente",
+    "pacote"
+   ],
+   "pacote_origem": "Casino",
+   "luz": {
+    "posicao": [
+     -2e-05,
+     -0.68189,
+     -0.0
+    ],
+    "cor": "#FFE3A0",
+    "alcance": 4.0
+   }
+  },
+  {
+   "id": "letreiro_neon_cassino_pacote",
+   "rotulo": "Letreiro de neon \"Casino\"",
+   "categoria": "luminarias",
+   "grupo": "letreiro_neon_pacote",
+   "fixacao": "parede",
+   "dims": [
+    1.624,
+    0.06,
+    1.044
+   ],
+   "arquivo": "glb/letreiro_neon_cassino_pacote.glb",
+   "miniatura": "miniaturas/letreiro_neon_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.52186,
+      0.0301
+     ],
+     "tamanho": [
+      1.624,
+      1.044,
+      0.06
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 776,
+   "pacote": true,
+   "tags": [
+    "luminaria",
+    "neon",
+    "parede",
+    "letreiro",
+    "cassino",
+    "pacote"
+   ],
+   "altura_instalacao": 1.5,
+   "pacote_origem": "Casino",
+   "luz": {
+    "posicao": [
+     -0.01559,
+     0.46772,
+     0.04417
+    ],
+    "cor": "#FF7ACB",
+    "alcance": 3.0
+   }
   }
  ]
 }

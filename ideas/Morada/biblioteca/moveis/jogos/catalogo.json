@@ -1,0 +1,2810 @@
+{
+ "categoria": "jogos",
+ "rotulo": "Jogos e brinquedos",
+ "itens": [
+  {
+   "id": "xadrez_rei_preto_pacote",
+   "rotulo": "Rei de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_rei_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.04,
+    0.04,
+    0.104
+   ],
+   "arquivo": "glb/xadrez_rei_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_rei_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05178,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.104,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "caca_niquel_frutas_pacote",
+   "rotulo": "Caça-níquel das frutas",
+   "categoria": "jogos",
+   "grupo": "caca_niquel_frutas_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.728,
+    0.618,
+    1.904
+   ],
+   "arquivo": "glb/caca_niquel_frutas_pacote.glb",
+   "miniatura": "miniaturas/caca_niquel_frutas_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.9599,
+     "nome": "alavanca",
+     "pivo": [
+      0.37546,
+      0.82,
+      0.1
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0275,
+      0.95202,
+      -0.0
+     ],
+     "tamanho": [
+      0.676,
+      1.904,
+      0.618
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "carvao",
+    "colchao",
+    "couro_preto",
+    "cromo",
+    "grafite_escuro",
+    "metal",
+    "preto",
+    "trilho",
+    "vermelho"
+   ],
+   "tris": 1664,
+   "pacote": true,
+   "tags": [
+    "cassino",
+    "caca_niquel",
+    "tela",
+    "neon",
+    "alavanca",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "maquina_pelucia_azul_pacote",
+   "rotulo": "Máquina de pegar pelúcia (azul)",
+   "categoria": "jogos",
+   "grupo": "maquina_pelucia_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.919,
+    0.816,
+    2.025
+   ],
+   "arquivo": "glb/maquina_pelucia_azul_pacote.glb",
+   "miniatura": "miniaturas/maquina_pelucia_azul_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      1.0,
+      0.0,
+      -0.0
+     ],
+     "curso": 0.408,
+     "nome": "garra",
+     "pivo": [
+      -0.16182,
+      1.28215,
+      -0.18539
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.4363,
+     "nome": "manche",
+     "pivo": [
+      -0.07206,
+      0.67922,
+      0.36674
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.008,
+     "nome": "botao",
+     "pivo": [
+      0.06668,
+      0.69243,
+      0.35478
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "portinhola_premio",
+     "pivo": [
+      -0.14221,
+      0.46376,
+      0.30096
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_vitrine",
+     "centro": [
+      0.03459,
+      0.7888,
+      -0.06216
+     ],
+     "tamanho": [
+      0.612,
+      0.306,
+      0.544
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_premio",
+     "centro": [
+      -0.14221,
+      0.2652,
+      0.14184
+     ],
+     "tamanho": [
+      0.231,
+      0.19,
+      0.313
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.01246,
+      -0.0
+     ],
+     "tamanho": [
+      0.919,
+      2.025,
+      0.816
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "agua_rio",
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "azul_acinzentado",
+    "azul_bebe",
+    "azul_celeste",
+    "azul_claro",
+    "azul_medio",
+    "borracha",
+    "brita",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "cinzas",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "madeira_cinza",
+    "metal",
+    "metal_escuro",
+    "plastico_branco",
+    "porcelana_azul",
+    "preto",
+    "tecido_cinza",
+    "tela",
+    "trilho",
+    "vermelho"
+   ],
+   "tris": 11825,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "garra",
+    "fliperama",
+    "luz",
+    "infantil",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "xadrez_rei_branco_pacote",
+   "rotulo": "Rei de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_rei_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.04,
+    0.04,
+    0.104
+   ],
+   "arquivo": "glb/xadrez_rei_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_rei_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05178,
+      0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.104,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "papel_amarelado",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_rainha_branco_pacote",
+   "rotulo": "Rainha de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_rainha_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.04,
+    0.04,
+    0.091
+   ],
+   "arquivo": "glb/xadrez_rainha_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_rainha_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04546,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.091,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "papel_amarelado",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_rainha_preto_pacote",
+   "rotulo": "Rainha de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_rainha_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.04,
+    0.04,
+    0.091
+   ],
+   "arquivo": "glb/xadrez_rainha_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_rainha_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04546,
+      -0.0
+     ],
+     "tamanho": [
+      0.04,
+      0.091,
+      0.04
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_bispo_branco_pacote",
+   "rotulo": "Bispo de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_bispo_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.036,
+    0.036,
+    0.072
+   ],
+   "arquivo": "glb/xadrez_bispo_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_bispo_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03604,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.072,
+      0.036
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "papel_amarelado",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_bispo_preto_pacote",
+   "rotulo": "Bispo de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_bispo_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.036,
+    0.036,
+    0.072
+   ],
+   "arquivo": "glb/xadrez_bispo_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_bispo_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03604,
+      -0.0
+     ],
+     "tamanho": [
+      0.036,
+      0.072,
+      0.036
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_cavalo_branco_pacote",
+   "rotulo": "Cavalo de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_cavalo_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.037,
+    0.037,
+    0.064
+   ],
+   "arquivo": "glb/xadrez_cavalo_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_cavalo_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03221,
+      -0.0
+     ],
+     "tamanho": [
+      0.037,
+      0.064,
+      0.037
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_cavalo_preto_pacote",
+   "rotulo": "Cavalo de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_cavalo_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.037,
+    0.037,
+    0.064
+   ],
+   "arquivo": "glb/xadrez_cavalo_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_cavalo_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03221,
+      -0.0
+     ],
+     "tamanho": [
+      0.037,
+      0.064,
+      0.037
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_torre_branco_pacote",
+   "rotulo": "Torre de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_torre_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.037,
+    0.037,
+    0.058
+   ],
+   "arquivo": "glb/xadrez_torre_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_torre_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02905,
+      0.0
+     ],
+     "tamanho": [
+      0.037,
+      0.058,
+      0.037
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_torre_preto_pacote",
+   "rotulo": "Torre de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_torre_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.037,
+    0.037,
+    0.058
+   ],
+   "arquivo": "glb/xadrez_torre_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_torre_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02905,
+      -0.0
+     ],
+     "tamanho": [
+      0.037,
+      0.058,
+      0.037
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_peao_branco_pacote",
+   "rotulo": "Peão de xadrez (branco)",
+   "categoria": "jogos",
+   "grupo": "xadrez_peao_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.029,
+    0.029,
+    0.045
+   ],
+   "arquivo": "glb/xadrez_peao_branco_pacote.glb",
+   "miniatura": "miniaturas/xadrez_peao_branco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0227,
+      -0.0
+     ],
+     "tamanho": [
+      0.029,
+      0.045,
+      0.029
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "piso_rosado"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_peao_preto_pacote",
+   "rotulo": "Peão de xadrez (preto)",
+   "categoria": "jogos",
+   "grupo": "xadrez_peao_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.029,
+    0.029,
+    0.045
+   ],
+   "arquivo": "glb/xadrez_peao_preto_pacote.glb",
+   "miniatura": "miniaturas/xadrez_peao_preto_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0227,
+      -0.0
+     ],
+     "tamanho": [
+      0.029,
+      0.045,
+      0.029
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 1400,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "damas_peca_branca_pacote",
+   "rotulo": "Peça de damas (branca)",
+   "categoria": "jogos",
+   "grupo": "damas_peca_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.039,
+    0.039,
+    0.01
+   ],
+   "arquivo": "glb/damas_peca_branca_pacote.glb",
+   "miniatura": "miniaturas/damas_peca_branca_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00523,
+      -0.0
+     ],
+     "tamanho": [
+      0.039,
+      0.01,
+      0.039
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "cromo",
+    "piso_rosado"
+   ],
+   "tris": 900,
+   "pacote": true,
+   "tags": [
+    "damas",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "damas_peca_preta_pacote",
+   "rotulo": "Peça de damas (preta)",
+   "categoria": "jogos",
+   "grupo": "damas_peca_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.039,
+    0.039,
+    0.01
+   ],
+   "arquivo": "glb/damas_peca_preta_pacote.glb",
+   "miniatura": "miniaturas/damas_peca_preta_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00523,
+      0.0
+     ],
+     "tamanho": [
+      0.039,
+      0.01,
+      0.039
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "couro_preto",
+    "piso_rosado"
+   ],
+   "tris": 900,
+   "pacote": true,
+   "tags": [
+    "damas",
+    "tabuleiro",
+    "peca",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "damas_caixa_pacote",
+   "rotulo": "Caixa das peças de damas",
+   "categoria": "jogos",
+   "grupo": "damas_caixa_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.169,
+    0.091,
+    0.063
+   ],
+   "arquivo": "glb/damas_caixa_pacote.glb",
+   "miniatura": "miniaturas/damas_caixa_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.063,
+      -0.046
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_caixa",
+     "centro": [
+      0.0,
+      0.006,
+      -0.0
+     ],
+     "tamanho": [
+      0.14,
+      0.04,
+      0.07
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.0266,
+      -0.0
+     ],
+     "tamanho": [
+      0.169,
+      0.053,
+      0.091
+     ]
+    }
+   ],
+   "cores": [
+    "couro_preto"
+   ],
+   "tris": 1256,
+   "pacote": true,
+   "tags": [
+    "damas",
+    "caixa",
+    "tampa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_caixa_pecas_pacote",
+   "rotulo": "Caixa de madeira das peças de xadrez",
+   "categoria": "jogos",
+   "grupo": "xadrez_caixa_pecas_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.478,
+    0.277,
+    0.154
+   ],
+   "arquivo": "glb/xadrez_caixa_pecas_pacote.glb",
+   "miniatura": "miniaturas/xadrez_caixa_pecas_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "tampa",
+     "pivo": [
+      -0.0,
+      0.154,
+      -0.138
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_caixa",
+     "centro": [
+      -0.0,
+      0.02,
+      0.0
+     ],
+     "tamanho": [
+      0.44,
+      0.11,
+      0.24
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02964,
+      -0.0
+     ],
+     "tamanho": [
+      0.478,
+      0.059,
+      0.277
+     ]
+    }
+   ],
+   "cores": [
+    "couro"
+   ],
+   "tris": 692,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "caixa",
+    "tampa",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_tabuleiro_dobravel_pacote",
+   "rotulo": "Tabuleiro de xadrez dobrável",
+   "categoria": "jogos",
+   "grupo": "xadrez_tabuleiro_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.481,
+    0.481,
+    0.046
+   ],
+   "arquivo": "glb/xadrez_tabuleiro_dobravel_pacote.glb",
+   "miniatura": "miniaturas/xadrez_tabuleiro_dobravel_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 3.1416,
+     "nome": "metade_dobravel",
+     "pivo": [
+      0.0,
+      0.04525,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_tabuleiro",
+     "centro": [
+      0.0,
+      0.04525,
+      -0.0
+     ],
+     "tamanho": [
+      0.44,
+      0.12,
+      0.44
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02341,
+      0.12032
+     ],
+     "tamanho": [
+      0.481,
+      0.044,
+      0.241
+     ]
+    }
+   ],
+   "cores": [
+    "concreto_escuro"
+   ],
+   "tris": 728,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "damas",
+    "tabuleiro",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "xadrez_relogio_pacote",
+   "rotulo": "Relógio de xadrez",
+   "categoria": "jogos",
+   "grupo": "xadrez_relogio_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.161,
+    0.065,
+    0.096
+   ],
+   "arquivo": "glb/xadrez_relogio_pacote.glb",
+   "miniatura": "miniaturas/xadrez_relogio_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.006,
+     "nome": "botao_1",
+     "pivo": [
+      -0.04524,
+      0.09136,
+      -0.00455
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.006,
+     "nome": "botao_2",
+     "pivo": [
+      0.04524,
+      0.09136,
+      -0.00455
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04444,
+      -0.0
+     ],
+     "tamanho": [
+      0.161,
+      0.089,
+      0.065
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "preto",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 4960,
+   "pacote": true,
+   "tags": [
+    "xadrez",
+    "relogio",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "baralho_as_espadas_pacote",
+   "rotulo": "Carta de baralho: ás de espadas",
+   "categoria": "jogos",
+   "grupo": "baralho_as_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.062,
+    0.088,
+    0.002
+   ],
+   "arquivo": "glb/baralho_as_espadas_pacote.glb",
+   "miniatura": "miniaturas/baralho_as_espadas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0011,
+      -0.0
+     ],
+     "tamanho": [
+      0.062,
+      0.002,
+      0.088
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "cartas",
+    "baralho",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "baralho_as_paus_pacote",
+   "rotulo": "Carta de baralho: ás de paus",
+   "categoria": "jogos",
+   "grupo": "baralho_as_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.062,
+    0.088,
+    0.002
+   ],
+   "arquivo": "glb/baralho_as_paus_pacote.glb",
+   "miniatura": "miniaturas/baralho_as_paus_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0011,
+      -0.0
+     ],
+     "tamanho": [
+      0.062,
+      0.002,
+      0.088
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "cartas",
+    "baralho",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "baralho_as_copas_pacote",
+   "rotulo": "Carta de baralho: ás de copas",
+   "categoria": "jogos",
+   "grupo": "baralho_as_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.062,
+    0.088,
+    0.002
+   ],
+   "arquivo": "glb/baralho_as_copas_pacote.glb",
+   "miniatura": "miniaturas/baralho_as_copas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0011,
+      -0.0
+     ],
+     "tamanho": [
+      0.062,
+      0.002,
+      0.088
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "cartas",
+    "baralho",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "baralho_as_ouros_pacote",
+   "rotulo": "Carta de baralho: ás de ouros",
+   "categoria": "jogos",
+   "grupo": "baralho_as_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.062,
+    0.088,
+    0.002
+   ],
+   "arquivo": "glb/baralho_as_ouros_pacote.glb",
+   "miniatura": "miniaturas/baralho_as_ouros_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0011,
+      -0.0
+     ],
+     "tamanho": [
+      0.062,
+      0.002,
+      0.088
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 44,
+   "pacote": true,
+   "tags": [
+    "cartas",
+    "baralho",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "caca_niquel_jackpot_pacote",
+   "rotulo": "Caça-níquel do jackpot",
+   "categoria": "jogos",
+   "grupo": "caca_niquel_jackpot_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.73,
+    0.618,
+    2.188
+   ],
+   "arquivo": "glb/caca_niquel_jackpot_pacote.glb",
+   "miniatura": "miniaturas/caca_niquel_jackpot_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.9599,
+     "nome": "alavanca",
+     "pivo": [
+      0.37662,
+      0.82,
+      0.1
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0275,
+      1.09424,
+      -0.0
+     ],
+     "tamanho": [
+      0.678,
+      2.188,
+      0.618
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "borracha",
+    "carvao",
+    "cinza",
+    "colchao",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "preto",
+    "trilho",
+    "vermelho"
+   ],
+   "tris": 1852,
+   "pacote": true,
+   "tags": [
+    "cassino",
+    "caca_niquel",
+    "tela",
+    "neon",
+    "alavanca",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "caca_niquel_aquario_pacote",
+   "rotulo": "Caça-níquel do aquário",
+   "categoria": "jogos",
+   "grupo": "caca_niquel_aquario_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.728,
+    0.618,
+    1.904
+   ],
+   "arquivo": "glb/caca_niquel_aquario_pacote.glb",
+   "miniatura": "miniaturas/caca_niquel_aquario_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.9599,
+     "nome": "alavanca",
+     "pivo": [
+      0.37546,
+      0.82,
+      0.1
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0275,
+      0.95202,
+      -0.0
+     ],
+     "tamanho": [
+      0.676,
+      1.904,
+      0.618
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "carvao",
+    "couro_preto",
+    "cromo",
+    "grafite_escuro",
+    "metal",
+    "preto",
+    "trilho",
+    "vermelho"
+   ],
+   "tris": 3116,
+   "pacote": true,
+   "tags": [
+    "cassino",
+    "caca_niquel",
+    "tela",
+    "neon",
+    "alavanca",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "maquina_pelucia_amarela_pacote",
+   "rotulo": "Máquina de pegar pelúcia (amarela)",
+   "categoria": "jogos",
+   "grupo": "maquina_pelucia_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.919,
+    0.816,
+    2.025
+   ],
+   "arquivo": "glb/maquina_pelucia_amarela_pacote.glb",
+   "miniatura": "miniaturas/maquina_pelucia_amarela_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      1.0,
+      0.0,
+      -0.0
+     ],
+     "curso": 0.408,
+     "nome": "garra",
+     "pivo": [
+      -0.16182,
+      1.28215,
+      -0.18539
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.4363,
+     "nome": "manche",
+     "pivo": [
+      -0.07206,
+      0.67922,
+      0.36674
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.008,
+     "nome": "botao",
+     "pivo": [
+      0.06668,
+      0.69243,
+      0.35478
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "portinhola_premio",
+     "pivo": [
+      -0.14221,
+      0.46376,
+      0.30096
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_vitrine",
+     "centro": [
+      0.03459,
+      0.7888,
+      -0.06216
+     ],
+     "tamanho": [
+      0.612,
+      0.306,
+      0.544
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_premio",
+     "centro": [
+      -0.14221,
+      0.2652,
+      0.14184
+     ],
+     "tamanho": [
+      0.231,
+      0.19,
+      0.313
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.01246,
+      -0.0
+     ],
+     "tamanho": [
+      0.919,
+      2.025,
+      0.816
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "asfalto",
+    "asfalto_claro",
+    "azul_acinzentado",
+    "borracha",
+    "branco_gelo",
+    "brita",
+    "calcada",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cinza_medio",
+    "cinzas",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "laranja_claro",
+    "laranja_escuro",
+    "latao",
+    "madeira_cinza",
+    "madeira_mel",
+    "metal",
+    "metal_escuro",
+    "plastico_branco",
+    "preto",
+    "tecido_cinza",
+    "tela",
+    "trilho",
+    "vermelho"
+   ],
+   "tris": 11825,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "garra",
+    "fliperama",
+    "luz",
+    "infantil",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "maquina_pelucia_rosa_pacote",
+   "rotulo": "Máquina de pegar pelúcia (rosa)",
+   "categoria": "jogos",
+   "grupo": "maquina_pelucia_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.919,
+    0.816,
+    2.025
+   ],
+   "arquivo": "glb/maquina_pelucia_rosa_pacote.glb",
+   "miniatura": "miniaturas/maquina_pelucia_rosa_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      1.0,
+      0.0,
+      -0.0
+     ],
+     "curso": 0.408,
+     "nome": "garra",
+     "pivo": [
+      -0.16182,
+      1.28215,
+      -0.18539
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.4363,
+     "nome": "manche",
+     "pivo": [
+      -0.07206,
+      0.67922,
+      0.36674
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.008,
+     "nome": "botao",
+     "pivo": [
+      0.06668,
+      0.69243,
+      0.35478
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "portinhola_premio",
+     "pivo": [
+      -0.14221,
+      0.46376,
+      0.30096
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_vitrine",
+     "centro": [
+      0.03459,
+      0.7888,
+      -0.06216
+     ],
+     "tamanho": [
+      0.612,
+      0.306,
+      0.544
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_premio",
+     "centro": [
+      -0.14221,
+      0.2652,
+      0.14184
+     ],
+     "tamanho": [
+      0.231,
+      0.19,
+      0.313
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.01246,
+      -0.0
+     ],
+     "tamanho": [
+      0.919,
+      2.025,
+      0.816
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "azul_acinzentado",
+    "borracha",
+    "branco",
+    "brita",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "cinzas",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "lencol",
+    "louca",
+    "madeira_cinza",
+    "magenta",
+    "metal",
+    "metal_escuro",
+    "plastico_branco",
+    "preto",
+    "rosa",
+    "rosa_escuro",
+    "tecido_cinza",
+    "tela",
+    "trilho",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 11825,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "garra",
+    "fliperama",
+    "luz",
+    "infantil",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "maquina_pelucia_turquesa_pacote",
+   "rotulo": "Máquina de pegar pelúcia (turquesa)",
+   "categoria": "jogos",
+   "grupo": "maquina_pelucia_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.919,
+    0.816,
+    2.025
+   ],
+   "arquivo": "glb/maquina_pelucia_turquesa_pacote.glb",
+   "miniatura": "miniaturas/maquina_pelucia_turquesa_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      1.0,
+      0.0,
+      -0.0
+     ],
+     "curso": 0.408,
+     "nome": "garra",
+     "pivo": [
+      -0.16182,
+      1.28215,
+      -0.18539
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.4363,
+     "nome": "manche",
+     "pivo": [
+      -0.07206,
+      0.67922,
+      0.36674
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.008,
+     "nome": "botao",
+     "pivo": [
+      0.06668,
+      0.69243,
+      0.35478
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "portinhola_premio",
+     "pivo": [
+      -0.14221,
+      0.46376,
+      0.30096
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_vitrine",
+     "centro": [
+      0.03459,
+      0.7888,
+      -0.06216
+     ],
+     "tamanho": [
+      0.612,
+      0.306,
+      0.544
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_premio",
+     "centro": [
+      -0.14221,
+      0.2652,
+      0.14184
+     ],
+     "tamanho": [
+      0.231,
+      0.19,
+      0.313
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.01246,
+      -0.0
+     ],
+     "tamanho": [
+      0.919,
+      2.025,
+      0.816
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "azul_acinzentado",
+    "borracha",
+    "branco",
+    "brita",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "cinzas",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "lencol",
+    "louca",
+    "madeira_cinza",
+    "metal",
+    "metal_escuro",
+    "neon_ciano",
+    "plastico_branco",
+    "preto",
+    "tecido_cinza",
+    "tela",
+    "trilho",
+    "turquesa",
+    "turquesa_claro",
+    "turquesa_escuro",
+    "verde_agua",
+    "vermelho"
+   ],
+   "tris": 11825,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "garra",
+    "fliperama",
+    "luz",
+    "infantil",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "maquina_pelucia_garra_pacote",
+   "rotulo": "Garra da máquina de pelúcia",
+   "categoria": "jogos",
+   "grupo": "maquina_pelucia_garra_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.205,
+    0.54
+   ],
+   "arquivo": "glb/maquina_pelucia_garra_pacote.glb",
+   "miniatura": "miniaturas/maquina_pelucia_garra_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27005,
+      -0.0
+     ],
+     "tamanho": [
+      0.2,
+      0.54,
+      0.205
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "asfalto_claro",
+    "cinza",
+    "cinza_azulado",
+    "cinza_medio",
+    "concreto_escuro",
+    "couro_preto",
+    "grafite",
+    "laranja_escuro",
+    "latao",
+    "metal",
+    "metal_escuro",
+    "tecido_cinza",
+    "trilho"
+   ],
+   "tris": 934,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "garra",
+    "fliperama",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_urso_pacote",
+   "rotulo": "Pelúcia de urso",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.328,
+    0.251,
+    0.412
+   ],
+   "arquivo": "glb/pelucia_urso_pacote.glb",
+   "miniatura": "miniaturas/pelucia_urso_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.20588,
+      -0.0
+     ],
+     "tamanho": [
+      0.328,
+      0.412,
+      0.251
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "couro_preto",
+    "laranja",
+    "laranja_claro",
+    "pessego",
+    "preto",
+    "salmao",
+    "terracota_clara"
+   ],
+   "tris": 988,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_gato_pacote",
+   "rotulo": "Pelúcia de gato",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.328,
+    0.236,
+    0.427
+   ],
+   "arquivo": "glb/pelucia_gato_pacote.glb",
+   "miniatura": "miniaturas/pelucia_gato_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21352,
+      -0.0
+     ],
+     "tamanho": [
+      0.328,
+      0.427,
+      0.236
+     ]
+    }
+   ],
+   "cores": [
+    "agua_funda",
+    "azul",
+    "azul_acinzentado",
+    "azul_claro",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "preto",
+    "rosa_bebe"
+   ],
+   "tris": 1024,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_pintinho_pacote",
+   "rotulo": "Pelúcia de pintinho",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.403,
+    0.436,
+    0.433
+   ],
+   "arquivo": "glb/pelucia_pintinho_pacote.glb",
+   "miniatura": "miniaturas/pelucia_pintinho_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21652,
+      -0.0
+     ],
+     "tamanho": [
+      0.403,
+      0.433,
+      0.436
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "carvao",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 1441,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_crocodilo_pacote",
+   "rotulo": "Pelúcia de crocodilo",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.328,
+    0.405,
+    0.423
+   ],
+   "arquivo": "glb/pelucia_crocodilo_pacote.glb",
+   "miniatura": "miniaturas/pelucia_crocodilo_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21146,
+      -0.0
+     ],
+     "tamanho": [
+      0.328,
+      0.423,
+      0.405
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "cinza_claro",
+    "fogo",
+    "folha_escura",
+    "grama_escura",
+    "preto",
+    "verde_claro"
+   ],
+   "tris": 1176,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_cachorro_pacote",
+   "rotulo": "Pelúcia de cachorro",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.371,
+    0.29,
+    0.431
+   ],
+   "arquivo": "glb/pelucia_cachorro_pacote.glb",
+   "miniatura": "miniaturas/pelucia_cachorro_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21534,
+      -0.0
+     ],
+     "tamanho": [
+      0.371,
+      0.431,
+      0.29
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "marrom",
+    "piso_rosado",
+    "preto"
+   ],
+   "tris": 1500,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_elefante_pacote",
+   "rotulo": "Pelúcia de elefante",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.448,
+    0.293,
+    0.408
+   ],
+   "arquivo": "glb/pelucia_elefante_pacote.glb",
+   "miniatura": "miniaturas/pelucia_elefante_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.20408,
+      -0.0
+     ],
+     "tamanho": [
+      0.448,
+      0.408,
+      0.293
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_acinzentado",
+    "azul_medio",
+    "carvao",
+    "cinza_claro",
+    "concreto",
+    "rosa"
+   ],
+   "tris": 1320,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_raposa_pacote",
+   "rotulo": "Pelúcia de raposa",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.333,
+    0.318,
+    0.447
+   ],
+   "arquivo": "glb/pelucia_raposa_pacote.glb",
+   "miniatura": "miniaturas/pelucia_raposa_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22328,
+      -0.0
+     ],
+     "tamanho": [
+      0.333,
+      0.447,
+      0.318
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "calcada",
+    "carvao",
+    "cinza_claro",
+    "piso_rosado",
+    "preto"
+   ],
+   "tris": 1548,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_coala_pacote",
+   "rotulo": "Pelúcia de coala",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.398,
+    0.28,
+    0.442
+   ],
+   "arquivo": "glb/pelucia_coala_pacote.glb",
+   "miniatura": "miniaturas/pelucia_coala_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.221,
+      -0.0
+     ],
+     "tamanho": [
+      0.398,
+      0.442,
+      0.28
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "borracha",
+    "carvao",
+    "lilas",
+    "piso_rosado",
+    "preto",
+    "rosa_claro"
+   ],
+   "tris": 1504,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_leao_pacote",
+   "rotulo": "Pelúcia de leão",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.328,
+    0.271,
+    0.397
+   ],
+   "arquivo": "glb/pelucia_leao_pacote.glb",
+   "miniatura": "miniaturas/pelucia_leao_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1987,
+      -0.0
+     ],
+     "tamanho": [
+      0.328,
+      0.397,
+      0.271
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "couro",
+    "couro_preto",
+    "laranja_claro",
+    "madeira_escura",
+    "marrom",
+    "mostarda",
+    "pinus"
+   ],
+   "tris": 1274,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_panda_pacote",
+   "rotulo": "Pelúcia de panda",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.328,
+    0.261,
+    0.394
+   ],
+   "arquivo": "glb/pelucia_panda_pacote.glb",
+   "miniatura": "miniaturas/pelucia_panda_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19692,
+      -0.0
+     ],
+     "tamanho": [
+      0.328,
+      0.394,
+      0.261
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "carvao",
+    "cinza_claro",
+    "preto",
+    "tecido_cinza"
+   ],
+   "tris": 1520,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_pinguim_pacote",
+   "rotulo": "Pelúcia de pinguim",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.454,
+    0.396,
+    0.408
+   ],
+   "arquivo": "glb/pelucia_pinguim_pacote.glb",
+   "miniatura": "miniaturas/pelucia_pinguim_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.20395,
+      -0.0
+     ],
+     "tamanho": [
+      0.454,
+      0.408,
+      0.396
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "azul_escuro",
+    "azul_medio",
+    "calcada",
+    "carvao",
+    "cromo"
+   ],
+   "tris": 1499,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_porco_pacote",
+   "rotulo": "Pelúcia de porquinho",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.352,
+    0.253,
+    0.403
+   ],
+   "arquivo": "glb/pelucia_porco_pacote.glb",
+   "miniatura": "miniaturas/pelucia_porco_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.20138,
+      -0.0
+     ],
+     "tamanho": [
+      0.352,
+      0.403,
+      0.253
+     ]
+    }
+   ],
+   "cores": [
+    "preto",
+    "vermelho",
+    "vermelho_claro",
+    "vermelho_escuro"
+   ],
+   "tris": 1126,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_coelho_pacote",
+   "rotulo": "Pelúcia de coelho",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.31,
+    0.229,
+    0.502
+   ],
+   "arquivo": "glb/pelucia_coelho_pacote.glb",
+   "miniatura": "miniaturas/pelucia_coelho_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.25081,
+      -0.0
+     ],
+     "tamanho": [
+      0.31,
+      0.502,
+      0.229
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "lilas_claro",
+    "preto",
+    "rosa",
+    "rosa_bebe"
+   ],
+   "tris": 1084,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_tubarao_pacote",
+   "rotulo": "Pelúcia de tubarão",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.448,
+    0.517,
+    0.484
+   ],
+   "arquivo": "glb/pelucia_tubarao_pacote.glb",
+   "miniatura": "miniaturas/pelucia_tubarao_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.242,
+      -0.0
+     ],
+     "tamanho": [
+      0.448,
+      0.484,
+      0.517
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "azul_medio",
+    "carvao",
+    "cinza_claro",
+    "concreto",
+    "metal",
+    "metal_claro",
+    "vermelho"
+   ],
+   "tris": 1522,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "pelucia_unicornio_pacote",
+   "rotulo": "Pelúcia de unicórnio",
+   "categoria": "jogos",
+   "grupo": "pelucia_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.339,
+    0.305,
+    0.474
+   ],
+   "arquivo": "glb/pelucia_unicornio_pacote.glb",
+   "miniatura": "miniaturas/pelucia_unicornio_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23718,
+      -0.0
+     ],
+     "tamanho": [
+      0.339,
+      0.474,
+      0.305
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "amarelo_escuro",
+    "carvao",
+    "rosa",
+    "rosa_bebe",
+    "rosa_claro"
+   ],
+   "tris": 1862,
+   "pacote": true,
+   "tags": [
+    "pelucia",
+    "brinquedo",
+    "infantil",
+    "quarto",
+    "pacote"
+   ],
+   "pacote_origem": "Claw Machine"
+  },
+  {
+   "id": "taco_beisebol_pacote",
+   "rotulo": "Taco de beisebol",
+   "categoria": "jogos",
+   "grupo": "taco_beisebol_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    1.115,
+    0.098,
+    0.098
+   ],
+   "arquivo": "glb/taco_beisebol_pacote.glb",
+   "miniatura": "miniaturas/taco_beisebol_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.049,
+      -0.0
+     ],
+     "tamanho": [
+      1.115,
+      0.098,
+      0.098
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro"
+   ],
+   "tris": 132,
+   "pacote": true,
+   "tags": [
+    "esporte",
+    "beisebol",
+    "pacote"
+   ],
+   "pacote_origem": "Weapons"
+  },
+  {
+   "id": "taco_hoquei_pacote",
+   "rotulo": "Taco de hóquei",
+   "categoria": "jogos",
+   "grupo": "taco_hoquei_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    1.262,
+    0.423,
+    0.075
+   ],
+   "arquivo": "glb/taco_hoquei_pacote.glb",
+   "miniatura": "miniaturas/taco_hoquei_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03771,
+      0.0
+     ],
+     "tamanho": [
+      1.262,
+      0.075,
+      0.423
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "bege_escuro"
+   ],
+   "tris": 252,
+   "pacote": true,
+   "tags": [
+    "esporte",
+    "hoquei",
+    "pacote"
+   ],
+   "pacote_origem": "Weapons"
+  }
+ ]
+}

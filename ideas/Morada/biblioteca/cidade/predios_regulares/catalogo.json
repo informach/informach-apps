@@ -1,6 +1,6 @@
 {
  "categoria": "predios_regulares",
- "rotulo": "Prédios regulares",
+ "rotulo": "predios_regulares",
  "itens": [
   {
    "id": "escritorio_branco_abobada",
@@ -2220,6 +2220,100 @@
     1
    ],
    "andares": 3,
+   "estilo": "regular"
+  },
+  {
+   "id": "torre_torcida_fitas_pacote",
+   "rotulo": "Torre torcida com fitas (pacote)",
+   "categoria": "predios_regulares",
+   "grupo": "torre_torcida_fitas_pacote",
+   "fixacao": "chao",
+   "dims": [
+    28.0,
+    21.454,
+    49.823
+   ],
+   "arquivo": "glb/torre_torcida_fitas_pacote.glb",
+   "miniatura": "miniaturas/torre_torcida_fitas_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.74146,
+      6.22781,
+      1.21711
+     ],
+     "tamanho": [
+      20.365,
+      12.456,
+      16.218
+     ]
+    },
+    {
+     "centro": [
+      -1.56238,
+      18.68344,
+      1.0977
+     ],
+     "tamanho": [
+      17.515,
+      12.456,
+      15.062
+     ]
+    },
+    {
+     "centro": [
+      -0.82905,
+      31.13907,
+      -0.39878
+     ],
+     "tamanho": [
+      21.508,
+      12.456,
+      18.479
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      43.59469,
+      -0.0
+     ],
+     "tamanho": [
+      28.0,
+      12.456,
+      21.454
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "calcada",
+    "cinza",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "cromo",
+    "metal",
+    "metal_claro",
+    "tecido_cinza"
+   ],
+   "tris": 6730,
+   "pacote": true,
+   "tags": [
+    "predio",
+    "torre",
+    "torcida",
+    "vidro",
+    "pacote",
+    "2x2"
+   ],
+   "lote": [
+    2,
+    2
+   ],
+   "andares": 12,
    "estilo": "regular"
   }
  ]

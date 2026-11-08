@@ -1,0 +1,7465 @@
+{
+ "categoria": "carros",
+ "rotulo": "Carros e veículos",
+ "itens": [
+  {
+   "id": "sedan_azul",
+   "rotulo": "Sedã (azul)",
+   "categoria": "carros",
+   "grupo": "sedan",
+   "fixacao": "chao",
+   "dims": [
+    1.941,
+    4.441,
+    1.47
+   ],
+   "arquivo": "glb/sedan_azul.glb",
+   "miniatura": "miniaturas/sedan_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94038,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.94039,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.94069,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.9407,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.92,
+      -1.3
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.9,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.175,
+      -0.315
+     ],
+     "tamanho": [
+      1.64,
+      0.55,
+      1.87
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "azul_medio",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 5536,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "sedan",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "sedan_vermelho",
+   "rotulo": "Sedã (vermelho)",
+   "categoria": "carros",
+   "grupo": "sedan",
+   "fixacao": "chao",
+   "dims": [
+    1.941,
+    4.441,
+    1.47
+   ],
+   "arquivo": "glb/sedan_vermelho.glb",
+   "miniatura": "miniaturas/sedan_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94038,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.94039,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.94069,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.9407,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.92,
+      -1.3
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.9,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.175,
+      -0.315
+     ],
+     "tamanho": [
+      1.64,
+      0.55,
+      1.87
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "bege_escuro",
+    "borracha",
+    "branco",
+    "creme",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 5536,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "sedan",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "taxi",
+   "rotulo": "Táxi",
+   "categoria": "carros",
+   "grupo": "taxi",
+   "fixacao": "chao",
+   "dims": [
+    1.941,
+    4.441,
+    1.65
+   ],
+   "arquivo": "glb/taxi.glb",
+   "miniatura": "miniaturas/taxi.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94038,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.94039,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.94069,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.9407,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.92,
+      -1.3
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.9,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.175,
+      -0.315
+     ],
+     "tamanho": [
+      1.64,
+      0.55,
+      1.87
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 5656,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "taxi",
+    "servico"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "viatura_policia",
+   "rotulo": "Viatura de polícia",
+   "categoria": "carros",
+   "grupo": "viatura_policia",
+   "fixacao": "chao",
+   "dims": [
+    1.941,
+    4.55,
+    1.63
+   ],
+   "arquivo": "glb/viatura_policia.glb",
+   "miniatura": "miniaturas/viatura_policia.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94038,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.94039,
+      0.36,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.94069,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.9407,
+      0.36,
+      -0.29
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.92,
+      -1.3
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.66,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.36,
+      0.66,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.9,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.175,
+      -0.315
+     ],
+     "tamanho": [
+      1.64,
+      0.55,
+      1.87
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 6288,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "policia",
+    "servico",
+    "sirene"
+   ],
+   "animacoes": [
+    {
+     "nome": "sirene",
+     "anima": "piscar",
+     "periodo": 0.8,
+     "pivo": [
+      0.0,
+      1.565,
+      -0.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.77,
+      0.37,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.77,
+      0.37,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "sedan_luxo_preto",
+   "rotulo": "Sedã de luxo (preto)",
+   "categoria": "carros",
+   "grupo": "sedan_luxo",
+   "fixacao": "chao",
+   "dims": [
+    2.084,
+    4.941,
+    1.64
+   ],
+   "arquivo": "glb/sedan_luxo_preto.glb",
+   "miniatura": "miniaturas/sedan_luxo_preto.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.97334,
+      0.38,
+      0.68
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.97334,
+      0.38,
+      0.68
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.97342,
+      0.38,
+      -0.32
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.97342,
+      0.38,
+      -0.32
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.99,
+      -1.38
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.4,
+      0.68,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.4,
+      0.68,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.38,
+      0.68,
+      -0.92
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.38,
+      0.68,
+      -0.92
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.495,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      0.99,
+      4.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.305,
+      -0.27
+     ],
+     "tamanho": [
+      1.72,
+      0.63,
+      2.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "bege_escuro",
+    "borracha",
+    "branco",
+    "creme",
+    "cromo",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 6394,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "luxo",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.8,
+      0.38,
+      1.55
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.8,
+      0.38,
+      1.55
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.8,
+      0.38,
+      -1.5
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.8,
+      0.38,
+      -1.5
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "sedan_luxo_branco",
+   "rotulo": "Sedã de luxo (branco com teto bege)",
+   "categoria": "carros",
+   "grupo": "sedan_luxo",
+   "fixacao": "chao",
+   "dims": [
+    2.084,
+    4.941,
+    1.64
+   ],
+   "arquivo": "glb/sedan_luxo_branco.glb",
+   "miniatura": "miniaturas/sedan_luxo_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.97334,
+      0.38,
+      0.68
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.97334,
+      0.38,
+      0.68
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.97342,
+      0.38,
+      -0.32
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.97342,
+      0.38,
+      -0.32
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.99,
+      -1.38
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.4,
+      0.68,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.4,
+      0.68,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.38,
+      0.68,
+      -0.92
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.38,
+      0.68,
+      -0.92
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.495,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      0.99,
+      4.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.305,
+      -0.27
+     ],
+     "tamanho": [
+      1.72,
+      0.63,
+      2.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "bege_escuro",
+    "borracha",
+    "branco",
+    "couro",
+    "cromo",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 6394,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "luxo",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.8,
+      0.38,
+      1.55
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.8,
+      0.38,
+      1.55
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.8,
+      0.38,
+      -1.5
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.8,
+      0.38,
+      -1.5
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "compacto_amarelo",
+   "rotulo": "Compacto (amarelo)",
+   "categoria": "carros",
+   "grupo": "compacto",
+   "fixacao": "chao",
+   "dims": [
+    1.858,
+    3.806,
+    1.54
+   ],
+   "arquivo": "glb/compacto_amarelo.glb",
+   "miniatura": "miniaturas/compacto_amarelo.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.89883,
+      0.36,
+      0.82
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.89883,
+      0.36,
+      0.82
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.3963,
+     "nome": "tampa_traseira",
+     "pivo": [
+      0.0,
+      1.355,
+      -1.604
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.36,
+      0.68,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.36,
+      0.68,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.33,
+      0.68,
+      -0.82
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.33,
+      0.68,
+      -0.82
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.46,
+      -0.0
+     ],
+     "tamanho": [
+      1.82,
+      0.92,
+      3.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.22,
+      -0.4
+     ],
+     "tamanho": [
+      1.56,
+      0.6,
+      2.64
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 4894,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "compacto",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.735,
+      0.36,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.735,
+      0.36,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.735,
+      0.36,
+      -1.12
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.735,
+      0.36,
+      -1.12
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "compacto_cinza",
+   "rotulo": "Compacto (cinza)",
+   "categoria": "carros",
+   "grupo": "compacto",
+   "fixacao": "chao",
+   "dims": [
+    1.858,
+    3.806,
+    1.54
+   ],
+   "arquivo": "glb/compacto_cinza.glb",
+   "miniatura": "miniaturas/compacto_cinza.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.89883,
+      0.36,
+      0.82
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.89883,
+      0.36,
+      0.82
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.3963,
+     "nome": "tampa_traseira",
+     "pivo": [
+      0.0,
+      1.355,
+      -1.604
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.36,
+      0.68,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.36,
+      0.68,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.33,
+      0.68,
+      -0.82
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.33,
+      0.68,
+      -0.82
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.46,
+      -0.0
+     ],
+     "tamanho": [
+      1.82,
+      0.92,
+      3.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.22,
+      -0.4
+     ],
+     "tamanho": [
+      1.56,
+      0.6,
+      2.64
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_azulado",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto",
+    "vermelho_escuro"
+   ],
+   "tris": 4894,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "compacto",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.735,
+      0.36,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.735,
+      0.36,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.735,
+      0.36,
+      -1.12
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.735,
+      0.36,
+      -1.12
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "suv_roxo",
+   "rotulo": "SUV (roxo)",
+   "categoria": "carros",
+   "grupo": "suv",
+   "fixacao": "chao",
+   "dims": [
+    2.104,
+    4.637,
+    1.939
+   ],
+   "arquivo": "glb/suv_roxo.glb",
+   "miniatura": "miniaturas/suv_roxo.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.99139,
+      0.48,
+      0.78
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.9914,
+      0.48,
+      0.78
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.99155,
+      0.48,
+      -0.38
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.99155,
+      0.48,
+      -0.38
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.4312,
+     "nome": "tampa_traseira",
+     "pivo": [
+      0.0,
+      1.715,
+      -1.97859
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.4,
+      0.8,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.4,
+      0.8,
+      0.15
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.4,
+      0.8,
+      -0.85
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.4,
+      0.8,
+      -0.85
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.54,
+      -0.0
+     ],
+     "tamanho": [
+      2.0,
+      1.08,
+      4.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.47,
+      -0.59
+     ],
+     "tamanho": [
+      1.8,
+      0.78,
+      2.94
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "roxo"
+   ],
+   "tris": 6220,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "suv",
+    "passeio"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42,
+     "pivo": [
+      -0.805,
+      0.42,
+      1.42
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42,
+     "pivo": [
+      0.805,
+      0.42,
+      1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42,
+     "pivo": [
+      -0.805,
+      0.42,
+      -1.45
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42,
+     "pivo": [
+      0.805,
+      0.42,
+      -1.45
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "jipe_verde",
+   "rotulo": "Jipe com bagageiro (verde)",
+   "categoria": "carros",
+   "grupo": "jipe",
+   "fixacao": "chao",
+   "dims": [
+    2.12,
+    4.383,
+    1.992
+   ],
+   "arquivo": "glb/jipe_verde.glb",
+   "miniatura": "miniaturas/jipe_verde.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.97448,
+      0.58,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.97448,
+      0.58,
+      0.52
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.97461,
+      0.58,
+      -0.36
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.97461,
+      0.58,
+      -0.36
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.3614,
+     "nome": "tampa_traseira",
+     "pivo": [
+      0.0,
+      1.705,
+      -1.82597
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.4,
+      0.84,
+      0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.4,
+      0.84,
+      0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.38,
+      0.84,
+      -0.85
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.38,
+      0.84,
+      -0.85
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      1.05,
+      4.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.435,
+      -0.62
+     ],
+     "tamanho": [
+      1.8,
+      0.77,
+      2.48
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "marrom",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "verde_lima"
+   ],
+   "tris": 7514,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "jipe",
+    "aventura"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.44,
+     "pivo": [
+      -0.84,
+      0.44,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.44,
+     "pivo": [
+      0.84,
+      0.44,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.44,
+     "pivo": [
+      -0.84,
+      0.44,
+      -1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.44,
+     "pivo": [
+      0.84,
+      0.44,
+      -1.3
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "esportivo_aerofolio_laranja",
+   "rotulo": "Esportivo com aerofólio (laranja)",
+   "categoria": "carros",
+   "grupo": "esportivo_aerofolio",
+   "fixacao": "chao",
+   "dims": [
+    2.016,
+    4.496,
+    1.24
+   ],
+   "arquivo": "glb/esportivo_aerofolio_laranja.glb",
+   "miniatura": "miniaturas/esportivo_aerofolio_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94734,
+      0.3,
+      0.45
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.94732,
+      0.3,
+      0.45
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.83955,
+      -1.5
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.36,
+      0.48,
+      -0.25
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.36,
+      0.48,
+      -0.25
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      -0.0
+     ],
+     "tamanho": [
+      2.0,
+      0.8,
+      4.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.01,
+      -0.45
+     ],
+     "tamanho": [
+      1.56,
+      0.42,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja_escuro",
+    "preto"
+   ],
+   "tris": 5222,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "esportivo"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.81,
+      0.36,
+      1.4
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.81,
+      0.36,
+      1.4
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.80993,
+      0.36,
+      -1.38
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.80993,
+      0.36,
+      -1.38
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "esportivo_conversivel_vermelho",
+   "rotulo": "Esportivo conversível com aerofólio (vermelho)",
+   "categoria": "carros",
+   "grupo": "esportivo_conversivel",
+   "fixacao": "chao",
+   "dims": [
+    2.11,
+    4.496,
+    1.142
+   ],
+   "arquivo": "glb/esportivo_conversivel_vermelho.glb",
+   "miniatura": "miniaturas/esportivo_conversivel_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.94085,
+      0.3,
+      0.45
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.9409,
+      0.3,
+      0.45
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.83955,
+      -1.5
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.36,
+      0.48,
+      -0.28
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.36,
+      0.48,
+      -0.28
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      -0.0
+     ],
+     "tamanho": [
+      2.0,
+      0.8,
+      4.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 5374,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "esportivo",
+    "conversivel"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.81,
+      0.36,
+      1.4
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.81,
+      0.36,
+      1.4
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.80993,
+      0.36,
+      -1.38
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.80993,
+      0.36,
+      -1.38
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "cupe_verde_agua",
+   "rotulo": "Cupê (verde-água)",
+   "categoria": "carros",
+   "grupo": "cupe",
+   "fixacao": "chao",
+   "dims": [
+    1.996,
+    4.343,
+    1.29
+   ],
+   "arquivo": "glb/cupe_verde_agua.glb",
+   "miniatura": "miniaturas/cupe_verde_agua.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.95042,
+      0.32,
+      0.4
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.95041,
+      0.32,
+      0.4
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.37,
+      0.5,
+      -0.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.37,
+      0.5,
+      -0.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.41,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      0.82,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.045,
+      -0.59
+     ],
+     "tamanho": [
+      1.6,
+      0.45,
+      2.18
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "turquesa_escuro"
+   ],
+   "tris": 4650,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "cupe",
+    "esportivo"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.795,
+      0.36,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.795,
+      0.36,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.795,
+      0.36,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.795,
+      0.36,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "cupe_verde_limao",
+   "rotulo": "Cupê (verde-limão com teto preto)",
+   "categoria": "carros",
+   "grupo": "cupe",
+   "fixacao": "chao",
+   "dims": [
+    1.996,
+    4.343,
+    1.29
+   ],
+   "arquivo": "glb/cupe_verde_limao.glb",
+   "miniatura": "miniaturas/cupe_verde_limao.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.95042,
+      0.32,
+      0.4
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.95041,
+      0.32,
+      0.4
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.37,
+      0.5,
+      -0.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.37,
+      0.5,
+      -0.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.41,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      0.82,
+      4.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.045,
+      -0.59
+     ],
+     "tamanho": [
+      1.6,
+      0.45,
+      2.18
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "limao",
+    "preto"
+   ],
+   "tris": 4916,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "cupe",
+    "esportivo"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.795,
+      0.36,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.795,
+      0.36,
+      1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.795,
+      0.36,
+      -1.35
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.795,
+      0.36,
+      -1.35
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "carro_corrida_magenta",
+   "rotulo": "Carro de corrida clássico (magenta)",
+   "categoria": "carros",
+   "grupo": "carro_corrida",
+   "fixacao": "chao",
+   "dims": [
+    2.09,
+    4.286,
+    1.3
+   ],
+   "arquivo": "glb/carro_corrida_magenta.glb",
+   "miniatura": "miniaturas/carro_corrida_magenta.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.85546,
+      0.32,
+      0.38
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.85547,
+      0.32,
+      0.38
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.34,
+      0.5,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.34,
+      0.5,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      -0.0
+     ],
+     "tamanho": [
+      2.02,
+      0.8,
+      4.16
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.04,
+      -0.335
+     ],
+     "tamanho": [
+      1.4,
+      0.48,
+      1.63
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "couro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "magenta",
+    "metal",
+    "preto"
+   ],
+   "tris": 5158,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "corrida",
+    "classico"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.82,
+      0.36,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.82,
+      0.36,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.82,
+      0.36,
+      -1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.82,
+      0.36,
+      -1.3
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "carro_antigo_listrado_azul",
+   "rotulo": "Carro antigo listrado (azul)",
+   "categoria": "carros",
+   "grupo": "carro_antigo_listrado",
+   "fixacao": "chao",
+   "dims": [
+    2.09,
+    4.286,
+    1.3
+   ],
+   "arquivo": "glb/carro_antigo_listrado_azul.glb",
+   "miniatura": "miniaturas/carro_antigo_listrado_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.85027,
+      0.32,
+      0.38
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.85031,
+      0.32,
+      0.38
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.34,
+      0.5,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.34,
+      0.5,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      -0.0
+     ],
+     "tamanho": [
+      2.02,
+      0.8,
+      4.16
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.04,
+      -0.335
+     ],
+     "tamanho": [
+      1.4,
+      0.48,
+      1.63
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_claro",
+    "borracha",
+    "branco",
+    "couro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal",
+    "preto"
+   ],
+   "tris": 5656,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "classico",
+    "antigo"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.82,
+      0.36,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.82,
+      0.36,
+      1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.82,
+      0.36,
+      -1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.82,
+      0.36,
+      -1.3
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "carrinho_redondo_laranja",
+   "rotulo": "Carrinho redondo retrô (laranja)",
+   "categoria": "carros",
+   "grupo": "carrinho_redondo",
+   "fixacao": "chao",
+   "dims": [
+    1.84,
+    3.627,
+    1.59
+   ],
+   "arquivo": "glb/carrinho_redondo_laranja.glb",
+   "miniatura": "miniaturas/carrinho_redondo_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.76065,
+      0.34,
+      0.6
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.76065,
+      0.34,
+      0.6
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.34,
+      0.64,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.34,
+      0.64,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.3,
+      0.64,
+      -0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.3,
+      0.64,
+      -0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.44,
+      -0.0
+     ],
+     "tamanho": [
+      1.78,
+      0.88,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.215,
+      -0.15
+     ],
+     "tamanho": [
+      1.4,
+      0.67,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "bege_escuro",
+    "borracha",
+    "branco",
+    "creme",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "preto"
+   ],
+   "tris": 5620,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "retro",
+    "classico"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      -0.70001,
+      0.35,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      0.70001,
+      0.35,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      -0.70702,
+      0.35,
+      -1.12
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      0.70702,
+      0.35,
+      -1.12
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "carrinho_redondo_cinza_listrado",
+   "rotulo": "Carrinho redondo retrô (cinza listrado)",
+   "categoria": "carros",
+   "grupo": "carrinho_redondo",
+   "fixacao": "chao",
+   "dims": [
+    1.84,
+    3.627,
+    1.59
+   ],
+   "arquivo": "glb/carrinho_redondo_cinza_listrado.glb",
+   "miniatura": "miniaturas/carrinho_redondo_cinza_listrado.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.76065,
+      0.34,
+      0.6
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.76065,
+      0.34,
+      0.6
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.34,
+      0.64,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.34,
+      0.64,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.3,
+      0.64,
+      -0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.3,
+      0.64,
+      -0.72
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.44,
+      -0.0
+     ],
+     "tamanho": [
+      1.78,
+      0.88,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.215,
+      -0.15
+     ],
+     "tamanho": [
+      1.4,
+      0.67,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "bege_escuro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "creme",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 6968,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "retro",
+    "classico"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      -0.70001,
+      0.35,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      0.70001,
+      0.35,
+      1.15
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      -0.70702,
+      0.35,
+      -1.12
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.35,
+     "pivo": [
+      0.70702,
+      0.35,
+      -1.12
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "minivan_roxa_6_rodas",
+   "rotulo": "Minivan de 6 rodas (roxa)",
+   "categoria": "carros",
+   "grupo": "minivan_6_rodas",
+   "fixacao": "chao",
+   "dims": [
+    2.109,
+    5.505,
+    2.059
+   ],
+   "arquivo": "glb/minivan_roxa_6_rodas.glb",
+   "miniatura": "miniaturas/minivan_roxa_6_rodas.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.99787,
+      0.44,
+      1.62
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.99788,
+      0.44,
+      1.62
+     ]
+    },
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.11915,
+      0.0,
+      -0.99288
+     ],
+     "curso": 0.8,
+     "nome": "porta_correr_dir",
+     "pivo": [
+      0.90369,
+      1.11417,
+      -0.11
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.4312,
+     "nome": "tampa_traseira",
+     "pivo": [
+      0.0,
+      1.775,
+      -2.51745
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.4,
+      0.74,
+      1.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.4,
+      0.74,
+      1.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.4,
+      0.74,
+      -0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.4,
+      0.74,
+      -0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.4,
+      0.74,
+      -1.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.4,
+      0.74,
+      -1.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.52,
+      -0.0
+     ],
+     "tamanho": [
+      2.02,
+      1.04,
+      5.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.51,
+      -0.43
+     ],
+     "tamanho": [
+      1.8,
+      0.94,
+      4.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cinza_medio",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "lilas",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "roxo_escuro"
+   ],
+   "tris": 6776,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "minivan",
+    "familia"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.83,
+      0.38,
+      1.85
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.83,
+      0.38,
+      1.85
+     ]
+    },
+    {
+     "nome": "roda_meio_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.83,
+      0.38,
+      -1.3
+     ]
+    },
+    {
+     "nome": "roda_meio_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.83,
+      0.38,
+      -1.3
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      -0.83,
+      0.38,
+      -2.05
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.38,
+     "pivo": [
+      0.83,
+      0.38,
+      -2.05
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 6
+  },
+  {
+   "id": "picape_vermelha",
+   "rotulo": "Picape clássica (vermelha)",
+   "categoria": "carros",
+   "grupo": "picape",
+   "fixacao": "chao",
+   "dims": [
+    1.948,
+    4.638,
+    1.77
+   ],
+   "arquivo": "glb/picape_vermelha.glb",
+   "miniatura": "miniaturas/picape_vermelha.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.86909,
+      0.46,
+      0.5
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.86909,
+      0.46,
+      0.5
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.5359,
+     "nome": "tampa_cacamba",
+     "pivo": [
+      0.0,
+      0.62,
+      -2.17
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.78,
+      -0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.78,
+      -0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cacamba",
+     "centro": [
+      0,
+      0.68,
+      -1.4
+     ],
+     "tamanho": [
+      1.5,
+      0.6,
+      1.6
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.51,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      1.02,
+      4.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.38,
+      0.1
+     ],
+     "tamanho": [
+      1.64,
+      0.72,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "couro",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 4758,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "picape",
+    "classico"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      -0.79,
+      0.4,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      0.79,
+      0.4,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      -0.7704,
+      0.4,
+      -1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      0.7704,
+      0.4,
+      -1.42
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "picape_verde_motor",
+   "rotulo": "Picape com motor à mostra (verde)",
+   "categoria": "carros",
+   "grupo": "picape_motor",
+   "fixacao": "chao",
+   "dims": [
+    1.948,
+    4.638,
+    1.77
+   ],
+   "arquivo": "glb/picape_verde_motor.glb",
+   "miniatura": "miniaturas/picape_verde_motor.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.86909,
+      0.46,
+      0.5
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.86909,
+      0.46,
+      0.5
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.5359,
+     "nome": "tampa_cacamba",
+     "pivo": [
+      0.0,
+      0.62,
+      -2.17
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.78,
+      -0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.78,
+      -0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_cacamba",
+     "centro": [
+      0,
+      0.68,
+      -1.4
+     ],
+     "tamanho": [
+      1.5,
+      0.6,
+      1.6
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.51,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      1.02,
+      4.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.38,
+      0.1
+     ],
+     "tamanho": [
+      1.64,
+      0.72,
+      1.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "metal_escuro",
+    "preto",
+    "verde_claro"
+   ],
+   "tris": 6346,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "picape",
+    "envenenado"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      -0.79,
+      0.4,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      0.79,
+      0.4,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      -0.7704,
+      0.4,
+      -1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.4,
+     "pivo": [
+      0.7704,
+      0.4,
+      -1.42
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "futurista_sedan_branco",
+   "rotulo": "Carro futurista sedã (branco)",
+   "categoria": "carros",
+   "grupo": "futurista_sedan",
+   "fixacao": "chao",
+   "dims": [
+    1.96,
+    4.512,
+    1.44
+   ],
+   "arquivo": "glb/futurista_sedan_branco.glb",
+   "miniatura": "miniaturas/futurista_sedan_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -0.95,
+      0.34,
+      0.58
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      0.95,
+      0.34,
+      0.58
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_traseira_esq",
+     "pivo": [
+      -0.95,
+      0.34,
+      -0.42
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_traseira_dir",
+     "pivo": [
+      0.95,
+      0.34,
+      -0.42
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_malas",
+     "pivo": [
+      0.0,
+      0.867,
+      -1.9
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.38,
+      0.64,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.38,
+      0.64,
+      0.02
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.36,
+      0.64,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.36,
+      0.64,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.43,
+      -0.0
+     ],
+     "tamanho": [
+      1.96,
+      0.86,
+      4.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.14,
+      -0.565
+     ],
+     "tamanho": [
+      1.64,
+      0.56,
+      2.57
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 5736,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "futurista"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.8,
+      0.37,
+      1.42
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.8,
+      0.37,
+      1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      -0.8,
+      0.37,
+      -1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.37,
+     "pivo": [
+      0.8,
+      0.37,
+      -1.42
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "futurista_bolha_branco",
+   "rotulo": "Carro futurista bolha (branco)",
+   "categoria": "carros",
+   "grupo": "futurista_bolha",
+   "fixacao": "chao",
+   "dims": [
+    1.9,
+    3.88,
+    1.44
+   ],
+   "arquivo": "glb/futurista_bolha_branco.glb",
+   "miniatura": "miniaturas/futurista_bolha_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.0123,
+     "nome": "capota",
+     "pivo": [
+      0.0,
+      0.82,
+      0.8
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.32,
+      0.62,
+      -0.25
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.32,
+      0.62,
+      -0.25
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.8,
+      3.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.1,
+      -0.15
+     ],
+     "tamanho": [
+      1.44,
+      0.6,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "turquesa"
+   ],
+   "tris": 4508,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "futurista"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      -0.7404,
+      0.34,
+      1.2
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.7404,
+      0.34,
+      1.2
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      -0.74983,
+      0.34,
+      -1.2
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.74983,
+      0.34,
+      -1.2
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "futurista_hiper_branco",
+   "rotulo": "Carro futurista hiperesportivo (branco)",
+   "categoria": "carros",
+   "grupo": "futurista_hiper",
+   "fixacao": "chao",
+   "dims": [
+    2.047,
+    4.665,
+    1.222
+   ],
+   "arquivo": "glb/futurista_hiper_branco.glb",
+   "miniatura": "miniaturas/futurista_hiper_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 0.9599,
+     "nome": "capota",
+     "pivo": [
+      0.0,
+      0.74,
+      0.58
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.3,
+      0.56,
+      -0.45
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.3,
+      0.56,
+      -0.45
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.36,
+      -0.0
+     ],
+     "tamanho": [
+      2.06,
+      0.72,
+      4.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.93,
+      -0.465
+     ],
+     "tamanho": [
+      1.32,
+      0.42,
+      2.17
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "grafite",
+    "grafite_escuro",
+    "magenta",
+    "preto"
+   ],
+   "tris": 4736,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "futurista",
+    "esportivo"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.81721,
+      0.36,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.81721,
+      0.36,
+      1.45
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.84,
+      0.36,
+      -1.42
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.84,
+      0.36,
+      -1.42
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "bugue_laranja",
+   "rotulo": "Bugue (laranja)",
+   "categoria": "carros",
+   "grupo": "bugue",
+   "fixacao": "chao",
+   "dims": [
+    2.26,
+    4.027,
+    1.658
+   ],
+   "arquivo": "glb/bugue_laranja.glb",
+   "miniatura": "miniaturas/bugue_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.34,
+      0.62,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.34,
+      0.62,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      2.3,
+      0.9,
+      3.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.275,
+      -0.1
+     ],
+     "tamanho": [
+      1.5,
+      0.75,
+      1.4
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "cromo",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "metal",
+    "metal_claro",
+    "preto",
+    "turquesa"
+   ],
+   "tris": 5104,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "carro",
+    "bugue",
+    "praia",
+    "aberto"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.43,
+     "pivo": [
+      -0.95,
+      0.43,
+      1.18
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.43,
+     "pivo": [
+      0.95,
+      0.43,
+      1.18
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.43,
+     "pivo": [
+      -0.95,
+      0.43,
+      -1.18
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.43,
+     "pivo": [
+      0.95,
+      0.43,
+      -1.18
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "kart_antena",
+   "rotulo": "Kart com antena",
+   "categoria": "carros",
+   "grupo": "kart",
+   "fixacao": "chao",
+   "dims": [
+    1.52,
+    2.19,
+    1.96
+   ],
+   "arquivo": "glb/kart_antena.glb",
+   "miniatura": "miniaturas/kart_antena.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.3,
+      -0.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.31,
+      0
+     ],
+     "tamanho": [
+      1.5,
+      0.62,
+      2.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.75,
+      -0.82
+     ],
+     "tamanho": [
+      1.05,
+      0.26,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "borracha",
+    "cromo",
+    "grafite",
+    "metal",
+    "metal_claro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3940,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "kart",
+    "corrida",
+    "aberto"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.17,
+     "pivo": [
+      -0.62,
+      0.17,
+      0.62
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.17,
+     "pivo": [
+      0.62,
+      0.17,
+      0.62
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.21,
+     "pivo": [
+      -0.66,
+      0.21,
+      -0.62
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.21,
+     "pivo": [
+      0.66,
+      0.21,
+      -0.62
+     ]
+    }
+   ],
+   "veiculo": "kart",
+   "lugares": 1
+  },
+  {
+   "id": "scooter_turquesa",
+   "rotulo": "Scooter (turquesa)",
+   "categoria": "carros",
+   "grupo": "scooter",
+   "fixacao": "chao",
+   "dims": [
+    0.79,
+    1.665,
+    1.262
+   ],
+   "arquivo": "glb/scooter_turquesa.glb",
+   "miniatura": "miniaturas/scooter_turquesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.8,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.8,
+      -0.5
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.6,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      1.2,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "grafite",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "turquesa"
+   ],
+   "tris": 2172,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "moto",
+    "scooter"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.2,
+     "pivo": [
+      0.0,
+      0.2,
+      0.66
+     ]
+    },
+    {
+     "nome": "roda_traseira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.2,
+     "pivo": [
+      0.0,
+      0.2,
+      -0.6
+     ]
+    }
+   ],
+   "veiculo": "moto",
+   "lugares": 2
+  },
+  {
+   "id": "scooter_rosa",
+   "rotulo": "Scooter (rosa)",
+   "categoria": "carros",
+   "grupo": "scooter",
+   "fixacao": "chao",
+   "dims": [
+    0.79,
+    1.665,
+    1.262
+   ],
+   "arquivo": "glb/scooter_rosa.glb",
+   "miniatura": "miniaturas/scooter_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.8,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.8,
+      -0.5
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.6,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      1.2,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "grafite",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "rosa"
+   ],
+   "tris": 2172,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "moto",
+    "scooter"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.2,
+     "pivo": [
+      0.0,
+      0.2,
+      0.66
+     ]
+    },
+    {
+     "nome": "roda_traseira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.2,
+     "pivo": [
+      0.0,
+      0.2,
+      -0.6
+     ]
+    }
+   ],
+   "veiculo": "moto",
+   "lugares": 2
+  },
+  {
+   "id": "moto_vermelha",
+   "rotulo": "Moto clássica (vermelha)",
+   "categoria": "carros",
+   "grupo": "moto",
+   "fixacao": "chao",
+   "dims": [
+    0.87,
+    2.186,
+    1.156
+   ],
+   "arquivo": "glb/moto_vermelha.glb",
+   "miniatura": "miniaturas/moto_vermelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.86,
+      -0.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.86,
+      -0.48
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.575,
+      0
+     ],
+     "tamanho": [
+      0.8,
+      1.15,
+      2.15
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "couro_preto",
+    "cromo",
+    "grafite",
+    "metal",
+    "metal_escuro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3076,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "moto"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.33,
+     "pivo": [
+      0.0,
+      0.33,
+      0.74
+     ]
+    },
+    {
+     "nome": "roda_traseira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.33,
+     "pivo": [
+      0.0,
+      0.33,
+      -0.7
+     ]
+    }
+   ],
+   "veiculo": "moto",
+   "lugares": 2
+  },
+  {
+   "id": "bicicleta_amarela",
+   "rotulo": "Bicicleta com cestinha (amarela)",
+   "categoria": "carros",
+   "grupo": "bicicleta",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    1.753,
+    1.107
+   ],
+   "arquivo": "glb/bicicleta_amarela.glb",
+   "miniatura": "miniaturas/bicicleta_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.98,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55,
+      0.06
+     ],
+     "tamanho": [
+      0.62,
+      1.1,
+      1.78
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "borracha",
+    "cinza",
+    "grafite",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 2484,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "bicicleta"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.0,
+      0.34,
+      0.56
+     ]
+    },
+    {
+     "nome": "roda_traseira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.0,
+      0.34,
+      -0.52
+     ]
+    }
+   ],
+   "veiculo": "bicicleta",
+   "lugares": 1
+  },
+  {
+   "id": "bicicleta_azul",
+   "rotulo": "Bicicleta com cestinha (azul)",
+   "categoria": "carros",
+   "grupo": "bicicleta",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    1.753,
+    1.107
+   ],
+   "arquivo": "glb/bicicleta_azul.glb",
+   "miniatura": "miniaturas/bicicleta_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0,
+      0.98,
+      -0.2
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55,
+      0.06
+     ],
+     "tamanho": [
+      0.62,
+      1.1,
+      1.78
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "borracha",
+    "cinza",
+    "grafite",
+    "marrom",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 2484,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "bicicleta"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.0,
+      0.34,
+      0.56
+     ]
+    },
+    {
+     "nome": "roda_traseira",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.34,
+     "pivo": [
+      0.0,
+      0.34,
+      -0.52
+     ]
+    }
+   ],
+   "veiculo": "bicicleta",
+   "lugares": 1
+  },
+  {
+   "id": "carrinho_bebe_rosa",
+   "rotulo": "Carrinho de bebê (rosa)",
+   "categoria": "carros",
+   "grupo": "carrinho_bebe",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.802,
+    0.999
+   ],
+   "arquivo": "glb/carrinho_bebe_rosa.glb",
+   "miniatura": "miniaturas/carrinho_bebe_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.5,
+      -0.0
+     ],
+     "tamanho": [
+      0.34,
+      0.4,
+      0.55
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.51,
+      -0.05
+     ],
+     "tamanho": [
+      0.66,
+      1.02,
+      0.95
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "cinza",
+    "grafite",
+    "preto",
+    "rosa",
+    "rosa_escuro",
+    "turquesa_escuro"
+   ],
+   "tris": 2376,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "bebe",
+    "calcada"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.08,
+     "pivo": [
+      -0.27,
+      0.08,
+      0.28
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.08,
+     "pivo": [
+      0.27,
+      0.08,
+      0.28
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.12,
+     "pivo": [
+      -0.28,
+      0.12,
+      -0.26
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.12,
+     "pivo": [
+      0.28,
+      0.12,
+      -0.26
+     ]
+    }
+   ],
+   "veiculo": "carrinho_bebe",
+   "lugares": 1,
+   "lugares_tamanho": "bebe"
+  },
+  {
+   "id": "skate_laranja",
+   "rotulo": "Skate (rodinhas laranja)",
+   "categoria": "carros",
+   "grupo": "skate",
+   "fixacao": "chao",
+   "dims": [
+    0.232,
+    0.82,
+    0.148
+   ],
+   "arquivo": "glb/skate_laranja.glb",
+   "miniatura": "miniaturas/skate_laranja.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.1,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.065,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      0.13,
+      0.84
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "grafite_escuro",
+    "laranja",
+    "metal",
+    "metal_claro"
+   ],
+   "tris": 1372,
+   "pacote": false,
+   "tags": [
+    "veiculo",
+    "skate",
+    "calcada"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.032,
+     "pivo": [
+      -0.1,
+      0.032,
+      0.27
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.032,
+     "pivo": [
+      0.1,
+      0.032,
+      0.27
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.032,
+     "pivo": [
+      -0.1,
+      0.032,
+      -0.27
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.032,
+     "pivo": [
+      0.1,
+      0.032,
+      -0.27
+     ]
+    }
+   ],
+   "veiculo": "skate",
+   "lugares": 1,
+   "postura": "em_pe"
+  },
+  {
+   "id": "car_06_pacote",
+   "rotulo": "Carrinho do pacote",
+   "categoria": "carros",
+   "grupo": "car_06_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.278,
+    3.322,
+    1.558
+   ],
+   "arquivo": "glb/car_06_pacote.glb",
+   "miniatura": "miniaturas/car_06_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.43284,
+      0.4674,
+      0.22057
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.43284,
+      0.4674,
+      0.22057
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.43284,
+      0.4674,
+      -0.51034
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.43284,
+      0.4674,
+      -0.51034
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.42845,
+      0.02123
+     ],
+     "tamanho": [
+      2.278,
+      0.857,
+      3.322
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.20745,
+      -0.14489
+     ],
+     "tamanho": [
+      1.868,
+      0.701,
+      1.993
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "azul_celeste",
+    "borracha",
+    "calcada",
+    "cinza_azulado",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "couro_preto",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "tecido_cinza"
+   ],
+   "tris": 2542,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76137,
+      0.36,
+      0.99043
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76115,
+      0.36,
+      0.99063
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76137,
+      0.36,
+      -0.99063
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76115,
+      0.36,
+      -0.99043
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "car_13_pacote",
+   "rotulo": "Esportivo do pacote",
+   "categoria": "carros",
+   "grupo": "car_13_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.08,
+    4.088,
+    1.227
+   ],
+   "arquivo": "glb/car_13_pacote.glb",
+   "miniatura": "miniaturas/car_13_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.39517,
+      0.36805,
+      0.27881
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.39517,
+      0.36805,
+      0.27881
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.33738,
+      0.03353
+     ],
+     "tamanho": [
+      2.08,
+      0.675,
+      4.088
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.9508,
+      -0.17087
+     ],
+     "tamanho": [
+      1.705,
+      0.552,
+      2.453
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "borracha",
+    "carvao",
+    "cinza",
+    "concreto",
+    "couro_preto",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "laranja_escuro",
+    "metal_escuro",
+    "preto",
+    "trilho",
+    "turquesa"
+   ],
+   "tris": 3094,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76126,
+      0.36,
+      1.10145
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76126,
+      0.36,
+      1.10165
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76126,
+      0.36,
+      -1.10166
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76126,
+      0.36,
+      -1.10146
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "car_16_pacote",
+   "rotulo": "Sedã do pacote",
+   "categoria": "carros",
+   "grupo": "car_16_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.958,
+    3.718,
+    1.33
+   ],
+   "arquivo": "glb/car_16_pacote.glb",
+   "miniatura": "miniaturas/car_16_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.37203,
+      0.39912,
+      0.26233
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.37203,
+      0.39912,
+      0.26233
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.37203,
+      0.39912,
+      -0.55567
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.37203,
+      0.39912,
+      -0.55567
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.36586,
+      0.03924
+     ],
+     "tamanho": [
+      1.958,
+      0.732,
+      3.718
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.03106,
+      -0.14667
+     ],
+     "tamanho": [
+      1.606,
+      0.599,
+      2.231
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "borracha",
+    "carvao",
+    "cinza",
+    "concreto",
+    "couro_preto",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "latao",
+    "ouro",
+    "ouro_escuro",
+    "preto",
+    "trilho",
+    "verde_oliva"
+   ],
+   "tris": 3024,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76126,
+      0.36,
+      1.10146
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76126,
+      0.36,
+      1.10166
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.76126,
+      0.36,
+      -1.10165
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.76126,
+      0.36,
+      -1.10145
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 4
+  },
+  {
+   "id": "car_19_pacote",
+   "rotulo": "Carro antigo do pacote",
+   "categoria": "carros",
+   "grupo": "car_19_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.622,
+    3.306,
+    1.482
+   ],
+   "arquivo": "glb/car_19_pacote.glb",
+   "miniatura": "miniaturas/car_19_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.30461,
+      0.44473,
+      0.13696
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.30461,
+      0.44473,
+      0.13696
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.40766,
+      -0.06142
+     ],
+     "tamanho": [
+      1.603,
+      0.815,
+      3.306
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.14887,
+      -0.22673
+     ],
+     "tamanho": [
+      1.315,
+      0.667,
+      1.984
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "azul_celeste",
+    "calcada",
+    "cinza",
+    "concreto_escuro",
+    "couro_preto",
+    "laranja_escuro",
+    "metal",
+    "porcelana",
+    "preto",
+    "tecido_cinza",
+    "terracota_clara"
+   ],
+   "tris": 2970,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.66511,
+      0.36,
+      0.99569
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.66489,
+      0.36,
+      0.99569
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.66511,
+      0.36,
+      -0.9957
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.66489,
+      0.36,
+      -0.9957
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "futuristic_car_1_pacote",
+   "rotulo": "Carro futurista do pacote",
+   "categoria": "carros",
+   "grupo": "futuristic_car_1_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.149,
+    4.161,
+    1.496
+   ],
+   "arquivo": "glb/futuristic_car_1_pacote.glb",
+   "miniatura": "miniaturas/futuristic_car_1_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.39666,
+      0.44894,
+      0.11037
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.39666,
+      0.44894,
+      0.11037
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.41153,
+      -0.13928
+     ],
+     "tamanho": [
+      2.088,
+      0.823,
+      4.161
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.15977,
+      -0.34733
+     ],
+     "tamanho": [
+      1.712,
+      0.673,
+      2.497
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "azul_bebe",
+    "azul_claro",
+    "branco_gelo",
+    "calcada",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite_escuro",
+    "metal_claro",
+    "metal_escuro",
+    "porcelana",
+    "porcelana_azul"
+   ],
+   "tris": 3278,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.93316,
+      0.36,
+      1.2694
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.93294,
+      0.36,
+      1.2694
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.9332,
+      0.36,
+      -1.26939
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.93298,
+      0.36,
+      -1.26939
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  },
+  {
+   "id": "van_pacote",
+   "rotulo": "Van do pacote",
+   "categoria": "carros",
+   "grupo": "van_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.065,
+    4.561,
+    2.656
+   ],
+   "arquivo": "glb/van_pacote.glb",
+   "miniatura": "miniaturas/van_pacote.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      -0.39244,
+      0.79674,
+      0.02847
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.39244,
+      0.79674,
+      0.02847
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.39244,
+      0.79674,
+      -0.97498
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.39244,
+      0.79674,
+      -0.97498
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.39244,
+      0.79674,
+      -1.79599
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.39244,
+      0.79674,
+      -1.79599
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.73034,
+      -0.2452
+     ],
+     "tamanho": [
+      2.065,
+      1.461,
+      4.561
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.05824,
+      -0.47326
+     ],
+     "tamanho": [
+      1.694,
+      1.195,
+      2.737
+     ]
+    }
+   ],
+   "cores": [
+    "agua_rio",
+    "asfalto",
+    "asfalto_claro",
+    "azul_celeste",
+    "borracha",
+    "branco_gelo",
+    "brasa",
+    "calcada",
+    "carvao",
+    "cinza",
+    "cinza_azulado",
+    "cinza_claro",
+    "cinza_medio",
+    "cinzas",
+    "concreto",
+    "concreto_escuro",
+    "couro_preto",
+    "cromo",
+    "ferro",
+    "grafite",
+    "laranja_escuro",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "porcelana",
+    "preto",
+    "tecido_cinza",
+    "trilho"
+   ],
+   "tris": 3108,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.83035,
+      0.36,
+      1.26131
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.83035,
+      0.36,
+      1.26132
+     ]
+    },
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      0.83035,
+      0.36,
+      -1.26133
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.36,
+     "pivo": [
+      -0.83035,
+      0.36,
+      -1.26132
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 6
+  },
+  {
+   "id": "apocalypse_car_pacote",
+   "rotulo": "Carro velho abandonado (picape blindada do pacote)",
+   "categoria": "carros",
+   "grupo": "apocalypse_car_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.295,
+    4.993,
+    1.911
+   ],
+   "arquivo": "glb/apocalypse_car_pacote.glb",
+   "miniatura": "miniaturas/apocalypse_car_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "porta_dianteira_dir",
+     "pivo": [
+      1.0347,
+      0.39996,
+      0.68461
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.2217,
+     "nome": "porta_dianteira_esq",
+     "pivo": [
+      -1.0347,
+      0.39996,
+      0.68461
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_motorista",
+     "centro": [
+      0.43603,
+      0.57319,
+      0.50644
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.43603,
+      0.57319,
+      0.50644
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.52542,
+      0.20686
+     ],
+     "tamanho": [
+      2.295,
+      1.051,
+      4.993
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.48074,
+      -0.0428
+     ],
+     "tamanho": [
+      1.882,
+      0.86,
+      2.996
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "azul",
+    "azul_acinzentado",
+    "borracha",
+    "brita",
+    "carvao",
+    "cinza_azulado",
+    "cinzas",
+    "couro_preto",
+    "dormente",
+    "ferro",
+    "grafite",
+    "grafite_escuro",
+    "marrom_claro",
+    "metal_escuro",
+    "neon_ciano",
+    "preto",
+    "terra_escura",
+    "trilho",
+    "turquesa",
+    "verde_oliva"
+   ],
+   "tris": 13663,
+   "pacote": true,
+   "tags": [
+    "veiculo",
+    "carro",
+    "pacote",
+    "velho",
+    "abandonado"
+   ],
+   "animacoes": [
+    {
+     "nome": "roda_traseira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.323,
+     "pivo": [
+      0.78658,
+      0.32284,
+      -1.09416
+     ]
+    },
+    {
+     "nome": "roda_traseira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.323,
+     "pivo": [
+      -0.78658,
+      0.32284,
+      -1.09416
+     ]
+    },
+    {
+     "nome": "roda_dianteira_dir",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.323,
+     "pivo": [
+      0.78658,
+      0.32285,
+      1.17209
+     ]
+    },
+    {
+     "nome": "roda_dianteira_esq",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.323,
+     "pivo": [
+      -0.78658,
+      0.32285,
+      1.17209
+     ]
+    }
+   ],
+   "veiculo": "carro",
+   "lugares": 2
+  }
+ ]
+}

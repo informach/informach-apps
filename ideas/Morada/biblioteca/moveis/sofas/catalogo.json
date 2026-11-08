@@ -1531,6 +1531,88 @@
     "L",
     "chaise"
    ]
+  },
+  {
+   "id": "sofa_capitone_vermelho_cassino_pacote",
+   "rotulo": "Sofá capitonê de dois lugares (vermelho)",
+   "categoria": "sofas",
+   "grupo": "sofa_capitone_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.717,
+    0.86,
+    0.892
+   ],
+   "arquivo": "glb/sofa_capitone_vermelho_cassino_pacote.glb",
+   "miniatura": "miniaturas/sofa_capitone_vermelho_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      1.717,
+      0.44,
+      0.86
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.66599,
+      -0.2936
+     ],
+     "tamanho": [
+      1.715,
+      0.452,
+      0.272
+     ]
+    },
+    {
+     "centro": [
+      -0.57722,
+      0.60146,
+      0.14192
+     ],
+     "tamanho": [
+      0.562,
+      0.323,
+      0.576
+     ]
+    },
+    {
+     "centro": [
+      0.57722,
+      0.60146,
+      0.14192
+     ],
+     "tamanho": [
+      0.562,
+      0.323,
+      0.576
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "madeira_escura",
+    "marrom",
+    "vermelho_escuro"
+   ],
+   "tris": 1066,
+   "pacote": true,
+   "tags": [
+    "sofa",
+    "estofado",
+    "capitone",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
   }
  ]
 }
