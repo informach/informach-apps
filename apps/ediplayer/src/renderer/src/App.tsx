@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { AskDialog } from "./components/AskDialog";
 import { Controls, captureFrame, stepSpeed, toggleAb } from "./components/Controls";
 import { EditTools } from "./components/EditTools";
 import { Home } from "./components/Home";
@@ -17,6 +18,7 @@ import {
   fail,
   markIn,
   markOut,
+  noteQueue,
   openPaths,
   openSave,
   redo,
@@ -38,11 +40,8 @@ export function App() {
       .prefs()
       .then((prefs) => useStore.setState({ prefs }))
       .catch(fail);
-    void window.api
-      .queue()
-      .then((queue) => useStore.setState({ queue }))
-      .catch(fail);
-    const offQueue = window.api.onQueue((queue) => useStore.setState({ queue }));
+    void window.api.queue().then(noteQueue).catch(fail);
+    const offQueue = window.api.onQueue(noteQueue);
     const offOpen = window.api.onOpenFiles((paths) => void openPaths(paths, "outside").catch(fail));
     // A file dropped outside a drop area must not be opened by Chromium as a page.
     const block = (e: DragEvent) => e.preventDefault();
@@ -94,6 +93,7 @@ export function App() {
         </section>
       )}
       <SaveDialog />
+      <AskDialog />
       <Queue />
       {/* Mounted always, so screen readers announce each new message. */}
       <div className={toast ? "toast" : "toast-idle"} role="status">
@@ -167,7 +167,8 @@ function onKey(e: KeyboardEvent): void {
   // Space and Enter on a focused button press that button.
   if (target instanceof HTMLButtonElement && (e.key === " " || e.key === "Enter")) return;
   const state = useStore.getState();
-  if (state.save) return;
+  // A dialog open in the window takes the keys (its own buttons, Escape).
+  if (state.save || state.ask) return;
   const key = e.key;
   const ctrl = e.ctrlKey || e.metaKey;
   const v = video();

@@ -559,16 +559,37 @@ kbd {
 .item.current small {
   color: var(--accent);
 }
+/* The name takes the room left by the X: it shrinks (with an ellipsis) instead of pushing the X
+   out of the list, which also made the list scroll sideways. */
+.item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+.item-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 .item .x {
+  flex: none;
   margin-left: auto;
-  opacity: 0;
+  opacity: 0.45;
   width: 26px;
   height: 26px;
+  color: var(--text-2);
 }
 .item:hover .x,
 .item .x:focus-visible,
 .item:focus-within .x {
   opacity: 1;
+  color: var(--text-1);
 }
 .badge {
   margin-left: 4px;
@@ -1258,6 +1279,19 @@ dialog.save {
 }
 dialog.save::backdrop {
   background: rgba(8, 9, 11, 0.72);
+}
+/* A yes/no question (AskDialog): narrower than the save sheet. */
+dialog.ask {
+  width: min(420px, calc(100vw - 32px));
+}
+dialog.ask p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ask-actions {
+  justify-content: flex-end;
+  gap: 8px;
 }
 .save-body {
   display: flex;

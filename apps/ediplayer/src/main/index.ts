@@ -163,7 +163,8 @@ function createWindow(): void {
     icon: join(app.getAppPath(), "resources", "icon.ico"),
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#15171c", symbolColor: "#a3a9b6", height: 44 },
+    // 1 px short of the bar (--titlebar): its bottom line runs under the window buttons too.
+    titleBarOverlay: { color: "#15171c", symbolColor: "#a3a9b6", height: 43 },
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       sandbox: true,

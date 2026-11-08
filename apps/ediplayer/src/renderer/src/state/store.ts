@@ -89,6 +89,10 @@ interface State {
   queueOpen: boolean;
   recents: RecentItem[];
   toast: string | null;
+  /** The edits of this file as they were when a save of them finished (editKey). */
+  savedEdits: string | null;
+  /** A question waiting in the window (AskDialog), answered by answerAsk. */
+  ask: { message: string; confirm: string } | null;
 }
 
 const DEFAULT_PREFS: PlayerPrefs = {
@@ -139,6 +143,8 @@ export const useStore = create<State>(() => ({
   queueOpen: true,
   recents: [],
   toast: null,
+  savedEdits: null,
+  ask: null,
 }));
 
 const set = useStore.setState;
@@ -193,22 +199,70 @@ export async function rememberPosition(): Promise<void> {
     .catch(() => undefined);
 }
 
-/** Edit work that switching files would throw away. */
-export function hasEdits(): boolean {
+/** The edit work of the current file, as one string to compare (what a save took). */
+function editKey(): string {
   const { marks, splitPoints, transform, joinFiles } = get();
   const { audioIndex: _a, ...changed } = transform;
+  return JSON.stringify([marks, splitPoints, joinFiles.map((f) => f.path), changed]);
+}
+
+/** Edit work that switching files would throw away: none once a save of it has finished. */
+export function hasEdits(): boolean {
+  const { marks, splitPoints, transform, joinFiles, savedEdits } = get();
+  const { audioIndex: _a, ...changed } = transform;
   const { audioIndex: _b, ...plain } = NO_TRANSFORM;
-  return (
+  const edited =
     marks.length > 0 ||
     splitPoints.length > 0 ||
     joinFiles.length > 0 ||
-    JSON.stringify(changed) !== JSON.stringify(plain)
-  );
+    JSON.stringify(changed) !== JSON.stringify(plain);
+  return edited && editKey() !== savedEdits;
 }
 
-/** Asks before discarding edits; true when it is fine to leave the current file. */
-export function confirmLeave(): boolean {
-  return !hasEdits() || window.confirm("Descartar as edições deste vídeo?");
+/** Saves sent to the queue: which file and which edits each one took (by queue item id). */
+const queuedSaves = new Map<string, { path: string; key: string }>();
+
+/** A save of the current edits went into the queue. */
+export function noteSaveQueued(item: QueueItem): void {
+  const path = get().source?.facts.path;
+  if (path) queuedSaves.set(item.id, { path, key: editKey() });
+}
+
+/** The queue changed: a save that finished makes those edits of that file saved. */
+export function noteQueue(queue: QueueItem[]): void {
+  set({ queue });
+  for (const item of queue) {
+    const saved = queuedSaves.get(item.id);
+    if (!saved || item.status === "waiting" || item.status === "working") continue;
+    queuedSaves.delete(item.id);
+    if (item.status === "done" && saved.path === get().source?.facts.path)
+      set({ savedEdits: saved.key });
+  }
+}
+
+let answer: ((ok: boolean) => void) | null = null;
+
+/** Asks in the window (AskDialog, not the system's box); true when the person confirms. */
+export function ask(message: string, confirm: string): Promise<boolean> {
+  answer?.(false);
+  return new Promise((resolve) => {
+    answer = resolve;
+    set({ ask: { message, confirm } });
+  });
+}
+
+export function answerAsk(ok: boolean): void {
+  const resolve = answer;
+  answer = null;
+  set({ ask: null });
+  resolve?.(ok);
+}
+
+/** Asks before discarding edits not saved yet; true when it is fine to leave the current file. */
+export async function confirmLeave(
+  message = "As edições deste vídeo ainda não foram salvas. Descartar?",
+): Promise<boolean> {
+  return !hasEdits() || ask(message, "Descartar");
 }
 
 /**
@@ -232,7 +286,11 @@ export async function openPaths(
   }
   const first = list.findIndex((i) => i.path.toLowerCase() === (paths.at(0) ?? "").toLowerCase());
   const target = first < 0 ? list.length - 1 : first;
-  if (list.at(target)?.path !== get().source?.facts.path && from === "person" && !confirmLeave())
+  if (
+    list.at(target)?.path !== get().source?.facts.path &&
+    from === "person" &&
+    !(await confirmLeave())
+  )
     return;
   await playIndex(target);
 }
@@ -249,6 +307,7 @@ function resetEdit(): Partial<State> {
     transform: NO_TRANSFORM,
     past: [],
     future: [],
+    savedEdits: null,
     precise: true,
     mode: "remove",
     sheet: null,
@@ -341,12 +400,15 @@ export async function playbackFailed(): Promise<void> {
   await playIndex(index, source.audioIndex, fallbackLevel + 1);
 }
 
-export function removeFromList(path: string): void {
+export async function removeFromList(path: string): Promise<void> {
   const { list, index } = get();
   const at = list.findIndex((i) => i.path === path);
-  const next = list.filter((i) => i.path !== path);
+  if (at < 0) return;
   if (at === index) {
-    if (!confirmLeave()) return;
+    if (!(await confirmLeave("Tirar da lista e descartar as edições que ainda não foram salvas?")))
+      return;
+    // The list as it is now: it may have changed while the question waited.
+    const next = get().list.filter((i) => i.path !== path);
     unloadVideo();
     set({
       list: next,
@@ -357,7 +419,7 @@ export function removeFromList(path: string): void {
       view: next.length ? "player" : "home",
     });
     if (next.length) void playIndex(Math.min(at, next.length - 1));
-  } else set({ list: next, index: at < index ? index - 1 : index });
+  } else set({ list: list.filter((i) => i.path !== path), index: at < index ? index - 1 : index });
 }
 
 export async function loadSubtitleFile(path: string): Promise<void> {

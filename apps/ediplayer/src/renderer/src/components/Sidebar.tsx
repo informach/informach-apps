@@ -78,14 +78,16 @@ export function Sidebar() {
         <div key={item.path} className={`item${i === index ? " current" : ""}`}>
           <button
             type="button"
-            className="item"
-            style={{ padding: 0, background: "none" }}
-            onClick={() => {
-              if (i !== index && !confirmLeave()) return;
-              void playIndex(i).catch(fail);
-            }}
+            className="item-main"
+            title={item.name}
+            onClick={() =>
+              void (async () => {
+                if (i !== index && !(await confirmLeave())) return;
+                await playIndex(i);
+              })().catch(fail)
+            }
           >
-            <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+            <span className="item-text">
               <span className="name">{item.name}</span>
               <small>
                 {i === index ? "Tocando" : "Na lista"}
@@ -99,7 +101,8 @@ export function Sidebar() {
             type="button"
             className="icon-btn x"
             aria-label={`Tirar ${item.name} da lista`}
-            onClick={() => removeFromList(item.path)}
+            title="Tirar da lista (o arquivo não é apagado)"
+            onClick={() => void removeFromList(item.path).catch(fail)}
           >
             <X size={14} />
           </button>

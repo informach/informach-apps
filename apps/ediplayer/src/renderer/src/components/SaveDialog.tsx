@@ -24,7 +24,7 @@ import {
 import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/media";
-import { exactNeedsEncode, fail, toast, useStore } from "../state/store";
+import { exactNeedsEncode, fail, noteSaveQueued, toast, useStore } from "../state/store";
 
 /** Salvar: the format, what it costs (size, time, quality), then the person's own save dialog. */
 export function SaveDialog() {
@@ -99,7 +99,8 @@ function Footer({
 }
 
 async function enqueue(job: EditJob, label: string, openFolder: boolean): Promise<void> {
-  await window.api.enqueue(job, label, openFolder);
+  // Once it is done, these edits count as saved: leaving the file no longer asks about them.
+  noteSaveQueued(await window.api.enqueue(job, label, openFolder));
   close();
   toast("Na fila. Pode continuar assistindo enquanto salva.");
 }

@@ -64,7 +64,8 @@ export async function verifyPlayerNativeJourney(
   editor.setDefaultTimeout(20000);
   const dir = await mkdtemp(join(tmpdir(), "ediplayer-journey-"));
   try {
-    const clip = join(dir, "aula-revisao.mp4");
+    // A long name, as recordings get: the list must cut it, never push its X out of view.
+    const clip = join(dir, "aula-revisao gravação automática da turma - Parte 8.mp4");
     await run(ffmpegPath(root), [
       "-hide_banner",
       "-nostdin",
@@ -104,6 +105,23 @@ export async function verifyPlayerNativeJourney(
       return v instanceof HTMLVideoElement && v.readyState >= 2 && v.currentTime > 0.3;
     });
     await editor.screenshot({ path: join(results, "ediplayer-player.png") });
+    // The list never scrolls sideways and each item's X (Tirar da lista) is inside it.
+    const list = await editor.evaluate(() => {
+      const side = document.querySelector(".side");
+      const x = document.querySelector(".side .item .x");
+      if (!(side instanceof HTMLElement) || !x) return null;
+      const s = side.getBoundingClientRect();
+      const b = x.getBoundingClientRect();
+      return {
+        sideways: side.scrollWidth - side.clientWidth,
+        inside: b.left >= s.left && b.right <= s.right - 8,
+        shown: Number(getComputedStyle(x).opacity) > 0,
+      };
+    });
+    assert.ok(
+      list && list.sideways <= 0 && list.inside && list.shown,
+      `the list's X is out of view: ${JSON.stringify(list)}`,
+    );
     // The whole picture shows: the video's box never grows past the stage (it used to take the
     // video's natural height and the overflow was cut off).
     const fitsStage = async (where: string) => {
@@ -285,6 +303,17 @@ export async function verifyPlayerNativeJourney(
     // mode), a click picks the clip, Delete deletes it.
     await editor.getByRole("button", { name: "Sair da edição" }).click();
     await editor.locator(".ruler").waitFor({ state: "detached" });
+    // Saved: these edits are in the finished file, so taking the video out of the list asks
+    // nothing (it used to ask to discard them); then it is opened again for the rest.
+    const takeOut = editor.getByRole("button", { name: /^Tirar .+ da lista$/ });
+    await takeOut.click();
+    await editor.getByRole("button", { name: /Abrir arquivo/ }).waitFor();
+    assert.equal(await editor.locator("dialog.ask[open]").count(), 0, "asked after the save");
+    await editor.getByRole("button", { name: /Abrir arquivo/ }).click();
+    await editor.waitForFunction(() => {
+      const v = document.querySelector(".stage video");
+      return v instanceof HTMLVideoElement && v.readyState >= 2;
+    });
     await seekTo(15);
     await editor.keyboard.press("s");
     await editor.locator(".ruler").waitFor();
@@ -349,6 +378,17 @@ export async function verifyPlayerNativeJourney(
     );
     await editor.locator(".part-flag").getByText("Apagado · Ctrl+Z volta").waitFor();
     await editor.screenshot({ path: join(results, "ediplayer-zoom-handles.png") });
+
+    // Not saved: taking it out of the list asks in the window (not the system's box), and
+    // Cancelar keeps it there with its edits.
+    await editor.getByRole("button", { name: "Sair da edição" }).click();
+    await takeOut.click();
+    const question = editor.locator("dialog.ask[open]");
+    await question.getByText(/descartar as edições que ainda não foram salvas/).waitFor();
+    await editor.screenshot({ path: join(results, "ediplayer-ask.png") });
+    await question.getByRole("button", { name: "Cancelar" }).click();
+    await question.waitFor({ state: "detached" });
+    assert.equal(await takeOut.count(), 1, "Cancelar took the video out of the list");
   } finally {
     // The app may still hold the clip open: a failed cleanup must not hide why the journey failed.
     await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 }).catch(
