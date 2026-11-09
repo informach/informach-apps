@@ -852,6 +852,15 @@ try {
           console.log(
             "Verified native binary React ZIP Save/Cancel, unchanged document and preserved original project",
           );
+          const pipelineJourney = await import(
+            new URL("../../apps/edisvg/scripts/native-pipeline-journey.mts", import.meta.url).href
+          );
+          await pipelineJourney.verifySvgNativePipelineJourney(
+            editor,
+            application,
+            root,
+            join(results, "edisvg-pipeline.png"),
+          );
           const lottieJourney = await import(
             new URL("../../apps/edisvg/scripts/native-lottie-journey.mts", import.meta.url).href
           );

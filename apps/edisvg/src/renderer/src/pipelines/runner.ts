@@ -1,3 +1,4 @@
+import { findScriptPiece, type HeardWord, type ScriptPiece } from "@informach/edi-speech/piece";
 import type { Recipe, RecipeKind, RunInputs } from "../../../shared/pipelines";
 
 /**
@@ -10,11 +11,26 @@ import type { Recipe, RecipeKind, RunInputs } from "../../../shared/pipelines";
 export interface PipelineEditor {
   /** Imports a studio project into the open file (one edit); returns what came in. */
   importStudioProject(source: string): { summary: string; sceneArtboardId: string | null };
+  /**
+   * Opens an animation as long as the narration (in the open artboard) and plays the narration
+   * with it in the preview; returns the animation.
+   */
+  openNarration(value: {
+    name: string;
+    bytes: Uint8Array;
+    duration: number;
+    lessonStart: number;
+    lines: { text: string; start: number; end: number }[];
+  }): Promise<{ clipId: string; fps: number; frames: number }>;
 }
 
 /** What the main process offers the steps (preload). */
 export interface PipelineBridge {
   pipelineReadProject(token: string): Promise<string>;
+  pipelineWords(token: string, kind: string, jobId: string): Promise<HeardWord[]>;
+  pipelineNarration(token: string, kind: string, start: number, end: number): Promise<Uint8Array>;
+  pipelineCancel(jobId: string): Promise<void>;
+  onPipelineProgress(callback: (event: { jobId: string; ratio: number }) => void): () => void;
 }
 
 export interface StepContext {
@@ -60,10 +76,91 @@ const importProject: PipelineStep = {
   },
 };
 
+const clock = (s: number) =>
+  `${Math.floor(s / 60)}:${Math.floor(s % 60)
+    .toString()
+    .padStart(2, "0")}`;
+
+/**
+ * The script's stretch in the lesson audio: the words of the audio (a lesson's transcripts, or the
+ * file transcribed now), then the sentences of the script among them. A sentence that is not heard
+ * stops the run, naming it.
+ */
+const findPiece: PipelineStep = {
+  id: "find-piece",
+  label: "Ouvir a aula e achar o trecho do roteiro",
+  async run(ctx) {
+    const audio = ctx.inputs.files.audio;
+    if (!audio) throw new Error("Escolha o áudio da aula.");
+    const jobId = `pipeline-${crypto.randomUUID()}`;
+    const stop = ctx.bridge.onPipelineProgress((event) => {
+      if (event.jobId === jobId) ctx.progress(event.ratio * 0.9, "Transcrevendo o áudio");
+    });
+    const cancel = () => void ctx.bridge.pipelineCancel(jobId);
+    ctx.signal.addEventListener("abort", cancel, { once: true });
+    let words: HeardWord[];
+    try {
+      ctx.progress(
+        0,
+        audio.kind === "lesson" ? "Lendo as transcrições da aula" : "Transcrevendo o áudio",
+      );
+      words = await ctx.bridge.pipelineWords(audio.token, audio.kind, jobId);
+    } finally {
+      stop();
+      ctx.signal.removeEventListener("abort", cancel);
+    }
+    ctx.signal.throwIfAborted();
+    ctx.progress(0.95, "Procurando o roteiro");
+    const piece: ScriptPiece = findScriptPiece(words, ctx.inputs.script);
+    ctx.results.piece = piece;
+    ctx.report.push(
+      `Trecho achado na aula de ${clock(piece.start)} a ${clock(piece.end)}, com ${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}.`,
+    );
+  },
+};
+
+/** Breath kept before the first sentence and after the last one. */
+const LEAD = 0.4;
+const TAIL = 0.8;
+
+/** The narration of the stretch, cut from the audio, and an animation as long as it. */
+const prepareNarration: PipelineStep = {
+  id: "narration",
+  label: "Preparar a narração na prévia",
+  async run(ctx) {
+    const audio = ctx.inputs.files.audio;
+    const piece = ctx.results.piece as ScriptPiece | undefined;
+    if (!audio || !piece) throw new Error("O trecho do roteiro não foi achado.");
+    const start = Math.max(0, piece.start - LEAD);
+    const end = piece.end + TAIL;
+    ctx.progress(0.2, "Cortando o áudio do trecho");
+    const bytes = await ctx.bridge.pipelineNarration(audio.token, audio.kind, start, end);
+    ctx.signal.throwIfAborted();
+    ctx.progress(0.7, "Criando a animação");
+    const clip = await ctx.editor.openNarration({
+      name: ctx.recipe.name,
+      bytes,
+      duration: end - start,
+      lessonStart: start,
+      lines: piece.lines.map((l) => ({ text: l.text, start: l.start - start, end: l.end - start })),
+    });
+    ctx.results.clip = clip;
+    ctx.results.lessonStart = start;
+  },
+};
+
 /** The steps of each kind of recipe, in order. */
 export function stepsFor(kind: RecipeKind): PipelineStep[] {
-  if (kind === "game-scene") return [importProject];
-  return [];
+  if (kind === "game-scene") return [importProject, findPiece, prepareNarration];
+  return [findPiece, prepareNarration];
+}
+
+/** What failed, in the person's words: without Electron's "Error invoking remote method" wrapper. */
+export function failureText(error: unknown): string {
+  const text = error instanceof Error ? error.message : "A etapa falhou.";
+  return (
+    text.replace(/^Error invoking remote method '[^']+': (?:\w*Error: )?/, "") || "A etapa falhou."
+  );
 }
 
 export interface RunOutcome {
@@ -109,12 +206,7 @@ export async function runPipeline(
       const cancelled = deps.signal.aborted;
       onState(
         step.id,
-        cancelled
-          ? { status: "cancelled" }
-          : {
-              status: "failed",
-              message: error instanceof Error ? error.message : "A etapa falhou.",
-            },
+        cancelled ? { status: "cancelled" } : { status: "failed", message: failureText(error) },
       );
       for (const rest of steps.slice(index + 1)) onState(rest.id, { status: "cancelled" });
       return { ok: false, report, results };

@@ -53,11 +53,11 @@ const picked = new Map<string, { path: string; kind: PickedFile["kind"] }>();
 export async function pickPipelineFile(
   win: BrowserWindow,
   kind: PickedFile["kind"],
-  defaultPath: string,
+  defaultPath: string | undefined,
 ): Promise<PickedFile | null> {
   if (!Object.hasOwn(FILTERS, kind)) throw new Error("Tipo de arquivo desconhecido.");
   const result = await dialog.showOpenDialog(win, {
-    defaultPath,
+    ...(defaultPath ? { defaultPath } : {}),
     filters: FILTERS[kind],
     properties: ["openFile", "dontAddToRecent"],
   });

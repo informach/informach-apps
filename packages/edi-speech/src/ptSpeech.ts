@@ -27,6 +27,9 @@ const STOP = new Set(
   ).split(" "),
 );
 
+/** Whether a normalized token is an article, a preposition or "e" (it says little about a passage). */
+export const isStopToken = (tok: string): boolean => STOP.has(tok);
+
 /** Colloquial forms and contractions, as the words they stand for. */
 const CONTRACTIONS: Record<string, string[]> = {
   pra: ["para"],

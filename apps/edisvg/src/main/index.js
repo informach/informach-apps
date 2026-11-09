@@ -18,6 +18,7 @@ import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
+import { cancelPipelineJob, pipelineNarration, pipelineWords } from "./pipelineEngine.ts";
 import {
   pickPipelineFile,
   readPickedProject,
@@ -69,6 +70,16 @@ function trusted(event) {
     new URL(event.senderFrame.url).href.split("#")[0] !== new URL(rendererUrl).href.split("#")[0]
   )
     throw new Error("Origem IPC não autorizada.");
+}
+/** A folder to open a dialog in: the one asked, else Documents, else home (some profiles lack them). */
+function folderFor(name) {
+  for (const candidate of [name, "documents", "home"])
+    try {
+      return app.getPath(candidate);
+    } catch {
+      // Not defined for this profile: the next one.
+    }
+  return undefined;
 }
 function handle(name, callback) {
   ipcMain.handle(name, async (event, ...args) => {
@@ -377,7 +388,7 @@ else {
       handle("game:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {
-          defaultPath: app.getPath("downloads"),
+          defaultPath: folderFor("downloads"),
           filters: [{ name: "Projeto do Estúdio (.szproject.json)", extensions: ["json"] }],
           properties: ["openFile", "dontAddToRecent"],
         });
@@ -391,13 +402,22 @@ else {
       handle("pipelines:read", () => readRecipeStore(app.getPath("userData")));
       handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
       handle("pipeline:pick", (kind) =>
-        pickPipelineFile(
-          win,
-          kind,
-          kind === "lesson" ? app.getPath("documents") : app.getPath("downloads"),
-        ),
+        pickPipelineFile(win, kind, folderFor(kind === "lesson" ? "documents" : "downloads")),
       );
       handle("pipeline:read-project", (token) => readPickedProject(token));
+      handle("pipeline:words", (token, kind, jobId) => {
+        if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
+          throw new Error("Identificador de tarefa inválido.");
+        return pipelineWords(token, kind, jobId, (ratio) =>
+          win?.webContents.send("pipeline:progress", { jobId, ratio }),
+        );
+      });
+      handle("pipeline:narration", (token, kind, start, end) =>
+        pipelineNarration(token, kind, Number(start), Number(end)),
+      );
+      handle("pipeline:cancel", (jobId) => {
+        if (typeof jobId === "string") cancelPipelineJob(jobId);
+      });
       handle("asset:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {

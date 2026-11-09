@@ -18,13 +18,16 @@
     "./node/installCheck": "./src/node/installCheck.ts",
     "./node/whisperAssets": "./src/node/whisperAssets.ts",
     "./node/whisperManifest": "./src/node/whisperManifest.ts",
-    "./node/whisper": "./src/node/whisper.ts"
+    "./node/whisper": "./src/node/whisper.ts",
+    "./piece": "./src/piece.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }

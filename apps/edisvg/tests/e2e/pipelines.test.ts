@@ -1,9 +1,42 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { chromium } from "playwright";
 import { parseProject } from "../../src/shared/project";
 import { rendererServer } from "../rendererServer";
 import { game } from "../szprojectFixture";
+
+/** Real whisper words of the lighthouse narration, said at 2:00 of a lesson. */
+const LESSON_WORDS = (
+  JSON.parse(
+    readFileSync(
+      new URL("../../../../packages/edi-speech/tests/fixtures/farol-words.json", import.meta.url),
+      "utf8",
+    ),
+  ).words as { text: string; start: number; end: number; p: number }[]
+).map((w) => ({ ...w, start: w.start + 120, end: w.end + 120 }));
+
+/** A silent mono WAV of `seconds`, as the main process cuts the narration. */
+function wav(seconds: number): number[] {
+  const rate = 22050;
+  const samples = Math.round(seconds * rate);
+  const data = Buffer.alloc(44 + samples * 2);
+  data.write("RIFF", 0);
+  data.writeUInt32LE(36 + samples * 2, 4);
+  data.write("WAVEfmt ", 8);
+  data.writeUInt32LE(16, 16);
+  data.writeUInt16LE(1, 20);
+  data.writeUInt16LE(1, 22);
+  data.writeUInt32LE(rate, 24);
+  data.writeUInt32LE(rate * 2, 28);
+  data.writeUInt16LE(2, 32);
+  data.writeUInt16LE(16, 34);
+  data.write("data", 36);
+  data.writeUInt32LE(samples * 2, 40);
+  for (let i = 0; i < samples; i++)
+    data.writeInt16LE(Math.round(Math.sin(i / 8) * 8000), 44 + i * 2);
+  return [...data];
+}
 
 /**
  * The desktop bridge of the pipelines, faked in the page: recipes kept in memory, file dialogs
@@ -20,8 +53,8 @@ const fakeDesktop = (project: string) => `
     };
     window.__pipelineWrites = 0;
     window.desktop = {
-      // The editor tells the app about every edit; nothing to do here.
-      projectChanged: async () => undefined,
+      // The editor tells the app about every edit; the app answers with the file's status.
+      projectChanged: async () => ({ name: "Sem arquivo", path: null, dirty: true }),
       pipelinesRead: async () => structuredClone(store),
       pipelinesWrite: async (value) => { window.__pipelineWrites++; store = structuredClone(value); return structuredClone(store); },
       pipelinePick: async (kind) => files[kind] ?? null,
@@ -29,6 +62,16 @@ const fakeDesktop = (project: string) => `
         if (token !== "file-projeto-0001") throw new Error("token");
         return ${JSON.stringify(project)};
       },
+      pipelineWords: async (token, kind) => {
+        if (token !== "file-audio-00001" || kind !== "audio") throw new Error("audio");
+        return ${JSON.stringify(LESSON_WORDS)};
+      },
+      pipelineNarration: async (token, kind, start, end) => {
+        window.__narration = [start, end];
+        return new Uint8Array(${JSON.stringify(wav(9))});
+      },
+      pipelineCancel: async () => undefined,
+      onPipelineProgress: () => () => undefined,
     };
   })();`;
 
@@ -84,7 +127,9 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     await dialog.getByText("aula-inteira.mp3").waitFor();
     await dialog
       .getByLabel("Roteiro do trecho (só a parte desta cena)")
-      .fill("O personagem precisa encontrar a chave antes de chegar ao farol.");
+      .fill(
+        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+      );
     await page.screenshot({ path: "test-results/pipelines-run.png" });
     await run.click();
     await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
@@ -95,6 +140,42 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
       JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
     );
     assert.equal(project.artboards.at(-1)?.name, "Cena · A Chave do Farol");
+    // The stretch of the lesson: "O personagem" at 2:15.98 to "muda." at 2:24.9, with breath.
+    await dialog.getByText(/Trecho achado na aula de 2:15 a 2:24, com 2 frases\./).waitFor();
+    const cut = (await page.evaluate("window.__narration")) as [number, number];
+    assert.ok(Math.abs(cut[0] - (135.98 - 0.4)) < 0.2, `cut from ${cut[0]}`);
+    assert.ok(Math.abs(cut[1] - (144.9 + 0.8)) < 0.4, `cut to ${cut[1]}`);
+    // An animation as long as the narration, opened with the narration over its timeline.
+    const clip = project.motion.animations.at(-1);
+    assert.equal(clip?.name, "Narração · Cena animada do jogo");
+    assert.equal(clip?.fps, 30);
+    assert.equal(clip?.frames, Math.ceil((cut[1] - cut[0]) * 30));
+    await page.getByRole("button", { name: "Fechar pipelines" }).click();
+    const bar = page.locator(".narration-bar");
+    await bar.waitFor();
+    assert.deepEqual(await bar.locator(".narration-line").allTextContents(), [
+      "O personagem precisa encontrar a chave antes de chegar ao farol.",
+      "Quando ele pegar a chave, o aviso muda.",
+    ]);
+    // A click on a sentence takes the playhead there and lights it.
+    await bar.locator(".narration-line").nth(1).click();
+    await bar.locator(".narration-line.is-now").getByText("Quando ele pegar a chave").waitFor();
+    // The narration loads under the page's CSP (media from blob:) and has its length.
+    const loaded = await page.evaluate(
+      () =>
+        new Promise<number>((done, fail) => {
+          const audio = document.querySelector<HTMLAudioElement>("audio[data-narration]");
+          if (!audio) return fail(new Error("no narration element"));
+          if (audio.readyState >= 1) return done(audio.duration);
+          setTimeout(() => fail(new Error("narration did not load in 10 s")), 10_000);
+          audio.addEventListener("loadedmetadata", () => done(audio.duration), { once: true });
+          audio.addEventListener("error", () => fail(new Error("narration did not decode")), {
+            once: true,
+          });
+        }),
+    );
+    assert.ok(Math.abs(loaded - 9) < 0.1, `narration of ${loaded} s`);
+    await page.screenshot({ path: "test-results/pipelines-narration.png" });
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

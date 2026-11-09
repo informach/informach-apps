@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { runPipeline } from "../renderer/src/pipelines/runner";
+import { failureText, runPipeline } from "../renderer/src/pipelines/runner";
 import {
   BUILT_IN_RECIPES,
   duplicateRecipe,
@@ -86,8 +86,17 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
     textPalette: ["#ffffff"],
   };
   const deps = (signal: AbortSignal) => ({
-    editor: { importStudioProject: () => ({ summary: "", sceneArtboardId: null }) },
-    bridge: { pipelineReadProject: async () => "" },
+    editor: {
+      importStudioProject: () => ({ summary: "", sceneArtboardId: null }),
+      openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
+    },
+    bridge: {
+      pipelineReadProject: async () => "",
+      pipelineWords: async () => [],
+      pipelineNarration: async () => new Uint8Array(),
+      pipelineCancel: async () => undefined,
+      onPipelineProgress: () => () => undefined,
+    },
     signal,
   });
   const log: string[] = [];
@@ -140,4 +149,20 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
   );
   assert.equal(cancelled.ok, false);
   assert.deepEqual(states.slice(2), ["x:running", "x:cancelled", "y:cancelled"]);
+});
+
+test("a failure from the main process is said without Electron's wrapper", () => {
+  assert.equal(
+    failureText(
+      new Error(
+        "Error invoking remote method 'pipeline:words': Error: A transcrição ainda não está instalada.",
+      ),
+    ),
+    "A transcrição ainda não está instalada.",
+  );
+  assert.equal(
+    failureText(new Error("Não achei esse roteiro no áudio.")),
+    "Não achei esse roteiro no áudio.",
+  );
+  assert.equal(failureText("x"), "A etapa falhou.");
 });

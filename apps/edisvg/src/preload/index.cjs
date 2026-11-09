@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelinesWrite: (store) => ipcRenderer.invoke("pipelines:write", store),
   pipelinePick: (kind) => ipcRenderer.invoke("pipeline:pick", kind),
   pipelineReadProject: (token) => ipcRenderer.invoke("pipeline:read-project", token),
+  pipelineWords: (token, kind, jobId) => ipcRenderer.invoke("pipeline:words", token, kind, jobId),
+  pipelineNarration: (token, kind, start, end) =>
+    ipcRenderer.invoke("pipeline:narration", token, kind, start, end),
+  pipelineCancel: (jobId) => ipcRenderer.invoke("pipeline:cancel", jobId),
+  onPipelineProgress: (callback) => subscribe("pipeline:progress", callback),
   importAsset: () => ipcRenderer.invoke("asset:import"),
   projectOpen: () => ipcRenderer.invoke("project:open"),
   projectSave: (project, as = false) => ipcRenderer.invoke("project:save", project, as),

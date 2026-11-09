@@ -1,0 +1,383 @@
+{
+  "source": "whisper small (pt) de uma fala sintetizada pela voz Microsoft Maria, 08/11/2026",
+  "words": [
+    {
+      "text": "Bom",
+      "start": 0.17,
+      "end": 0.42,
+      "p": 0.88
+    },
+    {
+      "text": "dia,",
+      "start": 0.61,
+      "end": 0.86,
+      "p": 0.99
+    },
+    {
+      "text": "turma,",
+      "start": 1.21,
+      "end": 1.61,
+      "p": 0.96
+    },
+    {
+      "text": "hoje",
+      "start": 2.76,
+      "end": 3.01,
+      "p": 0.95
+    },
+    {
+      "text": "vamos",
+      "start": 3.14,
+      "end": 3.39,
+      "p": 0.97
+    },
+    {
+      "text": "criar",
+      "start": 3.58,
+      "end": 3.83,
+      "p": 0.96
+    },
+    {
+      "text": "o",
+      "start": 3.83,
+      "end": 4.07,
+      "p": 0.99
+    },
+    {
+      "text": "jogo",
+      "start": 4.12,
+      "end": 4.37,
+      "p": 0.91
+    },
+    {
+      "text": "do",
+      "start": 4.37,
+      "end": 4.59,
+      "p": 0.99
+    },
+    {
+      "text": "farol,",
+      "start": 4.66,
+      "end": 5.041,
+      "p": 0.91
+    },
+    {
+      "text": "primeiro,",
+      "start": 6.4,
+      "end": 6.65,
+      "p": 0.98
+    },
+    {
+      "text": "abra",
+      "start": 7.22,
+      "end": 7.47,
+      "p": 0.79
+    },
+    {
+      "text": "a",
+      "start": 7.47,
+      "end": 7.69,
+      "p": 0.74
+    },
+    {
+      "text": "aba",
+      "start": 7.69,
+      "end": 7.91,
+      "p": 0.92
+    },
+    {
+      "text": "de",
+      "start": 7.91,
+      "end": 8.11,
+      "p": 0.99
+    },
+    {
+      "text": "programação,",
+      "start": 8.22,
+      "end": 9.01,
+      "p": 0.93
+    },
+    {
+      "text": "depois,",
+      "start": 10.36,
+      "end": 10.61,
+      "p": 1
+    },
+    {
+      "text": "arraste",
+      "start": 11.08,
+      "end": 11.71,
+      "p": 0.98
+    },
+    {
+      "text": "o",
+      "start": 11.71,
+      "end": 11.81,
+      "p": 1
+    },
+    {
+      "text": "bloco",
+      "start": 11.81,
+      "end": 12.25,
+      "p": 0.99
+    },
+    {
+      "text": "de",
+      "start": 12.25,
+      "end": 12.45,
+      "p": 1
+    },
+    {
+      "text": "variáveis",
+      "start": 12.45,
+      "end": 13.07,
+      "p": 0.99
+    },
+    {
+      "text": "para",
+      "start": 13.24,
+      "end": 13.49,
+      "p": 0.99
+    },
+    {
+      "text": "o",
+      "start": 13.49,
+      "end": 13.63,
+      "p": 1
+    },
+    {
+      "text": "começo",
+      "start": 13.88,
+      "end": 14.13,
+      "p": 0.99
+    },
+    {
+      "text": "do",
+      "start": 14.13,
+      "end": 14.35,
+      "p": 1
+    },
+    {
+      "text": "programa.",
+      "start": 14.72,
+      "end": 14.97,
+      "p": 1
+    },
+    {
+      "text": "O",
+      "start": 15.98,
+      "end": 16.18,
+      "p": 0.65
+    },
+    {
+      "text": "personagem",
+      "start": 16.55,
+      "end": 16.8,
+      "p": 0.99
+    },
+    {
+      "text": "precisa",
+      "start": 17.29,
+      "end": 17.54,
+      "p": 0.99
+    },
+    {
+      "text": "encontrar",
+      "start": 18.03,
+      "end": 18.28,
+      "p": 1
+    },
+    {
+      "text": "a",
+      "start": 18.33,
+      "end": 18.58,
+      "p": 1
+    },
+    {
+      "text": "chave",
+      "start": 18.58,
+      "end": 18.94,
+      "p": 0.99
+    },
+    {
+      "text": "antes",
+      "start": 19.07,
+      "end": 19.32,
+      "p": 1
+    },
+    {
+      "text": "de",
+      "start": 19.35,
+      "end": 19.6,
+      "p": 1
+    },
+    {
+      "text": "chegar",
+      "start": 19.71,
+      "end": 19.96,
+      "p": 1
+    },
+    {
+      "text": "ao",
+      "start": 19.96,
+      "end": 20.18,
+      "p": 0.99
+    },
+    {
+      "text": "farol,",
+      "start": 20.23,
+      "end": 20.619,
+      "p": 1
+    },
+    {
+      "text": "quando",
+      "start": 21.79,
+      "end": 22.04,
+      "p": 1
+    },
+    {
+      "text": "ele",
+      "start": 22.04,
+      "end": 22.24,
+      "p": 1
+    },
+    {
+      "text": "pegar",
+      "start": 22.31,
+      "end": 22.56,
+      "p": 1
+    },
+    {
+      "text": "a",
+      "start": 22.57,
+      "end": 22.82,
+      "p": 0.99
+    },
+    {
+      "text": "chave,",
+      "start": 22.87,
+      "end": 23.38,
+      "p": 1
+    },
+    {
+      "text": "o",
+      "start": 23.61,
+      "end": 23.86,
+      "p": 1
+    },
+    {
+      "text": "aviso",
+      "start": 23.86,
+      "end": 24.28,
+      "p": 1
+    },
+    {
+      "text": "muda.",
+      "start": 24.43,
+      "end": 24.756,
+      "p": 1
+    },
+    {
+      "text": "Por",
+      "start": 25.83,
+      "end": 26.08,
+      "p": 0.74
+    },
+    {
+      "text": "enfim,",
+      "start": 26.21,
+      "end": 26.46,
+      "p": 0.58
+    },
+    {
+      "text": "o",
+      "start": 26.67,
+      "end": 26.92,
+      "p": 1
+    },
+    {
+      "text": "farol",
+      "start": 26.92,
+      "end": 27.28,
+      "p": 1
+    },
+    {
+      "text": "acende",
+      "start": 27.31,
+      "end": 27.72,
+      "p": 0.85
+    },
+    {
+      "text": "e",
+      "start": 27.77,
+      "end": 28.02,
+      "p": 1
+    },
+    {
+      "text": "o",
+      "start": 28.02,
+      "end": 28.14,
+      "p": 1
+    },
+    {
+      "text": "barco",
+      "start": 28.14,
+      "end": 28.58,
+      "p": 0.99
+    },
+    {
+      "text": "chega",
+      "start": 28.67,
+      "end": 28.92,
+      "p": 0.99
+    },
+    {
+      "text": "na",
+      "start": 28.93,
+      "end": 29.18,
+      "p": 0.99
+    },
+    {
+      "text": "praia.",
+      "start": 29.25,
+      "end": 29.646,
+      "p": 1
+    },
+    {
+      "text": "Muito",
+      "start": 30.72,
+      "end": 30.97,
+      "p": 0.95
+    },
+    {
+      "text": "bem,",
+      "start": 31.1,
+      "end": 31.35,
+      "p": 0.99
+    },
+    {
+      "text": "terminamos",
+      "start": 31.82,
+      "end": 32.39,
+      "p": 0.99
+    },
+    {
+      "text": "a",
+      "start": 32.39,
+      "end": 32.57,
+      "p": 0.99
+    },
+    {
+      "text": "primeira",
+      "start": 32.7,
+      "end": 32.95,
+      "p": 1
+    },
+    {
+      "text": "parte.",
+      "start": 33.38,
+      "end": 33.63,
+      "p": 0.99
+    }
+  ]
+}

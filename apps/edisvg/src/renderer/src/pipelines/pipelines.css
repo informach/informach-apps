@@ -141,3 +141,60 @@ dialog.pipelines-dialog > .help-content {
 .pipeline-outcome p {
   margin: 6px 0 0;
 }
+
+/* The narration of a pipeline run, over the timeline of its animation (pipelines/narration.ts). */
+.narration-bar {
+  display: grid;
+  grid-template-columns: var(--track-label) 1fr;
+  grid-template-rows: 30px auto;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.narration-label {
+  padding-left: 12px;
+  color: var(--mint);
+  font-weight: 600;
+}
+.narration-lane {
+  position: relative;
+  height: 26px;
+  margin-right: 20px;
+  border-radius: 4px;
+  background: var(--panel2);
+  overflow: hidden;
+}
+.narration-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.narration-line {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--mint) 45%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mint) 10%, transparent);
+  color: var(--text);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.narration-line.is-now {
+  border-color: var(--mint);
+  background: color-mix(in srgb, var(--mint) 28%, transparent);
+}
+.narration-now {
+  grid-column: 2;
+  padding: 0 20px 6px 0;
+  color: var(--muted);
+  min-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

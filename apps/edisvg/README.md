@@ -16,6 +16,55 @@ instalado uma vez por aplicativo, sem Electron, conta ou serviço do editor. O f
 exclusivo do Sistema Zero e não está publicado no npm. O projeto `.edisvg` continua sendo o
 arquivo editável; guarde-o para futuras revisões.
 
+## Pipelines (receitas)
+
+Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente e a paleta
+de texto. Ao rodar, você escolhe só o que muda naquela vez: os arquivos e o roteiro do trecho.
+Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipelines** da barra lateral ou
+pela paleta de comandos.
+
+Duas receitas vêm prontas. Elas podem ser editadas ("Voltar ao original" desfaz a edição),
+duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
+
+- **Cena animada do jogo**
+  - Recebe um projeto do Estúdio, o áudio da aula inteira (um arquivo, ou uma aula do EdiAula) e
+    o roteiro só desta cena.
+  - Importa as imagens (como em "Importar um projeto do Estúdio", abaixo), acha o trecho no áudio
+    e o tempo de cada frase, e abre uma animação do tamanho do trecho, com a narração tocando
+    junto.
+- **Demonstração passo a passo**
+  - Recebe o vídeo gravado na tela, o áudio e o roteiro, e faz o mesmo com a narração.
+
+**Como o trecho é achado.**
+1. As palavras ditas vêm das transcrições da aula do EdiAula, nas faixas que soam. Se for um
+   arquivo de áudio, ele é transcrito na hora com o motor e os modelos do EdiAula, e uma
+   transcrição já feita no EdiAula é reaproveitada.
+2. O roteiro é procurado pela janela da aula com mais palavras dele, e cada frase é alinhada só
+   ali (`@informach/edi-speech/piece`).
+3. Uma frase que não aparece no áudio para o pipeline, que diz qual é. Nenhum tempo é chutado.
+
+**A narração na prévia.** Uma barra acima da linha do tempo mostra as frases do trecho sobre a
+forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela. O áudio toca com
+a animação e para com ela.
+
+A narração é só referência: não entra no projeto nem nas exportações, e dura enquanto o arquivo
+está aberto (rodar de novo a substitui). O áudio do trecho é cortado do arquivo ou mixado das vozes
+da aula, num WAV mono pequeno.
+
+**Onde fica cada coisa.**
+- As receitas ficam em `userData/pipelines.json`.
+- Um arquivo escolhido para o pipeline fica só no processo principal, que dá à janela um token.
+  Assim, as etapas pesadas só abrem o que a pessoa escolheu.
+
+Plano e decisões: [pipelines no EdiSVG](../../docs/propostas/edisvg-pipelines-2026-11-08/plano.md).
+
+**Testes.**
+- Unitários: o modelo e o executor.
+- e2e: o painel no editor compilado, com a ponte falsa.
+- `test:media-native`: o corte e a mixagem com o FFmpeg da suíte.
+- Jornada nativa (`scripts/native-pipeline-journey.mts`): a receita da Cena com uma aula do
+  EdiAula no Electron. Com `EDISVG_PIPELINE_WHISPER=1`, também um áudio transcrito.
+
 ## Importar um projeto do Estúdio (`.szproject.json`)
 
 Para montar motion das aulas com a arte dos jogos do Estúdio, use **Arquivo → Importar projeto

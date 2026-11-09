@@ -17,6 +17,12 @@ import {
 } from "./toolbar.js";
 import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
+import {
+  markNarrationNow,
+  mountNarrationBar,
+  setNarration,
+  syncNarration,
+} from "./pipelines/narration";
 import { mountPipelines } from "./pipelines/pipelines-panel";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
@@ -1013,6 +1019,14 @@ function render() {
     }
   }
   updatePose();
+  // The narration of a pipeline run, over the timeline of its animation.
+  mountNarrationBar(
+    document,
+    state.view === "animate" ? state.activeClipId : null,
+    state.frame / currentAnimation().fps,
+    // The first frame inside the sentence (rounding could land just before it).
+    (seconds) => seek(Math.ceil(seconds * currentAnimation().fps - 1e-6)),
+  );
   refreshHistoryControls();
   scheduleTick();
   if (workspaceWarning && workspaceWarning !== reportedWorkspaceWarning) {
@@ -1592,6 +1606,13 @@ function updatePose() {
   if ($("#playhead-head") && $("#playhead")?.dataset.timelineWidth)
     $("#playhead-head").style.left =
       `${(Number($("#playhead").dataset.timelineWidth) * state.frame) / a.frames}px`;
+  // A pipeline's narration plays with its animation and lights the sentence being said.
+  syncNarration(
+    state.view === "animate" ? state.activeClipId : null,
+    state.playing,
+    state.frame / a.fps,
+  );
+  markNarrationNow(document, state.frame / a.fps);
 }
 function action(id) {
   if (["commands", "object", "animation", "view"].includes(id))
@@ -1939,6 +1960,44 @@ function applyGameProject(source) {
   return { summary: plan.summary, sceneArtboardId: plan.sceneArtboardId, parts: parts.length };
 }
 /**
+ * A pipeline's narration: a new animation as long as it, opened, with the narration playing in
+ * the preview (a reference, never exported). One edit (the animation) for the history.
+ */
+async function openNarration(value) {
+  const fps = 30;
+  const frames = Math.max(1, Math.ceil(value.duration * fps));
+  const id = `animation-${crypto.randomUUID()}`;
+  transact([
+    {
+      type: "motion",
+      command: {
+        type: "create-animation",
+        animation: {
+          id,
+          name: `Narração · ${value.name}`.slice(0, 120),
+          fps,
+          frames,
+          mode: "once",
+          tracks: [],
+        },
+      },
+    },
+  ]);
+  await setNarration({
+    clipId: id,
+    bytes: value.bytes,
+    duration: value.duration,
+    lessonStart: value.lessonStart,
+    lines: value.lines,
+  });
+  state.activeClipId = id;
+  state.view = "animate";
+  state.frame = 0;
+  state.playing = false;
+  render();
+  return { clipId: id, fps, frames };
+}
+/**
  * Arquivo → Pipelines…: the recipes, and running one on the open file. Its dialog lives outside
  * the editor's markup: a run edits the document, and every render rebuilds that markup (the
  * #clip-dialog with it), which would close the dialog in the middle of the run.
@@ -1961,6 +2020,7 @@ function openPipelines() {
     desktop: window.desktop,
     editor: {
       importStudioProject: (source) => applyGameProject(source),
+      openNarration: (value) => openNarration(value),
     },
     report: notify,
   });

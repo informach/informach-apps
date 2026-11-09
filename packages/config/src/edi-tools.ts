@@ -50,6 +50,9 @@ export const EDI_TOOLS = [
     windowsAppId: "br.com.informach.edisvg",
     description: "Anime ilustrações vetoriais",
     projectExtensions: ["edisvg"],
+    // The pipelines transcribe the lesson audio and cut the narration (and, for the screen
+    // demo, encode the transparent layer) with the suite's FFmpeg.
+    nativeMedia: { testScript: "test:media-native" },
   },
   {
     id: "ediplayer",
